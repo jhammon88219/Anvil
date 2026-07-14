@@ -28,6 +28,10 @@
             <ctl:OverlayBar.CardContent>
                 <sections:TemporalCards ViewModel="{x:Bind ViewModel}"/>
             </ctl:OverlayBar.CardContent>
+            <!-- App-wide settings card (right side), the mirror of the temporal cards; opened by the cog. -->
+            <ctl:OverlayBar.SettingsCardContent>
+                <sections:AppSettingsCard ViewModel="{x:Bind ViewModel}"/>
+            </ctl:OverlayBar.SettingsCardContent>
             <ctl:OverlayBar.BarContent>
                 <!-- Single overlay cell: RadarControls STRETCHES to full bar width and centers its own
                      transport at window-center (its internal * | Auto | * grid does the centering); the
@@ -44,9 +48,46 @@
                     <sections:TemporalToggles HorizontalAlignment="Left"
                                               VerticalAlignment="Center"
                                               ViewModel="{x:Bind ViewModel}"/>
+                    <!-- Right: the Radar Site Explorer button + the app-wide settings cog, overlaid on the
+                         right empty edge (mirror of the temporal toggles). Sites sits LEFT of Settings.
+                         Each latches while its panel/card is open. -->
+                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center"
+                                Orientation="Horizontal" Spacing="10">
+                        <StackPanel Orientation="Vertical" Spacing="5">
+                            <TextBlock Text="Sites" FontSize="11" FontWeight="SemiBold"
+                                       CharacterSpacing="60" HorizontalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                            <ToggleButton Width="40" Height="40" MinWidth="0" MinHeight="0" Padding="0"
+                                          CornerRadius="6"
+                                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="18"
+                                          Content="&#xE81E;"
+                                          ToolTipService.ToolTip="Radar site explorer"
+                                          IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Vertical" Spacing="5">
+                            <TextBlock Text="Settings" FontSize="11" FontWeight="SemiBold"
+                                       CharacterSpacing="60" HorizontalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                            <ToggleButton Width="40" Height="40" MinWidth="0" MinHeight="0" Padding="0"
+                                          CornerRadius="6"
+                                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="18"
+                                          Content="&#xE713;"
+                                          ToolTipService.ToolTip="App settings"
+                                          IsChecked="{x:Bind ViewModel.IsSettingsCardOpen, Mode=TwoWay}"/>
+                        </StackPanel>
+                    </StackPanel>
                 </Grid>
             </ctl:OverlayBar.BarContent>
         </ctl:OverlayBar>
+
+        <!-- Radar Site Explorer: a non-modal floating panel over the map (a sibling of the bar, NOT hosted
+             in the bar's small cog-anchored card slots — it's a larger free panel). Floats bottom-right,
+             clearing the bar's height. Its own visibility follows ViewModel.IsSiteExplorerOpen. -->
+        <sections:RadarSiteExplorer VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                                    Margin="0,0,16,96"
+                                    ViewModel="{x:Bind ViewModel}"/>
 
     </Grid>
 </Window>

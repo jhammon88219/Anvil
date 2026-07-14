@@ -89,17 +89,24 @@ namespace OfflineMapsTest.ViewModels
 			{
 				if (_selectedRadarOption?.Site is null) return string.Empty;
 				// Replay has no live poll to fill _liveModeText, so read the DISPLAYED frame's own mode
-				// (VCP + regime parsed from its cached tilt). Live loops keep the single poll value,
-				// which carries the fuller "0.5°×N · SAILS" detail across all frames.
+				// (VCP + regime parsed from its cached tilt). Live loops normally keep the single poll
+				// value, which carries the fuller "0.5°×N · SAILS" detail across all frames — but a site
+				// that's offline/stale (e.g. the intermittent test radar KCRI) or whose live poll hasn't
+				// landed yet never fills _liveModeText, so fall back to the displayed archive frame's own
+				// mode (the same source replay uses) before giving up to "—".
 				if (IsPastEventMode)
 				{
-					var m = (_currentFrameIndex >= 0 && _currentFrameIndex < _frameModes.Length)
-						? _frameModes[_currentFrameIndex] : null;
-					return m ?? (_isLoopReady ? "—" : "loading…");
+					return DisplayedFrameMode() ?? (_isLoopReady ? "—" : "loading…");
 				}
-				return _liveModeText ?? (_isLoopReady ? "—" : "loading…");
+				return _liveModeText ?? DisplayedFrameMode() ?? (_isLoopReady ? "—" : "loading…");
 			}
 		}
+
+		// The VCP/regime mode string of the currently displayed frame, parsed from its cached tilt
+		// (null when that frame's mode isn't known yet). Used by both replay and the live-loop fallback.
+		private string? DisplayedFrameMode() =>
+			(_currentFrameIndex >= 0 && _currentFrameIndex < _frameModes.Length)
+				? _frameModes[_currentFrameIndex] : null;
 
 		// Velocity build progress, pushed from radar.js (radarBuildProgress). Velocity geometry is built
 		// lazily (it's the one product that must dealias — ~1.5 s/frame on big super-res volumes), so on a
@@ -123,7 +130,10 @@ namespace OfflineMapsTest.ViewModels
 		// progress info returns true so playback never stalls on absent data.
 		private bool IsFrameDisplayReady(int idx)
 		{
-			if (_radarProductIndex != 1) return true;      // reflectivity / CC are always built
+			// Non-lazy products (reflectivity / CC) are always built; only a lazy product (velocity) can
+			// be not-yet-ready. Mirrors the JS radar-products.js `lazy` flag via RadarProductOptions.
+			if (_radarProductIndex < 0 || _radarProductIndex >= RadarProductOptions.Count
+				|| !RadarProductOptions[_radarProductIndex].IsLazy) return true;
 			if (_velReady.Length == 0) return true;        // no progress pushed yet — don't stall
 			if (idx < 0 || idx >= _velReady.Length) return true;
 			return _velReady[idx];

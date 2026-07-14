@@ -46,6 +46,8 @@ namespace OfflineMapsTest.ViewModels
 		// Whether the on-map radar site marker buttons are shown. Independent of the radar
 		// layer: hiding the markers leaves any active loop rendering.
 		private bool _radarSitesVisible = true;
+		private bool _showResearchRadars;   // research/test radars (KCRI) hidden until opted in
+		private bool _showTdwrs;            // Terminal Doppler Weather Radars (T***) hidden until opted in
 
 		// Radar loop state. The loop is a sequence of recent volumes (newest last).
 		// _frameTimes[i] is set as each frame's volume caches; _readyCount tracks how many
@@ -613,8 +615,22 @@ namespace OfflineMapsTest.ViewModels
 			}
 		}
 
-		// 0 = reflectivity, 1 = velocity, 2 = correlation coefficient. Bound to the Radar Loop
-		// tool window's Product combo.
+		/// <summary>The radar products (moments) selectable in the Product combo — the single source the
+		/// combo binds to, mirroring the JS registry in <c>radar-products.js</c>. <see cref="RadarProductOption.Id"/>
+		/// must match the JS product id passed to <c>window.setRadarProduct</c>; <see cref="RadarProductOption.IsLazy"/>
+		/// marks the expensive-to-build product (velocity) whose frames aren't display-ready until built.
+		/// Adding a product = one entry here + the JS side (a build fn + ramp + registry entry).</summary>
+		public IReadOnlyList<RadarProductOption> RadarProductOptions { get; } = new[]
+		{
+			new RadarProductOption("reflectivity", "Reflectivity", false),
+			new RadarProductOption("velocity", "Velocity", true),
+			new RadarProductOption("cc", "Correlation Coefficient", false),
+			new RadarProductOption("kdp", "Specific Differential Phase", false),
+			new RadarProductOption("zdr", "Differential Reflectivity", false),
+			new RadarProductOption("sw", "Spectrum Width", false),
+		};
+
+		// Index into RadarProductOptions. Bound to the Radar console's Product combo (SelectedIndex).
 		private int _radarProductIndex;
 
 		/// <summary>Selected radar product index (0 = Reflectivity, 1 = Velocity, 2 = Correlation Coeff).</summary>
@@ -639,9 +655,9 @@ namespace OfflineMapsTest.ViewModels
 				// building, the not-yet-built cells drop to "loading" and fill in, same as any load.
 				RefreshSegmentReadiness();
 
-				if (_isMapReady)
+				if (_isMapReady && value >= 0 && value < RadarProductOptions.Count)
 				{
-					_ = _mapService.SetRadarProductAsync(value switch { 1 => "velocity", 2 => "cc", _ => "reflectivity" });
+					_ = _mapService.SetRadarProductAsync(RadarProductOptions[value].Id);
 				}
 			}
 		}
@@ -677,6 +693,58 @@ namespace OfflineMapsTest.ViewModels
 		/// <summary>Flips <see cref="RadarSitesVisible"/>; bound to the ribbon toggle button.</summary>
 		public void ToggleRadarSitesVisible() => RadarSitesVisible = !_radarSitesVisible;
 
+		/// <summary>
+		/// Whether the research/test radar markers (e.g. KCRI) are shown — the "Show Research Radars"
+		/// toggle. Off by default (an opt-in extra layer, mirroring RadarScope). Independent of the
+		/// operational "Show Sites" toggle and of any active loop; a research site loads/renders
+		/// through the same pipeline as an operational one.
+		/// </summary>
+		public bool ShowResearchRadars
+		{
+			get => _showResearchRadars;
+			set
+			{
+				if (_showResearchRadars == value)
+				{
+					return;
+				}
+
+				_showResearchRadars = value;
+				OnPropertyChanged();
+
+				if (_isMapReady)
+				{
+					_ = _mapService.SetResearchRadarsVisibleAsync(value);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Whether the TDWR markers (the FAA Terminal Doppler Weather Radar `T***` network) are shown —
+		/// the "Show TDWRs" toggle. Off by default (an opt-in extra layer, mirroring RadarScope).
+		/// Independent of the operational "Show Sites" and "Show Research Radars" toggles and of any
+		/// active loop; a TDWR loads/renders through the same pipeline as an operational site.
+		/// </summary>
+		public bool ShowTdwrs
+		{
+			get => _showTdwrs;
+			set
+			{
+				if (_showTdwrs == value)
+				{
+					return;
+				}
+
+				_showTdwrs = value;
+				OnPropertyChanged();
+
+				if (_isMapReady)
+				{
+					_ = _mapService.SetTdwrsVisibleAsync(value);
+				}
+			}
+		}
+
 		// App-lifetime 1s tick that advances the radar next-update progress bar.
 		private async Task RunProgressTickAsync()
 		{
@@ -694,10 +762,17 @@ namespace OfflineMapsTest.ViewModels
 		{
 			_isMapReady = true;
 
-			// Provide the radar sites as clickable on-map markers.
+			// Provide the radar sites as clickable on-map markers. `research`/`tdwr` flag the extra
+			// networks so the page can gate them behind the "Show Research Radars" / "Show TDWRs" toggles.
 			var sites = _radarSiteProvider.GetSites()
-				.Select(s => new { id = s.Id, name = s.Name, lng = s.Longitude, lat = s.Latitude });
+				.Select(s => new { id = s.Id, name = s.Name, lng = s.Longitude, lat = s.Latitude,
+					research = s.Class == RadarSiteClass.Research, tdwr = s.Class == RadarSiteClass.Tdwr });
 			await _mapService.ShowRadarSitesAsync(System.Text.Json.JsonSerializer.Serialize(sites));
+
+			// Push the current extra-network visibility (off by default — the page defaults to hidden
+			// too, but be explicit so the toggles and the page never disagree on startup).
+			await _mapService.SetResearchRadarsVisibleAsync(_showResearchRadars);
+			await _mapService.SetTdwrsVisibleAsync(_showTdwrs);
 
 			// Flag sites with no recent data ("offline") and keep that refreshed.
 			_ = RunSiteStatusLoopAsync();

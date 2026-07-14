@@ -23,6 +23,10 @@ Usage (TIME IS UTC -- the app's "Selected Site" card shows UTC scan time, so the
 Output (in the current folder):
     <SITE>_<yyyymmdd>_<hhmm>_refl.png
     <SITE>_<yyyymmdd>_<hhmm>_vel.png
+    <SITE>_<yyyymmdd>_<hhmm>_sw.png      (spectrum width, gate-for-gate check)
+    <SITE>_<yyyymmdd>_<hhmm>_zdr.png     (dual-pol volumes: differential reflectivity, gate-for-gate check)
+    <SITE>_<yyyymmdd>_<hhmm>_phidp.png   (dual-pol volumes: differential phase, the KDP input)
+    <SITE>_<yyyymmdd>_<hhmm>_kdp.png     (dual-pol volumes: Py-ART KDP retrieval, structural answer key)
 """
 
 import sys
@@ -191,6 +195,72 @@ def main():
         fig.savefig(stamp + "_vel.png", dpi=110, bbox_inches="tight")
         plt.close(fig)
         print("  wrote %s_vel.png" % stamp)
+
+    # --- Spectrum width (lowest velocity/Doppler sweep) ---
+    # A DIRECT moment read in the app (the Doppler cut, same sweep as velocity) — a gate-for-gate decode
+    # check for the app's `spectrum` moment.
+    if "spectrum_width" in radar.fields and vs is not None:
+        SW_CMAP = cmap_name("pyart_NWS_SPW", "NWS_SPW", "pyart_HomeyerRainbow", "viridis")
+        fig = plt.figure(figsize=(8, 8))
+        disp.plot("spectrum_width", vs, vmin=0, vmax=14, cmap=SW_CMAP,
+                  title="%s  spectrum width 0.5deg  %s UTC  (Py-ART)" % (site, actual.strftime("%Y-%m-%d %H:%M")))
+        disp.plot_range_rings([50, 100, 150, 200])
+        disp.set_limits(xlim=(-RANGE_KM, RANGE_KM), ylim=(-RANGE_KM, RANGE_KM))
+        fig.savefig(stamp + "_sw.png", dpi=110, bbox_inches="tight")
+        plt.close(fig)
+        print("  wrote %s_sw.png" % stamp)
+
+    # --- Differential reflectivity (ZDR, lowest sweep) ---
+    # A DIRECT moment read in the app, so this is a gate-for-gate decode check for the app's `zdr` moment
+    # (compare values with Inspect, not just structure).
+    if "differential_reflectivity" in radar.fields:
+        ZDR_CMAP = cmap_name("pyart_RefDiff", "RefDiff", "pyart_HomeyerRainbow", "viridis")
+        fig = plt.figure(figsize=(8, 8))
+        disp.plot("differential_reflectivity", 0, vmin=-4, vmax=6, cmap=ZDR_CMAP,
+                  title="%s  differential reflectivity (ZDR) 0.5deg  %s UTC  (Py-ART)" % (site, actual.strftime("%Y-%m-%d %H:%M")))
+        disp.plot_range_rings([50, 100, 150, 200])
+        disp.set_limits(xlim=(-RANGE_KM, RANGE_KM), ylim=(-RANGE_KM, RANGE_KM))
+        fig.savefig(stamp + "_zdr.png", dpi=110, bbox_inches="tight")
+        plt.close(fig)
+        print("  wrote %s_zdr.png" % stamp)
+
+    # --- Differential phase (PhiDP, lowest sweep) ---
+    # The raw input KDP is derived from; a gate-for-gate decode check for the app's `phi` moment.
+    if "differential_phase" in radar.fields:
+        PHIDP_CMAP = cmap_name("pyart_Wild25", "Wild25", "viridis")
+        fig = plt.figure(figsize=(8, 8))
+        disp.plot("differential_phase", 0, cmap=PHIDP_CMAP,
+                  title="%s  differential phase (PhiDP) 0.5deg  %s UTC  (Py-ART)" % (site, actual.strftime("%Y-%m-%d %H:%M")))
+        disp.plot_range_rings([50, 100, 150, 200])
+        disp.set_limits(xlim=(-RANGE_KM, RANGE_KM), ylim=(-RANGE_KM, RANGE_KM))
+        fig.savefig(stamp + "_phidp.png", dpi=110, bbox_inches="tight")
+        plt.close(fig)
+        print("  wrote %s_phidp.png" % stamp)
+
+        # --- KDP (specific differential phase), Py-ART retrieval ---
+        # KDP is ALGORITHM-DEPENDENT, so this is a STRUCTURAL answer key: compare where KDP is high
+        # (heavy-rain cores) + magnitude ballpark (~1-4 deg/km heavy rain), NOT gate-for-gate.
+        kdp_dict = None
+        try:
+            kdp_dict = pyart.retrieve.kdp_maesaka(radar)[0]
+        except Exception as e1:
+            try:
+                kdp_dict = pyart.retrieve.kdp_vulpiani(radar)[0]
+            except Exception as e2:
+                print("  (Py-ART KDP retrieval failed: %s / %s - skipping the KDP image)" % (e1, e2))
+        if kdp_dict is not None:
+            radar.add_field("specific_differential_phase", kdp_dict, replace_existing=True)
+            KDP_CMAP = cmap_name("pyart_Theodore16", "Theodore16", "plasma")
+            fig = plt.figure(figsize=(8, 8))
+            disp.plot("specific_differential_phase", 0, vmin=-1, vmax=5, cmap=KDP_CMAP,
+                      title="%s  KDP 0.5deg  %s UTC  (Py-ART retrieval)" % (site, actual.strftime("%Y-%m-%d %H:%M")))
+            disp.plot_range_rings([50, 100, 150, 200])
+            disp.set_limits(xlim=(-RANGE_KM, RANGE_KM), ylim=(-RANGE_KM, RANGE_KM))
+            fig.savefig(stamp + "_kdp.png", dpi=110, bbox_inches="tight")
+            plt.close(fig)
+            print("  wrote %s_kdp.png" % stamp)
+    else:
+        print("  (no differential_phase in this volume - skipping PhiDP/KDP images; legacy single-pol?)")
 
     print("\nDone. Open the PNG(s) and compare against the app at the SAME scan time")
     print("(%s UTC). Compare STRUCTURE + values, not exact colors -- the color tables differ." % actual.strftime("%H:%M:%S"))

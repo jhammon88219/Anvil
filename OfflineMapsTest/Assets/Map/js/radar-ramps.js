@@ -103,3 +103,65 @@ export const CORRELATION_RAMP = {
         { v: 1.05, color: [0xff, 0xff, 0xff] }, // above unity — white (artifacts)
     ],
 };
+
+// Specific differential phase (KDP, °/km) — dual-pol, DERIVED from ΦDP (½·dΦDP/dr). Positive in liquid
+// rain (∝ rain rate; heavy rain ~1–4 °/km, extreme cores higher), ~0 in snow/ice/light returns, and
+// slightly negative in some non-met / mixed cases. The ramp keeps "warm = heavy precip" (matching the
+// other precip products): faint negatives cool purple/gray, ~0 dark, then green→yellow→orange→red→
+// magenta with rising KDP. Smooth gradient so the legend bar matches the pixels. Range −1…+5 clamps.
+export const KDP_RAMP = {
+    id: 'kdp', label: 'Specific Differential Phase', unit: '°/km', min: -1, max: 5, interpolate: true,
+    stops: [
+        { v: -1.0, color: [0x60, 0x00, 0x80] }, // negative — purple (ice / artifacts)
+        { v: -0.4, color: [0x40, 0x40, 0x60] }, // dark blue-gray
+        { v:  0.0, color: [0x40, 0x40, 0x40] }, // ~zero — dark gray
+        { v:  0.25, color: [0x00, 0x60, 0x40] }, // faint green
+        { v:  0.5, color: [0x00, 0xb0, 0x50] }, // green
+        { v:  1.0, color: [0x80, 0xd0, 0x00] }, // yellow-green
+        { v:  1.5, color: [0xf0, 0xe0, 0x00] }, // yellow
+        { v:  2.0, color: [0xff, 0xa0, 0x00] }, // orange
+        { v:  3.0, color: [0xff, 0x40, 0x00] }, // orange-red
+        { v:  4.0, color: [0xff, 0x00, 0x00] }, // red
+        { v:  5.0, color: [0xff, 0x40, 0xff] }, // extreme — magenta
+    ],
+};
+
+// Differential reflectivity (ZDR, dB) — dual-pol, the horizontal/vertical reflectivity ratio, i.e. drop
+// SHAPE/size. ~0 dB = spherical (hail, dry snow, drizzle); positive = oblate → bigger drops (heavy rain,
+// big-drop cores, ZDR columns/arcs); negative is rare (vertically-aligned ice, artifacts). Diverging ramp:
+// negatives cool purple/blue, ~0 neutral gray, then green→yellow→orange→red→magenta→white with rising
+// ZDR (matching "warm = bigger drops"). Smooth gradient so the legend matches the pixels. −4…+6 dB clamps.
+export const ZDR_RAMP = {
+    id: 'zdr', label: 'Differential Reflectivity', unit: 'dB', min: -4, max: 6, interpolate: true,
+    stops: [
+        { v: -4.0, color: [0x60, 0x00, 0x80] }, // strong negative — purple (vertical ice / artifacts)
+        { v: -1.0, color: [0x40, 0x50, 0x90] }, // negative — blue-gray
+        { v:  0.0, color: [0x50, 0x50, 0x50] }, // ~zero — neutral gray (spherical: hail, dry snow, drizzle)
+        { v:  0.5, color: [0x00, 0x70, 0x40] }, // faint green
+        { v:  1.0, color: [0x00, 0xb0, 0x40] }, // green (light rain)
+        { v:  1.5, color: [0x60, 0xd0, 0x00] }, // yellow-green
+        { v:  2.0, color: [0xe0, 0xe0, 0x00] }, // yellow
+        { v:  3.0, color: [0xff, 0xa0, 0x00] }, // orange (big drops)
+        { v:  4.0, color: [0xff, 0x30, 0x00] }, // red
+        { v:  5.0, color: [0xff, 0x40, 0xd0] }, // pink/magenta
+        { v:  6.0, color: [0xff, 0xff, 0xff] }, // extreme — white (very large drops / debris)
+    ],
+};
+
+// Spectrum width (m/s) — the SPREAD of velocities within a gate, i.e. turbulence / shear. Low = smooth
+// laminar flow; high = turbulent air, shear boundaries (gust fronts, convergence), the chaos around
+// mesocyclones/tornadoes, and ground clutter. A Doppler moment (same cut as velocity). Sequential ramp
+// dark→blue→green→yellow→orange→red→magenta with rising width. 0…14 m/s clamps; smooth so the legend matches.
+export const SPECTRUM_WIDTH_RAMP = {
+    id: 'sw', label: 'Spectrum Width', unit: 'm/s', min: 0, max: 14, interpolate: true,
+    stops: [
+        { v:  0, color: [0x20, 0x20, 0x30] }, // very low — near-laminar (dark)
+        { v:  2, color: [0x00, 0x50, 0xb0] }, // blue
+        { v:  4, color: [0x00, 0xb0, 0x90] }, // teal-green
+        { v:  6, color: [0x60, 0xd0, 0x00] }, // yellow-green
+        { v:  8, color: [0xf0, 0xd0, 0x00] }, // yellow
+        { v: 10, color: [0xff, 0x80, 0x00] }, // orange
+        { v: 12, color: [0xff, 0x10, 0x10] }, // red — high turbulence / shear
+        { v: 14, color: [0xff, 0x40, 0xff] }, // extreme — magenta
+    ],
+};

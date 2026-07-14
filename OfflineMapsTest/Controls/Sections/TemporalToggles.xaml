@@ -2,10 +2,11 @@
 <!-- TemporalToggles — the left section of the overlay bar: the Past / Now / Fore temporal features, each
      a labeled TWO-PART split button. The LEFT half is the feature toggle (activates the time-frame); the
      RIGHT half is a settings cog that opens/hides that feature's floating settings card above the bar
-     (see TemporalCards). The three are a 3-way radio (exactly one active) routed through
-     MapViewModel.TemporalMode, so Past and Fore can't both be on and NowCast clears both back to live.
-     A cog is DISABLED until its feature is toggled on. Icons are placeholders — to be sourced later.
-     Bound to the coordinator MapViewModel. -->
+     (see TemporalCards). The three are INDEPENDENT, deselectable toggles (each on/off on its own click),
+     bound to MapViewModel.IsPastCast/IsNowCast/IsForeCast — which project the subsystems' state. Past and
+     Now are mutually exclusive (the radar layer is live OR replaying); Fore's outlook overlay stacks on
+     either; all three off = a blank basemap. A cog is DISABLED until its feature is toggled on. Icons are
+     placeholders — to be sourced later. Bound to the coordinator MapViewModel. -->
 <UserControl
     x:Class="OfflineMapsTest.Controls.Sections.TemporalToggles"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

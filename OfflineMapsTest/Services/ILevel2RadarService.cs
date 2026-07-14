@@ -25,6 +25,15 @@ namespace OfflineMapsTest.Services
 		Task<IReadOnlyList<string>> GetRecentKeysAsync(RadarSite site, int count, CancellationToken cancellationToken = default);
 
 		/// <summary>
+		/// Convenience for the Radar Site Explorer's detail pane: resolves the site's single newest
+		/// archive volume and ensures its lowest tilt is cached, returning the <see cref="RadarVolume"/>
+		/// (whose <see cref="RadarVolume.VolumeTime"/> is the latest scan time and
+		/// <see cref="RadarVolume.ModeText"/> the VCP/scan mode). Null when the site has no recent data.
+		/// One listing + a range-GET prefix (cached), so it's the "brief spinner" cost of a single frame.
+		/// </summary>
+		Task<RadarVolume?> GetLatestVolumeAsync(RadarSite site, CancellationToken cancellationToken = default);
+
+		/// <summary>
 		/// Returns the keys of every volume for the site whose scan time falls within the given UTC
 		/// window, oldest-first — the Past Event Viewer's source. Lists each UTC day the window
 		/// touches (handles a window that crosses midnight). Listing only; the caller fetches the

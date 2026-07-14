@@ -6,16 +6,40 @@
 // These are DOM-overlay markers (maplibregl.Marker), so they auto-reposition on pan/zoom and survive
 // basemap switches (no style-layer re-add needed). Structure: a `.radar-site-marker` WRAPPER (which
 // MapLibre positions via an inline transform) holds an inner `.radar-site-btn` (free to use its own
-// transform for the press/sink effect), which contains an availability `.radar-site-dot` + the ID
-// text (e.g. "• KTLX"). The DOT shows availability — green = available, red (.offline) = no recent data
-// — always, independent of selection; SELECTION is the inverted "light" key (dark text on near-white).
-// (The old accent status halo + orange-selected + dead-key offline styling were removed in this rework.)
+// transform for the press/sink effect), which contains a full-height availability SQUARE
+// `.radar-site-swatch` on the LEFT + the ID text `.radar-site-label`. The SQUARE shows availability —
+// green = available, red (.offline) = no recent data — always, independent of selection; SELECTION is
+// the inverted "light" key (dark text on near-white), and the square still shows on the light face.
+// (History: this was a small round dot before; the accent status halo + orange-selected + dead-key
+// offline styling were removed in an earlier rework.)
 
 let radarMarkers = {};        // id -> inner button element (state ops target the button)
 let radarMarkerObjs = [];     // every Marker object (for show/hide + teardown)
 let selectedSiteId = null;
 let radarSitesVisible = true;
+let researchVisible = false;      // research/test radars (e.g. KCRI) are an opt-in extra layer
+let researchIds = new Set();      // ids flagged research (site.research) in the current list
+let tdwrVisible = false;          // Terminal Doppler Weather Radars (T***) are an opt-in extra layer
+let tdwrIds = new Set();          // ids flagged tdwr (site.tdwr) in the current list
 let radarSiteOffline = new Set(); // site ids with no recent data in the feed (red availability dot)
+
+// A marker shows only when the global sites layer is on AND each opt-in category it belongs to is on.
+// Operational sites (in neither extra set) show whenever the global layer is on; research/TDWR keys
+// additionally need their own toggle. So "Show Research Radars" / "Show TDWRs" reveal just those keys,
+// and "Hide Sites" still hides everything.
+function markerVisible(id) {
+    return radarSitesVisible
+        && (!researchIds.has(id) || researchVisible)
+        && (!tdwrIds.has(id) || tdwrVisible);
+}
+
+// Re-apply the visibility rule to every marker (after any toggle changes).
+function applyVisibility() {
+    radarMarkerObjs.forEach(function (m) {
+        const id = m.getElement().dataset.siteId;
+        m.getElement().style.display = markerVisible(id) ? '' : 'none';
+    });
+}
 
 function ensureStyle() {
     if (document.getElementById('radar-site-style')) return;
@@ -24,18 +48,17 @@ function ensureStyle() {
     siteStyle.textContent = `
         .radar-site-marker { line-height: 0; }
 
-        /* Pushable graphite "key" with an availability DOT before the ID (no halo). */
+        /* Pushable graphite "key": a full-height status SQUARE on the left + the ID on the face. */
         .radar-site-btn {
             display: inline-flex;
-            align-items: center;
-            gap: 6px;
+            align-items: stretch;              /* the status square fills the full key height */
             font: 700 12px/1 "Segoe UI", sans-serif;
             letter-spacing: .3px;
             color: #f3f3f3;
             background: linear-gradient(#3b3b3e, #2c2c2f);
             border: 1px solid #5a5a5e;
             border-radius: 6px;
-            padding: 5px 9px;
+            overflow: hidden;                  /* clip the square's corners to the key radius */
             cursor: pointer;
             white-space: nowrap;
             user-select: none;
@@ -48,23 +71,24 @@ function ensureStyle() {
             box-shadow: 0 1px 0 #161618, 0 1px 2px rgba(0, 0, 0, .4);
         }
 
-        /* Availability dot: green = available, red = offline (the staleness-ramp endpoint colors, so the
-           palette matches the freshness readout). Always shows availability, independent of selection.
-           The 1px inner ring gives it definition on both the dark key and the light selected key. */
-        .radar-site-dot {
+        /* Status square: green = available, red = offline (the staleness-ramp endpoint colors, so the
+           palette matches the freshness readout). A full-height block filling the LEFT of the key; always
+           shows availability, independent of selection (still reads on the light selected face). */
+        .radar-site-swatch {
             flex: 0 0 auto;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
+            align-self: stretch;
+            width: 22px;
             background: #3fb950;
-            box-shadow: 0 0 0 1px rgba(0, 0, 0, .28);
         }
-        .radar-site-btn.offline .radar-site-dot { background: #f85149; }
+        .radar-site-btn.offline .radar-site-swatch { background: #f85149; }
+
+        /* The ID text sits on the key face to the right of the square. */
+        .radar-site-label { padding: 5px 9px; }
 
         /* Selected = inverted "light" key (dark text on a near-white face). Distinct from BOTH the dark
-           unselected keys and the red/green dots (orange sat too close to the offline red). Latches down
-           onto its edge like a pressed key; the dot still shows availability on the light face. The active
-           site's "radar" is also the big geographic range ring + sweep drawn on the MAP (radar.js). */
+           unselected keys and the red/green square (orange sat too close to the offline red). Latches down
+           onto its edge like a pressed key; the status square still shows availability on the light face.
+           The active site's "radar" is also the big geographic range ring + sweep drawn on the MAP (radar.js). */
         .radar-site-btn.selected {
             color: #1a1a1a;
             background: linear-gradient(#ffffff, #e8e8e8);
@@ -92,18 +116,26 @@ export function show(map, json) {
     radarMarkerObjs.forEach(function (m) { m.remove(); });
     radarMarkerObjs = [];
     radarMarkers = {};
+    researchIds = new Set();
+    tdwrIds = new Set();
     sites.forEach(function (s) {
+        if (s.research) researchIds.add(s.id);
+        if (s.tdwr) tdwrIds.add(s.id);
         const el = document.createElement('div');
         el.className = 'radar-site-marker';
+        el.dataset.siteId = s.id; // used by applyVisibility to re-evaluate the per-marker rule
         const btn = document.createElement('div');
         btn.className = 'radar-site-btn';
-        const dot = document.createElement('span');
-        dot.className = 'radar-site-dot'; // availability: green (available) / red (.offline)
-        btn.appendChild(dot);
-        btn.appendChild(document.createTextNode(s.id));
+        const swatch = document.createElement('span');
+        swatch.className = 'radar-site-swatch'; // availability: green (available) / red (.offline)
+        const label = document.createElement('span');
+        label.className = 'radar-site-label';
+        label.textContent = s.id;
+        btn.appendChild(swatch);
+        btn.appendChild(label);
         btn.dataset.siteName = s.name || '';
         el.appendChild(btn);
-        if (!radarSitesVisible) el.style.display = 'none';
+        if (!markerVisible(s.id)) el.style.display = 'none';
         if (selectedSiteId === s.id) btn.classList.add('selected');
         applySiteStatus(btn, s.id); // sets .down class + tooltip from the current offline set
         btn.addEventListener('click', function (ev) {
@@ -138,10 +170,22 @@ export function setStatus(json) {
 export function setAccent(border, glow) { /* markers no longer use an accent halo */ }
 
 // Show/hide all site buttons. Independent of the radar layer — an active loop keeps rendering while
-// the markers are hidden. Iterate the marker objects (every marker), so we never miss a shared id.
+// the markers are hidden. Research markers stay subject to their own toggle via markerVisible().
 export function setVisible(visible) {
     radarSitesVisible = !!visible;
-    radarMarkerObjs.forEach(function (m) {
-        m.getElement().style.display = radarSitesVisible ? '' : 'none';
-    });
+    applyVisibility();
+}
+
+// Show/hide just the research/test radar markers (the "Show Research Radars" toggle). Off by
+// default; operational markers are unaffected. An active research loop keeps rendering while hidden.
+export function setResearchVisible(visible) {
+    researchVisible = !!visible;
+    applyVisibility();
+}
+
+// Show/hide just the TDWR markers (the "Show TDWRs" toggle). Off by default; operational markers are
+// unaffected. An active TDWR loop keeps rendering while hidden.
+export function setTdwrVisible(visible) {
+    tdwrVisible = !!visible;
+    applyVisibility();
 }

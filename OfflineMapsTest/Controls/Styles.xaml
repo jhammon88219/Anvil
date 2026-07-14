@@ -11,8 +11,8 @@
          can't drift. (Moved out of OverlayBar.xaml's local ThemeDictionaries.) -->
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Default">
-            <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="#FF1C1C1C"/>
-            <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="#FF2A2A2A"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="#FF000000"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="#FF1A1A1A"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="#FFF3F3F3"/>

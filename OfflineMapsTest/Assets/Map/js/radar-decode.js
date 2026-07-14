@@ -3,7 +3,8 @@
 // fallback). The heavy cost here is the pure-JS bzip2 decompression inside Level2Radar
 // (~5 s for a full volume), which is exactly why we run it off the UI thread.
 
-import { REFLECTIVITY_RAMP, VELOCITY_RAMP, CORRELATION_RAMP, rampColor } from './radar-ramps.js';
+import { REFLECTIVITY_RAMP, VELOCITY_RAMP, CORRELATION_RAMP, KDP_RAMP, ZDR_RAMP, SPECTRUM_WIDTH_RAMP, rampColor } from './radar-ramps.js';
+import { PRODUCTS, PRODUCT_IDS } from './radar-products.js';
 import { metersPerDeg } from './geo.js';
 
 const HALF_BEAM_DEG = 0.5; // half the super-res azimuthal spacing (~1° beam)
@@ -489,7 +490,9 @@ function dealiasSweepCore(radials, radar) {
 // Lowest-tilt base-velocity geometry (dealiased) + the inspector value grid (also from the DEALIASED
 // radials, so the inspected value matches the rendered pixel). Returns { geom, grid }; both null if
 // the volume carries no velocity.
-function buildVelocity(radar, siteLat, siteLon, wantGrid) {
+// minDbz is accepted (unused) so every builder shares ONE signature and decodeAndBuild can call them
+// uniformly through the BUILDERS map — velocity isn't reflectivity-masked (unlike CC/DOW-velocity).
+function buildVelocity(radar, siteLat, siteLon, minDbz, wantGrid) {
     const elev = findVelocityElevation(radar);
     if (elev === null) return { geom: null, grid: null };
     radar.setElevation(elev);
@@ -501,6 +504,25 @@ function buildVelocity(radar, siteLat, siteLon, wantGrid) {
         return rampColor(VELOCITY_RAMP, v);
     });
     return { geom: geom, grid: buildGrid(dealiased, getAz, 10, VELOCITY_RAMP.unit, 1, wantGrid) };
+}
+
+// Lowest-tilt SPECTRUM WIDTH (m/s) — the spread of velocities within a gate (turbulence / shear). It's a
+// Doppler moment, so it lives in the SAME cut as velocity (found via findVelocityElevation), NOT the
+// surveillance cut. Unlike velocity there is NO dealiasing (width is a magnitude, not a folded velocity),
+// and no reflectivity mask — like velocity it's shown wherever the Doppler cut has data (the cut itself
+// restricts it to real returns). Null if the volume has no Doppler cut / no spectrum-width moment.
+function buildSpectrumWidth(radar, siteLat, siteLon, minDbz, wantGrid) {
+    const elev = findVelocityElevation(radar); // spectrum width rides the Doppler (velocity) cut
+    if (elev === null) return { geom: null, grid: null };
+    radar.setElevation(elev);
+    const radials = momentRadials(radar, 'spectrum');
+    if (!radials.some(function (s) { return s && s.moment_data; })) return { geom: null, grid: null };
+    const getAz = function (i) { return radar.getAzimuth(i); };
+    const geom = buildGates(radials, getAz, siteLat, siteLon, function (v) {
+        if (v === null || v === undefined) return null;
+        return rampColor(SPECTRUM_WIDTH_RAMP, v);
+    });
+    return { geom: geom, grid: buildGrid(radials, getAz, 100, SPECTRUM_WIDTH_RAMP.unit, 1, wantGrid) };
 }
 
 // Lowest-tilt correlation-coefficient (ρHV) geometry. CC is a dual-pol moment collected in the
@@ -535,6 +557,131 @@ function buildCorrelation(radar, siteLat, siteLon, minDbz, wantGrid) {
     return { geom: geom, grid: buildGrid(ccR, getAz, 1000, CORRELATION_RAMP.unit, 2, wantGrid) };
 }
 
+// Lowest-tilt DIFFERENTIAL REFLECTIVITY (ZDR, dB) — dual-pol, collected in the SURVEILLANCE cut
+// alongside reflectivity/CC (lowest elevation NUMBER). A DIRECT moment read (not derived, unlike KDP),
+// so this is an exact analog of buildCorrelation: read `zdr`, mask the DISPLAY to reflectivity >= minDbz
+// (clear-air ZDR is meaningless noise), color by ZDR_RAMP; the inspector grid keeps the UNMASKED value.
+// Null on a legacy single-pol volume (no ZDR).
+function buildZdr(radar, siteLat, siteLon, minDbz, wantGrid) {
+    const elevs = radar.listElevations();
+    if (!elevs || !elevs.length) return { geom: null, grid: null };
+    radar.setElevation(Math.min.apply(null, elevs));
+    const zdrR = momentRadials(radar, 'zdr');
+    const reflR = momentRadials(radar, 'reflect');
+    // Legacy single-pol volumes carry no ZDR — bail before building anything.
+    if (!zdrR.some(function (z) { return z && z.moment_data; })) return { geom: null, grid: null };
+
+    const masked = maskByReflectivity(zdrR, reflR, minDbz);
+    const getAz = function (i) { return radar.getAzimuth(i); };
+    const geom = buildGates(masked, getAz, siteLat, siteLon, function (v) {
+        if (v === null || v === undefined) return null;
+        return rampColor(ZDR_RAMP, v);
+    });
+    // Inspector reads the UNMASKED ZDR (dB); scale 100 → 0.01 dB quantization.
+    return { geom: geom, grid: buildGrid(zdrR, getAz, 100, ZDR_RAMP.unit, 2, wantGrid) };
+}
+
+// Gate index in `to`'s geometry that co-locates (by RANGE, km) with gate j of `from` — the alignment
+// used to read one moment's value at another moment's gate (they can have different first_gate/gate_size).
+function rangeIndexOf(from, to, j) {
+    return Math.round((from.first_gate + j * from.gate_size - to.first_gate) / to.gate_size);
+}
+
+// KDP quality/tuning constants (see buildKdp). Fixed 3 km least-squares window is a robust v1; an
+// adaptive-by-Z window is a later refinement.
+const KDP_RHO_MIN = 0.85;   // gates below this ρHV have too-noisy differential phase to trust
+const KDP_WINDOW_KM = 3.0;  // half-length (km) of the ΦDP least-squares range window
+const KDP_MIN_VALID = 5;    // min valid samples in a window to estimate a slope
+
+// KDP (°/km) along ONE radial, derived from its ΦDP samples: unwrap the ~360° fold, drop low-quality
+// gates (ρHV < KDP_RHO_MIN, or reflectivity < minDbz — aligned by range), then a fixed-window
+// least-squares slope of ΦDP vs range; KDP = ½·slope. Returns a value array (null where KDP can't be
+// estimated), the same length/geometry as ΦDP so buildGates/buildGrid consume it like any moment.
+function kdpFromPhi(phi, refl, rho, minDbz) {
+    const pd = phi.moment_data, n = pd.length, gateKm = phi.gate_size;
+    const ph = new Float64Array(n);     // unwrapped ΦDP (deg) at valid gates
+    const valid = new Uint8Array(n);
+    let prev = null, accum = 0;
+    for (let j = 0; j < n; j++) {
+        let v = pd[j];
+        let ok = (v !== null && v !== undefined);
+        if (ok && rho && rho.moment_data) {
+            const rj = rangeIndexOf(phi, rho, j);
+            const rv = (rj >= 0 && rj < rho.moment_data.length) ? rho.moment_data[rj] : null;
+            if (rv === null || rv === undefined || rv < KDP_RHO_MIN) ok = false;
+        }
+        if (ok && refl && refl.moment_data) {
+            const zj = rangeIndexOf(phi, refl, j);
+            const zv = (zj >= 0 && zj < refl.moment_data.length) ? refl.moment_data[zj] : null;
+            if (zv === null || zv === undefined || zv < minDbz) ok = false;
+        }
+        if (ok) {
+            if (prev !== null) { // cumulative unwrap of the ~360° ΦDP fold (compare to last RAW valid value)
+                const d = v - prev;
+                if (d > 180) accum -= 360; else if (d < -180) accum += 360;
+            }
+            prev = v;
+            ph[j] = v + accum;
+            valid[j] = 1;
+        } else {
+            ph[j] = NaN;
+            // keep `prev`/`accum` across isolated dropouts so the unwrap stays continuous
+        }
+    }
+    const w = Math.max(1, Math.round(KDP_WINDOW_KM / gateKm));
+    const out = new Array(n);
+    for (let i = 0; i < n; i++) {
+        if (!valid[i]) { out[i] = null; continue; }
+        let lo = i - w, hi = i + w;
+        if (lo < 0) lo = 0;
+        if (hi >= n) hi = n - 1;
+        // Least-squares slope of ΦDP vs range over the window's valid gates (x offset cancels).
+        let sx = 0, sy = 0, sxx = 0, sxy = 0, cnt = 0;
+        for (let k = lo; k <= hi; k++) {
+            if (!valid[k]) continue;
+            const x = k * gateKm, y = ph[k];
+            sx += x; sy += y; sxx += x * x; sxy += x * y; cnt++;
+        }
+        if (cnt < KDP_MIN_VALID) { out[i] = null; continue; }
+        const denom = cnt * sxx - sx * sx;
+        out[i] = denom === 0 ? null : 0.5 * (cnt * sxy - sx * sy) / denom; // ½·(deg/km)
+    }
+    return out;
+}
+
+// Lowest-tilt SPECIFIC DIFFERENTIAL PHASE (KDP, °/km) — dual-pol, DERIVED from the ΦDP moment (not a
+// direct read; see kdpFromPhi). ΦDP is collected in the SURVEILLANCE cut alongside reflectivity/CC
+// (lowest elevation NUMBER), so we read it there. Per radial we turn ΦDP into a KDP value array with the
+// SAME gate geometry, so it flows through buildGates/buildGrid like any moment. Null on a legacy
+// single-pol volume (no ΦDP). The per-gate ρHV/reflectivity QC already restricts KDP to precip, so no
+// separate reflectivity mask is needed (unlike CC, whose raw grid is unmasked).
+function buildKdp(radar, siteLat, siteLon, minDbz, wantGrid) {
+    const elevs = radar.listElevations();
+    if (!elevs || !elevs.length) return { geom: null, grid: null };
+    radar.setElevation(Math.min.apply(null, elevs));
+    const phiR = momentRadials(radar, 'phi');
+    const reflR = momentRadials(radar, 'reflect');
+    const rhoR = momentRadials(radar, 'rho');
+    // Legacy single-pol volumes carry no differential phase — bail before building anything.
+    if (!phiR.some(function (p) { return p && p.moment_data; })) return { geom: null, grid: null };
+
+    const kdpR = phiR.map(function (p, i) {
+        if (!p || !p.moment_data) return p;
+        return {
+            moment_data: kdpFromPhi(p, reflR && reflR[i], rhoR && rhoR[i], minDbz),
+            first_gate: p.first_gate, gate_size: p.gate_size,
+        };
+    });
+
+    const getAz = function (i) { return radar.getAzimuth(i); };
+    const geom = buildGates(kdpR, getAz, siteLat, siteLon, function (v) {
+        if (v === null || v === undefined) return null;
+        return rampColor(KDP_RAMP, v);
+    });
+    // Inspector reads KDP directly; scale 100 → 0.01 °/km quantization.
+    return { geom: geom, grid: buildGrid(kdpR, getAz, 100, KDP_RAMP.unit, 2, wantGrid) };
+}
+
 // Masks a moment's radials to only where the co-located reflectivity gate is >= minDbz (aligned by
 // RANGE). DOW velocity exists at EVERY gate — including clear-air / biological (insect) returns that
 // carry a real-but-meaningless velocity — so without this the whole domain renders as velocity speckle.
@@ -564,7 +711,7 @@ function maskByReflectivity(radials, reflRadials, minDbz) {
 }
 
 // Decodes a normalized DOW frame (the "dow-frame/1" JSON from tools/dow_import.py) into the SAME
-// { geom, velGeom, ccGeom, grids, rangeMeters, ... } result decodeAndBuild returns — so the host
+// { moments, grids, built, rangeMeters, ... } result decodeAndBuild returns — so the host
 // renders a mobile-radar sweep through the identical RadarLayer pipeline (WebGL fill + range ring +
 // Inspect + legend). A DOW frame is ONE sweep at the truck's lat/lon: true azimuths per radial +
 // Int16-quantized moment arrays. Velocity is ALREADY dealiased by the converter (Py-ART), so we do
@@ -638,8 +785,12 @@ export function decodeDowFrame(json, minDbz) {
         ? (rangeGrid.firstGate + rangeGrid.nGates * rangeGrid.gateSize) * 1000 : 0;
     const t1 = (typeof performance !== 'undefined') ? performance.now() : 0;
     return {
-        geom: geom, velGeom: velGeom, ccGeom: ccGeom, velBuilt: true, gridsBuilt: true,
-        reflGrid: reflGrid, velGrid: velGrid, ccGrid: ccGrid,
+        // Same keyed shape decodeAndBuild returns (see there). A DOW frame carries refl/vel/cc; velocity
+        // is pre-dealiased by the converter so it's always "built" (built.velocity=true, no lazy re-decode).
+        moments: { reflectivity: geom, velocity: velGeom, cc: ccGeom },
+        grids: { reflectivity: reflGrid, velocity: velGrid, cc: ccGrid },
+        built: { reflectivity: true, velocity: true, cc: true },
+        gridsBuilt: true,
         rangeMeters: rangeMeters,
         decodeMs: Math.round(t1 - t0), buildMs: 0,
         radials: nRad, gates: reflR && reflR[0] ? reflR[0].moment_data.length : 0, bytes: 0,
@@ -648,18 +799,31 @@ export function decodeDowFrame(json, minDbz) {
     };
 }
 
-// Decodes a volume ArrayBuffer and returns { geom, velGeom, decodeMs, buildMs, ... }. geom is
-// the reflectivity geometry (null when nothing's above threshold); velGeom is the velocity
-// geometry (null when the volume has no Doppler cut). Both have baked-in vertex colors, so the
-// host can toggle product instantly without re-decoding.
+// Decodes a volume ArrayBuffer and returns { moments, grids, built, decodeMs, buildMs, ... }. moments is
+// a per-product-id map (radar-products.js) of gate geometry with baked-in vertex colors, each null when
+// that product has nothing to draw (e.g. reflectivity below threshold, or no Doppler cut for velocity),
+// so the host can toggle product instantly without re-decoding. built[id] reports which builds ran.
 //
-// buildVel (default true) gates the velocity build: velocity is the ONLY product that must dealias
-// (dealiasSweep — a region-based port, by far the priciest step per frame), so when the user isn't
-// on the Velocity product the host passes buildVel=false and we skip buildVelocity entirely. The
-// result carries velBuilt so the host knows a refl-only frame must be re-decoded before it can show
-// velocity (see radar.js setProduct). Reflectivity + CC are always built (cheap; CC has no dealias).
-export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildVel, buildGrids) {
-    if (buildVel === undefined) buildVel = true; // decode everything unless told otherwise
+// The per-product geometry builders, keyed by product id (radar-products.js). Adding a product = add a
+// build fn here + a PRODUCTS entry + a ramp; decodeAndBuild then loops over the registry automatically.
+// Every builder shares the (radar, siteLat, siteLon, minDbz, wantGrid) signature (buildVelocity ignores
+// minDbz — it isn't reflectivity-masked) so the loop can call them uniformly.
+const BUILDERS = {
+    reflectivity: buildReflectivity,
+    velocity: buildVelocity,
+    cc: buildCorrelation,
+    kdp: buildKdp,
+    zdr: buildZdr,
+    sw: buildSpectrumWidth,
+};
+
+// buildLazy (default true) gates the LAZY products (radar-products.js `lazy:true` — today only velocity,
+// the ONLY product that must dealias via dealiasSweep, by far the priciest step per frame): when the user
+// isn't on a lazy product the host passes buildLazy=false and those builds are skipped. The result's
+// built[id] tells the host a refl-only frame must be re-decoded before it can show velocity (see radar.js
+// setProduct). Non-lazy products (reflectivity, CC) are cheap and always built.
+export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildLazy, buildGrids) {
+    if (buildLazy === undefined) buildLazy = true; // decode everything (incl. lazy velocity) unless told otherwise
     if (buildGrids === undefined) buildGrids = true;
     const bytes = ab.byteLength;
     return loadDecoder().then(function (dec) {
@@ -670,10 +834,21 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildVel, buildGrid
         // when Inspect is off (the common case) so long loops don't retain ~Int16 N×G per product per
         // frame. The range ring uses only the grid's scalar metadata, which is always computed, so it's
         // unaffected. Re-decoded on demand when Inspect is toggled on (see radar.js setInspect).
-        const reflR = buildReflectivity(radar, siteLat, siteLon, minDbz, buildGrids);
-        const velR = buildVel ? buildVelocity(radar, siteLat, siteLon, buildGrids) : { geom: null, grid: null };
-        const ccR = buildCorrelation(radar, siteLat, siteLon, minDbz, buildGrids);
-        const geom = reflR.geom, velGeom = velR.geom, ccGeom = ccR.geom;
+        // Build each product's geometry through the registry (radar-products.js). Non-lazy products
+        // (reflectivity, CC) always build; lazy products (velocity — the only one that dealiases) build
+        // only when buildLazy is set (the active product is lazy, or velocity prefetch is on). Every
+        // BUILDERS entry shares the (radar, lat, lon, minDbz, wantGrid) signature so this stays a
+        // data-driven loop; results[] keeps the full {geom,grid} for the range-ring extent below.
+        const results = {}, moments = {}, grids = {}, built = {};
+        for (let pi = 0; pi < PRODUCT_IDS.length; pi++) {
+            const id = PRODUCT_IDS[pi];
+            if (PRODUCTS[id].lazy && !buildLazy) { moments[id] = null; grids[id] = null; built[id] = false; continue; }
+            const r = BUILDERS[id](radar, siteLat, siteLon, minDbz, buildGrids);
+            results[id] = r;
+            moments[id] = r.geom || null;
+            grids[id] = buildGrids ? (r.grid || null) : null;
+            built[id] = true;
+        }
         const t2 = performance.now();
         // Diagnostics: per-moment radial/azimuth-span/gate stats + the elevation NUMBERS present and
         // which one velocity came from. This is what surfaces a partial sweep (small az span) or a
@@ -703,20 +878,28 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildVel, buildGrid
         // Outer data extent (metres) of the lowest tilt = first gate + all gates, from whichever
         // moment grid exists (reflectivity is the widest, ~460 km super-res). This is the radar's
         // REAL maximum range — the radius for the on-map range ring (varies by radar/VCP/product).
-        const rangeGrid = reflR.grid || ccR.grid || velR.grid;
+        // Range ring radius = outer data extent of the first built product's grid (reflectivity is first
+        // in the registry and the widest sweep). The grid's scalar metadata (firstGate/gateSize/nGates)
+        // is present even when buildGrids is false, so the ring works whether or not the inspector value
+        // grids were shipped.
+        let rangeGrid = null;
+        for (let pi = 0; pi < PRODUCT_IDS.length && !rangeGrid; pi++) {
+            const rr = results[PRODUCT_IDS[pi]];
+            if (rr && rr.grid) rangeGrid = rr.grid;
+        }
         const rangeMeters = rangeGrid && isFinite(rangeGrid.firstGate) && isFinite(rangeGrid.gateSize)
             ? (rangeGrid.firstGate + rangeGrid.nGates * rangeGrid.gateSize) * 1000 : 0;
         return {
-            geom: geom, velGeom: velGeom, ccGeom: ccGeom, velBuilt: !!buildVel,
-            // Inspector value grids — only shipped when built (rangeMeters above already pulled the
-            // scalar extent from the metadata-only grid, so a null here doesn't affect the range ring).
-            reflGrid: buildGrids ? reflR.grid : null, velGrid: buildGrids ? velR.grid : null, ccGrid: buildGrids ? ccR.grid : null,
-            gridsBuilt: !!buildGrids,
+            // Keyed by product id (radar-products.js): the host stores frames[i].moments/built/grids and
+            // renders/upgrades via a map lookup instead of the old flat velPositions/ccPositions fields.
+            // grids are only shipped when buildGrids (inspector on); rangeMeters above already captured
+            // the extent, so a null grid here doesn't affect the range ring.
+            moments: moments, grids: grids, built: built, gridsBuilt: !!buildGrids,
             rangeMeters: rangeMeters,
             decodeMs: Math.round(t1 - t0), buildMs: Math.round(t2 - t1),
             radials: radials, gates: gates, bytes: bytes,
             elevList: elevList, velElev: velElevNum, reflStats: reflStats, velStats: velStats, velNyq: velNyq,
-            dealias: velGeom ? _dealiasInfo : '',
+            dealias: moments.velocity ? _dealiasInfo : '',
         };
     });
 }

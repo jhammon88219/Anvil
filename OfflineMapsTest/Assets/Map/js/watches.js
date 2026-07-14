@@ -9,6 +9,13 @@ let watchUrl = null;
 let watchData = null;
 let watchesOn = false;
 
+// Overall opacity multiplier (0..1) for the watch polygons, driven by the NowCast card's slider.
+// The fill is faint and the outline bold; the multiplier scales BOTH from their base values, so the
+// slider fades the whole overlay together (1 = the default look). See setOpacity.
+let watchOpacity = 1;
+const FILL_BASE = 0.08;
+const LINE_BASE = 0.9;
+
 // First symbol (label) layer id, so the watch layers slot beneath place names. Own small copy (the
 // outlook concern in map.js keeps its own); shared into one helper if/when that's extracted too.
 function firstSymbolLayerId(map) {
@@ -38,11 +45,11 @@ function addWatchLayers(map) {
     const before = firstSymbolLayerId(map); // above the radar/outlook, below the labels
     map.addLayer({
         id: 'spc-watch-fill', type: 'fill', source: 'spc-watches',
-        paint: { 'fill-color': watchColor(), 'fill-opacity': 0.08 }
+        paint: { 'fill-color': watchColor(), 'fill-opacity': FILL_BASE * watchOpacity }
     }, before);
     map.addLayer({
         id: 'spc-watch-line', type: 'line', source: 'spc-watches',
-        paint: { 'line-color': watchColor(), 'line-width': 2, 'line-opacity': 0.9 }
+        paint: { 'line-color': watchColor(), 'line-width': 2, 'line-opacity': LINE_BASE * watchOpacity }
     }, before);
 }
 
@@ -70,6 +77,14 @@ export function setVisible(map, on) {
     watchesOn = !!on;
     if (on && !watchData) loadWatches(map); // first enable → fetch, then refreshWatchLayers runs in .then
     else refreshWatchLayers(map);
+}
+
+// Set the overall opacity multiplier (0..1). Updates the live layers in place if present; otherwise
+// it's picked up the next time the layers are added (basemap switch / first show).
+export function setOpacity(map, o) {
+    watchOpacity = Math.max(0, Math.min(1, +o || 0));
+    if (map.getLayer('spc-watch-fill')) map.setPaintProperty('spc-watch-fill', 'fill-opacity', FILL_BASE * watchOpacity);
+    if (map.getLayer('spc-watch-line')) map.setPaintProperty('spc-watch-line', 'line-opacity', LINE_BASE * watchOpacity);
 }
 
 // Re-add after a basemap switch (setStyle drops the layers; data is still in memory).

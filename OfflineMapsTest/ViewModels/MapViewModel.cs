@@ -10,11 +10,6 @@ using OfflineMapsTest.Services;
 
 namespace OfflineMapsTest.ViewModels
 {
-	/// <summary>Which temporal time-frame the map is showing. Exactly one is active at a time
-	/// (a 3-way radio): <see cref="Now"/> = normal live radar (the default), <see cref="Past"/> =
-	/// historical replay, <see cref="Fore"/> = SPC outlooks. Past and Fore are mutually exclusive.</summary>
-	public enum TemporalMode { Now, Past, Fore }
-
 	/// <summary>Which temporal feature's settings card is floating above the overlay bar (opened by a
 	/// split-toggle's cog). At most one is open at a time; <see cref="None"/> = no card showing.</summary>
 	public enum TemporalCard { None, Past, Now, Fore }
@@ -54,6 +49,40 @@ namespace OfflineMapsTest.ViewModels
 			Outlook = new OutlookViewModel(mapService, spcOutlookService);
 			Watches = new WatchesViewModel(mapService, watchService);
 			Markers = new MarkersViewModel(mapService, locationService);
+			SiteExplorer = new RadarSiteExplorerViewModel(Radar, Markers, radarService, mapService);
+
+			// The Past/Now/Fore toggles PROJECT subsystem state (see the Temporal toggles region), so keep
+			// them honest: re-raise them — and close a now-inactive feature's settings card — whenever the
+			// radar mode/loop or the outlook overlay changes, including changes NOT driven by the toggles
+			// (e.g. clicking an on-map radar site marker starts a live loop, which should light NowCast).
+			Radar.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(RadarViewModel.IsPastEventMode))
+				{
+					OnPropertyChanged(nameof(IsPastCast));
+					// Entering replay takes the radar layer — disarm the (mutually exclusive) live toggle.
+					if (Radar.IsPastEventMode && _isNowCast) { _isNowCast = false; OnPropertyChanged(nameof(IsNowCast)); }
+					CloseCardIfInactive();
+				}
+				else if (e.PropertyName == nameof(RadarViewModel.HasRadarLoop))
+				{
+					// A live loop starting (e.g. an on-map site-marker click) arms NowCast so it reflects reality.
+					if (Radar.HasRadarLoop && !Radar.IsPastEventMode && !_isNowCast)
+					{
+						_isNowCast = true;
+						OnPropertyChanged(nameof(IsNowCast));
+						CloseCardIfInactive();
+					}
+				}
+			};
+			Outlook.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(OutlookViewModel.IsOutlookVisible))
+				{
+					OnPropertyChanged(nameof(IsForeCast));
+					CloseCardIfInactive();
+				}
+			};
 
 			AvailableStyles = _styleProvider.GetStyles();
 
@@ -84,68 +113,90 @@ namespace OfflineMapsTest.ViewModels
 		/// <summary>The map markers + user-location subsystem view model (locate action + marker editor).</summary>
 		public MarkersViewModel Markers { get; }
 
-		// ===== Temporal-mode coordination (the Past / Now / Fore split-toggle buttons) ==================
-		// The three temporal toggles are a 3-way radio: exactly one mode is active. Routing them through a
-		// single TemporalMode enum is what enforces "Past and Fore can't both be on" and lets NowCast clear
-		// both. The bool facets (IsPastCast/…) are what the toggles' IsChecked bind to; the mode setter
-		// drives the actual subsystem flags (Radar.IsPastEventMode / Outlook.IsOutlookVisible) so those
-		// stay in lock-step. OpenCard tracks which feature's settings card floats above the bar (one at a
-		// time); changing mode dismisses any open card since its feature may no longer be active.
-		private TemporalMode _temporalMode = TemporalMode.Now;
+		/// <summary>The Radar Site Explorer subsystem view model (searchable/filterable browser over the
+		/// whole radar network + per-site detail). Opened by the "Sites" button on the bar.</summary>
+		public RadarSiteExplorerViewModel SiteExplorer { get; }
+
+		// ===== Temporal toggles (Past / Now / Fore) — INDEPENDENT, deselectable ==========================
+		// The three toggles are independent on/off switches, each a PROJECTION of its subsystem's real
+		// state (no duplicated flag that could desync): IsPastCast ↔ Radar replay mode, IsNowCast ↔ a live
+		// radar loop being shown, IsForeCast ↔ the SPC outlook overlay. Setting a toggle drives its
+		// subsystem; the Radar/Outlook PropertyChanged subscriptions (in the ctor) re-raise the toggles
+		// when that state changes from anywhere (e.g. clicking an on-map site marker lights NowCast).
+		// Past and Now are mutually exclusive because the radar layer is EITHER live OR replaying — turning
+		// one on takes the layer and clears the other; Fore's outlook overlay is independent and stacks on
+		// either. With ALL THREE OFF the map is a blank basemap (the "cleared" state — click the active
+		// toggle to reach it). OpenCard tracks which feature's settings card floats above the bar (one at a
+		// time); a feature turning off closes its card (CloseCardIfInactive).
 		private TemporalCard _openCard = TemporalCard.None;
 
-		/// <summary>The active temporal time-frame. Setting it drives the subsystem flags and closes any
-		/// open settings card. Defaults to <see cref="TemporalMode.Now"/> (live radar), matching the app's
-		/// launch state (no replay, no outlook) — assigned as a field so construction pushes no commands.</summary>
-		public TemporalMode TemporalMode
+		/// <summary>PastCast (historical replay). Projection of <see cref="RadarViewModel.IsPastEventMode"/>:
+		/// on enters replay (clearing any live loop), off exits replay to a blank basemap. Turning it on
+		/// takes the radar layer from NowCast. Re-raised via the Radar subscription.</summary>
+		public bool IsPastCast
 		{
-			get => _temporalMode;
+			get => Radar.IsPastEventMode;
 			set
 			{
-				if (_temporalMode == value)
-				{
-					return;
-				}
-
-				_temporalMode = value;
-
-				// Drive the subsystems. These setters are guarded (no-op when unchanged), so only the
-				// genuinely-changing one does work — e.g. Past→Fore turns replay off and the outlook on.
-				Radar.IsPastEventMode = value == TemporalMode.Past;
-				Outlook.IsOutlookVisible = value == TemporalMode.Fore;
-
-				// A mode change dismisses any open card (its feature/cog may now be disabled).
-				OpenCard = TemporalCard.None;
-
-				OnPropertyChanged();
-				OnPropertyChanged(nameof(IsPastCast));
-				OnPropertyChanged(nameof(IsNowCast));
-				OnPropertyChanged(nameof(IsForeCast));
+				if (value == Radar.IsPastEventMode) { return; }
+				Radar.IsPastEventMode = value; // both directions clear the layer (enter = arm replay, leave = blank)
 			}
 		}
 
-		/// <summary>PastCast toggle state (feature = historical replay). Setting it true selects
-		/// <see cref="TemporalMode.Past"/>; a ToggleButton trying to un-check the active mode is bounced
-		/// back (radio semantics — one mode is always active).</summary>
-		public bool IsPastCast
-		{
-			get => _temporalMode == TemporalMode.Past;
-			set { if (value) { TemporalMode = TemporalMode.Past; } else if (_temporalMode == TemporalMode.Past) { OnPropertyChanged(); } }
-		}
+		// NowCast is an ARMED toggle (a stored flag), NOT a pure projection: "live radar mode is on." Unlike
+		// PastCast (Radar.IsPastEventMode) and ForeCast (Outlook.IsOutlookVisible) — both genuine persistent
+		// states — "live mode" has no subsystem flag (it's just "not replay", the default), so a projection
+		// off loop-existence would snap back + DISABLE the cog whenever no site is loaded. Storing it lets
+		// the toggle/cog stay on with a blank-but-armed radar. Default off (all-off = blank launch); a live
+		// loop starting (marker click) arms it, entering replay disarms it — see the Radar subscription.
+		private bool _isNowCast;
 
-		/// <summary>NowCast toggle state (feature = live radar). Setting it true clears Past/Fore.</summary>
+		/// <summary>NowCast (live radar). On = live mode armed (leaves replay; a site is then picked by
+		/// clicking its on-map marker); off = clears the live loop to a blank basemap. Mutually exclusive
+		/// with PastCast (the radar layer is live OR replaying).</summary>
 		public bool IsNowCast
 		{
-			get => _temporalMode == TemporalMode.Now;
-			set { if (value) { TemporalMode = TemporalMode.Now; } else if (_temporalMode == TemporalMode.Now) { OnPropertyChanged(); } }
+			get => _isNowCast;
+			set
+			{
+				if (_isNowCast == value) { return; }
+				_isNowCast = value;
+				OnPropertyChanged();
+				if (value)
+				{
+					if (Radar.IsPastEventMode) { Radar.IsPastEventMode = false; } // leave replay for live mode
+				}
+				else if (!Radar.IsPastEventMode)
+				{
+					Radar.SelectedRadarOption = Radar.RadarOptions[0]; // "None" → clear the live loop to a blank basemap
+				}
+				CloseCardIfInactive();
+			}
 		}
 
-		/// <summary>ForeCast toggle state (feature = SPC outlooks). Setting it true selects
-		/// <see cref="TemporalMode.Fore"/>.</summary>
+		/// <summary>ForeCast (SPC outlook overlay). Independent projection of
+		/// <see cref="OutlookViewModel.IsOutlookVisible"/> — stacks on live or replay radar. Re-raised via
+		/// the Outlook subscription.</summary>
 		public bool IsForeCast
 		{
-			get => _temporalMode == TemporalMode.Fore;
-			set { if (value) { TemporalMode = TemporalMode.Fore; } else if (_temporalMode == TemporalMode.Fore) { OnPropertyChanged(); } }
+			get => Outlook.IsOutlookVisible;
+			set
+			{
+				if (value == Outlook.IsOutlookVisible) { return; }
+				Outlook.IsOutlookVisible = value;
+			}
+		}
+
+		// Closes an open settings card whose feature just turned off (its cog is now disabled). Called from
+		// the toggle setters' subsystem subscriptions so a card can't linger over an inactive feature.
+		private void CloseCardIfInactive()
+		{
+			if ((_openCard == TemporalCard.Past && !IsPastCast)
+				|| (_openCard == TemporalCard.Now && !IsNowCast)
+				|| (_openCard == TemporalCard.Fore && !IsForeCast))
+			{
+				OpenCard = TemporalCard.None;
+			}
 		}
 
 		/// <summary>Which feature's settings card is showing above the bar (at most one). Opened by a
@@ -190,6 +241,50 @@ namespace OfflineMapsTest.ViewModels
 		{
 			get => _openCard == TemporalCard.Fore;
 			set { if (value) { OpenCard = TemporalCard.Fore; } else if (_openCard == TemporalCard.Fore) { OpenCard = TemporalCard.None; } }
+		}
+
+		// ===== App settings card (right side of the bar) =================================================
+		// The mirror image of the temporal cards: opened by a settings COG on the RIGHT edge of the bar and
+		// hidden by the card's own down-triangle. Deliberately INDEPENDENT of TemporalMode/OpenCard — it's
+		// app-wide, not tied to a time-frame, so switching temporal modes never closes it and it isn't part
+		// of the one-card-at-a-time temporal group.
+		private bool _isSettingsCardOpen;
+
+		/// <summary>Whether the app-wide settings card floats above the bar (right-aligned). Two-way: the
+		/// settings cog toggles it; the card's down-triangle clears it.</summary>
+		public bool IsSettingsCardOpen
+		{
+			get => _isSettingsCardOpen;
+			set
+			{
+				if (_isSettingsCardOpen == value)
+				{
+					return;
+				}
+
+				_isSettingsCardOpen = value;
+				OnPropertyChanged();
+			}
+		}
+
+		// The Radar Site Explorer's open state — app-wide like IsSettingsCardOpen and deliberately
+		// independent of the temporal cards, so it can be open alongside any of them.
+		private bool _isSiteExplorerOpen;
+
+		/// <summary>Whether the Radar Site Explorer panel is showing (toggled by the "Sites" button).</summary>
+		public bool IsSiteExplorerOpen
+		{
+			get => _isSiteExplorerOpen;
+			set
+			{
+				if (_isSiteExplorerOpen == value)
+				{
+					return;
+				}
+
+				_isSiteExplorerOpen = value;
+				OnPropertyChanged();
+			}
 		}
 
 		public IReadOnlyList<MapStyle> AvailableStyles { get; }

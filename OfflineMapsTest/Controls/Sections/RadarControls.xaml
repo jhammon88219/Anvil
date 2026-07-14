@@ -125,14 +125,14 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
+                <!-- Data-driven from ViewModel.RadarProductOptions (mirrors the JS radar-products.js
+                     registry) so adding a product grows the dropdown with no XAML change. -->
                 <ComboBox Grid.Column="0"
                           Style="{StaticResource NoBackgroundComboBoxStyle}"
                           HorizontalAlignment="Stretch"
-                          SelectedIndex="{x:Bind ViewModel.RadarProductIndex, Mode=TwoWay}">
-                    <ComboBoxItem Content="Reflectivity"/>
-                    <ComboBoxItem Content="Velocity"/>
-                    <ComboBoxItem Content="Correlation Coefficient"/>
-                </ComboBox>
+                          ItemsSource="{x:Bind ViewModel.RadarProductOptions}"
+                          DisplayMemberPath="Label"
+                          SelectedIndex="{x:Bind ViewModel.RadarProductIndex, Mode=TwoWay}"/>
                 <ComboBox Grid.Column="1"
                           Style="{StaticResource NoBackgroundComboBoxStyle}"
                           HorizontalAlignment="Stretch"

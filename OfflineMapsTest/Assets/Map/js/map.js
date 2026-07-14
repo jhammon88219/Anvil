@@ -53,6 +53,7 @@ try {
     import('./watches.js').then(function (m) { Watches = m; }).catch(function (e) { console.error('watches.js load failed: ' + e); });
     window.setWatchSource = function (url) { if (Watches) Watches.setSource(map, url); };
     window.setWatchesVisible = function (on) { if (Watches) Watches.setVisible(map, on); };
+    window.setWatchesOpacity = function (o) { if (Watches) Watches.setOpacity(map, o); };
 
     window.flyTo = function (lng, lat, zoom) { map.flyTo({ center: [lng, lat], zoom: zoom }); };
 
@@ -114,7 +115,13 @@ try {
         }
     }
     import('./radar-ramps.js').then(function (m) {
-        radarRamps = { reflectivity: m.REFLECTIVITY_RAMP, velocity: m.VELOCITY_RAMP, cc: m.CORRELATION_RAMP };
+        // Key each exported ramp by its own `id` (matches the product id from radar-products.js), so a
+        // new product's ramp is picked up automatically — no per-product edit here.
+        radarRamps = {};
+        Object.keys(m).forEach(function (k) {
+            var r = m[k];
+            if (r && r.id && Array.isArray(r.stops)) radarRamps[r.id] = r;
+        });
         postRampFor(radarProduct); // whatever product is active once the ramps are loaded
     }).catch(function (e) { /* legend stays empty if ramps can't load */ });
 
@@ -137,6 +144,8 @@ try {
     window.setSelectedRadarSite = function (id) { if (RadarSites) RadarSites.setSelected(id); };
     window.setRadarSitesStatus = function (json) { if (RadarSites) RadarSites.setStatus(json); };
     window.setRadarSitesVisible = function (visible) { if (RadarSites) RadarSites.setVisible(visible); };
+    window.setResearchRadarsVisible = function (visible) { if (RadarSites) RadarSites.setResearchVisible(visible); };
+    window.setTdwrsVisible = function (visible) { if (RadarSites) RadarSites.setTdwrVisible(visible); };
     // The OS theme accent for the site-status halo. Cache if the module hasn't loaded yet so the
     // map-ready push (which can beat the dynamic import) isn't dropped.
     window.setRadarSiteAccent = function (border, glow) {

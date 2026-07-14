@@ -66,6 +66,22 @@ namespace OfflineMapsTest.Services
 			return recent;
 		}
 
+		public async Task<RadarVolume?> GetLatestVolumeAsync(RadarSite site, CancellationToken cancellationToken = default)
+		{
+			// Newest archive volume for the site (listing only), then ensure its lowest tilt is cached —
+			// EnsureCachedAsync already fills VolumeTime (latest scan) + ModeText (VCP/scan mode).
+			// Use the window listing (last few hours) rather than GetRecentKeysAsync so we DON'T prune the
+			// site's cache: browsing a detail must never disturb a loop running on the same site.
+			var now = DateTimeOffset.UtcNow;
+			var keys = await GetKeysForWindowAsync(site, now.AddHours(-6), now, cancellationToken);
+			if (keys.Count == 0)
+			{
+				return null; // no recent data in the feed for this site
+			}
+
+			return await EnsureCachedAsync(site, keys[^1], cancellationToken);
+		}
+
 		public async Task<IReadOnlyList<string>> GetKeysForWindowAsync(RadarSite site, DateTimeOffset startUtc, DateTimeOffset endUtc, CancellationToken cancellationToken = default)
 		{
 			if (endUtc < startUtc)
@@ -263,6 +279,10 @@ namespace OfflineMapsTest.Services
 		// by site/volume; reset when the newest volume changes.
 		private string? _liveVolKey;
 		private byte[]? _liveHeader;
+		// The actual per-radial ICAO of the current live volume, once resolved — a few radars write their
+		// radials under a different callsign than the AWS key (the ROC test bed KCRI uses "NOK5"). Reset
+		// with the volume; lets later polls tag chunk elevations with the right id from the start.
+		private byte[]? _liveIcao;
 		private readonly SortedDictionary<int, (byte[] block, int elev)> _liveBlocks = new();
 
 		// One-shot cache of the previous-volume fallback frame (used while the newest volume is
@@ -369,6 +389,7 @@ namespace OfflineMapsTest.Services
 				{
 					_liveVolKey = cacheKey;
 					_liveHeader = null;
+					_liveIcao = null;
 					_liveBlocks.Clear();
 				}
 				blocks = _liveBlocks;
@@ -382,7 +403,10 @@ namespace OfflineMapsTest.Services
 
 			// Download + decompress only chunks we don't already have. Each chunk is one LDM
 			// record: S = [24-byte header][control word][BZh…], I/E = [control word][BZh…].
-			var icao = System.Text.Encoding.ASCII.GetBytes(site.Id);
+			var siteIcao = System.Text.Encoding.ASCII.GetBytes(site.Id);
+			// Reuse the resolved data ICAO across polls of the same live volume (the newest-volume path);
+			// the fallback (previous finished volume) resolves fresh below. See _liveIcao.
+			var icao = (useCache ? _liveIcao : null) ?? siteIcao;
 
 			// Pick the missing chunks to pull this pass, in sequence order, bounded by the cap (the
 			// cross-poll cache in `blocks` already holds prior polls' chunks). These are independent,
@@ -439,6 +463,32 @@ namespace OfflineMapsTest.Services
 				RadarDiagnostics.Log("svc", "live", ("site", site.Id), ("vol", vol),
 					("msg", "header chunk missing -> can't decode"));
 				return null;
+			}
+
+			// Resolve the real per-radial ICAO once. If the site id isn't present in a radial block, the
+			// radar writes under a different callsign (KCRI -> "NOK5"); ElevationOf/SelectLatestSweep key on
+			// it, so without this every block reads elev 0 and no cut is found (the "refl=False vel=False"
+			// live fallback that leaves KCRI stuck ~10-13 min behind on archive frames). Detect it, cache it
+			// for later polls, and recompute the blocks' elevations (they were tagged with the site id at
+			// decode time). Normal sites contain the site id, so this never runs.
+			if (icao.AsSpan().SequenceEqual(siteIcao))
+			{
+				foreach (var b in blocks.Values)
+				{
+					if (!HasMoment(b.block, Dref)) continue;
+					if (IndexOf(b.block, siteIcao) < 0 && TryDetectIcao(b.block, out var real))
+					{
+						icao = real;
+						if (useCache) _liveIcao = real;
+						foreach (var k in blocks.Keys.ToList())
+						{
+							blocks[k] = (blocks[k].block, ElevationOf(blocks[k].block, icao));
+						}
+						RadarDiagnostics.Log("svc", "live", ("site", site.Id), ("vol", vol),
+							("msg", $"data ICAO differs: using '{System.Text.Encoding.ASCII.GetString(real)}'"));
+					}
+					break; // probed one radial block — resolved (or the site id is genuinely present)
+				}
 			}
 
 			var ordered = blocks.Values.ToList();

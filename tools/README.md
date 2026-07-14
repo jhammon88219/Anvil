@@ -61,8 +61,15 @@ It finds the volume nearest your time, prints the exact scan time it used, and w
 ```
 KTLX_20130520_2010_refl.png
 KTLX_20130520_2010_vel.png
+KTLX_20130520_2010_phidp.png   # dual-pol only: differential phase (the input KDP is derived from)
+KTLX_20130520_2010_kdp.png     # dual-pol only: Py-ART KDP retrieval
 ```
 in the current folder.
+
+> **KDP note:** KDP is *algorithm-dependent* — the app computes it with a windowed least-squares slope
+> of ΦDP, Py-ART uses Maesaka/Vulpiani. So the `_kdp.png` is a **structural** answer key: check that KDP
+> is high in the same heavy-rain cores and in the same magnitude ballpark (~1–4 °/km heavy rain), **not**
+> gate-for-gate. The `_phidp.png` IS a gate-for-gate check of the app's ΦDP *decode* (use Inspect).
 
 > Local vs UTC: weather events are usually quoted in local time. Oklahoma in summer is CDT
 > (UTC − 5), so e.g. the Moore tornado "~3:01 PM CDT" = **20:01 UTC**. Just add 5 hours to a CDT

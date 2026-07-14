@@ -38,6 +38,9 @@ namespace OfflineMapsTest.Services
 		public Task SetWatchesVisibleAsync(bool visible) =>
 			_mapView.RunScriptAsync(Call("setWatchesVisible", visible));
 
+		public Task SetWatchesOpacityAsync(double opacity) =>
+			_mapView.RunScriptAsync(Call("setWatchesOpacity", opacity));
+
 		// The loop is driven frame-by-frame: begin (with the site's antenna coords, needed to
 		// project the gates), then add each cached volume URL as a frame, then show by index.
 		public Task BeginRadarLoopAsync(RadarSite site) =>
@@ -83,6 +86,12 @@ namespace OfflineMapsTest.Services
 
 		public Task SetRadarSitesVisibleAsync(bool visible) =>
 			_mapView.RunScriptAsync(Call("setRadarSitesVisible", visible));
+
+		public Task SetResearchRadarsVisibleAsync(bool visible) =>
+			_mapView.RunScriptAsync(Call("setResearchRadarsVisible", visible));
+
+		public Task SetTdwrsVisibleAsync(bool visible) =>
+			_mapView.RunScriptAsync(Call("setTdwrsVisible", visible));
 
 		public Task SetRadarSitesStatusAsync(string offlineIdsJson) =>
 			_mapView.RunScriptAsync(Call("setRadarSitesStatus", offlineIdsJson));

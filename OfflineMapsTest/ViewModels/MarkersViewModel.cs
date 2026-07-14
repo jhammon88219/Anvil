@@ -53,6 +53,10 @@ namespace OfflineMapsTest.ViewModels
 		// collection if/when a marker list view is added.
 		private readonly List<MapMarker> _markers = new();
 
+		/// <summary>The current user-location marker, if one has been placed (else null). Exposed so the
+		/// Radar Site Explorer can compute distance-to-site; read-only view over the private list.</summary>
+		public MapMarker? UserLocationMarker => _markers.FirstOrDefault(m => m.Kind == MarkerKind.UserLocation);
+
 		// ── 1. Locate action (Map card) ──
 		private bool _isLocating;
 		private string _locateStatus = string.Empty; // transient only: "Locating…" / "Location unavailable"

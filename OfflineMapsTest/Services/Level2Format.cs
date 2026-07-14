@@ -375,24 +375,42 @@ namespace OfflineMapsTest.Services
 		}
 
 		// Real WSR-88D volume coverage patterns. Used to validate the (best-effort) VCP parse:
-		// anything outside this set is a bad read, shown as "VCP ?" rather than a wrong number.
-		internal static readonly HashSet<int> ClearAirVcps = new() { 31, 32, 35, 90 };
+		// anything outside the known sets is a bad read, shown as "VCP ?" rather than a wrong number.
+		internal static readonly HashSet<int> ClearAirVcps = new() { 31, 32, 35 };
 		internal static readonly HashSet<int> PrecipVcps = new() { 11, 12, 21, 112, 121, 211, 212, 215, 221 };
+		// TDWR (Terminal Doppler Weather Radar) volume coverage patterns — a separate C-band network
+		// that publishes the same Archive Level II family (AR2V0008). 90 = "monitor" (clear-air; 16
+		// scans/~6 min) and 80 = "hazardous" (precipitation), which the SPG auto-selects on detecting
+		// >20 dBZ or wind shear near the airport. These are NOT WSR-88D VCPs — 90 was previously (and
+		// wrongly) listed as a WSR-88D clear-air VCP, and 80 was unknown, so a TDWR in hazardous mode
+		// read as "VCP ?" (its msg5 VCP failed the IsKnownVcp gate in ReadVcpFromMetadata).
+		internal static readonly HashSet<int> TdwrVcps = new() { 80, 90 };
 
-		internal static bool IsKnownVcp(int vcp) => ClearAirVcps.Contains(vcp) || PrecipVcps.Contains(vcp);
+		internal static bool IsKnownVcp(int vcp) =>
+			ClearAirVcps.Contains(vcp) || PrecipVcps.Contains(vcp) || TdwrVcps.Contains(vcp);
+
+		// Human regime label for a KNOWN vcp (callers gate on IsKnownVcp first).
+		private static string RegimeLabel(int vcp) => vcp switch
+		{
+			90 => "TDWR monitor",
+			80 => "TDWR hazardous",
+			_ => ClearAirVcps.Contains(vcp) ? "clear-air" : "precip",
+		};
 
 		// Maps the VCP number to a human label. Clear-air VCPs scan ~every 10 min and never use
-		// SAILS; precip VCPs (12/212/215/…) run ~4-6 min and may insert extra 0.5° sweeps. An
-		// unrecognized number means the parse failed -> "VCP ?" (no category, since we can't tell).
+		// SAILS; precip VCPs (12/212/215/…) run ~4-6 min and may insert extra 0.5° sweeps; TDWR VCPs
+		// (80/90) are the terminal network's monitor/hazardous modes. An unrecognized number means the
+		// parse failed -> "VCP ?" (no category, since we can't tell).
 		internal static string DescribeMode(int vcp, int sweeps)
 		{
 			if (!IsKnownVcp(vcp))
 			{
 				return $"VCP ? · 0.5°×{sweeps}";
 			}
-			var clearAir = ClearAirVcps.Contains(vcp);
-			var sails = sweeps > 1 ? $" · SAILS/MRLE ×{sweeps - 1}" : "";
-			return $"VCP {vcp} · {(clearAir ? "clear-air" : "precip")} · 0.5°×{sweeps}{sails}";
+			// SAILS/MRLE is WSR-88D-only terminology; TDWR re-scans its low tilt differently, so omit
+			// the suffix for TDWR VCPs even when the metadata reports extra low-tilt sweeps.
+			var sails = (!TdwrVcps.Contains(vcp) && sweeps > 1) ? $" · SAILS/MRLE ×{sweeps - 1}" : "";
+			return $"VCP {vcp} · {RegimeLabel(vcp)} · 0.5°×{sweeps}{sails}";
 		}
 
 		// VCP + regime only (no sweep count) — the archive/replay mode line, where per-frame we read
@@ -404,7 +422,7 @@ namespace OfflineMapsTest.Services
 			{
 				return string.Empty;
 			}
-			return $"VCP {vcp} · {(ClearAirVcps.Contains(vcp) ? "clear-air" : "precip")}";
+			return $"VCP {vcp} · {RegimeLabel(vcp)}";
 		}
 
 		// Reads the scan mode from an ALREADY-EXTRACTED single-tilt buffer (a cached .V06: 24-byte
@@ -449,6 +467,7 @@ namespace OfflineMapsTest.Services
 			}
 
 			var icao = System.Text.Encoding.ASCII.GetBytes(siteId);
+			var icaoResolved = false; // resolve the real data ICAO once, on the first radial block (see below)
 			using var output = new MemoryStream(8 * 1024 * 1024);
 			output.Write(raw, 0, headerSize);
 
@@ -495,6 +514,21 @@ namespace OfflineMapsTest.Services
 					break; // a malformed record: stop and serve what we have rather than failing
 				}
 				pos += size;
+
+				// On the first radial block, if the site id isn't present in it, the radar writes its
+				// radials under a different internal callsign (e.g. the ROC test bed KCRI → "NOK5") — detect
+				// the real ICAO from the data and use it for the rest of the walk. Normal sites contain the
+				// site id, so detection never runs (no cost / no behavior change).
+				if (!icaoResolved && HasMoment(block, Dref))
+				{
+					if (IndexOf(block, icao) < 0 && TryDetectIcao(block, out var real))
+					{
+						RadarDiagnostics.Log("svc", "extract", ("site", siteId),
+							("msg", $"data ICAO differs: using '{System.Text.Encoding.ASCII.GetString(real)}'"));
+						icao = real;
+					}
+					icaoResolved = true;
+				}
 
 				var elev = ElevationOf(block, icao);
 				var angle = ElevationAngleOf(block, icao);
@@ -567,6 +601,63 @@ namespace OfflineMapsTest.Services
 				("msg", $"baseAngle={(float.IsNaN(baseAngle) ? "?" : baseAngle.ToString("0.00"))}°"));
 
 			return records > 0 ? output.ToArray() : null;
+		}
+
+		// Detects the ACTUAL internal ICAO from a Message-31 radial block. The AWS bucket key is the site
+		// id (e.g. "KCRI"), but a few radars — notably the ROC test bed KCRI — write their radials under a
+		// DIFFERENT callsign (KCRI's is "NOK5"). When the site id isn't present, ElevationOf/
+		// ElevationAngleOf (which locate the radial header via IndexOf(icao)) return 0/NaN for every radial,
+		// so the tilt walk never anchors and the whole ~54 MB volume gets cached (a blob the JS can't
+		// render). We recover the real ICAO by the Message-31 header signature at each record start:
+		// 4 alphanumeric ICAO bytes, then a valid ms-of-day (+4), azimuth float (+12, [0,360)), elevation
+		// number (+22, 1..32) and elevation-angle float (+24, [-2,75]). The real ICAO repeats once per
+		// radial, so we return the MOST FREQUENT match (coincidental hits in binary data are rare and few).
+		internal static bool TryDetectIcao(byte[] block, out byte[] icao)
+		{
+			var counts = new Dictionary<string, int>();
+			var span = block.AsSpan();
+			for (var p = 0; p + 28 <= block.Length; p++)
+			{
+				var b0 = block[p];
+				if (!((b0 >= 'A' && b0 <= 'Z') || (b0 >= '0' && b0 <= '9')))
+				{
+					continue; // cheap reject: an ICAO starts with an alphanumeric
+				}
+				var alnum = true;
+				for (var k = 1; k < 4; k++)
+				{
+					var b = block[p + k];
+					if (!((b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9'))) { alnum = false; break; }
+				}
+				if (!alnum)
+				{
+					continue;
+				}
+
+				var ms = ((uint)block[p + 4] << 24) | ((uint)block[p + 5] << 16) | ((uint)block[p + 6] << 8) | block[p + 7];
+				if (ms > 86_400_000)
+				{
+					continue;
+				}
+				var az = System.Buffers.Binary.BinaryPrimitives.ReadSingleBigEndian(span.Slice(p + 12, 4));
+				var ang = System.Buffers.Binary.BinaryPrimitives.ReadSingleBigEndian(span.Slice(p + 24, 4));
+				var elev = block[p + 22];
+				// The range checks also reject NaN (all NaN comparisons are false).
+				if (az >= 0f && az < 360f && ang >= -2f && ang <= 75f && elev >= 1 && elev <= 32)
+				{
+					var key = System.Text.Encoding.ASCII.GetString(block, p, 4);
+					counts[key] = counts.TryGetValue(key, out var c) ? c + 1 : 1;
+				}
+			}
+
+			if (counts.Count == 0)
+			{
+				icao = Array.Empty<byte>();
+				return false;
+			}
+			var best = counts.Aggregate((a, b) => b.Value > a.Value ? b : a).Key;
+			icao = System.Text.Encoding.ASCII.GetBytes(best);
+			return true;
 		}
 
 		internal static int ElevationOf(byte[] block, byte[] icao)

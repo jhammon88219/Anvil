@@ -28,6 +28,7 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Watches -->
+            <RowDefinition Height="Auto"/> <!-- Watch opacity -->
         </Grid.RowDefinitions>
 
         <!-- Watches: active Tornado / Severe Thunderstorm watch boxes. -->
@@ -38,5 +39,16 @@
                   VerticalAlignment="Center"
                   IsChecked="{x:Bind ViewModel.Watches.ShowWatches, Mode=TwoWay}"
                   ToolTipService.ToolTip="Show active Tornado / Severe Thunderstorm watch boxes"/>
+
+        <!-- Opacity: overall watch-polygon opacity (fill + outline together). -->
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Opacity" Style="{StaticResource NowLabelStyle}"/>
+        <Slider Grid.Row="1" Grid.Column="1"
+                Width="180" HorizontalAlignment="Left"
+                Minimum="0" Maximum="1"
+                StepFrequency="0.05" SmallChange="0.05"
+                IsThumbToolTipEnabled="False"
+                VerticalAlignment="Center"
+                Value="{x:Bind ViewModel.Watches.WatchesOpacity, Mode=TwoWay}"
+                ToolTipService.ToolTip="Overall opacity of the watch polygons"/>
     </Grid>
 </UserControl>

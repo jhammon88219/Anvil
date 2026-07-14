@@ -30,6 +30,12 @@
     <Content Include="Assets\radar-sites.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Assets\research-radar-sites.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\tdwr-sites.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <!-- Curated DOW (mobile-radar) frames for the DOW Event Viewer (offline-converted via
          tools/dow_import.py). The folder ships even when empty so the dowevents host has a target. -->
     <Content Include="Assets\DowEvents\*.dow.json">
@@ -98,6 +104,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Update="Assets\Map\js\radar-worker.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Update="Assets\Map\js\radar-products.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Update="Assets\Map\vendor\nexrad-level-2-data.esm.js">

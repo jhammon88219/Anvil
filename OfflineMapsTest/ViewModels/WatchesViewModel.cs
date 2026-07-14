@@ -27,6 +27,9 @@ namespace OfflineMapsTest.ViewModels
 		// Watch-box overlay toggle. Default OFF so the app launches with no watch boxes drawn.
 		private bool _showWatches;
 
+		// Overall opacity of the watch polygons (fill + outline together). Default 1.0 = the current look.
+		private double _watchesOpacity = 1.0;
+
 		public WatchesViewModel(IMapService mapService, ISpcWatchService watchService)
 		{
 			_mapService = mapService;
@@ -51,6 +54,27 @@ namespace OfflineMapsTest.ViewModels
 				if (_isMapReady)
 				{
 					_ = _mapService.SetWatchesVisibleAsync(value);
+				}
+			}
+		}
+
+		/// <summary>Overall opacity (0-1) of the watch polygons — scales the faint fill and the bold outline
+		/// together (1 = the default look). NowCast card slider; independent of the show/hide toggle.</summary>
+		public double WatchesOpacity
+		{
+			get => _watchesOpacity;
+			set
+			{
+				if (_watchesOpacity == value)
+				{
+					return;
+				}
+
+				_watchesOpacity = value;
+				OnPropertyChanged();
+				if (_isMapReady)
+				{
+					_ = _mapService.SetWatchesOpacityAsync(value);
 				}
 			}
 		}
@@ -88,6 +112,7 @@ namespace OfflineMapsTest.ViewModels
 		{
 			_isMapReady = true;
 			await _mapService.SetWatchSourceAsync(_watchService.WatchesUrl);
+			await _mapService.SetWatchesOpacityAsync(_watchesOpacity);
 			await _mapService.SetWatchesVisibleAsync(_showWatches);
 		}
 

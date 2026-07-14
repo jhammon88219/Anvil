@@ -53,7 +53,8 @@ namespace OfflineMapsTest.Services
 		/// <summary>Sets the radar layer opacity (0-1).</summary>
 		Task SetRadarOpacityAsync(double opacity);
 
-		/// <summary>Sets the rendered radar moment: "reflectivity" or "velocity".</summary>
+		/// <summary>Sets the rendered radar moment by its product id (e.g. "reflectivity", "velocity",
+		/// "cc") — one of the ids in the JS registry (radar-products.js) / <c>RadarProductOptions</c>.</summary>
 		Task SetRadarProductAsync(string product);
 
 		/// <summary>Speculatively builds velocity geometry for the loaded loop in the background (before
@@ -82,6 +83,12 @@ namespace OfflineMapsTest.Services
 		/// <summary>Shows or hides the SPC watch boxes (Tornado / Severe Thunderstorm Watches).</summary>
 		Task SetWatchesVisibleAsync(bool visible);
 
+		/// <summary>
+		/// Sets the overall opacity (0-1) of the watch polygons. Scales both the faint fill and the bold
+		/// outline together, so the slider fades the whole overlay (1 = the default look).
+		/// </summary>
+		Task SetWatchesOpacityAsync(double opacity);
+
 		/// <summary>Highlights the selected site marker (empty clears the highlight).</summary>
 		Task SetSelectedRadarSiteAsync(string? siteId);
 
@@ -103,6 +110,18 @@ namespace OfflineMapsTest.Services
 		/// hiding the markers never clears or hides an active radar loop.
 		/// </summary>
 		Task SetRadarSitesVisibleAsync(bool visible);
+
+		/// <summary>
+		/// Shows or hides just the research/test radar markers (e.g. KCRI) — the "Show Research
+		/// Radars" toggle. Off by default; operational markers and any active loop are unaffected.
+		/// </summary>
+		Task SetResearchRadarsVisibleAsync(bool visible);
+
+		/// <summary>
+		/// Shows or hides just the Terminal Doppler Weather Radar markers (the FAA `T***` network) —
+		/// the "Show TDWRs" toggle. Off by default; operational markers and any active loop are unaffected.
+		/// </summary>
+		Task SetTdwrsVisibleAsync(bool visible);
 
 		/// <summary>
 		/// Marks which site markers are offline (no recent data in the feed). JSON is an array

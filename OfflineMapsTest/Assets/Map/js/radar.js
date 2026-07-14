@@ -28,10 +28,27 @@
     let Geo = null;
     import('./geo.js').then(function (m) { Geo = m; }).catch(function (e) { hostLog('geo.js load failed: ' + (e && e.message ? e.message : e)); });
 
-    // frames[index] = { positions, colors, count, velPositions, velColors, velCount }: the
-    // reflectivity AND velocity gate geometry (each with baked colors), so switching product is
-    // instant (no re-decode). count/velCount are 0 when that product has nothing to draw.
-    // currentFrame is the index being rendered.
+    // Product registry (radar-products.js — the single source of truth shared with radar-decode.js).
+    // Same tiny-module dynamic-import pattern as geo.js: loaded once at startup, cached in `Products`,
+    // resolved long before the user can switch products / the first frame upgrades. productLazy() tells
+    // the render/upgrade paths whether the active product is built lazily (velocity today); it defaults
+    // to non-lazy for an unknown/not-yet-loaded id, which is safe (the default reflectivity isn't lazy).
+    let Products = null;
+    import('./radar-products.js').then(function (m) { Products = m.PRODUCTS; }).catch(function (e) { hostLog('radar-products.js load failed: ' + (e && e.message ? e.message : e)); });
+    function productLazy(p) { return !!(Products && Products[p] && Products[p].lazy); }
+    function productKnown(p) { return !Products || !!Products[p]; } // permissive until the registry loads
+    // Whether every lazy product's geometry was already built in a decode result — used to reject a cache
+    // hit / decide upgrades. True when the registry hasn't loaded yet (nothing known to be lazy).
+    function lazyBuiltIn(r) {
+        if (!Products) return true;
+        for (var id in Products) { if (Products[id].lazy && !(r && r.built && r.built[id])) return false; }
+        return true;
+    }
+
+    // frames[index] = { moments: { id: { positions, colors, count } | null }, grids, built, ... }:
+    // per-product gate geometry (baked colors) keyed by product id (radar-products.js), so switching
+    // product is a map lookup + upload — instant for eagerly-built products (no re-decode). A null/absent
+    // moment means that product has nothing to draw on this frame. currentFrame is the index rendered.
     let frames = [];
     let currentFrame = -1;
 
@@ -77,8 +94,15 @@
     function needsUpgrade(idx) {
         var f = frames[idx];
         if (!f || !f.url) return false;
-        if ((product === 'velocity' || velPrefetch) && !f.velBuilt) return true; // Velocity active OR speculatively prefetching it
         if (inspecting && !f.gridsBuilt) return true;             // no value grids, Inspect on
+        // A lazy product (velocity) needs (re)building when it's the ACTIVE product OR being prefetched
+        // and this frame lacks it. built[id] tracks whether the build RAN, so a frame with genuinely no
+        // velocity (built.velocity=true, geometry null) won't re-decode forever.
+        if (Products) {
+            for (var id in Products) {
+                if (Products[id].lazy && (product === id || velPrefetch) && !(f.built && f.built[id])) return true;
+            }
+        }
         return false;
     }
     function upgradePriority(idx) {
@@ -128,8 +152,9 @@
         var total = frames.length;
         if (!total) { post({ type: 'radarBuildProgress', product: product, built: 0, total: 0, ready: [] }); return; }
         var built = 0, ready = new Array(total);
+        var lazy = productLazy(product); // non-lazy products are always ready (built eagerly)
         for (var i = 0; i < total; i++) {
-            var r = (product !== 'velocity') || !!(frames[i] && frames[i].velBuilt);
+            var r = !lazy || !!(frames[i] && frames[i].built && frames[i].built[product]);
             ready[i] = r;
             if (r) built++;
         }
@@ -260,22 +285,13 @@
         return w;
     }
 
-    // Flattens a decode result (r2 from decodeAndBuild / decodeDowFrame: { geom, velGeom, ccGeom,
-    // reflGrid, ... }) into the flat message shape applyFrameResult consumes. Used by the main-thread
-    // decode fallback and the DOW path. NOTE: the Worker (radar-worker.js) builds this same shape itself
-    // rather than calling here, because it must pass the typed-array buffers as postMessage transferables
-    // — a worker-only concern, and the worker can't reach this IIFE-private helper anyway.
-    function frameResultFrom(r2, token, index, url, velBuilt, gridsBuilt) {
-        return {
-            token: token, index: index, url: url, velBuilt: velBuilt, gridsBuilt: gridsBuilt, empty: !r2.geom && !r2.velGeom && !r2.ccGeom,
-            positions: r2.geom && r2.geom.positions, colors: r2.geom && r2.geom.colors, count: r2.geom && r2.geom.count,
-            velPositions: r2.velGeom && r2.velGeom.positions, velColors: r2.velGeom && r2.velGeom.colors, velCount: r2.velGeom && r2.velGeom.count,
-            ccPositions: r2.ccGeom && r2.ccGeom.positions, ccColors: r2.ccGeom && r2.ccGeom.colors, ccCount: r2.ccGeom && r2.ccGeom.count,
-            reflGrid: r2.reflGrid, velGrid: r2.velGrid, ccGrid: r2.ccGrid, rangeMeters: r2.rangeMeters,
-            decodeMs: r2.decodeMs, buildMs: r2.buildMs, radials: r2.radials, gates: r2.gates, bytes: r2.bytes,
-            elevList: r2.elevList, velElev: r2.velElev, reflStats: r2.reflStats, velStats: r2.velStats,
-            velNyq: r2.velNyq, dealias: r2.dealias,
-        };
+    // Wraps a decode result (r2 from decodeAndBuild / decodeDowFrame — already the keyed
+    // { moments, grids, built, gridsBuilt, ... } shape) into what applyFrameResult consumes, just
+    // stamping this load's token/index/url. Used by the main-thread decode fallback and the DOW path.
+    // NOTE: the Worker (radar-worker.js) builds the message itself because it must pass the typed-array
+    // buffers as postMessage transferables — a worker-only concern it can't reach this IIFE-private helper for.
+    function frameResultFrom(r2, token, index, url) {
+        return Object.assign({}, r2, { token: token, index: index, url: url });
     }
 
     function applyFrameResult(res) {
@@ -286,18 +302,20 @@
             post({ type: 'radarFrameReady', index: res.index, hasData: false });
             return;
         }
+        // Compute empty authoritatively from the moments map (every producer sends the same shape), so
+        // cachePut below skips caching a no-geometry frame regardless of which path decoded it.
+        var mo = res.moments || {};
+        res.empty = !Object.keys(mo).some(function (id) { return mo[id]; });
         frames[res.index] = {
-            positions: res.positions, colors: res.colors, count: res.count || 0,
-            velPositions: res.velPositions, velColors: res.velColors, velCount: res.velCount || 0,
-            ccPositions: res.ccPositions, ccColors: res.ccColors, ccCount: res.ccCount || 0,
-            // Inspector value grids (keyed by product name) — see setInspect / lookupValue below.
-            grids: { reflectivity: res.reflGrid || null, velocity: res.velGrid || null, cc: res.ccGrid || null },
-            velNyq: res.velNyq || 0, // Nyquist (m/s) — lets the inspector show the raw fold of a dealiased gate
-            // Lazy-build bookkeeping: url = this frame's stable volume URL (so a product/inspect switch
-            // can re-decode it), velBuilt = whether velocity geometry was built, gridsBuilt = whether the
-            // inspector value grids were built (both skipped by default; built on demand — see setProduct
-            // / setInspect).
-            url: res.url || null, velBuilt: !!res.velBuilt, gridsBuilt: !!res.gridsBuilt,
+            // Geometry + inspector grids keyed by product id (radar-products.js) — see render / lookupValue.
+            moments: mo,                    // { id: { positions, colors, count } | null }
+            grids: res.grids || {},         // { id: value-grid | null } (present only when Inspect was on)
+            built: res.built || {},         // { id: bool } — whether that product's build ran (lazy bookkeeping)
+            velNyq: res.velNyq || 0,        // Nyquist (m/s) — lets the inspector show the raw fold of a dealiased gate
+            // url = this frame's stable volume URL (so a product/inspect switch can re-decode it),
+            // gridsBuilt = whether the inspector value grids were built (skipped by default; built on
+            // demand — see setProduct / setInspect).
+            url: res.url || null, gridsBuilt: !!res.gridsBuilt,
         };
         // Post the per-frame decode metrics as a STRUCTURED message (the C# RadarDiagnostics
         // service records them, evaluates the suspect heuristics, and quarantines a bad frame's
@@ -315,15 +333,17 @@
         // reload" bug). Queue it for a bounded upgrade; needsUpgrade returns false once built, so there's
         // no decode loop and no cost when the product was already active at decode time.
         queueUpgrade(res.index);
+        var reflCount = (mo.reflectivity && mo.reflectivity.count) || 0;
+        var velCount = (mo.velocity && mo.velocity.count) || 0;
         post({
             type: 'radarFrame', index: res.index, empty: !!res.empty, cached: !!res.cached,
-            tris: res.count || 0, velTris: res.velCount || 0,
+            tris: reflCount, velTris: velCount,
             decodeMs: res.decodeMs, buildMs: res.buildMs, bytes: res.bytes,
             elevList: res.elevList, velElev: res.velElev, velNyq: res.velNyq,
             reflStats: res.reflStats, velStats: res.velStats, dealias: res.dealias,
             decoded: frames.filter(Boolean).length, total: frames.length, cf: currentFrame,
         });
-        try { console.log('[radar] decoded idx=' + res.index + (res.empty ? ' EMPTY' : ' tris=' + res.count + ' velTris=' + (res.velCount || 0))); } catch (e) { /* ignore */ }
+        try { console.log('[radar] decoded idx=' + res.index + (res.empty ? ' EMPTY' : ' tris=' + reflCount + ' velTris=' + velCount)); } catch (e) { /* ignore */ }
 
         // Decide what to show now that this frame is available. Crucially, ANY of these paths
         // re-adds the layer if it's missing (e.g. after a reload removed it) — so the radar can
@@ -399,11 +419,10 @@
                 if (!program || currentFrame < 0) return;
                 const f = frames[currentFrame];
                 if (!f) { noteRenderIssue('no frame at cf=' + currentFrame, false); return; }
-                // Pick the geometry for the active product (reflectivity / velocity / correlation).
+                // Pick the geometry for the active product — one keyed lookup (radar-products.js).
                 let pos, col, cnt;
-                if (product === 'velocity') { pos = f.velPositions; col = f.velColors; cnt = f.velCount; }
-                else if (product === 'cc') { pos = f.ccPositions; col = f.ccColors; cnt = f.ccCount; }
-                else { pos = f.positions; col = f.colors; cnt = f.count; }
+                const g = f.moments && f.moments[product];
+                if (g) { pos = g.positions; col = g.colors; cnt = g.count; }
                 try {
                     // Re-upload when the frame OR the product changed. Only latch the buffers as
                     // current once an upload actually happened: a frame that lacks this product's
@@ -590,14 +609,15 @@
         // product OR while speculatively prefetching it (velPrefetch — armed by the host once the
         // reflectivity loop has rendered, so a later switch to Velocity is instant/near-instant). On
         // reflectivity/CC with prefetch off we skip it and re-decode on demand (setProduct).
-        const wantVel = (product === 'velocity') || velPrefetch; // build velocity when active OR prefetching it in the background
+        const wantLazy = productLazy(product) || velPrefetch; // build lazy products (velocity) when active OR prefetching
         const wantGrids = inspecting; // inspector value grids are only needed while Inspect is on
         // Cache hit → reuse the decoded geometry synchronously (no fetch, no worker). This is what
         // makes a site revisit / replay toggle instant. Reject a hit that lacks a piece we need now —
-        // velocity (a refl-only decode from a prior view) or the inspector grids (decoded with Inspect
-        // off) — so we fall through and build it this time. Clone with THIS load's token+index; arrays shared.
+        // the lazy product's geometry (a refl-only decode from a prior view) or the inspector grids
+        // (decoded with Inspect off) — so we fall through and build it this time. Clone with THIS load's
+        // token+index; arrays shared.
         const hit = cacheGet(url);
-        if (hit && (!wantVel || hit.velBuilt) && (!wantGrids || hit.gridsBuilt)) {
+        if (hit && (!wantLazy || lazyBuiltIn(hit)) && (!wantGrids || hit.gridsBuilt)) {
             hostLog('frame ' + index + ' cache hit');
             applyFrameResult(Object.assign({}, hit, { token: myToken, index: index, cached: true }));
             return;
@@ -609,12 +629,12 @@
             if (myToken !== loopToken) return;
             const w = getWorker();
             if (w) {
-                w.postMessage({ ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, buildVel: wantVel, buildGrids: wantGrids }, [ab]);
+                w.postMessage({ ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, buildLazy: wantLazy, buildGrids: wantGrids }, [ab]);
             } else {
                 import('./radar-decode.js').then(function (m) {
-                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, wantVel, wantGrids);
+                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, wantLazy, wantGrids);
                 }).then(function (r2) {
-                    applyFrameResult(frameResultFrom(r2, myToken, index, url, wantVel, wantGrids));
+                    applyFrameResult(frameResultFrom(r2, myToken, index, url));
                 }).catch(function (err) {
                     applyFrameResult({ token: myToken, index: index, error: String(err && err.message ? err.message : err) });
                 });
@@ -873,8 +893,8 @@
                 if (!r2 || myToken !== loopToken) return;
                 // Feed it as frame 0 — applyFrameResult adopts the first frame (currentFrame<0),
                 // (re)adds the layer, and draws the range ring from r2.rangeMeters. DOW always builds
-                // velocity (pre-dealiased, cheap) + grids so velBuilt/gridsBuilt=true; url undefined = not cached.
-                applyFrameResult(frameResultFrom(r2, myToken, 0, undefined, true, true));
+                // velocity (pre-dealiased, cheap) + grids so built.velocity/gridsBuilt=true; url undefined = not cached.
+                applyFrameResult(frameResultFrom(r2, myToken, 0, undefined));
             }).catch(function (err) {
                 hostLog('showDow failed: ' + (err && err.message ? err.message : err));
             });
@@ -901,7 +921,7 @@
         // current-frame-first re-decode (see the upgrade queue up top) — velocity fills in around the
         // frame on screen instead of flooding the decode pool and flashing blanks during playback.
         setProduct: function (map, p) {
-            if ((p !== 'reflectivity' && p !== 'velocity' && p !== 'cc') || p === product) return;
+            if (!productKnown(p) || p === product) return;
             product = p;
             uploadedFrame = -1; // force the new product's geometry to upload on the next render
             hostLog('product=' + product);
