@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -347,6 +348,10 @@ namespace OfflineMapsTest.ViewModels
 				_pastWindowLoaded = false; // re-arm from scratch each time the mode is toggled
 				OnPropertyChanged();
 				OnPropertyChanged(nameof(IsLiveControlsEnabled));
+				// The offered tilts depend on the mode, not just the radar: a live loop shows only the
+				// tilts the chunks feed can serve fresh, while replay (all-historical) offers the whole
+				// VCP. Rebuild from the last-known VCP now rather than waiting for a frame to land.
+				UpdateTiltOptions(null);
 				// Both directions clear to a clean slate (entering: drop the live loop; leaving:
 				// drop the replay loop and go idle). Setting "None" routes through the mode-aware
 				// SelectedRadarOption setter, which clears the loop without starting anything.
@@ -489,6 +494,7 @@ namespace OfflineMapsTest.ViewModels
 				if (value && _frameCount > 0)
 				{
 					_ = _mapService.PrefetchRadarVelocityAsync();
+					StartTiltPrefetch();
 				}
 			}
 		}
@@ -674,6 +680,141 @@ namespace OfflineMapsTest.ViewModels
 					_ = _mapService.SetRadarProductAsync(RadarProductOptions[value].Id);
 				}
 			}
+		}
+
+		// ===== Tilt (elevation) selection ===============================================================
+		// Unlike a PRODUCT switch — which re-renders bytes already decoded in the WebView — a TILT switch
+		// needs different bytes entirely: each cached .V06 holds exactly ONE tilt, which is why the JS
+		// never learned about tilts (its Math.min(elevations) picks whatever tilt the file contains). So
+		// changing tilt reloads the loop through the normal load path, just with a different tilt angle.
+		//
+		// The choices come from the VCP's designed elevation table, which rides in every cached tilt's
+		// metadata — so the list populates from the newest frame with no extra fetch, and re-populates if
+		// the radar changes VCP.
+
+		// How many tilts the LIVE loop offers, counting up from the base.
+		//
+		// A radar scans bottom-up over a ~4.5-min volume, so a tilt's freshness floor is set by when the
+		// antenna reaches it: the bottom ~4 are cut within the first ~2 min and the chunks feed can serve
+		// them ~2-3 min old, but by 8°+ the tilt isn't scanned until ~4 min in and its best-case age has
+		// converged on the archive's ~5-10 min — there's nothing left to win, so offering it would just
+		// be shipping stale data behind a live-looking UI. 4 matches what RadarScope exposes.
+		//
+		// Past Event replay is NOT capped: every frame there is historical, so 19.5° from 2013 is exactly
+		// as current as 0.5° from 2013 and there's no freshness to protect. See docs/radar-tilts.md.
+		private const int LiveTiltCount = 4;
+
+		// The full designed tilt list of the last-loaded volume's VCP, before the live cap. Retained so
+		// the list can be rebuilt when the temporal mode flips (live <-> replay) without waiting for the
+		// next frame to land.
+		private IReadOnlyList<float> _vcpAngles = Array.Empty<float>();
+
+		/// <summary>The tilts selectable for the current site + mode (base tilt first): the whole VCP in
+		/// replay, the freshest <see cref="LiveTiltCount"/> in a live loop. Empty until the first frame
+		/// loads, or when the VCP doesn't parse — the combo is then disabled rather than offering a
+		/// guess.</summary>
+		public ObservableCollection<RadarTiltOption> RadarTiltOptions { get; } = new();
+
+		// The angle currently loaded; null = base tilt. This is the field the fetch path keys on, so it
+		// must be updated BEFORE any load is started.
+		private float? _selectedTiltAngle;
+
+		private int _radarTiltIndex;
+
+		/// <summary>Selected index into <see cref="RadarTiltOptions"/>. Bound to the Radar console's Tilt
+		/// combo. Changing it reloads the loop at that elevation (see the region comment).</summary>
+		public int RadarTiltIndex
+		{
+			get => _radarTiltIndex;
+			set
+			{
+				if (_radarTiltIndex == value || value < 0 || value >= RadarTiltOptions.Count)
+				{
+					return;
+				}
+
+				_radarTiltIndex = value;
+				_selectedTiltAngle = RadarTiltOptions[value].Angle;
+				OnPropertyChanged();
+				OnPropertyChanged(nameof(SelectedTiltLabel));
+				ReloadForTiltChange();
+			}
+		}
+
+		/// <summary>The loaded tilt, for the Selected Site readout ("0.5°"). Empty with no loop.</summary>
+		public string SelectedTiltLabel =>
+			_radarTiltIndex >= 0 && _radarTiltIndex < RadarTiltOptions.Count
+				? RadarTiltOptions[_radarTiltIndex].Label
+				: string.Empty;
+
+		/// <summary>Whether a tilt can be picked: a loop is up and its VCP offered more than one.</summary>
+		public bool CanSelectTilt => RadarTiltOptions.Count > 1;
+
+		// Rebuilds the tilt list from a freshly-loaded volume's VCP elevation table, preserving the
+		// current selection BY ANGLE (a VCP change reorders/renumbers tilts, so an index would silently
+		// jump to a different elevation). Falls back to the base tilt when the loaded angle is gone from
+		// the new VCP — e.g. the radar dropped from precip to clear-air, which scans fewer tilts. No-op
+		// when the list is unchanged, so this can be called per frame.
+		//
+		// Pass null to rebuild from the last-known VCP (used when the temporal mode flips, which changes
+		// the cap but not the radar).
+		private void UpdateTiltOptions(IReadOnlyList<float>? angles)
+		{
+			if (angles is { Count: > 0 })
+			{
+				_vcpAngles = angles;
+			}
+			angles = _vcpAngles;
+
+			// Live loops only offer tilts the chunks feed can serve FRESH; replay offers the lot.
+			if (!IsPastEventMode && angles.Count > LiveTiltCount)
+			{
+				angles = angles.Take(LiveTiltCount).ToList();
+			}
+
+			var next = new List<RadarTiltOption>();
+			if (angles is { Count: > 0 })
+			{
+				// The lowest angle IS the base tilt, so it takes a NULL angle rather than its own value —
+				// that null is what routes it to the cheap prefix fetch and the live frame. Labels are the
+				// designed angles rounded for display (0.88° reads "0.9°"), but the ANGLE carried is the
+				// unrounded table value, which is what the extractor matches against.
+				next.Add(new RadarTiltOption($"{angles[0]:0.0}°", null));
+				for (var i = 1; i < angles.Count; i++)
+				{
+					next.Add(new RadarTiltOption($"{angles[i]:0.0}°", angles[i]));
+				}
+			}
+			else
+			{
+				// No VCP table (a legacy/raw volume): we're showing the lowest tilt but can't know what
+				// else exists, so offer only that. CanSelectTilt is then false and the combo is disabled —
+				// no guessing at tilts we can't fetch.
+				next.Add(new RadarTiltOption("0.5°", null));
+			}
+
+			if (next.Count == RadarTiltOptions.Count
+				&& next.Zip(RadarTiltOptions).All(p => p.First.Label == p.Second.Label))
+			{
+				return; // same VCP, same tilts
+			}
+
+			RadarTiltOptions.Clear();
+			foreach (var option in next)
+			{
+				RadarTiltOptions.Add(option);
+			}
+
+			// Keep showing the same ELEVATION across a VCP change where possible.
+			var keep = RadarTiltOptions
+				.Select((o, i) => (o, i))
+				.FirstOrDefault(p => Nullable.Equals(p.o.Angle, _selectedTiltAngle));
+			_radarTiltIndex = keep.o is not null ? keep.i : 0;
+			_selectedTiltAngle = RadarTiltOptions[_radarTiltIndex].Angle;
+
+			OnPropertyChanged(nameof(RadarTiltIndex));
+			OnPropertyChanged(nameof(SelectedTiltLabel));
+			OnPropertyChanged(nameof(CanSelectTilt));
 		}
 
 		/// <summary>

@@ -65,14 +65,19 @@
                           SelectedIndex="{x:Bind ViewModel.RadarProductIndex, Mode=TwoWay}"
                           controls:ProductRampCombo.InspectFraction="{x:Bind ViewModel.InspectFraction, Mode=OneWay}"
                           controls:ProductRampCombo.IsInspectVisible="{x:Bind ViewModel.IsInspectMarkerVisible, Mode=OneWay}"/>
-                <ComboBox Grid.Column="1"
+                <!-- Tilt (elevation). Data-driven from ViewModel.RadarTiltOptions, which is read from the
+                     VCP's elevation table carried in every cached tilt — so the choices are what this
+                     radar actually scans right now, and they follow a VCP change. Disabled until a loop
+                     offers more than one tilt (CanSelectTilt). Unlike Product, changing this RELOADS the
+                     loop: each cached volume holds one tilt, so another elevation is different bytes. -->
+                <controls:HandCursorComboBox Grid.Column="1"
                           Style="{StaticResource NoBackgroundComboBoxStyle}"
                           HorizontalAlignment="Stretch"
-                          IsEnabled="False"
-                          SelectedIndex="0"
-                          ToolTipService.ToolTip="Tilt selection is not available yet">
-                    <ComboBoxItem Content="0.5&#176;"/>
-                </ComboBox>
+                          ItemsSource="{x:Bind ViewModel.RadarTiltOptions}"
+                          DisplayMemberPath="Label"
+                          SelectedIndex="{x:Bind ViewModel.RadarTiltIndex, Mode=TwoWay}"
+                          IsEnabled="{x:Bind ViewModel.CanSelectTilt, Mode=OneWay}"
+                          ToolTipService.ToolTip="Elevation angle (tilt)"/>
             </Grid>
 
             <!-- Show/hide sites + Inspect share one row (equal columns). -->
@@ -300,7 +305,7 @@
                        Text="Scan"
                        FontSize="{StaticResource RightClusterFontSize}"
                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                       ToolTipService.ToolTip="VCP = Volume Coverage Pattern, the radar's scan strategy (a number chosen by the operator). 'Precip' patterns scan faster and more often for rain/storms; 'clear-air' patterns scan slower for better sensitivity in dry weather."/>
+                       ToolTipService.ToolTip="The radar's scan strategy for the whole volume. VCP = Volume Coverage Pattern, a number chosen by the operator: 'precip' patterns scan faster and more often for rain/storms; 'clear-air' patterns scan slower for better sensitivity in dry weather. SAILS/MRLE ×N means the radar squeezes in N extra scans of the lowest tilt per volume, giving fresher data near the ground during fast-changing weather."/>
             <TextBlock Grid.Row="2"
                        Grid.Column="1"
                        Text="{x:Bind RadarVcpText(ViewModel.RadarModeText), Mode=OneWay}"
@@ -312,10 +317,10 @@
                        Text="Tilt"
                        FontSize="{StaticResource RightClusterFontSize}"
                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                       ToolTipService.ToolTip="The radar's elevation angle above the horizon (this app always shows the lowest, 0.5° tilt) and how many times it's been rescanned so far this volume — extra low-level rescans (SAILS/MRLE) give fresher data near the ground during fast-changing weather."/>
+                       ToolTipService.ToolTip="The radar's elevation angle above the horizon — the tilt currently on screen, picked with the Tilt selector. A live loop offers only the lowest few tilts, which the radar scans first and so can show within a few minutes; the higher tilts are scanned late in the volume and are available in Past Event replay."/>
             <TextBlock Grid.Row="3"
                        Grid.Column="1"
-                       Text="{x:Bind RadarSweepText(ViewModel.RadarModeText), Mode=OneWay}"
+                       Text="{x:Bind ViewModel.SelectedTiltLabel, Mode=OneWay}"
                        FontSize="{StaticResource RightClusterFontSize}"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Grid>

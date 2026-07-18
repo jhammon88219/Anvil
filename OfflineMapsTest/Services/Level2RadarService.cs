@@ -79,7 +79,7 @@ namespace OfflineMapsTest.Services
 				return null; // no recent data in the feed for this site
 			}
 
-			var archive = await EnsureCachedAsync(site, keys[^1], cancellationToken);
+			var archive = await EnsureCachedAsync(site, keys[^1], tiltAngle: null, cancellationToken);
 			if (archive is null)
 			{
 				return null;
@@ -138,6 +138,11 @@ namespace OfflineMapsTest.Services
 		// ~10-30 MB volume; if a tilt somehow doesn't fit, EnsureCachedAsync falls back to a full GET.
 		private const int LowestTiltPrefixBytes = 5 * 1024 * 1024;
 
+		// Parallel full-volume downloads during the tilt raw-prefetch. Deliberately lower than the live
+		// chunk concurrency (8): these are ~10-30 MB each and run speculatively in the background, so they
+		// must not starve the live-frame poll or the archive backfill the user is actually watching.
+		private const int RawPrefetchConcurrency = 3;
+
 		// Scan-mode line for an archive/replay frame, parsed from its cached single-tilt buffer's leading
 		// metadata — the live SelectLatestSweep path doesn't run for archive frames, so this is how a
 		// past-event loop gets its scan readout. Emits the SAME format as live ("VCP 212 · precip ·
@@ -157,26 +162,40 @@ namespace OfflineMapsTest.Services
 			return sweeps is >= 1 and <= 6 ? DescribeMode(vcp, sweeps) : DescribeVcp(vcp);
 		}
 
-		public async Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, CancellationToken cancellationToken = default)
+		// Extracts ONE tilt from a decompressed AR2V volume: the base (lowest) tilt when tiltAngle is
+		// null, else the cut at that angle. Two paths rather than one because they answer different
+		// questions — the base path anchors on the first radial and needs no VCP table (so it works on a
+		// legacy volume whose Message 5 won't parse), while targeting a specific tilt inherently requires
+		// that table. Both yield the same KIND of buffer, so nothing downstream knows which ran.
+		private static byte[]? ExtractTilt(byte[] data, string siteId, float? tiltAngle) =>
+			tiltAngle is null
+				? TryExtractLowestTilt(data, siteId)
+				: TryExtractTiltByAngle(data, siteId, tiltAngle.Value, out _);
+
+		public async Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, float? tiltAngle = null, CancellationToken cancellationToken = default)
 		{
 			var time = ParseVolumeTime(key) ?? DateTimeOffset.UtcNow;
-			var cacheFile = CacheFileFor(site.Id, time);
-			var localUrl = LocalUrlFor(site.Id, time);
+			var cacheFile = CacheFileFor(site.Id, time, tiltAngle);
+			var localUrl = LocalUrlFor(site.Id, time, tiltAngle);
 
-			// Reuse a volume we've already fetched + extracted.
+			// Reuse a tilt we've already fetched + extracted.
 			if (File.Exists(cacheFile))
 			{
-				// Re-derive the scan mode from the cached bytes (parse off the UI thread) so a replay
-				// reload / site revisit still shows the VCP even though extraction is skipped.
+				// Re-derive the scan mode + tilt list from the cached bytes (parse off the UI thread) so a
+				// replay reload / site revisit still shows the VCP and offers tilts, though extraction is
+				// skipped.
 				string? cachedMode = null;
+				IReadOnlyList<float>? cachedTilts = null;
 				try
 				{
 					var cachedBytes = await File.ReadAllBytesAsync(cacheFile, cancellationToken);
-					cachedMode = await Task.Run(() => ModeTextFromTilt(cachedBytes), cancellationToken);
+					(cachedMode, cachedTilts) = await Task.Run(
+						() => (ModeTextFromTilt(cachedBytes), ReadElevationAnglesFromExtractedTilt(cachedBytes)),
+						cancellationToken);
 				}
 				catch (OperationCanceledException) { throw; }
-				catch { /* mode is best-effort; a bad read just shows "—" */ }
-				return new RadarVolume(localUrl, site, time, cachedMode);
+				catch { /* both are best-effort; a bad read shows "—" and offers no tilt choice */ }
+				return new RadarVolume(localUrl, site, time, cachedMode, cachedTilts, tiltAngle);
 			}
 
 			try
@@ -187,14 +206,43 @@ namespace OfflineMapsTest.Services
 				var isGz = key.EndsWith(".gz", StringComparison.Ordinal);
 
 				byte[]? toWrite = null;
+				byte[]? fullVolume = null; // set only when we downloaded the whole thing (-> retain as .raw)
 
-				// FAST PATH (raw/modern volumes): the lowest tilt lives at the START of the file, so
-				// range-GET just a leading prefix and extract from that — a few MB instead of the whole
-				// ~10-30 MB volume, cutting download time for both first paint and every backfill frame.
-				// Only when that prefix doesn't already hold a COMPLETE tilt (completedTilt) do we fall
-				// back to the full download below. (.gz historical/legacy files aren't range-friendly — a
-				// partial gzip stream can't be relied on — so they always take the full path.)
-				if (!isGz)
+				// PREFETCHED RAW: one volume download holds EVERY tilt, so if the background prefetch has
+				// already pulled this volume, any tilt is a local decompress — no network at all. This is
+				// what makes switching tilts feel like switching products (see PrefetchRawVolumesAsync).
+				var rawFile = RawCacheFileFor(site.Id, time);
+				if (File.Exists(rawFile))
+				{
+					try
+					{
+						var rawBytes = await File.ReadAllBytesAsync(rawFile, cancellationToken);
+						toWrite = await Task.Run(() => ExtractTilt(rawBytes, site.Id, tiltAngle), cancellationToken);
+
+						// The raw IS the whole volume (and it's written atomically, so a file on disk is
+						// complete). If the tilt isn't in it, the tilt does not exist — re-downloading the
+						// same bytes to rediscover that would be pure waste. Say so now.
+						if (toWrite is null && tiltAngle is not null)
+						{
+							RadarDiagnostics.Log("svc", "extract", ("site", site.Id), ("lvl", "warn"),
+								("msg", $"tilt {tiltAngle:0.00}° not in cached volume {key}"));
+							return null;
+						}
+					}
+					catch (OperationCanceledException) { throw; }
+					catch { /* a corrupt/unreadable raw just falls through to the network paths below */ }
+				}
+
+				// FAST PATH (base tilt, raw/modern volumes): the lowest tilt lives at the START of the
+				// file, so range-GET just a leading prefix and extract from that — a few MB instead of the
+				// whole ~10-30 MB volume, cutting download time for both first paint and every backfill
+				// frame. Only when that prefix doesn't already hold a COMPLETE tilt (completedTilt) do we
+				// fall back to the full download below. (.gz historical/legacy files aren't range-friendly
+				// — a partial gzip stream can't be relied on — so they always take the full path.)
+				//
+				// A HIGHER tilt can't use this: it isn't at the file start, so the prefix wouldn't contain
+				// it. Higher tilts go straight to the full download (or, above, the prefetched raw).
+				if (toWrite is null && tiltAngle is null && !isGz)
 				{
 					var prefix = await TryGetRangeAsync(key, LowestTiltPrefixBytes, cancellationToken);
 					if (prefix is not null)
@@ -214,8 +262,17 @@ namespace OfflineMapsTest.Services
 					}
 				}
 
-				// FULL DOWNLOAD: a .gz file, a prefix too short to hold the whole tilt, or a failed range
-				// request. Extract only the lowest tilt on a worker thread; fall back to raw on failure.
+				// FULL DOWNLOAD: a higher tilt with no prefetched raw, a .gz file, a prefix too short to
+				// hold the whole tilt, or a failed range request. Extract on a worker thread.
+				//
+				// On extraction failure the BASE tilt falls back to caching the whole volume — the JS
+				// decoder reads that fine and its Math.min(elevations) still lands on the base tilt, so the
+				// result is correct, just slower. That fallback is WRONG for a higher tilt and must not be
+				// taken: the whole volume would decode to Math.min = the BASE tilt, silently painting 0.5°
+				// while the combo reads 2.4°. Returning null instead lets the caller fall back to the base
+				// tilt honestly (see LoadLoopCoreAsync). This is the path legacy .gz volumes take — they
+				// gunzip to a fully-uncompressed AR2V with no bzip2 LDM records, which no tilt extraction
+				// can walk, so they have no tilt selection at all.
 				if (toWrite is null)
 				{
 					byte[] raw;
@@ -224,26 +281,49 @@ namespace OfflineMapsTest.Services
 						response.EnsureSuccessStatusCode();
 						raw = await response.Content.ReadAsByteArrayAsync(cancellationToken);
 					}
-					toWrite = await Task.Run(() =>
+					var (extracted, volume) = await Task.Run<(byte[]?, byte[]?)>(() =>
 					{
 						try
 						{
 							var data = isGz ? Gunzip(raw) : raw;
-							return TryExtractLowestTilt(data, site.Id) ?? data;
+							var tilt = ExtractTilt(data, site.Id, tiltAngle);
+							return (tilt ?? (tiltAngle is null ? data : null), data);
 						}
 						catch (Exception ex)
 						{
 							System.Diagnostics.Debug.WriteLine($"[radar] {site.Id} extract failed, caching raw: {ex.Message}");
-							return raw;
+							return (tiltAngle is null ? raw : null, null);
 						}
 					}, cancellationToken);
+					toWrite = extracted;
+					fullVolume = volume;
+				}
+
+				if (toWrite is null)
+				{
+					// The volume genuinely has no cut at this angle (a VCP whose table and radials
+					// disagree). Report it rather than caching a bogus file.
+					RadarDiagnostics.Log("svc", "extract", ("site", site.Id), ("lvl", "warn"),
+						("msg", $"no tilt {tiltAngle:0.00}° in {key}"));
+					return null;
 				}
 
 				var temp = cacheFile + ".tmp";
 				await File.WriteAllBytesAsync(temp, toWrite, cancellationToken);
 				File.Move(temp, cacheFile, overwrite: true);
+
+				// Having paid for the whole volume, keep it: every OTHER tilt is now a local extract. This
+				// is the same bytes the prefetch would fetch, so retaining costs disk we'd have spent
+				// anyway, and it means a tilt switch that outran the prefetch doesn't re-download. Skipped
+				// for .gz (legacy volumes predate dual-pol/tilt interest and often don't extract at all).
+				if (fullVolume is not null && !isGz)
+				{
+					await WriteRawAsync(rawFile, fullVolume, cancellationToken);
+				}
+
 				var mode = ModeTextFromTilt(toWrite); // VCP + regime for the archive/replay scan line
-				return new RadarVolume(localUrl, site, time, mode);
+				var tilts = ReadElevationAnglesFromExtractedTilt(toWrite);
+				return new RadarVolume(localUrl, site, time, mode, tilts, tiltAngle);
 			}
 			catch (OperationCanceledException)
 			{
@@ -254,6 +334,80 @@ namespace OfflineMapsTest.Services
 				System.Diagnostics.Debug.WriteLine($"[radar] {site.Id} fetch {key} failed: {ex.Message}");
 				return null;
 			}
+		}
+
+		// Writes a prefetched raw volume atomically (temp + move), best-effort: it's a pure optimization,
+		// so a full disk or a lost race just means the next tilt extract re-downloads.
+		private static async Task WriteRawAsync(string rawFile, byte[] volume, CancellationToken ct)
+		{
+			try
+			{
+				var temp = rawFile + ".tmp";
+				await File.WriteAllBytesAsync(temp, volume, ct);
+				File.Move(temp, rawFile, overwrite: true);
+			}
+			catch (OperationCanceledException) { throw; }
+			catch { /* the raw cache is an optimization; failing to write it costs only a re-download */ }
+		}
+
+		/// <summary>
+		/// Downloads each volume in full and retains it as a <c>.raw</c> cache entry, so that extracting
+		/// any tilt later is a local decompress rather than a download. See the interface for the cost
+		/// model and why this prefetches VOLUMES rather than tilts.
+		/// </summary>
+		public async Task PrefetchRawVolumesAsync(RadarSite site, IReadOnlyList<string> keys, CancellationToken cancellationToken = default)
+		{
+			var pending = keys.Where(k => !k.EndsWith(".gz", StringComparison.Ordinal)).ToList();
+			if (pending.Count == 0)
+			{
+				return;
+			}
+
+			using var gate = new SemaphoreSlim(RawPrefetchConcurrency);
+			var sw = System.Diagnostics.Stopwatch.StartNew();
+			var fetched = 0;
+			var bytes = 0L;
+
+			await Task.WhenAll(pending.Select(async key =>
+			{
+				var time = ParseVolumeTime(key);
+				if (time is null)
+				{
+					return;
+				}
+				var rawFile = RawCacheFileFor(site.Id, time.Value);
+				if (File.Exists(rawFile))
+				{
+					return; // already prefetched (or retained by an earlier full download)
+				}
+
+				await gate.WaitAsync(cancellationToken);
+				try
+				{
+					byte[] raw;
+					using (var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+					{
+						response.EnsureSuccessStatusCode();
+						raw = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+					}
+					await WriteRawAsync(rawFile, raw, cancellationToken);
+					Interlocked.Increment(ref fetched);
+					Interlocked.Add(ref bytes, raw.LongLength);
+				}
+				catch (OperationCanceledException) { throw; }
+				catch (Exception ex)
+				{
+					// Per-volume and non-fatal: a missed raw just means that frame's tilt switch downloads.
+					System.Diagnostics.Debug.WriteLine($"[radar] {site.Id} raw prefetch {key} failed: {ex.Message}");
+				}
+				finally
+				{
+					gate.Release();
+				}
+			}));
+
+			RadarDiagnostics.Log("svc", "tilt.prefetch", ("site", site.Id),
+				("volumes", fetched), ("mb", bytes / (1024 * 1024)), ("ms", (int)sw.ElapsedMilliseconds));
 		}
 
 		// GETs the first <paramref name="count"/> bytes of an S3 object via a Range request. Returns the
@@ -289,6 +443,12 @@ namespace OfflineMapsTest.Services
 		// in-progress volume before its latest sweep's Doppler completed (the stuck partial-velocity
 		// wedge). 160 covers a SAILS-heavy VCP 12/212/215 volume; decode stays cheap (incremental —
 		// only NEW chunks are pulled/decompressed each poll).
+		//
+		// This cap is SAFE for tilt selection, and not by accident: chunks are taken in SEQUENCE order,
+		// and the radar scans bottom-up, so the chunks this drops are always the END of the volume — the
+		// HIGH tilts. Those are the ones we never serve live anyway (their best-case age has already
+		// converged on the archive's). The low tilts a live loop offers are the earliest chunks and are
+		// always inside the cap. If it ever needs raising, it's for SAILS, not for tilts.
 		private const int LiveChunkCap = 160;
 
 		// Live-frame build was the slowest radar op (~8-12 s) because each chunk was downloaded AND
@@ -314,7 +474,7 @@ namespace OfflineMapsTest.Services
 		private string? _fallbackKey;
 		private RadarVolume? _fallbackVolume;
 
-		public async Task<RadarVolume?> GetLiveFrameAsync(RadarSite site, CancellationToken cancellationToken = default)
+		public async Task<RadarVolume?> GetLiveFrameAsync(RadarSite site, float? tiltAngle = null, CancellationToken cancellationToken = default)
 		{
 			try
 			{
@@ -332,7 +492,7 @@ namespace OfflineMapsTest.Services
 
 				// Build from the newest volume, accumulating its chunks across polls (it's the
 				// growing in-progress one).
-				var frame = await BuildLiveFrameAsync(site, vol, start, useCache: true, cancellationToken);
+				var frame = await BuildLiveFrameAsync(site, vol, start, useCache: true, tiltAngle, cancellationToken);
 				if (frame is not null)
 				{
 					return frame;
@@ -351,14 +511,17 @@ namespace OfflineMapsTest.Services
 					var prevStart = await NewestVolumeStartAsync(site.Id, n - 1, cancellationToken);
 					if (prevStart is { } ps)
 					{
-						var fbKey = $"{site.Id}/{prevVol}/{ps:yyyyMMddHHmmss}";
+						// Keyed by TILT as well as volume: the same previous volume yields a different
+						// frame per elevation, so without the tilt a switch would be served the previous
+						// tilt's cached frame.
+						var fbKey = $"{site.Id}/{prevVol}/{ps:yyyyMMddHHmmss}{TiltSuffix(tiltAngle)}";
 						if (_fallbackKey == fbKey && _fallbackVolume is not null)
 						{
 							return _fallbackVolume;
 						}
 						RadarDiagnostics.Log("svc", "live", ("site", site.Id), ("vol", vol),
 							("msg", $"newest not ready -> fall back to finished vol={prevVol}"));
-						var fb = await BuildLiveFrameAsync(site, prevVol, ps, useCache: false, cancellationToken);
+						var fb = await BuildLiveFrameAsync(site, prevVol, ps, useCache: false, tiltAngle, cancellationToken);
 						if (fb is not null)
 						{
 							_fallbackKey = fbKey;
@@ -381,11 +544,16 @@ namespace OfflineMapsTest.Services
 			}
 		}
 
-		// Builds a single-tilt live frame from one chunk volume's lowest 0.5° sweep. When useCache,
-		// accumulates chunks across polls in the _liveVol* cache (for the growing newest volume);
-		// otherwise it's a one-shot download into locals (for the previous-volume fallback). Returns
-		// null if the volume has no S header chunk or no complete 0.5° sweep yet.
-		private async Task<RadarVolume?> BuildLiveFrameAsync(RadarSite site, string vol, DateTimeOffset start, bool useCache, CancellationToken ct)
+		// Builds a single-tilt live frame from one chunk volume's latest complete sweep at tiltAngle
+		// (null = the 0.5° base). When useCache, accumulates chunks across polls in the _liveVol* cache
+		// (for the growing newest volume); otherwise it's a one-shot download into locals (for the
+		// previous-volume fallback). Returns null if the volume has no S header chunk, or no complete
+		// sweep at that tilt yet — normal early in a volume for a tilt the antenna hasn't reached.
+		//
+		// A higher tilt costs no extra network: the chunks for the whole in-progress volume are already
+		// downloaded and decoded into _liveBlocks (that's the ~8-12 s build), so tilts 2-4 are extracted
+		// from bytes we already hold.
+		private async Task<RadarVolume?> BuildLiveFrameAsync(RadarSite site, string vol, DateTimeOffset start, bool useCache, float? tiltAngle, CancellationToken ct)
 		{
 			// The folder can hold chunks from several volumes (it's reused as the number cycles), so
 			// keep only the chunks of the target volume (matching start stamp).
@@ -516,11 +684,12 @@ namespace OfflineMapsTest.Services
 
 			var ordered = blocks.Values.ToList();
 			var hdr = header;
-			var sel = await Task.Run(() => SelectLatestSweep(hdr, ordered, icao), ct);
+			var sel = await Task.Run(() => SelectLatestSweep(hdr, ordered, icao, tiltAngle), ct);
 			if (!sel.complete || sel.data is null || !sel.velComplete)
 			{
 				RadarDiagnostics.Log("svc", "live", ("site", site.Id), ("vol", vol),
-					("msg", $"no complete sweep yet (refl={sel.complete} vel={sel.velComplete}, {blocks.Count} chunks, +{added}) -> fall back"));
+					("msg", $"no complete sweep yet at {(tiltAngle is { } ta ? $"{ta:0.00}°" : "base")} " +
+						$"(refl={sel.complete} vel={sel.velComplete}, {blocks.Count} chunks, +{added}) -> fall back"));
 				return null;
 			}
 
@@ -531,7 +700,7 @@ namespace OfflineMapsTest.Services
 			var ts = sel.dataTime is { } dt && dt >= start.AddMinutes(-2) && dt <= nowUtc.AddMinutes(2)
 				? dt
 				: start;
-			var cacheFile = LiveCacheFileFor(site.Id, ts);
+			var cacheFile = LiveCacheFileFor(site.Id, ts, tiltAngle);
 			if (!File.Exists(cacheFile))
 			{
 				var temp = cacheFile + ".tmp";
@@ -541,12 +710,13 @@ namespace OfflineMapsTest.Services
 			PruneLiveCache(site.Id, cacheFile);
 
 			var mode = DescribeMode(sel.vcp, sel.sweeps);
+			var tilts = ReadElevationAnglesFromExtractedTilt(sel.data);
 			RadarDiagnostics.Log("svc", "live", ("site", site.Id), ("vol", vol),
 				("builtZ", ts.ToUniversalTime().ToString("HH:mm:ss")),
 				("ageMin", Math.Round((DateTimeOffset.UtcNow - ts).TotalMinutes, 1)),
 				("mode", mode),
-				("msg", $"BUILT latest 0.5° sweep ({blocks.Count} chunks)"));
-			return new RadarVolume(LiveUrlFor(site.Id, ts), site, ts, mode);
+				("msg", $"BUILT latest {(tiltAngle is { } tb ? $"{tb:0.00}°" : "0.5°")} sweep ({blocks.Count} chunks)"));
+			return new RadarVolume(LiveUrlFor(site.Id, ts, tiltAngle), site, ts, mode, tilts, tiltAngle);
 		}
 
 		// Decompresses one chunk's single LDM record. S chunks carry the 24-byte volume header +
@@ -791,23 +961,56 @@ namespace OfflineMapsTest.Services
 			return (seq, parts[3][0]);
 		}
 
-		private string CacheFileFor(string siteId, DateTimeOffset time) =>
-			Path.Combine(CacheDirectory, $"{siteId}_{time:yyyyMMdd_HHmmss}.V06");
+		// Cache-name suffix identifying which TILT a buffer holds: "_e024" = 2.4°. The BASE tilt gets no
+		// suffix, so its filename/URL are byte-identical to what shipped before tilt selection existed —
+		// existing caches stay valid and the default view's paths are untouched. Tenths of a degree is
+		// exact for the designed VCP angles (0.5, 0.9, 1.3, 1.8, 2.4, …) and distinguishes every tilt in
+		// every WSR-88D VCP.
+		private static string TiltSuffix(float? tiltAngle) =>
+			tiltAngle is null ? string.Empty : $"_e{(int)Math.Round(tiltAngle.Value * 10):000}";
 
-		private static string LocalUrlFor(string siteId, DateTimeOffset time) =>
-			$"https://{CacheHostName}/{siteId}_{time:yyyyMMdd_HHmmss}.V06";
+		private string CacheFileFor(string siteId, DateTimeOffset time, float? tiltAngle = null) =>
+			Path.Combine(CacheDirectory, $"{siteId}_{time:yyyyMMdd_HHmmss}{TiltSuffix(tiltAngle)}.V06");
+
+		private static string LocalUrlFor(string siteId, DateTimeOffset time, float? tiltAngle = null) =>
+			$"https://{CacheHostName}/{siteId}_{time:yyyyMMdd_HHmmss}{TiltSuffix(tiltAngle)}.V06";
+
+		// The prefetched RAW (still-compressed, all-tilts) volume. Its ".raw" extension keeps it out of
+		// the "*.V06" globs that enumerate renderable tilts — the WebView must never fetch one (it holds
+		// every tilt and isn't what the decoder expects), and the tilt prune must not treat it as a tilt.
+		// It exists so that extracting a NEW tilt is a local decompress instead of a re-download: one
+		// volume download contains every tilt, so this is the whole prefetch (see PrefetchRawVolumesAsync).
+		private string RawCacheFileFor(string siteId, DateTimeOffset time) =>
+			Path.Combine(CacheDirectory, $"{siteId}_{time:yyyyMMdd_HHmmss}.raw");
+
+		// The "yyyyMMdd_HHmmss" stamp embedded in a cache filename, or null if it doesn't parse. Used by
+		// the prune to group a volume's files (base tilt + every extracted tilt + the raw) under ONE
+		// timestamp, so the keep-set can be per-volume rather than per-file.
+		private static string? StampOf(string path, string siteId)
+		{
+			var name = Path.GetFileNameWithoutExtension(path);
+			const int stampLength = 15; // yyyyMMdd_HHmmss
+			var start = siteId.Length + 1;
+			return name.Length >= start + stampLength && name.StartsWith(siteId, StringComparison.OrdinalIgnoreCase)
+				? name.Substring(start, stampLength)
+				: null;
+		}
 
 		// Live (chunks) frames get a "_live_" infix so they're served from the same host but
 		// never confused with archive loop frames (and skipped by the archive prune below).
-		private string LiveCacheFileFor(string siteId, DateTimeOffset time) =>
-			Path.Combine(CacheDirectory, $"{siteId}_live_{time:yyyyMMdd_HHmmss}.V06");
+		private string LiveCacheFileFor(string siteId, DateTimeOffset time, float? tiltAngle = null) =>
+			Path.Combine(CacheDirectory, $"{siteId}_live_{time:yyyyMMdd_HHmmss}{TiltSuffix(tiltAngle)}.V06");
 
-		private static string LiveUrlFor(string siteId, DateTimeOffset time) =>
-			$"https://{CacheHostName}/{siteId}_live_{time:yyyyMMdd_HHmmss}.V06";
+		private static string LiveUrlFor(string siteId, DateTimeOffset time, float? tiltAngle = null) =>
+			$"https://{CacheHostName}/{siteId}_live_{time:yyyyMMdd_HHmmss}{TiltSuffix(tiltAngle)}.V06";
 
-		// Deletes this site's cached volumes that aren't in the current keep-set (keyed by the
-		// timestamp embedded in each key), so the loop cache doesn't grow without bound. Live
-		// frames are pruned separately (PruneLiveCache) and excluded here.
+		// Deletes this site's cached volumes that aren't in the current keep-set, so the loop cache
+		// doesn't grow without bound. Live frames are pruned separately (PruneLiveCache) and excluded.
+		//
+		// The keep-set is per-VOLUME (by the timestamp embedded in the key), NOT per-file: one volume now
+		// owns several files — the base tilt, any extracted higher tilts ("_e024"), and the prefetched
+		// ".raw" — which all live or die together. Matching whole filenames (as this did before tilts)
+		// would have kept only the base tilt and deleted every extracted tilt on the very next refresh.
 		private void PruneCache(string siteId, IReadOnlyList<string> keepKeys)
 		{
 			try
@@ -815,16 +1018,19 @@ namespace OfflineMapsTest.Services
 				var keep = new HashSet<string>(
 					keepKeys.Select(k => ParseVolumeTime(k))
 						.Where(t => t is not null)
-						.Select(t => CacheFileFor(siteId, t!.Value)),
+						.Select(t => t!.Value.ToString("yyyyMMdd_HHmmss")),
 					StringComparer.OrdinalIgnoreCase);
 
-				foreach (var file in Directory.EnumerateFiles(CacheDirectory, $"{siteId}_*.V06"))
+				foreach (var file in Directory.EnumerateFiles(CacheDirectory, $"{siteId}_*")
+					.Where(f => f.EndsWith(".V06", StringComparison.OrdinalIgnoreCase)
+						|| f.EndsWith(".raw", StringComparison.OrdinalIgnoreCase)))
 				{
 					if (file.Contains("_live_", StringComparison.OrdinalIgnoreCase))
 					{
 						continue; // owned by PruneLiveCache
 					}
-					if (!keep.Contains(file))
+					var stamp = StampOf(file, siteId);
+					if (stamp is null || !keep.Contains(stamp))
 					{
 						try { File.Delete(file); } catch { /* best effort */ }
 					}

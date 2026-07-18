@@ -21,7 +21,13 @@ try {
         center: [lng, lat],
         zoom: zoom,
         interactive: interactive,
-        attributionControl: false
+        attributionControl: false,
+        // One world, not an endless horizontal loop of copies. `renderWorldCopies:false` stops the
+        // repeat; `minZoom` stops zooming out past a single-globe view (where the copies were the
+        // whole point of the complaint). NOT `maxBounds` — the site list is the full WSR-88D network,
+        // including Guam / Okinawa / Korea, so panning off CONUS has to stay possible.
+        renderWorldCopies: false,
+        minZoom: 2
     });
 
 

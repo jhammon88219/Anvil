@@ -5,6 +5,8 @@
 // / setWatchesVisible shims delegate here; applyStyle calls reAdd(map) after a basemap switch (setStyle
 // drops the layers, but the fetched data is still in memory).
 
+import { firstBoundaryLayerId } from './layers.js';
+
 let watchUrl = null;
 let watchData = null;
 let watchesOn = false;
@@ -15,14 +17,6 @@ let watchesOn = false;
 let watchOpacity = 1;
 const FILL_BASE = 0.08;
 const LINE_BASE = 0.9;
-
-// First symbol (label) layer id, so the watch layers slot beneath place names. Own small copy (the
-// outlook concern in map.js keeps its own); shared into one helper if/when that's extracted too.
-function firstSymbolLayerId(map) {
-    const layers = (map.getStyle() && map.getStyle().layers) || [];
-    const symbol = layers.find(function (l) { return l.type === 'symbol'; });
-    return symbol ? symbol.id : undefined;
-}
 
 function watchColor() {
     return ['match', ['to-string', ['get', 'phenom']],
@@ -38,11 +32,17 @@ function removeWatchLayers(map) {
     if (map.getSource('spc-watches')) map.removeSource('spc-watches');
 }
 
+function layersPresent(map) {
+    return !!(map.getLayer('spc-watch-fill') && map.getLayer('spc-watch-line') && map.getSource('spc-watches'));
+}
+
 function addWatchLayers(map) {
     if (!watchData) return;
     removeWatchLayers(map);
     map.addSource('spc-watches', { type: 'geojson', data: watchData });
-    const before = firstSymbolLayerId(map); // above the radar/outlook, below the labels
+    // Beneath the state/country lines (so borders read through the fill) — and above radar, which
+    // targets our fill layer in its own beforeId chain.
+    const before = firstBoundaryLayerId(map);
     map.addLayer({
         id: 'spc-watch-fill', type: 'fill', source: 'spc-watches',
         paint: { 'fill-color': watchColor(), 'fill-opacity': FILL_BASE * watchOpacity }
@@ -53,16 +53,20 @@ function addWatchLayers(map) {
     }, before);
 }
 
-// Re-render from the current data (after a fetch or a basemap swap).
+// Bring the layers in line with the current state. ⚠️ Add ONLY when they're actually missing (first
+// show / basemap swap): the ~2-min refresh calls through here, and an unconditional remove-then-add
+// showed up as a periodic flicker. New data reaches live layers via setData in loadWatches instead.
 function refreshWatchLayers(map) {
-    if (watchesOn && watchData) addWatchLayers(map); else removeWatchLayers(map);
+    if (!watchesOn || !watchData) { removeWatchLayers(map); return; }
+    if (!layersPresent(map)) addWatchLayers(map);
 }
 
-// Fetch the cached watch GeoJSON (no-store: the file is overwritten in place each refresh).
+// Fetch the cached watch GeoJSON (no-store: the file is overwritten in place each refresh). A failed
+// fetch keeps the last known good data on screen rather than blanking the overlay.
 function loadWatches(map) {
     if (!watchUrl) return;
     fetch(watchUrl, { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (gj) {
-        watchData = gj;
+        if (gj) watchData = gj;
         if (gj && map.getSource('spc-watches')) map.getSource('spc-watches').setData(gj);
         refreshWatchLayers(map);
     }).catch(function (e) { console.error('watches load failed: ' + e); });

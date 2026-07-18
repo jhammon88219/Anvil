@@ -4,6 +4,9 @@
 // show/clear/setOpacity shims; map.js delegates and calls reAdd(map) after a basemap switch — setStyle
 // drops custom sources/layers AND registered IMAGES, so the hatch images are re-ensured on each add.
 
+// Slots beneath place names (readable through the fill) — see layers.js.
+import { firstSymbolLayerId } from './layers.js';
+
 let currentOutlookUrl = null;    // GeoJSON URL currently shown (re-add after a basemap switch)
 let outlookData = null;          // fetched + CLIPPED GeoJSON (reused on re-add — no re-fetch/re-clip)
 let currentOutlookOpacity = 0.05;
@@ -21,13 +24,6 @@ function sigRank(label) {
     if (label.indexOf('CIG') === 0) { const n = parseInt(label.slice(3), 10); return isNaN(n) ? 1 : n; }
     if (label.indexOf('SIG') >= 0) return 1;
     return 0;
-}
-
-// First symbol (label) layer id, so the outlook slots beneath place names (readable through the fill).
-function firstSymbolLayerId(map) {
-    const layers = (map.getStyle() && map.getStyle().layers) || [];
-    const symbol = layers.find(function (l) { return l.type === 'symbol'; });
-    return symbol ? symbol.id : undefined;
 }
 
 // Builds one diagonal-hatch tile (light lines on transparent). `tile` = repeat size (bigger = sparser),

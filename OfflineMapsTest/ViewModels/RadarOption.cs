@@ -10,6 +10,19 @@ namespace OfflineMapsTest.ViewModels
 	public record RadarOption(string Label, RadarSite? Site);
 
 	/// <summary>
+	/// One entry in the radar Tilt (elevation) selector. <see cref="Angle"/> is the elevation angle in
+	/// degrees, or null for the BASE tilt — which is not merely "the lowest angle" but a distinct mode:
+	/// it's the only tilt the near-real-time live frame exists at, and the only one whose fetch can use
+	/// the cheap range-prefix path, so it keeps a null angle end-to-end (see
+	/// <c>ILevel2RadarService.EnsureCachedAsync</c>).
+	///
+	/// The list comes from the VCP's designed elevation table, read out of the metadata that every
+	/// cached tilt carries — so the choices are what the radar ACTUALLY scans in its current VCP, and
+	/// they change when the radar switches VCP (clear-air scans fewer tilts than precip).
+	/// </summary>
+	public record RadarTiltOption(string Label, float? Angle);
+
+	/// <summary>
 	/// One entry in the radar Product (moment) selector — the C# mirror of the JS registry in
 	/// <c>radar-products.js</c>. <see cref="Id"/> is the product id passed to <c>window.setRadarProduct</c>
 	/// (must match the JS ids); <see cref="ShortLabel"/> is what the combo shows ("Ref"/"Vel"/…) with

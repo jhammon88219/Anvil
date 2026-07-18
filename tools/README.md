@@ -1,3 +1,20 @@
+# Radar dev tools
+
+- **`radar_reference.py`** — independent Py-ART ground-truth images to check the decoder against (below).
+- **`dealias_check.py`** — re-implements the app's `dealiasSweep` in Python and diffs it against Py-ART.
+  Keep its `dealias_v2()` in sync with the JS and re-run before shipping a dealias change.
+- **`TiltCheck/`** — a C# harness that exercises the REAL tilt extraction against a real volume.
+  `cd tools/TiltCheck && dotnet run -- KTLX 2025/07/15 18`. It reports, per designed tilt: extracted
+  size, radial count, the angles actually present, azimuth coverage, and whether both moments survived
+  — plus a dump of the cuts the volume ACTUALLY contains, which is the ground truth the extractor has
+  to match. It **links `OfflineMapsTest/Services/Level2Format.cs`** rather than copying it (compiled
+  into the same assembly, so `internal` is visible), so it can't drift from what ships, and it
+  re-derives radials by independently hunting Message-31 header signatures rather than trusting the
+  extractor's bookkeeping — which is what caught a bug the extractor reported as success. Run it before
+  shipping any change to `TryExtractTiltByAngle` / `TryExtractLowestTilt`. See `docs/radar-tilts.md`.
+
+---
+
 # Radar reference generator (`radar_reference.py`)
 
 A dev tool that produces **independent, ground-truth radar images** to check the app's decoder

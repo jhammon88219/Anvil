@@ -127,6 +127,71 @@ namespace OfflineMapsTest.ViewModels
 			_ = StartRadarLoopAsync(site);
 		}
 
+		// Speculatively downloads the loop's volumes IN FULL in the background so that switching tilts
+		// later costs no network — the tilt analogue of velocity prefetch, armed at the same moment (the
+		// base loop has finished rendering, so nothing the user is watching competes with it).
+		//
+		// It prefetches whole VOLUMES rather than tilts because one download already contains every tilt;
+		// fetching per tilt would re-pull the same bytes ~9 times over. The bargain is the same one
+		// velocity prefetch makes — real cost paid speculatively — except the currency is bandwidth
+		// (~10-30 MB per frame beyond the ~5 MB prefix the base tilt needed), not CPU. That's why it's
+		// LIVE-LOOPS ONLY: a past-event replay can be far longer than the ~10-frame live loop, so the
+		// same policy there could pull a gigabyte for a window the user may never re-cut. Replay still
+		// supports every tilt — it just downloads on demand, and since a full download is retained as raw,
+		// only the FIRST tilt switch on a replay frame pays.
+		private void StartTiltPrefetch()
+		{
+			if (IsPastEventMode || _selectedRadarOption?.Site is not { } site || _loadedKeys.Length == 0)
+			{
+				return;
+			}
+
+			var keys = _loadedKeys;
+			var ct = _loopCts?.Token ?? CancellationToken.None;
+			_ = Task.Run(async () =>
+			{
+				try
+				{
+					await _radarService.PrefetchRawVolumesAsync(site, keys, ct);
+				}
+				catch (OperationCanceledException)
+				{
+					// Site changed / app closing.
+				}
+				catch (Exception ex)
+				{
+					// Purely speculative: a failure just means a tilt switch downloads, as it would have.
+					Services.RadarDiagnostics.Log("vm", "tilt.prefetch.fail", ("error", ex.Message));
+				}
+			}, ct);
+		}
+
+		// Reloads the current loop at the newly-selected elevation (see the Tilt region in
+		// RadarViewModel.cs). A tilt switch can't be served from the WebView's decoded frames the way a
+		// PRODUCT switch is: each cached .V06 holds exactly one tilt, so the new elevation is genuinely
+		// different bytes and has to come through the fetch path. That's cheap once
+		// PrefetchRawVolumesAsync has the raw volumes on disk — each frame is then a local extract with
+		// no download — and _selectedTiltAngle is already set, so the reload just picks it up.
+		private void ReloadForTiltChange()
+		{
+			if (IsPastEventMode)
+			{
+				if (_frameCount > 0)
+				{
+					_ = LoadSelectedPastEventAsync(); // replay: re-fetch the same window at the new tilt
+				}
+				return;
+			}
+
+			if (_selectedRadarOption?.Site is not { } site)
+			{
+				return; // no loop up: the selection is remembered and applies to the next site picked
+			}
+
+			Diag($"tilt -> {(_selectedTiltAngle is { } a ? a.ToString("0.0") + "°" : "base")}");
+			_ = StartRadarLoopAsync(site);
+		}
+
 		// Past mode: a site pick clears any loaded replay and highlights the new site's marker, but
 		// starts NOTHING — the user sets a window and hits Load. (Mirrors StartRadarLoopAsync's clear
 		// path but keeps the marker on the chosen site so it reads as "armed" and runs no live loop.)
@@ -413,7 +478,26 @@ namespace OfflineMapsTest.ViewModels
 			_loopRenderBegun = true;
 
 			// Newest archive frame first (immediate display).
-			await EnsureAndAddFrameAsync(site, keys, _archiveCount - 1, ct);
+			var newestLoaded = await EnsureAndAddFrameAsync(site, keys, _archiveCount - 1, ct);
+
+			// A VCP's designed elevation table can promise tilts the volumes don't actually contain, so a
+			// tilt offered in the combo may have nothing behind it. Measured with tools/TiltCheck: KTLX in
+			// VCP 212 designs 17 cuts up to 19.5°, but its volumes ship 12, topping out at 6.4° — every
+			// tilt above that extracts to null. (KLOT in VCP 35 designs 12 and ships all 12, so this isn't
+			// universal — we can't tell which case we're in without the whole volume, which the base tilt's
+			// cheap prefix fetch never downloads.) Rather than leave the user staring at a blank loop,
+			// fall back to the base tilt, which is always present. Recursion is one level deep: the base
+			// tilt can't fail THIS way, so the retry can't re-trigger it.
+			if (!newestLoaded && _selectedTiltAngle is { } missing && !ct.IsCancellationRequested
+				&& ReferenceEquals(_selectedRadarOption?.Site, site))
+			{
+				Diag($"tilt {missing:0.00}° not present in this volume -> falling back to base tilt");
+				Services.RadarDiagnostics.Log("vm", "tilt.absent", ("lvl", "warn"),
+					("angle", missing), ("site", site.Id));
+				SetTiltToBase();
+				await LoadLoopCoreAsync(site, ct);
+				return;
+			}
 
 			// Backfill the older archive frames IN PARALLEL (bounded) — each frame's cost is a full-
 			// volume AWS download + bzip2 tilt extraction, so running them concurrently is the main lever
@@ -425,6 +509,11 @@ namespace OfflineMapsTest.ViewModels
 
 			// Now pull the live (chunks) frame + scan mode; it appends at index _archiveCount when fresher
 			// than the archive newest, and carries the scan-mode text for the card.
+			//
+			// Every tilt a LIVE loop offers is one the chunks feed can serve fresh — the list is capped to
+			// the bottom LiveTiltCount for exactly that reason — so no tilt gate is needed here. The
+			// selected angle is simply passed through; a tilt the antenna hasn't reached yet in the
+			// in-progress volume returns null and leaves the archive newest showing, same as always.
 			await RefreshLiveFrameAsync(site, ct);
 		}
 
@@ -437,7 +526,7 @@ namespace OfflineMapsTest.ViewModels
 			try
 			{
 				_lastLiveError = null;
-				live = await _radarService.GetLiveFrameAsync(site, ct);
+				live = await _radarService.GetLiveFrameAsync(site, _selectedTiltAngle, ct);
 			}
 			catch (OperationCanceledException)
 			{
@@ -568,15 +657,23 @@ namespace OfflineMapsTest.ViewModels
 			RaiseRadarReadout();
 		}
 
-		private async Task EnsureAndAddFrameAsync(RadarSite site, IReadOnlyList<string> keys, int index, CancellationToken ct)
+		// Loads one archive frame at the current tilt and hands it to the map. Returns whether the frame
+		// actually landed — the caller uses that to detect a tilt the volume doesn't contain (see
+		// LoadLoopCoreAsync); a false is otherwise just a skipped frame, as before.
+		private async Task<bool> EnsureAndAddFrameAsync(RadarSite site, IReadOnlyList<string> keys, int index, CancellationToken ct)
 		{
 			try
 			{
-				var volume = await _radarService.EnsureCachedAsync(site, keys[index], ct);
+				var volume = await _radarService.EnsureCachedAsync(site, keys[index], _selectedTiltAngle, ct);
 				if (volume is null || ct.IsCancellationRequested || !ReferenceEquals(_selectedRadarOption?.Site, site))
 				{
-					return;
+					return false;
 				}
+
+				// Every cached tilt carries the VCP's full elevation table, so the tilt choices come free
+				// with the frame we were fetching anyway — no extra request. Re-checked per frame because
+				// a radar can change VCP mid-loop (precip <-> clear-air scan different tilts).
+				UpdateTiltOptions(volume.Tilts);
 
 				_frameTimes[index] = volume.VolumeTime;
 				if (index < _frameModes.Length) _frameModes[index] = volume.ModeText;
@@ -585,6 +682,7 @@ namespace OfflineMapsTest.ViewModels
 				{
 					await _mapService.AddRadarFrameAsync(volume.LocalUrl, index);
 				}
+				return true;
 			}
 			catch (OperationCanceledException)
 			{
@@ -595,6 +693,16 @@ namespace OfflineMapsTest.ViewModels
 				// Skip a bad frame; the rest of the loop still loads.
 				Services.RadarDiagnostics.Log("vm", "frame.fail", ("idx", index), ("error", ex.Message));
 			}
+			return false;
+		}
+
+		// Drops back to the base tilt without triggering a reload (the caller is already loading).
+		private void SetTiltToBase()
+		{
+			_selectedTiltAngle = null;
+			_radarTiltIndex = 0;
+			OnPropertyChanged(nameof(RadarTiltIndex));
+			OnPropertyChanged(nameof(SelectedTiltLabel));
 		}
 
 		// How many archive volumes to download + extract concurrently during backfill. The per-frame cost
@@ -957,7 +1065,7 @@ namespace OfflineMapsTest.ViewModels
 				}
 				try
 				{
-					await _radarService.EnsureCachedAsync(site, key, ct);
+					await _radarService.EnsureCachedAsync(site, key, _selectedTiltAngle, ct);
 				}
 				catch (OperationCanceledException)
 				{

@@ -45,22 +45,52 @@ namespace OfflineMapsTest.Services
 		Task<IReadOnlyList<string>> GetKeysForWindowAsync(RadarSite site, System.DateTimeOffset startUtc, System.DateTimeOffset endUtc, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Ensures the volume for <paramref name="key"/> is downloaded + lowest-tilt-extracted
-		/// to the cache (reusing it if already present), returning its overlay descriptor, or
-		/// null if the fetch failed.
+		/// Ensures ONE TILT of the volume for <paramref name="key"/> is downloaded + extracted to the
+		/// cache (reusing it if already present), returning its overlay descriptor, or null if the fetch
+		/// failed or the volume has no cut at that tilt.
+		///
+		/// <para><paramref name="tiltAngle"/> selects the elevation angle in degrees; null means the base
+		/// (lowest) tilt — the default view, whose path is unchanged from before tilt selection existed
+		/// (a ~5 MB range-GET of the file's leading prefix, where the lowest tilt lives). A HIGHER tilt
+		/// isn't at the file start, so it costs a FULL volume download (~10-30 MB) unless
+		/// <see cref="PrefetchRawVolumesAsync"/> has already retained the raw volume, in which case it's a
+		/// local decompress with no network. Each (volume, tilt) is cached separately, so returning to a
+		/// visited tilt is free. Valid angles come from <see cref="RadarVolume.Tilts"/>.</para>
 		/// </summary>
-		Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, CancellationToken cancellationToken = default);
+		Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, float? tiltAngle = null, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Speculatively downloads the given volumes IN FULL in the background and retains them, so that
+		/// extracting any tilt from them later needs no network — the tilt analogue of velocity prefetch.
+		///
+		/// <para>It prefetches VOLUMES, not tilts, because one volume download already contains every
+		/// tilt: fetching each tilt separately would re-download the same bytes once per tilt (~9× the
+		/// network for the same result). The cost is a full download per volume (~10-30 MB, vs the ~5 MB
+		/// prefix the base tilt actually needs) even if the user never leaves the base tilt — the same
+		/// bargain velocity prefetch makes, so callers should arm it only once the base view is up, and
+		/// it runs at a lower concurrency than the live poll so it can't starve what's on screen.</para>
+		/// </summary>
+		Task PrefetchRawVolumesAsync(RadarSite site, IReadOnlyList<string> keys, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Builds the freshest possible single-tilt frame from the near-real-time
 		/// <c>unidata-nexrad-level2-chunks</c> bucket: finds the newest (often still in-progress)
-		/// volume, assembles its <c>S</c>+<c>I</c> chunks, and extracts the lowest tilt — giving
+		/// volume, assembles its <c>S</c>+<c>I</c> chunks, and extracts one tilt — giving
 		/// ~1-2 min latency vs the archive bucket's ~10 min. Returns null if no fresh volume is
-		/// available yet or its lowest tilt hasn't finished scanning (caller should fall back to
+		/// available yet or that tilt hasn't finished scanning (caller should fall back to
 		/// the newest archive volume). Cached + served from the same virtual host as archive
 		/// frames.
+		///
+		/// <para><paramref name="tiltAngle"/> selects the elevation; null = the 0.5° base. A higher tilt
+		/// costs no extra network — the whole in-progress volume's chunks are already downloaded and
+		/// decoded, so any tilt in it is extracted from bytes we hold. But only LOW tilts are worth
+		/// asking for: the radar scans bottom-up, so a tilt's freshness floor is when the antenna
+		/// reaches it (~2-3 min for the bottom few, ~5 min by 8°+ — which is the archive's latency
+		/// anyway). Callers cap this via <c>RadarViewModel.LiveTiltCount</c>. Note also that SAILS
+		/// re-scans only the BASE tilt, so a higher tilt refreshes once per ~4.5-min volume rather than
+		/// every ~1-2 min.</para>
 		/// </summary>
-		Task<RadarVolume?> GetLiveFrameAsync(RadarSite site, CancellationToken cancellationToken = default);
+		Task<RadarVolume?> GetLiveFrameAsync(RadarSite site, float? tiltAngle = null, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Returns the set of site IDs that have data in the archive bucket within the last day —

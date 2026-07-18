@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>TiltCheck</RootNamespace>
+    <AssemblyName>TiltCheck</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SharpCompress" Version="1.0.0" />
+  </ItemGroup>
+
+  <!-- Link the REAL shipping sources (not copies) so this exercises the code the app runs, and can
+       never drift from it. Same namespace + compiled into this assembly => Level2Format's `internal`
+       members are visible here without an InternalsVisibleTo in the app. -->
+  <ItemGroup>
+    <Compile Include="..\..\OfflineMapsTest\Services\Level2Format.cs" Link="Level2Format.cs" />
+    <Compile Include="..\..\OfflineMapsTest\Services\RadarDiagnostics.cs" Link="RadarDiagnostics.cs" />
+  </ItemGroup>
+
+</Project>

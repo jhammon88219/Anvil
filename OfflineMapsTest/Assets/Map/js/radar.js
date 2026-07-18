@@ -470,8 +470,11 @@
         };
     }
 
-    // Beneath the boundary lines (so borders draw over radar), the outlook, and the labels.
+    // Beneath the watch boxes, the boundary lines (so borders draw over radar), the outlook, and the
+    // labels. Watches sit under the boundaries too, so target them FIRST — otherwise whichever of the
+    // two was added last (a site click vs the ~2-min watch refresh) would land on top.
     function beforeId(map) {
+        if (map.getLayer('spc-watch-fill')) return 'spc-watch-fill';
         if (map.getLayer('boundaries_country')) return 'boundaries_country';
         if (map.getLayer('boundaries')) return 'boundaries';
         if (map.getLayer('spc-outlook-fill')) return 'spc-outlook-fill';

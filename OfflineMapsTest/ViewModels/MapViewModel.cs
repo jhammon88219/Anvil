@@ -126,7 +126,7 @@ namespace OfflineMapsTest.ViewModels
 		// Past and Now are mutually exclusive because the radar layer is EITHER live OR replaying — turning
 		// one on takes the layer and clears the other; Fore's outlook overlay is independent and stacks on
 		// either. With ALL THREE OFF the map is a blank basemap (the "cleared" state — click the active
-		// toggle to reach it). OpenCard tracks which feature's settings card floats above the bar (one at a
+		// toggle to reach it). NowCast is the launch default (armed, no site loaded). OpenCard tracks which feature's settings card floats above the bar (one at a
 		// time); a feature turning off closes its card (CloseCardIfInactive).
 		private TemporalCard _openCard = TemporalCard.None;
 
@@ -147,9 +147,11 @@ namespace OfflineMapsTest.ViewModels
 		// PastCast (Radar.IsPastEventMode) and ForeCast (Outlook.IsOutlookVisible) — both genuine persistent
 		// states — "live mode" has no subsystem flag (it's just "not replay", the default), so a projection
 		// off loop-existence would snap back + DISABLE the cog whenever no site is loaded. Storing it lets
-		// the toggle/cog stay on with a blank-but-armed radar. Default off (all-off = blank launch); a live
-		// loop starting (marker click) arms it, entering replay disarms it — see the Radar subscription.
-		private bool _isNowCast;
+		// the toggle/cog stay on with a blank-but-armed radar. Default ON (launch armed for live radar, so a
+		// site-marker click just works); a live loop starting (marker click) arms it, entering replay disarms
+		// it — see the Radar subscription. Set as a field initializer, NOT via the setter, so arming at
+		// construction issues no map command (there is no loop to clear and the map isn't ready yet).
+		private bool _isNowCast = true;
 
 		/// <summary>NowCast (live radar). On = live mode armed (leaves replay; a site is then picked by
 		/// clicking its on-map marker); off = clears the live loop to a blank basemap. Mutually exclusive

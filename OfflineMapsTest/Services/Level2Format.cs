@@ -31,8 +31,24 @@ namespace OfflineMapsTest.Services
 		// latest low-tilt reflectivity cut. Returns the minimal single-tilt buffer (24-byte header +
 		// leading metadata records + that cut's radials), its actual radial time, the count of such
 		// low-tilt sweeps (SAILS indicator), and the VCP number.
+		//
+		// <paramref name="targetAngle"/> selects WHICH tilt to serve; null (the default) means the lowest,
+		// i.e. everything above describes the null case. A radar scans BOTTOM-UP over the volume, so a
+		// tilt's freshness floor is set by when the antenna reaches it: the lowest few tilts are cut in
+		// the first ~2 min and can be served ~2-3 min old, while the top tilts aren't scanned until ~4+
+		// min in, by which point their best-case age has converged on the archive's latency and there's
+		// nothing left to win. Callers therefore only ask for low tilts here (see RadarViewModel's
+		// LiveTiltCount). Everything below is angle-agnostic — only the reference angle changes — so the
+		// SAILS-aware "latest complete sweep" selection and the Doppler-companion pairing apply to any
+		// tilt. Returns null data when the requested tilt hasn't been scanned yet in this volume, which
+		// is normal early in a volume and simply leaves the caller on its previous frame.
+		//
+		// NB the SAILS re-scan only ever repeats the BASE tilt, so a higher tilt has exactly one cut per
+		// volume; the "latest of several" logic collapses to "the one, if complete". That asymmetry is
+		// physical, not a limitation here: it's why the base tilt refreshes every ~1-2 min and a higher
+		// tilt only once per ~4.5-min volume.
 		internal static (byte[]? data, bool complete, bool velComplete, DateTimeOffset? dataTime, int sweeps, int vcp)
-			SelectLatestSweep(byte[] header, List<(byte[] block, int elev)> blocks, byte[] icao)
+			SelectLatestSweep(byte[] header, List<(byte[] block, int elev)> blocks, byte[] icao, float? targetAngle = null)
 		{
 			var firstRadial = blocks.FindIndex(b => b.elev >= 1);
 			if (firstRadial < 0)
@@ -88,7 +104,30 @@ namespace OfflineMapsTest.Services
 			{
 				return (null, false, false, null, 0, vcp);
 			}
-			var refAngle = refCuts.Min(c => c.angle);
+
+			// The BASE angle is always the lowest reflectivity cut. Keep it even when serving a higher
+			// tilt: the SAILS sweep count below describes re-scans of the BASE tilt (a property of the
+			// VCP, not of the tilt we're rendering), and anchoring it on a higher target would both fail
+			// ReadSailsSweepsFromMetadata's reality check and mis-describe the volume.
+			var baseAngle = refCuts.Min(c => c.angle);
+
+			// refAngle = the tilt we actually serve. For a target, take the NEAREST reflectivity cut
+			// rather than a tolerance window on the designed value, because designed and observed angles
+			// differ systematically (KTLX's designed 0.88° scans at 0.75° — see docs/radar-tilts.md).
+			// Too far from any cut means the antenna hasn't reached that tilt yet in this volume.
+			var refAngle = baseAngle;
+			if (targetAngle is { } target)
+			{
+				var nearest = refCuts.OrderBy(c => Math.Abs(c.angle - target)).First();
+				if (Math.Abs(nearest.angle - target) > TiltMatchTol)
+				{
+					RadarDiagnostics.Log("svc", "sweep",
+						("icao", System.Text.Encoding.ASCII.GetString(icao)), ("vcp", vcp),
+						("msg", $"tilt {target:0.00}° not scanned yet (nearest cut {nearest.angle:0.00}°)"));
+					return (null, false, false, null, 0, vcp);
+				}
+				refAngle = nearest.angle;
+			}
 
 			bool LowTilt((int start, int end, float angle, bool hasRef, bool hasVel) c)
 				=> c.hasRef && !float.IsNaN(c.angle) && Math.Abs(c.angle - refAngle) <= tiltTol;
@@ -98,13 +137,21 @@ namespace OfflineMapsTest.Services
 			var pool = surveillance.Count > 0 ? surveillance : cuts.Where(LowTilt).ToList();
 
 			// Designed 0.5° base-scan count from the VCP's elevation table (Message 5) — the PLANNED
-			// SAILS count, which the observed completed-cut count (pool.Count) under-reports mid-volume
-			// because the re-scans haven't run yet when we poll a still-scanning live volume. Validated
-			// against refAngle (its lowest tilt must match the actually-observed one) so a bad parse
-			// can't override with a plausible-but-wrong number. Prefer it when sane; clamp to a
-			// plausible range (SAILS tops out at ×3 = 4 base scans); else fall back to observed.
-			var designedSweeps = ReadSailsSweepsFromMetadata(blocks, refAngle);
-			var sweeps = designedSweeps is >= 1 and <= 6 ? designedSweeps : pool.Count;
+			// SAILS count, which the observed completed-cut count under-reports mid-volume because the
+			// re-scans haven't run yet when we poll a still-scanning live volume. Validated against
+			// BASE angle (its lowest tilt must match the actually-observed one) so a bad parse can't
+			// override with a plausible-but-wrong number. Prefer it when sane; clamp to a plausible
+			// range (SAILS tops out at ×3 = 4 base scans); else fall back to observed.
+			//
+			// Anchored on baseAngle, NOT refAngle: SAILS re-scans only ever repeat the BASE tilt, so this
+			// count describes the volume regardless of which tilt we're serving. Passing a higher refAngle
+			// would fail the reality check (returning 0) and drop the mode line to a bare VCP.
+			var designedSweeps = ReadSailsSweepsFromMetadata(blocks, baseAngle);
+			var basePool = cuts.Where(c => c.hasRef && !float.IsNaN(c.angle)
+				&& Math.Abs(c.angle - baseAngle) <= tiltTol && !c.hasVel).ToList();
+			var sweeps = designedSweeps is >= 1 and <= 6
+				? designedSweeps
+				: Math.Max(basePool.Count, 1);
 
 			// Complete = terminated by a later cut (the antenna moved on); the trailing in-progress
 			// cut of a live volume is excluded, so we never serve a half-scanned sweep.
@@ -205,7 +252,9 @@ namespace OfflineMapsTest.Services
 			RadarDiagnostics.Log("svc", "sweep",
 				("icao", System.Text.Encoding.ASCII.GetString(icao)), ("vcp", vcp),
 				("velComplete", velComplete),
-				("msg", $"sweeps={sweeps} (obs={pool.Count} designed={designedSweeps}) refCuts={refCuts.Count} surv={surveillance.Count} @ {refAngle:0.00}° " +
+				("tilt", Math.Round(refAngle, 2)),
+				("msg", $"sweeps={sweeps} (obs={basePool.Count} designed={designedSweeps}) refCuts={refCuts.Count} surv={surveillance.Count} @ {refAngle:0.00}° " +
+					$"{(targetAngle is { } tlog ? $"(target {tlog:0.00}°, base {baseAngle:0.00}°) " : "")}" +
 					$"sel=[{selected.start}..{selected.end}]({selected.end - selected.start}blk,{selected.angle:0.00}°) " +
 					$"vel={(velCut is { } vlog ? $"[{vlog.start}..{vlog.end}]({vlog.end - vlog.start}blk,{(velComplete ? "complete" : "PARTIAL")})" : "NONE")} " +
 					$"blocks={blocks.Count} t={(dataTime is { } d3 ? d3.ToString("HH:mm:ss") : "?")}"));
@@ -261,23 +310,49 @@ namespace OfflineMapsTest.Services
 			return 0;
 		}
 
-		// Number of DESIGNED 0.5° base scans (the SAILS count) from the VCP's elevation table in
-		// Message 5, which lists every planned cut up front — so it reports SAILS×N even when polling
-		// a still-scanning volume whose re-scans haven't run yet (where counting completed radial cuts
-		// reads ×1). Same metadata walk as ReadVcpFromMetadata. Message 5 body (after the 12-byte CTM
-		// + 16-byte message headers): pattern_number at +4, num_elevations (int16) at +6, then a
-		// 22-byte VCP header; each elevation cut is a fixed 46-byte block starting at +22, whose
-		// elevation_angle is the leading int16 (coded as value/8*0.043945°) and whose waveform_type is
-		// the byte at cut+3 (1 = CS surveillance). A split-cut precip VCP lists the 0.5° tilt as paired
-		// CS+CD cuts at the same angle; counting the SURVEILLANCE (waveform 1) cuts at the lowest angle
-		// matches the "surveillance sweeps" we render. Clear-air VCPs list one cut per elevation (no CS
-		// pairing), so fall back to counting all lowest-angle cuts there. Returns 0 if not parseable,
-		// or if the table's lowest angle doesn't match <paramref name="observedRefAngle"/> (the actual
-		// observed 0.5° tilt) — that mismatch means the byte offsets didn't line up, so the caller
-		// keeps the trustworthy observed count rather than a plausible-but-wrong override. Field
-		// offsets/encoding verified against the vendored nexrad-level-2-data Message 5 parser.
+		// Number of DESIGNED 0.5° base scans (the SAILS count) from the VCP's elevation table
+		// (TryReadElevationTable), which lists every planned cut up front — so it reports SAILS×N even
+		// when polling a still-scanning volume whose re-scans haven't run yet (where counting completed
+		// radial cuts reads ×1). A split-cut precip VCP lists the 0.5° tilt as paired CS+CD cuts at the
+		// same angle; counting the SURVEILLANCE (waveform 1) cuts at the lowest angle matches the
+		// "surveillance sweeps" we render. Clear-air VCPs list one cut per elevation (no CS pairing), so
+		// fall back to counting all lowest-angle cuts there. Returns 0 if not parseable, or if the
+		// table's lowest angle doesn't match <paramref name="observedRefAngle"/> (the actual observed
+		// 0.5° tilt) — that mismatch means the byte offsets didn't line up, so the caller keeps the
+		// trustworthy observed count rather than a plausible-but-wrong override.
 		internal static int ReadSailsSweepsFromMetadata(List<(byte[] block, int elev)> blocks, float observedRefAngle)
 		{
+			if (!TryReadElevationTable(blocks, out var angles))
+			{
+				return 0;
+			}
+
+			const double tol = 0.25;
+			var minAngle = angles.Min(a => a.angle);
+			// Reality check: the designed lowest tilt must match the observed one, or the parse
+			// is misaligned — bail so the caller keeps the observed count.
+			if (!float.IsNaN(observedRefAngle) && Math.Abs(minAngle - observedRefAngle) > 0.3)
+			{
+				return 0;
+			}
+			var cs = angles.Count(a => Math.Abs(a.angle - minAngle) < tol && a.waveform == 1);
+			return cs >= 1 ? cs : angles.Count(a => Math.Abs(a.angle - minAngle) < tol);
+		}
+
+		// The VCP's DESIGNED elevation table from Message 5 — every planned cut as (angle°, waveform),
+		// in table order. The shared parse behind ReadSailsSweepsFromMetadata (which counts the lowest
+		// tilt's cuts) and ReadElevationAngles (which reduces it to the distinct tilt angles). Same
+		// metadata walk as ReadVcpFromMetadata: 2432-byte strides, stopping at the first radial
+		// (Message 31), since Message 5 always precedes the radial data.
+		//
+		// Message 5 body (after the 12-byte CTM + 16-byte message headers): pattern_number at +4,
+		// num_elevations (int16) at +6, then a 22-byte VCP header; each elevation cut is a fixed 46-byte
+		// block starting at +22, whose elevation_angle is the leading int16 (coded as value/8*0.043945°)
+		// and whose waveform_type is the byte at cut+3 (1 = CS surveillance). Offsets/encoding verified
+		// against the vendored nexrad-level-2-data Message 5 parser. False if nothing parseable is found.
+		internal static bool TryReadElevationTable(List<(byte[] block, int elev)> blocks, out List<(double angle, int waveform)> cuts)
+		{
+			cuts = new List<(double angle, int waveform)>();
 			foreach (var (block, _) in blocks)
 			{
 				for (var pos = 0; pos + CtmHeaderSize + MessageHeaderSize + 8 <= block.Length; pos += RadarDataSize)
@@ -285,7 +360,7 @@ namespace OfflineMapsTest.Services
 					var msgType = block[pos + CtmHeaderSize + 3];
 					if (msgType == 31)
 					{
-						return 0; // reached the radial data; Message 5 is behind us
+						return false; // reached the radial data; Message 5 is behind us
 					}
 					if (msgType is not (5 or 7))
 					{
@@ -302,11 +377,10 @@ namespace OfflineMapsTest.Services
 					var numElev = (short)((block[body + 6] << 8) | block[body + 7]);
 					if (numElev is <= 0 or > 40)
 					{
-						return 0;
+						return false;
 					}
 
 					const int cutsStart = 22, stride = 46;
-					var angles = new List<(double angle, int waveform)>(numElev);
 					for (var k = 0; k < numElev; k++)
 					{
 						var off = body + cutsStart + k * stride;
@@ -315,26 +389,71 @@ namespace OfflineMapsTest.Services
 							break;
 						}
 						var raw = (short)((block[off] << 8) | block[off + 1]);
-						angles.Add((raw / 8.0 * 0.043945, block[off + 3]));
+						cuts.Add((raw / 8.0 * 0.043945, block[off + 3]));
 					}
-					if (angles.Count == 0)
-					{
-						return 0;
-					}
-
-					const double tol = 0.25;
-					var minAngle = angles.Min(a => a.angle);
-					// Reality check: the designed lowest tilt must match the observed one, or the parse
-					// is misaligned — bail so the caller keeps the observed count.
-					if (!float.IsNaN(observedRefAngle) && Math.Abs(minAngle - observedRefAngle) > 0.3)
-					{
-						return 0;
-					}
-					var cs = angles.Count(a => Math.Abs(a.angle - minAngle) < tol && a.waveform == 1);
-					return cs >= 1 ? cs : angles.Count(a => Math.Abs(a.angle - minAngle) < tol);
+					return cuts.Count > 0;
 				}
 			}
-			return 0;
+			return false;
+		}
+
+		// Two designed cuts are the same physical tilt when their angles agree this closely. A split-cut
+		// VCP lists 0.5° twice (CS surveillance + CD Doppler) at the same angle; SAILS re-lists it again.
+		// Must stay below the tightest real tilt SPACING (0.48°->0.88° = 0.40° in VCP 12/35) or two
+		// genuinely different tilts would collapse into one entry.
+		internal const double TiltAngleTol = 0.25;
+
+		// How far a cut's OBSERVED angle may sit from the DESIGNED angle in Message 5 and still be that
+		// tilt. These genuinely differ: the antenna reports slightly below its designed elevation, by up
+		// to ~0.13° in measured volumes (KTLX VCP 212: designed 0.88° scans at 0.75°; designed 1.32° at
+		// 1.19°), while other radars track their table almost exactly (KLOT VCP 35 scans 0.88° at 0.88°).
+		// So this must exceed that drift yet stay under HALF the tightest tilt spacing (0.40°/2 = 0.20°),
+		// or a request for 0.88° would also match the 0.48° cut. That upper bound is why the observed
+		// drift being ~0.13° matters: the margin is real but thin, and tools/TiltCheck re-measures it.
+		internal const double TiltMatchTol = 0.20;
+
+		// The DISTINCT tilt angles a volume scans, ascending — i.e. the tilt list the UI offers. Derived
+		// from the VCP's designed elevation table (Message 5), so it reports every planned tilt even
+		// when read from a single-tilt extraction that physically contains only one of them. Split-cut
+		// pairs (CS+CD at one angle) and SAILS re-scans collapse to a single entry, since they're all the
+		// same physical tilt. Empty when Message 5 doesn't parse — the caller then offers no tilt choice
+		// rather than a wrong one (matching how a bad VCP read shows "VCP ?").
+		internal static IReadOnlyList<float> ReadElevationAngles(List<(byte[] block, int elev)> blocks)
+		{
+			if (!TryReadElevationTable(blocks, out var cuts))
+			{
+				return Array.Empty<float>();
+			}
+
+			var distinct = new List<float>();
+			foreach (var angle in cuts.Select(c => c.angle).OrderBy(a => a))
+			{
+				// Plausibility gate: a WSR-88D scans ~0.2°-20°. Anything outside that is a misparse.
+				if (angle is < -1 or > 45)
+				{
+					continue;
+				}
+				if (distinct.Count == 0 || angle - distinct[^1] > TiltAngleTol)
+				{
+					distinct.Add((float)Math.Round(angle, 2));
+				}
+			}
+			return distinct;
+		}
+
+		// The distinct tilt angles, read from an ALREADY-EXTRACTED single-tilt buffer (a cached .V06:
+		// 24-byte AR2V header + decompressed records). The extraction copies the volume's leading
+		// metadata into every tilt file, so Message 5 — and thus the WHOLE VCP elevation table — is
+		// present even in a file that physically holds one tilt. That's what lets the tilt list populate
+		// from the frame already on screen, with no extra fetch. Empty for a raw/unparseable buffer.
+		internal static IReadOnlyList<float> ReadElevationAnglesFromExtractedTilt(byte[] tilt)
+		{
+			const int headerSize = 24;
+			if (tilt is null || tilt.Length <= headerSize)
+			{
+				return Array.Empty<float>();
+			}
+			return ReadElevationAngles(new List<(byte[] block, int elev)> { (tilt[headerSize..], 0) });
 		}
 
 		// VCP number from a Message 31 radial's Volume Data Constant Block (the "VOL" block),
@@ -401,6 +520,13 @@ namespace OfflineMapsTest.Services
 		// SAILS; precip VCPs (12/212/215/…) run ~4-6 min and may insert extra 0.5° sweeps; TDWR VCPs
 		// (80/90) are the terminal network's monitor/hazardous modes. An unrecognized number means the
 		// parse failed -> "VCP ?" (no category, since we can't tell).
+		//
+		// Field ORDER matters: the readout splits this string at the "0.5°" sweep token, putting
+		// everything BEFORE it on the Scan row (the volume's scan strategy) — so the SAILS suffix comes
+		// first, ahead of the sweep token. SAILS describes how often the BASE tilt is re-scanned, which
+		// is a property of the volume and stays true whichever tilt is being rendered; it used to trail
+		// the sweep token and so landed on the Tilt row, where it could only be true for the base tilt
+		// and vanished the moment you selected 0.9°.
 		internal static string DescribeMode(int vcp, int sweeps)
 		{
 			if (!IsKnownVcp(vcp))
@@ -410,7 +536,7 @@ namespace OfflineMapsTest.Services
 			// SAILS/MRLE is WSR-88D-only terminology; TDWR re-scans its low tilt differently, so omit
 			// the suffix for TDWR VCPs even when the metadata reports extra low-tilt sweeps.
 			var sails = (!TdwrVcps.Contains(vcp) && sweeps > 1) ? $" · SAILS/MRLE ×{sweeps - 1}" : "";
-			return $"VCP {vcp} · {RegimeLabel(vcp)} · 0.5°×{sweeps}{sails}";
+			return $"VCP {vcp} · {RegimeLabel(vcp)}{sails} · 0.5°×{sweeps}";
 		}
 
 		// VCP + regime only (no sweep count) — the archive/replay mode line, where per-frame we read
@@ -601,6 +727,227 @@ namespace OfflineMapsTest.Services
 				("msg", $"baseAngle={(float.IsNaN(baseAngle) ? "?" : baseAngle.ToString("0.00"))}°"));
 
 			return records > 0 ? output.ToArray() : null;
+		}
+
+		// Builds a minimal uncompressed volume containing only the tilt at <paramref name="targetAngle"/>
+		// — the higher-tilt sibling of TryExtractLowestTilt, producing a byte-identical KIND of buffer
+		// (24-byte header + leading metadata + one surveillance cut + its Doppler companion). Because the
+		// result holds exactly ONE tilt, the JS decoder's `Math.min(listElevations())` picks that tilt's
+		// surveillance for reflectivity and findVelocityElevation picks its companion for velocity — the
+		// same as for the base tilt. So nothing downstream of this function knows tilts exist.
+		//
+		// This does NOT replace TryExtractLowestTilt, and the two aren't redundant: the base path anchors
+		// on the FIRST radial (whatever its angle), so it works on a volume whose Message 5 won't parse,
+		// or a legacy file with no elevation table at all. Targeting a specific tilt inherently requires
+		// knowing the VCP's designed angles (ReadElevationAngles) up front, so this path is only reachable
+		// once that table has been read — and it's only used for tilts above the base.
+		//
+		// Groups records by elevation NUMBER and decides per COMPLETED group, rather than per radial as
+		// the base path does. That's deliberate: a cut's first radial is a settling radial that can read
+		// well below the true angle (a real 0.5° reading 0.27°), and a stray ICAO+24 float misread mid-cut
+		// reads NaN — both of which a per-radial angle test mishandles (they're the origin of the base
+		// path's tiltTol / keptDoppler / max-over-radials heuristics).
+		//
+		// A group's angle is the MEDIAN of its radials — NOT the max, which is what SelectLatestSweep
+		// settled on for the same reason. The max is pulled upward by jitter toward the NEXT tilt and
+		// collides with it: measured on KTLX VCP 212, the 0.48° cut's radials run to 0.68°, so a max-based
+		// angle matched a request for the 0.88° tilt and silently served the 0.5° sweep instead (caught by
+		// tools/TiltCheck, which showed the 0.9° extraction returning byte-identical output to the base
+		// tilt). The median ignores both the low settling radial and the high jitter tail.
+		//
+		// Stops as soon as the target tilt is complete, so a low target never decompresses the whole
+		// volume, and memory stays bounded to ~2 cuts rather than the whole ~86 MB decompressed volume.
+		// completedTilt reports that a LATER group was reached, proving the tilt was fully scanned — a
+		// truncated (range-prefix) buffer ends mid-cut and reports false, so the caller re-fetches in full.
+		// Returns null if the volume carries no cut at that angle.
+		internal static byte[]? TryExtractTiltByAngle(byte[] raw, string siteId, float targetAngle, out bool completedTilt)
+		{
+			completedTilt = false;
+			const int headerSize = 24;
+			if (raw.Length < headerSize + 4 || float.IsNaN(targetAngle))
+			{
+				return null;
+			}
+
+			var icao = System.Text.Encoding.ASCII.GetBytes(siteId);
+			var icaoResolved = false;
+
+			var metadata = new List<byte[]>();  // leading metadata (Msg 5/13/15/…) the decoder needs
+			var seenRadial = false;
+
+			// The elevation-NUMBER group currently being accumulated.
+			var groupNum = 0;
+			var groupBlocks = new List<byte[]>();
+			var groupAngles = new List<float>();
+			var groupHasRef = false;
+			var groupHasVel = false;
+
+			// The cut's settled angle: the median of its radials' reported angles (see the note above on
+			// why not the max). NaN when no radial in the cut reported a usable angle.
+			float GroupAngle()
+			{
+				if (groupAngles.Count == 0)
+				{
+					return float.NaN;
+				}
+				groupAngles.Sort();
+				return groupAngles[groupAngles.Count / 2];
+			}
+
+			// The target tilt, once found: its surveillance cut, then its Doppler companion.
+			var kept = new List<byte[]>();
+			var keptAngle = float.NaN;
+			var keptCompanion = false;
+			var done = false;
+
+			// Decides what to do with a finished group. Returns true when the target tilt is complete
+			// (the caller then stops decompressing).
+			bool FlushGroup()
+			{
+				if (groupBlocks.Count == 0)
+				{
+					return false;
+				}
+
+				var angle = GroupAngle();
+				if (kept.Count == 0)
+				{
+					// Still hunting: keep this group only if it's the target tilt's surveillance cut.
+					// TiltMatchTol (designed-vs-observed drift), not TiltAngleTol (same-tilt dedupe).
+					if (groupHasRef && !float.IsNaN(angle) && Math.Abs(angle - targetAngle) <= TiltMatchTol)
+					{
+						kept.AddRange(groupBlocks);
+						keptAngle = angle;
+					}
+					return false;
+				}
+
+				// We have the surveillance cut. The very next group is its Doppler companion when it
+				// carries VELOCITY at the SAME angle (not reflectivity — a short-PRT Doppler's
+				// range-folded reflectivity can fail HasMoment's gate-count check). Anything else is
+				// the next tilt, which proves ours finished. A clear-air VCP's single combined cut
+				// carries velocity itself, so it simply takes this exit with no companion. Compared
+				// against the cut we KEPT (observed vs observed), so this is the same-tilt tolerance.
+				if (!keptCompanion && groupHasVel && !float.IsNaN(angle)
+					&& Math.Abs(angle - keptAngle) <= TiltAngleTol)
+				{
+					kept.AddRange(groupBlocks);
+					keptCompanion = true;
+					return false;
+				}
+
+				return true; // reached a later cut -> the target tilt is fully scanned
+			}
+
+			var pos = headerSize;
+			while (pos + 4 <= raw.Length && !done)
+			{
+				var controlWord = (raw[pos] << 24) | (raw[pos + 1] << 16) | (raw[pos + 2] << 8) | raw[pos + 3];
+				pos += 4;
+				var size = Math.Abs(controlWord);
+				if (size <= 0 || pos + size > raw.Length)
+				{
+					break;
+				}
+
+				byte[] block;
+				try
+				{
+					using var blockIn = new MemoryStream(raw, pos, size, writable: false);
+					using var bz = new BZip2Stream(blockIn, CompressionMode.Decompress, false);
+					using var blockOut = new MemoryStream(1024 * 1024);
+					bz.CopyTo(blockOut);
+					block = blockOut.ToArray();
+				}
+				catch
+				{
+					break; // malformed record (or a prefix cut mid-record): serve what we have
+				}
+				pos += size;
+
+				var hasRef = HasMoment(block, Dref);
+
+				// Resolve the real data ICAO once, on the first radial (see TryExtractLowestTilt): a few
+				// radars write radials under a different callsign than their bucket key (KCRI -> "NOK5").
+				if (!icaoResolved && hasRef)
+				{
+					if (IndexOf(block, icao) < 0 && TryDetectIcao(block, out var real))
+					{
+						icao = real;
+					}
+					icaoResolved = true;
+				}
+
+				var elev = ElevationOf(block, icao);
+				var angle = ElevationAngleOf(block, icao);
+				var isRadial = elev >= 1 && (hasRef || HasMoment(block, Dvel));
+
+				if (!isRadial && !seenRadial)
+				{
+					metadata.Add(block); // leading metadata: copied into every tilt's buffer
+					continue;
+				}
+				if (!isRadial)
+				{
+					continue; // trailing/interleaved non-radial record: not ours to carry
+				}
+				seenRadial = true;
+
+				if (groupBlocks.Count > 0 && elev != groupNum)
+				{
+					done = FlushGroup();
+					if (done)
+					{
+						completedTilt = true;
+						break;
+					}
+					groupBlocks.Clear();
+					groupAngles.Clear();
+					groupHasRef = false;
+					groupHasVel = false;
+				}
+
+				groupNum = elev;
+				groupBlocks.Add(block);
+				groupHasRef |= hasRef;
+				groupHasVel |= HasMoment(block, Dvel);
+				if (!float.IsNaN(angle))
+				{
+					groupAngles.Add(angle); // reduced to the cut's median in GroupAngle()
+				}
+			}
+
+			// EOF while still inside a group: flush it, but don't claim the tilt is complete — we never
+			// saw a following cut, so a truncated prefix is indistinguishable from a short volume.
+			if (!done)
+			{
+				FlushGroup();
+			}
+
+			if (kept.Count == 0)
+			{
+				RadarDiagnostics.Log("svc", "extract", ("site", siteId), ("lvl", "warn"),
+					("msg", $"no cut at {targetAngle:0.00}° (tilt not in volume)"));
+				return null;
+			}
+
+			using var output = new MemoryStream(8 * 1024 * 1024);
+			output.Write(raw, 0, headerSize);
+			foreach (var m in metadata)
+			{
+				output.Write(m, 0, m.Length);
+			}
+			foreach (var k in kept)
+			{
+				output.Write(k, 0, k.Length);
+			}
+
+			RadarDiagnostics.Log("svc", "extract", ("site", siteId),
+				("records", metadata.Count + kept.Count), ("completedTilt", completedTilt),
+				("keptDoppler", keptCompanion), ("bytes", output.Length),
+				("msg", $"tilt {targetAngle:0.00}° -> {keptAngle:0.00}° ({kept.Count}blk)"));
+
+			return output.ToArray();
 		}
 
 		// Detects the ACTUAL internal ICAO from a Message-31 radial block. The AWS bucket key is the site

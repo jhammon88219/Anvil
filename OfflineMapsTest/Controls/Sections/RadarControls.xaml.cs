@@ -157,38 +157,25 @@ namespace OfflineMapsTest.Controls.Sections
 		public string FrameCountText(double current, int max) =>
 			max <= 0 ? string.Empty : $"{(int)Math.Round(current) + 1} / {max + 1}";
 
-		// RadarViewModel.RadarModeText is one formatted string, e.g. "VCP 215 · precip · 0.5°×3 ·
-		// SAILS/MRLE ×2" (or "VCP ? · 0.5°×3" when the VCP couldn't be read). These x:Bind functions
-		// split it across the two lower right-side rows at the "0.5°" sweep segment, which always
-		// starts the second half regardless of which format applies.
+		// The Scan readout: the VOLUME's scan strategy — "VCP 215 · precip · SAILS/MRLE ×2".
+		//
+		// RadarViewModel.RadarModeText is one formatted string, "VCP 215 · precip · SAILS/MRLE ×2 ·
+		// 0.5°×3" (or "VCP ? · 0.5°×3" when the VCP couldn't be read, or "VCP 212 · precip" with no
+		// sweep segment at all on the archive path). Everything before the "0.5°" sweep token describes
+		// the volume, so that's this row; the token itself is dropped, because "0.5°×3" and
+		// "SAILS/MRLE ×2" state the same fact twice (3 sweeps = 1 + 2 extra) and the Tilt row now shows
+		// the rendered elevation instead.
+		//
+		// SAILS belongs HERE, not on the Tilt row: it counts re-scans of the BASE tilt, a property of
+		// the volume that holds whichever tilt is on screen. On the Tilt row it could only ever be true
+		// for 0.5° and disappeared as soon as a higher tilt was selected.
 		public string RadarVcpText(string mode) =>
 			string.IsNullOrEmpty(mode) ? string.Empty : mode[..SweepIndex(mode)].TrimEnd(' ', '·');
-
-		public string RadarSweepText(string mode)
-		{
-			if (string.IsNullOrEmpty(mode))
-			{
-				return string.Empty;
-			}
-
-			var sweep = mode[SweepIndex(mode)..];
-			// "0.5°×N" is the low-tilt sweep count; ×1 is the normal single scan (every clear-air /
-			// non-SAILS volume), so it's constant noise — show it only when SAILS/MRLE adds extra
-			// rescans (×2, ×3…). Guard against a future ×10+ by requiring the "1" isn't part of a
-			// longer number.
-			if (sweep.StartsWith("0.5°×1", StringComparison.Ordinal) &&
-				(sweep.Length == 6 || !char.IsDigit(sweep[6])))
-			{
-				sweep = "0.5°" + sweep[6..];
-			}
-
-			return sweep;
-		}
 
 		private static int SweepIndex(string mode)
 		{
 			var idx = mode.IndexOf("0.5°", StringComparison.Ordinal);
-			return idx > 0 ? idx : mode.Length; // no sweep segment (e.g. "—" / "loading…") — keep it all on the top line
+			return idx > 0 ? idx : mode.Length; // no sweep segment (e.g. "—" / "loading…") — keep it all
 		}
 
 		// Generic bool → Visibility for x:Bind (color-scale bar, inspect tick, numerical scale row).
