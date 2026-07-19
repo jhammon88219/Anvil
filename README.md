@@ -45,6 +45,70 @@ Five styles ship with the app: Regular, Dark, Data Viz Light, Data Viz Black, an
 All read from one local PMTiles archive. Because the tiles and the style JSON are both local, a
 cartography change is a file edit rather than a service request.
 
+## Requirements
+
+| | |
+|---|---|
+| OS | Windows 10 version 1809 (build 17763) or later. Windows 11 recommended. |
+| SDK | .NET 8 and Windows App SDK 2.1.3 |
+| IDE | Visual Studio 2022 with the Windows App SDK workload |
+| Runtime | WebView2. Preinstalled on Windows 11; on Windows 10 install the Evergreen runtime. |
+| Basemap | A PMTiles archive. See [Basemap data](#basemap-data) below. |
+
+Visual Studio is effectively required to run Anvil, not just to build it. The app is packaged as MSIX
+and depends on package identity for its local caches, so it has to be deployed rather than launched
+from a loose executable. Building from the command line works. Running that way does not.
+
+## Basemap data
+
+Anvil ships without a basemap. The archive runs to tens of gigabytes, so it is not in the repo. Set
+this up before the first run.
+
+Without it the app still launches and every weather overlay still draws, but the map underneath is
+black. That looks like a broken build rather than missing data.
+
+Anvil reads a single [PMTiles](https://protomaps.com/docs/pmtiles) archive built from the
+[Protomaps basemaps](https://github.com/protomaps/basemaps), which use OpenStreetMap data. All five
+bundled styles point at the same file:
+
+    pmtiles://https://mapdata/usa_full.pmtiles
+
+### 1. Build an archive
+
+Protomaps publishes daily planet builds. Extract only the region you need with the
+[`pmtiles` CLI](https://github.com/protomaps/go-pmtiles):
+
+```sh
+pmtiles extract https://build.protomaps.com/<YYYYMMDD>.pmtiles usa_full.pmtiles \
+  --bbox=-125.0,24.0,-66.5,49.5 --maxzoom=12
+```
+
+Max zoom drives file size far more than the bounding box does. A CONUS extract is a few gigabytes at
+zoom 12 and tens of gigabytes at full detail. Check the Protomaps documentation for the current build
+URL, which has changed over time.
+
+### 2. Name it `usa_full.pmtiles` and put it on your Desktop
+
+Both parts matter right now.
+
+The filename is hard-coded in all five bundled styles and in `SettingsService.MapDataFileName`.
+
+The location matters because the in-app folder picker is one of the controls not yet wired back into
+the current UI. Until it returns, Anvil resolves the folder itself, checking in order:
+
+1. Your Desktop
+2. `%USERPROFILE%\OneDrive\Desktop`
+3. `%USERPROFILE%\Desktop`
+
+Put the archive in any of those and Anvil finds it with no configuration.
+
+To keep it somewhere else, edit `ResolveDefaultFolder` in `Anvil.App/Services/SettingsService.cs`. To
+use a different filename, change `MapDataFileName` in the same file and the `url` field in each
+`style*.json` under `Anvil.App/Assets/Map/`.
+
+
+
+
 
 
 
