@@ -13,12 +13,13 @@
     <PackageReference Include="SharpCompress" Version="1.0.0" />
   </ItemGroup>
 
-  <!-- Link the REAL shipping sources (not copies) so this exercises the code the app runs, and can
-       never drift from it. Same namespace + compiled into this assembly => Level2Format's `internal`
-       members are visible here without an InternalsVisibleTo in the app. -->
+  <!-- References the REAL shipping code so this exercises what the app runs and can never drift from it.
+       This used to <Compile Include> the individual .cs files across the tree, because there was no
+       library to reference — Anvil.Core is that library now. Level2Format's `internal` members reach us
+       via <InternalsVisibleTo Include="TiltCheck"/> in Anvil.Core.csproj, which replaces the visibility
+       the old same-assembly trick gave for free. -->
   <ItemGroup>
-    <Compile Include="..\..\Anvil.App\Services\Level2Format.cs" Link="Level2Format.cs" />
-    <Compile Include="..\..\Anvil.App\Services\RadarDiagnostics.cs" Link="RadarDiagnostics.cs" />
+    <ProjectReference Include="..\..\Anvil.Core\Anvil.Core.csproj" />
   </ItemGroup>
 
 </Project>

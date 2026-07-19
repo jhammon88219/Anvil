@@ -5,7 +5,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.UI.Dispatching;
 using Anvil.Models;
 using Anvil.Services;
 
@@ -22,7 +21,7 @@ namespace Anvil.ViewModels
 	{
 		private readonly IMapService _mapService;
 		private readonly ISpcOutlookService _spcOutlookService;
-		private readonly DispatcherQueue _dispatcher;
+		private readonly IDispatcher _dispatcher;
 
 		// Readiness guard: outlook/watch commands only run once the map page has reported 'mapReady'
 		// (set by OnMapsReadyAsync, called from MapViewModel.OnMapsReadyAsync).
@@ -56,11 +55,11 @@ namespace Anvil.ViewModels
 		private DateTimeOffset? _outlookCycleStart;
 		private DateTimeOffset? _nextOutlookRefreshAt;
 
-		public OutlookViewModel(IMapService mapService, ISpcOutlookService spcOutlookService)
+		public OutlookViewModel(IMapService mapService, ISpcOutlookService spcOutlookService, IDispatcher dispatcher)
 		{
 			_mapService = mapService;
 			_spcOutlookService = spcOutlookService;
-			_dispatcher = DispatcherQueue.GetForCurrentThread();
+			_dispatcher = dispatcher;
 
 			// SPC outlook selectors. Day 1 Categorical is the armed default, but the visibility toggle
 			// (IsOutlookVisible) defaults off, so nothing is drawn on launch. Assign backing fields
@@ -98,7 +97,7 @@ namespace Anvil.ViewModels
 				// but not when a periodic cycle was all 304s, so we don't needlessly re-render every 15 min.
 				if (first || updated > 0)
 				{
-					_dispatcher.TryEnqueue(() => OnOutlooksRefreshed());
+					_dispatcher.Post(() => OnOutlooksRefreshed());
 				}
 			}
 			catch (Exception ex)
@@ -109,7 +108,7 @@ namespace Anvil.ViewModels
 			// Tell the next-update bar when the next periodic refresh is roughly due (fixed cadence;
 			// the refresh itself takes seconds, negligible vs the 15-min interval). Runs every cycle.
 			var cycleStart = DateTimeOffset.Now;
-			_dispatcher.TryEnqueue(() => SetOutlookRefreshSchedule(cycleStart, cycleStart + OutlookRefreshInterval));
+			_dispatcher.Post(() => SetOutlookRefreshSchedule(cycleStart, cycleStart + OutlookRefreshInterval));
 		});
 
 		/// <summary>Outlook days that have products (1-8), each labeled with its date;

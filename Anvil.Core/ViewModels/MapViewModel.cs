@@ -37,7 +37,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IDowEventProvider dowEventProvider)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IDowEventProvider dowEventProvider, IDispatcher dispatcher)
 		{
 			_mapService = mapService;
 			_styleProvider = styleProvider;
@@ -46,8 +46,8 @@ namespace Anvil.ViewModels
 			// Each subsystem lives in its own view model (progressively split out of this class);
 			// the transport-bar section controls bind slices of them.
 			Radar = new RadarViewModel(mapService, radarSiteProvider, radarService, dowEventProvider);
-			Outlook = new OutlookViewModel(mapService, spcOutlookService);
-			Watches = new WatchesViewModel(mapService, watchService);
+			Outlook = new OutlookViewModel(mapService, spcOutlookService, dispatcher);
+			Watches = new WatchesViewModel(mapService, watchService, dispatcher);
 			Markers = new MarkersViewModel(mapService, locationService);
 			SiteExplorer = new RadarSiteExplorerViewModel(Radar, Markers, radarService, mapService);
 

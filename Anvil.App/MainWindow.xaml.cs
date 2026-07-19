@@ -78,7 +78,12 @@ namespace Anvil
 				System.IO.Path.Combine(_radarService.CacheDirectory, "Diagnostics"));
 
 			var dowEventProvider = new DowEventProvider();
-			ViewModel = new MapViewModel(mapService, styleProvider, regionProvider, _spcOutlookService, _spcWatchService, radarSiteProvider, _radarService, locationService, dowEventProvider);
+
+			// UI-thread marshaller for the Core view-models. Built HERE (on the UI thread) because
+			// DispatcherQueue.GetForCurrentThread resolves the calling thread's queue — see WinUiDispatcher.
+			var dispatcher = new Services.WinUiDispatcher();
+
+			ViewModel = new MapViewModel(mapService, styleProvider, regionProvider, _spcOutlookService, _spcWatchService, radarSiteProvider, _radarService, locationService, dowEventProvider, dispatcher);
 			_router = new WebMessageRouter(ViewModel);
 
 			// Push the OS theme accent to the radar-site status halo once the page is ready, and re-push

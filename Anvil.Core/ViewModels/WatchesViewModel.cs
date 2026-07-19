@@ -2,7 +2,6 @@ using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Microsoft.UI.Dispatching;
 using Anvil.Services;
 
 namespace Anvil.ViewModels
@@ -18,7 +17,7 @@ namespace Anvil.ViewModels
 	{
 		private readonly IMapService _mapService;
 		private readonly ISpcWatchService _watchService;
-		private readonly DispatcherQueue _dispatcher;
+		private readonly IDispatcher _dispatcher;
 
 		// Readiness guard: watch commands only run once the map page has reported 'mapReady'
 		// (set by OnMapsReadyAsync, called from MapViewModel.OnMapsReadyAsync).
@@ -30,11 +29,11 @@ namespace Anvil.ViewModels
 		// Overall opacity of the watch polygons (fill + outline together). Default 1.0 = the current look.
 		private double _watchesOpacity = 1.0;
 
-		public WatchesViewModel(IMapService mapService, ISpcWatchService watchService)
+		public WatchesViewModel(IMapService mapService, ISpcWatchService watchService, IDispatcher dispatcher)
 		{
 			_mapService = mapService;
 			_watchService = watchService;
-			_dispatcher = DispatcherQueue.GetForCurrentThread();
+			_dispatcher = dispatcher;
 		}
 
 		/// <summary>Show the SPC watch boxes — Tornado / Severe Thunderstorm Watches — on the map
@@ -97,7 +96,7 @@ namespace Anvil.ViewModels
 				// whenever a cycle pulled fresh data.
 				if (first || result.Status is SpcWatchFetchStatus.Updated)
 				{
-					_dispatcher.TryEnqueue(OnWatchesRefreshed);
+					_dispatcher.Post(OnWatchesRefreshed);
 				}
 			}
 			catch (Exception ex)

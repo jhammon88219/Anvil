@@ -4,6 +4,9 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Project Path="Anvil.Core/Anvil.Core.csproj" />
+  <Project Path="Anvil.Tests/Anvil.Tests.csproj" />
+  <Project Path="tools/TiltCheck/TiltCheck.csproj" />
   <Project Path="Anvil.App/Anvil.App.csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />

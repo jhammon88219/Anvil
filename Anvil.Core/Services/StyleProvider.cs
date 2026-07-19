@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Anvil.Models;
-using Windows.Networking.Sockets;
 
 namespace Anvil.Services
 {

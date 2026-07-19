@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Deliberately PLAIN net8.0 — no `net8.0-windows`, no UseWinUI. Two things depend on that:
+         tools/TiltCheck (a net8.0 console) references this project directly, and the test project can
+         run as fast plain xunit instead of a deployed WinUI test app. The only Windows-bound services
+         (LocationService, SettingsService) live in Anvil.App behind their interfaces, and view-models
+         reach the UI thread through IDispatcher rather than DispatcherQueue. Keeping this TFM is what
+         makes the compiler enforce all of that. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <!-- RootNamespace is `Anvil`, NOT `Anvil.Core`, so types keep the namespaces they had in the
+         single-project layout (Anvil.Models, Anvil.Services, Anvil.ViewModels). That's what let the
+         extraction be pure file moves with zero namespace edits. -->
+    <RootNamespace>Anvil</RootNamespace>
+    <AssemblyName>Anvil.Core</AssemblyName>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- bzip2 for the Level II volume decompression (Level2Format / Level2RadarService). -->
+    <PackageReference Include="SharpCompress" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Level2Format's `internal` members. TiltCheck used to see them by compiling the .cs INTO its own
+         assembly; now it references this project, so the visibility has to be granted explicitly. -->
+    <InternalsVisibleTo Include="TiltCheck" />
+    <InternalsVisibleTo Include="Anvil.Tests" />
+  </ItemGroup>
+
+</Project>
