@@ -15,7 +15,7 @@ namespace Anvil.ViewModels
 {
 	/// <summary>
 	/// DEV-ONLY velocity-dealias regression harness. Replays a FIXED corpus of committed <c>.V06</c>
-	/// volumes (<see cref="IRadarCorpusProvider"/> / <c>Assets/radar-corpus.json</c>) through the REAL
+	/// volumes (<see cref="IRadarCorpusProvider"/> / <c>Assets/RadarCorpus/radar-corpus.json</c>) through the REAL
 	/// decode/dealias path in the WebView and scores each on its over-unfold ratio (hi/total, the
 	/// <c>|v|&gt;55 m/s</c> gates the diagnostics call "dealias hi"), flagging any volume that got WORSE
 	/// than its recorded baseline. Because the corpus is fixed and <c>dealiasSweepCore</c> is
@@ -114,7 +114,7 @@ namespace Anvil.ViewModels
 			var entries = _corpus.GetEntries();
 			if (entries.Count == 0)
 			{
-				StatusText = "No corpus volumes found (Assets/radar-corpus.json).";
+				StatusText = "No corpus volumes found (Assets/RadarCorpus/radar-corpus.json).";
 				return;
 			}
 

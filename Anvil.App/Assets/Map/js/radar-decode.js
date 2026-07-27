@@ -3,7 +3,7 @@
 // fallback). The heavy cost here is the pure-JS bzip2 decompression inside Level2Radar
 // (~5 s for a full volume), which is exactly why we run it off the UI thread.
 
-import { REFLECTIVITY_RAMP, VELOCITY_RAMP, CORRELATION_RAMP, KDP_RAMP, ZDR_RAMP, SPECTRUM_WIDTH_RAMP, rampColor } from './radar-ramps.js';
+import { REFLECTIVITY_RAMP, VELOCITY_RAMP, SRV_RAMP, CORRELATION_RAMP, KDP_RAMP, ZDR_RAMP, SPECTRUM_WIDTH_RAMP, rampColor } from './radar-ramps.js';
 import { PRODUCTS, PRODUCT_IDS } from './radar-products.js';
 import { metersPerDeg } from './geo.js';
 
@@ -233,6 +233,25 @@ function sweepStats(radials, getAzimuth) {
 // Last sweep's dealiasing diagnostics (region count, seed mean, global shift, value range),
 // surfaced into the debug log so the unfold can be verified without guessing at the picture.
 let _dealiasInfo = '';
+
+// Storm motion for Storm-Relative Velocity (buildSrv), pushed per decode from the host (radar.js →
+// decodeAndBuild/decodeGridOnly). speedMs = storm speed in m/s; dirDeg = the compass bearing (0 = N,
+// clockwise) the storm is MOVING TOWARD. Default {0,0} → SRV equals base velocity (no offset).
+let _stormMotion = { speedMs: 0, dirDeg: 0 };
+
+// Per-decode memo of the dealiased Doppler sweep, so velocity AND SRV (both ride the same cut) share ONE
+// dealias — the priciest step (~1.5 s/frame). Reset at the top of every decodeAndBuild/decodeGridOnly, so
+// it never leaks across volumes; within a decode the first of velocity/SRV computes it, the second reuses.
+// { radials, elev } once computed; radials = null when the volume has no Doppler cut.
+let _sharedDealiased = null;
+function velocityDealiased(radar) {
+    if (_sharedDealiased) return _sharedDealiased;
+    const elev = findVelocityElevation(radar);
+    if (elev === null) { _sharedDealiased = { radials: null, elev: null }; return _sharedDealiased; }
+    radar.setElevation(elev);
+    _sharedDealiased = { radials: dealiasSweep(momentRadials(radar, 'velocity'), radar), elev: elev };
+    return _sharedDealiased;
+}
 
 // Per-radial Nyquist velocity (m/s) from the decoded RAD block; NaN if unavailable. The unfold
 // interval for dealiasing is 2*Nyquist, so this is the one value the whole thing hinges on.
@@ -531,17 +550,50 @@ function dealiasSweepCore(radials, radar) {
 // minDbz is accepted (unused) so every builder shares ONE signature and decodeAndBuild can call them
 // uniformly through the BUILDERS map — velocity isn't reflectivity-masked (unlike CC/DOW-velocity).
 function buildVelocity(radar, siteLat, siteLon, minDbz, wantGrid) {
-    const elev = findVelocityElevation(radar);
-    if (elev === null) return { geom: null, grid: null };
-    radar.setElevation(elev);
-    const radials = momentRadials(radar, 'velocity');
-    const dealiased = dealiasSweep(radials, radar);
+    const sd = velocityDealiased(radar);          // shared with SRV within this decode (one dealias)
+    if (!sd.radials) return { geom: null, grid: null };
+    radar.setElevation(sd.elev);                  // buildGates' getAzimuth reads the current cut — pin it
+    const dealiased = sd.radials;
     const getAz = function (i) { return radar.getAzimuth(i); };
     const geom = buildGates(dealiased, getAz, siteLat, siteLon, function (v) {
         if (v === null || v === undefined) return null;
         return rampColor(VELOCITY_RAMP, v);
     });
     return { geom: geom, grid: buildGrid(dealiased, getAz, 10, VELOCITY_RAMP.unit, 1, wantGrid) };
+}
+
+// STORM-RELATIVE VELOCITY (m/s). Same dealiased Doppler cut as base velocity, minus the storm motion's
+// component along each beam: for a gate at azimuth az, SRV = V − S·cos(az − dir), where S/dir are the storm
+// speed/heading (_stormMotion, pushed by the host). The subtracted term is per-radial (azimuth only, not
+// range), so this is a cheap transform of the already-dealiased field — the expensive dealias is not
+// repeated beyond velocity's. Removing the storm's translation makes rotation (mesocyclones) read near
+// zero. With S = 0 it equals base velocity. Colored by SRV_RAMP (velocity's scheme under its own id).
+function buildSrv(radar, siteLat, siteLon, minDbz, wantGrid) {
+    const sd = velocityDealiased(radar);          // reuses velocity's dealias within this decode (no re-dealias)
+    if (!sd.radials) return { geom: null, grid: null };
+    radar.setElevation(sd.elev);                  // buildGates' getAzimuth reads the current cut — pin it
+    const dealiased = sd.radials;
+    const getAz = function (i) { return radar.getAzimuth(i); };
+    const S = _stormMotion.speedMs, dir = _stormMotion.dirDeg;
+    // Per-azimuth offset applied to each gate; null gates (no data) stay null so they're skipped.
+    const srv = dealiased.map(function (d, i) {
+        if (!d || !d.moment_data) return d;
+        const az = getAz(i);
+        if (typeof az !== 'number') return d;
+        const off = S * Math.cos((az - dir) * D2R);
+        const src = d.moment_data;
+        const out = new Array(src.length);
+        for (let j = 0; j < src.length; j++) {
+            const v = src[j];
+            out[j] = (v === null || v === undefined) ? null : (v - off);
+        }
+        return { moment_data: out, first_gate: d.first_gate, gate_size: d.gate_size };
+    });
+    const geom = buildGates(srv, getAz, siteLat, siteLon, function (v) {
+        if (v === null || v === undefined) return null;
+        return rampColor(SRV_RAMP, v);
+    });
+    return { geom: geom, grid: buildGrid(srv, getAz, 10, SRV_RAMP.unit, 1, wantGrid) };
 }
 
 // Lowest-tilt SPECTRUM WIDTH (m/s) — the spread of velocities within a gate (turbulence / shear). It's a
@@ -849,6 +901,7 @@ export function decodeDowFrame(json, minDbz) {
 const BUILDERS = {
     reflectivity: buildReflectivity,
     velocity: buildVelocity,
+    srv: buildSrv,
     cc: buildCorrelation,
     kdp: buildKdp,
     zdr: buildZdr,
@@ -860,9 +913,17 @@ const BUILDERS = {
 // isn't on a lazy product the host passes buildLazy=false and those builds are skipped. The result's
 // built[id] tells the host a refl-only frame must be re-decoded before it can show velocity (see radar.js
 // setProduct). Non-lazy products (reflectivity, CC) are cheap and always built.
-export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildLazy, buildGrids) {
+export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildLazy, buildGrids, stormMotion) {
     if (buildLazy === undefined) buildLazy = true; // decode everything (incl. lazy velocity) unless told otherwise
     if (buildGrids === undefined) buildGrids = true;
+    if (stormMotion) _stormMotion = stormMotion; // for buildSrv (SRV); {0,0} default = base velocity
+    _sharedDealiased = null; // reset the per-decode dealias memo (velocity + SRV share it within this decode)
+    // buildLazy is either the literal `true` (build ALL lazy products — the dev validation harness) or an
+    // ARRAY of lazy product ids to build. The live path passes only the active (and any prefetched) lazy
+    // id, so a second lazy product like SRV never forces a redundant dealias when it isn't being shown.
+    const wantLazyId = function (id) {
+        return buildLazy === true || (Array.isArray(buildLazy) && buildLazy.indexOf(id) >= 0);
+    };
     const bytes = ab.byteLength;
     return loadDecoder().then(function (dec) {
         const t0 = performance.now();
@@ -880,7 +941,7 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildLazy, buildGri
         const results = {}, moments = {}, grids = {}, built = {};
         for (let pi = 0; pi < PRODUCT_IDS.length; pi++) {
             const id = PRODUCT_IDS[pi];
-            if (PRODUCTS[id].lazy && !buildLazy) { moments[id] = null; grids[id] = null; built[id] = false; continue; }
+            if (PRODUCTS[id].lazy && !wantLazyId(id)) { moments[id] = null; grids[id] = null; built[id] = false; continue; }
             const r = BUILDERS[id](radar, siteLat, siteLon, minDbz, buildGrids);
             results[id] = r;
             moments[id] = r.geom || null;
@@ -942,7 +1003,7 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildLazy, buildGri
             radials: radials, gates: gates, bytes: bytes,
             elevList: elevList, velElev: velElevNum, reflStats: reflStats, velStats: velStats, velNyq: velNyq,
             velNyqSrc: velNyqSrc, velNyqRad: velNyqRad, velNyqVol: velNyqVol,
-            dealias: moments.velocity ? _dealiasInfo : '',
+            dealias: (moments.velocity || moments.srv) ? _dealiasInfo : '', // SRV dealiases too
         };
     });
 }
@@ -953,7 +1014,9 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildLazy, buildGri
 // values. Non-velocity grids are cheap (no dealias); velocity's grid still runs its dealias (the inspector
 // shows the dealiased value), but only for velocity, not the whole registry. The host MERGES the returned
 // grid into the existing frame, leaving its geometry untouched. Returns { grids: { [productId]: grid|null } }.
-export function decodeGridOnly(ab, siteLat, siteLon, minDbz, productId) {
+export function decodeGridOnly(ab, siteLat, siteLon, minDbz, productId, stormMotion) {
+    if (stormMotion) _stormMotion = stormMotion; // SRV grid needs the storm motion too
+    _sharedDealiased = null; // reset the per-decode dealias memo
     return loadDecoder().then(function (dec) {
         const radar = new dec.Level2Radar(dec.Buffer.from(new Uint8Array(ab)));
         const builder = BUILDERS[productId];

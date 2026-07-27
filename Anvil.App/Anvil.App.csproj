@@ -28,13 +28,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Assets\radar-sites.json">
+    <Content Include="Assets\Radar\radar-sites.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Assets\research-radar-sites.json">
+    <Content Include="Assets\Radar\research-radar-sites.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Assets\tdwr-sites.json">
+    <Content Include="Assets\Radar\tdwr-sites.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <!-- Curated DOW (mobile-radar) frames for the DOW Event Viewer (offline-converted via
@@ -61,7 +61,7 @@
        so the ~40 MB never ships in a Release MSIX — the harness is unreachable there anyway (DevVisibility
        collapses its UI, ValidationVm is null). See docs/radar-validation.md and RadarCorpusProvider. -->
   <ItemGroup Condition="'$(Configuration)'=='Debug'">
-    <Content Include="Assets\radar-corpus.json">
+    <Content Include="Assets\RadarCorpus\radar-corpus.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <!-- Listed explicitly (NOT a *.V06 glob): MSIX packaging reliably stages named Content into the AppX

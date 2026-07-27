@@ -81,6 +81,16 @@ export const VELOCITY_RAMP = {
     ],
 };
 
+// Storm-Relative Velocity (m/s) — base velocity minus the storm-motion component along each beam, so a
+// storm's own translation is removed and rotation (mesocyclones) stands out near zero. Same physical
+// quantity + color scheme as base velocity (green inbound / gray zero / red outbound), so the legend reads
+// the same; the DIFFERENCE is in the data (the per-azimuth offset applied in radar-decode's buildSrv), not
+// the ramp. Reuses VELOCITY_RAMP's stops under its own id so the product combo/legend key it separately.
+export const SRV_RAMP = {
+    id: 'srv', label: 'Storm-Rel Velocity', unit: 'm/s', min: -50, max: 50, interpolate: true,
+    stops: VELOCITY_RAMP.stops,
+};
+
 // Correlation coefficient (ρHV, dimensionless 0–1.05) — dual-pol. Uniform precip reads near 1.0;
 // mixed/melting/hail dips to ~0.85–0.95; non-meteorological returns (tornado debris, ground clutter,
 // biological, chaff) drop below ~0.8. The ramp spends its detail on 0.8–1.0 (where precip lives) and

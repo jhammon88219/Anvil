@@ -7,7 +7,7 @@ self.onmessage = function (e) {
     // transfer it back for the host to merge into the existing frame — no full re-decode. See decodeGridOnly.
     if (d.gridOnly) {
         import('./radar-decode.js').then(function (m) {
-            return m.decodeGridOnly(d.ab, d.siteLat, d.siteLon, d.minDbz, d.product);
+            return m.decodeGridOnly(d.ab, d.siteLat, d.siteLon, d.minDbz, d.product, d.stormMotion);
         }).then(function (res) {
             const msg = { token: d.token, index: d.index, url: d.url, gridsOnly: true, gridProduct: d.product, grids: {} };
             const transfer = [];
@@ -21,7 +21,7 @@ self.onmessage = function (e) {
         return;
     }
     import('./radar-decode.js').then(function (m) {
-        return m.decodeAndBuild(d.ab, d.siteLat, d.siteLon, d.minDbz, d.buildLazy, d.buildGrids);
+        return m.decodeAndBuild(d.ab, d.siteLat, d.siteLon, d.minDbz, d.buildLazy, d.buildGrids, d.stormMotion);
     }).then(function (res) {
         // Product geometry + inspector grids are keyed by product id (radar-products.js); we forward them
         // as maps, transferring each product's typed arrays zero-copy. Adding a product needs no change here.

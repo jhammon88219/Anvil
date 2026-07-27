@@ -9,7 +9,7 @@ namespace Anvil.Services
 {
 	/// <summary>
 	/// Default <see cref="IRadarCorpusProvider"/>. Loads the velocity-dealias validation corpus from the
-	/// bundled <c>Assets/radar-corpus.json</c> manifest (mirroring how <see cref="RadarSiteProvider"/>
+	/// bundled <c>Assets/RadarCorpus/radar-corpus.json</c> manifest (mirroring how <see cref="RadarSiteProvider"/>
 	/// reads its bundled data files). Parsed once and cached. Fully offline — the corpus is fixed by
 	/// design, so the only variable between runs is the dealias code.
 	///
@@ -41,7 +41,7 @@ namespace Anvil.Services
 		{
 			try
 			{
-				var path = Path.Combine(AppContext.BaseDirectory, "Assets", "radar-corpus.json");
+				var path = Path.Combine(AppContext.BaseDirectory, "Assets", "RadarCorpus", "radar-corpus.json");
 				var manifest = JsonSerializer.Deserialize<ManifestDto>(File.ReadAllText(path), JsonOptions);
 				var volumes = manifest?.Volumes;
 				if (volumes is { Count: > 0 })

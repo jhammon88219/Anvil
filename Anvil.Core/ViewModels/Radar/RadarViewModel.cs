@@ -607,6 +607,41 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		// ===== Storm-Relative Velocity (SRV) storm motion ===============================================
+		// SRV = base velocity − the storm motion's component along each beam, so a storm's own translation is
+		// removed and rotation (mesocyclones) reads near zero. Both default 0 → SRV equals base velocity until
+		// a real storm motion is entered. Set in App Settings → Radar; pushed to the SRV builder via the map.
+		private double _stormMotionSpeedKt;
+		private double _stormMotionDirectionDeg;
+
+		/// <summary>Storm motion SPEED (knots) for the Storm-Rel Velocity product. 0 = SRV equals base
+		/// velocity. App Settings → Radar.</summary>
+		public double StormMotionSpeedKt
+		{
+			get => _stormMotionSpeedKt;
+			set
+			{
+				if (SetProperty(ref _stormMotionSpeedKt, value) && _isMapReady)
+				{
+					_ = _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg);
+				}
+			}
+		}
+
+		/// <summary>Storm motion DIRECTION — the compass bearing (0-360°, 0 = N) the storm is MOVING TOWARD —
+		/// for the Storm-Rel Velocity product. App Settings → Radar.</summary>
+		public double StormMotionDirectionDeg
+		{
+			get => _stormMotionDirectionDeg;
+			set
+			{
+				if (SetProperty(ref _stormMotionDirectionDeg, value) && _isMapReady)
+				{
+					_ = _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg);
+				}
+			}
+		}
+
 		/// <summary>The radar products (moments) selectable in the Product combo — the single source the
 		/// combo binds to, mirroring the JS registry in <c>radar-products.js</c>. <see cref="RadarProductOption.Id"/>
 		/// must match the JS product id passed to <c>window.setRadarProduct</c>; <see cref="RadarProductOption.IsLazy"/>
@@ -616,6 +651,7 @@ namespace Anvil.ViewModels
 		{
 			new RadarProductOption("reflectivity", "Reflectivity", "Ref", false),
 			new RadarProductOption("velocity", "Velocity", "Vel", true),
+			new RadarProductOption("srv", "Storm-Rel Velocity", "SRV", true),
 			new RadarProductOption("cc", "Correlation Coefficient", "CC", false),
 			new RadarProductOption("kdp", "Specific Differential Phase", "KDP", false),
 			new RadarProductOption("zdr", "Differential Reflectivity", "ZDR", false),
@@ -891,6 +927,9 @@ namespace Anvil.ViewModels
 			// too, but be explicit so the toggles and the page never disagree on startup).
 			await _mapService.SetResearchRadarsVisibleAsync(_showResearchRadars);
 			await _mapService.SetTdwrsVisibleAsync(_showTdwrs);
+
+			// Push the initial SRV storm motion (default 0 = base velocity), so the page and VM agree.
+			await _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg);
 
 			// Flag sites with no recent data ("offline") and keep that refreshed.
 			_ = RunSiteStatusLoopAsync();

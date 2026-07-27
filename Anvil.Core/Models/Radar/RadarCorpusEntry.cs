@@ -2,7 +2,7 @@ namespace Anvil.Models
 {
 	/// <summary>
 	/// One volume in the fixed velocity-dealias validation corpus (see
-	/// <c>Assets/radar-corpus.json</c> and <see cref="Anvil.Services.RadarCorpusProvider"/>).
+	/// <c>Assets/RadarCorpus/radar-corpus.json</c> and <see cref="Anvil.Services.RadarCorpusProvider"/>).
 	/// A committed (or locally-referenced) <c>.V06</c> replayed through the real decode/dealias path
 	/// and scored on its over-unfold ratio, with a baseline the scorer flags regressions against.
 	/// </summary>

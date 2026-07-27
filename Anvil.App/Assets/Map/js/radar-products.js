@@ -12,6 +12,8 @@
 export const PRODUCTS = {
     reflectivity: { lazy: false },
     velocity:     { lazy: true },
+    srv:          { lazy: true }, // storm-relative velocity: base velocity − storm-motion component; shares
+                                  // velocity's dealiased cut, so it dealiases too (lazy). See buildSrv.
     cc:           { lazy: false },
     kdp:          { lazy: false }, // derived from ΦDP (½·dΦDP/dr); cheap windowed slope, no dealias
     zdr:          { lazy: false }, // direct dual-pol moment read (drop shape/size); cheap, no dealias

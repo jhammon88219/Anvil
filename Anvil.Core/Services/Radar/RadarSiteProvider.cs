@@ -9,16 +9,16 @@ namespace Anvil.Services
 {
 	/// <summary>
 	/// Default <see cref="IRadarSiteProvider"/>. Loads the full WSR-88D network (~160 sites)
-	/// from the bundled <c>Assets/radar-sites.json</c> data file (id/name/lat/lon), which is
+	/// from the bundled <c>Assets/Radar/radar-sites.json</c> data file (id/name/lat/lon), which is
 	/// regenerable from NOAA's published station table rather than hand-curated in code, PLUS the
-	/// research/test radars from <c>Assets/research-radar-sites.json</c> (tagged
+	/// research/test radars from <c>Assets/Radar/research-radar-sites.json</c> (tagged
 	/// <see cref="RadarSiteClass.Research"/>). Both merge into one <see cref="GetSites"/> list — a
 	/// research radar is just another selectable site, only surfaced behind the "Show Research
 	/// Radars" toggle. Stays fully offline — the network is effectively static. Parsed once and
 	/// cached; falls back to a tiny built-in set if the operational file is missing or unparseable
 	/// so the picker never comes up empty.
 	///
-	/// Also PLUS the FAA Terminal Doppler Weather Radars from <c>Assets/tdwr-sites.json</c> (tagged
+	/// Also PLUS the FAA Terminal Doppler Weather Radars from <c>Assets/Radar/tdwr-sites.json</c> (tagged
 	/// <see cref="RadarSiteClass.Tdwr"/>, revealed by the "Show TDWRs" toggle). TDWR volumes are the same
 	/// Archive Level II family (AR2V0008) as the WSR-88D, so a TDWR loads/renders through the same
 	/// pipeline; only the markers are surfaced separately.
@@ -76,7 +76,7 @@ namespace Anvil.Services
 		{
 			try
 			{
-				var path = Path.Combine(AppContext.BaseDirectory, "Assets", fileName);
+				var path = Path.Combine(AppContext.BaseDirectory, "Assets", "Radar", fileName);
 				var json = File.ReadAllText(path);
 				var dtos = JsonSerializer.Deserialize<List<SiteDto>>(json, JsonOptions);
 				if (dtos is { Count: > 0 })

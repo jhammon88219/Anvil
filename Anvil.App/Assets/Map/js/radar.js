@@ -37,12 +37,31 @@
     import('./radar-products.js').then(function (m) { Products = m.PRODUCTS; }).catch(function (e) { hostLog('radar-products.js load failed: ' + (e && e.message ? e.message : e)); });
     function productLazy(p) { return !!(Products && Products[p] && Products[p].lazy); }
     function productKnown(p) { return !Products || !!Products[p]; } // permissive until the registry loads
-    // Whether every lazy product's geometry was already built in a decode result — used to reject a cache
-    // hit / decide upgrades. True when the registry hasn't loaded yet (nothing known to be lazy).
+    // The lazy products we want built RIGHT NOW. Velocity and SRV share ONE dealias — the priciest step —
+    // but ONLY within a single decode (radar-decode's per-decode memo), so to make vel↔srv switching instant
+    // we build BOTH together whenever either is the active product (the second is then just a recolor, not a
+    // second dealias). Velocity prefetch (armed after reflectivity renders) warms the Doppler PAIR for the
+    // whole loop, so a later switch to velocity OR SRV is instant. Empty when the active product is cheap and
+    // nothing is prefetching. (`DOPPLER_PAIR` = the products that ride the shared dealiased cut.)
+    var DOPPLER_PAIR = ['velocity', 'srv'];
+    function pushDoppler(out) { // add the registered, lazy Doppler-pair products not already in `out`
+        DOPPLER_PAIR.forEach(function (id) {
+            if (Products[id] && Products[id].lazy && out.indexOf(id) < 0) out.push(id);
+        });
+    }
+    function wantedLazy() {
+        if (!Products) return [];
+        var out = [];
+        var activeIsDoppler = (product === 'velocity' || product === 'srv');
+        if (activeIsDoppler) pushDoppler(out);          // build both together (shared dealias) → instant swap
+        else if (productLazy(product)) out.push(product); // any future non-Doppler lazy product, alone
+        if (velPrefetch && !activeIsDoppler) pushDoppler(out); // prefetch warms the whole pair
+        return out;
+    }
+    // Whether the lazy products we want (wantedLazy) were already built in a decode result — used to reject a
+    // cache hit / decide upgrades. True when nothing lazy is wanted (empty set) or the registry hasn't loaded.
     function lazyBuiltIn(r) {
-        if (!Products) return true;
-        for (var id in Products) { if (Products[id].lazy && !(r && r.built && r.built[id])) return false; }
-        return true;
+        return wantedLazy().every(function (id) { return !!(r && r.built && r.built[id]); });
     }
 
     // frames[index] = { moments: { id: { positions, colors, count } | null }, grids, built, ... }:
@@ -89,17 +108,17 @@
     var upgradeInFlight = {};     // idx -> true while its upgrade decode is outstanding
     var upgradeInFlightN = 0;
     var pumpingUpgrades = false;  // re-entrancy guard (a cache-hit upgrade completes synchronously)
-    var UPGRADE_CONCURRENCY = 3;  // leave a worker free of the pool (size 4) for the current frame / loads
+    // Concurrent upgrade decodes: scale with cores but keep ~2 free for the current frame / new loads (and
+    // the UI). Tracks the raised pool cap (up to 6) so the dealias-bound whole-loop velocity/SRV build and
+    // prefetch parallelize on desktops; ≥2 so a low-core machine still makes progress.
+    var UPGRADE_CONCURRENCY = Math.max(2, Math.min(5,
+        ((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 4) - 2));
     function resetUpgrades() { upgradeQueue = []; upgradeInFlight = {}; upgradeInFlightN = 0; }
     // A lazy product (velocity) needs (re)building when it's the ACTIVE product OR being prefetched and this
     // frame lacks it. built[id] tracks whether the build RAN, so a frame with genuinely no velocity
     // (built.velocity=true, geometry null) won't re-decode forever. This decides full-decode vs grids-only.
     function needsLazyGeom(f) {
-        if (!Products) return false;
-        for (var id in Products) {
-            if (Products[id].lazy && (product === id || velPrefetch) && !(f.built && f.built[id])) return true;
-        }
-        return false;
+        return wantedLazy().some(function (id) { return !(f.built && f.built[id]); });
     }
     // Whether the ACTIVE product's inspector value grid has been BUILT for a frame — either by a full decode
     // (frame-level gridsBuilt, which built every product's grid) or the grids-only fast path (gridsExtra[id],
@@ -168,7 +187,11 @@
         post({ type: 'radarBuildProgress', product: product, built: built, total: total, ready: ready });
     }
 
-    let product = 'reflectivity'; // 'reflectivity' | 'velocity' — which moment to render
+    let product = 'reflectivity'; // 'reflectivity' | 'velocity' | 'srv' | 'cc' | … — which moment to render
+    // Storm motion for Storm-Relative Velocity (SRV). speedMs = m/s, dirDeg = compass bearing the storm is
+    // MOVING TOWARD. Pushed with every decode so the worker's buildSrv can subtract the per-beam component;
+    // {0,0} (the default) makes SRV identical to base velocity until the host sets a real storm motion.
+    let stormMotion = { speedMs: 0, dirDeg: 0 };
     let velPrefetch = false; // speculatively build velocity for every frame even when it's NOT the active
                              // product — armed by the host (prefetchVelocity) once reflectivity has
                              // rendered, so switching to Velocity is instant. Reset per new loop.
@@ -266,7 +289,9 @@
     // Results carry {token,index} and applyFrameResult runs serially on the main thread, so out-of-order
     // completions across workers are safe. Pool persists for the app lifetime (creating workers is
     // expensive); each loads radar-decode.js + the vendored decoder independently (~a few MB each).
-    const DECODE_POOL_SIZE = Math.max(1, Math.min(4,
+    // Cap raised 4→6: velocity/SRV builds are dealias-bound (~1.5 s/frame), so more parallel workers shorten
+    // the whole-loop build + prefetch on multi-core desktops. Still leaves a core for the UI (hwConcurrency-1).
+    const DECODE_POOL_SIZE = Math.max(1, Math.min(6,
         (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) ? navigator.hardwareConcurrency - 1 : 3));
     let workerPool; // undefined = not tried, array = ready, null = Worker API unavailable
     let workerRR = 0;
@@ -622,7 +647,7 @@
         // product OR while speculatively prefetching it (velPrefetch — armed by the host once the
         // reflectivity loop has rendered, so a later switch to Velocity is instant/near-instant). On
         // reflectivity/CC with prefetch off we skip it and re-decode on demand (setProduct).
-        const wantLazy = productLazy(product) || velPrefetch; // build lazy products (velocity) when active OR prefetching
+        const lazyIds = wantedLazy(); // which lazy products to build this decode (active + any prefetch)
         const wantGrids = inspecting; // inspector value grids are only needed while Inspect is on
         // Grids-only fast path (turning Inspect on): the frame already has the active product's GEOMETRY
         // (and nothing lazy is pending for it) and only its inspector VALUE GRID is missing — so build just
@@ -640,7 +665,7 @@
         // inspector grid (decoded with Inspect off) — so we fall through and build it this time. Clone
         // with THIS load's token+index; arrays shared.
         const hit = cacheGet(url);
-        if (hit && (!wantLazy || lazyBuiltIn(hit)) && (!wantGrids || hit.gridsBuilt || (hit.gridsExtra && hit.gridsExtra[product]))) {
+        if (hit && lazyBuiltIn(hit) && (!wantGrids || hit.gridsBuilt || (hit.gridsExtra && hit.gridsExtra[product]))) {
             hostLog('frame ' + index + ' cache hit');
             applyFrameResult(Object.assign({}, hit, { token: myToken, index: index, cached: true }));
             return;
@@ -652,10 +677,10 @@
             if (myToken !== loopToken) return;
             const w = getWorker();
             if (w) {
-                w.postMessage({ ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, buildLazy: wantLazy, buildGrids: wantGrids }, [ab]);
+                w.postMessage({ ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, buildLazy: lazyIds, buildGrids: wantGrids, stormMotion: stormMotion }, [ab]);
             } else {
                 import('./radar-decode.js').then(function (m) {
-                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, wantLazy, wantGrids);
+                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, lazyIds, wantGrids, stormMotion);
                 }).then(function (r2) {
                     applyFrameResult(frameResultFrom(r2, myToken, index, url));
                 }).catch(function (err) {
@@ -681,10 +706,10 @@
             if (myToken !== loopToken) { upgradeDone(index); return; }
             const w = getWorker();
             if (w) {
-                w.postMessage({ gridOnly: true, ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, product: prod }, [ab]);
+                w.postMessage({ gridOnly: true, ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, product: prod, stormMotion: stormMotion }, [ab]);
             } else {
                 import('./radar-decode.js').then(function (m) {
-                    return m.decodeGridOnly(ab, siteLat, siteLon, MIN_DBZ, prod);
+                    return m.decodeGridOnly(ab, siteLat, siteLon, MIN_DBZ, prod, stormMotion);
                 }).then(function (r2) {
                     applyGridResult({ token: myToken, index: index, url: url, gridsOnly: true, gridProduct: prod, grids: r2.grids });
                 }).catch(function (err) {
@@ -1014,6 +1039,30 @@
             velPrefetch = true;
             queueAllUpgrades();
         },
+        // Set the storm motion for Storm-Relative Velocity: speed in KNOTS, direction the storm is MOVING
+        // TOWARD (compass degrees). SRV = base velocity − this motion's component along each beam, applied
+        // per frame in the worker (buildSrv). Changing it invalidates every loaded/cached frame's SRV
+        // geometry so it rebuilds with the new motion (a full re-decode via the upgrade queue — SRV rides
+        // velocity's dealiased cut); other products are untouched. Only re-queues while SRV is the active
+        // product; otherwise the new motion simply applies the next time SRV is built. Both the live frames
+        // and the decoded-frame cache are invalidated so a cache hit can't serve stale-motion SRV.
+        setStormMotion: function (map, speedKt, dirDeg) {
+            stormMotion = { speedMs: (+speedKt || 0) * 0.514444, dirDeg: (+dirDeg || 0) };
+            function dropSrv(r) {
+                if (!r) return;
+                if (r.built) r.built.srv = false;      // force a rebuild with the new motion
+                if (r.moments) r.moments.srv = null;    // drop stale-motion geometry
+                if (r.gridsExtra) r.gridsExtra.srv = false;
+            }
+            for (var i = 0; i < frames.length; i++) dropSrv(frames[i]);
+            decodedCache.forEach(dropSrv);
+            if (product === 'srv') {
+                uploadedFrame = -1; // re-upload the current frame once it rebuilds
+                queueAllUpgrades();
+                postBuildProgress();
+                if (map && map.getLayer(LAYER_ID)) map.triggerRepaint();
+            }
+        },
         // Re-add after a basemap switch (setStyle drops custom layers + sources); frames + the range
         // ring are retained, so restore them. If a sweep pulse is mid-flight, restore its layer too so
         // the in-progress revolution keeps drawing.
@@ -1082,8 +1131,10 @@
                     if (!r.ok) throw new Error('HTTP ' + r.status);
                     return r.arrayBuffer();
                 }).then(function (ab) {
-                    // Force the velocity build (buildLazy=true) so dealias runs; grids off (only the ratio matters).
-                    return m.decodeAndBuild(ab, e.lat || 0, e.lon || 0, MIN_DBZ, true, false);
+                    // Force the velocity build so dealias runs; grids off (only the ratio matters). Pass the
+                    // velocity id explicitly (not `true`) so SRV isn't also built — the scorer only reads
+                    // velocity's dealias ratio.
+                    return m.decodeAndBuild(ab, e.lat || 0, e.lon || 0, MIN_DBZ, ['velocity'], false);
                 }).then(function (res) {
                     var hi = 0, tot = 0;
                     var mm = /hi=(\d+)\/(\d+)/.exec((res && res.dealias) || '');
