@@ -205,13 +205,16 @@
     // Sweep pulse: a one-shot rotating arm + trailing afterglow, drawn ON THE MAP (scaled to the real
     // coverage, RadarScope-style) — not a DOM decoration. The range ring is always shown; the arm only
     // appears to do ONE revolution when the host reports a genuinely-new frame (pulseSweep), then hides.
-    // (Replaced the old continuous, phase-locked rotation.) Its own GeoJSON line layer, per-feature
-    // opacity so the trail fades leading→tail; updated each animation frame while a pulse is running.
-    const SWEEP_SRC = 'level2-sweep', SWEEP_LAYER = 'level2-sweep';
-    const SWEEP_MS = 1300;       // duration of one revolution
-    const SWEEP_FADE_MS = 400;   // brief fade-out of the trail once the revolution completes
-    const SWEEP_TRAIL_DEG = 70;  // angular length of the trailing afterglow behind the leading arm
-    const SWEEP_TRAIL_N = 18;    // trail segments (leading = brightest, tail = transparent)
+    // (Replaced the old continuous, phase-locked rotation.) The afterglow is a FILLED wedge (a fan of
+    // abutting triangles — no gaps, so no visible spokes) that fades leading→tail, plus one crisp leading
+    // arm line on top; per-feature opacity, rebuilt each animation frame while a pulse runs.
+    const SWEEP_SRC = 'level2-sweep', SWEEP_FILL_LAYER = 'level2-sweep-fill', SWEEP_ARM_LAYER = 'level2-sweep-arm';
+    const SWEEP_MS = 1300;        // duration of one revolution
+    const SWEEP_FADE_MS = 400;    // brief fade-out of the trail once the revolution completes
+    const SWEEP_TRAIL_DEG = 75;   // angular length of the trailing afterglow behind the leading arm
+    const SWEEP_TRAIL_N = 64;     // wedge triangles across the trail — high so the taper reads smooth (no spokes)
+    const SWEEP_PEAK = 0.42;      // peak fill opacity right behind the arm (the wedge is a translucent glow)
+    const SWEEP_GAMMA = 1.6;      // trailing-fade shape (>1 = fades to nothing faster → a comet-tail falloff)
     let sweepAnimStart = 0, sweepRaf = 0;
 
     // Render-path diagnostics: render() runs every frame, so rate-limit its logging. We track
@@ -573,44 +576,70 @@
     }
 
     // ---- Sweep pulse ----
-    // The trailing fan: SWEEP_TRAIL_N+1 radial lines from the site out to the range-ring edge, spanning
-    // SWEEP_TRAIL_DEG BEHIND the leading bearing (0 = due north), each carrying an `o` opacity so the
-    // line layer fades leading(bright)→tail(transparent). `fade` scales the whole trail for the end fade.
-    // Same metres-per-degree approximation as the ring/gates so the arm tracks the circle.
-    function sweepFanGeoJSON(leadRad, fade) {
+    // The trailing afterglow as a FILLED WEDGE: a fan of SWEEP_TRAIL_N abutting triangles from the site out
+    // to the range-ring edge, spanning SWEEP_TRAIL_DEG BEHIND the leading bearing (0 = due north). Because
+    // the triangles TILE (share edges, no gaps), it reads as a continuous glow that fades leading→tail —
+    // unlike the old radial spokes, which diverged with range and looked ragged. Each triangle carries an
+    // `o` fill-opacity; a separate LineString (the crisp leading arm) is appended and rendered by the line
+    // layer. `fade` scales everything for the end fade-out. Same metres-per-degree projection as the ring.
+    function sweepWedgeGeoJSON(leadRad, fade) {
         const feats = [];
+        const center = [siteLon, siteLat];
         const step = (SWEEP_TRAIL_DEG * Math.PI / 180) / SWEEP_TRAIL_N;
-        for (let i = 0; i <= SWEEP_TRAIL_N; i++) {
+        const tipAt = function (a) { return Geo.siteToLngLat(siteLat, siteLon, currentRangeMeters, a); };
+        let prevTip = tipAt(leadRad);
+        for (let i = 1; i <= SWEEP_TRAIL_N; i++) {
             const ang = leadRad - i * step;
             if (ang < 0) break; // don't draw behind the sweep's start (north) on the first revolution
-            const o = (1 - i / SWEEP_TRAIL_N) * fade;
-            if (o <= 0.02) continue;
-            const tip = Geo.siteToLngLat(siteLat, siteLon, currentRangeMeters, ang);
-            feats.push({ type: 'Feature', properties: { o: o },
-                geometry: { type: 'LineString', coordinates: [[siteLon, siteLat], tip] } });
+            const tip = tipAt(ang);
+            // Opacity for the slice between the previous (brighter) and this (dimmer) edge — use its midpoint
+            // fraction down the trail, with a gamma falloff so the tail fades to nothing like phosphor decay.
+            const o = fade * SWEEP_PEAK * Math.pow(1 - (i - 0.5) / SWEEP_TRAIL_N, SWEEP_GAMMA);
+            if (o > 0.004) {
+                feats.push({ type: 'Feature', properties: { o: o },
+                    geometry: { type: 'Polygon', coordinates: [[center, prevTip, tip, center]] } });
+            }
+            prevTip = tip;
         }
+        // Crisp bright leading arm (a LineString → the line layer draws it; the fill layer ignores it).
+        feats.push({ type: 'Feature', properties: { o: fade },
+            geometry: { type: 'LineString', coordinates: [center, tipAt(leadRad)] } });
         return { type: 'FeatureCollection', features: feats };
     }
     function ensureSweepLayer(map) {
         if (!map || !(currentRangeMeters > 0) || !Geo) return; // geo.js not loaded yet
         if (!map.getSource(SWEEP_SRC)) map.addSource(SWEEP_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-        if (!map.getLayer(SWEEP_LAYER)) {
-            // Added after the range ring → sits on top of the ring + radar fill. Per-feature opacity.
+        const before = beforeId(map);
+        // Fill = the fading wedge (renders only the Polygon features); line = the crisp arm (only the
+        // LineString). Both on top of the ring + radar fill. Per-feature `o` opacity for the animated fade.
+        if (!map.getLayer(SWEEP_FILL_LAYER)) {
             map.addLayer({
-                id: SWEEP_LAYER, type: 'line', source: SWEEP_SRC,
-                paint: { 'line-color': '#ffe8a8', 'line-width': 1.6, 'line-blur': 0.4, 'line-opacity': ['get', 'o'] },
-            }, beforeId(map));
+                id: SWEEP_FILL_LAYER, type: 'fill', source: SWEEP_SRC,
+                // ⚠️ antialias MUST be off: it outlines every polygon, so the 64 abutting triangles' shared
+                // radial edges would each draw a 1px seam — reading as a fan of faint lines, exactly the
+                // raggedness we're removing. Off, the triangles blend seamlessly (opacity steps are ~1%).
+                paint: { 'fill-color': '#ffe6a0', 'fill-opacity': ['get', 'o'], 'fill-antialias': false },
+            }, before);
+        }
+        if (!map.getLayer(SWEEP_ARM_LAYER)) {
+            map.addLayer({
+                id: SWEEP_ARM_LAYER, type: 'line', source: SWEEP_SRC,
+                paint: { 'line-color': '#fff4c8', 'line-width': 2, 'line-blur': 1.2, 'line-opacity': ['get', 'o'] },
+            }, before);
         }
     }
     function clearSweepData(map) {
         const src = map && map.getSource(SWEEP_SRC);
         if (src) src.setData({ type: 'FeatureCollection', features: [] });
     }
-    // Stop any in-flight pulse and drop its layer (site change / clear / DOW / turn-off).
+    // Stop any in-flight pulse and drop its layers (site change / clear / DOW / turn-off).
     function stopSweep(map) {
         if (sweepRaf) { cancelAnimationFrame(sweepRaf); sweepRaf = 0; }
-        if (map && map.getLayer(SWEEP_LAYER)) map.removeLayer(SWEEP_LAYER);
-        if (map && map.getSource(SWEEP_SRC)) map.removeSource(SWEEP_SRC);
+        if (map) {
+            if (map.getLayer(SWEEP_ARM_LAYER)) map.removeLayer(SWEEP_ARM_LAYER);
+            if (map.getLayer(SWEEP_FILL_LAYER)) map.removeLayer(SWEEP_FILL_LAYER);
+            if (map.getSource(SWEEP_SRC)) map.removeSource(SWEEP_SRC);
+        }
     }
     function sweepPulseFrame() {
         sweepRaf = 0;
@@ -621,7 +650,7 @@
         if (el < SWEEP_MS) { lead = (el / SWEEP_MS) * 2 * Math.PI; fade = 1; }       // sweeping 0→360°
         else { lead = 2 * Math.PI; fade = 1 - (el - SWEEP_MS) / SWEEP_FADE_MS; }     // hold at north, fade the trail out
         const src = currentMap.getSource(SWEEP_SRC);
-        if (src) src.setData(sweepFanGeoJSON(lead, fade));
+        if (src) src.setData(sweepWedgeGeoJSON(lead, fade));
         sweepRaf = requestAnimationFrame(sweepPulseFrame);
     }
     // Fire ONE sweep pulse (host calls this when a genuinely-new frame lands). Restarts if one is

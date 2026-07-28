@@ -94,6 +94,7 @@ namespace Anvil.ViewModels
 			_archiveCount = 0;
 			_hasLiveFrame = false;
 			_liveFrame = null;
+			_pendingLiveAppend = null;
 			_liveModeText = null;
 			_frameTimes = Array.Empty<DateTimeOffset?>();
 			_frameModes = Array.Empty<string?>();
@@ -350,6 +351,7 @@ namespace Anvil.ViewModels
 				_frameCount = keys.Count;
 				_liveFrame = null;
 				_hasLiveFrame = false;
+				_pendingLiveAppend = null;
 				_liveModeText = null;
 				_frameTimes = new DateTimeOffset?[_frameCount];
 				_frameModes = new string?[_frameCount];
@@ -370,9 +372,13 @@ namespace Anvil.ViewModels
 				}
 				_loopRenderBegun = true;
 
-				// Oldest frame first (it's adopted + shown immediately), then the rest in parallel (bounded).
-				await EnsureAndAddFrameAsync(site, keys, 0, ct);
-				await BackfillFramesAsync(site, keys, 1, keys.Count, ct);
+				// Oldest frame first (it's adopted + shown immediately) — prioritized so its prefix downloads
+				// over parallel S3 streams (first paint), then the rest in parallel. A replay has NO live
+				// frame competing for bandwidth and can be a LOT of frames (a 3 h window ≈ 36), so its backfill
+				// runs at the higher MaxParallelReplayBackfill — measured ~2× the aggregate throughput of the
+				// live backfill's 6 on this link (12 was the sweet spot; 18 regressed).
+				await EnsureAndAddFrameAsync(site, keys, 0, ct, prioritized: true);
+				await BackfillFramesAsync(site, keys, 1, keys.Count, ct, MaxParallelReplayBackfill);
 				_loadInProgress = false;
 			}
 			finally
@@ -454,6 +460,7 @@ namespace Anvil.ViewModels
 			_archiveCount = keys.Count;
 			_liveFrame = null;
 			_hasLiveFrame = false;
+			_pendingLiveAppend = null;
 			_frameCount = _archiveCount;
 			_frameTimes = new DateTimeOffset?[_frameCount];
 			_frameModes = new string?[_frameCount];
@@ -613,17 +620,43 @@ namespace Anvil.ViewModels
 				return;
 			}
 
+			// DEFERRED append: kick off the decode NOW but hold the VISIBLE grow (new scrubber cell + playhead
+			// promotion + display swap) until the frame has actually decoded — CompleteLiveAppend runs from
+			// OnRadarFrameReady. Doing it up front showed an EMPTY last cell (and jumped the playhead) for the
+			// frame's ~0.5-0.8 s decode window, since the freshest frame appends AFTER the archive loop is
+			// already full. Registering the frame source + starting the decode is all that happens now; the
+			// scrubber/display change atomically the instant the geometry lands.
+			_pendingLiveAppend = live;
+			Services.RadarDiagnostics.RegisterFrameSource(_archiveCount, "live", FrameCacheFile(live), live.VolumeTime);
+			if (_isMapReady)
+			{
+				await _mapService.AddRadarFrameAsync(live.LocalUrl, _archiveCount); // JS decodes into the new slot; frame-ready completes it
+			}
+			else
+			{
+				CompleteLiveAppend(live); // no WebView → no frame-ready will fire; append immediately
+			}
+		}
+
+		// Completes a deferred live append (see ApplyLiveFrameAsync): grows the loop by the freshest frame and
+		// promotes the display to it, in one motion — called from OnRadarFrameReady once that frame's geometry
+		// has decoded, so the new scrubber cell appears already-filled instead of blinking through an empty
+		// state. Also used directly when there's no WebView to decode/report.
+		private void CompleteLiveAppend(Models.RadarVolume live)
+		{
+			_pendingLiveAppend = null;
+
 			var grown = new DateTimeOffset?[_archiveCount + 1];
-			Array.Copy(_frameTimes, grown, _archiveCount);
+			Array.Copy(_frameTimes, grown, Math.Min(_archiveCount, _frameTimes.Length));
 			grown[_archiveCount] = live.VolumeTime;
 			_frameTimes = grown;
 			var grownModes = new string?[_archiveCount + 1];
 			Array.Copy(_frameModes, grownModes, Math.Min(_archiveCount, _frameModes.Length));
 			grownModes[_archiveCount] = live.ModeText;
 			_frameModes = grownModes;
-			// Grow the scrubber to include the live frame's cell (keeps Segments.Count == _frameCount, so
-			// the playhead — which divides the track by Segments.Count — stays aligned). OnRadarFrameReady
-			// lights it once it decodes.
+			// Grow the scrubber to include the live frame's cell (keeps Segments.Count == _frameCount, so the
+			// playhead — which divides the track by Segments.Count — stays aligned). The caller
+			// (OnRadarFrameReady) marks this cell decoded right after, so it appears filled.
 			if (Segments.Count == _archiveCount)
 			{
 				Segments.Add(new RadarFrameSegment());
@@ -635,7 +668,6 @@ namespace Anvil.ViewModels
 			Services.RadarDiagnostics.Log("vm", "live.apply", ("action", "append"),
 				("idx", _archiveCount), ("volZ", live.VolumeTime.ToUniversalTime().ToString("HH:mm:ss")),
 				("frames", _frameCount));
-			Services.RadarDiagnostics.RegisterFrameSource(_archiveCount, "live", FrameCacheFile(live), live.VolumeTime);
 			if (_loopClickAt is { } liveClick)
 			{
 				Services.RadarDiagnostics.Timing("live", (DateTimeOffset.UtcNow - liveClick).TotalSeconds);
@@ -647,9 +679,8 @@ namespace Anvil.ViewModels
 
 			if (_isMapReady)
 			{
-				await _mapService.AddRadarFrameAsync(live.LocalUrl, _archiveCount);
-				await _mapService.ShowRadarFrameAsync(_archiveCount);
-				await _mapService.PulseRadarSweepAsync(); // first live frame landed → one sweep pulse
+				_ = _mapService.ShowRadarFrameAsync(_archiveCount);   // promote display to the now-decoded live frame
+				_ = _mapService.PulseRadarSweepAsync();               // first live frame landed → one sweep pulse
 			}
 		}
 
@@ -720,9 +751,15 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(SelectedTiltLabel));
 		}
 
-		// How many archive volumes to download + extract concurrently during backfill. The per-frame cost
-		// is network + bzip2 extraction; 6 keeps AWS + the threadpool busy without hammering either.
+		// How many archive volumes to download + extract concurrently during backfill. The per-frame cost is
+		// network + bzip2 extraction. 6 for the LIVE loop: it's ~10 frames AND its backfill now overlaps the
+		// ~8-stream live-chunk fetch, so 6+8≈14 streams already fills the link (18+ measured as a regression).
 		private const int MaxParallelBackfill = 6;
+		// Higher cap for a REPLAY backfill: no live fetch competes, and a long window is many frames (a 3 h
+		// event ≈ 36), so more parallel S3 streams cut the bulk download. 12 measured ~2× the aggregate
+		// throughput of 6 on a home link; beyond ~12-14 it plateaus/regresses (single-stream S3 tail + the
+		// bzip2 extract is only ~0.3 s/frame, so download — not CPU — is what parallelism helps here).
+		private const int MaxParallelReplayBackfill = 12;
 
 		// Loads a run of frames [startInclusive, endExclusive) with BOUNDED PARALLELISM. The per-frame
 		// cost is a network download + bzip2 tilt extraction (both off the UI thread), so overlapping
@@ -730,9 +767,9 @@ namespace Anvil.ViewModels
 		// writes its own index and caches to its own file; only the light AddRadarFrameAsync posts
 		// resume on the UI thread (WebView2 is UI-affine), which serializes them naturally. Runs under
 		// the caller's _loopGate, so no live poll can interleave.
-		private async Task BackfillFramesAsync(RadarSite site, IReadOnlyList<string> keys, int startInclusive, int endExclusive, CancellationToken ct)
+		private async Task BackfillFramesAsync(RadarSite site, IReadOnlyList<string> keys, int startInclusive, int endExclusive, CancellationToken ct, int maxParallel = MaxParallelBackfill)
 		{
-			using var gate = new SemaphoreSlim(MaxParallelBackfill);
+			using var gate = new SemaphoreSlim(maxParallel);
 			var tasks = new List<Task>();
 			for (var i = startInclusive; i < endExclusive && !ct.IsCancellationRequested; i++)
 			{
@@ -788,6 +825,15 @@ namespace Anvil.ViewModels
 			if (!_loopRenderBegun)
 			{
 				return;
+			}
+
+			// Complete a DEFERRED live append: the freshest frame we kicked off has now decoded, so grow the
+			// loop + promote the display in ONE motion (this must run BEFORE the Segments[index] access below
+			// so the new cell exists to be marked decoded → it appears filled immediately). See
+			// ApplyLiveFrameAsync / CompleteLiveAppend.
+			if (_pendingLiveAppend is { } pendingLive && !_hasLiveFrame && index == _archiveCount)
+			{
+				CompleteLiveAppend(pendingLive);
 			}
 
 			_readyCount++;

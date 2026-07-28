@@ -151,6 +151,10 @@ namespace Anvil.ViewModels
 		private int _archiveCount;
 		private bool _hasLiveFrame;
 		private Models.RadarVolume? _liveFrame;
+		// A live frame whose decode we've kicked off (AddRadarFrameAsync) but whose scrubber cell + display
+		// promotion we DEFERRED until it actually decodes, so the new cell appears already-filled instead of
+		// blinking through empty. OnRadarFrameReady completes it via CompleteLiveAppend; cleared on a new load.
+		private Models.RadarVolume? _pendingLiveAppend;
 		// Mode text (VCP/precip/SAILS) from the most recent successful live poll. Tracked
 		// SEPARATELY from _liveFrame because the mode is known from any decoded live volume even
 		// when we don't append it as a new frame — e.g. an offline/stale site (KVNX) whose newest
