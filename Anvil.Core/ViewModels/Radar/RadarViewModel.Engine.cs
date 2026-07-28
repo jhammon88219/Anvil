@@ -477,8 +477,10 @@ namespace Anvil.ViewModels
 			// belong to this selection, so first-frame timing can trust them.
 			_loopRenderBegun = true;
 
-			// Newest archive frame first (immediate display).
-			var newestLoaded = await EnsureAndAddFrameAsync(site, keys, _archiveCount - 1, ct);
+			// Newest archive frame first (immediate display) — prioritized: its prefix downloads over several
+			// parallel S3 streams, since it's fetched ALONE and gates first paint (a single stream is slow +
+			// variable). The backfill below stays single-stream-per-frame (it already overlaps 6 frames).
+			var newestLoaded = await EnsureAndAddFrameAsync(site, keys, _archiveCount - 1, ct, prioritized: true);
 
 			// A VCP's designed elevation table can promise tilts the volumes don't actually contain, so a
 			// tilt offered in the combo may have nothing behind it. Measured with tools/TiltCheck: KTLX in
@@ -499,34 +501,41 @@ namespace Anvil.ViewModels
 				return;
 			}
 
-			// Backfill the older archive frames IN PARALLEL (bounded) — each frame's cost is a full-
-			// volume AWS download + bzip2 tilt extraction, so running them concurrently is the main lever
-			// for "load all back frames faster". This now runs BEFORE the live poll: the chunks-bucket
-			// live frame is slow to build (~8-12 s — dozens/hundreds of chunks to download + bzip2-decode),
-			// and awaiting it first BLOCKED the fast parallel backfill, which read as a long "stall on
-			// frame 1". Filling the visible loop first, then appending the live frame, is far snappier.
+			// START the live (chunks) fetch NOW so its slow ~2-3 s chunk build OVERLAPS the archive backfill
+			// below (both are independent network work — the backfill hits the archive bucket, the live path
+			// the chunks bucket). Previously the live poll ran strictly AFTER the backfill, so the freshest
+			// frame didn't even START fetching until ~6 s in and landed ~3 s late. We only start it here — the
+			// state APPLY (ApplyLivePollAsync) still runs after the backfill, serially, so there's no
+			// frame-state race. The selected tilt is passed through; a tilt the antenna hasn't reached yet in
+			// the in-progress volume returns null and leaves the archive newest showing, same as always.
+			var liveFetch = FetchLiveFrameAsync(site, ct);
+
+			// Backfill the older archive frames IN PARALLEL (bounded) — each frame's cost is a full-volume AWS
+			// download + bzip2 tilt extraction, so running them concurrently is the main lever for "load all
+			// back frames faster".
 			await BackfillFramesAsync(site, keys, 0, _archiveCount - 1, ct);
 
-			// Now pull the live (chunks) frame + scan mode; it appends at index _archiveCount when fresher
-			// than the archive newest, and carries the scan-mode text for the card.
-			//
-			// Every tilt a LIVE loop offers is one the chunks feed can serve fresh — the list is capped to
-			// the bottom LiveTiltCount for exactly that reason — so no tilt gate is needed here. The
-			// selected angle is simply passed through; a tilt the antenna hasn't reached yet in the
-			// in-progress volume returns null and leaves the archive newest showing, same as always.
-			await RefreshLiveFrameAsync(site, ct);
+			// Apply the (by now usually finished) live frame + scan mode; it appends at index _archiveCount
+			// when fresher than the archive newest, and carries the scan-mode text for the card.
+			await ApplyLivePollAsync(site, liveFetch, ct);
 		}
 
 		// Fetches the live (chunks) frame and, when it's newer than what's shown, applies it —
 		// appending a new trailing frame or updating the existing live slot in place. Records the
 		// outcome for the debug card. Best-effort: a null result just leaves the archive newest.
-		private async Task RefreshLiveFrameAsync(RadarSite site, CancellationToken ct)
+		private Task RefreshLiveFrameAsync(RadarSite site, CancellationToken ct) =>
+			ApplyLivePollAsync(site, FetchLiveFrameAsync(site, ct), ct);
+
+		// Starts the live (chunks) frame fetch — the slow part (~2-3 s of chunk list + downloads + bzip2).
+		// Split out from the apply so the INITIAL load can OVERLAP it with the archive backfill (both are
+		// independent network work) rather than running it strictly afterwards. Best-effort: records the
+		// error and returns null so the archive newest simply stays shown.
+		private async Task<Models.RadarVolume?> FetchLiveFrameAsync(RadarSite site, CancellationToken ct)
 		{
-			Models.RadarVolume? live;
 			try
 			{
 				_lastLiveError = null;
-				live = await _radarService.GetLiveFrameAsync(site, _selectedTiltAngle, ct);
+				return await _radarService.GetLiveFrameAsync(site, _selectedTiltAngle, ct);
 			}
 			catch (OperationCanceledException)
 			{
@@ -535,16 +544,22 @@ namespace Anvil.ViewModels
 			catch (Exception ex)
 			{
 				_lastLiveError = ex.Message;
-				live = null;
+				return null;
 			}
+		}
 
+		// Awaits a started live fetch and applies it (record + append/update the trailing live slot). ⚠️ The
+		// APPLY mutates frame-state (arrays, _frameCount, _currentFrameIndex, Segments), so it must run
+		// SERIALLY with the archive load — never concurrently. The initial load starts the fetch early but
+		// calls this only AFTER the backfill; the periodic poll runs both back-to-back.
+		private async Task ApplyLivePollAsync(RadarSite site, Task<Models.RadarVolume?> fetch, CancellationToken ct)
+		{
+			var live = await fetch;
 			RecordLivePoll(live);
-
 			if (live is null || ct.IsCancellationRequested || !ReferenceEquals(_selectedRadarOption?.Site, site))
 			{
 				return;
 			}
-
 			await ApplyLiveFrameAsync(live);
 		}
 
@@ -660,11 +675,11 @@ namespace Anvil.ViewModels
 		// Loads one archive frame at the current tilt and hands it to the map. Returns whether the frame
 		// actually landed — the caller uses that to detect a tilt the volume doesn't contain (see
 		// LoadLoopCoreAsync); a false is otherwise just a skipped frame, as before.
-		private async Task<bool> EnsureAndAddFrameAsync(RadarSite site, IReadOnlyList<string> keys, int index, CancellationToken ct)
+		private async Task<bool> EnsureAndAddFrameAsync(RadarSite site, IReadOnlyList<string> keys, int index, CancellationToken ct, bool prioritized = false)
 		{
 			try
 			{
-				var volume = await _radarService.EnsureCachedAsync(site, keys[index], _selectedTiltAngle, ct);
+				var volume = await _radarService.EnsureCachedAsync(site, keys[index], _selectedTiltAngle, prioritized, ct);
 				if (volume is null || ct.IsCancellationRequested || !ReferenceEquals(_selectedRadarOption?.Site, site))
 				{
 					return false;
@@ -1065,7 +1080,7 @@ namespace Anvil.ViewModels
 				}
 				try
 				{
-					await _radarService.EnsureCachedAsync(site, key, _selectedTiltAngle, ct);
+					await _radarService.EnsureCachedAsync(site, key, _selectedTiltAngle, cancellationToken: ct);
 				}
 				catch (OperationCanceledException)
 				{

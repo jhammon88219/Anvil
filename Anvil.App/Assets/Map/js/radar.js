@@ -37,31 +37,23 @@
     import('./radar-products.js').then(function (m) { Products = m.PRODUCTS; }).catch(function (e) { hostLog('radar-products.js load failed: ' + (e && e.message ? e.message : e)); });
     function productLazy(p) { return !!(Products && Products[p] && Products[p].lazy); }
     function productKnown(p) { return !Products || !!Products[p]; } // permissive until the registry loads
-    // The lazy products we want built RIGHT NOW. Velocity and SRV share ONE dealias — the priciest step —
-    // but ONLY within a single decode (radar-decode's per-decode memo), so to make vel↔srv switching instant
-    // we build BOTH together whenever either is the active product (the second is then just a recolor, not a
-    // second dealias). Velocity prefetch (armed after reflectivity renders) warms the Doppler PAIR for the
-    // whole loop, so a later switch to velocity OR SRV is instant. Empty when the active product is cheap and
-    // nothing is prefetching. (`DOPPLER_PAIR` = the products that ride the shared dealiased cut.)
-    var DOPPLER_PAIR = ['velocity', 'srv'];
-    function pushDoppler(out) { // add the registered, lazy Doppler-pair products not already in `out`
-        DOPPLER_PAIR.forEach(function (id) {
-            if (Products[id] && Products[id].lazy && out.indexOf(id) < 0) out.push(id);
-        });
-    }
-    function wantedLazy() {
+    // The non-reflectivity products we want built RIGHT NOW (reflectivity is always built by the decoder).
+    // ON-DEMAND model: build ONLY the active product — the decode no longer builds all seven every time. The
+    // dealias is cheap now (~0.2 s), so velocity/SRV don't need to be coupled; each builds on demand when
+    // selected. Velocity is still PREFETCHED (warmed in the background) but only while the user is on
+    // reflectivity, so switching to it is instant without taxing other views. Empty when on reflectivity with
+    // no prefetch. Returns only registered products (a bad id would loop forever in needsBuild).
+    function wantedProducts() {
         if (!Products) return [];
         var out = [];
-        var activeIsDoppler = (product === 'velocity' || product === 'srv');
-        if (activeIsDoppler) pushDoppler(out);          // build both together (shared dealias) → instant swap
-        else if (productLazy(product)) out.push(product); // any future non-Doppler lazy product, alone
-        if (velPrefetch && !activeIsDoppler) pushDoppler(out); // prefetch warms the whole pair
+        if (product !== 'reflectivity' && Products[product]) out.push(product);
+        if (velPrefetch && product === 'reflectivity' && Products.velocity) out.push('velocity');
         return out;
     }
-    // Whether the lazy products we want (wantedLazy) were already built in a decode result — used to reject a
-    // cache hit / decide upgrades. True when nothing lazy is wanted (empty set) or the registry hasn't loaded.
-    function lazyBuiltIn(r) {
-        return wantedLazy().every(function (id) { return !!(r && r.built && r.built[id]); });
+    // Whether the products we want (wantedProducts) were already built in a decode result — used to reject a
+    // cache hit / decide upgrades. True when nothing extra is wanted (empty set) or the registry hasn't loaded.
+    function wantedBuiltIn(r) {
+        return wantedProducts().every(function (id) { return !!(r && r.built && r.built[id]); });
     }
 
     // frames[index] = { moments: { id: { positions, colors, count } | null }, grids, built, ... }:
@@ -108,17 +100,18 @@
     var upgradeInFlight = {};     // idx -> true while its upgrade decode is outstanding
     var upgradeInFlightN = 0;
     var pumpingUpgrades = false;  // re-entrancy guard (a cache-hit upgrade completes synchronously)
-    // Concurrent upgrade decodes: scale with cores but keep ~2 free for the current frame / new loads (and
-    // the UI). Tracks the raised pool cap (up to 6) so the dealias-bound whole-loop velocity/SRV build and
-    // prefetch parallelize on desktops; ≥2 so a low-core machine still makes progress.
-    var UPGRADE_CONCURRENCY = Math.max(2, Math.min(5,
-        ((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 4) - 2));
+    // Concurrent upgrade decodes. The dealias is CPU-bound, so this must NOT exceed physical cores —
+    // navigator.hardwareConcurrency reports LOGICAL (SMT-doubled), and running more heavy dealias tasks than
+    // physical cores just thrashes them (measured: bumping this on a 4-core/8-thread box did nothing). Keep
+    // it modest and leave a worker free for the current frame / a new load.
+    var UPGRADE_CONCURRENCY = 3;
     function resetUpgrades() { upgradeQueue = []; upgradeInFlight = {}; upgradeInFlightN = 0; }
-    // A lazy product (velocity) needs (re)building when it's the ACTIVE product OR being prefetched and this
-    // frame lacks it. built[id] tracks whether the build RAN, so a frame with genuinely no velocity
-    // (built.velocity=true, geometry null) won't re-decode forever. This decides full-decode vs grids-only.
-    function needsLazyGeom(f) {
-        return wantedLazy().some(function (id) { return !(f.built && f.built[id]); });
+    // A frame needs (re)building when it lacks the geometry for any product we currently want (the active
+    // product, + velocity while prefetching). built[id] tracks whether the build RAN, so a frame with
+    // genuinely no data for a product (built[id]=true, geometry null) won't re-decode forever. This decides
+    // full-decode vs grids-only.
+    function needsBuild(f) {
+        return wantedProducts().some(function (id) { return !(f.built && f.built[id]); });
     }
     // Whether the ACTIVE product's inspector value grid has been BUILT for a frame — either by a full decode
     // (frame-level gridsBuilt, which built every product's grid) or the grids-only fast path (gridsExtra[id],
@@ -129,7 +122,7 @@
         var f = frames[idx];
         if (!f || !f.url) return false;
         if (inspecting && !activeGridReady(f)) return true;       // active product's value grid not built yet, Inspect on
-        return needsLazyGeom(f);
+        return needsBuild(f);
     }
     function upgradePriority(idx) {
         if (currentFrame < 0) return idx;
@@ -170,17 +163,17 @@
         upgradeInFlightN--;
         pumpUpgrades();
     }
-    // Tell the host how much of the loop is ready for the ACTIVE product, so the UI can show a
-    // "Building velocity N/M" readout and playback can hold at the built frontier instead of stuttering
-    // into a frame whose velocity is still being dealiased (~1.5 s each on big super-res volumes). Only
-    // Velocity is lazily built; reflectivity/CC are always present, so for them every frame reads ready.
+    // Tell the host how much of the loop is ready for the ACTIVE product, so the UI can show a "Building N/M"
+    // readout and playback can hold at the built frontier instead of stuttering into a frame whose active
+    // product isn't built yet. Every product except reflectivity is now built ON DEMAND, so for any of them a
+    // frame reads ready only once its geometry is built; reflectivity is always built, so it reads all-ready.
     function postBuildProgress() {
         var total = frames.length;
         if (!total) { post({ type: 'radarBuildProgress', product: product, built: 0, total: 0, ready: [] }); return; }
         var built = 0, ready = new Array(total);
-        var lazy = productLazy(product); // non-lazy products are always ready (built eagerly)
+        var eager = (product === 'reflectivity'); // reflectivity is always built; everything else on demand
         for (var i = 0; i < total; i++) {
-            var r = !lazy || !!(frames[i] && frames[i].built && frames[i].built[product]);
+            var r = eager || !!(frames[i] && frames[i].built && frames[i].built[product]);
             ready[i] = r;
             if (r) built++;
         }
@@ -289,9 +282,10 @@
     // Results carry {token,index} and applyFrameResult runs serially on the main thread, so out-of-order
     // completions across workers are safe. Pool persists for the app lifetime (creating workers is
     // expensive); each loads radar-decode.js + the vendored decoder independently (~a few MB each).
-    // Cap raised 4→6: velocity/SRV builds are dealias-bound (~1.5 s/frame), so more parallel workers shorten
-    // the whole-loop build + prefetch on multi-core desktops. Still leaves a core for the UI (hwConcurrency-1).
-    const DECODE_POOL_SIZE = Math.max(1, Math.min(6,
+    // Pool cap 4 (one more than UPGRADE_CONCURRENCY, so the current frame / a new load grabs a free worker
+    // while upgrades run). Capped low on purpose: the decode is CPU-bound (dealias), so more workers than
+    // physical cores just thrash — the win comes from a FASTER dealias, not more parallelism.
+    const DECODE_POOL_SIZE = Math.max(1, Math.min(4,
         (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) ? navigator.hardwareConcurrency - 1 : 3));
     let workerPool; // undefined = not tried, array = ready, null = Worker API unavailable
     let workerRR = 0;
@@ -647,7 +641,7 @@
         // product OR while speculatively prefetching it (velPrefetch — armed by the host once the
         // reflectivity loop has rendered, so a later switch to Velocity is instant/near-instant). On
         // reflectivity/CC with prefetch off we skip it and re-decode on demand (setProduct).
-        const lazyIds = wantedLazy(); // which lazy products to build this decode (active + any prefetch)
+        const wantedIds = wantedProducts(); // extra products to build this decode (active + velocity prefetch)
         const wantGrids = inspecting; // inspector value grids are only needed while Inspect is on
         // Grids-only fast path (turning Inspect on): the frame already has the active product's GEOMETRY
         // (and nothing lazy is pending for it) and only its inspector VALUE GRID is missing — so build just
@@ -655,7 +649,7 @@
         // velocity dealias. This is what makes Inspect show values fast; the loop's other frames fill in the
         // same way through the upgrade queue. Only for the current loaded frames (not the initial decode).
         var f0 = frames[index];
-        if (wantGrids && f0 && f0.built && f0.built[product] && !activeGridReady(f0) && !needsLazyGeom(f0)) {
+        if (wantGrids && f0 && f0.built && f0.built[product] && !activeGridReady(f0) && !needsBuild(f0)) {
             decodeGridForFrame(url, index, product);
             return;
         }
@@ -665,7 +659,7 @@
         // inspector grid (decoded with Inspect off) — so we fall through and build it this time. Clone
         // with THIS load's token+index; arrays shared.
         const hit = cacheGet(url);
-        if (hit && lazyBuiltIn(hit) && (!wantGrids || hit.gridsBuilt || (hit.gridsExtra && hit.gridsExtra[product]))) {
+        if (hit && wantedBuiltIn(hit) && (!wantGrids || hit.gridsBuilt || (hit.gridsExtra && hit.gridsExtra[product]))) {
             hostLog('frame ' + index + ' cache hit');
             applyFrameResult(Object.assign({}, hit, { token: myToken, index: index, cached: true }));
             return;
@@ -677,10 +671,10 @@
             if (myToken !== loopToken) return;
             const w = getWorker();
             if (w) {
-                w.postMessage({ ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, buildLazy: lazyIds, buildGrids: wantGrids, stormMotion: stormMotion }, [ab]);
+                w.postMessage({ ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, buildProducts: wantedIds, buildGrids: wantGrids, stormMotion: stormMotion }, [ab]);
             } else {
                 import('./radar-decode.js').then(function (m) {
-                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, lazyIds, wantGrids, stormMotion);
+                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, wantedIds, wantGrids, stormMotion);
                 }).then(function (r2) {
                     applyFrameResult(frameResultFrom(r2, myToken, index, url));
                 }).catch(function (err) {

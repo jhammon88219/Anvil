@@ -57,7 +57,12 @@ namespace Anvil.Services
 		/// local decompress with no network. Each (volume, tilt) is cached separately, so returning to a
 		/// visited tilt is free. Valid angles come from <see cref="RadarVolume.Tilts"/>.</para>
 		/// </summary>
-		Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, float? tiltAngle = null, CancellationToken cancellationToken = default);
+		/// <param name="prioritized">When true (the newest frame, fetched alone for first paint), the
+		/// base-tilt prefix is downloaded as several PARALLEL sub-range GETs instead of one — a single S3
+		/// stream is throughput-limited and highly variable (~0.4-3.7 s for 5 MB), while parallel streams
+		/// aggregate bandwidth and reliably finish in ~0.8 s. The backfill leaves this false (it already
+		/// overlaps many frames, so it has multi-stream parallelism across frames).</param>
+		Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, float? tiltAngle = null, bool prioritized = false, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Speculatively downloads the given volumes IN FULL in the background and retains them, so that

@@ -79,7 +79,7 @@ namespace Anvil.Services
 				return null; // no recent data in the feed for this site
 			}
 
-			var archive = await EnsureCachedAsync(site, keys[^1], tiltAngle: null, cancellationToken);
+			var archive = await EnsureCachedAsync(site, keys[^1], tiltAngle: null, cancellationToken: cancellationToken);
 			if (archive is null)
 			{
 				return null;
@@ -172,7 +172,7 @@ namespace Anvil.Services
 				? TryExtractLowestTilt(data, siteId)
 				: TryExtractTiltByAngle(data, siteId, tiltAngle.Value, out _);
 
-		public async Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, float? tiltAngle = null, CancellationToken cancellationToken = default)
+		public async Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, float? tiltAngle = null, bool prioritized = false, CancellationToken cancellationToken = default)
 		{
 			var time = ParseVolumeTime(key) ?? DateTimeOffset.UtcNow;
 			var cacheFile = CacheFileFor(site.Id, time, tiltAngle);
@@ -244,7 +244,13 @@ namespace Anvil.Services
 				// it. Higher tilts go straight to the full download (or, above, the prefetched raw).
 				if (toWrite is null && tiltAngle is null && !isGz)
 				{
-					var prefix = await TryGetRangeAsync(key, LowestTiltPrefixBytes, cancellationToken);
+					// The newest frame (prioritized) parallelizes the prefix download — a single S3 stream is
+					// throughput-limited/variable, so the newest-alone fetch (the first-paint gate) was hitting
+					// ~3.7 s for 5 MB; parallel sub-ranges make it a reliable ~0.8 s. Backfill stays single (it
+					// already runs many frames concurrently = multi-stream across frames).
+					var prefix = prioritized
+						? await TryGetRangePrefixParallelAsync(key, LowestTiltPrefixBytes, cancellationToken)
+						: await TryGetRangeAsync(key, LowestTiltPrefixBytes, cancellationToken);
 					if (prefix is not null)
 					{
 						toWrite = await Task.Run(() =>
@@ -408,6 +414,69 @@ namespace Anvil.Services
 
 			RadarDiagnostics.Log("svc", "tilt.prefetch", ("site", site.Id),
 				("volumes", fetched), ("mb", bytes / (1024 * 1024)), ("ms", (int)sw.ElapsedMilliseconds));
+		}
+
+		// How many parallel sub-range streams to split the newest frame's prefix download into. A single S3
+		// stream is throughput-limited + highly variable (measured 0.4-3.7 s for 5 MB); 4 streams aggregate
+		// bandwidth and reliably finish ~0.8 s. Only the newest frame (fetched alone) uses this — the backfill
+		// already has parallelism ACROSS its 6 concurrent frames, so per-frame splitting would over-subscribe.
+		private const int PrefixParallelism = 4;
+
+		// Downloads the leading <paramref name="count"/> bytes as PrefixParallelism concurrent sub-range GETs
+		// and concatenates them, so first paint isn't hostage to one slow S3 stream. Falls back to the single
+		// TryGetRangeAsync if any sub-range doesn't return partial content — e.g. a small object whose tail
+		// sub-range starts past EOF (416), or a transient error — which handles small objects/partials cleanly.
+		// (NEXRAD volumes are ~10-30 MB, so the 5 MB prefix's sub-ranges almost always all land inside.)
+		private async Task<byte[]?> TryGetRangePrefixParallelAsync(string key, int count, CancellationToken ct)
+		{
+			var per = (count + PrefixParallelism - 1) / PrefixParallelism;
+			var parts = new byte[PrefixParallelism][];
+			var ok = true;
+
+			await Task.WhenAll(Enumerable.Range(0, PrefixParallelism).Select(async i =>
+			{
+				long from = (long)i * per;
+				long to = Math.Min(from + per, count) - 1;
+				if (from > to) { parts[i] = Array.Empty<byte>(); return; }
+				var bytes = await GetSubRangeAsync(key, from, to, ct);
+				if (bytes is null) { ok = false; }
+				else { parts[i] = bytes; }
+			}));
+
+			if (!ok)
+			{
+				return await TryGetRangeAsync(key, count, ct); // single-stream handles the small-object / error case
+			}
+
+			var total = 0;
+			foreach (var p in parts) { total += p.Length; }
+			var result = new byte[total];
+			var offset = 0;
+			foreach (var p in parts) { Buffer.BlockCopy(p, 0, result, offset, p.Length); offset += p.Length; }
+			return result;
+		}
+
+		// One sub-range GET: the bytes on 206 (Partial Content), null on anything else (416 past EOF, a 200
+		// whole-object response, or an error) so the caller falls back to a clean single-stream fetch.
+		private async Task<byte[]?> GetSubRangeAsync(string key, long from, long to, CancellationToken ct)
+		{
+			try
+			{
+				using var req = new HttpRequestMessage(HttpMethod.Get, BucketBase + key);
+				req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(from, to);
+				using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+				return resp.StatusCode == System.Net.HttpStatusCode.PartialContent
+					? await resp.Content.ReadAsByteArrayAsync(ct)
+					: null;
+			}
+			catch (OperationCanceledException)
+			{
+				throw;
+			}
+			catch
+			{
+				return null;
+			}
 		}
 
 		// GETs the first <paramref name="count"/> bytes of an S3 object via a Range request. Returns the

@@ -21,7 +21,7 @@ self.onmessage = function (e) {
         return;
     }
     import('./radar-decode.js').then(function (m) {
-        return m.decodeAndBuild(d.ab, d.siteLat, d.siteLon, d.minDbz, d.buildLazy, d.buildGrids, d.stormMotion);
+        return m.decodeAndBuild(d.ab, d.siteLat, d.siteLon, d.minDbz, d.buildProducts, d.buildGrids, d.stormMotion);
     }).then(function (res) {
         // Product geometry + inspector grids are keyed by product id (radar-products.js); we forward them
         // as maps, transferring each product's typed arrays zero-copy. Adding a product needs no change here.

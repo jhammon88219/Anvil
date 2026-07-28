@@ -249,7 +249,10 @@ function velocityDealiased(radar) {
     const elev = findVelocityElevation(radar);
     if (elev === null) { _sharedDealiased = { radials: null, elev: null }; return _sharedDealiased; }
     radar.setElevation(elev);
-    _sharedDealiased = { radials: dealiasSweep(momentRadials(radar, 'velocity'), radar), elev: elev };
+    const t0 = performance.now();
+    const dz = dealiasSweep(momentRadials(radar, 'velocity'), radar);
+    _dealiasInfo += ' ms=' + Math.round(performance.now() - t0); // ISOLATED dealias time → frame `dealias` field
+    _sharedDealiased = { radials: dz, elev: elev };
     return _sharedDealiased;
 }
 
@@ -359,25 +362,32 @@ function dealiasSweepCore(radials, radar) {
     if (!N || !G) return radials;
 
     const nyq = med, nyq2 = 2 * med;
-    const idx = function (r, j) { return r * G + j; };
-    function val(r, j) {
+    // PERF: flatten velocity into ONE flat typed array (NaN = no data / masked) up front, so every gate read
+    // in the band scans / flood-fill / edge-finding / apply loops (millions of accesses) is a direct
+    // typed-array index — NOT a per-access property lookup + null/undefined/isFinite check on a boxed, ragged
+    // JS array. NaN compares false to every band bound, so it drops out exactly like the old isFinite guard.
+    // ⚠️ MUST be Float64Array, NOT Float32: moment_data is float64, and the dealias rounds region folds at
+    // half-integer boundaries (Math.round of the sumdiff), so truncating to float32 flips folds by a whole
+    // ±2·Nyquist and CHANGES the output (measured: shifted every corpus volume's over-unfold ratio). Float64
+    // preserves the values bit-for-bit → gate-for-gate identical result. Ragged/absent rows read NaN.
+    const vel = new Float64Array(N * G);
+    for (let r = 0; r < N; r++) {
         const md = radials[r] && radials[r].moment_data;
-        if (!md || j >= md.length) return NaN;
-        const v = md[j];
-        return (v === null || v === undefined || !isFinite(v)) ? NaN : v;
+        const base = r * G;
+        const len = md ? md.length : 0;
+        for (let j = 0; j < G; j++) {
+            const v = j < len ? md[j] : undefined;
+            vel[base + j] = (v === null || v === undefined || !isFinite(v)) ? NaN : v;
+        }
     }
 
     // --- 1. segment into bands, connected-component per band (label: <0 = masked/unlabeled) ---
     // Band edges cover [-Nyq, Nyq]; extend outward if any gate reads slightly past Nyquist so every
     // valid gate lands in a band.
     let vLo = Infinity, vHi = -Infinity;
-    for (let r = 0; r < N; r++) {
-        const md = radials[r] && radials[r].moment_data; if (!md) continue;
-        for (let j = 0; j < md.length; j++) {
-            const v = md[j];
-            if (v === null || v === undefined || !isFinite(v)) continue;
-            if (v < vLo) vLo = v; if (v > vHi) vHi = v;
-        }
+    for (let i = 0, n = vel.length; i < n; i++) {
+        const v = vel[i];
+        if (v < vLo) vLo = v; if (v > vHi) vHi = v; // NaN comparisons are false → no-data gates skipped
     }
     const interval = nyq2 / INTERVAL_SPLITS;
     const addStart = vHi > nyq ? Math.ceil((vHi - nyq) / interval) : 0;
@@ -392,23 +402,24 @@ function dealiasSweepCore(radials, radar) {
         const lmin = bandStart + b * interval, lmax = lmin + interval;
         for (let r0 = 0; r0 < N; r0++) {
             for (let j0 = 0; j0 < G; j0++) {
-                if (label[idx(r0, j0)] !== -1) continue;
-                const v0 = val(r0, j0);
-                if (!isFinite(v0) || v0 < lmin || v0 >= lmax) continue;
+                const id0 = r0 * G + j0;
+                if (label[id0] !== -1) continue;
+                const v0 = vel[id0];
+                if (!(v0 >= lmin && v0 < lmax)) continue; // NaN or out-of-band → skip (== old !isFinite||range)
                 const rid = regionCnt.length; regionCnt.push(0);
-                stack.length = 0; stack.push(r0, j0); label[idx(r0, j0)] = rid;
+                stack.length = 0; stack.push(r0, j0); label[id0] = rid;
                 while (stack.length) {
                     const j = stack.pop(), r = stack.pop();
                     regionCnt[rid]++;
-                    const nb = [[r, j - 1], [r, j + 1], [(r - 1 + N) % N, j], [(r + 1) % N, j]];
-                    for (let k = 0; k < 4; k++) {
-                        const rr = nb[k][0], jj = nb[k][1];
-                        if (jj < 0 || jj >= G) continue;
-                        const id2 = idx(rr, jj);
-                        if (label[id2] !== -1) continue;
-                        const vv = val(rr, jj);
-                        if (isFinite(vv) && vv >= lmin && vv < lmax) { label[id2] = rid; stack.push(rr, jj); }
-                    }
+                    // 4-neighborhood INLINED (no per-gate array alloc — the old `nb` cost millions of tiny
+                    // allocations) with direct `vel[]` reads. Order left/right/up-wrap/down-wrap as before;
+                    // NaN fails both band comparisons, so masked gates drop out exactly like the old isFinite.
+                    const rowBase = r * G;
+                    let id2, vv;
+                    if (j > 0)     { id2 = rowBase + j - 1; if (label[id2] === -1) { vv = vel[id2]; if (vv >= lmin && vv < lmax) { label[id2] = rid; stack.push(r, j - 1); } } }
+                    if (j + 1 < G) { id2 = rowBase + j + 1; if (label[id2] === -1) { vv = vel[id2]; if (vv >= lmin && vv < lmax) { label[id2] = rid; stack.push(r, j + 1); } } }
+                    const ru = (r - 1 + N) % N; id2 = ru * G + j; if (label[id2] === -1) { vv = vel[id2]; if (vv >= lmin && vv < lmax) { label[id2] = rid; stack.push(ru, j); } }
+                    const rd = (r + 1) % N;     id2 = rd * G + j; if (label[id2] === -1) { vv = vel[id2]; if (vv >= lmin && vv < lmax) { label[id2] = rid; stack.push(rd, j); } }
                 }
             }
         }
@@ -434,18 +445,19 @@ function dealiasSweepCore(radials, radar) {
     // data is unaffected: the scan finds the adjacent gate immediately (no skip), so directly-touching
     // regions edge exactly as before (Moore-2013 couplet unchanged, core −135 mph).
     for (let r = 0; r < N; r++) {
+        const rowBase = r * G;
         for (let j = 0; j < G; j++) {
-            const la = label[idx(r, j)];
+            const la = label[rowBase + j];
             if (la < 0) continue;
-            const va = val(r, j);
+            const va = vel[rowBase + j];
             // Along the ray: next labelled gate to the right, skipping up to EDGE_SKIP masked gates.
             let jj = j + 1, s = 0;
-            while (jj < G && label[idx(r, jj)] < 0 && s < EDGE_SKIP) { jj++; s++; }
-            if (jj < G) { const lb = label[idx(r, jj)]; if (lb >= 0 && lb !== la) addEdge(la, lb, va - val(r, jj)); }
+            while (jj < G && label[rowBase + jj] < 0 && s < EDGE_SKIP) { jj++; s++; }
+            if (jj < G) { const lb = label[rowBase + jj]; if (lb >= 0 && lb !== la) addEdge(la, lb, va - vel[rowBase + jj]); }
             // Across rays: next labelled gate downward (+wrap), skipping up to EDGE_SKIP masked rays.
             let rr = (r + 1) % N; s = 0;
-            while (rr !== r && label[idx(rr, j)] < 0 && s < EDGE_SKIP) { rr = (rr + 1) % N; s++; }
-            if (rr !== r) { const lb = label[idx(rr, j)]; if (lb >= 0 && lb !== la) addEdge(la, lb, va - val(rr, j)); }
+            while (rr !== r && label[rr * G + j] < 0 && s < EDGE_SKIP) { rr = (rr + 1) % N; s++; }
+            if (rr !== r) { const lb = label[rr * G + j]; if (lb >= 0 && lb !== la) addEdge(la, lb, va - vel[rr * G + j]); }
         }
     }
 
@@ -524,10 +536,11 @@ function dealiasSweepCore(radials, radar) {
         const src = radials[r];
         if (!src || !src.moment_data) { out[r] = src; continue; }
         const data = src.moment_data;
+        const rowBase = r * G;
         const mdOut = new Array(data.length);
         for (let j = 0; j < data.length; j++) {
-            const lid = label[idx(r, j)];
-            const v = val(r, j);
+            const lid = label[rowBase + j];
+            const v = vel[rowBase + j];
             if (lid < 0 || !isFinite(v)) { mdOut[j] = null; continue; }
             const dv = v + unwrap[lid] * nyq2;
             mdOut[j] = dv;
@@ -913,16 +926,19 @@ const BUILDERS = {
 // isn't on a lazy product the host passes buildLazy=false and those builds are skipped. The result's
 // built[id] tells the host a refl-only frame must be re-decoded before it can show velocity (see radar.js
 // setProduct). Non-lazy products (reflectivity, CC) are cheap and always built.
-export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildLazy, buildGrids, stormMotion) {
-    if (buildLazy === undefined) buildLazy = true; // decode everything (incl. lazy velocity) unless told otherwise
+export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buildGrids, stormMotion) {
+    if (buildProducts === undefined) buildProducts = true; // build everything unless told otherwise (dev harness)
     if (buildGrids === undefined) buildGrids = true;
     if (stormMotion) _stormMotion = stormMotion; // for buildSrv (SRV); {0,0} default = base velocity
-    _sharedDealiased = null; // reset the per-decode dealias memo (velocity + SRV share it within this decode)
-    // buildLazy is either the literal `true` (build ALL lazy products — the dev validation harness) or an
-    // ARRAY of lazy product ids to build. The live path passes only the active (and any prefetched) lazy
-    // id, so a second lazy product like SRV never forces a redundant dealias when it isn't being shown.
-    const wantLazyId = function (id) {
-        return buildLazy === true || (Array.isArray(buildLazy) && buildLazy.indexOf(id) >= 0);
+    _sharedDealiased = null; // reset the per-decode dealias memo
+    // ON-DEMAND builds: reflectivity is ALWAYS built (the default view + the source of the range ring), and
+    // every OTHER product is built only when the host requests it — `buildProducts` is the ARRAY of extra
+    // product ids to build (the active product, plus velocity while prefetching), or the literal `true` to
+    // build all (the dev validation harness). This is the big win: a decode builds the ONE product on screen,
+    // not all seven (reflectivity + the 4 dual-pol moments + velocity + SRV) every time.
+    const wantBuild = function (id) {
+        return id === 'reflectivity' || buildProducts === true ||
+            (Array.isArray(buildProducts) && buildProducts.indexOf(id) >= 0);
     };
     const bytes = ab.byteLength;
     return loadDecoder().then(function (dec) {
@@ -941,7 +957,7 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildLazy, buildGri
         const results = {}, moments = {}, grids = {}, built = {};
         for (let pi = 0; pi < PRODUCT_IDS.length; pi++) {
             const id = PRODUCT_IDS[pi];
-            if (PRODUCTS[id].lazy && !wantLazyId(id)) { moments[id] = null; grids[id] = null; built[id] = false; continue; }
+            if (!wantBuild(id)) { moments[id] = null; grids[id] = null; built[id] = false; continue; }
             const r = BUILDERS[id](radar, siteLat, siteLon, minDbz, buildGrids);
             results[id] = r;
             moments[id] = r.geom || null;
