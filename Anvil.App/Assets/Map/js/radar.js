@@ -182,38 +182,36 @@
 
     let product = 'reflectivity'; // 'reflectivity' | 'velocity' | 'srv' | 'cc' | … — which moment to render
     // Storm motion MODE + MANUAL value for Storm-Relative Velocity (SRV). speedMs = m/s, dirDeg = compass
-    // bearing the storm is MOVING TOWARD. `auto` (the default) means the motion is DERIVED per volume from a
-    // full-volume VAD wind profile → Bunkers (computeStormMotionForVolume below; a single tilt is too shallow
-    // to be correct); auto off uses this manual speedMs/dirDeg ({0,0} = SRV identical to base velocity). What
-    // buildSrv actually subtracts is RESOLVED per frame by resolveStormMotion(url) — the deep-VWP value for
-    // that frame's volume in auto mode, else this manual value.
+    // bearing the storm is MOVING TOWARD. `auto` (the default) means the motion is DERIVED from a full-volume
+    // VAD wind profile → Bunkers (computeStormMotionForVolume below; a single tilt is too shallow to be
+    // correct); auto off uses this manual speedMs/dirDeg ({0,0} = SRV identical to base velocity).
     let stormMotion = { speedMs: 0, dirDeg: 0, auto: true };
-    // Per-volume auto storm motion (RadarScope-style), keyed by volume (all tilts of a volume share a key).
-    // Value = decodeVwp's result ({ speedMs, dirDeg, source, layers, topM, cuts } or { insufficient, topM }).
-    const _vwpByVolume = new Map();   // volKey -> motion result, once computed
+    // ONE auto storm motion for the whole loop (RadarScope-style), recomputed only when the loop's newest
+    // volume changes — NOT per frame. Per-volume motion made scrubbing churn (every scrubbed frame recomputed
+    // + re-decoded its SRV) and made consecutive frames look inconsistent; storm motion barely varies over a
+    // replay window, so one value keeps the loop stable. `_autoMotion` = decodeVwp's result
+    // ({ speedMs, dirDeg, source, layers, topM, cuts } or { insufficient, topM }); `_autoMotionKey` = the
+    // volume it was computed for (a repeat request for the same volume just republishes the readout).
+    let _autoMotion = null;
+    let _autoMotionKey = '';
     const _vwpInFlight = {};          // volKey -> true while its VWP compute is outstanding
     const _vwpPending = {};           // worker reqId -> volKey (correlates the async vwp reply)
     let _vwpReqId = 0;
-    // All tilts of one volume share a key: strip a higher-tilt suffix (…_e024.V06) so the base + companion
-    // cuts + a frame rendered at any tilt map to the same volume as the VWP that was computed for it.
-    function volKeyOf(url) { return url ? url.replace(/_e\d+(\.V06)$/i, '$1') : ''; }
-    // What buildSrv should subtract for a given frame's volume: manual value in manual mode; in auto mode the
-    // volume's deep-VWP motion if computed (and sufficient), else {0,0} (base velocity) until it lands.
-    function resolveStormMotion(url) {
+    // What buildSrv subtracts: the manual value in manual mode; the loop's auto motion (if computed and
+    // sufficient) else {0,0} (base velocity) until it lands. GLOBAL — every frame uses the same motion.
+    function resolveStormMotion() {
         if (!stormMotion.auto) return { speedMs: stormMotion.speedMs, dirDeg: stormMotion.dirDeg };
-        const m = _vwpByVolume.get(volKeyOf(url));
-        if (m && !m.insufficient) return { speedMs: m.speedMs, dirDeg: m.dirDeg };
+        if (_autoMotion && !_autoMotion.insufficient) return { speedMs: _autoMotion.speedMs, dirDeg: _autoMotion.dirDeg };
         return { speedMs: 0, dirDeg: 0 };
     }
-    // Compute (or re-surface) the auto storm motion for ONE volume from its bottom velocity tilts. The host
-    // (RadarViewModel) hands us the tilt URLs for the displayed volume when SRV/auto is active; we fetch
-    // them, run decodeVwp off-thread, cache the result by volume, push the readout, and rebuild that volume's
-    // SRV. Lazy + cached: a volume computes at most once, so scrubbing a replay only pays for volumes viewed.
+    // Compute the auto storm motion for the loop from ONE volume's tilts (the host passes the newest volume's
+    // tilt URLs when SRV/auto is active, and only re-requests when the newest volume changes). Fetch → decodeVwp
+    // off-thread → set the global motion + rebuild SRV once. Guarded so the same volume isn't recomputed.
     function computeStormMotionForVolume(urls) {
         if (!stormMotion.auto || !urls || !urls.length) return;
-        const volKey = volKeyOf(urls[0]);
-        if (_vwpByVolume.has(volKey)) { publishStormMotion(volKey); return; } // already computed → refresh readout
-        if (_vwpInFlight[volKey]) return;                                     // compute already outstanding
+        const volKey = urls[0];
+        if (volKey === _autoMotionKey) { publishAutoMotion(); return; } // already this loop's motion → just republish
+        if (_vwpInFlight[volKey]) return;                               // compute already outstanding
         _vwpInFlight[volKey] = true;
         Promise.all(urls.map(function (u) {
             return fetch(u, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
@@ -235,24 +233,30 @@
     }
     function onVwpResult(volKey, motion) {
         delete _vwpInFlight[volKey];
-        _vwpByVolume.set(volKey, motion || { insufficient: true, topM: 0 });
-        publishStormMotion(volKey);
-        invalidateSrvForVolume(volKey); // rebuild this volume's SRV with the resolved motion (only if SRV active)
+        const before = resolveStormMotion();
+        _autoMotion = motion || { insufficient: true, topM: 0 };
+        _autoMotionKey = volKey;
+        publishAutoMotion();
+        // Rebuild SRV only if the motion SRV would subtract actually changed (e.g. don't re-decode when the
+        // result is "insufficient" and SRV was already at base velocity). One global rebuild at most.
+        const after = resolveStormMotion();
+        if (after.speedMs !== before.speedMs || after.dirDeg !== before.dirDeg) dropAllSrvAndRequeue();
     }
-    // Surface a volume's auto motion to the host (App Settings readout). speed is m/s → host converts to kt.
-    function publishStormMotion(volKey) {
-        const m = _vwpByVolume.get(volKey);
+    // Surface the loop's auto motion to the host (App Settings readout). speed is m/s → host converts to kt.
+    function publishAutoMotion() {
+        const m = _autoMotion;
         if (!m) return;
         if (m.insufficient) post({ type: 'radarStormMotion', insufficient: true, topM: m.topM || 0 });
         else post({ type: 'radarStormMotion', speedMs: m.speedMs, dirDeg: m.dirDeg, source: m.source, layers: m.layers, topM: m.topM, cuts: m.cuts });
     }
-    // Drop the cached SRV geometry for one volume's frames so they rebuild with the just-resolved motion,
-    // and (if SRV is the active product) re-queue them. Mirrors setStormMotion's dropSrv, scoped to a volume.
-    function invalidateSrvForVolume(volKey) {
+    // Drop every loaded/cached frame's SRV geometry so it rebuilds with the current storm motion, and (if SRV
+    // is the active product) re-queue. Shared by manual setStormMotion and the auto-motion result — a motion
+    // change is loop-wide, so this runs at most ONCE per change (never per scrubbed frame).
+    function dropAllSrvAndRequeue() {
         function dropSrv(r) {
-            if (!r || volKeyOf(r.url) !== volKey) return;
-            if (r.built) r.built.srv = false;
-            if (r.moments) r.moments.srv = null;
+            if (!r) return;
+            if (r.built) r.built.srv = false;      // force a rebuild with the new motion
+            if (r.moments) r.moments.srv = null;    // drop stale-motion geometry
             if (r.gridsExtra) r.gridsExtra.srv = false;
         }
         for (let i = 0; i < frames.length; i++) dropSrv(frames[i]);
@@ -484,8 +488,8 @@
         }
         post({ type: 'radarFrameReady', index: res.index, hasData: !res.empty });
         // The AUTO (VAD-derived) storm motion is NO LONGER computed per frame — a single tilt is too shallow
-        // for a correct VWP. It's computed per volume from the bottom velocity tilts (computeStormMotionForVolume,
-        // triggered by the host) and surfaced via publishStormMotion → {type:"radarStormMotion"}.
+        // for a correct VWP. It's computed once per loop from the newest volume's bottom velocity tilts
+        // (computeStormMotionForVolume, triggered by the host) and surfaced via publishAutoMotion.
         postBuildProgress(); // this frame's build state may have changed the ready count
     }
 
@@ -786,10 +790,10 @@
             if (myToken !== loopToken) return;
             const w = getWorker();
             if (w) {
-                w.postMessage({ ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, buildProducts: wantedIds, buildGrids: wantGrids, stormMotion: resolveStormMotion(url) }, [ab]);
+                w.postMessage({ ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, buildProducts: wantedIds, buildGrids: wantGrids, stormMotion: resolveStormMotion() }, [ab]);
             } else {
                 import('./radar-decode.js').then(function (m) {
-                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, wantedIds, wantGrids, resolveStormMotion(url));
+                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, wantedIds, wantGrids, resolveStormMotion());
                 }).then(function (r2) {
                     applyFrameResult(frameResultFrom(r2, myToken, index, url));
                 }).catch(function (err) {
@@ -815,10 +819,10 @@
             if (myToken !== loopToken) { upgradeDone(index); return; }
             const w = getWorker();
             if (w) {
-                w.postMessage({ gridOnly: true, ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, product: prod, stormMotion: resolveStormMotion(url) }, [ab]);
+                w.postMessage({ gridOnly: true, ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, product: prod, stormMotion: resolveStormMotion() }, [ab]);
             } else {
                 import('./radar-decode.js').then(function (m) {
-                    return m.decodeGridOnly(ab, siteLat, siteLon, MIN_DBZ, prod, resolveStormMotion(url));
+                    return m.decodeGridOnly(ab, siteLat, siteLon, MIN_DBZ, prod, resolveStormMotion());
                 }).then(function (r2) {
                     applyGridResult({ token: myToken, index: index, url: url, gridsOnly: true, gridProduct: prod, grids: r2.grids });
                 }).catch(function (err) {
@@ -1159,24 +1163,12 @@
         // invalidated so a cache hit can't serve stale-motion SRV.
         setStormMotion: function (map, speedKt, dirDeg, auto) {
             stormMotion = { speedMs: (+speedKt || 0) * 0.514444, dirDeg: (+dirDeg || 0), auto: auto !== false };
-            function dropSrv(r) {
-                if (!r) return;
-                if (r.built) r.built.srv = false;      // force a rebuild with the new motion
-                if (r.moments) r.moments.srv = null;    // drop stale-motion geometry
-                if (r.gridsExtra) r.gridsExtra.srv = false;
-            }
-            for (var i = 0; i < frames.length; i++) dropSrv(frames[i]);
-            decodedCache.forEach(dropSrv);
-            if (product === 'srv') {
-                uploadedFrame = -1; // re-upload the current frame once it rebuilds
-                queueAllUpgrades();
-                postBuildProgress();
-                if (map && map.getLayer(LAYER_ID)) map.triggerRepaint();
-            }
+            if (auto === false) { _autoMotion = null; _autoMotionKey = ''; } // leaving auto: forget the loop motion
+            dropAllSrvAndRequeue();
         },
-        // Compute the AUTO storm motion for a volume from its bottom velocity tilt URLs (the host provides
-        // them for the displayed volume while SRV/auto is active). Off-thread, cached per volume; on success it
-        // pushes the readout and rebuilds that volume's SRV. No-op in manual mode. See computeStormMotionForVolume.
+        // Compute the loop's AUTO storm motion from the newest volume's tilt URLs (the host provides them when
+        // SRV/auto is active, and only re-requests when the newest volume changes). Off-thread; on success it
+        // pushes the readout and rebuilds SRV once. No-op in manual mode. See computeStormMotionForVolume.
         computeStormMotion: function (urls) {
             if (typeof urls === 'string') { try { urls = JSON.parse(urls); } catch (e) { urls = []; } }
             if (Array.isArray(urls)) computeStormMotionForVolume(urls);

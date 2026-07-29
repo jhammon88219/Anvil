@@ -527,7 +527,7 @@ namespace Anvil.ViewModels
 				if (_isMapReady)
 				{
 					_ = _mapService.ShowRadarFrameAsync(clamped);
-					RequestAutoStormMotion(); // if this stepped onto a new volume, compute its auto storm motion
+					RequestAutoStormMotion(); // cheap no-op unless the loop's NEWEST volume changed (reload/append)
 				}
 			}
 		}
@@ -707,11 +707,12 @@ namespace Anvil.ViewModels
 			AutoStormMotionText = $"{Math.Round(directionDeg)}° at {Math.Round(kt)} kt{src}";
 		}
 
-		/// <summary>Asks the WebView to compute the auto storm motion for the CURRENTLY displayed volume from
-		/// its bottom velocity tilts — the fix for the single-tilt profile being too shallow. Only fires while
-		/// SRV is the active product in Auto mode; skips the near-real-time live frame (no archive key). The
-		/// WebView caches per volume, and we skip a repeat request for the same volume (unless
-		/// <paramref name="force"/>), so playback computes each volume once and scrubbing back is free.</summary>
+		/// <summary>Asks the WebView to compute ONE auto storm motion for the loop, from the NEWEST volume's
+		/// bottom velocity tilts. Deliberately NOT per displayed frame: storm motion barely varies over a replay
+		/// window, and a per-frame motion made scrubbing churn (each scrubbed frame recomputed + re-decoded its
+		/// SRV) and made frames look inconsistent. Keying off the newest volume means scrubbing is a no-op (the
+		/// key doesn't change) while a loop reload/append recomputes. Only fires while SRV is the active product
+		/// in Auto mode; skipped (via <paramref name="force"/> = false + the key guard) once done.</summary>
 		private void RequestAutoStormMotion(bool force = false)
 		{
 			if (!_isMapReady || !_stormMotionAuto)
@@ -723,19 +724,14 @@ namespace Anvil.ViewModels
 			{
 				return; // motion only matters (and only worth its extractions) while SRV drives the view
 			}
-			if (_selectedRadarOption?.Site is not { } site)
+			if (_selectedRadarOption?.Site is not { } site || _loadedKeys.Length == 0)
 			{
 				return;
 			}
-			var idx = _currentFrameIndex;
-			if (idx < 0 || idx >= _loadedKeys.Length)
-			{
-				return; // the newest/live frame has no archive key → SRV falls back to base velocity there
-			}
-			var key = _loadedKeys[idx];
+			var key = _loadedKeys[^1]; // NEWEST archive volume — one motion for the whole loop
 			if (!force && key == _lastVwpKey)
 			{
-				return; // same volume as last request → the WebView already has it (or it's in flight)
+				return; // newest volume unchanged (e.g. scrubbing) → the WebView already has the motion
 			}
 			_lastVwpKey = key;
 			_ = ComputeAutoStormMotionAsync(site, key);
