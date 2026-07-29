@@ -182,9 +182,10 @@
 
     let product = 'reflectivity'; // 'reflectivity' | 'velocity' | 'srv' | 'cc' | … — which moment to render
     // Storm motion for Storm-Relative Velocity (SRV). speedMs = m/s, dirDeg = compass bearing the storm is
-    // MOVING TOWARD. Pushed with every decode so the worker's buildSrv can subtract the per-beam component;
-    // {0,0} (the default) makes SRV identical to base velocity until the host sets a real storm motion.
-    let stormMotion = { speedMs: 0, dirDeg: 0 };
+    // MOVING TOWARD. `auto` (the default) tells the decoder to DERIVE the motion from each volume's own VAD
+    // wind profile (RadarScope-style, see radar-decode computeStormMotion) and ignore speedMs/dirDeg; auto
+    // off uses the host's manual value ({0,0} = SRV identical to base velocity). Pushed with every decode.
+    let stormMotion = { speedMs: 0, dirDeg: 0, auto: true };
     let velPrefetch = false; // speculatively build velocity for every frame even when it's NOT the active
                              // product — armed by the host (prefetchVelocity) once reflectivity has
                              // rendered, so switching to Velocity is instant. Reset per new loop.
@@ -400,6 +401,13 @@
             if (res.rangeMeters > 0) setRangeRing(currentMap, res.rangeMeters);
         }
         post({ type: 'radarFrameReady', index: res.index, hasData: !res.empty });
+        // Surface the AUTO (VAD-derived) storm motion to the host so App Settings can display it. Present
+        // only in auto mode when SRV was built for this frame (decodeAndBuild computes it then); the host
+        // keeps the most recent. speed is m/s → the host converts to knots for the readout.
+        if (res.autoStorm) {
+            post({ type: 'radarStormMotion', speedMs: res.autoStorm.speedMs, dirDeg: res.autoStorm.dirDeg,
+                source: res.autoStorm.source, layers: res.autoStorm.layers, topM: res.autoStorm.topM });
+        }
         postBuildProgress(); // this frame's build state may have changed the ready count
     }
 
@@ -1062,15 +1070,16 @@
             velPrefetch = true;
             queueAllUpgrades();
         },
-        // Set the storm motion for Storm-Relative Velocity: speed in KNOTS, direction the storm is MOVING
-        // TOWARD (compass degrees). SRV = base velocity − this motion's component along each beam, applied
-        // per frame in the worker (buildSrv). Changing it invalidates every loaded/cached frame's SRV
-        // geometry so it rebuilds with the new motion (a full re-decode via the upgrade queue — SRV rides
-        // velocity's dealiased cut); other products are untouched. Only re-queues while SRV is the active
-        // product; otherwise the new motion simply applies the next time SRV is built. Both the live frames
-        // and the decoded-frame cache are invalidated so a cache hit can't serve stale-motion SRV.
-        setStormMotion: function (map, speedKt, dirDeg) {
-            stormMotion = { speedMs: (+speedKt || 0) * 0.514444, dirDeg: (+dirDeg || 0) };
+        // Set the storm motion for Storm-Relative Velocity: `auto` (default true) derives it from each
+        // volume's VAD wind profile; when false, speedKt/dirDeg (KNOTS, direction the storm is MOVING TOWARD)
+        // are used verbatim. SRV = base velocity − this motion's component along each beam, applied per frame
+        // in the worker (buildSrv). Changing the mode or manual value invalidates every loaded/cached frame's
+        // SRV geometry so it rebuilds (a full re-decode via the upgrade queue — SRV rides velocity's dealiased
+        // cut); other products are untouched. Only re-queues while SRV is the active product; otherwise the new
+        // motion applies the next time SRV is built. Both the live frames and the decoded-frame cache are
+        // invalidated so a cache hit can't serve stale-motion SRV.
+        setStormMotion: function (map, speedKt, dirDeg, auto) {
+            stormMotion = { speedMs: (+speedKt || 0) * 0.514444, dirDeg: (+dirDeg || 0), auto: auto !== false };
             function dropSrv(r) {
                 if (!r) return;
                 if (r.built) r.built.srv = false;      // force a rebuild with the new motion

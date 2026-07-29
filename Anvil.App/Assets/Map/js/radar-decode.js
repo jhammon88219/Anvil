@@ -236,8 +236,26 @@ let _dealiasInfo = '';
 
 // Storm motion for Storm-Relative Velocity (buildSrv), pushed per decode from the host (radar.js →
 // decodeAndBuild/decodeGridOnly). speedMs = storm speed in m/s; dirDeg = the compass bearing (0 = N,
-// clockwise) the storm is MOVING TOWARD. Default {0,0} → SRV equals base velocity (no offset).
-let _stormMotion = { speedMs: 0, dirDeg: 0 };
+// clockwise) the storm is MOVING TOWARD. `auto` = derive the motion from this volume's own Doppler
+// velocity (VAD wind profile → Bunkers, see computeStormMotion) instead of using speedMs/dirDeg; that is
+// the default (RadarScope-style). With auto off and {0,0}, SRV equals base velocity (no offset).
+let _stormMotion = { speedMs: 0, dirDeg: 0, auto: true };
+
+// The AUTO (VAD-derived) motion for the current decode, computed at most ONCE per decode and shared by
+// velocity+SRV (both ride the same dealiased cut). Reset at the top of decodeAndBuild/decodeGridOnly.
+// _autoMotion = { speedMs, dirDeg, source, layers, topM } once computed, or null when the sweep was too
+// sparse to fit; _autoComputed guards the one-shot so a failed fit isn't retried every builder call.
+let _autoMotion = null;
+let _autoComputed = false;
+
+// The storm motion buildSrv actually applies: the AUTO vector in auto mode (computed lazily on first use,
+// reusing velocity's already-dealiased cut — no extra dealias), else the host's manual value. Falls back
+// to a zero offset (SRV = base velocity) when auto is on but the fit failed.
+function stormMotionForBuild(radar) {
+    if (!_stormMotion.auto) return _stormMotion;
+    if (!_autoComputed) { _autoMotion = computeStormMotion(radar); _autoComputed = true; }
+    return _autoMotion || { speedMs: 0, dirDeg: 0 };
+}
 
 // Per-decode memo of the dealiased Doppler sweep, so velocity AND SRV (both ride the same cut) share ONE
 // dealias — the priciest step (~1.5 s/frame). Reset at the top of every decodeAndBuild/decodeGridOnly, so
@@ -575,19 +593,148 @@ function buildVelocity(radar, siteLat, siteLon, minDbz, wantGrid) {
     return { geom: geom, grid: buildGrid(dealiased, getAz, 10, VELOCITY_RAMP.unit, 1, wantGrid) };
 }
 
+// ── Automatic storm motion (VAD wind profile → Bunkers) ─────────────────────────────────────────────
+// RadarScope-style automatic storm motion, computed ENTIRELY from this volume's own Doppler velocity — no
+// external/model data (we run fully offline). The key fact: a single low tilt already samples a WIND
+// PROFILE, because the beam climbs with range. At a fixed conical elevation φ a uniform horizontal wind
+// (u = eastward, v = northward) makes the radial velocity vary sinusoidally with azimuth az (0 = N, cw):
+//     Vr(az) = a0 + cos(φ)·(u·sin az + v·cos az)
+// (a0 = the divergence/fall-speed constant, discarded). So a per-range-ring least-squares harmonic fit
+// recovers (u,v) at that ring's beam height h ≈ r·sin φ + r²/(2·aₑ), aₑ = 4⁄3-Earth radius. Sweeping the
+// ring outward builds a (height,u,v) profile — the classic VAD/VWP. That profile feeds the Bunkers (2000)
+// right-moving supercell estimate (0–6 km mean wind + 7.5 m/s to the RIGHT of the 0–6 km shear), which is
+// what operational SRM analysis (and RadarScope's derived motion) uses; when the shear is negligible it
+// falls back to the plain 0–6 km mean wind. Returns { speedMs, dirDeg (bearing MOVED TOWARD), source,
+// layers, topM } or null when the sweep is too sparse to fit. Cheap (~a few ms) — reuses the memoized
+// dealias and only runs when SRV is actually built.
+const VAD_MIN_PTS = 30;         // min valid gates around a ring to trust its harmonic fit
+const VAD_MAX_CLUSTER = 0.6;    // reject a ring whose az are clustered (resultant length > this ⇒ a wedge, not a circle)
+const VAD_MAX_RESID = 6;        // max RMS fit residual (m/s) — rejects convectively contaminated rings
+const VAD_MAX_SPEED = 80;       // reject an implausible fitted wind speed (m/s)
+const AE_M = 8494667;           // 4⁄3-Earth effective radius (m) for beam-height h ≈ r·sinφ + r²/2aₑ
+const BUNKERS_D = 7.5;          // Bunkers deviation magnitude (m/s), right of the 0–6 km shear
+const BUNKERS_MIN_SHEAR = 3;    // below this 0–6 km shear (m/s) use the mean wind, not a supercell deviation
+
+// Median elevation angle (deg) of the current cut's radials — φ for the height/VAD math. NaN if none.
+function medianElevationAngle(radar, n) {
+    const scans = radar.data && radar.data[radar.elevation];
+    if (!scans) return NaN;
+    const arr = [];
+    for (let i = 0; i < n; i++) {
+        const rec = scans[i] && scans[i].record;
+        if (rec && typeof rec.elevation_angle === 'number' && isFinite(rec.elevation_angle)) arr.push(rec.elevation_angle);
+    }
+    if (!arr.length) return NaN;
+    arr.sort(function (a, b) { return a - b; });
+    return arr[arr.length >> 1];
+}
+
+// Solve the symmetric 3×3 normal system for the VAD fit via Cramer's rule; null if near-singular.
+function solve3(a, b, c, d, e, f, g, h, ii, r0, r1, r2) {
+    const det = a * (e * ii - f * h) - b * (d * ii - f * g) + c * (d * h - e * g);
+    if (Math.abs(det) < 1e-9) return null;
+    const inv = 1 / det;
+    const x0 = (r0 * (e * ii - f * h) - b * (r1 * ii - f * r2) + c * (r1 * h - e * r2)) * inv;
+    const x1 = (a * (r1 * ii - f * r2) - r0 * (d * ii - f * g) + c * (d * r2 - r1 * g)) * inv;
+    const x2 = (a * (e * r2 - r1 * h) - b * (d * r2 - r1 * g) + r0 * (d * h - e * g)) * inv;
+    return [x0, x1, x2];
+}
+
+function computeStormMotion(radar) {
+    const sd = velocityDealiased(radar);            // reuse the memoized dealiased Doppler cut (no extra dealias)
+    if (!sd.radials) return null;
+    radar.setElevation(sd.elev);                    // the memo may not have re-pinned the cut — getAzimuth/records read it
+    const radials = sd.radials, n = radials.length;
+    let phi = medianElevationAngle(radar, n);
+    if (!isFinite(phi) || phi <= 0) phi = 0.5;      // sane default if the angle is unreadable
+    const phiRad = phi * D2R, cosPhi = Math.cos(phiRad), sinPhi = Math.sin(phiRad);
+
+    // Range geometry is shared across a cut's radials — take the first radial that carries data.
+    let ref = null;
+    for (let i = 0; i < n; i++) { if (radials[i] && radials[i].moment_data) { ref = radials[i]; break; } }
+    if (!ref) return null;
+    const firstGateM = ref.first_gate * 1000, gateSizeM = ref.gate_size * 1000, nGates = ref.moment_data.length;
+    if (!isFinite(firstGateM) || !(gateSizeM > 0)) return null;
+
+    // Per-radial azimuth sin/cos, once (skip null / dataless / bad-azimuth radials).
+    const azSin = new Float64Array(n), azCos = new Float64Array(n), has = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+        const dd = radials[i]; if (!dd || !dd.moment_data) continue;
+        const az = radar.getAzimuth(i); if (typeof az !== 'number') continue;
+        const a = az * D2R; azSin[i] = Math.sin(a); azCos[i] = Math.cos(a); has[i] = 1;
+    }
+
+    // One VAD fit per range ring (gate index j), stepping ~1 km in range to keep it cheap.
+    const stride = Math.max(1, Math.round(1000 / gateSizeM));
+    const prof = []; // { h, u, v } sorted below
+    for (let j = 0; j < nGates; j += stride) {
+        let sN = 0, Ss = 0, Sc = 0, Sss = 0, Scc = 0, Ssc = 0, Sv = 0, Svs = 0, Svc = 0;
+        for (let i = 0; i < n; i++) {
+            if (!has[i]) continue;
+            const v = radials[i].moment_data[j];
+            if (v === null || v === undefined) continue;
+            const s = azSin[i], c = azCos[i];
+            sN++; Ss += s; Sc += c; Sss += s * s; Scc += c * c; Ssc += s * c; Sv += v; Svs += v * s; Svc += v * c;
+        }
+        if (sN < VAD_MIN_PTS) continue;
+        if (Math.hypot(Ss, Sc) / sN > VAD_MAX_CLUSTER) continue; // az clustered in a wedge → can't fit a full circle
+        const sol = solve3(sN, Ss, Sc, Ss, Sss, Ssc, Sc, Ssc, Scc, Sv, Svs, Svc);
+        if (!sol) continue;
+        const a0 = sol[0], a1 = sol[1], b1 = sol[2];
+        let se = 0;
+        for (let i = 0; i < n; i++) {
+            if (!has[i]) continue;
+            const v = radials[i].moment_data[j]; if (v === null || v === undefined) continue;
+            const e = v - (a0 + a1 * azSin[i] + b1 * azCos[i]); se += e * e;
+        }
+        if (Math.sqrt(se / sN) > VAD_MAX_RESID) continue; // convective contamination / bad dealias on this ring
+        const u = a1 / cosPhi, vv = b1 / cosPhi;
+        if (!(Math.hypot(u, vv) < VAD_MAX_SPEED)) continue;
+        const r = firstGateM + j * gateSizeM;
+        prof.push({ h: r * sinPhi + r * r / (2 * AE_M), u: u, v: vv });
+    }
+    if (prof.length < 2) return null;
+    prof.sort(function (p, q) { return p.h - q.h; });
+
+    function meanLayer(h0, h1) {
+        let u = 0, v = 0, c = 0;
+        for (let i = 0; i < prof.length; i++) { const p = prof[i]; if (p.h >= h0 && p.h <= h1) { u += p.u; v += p.v; c++; } }
+        return c ? { u: u / c, v: v / c } : null;
+    }
+    const top = prof[prof.length - 1].h;
+    const mean = meanLayer(0, 6000) || meanLayer(0, top); // 0–6 km mean wind (all sampled levels if it tops below 6 km)
+    if (!mean) return null;
+    // Bunkers shear = (5.5–6 km mean) − (0–0.5 km mean); fall back to the top/bottom sampled ring when thin.
+    let bot = meanLayer(0, 500), tp = meanLayer(5500, 6000);
+    if (!bot) bot = { u: prof[0].u, v: prof[0].v };
+    if (!tp) tp = { u: prof[prof.length - 1].u, v: prof[prof.length - 1].v };
+    const shu = tp.u - bot.u, shv = tp.v - bot.v, shMag = Math.hypot(shu, shv);
+    let mu = mean.u, mv = mean.v, source = 'Mean wind';
+    if (shMag > BUNKERS_MIN_SHEAR) {
+        // Right-moving deviation: 7.5 m/s to the RIGHT of the shear (a 90° clockwise turn of the unit shear).
+        mu = mean.u + BUNKERS_D * (shv / shMag);
+        mv = mean.v + BUNKERS_D * (-shu / shMag);
+        source = 'Bunkers R';
+    }
+    let dirDeg = Math.atan2(mu, mv) / D2R; if (dirDeg < 0) dirDeg += 360; // bearing the storm MOVES TOWARD
+    return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, layers: prof.length, topM: Math.round(top) };
+}
+
 // STORM-RELATIVE VELOCITY (m/s). Same dealiased Doppler cut as base velocity, minus the storm motion's
 // component along each beam: for a gate at azimuth az, SRV = V − S·cos(az − dir), where S/dir are the storm
-// speed/heading (_stormMotion, pushed by the host). The subtracted term is per-radial (azimuth only, not
+// speed/heading — either derived automatically from the volume's VAD wind profile (auto mode, the default;
+// see computeStormMotion) or the host's manual value. The subtracted term is per-radial (azimuth only, not
 // range), so this is a cheap transform of the already-dealiased field — the expensive dealias is not
 // repeated beyond velocity's. Removing the storm's translation makes rotation (mesocyclones) read near
 // zero. With S = 0 it equals base velocity. Colored by SRV_RAMP (velocity's scheme under its own id).
 function buildSrv(radar, siteLat, siteLon, minDbz, wantGrid) {
     const sd = velocityDealiased(radar);          // reuses velocity's dealias within this decode (no re-dealias)
     if (!sd.radials) return { geom: null, grid: null };
+    const sm = stormMotionForBuild(radar);        // auto (VAD) or manual; computed at most once per decode
     radar.setElevation(sd.elev);                  // buildGates' getAzimuth reads the current cut — pin it
     const dealiased = sd.radials;
     const getAz = function (i) { return radar.getAzimuth(i); };
-    const S = _stormMotion.speedMs, dir = _stormMotion.dirDeg;
+    const S = sm.speedMs, dir = sm.dirDeg;
     // Per-azimuth offset applied to each gate; null gates (no data) stay null so they're skipped.
     const srv = dealiased.map(function (d, i) {
         if (!d || !d.moment_data) return d;
@@ -929,8 +1076,9 @@ const BUILDERS = {
 export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buildGrids, stormMotion) {
     if (buildProducts === undefined) buildProducts = true; // build everything unless told otherwise (dev harness)
     if (buildGrids === undefined) buildGrids = true;
-    if (stormMotion) _stormMotion = stormMotion; // for buildSrv (SRV); {0,0} default = base velocity
+    if (stormMotion) _stormMotion = stormMotion; // for buildSrv (SRV); auto (default) = VAD-derived, else manual
     _sharedDealiased = null; // reset the per-decode dealias memo
+    _autoMotion = null; _autoComputed = false; // reset the per-decode auto storm-motion memo
     // ON-DEMAND builds: reflectivity is ALWAYS built (the default view + the source of the range ring), and
     // every OTHER product is built only when the host requests it — `buildProducts` is the ARRAY of extra
     // product ids to build (the active product, plus velocity while prefetching), or the literal `true` to
@@ -1020,6 +1168,10 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
             elevList: elevList, velElev: velElevNum, reflStats: reflStats, velStats: velStats, velNyq: velNyq,
             velNyqSrc: velNyqSrc, velNyqRad: velNyqRad, velNyqVol: velNyqVol,
             dealias: (moments.velocity || moments.srv) ? _dealiasInfo : '', // SRV dealiases too
+            // The VAD-derived storm motion for this volume, computed IFF auto mode is on and SRV was built
+            // (buildSrv triggers the fit). null in manual mode or when the sweep was too sparse — the host
+            // forwards a non-null value so App Settings can surface the automatic motion (see radar.js).
+            autoStorm: _autoMotion,
         };
     });
 }
@@ -1033,6 +1185,7 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
 export function decodeGridOnly(ab, siteLat, siteLon, minDbz, productId, stormMotion) {
     if (stormMotion) _stormMotion = stormMotion; // SRV grid needs the storm motion too
     _sharedDealiased = null; // reset the per-decode dealias memo
+    _autoMotion = null; _autoComputed = false; // reset the per-decode auto storm-motion memo
     return loadDecoder().then(function (dec) {
         const radar = new dec.Level2Radar(dec.Buffer.from(new Uint8Array(ab)));
         const builder = BUILDERS[productId];

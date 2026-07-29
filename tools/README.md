@@ -3,6 +3,11 @@
 - **`radar_reference.py`** — independent Py-ART ground-truth images to check the decoder against (below).
 - **`dealias_check.py`** — re-implements the app's `dealiasSweep` in Python and diffs it against Py-ART.
   Keep its `dealias_v2()` in sync with the JS and re-run before shipping a dealias change.
+- **`storm_motion_check.py`** — unit-tests the app's automatic SRV storm motion (`computeStormMotion`,
+  VAD→Bunkers) with no JS runtime or network: synthetic sweeps with analytic answers (uniform→exact wind,
+  linear-shear→hand-computed Bunkers right-mover, sparse/wedge→null). `py -3.12 storm_motion_check.py [-v]`;
+  exit 0 = pass. Keep its Python mirror of `computeStormMotion`/`solve3` + the `VAD_*`/`BUNKERS_*` constants
+  in sync with the JS.
 - **`TiltCheck/`** — a C# harness that exercises the REAL tilt extraction against a real volume.
   `cd tools/TiltCheck && dotnet run -- KTLX 2025/07/15 18`. It reports, per designed tilt: extracted
   size, radial count, the angles actually present, azimuth coverage, and whether both moments survived

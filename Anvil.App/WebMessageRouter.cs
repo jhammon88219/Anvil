@@ -65,6 +65,17 @@ namespace Anvil
 					return;
 				}
 
+					// The automatic (VAD-derived) storm motion for the latest SRV frame — drives the App
+					// Settings "Auto" readout. speed is m/s; the VM converts to knots.
+					if (type == "radarStormMotion")
+					{
+						var speedMs = root.TryGetProperty("speedMs", out var smEl) ? smEl.GetDouble() : 0;
+						var dirDeg = root.TryGetProperty("dirDeg", out var dmEl) ? dmEl.GetDouble() : 0;
+						var source = root.TryGetProperty("source", out var srcEl) ? srcEl.GetString() : null;
+						_viewModel.Radar.SetAutoStormMotion(speedMs, dirDeg, source);
+						return;
+					}
+
 					// Velocity build progress: how many loaded frames have their (lazily-built, dealiased)
 					// velocity geometry ready. Drives the "Building velocity N/M" readout and lets playback
 					// hold at the built frontier instead of stuttering into a still-decoding frame.

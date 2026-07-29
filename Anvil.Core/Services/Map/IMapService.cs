@@ -62,11 +62,14 @@ namespace Anvil.Services
 		/// this once the reflectivity loop has finished rendering.</summary>
 		Task PrefetchRadarVelocityAsync();
 
-		/// <summary>Sets the storm motion used by the Storm-Relative Velocity product: <paramref name="speedKt"/>
-		/// in knots, <paramref name="directionDeg"/> = the compass bearing (0 = N, clockwise) the storm is
-		/// MOVING TOWARD. SRV = base velocity minus this motion's component along each beam. Changing it
-		/// rebuilds the loop's SRV geometry (only re-decodes while SRV is the active product).</summary>
-		Task SetStormMotionAsync(double speedKt, double directionDeg);
+		/// <summary>Sets the storm motion used by the Storm-Relative Velocity product. When <paramref name="auto"/>
+		/// is true (the default) the motion is DERIVED from each volume's own VAD wind profile (Bunkers
+		/// right-mover) and <paramref name="speedKt"/>/<paramref name="directionDeg"/> are ignored; when false
+		/// the manual values are used — <paramref name="speedKt"/> in knots, <paramref name="directionDeg"/> =
+		/// the compass bearing (0 = N, clockwise) the storm is MOVING TOWARD. SRV = base velocity minus this
+		/// motion's component along each beam. Changing it rebuilds the loop's SRV geometry (only re-decodes
+		/// while SRV is the active product).</summary>
+		Task SetStormMotionAsync(double speedKt, double directionDeg, bool auto);
 
 		/// <summary>
 		/// Enables or disables inspect mode (read the value under the cursor). While on, the WebView

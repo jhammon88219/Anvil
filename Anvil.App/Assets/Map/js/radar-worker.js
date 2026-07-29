@@ -30,7 +30,7 @@ self.onmessage = function (e) {
             decodeMs: res.decodeMs, buildMs: res.buildMs,
             radials: res.radials, gates: res.gates, bytes: res.bytes, rangeMeters: res.rangeMeters,
             elevList: res.elevList, velElev: res.velElev, reflStats: res.reflStats, velStats: res.velStats,
-            velNyq: res.velNyq, dealias: res.dealias,
+            velNyq: res.velNyq, dealias: res.dealias, autoStorm: res.autoStorm,
             moments: {}, grids: {},
         };
         const transfer = [];

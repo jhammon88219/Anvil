@@ -112,10 +112,11 @@ try {
     window.prefetchRadarVelocity = function () {
         if (window.RadarLayer) window.RadarLayer.prefetchVelocity();
     };
-    // Storm motion for Storm-Relative Velocity (SRV): speed in knots + the compass bearing the storm is
-    // moving toward. Drives the per-beam offset the SRV product subtracts (see radar.js setStormMotion).
-    window.setStormMotion = function (speedKt, dirDeg) {
-        if (window.RadarLayer) window.RadarLayer.setStormMotion(map, speedKt, dirDeg);
+    // Storm motion for Storm-Relative Velocity (SRV): auto (derive from the VAD wind profile, the default)
+    // or a manual speed in knots + compass bearing the storm is moving toward. Drives the per-beam offset
+    // the SRV product subtracts (see radar.js setStormMotion).
+    window.setStormMotion = function (speedKt, dirDeg, auto) {
+        if (window.RadarLayer) window.RadarLayer.setStormMotion(map, speedKt, dirDeg, auto);
     };
     // Inspect mode: read the value under the cursor (RadarScope-style). Delegates to RadarLayer,
     // which tracks the mouse and posts {type:"radarInspect"} for the color-scale marker.

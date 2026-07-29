@@ -613,37 +613,82 @@ namespace Anvil.ViewModels
 
 		// ===== Storm-Relative Velocity (SRV) storm motion ===============================================
 		// SRV = base velocity − the storm motion's component along each beam, so a storm's own translation is
-		// removed and rotation (mesocyclones) reads near zero. Both default 0 → SRV equals base velocity until
-		// a real storm motion is entered. Set in App Settings → Radar; pushed to the SRV builder via the map.
+		// removed and rotation (mesocyclones) reads near zero. By default the motion is AUTOMATIC — derived
+		// from each volume's own VAD wind profile (Bunkers right-mover; RadarScope-style), fully offline in
+		// the decoder (see radar-decode computeStormMotion). The manual speed/direction below are the OVERRIDE
+		// used only when Auto is off. Set in App Settings → Radar; pushed to the SRV builder via the map.
+		private bool _stormMotionAuto = true;
 		private double _stormMotionSpeedKt;
 		private double _stormMotionDirectionDeg;
+		private string _autoStormMotionText = "Auto — awaiting SRV";
 
-		/// <summary>Storm motion SPEED (knots) for the Storm-Rel Velocity product. 0 = SRV equals base
-		/// velocity. App Settings → Radar.</summary>
+		/// <summary>When true (default) the SRV storm motion is derived automatically from the radar's own
+		/// velocity (VAD wind profile → Bunkers right-mover). When false the manual
+		/// <see cref="StormMotionSpeedKt"/>/<see cref="StormMotionDirectionDeg"/> are used. App Settings → Radar.</summary>
+		public bool StormMotionAuto
+		{
+			get => _stormMotionAuto;
+			set
+			{
+				if (SetProperty(ref _stormMotionAuto, value))
+				{
+					OnPropertyChanged(nameof(StormMotionManual));
+					if (_isMapReady)
+						_ = _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg, _stormMotionAuto);
+				}
+			}
+		}
+
+		/// <summary>Inverse of <see cref="StormMotionAuto"/> — true when the manual speed/direction inputs are
+		/// live. Bound by the settings card to enable the manual NumberBoxes only when Auto is off.</summary>
+		public bool StormMotionManual => !_stormMotionAuto;
+
+		/// <summary>Human-readable readout of the current AUTOMATIC storm motion (e.g. "245° at 18 kt ·
+		/// Bunkers R"), updated from the decoder each time an SRV frame is built in Auto mode.</summary>
+		public string AutoStormMotionText
+		{
+			get => _autoStormMotionText;
+			private set => SetProperty(ref _autoStormMotionText, value);
+		}
+
+		/// <summary>Storm motion SPEED (knots) for the Storm-Rel Velocity product, used only when Auto is off.
+		/// 0 = SRV equals base velocity. App Settings → Radar.</summary>
 		public double StormMotionSpeedKt
 		{
 			get => _stormMotionSpeedKt;
 			set
 			{
-				if (SetProperty(ref _stormMotionSpeedKt, value) && _isMapReady)
+				if (SetProperty(ref _stormMotionSpeedKt, value) && !_stormMotionAuto && _isMapReady)
 				{
-					_ = _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg);
+					_ = _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg, false);
 				}
 			}
 		}
 
 		/// <summary>Storm motion DIRECTION — the compass bearing (0-360°, 0 = N) the storm is MOVING TOWARD —
-		/// for the Storm-Rel Velocity product. App Settings → Radar.</summary>
+		/// for the Storm-Rel Velocity product, used only when Auto is off. App Settings → Radar.</summary>
 		public double StormMotionDirectionDeg
 		{
 			get => _stormMotionDirectionDeg;
 			set
 			{
-				if (SetProperty(ref _stormMotionDirectionDeg, value) && _isMapReady)
+				if (SetProperty(ref _stormMotionDirectionDeg, value) && !_stormMotionAuto && _isMapReady)
 				{
-					_ = _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg);
+					_ = _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg, false);
 				}
 			}
+		}
+
+		/// <summary>Records the AUTOMATIC (VAD-derived) storm motion reported by the decoder for the latest
+		/// SRV frame — speed in m/s, direction = bearing the storm moves toward, plus the estimate's source
+		/// ("Bunkers R" / "Mean wind"). Refreshes the <see cref="AutoStormMotionText"/> readout. No-op unless
+		/// Auto is on (a stale manual-mode report shouldn't overwrite the readout).</summary>
+		public void SetAutoStormMotion(double speedMs, double directionDeg, string? source)
+		{
+			if (!_stormMotionAuto) return;
+			var kt = speedMs / 0.514444;
+			var src = string.IsNullOrWhiteSpace(source) ? "" : " · " + source;
+			AutoStormMotionText = $"{Math.Round(directionDeg)}° at {Math.Round(kt)} kt{src}";
 		}
 
 		/// <summary>The radar products (moments) selectable in the Product combo — the single source the
@@ -932,8 +977,9 @@ namespace Anvil.ViewModels
 			await _mapService.SetResearchRadarsVisibleAsync(_showResearchRadars);
 			await _mapService.SetTdwrsVisibleAsync(_showTdwrs);
 
-			// Push the initial SRV storm motion (default 0 = base velocity), so the page and VM agree.
-			await _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg);
+			// Push the initial SRV storm motion (auto by default → derived from each volume's VAD wind
+			// profile), so the page and VM agree.
+			await _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg, _stormMotionAuto);
 
 			// Flag sites with no recent data ("offline") and keep that refreshed.
 			_ = RunSiteStatusLoopAsync();

@@ -26,7 +26,7 @@
 
     <Grid>
         <ctl:ControlCard Title="Settings"
-                         CardHeight="340"
+                         CardHeight="400"
                          CloseRequested="OnCardCloseRequested"
                          Visibility="{x:Bind VisibleWhen(ViewModel.IsSettingsCardOpen), Mode=OneWay}">
             <ctl:ControlCard.CardBody>
@@ -57,10 +57,13 @@
                               IsChecked="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"
                               ToolTipService.ToolTip="Show research/test radar markers such as KCRI (ROC test bed, Norman OK)"/>
 
-                    <!-- Storm motion for the Storm-Rel Velocity (SRV) product: speed + the bearing the storm
-                         is moving TOWARD. SRV subtracts this motion's along-beam component so rotation reads
-                         near zero; 0 kt = SRV equals base velocity. NumberBox commits on Enter / focus-loss,
-                         so a change triggers ONE SRV rebuild rather than one per keystroke. -->
+                    <!-- Storm motion for the Storm-Rel Velocity (SRV) product. AUTO (default) derives it from
+                         the radar's own velocity (VAD wind profile → Bunkers right-mover), RadarScope-style
+                         and fully offline — the readout shows the current estimate. Unchecking Auto reveals
+                         the manual override: speed + the bearing the storm is moving TOWARD. SRV subtracts
+                         this motion's along-beam component so rotation reads near zero; 0 kt = SRV equals base
+                         velocity. NumberBox commits on Enter / focus-loss, so a change triggers ONE SRV rebuild
+                         rather than one per keystroke. -->
                     <Grid Grid.Row="3" Margin="4,4,0,0" ColumnSpacing="10" RowSpacing="6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -68,28 +71,43 @@
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/> <!-- sub-label -->
-                            <RowDefinition Height="Auto"/> <!-- speed -->
-                            <RowDefinition Height="Auto"/> <!-- direction -->
+                            <RowDefinition Height="Auto"/> <!-- Auto checkbox -->
+                            <RowDefinition Height="Auto"/> <!-- auto readout -->
+                            <RowDefinition Height="Auto"/> <!-- speed (manual) -->
+                            <RowDefinition Height="Auto"/> <!-- direction (manual) -->
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Storm Motion (SRV)"
                                    FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Speed (kt)" VerticalAlignment="Center"
+                        <CheckBox Grid.Row="1" Grid.ColumnSpan="2"
+                                  Content="Automatic (from velocity)"
+                                  IsChecked="{x:Bind ViewModel.Radar.StormMotionAuto, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Derive the storm motion from the radar's own VAD wind profile (Bunkers right-mover), like RadarScope"/>
+
+                        <!-- Live auto estimate (e.g. "245° at 18 kt · Bunkers R"); shown only in Auto mode. -->
+                        <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Margin="26,0,0,0"
+                                   Text="{x:Bind ViewModel.Radar.AutoStormMotionText, Mode=OneWay}"
+                                   FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Visibility="{x:Bind VisibleWhen(ViewModel.Radar.StormMotionAuto), Mode=OneWay}"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Speed (kt)" VerticalAlignment="Center"
                                    FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                        <NumberBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" MinWidth="120"
+                        <NumberBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" MinWidth="120"
                                    Minimum="0" Maximum="120" SmallChange="1" LargeChange="5"
                                    SpinButtonPlacementMode="Compact"
+                                   IsEnabled="{x:Bind ViewModel.Radar.StormMotionManual, Mode=OneWay}"
                                    Value="{x:Bind ViewModel.Radar.StormMotionSpeedKt, Mode=TwoWay}"
-                                   ToolTipService.ToolTip="Storm motion speed in knots (0 = SRV equals base velocity)"/>
+                                   ToolTipService.ToolTip="Manual storm motion speed in knots (0 = SRV equals base velocity)"/>
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Toward (°)" VerticalAlignment="Center"
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Toward (°)" VerticalAlignment="Center"
                                    FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                        <NumberBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" MinWidth="120"
+                        <NumberBox Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" MinWidth="120"
                                    Minimum="0" Maximum="360" SmallChange="5" LargeChange="10"
                                    SpinButtonPlacementMode="Compact"
+                                   IsEnabled="{x:Bind ViewModel.Radar.StormMotionManual, Mode=OneWay}"
                                    Value="{x:Bind ViewModel.Radar.StormMotionDirectionDeg, Mode=TwoWay}"
-                                   ToolTipService.ToolTip="Compass bearing the storm is moving toward (0 = N, 90 = E)"/>
+                                   ToolTipService.ToolTip="Manual compass bearing the storm is moving toward (0 = N, 90 = E)"/>
                     </Grid>
                 </Grid>
             </ctl:ControlCard.CardBody>
