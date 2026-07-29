@@ -499,6 +499,10 @@ namespace Anvil.ViewModels
 				{
 					_ = _mapService.PrefetchRadarVelocityAsync();
 					StartTiltPrefetch();
+					// Compute the loop's auto storm motion NOW (auto mode) so it's ready before SRV is first
+					// built — the build then uses it directly instead of re-decoding the whole loop when it
+					// lands later. Same speculative-work bargain as velocity prefetch; cheap (cached tiles).
+					RequestAutoStormMotion();
 				}
 			}
 		}
@@ -711,18 +715,18 @@ namespace Anvil.ViewModels
 		/// bottom velocity tilts. Deliberately NOT per displayed frame: storm motion barely varies over a replay
 		/// window, and a per-frame motion made scrubbing churn (each scrubbed frame recomputed + re-decoded its
 		/// SRV) and made frames look inconsistent. Keying off the newest volume means scrubbing is a no-op (the
-		/// key doesn't change) while a loop reload/append recomputes. Only fires while SRV is the active product
-		/// in Auto mode; skipped (via <paramref name="force"/> = false + the key guard) once done.</summary>
+		/// key doesn't change) while a loop reload/append recomputes.
+		///
+		/// <para>Fired EAGERLY once reflectivity renders (alongside velocity prefetch), not just on the SRV
+		/// switch — so the motion is ready BEFORE SRV is first built and the build uses it directly, instead of
+		/// building SRV at base velocity and then re-decoding the whole loop when the motion lands (the churn
+		/// that made scrubbing unstable). Auto-mode only; guarded by the newest-volume key + the WebView's own
+		/// cache so it computes at most once per loop.</para></summary>
 		private void RequestAutoStormMotion(bool force = false)
 		{
 			if (!_isMapReady || !_stormMotionAuto)
 			{
 				return;
-			}
-			if (_radarProductIndex < 0 || _radarProductIndex >= RadarProductOptions.Count
-				|| RadarProductOptions[_radarProductIndex].Id != "srv")
-			{
-				return; // motion only matters (and only worth its extractions) while SRV drives the view
 			}
 			if (_selectedRadarOption?.Site is not { } site || _loadedKeys.Length == 0)
 			{

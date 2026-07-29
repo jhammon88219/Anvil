@@ -256,7 +256,8 @@
         function dropSrv(r) {
             if (!r) return;
             if (r.built) r.built.srv = false;      // force a rebuild with the new motion
-            if (r.moments) r.moments.srv = null;    // drop stale-motion geometry
+            // NB: keep r.moments.srv so the frame keeps rendering the OLD-motion SRV until the rebuild replaces
+            // it — no blank frame during the rebuild (the geometry is swapped in place when the decode lands).
             if (r.gridsExtra) r.gridsExtra.srv = false;
         }
         for (let i = 0; i < frames.length; i++) dropSrv(frames[i]);
