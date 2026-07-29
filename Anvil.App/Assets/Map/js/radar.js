@@ -99,13 +99,14 @@
     var upgradeQueue = [];        // frame indices wanting an upgrade decode, not yet started
     var upgradeInFlight = {};     // idx -> true while its upgrade decode is outstanding
     var upgradeInFlightN = 0;
+    var upgradeReason = {};       // idx -> why it was queued (for the decode-cause trace / diagnosis)
     var pumpingUpgrades = false;  // re-entrancy guard (a cache-hit upgrade completes synchronously)
     // Concurrent upgrade decodes. The dealias is CPU-bound, so this must NOT exceed physical cores —
     // navigator.hardwareConcurrency reports LOGICAL (SMT-doubled), and running more heavy dealias tasks than
     // physical cores just thrashes them (measured: bumping this on a 4-core/8-thread box did nothing). Keep
     // it modest and leave a worker free for the current frame / a new load.
     var UPGRADE_CONCURRENCY = 3;
-    function resetUpgrades() { upgradeQueue = []; upgradeInFlight = {}; upgradeInFlightN = 0; }
+    function resetUpgrades() { upgradeQueue = []; upgradeInFlight = {}; upgradeInFlightN = 0; upgradeReason = {}; }
     // A frame needs (re)building when it lacks the geometry for any product we currently want (the active
     // product, + velocity while prefetching). built[id] tracks whether the build RAN, so a frame with
     // genuinely no data for a product (built[id]=true, geometry null) won't re-decode forever. This decides
@@ -129,12 +130,13 @@
         if (idx >= currentFrame) return idx - currentFrame;       // current (0) + ahead, in play order
         return (currentFrame - idx) + frames.length;              // behind the playhead: lowest priority
     }
-    function queueUpgrade(idx) {
+    function queueUpgrade(idx, reason) {
         if (!needsUpgrade(idx) || upgradeInFlight[idx]) return;
         if (upgradeQueue.indexOf(idx) < 0) upgradeQueue.push(idx);
+        upgradeReason[idx] = reason || 'upgrade';
         pumpUpgrades();
     }
-    function queueAllUpgrades() { for (var i = 0; i < frames.length; i++) queueUpgrade(i); }
+    function queueAllUpgrades(reason) { for (var i = 0; i < frames.length; i++) queueUpgrade(i, reason); }
     function pumpUpgrades() {
         if (pumpingUpgrades) return; // a sync completion re-entered us; the outer loop keeps draining
         pumpingUpgrades = true;
@@ -151,7 +153,8 @@
                 var chosen = upgradeQueue.splice(bestPos, 1)[0];
                 upgradeInFlight[chosen] = true;
                 upgradeInFlightN++;
-                decodeFrame(frames[chosen].url, chosen); // async, or sync on a cache hit (re-enters pump)
+                decodeFrame(frames[chosen].url, chosen, 'up:' + (upgradeReason[chosen] || '?')); // async, or sync on a cache hit
+                delete upgradeReason[chosen];
             }
         } finally {
             pumpingUpgrades = false;
@@ -210,9 +213,10 @@
     function computeStormMotionForVolume(urls) {
         if (!stormMotion.auto || !urls || !urls.length) return;
         const volKey = urls[0];
-        if (volKey === _autoMotionKey) { publishAutoMotion(); return; } // already this loop's motion → just republish
-        if (_vwpInFlight[volKey]) return;                               // compute already outstanding
+        if (volKey === _autoMotionKey) { hostLog('vwp cached (republish) ' + shortKey(volKey)); publishAutoMotion(); return; }
+        if (_vwpInFlight[volKey]) { hostLog('vwp in-flight, skip ' + shortKey(volKey)); return; }
         _vwpInFlight[volKey] = true;
+        hostLog('vwp start ' + shortKey(volKey) + ' tilts=' + urls.length + ' prod=' + product);
         Promise.all(urls.map(function (u) {
             return fetch(u, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
         })).then(function (abs) {
@@ -240,8 +244,14 @@
         // Rebuild SRV only if the motion SRV would subtract actually changed (e.g. don't re-decode when the
         // result is "insufficient" and SRV was already at base velocity). One global rebuild at most.
         const after = resolveStormMotion();
-        if (after.speedMs !== before.speedMs || after.dirDeg !== before.dirDeg) dropAllSrvAndRequeue();
+        const changed = (after.speedMs !== before.speedMs || after.dirDeg !== before.dirDeg);
+        hostLog('vwp result ' + shortKey(volKey) + ' '
+            + (_autoMotion.insufficient ? 'INSUFFICIENT top=' + _autoMotion.topM
+                : Math.round(_autoMotion.dirDeg) + '°@' + Math.round(_autoMotion.speedMs / 0.514444) + 'kt cuts=' + _autoMotion.cuts)
+            + ' rebuild=' + changed);
+        if (changed) dropAllSrvAndRequeue();
     }
+    function shortKey(u) { var m = /([A-Z]{3,4}_[0-9]{8}_[0-9]{6})/.exec(u || ''); return m ? m[1] : (u || '?'); }
     // Surface the loop's auto motion to the host (App Settings readout). speed is m/s → host converts to kt.
     function publishAutoMotion() {
         const m = _autoMotion;
@@ -260,11 +270,13 @@
             // it — no blank frame during the rebuild (the geometry is swapped in place when the decode lands).
             if (r.gridsExtra) r.gridsExtra.srv = false;
         }
-        for (let i = 0; i < frames.length; i++) dropSrv(frames[i]);
+        var n = 0;
+        for (let i = 0; i < frames.length; i++) { if (frames[i] && frames[i].built && frames[i].built.srv) n++; dropSrv(frames[i]); }
         decodedCache.forEach(dropSrv);
+        hostLog('dropAllSrv: dropped ' + n + ' built srv frame(s), requeue=' + (product === 'srv'));
         if (product === 'srv') {
             uploadedFrame = -1;
-            queueAllUpgrades();
+            queueAllUpgrades('motion');
             postBuildProgress();
             if (currentMap && currentMap.getLayer(LAYER_ID)) currentMap.triggerRepaint();
         }
@@ -449,7 +461,7 @@
         // frames stuck refl-only on a slow past-event load (the "switch to Velocity shows nothing until I
         // reload" bug). Queue it for a bounded upgrade; needsUpgrade returns false once built, so there's
         // no decode loop and no cost when the product was already active at decode time.
-        queueUpgrade(res.index);
+        queueUpgrade(res.index, 'arrive');
         var reflCount = (mo.reflectivity && mo.reflectivity.count) || 0;
         var velCount = (mo.velocity && mo.velocity.count) || 0;
         post({
@@ -755,7 +767,18 @@
     }
 
     // Decodes one volume into frames[index] (off-thread, with a main-thread fallback).
-    function decodeFrame(url, index) {
+    // Structured decode-cause trace (rides the diagnostics JSONL as a radarLog line, so it needs no C# change).
+    // Per decode it records WHY it ran (reason: load / up:<trigger> / …), which PATH was taken (cache-hit /
+    // grid-only / decode), the products REQUESTED, and — when a full decode ran despite a cache entry — WHY the
+    // cache couldn't serve it (miss). Grep `why=`/`miss=` to trace an unexpected re-load to its cause without
+    // reproducing it. `dt=` timestamps let re-loads be correlated with scrub/switch actions.
+    function decodeTrace(index, reason, path, wantedIds, miss) {
+        hostLog('decode idx=' + index + ' why=' + (reason || '?') + ' path=' + path
+            + ' prod=' + product + ' want=' + (wantedIds && wantedIds.length ? wantedIds.join('+') : '-')
+            + (miss ? ' miss=' + miss : '') + ' dt=' + Math.round(performance.now()));
+    }
+
+    function decodeFrame(url, index, reason) {
         const myToken = loopToken;
         // Velocity is the only product that must dealias (expensive), so build it when it's the active
         // product OR while speculatively prefetching it (velPrefetch — armed by the host once the
@@ -770,6 +793,7 @@
         // same way through the upgrade queue. Only for the current loaded frames (not the initial decode).
         var f0 = frames[index];
         if (wantGrids && f0 && f0.built && f0.built[product] && !activeGridReady(f0) && !needsBuild(f0)) {
+            decodeTrace(index, reason, 'grid-only', wantedIds, null);
             decodeGridForFrame(url, index, product);
             return;
         }
@@ -780,10 +804,16 @@
         // with THIS load's token+index; arrays shared.
         const hit = cacheGet(url);
         if (hit && wantedBuiltIn(hit) && (!wantGrids || hit.gridsBuilt || (hit.gridsExtra && hit.gridsExtra[product]))) {
-            hostLog('frame ' + index + ' cache hit');
+            decodeTrace(index, reason, 'cache-hit', wantedIds, null);
             applyFrameResult(Object.assign({}, hit, { token: myToken, index: index, cached: true }));
             return;
         }
+        // A full decode is about to run. If there WAS a cache entry, say why it couldn't serve us — the key
+        // signal for "why did a frame we already loaded re-decode?" (unbuilt product vs missing inspector grid).
+        var miss = !hit ? 'no-entry'
+            : !wantedBuiltIn(hit) ? ('unbuilt:' + wantedIds.filter(function (id) { return !(hit.built && hit.built[id]); }).join(','))
+                : 'no-grid';
+        decodeTrace(index, reason, 'decode', wantedIds, miss);
         fetch(url, { cache: 'no-store' }).then(function (r) {
             if (!r.ok) throw new Error('HTTP ' + r.status);
             return r.arrayBuffer();
@@ -1000,7 +1030,7 @@
         addFrame: function (map, url, index) {
             currentMap = map;
             hostLog('addFrame idx=' + index);
-            decodeFrame(url, index);
+            decodeFrame(url, index, 'load');
         },
         showFrame: function (map, index) {
             currentMap = map;
@@ -1008,6 +1038,10 @@
                 // Decoded: switch to it now (and (re)add the layer if needed).
                 pendingFrame = -1;
                 if (index !== currentFrame) { currentFrame = index; uploadedFrame = -1; }
+                // Flag a scrub onto a frame whose ACTIVE product isn't built — it renders blank/stale until an
+                // upgrade fills it (the "missing frame while scrubbing" symptom). Reflectivity is always built.
+                if (product !== 'reflectivity' && !(frames[index].built && frames[index].built[product]))
+                    hostLog('showFrame idx=' + index + ' NOT-BUILT prod=' + product + ' (blank until upgrade)');
                 showCurrent(map, 'showFrame');
             } else {
                 // Not decoded yet: remember the intent but keep the current frame on screen, so
@@ -1053,7 +1087,7 @@
                 uploadedFrame = -1;
                 showCurrent(map, 'remap-fallback');
             }
-            queueAllUpgrades(); // a reused refl-only frame still needs velocity if Velocity is active
+            queueAllUpgrades('remap'); // a reused refl-only frame still needs velocity if Velocity is active
             hostLog('remap newCount=' + newCount + ' cf=' + currentFrame + ' reused=' + frames.filter(Boolean).length + ' token=' + loopToken);
         },
         clear: function (map) {
@@ -1135,10 +1169,15 @@
         // frame on screen instead of flooding the decode pool and flashing blanks during playback.
         setProduct: function (map, p) {
             if (!productKnown(p) || p === product) return;
+            var from = product;
             product = p;
             uploadedFrame = -1; // force the new product's geometry to upload on the next render
-            hostLog('product=' + product);
-            queueAllUpgrades(); // no-op unless Velocity (or Inspect) needs geometry these frames lack
+            // How many frames already have the new product built — i.e. how much of this switch is INSTANT vs
+            // needs a re-decode. A switch that should be instant (all built) but still decodes is a bug signal.
+            var have = 0, n = frames.length;
+            for (var i = 0; i < n; i++) if (p === 'reflectivity' || (frames[i] && frames[i].built && frames[i].built[p])) have++;
+            hostLog('product ' + from + '->' + p + ' built=' + have + '/' + n + (have < n ? ' (will decode ' + (n - have) + ')' : ' (instant)'));
+            queueAllUpgrades('switch>' + p); // no-op unless Velocity/SRV (or Inspect) needs geometry these frames lack
             postBuildProgress(); // switching to Velocity: report the (mostly not-yet-built) ready set now
             if (map && map.getLayer(LAYER_ID)) map.triggerRepaint();
         },
@@ -1151,7 +1190,7 @@
         prefetchVelocity: function () {
             if (velPrefetch) return;
             velPrefetch = true;
-            queueAllUpgrades();
+            queueAllUpgrades('velprefetch');
         },
         // Set the storm motion MODE for Storm-Relative Velocity: `auto` (default true) means each volume's
         // motion is derived from its full-volume VAD wind profile (computeStormMotion below, driven by the
@@ -1196,7 +1235,7 @@
                 // Value grids are skipped by default (memory). Turning Inspect ON now builds them on
                 // demand for the loaded frames via the bounded, current-frame-first upgrade queue — so
                 // lookups become available around the frame on screen first, without flooding the pool.
-                queueAllUpgrades();
+                queueAllUpgrades('inspect');
             } else {
                 if (inspectMove) { map.off('mousemove', inspectMove); inspectMove = null; }
                 if (inspectOut) { map.off('mouseout', inspectOut); inspectOut = null; }
