@@ -35,8 +35,7 @@ import pyart
 
 BUCKET = "https://unidata-nexrad-level2.s3.amazonaws.com/"
 S3NS = "{http://s3.amazonaws.com/doc/2006-03-01/}"
-VWP_MAX_TILT_DEG = 7.0   # matches Level2RadarService.VwpMaxTiltDeg
-VWP_MAX_TILTS = 8        # matches Level2RadarService.VwpMaxTilts
+VWP_MAX_TILT_DEG = 7.0   # matches radar-decode.js VWP_MAX_PHI (decodeVwp votes every velocity cut at/below this)
 
 
 def list_keys(site, day):
@@ -84,7 +83,7 @@ def main():
         motions = []
         used = []
         for ang in angles:
-            if ang <= 0 or ang > VWP_MAX_TILT_DEG or len(used) >= VWP_MAX_TILTS:
+            if ang <= 0 or ang > VWP_MAX_TILT_DEG:  # decodeVwp votes every velocity cut <= VWP_MAX_PHI (no count cap)
                 continue
             # first sweep at this fixed angle that actually carries velocity
             sweep = next((s for s in range(radar.nsweeps)

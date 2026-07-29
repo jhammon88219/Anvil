@@ -604,6 +604,7 @@ const BUNKERS_D = 7.5;          // Bunkers deviation magnitude (m/s), right of t
 const BUNKERS_MIN_SHEAR = 3;    // below this 0–6 km shear (m/s) use the mean wind, not a supercell deviation
 const VWP_MIN_TOP = 5000;       // merged profile must reach ≥ this height (m) to trust a 0–6 km Bunkers estimate
 const VWP_MIN_PTS = 8;          // …and carry at least this many ring points; else the motion is "insufficient"
+const VWP_MAX_PHI = 7.0;        // ignore cuts above this angle — their 0–6 km span is too near-range/sparse to fit
 
 // Median elevation angle (deg) of the current cut's radials — φ for the height/VAD math. NaN if none.
 function medianElevationAngle(radar, n) {
@@ -630,15 +631,13 @@ function solve3(a, b, c, d, e, f, g, h, ii, r0, r1, r2) {
     return [x0, x1, x2];
 }
 
-// ONE cut's VAD ring points: dealias the cut's Doppler velocity, then a per-range-ring harmonic fit recovers
-// the horizontal wind (u,v) at each ring's beam height, using THIS cut's own elevation φ. Returns an array of
-// { h, u, v } (m, m/s, m/s), possibly empty when the cut has no velocity or every ring is too sparse / folded /
-// convectively contaminated to fit. The heavy step is the dealias, run once per cut; the caller MERGES the
-// points of several cuts (each at a different φ, so each reaches different heights) into one deep profile.
+// ONE cut's VAD ring points, for the elevation the radar is CURRENTLY set to (decodeVwp iterates the velocity
+// cuts and sets each before calling this): dealias that cut's Doppler velocity, then a per-range-ring harmonic
+// fit recovers the horizontal wind (u,v) at each ring's beam height, using THIS cut's own elevation φ. Returns
+// an array of { h, u, v } (m, m/s, m/s), empty when the current cut has no velocity or every ring is too sparse
+// / folded / convectively contaminated to fit. The heavy step is the dealias, run once per cut; each cut casts
+// its own VAD→Bunkers vote (they reach different heights) and combineCutMotions takes the median.
 function vadPointsForCut(radar) {
-    const elev = findVelocityElevation(radar);
-    if (elev === null) return [];
-    radar.setElevation(elev);
     const radials = dealiasSweep(momentRadials(radar, 'velocity'), radar);
     if (!radials) return [];
     const n = radials.length;
@@ -755,18 +754,32 @@ function combineCutMotions(motions) {
     return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, cuts: good.length, layers: layers, topM: topM };
 }
 
-// Full-volume VWP storm motion: decode each supplied single-tilt velocity buffer (a volume's bottom velocity
-// tilts), compute EACH cut's own VAD → Bunkers motion, and combine them (median) into one robust estimate.
-// Off the UI thread (radar-worker 'vwp' task) since the per-cut dealias is the cost. Returns the combined
-// motion, or { insufficient:true } when fewer than VWP_MIN_CUTS cuts reached the 0–6 km depth.
+// Full-volume VWP storm motion: for each supplied buffer, take EVERY velocity-bearing cut's own VAD → Bunkers
+// motion, and combine them all (median) into one robust estimate. ⚠️ It iterates ALL velocity elevations in a
+// buffer, not just the lowest, because the two provisioning paths differ: a modern volume hands us several
+// single-tilt files (one velocity cut each), but a LEGACY .gz archive can't be tilt-extracted at all
+// (`Level2RadarService`: it gunzips to an AR2V with no bzip2 LDM records), so its base .V06 is cached WHOLE and
+// arrives as ONE buffer holding every cut. Iterating elevations handles both — one vote per velocity cut ≤
+// VWP_MAX_PHI. Off the UI thread (radar-worker 'vwp' task) since the per-cut dealias is the cost. Returns the
+// combined motion, or { insufficient:true } when fewer than VWP_MIN_CUTS cuts reached the 0–6 km depth.
 export function decodeVwp(buffers) {
     return loadDecoder().then(function (dec) {
         const motions = [];
         for (let b = 0; b < buffers.length; b++) {
             try {
                 const radar = new dec.Level2Radar(dec.Buffer.from(new Uint8Array(buffers[b])));
-                motions.push(bunkersFromProfile(vadPointsForCut(radar)));
-            } catch (e) { /* skip a cut that won't decode; the other cuts still vote */ }
+                const elevs = radar.listElevations() || [];
+                for (let k = 0; k < elevs.length; k++) {
+                    radar.setElevation(elevs[k]);
+                    const vr = momentRadials(radar, 'velocity');
+                    let hasVel = false;
+                    for (let i = 0; i < vr.length; i++) { if (vr[i] && vr[i].moment_data) { hasVel = true; break; } }
+                    if (!hasVel) continue;                               // reflectivity-only cut → not a VAD vote
+                    const phi = medianElevationAngle(radar, vr.length);
+                    if (isFinite(phi) && phi > VWP_MAX_PHI) continue;    // too high: 0–6 km sampled too sparsely
+                    motions.push(bunkersFromProfile(vadPointsForCut(radar)));
+                }
+            } catch (e) { /* skip a buffer that won't decode; the other buffers/cuts still vote */ }
         }
         return combineCutMotions(motions);
     });

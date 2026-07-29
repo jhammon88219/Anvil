@@ -365,10 +365,20 @@ namespace Anvil.Services
 			}
 
 			var urls = new List<string> { baseVol.LocalUrl };
+
+			// ⚠️ Legacy .gz archives can't be tilt-extracted (they gunzip to an AR2V with no bzip2 LDM records —
+			// see the extract path above), so the base .V06 was cached as the WHOLE multi-elevation volume. Every
+			// cut is already in that one buffer and the WebView's decodeVwp reads them all, so DON'T attempt the
+			// higher tilts here — each attempt would re-download + re-gunzip the whole volume only to fail.
+			if (key.EndsWith(".gz", StringComparison.Ordinal))
+			{
+				return urls;
+			}
+
 			var tilts = baseVol.Tilts;
 			if (tilts is null || tilts.Count == 0)
 			{
-				return urls; // legacy volume with no elevation table → base only (JS reports "insufficient")
+				return urls; // no elevation table → base only (the WebView reads whatever cuts the buffer holds)
 			}
 
 			// Add the higher cuts: the lowest distinct angle is the base (already added), so skip it and take
