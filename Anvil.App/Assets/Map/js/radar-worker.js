@@ -3,6 +3,19 @@
 // back so the bzip2 decode never freezes the UI. Classic worker using dynamic import().
 self.onmessage = function (e) {
     const d = e.data;
+    // Full-volume VWP storm motion (radar.js computeStormMotionForVolume): decode a volume's bottom velocity
+    // tilts, build a merged VAD wind profile, and reduce to a Bunkers storm motion — the tiny result comes
+    // back (no geometry). See radar-decode decodeVwp; runs off-thread because the per-cut dealias is the cost.
+    if (d.vwp) {
+        import('./radar-decode.js').then(function (m) {
+            return m.decodeVwp(d.buffers);
+        }).then(function (motion) {
+            self.postMessage({ vwp: true, reqId: d.reqId, motion: motion });
+        }).catch(function (err) {
+            self.postMessage({ vwp: true, reqId: d.reqId, error: String(err && err.message ? err.message : err) });
+        });
+        return;
+    }
     // Grids-only inspector build (radar.js decodeGridForFrame): decode just ONE product's value grid and
     // transfer it back for the host to merge into the existing frame — no full re-decode. See decodeGridOnly.
     if (d.gridOnly) {
@@ -30,7 +43,7 @@ self.onmessage = function (e) {
             decodeMs: res.decodeMs, buildMs: res.buildMs,
             radials: res.radials, gates: res.gates, bytes: res.bytes, rangeMeters: res.rangeMeters,
             elevList: res.elevList, velElev: res.velElev, reflStats: res.reflStats, velStats: res.velStats,
-            velNyq: res.velNyq, dealias: res.dealias, autoStorm: res.autoStorm,
+            velNyq: res.velNyq, dealias: res.dealias,
             moments: {}, grids: {},
         };
         const transfer = [];

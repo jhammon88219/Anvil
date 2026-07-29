@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Anvil.Models;
 
@@ -70,6 +71,14 @@ namespace Anvil.Services
 		/// motion's component along each beam. Changing it rebuilds the loop's SRV geometry (only re-decodes
 		/// while SRV is the active product).</summary>
 		Task SetStormMotionAsync(double speedKt, double directionDeg, bool auto);
+
+		/// <summary>Computes the AUTOMATIC (VAD-derived) storm motion for ONE volume from its bottom velocity
+		/// tilts. <paramref name="tiltUrls"/> are the local (radarlevel2-host) URLs of those tilts (base first);
+		/// the WebView fetches them, builds a full-volume VAD wind profile → Bunkers right-mover off-thread,
+		/// caches the result per volume, applies it to that volume's SRV, and posts it back as
+		/// <c>{type:"radarStormMotion"}</c> for the readout. A single low tilt is too shallow for a correct
+		/// profile, which is why the whole set is needed. No-op while manual mode is active.</summary>
+		Task ComputeStormMotionAsync(IReadOnlyList<string> tiltUrls);
 
 		/// <summary>
 		/// Enables or disables inspect mode (read the value under the cursor). While on, the WebView

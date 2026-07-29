@@ -65,6 +65,19 @@ namespace Anvil.Services
 		Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, float? tiltAngle = null, bool prioritized = false, CancellationToken cancellationToken = default);
 
 		/// <summary>
+		/// Ensures the bottom several VELOCITY tilts of the volume for <paramref name="key"/> are cached and
+		/// returns their local (radarlevel2-host) URLs, base first — the input to the WebView's full-volume
+		/// storm-motion (VAD → Bunkers) computation. A single low tilt only samples ~2-3 km of wind profile
+		/// near convection, far short of the 0-6 km a Bunkers estimate needs, so this provisions the lowest
+		/// cuts spanning up to ~6-7° (enough to reach 6 km).
+		///
+		/// <para>Retains the raw volume first (one download) so every tilt then extracts locally, rather than
+		/// a full download per tilt. Returns just the base URL when the VCP elevation table can't be read
+		/// (legacy volume) — the caller then gets an "insufficient profile" result rather than a wrong motion.</para>
+		/// </summary>
+		Task<IReadOnlyList<string>> EnsureVwpTiltsAsync(RadarSite site, string key, CancellationToken cancellationToken = default);
+
+		/// <summary>
 		/// Speculatively downloads the given volumes IN FULL in the background and retains them, so that
 		/// extracting any tilt from them later needs no network — the tilt analogue of velocity prefetch.
 		///

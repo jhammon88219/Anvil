@@ -527,6 +527,7 @@ namespace Anvil.ViewModels
 				if (_isMapReady)
 				{
 					_ = _mapService.ShowRadarFrameAsync(clamped);
+					RequestAutoStormMotion(); // if this stepped onto a new volume, compute its auto storm motion
 				}
 			}
 		}
@@ -614,13 +615,17 @@ namespace Anvil.ViewModels
 		// ===== Storm-Relative Velocity (SRV) storm motion ===============================================
 		// SRV = base velocity − the storm motion's component along each beam, so a storm's own translation is
 		// removed and rotation (mesocyclones) reads near zero. By default the motion is AUTOMATIC — derived
-		// from each volume's own VAD wind profile (Bunkers right-mover; RadarScope-style), fully offline in
-		// the decoder (see radar-decode computeStormMotion). The manual speed/direction below are the OVERRIDE
-		// used only when Auto is off. Set in App Settings → Radar; pushed to the SRV builder via the map.
+		// from each volume's own FULL-VOLUME VAD wind profile (Bunkers right-mover; RadarScope-style), fully
+		// offline in the decoder. ⚠️ A single low tilt is too shallow for a correct 0–6 km profile, so the VM
+		// hands the WebView a volume's bottom velocity tilts (EnsureVwpTiltsAsync) whenever SRV is shown in
+		// Auto mode; the WebView merges their VAD profiles → Bunkers (per volume, cached) and reports the
+		// result back via SetAutoStormMotion. The manual speed/direction below are the OVERRIDE used only when
+		// Auto is off. Set in App Settings → Radar; pushed to the SRV builder via the map.
 		private bool _stormMotionAuto = true;
 		private double _stormMotionSpeedKt;
 		private double _stormMotionDirectionDeg;
 		private string _autoStormMotionText = "Auto — awaiting SRV";
+		private string? _lastVwpKey; // the volume key we last asked the WebView to compute an auto motion for
 
 		/// <summary>When true (default) the SRV storm motion is derived automatically from the radar's own
 		/// velocity (VAD wind profile → Bunkers right-mover). When false the manual
@@ -635,6 +640,11 @@ namespace Anvil.ViewModels
 					OnPropertyChanged(nameof(StormMotionManual));
 					if (_isMapReady)
 						_ = _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg, _stormMotionAuto);
+					if (_stormMotionAuto)
+					{
+						AutoStormMotionText = "Auto — awaiting SRV";
+						RequestAutoStormMotion(force: true); // compute for the current volume if SRV is showing
+					}
 				}
 			}
 		}
@@ -679,16 +689,72 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>Records the AUTOMATIC (VAD-derived) storm motion reported by the decoder for the latest
-		/// SRV frame — speed in m/s, direction = bearing the storm moves toward, plus the estimate's source
-		/// ("Bunkers R" / "Mean wind"). Refreshes the <see cref="AutoStormMotionText"/> readout. No-op unless
-		/// Auto is on (a stale manual-mode report shouldn't overwrite the readout).</summary>
-		public void SetAutoStormMotion(double speedMs, double directionDeg, string? source)
+		/// <summary>Records the AUTOMATIC (VAD-derived) storm motion the WebView computed for a volume's
+		/// full-volume wind profile — speed in m/s, direction = bearing the storm moves toward, plus the
+		/// estimate's source ("Bunkers R" / "Mean wind"). When <paramref name="insufficient"/> the volume's
+		/// merged profile was too shallow to trust (SRV stays at base velocity), shown as such. Refreshes the
+		/// <see cref="AutoStormMotionText"/> readout. No-op unless Auto is on (a stale report shouldn't win).</summary>
+		public void SetAutoStormMotion(double speedMs, double directionDeg, string? source, bool insufficient = false)
 		{
 			if (!_stormMotionAuto) return;
+			if (insufficient)
+			{
+				AutoStormMotionText = "Auto — insufficient profile";
+				return;
+			}
 			var kt = speedMs / 0.514444;
 			var src = string.IsNullOrWhiteSpace(source) ? "" : " · " + source;
 			AutoStormMotionText = $"{Math.Round(directionDeg)}° at {Math.Round(kt)} kt{src}";
+		}
+
+		/// <summary>Asks the WebView to compute the auto storm motion for the CURRENTLY displayed volume from
+		/// its bottom velocity tilts — the fix for the single-tilt profile being too shallow. Only fires while
+		/// SRV is the active product in Auto mode; skips the near-real-time live frame (no archive key). The
+		/// WebView caches per volume, and we skip a repeat request for the same volume (unless
+		/// <paramref name="force"/>), so playback computes each volume once and scrubbing back is free.</summary>
+		private void RequestAutoStormMotion(bool force = false)
+		{
+			if (!_isMapReady || !_stormMotionAuto)
+			{
+				return;
+			}
+			if (_radarProductIndex < 0 || _radarProductIndex >= RadarProductOptions.Count
+				|| RadarProductOptions[_radarProductIndex].Id != "srv")
+			{
+				return; // motion only matters (and only worth its extractions) while SRV drives the view
+			}
+			if (_selectedRadarOption?.Site is not { } site)
+			{
+				return;
+			}
+			var idx = _currentFrameIndex;
+			if (idx < 0 || idx >= _loadedKeys.Length)
+			{
+				return; // the newest/live frame has no archive key → SRV falls back to base velocity there
+			}
+			var key = _loadedKeys[idx];
+			if (!force && key == _lastVwpKey)
+			{
+				return; // same volume as last request → the WebView already has it (or it's in flight)
+			}
+			_lastVwpKey = key;
+			_ = ComputeAutoStormMotionAsync(site, key);
+		}
+
+		private async Task ComputeAutoStormMotionAsync(RadarSite site, string key)
+		{
+			try
+			{
+				var urls = await _radarService.EnsureVwpTiltsAsync(site, key);
+				if (urls.Count > 0)
+				{
+					await _mapService.ComputeStormMotionAsync(urls);
+				}
+			}
+			catch (System.Exception ex)
+			{
+				Diag($"vwp storm-motion {key} failed: {ex.Message}");
+			}
 		}
 
 		/// <summary>The radar products (moments) selectable in the Product combo — the single source the
@@ -746,6 +812,7 @@ namespace Anvil.ViewModels
 				if (_isMapReady && value >= 0 && value < RadarProductOptions.Count)
 				{
 					_ = _mapService.SetRadarProductAsync(RadarProductOptions[value].Id);
+					RequestAutoStormMotion(force: true); // switching to SRV needs the current volume's auto motion
 				}
 			}
 		}

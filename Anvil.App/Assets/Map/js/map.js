@@ -118,6 +118,12 @@ try {
     window.setStormMotion = function (speedKt, dirDeg, auto) {
         if (window.RadarLayer) window.RadarLayer.setStormMotion(map, speedKt, dirDeg, auto);
     };
+    // Compute the AUTO (VAD-derived) storm motion for one volume from its bottom velocity tilt URLs — the
+    // host calls this for the displayed volume while SRV/auto is active (a single tilt is too shallow to be
+    // correct, so the motion comes from a full-volume wind profile). urls = a JSON array string.
+    window.computeStormMotion = function (urls) {
+        if (window.RadarLayer) window.RadarLayer.computeStormMotion(urls);
+    };
     // Inspect mode: read the value under the cursor (RadarScope-style). Delegates to RadarLayer,
     // which tracks the mouse and posts {type:"radarInspect"} for the color-scale marker.
     window.setRadarInspect = function (on) {

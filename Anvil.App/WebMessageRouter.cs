@@ -65,14 +65,16 @@ namespace Anvil
 					return;
 				}
 
-					// The automatic (VAD-derived) storm motion for the latest SRV frame — drives the App
-					// Settings "Auto" readout. speed is m/s; the VM converts to knots.
+					// The automatic (VAD-derived) storm motion the WebView computed for the displayed volume's
+					// full-volume wind profile — drives the App Settings "Auto" readout. speed is m/s; the VM
+					// converts to knots. `insufficient` means the profile was too shallow to trust.
 					if (type == "radarStormMotion")
 					{
+						var insufficient = root.TryGetProperty("insufficient", out var inEl) && inEl.ValueKind == System.Text.Json.JsonValueKind.True;
 						var speedMs = root.TryGetProperty("speedMs", out var smEl) ? smEl.GetDouble() : 0;
 						var dirDeg = root.TryGetProperty("dirDeg", out var dmEl) ? dmEl.GetDouble() : 0;
 						var source = root.TryGetProperty("source", out var srcEl) ? srcEl.GetString() : null;
-						_viewModel.Radar.SetAutoStormMotion(speedMs, dirDeg, source);
+						_viewModel.Radar.SetAutoStormMotion(speedMs, dirDeg, source, insufficient);
 						return;
 					}
 

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -92,6 +93,11 @@ namespace Anvil.Services
 
 		public Task SetStormMotionAsync(double speedKt, double directionDeg, bool auto) =>
 			_mapView.RunScriptAsync(Call("setStormMotion", speedKt, directionDeg, auto));
+
+		// tiltUrls → a JSON array the shim JSON.parses (same single-quoted-payload pattern as radarRemap /
+		// radarValidate). The WebView computes the VAD → Bunkers motion off-thread and posts it back.
+		public Task ComputeStormMotionAsync(IReadOnlyList<string> tiltUrls) =>
+			_mapView.RunScriptAsync(Call("computeStormMotion", System.Text.Json.JsonSerializer.Serialize(tiltUrls)));
 
 		public Task SetRadarInspectAsync(bool enabled) =>
 			_mapView.RunScriptAsync(Call("setRadarInspect", enabled));

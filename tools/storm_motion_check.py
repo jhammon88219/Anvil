@@ -1,31 +1,34 @@
 #!/usr/bin/env python3
 """
-storm_motion_check.py - unit-test the app's AUTOMATIC storm motion (VAD -> Bunkers), no JS runtime needed.
+storm_motion_check.py - unit-test the app's AUTOMATIC storm motion (full-volume VAD -> Bunkers), no JS runtime.
 
-`radar-decode.js` `computeStormMotion` derives the Storm-Relative-Velocity storm motion from a volume's
-OWN Doppler velocity, fully offline: at a fixed conical elevation phi a uniform horizontal wind (u east,
-v north) makes the radial velocity vary sinusoidally with azimuth,
+`radar-decode.js` derives the Storm-Relative-Velocity storm motion from the radar's OWN Doppler velocity,
+fully offline. At a fixed conical elevation phi a uniform horizontal wind (u east, v north) makes the radial
+velocity vary sinusoidally with azimuth:
     Vr(az) = a0 + cos(phi)*(u*sin az + v*cos az),
-so a per-range-ring least-squares harmonic fit recovers (u,v) at that ring's beam height h. Sweeping the
-ring outward builds a (height,u,v) VAD profile, which feeds the Bunkers (2000) right-moving supercell
-estimate (0-6 km mean wind + 7.5 m/s right of the 0-6 km shear), falling back to the mean wind when the
-shear is weak.
+so a per-range-ring least-squares harmonic fit recovers (u,v) at that ring's beam height h. ONE low tilt only
+samples ~2-3 km of clean profile near convection -- far short of the 0-6 km a Bunkers estimate needs -- so the
+app builds the profile across SEVERAL velocity tilts (vadPointsForCut per cut, each with its own phi) and
+MERGES their points into one deep VWP (bunkersFromProfile), which feeds the Bunkers (2000) right-moving
+supercell estimate (0-6 km mean wind + 7.5 m/s right of the 0-6 km shear).
 
 This machine has no Node/deno/bun to run the JS, so -- exactly like tools/dealias_check.py mirrors the JS
-dealiaser -- this script re-implements `computeStormMotion` (+ `solve3`) in Python as a FAITHFUL
-transcription of the JS, then drives it with SYNTHETIC sweeps whose answer is known ANALYTICALLY:
+dealiaser -- this script re-implements `vadPointsForCut` + `bunkersFromProfile` + `solve3` in Python as a
+FAITHFUL transcription of the JS, then drives them with SYNTHETIC sweeps whose answer is known ANALYTICALLY:
 
-  * uniform wind, no shear    -> recovers that wind EXACTLY; source "Mean wind"
-  * linear-shear profile      -> per-ring VAD recovers wind(h); final = an INDEPENDENTLY hand-computed
-                                 Bunkers right-mover (mean + 7.5 m/s right of the shear); source "Bunkers R"
-  * too-sparse sweep          -> None (never reaches VAD_MIN_PTS on any ring)
-  * wedge-clustered azimuths   -> None (resultant length > VAD_MAX_CLUSTER: can't fit a full circle)
+  * uniform wind, deep single cut  -> recovers that wind EXACTLY; source "Mean wind"
+  * linear-shear single cut        -> per-ring VAD recovers wind(h); final = hand-computed Bunkers R
+  * MULTI-CUT combine (4 tilts)    -> per-cut motion then componentwise median = the wind exactly
+  * combine rejects an outlier     -> a contaminated cut can't drag the median off the consistent cluster
+  * shallow single cut             -> insufficient (profile doesn't reach VWP_MIN_TOP)
+  * too-sparse / wedge-clustered   -> insufficient (no ring can be fit)
 
-No network, no Py-ART, deterministic. Exit 0 = all pass, 1 = a failure.
+No network, no Py-ART, deterministic. Exit 0 = all pass, 1 = a failure. (For a REAL-DATA cross-check against
+Py-ART's vad_browning, see tools/storm_motion_realcheck.py.)
 
-WARNING: if you edit `computeStormMotion` / `solve3` / the VAD_* / BUNKERS_* / AE_M constants in
-radar-decode.js, mirror the edit in the "JS mirror" section below and re-run, or this stops guarding the
-shipped code. Usage:  py -3.12 tools/storm_motion_check.py [-v]
+WARNING: if you edit vadPointsForCut / bunkersFromProfile / solve3 / the VAD_* / BUNKERS_* / VWP_* constants
+in radar-decode.js, mirror the edit below and re-run, or this stops guarding the shipped code. Usage:
+  py -3.12 tools/storm_motion_check.py [-v]
 
 Does NOT touch the C# app.
 """
@@ -36,7 +39,7 @@ VERBOSE = "-v" in sys.argv or "--verbose" in sys.argv
 D2R = math.pi / 180.0
 
 # ============================================================================================
-# ==  Python MIRROR of the JS `computeStormMotion` (radar-decode.js). Keep in sync.          ==
+# ==  Python MIRROR of the JS storm-motion math (radar-decode.js). Keep in sync.             ==
 # ============================================================================================
 # Constants transcribed verbatim from radar-decode.js:
 VAD_MIN_PTS = 30          # min valid gates around a ring to trust its harmonic fit
@@ -46,6 +49,8 @@ VAD_MAX_SPEED = 80.0      # reject an implausible fitted wind speed (m/s)
 AE_M = 8494667.0          # 4/3-Earth effective radius (m): h ~ r*sinphi + r^2/2ae
 BUNKERS_D = 7.5           # Bunkers deviation magnitude (m/s), right of the 0-6 km shear
 BUNKERS_MIN_SHEAR = 3.0   # below this 0-6 km shear (m/s) use the mean wind, not a supercell deviation
+VWP_MIN_TOP = 5000.0      # merged profile must reach >= this height (m) to trust a 0-6 km Bunkers estimate
+VWP_MIN_PTS = 8           # ...and carry at least this many ring points; else "insufficient"
 
 
 def solve3(a, b, c, d, e, f, g, h, ii, r0, r1, r2):
@@ -60,11 +65,10 @@ def solve3(a, b, c, d, e, f, g, h, ii, r0, r1, r2):
     return (x0, x1, x2)
 
 
-def compute_storm_motion(radials, phi_deg, first_gate_km, gate_size_km):
-    """Faithful transcription of `computeStormMotion`. `radials` = list of {'az': deg, 'data': [m/s | None]}
-    standing in for the dealiased Doppler cut; `phi_deg` stands in for medianElevationAngle. Returns
-    (result | None, prof) where result mirrors the JS dict (+ mu/mv for testing) and prof is the built
-    (h,u,v) VAD profile (for independent per-ring assertions)."""
+def vad_points_for_cut(radials, phi_deg, first_gate_km, gate_size_km):
+    """Faithful transcription of `vadPointsForCut`. `radials` = list of {'az': deg, 'data': [m/s | None]}
+    standing in for one cut's dealiased Doppler velocity; `phi_deg` = this cut's median elevation. Returns a
+    list of { 'h', 'u', 'v' } ring points (possibly empty)."""
     n = len(radials)
     phi = phi_deg
     if not (phi == phi) or phi <= 0:   # NaN or non-positive -> the JS 0.5 fallback
@@ -73,19 +77,18 @@ def compute_storm_motion(radials, phi_deg, first_gate_km, gate_size_km):
     cos_phi = math.cos(phi_rad)
     sin_phi = math.sin(phi_rad)
 
-    # Range geometry is shared across a cut's radials -- first radial that carries data.
     ref = None
     for d in radials:
         if d and d.get('data'):
             ref = d
             break
     if ref is None:
-        return None, []
+        return []
     first_gate_m = first_gate_km * 1000.0
     gate_size_m = gate_size_km * 1000.0
     n_gates = len(ref['data'])
     if not (first_gate_m == first_gate_m) or not (gate_size_m > 0):
-        return None, []
+        return []
 
     az_sin = [0.0] * n
     az_cos = [0.0] * n
@@ -103,7 +106,7 @@ def compute_storm_motion(radials, phi_deg, first_gate_km, gate_size_km):
         has[i] = 1
 
     stride = max(1, round(1000.0 / gate_size_m))
-    prof = []
+    points = []
     for j in range(0, n_gates, stride):
         sN = Ss = Sc = Sss = Scc = Ssc = Sv = Svs = Svc = 0.0
         for i in range(n):
@@ -141,11 +144,19 @@ def compute_storm_motion(radials, phi_deg, first_gate_km, gate_size_km):
         if not (math.hypot(u, vv) < VAD_MAX_SPEED):
             continue
         r = first_gate_m + j * gate_size_m
-        prof.append({'h': r * sin_phi + r * r / (2.0 * AE_M), 'u': u, 'v': vv})
+        points.append({'h': r * sin_phi + r * r / (2.0 * AE_M), 'u': u, 'v': vv})
+    return points
 
-    if len(prof) < 2:
-        return None, prof
-    prof.sort(key=lambda p: p['h'])
+
+def bunkers_from_profile(prof):
+    """Faithful transcription of `bunkersFromProfile`. Merges VAD ring points into a Bunkers storm motion,
+    or returns { 'insufficient': True, 'topM': ... } when the profile is too shallow/sparse to trust."""
+    if not prof or len(prof) < 2:
+        return {'insufficient': True, 'topM': 0}
+    prof = sorted(prof, key=lambda p: p['h'])
+    top = prof[-1]['h']
+    if top < VWP_MIN_TOP or len(prof) < VWP_MIN_PTS:
+        return {'insufficient': True, 'topM': round(top)}
 
     def mean_layer(h0, h1):
         u = v = 0.0
@@ -155,10 +166,9 @@ def compute_storm_motion(radials, phi_deg, first_gate_km, gate_size_km):
                 u += p['u']; v += p['v']; c += 1
         return {'u': u / c, 'v': v / c} if c else None
 
-    top = prof[-1]['h']
     mean = mean_layer(0, 6000) or mean_layer(0, top)
     if mean is None:
-        return None, prof
+        return {'insufficient': True, 'topM': round(top)}
     bot = mean_layer(0, 500) or {'u': prof[0]['u'], 'v': prof[0]['v']}
     tp = mean_layer(5500, 6000) or {'u': prof[-1]['u'], 'v': prof[-1]['v']}
     shu = tp['u'] - bot['u']
@@ -173,31 +183,42 @@ def compute_storm_motion(radials, phi_deg, first_gate_km, gate_size_km):
     if dir_deg < 0:
         dir_deg += 360
     return {'speedMs': math.hypot(mu, mv), 'dirDeg': dir_deg, 'source': source,
-            'layers': len(prof), 'topM': round(top), 'mu': mu, 'mv': mv}, prof
+            'layers': len(prof), 'topM': round(top), 'mu': mu, 'mv': mv}
+
+
+VWP_MIN_CUTS = 2
+
+
+def combine_cut_motions(motions):
+    """Faithful transcription of `combineCutMotions`. Componentwise MEDIAN of the sufficient per-cut motions
+    (robust to a contaminated cut); { 'insufficient': True } when fewer than VWP_MIN_CUTS cuts are sufficient."""
+    good = [m for m in motions if m and not m.get('insufficient')]
+    if len(good) < VWP_MIN_CUTS:
+        return {'insufficient': True, 'topM': max([m.get('topM', 0) for m in motions] or [0])}
+    us = sorted(m['speedMs'] * math.sin(m['dirDeg'] * D2R) for m in good)
+    vs = sorted(m['speedMs'] * math.cos(m['dirDeg'] * D2R) for m in good)
+
+    def median(a):
+        n = len(a)
+        h = n >> 1
+        return a[h] if (n % 2) else (a[h - 1] + a[h]) / 2.0
+    mu, mv = median(us), median(vs)
+    dir_deg = (math.degrees(math.atan2(mu, mv)) + 360) % 360
+    source = 'Bunkers R' if any(m['source'] == 'Bunkers R' for m in good) else 'Mean wind'
+    return {'speedMs': math.hypot(mu, mv), 'dirDeg': dir_deg, 'source': source, 'cuts': len(good),
+            'layers': sum(m.get('layers', 0) for m in good),
+            'topM': max(m.get('topM', 0) for m in good), 'mu': mu, 'mv': mv}
 
 
 # ============================================================================================
-# ==  Synthetic sweeps (analytic answer keys) + independent expectations                    ==
+# ==  Synthetic sweeps (analytic answer keys)                                               ==
 # ============================================================================================
 FIRST_GATE_KM = 2.125
 GATE_SIZE_KM = 0.25
 N_GATES = 920            # ~232 km range, like a real velocity cut
 
 
-def ring_heights(phi_deg):
-    """The exact beam heights the mirror will build (same j-stride + h formula), for independent expectation."""
-    gate_m = GATE_SIZE_KM * 1000.0
-    first_m = FIRST_GATE_KM * 1000.0
-    sin_phi = math.sin(phi_deg * D2R)
-    stride = max(1, round(1000.0 / gate_m))
-    hs = []
-    for j in range(0, N_GATES, stride):
-        r = first_m + j * gate_m
-        hs.append(r * sin_phi + r * r / (2.0 * AE_M))
-    return hs
-
-
-def build_uniform(u, v, phi_deg):
+def build_uniform(u, v, phi_deg, n_gates=N_GATES):
     """Uniform wind (u east, v north) at every gate -> constant with height, zero shear."""
     cos_phi = math.cos(phi_deg * D2R)
     radials = []
@@ -205,18 +226,18 @@ def build_uniform(u, v, phi_deg):
         az = k + 0.5
         a = az * D2R
         val = cos_phi * (u * math.sin(a) + v * math.cos(a))
-        radials.append({'az': az, 'data': [val] * N_GATES})
+        radials.append({'az': az, 'data': [val] * n_gates})
     return radials
 
 
 def build_shear(uf, vf, phi_deg):
-    """Wind that varies with beam height per uf(h)/vf(h) -> a VAD profile with real shear."""
+    """Wind that varies with beam height per uf(h)/vf(h) -> a VAD profile with real shear (one cut)."""
     cos_phi = math.cos(phi_deg * D2R)
     gate_m = GATE_SIZE_KM * 1000.0
     first_m = FIRST_GATE_KM * 1000.0
     sin_phi = math.sin(phi_deg * D2R)
-    heights = [ (first_m + j * gate_m) * sin_phi + (first_m + j * gate_m) ** 2 / (2.0 * AE_M)
-                for j in range(N_GATES) ]
+    heights = [(first_m + j * gate_m) * sin_phi + (first_m + j * gate_m) ** 2 / (2.0 * AE_M)
+               for j in range(N_GATES)]
     radials = []
     for k in range(360):
         az = k + 0.5
@@ -243,107 +264,142 @@ def check(name, cond, detail=""):
 
 
 def test_uniform():
-    print("Test 1: uniform wind, no shear -> recovers the wind exactly, source 'Mean wind'")
+    print("Test 1: uniform wind, deep single cut -> recovers the wind exactly, source 'Mean wind'")
     u, v, phi = 15.0, -8.0, 0.5
-    res, prof = compute_storm_motion(build_uniform(u, v, phi), phi, FIRST_GATE_KM, GATE_SIZE_KM)
-    check("returns a result", res is not None)
-    if res is None:
+    prof = vad_points_for_cut(build_uniform(u, v, phi), phi, FIRST_GATE_KM, GATE_SIZE_KM)
+    res = bunkers_from_profile(prof)
+    check("profile is sufficient (deep enough)", not res.get('insufficient'), f"topM={res.get('topM')}")
+    if res.get('insufficient'):
         return
     exp_speed = math.hypot(u, v)
-    exp_dir = math.atan2(u, v) / D2R
-    if exp_dir < 0:
-        exp_dir += 360
+    exp_dir = (math.degrees(math.atan2(u, v)) + 360) % 360
     check("recovered u", abs(res['mu'] - u) < 1e-6, f"got {res['mu']:.9f} want {u}")
     check("recovered v", abs(res['mv'] - v) < 1e-6, f"got {res['mv']:.9f} want {v}")
     check("speed (m/s)", abs(res['speedMs'] - exp_speed) < 1e-6, f"got {res['speedMs']:.6f} want {exp_speed:.6f}")
     check("direction (deg toward)", abs(res['dirDeg'] - exp_dir) < 1e-4, f"got {res['dirDeg']:.4f} want {exp_dir:.4f}")
     check("source is 'Mean wind' (no shear)", res['source'] == 'Mean wind', f"got '{res['source']}'")
-    # Every ring must recover the SAME uniform wind (independent per-ring VAD check).
     worst = max(max(abs(p['u'] - u), abs(p['v'] - v)) for p in prof)
     check("all rings recover the uniform wind", worst < 1e-6, f"worst ring error {worst:.2e} over {len(prof)} rings")
 
 
-def test_shear_bunkers():
-    print("Test 2: linear-shear profile -> per-ring VAD recovers wind(h), final = hand-computed Bunkers R")
-    phi = 1.0
-    # Linear wind profile; enough shear to trigger the Bunkers deviation.
-    def uf(h): return 6.0 + 0.003 * h
-    def vf(h): return -4.0 + 0.0015 * h
-    res, prof = compute_storm_motion(build_shear(uf, vf, phi), phi, FIRST_GATE_KM, GATE_SIZE_KM)
-    check("returns a result", res is not None)
-    if res is None:
-        return
-    # (a) INDEPENDENT per-ring VAD recovery: each ring must recover wind at its own height.
-    worst = max(max(abs(p['u'] - uf(p['h'])), abs(p['v'] - vf(p['h']))) for p in prof)
-    check("per-ring VAD recovers wind(h)", worst < 1e-6, f"worst ring error {worst:.2e} over {len(prof)} rings")
-
-    # (b) INDEPENDENT Bunkers expectation, averaged over the SAME ring heights via analytic wind (not the
-    #     mirror's mean_layer): different structure, so it cross-checks the layer/Bunkers wiring.
+def _bunkers_reference(prof, uf, vf):
+    """Independent Bunkers expectation from the analytic wind at the profile's own ring heights (a
+    differently-structured recompute than bunkers_from_profile's mean_layer, so it cross-checks the wiring)."""
     def layer_mean(h0, h1):
         us = [uf(p['h']) for p in prof if h0 <= p['h'] <= h1]
         vs = [vf(p['h']) for p in prof if h0 <= p['h'] <= h1]
         return (sum(us) / len(us), sum(vs) / len(vs)) if us else None
-    mean = layer_mean(0, 6000)
-    bot = layer_mean(0, 500)
-    tp = layer_mean(5500, 6000)
-    check("0-6 km layer sampled", mean is not None)
-    check("0-0.5 km layer sampled", bot is not None)
-    check("5.5-6 km layer sampled", tp is not None, "(need range that reaches 6 km at this tilt)")
+    mean, bot, tp = layer_mean(0, 6000), layer_mean(0, 500), layer_mean(5500, 6000)
+    return mean, bot, tp
+
+
+def _assert_shear_case(name, prof, uf, vf):
+    res = bunkers_from_profile(prof)
+    check(f"{name}: sufficient", not res.get('insufficient'), f"topM={res.get('topM')}")
+    if res.get('insufficient'):
+        return
+    worst = max(max(abs(p['u'] - uf(p['h'])), abs(p['v'] - vf(p['h']))) for p in prof)
+    check(f"{name}: per-ring VAD recovers wind(h)", worst < 1e-6, f"worst {worst:.2e} over {len(prof)} rings")
+    mean, bot, tp = _bunkers_reference(prof, uf, vf)
+    check(f"{name}: 0-6 / 0-0.5 / 5.5-6 km layers sampled", mean and bot and tp)
     if not (mean and bot and tp):
         return
     shu, shv = tp[0] - bot[0], tp[1] - bot[1]
     sh_mag = math.hypot(shu, shv)
-    check("shear exceeds Bunkers threshold", sh_mag > BUNKERS_MIN_SHEAR, f"shear {sh_mag:.2f} m/s")
+    check(f"{name}: shear exceeds Bunkers threshold", sh_mag > BUNKERS_MIN_SHEAR, f"shear {sh_mag:.2f} m/s")
     exp_mu = mean[0] + BUNKERS_D * (shv / sh_mag)
     exp_mv = mean[1] + BUNKERS_D * (-shu / sh_mag)
-    check("source is 'Bunkers R'", res['source'] == 'Bunkers R', f"got '{res['source']}'")
-    check("Bunkers u", abs(res['mu'] - exp_mu) < 1e-4, f"got {res['mu']:.6f} want {exp_mu:.6f}")
-    check("Bunkers v", abs(res['mv'] - exp_mv) < 1e-4, f"got {res['mv']:.6f} want {exp_mv:.6f}")
-    exp_dir = math.atan2(exp_mu, exp_mv) / D2R
-    if exp_dir < 0:
-        exp_dir += 360
-    check("direction (deg toward)", abs(res['dirDeg'] - exp_dir) < 1e-3, f"got {res['dirDeg']:.3f} want {exp_dir:.3f}")
+    check(f"{name}: source is 'Bunkers R'", res['source'] == 'Bunkers R', f"got '{res['source']}'")
+    check(f"{name}: Bunkers u", abs(res['mu'] - exp_mu) < 1e-4, f"got {res['mu']:.6f} want {exp_mu:.6f}")
+    check(f"{name}: Bunkers v", abs(res['mv'] - exp_mv) < 1e-4, f"got {res['mv']:.6f} want {exp_mv:.6f}")
 
 
-def test_sparse_returns_none():
-    print("Test 3: too-sparse sweep -> None (never reaches VAD_MIN_PTS)")
+def test_shear_single():
+    print("Test 2: linear-shear single cut -> per-ring VAD recovers wind(h), final = hand-computed Bunkers R")
+    def uf(h): return 6.0 + 0.003 * h
+    def vf(h): return -4.0 + 0.0015 * h
+    _assert_shear_case("single", vad_points_for_cut(build_shear(uf, vf, 1.0), 1.0, FIRST_GATE_KM, GATE_SIZE_KM), uf, vf)
+
+
+def test_multi_cut_combine():
+    print("Test 3: MULTI-CUT combine (4 tilts, uniform wind) -> per-cut motion then median = the wind exactly")
+    # Uniform wind: every cut, whatever heights it samples, recovers (u,v) as its Mean-wind motion, so the
+    # combined median is (u,v) EXACTLY — an analytic check of the per-cut → combine path (decodeVwp).
+    u, v = 13.0, -9.0
+    motions = [bunkers_from_profile(vad_points_for_cut(build_uniform(u, v, phi), phi, FIRST_GATE_KM, GATE_SIZE_KM))
+               for phi in (0.5, 1.5, 2.5, 3.5)]
+    check("every cut is sufficient", all(not m.get('insufficient') for m in motions),
+          f"{sum(1 for m in motions if not m.get('insufficient'))}/4 sufficient")
+    res = combine_cut_motions(motions)
+    check("combined is sufficient", not res.get('insufficient'))
+    if res.get('insufficient'):
+        return
+    check("combined u", abs(res['mu'] - u) < 1e-6, f"got {res['mu']:.9f} want {u}")
+    check("combined v", abs(res['mv'] - v) < 1e-6, f"got {res['mv']:.9f} want {v}")
+    check("source 'Mean wind' (no shear)", res['source'] == 'Mean wind', f"got '{res['source']}'")
+
+
+def test_combine_rejects_outlier():
+    print("Test 4: combine_cut_motions -> median rejects a contaminated cut and ignores insufficient cuts")
+    # 4 consistent cuts near 60 deg @ 27 kt + one wild outlier (254 deg @ 15 kt, like Moore's bad 3.1 deg cut)
+    # + an insufficient cut. The componentwise median must land on the consistent cluster, not the outlier.
+    def m(dirdeg, kt, src='Bunkers R'):
+        return {'speedMs': kt * 0.514444, 'dirDeg': dirdeg, 'source': src, 'layers': 100, 'topM': 8000}
+    motions = [m(62, 27), m(64, 29), m(60, 33), m(61, 31), m(254, 15), {'insufficient': True, 'topM': 2500}]
+    res = combine_cut_motions(motions)
+    check("combined is sufficient", not res.get('insufficient'))
+    if res.get('insufficient'):
+        return
+    check("direction near the cluster (~60 deg), not the outlier", abs(((res['dirDeg'] - 62 + 180) % 360) - 180) < 8,
+          f"got {res['dirDeg']:.0f} deg")
+    check("speed near the cluster (~30 kt), not the outlier", abs(res['speedMs'] / 0.514444 - 30) < 6,
+          f"got {res['speedMs']/0.514444:.0f} kt")
+    check("counts only the 5 sufficient cuts", res['cuts'] == 5, f"cuts={res['cuts']}")
+    # Fewer than VWP_MIN_CUTS sufficient -> insufficient.
+    check("one good cut -> insufficient", combine_cut_motions([m(60, 30), {'insufficient': True, 'topM': 3000}]).get('insufficient') is True)
+
+
+def test_shallow_insufficient():
+    print("Test 5: shallow single cut (short range) -> insufficient (doesn't reach VWP_MIN_TOP)")
+    # 0.5 deg over only ~100 km tops out ~1.5 km -> below VWP_MIN_TOP.
+    prof = vad_points_for_cut(build_uniform(12.0, -5.0, 0.5, n_gates=400), 0.5, FIRST_GATE_KM, GATE_SIZE_KM)
+    res = bunkers_from_profile(prof)
+    check("returns insufficient", res.get('insufficient') is True, f"topM={res.get('topM')}, got {res}")
+
+
+def test_sparse_and_wedge_insufficient():
+    print("Test 6: too-sparse and wedge-clustered sweeps -> insufficient (no ring can be fit)")
     phi = 0.5
     cos_phi = math.cos(phi * D2R)
-    radials = []
-    # Only 10 radials carry data, spread around the circle: sN=10 < 30 on every ring.
+    # (a) 10 radials spread around the circle -> sN=10 < 30 on every ring.
+    sparse = []
     for k in range(360):
         az = k + 0.5
-        if k % 36 == 0:  # 10 of them
+        if k % 36 == 0:
             a = az * D2R
-            radials.append({'az': az, 'data': [cos_phi * (12 * math.sin(a) - 5 * math.cos(a))] * N_GATES})
+            sparse.append({'az': az, 'data': [cos_phi * (12 * math.sin(a) - 5 * math.cos(a))] * N_GATES})
         else:
-            radials.append({'az': az, 'data': None})
-    res, prof = compute_storm_motion(radials, phi, FIRST_GATE_KM, GATE_SIZE_KM)
-    check("returns None", res is None, f"got {res}")
-    check("empty profile", len(prof) == 0, f"prof len {len(prof)}")
-
-
-def test_wedge_returns_none():
-    print("Test 4: wedge-clustered azimuths -> None (resultant length > VAD_MAX_CLUSTER)")
-    phi = 0.5
-    cos_phi = math.cos(phi * D2R)
-    radials = []
-    # 60 dense radials all within a 40-degree arc: plenty of points, but they don't span a circle.
+            sparse.append({'az': az, 'data': None})
+    res_sparse = bunkers_from_profile(vad_points_for_cut(sparse, phi, FIRST_GATE_KM, GATE_SIZE_KM))
+    check("sparse -> insufficient", res_sparse.get('insufficient') is True, f"got {res_sparse}")
+    # (b) 60 dense radials all within a 40-degree arc -> resultant length > VAD_MAX_CLUSTER.
+    wedge = []
     for k in range(60):
-        az = k * (40.0 / 60.0)  # 0 .. ~40 deg
+        az = k * (40.0 / 60.0)
         a = az * D2R
-        radials.append({'az': az, 'data': [cos_phi * (12 * math.sin(a) - 5 * math.cos(a))] * N_GATES})
-    res, prof = compute_storm_motion(radials, phi, FIRST_GATE_KM, GATE_SIZE_KM)
-    check("returns None", res is None, f"got {res}")
-    check("empty profile", len(prof) == 0, f"prof len {len(prof)}")
+        wedge.append({'az': az, 'data': [cos_phi * (12 * math.sin(a) - 5 * math.cos(a))] * N_GATES})
+    res_wedge = bunkers_from_profile(vad_points_for_cut(wedge, phi, FIRST_GATE_KM, GATE_SIZE_KM))
+    check("wedge -> insufficient", res_wedge.get('insufficient') is True, f"got {res_wedge}")
 
 
 def main():
-    print("storm_motion_check.py -- computeStormMotion (VAD -> Bunkers) unit test\n")
+    print("storm_motion_check.py -- full-volume storm motion (VAD -> Bunkers) unit test\n")
     test_uniform()
-    test_shear_bunkers()
-    test_sparse_returns_none()
-    test_wedge_returns_none()
+    test_shear_single()
+    test_multi_cut_combine()
+    test_combine_rejects_outlier()
+    test_shallow_insufficient()
+    test_sparse_and_wedge_insufficient()
     print()
     if _failures:
         print(f"FAILED: {_failures} check(s) failed.")

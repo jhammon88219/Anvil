@@ -236,26 +236,11 @@ let _dealiasInfo = '';
 
 // Storm motion for Storm-Relative Velocity (buildSrv), pushed per decode from the host (radar.js →
 // decodeAndBuild/decodeGridOnly). speedMs = storm speed in m/s; dirDeg = the compass bearing (0 = N,
-// clockwise) the storm is MOVING TOWARD. `auto` = derive the motion from this volume's own Doppler
-// velocity (VAD wind profile → Bunkers, see computeStormMotion) instead of using speedMs/dirDeg; that is
-// the default (RadarScope-style). With auto off and {0,0}, SRV equals base velocity (no offset).
-let _stormMotion = { speedMs: 0, dirDeg: 0, auto: true };
-
-// The AUTO (VAD-derived) motion for the current decode, computed at most ONCE per decode and shared by
-// velocity+SRV (both ride the same dealiased cut). Reset at the top of decodeAndBuild/decodeGridOnly.
-// _autoMotion = { speedMs, dirDeg, source, layers, topM } once computed, or null when the sweep was too
-// sparse to fit; _autoComputed guards the one-shot so a failed fit isn't retried every builder call.
-let _autoMotion = null;
-let _autoComputed = false;
-
-// The storm motion buildSrv actually applies: the AUTO vector in auto mode (computed lazily on first use,
-// reusing velocity's already-dealiased cut — no extra dealias), else the host's manual value. Falls back
-// to a zero offset (SRV = base velocity) when auto is on but the fit failed.
-function stormMotionForBuild(radar) {
-    if (!_stormMotion.auto) return _stormMotion;
-    if (!_autoComputed) { _autoMotion = computeStormMotion(radar); _autoComputed = true; }
-    return _autoMotion || { speedMs: 0, dirDeg: 0 };
-}
+// clockwise) the storm is MOVING TOWARD. The host RESOLVES this before each decode: in manual mode it's the
+// user's value, in auto mode it's the volume's deep-VWP motion (decodeVwp, computed once per volume) or
+// {0,0} until that's ready. So buildSrv just subtracts speedMs/dirDeg — the auto derivation is NOT done per
+// frame here anymore (a single tilt is too shallow for a correct VWP; see the storm-motion section below).
+let _stormMotion = { speedMs: 0, dirDeg: 0 };
 
 // Per-decode memo of the dealiased Doppler sweep, so velocity AND SRV (both ride the same cut) share ONE
 // dealias — the priciest step (~1.5 s/frame). Reset at the top of every decodeAndBuild/decodeGridOnly, so
@@ -593,20 +578,23 @@ function buildVelocity(radar, siteLat, siteLon, minDbz, wantGrid) {
     return { geom: geom, grid: buildGrid(dealiased, getAz, 10, VELOCITY_RAMP.unit, 1, wantGrid) };
 }
 
-// ── Automatic storm motion (VAD wind profile → Bunkers) ─────────────────────────────────────────────
-// RadarScope-style automatic storm motion, computed ENTIRELY from this volume's own Doppler velocity — no
-// external/model data (we run fully offline). The key fact: a single low tilt already samples a WIND
-// PROFILE, because the beam climbs with range. At a fixed conical elevation φ a uniform horizontal wind
-// (u = eastward, v = northward) makes the radial velocity vary sinusoidally with azimuth az (0 = N, cw):
+// ── Automatic storm motion (full-volume VWP → Bunkers) ──────────────────────────────────────────────
+// RadarScope-style automatic storm motion, computed ENTIRELY from the radar's own Doppler velocity — no
+// external/model data (we run fully offline). Physics: at a fixed conical elevation φ a uniform horizontal
+// wind (u = eastward, v = northward) makes the radial velocity vary sinusoidally with azimuth az (0 = N, cw):
 //     Vr(az) = a0 + cos(φ)·(u·sin az + v·cos az)
-// (a0 = the divergence/fall-speed constant, discarded). So a per-range-ring least-squares harmonic fit
-// recovers (u,v) at that ring's beam height h ≈ r·sin φ + r²/(2·aₑ), aₑ = 4⁄3-Earth radius. Sweeping the
-// ring outward builds a (height,u,v) profile — the classic VAD/VWP. That profile feeds the Bunkers (2000)
-// right-moving supercell estimate (0–6 km mean wind + 7.5 m/s to the RIGHT of the 0–6 km shear), which is
-// what operational SRM analysis (and RadarScope's derived motion) uses; when the shear is negligible it
-// falls back to the plain 0–6 km mean wind. Returns { speedMs, dirDeg (bearing MOVED TOWARD), source,
-// layers, topM } or null when the sweep is too sparse to fit. Cheap (~a few ms) — reuses the memoized
-// dealias and only runs when SRV is actually built.
+// (a0 = the divergence/fall-speed constant, discarded). A per-range-ring least-squares harmonic fit recovers
+// (u,v) at that ring's beam height h ≈ r·sin φ + r²/(2·aₑ), aₑ = 4⁄3-Earth radius — the classic VAD.
+//
+// ⚠️ ONE low tilt is NOT enough: its clean profile only reaches ~2–3 km near convection, far short of the
+// 0–6 km a Bunkers estimate needs, so a single 0.5° cut gives a physically WRONG storm motion (measured on
+// the Moore 2013 supercell: 7 kt N vs the real ENE ~27 kt; deeper tilts converge on the right answer — see
+// docs/velocity-dealias.md-adjacent notes). So the profile is built across SEVERAL velocity tilts
+// (vadPointsForCut per cut, each with its OWN φ) and their (h,u,v) points MERGED into one deep VWP
+// (bunkersFromProfile). That profile feeds the Bunkers (2000) right-moving supercell estimate (0–6 km mean
+// wind + 7.5 m/s to the RIGHT of the 0–6 km shear); weak shear falls back to the plain 0–6 km mean wind.
+// decodeVwp(buffers) ties it together: the host (radar.js) fetches a volume's bottom ~5 velocity tilts and
+// hands their buffers here; the tiny result is pushed back for the SRV builder + the App Settings readout.
 const VAD_MIN_PTS = 30;         // min valid gates around a ring to trust its harmonic fit
 const VAD_MAX_CLUSTER = 0.6;    // reject a ring whose az are clustered (resultant length > this ⇒ a wedge, not a circle)
 const VAD_MAX_RESID = 6;        // max RMS fit residual (m/s) — rejects convectively contaminated rings
@@ -614,6 +602,8 @@ const VAD_MAX_SPEED = 80;       // reject an implausible fitted wind speed (m/s)
 const AE_M = 8494667;           // 4⁄3-Earth effective radius (m) for beam-height h ≈ r·sinφ + r²/2aₑ
 const BUNKERS_D = 7.5;          // Bunkers deviation magnitude (m/s), right of the 0–6 km shear
 const BUNKERS_MIN_SHEAR = 3;    // below this 0–6 km shear (m/s) use the mean wind, not a supercell deviation
+const VWP_MIN_TOP = 5000;       // merged profile must reach ≥ this height (m) to trust a 0–6 km Bunkers estimate
+const VWP_MIN_PTS = 8;          // …and carry at least this many ring points; else the motion is "insufficient"
 
 // Median elevation angle (deg) of the current cut's radials — φ for the height/VAD math. NaN if none.
 function medianElevationAngle(radar, n) {
@@ -640,11 +630,18 @@ function solve3(a, b, c, d, e, f, g, h, ii, r0, r1, r2) {
     return [x0, x1, x2];
 }
 
-function computeStormMotion(radar) {
-    const sd = velocityDealiased(radar);            // reuse the memoized dealiased Doppler cut (no extra dealias)
-    if (!sd.radials) return null;
-    radar.setElevation(sd.elev);                    // the memo may not have re-pinned the cut — getAzimuth/records read it
-    const radials = sd.radials, n = radials.length;
+// ONE cut's VAD ring points: dealias the cut's Doppler velocity, then a per-range-ring harmonic fit recovers
+// the horizontal wind (u,v) at each ring's beam height, using THIS cut's own elevation φ. Returns an array of
+// { h, u, v } (m, m/s, m/s), possibly empty when the cut has no velocity or every ring is too sparse / folded /
+// convectively contaminated to fit. The heavy step is the dealias, run once per cut; the caller MERGES the
+// points of several cuts (each at a different φ, so each reaches different heights) into one deep profile.
+function vadPointsForCut(radar) {
+    const elev = findVelocityElevation(radar);
+    if (elev === null) return [];
+    radar.setElevation(elev);
+    const radials = dealiasSweep(momentRadials(radar, 'velocity'), radar);
+    if (!radials) return [];
+    const n = radials.length;
     let phi = medianElevationAngle(radar, n);
     if (!isFinite(phi) || phi <= 0) phi = 0.5;      // sane default if the angle is unreadable
     const phiRad = phi * D2R, cosPhi = Math.cos(phiRad), sinPhi = Math.sin(phiRad);
@@ -652,9 +649,9 @@ function computeStormMotion(radar) {
     // Range geometry is shared across a cut's radials — take the first radial that carries data.
     let ref = null;
     for (let i = 0; i < n; i++) { if (radials[i] && radials[i].moment_data) { ref = radials[i]; break; } }
-    if (!ref) return null;
+    if (!ref) return [];
     const firstGateM = ref.first_gate * 1000, gateSizeM = ref.gate_size * 1000, nGates = ref.moment_data.length;
-    if (!isFinite(firstGateM) || !(gateSizeM > 0)) return null;
+    if (!isFinite(firstGateM) || !(gateSizeM > 0)) return [];
 
     // Per-radial azimuth sin/cos, once (skip null / dataless / bad-azimuth radials).
     const azSin = new Float64Array(n), azCos = new Float64Array(n), has = new Uint8Array(n);
@@ -666,7 +663,7 @@ function computeStormMotion(radar) {
 
     // One VAD fit per range ring (gate index j), stepping ~1 km in range to keep it cheap.
     const stride = Math.max(1, Math.round(1000 / gateSizeM));
-    const prof = []; // { h, u, v } sorted below
+    const points = []; // { h, u, v }
     for (let j = 0; j < nGates; j += stride) {
         let sN = 0, Ss = 0, Sc = 0, Sss = 0, Scc = 0, Ssc = 0, Sv = 0, Svs = 0, Svc = 0;
         for (let i = 0; i < n; i++) {
@@ -691,19 +688,31 @@ function computeStormMotion(radar) {
         const u = a1 / cosPhi, vv = b1 / cosPhi;
         if (!(Math.hypot(u, vv) < VAD_MAX_SPEED)) continue;
         const r = firstGateM + j * gateSizeM;
-        prof.push({ h: r * sinPhi + r * r / (2 * AE_M), u: u, v: vv });
+        points.push({ h: r * sinPhi + r * r / (2 * AE_M), u: u, v: vv });
     }
-    if (prof.length < 2) return null;
-    prof.sort(function (p, q) { return p.h - q.h; });
+    return points;
+}
+
+// Merge a set of VAD ring points (from one or more cuts) into a storm motion via Bunkers. Sorts by height,
+// takes the 0–6 km mean wind, and deviates 7.5 m/s to the RIGHT of the 0–6 km shear (the right-moving
+// supercell estimate); weak shear falls back to the mean wind. ⚠️ Guarded: a profile that doesn't reach
+// VWP_MIN_TOP with ≥ VWP_MIN_PTS rings is too shallow to anchor a 0–6 km estimate, so it returns
+// { insufficient:true, topM } — the caller then leaves SRV at base velocity and shows an "insufficient"
+// readout rather than emitting a confidently-wrong deep motion (the single-low-tilt failure mode). Otherwise
+// returns { speedMs, dirDeg (bearing MOVED TOWARD), source, layers, topM }.
+function bunkersFromProfile(prof) {
+    if (!prof || prof.length < 2) return { insufficient: true, topM: 0 };
+    prof = prof.slice().sort(function (p, q) { return p.h - q.h; });
+    const top = prof[prof.length - 1].h;
+    if (top < VWP_MIN_TOP || prof.length < VWP_MIN_PTS) return { insufficient: true, topM: Math.round(top) };
 
     function meanLayer(h0, h1) {
         let u = 0, v = 0, c = 0;
         for (let i = 0; i < prof.length; i++) { const p = prof[i]; if (p.h >= h0 && p.h <= h1) { u += p.u; v += p.v; c++; } }
         return c ? { u: u / c, v: v / c } : null;
     }
-    const top = prof[prof.length - 1].h;
     const mean = meanLayer(0, 6000) || meanLayer(0, top); // 0–6 km mean wind (all sampled levels if it tops below 6 km)
-    if (!mean) return null;
+    if (!mean) return { insufficient: true, topM: Math.round(top) };
     // Bunkers shear = (5.5–6 km mean) − (0–0.5 km mean); fall back to the top/bottom sampled ring when thin.
     let bot = meanLayer(0, 500), tp = meanLayer(5500, 6000);
     if (!bot) bot = { u: prof[0].u, v: prof[0].v };
@@ -720,21 +729,63 @@ function computeStormMotion(radar) {
     return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, layers: prof.length, topM: Math.round(top) };
 }
 
+// Combine the per-cut Bunkers motions into ONE robust estimate: the COMPONENTWISE MEDIAN of the sufficient
+// cuts' (u,v). ⚠️ This is deliberately NOT a naive merge of every cut's ring points — each cut that reaches
+// VWP_MIN_TOP already gives an independent motion (its beam climbs through the whole 0–6 km column with
+// range), and the deep cuts agree closely, so the median rejects a CONTAMINATED cut (storm core in the beam,
+// a bad dealias) and the base tilt's clutter-biased low-level winds that a point-merge would let corrupt the
+// shared mean/shear (measured on Moore 2013: per-cut median → ENE ~27 kt, the real storm track; a point-merge
+// → a wrong ~16 kt). Needs ≥ VWP_MIN_CUTS sufficient cuts, else "insufficient". Mirrored in
+// tools/storm_motion_check.py.
+const VWP_MIN_CUTS = 2;
+function combineCutMotions(motions) {
+    const good = motions.filter(function (m) { return m && !m.insufficient; });
+    if (good.length < VWP_MIN_CUTS) {
+        let t = 0; for (let i = 0; i < motions.length; i++) if (motions[i] && motions[i].topM > t) t = motions[i].topM;
+        return { insufficient: true, topM: t };
+    }
+    const us = good.map(function (m) { return m.speedMs * Math.sin(m.dirDeg * D2R); }).sort(function (a, b) { return a - b; });
+    const vs = good.map(function (m) { return m.speedMs * Math.cos(m.dirDeg * D2R); }).sort(function (a, b) { return a - b; });
+    function median(a) { const n = a.length, h = n >> 1; return (n % 2) ? a[h] : (a[h - 1] + a[h]) / 2; }
+    const mu = median(us), mv = median(vs);
+    let dirDeg = Math.atan2(mu, mv) / D2R; if (dirDeg < 0) dirDeg += 360;
+    const source = good.some(function (m) { return m.source === 'Bunkers R'; }) ? 'Bunkers R' : 'Mean wind';
+    let layers = 0, topM = 0;
+    for (let i = 0; i < good.length; i++) { layers += good[i].layers || 0; if (good[i].topM > topM) topM = good[i].topM; }
+    return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, cuts: good.length, layers: layers, topM: topM };
+}
+
+// Full-volume VWP storm motion: decode each supplied single-tilt velocity buffer (a volume's bottom velocity
+// tilts), compute EACH cut's own VAD → Bunkers motion, and combine them (median) into one robust estimate.
+// Off the UI thread (radar-worker 'vwp' task) since the per-cut dealias is the cost. Returns the combined
+// motion, or { insufficient:true } when fewer than VWP_MIN_CUTS cuts reached the 0–6 km depth.
+export function decodeVwp(buffers) {
+    return loadDecoder().then(function (dec) {
+        const motions = [];
+        for (let b = 0; b < buffers.length; b++) {
+            try {
+                const radar = new dec.Level2Radar(dec.Buffer.from(new Uint8Array(buffers[b])));
+                motions.push(bunkersFromProfile(vadPointsForCut(radar)));
+            } catch (e) { /* skip a cut that won't decode; the other cuts still vote */ }
+        }
+        return combineCutMotions(motions);
+    });
+}
+
 // STORM-RELATIVE VELOCITY (m/s). Same dealiased Doppler cut as base velocity, minus the storm motion's
 // component along each beam: for a gate at azimuth az, SRV = V − S·cos(az − dir), where S/dir are the storm
-// speed/heading — either derived automatically from the volume's VAD wind profile (auto mode, the default;
-// see computeStormMotion) or the host's manual value. The subtracted term is per-radial (azimuth only, not
+// speed/heading the host resolved into _stormMotion — the deep-VWP auto value (decodeVwp) in auto mode, or
+// the user's manual value. The subtracted term is per-radial (azimuth only, not
 // range), so this is a cheap transform of the already-dealiased field — the expensive dealias is not
 // repeated beyond velocity's. Removing the storm's translation makes rotation (mesocyclones) read near
 // zero. With S = 0 it equals base velocity. Colored by SRV_RAMP (velocity's scheme under its own id).
 function buildSrv(radar, siteLat, siteLon, minDbz, wantGrid) {
     const sd = velocityDealiased(radar);          // reuses velocity's dealias within this decode (no re-dealias)
     if (!sd.radials) return { geom: null, grid: null };
-    const sm = stormMotionForBuild(radar);        // auto (VAD) or manual; computed at most once per decode
     radar.setElevation(sd.elev);                  // buildGates' getAzimuth reads the current cut — pin it
     const dealiased = sd.radials;
     const getAz = function (i) { return radar.getAzimuth(i); };
-    const S = sm.speedMs, dir = sm.dirDeg;
+    const S = _stormMotion.speedMs, dir = _stormMotion.dirDeg; // host-resolved (manual, or the deep-VWP auto value)
     // Per-azimuth offset applied to each gate; null gates (no data) stay null so they're skipped.
     const srv = dealiased.map(function (d, i) {
         if (!d || !d.moment_data) return d;
@@ -1076,9 +1127,8 @@ const BUILDERS = {
 export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buildGrids, stormMotion) {
     if (buildProducts === undefined) buildProducts = true; // build everything unless told otherwise (dev harness)
     if (buildGrids === undefined) buildGrids = true;
-    if (stormMotion) _stormMotion = stormMotion; // for buildSrv (SRV); auto (default) = VAD-derived, else manual
+    if (stormMotion) _stormMotion = stormMotion; // for buildSrv (SRV); host-resolved manual or deep-VWP auto value
     _sharedDealiased = null; // reset the per-decode dealias memo
-    _autoMotion = null; _autoComputed = false; // reset the per-decode auto storm-motion memo
     // ON-DEMAND builds: reflectivity is ALWAYS built (the default view + the source of the range ring), and
     // every OTHER product is built only when the host requests it — `buildProducts` is the ARRAY of extra
     // product ids to build (the active product, plus velocity while prefetching), or the literal `true` to
@@ -1168,10 +1218,6 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
             elevList: elevList, velElev: velElevNum, reflStats: reflStats, velStats: velStats, velNyq: velNyq,
             velNyqSrc: velNyqSrc, velNyqRad: velNyqRad, velNyqVol: velNyqVol,
             dealias: (moments.velocity || moments.srv) ? _dealiasInfo : '', // SRV dealiases too
-            // The VAD-derived storm motion for this volume, computed IFF auto mode is on and SRV was built
-            // (buildSrv triggers the fit). null in manual mode or when the sweep was too sparse — the host
-            // forwards a non-null value so App Settings can surface the automatic motion (see radar.js).
-            autoStorm: _autoMotion,
         };
     });
 }
@@ -1185,7 +1231,6 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
 export function decodeGridOnly(ab, siteLat, siteLon, minDbz, productId, stormMotion) {
     if (stormMotion) _stormMotion = stormMotion; // SRV grid needs the storm motion too
     _sharedDealiased = null; // reset the per-decode dealias memo
-    _autoMotion = null; _autoComputed = false; // reset the per-decode auto storm-motion memo
     return loadDecoder().then(function (dec) {
         const radar = new dec.Level2Radar(dec.Buffer.from(new Uint8Array(ab)));
         const builder = BUILDERS[productId];

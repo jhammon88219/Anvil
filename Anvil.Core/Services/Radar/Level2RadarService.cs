@@ -342,6 +342,55 @@ namespace Anvil.Services
 			}
 		}
 
+		// How many velocity tilts (base + higher) to feed the full-volume storm-motion VAD, and the angle
+		// ceiling. Each cut that reaches ~6 km casts an independent vote (the WebView takes the median), so we
+		// want SEVERAL cuts spanning up to ~6-7° — the deeper cuts (~2-5°) are the well-conditioned ones and
+		// outvote a contaminated tilt. 8 covers a typical VCP's 0.5-5.1° block.
+		private const int VwpMaxTilts = 8;
+		private const float VwpMaxTiltDeg = 7.0f;
+
+		public async Task<IReadOnlyList<string>> EnsureVwpTiltsAsync(RadarSite site, string key, CancellationToken cancellationToken = default)
+		{
+			// One raw download up front (idempotent; skips .gz + already-present) so each tilt then extracts
+			// LOCALLY — otherwise a higher tilt (not in the cheap base prefix) would force a full download each.
+			try { await PrefetchRawVolumesAsync(site, new[] { key }, cancellationToken); }
+			catch (OperationCanceledException) { throw; }
+			catch { /* best-effort; EnsureCachedAsync still works via its own download path */ }
+
+			// The base tilt carries the VCP elevation table (Tilts), so ensure it first and read the angles off it.
+			var baseVol = await EnsureCachedAsync(site, key, tiltAngle: null, cancellationToken: cancellationToken);
+			if (baseVol is null)
+			{
+				return System.Array.Empty<string>();
+			}
+
+			var urls = new List<string> { baseVol.LocalUrl };
+			var tilts = baseVol.Tilts;
+			if (tilts is null || tilts.Count == 0)
+			{
+				return urls; // legacy volume with no elevation table → base only (JS reports "insufficient")
+			}
+
+			// Add the higher cuts: the lowest distinct angle is the base (already added), so skip it and take
+			// the next few up to the angle ceiling. A tilt the truncated volume doesn't actually carry extracts
+			// to null and is skipped, so the returned set is only the cuts that really exist.
+			var sorted = tilts.Where(a => a > 0f).Distinct().OrderBy(a => a).ToList();
+			for (var i = 1; i < sorted.Count && urls.Count < VwpMaxTilts; i++)
+			{
+				if (sorted[i] > VwpMaxTiltDeg)
+				{
+					break;
+				}
+				cancellationToken.ThrowIfCancellationRequested();
+				var v = await EnsureCachedAsync(site, key, tiltAngle: sorted[i], cancellationToken: cancellationToken);
+				if (v is not null)
+				{
+					urls.Add(v.LocalUrl);
+				}
+			}
+			return urls;
+		}
+
 		// Writes a prefetched raw volume atomically (temp + move), best-effort: it's a pure optimization,
 		// so a full disk or a lost race just means the next tilt extract re-downloads.
 		private static async Task WriteRawAsync(string rawFile, byte[] volume, CancellationToken ct)
