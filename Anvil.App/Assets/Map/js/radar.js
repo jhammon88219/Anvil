@@ -43,11 +43,22 @@
     // selected. Velocity is still PREFETCHED (warmed in the background) but only while the user is on
     // reflectivity, so switching to it is instant without taxing other views. Empty when on reflectivity with
     // no prefetch. Returns only registered products (a bad id would loop forever in needsBuild).
+    // Velocity + SRV are COMPANIONS: SRV = velocity − storm motion, sharing the (expensive) dealiased cut, so
+    // once one is built the other is nearly free (an azimuth transform + a geometry pass). We build BOTH
+    // whenever a Doppler product is active OR velocity is prefetching, so switching Reflectivity↔Velocity↔SRV
+    // is instant instead of re-decoding the whole loop on the switch. SRV waits until the storm motion has
+    // resolved (srvMotionReady) — otherwise it would build at base velocity and need a rebuild when the auto
+    // motion lands. With the eager per-loop motion compute, that's ready before prefetch does much.
+    function srvMotionReady() { return !stormMotion.auto || (!!_autoMotion && !_autoMotion.insufficient); }
     function wantedProducts() {
         if (!Products) return [];
         var out = [];
-        if (product !== 'reflectivity' && Products[product]) out.push(product);
-        if (velPrefetch && product === 'reflectivity' && Products.velocity) out.push('velocity');
+        if (product !== 'reflectivity' && Products[product]) out.push(product); // the active product itself
+        var doppler = (product === 'velocity' || product === 'srv') || (velPrefetch && product === 'reflectivity');
+        if (doppler) {
+            if (Products.velocity && out.indexOf('velocity') < 0) out.push('velocity');
+            if (Products.srv && out.indexOf('srv') < 0 && srvMotionReady()) out.push('srv');
+        }
         return out;
     }
     // Whether the products we want (wantedProducts) were already built in a decode result — used to reject a
@@ -249,7 +260,12 @@
             + (_autoMotion.insufficient ? 'INSUFFICIENT top=' + _autoMotion.topM
                 : Math.round(_autoMotion.dirDeg) + '°@' + Math.round(_autoMotion.speedMs / 0.514444) + 'kt cuts=' + _autoMotion.cuts)
             + ' rebuild=' + changed);
-        if (changed) dropAllSrvAndRequeue();
+        if (changed) {
+            dropAllSrvAndRequeue(); // rebuild the ACTIVE product's SRV with the new motion (only if product==srv)
+            // SRV is now resolvable but isn't the active product (we're on refl/velocity, prefetching): fill it
+            // into the loop in the BACKGROUND so a later switch to SRV is instant — the velocity-prefetch bargain.
+            if (product !== 'srv' && velPrefetch && srvMotionReady()) queueAllUpgrades('srvfill');
+        }
     }
     function shortKey(u) { var m = /([A-Z]{3,4}_[0-9]{8}_[0-9]{6})/.exec(u || ''); return m ? m[1] : (u || '?'); }
     // Surface the loop's auto motion to the host (App Settings readout). speed is m/s → host converts to kt.
