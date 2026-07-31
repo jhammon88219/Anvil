@@ -499,9 +499,8 @@ namespace Anvil.ViewModels
 				{
 					_ = _mapService.PrefetchRadarVelocityAsync();
 					StartTiltPrefetch();
-					// Compute the loop's auto storm motion NOW (auto mode) so it's ready before SRV is first
-					// built — the build then uses it directly instead of re-decoding the whole loop when it
-					// lands later. Same speculative-work bargain as velocity prefetch; cheap (cached tiles).
+					// Kick the auto storm-motion compute now (self-gated to Doppler products in
+					// RequestAutoStormMotion) so it's ready by the time SRV is viewed.
 					RequestAutoStormMotion();
 				}
 			}
@@ -717,14 +716,24 @@ namespace Anvil.ViewModels
 		/// SRV) and made frames look inconsistent. Keying off the newest volume means scrubbing is a no-op (the
 		/// key doesn't change) while a loop reload/append recomputes.
 		///
-		/// <para>Fired EAGERLY once reflectivity renders (alongside velocity prefetch), not just on the SRV
-		/// switch — so the motion is ready BEFORE SRV is first built and the build uses it directly, instead of
-		/// building SRV at base velocity and then re-decoding the whole loop when the motion lands (the churn
-		/// that made scrubbing unstable). Auto-mode only; guarded by the newest-volume key + the WebView's own
+		/// <para>Fired on loop-ready, product switch, scrub, and auto-toggle, but only computes when a Doppler
+		/// product (Velocity/SRV) is in view (see the gate) — so it's usually ready before/soon after SRV is
+		/// first built. Until it lands the WebView renders base velocity as the SRV stand-in (no SRV is built at
+		/// the wrong motion, so no rebuild). Auto-mode only; guarded by the newest-volume key + the WebView's own
 		/// cache so it computes at most once per loop.</para></summary>
 		private void RequestAutoStormMotion(bool force = false)
 		{
 			if (!_isMapReady || !_stormMotionAuto)
+			{
+				return;
+			}
+			// Only compute when a Doppler product is actually in view — the motion drives SRV, and provisioning
+			// it can cost a raw-volume download, so don't pay that while the user is just browsing reflectivity.
+			// (Velocity counts too: SRV rides velocity's cut, so computing during Velocity makes the later
+			// switch to SRV instant.) All triggers — loop-ready, product switch, scrub, auto-toggle — self-gate here.
+			var pid = _radarProductIndex >= 0 && _radarProductIndex < RadarProductOptions.Count
+				? RadarProductOptions[_radarProductIndex].Id : null;
+			if (pid is not ("srv" or "velocity"))
 			{
 				return;
 			}

@@ -53,7 +53,13 @@
     function wantedProducts() {
         if (!Products) return [];
         var out = [];
-        if (product !== 'reflectivity' && Products[product]) out.push(product); // the active product itself
+        // The active product itself — EXCEPT SRV waits for the storm motion (srvMotionReady): we never build
+        // SRV at the wrong/base motion (that caused a rebuild when the real motion landed). Until it's ready we
+        // build base VELOCITY in SRV's place and render that as the stand-in (see render's SRV fallback).
+        if (product !== 'reflectivity' && Products[product]) {
+            if (product === 'srv' && !srvMotionReady()) { if (Products.velocity) out.push('velocity'); }
+            else out.push(product);
+        }
         var doppler = (product === 'velocity' || product === 'srv') || (velPrefetch && product === 'reflectivity');
         if (doppler) {
             if (Products.velocity && out.indexOf('velocity') < 0) out.push('velocity');
@@ -184,10 +190,13 @@
     function postBuildProgress() {
         var total = frames.length;
         if (!total) { post({ type: 'radarBuildProgress', product: product, built: 0, total: 0, ready: [] }); return; }
+        // While SRV is active but its motion isn't ready we render the VELOCITY stand-in, so report readiness by
+        // VELOCITY (what's actually on screen) — otherwise the frontier reads all-not-ready and playback stalls.
+        var gate = (product === 'srv' && !srvMotionReady()) ? 'velocity' : product;
         var built = 0, ready = new Array(total);
-        var eager = (product === 'reflectivity'); // reflectivity is always built; everything else on demand
+        var eager = (gate === 'reflectivity'); // reflectivity is always built; everything else on demand
         for (var i = 0; i < total; i++) {
-            var r = eager || !!(frames[i] && frames[i].built && frames[i].built[product]);
+            var r = eager || !!(frames[i] && frames[i].built && frames[i].built[gate]);
             ready[i] = r;
             if (r) built++;
         }
@@ -209,8 +218,10 @@
     let _autoMotion = null;
     let _autoMotionKey = '';
     const _vwpInFlight = {};          // volKey -> true while its VWP compute is outstanding
-    const _vwpPending = {};           // worker reqId -> volKey (correlates the async vwp reply)
+    const _vwpPending = {};           // worker reqId -> { volKey, gen } (correlates the async vwp reply)
     let _vwpReqId = 0;
+    let vwpGen = 0;                   // bumped on every beginLoop; a VWP result from an older gen is dropped
+                                     // (a slow compute for the PREVIOUS site must not set this loop's motion)
     // What buildSrv subtracts: the manual value in manual mode; the loop's auto motion (if computed and
     // sufficient) else {0,0} (base velocity) until it lands. GLOBAL — every frame uses the same motion.
     function resolveStormMotion() {
@@ -227,27 +238,47 @@
         if (volKey === _autoMotionKey) { hostLog('vwp cached (republish) ' + shortKey(volKey)); publishAutoMotion(); return; }
         if (_vwpInFlight[volKey]) { hostLog('vwp in-flight, skip ' + shortKey(volKey)); return; }
         _vwpInFlight[volKey] = true;
+        const gen = vwpGen;
         hostLog('vwp start ' + shortKey(volKey) + ' tilts=' + urls.length + ' prod=' + product);
         Promise.all(urls.map(function (u) {
             return fetch(u, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
         })).then(function (abs) {
-            const w = getWorker();
+            const w = getVwpWorker(); // a DEDICATED worker, so the motion isn't queued behind frame decodes
             if (w) {
-                const id = ++_vwpReqId; _vwpPending[id] = volKey;
+                const id = ++_vwpReqId; _vwpPending[id] = { volKey: volKey, gen: gen };
                 w.postMessage({ vwp: true, reqId: id, buffers: abs }, abs);
             } else {
                 import('./radar-decode.js').then(function (m) { return m.decodeVwp(abs); })
-                    .then(function (motion) { onVwpResult(volKey, motion); })
-                    .catch(function (err) { onVwpError(volKey, err); });
+                    .then(function (motion) { onVwpResult(volKey, motion, gen); })
+                    .catch(function (err) { onVwpError(volKey, err, gen); });
             }
-        }).catch(function (err) { onVwpError(volKey, err); });
+        }).catch(function (err) { onVwpError(volKey, err, gen); });
     }
-    function onVwpError(volKey, err) {
-        delete _vwpInFlight[volKey];
-        hostLog('vwp ' + volKey + ' failed: ' + (err && err.message ? err.message : err));
+    // Dedicated Worker for the storm-motion compute — separate from the frame-decode pool so a ~5 s
+    // whole-volume VWP decode never sits behind a backlog of frame decodes (which delayed the motion ~16 s and
+    // let SRV build at the wrong/stale motion, then rebuild). Lazily created; falls back to main-thread decodeVwp.
+    var vwpWorker; // undefined = not tried, Worker = ready, null = unavailable
+    function getVwpWorker() {
+        if (vwpWorker === undefined) {
+            try {
+                vwpWorker = new Worker(new URL('radar-worker.js', SELF_SCRIPT).href);
+                vwpWorker.onmessage = function (e) {
+                    var m = e.data; if (!m || !m.vwp) return;
+                    var p = _vwpPending[m.reqId]; delete _vwpPending[m.reqId];
+                    if (p) { if (m.error) onVwpError(p.volKey, new Error(m.error), p.gen); else onVwpResult(p.volKey, m.motion, p.gen); }
+                };
+                vwpWorker.onerror = function (e) { hostLog('vwp worker error: ' + (e && e.message ? e.message : e)); };
+            } catch (e) { vwpWorker = null; hostLog('vwp worker unavailable; main-thread: ' + (e && e.message ? e.message : e)); }
+        }
+        return vwpWorker;
     }
-    function onVwpResult(volKey, motion) {
+    function onVwpError(volKey, err, gen) {
         delete _vwpInFlight[volKey];
+        hostLog('vwp ' + shortKey(volKey) + ' failed: ' + (err && err.message ? err.message : err));
+    }
+    function onVwpResult(volKey, motion, gen) {
+        delete _vwpInFlight[volKey];
+        if (gen !== vwpGen) { hostLog('vwp result ' + shortKey(volKey) + ' DROPPED (stale loop)'); return; }
         const before = resolveStormMotion();
         _autoMotion = motion || { insufficient: true, topM: 0 };
         _autoMotionKey = volKey;
@@ -410,11 +441,7 @@
                 workerPool = [];
                 for (let i = 0; i < DECODE_POOL_SIZE; i++) {
                     const w = new Worker(new URL('radar-worker.js', SELF_SCRIPT).href);
-                    w.onmessage = function (e) {
-                        const m = e.data;
-                        if (m && m.vwp) { const vk = _vwpPending[m.reqId]; delete _vwpPending[m.reqId]; if (vk) { if (m.error) onVwpError(vk, new Error(m.error)); else onVwpResult(vk, m.motion); } return; }
-                        if (m && m.gridsOnly) applyGridResult(m); else applyFrameResult(m);
-                    };
+                    w.onmessage = function (e) { const m = e.data; if (m && m.gridsOnly) applyGridResult(m); else applyFrameResult(m); };
                     w.onerror = function (e) { hostLog('worker error: ' + (e && e.message ? e.message : e)); };
                     workerPool.push(w);
                 }
@@ -570,21 +597,30 @@
                 if (!f) { noteRenderIssue('no frame at cf=' + currentFrame, false); return; }
                 // Pick the geometry for the active product — one keyed lookup (radar-products.js).
                 let pos, col, cnt;
-                const g = f.moments && f.moments[product];
+                var effProduct = product;
+                let g = f.moments && f.moments[product];
+                // SRV stand-in: while the auto storm motion is still computing, SRV geometry isn't built (we
+                // don't build it at the wrong motion). Render base VELOCITY in its place — SRV ≈ velocity for
+                // weak motion — so the switch shows a moving field immediately instead of blank, and there's no
+                // base-velocity SRV to re-decode when the motion lands. Latch on effProduct so the real SRV
+                // re-uploads when it arrives (uploadedProduct flips velocity→srv).
+                if (!g && product === 'srv' && !srvMotionReady() && f.moments && f.moments.velocity) {
+                    g = f.moments.velocity; effProduct = 'velocity';
+                }
                 if (g) { pos = g.positions; col = g.colors; cnt = g.count; }
                 try {
-                    // Re-upload when the frame OR the product changed. Only latch the buffers as
+                    // Re-upload when the frame OR the (effective) product changed. Only latch the buffers as
                     // current once an upload actually happened: a frame that lacks this product's
                     // geometry (e.g. an archive frame in Velocity mode, or a live volume whose Doppler
                     // companion hadn't finished scanning) must NOT mark uploadedFrame, or the buffers
                     // stay stale-but-marked and a later frame that DOES carry the geometry is skipped.
-                    if ((uploadedFrame !== currentFrame || uploadedProduct !== product) && pos && col) {
+                    if ((uploadedFrame !== currentFrame || uploadedProduct !== effProduct) && pos && col) {
                         glc.bindBuffer(glc.ARRAY_BUFFER, posBuf);
                         glc.bufferData(glc.ARRAY_BUFFER, pos, glc.STATIC_DRAW);
                         glc.bindBuffer(glc.ARRAY_BUFFER, colorBuf);
                         glc.bufferData(glc.ARRAY_BUFFER, col, glc.STATIC_DRAW);
                         uploadedFrame = currentFrame;
-                        uploadedProduct = product;
+                        uploadedProduct = effProduct;
                     }
                     if (!cnt) return; // this product has nothing to draw on this frame
 
@@ -1035,6 +1071,11 @@
             loopToken++;            // invalidate any in-flight frames from a previous loop
             resetUpgrades();        // and drop any pending/in-flight lazy-upgrade decodes from it
             velPrefetch = false;    // new site: build reflectivity first; the host re-arms velocity prefetch once it's ready
+            // ⚠️ Forget the previous loop's storm motion: a NEW site must NOT prefetch SRV with the old site's
+            // motion (that built SRV wrong, then rebuilt the whole loop when the real motion landed). srvMotionReady
+            // reads false until THIS loop's motion is computed; vwpGen++ drops any still-in-flight compute for the old loop.
+            _autoMotion = null; _autoMotionKey = ''; vwpGen++;
+            for (var _vk in _vwpInFlight) delete _vwpInFlight[_vk];
             frames = [];
             currentFrame = -1;
             pendingFrame = -1;
