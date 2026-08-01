@@ -1189,6 +1189,14 @@ namespace Anvil.Services
 			}
 		}
 
+		// A real Level II volume is several MB (even a small clear-air one is ~1 MB+). A "_V06" far below this
+		// is a degenerate/aborted scan — headers only, no radials — that the archive occasionally holds (a
+		// radar restart, a cut that never completed). Extracting one yields NO elevations, i.e. a black frame
+		// that flickers mid-loop (measured: KAMA 2026-08-01 00:20:57Z was 3,962 bytes). We filter these out
+		// during listing, using the <Size> the S3 response already carries. 100 KB is nowhere near any real
+		// volume, so this can only ever drop junk.
+		private const long MinVolumeBytes = 100_000;
+
 		// Lists all _V06 keys (ascending) under a day prefix, paging through if needed.
 		private async Task<List<string>> KeysForDayAsync(string siteId, DateTimeOffset day, CancellationToken ct)
 		{
@@ -1207,13 +1215,23 @@ namespace Anvil.Services
 				var xml = await _http.GetStringAsync(url, ct);
 				var doc = XDocument.Parse(xml);
 
-				foreach (var keyEl in doc.Descendants(S3 + "Key"))
+				// Iterate <Contents> (not bare <Key>) so we can read each object's <Size> and drop degenerate
+				// volumes — see MinVolumeBytes. This is what keeps a 4 KB aborted "_V06" from becoming a black
+				// frame in the loop.
+				foreach (var contents in doc.Descendants(S3 + "Contents"))
 				{
-					var k = keyEl.Value;
-					if (IsVolumeKey(k))
+					var k = contents.Element(S3 + "Key")?.Value;
+					if (k is null || !IsVolumeKey(k))
 					{
-						keys.Add(k);
+						continue;
 					}
+					if (long.TryParse(contents.Element(S3 + "Size")?.Value, out var size) && size < MinVolumeBytes)
+					{
+						RadarDiagnostics.Log("svc", "list", ("site", siteId), ("lvl", "warn"),
+							("msg", $"skip degenerate volume {k[(k.LastIndexOf('/') + 1)..]} ({size} B)"));
+						continue;
+					}
+					keys.Add(k);
 				}
 
 				continuation = doc.Root?.Element(S3 + "IsTruncated")?.Value == "true"

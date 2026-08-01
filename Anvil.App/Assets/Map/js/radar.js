@@ -328,9 +328,10 @@
             if (currentMap && currentMap.getLayer(LAYER_ID)) currentMap.triggerRepaint();
         }
     }
-    let velPrefetch = false; // speculatively build velocity for every frame even when it's NOT the active
-                             // product — armed by the host (prefetchVelocity) once reflectivity has
-                             // rendered, so switching to Velocity is instant. Reset per new loop.
+    let velPrefetch = false; // build velocity (+SRV, its companion) on every frame even when reflectivity is
+                             // the active product — armed by the host (prefetchVelocity) RIGHT AFTER FIRST
+                             // PAINT, so the backfill builds COMPLETE frames in one pass (Rule 3), not a
+                             // second sweep. Reset per new loop.
     let pendingFrame = -1;  // a frame requested via showFrame before it finished decoding; the
                             // decode that satisfies it promotes it to currentFrame (so showFrame
                             // never pins currentFrame to an undecoded index and blanks the layer).
@@ -1238,12 +1239,12 @@
             postBuildProgress(); // switching to Velocity: report the (mostly not-yet-built) ready set now
             if (map && map.getLayer(LAYER_ID)) map.triggerRepaint();
         },
-        // Speculatively build Velocity geometry for the whole loop IN THE BACKGROUND, before the user
-        // selects the Velocity product — armed by the host once reflectivity has finished rendering, so a
-        // later switch to Velocity is instant (or nearly so). Reuses the SAME bounded, current-frame-first
-        // upgrade queue as an on-demand switch, just started early and at low urgency; velPrefetch persists
-        // so frames added later (live poll, incremental reload) get their velocity built too. Idempotent,
-        // and a no-op cost-wise once every frame is built (needsUpgrade returns false).
+        // Arm the loop to build Velocity (+ SRV, its companion) on every frame — the host calls this RIGHT
+        // AFTER FIRST PAINT so the backfill builds COMPLETE frames in one pass (docs/radar-loop-flow.md
+        // Rule 3), not a second sweep after reflectivity. The already-painted first frame gets its velocity/SRV
+        // via one upgrade here; every backfill frame after gets it in its first decode. velPrefetch persists so
+        // frames added later (live poll, incremental reload) build complete too. Idempotent; a no-op once every
+        // frame is built (needsUpgrade returns false).
         prefetchVelocity: function () {
             if (velPrefetch) return;
             velPrefetch = true;

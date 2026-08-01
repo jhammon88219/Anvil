@@ -378,6 +378,18 @@ namespace Anvil.ViewModels
 				// runs at the higher MaxParallelReplayBackfill — measured ~2× the aggregate throughput of the
 				// live backfill's 6 on this link (12 was the sweet spot; 18 regressed).
 				await EnsureAndAddFrameAsync(site, keys, 0, ct, prioritized: true);
+
+				// First paint is up. Same law as the live path: arm velocity+SRV building (Rule 3) and compute
+				// the loop's one storm motion (Rules 4/5) from the OLDEST first-paint volume, both in parallel
+				// with the backfill. No live frame here.
+				_motionRefKey = keys[0];
+				_lastVwpKey = null;
+				if (_isMapReady)
+				{
+					_ = _mapService.PrefetchRadarVelocityAsync();
+					RequestAutoStormMotion();
+				}
+
 				await BackfillFramesAsync(site, keys, 1, keys.Count, ct, MaxParallelReplayBackfill);
 				_loadInProgress = false;
 			}
@@ -506,6 +518,19 @@ namespace Anvil.ViewModels
 				SetTiltToBase();
 				await LoadLoopCoreAsync(site, ct);
 				return;
+			}
+
+			// First paint is up (reflectivity). Per docs/radar-loop-flow.md, arm the loop to build COMPLETE
+			// frames and compute the motion NOW, both in PARALLEL with the backfill below:
+			//   Rule 3 — velocity+SRV build on every backfill decode (one pass per frame), not a second sweep.
+			//   Rules 4/5 — the loop's ONE storm motion, from this newest first-paint volume; SRV rides the
+			//   same pass once it lands (velocity stand-in until then).
+			_motionRefKey = keys[^1];
+			_lastVwpKey = null;
+			if (_isMapReady)
+			{
+				_ = _mapService.PrefetchRadarVelocityAsync(); // arms velocity+SRV building for the whole loop
+				RequestAutoStormMotion();
 			}
 
 			// START the live (chunks) fetch NOW so its slow ~2-3 s chunk build OVERLAPS the archive backfill
@@ -814,7 +839,9 @@ namespace Anvil.ViewModels
 			}
 
 			// Clicking the already-selected site clears it; otherwise select it.
-			SelectedRadarOption = ReferenceEquals(option, _selectedRadarOption) ? RadarOptions[0] : option;
+			var toggleOff = ReferenceEquals(option, _selectedRadarOption);
+			Diag($"siteClick id={id} toggleOff={toggleOff}"); // trace: a spurious reload should show a click here (or NOT)
+			SelectedRadarOption = toggleOff ? RadarOptions[0] : option;
 		}
 
 		/// <summary>Called by the view when the WebView reports a loop frame finished decoding.</summary>
@@ -1079,6 +1106,11 @@ namespace Anvil.ViewModels
 					// Target the desired frame: if undecoded (a just-arrived newest), JS records it as
 					// pending and keeps the current frame on screen until it decodes (no blank).
 					await _mapService.ShowRadarFrameAsync(_currentFrameIndex);
+					// Live loop advanced → track the motion to the new newest (Rule 5: still ONE per loop,
+					// just following "now"). No-op if the newest key didn't change; a changed value re-decodes
+					// SRV only if it actually differs (the WebView's own change-check), so 5-min reloads rarely churn.
+					_motionRefKey = newKeys[^1];
+					RequestAutoStormMotion();
 				}
 
 				OnPropertyChanged(nameof(MaxFrameIndex));

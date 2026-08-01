@@ -239,12 +239,25 @@ namespace Anvil.ViewModels
 					return;
 				}
 
+				// Trace every selection change. A spurious reload with NO preceding "siteClick" means the
+				// setter was driven programmatically (mode toggle / Site Explorer / a binding write-back).
+				Services.RadarDiagnostics.Log("vm", "select",
+					("to", value?.Site?.Id ?? "none"), ("mode", _isPastEventMode ? "past" : "live"));
+
 				// Mirror the selection to the dock list (so a map-marker pick highlights its row).
 				// Guarded so the list's own setter doesn't bounce back into a re-select.
 				_syncingSelection = true;
 				SelectedSiteRow = value?.Site is { } site && _rowBySite.TryGetValue(site, out var row) ? row : null;
 				_syncingSelection = false;
 				Dow.OnNexradTookOver(); // a NEXRAD selection takes over the radar layer from any DOW frame
+				// Open every site switch in REFLECTIVITY. SRV (and velocity, until its dealias lands) can't be
+				// instant on a fresh site — the storm motion isn't computed yet — so carrying SRV over from the
+				// last site would show the motion-compute delay. Reflectivity paints immediately; the user can
+				// switch back once the loop is complete (which by then is instant). Only on a real site pick.
+				if (value?.Site is not null && _radarProductIndex != 0)
+				{
+					RadarProductIndex = 0;
+				}
 				OnPropertyChanged(nameof(HasRadarLoop));
 				OnPropertyChanged(nameof(HasRadarDisplay));
 				OnPropertyChanged(nameof(HasColorScale));
@@ -491,17 +504,13 @@ namespace Anvil.ViewModels
 
 				OnPropertyChanged(nameof(RadarLoadingText));
 
-				// Reflectivity has finished rendering: speculatively build Velocity in the background so a
-				// later switch to it is instant. Only on the false→true transition (once per load — the
-				// flag is reset at each loop begin), and only for a real loop. Cheap if the user is already
-				// on Velocity (frames are already building) — the JS side is idempotent.
+				// The whole loop is decoded. Velocity/SRV building and the storm-motion compute were already
+				// armed right after first paint (see the load paths) — per docs/radar-loop-flow.md Rule 3
+				// (a filled frame is complete) they ride the backfill's ONE decode per frame, not a second
+				// pass here. All that's left is the tilt-switch raw prefetch.
 				if (value && _frameCount > 0)
 				{
-					_ = _mapService.PrefetchRadarVelocityAsync();
 					StartTiltPrefetch();
-					// Kick the auto storm-motion compute now (self-gated to Doppler products in
-					// RequestAutoStormMotion) so it's ready by the time SRV is viewed.
-					RequestAutoStormMotion();
 				}
 			}
 		}
@@ -530,7 +539,6 @@ namespace Anvil.ViewModels
 				if (_isMapReady)
 				{
 					_ = _mapService.ShowRadarFrameAsync(clamped);
-					RequestAutoStormMotion(); // cheap no-op unless the loop's NEWEST volume changed (reload/append)
 				}
 			}
 		}
@@ -628,7 +636,8 @@ namespace Anvil.ViewModels
 		private double _stormMotionSpeedKt;
 		private double _stormMotionDirectionDeg;
 		private string _autoStormMotionText = "Auto — awaiting SRV";
-		private string? _lastVwpKey; // the volume key we last asked the WebView to compute an auto motion for
+		private string? _motionRefKey; // the FIRST-PAINT volume the loop's one storm motion is computed from
+		private string? _lastVwpKey;   // the ref key we last asked the WebView to compute an auto motion for
 
 		/// <summary>When true (default) the SRV storm motion is derived automatically from the radar's own
 		/// velocity (VAD wind profile → Bunkers right-mover). When false the manual
@@ -646,7 +655,7 @@ namespace Anvil.ViewModels
 					if (_stormMotionAuto)
 					{
 						AutoStormMotionText = "Auto — awaiting SRV";
-						RequestAutoStormMotion(force: true); // compute for the current volume if SRV is showing
+						RequestAutoStormMotion(force: true); // turning Auto on: compute the loop's motion now
 					}
 				}
 			}
@@ -710,44 +719,32 @@ namespace Anvil.ViewModels
 			AutoStormMotionText = $"{Math.Round(directionDeg)}° at {Math.Round(kt)} kt{src}";
 		}
 
-		/// <summary>Asks the WebView to compute ONE auto storm motion for the loop, from the NEWEST volume's
-		/// bottom velocity tilts. Deliberately NOT per displayed frame: storm motion barely varies over a replay
-		/// window, and a per-frame motion made scrubbing churn (each scrubbed frame recomputed + re-decoded its
-		/// SRV) and made frames look inconsistent. Keying off the newest volume means scrubbing is a no-op (the
-		/// key doesn't change) while a loop reload/append recomputes.
+		/// <summary>Asks the WebView to compute the loop's ONE auto storm motion (docs/radar-loop-flow.md
+		/// Rules 4 & 5), from the FIRST-PAINT volume's bottom velocity tilts (<see cref="_motionRefKey"/> —
+		/// newest in NowCast, oldest in PastCast, whichever we already fetched for first paint).
 		///
-		/// <para>Fired on loop-ready, product switch, scrub, and auto-toggle, but only computes when a Doppler
-		/// product (Velocity/SRV) is in view (see the gate) — so it's usually ready before/soon after SRV is
-		/// first built. Until it lands the WebView renders base velocity as the SRV stand-in (no SRV is built at
-		/// the wrong motion, so no rebuild). Auto-mode only; guarded by the newest-volume key + the WebView's own
-		/// cache so it computes at most once per loop.</para></summary>
+		/// <para>Fired ONCE per loop, right after first paint (see the load paths), and again if the user turns
+		/// Auto on. NOT gated on the viewed product — under the law the loop always builds velocity+SRV, so the
+		/// motion always computes (Rule 3). NOT per-frame: storm motion barely varies over a loop, and a
+		/// per-frame motion churned scrubbing. Until it lands the WebView renders base velocity as the SRV
+		/// stand-in (Rule 4's asterisk). Guarded by <see cref="_motionRefKey"/> + the WebView's own cache so it
+		/// computes at most once per loop.</para></summary>
 		private void RequestAutoStormMotion(bool force = false)
 		{
 			if (!_isMapReady || !_stormMotionAuto)
 			{
 				return;
 			}
-			// Only compute when a Doppler product is actually in view — the motion drives SRV, and provisioning
-			// it can cost a raw-volume download, so don't pay that while the user is just browsing reflectivity.
-			// (Velocity counts too: SRV rides velocity's cut, so computing during Velocity makes the later
-			// switch to SRV instant.) All triggers — loop-ready, product switch, scrub, auto-toggle — self-gate here.
-			var pid = _radarProductIndex >= 0 && _radarProductIndex < RadarProductOptions.Count
-				? RadarProductOptions[_radarProductIndex].Id : null;
-			if (pid is not ("srv" or "velocity"))
+			if (_selectedRadarOption?.Site is not { } site || string.IsNullOrEmpty(_motionRefKey))
 			{
-				return;
+				return; // no reference volume yet (no loop loaded)
 			}
-			if (_selectedRadarOption?.Site is not { } site || _loadedKeys.Length == 0)
+			if (!force && _motionRefKey == _lastVwpKey)
 			{
-				return;
+				return; // already computed for this loop's reference volume
 			}
-			var key = _loadedKeys[^1]; // NEWEST archive volume — one motion for the whole loop
-			if (!force && key == _lastVwpKey)
-			{
-				return; // newest volume unchanged (e.g. scrubbing) → the WebView already has the motion
-			}
-			_lastVwpKey = key;
-			_ = ComputeAutoStormMotionAsync(site, key);
+			_lastVwpKey = _motionRefKey;
+			_ = ComputeAutoStormMotionAsync(site, _motionRefKey);
 		}
 
 		private async Task ComputeAutoStormMotionAsync(RadarSite site, string key)
@@ -820,8 +817,9 @@ namespace Anvil.ViewModels
 
 				if (_isMapReady && value >= 0 && value < RadarProductOptions.Count)
 				{
+					// No motion request here: the loop always builds velocity+SRV (Rule 3) and the motion was
+					// computed at first paint, so a switch just re-renders bytes already decoded — instant.
 					_ = _mapService.SetRadarProductAsync(RadarProductOptions[value].Id);
-					RequestAutoStormMotion(force: true); // switching to SRV needs the current volume's auto motion
 				}
 			}
 		}
