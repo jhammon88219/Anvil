@@ -306,11 +306,15 @@
                 : Math.round(_autoMotion.dirDeg) + '°@' + Math.round(_autoMotion.speedMs / 0.514444) + 'kt cuts=' + _autoMotion.cuts)
             + ' rebuild=' + changed);
         if (changed) {
-            dropAllSrvAndRequeue(); // rebuild the ACTIVE product's SRV with the new motion (only if product==srv)
-            // SRV is now resolvable but isn't the active product (we're on refl/velocity, prefetching): fill it
-            // into the loop in the BACKGROUND so a later switch to SRV is instant — the velocity-prefetch bargain.
-            if (product !== 'srv' && velPrefetch && srvMotionReady()) queueAllUpgrades('srvfill');
+            dropAllSrvAndRequeue(); // motion CHANGED → invalidate stale SRV geometry (re-queues only if product==srv)
         }
+        // Top up SRV in the BACKGROUND so a later switch to SRV is instant (the velocity-prefetch bargain). This
+        // sits OUTSIDE the `changed` gate on purpose and is IDEMPOTENT — queueAllUpgrades only touches frames that
+        // actually lack SRV (needsUpgrade is false once built), so it's a no-op for frames already done. That
+        // makes it RECOVER any SRV a queue/decode race dropped, and cover frames added since the last motion
+        // result, even when this result didn't change the value. Still gated by srvMotionReady(), so it NEVER
+        // builds SRV at a base/wrong motion; skipped while SRV is the active product (that path re-queues above).
+        if (product !== 'srv' && velPrefetch && srvMotionReady()) queueAllUpgrades('srvfill');
     }
     function shortKey(u) { var m = /([A-Z]{3,4}_[0-9]{8}_[0-9]{6})/.exec(u || ''); return m ? m[1] : (u || '?'); }
     // Surface the loop's auto motion to the host (App Settings readout). speed is m/s → host converts to kt.
