@@ -14,87 +14,43 @@
     mc:Ignorable="d"
     Title="Anvil">
 
-    <!-- The map fills the whole window; UI (the transport bar + the floating windows) sits on top as an
-         overlay, so showing/hiding the bar never changes the map's size.
+    <!-- The map fills the whole window; UI (the two bars + the floating windows) sits on top as an overlay,
+         so showing/hiding either bar never changes the map's size.
 
-         Two overlay rows, and the split is what keeps every floating window aligned:
-           Row 0 — the FLOATING LAYER. Every window that pops over the map lives here, bottom-aligned with
-                   the shared FloatingWindowMargin. Because the row ends where the bar's chrome begins, one
-                   margin buys each window the same inset from the window edges AND the same gap above the
-                   bar — no window hardcodes a guess at the bar's height (which is what let the site
-                   explorer overlap it).
-           Row 1 — the OverlayBar chrome (pull-tab + bar), auto-sized, pinned to the bottom.
-         The map spans both rows, so the layer boundary is invisible and costs the map nothing. -->
+         Three overlay rows, and the split is what keeps every floating window aligned:
+           Row 0 — the GLOBAL TOP BAR. Controls that must NOT repeat per map pane (in the coming multi-pane
+                   mode): the temporal mode toggles + the app-wide buttons (Sites, Settings, dev tools).
+                   An OverlayBar with Edge=Top, so its pull-tab hangs BELOW it.
+           Row 1 — the FLOATING LAYER. Every window that pops over the map lives here, TOP-aligned with the
+                   shared FloatingWindowMargin so each drops from just under the top bar (its triggers live
+                   there). One margin buys each window the same inset from the window edges AND the same gap
+                   below the bar — no window hardcodes a guess at the bar's height.
+           Row 2 — the PER-PANE BOTTOM BAR: the radar console (RadarControls). This is the bar that repeats
+                   once per map pane in multi-pane mode, so ONLY the radar controls live here.
+         The map spans all three rows, so the layer boundaries are invisible and cost the map nothing. -->
     <Grid Background="#FF0A0A0A">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- global top bar (tab + bar), pinned to the top -->
             <RowDefinition Height="*"/>    <!-- floating layer: the windows that pop over the map -->
-            <RowDefinition Height="Auto"/> <!-- the OverlayBar chrome (tab + bar) -->
+            <RowDefinition Height="Auto"/> <!-- per-pane bottom bar (tab + bar), pinned to the bottom -->
         </Grid.RowDefinitions>
 
         <!-- Full-window map (bottom layer; all UI overlays float on top of it). -->
-        <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="2"/>
+        <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="3"/>
 
-        <!-- ===== Row 0: the floating windows. All bottom-aligned, all on FloatingWindowMargin. ===== -->
-
-        <!-- Temporal settings cards (Past / Now / Fore), shown when a toggle's cog is clicked. Left,
-             so each card rises near the cog that opened it. -->
-        <sections:TemporalCards Grid.Row="0" VerticalAlignment="Bottom" HorizontalAlignment="Left"
-                                Margin="{StaticResource FloatingWindowMargin}"
-                                ViewModel="{x:Bind ViewModel}"/>
-
-        <!-- App-wide settings card, the mirror of the temporal cards; opened by the bar's right-edge cog. -->
-        <sections:AppSettingsCard Grid.Row="0" VerticalAlignment="Bottom" HorizontalAlignment="Right"
-                                  Margin="{StaticResource FloatingWindowMargin}"
-                                  ViewModel="{x:Bind ViewModel}"/>
-
-        <!-- Radar Site Explorer: a non-modal panel over the map (the map stays live). A larger free panel
-             rather than a small cog-anchored card, but it floats on the same layer + margin as the cards.
-             Its own visibility follows ViewModel.IsSiteExplorerOpen. -->
-        <sections:RadarSiteExplorer Grid.Row="0" VerticalAlignment="Bottom" HorizontalAlignment="Right"
-                                    Margin="{StaticResource FloatingWindowMargin}"
-                                    ViewModel="{x:Bind ViewModel}"/>
-
-        <!-- DEV-ONLY site-sweep card. Same floating layer/margin; open state is the card's own IsCardOpen
-             (toggled by the dev Sweep button below). Collapsed entirely in Release via DevVisibility. -->
-        <sections:DevSweepCard x:Name="SweepCard" Grid.Row="0"
-                               VerticalAlignment="Bottom" HorizontalAlignment="Right"
-                               Margin="{StaticResource FloatingWindowMargin}"
-                               Visibility="{x:Bind DevVisibility}"
-                               SweepVm="{x:Bind SweepVm}"
-                               ReportRequested="OnSweepReportRequested"/>
-
-        <!-- DEV-ONLY dealias-validation card (fixed-corpus regression scorer). Same floating layer/margin;
-             open state is the card's own IsCardOpen (toggled by the dev Validate button below). Collapsed
-             entirely in Release via DevVisibility. -->
-        <sections:DevValidationCard x:Name="ValidationCard" Grid.Row="0"
-                                    VerticalAlignment="Bottom" HorizontalAlignment="Right"
-                                    Margin="{StaticResource FloatingWindowMargin}"
-                                    Visibility="{x:Bind DevVisibility}"
-                                    ViewModel="{x:Bind ValidationVm}"
-                                    ReportRequested="OnValidationReportRequested"/>
-
-        <!-- ===== Row 1: the bar chrome. BarContent holds the bar's own controls — left: temporal
-             split-toggles; center: loop controls + product; right: Sites + Settings. ===== -->
-        <ctl:OverlayBar Grid.Row="1">
+        <!-- ===== Row 0: the GLOBAL top bar. BarContent holds the app-level controls that don't repeat per
+             pane — left: temporal split-toggles; right: Sites + Settings (+ dev Sweep/Validate). ===== -->
+        <ctl:OverlayBar Grid.Row="0" Edge="Top">
             <ctl:OverlayBar.BarContent>
-                <!-- Single overlay cell: RadarControls STRETCHES to full bar width and centers its own
-                     transport at window-center (its internal * | Auto | * grid does the centering); the
-                     temporal toggles float OVER the left empty edge in the same cell. Overlaying them —
-                     rather than giving them their own grid columns — means the transport's position is
-                     driven purely by RadarControls, so the edge section can't shift it. Per-feature
-                     options now live in the floating settings cards (CardContent), not a right region. -->
+                <!-- Single overlay cell: temporal toggles float on the left edge, the app-wide buttons on the
+                     right edge. No center content — the per-pane radar console lives in the bottom bar. -->
                 <Grid>
-                    <!-- Full-width: the whole radar console (transport + display + site), self-centering. -->
-                    <sections:RadarControls HorizontalAlignment="Stretch"
-                                            VerticalAlignment="Center"
-                                            ViewModel="{x:Bind ViewModel.Radar}"/>
-                    <!-- Left: temporal split-toggles (feature + settings cog), overlaid on the left edge. -->
+                    <!-- Left: temporal split-toggles (feature + settings cog). -->
                     <sections:TemporalToggles HorizontalAlignment="Left"
                                               VerticalAlignment="Center"
                                               ViewModel="{x:Bind ViewModel}"/>
-                    <!-- Right: the Radar Site Explorer button + the app-wide settings cog, overlaid on the
-                         right empty edge (mirror of the temporal toggles). Sites sits LEFT of Settings.
-                         Each latches while its panel/card is open. -->
+                    <!-- Right: the Radar Site Explorer button + the app-wide settings cog (+ dev buttons).
+                         Sites sits LEFT of Settings. Each latches while its panel/card is open. -->
                     <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center"
                                 Orientation="Horizontal" Spacing="10">
                         <!-- DEV-ONLY: opens the site-sweep card. Collapsed in Release via DevVisibility;
@@ -150,6 +106,57 @@
                         </StackPanel>
                     </StackPanel>
                 </Grid>
+            </ctl:OverlayBar.BarContent>
+        </ctl:OverlayBar>
+
+        <!-- ===== Row 1: the floating windows. All TOP-aligned (they drop from the top bar, whose triggers
+             open them), all on the shared FloatingWindowMargin. ===== -->
+
+        <!-- Temporal settings cards (Past / Now / Fore), shown when a toggle's cog is clicked. Left,
+             so each card drops near the cog that opened it. -->
+        <sections:TemporalCards Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left"
+                                Margin="{StaticResource FloatingWindowMargin}"
+                                ViewModel="{x:Bind ViewModel}"/>
+
+        <!-- App-wide settings card, the mirror of the temporal cards; opened by the top bar's right-edge cog. -->
+        <sections:AppSettingsCard Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
+                                  Margin="{StaticResource FloatingWindowMargin}"
+                                  ViewModel="{x:Bind ViewModel}"/>
+
+        <!-- Radar Site Explorer: a non-modal panel over the map (the map stays live). A larger free panel
+             rather than a small cog-anchored card, but it floats on the same layer + margin as the cards.
+             Its own visibility follows ViewModel.IsSiteExplorerOpen. -->
+        <sections:RadarSiteExplorer Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
+                                    Margin="{StaticResource FloatingWindowMargin}"
+                                    ViewModel="{x:Bind ViewModel}"/>
+
+        <!-- DEV-ONLY site-sweep card. Same floating layer/margin; open state is the card's own IsCardOpen
+             (toggled by the dev Sweep button above). Collapsed entirely in Release via DevVisibility. -->
+        <sections:DevSweepCard x:Name="SweepCard" Grid.Row="1"
+                               VerticalAlignment="Top" HorizontalAlignment="Right"
+                               Margin="{StaticResource FloatingWindowMargin}"
+                               Visibility="{x:Bind DevVisibility}"
+                               SweepVm="{x:Bind SweepVm}"
+                               ReportRequested="OnSweepReportRequested"/>
+
+        <!-- DEV-ONLY dealias-validation card (fixed-corpus regression scorer). Same floating layer/margin;
+             open state is the card's own IsCardOpen (toggled by the dev Validate button above). Collapsed
+             entirely in Release via DevVisibility. -->
+        <sections:DevValidationCard x:Name="ValidationCard" Grid.Row="1"
+                                    VerticalAlignment="Top" HorizontalAlignment="Right"
+                                    Margin="{StaticResource FloatingWindowMargin}"
+                                    Visibility="{x:Bind DevVisibility}"
+                                    ViewModel="{x:Bind ValidationVm}"
+                                    ReportRequested="OnValidationReportRequested"/>
+
+        <!-- ===== Row 2: the PER-PANE bottom bar. Only the radar console lives here — it repeats once per
+             map pane in multi-pane mode. It STRETCHES to full bar width and centers its own transport at
+             window-center (its internal * | Auto | * grid does the centering). ===== -->
+        <ctl:OverlayBar Grid.Row="2">
+            <ctl:OverlayBar.BarContent>
+                <sections:RadarControls HorizontalAlignment="Stretch"
+                                        VerticalAlignment="Center"
+                                        ViewModel="{x:Bind ViewModel.Radar}"/>
             </ctl:OverlayBar.BarContent>
         </ctl:OverlayBar>
     </Grid>

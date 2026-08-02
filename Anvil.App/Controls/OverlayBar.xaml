@@ -108,7 +108,7 @@
              two merge into one hairline that wraps around the tab. -->
         <Button x:Name="TabButton" Grid.Row="0" Style="{StaticResource OverlayBarTabStyle}"
                 Click="OnToggleOverlayBarClick"
-                ToolTipService.ToolTip="Show / hide the loop controls">
+                ToolTipService.ToolTip="Show / hide the bar">
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                 <FontIcon Glyph="{x:Bind ToggleGlyph(IsOverlayBarVisible), Mode=OneWay}"
                           FontSize="14" VerticalAlignment="Center"/>
