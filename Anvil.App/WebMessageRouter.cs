@@ -95,7 +95,19 @@ namespace Anvil
 								ready[ri++] = e.ValueKind == JsonValueKind.True;
 							}
 						}
-						_viewModel.Radar.SetBuildProgress(built, total, ready);
+						// Trio completeness (refl+vel+SRV) per frame — drives the scrubber fill, separate from
+						// `ready` (active-product, drives playback). See RadarViewModel.SetBuildProgress.
+						bool[]? complete = null;
+						if (root.TryGetProperty("complete", out var cpEl) && cpEl.ValueKind == JsonValueKind.Array)
+						{
+							complete = new bool[cpEl.GetArrayLength()];
+							var ci = 0;
+							foreach (var e in cpEl.EnumerateArray())
+							{
+								complete[ci++] = e.ValueKind == JsonValueKind.True;
+							}
+						}
+						_viewModel.Radar.SetBuildProgress(built, total, ready, complete);
 						return;
 					}
 

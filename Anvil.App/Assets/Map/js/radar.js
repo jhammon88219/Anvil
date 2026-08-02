@@ -189,18 +189,32 @@
     // frame reads ready only once its geometry is built; reflectivity is always built, so it reads all-ready.
     function postBuildProgress() {
         var total = frames.length;
-        if (!total) { post({ type: 'radarBuildProgress', product: product, built: 0, total: 0, ready: [] }); return; }
-        // While SRV is active but its motion isn't ready we render the VELOCITY stand-in, so report readiness by
-        // VELOCITY (what's actually on screen) — otherwise the frontier reads all-not-ready and playback stalls.
+        if (!total) { post({ type: 'radarBuildProgress', product: product, built: 0, total: 0, ready: [], complete: [] }); return; }
+        // `ready` = ACTIVE-product readiness — drives playback's built-frontier hold (don't advance onto a
+        // frame whose on-screen product isn't built). While SRV is active but its motion isn't ready we render
+        // the VELOCITY stand-in, so report readiness by VELOCITY (what's actually on screen) — otherwise the
+        // frontier reads all-not-ready and playback stalls.
         var gate = (product === 'srv' && !srvMotionReady()) ? 'velocity' : product;
-        var built = 0, ready = new Array(total);
         var eager = (gate === 'reflectivity'); // reflectivity is always built; everything else on demand
+        // `complete` = per-frame SCRUBBER-fill readiness (docs/radar-loop-flow.md Rule 2: the scrubber fills
+        // left-to-right as frames complete). A frame is fill-ready once its reflectivity AND velocity are built
+        // — the two products that build PER FRAME during the backfill, so cells light one-by-one as the backfill
+        // progresses. SRV is deliberately NOT gated here: it depends on the loop's ONE storm motion (Rule 4/5),
+        // a single loop-wide event that lands last (~15 s), so gating on it would hold every cell false and then
+        // flip the whole scrubber true at once (batch fill, not incremental). SRV trails loop-wide per Rule 4 —
+        // a filled cell shows the velocity stand-in for SRV until the motion lands, then SRV upgrades in place
+        // with no scrubber change. (Regardless of the active product, so browsing reflectivity fills the same.)
+        var built = 0, ready = new Array(total), complete = new Array(total);
         for (var i = 0; i < total; i++) {
-            var r = eager || !!(frames[i] && frames[i].built && frames[i].built[gate]);
+            var b = frames[i] && frames[i].built;
+            var r = eager || !!(b && b[gate]);
             ready[i] = r;
             if (r) built++;
+            var reflOk = !!(b && b.reflectivity); // always built by any decode
+            var velOk = !!(b && b.velocity);
+            complete[i] = reflOk && velOk;
         }
-        post({ type: 'radarBuildProgress', product: product, built: built, total: total, ready: ready });
+        post({ type: 'radarBuildProgress', product: product, built: built, total: total, ready: ready, complete: complete });
     }
 
     let product = 'reflectivity'; // 'reflectivity' | 'velocity' | 'srv' | 'cc' | … — which moment to render
@@ -1146,6 +1160,7 @@
                 showCurrent(map, 'remap-fallback');
             }
             queueAllUpgrades('remap'); // a reused refl-only frame still needs velocity if Velocity is active
+            postBuildProgress(); // re-report readiness/completeness against the NEW indexing (host arrays reindex)
             hostLog('remap newCount=' + newCount + ' cf=' + currentFrame + ' reused=' + frames.filter(Boolean).length + ' token=' + loopToken);
         },
         clear: function (map) {

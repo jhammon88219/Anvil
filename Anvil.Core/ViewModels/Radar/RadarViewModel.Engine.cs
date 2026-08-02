@@ -361,6 +361,7 @@ namespace Anvil.ViewModels
 				_loadedNewestKey = keys[^1];
 				IsLoopReady = false;
 				_currentFrameIndex = 0; // start at the beginning of the event so play moves forward
+				_firstPaintIndex = 0;   // Rule 1: PastCast paints the oldest first — the fill is naturally left→right
 				OnPropertyChanged(nameof(MaxFrameIndex));
 				OnPropertyChanged(nameof(CurrentFrameIndex));
 				OnPropertyChanged(nameof(CurrentFrameTimeText));
@@ -482,6 +483,7 @@ namespace Anvil.ViewModels
 			_loadedKeys = keys.ToArray();               // baseline for the next incremental refresh
 			IsLoopReady = false;
 			_currentFrameIndex = _frameCount - 1; // newest archive frame
+			_firstPaintIndex = _archiveCount - 1; // Rule 1: NowCast paints the newest first, then fills left→right
 			OnPropertyChanged(nameof(MaxFrameIndex));
 			OnPropertyChanged(nameof(CurrentFrameIndex));
 			OnPropertyChanged(nameof(CurrentFrameTimeText));
@@ -866,10 +868,11 @@ namespace Anvil.ViewModels
 			_readyCount++;
 			if (index >= 0 && index < Segments.Count)
 			{
-				// Mark decoded, then derive the displayed readiness for the active product (Velocity still
-				// needs its dealiased geometry, so the cell may stay "loading" until the build reaches it).
+				// Mark decoded, then recompute displayed readiness for ALL cells: velocity still needs its
+				// dealiased geometry (so a decoded cell may stay "loading" until the build reaches it), AND
+				// Rule 2's left-to-right reveal gate depends on the whole run, not just this index.
 				Segments[index].IsDecoded = true;
-				Segments[index].IsReady = IsFrameDisplayReady(index);
+				RefreshSegmentReadiness();
 			}
 			Services.RadarDiagnostics.FrameReady(index, hasData, _readyCount, _frameCount);
 
@@ -1089,6 +1092,7 @@ namespace Anvil.ViewModels
 				_frameCount = newFrameCount;
 				_frameTimes = newTimes;
 				_frameModes = newModes;
+				_firstPaintIndex = newFrameCount - 1; // a refresh folds new volumes in at the newest end
 				RebuildSegments(newFrameCount, newReady); // reindex scrubber cells; reused frames stay lit
 				_readyCount = mapping.Count;
 				_currentFrameIndex = wasNewest ? newFrameCount - 1

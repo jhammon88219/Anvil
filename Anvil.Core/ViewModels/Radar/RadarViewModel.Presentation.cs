@@ -115,14 +115,33 @@ namespace Anvil.ViewModels
 		// scrubber's per-cell fill (via RefreshSegmentReadiness) and playback's built-frontier hold, so the
 		// build shows the same way as any other product's load — no separate textual readout.
 		private bool[] _velReady = Array.Empty<bool>();
+		// Per-frame SCRUBBER-fill readiness (reflectivity + velocity built), pushed alongside _velReady by
+		// radar.js. Drives the scrubber fill (docs/radar-loop-flow.md Rule 2), independent of the active product
+		// — distinct from _velReady, which is the active product's build state and gates PLAYBACK (so browsing
+		// reflectivity never stalls on velocity you're not watching). SRV is NOT included: it rides the loop's
+		// one storm motion (loop-wide, lands last) and trails per Rule 4, so it doesn't hold the per-frame fill.
+		private bool[] _complete = Array.Empty<bool>();
 
-		/// <summary>Receives the velocity build state from the WebView. Refreshes the scrubber cells so the
-		/// frames re-fill as their velocity dealiases; playback also reads it. <paramref name="ready"/> is
-		/// per-frame (may be null).</summary>
-		public void SetBuildProgress(int built, int total, bool[]? ready)
+		/// <summary>Receives the build state from the WebView. <paramref name="ready"/> is the ACTIVE product's
+		/// per-frame build state (gates playback); <paramref name="complete"/> is per-frame fill readiness
+		/// (reflectivity + velocity built — gates the scrubber fill). Both may be null. Refreshes the scrubber
+		/// cells so frames light as their velocity builds.</summary>
+		public void SetBuildProgress(int built, int total, bool[]? ready, bool[]? complete = null)
 		{
 			_velReady = ready ?? Array.Empty<bool>();
+			_complete = complete ?? Array.Empty<bool>();
 			RefreshSegmentReadiness();
+		}
+
+		// Whether frame idx is fill-ready (reflectivity + velocity built) — the scrubber-fill gate. A frame the
+		// readiness array hasn't reported yet reads as NOT ready: radar.js posts radarBuildProgress right after
+		// every successful decode (the pair at applyFrameResult), so the cell lights the moment its velocity is
+		// built — never fills-then-empties by falling back to a looser signal, and never counts a live-appended
+		// frame the array doesn't cover yet.
+		private bool IsFrameComplete(int idx)
+		{
+			if (idx < 0 || idx >= _complete.Length) return false;
+			return _complete[idx];
 		}
 
 		// Whether frame idx is ready to display for the ACTIVE product. Every product EXCEPT reflectivity is

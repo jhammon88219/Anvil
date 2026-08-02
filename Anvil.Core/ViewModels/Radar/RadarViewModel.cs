@@ -67,6 +67,9 @@ namespace Anvil.ViewModels
 		private int _frameCount;
 		private int _readyCount;
 		private int _currentFrameIndex;
+		// The one frame painted first (Rule 1): the newest in NowCast, the oldest in PastCast. It's shown
+		// the instant it decodes, exempt from the left-to-right reveal gate (see RefreshSegmentReadiness).
+		private int _firstPaintIndex;
 
 		/// <summary>One cell per loop frame for the segmented scrubber; each <see cref="RadarFrameSegment.IsReady"/>
 		/// flips true as that frame decodes (see <see cref="OnRadarFrameReady"/>). Rebuilt on every (re)load
@@ -87,16 +90,39 @@ namespace Anvil.ViewModels
 			RefreshSegmentReadiness();
 		}
 
-		// Recomputes every scrubber cell's DISPLAYED readiness (RadarFrameSegment.IsReady) from its durable
-		// decode state and the active product: Reflectivity/CC are ready as soon as decoded; Velocity also
-		// needs its (lazily-built) dealiased geometry, so a decoded-but-not-yet-dealiased frame reads as
-		// still-loading — this is what makes the scrubber FILL IN while velocity builds, exactly like the
-		// initial decode. Called whenever decode state, velocity-build state, or the product changes.
+		// Recomputes every scrubber cell's DISPLAYED readiness (RadarFrameSegment.IsReady).
+		//
+		// A cell is fill-ready once its reflectivity + velocity are built (IsFrameComplete), regardless of the
+		// product on screen — the two products that build PER FRAME during the backfill, so cells light one-by-
+		// one as it progresses. SRV is NOT part of this: it rides the loop's ONE storm motion (a single loop-wide
+		// event that lands last), so gating on it would flip the whole scrubber at once instead of incrementally;
+		// SRV trails per docs/radar-loop-flow.md Rule 4 and doesn't hold the fill. (Playback uses a separate,
+		// active-product gate — IsFrameDisplayReady — so browsing reflectivity never stalls on velocity.)
+		//
+		// docs/radar-loop-flow.md Rule 2 — the scrubber fills LEFT-TO-RIGHT toward completion. The backfill
+		// decodes frames in PARALLEL (MaxParallelBackfill), so they finish out of order; lighting each cell the
+		// instant it finishes makes the scrubber fill in a jumble. So we compute each cell's fill-readiness, then
+		// REVEAL only a contiguous run growing from the left. The exceptions are the frames Rule 1 shows
+		// immediately regardless of the backfill: the first-paint frame (newest in NowCast, oldest in PastCast)
+		// and the appended live frame. Once the whole loop is built the frontier reaches the end and every cell
+		// is revealed, so this only orders the transient fill — nothing stays hidden.
 		private void RefreshSegmentReadiness()
 		{
-			for (var i = 0; i < Segments.Count; i++)
+			var n = Segments.Count;
+			// Contiguous-from-left frontier: the largest index whose cell AND every cell before it is complete.
+			var frontier = -1;
+			for (var i = 0; i < n; i++)
 			{
-				Segments[i].IsReady = Segments[i].IsDecoded && IsFrameDisplayReady(i);
+				if (Segments[i].IsDecoded && IsFrameComplete(i)) frontier = i;
+				else break;
+			}
+			for (var i = 0; i < n; i++)
+			{
+				var complete = Segments[i].IsDecoded && IsFrameComplete(i);
+				// Rule 1: the first-paint frame and the live frame are shown the instant they're complete,
+				// outside the ordered fill. Everything else waits its turn in the left-to-right frontier.
+				var immediate = i == _firstPaintIndex || (_hasLiveFrame && i >= _archiveCount);
+				Segments[i].IsReady = complete && (i <= frontier || immediate);
 			}
 		}
 		private bool _isPlaying;
