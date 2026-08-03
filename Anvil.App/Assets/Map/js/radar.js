@@ -1481,7 +1481,11 @@
                         id: e.id, gatesOver: hi, gatesTotal: tot, ratio: ratio,
                         error: (res && res.dealias) ? null : 'no velocity',
                     });
-                    hostLog('validate ' + e.id + ' hi=' + hi + '/' + tot + ' (' + (ratio * 100).toFixed(1) + '%)');
+                    // Log the FULL dealias detail (numReg + dealiased v-range), not just hi/tot: comparing
+                    // the JS numReg + range to the offline Py-ART mirror (tools/dealias_check.py) isolates
+                    // whether an over-unfold anomaly is in the DECODE (raw field differs) or the REDUCE (a
+                    // region lands on a wrong fold) — how the KBUF 31% seed was chased (docs/radar-validation.md).
+                    hostLog('validate ' + e.id + ' (' + (ratio * 100).toFixed(1) + '%) ' + ((res && res.dealias) || ''));
                 }).catch(function (err) {
                     var msg = String((err && err.message) ? err.message : err);
                     state.results.push({ id: e.id, gatesOver: 0, gatesTotal: 0, ratio: 0, error: msg });
