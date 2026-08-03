@@ -1491,20 +1491,25 @@
                     var mm = /hi=(\d+)\/(\d+)/.exec((res && res.dealias) || '');
                     if (mm) { hi = +mm[1]; tot = +mm[2]; }
                     var ratio = tot > 0 ? hi / tot : 0;
+                    // Per-product decoded stats (dequantized grid: n / min..max / mean, GRID_NODATA skipped):
+                    // the human log line AND the machine `dp` means the dual-pol regression guard scores. The
+                    // guard (C# RadarValidationReport.DualPolDrift) checks cc/zdr/sw MEAN vs the manifest
+                    // baseline — a decoder scale/offset regression shifts the mean (docs/radar-validation.md).
+                    var order = ['reflectivity', 'velocity', 'srv', 'cc', 'zdr', 'kdp', 'sw'];
+                    var parts = [], dp = {};
+                    for (var pi = 0; pi < order.length; pi++) {
+                        var id = order[pi];
+                        var st = gridStats(res && res.grids && res.grids[id]);
+                        if (!st) continue;
+                        parts.push(id + '[n=' + st.n + ' ' + st.min.toFixed(2) + '..' + st.max.toFixed(2) + ' m=' + st.mean.toFixed(2) + ']');
+                        if (id === 'cc' || id === 'zdr' || id === 'sw') dp[id] = st.mean;
+                    }
                     state.results.push({
                         id: e.id, gatesOver: hi, gatesTotal: tot, ratio: ratio,
-                        error: (res && res.dealias) ? null : 'no velocity',
+                        error: (res && res.dealias) ? null : 'no velocity', dp: dp,
                     });
                     // Dealias detail (numReg + v-range) — see the KBUF chase (docs/radar-validation.md).
                     hostLog('validate ' + e.id + ' (' + (ratio * 100).toFixed(1) + '%) ' + ((res && res.dealias) || ''));
-                    // Per-product decoded value ranges for the dual-pol decoder check (n / min..max / mean),
-                    // dequantized from each product's inspector grid (values = round(v*scale); GRID_NODATA skipped).
-                    var order = ['reflectivity', 'velocity', 'srv', 'cc', 'zdr', 'kdp', 'sw'];
-                    var parts = [];
-                    for (var pi = 0; pi < order.length; pi++) {
-                        var st = gridStats(res && res.grids && res.grids[order[pi]]);
-                        if (st) parts.push(order[pi] + '[n=' + st.n + ' ' + st.min.toFixed(2) + '..' + st.max.toFixed(2) + ' m=' + st.mean.toFixed(2) + ']');
-                    }
                     if (parts.length) hostLog('validate ' + e.id + ' dp ' + parts.join(' '));
                 }).catch(function (err) {
                     var msg = String((err && err.message) ? err.message : err);

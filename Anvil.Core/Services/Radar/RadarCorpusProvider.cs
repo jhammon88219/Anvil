@@ -49,7 +49,8 @@ namespace Anvil.Services
 					return volumes
 						.Where(v => !string.IsNullOrWhiteSpace(v.Id) && !string.IsNullOrWhiteSpace(v.File))
 						.Select(v => new RadarCorpusEntry(
-							v.Id!, v.File!, v.Name ?? v.Id!, v.Lat, v.Lon, v.ExpectedPct, v.TolerancePct))
+							v.Id!, v.File!, v.Name ?? v.Id!, v.Lat, v.Lon, v.ExpectedPct, v.TolerancePct,
+							v.DualPol is null ? null : new DualPolBaseline(v.DualPol.Cc, v.DualPol.Zdr, v.DualPol.Sw)))
 						.ToList();
 				}
 			}
@@ -75,6 +76,14 @@ namespace Anvil.Services
 			public double Lon { get; set; }
 			public double ExpectedPct { get; set; }
 			public double TolerancePct { get; set; }
+			public DualPolDto? DualPol { get; set; }
+		}
+
+		private sealed class DualPolDto
+		{
+			public double? Cc { get; set; }
+			public double? Zdr { get; set; }
+			public double? Sw { get; set; }
 		}
 	}
 }

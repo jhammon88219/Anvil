@@ -66,5 +66,53 @@ namespace Anvil.Tests
 			// A fetch/decode failure or a velocity-less volume can't be trusted, whatever ratio surfaced.
 			Assert.Equal(ValidationStatus.Error, RadarValidationReport.Classify(Entry(4.0, 2.0), "no velocity", 0.0));
 		}
+
+		// ── Dual-pol decoder guard (RadarValidationReport.DualPolDrift) ──
+		// A committed volume decodes CC/ZDR/SW deterministically, so their MEAN is a fixed fingerprint; a
+		// decoder scale/offset regression shifts it. Baseline KBUF-140342 = cc 0.72 / zdr 0.67 / sw 4.08.
+
+		private static readonly DualPolBaseline Kbuf = new(0.72, 0.67, 4.08);
+
+		[Fact]
+		public void DualPol_WithinTolerance_NoDrift()
+		{
+			// Deterministic reproduction (last-ULP flutter absorbed by the 0.15 margin) is not a regression.
+			Assert.Null(RadarValidationReport.DualPolDrift(Kbuf, 0.72, 0.67, 4.08, 0.15));
+			Assert.Null(RadarValidationReport.DualPolDrift(Kbuf, 0.73, 0.60, 4.20, 0.15));
+		}
+
+		[Fact]
+		public void DualPol_ZdrScaleRegression_IsFlagged()
+		{
+			// The failure mode: a ZDR decode scale bug shifts its mean well beyond tolerance (0.67 -> 1.4).
+			var detail = RadarValidationReport.DualPolDrift(Kbuf, 0.72, 1.40, 4.08, 0.15);
+			Assert.NotNull(detail);
+			Assert.Contains("ZDR", detail);
+		}
+
+		[Fact]
+		public void DualPol_NoBaseline_NoDrift()
+		{
+			// A volume without a dualPol baseline in the manifest isn't dual-pol-checked.
+			Assert.Null(RadarValidationReport.DualPolDrift(null, 0.72, 99.0, 4.08, 0.15));
+		}
+
+		[Fact]
+		public void DualPol_MissingActualMean_NotFlagged()
+		{
+			// A product the decoder didn't report (null actual, e.g. legacy single-pol) can't drift.
+			Assert.Null(RadarValidationReport.DualPolDrift(Kbuf, null, null, null, 0.15));
+		}
+
+		[Fact]
+		public void DualPol_BoundaryIsStrict()
+		{
+			// Exactly at the tolerance is NOT flagged (strict >). Uses exactly-representable values (¼) so the
+			// boundary is exact in float; mutating > to >= in DualPolDrift flips the first assert to a drift —
+			// the guard that proves the test bites.
+			var b = new DualPolBaseline(1.0, null, null);
+			Assert.Null(RadarValidationReport.DualPolDrift(b, 1.25, null, null, 0.25));    // diff == tol → pass
+			Assert.NotNull(RadarValidationReport.DualPolDrift(b, 1.75, null, null, 0.25)); // diff  > tol → drift
+		}
 	}
 }

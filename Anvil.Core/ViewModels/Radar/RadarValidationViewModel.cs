@@ -38,6 +38,12 @@ namespace Anvil.ViewModels
 	{
 		private const int PollIntervalMs = 400;
 
+		/// <summary>Allowed drift (absolute, in each product's own unit) of a dual-pol decoded MEAN from its
+		/// manifest baseline before the volume is flagged. The corpus is deterministic so the means don't
+		/// move run-to-run; this margin only absorbs last-ULP float flutter. A real decoder scale/offset
+		/// regression shifts a mean far more than this (e.g. a 2× ZDR scale doubles it).</summary>
+		private const double DualPolMeanTol = 0.15;
+
 		private readonly IMapService _map;
 		private readonly IRadarCorpusProvider _corpus;
 
@@ -194,6 +200,14 @@ namespace Anvil.ViewModels
 			{
 				byId.TryGetValue(r.Id, out var entry);
 				var actualPct = r.Ratio * 100.0;
+				var status = RadarValidationReport.Classify(entry, r.Error, actualPct);
+				// A dual-pol decoder drift is ALSO a regression — fold it into Worse (unless the volume
+				// already errored / has no baseline, where the dp check isn't meaningful).
+				var dpDetail = RadarValidationReport.DualPolDrift(entry?.DualPol, r.Dp?.Cc, r.Dp?.Zdr, r.Dp?.Sw, DualPolMeanTol);
+				if (dpDetail is not null && status == ValidationStatus.Pass)
+				{
+					status = ValidationStatus.Worse;
+				}
 				Results.Add(new ValidationResult(
 					r.Id,
 					entry?.Name ?? r.Id,
@@ -202,8 +216,9 @@ namespace Anvil.ViewModels
 					entry?.TolerancePct ?? 0,
 					r.GatesOver,
 					r.GatesTotal,
-					RadarValidationReport.Classify(entry, r.Error, actualPct),
-					r.Error));
+					status,
+					r.Error,
+					dpDetail));
 			}
 		}
 
@@ -249,6 +264,15 @@ namespace Anvil.ViewModels
 			public int GatesTotal { get; set; }
 			public double Ratio { get; set; }
 			public string? Error { get; set; }
+			public DpRaw? Dp { get; set; }
+		}
+
+		// The decoded dual-pol means the JS scorer returns per volume (radar.js radarValidate `dp`).
+		private sealed class DpRaw
+		{
+			public double? Cc { get; set; }
+			public double? Zdr { get; set; }
+			public double? Sw { get; set; }
 		}
 
 	}
@@ -276,7 +300,8 @@ namespace Anvil.ViewModels
 		int GatesOver,
 		int GatesTotal,
 		ValidationStatus Status,
-		string? Error)
+		string? Error,
+		string? DualPolDetail = null)
 	{
 		/// <summary>Percentage points the actual over-unfold is above (positive) or below the baseline.</summary>
 		public double DeltaPct => ActualPct - ExpectedPct;
@@ -294,7 +319,8 @@ namespace Anvil.ViewModels
 				var baseline = Status == ValidationStatus.NoBaseline
 					? "(no baseline)"
 					: $"vs {ExpectedPct:F1}% (Δ{delta})";
-				return $"{Id,-14} {Status,-10} {ActualPct,5:F1}% {baseline}  [{GatesOver}/{GatesTotal}]";
+				var dp = DualPolDetail is null ? "" : "  " + DualPolDetail;
+				return $"{Id,-14} {Status,-10} {ActualPct,5:F1}% {baseline}  [{GatesOver}/{GatesTotal}]{dp}";
 			}
 		}
 	}
@@ -335,6 +361,28 @@ namespace Anvil.ViewModels
 				: ValidationStatus.Pass;
 		}
 
+		/// <summary>The DUAL-POL DECODER guard: compares each direct-read product's decoded mean (CC/ZDR/SW)
+		/// to its manifest baseline, returning a human detail naming any that drifted beyond
+		/// <paramref name="tol"/> — or null when all are within tolerance, there's no baseline, or a product's
+		/// mean wasn't reported. The corpus is deterministic, so a drift means the decoder's scale/offset for
+		/// that moment changed. Static + pure so it's unit-testable without a WebView.</summary>
+		public static string? DualPolDrift(DualPolBaseline? baseline, double? cc, double? zdr, double? sw, double tol)
+		{
+			if (baseline is null) return null;
+			var drift = new List<string>();
+			void Check(string name, double? expected, double? actual)
+			{
+				if (expected is double e && actual is double a && Math.Abs(a - e) > tol)
+				{
+					drift.Add($"{name} {a.ToString("F2", CultureInfo.InvariantCulture)} vs {e.ToString("F2", CultureInfo.InvariantCulture)}");
+				}
+			}
+			Check("CC", baseline.Cc, cc);
+			Check("ZDR", baseline.Zdr, zdr);
+			Check("SW", baseline.Sw, sw);
+			return drift.Count == 0 ? null : "dual-pol drift: " + string.Join(", ", drift);
+		}
+
 		/// <summary>One-line headline for the run.</summary>
 		public string Summary =>
 			$"{VolumeCount} volume(s) in {Duration:hh\\:mm\\:ss} — " +
@@ -349,8 +397,9 @@ namespace Anvil.ViewModels
 			sb.Append($"- Started: {Started:yyyy-MM-dd HH:mm:ss}\n");
 			sb.Append($"- Ended: {Ended:yyyy-MM-dd HH:mm:ss} ({Duration:hh\\:mm\\:ss})\n");
 			sb.Append($"- {Summary}\n");
-			sb.Append("- Metric: over-unfold ratio = gates |v|>55 m/s ÷ total velocity gates. " +
-				"A volume is **Worse** when it exceeds its baseline + tolerance.\n\n");
+			sb.Append("- Metrics: (1) velocity over-unfold ratio = gates |v|>55 m/s ÷ total velocity gates, " +
+				"vs baseline + tolerance; (2) dual-pol decoder means (CC/ZDR/SW) vs baseline. A volume is " +
+				"**Worse** when EITHER regresses.\n\n");
 
 			void Section(string title, IEnumerable<ValidationResult> rows)
 			{
@@ -370,8 +419,9 @@ namespace Anvil.ViewModels
 					var delta = r.Status == ValidationStatus.NoBaseline
 						? "—"
 						: (r.DeltaPct >= 0 ? "+" : "") + r.DeltaPct.ToString("F1", CultureInfo.InvariantCulture);
+					var dpCell = r.DualPolDetail is null ? "" : " · " + r.DualPolDetail;
 					sb.Append($"| `{r.Id}` {r.Name} | {r.ActualPct.ToString("F1", CultureInfo.InvariantCulture)} | " +
-						$"{baseline} | {delta} | {r.GatesOver}/{r.GatesTotal} |\n");
+						$"{baseline} | {delta} | {r.GatesOver}/{r.GatesTotal}{dpCell} |\n");
 				}
 				sb.Append('\n');
 			}

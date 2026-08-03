@@ -18,6 +18,10 @@ namespace Anvil.Models
 	/// <param name="ExpectedPct">The established baseline over-unfold percentage (hi/total ×100).</param>
 	/// <param name="TolerancePct">Percentage-point margin above <paramref name="ExpectedPct"/> before a
 	/// run flags the volume as having gotten <c>Worse</c> — the KTLX-3×-regression guard.</param>
+	/// <param name="DualPol">Optional per-product decoded-mean baselines for the DUAL-POL decoder guard.
+	/// Null ⇒ no dual-pol check for this volume. The direct-read dual-pol moments (CC/ZDR/SW) decode
+	/// deterministically from the fixed bytes, so their mean is a stable fingerprint — a scale/offset
+	/// regression in the JS decoder shifts it. See docs/radar-validation.md "Dual-pol validation".</param>
 	public sealed record RadarCorpusEntry(
 		string Id,
 		string File,
@@ -25,5 +29,13 @@ namespace Anvil.Models
 		double Lat,
 		double Lon,
 		double ExpectedPct,
-		double TolerancePct);
+		double TolerancePct,
+		DualPolBaseline? DualPol = null);
+
+	/// <summary>Expected decoded MEAN (over the deterministic corpus volume) for each direct-read dual-pol
+	/// product — the dual-pol decoder guard's baseline. A field is null when that product isn't scored.</summary>
+	/// <param name="Cc">Correlation coefficient ρHV (unitless).</param>
+	/// <param name="Zdr">Differential reflectivity (dB).</param>
+	/// <param name="Sw">Spectrum width (m/s).</param>
+	public sealed record DualPolBaseline(double? Cc, double? Zdr, double? Sw);
 }
