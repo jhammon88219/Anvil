@@ -65,6 +65,14 @@
             if (Products.velocity && out.indexOf('velocity') < 0) out.push('velocity');
             if (Products.srv && out.indexOf('srv') < 0 && srvMotionReady()) out.push('srv');
         }
+        // Dual-pol second wave: once the trio has settled we also want CC/KDP/ZDR/SW on every frame, so a
+        // later switch to any of them is instant. fullPrefetch only turns on AFTER the backfill + motion are
+        // done (maybeArmFullPrefetch), so this never delays first paint or the trio. decodeFrame narrows each
+        // frame's build to the ones it's actually missing (Rule 6), so already-built frames aren't re-decoded.
+        if (fullPrefetch) {
+            var extra = dualPolIds();
+            for (var i = 0; i < extra.length; i++) if (out.indexOf(extra[i]) < 0) out.push(extra[i]);
+        }
         return out;
     }
     // Whether the products we want (wantedProducts) were already built in a decode result — used to reject a
@@ -315,6 +323,9 @@
         // result, even when this result didn't change the value. Still gated by srvMotionReady(), so it NEVER
         // builds SRV at a base/wrong motion; skipped while SRV is the active product (that path re-queues above).
         if (product !== 'srv' && velPrefetch && srvMotionReady()) queueAllUpgrades('srvfill');
+        // The motion was the trio's long pole — its resolution (a value OR a settled "insufficient") may be
+        // the last thing gating the dual-pol second wave. Arm it now if the backfill is also done.
+        maybeArmFullPrefetch();
     }
     function shortKey(u) { var m = /([A-Z]{3,4}_[0-9]{8}_[0-9]{6})/.exec(u || ''); return m ? m[1] : (u || '?'); }
     // Surface the loop's auto motion to the host (App Settings readout). speed is m/s → host converts to kt.
@@ -350,6 +361,54 @@
                              // the active product — armed by the host (prefetchVelocity) RIGHT AFTER FIRST
                              // PAINT, so the backfill builds COMPLETE frames in one pass (Rule 3), not a
                              // second sweep. Reset per new loop.
+    // ---- Dual-pol SECOND WAVE (CC/KDP/ZDR/SW prefetch) ----
+    // The TRIO (reflectivity + velocity + SRV) is staged eagerly (velPrefetch → Rule 3) so refl↔vel↔SRV
+    // switches are instant. The remaining dual-pol products build ON DEMAND by default. This second wave
+    // warms them across the whole loop AFTER the trio has SETTLED, so a switch to any of them is instant too.
+    // ⚠️ Strictly idle-time work: it self-arms (maybeArmFullPrefetch) only once first paint, the backfill,
+    // AND the loop's storm motion are all done — so it NEVER competes with the latencies the trio staging
+    // protects. The current-frame-first upgrade queue keeps it yielding to whatever the user does next. These
+    // products are OUTSIDE the scrubber-fill law (docs/radar-loop-flow.md — the fill rides the DUO); this only
+    // warms geometry in the background, it never touches the fill gate. Reset per new loop, like velPrefetch.
+    let fullPrefetch = false;
+    // The products the second wave warms = everything registered except the trio. Reads the registry so a
+    // newly added dual-pol product is picked up automatically (Object.keys preserves radar-products.js order).
+    function dualPolIds() {
+        if (!Products) return [];
+        var trio = { reflectivity: 1, velocity: 1, srv: 1 };
+        return Object.keys(Products).filter(function (id) { return !trio[id]; });
+    }
+    // The trio has SETTLED for the whole loop when: velocity prefetch is armed (a real trio loop), every
+    // frame's DUO (refl + velocity) is built (the backfill is done — SRV rides one motion, so it's not part
+    // of this gate, same reasoning as the scrubber fill), and the loop's storm motion has resolved (a value
+    // or a settled "insufficient"; auto off = trivially settled). At that point the VWP worker is idle and
+    // the srvfill sweep has been kicked — the pipeline's heavy lifting is over, so background work is safe.
+    function vwpInFlight() { for (var k in _vwpInFlight) return true; return false; }
+    function trioSettled() {
+        if (!velPrefetch || !frames.length) return false;
+        // The loop's motion must have SETTLED — resolved (_autoMotion set, a value or "insufficient") or given
+        // up (no compute in flight; covers a VWP worker error, which clears _vwpInFlight without a result).
+        // We only block while a compute is genuinely running. In the normal path the host kicks the VWP before
+        // the backfill finishes, so by the time the duo completes below this is either resolved or in flight.
+        if (stormMotion.auto && !_autoMotion && vwpInFlight()) return false;
+        for (var i = 0; i < frames.length; i++) {
+            var b = frames[i] && frames[i].built;
+            if (!(b && b.reflectivity && b.velocity)) return false; // duo not complete → backfill still running
+        }
+        return true;
+    }
+    // Arm the dual-pol second wave once (idempotent). Called after each frame build and after the motion
+    // lands, so it fires as soon as whichever finished last settles the trio. A no-op until then, and a no-op
+    // once armed. queueAllUpgrades only touches frames actually missing a dual-pol product (needsUpgrade),
+    // so it's self-limiting.
+    function maybeArmFullPrefetch() {
+        if (fullPrefetch || !trioSettled()) return;
+        var extra = dualPolIds();
+        if (!extra.length) return;
+        fullPrefetch = true;
+        hostLog('fullPrefetch armed (' + extra.join('+') + ') across ' + frames.length + ' frame(s)');
+        queueAllUpgrades('fullprefetch');
+    }
     let pendingFrame = -1;  // a frame requested via showFrame before it finished decoding; the
                             // decode that satisfies it promotes it to currentFrame (so showFrame
                             // never pins currentFrame to an undecoded index and blanks the layer).
@@ -493,16 +552,54 @@
             post({ type: 'radarFrameReady', index: res.index, hasData: false });
             return;
         }
-        // Compute empty authoritatively from the moments map (every producer sends the same shape), so
-        // cachePut below skips caching a no-geometry frame regardless of which path decoded it.
         var mo = res.moments || {};
+        // MERGE, not replace (docs/radar-loop-flow.md Rule 6 for products). A decode only builds the products
+        // it was asked for (reflectivity + the buildProducts ids); every OTHER product comes back null/false.
+        // If a frame for THIS volume already exists — an additive upgrade (velocity prefetch, a product
+        // switch, the dual-pol second wave) — keep its previously-built geometry and overlay only what this
+        // decode actually built, so switching to a dual-pol product and back never drops the trio (the old
+        // REPLACE-not-MERGE gap #2). A fresh frame (initial load, or a NEW volume at this index after a
+        // remap/live append — url differs) has nothing to keep, so this reduces to the old replace.
+        var prev = frames[res.index];
+        var mergeable = prev && prev.url && res.url && prev.url === res.url;
+        var prevVelNyq = mergeable ? (prev.velNyq || 0) : 0;
+        if (mergeable) {
+            var mMo = {}, mBuilt = {}, mGr = {}, mGridsExtra = Object.assign({}, prev.gridsExtra);
+            var rGr = res.grids || {}, pMo = prev.moments || {}, pBuilt = prev.built || {}, pGr = prev.grids || {};
+            // res.built carries EVERY product id (the decode loop sets true/false for all), so iterating it
+            // covers the whole registry. Authoritative = whatever this decode built; keep prev's otherwise.
+            var bkeys = Object.keys(res.built || {});
+            for (var bi = 0; bi < bkeys.length; bi++) {
+                var pid = bkeys[bi];
+                if (res.built[pid]) {                          // built now → take it (geometry may be null = no data)
+                    mMo[pid] = mo[pid]; mBuilt[pid] = true;
+                    if (res.gridsBuilt) { mGr[pid] = rGr[pid]; mGridsExtra[pid] = true; }
+                    else if (pid in pGr) mGr[pid] = pGr[pid];  // this decode skipped grids → keep prior grid
+                } else if (pBuilt[pid]) {                      // skipped now, but we already had it → keep it
+                    mMo[pid] = pMo[pid]; mBuilt[pid] = true;
+                    if (pid in pGr) mGr[pid] = pGr[pid];
+                } else {                                       // never built → carry the null placeholder
+                    mMo[pid] = (pid in mo) ? mo[pid] : (pid in pMo ? pMo[pid] : null); mBuilt[pid] = false;
+                }
+            }
+            // Rebuild res as the MERGED view (this decode's fresh metadata + the accumulated geometry/grids)
+            // so both frames[] and the decoded-cache entry (cachePut below) carry every product built so far.
+            res = Object.assign({}, res, {
+                moments: mMo, built: mBuilt, grids: mGr,
+                gridsBuilt: !!prev.gridsBuilt || !!res.gridsBuilt, gridsExtra: mGridsExtra,
+            });
+            mo = mMo;
+        }
+        // Compute empty authoritatively from the (merged) moments map, so cachePut below skips caching a
+        // no-geometry frame regardless of which path decoded it.
         res.empty = !Object.keys(mo).some(function (id) { return mo[id]; });
         frames[res.index] = {
             // Geometry + inspector grids keyed by product id (radar-products.js) — see render / lookupValue.
             moments: mo,                    // { id: { positions, colors, count } | null }
             grids: res.grids || {},         // { id: value-grid | null } (present only when Inspect was on)
             built: res.built || {},         // { id: bool } — whether that product's build ran (lazy bookkeeping)
-            velNyq: res.velNyq || 0,        // Nyquist (m/s) — lets the inspector show the raw fold of a dealiased gate
+            gridsExtra: res.gridsExtra || (mergeable ? prev.gridsExtra : undefined), // per-product grid bookkeeping (merge/grids-only)
+            velNyq: res.velNyq || prevVelNyq || 0, // Nyquist (m/s) — lets the inspector show the raw fold of a dealiased gate
             // url = this frame's stable volume URL (so a product/inspect switch can re-decode it),
             // gridsBuilt = whether the inspector value grids were built (skipped by default; built on
             // demand — see setProduct / setInspect).
@@ -566,6 +663,7 @@
         // for a correct VWP. It's computed once per loop from the newest volume's bottom velocity tilts
         // (computeStormMotionForVolume, triggered by the host) and surfaced via publishAutoMotion.
         postBuildProgress(); // this frame's build state may have changed the ready count
+        maybeArmFullPrefetch(); // this frame may have been the last of the DUO → arm the dual-pol second wave
     }
 
     // ---- GL custom layer ----
@@ -872,6 +970,13 @@
             decodeGridForFrame(url, index, product);
             return;
         }
+        // Build only what THIS frame is actually MISSING (Rule 6): an additive upgrade on a frame that
+        // already has the trio should build just the dual-pol product(s), not redo the (expensive) velocity
+        // dealias for products it already has. A fresh frame (no prior build for this url) builds the full
+        // wanted set. applyFrameResult MERGES the result, so the kept products are left untouched.
+        var buildIds = (f0 && f0.url === url && f0.built)
+            ? wantedIds.filter(function (id) { return !f0.built[id]; })
+            : wantedIds;
         // Cache hit → reuse the decoded geometry synchronously (no fetch, no worker). This is what
         // makes a site revisit / replay toggle instant. Reject a hit that lacks a piece we need now —
         // the lazy product's geometry (a refl-only decode from a prior view) or the ACTIVE product's
@@ -888,7 +993,7 @@
         var miss = !hit ? 'no-entry'
             : !wantedBuiltIn(hit) ? ('unbuilt:' + wantedIds.filter(function (id) { return !(hit.built && hit.built[id]); }).join(','))
                 : 'no-grid';
-        decodeTrace(index, reason, 'decode', wantedIds, miss);
+        decodeTrace(index, reason, 'decode', buildIds, miss);
         fetch(url, { cache: 'no-store' }).then(function (r) {
             if (!r.ok) throw new Error('HTTP ' + r.status);
             return r.arrayBuffer();
@@ -896,10 +1001,10 @@
             if (myToken !== loopToken) return;
             const w = getWorker();
             if (w) {
-                w.postMessage({ ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, buildProducts: wantedIds, buildGrids: wantGrids, stormMotion: resolveStormMotion() }, [ab]);
+                w.postMessage({ ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, buildProducts: buildIds, buildGrids: wantGrids, stormMotion: resolveStormMotion() }, [ab]);
             } else {
                 import('./radar-decode.js').then(function (m) {
-                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, wantedIds, wantGrids, resolveStormMotion());
+                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, buildIds, wantGrids, resolveStormMotion());
                 }).then(function (r2) {
                     applyFrameResult(frameResultFrom(r2, myToken, index, url));
                 }).catch(function (err) {
@@ -1094,6 +1199,7 @@
             loopToken++;            // invalidate any in-flight frames from a previous loop
             resetUpgrades();        // and drop any pending/in-flight lazy-upgrade decodes from it
             velPrefetch = false;    // new site: build reflectivity first; the host re-arms velocity prefetch once it's ready
+            fullPrefetch = false;   // …and the dual-pol second wave re-arms itself once THIS loop's trio settles
             // ⚠️ Forget the previous loop's storm motion: a NEW site must NOT prefetch SRV with the old site's
             // motion (that built SRV wrong, then rebuilt the whole loop when the real motion landed). srvMotionReady
             // reads false until THIS loop's motion is computed; vwpGen++ drops any still-in-flight compute for the old loop.
