@@ -618,12 +618,16 @@
                 let pos, col, cnt;
                 var effProduct = product;
                 let g = f.moments && f.moments[product];
-                // SRV stand-in: while the auto storm motion is still computing, SRV geometry isn't built (we
-                // don't build it at the wrong motion). Render base VELOCITY in its place — SRV ≈ velocity for
-                // weak motion — so the switch shows a moving field immediately instead of blank, and there's no
-                // base-velocity SRV to re-decode when the motion lands. Latch on effProduct so the real SRV
-                // re-uploads when it arrives (uploadedProduct flips velocity→srv).
-                if (!g && product === 'srv' && !srvMotionReady() && f.moments && f.moments.velocity) {
+                // SRV stand-in: whenever this frame's SRV geometry isn't built yet, render base VELOCITY in its
+                // place — SRV ≈ velocity for weak motion — so the field never goes blank. Two windows need this:
+                // (1) while the auto storm motion is still computing (we don't build SRV at the wrong motion),
+                // and (2) the ~5 s AFTER the motion lands, when dropAllSrv has requeued every frame and the
+                // current frame's SRV is mid-redecode. The outer `!g` already means "SRV not built for this
+                // frame", so we do NOT also gate on srvMotionReady() — gating on it re-blanked the displayed
+                // frame for that second window (the momentary disappear-then-reappear on switching to SRV).
+                // Latch on effProduct so the real SRV re-uploads when it arrives (uploadedProduct flips
+                // velocity→srv).
+                if (!g && product === 'srv' && f.moments && f.moments.velocity) {
                     g = f.moments.velocity; effProduct = 'velocity';
                 }
                 if (g) { pos = g.positions; col = g.colors; cnt = g.count; }
