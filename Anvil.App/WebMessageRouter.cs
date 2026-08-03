@@ -165,6 +165,15 @@ namespace Anvil
 					return;
 				}
 
+				// State Isolation reported which state is isolated (name) or that it cleared (name absent/null).
+				if (type == "stateIsolated")
+				{
+					var name = root.TryGetProperty("name", out var stEl) && stEl.ValueKind == JsonValueKind.String
+						? stEl.GetString() : null;
+					_viewModel.StateIso.OnStateIsolated(name);
+					return;
+				}
+
 				// A map marker (e.g. the user-location marker) was clicked — select it for editing.
 				if (type == "markerClick")
 				{

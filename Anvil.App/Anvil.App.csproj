@@ -21,6 +21,7 @@
     <None Remove="Assets\Map\js\radar-decode.js" />
     <None Remove="Assets\Map\js\radar-ramps.js" />
     <None Remove="Assets\Map\js\radar-worker.js" />
+    <None Remove="Assets\Map\js\states.js" />
     <None Remove="Assets\Map\vendor\nexrad-level-2-data.esm.js" />
     <None Remove="Assets\Map\vendor\seek-bzip.esm.js" />
     <None Remove="Assets\Map\vendor\maplibre-gl.css" />
@@ -153,6 +154,9 @@
     <Content Update="Assets\Map\js\radar-products.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Update="Assets\Map\js\states.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Update="Assets\Map\vendor\nexrad-level-2-data.esm.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -192,6 +196,9 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="Assets\Map\style.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="Assets\Map\state-boundaries.geojson">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="Assets\Map\style-dark.json">

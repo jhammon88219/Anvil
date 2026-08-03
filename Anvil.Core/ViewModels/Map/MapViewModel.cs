@@ -52,6 +52,7 @@ namespace Anvil.ViewModels
 			StormReports = new StormReportsViewModel(mapService, stormReportService, Radar, dispatcher);
 			Markers = new MarkersViewModel(mapService, locationService);
 			SiteExplorer = new RadarSiteExplorerViewModel(Radar, Markers, radarService, mapService);
+			StateIso = new StateIsolationViewModel(mapService);
 
 			// The Past/Now/Fore toggles PROJECT subsystem state (see the Temporal toggles region), so keep
 			// them honest: re-raise them — and close a now-inactive feature's settings card — whenever the
@@ -138,6 +139,11 @@ namespace Anvil.ViewModels
 		/// <summary>The Radar Site Explorer subsystem view model (searchable/filterable browser over the
 		/// whole radar network + per-site detail). Opened by the "Sites" button on the bar.</summary>
 		public RadarSiteExplorerViewModel SiteExplorer { get; }
+
+		/// <summary>State Isolation mode (hover-to-highlight + click-to-isolate a single US state, masking
+		/// everything else). An app-wide mode toggled by the "Isolate" button on the top bar; a building
+		/// block for the planned stream mode.</summary>
+		public StateIsolationViewModel StateIso { get; }
 
 		// ===== Temporal toggles (Past / Now / Fore) — INDEPENDENT, deselectable ==========================
 		// The three toggles are independent on/off switches, each a PROJECTION of its subsystem's real
@@ -347,6 +353,7 @@ namespace Anvil.ViewModels
 			await Radar.OnMapsReadyAsync();
 			await PastOutlook.OnMapsReadyAsync();
 			await StormReports.OnMapsReadyAsync();
+			await StateIso.OnMapsReadyAsync();
 		}
 	}
 }

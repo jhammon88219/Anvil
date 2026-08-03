@@ -13,6 +13,8 @@
 // (History: this was a small round dot before; the accent status halo + orange-selected + dead-key
 // offline styling were removed in an earlier rework.)
 
+import { coverageDistanceMeters } from './geo.js';
+
 let radarMarkers = {};        // id -> inner button element (state ops target the button)
 let radarMarkerObjs = [];     // every Marker object (for show/hide + teardown)
 let selectedSiteId = null;
@@ -22,15 +24,34 @@ let researchIds = new Set();      // ids flagged research (site.research) in the
 let tdwrVisible = false;          // Terminal Doppler Weather Radars (T***) are an opt-in extra layer
 let tdwrIds = new Set();          // ids flagged tdwr (site.tdwr) in the current list
 let radarSiteOffline = new Set(); // site ids with no recent data in the feed (red availability dot)
+let siteCoords = {};              // id -> [lng, lat] (kept so the isolation filter can measure coverage)
 
-// A marker shows only when the global sites layer is on AND each opt-in category it belongs to is on.
-// Operational sites (in neither extra set) show whenever the global layer is on; research/TDWR keys
-// additionally need their own toggle. So "Show Research Radars" / "Show TDWRs" reveal just those keys,
-// and "Hide Sites" still hides everything.
+// State-isolation coverage filter: when a state is isolated, only sites whose usable range reaches the
+// state stay visible (see setIsolation). Null rings = no isolation (all sites pass this gate).
+let isolationRings = null;        // the isolated state's outer ring(s), or null
+let coverageMeters = 0;           // a site "covers" the state if within this distance of it (radius in m)
+let coveredIds = null;            // set of site ids that pass the coverage gate (null = gate off)
+
+// Recompute which sites pass the coverage gate: within coverageMeters of the isolated state's rings. A
+// site INSIDE the state is distance 0; adjacent-state radars pass when their umbrella overlaps the state.
+function recomputeCoverage() {
+    if (!isolationRings) { coveredIds = null; return; }
+    coveredIds = new Set();
+    Object.keys(siteCoords).forEach(function (id) {
+        const c = siteCoords[id];
+        if (coverageDistanceMeters(c[0], c[1], isolationRings) <= coverageMeters) coveredIds.add(id);
+    });
+}
+
+// A marker shows only when the global sites layer is on AND each opt-in category it belongs to is on AND
+// (when a state is isolated) the site's range covers that state. The currently-selected site is exempt
+// from the coverage gate so it can't get stranded (its loop keeps rendering; you can still deselect it).
+// So "Show Research Radars" / "Show TDWRs" reveal just those keys, and "Hide Sites" still hides everything.
 function markerVisible(id) {
     return radarSitesVisible
         && (!researchIds.has(id) || researchVisible)
-        && (!tdwrIds.has(id) || tdwrVisible);
+        && (!tdwrIds.has(id) || tdwrVisible)
+        && (coveredIds === null || coveredIds.has(id) || id === selectedSiteId);
 }
 
 // Re-apply the visibility rule to every marker (after any toggle changes).
@@ -118,9 +139,11 @@ export function show(map, json) {
     radarMarkers = {};
     researchIds = new Set();
     tdwrIds = new Set();
+    siteCoords = {};
     sites.forEach(function (s) {
         if (s.research) researchIds.add(s.id);
         if (s.tdwr) tdwrIds.add(s.id);
+        siteCoords[s.id] = [s.lng, s.lat];
         const el = document.createElement('div');
         el.className = 'radar-site-marker';
         el.dataset.siteId = s.id; // used by applyVisibility to re-evaluate the per-marker rule
@@ -148,6 +171,8 @@ export function show(map, json) {
         radarMarkerObjs.push(marker);
         radarMarkers[s.id] = btn; // state ops (selected/down/tooltip) target the inner button
     });
+    recomputeCoverage(); // if a state is already isolated, apply the coverage gate to the fresh markers
+    applyVisibility();
 }
 
 export function setSelected(id) {
@@ -155,6 +180,19 @@ export function setSelected(id) {
     Object.keys(radarMarkers).forEach(function (k) {
         radarMarkers[k].classList.toggle('selected', k === selectedSiteId);
     });
+    applyVisibility(); // the selected site is exempt from the coverage gate — re-evaluate on change
+}
+
+// State-isolation coverage filter. rings = the isolated state's outer ring(s) (null clears the filter);
+// radiusKm = a radar's usable range (~230 km for WSR-88D reflectivity). Sites whose range doesn't reach
+// the state are hidden so the isolated view isn't cluttered with markers floating over the masked void —
+// but neighbors whose umbrella overlaps the state stay, so coverage holes are still reachable. Driven by
+// states.js (via map.js) on every isolation change.
+export function setIsolation(rings, radiusKm) {
+    isolationRings = (rings && rings.length) ? rings : null;
+    coverageMeters = (radiusKm || 0) * 1000;
+    recomputeCoverage();
+    applyVisibility();
 }
 
 // Which sites are offline (array of ids). Re-styles existing markers.

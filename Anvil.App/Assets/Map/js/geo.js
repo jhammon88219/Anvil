@@ -33,3 +33,46 @@ export function lngLatToPolar(siteLat, siteLon, lng, lat) {
     if (azDeg < 0) azDeg += 360;
     return { rangeMeters: Math.sqrt(dx * dx + dy * dy), azDeg: azDeg };
 }
+
+// Coverage distance (METRES) from a point to a set of polygon rings: 0 if the point is INSIDE any ring,
+// else the shortest distance to any ring EDGE (point-to-segment, not just nearest vertex). Works in a
+// local equirectangular plane centred on the point (the same flat-earth approximation as above; error is
+// <1% at radar-coverage ranges). rings = array of rings, each an array of [lng, lat]; disjoint rings
+// (MultiPolygon parts) are each tested independently. Used by the state-isolation site filter: a radar
+// "covers" the isolated state when this distance is within its usable range.
+export function coverageDistanceMeters(lng, lat, rings) {
+    const { mPerDegLat, mPerDegLon } = metersPerDeg(lat);
+    const px = function (v) { return (v[0] - lng) * mPerDegLon; }; // ring vertex -> local metres, point at origin
+    const py = function (v) { return (v[1] - lat) * mPerDegLat; };
+
+    // Inside any ring? even-odd ray cast in the projected plane, with the test point at (0,0).
+    for (let r = 0; r < rings.length; r++) {
+        const ring = rings[r];
+        let odd = false;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            const yi = py(ring[i]), yj = py(ring[j]);
+            if ((yi > 0) !== (yj > 0)) {
+                const xi = px(ring[i]), xj = px(ring[j]);
+                if (0 < (xj - xi) * (0 - yi) / (yj - yi) + xi) odd = !odd;
+            }
+        }
+        if (odd) return 0;
+    }
+
+    // Otherwise the shortest distance from the origin to any edge.
+    let best = Infinity;
+    for (let r = 0; r < rings.length; r++) {
+        const ring = rings[r];
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            const ax = px(ring[j]), ay = py(ring[j]);
+            const dx = px(ring[i]) - ax, dy = py(ring[i]) - ay;
+            const len2 = dx * dx + dy * dy;
+            let t = len2 > 0 ? (-ax * dx + -ay * dy) / len2 : 0;
+            if (t < 0) t = 0; else if (t > 1) t = 1;
+            const cx = ax + t * dx, cy = ay + t * dy;
+            const d = Math.sqrt(cx * cx + cy * cy);
+            if (d < best) best = d;
+        }
+    }
+    return best;
+}

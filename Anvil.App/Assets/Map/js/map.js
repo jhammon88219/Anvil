@@ -45,6 +45,7 @@ try {
             if (Warnings) Warnings.reAdd(map); // re-add the warning polygons (above the watches)
             if (StormReports) StormReports.reAdd(map); // re-add the storm-report dots (top of the stack)
             if (window.RadarLayer) window.RadarLayer.reAdd(map);
+            if (States) States.reAdd(map); // re-add LAST so the isolation mask lands on top of everything
         });
     };
     // SPC outlook overlay (probability fills + per-CIG hatching; nested groups clipped) lives in
@@ -203,6 +204,28 @@ try {
     window.setRadarSweep = function (periodSeconds) {
         if (window.RadarLayer) window.RadarLayer.setSweep(map, periodSeconds);
     };
+
+    // State Isolation lives in states.js — arm hover mode, then click a state to cover everything else with
+    // the map's water color. Driven by StateIsolationViewModel via IMapService (the "Isolate" top-bar
+    // toggle → stateIsoArm/Disarm; SelectIsolatedState → stateIsoSelect; ClearIsolation → stateIsoClear).
+    // states.js posts {type:"stateIsolated", name} back so the VM tracks the isolated state.
+    // __isoTest is a dev convenience for driving it straight from the WebView console.
+    var States = null;
+    // Coverage radius (km) for the state-isolation site filter: one WSR-88D reflectivity range. While a
+    // state is isolated, a radar-site marker stays only if its umbrella reaches that state (radar-sites.js).
+    var STATE_ISO_COVERAGE_KM = 230;
+    import('./states.js').then(function (m) {
+        States = m;
+        // On every isolation change, filter the radar-site markers to those covering the isolated state
+        // (rings) — or restore all when it clears (null). RadarSites is loaded by then (isolation is a
+        // user action long after startup); guarded regardless.
+        m.setOnIsolationChange(function (rings) { if (RadarSites) RadarSites.setIsolation(rings, STATE_ISO_COVERAGE_KM); });
+    }).catch(function (e) { console.error('states.js load failed: ' + e); });
+    window.stateIsoArm = function () { if (States) States.arm(map); };
+    window.stateIsoDisarm = function () { if (States) States.disarm(map); };
+    window.stateIsoClear = function () { if (States) States.clear(map); };
+    window.stateIsoSelect = function (name) { if (States) States.isolateState(map, name); };
+    window.__isoTest = function (name) { if (!States) return; States.arm(map); if (name) States.isolateState(map, name); };
 
     // Tell the host this map is ready to receive commands.
     map.on('load', function () {

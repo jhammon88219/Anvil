@@ -183,6 +183,22 @@ namespace Anvil.Services
 		/// </summary>
 		Task SetRadarSiteAccentAsync(string borderColor, string glowColor);
 
+		// ── State Isolation ──
+		// Armed = the WebView highlights a US state on hover and isolates it on click (covers everything
+		// outside that state with the basemap's water color). The hover/click + masking live entirely in
+		// states.js; these just arm/disarm the mode and, optionally, drive it programmatically.
+
+		/// <summary>Arms or disarms State Isolation mode. Armed = hover-to-highlight + click-to-isolate a
+		/// state on the map; disarmed restores the full map (dropping any active isolation).</summary>
+		Task SetStateIsolationAsync(bool armed);
+
+		/// <summary>Programmatically isolates a state by name (e.g. "Texas"); arms the mode if it wasn't.
+		/// The on-map click path does this in the WebView directly — this is for a picker / stream-mode presets.</summary>
+		Task SelectIsolatedStateAsync(string name);
+
+		/// <summary>Exits isolation but stays armed (back to hover mode so another state can be picked).</summary>
+		Task ClearStateIsolationAsync();
+
 		/// <summary>Animates the map to the given center and zoom.</summary>
 		Task FlyToAsync(double longitude, double latitude, double zoom);
 

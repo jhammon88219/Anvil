@@ -129,6 +129,17 @@ namespace Anvil.Services
 		public Task SetRadarSiteAccentAsync(string borderColor, string glowColor) =>
 			_mapView.RunScriptAsync(Call("setRadarSiteAccent", borderColor, glowColor));
 
+		// State Isolation: arm/disarm the mode, or drive it programmatically. The hover/click + masking are
+		// in states.js; these delegate to its window.stateIso* shims.
+		public Task SetStateIsolationAsync(bool armed) =>
+			_mapView.RunScriptAsync(Call(armed ? "stateIsoArm" : "stateIsoDisarm"));
+
+		public Task SelectIsolatedStateAsync(string name) =>
+			_mapView.RunScriptAsync(Call("stateIsoSelect", name));
+
+		public Task ClearStateIsolationAsync() =>
+			_mapView.RunScriptAsync(Call("stateIsoClear"));
+
 		public Task FlyToAsync(double longitude, double latitude, double zoom) =>
 			_mapView.RunScriptAsync(Call("flyTo", longitude, latitude, zoom));
 
