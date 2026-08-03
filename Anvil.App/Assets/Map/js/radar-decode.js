@@ -291,16 +291,22 @@ function nyquistForRadial(radar, i, out) {
     } catch (e) { if (out) out.src = 'none'; return NaN; }
 }
 
-// The sweep's representative Nyquist (median of valid per-radial values), or NaN if none.
+// The sweep's representative Nyquist (m/s), or NaN if none. PREFERS the RAD per-radial value (the correct
+// per-CUT Nyquist) sweep-wide: collect RAD and VOL candidates separately and return the RAD median if ANY
+// radial carries it, falling back to VOL only when NO radial does. (Was: median of a per-radial RAD-else-VOL
+// mix, which on a sweep with a few RAD-less radials could blend in the ~2 m/s-higher VOL value and shift
+// folds at couplet edges. NB the live path was SUSPECTED of feeding VOL — 2026-08-03 investigation refuted
+// that: live .V06s carry the RAD block (RRAD, 1440×) and both the decoder and Py-ART read it; this is a
+// belt-and-suspenders guard against a hypothetical partial sweep, not a fix for an observed bug. See
+// docs/velocity-dealias.md.)
 function sweepNyquist(radar, count) {
-    const v = [];
+    const radV = [], volV = [], out = {};
     for (let i = 0; i < count; i++) {
-        const n = nyquistForRadial(radar, i);
-        if (isFinite(n)) v.push(n);
+        const n = nyquistForRadial(radar, i, out);
+        if (isFinite(n)) (out.src === 'vol' ? volV : radV).push(n);
     }
-    if (!v.length) return NaN;
-    v.sort(function (a, b) { return a - b; });
-    return v[v.length >> 1];
+    const med = function (a) { if (!a.length) return NaN; a.sort(function (x, y) { return x - y; }); return a[a.length >> 1]; };
+    return radV.length ? med(radV) : med(volV);
 }
 
 // Instrumentation companion to sweepNyquist: the same median value PLUS which source it came from and
@@ -906,6 +912,12 @@ function rangeIndexOf(from, to, j) {
 const KDP_RHO_MIN = 0.85;   // gates below this ρHV have too-noisy differential phase to trust
 const KDP_WINDOW_KM = 3.0;  // half-length (km) of the ΦDP least-squares range window
 const KDP_MIN_VALID = 5;    // min valid samples in a window to estimate a slope
+const KDP_ABS_MAX = 15.0;   // reject |KDP| beyond this (°/km): real S-band KDP tops out ~10-12 even in
+                            // violent cores, so a larger magnitude is a ΦDP-unwrap / short-window LS blowup.
+                            // Measured on KTLX 2013-05-20 (tools/dualpol_check.py): p99 = 3.8, but a 0.35%
+                            // tail reached ±50-80 — isolated noise spikes that paint spurious bright pixels;
+                            // nulling them (vs clamping) makes them invisible holes instead. Keep in sync
+                            // with tools/dualpol_check.py kdp_mirror.
 
 // KDP (°/km) along ONE radial, derived from its ΦDP samples: unwrap the ~360° fold, drop low-quality
 // gates (ρHV < KDP_RHO_MIN, or reflectivity < minDbz — aligned by range), then a fixed-window
@@ -958,7 +970,9 @@ function kdpFromPhi(phi, refl, rho, minDbz) {
         }
         if (cnt < KDP_MIN_VALID) { out[i] = null; continue; }
         const denom = cnt * sxx - sx * sx;
-        out[i] = denom === 0 ? null : 0.5 * (cnt * sxy - sx * sy) / denom; // ½·(deg/km)
+        if (denom === 0) { out[i] = null; continue; }
+        const kdp = 0.5 * (cnt * sxy - sx * sy) / denom; // ½·(deg/km)
+        out[i] = (kdp > KDP_ABS_MAX || kdp < -KDP_ABS_MAX) ? null : kdp; // drop unphysical unwrap/window spikes
     }
     return out;
 }

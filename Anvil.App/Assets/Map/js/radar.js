@@ -1454,6 +1454,18 @@
         hostLog('validate start n=' + entries.length);
 
         import('./radar-decode.js').then(function (m) {
+            // Decoded value range of one product's inspector grid: dequantize the Int16 values (÷scale),
+            // skip GRID_NODATA (-32768), return {n,min,max,mean}. null if the product wasn't built/decoded.
+            function gridStats(gr) {
+                if (!gr || !gr.values) return null;
+                var v = gr.values, sc = gr.scale || 1, n = 0, mn = Infinity, mx = -Infinity, sum = 0;
+                for (var k = 0; k < v.length; k++) {
+                    if (v[k] === -32768) continue;
+                    var x = v[k] / sc;
+                    n++; sum += x; if (x < mn) mn = x; if (x > mx) mx = x;
+                }
+                return n ? { n: n, min: mn, max: mx, mean: sum / n } : null;
+            }
             // Volumes are scored one at a time: _dealiasInfo (the source of hi/total) is a decoder
             // global set during each build, so decodes must NOT overlap. Yielding between volumes lets
             // the host poll see progress and keeps the UI from wedging through the whole corpus.
@@ -1468,10 +1480,12 @@
                     if (!r.ok) throw new Error('HTTP ' + r.status);
                     return r.arrayBuffer();
                 }).then(function (ab) {
-                    // Force the velocity build so dealias runs; grids off (only the ratio matters). Pass the
-                    // velocity id explicitly (not `true`) so SRV isn't also built — the scorer only reads
-                    // velocity's dealias ratio.
-                    return m.decodeAndBuild(ab, e.lat || 0, e.lon || 0, MIN_DBZ, ['velocity'], false);
+                    // Build ALL products WITH grids: the velocity dealias ratio (res.dealias) is still the
+                    // over-unfold regression signal, and the per-product grids give each moment's decoded
+                    // value RANGE — the dual-pol decoder check (does the JS decoder scale/offset ZDR/CC/SW/
+                    // ΦDP correctly? an out-of-range value = a decoder bug), diffed vs tools/dualpol_check.py's
+                    // Py-ART reference ranges (docs/radar-validation.md "Dual-pol validation").
+                    return m.decodeAndBuild(ab, e.lat || 0, e.lon || 0, MIN_DBZ, true, true);
                 }).then(function (res) {
                     var hi = 0, tot = 0;
                     var mm = /hi=(\d+)\/(\d+)/.exec((res && res.dealias) || '');
@@ -1481,11 +1495,17 @@
                         id: e.id, gatesOver: hi, gatesTotal: tot, ratio: ratio,
                         error: (res && res.dealias) ? null : 'no velocity',
                     });
-                    // Log the FULL dealias detail (numReg + dealiased v-range), not just hi/tot: comparing
-                    // the JS numReg + range to the offline Py-ART mirror (tools/dealias_check.py) isolates
-                    // whether an over-unfold anomaly is in the DECODE (raw field differs) or the REDUCE (a
-                    // region lands on a wrong fold) — how the KBUF 31% seed was chased (docs/radar-validation.md).
+                    // Dealias detail (numReg + v-range) — see the KBUF chase (docs/radar-validation.md).
                     hostLog('validate ' + e.id + ' (' + (ratio * 100).toFixed(1) + '%) ' + ((res && res.dealias) || ''));
+                    // Per-product decoded value ranges for the dual-pol decoder check (n / min..max / mean),
+                    // dequantized from each product's inspector grid (values = round(v*scale); GRID_NODATA skipped).
+                    var order = ['reflectivity', 'velocity', 'srv', 'cc', 'zdr', 'kdp', 'sw'];
+                    var parts = [];
+                    for (var pi = 0; pi < order.length; pi++) {
+                        var st = gridStats(res && res.grids && res.grids[order[pi]]);
+                        if (st) parts.push(order[pi] + '[n=' + st.n + ' ' + st.min.toFixed(2) + '..' + st.max.toFixed(2) + ' m=' + st.mean.toFixed(2) + ']');
+                    }
+                    if (parts.length) hostLog('validate ' + e.id + ' dp ' + parts.join(' '));
                 }).catch(function (err) {
                     var msg = String((err && err.message) ? err.message : err);
                     state.results.push({ id: e.id, gatesOver: 0, gatesTotal: 0, ratio: 0, error: msg });
