@@ -7,7 +7,7 @@
 // how many radials came out, what elevation angles they actually carry, the azimuth coverage, and
 // whether both halves of the split cut (DREF surveillance + DVEL Doppler) survived.
 //
-// Usage: dotnet run -- KTLX [2013/05/20] [20:20]
+// Usage: dotnet run -- KTLX [2013/05/20]  [20:20]
 
 using System.Buffers.Binary;
 using System.Text;
