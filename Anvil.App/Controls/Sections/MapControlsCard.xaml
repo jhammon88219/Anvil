@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- MapControlsCard — the "Map" card: whole-map controls in one place. Opened by the "Map" button on the
      top bar's right edge (hidden by the card's own down-triangle), using the SAME ControlCard chrome as the
-     settings / temporal cards. Two sections stack in the body:
+     settings / temporal cards. Sections stack in the body:
        • Basemap — the map style combo (was launch-only before; this is its first on-screen control).
+       • View — the CONUS-only base-extent toggle + a Fit-to-view button (center + zoom to frame the
+         current region: the isolated state, else CONUS).
        • State Isolation — a toggle that arms hover-to-highlight + click-to-isolate on the map (as before),
          PLUS a combo to isolate a state directly by name (the only way to SWITCH states once one is
          isolated, since the mask then covers the others). Both drive ViewModel.StateIso.
-     Bound to the coordinator MapViewModel (basemap lives on it, isolation on its StateIso). -->
+     Bound to the coordinator MapViewModel (basemap + FitToViewAsync on it, isolation on its StateIso). -->
 <UserControl x:Class="Anvil.Controls.Sections.MapControlsCard"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -33,7 +35,7 @@
 
     <Grid>
         <ctl:ControlCard Title="Map"
-                         CardHeight="360"
+                         CardHeight="408"
                          CloseRequested="OnCardCloseRequested"
                          Visibility="{x:Bind VisibleWhen(ViewModel.IsMapControlsCardOpen), Mode=OneWay}">
             <ctl:ControlCard.CardBody>
@@ -44,6 +46,7 @@
                         <RowDefinition Height="Auto"/> <!-- Basemap combo -->
                         <RowDefinition Height="Auto"/> <!-- View label -->
                         <RowDefinition Height="Auto"/> <!-- CONUS toggle -->
+                        <RowDefinition Height="Auto"/> <!-- Fit to view button -->
                         <RowDefinition Height="Auto"/> <!-- State Isolation label -->
                         <RowDefinition Height="Auto"/> <!-- Isolate toggle -->
                         <RowDefinition Height="Auto"/> <!-- State combo row -->
@@ -70,19 +73,31 @@
                               IsChecked="{x:Bind ViewModel.StateIso.IsConusIsolated, Mode=TwoWay}"
                               ToolTipService.ToolTip="Hide everything outside the contiguous United States. Uncheck for the full map (incl. AK/HI/PR)."/>
 
+                    <!-- Fit-to-view: frame the current region (isolated state, else CONUS) — center + zoom.
+                         (WinUI button; the camera move goes through IMapService like flyTo. A candidate to
+                         promote to a persistent on-map corner control later.) -->
+                    <Button Grid.Row="4" Margin="4,2,0,0"
+                            Click="OnFitToViewClick"
+                            ToolTipService.ToolTip="Frame the current view (isolated state, else CONUS) — center &amp; zoom to fit">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" Glyph="&#xE740;"/>
+                            <TextBlock Text="Fit to view" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
                     <!-- ── State Isolation ── -->
-                    <TextBlock Grid.Row="4" Text="State Isolation" Margin="0,6,0,0"
+                    <TextBlock Grid.Row="5" Text="State Isolation" Margin="0,6,0,0"
                                Style="{StaticResource MapCardSectionLabelStyle}"/>
 
                     <!-- Arms hover-to-highlight + click-to-isolate on the map (the original workflow). -->
-                    <CheckBox Grid.Row="5" Margin="4,0,0,0"
+                    <CheckBox Grid.Row="6" Margin="4,0,0,0"
                               Content="Isolate a state (hover &amp; click the map)"
                               IsChecked="{x:Bind ViewModel.StateIso.IsArmed, Mode=TwoWay}"
                               ToolTipService.ToolTip="Highlight a state on hover; click it to isolate. Or pick one below."/>
 
                     <!-- Direct pick by name — also the way to SWITCH states while one is isolated (the mask
                          then hides the others from clicking). Picking arms the mode if it was off. -->
-                    <Grid Grid.Row="6" Margin="4,0,0,0" ColumnSpacing="12">
+                    <Grid Grid.Row="7" Margin="4,0,0,0" ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>

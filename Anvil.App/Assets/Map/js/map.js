@@ -227,6 +227,8 @@ try {
     window.stateIsoSelect = function (name) { if (States) States.isolateState(map, name); };
     // Base extent: mask to CONUS (on) or show the full map (off). CONUS is the launch default.
     window.setConusIsolation = function (on) { if (States) States.setConus(map, on); };
+    // Fit the current region of interest (isolated state, else CONUS) into view (center + zoom).
+    window.fitMapToView = function () { if (States) States.fitToView(map); };
     window.__isoTest = function (name) { if (!States) return; States.arm(map); if (name) States.isolateState(map, name); };
 
     // Tell the host this map is ready to receive commands.

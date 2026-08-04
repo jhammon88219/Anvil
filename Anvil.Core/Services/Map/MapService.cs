@@ -143,6 +143,9 @@ namespace Anvil.Services
 		public Task SetConusIsolationAsync(bool on) =>
 			_mapView.RunScriptAsync(Call("setConusIsolation", on));
 
+		public Task FitMapToViewAsync() =>
+			_mapView.RunScriptAsync(Call("fitMapToView"));
+
 		public Task FlyToAsync(double longitude, double latitude, double zoom) =>
 			_mapView.RunScriptAsync(Call("flyTo", longitude, latitude, zoom));
 

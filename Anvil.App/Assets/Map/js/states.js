@@ -290,6 +290,46 @@ export function setConus(map, on) {
     else applyMask(map);                                                // full map (or state) needs no CONUS data
 }
 
+// "Fit to view": frame the current region of interest — the isolated state if one is isolated, else CONUS
+// — into view (center + zoom via fitBounds). Padding leaves room for the bars (extra at the bottom for the
+// radar console); maxZoom keeps a tiny region (DC/RI) from zooming to street level. NOTE: the padding is
+// static for now; when this becomes a persistent control it should account for whichever cards are open so
+// the region centers in the actually-visible map area.
+const FIT_PADDING = { top: 60, bottom: 110, left: 40, right: 40 };
+const FIT_MAX_ZOOM = 9;
+
+function bboxOfRings(rings) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    rings.forEach(function (ring) {
+        ring.forEach(function (p) {
+            if (p[0] < minX) minX = p[0];
+            if (p[0] > maxX) maxX = p[0];
+            if (p[1] < minY) minY = p[1];
+            if (p[1] > maxY) maxY = p[1];
+        });
+    });
+    return [[minX, minY], [maxX, maxY]];
+}
+
+function fitRings(map, rings) {
+    if (!rings || !rings.length) return;
+    map.fitBounds(bboxOfRings(rings), { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM, duration: 700 });
+}
+
+export function fitToView(map) {
+    if (isolatedName) {
+        ensureData().then(function () {
+            const f = findState(isolatedName);
+            if (f) fitRings(map, outerRings(f));
+        });
+    } else {
+        ensureConus().then(function () {
+            const rings = conusRings();
+            if (rings) fitRings(map, rings);
+        });
+    }
+}
+
 // Enter state hover mode: fetch the polygons (once), add the hover layers, wire the handlers.
 export function arm(map) {
     armed = true;

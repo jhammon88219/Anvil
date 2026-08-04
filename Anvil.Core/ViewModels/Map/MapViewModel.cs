@@ -316,6 +316,10 @@ namespace Anvil.ViewModels
 
 
 
+		/// <summary>"Fit to view": frames the current region of interest (the isolated state, else CONUS)
+		/// into view. Invoked by the Map Controls card's Fit-to-view button. No-op until the map is ready.</summary>
+		public Task FitToViewAsync() => _isMapReady ? _mapService.FitMapToViewAsync() : Task.CompletedTask;
+
 		public MapStyle? SelectedStyle
 		{
 			get => _selectedStyle;

@@ -204,6 +204,10 @@ namespace Anvil.Services
 		/// until cleared). CONUS is the launch default.</summary>
 		Task SetConusIsolationAsync(bool on);
 
+		/// <summary>Frames the current region of interest into view (center + zoom via fitBounds): the
+		/// isolated state if one is isolated, else CONUS. A "fit to view" / recenter action.</summary>
+		Task FitMapToViewAsync();
+
 		/// <summary>Animates the map to the given center and zoom.</summary>
 		Task FlyToAsync(double longitude, double latitude, double zoom);
 

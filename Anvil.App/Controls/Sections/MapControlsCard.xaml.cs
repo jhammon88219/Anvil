@@ -38,5 +38,12 @@ namespace Anvil.Controls.Sections
 				ViewModel.IsMapControlsCardOpen = false;
 			}
 		}
+
+		// "Fit to view" — frame the current region (isolated state, else CONUS). Fire-and-forget: the camera
+		// move runs through IMapService (map.fitBounds), same seam as every other map command.
+		private void OnFitToViewClick(object sender, RoutedEventArgs e)
+		{
+			_ = ViewModel?.FitToViewAsync();
+		}
 	}
 }
