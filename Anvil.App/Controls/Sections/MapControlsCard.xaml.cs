@@ -45,5 +45,12 @@ namespace Anvil.Controls.Sections
 		{
 			_ = ViewModel?.FitToViewAsync();
 		}
+
+		// "Reset north" — undo a right-click-drag rotate/tilt by animating bearing + pitch back to 0.
+		// Fire-and-forget through IMapService (map.resetNorthPitch), same seam as Fit-to-view.
+		private void OnResetNorthClick(object sender, RoutedEventArgs e)
+		{
+			_ = ViewModel?.ResetOrientationAsync();
+		}
 	}
 }

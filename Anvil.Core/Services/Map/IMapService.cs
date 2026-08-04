@@ -208,6 +208,10 @@ namespace Anvil.Services
 		/// isolated state if one is isolated, else CONUS. A "fit to view" / recenter action.</summary>
 		Task FitMapToViewAsync();
 
+		/// <summary>Resets the map's orientation — animates bearing and pitch back to 0 (north up, flat) —
+		/// undoing a right-click-drag rotate/tilt. A "reset north" action.</summary>
+		Task ResetMapOrientationAsync();
+
 		/// <summary>Animates the map to the given center and zoom.</summary>
 		Task FlyToAsync(double longitude, double latitude, double zoom);
 

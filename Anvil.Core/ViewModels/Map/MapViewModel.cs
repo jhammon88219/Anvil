@@ -320,6 +320,11 @@ namespace Anvil.ViewModels
 		/// into view. Invoked by the Map Controls card's Fit-to-view button. No-op until the map is ready.</summary>
 		public Task FitToViewAsync() => _isMapReady ? _mapService.FitMapToViewAsync() : Task.CompletedTask;
 
+		/// <summary>"Reset north": animates the map's bearing and pitch back to 0 (north up, flat), undoing a
+		/// right-click-drag rotate/tilt. Invoked by the Map Controls card's Reset-north button. No-op until
+		/// the map is ready.</summary>
+		public Task ResetOrientationAsync() => _isMapReady ? _mapService.ResetMapOrientationAsync() : Task.CompletedTask;
+
 		public MapStyle? SelectedStyle
 		{
 			get => _selectedStyle;

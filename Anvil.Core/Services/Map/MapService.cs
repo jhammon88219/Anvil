@@ -146,6 +146,9 @@ namespace Anvil.Services
 		public Task FitMapToViewAsync() =>
 			_mapView.RunScriptAsync(Call("fitMapToView"));
 
+		public Task ResetMapOrientationAsync() =>
+			_mapView.RunScriptAsync(Call("resetMapNorth"));
+
 		public Task FlyToAsync(double longitude, double latitude, double zoom) =>
 			_mapView.RunScriptAsync(Call("flyTo", longitude, latitude, zoom));
 

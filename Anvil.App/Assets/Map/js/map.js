@@ -229,6 +229,11 @@ try {
     window.setConusIsolation = function (on) { if (States) States.setConus(map, on); };
     // Fit the current region of interest (isolated state, else CONUS) into view (center + zoom).
     window.fitMapToView = function () { if (States) States.fitToView(map); };
+    // Reset the map's orientation: right-click-drag can rotate off north AND tilt into a 3D pitch
+    // (MapLibre's default dragRotate/pitchWithRotate), with no on-screen control to undo it since we
+    // dropped the built-in nav controls. resetNorthPitch animates bearing + pitch back to 0 (north up,
+    // flat). Driven by the Map Controls card's "Reset north" button.
+    window.resetMapNorth = function () { map.resetNorthPitch(); };
     window.__isoTest = function (name) { if (!States) return; States.arm(map); if (name) States.isolateState(map, name); };
 
     // Tell the host this map is ready to receive commands.
