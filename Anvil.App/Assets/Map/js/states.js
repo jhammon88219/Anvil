@@ -196,7 +196,7 @@ function bindHandlers(map) {
     map.on('click', FILL, function (e) {
         if (!armed || isolatedName) return;
         const f = e.features && e.features[0];
-        if (f) isolate(map, f.id);
+        if (f) isolate(map, f.id, false); // already over the clicked state — keep the current zoom
     });
 }
 
@@ -251,17 +251,55 @@ function renderOutline(map, geometry) {
     }
 }
 
-// Apply the current mask (fill only) from the effective rings, and keep the radar-site coverage filter
-// matched to what's masked. The outline is managed by the isolate/clear paths (state-only).
+// Framing margins as a FRACTION of the region bbox. FIT = the breathing room left around the shape when you
+// Fit-to-view / isolate (a state gets a wide margin so its straight borders don't butt the straight bars;
+// CONUS stays tight — it's meant to fill the view). LOCK = how far setMaxBounds lets you pan/zoom out.
+// ⚠️ LOCK MUST be comfortably LOOSER than FIT *plus the fit's pixel padding* — otherwise setMaxBounds CLAMPS
+// the fit and zooms small states IN (the fixed-pixel padding is a big fraction of a small state's bbox, so
+// it overflows a tight lock). That clamp was why NJ "loaded zoomed in". Proportional, so it scales by size.
+const CONUS_FIT_MARGIN = 0.04;
+const STATE_FIT_MARGIN = 0.30;
+const CONUS_LOCK_MARGIN = 0.25;
+const STATE_LOCK_MARGIN = 0.65;
+function fitMarginFrac() { return isolatedName ? STATE_FIT_MARGIN : CONUS_FIT_MARGIN; }
+function lockMarginFrac() { return isolatedName ? STATE_LOCK_MARGIN : CONUS_LOCK_MARGIN; }
+
+// The region's bbox expanded by a margin fraction, clamped to the world.
+function framedBbox(rings, frac) {
+    const b = bboxOfRings(rings);
+    const dx = (b[1][0] - b[0][0]) * frac, dy = (b[1][1] - b[0][1]) * frac;
+    return [
+        [Math.max(-180, b[0][0] - dx), Math.max(-85, b[0][1] - dy)],
+        [Math.min(180, b[1][0] + dx), Math.min(85, b[1][1] + dy)]
+    ];
+}
+
+// Lock pan/zoom to the effective region: setMaxBounds constrains panning AND caps zoom-out (MapLibre won't
+// zoom out past where the bounds fill the viewport), so the masked void can't be panned/zoomed into. Null
+// rings (full map) releases the lock. ⚠️ maxBounds is RECTANGULAR — a state locks to its BOUNDING BOX (plus
+// margin), not its polygon; the box corners (masked void) stay reachable, as MapLibre has no polygon limit.
+function applyMaxBounds(map, rings) {
+    if (!rings || !rings.length) { map.setMaxBounds(null); return; } // full map — free pan
+    map.setMaxBounds(framedBbox(rings, lockMarginFrac()));
+}
+
+// Apply the current mask (fill only) from the effective rings, keep the radar-site coverage filter matched
+// to what's masked, and lock pan/zoom to the region. The outline is managed by the isolate/clear paths.
 function applyMask(map) {
     const rings = effectiveRings();
     renderMaskFill(map, rings);
     notifyIsolation(rings);
+    applyMaxBounds(map, rings);
 }
 
 // Cover everything outside `name`, tightening the mask to one state + tracing its border. Overrides the
 // base extent until cleared.
-function isolate(map, name) {
+// `frame` = move the camera to frame the new state. ⚠️ Needed when switching states from the combo: the
+// camera is over the OLD (now-masked) state, and setMaxBounds does NOT move the camera into the new bounds
+// on its own — the map shows the masked void until an interaction re-applies the constraint. A fitBounds
+// IS that interaction and lands the camera on the new state. A map-click (frame=false) is already over the
+// state, so it keeps the user's current zoom.
+function isolate(map, name, frame) {
     const feat = findState(name);
     if (!feat) return;
     isolatedName = name;
@@ -270,6 +308,7 @@ function isolate(map, name) {
     applyMask(map);                                   // fill from the state rings (+ notify the site filter)
     renderOutline(map, feat.geometry);                // crisp state border
     postIsolated(name);
+    if (frame) fitRings(map, isolatedRings);          // frame the new state (combo switch); see note above
 }
 
 // Drop the single-state isolation and fall back to the base extent (CONUS or full map).
@@ -296,7 +335,10 @@ export function setConus(map, on) {
 // static for now; when this becomes a persistent control it should account for whichever cards are open so
 // the region centers in the actually-visible map area.
 const FIT_PADDING = { top: 60, bottom: 110, left: 40, right: 40 };
-const FIT_MAX_ZOOM = 9;
+// Generous cap so the fit never feels limited — well above any state's natural fit zoom; it only stops a
+// degenerate tiny bbox from snapping to street level. (Manual zoom-in past this stays free — the global
+// map maxZoom is untouched.) Raise further if needed.
+const FIT_MAX_ZOOM = 16;
 
 function bboxOfRings(rings) {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -313,7 +355,9 @@ function bboxOfRings(rings) {
 
 function fitRings(map, rings) {
     if (!rings || !rings.length) return;
-    map.fitBounds(bboxOfRings(rings), { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM, duration: 700 });
+    // framedBbox carries the per-region FIT margin; FIT_PADDING is a pixel inset on top to keep the framing
+    // off the bars. The looser LOCK margin (lockMarginFrac) leaves room for both, so maxBounds never clamps.
+    map.fitBounds(framedBbox(rings, fitMarginFrac()), { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM, duration: 700 });
 }
 
 export function fitToView(map) {
@@ -346,10 +390,11 @@ export function disarm(map) {
     postIsolated(null);
 }
 
-// Isolate a state by name (e.g. "Texas"). Arms hover mode implicitly if it wasn't.
+// Isolate a state by name (e.g. "Texas"), from the combo or programmatically. Arms hover mode implicitly if
+// it wasn't, and FRAMES the state (the camera may be over a different state / CONUS — see isolate's note).
 export function isolateState(map, name) {
     armed = true;
-    ensureData().then(function () { addHoverLayers(map); bindHandlers(map); isolate(map, name); });
+    ensureData().then(function () { addHoverLayers(map); bindHandlers(map); isolate(map, name, true); });
 }
 
 // Exit single-state isolation but STAY armed — back to hover mode over the base extent.
