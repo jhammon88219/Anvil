@@ -1,29 +1,36 @@
-// states.js — "State Isolation" prototype. Two modes layered on the same bundled US-states polygons:
+// states.js — map masking: a BASE EXTENT (CONUS or full map) plus optional single-STATE isolation, all
+// drawn as one inverted "mask" over the same bundled US-state polygons.
 //
-//   ARMED  (hover mode): the basemap is untouched, but hovering a state paints a faint fill + a bold
-//           outline on THAT state only, and the cursor becomes a pointer — the affordance that a state
-//           is clickable. Clicking isolates it.
-//   ISOLATED: everything outside the chosen state is covered by one opaque fill the color of the map's
-//           water (so: no oceans, no neighbors — just a flat void), leaving the state showing the real
-//           basemap + radar + overlays through a hole. A clean thin outline traces the border.
+//   BASE EXTENT: either the full map (no mask) or CONUS — everything outside the contiguous 48 (+ DC) is
+//           covered by one opaque fill the color of the map's water, leaving the lower-48 showing the real
+//           basemap through the hole. CONUS is the launch default (this app is CONUS-only for now; AK/HI
+//           come later). Toggled full↔CONUS by the host.
+//   ARMED  (state hover mode): hovering a state paints a faint fill + a bold outline on THAT state only and
+//           the cursor becomes a pointer — the affordance it's clickable. Clicking isolates it.
+//   ISOLATED (single state): the mask tightens to one state (a clean thin outline traces its border). This
+//           OVERRIDES the base extent; clearing the state falls back to the base (so clearing while CONUS
+//           is on returns to CONUS, not the full map).
 //
-// WHY a bundled polygon at all: the Protomaps basemap ships state BORDER LINES only (the `boundaries`
-// source-layer) — there is no fillable state polygon in the tiles, and tile line geometry can't be read
-// back reliably at runtime. So isolation needs real polygon geometry; we bundle a simplified US-states
-// GeoJSON (served from the same-origin `mapassets` host) and drive everything off it.
+// WHY a bundled polygon: the Protomaps basemap ships state BORDER LINES only (the `boundaries` source-
+// layer) — no fillable state polygon in the tiles, and tile line geometry can't be read back reliably. So
+// masking needs real polygon geometry; we bundle a US-states GeoJSON (served same-origin from `mapassets`).
 //
-// WHY the "inverted mask" instead of clipping: MapLibre can't clip the whole map to a polygon. The
-// standard trick is a single fill whose OUTER ring is the whole world and whose HOLES are the state's
-// rings — fill it water-color and it covers everything except the state's shape. No turf / boolean ops:
-// earcut treats the first ring as outer and the rest as holes regardless of winding.
+// WHY the "inverted mask": MapLibre can't clip the map to a polygon. The trick is one fill whose OUTER ring
+// is the whole world and whose HOLES are the region's ring(s) — fill it water-color and it covers all but
+// the region. No turf / boolean ops: earcut treats the first ring as outer and the rest as holes regardless
+// of winding. ⚠️ CONUS uses a PRE-DISSOLVED boundary (`conus-boundary.geojson` — the contiguous states
+// unioned offline into disjoint exterior rings: one mainland + coastal islands). Tiling the raw 49 state
+// rings as holes was tried and FAILED — earcut bridges between the many TOUCHING holes gored the interior
+// with triangles. Disjoint rings have no shared edges, so they cut clean.
 //
-// Host seam: map.js exposes window.stateIso{Arm,Disarm,Select,Clear} shims, driven by
-// StateIsolationViewModel through IMapService (the "Isolate" top-bar toggle). This module posts
-// {type:"stateIsolated", name} back so the VM tracks the isolated state. window.__isoTest(name) is a dev
-// console helper. applyStyle calls reAdd(map) after a basemap switch (setStyle drops our layers; the
-// fetched polygons stay in memory).
+// Host seam: map.js exposes window.stateIso{Arm,Disarm,Select,Clear} + window.setConusIsolation, driven by
+// StateIsolationViewModel through IMapService. This module posts {type:"stateIsolated", name} back so the
+// VM tracks the isolated state, and calls setOnIsolationChange (wired to the radar-site coverage filter)
+// with the effective rings whenever the mask changes. window.__isoTest(name) is a dev console helper.
+// applyStyle calls reAdd(map) after a basemap switch (setStyle drops our layers; polygons stay in memory).
 
 const STATES_URL = 'https://mapassets/state-boundaries.geojson';
+const CONUS_URL = 'https://mapassets/conus-boundary.geojson'; // pre-dissolved lower-48 boundary (see header)
 
 // The world rectangle used as the mask's outer ring. Y capped at MapLibre's Web-Mercator limit (~85.05°);
 // X full span (renderWorldCopies is off, so one world is all there is).
@@ -32,25 +39,29 @@ const WORLD_RING = [[-180, -85.05], [180, -85.05], [180, 85.05], [-180, 85.05], 
 const SRC = 'state-iso';            // the states FeatureCollection (hover source)
 const FILL = 'state-iso-fill';      // faint hover highlight fill
 const LINE = 'state-iso-line';      // bold hover outline (only the hovered state draws)
-const MASK_SRC = 'state-iso-mask';  // the inverted world-minus-state polygon
+const MASK_SRC = 'state-iso-mask';  // the inverted world-minus-region polygon
 const MASK_FILL = 'state-iso-mask-fill';
 const OUTLINE_SRC = 'state-iso-outline'; // the isolated state's geometry (for the clean border line)
 const MASK_LINE = 'state-iso-mask-line';
 
-let statesData = null;   // the fetched FeatureCollection (fetch-once)
+let statesData = null;    // the fetched states FeatureCollection (for hover + single-state isolation)
 let statesPromise = null;
-let armed = false;       // hover mode on
-let isolatedName = null; // name of the isolated state, or null
-let isolatedRings = null; // the isolated state's outer ring(s), or null (handed to the site filter)
-let hoverName = null;    // name of the state currently under the cursor, or null
+let conusData = null;     // the fetched pre-dissolved CONUS boundary FeatureCollection (one MultiPolygon)
+let conusPromise = null;
+let conusRingsCache = null; // its exterior rings, extracted once (the CONUS mask holes)
+let baseConus = false;    // base extent: true = mask to CONUS, false = full map. Host sets it (default on).
+let armed = false;        // state hover mode on
+let isolatedName = null;  // name of the isolated state, or null
+let isolatedRings = null; // the isolated state's outer ring(s), or null
+let hoverName = null;     // name of the state currently under the cursor, or null
 let handlersBound = false;
-// Notified when isolation changes (rings on isolate, null on clear/disarm) — map.js wires this to the
-// radar-site coverage filter. Kept as a settable callback so states.js stays decoupled from radar-sites.js.
+// Notified with the EFFECTIVE mask rings (state rings, CONUS rings, or null) whenever the mask changes —
+// map.js wires this to the radar-site coverage filter. A settable callback so states.js stays decoupled.
 let onIsolationChange = null;
 export function setOnIsolationChange(fn) { onIsolationChange = fn; }
 function notifyIsolation(rings) { if (onIsolationChange) onIsolationChange(rings); }
 
-// The style's water color, read live so isolation matches whatever basemap is loaded AND tracks a switch
+// The style's water color, read live so the mask matches whatever basemap is loaded AND tracks a switch
 // (dataVizBlack water is #1c1c1c, but each style differs). Falls back if the water layer is atypical.
 function waterColor(map) {
     try {
@@ -72,6 +83,54 @@ function ensureData() {
         .then(function (gj) { statesData = gj; return gj; })
         .catch(function (e) { console.error('states.js load failed: ' + e); return null; });
     return statesPromise;
+}
+
+// The CONUS boundary is a separate (pre-dissolved) file, fetched lazily the first time CONUS is masked.
+function ensureConus() {
+    if (conusData) return Promise.resolve(conusData);
+    if (conusPromise) return conusPromise;
+    conusPromise = fetch(CONUS_URL, { cache: 'reload' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (gj) { conusData = gj; return gj; })
+        .catch(function (e) { console.error('conus-boundary load failed: ' + e); return null; });
+    return conusPromise;
+}
+
+// The state's outer ring(s) — a MultiPolygon's parts each contribute one; a state's own interior holes
+// (lakes) are ignored. Reused as BOTH the mask's holes and the coverage-test rings for the site filter.
+function outerRings(feature) {
+    const rings = [];
+    const g = feature.geometry;
+    if (g.type === 'Polygon') rings.push(g.coordinates[0]);
+    else if (g.type === 'MultiPolygon') g.coordinates.forEach(function (poly) { rings.push(poly[0]); });
+    return rings;
+}
+
+// The CONUS mask holes: the pre-dissolved boundary's exterior rings (one mainland + coastal islands),
+// extracted once. Disjoint (no shared edges), so they cut clean — unlike tiling the raw state rings.
+function conusRings() {
+    if (conusRingsCache) return conusRingsCache;
+    if (!conusData || !conusData.features || !conusData.features.length) return null;
+    conusRingsCache = outerRings(conusData.features[0]); // the single CONUS MultiPolygon
+    return conusRingsCache;
+}
+
+// The rings the mask should currently cut out: a single isolated state wins; else CONUS if the base extent
+// is on; else null (full map, no mask).
+function effectiveRings() {
+    if (isolatedRings) return isolatedRings;
+    if (baseConus) return conusRings();
+    return null;
+}
+
+// Build the inverted mask: one Polygon = world outer ring + the region's ring(s) as holes. So a lake inside
+// the region still shows the basemap, and everything outside the rings is covered.
+function buildMask(rings) {
+    return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [WORLD_RING].concat(rings) } };
+}
+
+function findState(name) {
+    return statesData && statesData.features.find(function (f) { return f.properties && f.properties.name === name; });
 }
 
 // Add the two hover layers (idempotent). promoteId:'name' makes each feature's id its state name — a
@@ -114,7 +173,7 @@ function clearHoverState(map) {
 
 // Layer-scoped handlers survive layer remove/re-add (they dispatch by layer id at event time), so bind
 // once. Each guards on armed && !isolatedName — the same layers exist while isolated, but the mask covers
-// them and hover must stay inert.
+// them and hover must stay inert (a state is then re-picked via the combo, not a click).
 function bindHandlers(map) {
     if (handlersBound) return;
     handlersBound = true;
@@ -141,97 +200,110 @@ function bindHandlers(map) {
     });
 }
 
-// The state's outer ring(s) — a MultiPolygon's parts each contribute one; a state's own interior holes
-// (lakes) are ignored. Reused as BOTH the mask's holes and the coverage-test rings for the site filter.
-function outerRings(feature) {
-    const rings = [];
-    const g = feature.geometry;
-    if (g.type === 'Polygon') rings.push(g.coordinates[0]);
-    else if (g.type === 'MultiPolygon') g.coordinates.forEach(function (poly) { rings.push(poly[0]); });
-    return rings;
-}
-
-// Build the inverted mask: one Polygon = world outer ring + the state's outer ring(s) as holes. So a lake
-// inside the isolated state still shows the basemap, and everything outside the rings is covered.
-function buildMask(rings) {
-    return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [WORLD_RING].concat(rings) } };
-}
-
-function findState(name) {
-    return statesData && statesData.features.find(function (f) { return f.properties && f.properties.name === name; });
-}
-
-// Tell the host which state is isolated (name) or that isolation cleared (null), so the VM can drive a
-// readout / future stream-mode UI. Best-effort — no-op outside the WebView.
+// Tell the host which state is isolated (name) or that isolation cleared (null), so the VM can drive the
+// combo / a readout. Best-effort — no-op outside the WebView. Note: CONUS is NOT a state, so the base-
+// extent toggle never posts here (the VM's SelectedState stays null when only CONUS is on).
 function postIsolated(name) {
     if (window.chrome && window.chrome.webview) {
         window.chrome.webview.postMessage(JSON.stringify({ type: 'stateIsolated', name: name || null }));
     }
 }
 
-// Cover everything outside `name` with a water-colored fill, and trace the state's border. The mask + its
-// outline are added with NO beforeId, so they sit on top of the ENTIRE stack (basemap, radar, overlays,
-// labels) — only the state's hole shows what's beneath. Labels outside the state are hidden by design
-// (clean look); in-state labels are hidden too for now (a later pass can re-show them).
-function isolate(map, name) {
-    const feat = findState(name);
-    if (!feat) return;
-    isolatedName = name;
-    clearHoverState(map);
-
-    const rings = outerRings(feat);
-    isolatedRings = rings;
+// Render (or remove) the mask FILL for a set of rings. Added with NO beforeId so it sits on top of the
+// ENTIRE stack (basemap, radar, overlays, labels) — only the region's hole shows what's beneath.
+function renderMaskFill(map, rings) {
+    if (!rings || !rings.length) {
+        if (map.getLayer(MASK_FILL)) map.removeLayer(MASK_FILL);
+        if (map.getSource(MASK_SRC)) map.removeSource(MASK_SRC);
+        return;
+    }
     const mask = buildMask(rings);
-    const outline = { type: 'Feature', properties: {}, geometry: feat.geometry };
-
     if (map.getSource(MASK_SRC)) map.getSource(MASK_SRC).setData(mask);
     else map.addSource(MASK_SRC, { type: 'geojson', data: mask });
-    if (map.getSource(OUTLINE_SRC)) map.getSource(OUTLINE_SRC).setData(outline);
-    else map.addSource(OUTLINE_SRC, { type: 'geojson', data: outline });
-
     if (!map.getLayer(MASK_FILL)) {
         map.addLayer({
             id: MASK_FILL, type: 'fill', source: MASK_SRC,
-            // fill-antialias off: we draw our own crisp border; AA on the mask's hole edge would double it.
+            // fill-antialias off: for a single state we draw our own crisp border, and for CONUS AA on the
+            // tiled hole edges would seam every shared state border. The mask edge itself reads the boundary.
             paint: { 'fill-color': waterColor(map), 'fill-antialias': false }
         });
     } else {
         map.setPaintProperty(MASK_FILL, 'fill-color', waterColor(map));
     }
+}
+
+// Render (or remove) the crisp border LINE for a single isolated state. CONUS gets no outline (the tiled
+// holes would draw every internal state border); its mask edge alone traces the coastline/border.
+function renderOutline(map, geometry) {
+    if (!geometry) {
+        if (map.getLayer(MASK_LINE)) map.removeLayer(MASK_LINE);
+        if (map.getSource(OUTLINE_SRC)) map.removeSource(OUTLINE_SRC);
+        return;
+    }
+    const outline = { type: 'Feature', properties: {}, geometry: geometry };
+    if (map.getSource(OUTLINE_SRC)) map.getSource(OUTLINE_SRC).setData(outline);
+    else map.addSource(OUTLINE_SRC, { type: 'geojson', data: outline });
     if (!map.getLayer(MASK_LINE)) {
         map.addLayer({
             id: MASK_LINE, type: 'line', source: OUTLINE_SRC,
             paint: { 'line-color': '#8a8a8a', 'line-width': 1.2 }
         });
     }
-    postIsolated(name);
+}
+
+// Apply the current mask (fill only) from the effective rings, and keep the radar-site coverage filter
+// matched to what's masked. The outline is managed by the isolate/clear paths (state-only).
+function applyMask(map) {
+    const rings = effectiveRings();
+    renderMaskFill(map, rings);
     notifyIsolation(rings);
 }
 
+// Cover everything outside `name`, tightening the mask to one state + tracing its border. Overrides the
+// base extent until cleared.
+function isolate(map, name) {
+    const feat = findState(name);
+    if (!feat) return;
+    isolatedName = name;
+    isolatedRings = outerRings(feat);
+    clearHoverState(map);
+    applyMask(map);                                   // fill from the state rings (+ notify the site filter)
+    renderOutline(map, feat.geometry);                // crisp state border
+    postIsolated(name);
+}
+
+// Drop the single-state isolation and fall back to the base extent (CONUS or full map).
 function clearIsolation(map) {
     isolatedName = null;
     isolatedRings = null;
-    [MASK_LINE, MASK_FILL].forEach(function (id) { if (map.getLayer(id)) map.removeLayer(id); });
-    if (map.getSource(MASK_SRC)) map.removeSource(MASK_SRC);
-    if (map.getSource(OUTLINE_SRC)) map.removeSource(OUTLINE_SRC);
+    renderOutline(map, null);
+    applyMask(map);                                   // reverts to base rings (or removes the mask)
 }
 
 // ---- public API (map.js shims delegate here) ----
 
-// Enter hover mode: fetch the polygons (once), add the hover layers, wire the handlers.
+// Base extent toggle: mask to CONUS (on) or show the full map (off). Independent of state isolation — a
+// single isolated state still overrides it until cleared. Default is driven by the host at map-ready.
+export function setConus(map, on) {
+    baseConus = !!on;
+    if (baseConus) ensureConus().then(function () { applyMask(map); }); // need the boundary loaded first
+    else applyMask(map);                                                // full map (or state) needs no CONUS data
+}
+
+// Enter state hover mode: fetch the polygons (once), add the hover layers, wire the handlers.
 export function arm(map) {
     armed = true;
     ensureData().then(function () { addHoverLayers(map); bindHandlers(map); });
 }
 
-// Leave state-isolation entirely: drop the mask AND the hover layers, back to the untouched full map.
+// Leave state hover mode: clear any isolated state (back to the base extent) and drop the hover layers.
+// Does NOT change the base extent — disarming returns to CONUS/full, not necessarily the full map.
 export function disarm(map) {
     armed = false;
     clearIsolation(map);
     clearHoverState(map);
     removeHoverLayers(map);
     postIsolated(null);
-    notifyIsolation(null);
 }
 
 // Isolate a state by name (e.g. "Texas"). Arms hover mode implicitly if it wasn't.
@@ -240,19 +312,20 @@ export function isolateState(map, name) {
     ensureData().then(function () { addHoverLayers(map); bindHandlers(map); isolate(map, name); });
 }
 
-// Exit isolation but STAY armed — back to hover mode so another state can be picked.
+// Exit single-state isolation but STAY armed — back to hover mode over the base extent.
 export function clear(map) {
     clearIsolation(map);
     postIsolated(null);
-    notifyIsolation(null);
 }
 
 // Re-add after a basemap switch (setStyle drops our layers; the polygons stay in memory). Re-reads the
-// water color so isolation matches the new style.
+// water color so the mask matches the new style, and restores the base extent + any isolated state.
 export function reAdd(map) {
-    if (!armed && !isolatedName) return;
-    ensureData().then(function () {
+    if (!armed && !isolatedName && !baseConus) return; // nothing to restore
+    Promise.all([ensureData(), baseConus ? ensureConus() : Promise.resolve()]).then(function () {
         if (armed) { addHoverLayers(map); bindHandlers(map); }
-        if (isolatedName) { const n = isolatedName; isolatedName = null; isolate(map, n); }
+        applyMask(map);                                            // fill from the effective rings
+        const feat = isolatedName ? findState(isolatedName) : null;
+        renderOutline(map, feat ? feat.geometry : null);
     });
 }

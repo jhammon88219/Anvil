@@ -282,6 +282,18 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isSettingsCardOpen, value);
 		}
 
+		// The Map Controls card's open state — app-wide, independent of the temporal cards and the settings
+		// card (any can be open together). Opened by the "Map" button on the top bar.
+		private bool _isMapControlsCardOpen;
+
+		/// <summary>Whether the Map Controls card (basemap style + state isolation) floats above the bar.
+		/// Two-way: the "Map" button toggles it; the card's down-triangle clears it.</summary>
+		public bool IsMapControlsCardOpen
+		{
+			get => _isMapControlsCardOpen;
+			set => SetProperty(ref _isMapControlsCardOpen, value);
+		}
+
 		// The Radar Site Explorer's open state — app-wide like IsSettingsCardOpen and deliberately
 		// independent of the temporal cards, so it can be open alongside any of them.
 		private bool _isSiteExplorerOpen;

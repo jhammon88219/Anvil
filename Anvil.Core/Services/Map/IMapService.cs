@@ -199,6 +199,11 @@ namespace Anvil.Services
 		/// <summary>Exits isolation but stays armed (back to hover mode so another state can be picked).</summary>
 		Task ClearStateIsolationAsync();
 
+		/// <summary>Sets the base map extent: on = mask everything outside CONUS (the contiguous 48 + DC),
+		/// off = the full map. Independent of single-state isolation (an isolated state still overrides it
+		/// until cleared). CONUS is the launch default.</summary>
+		Task SetConusIsolationAsync(bool on);
+
 		/// <summary>Animates the map to the given center and zoom.</summary>
 		Task FlyToAsync(double longitude, double latitude, double zoom);
 
