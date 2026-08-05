@@ -258,9 +258,9 @@ function renderOutline(map, geometry) {
 // the fit and zooms small states IN (the fixed-pixel padding is a big fraction of a small state's bbox, so
 // it overflows a tight lock). That clamp was why NJ "loaded zoomed in". Proportional, so it scales by size.
 const CONUS_FIT_MARGIN = 0.04;
-const STATE_FIT_MARGIN = 0.30;
+const STATE_FIT_MARGIN = 0.45;
 const CONUS_LOCK_MARGIN = 0.25;
-const STATE_LOCK_MARGIN = 0.65;
+const STATE_LOCK_MARGIN = 1.00;
 function fitMarginFrac() { return isolatedName ? STATE_FIT_MARGIN : CONUS_FIT_MARGIN; }
 function lockMarginFrac() { return isolatedName ? STATE_LOCK_MARGIN : CONUS_LOCK_MARGIN; }
 
