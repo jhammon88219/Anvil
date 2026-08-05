@@ -19,10 +19,28 @@
             inset: 0;
             background: #0a0a0a;
         }
+
+        /* Opaque dark cover over the map until the launch mask (CONUS) is applied. Without it the world
+           basemap (Canada/Mexico/oceans) paints on first 'load' and shows for ~½s before the mask lands
+           via the host round-trip — the flash. map.js fades this out once the initial mask is on screen
+           (or immediately when no isolation is requested). Consistent with the dark, no-flash launch. */
+        #mapcover {
+            position: absolute;
+            inset: 0;
+            background: #0a0a0a;
+            z-index: 5;
+            transition: opacity 0.25s ease-out;
+        }
+
+        #mapcover.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
     <div id="map"></div>
+    <div id="mapcover"></div>
 
     <script src="vendor/maplibre-gl.js"></script>
     <script src="vendor/pmtiles.js"></script>

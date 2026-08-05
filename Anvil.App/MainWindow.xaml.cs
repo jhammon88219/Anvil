@@ -178,12 +178,14 @@ namespace Anvil
 			// default, then re-style). The view model's default is Data Viz Black.
 			var styleFile = ViewModel.SelectedStyle?.FileName ?? "style.json";
 			var main = ViewModel.MainRegion;
-			await InitializeWebViewAsync(MainMapWebView, BuildMapUrl(main, main?.Zoom ?? 4, styleFile));
+			await InitializeWebViewAsync(MainMapWebView, BuildMapUrl(main, main?.Zoom ?? 4, styleFile, ViewModel.StateIso.IsConusIsolated));
 		}
 
 		// Builds the page URL for the map: framed at the given center/zoom, on the given
 		// basemap. The page posts 'mapReady' once its MapLibre map's 'load' fires.
-		private static string BuildMapUrl(MapRegion? region, double zoom, string styleFile)
+		// `conus` = the launch CONUS-mask default, so the page can apply the mask on first load (before it
+		// reveals) instead of waiting for the host round-trip — otherwise the world basemap flashes first.
+		private static string BuildMapUrl(MapRegion? region, double zoom, string styleFile, bool conus)
 		{
 			var lng = region?.Longitude ?? -95.5;
 			var lat = region?.Latitude ?? 37.0;
@@ -192,7 +194,8 @@ namespace Anvil
 				$"&style={styleFile}" +
 				$"&lng={lng.ToString(CultureInfo.InvariantCulture)}" +
 				$"&lat={lat.ToString(CultureInfo.InvariantCulture)}" +
-				$"&zoom={zoom.ToString(CultureInfo.InvariantCulture)}";
+				$"&zoom={zoom.ToString(CultureInfo.InvariantCulture)}" +
+				$"&conus={(conus ? "true" : "false")}";
 		}
 
 		private async Task InitializeWebViewAsync(WebView2 webView, string url)

@@ -214,13 +214,16 @@ try {
     // Coverage radius (km) for the state-isolation site filter: one WSR-88D reflectivity range. While a
     // state is isolated, a radar-site marker stays only if its umbrella reaches that state (radar-sites.js).
     var STATE_ISO_COVERAGE_KM = 230;
-    import('./states.js').then(function (m) {
+    // Kept as a promise so the launch path (map 'load' below) can apply the initial CONUS mask as soon as
+    // states.js is ready, rather than waiting for the host's mapReady round-trip.
+    var statesReady = import('./states.js').then(function (m) {
         States = m;
         // On every isolation change, filter the radar-site markers to those covering the isolated state
         // (rings) — or restore all when it clears (null). RadarSites is loaded by then (isolation is a
         // user action long after startup); guarded regardless.
         m.setOnIsolationChange(function (rings) { if (RadarSites) RadarSites.setIsolation(rings, STATE_ISO_COVERAGE_KM); });
-    }).catch(function (e) { console.error('states.js load failed: ' + e); });
+        return m;
+    }).catch(function (e) { console.error('states.js load failed: ' + e); return null; });
     window.stateIsoArm = function () { if (States) States.arm(map); };
     window.stateIsoDisarm = function () { if (States) States.disarm(map); };
     window.stateIsoClear = function () { if (States) States.clear(map); };
@@ -236,8 +239,39 @@ try {
     window.resetMapNorth = function () { map.resetNorthPitch(); };
     window.__isoTest = function (name) { if (!States) return; States.arm(map); if (name) States.isolateState(map, name); };
 
+    // Fade out the launch cover (map.html #mapcover) once the initial view is ready. Called after the
+    // launch mask is applied (or immediately when none is requested). Idempotent; a hard fallback also
+    // fires it so a failed states.js load can never leave the app stuck on a black screen.
+    var revealed = false;
+    function revealMap() {
+        if (revealed) return;
+        revealed = true;
+        var cover = document.getElementById('mapcover');
+        if (cover) cover.classList.add('hidden');
+    }
+    // Whether to mask to CONUS at launch — the host's default, passed as a URL param so the page applies
+    // the mask on first paint (under the cover) instead of flashing the world basemap while it waits for
+    // the mapReady round-trip. The host still owns the CONUS toggle after this via setConusIsolation.
+    var launchConus = params.get('conus') === 'true';
+
     // Tell the host this map is ready to receive commands.
     map.on('load', function () {
+        // Apply the launch mask BEFORE revealing so Canada/Mexico/oceans never flash. When CONUS is the
+        // launch default we wait for states.js + the boundary fetch, apply the mask, then reveal only once
+        // the map reports 'idle' — i.e. it has actually FINISHED rendering the mask layer (a guessed
+        // frame-count reveal was too early: the cover faded while the mask was still being drawn). A hard
+        // 3 s fallback guarantees the cover lifts even if states.js failed to load.
+        setTimeout(revealMap, 3000);
+        var maskReady = launchConus
+            ? statesReady.then(function (m) { return m ? m.setConus(map, true) : null; })
+            : Promise.resolve();
+        maskReady.then(function () {
+            // 'idle' fires when no more rendering is pending — the mask fill is on screen by then. Nudge a
+            // repaint so it fires promptly even if the map had already settled.
+            map.once('idle', revealMap);
+            if (map.triggerRepaint) map.triggerRepaint();
+        }).catch(revealMap);
+
         if (window.chrome && window.chrome.webview) {
             window.chrome.webview.postMessage(JSON.stringify({ type: 'mapReady' }));
         }

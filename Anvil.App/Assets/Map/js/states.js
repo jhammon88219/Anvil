@@ -323,10 +323,13 @@ function clearIsolation(map) {
 
 // Base extent toggle: mask to CONUS (on) or show the full map (off). Independent of state isolation — a
 // single isolated state still overrides it until cleared. Default is driven by the host at map-ready.
+// Returns a promise that resolves once the mask has been applied (CONUS needs the boundary fetched first),
+// so the caller can know WHEN the mask is on screen — used at launch to hold the map cover until then.
 export function setConus(map, on) {
     baseConus = !!on;
-    if (baseConus) ensureConus().then(function () { applyMask(map); }); // need the boundary loaded first
-    else applyMask(map);                                                // full map (or state) needs no CONUS data
+    if (baseConus) return ensureConus().then(function () { applyMask(map); }); // need the boundary loaded first
+    applyMask(map);                                                            // full map (or state) needs no CONUS data
+    return Promise.resolve();
 }
 
 // "Fit to view": frame the current region of interest — the isolated state if one is isolated, else CONUS
