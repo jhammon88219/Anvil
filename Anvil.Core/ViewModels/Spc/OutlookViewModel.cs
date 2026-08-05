@@ -41,6 +41,10 @@ namespace Anvil.ViewModels
 		// the product's cached GeoJSON. Empty when None is selected or no times are known.
 		private string _outlookTimesText = string.Empty;
 
+		// Legend rows for the loaded outlook (official SPC colors + names, read from the same cached GeoJSON
+		// the map draws). Empty when None is selected or the layer is off.
+		private IReadOnlyList<OutlookLegendEntry> _legendEntries = System.Array.Empty<OutlookLegendEntry>();
+
 		// Fill opacity (0-1) for the outlook polygons; the outlines stay opaque so the
 		// basemap reads through. Driven by the ribbon's opacity slider.
 		private double _outlookOpacity = 0.05;
@@ -212,6 +216,14 @@ namespace Anvil.ViewModels
 		/// <summary>Whether an issued/valid readout is available to show.</summary>
 		public bool HasOutlookTimes => _outlookTimesText.Length > 0;
 
+		/// <summary>The full legend for the selected product — SPC's own colors + level names for every
+		/// level in that product's scale, least-severe first (shown even when today's issuance omits some).
+		/// Bound to the legend in the ForeCast card; empty (and hidden) when None is selected or off.</summary>
+		public IReadOnlyList<OutlookLegendEntry> LegendEntries => _legendEntries;
+
+		/// <summary>Whether the loaded outlook has any legend rows to show.</summary>
+		public bool HasLegend => _legendEntries.Count > 0;
+
 		// ── SPC outlook info card (shown while an outlook, not "None", is selected). Title +
 		//    issued/effective times come from the cached GeoJSON; the forecast-discussion text is
 		//    fetched lazily from SPC's HTML page (GetNarrativeAsync). All recomputed in
@@ -347,6 +359,14 @@ namespace Anvil.ViewModels
 			// the Outlook Details window, and HasOutlookCard all reflect what's actually on the map.
 			var product = _isOutlookVisible ? _selectedOption?.Product : null;
 			var times = product is null ? null : _spcOutlookService.GetTimesForProduct(product);
+
+			// Legend = the selected product's FULL scale (least→most severe), gated by the same visibility as
+			// the times so it appears only when an outlook is actually shown.
+			_legendEntries = product is null
+				? System.Array.Empty<OutlookLegendEntry>()
+				: _spcOutlookService.GetLegendForProduct(product);
+			OnPropertyChanged(nameof(LegendEntries));
+			OnPropertyChanged(nameof(HasLegend));
 
 			if (times is null)
 			{

@@ -41,6 +41,14 @@ namespace Anvil.Services
 		SpcOutlookTimes? GetTimesForProduct(SpcOutlookProduct product);
 
 		/// <summary>
+		/// The FULL legend for the product's family — every SPC-defined risk / probability level, in SPC's
+		/// own published colors, ordered least-severe first — shown whether or not today's issuance contains
+		/// each level. A static reference scale (see <see cref="SpcOutlookLegend"/>), so the legend is
+		/// complete even on a quiet day.
+		/// </summary>
+		IReadOnlyList<OutlookLegendEntry> GetLegendForProduct(SpcOutlookProduct product);
+
+		/// <summary>
 		/// Fetches every product and writes each to the cache (one GeoJSON per product).
 		/// Conditional GETs skip unchanged outlooks; the last-known-good file is kept on
 		/// failure; per-product failures are isolated and reported via the results

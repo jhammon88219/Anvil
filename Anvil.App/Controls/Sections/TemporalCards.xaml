@@ -65,8 +65,10 @@
             </ctl:ControlCard.CardBody>
         </ctl:ControlCard>
 
-        <!-- Fore: SPC outlook selectors (was ContextBar's inline OutlookInput). -->
+        <!-- Fore: SPC outlook selectors + the color legend (official SPC colors for the loaded product).
+             Taller than the default to hold the legend rows below the Day/Product/Opacity selectors. -->
         <ctl:ControlCard Title="SPC Outlooks"
+                         CardHeight="400"
                          CloseRequested="OnCardCloseRequested"
                          Visibility="{x:Bind VisibleWhen(ViewModel.IsForeCardOpen), Mode=OneWay}">
             <ctl:ControlCard.CardBody>

@@ -103,6 +103,12 @@ namespace Anvil.Services
 			}
 		}
 
+		// The FULL canonical legend for the product's family — every SPC-defined level, least-severe first —
+		// regardless of what today's issuance actually contains. A static reference scale (SpcOutlookLegend),
+		// not derived from the cached file, so the legend is complete even on a quiet day.
+		public IReadOnlyList<OutlookLegendEntry> GetLegendForProduct(SpcOutlookProduct product) =>
+			SpcOutlookLegend.For(product.Type);
+
 		private static DateTimeOffset? ReadIso(JsonElement props, string name) =>
 			props.TryGetProperty(name, out var el) &&
 			el.ValueKind == JsonValueKind.String &&
