@@ -13,6 +13,12 @@ namespace Anvil.ViewModels
 	/// split-toggle's cog). At most one is open at a time; <see cref="None"/> = no card showing.</summary>
 	public enum TemporalCard { None, Past, Now, Fore }
 
+	/// <summary>Which app-wide, RIGHT-aligned card is floating above the bar (Map Controls, App Settings, or
+	/// the Radar Site Explorer). At most one open at a time; <see cref="None"/> = none showing. The right-side
+	/// mirror of <see cref="TemporalCard"/> — the two sides are INDEPENDENT, so at most one left + one right
+	/// card can be open together.</summary>
+	public enum RightPanel { None, MapControls, Settings, SiteExplorer }
+
 	/// <summary>
 	/// View model for the NON-radar map concerns: selectable basemap styles + current selection,
 	/// the SPC outlook day/product selection + overlay opacity, SPC watches, the outlook info/times,
@@ -151,11 +157,15 @@ namespace Anvil.ViewModels
 		// radar loop being shown, IsForeCast ↔ the SPC outlook overlay. Setting a toggle drives its
 		// subsystem; the Radar/Outlook PropertyChanged subscriptions (in the ctor) re-raise the toggles
 		// when that state changes from anywhere (e.g. clicking an on-map site marker lights NowCast).
-		// Past and Now are mutually exclusive because the radar layer is EITHER live OR replaying — turning
-		// one on takes the layer and clears the other; Fore's outlook overlay is independent and stacks on
-		// either. With ALL THREE OFF the map is a blank basemap (the "cleared" state — click the active
-		// toggle to reach it). NowCast is the launch default (armed, no site loaded). OpenCard tracks which feature's settings card floats above the bar (one at a
-		// time); a feature turning off closes its card (CloseCardIfInactive).
+		// PAST is exclusive with EVERYTHING (a historical replay can't share the map with live radar OR the
+		// live forecast): entering Past clears Now + Fore, and turning Now or Fore on exits Past. NOW and FORE
+		// may be up TOGETHER (live radar under the live outlook). So: Past alone, or Now and/or Fore. Turning
+		// one on clears whatever it excludes — see the IsPastCast/IsNowCast/IsForeCast setters + the ctor
+		// Radar/Outlook subscriptions. With ALL THREE OFF the map is a blank basemap (the "cleared" state — click the active
+		// toggle to reach it). ALL THREE START OFF — nothing is armed at launch (a clean map). Activating a
+		// toggle also OPENS its settings card (the setters set OpenCard); OpenCard tracks which feature's
+		// settings card floats above the bar (one at a time); a feature turning off closes its card
+		// (CloseCardIfInactive).
 		private TemporalCard _openCard = TemporalCard.None;
 
 		/// <summary>PastCast (historical replay). Projection of <see cref="RadarViewModel.IsPastEventMode"/>:
@@ -168,6 +178,7 @@ namespace Anvil.ViewModels
 			{
 				if (value == Radar.IsPastEventMode) { return; }
 				Radar.IsPastEventMode = value; // both directions clear the layer (enter = arm replay, leave = blank)
+				if (value) { OpenCard = TemporalCard.Past; } // user turned PastCast on → open its card (off closes via CloseCardIfInactive)
 			}
 		}
 
@@ -175,11 +186,11 @@ namespace Anvil.ViewModels
 		// PastCast (Radar.IsPastEventMode) and ForeCast (Outlook.IsOutlookVisible) — both genuine persistent
 		// states — "live mode" has no subsystem flag (it's just "not replay", the default), so a projection
 		// off loop-existence would snap back + DISABLE the cog whenever no site is loaded. Storing it lets
-		// the toggle/cog stay on with a blank-but-armed radar. Default ON (launch armed for live radar, so a
-		// site-marker click just works); a live loop starting (marker click) arms it, entering replay disarms
-		// it — see the Radar subscription. Set as a field initializer, NOT via the setter, so arming at
-		// construction issues no map command (there is no loop to clear and the map isn't ready yet).
-		private bool _isNowCast = true;
+		// the toggle/cog stay on with a blank-but-armed radar. Default OFF (nothing is armed at launch — a
+		// clean map); clicking a site marker starts a live loop, which arms it via the Radar subscription
+		// (that path writes this FIELD directly, bypassing the setter, so it does NOT auto-open the Now card).
+		// Entering replay disarms it. Set as a field initializer so construction issues no map command.
+		private bool _isNowCast;
 
 		/// <summary>NowCast (live radar). On = live mode armed (leaves replay; a site is then picked by
 		/// clicking its on-map marker); off = clears the live loop to a blank basemap. Mutually exclusive
@@ -193,6 +204,7 @@ namespace Anvil.ViewModels
 				if (value)
 				{
 					if (Radar.IsPastEventMode) { Radar.IsPastEventMode = false; } // leave replay for live mode
+					OpenCard = TemporalCard.Now; // user turned NowCast on → open its card (marker-click arming bypasses this setter)
 				}
 				else if (!Radar.IsPastEventMode)
 				{
@@ -211,7 +223,12 @@ namespace Anvil.ViewModels
 			set
 			{
 				if (value == Outlook.IsOutlookVisible) { return; }
+				// Fore excludes Past (both directions): entering Past already clears Fore (Radar subscription);
+				// turning Fore on must likewise exit replay, so Past + Fore are never up together. (Now + Fore
+				// DO coexist — no exclusion between them.) Mirrors how arming NowCast leaves replay.
+				if (value && Radar.IsPastEventMode) { Radar.IsPastEventMode = false; }
 				Outlook.IsOutlookVisible = value;
+				if (value) { OpenCard = TemporalCard.Fore; } // user turned ForeCast on → open its card (off closes via CloseCardIfInactive)
 			}
 		}
 
@@ -267,42 +284,55 @@ namespace Anvil.ViewModels
 			set { if (value) { OpenCard = TemporalCard.Fore; } else if (_openCard == TemporalCard.Fore) { OpenCard = TemporalCard.None; } }
 		}
 
-		// ===== App settings card (right side of the bar) =================================================
-		// The mirror image of the temporal cards: opened by a settings COG on the RIGHT edge of the bar and
-		// hidden by the card's own down-triangle. Deliberately INDEPENDENT of TemporalMode/OpenCard — it's
-		// app-wide, not tied to a time-frame, so switching temporal modes never closes it and it isn't part
-		// of the one-card-at-a-time temporal group.
-		private bool _isSettingsCardOpen;
+		// ===== App-wide RIGHT-aligned cards (Map Controls / App Settings / Site Explorer) =================
+		// The right-side mirror of the temporal cards, and — like them — a one-at-a-time group, so opening
+		// one closes whichever right card was open (a second button can't stack on top). Modeled exactly like
+		// OpenCard: a single RightPanel source of truth + three bool PROJECTIONS, so the existing button
+		// (IsChecked TwoWay) and card (Visibility) bindings keep working unchanged. Deliberately INDEPENDENT
+		// of the temporal OpenCard: switching temporal modes never closes a right card and vice-versa, so at
+		// most one LEFT + one RIGHT card show together. (The Debug-only dev Sweep/Validate cards are NOT part
+		// of this group — their open-state is a control-level DP, see MainWindow.)
+		private RightPanel _openRightPanel = RightPanel.None;
 
-		/// <summary>Whether the app-wide settings card floats above the bar (right-aligned). Two-way: the
-		/// settings cog toggles it; the card's down-triangle clears it.</summary>
-		public bool IsSettingsCardOpen
+		/// <summary>Which app-wide right-aligned card is floating above the bar (at most one). Opened by its
+		/// right-edge button, hidden by the card's own down-triangle. Independent of <see cref="OpenCard"/>.</summary>
+		public RightPanel OpenRightPanel
 		{
-			get => _isSettingsCardOpen;
-			set => SetProperty(ref _isSettingsCardOpen, value);
+			get => _openRightPanel;
+			set
+			{
+				if (SetProperty(ref _openRightPanel, value))
+				{
+					OnPropertyChanged(nameof(IsMapControlsCardOpen));
+					OnPropertyChanged(nameof(IsSettingsCardOpen));
+					OnPropertyChanged(nameof(IsSiteExplorerOpen));
+				}
+			}
 		}
-
-		// The Map Controls card's open state — app-wide, independent of the temporal cards and the settings
-		// card (any can be open together). Opened by the "Map" button on the top bar.
-		private bool _isMapControlsCardOpen;
 
 		/// <summary>Whether the Map Controls card (basemap style + state isolation) floats above the bar.
-		/// Two-way: the "Map" button toggles it; the card's down-triangle clears it.</summary>
+		/// Two-way: the "Map" button toggles it; the card's down-triangle clears it. Opening it closes any
+		/// other right card.</summary>
 		public bool IsMapControlsCardOpen
 		{
-			get => _isMapControlsCardOpen;
-			set => SetProperty(ref _isMapControlsCardOpen, value);
+			get => _openRightPanel == RightPanel.MapControls;
+			set { if (value) { OpenRightPanel = RightPanel.MapControls; } else if (_openRightPanel == RightPanel.MapControls) { OpenRightPanel = RightPanel.None; } }
 		}
 
-		// The Radar Site Explorer's open state — app-wide like IsSettingsCardOpen and deliberately
-		// independent of the temporal cards, so it can be open alongside any of them.
-		private bool _isSiteExplorerOpen;
+		/// <summary>Whether the app-wide settings card floats above the bar. Two-way: the settings cog toggles
+		/// it; the card's down-triangle clears it. Opening it closes any other right card.</summary>
+		public bool IsSettingsCardOpen
+		{
+			get => _openRightPanel == RightPanel.Settings;
+			set { if (value) { OpenRightPanel = RightPanel.Settings; } else if (_openRightPanel == RightPanel.Settings) { OpenRightPanel = RightPanel.None; } }
+		}
 
-		/// <summary>Whether the Radar Site Explorer panel is showing (toggled by the "Sites" button).</summary>
+		/// <summary>Whether the Radar Site Explorer panel is showing (toggled by the "Sites" button). Opening
+		/// it closes any other right card.</summary>
 		public bool IsSiteExplorerOpen
 		{
-			get => _isSiteExplorerOpen;
-			set => SetProperty(ref _isSiteExplorerOpen, value);
+			get => _openRightPanel == RightPanel.SiteExplorer;
+			set { if (value) { OpenRightPanel = RightPanel.SiteExplorer; } else if (_openRightPanel == RightPanel.SiteExplorer) { OpenRightPanel = RightPanel.None; } }
 		}
 
 		public IReadOnlyList<MapStyle> AvailableStyles { get; }
