@@ -64,6 +64,15 @@ namespace Anvil.ViewModels
 
 		/// <summary>One cell per loop frame, reconciled in place from the snapshot.</summary>
 		public ObservableCollection<PipelineCell> Cells { get; } = new();
+
+		private string _completeText = "…";
+		/// <summary>Time-to-complete for this product (elapsed from loop start to a full row): a duration once
+		/// filled, "…" while still filling, or "—" if it never fills (e.g. SRV with insufficient motion).</summary>
+		public string CompleteText
+		{
+			get => _completeText;
+			set => SetProperty(ref _completeText, value);
+		}
 	}
 
 	/// <summary>
@@ -218,7 +227,7 @@ namespace Anvil.ViewModels
 			{
 				HasLoop = false;
 				FrameCount = 0;
-				foreach (var row in Rows) row.Cells.Clear();
+				foreach (var row in Rows) { row.Cells.Clear(); row.CompleteText = "…"; }
 				VwpStatusText = "No loop loaded.";
 				StormMotionText = string.Empty;
 				PipelineFlagsText = string.Empty;
@@ -249,6 +258,13 @@ namespace Anvil.ViewModels
 						_ => PipelineCellState.Unbuilt,
 					};
 				}
+
+				// Per-product time-to-complete: a duration once the row is full, "…" while filling, "—" if it
+				// never fills (frozen with no time — e.g. SRV when the storm motion is insufficient).
+				var ms = (col >= 0 && col < snap.Done.Count) ? snap.Done[col] : null;
+				row.CompleteText = ms is int m
+					? (m < 1000 ? $"{m} ms" : $"{m / 1000.0:F1} s")
+					: (snap.TimingFrozen ? "—" : "…");
 			}
 
 			ApplyVwp(snap);
@@ -327,6 +343,8 @@ namespace Anvil.ViewModels
 			public List<string> Wanted { get; set; } = new();
 			public VwpSnap? Vwp { get; set; }
 			public List<FrameSnap> Frames { get; set; } = new();
+			public List<int?> Done { get; set; } = new();
+			public bool TimingFrozen { get; set; }
 		}
 
 		private sealed class VwpSnap

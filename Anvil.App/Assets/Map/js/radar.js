@@ -409,6 +409,52 @@
         hostLog('fullPrefetch armed (' + extra.join('+') + ') across ' + frames.length + ' frame(s)');
         queueAllUpgrades('fullprefetch');
     }
+    // ===== PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit) =====
+    // Per-product "time to complete" for the console: elapsed ms from beginLoop (≈ the site click, so it
+    // includes fetch) to when that product's geometry is built on EVERY loaded frame — i.e. when its
+    // scrubber row finishes filling. Each frame-product is stamped once (its build time); a product's
+    // completion is the MAX of those stamps, but only when every frame has it (else null = still filling /
+    // never fills). Computed live, then FROZEN once the initial load is done (fullPrefetch armed AND the
+    // upgrade queue fully drained) so a later live append can't rewrite the initial-fill number. A product
+    // that never fills (e.g. SRV when the storm motion is insufficient) stays null → the console shows "—".
+    // Order-independent (max over per-frame stamps), so it's correct for both fill directions. Reset per loop.
+    let _loopStartT = 0;         // performance.now() captured at beginLoop
+    let _builtAtMs = [];         // per frame index: { id: elapsed ms when that product FIRST built on it }
+    let _prodFullAtMs = {};      // product id -> elapsed ms when its LAST frame built (row full), else null
+    let _timingFrozen = false;   // once the initial load settles, stop updating (ignore live appends)
+    function updatePipelineTiming() {
+        if (_timingFrozen || !Products) return;
+        var ids = Object.keys(Products), n = frames.length;
+        var elapsed = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - _loopStartT;
+        // Stamp each frame-product the first time we observe it built (this runs right after the build, so
+        // elapsed ≈ its true build time). Order-independent: works for newest-first and oldest-first fills.
+        for (var i = 0; i < n; i++) {
+            var b = frames[i] && frames[i].built; if (!b) continue;
+            var at = _builtAtMs[i] || (_builtAtMs[i] = {});
+            for (var k = 0; k < ids.length; k++) { var id = ids[k]; if (b[id] && at[id] == null) at[id] = elapsed; }
+        }
+        // A product's time-to-complete = the LAST (max) of its per-frame stamps, but only once EVERY frame
+        // has it (row full); otherwise null (still filling / never fills).
+        for (var k2 = 0; k2 < ids.length; k2++) {
+            var pid = ids[k2], mx = -1, full = n > 0;
+            for (var j = 0; j < n; j++) {
+                var atj = _builtAtMs[j];
+                if (!atj || atj[pid] == null) { full = false; break; }
+                if (atj[pid] > mx) mx = atj[pid];
+            }
+            _prodFullAtMs[pid] = full ? mx : null;
+        }
+        // Freeze only when the pipeline is GENUINELY done: dual-pol wave armed, upgrade queue drained, the
+        // storm-motion compute settled (not still in-flight), AND — when SRV is actually wanted (motion
+        // resolved) — SRV has finished filling. Without the SRV guard a late SRV sweep lands after the freeze
+        // and never gets timed (its row fills green but the time stays "—"). When motion is insufficient SRV
+        // isn't wanted, so this doesn't block the freeze and SRV correctly shows "—".
+        var srvOk = wantedProducts().indexOf('srv') < 0 || _prodFullAtMs['srv'] != null;
+        if (fullPrefetch && upgradeQueue.length === 0 && upgradeInFlightN === 0 && !vwpInFlight() && srvOk) {
+            _timingFrozen = true;
+        }
+    }
+    // ===== END PIPELINE CONSOLE =====
     let pendingFrame = -1;  // a frame requested via showFrame before it finished decoding; the
                             // decode that satisfies it promotes it to currentFrame (so showFrame
                             // never pins currentFrame to an undecoded index and blanks the layer).
@@ -664,6 +710,7 @@
         // (computeStormMotionForVolume, triggered by the host) and surfaced via publishAutoMotion.
         postBuildProgress(); // this frame's build state may have changed the ready count
         maybeArmFullPrefetch(); // this frame may have been the last of the DUO → arm the dual-pol second wave
+        updatePipelineTiming(); // PIPELINE CONSOLE: track per-product time-to-fill (remove with the feature)
     }
 
     // ---- GL custom layer ----
@@ -1218,10 +1265,16 @@
                 cuts: (m && m.cuts) || 0,
                 topM: (m && m.topM) || 0
             };
+            var done = new Array(ids.length);
+            for (var q = 0; q < ids.length; q++) {
+                var dm = _prodFullAtMs[ids[q]];
+                done[q] = (dm == null) ? null : Math.round(dm);
+            }
             return {
                 n: frames.length, cf: currentFrame, active: product,
                 ids: ids, velPrefetch: velPrefetch, fullPrefetch: fullPrefetch,
-                wanted: wantedProducts(), vwp: vwp, frames: out
+                wanted: wantedProducts(), vwp: vwp, frames: out,
+                done: done, timingFrozen: _timingFrozen
             };
         },
         // ===== END PIPELINE CONSOLE =====
@@ -1243,6 +1296,9 @@
             // reads false until THIS loop's motion is computed; vwpGen++ drops any still-in-flight compute for the old loop.
             _autoMotion = null; _autoMotionKey = ''; vwpGen++;
             for (var _vk in _vwpInFlight) delete _vwpInFlight[_vk];
+            // PIPELINE CONSOLE: reset per-product fill timing for the new loop (remove with the feature).
+            _loopStartT = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+            _builtAtMs = []; _prodFullAtMs = {}; _timingFrozen = false;
             frames = [];
             currentFrame = -1;
             pendingFrame = -1;

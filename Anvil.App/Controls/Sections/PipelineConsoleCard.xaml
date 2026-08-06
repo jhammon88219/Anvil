@@ -25,7 +25,7 @@
     </UserControl.Resources>
 
     <Grid Visibility="{x:Bind VisibleWhen(ViewModel.IsPipelineConsoleOpen), Mode=OneWay}">
-        <Border Width="680"
+        <Border Width="720"
                 Background="{ThemeResource OverlayBarSurfaceBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                 BorderThickness="1"
@@ -58,14 +58,14 @@
                 </Grid>
 
                 <!-- Telemetry: VWP/storm-motion + what the pipeline is building. -->
-                <StackPanel Grid.Row="1" Spacing="2" Margin="0,0,0,10">
+                <StackPanel Grid.Row="1" Spacing="3" Margin="0,0,0,12">
                     <TextBlock Text="{x:Bind ViewModel.PipelineConsole.VwpStatusText, Mode=OneWay}"
-                               FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                               FontSize="14" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                     <TextBlock Text="{x:Bind ViewModel.PipelineConsole.StormMotionText, Mode=OneWay}"
-                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                TextWrapping="NoWrap"/>
                     <TextBlock Text="{x:Bind ViewModel.PipelineConsole.PipelineFlagsText, Mode=OneWay}"
-                               FontSize="11" FontFamily="Consolas,Cascadia Mono,monospace"
+                               FontSize="12" FontFamily="Consolas,Cascadia Mono,monospace"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                TextWrapping="NoWrap"/>
                 </StackPanel>
@@ -75,28 +75,29 @@
                     <ItemsControl ItemsSource="{x:Bind ViewModel.PipelineConsole.Rows, Mode=OneWay}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:PipelineProductRow">
-                                <Grid Height="16" Margin="0,3">
+                                <Grid Height="20" Margin="0,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="80"/> <!-- label + ramp swatch (fixed → rows align) -->
                                         <ColumnDefinition Width="*"/>  <!-- mini-scrubber -->
+                                        <ColumnDefinition Width="64"/> <!-- time to complete -->
                                     </Grid.ColumnDefinitions>
 
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6"
                                                 VerticalAlignment="Center">
                                         <TextBlock Text="{x:Bind ShortLabel}" Width="34"
-                                                   FontSize="12" FontWeight="SemiBold"
+                                                   FontSize="14" FontWeight="SemiBold"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                        <Border Width="30" Height="9" CornerRadius="2"
+                                        <Border Width="30" Height="10" CornerRadius="2"
                                                 Background="{x:Bind Option.Ramp, Mode=OneWay, Converter={StaticResource RampBrush}}"/>
                                     </StackPanel>
 
                                     <Grid Grid.Column="1">
                                         <!-- Always-present track. -->
-                                        <Border Height="6" VerticalAlignment="Center" CornerRadius="3"
+                                        <Border Height="7" VerticalAlignment="Center" CornerRadius="3"
                                                 Background="{ThemeResource ControlFillColorSecondaryBrush}"/>
                                         <ItemsControl ItemsSource="{x:Bind Cells, Mode=OneWay}"
                                                       IsHitTestVisible="False"
-                                                      VerticalAlignment="Center" Height="10">
+                                                      VerticalAlignment="Center" Height="11">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
                                                     <controls:UniformHorizontalPanel/>
@@ -110,14 +111,22 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                     </Grid>
+
+                                    <!-- Time to fill this product's whole row (accurate, measured in radar.js). -->
+                                    <TextBlock Grid.Column="2" Text="{x:Bind CompleteText, Mode=OneWay}"
+                                               HorizontalAlignment="Right" VerticalAlignment="Center"
+                                               Margin="8,0,0,0"
+                                               FontSize="13" FontFamily="Consolas,Cascadia Mono,monospace"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <!-- Shared playhead: one vertical line across all rows, over the scrubber column (80px in).
+                    <!-- Shared playhead: one vertical line across all rows, over the scrubber column (inset 80px
+                         left for the label, 64px right for the time column, matching the row grid so it aligns).
                          Positioned in code-behind from PipelineConsole.CurrentIndex / FrameCount. -->
-                    <Grid x:Name="PlayheadLayer" Margin="80,0,0,0" IsHitTestVisible="False"
+                    <Grid x:Name="PlayheadLayer" Margin="80,0,64,0" IsHitTestVisible="False"
                           SizeChanged="OnPlayheadLayerSizeChanged">
                         <Border x:Name="Playhead" Width="2" HorizontalAlignment="Left" VerticalAlignment="Stretch"
                                 CornerRadius="1" Background="{ThemeResource TextFillColorPrimaryBrush}">
