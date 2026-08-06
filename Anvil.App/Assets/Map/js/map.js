@@ -130,6 +130,11 @@ try {
     window.setRadarInspect = function (on) {
         if (window.RadarLayer) window.RadarLayer.setInspect(map, on);
     };
+    // PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit): read-only inner-state snapshot,
+    // polled by the host only while the Pipeline Console card is open. Returns null if no loop is loaded.
+    window.radarPipelineSnapshot = function () {
+        return window.RadarLayer ? window.RadarLayer.pipelineSnapshot() : null;
+    };
 
     // DOW Event Viewer shims — show / clear a single curated mobile-radar frame (a .dow.json from
     // the dowevents host). showDow reuses the whole radar render path; clear tears it down.

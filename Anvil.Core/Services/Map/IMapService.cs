@@ -252,5 +252,11 @@ namespace Anvil.Services
 
 		/// <summary>Signals the in-flight validation run to stop after the current volume.</summary>
 		Task CancelRadarValidationAsync();
+
+		// PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit): read-only inner-state poll.
+		/// <summary>Reads a read-only snapshot of the radar loop's inner build state (per-frame
+		/// per-product build codes + VWP/storm-motion state) as JSON, or the literal <c>null</c> when no
+		/// loop is loaded. Polled by <c>PipelineConsoleViewModel</c> only while the console card is open.</summary>
+		Task<string> GetPipelineSnapshotAsync();
 	}
 }

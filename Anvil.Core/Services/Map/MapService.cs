@@ -176,6 +176,11 @@ namespace Anvil.Services
 		public Task CancelRadarValidationAsync() =>
 			_mapView.RunScriptAsync("if(window.__anvilValidation){window.__anvilValidation.cancel=true;}");
 
+		// PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit). Returns the snapshot object's JSON
+		// directly (ExecuteScriptAsync serializes it) so the VM parses it without double-decoding, or "null".
+		public Task<string> GetPipelineSnapshotAsync() =>
+			_mapView.RunScriptAsync("(window.radarPipelineSnapshot?window.radarPipelineSnapshot():null)");
+
 		// Builds a "window.fn(a,b,c);" call string, formatting each argument for JS:
 		// doubles in invariant culture, bools lowercased, strings single-quoted. This
 		// centralizes the JS string-building (and culture handling) for every command.

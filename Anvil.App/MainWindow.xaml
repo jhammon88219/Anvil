@@ -149,6 +149,15 @@
                                SweepReportRequested="OnSweepReportRequested"
                                ValidationReportRequested="OnValidationReportRequested"/>
 
+        <!-- PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit): the read-only Level-2 pipeline
+             glass-cockpit. Ships (no DevVisibility gate); opened by the "Pipeline Console" toggle in App
+             Settings → Advanced. Centered so it can float alongside a right-side settings/temporal card;
+             its own visibility follows ViewModel.IsPipelineConsoleOpen. -->
+        <sections:PipelineConsoleCard Grid.Row="1"
+                                      VerticalAlignment="Top" HorizontalAlignment="Center"
+                                      Margin="{StaticResource FloatingWindowMargin}"
+                                      ViewModel="{x:Bind ViewModel}"/>
+
         <!-- ===== Row 2: the PER-PANE bottom bar. Only the radar console lives here — it repeats once per
              map pane in multi-pane mode. It STRETCHES to full bar width and centers its own transport at
              window-center (its internal * | Auto | * grid does the centering). ===== -->

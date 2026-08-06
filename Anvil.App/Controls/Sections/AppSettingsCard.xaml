@@ -26,7 +26,7 @@
 
     <Grid>
         <ctl:ControlCard Title="Settings"
-                         CardHeight="400"
+                         CardHeight="470"
                          CloseRequested="OnCardCloseRequested"
                          Visibility="{x:Bind VisibleWhen(ViewModel.IsSettingsCardOpen), Mode=OneWay}">
             <ctl:ControlCard.CardBody>
@@ -37,6 +37,7 @@
                         <RowDefinition Height="Auto"/> <!-- Show TDWRs -->
                         <RowDefinition Height="Auto"/> <!-- Show Research Radars -->
                         <RowDefinition Height="Auto"/> <!-- Storm motion (SRV) inputs -->
+                        <RowDefinition Height="Auto"/> <!-- Advanced / Diagnostics (PIPELINE CONSOLE) -->
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Text="Radar Settings"
@@ -109,6 +110,19 @@
                                    Value="{x:Bind ViewModel.Radar.StormMotionDirectionDeg, Mode=TwoWay}"
                                    ToolTipService.ToolTip="Manual compass bearing the storm is moving toward (0 = N, 90 = E)"/>
                     </Grid>
+
+                    <!-- PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit): the non-obvious toggle
+                         that opens the read-only pipeline glass-cockpit card. Tucked under an Advanced label
+                         so it's discoverable but out of the way. -->
+                    <StackPanel Grid.Row="4" Spacing="6" Margin="0,4,0,0">
+                        <TextBlock Text="Advanced"
+                                   Style="{StaticResource SettingsSectionLabelStyle}"/>
+                        <ToggleSwitch Margin="4,0,0,0"
+                                      Header="Pipeline Console"
+                                      OffContent="Hidden" OnContent="Shown"
+                                      IsOn="{x:Bind ViewModel.IsPipelineConsoleOpen, Mode=TwoWay}"
+                                      ToolTipService.ToolTip="Show the Level-2 pipeline console: a mini-scrubber per product + storm-motion state (observe-only)"/>
+                    </StackPanel>
                 </Grid>
             </ctl:ControlCard.CardBody>
         </ctl:ControlCard>

@@ -1187,6 +1187,44 @@
     }
 
     window.RadarLayer = {
+        // ===== PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit) =====
+        // Read-only snapshot of the loop's inner build state for the Pipeline Console card. The host
+        // polls this ONLY while the console is open. Pure reader: mutates nothing, touches no hot path.
+        // Per-frame per-product code: 0 = not built, 1 = built but no data, 2 = built with data.
+        // q/f/r are frame-level (the upgrade queue decodes a whole frame): queued / in-flight / reason.
+        pipelineSnapshot: function () {
+            if (!frames.length) return null;
+            var ids = Products ? Object.keys(Products) : [];
+            var out = [];
+            for (var i = 0; i < frames.length; i++) {
+                var f = frames[i], b = (f && f.built) || {}, mo = (f && f.moments) || {};
+                var s = new Array(ids.length);
+                for (var p = 0; p < ids.length; p++) {
+                    var id = ids[p];
+                    if (!b[id]) s[p] = 0;
+                    else if (mo[id] != null) s[p] = 2;
+                    else s[p] = 1;
+                }
+                out.push({ s: s, q: upgradeQueue.indexOf(i) >= 0, f: !!upgradeInFlight[i], r: upgradeReason[i] || '' });
+            }
+            var m = _autoMotion;
+            var vwp = {
+                inFlight: vwpInFlight(),
+                hasMotion: !!(m && !m.insufficient),
+                insufficient: !!(m && m.insufficient),
+                speedMs: (m && !m.insufficient) ? m.speedMs : 0,
+                dirDeg: (m && !m.insufficient) ? m.dirDeg : 0,
+                source: (m && m.source) || '',
+                cuts: (m && m.cuts) || 0,
+                topM: (m && m.topM) || 0
+            };
+            return {
+                n: frames.length, cf: currentFrame, active: product,
+                ids: ids, velPrefetch: velPrefetch, fullPrefetch: fullPrefetch,
+                wanted: wantedProducts(), vwp: vwp, frames: out
+            };
+        },
+        // ===== END PIPELINE CONSOLE =====
         beginLoop: function (map, lat, lon) {
             currentMap = map;
             attachContextListeners(map);

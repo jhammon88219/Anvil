@@ -59,6 +59,7 @@ namespace Anvil.ViewModels
 			Markers = new MarkersViewModel(mapService, locationService);
 			SiteExplorer = new RadarSiteExplorerViewModel(Radar, Markers, radarService, mapService);
 			StateIso = new StateIsolationViewModel(mapService);
+			PipelineConsole = new PipelineConsoleViewModel(mapService, Radar); // PIPELINE CONSOLE (remove with the feature)
 
 			// The Past/Now/Fore toggles PROJECT subsystem state (see the Temporal toggles region), so keep
 			// them honest: re-raise them — and close a now-inactive feature's settings card — whenever the
@@ -150,6 +151,28 @@ namespace Anvil.ViewModels
 		/// everything else). An app-wide mode toggled by the "Isolate" button on the top bar; a building
 		/// block for the planned stream mode.</summary>
 		public StateIsolationViewModel StateIso { get; }
+
+		// PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit).
+		/// <summary>The Pipeline Console: a read-only glass-cockpit over the Level-2 build pipeline (a
+		/// mini-scrubber per product + VWP/storm-motion state). Ships behind a non-obvious toggle in the App
+		/// Settings card; polls the WebView only while open.</summary>
+		public PipelineConsoleViewModel PipelineConsole { get; }
+
+		private bool _isPipelineConsoleOpen;
+		/// <summary>Whether the Pipeline Console card is showing. INDEPENDENT of the other cards (it may float
+		/// alongside them). Forwards to <see cref="PipelineConsoleViewModel.IsOpen"/> so polling runs only
+		/// while it's open.</summary>
+		public bool IsPipelineConsoleOpen
+		{
+			get => _isPipelineConsoleOpen;
+			set
+			{
+				if (SetProperty(ref _isPipelineConsoleOpen, value))
+				{
+					PipelineConsole.IsOpen = value;
+				}
+			}
+		}
 
 		// ===== Temporal toggles (Past / Now / Fore) — INDEPENDENT, deselectable ==========================
 		// The three toggles are independent on/off switches, each a PROJECTION of its subsystem's real
