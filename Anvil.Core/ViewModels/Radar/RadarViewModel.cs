@@ -109,22 +109,33 @@ namespace Anvil.ViewModels
 		private void RefreshSegmentReadiness()
 		{
 			var n = Segments.Count;
-			// Contiguous-from-left frontier: the largest index whose cell AND every cell before it is complete.
+			// Contiguous-from-left frontier: the largest index whose cell AND every cell before it is fill-ready.
+			// ⚠️ Immediate frames (first-paint, live) must NOT BLOCK the frontier. In PastCast the first-paint
+			// frame is index 0 (leftmost) and decodes REFLECTIVITY-ONLY — its velocity backfills LATE (behind the
+			// loop's parallel backfill in the shared decode pool). Treating that incomplete duo as a blocker
+			// pinned the ENTIRE frontier until the late velocity landed, so the whole scrubber lit AT ONCE
+			// instead of left-to-right (Rule 2) — making a slow load look stuck/broken. Skipping immediate frames
+			// lets the frames after them reveal as they complete. (Live avoids this only because its refl-only
+			// first-paint frame is the RIGHTMOST cell, so it never blocked the left-growing frontier.)
 			var frontier = -1;
 			for (var i = 0; i < n; i++)
 			{
-				if (Segments[i].IsDecoded && IsFrameComplete(i)) frontier = i;
+				if (IsFrameFillReady(i) || IsImmediateFrame(i)) frontier = i;
 				else break;
 			}
 			for (var i = 0; i < n; i++)
 			{
-				var complete = Segments[i].IsDecoded && IsFrameComplete(i);
-				// Rule 1: the first-paint frame and the live frame are shown the instant they're complete,
-				// outside the ordered fill. Everything else waits its turn in the left-to-right frontier.
-				var immediate = i == _firstPaintIndex || (_hasLiveFrame && i >= _archiveCount);
-				Segments[i].IsReady = complete && (i <= frontier || immediate);
+				// Rule 1: an immediate frame (first-paint / live) is shown the instant it's decoded, so its cell
+				// lights on decode — even before its duo completes (it's the frame you're already looking at).
+				// Every other cell lights on its duo (refl+velocity) once the left-to-right frontier reaches it.
+				Segments[i].IsReady = IsImmediateFrame(i)
+					? Segments[i].IsDecoded
+					: IsFrameFillReady(i) && i <= frontier;
 			}
 		}
+
+		private bool IsFrameFillReady(int i) => Segments[i].IsDecoded && IsFrameComplete(i);
+		private bool IsImmediateFrame(int i) => i == _firstPaintIndex || (_hasLiveFrame && i >= _archiveCount);
 		private bool _isPlaying;
 		private bool _isLoopReady;
 		private string? _loadedNewestKey;
