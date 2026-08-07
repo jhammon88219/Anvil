@@ -245,10 +245,12 @@ namespace Anvil.ViewModels
 			{
 				var col = _colByProduct.TryGetValue(row.Option.Id, out var c) ? c : -1;
 				ReconcileCount(row.Cells, snap.N);
+				var anyData = false;
 				for (var i = 0; i < snap.N; i++)
 				{
 					var fr = i < snap.Frames.Count ? snap.Frames[i] : null;
 					var code = (fr is not null && col >= 0 && col < fr.S.Count) ? fr.S[col] : 0;
+					if (code == 2) anyData = true;
 					row.Cells[i].State = code switch
 					{
 						2 => PipelineCellState.Built,
@@ -259,11 +261,13 @@ namespace Anvil.ViewModels
 					};
 				}
 
-				// Per-product time-to-complete: a duration once the row is full, "…" while filling, "—" if it
-				// never fills (frozen with no time — e.g. SRV when the storm motion is insufficient).
+				// Per-product readout: a duration once the row is full, "…" while filling, "—" if it never
+				// fills (frozen with no time — e.g. SRV when the storm motion is insufficient). Special case:
+				// a product BUILT on every frame but with NO DATA anywhere (e.g. CC/KDP/ZDR on a pre-dual-pol
+				// volume — the moment doesn't exist in that era) shows "no data", not a misleading time.
 				var ms = (col >= 0 && col < snap.Done.Count) ? snap.Done[col] : null;
 				row.CompleteText = ms is int m
-					? (m < 1000 ? $"{m} ms" : $"{m / 1000.0:F1} s")
+					? (anyData ? (m < 1000 ? $"{m} ms" : $"{m / 1000.0:F1} s") : "no data")
 					: (snap.TimingFrozen ? "—" : "…");
 			}
 
