@@ -752,8 +752,9 @@ namespace Anvil.ViewModels
 				return;
 			}
 			var kt = speedMs / 0.514444;
+			var mph = speedMs * 2.23694;
 			var src = string.IsNullOrWhiteSpace(source) ? "" : " · " + source;
-			AutoStormMotionText = $"{Math.Round(directionDeg)}° at {Math.Round(kt)} kt{src}";
+			AutoStormMotionText = $"{Math.Round(directionDeg)}° at {Math.Round(kt)} kt ({Math.Round(mph)} mph){src}";
 		}
 
 		/// <summary>Asks the WebView to compute the loop's ONE auto storm motion (docs/radar-loop-flow.md

@@ -100,10 +100,10 @@ namespace Anvil.ViewModels
 				}
 
 				_inspectFraction = Math.Clamp((v - r.Min) / span, 0, 1);
-				// Velocity (m/s) reads in familiar speed units (mph · km/h) to match the on-map inspector
-				// tooltip; other products keep their native unit (dBZ / unitless CC).
+				// Speed products (velocity / SRV / spectrum width — unit "m/s") read as the native m/s value
+				// PLUS mph to match the on-map inspector tooltip; others keep their native unit (dBZ / CC).
 				_inspectValueText = r.Unit == "m/s"
-					? $"{v * 2.23694:0} mph · {v * 3.6:0} km/h"
+					? $"{v:0.0} m/s ({v * 2.23694:0.0} mph)"
 					: v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) +
 						(string.IsNullOrEmpty(r.Unit) ? string.Empty : " " + r.Unit);
 				_hasInspectValue = true;

@@ -1190,9 +1190,9 @@
         const r = lookupValue(inspectGrid(), e.lngLat.lat, e.lngLat.lng);
         const el = ensureInspectTip();
         if (r) {
-            // Velocity reads in familiar speed units (mph · km/h) rather than the raw m/s; other
-            // products keep their native unit (dBZ / unitless CC).
-            const main = product === 'velocity'
+            // Speed products (velocity / SRV / spectrum width — unit "m/s") read as the native m/s value
+            // PLUS mph, e.g. "12.3 m/s (28 mph)"; other products keep their native unit (dBZ / unitless CC).
+            const main = r.unit === 'm/s'
                 ? formatSpeed(r.value)
                 : r.value.toFixed(r.digits) + (r.unit ? ' ' + r.unit : '');
             // On Velocity, show the SAME gate's dealiasing breakdown so the unfold can be checked
@@ -1217,9 +1217,9 @@
         }
     }
 
-    // Velocity in m/s → "±47 mph · ±76 km/h" (sign preserved: inbound negative, outbound positive).
+    // A speed in m/s → "12.3 m/s (28 mph)" (sign preserved: inbound negative, outbound positive).
     function formatSpeed(ms) {
-        return (ms * 2.23694).toFixed(0) + ' mph · ' + (ms * 3.6).toFixed(0) + ' km/h';
+        return ms.toFixed(1) + ' m/s (' + (ms * 2.23694).toFixed(1) + ' mph)';
     }
 
     // For a dealiased velocity value, recover the raw (folded) measurement + the fold count from the

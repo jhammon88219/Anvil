@@ -291,11 +291,12 @@ namespace Anvil.ViewModels
 			if (v.HasMotion)
 			{
 				var kt = v.SpeedMs / KnotsPerMs;
+				var mph = v.SpeedMs * 2.23694;
 				VwpStatusText = "Storm motion: resolved.";
 				StormMotionText = string.Format(
 					CultureInfo.InvariantCulture,
-					"{0:F0}° @ {1:F0} kt · {2} · {3} cuts · top {4:F1} km",
-					v.DirDeg, kt, string.IsNullOrEmpty(v.Source) ? "auto" : v.Source, v.Cuts, v.TopM / 1000.0);
+					"{0:F0}° @ {1:F0} kt ({2:F0} mph) · {3} · {4} cuts · top {5:F1} km",
+					v.DirDeg, kt, mph, string.IsNullOrEmpty(v.Source) ? "auto" : v.Source, v.Cuts, v.TopM / 1000.0);
 			}
 			else if (v.Insufficient)
 			{
