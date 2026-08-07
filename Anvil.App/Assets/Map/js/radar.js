@@ -444,13 +444,21 @@
             }
             _prodFullAtMs[pid] = full ? mx : null;
         }
-        // Freeze only when the pipeline is GENUINELY done: dual-pol wave armed, upgrade queue drained, the
-        // storm-motion compute settled (not still in-flight), AND — when SRV is actually wanted (motion
-        // resolved) — SRV has finished filling. Without the SRV guard a late SRV sweep lands after the freeze
-        // and never gets timed (its row fills green but the time stays "—"). When motion is insufficient SRV
-        // isn't wanted, so this doesn't block the freeze and SRV correctly shows "—".
+        // Freeze only when the pipeline is GENUINELY done. Three conditions beyond "queue drained":
+        //  1. motionSettled — in auto mode the storm motion has a DEFINITIVE result (resolved OR insufficient),
+        //     never still-pending. This is the key fix for the intermittent SRV "—": fullPrefetch can arm from
+        //     just the DUO (trioSettled treats "no VWP in-flight yet" as settled), so the dual-pol wave can
+        //     drain BEFORE the VWP compute even starts — a window where SRV isn't yet wanted and !vwpInFlight
+        //     is (misleadingly) true. Requiring _autoMotion != null blocks the freeze until the motion lands,
+        //     so SRV gets a chance to become wanted + fill and be timed. (_autoMotion is set for BOTH resolved
+        //     and insufficient, so an insufficient result still lets the freeze proceed with SRV "—".)
+        //  2. !vwpInFlight() — not mid-compute (covers a re-compute after an earlier resolution).
+        //  3. srvOk — when SRV is wanted (motion resolved), it has actually finished filling; else a late SRV
+        //     sweep would land after the freeze and its row would fill green with the time stuck at "—".
+        var motionSettled = !stormMotion.auto || _autoMotion != null;
         var srvOk = wantedProducts().indexOf('srv') < 0 || _prodFullAtMs['srv'] != null;
-        if (fullPrefetch && upgradeQueue.length === 0 && upgradeInFlightN === 0 && !vwpInFlight() && srvOk) {
+        if (fullPrefetch && upgradeQueue.length === 0 && upgradeInFlightN === 0
+            && motionSettled && !vwpInFlight() && srvOk) {
             _timingFrozen = true;
         }
     }
