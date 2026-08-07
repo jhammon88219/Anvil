@@ -1,7 +1,7 @@
 # Anvil
 
 **Severe-weather workstation for Windows.** Decodes NEXRAD Level II from raw base data, live or
-replayed from the archive back to 2008, and GPU-renders it over local, fully style-controlled vector
+replayed from the archive back to 1995, and GPU-renders it over local, fully style-controlled vector
 basemaps, with SPC outlooks, watches, and DOW mobile-radar frames.
 
 Anvil reads raw WSR-88D Level II volumes, decodes the Message 31 base data itself, and renders every
@@ -36,7 +36,7 @@ products and your local warnings for any safety-of-life decision.
 - **Live loop.** Recent volumes from the AWS archive, plus a near-real-time frame assembled from the
   chunks bucket that cuts the usual 10 minute archive latency
   (`docs/radar-live-frame-internals.md`).
-- **Past Event Viewer.** Pick a site, a date back to 2008, a start time, and a window from 30 minutes
+- **Past Event Viewer.** Pick a site, a date back to 1995, a start time, and a window from 30 minutes
   to 12 hours. Scrub or play it through the same pipeline as live (`docs/past-event-viewer.md`).
 - **Inspector.** Reads the decoded value under the cursor and marks it on the color scale.
 - **Site coverage.** The full WSR-88D network, with TDWRs and research radars as optional layers.

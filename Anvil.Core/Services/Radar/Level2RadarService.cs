@@ -349,15 +349,45 @@ namespace Anvil.Services
 		private const int VwpMaxTilts = 8;
 		private const float VwpMaxTiltDeg = 7.0f;
 
+		// How many of the VWP's higher-tilt extractions to run concurrently. Extracting each cut bzip2-decodes
+		// the raw volume, so doing all ~7 SEQUENTIALLY was the SRV long pole (~16 s measured; the download is
+		// only ~13 MB). These are CPU-bound, so keep it modest — it overlaps the JS dual-pol decode.
+		private const int VwpExtractConcurrency = 4;
+
 		public async Task<IReadOnlyList<string>> EnsureVwpTiltsAsync(RadarSite site, string key, CancellationToken cancellationToken = default)
 		{
 			// One raw download up front (idempotent; skips .gz + already-present) so each tilt then extracts
 			// LOCALLY — otherwise a higher tilt (not in the cheap base prefix) would force a full download each.
-			try { await PrefetchRawVolumesAsync(site, new[] { key }, cancellationToken); }
+			// This raw is SRV's long pole, so pull it over parallel sub-range streams (GetFullParallelAsync)
+			// instead of one throughput-limited S3 stream (docs/radar-loop-flow.md honest-gap #1). Identical
+			// bytes → the same full .raw the display tilt-switch path reads, so no correctness change; falls
+			// back to the single-stream prefetch if ranges aren't honored / a sub-range fails.
+			var swDownload = System.Diagnostics.Stopwatch.StartNew();
+			try
+			{
+				var time = ParseVolumeTime(key);
+				var rawFile = time is null ? null : RawCacheFileFor(site.Id, time.Value);
+				var isGz = key.EndsWith(".gz", StringComparison.Ordinal);
+				if (!isGz && rawFile is not null && !File.Exists(rawFile))
+				{
+					var raw = await GetFullParallelAsync(key, cancellationToken);
+					if (raw is not null)
+					{
+						await WriteRawAsync(rawFile, raw, cancellationToken);
+					}
+					else
+					{
+						await PrefetchRawVolumesAsync(site, new[] { key }, cancellationToken); // fall back to single-stream
+					}
+				}
+				// else: .gz is range-unfriendly (EnsureCachedAsync(base) downloads it), or the raw is already cached.
+			}
 			catch (OperationCanceledException) { throw; }
 			catch { /* best-effort; EnsureCachedAsync still works via its own download path */ }
+			swDownload.Stop();
 
 			// The base tilt carries the VCP elevation table (Tilts), so ensure it first and read the angles off it.
+			var swExtract = System.Diagnostics.Stopwatch.StartNew();
 			var baseVol = await EnsureCachedAsync(site, key, tiltAngle: null, cancellationToken: cancellationToken);
 			if (baseVol is null)
 			{
@@ -381,23 +411,55 @@ namespace Anvil.Services
 				return urls; // no elevation table → base only (the WebView reads whatever cuts the buffer holds)
 			}
 
-			// Add the higher cuts: the lowest distinct angle is the base (already added), so skip it and take
-			// the next few up to the angle ceiling. A tilt the truncated volume doesn't actually carry extracts
-			// to null and is skipped, so the returned set is only the cuts that really exist.
+			// The higher cuts to extract: the lowest distinct angle is the base (already added), so skip it and
+			// take the next few up to the angle ceiling / tilt budget.
 			var sorted = tilts.Where(a => a > 0f).Distinct().OrderBy(a => a).ToList();
-			for (var i = 1; i < sorted.Count && urls.Count < VwpMaxTilts; i++)
+			var targets = new List<float>();
+			for (var i = 1; i < sorted.Count && targets.Count < VwpMaxTilts - 1; i++)
 			{
 				if (sorted[i] > VwpMaxTiltDeg)
 				{
 					break;
 				}
-				cancellationToken.ThrowIfCancellationRequested();
-				var v = await EnsureCachedAsync(site, key, tiltAngle: sorted[i], cancellationToken: cancellationToken);
-				if (v is not null)
+				targets.Add(sorted[i]);
+			}
+
+			// Extract the higher cuts CONCURRENTLY (bounded) — each bzip2-decodes the raw, and doing them
+			// sequentially was SRV's long pole. Results are collected by index so the returned URL order stays
+			// ascending-by-angle. A tilt the (truncated) volume doesn't carry extracts to null and is skipped.
+			if (targets.Count > 0)
+			{
+				var extracted = new string?[targets.Count];
+				using var gate = new SemaphoreSlim(VwpExtractConcurrency);
+				await Task.WhenAll(Enumerable.Range(0, targets.Count).Select(async idx =>
 				{
-					urls.Add(v.LocalUrl);
+					await gate.WaitAsync(cancellationToken);
+					try
+					{
+						var v = await EnsureCachedAsync(site, key, tiltAngle: targets[idx], cancellationToken: cancellationToken);
+						if (v is not null)
+						{
+							extracted[idx] = v.LocalUrl;
+						}
+					}
+					finally
+					{
+						gate.Release();
+					}
+				}));
+				foreach (var u in extracted)
+				{
+					if (u is not null)
+					{
+						urls.Add(u);
+					}
 				}
 			}
+			swExtract.Stop();
+
+			RadarDiagnostics.Log("svc", "vwp.provision", ("site", site.Id),
+				("tilts", urls.Count), ("downloadMs", (int)swDownload.ElapsedMilliseconds),
+				("extractMs", (int)swExtract.ElapsedMilliseconds));
 			return urls;
 		}
 
@@ -511,6 +573,72 @@ namespace Anvil.Services
 			foreach (var p in parts) { total += p.Length; }
 			var result = new byte[total];
 			var offset = 0;
+			foreach (var p in parts) { Buffer.BlockCopy(p, 0, result, offset, p.Length); offset += p.Length; }
+			return result;
+		}
+
+		// How many parallel sub-range streams to split the WHOLE VWP raw volume download into. That raw is the
+		// biggest single download in the pipeline and SRV's long pole (docs/radar-loop-flow.md honest-gap #1):
+		// the storm motion needs the whole volume's bottom tilts, and a single S3 stream is throughput-limited
+		// + bimodal (measured 0.4-3.7 s for just 5 MB), so an ~86 MB single stream is the slow tail SRV waits
+		// on. Splitting it aggregates bandwidth. Kept modest so it doesn't over-subscribe the link while it
+		// OVERLAPS the archive backfill (Rule 4: the motion computes in parallel with the backfill) — the trio
+		// (Ref/Vel) latency the console measures is the guardrail if this needs tuning.
+		private const int VwpDownloadStreams = 4;
+
+		// Downloads a full S3 object over VwpDownloadStreams concurrent sub-range streams and concatenates
+		// them — the multi-stream analogue of PrefetchRawVolumesAsync's single GET, for the one download big
+		// enough to matter (the VWP raw). Probes the first chunk to learn the total size from Content-Range,
+		// then fetches the remainder in parallel. Returns null (caller falls back to the single-stream path)
+		// if ranges aren't honored or any sub-range fails; returns the whole object if the server sent 200.
+		private async Task<byte[]?> GetFullParallelAsync(string key, CancellationToken ct)
+		{
+			const int probeBytes = 8 * 1024 * 1024; // first chunk: enough to carry the base tilt while we learn the size
+			long total;
+			byte[] head;
+			using (var req = new HttpRequestMessage(HttpMethod.Get, BucketBase + key))
+			{
+				req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(0, probeBytes - 1);
+				using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+				if (resp.StatusCode == System.Net.HttpStatusCode.OK)
+				{
+					return await resp.Content.ReadAsByteArrayAsync(ct); // range ignored → this IS the whole object
+				}
+				if (resp.StatusCode != System.Net.HttpStatusCode.PartialContent)
+				{
+					return null; // ranges not honored → let the caller fall back
+				}
+				total = resp.Content.Headers.ContentRange?.Length ?? 0;
+				head = await resp.Content.ReadAsByteArrayAsync(ct);
+			}
+			if (total <= 0 || head.LongLength >= total)
+			{
+				return head; // small object fully in the probe
+			}
+
+			var start = head.LongLength;
+			var remaining = total - start;
+			var per = (remaining + VwpDownloadStreams - 1) / VwpDownloadStreams;
+			var parts = new byte[VwpDownloadStreams][];
+			var ok = true;
+			await Task.WhenAll(Enumerable.Range(0, VwpDownloadStreams).Select(async i =>
+			{
+				var from = start + (long)i * per;
+				var to = Math.Min(from + per, total) - 1;
+				if (from > to) { parts[i] = Array.Empty<byte>(); return; }
+				var bytes = await GetSubRangeAsync(key, from, to, ct);
+				if (bytes is null) { ok = false; } else { parts[i] = bytes; }
+			}));
+			if (!ok)
+			{
+				return null; // a sub-range failed → single-stream fallback in the caller
+			}
+
+			long size = head.LongLength;
+			foreach (var p in parts) { size += p.Length; }
+			var result = new byte[size];
+			Buffer.BlockCopy(head, 0, result, 0, head.Length);
+			var offset = head.Length;
 			foreach (var p in parts) { Buffer.BlockCopy(p, 0, result, offset, p.Length); offset += p.Length; }
 			return result;
 		}
