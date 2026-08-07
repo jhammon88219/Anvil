@@ -63,6 +63,16 @@ namespace Anvil.Services
 		public Task SetStormReportsOpacityAsync(double opacity) =>
 			_mapView.RunScriptAsync(Call("setStormReportsOpacity", opacity));
 
+		// Mile distance grid (square grid anchored to the selected radar).
+		public Task ShowMileGridAsync(double latitude, double longitude, double spacingMiles) =>
+			_mapView.RunScriptAsync(Call("showMileGrid", latitude, longitude, spacingMiles));
+
+		public Task ClearMileGridAsync() =>
+			_mapView.RunScriptAsync(Call("clearMileGrid"));
+
+		public Task SetMileGridOpacityAsync(double opacity) =>
+			_mapView.RunScriptAsync(Call("setMileGridOpacity", opacity));
+
 		// The loop is driven frame-by-frame: begin (with the site's antenna coords, needed to
 		// project the gates), then add each cached volume URL as a frame, then show by index.
 		public Task BeginRadarLoopAsync(RadarSite site) =>

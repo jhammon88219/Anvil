@@ -35,7 +35,7 @@
 
     <Grid>
         <ctl:ControlCard Title="Map"
-                         CardHeight="450"
+                         CardHeight="600"
                          CloseRequested="OnCardCloseRequested"
                          Visibility="{x:Bind VisibleWhen(ViewModel.IsMapControlsCardOpen), Mode=OneWay}">
             <ctl:ControlCard.CardBody>
@@ -51,6 +51,10 @@
                         <RowDefinition Height="Auto"/> <!-- State Isolation label -->
                         <RowDefinition Height="Auto"/> <!-- Isolate toggle -->
                         <RowDefinition Height="Auto"/> <!-- State combo row -->
+                        <RowDefinition Height="Auto"/> <!-- Mile Grid label -->
+                        <RowDefinition Height="Auto"/> <!-- Grid toggle -->
+                        <RowDefinition Height="Auto"/> <!-- Spacing combo -->
+                        <RowDefinition Height="Auto"/> <!-- Opacity slider -->
                     </Grid.RowDefinitions>
 
                     <!-- ── Basemap ── -->
@@ -123,6 +127,47 @@
                                   ItemsSource="{x:Bind ViewModel.StateIso.States}"
                                   SelectedItem="{x:Bind ViewModel.StateIso.SelectedState, Mode=TwoWay}"
                                   ToolTipService.ToolTip="Isolate this state (arms isolation if it's off)"/>
+                    </Grid>
+
+                    <!-- ── Mile Grid ── -->
+                    <!-- A square distance grid centered on the SELECTED radar (a hide/show reference to eyeball
+                         distances — how far a storm is from the radar, how wide a feature is). Anchored to the
+                         radar, so it re-centers on a site change; nothing draws until a site is picked. -->
+                    <TextBlock Grid.Row="9" Text="Mile Grid" Margin="0,6,0,0"
+                               Style="{StaticResource MapCardSectionLabelStyle}"/>
+
+                    <CheckBox Grid.Row="10" Margin="4,0,0,0"
+                              Content="Show mile grid (centered on the radar)"
+                              IsChecked="{x:Bind ViewModel.MileGrid.IsShown, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Overlay a square grid centered on the selected radar. Pick one and select a site to see it."/>
+
+                    <!-- Spacing: one cell = N miles square. -->
+                    <Grid Grid.Row="11" Margin="4,0,0,0" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Spacing (mi)"
+                                   Style="{StaticResource MapCardFieldLabelStyle}"/>
+                        <ComboBox Grid.Column="1"
+                                  Width="120" HorizontalAlignment="Left"
+                                  ItemsSource="{x:Bind ViewModel.MileGrid.SpacingOptions}"
+                                  SelectedItem="{x:Bind ViewModel.MileGrid.SpacingMiles, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Grid cell size in miles"/>
+                    </Grid>
+
+                    <!-- Grid line opacity. -->
+                    <Grid Grid.Row="12" Margin="4,2,0,0" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Opacity" VerticalAlignment="Center"
+                                   Style="{StaticResource MapCardFieldLabelStyle}"/>
+                        <Slider Grid.Column="1" MinWidth="180" HorizontalAlignment="Left"
+                                Minimum="0" Maximum="1" StepFrequency="0.05"
+                                Value="{x:Bind ViewModel.MileGrid.Opacity, Mode=TwoWay}"
+                                ToolTipService.ToolTip="Mile grid line opacity"/>
                     </Grid>
                 </Grid>
             </ctl:ControlCard.CardBody>

@@ -45,6 +45,7 @@ try {
             if (Warnings) Warnings.reAdd(map); // re-add the warning polygons (above the watches)
             if (StormReports) StormReports.reAdd(map); // re-add the storm-report dots (top of the stack)
             if (window.RadarLayer) window.RadarLayer.reAdd(map);
+            if (Grid) Grid.reAdd(map); // re-anchor the mile grid over the radar, under the borders/labels
             if (States) States.reAdd(map); // re-add LAST so the isolation mask lands on top of everything
         });
     };
@@ -79,6 +80,14 @@ try {
     window.setStormReportsSource = function (url) { if (StormReports) StormReports.setSource(map, url); };
     window.setStormReportKinds = function (torn, wind, hail) { if (StormReports) StormReports.setKinds(map, torn, wind, hail); };
     window.setStormReportsOpacity = function (o) { if (StormReports) StormReports.setOpacity(map, o); };
+
+    // Mile distance grid (square grid anchored to the selected radar) lives in grid.js — same lazy-load/
+    // delegate pattern. Sits over the radar, under the borders/labels. applyStyle calls Grid.reAdd(map).
+    var Grid = null;
+    import('./grid.js').then(function (m) { Grid = m; }).catch(function (e) { console.error('grid.js load failed: ' + e); });
+    window.showMileGrid = function (lat, lon, spacingMiles) { if (Grid) Grid.show(map, lat, lon, spacingMiles); };
+    window.clearMileGrid = function () { if (Grid) Grid.clear(map); };
+    window.setMileGridOpacity = function (o) { if (Grid) Grid.setOpacity(map, o); };
 
     window.flyTo = function (lng, lat, zoom) { map.flyTo({ center: [lng, lat], zoom: zoom }); };
 

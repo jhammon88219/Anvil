@@ -136,6 +136,17 @@ namespace Anvil.Services
 		/// <summary>Sets the overall opacity (0-1) of the storm-report dots.</summary>
 		Task SetStormReportsOpacityAsync(double opacity);
 
+		// Mile distance grid — a square grid anchored to the selected radar at a chosen mile spacing.
+		/// <summary>Draws (or re-anchors) the square mile grid centered on a radar site at the given spacing
+		/// in miles.</summary>
+		Task ShowMileGridAsync(double latitude, double longitude, double spacingMiles);
+
+		/// <summary>Hides the mile grid.</summary>
+		Task ClearMileGridAsync();
+
+		/// <summary>Sets the mile grid's line opacity (0-1).</summary>
+		Task SetMileGridOpacityAsync(double opacity);
+
 		/// <summary>Highlights the selected site marker (empty clears the highlight).</summary>
 		Task SetSelectedRadarSiteAsync(string? siteId);
 
