@@ -95,7 +95,7 @@ namespace Anvil.Controls.Sections
 
 		private void OnScrubberPointerPressed(object sender, PointerRoutedEventArgs e)
 		{
-			if (ViewModel is null || ViewModel.Segments.Count == 0) return;
+			if (ViewModel is null || !ViewModel.IsTransportEnabled || ViewModel.Segments.Count == 0) return;
 			_scrubbing = true;
 			ScrubberHost.CapturePointer(e.Pointer);
 			if (ViewModel.IsPlaying) ViewModel.ToggleRadarPlay(); // pause in place; stays engaged so Stop remains available
@@ -125,6 +125,9 @@ namespace Anvil.Controls.Sections
 			if (count <= 0 || width <= 0) return;
 			var x = e.GetCurrentPoint(ScrubberHost).Position.X;
 			var idx = Math.Clamp((int)Math.Floor(x / (width / count)), 0, count - 1);
+			// Can't scrub past the built frontier onto a blank slower-product / undecoded frame (the reachable
+			// range grows as the active product builds; reflectivity is the full decoded range).
+			idx = Math.Min(idx, ViewModel.MaxReachableFrame);
 			if (idx != ViewModel.CurrentFrameIndex) ViewModel.CurrentFrameIndex = idx;
 		}
 
@@ -181,6 +184,10 @@ namespace Anvil.Controls.Sections
 		// Generic bool → Visibility for x:Bind (color-scale bar, inspect tick, numerical scale row).
 		public Visibility VisibleWhen(bool value) =>
 			value ? Visibility.Visible : Visibility.Collapsed;
+
+		// Dim the scrubber while the transport isn't enabled yet (Grid has no IsEnabled; interaction is
+		// blocked via IsHitTestVisible + the pointer-handler guard, this is the visual cue).
+		public double ScrubberOpacity(bool enabled) => enabled ? 1.0 : 0.4;
 
 		// Foreground for the staleness readout, ramped continuously by the newest frame's age in minutes:
 		// green while fresh → amber at ~12 min (the Live→Recent boundary) → red at ~30 min (Recent→Stale),

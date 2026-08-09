@@ -61,6 +61,7 @@
                 <controls:HandCursorComboBox Grid.Column="0"
                           Style="{StaticResource ProductRampComboBoxStyle}"
                           HorizontalAlignment="Stretch"
+                          IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
                           ItemsSource="{x:Bind ViewModel.RadarProductOptions}"
                           SelectedIndex="{x:Bind ViewModel.RadarProductIndex, Mode=TwoWay}"
                           controls:ProductRampCombo.InspectFraction="{x:Bind ViewModel.InspectFraction, Mode=OneWay}"
@@ -94,6 +95,7 @@
                 <ToggleButton Grid.Column="1"
                               HorizontalAlignment="Stretch"
                               Content="Inspect"
+                              IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
                               IsChecked="{x:Bind ViewModel.IsInspecting, Mode=TwoWay}"
                               ToolTipService.ToolTip="Read the value under the cursor on the map, marked live on the color scale"/>
             </Grid>
@@ -139,7 +141,7 @@
                         Width="42"
                         Height="42"
                         Click="OnPrevClick"
-                        IsEnabled="{x:Bind ViewModel.IsLoopReady, Mode=OneWay}"
+                        IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
                         ToolTipService.ToolTip="Previous frame">
                     <FontIcon Glyph="&#xE892;" 
                               FontSize="16"/>
@@ -150,7 +152,7 @@
                         Width="60"
                         Height="60"
                         Click="OnPlayStopClick"
-                        IsEnabled="{x:Bind ViewModel.IsLoopReady, Mode=OneWay}"
+                        IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
                         ToolTipService.ToolTip="Play / stop (stop returns to the newest frame)">
                     <FontIcon Glyph="{x:Bind PlayStopGlyph(ViewModel.IsPlaying), Mode=OneWay}"
                               FontSize="24"/>
@@ -161,7 +163,7 @@
                         Width="42"
                         Height="42"
                         Click="OnNextClick"
-                        IsEnabled="{x:Bind ViewModel.IsLoopReady, Mode=OneWay}"
+                        IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
                         ToolTipService.ToolTip="Next frame">
                     <FontIcon Glyph="&#xE893;"
                               FontSize="16"/>
@@ -183,6 +185,8 @@
                   Margin="0,10,0,0"
                   Height="16"
                   Background="Transparent"
+                  IsHitTestVisible="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
+                  Opacity="{x:Bind ScrubberOpacity(ViewModel.IsTransportEnabled), Mode=OneWay}"
                   SizeChanged="OnScrubberSizeChanged"
                   PointerPressed="OnScrubberPointerPressed"
                   PointerMoved="OnScrubberPointerMoved"

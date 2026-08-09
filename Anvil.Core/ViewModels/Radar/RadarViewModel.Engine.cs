@@ -866,6 +866,7 @@ namespace Anvil.ViewModels
 			}
 
 			_readyCount++;
+			OnPropertyChanged(nameof(IsTransportEnabled)); // PastCast enables the transport at a low refl count
 			if (index >= 0 && index < Segments.Count)
 			{
 				// Mark decoded, then recompute displayed readiness for ALL cells: velocity still needs its

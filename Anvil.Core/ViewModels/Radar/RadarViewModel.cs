@@ -397,6 +397,7 @@ namespace Anvil.ViewModels
 
 				_pastWindowLoaded = false; // re-arm from scratch each time the mode is toggled
 				OnPropertyChanged(nameof(IsLiveControlsEnabled));
+				OnPropertyChanged(nameof(IsTransportEnabled)); // the transport gate differs by mode (PastCast enables earlier)
 				// The offered tilts depend on the mode, not just the radar: a live loop shows only the
 				// tilts the chunks feed can serve fresh, while replay (all-historical) offers the whole
 				// VCP. Rebuild from the last-known VCP now rather than waiting for a frame to land.
@@ -540,6 +541,7 @@ namespace Anvil.ViewModels
 				}
 
 				OnPropertyChanged(nameof(RadarLoadingText));
+				OnPropertyChanged(nameof(IsTransportEnabled)); // NowCast gates the transport on this
 
 				// The whole loop is decoded. Velocity/SRV building and the storm-motion compute were already
 				// armed right after first paint (see the load paths) — per docs/radar-loop-flow.md Rule 3
@@ -549,6 +551,43 @@ namespace Anvil.ViewModels
 				{
 					StartTiltPrefetch();
 				}
+			}
+		}
+
+		// PastCast enables the transport once this many reflectivity frames have decoded — replay loops can
+		// be long (a 3 h window ≈ 36 frames), so waiting for the WHOLE loop (as NowCast does) is too slow.
+		// Safe because the scrubber is clamped to MaxReachableFrame (you can only reach decoded frames).
+		private const int PastCastEarlyReadyFrames = 3;
+
+		/// <summary>Whether the transport controls (play / prev / next, scrubber, product selector, inspect)
+		/// are enabled. NowCast waits for the WHOLE reflectivity loop (<see cref="IsLoopReady"/>) since it's
+		/// short; PastCast enables EARLY — once the first few refl frames decode — because replay loops can be
+		/// long. Both gate on REFLECTIVITY readiness only (velocity/SRV/dual-pol build later and are handled
+		/// per-frame by <see cref="MaxReachableFrame"/>).</summary>
+		public bool IsTransportEnabled =>
+			_isPastEventMode
+				? _frameCount > 0 && _readyCount >= System.Math.Min(PastCastEarlyReadyFrames, _frameCount)
+				: _isLoopReady;
+
+		/// <summary>The furthest frame the scrubber / step may reach: the contiguous-from-left frontier of
+		/// frames that are decoded AND whose ACTIVE product is displayable (<see cref="IsFrameDisplayReady"/>),
+		/// so you can't scrub onto a not-yet-built frame of a slower product. Reflectivity is always
+		/// display-ready, so this is the decoded range; a slower product's range grows as it builds, and in
+		/// PastCast the decoded range itself grows with the backfill. Never below the current frame (so the
+		/// frame you're on — e.g. the first-paint frame — is never yanked back). Read on demand at seek/step.</summary>
+		public int MaxReachableFrame
+		{
+			get
+			{
+				var frontier = -1;
+				for (var i = 0; i < _frameCount; i++)
+				{
+					if (i < Segments.Count && Segments[i].IsDecoded && IsFrameDisplayReady(i)) frontier = i;
+					else break;
+				}
+				var max = System.Math.Max(frontier, _currentFrameIndex);
+				if (max < 0) max = 0;
+				return System.Math.Min(max, MaxFrameIndex);
 			}
 		}
 
@@ -610,7 +649,7 @@ namespace Anvil.ViewModels
 		/// pause engages the loop, so Stop becomes available (and stays available while paused).</summary>
 		public void ToggleRadarPlay()
 		{
-			if (!_isLoopReady)
+			if (!IsTransportEnabled)
 			{
 				return;
 			}
@@ -633,7 +672,7 @@ namespace Anvil.ViewModels
 		/// available. No-op until the loop is fully loaded. The CurrentFrameIndex setter clamps at the ends.</summary>
 		public void StepFrame(int delta)
 		{
-			if (!_isLoopReady)
+			if (!IsTransportEnabled)
 			{
 				return;
 			}
@@ -644,7 +683,11 @@ namespace Anvil.ViewModels
 			}
 
 			SetLoopEngaged(true);
-			CurrentFrameIndex = _currentFrameIndex + delta;
+			// Stepping FORWARD can't pass the built frontier (onto a blank slower-product / undecoded frame);
+			// stepping back is always allowed. The setter clamps to [0, MaxFrameIndex].
+			var target = _currentFrameIndex + delta;
+			if (delta > 0) target = System.Math.Min(target, MaxReachableFrame);
+			CurrentFrameIndex = target;
 		}
 
 		/// <summary>Opacity (0-1) of the radar layer. Driven by the ribbon's radar slider.</summary>
