@@ -759,14 +759,17 @@ function bunkersFromProfile(prof) {
 // → a wrong ~16 kt). Needs ≥ VWP_MIN_CUTS sufficient cuts, else "insufficient". Mirrored in
 // tools/storm_motion_check.py.
 const VWP_MIN_CUTS = 2;
-// Compact per-cut detail for the diagnostics readout (radar.js onVwpResult logs it), so the shallow/pts
-// thresholds can be tuned against real runs: e.g. "3847m/9pD" (deep/Bunkers-capable), "3200m/6pM" (mean
-// wind), "1789m/xx" (insufficient).
+// Compact per-cut detail for the diagnostics readout (radar.js onVwpResult logs it): each sufficient cut's
+// OWN motion (dir@speed) plus its top / ring-points / tier — so we can see whether the cuts AGREE on a wrong
+// motion (a VAD fit/amplitude bug) or SCATTER (folding aloft corrupting the fits → a bad median) vs the
+// combined result, and tune the shallow/pts thresholds. E.g. "65°@34kt/8700m/40pD" (deep/Bunkers-capable),
+// "70°@31kt/3200m/6pM" (mean wind), "1789m/xx" (insufficient).
 function cutDetail(motions) {
     return motions.map(function (m) {
         if (!m) return 'xx';
         if (m.insufficient) return Math.round(m.topM || 0) + 'm/xx';
-        return Math.round(m.topM || 0) + 'm/' + (m.layers || 0) + 'p' + (m.deep ? 'D' : 'M');
+        return Math.round(m.dirDeg) + '°@' + Math.round(m.speedMs / 0.514444) + 'kt/'
+            + Math.round(m.topM || 0) + 'm/' + (m.layers || 0) + 'p' + (m.deep ? 'D' : 'M');
     });
 }
 function combineCutMotions(motions) {
