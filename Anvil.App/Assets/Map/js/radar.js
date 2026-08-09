@@ -311,8 +311,9 @@
         const changed = (after.speedMs !== before.speedMs || after.dirDeg !== before.dirDeg);
         hostLog('vwp result ' + shortKey(volKey) + ' '
             + (_autoMotion.insufficient ? 'INSUFFICIENT top=' + _autoMotion.topM
-                : Math.round(_autoMotion.dirDeg) + '°@' + Math.round(_autoMotion.speedMs / 0.514444) + 'kt cuts=' + _autoMotion.cuts)
-            + ' rebuild=' + changed);
+                : Math.round(_autoMotion.dirDeg) + '°@' + Math.round(_autoMotion.speedMs / 0.514444) + 'kt cuts=' + _autoMotion.cuts + ' ' + (_autoMotion.source || ''))
+            + ' rebuild=' + changed
+            + (_autoMotion.detail ? ' [' + _autoMotion.detail.join(' ') + ']' : '')); // per-cut top/pts/tier for threshold tuning
         if (changed) {
             dropAllSrvAndRequeue(); // motion CHANGED → invalidate stale SRV geometry (re-queues only if product==srv)
         }

@@ -609,7 +609,14 @@ const AE_M = 8494667;           // 4⁄3-Earth effective radius (m) for beam-hei
 const BUNKERS_D = 7.5;          // Bunkers deviation magnitude (m/s), right of the 0–6 km shear
 const BUNKERS_MIN_SHEAR = 3;    // below this 0–6 km shear (m/s) use the mean wind, not a supercell deviation
 const VWP_MIN_TOP = 5000;       // merged profile must reach ≥ this height (m) to trust a 0–6 km Bunkers estimate
-const VWP_MIN_PTS = 8;          // …and carry at least this many ring points; else the motion is "insufficient"
+const VWP_MIN_PTS = 8;          // …and carry at least this many ring points (for a Bunkers supercell DEVIATION)
+// A shallower profile can't anchor the 0–6 km Bunkers shear, but it CAN give a serviceable MEAN-WIND storm
+// motion (no deviation) — far more useful than falling all the way back to base velocity, and what apps like
+// RadarScope effectively do. Below THIS floor it's just boundary-layer flow → genuinely "insufficient".
+// Validated on WI MCS runs (diagnostics): recoverable cuts topped ~3.3–3.9 km, truly-too-shallow ~1.3–1.8 km,
+// so 2.5 km cleanly separates them. Mirrored in tools/storm_motion_check.py.
+const VWP_MEAN_MIN_TOP = 2500;
+const VWP_MEAN_MIN_PTS = 5;
 const VWP_MAX_PHI = 7.0;        // ignore cuts above this angle — their 0–6 km span is too near-range/sparse to fit
 
 // Median elevation angle (deg) of the current cut's radials — φ for the height/VAD math. NaN if none.
@@ -709,7 +716,10 @@ function bunkersFromProfile(prof) {
     if (!prof || prof.length < 2) return { insufficient: true, topM: 0 };
     prof = prof.slice().sort(function (p, q) { return p.h - q.h; });
     const top = prof[prof.length - 1].h;
-    if (top < VWP_MIN_TOP || prof.length < VWP_MIN_PTS) return { insufficient: true, topM: Math.round(top) };
+    // Genuinely too shallow/sparse for ANY trustworthy motion → insufficient (SRV stays at base velocity).
+    // This still guards the single-low-tilt failure mode: a ~1.3–1.8 km profile is just boundary-layer flow,
+    // not a storm motion.
+    if (top < VWP_MEAN_MIN_TOP || prof.length < VWP_MEAN_MIN_PTS) return { insufficient: true, topM: Math.round(top) };
 
     function meanLayer(h0, h1) {
         let u = 0, v = 0, c = 0;
@@ -718,20 +728,26 @@ function bunkersFromProfile(prof) {
     }
     const mean = meanLayer(0, 6000) || meanLayer(0, top); // 0–6 km mean wind (all sampled levels if it tops below 6 km)
     if (!mean) return { insufficient: true, topM: Math.round(top) };
-    // Bunkers shear = (5.5–6 km mean) − (0–0.5 km mean); fall back to the top/bottom sampled ring when thin.
-    let bot = meanLayer(0, 500), tp = meanLayer(5500, 6000);
-    if (!bot) bot = { u: prof[0].u, v: prof[0].v };
-    if (!tp) tp = { u: prof[prof.length - 1].u, v: prof[prof.length - 1].v };
-    const shu = tp.u - bot.u, shv = tp.v - bot.v, shMag = Math.hypot(shu, shv);
+
+    // DEEP enough to trust the 0–6 km shear for a Bunkers supercell DEVIATION? Otherwise return the mean wind
+    // ALONE — a serviceable storm-motion proxy (what RadarScope effectively shows) rather than base velocity.
+    const deep = top >= VWP_MIN_TOP && prof.length >= VWP_MIN_PTS;
     let mu = mean.u, mv = mean.v, source = 'Mean wind';
-    if (shMag > BUNKERS_MIN_SHEAR) {
-        // Right-moving deviation: 7.5 m/s to the RIGHT of the shear (a 90° clockwise turn of the unit shear).
-        mu = mean.u + BUNKERS_D * (shv / shMag);
-        mv = mean.v + BUNKERS_D * (-shu / shMag);
-        source = 'Bunkers R';
+    if (deep) {
+        // Bunkers shear = (5.5–6 km mean) − (0–0.5 km mean); fall back to the top/bottom sampled ring when thin.
+        let bot = meanLayer(0, 500), tp = meanLayer(5500, 6000);
+        if (!bot) bot = { u: prof[0].u, v: prof[0].v };
+        if (!tp) tp = { u: prof[prof.length - 1].u, v: prof[prof.length - 1].v };
+        const shu = tp.u - bot.u, shv = tp.v - bot.v, shMag = Math.hypot(shu, shv);
+        if (shMag > BUNKERS_MIN_SHEAR) {
+            // Right-moving deviation: 7.5 m/s to the RIGHT of the shear (a 90° clockwise turn of the unit shear).
+            mu = mean.u + BUNKERS_D * (shv / shMag);
+            mv = mean.v + BUNKERS_D * (-shu / shMag);
+            source = 'Bunkers R';
+        }
     }
     let dirDeg = Math.atan2(mu, mv) / D2R; if (dirDeg < 0) dirDeg += 360; // bearing the storm MOVES TOWARD
-    return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, layers: prof.length, topM: Math.round(top) };
+    return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, layers: prof.length, topM: Math.round(top), deep: deep };
 }
 
 // Combine the per-cut Bunkers motions into ONE robust estimate: the COMPONENTWISE MEDIAN of the sufficient
@@ -743,21 +759,36 @@ function bunkersFromProfile(prof) {
 // → a wrong ~16 kt). Needs ≥ VWP_MIN_CUTS sufficient cuts, else "insufficient". Mirrored in
 // tools/storm_motion_check.py.
 const VWP_MIN_CUTS = 2;
+// Compact per-cut detail for the diagnostics readout (radar.js onVwpResult logs it), so the shallow/pts
+// thresholds can be tuned against real runs: e.g. "3847m/9pD" (deep/Bunkers-capable), "3200m/6pM" (mean
+// wind), "1789m/xx" (insufficient).
+function cutDetail(motions) {
+    return motions.map(function (m) {
+        if (!m) return 'xx';
+        if (m.insufficient) return Math.round(m.topM || 0) + 'm/xx';
+        return Math.round(m.topM || 0) + 'm/' + (m.layers || 0) + 'p' + (m.deep ? 'D' : 'M');
+    });
+}
 function combineCutMotions(motions) {
     const good = motions.filter(function (m) { return m && !m.insufficient; });
     if (good.length < VWP_MIN_CUTS) {
         let t = 0; for (let i = 0; i < motions.length; i++) if (motions[i] && motions[i].topM > t) t = motions[i].topM;
-        return { insufficient: true, topM: t };
+        return { insufficient: true, topM: t, detail: cutDetail(motions) };
     }
-    const us = good.map(function (m) { return m.speedMs * Math.sin(m.dirDeg * D2R); }).sort(function (a, b) { return a - b; });
-    const vs = good.map(function (m) { return m.speedMs * Math.cos(m.dirDeg * D2R); }).sort(function (a, b) { return a - b; });
+    // Prefer the DEEP (Bunkers-capable) cuts when we have enough; otherwise use the shallow MEAN-WIND cuts.
+    // Don't blend the two tiers — a Bunkers cut carries a deliberate +7.5 m/s rightward deviation the
+    // mean-wind cuts lack, so a median across both would land on a meaningless half-deviation.
+    const deepCuts = good.filter(function (m) { return m.deep; });
+    const tier = deepCuts.length >= VWP_MIN_CUTS ? deepCuts : good;
+    const us = tier.map(function (m) { return m.speedMs * Math.sin(m.dirDeg * D2R); }).sort(function (a, b) { return a - b; });
+    const vs = tier.map(function (m) { return m.speedMs * Math.cos(m.dirDeg * D2R); }).sort(function (a, b) { return a - b; });
     function median(a) { const n = a.length, h = n >> 1; return (n % 2) ? a[h] : (a[h - 1] + a[h]) / 2; }
     const mu = median(us), mv = median(vs);
     let dirDeg = Math.atan2(mu, mv) / D2R; if (dirDeg < 0) dirDeg += 360;
-    const source = good.some(function (m) { return m.source === 'Bunkers R'; }) ? 'Bunkers R' : 'Mean wind';
+    const source = tier.some(function (m) { return m.source === 'Bunkers R'; }) ? 'Bunkers R' : 'Mean wind';
     let layers = 0, topM = 0;
-    for (let i = 0; i < good.length; i++) { layers += good[i].layers || 0; if (good[i].topM > topM) topM = good[i].topM; }
-    return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, cuts: good.length, layers: layers, topM: topM };
+    for (let i = 0; i < tier.length; i++) { layers += tier[i].layers || 0; if (tier[i].topM > topM) topM = tier[i].topM; }
+    return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, cuts: tier.length, layers: layers, topM: topM, detail: cutDetail(motions) };
 }
 
 // Full-volume VWP storm motion: for each supplied buffer, take EVERY velocity-bearing cut's own VAD → Bunkers

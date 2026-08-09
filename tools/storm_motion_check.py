@@ -20,7 +20,8 @@ FAITHFUL transcription of the JS, then drives them with SYNTHETIC sweeps whose a
   * linear-shear single cut        -> per-ring VAD recovers wind(h); final = hand-computed Bunkers R
   * MULTI-CUT combine (4 tilts)    -> per-cut motion then componentwise median = the wind exactly
   * combine rejects an outlier     -> a contaminated cut can't drag the median off the consistent cluster
-  * shallow single cut             -> insufficient (profile doesn't reach VWP_MIN_TOP)
+  * shallow-but-usable single cut  -> MEAN WIND (below the Bunkers depth but above the mean-wind floor)
+  * too-shallow single cut         -> insufficient (below VWP_MEAN_MIN_TOP -> just boundary-layer flow)
   * too-sparse / wedge-clustered   -> insufficient (no ring can be fit)
 
 No network, no Py-ART, deterministic. Exit 0 = all pass, 1 = a failure. (For a REAL-DATA cross-check against
@@ -49,8 +50,10 @@ VAD_MAX_SPEED = 80.0      # reject an implausible fitted wind speed (m/s)
 AE_M = 8494667.0          # 4/3-Earth effective radius (m): h ~ r*sinphi + r^2/2ae
 BUNKERS_D = 7.5           # Bunkers deviation magnitude (m/s), right of the 0-6 km shear
 BUNKERS_MIN_SHEAR = 3.0   # below this 0-6 km shear (m/s) use the mean wind, not a supercell deviation
-VWP_MIN_TOP = 5000.0      # merged profile must reach >= this height (m) to trust a 0-6 km Bunkers estimate
-VWP_MIN_PTS = 8           # ...and carry at least this many ring points; else "insufficient"
+VWP_MIN_TOP = 5000.0      # merged profile must reach >= this height (m) to trust a 0-6 km Bunkers DEVIATION
+VWP_MIN_PTS = 8           # ...and carry at least this many ring points (for the Bunkers deviation)
+VWP_MEAN_MIN_TOP = 2500.0 # a shallower profile still gives a serviceable MEAN-WIND motion (no deviation)
+VWP_MEAN_MIN_PTS = 5      # ...with at least this many ring points; below this floor -> "insufficient"
 
 
 def solve3(a, b, c, d, e, f, g, h, ii, r0, r1, r2):
@@ -155,7 +158,8 @@ def bunkers_from_profile(prof):
         return {'insufficient': True, 'topM': 0}
     prof = sorted(prof, key=lambda p: p['h'])
     top = prof[-1]['h']
-    if top < VWP_MIN_TOP or len(prof) < VWP_MIN_PTS:
+    # Genuinely too shallow/sparse for ANY trustworthy motion -> insufficient (the single-low-tilt guard).
+    if top < VWP_MEAN_MIN_TOP or len(prof) < VWP_MEAN_MIN_PTS:
         return {'insufficient': True, 'topM': round(top)}
 
     def mean_layer(h0, h1):
@@ -169,21 +173,25 @@ def bunkers_from_profile(prof):
     mean = mean_layer(0, 6000) or mean_layer(0, top)
     if mean is None:
         return {'insufficient': True, 'topM': round(top)}
-    bot = mean_layer(0, 500) or {'u': prof[0]['u'], 'v': prof[0]['v']}
-    tp = mean_layer(5500, 6000) or {'u': prof[-1]['u'], 'v': prof[-1]['v']}
-    shu = tp['u'] - bot['u']
-    shv = tp['v'] - bot['v']
-    sh_mag = math.hypot(shu, shv)
+
+    # DEEP enough to trust the 0-6 km shear for a Bunkers deviation? Else the mean wind ALONE (serviceable).
+    deep = top >= VWP_MIN_TOP and len(prof) >= VWP_MIN_PTS
     mu, mv, source = mean['u'], mean['v'], 'Mean wind'
-    if sh_mag > BUNKERS_MIN_SHEAR:
-        mu = mean['u'] + BUNKERS_D * (shv / sh_mag)
-        mv = mean['v'] + BUNKERS_D * (-shu / sh_mag)
-        source = 'Bunkers R'
+    if deep:
+        bot = mean_layer(0, 500) or {'u': prof[0]['u'], 'v': prof[0]['v']}
+        tp = mean_layer(5500, 6000) or {'u': prof[-1]['u'], 'v': prof[-1]['v']}
+        shu = tp['u'] - bot['u']
+        shv = tp['v'] - bot['v']
+        sh_mag = math.hypot(shu, shv)
+        if sh_mag > BUNKERS_MIN_SHEAR:
+            mu = mean['u'] + BUNKERS_D * (shv / sh_mag)
+            mv = mean['v'] + BUNKERS_D * (-shu / sh_mag)
+            source = 'Bunkers R'
     dir_deg = math.atan2(mu, mv) / D2R
     if dir_deg < 0:
         dir_deg += 360
     return {'speedMs': math.hypot(mu, mv), 'dirDeg': dir_deg, 'source': source,
-            'layers': len(prof), 'topM': round(top), 'mu': mu, 'mv': mv}
+            'layers': len(prof), 'topM': round(top), 'deep': deep, 'mu': mu, 'mv': mv}
 
 
 VWP_MIN_CUTS = 2
@@ -195,8 +203,12 @@ def combine_cut_motions(motions):
     good = [m for m in motions if m and not m.get('insufficient')]
     if len(good) < VWP_MIN_CUTS:
         return {'insufficient': True, 'topM': max([m.get('topM', 0) for m in motions] or [0])}
-    us = sorted(m['speedMs'] * math.sin(m['dirDeg'] * D2R) for m in good)
-    vs = sorted(m['speedMs'] * math.cos(m['dirDeg'] * D2R) for m in good)
+    # Prefer the DEEP (Bunkers-capable) cuts when we have enough; else the shallow mean-wind cuts. Don't blend
+    # the tiers (a Bunkers cut carries a +7.5 m/s rightward deviation the mean-wind cuts lack).
+    deep_cuts = [m for m in good if m.get('deep')]
+    tier = deep_cuts if len(deep_cuts) >= VWP_MIN_CUTS else good
+    us = sorted(m['speedMs'] * math.sin(m['dirDeg'] * D2R) for m in tier)
+    vs = sorted(m['speedMs'] * math.cos(m['dirDeg'] * D2R) for m in tier)
 
     def median(a):
         n = len(a)
@@ -204,10 +216,10 @@ def combine_cut_motions(motions):
         return a[h] if (n % 2) else (a[h - 1] + a[h]) / 2.0
     mu, mv = median(us), median(vs)
     dir_deg = (math.degrees(math.atan2(mu, mv)) + 360) % 360
-    source = 'Bunkers R' if any(m['source'] == 'Bunkers R' for m in good) else 'Mean wind'
-    return {'speedMs': math.hypot(mu, mv), 'dirDeg': dir_deg, 'source': source, 'cuts': len(good),
-            'layers': sum(m.get('layers', 0) for m in good),
-            'topM': max(m.get('topM', 0) for m in good), 'mu': mu, 'mv': mv}
+    source = 'Bunkers R' if any(m['source'] == 'Bunkers R' for m in tier) else 'Mean wind'
+    return {'speedMs': math.hypot(mu, mv), 'dirDeg': dir_deg, 'source': source, 'cuts': len(tier),
+            'layers': sum(m.get('layers', 0) for m in tier),
+            'topM': max(m.get('topM', 0) for m in tier), 'mu': mu, 'mv': mv}
 
 
 # ============================================================================================
@@ -344,7 +356,7 @@ def test_combine_rejects_outlier():
     # 4 consistent cuts near 60 deg @ 27 kt + one wild outlier (254 deg @ 15 kt, like Moore's bad 3.1 deg cut)
     # + an insufficient cut. The componentwise median must land on the consistent cluster, not the outlier.
     def m(dirdeg, kt, src='Bunkers R'):
-        return {'speedMs': kt * 0.514444, 'dirDeg': dirdeg, 'source': src, 'layers': 100, 'topM': 8000}
+        return {'speedMs': kt * 0.514444, 'dirDeg': dirdeg, 'source': src, 'layers': 100, 'topM': 8000, 'deep': True}
     motions = [m(62, 27), m(64, 29), m(60, 33), m(61, 31), m(254, 15), {'insufficient': True, 'topM': 2500}]
     res = combine_cut_motions(motions)
     check("combined is sufficient", not res.get('insufficient'))
@@ -359,16 +371,34 @@ def test_combine_rejects_outlier():
     check("one good cut -> insufficient", combine_cut_motions([m(60, 30), {'insufficient': True, 'topM': 3000}]).get('insufficient') is True)
 
 
+def test_shallow_mean_wind():
+    print("Test 5: shallow-but-usable cut (tops ~2.5-5 km) -> MEAN WIND (below Bunkers depth, above the floor)")
+    # 0.5 deg over ~175 km tops ~3.3 km (curvature-dominated): above VWP_MEAN_MIN_TOP, below VWP_MIN_TOP, so
+    # it can't anchor a Bunkers deviation but DOES give a serviceable mean-wind motion (the RadarScope-parity
+    # case) instead of falling back to base velocity.
+    u, v = 14.0, -6.0
+    prof = vad_points_for_cut(build_uniform(u, v, 0.5, n_gates=700), 0.5, FIRST_GATE_KM, GATE_SIZE_KM)
+    res = bunkers_from_profile(prof)
+    check("not insufficient (mean-wind fallback)", not res.get('insufficient'), f"topM={res.get('topM')}, got {res}")
+    if res.get('insufficient'):
+        return
+    check("top in the mean-wind band (2500 <= top < 5000)", VWP_MEAN_MIN_TOP <= res['topM'] < VWP_MIN_TOP, f"topM={res['topM']}")
+    check("deep is False (mean wind, no Bunkers deviation)", res.get('deep') is False, f"deep={res.get('deep')}")
+    check("source is 'Mean wind'", res['source'] == 'Mean wind', f"got '{res['source']}'")
+    check("recovers the uniform wind u", abs(res['mu'] - u) < 1e-6, f"got {res['mu']:.9f} want {u}")
+    check("recovers the uniform wind v", abs(res['mv'] - v) < 1e-6, f"got {res['mv']:.9f} want {v}")
+
+
 def test_shallow_insufficient():
-    print("Test 5: shallow single cut (short range) -> insufficient (doesn't reach VWP_MIN_TOP)")
-    # 0.5 deg over only ~100 km tops out ~1.5 km -> below VWP_MIN_TOP.
+    print("Test 6: too-shallow single cut (short range) -> insufficient (below VWP_MEAN_MIN_TOP)")
+    # 0.5 deg over only ~100 km tops out ~1.5 km -> below the mean-wind floor: just boundary-layer flow.
     prof = vad_points_for_cut(build_uniform(12.0, -5.0, 0.5, n_gates=400), 0.5, FIRST_GATE_KM, GATE_SIZE_KM)
     res = bunkers_from_profile(prof)
     check("returns insufficient", res.get('insufficient') is True, f"topM={res.get('topM')}, got {res}")
 
 
 def test_sparse_and_wedge_insufficient():
-    print("Test 6: too-sparse and wedge-clustered sweeps -> insufficient (no ring can be fit)")
+    print("Test 7: too-sparse and wedge-clustered sweeps -> insufficient (no ring can be fit)")
     phi = 0.5
     cos_phi = math.cos(phi * D2R)
     # (a) 10 radials spread around the circle -> sN=10 < 30 on every ring.
@@ -398,6 +428,7 @@ def main():
     test_shear_single()
     test_multi_cut_combine()
     test_combine_rejects_outlier()
+    test_shallow_mean_wind()
     test_shallow_insufficient()
     test_sparse_and_wedge_insufficient()
     print()
