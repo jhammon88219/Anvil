@@ -8,9 +8,18 @@ using Anvil.Services;
 
 namespace Anvil.ViewModels
 {
-	// RadarViewModel (partial): the loop engine — site load, live-frame poll, playback, refresh, incremental reload, past-event load.
 	public sealed partial class RadarViewModel
 	{
+		// The radar loop ENGINE, extracted from the VM into its own collaborator class: site load, the
+		// live-frame poll, playback, the ~5-min archive refresh, the incremental reload, and past-event
+		// replay. It owns the loop lifecycle; the VM owns the bindable frame-state + presentation. Nested
+		// so it can reach the VM's private frame-state fields through `_vm` without widening them — an
+		// explicit seam (every VM touch is a `_vm.` call), not yet a fully decoupled service.
+		private sealed class RadarLoopEngine
+		{
+			private readonly RadarViewModel _vm;
+			internal RadarLoopEngine(RadarViewModel vm) => _vm = vm;
+
 		// Appends one free-form radar diagnostic note. High-value events (session start, frame
 		// timings, live polls, frame sources) use the typed RadarDiagnostics methods directly so
 		// they also feed the rolling report; this is for the incidental lines.
@@ -19,64 +28,64 @@ namespace Anvil.ViewModels
 		// Maps a loaded volume to its on-disk .V06 (the radarlevel2 host serves CacheDirectory),
 		// so a suspect frame's source can be quarantined.
 		private string FrameCacheFile(Models.RadarVolume v) =>
-			System.IO.Path.Combine(_radarService.CacheDirectory, v.LocalUrl.Substring(v.LocalUrl.LastIndexOf('/') + 1));
+			System.IO.Path.Combine(_vm._radarService.CacheDirectory, v.LocalUrl.Substring(v.LocalUrl.LastIndexOf('/') + 1));
 
 		// Loads a fresh loop for the site (or clears for "None"): recenters immediately, shows
 		// the newest frame first, then backfills older frames; also starts the playback and
 		// auto-refresh loops tied to this selection. Cancels the previous selection's work.
-		private async Task StartRadarLoopAsync(RadarSite? site)
+		internal async Task StartRadarLoopAsync(RadarSite? site)
 		{
 			Services.RadarDiagnostics.BeginSession(site?.Id);
-			_loopCts?.Cancel();
-			_loopCts = null;
-			IsPlaying = false;
-			SetLoopEngaged(false); // a freshly (re)loaded loop is stopped -> Stop disabled
-			IsLoopReady = false;
+			_vm._loopCts?.Cancel();
+			_vm._loopCts = null;
+			_vm.IsPlaying = false;
+			_vm.SetLoopEngaged(false); // a freshly (re)loaded loop is stopped -> Stop disabled
+			_vm.IsLoopReady = false;
 
 			// Highlight the selected site marker (null clears it).
-			if (_isMapReady)
+			if (_vm._isMapReady)
 			{
-				await _mapService.SetSelectedRadarSiteAsync(site?.Id);
+				await _vm._mapService.SetSelectedRadarSiteAsync(site?.Id);
 			}
 
 			if (site is null)
 			{
 				ResetFrameState();
-				OnPropertyChanged(nameof(MaxFrameIndex));
-				OnPropertyChanged(nameof(CurrentFrameTimeText));
-				RaiseRadarReadout();
-				IsInspecting = false; // no loop to inspect — drop the crosshair + marker
-				if (_isMapReady)
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.MaxFrameIndex));
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
+				_vm.RaiseRadarReadout();
+				_vm.IsInspecting = false; // no loop to inspect — drop the crosshair + marker
+				if (_vm._isMapReady)
 				{
-					await _mapService.ClearRadarAsync();
-					await _mapService.SetRadarSweepAsync(0); // back to the free-running sweep
+					await _vm._mapService.ClearRadarAsync();
+					await _vm._mapService.SetRadarSweepAsync(0); // back to the free-running sweep
 				}
 				return;
 			}
 
 			// Start the load timer for this click (frozen once the initial load fully renders).
-			_loopClickAt = DateTimeOffset.UtcNow;
-			_firstFrameElapsed = null;
-			_allFramesElapsed = null;
-			_initialLoadDone = false;
-			_loadInProgress = true;
+			_vm._loopClickAt = DateTimeOffset.UtcNow;
+			_vm._firstFrameElapsed = null;
+			_vm._allFramesElapsed = null;
+			_vm._initialLoadDone = false;
+			_vm._loadInProgress = true;
 			// Until THIS loop has actually begun (BeginRadarLoopAsync below, which bumps the JS
 			// loop token), any frame-ready is a leftover from the previous selection still draining
 			// through the worker — the JS token only drops stale frames AFTER the bump, so the gap
 			// during the keys fetch leaks them. Ignore them so they don't pollute first-frame timing
 			// or the ready count of the new session.
-			_loopRenderBegun = false;
-			_liveModeText = null; // forget the previous site's mode; the new site's poll re-sets it
+			_vm._loopRenderBegun = false;
+			_vm._liveModeText = null; // forget the previous site's mode; the new site's poll re-sets it
 
 			// Note: no flyTo — load the radar at the user's current view; they pan/zoom freely.
 			var cts = new CancellationTokenSource();
-			_loopCts = cts;
+			_vm._loopCts = cts;
 
 			await LoadLoopAsync(site, cts.Token);
 
 			// The frame set (incl. any live frame) is now final; record "all frames" timing once
 			// every frame has reported ready (or as they finish, via OnRadarFrameReady).
-			_loadInProgress = false;
+			_vm._loadInProgress = false;
 			MaybeRecordAllFramesLoaded();
 
 			_ = RunPlaybackAsync(cts.Token);
@@ -90,25 +99,25 @@ namespace Anvil.ViewModels
 		// relevant PropertyChanged / RaiseRadarReadout afterwards.
 		private void ResetFrameState()
 		{
-			_frameCount = 0;
-			_archiveCount = 0;
-			_hasLiveFrame = false;
-			_liveFrame = null;
-			_pendingLiveAppend = null;
-			_liveModeText = null;
-			_frameTimes = Array.Empty<DateTimeOffset?>();
-			_frameModes = Array.Empty<string?>();
-			Segments.Clear();
-			_loadedNewestKey = null;
-			_loadedKeys = Array.Empty<string>();
-			_lastLivePollAt = null;
-			_lastLivePollResult = null;
-			_nextLivePollAt = null;
-			_livePollCycleStart = null;
-			_lastLiveError = null;
-			_loopClickAt = null;
-			_firstFrameElapsed = null;
-			_allFramesElapsed = null;
+			_vm._frameCount = 0;
+			_vm._archiveCount = 0;
+			_vm._hasLiveFrame = false;
+			_vm._liveFrame = null;
+			_vm._pendingLiveAppend = null;
+			_vm._liveModeText = null;
+			_vm._frameTimes = Array.Empty<DateTimeOffset?>();
+			_vm._frameModes = Array.Empty<string?>();
+			_vm.Segments.Clear();
+			_vm._loadedNewestKey = null;
+			_vm._loadedKeys = Array.Empty<string>();
+			_vm._lastLivePollAt = null;
+			_vm._lastLivePollResult = null;
+			_vm._nextLivePollAt = null;
+			_vm._livePollCycleStart = null;
+			_vm._lastLiveError = null;
+			_vm._loopClickAt = null;
+			_vm._firstFrameElapsed = null;
+			_vm._allFramesElapsed = null;
 		}
 
 		/// <summary>
@@ -119,7 +128,7 @@ namespace Anvil.ViewModels
 		/// </summary>
 		public void ResetRadarLoop()
 		{
-			if (_selectedRadarOption?.Site is not { } site)
+			if (_vm._selectedRadarOption?.Site is not { } site)
 			{
 				return;
 			}
@@ -140,20 +149,20 @@ namespace Anvil.ViewModels
 		// same policy there could pull a gigabyte for a window the user may never re-cut. Replay still
 		// supports every tilt — it just downloads on demand, and since a full download is retained as raw,
 		// only the FIRST tilt switch on a replay frame pays.
-		private void StartTiltPrefetch()
+		internal void StartTiltPrefetch()
 		{
-			if (IsPastEventMode || _selectedRadarOption?.Site is not { } site || _loadedKeys.Length == 0)
+			if (_vm.IsPastEventMode || _vm._selectedRadarOption?.Site is not { } site || _vm._loadedKeys.Length == 0)
 			{
 				return;
 			}
 
-			var keys = _loadedKeys;
-			var ct = _loopCts?.Token ?? CancellationToken.None;
+			var keys = _vm._loadedKeys;
+			var ct = _vm._loopCts?.Token ?? CancellationToken.None;
 			_ = Task.Run(async () =>
 			{
 				try
 				{
-					await _radarService.PrefetchRawVolumesAsync(site, keys, ct);
+					await _vm._radarService.PrefetchRawVolumesAsync(site, keys, ct);
 				}
 				catch (OperationCanceledException)
 				{
@@ -173,47 +182,47 @@ namespace Anvil.ViewModels
 		// different bytes and has to come through the fetch path. That's cheap once
 		// PrefetchRawVolumesAsync has the raw volumes on disk — each frame is then a local extract with
 		// no download — and _selectedTiltAngle is already set, so the reload just picks it up.
-		private void ReloadForTiltChange()
+		internal void ReloadForTiltChange()
 		{
-			if (IsPastEventMode)
+			if (_vm.IsPastEventMode)
 			{
-				if (_frameCount > 0)
+				if (_vm._frameCount > 0)
 				{
 					_ = LoadSelectedPastEventAsync(); // replay: re-fetch the same window at the new tilt
 				}
 				return;
 			}
 
-			if (_selectedRadarOption?.Site is not { } site)
+			if (_vm._selectedRadarOption?.Site is not { } site)
 			{
 				return; // no loop up: the selection is remembered and applies to the next site picked
 			}
 
-			Diag($"tilt -> {(_selectedTiltAngle is { } a ? a.ToString("0.0") + "°" : "base")}");
+			Diag($"tilt -> {(_vm._selectedTiltAngle is { } a ? a.ToString("0.0") + "°" : "base")}");
 			_ = StartRadarLoopAsync(site);
 		}
 
 		// Past mode: a site pick clears any loaded replay and highlights the new site's marker, but
 		// starts NOTHING — the user sets a window and hits Load. (Mirrors StartRadarLoopAsync's clear
 		// path but keeps the marker on the chosen site so it reads as "armed" and runs no live loop.)
-		private async Task SelectPastSiteAsync(RadarSite? site)
+		internal async Task SelectPastSiteAsync(RadarSite? site)
 		{
-			_loopCts?.Cancel();
-			_loopCts = null;
-			IsPlaying = false;
-			SetLoopEngaged(false);
-			IsLoopReady = false;
-			IsInspecting = false;
+			_vm._loopCts?.Cancel();
+			_vm._loopCts = null;
+			_vm.IsPlaying = false;
+			_vm.SetLoopEngaged(false);
+			_vm.IsLoopReady = false;
+			_vm.IsInspecting = false;
 			Services.RadarDiagnostics.BeginSession(null); // close any open session; Load opens the replay one
 			ResetFrameState();
-			OnPropertyChanged(nameof(MaxFrameIndex));
-			OnPropertyChanged(nameof(CurrentFrameTimeText));
-			RaiseRadarReadout();
-			if (_isMapReady)
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.MaxFrameIndex));
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
+			_vm.RaiseRadarReadout();
+			if (_vm._isMapReady)
 			{
-				await _mapService.SetSelectedRadarSiteAsync(site?.Id);
-				await _mapService.ClearRadarAsync();
-				await _mapService.SetRadarSweepAsync(0); // no live sweep in replay
+				await _vm._mapService.SetSelectedRadarSiteAsync(site?.Id);
+				await _vm._mapService.ClearRadarAsync();
+				await _vm._mapService.SetRadarSweepAsync(0); // no live sweep in replay
 			}
 		}
 
@@ -224,7 +233,7 @@ namespace Anvil.ViewModels
 		/// </summary>
 		public async Task<bool> LoadSelectedPastEventAsync()
 		{
-			if (!_isPastEventMode)
+			if (!_vm._isPastEventMode)
 			{
 				return false;
 			}
@@ -232,45 +241,45 @@ namespace Anvil.ViewModels
 			// Build the local date from the Year/Month/Day combos; clamp the day to the month's length
 			// (so e.g. day 31 in a 30-day month just uses the 30th instead of throwing). Combine with
 			// the time-of-day, then convert to UTC for the bucket query (DST-correct for that date).
-			var year = PastEventYearOptions[_pastEventYearIndex];
-			var month = _pastEventMonthIndex + 1;
-			var day = Math.Min(_pastEventDayIndex + 1, DateTime.DaysInMonth(year, month));
+			var year = _vm.PastEventYearOptions[_vm._pastEventYearIndex];
+			var month = _vm._pastEventMonthIndex + 1;
+			var day = Math.Min(_vm._pastEventDayIndex + 1, DateTime.DaysInMonth(year, month));
 			var localMidnight = new DateTimeOffset(year, month, day, 0, 0, 0,
 				TimeZoneInfo.Local.GetUtcOffset(new DateTime(year, month, day)));
-			var localStart = localMidnight + _pastEventTime;
+			var localStart = localMidnight + _vm._pastEventTime;
 			var startUtc = localStart.ToUniversalTime();
-			var endUtc = startUtc.AddMinutes(PastEventMinutesByIndex[_pastEventDurationIndex]);
+			var endUtc = startUtc.AddMinutes(RadarViewModel.PastEventMinutesByIndex[_vm._pastEventDurationIndex]);
 
 			// Window is now set — gray out sites with no data for this date (proactive availability).
 			// Best-effort + non-blocking so it never delays the actual load.
-			_ = ApplyPastAvailabilityAsync(startUtc, endUtc);
+			_ = _vm.ApplyPastAvailabilityAsync(startUtc, endUtc);
 
-			if (_selectedRadarOption?.Site is not { } site)
+			if (_vm._selectedRadarOption?.Site is not { } site)
 			{
 				// No site yet: just ARM the window (date/time/range) so any site you click next loads it,
 				// and report success so the flyout closes and you can go site-surfing on the map.
-				_pastWindowLoaded = true;
-				PastEventStatus = "Window set — click a radar site on the map to load it.";
+				_vm._pastWindowLoaded = true;
+				_vm.PastEventStatus = "Window set — click a radar site on the map to load it.";
 				return true;
 			}
 
 			// Highlight the loading site's on-map marker (deselecting any prior one). The not-armed path
 			// does this via SelectPastSiteAsync; the armed "click another site" path comes straight here,
 			// so set it here too or the previous site's marker stays lit.
-			if (_isMapReady)
+			if (_vm._isMapReady)
 			{
-				await _mapService.SetSelectedRadarSiteAsync(site.Id);
+				await _vm._mapService.SetSelectedRadarSiteAsync(site.Id);
 			}
 
-			PastEventStatus = "Loading…";
-			_loopCts?.Cancel();
+			_vm.PastEventStatus = "Loading…";
+			_vm._loopCts?.Cancel();
 			var cts = new CancellationTokenSource();
-			_loopCts = cts;
+			_vm._loopCts = cts;
 
 			IReadOnlyList<string> keys;
 			try
 			{
-				keys = await _radarService.GetKeysForWindowAsync(site, startUtc, endUtc, cts.Token);
+				keys = await _vm._radarService.GetKeysForWindowAsync(site, startUtc, endUtc, cts.Token);
 			}
 			catch (OperationCanceledException)
 			{
@@ -278,28 +287,28 @@ namespace Anvil.ViewModels
 			}
 			catch (Exception ex)
 			{
-				PastEventStatus = "Couldn't list volumes: " + ex.Message;
+				_vm.PastEventStatus = "Couldn't list volumes: " + ex.Message;
 				return false;
 			}
 
-			if (cts.Token.IsCancellationRequested || !ReferenceEquals(_selectedRadarOption?.Site, site))
+			if (cts.Token.IsCancellationRequested || !ReferenceEquals(_vm._selectedRadarOption?.Site, site))
 			{
 				return false;
 			}
 			if (keys.Count == 0)
 			{
-				PastEventStatus = $"No {site.Id} data found for {localStart:MMM d, h:mm tt}.";
+				_vm.PastEventStatus = $"No {site.Id} data found for {localStart:MMM d, h:mm tt}.";
 				return false;
 			}
 			// More volumes than the cap → evenly subsample across the whole window (first + last kept),
 			// so a long duration becomes an overview rather than only the first chunk.
 			var sampled = false;
-			if (keys.Count > PastEventMaxFrames)
+			if (keys.Count > RadarViewModel.PastEventMaxFrames)
 			{
-				var pick = new List<string>(PastEventMaxFrames);
-				for (var i = 0; i < PastEventMaxFrames; i++)
+				var pick = new List<string>(RadarViewModel.PastEventMaxFrames);
+				for (var i = 0; i < RadarViewModel.PastEventMaxFrames; i++)
 				{
-					var idx = (int)Math.Round((double)i * (keys.Count - 1) / (PastEventMaxFrames - 1));
+					var idx = (int)Math.Round((double)i * (keys.Count - 1) / (RadarViewModel.PastEventMaxFrames - 1));
 					pick.Add(keys[idx]);
 				}
 				keys = pick.Distinct().ToList();
@@ -316,9 +325,9 @@ namespace Anvil.ViewModels
 			_ = RunPlaybackAsync(cts.Token);
 			_ = RunDebugTickAsync(cts.Token);
 
-			PastEventStatus = $"Loaded {keys.Count} frames{(sampled ? " (sampled)" : "")} · " +
-				$"{localStart:MMM d, h:mm tt} +{PastEventDurationOptions[_pastEventDurationIndex]}";
-			_pastWindowLoaded = true;
+			_vm.PastEventStatus = $"Loaded {keys.Count} frames{(sampled ? " (sampled)" : "")} · " +
+				$"{localStart:MMM d, h:mm tt} +{_vm.PastEventDurationOptions[_vm._pastEventDurationIndex]}";
+			_vm._pastWindowLoaded = true;
 			return true;
 		}
 
@@ -327,7 +336,7 @@ namespace Anvil.ViewModels
 		{
 			try
 			{
-				await _loopGate.WaitAsync(ct);
+				await _vm._loopGate.WaitAsync(ct);
 			}
 			catch (OperationCanceledException)
 			{
@@ -340,38 +349,38 @@ namespace Anvil.ViewModels
 				Services.RadarDiagnostics.Log("vm", "replay.load",
 					("site", site.Id), ("startZ", startUtc.ToString("O")), ("frames", keys.Count));
 
-				_loopClickAt = DateTimeOffset.UtcNow;
-				_firstFrameElapsed = null;
-				_allFramesElapsed = null;
-				_initialLoadDone = false;
-				_loadInProgress = true;
-				_loopRenderBegun = false;
+				_vm._loopClickAt = DateTimeOffset.UtcNow;
+				_vm._firstFrameElapsed = null;
+				_vm._allFramesElapsed = null;
+				_vm._initialLoadDone = false;
+				_vm._loadInProgress = true;
+				_vm._loopRenderBegun = false;
 
-				_archiveCount = keys.Count;
-				_frameCount = keys.Count;
-				_liveFrame = null;
-				_hasLiveFrame = false;
-				_pendingLiveAppend = null;
-				_liveModeText = null;
-				_frameTimes = new DateTimeOffset?[_frameCount];
-				_frameModes = new string?[_frameCount];
-				RebuildSegments(_frameCount); // empty scrubber cells; they light as frames decode
-				_readyCount = 0;
-				_loadedKeys = keys.ToArray();
-				_loadedNewestKey = keys[^1];
-				IsLoopReady = false;
-				_currentFrameIndex = 0; // start at the beginning of the event so play moves forward
-				_firstPaintIndex = 0;   // Rule 1: PastCast paints the oldest first — the fill is naturally left→right
-				OnPropertyChanged(nameof(MaxFrameIndex));
-				OnPropertyChanged(nameof(CurrentFrameIndex));
-				OnPropertyChanged(nameof(CurrentFrameTimeText));
-				OnPropertyChanged(nameof(RadarLoadingText));
+				_vm._archiveCount = keys.Count;
+				_vm._frameCount = keys.Count;
+				_vm._liveFrame = null;
+				_vm._hasLiveFrame = false;
+				_vm._pendingLiveAppend = null;
+				_vm._liveModeText = null;
+				_vm._frameTimes = new DateTimeOffset?[_vm._frameCount];
+				_vm._frameModes = new string?[_vm._frameCount];
+				_vm.RebuildSegments(_vm._frameCount); // empty scrubber cells; they light as frames decode
+				_vm._readyCount = 0;
+				_vm._loadedKeys = keys.ToArray();
+				_vm._loadedNewestKey = keys[^1];
+				_vm.IsLoopReady = false;
+				_vm._currentFrameIndex = 0; // start at the beginning of the event so play moves forward
+				_vm._firstPaintIndex = 0;   // Rule 1: PastCast paints the oldest first — the fill is naturally left→right
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.MaxFrameIndex));
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameIndex));
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.RadarLoadingText));
 
-				if (_isMapReady)
+				if (_vm._isMapReady)
 				{
-					await _mapService.BeginRadarLoopAsync(site);
+					await _vm._mapService.BeginRadarLoopAsync(site);
 				}
-				_loopRenderBegun = true;
+				_vm._loopRenderBegun = true;
 
 				// Oldest frame first (it's adopted + shown immediately) — prioritized so its prefix downloads
 				// over parallel S3 streams (first paint), then the rest in parallel. A replay has NO live
@@ -383,20 +392,20 @@ namespace Anvil.ViewModels
 				// First paint is up. Same law as the live path: arm velocity+SRV building (Rule 3) and compute
 				// the loop's one storm motion (Rules 4/5) from the OLDEST first-paint volume, both in parallel
 				// with the backfill. No live frame here.
-				_motionRefKey = keys[0];
-				_lastVwpKey = null;
-				if (_isMapReady)
+				_vm._motionRefKey = keys[0];
+				_vm._lastVwpKey = null;
+				if (_vm._isMapReady)
 				{
-					_ = _mapService.PrefetchRadarVelocityAsync();
-					RequestAutoStormMotion();
+					_ = _vm._mapService.PrefetchRadarVelocityAsync();
+					_vm.RequestAutoStormMotion();
 				}
 
 				await BackfillFramesAsync(site, keys, 1, keys.Count, ct, MaxParallelReplayBackfill);
-				_loadInProgress = false;
+				_vm._loadInProgress = false;
 			}
 			finally
 			{
-				_loopGate.Release();
+				_vm._loopGate.Release();
 			}
 		}
 
@@ -408,7 +417,7 @@ namespace Anvil.ViewModels
 				using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
 				while (await timer.WaitForNextTickAsync(ct))
 				{
-					RaiseRadarReadout();
+					_vm.RaiseRadarReadout();
 				}
 			}
 			catch (OperationCanceledException)
@@ -424,7 +433,7 @@ namespace Anvil.ViewModels
 		{
 			try
 			{
-				await _loopGate.WaitAsync(ct);
+				await _vm._loopGate.WaitAsync(ct);
 			}
 			catch (OperationCanceledException)
 			{
@@ -437,7 +446,7 @@ namespace Anvil.ViewModels
 			}
 			finally
 			{
-				_loopGate.Release();
+				_vm._loopGate.Release();
 			}
 		}
 
@@ -448,7 +457,7 @@ namespace Anvil.ViewModels
 			IReadOnlyList<string> keys;
 			try
 			{
-				keys = await _radarService.GetRecentKeysAsync(site, LoopLength, ct);
+				keys = await _vm._radarService.GetRecentKeysAsync(site, _vm.LoopLength, ct);
 			}
 			catch (OperationCanceledException)
 			{
@@ -459,7 +468,7 @@ namespace Anvil.ViewModels
 				return;
 			}
 
-			if (ct.IsCancellationRequested || keys.Count == 0 || !ReferenceEquals(_selectedRadarOption?.Site, site))
+			if (ct.IsCancellationRequested || keys.Count == 0 || !ReferenceEquals(_vm._selectedRadarOption?.Site, site))
 			{
 				Services.RadarDiagnostics.Log("vm", "loop.abort", ("keys", keys.Count), ("cancelled", ct.IsCancellationRequested));
 				return;
@@ -470,38 +479,38 @@ namespace Anvil.ViewModels
 			// Size the loop for the archive frames only; the live frame (if it turns out to be
 			// fresher) is appended afterwards by RefreshLiveFrameAsync. Loading archive first
 			// also means the newest archive frame paints immediately, before the chunks fetch.
-			_archiveCount = keys.Count;
-			_liveFrame = null;
-			_hasLiveFrame = false;
-			_pendingLiveAppend = null;
-			_frameCount = _archiveCount;
-			_frameTimes = new DateTimeOffset?[_frameCount];
-			_frameModes = new string?[_frameCount];
-			RebuildSegments(_frameCount); // empty scrubber cells; they light as frames decode
-			_readyCount = 0;
-			_loadedNewestKey = keys[_archiveCount - 1]; // archive newest drives the 5-min reload
-			_loadedKeys = keys.ToArray();               // baseline for the next incremental refresh
-			IsLoopReady = false;
-			_currentFrameIndex = _frameCount - 1; // newest archive frame
-			_firstPaintIndex = _archiveCount - 1; // Rule 1: NowCast paints the newest first, then fills left→right
-			OnPropertyChanged(nameof(MaxFrameIndex));
-			OnPropertyChanged(nameof(CurrentFrameIndex));
-			OnPropertyChanged(nameof(CurrentFrameTimeText));
-			OnPropertyChanged(nameof(RadarLoadingText));
+			_vm._archiveCount = keys.Count;
+			_vm._liveFrame = null;
+			_vm._hasLiveFrame = false;
+			_vm._pendingLiveAppend = null;
+			_vm._frameCount = _vm._archiveCount;
+			_vm._frameTimes = new DateTimeOffset?[_vm._frameCount];
+			_vm._frameModes = new string?[_vm._frameCount];
+			_vm.RebuildSegments(_vm._frameCount); // empty scrubber cells; they light as frames decode
+			_vm._readyCount = 0;
+			_vm._loadedNewestKey = keys[_vm._archiveCount - 1]; // archive newest drives the 5-min reload
+			_vm._loadedKeys = keys.ToArray();               // baseline for the next incremental refresh
+			_vm.IsLoopReady = false;
+			_vm._currentFrameIndex = _vm._frameCount - 1; // newest archive frame
+			_vm._firstPaintIndex = _vm._archiveCount - 1; // Rule 1: NowCast paints the newest first, then fills left→right
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.MaxFrameIndex));
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameIndex));
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.RadarLoadingText));
 
-			if (_isMapReady)
+			if (_vm._isMapReady)
 			{
-				await _mapService.BeginRadarLoopAsync(site);
+				await _vm._mapService.BeginRadarLoopAsync(site);
 			}
 
 			// The loop (and its JS token) is now (re)started — frame-ready events from here on
 			// belong to this selection, so first-frame timing can trust them.
-			_loopRenderBegun = true;
+			_vm._loopRenderBegun = true;
 
 			// Newest archive frame first (immediate display) — prioritized: its prefix downloads over several
 			// parallel S3 streams, since it's fetched ALONE and gates first paint (a single stream is slow +
 			// variable). The backfill below stays single-stream-per-frame (it already overlaps 6 frames).
-			var newestLoaded = await EnsureAndAddFrameAsync(site, keys, _archiveCount - 1, ct, prioritized: true);
+			var newestLoaded = await EnsureAndAddFrameAsync(site, keys, _vm._archiveCount - 1, ct, prioritized: true);
 
 			// A VCP's designed elevation table can promise tilts the volumes don't actually contain, so a
 			// tilt offered in the combo may have nothing behind it. Measured with tools/TiltCheck: KTLX in
@@ -511,8 +520,8 @@ namespace Anvil.ViewModels
 			// cheap prefix fetch never downloads.) Rather than leave the user staring at a blank loop,
 			// fall back to the base tilt, which is always present. Recursion is one level deep: the base
 			// tilt can't fail THIS way, so the retry can't re-trigger it.
-			if (!newestLoaded && _selectedTiltAngle is { } missing && !ct.IsCancellationRequested
-				&& ReferenceEquals(_selectedRadarOption?.Site, site))
+			if (!newestLoaded && _vm._selectedTiltAngle is { } missing && !ct.IsCancellationRequested
+				&& ReferenceEquals(_vm._selectedRadarOption?.Site, site))
 			{
 				Diag($"tilt {missing:0.00}° not present in this volume -> falling back to base tilt");
 				Services.RadarDiagnostics.Log("vm", "tilt.absent", ("lvl", "warn"),
@@ -527,12 +536,12 @@ namespace Anvil.ViewModels
 			//   Rule 3 — velocity+SRV build on every backfill decode (one pass per frame), not a second sweep.
 			//   Rules 4/5 — the loop's ONE storm motion, from this newest first-paint volume; SRV rides the
 			//   same pass once it lands (velocity stand-in until then).
-			_motionRefKey = keys[^1];
-			_lastVwpKey = null;
-			if (_isMapReady)
+			_vm._motionRefKey = keys[^1];
+			_vm._lastVwpKey = null;
+			if (_vm._isMapReady)
 			{
-				_ = _mapService.PrefetchRadarVelocityAsync(); // arms velocity+SRV building for the whole loop
-				RequestAutoStormMotion();
+				_ = _vm._mapService.PrefetchRadarVelocityAsync(); // arms velocity+SRV building for the whole loop
+				_vm.RequestAutoStormMotion();
 			}
 
 			// START the live (chunks) fetch NOW so its slow ~2-3 s chunk build OVERLAPS the archive backfill
@@ -547,7 +556,7 @@ namespace Anvil.ViewModels
 			// Backfill the older archive frames IN PARALLEL (bounded) — each frame's cost is a full-volume AWS
 			// download + bzip2 tilt extraction, so running them concurrently is the main lever for "load all
 			// back frames faster".
-			await BackfillFramesAsync(site, keys, 0, _archiveCount - 1, ct);
+			await BackfillFramesAsync(site, keys, 0, _vm._archiveCount - 1, ct);
 
 			// Apply the (by now usually finished) live frame + scan mode; it appends at index _archiveCount
 			// when fresher than the archive newest, and carries the scan-mode text for the card.
@@ -568,8 +577,8 @@ namespace Anvil.ViewModels
 		{
 			try
 			{
-				_lastLiveError = null;
-				return await _radarService.GetLiveFrameAsync(site, _selectedTiltAngle, ct);
+				_vm._lastLiveError = null;
+				return await _vm._radarService.GetLiveFrameAsync(site, _vm._selectedTiltAngle, ct);
 			}
 			catch (OperationCanceledException)
 			{
@@ -577,7 +586,7 @@ namespace Anvil.ViewModels
 			}
 			catch (Exception ex)
 			{
-				_lastLiveError = ex.Message;
+				_vm._lastLiveError = ex.Message;
 				return null;
 			}
 		}
@@ -590,7 +599,7 @@ namespace Anvil.ViewModels
 		{
 			var live = await fetch;
 			RecordLivePoll(live);
-			if (live is null || ct.IsCancellationRequested || !ReferenceEquals(_selectedRadarOption?.Site, site))
+			if (live is null || ct.IsCancellationRequested || !ReferenceEquals(_vm._selectedRadarOption?.Site, site))
 			{
 				return;
 			}
@@ -602,43 +611,43 @@ namespace Anvil.ViewModels
 		// chunks volume can never override fresh data (the bug behind KVNX/KFDR old frames).
 		private async Task ApplyLiveFrameAsync(Models.RadarVolume live)
 		{
-			if (_hasLiveFrame)
+			if (_vm._hasLiveFrame)
 			{
-				if (_liveFrame is not null && live.VolumeTime <= _liveFrame.VolumeTime)
+				if (_vm._liveFrame is not null && live.VolumeTime <= _vm._liveFrame.VolumeTime)
 				{
 					Services.RadarDiagnostics.Log("vm", "live.apply", ("action", "skip"),
-						("reason", $"not newer than current live ({live.VolumeTime:HH:mm:ss}Z <= {_liveFrame.VolumeTime:HH:mm:ss}Z)"));
+						("reason", $"not newer than current live ({live.VolumeTime:HH:mm:ss}Z <= {_vm._liveFrame.VolumeTime:HH:mm:ss}Z)"));
 					return;
 				}
 
-				_liveFrame = live;
-				if (_archiveCount < _frameTimes.Length)
+				_vm._liveFrame = live;
+				if (_vm._archiveCount < _vm._frameTimes.Length)
 				{
-					_frameTimes[_archiveCount] = live.VolumeTime;
+					_vm._frameTimes[_vm._archiveCount] = live.VolumeTime;
 				}
-				if (_archiveCount < _frameModes.Length)
+				if (_vm._archiveCount < _vm._frameModes.Length)
 				{
-					_frameModes[_archiveCount] = live.ModeText;
+					_vm._frameModes[_vm._archiveCount] = live.ModeText;
 				}
 				Services.RadarDiagnostics.Log("vm", "live.apply", ("action", "update"),
-					("idx", _archiveCount), ("volZ", live.VolumeTime.ToUniversalTime().ToString("HH:mm:ss")));
-				Services.RadarDiagnostics.RegisterFrameSource(_archiveCount, "live", FrameCacheFile(live), live.VolumeTime);
-				if (_isMapReady)
+					("idx", _vm._archiveCount), ("volZ", live.VolumeTime.ToUniversalTime().ToString("HH:mm:ss")));
+				Services.RadarDiagnostics.RegisterFrameSource(_vm._archiveCount, "live", FrameCacheFile(live), live.VolumeTime);
+				if (_vm._isMapReady)
 				{
-					await _mapService.AddRadarFrameAsync(live.LocalUrl, _archiveCount);
-					await _mapService.PulseRadarSweepAsync(); // new frame landed → one sweep pulse
+					await _vm._mapService.AddRadarFrameAsync(live.LocalUrl, _vm._archiveCount);
+					await _vm._mapService.PulseRadarSweepAsync(); // new frame landed → one sweep pulse
 				}
-				if (_currentFrameIndex == _archiveCount)
+				if (_vm._currentFrameIndex == _vm._archiveCount)
 				{
-					OnPropertyChanged(nameof(CurrentFrameTimeText));
+					_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
 				}
-				RaiseRadarReadout();
+				_vm.RaiseRadarReadout();
 				return;
 			}
 
 			// No live slot yet: only append if the chunks volume is newer than the archive newest.
-			var archiveNewest = _archiveCount > 0 && _archiveCount - 1 < _frameTimes.Length
-				? _frameTimes[_archiveCount - 1]
+			var archiveNewest = _vm._archiveCount > 0 && _vm._archiveCount - 1 < _vm._frameTimes.Length
+				? _vm._frameTimes[_vm._archiveCount - 1]
 				: null;
 			if (archiveNewest is { } an && live.VolumeTime <= an)
 			{
@@ -653,11 +662,11 @@ namespace Anvil.ViewModels
 			// frame's ~0.5-0.8 s decode window, since the freshest frame appends AFTER the archive loop is
 			// already full. Registering the frame source + starting the decode is all that happens now; the
 			// scrubber/display change atomically the instant the geometry lands.
-			_pendingLiveAppend = live;
-			Services.RadarDiagnostics.RegisterFrameSource(_archiveCount, "live", FrameCacheFile(live), live.VolumeTime);
-			if (_isMapReady)
+			_vm._pendingLiveAppend = live;
+			Services.RadarDiagnostics.RegisterFrameSource(_vm._archiveCount, "live", FrameCacheFile(live), live.VolumeTime);
+			if (_vm._isMapReady)
 			{
-				await _mapService.AddRadarFrameAsync(live.LocalUrl, _archiveCount); // JS decodes into the new slot; frame-ready completes it
+				await _vm._mapService.AddRadarFrameAsync(live.LocalUrl, _vm._archiveCount); // JS decodes into the new slot; frame-ready completes it
 			}
 			else
 			{
@@ -671,52 +680,52 @@ namespace Anvil.ViewModels
 		// state. Also used directly when there's no WebView to decode/report.
 		private void CompleteLiveAppend(Models.RadarVolume live)
 		{
-			_pendingLiveAppend = null;
+			_vm._pendingLiveAppend = null;
 
-			var grown = new DateTimeOffset?[_archiveCount + 1];
-			Array.Copy(_frameTimes, grown, Math.Min(_archiveCount, _frameTimes.Length));
-			grown[_archiveCount] = live.VolumeTime;
-			_frameTimes = grown;
-			var grownModes = new string?[_archiveCount + 1];
-			Array.Copy(_frameModes, grownModes, Math.Min(_archiveCount, _frameModes.Length));
-			grownModes[_archiveCount] = live.ModeText;
-			_frameModes = grownModes;
+			var grown = new DateTimeOffset?[_vm._archiveCount + 1];
+			Array.Copy(_vm._frameTimes, grown, Math.Min(_vm._archiveCount, _vm._frameTimes.Length));
+			grown[_vm._archiveCount] = live.VolumeTime;
+			_vm._frameTimes = grown;
+			var grownModes = new string?[_vm._archiveCount + 1];
+			Array.Copy(_vm._frameModes, grownModes, Math.Min(_vm._archiveCount, _vm._frameModes.Length));
+			grownModes[_vm._archiveCount] = live.ModeText;
+			_vm._frameModes = grownModes;
 			// Grow the scrubber to include the live frame's cell (keeps Segments.Count == _frameCount, so the
 			// playhead — which divides the track by Segments.Count — stays aligned). The caller
 			// (OnRadarFrameReady) marks this cell decoded right after, so it appears filled.
-			if (Segments.Count == _archiveCount)
+			if (_vm.Segments.Count == _vm._archiveCount)
 			{
-				Segments.Add(new RadarFrameSegment());
+				_vm.Segments.Add(new RadarFrameSegment());
 			}
-			_liveFrame = live;
-			_hasLiveFrame = true;
-			_frameCount = _archiveCount + 1;
-			_currentFrameIndex = _frameCount - 1; // show the live frame as the new newest
+			_vm._liveFrame = live;
+			_vm._hasLiveFrame = true;
+			_vm._frameCount = _vm._archiveCount + 1;
+			_vm._currentFrameIndex = _vm._frameCount - 1; // show the live frame as the new newest
 			Services.RadarDiagnostics.Log("vm", "live.apply", ("action", "append"),
-				("idx", _archiveCount), ("volZ", live.VolumeTime.ToUniversalTime().ToString("HH:mm:ss")),
-				("frames", _frameCount));
-			if (_loopClickAt is { } liveClick)
+				("idx", _vm._archiveCount), ("volZ", live.VolumeTime.ToUniversalTime().ToString("HH:mm:ss")),
+				("frames", _vm._frameCount));
+			if (_vm._loopClickAt is { } liveClick)
 			{
 				Services.RadarDiagnostics.Timing("live", (DateTimeOffset.UtcNow - liveClick).TotalSeconds);
 			}
-			OnPropertyChanged(nameof(MaxFrameIndex));
-			OnPropertyChanged(nameof(CurrentFrameIndex));
-			OnPropertyChanged(nameof(CurrentFrameTimeText));
-			RaiseRadarReadout();
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.MaxFrameIndex));
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameIndex));
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
+			_vm.RaiseRadarReadout();
 
-			if (_isMapReady)
+			if (_vm._isMapReady)
 			{
-				_ = _mapService.ShowRadarFrameAsync(_archiveCount);   // promote display to the now-decoded live frame
-				_ = _mapService.PulseRadarSweepAsync();               // first live frame landed → one sweep pulse
+				_ = _vm._mapService.ShowRadarFrameAsync(_vm._archiveCount);   // promote display to the now-decoded live frame
+				_ = _vm._mapService.PulseRadarSweepAsync();               // first live frame landed → one sweep pulse
 			}
 		}
 
 		// Records the latest live-frame poll outcome for the debug card.
 		private void RecordLivePoll(Models.RadarVolume? live)
 		{
-			_lastLivePollAt = DateTimeOffset.Now;
-			_lastLivePollResult = _lastLiveError is not null
-				? $"error: {_lastLiveError}"
+			_vm._lastLivePollAt = DateTimeOffset.Now;
+			_vm._lastLivePollResult = _vm._lastLiveError is not null
+				? $"error: {_vm._lastLiveError}"
 				: live is null
 					? "null (no fresh tilt; using archive)"
 					: $"ok · {live.VolumeTime.ToUniversalTime():HH:mm:ss}Z";
@@ -724,10 +733,10 @@ namespace Anvil.ViewModels
 			// append as a new frame — capture it so the mode shows even for a stale/offline site.
 			if (live?.ModeText is { } mode)
 			{
-				_liveModeText = mode;
+				_vm._liveModeText = mode;
 			}
-			Services.RadarDiagnostics.LivePoll(_lastLivePollResult, live?.VolumeTime, live?.ModeText);
-			RaiseRadarReadout();
+			Services.RadarDiagnostics.LivePoll(_vm._lastLivePollResult, live?.VolumeTime, live?.ModeText);
+			_vm.RaiseRadarReadout();
 		}
 
 		// Loads one archive frame at the current tilt and hands it to the map. Returns whether the frame
@@ -737,8 +746,8 @@ namespace Anvil.ViewModels
 		{
 			try
 			{
-				var volume = await _radarService.EnsureCachedAsync(site, keys[index], _selectedTiltAngle, prioritized, ct);
-				if (volume is null || ct.IsCancellationRequested || !ReferenceEquals(_selectedRadarOption?.Site, site))
+				var volume = await _vm._radarService.EnsureCachedAsync(site, keys[index], _vm._selectedTiltAngle, prioritized, ct);
+				if (volume is null || ct.IsCancellationRequested || !ReferenceEquals(_vm._selectedRadarOption?.Site, site))
 				{
 					return false;
 				}
@@ -746,14 +755,14 @@ namespace Anvil.ViewModels
 				// Every cached tilt carries the VCP's full elevation table, so the tilt choices come free
 				// with the frame we were fetching anyway — no extra request. Re-checked per frame because
 				// a radar can change VCP mid-loop (precip <-> clear-air scan different tilts).
-				UpdateTiltOptions(volume.Tilts);
+				_vm.UpdateTiltOptions(volume.Tilts);
 
-				_frameTimes[index] = volume.VolumeTime;
-				if (index < _frameModes.Length) _frameModes[index] = volume.ModeText;
+				_vm._frameTimes[index] = volume.VolumeTime;
+				if (index < _vm._frameModes.Length) _vm._frameModes[index] = volume.ModeText;
 				Services.RadarDiagnostics.RegisterFrameSource(index, "archive", FrameCacheFile(volume), volume.VolumeTime);
-				if (_isMapReady)
+				if (_vm._isMapReady)
 				{
-					await _mapService.AddRadarFrameAsync(volume.LocalUrl, index);
+					await _vm._mapService.AddRadarFrameAsync(volume.LocalUrl, index);
 				}
 				return true;
 			}
@@ -772,10 +781,10 @@ namespace Anvil.ViewModels
 		// Drops back to the base tilt without triggering a reload (the caller is already loading).
 		private void SetTiltToBase()
 		{
-			_selectedTiltAngle = null;
-			_radarTiltIndex = 0;
-			OnPropertyChanged(nameof(RadarTiltIndex));
-			OnPropertyChanged(nameof(SelectedTiltLabel));
+			_vm._selectedTiltAngle = null;
+			_vm._radarTiltIndex = 0;
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.RadarTiltIndex));
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.SelectedTiltLabel));
 		}
 
 		// How many archive volumes to download + extract concurrently during backfill. The per-frame cost is
@@ -834,16 +843,16 @@ namespace Anvil.ViewModels
 				return;
 			}
 
-			var option = RadarOptions.FirstOrDefault(o => o.Site?.Id == id);
+			var option = _vm.RadarOptions.FirstOrDefault(o => o.Site?.Id == id);
 			if (option is null)
 			{
 				return;
 			}
 
 			// Clicking the already-selected site clears it; otherwise select it.
-			var toggleOff = ReferenceEquals(option, _selectedRadarOption);
+			var toggleOff = ReferenceEquals(option, _vm._selectedRadarOption);
 			Diag($"siteClick id={id} toggleOff={toggleOff}"); // trace: a spurious reload should show a click here (or NOT)
-			SelectedRadarOption = toggleOff ? RadarOptions[0] : option;
+			_vm.SelectedRadarOption = toggleOff ? _vm.RadarOptions[0] : option;
 		}
 
 		/// <summary>Called by the view when the WebView reports a loop frame finished decoding.</summary>
@@ -851,7 +860,7 @@ namespace Anvil.ViewModels
 		{
 			// Drop frame-ready events that arrive before this selection's loop has begun — they're
 			// stale leftovers from the previous site draining through the worker (see _loopRenderBegun).
-			if (!_loopRenderBegun)
+			if (!_vm._loopRenderBegun)
 			{
 				return;
 			}
@@ -860,36 +869,36 @@ namespace Anvil.ViewModels
 			// loop + promote the display in ONE motion (this must run BEFORE the Segments[index] access below
 			// so the new cell exists to be marked decoded → it appears filled immediately). See
 			// ApplyLiveFrameAsync / CompleteLiveAppend.
-			if (_pendingLiveAppend is { } pendingLive && !_hasLiveFrame && index == _archiveCount)
+			if (_vm._pendingLiveAppend is { } pendingLive && !_vm._hasLiveFrame && index == _vm._archiveCount)
 			{
 				CompleteLiveAppend(pendingLive);
 			}
 
-			_readyCount++;
-			OnPropertyChanged(nameof(IsTransportEnabled)); // PastCast enables the transport at a low refl count
-			if (index >= 0 && index < Segments.Count)
+			_vm._readyCount++;
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.IsTransportEnabled)); // PastCast enables the transport at a low refl count
+			if (index >= 0 && index < _vm.Segments.Count)
 			{
 				// Mark decoded, then recompute displayed readiness for ALL cells: velocity still needs its
 				// dealiased geometry (so a decoded cell may stay "loading" until the build reaches it), AND
 				// Rule 2's left-to-right reveal gate depends on the whole run, not just this index.
-				Segments[index].IsDecoded = true;
-				RefreshSegmentReadiness();
+				_vm.Segments[index].IsDecoded = true;
+				_vm.RefreshSegmentReadiness();
 			}
-			Services.RadarDiagnostics.FrameReady(index, hasData, _readyCount, _frameCount);
+			Services.RadarDiagnostics.FrameReady(index, hasData, _vm._readyCount, _vm._frameCount);
 
 			// First-frame timing: the moment the first frame of this click is decoded + shown.
-			if (!_initialLoadDone && _firstFrameElapsed is null && _loopClickAt is { } click)
+			if (!_vm._initialLoadDone && _vm._firstFrameElapsed is null && _vm._loopClickAt is { } click)
 			{
-				_firstFrameElapsed = DateTimeOffset.UtcNow - click;
-				Services.RadarDiagnostics.Timing("first", _firstFrameElapsed.Value.TotalSeconds);
-				RaiseRadarReadout();
+				_vm._firstFrameElapsed = DateTimeOffset.UtcNow - click;
+				Services.RadarDiagnostics.Timing("first", _vm._firstFrameElapsed.Value.TotalSeconds);
+				_vm.RaiseRadarReadout();
 			}
 
-			OnPropertyChanged(nameof(CurrentFrameTimeText));
-			if (_readyCount >= _frameCount && _frameCount > 0)
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
+			if (_vm._readyCount >= _vm._frameCount && _vm._frameCount > 0)
 			{
-				IsLoopReady = true;
-				OnPropertyChanged(nameof(CurrentFrameTimeText));
+				_vm.IsLoopReady = true;
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
 			}
 
 			MaybeRecordAllFramesLoaded();
@@ -900,17 +909,17 @@ namespace Anvil.ViewModels
 		// reported ready. Frozen by _initialLoadDone so later live refreshes don't overwrite it.
 		private void MaybeRecordAllFramesLoaded()
 		{
-			if (_initialLoadDone || _loadInProgress || _frameCount == 0 || _readyCount < _frameCount)
+			if (_vm._initialLoadDone || _vm._loadInProgress || _vm._frameCount == 0 || _vm._readyCount < _vm._frameCount)
 			{
 				return;
 			}
-			if (_loopClickAt is { } click)
+			if (_vm._loopClickAt is { } click)
 			{
-				_allFramesElapsed = DateTimeOffset.UtcNow - click;
-				Services.RadarDiagnostics.Timing("all", _allFramesElapsed.Value.TotalSeconds);
-				RaiseRadarReadout();
+				_vm._allFramesElapsed = DateTimeOffset.UtcNow - click;
+				Services.RadarDiagnostics.Timing("all", _vm._allFramesElapsed.Value.TotalSeconds);
+				_vm.RaiseRadarReadout();
 			}
-			_initialLoadDone = true;
+			_vm._initialLoadDone = true;
 		}
 
 		// Advances the loop while playing + ready (~0.5s/frame, with a brief dwell on newest).
@@ -922,14 +931,14 @@ namespace Anvil.ViewModels
 				while (!ct.IsCancellationRequested)
 				{
 					// Variable per-frame delay so the playback-speed combo applies immediately.
-					await Task.Delay(PlaybackIntervalMs, ct);
-					if (!_isPlaying || !_isLoopReady || _frameCount == 0)
+					await Task.Delay(_vm.PlaybackIntervalMs, ct);
+					if (!_vm._isPlaying || !_vm._isLoopReady || _vm._frameCount == 0)
 					{
 						continue;
 					}
 
 					// Pause a couple of ticks on the newest frame before looping back.
-					if (_currentFrameIndex >= _frameCount - 1 && dwell < 2)
+					if (_vm._currentFrameIndex >= _vm._frameCount - 1 && dwell < 2)
 					{
 						dwell++;
 						continue;
@@ -939,14 +948,14 @@ namespace Anvil.ViewModels
 					// dealiased in the background (that would flash blank / stall ~1.5 s mid-playback). The
 					// upgrade queue builds forward from the playhead, so playback resumes on its own as each
 					// next frame becomes ready. Reflectivity/CC are always ready, so this never holds there.
-					var next = (_currentFrameIndex + 1) % _frameCount;
-					if (!IsFrameDisplayReady(next))
+					var next = (_vm._currentFrameIndex + 1) % _vm._frameCount;
+					if (!_vm.IsFrameDisplayReady(next))
 					{
 						continue;
 					}
 
 					dwell = 0;
-					CurrentFrameIndex = next;
+					_vm.CurrentFrameIndex = next;
 				}
 			}
 			catch (OperationCanceledException)
@@ -963,7 +972,7 @@ namespace Anvil.ViewModels
 				using var timer = new PeriodicTimer(TimeSpan.FromMinutes(5));
 				while (await timer.WaitForNextTickAsync(ct))
 				{
-					if (!ReferenceEquals(_selectedRadarOption?.Site, site))
+					if (!ReferenceEquals(_vm._selectedRadarOption?.Site, site))
 					{
 						return;
 					}
@@ -971,7 +980,7 @@ namespace Anvil.ViewModels
 					IReadOnlyList<string> keys;
 					try
 					{
-						keys = await _radarService.GetRecentKeysAsync(site, LoopLength, ct);
+						keys = await _vm._radarService.GetRecentKeysAsync(site, _vm.LoopLength, ct);
 					}
 					catch (OperationCanceledException)
 					{
@@ -982,9 +991,9 @@ namespace Anvil.ViewModels
 						continue;
 					}
 
-					if (keys.Count > 0 && keys[keys.Count - 1] != _loadedNewestKey)
+					if (keys.Count > 0 && keys[keys.Count - 1] != _vm._loadedNewestKey)
 					{
-						Services.RadarDiagnostics.Log("vm", "refresh.archive", ("newKey", keys[^1]), ("oldKey", _loadedNewestKey));
+						Services.RadarDiagnostics.Log("vm", "refresh.archive", ("newKey", keys[^1]), ("oldKey", _vm._loadedNewestKey));
 						// Predictive prefetch: pull the new volume's .V06 to disk FIRST, OFF the loop's
 						// critical path (no _loopGate, no loop-state changes) — so the download (the slow
 						// part) happens while the loop stays fully live, and the incremental fold-in below
@@ -1014,7 +1023,7 @@ namespace Anvil.ViewModels
 		{
 			try
 			{
-				await _loopGate.WaitAsync(ct);
+				await _vm._loopGate.WaitAsync(ct);
 			}
 			catch (OperationCanceledException)
 			{
@@ -1023,26 +1032,26 @@ namespace Anvil.ViewModels
 
 			try
 			{
-				if (newKeys.Count == 0 || !ReferenceEquals(_selectedRadarOption?.Site, site))
+				if (newKeys.Count == 0 || !ReferenceEquals(_vm._selectedRadarOption?.Site, site))
 				{
 					return;
 				}
 
-				var oldFrameTimes = _frameTimes;
-				var oldFrameModes = _frameModes;
-				var oldReady = new bool[Segments.Count]; // reused frames keep their DECODE state (relit per product)
-				for (var i = 0; i < oldReady.Length; i++) oldReady[i] = Segments[i].IsDecoded;
-				var oldArchiveCount = _archiveCount;
-				var oldFrameCount = _frameCount;
-				var hadLive = _hasLiveFrame;
-				var oldCurrent = _currentFrameIndex;
+				var oldFrameTimes = _vm._frameTimes;
+				var oldFrameModes = _vm._frameModes;
+				var oldReady = new bool[_vm.Segments.Count]; // reused frames keep their DECODE state (relit per product)
+				for (var i = 0; i < oldReady.Length; i++) oldReady[i] = _vm.Segments[i].IsDecoded;
+				var oldArchiveCount = _vm._archiveCount;
+				var oldFrameCount = _vm._frameCount;
+				var hadLive = _vm._hasLiveFrame;
+				var oldCurrent = _vm._currentFrameIndex;
 				var wasNewest = oldCurrent == oldFrameCount - 1; // user following the latest frame
 
 				// First old index for each archive key (the loop has no duplicate volumes in practice).
 				var oldIndexByKey = new Dictionary<string, int>(oldArchiveCount);
-				for (var i = 0; i < _loadedKeys.Length && i < oldArchiveCount; i++)
+				for (var i = 0; i < _vm._loadedKeys.Length && i < oldArchiveCount; i++)
 				{
-					oldIndexByKey.TryAdd(_loadedKeys[i], i);
+					oldIndexByKey.TryAdd(_vm._loadedKeys[i], i);
 				}
 
 				var newArchiveCount = newKeys.Count;
@@ -1087,16 +1096,16 @@ namespace Anvil.ViewModels
 				// Commit VM state. Don't touch IsLoopReady: most frames are already decoded, so the
 				// loop stays "ready" (scrubber/playback uninterrupted). _readyCount = reused count;
 				// the new frames bring it back up to newFrameCount as they decode.
-				_loadedKeys = newKeys.ToArray();
-				_loadedNewestKey = newKeys[^1];
-				_archiveCount = newArchiveCount;
-				_frameCount = newFrameCount;
-				_frameTimes = newTimes;
-				_frameModes = newModes;
-				_firstPaintIndex = newFrameCount - 1; // a refresh folds new volumes in at the newest end
-				RebuildSegments(newFrameCount, newReady); // reindex scrubber cells; reused frames stay lit
-				_readyCount = mapping.Count;
-				_currentFrameIndex = wasNewest ? newFrameCount - 1
+				_vm._loadedKeys = newKeys.ToArray();
+				_vm._loadedNewestKey = newKeys[^1];
+				_vm._archiveCount = newArchiveCount;
+				_vm._frameCount = newFrameCount;
+				_vm._frameTimes = newTimes;
+				_vm._frameModes = newModes;
+				_vm._firstPaintIndex = newFrameCount - 1; // a refresh folds new volumes in at the newest end
+				_vm.RebuildSegments(newFrameCount, newReady); // reindex scrubber cells; reused frames stay lit
+				_vm._readyCount = mapping.Count;
+				_vm._currentFrameIndex = wasNewest ? newFrameCount - 1
 					: newCurrent >= 0 ? newCurrent
 					: newFrameCount - 1;
 
@@ -1104,24 +1113,24 @@ namespace Anvil.ViewModels
 					("reused", mapping.Count), ("new", newIndices.Count),
 					("frames", newFrameCount), ("newest", newKeys[^1]));
 
-				if (_isMapReady)
+				if (_vm._isMapReady)
 				{
 					var mappingJson = System.Text.Json.JsonSerializer.Serialize(mapping);
-					await _mapService.RemapRadarFramesAsync(newFrameCount, mappingJson);
+					await _vm._mapService.RemapRadarFramesAsync(newFrameCount, mappingJson);
 					// Target the desired frame: if undecoded (a just-arrived newest), JS records it as
 					// pending and keeps the current frame on screen until it decodes (no blank).
-					await _mapService.ShowRadarFrameAsync(_currentFrameIndex);
+					await _vm._mapService.ShowRadarFrameAsync(_vm._currentFrameIndex);
 					// Live loop advanced → track the motion to the new newest (Rule 5: still ONE per loop,
 					// just following "now"). No-op if the newest key didn't change; a changed value re-decodes
 					// SRV only if it actually differs (the WebView's own change-check), so 5-min reloads rarely churn.
-					_motionRefKey = newKeys[^1];
-					RequestAutoStormMotion();
+					_vm._motionRefKey = newKeys[^1];
+					_vm.RequestAutoStormMotion();
 				}
 
-				OnPropertyChanged(nameof(MaxFrameIndex));
-				OnPropertyChanged(nameof(CurrentFrameIndex));
-				OnPropertyChanged(nameof(CurrentFrameTimeText));
-				RaiseRadarReadout();
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.MaxFrameIndex));
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameIndex));
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
+				_vm.RaiseRadarReadout();
 
 				// Decode only the genuinely-new volumes (newest-first so the top updates first).
 				for (var k = newIndices.Count - 1; k >= 0 && !ct.IsCancellationRequested; k--)
@@ -1131,7 +1140,7 @@ namespace Anvil.ViewModels
 			}
 			finally
 			{
-				_loopGate.Release();
+				_vm._loopGate.Release();
 			}
 		}
 
@@ -1143,7 +1152,7 @@ namespace Anvil.ViewModels
 		// (the fold-in will just download that one itself, as before).
 		private async Task PrefetchArchiveFramesAsync(RadarSite site, IReadOnlyList<string> newKeys, CancellationToken ct)
 		{
-			var loaded = new HashSet<string>(_loadedKeys, StringComparer.Ordinal);
+			var loaded = new HashSet<string>(_vm._loadedKeys, StringComparer.Ordinal);
 			var toPrefetch = newKeys.Where(k => !loaded.Contains(k)).ToList();
 			if (toPrefetch.Count == 0)
 			{
@@ -1163,7 +1172,7 @@ namespace Anvil.ViewModels
 				}
 				try
 				{
-					await _radarService.EnsureCachedAsync(site, key, _selectedTiltAngle, cancellationToken: ct);
+					await _vm._radarService.EnsureCachedAsync(site, key, _vm._selectedTiltAngle, cancellationToken: ct);
 				}
 				catch (OperationCanceledException)
 				{
@@ -1192,44 +1201,44 @@ namespace Anvil.ViewModels
 			{
 				while (true)
 				{
-					var interval = _hasLiveFrame ? RefreshIntervalSeconds : LiveFrameRetrySeconds;
+					var interval = _vm._hasLiveFrame ? _vm.RefreshIntervalSeconds : RadarViewModel.LiveFrameRetrySeconds;
 					// Schedule relative to the LAST poll, whoever ran it — an archive reload runs its
 					// own inline live poll (LoadLoopCoreAsync → RefreshLiveFrameAsync), so anchoring on
 					// _lastLivePollAt pushes this timer out instead of double-fetching ~3s later.
-					var sinceLast = _lastLivePollAt is { } last ? (DateTimeOffset.Now - last).TotalSeconds : interval;
+					var sinceLast = _vm._lastLivePollAt is { } last ? (DateTimeOffset.Now - last).TotalSeconds : interval;
 					var wait = Math.Max(1.0, interval - sinceLast);
-					_livePollCycleStart = DateTimeOffset.Now;
-					_nextLivePollAt = _livePollCycleStart.Value.AddSeconds(wait);
-					OnPropertyChanged(nameof(RadarNextFrameProgress)); // reset the bar at the cycle start
+					_vm._livePollCycleStart = DateTimeOffset.Now;
+					_vm._nextLivePollAt = _vm._livePollCycleStart.Value.AddSeconds(wait);
+					_vm.RaisePropertyChangedFor(nameof(RadarViewModel.RadarNextFrameProgress)); // reset the bar at the cycle start
 					// The on-map sweep is no longer a continuous phase-locked rotation — it pulses once
 					// when a genuinely-new frame actually lands (see ApplyLiveFrameAsync), so nothing to
 					// start here.
 					await Task.Delay(TimeSpan.FromSeconds(wait), ct);
 
-					if (!ReferenceEquals(_selectedRadarOption?.Site, site))
+					if (!ReferenceEquals(_vm._selectedRadarOption?.Site, site))
 					{
 						return;
 					}
 
 					// If a poll snuck in during our wait (e.g. a reload's inline poll), don't double
 					// up — loop to recompute the next deadline from that poll instead.
-					if (_lastLivePollAt is { } recent && (DateTimeOffset.Now - recent).TotalSeconds < interval - 1)
+					if (_vm._lastLivePollAt is { } recent && (DateTimeOffset.Now - recent).TotalSeconds < interval - 1)
 					{
 						continue;
 					}
 
 					// Gate against a concurrent archive (re)load mutating the same frame state.
-					await _loopGate.WaitAsync(ct);
+					await _vm._loopGate.WaitAsync(ct);
 					try
 					{
-						if (ReferenceEquals(_selectedRadarOption?.Site, site))
+						if (ReferenceEquals(_vm._selectedRadarOption?.Site, site))
 						{
 							await RefreshLiveFrameAsync(site, ct);
 						}
 					}
 					finally
 					{
-						_loopGate.Release();
+						_vm._loopGate.Release();
 					}
 				}
 			}
@@ -1238,5 +1247,6 @@ namespace Anvil.ViewModels
 				// Selection changed or app shutting down.
 			}
 		}
+			}
 	}
 }

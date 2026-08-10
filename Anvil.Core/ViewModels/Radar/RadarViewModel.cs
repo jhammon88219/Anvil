@@ -35,6 +35,33 @@ namespace Anvil.ViewModels
 		private readonly IRadarSiteProvider _radarSiteProvider;
 		private readonly ILevel2RadarService _radarService;
 
+		// The loop engine (site load, live poll, playback, refresh, incremental reload, past-event replay).
+		// Extracted into its own collaborator class (RadarLoopEngine.cs); this VM owns the bindable
+		// frame-state + presentation and delegates the loop lifecycle to it. Built in the ctor.
+		private readonly RadarLoopEngine _engine;
+
+		// Bridges the nested engine to the base ObservableObject's protected OnPropertyChanged.
+		private void RaisePropertyChangedFor(string propertyName) => OnPropertyChanged(propertyName);
+
+		// Appends one free-form radar diagnostic note (incidental lines; high-value events use the typed
+		// RadarDiagnostics methods). Mirrors the engine's own Diag helper for the VM-side callers.
+		private static void Diag(string message) => Services.RadarDiagnostics.Log("vm", "note", ("msg", message));
+
+		// ── Public loop API — thin forwarders onto the engine (the loop logic lives in RadarLoopEngine).
+		//    Kept on the VM because the view/router bind these names (WebMessageRouter, PastEventInput). ──
+
+		/// <summary>Called by the view when a radar site marker is clicked (toggles selection).</summary>
+		public void OnRadarSiteClicked(string? id) => _engine.OnRadarSiteClicked(id);
+
+		/// <summary>Called by the view when the WebView reports a loop frame finished decoding.</summary>
+		public void OnRadarFrameReady(int index, bool hasData) => _engine.OnRadarFrameReady(index, hasData);
+
+		/// <summary>Hard reset of the current loop: cancels the in-flight load and reloads from scratch.</summary>
+		public void ResetRadarLoop() => _engine.ResetRadarLoop();
+
+		/// <summary>Loads the historical loop for the selected site over the chosen window (the Load button).</summary>
+		public Task<bool> LoadSelectedPastEventAsync() => _engine.LoadSelectedPastEventAsync();
+
 		// Readiness guard: radar commands only run once the map page has reported 'mapReady'
 		// (set by OnMapsReadyAsync, called from MapViewModel.OnMapsReadyAsync).
 		private bool _isMapReady;
@@ -228,6 +255,7 @@ namespace Anvil.ViewModels
 			_mapService = mapService;
 			_radarSiteProvider = radarSiteProvider;
 			_radarService = radarService;
+			_engine = new RadarLoopEngine(this);
 
 			// The DOW Event Viewer is its own view model (a standalone mobile-radar frame through the
 			// same render path); watch its IsShowing so the shared display / color-scale gate follows it.
@@ -306,16 +334,16 @@ namespace Anvil.ViewModels
 				{
 					if (_pastWindowLoaded && value?.Site is not null)
 					{
-						_ = LoadSelectedPastEventAsync();
+						_ = _engine.LoadSelectedPastEventAsync();
 					}
 					else
 					{
-						_ = SelectPastSiteAsync(value?.Site);
+						_ = _engine.SelectPastSiteAsync(value?.Site);
 					}
 				}
 				else
 				{
-					_ = StartRadarLoopAsync(value?.Site);
+					_ = _engine.StartRadarLoopAsync(value?.Site);
 				}
 			}
 		}
@@ -474,7 +502,7 @@ namespace Anvil.ViewModels
 				var clamped = Math.Clamp(value, 0, LoopLengthByIndex.Length - 1);
 				if (SetProperty(ref _loopLengthIndex, clamped) && _selectedRadarOption?.Site is { } site)
 				{
-					_ = StartRadarLoopAsync(site);
+					_ = _engine.StartRadarLoopAsync(site);
 				}
 			}
 		}
@@ -549,7 +577,7 @@ namespace Anvil.ViewModels
 				// pass here. All that's left is the tilt-switch raw prefetch.
 				if (value && _frameCount > 0)
 				{
-					StartTiltPrefetch();
+					_engine.StartTiltPrefetch();
 				}
 			}
 		}
@@ -958,7 +986,7 @@ namespace Anvil.ViewModels
 
 				_selectedTiltAngle = RadarTiltOptions[value].Angle;
 				OnPropertyChanged(nameof(SelectedTiltLabel));
-				ReloadForTiltChange();
+				_engine.ReloadForTiltChange();
 			}
 		}
 
