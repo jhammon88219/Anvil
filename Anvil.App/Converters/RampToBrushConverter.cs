@@ -49,7 +49,7 @@ namespace Anvil.Converters
 
 			for (int i = 0; i < stops.Count; i++)
 			{
-				var color = ColorOf(stops[i].Color);
+				var color = ColorUtil.FromRgb(stops[i].Color);
 				double start = OffsetOf(stops[i].V);
 				brush.GradientStops.Add(new GradientStop { Offset = start, Color = color });
 
@@ -63,11 +63,6 @@ namespace Anvil.Converters
 
 			return brush;
 		}
-
-		private static Windows.UI.Color ColorOf(int[]? rgb) =>
-			rgb is { Length: >= 3 }
-				? Windows.UI.Color.FromArgb(255, (byte)rgb[0], (byte)rgb[1], (byte)rgb[2])
-				: Windows.UI.Color.FromArgb(0, 0, 0, 0);
 
 		public object ConvertBack(object value, Type targetType, object parameter, string language) =>
 			throw new NotSupportedException();
