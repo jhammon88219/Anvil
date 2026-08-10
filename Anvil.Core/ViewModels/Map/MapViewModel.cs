@@ -48,6 +48,23 @@ namespace Anvil.ViewModels
 			_styleProvider = styleProvider;
 			_regionProvider = regionProvider;
 
+			// The two one-at-a-time card groups (temporal settings cards + right-side panels). Each fires the
+			// enum property + all its bool projections on a change, so the x:Bind card/toggle bindings update.
+			_cards = new ExclusiveOpen<TemporalCard>(TemporalCard.None, () =>
+			{
+				OnPropertyChanged(nameof(OpenCard));
+				OnPropertyChanged(nameof(IsPastCardOpen));
+				OnPropertyChanged(nameof(IsNowCardOpen));
+				OnPropertyChanged(nameof(IsForeCardOpen));
+			});
+			_rightPanels = new ExclusiveOpen<RightPanel>(RightPanel.None, () =>
+			{
+				OnPropertyChanged(nameof(OpenRightPanel));
+				OnPropertyChanged(nameof(IsMapControlsCardOpen));
+				OnPropertyChanged(nameof(IsSettingsCardOpen));
+				OnPropertyChanged(nameof(IsSiteExplorerOpen));
+			});
+
 			// Each subsystem lives in its own view model (progressively split out of this class);
 			// the transport-bar section controls bind slices of them.
 			Radar = new RadarViewModel(mapService, radarSiteProvider, radarService, dowEventProvider);
@@ -193,8 +210,8 @@ namespace Anvil.ViewModels
 		// toggle to reach it). ALL THREE START OFF — nothing is armed at launch (a clean map). Activating a
 		// toggle also OPENS its settings card (the setters set OpenCard); OpenCard tracks which feature's
 		// settings card floats above the bar (one at a time); a feature turning off closes its card
-		// (CloseCardIfInactive).
-		private TemporalCard _openCard = TemporalCard.None;
+		// (CloseCardIfInactive). Backed by the shared single-open group; see the ctor for the wiring.
+		private readonly ExclusiveOpen<TemporalCard> _cards;
 
 		/// <summary>PastCast (historical replay). Projection of <see cref="RadarViewModel.IsPastEventMode"/>:
 		/// on enters replay (clearing any live loop), off exits replay to a blank basemap. Turning it on
@@ -264,9 +281,9 @@ namespace Anvil.ViewModels
 		// the toggle setters' subsystem subscriptions so a card can't linger over an inactive feature.
 		private void CloseCardIfInactive()
 		{
-			if ((_openCard == TemporalCard.Past && !IsPastCast)
-				|| (_openCard == TemporalCard.Now && !IsNowCast)
-				|| (_openCard == TemporalCard.Fore && !IsForeCast))
+			if ((_cards.Current == TemporalCard.Past && !IsPastCast)
+				|| (_cards.Current == TemporalCard.Now && !IsNowCast)
+				|| (_cards.Current == TemporalCard.Fore && !IsForeCast))
 			{
 				OpenCard = TemporalCard.None;
 			}
@@ -278,38 +295,30 @@ namespace Anvil.ViewModels
 		/// and a mode change resets it to <see cref="TemporalCard.None"/>.</summary>
 		public TemporalCard OpenCard
 		{
-			get => _openCard;
-			set
-			{
-				if (SetProperty(ref _openCard, value))
-				{
-					OnPropertyChanged(nameof(IsPastCardOpen));
-					OnPropertyChanged(nameof(IsNowCardOpen));
-					OnPropertyChanged(nameof(IsForeCardOpen));
-				}
-			}
+			get => _cards.Current;
+			set => _cards.Current = value;
 		}
 
 		/// <summary>PastCast settings-card visibility (two-way: the cog toggles it; the card's triangle
 		/// clears it). Setting false only closes it when it was the one open.</summary>
 		public bool IsPastCardOpen
 		{
-			get => _openCard == TemporalCard.Past;
-			set { if (value) { OpenCard = TemporalCard.Past; } else if (_openCard == TemporalCard.Past) { OpenCard = TemporalCard.None; } }
+			get => _cards.IsOpen(TemporalCard.Past);
+			set => _cards.SetOpen(TemporalCard.Past, value);
 		}
 
 		/// <summary>NowCast settings-card visibility (placeholder card for now).</summary>
 		public bool IsNowCardOpen
 		{
-			get => _openCard == TemporalCard.Now;
-			set { if (value) { OpenCard = TemporalCard.Now; } else if (_openCard == TemporalCard.Now) { OpenCard = TemporalCard.None; } }
+			get => _cards.IsOpen(TemporalCard.Now);
+			set => _cards.SetOpen(TemporalCard.Now, value);
 		}
 
 		/// <summary>ForeCast settings-card visibility.</summary>
 		public bool IsForeCardOpen
 		{
-			get => _openCard == TemporalCard.Fore;
-			set { if (value) { OpenCard = TemporalCard.Fore; } else if (_openCard == TemporalCard.Fore) { OpenCard = TemporalCard.None; } }
+			get => _cards.IsOpen(TemporalCard.Fore);
+			set => _cards.SetOpen(TemporalCard.Fore, value);
 		}
 
 		// ===== App-wide RIGHT-aligned cards (Map Controls / App Settings / Site Explorer) =================
@@ -320,22 +329,14 @@ namespace Anvil.ViewModels
 		// of the temporal OpenCard: switching temporal modes never closes a right card and vice-versa, so at
 		// most one LEFT + one RIGHT card show together. (The Debug-only dev Sweep/Validate cards are NOT part
 		// of this group — their open-state is a control-level DP, see MainWindow.)
-		private RightPanel _openRightPanel = RightPanel.None;
+		private readonly ExclusiveOpen<RightPanel> _rightPanels;
 
 		/// <summary>Which app-wide right-aligned card is floating above the bar (at most one). Opened by its
 		/// right-edge button, hidden by the card's own down-triangle. Independent of <see cref="OpenCard"/>.</summary>
 		public RightPanel OpenRightPanel
 		{
-			get => _openRightPanel;
-			set
-			{
-				if (SetProperty(ref _openRightPanel, value))
-				{
-					OnPropertyChanged(nameof(IsMapControlsCardOpen));
-					OnPropertyChanged(nameof(IsSettingsCardOpen));
-					OnPropertyChanged(nameof(IsSiteExplorerOpen));
-				}
-			}
+			get => _rightPanels.Current;
+			set => _rightPanels.Current = value;
 		}
 
 		/// <summary>Whether the Map Controls card (basemap style + state isolation) floats above the bar.
@@ -343,24 +344,24 @@ namespace Anvil.ViewModels
 		/// other right card.</summary>
 		public bool IsMapControlsCardOpen
 		{
-			get => _openRightPanel == RightPanel.MapControls;
-			set { if (value) { OpenRightPanel = RightPanel.MapControls; } else if (_openRightPanel == RightPanel.MapControls) { OpenRightPanel = RightPanel.None; } }
+			get => _rightPanels.IsOpen(RightPanel.MapControls);
+			set => _rightPanels.SetOpen(RightPanel.MapControls, value);
 		}
 
 		/// <summary>Whether the app-wide settings card floats above the bar. Two-way: the settings cog toggles
 		/// it; the card's down-triangle clears it. Opening it closes any other right card.</summary>
 		public bool IsSettingsCardOpen
 		{
-			get => _openRightPanel == RightPanel.Settings;
-			set { if (value) { OpenRightPanel = RightPanel.Settings; } else if (_openRightPanel == RightPanel.Settings) { OpenRightPanel = RightPanel.None; } }
+			get => _rightPanels.IsOpen(RightPanel.Settings);
+			set => _rightPanels.SetOpen(RightPanel.Settings, value);
 		}
 
 		/// <summary>Whether the Radar Site Explorer panel is showing (toggled by the "Sites" button). Opening
 		/// it closes any other right card.</summary>
 		public bool IsSiteExplorerOpen
 		{
-			get => _openRightPanel == RightPanel.SiteExplorer;
-			set { if (value) { OpenRightPanel = RightPanel.SiteExplorer; } else if (_openRightPanel == RightPanel.SiteExplorer) { OpenRightPanel = RightPanel.None; } }
+			get => _rightPanels.IsOpen(RightPanel.SiteExplorer);
+			set => _rightPanels.SetOpen(RightPanel.SiteExplorer, value);
 		}
 
 		public IReadOnlyList<MapStyle> AvailableStyles { get; }
