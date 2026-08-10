@@ -1,2 +1,3 @@
 arm_pyart
 matplotlib
+shapely  # make_conus_boundary.py: union states + Great Lakes into the CONUS mask boundary

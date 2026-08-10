@@ -17,11 +17,13 @@
 //
 // WHY the "inverted mask": MapLibre can't clip the map to a polygon. The trick is one fill whose OUTER ring
 // is the whole world and whose HOLES are the region's ring(s) — fill it water-color and it covers all but
-// the region. No turf / boolean ops: earcut treats the first ring as outer and the rest as holes regardless
-// of winding. ⚠️ CONUS uses a PRE-DISSOLVED boundary (`conus-boundary.geojson` — the contiguous states
-// unioned offline into disjoint exterior rings: one mainland + coastal islands). Tiling the raw 49 state
-// rings as holes was tried and FAILED — earcut bridges between the many TOUCHING holes gored the interior
-// with triangles. Disjoint rings have no shared edges, so they cut clean.
+// the region. No turf / boolean ops here: earcut treats the first ring as outer and the rest as holes
+// regardless of winding. ⚠️ CONUS uses a PRE-DISSOLVED boundary (`conus-boundary.geojson` — the contiguous
+// states UNIONED offline into disjoint exterior rings: one mainland + coastal islands, WITH the Great Lakes
+// water filled in so radar returns and the lakes' labels show over them, not covered by the mask). Tiling
+// the raw 49 state rings as holes was tried and FAILED — earcut bridges between the many TOUCHING holes gored
+// the interior with triangles. Disjoint rings have no shared edges, so they cut clean. Regenerate the file
+// with tools/make_conus_boundary.py (shapely union of the states + tools/great-lakes.geojson).
 //
 // Host seam: map.js exposes window.stateIso{Arm,Disarm,Select,Clear} + window.setConusIsolation, driven by
 // StateIsolationViewModel through IMapService. This module posts {type:"stateIsolated", name} back so the
