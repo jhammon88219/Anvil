@@ -1,6 +1,10 @@
 using System;
+using System.IO;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
+using Serilog;
 using Anvil.Services;
 using Anvil.ViewModels;
 
@@ -8,15 +12,17 @@ namespace Anvil
 {
 	/// <summary>
 	/// Provides application-specific behavior to supplement the default Application class. Owns the DI
-	/// container (composition root): every service/provider/VM is registered here and the object graph is
-	/// resolved at launch, replacing the hand-wired `new`s that used to live in MainWindow's constructor.
+	/// container (composition root) and app-wide logging: every service/provider/VM is registered here and
+	/// the object graph is resolved at launch, replacing the hand-wired `new`s that used to live in
+	/// MainWindow's constructor. Serilog + the three global exception hooks catch and log crashes.
 	/// </summary>
 	public partial class App : Application
 	{
 		private Window? _window;
+		private readonly ILogger<App> _logger;
 
-		/// <summary>The app-wide dependency-injection container. Built once at launch (see OnLaunched).</summary>
-		public IServiceProvider Services { get; private set; } = null!;
+		/// <summary>The app-wide dependency-injection container. Built once at launch (see the ctor).</summary>
+		public IServiceProvider Services { get; }
 
 		/// <summary>
 		/// Initializes the singleton application object.  This is the first line of authored code
@@ -25,6 +31,22 @@ namespace Anvil
 		public App()
 		{
 			InitializeComponent();
+
+			// Logging BEFORE the container: AddSerilog(dispose:true) below bridges the static Log.Logger this
+			// configures, so it must exist first.
+			ConfigureLogging();
+			Services = ConfigureServices();
+			_logger = Services.GetRequiredService<ILogger<App>>();
+
+			// Catch-all crash logging: the WinUI UI-thread handler (swallow so a stray UI exception doesn't
+			// take the app down), the AppDomain handler (fatal — log only), and unobserved Task exceptions.
+			UnhandledException += OnUnhandledException;
+			AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
+			TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+			// Flush the async file sink on a clean exit (best-effort; a hard kill may skip it).
+			AppDomain.CurrentDomain.ProcessExit += (_, _) => Log.CloseAndFlush();
+
+			Log.Information("Anvil started");
 		}
 
 		/// <summary>
@@ -32,18 +54,39 @@ namespace Anvil
 		/// </summary>
 		protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
 		{
-			// Build the container and resolve the whole object graph HERE, on the UI thread: WinUiDispatcher
-			// (pulled in as part of the MainWindow graph) captures the CURRENT thread's DispatcherQueue in
-			// its constructor, and OnLaunched runs on the UI thread. Resolving MainWindow constructs
-			// everything synchronously on this thread.
-			Services = ConfigureServices();
+			// Resolve the whole object graph HERE, on the UI thread: WinUiDispatcher (pulled in as part of
+			// the MainWindow graph) captures the CURRENT thread's DispatcherQueue in its constructor, and
+			// OnLaunched runs on the UI thread. Resolving MainWindow constructs everything synchronously.
 			_window = Services.GetRequiredService<MainWindow>();
 			_window.Activate();
 		}
 
-		private static IServiceProvider ConfigureServices()
+		// Serilog: async rolling file logs under %LocalAppData%\Anvil\Logs (7 days, 10 MB/file) + the VS
+		// Output window. The static Log.Logger is bridged into the container's ILogger<T> by AddSerilog.
+		private static void ConfigureLogging()
+		{
+			var logDirectory = Path.Combine(
+				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Anvil", "Logs");
+			Directory.CreateDirectory(logDirectory);
+			var logPath = Path.Combine(logDirectory, "log-.txt");
+
+			Log.Logger = new LoggerConfiguration()
+				.MinimumLevel.Debug()
+				.WriteTo.Debug()
+				.WriteTo.Async(a => a.File(
+					path: logPath,
+					rollingInterval: RollingInterval.Day,
+					retainedFileCountLimit: 7,
+					fileSizeLimitBytes: 10 * 1024 * 1024))
+				.CreateLogger();
+		}
+
+		private IServiceProvider ConfigureServices()
 		{
 			var services = new ServiceCollection();
+
+			// ── Logging (Serilog behind Microsoft.Extensions.Logging, so any service/VM can inject ILogger<T>). ──
+			services.AddLogging(builder => builder.AddSerilog(dispose: true));
 
 			// ── Providers + data services (leaf singletons; each owns its own on-disk cache / config). ──
 			services.AddSingleton<IStyleProvider, StyleProvider>();
@@ -73,6 +116,32 @@ namespace Anvil
 			services.AddSingleton<MainWindow>();
 
 			return services.BuildServiceProvider();
+		}
+
+		// UI-thread unhandled exception: log it and SWALLOW (Handled = true) so one stray exception doesn't
+		// tear the whole app down.
+		private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+		{
+			_logger.LogCritical(e.Exception, "Unhandled exception: {Message}", e.Message);
+			System.Diagnostics.Debug.WriteLine($"[CRASH] {e.Exception}");
+			e.Handled = true;
+		}
+
+		// AppDomain-level unhandled exception (background threads): fatal, so log only — the process is going
+		// down when IsTerminating is true.
+		private void OnDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
+		{
+			var ex = e.ExceptionObject as Exception;
+			_logger.LogCritical(ex, "AppDomain unhandled exception. IsTerminating: {IsTerminating}", e.IsTerminating);
+			System.Diagnostics.Debug.WriteLine($"[DOMAIN CRASH] {e.ExceptionObject}");
+		}
+
+		// A faulted Task whose exception was never observed — log it and mark observed so it doesn't escalate.
+		private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+		{
+			_logger.LogCritical(e.Exception, "Unobserved task exception.");
+			System.Diagnostics.Debug.WriteLine($"[TASK CRASH] {e.Exception}");
+			e.SetObserved();
 		}
 	}
 }
