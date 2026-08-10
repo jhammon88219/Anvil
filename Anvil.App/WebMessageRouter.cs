@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Microsoft.Web.WebView2.Core;
 using Anvil.ViewModels;
 
@@ -9,21 +11,50 @@ namespace Anvil
 	/// Routes JS→C# WebView2 messages (posted by map.js / radar.js) to the view models and the
 	/// radar diagnostics. Extracted from MainWindow so the window isn't a giant message switch.
 	/// Owns the one-shot map-ready latch.
+	///
+	/// Each message is a JSON object with a <c>type</c>. Synchronous messages dispatch through the
+	/// <see cref="_handlers"/> table (built once in the ctor); <c>mapReady</c> is the one exception — a
+	/// one-shot async latch handled inline. The per-message property reads go through the typed helpers
+	/// at the bottom (<see cref="Str"/>/<see cref="Dbl"/>/…) instead of repeating the
+	/// TryGetProperty/ValueKind dance at every call site.
 	/// </summary>
 	internal sealed class WebMessageRouter
 	{
+		// Ramp payloads (radarRamp/radarRamps) come from JS with camelCase keys; deserialize case-insensitively.
+		private static readonly JsonSerializerOptions RampJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
 		private readonly MapViewModel _viewModel;
+
+		// type → handler for every synchronous message. mapReady is NOT here (it's an async one-shot).
+		private readonly Dictionary<string, Action<JsonElement>> _handlers;
+
 		private bool _mapReady;
 
 		/// <summary>
 		/// Raised once, right after the first map-ready is handled, so the host can run WebView setup
 		/// that isn't a view-model concern (e.g. pushing the OS theme accent to the page).
 		/// </summary>
-		public event System.Func<System.Threading.Tasks.Task>? MapReady;
+		public event Func<Task>? MapReady;
 
 		public WebMessageRouter(MapViewModel viewModel)
 		{
 			_viewModel = viewModel;
+			_handlers = new Dictionary<string, Action<JsonElement>>
+			{
+				["radarLog"] = HandleRadarLog,
+				["radarFrame"] = static root => Services.RadarDiagnostics.JsFrame(root),
+				["radarStormMotion"] = HandleStormMotion,
+				["radarBuildProgress"] = HandleBuildProgress,
+				["radarRender"] = static root => Services.RadarDiagnostics.JsRender(root),
+				["radarRamps"] = HandleRadarRamps,
+				["radarRamp"] = HandleRadarRamp,
+				["radarInspect"] = HandleRadarInspect,
+				["radarSiteClick"] = HandleRadarSiteClick,
+				["stateIsolated"] = HandleStateIsolated,
+				["markerClick"] = HandleMarkerClick,
+				["markerMoved"] = HandleMarkerMoved,
+				["radarFrameReady"] = HandleRadarFrameReady,
+			};
 		}
 
 		public async void OnWebMessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs args)
@@ -44,189 +75,177 @@ namespace Anvil
 					return;
 				}
 				var type = typeEl.GetString();
-
-				// Free-form diagnostics line from radar.js (also echoed to the VS Output window).
-				if (type == "radarLog")
+				if (type is null)
 				{
-					if (root.TryGetProperty("msg", out var msgEl))
-					{
-						var msg = msgEl.GetString();
-						System.Diagnostics.Debug.WriteLine($"[radar-js] {msg}");
-						if (msg is not null) Services.RadarDiagnostics.JsLog(msg);
-					}
 					return;
 				}
 
-				// Structured per-frame decode metrics from radar.js — recorded with suspect-frame
-				// evaluation + .V06 quarantine in the diagnostics service.
-				if (type == "radarFrame")
+				// The page posts {type:"mapReady"} once its map's 'load' fires. It's an async one-shot
+				// (awaits host setup + the VM's map-ready fan-out), so it's handled here rather than in the
+				// synchronous handler table. Enable style / outlook commands the first time we see it.
+				if (type == "mapReady")
 				{
-					Services.RadarDiagnostics.JsFrame(root);
-					return;
-				}
-
-					// The automatic (VAD-derived) storm motion the WebView computed for the displayed volume's
-					// full-volume wind profile — drives the App Settings "Auto" readout. speed is m/s; the VM
-					// converts to knots. `insufficient` means the profile was too shallow to trust.
-					if (type == "radarStormMotion")
+					if (!_mapReady)
 					{
-						var insufficient = root.TryGetProperty("insufficient", out var inEl) && inEl.ValueKind == System.Text.Json.JsonValueKind.True;
-						var speedMs = root.TryGetProperty("speedMs", out var smEl) ? smEl.GetDouble() : 0;
-						var dirDeg = root.TryGetProperty("dirDeg", out var dmEl) ? dmEl.GetDouble() : 0;
-						var source = root.TryGetProperty("source", out var srcEl) ? srcEl.GetString() : null;
-						_viewModel.Radar.SetAutoStormMotion(speedMs, dirDeg, source, insufficient);
-						return;
-					}
-
-					// Velocity build progress: how many loaded frames have their (lazily-built, dealiased)
-					// velocity geometry ready. Drives the "Building velocity N/M" readout and lets playback
-					// hold at the built frontier instead of stuttering into a still-decoding frame.
-					if (type == "radarBuildProgress")
-					{
-						var built = root.TryGetProperty("built", out var bEl) ? bEl.GetInt32() : 0;
-						var total = root.TryGetProperty("total", out var tEl) ? tEl.GetInt32() : 0;
-						bool[]? ready = null;
-						if (root.TryGetProperty("ready", out var rdEl) && rdEl.ValueKind == JsonValueKind.Array)
+						_mapReady = true;
+						// Push the theme accent (MapReady) BEFORE the VM's map-ready work, which creates the
+						// radar-site markers: their halo reads a CSS var, so setting it first means the markers
+						// render in the accent from the start instead of flashing the green fallback for the
+						// ~second OnMapsReadyAsync takes.
+						if (MapReady is not null)
 						{
-							ready = new bool[rdEl.GetArrayLength()];
-							var ri = 0;
-							foreach (var e in rdEl.EnumerateArray())
-							{
-								ready[ri++] = e.ValueKind == JsonValueKind.True;
-							}
+							await MapReady.Invoke();
 						}
-						// Trio completeness (refl+vel+SRV) per frame — drives the scrubber fill, separate from
-						// `ready` (active-product, drives playback). See RadarViewModel.SetBuildProgress.
-						bool[]? complete = null;
-						if (root.TryGetProperty("complete", out var cpEl) && cpEl.ValueKind == JsonValueKind.Array)
-						{
-							complete = new bool[cpEl.GetArrayLength()];
-							var ci = 0;
-							foreach (var e in cpEl.EnumerateArray())
-							{
-								complete[ci++] = e.ValueKind == JsonValueKind.True;
-							}
-						}
-						_viewModel.Radar.SetBuildProgress(built, total, ready, complete);
-						return;
-					}
-
-					// Render-health signal from radar.js (blank / error / recovered / context lost).
-					if (type == "radarRender")
-				{
-					Services.RadarDiagnostics.JsRender(root);
-					return;
-				}
-
-				// The FULL ramp table keyed by product id (pushed once when radar-ramps.js loads) — lets the
-				// Product combo draw every product's scale next to its name, not just the active one.
-				if (type == "radarRamps")
-				{
-					if (root.TryGetProperty("ramps", out var rampsEl))
-					{
-						var ramps = JsonSerializer.Deserialize<Dictionary<string, Models.RadarRampInfo>>(
-							rampsEl.GetRawText(),
-							new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-						_viewModel.Radar.SetAllRamps(ramps);
+						await _viewModel.OnMapsReadyAsync();
 					}
 					return;
 				}
 
-				// The active product's color ramp (pushed from radar-ramps.js) — feeds the inspect marker.
-				if (type == "radarRamp")
+				if (_handlers.TryGetValue(type, out var handler))
 				{
-					if (root.TryGetProperty("ramp", out var rampEl))
-					{
-						var ramp = JsonSerializer.Deserialize<Models.RadarRampInfo>(
-							rampEl.GetRawText(),
-							new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-						_viewModel.Radar.SetColorScale(ramp);
-					}
-					return;
-				}
-
-				// Inspect-mode value under the cursor (pushed from radar.js as the pointer moves) —
-				// drives the live marker on the color-scale bar. has=false clears it.
-				if (type == "radarInspect")
-				{
-					var has = root.TryGetProperty("has", out var hasEl) && hasEl.GetBoolean();
-					double? val = has && root.TryGetProperty("value", out var valEl) ? valEl.GetDouble() : null;
-					_viewModel.Radar.SetInspectValue(val);
-					return;
-				}
-
-				// A radar site marker was clicked.
-				if (type == "radarSiteClick")
-				{
-					if (root.TryGetProperty("id", out var siteEl))
-					{
-						_viewModel.Radar.OnRadarSiteClicked(siteEl.GetString());
-					}
-					return;
-				}
-
-				// State Isolation reported which state is isolated (name) or that it cleared (name absent/null).
-				if (type == "stateIsolated")
-				{
-					var name = root.TryGetProperty("name", out var stEl) && stEl.ValueKind == JsonValueKind.String
-						? stEl.GetString() : null;
-					_viewModel.StateIso.OnStateIsolated(name);
-					return;
-				}
-
-				// A map marker (e.g. the user-location marker) was clicked — select it for editing.
-				if (type == "markerClick")
-				{
-					if (root.TryGetProperty("id", out var mIdEl))
-					{
-						_viewModel.Markers.OnMarkerClicked(mIdEl.GetString());
-					}
-					return;
-				}
-
-				// A draggable marker was moved — record the refined position.
-				if (type == "markerMoved")
-				{
-					if (root.TryGetProperty("id", out var mvIdEl) &&
-						root.TryGetProperty("lng", out var lngEl) &&
-						root.TryGetProperty("lat", out var latEl))
-					{
-						_viewModel.Markers.OnMarkerMoved(mvIdEl.GetString(), lngEl.GetDouble(), latEl.GetDouble());
-					}
-					return;
-				}
-
-				// A radar loop frame finished decoding in the WebView.
-				if (type == "radarFrameReady")
-				{
-					if (root.TryGetProperty("index", out var idxEl))
-					{
-						var hasData = root.TryGetProperty("hasData", out var hd) && hd.GetBoolean();
-						_viewModel.Radar.OnRadarFrameReady(idxEl.GetInt32(), hasData);
-					}
-					return;
-				}
-
-				// The page posts {type:"mapReady"} once its map's 'load' fires. Enable
-				// style / outlook commands the first time we see it.
-				if (type == "mapReady" && !_mapReady)
-				{
-					_mapReady = true;
-					// Push the theme accent (MapReady) BEFORE the VM's map-ready work, which creates the
-					// radar-site markers: their halo reads a CSS var, so setting it first means the markers
-					// render in the accent from the start instead of flashing the green fallback for the
-					// ~second OnMapsReadyAsync takes.
-					if (MapReady is not null)
-					{
-						await MapReady.Invoke();
-					}
-					await _viewModel.OnMapsReadyAsync();
+					handler(root);
 				}
 			}
 			catch (JsonException)
 			{
 				// Ignore malformed messages from the page.
 			}
+		}
+
+		// ── Handlers (one per message type) ─────────────────────────────────────────────────────────────
+
+		// Free-form diagnostics line from radar.js (also echoed to the VS Output window).
+		private static void HandleRadarLog(JsonElement root)
+		{
+			if (root.TryGetProperty("msg", out var msgEl))
+			{
+				var msg = msgEl.GetString();
+				System.Diagnostics.Debug.WriteLine($"[radar-js] {msg}");
+				if (msg is not null) Services.RadarDiagnostics.JsLog(msg);
+			}
+		}
+
+		// The automatic (VAD-derived) storm motion the WebView computed for the displayed volume's
+		// full-volume wind profile — drives the App Settings "Auto" readout. speed is m/s; the VM
+		// converts to knots. `insufficient` means the profile was too shallow to trust.
+		private void HandleStormMotion(JsonElement root) =>
+			_viewModel.Radar.SetAutoStormMotion(
+				Dbl(root, "speedMs"), Dbl(root, "dirDeg"), Str(root, "source"), Flag(root, "insufficient"));
+
+		// Velocity build progress: how many loaded frames have their (lazily-built, dealiased) velocity
+		// geometry ready (drives the "Building velocity N/M" readout + holds playback at the built frontier),
+		// plus the per-frame trio (refl+vel+SRV) completeness that drives the scrubber fill.
+		private void HandleBuildProgress(JsonElement root) =>
+			_viewModel.Radar.SetBuildProgress(
+				Int(root, "built"), Int(root, "total"), BoolArray(root, "ready"), BoolArray(root, "complete"));
+
+		// The FULL ramp table keyed by product id (pushed once when radar-ramps.js loads) — lets the Product
+		// combo draw every product's scale next to its name, not just the active one.
+		private void HandleRadarRamps(JsonElement root)
+		{
+			if (root.TryGetProperty("ramps", out var rampsEl))
+			{
+				var ramps = JsonSerializer.Deserialize<Dictionary<string, Models.RadarRampInfo>>(
+					rampsEl.GetRawText(), RampJsonOptions);
+				_viewModel.Radar.SetAllRamps(ramps);
+			}
+		}
+
+		// The active product's color ramp (pushed from radar-ramps.js) — feeds the inspect marker.
+		private void HandleRadarRamp(JsonElement root)
+		{
+			if (root.TryGetProperty("ramp", out var rampEl))
+			{
+				var ramp = JsonSerializer.Deserialize<Models.RadarRampInfo>(rampEl.GetRawText(), RampJsonOptions);
+				_viewModel.Radar.SetColorScale(ramp);
+			}
+		}
+
+		// Inspect-mode value under the cursor (pushed from radar.js as the pointer moves) — drives the live
+		// marker on the color-scale bar. has=false clears it.
+		private void HandleRadarInspect(JsonElement root)
+		{
+			var has = Flag(root, "has");
+			double? val = has ? DblOrNull(root, "value") : null;
+			_viewModel.Radar.SetInspectValue(val);
+		}
+
+		// A radar site marker was clicked.
+		private void HandleRadarSiteClick(JsonElement root)
+		{
+			if (root.TryGetProperty("id", out var siteEl))
+			{
+				_viewModel.Radar.OnRadarSiteClicked(siteEl.GetString());
+			}
+		}
+
+		// State Isolation reported which state is isolated (name) or that it cleared (name absent/null).
+		private void HandleStateIsolated(JsonElement root) =>
+			_viewModel.StateIso.OnStateIsolated(Str(root, "name"));
+
+		// A map marker (e.g. the user-location marker) was clicked — select it for editing.
+		private void HandleMarkerClick(JsonElement root)
+		{
+			if (root.TryGetProperty("id", out var mIdEl))
+			{
+				_viewModel.Markers.OnMarkerClicked(mIdEl.GetString());
+			}
+		}
+
+		// A draggable marker was moved — record the refined position (needs all three fields).
+		private void HandleMarkerMoved(JsonElement root)
+		{
+			if (root.TryGetProperty("id", out var idEl) &&
+				root.TryGetProperty("lng", out var lngEl) &&
+				root.TryGetProperty("lat", out var latEl))
+			{
+				_viewModel.Markers.OnMarkerMoved(idEl.GetString(), lngEl.GetDouble(), latEl.GetDouble());
+			}
+		}
+
+		// A radar loop frame finished decoding in the WebView.
+		private void HandleRadarFrameReady(JsonElement root)
+		{
+			if (root.TryGetProperty("index", out var idxEl))
+			{
+				_viewModel.Radar.OnRadarFrameReady(idxEl.GetInt32(), Flag(root, "hasData"));
+			}
+		}
+
+		// ── Typed JSON readers: pull a named property with a sane default, so a missing/mistyped field
+		//    degrades gracefully instead of throwing. ────────────────────────────────────────────────────
+
+		// True only when the named property is present and JSON `true`.
+		private static bool Flag(JsonElement root, string name) =>
+			root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.True;
+
+		private static double Dbl(JsonElement root, string name, double fallback = 0) =>
+			root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.Number ? el.GetDouble() : fallback;
+
+		private static double? DblOrNull(JsonElement root, string name) =>
+			root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.Number ? el.GetDouble() : null;
+
+		private static int Int(JsonElement root, string name, int fallback = 0) =>
+			root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.Number ? el.GetInt32() : fallback;
+
+		private static string? Str(JsonElement root, string name) =>
+			root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.String ? el.GetString() : null;
+
+		// A JSON bool array → bool[] (each element true iff JSON `true`), or null when the field is absent
+		// or not an array. Used for the per-frame ready/complete flags.
+		private static bool[]? BoolArray(JsonElement root, string name)
+		{
+			if (!root.TryGetProperty(name, out var el) || el.ValueKind != JsonValueKind.Array)
+			{
+				return null;
+			}
+			var arr = new bool[el.GetArrayLength()];
+			var i = 0;
+			foreach (var e in el.EnumerateArray())
+			{
+				arr[i++] = e.ValueKind == JsonValueKind.True;
+			}
+			return arr;
 		}
 	}
 }
