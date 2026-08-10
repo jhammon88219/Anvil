@@ -18,29 +18,18 @@ namespace Anvil.Services
 	/// source-URL table. No WebView2 here — MainWindow maps the cache folder to the
 	/// "spcoutlooks" virtual host so the page can fetch https://spcoutlooks/&lt;id&gt;.geojson.
 	/// </summary>
-	public sealed class SpcOutlookService : ISpcOutlookService
+	public sealed class SpcOutlookService : CachingHttpService, ISpcOutlookService
 	{
 		/// <summary>WebView virtual host the cached files are served under. The page
 		/// loads each product from $"https://{CacheHostName}/{product.CacheFileName}".
 		/// MainWindow owns the actual mapping; this constant is the shared contract.</summary>
 		public const string CacheHostName = "spcoutlooks";
 
-		private readonly HttpClient _http;
 		private readonly IReadOnlyList<SpcOutlookProduct> _products;
 
-		public SpcOutlookService()
+		// Some NOAA/IEM endpoints reject requests without a User-Agent (the base sends "Anvil/1.0").
+		public SpcOutlookService() : base("SpcOutlooks")
 		{
-			// Per-user cache folder; works packaged or unpackaged. Created up front so
-			// the virtual-host mapping has a real folder to point at on first run.
-			CacheDirectory = Path.Combine(
-				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-				"Anvil", "SpcOutlooks");
-			Directory.CreateDirectory(CacheDirectory);
-
-			_http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-			// Some NOAA/IEM endpoints reject requests without a User-Agent.
-			_http.DefaultRequestHeaders.UserAgent.ParseAdd("Anvil/1.0");
-
 			// Project the editable endpoint table into the public product list, adding
 			// the stable cache filename and local URL for each.
 			_products = SpcOutlookCatalog.All
@@ -50,8 +39,6 @@ namespace Anvil.Services
 					LocalUrl: $"https://{CacheHostName}/{e.Id}.geojson"))
 				.ToList();
 		}
-
-		public string CacheDirectory { get; }
 
 		public IReadOnlyList<SpcOutlookProduct> Products => _products;
 
@@ -206,18 +193,13 @@ namespace Anvil.Services
 		private async Task<string?> FetchIemAsync(int day, DateOnly date, int cycle, string outlookType, CancellationToken ct)
 		{
 			var url = $"{IemOutlookBase}?day={day}&valid={date:yyyy-MM-dd}&cycle={cycle}&outlook_type={outlookType}";
-			using var response = await _http.GetAsync(url, ct);
+			using var response = await Http.GetAsync(url, ct);
 			return response.IsSuccessStatusCode ? await response.Content.ReadAsStringAsync(ct) : null;
 		}
 
 		// Atomic write into the shared cache dir (temp + move), so a failed write never corrupts a cache file.
-		private async Task WriteCacheAsync(string fileName, string content, CancellationToken ct)
-		{
-			var path = Path.Combine(CacheDirectory, fileName);
-			var temp = path + ".tmp";
-			await File.WriteAllTextAsync(temp, content, ct);
-			File.Move(temp, path, overwrite: true);
-		}
+		private Task WriteCacheAsync(string fileName, string content, CancellationToken ct) =>
+			AtomicWriteAsync(Path.Combine(CacheDirectory, fileName), content, ct);
 
 		private static string TypeSlug(SpcOutlookType type) => type switch
 		{
@@ -300,7 +282,7 @@ namespace Anvil.Services
 				request.Headers.IfModifiedSince = lm;
 			}
 
-			using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+			using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
 
 			if (response.StatusCode == HttpStatusCode.NotModified)
 			{
@@ -311,15 +293,12 @@ namespace Anvil.Services
 				return null; // let the caller try a fallback
 			}
 
-			// Write to a temp file then move over the real one, so a partial or failed
-			// download never blanks the last-known-good cache.
-			var temp = cacheFile + ".tmp";
-			await using (var src = await response.Content.ReadAsStreamAsync(ct))
-			await using (var dst = File.Create(temp))
+			// Atomic write (temp + move), so a partial or failed download never blanks the last-known-good cache.
+			await AtomicWriteAsync(cacheFile, async dst =>
 			{
+				await using var src = await response.Content.ReadAsStreamAsync(ct);
 				await src.CopyToAsync(dst, ct);
-			}
-			File.Move(temp, cacheFile, overwrite: true);
+			}, ct);
 
 			WriteValidators(cacheFile, new Validators(
 				ETag: response.Headers.ETag?.Tag,
@@ -371,7 +350,7 @@ namespace Anvil.Services
 			var cacheFile = NarrativeCacheFileFor(product);
 			try
 			{
-				var html = await _http.GetStringAsync(url, cancellationToken);
+				var html = await Http.GetStringAsync(url, cancellationToken);
 				var text = ExtractPreText(html);
 				if (text is not null)
 				{

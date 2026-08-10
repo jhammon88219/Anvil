@@ -34,7 +34,7 @@ namespace Anvil.Services
 	/// only drop a warning when it's genuinely gone (an authoritative complete snapshot omits it, a
 	/// CONFIRMED all-clear, or past its `expiration`). A bad fetch can't lose active warnings.
 	/// </summary>
-	public sealed class WarningService : IWarningService
+	public sealed class WarningService : CachingHttpService, IWarningService
 	{
 		/// <summary>WebView virtual host the cached file is served under (shared contract; the
 		/// view owns the actual mapping).</summary>
@@ -63,7 +63,6 @@ namespace Anvil.Services
 		// of the authoritative source can't wipe active warnings.
 		private const int EmptyConfirmations = 2;
 
-		private readonly HttpClient _http;
 		private readonly WarningsHealthLog _health;
 
 		// The current active warning set, keyed by cap_id. Mutated only from the (serial) refresh loop.
@@ -73,23 +72,13 @@ namespace Anvil.Services
 
 		private readonly record struct ActiveWarning(JsonNode Feature, DateTimeOffset Expires);
 
-		public WarningService()
+		// A descriptive User-Agent is REQUIRED by api.weather.gov (it 403s a blank UA) and harmless to the
+		// WWA service. Accept is set per-request (geo+json for CAP; */* for the Akamai-fronted WWA
+		// cross-check, which caches keyed on Accept — a no-Accept request can be served a stale empty).
+		public WarningService() : base("Warnings", "Anvil/1.0 (severe-weather app)")
 		{
-			CacheDirectory = Path.Combine(
-				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-				"Anvil", "Warnings");
-			Directory.CreateDirectory(CacheDirectory);
-
-			_http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-			// A descriptive User-Agent is REQUIRED by api.weather.gov (it 403s a blank UA) and harmless to
-			// the WWA service. Accept is set per-request (geo+json for CAP; */* for the Akamai-fronted WWA
-			// cross-check, which caches keyed on Accept — a no-Accept request can be served a stale empty).
-			_http.DefaultRequestHeaders.UserAgent.ParseAdd("Anvil/1.0 (severe-weather app)");
-
 			_health = new WarningsHealthLog(CacheDirectory);
 		}
-
-		public string CacheDirectory { get; }
 
 		public string WarningsUrl => $"https://{CacheHostName}/{CacheFileName}";
 
@@ -294,9 +283,7 @@ namespace Anvil.Services
 			}
 			var collection = new JsonObject { ["type"] = "FeatureCollection", ["features"] = features };
 
-			var temp = cacheFile + ".tmp";
-			await File.WriteAllTextAsync(temp, collection.ToJsonString(), cancellationToken);
-			File.Move(temp, cacheFile, overwrite: true);
+			await AtomicWriteAsync(cacheFile, collection.ToJsonString(), cancellationToken);
 		}
 
 		// Fetches the WWA mapservice's active-warning cap_id set for the north-star cross-check. Best-effort:
@@ -331,7 +318,7 @@ namespace Anvil.Services
 		{
 			using var req = new HttpRequestMessage(HttpMethod.Get, url);
 			req.Headers.Accept.ParseAdd(accept);
-			using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseContentRead, cancellationToken);
+			using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseContentRead, cancellationToken);
 			resp.EnsureSuccessStatusCode();
 			return await resp.Content.ReadAsStringAsync(cancellationToken);
 		}

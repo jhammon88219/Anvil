@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -17,7 +16,7 @@ namespace Anvil.Services
 	/// here — MainWindow maps the cache folder to the "stormreports" virtual host so the page can fetch
 	/// https://stormreports/reports-YYYYMMDD.geojson.
 	/// </summary>
-	public sealed class StormReportService : IStormReportService
+	public sealed class StormReportService : CachingHttpService, IStormReportService
 	{
 		/// <summary>WebView virtual host the cached files are served under. MainWindow owns the actual
 		/// mapping; this constant is the shared contract.</summary>
@@ -41,21 +40,8 @@ namespace Anvil.Services
 			("hail", "hail"),
 		};
 
-		private readonly HttpClient _http;
-
-		public StormReportService()
-		{
-			CacheDirectory = Path.Combine(
-				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-				"Anvil", "StormReports");
-			Directory.CreateDirectory(CacheDirectory);
-
-			_http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-			// SPC rejects requests without a User-Agent.
-			_http.DefaultRequestHeaders.UserAgent.ParseAdd("Anvil/1.0");
-		}
-
-		public string CacheDirectory { get; }
+		// SPC rejects requests without a User-Agent (the base sends "Anvil/1.0").
+		public StormReportService() : base("StormReports") { }
 
 		// Cache schema version — bumped when the built GeoJSON's shape/content changes so older cached files
 		// (which the immutable path would otherwise reuse forever) are ignored and rebuilt. v2 = added the
@@ -147,7 +133,7 @@ namespace Anvil.Services
 
 		private async Task<string?> TryGetAsync(string url, CancellationToken ct)
 		{
-			using var response = await _http.GetAsync(url, ct);
+			using var response = await Http.GetAsync(url, ct);
 			return response.IsSuccessStatusCode ? await response.Content.ReadAsStringAsync(ct) : null;
 		}
 
@@ -256,7 +242,7 @@ namespace Anvil.Services
 			var url = $"{IemLsrBase}?sts={startUtc:yyyy-MM-ddTHH:mm}Z&ets={endUtc:yyyy-MM-ddTHH:mm}Z";
 			var list = new List<Lsr>();
 
-			using var response = await _http.GetAsync(url, ct);
+			using var response = await Http.GetAsync(url, ct);
 			if (!response.IsSuccessStatusCode) { return list; }
 
 			await using var stream = await response.Content.ReadAsStreamAsync(ct);
@@ -371,10 +357,8 @@ namespace Anvil.Services
 
 		// Writes the point collection atomically (temp + move). Uses Utf8JsonWriter so comment text with
 		// quotes/newlines is escaped correctly.
-		private static async Task WriteGeoJsonAsync(string cacheFile, List<ReportPoint> reports, CancellationToken ct)
-		{
-			var temp = cacheFile + ".tmp";
-			await using (var stream = File.Create(temp))
+		private static Task WriteGeoJsonAsync(string cacheFile, List<ReportPoint> reports, CancellationToken ct) =>
+			AtomicWriteAsync(cacheFile, async stream =>
 			{
 				await using var writer = new Utf8JsonWriter(stream);
 				writer.WriteStartObject();
@@ -408,9 +392,7 @@ namespace Anvil.Services
 				writer.WriteEndArray();
 				writer.WriteEndObject();
 				await writer.FlushAsync(ct);
-			}
-			File.Move(temp, cacheFile, overwrite: true);
-		}
+			}, ct);
 
 		// Counts features by kind in a cached file (used for the immutable-reuse and fetch-failure paths).
 		private static (int Torn, int Wind, int Hail) CountKinds(string cacheFile)

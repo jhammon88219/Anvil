@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Net.Http;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,7 +21,7 @@ namespace Anvil.Services
 	/// filtering needed. Each feature carries `prod_type` (label), `phenom` (TO/SV — the page colors
 	/// by this), and `expiration`.
 	/// </summary>
-	public sealed class SpcWatchService : ISpcWatchService
+	public sealed class SpcWatchService : CachingHttpService, ISpcWatchService
 	{
 		/// <summary>WebView virtual host the cached file is served under (shared contract; the
 		/// view owns the actual mapping).</summary>
@@ -39,25 +38,14 @@ namespace Anvil.Services
 		private const string GeoJsonUrl = QueryBase + "&f=geojson";
 		private const string CountUrl = QueryBase + "&returnCountOnly=true&f=json";
 
-		private readonly HttpClient _http;
-
-		public SpcWatchService()
+		public SpcWatchService() : base("SpcWatches")
 		{
-			CacheDirectory = Path.Combine(
-				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-				"Anvil", "SpcWatches");
-			Directory.CreateDirectory(CacheDirectory);
-
-			_http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-			_http.DefaultRequestHeaders.UserAgent.ParseAdd("Anvil/1.0");
 			// ⚠️ MUST send an Accept header — this NOAA endpoint (Akamai-fronted) caches keyed on Accept
 			// (Vary: Accept). HttpClient sends none by default, landing in a rarely-populated cache
 			// partition that can serve a stale EMPTY FeatureCollection for a whole TTL after an origin
 			// republish, while browsers (Accept: */*) get real data. See WarningService for the full story.
-			_http.DefaultRequestHeaders.Accept.ParseAdd("*/*");
+			Http.DefaultRequestHeaders.Accept.ParseAdd("*/*");
 		}
-
-		public string CacheDirectory { get; }
 
 		public string WatchesUrl => $"https://{CacheHostName}/{CacheFileName}";
 
@@ -68,7 +56,7 @@ namespace Anvil.Services
 
 			try
 			{
-				var json = await _http.GetStringAsync(GeoJsonUrl, cancellationToken);
+				var json = await Http.GetStringAsync(GeoJsonUrl, cancellationToken);
 
 				// Only cache a real FeatureCollection. An ArcGIS error object lacks a features array; in
 				// that case keep the last-known-good cache instead of blanking it.
@@ -86,11 +74,8 @@ namespace Anvil.Services
 					return Failed(cacheExists, "Empty GeoJSON contradicted by a non-zero count — kept last-known-good.");
 				}
 
-				// Write to a temp file then move over the real one, so a partial/failed write never
-				// blanks the last-known-good cache.
-				var temp = cacheFile + ".tmp";
-				await File.WriteAllTextAsync(temp, json, cancellationToken);
-				File.Move(temp, cacheFile, overwrite: true);
+				// Atomic write (temp then move) so a partial/failed write never blanks the last-known-good cache.
+				await AtomicWriteAsync(cacheFile, json, cancellationToken);
 
 				return new SpcWatchFetchResult(SpcWatchFetchStatus.Updated, count);
 			}
@@ -112,7 +97,7 @@ namespace Anvil.Services
 		{
 			try
 			{
-				var json = await _http.GetStringAsync(CountUrl, cancellationToken);
+				var json = await Http.GetStringAsync(CountUrl, cancellationToken);
 				if (JsonNode.Parse(json)?["count"] is JsonValue v && v.TryGetValue<int>(out var n))
 				{
 					return n;
