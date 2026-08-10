@@ -93,47 +93,41 @@ namespace Anvil
 		// App settings (offline basemap folder, …). Read when mapping the "mapdata" WebView host.
 		private readonly ISettingsService _settingsService;
 
-		public MainWindow()
+		public MainWindow(
+			MapViewModel viewModel,
+			MapService mapService,
+			WebMessageRouter router,
+			ISpcOutlookService spcOutlookService,
+			ISpcWatchService spcWatchService,
+			IWarningService warningService,
+			IStormReportService stormReportService,
+			ILevel2RadarService radarService,
+			ISettingsService settingsService)
 		{
-			// Build the MVVM chain BEFORE InitializeComponent so x:Bind sees a non-null
-			// ViewModel when the bindings first evaluate. Maximize() below realizes the
-			// window and can trigger that first evaluation synchronously, so the view
-			// model must already be set. (no DI container yet; MainWindow is the IMapView,
-			// so the service drives the map through it.)
-			var mapService = new MapService(this);
+			// The DI container (App.ConfigureServices) built the whole graph and injected it here; this
+			// window is just the composition ROOT that wires the WebView-coupled bits the container can't.
+			// ⚠️ ViewModel must be assigned BEFORE InitializeComponent — Maximize() below can make x:Bind
+			// evaluate synchronously, and a null ViewModel then silently breaks every binding.
+			ViewModel = viewModel;
 			_mapService = mapService;
-			var styleProvider = new StyleProvider();
-			var regionProvider = new RegionProvider();
+			_router = router;
+			_spcOutlookService = spcOutlookService;
+			_spcWatchService = spcWatchService;
+			_warningService = warningService;
+			_stormReportService = stormReportService;
+			_radarService = radarService;
+			_settingsService = settingsService;
 
-			// SPC outlook service - wired alongside the others. It owns an on-disk
-			// GeoJSON cache and never touches WebView2; we map its cache folder to a
-			// virtual host in InitializeWebViewAsync.
-			_spcOutlookService = new SpcOutlookService();
-			_spcWatchService = new SpcWatchService();
-			_warningService = new WarningService();
-			_stormReportService = new StormReportService();
-			_radarService = new Level2RadarService();
-			var radarSiteProvider = new RadarSiteProvider();
-			var locationService = new LocationService();
-
-			// App settings (packaged-app LocalSettings). Holds the offline basemap folder, read by
-			// InitializeWebViewAsync below to map the "mapdata" host (default = runtime-resolved Desktop).
-			_settingsService = new SettingsService();
+			// MapService needs THIS window as its IMapView (the seam that runs JS). The container couldn't
+			// pass it via ctor without a MainWindow↔MapService cycle, so attach now that both exist — well
+			// before InitializeComponent / mapReady, so no map command can run against a null view.
+			mapService.Attach(this);
 
 			// Start the dedicated radar diagnostics for this run: a per-launch JSONL event stream +
 			// a derived markdown report under a package-local Diagnostics/ folder (never auto-deleted;
 			// see RadarDiagnostics). This is the primary tool for chasing intermittent radar issues.
 			Services.RadarDiagnostics.Init(
 				System.IO.Path.Combine(_radarService.CacheDirectory, "Diagnostics"));
-
-			var dowEventProvider = new DowEventProvider();
-
-			// UI-thread marshaller for the Core view-models. Built HERE (on the UI thread) because
-			// DispatcherQueue.GetForCurrentThread resolves the calling thread's queue — see WinUiDispatcher.
-			var dispatcher = new Services.WinUiDispatcher();
-
-			ViewModel = new MapViewModel(mapService, styleProvider, regionProvider, _spcOutlookService, _spcWatchService, _warningService, _stormReportService, radarSiteProvider, _radarService, locationService, dowEventProvider, dispatcher);
-			_router = new WebMessageRouter(ViewModel);
 
 #if DEBUG
 			// DEV-ONLY automated site sweep. Constructed only in Debug; the button + card that reach it are

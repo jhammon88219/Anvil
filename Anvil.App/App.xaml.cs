@@ -1,32 +1,22 @@
-﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Xaml.Shapes;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.ApplicationModel;
-using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Xaml;
+using Anvil.Services;
+using Anvil.ViewModels;
 
 namespace Anvil
 {
 	/// <summary>
-	/// Provides application-specific behavior to supplement the default Application class.
+	/// Provides application-specific behavior to supplement the default Application class. Owns the DI
+	/// container (composition root): every service/provider/VM is registered here and the object graph is
+	/// resolved at launch, replacing the hand-wired `new`s that used to live in MainWindow's constructor.
 	/// </summary>
 	public partial class App : Application
 	{
 		private Window? _window;
+
+		/// <summary>The app-wide dependency-injection container. Built once at launch (see OnLaunched).</summary>
+		public IServiceProvider Services { get; private set; } = null!;
 
 		/// <summary>
 		/// Initializes the singleton application object.  This is the first line of authored code
@@ -40,11 +30,49 @@ namespace Anvil
 		/// <summary>
 		/// Invoked when the application is launched.
 		/// </summary>
-		/// <param name="args">Details about the launch request and process.</param>
 		protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
 		{
-			_window = new MainWindow();
+			// Build the container and resolve the whole object graph HERE, on the UI thread: WinUiDispatcher
+			// (pulled in as part of the MainWindow graph) captures the CURRENT thread's DispatcherQueue in
+			// its constructor, and OnLaunched runs on the UI thread. Resolving MainWindow constructs
+			// everything synchronously on this thread.
+			Services = ConfigureServices();
+			_window = Services.GetRequiredService<MainWindow>();
 			_window.Activate();
+		}
+
+		private static IServiceProvider ConfigureServices()
+		{
+			var services = new ServiceCollection();
+
+			// ── Providers + data services (leaf singletons; each owns its own on-disk cache / config). ──
+			services.AddSingleton<IStyleProvider, StyleProvider>();
+			services.AddSingleton<IRegionProvider, RegionProvider>();
+			services.AddSingleton<ISpcOutlookService, SpcOutlookService>();
+			services.AddSingleton<ISpcWatchService, SpcWatchService>();
+			services.AddSingleton<IWarningService, WarningService>();
+			services.AddSingleton<IStormReportService, StormReportService>();
+			services.AddSingleton<ILevel2RadarService, Level2RadarService>();
+			services.AddSingleton<IRadarSiteProvider, RadarSiteProvider>();
+			services.AddSingleton<ILocationService, LocationService>();
+			services.AddSingleton<IDowEventProvider, DowEventProvider>();
+			services.AddSingleton<ISettingsService, SettingsService>();
+
+			// ── UI-thread marshaller seam (Core interface, WinUI impl). Resolved on the UI thread. ──
+			services.AddSingleton<IDispatcher, WinUiDispatcher>();
+
+			// ── Map command bus. Registered concretely + aliased to IMapService so MainWindow can Attach
+			//    itself as the IMapView after construction (breaking the MainWindow↔MapService ctor cycle),
+			//    while the view models depend only on IMapService. ──
+			services.AddSingleton<MapService>();
+			services.AddSingleton<IMapService>(sp => sp.GetRequiredService<MapService>());
+
+			// ── View models + the JS→C# router + the window (the composition root). ──
+			services.AddSingleton<MapViewModel>();
+			services.AddSingleton<WebMessageRouter>();
+			services.AddSingleton<MainWindow>();
+
+			return services.BuildServiceProvider();
 		}
 	}
 }

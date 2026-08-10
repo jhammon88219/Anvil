@@ -18,7 +18,7 @@ namespace Anvil
 	/// at the bottom (<see cref="Str"/>/<see cref="Dbl"/>/…) instead of repeating the
 	/// TryGetProperty/ValueKind dance at every call site.
 	/// </summary>
-	internal sealed class WebMessageRouter
+	public sealed class WebMessageRouter
 	{
 		// Ramp payloads (radarRamp/radarRamps) come from JS with camelCase keys; deserialize case-insensitively.
 		private static readonly JsonSerializerOptions RampJsonOptions = new() { PropertyNameCaseInsensitive = true };

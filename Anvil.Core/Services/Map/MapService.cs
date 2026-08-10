@@ -12,12 +12,18 @@ namespace Anvil.Services
 	/// </summary>
 	public sealed class MapService : IMapService
 	{
-		private readonly IMapView _mapView;
+		// Set once at startup by the composition root (see Attach), not injected via the ctor: MainWindow
+		// IS the IMapView and also (transitively) depends on this service, so a ctor arg would be a
+		// container resolution cycle. Non-null before any map command runs (attach happens in MainWindow's
+		// ctor, long before mapReady).
+		private IMapView _mapView = null!;
 
-		public MapService(IMapView mapView)
-		{
-			_mapView = mapView;
-		}
+		public MapService() { }
+
+		/// <summary>Attaches the view that executes the JS commands. Called once at startup by the
+		/// composition root (MainWindow, which implements <see cref="IMapView"/>) right after the container
+		/// creates both — this breaks the MainWindow↔MapService constructor cycle.</summary>
+		public void Attach(IMapView mapView) => _mapView = mapView;
 
 		public Task ApplyStyleAsync(MapStyle style) =>
 			_mapView.RunScriptAsync(Call("applyStyle", $"https://mapassets/{style.FileName}"));
