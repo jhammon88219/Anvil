@@ -40,7 +40,7 @@
                   Content="Tornado / Severe Thunderstorm"
                   MinWidth="0"
                   VerticalAlignment="Center"
-                  IsChecked="{x:Bind ViewModel.Watches.ShowWatches, Mode=TwoWay}"
+                  IsChecked="{x:Bind ViewModel.Watches.IsVisible, Mode=TwoWay}"
                   ToolTipService.ToolTip="Show active Tornado / Severe Thunderstorm watch boxes"/>
 
         <!-- Opacity: overall watch-polygon opacity (fill + outline together). -->
@@ -51,7 +51,7 @@
                 StepFrequency="0.05" SmallChange="0.05"
                 IsThumbToolTipEnabled="False"
                 VerticalAlignment="Center"
-                Value="{x:Bind ViewModel.Watches.WatchesOpacity, Mode=TwoWay}"
+                Value="{x:Bind ViewModel.Watches.Opacity, Mode=TwoWay}"
                 ToolTipService.ToolTip="Overall opacity of the watch polygons"/>
 
         <!-- Warnings: active storm-based Tornado / Severe Thunderstorm warning polygons (the modern
@@ -61,7 +61,7 @@
                   Content="Tornado / Severe Thunderstorm"
                   MinWidth="0"
                   VerticalAlignment="Center"
-                  IsChecked="{x:Bind ViewModel.Warnings.ShowWarnings, Mode=TwoWay}"
+                  IsChecked="{x:Bind ViewModel.Warnings.IsVisible, Mode=TwoWay}"
                   ToolTipService.ToolTip="Show active Tornado / Severe Thunderstorm warning polygons"/>
 
         <!-- Active counts by type: number of live Tornado / Severe Thunderstorm warnings right now.
@@ -93,7 +93,7 @@
                 StepFrequency="0.05" SmallChange="0.05"
                 IsThumbToolTipEnabled="False"
                 VerticalAlignment="Center"
-                Value="{x:Bind ViewModel.Warnings.WarningsOpacity, Mode=TwoWay}"
+                Value="{x:Bind ViewModel.Warnings.Opacity, Mode=TwoWay}"
                 ToolTipService.ToolTip="Overall opacity of the warning polygons"/>
     </Grid>
 </UserControl>

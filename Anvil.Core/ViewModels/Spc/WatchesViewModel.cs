@@ -1,32 +1,22 @@
 using System;
 using System.Threading.Tasks;
 using Anvil.Services;
-using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Anvil.ViewModels
 {
 	/// <summary>
 	/// View model for the SPC watch-box subsystem — active Tornado / Severe Thunderstorm Watches. These
 	/// are current-conditions alerts (not a forecast), so they live in their OWN subsystem VM (surfaced
-	/// under NowCast in the UI) rather than on <see cref="OutlookViewModel"/>. Owns the show/hide toggle,
-	/// the ~2-min background refresh loop, and the map pushes. Fetch/cache is in
-	/// <see cref="ISpcWatchService"/>; the map is driven through <see cref="IMapService"/>.
+	/// under NowCast in the UI) rather than on <see cref="OutlookViewModel"/>. The show/hide toggle,
+	/// opacity, map-ready latch, and source push come from <see cref="MapOverlayViewModel"/>; this class
+	/// adds the ~2-min background refresh loop. Fetch/cache is in <see cref="ISpcWatchService"/>; the map
+	/// is driven through <see cref="IMapService"/>.
 	/// </summary>
-	public sealed class WatchesViewModel : ObservableObject
+	public sealed class WatchesViewModel : MapOverlayViewModel
 	{
 		private readonly IMapService _mapService;
 		private readonly ISpcWatchService _watchService;
 		private readonly IDispatcher _dispatcher;
-
-		// Readiness guard: watch commands only run once the map page has reported 'mapReady'
-		// (set by OnMapsReadyAsync, called from MapViewModel.OnMapsReadyAsync).
-		private bool _isMapReady;
-
-		// Watch-box overlay toggle. Default OFF so the app launches with no watch boxes drawn.
-		private bool _showWatches;
-
-		// Overall opacity of the watch polygons (fill + outline together). Default 1.0 = the current look.
-		private double _watchesOpacity = 1.0;
 
 		public WatchesViewModel(IMapService mapService, ISpcWatchService watchService, IDispatcher dispatcher)
 		{
@@ -35,33 +25,10 @@ namespace Anvil.ViewModels
 			_dispatcher = dispatcher;
 		}
 
-		/// <summary>Show the SPC watch boxes — Tornado / Severe Thunderstorm Watches — on the map
-		/// (NowCast card toggle, default off).</summary>
-		public bool ShowWatches
-		{
-			get => _showWatches;
-			set
-			{
-				if (SetProperty(ref _showWatches, value) && _isMapReady)
-				{
-					_ = _mapService.SetWatchesVisibleAsync(value);
-				}
-			}
-		}
-
-		/// <summary>Overall opacity (0-1) of the watch polygons — scales the faint fill and the bold outline
-		/// together (1 = the default look). NowCast card slider; independent of the show/hide toggle.</summary>
-		public double WatchesOpacity
-		{
-			get => _watchesOpacity;
-			set
-			{
-				if (SetProperty(ref _watchesOpacity, value) && _isMapReady)
-				{
-					_ = _mapService.SetWatchesOpacityAsync(value);
-				}
-			}
-		}
+		protected override string SourceUrl => _watchService.WatchesUrl;
+		protected override Task SetVisibleAsync(bool visible) => _mapService.SetWatchesVisibleAsync(visible);
+		protected override Task SetOpacityAsync(double opacity) => _mapService.SetWatchesOpacityAsync(opacity);
+		protected override Task SetSourceAsync(string url) => _mapService.SetWatchSourceAsync(url);
 
 		/// <summary>Kicks off the watch background refresh loop (called once at launch).</summary>
 		public void StartBackgroundRefresh() => _ = RefreshWatchesInBackgroundAsync();
@@ -81,7 +48,7 @@ namespace Anvil.ViewModels
 				// whenever a cycle pulled fresh data.
 				if (first || result.Status is SpcWatchFetchStatus.Updated)
 				{
-					_dispatcher.Post(OnWatchesRefreshed);
+					_dispatcher.Post(RepushSource);
 				}
 			}
 			catch (Exception ex)
@@ -89,27 +56,5 @@ namespace Anvil.ViewModels
 				System.Diagnostics.Debug.WriteLine($"[SPC] watches refresh aborted: {ex.Message}");
 			}
 		});
-
-		/// <summary>Called by MapViewModel once the map page is ready: points the page at the cached watch
-		/// boxes and applies the current toggle state.</summary>
-		public async Task OnMapsReadyAsync()
-		{
-			_isMapReady = true;
-			await _mapService.SetWatchSourceAsync(_watchService.WatchesUrl);
-			await _mapService.SetWatchesOpacityAsync(_watchesOpacity);
-			await _mapService.SetWatchesVisibleAsync(_showWatches);
-		}
-
-		/// <summary>
-		/// Re-pushes the watch source URL to the page so it re-fetches the freshly-cached boxes. Called
-		/// after a background watch refresh; the page only re-fetches when the watch layer is shown.
-		/// </summary>
-		public void OnWatchesRefreshed()
-		{
-			if (_isMapReady)
-			{
-				_ = _mapService.SetWatchSourceAsync(_watchService.WatchesUrl);
-			}
-		}
 	}
 }

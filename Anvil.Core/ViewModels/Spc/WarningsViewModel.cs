@@ -1,7 +1,6 @@
 using System;
 using System.Threading.Tasks;
 using Anvil.Services;
-using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Anvil.ViewModels
 {
@@ -10,24 +9,16 @@ namespace Anvil.ViewModels
 	/// (the modern forecaster-drawn polygons). Sibling of <see cref="WatchesViewModel"/>: watches are the
 	/// large outlook areas, warnings are the imminent-threat polygons, so each gets its own layer, toggle,
 	/// and refresh loop. Surfaced under NowCast in the UI (current-conditions alerts, not a forecast).
-	/// Owns the show/hide toggle, the ~1-min background refresh loop, and the map pushes. Fetch/cache is in
-	/// <see cref="IWarningService"/>; the map is driven through <see cref="IMapService"/>.
+	/// The show/hide toggle, opacity, map-ready latch, and source push come from
+	/// <see cref="MapOverlayViewModel"/>; this class adds the ~1-min ADAPTIVE background refresh loop and
+	/// the per-type active-warning counts. Fetch/cache is in <see cref="IWarningService"/>; the map is
+	/// driven through <see cref="IMapService"/>.
 	/// </summary>
-	public sealed class WarningsViewModel : ObservableObject
+	public sealed class WarningsViewModel : MapOverlayViewModel
 	{
 		private readonly IMapService _mapService;
 		private readonly IWarningService _warningService;
 		private readonly IDispatcher _dispatcher;
-
-		// Readiness guard: warning commands only run once the map page has reported 'mapReady'
-		// (set by OnMapsReadyAsync, called from MapViewModel.OnMapsReadyAsync).
-		private bool _isMapReady;
-
-		// Warning-polygon overlay toggle. Default OFF so the app launches with no warnings drawn.
-		private bool _showWarnings;
-
-		// Overall opacity of the warning polygons (fill + outline together). Default 1.0 = the current look.
-		private double _warningsOpacity = 1.0;
 
 		public WarningsViewModel(IMapService mapService, IWarningService warningService, IDispatcher dispatcher)
 		{
@@ -36,33 +27,10 @@ namespace Anvil.ViewModels
 			_dispatcher = dispatcher;
 		}
 
-		/// <summary>Show the storm-based warning polygons — active Tornado / Severe Thunderstorm
-		/// Warnings — on the map (NowCast card toggle, default off).</summary>
-		public bool ShowWarnings
-		{
-			get => _showWarnings;
-			set
-			{
-				if (SetProperty(ref _showWarnings, value) && _isMapReady)
-				{
-					_ = _mapService.SetWarningsVisibleAsync(value);
-				}
-			}
-		}
-
-		/// <summary>Overall opacity (0-1) of the warning polygons — scales the faint fill and the bold
-		/// outline together (1 = the default look). NowCast card slider; independent of the show/hide toggle.</summary>
-		public double WarningsOpacity
-		{
-			get => _warningsOpacity;
-			set
-			{
-				if (SetProperty(ref _warningsOpacity, value) && _isMapReady)
-				{
-					_ = _mapService.SetWarningsOpacityAsync(value);
-				}
-			}
-		}
+		protected override string SourceUrl => _warningService.WarningsUrl;
+		protected override Task SetVisibleAsync(bool visible) => _mapService.SetWarningsVisibleAsync(visible);
+		protected override Task SetOpacityAsync(double opacity) => _mapService.SetWarningsOpacityAsync(opacity);
+		protected override Task SetSourceAsync(string url) => _mapService.SetWarningSourceAsync(url);
 
 		// Live per-type active-warning counts for the NowCast readout, updated each refresh (UI thread).
 		private int _tornadoWarningCount;
@@ -116,13 +84,13 @@ namespace Anvil.ViewModels
 					{
 						TornadoWarningCount = result.TornadoCount;
 						SevereWarningCount = result.SevereCount;
-						OnWarningsRefreshed();
+						RepushSource();
 					});
 				}
 				else if (first)
 				{
 					// First cycle with no data yet — still point the page at the (empty) cache.
-					_dispatcher.Post(OnWarningsRefreshed);
+					_dispatcher.Post(RepushSource);
 				}
 			}
 			catch (Exception ex)
@@ -133,27 +101,5 @@ namespace Anvil.ViewModels
 			// Poll fast while anything is active, slow when the map is clear.
 			return _hasActiveWarnings ? ActiveInterval : IdleInterval;
 		});
-
-		/// <summary>Called by MapViewModel once the map page is ready: points the page at the cached
-		/// warning polygons and applies the current toggle state.</summary>
-		public async Task OnMapsReadyAsync()
-		{
-			_isMapReady = true;
-			await _mapService.SetWarningSourceAsync(_warningService.WarningsUrl);
-			await _mapService.SetWarningsOpacityAsync(_warningsOpacity);
-			await _mapService.SetWarningsVisibleAsync(_showWarnings);
-		}
-
-		/// <summary>
-		/// Re-pushes the warning source URL to the page so it re-fetches the freshly-cached polygons.
-		/// Called after a background warning refresh; the page only re-fetches when the layer is shown.
-		/// </summary>
-		public void OnWarningsRefreshed()
-		{
-			if (_isMapReady)
-			{
-				_ = _mapService.SetWarningSourceAsync(_warningService.WarningsUrl);
-			}
-		}
 	}
 }
