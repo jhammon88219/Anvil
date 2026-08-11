@@ -843,11 +843,25 @@ namespace Anvil.ViewModels
 		/// per-frame motion churned scrubbing. Until it lands the WebView renders base velocity as the SRV
 		/// stand-in (Rule 4's asterisk). Guarded by <see cref="_motionRefKey"/> + the WebView's own cache so it
 		/// computes at most once per loop.</para></summary>
+		// True when the active product actually needs the loop's VAD storm motion: SRV subtracts it, and
+		// velocity is its always-built companion (so vel->SRV stays instant). Reflectivity + the dual-pol
+		// products don't, so the per-loop VWP compute — a raw-volume download plus the whole-loop SRV
+		// re-warm on every ~5-min reload — is gated on this. This is the "self-gated to a Doppler product in
+		// view" behavior the design intended (and reflectivity browsing paying no raw-volume download); the
+		// gate had been missing, so the motion recomputed + churned SRV on every reload even on reflectivity.
+		private bool IsDopplerProductActive =>
+			_radarProductIndex >= 0 && _radarProductIndex < RadarProductOptions.Count
+			&& RadarProductOptions[_radarProductIndex].Id is "velocity" or "srv";
+
 		private void RequestAutoStormMotion(bool force = false)
 		{
 			if (!_isMapReady || !_stormMotionAuto)
 			{
 				return;
+			}
+			if (!force && !IsDopplerProductActive)
+			{
+				return; // reflectivity/dual-pol in view: SRV isn't shown, so skip the VWP download + SRV churn
 			}
 			if (_selectedRadarOption?.Site is not { } site || string.IsNullOrEmpty(_motionRefKey))
 			{
@@ -931,9 +945,16 @@ namespace Anvil.ViewModels
 
 				if (_isMapReady && value >= 0 && value < RadarProductOptions.Count)
 				{
-					// No motion request here: the loop always builds velocity+SRV (Rule 3) and the motion was
-					// computed at first paint, so a switch just re-renders bytes already decoded — instant.
+					// A switch just re-renders bytes already decoded (velocity is prefetched; Rule 3) — instant.
 					_ = _mapService.SetRadarProductAsync(RadarProductOptions[value].Id);
+					// But the loop's storm motion is now computed ON DEMAND — gated out while reflectivity/
+					// dual-pol is in view (see IsDopplerProductActive) — so switching INTO a Doppler product
+					// must kick it if it hasn't run for this loop yet. Deduped by _motionRefKey, so it's a
+					// no-op once computed; SRV shows the velocity stand-in (Rule 4) until the motion lands.
+					if (IsDopplerProductActive)
+					{
+						RequestAutoStormMotion();
+					}
 				}
 			}
 		}
