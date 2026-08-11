@@ -1112,6 +1112,10 @@ namespace Anvil.ViewModels
 				Services.RadarDiagnostics.Log("vm", "refresh.incremental",
 					("reused", mapping.Count), ("new", newIndices.Count),
 					("frames", newFrameCount), ("newest", newKeys[^1]));
+				// Reused frames were reindexed in place (no re-decode), so RegisterFrameSource never fired
+				// for them — re-map the diagnostics records in lockstep so the report's per-frame table and
+				// whole-loop-age stat track the slid window instead of showing the load-time frames forever.
+				Services.RadarDiagnostics.Reindex(mapping);
 
 				if (_vm._isMapReady)
 				{

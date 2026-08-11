@@ -202,6 +202,42 @@ namespace Anvil.Services
 			}
 		}
 
+		/// <summary>
+		/// An incremental loop reload (<c>ReloadLoopIncrementalAsync</c>) slides the window by REUSING
+		/// already-decoded frames — it moves each one's geometry from one loop slot to another and only
+		/// decodes the genuinely-new newest volume. Reused frames therefore never hit
+		/// <see cref="RegisterFrameSource"/>, so without this call the report's per-frame table (and the
+		/// whole-loop-age stat) keep each reused slot's LOAD-TIME volume forever: on a run longer than the
+		/// loop window the table shows a phantom gap between the frozen old frames and the freshly-decoded
+		/// newest. This re-maps the diagnostics frame records in lockstep with the VM's reindex so the
+		/// table tracks the slid window, and re-samples each reused frame's CURRENT age into the loop-age
+		/// stat so it reflects steady state instead of just the load instant.
+		/// <paramref name="mapping"/> is the VM's [fromIndex, toIndex] reuse list (the live frame included).
+		/// </summary>
+		public static void Reindex(IReadOnlyList<int[]> mapping)
+		{
+			lock (Gate)
+			{
+				// Snapshot the moves first (a from-slot may also be a to-slot), then rewrite Frames.
+				var moved = new Dictionary<int, FrameRec>(mapping.Count);
+				foreach (var m in mapping)
+				{
+					if (m.Length < 2 || !Live.Frames.TryGetValue(m[0], out var f)) continue;
+					if (f.VolumeTimeZ is { } v)
+					{
+						var lat = (DateTimeOffset.UtcNow - v).TotalSeconds;
+						f.LatencySec = lat;
+						Stats.Latency.Add(lat);
+					}
+					moved[m[1]] = f;
+				}
+				// Reused slots take their new indices; genuinely-new slots are (re)created when their
+				// decode calls RegisterFrameSource right after this.
+				Live.Frames.Clear();
+				foreach (var kv in moved) Live.Frames[kv.Key] = kv.Value;
+			}
+		}
+
 		/// <summary>A loop frame finished decoding (from the VM's OnRadarFrameReady).</summary>
 		public static void FrameReady(int index, bool hasData, int readyCount, int frameCount)
 		{
