@@ -72,75 +72,109 @@
 
                 <!-- Product rows + the shared playhead overlay (aligned to the scrubber column at 80px in). -->
                 <Grid Grid.Row="2">
-                    <ItemsControl ItemsSource="{x:Bind ViewModel.PipelineConsole.Rows, Mode=OneWay}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:PipelineProductRow">
-                                <Grid Height="20" Margin="0,4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="80"/> <!-- label + ramp swatch (fixed → rows align) -->
-                                        <ColumnDefinition Width="*"/>  <!-- mini-scrubber -->
-                                        <ColumnDefinition Width="64"/> <!-- time to complete -->
-                                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- column header (time labels) -->
+                        <RowDefinition Height="Auto"/> <!-- product rows + playhead -->
+                    </Grid.RowDefinitions>
 
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6"
-                                                VerticalAlignment="Center">
-                                        <TextBlock Text="{x:Bind ShortLabel}" Width="34"
-                                                   FontSize="14" FontWeight="SemiBold"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                        <Border Width="30" Height="10" CornerRadius="2"
-                                                Background="{x:Bind Option.Ramp, Mode=OneWay, Converter={StaticResource RampBrush}}"/>
-                                    </StackPanel>
-
-                                    <Grid Grid.Column="1">
-                                        <!-- Always-present track. -->
-                                        <Border Height="7" VerticalAlignment="Center" CornerRadius="3"
-                                                Background="{ThemeResource ControlFillColorSecondaryBrush}"/>
-                                        <ItemsControl ItemsSource="{x:Bind Cells, Mode=OneWay}"
-                                                      IsHitTestVisible="False"
-                                                      VerticalAlignment="Center" Height="11">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <controls:UniformHorizontalPanel/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate x:DataType="vm:PipelineCell">
-                                                    <Border Margin="1,0" CornerRadius="2"
-                                                            Background="{x:Bind State, Mode=OneWay, Converter={StaticResource CellBrush}}"/>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </Grid>
-
-                                    <!-- Time to fill this product's whole row (accurate, measured in radar.js). -->
-                                    <TextBlock Grid.Column="2" Text="{x:Bind CompleteText, Mode=OneWay}"
-                                               HorizontalAlignment="Right" VerticalAlignment="Center"
-                                               Margin="8,0,0,0"
-                                               FontSize="13" FontFamily="Consolas,Cascadia Mono,monospace"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                    <!-- Shared playhead: one vertical line across all rows, over the scrubber column (inset 80px
-                         left for the label, 64px right for the time column, matching the row grid so it aligns).
-                         Positioned in code-behind from PipelineConsole.CurrentIndex / FrameCount. -->
-                    <Grid x:Name="PlayheadLayer" Margin="80,0,64,0" IsHitTestVisible="False"
-                          SizeChanged="OnPlayheadLayerSizeChanged">
-                        <Border x:Name="Playhead" Width="2" HorizontalAlignment="Left" VerticalAlignment="Stretch"
-                                CornerRadius="1" Background="{ThemeResource TextFillColorPrimaryBrush}">
-                            <Border.RenderTransform>
-                                <TranslateTransform x:Name="PlayheadTransform"/>
-                            </Border.RenderTransform>
-                        </Border>
+                    <!-- Column header: labels over the two right-hand time columns. Same column layout as a
+                         product row (80 | * | 64 | 64) so the labels sit exactly above their times. -->
+                    <Grid Grid.Row="0" Margin="0,0,0,3">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="64"/>
+                            <ColumnDefinition Width="64"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="2" Text="1st paint"
+                                   HorizontalAlignment="Right" Margin="8,0,0,0"
+                                   FontSize="11" CharacterSpacing="20"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        <TextBlock Grid.Column="3" Text="full loop"
+                                   HorizontalAlignment="Right" Margin="8,0,0,0"
+                                   FontSize="11" CharacterSpacing="20"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                     </Grid>
 
-                    <!-- Empty state (no loop). -->
-                    <TextBlock Text="No radar loop loaded — click a site to watch the pipeline."
-                               FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                               HorizontalAlignment="Center" Margin="0,4"
-                               Visibility="{x:Bind VisibleWhen2(ViewModel.PipelineConsole.HasLoop), Mode=OneWay}"/>
+                    <Grid Grid.Row="1">
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.PipelineConsole.Rows, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PipelineProductRow">
+                                    <Grid Height="20" Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="80"/> <!-- label + ramp swatch (fixed → rows align) -->
+                                            <ColumnDefinition Width="*"/>  <!-- mini-scrubber -->
+                                            <ColumnDefinition Width="64"/> <!-- time to first paint -->
+                                            <ColumnDefinition Width="64"/> <!-- time to complete (whole loop) -->
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind ShortLabel}" Width="34"
+                                                       FontSize="14" FontWeight="SemiBold"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <Border Width="30" Height="10" CornerRadius="2"
+                                                    Background="{x:Bind Option.Ramp, Mode=OneWay, Converter={StaticResource RampBrush}}"/>
+                                        </StackPanel>
+
+                                        <Grid Grid.Column="1">
+                                            <!-- Always-present track. -->
+                                            <Border Height="7" VerticalAlignment="Center" CornerRadius="3"
+                                                    Background="{ThemeResource ControlFillColorSecondaryBrush}"/>
+                                            <ItemsControl ItemsSource="{x:Bind Cells, Mode=OneWay}"
+                                                          IsHitTestVisible="False"
+                                                          VerticalAlignment="Center" Height="11">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <controls:UniformHorizontalPanel/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:PipelineCell">
+                                                        <Border Margin="1,0" CornerRadius="2"
+                                                                Background="{x:Bind State, Mode=OneWay, Converter={StaticResource CellBrush}}"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Grid>
+
+                                        <!-- Time from loop start to this product's FIRST rendered frame. -->
+                                        <TextBlock Grid.Column="2" Text="{x:Bind FirstText, Mode=OneWay}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   Margin="8,0,0,0"
+                                                   FontSize="13" FontFamily="Consolas,Cascadia Mono,monospace"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                                        <!-- Time to fill this product's whole row (accurate, measured in radar.js). -->
+                                        <TextBlock Grid.Column="3" Text="{x:Bind CompleteText, Mode=OneWay}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   Margin="8,0,0,0"
+                                                   FontSize="13" FontFamily="Consolas,Cascadia Mono,monospace"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Shared playhead: one vertical line across all rows, over the scrubber column (inset
+                             80px left for the label, 128px right for the two time columns, matching the row grid
+                             so it aligns). Positioned in code-behind from PipelineConsole.CurrentIndex / FrameCount. -->
+                        <Grid x:Name="PlayheadLayer" Margin="80,0,128,0" IsHitTestVisible="False"
+                              SizeChanged="OnPlayheadLayerSizeChanged">
+                            <Border x:Name="Playhead" Width="2" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                                    CornerRadius="1" Background="{ThemeResource TextFillColorPrimaryBrush}">
+                                <Border.RenderTransform>
+                                    <TranslateTransform x:Name="PlayheadTransform"/>
+                                </Border.RenderTransform>
+                            </Border>
+                        </Grid>
+
+                        <!-- Empty state (no loop). -->
+                        <TextBlock Text="No radar loop loaded — click a site to watch the pipeline."
+                                   FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                   HorizontalAlignment="Center" Margin="0,4"
+                                   Visibility="{x:Bind VisibleWhen2(ViewModel.PipelineConsole.HasLoop), Mode=OneWay}"/>
+                    </Grid>
                 </Grid>
             </Grid>
         </Border>

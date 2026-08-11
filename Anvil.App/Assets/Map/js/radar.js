@@ -424,6 +424,7 @@
     // Order-independent (max over per-frame stamps), so it's correct for both fill directions. Reset per loop.
     let _loopStartT = 0;         // performance.now() captured at beginLoop
     let _builtAtMs = [];         // per frame index: { id: elapsed ms when that product FIRST built on it }
+    let _prodFirstAtMs = {};     // product id -> elapsed ms when its FIRST frame built (time-to-first-paint), else null
     let _prodFullAtMs = {};      // product id -> elapsed ms when its LAST frame built (row full), else null
     let _timingFrozen = false;   // once the initial load settles, stop updating (ignore live appends)
     function updatePipelineTiming() {
@@ -438,15 +439,19 @@
             for (var k = 0; k < ids.length; k++) { var id = ids[k]; if (b[id] && at[id] == null) at[id] = elapsed; }
         }
         // A product's time-to-complete = the LAST (max) of its per-frame stamps, but only once EVERY frame
-        // has it (row full); otherwise null (still filling / never fills).
+        // has it (row full); otherwise null (still filling / never fills). Its time-to-FIRST-PAINT = the
+        // FIRST (min) stamp — the earliest ANY frame got it built, i.e. loop-start → first rendered frame of
+        // that product — known as soon as one frame has it (no "full" gate), null until then.
         for (var k2 = 0; k2 < ids.length; k2++) {
-            var pid = ids[k2], mx = -1, full = n > 0;
+            var pid = ids[k2], mx = -1, mn = Infinity, full = n > 0;
             for (var j = 0; j < n; j++) {
                 var atj = _builtAtMs[j];
-                if (!atj || atj[pid] == null) { full = false; break; }
+                if (!atj || atj[pid] == null) { full = false; continue; }
                 if (atj[pid] > mx) mx = atj[pid];
+                if (atj[pid] < mn) mn = atj[pid];
             }
             _prodFullAtMs[pid] = full ? mx : null;
+            _prodFirstAtMs[pid] = (mn === Infinity) ? null : mn;
         }
         // Freeze only when the pipeline is GENUINELY done. Three conditions beyond "queue drained":
         //  1. motionSettled — in auto mode the storm motion has a DEFINITIVE result (resolved OR insufficient),
@@ -1282,15 +1287,18 @@
                 topM: (m && m.topM) || 0
             };
             var done = new Array(ids.length);
+            var first = new Array(ids.length);
             for (var q = 0; q < ids.length; q++) {
                 var dm = _prodFullAtMs[ids[q]];
                 done[q] = (dm == null) ? null : Math.round(dm);
+                var fm = _prodFirstAtMs[ids[q]];
+                first[q] = (fm == null) ? null : Math.round(fm);
             }
             return {
                 n: frames.length, cf: currentFrame, active: product,
                 ids: ids, velPrefetch: velPrefetch, fullPrefetch: fullPrefetch,
                 wanted: wantedProducts(), vwp: vwp, frames: out,
-                done: done, timingFrozen: _timingFrozen
+                done: done, first: first, timingFrozen: _timingFrozen
             };
         },
         // ===== END PIPELINE CONSOLE =====
@@ -1314,7 +1322,7 @@
             for (var _vk in _vwpInFlight) delete _vwpInFlight[_vk];
             // PIPELINE CONSOLE: reset per-product fill timing for the new loop (remove with the feature).
             _loopStartT = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-            _builtAtMs = []; _prodFullAtMs = {}; _timingFrozen = false;
+            _builtAtMs = []; _prodFirstAtMs = {}; _prodFullAtMs = {}; _timingFrozen = false;
             frames = [];
             currentFrame = -1;
             pendingFrame = -1;
