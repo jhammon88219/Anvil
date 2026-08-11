@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Threading.Tasks;
 using Anvil.Models;
@@ -40,8 +41,10 @@ namespace Anvil.Services
 			("hail", "hail"),
 		};
 
+		private readonly ILogger<StormReportService> _logger;
+
 		// SPC rejects requests without a User-Agent (the base sends "Anvil/1.0").
-		public StormReportService() : base("StormReports") { }
+		public StormReportService(ILogger<StormReportService> logger) : base("StormReports") => _logger = logger;
 
 		// Cache schema version — bumped when the built GeoJSON's shape/content changes so older cached files
 		// (which the immutable path would otherwise reuse forever) are ignored and rebuilt. v2 = added the
@@ -169,7 +172,7 @@ namespace Anvil.Services
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine($"[SPC] IEM LSR enrichment skipped: {ex.Message}");
+				_logger.LogWarning(ex, "IEM LSR enrichment skipped");
 				return;
 			}
 			if (lsrs.Count == 0) { return; }

@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Anvil.Services;
 
 namespace Anvil.ViewModels
@@ -17,12 +18,14 @@ namespace Anvil.ViewModels
 		private readonly IMapService _mapService;
 		private readonly ISpcWatchService _watchService;
 		private readonly IDispatcher _dispatcher;
+		private readonly ILogger<WatchesViewModel> _logger;
 
-		public WatchesViewModel(IMapService mapService, ISpcWatchService watchService, IDispatcher dispatcher)
+		public WatchesViewModel(IMapService mapService, ISpcWatchService watchService, IDispatcher dispatcher, ILogger<WatchesViewModel> logger)
 		{
 			_mapService = mapService;
 			_watchService = watchService;
 			_dispatcher = dispatcher;
+			_logger = logger;
 		}
 
 		protected override string SourceUrl => _watchService.WatchesUrl;
@@ -42,7 +45,7 @@ namespace Anvil.ViewModels
 			try
 			{
 				var result = await _watchService.RefreshAsync();
-				System.Diagnostics.Debug.WriteLine($"[SPC] watches refresh: {result.Status} active={result.ActiveCount} {result.Message}");
+				_logger.LogInformation("Watches refresh: {Status} active={Active} {Message}", result.Status, result.ActiveCount, result.Message);
 
 				// Re-point the page at the cache so it reloads — on launch (first-run empty cache) and
 				// whenever a cycle pulled fresh data.
@@ -53,7 +56,7 @@ namespace Anvil.ViewModels
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine($"[SPC] watches refresh aborted: {ex.Message}");
+				_logger.LogWarning(ex, "Watches refresh aborted");
 			}
 		});
 	}

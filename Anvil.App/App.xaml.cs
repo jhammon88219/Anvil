@@ -70,11 +70,17 @@ namespace Anvil
 			Directory.CreateDirectory(logDirectory);
 			var logPath = Path.Combine(logDirectory, "log-.txt");
 
+			// {SourceContext} = the logging category (the ILogger<T>'s type, e.g. Anvil.ViewModels.
+			// WatchesViewModel), so each line identifies its source without manual "[SPC]"/"[radar]" prefixes.
+			const string template =
+				"{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}";
+
 			Log.Logger = new LoggerConfiguration()
 				.MinimumLevel.Debug()
-				.WriteTo.Debug()
+				.WriteTo.Debug(outputTemplate: template)
 				.WriteTo.Async(a => a.File(
 					path: logPath,
+					outputTemplate: template,
 					rollingInterval: RollingInterval.Day,
 					retainedFileCountLimit: 7,
 					fileSizeLimitBytes: 10 * 1024 * 1024))

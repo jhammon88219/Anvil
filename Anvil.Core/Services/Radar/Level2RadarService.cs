@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
 using Anvil.Models;
 using SharpCompress.Compressors;
 using SharpCompress.Compressors.BZip2;
@@ -34,9 +35,11 @@ namespace Anvil.Services
 		private static readonly XNamespace S3 = "http://s3.amazonaws.com/doc/2006-03-01/";
 
 		private readonly HttpClient _http;
+		private readonly ILogger<Level2RadarService> _logger;
 
-		public Level2RadarService()
+		public Level2RadarService(ILogger<Level2RadarService> logger)
 		{
+			_logger = logger;
 			CacheDirectory = Path.Combine(
 				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
 				"Anvil", "RadarLevel2");
@@ -297,7 +300,7 @@ namespace Anvil.Services
 						}
 						catch (Exception ex)
 						{
-							System.Diagnostics.Debug.WriteLine($"[radar] {site.Id} extract failed, caching raw: {ex.Message}");
+							_logger.LogWarning(ex, "{Site} tilt extract failed, caching raw volume", site.Id);
 							return (tiltAngle is null ? raw : null, null);
 						}
 					}, cancellationToken);
@@ -337,7 +340,7 @@ namespace Anvil.Services
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine($"[radar] {site.Id} fetch {key} failed: {ex.Message}");
+				_logger.LogWarning(ex, "{Site} fetch {Key} failed", site.Id, key);
 				return null;
 			}
 		}
@@ -525,7 +528,7 @@ namespace Anvil.Services
 				catch (Exception ex)
 				{
 					// Per-volume and non-fatal: a missed raw just means that frame's tilt switch downloads.
-					System.Diagnostics.Debug.WriteLine($"[radar] {site.Id} raw prefetch {key} failed: {ex.Message}");
+					_logger.LogWarning(ex, "{Site} raw prefetch {Key} failed", site.Id, key);
 				}
 				finally
 				{
@@ -794,7 +797,7 @@ namespace Anvil.Services
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine($"[radar] {site.Id} live frame failed: {ex.Message}");
+				_logger.LogWarning(ex, "{Site} live frame failed", site.Id);
 				RadarDiagnostics.Log("svc", "live", ("site", site.Id), ("error", ex.Message));
 				return null;
 			}

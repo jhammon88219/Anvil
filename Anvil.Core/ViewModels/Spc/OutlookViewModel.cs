@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Anvil.Models;
 using Anvil.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -21,6 +22,7 @@ namespace Anvil.ViewModels
 		private readonly IMapService _mapService;
 		private readonly ISpcOutlookService _spcOutlookService;
 		private readonly IDispatcher _dispatcher;
+		private readonly ILogger<OutlookViewModel> _logger;
 
 		// Readiness guard: outlook/watch commands only run once the map page has reported 'mapReady'
 		// (set by OnMapsReadyAsync, called from MapViewModel.OnMapsReadyAsync).
@@ -58,11 +60,12 @@ namespace Anvil.ViewModels
 		private DateTimeOffset? _outlookCycleStart;
 		private DateTimeOffset? _nextOutlookRefreshAt;
 
-		public OutlookViewModel(IMapService mapService, ISpcOutlookService spcOutlookService, IDispatcher dispatcher)
+		public OutlookViewModel(IMapService mapService, ISpcOutlookService spcOutlookService, IDispatcher dispatcher, ILogger<OutlookViewModel> logger)
 		{
 			_mapService = mapService;
 			_spcOutlookService = spcOutlookService;
 			_dispatcher = dispatcher;
+			_logger = logger;
 
 			// SPC outlook selectors. Day 1 Categorical is the armed default, but the visibility toggle
 			// (IsOutlookVisible) defaults off, so nothing is drawn on launch. Assign backing fields
@@ -93,7 +96,7 @@ namespace Anvil.ViewModels
 				var updated = results.Count(r => r.Status is SpcOutlookFetchStatus.Updated);
 				var failed = results.Count(r => r.Status is SpcOutlookFetchStatus.FailedCacheKept
 					or SpcOutlookFetchStatus.FailedNoCache);
-				System.Diagnostics.Debug.WriteLine($"[SPC] refreshed {results.Count} products, {updated} updated, {failed} failed.");
+				_logger.LogInformation("Outlooks refresh: {Total} products, {Updated} updated, {Failed} failed", results.Count, updated, failed);
 
 				// Re-apply the current outlook on launch (so a first-run empty cache overlay appears and
 				// the issued/valid readout picks up times) and whenever a cycle actually pulled new data —
@@ -105,7 +108,7 @@ namespace Anvil.ViewModels
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine($"[SPC] refresh aborted: {ex.Message}");
+				_logger.LogWarning(ex, "Outlooks refresh aborted");
 			}
 
 			// Tell the next-update bar when the next periodic refresh is roughly due (fixed cadence;

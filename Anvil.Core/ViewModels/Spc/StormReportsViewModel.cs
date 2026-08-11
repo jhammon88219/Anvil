@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Anvil.Models;
 using Anvil.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -23,17 +24,19 @@ namespace Anvil.ViewModels
 		private readonly IStormReportService _reportService;
 		private readonly RadarViewModel _radar;
 		private readonly IDispatcher _dispatcher;
+		private readonly ILogger<StormReportsViewModel> _logger;
 
 		private bool _isMapReady;
 		private int _applyToken;            // guards a stale async apply when the selection/day changes mid-fetch
 		private DateOnly? _loadedDay;       // the convective day whose points are currently on the map (null = none)
 
-		public StormReportsViewModel(IMapService mapService, IStormReportService reportService, RadarViewModel radar, IDispatcher dispatcher)
+		public StormReportsViewModel(IMapService mapService, IStormReportService reportService, RadarViewModel radar, IDispatcher dispatcher, ILogger<StormReportsViewModel> logger)
 		{
 			_mapService = mapService;
 			_reportService = reportService;
 			_radar = radar;
 			_dispatcher = dispatcher;
+			_logger = logger;
 
 			// Re-key the overlay to the new convective day when the temporal mode flips or the replay date
 			// changes (only matters while some type is shown; the toggle setters cover the show/hide case).
@@ -124,7 +127,7 @@ namespace Anvil.ViewModels
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine($"[SPC] storm reports refresh aborted: {ex.Message}");
+				_logger.LogWarning(ex, "Storm reports refresh aborted");
 			}
 		});
 

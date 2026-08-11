@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Anvil.Services;
 
 namespace Anvil.ViewModels
@@ -19,12 +20,14 @@ namespace Anvil.ViewModels
 		private readonly IMapService _mapService;
 		private readonly IWarningService _warningService;
 		private readonly IDispatcher _dispatcher;
+		private readonly ILogger<WarningsViewModel> _logger;
 
-		public WarningsViewModel(IMapService mapService, IWarningService warningService, IDispatcher dispatcher)
+		public WarningsViewModel(IMapService mapService, IWarningService warningService, IDispatcher dispatcher, ILogger<WarningsViewModel> logger)
 		{
 			_mapService = mapService;
 			_warningService = warningService;
 			_dispatcher = dispatcher;
+			_logger = logger;
 		}
 
 		protected override string SourceUrl => _warningService.WarningsUrl;
@@ -72,7 +75,7 @@ namespace Anvil.ViewModels
 			try
 			{
 				var result = await _warningService.RefreshAsync();
-				System.Diagnostics.Debug.WriteLine($"[NWS] warnings refresh: {result.Status} active={result.ActiveCount} {result.Message}");
+				_logger.LogInformation("Warnings refresh: {Status} active={Active} {Message}", result.Status, result.ActiveCount, result.Message);
 
 				// A completed fetch tells us the current active state; a failure leaves the prior state.
 				if (result.Status is WarningFetchStatus.Updated)
@@ -95,7 +98,7 @@ namespace Anvil.ViewModels
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine($"[NWS] warnings refresh aborted: {ex.Message}");
+				_logger.LogWarning(ex, "Warnings refresh aborted");
 			}
 
 			// Poll fast while anything is active, slow when the map is clear.

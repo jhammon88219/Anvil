@@ -21,6 +21,9 @@
     <PackageReference Include="SharpCompress" Version="1.0.0" />
     <!-- ObservableObject base for the view-models (INotifyPropertyChanged plumbing + SetProperty). -->
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <!-- ILogger<T> abstractions (netstandard, no Windows dep) so Core services/VMs can log through the
+         App's Serilog pipeline via the DI container. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>
