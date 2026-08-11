@@ -219,6 +219,11 @@ namespace Anvil.ViewModels
 		// promotion we DEFERRED until it actually decodes, so the new cell appears already-filled instead of
 		// blinking through empty. OnRadarFrameReady completes it via CompleteLiveAppend; cleared on a new load.
 		private Models.RadarVolume? _pendingLiveAppend;
+		// The same deferral for an in-place live-frame UPDATE (the slot already exists): we've kicked off the
+		// re-decode but hold the visible swap — frame time/mode, the readout, and the sweep pulse — until the
+		// geometry lands, so the sweep animates WITH the new returns instead of ~3-6 s before them (the worker
+		// fetches the ~7 MB volume then decodes). OnRadarFrameReady completes it via CompleteLiveUpdate.
+		private Models.RadarVolume? _pendingLiveUpdate;
 		// Mode text (VCP/precip/SAILS) from the most recent successful live poll. Tracked
 		// SEPARATELY from _liveFrame because the mode is known from any decoded live volume even
 		// when we don't append it as a new frame — e.g. an offline/stale site (KVNX) whose newest
