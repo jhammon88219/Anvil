@@ -427,35 +427,48 @@ namespace Anvil.Services
 				targets.Add(sorted[i]);
 			}
 
-			// Extract the higher cuts CONCURRENTLY (bounded) — each bzip2-decodes the raw, and doing them
-			// sequentially was SRV's long pole. Results are collected by index so the returned URL order stays
-			// ascending-by-angle. A tilt the (truncated) volume doesn't carry extracts to null and is skipped.
+			// Extract the higher cuts in ONE decompression pass over the raw (TryExtractTiltsByAngles) rather
+			// than a per-tilt EnsureCachedAsync that re-read + re-bzip2-decompressed the WHOLE volume for each
+			// (O(N²) over the same bytes — ~11 s for 8 tilts, SRV's long pole). The cut buffers are byte-
+			// identical to the per-tilt path's, so the display tilt-switch reuses these cache files. Falls back
+			// to the per-tilt path if the raw isn't on disk (a .gz is returned above; a failed prefetch), so
+			// nothing regresses. URL order stays ascending-by-angle.
 			if (targets.Count > 0)
 			{
-				var extracted = new string?[targets.Count];
-				using var gate = new SemaphoreSlim(VwpExtractConcurrency);
-				await Task.WhenAll(Enumerable.Range(0, targets.Count).Select(async idx =>
+				var volTime = ParseVolumeTime(key);
+				var rawFile2 = volTime is null ? null : RawCacheFileFor(site.Id, volTime.Value);
+				var singlePassOk = false;
+				if (rawFile2 is not null && File.Exists(rawFile2))
 				{
-					await gate.WaitAsync(cancellationToken);
 					try
 					{
-						var v = await EnsureCachedAsync(site, key, tiltAngle: targets[idx], cancellationToken: cancellationToken);
-						if (v is not null)
+						var rawBytes = await File.ReadAllBytesAsync(rawFile2, cancellationToken);
+						var extracted = await Task.Run(
+							() => TryExtractTiltsByAngles(rawBytes, site.Id, targets), cancellationToken);
+						foreach (var angle in targets) // ascending-by-angle
 						{
-							extracted[idx] = v.LocalUrl;
+							if (!extracted.TryGetValue(angle, out var tiltBytes)) continue; // absent in this volume
+							var cacheFile = CacheFileFor(site.Id, volTime!.Value, angle);
+							if (!File.Exists(cacheFile))
+							{
+								var tmp = cacheFile + ".tmp";
+								await File.WriteAllBytesAsync(tmp, tiltBytes, cancellationToken);
+								File.Move(tmp, cacheFile, overwrite: true);
+							}
+							urls.Add(LocalUrlFor(site.Id, volTime.Value, angle));
 						}
+						singlePassOk = true;
 					}
-					finally
+					catch (OperationCanceledException) { throw; }
+					catch (Exception ex)
 					{
-						gate.Release();
+						RadarDiagnostics.Log("svc", "vwp.provision", ("site", site.Id), ("lvl", "warn"),
+							("msg", $"single-pass extract failed, per-tilt fallback: {ex.Message}"));
 					}
-				}));
-				foreach (var u in extracted)
+				}
+				if (!singlePassOk)
 				{
-					if (u is not null)
-					{
-						urls.Add(u);
-					}
+					await ExtractHigherTiltsPerTiltAsync(site, key, targets, urls, cancellationToken);
 				}
 			}
 			swExtract.Stop();
@@ -464,6 +477,39 @@ namespace Anvil.Services
 				("tilts", urls.Count), ("downloadMs", (int)swDownload.ElapsedMilliseconds),
 				("extractMs", (int)swExtract.ElapsedMilliseconds));
 			return urls;
+		}
+
+		// The original per-tilt higher-cut extraction — each a bounded-concurrent EnsureCachedAsync — retained
+		// as EnsureVwpTiltsAsync's fallback for when the single-pass raw input isn't on disk. Appends the
+		// extracted tilt URLs (ascending-by-angle) to <paramref name="urls"/>; a tilt the volume doesn't carry
+		// extracts to null and is skipped.
+		private async Task ExtractHigherTiltsPerTiltAsync(RadarSite site, string key, IReadOnlyList<float> targets, List<string> urls, CancellationToken cancellationToken)
+		{
+			var extracted = new string?[targets.Count];
+			using var gate = new SemaphoreSlim(VwpExtractConcurrency);
+			await Task.WhenAll(Enumerable.Range(0, targets.Count).Select(async idx =>
+			{
+				await gate.WaitAsync(cancellationToken);
+				try
+				{
+					var v = await EnsureCachedAsync(site, key, tiltAngle: targets[idx], cancellationToken: cancellationToken);
+					if (v is not null)
+					{
+						extracted[idx] = v.LocalUrl;
+					}
+				}
+				finally
+				{
+					gate.Release();
+				}
+			}));
+			foreach (var u in extracted)
+			{
+				if (u is not null)
+				{
+					urls.Add(u);
+				}
+			}
 		}
 
 		// Writes a prefetched raw volume atomically (temp + move), best-effort: it's a pure optimization,

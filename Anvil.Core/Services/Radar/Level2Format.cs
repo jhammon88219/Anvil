@@ -950,6 +950,194 @@ namespace Anvil.Services
 			return output.ToArray();
 		}
 
+		// Per-target hunt state for TryExtractTiltsByAngles: the requested angle (the result key), the cut's
+		// kept blocks (surveillance, then optionally its Doppler companion), and the flags that drive the same
+		// surveillance→companion→done sequence TryExtractTiltByAngle's FlushGroup walks — but for every target
+		// at once. JustGotSurveillance = the surveillance cut was the IMMEDIATELY-previous group, so THIS
+		// group is its companion candidate (the companion is always the very next group).
+		private sealed class MultiTiltTarget
+		{
+			public float Angle;
+			public readonly List<byte[]> Kept = new();
+			public float KeptAngle = float.NaN;
+			public bool GotSurveillance;
+			public bool JustGotSurveillance;
+			public bool CompanionResolved;
+		}
+
+		// Extracts SEVERAL tilts in ONE decompression pass over the raw volume — the storm-motion (VWP) path
+		// needs the bottom ~8 velocity cuts, and pulling them one at a time (TryExtractTiltByAngle per angle)
+		// re-read the ~86 MB raw and re-bzip2-decompressed the records from the file START for EACH cut: cut 1
+		// decompressed N times, cut 2 N-1 times, … — O(N²) redundant decompression over the same bytes
+		// (measured ~11 s for 8 tilts, SRV's long pole). This walks the volume ONCE, decompressing every record
+		// a single time, groups by elevation NUMBER, and slices out every requested cut (+ its Doppler
+		// companion) as it passes, stopping once it's above the highest requested angle. Returns a map from each
+		// requested angle to its tilt buffer, BYTE-IDENTICAL in kind + content to what TryExtractTiltByAngle
+		// produces for that angle (same header + metadata + kept-block layout), so the display tilt-switch path
+		// happily reuses these cache files. A requested angle the volume doesn't carry is simply absent.
+		//
+		// ⚠️ VWP-ONLY. The DISPLAY tilt-switch path stays on TryExtractTiltByAngle (battle-hardened +
+		// TiltCheck-validated) — this shares its cut-selection rules verbatim (median angle, surveillance +
+		// Doppler companion, TiltMatchTol vs TiltAngleTol) but is a separate method, so a defect here can only
+		// affect the auto storm-motion, never the radar on screen.
+		internal static Dictionary<float, byte[]> TryExtractTiltsByAngles(byte[] raw, string siteId, IReadOnlyList<float> targetAngles)
+		{
+			var result = new Dictionary<float, byte[]>();
+			const int headerSize = 24;
+			if (raw.Length < headerSize + 4 || targetAngles is null || targetAngles.Count == 0)
+			{
+				return result;
+			}
+
+			var targets = new List<MultiTiltTarget>(targetAngles.Count);
+			var maxTarget = float.NegativeInfinity;
+			foreach (var a in targetAngles)
+			{
+				if (float.IsNaN(a)) continue;
+				targets.Add(new MultiTiltTarget { Angle = a });
+				if (a > maxTarget) maxTarget = a;
+			}
+			if (targets.Count == 0)
+			{
+				return result;
+			}
+
+			var icao = System.Text.Encoding.ASCII.GetBytes(siteId);
+			var icaoResolved = false;
+			var metadata = new List<byte[]>();  // leading metadata (Msg 5/13/15/…), shared by every output buffer
+			var seenRadial = false;
+
+			var groupNum = 0;
+			var groupBlocks = new List<byte[]>();
+			var groupAngles = new List<float>();
+			var groupHasRef = false;
+			var groupHasVel = false;
+
+			float GroupAngle()
+			{
+				if (groupAngles.Count == 0) return float.NaN;
+				groupAngles.Sort();
+				return groupAngles[groupAngles.Count / 2];
+			}
+
+			// Process one COMPLETED elevation group against every target: first resolve a pending Doppler
+			// companion (a target whose surveillance was the immediately-previous group), then match this group
+			// as a new surveillance cut for any target still hunting. Mirrors FlushGroup's two roles, for all
+			// targets at once. Returns whether any target is still awaiting its companion (its surveillance was
+			// THIS group) — so the caller keeps decompressing one more group before an early exit.
+			bool ProcessGroup()
+			{
+				if (groupBlocks.Count == 0) return false;
+				var gAngle = GroupAngle();
+				// Companion phase.
+				foreach (var t in targets)
+				{
+					if (t.GotSurveillance && !t.CompanionResolved && t.JustGotSurveillance)
+					{
+						if (groupHasVel && !float.IsNaN(gAngle) && Math.Abs(gAngle - t.KeptAngle) <= TiltAngleTol)
+						{
+							t.Kept.AddRange(groupBlocks); // Doppler companion at the same angle
+						}
+						t.CompanionResolved = true;       // resolved either way (companion kept, or none → surveillance only)
+						t.JustGotSurveillance = false;
+					}
+				}
+				// Surveillance phase.
+				var pending = false;
+				foreach (var t in targets)
+				{
+					if (!t.GotSurveillance && groupHasRef && !float.IsNaN(gAngle)
+						&& Math.Abs(gAngle - t.Angle) <= TiltMatchTol)
+					{
+						t.Kept.AddRange(groupBlocks);
+						t.KeptAngle = gAngle;
+						t.GotSurveillance = true;
+						t.JustGotSurveillance = true;
+					}
+					if (t.JustGotSurveillance) pending = true;
+				}
+				return pending;
+			}
+
+			var pos = headerSize;
+			while (pos + 4 <= raw.Length)
+			{
+				var controlWord = (raw[pos] << 24) | (raw[pos + 1] << 16) | (raw[pos + 2] << 8) | raw[pos + 3];
+				pos += 4;
+				var size = Math.Abs(controlWord);
+				if (size <= 0 || pos + size > raw.Length)
+				{
+					break;
+				}
+
+				byte[] block;
+				try
+				{
+					using var blockIn = new MemoryStream(raw, pos, size, writable: false);
+					using var bz = new BZip2Stream(blockIn, CompressionMode.Decompress, false);
+					using var blockOut = new MemoryStream(1024 * 1024);
+					bz.CopyTo(blockOut);
+					block = blockOut.ToArray();
+				}
+				catch
+				{
+					break; // malformed / truncated record: serve what we have
+				}
+				pos += size;
+
+				var hasRef = HasMoment(block, Dref);
+				if (!icaoResolved && hasRef)
+				{
+					if (IndexOf(block, icao) < 0 && TryDetectIcao(block, out var real)) icao = real;
+					icaoResolved = true;
+				}
+
+				var elev = ElevationOf(block, icao);
+				var angle = ElevationAngleOf(block, icao);
+				var isRadial = elev >= 1 && (hasRef || HasMoment(block, Dvel));
+
+				if (!isRadial && !seenRadial) { metadata.Add(block); continue; }
+				if (!isRadial) continue;
+				seenRadial = true;
+
+				if (groupBlocks.Count > 0 && elev != groupNum)
+				{
+					var pendingCompanion = ProcessGroup();
+					var g = GroupAngle();
+					groupBlocks.Clear(); groupAngles.Clear(); groupHasRef = false; groupHasVel = false;
+					// Past the highest requested cut (with tolerance) and nothing awaiting a companion → every
+					// remaining cut is higher (bottom-up scan), so stop decompressing. Bounds the pass to ~the
+					// top target's cut even when a requested tilt is absent (it'd never resolve otherwise).
+					if (!float.IsNaN(g) && g > maxTarget + TiltMatchTol && !pendingCompanion)
+					{
+						groupBlocks.Clear();
+						break;
+					}
+				}
+
+				groupNum = elev;
+				groupBlocks.Add(block);
+				groupHasRef |= hasRef;
+				groupHasVel |= HasMoment(block, Dvel);
+				if (!float.IsNaN(angle)) groupAngles.Add(angle);
+			}
+
+			ProcessGroup(); // flush the final group (EOF), if the early exit didn't already clear it
+
+			// One output buffer per target that found a cut: 24-byte header + shared metadata + its kept blocks
+			// (byte-identical to TryExtractTiltByAngle's layout).
+			foreach (var t in targets)
+			{
+				if (t.Kept.Count == 0) continue;
+				using var output = new MemoryStream(8 * 1024 * 1024);
+				output.Write(raw, 0, headerSize);
+				foreach (var m in metadata) output.Write(m, 0, m.Length);
+				foreach (var k in t.Kept) output.Write(k, 0, k.Length);
+				result[t.Angle] = output.ToArray();
+			}
+			return result;
+		}
+
 		// Detects the ACTUAL internal ICAO from a Message-31 radial block. The AWS bucket key is the site
 		// id (e.g. "KCRI"), but a few radars — notably the ROC test bed KCRI — write their radials under a
 		// DIFFERENT callsign (KCRI's is "NOK5"). When the site id isn't present, ElevationOf/

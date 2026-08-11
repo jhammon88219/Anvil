@@ -1164,6 +1164,10 @@ namespace Anvil.ViewModels
 			// profile), so the page and VM agree.
 			await _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg, _stormMotionAuto);
 
+			// Pre-warm the decode + VWP workers now (creating them + loading the vendored decoder), so the
+			// first site click doesn't pay their cold start on the first-paint critical path.
+			await _mapService.PrewarmRadarAsync();
+
 			// Flag sites with no recent data ("offline") and keep that refreshed.
 			_ = RunSiteStatusLoopAsync();
 

@@ -598,6 +598,15 @@
         return w;
     }
 
+    // Pre-warm the decode + VWP workers so the FIRST site click doesn't pay their cold start. Creating a
+    // worker is expensive and each then imports the vendored decoder (~a few MB, eagerly on startup — see
+    // radar-worker.js); doing that ahead of time moves it off the first-paint critical path (the diagnostics
+    // showed the pool being built ~1.4 s INTO the first load). The host calls this at map-ready, before any
+    // loop. Idempotent (getWorker/getVwpWorker create their pools once) and best-effort.
+    window.prewarmRadarWorkers = function () {
+        try { getWorker(); getVwpWorker(); } catch (e) { hostLog('prewarm failed: ' + (e && e.message ? e.message : e)); }
+    };
+
     // Wraps a decode result (r2 from decodeAndBuild / decodeDowFrame — already the keyed
     // { moments, grids, built, gridsBuilt, ... } shape) into what applyFrameResult consumes, just
     // stamping this load's token/index/url. Used by the main-thread decode fallback and the DOW path.

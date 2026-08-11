@@ -107,6 +107,9 @@ namespace Anvil.Services
 		public Task PrefetchRadarVelocityAsync() =>
 			_mapView.RunScriptAsync(Call("prefetchRadarVelocity"));
 
+		public Task PrewarmRadarAsync() =>
+			_mapView.RunScriptAsync(Call("prewarmRadarWorkers"));
+
 		public Task SetStormMotionAsync(double speedKt, double directionDeg, bool auto) =>
 			_mapView.RunScriptAsync(Call("setStormMotion", speedKt, directionDeg, auto));
 

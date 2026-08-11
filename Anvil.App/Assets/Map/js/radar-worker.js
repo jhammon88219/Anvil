@@ -24,6 +24,13 @@ function loadBuffers(d) {
     }));
 }
 
+// Kick the decoder module load as soon as this worker STARTS, not lazily on its first message — the vendored
+// decoder is a few MB, so a cold worker otherwise pays that import on the first decode. Pre-warming the pool
+// (radar.js prewarmRadarWorkers, at map-ready) creates the workers ahead of the first site click, so this
+// load finishes off the first-paint critical path. Dynamic import caches, so every branch shares this promise.
+var _decoder = import('./radar-decode.js');
+function decoder() { return _decoder; }
+
 self.onmessage = function (e) {
     const d = e.data;
     // Full-volume VWP storm motion (radar.js computeStormMotionForVolume): decode a volume's bottom velocity
@@ -31,7 +38,7 @@ self.onmessage = function (e) {
     // back (no geometry). See radar-decode decodeVwp; runs off-thread because the per-cut dealias is the cost.
     if (d.vwp) {
         loadBuffers(d).then(function (buffers) {
-            return import('./radar-decode.js').then(function (m) { return m.decodeVwp(buffers); });
+            return decoder().then(function (m) { return m.decodeVwp(buffers); });
         }).then(function (motion) {
             self.postMessage({ vwp: true, reqId: d.reqId, motion: motion });
         }).catch(function (err) {
@@ -43,7 +50,7 @@ self.onmessage = function (e) {
     // transfer it back for the host to merge into the existing frame — no full re-decode. See decodeGridOnly.
     if (d.gridOnly) {
         loadAb(d).then(function (ab) {
-            return import('./radar-decode.js').then(function (m) {
+            return decoder().then(function (m) {
                 return m.decodeGridOnly(ab, d.siteLat, d.siteLon, d.minDbz, d.product, d.stormMotion);
             });
         }).then(function (res) {
@@ -59,7 +66,7 @@ self.onmessage = function (e) {
         return;
     }
     loadAb(d).then(function (ab) {
-        return import('./radar-decode.js').then(function (m) {
+        return decoder().then(function (m) {
             return m.decodeAndBuild(ab, d.siteLat, d.siteLon, d.minDbz, d.buildProducts, d.buildGrids, d.stormMotion);
         });
     }).then(function (res) {

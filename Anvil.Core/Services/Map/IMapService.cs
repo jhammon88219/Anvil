@@ -63,6 +63,11 @@ namespace Anvil.Services
 		/// this once the reflectivity loop has finished rendering.</summary>
 		Task PrefetchRadarVelocityAsync();
 
+		/// <summary>Pre-warms the WebView's decode + VWP workers (creating them and loading the vendored
+		/// decoder) so the FIRST site click doesn't pay their cold start on the first-paint critical path.
+		/// Host calls this once at map-ready, before any loop. Idempotent + best-effort.</summary>
+		Task PrewarmRadarAsync();
+
 		/// <summary>Sets the storm motion used by the Storm-Relative Velocity product. When <paramref name="auto"/>
 		/// is true (the default) the motion is DERIVED from each volume's own VAD wind profile (Bunkers
 		/// right-mover) and <paramref name="speedKt"/>/<paramref name="directionDeg"/> are ignored; when false
