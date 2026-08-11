@@ -262,19 +262,22 @@
         _vwpInFlight[volKey] = true;
         const gen = vwpGen;
         hostLog('vwp start ' + shortKey(volKey) + ' tilts=' + urls.length + ' prod=' + product);
-        Promise.all(urls.map(function (u) {
-            return fetch(u, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
-        })).then(function (abs) {
-            const w = getVwpWorker(); // a DEDICATED worker, so the motion isn't queued behind frame decodes
-            if (w) {
-                const id = ++_vwpReqId; _vwpPending[id] = { volKey: volKey, gen: gen };
-                w.postMessage({ vwp: true, reqId: id, buffers: abs }, abs);
-            } else {
-                import('./radar-decode.js').then(function (m) { return m.decodeVwp(abs); })
-                    .then(function (motion) { onVwpResult(volKey, motion, gen); })
-                    .catch(function (err) { onVwpError(volKey, err, gen); });
-            }
-        }).catch(function (err) { onVwpError(volKey, err, gen); });
+        const w = getVwpWorker(); // a DEDICATED worker, so the motion isn't queued behind frame decodes
+        if (w) {
+            // The worker fetches the tilt volumes itself — up to ~8 × ~7 MB reads kept OFF the render thread
+            // (they'd otherwise burst on the main thread right in the post-first-paint backfill window, exactly
+            // when the user starts panning). Stale results are dropped by gen in onVwpResult, as before.
+            const id = ++_vwpReqId; _vwpPending[id] = { volKey: volKey, gen: gen };
+            w.postMessage({ vwp: true, reqId: id, urls: urls });
+        } else {
+            // No Worker API — fetch + decode on the main thread (unchanged fallback path).
+            Promise.all(urls.map(function (u) {
+                return fetch(u, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
+            })).then(function (abs) {
+                return import('./radar-decode.js').then(function (m) { return m.decodeVwp(abs); })
+                    .then(function (motion) { onVwpResult(volKey, motion, gen); });
+            }).catch(function (err) { onVwpError(volKey, err, gen); });
+        }
     }
     // Dedicated Worker for the storm-motion compute — separate from the frame-decode pool so a ~5 s
     // whole-volume VWP decode never sits behind a backlog of frame decodes (which delayed the motion ~16 s and
@@ -1050,28 +1053,32 @@
             : !wantedBuiltIn(hit) ? ('unbuilt:' + wantedIds.filter(function (id) { return !(hit.built && hit.built[id]); }).join(','))
                 : 'no-grid';
         decodeTrace(index, reason, 'decode', buildIds, miss);
-        fetch(url, { cache: 'no-store' }).then(function (r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.arrayBuffer();
-        }).then(function (ab) {
-            if (myToken !== loopToken) return;
-            const w = getWorker();
-            if (w) {
-                w.postMessage({ ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, buildProducts: buildIds, buildGrids: wantGrids, stormMotion: resolveStormMotion() }, [ab]);
-            } else {
-                import('./radar-decode.js').then(function (m) {
+        const w = getWorker();
+        if (w) {
+            // The WORKER fetches the .V06 itself (same-origin radarlevel2 host), so the ~7 MB body read stays
+            // OFF the map's render thread — a backfill of N frames otherwise does N such reads on the main
+            // thread, hitching pan/zoom. A loop that changed while the fetch was in flight is still dropped by
+            // token in applyFrameResult; a fetch/decode failure comes back as {token,index,url,error}, which
+            // applyFrameResult already turns into upgradeDone + radarFrameReady(hasData:false) — same as before.
+            w.postMessage({ url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, buildProducts: buildIds, buildGrids: wantGrids, stormMotion: resolveStormMotion() });
+        } else {
+            // No Worker API — fetch + decode on the main thread (unchanged fallback path).
+            fetch(url, { cache: 'no-store' }).then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.arrayBuffer();
+            }).then(function (ab) {
+                if (myToken !== loopToken) return;
+                return import('./radar-decode.js').then(function (m) {
                     return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, buildIds, wantGrids, resolveStormMotion());
                 }).then(function (r2) {
                     applyFrameResult(frameResultFrom(r2, myToken, index, url));
-                }).catch(function (err) {
-                    applyFrameResult({ token: myToken, index: index, error: String(err && err.message ? err.message : err) });
                 });
-            }
-        }).catch(function (err) {
-            upgradeDone(index); // this path skips applyFrameResult — free the upgrade slot so the pump doesn't stall
-            hostLog('frame ' + index + ' fetch failed: ' + (err && err.message ? err.message : err));
-            post({ type: 'radarFrameReady', index: index, hasData: false });
-        });
+            }).catch(function (err) {
+                upgradeDone(index); // free the upgrade slot so the pump doesn't stall
+                hostLog('frame ' + index + ' decode failed: ' + (err && err.message ? err.message : err));
+                post({ type: 'radarFrameReady', index: index, hasData: false });
+            });
+        }
     }
 
     // Builds ONLY the active product's inspector value grid for a frame and merges it in (geometry left
@@ -1079,27 +1086,27 @@
     // decodeFrame. Runs under the upgrade queue's slot accounting (upgradeDone frees the slot).
     function decodeGridForFrame(url, index, prod) {
         const myToken = loopToken;
-        fetch(url, { cache: 'no-store' }).then(function (r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.arrayBuffer();
-        }).then(function (ab) {
-            if (myToken !== loopToken) { upgradeDone(index); return; }
-            const w = getWorker();
-            if (w) {
-                w.postMessage({ gridOnly: true, ab: ab, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, url: url, product: prod, stormMotion: resolveStormMotion() }, [ab]);
-            } else {
-                import('./radar-decode.js').then(function (m) {
+        const w = getWorker();
+        if (w) {
+            // As with decodeFrame: the worker fetches the .V06 so the body read stays off the render thread.
+            // A stale loop / error is handled by applyGridResult (it frees the upgrade slot on both).
+            w.postMessage({ gridOnly: true, url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, product: prod, stormMotion: resolveStormMotion() });
+        } else {
+            fetch(url, { cache: 'no-store' }).then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.arrayBuffer();
+            }).then(function (ab) {
+                if (myToken !== loopToken) { upgradeDone(index); return; }
+                return import('./radar-decode.js').then(function (m) {
                     return m.decodeGridOnly(ab, siteLat, siteLon, MIN_DBZ, prod, resolveStormMotion());
                 }).then(function (r2) {
                     applyGridResult({ token: myToken, index: index, url: url, gridsOnly: true, gridProduct: prod, grids: r2.grids });
-                }).catch(function (err) {
-                    applyGridResult({ token: myToken, index: index, url: url, gridsOnly: true, error: String(err && err.message ? err.message : err) });
                 });
-            }
-        }).catch(function (err) {
-            upgradeDone(index);
-            hostLog('grid-only ' + index + ' fetch failed: ' + (err && err.message ? err.message : err));
-        });
+            }).catch(function (err) {
+                upgradeDone(index);
+                hostLog('grid-only ' + index + ' decode failed: ' + (err && err.message ? err.message : err));
+            });
+        }
     }
 
     // Merges a grids-only decode into the existing frame (and its decoded-cache entry), leaving the

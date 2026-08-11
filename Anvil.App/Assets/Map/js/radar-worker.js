@@ -1,14 +1,37 @@
-// Off-main-thread Level II decode. Receives a volume ArrayBuffer + frame index, decodes +
-// builds gate geometry via the shared radar-decode module, and transfers the typed arrays
-// back so the bzip2 decode never freezes the UI. Classic worker using dynamic import().
+// Off-main-thread Level II decode. Fetches the volume ITSELF (given a same-origin url) — or accepts a
+// pre-fetched ArrayBuffer — then decodes + builds gate geometry via the shared radar-decode module and
+// transfers the typed arrays back so the bzip2 decode never freezes the UI. Doing the ~7 MB body read
+// HERE (not on the caller's thread) keeps it off the map's render thread, so a backfill of N frames no
+// longer hitches pan/zoom. Classic worker using dynamic import().
+
+// Resolve the volume bytes: use a pre-supplied ArrayBuffer if the caller transferred one (kept for any
+// one-off caller), else fetch the same-origin url (the normal loop/upgrade path).
+function loadAb(d) {
+    if (d.ab) return Promise.resolve(d.ab);
+    return fetch(d.url, { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.arrayBuffer();
+    });
+}
+// Same, for the VWP path's several tilt volumes: pre-supplied `buffers`, else fetch each of `urls`.
+function loadBuffers(d) {
+    if (d.buffers) return Promise.resolve(d.buffers);
+    return Promise.all((d.urls || []).map(function (u) {
+        return fetch(u, { cache: 'no-store' }).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.arrayBuffer();
+        });
+    }));
+}
+
 self.onmessage = function (e) {
     const d = e.data;
     // Full-volume VWP storm motion (radar.js computeStormMotionForVolume): decode a volume's bottom velocity
     // tilts, build a merged VAD wind profile, and reduce to a Bunkers storm motion — the tiny result comes
     // back (no geometry). See radar-decode decodeVwp; runs off-thread because the per-cut dealias is the cost.
     if (d.vwp) {
-        import('./radar-decode.js').then(function (m) {
-            return m.decodeVwp(d.buffers);
+        loadBuffers(d).then(function (buffers) {
+            return import('./radar-decode.js').then(function (m) { return m.decodeVwp(buffers); });
         }).then(function (motion) {
             self.postMessage({ vwp: true, reqId: d.reqId, motion: motion });
         }).catch(function (err) {
@@ -19,8 +42,10 @@ self.onmessage = function (e) {
     // Grids-only inspector build (radar.js decodeGridForFrame): decode just ONE product's value grid and
     // transfer it back for the host to merge into the existing frame — no full re-decode. See decodeGridOnly.
     if (d.gridOnly) {
-        import('./radar-decode.js').then(function (m) {
-            return m.decodeGridOnly(d.ab, d.siteLat, d.siteLon, d.minDbz, d.product, d.stormMotion);
+        loadAb(d).then(function (ab) {
+            return import('./radar-decode.js').then(function (m) {
+                return m.decodeGridOnly(ab, d.siteLat, d.siteLon, d.minDbz, d.product, d.stormMotion);
+            });
         }).then(function (res) {
             const msg = { token: d.token, index: d.index, url: d.url, gridsOnly: true, gridProduct: d.product, grids: {} };
             const transfer = [];
@@ -33,8 +58,10 @@ self.onmessage = function (e) {
         });
         return;
     }
-    import('./radar-decode.js').then(function (m) {
-        return m.decodeAndBuild(d.ab, d.siteLat, d.siteLon, d.minDbz, d.buildProducts, d.buildGrids, d.stormMotion);
+    loadAb(d).then(function (ab) {
+        return import('./radar-decode.js').then(function (m) {
+            return m.decodeAndBuild(ab, d.siteLat, d.siteLon, d.minDbz, d.buildProducts, d.buildGrids, d.stormMotion);
+        });
     }).then(function (res) {
         // Product geometry + inspector grids are keyed by product id (radar-products.js); we forward them
         // as maps, transferring each product's typed arrays zero-copy. Adding a product needs no change here.
