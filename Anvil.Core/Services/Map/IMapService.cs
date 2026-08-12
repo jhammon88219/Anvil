@@ -68,15 +68,6 @@ namespace Anvil.Services
 		/// Host calls this once at map-ready, before any loop. Idempotent + best-effort.</summary>
 		Task PrewarmRadarAsync();
 
-		/// <summary>Sets the storm motion used by the Storm-Relative Velocity product. When <paramref name="auto"/>
-		/// is true (the default) the motion is DERIVED from each volume's own VAD wind profile (Bunkers
-		/// right-mover) and <paramref name="speedKt"/>/<paramref name="directionDeg"/> are ignored; when false
-		/// the manual values are used — <paramref name="speedKt"/> in knots, <paramref name="directionDeg"/> =
-		/// the compass bearing (0 = N, clockwise) the storm is MOVING TOWARD. SRV = base velocity minus this
-		/// motion's component along each beam. Changing it rebuilds the loop's SRV geometry (only re-decodes
-		/// while SRV is the active product).</summary>
-		Task SetStormMotionAsync(double speedKt, double directionDeg, bool auto);
-
 		/// <summary>Computes the AUTOMATIC (VAD-derived) storm motion for ONE volume from its bottom velocity
 		/// tilts. <paramref name="tiltUrls"/> are the local (radarlevel2-host) URLs of those tilts (base first);
 		/// the WebView fetches them, builds a full-volume VAD wind profile → Bunkers right-mover off-thread,

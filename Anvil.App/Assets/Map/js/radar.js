@@ -230,6 +230,9 @@
     // bearing the storm is MOVING TOWARD. `auto` (the default) means the motion is DERIVED from a full-volume
     // VAD wind profile → Bunkers (computeStormMotionForVolume below; a single tilt is too shallow to be
     // correct); auto off uses this manual speedMs/dirDeg ({0,0} = SRV identical to base velocity).
+    // Storm motion is ALWAYS auto (VAD-derived) — the manual override was removed. `auto` stays true for the
+    // life of the page; resolveStormMotion/srvMotionReady read it but it never flips. Kept as an object so the
+    // auto machinery below reads uniformly.
     let stormMotion = { speedMs: 0, dirDeg: 0, auto: true };
     // ONE auto storm motion for the whole loop (RadarScope-style), recomputed only when the loop's newest
     // volume changes — NOT per frame. Per-volume motion made scrubbing churn (every scrubbed frame recomputed
@@ -1505,20 +1508,6 @@
             if (velPrefetch) return;
             velPrefetch = true;
             queueAllUpgrades('velprefetch');
-        },
-        // Set the storm motion MODE for Storm-Relative Velocity: `auto` (default true) means each volume's
-        // motion is derived from its full-volume VAD wind profile (computeStormMotion below, driven by the
-        // host); when false, speedKt/dirDeg (KNOTS, direction the storm is MOVING TOWARD) are used verbatim.
-        // SRV = base velocity − the resolved motion's component along each beam, applied per frame in the
-        // worker (buildSrv). Changing the mode or manual value invalidates every loaded/cached frame's SRV
-        // geometry so it rebuilds (a full re-decode via the upgrade queue — SRV rides velocity's dealiased
-        // cut); other products are untouched. Only re-queues while SRV is the active product; otherwise the new
-        // motion applies the next time SRV is built. Both the live frames and the decoded-frame cache are
-        // invalidated so a cache hit can't serve stale-motion SRV.
-        setStormMotion: function (map, speedKt, dirDeg, auto) {
-            stormMotion = { speedMs: (+speedKt || 0) * 0.514444, dirDeg: (+dirDeg || 0), auto: auto !== false };
-            if (auto === false) { _autoMotion = null; _autoMotionKey = ''; } // leaving auto: forget the loop motion
-            dropAllSrvAndRequeue();
         },
         // Compute the loop's AUTO storm motion from the newest volume's tilt URLs (the host provides them when
         // SRV/auto is active, and only re-requests when the newest volume changes). Off-thread; on success it

@@ -122,12 +122,6 @@ try {
     window.prefetchRadarVelocity = function () {
         if (window.RadarLayer) window.RadarLayer.prefetchVelocity();
     };
-    // Storm motion for Storm-Relative Velocity (SRV): auto (derive from the VAD wind profile, the default)
-    // or a manual speed in knots + compass bearing the storm is moving toward. Drives the per-beam offset
-    // the SRV product subtracts (see radar.js setStormMotion).
-    window.setStormMotion = function (speedKt, dirDeg, auto) {
-        if (window.RadarLayer) window.RadarLayer.setStormMotion(map, speedKt, dirDeg, auto);
-    };
     // Compute the AUTO (VAD-derived) storm motion for one volume from its bottom velocity tilt URLs — the
     // host calls this for the displayed volume while SRV/auto is active (a single tilt is too shallow to be
     // correct, so the motion comes from a full-volume wind profile). urls = a JSON array string.

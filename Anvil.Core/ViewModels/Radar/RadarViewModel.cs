@@ -738,45 +738,15 @@ namespace Anvil.ViewModels
 
 		// ===== Storm-Relative Velocity (SRV) storm motion ===============================================
 		// SRV = base velocity − the storm motion's component along each beam, so a storm's own translation is
-		// removed and rotation (mesocyclones) reads near zero. By default the motion is AUTOMATIC — derived
-		// from each volume's own FULL-VOLUME VAD wind profile (Bunkers right-mover; RadarScope-style), fully
-		// offline in the decoder. ⚠️ A single low tilt is too shallow for a correct 0–6 km profile, so the VM
-		// hands the WebView a volume's bottom velocity tilts (EnsureVwpTiltsAsync) whenever SRV is shown in
-		// Auto mode; the WebView merges their VAD profiles → Bunkers (per volume, cached) and reports the
-		// result back via SetAutoStormMotion. The manual speed/direction below are the OVERRIDE used only when
-		// Auto is off. Set in App Settings → Radar; pushed to the SRV builder via the map.
-		private bool _stormMotionAuto = true;
-		private double _stormMotionSpeedKt;
-		private double _stormMotionDirectionDeg;
+		// removed and rotation (mesocyclones) reads near zero. The motion is ALWAYS derived automatically from
+		// each volume's own FULL-VOLUME VAD wind profile (Bunkers right-mover; RadarScope-style), fully offline
+		// in the decoder — there is no manual override. ⚠️ A single low tilt is too shallow for a correct
+		// 0–6 km profile, so the VM hands the WebView a volume's bottom velocity tilts (EnsureVwpTiltsAsync)
+		// whenever a Doppler product is in view; the WebView merges their VAD profiles → Bunkers (per volume,
+		// cached) and reports the result back via SetAutoStormMotion for the readout.
 		private string _autoStormMotionText = "Auto — awaiting SRV";
 		private string? _motionRefKey; // the FIRST-PAINT volume the loop's one storm motion is computed from
 		private string? _lastVwpKey;   // the ref key we last asked the WebView to compute an auto motion for
-
-		/// <summary>When true (default) the SRV storm motion is derived automatically from the radar's own
-		/// velocity (VAD wind profile → Bunkers right-mover). When false the manual
-		/// <see cref="StormMotionSpeedKt"/>/<see cref="StormMotionDirectionDeg"/> are used. App Settings → Radar.</summary>
-		public bool StormMotionAuto
-		{
-			get => _stormMotionAuto;
-			set
-			{
-				if (SetProperty(ref _stormMotionAuto, value))
-				{
-					OnPropertyChanged(nameof(StormMotionManual));
-					if (_isMapReady)
-						_ = _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg, _stormMotionAuto);
-					if (_stormMotionAuto)
-					{
-						AutoStormMotionText = "Auto — awaiting SRV";
-						RequestAutoStormMotion(force: true); // turning Auto on: compute the loop's motion now
-					}
-				}
-			}
-		}
-
-		/// <summary>Inverse of <see cref="StormMotionAuto"/> — true when the manual speed/direction inputs are
-		/// live. Bound by the settings card to enable the manual NumberBoxes only when Auto is off.</summary>
-		public bool StormMotionManual => !_stormMotionAuto;
 
 		/// <summary>Human-readable readout of the current AUTOMATIC storm motion (e.g. "245° at 18 kt ·
 		/// Bunkers R"), updated from the decoder each time an SRV frame is built in Auto mode.</summary>
@@ -786,42 +756,13 @@ namespace Anvil.ViewModels
 			private set => SetProperty(ref _autoStormMotionText, value);
 		}
 
-		/// <summary>Storm motion SPEED (knots) for the Storm-Rel Velocity product, used only when Auto is off.
-		/// 0 = SRV equals base velocity. App Settings → Radar.</summary>
-		public double StormMotionSpeedKt
-		{
-			get => _stormMotionSpeedKt;
-			set
-			{
-				if (SetProperty(ref _stormMotionSpeedKt, value) && !_stormMotionAuto && _isMapReady)
-				{
-					_ = _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg, false);
-				}
-			}
-		}
-
-		/// <summary>Storm motion DIRECTION — the compass bearing (0-360°, 0 = N) the storm is MOVING TOWARD —
-		/// for the Storm-Rel Velocity product, used only when Auto is off. App Settings → Radar.</summary>
-		public double StormMotionDirectionDeg
-		{
-			get => _stormMotionDirectionDeg;
-			set
-			{
-				if (SetProperty(ref _stormMotionDirectionDeg, value) && !_stormMotionAuto && _isMapReady)
-				{
-					_ = _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg, false);
-				}
-			}
-		}
-
 		/// <summary>Records the AUTOMATIC (VAD-derived) storm motion the WebView computed for a volume's
 		/// full-volume wind profile — speed in m/s, direction = bearing the storm moves toward, plus the
 		/// estimate's source ("Bunkers R" / "Mean wind"). When <paramref name="insufficient"/> the volume's
 		/// merged profile was too shallow to trust (SRV stays at base velocity), shown as such. Refreshes the
-		/// <see cref="AutoStormMotionText"/> readout. No-op unless Auto is on (a stale report shouldn't win).</summary>
+		/// <see cref="AutoStormMotionText"/> readout.</summary>
 		public void SetAutoStormMotion(double speedMs, double directionDeg, string? source, bool insufficient = false)
 		{
-			if (!_stormMotionAuto) return;
 			if (insufficient)
 			{
 				AutoStormMotionText = "Auto — insufficient profile";
@@ -853,13 +794,13 @@ namespace Anvil.ViewModels
 			_radarProductIndex >= 0 && _radarProductIndex < RadarProductOptions.Count
 			&& RadarProductOptions[_radarProductIndex].Id is "velocity" or "srv";
 
-		private void RequestAutoStormMotion(bool force = false)
+		private void RequestAutoStormMotion()
 		{
-			if (!_isMapReady || !_stormMotionAuto)
+			if (!_isMapReady)
 			{
 				return;
 			}
-			if (!force && !IsDopplerProductActive)
+			if (!IsDopplerProductActive)
 			{
 				return; // reflectivity/dual-pol in view: SRV isn't shown, so skip the VWP download + SRV churn
 			}
@@ -867,7 +808,7 @@ namespace Anvil.ViewModels
 			{
 				return; // no reference volume yet (no loop loaded)
 			}
-			if (!force && _motionRefKey == _lastVwpKey)
+			if (_motionRefKey == _lastVwpKey)
 			{
 				return; // already computed for this loop's reference volume
 			}
@@ -1185,10 +1126,6 @@ namespace Anvil.ViewModels
 			// too, but be explicit so the toggles and the page never disagree on startup).
 			await _mapService.SetResearchRadarsVisibleAsync(_showResearchRadars);
 			await _mapService.SetTdwrsVisibleAsync(_showTdwrs);
-
-			// Push the initial SRV storm motion (auto by default → derived from each volume's VAD wind
-			// profile), so the page and VM agree.
-			await _mapService.SetStormMotionAsync(_stormMotionSpeedKt, _stormMotionDirectionDeg, _stormMotionAuto);
 
 			// Pre-warm the decode + VWP workers now (creating them + loading the vendored decoder), so the
 			// first site click doesn't pay their cold start on the first-paint critical path.
