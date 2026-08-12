@@ -10,6 +10,8 @@ instead of a tile service, so you control the styling and panning costs nothing.
 
 <img width="3840" height="2088" alt="KTLX reflectivity from the May 24 2011 Oklahoma outbreak, replayed from the archive with the Past Event Viewer" src="media/ktlx-2011-outbreak.png" />
 
+<img width="3840" height="2088" alt="The same May 24 2011 replay with the full workstation UI — the Past Event controls, and the Pipeline Console showing per-product first-paint / full-loop timing and the resolved VAD storm motion" src="media/ktlx-2011-outbreak-2.png" />
+
 ## Status
 
 Active development, and likely to stay that way for a year or more. There are no tagged releases and
