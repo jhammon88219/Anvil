@@ -1165,10 +1165,11 @@ namespace Anvil.ViewModels
 					// pending and keeps the current frame on screen until it decodes (no blank).
 					await _vm._mapService.ShowRadarFrameAsync(_vm._currentFrameIndex);
 					// Live loop advanced → track the motion to the new newest (Rule 5: still ONE per loop,
-					// just following "now"). No-op if the newest key didn't change; a changed value re-decodes
-					// SRV only if it actually differs (the WebView's own change-check), so 5-min reloads rarely churn.
+					// just following "now"). gateToDoppler: on the periodic reload, only RECOMPUTE while SRV/
+					// velocity is actually in view — browsing reflectivity keeps the pre-warmed motion and skips
+					// the per-reload whole-loop SRV re-warm (the churn). First paint already computed it eagerly.
 					_vm._motionRefKey = newKeys[^1];
-					_vm.RequestAutoStormMotion();
+					_vm.RequestAutoStormMotion(gateToDoppler: true);
 				}
 
 				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.MaxFrameIndex));

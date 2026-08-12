@@ -784,25 +784,28 @@ namespace Anvil.ViewModels
 		/// per-frame motion churned scrubbing. Until it lands the WebView renders base velocity as the SRV
 		/// stand-in (Rule 4's asterisk). Guarded by <see cref="_motionRefKey"/> + the WebView's own cache so it
 		/// computes at most once per loop.</para></summary>
-		// True when the active product actually needs the loop's VAD storm motion: SRV subtracts it, and
-		// velocity is its always-built companion (so vel->SRV stays instant). Reflectivity + the dual-pol
-		// products don't, so the per-loop VWP compute — a raw-volume download plus the whole-loop SRV
-		// re-warm on every ~5-min reload — is gated on this. This is the "self-gated to a Doppler product in
-		// view" behavior the design intended (and reflectivity browsing paying no raw-volume download); the
-		// gate had been missing, so the motion recomputed + churned SRV on every reload even on reflectivity.
+		// True when the active product needs the loop's VAD storm motion (SRV subtracts it; velocity is its
+		// always-built companion). Gates the periodic RELOAD recompute ONLY (see RequestAutoStormMotion):
+		// first paint computes the motion regardless of product so SRV pre-warms in the background, but the
+		// ~5-min reload skips the recompute while on reflectivity — otherwise it re-warmed the whole loop's
+		// SRV every reload even with SRV off-screen (the churn: 200+ needless re-decodes a soak).
 		private bool IsDopplerProductActive =>
 			_radarProductIndex >= 0 && _radarProductIndex < RadarProductOptions.Count
 			&& RadarProductOptions[_radarProductIndex].Id is "velocity" or "srv";
 
-		private void RequestAutoStormMotion()
+		// gateToDoppler is set ONLY by the ~5-min reload: while browsing reflectivity we must not recompute the
+		// motion + re-warm the whole loop's SRV on every reload (the churn). First paint + a switch INTO a
+		// Doppler product pass false → compute eagerly so SRV is PRE-WARMED off-screen and the switch is instant.
+		// Deduped by _motionRefKey so it runs at most once per loop reference volume.
+		private void RequestAutoStormMotion(bool gateToDoppler = false)
 		{
 			if (!_isMapReady)
 			{
 				return;
 			}
-			if (!IsDopplerProductActive)
+			if (gateToDoppler && !IsDopplerProductActive)
 			{
-				return; // reflectivity/dual-pol in view: SRV isn't shown, so skip the VWP download + SRV churn
+				return; // periodic reload while on reflectivity: don't recompute/churn SRV (it's not shown)
 			}
 			if (_selectedRadarOption?.Site is not { } site || string.IsNullOrEmpty(_motionRefKey))
 			{
