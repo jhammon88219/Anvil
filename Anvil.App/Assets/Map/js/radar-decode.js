@@ -247,15 +247,26 @@ let _stormMotion = { speedMs: 0, dirDeg: 0 };
 // it never leaks across volumes; within a decode the first of velocity/SRV computes it, the second reuses.
 // { radials, elev } once computed; radials = null when the volume has no Doppler cut.
 let _sharedDealiased = null;
+// Temporal dealias seed, per-decode (set by decodeAndBuild/decodeGridOnly from the host):
+//   _decodeSeedProfile — the PREVIOUS cut's VAD wind profile, fed INTO this cut's dealias anchor.
+//   _decodeVadProfile  — this cut's own VAD profile, fit from the dealiased result, RETURNED as the next seed.
+let _decodeSeedProfile = null;
+let _decodeVadProfile = null;
 function velocityDealiased(radar) {
     if (_sharedDealiased) return _sharedDealiased;
     const elev = findVelocityElevation(radar);
     if (elev === null) { _sharedDealiased = { radials: null, elev: null }; return _sharedDealiased; }
     radar.setElevation(elev);
     const t0 = performance.now();
-    const dz = dealiasSweep(momentRadials(radar, 'velocity'), radar);
+    const dz = dealiasSweep(momentRadials(radar, 'velocity'), radar, _decodeSeedProfile);
     _dealiasInfo += ' ms=' + Math.round(performance.now() - t0); // ISOLATED dealias time → frame `dealias` field
     _sharedDealiased = { radials: dz, elev: elev };
+    // Produce THIS cut's wind profile (radar is at the velocity elevation here) to seed the NEXT decode.
+    // Defensive: a fit failure just yields no seed → the next decode falls back to the default anchor.
+    if (_decodeVadProfile === null) {
+        try { const p = vadFitFromRadials(dz, radar); _decodeVadProfile = (p && p.length) ? p : null; }
+        catch (e) { _decodeVadProfile = null; }
+    }
     return _sharedDealiased;
 }
 
@@ -732,8 +743,15 @@ function solve3(a, b, c, d, e, f, g, h, ii, r0, r1, r2) {
 // an array of { h, u, v } (m, m/s, m/s), empty when the current cut has no velocity or every ring is too sparse
 // / folded / convectively contaminated to fit. The heavy step is the dealias, run once per cut; each cut casts
 // its own VAD→Bunkers vote (they reach different heights) and combineCutMotions takes the median.
+// VWP path: dealias the cut, then fit its VAD wind profile.
 function vadPointsForCut(radar) {
-    const radials = dealiasSweep(momentRadials(radar, 'velocity'), radar);
+    return vadFitFromRadials(dealiasSweep(momentRadials(radar, 'velocity'), radar), radar);
+}
+
+// Fit a VAD wind profile [{h,u,v}] from ALREADY-DEALIASED velocity radials (radar at that cut's elevation).
+// Split out of vadPointsForCut so the per-decode temporal SEED can reuse the decode's shared dealias result
+// WITHOUT re-dealiasing (velocityDealiased calls this on the cut it just unfolded).
+function vadFitFromRadials(radials, radar) {
     if (!radials) return [];
     const n = radials.length;
     let phi = medianElevationAngle(radar, n);
@@ -1267,11 +1285,13 @@ const BUILDERS = {
 // isn't on a lazy product the host passes buildLazy=false and those builds are skipped. The result's
 // built[id] tells the host a refl-only frame must be re-decoded before it can show velocity (see radar.js
 // setProduct). Non-lazy products (reflectivity, CC) are cheap and always built.
-export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buildGrids, stormMotion) {
+export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buildGrids, stormMotion, seedProfile) {
     if (buildProducts === undefined) buildProducts = true; // build everything unless told otherwise (dev harness)
     if (buildGrids === undefined) buildGrids = true;
     if (stormMotion) _stormMotion = stormMotion; // for buildSrv (SRV); host-resolved manual or deep-VWP auto value
     _sharedDealiased = null; // reset the per-decode dealias memo
+    _decodeSeedProfile = seedProfile || null; // temporal first-guess wind profile for this decode's velocity dealias
+    _decodeVadProfile = null;                 // this cut's own profile (fit in velocityDealiased) → returned as next seed
     // ON-DEMAND builds: reflectivity is ALWAYS built (the default view + the source of the range ring), and
     // every OTHER product is built only when the host requests it — `buildProducts` is the ARRAY of extra
     // product ids to build (the active product, plus velocity while prefetching), or the literal `true` to
@@ -1361,6 +1381,7 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
             elevList: elevList, velElev: velElevNum, reflStats: reflStats, velStats: velStats, velNyq: velNyq,
             velNyqSrc: velNyqSrc, velNyqRad: velNyqRad, velNyqVol: velNyqVol,
             dealias: (moments.velocity || moments.srv) ? _dealiasInfo : '', // SRV dealiases too
+            seedProfile: _decodeVadProfile, // this cut's VAD profile → the host feeds it back as the next decode's seed
         };
     });
 }
@@ -1371,9 +1392,11 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
 // values. Non-velocity grids are cheap (no dealias); velocity's grid still runs its dealias (the inspector
 // shows the dealiased value), but only for velocity, not the whole registry. The host MERGES the returned
 // grid into the existing frame, leaving its geometry untouched. Returns { grids: { [productId]: grid|null } }.
-export function decodeGridOnly(ab, siteLat, siteLon, minDbz, productId, stormMotion) {
+export function decodeGridOnly(ab, siteLat, siteLon, minDbz, productId, stormMotion, seedProfile) {
     if (stormMotion) _stormMotion = stormMotion; // SRV grid needs the storm motion too
     _sharedDealiased = null; // reset the per-decode dealias memo
+    _decodeSeedProfile = seedProfile || null; // seed the inspector's velocity dealias like the geometry decode
+    _decodeVadProfile = null;
     return loadDecoder().then(function (dec) {
         const radar = new dec.Level2Radar(dec.Buffer.from(new Uint8Array(ab)));
         const builder = BUILDERS[productId];

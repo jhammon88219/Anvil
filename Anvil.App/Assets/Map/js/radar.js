@@ -368,6 +368,13 @@
                              // the active product — armed by the host (prefetchVelocity) RIGHT AFTER FIRST
                              // PAINT, so the backfill builds COMPLETE frames in one pass (Rule 3), not a
                              // second sweep. Reset per new loop.
+    // ---- Temporal dealias seed (first-guess velocity unfold; see radar-decode.js) ----
+    // A velocity decode returns its cut's VAD wind profile; we keep the newest loop's profile and feed it
+    // into subsequent decodes as the absolute-fold first guess. Winds vary slowly, so any recent cut is a
+    // fine seed; null until the first velocity cut lands (then decodes just use the default anchor — today's
+    // behavior). Reset per new loop so a new site never seeds from the old one's winds.
+    let _loopSeedProfile = null;
+    let _seedProfileIdx = -1;  // loop index the current seed came from (prefer the newest volume's profile)
     // ---- Dual-pol SECOND WAVE (CC/KDP/ZDR/SW prefetch) ----
     // The TRIO (reflectivity + velocity + SRV) is staged eagerly (velPrefetch → Rule 3) so refl↔vel↔SRV
     // switches are instant. The remaining dual-pol products build ON DEMAND by default. This second wave
@@ -626,6 +633,13 @@
             hostLog('frame ' + res.index + ' decode failed: ' + res.error);
             post({ type: 'radarFrameReady', index: res.index, hasData: false });
             return;
+        }
+        // Temporal dealias seed: a velocity decode returns its cut's VAD wind profile. Keep the NEWEST loop
+        // frame's profile (index ~ volume time) as the first guess for subsequent decodes — backfill runs
+        // newest-first so this settles on the freshest cut; winds vary slowly, so any recent one is fine.
+        if (res.seedProfile && res.seedProfile.length && res.index >= _seedProfileIdx) {
+            _loopSeedProfile = res.seedProfile;
+            _seedProfileIdx = res.index;
         }
         var mo = res.moments || {};
         // MERGE, not replace (docs/radar-loop-flow.md Rule 6 for products). A decode only builds the products
@@ -1077,7 +1091,7 @@
             // thread, hitching pan/zoom. A loop that changed while the fetch was in flight is still dropped by
             // token in applyFrameResult; a fetch/decode failure comes back as {token,index,url,error}, which
             // applyFrameResult already turns into upgradeDone + radarFrameReady(hasData:false) — same as before.
-            w.postMessage({ url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, buildProducts: buildIds, buildGrids: wantGrids, stormMotion: resolveStormMotion() });
+            w.postMessage({ url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, buildProducts: buildIds, buildGrids: wantGrids, stormMotion: resolveStormMotion(), seedProfile: _loopSeedProfile });
         } else {
             // No Worker API — fetch + decode on the main thread (unchanged fallback path).
             fetch(url, { cache: 'no-store' }).then(function (r) {
@@ -1086,7 +1100,7 @@
             }).then(function (ab) {
                 if (myToken !== loopToken) return;
                 return import('./radar-decode.js').then(function (m) {
-                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, buildIds, wantGrids, resolveStormMotion());
+                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, buildIds, wantGrids, resolveStormMotion(), _loopSeedProfile);
                 }).then(function (r2) {
                     applyFrameResult(frameResultFrom(r2, myToken, index, url));
                 });
@@ -1107,7 +1121,7 @@
         if (w) {
             // As with decodeFrame: the worker fetches the .V06 so the body read stays off the render thread.
             // A stale loop / error is handled by applyGridResult (it frees the upgrade slot on both).
-            w.postMessage({ gridOnly: true, url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, product: prod, stormMotion: resolveStormMotion() });
+            w.postMessage({ gridOnly: true, url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, product: prod, stormMotion: resolveStormMotion(), seedProfile: _loopSeedProfile });
         } else {
             fetch(url, { cache: 'no-store' }).then(function (r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -1115,7 +1129,7 @@
             }).then(function (ab) {
                 if (myToken !== loopToken) { upgradeDone(index); return; }
                 return import('./radar-decode.js').then(function (m) {
-                    return m.decodeGridOnly(ab, siteLat, siteLon, MIN_DBZ, prod, resolveStormMotion());
+                    return m.decodeGridOnly(ab, siteLat, siteLon, MIN_DBZ, prod, resolveStormMotion(), _loopSeedProfile);
                 }).then(function (r2) {
                     applyGridResult({ token: myToken, index: index, url: url, gridsOnly: true, gridProduct: prod, grids: r2.grids });
                 });
@@ -1332,6 +1346,8 @@
             // reads false until THIS loop's motion is computed; vwpGen++ drops any still-in-flight compute for the old loop.
             _autoMotion = null; _autoMotionKey = ''; vwpGen++;
             for (var _vk in _vwpInFlight) delete _vwpInFlight[_vk];
+            _loopSeedProfile = null; _seedProfileIdx = -1; // new site → forget the old loop's wind profile
+
             // PIPELINE CONSOLE: reset per-product fill timing for the new loop (remove with the feature).
             _loopStartT = (typeof performance !== 'undefined' ? performance.now() : Date.now());
             _builtAtMs = []; _prodFirstAtMs = {}; _prodFullAtMs = {}; _timingFrozen = false;

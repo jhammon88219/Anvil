@@ -51,7 +51,7 @@ self.onmessage = function (e) {
     if (d.gridOnly) {
         loadAb(d).then(function (ab) {
             return decoder().then(function (m) {
-                return m.decodeGridOnly(ab, d.siteLat, d.siteLon, d.minDbz, d.product, d.stormMotion);
+                return m.decodeGridOnly(ab, d.siteLat, d.siteLon, d.minDbz, d.product, d.stormMotion, d.seedProfile);
             });
         }).then(function (res) {
             const msg = { token: d.token, index: d.index, url: d.url, gridsOnly: true, gridProduct: d.product, grids: {} };
@@ -67,7 +67,7 @@ self.onmessage = function (e) {
     }
     loadAb(d).then(function (ab) {
         return decoder().then(function (m) {
-            return m.decodeAndBuild(ab, d.siteLat, d.siteLon, d.minDbz, d.buildProducts, d.buildGrids, d.stormMotion);
+            return m.decodeAndBuild(ab, d.siteLat, d.siteLon, d.minDbz, d.buildProducts, d.buildGrids, d.stormMotion, d.seedProfile);
         });
     }).then(function (res) {
         // Product geometry + inspector grids are keyed by product id (radar-products.js); we forward them
@@ -77,7 +77,7 @@ self.onmessage = function (e) {
             decodeMs: res.decodeMs, buildMs: res.buildMs,
             radials: res.radials, gates: res.gates, bytes: res.bytes, rangeMeters: res.rangeMeters,
             elevList: res.elevList, velElev: res.velElev, reflStats: res.reflStats, velStats: res.velStats,
-            velNyq: res.velNyq, dealias: res.dealias,
+            velNyq: res.velNyq, dealias: res.dealias, seedProfile: res.seedProfile,
             moments: {}, grids: {},
         };
         const transfer = [];
