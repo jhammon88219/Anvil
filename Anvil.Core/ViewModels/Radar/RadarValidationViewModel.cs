@@ -218,7 +218,9 @@ namespace Anvil.ViewModels
 					r.GatesTotal,
 					status,
 					r.Error,
-					dpDetail));
+					dpDetail,
+					r.SeededRatio * 100.0,
+					r.SeedShift));
 			}
 		}
 
@@ -263,6 +265,12 @@ namespace Anvil.ViewModels
 			public int GatesOver { get; set; }
 			public int GatesTotal { get; set; }
 			public double Ratio { get; set; }
+			// The SELF-SEEDED re-decode (temporal first guess = this volume's own VAD profile): its
+			// over-unfold ratio and the integer global fold shift the seed chose (null if unseeded/no-fit).
+			public int SeededGatesOver { get; set; }
+			public int SeededGatesTotal { get; set; }
+			public double SeededRatio { get; set; }
+			public int? SeedShift { get; set; }
 			public string? Error { get; set; }
 			public DpRaw? Dp { get; set; }
 		}
@@ -301,10 +309,16 @@ namespace Anvil.ViewModels
 		int GatesTotal,
 		ValidationStatus Status,
 		string? Error,
-		string? DualPolDetail = null)
+		string? DualPolDetail = null,
+		double SeededPct = 0,
+		int? SeedShift = null)
 	{
 		/// <summary>Percentage points the actual over-unfold is above (positive) or below the baseline.</summary>
 		public double DeltaPct => ActualPct - ExpectedPct;
+
+		/// <summary>Percentage-point change from the UNSEEDED to the SEEDED over-unfold ratio (negative =
+		/// the temporal seed reduced the over-unfold, i.e. the fix worked on this volume).</summary>
+		public double SeedDeltaPp => SeededPct - ActualPct;
 
 		/// <summary>One-line row for the results list / saved report.</summary>
 		public string Display
@@ -320,7 +334,9 @@ namespace Anvil.ViewModels
 					? "(no baseline)"
 					: $"vs {ExpectedPct:F1}% (Δ{delta})";
 				var dp = DualPolDetail is null ? "" : "  " + DualPolDetail;
-				return $"{Id,-14} {Status,-10} {ActualPct,5:F1}% {baseline}  [{GatesOver}/{GatesTotal}]{dp}";
+				var seedDelta = SeedDeltaPp <= 0 ? SeedDeltaPp.ToString("F1", CultureInfo.InvariantCulture) : $"+{SeedDeltaPp:F1}";
+				var seed = $"  seed→{SeededPct,5:F1}% (Δ{seedDelta}{(SeedShift is int s ? $", shift {s}" : "")})";
+				return $"{Id,-14} {Status,-10} {ActualPct,5:F1}% {baseline}  [{GatesOver}/{GatesTotal}]{dp}{seed}";
 			}
 		}
 	}
@@ -398,30 +414,35 @@ namespace Anvil.ViewModels
 			sb.Append($"- Ended: {Ended:yyyy-MM-dd HH:mm:ss} ({Duration:hh\\:mm\\:ss})\n");
 			sb.Append($"- {Summary}\n");
 			sb.Append("- Metrics: (1) velocity over-unfold ratio = gates |v|>55 m/s ÷ total velocity gates, " +
-				"vs baseline + tolerance; (2) dual-pol decoder means (CC/ZDR/SW) vs baseline. A volume is " +
-				"**Worse** when EITHER regresses.\n\n");
+				"vs baseline + tolerance (UNSEEDED — the regression guard); (2) dual-pol decoder means " +
+				"(CC/ZDR/SW) vs baseline. A volume is **Worse** when EITHER regresses. The **Seeded %** column " +
+				"is a second decode using the volume's OWN VAD wind profile as the temporal first guess — a " +
+				"large negative Δ-seed there is the over-unfold FIX working (it doesn't affect Pass/Worse).\n\n");
 
 			void Section(string title, IEnumerable<ValidationResult> rows)
 			{
 				var list = rows.ToList();
 				if (list.Count == 0) return;
 				sb.Append($"## {title} ({list.Count})\n\n");
-				sb.Append("| Volume | Actual % | Baseline % | Δ pp | Gates over/total |\n");
-				sb.Append("| --- | ---: | ---: | ---: | --- |\n");
+				sb.Append("| Volume | Actual % | Baseline % | Δ pp | Seeded % | Δ seed | Shift | Gates over/total |\n");
+				sb.Append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n");
 				foreach (var r in list)
 				{
 					if (r.Status == ValidationStatus.Error)
 					{
-						sb.Append($"| `{r.Id}` {r.Name} | — | — | — | error: {r.Error} |\n");
+						sb.Append($"| `{r.Id}` {r.Name} | — | — | — | — | — | — | error: {r.Error} |\n");
 						continue;
 					}
 					var baseline = r.Status == ValidationStatus.NoBaseline ? "—" : r.ExpectedPct.ToString("F1", CultureInfo.InvariantCulture);
 					var delta = r.Status == ValidationStatus.NoBaseline
 						? "—"
 						: (r.DeltaPct >= 0 ? "+" : "") + r.DeltaPct.ToString("F1", CultureInfo.InvariantCulture);
+					var seedDelta = (r.SeedDeltaPp > 0 ? "+" : "") + r.SeedDeltaPp.ToString("F1", CultureInfo.InvariantCulture);
+					var shift = r.SeedShift is int s ? s.ToString(CultureInfo.InvariantCulture) : "—";
 					var dpCell = r.DualPolDetail is null ? "" : " · " + r.DualPolDetail;
 					sb.Append($"| `{r.Id}` {r.Name} | {r.ActualPct.ToString("F1", CultureInfo.InvariantCulture)} | " +
-						$"{baseline} | {delta} | {r.GatesOver}/{r.GatesTotal}{dpCell} |\n");
+						$"{baseline} | {delta} | {r.SeededPct.ToString("F1", CultureInfo.InvariantCulture)} | {seedDelta} | {shift} | " +
+						$"{r.GatesOver}/{r.GatesTotal}{dpCell} |\n");
 				}
 				sb.Append('\n');
 			}

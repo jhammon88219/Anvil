@@ -85,6 +85,11 @@
     <Content Include="Assets\RadarCorpus\KIWA_20260720_145829.V06">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- The over-unfold suspect the seed targets: harvested from the 2026-08-11 soak (_suspect quarantine),
+         baseline ~5.8% UNSEEDED — the Seeded % column shows whether the temporal first guess fixes it. -->
+    <Content Include="Assets\RadarCorpus\KILX_20260812_010848.V06">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

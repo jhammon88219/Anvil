@@ -1612,17 +1612,29 @@
                     if (!r.ok) throw new Error('HTTP ' + r.status);
                     return r.arrayBuffer();
                 }).then(function (ab) {
-                    // Build ALL products WITH grids: the velocity dealias ratio (res.dealias) is still the
-                    // over-unfold regression signal, and the per-product grids give each moment's decoded
-                    // value RANGE — the dual-pol decoder check (does the JS decoder scale/offset ZDR/CC/SW/
-                    // ΦDP correctly? an out-of-range value = a decoder bug), diffed vs tools/dualpol_check.py's
-                    // Py-ART reference ranges (docs/radar-validation.md "Dual-pol validation").
-                    return m.decodeAndBuild(ab, e.lat || 0, e.lon || 0, MIN_DBZ, true, true);
-                }).then(function (res) {
+                    // TWO decodes of the same bytes, SEQUENTIAL (never overlapping — _dealiasInfo is a decoder
+                    // global): (1) UNSEEDED — the baseline-scored over-unfold ratio + the per-product grids
+                    // for the dual-pol decoder check; (2) SELF-SEEDED — re-decode using this volume's OWN VAD
+                    // profile (res1.seedProfile, returned by the first decode) as the temporal first guess,
+                    // proving the seed fixes the over-unfold WITHOUT needing a live loop. The unseeded run
+                    // stays the regression guard; the seeded run is the new "did the fix work?" metric.
+                    return m.decodeAndBuild(ab, e.lat || 0, e.lon || 0, MIN_DBZ, true, true).then(function (res1) {
+                        return m.decodeAndBuild(ab, e.lat || 0, e.lon || 0, MIN_DBZ, true, true, undefined, res1.seedProfile)
+                            .then(function (res2) { return { res1: res1, res2: res2 }; });
+                    });
+                }).then(function (pair) {
+                    var res = pair.res1, res2 = pair.res2;
                     var hi = 0, tot = 0;
                     var mm = /hi=(\d+)\/(\d+)/.exec((res && res.dealias) || '');
                     if (mm) { hi = +mm[1]; tot = +mm[2]; }
                     var ratio = tot > 0 ? hi / tot : 0;
+                    // Seeded pass: over-unfold ratio + the global fold shift the seed chose (seed=N marker).
+                    var hi2 = 0, tot2 = 0, seedShift = null;
+                    var m2 = /hi=(\d+)\/(\d+)/.exec((res2 && res2.dealias) || '');
+                    if (m2) { hi2 = +m2[1]; tot2 = +m2[2]; }
+                    var sm = /seed=(-?\d+)/.exec((res2 && res2.dealias) || '');
+                    if (sm) seedShift = +sm[1];
+                    var seededRatio = tot2 > 0 ? hi2 / tot2 : 0;
                     // Per-product decoded stats (dequantized grid: n / min..max / mean, GRID_NODATA skipped):
                     // the human log line AND the machine `dp` means the dual-pol regression guard scores. The
                     // guard (C# RadarValidationReport.DualPolDrift) checks cc/zdr/sw MEAN vs the manifest
@@ -1638,10 +1650,12 @@
                     }
                     state.results.push({
                         id: e.id, gatesOver: hi, gatesTotal: tot, ratio: ratio,
+                        seededGatesOver: hi2, seededGatesTotal: tot2, seededRatio: seededRatio, seedShift: seedShift,
                         error: (res && res.dealias) ? null : 'no velocity', dp: dp,
                     });
                     // Dealias detail (numReg + v-range) — see the KBUF chase (docs/radar-validation.md).
-                    hostLog('validate ' + e.id + ' (' + (ratio * 100).toFixed(1) + '%) ' + ((res && res.dealias) || ''));
+                    hostLog('validate ' + e.id + ' (' + (ratio * 100).toFixed(1) + '% → seed ' +
+                        (seededRatio * 100).toFixed(1) + '% shift=' + seedShift + ') ' + ((res && res.dealias) || ''));
                     if (parts.length) hostLog('validate ' + e.id + ' dp ' + parts.join(' '));
                 }).catch(function (err) {
                     var msg = String((err && err.message) ? err.message : err);
