@@ -36,7 +36,6 @@
                         <RowDefinition Height="Auto"/> <!-- section label: Radar Settings -->
                         <RowDefinition Height="Auto"/> <!-- Show TDWRs -->
                         <RowDefinition Height="Auto"/> <!-- Show Research Radars -->
-                        <RowDefinition Height="Auto"/> <!-- Storm motion (SRV) inputs -->
                         <RowDefinition Height="Auto"/> <!-- Advanced / Diagnostics (PIPELINE CONSOLE) -->
                     </Grid.RowDefinitions>
 
@@ -58,22 +57,10 @@
                               IsChecked="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"
                               ToolTipService.ToolTip="Show research/test radar markers such as KCRI (ROC test bed, Norman OK)"/>
 
-                    <!-- Storm motion for the Storm-Rel Velocity (SRV) product. ALWAYS derived from the radar's
-                         own velocity (VAD wind profile → Bunkers right-mover), RadarScope-style and fully
-                         offline — there is no manual override. This is a read-only readout of the current
-                         estimate; SRV subtracts this motion's along-beam component so rotation reads near zero. -->
-                    <StackPanel Grid.Row="3" Margin="4,4,0,0" Spacing="2">
-                        <TextBlock Text="Storm Motion (SRV)"
-                                   FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                        <TextBlock Margin="0,0,0,0"
-                                   Text="{x:Bind ViewModel.Radar.AutoStormMotionText, Mode=OneWay}"
-                                   FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    </StackPanel>
-
                     <!-- PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit): the non-obvious toggle
                          that opens the read-only pipeline glass-cockpit card. Tucked under an Advanced label
                          so it's discoverable but out of the way. -->
-                    <StackPanel Grid.Row="4" Spacing="6" Margin="0,4,0,0">
+                    <StackPanel Grid.Row="3" Spacing="6" Margin="0,4,0,0">
                         <TextBlock Text="Advanced"
                                    Style="{StaticResource SettingsSectionLabelStyle}"/>
                         <ToggleSwitch Margin="4,0,0,0"
