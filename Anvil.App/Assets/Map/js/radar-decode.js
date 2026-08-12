@@ -353,12 +353,64 @@ const EDGE_SKIP = 100;     // Py-ART default skip_along_ray/skip_between_rays: b
 
 // Wrapper: on any unexpected error, fall back to the raw (folded) radials rather than blanking the
 // whole velocity frame — same graceful degradation as "no Nyquist available".
-function dealiasSweep(radials, radar) {
-    try { return dealiasSweepCore(radials, radar); }
+// ── Temporal first-guess seed (mirrors tools/dealias_check.py) ────────────────────────────────────
+// The absolute-fold anchor (step 4 below) defaults to "mean fold ≈ 0", which breaks under a strong mean
+// wind or a mis-folded fragment (the over-unfold case). A SEED — a wind profile [{h,u,v}] from the loop's
+// previous velocity cut (already dealiased a scan ago, so clean; winds barely change in ~5 min) — lets us
+// instead anchor to the EXPECTED radial velocity, the NWS environmental-first-guess technique sourced
+// temporally to stay offline. It only moves the ABSOLUTE anchor; the Py-ART-validated relative folds from
+// steps 1-3 are untouched. seedProfile omitted/empty → byte-identical to the pre-seed behavior.
+// Integer global fold shifts searched when anchoring to the seed (±3·2·Nyq ≫ any real ambiguity),
+// ordered so S=0 wins ties (conservative — prefer no shift). Mirror of tools/dealias_check.py.
+const SEED_SHIFT_ORDER = [0, -1, 1, -2, 2, -3, 3];
+
+// Per-gate expected radial velocity from a wind profile: Vr = cosφ·(u(h)·sinAz + v(h)·cosAz), h ≈ r·sinφ +
+// r²/2aₑ — the vadPointsForCut forward model, run in reverse. Returns { vr, used }; vr is a Float64Array
+// (NaN where the geometry/profile can't supply a value) or null when the seed can't be built at all.
+function seedExpectedVr(seedProfile, radials, radar, N, G) {
+    if (!seedProfile || !seedProfile.length) return { vr: null, used: 0 };
+    let phi = medianElevationAngle(radar, N);
+    if (!isFinite(phi) || phi <= 0) phi = 0.5;
+    const phiRad = phi * D2R, cosPhi = Math.cos(phiRad), sinPhi = Math.sin(phiRad);
+    let ref = null;
+    for (let i = 0; i < N; i++) { if (radials[i] && radials[i].moment_data) { ref = radials[i]; break; } }
+    if (!ref) return { vr: null, used: 0 };
+    const firstGateM = ref.first_gate * 1000, gateSizeM = ref.gate_size * 1000;
+    if (!isFinite(firstGateM) || !(gateSizeM > 0)) return { vr: null, used: 0 };
+    const prof = seedProfile.slice().sort(function (a, b) { return a.h - b.h; });
+    const P = prof.length;
+    function windAt(h) {
+        if (h <= prof[0].h) return prof[0];
+        if (h >= prof[P - 1].h) return prof[P - 1];
+        let lo = 0, hi = P - 1;
+        while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (prof[mid].h <= h) lo = mid; else hi = mid; }
+        const a = prof[lo], b = prof[hi], t = (h - a.h) / (b.h - a.h);
+        return { u: a.u + t * (b.u - a.u), v: a.v + t * (b.v - a.v) };
+    }
+    // Height-based wind is shared across radials (range geometry is per-gate); apply each radial's azimuth.
+    const uAt = new Float64Array(G), vAt = new Float64Array(G);
+    for (let j = 0; j < G; j++) {
+        const rm = firstGateM + j * gateSizeM, h = rm * sinPhi + rm * rm / (2 * AE_M), w = windAt(h);
+        uAt[j] = w.u; vAt[j] = w.v;
+    }
+    const vr = new Float64Array(N * G); vr.fill(NaN);
+    let used = 0;
+    for (let r = 0; r < N; r++) {
+        if (!radials[r] || !radials[r].moment_data) continue;
+        const az = radar.getAzimuth(r);
+        if (typeof az !== 'number' || !isFinite(az)) continue;
+        const a = az * D2R, azS = Math.sin(a), azC = Math.cos(a), base = r * G;
+        for (let j = 0; j < G; j++) { vr[base + j] = cosPhi * (uAt[j] * azS + vAt[j] * azC); used++; }
+    }
+    return { vr: used ? vr : null, used: used };
+}
+
+function dealiasSweep(radials, radar, seedProfile) {
+    try { return dealiasSweepCore(radials, radar, seedProfile); }
     catch (e) { _dealiasInfo = 'dealias error: ' + (e && e.message ? e.message : e); return radials; }
 }
 
-function dealiasSweepCore(radials, radar) {
+function dealiasSweepCore(radials, radar, seedProfile) {
     const med = sweepNyquist(radar, radials.length);
     if (!isFinite(med)) return radials;
 
@@ -532,11 +584,40 @@ function dealiasSweepCore(radials, radar) {
         size[base] += size[mrg]; alive[mrg] = 0;
     }
 
-    // --- 4. center: shift every fold so the gate-weighted mean fold is ~0 (the absolute anchor) ---
-    let totalGates = 0, totalFolds = 0;
-    for (let i = 0; i < numReg; i++) { totalGates += regionCnt[i]; totalFolds += regionCnt[i] * unwrap[i]; }
-    const off = totalGates ? Math.round(totalFolds / totalGates) : 0;
-    if (off) for (let i = 0; i < numReg; i++) unwrap[i] -= off;
+    // --- 4. center: choose the ABSOLUTE fold anchor (steps 1-3's relative folds are untouched) ---
+    // ⚠️ Mirror any change here in tools/dealias_check.py (dealias_v2), then re-run --selftest + the
+    // in-app Validate card (null seed must stay Δ=0 vs the corpus baselines).
+    let seedShift = null;
+    const seed = seedExpectedVr(seedProfile, radials, radar, N, G);
+    if (seed.vr) {
+        // SEEDED: pick the integer global fold shift best matching the expected radial velocity (L1). The
+        // temporal wind profile fixes the mean-wind bias the "mean ≈ 0" default gets wrong.
+        const seedVr = seed.vr;
+        let bestS = 0, bestCost = Infinity;
+        for (let k = 0; k < SEED_SHIFT_ORDER.length; k++) {
+            const S = SEED_SHIFT_ORDER[k];
+            let cost = 0, cnt = 0;
+            for (let r = 0; r < N; r++) {
+                const rowBase = r * G;
+                for (let j = 0; j < G; j++) {
+                    const id = rowBase + j, lid = label[id];
+                    if (lid < 0) continue;
+                    const sv = seedVr[id]; if (sv !== sv) continue; // NaN
+                    const v = vel[id]; if (v !== v) continue;
+                    cost += Math.abs(v + (unwrap[lid] + S) * nyq2 - sv); cnt++;
+                }
+            }
+            if (cnt && cost < bestCost) { bestCost = cost; bestS = S; }
+        }
+        if (bestS) for (let i = 0; i < numReg; i++) unwrap[i] += bestS;
+        seedShift = bestS;
+    } else {
+        // DEFAULT (no seed): shift so the gate-weighted mean fold is ~0.
+        let totalGates = 0, totalFolds = 0;
+        for (let i = 0; i < numReg; i++) { totalGates += regionCnt[i]; totalFolds += regionCnt[i] * unwrap[i]; }
+        const off = totalGates ? Math.round(totalFolds / totalGates) : 0;
+        if (off) for (let i = 0; i < numReg; i++) unwrap[i] -= off;
+    }
 
     // --- 5. apply per-region fold ---
     let vmin = Infinity, vmax = -Infinity, hi = 0, tot = 0;
@@ -562,7 +643,8 @@ function dealiasSweepCore(radials, radar) {
     }
     _dealiasInfo = numReg + 'reg splits' + INTERVAL_SPLITS +
         ' v[' + (isFinite(vmin) ? Math.round(vmin) : '?') + ',' +
-        (isFinite(vmax) ? Math.round(vmax) : '?') + '] hi=' + hi + '/' + tot;
+        (isFinite(vmax) ? Math.round(vmax) : '?') + '] hi=' + hi + '/' + tot +
+        (seedShift !== null ? ' seed=' + seedShift : '');
     return out;
 }
 

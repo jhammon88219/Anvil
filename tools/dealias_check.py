@@ -33,6 +33,10 @@ import numpy as np
 BUCKET = "https://unidata-nexrad-level2.s3.amazonaws.com/"
 S3NS = "{http://s3.amazonaws.com/doc/2006-03-01/}"
 
+# Temporal first-guess seed (mirror of radar-decode.js): integer global fold shifts searched when anchoring
+# to the expected radial velocity, ordered so S=0 wins ties (conservative — prefer no shift).
+SEED_SHIFT_ORDER = [0, -1, 1, -2, 2, -3, 3]
+
 
 def list_keys(site, day):
     prefix = "%04d/%02d/%02d/%s/" % (day.year, day.month, day.day, site)
@@ -135,8 +139,12 @@ def _edges_of(label, raw, nyq2):
     return adj
 
 
-def dealias_v2(raw, nyq, splits=3):
-    """Mirror of the JS dealiasSweep: segment -> edges -> heaviest-first merge (combine parallels) -> center."""
+def dealias_v2(raw, nyq, splits=3, seed_vr=None):
+    """Mirror of the JS dealiasSweep: segment -> edges -> heaviest-first merge (combine parallels) -> center.
+
+    seed_vr: optional (N,G) grid of EXPECTED radial velocity (a temporal wind-profile first guess). When
+    given, step 4 anchors to it (integer global fold shift minimizing L1 mismatch) instead of the "mean
+    fold ~= 0" default. None -> byte-identical to the pre-seed behavior. Mirror of radar-decode.js step 4."""
     N, G = raw.shape
     nyq2 = 2.0 * nyq
     label, cnt = _find_regions(raw, nyq, splits)
@@ -190,8 +198,24 @@ def dealias_v2(raw, nyq, splits=3):
         alive.discard(merge)
 
     total = sum(cnt)
-    off = int(round(sum(cnt[r] * unwrap[r] for r in range(nreg)) / total)) if total else 0
-    unwrap -= off
+    if seed_vr is not None:
+        # SEEDED anchor — mirror of the JS seeded branch: pick the integer global fold shift S that minimizes
+        # the L1 mismatch between the unfolded field and the expected radial velocity.
+        lbl = np.where(label >= 0, label, 0)
+        d0 = raw + unwrap[lbl] * nyq2 - seed_vr
+        mask = (label >= 0) & np.isfinite(seed_vr) & np.isfinite(raw)
+        d0 = d0[mask]
+        best_s, best_cost = 0, float("inf")
+        if d0.size:
+            for S in SEED_SHIFT_ORDER:
+                cost = float(np.abs(d0 + S * nyq2).sum())
+                if cost < best_cost:
+                    best_cost, best_s = cost, S
+        unwrap = unwrap + best_s
+    else:
+        # DEFAULT (no seed): shift so the gate-weighted mean fold is ~0.
+        off = int(round(sum(cnt[r] * unwrap[r] for r in range(nreg)) / total)) if total else 0
+        unwrap -= off
 
     out = np.full((N, G), np.nan)
     for r in range(N):
@@ -205,7 +229,67 @@ def dealias_v2(raw, nyq, splits=3):
     return out, nreg
 
 
+def _wrap(v, nyq):
+    """Alias a true velocity into [-nyq, nyq) — the folding the radar hardware does."""
+    return ((v + nyq) % (2.0 * nyq)) - nyq
+
+
+def selftest():
+    """Offline synthetic checks for the temporal seed (no network / Py-ART). Proves (A) the seed fixes a
+    mean-wind bias the 'mean fold ~= 0' default gets wrong, and (B) it leaves an already-correct (zero-mean)
+    field unchanged — i.e. no regression where the default was right."""
+    nyq = 25.0
+    N, G = 360, 120
+    rng = np.arange(G)
+    fails = 0
+
+    # --- (A) strong mean wind: a range ramp that crosses several Nyquist intervals, offset far from 0 so
+    #         the mean-fold anchor lands on the wrong absolute fold; the seed (truth) recovers it. ---
+    truthA = np.empty((N, G))
+    for r in range(N):
+        truthA[r, :] = 40.0 + 1.6 * rng          # ~40..232 m/s: mean ~136, spans >4 Nyquist intervals
+    rawA = _wrap(truthA, nyq)
+    outA_noseed, nregA = dealias_v2(rawA, nyq)
+    outA_seed, _ = dealias_v2(rawA, nyq, seed_vr=truthA)
+    err_noseed = np.nanmax(np.abs(outA_noseed - truthA))
+    err_seed = np.nanmax(np.abs(outA_seed - truthA))
+    ok_A = (err_seed < 1e-6) and (err_noseed > nyq)   # seed exact; default provably off by ≥1 fold
+    print("A mean-wind bias: regions=%d  default max-err=%.1f  seeded max-err=%.3f  ->  %s"
+          % (nregA, err_noseed, err_seed, "PASS" if ok_A else "FAIL"))
+    fails += not ok_A
+
+    # --- (B) zero-mean field: the default already anchors correctly; the seed must not change the result. ---
+    truthB = np.empty((N, G))
+    for r in range(N):
+        truthB[r, :] = -60.0 + 1.0 * rng          # -60..+59: symmetric-ish, mean ~0
+    rawB = _wrap(truthB, nyq)
+    outB_noseed, _ = dealias_v2(rawB, nyq)
+    outB_seed, _ = dealias_v2(rawB, nyq, seed_vr=truthB)
+    same = np.array_equal(np.nan_to_num(outB_noseed, nan=-999), np.nan_to_num(outB_seed, nan=-999))
+    err_B = np.nanmax(np.abs(outB_seed - truthB))
+    ok_B = same and err_B < 1e-6
+    print("B zero-mean (no regression): seeded==default=%s  seeded max-err=%.3f  ->  %s"
+          % (same, err_B, "PASS" if ok_B else "FAIL"))
+    fails += not ok_B
+
+    # --- (C) noisy seed robustness: seed = truth + N(0, 4 m/s) still picks the right global fold (it only
+    #         has to resolve an INTEGER shift, so a smooth ±few-m/s error can't flip it). ---
+    rs = np.random.RandomState(1234)
+    seedC = truthA + rs.normal(0.0, 4.0, truthA.shape)
+    outC_seed, _ = dealias_v2(rawA, nyq, seed_vr=seedC)
+    err_C = np.nanmax(np.abs(outC_seed - truthA))
+    ok_C = err_C < 1e-6
+    print("C noisy seed (+/-4 m/s): recovered truth max-err=%.3f  ->  %s" % (err_C, "PASS" if ok_C else "FAIL"))
+    fails += not ok_C
+
+    print("\n%s" % ("ALL PASS" if fails == 0 else ("%d CHECK(S) FAILED" % fails)))
+    sys.exit(1 if fails else 0)
+
+
 def main():
+    if len(sys.argv) == 2 and sys.argv[1] == "--selftest":
+        selftest()
+        return
     if len(sys.argv) != 7:
         print(__doc__)
         sys.exit(1)
