@@ -103,6 +103,14 @@ namespace Anvil.ViewModels
 					// mode and back to the live outlook otherwise. Entering clears the live outlook (showing
 					// today's forecast over historical radar would be wrong); PastOutlook then drives it.
 					if (Radar.IsPastEventMode && Outlook.IsOutlookVisible) { Outlook.IsOutlookVisible = false; }
+					// The live "now" overlays (watch boxes + storm-based warnings) are CURRENT-conditions data,
+					// so they must clear when we drop into a historical replay — otherwise today's watches/
+					// warnings hang over past radar. (Storm reports re-key to the replay day, so they stay.)
+					if (Radar.IsPastEventMode)
+					{
+						if (Watches.IsVisible) { Watches.IsVisible = false; }
+						if (Warnings.IsVisible) { Warnings.IsVisible = false; }
+					}
 					PastOutlook.OnPastModeChanged(Radar.IsPastEventMode);
 					CloseCardIfInactive();
 				}
