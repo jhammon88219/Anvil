@@ -34,6 +34,16 @@ namespace Anvil.Services
 		private const string ChunksBase = "https://unidata-nexrad-level2-chunks.s3.amazonaws.com/";
 		private static readonly XNamespace S3 = "http://s3.amazonaws.com/doc/2006-03-01/";
 
+		// ── Cache retention knobs (startup sweep) — THE spot to tune disk usage ────────────────────
+		// The per-site PruneCache (below) only trims the ONE site you're actively loading, so cached
+		// volumes for every OTHER site you've ever clicked accumulate forever. SweepCacheOnStartup runs
+		// ONCE at launch across the WHOLE folder to bound it, independent of what's loaded. Adjust these
+		// three values freely — they're the only knobs, and startup runs before any loop loads so the
+		// sweep can never delete a volume an active loop still needs.
+		private static readonly TimeSpan CacheMaxAge = TimeSpan.FromDays(5);   // 1) delete volumes older than this
+		private const long CacheMaxBytes = 5L * 1024 * 1024 * 1024;            // 2) then cap the folder (oldest-first) at 5 GB
+		private const int DiagnosticsKeepRuns = 15;                            // 3) keep this many newest diagnostics runs
+
 		private readonly HttpClient _http;
 		private readonly ILogger<Level2RadarService> _logger;
 
@@ -47,6 +57,8 @@ namespace Anvil.Services
 
 			_http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
 			_http.DefaultRequestHeaders.UserAgent.ParseAdd("Anvil/1.0");
+
+			SweepCacheOnStartup();
 		}
 
 		public string CacheDirectory { get; }
@@ -1364,6 +1376,111 @@ namespace Anvil.Services
 			{
 				// Non-fatal.
 			}
+		}
+
+		// Bounds the ENTIRE cache folder at startup, independent of which site is loaded — the counterpart
+		// to the per-site PruneCache, which only trims the active site (so idle sites' volumes otherwise
+		// accumulate forever). Best-effort + off the ctor thread: a failure here must never affect startup
+		// or radar loading. Tune via CacheMaxAge / CacheMaxBytes / DiagnosticsKeepRuns near the top of the class.
+		private void SweepCacheOnStartup()
+		{
+			_ = Task.Run(() =>
+			{
+				try { SweepVolumeCache(); }
+				catch (Exception ex) { _logger.LogWarning(ex, "Cache volume sweep failed"); }
+				try { TrimDiagnostics(); }
+				catch (Exception ex) { _logger.LogWarning(ex, "Diagnostics trim failed"); }
+			});
+		}
+
+		// Two caps over the cached volume files (.V06 archive + live, and .raw prefetches), applied in order:
+		//   1) AGE  — delete anything older than CacheMaxAge.
+		//   2) SIZE — if what survives still exceeds CacheMaxBytes, delete oldest-first until under.
+		// Age uses LastWriteTimeUtc so it covers every file type uniformly (archive/live/raw). The Diagnostics
+		// subfolder is a separate concern (TrimDiagnostics) and is excluded by the extension filter.
+		private void SweepVolumeCache()
+		{
+			var files = Directory.EnumerateFiles(CacheDirectory)
+				.Where(f => f.EndsWith(".V06", StringComparison.OrdinalIgnoreCase)
+					|| f.EndsWith(".raw", StringComparison.OrdinalIgnoreCase))
+				.Select(f => new FileInfo(f))
+				.ToList();
+
+			var now = DateTimeOffset.UtcNow;
+			int agedOut = 0; long agedBytes = 0;
+			foreach (var fi in files.ToList())
+			{
+				if (now - fi.LastWriteTimeUtc <= CacheMaxAge) continue;
+				long len = fi.Length;
+				try { fi.Delete(); agedOut++; agedBytes += len; files.Remove(fi); }
+				catch { /* best effort */ }
+			}
+
+			long total = files.Sum(fi => fi.Length);
+			int sizedOut = 0; long sizedBytes = 0;
+			if (total > CacheMaxBytes)
+			{
+				foreach (var fi in files.OrderBy(fi => fi.LastWriteTimeUtc))
+				{
+					if (total <= CacheMaxBytes) break;
+					long len = fi.Length;
+					try { fi.Delete(); total -= len; sizedOut++; sizedBytes += len; }
+					catch { /* best effort */ }
+				}
+			}
+
+			if (agedOut > 0 || sizedOut > 0)
+			{
+				_logger.LogInformation(
+					"Cache startup sweep: removed {AgedOut} aged file(s) ({AgedMB:F0} MB) + {SizedOut} over-cap file(s) ({SizedMB:F0} MB); folder now ~{TotalMB:F0} MB",
+					agedOut, agedBytes / 1024.0 / 1024, sizedOut, sizedBytes / 1024.0 / 1024, total / 1024.0 / 1024);
+			}
+		}
+
+		// Keeps only the newest DiagnosticsKeepRuns diagnostics "runs". A run is identified by its launch
+		// stamp (yyyyMMdd-HHmmss, lexically chronological) shared across radar-diag-<stamp>.jsonl,
+		// radar-report-<stamp>.md and _suspect/<stamp>/ (see RadarDiagnostics). The current run is always the
+		// newest stamp, so it's never touched. _suspect/ subdirs are the bulk of the diagnostics footprint.
+		private void TrimDiagnostics()
+		{
+			var diagDir = Path.Combine(CacheDirectory, "Diagnostics");
+			if (!Directory.Exists(diagDir)) return;
+
+			// Union of stamps across both the diag files and any _suspect subdirs (a suspect dir can outlive a
+			// manually-deleted diag file, so gather from both to sweep orphans too).
+			var stamps = new HashSet<string>(StringComparer.Ordinal);
+			foreach (var f in Directory.EnumerateFiles(diagDir, "radar-diag-*.jsonl"))
+			{
+				var name = Path.GetFileNameWithoutExtension(f); // radar-diag-<stamp>
+				stamps.Add(name.Substring("radar-diag-".Length));
+			}
+			var suspectRoot = Path.Combine(diagDir, "_suspect");
+			if (Directory.Exists(suspectRoot))
+			{
+				foreach (var d in Directory.EnumerateDirectories(suspectRoot))
+					stamps.Add(Path.GetFileName(d));
+			}
+
+			if (stamps.Count <= DiagnosticsKeepRuns) return;
+
+			int removed = 0;
+			foreach (var stamp in stamps.OrderByDescending(s => s, StringComparer.Ordinal).Skip(DiagnosticsKeepRuns))
+			{
+				TryDeleteFile(Path.Combine(diagDir, $"radar-diag-{stamp}.jsonl"));
+				TryDeleteFile(Path.Combine(diagDir, $"radar-report-{stamp}.md"));
+				var suspectDir = Path.Combine(suspectRoot, stamp);
+				try { if (Directory.Exists(suspectDir)) Directory.Delete(suspectDir, recursive: true); }
+				catch { /* best effort */ }
+				removed++;
+			}
+			if (removed > 0)
+				_logger.LogInformation("Diagnostics trim: removed {Removed} old run(s), kept newest {Keep}", removed, DiagnosticsKeepRuns);
+		}
+
+		private static void TryDeleteFile(string path)
+		{
+			try { if (File.Exists(path)) File.Delete(path); }
+			catch { /* best effort */ }
 		}
 
 		// A real Level II volume is several MB (even a small clear-air one is ~1 MB+). A "_V06" far below this
