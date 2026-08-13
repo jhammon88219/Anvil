@@ -34,6 +34,7 @@ namespace Anvil.ViewModels
 		private readonly IMapService _mapService;
 		private readonly IRadarSiteProvider _radarSiteProvider;
 		private readonly ILevel2RadarService _radarService;
+		private readonly ISettingsService _settings;   // persisted app settings (ShowTdwrs / ShowResearchRadars)
 
 		// The loop engine (site load, live poll, playback, refresh, incremental reload, past-event replay).
 		// Extracted into its own collaborator class (RadarLoopEngine.cs); this VM owns the bindable
@@ -73,8 +74,7 @@ namespace Anvil.ViewModels
 		// Whether the on-map radar site marker buttons are shown. Independent of the radar
 		// layer: hiding the markers leaves any active loop rendering.
 		private bool _radarSitesVisible = true;
-		private bool _showResearchRadars;   // research/test radars (KCRI) hidden until opted in
-		private bool _showTdwrs;            // Terminal Doppler Weather Radars (T***) hidden until opted in
+		// ShowResearchRadars / ShowTdwrs are now PERSISTED — backed by _settings.Settings, not local fields.
 
 		// Radar loop state. The loop is a sequence of recent volumes (newest last).
 		// _frameTimes[i] is set as each frame's volume caches; _readyCount tracks how many
@@ -255,11 +255,12 @@ namespace Anvil.ViewModels
 		// token bumps) can't pollute this session's first-frame timing / ready count.
 		private bool _loopRenderBegun;
 
-		public RadarViewModel(IMapService mapService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, IDowEventProvider dowEventProvider)
+		public RadarViewModel(IMapService mapService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, IDowEventProvider dowEventProvider, ISettingsService settings)
 		{
 			_mapService = mapService;
 			_radarSiteProvider = radarSiteProvider;
 			_radarService = radarService;
+			_settings = settings;
 			_engine = new RadarLoopEngine(this);
 
 			// The DOW Event Viewer is its own view model (a standalone mobile-radar frame through the
@@ -1069,17 +1070,18 @@ namespace Anvil.ViewModels
 		/// Whether the research/test radar markers (e.g. KCRI) are shown — the "Show Research Radars"
 		/// toggle. Off by default (an opt-in extra layer, mirroring RadarScope). Independent of the
 		/// operational "Show Sites" toggle and of any active loop; a research site loads/renders
-		/// through the same pipeline as an operational one.
+		/// through the same pipeline as an operational one. PERSISTED via
+		/// <see cref="AppSettings.ShowResearchRadars"/> (auto-saved), so the choice survives restarts.
 		/// </summary>
 		public bool ShowResearchRadars
 		{
-			get => _showResearchRadars;
+			get => _settings.Settings.ShowResearchRadars;
 			set
 			{
-				if (SetProperty(ref _showResearchRadars, value) && _isMapReady)
-				{
-					_ = _mapService.SetResearchRadarsVisibleAsync(value);
-				}
+				if (_settings.Settings.ShowResearchRadars == value) { return; }
+				_settings.Settings.ShowResearchRadars = value; // persists (auto-save)
+				OnPropertyChanged();
+				if (_isMapReady) { _ = _mapService.SetResearchRadarsVisibleAsync(value); }
 			}
 		}
 
@@ -1087,17 +1089,18 @@ namespace Anvil.ViewModels
 		/// Whether the TDWR markers (the FAA Terminal Doppler Weather Radar `T***` network) are shown —
 		/// the "Show TDWRs" toggle. Off by default (an opt-in extra layer, mirroring RadarScope).
 		/// Independent of the operational "Show Sites" and "Show Research Radars" toggles and of any
-		/// active loop; a TDWR loads/renders through the same pipeline as an operational site.
+		/// active loop; a TDWR loads/renders through the same pipeline as an operational site. PERSISTED
+		/// via <see cref="AppSettings.ShowTdwrs"/> (auto-saved), so the choice survives restarts.
 		/// </summary>
 		public bool ShowTdwrs
 		{
-			get => _showTdwrs;
+			get => _settings.Settings.ShowTdwrs;
 			set
 			{
-				if (SetProperty(ref _showTdwrs, value) && _isMapReady)
-				{
-					_ = _mapService.SetTdwrsVisibleAsync(value);
-				}
+				if (_settings.Settings.ShowTdwrs == value) { return; }
+				_settings.Settings.ShowTdwrs = value; // persists (auto-save)
+				OnPropertyChanged();
+				if (_isMapReady) { _ = _mapService.SetTdwrsVisibleAsync(value); }
 			}
 		}
 
@@ -1125,10 +1128,11 @@ namespace Anvil.ViewModels
 					research = s.Class == RadarSiteClass.Research, tdwr = s.Class == RadarSiteClass.Tdwr });
 			await _mapService.ShowRadarSitesAsync(System.Text.Json.JsonSerializer.Serialize(sites));
 
-			// Push the current extra-network visibility (off by default — the page defaults to hidden
-			// too, but be explicit so the toggles and the page never disagree on startup).
-			await _mapService.SetResearchRadarsVisibleAsync(_showResearchRadars);
-			await _mapService.SetTdwrsVisibleAsync(_showTdwrs);
+			// Push the PERSISTED extra-network visibility (the page defaults to hidden; apply the saved
+			// choice explicitly so a user who left them on last run sees them again, and the toggles and
+			// page never disagree on startup).
+			await _mapService.SetResearchRadarsVisibleAsync(ShowResearchRadars);
+			await _mapService.SetTdwrsVisibleAsync(ShowTdwrs);
 
 			// Pre-warm the decode + VWP workers now (creating them + loading the vendored decoder), so the
 			// first site click doesn't pay their cold start on the first-paint critical path.

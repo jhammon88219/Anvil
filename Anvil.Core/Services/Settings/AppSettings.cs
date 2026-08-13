@@ -24,6 +24,24 @@ namespace Anvil.Services
 			set => SetProperty(ref _mapDataFolder, value);
 		}
 
+		private bool _showTdwrs;
+		/// <summary>Show the FAA Terminal Doppler Weather Radar (<c>T***</c>) markers. Opt-in, default off.
+		/// Surfaced as the "Show TDWRs" toggle (App Settings → Radar Settings); persisted here.</summary>
+		public bool ShowTdwrs
+		{
+			get => _showTdwrs;
+			set => SetProperty(ref _showTdwrs, value);
+		}
+
+		private bool _showResearchRadars;
+		/// <summary>Show the research/test radar markers (e.g. the ROC test bed KCRI). Opt-in, default off.
+		/// Surfaced as the "Show Research Radars" toggle (App Settings → Radar Settings); persisted here.</summary>
+		public bool ShowResearchRadars
+		{
+			get => _showResearchRadars;
+			set => SetProperty(ref _showResearchRadars, value);
+		}
+
 		private int _radarCacheMaxGb = 5;
 		/// <summary>
 		/// Ceiling (GB) for the on-disk NEXRAD volume cache, enforced by <see cref="SettingsService"/>'s

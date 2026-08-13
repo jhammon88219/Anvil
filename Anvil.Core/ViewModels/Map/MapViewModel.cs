@@ -76,7 +76,7 @@ namespace Anvil.ViewModels
 
 			// Each subsystem lives in its own view model (progressively split out of this class);
 			// the transport-bar section controls bind slices of them.
-			Radar = new RadarViewModel(mapService, radarSiteProvider, radarService, dowEventProvider);
+			Radar = new RadarViewModel(mapService, radarSiteProvider, radarService, dowEventProvider, settingsService);
 			Outlook = new OutlookViewModel(mapService, spcOutlookService, dispatcher, loggerFactory.CreateLogger<OutlookViewModel>());
 			PastOutlook = new PastOutlookViewModel(mapService, spcOutlookService, Radar);
 			Watches = new WatchesViewModel(mapService, watchService, dispatcher, loggerFactory.CreateLogger<WatchesViewModel>());
