@@ -39,22 +39,23 @@
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                 BorderThickness="1"
                 CornerRadius="10">
-            <Grid Margin="16,12,16,14"
-                  RowSpacing="10">
-                
+            <Grid RowSpacing="10">
+
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- header -->
+                    <RowDefinition Height="Auto"/> <!-- title bar (flush) -->
                     <RowDefinition Height="Auto"/> <!-- search + filters -->
                     <RowDefinition Height="*"/>    <!-- body: list | detail -->
                 </Grid.RowDefinitions>
 
-                <!-- Header: title + count, close (X) at right. Doubles as the DRAG HANDLE
-                     (DragMove.MoveTarget → CardRoot); the lifted background hints it's grabbable and the
-                     close Button press is left alone. -->
+                <!-- Title bar: title + count, close (X) at right. Runs FLUSH to the card's top/left/right
+                     edges (window-title-bar look) — no margin, rounded only at the top corners (9 = card's
+                     10 radius minus the 1px border). Doubles as the DRAG HANDLE (DragMove.MoveTarget →
+                     CardRoot); the lifted background hints it's grabbable and the close Button press is left
+                     alone. The search + body rows below carry the 16px side inset instead. -->
                 <Border Grid.Row="0"
                         Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                        CornerRadius="6"
-                        Padding="12,3,4,3"
+                        CornerRadius="9,9,0,0"
+                        Padding="16,5,6,5"
                         ctl:DragMove.MoveTarget="{x:Bind CardRoot}">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -80,8 +81,8 @@
                     </Grid>
                 </Border>
 
-                <!-- Search + filters. -->
-                <Grid Grid.Row="1" ColumnSpacing="10">
+                <!-- Search + filters. Side inset (the flush title bar above has none). -->
+                <Grid Grid.Row="1" Margin="16,0,16,0" ColumnSpacing="10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
@@ -103,8 +104,9 @@
                               IsChecked="{x:Bind ViewModel.SiteExplorer.OnlineOnly, Mode=TwoWay}"/>
                 </Grid>
 
-                <!-- Body: site list (left) | detail (right). -->
+                <!-- Body: site list (left) | detail (right). Side + bottom inset. -->
                 <Grid Grid.Row="2"
+                      Margin="16,0,16,14"
                       ColumnSpacing="14">
                     
                     <Grid.ColumnDefinitions>

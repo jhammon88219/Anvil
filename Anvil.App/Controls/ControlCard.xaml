@@ -23,20 +23,22 @@
             BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
             BorderThickness="1"
             CornerRadius="10">
-        <Grid Margin="16,10,16,14">
+        <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Header: title on the left, close (X) on the right. Doubles as the DRAG HANDLE
-                 (DragMove.MoveTarget → CardRoot); the lifted background (OverlayBarSurfaceHoverBrush, a
-                 step above the card surface) hints the strip is grabbable and gives the drag a hit area,
-                 and a press on the close Button is left alone (DragMove skips ButtonBase). -->
-            <Border Grid.Row="0" Margin="0,0,0,10"
+            <!-- Title bar: title on the left, close (X) on the right. Runs FLUSH to the card's top/left/right
+                 edges (like a real window title bar) — no margin, and rounded ONLY at the top corners (9 =
+                 card's 10 radius minus the 1px border) so it clips to the card. Doubles as the DRAG HANDLE
+                 (DragMove.MoveTarget → CardRoot); the lifted background (OverlayBarSurfaceHoverBrush, a step
+                 above the card surface) hints the strip is grabbable and gives the drag a hit area, and a
+                 press on the close Button is left alone (DragMove skips ButtonBase). -->
+            <Border Grid.Row="0"
                     Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                    CornerRadius="6"
-                    Padding="10,3,4,3"
+                    CornerRadius="9,9,0,0"
+                    Padding="14,5,6,5"
                     ctl:DragMove.MoveTarget="{x:Bind CardRoot}">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -67,8 +69,10 @@
                 </Grid>
             </Border>
 
-            <!-- Feature controls. -->
+            <!-- Feature controls. The title bar is flush to the card edges, so the body carries the inset
+                 (16 sides / 14 bottom, plus a 12 gap under the title bar). -->
             <ContentPresenter Grid.Row="1"
+                              Margin="16,12,16,14"
                               VerticalAlignment="Top"
                               Content="{x:Bind CardBody, Mode=OneWay}"/>
         </Grid>
