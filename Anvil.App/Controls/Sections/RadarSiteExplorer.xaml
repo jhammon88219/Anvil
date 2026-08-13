@@ -34,7 +34,7 @@
 
     <!-- Root Grid -->
     <Grid Visibility="{x:Bind VisibleWhen(ViewModel.IsSiteExplorerOpen), Mode=OneWay}">
-        <Border Width="660" Height="470"
+        <Border x:Name="CardRoot" Width="660" Height="470"
                 Background="{ThemeResource OverlayBarSurfaceBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                 BorderThickness="1"
@@ -48,8 +48,11 @@
                     <RowDefinition Height="*"/>    <!-- body: list | detail -->
                 </Grid.RowDefinitions>
 
-                <!-- Header: title + count, close triangle at right. -->
-                <Grid Grid.Row="0">
+                <!-- Header: title + count, close triangle at right. Doubles as the DRAG HANDLE
+                     (DragMove.MoveTarget → CardRoot); the close Button press is left alone. -->
+                <Grid Grid.Row="0"
+                      Background="Transparent"
+                      ctl:DragMove.MoveTarget="{x:Bind CardRoot}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
