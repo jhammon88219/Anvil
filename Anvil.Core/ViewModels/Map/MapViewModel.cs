@@ -290,8 +290,8 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		// Closes an open settings card whose feature just turned off (its cog is now disabled). Called from
-		// the toggle setters' subsystem subscriptions so a card can't linger over an inactive feature.
+		// Closes an open settings card whose feature just turned off. Called from the toggle setters'
+		// subsystem subscriptions so a card can't linger over an inactive feature.
 		private void CloseCardIfInactive()
 		{
 			if ((_cards.Current == TemporalCard.Past && !IsPastCast)
@@ -300,6 +300,48 @@ namespace Anvil.ViewModels
 			{
 				OpenCard = TemporalCard.None;
 			}
+		}
+
+		/// <summary>Handles a click on a temporal mode toggle. The cog is gone — the mode's single toggle
+		/// both activates the feature AND governs its settings card:
+		/// <list type="bullet">
+		/// <item>mode OFF → turn it on (the setter opens its card);</item>
+		/// <item>mode ON → flip its card open/closed. The mode STAYS active — you leave a mode by choosing
+		/// another one (Past excludes Now/Fore; Now and Fore coexist), not by clicking its own toggle.</item>
+		/// </list>
+		/// A card-only flip doesn't change the mode projection, so we re-raise it to re-assert the toggle's
+		/// lit state (bound OneWay to the projection) after the ToggleButton flipped its own IsChecked on the
+		/// click.</summary>
+		public void ToggleTemporalMode(TemporalCard which)
+		{
+			bool active = which switch
+			{
+				TemporalCard.Past => IsPastCast,
+				TemporalCard.Now => IsNowCast,
+				TemporalCard.Fore => IsForeCast,
+				_ => false,
+			};
+
+			if (!active)
+			{
+				switch (which) // the setter turns the mode on and opens its card
+				{
+					case TemporalCard.Past: IsPastCast = true; break;
+					case TemporalCard.Now: IsNowCast = true; break;
+					case TemporalCard.Fore: IsForeCast = true; break;
+				}
+				return;
+			}
+
+			// Already active → flip the card only; the mode stays on.
+			OpenCard = _cards.Current == which ? TemporalCard.None : which;
+			OnPropertyChanged(which switch // projection unchanged → re-assert the toggle's lit state
+			{
+				TemporalCard.Past => nameof(IsPastCast),
+				TemporalCard.Now => nameof(IsNowCast),
+				TemporalCard.Fore => nameof(IsForeCast),
+				_ => string.Empty,
+			});
 		}
 
 		/// <summary>Which feature's settings card is showing above the bar (at most one). Opened by a

@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalToggles — the left section of the overlay bar: the Past / Now / Fore temporal features, each
-     a labeled TWO-PART split button. The LEFT half is the feature toggle (activates the time-frame); the
-     RIGHT half is a settings cog that opens/hides that feature's floating settings card above the bar
-     (see TemporalCards). The three are INDEPENDENT, deselectable toggles (each on/off on its own click),
-     bound to MapViewModel.IsPastCast/IsNowCast/IsForeCast — which project the subsystems' state. Past and
-     Now are mutually exclusive (the radar layer is live OR replaying); Fore's outlook overlay stacks on
-     either; all three off = a blank basemap. A cog is DISABLED until its feature is toggled on. Icons are
-     placeholders — to be sourced later. Bound to the coordinator MapViewModel. -->
+<!-- TemporalToggles — the left section of the overlay bar: the Past / Now / Fore temporal features, each a
+     labeled SINGLE toggle (the old settings cog is gone). A click activates that time-frame AND opens its
+     floating settings card above the bar (see TemporalCards); clicking the already-active mode flips its
+     card open/closed while the mode stays on. You LEAVE a mode by choosing another (Past is exclusive with
+     Now/Fore; Now and Fore coexist). The click routes through MapViewModel.ToggleTemporalMode; the toggle's
+     lit state binds OneWay to MapViewModel.IsPastCast/IsNowCast/IsForeCast (projections of the subsystems).
+     Icons are placeholders — to be sourced later. Bound to the coordinator MapViewModel. -->
 <UserControl
     x:Class="Anvil.Controls.Sections.TemporalToggles"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -16,33 +15,20 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- Left half: the feature toggle. Rounded on the left, square on the right so it butts against
-             the cog into one control. -->
+        <!-- The mode toggle. One control per mode (the settings cog is gone): a click activates the mode
+             and opens its card; clicking again flips the card; you leave a mode by choosing another. -->
         <Style x:Key="FeatureToggleStyle" TargetType="ToggleButton">
-            <Setter Property="Width" Value="40"/>
+            <Setter Property="Width" Value="44"/>
             <Setter Property="Height" Value="40"/>
             <Setter Property="MinWidth" Value="0"/>
             <Setter Property="MinHeight" Value="0"/>
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="CornerRadius" Value="6,0,0,6"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="FontFamily" Value="Segoe Fluent Icons,Segoe MDL2 Assets"/>
             <Setter Property="FontSize" Value="18"/>
-        </Style>
-        <!-- Right half: the settings cog. Narrower, rounded on the right, square on the left. Latches
-             (checked) while its card is open; disabled until the feature is on. -->
-        <Style x:Key="CogToggleStyle" TargetType="ToggleButton">
-            <Setter Property="Width" Value="26"/>
-            <Setter Property="Height" Value="40"/>
-            <Setter Property="MinWidth" Value="0"/>
-            <Setter Property="MinHeight" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="CornerRadius" Value="0,6,6,0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="FontFamily" Value="Segoe Fluent Icons,Segoe MDL2 Assets"/>
-            <Setter Property="FontSize" Value="14"/>
         </Style>
         <!-- Section header label (Past / Now / Fore). -->
         <Style x:Key="TemporalLabelStyle" TargetType="TextBlock">
@@ -72,16 +58,10 @@
         <!-- ===== Past ===== -->
         <StackPanel Style="{StaticResource TemporalSectionStyle}">
             <TextBlock Style="{StaticResource TemporalLabelStyle}" Text="Past"/>
-            <!-- Spacing=1 shows the bar surface as a hairline splitting the two halves. -->
-            <StackPanel Orientation="Horizontal" Spacing="1" HorizontalAlignment="Center">
-                <ToggleButton Style="{StaticResource FeatureToggleStyle}" Content="&#xE81C;"
-                              ToolTipService.ToolTip="PastCast — replay a historical radar window"
-                              IsChecked="{x:Bind ViewModel.IsPastCast, Mode=TwoWay}"/>
-                <ToggleButton Style="{StaticResource CogToggleStyle}" Content="&#xE713;"
-                              ToolTipService.ToolTip="PastCast settings"
-                              IsEnabled="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
-                              IsChecked="{x:Bind ViewModel.IsPastCardOpen, Mode=TwoWay}"/>
-            </StackPanel>
+            <ToggleButton Style="{StaticResource FeatureToggleStyle}" Content="&#xE81C;"
+                          ToolTipService.ToolTip="PastCast — replay a historical radar window (click again to show/hide its panel)"
+                          IsChecked="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
+                          Click="OnPastClick"/>
         </StackPanel>
 
         <Border Style="{StaticResource TemporalSeparatorStyle}"/>
@@ -89,15 +69,10 @@
         <!-- ===== Now ===== -->
         <StackPanel Style="{StaticResource TemporalSectionStyle}">
             <TextBlock Style="{StaticResource TemporalLabelStyle}" Text="Now"/>
-            <StackPanel Orientation="Horizontal" Spacing="1" HorizontalAlignment="Center">
-                <ToggleButton Style="{StaticResource FeatureToggleStyle}" Content="&#xE774;"
-                              ToolTipService.ToolTip="NowCast — live radar / current conditions"
-                              IsChecked="{x:Bind ViewModel.IsNowCast, Mode=TwoWay}"/>
-                <ToggleButton Style="{StaticResource CogToggleStyle}" Content="&#xE713;"
-                              ToolTipService.ToolTip="NowCast settings"
-                              IsEnabled="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
-                              IsChecked="{x:Bind ViewModel.IsNowCardOpen, Mode=TwoWay}"/>
-            </StackPanel>
+            <ToggleButton Style="{StaticResource FeatureToggleStyle}" Content="&#xE774;"
+                          ToolTipService.ToolTip="NowCast — live radar / current conditions (click again to show/hide its panel)"
+                          IsChecked="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
+                          Click="OnNowClick"/>
         </StackPanel>
 
         <Border Style="{StaticResource TemporalSeparatorStyle}"/>
@@ -105,15 +80,10 @@
         <!-- ===== Fore ===== -->
         <StackPanel Style="{StaticResource TemporalSectionStyle}">
             <TextBlock Style="{StaticResource TemporalLabelStyle}" Text="Fore"/>
-            <StackPanel Orientation="Horizontal" Spacing="1" HorizontalAlignment="Center">
-                <ToggleButton Style="{StaticResource FeatureToggleStyle}" Content="&#xE706;"
-                              ToolTipService.ToolTip="ForeCast — SPC outlooks (latest Day 1 Categorical by default)"
-                              IsChecked="{x:Bind ViewModel.IsForeCast, Mode=TwoWay}"/>
-                <ToggleButton Style="{StaticResource CogToggleStyle}" Content="&#xE713;"
-                              ToolTipService.ToolTip="ForeCast settings"
-                              IsEnabled="{x:Bind ViewModel.IsForeCast, Mode=OneWay}"
-                              IsChecked="{x:Bind ViewModel.IsForeCardOpen, Mode=TwoWay}"/>
-            </StackPanel>
+            <ToggleButton Style="{StaticResource FeatureToggleStyle}" Content="&#xE706;"
+                          ToolTipService.ToolTip="ForeCast — SPC outlooks (click again to show/hide its panel)"
+                          IsChecked="{x:Bind ViewModel.IsForeCast, Mode=OneWay}"
+                          Click="OnForeClick"/>
         </StackPanel>
     </StackPanel>
 </UserControl>
