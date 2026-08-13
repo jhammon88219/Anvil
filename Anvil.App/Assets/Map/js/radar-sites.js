@@ -40,6 +40,17 @@ let tdwrIds = new Set();          // ids flagged tdwr (site.tdwr) in the current
 let radarSiteOffline = new Set(); // site ids with no recent data in the feed (red availability dot)
 let siteCoords = {};              // id -> [lng, lat] (kept so the isolation filter can measure coverage)
 
+// Collision fan-out: when the opt-in TDWR/research keys would pile onto a neighbor at low zoom (the OKC
+// KTLX+TOKC+KCRI trio is the poster child), offset them off the stack — with a leader line back to the
+// true site — so they stay findable/clickable at ALL zooms (never hidden). Operational NEXRAD keys never
+// move: they're the fixed obstacles the special keys route around. See docs/app-notes.md (Radar).
+let fanMap = null;                // the MapLibre map (project() + move/zoom events)
+let fanListeners = false;         // guard: attach the move/zoom/resize handlers exactly once
+let fanQueued = false;            // rAF debounce for the move handler
+let fanLast = [];                 // offset wrappers displaced last pass (reset before recomputing)
+let lineSvg = null;               // leader-line overlay, under the marker keys / over the map canvas
+let keyW = 0, keyH = 0;           // measured key box (uniform — ICAO labels are all 4 chars); cached once
+
 // State-isolation coverage filter: when a state is isolated, only sites whose usable range reaches the
 // state stay visible (see setIsolation). Null rings = no isolation (all sites pass this gate).
 let isolationRings = null;        // the isolated state's outer ring(s), or null
@@ -74,6 +85,7 @@ function applyVisibility() {
         const id = m.getElement().dataset.siteId;
         m.getElement().style.display = markerVisible(id) ? '' : 'none';
     });
+    updateFan(); // visibility changed which keys are on-screen — re-evaluate the collision fan
 }
 
 function ensureStyle() {
@@ -149,7 +161,13 @@ function ensureStyle() {
         .radar-site-class svg { width: 13px; height: 13px; display: block; }
         .radar-site-class.nexrad { background: #44444a; color: #cfcfd3; border-left: 1px solid #5a5a5e; }
         .radar-site-class.tdwr { background: #2f6fb0; color: #ffffff; }
-        .radar-site-class.research { background: #6b4bd6; color: #ffffff; }`;
+        .radar-site-class.research { background: #6b4bd6; color: #ffffff; }
+
+        /* Fan-out offset wrapper: MapLibre positions the OUTER .radar-site-marker at the true lng/lat, so
+           the collision fan translates this inner wrapper instead — keeping the marker's true anchor (and
+           the leader-line origin) put while the visible key slides off the pile. Inline-flex so it hugs the
+           key and doesn't change the marker's measured size. */
+        .radar-site-offset { display: inline-flex; }`;
     document.head.appendChild(siteStyle);
 }
 
@@ -159,6 +177,107 @@ function applySiteStatus(el, id) {
     el.classList.toggle('offline', off);
     const name = el.dataset.siteName || '';
     el.title = name + (off ? ' · offline (no recent data)' : '');
+}
+
+// ── Collision fan-out ───────────────────────────────────────────────────────────────────────────────
+
+// The overlay <svg> holding the leader lines. Inserted right AFTER the map's canvas container so it paints
+// ABOVE the basemap but BELOW the marker keys (pure DOM paint order — no z-index juggling needed).
+function ensureLineOverlay(map) {
+    if (lineSvg && lineSvg.isConnected) return;
+    const container = map.getContainer();
+    lineSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    lineSvg.id = 'radar-site-lines';
+    lineSvg.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible');
+    const canvas = container.querySelector('.maplibregl-canvas-container');
+    container.insertBefore(lineSvg, canvas ? canvas.nextSibling : container.firstChild);
+}
+
+// Attach the recompute triggers (once): map move/zoom/resize, rAF-debounced so a burst of move events
+// collapses to one recompute per frame.
+function attachFanListeners(map) {
+    fanMap = map;
+    ensureLineOverlay(map);
+    if (fanListeners) return;
+    fanListeners = true;
+    const onMove = function () {
+        if (fanQueued) return;
+        fanQueued = true;
+        requestAnimationFrame(function () { fanQueued = false; updateFan(); });
+    };
+    map.on('move', onMove);
+    map.on('zoom', onMove);
+    map.on('resize', onMove);
+}
+
+// Re-evaluate the fan. NEXRAD keys stay at their true screen position (fixed obstacles); each visible
+// TDWR/research key that would overlap a neighbor is pushed UP off the pile until clear, and gets a
+// dashed leader line + ring back to its true site. Cheap no-op when neither opt-in network is shown (the
+// default), and when zoomed in far enough that nothing overlaps (keys snap back to true positions).
+function updateFan() {
+    if (!fanMap) return;
+    // Reset whatever we displaced last pass so separated keys return to true positions.
+    fanLast.forEach(function (o) { o.style.transform = ''; if (o.parentElement) o.parentElement.style.zIndex = ''; });
+    fanLast = [];
+    if (!researchVisible && !tdwrVisible) { if (lineSvg) lineSvg.innerHTML = ''; return; }
+
+    const vis = [];
+    radarMarkerObjs.forEach(function (m) {
+        const el = m.getElement();
+        if (el.style.display === 'none') return;
+        const ll = siteCoords[el.dataset.siteId];
+        if (!ll) return;
+        const p = fanMap.project(ll);
+        const cls = el.dataset.siteClass;
+        vis.push({ el: el, x: p.x, y: p.y, special: cls === 'tdwr' || cls === 'research', cls: cls });
+    });
+    const specials = vis.filter(function (v) { return v.special; });
+    if (specials.length === 0) { if (lineSvg) lineSvg.innerHTML = ''; return; }
+
+    // Key box is uniform (4-char ICAOs); measure one live key once, then cache.
+    if (!keyW) {
+        const sample = radarMarkerObjs.length ? radarMarkerObjs[0].getElement().querySelector('.radar-site-btn') : null;
+        const r = sample ? sample.getBoundingClientRect() : null;
+        if (r && r.width) { keyW = r.width; keyH = r.height; }
+    }
+    const W = keyW || 92, H = keyH || 26, GAP = 6;
+    const overlaps = function (ax, ay, bx, by) { return Math.abs(ax - bx) < W && Math.abs(ay - by) < H + GAP; };
+
+    // Deterministic fan order: TDWR before research, then by screen y.
+    const operational = vis.filter(function (v) { return !v.special; });
+    specials.sort(function (a, b) { return a.cls !== b.cls ? (a.cls === 'tdwr' ? -1 : 1) : a.y - b.y; });
+
+    // ⚠️ Each special is fanned ONLY off the markers that TRULY overlap its own spot (its immediate PILE),
+    // plus any special already fanned from that same pile. The obstacle set is FIXED by true position, so a
+    // key rises just clear of its pile and STOPS — it never climbs the map's dense national field (an
+    // "avoid everything on screen" rule sent KCRI ~380px up into North Dakota). Net effect: just enough to
+    // reveal the whole button, no more.
+    const placedSpecials = []; // { tx, ty, x, y } — each fanned special's TRUE + FINAL screen position
+    let lines = '';
+    specials.forEach(function (v) {
+        const obstacles = [];
+        operational.forEach(function (o) { if (overlaps(v.x, v.y, o.x, o.y)) obstacles.push({ x: o.x, y: o.y }); });
+        placedSpecials.forEach(function (p) { if (overlaps(v.x, v.y, p.tx, p.ty)) obstacles.push({ x: p.x, y: p.y }); });
+
+        let x = v.x, y = v.y, bumped = true, guard = 0;
+        while (bumped && guard < 8) {
+            bumped = false; guard++;
+            for (let i = 0; i < obstacles.length; i++) {
+                if (overlaps(x, y, obstacles[i].x, obstacles[i].y)) { y = obstacles[i].y - (H + GAP); bumped = true; }
+            }
+        }
+        placedSpecials.push({ tx: v.x, ty: v.y, x: x, y: y });
+
+        const dx = x - v.x, dy = y - v.y;
+        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+            const o = v.el.querySelector('.radar-site-offset');
+            if (o) { o.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)'; fanLast.push(o); }
+            v.el.style.zIndex = '4'; // the offset key rides above the leader-line overlay + operational keys
+            lines += '<circle cx="' + v.x.toFixed(1) + '" cy="' + v.y.toFixed(1) + '" r="3" fill="none" stroke="#8a8f98" stroke-width="1.5"/>'
+                + '<line x1="' + v.x.toFixed(1) + '" y1="' + v.y.toFixed(1) + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="#8a8f98" stroke-width="1" stroke-dasharray="2 2"/>';
+        }
+    });
+    if (lineSvg) lineSvg.innerHTML = lines;
 }
 
 // Provide the site list (as buttons). Each wrapper is the marker MapLibre positions; the inner
@@ -172,6 +291,8 @@ export function show(map, json) {
     researchIds = new Set();
     tdwrIds = new Set();
     siteCoords = {};
+    fanLast = [];                          // old offset wrappers are gone with the removed markers
+    if (lineSvg) lineSvg.innerHTML = '';   // drop any leader lines from the previous list
     sites.forEach(function (s) {
         if (s.research) researchIds.add(s.id);
         if (s.tdwr) tdwrIds.add(s.id);
@@ -195,8 +316,12 @@ export function show(map, json) {
         btn.appendChild(label);
         btn.appendChild(clsBar);
         btn.dataset.siteName = s.name || '';
-        el.dataset.siteClass = klass; // for the collision fan-out (step 2) + any future per-class styling
-        el.appendChild(btn);
+        el.dataset.siteClass = klass; // for the collision fan-out + any future per-class styling
+        // The offset wrapper is the fan's translate target — see .radar-site-offset / updateFan.
+        const offset = document.createElement('div');
+        offset.className = 'radar-site-offset';
+        offset.appendChild(btn);
+        el.appendChild(offset);
         if (!markerVisible(s.id)) el.style.display = 'none';
         if (selectedSiteId === s.id) btn.classList.add('selected');
         applySiteStatus(btn, s.id); // sets .down class + tooltip from the current offline set
@@ -211,7 +336,8 @@ export function show(map, json) {
         radarMarkers[s.id] = btn; // state ops (selected/down/tooltip) target the inner button
     });
     recomputeCoverage(); // if a state is already isolated, apply the coverage gate to the fresh markers
-    applyVisibility();
+    attachFanListeners(map); // wire move/zoom recompute + the leader-line overlay (once)
+    applyVisibility();       // ends with updateFan(), so the initial fan is applied here
 }
 
 export function setSelected(id) {
