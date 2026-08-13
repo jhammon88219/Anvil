@@ -3,10 +3,11 @@
   <PropertyGroup>
     <!-- Deliberately PLAIN net8.0 — no `net8.0-windows`, no UseWinUI. Two things depend on that:
          tools/TiltCheck (a net8.0 console) references this project directly, and the test project can
-         run as fast plain xunit instead of a deployed WinUI test app. The only Windows-bound services
-         (LocationService, SettingsService) live in Anvil.App behind their interfaces, and view-models
-         reach the UI thread through IDispatcher rather than DispatcherQueue. Keeping this TFM is what
-         makes the compiler enforce all of that. -->
+         run as fast plain xunit instead of a deployed WinUI test app. The only Windows-bound service
+         (LocationService) lives in Anvil.App behind its interface, and view-models reach the UI thread
+         through IDispatcher rather than DispatcherQueue. Keeping this TFM is what makes the compiler
+         enforce all of that. (SettingsService used to be Windows-bound via LocalSettings; it's now a
+         plain JSON-backed Core service — see Services/Settings/.) -->
     <TargetFramework>net8.0</TargetFramework>
     <!-- RootNamespace is `Anvil`, NOT `Anvil.Core`, so types keep the namespaces they had in the
          single-project layout (Anvil.Models, Anvil.Services, Anvil.ViewModels). That's what let the

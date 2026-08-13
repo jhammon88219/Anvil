@@ -8,8 +8,8 @@ namespace Anvil.Services
 	/// <see cref="System.ComponentModel.INotifyPropertyChanged"/>, which WinUI requires on the UI
 	/// thread — so they need a way to hop threads WITHOUT referencing WinUI, or Anvil.Core could not
 	/// stay a plain net8.0 assembly. This is that seam; Anvil.App supplies the DispatcherQueue-backed
-	/// implementation (WinUiDispatcher), exactly like <see cref="ILocationService"/> and
-	/// <see cref="ISettingsService"/> do for their platform APIs.
+	/// implementation (WinUiDispatcher), exactly like <see cref="ILocationService"/> does for its platform
+	/// API. (<c>ISettingsService</c> used to be such a seam too, but its JSON-backed impl now lives in Core.)
 	/// </summary>
 	public interface IDispatcher
 	{

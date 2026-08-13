@@ -18,6 +18,16 @@ namespace Anvil.Services
 		/// <summary>Absolute path of the on-disk volume cache folder.</summary>
 		string CacheDirectory { get; }
 
+		/// <summary>Total bytes of the cached radar VOLUME files (<c>.V06</c> + <c>.raw</c>, archive + live)
+		/// — what the App Settings Storage readout shows and what <see cref="ClearCacheAsync"/> removes.
+		/// Runs off-thread (enumerates the cache folder).</summary>
+		Task<long> GetCacheSizeBytesAsync(CancellationToken cancellationToken = default);
+
+		/// <summary>Deletes every cached radar volume file (<c>.V06</c> + <c>.raw</c>) immediately — the
+		/// "Clear now" action. Best-effort + off-thread; the app re-fetches anything a loop needs. Leaves
+		/// the <c>Diagnostics/</c> subfolder alone (owned by its own trim).</summary>
+		Task ClearCacheAsync(CancellationToken cancellationToken = default);
+
 		/// <summary>
 		/// Returns the keys of the most recent <paramref name="count"/> volumes for the site,
 		/// oldest-first, and prunes cached volumes outside that set. Cheap (listing only).

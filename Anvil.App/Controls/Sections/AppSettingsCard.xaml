@@ -26,7 +26,7 @@
 
     <Grid>
         <ctl:ControlCard Title="Settings"
-                         CardHeight="470"
+                         CardHeight="540"
                          CloseRequested="OnCardCloseRequested"
                          Visibility="{x:Bind VisibleWhen(ViewModel.IsSettingsCardOpen), Mode=OneWay}">
             <ctl:ControlCard.CardBody>
@@ -36,6 +36,7 @@
                         <RowDefinition Height="Auto"/> <!-- section label: Radar Settings -->
                         <RowDefinition Height="Auto"/> <!-- Show TDWRs -->
                         <RowDefinition Height="Auto"/> <!-- Show Research Radars -->
+                        <RowDefinition Height="Auto"/> <!-- Storage (cache size + clear + limit) -->
                         <RowDefinition Height="Auto"/> <!-- Advanced / Diagnostics (PIPELINE CONSOLE) -->
                     </Grid.RowDefinitions>
 
@@ -57,10 +58,51 @@
                               IsChecked="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"
                               ToolTipService.ToolTip="Show research/test radar markers such as KCRI (ROC test bed, Norman OK)"/>
 
+                    <!-- STORAGE — the settings service's first real consumer. Live radar-cache size + a
+                         "Clear now" action (Level2RadarService), and a PERSISTED size cap
+                         (AppSettings.RadarCacheMaxGb, enforced by the startup sweep). -->
+                    <StackPanel Grid.Row="3" Spacing="6" Margin="0,4,0,0">
+                        <TextBlock Text="Storage"
+                                   Style="{StaticResource SettingsSectionLabelStyle}"/>
+
+                        <!-- Radar cache size + Clear now -->
+                        <Grid ColumnSpacing="8" Margin="4,0,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Radar cache"/>
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                       Margin="0,0,4,0"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       Text="{x:Bind ViewModel.Storage.CacheSizeText, Mode=OneWay}"/>
+                            <Button Grid.Column="2" Content="Clear now"
+                                    IsEnabled="{x:Bind ViewModel.Storage.CanClear, Mode=OneWay}"
+                                    Click="OnClearCacheClick"
+                                    ToolTipService.ToolTip="Delete all cached radar volumes now (the app re-downloads what it needs)"/>
+                        </Grid>
+
+                        <!-- Cache size cap (persisted via the settings service) -->
+                        <Grid ColumnSpacing="8" Margin="4,0,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Cache limit"/>
+                            <ComboBox Grid.Column="1" HorizontalAlignment="Right" MinWidth="72"
+                                      ItemsSource="{x:Bind ViewModel.Storage.CacheLimitOptions}"
+                                      SelectedItem="{x:Bind ViewModel.Storage.CacheLimitGb, Mode=TwoWay}"
+                                      ToolTipService.ToolTip="Maximum on-disk radar cache; enforced at the next launch"/>
+                            <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="GB"/>
+                        </Grid>
+                    </StackPanel>
+
                     <!-- PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit): the non-obvious toggle
                          that opens the read-only pipeline glass-cockpit card. Tucked under an Advanced label
                          so it's discoverable but out of the way. -->
-                    <StackPanel Grid.Row="3" Spacing="6" Margin="0,4,0,0">
+                    <StackPanel Grid.Row="4" Spacing="6" Margin="0,4,0,0">
                         <TextBlock Text="Advanced"
                                    Style="{StaticResource SettingsSectionLabelStyle}"/>
                         <ToggleSwitch Margin="4,0,0,0"

@@ -38,5 +38,15 @@ namespace Anvil.Controls.Sections
 				ViewModel.IsSettingsCardOpen = false;
 			}
 		}
+
+		// "Clear now" in the Storage section: delete the whole radar volume cache, then refresh the readout.
+		// The VM guards against overlap + drives the button's enabled state.
+		private async void OnClearCacheClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is not null)
+			{
+				await ViewModel.Storage.ClearCacheAsync();
+			}
+		}
 	}
 }

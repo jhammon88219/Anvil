@@ -43,11 +43,15 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IDowEventProvider dowEventProvider, IDispatcher dispatcher, ILoggerFactory loggerFactory)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IDowEventProvider dowEventProvider, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory)
 		{
 			_mapService = mapService;
 			_styleProvider = styleProvider;
 			_regionProvider = regionProvider;
+
+			// Built before the _rightPanels callback below references it (that callback refreshes the cache
+			// readout when the Settings panel opens).
+			Storage = new StorageSettingsViewModel(radarService, settingsService);
 
 			// The two one-at-a-time card groups (temporal settings cards + right-side panels). Each fires the
 			// enum property + all its bool projections on a change, so the x:Bind card/toggle bindings update.
@@ -64,6 +68,10 @@ namespace Anvil.ViewModels
 				OnPropertyChanged(nameof(IsMapControlsCardOpen));
 				OnPropertyChanged(nameof(IsSettingsCardOpen));
 				OnPropertyChanged(nameof(IsSiteExplorerOpen));
+				// Freshen the App Settings cache readout each time that card becomes the open right panel.
+				// (_rightPanels + Storage are both set in this ctor; this callback only fires at runtime,
+				// well after that — the ! silences the mid-assignment false positive on _rightPanels.)
+				if (_rightPanels!.Current == RightPanel.Settings) { _ = Storage.RefreshCacheSizeAsync(); }
 			});
 
 			// Each subsystem lives in its own view model (progressively split out of this class);
@@ -174,6 +182,10 @@ namespace Anvil.ViewModels
 		/// <summary>The mile distance grid (a square grid anchored to the selected radar, hide/show + opacity).
 		/// Surfaced in the Map Controls card.</summary>
 		public MileGridViewModel MileGrid { get; }
+
+		/// <summary>The App Settings "Storage" section VM (radar cache size readout + Clear + the persisted
+		/// size cap). The settings service's first real consumer.</summary>
+		public StorageSettingsViewModel Storage { get; }
 
 		// PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit).
 		/// <summary>The Pipeline Console: a read-only glass-cockpit over the Level-2 build pipeline (a

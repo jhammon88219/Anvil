@@ -37,19 +37,34 @@ namespace Anvil.Services
 		// ── Cache retention knobs (startup sweep) — THE spot to tune disk usage ────────────────────
 		// The per-site PruneCache (below) only trims the ONE site you're actively loading, so cached
 		// volumes for every OTHER site you've ever clicked accumulate forever. SweepCacheOnStartup runs
-		// ONCE at launch across the WHOLE folder to bound it, independent of what's loaded. Adjust these
-		// three values freely — they're the only knobs, and startup runs before any loop loads so the
-		// sweep can never delete a volume an active loop still needs.
-		private static readonly TimeSpan CacheMaxAge = TimeSpan.FromDays(5);   // 1) delete volumes older than this
-		private const long CacheMaxBytes = 5L * 1024 * 1024 * 1024;            // 2) then cap the folder (oldest-first) at 5 GB
-		private const int DiagnosticsKeepRuns = 15;                            // 3) keep this many newest diagnostics runs
+		// ONCE at launch across the WHOLE folder to bound it, independent of what's loaded. Startup runs
+		// before any loop loads so the sweep can never delete a volume an active loop still needs.
+		// NOTE: the SIZE cap is now the user-facing persisted setting AppSettings.RadarCacheMaxGb (App
+		// Settings → Storage), read via SizeCapBytes below; DefaultCacheMaxGb is only the fallback when
+		// that value is unset/invalid. Age + diagnostics-keep stay code-level knobs.
+		private static readonly TimeSpan CacheMaxAge = TimeSpan.FromDays(5);   // delete volumes older than this
+		private const int DefaultCacheMaxGb = 5;                              // size-cap fallback (see RadarCacheMaxGb)
+		private const int DiagnosticsKeepRuns = 15;                            // keep this many newest diagnostics runs
+
+		// The active size cap in bytes = the persisted setting, or the fallback when it's unset/nonsensical.
+		private long SizeCapBytes
+		{
+			get
+			{
+				var gb = _settings.Settings.RadarCacheMaxGb;
+				if (gb <= 0) gb = DefaultCacheMaxGb;
+				return (long)gb * 1024 * 1024 * 1024;
+			}
+		}
 
 		private readonly HttpClient _http;
 		private readonly ILogger<Level2RadarService> _logger;
+		private readonly ISettingsService _settings;
 
-		public Level2RadarService(ILogger<Level2RadarService> logger)
+		public Level2RadarService(ILogger<Level2RadarService> logger, ISettingsService settings)
 		{
 			_logger = logger;
+			_settings = settings;
 			CacheDirectory = Path.Combine(
 				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
 				"Anvil", "RadarLevel2");
@@ -1381,12 +1396,13 @@ namespace Anvil.Services
 		// Bounds the ENTIRE cache folder at startup, independent of which site is loaded — the counterpart
 		// to the per-site PruneCache, which only trims the active site (so idle sites' volumes otherwise
 		// accumulate forever). Best-effort + off the ctor thread: a failure here must never affect startup
-		// or radar loading. Tune via CacheMaxAge / CacheMaxBytes / DiagnosticsKeepRuns near the top of the class.
+		// or radar loading. Tune via CacheMaxAge / DiagnosticsKeepRuns (top of class) + the user-facing size
+		// cap AppSettings.RadarCacheMaxGb (read through SizeCapBytes).
 		private void SweepCacheOnStartup()
 		{
 			_ = Task.Run(() =>
 			{
-				try { SweepVolumeCache(); }
+				try { SweepVolumeCache(SizeCapBytes); }
 				catch (Exception ex) { _logger.LogWarning(ex, "Cache volume sweep failed"); }
 				try { TrimDiagnostics(); }
 				catch (Exception ex) { _logger.LogWarning(ex, "Diagnostics trim failed"); }
@@ -1395,14 +1411,13 @@ namespace Anvil.Services
 
 		// Two caps over the cached volume files (.V06 archive + live, and .raw prefetches), applied in order:
 		//   1) AGE  — delete anything older than CacheMaxAge.
-		//   2) SIZE — if what survives still exceeds CacheMaxBytes, delete oldest-first until under.
+		//   2) SIZE — if what survives still exceeds sizeCapBytes, delete oldest-first until under.
 		// Age uses LastWriteTimeUtc so it covers every file type uniformly (archive/live/raw). The Diagnostics
 		// subfolder is a separate concern (TrimDiagnostics) and is excluded by the extension filter.
-		private void SweepVolumeCache()
+		private void SweepVolumeCache(long sizeCapBytes)
 		{
 			var files = Directory.EnumerateFiles(CacheDirectory)
-				.Where(f => f.EndsWith(".V06", StringComparison.OrdinalIgnoreCase)
-					|| f.EndsWith(".raw", StringComparison.OrdinalIgnoreCase))
+				.Where(IsVolumeFile)
 				.Select(f => new FileInfo(f))
 				.ToList();
 
@@ -1418,11 +1433,11 @@ namespace Anvil.Services
 
 			long total = files.Sum(fi => fi.Length);
 			int sizedOut = 0; long sizedBytes = 0;
-			if (total > CacheMaxBytes)
+			if (total > sizeCapBytes)
 			{
 				foreach (var fi in files.OrderBy(fi => fi.LastWriteTimeUtc))
 				{
-					if (total <= CacheMaxBytes) break;
+					if (total <= sizeCapBytes) break;
 					long len = fi.Length;
 					try { fi.Delete(); total -= len; sizedOut++; sizedBytes += len; }
 					catch { /* best effort */ }
@@ -1436,6 +1451,47 @@ namespace Anvil.Services
 					agedOut, agedBytes / 1024.0 / 1024, sizedOut, sizedBytes / 1024.0 / 1024, total / 1024.0 / 1024);
 			}
 		}
+
+		// The cached radar volume files: single-tilt archive/live .V06 + prefetched .raw volumes. Excludes
+		// the Diagnostics/ subtree (a different filename shape + its own trim). Shared by the size readout,
+		// the "Clear now" action, and the startup sweep so all three agree on what "the cache" is.
+		private static bool IsVolumeFile(string path) =>
+			path.EndsWith(".V06", StringComparison.OrdinalIgnoreCase)
+			|| path.EndsWith(".raw", StringComparison.OrdinalIgnoreCase);
+
+		public Task<long> GetCacheSizeBytesAsync(CancellationToken cancellationToken = default) => Task.Run(() =>
+		{
+			long total = 0;
+			try
+			{
+				foreach (var f in Directory.EnumerateFiles(CacheDirectory))
+				{
+					cancellationToken.ThrowIfCancellationRequested();
+					if (!IsVolumeFile(f)) continue;
+					try { total += new FileInfo(f).Length; } catch { /* file vanished mid-scan */ }
+				}
+			}
+			catch (OperationCanceledException) { throw; }
+			catch { /* folder gone / unreadable → report what we have */ }
+			return total;
+		}, cancellationToken);
+
+		public Task ClearCacheAsync(CancellationToken cancellationToken = default) => Task.Run(() =>
+		{
+			int removed = 0;
+			try
+			{
+				foreach (var f in Directory.EnumerateFiles(CacheDirectory))
+				{
+					cancellationToken.ThrowIfCancellationRequested();
+					if (!IsVolumeFile(f)) continue;
+					try { File.Delete(f); removed++; } catch { /* best effort */ }
+				}
+				_logger.LogInformation("Radar cache cleared by user request: {Removed} file(s) deleted", removed);
+			}
+			catch (OperationCanceledException) { throw; }
+			catch (Exception ex) { _logger.LogWarning(ex, "Clear cache failed"); }
+		}, cancellationToken);
 
 		// Keeps only the newest DiagnosticsKeepRuns diagnostics "runs". A run is identified by its launch
 		// stamp (yyyyMMdd-HHmmss, lexically chronological) shared across radar-diag-<stamp>.jsonl,
