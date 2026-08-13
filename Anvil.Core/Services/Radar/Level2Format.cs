@@ -183,21 +183,36 @@ namespace Anvil.Services
 			var selected = ready[^1];
 			(int start, int end)? velCut = null;
 
-			// The Doppler companion immediately after a surveillance cut, if any — identified by
-			// VELOCITY at the SAME angle (NOT reflectivity: a short-PRT Doppler's range-folded
-			// reflectivity can fail the HasMoment gate-count check). `requireComplete` additionally
-			// demands a terminated, full sweep (a later cut follows it).
+			// The Doppler companion of a surveillance cut, if any — identified by VELOCITY at the SAME
+			// angle (NOT reflectivity: a short-PRT Doppler's range-folded reflectivity can fail the
+			// HasMoment gate-count check). Normally the immediately-following cut, but a stray 1-block
+			// "orphan" cut (elevation number 0 / unparseable angle — a transition radial) can wedge
+			// between the surveillance and its Doppler on SAILS/MRLE supplemental base scans (measured
+			// KDVN: `#7@0.44[38..44]R #0@?[44..45] #8@0.44[45..51]RV`). Walk PAST those NaN-angle orphans
+			// so those scans still pair — otherwise only the volume's FIRST base scan (the one with no
+			// orphan) ever paired, freezing the displayed frame on the oldest scan for the whole volume.
+			// Stop at the first cut with a REAL angle: if it's the same-angle velocity cut it's the
+			// companion; otherwise the antenna has moved to another tilt and there's no companion.
+			// `requireComplete` additionally demands a terminated, full sweep (a later cut follows it).
 			(int start, int end)? DopplerCompanion(int surveillanceStart, bool requireComplete)
 			{
 				var si = cuts.FindIndex(c => c.start == surveillanceStart);
-				if (si < 0 || si + 1 >= cuts.Count) return null;
-				var next = cuts[si + 1];
-				var sameAngle = !float.IsNaN(next.angle) && Math.Abs(next.angle - refAngle) <= tiltTol;
-				if (!(sameAngle && next.hasVel) || (requireComplete && next.end >= blocks.Count))
+				if (si < 0) return null;
+				for (var ni = si + 1; ni < cuts.Count; ni++)
 				{
-					return null; // not a same-angle velocity cut, or (when required) still mid-scan
+					var next = cuts[ni];
+					if (float.IsNaN(next.angle))
+					{
+						continue; // orphan filler (stray transition radial) — skip to the real next cut
+					}
+					var sameAngle = Math.Abs(next.angle - refAngle) <= tiltTol;
+					if (!(sameAngle && next.hasVel) || (requireComplete && next.end >= blocks.Count))
+					{
+						return null; // a different tilt (no companion), or (when required) still mid-scan
+					}
+					return (next.start, next.end);
 				}
-				return (next.start, next.end);
+				return null;
 			}
 
 			if (surveillance.Count > 0)
@@ -249,18 +264,10 @@ namespace Anvil.Services
 			var velComplete = surveillance.Count == 0
 				? selected.hasVel
 				: velCut is { } vchk && vchk.end < blocks.Count;
-			// DIAG-CUTDUMP (capture-only, removable): the full cut table for this poll, so a site whose
-			// Doppler companion isn't the immediately-adjacent cut (KDVN velComplete=false investigation)
-			// reveals its exact elevation/moment ordering. One compact field per cut: #<elevNum>@<angle>
-			// [start..end] then R (has reflectivity) / V (has velocity).
-			var cutDump = string.Join(" ", cuts.Select(c =>
-				$"#{blocks[c.start].elev}@{(float.IsNaN(c.angle) ? "?" : c.angle.ToString("0.00"))}" +
-				$"[{c.start}..{c.end}]{(c.hasRef ? "R" : "")}{(c.hasVel ? "V" : "")}"));
 			RadarDiagnostics.Log("svc", "sweep",
 				("icao", System.Text.Encoding.ASCII.GetString(icao)), ("vcp", vcp),
 				("velComplete", velComplete),
 				("tilt", Math.Round(refAngle, 2)),
-				("cuts", cutDump),
 				("msg", $"sweeps={sweeps} (obs={basePool.Count} designed={designedSweeps}) refCuts={refCuts.Count} surv={surveillance.Count} @ {refAngle:0.00}° " +
 					$"{(targetAngle is { } tlog ? $"(target {tlog:0.00}°, base {baseAngle:0.00}°) " : "")}" +
 					$"sel=[{selected.start}..{selected.end}]({selected.end - selected.start}blk,{selected.angle:0.00}°) " +
