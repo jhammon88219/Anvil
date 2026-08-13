@@ -29,38 +29,43 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Header: title on the left, down-triangle (hide) on the right. Doubles as the DRAG HANDLE
-                 (DragMove.MoveTarget → CardRoot); Background="Transparent" makes the whole strip grabbable,
+            <!-- Header: title on the left, close (X) on the right. Doubles as the DRAG HANDLE
+                 (DragMove.MoveTarget → CardRoot); the lifted background (OverlayBarSurfaceHoverBrush, a
+                 step above the card surface) hints the strip is grabbable and gives the drag a hit area,
                  and a press on the close Button is left alone (DragMove skips ButtonBase). -->
-            <Grid Grid.Row="0" Margin="0,0,0,8"
-                  Background="Transparent"
-                  ctl:DragMove.MoveTarget="{x:Bind CardRoot}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0"
-                           Text="{x:Bind Title, Mode=OneWay}"
-                           FontSize="13"
-                           FontWeight="SemiBold"
-                           CharacterSpacing="40"
-                           VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <!-- Down-triangle: collapses the card down toward the bar (chevron-down, E70D). -->
-                <Button Grid.Column="1"
-                        Click="OnCloseClick"
-                        Width="28" Height="24"
-                        Padding="0"
-                        MinWidth="0" MinHeight="0"
-                        CornerRadius="6"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        ToolTipService.ToolTip="Hide this panel">
-                    <FontIcon Glyph="&#xE70D;"
-                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                              FontSize="12"/>
-                </Button>
-            </Grid>
+            <Border Grid.Row="0" Margin="0,0,0,10"
+                    Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                    CornerRadius="6"
+                    Padding="10,3,4,3"
+                    ctl:DragMove.MoveTarget="{x:Bind CardRoot}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="{x:Bind Title, Mode=OneWay}"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               CharacterSpacing="40"
+                               VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <!-- Windows-style close (X, ChromeClose E711): hides the card. -->
+                    <Button Grid.Column="1"
+                            Click="OnCloseClick"
+                            Width="28" Height="24"
+                            Padding="0"
+                            MinWidth="0" MinHeight="0"
+                            CornerRadius="6"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            ToolTipService.ToolTip="Hide this panel">
+                        <FontIcon Glyph="&#xE711;"
+                                  FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  FontSize="12"/>
+                    </Button>
+                </Grid>
+            </Border>
 
             <!-- Feature controls. -->
             <ContentPresenter Grid.Row="1"

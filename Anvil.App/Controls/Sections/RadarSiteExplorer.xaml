@@ -48,31 +48,37 @@
                     <RowDefinition Height="*"/>    <!-- body: list | detail -->
                 </Grid.RowDefinitions>
 
-                <!-- Header: title + count, close triangle at right. Doubles as the DRAG HANDLE
-                     (DragMove.MoveTarget → CardRoot); the close Button press is left alone. -->
-                <Grid Grid.Row="0"
-                      Background="Transparent"
-                      ctl:DragMove.MoveTarget="{x:Bind CardRoot}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Radar Sites"
-                               FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
-                               VerticalAlignment="Center"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <TextBlock Grid.Column="1" Margin="12,0,0,0"
-                               Text="{x:Bind ViewModel.SiteExplorer.ResultCountText, Mode=OneWay}"
-                               FontSize="12" VerticalAlignment="Center"
-                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                    <Button Grid.Column="2" Click="OnCloseClick"
-                            Width="28" Height="24" Padding="0" MinWidth="0" MinHeight="0"
-                            CornerRadius="6" Background="Transparent" BorderThickness="0"
-                            ToolTipService.ToolTip="Hide the site explorer">
-                        <FontIcon Glyph="&#xE70D;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12"/>
-                    </Button>
-                </Grid>
+                <!-- Header: title + count, close (X) at right. Doubles as the DRAG HANDLE
+                     (DragMove.MoveTarget → CardRoot); the lifted background hints it's grabbable and the
+                     close Button press is left alone. -->
+                <Border Grid.Row="0"
+                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                        CornerRadius="6"
+                        Padding="12,3,4,3"
+                        ctl:DragMove.MoveTarget="{x:Bind CardRoot}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Radar Sites"
+                                   FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
+                                   VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Grid.Column="1" Margin="12,0,0,0"
+                                   Text="{x:Bind ViewModel.SiteExplorer.ResultCountText, Mode=OneWay}"
+                                   FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        <!-- Windows-style close (X, ChromeClose E711). -->
+                        <Button Grid.Column="2" Click="OnCloseClick"
+                                Width="28" Height="24" Padding="0" MinWidth="0" MinHeight="0"
+                                CornerRadius="6" Background="Transparent" BorderThickness="0"
+                                ToolTipService.ToolTip="Hide the site explorer">
+                            <FontIcon Glyph="&#xE711;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12"/>
+                        </Button>
+                    </Grid>
+                </Border>
 
                 <!-- Search + filters. -->
                 <Grid Grid.Row="1" ColumnSpacing="10">
