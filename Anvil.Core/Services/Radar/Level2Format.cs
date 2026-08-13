@@ -249,10 +249,18 @@ namespace Anvil.Services
 			var velComplete = surveillance.Count == 0
 				? selected.hasVel
 				: velCut is { } vchk && vchk.end < blocks.Count;
+			// DIAG-CUTDUMP (capture-only, removable): the full cut table for this poll, so a site whose
+			// Doppler companion isn't the immediately-adjacent cut (KDVN velComplete=false investigation)
+			// reveals its exact elevation/moment ordering. One compact field per cut: #<elevNum>@<angle>
+			// [start..end] then R (has reflectivity) / V (has velocity).
+			var cutDump = string.Join(" ", cuts.Select(c =>
+				$"#{blocks[c.start].elev}@{(float.IsNaN(c.angle) ? "?" : c.angle.ToString("0.00"))}" +
+				$"[{c.start}..{c.end}]{(c.hasRef ? "R" : "")}{(c.hasVel ? "V" : "")}"));
 			RadarDiagnostics.Log("svc", "sweep",
 				("icao", System.Text.Encoding.ASCII.GetString(icao)), ("vcp", vcp),
 				("velComplete", velComplete),
 				("tilt", Math.Round(refAngle, 2)),
+				("cuts", cutDump),
 				("msg", $"sweeps={sweeps} (obs={basePool.Count} designed={designedSweeps}) refCuts={refCuts.Count} surv={surveillance.Count} @ {refAngle:0.00}° " +
 					$"{(targetAngle is { } tlog ? $"(target {tlog:0.00}°, base {baseAngle:0.00}°) " : "")}" +
 					$"sel=[{selected.start}..{selected.end}]({selected.end - selected.start}blk,{selected.angle:0.00}°) " +
