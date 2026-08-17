@@ -145,7 +145,7 @@
                     <ColumnDefinition Width="64"/>   <!-- displayed frame time -->
                     <ColumnDefinition Width="Auto"/> <!-- divider -->
                     <ColumnDefinition Width="48"/>   <!-- site ICAO -->
-                    <ColumnDefinition Width="40"/>   <!-- age of newest -->
+                    <ColumnDefinition Width="Auto"/>   <!-- age of newest -->
                     <ColumnDefinition Width="200"/>  <!-- scan strategy -->
                 </Grid.ColumnDefinitions>
 
