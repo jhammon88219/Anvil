@@ -25,8 +25,10 @@
     </UserControl.Resources>
 
     <Grid Visibility="{x:Bind VisibleWhen(ViewModel.IsPipelineConsoleOpen), Mode=OneWay}">
-        <Border Width="720"
-                Background="{ThemeResource OverlayBarSurfaceBrush}"
+        <!-- Pin: keep this window on top (self-positions top-right, clearing the caption buttons). -->
+        <controls:PinToggle Canvas.ZIndex="10"
+                            IsChecked="{x:Bind ViewModel.IsPipelineConsoleOnTop, Mode=TwoWay}"/>
+        <Border Background="{ThemeResource OverlayBarSurfaceBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                 BorderThickness="1"
                 CornerRadius="10">
@@ -37,8 +39,9 @@
                     <RowDefinition Height="Auto"/> <!-- product rows -->
                 </Grid.RowDefinitions>
 
-                <!-- Header: title + down-triangle (hide). -->
-                <Grid Grid.Row="0" Margin="0,0,0,8">
+                <!-- Header collapsed: hosted in its own OS window (CardWindowManager), whose native title bar
+                     provides the name + Close. -->
+                <Grid Grid.Row="0" Margin="0,0,0,8" Visibility="Collapsed">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>

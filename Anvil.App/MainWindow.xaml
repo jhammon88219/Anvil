@@ -110,32 +110,11 @@
             </ctl:OverlayBar.BarContent>
         </ctl:OverlayBar>
 
-        <!-- ===== Row 1: the floating windows. All TOP-aligned (they drop from the top bar, whose triggers
-             open them), all on the shared FloatingWindowMargin. ===== -->
-
-        <!-- Temporal settings cards (Past / Now / Fore), shown when a toggle's cog is clicked. Left,
-             so each card drops near the cog that opened it. -->
-        <sections:TemporalCards Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left"
-                                Margin="{StaticResource FloatingWindowMargin}"
-                                ViewModel="{x:Bind ViewModel}"/>
-
-        <!-- Map Controls card (basemap style + state isolation); opened by the top bar's "Map" button.
-             Right-aligned like the other app-wide cards. -->
-        <sections:MapControlsCard Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
-                                  Margin="{StaticResource FloatingWindowMargin}"
-                                  ViewModel="{x:Bind ViewModel}"/>
-
-        <!-- App-wide settings card, the mirror of the temporal cards; opened by the top bar's right-edge cog. -->
-        <sections:AppSettingsCard Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
-                                  Margin="{StaticResource FloatingWindowMargin}"
-                                  ViewModel="{x:Bind ViewModel}"/>
-
-        <!-- Radar Site Explorer: a non-modal panel over the map (the map stays live). A larger free panel
-             rather than a small cog-anchored card, but it floats on the same layer + margin as the cards.
-             Its own visibility follows ViewModel.IsSiteExplorerOpen. -->
-        <sections:RadarSiteExplorer Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
-                                    Margin="{StaticResource FloatingWindowMargin}"
-                                    ViewModel="{x:Bind ViewModel}"/>
+        <!-- ===== Row 1: the floating layer. The app-wide cards (Temporal / Map Controls / App Settings /
+             Radar Site Explorer / Pipeline Console) NO LONGER live here — each is hosted in its OWN top-level
+             OS window by CardWindowManager (see MainWindow.xaml.cs), so a multi-monitor user can park them on
+             a second screen. Their top-bar toggles just flip the open flags; the manager opens/closes the
+             windows. Only the dev-only tools card remains on this layer for now. ===== -->
 
         <!-- DEV-ONLY combined dev-tools card (site sweep + dealias validation). Same floating layer/margin;
              open state is the card's own IsCardOpen (toggled by the dev "Dev" button above). Collapsed
@@ -148,15 +127,6 @@
                                ValidationVm="{x:Bind ValidationVm}"
                                SweepReportRequested="OnSweepReportRequested"
                                ValidationReportRequested="OnValidationReportRequested"/>
-
-        <!-- PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit): the read-only Level-2 pipeline
-             glass-cockpit. Ships (no DevVisibility gate); opened by the "Pipeline Console" toggle in App
-             Settings → Advanced. Centered so it can float alongside a right-side settings/temporal card;
-             its own visibility follows ViewModel.IsPipelineConsoleOpen. -->
-        <sections:PipelineConsoleCard Grid.Row="1"
-                                      VerticalAlignment="Top" HorizontalAlignment="Center"
-                                      Margin="{StaticResource FloatingWindowMargin}"
-                                      ViewModel="{x:Bind ViewModel}"/>
 
         <!-- ===== Row 2: the PER-PANE bottom bar. Only the radar console lives here — it repeats once per
              map pane in multi-pane mode. It STRETCHES to full bar width and centers its own transport at

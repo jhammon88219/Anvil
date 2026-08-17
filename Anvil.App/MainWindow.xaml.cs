@@ -93,6 +93,10 @@ namespace Anvil
 		// App settings (offline basemap folder, …). Read when mapping the "mapdata" WebView host.
 		private readonly ISettingsService _settingsService;
 
+		// Hosts each app-wide card in its own OS window (multi-monitor). MainWindow registers each card
+		// with it after construction (below).
+		private readonly CardWindowManager _cardWindows;
+
 		public MainWindow(
 			MapViewModel viewModel,
 			MapService mapService,
@@ -102,7 +106,8 @@ namespace Anvil
 			IWarningService warningService,
 			IStormReportService stormReportService,
 			ILevel2RadarService radarService,
-			ISettingsService settingsService)
+			ISettingsService settingsService,
+			CardWindowManager cardWindows)
 		{
 			// The DI container (App.ConfigureServices) built the whole graph and injected it here; this
 			// window is just the composition ROOT that wires the WebView-coupled bits the container can't.
@@ -117,6 +122,7 @@ namespace Anvil
 			_stormReportService = stormReportService;
 			_radarService = radarService;
 			_settingsService = settingsService;
+			_cardWindows = cardWindows;
 
 			// MapService needs THIS window as its IMapView (the seam that runs JS). The container couldn't
 			// pass it via ctor without a MainWindow↔MapService cycle, so attach now that both exist — well
@@ -147,6 +153,52 @@ namespace Anvil
 
 			ExtendsContentIntoTitleBar = true;
 			InitializeComponent();
+
+			// Card windows: each app-wide card lives in its own native OS window (multi-monitor). The manager
+			// watches the coordinator VM's open flags and opens/closes a window to match; content is a fresh
+			// section instance bound to this same VM, rendered headerless (the window caption is the chrome).
+			// The radar console (Row 2, per-pane) is deliberately NOT here.
+			_cardWindows.Initialize(this, ViewModel);
+			_cardWindows.Register(
+				id: "settings",
+				isOpen: () => ViewModel.IsSettingsCardOpen,
+				close: () => ViewModel.IsSettingsCardOpen = false,
+				buildContent: () => new Controls.Sections.AppSettingsCard { ViewModel = ViewModel },
+				title: "App Settings", width: 460, height: 540,
+				alwaysOnTop: () => ViewModel.IsSettingsCardOnTop,
+				customChrome: true);
+			_cardWindows.Register(
+				id: "map",
+				isOpen: () => ViewModel.IsMapControlsCardOpen,
+				close: () => ViewModel.IsMapControlsCardOpen = false,
+				buildContent: () => new Controls.Sections.MapControlsCard { ViewModel = ViewModel },
+				title: "Map Controls", width: 460, height: 600,
+				alwaysOnTop: () => ViewModel.IsMapControlsCardOnTop,
+				customChrome: true);
+			_cardWindows.Register(
+				id: "sites",
+				isOpen: () => ViewModel.IsSiteExplorerOpen,
+				close: () => ViewModel.IsSiteExplorerOpen = false,
+				buildContent: () => new Controls.Sections.RadarSiteExplorer { ViewModel = ViewModel },
+				title: "Radar Sites", width: 660, height: 470,
+				alwaysOnTop: () => ViewModel.IsSiteExplorerOnTop,
+				customChrome: true);
+			_cardWindows.Register(
+				id: "temporal",
+				isOpen: () => ViewModel.OpenCard != ViewModels.TemporalCard.None,
+				close: () => ViewModel.OpenCard = ViewModels.TemporalCard.None,
+				buildContent: () => new Controls.Sections.TemporalCards { ViewModel = ViewModel },
+				title: "Timeline", width: 460, height: 610,
+				alwaysOnTop: () => ViewModel.IsTimelineOnTop,
+				customChrome: true);
+			_cardWindows.Register(
+				id: "pipeline",
+				isOpen: () => ViewModel.IsPipelineConsoleOpen,
+				close: () => ViewModel.IsPipelineConsoleOpen = false,
+				buildContent: () => new Controls.Sections.PipelineConsoleCard { ViewModel = ViewModel },
+				title: "Pipeline Console", width: 720, height: 470,
+				alwaysOnTop: () => ViewModel.IsPipelineConsoleOnTop, // user-toggled via the pin in the console
+				customChrome: true); // extend content into the title bar so the dark surface replaces the caption
 
 			// Start maximized.
 			(AppWindow.Presenter as OverlappedPresenter)?.Maximize();

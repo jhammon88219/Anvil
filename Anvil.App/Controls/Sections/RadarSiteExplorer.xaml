@@ -34,7 +34,7 @@
 
     <!-- Root Grid -->
     <Grid Visibility="{x:Bind VisibleWhen(ViewModel.IsSiteExplorerOpen), Mode=OneWay}">
-        <Border x:Name="CardRoot" Width="660" Height="470"
+        <Border x:Name="CardRoot"
                 Background="{ThemeResource OverlayBarSurfaceBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                 BorderThickness="1"
@@ -47,12 +47,10 @@
                     <RowDefinition Height="*"/>    <!-- body: list | detail -->
                 </Grid.RowDefinitions>
 
-                <!-- Title bar: title + count, close (X) at right. Runs FLUSH to the card's top/left/right
-                     edges (window-title-bar look) — no margin, rounded only at the top corners (9 = card's
-                     10 radius minus the 1px border). Doubles as the DRAG HANDLE (DragMove.MoveTarget →
-                     CardRoot); the lifted background hints it's grabbable and the close Button press is left
-                     alone. The search + body rows below carry the 16px side inset instead. -->
+                <!-- Hosted in its own OS window (CardWindowManager): the native title bar provides the name +
+                     Close, so this in-card title strip is collapsed (no double title bar). -->
                 <Border Grid.Row="0"
+                        Visibility="Collapsed"
                         Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
                         CornerRadius="9,9,0,0"
                         Padding="16,5,6,5"
@@ -253,5 +251,8 @@
                 </Grid>
             </Grid>
         </Border>
+
+        <!-- Pin: keep this window on top. -->
+        <ctl:PinToggle IsChecked="{x:Bind ViewModel.IsSiteExplorerOnTop, Mode=TwoWay}"/>
     </Grid>
 </UserControl>

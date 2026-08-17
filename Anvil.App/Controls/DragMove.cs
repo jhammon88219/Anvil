@@ -18,8 +18,8 @@ namespace Anvil.Controls;
 /// hide/show (the card stays where you parked it) and resets to the anchor on app restart (it's not
 /// persisted). The offset is clamped so a sliver of the card always stays on-screen and grabbable.
 ///
-/// Removable as a unit: delete this file plus the two <c>DragMove.MoveTarget</c> usages
-/// (ControlCard.xaml header, RadarSiteExplorer.xaml header).
+/// Removable as a unit: delete this file plus the <c>DragMove.MoveTarget</c> usages
+/// (DevToolsCard.xaml header, RadarSiteExplorer.xaml header).
 /// </summary>
 public static class DragMove
 {

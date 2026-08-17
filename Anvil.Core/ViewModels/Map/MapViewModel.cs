@@ -202,6 +202,51 @@ namespace Anvil.ViewModels
 		public PipelineConsoleViewModel PipelineConsole { get; }
 
 		private bool _isPipelineConsoleOpen;
+		private bool _isPipelineConsoleOnTop = true;
+
+		/// <summary>Whether the Pipeline Console window stays above the main window (topmost). User-toggled from
+		/// the pin in the console's title-bar area; <c>CardWindowManager</c> applies it to that window's
+		/// presenter. Defaults on, so a single-monitor user can watch it while working the map.</summary>
+		public bool IsPipelineConsoleOnTop
+		{
+			get => _isPipelineConsoleOnTop;
+			set => SetProperty(ref _isPipelineConsoleOnTop, value);
+		}
+
+		// Per-window always-on-top flags (topmost), each driven by that window's title-bar pin and applied to
+		// its presenter by CardWindowManager. Default off (normal window ordering) — pin to float over the map.
+		private bool _isSettingsCardOnTop;
+		private bool _isMapControlsCardOnTop;
+		private bool _isSiteExplorerOnTop;
+		private bool _isTimelineOnTop;
+
+		/// <summary>Whether the App Settings window stays on top (title-bar pin).</summary>
+		public bool IsSettingsCardOnTop
+		{
+			get => _isSettingsCardOnTop;
+			set => SetProperty(ref _isSettingsCardOnTop, value);
+		}
+
+		/// <summary>Whether the Map Controls window stays on top (title-bar pin).</summary>
+		public bool IsMapControlsCardOnTop
+		{
+			get => _isMapControlsCardOnTop;
+			set => SetProperty(ref _isMapControlsCardOnTop, value);
+		}
+
+		/// <summary>Whether the Radar Sites window stays on top (title-bar pin).</summary>
+		public bool IsSiteExplorerOnTop
+		{
+			get => _isSiteExplorerOnTop;
+			set => SetProperty(ref _isSiteExplorerOnTop, value);
+		}
+
+		/// <summary>Whether the Timeline window stays on top (title-bar pin).</summary>
+		public bool IsTimelineOnTop
+		{
+			get => _isTimelineOnTop;
+			set => SetProperty(ref _isTimelineOnTop, value);
+		}
 		/// <summary>Whether the Pipeline Console card is showing. INDEPENDENT of the other cards (it may float
 		/// alongside them). Forwards to <see cref="PipelineConsoleViewModel.IsOpen"/> so polling runs only
 		/// while it's open.</summary>

@@ -27,18 +27,6 @@ namespace Anvil.Controls.Sections
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(MapControlsCard), new PropertyMetadata(null));
 
-		// x:Bind function mapping a bool to Visibility (no value-converter lookup needed on a UserControl).
-		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
-
-		// The card's down-triangle closes the Map Controls card (app-wide state; nothing else changes).
-		private void OnCardCloseRequested(object sender, RoutedEventArgs e)
-		{
-			if (ViewModel is not null)
-			{
-				ViewModel.IsMapControlsCardOpen = false;
-			}
-		}
-
 		// "Fit to view" — frame the current region (isolated state, else CONUS). Fire-and-forget: the camera
 		// move runs through IMapService (map.fitBounds), same seam as every other map command.
 		private void OnFitToViewClick(object sender, RoutedEventArgs e)

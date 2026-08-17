@@ -116,6 +116,10 @@ namespace Anvil
 			services.AddSingleton<MapService>();
 			services.AddSingleton<IMapService>(sp => sp.GetRequiredService<MapService>());
 
+			// ── Card windows: hosts the app-wide floating cards in their own OS windows (multi-monitor).
+			//    Reactive host with no ctor deps; MainWindow initializes + registers cards with it. ──
+			services.AddSingleton<CardWindowManager>();
+
 			// ── View models + the JS→C# router + the window (the composition root). ──
 			services.AddSingleton<MapViewModel>();
 			services.AddSingleton<WebMessageRouter>();

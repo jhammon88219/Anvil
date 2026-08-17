@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- DevToolsCard — DEV-ONLY. One card hosting BOTH dev tools (the automated site sweep + the fixed-corpus
-     dealias-validation harness), stacked as two labeled sections inside a single ControlCard. Replaces the
-     former separate DevSweepCard + DevValidationCard so there's one dev button + one floating card. Floats
-     above the OverlayBar like the app settings card, opened by the dev "Dev" button on the bar's right edge
-     (visible only in Debug builds). Non-modal so the map keeps rendering during a run. Bound to BOTH a
-     SiteSweepViewModel and a RadarValidationViewModel; finished reports open in SweepReportDialog /
-     ValidationReportDialog. See docs/app-notes.md (Dev/testing) and docs/radar-validation.md. -->
+     dealias-validation harness), stacked as two labeled sections. Unlike the app-wide cards (which are now
+     their own OS windows), this dev card still floats docked over the OverlayBar, so it carries its own
+     inline chrome (title strip + close + drag handle) instead of a shared ControlCard. Opened by the dev
+     "Dev" button on the bar's right edge (Debug builds only). Bound to BOTH a SiteSweepViewModel and a
+     RadarValidationViewModel; finished reports open in SweepReportDialog / ValidationReportDialog. -->
 <UserControl x:Class="Anvil.Controls.Sections.DevToolsCard"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -24,13 +23,43 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid>
-        <ctl:ControlCard Title="Dev tools"
-                         CardHeight="520"
-                         CloseRequested="OnCardCloseRequested"
-                         Visibility="{x:Bind VisibleWhen(IsCardOpen), Mode=OneWay}">
-            <ctl:ControlCard.CardBody>
-                <Grid RowSpacing="10" VerticalAlignment="Top">
+    <Grid Visibility="{x:Bind VisibleWhen(IsCardOpen), Mode=OneWay}">
+        <Border x:Name="CardRoot" Width="460" Height="520"
+                Background="{ThemeResource OverlayBarSurfaceBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                BorderThickness="1" CornerRadius="10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- title strip -->
+                    <RowDefinition Height="*"/>    <!-- body -->
+                </Grid.RowDefinitions>
+
+                <!-- Title strip: title + close (X). Flush to the top edges, doubles as the drag handle. -->
+                <Border Grid.Row="0"
+                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                        CornerRadius="9,9,0,0"
+                        Padding="14,5,6,5"
+                        ctl:DragMove.MoveTarget="{x:Bind CardRoot}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Dev tools"
+                                   FontSize="13" FontWeight="SemiBold" CharacterSpacing="40"
+                                   VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <Button Grid.Column="1" Click="OnCardCloseRequested"
+                                Width="28" Height="24" Padding="0" MinWidth="0" MinHeight="0"
+                                CornerRadius="6" Background="Transparent" BorderThickness="0"
+                                ToolTipService.ToolTip="Hide the dev tools">
+                            <FontIcon Glyph="&#xE711;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12"/>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- Body: the two dev-tool sections. -->
+                <Grid Grid.Row="1" Margin="16,12,16,14" RowSpacing="10" VerticalAlignment="Top">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/> <!-- Site sweep section -->
                         <RowDefinition Height="Auto"/> <!-- divider -->
@@ -144,7 +173,7 @@
                         </StackPanel>
                     </Grid>
                 </Grid>
-            </ctl:ControlCard.CardBody>
-        </ctl:ControlCard>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

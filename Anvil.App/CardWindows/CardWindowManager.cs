@@ -1,0 +1,221 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+
+namespace Anvil
+{
+	// ============================================================================================
+	// CARD WINDOWS (removable feature — see CardWindows/ + the manager.Register calls in MainWindow).
+	//
+	// The app-wide floating cards (App Settings, Map Controls, Site Explorer, the temporal cards, the
+	// pipeline console) live in their OWN top-level OS windows — not docked in MainWindow — so a
+	// multi-monitor user can park control panels on a second screen. The radar console (per-pane, Row 2)
+	// is deliberately NOT one of these; it stays in the main window.
+	//
+	// MODEL — a card IS a window. There is no docked state and no in-window copy: opening a card's feature
+	// opens its window; closing the window turns the feature off. Each card carries a single IsOpen bool on
+	// the coordinator VM; this manager watches that state and reconciles IsOpen → a live Window. Content is
+	// a fresh instance of the section control bound to the shared singleton VM, hosted headerless (the native
+	// OS title bar provides the card's name + Close).
+	// ============================================================================================
+
+	/// <summary>
+	/// Hosts each app-wide card in its own native-title-bar <see cref="Window"/>, keeping the window's
+	/// existence in sync with its card's IsOpen VM state. Register a card with <see cref="Register"/>; the
+	/// window opens when IsOpen becomes true and closes when it becomes false (and the OS-caption Close flips
+	/// IsOpen back off).
+	/// </summary>
+	public sealed class CardWindowManager
+	{
+		private sealed class Registration
+		{
+			public required string Id;
+			public required Func<bool> IsOpen;                    // feature showing → window should exist
+			public required Action Close;                        // set IsOpen=false (the OS-caption Close path)
+			public required Func<FrameworkElement> BuildContent; // a fresh section instance bound to the shared VM
+			public required string Title;
+			public double Width;
+			public double Height;
+			public Func<bool> AlwaysOnTop = () => false; // topmost (evaluated live so a pin toggle can flip it)
+			public bool CustomChrome; // extend content into the title bar so the dark surface replaces the caption
+		}
+
+		private readonly Dictionary<string, Registration> _regs = new();
+		private readonly Dictionary<string, Window> _windows = new();
+		// Ids we are closing ourselves (the flag went false elsewhere), so the Closed handler doesn't mistake
+		// it for the user clicking the OS caption's Close and re-fire the Close action.
+		private readonly HashSet<string> _closingProgrammatically = new();
+
+		private Window? _owner;
+		private DispatcherQueue? _dispatcher;
+
+		/// <summary>
+		/// Wire the manager to the owner window + the coordinator VM whose PropertyChanged drives reconciles.
+		/// Call once, on the UI thread, after the owner exists.
+		/// </summary>
+		public void Initialize(Window owner, INotifyPropertyChanged coordinator)
+		{
+			_owner = owner;
+			_dispatcher = owner.DispatcherQueue;
+			coordinator.PropertyChanged += (_, _) => RequestReconcile();
+			owner.Closed += (_, _) => CloseAll(); // don't leak card windows when the app closes
+		}
+
+		/// <summary>
+		/// Register a card. <paramref name="isOpen"/> reads the card's VM state, <paramref name="close"/> turns
+		/// the feature off (used when the user closes the window via its caption), and <paramref name="buildContent"/>
+		/// makes a fresh section instance (bound to the shared VM, rendered headerless).
+		/// </summary>
+		public void Register(
+			string id,
+			Func<bool> isOpen,
+			Action close,
+			Func<FrameworkElement> buildContent,
+			string title,
+			double width,
+			double height,
+			Func<bool>? alwaysOnTop = null,
+			bool customChrome = false)
+		{
+			_regs[id] = new Registration
+			{
+				Id = id,
+				IsOpen = isOpen,
+				Close = close,
+				BuildContent = buildContent,
+				Title = title,
+				Width = width,
+				Height = height,
+				AlwaysOnTop = alwaysOnTop ?? (() => false),
+				CustomChrome = customChrome,
+			};
+		}
+
+		/// <summary>
+		/// Re-evaluate every card's IsOpen against its window. Called automatically on any coordinator
+		/// PropertyChanged; call it manually for open-state sources that aren't the coordinator VM (e.g. a
+		/// dev card whose open flag is a control DP).
+		/// </summary>
+		public void ReconcileAll() => RequestReconcile();
+
+		private void RequestReconcile()
+		{
+			if (_dispatcher is null) return;
+			if (_dispatcher.HasThreadAccess) ReconcileAllNow();
+			else _dispatcher.TryEnqueue(ReconcileAllNow);
+		}
+
+		private void ReconcileAllNow()
+		{
+			foreach (var reg in _regs.Values)
+			{
+				bool want = reg.IsOpen();
+				bool have = _windows.ContainsKey(reg.Id);
+				if (want && !have) OpenWindow(reg);
+				else if (!want && have) CloseWindow(reg.Id, programmatic: true);
+				else if (want && have) ApplyAlwaysOnTop(reg); // keep an open window's topmost state in sync
+			}
+		}
+
+		// Push the card's current always-on-top state onto its open window's presenter (so a pin toggle,
+		// which flips the VM flag, takes effect on the next reconcile).
+		private void ApplyAlwaysOnTop(Registration reg)
+		{
+			if (_windows.TryGetValue(reg.Id, out var window)
+				&& window.AppWindow?.Presenter is OverlappedPresenter presenter)
+			{
+				presenter.IsAlwaysOnTop = reg.AlwaysOnTop();
+			}
+		}
+
+		private void OpenWindow(Registration reg)
+		{
+			if (_owner is null) return;
+
+			// The section content IS the window content: its dark surface fills the whole window (no card
+			// frame, no backdrop), so growing the window just reveals more of that surface.
+			var content = reg.BuildContent();
+
+			// Take the DPI scale from the OWNER window (already loaded, so its XamlRoot is available) rather
+			// than the new window's — the new window has no XamlRoot until its content loads, which is AFTER
+			// Activate. Using it here lets us size + place the window BEFORE showing it, so it appears at the
+			// right size/spot instead of flashing at WinUI's default size and then snapping.
+			double scale = 1.0;
+			if (_owner.Content is FrameworkElement ownerRoot)
+			{
+				content.RequestedTheme = ownerRoot.ActualTheme; // match the main window's light/dark theme
+				scale = ownerRoot.XamlRoot?.RasterizationScale ?? 1.0;
+			}
+
+			var window = new Window { Title = reg.Title, Content = content };
+
+			// Extend the dark content into the title-bar area so the native (light) caption bar is replaced by
+			// the card's own dark surface. The default title-bar drag region keeps the window movable — no
+			// custom drag element / SetTitleBar needed.
+			if (reg.CustomChrome)
+			{
+				window.ExtendsContentIntoTitleBar = true;
+			}
+
+			// Size + center over the main window BEFORE Activate so it opens already-fitted (no default-size
+			// flash). A normal resizable/maximizable window otherwise (OverlappedPresenter defaults). AppWindow
+			// works in physical pixels, so scale the card's logical footprint by the monitor's DPI scale.
+			if (window.AppWindow is AppWindow appWindow)
+			{
+				// Topmost cards (e.g. the Pipeline Console) float above the main window even when the map has
+				// focus — so a single-monitor user can watch them while interacting with the map. It doesn't
+				// take focus, so the map underneath stays clickable/draggable.
+				if (appWindow.Presenter is OverlappedPresenter presenter)
+				{
+					presenter.IsAlwaysOnTop = reg.AlwaysOnTop();
+				}
+
+				int w = (int)Math.Ceiling(reg.Width * scale);
+				int h = (int)Math.Ceiling(reg.Height * scale);
+				appWindow.ResizeClient(new Windows.Graphics.SizeInt32(w, h));
+
+				if (_owner.AppWindow is AppWindow owner)
+				{
+					var pos = owner.Position;
+					var size = owner.Size;
+					appWindow.Move(new Windows.Graphics.PointInt32(
+						pos.X + (size.Width - w) / 2, pos.Y + (size.Height - h) / 2));
+				}
+			}
+
+			window.Closed += (_, _) => OnWindowClosed(reg);
+			_windows[reg.Id] = window;
+			window.Activate();
+		}
+
+		private void OnWindowClosed(Registration reg)
+		{
+			_windows.Remove(reg.Id);
+			if (_closingProgrammatically.Remove(reg.Id))
+			{
+				// We closed it (the flag was turned off elsewhere) — the VM is already correct.
+				return;
+			}
+			// The user clicked the window's caption Close: turn the feature off so its top-bar toggle unlatches.
+			reg.Close();
+		}
+
+		private void CloseWindow(string id, bool programmatic)
+		{
+			if (!_windows.TryGetValue(id, out var window)) return;
+			if (programmatic) _closingProgrammatically.Add(id);
+			window.Close(); // fires Closed → OnWindowClosed does the cleanup
+		}
+
+		private void CloseAll()
+		{
+			foreach (var id in new List<string>(_windows.Keys))
+			{
+				CloseWindow(id, programmatic: true);
+			}
+		}
+	}
+}

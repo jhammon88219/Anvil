@@ -27,17 +27,8 @@ namespace Anvil.Controls.Sections
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalCards), new PropertyMetadata(null));
 
-		// x:Bind function mapping a bool to Visibility (no value-converter lookup needed on a UserControl).
+		// x:Bind function mapping a bool to Visibility — selects which temporal card shows inside the one
+		// shared temporal window (Past / Now / Fore; only one is open at a time via OpenCard).
 		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
-
-		// Any card's down-triangle hides the shown card. Only one is ever open, so clearing to None
-		// is enough; the feature itself stays active.
-		private void OnCardCloseRequested(object sender, RoutedEventArgs e)
-		{
-			if (ViewModel is not null)
-			{
-				ViewModel.OpenCard = TemporalCard.None;
-			}
-		}
 	}
 }

@@ -27,18 +27,6 @@ namespace Anvil.Controls.Sections
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(AppSettingsCard), new PropertyMetadata(null));
 
-		// x:Bind function mapping a bool to Visibility (no value-converter lookup needed on a UserControl).
-		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
-
-		// The card's down-triangle closes the settings card (app-wide state; nothing else changes).
-		private void OnCardCloseRequested(object sender, RoutedEventArgs e)
-		{
-			if (ViewModel is not null)
-			{
-				ViewModel.IsSettingsCardOpen = false;
-			}
-		}
-
 		// "Clear now" in the Storage section: delete the whole radar volume cache, then refresh the readout.
 		// The VM guards against overlap + drives the button's enabled state.
 		private async void OnClearCacheClick(object sender, RoutedEventArgs e)
