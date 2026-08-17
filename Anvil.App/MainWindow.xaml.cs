@@ -165,7 +165,7 @@ namespace Anvil
 				isOpen: () => ViewModel.IsSettingsWindowOpen,
 				close: () => ViewModel.IsSettingsWindowOpen = false,
 				buildContent: () => new Controls.Sections.AppSettingsWindow { ViewModel = ViewModel },
-				title: "App Settings", width: 460, height: 540,
+				title: "App Settings", width: 460, height: 420,
 				alwaysOnTop: () => ViewModel.IsSettingsWindowOnTop,
 				customChrome: true);
 			_windows.Register(
@@ -173,7 +173,7 @@ namespace Anvil
 				isOpen: () => ViewModel.IsMapControlsWindowOpen,
 				close: () => ViewModel.IsMapControlsWindowOpen = false,
 				buildContent: () => new Controls.Sections.MapControlsWindow { ViewModel = ViewModel },
-				title: "Map Controls", width: 460, height: 600,
+				title: "Map Controls", width: 460, height: 760,
 				alwaysOnTop: () => ViewModel.IsMapControlsWindowOnTop,
 				customChrome: true);
 			_windows.Register(

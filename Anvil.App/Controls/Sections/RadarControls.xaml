@@ -35,8 +35,10 @@
         </Grid.ColumnDefinitions>
 
         <!-- ============================ DISPLAY (left of transport) ============================
-             Color-scale legend, Product/Tilt, and Sites/Inspect, stacked in Grid rows. Right-aligned at a
-             fixed width so it counterweights the transport without ever changing the center. -->
+             Product + Tilt, right-aligned at a fixed width so the cluster counterweights the transport
+             without ever changing the center. (Site-marker visibility and Inspect used to sit here; they
+             moved to the Map Controls window — they are global map controls, and in multi-pane only the
+             product/tilt selection repeats per pane.) -->
         <Grid Grid.Column="0"
               HorizontalAlignment="Right"
               VerticalAlignment="Center"
@@ -44,7 +46,6 @@
               RowSpacing="8">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- Product (carries its own ramp/legend) / Tilt -->
-                <RowDefinition Height="Auto"/> <!-- Sites / Inspect -->
             </Grid.RowDefinitions>
 
             <!-- Product + Tilt share one row (equal columns). -->
@@ -79,25 +80,6 @@
                           SelectedIndex="{x:Bind ViewModel.RadarTiltIndex, Mode=TwoWay}"
                           IsEnabled="{x:Bind ViewModel.CanSelectTilt, Mode=OneWay}"
                           ToolTipService.ToolTip="Elevation angle (tilt)"/>
-            </Grid>
-
-            <!-- Show/hide sites + Inspect share one row (equal columns). -->
-            <Grid Grid.Row="1" ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Button Grid.Column="0"
-                        HorizontalAlignment="Stretch"
-                        Content="{x:Bind ViewModel.RadarSitesToggleLabel, Mode=OneWay}"
-                        Click="OnToggleSitesClick"
-                        ToolTipService.ToolTip="Show or hide the on-map radar site markers"/>
-                <ToggleButton Grid.Column="1"
-                              HorizontalAlignment="Stretch"
-                              Content="Inspect"
-                              IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
-                              IsChecked="{x:Bind ViewModel.IsInspecting, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Read the value under the cursor on the map, marked live on the color scale"/>
             </Grid>
         </Grid>
 

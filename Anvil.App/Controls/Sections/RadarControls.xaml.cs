@@ -11,9 +11,10 @@ namespace Anvil.Controls.Sections
 {
 	/// <summary>
 	/// The whole radar console in one control: the center transport cluster (prev · play/stop · next +
-	/// a linear scrubber + frame N/M and time), the left display controls (color scale, product, tilt,
-	/// show/hide sites, inspect), and the right selected-site readout. All bound to one
-	/// <see cref="RadarViewModel"/>.
+	/// a linear scrubber + frame N/M and time), the left display controls (product + tilt), and the
+	/// right selected-site readout. All bound to one <see cref="RadarViewModel"/>. Site-marker
+	/// visibility and Inspect live in the Map Controls window instead — they are global map controls,
+	/// and in multi-pane only the product/tilt selection repeats per pane.
 	/// </summary>
 	public sealed partial class RadarControls : UserControl
 	{
@@ -61,9 +62,6 @@ namespace Anvil.Controls.Sections
 				UpdatePlayhead();
 			}
 		}
-
-		private void OnToggleSitesClick(object sender, RoutedEventArgs e) =>
-			ViewModel?.ToggleRadarSitesVisible();
 
 		// Play/stop button: while playing, Stop (halt + return to newest); otherwise Play/resume. Mirrors
 		// the old dial's center button so the single-button "play + stop in one" behavior is unchanged.

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MapControlsWindow — whole-map controls (basemap, view extent, state isolation, mile grid). Hosted in its
+<!-- MapControlsWindow — whole-map controls (basemap, view extent, state isolation, radar-site markers,
+     the mile grid, and the Inspect cursor tool). Hosted in its
      OWN OS window by WindowManager (native title bar is the only chrome), so there is no panel frame: the
      root is the dark surface, stretched to fill the window, content laid out top-left. Bound to the
      coordinator MapViewModel (basemap + FitToViewAsync on it, isolation on its StateIso). -->
@@ -41,10 +42,16 @@
                 <RowDefinition Height="Auto"/> <!-- State Isolation label -->
                 <RowDefinition Height="Auto"/> <!-- Isolate toggle -->
                 <RowDefinition Height="Auto"/> <!-- State combo row -->
+                <RowDefinition Height="Auto"/> <!-- Radar Sites label -->
+                <RowDefinition Height="Auto"/> <!-- Show site markers -->
+                <RowDefinition Height="Auto"/> <!-- Show TDWRs -->
+                <RowDefinition Height="Auto"/> <!-- Show research radars -->
                 <RowDefinition Height="Auto"/> <!-- Mile Grid label -->
                 <RowDefinition Height="Auto"/> <!-- Grid toggle -->
                 <RowDefinition Height="Auto"/> <!-- Spacing combo -->
                 <RowDefinition Height="Auto"/> <!-- Opacity slider -->
+                <RowDefinition Height="Auto"/> <!-- Tools label -->
+                <RowDefinition Height="Auto"/> <!-- Inspect toggle -->
             </Grid.RowDefinitions>
 
             <!-- ── Basemap ── -->
@@ -114,17 +121,42 @@
                           ToolTipService.ToolTip="Isolate this state (arms isolation if it's off)"/>
             </Grid>
 
-            <!-- ── Mile Grid ── -->
-            <TextBlock Grid.Row="9" Text="Mile Grid" Margin="0,6,0,0"
+            <!-- ── Radar Sites ── -->
+            <!-- Which site markers the map draws. All three live together here because marker visibility is
+                 map content: the master toggle came from the radar console, TDWR/research came from App
+                 Settings, and splitting them across two windows meant hunting for "why is my site gone".
+                 None of them affect a loaded radar loop — hiding a marker never unloads its data. -->
+            <TextBlock Grid.Row="9" Text="Radar Sites" Margin="0,6,0,0"
                        Style="{StaticResource MapWindowSectionLabelStyle}"/>
 
             <CheckBox Grid.Row="10" Margin="4,0,0,0"
+                      Content="Show site markers"
+                      IsChecked="{x:Bind ViewModel.Radar.RadarSitesVisible, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Show the on-map radar site markers. Hiding them never affects the loaded radar loop."/>
+
+            <!-- Opt-in TDWRs (the FAA Terminal Doppler Weather Radar T*** network). PERSISTED. -->
+            <CheckBox Grid.Row="11" Margin="4,0,0,0"
+                      Content="Show TDWRs"
+                      IsChecked="{x:Bind ViewModel.Radar.ShowTdwrs, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Show FAA Terminal Doppler Weather Radar markers (e.g. TOKC, TDAL)"/>
+
+            <!-- Opt-in research/test radars (e.g. the ROC test bed KCRI). PERSISTED. -->
+            <CheckBox Grid.Row="12" Margin="4,0,0,0"
+                      Content="Show research radars"
+                      IsChecked="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Show research/test radar markers such as KCRI (ROC test bed, Norman OK)"/>
+
+            <!-- ── Mile Grid ── -->
+            <TextBlock Grid.Row="13" Text="Mile Grid" Margin="0,6,0,0"
+                       Style="{StaticResource MapWindowSectionLabelStyle}"/>
+
+            <CheckBox Grid.Row="14" Margin="4,0,0,0"
                       Content="Show mile grid (centered on the radar)"
                       IsChecked="{x:Bind ViewModel.MileGrid.IsShown, Mode=TwoWay}"
                       ToolTipService.ToolTip="Overlay a square grid centered on the selected radar. Pick one and select a site to see it."/>
 
             <!-- Spacing: one cell = N miles square. -->
-            <Grid Grid.Row="11" Margin="4,0,0,0" ColumnSpacing="12">
+            <Grid Grid.Row="15" Margin="4,0,0,0" ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -139,7 +171,7 @@
             </Grid>
 
             <!-- Grid line opacity. -->
-            <Grid Grid.Row="12" Margin="4,2,0,0" ColumnSpacing="12">
+            <Grid Grid.Row="16" Margin="4,2,0,0" ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -151,6 +183,19 @@
                         Value="{x:Bind ViewModel.MileGrid.Opacity, Mode=TwoWay}"
                         ToolTipService.ToolTip="Mile grid line opacity"/>
             </Grid>
+
+            <!-- ── Tools ── -->
+            <!-- Inspect is a MAP tool, not a per-pane radar control: one armed cursor mode. It reads the
+                 active product's value under the pointer; the readout itself stays on the radar console's
+                 product ramp (the live tick). Disabled until a loop is loaded. -->
+            <TextBlock Grid.Row="17" Text="Tools" Margin="0,6,0,0"
+                       Style="{StaticResource MapWindowSectionLabelStyle}"/>
+
+            <CheckBox Grid.Row="18" Margin="4,0,0,0"
+                      Content="Inspect values under the cursor"
+                      IsEnabled="{x:Bind ViewModel.Radar.IsTransportEnabled, Mode=OneWay}"
+                      IsChecked="{x:Bind ViewModel.Radar.IsInspecting, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Read the radar value under the cursor on the map, marked live on the product color scale"/>
         </Grid>
 
         <!-- Pin: keep this window on top. -->

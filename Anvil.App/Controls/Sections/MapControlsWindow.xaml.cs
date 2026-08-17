@@ -5,7 +5,11 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Sections
 {
 	/// <summary>
-	/// The Map Controls panel: basemap style + state isolation, hosted in its own OS window.
+	/// The Map Controls panel: basemap style, view extent, state isolation, radar-site marker visibility,
+	/// the mile grid and the Inspect cursor tool — the GLOBAL map controls, hosted in its own OS window.
+	/// (Site markers + Inspect moved here from the radar console, and the TDWR/research toggles from App
+	/// Settings, so everything acting on the whole map is in one window and nothing here repeats per pane
+	/// in multi-pane mode.)
 	/// Its visibility is driven by <see cref="MapViewModel.IsMapControlsWindowOpen"/> (toggled by the "Map"
 	/// button on the top bar); the window's caption Close clears it. Bound to the coordinator
 	/// <see cref="MapViewModel"/> (basemap lives on it, isolation on <see cref="MapViewModel.StateIso"/>).
