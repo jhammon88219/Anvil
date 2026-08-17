@@ -26,6 +26,10 @@ namespace Anvil
 		/// <see cref="DevVisibility"/>.</summary>
 		public RadarValidationViewModel? ValidationVm { get; }
 
+		/// <summary>Generic bool → Visibility for x:Bind. A Window has no Window.Resources, and x:Bind on a
+		/// Window can't use {StaticResource converter}, so visibility conversions are functions here.</summary>
+		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+
 		/// <summary>Visibility of the dev-only tools (the dev button + window). Visible in Debug,
 		/// Collapsed in Release, so the sweep is never reachable in a shipped build.</summary>
 #if DEBUG

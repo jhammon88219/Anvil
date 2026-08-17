@@ -37,6 +37,28 @@
         <!-- Full-window map (bottom layer; the bar floats on top of it). -->
         <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="2"/>
 
+        <!-- ===== PANE WATERMARK =====
+             The only thing drawn INSIDE a pane. Panes carry no chrome — every control lives in the bar —
+             so this corner label is the sole in-pane hint of what you are looking at, and it keeps a
+             screenshot or a stream legible without the viewer reading the bar. Today there is one pane
+             (the whole map band); in multi-pane each pane stamps its own product in its own corner. Faint
+             backing so it survives over bright radar returns as well as over the dark basemap. -->
+        <Border Grid.Row="0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="12"
+                Padding="8,2"
+                CornerRadius="4"
+                Opacity="0.72"
+                IsHitTestVisible="False"
+                Background="{ThemeResource OverlayBarSurfaceBrush}"
+                Visibility="{x:Bind VisibleWhen(ViewModel.Radar.IsTransportEnabled), Mode=OneWay}">
+            <TextBlock Text="{x:Bind ViewModel.Radar.SelectedProductShortLabel, Mode=OneWay}"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Border>
+
         <!-- ===== Row 1: the bottom bar. Left = the radar console; right = the global cluster (temporal
              modes over the window buttons). The empty space between them is bar, by design: the scrubber
              stops at the end of the site readout rather than stretching the full width. ===== -->
@@ -74,15 +96,39 @@
 
                         <Grid Grid.Row="1" HorizontalAlignment="Right" ColumnSpacing="6">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/> <!-- pane layout -->
                                 <ColumnDefinition Width="Auto"/> <!-- dev tools (Debug only) -->
                                 <ColumnDefinition Width="Auto"/> <!-- map controls -->
                                 <ColumnDefinition Width="Auto"/> <!-- site explorer -->
                                 <ColumnDefinition Width="Auto"/> <!-- app settings -->
                             </Grid.ColumnDefinitions>
 
+                            <!-- PANE LAYOUT — SCAFFOLDING. The shape of multi-pane, with only the layout
+                                 that exists today selectable. It sits here as one click rather than inside
+                                 a window because it IS the view mode. When multi-pane lands these items
+                                 pick the pane grid, and the chip cluster in RadarControls mirrors it. -->
+                            <Button Grid.Column="0" Width="32" Height="32"
+                                    MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
+                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                    FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
+                                    Content="&#xE8A9;"
+                                    ToolTipService.ToolTip="Pane layout">
+                                <Button.Flyout>
+                                    <MenuFlyout Placement="Top">
+                                        <RadioMenuFlyoutItem Text="Single pane" GroupName="PaneLayout" IsChecked="True"/>
+                                        <RadioMenuFlyoutItem Text="Two across" GroupName="PaneLayout"
+                                                             IsEnabled="False" KeyboardAcceleratorTextOverride="soon"/>
+                                        <RadioMenuFlyoutItem Text="Two stacked" GroupName="PaneLayout"
+                                                             IsEnabled="False" KeyboardAcceleratorTextOverride="soon"/>
+                                        <RadioMenuFlyoutItem Text="Four panes" GroupName="PaneLayout"
+                                                             IsEnabled="False" KeyboardAcceleratorTextOverride="soon"/>
+                                    </MenuFlyout>
+                                </Button.Flyout>
+                            </Button>
+
                             <!-- DEV-ONLY: the combined dev-tools window (site sweep + dealias validation).
                                  Collapsed in Release via DevVisibility. -->
-                            <ToggleButton Grid.Column="0" Width="32" Height="32"
+                            <ToggleButton Grid.Column="1" Width="32" Height="32"
                                           MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
                                           Visibility="{x:Bind DevVisibility}"
                                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
@@ -92,21 +138,21 @@
                                           IsChecked="{x:Bind ViewModel.IsDevToolsWindowOpen, Mode=TwoWay}"/>
                             <!-- Map Controls: the GLOBAL map controls (basemap, view, state isolation,
                                  radar-site markers, mile grid, Inspect). -->
-                            <ToggleButton Grid.Column="1" Width="32" Height="32"
+                            <ToggleButton Grid.Column="2" Width="32" Height="32"
                                           MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
                                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                           FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
                                           Content="&#xE774;"
                                           ToolTipService.ToolTip="Map controls — basemap, site markers, isolation &amp; Inspect"
                                           IsChecked="{x:Bind ViewModel.IsMapControlsWindowOpen, Mode=TwoWay}"/>
-                            <ToggleButton Grid.Column="2" Width="32" Height="32"
+                            <ToggleButton Grid.Column="3" Width="32" Height="32"
                                           MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
                                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                           FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
                                           Content="&#xE81E;"
                                           ToolTipService.ToolTip="Radar site explorer"
                                           IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}"/>
-                            <ToggleButton Grid.Column="3" Width="32" Height="32"
+                            <ToggleButton Grid.Column="4" Width="32" Height="32"
                                           MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
                                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                           FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"

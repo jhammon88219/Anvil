@@ -880,6 +880,8 @@ namespace Anvil.ViewModels
 					return;
 				}
 
+				OnPropertyChanged(nameof(SelectedProductShortLabel)); // the pane watermark follows the product
+
 				// Re-derive the scrubber cells for the newly-active product. We deliberately do NOT blank
 				// the velocity-ready set here: radar.js posts fresh build progress synchronously from
 				// setProduct, so a moment later SetBuildProgress corrects it. With velocity now PREFETCHED
@@ -903,6 +905,17 @@ namespace Anvil.ViewModels
 				}
 			}
 		}
+
+		/// <summary>
+		/// Short label of the active product ("Ref"/"Vel"/…) — the PANE WATERMARK. A map pane carries no
+		/// chrome of its own (every control lives in the bottom bar), so this corner label is the only
+		/// in-pane hint of what the pane is showing; it also keeps a screenshot or a stream legible without
+		/// the viewer having to read the bar. In multi-pane each pane stamps its OWN product here.
+		/// </summary>
+		public string SelectedProductShortLabel =>
+			_radarProductIndex >= 0 && _radarProductIndex < RadarProductOptions.Count
+				? RadarProductOptions[_radarProductIndex].ShortLabel
+				: string.Empty;
 
 		// ===== Tilt (elevation) selection ===============================================================
 		// Unlike a PRODUCT switch — which re-renders bytes already decoded in the WebView — a TILT switch
