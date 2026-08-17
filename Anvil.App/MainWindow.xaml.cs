@@ -158,7 +158,7 @@ namespace Anvil
 			// (multi-monitor). The manager watches the coordinator VM's open flags and opens/closes a window
 			// to match; content is a fresh section instance bound to this same VM, rendered headerless (the
 			// window caption is the chrome). Each flag is INDEPENDENT — any combination may be open at once.
-			// The radar console (Row 2, per-pane) is deliberately NOT here.
+			// The radar console (Row 1, the bottom bar) is deliberately NOT here.
 			_windows.Initialize(this, ViewModel);
 			_windows.Register(
 				id: "settings",

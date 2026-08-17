@@ -14,116 +14,108 @@
     mc:Ignorable="d"
     Title="Anvil">
 
-    <!-- The map fills the whole window; UI (the two bars + the floating windows) sits on top as an overlay,
-         so showing/hiding either bar never changes the map's size.
+    <!-- The map fills the whole window; the UI is ONE bottom bar overlaid on it, so showing/hiding the bar
+         never resizes the map.
 
-         Three overlay rows:
-           Row 0 — the GLOBAL TOP BAR. Controls that must NOT repeat per map pane (in the coming multi-pane
-                   mode): the temporal mode toggles + the app-wide buttons (Sites, Settings, dev tools).
-                   An OverlayBar with Edge=Top, so its pull-tab hangs BELOW it.
-           Row 1 — EMPTY (the map shows through). Every panel that pops over the map is now a real top-level
-                   OS window owned by WindowManager, so nothing floats in-window any more. The row remains
-                   as the map's middle band, keeping the two bars pinned to the top and bottom edges.
-           Row 2 — the PER-PANE BOTTOM BAR: the radar console (RadarControls). This is the bar that repeats
-                   once per map pane in multi-pane mode, so ONLY the radar controls live here.
-         The map spans all three rows, so the layer boundaries are invisible and cost the map nothing. -->
+         There is no top bar any more. It existed to hold the controls that must not repeat per map pane —
+         but once the bottom bar was split into a per-pane cluster and a global cluster, that distinction
+         lives INSIDE one bar and the second strip of chrome was pure cost (a band of map covered at the top
+         AND the bottom). The temporal toggles and the window buttons moved into this bar's right cluster.
+
+         Two overlay rows:
+           Row 0 — the map band (the map shows through). Every panel that pops over the map is a real
+                   top-level OS window owned by WindowManager, so nothing floats in-window.
+           Row 1 — the bottom bar, pinned to the bottom edge. Its LEFT is RadarControls (the pane chips +
+                   the global time module); its RIGHT is the global cluster below. The map RowSpans both,
+                   so the boundary is invisible and costs the map nothing. -->
     <Grid Background="#FF0A0A0A">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- global top bar (tab + bar), pinned to the top -->
-            <RowDefinition Height="*"/>    <!-- empty middle band (the map shows through) -->
-            <RowDefinition Height="Auto"/> <!-- per-pane bottom bar (tab + bar), pinned to the bottom -->
+            <RowDefinition Height="*"/>    <!-- map band (the map shows through) -->
+            <RowDefinition Height="Auto"/> <!-- bottom bar (tab + bar), pinned to the bottom -->
         </Grid.RowDefinitions>
 
-        <!-- Full-window map (bottom layer; all UI overlays float on top of it). -->
-        <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="3"/>
+        <!-- Full-window map (bottom layer; the bar floats on top of it). -->
+        <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="2"/>
 
-        <!-- ===== Row 0: the GLOBAL top bar. BarContent holds the app-level controls that don't repeat per
-             pane — left: temporal split-toggles; right: Sites + Settings (+ dev tools). ===== -->
-        <ctl:OverlayBar Grid.Row="0" Edge="Top">
+        <!-- ===== Row 1: the bottom bar. Left = the radar console; right = the global cluster (temporal
+             modes over the window buttons). The empty space between them is bar, by design: the scrubber
+             stops at the end of the site readout rather than stretching the full width. ===== -->
+        <ctl:OverlayBar Grid.Row="1">
             <ctl:OverlayBar.BarContent>
-                <!-- Single overlay cell: temporal toggles float on the left edge, the app-wide buttons on the
-                     right edge. No center content — the per-pane radar console lives in the bottom bar. -->
-                <Grid>
-                    <!-- Left: temporal split-toggles (feature + settings cog). -->
-                    <sections:TemporalToggles HorizontalAlignment="Left"
-                                              VerticalAlignment="Center"
-                                              ViewModel="{x:Bind ViewModel}"/>
-                    <!-- Right: the Radar Site Explorer button + the app-wide settings cog (+ dev buttons).
-                         Sites sits LEFT of Settings. Each latches while its window is open. -->
-                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center"
-                                Orientation="Horizontal" Spacing="10">
-                        <!-- DEV-ONLY: opens the combined dev-tools window (site sweep + dealias validation).
-                             Collapsed in Release via DevVisibility. -->
-                        <StackPanel Orientation="Vertical" Spacing="5" Visibility="{x:Bind DevVisibility}">
-                            <TextBlock Text="Dev" FontSize="11" FontWeight="SemiBold"
-                                       CharacterSpacing="60" HorizontalAlignment="Center"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                            <ToggleButton Width="40" Height="40" MinWidth="0" MinHeight="0" Padding="0"
-                                          CornerRadius="6"
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>    <!-- radar console, left-aligned -->
+                        <ColumnDefinition Width="Auto"/> <!-- global cluster, right edge -->
+                    </Grid.ColumnDefinitions>
+
+                    <!-- PER-PANE + TIME. In multi-pane the chip cluster inside this grows to a 2x2 that
+                         mirrors the pane grid; the time module beside it does not multiply. -->
+                    <sections:RadarControls Grid.Column="0"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center"
+                                            ViewModel="{x:Bind ViewModel.Radar}"/>
+
+                    <!-- ===== GLOBAL CLUSTER =====
+                         Two rows so it matches the time module's height: the temporal mode pills above,
+                         the app-wide window buttons below. Nothing here repeats per pane. Each button
+                         latches while its window is open (its IsChecked two-ways with the open flag). -->
+                    <Grid Grid.Column="1"
+                          HorizontalAlignment="Right"
+                          VerticalAlignment="Center"
+                          RowSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/> <!-- Past / Now / Fore -->
+                            <RowDefinition Height="Auto"/> <!-- window buttons -->
+                        </Grid.RowDefinitions>
+
+                        <sections:TemporalToggles Grid.Row="0"
+                                                  HorizontalAlignment="Right"
+                                                  ViewModel="{x:Bind ViewModel}"/>
+
+                        <Grid Grid.Row="1" HorizontalAlignment="Right" ColumnSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/> <!-- dev tools (Debug only) -->
+                                <ColumnDefinition Width="Auto"/> <!-- map controls -->
+                                <ColumnDefinition Width="Auto"/> <!-- site explorer -->
+                                <ColumnDefinition Width="Auto"/> <!-- app settings -->
+                            </Grid.ColumnDefinitions>
+
+                            <!-- DEV-ONLY: the combined dev-tools window (site sweep + dealias validation).
+                                 Collapsed in Release via DevVisibility. -->
+                            <ToggleButton Grid.Column="0" Width="32" Height="32"
+                                          MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
+                                          Visibility="{x:Bind DevVisibility}"
                                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="18"
+                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
                                           Content="&#xE9F5;"
                                           ToolTipService.ToolTip="Dev tools — site sweep &amp; dealias validation"
                                           IsChecked="{x:Bind ViewModel.IsDevToolsWindowOpen, Mode=TwoWay}"/>
-                        </StackPanel>
-                        <!-- Map Controls window: basemap style + state isolation. Opens the window (latches
-                             while open); the actual arm/pick controls live inside it. App-wide, so it sits here. -->
-                        <StackPanel Orientation="Vertical" Spacing="5">
-                            <TextBlock Text="Map" FontSize="11" FontWeight="SemiBold"
-                                       CharacterSpacing="60" HorizontalAlignment="Center"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                            <ToggleButton Width="40" Height="40" MinWidth="0" MinHeight="0" Padding="0"
-                                          CornerRadius="6"
+                            <!-- Map Controls: the GLOBAL map controls (basemap, view, state isolation,
+                                 radar-site markers, mile grid, Inspect). -->
+                            <ToggleButton Grid.Column="1" Width="32" Height="32"
+                                          MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
                                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="18"
+                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
                                           Content="&#xE774;"
-                                          ToolTipService.ToolTip="Map controls — basemap &amp; state isolation"
+                                          ToolTipService.ToolTip="Map controls — basemap, site markers, isolation &amp; Inspect"
                                           IsChecked="{x:Bind ViewModel.IsMapControlsWindowOpen, Mode=TwoWay}"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Vertical" Spacing="5">
-                            <TextBlock Text="Sites" FontSize="11" FontWeight="SemiBold"
-                                       CharacterSpacing="60" HorizontalAlignment="Center"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                            <ToggleButton Width="40" Height="40" MinWidth="0" MinHeight="0" Padding="0"
-                                          CornerRadius="6"
+                            <ToggleButton Grid.Column="2" Width="32" Height="32"
+                                          MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
                                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="18"
+                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
                                           Content="&#xE81E;"
                                           ToolTipService.ToolTip="Radar site explorer"
                                           IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Vertical" Spacing="5">
-                            <TextBlock Text="Settings" FontSize="11" FontWeight="SemiBold"
-                                       CharacterSpacing="60" HorizontalAlignment="Center"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                            <ToggleButton Width="40" Height="40" MinWidth="0" MinHeight="0" Padding="0"
-                                          CornerRadius="6"
+                            <ToggleButton Grid.Column="3" Width="32" Height="32"
+                                          MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
                                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="18"
+                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
                                           Content="&#xE713;"
                                           ToolTipService.ToolTip="App settings"
                                           IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}"/>
-                        </StackPanel>
-                    </StackPanel>
+                        </Grid>
+                    </Grid>
                 </Grid>
-            </ctl:OverlayBar.BarContent>
-        </ctl:OverlayBar>
-
-        <!-- ===== Row 1: EMPTY. Every panel that pops over the map (Past Event / Live Radar / SPC Outlooks /
-             Map Controls / App Settings / Radar Site Explorer / Pipeline Console / dev tools) is hosted in
-             its OWN top-level OS window by WindowManager (see MainWindow.xaml.cs), so a multi-monitor user
-             can park them on a second screen. The top-bar toggles just flip the open flags; the manager
-             opens/closes the windows. The row stays so the map (which RowSpans all three) keeps its
-             full-window extent and the two bars stay pinned to the edges. ===== -->
-
-        <!-- ===== Row 2: the PER-PANE bottom bar. Only the radar console lives here — it repeats once per
-             map pane in multi-pane mode. It STRETCHES to full bar width and centers its own transport at
-             window-center (its internal * | Auto | * grid does the centering). ===== -->
-        <ctl:OverlayBar Grid.Row="2">
-            <ctl:OverlayBar.BarContent>
-                <sections:RadarControls HorizontalAlignment="Stretch"
-                                        VerticalAlignment="Center"
-                                        ViewModel="{x:Bind ViewModel.Radar}"/>
             </ctl:OverlayBar.BarContent>
         </ctl:OverlayBar>
     </Grid>

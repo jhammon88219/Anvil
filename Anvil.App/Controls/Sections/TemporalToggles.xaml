@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalToggles — the left section of the overlay bar: the Past / Now / Fore temporal features, each a
-     labeled SINGLE toggle (the old settings cog is gone). A click activates that time-frame AND opens its
-     settings WINDOW (see PastCastWindow / NowCastWindow / ForeCastWindow — three independent OS windows);
-     clicking the already-active mode flips its window open/closed while the mode stays on. You LEAVE a mode by choosing another (Past is exclusive with
-     Now/Fore; Now and Fore coexist). The click routes through MapViewModel.ToggleTemporalMode; the toggle's
+<!-- TemporalToggles — the Past / Now / Fore temporal features as three compact labelled pills. A click
+     activates that time-frame AND opens its settings WINDOW (see PastCastWindow / NowCastWindow /
+     ForeCastWindow — three independent OS windows); clicking the already-active mode flips its window
+     open/closed while the mode stays on. You LEAVE a mode by choosing another (Past is exclusive with
+     Now/Fore; Now and Fore coexist). The click routes through MapViewModel.ToggleTemporalMode; the pill's
      lit state binds OneWay to MapViewModel.IsPastCast/IsNowCast/IsForeCast (projections of the subsystems).
-     Icons are placeholders — to be sourced later. Bound to the coordinator MapViewModel. -->
+
+     These are TEXT pills, not the old icon-over-label stacks: they live in the bottom bar's global cluster
+     now (the top bar is gone), stacked above the window buttons, so the whole cluster has to fit the
+     module's two-row height. The words also read better than the placeholder glyphs did.
+     Bound to the coordinator MapViewModel. -->
 <UserControl
     x:Class="Anvil.Controls.Sections.TemporalToggles"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -15,75 +19,41 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- The mode toggle. One control per mode (the settings cog is gone): a click activates the mode
-             and opens its window; clicking again flips the window; you leave a mode by choosing another. -->
-        <Style x:Key="FeatureToggleStyle" TargetType="ToggleButton">
-            <Setter Property="Width" Value="44"/>
-            <Setter Property="Height" Value="40"/>
+        <!-- One mode pill. A click activates the mode and opens its window; clicking again flips the
+             window; you leave a mode by choosing another. -->
+        <Style x:Key="TemporalPillStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="58"/>
+            <Setter Property="Height" Value="28"/>
             <Setter Property="MinWidth" Value="0"/>
             <Setter Property="MinHeight" Value="0"/>
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="FontSize" Value="13"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="FontFamily" Value="Segoe Fluent Icons,Segoe MDL2 Assets"/>
-            <Setter Property="FontSize" Value="18"/>
-        </Style>
-        <!-- Section header label (Past / Now / Fore). -->
-        <Style x:Key="TemporalLabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="CharacterSpacing" Value="60"/>
-            <Setter Property="HorizontalAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
-        </Style>
-        <!-- One section = label over its split button. -->
-        <Style x:Key="TemporalSectionStyle" TargetType="StackPanel">
-            <Setter Property="Orientation" Value="Vertical"/>
-            <Setter Property="Spacing" Value="5"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-        <!-- Simple vertical line between sections. -->
-        <Style x:Key="TemporalSeparatorStyle" TargetType="Border">
-            <Setter Property="Width" Value="1"/>
-            <Setter Property="VerticalAlignment" Value="Stretch"/>
-            <Setter Property="Margin" Value="12,3"/>
-            <Setter Property="Opacity" Value="0.5"/>
-            <Setter Property="Background" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
         </Style>
     </UserControl.Resources>
 
-    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <!-- ===== Past ===== -->
-        <StackPanel Style="{StaticResource TemporalSectionStyle}">
-            <TextBlock Style="{StaticResource TemporalLabelStyle}" Text="Past"/>
-            <ToggleButton Style="{StaticResource FeatureToggleStyle}" Content="&#xE81C;"
-                          ToolTipService.ToolTip="PastCast — replay a historical radar window (click again to show/hide its panel)"
-                          IsChecked="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
-                          Click="OnPastClick"/>
-        </StackPanel>
+    <Grid VerticalAlignment="Center" ColumnSpacing="6">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
 
-        <Border Style="{StaticResource TemporalSeparatorStyle}"/>
+        <ToggleButton Grid.Column="0" Style="{StaticResource TemporalPillStyle}" Content="Past"
+                      ToolTipService.ToolTip="PastCast — replay a historical radar window (click again to show/hide its panel)"
+                      IsChecked="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
+                      Click="OnPastClick"/>
 
-        <!-- ===== Now ===== -->
-        <StackPanel Style="{StaticResource TemporalSectionStyle}">
-            <TextBlock Style="{StaticResource TemporalLabelStyle}" Text="Now"/>
-            <ToggleButton Style="{StaticResource FeatureToggleStyle}" Content="&#xE774;"
-                          ToolTipService.ToolTip="NowCast — live radar / current conditions (click again to show/hide its panel)"
-                          IsChecked="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
-                          Click="OnNowClick"/>
-        </StackPanel>
+        <ToggleButton Grid.Column="1" Style="{StaticResource TemporalPillStyle}" Content="Now"
+                      ToolTipService.ToolTip="NowCast — live radar / current conditions (click again to show/hide its panel)"
+                      IsChecked="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
+                      Click="OnNowClick"/>
 
-        <Border Style="{StaticResource TemporalSeparatorStyle}"/>
-
-        <!-- ===== Fore ===== -->
-        <StackPanel Style="{StaticResource TemporalSectionStyle}">
-            <TextBlock Style="{StaticResource TemporalLabelStyle}" Text="Fore"/>
-            <ToggleButton Style="{StaticResource FeatureToggleStyle}" Content="&#xE706;"
-                          ToolTipService.ToolTip="ForeCast — SPC outlooks (click again to show/hide its panel)"
-                          IsChecked="{x:Bind ViewModel.IsForeCast, Mode=OneWay}"
-                          Click="OnForeClick"/>
-        </StackPanel>
-    </StackPanel>
+        <ToggleButton Grid.Column="2" Style="{StaticResource TemporalPillStyle}" Content="Fore"
+                      ToolTipService.ToolTip="ForeCast — SPC outlooks (click again to show/hide its panel)"
+                      IsChecked="{x:Bind ViewModel.IsForeCast, Mode=OneWay}"
+                      Click="OnForeClick"/>
+    </Grid>
 </UserControl>

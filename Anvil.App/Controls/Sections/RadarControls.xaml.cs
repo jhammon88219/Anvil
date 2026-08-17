@@ -179,10 +179,6 @@ namespace Anvil.Controls.Sections
 			return idx > 0 ? idx : mode.Length; // no sweep segment (e.g. "—" / "loading…") — keep it all
 		}
 
-		// Generic bool → Visibility for x:Bind (color-scale bar, inspect tick, numerical scale row).
-		public Visibility VisibleWhen(bool value) =>
-			value ? Visibility.Visible : Visibility.Collapsed;
-
 		// Dim the scrubber while the transport isn't enabled yet (Grid has no IsEnabled; interaction is
 		// blocked via IsHitTestVisible + the pointer-handler guard, this is the visual cue).
 		public double ScrubberOpacity(bool enabled) => enabled ? 1.0 : 0.4;
