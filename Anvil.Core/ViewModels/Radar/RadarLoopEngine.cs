@@ -177,30 +177,273 @@ namespace Anvil.ViewModels
 			}, ct);
 		}
 
-		// Reloads the current loop at the newly-selected elevation (see the Tilt region in
-		// RadarViewModel.cs). A tilt switch can't be served from the WebView's decoded frames the way a
-		// PRODUCT switch is: each cached .V06 holds exactly one tilt, so the new elevation is genuinely
-		// different bytes and has to come through the fetch path. That's cheap once
-		// PrefetchRawVolumesAsync has the raw volumes on disk — each frame is then a local extract with
-		// no download — and _selectedTiltAngle is already set, so the reload just picks it up.
+		// Applies a newly-selected elevation to the loop (see the Tilt region in RadarViewModel.cs). A tilt
+		// switch can't be served from the WebView's decoded frames the way a PRODUCT switch is: each cached
+		// .V06 holds exactly one tilt, so the new elevation is genuinely different bytes and has to come
+		// through the fetch path. That's cheap once PrefetchRawVolumesAsync has the raw volumes on disk —
+		// each frame is then a local extract with no download — and _selectedTiltAngle is already set, so
+		// the fetch path just picks it up. A LOADED loop is re-cut in place (RetileLoopAsync) rather than
+		// reloaded; only a loop that isn't up yet takes the full load path.
 		internal void ReloadForTiltChange()
 		{
-			if (_vm.IsPastEventMode)
+			var site = _vm._selectedRadarOption?.Site;
+
+			// A loop is already up: RE-CUT IT IN PLACE (Rule 7 — never tear down a working loop). Same site,
+			// same volumes, same frame times and count; only the elevation bytes differ, so there is nothing
+			// to re-list and no reason to blank the map. RetileLoopAsync re-decodes each slot behind the image
+			// that's already on screen. Both modes: a replay tilt switch used to re-run the whole Load.
+			if (site is not null && _vm._frameCount > 0 && _vm._loadedKeys.Length > 0)
 			{
-				if (_vm._frameCount > 0)
-				{
-					_ = LoadSelectedPastEventAsync(); // replay: re-fetch the same window at the new tilt
-				}
+				_retileGen++; // supersede any retile still running (a fast double tilt switch)
+				_ = RetileLoopAsync(site, _retileGen);
 				return;
 			}
 
-			if (_vm._selectedRadarOption?.Site is not { } site)
+			// Nothing loaded yet. In replay the selection just applies to the next Load; live has nothing to
+			// re-cut either (no site = the selection is remembered and applies to the next site picked).
+			if (_vm.IsPastEventMode || site is null)
 			{
-				return; // no loop up: the selection is remembered and applies to the next site picked
+				return;
 			}
 
 			Diag($"tilt -> {(_vm._selectedTiltAngle is { } a ? a.ToString("0.0") + "°" : "base")}");
 			_ = StartRadarLoopAsync(site);
+		}
+
+		// Bumped on every tilt change so a retile that's been superseded by a newer one bails instead of
+		// finishing against a tilt the user has already moved off. (The gate serializes them, so the second
+		// retile would otherwise sit behind the first one's whole backfill.)
+		private int _retileGen;
+
+		// Re-cuts the loaded loop at the newly-selected elevation, IN PLACE. Serialized under _loopGate
+		// against the periodic refresh + live poll, which mutate the same frame state.
+		private async Task RetileLoopAsync(RadarSite site, int gen)
+		{
+			var ct = _vm._loopCts?.Token ?? CancellationToken.None;
+			try
+			{
+				await _vm._loopGate.WaitAsync(ct);
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
+
+			try
+			{
+				await RetileLoopCoreAsync(site, gen, ct);
+			}
+			catch (OperationCanceledException)
+			{
+				// Site changed / app closing.
+			}
+			finally
+			{
+				_vm._loopGate.Release();
+			}
+		}
+
+		// The actual re-cut (run under _loopGate). Every frame has to come back through the fetch path — each
+		// cached .V06 holds exactly ONE tilt, so a different elevation is genuinely different bytes and can't
+		// be served from the WebView's decoded frames the way a PRODUCT switch is. What this avoids is the
+		// TEARDOWN: the JS keeps the frames it has (marked stale — they still render, so the map never blanks)
+		// while each slot is re-decoded underneath, and the host keeps the keys, frame times, count and
+		// playhead it already has. It's cheap on the network once PrefetchRawVolumesAsync has the raw volumes
+		// on disk (each frame is then a local extract), and free of a bucket listing either way.
+		private async Task RetileLoopCoreAsync(RadarSite site, int gen, CancellationToken ct)
+		{
+			var keys = _vm._loadedKeys;
+			var count = _vm._frameCount;
+			if (keys.Length == 0 || count <= 0 || gen != _retileGen || ct.IsCancellationRequested)
+			{
+				return;
+			}
+
+			var archiveCount = Math.Min(_vm._archiveCount, keys.Length);
+			var tiltText = _vm._selectedTiltAngle is { } sel ? sel.ToString("0.0") + "°" : "base";
+			Diag($"tilt -> {tiltText} (retile {count} frames in place)");
+			Services.RadarDiagnostics.Log("vm", "tilt.retile", ("site", site.Id),
+				("tilt", tiltText), ("frames", count), ("live", _vm._hasLiveFrame));
+
+			// Rule 1, generalized to a re-cut: the frame you are LOOKING AT is the one repainted first. On a
+			// fresh load that's the newest (live) / oldest (replay) frame; here it's wherever the playhead
+			// happens to be, so a tilt switch never makes you wait on frames you can't see. The reveal gate
+			// (RefreshSegmentReadiness) exempts this index, so the rest still fills left-to-right (Rule 2).
+			var current = Math.Clamp(_vm._currentFrameIndex, 0, count - 1);
+			_vm._firstPaintIndex = current;
+
+			// A deferred live append/update belongs to the OLD tilt — its decode is dropped by the JS token
+			// bump below, so its completion callback would never fire. Drop it; the next poll re-fetches.
+			_vm._pendingLiveAppend = null;
+			_vm._pendingLiveUpdate = null;
+
+			// Empty the scrubber: every cell is about to be re-decoded, and reporting the old cut as ready
+			// would leave the loop looking finished while it re-cuts (and let playback run a mix of
+			// elevations). The cells re-fill left-to-right as the new cut lands, exactly like a fresh load.
+			_vm._readyCount = 0;
+			_vm.IsLoopReady = false;
+			foreach (var segment in _vm.Segments)
+			{
+				segment.IsDecoded = false;
+			}
+			_vm.RefreshSegmentReadiness();
+			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.RadarLoadingText));
+
+			// Mark the JS frames stale + bump the loop token (dropping any in-flight old-tilt decode). The
+			// layer and the on-screen image STAY UP — this is the whole point of the path.
+			if (_vm._isMapReady)
+			{
+				await _vm._mapService.RetileRadarLoopAsync(count);
+			}
+
+			// The live (chunks) slot, if any, is re-cut from its own bucket — start that fetch NOW so it
+			// overlaps whatever runs below.
+			var liveRefetch = _vm._hasLiveFrame ? FetchLiveFrameAsync(site, ct) : null;
+
+			// ⚠️ ON A LIVE LOOP THE PLAYHEAD IS NORMALLY ON THE LIVE SLOT (index _archiveCount) — it's the
+			// newest frame, where a fresh load leaves you. So Rule 1 for a re-cut usually means the LIVE
+			// frame, not an archive one: re-cut it FIRST, before the archive backfill. Measured on the first
+			// build of this path (KNQA, 2026-08-17), where the live slot was applied after the whole backfill
+			// instead: the frame the user was looking at didn't repaint until 11.4 s after the click, while
+			// the ten frames they couldn't see were all re-cut ahead of it — the whole point of the re-cut,
+			// inverted. The archive backfill follows and fills the scrubber behind it.
+			if (current >= archiveCount && liveRefetch is not null)
+			{
+				await ApplyRetiledLiveFrameAsync(liveRefetch, ct);
+				liveRefetch = null;
+			}
+			// Otherwise the playhead is on an archive frame: that one first (prioritized — its prefix
+			// downloads over parallel S3 streams), and the live slot is applied after the backfill.
+			else if (current < archiveCount)
+			{
+				var painted = await EnsureAndAddFrameAsync(site, keys, current, ct, prioritized: true);
+
+				// Same trap as LoadLoopCoreAsync: a VCP's designed elevation table can promise tilts the
+				// volumes don't actually carry, so the chosen tilt may extract to null. Fall back to the base
+				// tilt (always present) rather than leave a loop that can't re-cut. One level deep — the base
+				// tilt can't fail this way.
+				if (!painted && _vm._selectedTiltAngle is { } missing && !ct.IsCancellationRequested
+					&& gen == _retileGen && ReferenceEquals(_vm._selectedRadarOption?.Site, site))
+				{
+					Diag($"tilt {missing:0.00}° not present in this volume -> falling back to base tilt");
+					Services.RadarDiagnostics.Log("vm", "tilt.absent", ("lvl", "warn"),
+						("angle", missing), ("site", site.Id));
+					SetTiltToBase();
+					// Observe the live fetch we started for the tilt that turned out not to exist — the retry
+					// below starts its own. Leaving it unawaited would surface as an unobserved task exception.
+					if (liveRefetch is not null)
+					{
+						try { await liveRefetch; } catch { /* discarded with the abandoned tilt */ }
+					}
+					await RetileLoopCoreAsync(site, gen, ct);
+					return;
+				}
+			}
+
+			if (gen != _retileGen || ct.IsCancellationRequested)
+			{
+				// Superseded by a newer tilt change; it will re-cut everything itself. Observe the live fetch
+				// on the way out so it can't surface as an unobserved task exception.
+				if (liveRefetch is not null)
+				{
+					try { await liveRefetch; } catch { /* discarded with this superseded re-cut */ }
+				}
+				return;
+			}
+
+			// The rest of the archive frames, left-to-right, skipping the one already repainted above.
+			var loadedArchive = await BackfillFramesAsync(site, keys, 0, archiveCount, ct,
+				_vm.IsPastEventMode ? MaxParallelReplayBackfill : MaxParallelBackfill, skipIndex: current);
+
+			// The live-first branch above had no archive frame to probe with, so the "VCP promises a tilt no
+			// volume carries" case (see LoadLoopCoreAsync) can only show up here: NOTHING extracted. Fall back
+			// to the base tilt, same as the archive branch does from its single probe. ⚠️ The live slot has
+			// usually been dropped by then (that tilt won't be in the chunks volume either), so the loop comes
+			// back archive-only until the next poll re-appends it.
+			if (loadedArchive == 0 && archiveCount > 0 && current >= archiveCount
+				&& _vm._selectedTiltAngle is { } absent && !ct.IsCancellationRequested
+				&& gen == _retileGen && ReferenceEquals(_vm._selectedRadarOption?.Site, site))
+			{
+				Diag($"tilt {absent:0.00}° not present in any volume -> falling back to base tilt");
+				Services.RadarDiagnostics.Log("vm", "tilt.absent", ("lvl", "warn"),
+					("angle", absent), ("site", site.Id), ("via", "retile-backfill"));
+				SetTiltToBase();
+				if (liveRefetch is not null)
+				{
+					try { await liveRefetch; } catch { /* discarded with the abandoned tilt */ }
+				}
+				await RetileLoopCoreAsync(site, gen, ct);
+				return;
+			}
+
+			if (liveRefetch is not null)
+			{
+				await ApplyRetiledLiveFrameAsync(liveRefetch, ct);
+			}
+		}
+
+		// Re-cuts the trailing live slot at the new tilt. This deliberately BYPASSES ApplyLiveFrameAsync's
+		// newer-than gate: that gate exists to stop a stale chunks volume overriding fresh data, but here we
+		// are re-rendering a slot we already own at a new elevation, and the volume is usually the SAME one —
+		// so "not newer" is the expected case, not a reason to skip.
+		private async Task ApplyRetiledLiveFrameAsync(Task<Models.RadarVolume?> fetch, CancellationToken ct)
+		{
+			var live = await fetch;
+			if (ct.IsCancellationRequested)
+			{
+				return;
+			}
+
+			if (live is null)
+			{
+				// The antenna hasn't reached this tilt in the in-progress volume (the documented
+				// GetLiveFrameAsync null), so there IS no live frame at this elevation yet. Drop back to the
+				// archive frames — the same state a fresh load at this tilt would have produced — and let the
+				// next poll append it when the cut exists. The stale JS slot beyond the new count is inert
+				// (nothing shows or measures it) and the append re-decodes over it.
+				Services.RadarDiagnostics.Log("vm", "live.apply", ("action", "retile-drop"),
+					("reason", "tilt not yet scanned in the in-progress volume"));
+				_vm._liveFrame = null;
+				_vm._hasLiveFrame = false;
+				_vm._frameCount = _vm._archiveCount;
+				if (_vm.Segments.Count > _vm._archiveCount)
+				{
+					_vm.Segments.RemoveAt(_vm.Segments.Count - 1);
+				}
+				_vm._firstPaintIndex = Math.Clamp(_vm._firstPaintIndex, 0, Math.Max(0, _vm._frameCount - 1));
+				_vm.RefreshSegmentReadiness();
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.MaxFrameIndex));
+				// Re-assign through the public setter so a playhead that was ON the dropped frame clamps to the
+				// new newest AND the map is told to show it — otherwise the loop would still be displaying the
+				// stale slot we just stopped counting.
+				_vm.CurrentFrameIndex = _vm._currentFrameIndex;
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
+				_vm.RaiseRadarReadout();
+
+				// The archive frames may have already finished reporting, in which case nothing else will
+				// re-evaluate loop readiness (it's only raised from OnRadarFrameReady) and the transport would
+				// stay disabled until the next poll.
+				if (_vm._readyCount >= _vm._frameCount && _vm._frameCount > 0)
+				{
+					_vm.IsLoopReady = true;
+				}
+				return;
+			}
+
+			var index = _vm._archiveCount;
+			_vm._liveFrame = live;
+			if (index < _vm._frameTimes.Length) _vm._frameTimes[index] = live.VolumeTime;
+			if (index < _vm._frameModes.Length) _vm._frameModes[index] = live.ModeText;
+			Services.RadarDiagnostics.RegisterFrameSource(index, "live", FrameCacheFile(live), live.VolumeTime);
+			Services.RadarDiagnostics.Log("vm", "live.apply", ("action", "retile"),
+				("idx", index), ("volZ", live.VolumeTime.ToUniversalTime().ToString("HH:mm:ss")));
+
+			// No sweep pulse and no deferred swap: this is the same scan re-cut, not a new one arriving.
+			if (_vm._isMapReady)
+			{
+				await _vm._mapService.AddRadarFrameAsync(live.LocalUrl, index);
+			}
+			_vm.RaiseRadarReadout();
 		}
 
 		// Past mode: a site pick clears any loaded replay and highlights the new site's marker, but
@@ -834,12 +1077,23 @@ namespace Anvil.ViewModels
 		// writes its own index and caches to its own file; only the light AddRadarFrameAsync posts
 		// resume on the UI thread (WebView2 is UI-affine), which serializes them naturally. Runs under
 		// the caller's _loopGate, so no live poll can interleave.
-		private async Task BackfillFramesAsync(RadarSite site, IReadOnlyList<string> keys, int startInclusive, int endExclusive, CancellationToken ct, int maxParallel = MaxParallelBackfill)
+		// `skipIndex` omits one already-loaded frame from the run (the tilt re-cut paints the frame under the
+		// playhead first, then backfills the rest around it) — re-issuing it would decode it twice and
+		// double-count it toward _readyCount.
+		// Returns how many frames actually loaded — the tilt re-cut uses it to detect a tilt the VCP promised
+		// but no volume carries (every frame extracts to null) when it had no single-frame probe to learn it
+		// from. Existing callers ignore it.
+		private async Task<int> BackfillFramesAsync(RadarSite site, IReadOnlyList<string> keys, int startInclusive, int endExclusive, CancellationToken ct, int maxParallel = MaxParallelBackfill, int skipIndex = -1)
 		{
+			var loaded = 0;
 			using var gate = new SemaphoreSlim(maxParallel);
 			var tasks = new List<Task>();
 			for (var i = startInclusive; i < endExclusive && !ct.IsCancellationRequested; i++)
 			{
+				if (i == skipIndex)
+				{
+					continue;
+				}
 				try
 				{
 					await gate.WaitAsync(ct); // cap frames in flight
@@ -852,12 +1106,16 @@ namespace Anvil.ViewModels
 				tasks.Add(BackfillOneAsync(index));
 			}
 			await Task.WhenAll(tasks);
+			return loaded;
 
 			async Task BackfillOneAsync(int index)
 			{
 				try
 				{
-					await EnsureAndAddFrameAsync(site, keys, index, ct);
+					if (await EnsureAndAddFrameAsync(site, keys, index, ct))
+					{
+						Interlocked.Increment(ref loaded);
+					}
 				}
 				finally
 				{

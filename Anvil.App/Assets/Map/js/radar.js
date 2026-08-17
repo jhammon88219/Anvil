@@ -214,8 +214,13 @@
         // with no scrubber change. (Regardless of the active product, so browsing reflectivity fills the same.)
         var built = 0, ready = new Array(total), complete = new Array(total);
         for (var i = 0; i < total; i++) {
-            var b = frames[i] && frames[i].built;
-            var r = eager || !!(b && b[gate]);
+            // A STALE frame (tilt switch — see retile) still renders its old elevation so the map never blanks,
+            // but it is NOT this loop's data: report it unbuilt so the scrubber re-fills left-to-right (Rule 2)
+            // and playback holds rather than running through a mix of elevations. Even reflectivity — normally
+            // "always built" (eager) — has to wait for the new cut.
+            var stale = !!(frames[i] && frames[i].stale);
+            var b = !stale && frames[i] && frames[i].built;
+            var r = !stale && (eager || !!(b && b[gate]));
             ready[i] = r;
             if (r) built++;
             var reflOk = !!(b && b.reflectivity); // always built by any decode
@@ -406,7 +411,12 @@
         // the backfill finishes, so by the time the duo completes below this is either resolved or in flight.
         if (stormMotion.auto && !_autoMotion && vwpInFlight()) return false;
         for (var i = 0; i < frames.length; i++) {
-            var b = frames[i] && frames[i].built;
+            // ⚠️ A STALE frame (mid tilt re-cut — see retile) carries the PREVIOUS elevation's build flags, so
+            // it must not count as settled: treating it as built armed the dual-pol second wave the instant a
+            // re-cut started, which then widened wantedProducts() to six products per frame and filled the
+            // decode pool with dual-pol upgrades while the user was still waiting on the trio. The wave
+            // re-arms on its own once the re-cut's duo is genuinely complete.
+            var b = frames[i] && !frames[i].stale && frames[i].built;
             if (!(b && b.reflectivity && b.velocity)) return false; // duo not complete → backfill still running
         }
         return true;
@@ -1055,7 +1065,11 @@
         // velocity dealias. This is what makes Inspect show values fast; the loop's other frames fill in the
         // same way through the upgrade queue. Only for the current loaded frames (not the initial decode).
         var f0 = frames[index];
-        if (wantGrids && f0 && f0.built && f0.built[product] && !activeGridReady(f0) && !needsBuild(f0)) {
+        // ⚠️ Never take the grids-only path for a STALE frame (mid tilt re-cut): its built[] flags describe the
+        // PREVIOUS elevation, so this would build a value grid from the new cut, merge it into the old
+        // geometry (applyGridResult leaves geometry alone), and leave the frame stale forever — with Inspect
+        // on, a tilt switch would wedge every frame at the old elevation. It needs the full decode below.
+        if (wantGrids && f0 && !f0.stale && f0.built && f0.built[product] && !activeGridReady(f0) && !needsBuild(f0)) {
             decodeTrace(index, reason, 'grid-only', wantedIds, null);
             decodeGridForFrame(url, index, product);
             return;
@@ -1291,7 +1305,9 @@
             var ids = Products ? Object.keys(Products) : [];
             var out = [];
             for (var i = 0; i < frames.length; i++) {
-                var f = frames[i], b = (f && f.built) || {}, mo = (f && f.moments) || {};
+                // A stale frame (mid tilt re-cut) still renders, but its products belong to the PREVIOUS
+                // elevation — report it unbuilt so the console shows the re-cut filling, not a full loop.
+                var f = frames[i], b = (f && !f.stale && f.built) || {}, mo = (f && f.moments) || {};
                 var s = new Array(ids.length);
                 for (var p = 0; p < ids.length; p++) {
                     var id = ids[p];
@@ -1422,6 +1438,38 @@
             queueAllUpgrades('remap'); // a reused refl-only frame still needs velocity if Velocity is active
             postBuildProgress(); // re-report readiness/completeness against the NEW indexing (host arrays reindex)
             hostLog('remap newCount=' + newCount + ' cf=' + currentFrame + ' reused=' + frames.filter(Boolean).length + ' token=' + loopToken);
+        },
+        // TILT SWITCH: same site, same volumes, DIFFERENT elevation bytes — so every frame genuinely has to
+        // re-decode (each cached .V06 holds exactly one cut), but per docs/radar-loop-flow.md Rule 7 the loop
+        // must NOT be torn down to do it. Unlike beginLoop this keeps frames[] and the LAYER up and marks each
+        // frame STALE: a stale frame still RENDERS (the previous elevation stays on screen, so the map never
+        // blanks) while reporting not-ready to the host, so the scrubber empties and re-fills left-to-right as
+        // the new cut lands (Rule 2) and playback holds at that frontier instead of playing a mix of tilts.
+        // The host then re-issues addFrame for every index against the new tilt's URLs, CURRENT FRAME FIRST
+        // (Rule 1); applyFrameResult replaces each slot as it arrives (the url differs, so it can't merge).
+        //
+        // Deliberately KEPT across a retile, unlike beginLoop:
+        //   • the storm motion (_autoMotion) — it's a property of the VOLUME, not of the displayed cut (the VAD
+        //     reads the bottom several cuts either way), so SRV is ready for the new tilt immediately (Rules 4/5:
+        //     one motion per loop, and this is the same loop). Re-deriving it would strand SRV on the stand-in
+        //     for ~15 s for no gain.
+        //   • velPrefetch — the duo must keep building on every frame (Rule 3), and a tilt switch isn't a site
+        //     switch (Rule 8 exempts it), so we don't drop back to reflectivity-only.
+        //   • _loopSeedProfile — a wind profile is (u,v) vs HEIGHT; seedExpectedVr re-projects it through the
+        //     decoding cut's own elevation, so it's a valid dealias first guess at any tilt.
+        //   • the range ring + sweep — same site, same range.
+        retile: function (map, count) {
+            currentMap = map;
+            loopToken++;        // drop any in-flight decode still carrying the OLD tilt
+            resetUpgrades();    // and its pending upgrades; the host's addFrame sweep re-drives the fill
+            fullPrefetch = false; // the dual-pol second wave re-arms once THIS tilt's trio settles
+            var n = Math.max(0, count | 0);
+            for (var i = 0; i < n; i++) { if (frames[i]) frames[i].stale = true; }
+            // PIPELINE CONSOLE: a retile is a fresh fill, so time it as one (remove with the feature).
+            _loopStartT = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+            _builtAtMs = []; _prodFirstAtMs = {}; _prodFullAtMs = {}; _timingFrozen = false;
+            postBuildProgress(); // report the emptied scrubber now, before the first new frame lands
+            hostLog('retile count=' + n + ' cf=' + currentFrame + ' token=' + loopToken);
         },
         clear: function (map) {
             loopToken++;

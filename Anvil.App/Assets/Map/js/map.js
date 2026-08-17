@@ -104,6 +104,11 @@ try {
     window.radarRemap = function (newCount, mappingJson) {
         if (window.RadarLayer) window.RadarLayer.remap(map, newCount, mappingJson);
     };
+    // Tilt switch: re-decode every frame at the new elevation WITHOUT tearing the loop down (the
+    // frames on screen stay up, marked stale, until their replacements land).
+    window.radarRetile = function (count) {
+        if (window.RadarLayer) window.RadarLayer.retile(map, count);
+    };
     window.clearLevel2Radar = function () {
         if (window.RadarLayer) window.RadarLayer.clear(map);
     };

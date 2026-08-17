@@ -95,6 +95,9 @@ namespace Anvil.Services
 		public Task RemapRadarFramesAsync(int newCount, string mappingJson) =>
 			_mapView.RunScriptAsync(Call("radarRemap", newCount, mappingJson));
 
+		public Task RetileRadarLoopAsync(int count) =>
+			_mapView.RunScriptAsync(Call("radarRetile", count));
+
 		public Task ClearRadarAsync() =>
 			_mapView.RunScriptAsync(Call("clearLevel2Radar"));
 

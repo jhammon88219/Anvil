@@ -48,6 +48,14 @@ namespace Anvil.Services
 		/// </summary>
 		Task RemapRadarFramesAsync(int newCount, string mappingJson);
 
+		/// <summary>
+		/// Re-decodes the whole loop at a newly-selected ELEVATION without tearing it down: the frames
+		/// already on screen stay up (marked stale) until the host re-adds each index at the new tilt's
+		/// URL, so the map never blanks (docs/radar-loop-flow.md Rule 7). The scrubber empties and
+		/// re-fills as the new cut lands. <paramref name="count"/> is the current frame count.
+		/// </summary>
+		Task RetileRadarLoopAsync(int count);
+
 		/// <summary>Removes the radar layer and clears the loop.</summary>
 		Task ClearRadarAsync();
 
