@@ -18,15 +18,15 @@ namespace Anvil
 		public MapViewModel ViewModel { get; }
 
 		/// <summary>DEV-ONLY site-sweep engine. Non-null only in Debug builds (see the ctor). The dev
-		/// button + card bind to this and are collapsed in Release via <see cref="DevVisibility"/>.</summary>
+		/// button + window bind to this and are collapsed in Release via <see cref="DevVisibility"/>.</summary>
 		public SiteSweepViewModel? SweepVm { get; }
 
 		/// <summary>DEV-ONLY velocity-dealias validation engine (fixed-corpus regression scorer). Non-null
-		/// only in Debug builds. Its button + card bind to this and are collapsed in Release via
+		/// only in Debug builds. Its button + window bind to this and are collapsed in Release via
 		/// <see cref="DevVisibility"/>.</summary>
 		public RadarValidationViewModel? ValidationVm { get; }
 
-		/// <summary>Visibility of the dev-only tools (the sweep button + card). Visible in Debug,
+		/// <summary>Visibility of the dev-only tools (the dev button + window). Visible in Debug,
 		/// Collapsed in Release, so the sweep is never reachable in a shipped build.</summary>
 #if DEBUG
 		public Visibility DevVisibility => Visibility.Visible;
@@ -34,7 +34,7 @@ namespace Anvil
 		public Visibility DevVisibility => Visibility.Collapsed;
 #endif
 
-		// Opens the site-sweep results pop-up (Save / Close). Raised by the dev card on run completion
+		// Opens the site-sweep results pop-up (Save / Close). Raised by the dev window on run completion
 		// or its Report button.
 		private async void OnSweepReportRequested(object? sender, SweepReport report)
 		{
@@ -45,7 +45,7 @@ namespace Anvil
 			await dialog.ShowAsync();
 		}
 
-		// Opens the dealias-validation results pop-up (Save / Close). Raised by the dev validation card on
+		// Opens the dealias-validation results pop-up (Save / Close). Raised by the dev window on
 		// run completion or its Report button.
 		private async void OnValidationReportRequested(object? sender, RadarValidationReport report)
 		{
@@ -93,9 +93,9 @@ namespace Anvil
 		// App settings (offline basemap folder, …). Read when mapping the "mapdata" WebView host.
 		private readonly ISettingsService _settingsService;
 
-		// Hosts each app-wide card in its own OS window (multi-monitor). MainWindow registers each card
+		// Hosts each app-wide panel in its own OS window (multi-monitor). MainWindow registers each window
 		// with it after construction (below).
-		private readonly CardWindowManager _cardWindows;
+		private readonly WindowManager _windows;
 
 		public MainWindow(
 			MapViewModel viewModel,
@@ -107,7 +107,7 @@ namespace Anvil
 			IStormReportService stormReportService,
 			ILevel2RadarService radarService,
 			ISettingsService settingsService,
-			CardWindowManager cardWindows)
+			WindowManager windows)
 		{
 			// The DI container (App.ConfigureServices) built the whole graph and injected it here; this
 			// window is just the composition ROOT that wires the WebView-coupled bits the container can't.
@@ -122,7 +122,7 @@ namespace Anvil
 			_stormReportService = stormReportService;
 			_radarService = radarService;
 			_settingsService = settingsService;
-			_cardWindows = cardWindows;
+			_windows = windows;
 
 			// MapService needs THIS window as its IMapView (the seam that runs JS). The container couldn't
 			// pass it via ctor without a MainWindow↔MapService cycle, so attach now that both exist — well
@@ -136,7 +136,7 @@ namespace Anvil
 				System.IO.Path.Combine(_radarService.CacheDirectory, "Diagnostics"));
 
 #if DEBUG
-			// DEV-ONLY automated site sweep. Constructed only in Debug; the button + card that reach it are
+			// DEV-ONLY automated site sweep. Constructed only in Debug; the button + window that reach it are
 			// hidden in Release via DevVisibility, so the tool is unreachable in a shipped build. (The engine
 			// TYPE lives in Anvil.Core and ships with it, but is never constructed here in Release.)
 			SweepVm = new SiteSweepViewModel(ViewModel.Radar);
@@ -154,28 +154,29 @@ namespace Anvil
 			ExtendsContentIntoTitleBar = true;
 			InitializeComponent();
 
-			// Card windows: each app-wide card lives in its own native OS window (multi-monitor). The manager
-			// watches the coordinator VM's open flags and opens/closes a window to match; content is a fresh
-			// section instance bound to this same VM, rendered headerless (the window caption is the chrome).
+			// App-wide windows: every panel that isn't the radar console lives in its own native OS window
+			// (multi-monitor). The manager watches the coordinator VM's open flags and opens/closes a window
+			// to match; content is a fresh section instance bound to this same VM, rendered headerless (the
+			// window caption is the chrome). Each flag is INDEPENDENT — any combination may be open at once.
 			// The radar console (Row 2, per-pane) is deliberately NOT here.
-			_cardWindows.Initialize(this, ViewModel);
-			_cardWindows.Register(
+			_windows.Initialize(this, ViewModel);
+			_windows.Register(
 				id: "settings",
-				isOpen: () => ViewModel.IsSettingsCardOpen,
-				close: () => ViewModel.IsSettingsCardOpen = false,
-				buildContent: () => new Controls.Sections.AppSettingsCard { ViewModel = ViewModel },
+				isOpen: () => ViewModel.IsSettingsWindowOpen,
+				close: () => ViewModel.IsSettingsWindowOpen = false,
+				buildContent: () => new Controls.Sections.AppSettingsWindow { ViewModel = ViewModel },
 				title: "App Settings", width: 460, height: 540,
-				alwaysOnTop: () => ViewModel.IsSettingsCardOnTop,
+				alwaysOnTop: () => ViewModel.IsSettingsWindowOnTop,
 				customChrome: true);
-			_cardWindows.Register(
+			_windows.Register(
 				id: "map",
-				isOpen: () => ViewModel.IsMapControlsCardOpen,
-				close: () => ViewModel.IsMapControlsCardOpen = false,
-				buildContent: () => new Controls.Sections.MapControlsCard { ViewModel = ViewModel },
+				isOpen: () => ViewModel.IsMapControlsWindowOpen,
+				close: () => ViewModel.IsMapControlsWindowOpen = false,
+				buildContent: () => new Controls.Sections.MapControlsWindow { ViewModel = ViewModel },
 				title: "Map Controls", width: 460, height: 600,
-				alwaysOnTop: () => ViewModel.IsMapControlsCardOnTop,
+				alwaysOnTop: () => ViewModel.IsMapControlsWindowOnTop,
 				customChrome: true);
-			_cardWindows.Register(
+			_windows.Register(
 				id: "sites",
 				isOpen: () => ViewModel.IsSiteExplorerOpen,
 				close: () => ViewModel.IsSiteExplorerOpen = false,
@@ -183,22 +184,65 @@ namespace Anvil
 				title: "Radar Sites", width: 660, height: 470,
 				alwaysOnTop: () => ViewModel.IsSiteExplorerOnTop,
 				customChrome: true);
-			_cardWindows.Register(
-				id: "temporal",
-				isOpen: () => ViewModel.OpenCard != ViewModels.TemporalCard.None,
-				close: () => ViewModel.OpenCard = ViewModels.TemporalCard.None,
-				buildContent: () => new Controls.Sections.TemporalCards { ViewModel = ViewModel },
-				title: "Timeline", width: 460, height: 610,
-				alwaysOnTop: () => ViewModel.IsTimelineOnTop,
+			// The three temporal features each get their OWN window, so Now + Fore (which coexist as modes)
+			// can be parked side by side. Past excludes the other two by mode, so it never shares the screen.
+			_windows.Register(
+				id: "past",
+				isOpen: () => ViewModel.IsPastWindowOpen,
+				close: () => ViewModel.IsPastWindowOpen = false,
+				buildContent: () => new Controls.Sections.PastCastWindow { ViewModel = ViewModel },
+				title: "Past Event", width: 460, height: 610,
+				alwaysOnTop: () => ViewModel.IsPastWindowOnTop,
 				customChrome: true);
-			_cardWindows.Register(
+			_windows.Register(
+				id: "now",
+				isOpen: () => ViewModel.IsNowWindowOpen,
+				close: () => ViewModel.IsNowWindowOpen = false,
+				buildContent: () => new Controls.Sections.NowCastWindow { ViewModel = ViewModel },
+				title: "Live Radar", width: 460, height: 440,
+				alwaysOnTop: () => ViewModel.IsNowWindowOnTop,
+				customChrome: true);
+			_windows.Register(
+				id: "fore",
+				isOpen: () => ViewModel.IsForeWindowOpen,
+				close: () => ViewModel.IsForeWindowOpen = false,
+				buildContent: () => new Controls.Sections.ForeCastWindow { ViewModel = ViewModel },
+				title: "SPC Outlooks", width: 460, height: 340,
+				alwaysOnTop: () => ViewModel.IsForeWindowOnTop,
+				customChrome: true);
+			_windows.Register(
 				id: "pipeline",
 				isOpen: () => ViewModel.IsPipelineConsoleOpen,
 				close: () => ViewModel.IsPipelineConsoleOpen = false,
-				buildContent: () => new Controls.Sections.PipelineConsoleCard { ViewModel = ViewModel },
+				buildContent: () => new Controls.Sections.PipelineConsoleWindow { ViewModel = ViewModel },
 				title: "Pipeline Console", width: 720, height: 470,
 				alwaysOnTop: () => ViewModel.IsPipelineConsoleOnTop, // user-toggled via the pin in the console
 				customChrome: true); // extend content into the title bar so the dark surface replaces the caption
+#if DEBUG
+			// DEV-ONLY dev tools (site sweep + dealias validation). Registered only in Debug, where the dev
+			// VMs exist; the "Dev" button that drives the flag is collapsed in Release.
+			_windows.Register(
+				id: "devtools",
+				isOpen: () => ViewModel.IsDevToolsWindowOpen,
+				close: () => ViewModel.IsDevToolsWindowOpen = false,
+				buildContent: () =>
+				{
+					var dev = new Controls.Sections.DevToolsWindow
+					{
+						ViewModel = ViewModel,
+						SweepVm = SweepVm,
+						ValidationVm = ValidationVm,
+					};
+					// Wired per-instance (the window's content is rebuilt each time it opens) so a finished
+					// run still pops its results dialog.
+					dev.SweepReportRequested += OnSweepReportRequested;
+					dev.ValidationReportRequested += OnValidationReportRequested;
+					return dev;
+				},
+				title: "Dev Tools", width: 460, height: 560,
+				alwaysOnTop: () => ViewModel.IsDevToolsWindowOnTop,
+				customChrome: true);
+#endif
 
 			// Start maximized.
 			(AppWindow.Presenter as OverlappedPresenter)?.Maximize();

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- NowCastInput — the body of the NowCast (live radar) settings card floating above the overlay bar.
+<!-- NowCastInput — the body of the NowCast (live radar) settings window (see NowCastWindow).
      Holds the "now"-oriented live-conditions options. Today: the SPC Watch boxes (Tornado / Severe
      Thunderstorm) — active, event-driven current-conditions alerts, so they live under NowCast rather
      than ForeCast, both in the UI and in the VM layer (their own WatchesViewModel). Laid out with grids

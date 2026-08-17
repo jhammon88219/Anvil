@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ForeCastWindow — the ForeCast (SPC outlook) settings: day/product selectors + legend. Hosted in its OWN
+     OS window by WindowManager (MapViewModel.IsForeWindowOpen), so there is no panel frame: the root is the
+     dark surface stretched to fill the window. Content extends into the title bar, so the panel carries its
+     own title. Bound to the coordinator MapViewModel. -->
+<UserControl x:Class="Anvil.Controls.Sections.ForeCastWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sections="using:Anvil.Controls.Sections"
+             xmlns:ctl="using:Anvil.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <!-- Dark surface fills the whole window; content sits top-left. -->
+    <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
+        <Grid Margin="16" VerticalAlignment="Top" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- title -->
+                <RowDefinition Height="Auto"/> <!-- outlook selectors + legend -->
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="SPC Outlooks"
+                       FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <sections:OutlookInput Grid.Row="1" ViewModel="{x:Bind ViewModel.Outlook, Mode=OneWay}"/>
+        </Grid>
+
+        <!-- Pin: keep this window on top. -->
+        <ctl:PinToggle IsChecked="{x:Bind ViewModel.IsForeWindowOnTop, Mode=TwoWay}"/>
+    </Grid>
+</UserControl>

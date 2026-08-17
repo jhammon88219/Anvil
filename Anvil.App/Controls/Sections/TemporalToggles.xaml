@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- TemporalToggles — the left section of the overlay bar: the Past / Now / Fore temporal features, each a
      labeled SINGLE toggle (the old settings cog is gone). A click activates that time-frame AND opens its
-     floating settings card above the bar (see TemporalCards); clicking the already-active mode flips its
-     card open/closed while the mode stays on. You LEAVE a mode by choosing another (Past is exclusive with
+     settings WINDOW (see PastCastWindow / NowCastWindow / ForeCastWindow — three independent OS windows);
+     clicking the already-active mode flips its window open/closed while the mode stays on. You LEAVE a mode by choosing another (Past is exclusive with
      Now/Fore; Now and Fore coexist). The click routes through MapViewModel.ToggleTemporalMode; the toggle's
      lit state binds OneWay to MapViewModel.IsPastCast/IsNowCast/IsForeCast (projections of the subsystems).
      Icons are placeholders — to be sourced later. Bound to the coordinator MapViewModel. -->
@@ -16,7 +16,7 @@
 
     <UserControl.Resources>
         <!-- The mode toggle. One control per mode (the settings cog is gone): a click activates the mode
-             and opens its card; clicking again flips the card; you leave a mode by choosing another. -->
+             and opens its window; clicking again flips the window; you leave a mode by choosing another. -->
         <Style x:Key="FeatureToggleStyle" TargetType="ToggleButton">
             <Setter Property="Width" Value="44"/>
             <Setter Property="Height" Value="40"/>

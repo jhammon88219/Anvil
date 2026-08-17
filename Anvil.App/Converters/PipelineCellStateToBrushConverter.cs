@@ -9,7 +9,7 @@ namespace Anvil.Converters
 	/// <summary>
 	/// Colors one Pipeline Console scrubber cell by its <see cref="PipelineCellState"/>: built-with-data
 	/// (green), built-but-no-data (faint), in-flight / queued (amber, bright vs dim), and unbuilt (a barely
-	/// there track). Deliberately theme-agnostic — the cells sit on the card's opaque surface.
+	/// there track). Deliberately theme-agnostic — the cells sit on the window's opaque surface.
 	/// </summary>
 	public sealed class PipelineCellStateToBrushConverter : IValueConverter
 	{

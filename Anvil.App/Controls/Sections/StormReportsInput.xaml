@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- StormReportsInput — the SPC storm-reports verification controls (per-type Tornado / Wind / Hail
-     toggles + a count readout + fill opacity + status). Reused in BOTH temporal cards: in the Past card it
-     shows the replay day's reports, in the Now card today's — the VM keys the overlay to the active
+     toggles + a count readout + fill opacity + status). Reused in BOTH temporal windows: in the Past window it
+     shows the replay day's reports, in the Now window today's — the VM keys the overlay to the active
      convective day, so the same controls serve both. Bound to StormReportsViewModel. -->
 <UserControl x:Class="Anvil.Controls.Sections.StormReportsInput"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

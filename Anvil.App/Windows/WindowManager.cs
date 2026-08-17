@@ -8,27 +8,28 @@ using Microsoft.UI.Xaml;
 namespace Anvil
 {
 	// ============================================================================================
-	// CARD WINDOWS (removable feature — see CardWindows/ + the manager.Register calls in MainWindow).
+	// APP-WIDE WINDOWS (removable feature — see Windows/ + the manager.Register calls in MainWindow).
 	//
-	// The app-wide floating cards (App Settings, Map Controls, Site Explorer, the temporal cards, the
-	// pipeline console) live in their OWN top-level OS windows — not docked in MainWindow — so a
-	// multi-monitor user can park control panels on a second screen. The radar console (per-pane, Row 2)
-	// is deliberately NOT one of these; it stays in the main window.
+	// Every app-wide panel (the three temporal settings panels — Past Event / Live Radar / SPC Outlooks —
+	// plus App Settings, Map Controls, Site Explorer, the Pipeline Console and the dev tools) lives in its
+	// OWN top-level OS window, not docked in MainWindow, so a multi-monitor user can park control panels on
+	// a second screen. The radar console (per-pane, Row 2) is deliberately NOT one of these; it stays in the
+	// main window.
 	//
-	// MODEL — a card IS a window. There is no docked state and no in-window copy: opening a card's feature
-	// opens its window; closing the window turns the feature off. Each card carries a single IsOpen bool on
-	// the coordinator VM; this manager watches that state and reconciles IsOpen → a live Window. Content is
-	// a fresh instance of the section control bound to the shared singleton VM, hosted headerless (the native
-	// OS title bar provides the card's name + Close).
+	// MODEL — a panel IS a window. There is no docked state and no in-window copy: opening a panel's feature
+	// opens its window; closing the window turns the feature off. Each window carries a single IsOpen bool on
+	// the coordinator VM; this manager watches that state and reconciles IsOpen → a live Window. The flags are
+	// INDEPENDENT — no one-at-a-time grouping, so any combination may be open at once. Content is a fresh
+	// instance of the section control bound to the shared singleton VM, hosted headerless (the window's own
+	// content supplies the title; the native caption supplies the buttons).
 	// ============================================================================================
 
 	/// <summary>
-	/// Hosts each app-wide card in its own native-title-bar <see cref="Window"/>, keeping the window's
-	/// existence in sync with its card's IsOpen VM state. Register a card with <see cref="Register"/>; the
-	/// window opens when IsOpen becomes true and closes when it becomes false (and the OS-caption Close flips
-	/// IsOpen back off).
+	/// Hosts each app-wide panel in its own <see cref="Window"/>, keeping the window's existence in sync with
+	/// that panel's IsOpen VM state. Register a panel with <see cref="Register"/>; the window opens when
+	/// IsOpen becomes true and closes when it becomes false (and the OS-caption Close flips IsOpen back off).
 	/// </summary>
-	public sealed class CardWindowManager
+	public sealed class WindowManager
 	{
 		private sealed class Registration
 		{
@@ -61,11 +62,11 @@ namespace Anvil
 			_owner = owner;
 			_dispatcher = owner.DispatcherQueue;
 			coordinator.PropertyChanged += (_, _) => RequestReconcile();
-			owner.Closed += (_, _) => CloseAll(); // don't leak card windows when the app closes
+			owner.Closed += (_, _) => CloseAll(); // don't leak panel windows when the app closes
 		}
 
 		/// <summary>
-		/// Register a card. <paramref name="isOpen"/> reads the card's VM state, <paramref name="close"/> turns
+		/// Register a panel. <paramref name="isOpen"/> reads the panel's VM state, <paramref name="close"/> turns
 		/// the feature off (used when the user closes the window via its caption), and <paramref name="buildContent"/>
 		/// makes a fresh section instance (bound to the shared VM, rendered headerless).
 		/// </summary>
@@ -95,9 +96,8 @@ namespace Anvil
 		}
 
 		/// <summary>
-		/// Re-evaluate every card's IsOpen against its window. Called automatically on any coordinator
-		/// PropertyChanged; call it manually for open-state sources that aren't the coordinator VM (e.g. a
-		/// dev card whose open flag is a control DP).
+		/// Re-evaluate every panel's IsOpen against its window. Called automatically on any coordinator
+		/// PropertyChanged; call it manually for open-state sources that aren't the coordinator VM.
 		/// </summary>
 		public void ReconcileAll() => RequestReconcile();
 
@@ -120,7 +120,7 @@ namespace Anvil
 			}
 		}
 
-		// Push the card's current always-on-top state onto its open window's presenter (so a pin toggle,
+		// Push the panel's current always-on-top state onto its open window's presenter (so a pin toggle,
 		// which flips the VM flag, takes effect on the next reconcile).
 		private void ApplyAlwaysOnTop(Registration reg)
 		{
@@ -135,7 +135,7 @@ namespace Anvil
 		{
 			if (_owner is null) return;
 
-			// The section content IS the window content: its dark surface fills the whole window (no card
+			// The section content IS the window content: its dark surface fills the whole window (no panel
 			// frame, no backdrop), so growing the window just reveals more of that surface.
 			var content = reg.BuildContent();
 
@@ -153,7 +153,7 @@ namespace Anvil
 			var window = new Window { Title = reg.Title, Content = content };
 
 			// Extend the dark content into the title-bar area so the native (light) caption bar is replaced by
-			// the card's own dark surface. The default title-bar drag region keeps the window movable — no
+			// the panel's own dark surface. The default title-bar drag region keeps the window movable — no
 			// custom drag element / SetTitleBar needed.
 			if (reg.CustomChrome)
 			{
@@ -162,10 +162,10 @@ namespace Anvil
 
 			// Size + center over the main window BEFORE Activate so it opens already-fitted (no default-size
 			// flash). A normal resizable/maximizable window otherwise (OverlappedPresenter defaults). AppWindow
-			// works in physical pixels, so scale the card's logical footprint by the monitor's DPI scale.
+			// works in physical pixels, so scale the panel's logical footprint by the monitor's DPI scale.
 			if (window.AppWindow is AppWindow appWindow)
 			{
-				// Topmost cards (e.g. the Pipeline Console) float above the main window even when the map has
+				// Topmost windows (e.g. the Pipeline Console) float above the main window even when the map has
 				// focus — so a single-monitor user can watch them while interacting with the map. It doesn't
 				// take focus, so the map underneath stays clickable/draggable.
 				if (appWindow.Presenter is OverlappedPresenter presenter)

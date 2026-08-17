@@ -7,7 +7,7 @@
 
     <!-- ================================ Overlay surface brushes ================================
          The opaque, theme-aware surface (+ hover) used by the bottom OverlayBar AND the floating
-         temporal settings cards that pop above it, so the two read as one system in Win11 light/dark.
+         app-wide windows that float over the map, so the two read as one system in Win11 light/dark.
          Defined app-wide (here) rather than inside a single control so both reference the SAME keys and
          can't drift. (Moved out of OverlayBar.xaml's local ThemeDictionaries.) -->
     <ResourceDictionary.ThemeDictionaries>
@@ -24,14 +24,6 @@
             <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
-
-    <!-- ================================ Floating window margin ================================
-         The ONE margin every floating window over the map uses (the temporal settings cards, the app
-         settings card, the radar site explorer). They all live bottom-aligned in MainWindow's floating
-         layer — the row above the OverlayBar — so this single value gives each the same inset from the
-         window edges AND the same gap above the bar's pull-tab, with no per-window hardcoding. Change
-         it here and every window moves together. -->
-    <Thickness x:Key="FloatingWindowMargin">25</Thickness>
 
     <!-- ================================ No-background ComboBox ================================
          A self-contained, OPT-IN minimal ComboBox: transparent box (in EVERY state — rest / hover /

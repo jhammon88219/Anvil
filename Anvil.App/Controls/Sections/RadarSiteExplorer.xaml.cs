@@ -8,7 +8,7 @@ namespace Anvil.Controls.Sections
 	/// <summary>
 	/// The Radar Site Explorer panel — a non-modal, searchable master–detail browser over the radar
 	/// network, floating above the OverlayBar. Bound to the coordinator <see cref="MapViewModel"/> (like
-	/// <see cref="AppSettingsCard"/>): its visibility follows <see cref="MapViewModel.IsSiteExplorerOpen"/>
+	/// <see cref="AppSettingsWindow"/>): its visibility follows <see cref="MapViewModel.IsSiteExplorerOpen"/>
 	/// and it reaches into <see cref="MapViewModel.SiteExplorer"/> for the list/detail. The close triangle
 	/// and Load button are handled here in code-behind.
 	/// </summary>
@@ -38,15 +38,6 @@ namespace Anvil.Controls.Sections
 			(Microsoft.UI.Xaml.Media.Brush)_offlineToBrush.Convert(row?.IsOffline ?? false, typeof(Microsoft.UI.Xaml.Media.Brush), null!, null!);
 
 		private readonly OfflineToBrushConverter _offlineToBrush = new();
-
-		// Close triangle: hide the explorer (app-wide open state on the coordinator).
-		private void OnCloseClick(object sender, RoutedEventArgs e)
-		{
-			if (ViewModel is not null)
-			{
-				ViewModel.IsSiteExplorerOpen = false;
-			}
-		}
 
 		// Load the selected site's radar loop on the map, then close the panel.
 		private void OnLoadClick(object sender, RoutedEventArgs e)

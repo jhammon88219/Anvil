@@ -5,7 +5,7 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Sections
 {
 	/// <summary>
-	/// The NowCast (live radar) settings-card body. Surfaces the "now"-oriented live-conditions options —
+	/// The NowCast (live radar) settings-window body. Surfaces the "now"-oriented live-conditions options —
 	/// today just the SPC Watch boxes (which are active alerts, hence NowCast not ForeCast). Bound to the
 	/// coordinator <see cref="MapViewModel"/> so it can reach the relevant subsystems (watches on
 	/// <c>Watches</c>, and future live-radar settings on <c>Radar</c>).

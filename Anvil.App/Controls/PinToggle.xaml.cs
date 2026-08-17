@@ -4,8 +4,8 @@ using Microsoft.UI.Xaml.Controls;
 namespace Anvil.Controls
 {
 	/// <summary>
-	/// A "keep this window on top" pin for a card window's title-bar area (see PinToggle.xaml). Bind
-	/// <see cref="IsChecked"/> two-way to the window's on-top VM flag; <c>CardWindowManager</c> applies the
+	/// A "keep this window on top" pin for an app-wide window's title-bar area (see PinToggle.xaml). Bind
+	/// <see cref="IsChecked"/> two-way to the window's on-top VM flag; <c>WindowManager</c> applies the
 	/// flag to the window's always-on-top presenter.
 	/// </summary>
 	public sealed partial class PinToggle : UserControl

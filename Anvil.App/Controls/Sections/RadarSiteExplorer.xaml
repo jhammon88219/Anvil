@@ -2,8 +2,8 @@
 <!-- RadarSiteExplorer — a non-modal, searchable master–detail browser over the WHOLE radar network the
      app can access (operational WSR-88D, research/test, TDWR). Floats over the map (map stays live),
      opened by the "Sites" button on the bar (left of the Settings cog). Shares the OverlayBar surface
-     chrome but is its own larger footprint (not a fixed ControlCard). Bound to the coordinator
-     MapViewModel (like AppSettingsCard): it reaches into ViewModel.SiteExplorer.* for the list/detail
+     chrome but is its own larger footprint. Bound to the coordinator
+     MapViewModel (like AppSettingsWindow): it reaches into ViewModel.SiteExplorer.* for the list/detail
      and ViewModel.IsSiteExplorerOpen for its own visibility/close. -->
 <UserControl x:Class="Anvil.Controls.Sections.RadarSiteExplorer"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -33,53 +33,34 @@
     </UserControl.Resources>
 
     <!-- Root Grid -->
-    <Grid Visibility="{x:Bind VisibleWhen(ViewModel.IsSiteExplorerOpen), Mode=OneWay}">
-        <Border x:Name="CardRoot"
-                Background="{ThemeResource OverlayBarSurfaceBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                BorderThickness="1"
-                CornerRadius="10">
+    <!-- Dark surface fills the whole window; content sits top-left. -->
+    <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
             <Grid RowSpacing="10">
 
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- title bar (flush) -->
+                    <RowDefinition Height="Auto"/> <!-- title -->
                     <RowDefinition Height="Auto"/> <!-- search + filters -->
                     <RowDefinition Height="*"/>    <!-- body: list | detail -->
                 </Grid.RowDefinitions>
 
-                <!-- Hosted in its own OS window (CardWindowManager): the native title bar provides the name +
-                     Close, so this in-card title strip is collapsed (no double title bar). -->
-                <Border Grid.Row="0"
-                        Visibility="Collapsed"
-                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                        CornerRadius="9,9,0,0"
-                        Padding="16,5,6,5"
-                        ctl:DragMove.MoveTarget="{x:Bind CardRoot}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Radar Sites"
-                                   FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
-                                   VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        <TextBlock Grid.Column="1" Margin="12,0,0,0"
-                                   Text="{x:Bind ViewModel.SiteExplorer.ResultCountText, Mode=OneWay}"
-                                   FontSize="12" VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                        <!-- Windows-style close (X, ChromeClose E711). -->
-                        <Button Grid.Column="2" Click="OnCloseClick"
-                                Width="28" Height="24" Padding="0" MinWidth="0" MinHeight="0"
-                                CornerRadius="6" Background="Transparent" BorderThickness="0"
-                                ToolTipService.ToolTip="Hide the site explorer">
-                            <FontIcon Glyph="&#xE711;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12"/>
-                        </Button>
-                    </Grid>
-                </Border>
+                <!-- Content extends into the title bar (the native caption shows only the buttons), so
+                     the panel carries its own title + the live result count. -->
+                <Grid Grid.Row="0" Margin="16,14,16,0" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Radar Sites"
+                               FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
+                               VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Grid.Column="1"
+                               Text="{x:Bind ViewModel.SiteExplorer.ResultCountText, Mode=OneWay}"
+                               FontSize="12" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                </Grid>
 
-                <!-- Search + filters. Side inset (the flush title bar above has none). -->
+                <!-- Search + filters. -->
                 <Grid Grid.Row="1" Margin="16,0,16,0" ColumnSpacing="10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -250,7 +231,6 @@
                     </Grid>
                 </Grid>
             </Grid>
-        </Border>
 
         <!-- Pin: keep this window on top. -->
         <ctl:PinToggle IsChecked="{x:Bind ViewModel.IsSiteExplorerOnTop, Mode=TwoWay}"/>

@@ -5,11 +5,11 @@
      time ("Duo fills, Trio completes"), plus a VWP/storm-motion readout so you can watch the SRV gate
      resolve. Observe-only: the shared playhead mirrors the main viewer's frame; no seek, no render change.
 
-     Its own chrome (not ControlCard) because it's wider than the 460-wide temporal cards — and keeping it
+     Its own chrome because it's wider than the 460-wide temporal windows — and keeping it
      self-contained means removing the feature touches no shared control. Reuses the shared OverlayBar
-     surface brush + border so it matches the other floating cards. Bound to the coordinator MapViewModel;
+     surface brush + border so it matches the other windows. Bound to the coordinator MapViewModel;
      reaches ViewModel.PipelineConsole.* and ViewModel.IsPipelineConsoleOpen. -->
-<UserControl x:Class="Anvil.Controls.Sections.PipelineConsoleCard"
+<UserControl x:Class="Anvil.Controls.Sections.PipelineConsoleWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conv="using:Anvil.Converters"
@@ -39,7 +39,7 @@
                     <RowDefinition Height="Auto"/> <!-- product rows -->
                 </Grid.RowDefinitions>
 
-                <!-- Header collapsed: hosted in its own OS window (CardWindowManager), whose native title bar
+                <!-- Header collapsed: hosted in its own OS window (WindowManager), whose native title bar
                      provides the name + Close. -->
                 <Grid Grid.Row="0" Margin="0,0,0,8" Visibility="Collapsed">
                     <Grid.ColumnDefinitions>

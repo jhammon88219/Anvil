@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ============================================================================
      OverlayBar — a CHROME-ONLY shell: the centered show/hide pull-tab, the theme-aware
-     surface + hairline card border (wrapping the tab), and the bottom-overlay collapse behavior. It is a
+     surface + hairline border (wrapping the tab), and the bottom-overlay collapse behavior. It is a
      content slot: the host fills BarContent with the actual controls (loop transport,
      product selectors, …), so section content is composed in MainWindow, not here.
      (Named for what it IS — a bottom overlay shell — not for what it happens to host;
@@ -26,7 +26,7 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <!-- The opaque surface + hover brushes (OverlayBarSurfaceBrush / …HoverBrush) are defined
-                 app-wide in Controls/Styles.xaml so the floating settings cards can share them; they
+                 app-wide in Controls/Styles.xaml so the app-wide windows can share them; they
                  resolve here via ThemeResource and follow the Win11 light/dark setting at runtime. -->
 
             <!-- The centered pull-tab: a flat-bottomed tab that reads as attached to the bar's top edge
@@ -83,10 +83,9 @@
     </UserControl.Resources>
 
     <!-- Transparent root: only the tab + bar draw, so the map shows through beside the tab.
-         This control is ONLY the chrome (tab + bar). The floating windows that pop above it (the temporal
-         settings cards, the app settings card, the site explorer) are NOT hosted here — they live in
-         MainWindow's floating layer, the row directly above this control, so every one of them shares the
-         same FloatingWindowMargin off the bar and the window edges. -->
+         This control is ONLY the chrome (tab + bar). Nothing floats above it in-window: every app-wide
+         panel (the three temporal windows, App Settings, Map Controls, Site Explorer, the Pipeline Console,
+         the dev tools) is a real top-level OS window owned by WindowManager. -->
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- pull-tab -->

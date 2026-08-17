@@ -10,15 +10,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Anvil.ViewModels
 {
-	/// <summary>Which temporal feature's settings card is floating above the overlay bar (opened by a
-	/// split-toggle's cog). At most one is open at a time; <see cref="None"/> = no card showing.</summary>
-	public enum TemporalCard { None, Past, Now, Fore }
-
-	/// <summary>Which app-wide, RIGHT-aligned card is floating above the bar (Map Controls, App Settings, or
-	/// the Radar Site Explorer). At most one open at a time; <see cref="None"/> = none showing. The right-side
-	/// mirror of <see cref="TemporalCard"/> — the two sides are INDEPENDENT, so at most one left + one right
-	/// card can be open together.</summary>
-	public enum RightPanel { None, MapControls, Settings, SiteExplorer }
+	/// <summary>Which temporal feature a toggle click refers to (PastCast / NowCast / ForeCast). Identifies
+	/// the toggle for <see cref="MapViewModel.ToggleTemporalMode"/>; it is NOT an open-state — each feature's
+	/// settings window has its own independent <c>IsXWindowOpen</c> flag.</summary>
+	public enum TemporalMode { Past, Now, Fore }
 
 	/// <summary>
 	/// View model for the NON-radar map concerns: selectable basemap styles + current selection,
@@ -49,30 +44,8 @@ namespace Anvil.ViewModels
 			_styleProvider = styleProvider;
 			_regionProvider = regionProvider;
 
-			// Built before the _rightPanels callback below references it (that callback refreshes the cache
-			// readout when the Settings panel opens).
+			// Built before IsSettingsWindowOpen can fire (its setter refreshes the cache readout on open).
 			Storage = new StorageSettingsViewModel(radarService, settingsService);
-
-			// The two one-at-a-time card groups (temporal settings cards + right-side panels). Each fires the
-			// enum property + all its bool projections on a change, so the x:Bind card/toggle bindings update.
-			_cards = new ExclusiveOpen<TemporalCard>(TemporalCard.None, () =>
-			{
-				OnPropertyChanged(nameof(OpenCard));
-				OnPropertyChanged(nameof(IsPastCardOpen));
-				OnPropertyChanged(nameof(IsNowCardOpen));
-				OnPropertyChanged(nameof(IsForeCardOpen));
-			});
-			_rightPanels = new ExclusiveOpen<RightPanel>(RightPanel.None, () =>
-			{
-				OnPropertyChanged(nameof(OpenRightPanel));
-				OnPropertyChanged(nameof(IsMapControlsCardOpen));
-				OnPropertyChanged(nameof(IsSettingsCardOpen));
-				OnPropertyChanged(nameof(IsSiteExplorerOpen));
-				// Freshen the App Settings cache readout each time that card becomes the open right panel.
-				// (_rightPanels + Storage are both set in this ctor; this callback only fires at runtime,
-				// well after that — the ! silences the mid-assignment false positive on _rightPanels.)
-				if (_rightPanels!.Current == RightPanel.Settings) { _ = Storage.RefreshCacheSizeAsync(); }
-			});
 
 			// Each subsystem lives in its own view model (progressively split out of this class);
 			// the transport-bar section controls bind slices of them.
@@ -89,7 +62,7 @@ namespace Anvil.ViewModels
 			PipelineConsole = new PipelineConsoleViewModel(mapService, Radar); // PIPELINE CONSOLE (remove with the feature)
 
 			// The Past/Now/Fore toggles PROJECT subsystem state (see the Temporal toggles region), so keep
-			// them honest: re-raise them — and close a now-inactive feature's settings card — whenever the
+			// them honest: re-raise them — and close a now-inactive feature's settings window — whenever the
 			// radar mode/loop or the outlook overlay changes, including changes NOT driven by the toggles
 			// (e.g. clicking an on-map radar site marker starts a live loop, which should light NowCast).
 			Radar.PropertyChanged += (_, e) =>
@@ -112,7 +85,7 @@ namespace Anvil.ViewModels
 						if (Warnings.IsVisible) { Warnings.IsVisible = false; }
 					}
 					PastOutlook.OnPastModeChanged(Radar.IsPastEventMode);
-					CloseCardIfInactive();
+					CloseWindowIfInactive();
 				}
 				else if (e.PropertyName == nameof(RadarViewModel.HasRadarLoop))
 				{
@@ -121,7 +94,7 @@ namespace Anvil.ViewModels
 					{
 						_isNowCast = true;
 						OnPropertyChanged(nameof(IsNowCast));
-						CloseCardIfInactive();
+						CloseWindowIfInactive();
 					}
 				}
 			};
@@ -130,7 +103,7 @@ namespace Anvil.ViewModels
 				if (e.PropertyName == nameof(OutlookViewModel.IsOutlookVisible))
 				{
 					OnPropertyChanged(nameof(IsForeCast));
-					CloseCardIfInactive();
+					CloseWindowIfInactive();
 				}
 			};
 
@@ -172,7 +145,7 @@ namespace Anvil.ViewModels
 
 		/// <summary>The SPC storm-reports verification overlay VM (Tornado / Wind / Hail dots for the active
 		/// convective day — the replay day in PastCast, today in NowCast — with per-type toggles). Its own
-		/// map overlay (top of the stack); surfaced in both the Past and Now cards.</summary>
+		/// map overlay (top of the stack); surfaced in both the Past and Now windows.</summary>
 		public StormReportsViewModel StormReports { get; }
 
 		/// <summary>The map markers + user-location subsystem view model (locate action + marker editor).</summary>
@@ -188,7 +161,7 @@ namespace Anvil.ViewModels
 		public StateIsolationViewModel StateIso { get; }
 
 		/// <summary>The mile distance grid (a square grid anchored to the selected radar, hide/show + opacity).
-		/// Surfaced in the Map Controls card.</summary>
+		/// Surfaced in the Map Controls window.</summary>
 		public MileGridViewModel MileGrid { get; }
 
 		/// <summary>The App Settings "Storage" section VM (radar cache size readout + Clear + the persisted
@@ -198,14 +171,14 @@ namespace Anvil.ViewModels
 		// PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit).
 		/// <summary>The Pipeline Console: a read-only glass-cockpit over the Level-2 build pipeline (a
 		/// mini-scrubber per product + VWP/storm-motion state). Ships behind a non-obvious toggle in the App
-		/// Settings card; polls the WebView only while open.</summary>
+		/// Settings window; polls the WebView only while open.</summary>
 		public PipelineConsoleViewModel PipelineConsole { get; }
 
 		private bool _isPipelineConsoleOpen;
 		private bool _isPipelineConsoleOnTop = true;
 
 		/// <summary>Whether the Pipeline Console window stays above the main window (topmost). User-toggled from
-		/// the pin in the console's title-bar area; <c>CardWindowManager</c> applies it to that window's
+		/// the pin in the console's title-bar area; <c>WindowManager</c> applies it to that window's
 		/// presenter. Defaults on, so a single-monitor user can watch it while working the map.</summary>
 		public bool IsPipelineConsoleOnTop
 		{
@@ -214,24 +187,27 @@ namespace Anvil.ViewModels
 		}
 
 		// Per-window always-on-top flags (topmost), each driven by that window's title-bar pin and applied to
-		// its presenter by CardWindowManager. Default off (normal window ordering) — pin to float over the map.
-		private bool _isSettingsCardOnTop;
-		private bool _isMapControlsCardOnTop;
+		// its presenter by WindowManager. Default off (normal window ordering) — pin to float over the map.
+		private bool _isSettingsWindowOnTop;
+		private bool _isMapControlsWindowOnTop;
 		private bool _isSiteExplorerOnTop;
-		private bool _isTimelineOnTop;
+		private bool _isPastWindowOnTop;
+		private bool _isNowWindowOnTop;
+		private bool _isForeWindowOnTop;
+		private bool _isDevToolsWindowOnTop;
 
 		/// <summary>Whether the App Settings window stays on top (title-bar pin).</summary>
-		public bool IsSettingsCardOnTop
+		public bool IsSettingsWindowOnTop
 		{
-			get => _isSettingsCardOnTop;
-			set => SetProperty(ref _isSettingsCardOnTop, value);
+			get => _isSettingsWindowOnTop;
+			set => SetProperty(ref _isSettingsWindowOnTop, value);
 		}
 
 		/// <summary>Whether the Map Controls window stays on top (title-bar pin).</summary>
-		public bool IsMapControlsCardOnTop
+		public bool IsMapControlsWindowOnTop
 		{
-			get => _isMapControlsCardOnTop;
-			set => SetProperty(ref _isMapControlsCardOnTop, value);
+			get => _isMapControlsWindowOnTop;
+			set => SetProperty(ref _isMapControlsWindowOnTop, value);
 		}
 
 		/// <summary>Whether the Radar Sites window stays on top (title-bar pin).</summary>
@@ -241,13 +217,34 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isSiteExplorerOnTop, value);
 		}
 
-		/// <summary>Whether the Timeline window stays on top (title-bar pin).</summary>
-		public bool IsTimelineOnTop
+		/// <summary>Whether the Past Event window stays on top (title-bar pin).</summary>
+		public bool IsPastWindowOnTop
 		{
-			get => _isTimelineOnTop;
-			set => SetProperty(ref _isTimelineOnTop, value);
+			get => _isPastWindowOnTop;
+			set => SetProperty(ref _isPastWindowOnTop, value);
 		}
-		/// <summary>Whether the Pipeline Console card is showing. INDEPENDENT of the other cards (it may float
+
+		/// <summary>Whether the Live Radar window stays on top (title-bar pin).</summary>
+		public bool IsNowWindowOnTop
+		{
+			get => _isNowWindowOnTop;
+			set => SetProperty(ref _isNowWindowOnTop, value);
+		}
+
+		/// <summary>Whether the SPC Outlooks window stays on top (title-bar pin).</summary>
+		public bool IsForeWindowOnTop
+		{
+			get => _isForeWindowOnTop;
+			set => SetProperty(ref _isForeWindowOnTop, value);
+		}
+
+		/// <summary>Whether the dev tools window stays on top (title-bar pin). DEV-ONLY.</summary>
+		public bool IsDevToolsWindowOnTop
+		{
+			get => _isDevToolsWindowOnTop;
+			set => SetProperty(ref _isDevToolsWindowOnTop, value);
+		}
+		/// <summary>Whether the Pipeline Console window is open. INDEPENDENT of the other windows (it may sit
 		/// alongside them). Forwards to <see cref="PipelineConsoleViewModel.IsOpen"/> so polling runs only
 		/// while it's open.</summary>
 		public bool IsPipelineConsoleOpen
@@ -274,10 +271,9 @@ namespace Anvil.ViewModels
 		// one on clears whatever it excludes — see the IsPastCast/IsNowCast/IsForeCast setters + the ctor
 		// Radar/Outlook subscriptions. With ALL THREE OFF the map is a blank basemap (the "cleared" state — click the active
 		// toggle to reach it). ALL THREE START OFF — nothing is armed at launch (a clean map). Activating a
-		// toggle also OPENS its settings card (the setters set OpenCard); OpenCard tracks which feature's
-		// settings card floats above the bar (one at a time); a feature turning off closes its card
-		// (CloseCardIfInactive). Backed by the shared single-open group; see the ctor for the wiring.
-		private readonly ExclusiveOpen<TemporalCard> _cards;
+		// toggle also OPENS its settings window (the setters set IsXWindowOpen); a feature turning off closes
+		// its window (CloseWindowIfInactive). The three windows are INDEPENDENT — each is its own OS window,
+		// so Now + Fore (which coexist as modes) can sit open side by side on different monitors.
 
 		/// <summary>PastCast (historical replay). Projection of <see cref="RadarViewModel.IsPastEventMode"/>:
 		/// on enters replay (clearing any live loop), off exits replay to a blank basemap. Turning it on
@@ -289,7 +285,7 @@ namespace Anvil.ViewModels
 			{
 				if (value == Radar.IsPastEventMode) { return; }
 				Radar.IsPastEventMode = value; // both directions clear the layer (enter = arm replay, leave = blank)
-				if (value) { OpenCard = TemporalCard.Past; } // user turned PastCast on → open its card (off closes via CloseCardIfInactive)
+				if (value) { IsPastWindowOpen = true; } // user turned PastCast on → open its window (off closes via CloseWindowIfInactive)
 			}
 		}
 
@@ -299,7 +295,7 @@ namespace Anvil.ViewModels
 		// off loop-existence would snap back + DISABLE the cog whenever no site is loaded. Storing it lets
 		// the toggle/cog stay on with a blank-but-armed radar. Default OFF (nothing is armed at launch — a
 		// clean map); clicking a site marker starts a live loop, which arms it via the Radar subscription
-		// (that path writes this FIELD directly, bypassing the setter, so it does NOT auto-open the Now card).
+		// (that path writes this FIELD directly, bypassing the setter, so it does NOT auto-open the Now window).
 		// Entering replay disarms it. Set as a field initializer so construction issues no map command.
 		private bool _isNowCast;
 
@@ -315,13 +311,13 @@ namespace Anvil.ViewModels
 				if (value)
 				{
 					if (Radar.IsPastEventMode) { Radar.IsPastEventMode = false; } // leave replay for live mode
-					OpenCard = TemporalCard.Now; // user turned NowCast on → open its card (marker-click arming bypasses this setter)
+					IsNowWindowOpen = true; // user turned NowCast on → open its window (marker-click arming bypasses this setter)
 				}
 				else if (!Radar.IsPastEventMode)
 				{
 					Radar.SelectedRadarOption = Radar.RadarOptions[0]; // "None" → clear the live loop to a blank basemap
 				}
-				CloseCardIfInactive();
+				CloseWindowIfInactive();
 			}
 		}
 
@@ -339,137 +335,141 @@ namespace Anvil.ViewModels
 				// DO coexist — no exclusion between them.) Mirrors how arming NowCast leaves replay.
 				if (value && Radar.IsPastEventMode) { Radar.IsPastEventMode = false; }
 				Outlook.IsOutlookVisible = value;
-				if (value) { OpenCard = TemporalCard.Fore; } // user turned ForeCast on → open its card (off closes via CloseCardIfInactive)
+				if (value) { IsForeWindowOpen = true; } // user turned ForeCast on → open its window (off closes via CloseWindowIfInactive)
 			}
 		}
 
-		// Closes an open settings card whose feature just turned off. Called from the toggle setters'
-		// subsystem subscriptions so a card can't linger over an inactive feature.
-		private void CloseCardIfInactive()
+		// Closes any settings window whose feature just turned off. Called from the toggle setters'
+		// subsystem subscriptions so a window can't linger over an inactive feature. Each is checked on its
+		// own — they're independent windows, so closing one never disturbs the others.
+		private void CloseWindowIfInactive()
 		{
-			if ((_cards.Current == TemporalCard.Past && !IsPastCast)
-				|| (_cards.Current == TemporalCard.Now && !IsNowCast)
-				|| (_cards.Current == TemporalCard.Fore && !IsForeCast))
-			{
-				OpenCard = TemporalCard.None;
-			}
+			if (!IsPastCast) { IsPastWindowOpen = false; }
+			if (!IsNowCast) { IsNowWindowOpen = false; }
+			if (!IsForeCast) { IsForeWindowOpen = false; }
 		}
 
-		/// <summary>Handles a click on a temporal mode toggle. The cog is gone — the mode's single toggle
-		/// both activates the feature AND governs its settings card:
+		/// <summary>Handles a click on a temporal mode toggle. The mode's single toggle both activates the
+		/// feature AND governs its settings window:
 		/// <list type="bullet">
-		/// <item>mode OFF → turn it on (the setter opens its card);</item>
-		/// <item>mode ON → flip its card open/closed. The mode STAYS active — you leave a mode by choosing
+		/// <item>mode OFF → turn it on (the setter opens its window);</item>
+		/// <item>mode ON → flip its window open/closed. The mode STAYS active — you leave a mode by choosing
 		/// another one (Past excludes Now/Fore; Now and Fore coexist), not by clicking its own toggle.</item>
 		/// </list>
-		/// A card-only flip doesn't change the mode projection, so we re-raise it to re-assert the toggle's
+		/// A window-only flip doesn't change the mode projection, so we re-raise it to re-assert the toggle's
 		/// lit state (bound OneWay to the projection) after the ToggleButton flipped its own IsChecked on the
 		/// click.</summary>
-		public void ToggleTemporalMode(TemporalCard which)
+		public void ToggleTemporalMode(TemporalMode which)
 		{
 			bool active = which switch
 			{
-				TemporalCard.Past => IsPastCast,
-				TemporalCard.Now => IsNowCast,
-				TemporalCard.Fore => IsForeCast,
+				TemporalMode.Past => IsPastCast,
+				TemporalMode.Now => IsNowCast,
+				TemporalMode.Fore => IsForeCast,
 				_ => false,
 			};
 
 			if (!active)
 			{
-				switch (which) // the setter turns the mode on and opens its card
+				switch (which) // the setter turns the mode on and opens its window
 				{
-					case TemporalCard.Past: IsPastCast = true; break;
-					case TemporalCard.Now: IsNowCast = true; break;
-					case TemporalCard.Fore: IsForeCast = true; break;
+					case TemporalMode.Past: IsPastCast = true; break;
+					case TemporalMode.Now: IsNowCast = true; break;
+					case TemporalMode.Fore: IsForeCast = true; break;
 				}
 				return;
 			}
 
-			// Already active → flip the card only; the mode stays on.
-			OpenCard = _cards.Current == which ? TemporalCard.None : which;
+			// Already active → flip that feature's window only; the mode stays on, and the OTHER two windows
+			// are left alone (they're independent OS windows, not a one-at-a-time group).
+			switch (which)
+			{
+				case TemporalMode.Past: IsPastWindowOpen = !IsPastWindowOpen; break;
+				case TemporalMode.Now: IsNowWindowOpen = !IsNowWindowOpen; break;
+				case TemporalMode.Fore: IsForeWindowOpen = !IsForeWindowOpen; break;
+			}
 			OnPropertyChanged(which switch // projection unchanged → re-assert the toggle's lit state
 			{
-				TemporalCard.Past => nameof(IsPastCast),
-				TemporalCard.Now => nameof(IsNowCast),
-				TemporalCard.Fore => nameof(IsForeCast),
+				TemporalMode.Past => nameof(IsPastCast),
+				TemporalMode.Now => nameof(IsNowCast),
+				TemporalMode.Fore => nameof(IsForeCast),
 				_ => string.Empty,
 			});
 		}
 
-		/// <summary>Which feature's settings card is showing above the bar (at most one). Opened by a
-		/// split-toggle's cog, hidden by the card's own down-triangle. Independent of whether the feature is
-		/// on for reading, but a cog can only set it while its feature is active (cogs are disabled otherwise),
-		/// and a mode change resets it to <see cref="TemporalCard.None"/>.</summary>
-		public TemporalCard OpenCard
+		// Per-feature settings-window open flags. Each temporal feature has its OWN OS window, so these are
+		// INDEPENDENT bools — opening one never closes another (Now + Fore can be parked side by side). Opened
+		// by the feature's toggle, closed by the window's caption Close or by the feature turning off
+		// (CloseWindowIfInactive). WindowManager watches these and reconciles each to a live Window.
+		private bool _isPastWindowOpen;
+		private bool _isNowWindowOpen;
+		private bool _isForeWindowOpen;
+
+		/// <summary>Whether the Past Event settings window is open.</summary>
+		public bool IsPastWindowOpen
 		{
-			get => _cards.Current;
-			set => _cards.Current = value;
+			get => _isPastWindowOpen;
+			set => SetProperty(ref _isPastWindowOpen, value);
 		}
 
-		/// <summary>PastCast settings-card visibility (two-way: the cog toggles it; the card's triangle
-		/// clears it). Setting false only closes it when it was the one open.</summary>
-		public bool IsPastCardOpen
+		/// <summary>Whether the Live Radar settings window is open.</summary>
+		public bool IsNowWindowOpen
 		{
-			get => _cards.IsOpen(TemporalCard.Past);
-			set => _cards.SetOpen(TemporalCard.Past, value);
+			get => _isNowWindowOpen;
+			set => SetProperty(ref _isNowWindowOpen, value);
 		}
 
-		/// <summary>NowCast settings-card visibility (placeholder card for now).</summary>
-		public bool IsNowCardOpen
+		/// <summary>Whether the SPC Outlooks settings window is open.</summary>
+		public bool IsForeWindowOpen
 		{
-			get => _cards.IsOpen(TemporalCard.Now);
-			set => _cards.SetOpen(TemporalCard.Now, value);
+			get => _isForeWindowOpen;
+			set => SetProperty(ref _isForeWindowOpen, value);
 		}
 
-		/// <summary>ForeCast settings-card visibility.</summary>
-		public bool IsForeCardOpen
+		// ===== App-wide windows (Map Controls / App Settings / Site Explorer / dev tools) =================
+		// Same model as the temporal windows above: one independent bool per window, opened by its button on
+		// the top bar's right edge and closed by the window's caption Close. No one-at-a-time grouping — these
+		// are real OS windows, so any combination may be open at once.
+		private bool _isMapControlsWindowOpen;
+		private bool _isSettingsWindowOpen;
+		private bool _isSiteExplorerOpen;
+		private bool _isDevToolsWindowOpen;
+
+		/// <summary>Whether the Map Controls window (basemap style + state isolation) is open.</summary>
+		public bool IsMapControlsWindowOpen
 		{
-			get => _cards.IsOpen(TemporalCard.Fore);
-			set => _cards.SetOpen(TemporalCard.Fore, value);
+			get => _isMapControlsWindowOpen;
+			set => SetProperty(ref _isMapControlsWindowOpen, value);
 		}
 
-		// ===== App-wide RIGHT-aligned cards (Map Controls / App Settings / Site Explorer) =================
-		// The right-side mirror of the temporal cards, and — like them — a one-at-a-time group, so opening
-		// one closes whichever right card was open (a second button can't stack on top). Modeled exactly like
-		// OpenCard: a single RightPanel source of truth + three bool PROJECTIONS, so the existing button
-		// (IsChecked TwoWay) and card (Visibility) bindings keep working unchanged. Deliberately INDEPENDENT
-		// of the temporal OpenCard: switching temporal modes never closes a right card and vice-versa, so at
-		// most one LEFT + one RIGHT card show together. (The Debug-only dev Sweep/Validate cards are NOT part
-		// of this group — their open-state is a control-level DP, see MainWindow.)
-		private readonly ExclusiveOpen<RightPanel> _rightPanels;
-
-		/// <summary>Which app-wide right-aligned card is floating above the bar (at most one). Opened by its
-		/// right-edge button, hidden by the card's own down-triangle. Independent of <see cref="OpenCard"/>.</summary>
-		public RightPanel OpenRightPanel
+		/// <summary>Whether the App Settings window is open. Opening it freshens the radar-cache size readout
+		/// in its Storage section (the value is only interesting while the window is up).</summary>
+		public bool IsSettingsWindowOpen
 		{
-			get => _rightPanels.Current;
-			set => _rightPanels.Current = value;
+			get => _isSettingsWindowOpen;
+			set
+			{
+				if (SetProperty(ref _isSettingsWindowOpen, value) && value)
+				{
+					_ = Storage.RefreshCacheSizeAsync();
+				}
+			}
 		}
 
-		/// <summary>Whether the Map Controls card (basemap style + state isolation) floats above the bar.
-		/// Two-way: the "Map" button toggles it; the card's down-triangle clears it. Opening it closes any
-		/// other right card.</summary>
-		public bool IsMapControlsCardOpen
-		{
-			get => _rightPanels.IsOpen(RightPanel.MapControls);
-			set => _rightPanels.SetOpen(RightPanel.MapControls, value);
-		}
-
-		/// <summary>Whether the app-wide settings card floats above the bar. Two-way: the settings cog toggles
-		/// it; the card's down-triangle clears it. Opening it closes any other right card.</summary>
-		public bool IsSettingsCardOpen
-		{
-			get => _rightPanels.IsOpen(RightPanel.Settings);
-			set => _rightPanels.SetOpen(RightPanel.Settings, value);
-		}
-
-		/// <summary>Whether the Radar Site Explorer panel is showing (toggled by the "Sites" button). Opening
-		/// it closes any other right card.</summary>
+		/// <summary>Whether the Radar Site Explorer window is open (toggled by the "Sites" button).</summary>
 		public bool IsSiteExplorerOpen
 		{
-			get => _rightPanels.IsOpen(RightPanel.SiteExplorer);
-			set => _rightPanels.SetOpen(RightPanel.SiteExplorer, value);
+			get => _isSiteExplorerOpen;
+			set => SetProperty(ref _isSiteExplorerOpen, value);
+		}
+
+		/// <summary>Whether the DEV-ONLY dev tools window (site sweep + dealias validation) is open. The bar
+		/// button that drives it is collapsed in Release, and the window is only registered when the dev VMs
+		/// exist, so this stays false in a shipped build.</summary>
+		public bool IsDevToolsWindowOpen
+		{
+			get => _isDevToolsWindowOpen;
+			set => SetProperty(ref _isDevToolsWindowOpen, value);
 		}
 
 		public IReadOnlyList<MapStyle> AvailableStyles { get; }
@@ -484,11 +484,11 @@ namespace Anvil.ViewModels
 
 
 		/// <summary>"Fit to view": frames the current region of interest (the isolated state, else CONUS)
-		/// into view. Invoked by the Map Controls card's Fit-to-view button. No-op until the map is ready.</summary>
+		/// into view. Invoked by the Map Controls window's Fit-to-view button. No-op until the map is ready.</summary>
 		public Task FitToViewAsync() => _isMapReady ? _mapService.FitMapToViewAsync() : Task.CompletedTask;
 
 		/// <summary>"Reset north": animates the map's bearing and pitch back to 0 (north up, flat), undoing a
-		/// right-click-drag rotate/tilt. Invoked by the Map Controls card's Reset-north button. No-op until
+		/// right-click-drag rotate/tilt. Invoked by the Map Controls window's Reset-north button. No-op until
 		/// the map is ready.</summary>
 		public Task ResetOrientationAsync() => _isMapReady ? _mapService.ResetMapOrientationAsync() : Task.CompletedTask;
 

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- PinToggle — the "keep this window on top" pin used in each card window's title-bar area. Self-positions
+<!-- PinToggle — the "keep this window on top" pin used in each app-wide window's title-bar area. Self-positions
      at the top-right, inset from the right edge so it clears the system caption buttons (min/maximize/close)
      that float there when content is extended into the title bar. Bind IsChecked to that window's on-top VM
-     flag; CardWindowManager applies the flag to the window's always-on-top presenter. Interactive controls in
+     flag; WindowManager applies the flag to the window's always-on-top presenter. Interactive controls in
      the title-bar drag region receive input automatically (WinUI), so no SetTitleBar is needed. -->
 <UserControl x:Class="Anvil.Controls.PinToggle"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

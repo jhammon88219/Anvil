@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- PastOutlookInput — the HISTORICAL SPC outlook controls for the PastCast card (Day / Product / issuance
+<!-- PastOutlookInput — the HISTORICAL SPC outlook controls for the PastCast window (Day / Product / issuance
      Cycle / Opacity + a status line and issued/valid readout). Sits below PastEventInput in the (grown)
-     Past Event card. Same grid layout as OutlookInput. Selecting a product fetches the archived issuance
+     Past Event window. Same grid layout as OutlookInput. Selecting a product fetches the archived issuance
      for the entered replay date and overlays it on the past radar. Bound to PastOutlookViewModel. -->
 <UserControl x:Class="Anvil.Controls.Sections.PastOutlookInput"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

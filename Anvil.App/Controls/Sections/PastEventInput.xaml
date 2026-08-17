@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- PastEventInput — the Past Event Viewer's date/start/window form, shown as the body of the PastCast
-     settings card (floating above the overlay bar). Laid out ENTIRELY with grids (rows/columns, no
+     settings window (see PastCastWindow). Laid out ENTIRELY with grids (rows/columns, no
      StackPanels) so rows are easy to add/rearrange: a fixed [label | controls] outer grid, one row per
      field, and each multi-widget field is its own nested column grid. Date + window bind RadarViewModel
      indices directly; the editable hour/minute combos + AM/PM pair convert to/from the VM's PastEventTime

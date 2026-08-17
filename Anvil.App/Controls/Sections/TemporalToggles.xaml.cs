@@ -6,9 +6,10 @@ namespace Anvil.Controls.Sections
 {
 	/// <summary>
 	/// The overlay bar's left section: three temporal features (PastCast / NowCast / ForeCast), each a
-	/// SINGLE toggle (the settings cog is gone). A click activates the mode and opens its floating card
-	/// (see <see cref="TemporalCards"/>); clicking the active mode flips its card open/closed, and you leave
-	/// a mode by choosing another (Past excludes Now/Fore; Now and Fore coexist). The lit state binds OneWay
+	/// SINGLE toggle. A click activates the mode and opens that feature's settings window (see
+	/// <see cref="PastCastWindow"/> / <see cref="NowCastWindow"/> / <see cref="ForeCastWindow"/> — three
+	/// INDEPENDENT windows); clicking the active mode flips its window open/closed, and you leave a mode by
+	/// choosing another (Past excludes Now/Fore; Now and Fore coexist). The lit state binds OneWay
 	/// to <see cref="MapViewModel.IsPastCast"/> etc.; the click routes through
 	/// <see cref="MapViewModel.ToggleTemporalMode"/>. Binds the coordinator <see cref="MapViewModel"/>.
 	/// </summary>
@@ -31,8 +32,8 @@ namespace Anvil.Controls.Sections
 
 		// Each mode's single toggle routes here (IsChecked is OneWay to the mode projection, so the click
 		// drives the VM, not the reverse). See MapViewModel.ToggleTemporalMode for the activate/flip rules.
-		private void OnPastClick(object sender, RoutedEventArgs e) => ViewModel?.ToggleTemporalMode(TemporalCard.Past);
-		private void OnNowClick(object sender, RoutedEventArgs e) => ViewModel?.ToggleTemporalMode(TemporalCard.Now);
-		private void OnForeClick(object sender, RoutedEventArgs e) => ViewModel?.ToggleTemporalMode(TemporalCard.Fore);
+		private void OnPastClick(object sender, RoutedEventArgs e) => ViewModel?.ToggleTemporalMode(TemporalMode.Past);
+		private void OnNowClick(object sender, RoutedEventArgs e) => ViewModel?.ToggleTemporalMode(TemporalMode.Now);
+		private void OnForeClick(object sender, RoutedEventArgs e) => ViewModel?.ToggleTemporalMode(TemporalMode.Fore);
 	}
 }

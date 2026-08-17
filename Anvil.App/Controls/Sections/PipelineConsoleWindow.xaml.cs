@@ -8,14 +8,14 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Sections
 {
 	/// <summary>
-	/// The Pipeline Console card — a read-only glass cockpit over the Level-2 build pipeline (a mini-scrubber
+	/// The Pipeline Console — a read-only glass cockpit over the Level-2 build pipeline (a mini-scrubber
 	/// per product + VWP/storm-motion state). Observe-only: the shared playhead mirrors the main viewer's
 	/// frame (<see cref="PipelineConsoleViewModel.CurrentIndex"/>); there is no seek. Bound to the coordinator
 	/// <see cref="MapViewModel"/>; visibility driven by <see cref="MapViewModel.IsPipelineConsoleOpen"/>.
 	/// </summary>
-	public sealed partial class PipelineConsoleCard : UserControl
+	public sealed partial class PipelineConsoleWindow : UserControl
 	{
-		public PipelineConsoleCard()
+		public PipelineConsoleWindow()
 		{
 			InitializeComponent();
 		}
@@ -28,13 +28,13 @@ namespace Anvil.Controls.Sections
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(PipelineConsoleCard),
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(PipelineConsoleWindow),
 				new PropertyMetadata(null, OnViewModelChanged));
 
 		// Follow the console VM's frame index / count so the shared playhead tracks the main viewer.
 		private static void OnViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
 		{
-			var self = (PipelineConsoleCard)d;
+			var self = (PipelineConsoleWindow)d;
 			if (e.OldValue is MapViewModel oldVm)
 			{
 				oldVm.PipelineConsole.PropertyChanged -= self.OnConsolePropertyChanged;
@@ -77,13 +77,13 @@ namespace Anvil.Controls.Sections
 			PlayheadTransform.X = Math.Clamp(centre - Playhead.Width / 2, 0, width - Playhead.Width);
 		}
 
-		// The card's down-triangle closes the console (independent app-wide state; nothing else changes).
+		// Closes the console (independent app-wide state; nothing else changes).
 		private void OnCloseClick(object sender, RoutedEventArgs e)
 		{
 			if (ViewModel is not null) ViewModel.IsPipelineConsoleOpen = false;
 		}
 
-		// x:Bind function: bool → Visibility (the card's own show/hide).
+		// x:Bind function: bool → Visibility.
 		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
 		// x:Bind function: INVERSE — the empty-state message shows only when NO loop is loaded.

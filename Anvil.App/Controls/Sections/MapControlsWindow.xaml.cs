@@ -5,14 +5,14 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Sections
 {
 	/// <summary>
-	/// The Map Controls card floating above the OverlayBar (right side): basemap style + state isolation.
-	/// Its visibility is driven by <see cref="MapViewModel.IsMapControlsCardOpen"/> (toggled by the "Map"
-	/// button on the top bar); the card's down-triangle routes here to clear it. Bound to the coordinator
+	/// The Map Controls panel: basemap style + state isolation, hosted in its own OS window.
+	/// Its visibility is driven by <see cref="MapViewModel.IsMapControlsWindowOpen"/> (toggled by the "Map"
+	/// button on the top bar); the window's caption Close clears it. Bound to the coordinator
 	/// <see cref="MapViewModel"/> (basemap lives on it, isolation on <see cref="MapViewModel.StateIso"/>).
 	/// </summary>
-	public sealed partial class MapControlsCard : UserControl
+	public sealed partial class MapControlsWindow : UserControl
 	{
-		public MapControlsCard()
+		public MapControlsWindow()
 		{
 			InitializeComponent();
 		}
@@ -25,7 +25,7 @@ namespace Anvil.Controls.Sections
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(MapControlsCard), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(MapControlsWindow), new PropertyMetadata(null));
 
 		// "Fit to view" — frame the current region (isolated state, else CONUS). Fire-and-forget: the camera
 		// move runs through IMapService (map.fitBounds), same seam as every other map command.
