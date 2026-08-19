@@ -58,13 +58,13 @@
              pane's live inspect readout. Multi-pane grows this into a 2x2; nothing else in the bar
              multiplies with it. -->
         <Grid x:Name="PaneChips" Grid.Column="0" VerticalAlignment="Center">
-            <controls:HandCursorComboBox Style="{StaticResource ProductRampComboBoxStyle}"
+            <controls:ProductColorRampComboBox
                       Width="200"
                       IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
                       ItemsSource="{x:Bind ViewModel.RadarProductOptions}"
                       SelectedIndex="{x:Bind ViewModel.RadarProductIndex, Mode=TwoWay}"
-                      controls:ProductRampCombo.InspectFraction="{x:Bind ViewModel.InspectFraction, Mode=OneWay}"
-                      controls:ProductRampCombo.IsInspectVisible="{x:Bind ViewModel.IsInspectMarkerVisible, Mode=OneWay}"/>
+                      InspectFraction="{x:Bind ViewModel.InspectFraction, Mode=OneWay}"
+                      IsInspectVisible="{x:Bind ViewModel.IsInspectMarkerVisible, Mode=OneWay}"/>
         </Grid>
 
         <Border Grid.Column="1" Style="{StaticResource BarDividerStyle}"/>

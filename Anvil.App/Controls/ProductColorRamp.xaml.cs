@@ -10,13 +10,14 @@ using Anvil.Models;
 namespace Anvil.Controls
 {
 	/// <summary>
-	/// A radar product's color scale as a compact bar (see RampBar.xaml): the ramp, its min/max values, the
-	/// live Inspect tick, and a hover read-out of the value under the pointer. Used by
-	/// <c>ProductRampComboBoxStyle</c> so the Product selector doubles as the legend.
+	/// A radar product's color scale as a compact bar (see ProductColorRamp.xaml): the ramp, its min/max
+	/// values, the live Inspect tick, and a hover read-out of the value under the pointer. Parted out from
+	/// the selector so it can be reused — <see cref="ProductColorRampComboBox"/> renders one in its closed
+	/// area (with the scale) and one per dropdown row (without).
 	/// </summary>
-	public sealed partial class RampBar : UserControl
+	public sealed partial class ProductColorRamp : UserControl
 	{
-		public RampBar()
+		public ProductColorRamp()
 		{
 			InitializeComponent();
 		}
@@ -29,12 +30,12 @@ namespace Anvil.Controls
 		}
 
 		public static readonly DependencyProperty RampProperty =
-			DependencyProperty.Register(nameof(Ramp), typeof(RadarRampInfo), typeof(RampBar),
+			DependencyProperty.Register(nameof(Ramp), typeof(RadarRampInfo), typeof(ProductColorRamp),
 				new PropertyMetadata(null, OnRampChanged));
 
 		// The bar's look is x:Bind'd to Ramp/HasRamp; HasRamp is derived, so re-raise it when Ramp changes.
 		private static void OnRampChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
-			((RampBar)d).Bindings.Update();
+			((ProductColorRamp)d).Bindings.Update();
 
 		/// <summary>Whether a real ramp is known (drives ghost vs. real bar).</summary>
 		public bool HasRamp => Ramp?.Stops is { Count: > 0 };
@@ -47,7 +48,7 @@ namespace Anvil.Controls
 		}
 
 		public static readonly DependencyProperty ShowScaleProperty =
-			DependencyProperty.Register(nameof(ShowScale), typeof(bool), typeof(RampBar), new PropertyMetadata(false));
+			DependencyProperty.Register(nameof(ShowScale), typeof(bool), typeof(ProductColorRamp), new PropertyMetadata(false));
 
 		/// <summary>Where the Inspect marker sits along the ramp (0-1).</summary>
 		public double InspectFraction
@@ -57,7 +58,7 @@ namespace Anvil.Controls
 		}
 
 		public static readonly DependencyProperty InspectFractionProperty =
-			DependencyProperty.Register(nameof(InspectFraction), typeof(double), typeof(RampBar), new PropertyMetadata(0.0));
+			DependencyProperty.Register(nameof(InspectFraction), typeof(double), typeof(ProductColorRamp), new PropertyMetadata(0.0));
 
 		/// <summary>
 		/// The <c>Margin</c> a SIBLING needs so that centering it lands on the RAMP STRIP's centre rather than
@@ -67,7 +68,7 @@ namespace Anvil.Controls
 		/// magnitude, which is exactly the strip's offset from centre; going negative (rather than a positive
 		/// bottom inset, which shifts by the same half) keeps the sibling's desired height from stretching the
 		/// row taller. Measured from live layout — font metrics, DPI and ShowScale all land in it — so a
-		/// template never hardcodes a guess at this control's internals. It's 0 when ShowScale is off (the
+		/// host never hardcodes a guess at this control's internals. It's 0 when ShowScale is off (the
 		/// compact dropdown rows), where the strip already IS the whole control.
 		/// </summary>
 		public Thickness StripAlignMargin
@@ -77,7 +78,7 @@ namespace Anvil.Controls
 		}
 
 		public static readonly DependencyProperty StripAlignMarginProperty =
-			DependencyProperty.Register(nameof(StripAlignMargin), typeof(Thickness), typeof(RampBar),
+			DependencyProperty.Register(nameof(StripAlignMargin), typeof(Thickness), typeof(ProductColorRamp),
 				new PropertyMetadata(default(Thickness)));
 
 		// Whatever this control has below the strip (the gap + the scale row) is what pulls its centre off
@@ -93,7 +94,7 @@ namespace Anvil.Controls
 		}
 
 		public static readonly DependencyProperty IsInspectVisibleProperty =
-			DependencyProperty.Register(nameof(IsInspectVisible), typeof(bool), typeof(RampBar), new PropertyMetadata(false));
+			DependencyProperty.Register(nameof(IsInspectVisible), typeof(bool), typeof(ProductColorRamp), new PropertyMetadata(false));
 
 		// ── x:Bind helpers ───────────────────────────────────────────────────────────────────────
 		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
