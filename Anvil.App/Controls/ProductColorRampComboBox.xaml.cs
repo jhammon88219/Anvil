@@ -133,8 +133,11 @@ namespace Anvil.Controls
 		{
 			if (_syncingSelection) return;
 
+			// A cleared selection is not a user pick, so it must not close the dropdown or write back.
 			var i = ProductList.SelectedIndex;
-			if (i >= 0 && i != SelectedIndex) SelectedIndex = i;
+			if (i < 0) return;
+
+			if (i != SelectedIndex) SelectedIndex = i;
 			DropDown.Hide();
 		}
 

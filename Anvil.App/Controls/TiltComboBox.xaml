@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TiltComboBox — the radar Tilt (elevation) selector: a minimal, background-LESS dropdown that blends into
+     whatever surface hosts it.
+
+     Transparent in EVERY state (rest / hover / pressed / focused / open), no border, no highlight — the only
+     state that changes anything is Disabled, which mutes the label + chevron so a disabled combo reads as
+     disabled without gaining a background. The dropdown is given an explicit fully-OPAQUE theme-aware
+     surface, since the default flyout brush is acrylic and washes out over the map.
+
+     (Was a HandCursorComboBox wearing NoBackgroundComboBoxStyle; both are gone now. Same reasoning as
+     ProductColorRampComboBox — see that file — except this one has no ramp and no hover treatment.) -->
+<UserControl
+    x:Class="Anvil.Controls.TiltComboBox"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:Anvil.ViewModels"
+    mc:Ignorable="d"
+    IsTabStop="True"
+    UseSystemFocusVisuals="True"
+    HorizontalAlignment="Stretch"
+    KeyDown="OnKeyDown"
+    IsEnabledChanged="OnIsEnabledChanged">
+
+    <Grid x:Name="Root" Background="Transparent" Tapped="OnTapped">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal"/>
+                <VisualState x:Name="Disabled">
+                    <VisualState.Setters>
+                        <Setter Target="SelectedLabel.Foreground" Value="{ThemeResource ComboBoxForegroundDisabled}"/>
+                        <Setter Target="DropDownGlyph.Foreground" Value="{ThemeResource ComboBoxDropDownGlyphForegroundDisabled}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <!-- The box. Stays transparent and borderless in every state, so it looks identical at rest, hover,
+             pressed, focused and open. It exists only as the focus target. -->
+        <Border x:Name="Box"
+                Grid.ColumnSpan="2"
+                MinHeight="32"
+                Background="Transparent"
+                BorderThickness="0"
+                Control.IsTemplateFocusTarget="True"/>
+
+        <TextBlock x:Name="SelectedLabel"
+                   Grid.Column="0"
+                   Margin="11,5,0,6"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Center"
+                   Foreground="{ThemeResource ComboBoxForeground}"
+                   Text="{x:Bind SelectedItem.Label, Mode=OneWay}"/>
+
+        <FontIcon x:Name="DropDownGlyph"
+                  Grid.Column="1"
+                  Margin="8,0,10,0"
+                  VerticalAlignment="Center"
+                  FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                  FontSize="12"
+                  Glyph="&#xE70D;"
+                  Foreground="{ThemeResource ComboBoxDropDownGlyphForeground}"
+                  IsHitTestVisible="False"/>
+
+        <FlyoutBase.AttachedFlyout>
+            <Flyout x:Name="DropDown" Placement="Bottom" Opening="OnDropDownOpening">
+                <Flyout.FlyoutPresenterStyle>
+                    <Style TargetType="FlyoutPresenter">
+                        <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
+                        <Setter Property="BorderBrush" Value="{ThemeResource SurfaceStrokeColorFlyoutBrush}"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}"/>
+                        <Setter Property="Padding" Value="0,4,0,4"/>
+                        <Setter Property="MinWidth" Value="0"/>
+                        <Setter Property="ScrollViewer.HorizontalScrollMode" Value="Disabled"/>
+                        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+                    </Style>
+                </Flyout.FlyoutPresenterStyle>
+
+                <ListView x:Name="TiltList"
+                          MaxHeight="504"
+                          SelectionMode="Single"
+                          ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"
+                          SelectionChanged="OnTiltListSelectionChanged">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="MinHeight" Value="32"/>
+                            <Setter Property="Padding" Value="11,0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:RadarTiltOption">
+                            <TextBlock Text="{x:Bind Label}" VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Flyout>
+        </FlyoutBase.AttachedFlyout>
+    </Grid>
+</UserControl>

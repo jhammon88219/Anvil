@@ -155,10 +155,8 @@
                      shows the same elevation, because a different tilt is a different VOLUME (a second
                      frame set), not just a different build of the same frame. When per-pane tilt lands
                      this control moves into the chip. -->
-                <controls:HandCursorComboBox Grid.Column="0"
-                          Style="{StaticResource NoBackgroundComboBoxStyle}"
+                <controls:TiltComboBox Grid.Column="0"
                           ItemsSource="{x:Bind ViewModel.RadarTiltOptions}"
-                          DisplayMemberPath="Label"
                           SelectedIndex="{x:Bind ViewModel.RadarTiltIndex, Mode=TwoWay}"
                           IsEnabled="{x:Bind ViewModel.CanSelectTilt, Mode=OneWay}"
                           ToolTipService.ToolTip="Elevation angle (tilt)"/>
