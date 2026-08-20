@@ -18,17 +18,20 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             HorizontalAlignment="Left" VerticalAlignment="Top"
+             HorizontalAlignment="Left"
+             VerticalAlignment="Top"
              Margin="12"
              IsHitTestVisible="False">
     <!-- Faint backing so the label survives over bright radar returns as well as over the dark basemap. -->
     <Border Padding="8,2"
             CornerRadius="4"
-            Opacity="0.72"
-            Background="{ThemeResource OverlayBarSurfaceBrush}">
+            Opacity="1"
+            Background="{ThemeResource OverlayBarSurfaceBrush}"
+            BorderBrush="{ThemeResource AccentAAFillColorDefaultBrush}"
+            BorderThickness="2">
         <TextBlock Text="{x:Bind Text, Mode=OneWay}"
                    FontSize="13"
-                   FontWeight="SemiBold"
+                   FontWeight="Bold"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
     </Border>
 </UserControl>
