@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- RadarSiteExplorer — a non-modal, searchable master–detail browser over the WHOLE radar network the
+<!-- RadarSiteExplorerWindow — a non-modal, searchable master–detail browser over the WHOLE radar network the
      app can access (operational WSR-88D, research/test, TDWR). Floats over the map (map stays live),
      opened by the "Sites" button on the bar (left of the Settings cog). Shares the OverlayBar surface
      chrome but is its own larger footprint. Bound to the coordinator
      MapViewModel (like AppSettingsWindow): it reaches into ViewModel.SiteExplorer.* for the list/detail
      and ViewModel.IsSiteExplorerOpen for its own visibility/close. -->
-<UserControl x:Class="Anvil.Controls.Sections.RadarSiteExplorer"
+<UserControl x:Class="Anvil.Controls.Windows.RadarSiteExplorerWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctl="using:Anvil.Controls"

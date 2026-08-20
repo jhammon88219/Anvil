@@ -6,6 +6,11 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Anvil.Models;
 using Anvil.ViewModels;
+// ⚠️ Color is IMPORTED, never written inline as a Windows.UI.-qualified name: the sibling namespace
+// Anvil.Controls.Windows exists, so from inside Anvil.Controls.* a leading "Windows." binds to THAT
+// rather than to WinRT and fails to resolve. A using directive sits outside the namespace, where
+// "Windows" still means the global one.
+using Windows.UI;
 
 namespace Anvil.Controls.Sections
 {
@@ -191,23 +196,23 @@ namespace Anvil.Controls.Sections
 		{
 			if (minutes is not double m)
 			{
-				return new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x8A, 0x8A, 0x8A));
+				return new SolidColorBrush(Color.FromArgb(255, 0x8A, 0x8A, 0x8A));
 			}
 
-			var fresh = Windows.UI.Color.FromArgb(255, 0x3F, 0xB9, 0x50); // green
-			var mid = Windows.UI.Color.FromArgb(255, 0xE3, 0xB3, 0x41);   // amber
-			var stale = Windows.UI.Color.FromArgb(255, 0xF8, 0x51, 0x49); // red
+			var fresh = Color.FromArgb(255, 0x3F, 0xB9, 0x50); // green
+			var mid = Color.FromArgb(255, 0xE3, 0xB3, 0x41);   // amber
+			var stale = Color.FromArgb(255, 0xF8, 0x51, 0x49); // red
 
-			Windows.UI.Color c = m <= 12 ? Lerp(fresh, mid, m / 12.0)
+			Color c = m <= 12 ? Lerp(fresh, mid, m / 12.0)
 				: m <= 30 ? Lerp(mid, stale, (m - 12) / 18.0)
 				: stale;
 			return new SolidColorBrush(c);
 		}
 
-		private static Windows.UI.Color Lerp(Windows.UI.Color a, Windows.UI.Color b, double t)
+		private static Color Lerp(Color a, Color b, double t)
 		{
 			t = Math.Clamp(t, 0, 1);
-			return Windows.UI.Color.FromArgb(255,
+			return Color.FromArgb(255,
 				(byte)(a.R + (b.R - a.R) * t),
 				(byte)(a.G + (b.G - a.G) * t),
 				(byte)(a.B + (b.B - a.B) * t));

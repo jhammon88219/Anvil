@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Sections
+namespace Anvil.Controls.Windows
 {
 	/// <summary>
 	/// The Map Controls panel: basemap style, view extent, state isolation, radar-site marker visibility,

@@ -5,7 +5,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Sections
+namespace Anvil.Controls.Windows
 {
 	/// <summary>
 	/// The Pipeline Console — a read-only glass cockpit over the Level-2 build pipeline (a mini-scrubber

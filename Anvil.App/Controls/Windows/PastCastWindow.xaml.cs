@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Sections
+namespace Anvil.Controls.Windows
 {
 	/// <summary>
 	/// The PastCast settings panel (see the XAML header), hosted in its own OS window by

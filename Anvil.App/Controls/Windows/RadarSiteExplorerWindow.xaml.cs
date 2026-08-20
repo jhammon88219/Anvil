@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Anvil.Converters;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Sections
+namespace Anvil.Controls.Windows
 {
 	/// <summary>
 	/// The Radar Site Explorer panel — a non-modal, searchable master–detail browser over the radar
@@ -12,9 +12,9 @@ namespace Anvil.Controls.Sections
 	/// and it reaches into <see cref="MapViewModel.SiteExplorer"/> for the list/detail. The close triangle
 	/// and Load button are handled here in code-behind.
 	/// </summary>
-	public sealed partial class RadarSiteExplorer : UserControl
+	public sealed partial class RadarSiteExplorerWindow : UserControl
 	{
-		public RadarSiteExplorer()
+		public RadarSiteExplorerWindow()
 		{
 			InitializeComponent();
 		}
@@ -27,7 +27,7 @@ namespace Anvil.Controls.Sections
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(RadarSiteExplorer), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(RadarSiteExplorerWindow), new PropertyMetadata(null));
 
 		// x:Bind helpers (bool → Visibility) — no value-converter lookup needed on a UserControl.
 		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;

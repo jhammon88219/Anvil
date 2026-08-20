@@ -168,7 +168,7 @@ namespace Anvil
 				id: "settings",
 				isOpen: () => ViewModel.IsSettingsWindowOpen,
 				close: () => ViewModel.IsSettingsWindowOpen = false,
-				buildContent: () => new Controls.Sections.AppSettingsWindow { ViewModel = ViewModel },
+				buildContent: () => new Controls.Windows.AppSettingsWindow { ViewModel = ViewModel },
 				title: "App Settings", width: 460, height: 420,
 				alwaysOnTop: () => ViewModel.IsSettingsWindowOnTop,
 				customChrome: true);
@@ -176,7 +176,7 @@ namespace Anvil
 				id: "map",
 				isOpen: () => ViewModel.IsMapControlsWindowOpen,
 				close: () => ViewModel.IsMapControlsWindowOpen = false,
-				buildContent: () => new Controls.Sections.MapControlsWindow { ViewModel = ViewModel },
+				buildContent: () => new Controls.Windows.MapControlsWindow { ViewModel = ViewModel },
 				title: "Map Controls", width: 460, height: 760,
 				alwaysOnTop: () => ViewModel.IsMapControlsWindowOnTop,
 				customChrome: true);
@@ -184,7 +184,7 @@ namespace Anvil
 				id: "sites",
 				isOpen: () => ViewModel.IsSiteExplorerOpen,
 				close: () => ViewModel.IsSiteExplorerOpen = false,
-				buildContent: () => new Controls.Sections.RadarSiteExplorer { ViewModel = ViewModel },
+				buildContent: () => new Controls.Windows.RadarSiteExplorerWindow { ViewModel = ViewModel },
 				title: "Radar Sites", width: 660, height: 470,
 				alwaysOnTop: () => ViewModel.IsSiteExplorerOnTop,
 				customChrome: true);
@@ -194,7 +194,7 @@ namespace Anvil
 				id: "past",
 				isOpen: () => ViewModel.IsPastWindowOpen,
 				close: () => ViewModel.IsPastWindowOpen = false,
-				buildContent: () => new Controls.Sections.PastCastWindow { ViewModel = ViewModel },
+				buildContent: () => new Controls.Windows.PastCastWindow { ViewModel = ViewModel },
 				title: "Past Event", width: 460, height: 610,
 				alwaysOnTop: () => ViewModel.IsPastWindowOnTop,
 				customChrome: true);
@@ -202,7 +202,7 @@ namespace Anvil
 				id: "now",
 				isOpen: () => ViewModel.IsNowWindowOpen,
 				close: () => ViewModel.IsNowWindowOpen = false,
-				buildContent: () => new Controls.Sections.NowCastWindow { ViewModel = ViewModel },
+				buildContent: () => new Controls.Windows.NowCastWindow { ViewModel = ViewModel },
 				title: "Live Radar", width: 460, height: 440,
 				alwaysOnTop: () => ViewModel.IsNowWindowOnTop,
 				customChrome: true);
@@ -210,7 +210,7 @@ namespace Anvil
 				id: "fore",
 				isOpen: () => ViewModel.IsForeWindowOpen,
 				close: () => ViewModel.IsForeWindowOpen = false,
-				buildContent: () => new Controls.Sections.ForeCastWindow { ViewModel = ViewModel },
+				buildContent: () => new Controls.Windows.ForeCastWindow { ViewModel = ViewModel },
 				title: "SPC Outlooks", width: 460, height: 340,
 				alwaysOnTop: () => ViewModel.IsForeWindowOnTop,
 				customChrome: true);
@@ -218,7 +218,7 @@ namespace Anvil
 				id: "pipeline",
 				isOpen: () => ViewModel.IsPipelineConsoleOpen,
 				close: () => ViewModel.IsPipelineConsoleOpen = false,
-				buildContent: () => new Controls.Sections.PipelineConsoleWindow { ViewModel = ViewModel },
+				buildContent: () => new Controls.Windows.PipelineConsoleWindow { ViewModel = ViewModel },
 				title: "Pipeline Console", width: 720, height: 470,
 				alwaysOnTop: () => ViewModel.IsPipelineConsoleOnTop, // user-toggled via the pin in the console
 				customChrome: true); // extend content into the title bar so the dark surface replaces the caption
@@ -231,7 +231,7 @@ namespace Anvil
 				close: () => ViewModel.IsDevToolsWindowOpen = false,
 				buildContent: () =>
 				{
-					var dev = new Controls.Sections.DevToolsWindow
+					var dev = new Controls.Windows.DevToolsWindow
 					{
 						ViewModel = ViewModel,
 						SweepVm = SweepVm,

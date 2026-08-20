@@ -3,7 +3,7 @@
      storm reports. Hosted in its OWN OS window by WindowManager (MapViewModel.IsNowWindowOpen), so there is
      no panel frame: the root is the dark surface stretched to fill the window. Content extends into the
      title bar, so the panel carries its own title. Bound to the coordinator MapViewModel. -->
-<UserControl x:Class="Anvil.Controls.Sections.NowCastWindow"
+<UserControl x:Class="Anvil.Controls.Windows.NowCastWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:sections="using:Anvil.Controls.Sections"
