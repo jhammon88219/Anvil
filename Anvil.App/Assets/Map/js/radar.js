@@ -1549,11 +1549,23 @@
             });
             views = next;
             forEachView(function (v) {
-                attachContextListeners(v);
+                attachContextListeners(v);               // canvas listeners — safe before the style loads
                 if (inspecting) bindInspect(v);          // a pane created while Inspect is on joins it
-                if (currentFrame >= 0) showCurrent(v, 'setViews');
-                if (currentRangeMeters > 0) addRangeRing(v);
-                if (sweepRaf) ensureSweepLayer(v);
+                // ⚠️ Everything below ADDS sources/layers, and MapLibre throws "Style is not done loading"
+                // on a map whose style hasn't arrived — which is exactly the state a pane is in here, since
+                // map.js calls us the instant it constructs the new maps. A pane in that state gets its
+                // layers from reAddAll on its own 'load' instead (which does this same work), so skipping
+                // is not a loss. Without this, entering a layout WITH A LOOP UP threw here and aborted the
+                // rest of setViews — including the queueAllUpgrades + postBuildProgress below.
+                if (v.map.isStyleLoaded && !v.map.isStyleLoaded()) return;
+                try {
+                    if (currentFrame >= 0) showCurrent(v, 'setViews');
+                    if (currentRangeMeters > 0) addRangeRing(v);
+                    if (sweepRaf) ensureSweepLayer(v);
+                } catch (e) {
+                    // One bad pane must not cost the others their setup, or the loop its progress post.
+                    hostLog('setViews pane=' + v.index + ' deferred: ' + (e && e.message ? e.message : e));
+                }
             });
             // A new pane's product may widen the wanted set (Rule 6 keeps this to only what's missing).
             queueAllUpgrades('panes');
