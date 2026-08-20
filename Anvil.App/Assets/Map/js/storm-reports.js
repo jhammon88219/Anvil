@@ -11,7 +11,11 @@ let reportsData = null;
 let kinds = { torn: false, wind: false, hail: false };
 let reportsOpacity = 0.9;
 let popup = null;            // single reusable click popup (created lazily)
-let interactionsBound = false; // click/hover handlers are bound once per layer id (survive re-adds)
+// Click/hover handlers are bound once per layer id (they survive re-adds, since they dispatch by
+// layer id at event time). Keyed by MAP, not a single flag: in multi-pane every pane draws these
+// layers, so each needs its own handlers — one shared flag meant only the first pane ever bound,
+// and a dot clicked in any other pane did nothing.
+const interactionsBound = new WeakSet();
 
 // SPC storm-report colors + labels (matching the SPC storm-reports pages / verification graphics).
 const KIND_LAYERS = [
@@ -123,14 +127,17 @@ function popupHtml(p) {
 }
 
 function bindInteractions(map) {
-    if (interactionsBound) return;
-    interactionsBound = true;
+    if (interactionsBound.has(map)) return;
+    interactionsBound.add(map);
     KIND_LAYERS.forEach(function (l) {
         map.on('click', l.id, function (e) {
             var f = e.features && e.features[0];
             if (!f) return;
             ensurePopupStyle();
             if (!popup) popup = new maplibregl.Popup({ className: 'spc-report-popup', maxWidth: '280px' });
+            // ONE popup across every pane — clicking a dot in another pane moves it there. Detach it
+            // from wherever it was first, or the previous pane is left holding an orphaned node.
+            popup.remove();
             popup.setLngLat(f.geometry.coordinates.slice()).setHTML(popupHtml(f.properties)).addTo(map);
         });
         map.on('mouseenter', l.id, function () { map.getCanvas().style.cursor = 'pointer'; });

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Anvil.Models;
 
@@ -12,6 +12,21 @@ namespace Anvil.Services
 	{
 		/// <summary>Applies the given style to the map (preserves the current camera).</summary>
 		Task ApplyStyleAsync(MapStyle style);
+
+		/// <summary>
+		/// Sets the pane grid: <paramref name="columns"/> x <paramref name="rows"/> maps in the one
+		/// WebView, separated by a <paramref name="gutterPx"/>-wide groove. The page creates/destroys
+		/// panes around the change; the camera, the loaded loop and every overlay survive it.
+		/// <paramref name="gutterPx"/> is passed rather than hardcoded in the page so the page and the
+		/// XAML watermark grid share one constant (<see cref="PaneLayoutInfo.GutterPx"/>).
+		/// </summary>
+		Task SetPaneLayoutAsync(int columns, int rows, int gutterPx);
+
+		/// <summary>
+		/// Labels one pane with its product's short name — the pane watermark, the only thing drawn inside
+		/// a pane. An empty <paramref name="text"/> hides it (no loop displayed).
+		/// </summary>
+		Task SetPaneWatermarkAsync(int paneIndex, string text);
 
 		/// <summary>
 		/// Shows the given SPC outlook product on the map (adds/replaces a GeoJSON
@@ -63,8 +78,11 @@ namespace Anvil.Services
 		Task SetRadarOpacityAsync(double opacity);
 
 		/// <summary>Sets the rendered radar moment by its product id (e.g. "reflectivity", "velocity",
-		/// "cc") — one of the ids in the JS registry (radar-products.js) / <c>RadarProductOptions</c>.</summary>
-		Task SetRadarProductAsync(string product);
+		/// "cc") — one of the ids in the JS registry (radar-products.js) / <c>RadarProductOptions</c>.
+		/// <para><paramref name="paneIndex"/> is which pane to set: a pane is a product view, so this is the
+		/// only radar command that addresses one. Everything else about a loop — the frames, the time
+		/// cursor, the site, the tilt — is shared by every pane.</para></summary>
+		Task SetRadarProductAsync(int paneIndex, string product);
 
 		/// <summary>Speculatively builds velocity geometry for the loaded loop in the background (before
 		/// the user selects the Velocity product), so a later switch to Velocity is instant. Host calls

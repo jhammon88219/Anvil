@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -281,10 +281,98 @@ namespace Anvil.ViewModels
 			RadarOptions = radarOptions;
 			_selectedRadarOption = RadarOptions[0];
 
+			// FOUR panes always exist; the layout decides how many are VISIBLE. Keeping the hidden ones
+			// alive means a pane remembers its product across a trip through single-pane, and it lets the
+			// bar's chips bind to fixed Pane0…Pane3 properties instead of an index into a mutating list.
+			var panes = new RadarPaneViewModel[PaneLayoutInfo.MaxPanes];
+			for (var i = 0; i < panes.Length; i++)
+			{
+				panes[i] = new RadarPaneViewModel(i, RadarProductOptions, OnPaneProductChanged)
+				{
+					IsVisible = i == 0, // Single is the launch layout
+				};
+			}
+
+			Panes = panes;
+
+			// The watermark shows a pane's product only while a loop is actually displayed — the same gate
+			// the old single XAML watermark used. IsTransportEnabled is raised from three different places
+			// (here and in the loop engine), so watch our own notifications rather than chasing each one.
+			PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(IsTransportEnabled))
+				{
+					RefreshWatermarks();
+				}
+			};
+
 			// Observable rows for the dock's "Radar Sites" list (site + offline state).
 			var rows = _radarSiteProvider.GetSites().Select(s => new RadarSiteRow(s)).ToList();
 			RadarSiteRows = rows;
 			_rowBySite = rows.ToDictionary(r => r.Site);
+		}
+
+		// ===== Panes ====================================================================================
+
+		/// <summary>The four panes. Only the first <see cref="VisiblePaneCount"/> are shown; the rest keep
+		/// their state for when a layout brings them back.</summary>
+		public IReadOnlyList<RadarPaneViewModel> Panes { get; }
+
+		/// <summary>The MAIN pane — bottom-left in a quad, and the view you were already looking at
+		/// before entering a layout. Named accessors so the bar's chips can x:Bind directly.</summary>
+		public RadarPaneViewModel Pane0 => Panes[0];
+		public RadarPaneViewModel Pane1 => Panes[1];
+		public RadarPaneViewModel Pane2 => Panes[2];
+		public RadarPaneViewModel Pane3 => Panes[3];
+
+		/// <summary>A pane's product changed (its chip). Only that pane re-renders in the WebView; the
+		/// loop, the frames and every other pane are untouched — which is what makes a chip change in a
+		/// quad cost nothing for the other three.</summary>
+		private void OnPaneProductChanged(RadarPaneViewModel pane)
+		{
+			// Re-derive the scrubber cells: the visible product SET changed, so the built frontier may
+			// have moved. We deliberately do NOT blank the ready set — radar.js posts fresh build progress
+			// synchronously from setProduct, so SetBuildProgress corrects it a moment later. With the trio
+			// prefetched (Rule 3) it is usually already built, so the scrubber stays lit.
+			RefreshSegmentReadiness();
+
+			if (!_isMapReady)
+			{
+				return;
+			}
+
+			// A switch just re-renders bytes already decoded (velocity is prefetched; Rule 3) — instant.
+			_ = _mapService.SetRadarProductAsync(pane.Index, pane.ProductId);
+			_ = PushWatermarkAsync(pane);
+
+			// The loop's storm motion is computed ON DEMAND — gated out while nothing Doppler is in view
+			// (see IsDopplerProductActive) — so a pane switching INTO velocity/SRV must kick it if it has
+			// not run for this loop yet. Deduped by _motionRefKey, so it is a no-op once computed; SRV
+			// shows the velocity stand-in (Rule 4) until the motion lands.
+			if (pane.IsDoppler)
+			{
+				RequestAutoStormMotion();
+			}
+		}
+
+		/// <summary>Label a pane's watermark with its product — or blank it while no loop is displayed,
+		/// which is what the old single watermark's visibility binding did.</summary>
+		private Task PushWatermarkAsync(RadarPaneViewModel pane) =>
+			_mapService.SetPaneWatermarkAsync(
+				pane.Index, IsTransportEnabled && pane.IsVisible ? pane.ShortLabel : string.Empty);
+
+		/// <summary>Re-push every visible pane's watermark (the loop appeared or went away).</summary>
+		private void RefreshWatermarks()
+		{
+			if (!_isMapReady)
+			{
+				return;
+			}
+
+			foreach (var pane in Panes)
+			{
+				_ = PushWatermarkAsync(pane);
+			}
 		}
 
 		/// <summary>Observable rows (site + offline state) for the dock's "Radar Sites" list.</summary>
@@ -325,9 +413,16 @@ namespace Anvil.ViewModels
 				// instant on a fresh site — the storm motion isn't computed yet — so carrying SRV over from the
 				// last site would show the motion-compute delay. Reflectivity paints immediately; the user can
 				// switch back once the loop is complete (which by then is instant). Only on a real site pick.
-				if (value?.Site is not null && _radarProductIndex != 0)
+				if (value?.Site is not null && Pane0.ProductIndex != 0)
 				{
-					RadarProductIndex = 0;
+					// Rule 8 (docs/radar-loop-flow.md): a site switch opens in reflectivity, so a fresh
+					// loop's velocity/motion latency hides behind an instant first paint. SCOPED TO
+					// SINGLE PANE — in multi-pane the pane assignment is the user's explicit intent,
+					// and resetting every pane to reflectivity on each site click would destroy it.
+					if (IsSinglePane)
+					{
+						Pane0.ProductIndex = 0;
+					}
 				}
 				OnPropertyChanged(nameof(HasRadarLoop));
 				OnPropertyChanged(nameof(HasRadarDisplay));
@@ -790,9 +885,20 @@ namespace Anvil.ViewModels
 		// first paint computes the motion regardless of product so SRV pre-warms in the background, but the
 		// ~5-min reload skips the recompute while on reflectivity — otherwise it re-warmed the whole loop's
 		// SRV every reload even with SRV off-screen (the churn: 200+ needless re-decodes a soak).
-		private bool IsDopplerProductActive =>
-			_radarProductIndex >= 0 && _radarProductIndex < RadarProductOptions.Count
-			&& RadarProductOptions[_radarProductIndex].Id is "velocity" or "srv";
+		// ⚠️ MULTI-PANE: ANY visible pane showing velocity/SRV needs the motion — the loop has exactly
+		// one (Rule 5), so one Doppler pane is enough to want it.
+		private bool IsDopplerProductActive
+		{
+			get
+			{
+				for (var i = 0; i < VisiblePaneCount && i < Panes.Count; i++)
+				{
+					if (Panes[i].IsDoppler) return true;
+				}
+
+				return false;
+			}
+		}
 
 		// gateToDoppler is set ONLY by the ~5-min reload: while browsing reflectivity we must not recompute the
 		// motion + re-warm the whole loop's SRV on every reload (the churn). First paint + a switch INTO a
@@ -836,6 +942,123 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		// ===== Pane layout ==============================================================================
+		// A pane is a PRODUCT VIEW of one site: panes share the site, the camera and the time cursor, and
+		// differ only in the moment they draw. So the layout lives on the RADAR view model — it decides how
+		// many product views exist, which is what the bar's chip cluster mirrors and what the page lays its
+		// maps out from. Two-pane is side-by-side only (see PaneLayout).
+		private PaneLayout _paneLayout = PaneLayout.Single;
+
+		/// <summary>How the map band is divided into panes. Setting it re-lays the page's maps out; the
+		/// camera, the loaded loop and every overlay survive the change.</summary>
+		public PaneLayout PaneLayout
+		{
+			get => _paneLayout;
+			set
+			{
+				if (!SetProperty(ref _paneLayout, value))
+				{
+					return;
+				}
+
+				OnPropertyChanged(nameof(IsSinglePane));
+				OnPropertyChanged(nameof(VisiblePaneCount));
+				ApplyPaneLayout();
+			}
+		}
+
+		/// <summary>True while exactly one pane is shown. Rule 8 (a site switch resets the product to
+		/// reflectivity, hiding a fresh loop's velocity/motion latency) is scoped to this: in multi-pane the
+		/// pane assignment is the user's explicit intent, so a site click must not blow it away.</summary>
+		public bool IsSinglePane => _paneLayout == PaneLayout.Single;
+
+		/// <summary>How many panes the current layout shows (1, 2 or 4).</summary>
+		public int VisiblePaneCount => _paneLayout.PaneCount();
+
+		/// <summary>
+		/// The product each pane opens on for a given layout: Ref/Vel for two, Ref/Vel/SRV/CC for
+		/// four. That is the engine's OWN staging order — the trio (reflectivity, velocity, SRV) is
+		/// built together per <c>docs/radar-loop-flow.md</c> Rule 3, and CC leads the dual-pol second
+		/// wave — so the default quad asks for nothing the loop wasn't already going to build.
+		/// <para>Pane 1 is deliberately left alone: entering multi-pane must not disturb the view you
+		/// were already looking at.</para>
+		/// </summary>
+		private static readonly string[] DefaultPaneProducts = { "reflectivity", "velocity", "srv", "cc" };
+
+		// Which panes have been revealed at least once. A pane gets its DEFAULT product the first time
+		// it appears and its REMEMBERED one every time after, so a trip through single-pane doesn't
+		// silently undo a chip the user set.
+		private readonly bool[] _paneEverShown = new bool[PaneLayoutInfo.MaxPanes];
+
+		private int IndexOfProduct(string id)
+		{
+			for (var i = 0; i < RadarProductOptions.Count; i++)
+			{
+				if (RadarProductOptions[i].Id == id) return i;
+			}
+
+			return 0;
+		}
+
+		/// <summary>True when no visible pane shows anything but reflectivity — the one case where every
+		/// frame is display-ready by construction, since reflectivity is always built.</summary>
+		private bool AllVisiblePanesAreReflectivity()
+		{
+			for (var i = 0; i < VisiblePaneCount && i < Panes.Count; i++)
+			{
+				if (!Panes[i].IsReflectivity) return false;
+			}
+
+			return true;
+		}
+
+		private void ApplyPaneLayout()
+		{
+			if (!_isMapReady)
+			{
+				return; // pushed on map-ready instead
+			}
+
+			_ = ApplyPaneLayoutAsync();
+		}
+
+		private async Task ApplyPaneLayoutAsync()
+		{
+			await _mapService.SetPaneLayoutAsync(
+				_paneLayout.Columns(), _paneLayout.Rows(), PaneLayoutInfo.GutterPx);
+
+			var count = _paneLayout.PaneCount();
+			for (var i = 0; i < Panes.Count; i++)
+			{
+				Panes[i].IsVisible = i < count;
+			}
+
+			// A pane REVEALED for the first time opens on its default product; one that has been shown
+			// before keeps whatever the user last put in it. Pane 0 is never reassigned — entering a
+			// layout must not disturb the view you were already looking at.
+			for (var i = 1; i < count && i < DefaultPaneProducts.Length; i++)
+			{
+				if (_paneEverShown[i])
+				{
+					continue;
+				}
+
+				_paneEverShown[i] = true;
+				Panes[i].SetProductIndexSilently(IndexOfProduct(DefaultPaneProducts[i]));
+			}
+
+			// Push every visible pane's product + watermark. Done here rather than in the loop above so a
+			// pane that kept a remembered product is re-pushed too — the page defaults a new view to
+			// reflectivity, so it has to be told.
+			for (var i = 0; i < count; i++)
+			{
+				await _mapService.SetRadarProductAsync(i, Panes[i].ProductId);
+				await PushWatermarkAsync(Panes[i]);
+			}
+
+			RefreshSegmentReadiness(); // the visible product SET changed, so the frontier may have moved
+		}
+
 		/// <summary>The radar products (moments) selectable in the Product combo — the single source the
 		/// combo binds to, mirroring the JS registry in <c>radar-products.js</c>. <see cref="RadarProductOption.Id"/>
 		/// must match the JS product id passed to <c>window.setRadarProduct</c>; <see cref="RadarProductOption.IsLazy"/>
@@ -864,58 +1087,18 @@ namespace Anvil.ViewModels
 			{
 				option.Ramp = ramps.TryGetValue(option.Id, out var ramp) ? ramp : null;
 			}
-		}
 
-		// Index into RadarProductOptions. Bound to the Radar console's Product combo (SelectedIndex).
-		private int _radarProductIndex;
-
-		/// <summary>Selected radar product index (0 = Reflectivity, 1 = Velocity, 2 = Correlation Coeff).</summary>
-		public int RadarProductIndex
-		{
-			get => _radarProductIndex;
-			set
+			// Each pane resolves its ramp from its selected option, so they all have to re-announce now
+			// that the table has landed — otherwise a chip draws its name with no scale beside it.
+			foreach (var pane in Panes)
 			{
-				if (!SetProperty(ref _radarProductIndex, value))
-				{
-					return;
-				}
-
-				OnPropertyChanged(nameof(SelectedProductShortLabel)); // the pane watermark follows the product
-
-				// Re-derive the scrubber cells for the newly-active product. We deliberately do NOT blank
-				// the velocity-ready set here: radar.js posts fresh build progress synchronously from
-				// setProduct, so a moment later SetBuildProgress corrects it. With velocity now PREFETCHED
-				// in the background (see PrefetchRadarVelocityAsync), it's usually already built when the
-				// user switches, so the scrubber stays lit — instant, no blank flash. If it's still
-				// building, the not-yet-built cells drop to "loading" and fill in, same as any load.
-				RefreshSegmentReadiness();
-
-				if (_isMapReady && value >= 0 && value < RadarProductOptions.Count)
-				{
-					// A switch just re-renders bytes already decoded (velocity is prefetched; Rule 3) — instant.
-					_ = _mapService.SetRadarProductAsync(RadarProductOptions[value].Id);
-					// But the loop's storm motion is now computed ON DEMAND — gated out while reflectivity/
-					// dual-pol is in view (see IsDopplerProductActive) — so switching INTO a Doppler product
-					// must kick it if it hasn't run for this loop yet. Deduped by _motionRefKey, so it's a
-					// no-op once computed; SRV shows the velocity stand-in (Rule 4) until the motion lands.
-					if (IsDopplerProductActive)
-					{
-						RequestAutoStormMotion();
-					}
-				}
+				pane.RaiseProductDerived();
 			}
 		}
 
-		/// <summary>
-		/// Short label of the active product ("Ref"/"Vel"/…) — the PANE WATERMARK. A map pane carries no
-		/// chrome of its own (every control lives in the bottom bar), so this corner label is the only
-		/// in-pane hint of what the pane is showing; it also keeps a screenshot or a stream legible without
-		/// the viewer having to read the bar. In multi-pane each pane stamps its OWN product here.
-		/// </summary>
-		public string SelectedProductShortLabel =>
-			_radarProductIndex >= 0 && _radarProductIndex < RadarProductOptions.Count
-				? RadarProductOptions[_radarProductIndex].ShortLabel
-				: string.Empty;
+		/// <summary>Short label of the MAIN pane's product. Kept for callers that want "what is the app
+		/// showing" in one string; the per-pane watermarks come from each pane's own ShortLabel.</summary>
+		public string SelectedProductShortLabel => Pane0.ShortLabel;
 
 		// ===== Tilt (elevation) selection ===============================================================
 		// Unlike a PRODUCT switch — which re-renders bytes already decoded in the WebView — a TILT switch
@@ -1146,6 +1329,12 @@ namespace Anvil.ViewModels
 			// page never disagree on startup).
 			await _mapService.SetResearchRadarsVisibleAsync(ShowResearchRadars);
 			await _mapService.SetTdwrsVisibleAsync(ShowTdwrs);
+
+			// Lay the panes out from the view model's layout (Single at launch). Pushed even when it IS
+			// single so the page takes its groove width from PaneLayoutInfo rather than its own default,
+			// and so a restored layout applies without the user touching the picker.
+			await _mapService.SetPaneLayoutAsync(
+				_paneLayout.Columns(), _paneLayout.Rows(), PaneLayoutInfo.GutterPx);
 
 			// Pre-warm the decode + VWP workers now (creating them + loading the vendored decoder), so the
 			// first site click doesn't pay their cold start on the first-paint critical path.

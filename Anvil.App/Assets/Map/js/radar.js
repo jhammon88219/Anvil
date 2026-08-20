@@ -20,6 +20,49 @@
     const MIN_DBZ = 10;
     const GRID_NODATA = -32768; // matches radar-decode.js buildGrid sentinel
 
+    // ---- Panes: N VIEWS over ONE loop ----------------------------------------------------------
+    // A pane is a PRODUCT VIEW of one site. Every pane draws the SAME loop at the SAME frame from the
+    // SAME decoded geometry — it differs only in which moment it renders — so everything expensive
+    // stays module-level and singular: frames[], the decoded cache, the worker pool, the upgrade queue,
+    // the storm motion, the dealias seed. A view owns only what genuinely CANNOT be shared: its map,
+    // its chosen product, and its GL objects, which belong to that canvas's context and can't be handed
+    // to another. Adding a pane therefore costs an upload of geometry already decoded, not a decode.
+    // views[0] is the PRIMARY pane (same ordering as map.js's maps[]).
+    let views = [];
+    function forEachView(fn) { for (let i = 0; i < views.length; i++) fn(views[i], i); }
+    function viewFor(map) { for (let i = 0; i < views.length; i++) { if (views[i].map === map) return views[i]; } return null; }
+    function primaryView() { return views.length ? views[0] : null; }
+    // The primary pane's product. Used ONLY where a single product still genuinely means something (the
+    // legend push, the build-progress message's label). Everything that gates WORK uses viewProducts().
+    function activeProduct() { const v = primaryView(); return v ? v.product : 'reflectivity'; }
+    // The DISTINCT products on screen right now — the basis of every "what has to be built" answer in
+    // multi-pane. Deduped, because four panes may well share a product.
+    function viewProducts() {
+        const out = [];
+        for (let i = 0; i < views.length; i++) {
+            if (out.indexOf(views[i].product) < 0) out.push(views[i].product);
+        }
+        return out.length ? out : ['reflectivity'];
+    }
+    function makeView(map, index) {
+        return {
+            map: map,
+            index: index,
+            product: 'reflectivity',   // the host assigns each pane's product via setProduct(paneIndex, id)
+            // GL objects — per CONTEXT, (re)created in the custom layer's onAdd; null when not attached.
+            program: null, posBuf: null, colorBuf: null,
+            aPos: -1, aColor: -1, uMatrix: null, uOpacity: null,
+            uploadedFrame: -1,         // which frame's geometry is in THIS view's buffers
+            uploadedProduct: '',       // which product's geometry is uploaded (re-upload on a switch)
+            ctxBound: false,           // webglcontextlost/restored listeners attached to this canvas
+            inspectMove: null, inspectOut: null, inspectCamera: null, // bound inspect handlers (to off() them)
+            crossEl: null,             // this pane's mirrored inspect crosshair (created on first use)
+            rangeAdded: false,         // this view's range-ring layer is up
+        };
+    }
+    // Force every view to re-upload on its next render (a frame or product change invalidates buffers).
+    function invalidateUploads() { forEachView(function (v) { v.uploadedFrame = -1; }); }
+
     // Shared site projection (geo.js — the SAME math radar-decode's buildGates uses, so overlays line
     // up with the painted gates). radar.js is a classic-script IIFE so it can't statically import; load
     // the module once at startup and cache it in `Geo`. Until it resolves, the geo-dependent overlays
@@ -50,17 +93,38 @@
     // resolved (srvMotionReady) — otherwise it would build at base velocity and need a rebuild when the auto
     // motion lands. With the eager per-loop motion compute, that's ready before prefetch does much.
     function srvMotionReady() { return !stormMotion.auto || (!!_autoMotion && !_autoMotion.insufficient); }
+    // ⚠️ MULTI-PANE: this is the UNION over every visible pane's product. It is the one change the radar
+    // engine needed for multi-pane — everything else is view plumbing. Each pane contributes under exactly
+    // the rules that used to apply to the single active product, so a one-pane union reduces to the old
+    // behaviour byte for byte. Consequence, knowingly accepted: a quad of four different products builds
+    // four products per frame, so a quad backfills slower per frame than a single pane. That is inherent —
+    // four products are on screen. First paint is untouched (Rule 1 still paints the visible frame first).
     function wantedProducts() {
         if (!Products) return [];
         var out = [];
-        // The active product itself — EXCEPT SRV waits for the storm motion (srvMotionReady): we never build
+        var shown = viewProducts();
+        // Each pane's own product — EXCEPT SRV waits for the storm motion (srvMotionReady): we never build
         // SRV at the wrong/base motion (that caused a rebuild when the real motion landed). Until it's ready we
         // build base VELOCITY in SRV's place and render that as the stand-in (see render's SRV fallback).
-        if (product !== 'reflectivity' && Products[product]) {
-            if (product === 'srv' && !srvMotionReady()) { if (Products.velocity) out.push('velocity'); }
-            else out.push(product);
+        for (var si = 0; si < shown.length; si++) {
+            var pid = shown[si];
+            if (pid === 'reflectivity' || !Products[pid]) continue; // reflectivity is always built
+            if (pid === 'srv' && !srvMotionReady()) {
+                if (Products.velocity && out.indexOf('velocity') < 0) out.push('velocity');
+            } else if (out.indexOf(pid) < 0) {
+                out.push(pid);
+            }
         }
-        var doppler = (product === 'velocity' || product === 'srv') || (velPrefetch && product === 'reflectivity');
+        // Velocity + SRV are COMPANIONS (SRV = velocity − storm motion, sharing the expensive dealiased
+        // cut), so a Doppler product ANYWHERE on screen — or the velocity prefetch — pulls both in.
+        // ⚠️ velPrefetch counts UNCONDITIONALLY here. The single-pane original also required the active
+        // product to be reflectivity, which quietly contradicted Rule 3 ("reflectivity, velocity and SRV
+        // are built together, per frame, REGARDLESS of what product the user is viewing"): a frame
+        // appended while the user sat on CC built refl+cc only, so its velocity never arrived and its
+        // scrubber cell — gated on the duo — could never light. It also does not generalise to N panes,
+        // where "the active product" is a set. Unconditional matches the law and costs nothing extra:
+        // decodeFrame narrows each build to what a frame is actually MISSING (Rule 6).
+        var doppler = (shown.indexOf('velocity') >= 0 || shown.indexOf('srv') >= 0) || velPrefetch;
         if (doppler) {
             if (Products.velocity && out.indexOf('velocity') < 0) out.push('velocity');
             if (Products.srv && out.indexOf('srv') < 0 && srvMotionReady()) out.push('srv');
@@ -143,7 +207,31 @@
     // (frame-level gridsBuilt, which built every product's grid) or the grids-only fast path (gridsExtra[id],
     // recorded per product). "Built" ≠ "has data": a product with no data yields a null grid, but it's still
     // marked, so a no-data frame isn't re-queued forever (what the old frame-level gridsBuilt guaranteed).
-    function activeGridReady(f) { return !!(f && (f.gridsBuilt || (f.gridsExtra && f.gridsExtra[product]))); }
+    // ⚠️ MULTI-PANE: Inspect is a cross-pane instrument — one cursor, every pane reporting its own value —
+    // so a frame is "grid ready" only once EVERY visible pane's product has its value grid. A full decode
+    // builds them all (frame-level gridsBuilt); the grids-only fast path marks them one at a time
+    // (gridsExtra[id]). "Built" ≠ "has data": a product with no data yields a null grid but is still marked,
+    // so a no-data frame isn't re-queued forever.
+    function activeGridReady(f) {
+        if (!f) return false;
+        if (f.gridsBuilt) return true;
+        var shown = viewProducts();
+        for (var i = 0; i < shown.length; i++) {
+            if (!(f.gridsExtra && f.gridsExtra[shown[i]])) return false;
+        }
+        return true;
+    }
+    // The first visible product still missing its value grid, or null. The grids-only fast path builds ONE
+    // product's grid per pass, so with several panes the upgrade queue simply comes back for the next —
+    // needsUpgrade stays true until every pane's grid is in.
+    function missingGridProduct(f) {
+        if (!f || f.gridsBuilt) return null;
+        var shown = viewProducts();
+        for (var i = 0; i < shown.length; i++) {
+            if (!(f.gridsExtra && f.gridsExtra[shown[i]])) return shown[i];
+        }
+        return null;
+    }
     function needsUpgrade(idx) {
         var f = frames[idx];
         if (!f || !f.url) return false;
@@ -197,13 +285,30 @@
     // frame reads ready only once its geometry is built; reflectivity is always built, so it reads all-ready.
     function postBuildProgress() {
         var total = frames.length;
-        if (!total) { post({ type: 'radarBuildProgress', product: product, built: 0, total: 0, ready: [], complete: [] }); return; }
+        var label = activeProduct(); // the message's product label — the primary pane's, for the readout
+        if (!total) { post({ type: 'radarBuildProgress', product: label, built: 0, total: 0, ready: [], complete: [] }); return; }
         // `ready` = ACTIVE-product readiness — drives playback's built-frontier hold (don't advance onto a
         // frame whose on-screen product isn't built). While SRV is active but its motion isn't ready we render
         // the VELOCITY stand-in, so report readiness by VELOCITY (what's actually on screen) — otherwise the
         // frontier reads all-not-ready and playback stalls.
-        var gate = (product === 'srv' && !srvMotionReady()) ? 'velocity' : product;
-        var eager = (gate === 'reflectivity'); // reflectivity is always built; everything else on demand
+        // ⚠️ MULTI-PANE: playback must not advance onto a frame that would be blank in ANY pane, so the
+        // gate is EVERY visible pane's product, each with the same SRV→velocity substitution as before
+        // (while SRV's motion is pending we render the velocity stand-in, so report by what is on screen).
+        var gates = [];
+        var shownNow = viewProducts();
+        for (var gi = 0; gi < shownNow.length; gi++) {
+            var gp = (shownNow[gi] === 'srv' && !srvMotionReady()) ? 'velocity' : shownNow[gi];
+            if (gp !== 'reflectivity' && gates.indexOf(gp) < 0) gates.push(gp); // reflectivity is always built
+        }
+        // ⚠️ MULTI-PANE: a cell must not light while a pane it feeds is still empty, so the FILL gate is the
+        // duo plus every other visible product — EXCEPT SRV, which stays out of it for the same reason it
+        // always has (see below). fillExtra is the visible dual-pol set: those DO build per frame during the
+        // backfill, so including them keeps the fill incremental rather than batched.
+        var fillExtra = [];
+        for (var fi = 0; fi < shownNow.length; fi++) {
+            var fp = shownNow[fi];
+            if (fp !== 'reflectivity' && fp !== 'velocity' && fp !== 'srv' && fillExtra.indexOf(fp) < 0) fillExtra.push(fp);
+        }
         // `complete` = per-frame SCRUBBER-fill readiness (docs/radar-loop-flow.md Rule 2: the scrubber fills
         // left-to-right as frames complete). A frame is fill-ready once its reflectivity AND velocity are built
         // — the two products that build PER FRAME during the backfill, so cells light one-by-one as the backfill
@@ -220,17 +325,21 @@
             // "always built" (eager) — has to wait for the new cut.
             var stale = !!(frames[i] && frames[i].stale);
             var b = !stale && frames[i] && frames[i].built;
-            var r = !stale && (eager || !!(b && b[gate]));
+            var r = !stale;
+            for (var ri = 0; r && ri < gates.length; ri++) r = !!(b && b[gates[ri]]);
             ready[i] = r;
             if (r) built++;
             var reflOk = !!(b && b.reflectivity); // always built by any decode
             var velOk = !!(b && b.velocity);
-            complete[i] = reflOk && velOk;
+            var extraOk = true;
+            for (var ei = 0; extraOk && ei < fillExtra.length; ei++) extraOk = !!(b && b[fillExtra[ei]]);
+            complete[i] = reflOk && velOk && extraOk;
         }
-        post({ type: 'radarBuildProgress', product: product, built: built, total: total, ready: ready, complete: complete });
+        post({ type: 'radarBuildProgress', product: label, built: built, total: total, ready: ready, complete: complete });
     }
 
-    let product = 'reflectivity'; // 'reflectivity' | 'velocity' | 'srv' | 'cc' | … — which moment to render
+    // (The rendered moment is PER VIEW now — see makeView/viewProducts above. There is no single
+    //  `product` global any more: with N panes the question is always "which pane" or "the union".)
     // Storm motion MODE + MANUAL value for Storm-Relative Velocity (SRV). speedMs = m/s, dirDeg = compass
     // bearing the storm is MOVING TOWARD. `auto` (the default) means the motion is DERIVED from a full-volume
     // VAD wind profile → Bunkers (computeStormMotionForVolume below; a single tilt is too shallow to be
@@ -269,7 +378,7 @@
         if (_vwpInFlight[volKey]) { hostLog('vwp in-flight, skip ' + shortKey(volKey)); return; }
         _vwpInFlight[volKey] = true;
         const gen = vwpGen;
-        hostLog('vwp start ' + shortKey(volKey) + ' tilts=' + urls.length + ' prod=' + product);
+        hostLog('vwp start ' + shortKey(volKey) + ' tilts=' + urls.length + ' prod=' + viewProducts().join('|'));
         const w = getVwpWorker(); // a DEDICATED worker, so the motion isn't queued behind frame decodes
         if (w) {
             // The worker fetches the tilt volumes itself — up to ~8 × ~7 MB reads kept OFF the render thread
@@ -334,7 +443,7 @@
         // makes it RECOVER any SRV a queue/decode race dropped, and cover frames added since the last motion
         // result, even when this result didn't change the value. Still gated by srvMotionReady(), so it NEVER
         // builds SRV at a base/wrong motion; skipped while SRV is the active product (that path re-queues above).
-        if (product !== 'srv' && velPrefetch && srvMotionReady()) queueAllUpgrades('srvfill');
+        if (viewProducts().indexOf('srv') < 0 && velPrefetch && srvMotionReady()) queueAllUpgrades('srvfill');
         // The motion was the trio's long pole — its resolution (a value OR a settled "insufficient") may be
         // the last thing gating the dual-pol second wave. Arm it now if the backfill is also done.
         maybeArmFullPrefetch();
@@ -361,12 +470,13 @@
         var n = 0;
         for (let i = 0; i < frames.length; i++) { if (frames[i] && frames[i].built && frames[i].built.srv) n++; dropSrv(frames[i]); }
         decodedCache.forEach(dropSrv);
-        hostLog('dropAllSrv: dropped ' + n + ' built srv frame(s), requeue=' + (product === 'srv'));
-        if (product === 'srv') {
-            uploadedFrame = -1;
+        var srvShown = viewProducts().indexOf('srv') >= 0;
+        hostLog('dropAllSrv: dropped ' + n + ' built srv frame(s), requeue=' + srvShown);
+        if (srvShown) {
+            invalidateUploads();
             queueAllUpgrades('motion');
             postBuildProgress();
-            if (currentMap && currentMap.getLayer(LAYER_ID)) currentMap.triggerRepaint();
+            repaintAll();
         }
     }
     let velPrefetch = false; // build velocity (+SRV, its companion) on every frame even when reflectivity is
@@ -495,12 +605,11 @@
     let pendingFrame = -1;  // a frame requested via showFrame before it finished decoding; the
                             // decode that satisfies it promotes it to currentFrame (so showFrame
                             // never pins currentFrame to an undecoded index and blanks the layer).
-    let uploadedFrame = -1; // which frame's geometry is currently in the GL buffers
-    let uploadedProduct = ''; // which product's geometry is uploaded (re-upload on a product switch)
-    let siteLat = 0, siteLon = 0;
-    let opacity = 0.85;
+    // (uploadedFrame / uploadedProduct are PER VIEW — the GL buffers they describe belong to one
+    //  canvas's context. See makeView.)
+    let siteLat = 0, siteLon = 0;   // shared: every pane draws the same site
+    let opacity = 0.85;             // shared: one radar opacity across the panes
     let loopToken = 0;      // bumped per loop so stale async frames are dropped
-    let currentMap = null;
     // Range ring: a thin circle at the radar's REAL outer data extent (rangeMeters from the
     // decode), centred on the site — RadarScope-style. Its own GeoJSON line layer (survives
     // basemap switches via reAdd). currentRangeMeters = the radius currently drawn (0 = none).
@@ -550,20 +659,19 @@
 
     // WebGL context loss is permanent unless restored — a prime suspect for "tiles vanish and
     // never come back" under the heavy per-frame geometry. Log both edges once.
-    let ctxListenersAttached = false;
-    function attachContextListeners(map) {
-        if (ctxListenersAttached || !map || !map.getCanvas) return;
+    // Per VIEW: each pane is its own canvas with its own context, so each needs its own listeners — and
+    // the report then says WHICH pane lost it.
+    function attachContextListeners(v) {
+        if (!v || v.ctxBound || !v.map || !v.map.getCanvas) return;
         try {
-            const c = map.getCanvas();
-            c.addEventListener('webglcontextlost', function () { post({ type: 'radarRender', kind: 'ctxlost', cf: currentFrame }); }, false);
-            c.addEventListener('webglcontextrestored', function () { post({ type: 'radarRender', kind: 'ctxrestored', cf: currentFrame }); }, false);
-            ctxListenersAttached = true;
+            const c = v.map.getCanvas();
+            c.addEventListener('webglcontextlost', function () { post({ type: 'radarRender', kind: 'ctxlost', pane: v.index, cf: currentFrame }); }, false);
+            c.addEventListener('webglcontextrestored', function () { post({ type: 'radarRender', kind: 'ctxrestored', pane: v.index, cf: currentFrame }); }, false);
+            v.ctxBound = true;
         } catch (e) { hostLog('ctx listener attach failed: ' + (e && e.message ? e.message : e)); }
     }
 
-    // GL objects (recreated in onAdd; null when the layer isn't attached).
-    let program = null, posBuf = null, colorBuf = null;
-    let aPos = -1, aColor = -1, uMatrix = null, uOpacity = null;
+    // GL objects live on the VIEW (per context) — see makeView.
 
     function showError(msg) {
         document.body.insertAdjacentHTML('beforeend',
@@ -736,26 +844,27 @@
         // Decide what to show now that this frame is available. Crucially, ANY of these paths
         // re-adds the layer if it's missing (e.g. after a reload removed it) — so the radar can
         // never get stuck blank with a decoded current frame.
-        if (currentMap) {
+        if (views.length) {
             if (res.index === pendingFrame) {
                 // A showFrame() requested this index before it had decoded — promote it now.
                 pendingFrame = -1;
                 currentFrame = res.index;
-                uploadedFrame = -1;
-                showCurrent(currentMap, 'pending');
+                invalidateUploads();
+                showCurrentAll('pending');
             } else if (currentFrame < 0) {
                 // Nothing shown yet — adopt the first frame to arrive (host pushes newest first).
                 currentFrame = res.index;
-                uploadedFrame = -1;
-                showCurrent(currentMap, 'first');
+                invalidateUploads();
+                showCurrentAll('first');
             } else if (res.index === currentFrame) {
-                // The on-screen frame was re-decoded (live in-place update) — repaint / re-add.
-                uploadedFrame = -1;
-                showCurrent(currentMap, 're-add');
+                // The on-screen frame was re-decoded (live in-place update, or another pane's product
+                // arriving) — repaint / re-add. Every pane renders this index, so every pane is stale.
+                invalidateUploads();
+                showCurrentAll('re-add');
             }
             // Draw the real outer-extent range ring (RadarScope-style) from this frame's decoded
             // range — AFTER the radar layer (re)add above, so the ring sits on top of the fill.
-            if (res.rangeMeters > 0) setRangeRing(currentMap, res.rangeMeters);
+            if (res.rangeMeters > 0) setRangeRing(res.rangeMeters);
         }
         post({ type: 'radarFrameReady', index: res.index, hasData: !res.empty });
         // The AUTO (VAD-derived) storm motion is NO LONGER computed per frame — a single tilt is too shallow
@@ -777,7 +886,10 @@
         return s;
     }
 
-    function makeCustomLayer() {
+    // One custom layer per VIEW. The layer id is the same in every pane — layer ids are scoped to a map
+    // — but the GL program and buffers it creates belong to that pane's context and can't be handed to
+    // another, so they live on the view. Capturing `v` here is the whole mechanism.
+    function makeCustomLayer(v) {
         return {
             id: LAYER_ID,
             type: 'custom',
@@ -793,26 +905,28 @@
                     'uniform float u_opacity;' +
                     'varying vec4 v_color;' +
                     'void main(){ gl_FragColor=vec4(v_color.rgb, v_color.a*u_opacity); }');
-                program = glc.createProgram();
-                glc.attachShader(program, vs);
-                glc.attachShader(program, fs);
-                glc.linkProgram(program);
-                if (!glc.getProgramParameter(program, glc.LINK_STATUS)) {
-                    throw new Error(glc.getProgramInfoLog(program) || 'program link failed');
+                v.program = glc.createProgram();
+                glc.attachShader(v.program, vs);
+                glc.attachShader(v.program, fs);
+                glc.linkProgram(v.program);
+                if (!glc.getProgramParameter(v.program, glc.LINK_STATUS)) {
+                    throw new Error(glc.getProgramInfoLog(v.program) || 'program link failed');
                 }
-                aPos = glc.getAttribLocation(program, 'a_pos');
-                aColor = glc.getAttribLocation(program, 'a_color');
-                uMatrix = glc.getUniformLocation(program, 'u_matrix');
-                uOpacity = glc.getUniformLocation(program, 'u_opacity');
-                posBuf = glc.createBuffer();
-                colorBuf = glc.createBuffer();
-                uploadedFrame = -1; // force a re-upload on first render
+                v.aPos = glc.getAttribLocation(v.program, 'a_pos');
+                v.aColor = glc.getAttribLocation(v.program, 'a_color');
+                v.uMatrix = glc.getUniformLocation(v.program, 'u_matrix');
+                v.uOpacity = glc.getUniformLocation(v.program, 'u_opacity');
+                v.posBuf = glc.createBuffer();
+                v.colorBuf = glc.createBuffer();
+                v.uploadedFrame = -1; // force a re-upload on first render
             },
             render: function (glc, args) {
-                if (!program || currentFrame < 0) return;
+                if (!v.program || currentFrame < 0) return;
                 const f = frames[currentFrame];
                 if (!f) { noteRenderIssue('no frame at cf=' + currentFrame, false); return; }
-                // Pick the geometry for the active product — one keyed lookup (radar-products.js).
+                // Pick the geometry for THIS PANE's product — one keyed lookup (radar-products.js).
+                // Every pane renders the same frame index; this lookup is the only thing that differs.
+                const product = v.product;
                 let pos, col, cnt;
                 var effProduct = product;
                 let g = f.moments && f.moments[product];
@@ -835,32 +949,32 @@
                     // geometry (e.g. an archive frame in Velocity mode, or a live volume whose Doppler
                     // companion hadn't finished scanning) must NOT mark uploadedFrame, or the buffers
                     // stay stale-but-marked and a later frame that DOES carry the geometry is skipped.
-                    if ((uploadedFrame !== currentFrame || uploadedProduct !== effProduct) && pos && col) {
-                        glc.bindBuffer(glc.ARRAY_BUFFER, posBuf);
+                    if ((v.uploadedFrame !== currentFrame || v.uploadedProduct !== effProduct) && pos && col) {
+                        glc.bindBuffer(glc.ARRAY_BUFFER, v.posBuf);
                         glc.bufferData(glc.ARRAY_BUFFER, pos, glc.STATIC_DRAW);
-                        glc.bindBuffer(glc.ARRAY_BUFFER, colorBuf);
+                        glc.bindBuffer(glc.ARRAY_BUFFER, v.colorBuf);
                         glc.bufferData(glc.ARRAY_BUFFER, col, glc.STATIC_DRAW);
-                        uploadedFrame = currentFrame;
-                        uploadedProduct = effProduct;
+                        v.uploadedFrame = currentFrame;
+                        v.uploadedProduct = effProduct;
                     }
                     if (!cnt) return; // this product has nothing to draw on this frame
 
                     const matrix = (args && args.defaultProjectionData && args.defaultProjectionData.mainMatrix)
                         || (args && args.modelViewProjectionMatrix) || args;
-                    glc.useProgram(program);
-                    glc.uniformMatrix4fv(uMatrix, false, matrix);
-                    glc.uniform1f(uOpacity, opacity);
-                    glc.bindBuffer(glc.ARRAY_BUFFER, posBuf);
-                    glc.enableVertexAttribArray(aPos);
-                    glc.vertexAttribPointer(aPos, 2, glc.FLOAT, false, 0, 0);
-                    glc.bindBuffer(glc.ARRAY_BUFFER, colorBuf);
-                    glc.enableVertexAttribArray(aColor);
-                    glc.vertexAttribPointer(aColor, 4, glc.UNSIGNED_BYTE, true, 0, 0);
+                    glc.useProgram(v.program);
+                    glc.uniformMatrix4fv(v.uMatrix, false, matrix);
+                    glc.uniform1f(v.uOpacity, opacity);
+                    glc.bindBuffer(glc.ARRAY_BUFFER, v.posBuf);
+                    glc.enableVertexAttribArray(v.aPos);
+                    glc.vertexAttribPointer(v.aPos, 2, glc.FLOAT, false, 0, 0);
+                    glc.bindBuffer(glc.ARRAY_BUFFER, v.colorBuf);
+                    glc.enableVertexAttribArray(v.aColor);
+                    glc.vertexAttribPointer(v.aColor, 4, glc.UNSIGNED_BYTE, true, 0, 0);
                     glc.enable(glc.BLEND);
                     glc.blendFunc(glc.SRC_ALPHA, glc.ONE_MINUS_SRC_ALPHA);
                     glc.drawArrays(glc.TRIANGLES, 0, cnt);
-                    glc.disableVertexAttribArray(aPos);
-                    glc.disableVertexAttribArray(aColor);
+                    glc.disableVertexAttribArray(v.aPos);
+                    glc.disableVertexAttribArray(v.aColor);
                     glc.bindBuffer(glc.ARRAY_BUFFER, null);
                     noteRenderOk();
                 } catch (e) {
@@ -868,10 +982,11 @@
                 }
             },
             onRemove: function (map, glc) {
-                if (posBuf) glc.deleteBuffer(posBuf);
-                if (colorBuf) glc.deleteBuffer(colorBuf);
-                if (program) glc.deleteProgram(program);
-                posBuf = colorBuf = program = null;
+                if (v.posBuf) glc.deleteBuffer(v.posBuf);
+                if (v.colorBuf) glc.deleteBuffer(v.colorBuf);
+                if (v.program) glc.deleteProgram(v.program);
+                v.posBuf = v.colorBuf = v.program = null;
+                v.uploadedFrame = -1;
             },
         };
     }
@@ -890,26 +1005,33 @@
         const sym = layers.find(function (l) { return l.type === 'symbol'; });
         return sym ? sym.id : undefined;
     }
-    function removeLayer(map) {
-        if (map.getLayer(LAYER_ID)) { map.removeLayer(LAYER_ID); hostLog('layer removed'); }
+    function removeLayer(v) {
+        if (v.map.getLayer(LAYER_ID)) { v.map.removeLayer(LAYER_ID); hostLog('layer removed pane=' + v.index); }
     }
-    function addLayer(map) {
+    function removeLayerAll() { forEachView(removeLayer); }
+    function addLayer(v) {
         if (currentFrame < 0) return;
-        removeLayer(map);
-        uploadedFrame = -1;
-        map.addLayer(makeCustomLayer(), beforeId(map));
-        hostLog('layer added before=' + beforeId(map) + ' cf=' + currentFrame);
+        removeLayer(v);
+        v.uploadedFrame = -1;
+        v.map.addLayer(makeCustomLayer(v), beforeId(v.map));
+        hostLog('layer added pane=' + v.index + ' before=' + beforeId(v.map) + ' cf=' + currentFrame);
     }
-    // Ensures the current frame is on screen: repaint if the layer is up, else (re)add it.
-    // This is the single place that guarantees a decoded current frame is never left blank.
-    function showCurrent(map, reason) {
+    // Ensures the current frame is on screen IN EVERY PANE: repaint where the layer is up, (re)add it
+    // where it isn't. This is the single place that guarantees a decoded current frame is never left
+    // blank — and in multi-pane that guarantee has to hold pane by pane, since a pane created mid-loop
+    // starts with no layer at all.
+    function showCurrent(v, reason) {
         if (currentFrame < 0 || !frames[currentFrame]) return;
-        if (map.getLayer(LAYER_ID)) {
-            map.triggerRepaint();
+        if (v.map.getLayer(LAYER_ID)) {
+            v.map.triggerRepaint();
         } else {
-            hostLog('showCurrent(' + reason + ') idx=' + currentFrame + ' -> re-add layer');
-            addLayer(map);
+            hostLog('showCurrent(' + reason + ') pane=' + v.index + ' idx=' + currentFrame + ' -> re-add layer');
+            addLayer(v);
         }
+    }
+    function showCurrentAll(reason) { forEachView(function (v) { showCurrent(v, reason); }); }
+    function repaintAll() {
+        forEachView(function (v) { if (v.map.getLayer(LAYER_ID)) v.map.triggerRepaint(); });
     }
 
     // ---- Range ring (real outer data extent) ----
@@ -924,7 +1046,10 @@
         }
         return { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
     }
-    function addRangeRing(map) {
+    // The RADIUS is shared (one site, one range); the SOURCE + LAYER are per map, so each pane draws
+    // its own ring from the same number.
+    function addRangeRing(v) {
+        const map = v && v.map;
         if (!map || !(currentRangeMeters > 0) || !Geo) return; // geo.js not loaded yet -> redraws on next setRangeRing
         if (map.getSource(RANGE_SRC)) map.getSource(RANGE_SRC).setData(ringGeoJSON());
         else map.addSource(RANGE_SRC, { type: 'geojson', data: ringGeoJSON() });
@@ -934,21 +1059,30 @@
                 paint: { 'line-color': '#9fe0ff', 'line-width': 1.3, 'line-opacity': 0.55, 'line-blur': 0.3 },
             }, beforeId(map));
         }
+        v.rangeAdded = true;
     }
-    function removeRangeRing(map) {
+    function removeRangeRing(v) {
+        const map = v && v.map;
         if (map && map.getLayer(RANGE_LAYER)) map.removeLayer(RANGE_LAYER);
         if (map && map.getSource(RANGE_SRC)) map.removeSource(RANGE_SRC);
+        if (v) v.rangeAdded = false;
     }
+    function removeRangeRingAll() { forEachView(removeRangeRing); }
     // Draw/update the ring for the freshly-decoded range. Per-frame ranges are ~identical, so
     // only rebuild when it actually changes (or a layer is missing, e.g. after a re-add). The sweep
     // pulse owns its own layer (added on demand in pulseSweep), so nothing to ensure here.
-    function setRangeRing(map, rangeMeters) {
-        if (!map || !(rangeMeters > 0)) return;
-        if (Math.abs(rangeMeters - currentRangeMeters) < 500 && map.getLayer(RANGE_LAYER)) {
+    function setRangeRing(rangeMeters) {
+        if (!(rangeMeters > 0)) return;
+        const same = Math.abs(rangeMeters - currentRangeMeters) < 500;
+        // Unchanged radius AND every pane already has its ring up -> nothing to do. A pane added since
+        // the last frame fails the second test, which is what gets it a ring without a new decode.
+        let allUp = views.length > 0;
+        forEachView(function (v) { if (!v.map.getLayer(RANGE_LAYER)) allUp = false; });
+        if (same && allUp) {
             return;
         }
         currentRangeMeters = rangeMeters;
-        addRangeRing(map);
+        forEachView(addRangeRing);
     }
 
     // ---- Sweep pulse ----
@@ -982,7 +1116,11 @@
             geometry: { type: 'LineString', coordinates: [center, tipAt(leadRad)] } });
         return { type: 'FeatureCollection', features: feats };
     }
-    function ensureSweepLayer(map) {
+    // One animation drives every pane's sweep: a sweep in only one pane of four would read as broken.
+    // The per-frame cost is a setData of ~64 small polygons per pane, which is nothing next to the
+    // basemap they are drawn over.
+    function ensureSweepLayer(v) {
+        const map = v && v.map;
         if (!map || !(currentRangeMeters > 0) || !Geo) return; // geo.js not loaded yet
         if (!map.getSource(SWEEP_SRC)) map.addSource(SWEEP_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         const before = beforeId(map);
@@ -1004,37 +1142,44 @@
             }, before);
         }
     }
-    function clearSweepData(map) {
-        const src = map && map.getSource(SWEEP_SRC);
-        if (src) src.setData({ type: 'FeatureCollection', features: [] });
+    function clearSweepData() {
+        forEachView(function (v) {
+            const src = v.map.getSource(SWEEP_SRC);
+            if (src) src.setData({ type: 'FeatureCollection', features: [] });
+        });
     }
-    // Stop any in-flight pulse and drop its layers (site change / clear / DOW / turn-off).
-    function stopSweep(map) {
+    // Stop any in-flight pulse and drop its layers in every pane (site change / clear / DOW / turn-off).
+    function stopSweep() {
         if (sweepRaf) { cancelAnimationFrame(sweepRaf); sweepRaf = 0; }
-        if (map) {
+        forEachView(function (v) {
+            const map = v.map;
             if (map.getLayer(SWEEP_ARM_LAYER)) map.removeLayer(SWEEP_ARM_LAYER);
             if (map.getLayer(SWEEP_FILL_LAYER)) map.removeLayer(SWEEP_FILL_LAYER);
             if (map.getSource(SWEEP_SRC)) map.removeSource(SWEEP_SRC);
-        }
+        });
     }
     function sweepPulseFrame() {
         sweepRaf = 0;
-        if (!currentMap || !(currentRangeMeters > 0) || !Geo) return; // nothing to draw (e.g. layer dropped)
+        if (!views.length || !(currentRangeMeters > 0) || !Geo) return; // nothing to draw (e.g. layer dropped)
         const el = performance.now() - sweepAnimStart;
-        if (el >= SWEEP_MS + SWEEP_FADE_MS) { clearSweepData(currentMap); return; } // revolution done → hide arm
+        if (el >= SWEEP_MS + SWEEP_FADE_MS) { clearSweepData(); return; }            // revolution done → hide arm
         let lead, fade;
         if (el < SWEEP_MS) { lead = (el / SWEEP_MS) * 2 * Math.PI; fade = 1; }       // sweeping 0→360°
         else { lead = 2 * Math.PI; fade = 1 - (el - SWEEP_MS) / SWEEP_FADE_MS; }     // hold at north, fade the trail out
-        const src = currentMap.getSource(SWEEP_SRC);
-        if (src) src.setData(sweepWedgeGeoJSON(lead, fade));
+        // Build the wedge ONCE and hand the same GeoJSON to every pane — the geometry is geographic, so
+        // it is identical in all of them.
+        const data = sweepWedgeGeoJSON(lead, fade);
+        forEachView(function (v) {
+            const src = v.map.getSource(SWEEP_SRC);
+            if (src) src.setData(data);
+        });
         sweepRaf = requestAnimationFrame(sweepPulseFrame);
     }
     // Fire ONE sweep pulse (host calls this when a genuinely-new frame lands). Restarts if one is
     // already mid-flight. No-op until a frame has decoded (no radius to sweep yet).
-    function startSweepPulse(map) {
-        currentMap = map;
+    function startSweepPulse() {
         if (!(currentRangeMeters > 0) || !Geo) return;
-        ensureSweepLayer(map);
+        forEachView(ensureSweepLayer);
         sweepAnimStart = performance.now();
         if (!sweepRaf) sweepRaf = requestAnimationFrame(sweepPulseFrame);
     }
@@ -1047,7 +1192,7 @@
     // reproducing it. `dt=` timestamps let re-loads be correlated with scrub/switch actions.
     function decodeTrace(index, reason, path, wantedIds, miss) {
         hostLog('decode idx=' + index + ' why=' + (reason || '?') + ' path=' + path
-            + ' prod=' + product + ' want=' + (wantedIds && wantedIds.length ? wantedIds.join('+') : '-')
+            + ' prod=' + viewProducts().join('|') + ' want=' + (wantedIds && wantedIds.length ? wantedIds.join('+') : '-')
             + (miss ? ' miss=' + miss : '') + ' dt=' + Math.round(performance.now()));
     }
 
@@ -1069,9 +1214,10 @@
         // PREVIOUS elevation, so this would build a value grid from the new cut, merge it into the old
         // geometry (applyGridResult leaves geometry alone), and leave the frame stale forever — with Inspect
         // on, a tilt switch would wedge every frame at the old elevation. It needs the full decode below.
-        if (wantGrids && f0 && !f0.stale && f0.built && f0.built[product] && !activeGridReady(f0) && !needsBuild(f0)) {
-            decodeTrace(index, reason, 'grid-only', wantedIds, null);
-            decodeGridForFrame(url, index, product);
+        var gridProduct = wantGrids ? missingGridProduct(f0) : null;
+        if (gridProduct && f0 && !f0.stale && f0.built && f0.built[gridProduct] && !needsBuild(f0)) {
+            decodeTrace(index, reason, 'grid-only:' + gridProduct, wantedIds, null);
+            decodeGridForFrame(url, index, gridProduct);
             return;
         }
         // Build only what THIS frame is actually MISSING (Rule 6): an additive upgrade on a frame that
@@ -1087,7 +1233,7 @@
         // inspector grid (decoded with Inspect off) — so we fall through and build it this time. Clone
         // with THIS load's token+index; arrays shared.
         const hit = cacheGet(url);
-        if (hit && wantedBuiltIn(hit) && (!wantGrids || hit.gridsBuilt || (hit.gridsExtra && hit.gridsExtra[product]))) {
+        if (hit && wantedBuiltIn(hit) && (!wantGrids || activeGridReady(hit))) {
             decodeTrace(index, reason, 'cache-hit', wantedIds, null);
             applyFrameResult(Object.assign({}, hit, { token: myToken, index: index, cached: true }));
             return;
@@ -1096,7 +1242,7 @@
         // signal for "why did a frame we already loaded re-decode?" (unbuilt product vs missing inspector grid).
         var miss = !hit ? 'no-entry'
             : !wantedBuiltIn(hit) ? ('unbuilt:' + wantedIds.filter(function (id) { return !(hit.built && hit.built[id]); }).join(','))
-                : 'no-grid';
+                : ('no-grid:' + (missingGridProduct(hit) || '?'));
         decodeTrace(index, reason, 'decode', buildIds, miss);
         const w = getWorker();
         if (w) {
@@ -1184,9 +1330,17 @@
     // next to the cursor, and pushes the value to the host (throttled) so the color-scale bar can mark
     // it in real time. All lookups are pure main-thread array reads — no re-decode, no GL readback.
     let inspecting = false;
-    let inspectTip = null;          // the DOM tooltip element (lazily created)
-    let inspectMove = null, inspectOut = null; // bound MapLibre handlers (so we can off() them)
-    let lastInspectPush = 0, lastInspectHad = false; // host-push throttle state
+    let inspectTip = null;          // the DOM tooltip element (lazily created; ONE, it follows the cursor)
+    // ⚠️ CROSS-PANE: Inspect is ONE instrument reading N panes. The cursor sits in one pane, but the point
+    // it names is GEOGRAPHIC, and every pane shows the same ground at the same instant — so one hover
+    // yields one reading per pane, all of the same gate, each ticking on its own chip ramp. Four numbers
+    // for one storm feature, read in a glance at the chip cluster. The panes the cursor is NOT in get a
+    // mirrored crosshair at that lng/lat so it is obvious the readings are the same point.
+    let inspectLngLat = null;       // the geographic point under the cursor (null = not pointing at the map)
+    let hoveredView = null;         // the pane the cursor is actually in (it shows the tooltip, not a cross)
+    // Per-pane host-push throttle state: each pane reports its own value, so each needs its own
+    // has/has-not edge and timer (a shared one would swallow the other panes' transitions).
+    const lastInspectPush = {}, lastInspectHad = {};
 
     function ensureInspectTip() {
         if (inspectTip) return inspectTip;
@@ -1201,10 +1355,42 @@
         return el;
     }
 
-    // The value grid for the current frame + active product, or null if not available.
-    function inspectGrid() {
+    // The mirrored crosshair drawn in every pane the cursor is NOT in. Built from two child bars rather
+    // than a stylesheet rule, so the whole thing is inline and this module still injects no CSS (the one
+    // place that does — radar-sites.js — is a template-literal minefield we don't need to join).
+    function ensureCrossEl(v) {
+        if (v.crossEl && v.crossEl.isConnected) return v.crossEl;
+        const el = document.createElement('div');
+        el.className = 'radar-inspect-cross';
+        el.style.cssText = 'position:absolute;z-index:19;pointer-events:none;display:none;' +
+            'width:17px;height:17px;margin-left:-8.5px;margin-top:-8.5px;';
+        const bar = 'position:absolute;background:rgba(255,255,255,.9);box-shadow:0 0 2px rgba(0,0,0,.9);';
+        const h = document.createElement('div');
+        h.style.cssText = bar + 'left:0;top:8px;width:17px;height:1.5px;';
+        const w = document.createElement('div');
+        w.style.cssText = bar + 'left:8px;top:0;width:1.5px;height:17px;';
+        el.appendChild(h); el.appendChild(w);
+        v.map.getContainer().appendChild(el);
+        v.crossEl = el;
+        return el;
+    }
+    function hideCross(v) { if (v.crossEl) v.crossEl.style.display = 'none'; }
+    // Place (or hide) one pane's crosshair for the current inspect point. The hovered pane never gets one
+    // — the real cursor is already there, and it is already a crosshair.
+    function positionCross(v) {
+        if (!inspecting || !inspectLngLat || v === hoveredView) { hideCross(v); return; }
+        let pt;
+        try { pt = v.map.project(inspectLngLat); } catch (e) { hideCross(v); return; }
+        const el = ensureCrossEl(v);
+        el.style.left = pt.x + 'px';
+        el.style.top = pt.y + 'px';
+        el.style.display = 'block';
+    }
+
+    // The value grid for the current frame + THIS PANE's product, or null if not available.
+    function inspectGrid(v) {
         const f = frames[currentFrame];
-        return (f && f.grids && f.grids[product]) || null;
+        return (f && f.grids && f.grids[v.product]) || null;
     }
 
     // Reads the moment value at a geographic point from a polar value grid, or null (no data /
@@ -1231,16 +1417,29 @@
 
     // Push the inspected value to the host for the color-scale marker. Throttled (~14/s) and edge-
     // triggered on the has/has-not transition so leaving data hides the marker promptly.
-    function pushInspect(has, value) {
+    function pushInspect(pane, has, value) {
         const now = Date.now();
-        if (has === lastInspectHad && now - lastInspectPush < 70) return;
-        lastInspectPush = now; lastInspectHad = has;
-        post({ type: 'radarInspect', has: has, value: has ? value : 0 });
+        if (has === lastInspectHad[pane] && now - (lastInspectPush[pane] || 0) < 70) return;
+        lastInspectPush[pane] = now; lastInspectHad[pane] = has;
+        post({ type: 'radarInspect', pane: pane, has: has, value: has ? value : 0 });
     }
 
-    function onInspectMove(e) {
+    // Bound per pane (see setInspect). ONE hover, N readings: every pane reads its own product's grid at
+    // the SAME geographic point, so all the chips tick together. The pane under the cursor also gets the
+    // tooltip; the rest get the mirrored crosshair.
+    // Cost is one lookupValue per pane per mouse move — a nearest-azimuth scan of ~720 radials plus an
+    // array read, so four panes is still nothing.
+    function onInspectMove(v, e) {
         if (!inspecting) return;
-        const r = lookupValue(inspectGrid(), e.lngLat.lat, e.lngLat.lng);
+        hoveredView = v;
+        inspectLngLat = e.lngLat;
+        let r = null;
+        forEachView(function (o) {
+            const hit = lookupValue(inspectGrid(o), e.lngLat.lat, e.lngLat.lng);
+            if (o === v) r = hit;                       // reuse the hovered pane's own read for the tooltip
+            pushInspect(o.index, !!hit, hit ? hit.value : 0);
+            positionCross(o);                           // no-op for the hovered pane (hides its cross)
+        });
         const el = ensureInspectTip();
         if (r) {
             // Speed products (velocity / SRV / spectrum width — unit "m/s") read as the native m/s value
@@ -1252,7 +1451,7 @@
             // without re-hovering: the displayed value is the dealiased speed; the raw (folded)
             // value is what the radar measured (within ±Nyquist), recovered by removing the whole
             // 2×Nyquist folds the dealiaser added. Lets the user confirm high velocities at a glance.
-            const vel = velocityFold(r.value);
+            const vel = velocityFold(r.value, v.product);
             if (vel) {
                 el.innerHTML = '<div>' + main + '</div>' +
                     '<div style="font-size:10px;opacity:.75;font-weight:400">raw ' + vel.raw.toFixed(0) +
@@ -1260,14 +1459,16 @@
             } else {
                 el.textContent = main;
             }
-            el.style.left = (e.point.x + 14) + 'px';
-            el.style.top = (e.point.y + 14) + 'px';
+            // e.point is relative to THIS pane's canvas; the tooltip is a document-level element, so
+            // offset it by where that pane sits in the page.
+            const box = v.map.getContainer().getBoundingClientRect();
+            el.style.left = (box.left + e.point.x + 14) + 'px';
+            el.style.top = (box.top + e.point.y + 14) + 'px';
             el.style.display = 'block';
-            pushInspect(true, r.value);
         } else {
             el.style.display = 'none';
-            pushInspect(false, 0);
         }
+        // NB: no pushInspect here — the loop above already pushed EVERY pane's value, this one included.
     }
 
     // A speed in m/s → "12.3 m/s (28 mph)" (sign preserved: inbound negative, outbound positive).
@@ -1278,7 +1479,7 @@
     // For a dealiased velocity value, recover the raw (folded) measurement + the fold count from the
     // current frame's Nyquist. Returns null when not on Velocity / no Nyquist (so other products show
     // just their value). Dealiasing only ever adds whole multiples of 2×Nyquist, so this is exact.
-    function velocityFold(dealiased) {
+    function velocityFold(dealiased, product) {
         if (product !== 'velocity') return null;
         const f = frames[currentFrame];
         const nyq = f && f.velNyq;
@@ -1289,12 +1490,87 @@
             : (folds > 0 ? '+' : '') + folds + ' fold' + (Math.abs(folds) === 1 ? '' : 's');
         return { raw: raw, nyq: nyq, folds: folds, foldLabel: foldLabel };
     }
-    function onInspectOut() {
+    function onInspectOut(v) {
+        // ⚠️ Moving from one pane to another fires this pane's mouseout AND the next pane's mousemove, and
+        // the order is not guaranteed. Only clear if the cursor genuinely left — i.e. we are still the
+        // pane it was last in — or crossing a groove would blank the readings that just arrived.
+        if (hoveredView && hoveredView !== v) return;
         if (inspectTip) inspectTip.style.display = 'none';
-        pushInspect(false, 0);
+        inspectLngLat = null;
+        hoveredView = null;
+        forEachView(function (o) { hideCross(o); pushInspect(o.index, false, 0); });
+    }
+    // Attach / detach the inspect handlers for ONE pane. Called per view when the mode toggles and when
+    // a pane is created while Inspect is already on.
+    function bindInspect(v) {
+        if (v.inspectMove) return;
+        v.inspectMove = function (e) { onInspectMove(v, e); };
+        v.inspectOut = function () { onInspectOut(v); };
+        // The crosshair marks a GEOGRAPHIC point, so it has to be re-projected whenever the camera moves.
+        // A drag already fires mousemove, but a wheel zoom with a stationary pointer does not — without
+        // this the mirrored crosses would drift off the gate they are marking.
+        v.inspectCamera = function () { if (inspecting && inspectLngLat) positionCross(v); };
+        v.map.on('mousemove', v.inspectMove);
+        v.map.on('mouseout', v.inspectOut);
+        v.map.on('move', v.inspectCamera);
+        const canvas = v.map.getCanvas && v.map.getCanvas();
+        if (canvas) canvas.style.cursor = 'crosshair';
+    }
+    function unbindInspect(v) {
+        if (v.inspectMove) { v.map.off('mousemove', v.inspectMove); v.inspectMove = null; }
+        if (v.inspectOut) { v.map.off('mouseout', v.inspectOut); v.inspectOut = null; }
+        if (v.inspectCamera) { v.map.off('move', v.inspectCamera); v.inspectCamera = null; }
+        hideCross(v);
+        const canvas = v.map.getCanvas && v.map.getCanvas();
+        if (canvas) canvas.style.cursor = '';
+        pushInspect(v.index, false, 0);
     }
 
     window.RadarLayer = {
+        // ===== PANES =====
+        // map.js owns the maps; it hands the list here whenever the pane layout changes. Views are
+        // reconciled IN PLACE: a surviving map keeps its view (and therefore its product and its GL
+        // objects), a new map gets a fresh view with the radar layer added if a loop is already up, and
+        // a departing map is detached separately (detachView, called BEFORE map.remove() so the layer's
+        // onRemove can free its buffers while the context is still alive).
+        // The loop itself is untouched by a layout change — same frames, same decode cache, same
+        // scrubber position — which is why entering multi-pane is instant.
+        setViews: function (maps) {
+            const next = [];
+            for (let i = 0; i < maps.length; i++) {
+                const existing = viewFor(maps[i]);
+                const v = existing || makeView(maps[i], i);
+                v.index = i;
+                next.push(v);
+            }
+            // Any view whose map is gone from the list loses its layer (it may already be removed).
+            forEachView(function (old) {
+                if (next.indexOf(old) < 0) { try { removeLayer(old); } catch (e) { /* map gone */ } }
+            });
+            views = next;
+            forEachView(function (v) {
+                attachContextListeners(v);
+                if (inspecting) bindInspect(v);          // a pane created while Inspect is on joins it
+                if (currentFrame >= 0) showCurrent(v, 'setViews');
+                if (currentRangeMeters > 0) addRangeRing(v);
+                if (sweepRaf) ensureSweepLayer(v);
+            });
+            // A new pane's product may widen the wanted set (Rule 6 keeps this to only what's missing).
+            queueAllUpgrades('panes');
+            postBuildProgress();
+            hostLog('setViews n=' + views.length + ' prods=' + viewProducts().join('|'));
+        },
+        // Release one pane's GL objects while its context is still live. map.js calls this immediately
+        // before map.remove().
+        detachView: function (map) {
+            const v = viewFor(map);
+            if (!v) return;
+            if (inspecting) unbindInspect(v);
+            try { removeLayer(v); } catch (e) { /* already torn down */ }
+            views = views.filter(function (o) { return o !== v; });
+            forEachView(function (o, i) { o.index = i; });
+            hostLog('detachView -> n=' + views.length);
+        },
         // ===== PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit) =====
         // Read-only snapshot of the loop's inner build state for the Pipeline Console card. The host
         // polls this ONLY while the console is open. Pure reader: mutates nothing, touches no hot path.
@@ -1337,20 +1613,19 @@
                 first[q] = (fm == null) ? null : Math.round(fm);
             }
             return {
-                n: frames.length, cf: currentFrame, active: product,
+                n: frames.length, cf: currentFrame, active: viewProducts().join('|'), panes: viewProducts(),
                 ids: ids, velPrefetch: velPrefetch, fullPrefetch: fullPrefetch,
                 wanted: wantedProducts(), vwp: vwp, frames: out,
                 done: done, first: first, timingFrozen: _timingFrozen
             };
         },
         // ===== END PIPELINE CONSOLE =====
-        beginLoop: function (map, lat, lon) {
-            currentMap = map;
-            attachContextListeners(map);
+        beginLoop: function (lat, lon) {
+            forEachView(attachContextListeners);
             // New site → drop the old range ring + sweep (the first decoded frame redraws them at
             // the new site's range); same site (a reload) → keep them up, no flicker.
             if (lat !== siteLat || lon !== siteLon) {
-                removeRangeRing(map); stopSweep(map); currentRangeMeters = 0;
+                removeRangeRingAll(); stopSweep(); currentRangeMeters = 0;
             }
             siteLat = lat; siteLon = lon;
             loopToken++;            // invalidate any in-flight frames from a previous loop
@@ -1370,27 +1645,28 @@
             frames = [];
             currentFrame = -1;
             pendingFrame = -1;
-            uploadedFrame = -1;
+            invalidateUploads();
             renderErrCount = blankCount = 0; lastRenderErrAt = lastBlankAt = 0;
-            removeLayer(map);
-            hostLog('beginLoop token=' + loopToken + ' @ ' + lat.toFixed(3) + ',' + lon.toFixed(3));
+            removeLayerAll();
+            hostLog('beginLoop token=' + loopToken + ' @ ' + lat.toFixed(3) + ',' + lon.toFixed(3)
+                + ' panes=' + views.length);
         },
-        addFrame: function (map, url, index) {
-            currentMap = map;
+        addFrame: function (url, index) {
             hostLog('addFrame idx=' + index);
             decodeFrame(url, index, 'load');
         },
-        showFrame: function (map, index) {
-            currentMap = map;
+        showFrame: function (index) {
             if (frames[index]) {
                 // Decoded: switch to it now (and (re)add the layer if needed).
                 pendingFrame = -1;
-                if (index !== currentFrame) { currentFrame = index; uploadedFrame = -1; }
+                if (index !== currentFrame) { currentFrame = index; invalidateUploads(); }
                 // Flag a scrub onto a frame whose ACTIVE product isn't built — it renders blank/stale until an
                 // upgrade fills it (the "missing frame while scrubbing" symptom). Reflectivity is always built.
-                if (product !== 'reflectivity' && !(frames[index].built && frames[index].built[product]))
-                    hostLog('showFrame idx=' + index + ' NOT-BUILT prod=' + product + ' (blank until upgrade)');
-                showCurrent(map, 'showFrame');
+                forEachView(function (v) {
+                    if (v.product !== 'reflectivity' && !(frames[index].built && frames[index].built[v.product]))
+                        hostLog('showFrame idx=' + index + ' pane=' + v.index + ' NOT-BUILT prod=' + v.product + ' (blank until upgrade)');
+                });
+                showCurrentAll('showFrame');
             } else {
                 // Not decoded yet: remember the intent but keep the current frame on screen, so
                 // we don't blank the layer. applyFrameResult promotes it once it decodes.
@@ -1404,14 +1680,13 @@
         // The host then decodes only the genuinely-new volume(s) into the unfilled slots. Crucially
         // this NEVER removes the layer, so an archive reload no longer blanks the radar — the frame
         // already on screen stays up (same geometry, no re-upload) while the new frames stream in.
-        remap: function (map, newCount, mappingJson) {
-            currentMap = map;
+        remap: function (newCount, mappingJson) {
             var mapping;
             try { mapping = JSON.parse(mappingJson); } catch (e) { hostLog('remap parse failed: ' + (e && e.message ? e.message : e)); return; }
             // New loop generation: drop any in-flight decode still targeting an OLD index.
             loopToken++;
             resetUpgrades(); // stale upgrades target old indices; re-queued below against the new frames[]
-            var oldCurrent = currentFrame, oldUploaded = uploadedFrame;
+            var oldCurrent = currentFrame;
             var nf = new Array(newCount);
             var newCurrent = -1;
             for (var k = 0; k < mapping.length; k++) {
@@ -1425,15 +1700,17 @@
                 // The displayed frame survived: keep its image up. The GL buffers already hold this
                 // geometry (same object), so skip the re-upload when uploadedFrame tracked it.
                 currentFrame = newCurrent;
-                uploadedFrame = (oldUploaded === oldCurrent) ? newCurrent : -1;
-                if (map.getLayer(LAYER_ID)) map.triggerRepaint(); else addLayer(map);
+                // Per pane: a view whose buffers already held the displayed frame just renumbers them
+                // (same geometry object, no re-upload); any other view re-uploads on its next render.
+                forEachView(function (v) { v.uploadedFrame = (v.uploadedFrame === oldCurrent) ? newCurrent : -1; });
+                forEachView(function (v) { if (v.map.getLayer(LAYER_ID)) v.map.triggerRepaint(); else addLayer(v); });
             } else {
                 // The displayed frame fell out of the window: fall back to the newest decoded frame.
                 var nn = -1;
                 for (var j = newCount - 1; j >= 0; j--) { if (frames[j]) { nn = j; break; } }
                 currentFrame = nn;
-                uploadedFrame = -1;
-                showCurrent(map, 'remap-fallback');
+                invalidateUploads();
+                showCurrentAll('remap-fallback');
             }
             queueAllUpgrades('remap'); // a reused refl-only frame still needs velocity if Velocity is active
             postBuildProgress(); // re-report readiness/completeness against the NEW indexing (host arrays reindex)
@@ -1458,8 +1735,7 @@
         //   • _loopSeedProfile — a wind profile is (u,v) vs HEIGHT; seedExpectedVr re-projects it through the
         //     decoding cut's own elevation, so it's a valid dealias first guess at any tilt.
         //   • the range ring + sweep — same site, same range.
-        retile: function (map, count) {
-            currentMap = map;
+        retile: function (count) {
             loopToken++;        // drop any in-flight decode still carrying the OLD tilt
             resetUpgrades();    // and its pending upgrades; the host's addFrame sweep re-drives the fill
             fullPrefetch = false; // the dual-pol second wave re-arms once THIS tilt's trio settles
@@ -1471,15 +1747,15 @@
             postBuildProgress(); // report the emptied scrubber now, before the first new frame lands
             hostLog('retile count=' + n + ' cf=' + currentFrame + ' token=' + loopToken);
         },
-        clear: function (map) {
+        clear: function () {
             loopToken++;
             resetUpgrades();
             frames = [];
             currentFrame = -1;
             pendingFrame = -1;
-            removeLayer(map);
-            removeRangeRing(map);
-            stopSweep(map);
+            removeLayerAll();
+            removeRangeRingAll();
+            stopSweep();
             currentRangeMeters = 0;
             postBuildProgress(); // frames=[] -> 0/0 clears the "building" readout
             hostLog('clear token=' + loopToken);
@@ -1488,20 +1764,19 @@
         // tools/dow_import.py, served from the dowevents host). It takes over the radar layer as a
         // one-frame loop centred on the TRUCK's position — reusing the whole render path (WebGL fill,
         // the real-extent range ring, product toggle, Inspect, legend). No loop/live/sweep machinery.
-        showDow: function (map, url) {
-            currentMap = map;
-            attachContextListeners(map);
+        showDow: function (url) {
+            forEachView(attachContextListeners);
             loopToken++;
             resetUpgrades();
             const myToken = loopToken;
             frames = [];
             currentFrame = -1;
             pendingFrame = -1;
-            uploadedFrame = -1;
+            invalidateUploads();
             renderErrCount = blankCount = 0; lastRenderErrAt = lastBlankAt = 0;
-            removeLayer(map);
-            removeRangeRing(map);
-            stopSweep(map);
+            removeLayerAll();
+            removeRangeRingAll();
+            stopSweep();
             currentRangeMeters = 0; // a DOW frame is a single sweep — no rotating arm
             hostLog('showDow ' + url);
             fetch(url, { cache: 'no-store' }).then(function (r) {
@@ -1513,7 +1788,8 @@
                 siteLon = (typeof json.lon === 'number') ? json.lon : 0;
                 // Recenter on the truck — a DOW frame is a specific (often far-off) deployment, so
                 // unlike the NEXRAD loop we DO fly there, or it would render off-screen.
-                try { map.flyTo({ center: [siteLon, siteLat], zoom: 9, duration: 800 }); } catch (e) { /* non-fatal */ }
+                // Fly the PRIMARY only — map.js mirrors the camera to the other panes as it plays.
+                try { if (primaryView()) primaryView().map.flyTo({ center: [siteLon, siteLat], zoom: 9, duration: 800 }); } catch (e) { /* non-fatal */ }
                 return import('./radar-decode.js').then(function (m) {
                     return m.decodeDowFrame(json, MIN_DBZ);
                 });
@@ -1527,40 +1803,43 @@
                 hostLog('showDow failed: ' + (err && err.message ? err.message : err));
             });
         },
-        setOpacity: function (map, op) {
-            opacity = op;
-            if (map.getLayer(LAYER_ID)) map.triggerRepaint();
+        setOpacity: function (op) {
+            opacity = op; // shared: one radar opacity across every pane
+            repaintAll();
         },
         // Fire ONE sweep pulse (arm + trailing afterglow, one revolution then hides). The host calls
         // this when a genuinely-new frame lands. No-op until a frame has decoded (no radius yet).
-        pulseSweep: function (map) {
-            startSweepPulse(map);
+        pulseSweep: function () {
+            startSweepPulse();
         },
         // Stop + remove the sweep (host calls with period <= 0 on clear / entering replay). Kept the
         // name for the existing host shim; the arm is one-shot now, so a positive period just re-pulses.
-        setSweep: function (map, periodSeconds) {
-            currentMap = map;
-            if (Number(periodSeconds) > 0) startSweepPulse(map);
-            else stopSweep(map);
+        setSweep: function (periodSeconds) {
+            if (Number(periodSeconds) > 0) startSweepPulse();
+            else stopSweep();
         },
         // Switch rendered moment ('reflectivity' | 'velocity' | 'cc'). Reflectivity + CC geometry is
         // always built, so those switch instantly. Velocity is built lazily (it's the one product that
         // must dealias), so switching TO Velocity queues the loaded refl-only frames for a BOUNDED,
         // current-frame-first re-decode (see the upgrade queue up top) — velocity fills in around the
         // frame on screen instead of flooding the decode pool and flashing blanks during playback.
-        setProduct: function (map, p) {
-            if (!productKnown(p) || p === product) return;
-            var from = product;
-            product = p;
-            uploadedFrame = -1; // force the new product's geometry to upload on the next render
+        // Set ONE pane's product. Only that pane re-uploads; the others are untouched, which is what
+        // makes a chip change in a quad cost nothing for the other three.
+        setProduct: function (paneIndex, p) {
+            const v = views[paneIndex | 0];
+            if (!v || !productKnown(p) || p === v.product) return;
+            var from = v.product;
+            v.product = p;
+            v.uploadedFrame = -1; // force the new product's geometry to upload on this pane's next render
             // How many frames already have the new product built — i.e. how much of this switch is INSTANT vs
             // needs a re-decode. A switch that should be instant (all built) but still decodes is a bug signal.
             var have = 0, n = frames.length;
             for (var i = 0; i < n; i++) if (p === 'reflectivity' || (frames[i] && frames[i].built && frames[i].built[p])) have++;
-            hostLog('product ' + from + '->' + p + ' built=' + have + '/' + n + (have < n ? ' (will decode ' + (n - have) + ')' : ' (instant)'));
+            hostLog('product pane=' + v.index + ' ' + from + '->' + p + ' built=' + have + '/' + n
+                + (have < n ? ' (will decode ' + (n - have) + ')' : ' (instant)'));
             queueAllUpgrades('switch>' + p); // no-op unless Velocity/SRV (or Inspect) needs geometry these frames lack
             postBuildProgress(); // switching to Velocity: report the (mostly not-yet-built) ready set now
-            if (map && map.getLayer(LAYER_ID)) map.triggerRepaint();
+            if (v.map.getLayer(LAYER_ID)) v.map.triggerRepaint();
         },
         // Arm the loop to build Velocity (+ SRV, its companion) on every frame — the host calls this RIGHT
         // AFTER FIRST PAINT so the backfill builds COMPLETE frames in one pass (docs/radar-loop-flow.md
@@ -1584,33 +1863,31 @@
         // ring are retained, so restore them. If a sweep pulse is mid-flight, restore its layer too so
         // the in-progress revolution keeps drawing.
         reAdd: function (map) {
-            currentMap = map;
-            if (currentFrame >= 0) addLayer(map);
-            addRangeRing(map);
-            if (sweepRaf) ensureSweepLayer(map);
+            const v = viewFor(map);
+            if (!v) return;
+            if (currentFrame >= 0) addLayer(v);
+            addRangeRing(v);
+            if (sweepRaf) ensureSweepLayer(v);
         },
         // Toggle inspect mode (read the value under the cursor). Attaches/detaches the mousemove
         // handlers + crosshair cursor and hides the tooltip / clears the host marker when off.
-        setInspect: function (map, on) {
-            currentMap = map;
+        // Inspect is GLOBAL (one armed cursor mode over the map), so it binds in EVERY pane: point at
+        // any pane and that pane reads its own product's value grid under the cursor.
+        setInspect: function (on) {
             inspecting = !!on;
-            const canvas = map.getCanvas && map.getCanvas();
             if (inspecting) {
-                if (!inspectMove) { inspectMove = onInspectMove; map.on('mousemove', inspectMove); }
-                if (!inspectOut) { inspectOut = onInspectOut; map.on('mouseout', inspectOut); }
-                if (canvas) canvas.style.cursor = 'crosshair';
+                forEachView(bindInspect);
                 // Value grids are skipped by default (memory). Turning Inspect ON now builds them on
                 // demand for the loaded frames via the bounded, current-frame-first upgrade queue — so
                 // lookups become available around the frame on screen first, without flooding the pool.
                 queueAllUpgrades('inspect');
             } else {
-                if (inspectMove) { map.off('mousemove', inspectMove); inspectMove = null; }
-                if (inspectOut) { map.off('mouseout', inspectOut); inspectOut = null; }
+                forEachView(unbindInspect);
                 if (inspectTip) inspectTip.style.display = 'none';
-                if (canvas) canvas.style.cursor = '';
-                pushInspect(false, 0);
+                inspectLngLat = null;
+                hoveredView = null;
             }
-            hostLog('inspect=' + inspecting);
+            hostLog('inspect=' + inspecting + ' panes=' + views.length);
         },
     };
 

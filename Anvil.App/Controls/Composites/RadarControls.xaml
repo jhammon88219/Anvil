@@ -8,9 +8,10 @@
      THE ORGANIZING RULE (settled before multi-pane): the bar is split into what repeats per pane and
      what does not. A pane differs from its siblings ONLY by product (and, later, tilt), so the pane
      chips are the only thing that multiplies — in quad-pane the single chip becomes a 2x2 cluster whose
-     arrangement MIRRORS the pane grid, so the existing chip stays put and three appear right / below /
-     below-right. Everything else here is global: one site, one camera, one time cursor shared by every
-     pane, which is why the scrubber does NOT repeat.
+     arrangement MIRRORS the pane grid. Pane 0 is the MAIN pane and sits BOTTOM-LEFT on the map, so its
+     chip stays put in the bottom row and the others appear right / above / above-right. Everything else
+     here is global: one site, one camera, one time cursor shared by every pane, which is why the
+     scrubber does NOT repeat.
 
      SCRUBBER WIDTH is deliberately NOT the full bar: the time module is auto-width, so the scrubber
      stretches to exactly the control row beneath it and stops at the end of the site readout. Every
@@ -53,19 +54,75 @@
         </Grid.ColumnDefinitions>
 
         <!-- ============================ PANE CHIPS ============================
-             The per-pane cluster: one chip per pane, and today there is exactly one pane. A chip is the
-             Product combo, which draws each product's COLOR RAMP next to its short name — so the chip is
-             simultaneously the selector, the legend, and (via the inspect tick riding the ramp) that
-             pane's live inspect readout. Multi-pane grows this into a 2x2; nothing else in the bar
-             multiplies with it. -->
+             The per-pane cluster: one chip per pane. A chip is the Product combo, which draws each
+             product's COLOR RAMP next to its short name — so the chip is simultaneously that pane's
+             selector, its legend, and (via the inspect tick riding the ramp) its live inspect readout.
+             Four panes therefore give four readings of one gate, side by side in this cluster.
+
+             ⚠️ THE CLUSTER MIRRORS THE PANE GRID, so a chip sits where its pane is. Pane 0 is the MAIN
+             pane and lives BOTTOM-LEFT, so it is in the bottom row here; panes 2/3 appear in the row
+             ABOVE when quad is entered. Hidden chips collapse, and the spacing is per-chip Margin
+             rather than Grid Row/ColumnSpacing — spacing would reserve a gap for the empty top row and
+             make the bar taller in single-pane, which is exactly what we are avoiding. So the bar grows
+             a row for quad and only for quad.
+             Fixed named cells (not an ItemsControl): mirroring is POSITIONAL, which is the whole point,
+             and x:Bind stays direct. -->
         <Grid x:Name="PaneChips" Grid.Column="0" VerticalAlignment="Center">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- top row of the pane grid: panes 2 + 3 -->
+                <RowDefinition Height="Auto"/> <!-- bottom row: the MAIN pane 0, and pane 1 -->
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- MAIN pane — bottom-left, always shown -->
             <controls:ProductColorRampComboBox
+                      Grid.Row="1" Grid.Column="0"
                       Width="200"
                       IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
-                      ItemsSource="{x:Bind ViewModel.RadarProductOptions}"
-                      SelectedIndex="{x:Bind ViewModel.RadarProductIndex, Mode=TwoWay}"
-                      InspectFraction="{x:Bind ViewModel.InspectFraction, Mode=OneWay}"
-                      IsInspectVisible="{x:Bind ViewModel.IsInspectMarkerVisible, Mode=OneWay}"/>
+                      Visibility="{x:Bind VisibleWhen(ViewModel.Pane0.IsVisible), Mode=OneWay}"
+                      ItemsSource="{x:Bind ViewModel.Pane0.ProductOptions}"
+                      SelectedIndex="{x:Bind ViewModel.Pane0.ProductIndex, Mode=TwoWay}"
+                      InspectFraction="{x:Bind ViewModel.Pane0.InspectFraction, Mode=OneWay}"
+                      IsInspectVisible="{x:Bind ViewModel.Pane0.IsInspectMarkerVisible, Mode=OneWay}"/>
+
+            <!-- bottom-right (two across, quad) -->
+            <controls:ProductColorRampComboBox
+                      Grid.Row="1" Grid.Column="1"
+                      Margin="6,0,0,0"
+                      Width="200"
+                      IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
+                      Visibility="{x:Bind VisibleWhen(ViewModel.Pane1.IsVisible), Mode=OneWay}"
+                      ItemsSource="{x:Bind ViewModel.Pane1.ProductOptions}"
+                      SelectedIndex="{x:Bind ViewModel.Pane1.ProductIndex, Mode=TwoWay}"
+                      InspectFraction="{x:Bind ViewModel.Pane1.InspectFraction, Mode=OneWay}"
+                      IsInspectVisible="{x:Bind ViewModel.Pane1.IsInspectMarkerVisible, Mode=OneWay}"/>
+
+            <!-- top-left (quad) -->
+            <controls:ProductColorRampComboBox
+                      Grid.Row="0" Grid.Column="0"
+                      Margin="0,0,0,6"
+                      Width="200"
+                      IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
+                      Visibility="{x:Bind VisibleWhen(ViewModel.Pane2.IsVisible), Mode=OneWay}"
+                      ItemsSource="{x:Bind ViewModel.Pane2.ProductOptions}"
+                      SelectedIndex="{x:Bind ViewModel.Pane2.ProductIndex, Mode=TwoWay}"
+                      InspectFraction="{x:Bind ViewModel.Pane2.InspectFraction, Mode=OneWay}"
+                      IsInspectVisible="{x:Bind ViewModel.Pane2.IsInspectMarkerVisible, Mode=OneWay}"/>
+
+            <!-- top-right (quad) -->
+            <controls:ProductColorRampComboBox
+                      Grid.Row="0" Grid.Column="1"
+                      Margin="6,0,0,6"
+                      Width="200"
+                      IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
+                      Visibility="{x:Bind VisibleWhen(ViewModel.Pane3.IsVisible), Mode=OneWay}"
+                      ItemsSource="{x:Bind ViewModel.Pane3.ProductOptions}"
+                      SelectedIndex="{x:Bind ViewModel.Pane3.ProductIndex, Mode=TwoWay}"
+                      InspectFraction="{x:Bind ViewModel.Pane3.InspectFraction, Mode=OneWay}"
+                      IsInspectVisible="{x:Bind ViewModel.Pane3.IsInspectMarkerVisible, Mode=OneWay}"/>
         </Grid>
 
         <Border Grid.Column="1" Style="{StaticResource BarDividerStyle}"/>

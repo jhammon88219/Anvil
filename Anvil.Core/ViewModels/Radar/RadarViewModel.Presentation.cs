@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -144,15 +144,18 @@ namespace Anvil.ViewModels
 			return _complete[idx];
 		}
 
-		// Whether frame idx is ready to display for the ACTIVE product. Every product EXCEPT reflectivity is
-		// now built on demand (the decode builds only what's on screen), so any of them can be not-yet-built
-		// for a frame; reflectivity is always built. Missing/out-of-range progress info returns true so
-		// playback never stalls on absent data. (_velReady carries the active product's per-frame build state,
-		// pushed by radar.js postBuildProgress — the field name is historical.)
+		// Whether frame idx is ready to display. Every product EXCEPT reflectivity is built on demand (the
+		// decode builds only what's on screen), so any of them can be not-yet-built for a frame;
+		// reflectivity is always built. Missing/out-of-range progress info returns true so playback never
+		// stalls on absent data. (_velReady carries the per-frame build state pushed by radar.js
+		// postBuildProgress — the field name is historical.)
+		// ⚠️ MULTI-PANE: radar.js computes that array against EVERY visible pane's product, so advancing
+		// onto a frame that is blank in any pane is already excluded. The only shortcut left is the
+		// all-reflectivity case, where nothing can be unbuilt — checked across the visible panes, not just
+		// pane 1, or a quad of Ref/Vel/SRV/CC would play straight through frames three panes can't draw.
 		private bool IsFrameDisplayReady(int idx)
 		{
-			if (_radarProductIndex < 0 || _radarProductIndex >= RadarProductOptions.Count) return true;
-			if (RadarProductOptions[_radarProductIndex].Id == "reflectivity") return true; // always built
+			if (AllVisiblePanesAreReflectivity()) return true; // reflectivity is always built
 			if (_velReady.Length == 0) return true;        // no progress pushed yet — don't stall
 			if (idx < 0 || idx >= _velReady.Length) return true;
 			return _velReady[idx];

@@ -12,12 +12,76 @@
             margin: 0;
             height: 100%;
             background: #0a0a0a;
+            overflow: hidden;
         }
 
-        #map {
+        /* ===== PANE GRID =====
+           The page hosts ONE MapLibre map per pane (map.js owns them). The pane divs are STATIC so a
+           map's container always exists before the map is constructed; map.js positions and shows the
+           ones the current layout uses and hides the rest. Layouts: 1x1, 2x1 (side by side), 2x2.
+           Two-pane is side-by-side only — there is deliberately no stacked variant. */
+        #panes {
             position: absolute;
             inset: 0;
+        }
+
+        .pane {
+            position: absolute;
             background: #0a0a0a;
+            display: none; /* map.js shows the panes the layout uses */
+        }
+
+        /* Single-pane is the launch layout, so pane 0 starts full-bleed and visible — the map paints
+           without waiting for a layout round-trip. */
+        #pane0 {
+            inset: 0;
+            display: block;
+        }
+
+        /* ===== THE GROOVE =====
+           Panes are separated by a dark channel with a hairline on EACH side, not a single drawn line.
+           Two reasons it is a groove: a lone hairline gets lost over bright radar returns, and a lone
+           dark gap disappears between two dark panes — the pair reads over both. The hairline color is
+           the dark-theme value of the app's CardStrokeColorDefaultSolidBrush, which is the same edge
+           the OverlayBar draws; a ThemeResource can't reach in here, and the map band is always dark
+           regardless of app theme, so a fixed value is correct.
+           Non-interactive: the panes are positioned with the gap already subtracted, so these divs are
+           pure decoration over ground no map occupies. */
+        .gutter {
+            position: absolute;
+            background: #0a0a0a;
+            pointer-events: none;
+            box-sizing: border-box;
+            display: none; /* map.js shows the ones the layout needs */
+        }
+
+        .gutter.v {
+            border-left: 1px solid rgba(255,255,255,.14);
+            border-right: 1px solid rgba(255,255,255,.14);
+        }
+
+        .gutter.h {
+            border-top: 1px solid rgba(255,255,255,.14);
+            border-bottom: 1px solid rgba(255,255,255,.14);
+        }
+
+        /* ===== PANE WATERMARK =====
+           One per pane, parented to the pane div so it lands in that pane's corner in every layout (see
+           map.js). Faint backing so it survives over bright radar returns as well as over the dark
+           basemap; never interactive. */
+        .pane-watermark {
+            position: absolute;
+            left: 12px;
+            top: 12px;
+            z-index: 3;
+            display: none;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font: 600 13px/1.5 "Segoe UI", sans-serif;
+            color: rgba(255,255,255,.72);
+            background: rgba(18,18,18,.72);
+            pointer-events: none;
+            user-select: none;
         }
 
         /* Opaque dark cover over the map until the launch mask (CONUS) is applied. Without it the world
@@ -39,7 +103,15 @@
     </style>
 </head>
 <body>
-    <div id="map"></div>
+    <div id="panes">
+        <div class="pane" id="pane0"></div>
+        <div class="pane" id="pane1"></div>
+        <div class="pane" id="pane2"></div>
+        <div class="pane" id="pane3"></div>
+        <!-- One vertical + one horizontal groove covers every supported layout (1x1, 2x1, 2x2). -->
+        <div class="gutter v" id="gutterV"></div>
+        <div class="gutter h" id="gutterH"></div>
+    </div>
     <div id="mapcover"></div>
 
     <script src="vendor/maplibre-gl.js"></script>

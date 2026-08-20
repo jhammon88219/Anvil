@@ -37,27 +37,12 @@
         <!-- Full-window map (bottom layer; the bar floats on top of it). -->
         <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="2"/>
 
-        <!-- ===== PANE WATERMARK =====
-             The only thing drawn INSIDE a pane. Panes carry no chrome — every control lives in the bar —
-             so this corner label is the sole in-pane hint of what you are looking at, and it keeps a
-             screenshot or a stream legible without the viewer reading the bar. Today there is one pane
-             (the whole map band); in multi-pane each pane stamps its own product in its own corner. Faint
-             backing so it survives over bright radar returns as well as over the dark basemap. -->
-        <Border Grid.Row="0"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top"
-                Margin="12"
-                Padding="8,2"
-                CornerRadius="4"
-                Opacity="0.72"
-                IsHitTestVisible="False"
-                Background="{ThemeResource OverlayBarSurfaceBrush}"
-                Visibility="{x:Bind VisibleWhen(ViewModel.Radar.IsTransportEnabled), Mode=OneWay}">
-            <TextBlock Text="{x:Bind ViewModel.Radar.SelectedProductShortLabel, Mode=OneWay}"
-                       FontSize="13"
-                       FontWeight="SemiBold"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-        </Border>
+        <!-- The PANE WATERMARK is no longer here. It is drawn in the PAGE, one per pane, parented to
+             that pane's own div (map.js setPaneWatermark / map.html .pane-watermark). The page owns pane
+             geometry, so a watermark parented to its pane is in the right corner by construction for
+             every layout — whereas a XAML overlay would have to keep a second copy of the pane rects,
+             the gutter width included, and drift from them. RadarViewModel pushes each pane's short
+             product label, blanking it while no loop is displayed. -->
 
         <!-- ===== Row 1: the bottom bar. Left = the radar console; right = the global cluster (temporal
              modes over the window buttons). The empty space between them is bar, by design: the scrubber
@@ -103,10 +88,12 @@
                                 <ColumnDefinition Width="Auto"/> <!-- app settings -->
                             </Grid.ColumnDefinitions>
 
-                            <!-- PANE LAYOUT — SCAFFOLDING. The shape of multi-pane, with only the layout
-                                 that exists today selectable. It sits here as one click rather than inside
-                                 a window because it IS the view mode. When multi-pane lands these items
-                                 pick the pane grid, and the chip cluster in RadarControls mirrors it. -->
+                            <!-- PANE LAYOUT. Sits here as one click rather than inside a window because it
+                                 IS the view mode. Each item picks the pane grid; the chip cluster in
+                                 RadarControls mirrors it, as do the watermarks above.
+                                 There is deliberately no "two stacked": weather is read left-to-right
+                                 across a storm, and a stacked pair halves the vertical extent that matters
+                                 most on a wide monitor. -->
                             <Button Grid.Column="0" Width="32" Height="32"
                                     MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
                                     HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
@@ -115,13 +102,15 @@
                                     ToolTipService.ToolTip="Pane layout">
                                 <Button.Flyout>
                                     <MenuFlyout Placement="Top">
-                                        <RadioMenuFlyoutItem Text="Single pane" GroupName="PaneLayout" IsChecked="True"/>
+                                        <RadioMenuFlyoutItem Text="Single pane" GroupName="PaneLayout"
+                                                             Click="OnPaneLayoutSingle"
+                                                             IsChecked="{x:Bind IsSinglePane(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
                                         <RadioMenuFlyoutItem Text="Two across" GroupName="PaneLayout"
-                                                             IsEnabled="False" KeyboardAcceleratorTextOverride="soon"/>
-                                        <RadioMenuFlyoutItem Text="Two stacked" GroupName="PaneLayout"
-                                                             IsEnabled="False" KeyboardAcceleratorTextOverride="soon"/>
+                                                             Click="OnPaneLayoutTwoAcross"
+                                                             IsChecked="{x:Bind IsTwoAcross(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
                                         <RadioMenuFlyoutItem Text="Four panes" GroupName="PaneLayout"
-                                                             IsEnabled="False" KeyboardAcceleratorTextOverride="soon"/>
+                                                             Click="OnPaneLayoutQuad"
+                                                             IsChecked="{x:Bind IsQuad(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
                                     </MenuFlyout>
                                 </Button.Flyout>
                             </Button>

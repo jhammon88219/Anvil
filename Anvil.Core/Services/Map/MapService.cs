@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,6 +27,12 @@ namespace Anvil.Services
 
 		public Task ApplyStyleAsync(MapStyle style) =>
 			_mapView.RunScriptAsync(Call("applyStyle", $"https://mapassets/{style.FileName}"));
+
+		public Task SetPaneLayoutAsync(int columns, int rows, int gutterPx) =>
+			_mapView.RunScriptAsync(Call("setPaneLayout", columns, rows, gutterPx));
+
+		public Task SetPaneWatermarkAsync(int paneIndex, string text) =>
+			_mapView.RunScriptAsync(Call("setPaneWatermark", paneIndex, text));
 
 		// SPC outlooks load the GeoJSON from the product's local cache URL.
 		public Task ShowOutlookAsync(SpcOutlookProduct product) =>
@@ -104,8 +110,8 @@ namespace Anvil.Services
 		public Task SetRadarOpacityAsync(double opacity) =>
 			_mapView.RunScriptAsync(Call("setRadarOpacity", opacity));
 
-		public Task SetRadarProductAsync(string product) =>
-			_mapView.RunScriptAsync(Call("setRadarProduct", product));
+		public Task SetRadarProductAsync(int paneIndex, string product) =>
+			_mapView.RunScriptAsync(Call("setRadarProduct", paneIndex, product));
 
 		public Task PrefetchRadarVelocityAsync() =>
 			_mapView.RunScriptAsync(Call("prefetchRadarVelocity"));

@@ -1,4 +1,4 @@
-using Microsoft.UI.Windowing;
+﻿using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
@@ -38,6 +38,19 @@ namespace Anvil
 #else
 		public Visibility DevVisibility => Visibility.Collapsed;
 #endif
+
+		// ===== Pane layout picker =====
+		// The flyout is a radio group, so each item needs its checked state derived from the one enum on
+		// the view model. x:Bind can't compare against an enum literal, and a Window can't use a
+		// {StaticResource converter}, so these are x:Bind functions — typed, not stringly-typed, and each
+		// re-evaluates because it takes PaneLayout as its argument.
+		public bool IsSinglePane(PaneLayout layout) => layout == PaneLayout.Single;
+		public bool IsTwoAcross(PaneLayout layout) => layout == PaneLayout.TwoAcross;
+		public bool IsQuad(PaneLayout layout) => layout == PaneLayout.Quad;
+
+		private void OnPaneLayoutSingle(object sender, RoutedEventArgs e) => ViewModel.Radar.PaneLayout = PaneLayout.Single;
+		private void OnPaneLayoutTwoAcross(object sender, RoutedEventArgs e) => ViewModel.Radar.PaneLayout = PaneLayout.TwoAcross;
+		private void OnPaneLayoutQuad(object sender, RoutedEventArgs e) => ViewModel.Radar.PaneLayout = PaneLayout.Quad;
 
 		// Opens the site-sweep results pop-up (Save / Close). Raised by the dev window on run completion
 		// or its Report button.

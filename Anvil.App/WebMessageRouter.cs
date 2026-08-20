@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -162,12 +162,14 @@ namespace Anvil
 		}
 
 		// Inspect-mode value under the cursor (pushed from radar.js as the pointer moves) — drives the live
-		// marker on the color-scale bar. has=false clears it.
+		// tick on that pane's chip ramp. has=false clears it. `pane` says WHICH pane reported: Inspect is
+		// one cursor over the map, but each pane reads its own product's grid at that point, so the panes
+		// report independently.
 		private void HandleRadarInspect(JsonElement root)
 		{
 			var has = Flag(root, "has");
 			double? val = has ? DblOrNull(root, "value") : null;
-			_viewModel.Radar.SetInspectValue(val);
+			_viewModel.Radar.SetInspectValue(Int(root, "pane"), val);
 		}
 
 		// A radar site marker was clicked.

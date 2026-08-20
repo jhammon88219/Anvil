@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -43,19 +43,19 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(RampMinText));
 			OnPropertyChanged(nameof(RampMidText));
 			OnPropertyChanged(nameof(RampMaxText));
-			OnPropertyChanged(nameof(IsInspectMarkerVisible));
 		}
 
-		// ── Inspector ("read the value under the cursor", RadarScope-style). The toggle drives the
-		//    WebView's inspect mode; the WebView pushes the value under the pointer back (SetInspectValue),
-		//    which positions a live marker on the Color Scale bar. The value tooltip itself is drawn in
-		//    the WebView next to the cursor (instant, no host round-trip per mouse move). ──
+		// ── Inspector ("read the value under the cursor", RadarScope-style) ────────────────────────────
+		// Inspect is a GLOBAL instrument: one armed cursor mode over the whole map, not a per-pane toggle.
+		// The VALUE, though, is per pane — at one lat/lon each pane reads its OWN product's grid, so four
+		// panes give four readings of the same point, each ticking on its own chip ramp. That is the whole
+		// point of it in multi-pane: four numbers for one gate, read in a glance at the chip cluster.
+		// The value tooltip itself is drawn in the WebView next to the cursor (instant, no host round-trip
+		// per mouse move); the host only receives the numbers that drive the chip ticks.
 		private bool _isInspecting;
-		private bool _hasInspectValue;
-		private double _inspectFraction;
-		private string _inspectValueText = string.Empty;
 
-		/// <summary>Whether inspect mode is engaged (Radar Loop tool window toggle).</summary>
+		/// <summary>Whether inspect mode is engaged (the Map Controls window's toggle). One mode for every
+		/// pane.</summary>
 		public bool IsInspecting
 		{
 			get => _isInspecting;
@@ -66,11 +66,10 @@ namespace Anvil.ViewModels
 					return;
 				}
 
-				if (!value)
+				foreach (var pane in Panes)
 				{
-					SetInspectValue(null); // clear the marker when leaving inspect
+					pane.SetInspecting(value); // clears each pane's tick on the way out
 				}
-				OnPropertyChanged(nameof(IsInspectMarkerVisible));
 
 				if (_isMapReady)
 				{
@@ -79,43 +78,14 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>Whether the live inspect marker should be shown on the color-scale bar.</summary>
-		public bool IsInspectMarkerVisible => _isInspecting && _hasInspectValue && HasColorScale;
-
-		/// <summary>Position (0-1) of the inspected value along the active ramp.</summary>
-		public double InspectFraction => _inspectFraction;
-
-		/// <summary>The inspected value formatted with the product unit (e.g. "47.5 dBZ").</summary>
-		public string InspectValueText => _inspectValueText;
-
-		/// <summary>Called from the view when the WebView pushes the value under the cursor (null = none).</summary>
-		public void SetInspectValue(double? value)
+		/// <summary>Called from the view when the WebView pushes the value under the cursor for ONE pane
+		/// (null = no data there). Each pane owns its own reading and its own chip tick.</summary>
+		public void SetInspectValue(int paneIndex, double? value)
 		{
-			if (value is double v && _currentRamp is { } r)
+			if (paneIndex >= 0 && paneIndex < Panes.Count)
 			{
-				double span = r.Max - r.Min;
-				if (span <= 0)
-				{
-					span = 1;
-				}
-
-				_inspectFraction = Math.Clamp((v - r.Min) / span, 0, 1);
-				// Speed products (velocity / SRV / spectrum width — unit "m/s") read as the native m/s value
-				// PLUS mph to match the on-map inspector tooltip; others keep their native unit (dBZ / CC).
-				_inspectValueText = r.Unit == "m/s"
-					? $"{v:0.0} m/s ({v * 2.23694:0.0} mph)"
-					: v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) +
-						(string.IsNullOrEmpty(r.Unit) ? string.Empty : " " + r.Unit);
-				_hasInspectValue = true;
+				Panes[paneIndex].SetInspectValue(value);
 			}
-			else
-			{
-				_hasInspectValue = false;
-			}
-
-			OnPropertyChanged(nameof(InspectFraction));
-			OnPropertyChanged(nameof(InspectValueText));
-			OnPropertyChanged(nameof(IsInspectMarkerVisible));
 		}
 	}
 }

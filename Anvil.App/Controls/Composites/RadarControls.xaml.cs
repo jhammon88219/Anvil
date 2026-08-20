@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -187,6 +187,10 @@ namespace Anvil.Controls.Composites
 		// Dim the scrubber while the transport isn't enabled yet (Grid has no IsEnabled; interaction is
 		// blocked via IsHitTestVisible + the pointer-handler guard, this is the visual cue).
 		public double ScrubberOpacity(bool enabled) => enabled ? 1.0 : 0.4;
+
+		/// <summary>bool -> Visibility for x:Bind (used by the pane chips, which collapse with their
+		/// pane). A function rather than a converter so the chips can x:Bind straight to the pane.</summary>
+		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
 		// Foreground for the staleness readout, ramped continuously by the newest frame's age in minutes:
 		// green while fresh → amber at ~12 min (the Live→Recent boundary) → red at ~30 min (Recent→Stale),

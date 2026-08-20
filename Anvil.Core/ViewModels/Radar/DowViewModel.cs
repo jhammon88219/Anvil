@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Anvil.Models;
@@ -67,7 +67,7 @@ namespace Anvil.ViewModels
 				var c = Math.Clamp(value, 0, 1);
 				if (SetProperty(ref _dowProductIndex, c))
 				{
-					_ = _mapService.SetRadarProductAsync(c == 1 ? "velocity" : "reflectivity");
+					_ = _mapService.SetRadarProductAsync(0, c == 1 ? "velocity" : "reflectivity");
 				}
 			}
 		}
@@ -96,7 +96,7 @@ namespace Anvil.ViewModels
 			try
 			{
 				await _mapService.ShowDowFrameAsync(ev.Url);
-				await _mapService.SetRadarProductAsync(_dowProductIndex == 1 ? "velocity" : "reflectivity");
+				await _mapService.SetRadarProductAsync(0, _dowProductIndex == 1 ? "velocity" : "reflectivity");
 				DowStatus = $"Showing {ev.Label}";
 				IsShowing = true; // RadarViewModel re-raises HasRadarDisplay/HasColorScale off this
 			}
