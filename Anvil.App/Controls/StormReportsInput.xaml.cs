@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Sections
+namespace Anvil.Controls
 {
 	/// <summary>
 	/// The SPC storm-reports verification controls (per-type Tornado / Wind / Hail toggles, a count readout,

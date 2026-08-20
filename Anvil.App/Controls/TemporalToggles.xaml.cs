@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Sections
+namespace Anvil.Controls
 {
 	/// <summary>
 	/// The overlay bar's left section: three temporal features (PastCast / NowCast / ForeCast), each a
