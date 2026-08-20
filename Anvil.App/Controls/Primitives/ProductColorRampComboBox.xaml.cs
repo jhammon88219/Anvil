@@ -6,7 +6,7 @@ using Microsoft.UI.Xaml.Input;
 using Anvil.ViewModels;
 using Windows.System;
 
-namespace Anvil.Controls
+namespace Anvil.Controls.Primitives
 {
 	/// <summary>
 	/// The radar Product selector, drawing each product's color ramp beside its name so the selector doubles

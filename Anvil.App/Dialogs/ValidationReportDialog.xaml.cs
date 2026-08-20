@@ -4,7 +4,7 @@ using Anvil.ViewModels;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 
-namespace Anvil
+namespace Anvil.Dialogs
 {
 	/// <summary>
 	/// DEV-ONLY dealias-validation results pop-up (see the XAML header). Shows a

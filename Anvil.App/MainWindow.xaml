@@ -9,7 +9,8 @@
     xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     xmlns:models="using:Anvil.Models"
     xmlns:vm="using:Anvil.ViewModels"
-    xmlns:ctl="using:Anvil.Controls"
+    xmlns:ctl="using:Anvil.Controls.Primitives"
+    xmlns:comp="using:Anvil.Controls.Composites"
     mc:Ignorable="d"
     Title="Anvil">
 
@@ -71,7 +72,7 @@
 
                     <!-- PER-PANE + TIME. In multi-pane the chip cluster inside this grows to a 2x2 that
                          mirrors the pane grid; the time module beside it does not multiply. -->
-                    <ctl:RadarControls Grid.Column="0"
+                    <comp:RadarControls Grid.Column="0"
                                             HorizontalAlignment="Left"
                                             VerticalAlignment="Center"
                                             ViewModel="{x:Bind ViewModel.Radar}"/>
@@ -89,7 +90,7 @@
                             <RowDefinition Height="Auto"/> <!-- window buttons -->
                         </Grid.RowDefinitions>
 
-                        <ctl:TemporalToggles Grid.Row="0"
+                        <comp:TemporalToggles Grid.Row="0"
                                                   HorizontalAlignment="Right"
                                                   ViewModel="{x:Bind ViewModel}"/>
 

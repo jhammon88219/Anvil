@@ -1,7 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
-namespace Anvil.Controls
+namespace Anvil.Controls.Primitives
 {
 	/// <summary>
 	/// A "keep this window on top" pin for an app-wide window's title-bar area (see PinToggle.xaml). Bind

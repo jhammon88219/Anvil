@@ -7,7 +7,7 @@ using Microsoft.UI.Xaml.Input;
 using Anvil.ViewModels;
 using Windows.System;
 
-namespace Anvil.Controls
+namespace Anvil.Controls.Primitives
 {
 	/// <summary>
 	/// The radar Tilt (elevation) selector — a background-less dropdown that blends into its host surface

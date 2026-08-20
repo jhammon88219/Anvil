@@ -13,7 +13,7 @@ using Anvil.Layout;
 // "Windows" still means the global one.
 using Windows.UI;
 
-namespace Anvil.Controls
+namespace Anvil.Controls.Composites
 {
 	/// <summary>
 	/// The whole radar console in one control: the center transport cluster (prev · play/stop · next +

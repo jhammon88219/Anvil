@@ -4,7 +4,7 @@
      that float there when content is extended into the title bar. Bind IsChecked to that window's on-top VM
      flag; WindowManager applies the flag to the window's always-on-top presenter. Interactive controls in
      the title-bar drag region receive input automatically (WinUI), so no SetTitleBar is needed. -->
-<UserControl x:Class="Anvil.Controls.PinToggle"
+<UserControl x:Class="Anvil.Controls.Primitives.PinToggle"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"

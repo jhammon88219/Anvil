@@ -1,7 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
-namespace Anvil.Controls
+namespace Anvil.Controls.Primitives
 {
 	/// <summary>Which window edge the bar attaches to (drives the tab/border geometry).</summary>
 	public enum BarEdge

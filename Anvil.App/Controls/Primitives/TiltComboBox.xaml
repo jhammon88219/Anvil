@@ -10,7 +10,7 @@
      (Was a HandCursorComboBox wearing NoBackgroundComboBoxStyle; both are gone now. Same reasoning as
      ProductColorRampComboBox — see that file — except this one has no ramp and no hover treatment.) -->
 <UserControl
-    x:Class="Anvil.Controls.TiltComboBox"
+    x:Class="Anvil.Controls.Primitives.TiltComboBox"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"

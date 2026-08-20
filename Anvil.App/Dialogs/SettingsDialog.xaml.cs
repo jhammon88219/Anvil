@@ -4,7 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Anvil.Services;
 
-namespace Anvil
+namespace Anvil.Dialogs
 {
 	/// <summary>
 	/// App settings dialog. Currently lets the user point the app at the folder holding the offline

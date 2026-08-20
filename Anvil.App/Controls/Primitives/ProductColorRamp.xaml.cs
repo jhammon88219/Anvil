@@ -7,7 +7,7 @@ using Microsoft.UI.Xaml.Media;
 using Anvil.Converters;
 using Anvil.Models;
 
-namespace Anvil.Controls
+namespace Anvil.Controls.Primitives
 {
 	/// <summary>
 	/// A radar product's color scale as a compact bar (see ProductColorRamp.xaml): the ramp, its min/max
