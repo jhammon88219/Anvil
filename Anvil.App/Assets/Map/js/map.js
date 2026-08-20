@@ -117,32 +117,10 @@ try {
         return out;
     }
 
-    // ---- Pane watermark ---------------------------------------------------------------------------
-    // The ONLY thing drawn inside a pane. Panes carry no chrome — every control lives in the bar — so
-    // this corner label is the sole in-pane hint of what you are looking at, and it keeps a screenshot or
-    // a stream legible without the viewer reading the bar.
-    // It lives in the PAGE rather than in XAML over the WebView because the page owns pane geometry: a
-    // watermark parented to its own pane div is in the right corner by construction, for every layout,
-    // with no second copy of the pane rects (and no half-gutter drift) on the XAML side. The map band is
-    // always dark, so a fixed style is right here for the same reason the groove hairline is.
-    function paneWatermarkEl(i) {
-        const pane = document.getElementById('pane' + i);
-        if (!pane) return null;
-        let el = pane.querySelector('.pane-watermark');
-        if (!el) {
-            el = document.createElement('div');
-            el.className = 'pane-watermark';
-            pane.appendChild(el);
-        }
-        return el;
-    }
-    // Host command: label pane `i`, or hide its watermark when the text is empty (no loop displayed).
-    window.setPaneWatermark = function (i, text) {
-        const el = paneWatermarkEl(i);
-        if (!el) return;
-        el.textContent = text || '';
-        el.style.display = text ? 'block' : 'none';
-    };
+    // NB: the PANE WATERMARK (the product label in each pane's corner) is NOT drawn here — it is a XAML
+    // control overlaid on the WebView (Controls/Primitives/PaneWatermark, placed by MainWindow), so its
+    // whole visual can be edited under XAML Hot Reload while the app runs. MainWindow's overlay grid
+    // mirrors the pane arrangement paneRects() lays out above; keep the two in step.
 
     function applyPaneLayout() {
         const rects = paneRects();
@@ -462,10 +440,13 @@ try {
     }).catch(function (e) { console.error('states.js load failed: ' + e); return null; });
     // Run a states command on the primary, then mirror the resulting isolation onto every other pane.
     // Returns whatever the primary call returned (setConus returns a promise the launch path awaits).
+    // ⚠️ Mirrors with syncTo, NOT reAdd. reAdd early-outs when there is nothing masked, which is right for
+    // a style switch but wrong here: turning the mask OFF is exactly the case where the other panes still
+    // have one and need it REMOVED. Using reAdd left panes 2-4 masked when CONUS was unmasked.
     function statesOnAllPanes(fn) {
         if (!States) return undefined;
         var result = fn(primary());
-        for (var i = 1; i < maps.length; i++) States.reAdd(maps[i]);
+        for (var i = 1; i < maps.length; i++) States.syncTo(maps[i]);
         return result;
     }
     window.stateIsoArm = function () { statesOnAllPanes(function (m) { States.arm(m); }); };

@@ -65,24 +65,9 @@
             border-bottom: 1px solid rgba(255,255,255,.14);
         }
 
-        /* ===== PANE WATERMARK =====
-           One per pane, parented to the pane div so it lands in that pane's corner in every layout (see
-           map.js). Faint backing so it survives over bright radar returns as well as over the dark
-           basemap; never interactive. */
-        .pane-watermark {
-            position: absolute;
-            left: 12px;
-            top: 12px;
-            z-index: 3;
-            display: none;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font: 600 13px/1.5 "Segoe UI", sans-serif;
-            color: rgba(255,255,255,.72);
-            background: rgba(18,18,18,.72);
-            pointer-events: none;
-            user-select: none;
-        }
+        /* NB: the pane WATERMARK (the product label in each pane's corner) is not styled here — it is a
+           XAML control overlaid on the WebView (Controls/Primitives/PaneWatermark), so it can be edited
+           under XAML Hot Reload and picks up the app's theme brushes. */
 
         /* Opaque dark cover over the map until the launch mask (CONUS) is applied. Without it the world
            basemap (Canada/Mexico/oceans) paints on first 'load' and shows for ~½s before the mask lands

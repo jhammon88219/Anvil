@@ -23,12 +23,6 @@ namespace Anvil.Services
 		Task SetPaneLayoutAsync(int columns, int rows, int gutterPx);
 
 		/// <summary>
-		/// Labels one pane with its product's short name — the pane watermark, the only thing drawn inside
-		/// a pane. An empty <paramref name="text"/> hides it (no loop displayed).
-		/// </summary>
-		Task SetPaneWatermarkAsync(int paneIndex, string text);
-
-		/// <summary>
 		/// Shows the given SPC outlook product on the map (adds/replaces a GeoJSON
 		/// source + fill/line layers loaded from the product's local cache URL).
 		/// </summary>

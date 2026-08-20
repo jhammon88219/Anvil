@@ -39,6 +39,23 @@ namespace Anvil
 		public Visibility DevVisibility => Visibility.Collapsed;
 #endif
 
+		// ===== Pane watermarks =====
+		// The overlay grid in MainWindow.xaml has to line its cells up with the page's pane rects, so both
+		// sides take the groove width from the same constant and the placement from PaneLayoutInfo.CellOf.
+		// x:Bind functions rather than VM properties: this is view geometry, so it stays in the view and
+		// Anvil.Core keeps no notion of grid cells.
+		public GridLength PaneGutter => new(PaneLayoutInfo.GutterPx);
+
+		public int PaneRow(PaneLayout layout, int index) => layout.CellOf(index).Row;
+		public int PaneColumn(PaneLayout layout, int index) => layout.CellOf(index).Column;
+		public int PaneRowSpan(PaneLayout layout, int index) => layout.CellOf(index).RowSpan;
+		public int PaneColumnSpan(PaneLayout layout, int index) => layout.CellOf(index).ColumnSpan;
+
+		/// <summary>A pane's watermark shows only while that pane is up AND a loop is actually displayed —
+		/// the gate the single watermark used before multi-pane.</summary>
+		public Visibility WatermarkVisibility(bool hasLoop, bool paneVisible) =>
+			hasLoop && paneVisible ? Visibility.Visible : Visibility.Collapsed;
+
 		// ===== Pane layout picker =====
 		// The flyout is a radio group, so each item needs its checked state derived from the one enum on
 		// the view model. x:Bind can't compare against an enum literal, and a Window can't use a

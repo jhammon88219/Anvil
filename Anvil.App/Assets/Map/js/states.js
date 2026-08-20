@@ -408,14 +408,33 @@ export function clear(map) {
     postIsolated(null);
 }
 
-// Re-add after a basemap switch (setStyle drops our layers; the polygons stay in memory). Re-reads the
-// water color so the mask matches the new style, and restores the base extent + any isolated state.
-export function reAdd(map) {
-    if (!armed && !isolatedName && !baseConus) return; // nothing to restore
-    Promise.all([ensureData(), baseConus ? ensureConus() : Promise.resolve()]).then(function () {
+// Bring `map` in line with the CURRENT isolation state — whatever that is, INCLUDING none at all, which
+// means actively REMOVING a mask the map still has. Re-reads the water color so the mask matches the
+// current style.
+//
+// ⚠️ This is what multi-pane mirrors with (map.js runs the real command on the primary, then syncs the
+// other panes). It is deliberately NOT reAdd: reAdd's job is restoring after a style switch, so it
+// early-outs when there is nothing to restore — and mirroring a CLEAR through it left the other panes
+// masked forever, since "nothing to restore" and "remove what is there" look identical to that guard.
+// applyMask/renderOutline both handle null by removing, so this direction costs nothing extra.
+export function syncTo(map) {
+    // The state polygons are only needed to draw a state's mask/outline; a plain clear or a CONUS-only
+    // mask never touches them, so don't fetch them just to remove a layer.
+    const needStates = armed || !!isolatedName;
+    return Promise.all([
+        needStates ? ensureData() : Promise.resolve(),
+        baseConus ? ensureConus() : Promise.resolve(),
+    ]).then(function () {
         if (armed) { addHoverLayers(map); bindHandlers(map); }
-        applyMask(map);                                            // fill from the effective rings
+        applyMask(map);                                            // fill from the effective rings (null = remove)
         const feat = isolatedName ? findState(isolatedName) : null;
         renderOutline(map, feat ? feat.geometry : null);
     });
+}
+
+// Re-add after a basemap switch (setStyle drops our layers; the polygons stay in memory), and for a
+// newly-created pane. Nothing masked = nothing to add, so this can cheaply do nothing.
+export function reAdd(map) {
+    if (!armed && !isolatedName && !baseConus) return; // nothing to restore
+    syncTo(map);
 }

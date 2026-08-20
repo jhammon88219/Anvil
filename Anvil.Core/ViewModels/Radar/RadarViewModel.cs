@@ -295,17 +295,6 @@ namespace Anvil.ViewModels
 
 			Panes = panes;
 
-			// The watermark shows a pane's product only while a loop is actually displayed — the same gate
-			// the old single XAML watermark used. IsTransportEnabled is raised from three different places
-			// (here and in the loop engine), so watch our own notifications rather than chasing each one.
-			PropertyChanged += (_, e) =>
-			{
-				if (e.PropertyName == nameof(IsTransportEnabled))
-				{
-					RefreshWatermarks();
-				}
-			};
-
 			// Observable rows for the dock's "Radar Sites" list (site + offline state).
 			var rows = _radarSiteProvider.GetSites().Select(s => new RadarSiteRow(s)).ToList();
 			RadarSiteRows = rows;
@@ -342,8 +331,8 @@ namespace Anvil.ViewModels
 			}
 
 			// A switch just re-renders bytes already decoded (velocity is prefetched; Rule 3) — instant.
+			// (The pane's watermark follows on its own: it is a XAML overlay bound to pane.ShortLabel.)
 			_ = _mapService.SetRadarProductAsync(pane.Index, pane.ProductId);
-			_ = PushWatermarkAsync(pane);
 
 			// The loop's storm motion is computed ON DEMAND — gated out while nothing Doppler is in view
 			// (see IsDopplerProductActive) — so a pane switching INTO velocity/SRV must kick it if it has
@@ -352,26 +341,6 @@ namespace Anvil.ViewModels
 			if (pane.IsDoppler)
 			{
 				RequestAutoStormMotion();
-			}
-		}
-
-		/// <summary>Label a pane's watermark with its product — or blank it while no loop is displayed,
-		/// which is what the old single watermark's visibility binding did.</summary>
-		private Task PushWatermarkAsync(RadarPaneViewModel pane) =>
-			_mapService.SetPaneWatermarkAsync(
-				pane.Index, IsTransportEnabled && pane.IsVisible ? pane.ShortLabel : string.Empty);
-
-		/// <summary>Re-push every visible pane's watermark (the loop appeared or went away).</summary>
-		private void RefreshWatermarks()
-		{
-			if (!_isMapReady)
-			{
-				return;
-			}
-
-			foreach (var pane in Panes)
-			{
-				_ = PushWatermarkAsync(pane);
 			}
 		}
 
@@ -1047,13 +1016,12 @@ namespace Anvil.ViewModels
 				Panes[i].SetProductIndexSilently(IndexOfProduct(DefaultPaneProducts[i]));
 			}
 
-			// Push every visible pane's product + watermark. Done here rather than in the loop above so a
-			// pane that kept a remembered product is re-pushed too — the page defaults a new view to
-			// reflectivity, so it has to be told.
+			// Push every visible pane's product. Done here rather than in the loop above so a pane that kept
+			// a remembered product is re-pushed too — the page defaults a new view to reflectivity, so it
+			// has to be told. (Watermarks need no push; they are a XAML overlay bound to the panes.)
 			for (var i = 0; i < count; i++)
 			{
 				await _mapService.SetRadarProductAsync(i, Panes[i].ProductId);
-				await PushWatermarkAsync(Panes[i]);
 			}
 
 			RefreshSegmentReadiness(); // the visible product SET changed, so the frontier may have moved

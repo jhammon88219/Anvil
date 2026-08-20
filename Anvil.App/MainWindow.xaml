@@ -37,12 +37,58 @@
         <!-- Full-window map (bottom layer; the bar floats on top of it). -->
         <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="2"/>
 
-        <!-- The PANE WATERMARK is no longer here. It is drawn in the PAGE, one per pane, parented to
-             that pane's own div (map.js setPaneWatermark / map.html .pane-watermark). The page owns pane
-             geometry, so a watermark parented to its pane is in the right corner by construction for
-             every layout — whereas a XAML overlay would have to keep a second copy of the pane rects,
-             the gutter width included, and drift from them. RadarViewModel pushes each pane's short
-             product label, blanking it while no loop is displayed. -->
+        <!-- ===== PANE WATERMARKS =====
+             One per pane: the ONLY thing drawn inside a pane, since panes carry no chrome.
+
+             This is a 3x3 [*, gutter, *] grid laid over EXACTLY the WebView's rect (Row 0 + RowSpan 2,
+             matching the WebView above), so its cells coincide with the page's pane rects: the page
+             splits the same area the same way, both using PaneLayoutInfo.GutterPx. Each watermark is
+             placed by PaneLayoutInfo.CellOf via the x:Bind functions below, and self-aligns to its
+             cell's top-left.
+
+             ⚠️ The pane ARRANGEMENT (pane 0 = main = bottom-left) is expressed twice: here through
+             CellOf, and in map.js paneRects() which lays out the real maps. Same rule, opposite sides of
+             the WebView boundary — change both.
+
+             It lives in XAML rather than in the page so the whole visual is editable under XAML Hot
+             Reload while the app runs, and so it picks up the app's theme brushes. -->
+        <Grid Grid.Row="0" Grid.RowSpan="2" IsHitTestVisible="False">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="{x:Bind PaneGutter}"/> <!-- the groove -->
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="{x:Bind PaneGutter}"/>   <!-- the groove -->
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <ctl:PaneWatermark Text="{x:Bind ViewModel.Radar.Pane0.ShortLabel, Mode=OneWay}"
+                               Visibility="{x:Bind WatermarkVisibility(ViewModel.Radar.IsTransportEnabled, ViewModel.Radar.Pane0.IsVisible), Mode=OneWay}"
+                               Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
+                               Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
+                               Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
+                               Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"/>
+            <ctl:PaneWatermark Text="{x:Bind ViewModel.Radar.Pane1.ShortLabel, Mode=OneWay}"
+                               Visibility="{x:Bind WatermarkVisibility(ViewModel.Radar.IsTransportEnabled, ViewModel.Radar.Pane1.IsVisible), Mode=OneWay}"
+                               Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
+                               Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
+                               Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
+                               Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"/>
+            <ctl:PaneWatermark Text="{x:Bind ViewModel.Radar.Pane2.ShortLabel, Mode=OneWay}"
+                               Visibility="{x:Bind WatermarkVisibility(ViewModel.Radar.IsTransportEnabled, ViewModel.Radar.Pane2.IsVisible), Mode=OneWay}"
+                               Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
+                               Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
+                               Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
+                               Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"/>
+            <ctl:PaneWatermark Text="{x:Bind ViewModel.Radar.Pane3.ShortLabel, Mode=OneWay}"
+                               Visibility="{x:Bind WatermarkVisibility(ViewModel.Radar.IsTransportEnabled, ViewModel.Radar.Pane3.IsVisible), Mode=OneWay}"
+                               Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
+                               Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
+                               Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
+                               Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"/>
+        </Grid>
 
         <!-- ===== Row 1: the bottom bar. Left = the radar console; right = the global cluster (temporal
              modes over the window buttons). The empty space between them is bar, by design: the scrubber

@@ -31,9 +31,6 @@ namespace Anvil.Services
 		public Task SetPaneLayoutAsync(int columns, int rows, int gutterPx) =>
 			_mapView.RunScriptAsync(Call("setPaneLayout", columns, rows, gutterPx));
 
-		public Task SetPaneWatermarkAsync(int paneIndex, string text) =>
-			_mapView.RunScriptAsync(Call("setPaneWatermark", paneIndex, text));
-
 		// SPC outlooks load the GeoJSON from the product's local cache URL.
 		public Task ShowOutlookAsync(SpcOutlookProduct product) =>
 			_mapView.RunScriptAsync(Call("showOutlook", product.LocalUrl));
