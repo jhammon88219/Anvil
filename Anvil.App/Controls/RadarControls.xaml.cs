@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Anvil.Models;
 using Anvil.ViewModels;
+using Anvil.Layout;
 // ⚠️ Color is IMPORTED, never written inline as a Windows.UI.-qualified name: the sibling namespace
 // Anvil.Controls.Windows exists, so from inside Anvil.Controls.* a leading "Windows." binds to THAT
 // rather than to WinRT and fails to resolve. A using directive sits outside the namespace, where
@@ -134,9 +135,10 @@ namespace Anvil.Controls
 			if (idx != ViewModel.CurrentFrameIndex) ViewModel.CurrentFrameIndex = idx;
 		}
 
-		// Positions the playhead over the current segment's centre. Uses Segments.Count and the SAME
-		// per-cell rounding as UniformHorizontalPanel, so the playhead lands exactly on each cell's midpoint
-		// (no cumulative drift). Called when the frame index / count changes (VM) or the strip resizes.
+		// Positions the playhead over the current segment's centre. Counts from Segments.Count and asks
+		// EqualCellsPanel itself where that cell sits, so the playhead lands exactly on the midpoint the
+		// panel arranged (no cumulative drift, and no second copy of its rounding rule to drift from).
+		// Called when the frame index / count changes (VM) or the strip resizes.
 		private void UpdatePlayhead()
 		{
 			if (ViewModel is null || ScrubberHost is null || Playhead is null || PlayheadTransform is null) return;
@@ -149,9 +151,7 @@ namespace Anvil.Controls
 			}
 			Playhead.Visibility = Visibility.Visible;
 			var idx = Math.Clamp(ViewModel.CurrentFrameIndex, 0, count - 1);
-			var cell = width / count;
-			// Cell idx spans [round(idx*cell), round((idx+1)*cell)] in the panel — centre on that span.
-			var centre = (Math.Round(idx * cell) + Math.Round((idx + 1) * cell)) / 2;
+			var centre = EqualCellsPanel.CellCenter(width, count, idx);
 			PlayheadTransform.X = Math.Clamp(centre - Playhead.Width / 2, 0, width - Playhead.Width);
 		}
 

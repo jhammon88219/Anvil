@@ -4,6 +4,7 @@ using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
+using Anvil.Layout;
 
 namespace Anvil.Controls.Windows
 {
@@ -57,9 +58,10 @@ namespace Anvil.Controls.Windows
 
 		private void OnPlayheadLayerSizeChanged(object sender, SizeChangedEventArgs e) => UpdatePlayhead();
 
-		// Positions the shared playhead over the current frame's centre using the SAME per-cell rounding as
-		// UniformHorizontalPanel, so it lands on each cell's midpoint (no drift). Counts from the console's
-		// FrameCount (all rows share it) across the scrubber-column width (PlayheadLayer, inset 80px).
+		// Positions the shared playhead over the current frame's centre, asking EqualCellsPanel itself where
+		// that cell sits so it lands on the midpoint the panel arranged (no drift). ONE playhead spans every
+		// product row: each row has its own EqualCellsPanel strip, but all rows share the console's
+		// FrameCount across the same scrubber-column width (PlayheadLayer, inset 80px), so one x serves all.
 		private void UpdatePlayhead()
 		{
 			if (ViewModel is null || PlayheadLayer is null || Playhead is null || PlayheadTransform is null) return;
@@ -72,8 +74,7 @@ namespace Anvil.Controls.Windows
 			}
 			Playhead.Visibility = Visibility.Visible;
 			var idx = Math.Clamp(ViewModel.PipelineConsole.CurrentIndex, 0, count - 1);
-			var cell = width / count;
-			var centre = (Math.Round(idx * cell) + Math.Round((idx + 1) * cell)) / 2;
+			var centre = EqualCellsPanel.CellCenter(width, count, idx);
 			PlayheadTransform.X = Math.Clamp(centre - Playhead.Width / 2, 0, width - Playhead.Width);
 		}
 

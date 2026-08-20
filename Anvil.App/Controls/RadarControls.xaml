@@ -28,6 +28,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:controls="using:Anvil.Controls"
              xmlns:vm="using:Anvil.ViewModels"
+             xmlns:layout="using:Anvil.Layout"
              mc:Ignorable="d">
 
     <UserControl.Resources>
@@ -81,7 +82,7 @@
             <!-- Segmented scrubber: one cell per frame (ViewModel.Segments), each lighting up as its frame
                  decodes — the load indicator for the whole loop. The playhead is repositioned in
                  code-behind over the current segment; pointer press/drag seeks. It measures to zero width
-                 on its own (UniformHorizontalPanel returns 0 under infinite width), which is what lets the
+                 on its own (EqualCellsPanel returns 0 under infinite width), which is what lets the
                  control row below define the module width. -->
             <Grid x:Name="ScrubberHost"
                   Grid.Row="0"
@@ -107,7 +108,7 @@
                               Height="8">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <controls:UniformHorizontalPanel/>
+                            <layout:EqualCellsPanel/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
