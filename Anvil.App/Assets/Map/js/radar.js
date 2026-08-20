@@ -744,6 +744,57 @@
         return Object.assign({}, r2, { token: token, index: index, url: url });
     }
 
+    // Accumulate a decode's products onto whatever this frame already had (docs/radar-loop-flow.md
+    // Rule 6 for products). A decode only builds the products it was asked for (reflectivity + the
+    // buildProducts ids); every OTHER product comes back null/false. So on an additive upgrade —
+    // velocity prefetch, a product switch, the dual-pol second wave — we keep the previously-built
+    // geometry and overlay only what THIS decode actually built, so switching to a dual-pol product
+    // and back never drops the trio (the old REPLACE-not-MERGE gap #2).
+    //
+    // PURE: reads only its two arguments, mutates neither, returns a NEW result object. That is why it
+    // sits out here rather than inline in applyFrameResult, which is otherwise a fixed-order sequence of
+    // side effects — this is the one genuinely algorithmic step in that sequence, and keeping it
+    // separable is what makes Rule 6 checkable on its own. (The returned object SHARES the geometry /
+    // typed arrays of both inputs by reference; that is safe because decoded geometry is read-only.)
+    //
+    // The CALLER decides mergeability (same index AND same volume url) — a fresh frame never reaches
+    // here, because it has nothing to keep and the plain decode result already is the answer.
+    function mergeFrameResult(prev, res) {
+        var mo = res.moments || {};
+        var mMo = {}, mBuilt = {}, mGr = {}, mGridsExtra = Object.assign({}, prev.gridsExtra);
+        var rGr = res.grids || {}, pMo = prev.moments || {}, pBuilt = prev.built || {}, pGr = prev.grids || {};
+        // res.built carries EVERY product id (the decode loop sets true/false for all), so iterating it
+        // covers the whole registry. Authoritative = whatever this decode built; keep prev's otherwise.
+        var bkeys = Object.keys(res.built || {});
+        for (var bi = 0; bi < bkeys.length; bi++) {
+            var pid = bkeys[bi];
+            if (res.built[pid]) {                          // built now → take it (geometry may be null = no data)
+                mMo[pid] = mo[pid]; mBuilt[pid] = true;
+                if (res.gridsBuilt) { mGr[pid] = rGr[pid]; mGridsExtra[pid] = true; }
+                else if (pid in pGr) mGr[pid] = pGr[pid];  // this decode skipped grids → keep prior grid
+            } else if (pBuilt[pid]) {                      // skipped now, but we already had it → keep it
+                mMo[pid] = pMo[pid]; mBuilt[pid] = true;
+                if (pid in pGr) mGr[pid] = pGr[pid];
+            } else {                                       // never built → carry the null placeholder
+                mMo[pid] = (pid in mo) ? mo[pid] : (pid in pMo ? pMo[pid] : null); mBuilt[pid] = false;
+            }
+        }
+        // The MERGED view = this decode's fresh metadata + the accumulated geometry/grids, so both
+        // frames[] and the decoded-cache entry (cachePut) carry every product built so far.
+        return Object.assign({}, res, {
+            moments: mMo, built: mBuilt, grids: mGr,
+            gridsBuilt: !!prev.gridsBuilt || !!res.gridsBuilt, gridsExtra: mGridsExtra,
+        });
+    }
+
+    // One decoded frame has arrived (worker, main-thread fallback, or a synchronous cache hit).
+    // ORDER IS PART OF THE CONTRACT — the phases below run exactly as written:
+    //   guard → seed → MERGE → commit frames[] → cache + free upgrade slot → re-queue → notify host
+    //   → reconcile what's on screen → fire downstream triggers.
+    // The couplings that are easy to break by reordering: res.empty must be computed from the MERGED
+    // moments (cachePut must not cache a no-geometry frame); upgradeDone must precede queueUpgrade
+    // (it frees the slot the pump then takes); setRangeRing must follow the layer (re)add, or the ring
+    // draws under the fill. Each is restated at its line — keep it that way.
     function applyFrameResult(res) {
         if (!res || res.token !== loopToken) return; // stale (loop changed)
         if (res.error) {
@@ -760,42 +811,17 @@
             _seedProfileIdx = res.index;
         }
         var mo = res.moments || {};
-        // MERGE, not replace (docs/radar-loop-flow.md Rule 6 for products). A decode only builds the products
-        // it was asked for (reflectivity + the buildProducts ids); every OTHER product comes back null/false.
-        // If a frame for THIS volume already exists — an additive upgrade (velocity prefetch, a product
-        // switch, the dual-pol second wave) — keep its previously-built geometry and overlay only what this
-        // decode actually built, so switching to a dual-pol product and back never drops the trio (the old
-        // REPLACE-not-MERGE gap #2). A fresh frame (initial load, or a NEW volume at this index after a
-        // remap/live append — url differs) has nothing to keep, so this reduces to the old replace.
+        // MERGE, not replace (docs/radar-loop-flow.md Rule 6 for products) — see mergeFrameResult above.
+        // Mergeable = the SAME volume already sits at this index (url match), i.e. this decode is an
+        // additive upgrade. A fresh frame (initial load, or a NEW volume here after a remap/live append)
+        // has nothing to keep, so it reduces to the plain decode result. NB prev/mergeable/prevVelNyq are
+        // read again further down (the frames[] commit), so they stay in this scope.
         var prev = frames[res.index];
         var mergeable = prev && prev.url && res.url && prev.url === res.url;
         var prevVelNyq = mergeable ? (prev.velNyq || 0) : 0;
         if (mergeable) {
-            var mMo = {}, mBuilt = {}, mGr = {}, mGridsExtra = Object.assign({}, prev.gridsExtra);
-            var rGr = res.grids || {}, pMo = prev.moments || {}, pBuilt = prev.built || {}, pGr = prev.grids || {};
-            // res.built carries EVERY product id (the decode loop sets true/false for all), so iterating it
-            // covers the whole registry. Authoritative = whatever this decode built; keep prev's otherwise.
-            var bkeys = Object.keys(res.built || {});
-            for (var bi = 0; bi < bkeys.length; bi++) {
-                var pid = bkeys[bi];
-                if (res.built[pid]) {                          // built now → take it (geometry may be null = no data)
-                    mMo[pid] = mo[pid]; mBuilt[pid] = true;
-                    if (res.gridsBuilt) { mGr[pid] = rGr[pid]; mGridsExtra[pid] = true; }
-                    else if (pid in pGr) mGr[pid] = pGr[pid];  // this decode skipped grids → keep prior grid
-                } else if (pBuilt[pid]) {                      // skipped now, but we already had it → keep it
-                    mMo[pid] = pMo[pid]; mBuilt[pid] = true;
-                    if (pid in pGr) mGr[pid] = pGr[pid];
-                } else {                                       // never built → carry the null placeholder
-                    mMo[pid] = (pid in mo) ? mo[pid] : (pid in pMo ? pMo[pid] : null); mBuilt[pid] = false;
-                }
-            }
-            // Rebuild res as the MERGED view (this decode's fresh metadata + the accumulated geometry/grids)
-            // so both frames[] and the decoded-cache entry (cachePut below) carry every product built so far.
-            res = Object.assign({}, res, {
-                moments: mMo, built: mBuilt, grids: mGr,
-                gridsBuilt: !!prev.gridsBuilt || !!res.gridsBuilt, gridsExtra: mGridsExtra,
-            });
-            mo = mMo;
+            res = mergeFrameResult(prev, res);
+            mo = res.moments;
         }
         // Compute empty authoritatively from the (merged) moments map, so cachePut below skips caching a
         // no-geometry frame regardless of which path decoded it.
@@ -1904,106 +1930,19 @@
     };
 
     // ---- Dev-only velocity-dealias validation (fixed-corpus regression scorer) ----
-    // Replays each committed corpus .V06 through the REAL decode/dealias path (decodeAndBuild ->
-    // dealiasSweep) and records its over-unfold ratio (hi/total = |v|>55 m/s gates, the same field
-    // the diagnostics call "dealias hi"), so a dealias change can be regressed offline against a
-    // fixed baseline — same bytes in, same ratio out (dealiasSweepCore is deterministic). Fully
-    // ISOLATED from the live loop: it touches no frames[]/layer/token state, so a run is safe over a
-    // live map and can't perturb what's on screen. The host starts it, then polls
-    // window.__anvilValidation until `finished` (the async decode's Promise can't be awaited through
-    // ExecuteScriptAsync). entries = [{ id, url, lat, lon }]. See RadarValidationViewModel /
-    // docs/radar-validation.md.
+    // The scorer itself lives in radar-validate.js: it shares NO loop state (only the two values
+    // passed in below), so it stays out of this file and off the startup path — the module is
+    // fetched the first time the host actually starts a run, which in a Release build is never.
+    // Excise the feature by deleting this block + that file. See docs/radar-validation.md.
     window.radarValidate = function (entriesJson) {
-        var entries;
-        try { entries = JSON.parse(entriesJson); } catch (e) { entries = []; }
-        if (!Array.isArray(entries)) entries = [];
-        // Progress global the host polls; reset on every run.
-        var state = { total: entries.length, done: 0, finished: false, cancel: false, results: [] };
+        // Publish the progress global SYNCHRONOUSLY, before the dynamic import: the host starts a run
+        // and immediately begins polling, so it must never observe the PREVIOUS run's finished state
+        // in the window before the module lands. The scorer MUTATES this object rather than replacing
+        // it, so a cancel arriving mid-import (the host sets .cancel here) still takes effect.
+        var state = { total: 0, done: 0, finished: false, cancel: false, results: [] };
         window.__anvilValidation = state;
-        hostLog('validate start n=' + entries.length);
-
-        import('./radar-decode.js').then(function (m) {
-            // Decoded value range of one product's inspector grid: dequantize the Int16 values (÷scale),
-            // skip GRID_NODATA (-32768), return {n,min,max,mean}. null if the product wasn't built/decoded.
-            function gridStats(gr) {
-                if (!gr || !gr.values) return null;
-                var v = gr.values, sc = gr.scale || 1, n = 0, mn = Infinity, mx = -Infinity, sum = 0;
-                for (var k = 0; k < v.length; k++) {
-                    if (v[k] === -32768) continue;
-                    var x = v[k] / sc;
-                    n++; sum += x; if (x < mn) mn = x; if (x > mx) mx = x;
-                }
-                return n ? { n: n, min: mn, max: mx, mean: sum / n } : null;
-            }
-            // Volumes are scored one at a time: _dealiasInfo (the source of hi/total) is a decoder
-            // global set during each build, so decodes must NOT overlap. Yielding between volumes lets
-            // the host poll see progress and keeps the UI from wedging through the whole corpus.
-            function step(i) {
-                if (i >= entries.length || state.cancel) {
-                    state.finished = true;
-                    hostLog('validate done ' + state.done + '/' + state.total + (state.cancel ? ' (cancelled)' : ''));
-                    return;
-                }
-                var e = entries[i] || {};
-                fetch(e.url, { cache: 'no-store' }).then(function (r) {
-                    if (!r.ok) throw new Error('HTTP ' + r.status);
-                    return r.arrayBuffer();
-                }).then(function (ab) {
-                    // TWO decodes of the same bytes, SEQUENTIAL (never overlapping — _dealiasInfo is a decoder
-                    // global): (1) UNSEEDED — the baseline-scored over-unfold ratio + the per-product grids
-                    // for the dual-pol decoder check; (2) SELF-SEEDED — re-decode using this volume's OWN VAD
-                    // profile (res1.seedProfile, returned by the first decode) as the temporal first guess,
-                    // proving the seed fixes the over-unfold WITHOUT needing a live loop. The unseeded run
-                    // stays the regression guard; the seeded run is the new "did the fix work?" metric.
-                    return m.decodeAndBuild(ab, e.lat || 0, e.lon || 0, MIN_DBZ, true, true).then(function (res1) {
-                        return m.decodeAndBuild(ab, e.lat || 0, e.lon || 0, MIN_DBZ, true, true, undefined, res1.seedProfile)
-                            .then(function (res2) { return { res1: res1, res2: res2 }; });
-                    });
-                }).then(function (pair) {
-                    var res = pair.res1, res2 = pair.res2;
-                    var hi = 0, tot = 0;
-                    var mm = /hi=(\d+)\/(\d+)/.exec((res && res.dealias) || '');
-                    if (mm) { hi = +mm[1]; tot = +mm[2]; }
-                    var ratio = tot > 0 ? hi / tot : 0;
-                    // Seeded pass: over-unfold ratio + the global fold shift the seed chose (seed=N marker).
-                    var hi2 = 0, tot2 = 0, seedShift = null;
-                    var m2 = /hi=(\d+)\/(\d+)/.exec((res2 && res2.dealias) || '');
-                    if (m2) { hi2 = +m2[1]; tot2 = +m2[2]; }
-                    var sm = /seed=(-?\d+)/.exec((res2 && res2.dealias) || '');
-                    if (sm) seedShift = +sm[1];
-                    var seededRatio = tot2 > 0 ? hi2 / tot2 : 0;
-                    // Per-product decoded stats (dequantized grid: n / min..max / mean, GRID_NODATA skipped):
-                    // the human log line AND the machine `dp` means the dual-pol regression guard scores. The
-                    // guard (C# RadarValidationReport.DualPolDrift) checks cc/zdr/sw MEAN vs the manifest
-                    // baseline — a decoder scale/offset regression shifts the mean (docs/radar-validation.md).
-                    var order = ['reflectivity', 'velocity', 'srv', 'cc', 'zdr', 'kdp', 'sw'];
-                    var parts = [], dp = {};
-                    for (var pi = 0; pi < order.length; pi++) {
-                        var id = order[pi];
-                        var st = gridStats(res && res.grids && res.grids[id]);
-                        if (!st) continue;
-                        parts.push(id + '[n=' + st.n + ' ' + st.min.toFixed(2) + '..' + st.max.toFixed(2) + ' m=' + st.mean.toFixed(2) + ']');
-                        if (id === 'cc' || id === 'zdr' || id === 'sw') dp[id] = st.mean;
-                    }
-                    state.results.push({
-                        id: e.id, gatesOver: hi, gatesTotal: tot, ratio: ratio,
-                        seededGatesOver: hi2, seededGatesTotal: tot2, seededRatio: seededRatio, seedShift: seedShift,
-                        error: (res && res.dealias) ? null : 'no velocity', dp: dp,
-                    });
-                    // Dealias detail (numReg + v-range) — see the KBUF chase (docs/radar-validation.md).
-                    hostLog('validate ' + e.id + ' (' + (ratio * 100).toFixed(1) + '% → seed ' +
-                        (seededRatio * 100).toFixed(1) + '% shift=' + seedShift + ') ' + ((res && res.dealias) || ''));
-                    if (parts.length) hostLog('validate ' + e.id + ' dp ' + parts.join(' '));
-                }).catch(function (err) {
-                    var msg = String((err && err.message) ? err.message : err);
-                    state.results.push({ id: e.id, gatesOver: 0, gatesTotal: 0, ratio: 0, error: msg });
-                    hostLog('validate ' + e.id + ' error: ' + msg);
-                }).then(function () {
-                    state.done++;
-                    setTimeout(function () { step(i + 1); }, 0);
-                });
-            }
-            step(0);
+        import('./radar-validate.js').then(function (m) {
+            m.runValidation(entriesJson, state, { hostLog: hostLog, minDbz: MIN_DBZ });
         }).catch(function (err) {
             state.finished = true;
             hostLog('validate load failed: ' + ((err && err.message) ? err.message : err));
