@@ -2,6 +2,13 @@
 <!-- TiltComboBox — the radar Tilt (elevation) selector: a minimal, background-LESS dropdown that blends into
      whatever surface hosts it.
 
+       CLOSED     0.5°                    ˅      no box, no fill, no border — just label + chevron
+                  ┌───────────────────────┐
+       OPEN       │ Base (0.5°)           │      an OPAQUE flyout + ListView (the default acrylic
+                  │ 0.9°                  │      washes out over the map)
+                  │ 1.3°                  │
+                  └───────────────────────┘
+
      Transparent in EVERY state (rest / hover / pressed / focused / open), no border, no highlight — the only
      state that changes anything is Disabled, which mutes the label + chevron so a disabled combo reads as
      disabled without gaining a background. The dropdown is given an explicit fully-OPAQUE theme-aware

@@ -1,6 +1,21 @@
 // The radar SCOPE furniture: the range ring at the data's true outer extent, and the one-shot sweep
 // pulse that rotates out to that same edge.
 //
+//                  ╱▔▔▔▔▔▔▔╲              level2-range      the ring, a 128-pt circle at the data's
+//                ╱     ▁▁▁    ╲                              TRUE outer extent (rangeMeters), so it
+//               │    ╱█████▏   │                             traces exactly where the returns stop
+//               │   ╱███████▏  │           level2-sweep-arm  the crisp leading arm
+//               │  ╳────────▶  │           level2-sweep-fill SWEEP_TRAIL_N abutting triangles behind
+//               │   ╲▒▒▒▒▒▒▒   │                             it, opacity falling off by SWEEP_GAMMA
+//                ╲    ░░░░    ╱                              — a comet tail, not a hard wedge
+//                  ╲▁▁▁▁▁▁▁╱
+//                                          One revolution (SWEEP_MS) then a fade (SWEEP_FADE_MS),
+//                                          fired only on a genuinely NEW frame. No sweep in replay.
+//
+//   ⚠️ fill-antialias MUST stay off — it outlines every triangle and the tail becomes a fan of spokes.
+//   Faint seams between triangles can still show; that is known and cosmetic (a canvas conic-gradient
+//   texture is the real fix, if it ever matters enough).
+//
 // ONE module because they are one thing. The sweep's wedge is defined BY the ring's radius, both are
 // geographic MapLibre GeoJSON layers (unlike the WebGL fill in radar.js, or the DOM site markers in
 // radar-sites.js), and both are anchored to the same site. Splitting them would mean handing the

@@ -3,7 +3,36 @@
      the mile grid, and the Inspect cursor tool). Hosted in its
      OWN OS window by WindowManager (native title bar is the only chrome), so there is no panel frame: the
      root is the dark surface, stretched to fill the window, content laid out top-left. Bound to the
-     coordinator MapViewModel (basemap + FitToViewAsync on it, isolation on its StateIso). -->
+     coordinator MapViewModel (basemap + FitToViewAsync on it, isolation on its StateIso).
+
+       ┌─ Map controls ─────────────────────────────────[pin]─┐
+       │  BASEMAP                                             │
+       │    [Data Viz Black          ]                        │
+       │  VIEW                                                │
+       │    [x] CONUS only (mask outside the lower 48)        │
+       │    ( Fit to view )   ( Reset north )                 │
+       │  STATE ISOLATION                                     │
+       │    [ ] Isolate a state (hover & click the map)       │
+       │    State [Oklahoma        ]   ← also the ONLY way to │
+       │                                 SWITCH states once  │
+       │                                 the mask blocks the │
+       │                                 map clicks          │
+       │  RADAR SITES                                         │
+       │    [x] Show site markers                             │
+       │    [ ] Show TDWRs     [ ] Show research radars       │
+       │  MILE GRID                                           │
+       │    [ ] Show mile grid (centered on the radar)        │
+       │    Spacing (mi) [10 ]   Opacity ─────●──────         │
+       │  TOOLS                                               │
+       │    [ ] Inspect values under the cursor               │
+       └──────────────────────────────────────────────────────┘
+
+     THE ORGANIZING RULE: this window is the home for every GLOBAL map control — anything that acts on
+     the whole map and therefore does NOT repeat per pane. That is why site-marker visibility and
+     Inspect live here rather than on the radar console: Inspect is one armed cursor mode over a shared
+     camera, reading every pane at one point, and only its VALUE readout is per-pane (the product ramp
+     in each chip). A control that would need a copy per pane belongs in RadarControls instead. -->
+
 <UserControl x:Class="Anvil.Controls.Windows.MapControlsWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

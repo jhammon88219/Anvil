@@ -4,6 +4,16 @@
      no panel frame: the root is the dark surface stretched to fill the window. Content extends into the
      title bar, so the panel carries its own title. Bound to the coordinator MapViewModel.
 
+       ┌─ Live Radar ───────────────────────────────────[pin]─┐
+       │  Watches   [x] Tornado / Severe Thunderstorm         │
+       │  Opacity   ──────●───────────                        │
+       │  Warnings  [x] Tornado / Severe Thunderstorm         │
+       │  Active     ■ Tornado 3      ■ Severe 24             │  ← live counts, even when hidden
+       │  Opacity   ──────●───────────                        │
+       │  ────────────────────────────────────────────────    │
+       │  StormReportsInput  (today's reports)                │
+       └──────────────────────────────────────────────────────┘
+
      The body holds the "now"-oriented live-conditions options: the SPC Watch boxes and the storm-based
      Warning polygons (Tornado / Severe Thunderstorm). Both are active, event-driven current-conditions
      alerts, so they live under NowCast rather than ForeCast, in the UI and in the VM layer alike (their own

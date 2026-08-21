@@ -5,6 +5,19 @@
 // it's what every overlay MUST agree with — the range ring, the sweep arm, and the inspector all
 // project through here so they line up with the gates. Pure + stateless; callers pass the site position.
 //
+// THE FRAME EVERY RADAR OVERLAY SHARES:
+//
+//              N (az 0°)                 siteToLngLat(range, az)  → where a gate is drawn
+//                 │  ╱ az                lngLatToPolar(lng, lat)  → which gate the cursor is over
+//                 │ ╱                    (exact inverses, which is why the Inspector names the gate
+//        W ───────╳───────► E (az 90°)    that is actually painted under the pointer)
+//         (az270) │╲ range
+//                 │ ╲___ a gate at (range m, az°)
+//                 S
+//
+//   Azimuth is degrees CLOCKWISE FROM NORTH (radar convention), not the math convention — mixing the
+//   two is the classic way to get an overlay mirrored about the diagonal.
+//
 // PERF NOTE: buildGates (radar-decode) projects MILLIONS of gates per sweep in a hot loop, so it only
 // borrows metersPerDeg() (computed once per sweep) and keeps its per-gate formula inline. The non-hot
 // callers (ring = 128 pts, sweep = 1 line/frame, inspector = 1/mousemove) use the helpers below.

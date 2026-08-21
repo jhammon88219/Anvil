@@ -2,6 +2,15 @@
 <!-- ProductColorRampComboBox — the radar Product selector, with each product's COLOR RAMP drawn next to its
      name, so the selector doubles as the legend and the separate Color Scale section goes away.
 
+       CLOSED     Ref  ▓▓▒▒░░░│░░▒▒▓▓  ˅     the selected product: short name + its ramp,
+                            -30    +75       carrying the min/max scale and the Inspect tick
+                  ┌────────────────────────┐
+       OPEN       │ Ref  ▓▓▒▒░░░░▒▒▓▓      │  one row per product: short name + ramp only;
+                  │ Vel  ▓▓▒▒░░░░▒▒▓▓      │  the full name ("Reflectivity") is the row tooltip
+                  │ SRV  ▓▓▒▒░░░░▒▒▓▓      │
+                  │ CC   ░░▒▒▒▓▓▓▓▓▓▓      │
+                  └────────────────────────┘
+
      Two different presentations, which is why the two areas are authored separately:
        • CLOSED — short name ("Ref") + a ProductColorRamp for the SELECTED product WITH its min/max values
          and the live Inspect tick.

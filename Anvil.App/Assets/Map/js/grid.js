@@ -2,6 +2,16 @@
 // hide/show reference the user can eyeball distances against (how far a storm is from the radar, how
 // wide a feature is) — a persistent alternative to a point-to-point measure tool.
 //
+//        │    │    │    │    │       Lines are meridians + parallels through the SITE, spaced one
+//      ──┼────┼────┼────┼────┼──     `spacing` of miles apart on the ground and running out to
+//        │    │    │    │    │       RADIUS_MILES (250 — WSR-88D range + margin).
+//      ──┼────┼────╳────┼────┼──     ╳ = the selected radar: the grid is ANCHORED to it, so the
+//        │    │    │    │    │           cells re-center on every site change, and there is no grid
+//      ──┼────┼────┼────┼────┼──         at all until a site is picked.
+//        │    │    │    │    │
+//                                    Cells are true ground squares; Mercator stretches them
+//                                    vertically far from the site — fine for a distance reference.
+//
 // Geometry: the grid is built in the radar's own local equirectangular plane (geo.js — the SAME
 // projection the gates/range-ring use), so a cell is a true `spacing`-mile SQUARE on the ground,
 // centered on the site. Because that projection is linear, every grid line is a meridian or parallel

@@ -2,7 +2,20 @@
 <!-- AppSettingsWindow — the app-wide settings content. Hosted in its OWN OS window by WindowManager (the
      native window title bar is the only chrome), so there is no panel frame: the root is the dark surface,
      stretched to fill the window, with the settings sections laid out top-left. Bound to the coordinator
-     MapViewModel. -->
+     MapViewModel.
+
+       ┌─ App settings ─────────────────────────────────[pin]─┐
+       │  STORAGE                                             │
+       │    Radar cache          4.2 GB      ( Clear now )    │  ← live size, re-read on each open
+       │    Cache limit             [5 ▾] GB                  │  ← PERSISTED; the startup sweep's cap
+       │  ADVANCED                                            │
+       │    Pipeline Console   [ Hidden ●───]                 │  ← dev/diagnostic window
+       └──────────────────────────────────────────────────────┘
+
+     App BEHAVIOR only. Map CONTENT (the radar-site marker toggles) moved to the Map Controls window;
+     a setting that changes what the map draws does not belong here. Add a section = a row in the body;
+     make it persist = one property on AppSettings. -->
+
 <UserControl x:Class="Anvil.Controls.Windows.AppSettingsWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

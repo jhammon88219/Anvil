@@ -4,6 +4,18 @@
 // everything (no beforeId) so the dots read against the outlook fill + radar beneath them. Loaded LAZILY —
 // only fetched when a type is first shown. map.js's window.setStormReports* shims delegate here; applyStyle
 // calls reAdd(map) after a basemap switch (setStyle drops the layers; the fetched data stays in memory).
+//
+//        ●  ● ●        ● = one report, one circle layer per type so each toggles alone:
+//      ●  ●    ●            red ● tornado   ·   blue ● wind   ·   green ● hail
+//        ●  ●         ┌──────────────────────────┐
+//          ●  ●───────│ Hail · 2.00"             │  ← click a dot: a pure-MapLibre popup, no host
+//       ●     ●       │ 3 NE Norman, OK          │    round-trip. Everything in it comes from the
+//                     │ 2013-05-20 20:14 UTC     │    feature's own props (time/mag/loc/county/st/com)
+//                     │ REPORTED BY TRAINED …    │
+//                     └──────────────────────────┘
+//
+// Drawn ON TOP of everything on purpose: these are the verification dots you read AGAINST the outlook
+// fill and the radar beneath them, so they must never be tinted by either.
 
 let reportsUrl = null;
 let reportsData = null;

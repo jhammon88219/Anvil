@@ -3,6 +3,19 @@
 //
 // MapLibre's addLayer(spec, beforeId) inserts the layer immediately BENEATH `beforeId`, so a beforeId
 // is really "the first basemap thing that must stay on top of me".
+//
+//   ── top ──   ░░░ place labels ░░░         ← firstSymbolLayerId() returns THIS
+//                ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁              an overlay passed it draws just below: under names,
+//               ─── state / country lines ─  ← firstBoundaryLayerId() returns THIS
+//                ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁              an overlay passed it draws below the borders too,
+//                                               so they stay legible through the fill
+//   ── base ──  basemap fills
+//
+// So: pass firstSymbolLayerId to sit UNDER labels but OVER the borders (the outlook does this — its
+// fills are faint and the borders would be lost beneath them anyway). Pass firstBoundaryLayerId to sit
+// under the borders as well (watches, warnings, the mile grid). Pass nothing to sit on top of
+// everything (storm-report dots). Two overlays sharing one beforeId are ordered by ADD order — which
+// is why reAddAll() in map.js is an explicit ordered list, not a loop over whatever is loaded.
 
 // First symbol (label) layer — an overlay passed this draws under place names but OVER the boundary
 // lines, since those are `line` layers sitting below the labels.

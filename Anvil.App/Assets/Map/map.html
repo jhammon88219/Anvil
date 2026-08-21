@@ -1,4 +1,27 @@
 <!DOCTYPE html>
+<!-- map.html — the page shell the WebView loads: the pane DIVs, the groove between them, the launch
+     cover, and the script tags. All behavior is in js/map.js; this file is the DOM + the CSS.
+
+       #panes  (position:absolute, inset:0)
+       ┌───────────────┬─┬───────────────┐
+       │   #pane2      │ │   #pane3      │   .pane divs are STATIC — all four always exist, so a map's
+       │               │ │               │   container is there before map.js constructs the map. The
+       ├───────────────┤ ├───────────────┤   layout only shows/hides and positions them.
+       │   #pane0      │ │   #pane1      │
+       │  (visible at  │ │               │   #gutterV / #gutterH: ONE vertical + ONE horizontal groove
+       │   launch,     │ │               │   covers every layout (1x1, 2x1, 2x2). Panes are positioned
+       │   full-bleed) │ │               │   with the gap already subtracted, so a groove is pure
+       └───────────────┴─┴───────────────┘   decoration over ground no map occupies.
+                        ▲
+                    the groove: a dark channel with a hairline on EACH side, not one drawn line —
+                    a lone hairline is lost over bright returns, a lone dark gap disappears between
+                    two dark panes; the pair reads over both
+
+       #mapcover — an opaque dark lid (z-index 5) over everything until the launch CONUS mask lands,
+                   then faded out. Without it the world basemap paints for ~½s first: the flash.
+
+     ⚠️ The pane product WATERMARK is NOT here — it is a XAML control overlaid on the WebView
+     (Controls/Primitives/PaneWatermark) so it stays editable under Hot Reload. -->
 <html lang="en">
 <head>
     <meta charset="utf-8" />

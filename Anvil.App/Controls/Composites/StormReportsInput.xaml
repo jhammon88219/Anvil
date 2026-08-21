@@ -2,7 +2,14 @@
 <!-- StormReportsInput — the SPC storm-reports verification controls (per-type Tornado / Wind / Hail
      toggles + a count readout + fill opacity + status). Reused in BOTH temporal windows: in the Past window it
      shows the replay day's reports, in the Now window today's — the VM keys the overlay to the active
-     convective day, so the same controls serve both. Bound to StormReportsViewModel. -->
+     convective day, so the same controls serve both.
+
+       Reports   [x] ● Tornado    [x] ● Wind    [x] ● Hail    ← per-type visibility; the swatch
+       Count         ● 42             ● 310         ● 96        is the SPC dot color on the map
+       Opacity   ──────●──────────────                          (fill + stroke together)
+       loaded 448 reports for 2013-05-20                      ← status line
+
+     A [label | controls] grid, one row per field. Bound to StormReportsViewModel. -->
 <UserControl x:Class="Anvil.Controls.Composites.StormReportsInput"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

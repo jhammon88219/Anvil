@@ -1,4 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- SettingsDialog — picks the folder holding the offline basemap (usa_full.pmtiles), which the mapdata
+     virtual host is mapped to at startup. A modal ContentDialog, not a window: it is a one-field
+     question with a Save/Cancel answer, and saving needs a restart anyway.
+
+       ┌─ Settings ───────────────────────────────────────────┐
+       │  Offline map data                                    │
+       │  The basemap loads from a local PMTiles file. Pick…   │
+       │  [ C:\Users\…\Desktop            ] ( Browse… )        │  ← read-only; FolderPicker fills it
+       │  ⚠ usa_full.pmtiles not found in this folder         │  ← icon + status, live
+       │                              ( Save )  ( Cancel )    │
+       └──────────────────────────────────────────────────────┘
+
+     ⚠️ NOTHING OPENS THIS TODAY (zero callers) — so the basemap is found only by
+     SettingsService.ResolveDefaultFolder, meaning the file must be named usa_full.pmtiles and sit on a
+     Desktop path. Re-adding a trigger is the highest-impact item in docs/ui-pending-re-add.md. -->
 <ContentDialog
     x:Class="Anvil.Dialogs.SettingsDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

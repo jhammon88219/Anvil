@@ -4,6 +4,13 @@
      values under it, and the live Inspect tick. Hovering the bar reads the value at that point (a tooltip),
      which is why this is a CONTROL and not just a Style — a Style can't carry pointer logic.
 
+       ┌──────────────────────────────┐
+       │▓▓▓▒▒▒░░░░░░│░░░▒▒▒▓▓▓▓▓▓▓▓▓▓│   row 0 — the ramp, with the live Inspect tick (│)
+       └──────────────────────────────┘           placed by proportional star columns
+        -30                     +75 dBZ   row 1 — min / max, unit on the max end (ShowScale only)
+
+     With no ramp yet, a muted ghost bar holds the footprint so nothing jumps when one arrives.
+
      It's the legend, parted out so it can be reused: ProductColorRampComboBox renders one in its CLOSED area
      for the selected product (ShowScale on — the selector IS the scale, so the separate Color Scale section
      goes away) and one per DROPDOWN ROW (ShowScale off — just the ramp). -->

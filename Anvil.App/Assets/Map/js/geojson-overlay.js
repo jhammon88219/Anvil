@@ -4,6 +4,19 @@
 // lazy fetch-on-first-show, keep-last-known-good on a failed fetch, in-place setData on refresh, and
 // re-add ONLY when the layers are actually missing (so the periodic refresh doesn't flicker).
 //
+// THE SHAPE IT DRAWS — two layers per overlay, one polygon set, one color expression:
+//
+//        ╔═══════════════════════╗   ← lineLayerId: bold outline, lineBase opacity (0.9–1.0),
+//        ║░░░░░░░░░░░░░░░░░░░░░░░║     lineWidth px — this is what you actually read
+//        ║░░░ fillLayerId ░░░░░░░║   ← fill, fillBase opacity (0.05–0.08) — just enough to
+//        ║░░░ very faint ░░░░░░░░║     tint the area without hiding the radar under it
+//        ╚═══════════════════════╝
+//         both colored by colors[feature[colorProp]]
+//
+// The opacity the user drags is a MULTIPLIER over both bases, so the slider fades outline and fill
+// together and 1.0 is the designed look. Tune the LOOK by changing fillBase/lineBase/lineWidth in the
+// caller's config (watches.js / warnings.js) — never by changing the multiplier's range.
+//
 // createGeojsonOverlay(config) returns { setSource, setVisible, setOpacity, reAdd } bound to the config's
 // source/layer ids, color, and base opacities. Each caller (watches.js/warnings.js) is then just that
 // config plus re-exports. Overlays that don't fit this fill+line shape stay hand-written: storm-reports.js

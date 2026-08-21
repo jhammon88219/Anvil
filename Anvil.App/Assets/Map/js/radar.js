@@ -1,4 +1,4 @@
-// NEXRAD Level II radar rendering for the single MapLibre map.
+// NEXRAD Level II radar rendering — ONE loop, N pane views.
 //
 // Holds a loop of decoded frames (one per volume) and renders the current frame via a
 // MapLibre WebGL custom layer beneath the boundary lines / outlook / labels. Heavy work
@@ -7,6 +7,31 @@
 // fetches each volume to the "radarlevel2" virtual host and drives the loop:
 //   radarBeginLoop(lat,lon) -> radarAddFrame(url,index) xN -> radarShowFrame(index)
 // Each built frame posts {type:'radarFrameReady', index, hasData} back to the host.
+//
+// THE SHAPE OF THE STATE — one store, one clock, N views:
+//
+//   frames[]   ▣ ▣ ▣ ▣ ▣ ▣ ▣ ▣ ▣ ▣ ▣ ▣        module-level and SINGULAR: the decoded frames, the
+//              0 1 2 3 4 ▲ 6 7 8 9 …          decode cache, the worker pool, the upgrade queue,
+//                        │                    the storm motion, the dealias seed
+//              currentFrame — ONE time cursor for every pane
+//                        │
+//        ┌───────────────┼───────────────┐
+//        ▼               ▼               ▼
+//   views[0] Ref    views[1] Vel    views[2] CC   … a view owns ONLY what cannot be shared:
+//    (PRIMARY)                                      its map, its product, and its GL objects
+//                                                   (buffers belong to one canvas's context)
+//
+//   A frame holds every product it has been asked to build so far — decodes MERGE into it rather than
+//   replacing it, so each product is built at most once per frame and vel→cc→vel is free. Adding a
+//   pane therefore costs a GL upload of geometry already decoded, NOT a decode; what a pane DOES cost
+//   is widening wantedProducts() (the union over visible panes), so a quad builds 4 products a frame.
+//
+//   Commands are loop-wide and take no map — setProduct(paneIndex, id) is the only pane-addressed one.
+//   Lifecycle is setViews(maps) / detachView(map), the latter called BEFORE map.remove() so onRemove
+//   frees buffers on a context that is still alive.
+//
+// ⚠️ THE LOAD/DISPLAY STAGING IS GOVERNED BY docs/radar-loop-flow.md — "Duo fills, Trio completes".
+// Read it before changing staging order or the scrubber-fill gate; the comments below cite its rules.
 (function () {
     'use strict';
 

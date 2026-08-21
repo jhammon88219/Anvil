@@ -5,6 +5,12 @@
 // / setWatchesVisible shims delegate here; applyStyle calls reAdd(map) after a basemap switch (setStyle
 // drops the layers, but the fetched data is still in memory).
 //
+//        ┌──┐ ┌───────┐            a watch area follows COUNTY LINES (the official aggregation),
+//        │  └─┘       └──┐          so its edge is stepped, not the SPC parallelogram — this is
+//        │  ░░░░░░░░░░░  │          what RadarScope shows and what people compare against
+//        └──┐ ░░░░░░░ ┌──┘
+//           └─────────┘             red = TO (tornado watch) · yellow = SV (severe t-storm watch)
+//
 // The whole lazy-load / refresh / opacity / re-add lifecycle is the shared fill+line overlay in
 // geojson-overlay.js — this module is just its watch-box configuration. Sits BENEATH the state/country
 // lines (firstBoundaryLayerId) so borders read through the fill; radar targets the fill layer in its own

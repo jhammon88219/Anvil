@@ -4,6 +4,15 @@
      is the dark surface stretched to fill the window. Content extends into the title bar, so the panel
      carries its own title. Bound to the coordinator MapViewModel; the selectors drive ViewModel.Outlook.
 
+       ┌─ SPC Outlooks ─────────────────────────────────[pin]─┐
+       │  Day      [Day 1 · Sat Jun 14 ]                      │  ← self-labeling; cascades Product
+       │  Product  [Categorical        ]                      │
+       │  Opacity  ──────●───────────                         │
+       │  LEGEND                                              │
+       │   ■ High     ■ Moderate    ▨ Enhanced (hatched =     │  ← colors read from the SAME SPC
+       │   ■ Slight   ■ Marginal      significant)            │     GeoJSON the map draws
+       └──────────────────────────────────────────────────────┘
+
      The body is laid out entirely with grids ([label | control] rows, no StackPanels) so it's easy to edit.
      The Day combo is self-labeling ("Day 1 · Sat Jun 14"); changing it cascades the Product list and
      re-selects a product. Opacity is the polygon fill (outlines stay opaque). Watches live in the NowCast

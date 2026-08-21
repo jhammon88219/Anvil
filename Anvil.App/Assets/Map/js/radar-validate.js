@@ -1,5 +1,15 @@
 // Dev-only velocity-dealias validation (fixed-corpus regression scorer).
 //
+//   corpus .V06 ──► the REAL decode/dealias path ──► over-unfold ratio ──► vs the committed baseline
+//   (committed,      (decodeAndBuild → dealiasSweep,   hi/total, i.e.        Worse / Same / Better
+//    fixed bytes)     nothing stubbed)                 |v| > 55 m/s gates    → ValidationReportDialog
+//
+//   Same bytes in, same ratio out — dealiasSweepCore is deterministic, so the ONLY variable between
+//   two runs is the dealias code itself. That is the whole point of the tool.
+//
+//   ⚠️ For a data-structure change to this gate-for-gate-validated code, "not worse" is NOT the bar:
+//   every Δ must be 0.0. A LOWER ratio hides a behavior change just as effectively as a higher one.
+//
 // Replays each committed corpus .V06 through the REAL decode/dealias path (decodeAndBuild ->
 // dealiasSweep) and records its over-unfold ratio (hi/total = |v|>55 m/s gates, the same field the
 // diagnostics call "dealias hi"), so a dealias change can be regressed offline against a fixed

@@ -5,6 +5,20 @@
      fill the window. Content extends into the title bar, so the panel carries its own title. Bound to the
      coordinator MapViewModel.
 
+       ┌─ Past Event ───────────────────────────────────[pin]─┐
+       │  Date    [2013] [05] [20]                            │
+       │  Start   [07] : [00]  [ ] AM  [x] PM                 │  ← replay form (ViewModel.Radar)
+       │  Window  [3 hours          ]                         │
+       │          ( Load )   status…                          │
+       │  ────────────────────────────────────────────────    │
+       │  Outlook [Day 1   ] cycle [Auto  ]                   │
+       │  Product [Categorical      ]                         │  ← historical SPC outlook for that
+       │  Opacity ──────●───────────                          │     date (ViewModel.PastOutlook)
+       │          status… / issued + valid                    │
+       │  ────────────────────────────────────────────────    │
+       │  StormReportsInput  (that day's verification dots)   │
+       └──────────────────────────────────────────────────────┘
+
      Both bodies are laid out ENTIRELY with grids (rows/columns, no StackPanels) so rows are easy to
      add/rearrange: a fixed [label | controls] outer grid, one row per field, and each multi-widget field is
      its own nested column grid.

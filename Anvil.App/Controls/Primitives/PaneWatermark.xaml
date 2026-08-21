@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- PaneWatermark — the product label stamped in one map pane's corner ("Ref" / "Vel" / "SRV" / "CC").
 
+       ┌─ one map pane ───────────────────┐
+       │  ┌───────┐                       │
+       │  │  Ref  │ ← this control: bold  │   12px inset from the pane's top-left corner;
+       │  └───────┘   text on a faint     │   nothing else is drawn over the pane
+       │              backing + accent    │
+       │              border             …│
+       └──────────────────────────────────┘
+
      THE ONLY THING DRAWN INSIDE A PANE. Panes carry no chrome — every control lives in the bottom bar —
      so this corner label is the sole in-pane hint of what you are looking at, and it keeps a screenshot
      or a stream legible without the viewer having to read the bar.

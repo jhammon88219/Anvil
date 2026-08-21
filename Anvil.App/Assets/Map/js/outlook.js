@@ -3,6 +3,24 @@
 // through the higher group's gaps). Extracted from map.js. Owns the state + all helpers + the
 // show/clear/setOpacity shims; map.js delegates and calls reAdd(map) after a basemap switch — setStyle
 // drops custom sources/layers AND registered IMAGES, so the hatch images are re-ensured on each add.
+//
+// WHAT IT DRAWS — probability fills in SPC's own colors, with the intensity groups hatched on top:
+//
+//   ┌──────────────────────────────────┐   fills: one per category/probability, colors read
+//   │▒▒▒▒▒▒▒▒ 5%  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒│   straight from the SPC GeoJSON (never hand-coded here)
+//   │▒▒▒┌────────────────────┐▒▒▒▒▒▒▒▒│
+//   │▒▒▒│▓▓▓▓ 10% ▓▓▓▓▓▓▓▓▓▓▓│▒▒▒▒▒▒▒▒│   hatching = the Conditional Intensity Groups:
+//   │▒▒▒│▓▓┌───────────┐▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG1  ╱ ╱ ╱   dashed  '/'
+//   │▒▒▒│▓▓│ ╱╱╱ CIG1  │▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG2  ╱╱╱╱╱   solid   '/'
+//   │▒▒▒│▓▓│ ╱╳╱ CIG2… │▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG3  ╳╳╳╳╳   cross-hatch
+//   │▒▒▒│▓▓└───────────┘▓▓▓▓▓│▒▒▒▒▒▒▒▒│
+//   │▒▒▒└────────────────────┘▒▒▒▒▒▒▒▒│   ⚠️ the groups NEST (CIG3 ⊂ CIG2 ⊂ CIG1), so each lower
+//   └──────────────────────────────────┘   group is CLIPPED to exclude the higher one before it is
+//                                          drawn — otherwise the sparser hatch shows through the
+//                                          denser one's gaps and both read as mush
+//
+// The hatch tiles are drawn at runtime into a canvas (makeHatchImage) and registered as MapLibre
+// images, so tuning the look = the tile size / line width / dash there, not a bundled asset.
 
 // Slots beneath place names (readable through the fill) — see layers.js.
 import { firstSymbolLayerId } from './layers.js';

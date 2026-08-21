@@ -1,5 +1,19 @@
 // The Inspector (RadarScope-style "read the value under the cursor").
 //
+//   ┌─────────────────┬─────────────────┐   The cursor is in ONE pane and shows the tooltip there;
+//   │        ╎        │        ╎        │   every OTHER pane gets a mirrored CROSSHAIR at the same
+//   │     ╌╌╌+╌╌╌     │     ╌╌╌+╌╌╌     │   lng/lat, so it is obvious all the readings are the
+//   │        ╎        │        ╎ CC 0.94│   SAME gate — four moments of one storm feature at once.
+//   ├─────────────────┼─────────────────┤
+//   │        ╎        │        ╎        │   Each pane's value also ticks on its OWN chip ramp in the
+//   │     ╌╌╌+╌╌╌ ┌────────────┐        │   bottom bar — that is the readout; the tooltip is just
+//   │        ╎    │ 47.5 dBZ   │        │   what is under the pointer right now.
+//   │             │ 38 km 214° │        │
+//   └─────────────┴────────────┴────────┘
+//
+// The mode itself is armed from the Map Controls window, not the radar console: it is one cursor mode
+// over a shared camera, so it belongs with the global map tools.
+//
 // In inspect mode a mousemove projects the cursor lng/lat back to the site's polar frame (the SAME
 // equirectangular math buildGates uses, so the inspected gate is exactly the painted one), reads the
 // value from the current frame's grid for the active product, shows a DOM tooltip next to the cursor,

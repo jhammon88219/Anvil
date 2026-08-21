@@ -5,6 +5,16 @@
 // flat per-moment fields (velPositions/ccPositions/…) that used to be scattered across the
 // decode → transfer → render path.
 //
+// The seven products, as the user meets them (one chip per pane, this order in the dropdown):
+//
+//   Ref  reflectivity  dBZ    where + how heavy the precip is          — always built
+//   Vel  velocity      m/s    toward / away from the radar             — dealiases
+//   SRV  srv           m/s    velocity minus the storm's own motion    — dealiases (shares Vel's cut)
+//   CC   cc            0–1    is it all one kind of thing? (debris)
+//   KDP  kdp           °/km   rain rate, derived from ΦDP
+//   ZDR  zdr           dB     drop shape — flat rain vs round hail
+//   SW   sw            m/s    velocity spread — turbulence
+
 // `lazy: true` marks a product whose geometry is EXPENSIVE to build — today only velocity, because it's
 // the one moment that must dealias (dealiasSweep, ~1.5 s/frame). Lazy products are built on demand /
 // prefetched rather than eagerly (see radar.js's upgrade queue). Non-lazy products (reflectivity, CC,

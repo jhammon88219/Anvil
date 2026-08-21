@@ -1,6 +1,25 @@
 // states.js — map masking: a BASE EXTENT (CONUS or full map) plus optional single-STATE isolation, all
 // drawn as one inverted "mask" over the same bundled US-state polygons.
 //
+// WHAT YOU SEE — one fill whose outer ring is the WORLD and whose holes are the region:
+//
+//   ┌───────────────────────────────────────┐   ████ = the mask, painted the style's own WATER color
+//   │███████████████████████████████████████│          (read live off the basemap, so it matches the
+//   │██████╱▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔╲█████████│          ocean instead of being a grey lid)
+//   │████ ╱   the hole: real basemap  ╲█████│
+//   │████│    shows through here       │████│   The hole is CONUS (default), or ONE state when a
+//   │████ ╲   — radar, labels, lakes  ╱█████│   state is isolated (that overrides the base until
+//   │██████╲▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁╱████████│   cleared, then the view falls back to CONUS).
+//   │███████████████████████████████████████│
+//   └───────────────────────────────────────┘   No CONUS outline is drawn — the mask edge IS the coast.
+//
+//   ARMED (hover mode): before isolating, hovering paints a faint fill + bold outline on that one state
+//   and the cursor becomes a pointer. Once the mask is up it covers the other states, so the combo in
+//   the Map Controls window is the ONLY way to switch — that is expected, not a bug.
+//
+//   Pan/zoom is also clamped to the region's BBOX (+4% margin) so the masked void can't be scrolled
+//   into. ⚠️ Rectangular only — an isolated state locks to its bounding box, not its outline.
+//
 //   BASE EXTENT: either the full map (no mask) or CONUS — everything outside the contiguous 48 (+ DC) is
 //           covered by one opaque fill the color of the map's water, leaving the lower-48 showing the real
 //           basemap through the hole. CONUS is the launch default (this app is CONUS-only for now; AK/HI

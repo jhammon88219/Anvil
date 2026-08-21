@@ -6,6 +6,14 @@
 // map.js's window.setWarningSource / setWarningsVisible / setWarningsOpacity shims delegate here;
 // applyStyle calls reAdd(map) after a basemap switch (setStyle drops the layers; the data stays in memory).
 //
+//              ╱╲                  a storm-based warning is a forecaster-drawn polygon of a HANDFUL
+//            ╱░░░░╲                of vertices, hugging one storm — nothing like the county-stepped
+//          ╱░░░░░░░░╲              watch area beneath it. Thicker line (2.5), fainter fill (0.05):
+//        ╱░░░░░░░░░░░░╲            it is the imminent-threat layer, so it must read as an outline
+//        ╲░░░░░░░░░░╱              over live radar without hiding the storm it encloses.
+//          ╲░░░░░░╱
+//            ╲░░╱                  red = TO (tornado warning) · yellow = SV (severe t-storm warning)
+//
 // The whole lazy-load / refresh / opacity / re-add lifecycle is the shared fill+line overlay in
 // geojson-overlay.js — this module is just its warning-polygon configuration. Warnings are the imminent-
 // threat layer, so they sit ABOVE the watch boxes: both target firstBoundaryLayerId, but map.js re-adds

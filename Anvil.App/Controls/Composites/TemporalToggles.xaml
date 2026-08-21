@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalToggles — the Past / Now / Fore temporal features as three compact labelled pills. A click
+<!-- TemporalToggles — the Past / Now / Fore temporal features as three compact labelled pills.
+
+       [ Past ] [ Now ] [ Fore ]     lit = that mode is ACTIVE (a projection of its subsystem,
+          ^        ^        ^        not a stored flag), so the lit state can't drift from reality
+          │        │        └── SPC outlooks          ┐ Now and Fore coexist;
+          │        └── live radar / current alerts    ┘ Past excludes both
+          └── historical replay
+
+     A click
      activates that time-frame AND opens its settings WINDOW (see PastCastWindow / NowCastWindow /
      ForeCastWindow — three independent OS windows); clicking the already-active mode flips its window
      open/closed while the mode stays on. You LEAVE a mode by choosing another (Past is exclusive with

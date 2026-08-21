@@ -1,5 +1,19 @@
 // Radar color scales — the SINGLE SOURCE OF TRUTH for how moment values map to colors.
 //
+// The two kinds of ramp, and what each looks like on the map and in the legend:
+//
+//   interpolate:false  ▐██▌██▌██▌██▌██▌██▌   DISCRETE bands — reflectivity only, because the NWS dBZ
+//                      -30      +20     +75  bands are an official scale people read by band edge.
+//                                            A value takes its lower band's color, hard-edged.
+//
+//   interpolate:true   ▐▓▓▒▒░░  ░░▒▒▓▓▓▌     SMOOTH gradient — velocity/SRV (diverging about zero,
+//                      -40      0      +40   deliberately no orange/yellow so it can't be misread
+//                                            as reflectivity), CC, KDP, ZDR, SW.
+//
+// The SAME table feeds the painted gates (radar-decode bakes per-gate colors from it) and the legend
+// in each pane chip (map.js pushes the whole table to the host at startup, keyed by product id). So
+// retuning a ramp here retunes the map and its legend together — there is no second copy to update.
+//
 // Imported by BOTH the decoder (radar-decode.js, which bakes per-gate colors) AND, eventually, a
 // legend/color-bar UI (which can sample `rampColor` across [min, max] to draw a bar that is exactly
 // what's on the map — no hand-maintained copy that can drift). Pure data + math: no DOM, GL, worker

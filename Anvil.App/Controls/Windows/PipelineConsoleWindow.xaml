@@ -5,6 +5,23 @@
      time ("Duo fills, Trio completes"), plus a VWP/storm-motion readout so you can watch the SRV gate
      resolve. Observe-only: the shared playhead mirrors the main viewer's frame; no seek, no render change.
 
+       ┌─ Pipeline Console ──────────────────────────────────────────────[pin]─┐
+       │  VWP: 8 cuts · motion 245° @ 27 kt                                    │
+       │  storm motion · srv gate OPEN                                         │  telemetry
+       │  velPrefetch=1 fullPrefetch=0 trioSettled=1                           │
+       │                                              1st paint    full loop   │
+       │  Ref ▭  ███████████│████████████████████         0.9s        4.2s     │
+       │  Vel ▭  ███████████│███████████░░░░░░░░░         1.4s        6.8s     │  one mini-scrubber
+       │  SRV ▭  ███████████│███████░░░░░░░░░░░░░        15.1s        —        │  per product, ALL
+       │  CC  ▭  ░░░░░░░░░░░│░░░░░░░░░░░░░░░░░░░░          —          —        │  seven at once
+       │  …                 ^                                                  │
+       │                    └── ONE shared playhead, mirroring the main viewer │
+       └───────────────────────────────────────────────────────────────────────┘
+
+     Reading it: cells fill left-to-right as builds land, so you watch "Duo fills, Trio completes"
+     happen — Ref+Vel filling per frame, SRV holding until the one loop-wide storm motion resolves,
+     the dual-pol row staying dark until the idle-time second wave arms.
+
      Its own chrome because it's wider than the 460-wide temporal windows — and keeping it
      self-contained means removing the feature touches no shared control. Reuses the shared OverlayBar
      surface brush + border so it matches the other windows. Bound to the coordinator MapViewModel;

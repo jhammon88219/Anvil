@@ -7,6 +7,16 @@
      (Named for what it IS — a bottom overlay shell — not for what it happens to host;
      the actual radar transport lives in the RadarControls section it hosts.)
 
+         …map, full height, showing through…
+                              ╭── ˅ Hide ──╮                      ← the pull-tab, centered
+       ───────────────────────┘            └───────────────────── ← ONE hairline: it runs along
+                                                                    the bar's top edge and wraps
+             BarContent — the HOST fills this slot                  AROUND the tab, never across
+       ══════════════════════ window bottom ═══════════════════════
+
+     Hidden, only the tab remains (it reads "Show") and the bar Border collapses — the map is
+     never resized either way.
+
      It renders as a bottom OVERLAY: the host places it VerticalAlignment=Bottom over the
      full-height map, so showing/hiding the bar never resizes the map. The control's own
      backdrop is transparent — only the tab and the bar draw — so the map shows through

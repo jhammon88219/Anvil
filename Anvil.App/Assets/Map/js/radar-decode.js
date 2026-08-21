@@ -2,6 +2,24 @@
 // so it runs inside a Web Worker (radar-worker.js) as well as on the main thread (radar.js
 // fallback). The heavy cost here is the pure-JS bzip2 decompression inside Level2Radar
 // (~5 s for a full volume), which is exactly why we run it off the UI thread.
+//
+// FROM BYTES TO PIXELS — what this file turns a .V06 into:
+//
+//   .V06 bytes ──► radials ──► gates ──────────────► triangles + colors ──► (transferred to radar.js)
+//   (one tilt)     one per     a gate is one          two triangles per
+//                  azimuth,    (azimuth, range)       gate, colored once
+//                  ~720/sweep  cell of the sweep      here via radar-ramps
+//
+//            az 0°                        Each radial is a spoke; each gate is a cell along it.
+//              │╱│╲│                      buildGates walks (radial × gate) — MILLIONS per sweep,
+//         ─────╳──┼──── the sweep,        which is why its projection math is inlined rather than
+//              │╲│╱│    fanned out        calling geo.js per gate.
+//                                         Velocity's spokes are DEALIASED first (dealiasSweep) —
+//                                         see docs/velocity-dealias.md before touching that.
+//
+//   A decode builds reflectivity ALWAYS plus only the products the host ASKED for (buildProducts) —
+//   not all seven — and can also emit an inspector value GRID per product (the Int16 lookup the
+//   Inspector reads). Everything comes back as keyed maps {moments:{id:…}, grids:{id:…}, built:{id}}.
 
 import { REFLECTIVITY_RAMP, VELOCITY_RAMP, SRV_RAMP, CORRELATION_RAMP, KDP_RAMP, ZDR_RAMP, SPECTRUM_WIDTH_RAMP, rampColor } from './radar-ramps.js';
 import { PRODUCTS, PRODUCT_IDS } from './radar-products.js';

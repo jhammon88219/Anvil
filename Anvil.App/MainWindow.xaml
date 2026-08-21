@@ -1,4 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- MainWindow — the app shell. The map fills the whole window; the entire UI is ONE bar overlaid on
+     its bottom edge.
+
+       ┌─────────────────────────────┬─────────────────────────────┐
+       │ Ref                         │ Vel                         │  pane watermarks — top-left
+       │        map pane 2           │        map pane 3           │  of each pane, the ONLY thing
+       ├─────────────────────────────┼─────────────────────────────┤  drawn inside a pane (quad
+       │ SRV                         │ CC                          │  shown; single/two collapse
+       │    map pane 0  (MAIN)       │        map pane 1           │  to fewer cells)
+       ├─────────────────────────────┴─────────────────────────────┤
+       │                       ╭─ Hide ─╮                          │  OverlayBar pull-tab
+       │  [chip] │ ═════ scrubber ═════      [Past][Now][Fore]     │
+       │         │ tilt ◀▶ frame · site   [panes][dev][map][sites][cog] │
+       └───────────────────────────────────────────────────────────┘
+
+     Left of the bar is RadarControls (per-pane chips + the one global time module); right is the
+     global cluster — temporal mode pills stacked over the app-wide window buttons. The gap between
+     them is empty bar, by design.
+
+     There is no top bar any more. It existed to hold the controls that must not repeat per pane —
+     but once the bottom bar was split into a per-pane cluster and a global cluster, that distinction
+     lives INSIDE one bar and the second strip of chrome was pure cost (a band of map covered at the
+     top AND the bottom). -->
 <Window
     x:Class="Anvil.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -14,15 +37,7 @@
     mc:Ignorable="d"
     Title="Anvil">
 
-    <!-- The map fills the whole window; the UI is ONE bottom bar overlaid on it, so showing/hiding the bar
-         never resizes the map.
-
-         There is no top bar any more. It existed to hold the controls that must not repeat per map pane —
-         but once the bottom bar was split into a per-pane cluster and a global cluster, that distinction
-         lives INSIDE one bar and the second strip of chrome was pure cost (a band of map covered at the top
-         AND the bottom). The temporal toggles and the window buttons moved into this bar's right cluster.
-
-         Two overlay rows:
+    <!-- Two overlay rows (see the sketch at the top of the file):
            Row 0 — the map band (the map shows through). Every panel that pops over the map is a real
                    top-level OS window owned by WindowManager, so nothing floats in-window.
            Row 1 — the bottom bar, pinned to the bottom edge. Its LEFT is RadarControls (the pane chips +

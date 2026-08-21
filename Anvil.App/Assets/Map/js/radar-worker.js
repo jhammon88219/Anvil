@@ -3,6 +3,19 @@
 // transfers the typed arrays back so the bzip2 decode never freezes the UI. Doing the ~7 MB body read
 // HERE (not on the caller's thread) keeps it off the map's render thread, so a backfill of N frames no
 // longer hitches pan/zoom. Classic worker using dynamic import().
+//
+//   MAIN THREAD (radar.js)                    WORKERS (this file)
+//   ──────────────────────                    ───────────────────
+//   map render, pan/zoom, GL upload   ──url──►  pool of min(4, cores−1)   ─┐ fetch → bzip2 → gates
+//   (must never block — a hitch here            one task = one frame       │ → colors, then the
+//    is visible as a stutter)        ◄─arrays─  ────────────────────────  ─┘ typed arrays come back
+//                                               ZERO-COPY (transferred)
+//                                    ──urls──►  a DEDICATED vwp worker    ── the ~8-tilt storm-motion
+//                                    ◄─motion─  ────────────────────────     job, so it never queues
+//                                                                            behind frame decodes
+//
+//   The URL is posted, not the bytes: the ~7 MB body read happens HERE. Workers are pre-warmed at
+//   map-ready (each eagerly imports the decoder) so the first site click doesn't pay the cold start.
 
 // Resolve the volume bytes: use a pre-supplied ArrayBuffer if the caller transferred one (kept for any
 // one-off caller), else fetch the same-origin url (the normal loop/upgrade path).

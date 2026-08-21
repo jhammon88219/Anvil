@@ -3,6 +3,32 @@
 // setRadarSitesStatus / setRadarSitesVisible shims delegate here, passing the map. Posts radarSiteClick
 // to the host on a key press. `maplibregl` is the global from the vendored classic script.
 //
+// ANATOMY OF ONE KEY — a pushable graphite button with three zones:
+//
+//        ┌─┬────────┬─┐        LEFT square  .radar-site-swatch  = AVAILABILITY
+//        │█│  KTLX  │◗│                     green = data flowing · red (.offline) = nothing recent
+//        └─┴────────┴─┘        CENTRE       .radar-site-label    = the ICAO
+//         ▲     ▲    ▲         RIGHT bar    .radar-site-class    = NETWORK, and it MIRRORS the left
+//         │     │    └── nexrad ◗ (graphite) · tdwr ✈ (blue) · research ⚗ (violet)
+//         │     └── selected inverts the FACE to a light key; both end zones still read
+//         └── availability, independent of selection
+//
+//   The class bar keeps its color through offline AND selection, on purpose: the two opt-in networks
+//   are otherwise indistinguishable from the ~160 operational keys at a glance.
+//
+// COLLISION FAN-OUT — keeps the opt-in keys findable where they pile up (the OKC KTLX+TOKC+KCRI stack):
+//
+//        [TOKC]                     A special key that would overlap is pushed UP off the pile with a
+//           ╎  ← leader line        dashed leader line + ring back to its true site, and snaps back
+//           ○  ← true site          once zoom separates them. Operational NEXRAD keys NEVER move —
+//        [KTLX] [KCRI]              they are the fixed obstacles the specials route around.
+//
+//   ⚠️ A special is de-overlapped only against its OWN pile (markers truly overlapping its spot, plus
+//   specials already fanned from that pile) — never "avoid everything on screen". That bound is
+//   load-bearing: avoid-everything let a key climb the dense national column and land ~380px away
+//   (KCRI ended up in North Dakota at CONUS zoom). Pile-local means it rises about one key-height and
+//   stops. The recompute is a cheap no-op while neither opt-in network is shown, which is the default.
+//
 // These are DOM-overlay markers (maplibregl.Marker), so they auto-reposition on pan/zoom and survive
 // basemap switches (no style-layer re-add needed). Structure: a `.radar-site-marker` WRAPPER (which
 // MapLibre positions via an inline transform) holds an inner `.radar-site-btn` (free to use its own

@@ -2,7 +2,21 @@
 <!-- ValidationReportDialog — DEV-ONLY. The dealias-validation results pop-up: a summary line over a
      scrollable, read-only monospace dump of the report (Worse volumes first), with Save… (writes the
      markdown to disk via a FileSavePicker) and Close. A ContentDialog like SweepReportDialog. Populated
-     from a RadarValidationReport. -->
+     from a RadarValidationReport.
+
+       ┌─ Velocity-dealias validation report ─────────────────┐
+       │  6 volumes · 0 worse · 0 better · 6 same             │  ← summary line (the verdict)
+       │  ┌────────────────────────────────────────────────┐  │
+       │  │ VOLUME         RATIO   BASELINE   Δ    VERDICT │  │  monospace so the columns line up;
+       │  │ KBUF-013012    31.0%     31.0%   0.0    Same   │  │  Worse first, scrolls both ways
+       │  │ KILX-010848     5.8%      5.8%   0.0    Same   │  │
+       │  └────────────────────────────────────────────────┘  │
+       │                              ( Save… )  ( Close )    │
+       └──────────────────────────────────────────────────────┘
+
+     ⚠️ For a data-structure change to gate-for-gate-validated code, "not worse" is NOT the bar — every
+     Δ must be 0.0. A LOWER ratio can hide a real behavioral change just as easily as a higher one. -->
+
 <ContentDialog x:Class="Anvil.Dialogs.ValidationReportDialog"
                xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

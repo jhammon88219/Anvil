@@ -4,6 +4,32 @@
 // The page makes no decisions of its own — it renders what the host asks for and
 // exposes a few command shims the host drives over the IMapView seam.
 //
+// WHAT IS ON SCREEN — the pane grid (quad shown; the gutter is paneGutter px of page background):
+//
+//   ┌──────────────┬──────────────┐   maps[0] is the PRIMARY pane and sits BOTTOM-LEFT — the same
+//   │   maps[2]    │   maps[3]    │   arrangement MainWindow's watermark grid uses. paneRects()
+//   ├──────────────┼──────────────┤   below is the page's half of that rule; the XAML grid is the
+//   │   maps[0]    │   maps[1]    │   other half. ⚠️ CHANGE BOTH OR THEY DRIFT.
+//   │   (PRIMARY)  │              │
+//   └──────────────┴──────────────┘
+//
+// WHAT IS IN EACH PANE — the z-stack, bottom to top (who sits where is decided by layers.js +
+// each module's beforeId; this is the assembled result, and the order reAddAll() restores):
+//
+//   ── top ──   storm-report dots      (no beforeId — always over everything)
+//               place labels           ┐ basemap symbol layers
+//               state / country lines  ┘ basemap line layers
+//               mile grid              ← under the borders, over the radar
+//               warning polygons       ┐ both target firstBoundaryLayerId; watches are re-added
+//               watch boxes            ┘ FIRST, so warnings land above them
+//               outlook fills + hatch  ← under the labels (firstSymbolLayerId)
+//               RADAR (WebGL layer)    ← beneath the watch fill, via radar.js's own beforeId chain
+//   ── base ──  basemap (PMTiles)
+//
+//   Riding above all of it, NOT in the stack: the state-isolation mask (added last, on top), and the
+//   DOM-overlay markers — radar site keys + the user-location dot — which are HTML elements over the
+//   canvas rather than GL layers, and therefore PRIMARY-PANE ONLY.
+//
 // ===== MULTI-PANE =====
 // A pane is a PRODUCT VIEW of one site: every pane shares the site, the camera and the time cursor,
 // and differs only in which radar moment it draws. That is why there are N maps rather than one:

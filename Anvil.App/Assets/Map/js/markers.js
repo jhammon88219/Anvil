@@ -4,6 +4,16 @@
 // clearUserLocation shims delegate here, passing the map instance. `maplibregl` is the global set by
 // the vendored classic script (visible to modules via the global scope). A DOM-overlay marker auto-
 // repositions on pan/zoom and survives basemap switches, so there's no style-layer re-add to do.
+//
+//          ╭───────╮        .user-loc        36x36 hit area (drag target)
+//        ╭─┤ ╭───╮ ├─╮      .user-loc-pulse  a translucent blue ring, scaling .5→2.4 and fading out
+//        │ │ │ ● │ │ │                       on a 1.8s infinite loop — the "we are still guessing"
+//        ╰─┤ ╰───╯ ├─╯                       cue for an approximate fix
+//          ╰───────╯        .user-loc-dot    24px blue disc, 3px white ring, drop shadow so it holds
+//                                            over both the dark basemap and bright radar returns
+//
+// Draggable because the fix IS approximate (OS or IP): the user drops it where they actually are, and
+// each drag posts back to the host. The whole look is the CSS string in ensureUserLocationStyle below.
 
 let userLocationMarker = null;
 const USER_MARKER_ID = 'user'; // singleton; the host correlates drag/click by this fixed id
