@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- RadarControls — the radar half of the bottom bar, laid out entirely with Grids (no StackPanels):
 
-       PANE CHIPS  |  GLOBAL TIME MODULE
-       [product]   |  [————— scrubber —————]
-                   |  [tilt · transport · frame · site readout]
+       PANE CHIPS  │  GLOBAL TIME MODULE
+       [product]   │  [———————— scrubber ————————]
+                   │                      10:42 PM  2 min ago
+                   │  [tilt] ◀ ▶ ▶  3 / 10  │  KTLX     VCP 212 · precip · SAILS ×2
+                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                             the site readout is a 2x2 BLOCK: time over site,
+                                             age over scan. Stacking it (it used to be one long
+                                             line) is what keeps this half narrow enough for the
+                                             temporal pills to hold the bar's centre.
 
      THE ORGANIZING RULE (settled before multi-pane): the bar is split into what repeats per pane and
      what does not. A pane differs from its siblings ONLY by product (and, later, tilt), so the pane
@@ -17,11 +23,17 @@
      stretches to exactly the control row beneath it and stops at the end of the site readout. Every
      variable-length readout in that row (frame count, time, ICAO, age, scan) carries a RESERVED fixed
      width, so the module's width — and therefore the scrubber's — is a constant. Without that the
-     scrubber would resize (and reflow all its cells) every time the age ticked over.
+     scrubber would resize (and reflow all its cells) every time the age ticked over. That rule survived
+     the readout being stacked into a block — the block's two COLUMNS carry the reserved widths now.
 
-     The global controls that flank this (temporal toggles, window buttons) are composed by MainWindow
-     to the right; site-marker visibility and Inspect live in the Map Controls window. All bound to one
-     RadarViewModel. -->
+     ⚠️ WIDTH IS A BUDGET NOW. MainWindow centres the temporal pills on the bar's true midpoint, so this
+     half is what decides whether they have room to breathe before the two collide — every px added here
+     eats into that. The two knobs are the ChipWidth resource (×2 in quad) and the site block's two
+     reserved columns; reach for them before letting this cluster grow.
+
+     The global controls that flank this (temporal toggles at the bar's centre, window buttons at the
+     right) are composed by MainWindow; site-marker visibility and Inspect live in the Map Controls
+     window. All bound to one RadarViewModel. -->
 <UserControl x:Class="Anvil.Controls.Composites.RadarControls"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -34,6 +46,13 @@
 
     <UserControl.Resources>
         <x:Double x:Key="ReadoutFontSize">13</x:Double>
+        <!-- ONE width for all four pane chips — they must stay identical, and in quad this is doubled
+             across the cluster, so it is the single knob for how much bar the per-pane half occupies.
+             FLOOR: the chip must still fit [short name][ramp strip][chevron] with the ramp's min/max
+             numbers ("-30" … "+75 dBZ") side by side under the strip without colliding — roughly 66px
+             of text over a strip that is this width minus ~62px of fixed furniture. Below ~140 they
+             touch. -->
+        <x:Double x:Key="ChipWidth">160</x:Double>
         <!-- Thin vertical rule between clusters. -->
         <Style x:Key="BarDividerStyle" TargetType="Border">
             <Setter Property="Width" Value="1"/>
@@ -80,7 +99,7 @@
             <!-- MAIN pane — bottom-left, always shown -->
             <controls:ProductColorRampComboBox
                       Grid.Row="1" Grid.Column="0"
-                      Width="200"
+                      Width="{StaticResource ChipWidth}"
                       IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
                       Visibility="{x:Bind VisibleWhen(ViewModel.Pane0.IsVisible), Mode=OneWay}"
                       ItemsSource="{x:Bind ViewModel.Pane0.ProductOptions}"
@@ -92,7 +111,7 @@
             <controls:ProductColorRampComboBox
                       Grid.Row="1" Grid.Column="1"
                       Margin="6,0,0,0"
-                      Width="200"
+                      Width="{StaticResource ChipWidth}"
                       IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
                       Visibility="{x:Bind VisibleWhen(ViewModel.Pane1.IsVisible), Mode=OneWay}"
                       ItemsSource="{x:Bind ViewModel.Pane1.ProductOptions}"
@@ -104,7 +123,7 @@
             <controls:ProductColorRampComboBox
                       Grid.Row="0" Grid.Column="0"
                       Margin="0,0,0,6"
-                      Width="200"
+                      Width="{StaticResource ChipWidth}"
                       IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
                       Visibility="{x:Bind VisibleWhen(ViewModel.Pane2.IsVisible), Mode=OneWay}"
                       ItemsSource="{x:Bind ViewModel.Pane2.ProductOptions}"
@@ -116,7 +135,7 @@
             <controls:ProductColorRampComboBox
                       Grid.Row="0" Grid.Column="1"
                       Margin="6,0,0,6"
-                      Width="200"
+                      Width="{StaticResource ChipWidth}"
                       IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
                       Visibility="{x:Bind VisibleWhen(ViewModel.Pane3.IsVisible), Mode=OneWay}"
                       ItemsSource="{x:Bind ViewModel.Pane3.ProductOptions}"
@@ -200,11 +219,8 @@
                     <ColumnDefinition Width="Auto"/> <!-- play/stop -->
                     <ColumnDefinition Width="Auto"/> <!-- next -->
                     <ColumnDefinition Width="52"/>   <!-- frame N / M -->
-                    <ColumnDefinition Width="64"/>   <!-- displayed frame time -->
                     <ColumnDefinition Width="Auto"/> <!-- divider -->
-                    <ColumnDefinition Width="48"/>   <!-- site ICAO -->
-                    <ColumnDefinition Width="Auto"/>   <!-- age of newest -->
-                    <ColumnDefinition Width="200"/>  <!-- scan strategy -->
+                    <ColumnDefinition Width="Auto"/> <!-- site readout, stacked 2x2 -->
                 </Grid.ColumnDefinitions>
 
                 <!-- Tilt (elevation). Data-driven from ViewModel.RadarTiltOptions, read from the VCP's
@@ -255,40 +271,70 @@
                            FontSize="{StaticResource ReadoutFontSize}"
                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                            ToolTipService.ToolTip="Which frame of the loop is on screen"/>
-                <!-- The DISPLAYED frame's time (the one you scrubbed to), not the newest. -->
-                <TextBlock Grid.Column="5"
-                           VerticalAlignment="Center"
-                           Text="{x:Bind ViewModel.CurrentFrameTimeText, Mode=OneWay}"
-                           FontSize="{StaticResource ReadoutFontSize}"
-                           ToolTipService.ToolTip="When the frame on screen was scanned"/>
+                <Border Grid.Column="5" Style="{StaticResource BarDividerStyle}" Height="20"/>
 
-                <Border Grid.Column="6" Style="{StaticResource BarDividerStyle}" Height="20"/>
+                <!-- ===== SITE READOUT — a 2x2 block, not a line =====
+                       10:42 PM   2 min ago            row 0: WHEN (time of the frame on screen,
+                       KTLX       VCP 212 · precip …   then how old the newest one is)
+                                                       row 1: WHERE (site, then how it's scanning)
 
-                <!-- Site readout: ICAO, freshness of the NEWEST frame, and the volume's scan strategy.
-                     One line — the location name is the ICAO's tooltip (the ICAO is the real label), the
-                     scanned time now rides the transport, and the rendered elevation is the Tilt combo. -->
-                <TextBlock Grid.Column="7"
-                           VerticalAlignment="Center"
-                           Text="{x:Bind ViewModel.RadarSiteId, Mode=OneWay}"
-                           FontWeight="SemiBold"
-                           FontSize="{StaticResource ReadoutFontSize}"
-                           ToolTipService.ToolTip="{x:Bind ViewModel.RadarSiteName, Mode=OneWay}"/>
-                <!-- Age of the freshest frame, color-ramped fresh(green) to stale(red) by AgeBrush so
-                     freshness reads at a glance. -->
-                <TextBlock Grid.Column="8"
-                           VerticalAlignment="Center"
-                           Text="{x:Bind ViewModel.RadarAgeText, Mode=OneWay}"
-                           FontSize="{StaticResource ReadoutFontSize}"
-                           Foreground="{x:Bind AgeBrush(ViewModel.RadarAgeMinutes), Mode=OneWay}"
-                           ToolTipService.ToolTip="How long ago the newest available frame was scanned. Green = fresh, red = stale."/>
-                <!-- Scan strategy for the whole volume; see RadarVcpText for why SAILS belongs here. -->
-                <TextBlock Grid.Column="9"
-                           VerticalAlignment="Center"
-                           Text="{x:Bind RadarVcpText(ViewModel.RadarModeText), Mode=OneWay}"
-                           FontSize="{StaticResource ReadoutFontSize}"
-                           TextTrimming="CharacterEllipsis"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           ToolTipService.ToolTip="The radar's scan strategy for the whole volume. VCP = Volume Coverage Pattern, a number chosen by the operator: 'precip' patterns scan faster and more often for rain/storms; 'clear-air' patterns scan slower for better sensitivity in dry weather. SAILS/MRLE ×N means the radar squeezes in N extra scans of the lowest tilt per volume, giving fresher data near the ground during fast-changing weather."/>
+                     It was one long line; stacking it halves the readout's footprint, which is the
+                     whole point — that width came straight off the time module (and so off the
+                     scrubber), buying back room in the bar for the bigger temporal pills at centre.
+                     The pairing also reads better than the old order did: the two TIME facts share a
+                     row, the two SITE facts share the row under it, and each column's two values line
+                     up on one left edge.
+
+                     ⚠️ Both columns keep a RESERVED FIXED WIDTH for the same reason the old row did —
+                     the module is auto-width, so any readout free to resize (the age ticking over, a
+                     VCP change) would resize the scrubber above and reflow every one of its cells. -->
+                <Grid Grid.Column="6"
+                      VerticalAlignment="Center"
+                      RowSpacing="2"
+                      ColumnSpacing="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- frame time · age -->
+                        <RowDefinition Height="Auto"/> <!-- site ICAO · scan strategy -->
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="64"/>  <!-- frame time / ICAO -->
+                        <ColumnDefinition Width="200"/> <!-- age / scan strategy -->
+                    </Grid.ColumnDefinitions>
+
+                    <!-- The DISPLAYED frame's time (the one you scrubbed to), not the newest. -->
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                               VerticalAlignment="Center"
+                               Text="{x:Bind ViewModel.CurrentFrameTimeText, Mode=OneWay}"
+                               FontSize="{StaticResource ReadoutFontSize}"
+                               ToolTipService.ToolTip="When the frame on screen was scanned"/>
+                    <!-- Age of the freshest frame, color-ramped fresh(green) to stale(red) by AgeBrush so
+                         freshness reads at a glance. Sits beside the frame time because the two together
+                         answer one question: how current is what I'm looking at. -->
+                    <TextBlock Grid.Row="0" Grid.Column="1"
+                               VerticalAlignment="Center"
+                               Text="{x:Bind ViewModel.RadarAgeText, Mode=OneWay}"
+                               FontSize="{StaticResource ReadoutFontSize}"
+                               Foreground="{x:Bind AgeBrush(ViewModel.RadarAgeMinutes), Mode=OneWay}"
+                               ToolTipService.ToolTip="How long ago the newest available frame was scanned. Green = fresh, red = stale."/>
+
+                    <!-- The site. The location name is the ICAO's tooltip — the ICAO is the real label —
+                         and the rendered elevation is the Tilt combo, not here. -->
+                    <TextBlock Grid.Row="1" Grid.Column="0"
+                               VerticalAlignment="Center"
+                               Text="{x:Bind ViewModel.RadarSiteId, Mode=OneWay}"
+                               FontWeight="SemiBold"
+                               FontSize="{StaticResource ReadoutFontSize}"
+                               ToolTipService.ToolTip="{x:Bind ViewModel.RadarSiteName, Mode=OneWay}"/>
+                    <!-- Scan strategy for the whole volume; see RadarVcpText for why SAILS belongs here.
+                         Beside the ICAO because it describes THAT radar's current behaviour. -->
+                    <TextBlock Grid.Row="1" Grid.Column="1"
+                               VerticalAlignment="Center"
+                               Text="{x:Bind RadarVcpText(ViewModel.RadarModeText), Mode=OneWay}"
+                               FontSize="{StaticResource ReadoutFontSize}"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               ToolTipService.ToolTip="The radar's scan strategy for the whole volume. VCP = Volume Coverage Pattern, a number chosen by the operator: 'precip' patterns scan faster and more often for rain/storms; 'clear-air' patterns scan slower for better sensitivity in dry weather. SAILS/MRLE ×N means the radar squeezes in N extra scans of the lowest tilt per volume, giving fresher data near the ground during fast-changing weather."/>
+                </Grid>
             </Grid>
         </Grid>
     </Grid>
