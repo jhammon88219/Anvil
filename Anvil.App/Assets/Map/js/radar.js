@@ -18,7 +18,6 @@
 
     const LAYER_ID = 'level2-radar';
     const MIN_DBZ = 10;
-    const GRID_NODATA = -32768; // matches radar-decode.js buildGrid sentinel
 
     // ---- Panes: N VIEWS over ONE loop ----------------------------------------------------------
     // A pane is a PRODUCT VIEW of one site. Every pane draws the SAME loop at the SAME frame from the
@@ -57,7 +56,6 @@
             ctxBound: false,           // webglcontextlost/restored listeners attached to this canvas
             inspectMove: null, inspectOut: null, inspectCamera: null, // bound inspect handlers (to off() them)
             crossEl: null,             // this pane's mirrored inspect crosshair (created on first use)
-            rangeAdded: false,         // this view's range-ring layer is up
         };
     }
     // Force every view to re-upload on its next render (a frame or product change invalidates buffers).
@@ -76,6 +74,37 @@
     // resolved long before the user can switch products / the first frame upgrades. productLazy() tells
     // the render/upgrade paths whether the active product is built lazily (velocity today); it defaults
     // to non-lazy for an unknown/not-yet-loaded id, which is safe (the default reflectivity isn't lazy).
+    // Range ring + sweep pulse (radar-scope.js). Same dynamic-import-and-cache pattern as geo.js: the
+    // draw calls below are guarded on `Scope`, which is loaded long before any site click can decode a
+    // frame. It owns the drawn radius + the animation handle; it reads our views/site through `init`.
+    let Scope = null;
+    import('./radar-scope.js').then(function (m) {
+        Scope = m;
+        Scope.init({
+            forEachView: forEachView,
+            viewCount: function () { return views.length; },
+            beforeId: beforeId,
+            getSite: function () { return { lat: siteLat, lon: siteLon }; },
+        });
+    }).catch(function (e) { hostLog('radar-scope.js load failed: ' + (e && e.message ? e.message : e)); });
+
+    // The Inspector (radar-inspect.js): the cursor-readout mode. Same dynamic-import-and-cache pattern
+    // as radar-scope.js. It owns the mode flag and all the DOM/lookup work; we ask isOn() in the two
+    // places the LOOP's behaviour depends on the mode (grid upgrades, and whether a decode builds grids).
+    let Inspect = null;
+    import('./radar-inspect.js').then(function (m) {
+        Inspect = m;
+        Inspect.init({
+            forEachView: forEachView,
+            getSite: function () { return { lat: siteLat, lon: siteLon }; },
+            getFrame: function () { return frames[currentFrame]; },
+            post: post,
+        });
+    }).catch(function (e) { hostLog('radar-inspect.js load failed: ' + (e && e.message ? e.message : e)); });
+    // Inspect armed? Safe before the module lands (false), and true implies `Inspect` is non-null,
+    // so the call sites can go straight to it.
+    function inspectOn() { return !!(Inspect && Inspect.isOn()); }
+
     let Products = null;
     import('./radar-products.js').then(function (m) { Products = m.PRODUCTS; }).catch(function (e) { hostLog('radar-products.js load failed: ' + (e && e.message ? e.message : e)); });
     function productLazy(p) { return !!(Products && Products[p] && Products[p].lazy); }
@@ -235,7 +264,7 @@
     function needsUpgrade(idx) {
         var f = frames[idx];
         if (!f || !f.url) return false;
-        if (inspecting && !activeGridReady(f)) return true;       // active product's value grid not built yet, Inspect on
+        if (inspectOn() && !activeGridReady(f)) return true;      // active product's value grid not built yet, Inspect on
         return needsBuild(f);
     }
     function upgradePriority(idx) {
@@ -610,26 +639,10 @@
     let siteLat = 0, siteLon = 0;   // shared: every pane draws the same site
     let opacity = 0.85;             // shared: one radar opacity across the panes
     let loopToken = 0;      // bumped per loop so stale async frames are dropped
-    // Range ring: a thin circle at the radar's REAL outer data extent (rangeMeters from the
-    // decode), centred on the site — RadarScope-style. Its own GeoJSON line layer (survives
-    // basemap switches via reAdd). currentRangeMeters = the radius currently drawn (0 = none).
-    const RANGE_SRC = 'level2-range', RANGE_LAYER = 'level2-range';
-    let currentRangeMeters = 0;
-    // Sweep pulse: a one-shot rotating arm + trailing afterglow, drawn ON THE MAP (scaled to the real
-    // coverage, RadarScope-style) — not a DOM decoration. The range ring is always shown; the arm only
-    // appears to do ONE revolution when the host reports a genuinely-new frame (pulseSweep), then hides.
-    // (Replaced the old continuous, phase-locked rotation.) The afterglow is a FILLED wedge (a fan of
-    // abutting triangles — no gaps, so no visible spokes) that fades leading→tail, plus one crisp leading
-    // arm line on top; per-feature opacity, rebuilt each animation frame while a pulse runs.
-    const SWEEP_SRC = 'level2-sweep', SWEEP_FILL_LAYER = 'level2-sweep-fill', SWEEP_ARM_LAYER = 'level2-sweep-arm';
-    const SWEEP_MS = 1300;        // duration of one revolution
-    const SWEEP_FADE_MS = 400;    // brief fade-out of the trail once the revolution completes
-    const SWEEP_TRAIL_DEG = 75;   // angular length of the trailing afterglow behind the leading arm
-    const SWEEP_TRAIL_N = 64;     // wedge triangles across the trail — high so the taper reads smooth (no spokes)
-    const SWEEP_PEAK = 0.42;      // peak fill opacity right behind the arm (the wedge is a translucent glow)
-    const SWEEP_GAMMA = 1.6;      // trailing-fade shape (>1 = fades to nothing faster → a comet-tail falloff)
-    let sweepAnimStart = 0, sweepRaf = 0;
-
+    // Range ring + sweep pulse live in radar-scope.js: a thin circle at the radar's REAL outer data
+    // extent (rangeMeters from the decode) plus the one-shot rotating arm + fading wedge that sweeps
+    // out to that same edge, both RadarScope-style GeoJSON layers rather than DOM decoration. That
+    // module owns the drawn radius and the animation handle; we reach it through `Scope` above.
     // Render-path diagnostics: render() runs every frame, so rate-limit its logging. We track
     // the running error/blank counts and only emit on the first occurrence + periodically, plus
     // a one-shot "recovered" line, so the debug log shows WHEN tiles blanked without flooding.
@@ -793,7 +806,7 @@
     //   → reconcile what's on screen → fire downstream triggers.
     // The couplings that are easy to break by reordering: res.empty must be computed from the MERGED
     // moments (cachePut must not cache a no-geometry frame); upgradeDone must precede queueUpgrade
-    // (it frees the slot the pump then takes); setRangeRing must follow the layer (re)add, or the ring
+    // (it frees the slot the pump then takes); Scope.setRange must follow the layer (re)add, or the ring
     // draws under the fill. Each is restated at its line — keep it that way.
     function applyFrameResult(res) {
         if (!res || res.token !== loopToken) return; // stale (loop changed)
@@ -827,7 +840,8 @@
         // no-geometry frame regardless of which path decoded it.
         res.empty = !Object.keys(mo).some(function (id) { return mo[id]; });
         frames[res.index] = {
-            // Geometry + inspector grids keyed by product id (radar-products.js) — see render / lookupValue.
+            // Geometry + inspector grids keyed by product id (radar-products.js) — see render, and
+            //   radar-inspect.js lookupValue.
             moments: mo,                    // { id: { positions, colors, count } | null }
             grids: res.grids || {},         // { id: value-grid | null } (present only when Inspect was on)
             built: res.built || {},         // { id: bool } — whether that product's build ran (lazy bookkeeping)
@@ -890,7 +904,7 @@
             }
             // Draw the real outer-extent range ring (RadarScope-style) from this frame's decoded
             // range — AFTER the radar layer (re)add above, so the ring sits on top of the fill.
-            if (res.rangeMeters > 0) setRangeRing(res.rangeMeters);
+            if (res.rangeMeters > 0 && Scope) Scope.setRange(res.rangeMeters);
         }
         post({ type: 'radarFrameReady', index: res.index, hasData: !res.empty });
         // The AUTO (VAD-derived) storm motion is NO LONGER computed per frame — a single tilt is too shallow
@@ -1060,155 +1074,6 @@
         forEachView(function (v) { if (v.map.getLayer(LAYER_ID)) v.map.triggerRepaint(); });
     }
 
-    // ---- Range ring (real outer data extent) ----
-    // A 128-point circle at currentRangeMeters around the site, using the same equirectangular
-    // metres-per-degree approximation as the gate geometry (radar-decode buildGates) so the ring
-    // lines up exactly with the data's edge.
-    function ringGeoJSON() {
-        const N = 128, R = currentRangeMeters;
-        const coords = [];
-        for (let k = 0; k <= N; k++) {
-            coords.push(Geo.siteToLngLat(siteLat, siteLon, R, (k / N) * 2 * Math.PI));
-        }
-        return { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
-    }
-    // The RADIUS is shared (one site, one range); the SOURCE + LAYER are per map, so each pane draws
-    // its own ring from the same number.
-    function addRangeRing(v) {
-        const map = v && v.map;
-        if (!map || !(currentRangeMeters > 0) || !Geo) return; // geo.js not loaded yet -> redraws on next setRangeRing
-        if (map.getSource(RANGE_SRC)) map.getSource(RANGE_SRC).setData(ringGeoJSON());
-        else map.addSource(RANGE_SRC, { type: 'geojson', data: ringGeoJSON() });
-        if (!map.getLayer(RANGE_LAYER)) {
-            map.addLayer({
-                id: RANGE_LAYER, type: 'line', source: RANGE_SRC,
-                paint: { 'line-color': '#9fe0ff', 'line-width': 1.3, 'line-opacity': 0.55, 'line-blur': 0.3 },
-            }, beforeId(map));
-        }
-        v.rangeAdded = true;
-    }
-    function removeRangeRing(v) {
-        const map = v && v.map;
-        if (map && map.getLayer(RANGE_LAYER)) map.removeLayer(RANGE_LAYER);
-        if (map && map.getSource(RANGE_SRC)) map.removeSource(RANGE_SRC);
-        if (v) v.rangeAdded = false;
-    }
-    function removeRangeRingAll() { forEachView(removeRangeRing); }
-    // Draw/update the ring for the freshly-decoded range. Per-frame ranges are ~identical, so
-    // only rebuild when it actually changes (or a layer is missing, e.g. after a re-add). The sweep
-    // pulse owns its own layer (added on demand in pulseSweep), so nothing to ensure here.
-    function setRangeRing(rangeMeters) {
-        if (!(rangeMeters > 0)) return;
-        const same = Math.abs(rangeMeters - currentRangeMeters) < 500;
-        // Unchanged radius AND every pane already has its ring up -> nothing to do. A pane added since
-        // the last frame fails the second test, which is what gets it a ring without a new decode.
-        let allUp = views.length > 0;
-        forEachView(function (v) { if (!v.map.getLayer(RANGE_LAYER)) allUp = false; });
-        if (same && allUp) {
-            return;
-        }
-        currentRangeMeters = rangeMeters;
-        forEachView(addRangeRing);
-    }
-
-    // ---- Sweep pulse ----
-    // The trailing afterglow as a FILLED WEDGE: a fan of SWEEP_TRAIL_N abutting triangles from the site out
-    // to the range-ring edge, spanning SWEEP_TRAIL_DEG BEHIND the leading bearing (0 = due north). Because
-    // the triangles TILE (share edges, no gaps), it reads as a continuous glow that fades leading→tail —
-    // unlike the old radial spokes, which diverged with range and looked ragged. Each triangle carries an
-    // `o` fill-opacity; a separate LineString (the crisp leading arm) is appended and rendered by the line
-    // layer. `fade` scales everything for the end fade-out. Same metres-per-degree projection as the ring.
-    function sweepWedgeGeoJSON(leadRad, fade) {
-        const feats = [];
-        const center = [siteLon, siteLat];
-        const step = (SWEEP_TRAIL_DEG * Math.PI / 180) / SWEEP_TRAIL_N;
-        const tipAt = function (a) { return Geo.siteToLngLat(siteLat, siteLon, currentRangeMeters, a); };
-        let prevTip = tipAt(leadRad);
-        for (let i = 1; i <= SWEEP_TRAIL_N; i++) {
-            const ang = leadRad - i * step;
-            if (ang < 0) break; // don't draw behind the sweep's start (north) on the first revolution
-            const tip = tipAt(ang);
-            // Opacity for the slice between the previous (brighter) and this (dimmer) edge — use its midpoint
-            // fraction down the trail, with a gamma falloff so the tail fades to nothing like phosphor decay.
-            const o = fade * SWEEP_PEAK * Math.pow(1 - (i - 0.5) / SWEEP_TRAIL_N, SWEEP_GAMMA);
-            if (o > 0.004) {
-                feats.push({ type: 'Feature', properties: { o: o },
-                    geometry: { type: 'Polygon', coordinates: [[center, prevTip, tip, center]] } });
-            }
-            prevTip = tip;
-        }
-        // Crisp bright leading arm (a LineString → the line layer draws it; the fill layer ignores it).
-        feats.push({ type: 'Feature', properties: { o: fade },
-            geometry: { type: 'LineString', coordinates: [center, tipAt(leadRad)] } });
-        return { type: 'FeatureCollection', features: feats };
-    }
-    // One animation drives every pane's sweep: a sweep in only one pane of four would read as broken.
-    // The per-frame cost is a setData of ~64 small polygons per pane, which is nothing next to the
-    // basemap they are drawn over.
-    function ensureSweepLayer(v) {
-        const map = v && v.map;
-        if (!map || !(currentRangeMeters > 0) || !Geo) return; // geo.js not loaded yet
-        if (!map.getSource(SWEEP_SRC)) map.addSource(SWEEP_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-        const before = beforeId(map);
-        // Fill = the fading wedge (renders only the Polygon features); line = the crisp arm (only the
-        // LineString). Both on top of the ring + radar fill. Per-feature `o` opacity for the animated fade.
-        if (!map.getLayer(SWEEP_FILL_LAYER)) {
-            map.addLayer({
-                id: SWEEP_FILL_LAYER, type: 'fill', source: SWEEP_SRC,
-                // ⚠️ antialias MUST be off: it outlines every polygon, so the 64 abutting triangles' shared
-                // radial edges would each draw a 1px seam — reading as a fan of faint lines, exactly the
-                // raggedness we're removing. Off, the triangles blend seamlessly (opacity steps are ~1%).
-                paint: { 'fill-color': '#ffe6a0', 'fill-opacity': ['get', 'o'], 'fill-antialias': false },
-            }, before);
-        }
-        if (!map.getLayer(SWEEP_ARM_LAYER)) {
-            map.addLayer({
-                id: SWEEP_ARM_LAYER, type: 'line', source: SWEEP_SRC,
-                paint: { 'line-color': '#fff4c8', 'line-width': 2, 'line-blur': 1.2, 'line-opacity': ['get', 'o'] },
-            }, before);
-        }
-    }
-    function clearSweepData() {
-        forEachView(function (v) {
-            const src = v.map.getSource(SWEEP_SRC);
-            if (src) src.setData({ type: 'FeatureCollection', features: [] });
-        });
-    }
-    // Stop any in-flight pulse and drop its layers in every pane (site change / clear / DOW / turn-off).
-    function stopSweep() {
-        if (sweepRaf) { cancelAnimationFrame(sweepRaf); sweepRaf = 0; }
-        forEachView(function (v) {
-            const map = v.map;
-            if (map.getLayer(SWEEP_ARM_LAYER)) map.removeLayer(SWEEP_ARM_LAYER);
-            if (map.getLayer(SWEEP_FILL_LAYER)) map.removeLayer(SWEEP_FILL_LAYER);
-            if (map.getSource(SWEEP_SRC)) map.removeSource(SWEEP_SRC);
-        });
-    }
-    function sweepPulseFrame() {
-        sweepRaf = 0;
-        if (!views.length || !(currentRangeMeters > 0) || !Geo) return; // nothing to draw (e.g. layer dropped)
-        const el = performance.now() - sweepAnimStart;
-        if (el >= SWEEP_MS + SWEEP_FADE_MS) { clearSweepData(); return; }            // revolution done → hide arm
-        let lead, fade;
-        if (el < SWEEP_MS) { lead = (el / SWEEP_MS) * 2 * Math.PI; fade = 1; }       // sweeping 0→360°
-        else { lead = 2 * Math.PI; fade = 1 - (el - SWEEP_MS) / SWEEP_FADE_MS; }     // hold at north, fade the trail out
-        // Build the wedge ONCE and hand the same GeoJSON to every pane — the geometry is geographic, so
-        // it is identical in all of them.
-        const data = sweepWedgeGeoJSON(lead, fade);
-        forEachView(function (v) {
-            const src = v.map.getSource(SWEEP_SRC);
-            if (src) src.setData(data);
-        });
-        sweepRaf = requestAnimationFrame(sweepPulseFrame);
-    }
-    // Fire ONE sweep pulse (host calls this when a genuinely-new frame lands). Restarts if one is
-    // already mid-flight. No-op until a frame has decoded (no radius to sweep yet).
-    function startSweepPulse() {
-        if (!(currentRangeMeters > 0) || !Geo) return;
-        forEachView(ensureSweepLayer);
-        sweepAnimStart = performance.now();
-        if (!sweepRaf) sweepRaf = requestAnimationFrame(sweepPulseFrame);
-    }
 
     // Decodes one volume into frames[index] (off-thread, with a main-thread fallback).
     // Structured decode-cause trace (rides the diagnostics JSONL as a radarLog line, so it needs no C# change).
@@ -1229,7 +1094,7 @@
         // reflectivity loop has rendered, so a later switch to Velocity is instant/near-instant). On
         // reflectivity/CC with prefetch off we skip it and re-decode on demand (setProduct).
         const wantedIds = wantedProducts(); // extra products to build this decode (active + velocity prefetch)
-        const wantGrids = inspecting; // inspector value grids are only needed while Inspect is on
+        const wantGrids = inspectOn(); // inspector value grids are only needed while Inspect is on
         // Grids-only fast path (turning Inspect on): the frame already has the active product's GEOMETRY
         // (and nothing lazy is pending for it) and only its inspector VALUE GRID is missing — so build just
         // that one grid and merge it, instead of a full re-decode of every product's geometry + a redundant
@@ -1349,208 +1214,6 @@
         upgradeDone(res.index); // free the slot + pump the next queued frame
     }
 
-    // ---- Inspector (RadarScope-style "read the value under the cursor") ----
-    // In inspect mode a mousemove projects the cursor lng/lat back to the site's polar frame
-    // (the SAME equirectangular math buildGates uses, so the inspected gate is exactly the painted
-    // one), reads the value from the current frame's grid for the active product, shows a DOM tooltip
-    // next to the cursor, and pushes the value to the host (throttled) so the color-scale bar can mark
-    // it in real time. All lookups are pure main-thread array reads — no re-decode, no GL readback.
-    let inspecting = false;
-    let inspectTip = null;          // the DOM tooltip element (lazily created; ONE, it follows the cursor)
-    // ⚠️ CROSS-PANE: Inspect is ONE instrument reading N panes. The cursor sits in one pane, but the point
-    // it names is GEOGRAPHIC, and every pane shows the same ground at the same instant — so one hover
-    // yields one reading per pane, all of the same gate, each ticking on its own chip ramp. Four numbers
-    // for one storm feature, read in a glance at the chip cluster. The panes the cursor is NOT in get a
-    // mirrored crosshair at that lng/lat so it is obvious the readings are the same point.
-    let inspectLngLat = null;       // the geographic point under the cursor (null = not pointing at the map)
-    let hoveredView = null;         // the pane the cursor is actually in (it shows the tooltip, not a cross)
-    // Per-pane host-push throttle state: each pane reports its own value, so each needs its own
-    // has/has-not edge and timer (a shared one would swallow the other panes' transitions).
-    const lastInspectPush = {}, lastInspectHad = {};
-
-    function ensureInspectTip() {
-        if (inspectTip) return inspectTip;
-        const el = document.createElement('div');
-        el.id = 'radar-inspect-tip';
-        el.style.cssText = 'position:absolute;z-index:20;pointer-events:none;display:none;' +
-            'font:600 12px/1.3 "Segoe UI",sans-serif;color:#fff;background:rgba(10,12,16,.85);' +
-            'border:1px solid rgba(255,255,255,.25);border-radius:4px;padding:3px 7px;white-space:nowrap;' +
-            'box-shadow:0 1px 4px rgba(0,0,0,.55);';
-        document.body.appendChild(el);
-        inspectTip = el;
-        return el;
-    }
-
-    // The mirrored crosshair drawn in every pane the cursor is NOT in. Built from two child bars rather
-    // than a stylesheet rule, so the whole thing is inline and this module still injects no CSS (the one
-    // place that does — radar-sites.js — is a template-literal minefield we don't need to join).
-    function ensureCrossEl(v) {
-        if (v.crossEl && v.crossEl.isConnected) return v.crossEl;
-        const el = document.createElement('div');
-        el.className = 'radar-inspect-cross';
-        el.style.cssText = 'position:absolute;z-index:19;pointer-events:none;display:none;' +
-            'width:17px;height:17px;margin-left:-8.5px;margin-top:-8.5px;';
-        const bar = 'position:absolute;background:rgba(255,255,255,.9);box-shadow:0 0 2px rgba(0,0,0,.9);';
-        const h = document.createElement('div');
-        h.style.cssText = bar + 'left:0;top:8px;width:17px;height:1.5px;';
-        const w = document.createElement('div');
-        w.style.cssText = bar + 'left:8px;top:0;width:1.5px;height:17px;';
-        el.appendChild(h); el.appendChild(w);
-        v.map.getContainer().appendChild(el);
-        v.crossEl = el;
-        return el;
-    }
-    function hideCross(v) { if (v.crossEl) v.crossEl.style.display = 'none'; }
-    // Place (or hide) one pane's crosshair for the current inspect point. The hovered pane never gets one
-    // — the real cursor is already there, and it is already a crosshair.
-    function positionCross(v) {
-        if (!inspecting || !inspectLngLat || v === hoveredView) { hideCross(v); return; }
-        let pt;
-        try { pt = v.map.project(inspectLngLat); } catch (e) { hideCross(v); return; }
-        const el = ensureCrossEl(v);
-        el.style.left = pt.x + 'px';
-        el.style.top = pt.y + 'px';
-        el.style.display = 'block';
-    }
-
-    // The value grid for the current frame + THIS PANE's product, or null if not available.
-    function inspectGrid(v) {
-        const f = frames[currentFrame];
-        return (f && f.grids && f.grids[v.product]) || null;
-    }
-
-    // Reads the moment value at a geographic point from a polar value grid, or null (no data /
-    // out of range). Mirrors buildGates' projection: x∝sin(az), y∝cos(az), az from north clockwise.
-    function lookupValue(grid, lat, lng) {
-        if (!grid || !grid.values || !Geo) return null; // values null = grid was built metadata-only (Inspect was off)
-        const polar = Geo.lngLatToPolar(siteLat, siteLon, lng, lat);
-        const rangeKm = polar.rangeMeters / 1000, azDeg = polar.azDeg;
-        const j = Math.floor((rangeKm - grid.firstGate) / grid.gateSize);
-        if (j < 0 || j >= grid.nGates) return null;
-        // Nearest radial by azimuth (unsorted, ~720 entries — trivial per move). Reject if the
-        // closest beam is too far (a gap or beyond the sweep), so we don't report a bogus value.
-        let best = -1, bestD = 999;
-        for (let i = 0; i < grid.az.length; i++) {
-            const a = grid.az[i]; if (isNaN(a)) continue;
-            let dd = Math.abs(a - azDeg); if (dd > 180) dd = 360 - dd;
-            if (dd < bestD) { bestD = dd; best = i; }
-        }
-        if (best < 0 || bestD > 2) return null;
-        const q = grid.values[best * grid.nGates + j];
-        if (q === GRID_NODATA) return null;
-        return { value: q / grid.scale, unit: grid.unit, digits: grid.digits };
-    }
-
-    // Push the inspected value to the host for the color-scale marker. Throttled (~14/s) and edge-
-    // triggered on the has/has-not transition so leaving data hides the marker promptly.
-    function pushInspect(pane, has, value) {
-        const now = Date.now();
-        if (has === lastInspectHad[pane] && now - (lastInspectPush[pane] || 0) < 70) return;
-        lastInspectPush[pane] = now; lastInspectHad[pane] = has;
-        post({ type: 'radarInspect', pane: pane, has: has, value: has ? value : 0 });
-    }
-
-    // Bound per pane (see setInspect). ONE hover, N readings: every pane reads its own product's grid at
-    // the SAME geographic point, so all the chips tick together. The pane under the cursor also gets the
-    // tooltip; the rest get the mirrored crosshair.
-    // Cost is one lookupValue per pane per mouse move — a nearest-azimuth scan of ~720 radials plus an
-    // array read, so four panes is still nothing.
-    function onInspectMove(v, e) {
-        if (!inspecting) return;
-        hoveredView = v;
-        inspectLngLat = e.lngLat;
-        let r = null;
-        forEachView(function (o) {
-            const hit = lookupValue(inspectGrid(o), e.lngLat.lat, e.lngLat.lng);
-            if (o === v) r = hit;                       // reuse the hovered pane's own read for the tooltip
-            pushInspect(o.index, !!hit, hit ? hit.value : 0);
-            positionCross(o);                           // no-op for the hovered pane (hides its cross)
-        });
-        const el = ensureInspectTip();
-        if (r) {
-            // Speed products (velocity / SRV / spectrum width — unit "m/s") read as the native m/s value
-            // PLUS mph, e.g. "12.3 m/s (28 mph)"; other products keep their native unit (dBZ / unitless CC).
-            const main = r.unit === 'm/s'
-                ? formatSpeed(r.value)
-                : r.value.toFixed(r.digits) + (r.unit ? ' ' + r.unit : '');
-            // On Velocity, show the SAME gate's dealiasing breakdown so the unfold can be checked
-            // without re-hovering: the displayed value is the dealiased speed; the raw (folded)
-            // value is what the radar measured (within ±Nyquist), recovered by removing the whole
-            // 2×Nyquist folds the dealiaser added. Lets the user confirm high velocities at a glance.
-            const vel = velocityFold(r.value, v.product);
-            if (vel) {
-                el.innerHTML = '<div>' + main + '</div>' +
-                    '<div style="font-size:10px;opacity:.75;font-weight:400">raw ' + vel.raw.toFixed(0) +
-                    ' · Nyq ' + vel.nyq.toFixed(0) + ' · ' + vel.foldLabel + '</div>';
-            } else {
-                el.textContent = main;
-            }
-            // e.point is relative to THIS pane's canvas; the tooltip is a document-level element, so
-            // offset it by where that pane sits in the page.
-            const box = v.map.getContainer().getBoundingClientRect();
-            el.style.left = (box.left + e.point.x + 14) + 'px';
-            el.style.top = (box.top + e.point.y + 14) + 'px';
-            el.style.display = 'block';
-        } else {
-            el.style.display = 'none';
-        }
-        // NB: no pushInspect here — the loop above already pushed EVERY pane's value, this one included.
-    }
-
-    // A speed in m/s → "12.3 m/s (28 mph)" (sign preserved: inbound negative, outbound positive).
-    function formatSpeed(ms) {
-        return ms.toFixed(1) + ' m/s (' + (ms * 2.23694).toFixed(1) + ' mph)';
-    }
-
-    // For a dealiased velocity value, recover the raw (folded) measurement + the fold count from the
-    // current frame's Nyquist. Returns null when not on Velocity / no Nyquist (so other products show
-    // just their value). Dealiasing only ever adds whole multiples of 2×Nyquist, so this is exact.
-    function velocityFold(dealiased, product) {
-        if (product !== 'velocity') return null;
-        const f = frames[currentFrame];
-        const nyq = f && f.velNyq;
-        if (!(nyq > 0)) return null;
-        const folds = Math.round(dealiased / (2 * nyq));
-        const raw = dealiased - folds * 2 * nyq;
-        const foldLabel = folds === 0 ? 'no fold'
-            : (folds > 0 ? '+' : '') + folds + ' fold' + (Math.abs(folds) === 1 ? '' : 's');
-        return { raw: raw, nyq: nyq, folds: folds, foldLabel: foldLabel };
-    }
-    function onInspectOut(v) {
-        // ⚠️ Moving from one pane to another fires this pane's mouseout AND the next pane's mousemove, and
-        // the order is not guaranteed. Only clear if the cursor genuinely left — i.e. we are still the
-        // pane it was last in — or crossing a groove would blank the readings that just arrived.
-        if (hoveredView && hoveredView !== v) return;
-        if (inspectTip) inspectTip.style.display = 'none';
-        inspectLngLat = null;
-        hoveredView = null;
-        forEachView(function (o) { hideCross(o); pushInspect(o.index, false, 0); });
-    }
-    // Attach / detach the inspect handlers for ONE pane. Called per view when the mode toggles and when
-    // a pane is created while Inspect is already on.
-    function bindInspect(v) {
-        if (v.inspectMove) return;
-        v.inspectMove = function (e) { onInspectMove(v, e); };
-        v.inspectOut = function () { onInspectOut(v); };
-        // The crosshair marks a GEOGRAPHIC point, so it has to be re-projected whenever the camera moves.
-        // A drag already fires mousemove, but a wheel zoom with a stationary pointer does not — without
-        // this the mirrored crosses would drift off the gate they are marking.
-        v.inspectCamera = function () { if (inspecting && inspectLngLat) positionCross(v); };
-        v.map.on('mousemove', v.inspectMove);
-        v.map.on('mouseout', v.inspectOut);
-        v.map.on('move', v.inspectCamera);
-        const canvas = v.map.getCanvas && v.map.getCanvas();
-        if (canvas) canvas.style.cursor = 'crosshair';
-    }
-    function unbindInspect(v) {
-        if (v.inspectMove) { v.map.off('mousemove', v.inspectMove); v.inspectMove = null; }
-        if (v.inspectOut) { v.map.off('mouseout', v.inspectOut); v.inspectOut = null; }
-        if (v.inspectCamera) { v.map.off('move', v.inspectCamera); v.inspectCamera = null; }
-        hideCross(v);
-        const canvas = v.map.getCanvas && v.map.getCanvas();
-        if (canvas) canvas.style.cursor = '';
-        pushInspect(v.index, false, 0);
-    }
 
     window.RadarLayer = {
         // ===== PANES =====
@@ -1576,7 +1239,7 @@
             views = next;
             forEachView(function (v) {
                 attachContextListeners(v);               // canvas listeners — safe before the style loads
-                if (inspecting) bindInspect(v);          // a pane created while Inspect is on joins it
+                if (inspectOn()) Inspect.bindView(v);    // a pane created while Inspect is on joins it
                 // ⚠️ Everything below ADDS sources/layers, and MapLibre throws "Style is not done loading"
                 // on a map whose style hasn't arrived — which is exactly the state a pane is in here, since
                 // map.js calls us the instant it constructs the new maps. A pane in that state gets its
@@ -1586,8 +1249,7 @@
                 if (v.map.isStyleLoaded && !v.map.isStyleLoaded()) return;
                 try {
                     if (currentFrame >= 0) showCurrent(v, 'setViews');
-                    if (currentRangeMeters > 0) addRangeRing(v);
-                    if (sweepRaf) ensureSweepLayer(v);
+                    if (Scope) Scope.attachView(v);
                 } catch (e) {
                     // One bad pane must not cost the others their setup, or the loop its progress post.
                     hostLog('setViews pane=' + v.index + ' deferred: ' + (e && e.message ? e.message : e));
@@ -1603,7 +1265,7 @@
         detachView: function (map) {
             const v = viewFor(map);
             if (!v) return;
-            if (inspecting) unbindInspect(v);
+            if (inspectOn()) Inspect.unbindView(v);
             try { removeLayer(v); } catch (e) { /* already torn down */ }
             views = views.filter(function (o) { return o !== v; });
             forEachView(function (o, i) { o.index = i; });
@@ -1663,7 +1325,7 @@
             // New site → drop the old range ring + sweep (the first decoded frame redraws them at
             // the new site's range); same site (a reload) → keep them up, no flicker.
             if (lat !== siteLat || lon !== siteLon) {
-                removeRangeRingAll(); stopSweep(); currentRangeMeters = 0;
+                if (Scope) Scope.reset();
             }
             siteLat = lat; siteLon = lon;
             loopToken++;            // invalidate any in-flight frames from a previous loop
@@ -1792,9 +1454,7 @@
             currentFrame = -1;
             pendingFrame = -1;
             removeLayerAll();
-            removeRangeRingAll();
-            stopSweep();
-            currentRangeMeters = 0;
+            if (Scope) Scope.reset();
             postBuildProgress(); // frames=[] -> 0/0 clears the "building" readout
             hostLog('clear token=' + loopToken);
         },
@@ -1813,9 +1473,7 @@
             invalidateUploads();
             renderErrCount = blankCount = 0; lastRenderErrAt = lastBlankAt = 0;
             removeLayerAll();
-            removeRangeRingAll();
-            stopSweep();
-            currentRangeMeters = 0; // a DOW frame is a single sweep — no rotating arm
+            if (Scope) Scope.reset(); // a DOW frame is a single sweep — no rotating arm
             hostLog('showDow ' + url);
             fetch(url, { cache: 'no-store' }).then(function (r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -1848,13 +1506,14 @@
         // Fire ONE sweep pulse (arm + trailing afterglow, one revolution then hides). The host calls
         // this when a genuinely-new frame lands. No-op until a frame has decoded (no radius yet).
         pulseSweep: function () {
-            startSweepPulse();
+            if (Scope) Scope.pulse();
         },
         // Stop + remove the sweep (host calls with period <= 0 on clear / entering replay). Kept the
         // name for the existing host shim; the arm is one-shot now, so a positive period just re-pulses.
         setSweep: function (periodSeconds) {
-            if (Number(periodSeconds) > 0) startSweepPulse();
-            else stopSweep();
+            if (!Scope) return;
+            if (Number(periodSeconds) > 0) Scope.pulse();
+            else Scope.stop();
         },
         // Switch rendered moment ('reflectivity' | 'velocity' | 'cc'). Reflectivity + CC geometry is
         // always built, so those switch instantly. Velocity is built lazily (it's the one product that
@@ -1904,28 +1563,23 @@
             const v = viewFor(map);
             if (!v) return;
             if (currentFrame >= 0) addLayer(v);
-            addRangeRing(v);
-            if (sweepRaf) ensureSweepLayer(v);
+            if (Scope) Scope.attachView(v);
         },
         // Toggle inspect mode (read the value under the cursor). Attaches/detaches the mousemove
         // handlers + crosshair cursor and hides the tooltip / clears the host marker when off.
         // Inspect is GLOBAL (one armed cursor mode over the map), so it binds in EVERY pane: point at
         // any pane and that pane reads its own product's value grid under the cursor.
         setInspect: function (on) {
-            inspecting = !!on;
-            if (inspecting) {
-                forEachView(bindInspect);
+            if (!Inspect) return;
+            Inspect.setEnabled(on);
+            if (Inspect.isOn()) {
                 // Value grids are skipped by default (memory). Turning Inspect ON now builds them on
                 // demand for the loaded frames via the bounded, current-frame-first upgrade queue — so
                 // lookups become available around the frame on screen first, without flooding the pool.
+                // This is LOOP work, not inspector work, which is why it stays on this side of the seam.
                 queueAllUpgrades('inspect');
-            } else {
-                forEachView(unbindInspect);
-                if (inspectTip) inspectTip.style.display = 'none';
-                inspectLngLat = null;
-                hoveredView = null;
             }
-            hostLog('inspect=' + inspecting + ' panes=' + views.length);
+            hostLog('inspect=' + Inspect.isOn() + ' panes=' + views.length);
         },
     };
 
