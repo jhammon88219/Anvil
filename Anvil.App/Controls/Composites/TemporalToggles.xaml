@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalToggles — the Past / Now / Fore temporal features as three compact labelled pills.
+<!-- TemporalToggles — the Past / Now / Fore temporal features as three big square keys.
 
-       [ Past ] [ Now ] [ Fore ]     lit = that mode is ACTIVE (a projection of its subsystem,
-          ^        ^        ^        not a stored flag), so the lit state can't drift from reality
+       ┌──────┐ ┌──────┐ ┌──────┐   ┐ each key is SQUARE and as tall as the bar's content row:
+       │      │ │      │ │      │   │ the height comes from the bar, the width from the height
+       │ Past │ │ Now  │ │ Fore │   │ (code-behind), so both follow the bar and can't go stale
+       │      │ │      │ │      │   ┘
+       └──────┘ └──────┘ └──────┘   lit = that mode is ACTIVE (a projection of its subsystem,
+          ^        ^        ^       not a stored flag), so the lit state can't drift from reality
           │        │        └── SPC outlooks          ┐ Now and Fore coexist;
           │        └── live radar / current alerts    ┘ Past excludes both
           └── historical replay
@@ -19,8 +23,15 @@
      be — pinned there by MainWindow's [*, Auto, *] bar grid: this control is the Auto column between two
      equal stars, so neither the console on the left nor the window buttons on the right can push it off
      centre, however wide they get (quad panes add product chips on the left; the pills do not move).
-     ⚠️ Keep this control's own width CONTENT-sized and symmetric — a stretch or a one-sided margin here
-     would re-introduce the drift the bar grid exists to prevent.
+     ⚠️ Keep this control's own WIDTH content-sized and symmetric — a horizontal stretch or a one-sided
+     margin here would re-introduce the drift the bar grid exists to prevent. HEIGHT is the opposite: it
+     must STRETCH (here and at the host), because the row's height is what sizes the squares.
+
+     SIZING — the keys are square and adaptive, not a fixed size. Height comes from the bar's content
+     row (stretch); the code-behind then mirrors that measurement onto Width and FontSize. So the keys
+     grow with the bar — quad panes add a chip row and the squares follow — and there is no pair of
+     magic numbers to keep in sync with a layout that moves. Tuning knobs (the height fraction the
+     square takes, the font ratio, the floor) are consts at the top of the code-behind.
      Bound to the coordinator MapViewModel. -->
 <UserControl x:Class="Anvil.Controls.Composites.TemporalToggles"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -31,44 +42,56 @@
 
     <UserControl.Resources>
         <!-- One mode pill. A click activates the mode and opens its window; clicking again flips the
-             window; you leave a mode by choosing another. -->
+             window; you leave a mode by choosing another.
+
+             ⚠️ NO Width AND NO Height HERE, deliberately. A pill is a SQUARE sized off the bar: it
+             stretches to the full height of the bar's content row, and the code-behind then sets its
+             Width to that measured height. So the size follows the bar instead of being a pair of
+             numbers that go stale the moment the bar's contents change height (which they do — quad
+             panes add a chip row). Fixing either dimension here breaks that and un-squares the pill.
+             FontSize is set from the same measurement, so the label scales with the square. -->
         <Style x:Key="TemporalPillStyle"
                TargetType="ToggleButton">
-            <Setter Property="Width"                      Value="58"/>
-            <Setter Property="Height"                     Value="28"/>
             <Setter Property="MinWidth"                   Value="0"/>
             <Setter Property="MinHeight"                  Value="0"/>
             <Setter Property="Padding"                    Value="0"/>
-            <Setter Property="CornerRadius"               Value="5"/>
-            <Setter Property="FontSize"                   Value="13"/>
+            <Setter Property="CornerRadius"               Value="8"/>
+            <Setter Property="VerticalAlignment"          Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment"   Value="Center"/>
         </Style>
     </UserControl.Resources>
 
-    <Grid VerticalAlignment="Center"
-          ColumnSpacing="6">
+    <!-- Stretch, NOT Center: the row's height is what the pills are measured against, so this has to
+         fill the bar's content row for them to reach full height. The host must stretch it too. -->
+    <Grid x:Name="PillRow"
+          VerticalAlignment="Stretch"
+          ColumnSpacing="8"
+          SizeChanged="OnPillRowSizeChanged">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
-        <ToggleButton Grid.Column="0"
+        <ToggleButton x:Name="PastPill"
+                      Grid.Column="0"
                       Style="{StaticResource TemporalPillStyle}"
                       Content="Past"
                       ToolTipService.ToolTip="PastCast — replay a historical radar window (click again to show/hide its panel)"
                       IsChecked="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
                       Click="OnPastClick"/>
 
-        <ToggleButton Grid.Column="1"
+        <ToggleButton x:Name="NowPill"
+                      Grid.Column="1"
                       Style="{StaticResource TemporalPillStyle}"
                       Content="Now"
                       ToolTipService.ToolTip="NowCast — live radar / current conditions (click again to show/hide its panel)"
                       IsChecked="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
                       Click="OnNowClick"/>
 
-        <ToggleButton Grid.Column="2"
+        <ToggleButton x:Name="ForePill"
+                      Grid.Column="2"
                       Style="{StaticResource TemporalPillStyle}"
                       Content="Fore"
                       ToolTipService.ToolTip="ForeCast — SPC outlooks (click again to show/hide its panel)"

@@ -212,14 +212,17 @@
                                       IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}"/>
                     </Grid>
 
-                    <!-- ===== TEMPORAL MODE PILLS — THE BAR'S CENTERPIECE =====
+                    <!-- ===== TEMPORAL MODE KEYS — THE BAR'S CENTERPIECE =====
                          The Auto column between two equal stars, so this is the bar's exact midpoint
                          (see the ⚠️ above). LAST in markup on purpose: if the console on the left ever
-                         outgrows its half it slides UNDER these rather than over them, so the pills stay
-                         clickable. Past excludes Now/Fore; Now and Fore coexist. -->
+                         outgrows its half it slides UNDER these rather than over them, so the keys stay
+                         clickable. Past excludes Now/Fore; Now and Fore coexist.
+                         ⚠️ VerticalAlignment=Stretch is REQUIRED, not cosmetic: the keys are squares
+                         measured off the height they are given, so centring this instead would collapse
+                         the row to its content height and shrink them to nothing. -->
                     <comp:TemporalToggles Grid.Column="1"
                                           HorizontalAlignment="Center"
-                                          VerticalAlignment="Center"
+                                          VerticalAlignment="Stretch"
                                           ViewModel="{x:Bind ViewModel}"/>
                 </Grid>
             </ctl:OverlayBar.BarContent>
