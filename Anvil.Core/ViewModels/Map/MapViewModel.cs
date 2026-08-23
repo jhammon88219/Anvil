@@ -179,7 +179,8 @@ namespace Anvil.ViewModels
 
 		/// <summary>Whether the Pipeline Console window stays above the main window (topmost). User-toggled from
 		/// the pin in the console's title-bar area; <c>WindowManager</c> applies it to that window's
-		/// presenter. Defaults on, so a single-monitor user can watch it while working the map.</summary>
+		/// presenter. Defaults on — the house default for every panel now, not a console quirk (see the
+		/// per-window flags below).</summary>
 		public bool IsPipelineConsoleOnTop
 		{
 			get => _isPipelineConsoleOnTop;
@@ -187,14 +188,21 @@ namespace Anvil.ViewModels
 		}
 
 		// Per-window always-on-top flags (topmost), each driven by that window's title-bar pin and applied to
-		// its presenter by WindowManager. Default off (normal window ordering) — pin to float over the map.
-		private bool _isSettingsWindowOnTop;
-		private bool _isMapControlsWindowOnTop;
-		private bool _isSiteExplorerOnTop;
-		private bool _isPastWindowOnTop;
-		private bool _isNowWindowOnTop;
-		private bool _isForeWindowOnTop;
-		private bool _isDevToolsWindowOnTop;
+		// its presenter by WindowManager.
+		// ⚠️ ALL DEFAULT ON, deliberately — a panel is app chrome, and it is hidden from the taskbar/Alt-Tab
+		// (see WindowManager's chrome policy), so an UNPINNED panel can slip behind the main window with no
+		// switcher route back. Pinned-by-default means a panel you opened is a panel you can see. Unpinning is
+		// the opt-out, for parking one on a second monitor.
+		// ⚠️ These are the FIELD defaults, not a re-arm on open: unpin a panel and it stays unpinned when you
+		// reopen it this session. Don't "fix" that by re-arming in the open path — a toggle that silently
+		// resets itself is worse than one that remembers.
+		private bool _isSettingsWindowOnTop = true;
+		private bool _isMapControlsWindowOnTop = true;
+		private bool _isSiteExplorerOnTop = true;
+		private bool _isPastWindowOnTop = true;
+		private bool _isNowWindowOnTop = true;
+		private bool _isForeWindowOnTop = true;
+		private bool _isDevToolsWindowOnTop = true;
 
 		/// <summary>Whether the App Settings window stays on top (title-bar pin).</summary>
 		public bool IsSettingsWindowOnTop

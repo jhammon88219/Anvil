@@ -22,6 +22,13 @@ namespace Anvil
 	// INDEPENDENT — no one-at-a-time grouping, so any combination may be open at once. Content is a fresh
 	// instance of the section control bound to the shared singleton VM, hosted headerless (the window's own
 	// content supplies the title; the native caption supplies the buttons).
+	//
+	// ⚠️ CHROME POLICY — uniform, owned HERE (in OpenWindow), not per-registration: every panel gets a
+	// CLOSE-ONLY caption (no minimize, no maximize) and is hidden from the taskbar + Alt-Tab. A panel's hide
+	// is its bar key, which also unlatches the toggle; minimize did the same thing WORSE (window gone, toggle
+	// still lit). Panels stay freely RESIZABLE. See the comments in OpenWindow for the full reasoning before
+	// changing any of it. Consequence: with no switcher entry, the only route back to a panel buried behind
+	// the main window is toggling its bar key off/on.
 	// ============================================================================================
 
 	/// <summary>
@@ -161,16 +168,32 @@ namespace Anvil
 			}
 
 			// Size + center over the main window BEFORE Activate so it opens already-fitted (no default-size
-			// flash). A normal resizable/maximizable window otherwise (OverlappedPresenter defaults). AppWindow
-			// works in physical pixels, so scale the panel's logical footprint by the monitor's DPI scale.
+			// flash). Still freely RESIZABLE (see the caption note below). AppWindow works in physical pixels,
+			// so scale the panel's logical footprint by the monitor's DPI scale.
 			if (window.AppWindow is AppWindow appWindow)
 			{
+				// A panel is app chrome, not an app: keep it out of the taskbar + Alt-Tab so it can't read as a
+				// second Anvil. With minimize gone (below) a panel can't vanish, so the switcher entry only ever
+				// offered a second way to raise one — at the cost of eight bogus taskbar buttons.
+				appWindow.IsShownInSwitchers = false;
+
 				// Topmost windows (e.g. the Pipeline Console) float above the main window even when the map has
 				// focus — so a single-monitor user can watch them while interacting with the map. It doesn't
 				// take focus, so the map underneath stays clickable/draggable.
 				if (appWindow.Presenter is OverlappedPresenter presenter)
 				{
 					presenter.IsAlwaysOnTop = reg.AlwaysOnTop();
+
+					// CLOSE-ONLY CAPTION — the panel's bar key IS its hide, so the caption keeps only ✕.
+					// ⚠️ MINIMIZE is the one that had to go: it hides the window while the bar key stays LIT, so
+					// the app claims a panel is open with nothing on screen. The bar key does the same job AND
+					// unlatches itself. MAXIMIZE travels with it, not on its own merits — drop only the minimize
+					// box and the button still draws, greyed; drop both and the caption collapses to one button.
+					// ⚠️ IsResizable is deliberately LEFT ALONE (defaults true) — drag-resize is how a panel's
+					// size gets tuned, and it's what makes losing maximize free. Don't "finish the set" here.
+					// Static policy, set once at open — unlike IsAlwaysOnTop these never belong in the reconcile.
+					presenter.IsMinimizable = false;
+					presenter.IsMaximizable = false;
 				}
 
 				int w = (int)Math.Ceiling(reg.Width * scale);
