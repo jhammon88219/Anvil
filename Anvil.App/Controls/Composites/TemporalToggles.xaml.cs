@@ -3,6 +3,10 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Anvil.ViewModels;
+// ⚠️ Windows.Foundation.Size, imported rather than written inline: this file's namespace sits under
+// Anvil.Controls, where a leading "Windows." binds to the sibling Anvil.Controls.Windows and fails to
+// resolve. A using directive is outside the namespace, where Windows still means the global one.
+using Windows.Foundation;
 
 namespace Anvil.Controls.Composites
 {
@@ -33,8 +37,15 @@ namespace Anvil.Controls.Composites
 		/// row right back.</para></summary>
 		private const double VerticalInset = 0;
 
-		/// <summary>Label size as a fraction of the square's side, so the word scales with the key.</summary>
-		private const double FontRatio = 0.24;
+		/// <summary>Glyph size as a fraction of the square's side.</summary>
+		private const double GlyphRatio = 0.30;
+
+		/// <summary>Horizontal breathing room inside the key, per edge, that the name must not run into.</summary>
+		private const double NameInset = 5;
+
+		/// <summary>Ceiling on the name's size. Without it a very tall bar would inflate the words past the
+		/// point where they read as labels.</summary>
+		private const double MaxNameFont = 15;
 
 		/// <summary>Smallest square we will draw, in case the row measures degenerate (0 during the first
 		/// layout pass, or a host that forgets to stretch us). Keeps the keys clickable rather than vanishing.</summary>
@@ -60,30 +71,64 @@ namespace Anvil.Controls.Composites
 			// The key's height is whatever the stretch gives it: the row, less the inset margin. Width
 			// mirrors that number, which is what makes it square.
 			var side = Math.Max(MinSide, e.NewSize.Height - (2 * VerticalInset));
-			var font = side * FontRatio;
 			var inset = new Thickness(0, VerticalInset, 0, VerticalInset);
 
-			Apply(PastPill);
-			Apply(NowPill);
-			Apply(ForePill);
+			// The NAME is fitted to the key's WIDTH, not scaled off its height, because the names are long
+			// ("ForeCast" is eight characters in a square barely wider than it is tall) and height alone
+			// would happily pick a size that overflows. All three keys share the one size that fits the
+			// widest of them — sizing each to its own text would render "NowCast" noticeably larger than
+			// "ForeCast" and break the trio's symmetry.
+			var nameFont = Math.Min(MaxNameFont, FitNameFont(side - (2 * NameInset)));
+			var glyphFont = side * GlyphRatio;
 
-			void Apply(ToggleButton pill)
+			Apply(PastPill, PastGlyph, PastName);
+			Apply(NowPill, NowGlyph, NowName);
+			Apply(ForePill, ForeGlyph, ForeName);
+
+			void Apply(ToggleButton pill, FontIcon glyph, TextBlock name)
 			{
 				if (pill.Width != side)
 				{
 					pill.Width = side;
 				}
 
-				if (pill.FontSize != font)
-				{
-					pill.FontSize = font;
-				}
-
 				if (!pill.Margin.Equals(inset))
 				{
 					pill.Margin = inset;
 				}
+
+				glyph.FontSize = glyphFont;
+				name.FontSize = nameFont;
 			}
+		}
+
+		// Widest name measured at ProbeFont — computed once, since the three labels are fixed strings.
+		private double _probeWidth;
+
+		/// <summary>
+		/// The font size at which the LONGEST of the three names just fits <paramref name="usableWidth"/>.
+		/// <para>Measured rather than derived from a characters × average-width guess: the guess bakes in a
+		/// constant that is wrong for a different typeface and goes stale the moment a name is renamed,
+		/// whereas measuring asks the actual font. The probe is done once and scaled thereafter, so no
+		/// measure work happens on later resizes.</para>
+		/// </summary>
+		private double FitNameFont(double usableWidth)
+		{
+			const double ProbeFont = 100;
+
+			if (_probeWidth <= 0)
+			{
+				foreach (var label in new[] { PastName, NowName, ForeName })
+				{
+					var restore = label.FontSize;
+					label.FontSize = ProbeFont;
+					label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+					_probeWidth = Math.Max(_probeWidth, label.DesiredSize.Width);
+					label.FontSize = restore;
+				}
+			}
+
+			return _probeWidth > 0 ? ProbeFont * usableWidth / _probeWidth : MaxNameFont;
 		}
 
 		/// <summary>The coordinator view model; bound from the host.</summary>

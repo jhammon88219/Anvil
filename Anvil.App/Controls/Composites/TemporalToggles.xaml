@@ -1,15 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalToggles — the Past / Now / Fore temporal features as three big square keys.
+<!-- TemporalToggles — the PastCast / NowCast / ForeCast temporal features as three big square keys.
 
-       ┌──────┐ ┌──────┐ ┌──────┐   ┐ each key is SQUARE and as tall as the bar's content row:
-       │      │ │      │ │      │   │ the height comes from the bar, the width from the height
-       │ Past │ │ Now  │ │ Fore │   │ (code-behind), so both follow the bar and can't go stale
-       │      │ │      │ │      │   ┘
-       └──────┘ └──────┘ └──────┘   lit = that mode is ACTIVE (a projection of its subsystem,
-          ^        ^        ^       not a stored flag), so the lit state can't drift from reality
-          │        │        └── SPC outlooks          ┐ Now and Fore coexist;
-          │        └── live radar / current alerts    ┘ Past excludes both
+       ┌──────────┐┌──────────┐┌──────────┐  ┐ each key is SQUARE and as tall as the bar's content
+       │    ↺     ││   ((•))  ││    ☁     │  │ row: height comes from the bar, width from the
+       │ PastCast ││ NowCast  ││ ForeCast │  │ height (code-behind), so both follow the bar
+       └──────────┘└──────────┘└──────────┘  ┘ and can't go stale
+          ^           ^           ^           lit = that mode is ACTIVE (a projection of its
+          │           │           └── SPC outlooks    subsystem, not a stored flag), so the lit
+          │           └── live radar / current alerts state can't drift from reality
           └── historical replay
+
+     A key is a GLYPH OVER A NAME and nothing else — it is a mode switch, not a readout. A third tier
+     carrying live status (replay date / warning counts / outlook day) was built and REMOVED: it made the
+     keys read as dashboard tiles when their whole job is "which timeframe am I in". Don't re-add it;
+     that state belongs in each mode's own window. Whether the KEY is lit is the only state it reports.
+
+     ⚠️ The glyphs are a REVERSAL of the older "text pills, not icon-over-label stacks" rule, made
+     deliberately: that rule came from a SMALL pill, where it was icon OR word and the word won. A key
+     this size fits both, so the trade no longer applies. Codepoints were picked by rendering candidates
+     in the actual font — a wrong one ships as an empty box, so verify visually before swapping one.
 
      A click
      activates that time-frame AND opens its settings WINDOW (see PastCastWindow / NowCastWindow /
@@ -18,20 +27,22 @@
      Now/Fore; Now and Fore coexist). The click routes through MapViewModel.ToggleTemporalMode; the pill's
      lit state binds OneWay to MapViewModel.IsPastCast/IsNowCast/IsForeCast (projections of the subsystems).
 
-     These are TEXT pills, not the old icon-over-label stacks (the words read better than the placeholder
-     glyphs did). They sit at the bottom bar's exact HORIZONTAL CENTER — where the radar console used to
-     be — pinned there by MainWindow's [*, Auto, *] bar grid: this control is the Auto column between two
-     equal stars, so neither the console on the left nor the window buttons on the right can push it off
-     centre, however wide they get (quad panes add product chips on the left; the pills do not move).
+     The keys carry the FULL names (PastCast / NowCast / ForeCast) so the display vocabulary matches the
+     one the code uses everywhere. They sit at the bottom bar's exact HORIZONTAL CENTER — where the radar
+     console used to be — pinned there by MainWindow's [*, Auto, *] bar grid: this control is the Auto
+     column between two equal stars, so neither the console on the left nor the window buttons on the
+     right can push it off centre, however wide they get (quad adds product chips left; the keys hold).
      ⚠️ Keep this control's own WIDTH content-sized and symmetric — a horizontal stretch or a one-sided
      margin here would re-introduce the drift the bar grid exists to prevent. HEIGHT is the opposite: it
      must STRETCH (here and at the host), because the row's height is what sizes the squares.
 
      SIZING — the keys are square and adaptive, not a fixed size. Height comes from the bar's content
-     row (stretch); the code-behind then mirrors that measurement onto Width and FontSize. So the keys
-     grow with the bar — quad panes add a chip row and the squares follow — and there is no pair of
-     magic numbers to keep in sync with a layout that moves. Tuning knobs (the height fraction the
-     square takes, the font ratio, the floor) are consts at the top of the code-behind.
+     row (stretch); the code-behind mirrors that onto Width, scales the glyph off it, and MEASURES the
+     longest name to pick the one font size that fits all three (the names are long enough that a
+     height-derived size would overflow the square, and sizing each key to its own text would render
+     "NowCast" bigger than "ForeCast"). So the keys grow with the bar — quad adds a chip row and the
+     squares follow — with no magic numbers to keep in sync with a layout that moves. Tuning knobs are
+     consts at the top of the code-behind.
      Bound to the coordinator MapViewModel. -->
 <UserControl x:Class="Anvil.Controls.Composites.TemporalToggles"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -74,28 +85,68 @@
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
+        <!-- PASTCAST — glyph E81C, a clock with a counter-clockwise arrow: history/rewind. -->
         <ToggleButton x:Name="PastPill"
                       Grid.Column="0"
                       Style="{StaticResource TemporalPillStyle}"
-                      Content="Past"
                       ToolTipService.ToolTip="PastCast — replay a historical radar window (click again to show/hide its panel)"
                       IsChecked="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
-                      Click="OnPastClick"/>
+                      Click="OnPastClick">
+            <Grid Margin="3,0" RowSpacing="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- glyph -->
+                    <RowDefinition Height="Auto"/> <!-- name -->
+                </Grid.RowDefinitions>
+                <FontIcon x:Name="PastGlyph" Grid.Row="0"
+                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                          Glyph="&#xE81C;"/>
+                <TextBlock x:Name="PastName" Grid.Row="1"
+                           Text="PastCast"
+                           HorizontalAlignment="Center"/>
+            </Grid>
+        </ToggleButton>
 
+        <!-- NOWCAST — glyph E93E, a dot radiating signal waves: live. Deliberately NOT the tower (EC05),
+             which reads as "a radar site" and would collide with the on-map site markers' language. -->
         <ToggleButton x:Name="NowPill"
                       Grid.Column="1"
                       Style="{StaticResource TemporalPillStyle}"
-                      Content="Now"
                       ToolTipService.ToolTip="NowCast — live radar / current conditions (click again to show/hide its panel)"
                       IsChecked="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
-                      Click="OnNowClick"/>
+                      Click="OnNowClick">
+            <Grid Margin="3,0" RowSpacing="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <FontIcon x:Name="NowGlyph" Grid.Row="0"
+                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                          Glyph="&#xE93E;"/>
+                <TextBlock x:Name="NowName" Grid.Row="1"
+                           Text="NowCast"
+                           HorizontalAlignment="Center"/>
+            </Grid>
+        </ToggleButton>
 
+        <!-- FORECAST — glyph E753, a cloud: the weather-outlook idiom. -->
         <ToggleButton x:Name="ForePill"
                       Grid.Column="2"
                       Style="{StaticResource TemporalPillStyle}"
-                      Content="Fore"
                       ToolTipService.ToolTip="ForeCast — SPC outlooks (click again to show/hide its panel)"
                       IsChecked="{x:Bind ViewModel.IsForeCast, Mode=OneWay}"
-                      Click="OnForeClick"/>
+                      Click="OnForeClick">
+            <Grid Margin="3,0" RowSpacing="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <FontIcon x:Name="ForeGlyph" Grid.Row="0"
+                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                          Glyph="&#xE753;"/>
+                <TextBlock x:Name="ForeName" Grid.Row="1"
+                           Text="ForeCast"
+                           HorizontalAlignment="Center"/>
+            </Grid>
+        </ToggleButton>
     </Grid>
 </UserControl>
