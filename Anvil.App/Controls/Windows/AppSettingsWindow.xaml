@@ -8,13 +8,15 @@
        │  STORAGE                                             │
        │    Radar cache          4.2 GB      ( Clear now )    │  ← live size, re-read on each open
        │    Cache limit             [5 ▾] GB                  │  ← PERSISTED; the startup sweep's cap
-       │  ADVANCED                                            │
-       │    Pipeline Console   [ Hidden ●───]                 │  ← dev/diagnostic window
        └──────────────────────────────────────────────────────┘
 
-     App BEHAVIOR only. Map CONTENT (the radar-site marker toggles) moved to the Map Controls window;
-     a setting that changes what the map draws does not belong here. Add a section = a row in the body;
-     make it persist = one property on AppSettings. -->
+     App BEHAVIOR only, and the rule has now cost this window two sections. Map CONTENT (the radar-site
+     marker toggles) moved to the Map Controls window; a setting that changes what the map draws does not
+     belong here. The ADVANCED section — a lone Pipeline Console switch — moved to the Dev Tools window;
+     dev instrumentation is not app behavior either, and it was only ever parked here because there was
+     nowhere else for it. Add a section = a row in the body; make it persist = one property on
+     AppSettings. -->
+
 
 <UserControl x:Class="Anvil.Controls.Windows.AppSettingsWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -40,7 +42,6 @@
         <Grid Margin="16" RowSpacing="8" VerticalAlignment="Top">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- Storage (cache size + clear + limit) -->
-                <RowDefinition Height="Auto"/> <!-- Advanced / Diagnostics (PIPELINE CONSOLE) -->
             </Grid.RowDefinitions>
 
             <!-- The radar-site marker toggles (Show TDWRs / Show research radars) moved to the Map
@@ -86,19 +87,6 @@
                               ToolTipService.ToolTip="Maximum on-disk radar cache; enforced at the next launch"/>
                     <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="GB"/>
                 </Grid>
-            </StackPanel>
-
-            <!-- PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit): the non-obvious toggle
-                 that opens the read-only pipeline glass-cockpit window. Tucked under an Advanced label
-                 so it's discoverable but out of the way. -->
-            <StackPanel Grid.Row="1" Spacing="6" Margin="0,4,0,0">
-                <TextBlock Text="Advanced"
-                           Style="{StaticResource SettingsSectionLabelStyle}"/>
-                <ToggleSwitch Margin="4,0,0,0"
-                              Header="Pipeline Console"
-                              OffContent="Hidden" OnContent="Shown"
-                              IsOn="{x:Bind ViewModel.IsPipelineConsoleOpen, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Show the Level-2 pipeline console: a mini-scrubber per product + storm-motion state (observe-only)"/>
             </StackPanel>
         </Grid>
 

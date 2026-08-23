@@ -170,8 +170,10 @@ namespace Anvil.ViewModels
 
 		// PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit).
 		/// <summary>The Pipeline Console: a read-only glass-cockpit over the Level-2 build pipeline (a
-		/// mini-scrubber per product + VWP/storm-motion state). Ships behind a non-obvious toggle in the App
-		/// Settings window; polls the WebView only while open.</summary>
+		/// mini-scrubber per product + VWP/storm-motion state). Opened by a switch in the DEV TOOLS window
+		/// (it was App Settings → Advanced until that window was pared back to app behavior only); polls the
+		/// WebView only while open. ⚠️ Dev Tools is Debug-only, so nothing opens this in a Release build even
+		/// though the window registration itself is not gated.</summary>
 		public PipelineConsoleViewModel PipelineConsole { get; }
 
 		private bool _isPipelineConsoleOpen;

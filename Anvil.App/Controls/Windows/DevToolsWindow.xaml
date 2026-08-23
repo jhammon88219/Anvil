@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- DevToolsWindow — DEV-ONLY. Hosts BOTH dev tools (the automated site sweep + the fixed-corpus dealias-
-     validation harness), stacked as two labeled sections. Hosted in its OWN OS window by WindowManager
+<!-- DevToolsWindow — DEV-ONLY. Hosts the dev tools (the automated site sweep, the fixed-corpus dealias-
+     validation harness, and the Pipeline Console's switch), stacked as labeled sections. Hosted in its OWN OS window by WindowManager
      (MapViewModel.IsDevToolsWindowOpen), like every other app-wide window, so there is no panel frame: the
      root is the dark surface stretched to fill the window. Opened by the dev "Dev" button on the top bar's
      right edge (Debug builds only). Bound to BOTH a SiteSweepViewModel and a RadarValidationViewModel;
@@ -22,11 +22,17 @@
        │   └────────────────────────────────────────────┘     │
        │   what it does…                                      │
        │   ( Run ) ( Stop ) ( Report… )                       │
+       │  ────────────────────────────────────────────────    │
+       │  PIPELINE CONSOLE                                    │
+       │   what it does…                                      │
+       │   [ Hidden ●───]                                     │  ← opens the console's own window
        └──────────────────────────────────────────────────────┘
 
-     The two halves of one loop: the sweep is DISCOVERY over live data (it harvests suspects), the
-     corpus scorer is REGRESSION over fixed data (deterministic, so the only variable is the code).
-     They share a window because you run the second to prove a fix for what the first found. -->
+     The first two are the two halves of one loop: the sweep is DISCOVERY over live data (it harvests
+     suspects), the corpus scorer is REGRESSION over fixed data (deterministic, so the only variable is
+     the code). They share a window because you run the second to prove a fix for what the first found.
+     The console is the third kind — pure OBSERVATION, no run to start — and its switch sits here rather
+     than in App Settings because it is dev instrumentation, not app behavior. -->
 
 <UserControl x:Class="Anvil.Controls.Windows.DevToolsWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -57,12 +63,14 @@
                    FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
-                <!-- Body: the two dev-tool sections. -->
+                <!-- Body: the dev-tool sections. -->
                 <Grid Grid.Row="1" Margin="16,12,16,14" RowSpacing="10" VerticalAlignment="Top">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/> <!-- Site sweep section -->
                         <RowDefinition Height="Auto"/> <!-- divider -->
                         <RowDefinition Height="Auto"/> <!-- Dealias validation section -->
+                        <RowDefinition Height="Auto"/> <!-- divider -->
+                        <RowDefinition Height="Auto"/> <!-- Pipeline console section -->
                     </Grid.RowDefinitions>
 
                     <!-- ===== Section 1: automated site sweep (SiteSweepViewModel). ===== -->
@@ -170,6 +178,39 @@
                             <Button Content="Report…" Click="OnValidationReportClick"
                                     IsEnabled="{x:Bind ValidationVm.HasReport, Mode=OneWay}"/>
                         </StackPanel>
+                    </Grid>
+
+                    <!-- Divider before the console. -->
+                    <Border Grid.Row="3" Height="1" Margin="0,2"
+                            Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+                    <!-- ===== Section 3: the Pipeline Console's open toggle. =====
+                         MOVED here from App Settings → Advanced. It was tucked in that window only
+                         because there was nowhere else for a dev switch to live; the console is a
+                         read-only glass-cockpit over the decode pipeline, which is what this window is
+                         for, and App Settings is app BEHAVIOR. It is a toggle rather than a button
+                         because the window's existence IS the state (WindowManager reconciles the flag),
+                         so it unlatches when you close the console from its own caption.
+                         ⚠️ CONSEQUENCE, accepted for now: this window is registered #if DEBUG and its bar
+                         key is collapsed in Release, so a Release build has NO way to open the console —
+                         while the "pipeline" window registration itself is NOT Debug-gated. If the
+                         console should ship, it needs a non-dev trigger, not just a registration. -->
+                    <Grid Grid.Row="4" RowSpacing="8" VerticalAlignment="Top">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/> <!-- section label -->
+                            <RowDefinition Height="Auto"/> <!-- what it does -->
+                            <RowDefinition Height="Auto"/> <!-- the toggle -->
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="Pipeline console" Style="{StaticResource DevSectionLabelStyle}"/>
+
+                        <TextBlock Grid.Row="1" TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="Opens the read-only Level-2 pipeline window: a mini-scrubber per product plus VWP/storm-motion state. Observe-only — it polls the WebView while open and changes nothing."/>
+
+                        <ToggleSwitch Grid.Row="2"
+                                      OffContent="Hidden" OnContent="Shown"
+                                      IsOn="{x:Bind ViewModel.IsPipelineConsoleOpen, Mode=TwoWay}"/>
                     </Grid>
                 </Grid>
 
