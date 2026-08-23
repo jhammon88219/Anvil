@@ -932,9 +932,27 @@ namespace Anvil.ViewModels
 
 				OnPropertyChanged(nameof(IsSinglePane));
 				OnPropertyChanged(nameof(VisiblePaneCount));
+				OnPropertyChanged(nameof(NextPaneLayout));
 				ApplyPaneLayout();
 			}
 		}
+
+		/// <summary>The layout one click of the bar's pane key would land on: Single → TwoAcross → Quad →
+		/// Single. Smallest → largest, wrapping, so the key never dead-ends.
+		/// <para>Public because the key DRAWS this, not the current layout — its icon advertises what the
+		/// click will do, the way a play button shows a play triangle while paused. Exposing the next
+		/// layout keeps the ORDER here in the one place; the view would otherwise have to re-derive the
+		/// sequence to know which icon to show, and the two copies could disagree.</para></summary>
+		public PaneLayout NextPaneLayout => _paneLayout switch
+		{
+			PaneLayout.Single => PaneLayout.TwoAcross,
+			PaneLayout.TwoAcross => PaneLayout.Quad,
+			_ => PaneLayout.Single,
+		};
+
+		/// <summary>Advances to <see cref="NextPaneLayout"/>. Drives the bar's single cycling pane-layout
+		/// key; the view knows only "advance".</summary>
+		public void CyclePaneLayout() => PaneLayout = NextPaneLayout;
 
 		/// <summary>True while exactly one pane is shown. Rule 8 (a site switch resets the product to
 		/// reflectivity, hiding a fresh loop's velocity/motion latency) is scoped to this: in multi-pane the

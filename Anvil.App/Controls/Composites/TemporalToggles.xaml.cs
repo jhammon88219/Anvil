@@ -2,6 +2,7 @@ using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Anvil.Layout;
 using Anvil.ViewModels;
 // ⚠️ Windows.Foundation.Size, imported rather than written inline: this file's namespace sits under
 // Anvil.Controls, where a leading "Windows." binds to the sibling Anvil.Controls.Windows and fails to
@@ -21,24 +22,14 @@ namespace Anvil.Controls.Composites
 	/// </summary>
 	public sealed partial class TemporalToggles : UserControl
 	{
-		// ===== Key sizing. The keys are SQUARE and sized off the BAR, not off constants here: the row
-		// stretches to the bar's content height and every number below is derived from that measurement,
-		// so the keys track the bar when it changes height (quad panes add a chip row) with nothing to
-		// keep in sync by hand. These three are the only tuning knobs.
-
-		/// <summary>Vertical inset of a key inside the row, per edge. 0 = the key fills the row, which is
-		/// the tallest it can be without growing the bar; the bar's own 10px padding already supplies the
-		/// breathing room that makes this read as "almost the height of the bar". Raise it to pull the keys
-		/// in from the bar's edges.
-		/// <para>⚠️ The inset is a MARGIN, not a smaller explicit Height, and that is load-bearing. A key's
-		/// height must keep coming from the STRETCH so its desired height stays content-sized: if a key
-		/// instead demanded the height it was last given, it would hold the bar open at that height and the
-		/// bar could never shrink again — a ratchet, since the row feeds the key and the key would feed the
-		/// row right back.</para></summary>
-		private const double VerticalInset = 0;
-
-		/// <summary>Glyph size as a fraction of the square's side.</summary>
-		private const double GlyphRatio = 0.30;
+		// ===== Key sizing. The keys are SQUARE and sized off the BAR, not off constants: the row stretches
+		// to the bar's content height and every number is derived from that measurement, so the keys track
+		// the bar when it changes height (quad panes add a chip row) with nothing to keep in sync by hand.
+		//
+		// The SIZE rule itself lives in Layout/BarKeyMetrics, NOT here, because MainWindow's right cluster
+		// sizes its seven keys by the same rule and the two sets sit side by side in one bar — a local copy
+		// would let the halves drift apart the first time either was tuned. Only the two knobs below are
+		// specific to these keys, and both are about the NAME, which the icon keys do not have.
 
 		/// <summary>Horizontal breathing room inside the key, per edge, that the name must not run into.</summary>
 		private const double NameInset = 5;
@@ -46,10 +37,6 @@ namespace Anvil.Controls.Composites
 		/// <summary>Ceiling on the name's size. Without it a very tall bar would inflate the words past the
 		/// point where they read as labels.</summary>
 		private const double MaxNameFont = 15;
-
-		/// <summary>Smallest square we will draw, in case the row measures degenerate (0 during the first
-		/// layout pass, or a host that forgets to stretch us). Keeps the keys clickable rather than vanishing.</summary>
-		private const double MinSide = 28;
 
 		public TemporalToggles()
 		{
@@ -70,8 +57,8 @@ namespace Anvil.Controls.Composites
 		{
 			// The key's height is whatever the stretch gives it: the row, less the inset margin. Width
 			// mirrors that number, which is what makes it square.
-			var side = Math.Max(MinSide, e.NewSize.Height - (2 * VerticalInset));
-			var inset = new Thickness(0, VerticalInset, 0, VerticalInset);
+			var side = BarKeyMetrics.SideFor(e.NewSize.Height);
+			var inset = new Thickness(0, BarKeyMetrics.VerticalInset, 0, BarKeyMetrics.VerticalInset);
 
 			// The NAME is fitted to the key's WIDTH, not scaled off its height, because the names are long
 			// ("ForeCast" is eight characters in a square barely wider than it is tall) and height alone
@@ -79,7 +66,7 @@ namespace Anvil.Controls.Composites
 			// widest of them — sizing each to its own text would render "NowCast" noticeably larger than
 			// "ForeCast" and break the trio's symmetry.
 			var nameFont = Math.Min(MaxNameFont, FitNameFont(side - (2 * NameInset)));
-			var glyphFont = side * GlyphRatio;
+			var glyphFont = BarKeyMetrics.GlyphFor(side);
 
 			Apply(PastPill, PastGlyph, PastName);
 			Apply(NowPill, NowGlyph, NowName);

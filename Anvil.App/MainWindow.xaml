@@ -11,14 +11,30 @@
        ├─────────────────────────────┴─────────────────────────────┤
        │                       ╭─ Hide ─╮                          │  OverlayBar pull-tab
        │ [chip] │ ══ scrubber ══                                    │
-       │        │ tilt ◀▶ frame · site  [Past][Now][Fore]  [panes][map][cog] │
+       │        │ tilt ◀▶ frame · site  [Past][Now][Fore]     [▫▫]  [dev][map][sites][cog] │
        └────────────────────────────────┴──────────────────────────┘
-                                        ↑ bar midpoint — the pills straddle it, always
+                                        ↑ bar midpoint — the keys straddle it, always
+                                                                 ↑ pane layout: ONE key that
+                                                                   CYCLES 1→2→4, its icon
+                                                                   drawing what the NEXT click
+                                                                   gives you; then the window
+                                                                   buttons (wider gap between)
 
      Left of the bar is RadarControls (per-pane chips + the one global time module); the CENTER is the
-     three temporal mode pills, held on the bar's exact midpoint by a [*, Auto, *] grid so no amount of
-     growth on either side can shift them (quad panes add chips on the left — the pills do not move);
-     right is the app-wide window buttons. The gaps between the three clusters are empty bar, by design.
+     three temporal mode keys, held on the bar's exact midpoint by a [*, Auto, *] grid so no amount of
+     growth on either side can shift them (quad panes add chips on the left — the keys do not move);
+     right is the pane-layout key then the app-wide window buttons. The gaps between the three
+     clusters are empty bar, by design.
+
+     ⚠️ EVERY key in this bar — the three temporal keys and all five on the right — takes its LOOK from
+     ONE style chain in Controls/Styles.xaml (BarChromeButtonStyle → TemporalKeyStyle /
+     BarIconToggleStyle / BarIconButtonStyle):
+     hairline at rest, accent BORDER + raised face when ON. And they are all the SAME SQUARE: neither
+     cluster hardcodes a size, each measures the height its row was given and mirrors it onto Width, via
+     the shared Layout/BarKeyMetrics (right cluster: OnRightClusterSizeChanged below; centre:
+     TemporalToggles' own code-behind). Nothing here should set a size, corner radius or font per
+     instance — that is what put ~40 duplicated attributes in this file before.
+     The transport buttons in RadarControls are the one cluster still on the old stock look.
 
      There is no top bar any more. It existed to hold the controls that must not repeat per pane —
      but once the bottom bar was split into a per-pane cluster and a global cluster, that distinction
@@ -136,80 +152,139 @@
                                             ViewModel="{x:Bind ViewModel.Radar}"/>
 
                     <!-- ===== GLOBAL CLUSTER =====
-                         The app-wide window buttons. Nothing here repeats per pane. Each button
-                         latches while its window is open (its IsChecked two-ways with the open flag). -->
-                    <Grid Grid.Column="2"
+                         Every key here shares the bar's one look with the temporal keys at the centre:
+                         hairline at rest, accent border + raised face when ON. Nothing here repeats per
+                         pane.
+
+                         The wider gap between the two groups is the only thing separating them — they are
+                         different KINDS of control and a plain gap says so without adding a divider line:
+                           left  — pane layout, an ACTION that cycles (its icon is the readout, never lit)
+                           right — window buttons, four INDEPENDENT latches (any combination open) -->
+                    <Grid x:Name="RightCluster"
+                          Grid.Column="2"
                           HorizontalAlignment="Right"
-                          VerticalAlignment="Center"
-                          ColumnSpacing="6">
+                          VerticalAlignment="Stretch"
+                          ColumnSpacing="14"
+                          SizeChanged="OnRightClusterSizeChanged">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/> <!-- pane layout -->
-                            <ColumnDefinition Width="Auto"/> <!-- dev tools (Debug only) -->
-                            <ColumnDefinition Width="Auto"/> <!-- map controls -->
-                            <ColumnDefinition Width="Auto"/> <!-- site explorer -->
-                            <ColumnDefinition Width="Auto"/> <!-- app settings -->
+                            <ColumnDefinition Width="Auto"/> <!-- pane layout (one cycling key) -->
+                            <ColumnDefinition Width="Auto"/> <!-- window buttons (independent) -->
                         </Grid.ColumnDefinitions>
 
-                        <!-- PANE LAYOUT. Sits here as one click rather than inside a window because it
-                             IS the view mode. Each item picks the pane grid; the chip cluster in
-                             RadarControls mirrors it, as do the watermarks above.
-                             There is deliberately no "two stacked": weather is read left-to-right
-                             across a storm, and a stacked pair halves the vertical extent that matters
-                             most on a wide monitor. -->
-                        <Button Grid.Column="0" Width="32" Height="32"
-                                MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
-                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
-                                Content="&#xE8A9;"
-                                ToolTipService.ToolTip="Pane layout">
-                            <Button.Flyout>
-                                <MenuFlyout Placement="Top">
-                                    <RadioMenuFlyoutItem Text="Single pane" GroupName="PaneLayout"
-                                                         Click="OnPaneLayoutSingle"
-                                                         IsChecked="{x:Bind IsSinglePane(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
-                                    <RadioMenuFlyoutItem Text="Two across" GroupName="PaneLayout"
-                                                         Click="OnPaneLayoutTwoAcross"
-                                                         IsChecked="{x:Bind IsTwoAcross(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
-                                    <RadioMenuFlyoutItem Text="Four panes" GroupName="PaneLayout"
-                                                         Click="OnPaneLayoutQuad"
-                                                         IsChecked="{x:Bind IsQuad(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
-                                </MenuFlyout>
-                            </Button.Flyout>
+                        <!-- ===== PANE LAYOUT — ONE key that CYCLES =====
+                             Sits in the bar rather than inside a window because it IS the view mode. One
+                             key, not one per layout: a click advances Single → Two across → Quad → Single.
+
+                             ⚠️ THE ICON DRAWS THE **NEXT** LAYOUT, NOT THE CURRENT ONE — it advertises what
+                             the click will DO, the way a play button shows a play triangle while paused.
+                             Drawing the current layout was tried and is confusing: the app opens in single
+                             pane showing a single square, which reads as "click me for one pane". So in
+                             quad you see the single-square icon, because that is where the next click lands.
+                             It binds Radar.NextPaneLayout for exactly this reason.
+
+                             ⚠️ Consequence, and it is deliberate: this key no longer reports the CURRENT
+                             layout. The map itself and the chip cluster in RadarControls both show that, and
+                             the tooltip names it in words — an action control that lies about its action is
+                             the worse trade.
+
+                             ⚠️ It is a Button, NOT a ToggleButton, and never lights. There is no "off" pane
+                             layout to be un-lit — every state is an on-state — so the accent border would
+                             be meaningless here. Its neighbours latch because their windows really are
+                             open or closed; this one is an action.
+
+                             ⚠️ The ORDER lives in the view model (Radar.NextPaneLayout / CyclePaneLayout),
+                             not here. The view knows only "advance" and "draw what is next"; it does not
+                             own the sequence, or the icon and the click could disagree.
+
+                             There is deliberately no "two stacked": weather is read left-to-right across a
+                             storm, and a stacked pair halves the vertical extent that matters most on a
+                             wide monitor.
+
+                             ⚠️ The ICONS are drawn (Rectangles), not font glyphs: Segoe Fluent has no clean
+                             1 / 2 / 4-pane trio, and a drawn icon states the layout exactly — each is a
+                             little picture of a pane grid. All three are stacked in the one cell and only
+                             the NEXT layout's is visible. They carry a fixed brush because Shapes do not
+                             inherit the content Foreground that the template's states drive. -->
+                        <Button x:Name="PaneLayoutKey"
+                                Grid.Column="0"
+                                Style="{StaticResource BarIconButtonStyle}"
+                                ToolTipService.ToolTip="{x:Bind PaneLayoutTooltip(ViewModel.Radar.PaneLayout), Mode=OneWay}"
+                                Click="OnCyclePaneLayout">
+                            <Grid>
+                                <Grid x:Name="SinglePaneIcon" Width="14" Height="14"
+                                      Visibility="{x:Bind SinglePaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
+                                    <Rectangle Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                </Grid>
+
+                                <Grid x:Name="DualPaneIcon" Width="14" Height="14" ColumnSpacing="2"
+                                      Visibility="{x:Bind DualPaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+                                    <Rectangle Grid.Column="0" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                </Grid>
+
+                                <Grid x:Name="QuadPaneIcon" Width="14" Height="14" ColumnSpacing="2" RowSpacing="2"
+                                      Visibility="{x:Bind QuadPaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <Rectangle Grid.Row="0" Grid.Column="0" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Row="0" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Row="1" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                </Grid>
+                            </Grid>
                         </Button>
 
-                        <!-- DEV-ONLY: the combined dev-tools window (site sweep + dealias validation).
-                             Collapsed in Release via DevVisibility. -->
-                        <ToggleButton Grid.Column="1" Width="32" Height="32"
-                                      MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
-                                      Visibility="{x:Bind DevVisibility}"
-                                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                      FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
-                                      Content="&#xE9F5;"
-                                      ToolTipService.ToolTip="Dev tools — site sweep &amp; dealias validation"
-                                      IsChecked="{x:Bind ViewModel.IsDevToolsWindowOpen, Mode=TwoWay}"/>
-                        <!-- Map Controls: the GLOBAL map controls (basemap, view, state isolation,
-                             radar-site markers, mile grid, Inspect). -->
-                        <ToggleButton Grid.Column="2" Width="32" Height="32"
-                                      MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
-                                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                      FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
-                                      Content="&#xE774;"
-                                      ToolTipService.ToolTip="Map controls — basemap, site markers, isolation &amp; Inspect"
-                                      IsChecked="{x:Bind ViewModel.IsMapControlsWindowOpen, Mode=TwoWay}"/>
-                        <ToggleButton Grid.Column="3" Width="32" Height="32"
-                                      MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
-                                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                      FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
-                                      Content="&#xE81E;"
-                                      ToolTipService.ToolTip="Radar site explorer"
-                                      IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}"/>
-                        <ToggleButton Grid.Column="4" Width="32" Height="32"
-                                      MinWidth="0" MinHeight="0" Padding="0" CornerRadius="6"
-                                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                      FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
-                                      Content="&#xE713;"
-                                      ToolTipService.ToolTip="App settings"
-                                      IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}"/>
+                        <!-- ===== WINDOW BUTTONS =====
+                             Each latches while its window is open (IsChecked two-ways with the open flag),
+                             and any combination may be open at once. -->
+                        <Grid Grid.Column="1" ColumnSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/> <!-- dev tools (Debug only) -->
+                                <ColumnDefinition Width="Auto"/> <!-- map controls -->
+                                <ColumnDefinition Width="Auto"/> <!-- site explorer -->
+                                <ColumnDefinition Width="Auto"/> <!-- app settings -->
+                            </Grid.ColumnDefinitions>
+
+                            <!-- DEV-ONLY: the combined dev-tools window (site sweep + dealias validation).
+                                 Collapsed in Release via DevVisibility. -->
+                            <ToggleButton x:Name="DevKey"
+                                          Grid.Column="0"
+                                          Style="{StaticResource BarIconToggleStyle}"
+                                          Visibility="{x:Bind DevVisibility}"
+                                          Content="&#xE9F5;"
+                                          ToolTipService.ToolTip="Dev tools — site sweep &amp; dealias validation"
+                                          IsChecked="{x:Bind ViewModel.IsDevToolsWindowOpen, Mode=TwoWay}"/>
+                            <!-- Map Controls: the GLOBAL map controls (basemap, view, state isolation,
+                                 radar-site markers, mile grid, Inspect). -->
+                            <ToggleButton x:Name="MapKey"
+                                          Grid.Column="1"
+                                          Style="{StaticResource BarIconToggleStyle}"
+                                          Content="&#xE774;"
+                                          ToolTipService.ToolTip="Map controls — basemap, site markers, isolation &amp; Inspect"
+                                          IsChecked="{x:Bind ViewModel.IsMapControlsWindowOpen, Mode=TwoWay}"/>
+                            <ToggleButton x:Name="SitesKey"
+                                          Grid.Column="2"
+                                          Style="{StaticResource BarIconToggleStyle}"
+                                          Content="&#xE81E;"
+                                          ToolTipService.ToolTip="Radar site explorer"
+                                          IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}"/>
+                            <ToggleButton x:Name="SettingsKey"
+                                          Grid.Column="3"
+                                          Style="{StaticResource BarIconToggleStyle}"
+                                          Content="&#xE713;"
+                                          ToolTipService.ToolTip="App settings"
+                                          IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}"/>
+                        </Grid>
                     </Grid>
 
                     <!-- ===== TEMPORAL MODE KEYS — THE BAR'S CENTERPIECE =====

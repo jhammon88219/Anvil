@@ -7,7 +7,9 @@
 
        1. THEME BRUSHES   the ThemeDictionaries block. Colors that must follow Win11 light/dark.
                           MUST come first: the styles below resolve these keys.
-       2. STYLES          reusable Styles, grouped by the control they target.
+       2. STYLES          reusable Styles, grouped by the control they target. Within the section,
+                          a BASE style must appear ABOVE anything BasedOn it — XAML resolves
+                          BasedOn at parse time and cannot look forward.
 
      WHAT BELONGS HERE: a brush or style used by MORE THAN ONE control, or one that must not drift
      between controls (the overlay surfaces are the case in point — the bar and every floating window
@@ -17,10 +19,11 @@
      ⚠️ HISTORY, so it isn't repeated: two ComboBox styles used to live here, each carrying ~300 lines
      of ControlTemplate for a single consumer. Both were deleted and became the UserControl that was
      their only user. A ControlTemplate here needs to earn its place — see the note on
-     TemporalKeyStyle, which does.
+     BarChromeButtonStyle, which does.
      ============================================================================================ -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives">
 
     <!-- ══════════════════════════════ 1. THEME BRUSHES ══════════════════════════════
          The opaque, theme-aware surfaces used by the bottom OverlayBar AND the floating app-wide
@@ -60,23 +63,10 @@
 
     <!-- ══════════════════════════════ 2. STYLES ══════════════════════════════ -->
 
-    <!-- ─────────────────────────── Button ─────────────────────────── -->
+    <!-- ───────────────────── ButtonBase — the shared bar-chrome look ─────────────────────
 
-    <!-- Square transport button base: no min-size padding, centered glyph, rounded. Applied by the radar
-         transport (prev / play-stop / next) and available app-wide via Style="{StaticResource …}". -->
-    <Style x:Key="TransportButtonStyle" TargetType="Button">
-        <Setter Property="MinWidth" Value="0"/>
-        <Setter Property="MinHeight" Value="0"/>
-        <Setter Property="Padding" Value="0"/>
-        <Setter Property="CornerRadius" Value="8"/>
-        <Setter Property="HorizontalContentAlignment" Value="Center"/>
-        <Setter Property="VerticalContentAlignment" Value="Center"/>
-    </Style>
-
-    <!-- ─────────────────────────── ToggleButton ─────────────────────────── -->
-
-    <!-- TemporalKeyStyle — the look of one PastCast / NowCast / ForeCast key in the bar's centre
-         (see Controls/Composites/TemporalToggles).
+         BarChromeButtonStyle — ONE definition of what an interactive key in the bottom bar looks
+         like, in every state. It carries the TEMPLATE and nothing that has a size:
 
            OFF            HOVER           ON (checked)     ON + HOVER
           ┌────────┐     ┌────────┐      ┏━━━━━━━━┓       ┏━━━━━━━━┓     ━━ = accent border
@@ -86,27 +76,35 @@
            hairline       hairline        ACCENT           ACCENT
 
          ⚠️ ON is carried by the BORDER, not by flooding the face with the accent color. The default
-         ToggleButton does the latter: checked = an accent-filled block. Three of those side by side at
-         this size is a wall of accent at the centre of the bar, it fights the map behind it, and it
-         leaves the glyph and label sitting on a saturated ground. Here the border takes the accent and
-         the face only steps up one surface level, so "which mode am I in" still reads at a glance
-         without the bar shouting.
+         ToggleButton does the latter: checked = an accent-filled block. A row of those at this size is
+         a wall of accent in the bar, it fights the map behind it, and it leaves the glyph and label
+         sitting on a saturated ground. Here the border takes the accent and the face only steps up one
+         surface level, so "which of these is on" still reads at a glance without the bar shouting.
+
+         ⚠️ IT TARGETS ButtonBase, AND IT IS A BASE ONLY — never applied directly. Two roles derive from
+         it (the temporal keys, the right cluster's icon keys) and by now they differ only in what they
+         put INSIDE the key — the derived styles are nearly empty, which is the point.
+
+         ⚠️ NO Width AND NO Height, HERE OR IN ANYTHING DERIVED. Every bar key is a SQUARE sized off the
+         BAR: it stretches to the full height of its cluster row (hence VerticalAlignment=Stretch here)
+         and the hosting control's code-behind sets Width from that measured height — see
+         Layout/BarKeyMetrics, which is the one copy of that arithmetic for both clusters. Pin either
+         dimension in XAML and the key stops being square, stops tracking the bar, or both.
 
          WHY A ControlTemplate (this file's default is: don't). The checked look is applied by the
          default template's own visual states, so a Style full of Setters cannot reach it — a Setter
          loses to a VisualState every time. The alternatives were overriding the ToggleButton* theme
-         brushes app-wide, which would repaint every other toggle in the app (window buttons, dev
-         toggles), or splitting this look across two files. A minimal template scoped to one key is the
-         contained option, and it is the same move OverlayBarTabStyle makes for the pull-tab.
+         brushes app-wide, which would repaint every other toggle in the app, or repeating this look per
+         control. A minimal template shared by every bar key is the contained option, and it is the same
+         move OverlayBarTabStyle makes for the pull-tab.
 
          ⚠️ The border lives on its OWN backdrop Border, a SIBLING of the content rather than its
          parent. That is what lets the checked state thicken the stroke 1px → 2px without nudging the
-         glyph and label half a pixel as it lights up. Same trick as ProductColorRampComboBox.
+         content half a pixel as it lights up. Same trick as ProductColorRampComboBox.
 
-         ⚠️ NO Width AND NO Height, deliberately. A key is a SQUARE sized off the bar: it stretches to
-         the full height of the bar's content row and the code-behind sets Width from that measurement.
-         Fixing either dimension here breaks that and un-squares the key. FontSize likewise. -->
-    <Style x:Key="TemporalKeyStyle" TargetType="ToggleButton">
+         The Checked* states never fire on a plain Button (nothing calls GoToState for them), so this
+         template is safe for both Button and ToggleButton consumers. -->
+    <Style x:Key="BarChromeButtonStyle" TargetType="primitives:ButtonBase">
         <Setter Property="MinWidth" Value="0"/>
         <Setter Property="MinHeight" Value="0"/>
         <Setter Property="Padding" Value="0"/>
@@ -117,7 +115,7 @@
         <Setter Property="UseSystemFocusVisuals" Value="True"/>
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="ToggleButton">
+                <ControlTemplate TargetType="primitives:ButtonBase">
                     <Grid>
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
@@ -203,6 +201,47 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- ───────────────────────────── Button ───────────────────────────── -->
+
+    <!-- Square transport button base: no min-size padding, centered glyph, rounded. Applied by the radar
+         transport (prev / play-stop / next).
+         ⚠️ Deliberately NOT on BarChromeButtonStyle yet — the transport was left on the stock look when
+         the rest of the bar chrome moved over, so it is the one cluster still speaking the old language.
+         Rebasing it is a one-line change (BasedOn) when that is wanted. -->
+    <Style x:Key="TransportButtonStyle" TargetType="Button">
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- A bar key that ACTS rather than latching — today just the pane-layout key, which cycles
+         Single → Two across → Quad and reports its state through its icon, not through being lit.
+         Same square and same rest/hover/pressed look as every other key; it simply never reaches the
+         Checked states, which is why a Button is the honest control for it. -->
+    <Style x:Key="BarIconButtonStyle" TargetType="Button" BasedOn="{StaticResource BarChromeButtonStyle}"/>
+
+    <!-- ───────────────────────────── ToggleButton ─────────────────────────────
+         Both derive from BarChromeButtonStyle, which now carries everything the two share — including
+         the stretch that makes a key square. What is left below is only what goes INSIDE the key, and
+         these two keys are the SAME SIZE: they sit in one bar and must read as one set. -->
+
+    <!-- One PastCast / NowCast / ForeCast key in the bar's centre (Controls/Composites/TemporalToggles).
+         Its content is a glyph over a name, both sized by that control's own code-behind, so there is
+         nothing to add here — the key exists to name the role and to keep the control's reference
+         stable if the two ever diverge again. -->
+    <Style x:Key="TemporalKeyStyle" TargetType="ToggleButton" BasedOn="{StaticResource BarChromeButtonStyle}"/>
+
+    <!-- One icon key in the bar's right cluster: the three pane-layout toggles and the four app-wide
+         window buttons (MainWindow). Only the icon font differs from a temporal key — the SIZE is the
+         same square, set by MainWindow's code-behind via Layout/BarKeyMetrics, and FontSize is set from
+         there too so the glyph scales with the key. -->
+    <Style x:Key="BarIconToggleStyle" TargetType="ToggleButton" BasedOn="{StaticResource BarChromeButtonStyle}">
+        <Setter Property="FontFamily" Value="Segoe Fluent Icons,Segoe MDL2 Assets"/>
     </Style>
 
 </ResourceDictionary>

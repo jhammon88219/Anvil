@@ -6,6 +6,7 @@ using Anvil.Models;
 using Anvil.Services;
 using Anvil.ViewModels;
 using Anvil.Dialogs;
+using Anvil.Layout;
 using System;
 using System.Globalization;
 using System.IO;
@@ -56,18 +57,80 @@ namespace Anvil
 		public Visibility WatermarkVisibility(bool hasLoop, bool paneVisible) =>
 			hasLoop && paneVisible ? Visibility.Visible : Visibility.Collapsed;
 
-		// ===== Pane layout picker =====
-		// The flyout is a radio group, so each item needs its checked state derived from the one enum on
-		// the view model. x:Bind can't compare against an enum literal, and a Window can't use a
-		// {StaticResource converter}, so these are x:Bind functions — typed, not stringly-typed, and each
-		// re-evaluates because it takes PaneLayout as its argument.
+		// ===== Pane layout key =====
+		// ONE key that cycles. Three drawn icons are stacked in the same cell and exactly one shows —
+		// whichever layout the NEXT click lands on, so the icon advertises the action rather than the
+		// state. x:Bind can't compare against an enum literal, and a Window can't use a
+		// {StaticResource converter}, so the comparisons are x:Bind functions — typed, not stringly-typed,
+		// and each re-evaluates because it takes the layout as its argument.
 		public bool IsSinglePane(PaneLayout layout) => layout == PaneLayout.Single;
 		public bool IsTwoAcross(PaneLayout layout) => layout == PaneLayout.TwoAcross;
 		public bool IsQuad(PaneLayout layout) => layout == PaneLayout.Quad;
 
-		private void OnPaneLayoutSingle(object sender, RoutedEventArgs e) => ViewModel.Radar.PaneLayout = PaneLayout.Single;
-		private void OnPaneLayoutTwoAcross(object sender, RoutedEventArgs e) => ViewModel.Radar.PaneLayout = PaneLayout.TwoAcross;
-		private void OnPaneLayoutQuad(object sender, RoutedEventArgs e) => ViewModel.Radar.PaneLayout = PaneLayout.Quad;
+		// Which of the three stacked icons shows. Built on the comparisons above so the enum is tested in
+		// exactly one place per layout.
+		// ⚠️ The XAML passes Radar.NextPaneLayout here, NOT Radar.PaneLayout — these say "draw the icon for
+		// this layout", and the choice of WHICH layout is the binding's. Read them with that in mind.
+		public Visibility SinglePaneVisibility(PaneLayout layout) => VisibleWhen(IsSinglePane(layout));
+		public Visibility DualPaneVisibility(PaneLayout layout) => VisibleWhen(IsTwoAcross(layout));
+		public Visibility QuadPaneVisibility(PaneLayout layout) => VisibleWhen(IsQuad(layout));
+
+		// The tooltip is where the CURRENT layout is named, since the icon now shows the next one. Takes
+		// the current layout (not the next), and states both halves so the key is never ambiguous.
+		public string PaneLayoutTooltip(PaneLayout layout) => layout switch
+		{
+			PaneLayout.Single => "Single pane — click for two across",
+			PaneLayout.TwoAcross => "Two panes — click for four",
+			_ => "Four panes — click for single",
+		};
+
+		// The view knows only "advance"; the ORDER is the view model's (Radar.NextPaneLayout).
+		private void OnCyclePaneLayout(object sender, RoutedEventArgs e) => ViewModel.Radar.CyclePaneLayout();
+
+		// ===== Right-cluster key sizing =====
+		// The seven keys on the right (3 pane toggles + 4 window buttons) are the SAME SQUARE as the three
+		// temporal keys at the bar's centre — they sit in one bar and have to read as one set. Neither
+		// cluster hardcodes that size: each measures the height its row was given and mirrors it onto Width,
+		// through the shared Layout/BarKeyMetrics so the two halves can't drift apart.
+		//
+		// Code-behind rather than a binding for the same reason TemporalToggles is: ActualHeight raises no
+		// property-changed notification in WinUI, so an x:Bind would size the keys once and then silently
+		// stop tracking.
+		//
+		// ⚠️ WIDTH ONLY — never Height. The keys take their height from the vertical stretch (set in
+		// BarChromeButtonStyle). A key that demanded the height it was last handed would hold the bar open
+		// at that height and the bar could never shrink again: the row feeds the key, and the key would feed
+		// the row right back.
+		//
+		// ⚠️ It cannot loop: setting Width re-fires SizeChanged (the cluster got wider), but HEIGHT is
+		// unchanged on that pass, so every value is already correct and the guards make it a no-op.
+		private void OnRightClusterSizeChanged(object sender, SizeChangedEventArgs e)
+		{
+			var side = BarKeyMetrics.SideFor(e.NewSize.Height);
+			var glyph = BarKeyMetrics.GlyphFor(side);
+			var icon = BarKeyMetrics.IconFor(side);
+
+			foreach (var key in new Control[] { PaneLayoutKey, DevKey, MapKey, SitesKey, SettingsKey })
+			{
+				if (key.Width != side)
+				{
+					key.Width = side;
+				}
+
+				key.FontSize = glyph; // the four glyph keys; harmless on the drawn-icon one
+			}
+
+			// The pane key's drawn icons carry no font, so they scale here instead. All three are sized
+			// even though only one is visible — visibility flips as the layout cycles.
+			foreach (var paneIcon in new[] { SinglePaneIcon, DualPaneIcon, QuadPaneIcon })
+			{
+				if (paneIcon.Width != icon)
+				{
+					paneIcon.Width = icon;
+					paneIcon.Height = icon;
+				}
+			}
+		}
 
 		// Opens the site-sweep results pop-up (Save / Close). Raised by the dev window on run completion
 		// or its Report button.
