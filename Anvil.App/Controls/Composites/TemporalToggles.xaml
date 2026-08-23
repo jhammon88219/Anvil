@@ -24,8 +24,12 @@
      activates that time-frame AND opens its settings WINDOW (see PastCastWindow / NowCastWindow /
      ForeCastWindow — three independent OS windows); clicking the already-active mode flips its window
      open/closed while the mode stays on. You LEAVE a mode by choosing another (Past is exclusive with
-     Now/Fore; Now and Fore coexist). The click routes through MapViewModel.ToggleTemporalMode; the pill's
+     Now/Fore; Now and Fore coexist). The click routes through MapViewModel.ToggleTemporalMode; the key's
      lit state binds OneWay to MapViewModel.IsPastCast/IsNowCast/IsForeCast (projections of the subsystems).
+
+     THE LOOK IS NOT HERE — it is TemporalKeyStyle in Controls/Styles.xaml (lit = an ACCENT BORDER over a
+     face raised one surface level, deliberately not the default toggle's accent-filled block). This file
+     owns the key's CONTENT and arrangement; that style owns its states. Change the look there.
 
      The keys carry the FULL names (PastCast / NowCast / ForeCast) so the display vocabulary matches the
      one the code uses everywhere. They sit at the bottom bar's exact HORIZONTAL CENTER — where the radar
@@ -51,29 +55,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <UserControl.Resources>
-        <!-- One mode pill. A click activates the mode and opens its window; clicking again flips the
-             window; you leave a mode by choosing another.
-
-             ⚠️ NO Width AND NO Height HERE, deliberately. A pill is a SQUARE sized off the bar: it
-             stretches to the full height of the bar's content row, and the code-behind then sets its
-             Width to that measured height. So the size follows the bar instead of being a pair of
-             numbers that go stale the moment the bar's contents change height (which they do — quad
-             panes add a chip row). Fixing either dimension here breaks that and un-squares the pill.
-             FontSize is set from the same measurement, so the label scales with the square. -->
-        <Style x:Key="TemporalPillStyle"
-               TargetType="ToggleButton">
-            <Setter Property="MinWidth"                   Value="0"/>
-            <Setter Property="MinHeight"                  Value="0"/>
-            <Setter Property="Padding"                    Value="0"/>
-            <Setter Property="CornerRadius"               Value="8"/>
-            <Setter Property="VerticalAlignment"          Value="Stretch"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment"   Value="Center"/>
-        </Style>
-    </UserControl.Resources>
-
-    <!-- Stretch, NOT Center: the row's height is what the pills are measured against, so this has to
+    <!-- Stretch, NOT Center: the row's height is what the keys are measured against, so this has to
          fill the bar's content row for them to reach full height. The host must stretch it too. -->
     <Grid x:Name="PillRow"
           VerticalAlignment="Stretch"
@@ -88,7 +70,7 @@
         <!-- PASTCAST — glyph E81C, a clock with a counter-clockwise arrow: history/rewind. -->
         <ToggleButton x:Name="PastPill"
                       Grid.Column="0"
-                      Style="{StaticResource TemporalPillStyle}"
+                      Style="{StaticResource TemporalKeyStyle}"
                       ToolTipService.ToolTip="PastCast — replay a historical radar window (click again to show/hide its panel)"
                       IsChecked="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
                       Click="OnPastClick">
@@ -110,7 +92,7 @@
              which reads as "a radar site" and would collide with the on-map site markers' language. -->
         <ToggleButton x:Name="NowPill"
                       Grid.Column="1"
-                      Style="{StaticResource TemporalPillStyle}"
+                      Style="{StaticResource TemporalKeyStyle}"
                       ToolTipService.ToolTip="NowCast — live radar / current conditions (click again to show/hide its panel)"
                       IsChecked="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
                       Click="OnNowClick">
@@ -131,7 +113,7 @@
         <!-- FORECAST — glyph E753, a cloud: the weather-outlook idiom. -->
         <ToggleButton x:Name="ForePill"
                       Grid.Column="2"
-                      Style="{StaticResource TemporalPillStyle}"
+                      Style="{StaticResource TemporalKeyStyle}"
                       ToolTipService.ToolTip="ForeCast — SPC outlooks (click again to show/hide its panel)"
                       IsChecked="{x:Bind ViewModel.IsForeCast, Mode=OneWay}"
                       Click="OnForeClick">

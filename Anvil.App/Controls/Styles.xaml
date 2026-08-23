@@ -1,28 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Shared, app-wide styles. Merged in App.xaml so any control/window can reference these by key.
-     Add reusable Styles / brushes here rather than inlining them in a single control's Resources. -->
+<!-- ============================================================================================
+     Styles.xaml — the app-wide shared resource dictionary. Merged in App.xaml, so anything in any
+     control or window can reference these by key.
+
+     ORGANIZATION — two sections, in this order, and please keep it that way:
+
+       1. THEME BRUSHES   the ThemeDictionaries block. Colors that must follow Win11 light/dark.
+                          MUST come first: the styles below resolve these keys.
+       2. STYLES          reusable Styles, grouped by the control they target.
+
+     WHAT BELONGS HERE: a brush or style used by MORE THAN ONE control, or one that must not drift
+     between controls (the overlay surfaces are the case in point — the bar and every floating window
+     share them so the app reads as one system). A look used by exactly ONE control belongs in that
+     control's own Resources instead; this file is not a dumping ground.
+
+     ⚠️ HISTORY, so it isn't repeated: two ComboBox styles used to live here, each carrying ~300 lines
+     of ControlTemplate for a single consumer. Both were deleted and became the UserControl that was
+     their only user. A ControlTemplate here needs to earn its place — see the note on
+     TemporalKeyStyle, which does.
+     ============================================================================================ -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- ================================ Overlay surface brushes ================================
-         The opaque, theme-aware surface (+ hover) used by the bottom OverlayBar AND the floating
-         app-wide windows that float over the map, so the two read as one system in Win11 light/dark.
-         Defined app-wide (here) rather than inside a single control so both reference the SAME keys and
-         can't drift. (Moved out of OverlayBar.xaml's local ThemeDictionaries.) -->
+    <!-- ══════════════════════════════ 1. THEME BRUSHES ══════════════════════════════
+         The opaque, theme-aware surfaces used by the bottom OverlayBar AND the floating app-wide
+         windows over the map, so the two read as one system in Win11 light/dark. Defined app-wide
+         (here) rather than inside a single control so every consumer references the SAME keys and
+         they can't drift. (Moved out of OverlayBar.xaml's local ThemeDictionaries.)
+
+         The family, resting → raised:
+           Surface           the bar / window ground
+           SurfaceHover      hovering something interactive on that ground
+           SurfaceElevated   a control that is ON / selected — it sits above the ground
+           SurfaceElevatedHover   … and hovered
+
+         ⚠️ "Elevated" is LIGHTER than the ground in dark theme and DARKER in light. Elevation is not
+         a direction, it is a contrast step away from the ground: on the light ground (#F3F3F3) there
+         is almost no headroom above, so going lighter would make a selected control invisible. -->
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Default">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="#FF000000"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="#FF1A1A1A"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="#FF2B2B2B"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="#FF383838"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="#FFF3F3F3"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="#FFE4E4E4"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="#FFDCDCDC"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="#FFD0D0D0"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
+
+    <!-- ══════════════════════════════ 2. STYLES ══════════════════════════════ -->
+
+    <!-- ─────────────────────────── Button ─────────────────────────── -->
 
     <!-- Square transport button base: no min-size padding, centered glyph, rounded. Applied by the radar
          transport (prev / play-stop / next) and available app-wide via Style="{StaticResource …}". -->
@@ -33,6 +71,138 @@
         <Setter Property="CornerRadius" Value="8"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- ─────────────────────────── ToggleButton ─────────────────────────── -->
+
+    <!-- TemporalKeyStyle — the look of one PastCast / NowCast / ForeCast key in the bar's centre
+         (see Controls/Composites/TemporalToggles).
+
+           OFF            HOVER           ON (checked)     ON + HOVER
+          ┌────────┐     ┌────────┐      ┏━━━━━━━━┓       ┏━━━━━━━━┓     ━━ = accent border
+          │   ↺    │     │▒▒ ↺ ▒▒▒│      ┃▓▓ ↺ ▓▓▓┃       ┃██ ↺ ███┃     ▒  = hover fill
+          │PastCast│     │▒PastCast│     ┃▓PastCast┃      ┃█PastCast┃    ▓  = elevated surface
+          └────────┘     └────────┘      ┗━━━━━━━━┛       ┗━━━━━━━━┛
+           hairline       hairline        ACCENT           ACCENT
+
+         ⚠️ ON is carried by the BORDER, not by flooding the face with the accent color. The default
+         ToggleButton does the latter: checked = an accent-filled block. Three of those side by side at
+         this size is a wall of accent at the centre of the bar, it fights the map behind it, and it
+         leaves the glyph and label sitting on a saturated ground. Here the border takes the accent and
+         the face only steps up one surface level, so "which mode am I in" still reads at a glance
+         without the bar shouting.
+
+         WHY A ControlTemplate (this file's default is: don't). The checked look is applied by the
+         default template's own visual states, so a Style full of Setters cannot reach it — a Setter
+         loses to a VisualState every time. The alternatives were overriding the ToggleButton* theme
+         brushes app-wide, which would repaint every other toggle in the app (window buttons, dev
+         toggles), or splitting this look across two files. A minimal template scoped to one key is the
+         contained option, and it is the same move OverlayBarTabStyle makes for the pull-tab.
+
+         ⚠️ The border lives on its OWN backdrop Border, a SIBLING of the content rather than its
+         parent. That is what lets the checked state thicken the stroke 1px → 2px without nudging the
+         glyph and label half a pixel as it lights up. Same trick as ProductColorRampComboBox.
+
+         ⚠️ NO Width AND NO Height, deliberately. A key is a SQUARE sized off the bar: it stretches to
+         the full height of the bar's content row and the code-behind sets Width from that measurement.
+         Fixing either dimension here breaks that and un-squares the key. FontSize likewise. -->
+    <Style x:Key="TemporalKeyStyle" TargetType="ToggleButton">
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <!-- ON. Accent goes on the stroke; the face steps up one surface level. -->
+                                <VisualState x:Name="Checked">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                        <Setter Target="Surface.BorderThickness" Value="2"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <VisualState x:Name="CheckedPointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceElevatedHoverBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource AccentFillColorSecondaryBrush}"/>
+                                        <Setter Target="Surface.BorderThickness" Value="2"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <VisualState x:Name="CheckedPressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource AccentFillColorTertiaryBrush}"/>
+                                        <Setter Target="Surface.BorderThickness" Value="2"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <VisualState x:Name="CheckedDisabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource AccentFillColorDisabledBrush}"/>
+                                        <Setter Target="Surface.BorderThickness" Value="2"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+
+                        <!-- Backdrop pane: carries the fill AND the stroke, and holds no content, so the
+                             checked state's thicker border costs no layout (see the ⚠️ above). -->
+                        <Border x:Name="Surface"
+                                Background="Transparent"
+                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{TemplateBinding CornerRadius}"/>
+
+                        <ContentPresenter x:Name="Content"
+                                          Padding="{TemplateBinding Padding}"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
 </ResourceDictionary>
