@@ -107,8 +107,8 @@ namespace Anvil
 		private void OnRightClusterSizeChanged(object sender, SizeChangedEventArgs e)
 		{
 			var side = BarKeyMetrics.SideFor(e.NewSize.Height);
-			var glyph = BarKeyMetrics.GlyphFor(side);
-			var icon = BarKeyMetrics.IconFor(side);
+			var glyph = BarKeyMetrics.SoloGlyphFor(side);
+			var icon = BarKeyMetrics.DrawnIconFor(side);
 
 			foreach (var key in new Control[] { PaneLayoutKey, DevKey, MapKey, SitesKey, SettingsKey })
 			{

@@ -66,7 +66,7 @@ namespace Anvil.Controls.Composites
 			// widest of them — sizing each to its own text would render "NowCast" noticeably larger than
 			// "ForeCast" and break the trio's symmetry.
 			var nameFont = Math.Min(MaxNameFont, FitNameFont(side - (2 * NameInset)));
-			var glyphFont = BarKeyMetrics.GlyphFor(side);
+			var glyphFont = BarKeyMetrics.LabelledGlyphFor(side);
 
 			Apply(PastPill, PastGlyph, PastName);
 			Apply(NowPill, NowGlyph, NowName);

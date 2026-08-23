@@ -203,8 +203,12 @@
                              ⚠️ The ICONS are drawn (Rectangles), not font glyphs: Segoe Fluent has no clean
                              1 / 2 / 4-pane trio, and a drawn icon states the layout exactly — each is a
                              little picture of a pane grid. All three are stacked in the one cell and only
-                             the NEXT layout's is visible. They carry a fixed brush because Shapes do not
-                             inherit the content Foreground that the template's states drive. -->
+                             the NEXT layout's is visible. They are STROKED, not filled: everything beside
+                             them is a thin-outline Segoe Fluent glyph, and solid blocks read heavier and
+                             denser than their neighbours. The brush is fixed because Shapes do not inherit
+                             the content Foreground that the template's states drive.
+                             ⚠️ Hollow shapes do NOT cost the key its click target — the template's Surface
+                             Border has Background="Transparent", which hit-tests across the whole key. -->
                         <Button x:Name="PaneLayoutKey"
                                 Grid.Column="0"
                                 Style="{StaticResource BarIconButtonStyle}"
@@ -213,7 +217,7 @@
                             <Grid>
                                 <Grid x:Name="SinglePaneIcon" Width="14" Height="14"
                                       Visibility="{x:Bind SinglePaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
-                                    <Rectangle Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
                                 </Grid>
 
                                 <Grid x:Name="DualPaneIcon" Width="14" Height="14" ColumnSpacing="2"
@@ -222,8 +226,8 @@
                                         <ColumnDefinition/>
                                         <ColumnDefinition/>
                                     </Grid.ColumnDefinitions>
-                                    <Rectangle Grid.Column="0" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
-                                    <Rectangle Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Column="0" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
                                 </Grid>
 
                                 <Grid x:Name="QuadPaneIcon" Width="14" Height="14" ColumnSpacing="2" RowSpacing="2"
@@ -236,10 +240,10 @@
                                         <RowDefinition/>
                                         <RowDefinition/>
                                     </Grid.RowDefinitions>
-                                    <Rectangle Grid.Row="0" Grid.Column="0" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
-                                    <Rectangle Grid.Row="0" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
-                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
-                                    <Rectangle Grid.Row="1" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Row="0" Grid.Column="0" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Row="0" Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Row="1" Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
                                 </Grid>
                             </Grid>
                         </Button>
@@ -261,7 +265,7 @@
                                           Grid.Column="0"
                                           Style="{StaticResource BarIconToggleStyle}"
                                           Visibility="{x:Bind DevVisibility}"
-                                          Content="&#xE9F5;"
+                                          Content="&#xE912;"
                                           ToolTipService.ToolTip="Dev tools — site sweep &amp; dealias validation"
                                           IsChecked="{x:Bind ViewModel.IsDevToolsWindowOpen, Mode=TwoWay}"/>
                             <!-- Map Controls: the GLOBAL map controls (basemap, view, state isolation,
@@ -275,7 +279,7 @@
                             <ToggleButton x:Name="SitesKey"
                                           Grid.Column="2"
                                           Style="{StaticResource BarIconToggleStyle}"
-                                          Content="&#xE81E;"
+                                          Content="&#xEC05;"
                                           ToolTipService.ToolTip="Radar site explorer"
                                           IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}"/>
                             <ToggleButton x:Name="SettingsKey"

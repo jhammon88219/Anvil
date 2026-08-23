@@ -29,22 +29,36 @@ namespace Anvil.Layout
 		/// layout pass, or a host that forgets to stretch). Keeps keys clickable rather than vanishing.</summary>
 		public const double MinSide = 28;
 
-		/// <summary>Glyph size as a fraction of the square's side.</summary>
-		public const double GlyphRatio = 0.30;
+		// ===== Icon size. THREE ratios, because a key's mark has to share the square with whatever else
+		// the key holds. One constant for all of them was wrong: it left the glyph-only keys drawing an
+		// ~18px mark in a 62px square while the labelled keys were already full.
 
-		/// <summary>Drawn-icon (the pane-layout Rectangles) size as a fraction of the side. A shade larger
-		/// than a glyph: the pane icons are plain rectangles with no strokes or detail to crowd, and at the
-		/// glyph ratio they read as too small beside a font glyph of the same nominal size.</summary>
-		public const double IconRatio = 0.36;
+		/// <summary>Glyph size for a key that also carries a NAME under it (the temporal keys), as a
+		/// fraction of the side. Small because the name takes the rest of the square.</summary>
+		public const double LabelledGlyphRatio = 0.30;
+
+		/// <summary>Glyph size for a key whose ONLY content is the glyph (the right cluster), as a fraction
+		/// of the side. It gets the whole square, so it can be half again the labelled size.</summary>
+		public const double SoloGlyphRatio = 0.45;
+
+		/// <summary>Size of DRAWN art — the pane key's rectangles — as a fraction of the side.
+		/// <para>⚠️ Deliberately BELOW <see cref="SoloGlyphRatio"/>, which looks like an inconsistency and
+		/// is not: a font glyph carries em-box padding, so a 28px FontSize draws maybe 24px of actual ink,
+		/// while a rectangle asked for 28px draws a full 28px. Matching the two numbers would make the
+		/// drawn icon visibly the largest mark in the bar.</para></summary>
+		public const double DrawnIconRatio = 0.40;
 
 		/// <summary>The square's side for a cluster row of <paramref name="rowHeight"/>.</summary>
 		public static double SideFor(double rowHeight) =>
 			Math.Max(MinSide, rowHeight - (2 * VerticalInset));
 
-		/// <summary>The glyph size for a key of <paramref name="side"/>.</summary>
-		public static double GlyphFor(double side) => side * GlyphRatio;
+		/// <summary>Glyph size for a glyph-over-name key of <paramref name="side"/>.</summary>
+		public static double LabelledGlyphFor(double side) => side * LabelledGlyphRatio;
 
-		/// <summary>The drawn-icon box size for a key of <paramref name="side"/>.</summary>
-		public static double IconFor(double side) => side * IconRatio;
+		/// <summary>Glyph size for a glyph-only key of <paramref name="side"/>.</summary>
+		public static double SoloGlyphFor(double side) => side * SoloGlyphRatio;
+
+		/// <summary>Drawn-art box size for a key of <paramref name="side"/>.</summary>
+		public static double DrawnIconFor(double side) => side * DrawnIconRatio;
 	}
 }
