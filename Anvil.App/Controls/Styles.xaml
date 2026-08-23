@@ -82,8 +82,9 @@
          surface level, so "which of these is on" still reads at a glance without the bar shouting.
 
          ⚠️ IT TARGETS ButtonBase, AND IT IS A BASE ONLY — never applied directly. Two roles derive from
-         it (the temporal keys, the right cluster's icon keys) and by now they differ only in what they
-         put INSIDE the key — the derived styles are nearly empty, which is the point.
+         it, and they differ only by CONTROL TYPE, not by look: BarKeyToggleStyle for the seven latching
+         keys and BarIconButtonStyle for the one that acts. Both are empty derivations, which is the
+         point — every key in the bar is the same square holding a mark over a name.
 
          ⚠️ NO Width AND NO Height, HERE OR IN ANYTHING DERIVED. Every bar key is a SQUARE sized off the
          BAR: it stretches to the full height of its cluster row (hence VerticalAlignment=Stretch here)
@@ -225,23 +226,19 @@
          Checked states, which is why a Button is the honest control for it. -->
     <Style x:Key="BarIconButtonStyle" TargetType="Button" BasedOn="{StaticResource BarChromeButtonStyle}"/>
 
-    <!-- ───────────────────────────── ToggleButton ─────────────────────────────
-         Both derive from BarChromeButtonStyle, which now carries everything the two share — including
-         the stretch that makes a key square. What is left below is only what goes INSIDE the key, and
-         these two keys are the SAME SIZE: they sit in one bar and must read as one set. -->
+    <!-- ───────────────────────────── ToggleButton ───────────────────────────── -->
 
-    <!-- One PastCast / NowCast / ForeCast key in the bar's centre (Controls/Composites/TemporalToggles).
-         Its content is a glyph over a name, both sized by that control's own code-behind, so there is
-         nothing to add here — the key exists to name the role and to keep the control's reference
-         stable if the two ever diverge again. -->
-    <Style x:Key="TemporalKeyStyle" TargetType="ToggleButton" BasedOn="{StaticResource BarChromeButtonStyle}"/>
+    <!-- EVERY latching key in the bar: the three temporal keys at the centre
+         (Controls/Composites/TemporalToggles) and the four window buttons on the right (MainWindow).
+         Its content is a glyph over a NAME, both sized by the hosting control's code-behind via
+         Layout/BarKeyMetrics — so there is nothing to add here beyond the base. The style exists to name
+         the role and to keep one reference for both clusters if they ever need to diverge again.
 
-    <!-- One icon key in the bar's right cluster: the three pane-layout toggles and the four app-wide
-         window buttons (MainWindow). Only the icon font differs from a temporal key — the SIZE is the
-         same square, set by MainWindow's code-behind via Layout/BarKeyMetrics, and FontSize is set from
-         there too so the glyph scales with the key. -->
-    <Style x:Key="BarIconToggleStyle" TargetType="ToggleButton" BasedOn="{StaticResource BarChromeButtonStyle}">
-        <Setter Property="FontFamily" Value="Segoe Fluent Icons,Segoe MDL2 Assets"/>
-    </Style>
+         ⚠️ It must NOT set the icon FontFamily. There used to be a second style, BarIconToggleStyle,
+         that did exactly that for the then-glyph-only right cluster; naming those keys made it actively
+         harmful, because a FontFamily on the BUTTON renders the name in the icon font too (the name comes
+         out as boxes). The glyph now carries its own font on the FontIcon, where it belongs, and the two
+         styles collapsed into this one. Don't re-add a font setter here. -->
+    <Style x:Key="BarKeyToggleStyle" TargetType="ToggleButton" BasedOn="{StaticResource BarChromeButtonStyle}"/>
 
 </ResourceDictionary>

@@ -27,9 +27,11 @@
      Now/Fore; Now and Fore coexist). The click routes through MapViewModel.ToggleTemporalMode; the key's
      lit state binds OneWay to MapViewModel.IsPastCast/IsNowCast/IsForeCast (projections of the subsystems).
 
-     THE LOOK IS NOT HERE — it is TemporalKeyStyle in Controls/Styles.xaml (lit = an ACCENT BORDER over a
+     THE LOOK IS NOT HERE — it is BarKeyToggleStyle in Controls/Styles.xaml (lit = an ACCENT BORDER over a
      face raised one surface level, deliberately not the default toggle's accent-filled block). This file
      owns the key's CONTENT and arrangement; that style owns its states. Change the look there.
+     ⚠️ That style is SHARED with MainWindow's window buttons, which are the same glyph-over-name key —
+     a change there shows up on both clusters, which is the point (one bar, one language).
 
      The keys carry the FULL names (PastCast / NowCast / ForeCast) so the display vocabulary matches the
      one the code uses everywhere. They sit at the bottom bar's exact HORIZONTAL CENTER — where the radar
@@ -70,7 +72,7 @@
         <!-- PASTCAST — glyph E81C, a clock with a counter-clockwise arrow: history/rewind. -->
         <ToggleButton x:Name="PastPill"
                       Grid.Column="0"
-                      Style="{StaticResource TemporalKeyStyle}"
+                      Style="{StaticResource BarKeyToggleStyle}"
                       ToolTipService.ToolTip="PastCast — replay a historical radar window (click again to show/hide its panel)"
                       IsChecked="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
                       Click="OnPastClick">
@@ -92,7 +94,7 @@
              which reads as "a radar site" and would collide with the on-map site markers' language. -->
         <ToggleButton x:Name="NowPill"
                       Grid.Column="1"
-                      Style="{StaticResource TemporalKeyStyle}"
+                      Style="{StaticResource BarKeyToggleStyle}"
                       ToolTipService.ToolTip="NowCast — live radar / current conditions (click again to show/hide its panel)"
                       IsChecked="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
                       Click="OnNowClick">
@@ -113,7 +115,7 @@
         <!-- FORECAST — glyph E753, a cloud: the weather-outlook idiom. -->
         <ToggleButton x:Name="ForePill"
                       Grid.Column="2"
-                      Style="{StaticResource TemporalKeyStyle}"
+                      Style="{StaticResource BarKeyToggleStyle}"
                       ToolTipService.ToolTip="ForeCast — SPC outlooks (click again to show/hide its panel)"
                       IsChecked="{x:Bind ViewModel.IsForeCast, Mode=OneWay}"
                       Click="OnForeClick">

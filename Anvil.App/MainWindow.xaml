@@ -11,7 +11,8 @@
        ├─────────────────────────────┴─────────────────────────────┤
        │                       ╭─ Hide ─╮                          │  OverlayBar pull-tab
        │ [chip] │ ══ scrubber ══                                    │
-       │        │ tilt ◀▶ frame · site  [Past][Now][Fore]     [▫▫]  [dev][map][sites][cog] │
+       │        │ tilt ◀▶ frame · site   ↺   ((•))  ☁     ▫▫    ⚙  🌐  📡  ⚙ │
+       │                              PastCast NowCast ForeCast  Panes  Dev Map Sites Settings │
        └────────────────────────────────┴──────────────────────────┘
                                         ↑ bar midpoint — the keys straddle it, always
                                                                  ↑ pane layout: ONE key that
@@ -20,6 +21,10 @@
                                                                    gives you; then the window
                                                                    buttons (wider gap between)
 
+     ⚠️ EVERY key in the bar is a SQUARE holding a MARK OVER A NAME — the three temporal keys and all
+     five on the right. The right cluster was glyph-only until its keys were named; the names cost no
+     width (they are fitted inside the square the key already had), so the centred keys did not move.
+
      Left of the bar is RadarControls (per-pane chips + the one global time module); the CENTER is the
      three temporal mode keys, held on the bar's exact midpoint by a [*, Auto, *] grid so no amount of
      growth on either side can shift them (quad panes add chips on the left — the keys do not move);
@@ -27,12 +32,13 @@
      clusters are empty bar, by design.
 
      ⚠️ EVERY key in this bar — the three temporal keys and all five on the right — takes its LOOK from
-     ONE style chain in Controls/Styles.xaml (BarChromeButtonStyle → TemporalKeyStyle /
-     BarIconToggleStyle / BarIconButtonStyle):
+     ONE style chain in Controls/Styles.xaml (BarChromeButtonStyle → BarKeyToggleStyle for the seven that
+     latch / BarIconButtonStyle for the one that acts):
      hairline at rest, accent BORDER + raised face when ON. And they are all the SAME SQUARE: neither
      cluster hardcodes a size, each measures the height its row was given and mirrors it onto Width, via
-     the shared Layout/BarKeyMetrics (right cluster: OnRightClusterSizeChanged below; centre:
-     TemporalToggles' own code-behind). Nothing here should set a size, corner radius or font per
+     the shared Layout/BarKeyMetrics — which also fits the NAMES, so a word is the same size on both
+     halves of the bar (right cluster: OnRightClusterSizeChanged below; centre: TemporalToggles' own
+     code-behind). Nothing here should set a size, corner radius or font per
      instance — that is what put ~40 duplicated attributes in this file before.
      The transport buttons in RadarControls are the one cluster still on the old stock look.
 
@@ -214,7 +220,18 @@
                                 Style="{StaticResource BarIconButtonStyle}"
                                 ToolTipService.ToolTip="{x:Bind PaneLayoutTooltip(ViewModel.Radar.PaneLayout), Mode=OneWay}"
                                 Click="OnCyclePaneLayout">
-                            <Grid>
+                            <!-- Mark over a NAME, like every other key in the bar. ⚠️ The name is the
+                                 fixed word "Panes", NOT the layout: the icon already changes per click,
+                                 and a name that changed with it would be a second moving part saying the
+                                 same thing — and it would read as a readout of the CURRENT layout, which
+                                 is precisely the confusion the icon rule exists to avoid. What the click
+                                 does in words stays in the tooltip. -->
+                            <Grid Margin="3,0" RowSpacing="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/> <!-- drawn icon -->
+                                    <RowDefinition Height="Auto"/> <!-- name -->
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0" HorizontalAlignment="Center">
                                 <Grid x:Name="SinglePaneIcon" Width="14" Height="14"
                                       Visibility="{x:Bind SinglePaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
                                     <Rectangle Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
@@ -245,12 +262,33 @@
                                     <Rectangle Grid.Row="1" Grid.Column="0" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
                                     <Rectangle Grid.Row="1" Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
                                 </Grid>
+                                </Grid>
+                                <TextBlock x:Name="PaneName" Grid.Row="1"
+                                           Text="Panes"
+                                           HorizontalAlignment="Center"/>
                             </Grid>
                         </Button>
 
                         <!-- ===== WINDOW BUTTONS =====
                              Each latches while its window is open (IsChecked two-ways with the open flag),
-                             and any combination may be open at once. -->
+                             and any combination may be open at once.
+
+                             ⚠️ GLYPH OVER A NAME, same as the temporal keys — these were glyph-only, and a
+                             bar where the centre keys are named and the right ones are not made the right
+                             cluster read as decoration. A glyph alone also has to be LEARNED: a globe, a
+                             tower and a gear are only obvious once you already know what is behind them,
+                             and the tooltip that carried that meaning needs a hover to appear.
+
+                             ⚠️ The names cost NO width: a key is a SQUARE sized off the bar's height, so
+                             the name is fitted INSIDE the square it already occupied (see
+                             Layout/BarKeyMetrics). The cluster is exactly as wide as it was, and the
+                             centred temporal keys do not move. Keep it that way — a name long enough to
+                             force a wider key would break both.
+
+                             ⚠️ The style is BarKeyToggleStyle, NOT the old BarIconToggleStyle (deleted):
+                             that one set the icon FontFamily on the BUTTON, which now renders the NAME in
+                             the icon font — boxes instead of words. The glyph carries its own font on the
+                             FontIcon. -->
                         <Grid Grid.Column="1" ColumnSpacing="6">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/> <!-- dev tools (Debug only) -->
@@ -263,31 +301,79 @@
                                  Collapsed in Release via DevVisibility. -->
                             <ToggleButton x:Name="DevKey"
                                           Grid.Column="0"
-                                          Style="{StaticResource BarIconToggleStyle}"
+                                          Style="{StaticResource BarKeyToggleStyle}"
                                           Visibility="{x:Bind DevVisibility}"
-                                          Content="&#xE912;"
                                           ToolTipService.ToolTip="Dev tools — site sweep &amp; dealias validation"
-                                          IsChecked="{x:Bind ViewModel.IsDevToolsWindowOpen, Mode=TwoWay}"/>
+                                          IsChecked="{x:Bind ViewModel.IsDevToolsWindowOpen, Mode=TwoWay}">
+                                <Grid Margin="3,0" RowSpacing="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <FontIcon x:Name="DevGlyph" Grid.Row="0"
+                                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                              Glyph="&#xE912;"/>
+                                    <TextBlock x:Name="DevName" Grid.Row="1"
+                                               Text="Dev"
+                                               HorizontalAlignment="Center"/>
+                                </Grid>
+                            </ToggleButton>
                             <!-- Map Controls: the GLOBAL map controls (basemap, view, state isolation,
                                  radar-site markers, mile grid, Inspect). -->
                             <ToggleButton x:Name="MapKey"
                                           Grid.Column="1"
-                                          Style="{StaticResource BarIconToggleStyle}"
-                                          Content="&#xE774;"
+                                          Style="{StaticResource BarKeyToggleStyle}"
                                           ToolTipService.ToolTip="Map controls — basemap, site markers, isolation &amp; Inspect"
-                                          IsChecked="{x:Bind ViewModel.IsMapControlsWindowOpen, Mode=TwoWay}"/>
+                                          IsChecked="{x:Bind ViewModel.IsMapControlsWindowOpen, Mode=TwoWay}">
+                                <Grid Margin="3,0" RowSpacing="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <FontIcon x:Name="MapGlyph" Grid.Row="0"
+                                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                              Glyph="&#xE774;"/>
+                                    <TextBlock x:Name="MapName" Grid.Row="1"
+                                               Text="Map"
+                                               HorizontalAlignment="Center"/>
+                                </Grid>
+                            </ToggleButton>
                             <ToggleButton x:Name="SitesKey"
                                           Grid.Column="2"
-                                          Style="{StaticResource BarIconToggleStyle}"
-                                          Content="&#xEC05;"
+                                          Style="{StaticResource BarKeyToggleStyle}"
                                           ToolTipService.ToolTip="Radar site explorer"
-                                          IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}"/>
+                                          IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}">
+                                <Grid Margin="3,0" RowSpacing="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <FontIcon x:Name="SitesGlyph" Grid.Row="0"
+                                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                              Glyph="&#xEC05;"/>
+                                    <TextBlock x:Name="SitesName" Grid.Row="1"
+                                               Text="Sites"
+                                               HorizontalAlignment="Center"/>
+                                </Grid>
+                            </ToggleButton>
                             <ToggleButton x:Name="SettingsKey"
                                           Grid.Column="3"
-                                          Style="{StaticResource BarIconToggleStyle}"
-                                          Content="&#xE713;"
+                                          Style="{StaticResource BarKeyToggleStyle}"
                                           ToolTipService.ToolTip="App settings"
-                                          IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}"/>
+                                          IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}">
+                                <Grid Margin="3,0" RowSpacing="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <FontIcon x:Name="SettingsGlyph" Grid.Row="0"
+                                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                              Glyph="&#xE713;"/>
+                                    <TextBlock x:Name="SettingsName" Grid.Row="1"
+                                               Text="Settings"
+                                               HorizontalAlignment="Center"/>
+                                </Grid>
+                            </ToggleButton>
                         </Grid>
                     </Grid>
 

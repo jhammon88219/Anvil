@@ -107,8 +107,20 @@ namespace Anvil
 		private void OnRightClusterSizeChanged(object sender, SizeChangedEventArgs e)
 		{
 			var side = BarKeyMetrics.SideFor(e.NewSize.Height);
-			var glyph = BarKeyMetrics.SoloGlyphFor(side);
+			var glyph = BarKeyMetrics.LabelledGlyphFor(side);
 			var icon = BarKeyMetrics.DrawnIconFor(side);
+
+			// The names share ONE size — the one that fits the widest of them ("Settings") — so the cluster
+			// reads as a set rather than five keys with five type sizes. Probe measured once; the labels
+			// are fixed strings. ⚠️ DevName is included even in Release, where its key is collapsed: it is
+			// still a live TextBlock, and leaving it out would change the fitted size between the two
+			// builds for no reason.
+			if (_rightNameProbe <= 0)
+			{
+				_rightNameProbe = BarKeyMetrics.ProbeWidthOf(PaneName, DevName, MapName, SitesName, SettingsName);
+			}
+
+			var nameFont = BarKeyMetrics.NameFontFor(side, _rightNameProbe);
 
 			foreach (var key in new Control[] { PaneLayoutKey, DevKey, MapKey, SitesKey, SettingsKey })
 			{
@@ -116,9 +128,21 @@ namespace Anvil
 				{
 					key.Width = side;
 				}
-
-				key.FontSize = glyph; // the four glyph keys; harmless on the drawn-icon one
 			}
+
+			// Glyph + name sizes are set on the elements themselves, NOT via the key's FontSize: the name
+			// and the glyph want different sizes out of one key, so a single inherited FontSize can't serve
+			// both. (It could when these keys were glyph-only — that is why this used to be one line.)
+			foreach (var (glyphIcon, name) in new[]
+			{
+				(DevGlyph, DevName), (MapGlyph, MapName), (SitesGlyph, SitesName), (SettingsGlyph, SettingsName),
+			})
+			{
+				glyphIcon.FontSize = glyph;
+				name.FontSize = nameFont;
+			}
+
+			PaneName.FontSize = nameFont; // the pane key's mark is drawn, so only its name takes a font
 
 			// The pane key's drawn icons carry no font, so they scale here instead. All three are sized
 			// even though only one is visible — visibility flips as the layout cycles.
@@ -131,6 +155,9 @@ namespace Anvil
 				}
 			}
 		}
+
+		// Widest right-cluster name at the probe size — measured once (fixed strings).
+		private double _rightNameProbe;
 
 		// Opens the site-sweep results pop-up (Save / Close). Raised by the dev window on run completion
 		// or its Report button.

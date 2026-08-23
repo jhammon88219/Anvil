@@ -27,16 +27,13 @@ namespace Anvil.Controls.Composites
 		// the bar when it changes height (quad panes add a chip row) with nothing to keep in sync by hand.
 		//
 		// The SIZE rule itself lives in Layout/BarKeyMetrics, NOT here, because MainWindow's right cluster
-		// sizes its seven keys by the same rule and the two sets sit side by side in one bar — a local copy
-		// would let the halves drift apart the first time either was tuned. Only the two knobs below are
-		// specific to these keys, and both are about the NAME, which the icon keys do not have.
-
-		/// <summary>Horizontal breathing room inside the key, per edge, that the name must not run into.</summary>
-		private const double NameInset = 5;
-
-		/// <summary>Ceiling on the name's size. Without it a very tall bar would inflate the words past the
-		/// point where they read as labels.</summary>
-		private const double MaxNameFont = 15;
+		// sizes its five keys by the same rule and the two sets sit side by side in one bar — a local copy
+		// would let the halves drift apart the first time either was tuned.
+		//
+		// ⚠️ That now includes the NAME fitting (BarKeyMetrics.NameInset / MaxNameFont / NameFontFor /
+		// ProbeWidthOf). It used to live here, as knobs private to this control, back when these were the
+		// only keys carrying a word. The right cluster's keys are named too now, so the rule had to move —
+		// a name rendered a point larger on one half of the bar than the other is exactly the drift.
 
 		public TemporalToggles()
 		{
@@ -64,8 +61,13 @@ namespace Anvil.Controls.Composites
 			// ("ForeCast" is eight characters in a square barely wider than it is tall) and height alone
 			// would happily pick a size that overflows. All three keys share the one size that fits the
 			// widest of them — sizing each to its own text would render "NowCast" noticeably larger than
-			// "ForeCast" and break the trio's symmetry.
-			var nameFont = Math.Min(MaxNameFont, FitNameFont(side - (2 * NameInset)));
+			// "ForeCast" and break the trio's symmetry. Probe measured once (fixed strings).
+			if (_probeWidth <= 0)
+			{
+				_probeWidth = BarKeyMetrics.ProbeWidthOf(PastName, NowName, ForeName);
+			}
+
+			var nameFont = BarKeyMetrics.NameFontFor(side, _probeWidth);
 			var glyphFont = BarKeyMetrics.LabelledGlyphFor(side);
 
 			Apply(PastPill, PastGlyph, PastName);
@@ -89,34 +91,8 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
-		// Widest name measured at ProbeFont — computed once, since the three labels are fixed strings.
+		// Widest name measured at the probe size — computed once, since the three labels are fixed strings.
 		private double _probeWidth;
-
-		/// <summary>
-		/// The font size at which the LONGEST of the three names just fits <paramref name="usableWidth"/>.
-		/// <para>Measured rather than derived from a characters × average-width guess: the guess bakes in a
-		/// constant that is wrong for a different typeface and goes stale the moment a name is renamed,
-		/// whereas measuring asks the actual font. The probe is done once and scaled thereafter, so no
-		/// measure work happens on later resizes.</para>
-		/// </summary>
-		private double FitNameFont(double usableWidth)
-		{
-			const double ProbeFont = 100;
-
-			if (_probeWidth <= 0)
-			{
-				foreach (var label in new[] { PastName, NowName, ForeName })
-				{
-					var restore = label.FontSize;
-					label.FontSize = ProbeFont;
-					label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-					_probeWidth = Math.Max(_probeWidth, label.DesiredSize.Width);
-					label.FontSize = restore;
-				}
-			}
-
-			return _probeWidth > 0 ? ProbeFont * usableWidth / _probeWidth : MaxNameFont;
-		}
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel
