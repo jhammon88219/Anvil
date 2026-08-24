@@ -33,8 +33,11 @@ verified it.
 **The basemap is local and fully yours.** Instead of a tile service, Anvil reads one offline PMTiles
 archive with style JSON you control, so a cartography change is a file edit and panning costs nothing.
 Five styles ship with the app, and a single-state or CONUS isolation mode masks everything else away for
-a clean view. It's a Windows desktop app (WinUI 3, packaged MSIX) in active development, with the UI
-mid-rebuild — several capabilities live in the view models ahead of the controls that expose them.
+a clean view. If you'd rather not host tens of gigabytes, those same five styles will render from an
+online tile source instead — they're tied to the Protomaps *schema*, not to the file, so it's one setting
+and the map looks identical either way; offline stays the default. It's a Windows desktop app (WinUI 3,
+packaged MSIX) in active development, with the UI mid-rebuild — several capabilities live in the view
+models ahead of the controls that expose them.
 **Not for operational use;** rely on official NWS products for any safety-of-life decision.
 
 ## Run it
@@ -44,7 +47,7 @@ mid-rebuild — several capabilities live in the view models ahead of the contro
 | OS | Windows 10 1809+ (Windows 11 recommended) |
 | Build | .NET 8, Windows App SDK 2.1.3, Visual Studio 2022 with the Windows App SDK workload |
 | Runtime | WebView2 (preinstalled on Windows 11; Evergreen runtime on Windows 10) |
-| Basemap | A local PMTiles archive — see [docs/setup.md](docs/setup.md) |
+| Basemap | A local PMTiles archive, or an online tile source — see [docs/setup.md](docs/setup.md) |
 
 ```sh
 dotnet build Anvil.App/Anvil.App.csproj -c Debug -p:Platform=x64 -p:RuntimeIdentifier=win-x64
@@ -54,7 +57,7 @@ The platform must be explicit — plain AnyCPU fails during MSIX packaging. Anvi
 depends on package identity for its local caches, so **run it from Visual Studio with F5** (which deploys
 the package); the loose `.exe` throws. Anvil ships without a basemap, and without one the map is black
 while every overlay still draws. [**docs/setup.md**](docs/setup.md) covers building the archive, where
-to put it, and the rest of the build and test recipes.
+to put it, the online-tiles alternative, and the rest of the build and test recipes.
 
 ## How it's put together
 
@@ -73,7 +76,7 @@ viewers).
 |---|---|
 | NEXRAD Level II | Unidata's archive and chunks buckets on AWS |
 | Outlooks, watches, warnings, storm reports | [NOAA/NWS Storm Prediction Center](https://www.spc.noaa.gov/) and NWS map/alert services |
-| Basemap | [Protomaps](https://github.com/protomaps/basemaps), © [OpenStreetMap](https://openstreetmap.org) contributors |
+| Basemap | [Protomaps](https://github.com/protomaps/basemaps) — a local archive or the hosted API — © [OpenStreetMap](https://openstreetmap.org) contributors |
 
 The bundled DOW sample comes from NSF NCAR EOL by way of the open-radar-data archive; any `.dow.json`
 you add redistributes research data, so use openly licensed archives and carry the citation. Built with
