@@ -24,6 +24,40 @@ namespace Anvil.Services
 			set => SetProperty(ref _mapDataFolder, value);
 		}
 
+		/// <summary>
+		/// The online basemap source offered when <see cref="UseOnlineTiles"/> is on, and the default the
+		/// Map Controls window prefills. Protomaps' hosted API serves the SAME schema the bundled file does,
+		/// so the app's styles render identically against it — but it needs an API key appended (free for
+		/// non-commercial use, soft cap 1M tile requests/month). A self-hosted PMTiles archive
+		/// (<c>pmtiles://https://…</c>) or any other Protomaps-schema TileJSON / <c>{z}/{x}/{y}</c> template
+		/// works here too; the page tells the three forms apart (map.js <c>tileSourceFor</c>).
+		/// </summary>
+		public const string DefaultOnlineTilesUrl = "https://api.protomaps.com/tiles/v4.json?key=";
+
+		private bool _useOnlineTiles;
+		/// <summary>
+		/// Stream the basemap's vector tiles from <see cref="OnlineTilesUrl"/> instead of the bundled
+		/// offline PMTiles file. Default OFF — offline is the point of the app, and this only changes where
+		/// the tiles come from, never how they are styled.
+		/// </summary>
+		public bool UseOnlineTiles
+		{
+			get => _useOnlineTiles;
+			set => SetProperty(ref _useOnlineTiles, value);
+		}
+
+		private string _onlineTilesUrl = DefaultOnlineTilesUrl;
+		/// <summary>
+		/// Where online tiles come from. Kept as ONE free-form string (key included) rather than a vendor
+		/// enum plus a key field, so pointing Anvil at a self-hosted bucket later is a settings change
+		/// rather than a code change.
+		/// </summary>
+		public string OnlineTilesUrl
+		{
+			get => _onlineTilesUrl;
+			set => SetProperty(ref _onlineTilesUrl, value);
+		}
+
 		private bool _showTdwrs;
 		/// <summary>Show the FAA Terminal Doppler Weather Radar (<c>T***</c>) markers. Opt-in, default off.
 		/// Surfaced as the "Show TDWRs" toggle (App Settings → Radar Settings); persisted here.</summary>

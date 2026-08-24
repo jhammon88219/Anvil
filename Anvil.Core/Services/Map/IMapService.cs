@@ -14,6 +14,17 @@ namespace Anvil.Services
 		Task ApplyStyleAsync(MapStyle style);
 
 		/// <summary>
+		/// Switches where the basemap's vector tiles come from: the bundled offline PMTiles file
+		/// (<paramref name="online"/> false) or <paramref name="tilesUrl"/> (a Protomaps-schema TileJSON
+		/// endpoint, a <c>{z}/{x}/{y}</c> template, or a remote <c>pmtiles://</c> archive).
+		/// <para>⚠️ This does NOT change the style — the bundled styles are Protomaps-SCHEMA styles whose
+		/// only tie to the offline file is one source url, so both modes render identically and glyphs +
+		/// sprites stay local either way. The page re-resolves the CURRENT style against the new source and
+		/// re-applies it, taking the same setStyle + overlay re-add path as a basemap change.</para>
+		/// </summary>
+		Task SetTileSourceAsync(bool online, string tilesUrl);
+
+		/// <summary>
 		/// Sets the pane grid: <paramref name="columns"/> x <paramref name="rows"/> maps in the one
 		/// WebView, separated by a <paramref name="gutterPx"/>-wide groove. The page creates/destroys
 		/// panes around the change; the camera, the loaded loop and every overlay survive it.

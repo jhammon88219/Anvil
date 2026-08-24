@@ -1,6 +1,6 @@
 // One reusable page hosting N MapLibre maps — one per PANE. The host (MainWindow) loads it once,
 // passing interactivity, initial framing, and basemap style as URL parameters:
-//   ?interactive=true|false & style & lng & lat & zoom & conus
+//   ?interactive=true|false & style & lng & lat & zoom & conus & tiles & tilesUrl
 // The page makes no decisions of its own — it renders what the host asks for and
 // exposes a few command shims the host drives over the IMapView seam.
 //
@@ -24,7 +24,7 @@
 //               watch boxes            ┘ FIRST, so warnings land above them
 //               outlook fills + hatch  ← under the labels (firstSymbolLayerId)
 //               RADAR (WebGL layer)    ← beneath the watch fill, via radar.js's own beforeId chain
-//   ── base ──  basemap (PMTiles)
+//   ── base ──  basemap (bundled PMTiles, or online tiles — same styles either way, see tileSourceFor)
 //
 //   Riding above all of it, NOT in the stack: the state-isolation mask (added last, on top), and the
 //   DOM-overlay markers — radar site keys + the user-location dot — which are HTML elements over the
@@ -48,6 +48,17 @@ const interactive = params.get('interactive') === 'true';
 // `let`, not const: applyStyle updates it so a pane created LATER is built on the current basemap
 // rather than the launch one.
 let styleUrl = 'https://mapassets/' + (params.get('style') || 'style.json');
+// ---- Basemap TILE SOURCE (offline PMTiles vs online tiles) -----------------------------------------
+// The five styles are Protomaps-SCHEMA styles: every layer filters on protomaps source-layers, and the
+// ONLY thing tying them to the bundled ~29 GB file is one source url. So "go online" is a SOURCE SWAP,
+// not a second set of styles — the look is identical either way, and glyphs/sprites stay local (no
+// online typography drift, no extra CORS surface). resolveStyle() does the patch; see tileSourceFor.
+// Passed as URL params so the launch map is built on the right source instead of flipping after ready.
+let tileMode = params.get('tiles') === 'online' ? 'online' : 'offline';
+let tileUrl = params.get('tilesUrl') || '';
+// The RESOLVED style handed to new maps: the style OBJECT once patched (online), or just the style URL
+// (offline, where nothing needs patching). A pane created later reads this, so it matches its siblings.
+let styleSpec = null;
 const lng = parseFloat(params.get('lng'));
 const lat = parseFloat(params.get('lat'));
 const zoom = parseFloat(params.get('zoom'));
@@ -197,13 +208,61 @@ try {
         forEachMap(function (m) { try { m.resize(); } catch (e) { /* mid-teardown */ } });
     }
 
+    // Build the replacement basemap source for ONLINE mode, or null to keep the style file's own
+    // (offline `pmtiles://https://mapdata/...`) source untouched. One config string covers every online
+    // option because the three forms are distinguishable: a remote PMTiles archive and a TileJSON
+    // endpoint both carry their own zoom range + attribution, so MapLibre reads the metadata; a raw
+    // {z}/{x}/{y} template carries none, and the Protomaps basemap tileset tops out at z15 — without
+    // maxzoom MapLibre would request tiles up to z22 that do not exist.
+    function tileSourceFor(base) {
+        if (tileMode !== 'online' || !tileUrl) return null;
+        const src = { type: 'vector' };
+        if (base && base.attribution) src.attribution = base.attribution;
+        if (/^pmtiles:\/\//i.test(tileUrl) || /\.json($|\?)/i.test(tileUrl)) {
+            src.url = tileUrl;
+        } else {
+            src.tiles = [tileUrl];
+            src.minzoom = 0;
+            src.maxzoom = 15;
+        }
+        return src;
+    }
+
+    // Resolve a style file into what MapLibre should be handed.
+    // ⚠️ OFFLINE (the default) resolves to the URL UNCHANGED — no fetch, no parse, so the default path
+    // is byte-for-byte today's behavior and pays nothing on the first-paint critical path. Only online
+    // fetches the style to patch its one source. A failed fetch falls back to the plain URL, so a bad
+    // online config degrades to the offline basemap instead of a blank map.
+    function resolveStyle(url) {
+        if (tileMode !== 'online' || !tileUrl) return Promise.resolve(url);
+        return fetch(url)
+            .then(function (r) { return r.json(); })
+            .then(function (style) {
+                const id = style.sources && Object.keys(style.sources)[0];
+                const src = id ? tileSourceFor(style.sources[id]) : null;
+                if (id && src) style.sources[id] = src;
+                return style;
+            })
+            .catch(function (e) {
+                console.error('online style patch failed, using the offline basemap: ' + e);
+                return url;
+            });
+    }
+
+    // Every map gets its OWN copy of the resolved style — MapLibre takes ownership of the object it is
+    // given, so four panes sharing one would have them mutating each other's style.
+    function styleForNewMap() {
+        const spec = styleSpec || styleUrl;
+        return typeof spec === 'string' ? spec : structuredClone(spec);
+    }
+
     function createPaneMap(i) {
         // A pane joins the existing camera, style and orientation, so it appears already locked to its
         // siblings instead of flying in from the launch view.
         const ref = maps[0];
         const m = new maplibregl.Map({
             container: 'pane' + i,
-            style: styleUrl,
+            style: styleForNewMap(),
             center: ref ? ref.getCenter() : [lng, lat],
             zoom: ref ? ref.getZoom() : zoom,
             bearing: ref ? ref.getBearing() : 0,
@@ -247,25 +306,40 @@ try {
 
     window.addEventListener('resize', applyPaneLayout);
 
-    // Create the launch pane (single). The host switches layout later via setPaneLayout.
-    maps[0] = createPaneMap(0);
-    const map = maps[0]; // the primary, named for the launch sequence below
-    // radar.js is loaded before this file, so RadarLayer is already there. Hand it the view list now so
-    // it has a view before any radar command arrives — setPaneLayout would otherwise be the first to do
-    // it, and a radar command that beat it would have nowhere to draw.
-    if (window.RadarLayer && window.RadarLayer.setViews) window.RadarLayer.setViews(maps);
+    // The launch pane is created by the BOOT at the very bottom of this file, not here: the style has to
+    // be resolved against the tile source first (see resolveStyle). Everything between here and there is
+    // a function or a window.* shim definition, none of which touch a live map, and the host cannot send
+    // a command before the mapReady latch the boot arms — so deferring creation costs nothing.
 
-    // Host commands (C# -> JS via RunScriptAsync). Style swap re-applies the offline style to EVERY
-    // pane; flyTo animates the primary and the camera sync carries the rest; show/clearOutlook +
-    // setOutlookOpacity drive the SPC overlay across all panes.
+    // Host commands (C# -> JS via RunScriptAsync). Style swap re-applies the style to EVERY pane; flyTo
+    // animates the primary and the camera sync carries the rest; show/clearOutlook + setOutlookOpacity
+    // drive the SPC overlay across all panes.
+    // Guards a resolve that a LATER style/source change has already superseded — online resolution is a
+    // fetch, so two quick switches can land out of order and leave the map on the older one.
+    let styleGen = 0;
     window.applyStyle = function (url) {
         styleUrl = url; // a pane created later is built on the CURRENT basemap, not the launch one
-        forEachMap(function (m) {
-            m.setStyle(url, { diff: true });
-            // setStyle drops our custom sources/layers/images — re-add them once the new style settles.
-            // Reuse the already-clipped data; only re-fetch if it isn't loaded yet.
-            m.once('idle', function () { reAddAll(m); });
+        const gen = ++styleGen;
+        resolveStyle(url).then(function (spec) {
+            if (gen !== styleGen) return;
+            styleSpec = spec;
+            forEachMap(function (m) {
+                m.setStyle(styleForNewMap(), { diff: true });
+                // setStyle drops our custom sources/layers/images — re-add them once the new style settles.
+                // Reuse the already-clipped data; only re-fetch if it isn't loaded yet.
+                m.once('idle', function () { reAddAll(m); });
+            });
         });
+    };
+    // Host command: switch where the basemap's vector tiles come from — the bundled offline PMTiles file
+    // or an online source (Protomaps API TileJSON, a raw {z}/{x}/{y} template, or a remote PMTiles
+    // archive; tileSourceFor tells them apart). The STYLE is untouched, so the app's look is identical
+    // across the switch; this just re-resolves the current style against the new source and re-applies
+    // it, taking the same setStyle + reAdd path as a basemap change.
+    window.setTileSource = function (mode, url) {
+        tileMode = mode === 'online' ? 'online' : 'offline';
+        tileUrl = url || '';
+        window.applyStyle(styleUrl);
     };
     // SPC outlook overlay (probability fills + per-CIG hatching; nested groups clipped) lives in
     // outlook.js — load once and delegate (passing each map). applyStyle calls Outlook.reAdd(map).
@@ -509,27 +583,48 @@ try {
 
     // Tell the host this map is ready to receive commands. LAUNCH SEQUENCE — the primary pane only; it is
     // the only pane that exists at launch (single is the launch layout), and mapReady is a one-shot latch
-    // on the host side.
-    map.on('load', function () {
-        // Apply the launch mask BEFORE revealing so Canada/Mexico/oceans never flash. When CONUS is the
-        // launch default we wait for states.js + the boundary fetch, apply the mask, then reveal only once
-        // the map reports 'idle' — i.e. it has actually FINISHED rendering the mask layer (a guessed
-        // frame-count reveal was too early: the cover faded while the mask was still being drawn). A hard
-        // 3 s fallback guarantees the cover lifts even if states.js failed to load.
-        setTimeout(revealMap, 3000);
-        var maskReady = launchConus
-            ? statesReady.then(function (m) { return m ? m.setConus(map, true) : null; })
-            : Promise.resolve();
-        maskReady.then(function () {
-            // 'idle' fires when no more rendering is pending — the mask fill is on screen by then. Nudge a
-            // repaint so it fires promptly even if the map had already settled.
-            map.once('idle', revealMap);
-            if (map.triggerRepaint) map.triggerRepaint();
-        }).catch(revealMap);
+    // on the host side. Called by the boot below, once the primary map exists.
+    function attachLaunchSequence(map) {
+        map.on('load', function () {
+            // Apply the launch mask BEFORE revealing so Canada/Mexico/oceans never flash. When CONUS is the
+            // launch default we wait for states.js + the boundary fetch, apply the mask, then reveal only once
+            // the map reports 'idle' — i.e. it has actually FINISHED rendering the mask layer (a guessed
+            // frame-count reveal was too early: the cover faded while the mask was still being drawn). A hard
+            // 3 s fallback guarantees the cover lifts even if states.js failed to load.
+            setTimeout(revealMap, 3000);
+            var maskReady = launchConus
+                ? statesReady.then(function (m) { return m ? m.setConus(map, true) : null; })
+                : Promise.resolve();
+            maskReady.then(function () {
+                // 'idle' fires when no more rendering is pending — the mask fill is on screen by then. Nudge a
+                // repaint so it fires promptly even if the map had already settled.
+                map.once('idle', revealMap);
+                if (map.triggerRepaint) map.triggerRepaint();
+            }).catch(revealMap);
 
-        if (window.chrome && window.chrome.webview) {
-            window.chrome.webview.postMessage(JSON.stringify({ type: 'mapReady' }));
-        }
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage(JSON.stringify({ type: 'mapReady' }));
+            }
+        });
+    }
+
+    // ---- BOOT ------------------------------------------------------------------------------------
+    // Create the launch pane (single; the host switches layout later via setPaneLayout) once the style is
+    // resolved against the tile source. Offline resolves synchronously to the style URL, so the default
+    // path reaches this in the same microtask it always did.
+    resolveStyle(styleUrl).then(function (spec) {
+        styleSpec = spec;
+        maps[0] = createPaneMap(0);
+        // radar.js is loaded before this file, so RadarLayer is already there. Hand it the view list now so
+        // it has a view before any radar command arrives — setPaneLayout would otherwise be the first to do
+        // it, and a radar command that beat it would have nowhere to draw.
+        if (window.RadarLayer && window.RadarLayer.setViews) window.RadarLayer.setViews(maps);
+        attachLaunchSequence(maps[0]);
+    }).catch(function (e) {
+        // The boot runs after the synchronous try/catch below has already returned, so it carries its own:
+        // without this a failure here would leave the launch cover up over a black window forever.
+        console.error('map boot failed: ' + e);
+        revealMap();
     });
 } catch (err) {
     document.body.insertAdjacentHTML('beforeend',

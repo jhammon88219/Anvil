@@ -393,14 +393,19 @@ namespace Anvil
 			// default, then re-style). The view model's default is Data Viz Black.
 			var styleFile = ViewModel.SelectedStyle?.FileName ?? "style.json";
 			var main = ViewModel.MainRegion;
-			await InitializeWebViewAsync(MainMapWebView, BuildMapUrl(main, main?.Zoom ?? 4, styleFile, ViewModel.StateIso.IsConusIsolated));
+			await InitializeWebViewAsync(MainMapWebView, BuildMapUrl(main, main?.Zoom ?? 4, styleFile, ViewModel.StateIso.IsConusIsolated,
+				ViewModel.IsOnlineTilesActive, ViewModel.OnlineTilesUrl));
 		}
 
 		// Builds the page URL for the map: framed at the given center/zoom, on the given
 		// basemap. The page posts 'mapReady' once its MapLibre map's 'load' fires.
 		// `conus` = the launch CONUS-mask default, so the page can apply the mask on first load (before it
 		// reveals) instead of waiting for the host round-trip — otherwise the world basemap flashes first.
-		private static string BuildMapUrl(MapRegion? region, double zoom, string styleFile, bool conus)
+		// `onlineTiles`/`tilesUrl` = the basemap tile source, passed the same way and for the same reason as
+		// `conus`: the page builds its FIRST map on the right source instead of loading the offline basemap
+		// and then re-styling onto the online one (a visible reload of every tile at launch).
+		private static string BuildMapUrl(MapRegion? region, double zoom, string styleFile, bool conus,
+			bool onlineTiles, string tilesUrl)
 		{
 			var lng = region?.Longitude ?? -95.5;
 			var lat = region?.Latitude ?? 37.0;
@@ -410,7 +415,9 @@ namespace Anvil
 				$"&lng={lng.ToString(CultureInfo.InvariantCulture)}" +
 				$"&lat={lat.ToString(CultureInfo.InvariantCulture)}" +
 				$"&zoom={zoom.ToString(CultureInfo.InvariantCulture)}" +
-				$"&conus={(conus ? "true" : "false")}";
+				$"&conus={(conus ? "true" : "false")}" +
+				$"&tiles={(onlineTiles ? "online" : "offline")}" +
+				$"&tilesUrl={Uri.EscapeDataString(tilesUrl ?? "")}";
 		}
 
 		private async Task InitializeWebViewAsync(WebView2 webView, string url)

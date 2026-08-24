@@ -26,6 +26,7 @@ namespace Anvil.ViewModels
 		private readonly IMapService _mapService;
 		private readonly IStyleProvider _styleProvider;
 		private readonly IRegionProvider _regionProvider;
+		private readonly ISettingsService _settingsService;
 
 		// Readiness guard: the map page must have reported 'mapReady' before style /
 		// outlook commands can succeed. The view calls OnMapsReadyAsync() once the map
@@ -43,6 +44,7 @@ namespace Anvil.ViewModels
 			_mapService = mapService;
 			_styleProvider = styleProvider;
 			_regionProvider = regionProvider;
+			_settingsService = settingsService;
 
 			// Built before IsSettingsWindowOpen can fire (its setter refreshes the cache readout on open).
 			Storage = new StorageSettingsViewModel(radarService, settingsService);
@@ -521,6 +523,114 @@ namespace Anvil.ViewModels
 				{
 					_ = _mapService.ApplyStyleAsync(value);
 				}
+			}
+		}
+
+		// ── Basemap TILE SOURCE (offline PMTiles vs online tiles) ──────────────────────────────────
+		// Orthogonal to SelectedStyle, and deliberately so: the bundled styles are Protomaps-SCHEMA
+		// styles whose only tie to the offline file is one source url, so every style renders identically
+		// against either source. That is why this is a source switch rather than a second set of styles.
+		// Offline is the DEFAULT and the fallback: an online config that can't work (no API key) is
+		// ignored rather than obeyed, so the map is never left blank.
+
+		/// <summary>
+		/// Stream basemap tiles from <see cref="OnlineTilesUrl"/> instead of the bundled offline PMTiles
+		/// file. Persisted; default off. Has no effect while <see cref="CanUseOnlineTiles"/> is false.
+		/// </summary>
+		public bool UseOnlineTiles
+		{
+			get => _settingsService.Settings.UseOnlineTiles;
+			set
+			{
+				if (_settingsService.Settings.UseOnlineTiles == value)
+				{
+					return;
+				}
+
+				_settingsService.Settings.UseOnlineTiles = value; // auto-persists
+				OnPropertyChanged();
+				OnPropertyChanged(nameof(IsOnlineTilesActive));
+				OnPropertyChanged(nameof(TileSourceStatus));
+				PushTileSource();
+			}
+		}
+
+		/// <summary>
+		/// Where online tiles come from — a Protomaps-schema TileJSON endpoint, a <c>{z}/{x}/{y}</c>
+		/// template, or a remote <c>pmtiles://</c> archive. Persisted; defaults to the Protomaps API URL,
+		/// which needs an API key appended before it can be used.
+		/// </summary>
+		public string OnlineTilesUrl
+		{
+			get => _settingsService.Settings.OnlineTilesUrl;
+			set
+			{
+				var url = (value ?? "").Trim();
+				if (_settingsService.Settings.OnlineTilesUrl == url)
+				{
+					return;
+				}
+
+				_settingsService.Settings.OnlineTilesUrl = url; // auto-persists
+				OnPropertyChanged();
+				OnPropertyChanged(nameof(CanUseOnlineTiles));
+				OnPropertyChanged(nameof(IsOnlineTilesActive));
+				OnPropertyChanged(nameof(TileSourceStatus));
+
+				// Re-point a live online map at the new URL; while offline there is nothing to push.
+				if (UseOnlineTiles)
+				{
+					PushTileSource();
+				}
+			}
+		}
+
+		/// <summary>
+		/// Whether <see cref="OnlineTilesUrl"/> is usable. The Protomaps default ships WITHOUT a key (we
+		/// can't supply one), and a keyless URL renders nothing — so a bare <c>key=</c> reads as
+		/// not-yet-configured rather than being pushed to the map and blanking it.
+		/// </summary>
+		public bool CanUseOnlineTiles
+		{
+			get
+			{
+				var url = OnlineTilesUrl;
+				if (string.IsNullOrWhiteSpace(url))
+				{
+					return false;
+				}
+
+				var i = url.IndexOf("key=", StringComparison.OrdinalIgnoreCase);
+				if (i < 0)
+				{
+					return true; // a self-hosted source needs no key
+				}
+
+				var after = url[(i + 4)..];
+				var end = after.IndexOf('&');
+				return (end < 0 ? after : after[..end]).Length > 0;
+			}
+		}
+
+		/// <summary>The EFFECTIVE tile source: online only when it's both selected and usable. Read by the
+		/// view host to frame the launch page on the right source, and by <see cref="PushTileSource"/>.</summary>
+		public bool IsOnlineTilesActive => UseOnlineTiles && CanUseOnlineTiles;
+
+		/// <summary>One-line readout under the tile-source controls — which source is actually in use, and
+		/// why, when the selection and the effective source disagree.</summary>
+		public string TileSourceStatus =>
+			!UseOnlineTiles ? "Offline — the bundled PMTiles basemap. No network needed." :
+			!CanUseOnlineTiles ? "Add your API key to the URL above; still using the offline basemap." :
+			"Online — tiles stream from the URL above. Same styles, same look.";
+
+		// Push the effective source to the page. Pre-ready changes need no push: the page is launched with
+		// the source in its URL (MainWindow.BuildMapUrl), so it builds the first map on the right one
+		// instead of flipping — and re-applying here would cost a needless setStyle + overlay re-add.
+		private void PushTileSource()
+		{
+			if (_isMapReady)
+			{
+				_ = _mapService.SetTileSourceAsync(IsOnlineTilesActive, OnlineTilesUrl);
 			}
 		}
 

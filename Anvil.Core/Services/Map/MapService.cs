@@ -28,6 +28,14 @@ namespace Anvil.Services
 		public Task ApplyStyleAsync(MapStyle style) =>
 			_mapView.RunScriptAsync(Call("applyStyle", $"https://mapassets/{style.FileName}"));
 
+		// Tile source: the style file is unchanged either way — the page patches its ONE basemap source.
+		// ⚠️ The URL is the only USER-TYPED string that reaches the page, and FormatArg quotes without
+		// escaping, so a stray quote/backslash would break the whole script line. Neither is legal in a URL,
+		// so escaping them here (rather than widening FormatArg for every other call site) is enough.
+		public Task SetTileSourceAsync(bool online, string tilesUrl) =>
+			_mapView.RunScriptAsync(Call("setTileSource", online ? "online" : "offline",
+				(tilesUrl ?? "").Replace("\\", "\\\\").Replace("'", "\\'")));
+
 		public Task SetPaneLayoutAsync(int columns, int rows, int gutterPx) =>
 			_mapView.RunScriptAsync(Call("setPaneLayout", columns, rows, gutterPx));
 
