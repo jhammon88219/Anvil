@@ -2,21 +2,16 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Windows
+namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The Map Controls panel: basemap style, view extent, state isolation, radar-site marker visibility,
-	/// the mile grid and the Inspect cursor tool — the GLOBAL map controls, hosted in its own OS window.
-	/// (Site markers + Inspect moved here from the radar console, and the TDWR/research toggles from App
-	/// Settings, so everything acting on the whole map is in one window and nothing here repeats per pane
-	/// in multi-pane mode.)
-	/// Its visibility is driven by <see cref="MapViewModel.IsMapControlsWindowOpen"/> (toggled by the "Map"
-	/// button on the top bar); the window's caption Close clears it. Bound to the coordinator
-	/// <see cref="MapViewModel"/> (basemap lives on it, isolation on <see cref="MapViewModel.StateIso"/>).
+	/// The Settings window's Map tab (see the XAML header): basemap style + tile source, view extent, and
+	/// state isolation. Bound to the coordinator <see cref="MapViewModel"/> — the basemap lives on it,
+	/// isolation on <see cref="MapViewModel.StateIso"/>.
 	/// </summary>
-	public sealed partial class MapControlsWindow : UserControl
+	public sealed partial class MapSettingsTab : UserControl
 	{
-		public MapControlsWindow()
+		public MapSettingsTab()
 		{
 			InitializeComponent();
 		}
@@ -29,7 +24,7 @@ namespace Anvil.Controls.Windows
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(MapControlsWindow), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(MapSettingsTab), new PropertyMetadata(null));
 
 		// "Fit to view" — frame the current region (isolated state, else CONUS). Fire-and-forget: the camera
 		// move runs through IMapService (map.fitBounds), same seam as every other map command.

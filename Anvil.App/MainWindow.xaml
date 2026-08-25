@@ -291,55 +291,17 @@
                              FontIcon. -->
                         <Grid Grid.Column="1" ColumnSpacing="6">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/> <!-- dev tools (Debug only) -->
-                                <ColumnDefinition Width="Auto"/> <!-- map controls -->
                                 <ColumnDefinition Width="Auto"/> <!-- site explorer -->
-                                <ColumnDefinition Width="Auto"/> <!-- app settings -->
+                                <ColumnDefinition Width="Auto"/> <!-- settings -->
                             </Grid.ColumnDefinitions>
 
-                            <!-- DEV-ONLY: the combined dev-tools window (site sweep + dealias validation).
-                                 Collapsed in Release via DevVisibility. -->
-                            <ToggleButton x:Name="DevKey"
-                                          Grid.Column="0"
-                                          Style="{StaticResource BarKeyToggleStyle}"
-                                          Visibility="{x:Bind DevVisibility}"
-                                          ToolTipService.ToolTip="Dev tools — site sweep &amp; dealias validation"
-                                          IsChecked="{x:Bind ViewModel.IsDevToolsWindowOpen, Mode=TwoWay}">
-                                <Grid Margin="3,0" RowSpacing="2">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <FontIcon x:Name="DevGlyph" Grid.Row="0"
-                                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                              Glyph="&#xE912;"/>
-                                    <TextBlock x:Name="DevName" Grid.Row="1"
-                                               Text="Dev"
-                                               HorizontalAlignment="Center"/>
-                                </Grid>
-                            </ToggleButton>
-                            <!-- Map Controls: the GLOBAL map controls (basemap, view, state isolation,
-                                 radar-site markers, mile grid, Inspect). -->
-                            <ToggleButton x:Name="MapKey"
-                                          Grid.Column="1"
-                                          Style="{StaticResource BarKeyToggleStyle}"
-                                          ToolTipService.ToolTip="Map controls — basemap, site markers, isolation &amp; Inspect"
-                                          IsChecked="{x:Bind ViewModel.IsMapControlsWindowOpen, Mode=TwoWay}">
-                                <Grid Margin="3,0" RowSpacing="2">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <FontIcon x:Name="MapGlyph" Grid.Row="0"
-                                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                              Glyph="&#xE774;"/>
-                                    <TextBlock x:Name="MapName" Grid.Row="1"
-                                               Text="Map"
-                                               HorizontalAlignment="Center"/>
-                                </Grid>
-                            </ToggleButton>
+                            <!-- ⚠️ THERE WERE FOUR KEYS HERE. "Map" (global map controls) and the Debug-only
+                                 "Dev" key are gone: their windows became TABS of the Settings window, so
+                                 the gear now opens all of it. Adding a group of settings means adding a
+                                 tab (Controls/Windows/SettingsWindow), NOT a key here — this cluster is
+                                 for windows that are not settings. -->
                             <ToggleButton x:Name="SitesKey"
-                                          Grid.Column="2"
+                                          Grid.Column="0"
                                           Style="{StaticResource BarKeyToggleStyle}"
                                           ToolTipService.ToolTip="Radar site explorer"
                                           IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}">
@@ -357,9 +319,9 @@
                                 </Grid>
                             </ToggleButton>
                             <ToggleButton x:Name="SettingsKey"
-                                          Grid.Column="3"
+                                          Grid.Column="1"
                                           Style="{StaticResource BarKeyToggleStyle}"
-                                          ToolTipService.ToolTip="App settings"
+                                          ToolTipService.ToolTip="Settings — map, radar, storage"
                                           IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}">
                                 <Grid Margin="3,0" RowSpacing="2">
                                     <Grid.RowDefinitions>

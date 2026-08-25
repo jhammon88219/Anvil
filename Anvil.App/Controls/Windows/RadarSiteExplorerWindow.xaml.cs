@@ -8,7 +8,7 @@ namespace Anvil.Controls.Windows
 	/// <summary>
 	/// The Radar Site Explorer panel — a non-modal, searchable master–detail browser over the radar
 	/// network, floating above the OverlayBar. Bound to the coordinator <see cref="MapViewModel"/> (like
-	/// <see cref="AppSettingsWindow"/>): its visibility follows <see cref="MapViewModel.IsSiteExplorerOpen"/>
+	/// <see cref="SettingsWindow"/>): its visibility follows <see cref="MapViewModel.IsSiteExplorerOpen"/>
 	/// and it reaches into <see cref="MapViewModel.SiteExplorer"/> for the list/detail. The close triangle
 	/// and Load button are handled here in code-behind.
 	/// </summary>

@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DevSettingsTab — DEV-ONLY. The Dev tab of the Settings window: the automated site sweep, the
+     fixed-corpus dealias-validation harness, and the Pipeline Console's switch, stacked as labeled sections.
+
+       ┌──────────────────────────────────────────────────────┐
+       │  SITE SWEEP                                          │
+       │   ┌────────────────────────────────────────────┐     │
+       │   │ KTLX (34/160) · dwell 12s…                 │     │  ← live status + dwell countdown
+       │   └────────────────────────────────────────────┘     │
+       │   Dwell s [30]      Timeout s [120]                  │
+       │   Frames (0 = full dwell) [0]                        │
+       │   [x] Operational only   [ ] Skip offline            │
+       │   ( Start ) ( Stop ) ( Report… )                     │
+       │  ────────────────────────────────────────────────    │
+       │  DEALIAS VALIDATION                                  │
+       │   ┌────────────────────────────────────────────┐     │
+       │   │ 4/6 · KBUF-013012 31.2% (base 31.4%)       │     │
+       │   └────────────────────────────────────────────┘     │
+       │   what it does…                                      │
+       │   ( Run ) ( Stop ) ( Report… )                       │
+       │  ────────────────────────────────────────────────    │
+       │  PIPELINE CONSOLE                                    │
+       │   what it does…                                      │
+       │   [ Hidden ●───]                                     │  ← opens the console's own window
+       └──────────────────────────────────────────────────────┘
+
+     The first two are the two halves of one loop: the sweep is DISCOVERY over live data (it harvests
+     suspects), the corpus scorer is REGRESSION over fixed data (deterministic, so the only variable is the
+     code). They share a tab because you run the second to prove a fix for what the first found. The console
+     is the third kind — pure OBSERVATION, no run to start.
+
+     ⚠️ DEBUG-ONLY, and the gating is NOT in this file — XAML has no preprocessor. SettingsWindow omits this
+     tab's entry from the strip and never x:Loads this body in Release, and MainWindow only constructs
+     SweepVm / ValidationVm under #if DEBUG. Both VMs are null in a shipped build, which is exactly why the
+     body must not be constructed there.
+
+     ⚠️ CONSEQUENCE, unchanged by the window merge: the Pipeline Console's only trigger is this Debug-only
+     tab, so a Release build still has no way to open it — even though the "pipeline" window registration
+     itself is not Debug-gated. Shipping the console needs a non-dev trigger, not just a registration. -->
+
+<UserControl x:Class="Anvil.Controls.Composites.DevSettingsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <!-- Body: the dev-tool sections. -->
+    <Grid RowSpacing="10" VerticalAlignment="Top">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Site sweep section -->
+            <RowDefinition Height="Auto"/> <!-- divider -->
+            <RowDefinition Height="Auto"/> <!-- Dealias validation section -->
+            <RowDefinition Height="Auto"/> <!-- divider -->
+            <RowDefinition Height="Auto"/> <!-- Pipeline console section -->
+        </Grid.RowDefinitions>
+
+        <!-- ===== Section 1: automated site sweep (SiteSweepViewModel). ===== -->
+        <Grid Grid.Row="0" RowSpacing="8" VerticalAlignment="Top">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- section label -->
+                <RowDefinition Height="Auto"/> <!-- status / live countdown -->
+                <RowDefinition Height="Auto"/> <!-- dwell + timeout -->
+                <RowDefinition Height="Auto"/> <!-- frames-per-site -->
+                <RowDefinition Height="Auto"/> <!-- scope checkboxes -->
+                <RowDefinition Height="Auto"/> <!-- start/stop + report -->
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Site sweep" Style="{StaticResource SettingsSectionLabelStyle}"/>
+
+            <!-- Live status + per-second dwell countdown. Prominent, always visible. -->
+            <Border Grid.Row="1" CornerRadius="6" Padding="10,7"
+                    Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                <TextBlock TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                           FontSize="14" FontWeight="SemiBold"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                           Text="{x:Bind SweepVm.StatusText, Mode=OneWay}"/>
+            </Border>
+
+            <!-- Dwell + per-site timeout, side by side, compact. -->
+            <Grid Grid.Row="2" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Dwell s" VerticalAlignment="Center" FontSize="12"/>
+                <NumberBox x:Name="DwellBox" Grid.Column="1"
+                           SpinButtonPlacementMode="Compact" SmallChange="5" LargeChange="30"
+                           Minimum="5" Maximum="600" ValueChanged="OnDwellChanged"/>
+                <TextBlock Grid.Column="2" Text="Timeout s" VerticalAlignment="Center" FontSize="12"/>
+                <NumberBox x:Name="TimeoutBox" Grid.Column="3"
+                           SpinButtonPlacementMode="Compact" SmallChange="10" LargeChange="30"
+                           Minimum="10" Maximum="1200" ValueChanged="OnTimeoutChanged"/>
+            </Grid>
+
+            <Grid Grid.Row="3" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Frames (0 = full dwell)"
+                           VerticalAlignment="Center" FontSize="12"/>
+                <NumberBox x:Name="FramesBox" Grid.Column="1"
+                           SpinButtonPlacementMode="Compact" SmallChange="1" LargeChange="5"
+                           Minimum="0" Maximum="50" ValueChanged="OnFramesChanged"/>
+            </Grid>
+
+            <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="16">
+                <CheckBox Content="Operational only" IsChecked="{x:Bind SweepVm.OperationalOnly, Mode=TwoWay}"
+                          ToolTipService.ToolTip="Operational WSR-88D only, by site class (excludes research + TDWR; still includes OCONUS operational sites — AK/HI/PR/overseas)"/>
+                <CheckBox Content="Skip offline" IsChecked="{x:Bind SweepVm.SkipOffline, Mode=TwoWay}"
+                          ToolTipService.ToolTip="Skip sites the status feed reports down / no data"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="8">
+                <Button Content="Start" Click="OnStartClick"
+                        IsEnabled="{x:Bind SweepVm.IsIdle, Mode=OneWay}"/>
+                <Button Content="Stop" Click="OnStopClick"
+                        IsEnabled="{x:Bind SweepVm.IsRunning, Mode=OneWay}"/>
+                <Button Content="Report…" Click="OnSweepReportClick"
+                        IsEnabled="{x:Bind SweepVm.HasReport, Mode=OneWay}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Divider between the two tools. -->
+        <Border Grid.Row="1" Height="1" Margin="0,2"
+                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+        <!-- ===== Section 2: dealias validation (RadarValidationViewModel). ===== -->
+        <Grid Grid.Row="2" RowSpacing="8" VerticalAlignment="Top">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- section label -->
+                <RowDefinition Height="Auto"/> <!-- status / live progress -->
+                <RowDefinition Height="Auto"/> <!-- what it does -->
+                <RowDefinition Height="Auto"/> <!-- run/stop + report -->
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Dealias validation" Style="{StaticResource SettingsSectionLabelStyle}"/>
+
+            <!-- Live status + per-volume progress. Prominent, always visible. -->
+            <Border Grid.Row="1" CornerRadius="6" Padding="10,7"
+                    Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                <TextBlock TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                           FontSize="14" FontWeight="SemiBold"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                           Text="{x:Bind ValidationVm.StatusText, Mode=OneWay}"/>
+            </Border>
+
+            <TextBlock Grid.Row="2" TextWrapping="Wrap" FontSize="12"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="Replays the fixed corpus (Assets/RadarCorpus/radar-corpus.json) through the real decode/dealias path and flags any volume whose over-unfold % exceeds its baseline."/>
+
+            <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8">
+                <Button Content="Run" Click="OnRunClick"
+                        IsEnabled="{x:Bind ValidationVm.IsIdle, Mode=OneWay}"/>
+                <Button Content="Stop" Click="OnValidationStopClick"
+                        IsEnabled="{x:Bind ValidationVm.IsRunning, Mode=OneWay}"/>
+                <Button Content="Report…" Click="OnValidationReportClick"
+                        IsEnabled="{x:Bind ValidationVm.HasReport, Mode=OneWay}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Divider before the console. -->
+        <Border Grid.Row="3" Height="1" Margin="0,2"
+                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+        <!-- ===== Section 3: the Pipeline Console's open toggle. =====
+             A toggle rather than a button because the window's existence IS the state (WindowManager
+             reconciles the flag), so it unlatches when you close the console from its own caption. -->
+        <Grid Grid.Row="4" RowSpacing="8" VerticalAlignment="Top">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- section label -->
+                <RowDefinition Height="Auto"/> <!-- what it does -->
+                <RowDefinition Height="Auto"/> <!-- the toggle -->
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Pipeline console" Style="{StaticResource SettingsSectionLabelStyle}"/>
+
+            <TextBlock Grid.Row="1" TextWrapping="Wrap" FontSize="12"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="Opens the read-only Level-2 pipeline window: a mini-scrubber per product plus VWP/storm-motion state. Observe-only — it polls the WebView while open and changes nothing."/>
+
+            <ToggleSwitch Grid.Row="2"
+                          OffContent="Hidden" OnContent="Shown"
+                          IsOn="{x:Bind ViewModel.IsPipelineConsoleOpen, Mode=TwoWay}"/>
+        </Grid>
+    </Grid>
+</UserControl>

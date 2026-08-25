@@ -87,5 +87,30 @@ namespace Anvil.Services
 			get => _radarCacheMaxGb;
 			set => SetProperty(ref _radarCacheMaxGb, value);
 		}
+
+		private int _settingsTabIndex;
+		/// <summary>
+		/// Which tab the Settings window reopens on. ⚠️ Persisted as a raw INDEX, so it can outlive the tab
+		/// that wrote it: a Debug session can quit on the dev tab (index 3) and a Release build then has no
+		/// such tab. <see cref="ViewModels.MapViewModel.SettingsTabIndex"/> clamps on load — never trust this
+		/// value against a tab count without clamping first.
+		/// </summary>
+		public int SettingsTabIndex
+		{
+			get => _settingsTabIndex;
+			set => SetProperty(ref _settingsTabIndex, value);
+		}
+
+		private string _settingsTabPlacement = "Top";
+		/// <summary>
+		/// Where the Settings window draws its tab strip: <c>"Top"</c> (a rail across the top, the default) or
+		/// <c>"Left"</c> (a side rail). Stored as a STRING rather than the enum so an unrecognized value from a
+		/// hand-edited or future file parses back to the default instead of failing the whole settings load.
+		/// </summary>
+		public string SettingsTabPlacement
+		{
+			get => _settingsTabPlacement;
+			set => SetProperty(ref _settingsTabPlacement, value);
+		}
 	}
 }

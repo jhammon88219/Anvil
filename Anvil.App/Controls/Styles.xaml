@@ -16,6 +16,11 @@
      share them so the app reads as one system). A look used by exactly ONE control belongs in that
      control's own Resources instead; this file is not a dumping ground.
 
+     …with one STANDING EXCEPTION, by decision: SettingsTabKeyStyle (one consumer, TabStrip). It is here
+     because the tab look is hand-tuned often and needs to sit beside the bar-key chain it is
+     deliberately unlike, so the two stay in one voice. That is the bar for an exception — "I will be
+     editing this next to that" — not merely "it might get a second consumer one day".
+
      ⚠️ HISTORY, so it isn't repeated: two ComboBox styles used to live here, each carrying ~300 lines
      of ControlTemplate for a single consumer. Both were deleted and became the UserControl that was
      their only user. A ControlTemplate here needs to earn its place — see the note on
@@ -240,5 +245,138 @@
          out as boxes). The glyph now carries its own font on the FontIcon, where it belongs, and the two
          styles collapsed into this one. Don't re-add a font setter here. -->
     <Style x:Key="BarKeyToggleStyle" TargetType="ToggleButton" BasedOn="{StaticResource BarChromeButtonStyle}"/>
+
+    <!-- ───────────────────────────── TextBlock — settings-body labels ─────────────────────────────
+
+         The two label ranks inside a Settings tab body: a SECTION heading ("Basemap", "Storage") and an
+         inline FIELD label ("State", "Spacing (mi)"). Every tab uses both, which is what puts them here —
+         they were copied into the local Resources of all three windows the tabs replaced, and the copies
+         had already begun to drift. -->
+    <Style x:Key="SettingsSectionLabelStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="CharacterSpacing" Value="40"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
+    </Style>
+
+    <Style x:Key="SettingsFieldLabelStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
+    </Style>
+
+    <!-- One tab in Controls/Primitives/TabStrip — today the Settings window's rail, which is the whole of
+         what used to be three separate windows (App Settings / Map Controls / Dev Tools).
+
+           OFF          HOVER        SELECTED         SELECTED + HOVER
+          ┌──────┐     ┌──────┐     ┌──────┐         ┌──────┐        ▒ = hover fill
+          │  ⛰   │     │▒ ⛰ ▒▒│     │▓ ⛰ ▓▓│         │█ ⛰ ██│        ▓ = elevated surface
+          │ Map  │     │▒Map ▒│     │▓Map ▓│         │█Map █│        ▀ = accent indicator
+          └──────┘     └──────┘     └─▀▀▀▀─┘         └─▀▀▀▀─┘          (drawn by the item template)
+
+         ⚠️ IT IS NOT BasedOn THE BAR-KEY CHAIN, and that is deliberate. A bar key is a bordered SQUARE
+         sized off the bar's height; a tab is content-width with no box at all, so a rail of them reads as
+         one strip instead of a row of loose keys. What the two share is the vocabulary — a mark over a
+         name, hover/elevated faces from the same OverlayBarSurface* family, accent reserved for "this one
+         is on" — not a template. Deriving would mean unsetting the border, the square and the stretch.
+
+         ⚠️ NO indicator lives here. The accent edge is drawn by the item template, because WHICH edge it
+         sits on depends on the strip's placement (bottom for a top rail, leading for a side rail) and a
+         ControlTemplate cannot see that. This style owns the face and the text; the template owns the mark.
+
+         ⚠️ It carries a ControlTemplate for the same reason BarChromeButtonStyle does: "selected" is
+         applied by the default ToggleButton template's visual states, which a Setter cannot beat, and the
+         default look is an accent-FILLED block.
+
+         ⚠️ HOUSE-RULE EXCEPTION: this file's rule is that a style earns its place here by having more than
+         one consumer, and today TabStrip is the only one. It lives here anyway, by decision — the tab look
+         is exactly the kind of thing that gets hand-tuned, and it wants to sit beside the bar-key chain it
+         is deliberately unlike, so the two can be compared and kept in the same voice. -->
+    <Style x:Key="SettingsTabKeyStyle" TargetType="ToggleButton">
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <!-- SELECTED. The face steps up one level and the text goes primary; the
+                                     accent is spent on the indicator the item template draws. -->
+                                <VisualState x:Name="Checked">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <VisualState x:Name="CheckedPointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceElevatedHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <VisualState x:Name="CheckedPressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <VisualState x:Name="CheckedDisabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+
+                        <!-- Transparent at rest: an unselected tab is just its mark and name on the window's
+                             own surface. Hit-testing still covers the whole tab (Background is set, not null). -->
+                        <Border x:Name="Surface"
+                                Background="Transparent"
+                                CornerRadius="{TemplateBinding CornerRadius}"/>
+
+                        <ContentPresenter x:Name="Content"
+                                          Padding="{TemplateBinding Padding}"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 
 </ResourceDictionary>

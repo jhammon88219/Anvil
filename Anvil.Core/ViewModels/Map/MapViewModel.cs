@@ -15,6 +15,13 @@ namespace Anvil.ViewModels
 	/// settings window has its own independent <c>IsXWindowOpen</c> flag.</summary>
 	public enum TemporalMode { Past, Now, Fore }
 
+	/// <summary>Which tab the Settings window shows. Identifies a tab for <see cref="MapViewModel.OpenSettings"/>
+	/// and nothing else — the window's own strip holds the display order and the labels. ⚠️ The ordinal IS the
+	/// persisted index, so REORDERING these silently moves a saved tab choice; only ever append.
+	/// <c>Dev</c> exists in every build but is only reachable in Debug (the strip omits its entry, and the
+	/// window never loads its body, in Release).</summary>
+	public enum SettingsTab { Map, Radar, Storage, Dev }
+
 	/// <summary>
 	/// View model for the NON-radar map concerns: selectable basemap styles + current selection,
 	/// the SPC outlook day/product selection + overlay opacity, SPC watches, the outlook info/times,
@@ -48,6 +55,10 @@ namespace Anvil.ViewModels
 
 			// Built before IsSettingsWindowOpen can fire (its setter refreshes the cache readout on open).
 			Storage = new StorageSettingsViewModel(radarService, settingsService);
+
+			// Restore the last Settings tab. Assigned through the PROPERTY so the clamp runs — a persisted
+			// index can name a tab this build does not have (a Debug session quitting on the dev tab).
+			SettingsTabIndex = settingsService.Settings.SettingsTabIndex;
 
 			// Each subsystem lives in its own view model (progressively split out of this class);
 			// the transport-bar section controls bind slices of them.
@@ -201,25 +212,16 @@ namespace Anvil.ViewModels
 		// reopen it this session. Don't "fix" that by re-arming in the open path — a toggle that silently
 		// resets itself is worse than one that remembers.
 		private bool _isSettingsWindowOnTop = true;
-		private bool _isMapControlsWindowOnTop = true;
 		private bool _isSiteExplorerOnTop = true;
 		private bool _isPastWindowOnTop = true;
 		private bool _isNowWindowOnTop = true;
 		private bool _isForeWindowOnTop = true;
-		private bool _isDevToolsWindowOnTop = true;
 
-		/// <summary>Whether the App Settings window stays on top (title-bar pin).</summary>
+		/// <summary>Whether the Settings window stays on top (title-bar pin).</summary>
 		public bool IsSettingsWindowOnTop
 		{
 			get => _isSettingsWindowOnTop;
 			set => SetProperty(ref _isSettingsWindowOnTop, value);
-		}
-
-		/// <summary>Whether the Map Controls window stays on top (title-bar pin).</summary>
-		public bool IsMapControlsWindowOnTop
-		{
-			get => _isMapControlsWindowOnTop;
-			set => SetProperty(ref _isMapControlsWindowOnTop, value);
 		}
 
 		/// <summary>Whether the Radar Sites window stays on top (title-bar pin).</summary>
@@ -250,12 +252,6 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isForeWindowOnTop, value);
 		}
 
-		/// <summary>Whether the dev tools window stays on top (title-bar pin). DEV-ONLY.</summary>
-		public bool IsDevToolsWindowOnTop
-		{
-			get => _isDevToolsWindowOnTop;
-			set => SetProperty(ref _isDevToolsWindowOnTop, value);
-		}
 		/// <summary>Whether the Pipeline Console window is open. INDEPENDENT of the other windows (it may sit
 		/// alongside them). Forwards to <see cref="PipelineConsoleViewModel.IsOpen"/> so polling runs only
 		/// while it's open.</summary>
@@ -438,24 +434,18 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isForeWindowOpen, value);
 		}
 
-		// ===== App-wide windows (Map Controls / App Settings / Site Explorer / dev tools) =================
-		// Same model as the temporal windows above: one independent bool per window, opened by its button on
-		// the top bar's right edge and closed by the window's caption Close. No one-at-a-time grouping — these
-		// are real OS windows, so any combination may be open at once.
-		private bool _isMapControlsWindowOpen;
+		// ===== App-wide windows (Settings / Site Explorer) ================================================
+		// Same model as the temporal windows above: one independent bool per window, opened by its key on the
+		// bar's right edge and closed by the window's caption Close. No one-at-a-time grouping — these are real
+		// OS windows, so any combination may be open at once.
+		// ⚠️ There used to be FOUR keys here. Map Controls and the dev tools are no longer windows of their own
+		// — they are TABS of the Settings window (see SettingsTabIndex below), which is why the bar's right
+		// cluster is down to Panes / Sites / Settings. A new group of settings is a tab, not a window.
 		private bool _isSettingsWindowOpen;
 		private bool _isSiteExplorerOpen;
-		private bool _isDevToolsWindowOpen;
 
-		/// <summary>Whether the Map Controls window (basemap style + state isolation) is open.</summary>
-		public bool IsMapControlsWindowOpen
-		{
-			get => _isMapControlsWindowOpen;
-			set => SetProperty(ref _isMapControlsWindowOpen, value);
-		}
-
-		/// <summary>Whether the App Settings window is open. Opening it freshens the radar-cache size readout
-		/// in its Storage section (the value is only interesting while the window is up).</summary>
+		/// <summary>Whether the Settings window is open. Opening it freshens whatever the landing tab shows
+		/// live (today: the Storage tab's radar-cache size).</summary>
 		public bool IsSettingsWindowOpen
 		{
 			get => _isSettingsWindowOpen;
@@ -463,7 +453,7 @@ namespace Anvil.ViewModels
 			{
 				if (SetProperty(ref _isSettingsWindowOpen, value) && value)
 				{
-					_ = Storage.RefreshCacheSizeAsync();
+					RefreshForSettingsTab();
 				}
 			}
 		}
@@ -475,13 +465,77 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isSiteExplorerOpen, value);
 		}
 
-		/// <summary>Whether the DEV-ONLY dev tools window (site sweep + dealias validation) is open. The bar
-		/// button that drives it is collapsed in Release, and the window is only registered when the dev VMs
-		/// exist, so this stays false in a shipped build.</summary>
-		public bool IsDevToolsWindowOpen
+		// ===== Settings window tabs =======================================================================
+		// The Settings window is one window with a tab strip, not the three windows (App Settings / Map
+		// Controls / Dev Tools) it replaced. The SELECTED TAB lives here rather than as view state on the
+		// window so it survives the window being closed and reopened, persists across launches, and can be
+		// targeted from anywhere via OpenSettings().
+
+		/// <summary>How many tabs the strip actually offers. Debug builds add the dev tab; Release stops at
+		/// Storage. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
+		/// selecting a tab that does not exist in a shipped build.</summary>
+#if DEBUG
+		public const int SettingsTabCount = 4;
+#else
+		public const int SettingsTabCount = 3;
+#endif
+
+		private int _settingsTabIndex;
+
+		/// <summary>
+		/// Which tab the Settings window shows, as an index into its strip (see <see cref="SettingsTab"/>).
+		/// PERSISTED, and CLAMPED on the way in — the stored value can name a tab this build does not have
+		/// (quit Debug on the dev tab, run Release), and an out-of-range index would select nothing at all.
+		/// </summary>
+		public int SettingsTabIndex
 		{
-			get => _isDevToolsWindowOpen;
-			set => SetProperty(ref _isDevToolsWindowOpen, value);
+			get => _settingsTabIndex;
+			set
+			{
+				var clamped = Math.Clamp(value, 0, SettingsTabCount - 1);
+				if (SetProperty(ref _settingsTabIndex, clamped))
+				{
+					_settingsService.Settings.SettingsTabIndex = clamped;
+					RefreshForSettingsTab();
+				}
+			}
+		}
+
+		/// <summary>Where the Settings window draws its tab strip: <c>"Top"</c> (default) or <c>"Left"</c>.
+		/// PERSISTED. Chosen from the strip's own right-click menu, since a control that configures the
+		/// settings window is odd content for any one settings tab.
+		/// ⚠️ Deliberately a STRING here, not an enum: "where a control draws its strip" is a VIEW concept, and
+		/// the enum it parses to (<c>Anvil.Controls.Primitives.TabPlacement</c>) lives with the control in
+		/// Anvil.App. Core stores the choice; it does not model tab strips.</summary>
+		public string SettingsTabPlacement
+		{
+			get => _settingsService.Settings.SettingsTabPlacement;
+			set
+			{
+				if (string.Equals(value, SettingsTabPlacement, StringComparison.Ordinal)) return;
+				_settingsService.Settings.SettingsTabPlacement = value;
+				OnPropertyChanged();
+			}
+		}
+
+		/// <summary>Open the Settings window on a specific tab (opening it if it is closed). The one entry
+		/// point for "take me to that setting" from anywhere in the app.</summary>
+		public void OpenSettings(SettingsTab tab)
+		{
+			SettingsTabIndex = (int)tab;
+			IsSettingsWindowOpen = true;
+		}
+
+		/// <summary>Refresh whatever the current tab shows live. Called when the window opens AND when the tab
+		/// changes, because either one can be the moment a live readout first becomes visible. ⚠️ Keep this
+		/// cheap and tab-scoped — it runs on every tab click.</summary>
+		private void RefreshForSettingsTab()
+		{
+			if (!_isSettingsWindowOpen) return;
+			if (_settingsTabIndex == (int)SettingsTab.Storage)
+			{
+				_ = Storage.RefreshCacheSizeAsync();
+			}
 		}
 
 		public IReadOnlyList<MapStyle> AvailableStyles { get; }

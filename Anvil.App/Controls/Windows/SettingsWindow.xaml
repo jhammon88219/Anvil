@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SettingsWindow — ONE window for every setting, organized as tabs. Hosted in its own OS window by
+     WindowManager (the native caption is the only chrome), so there is no panel frame: the root is the dark
+     surface, stretched to fill the window.
+
+       ┌─ Settings ─────────────────────────────────────[pin]─┐
+       │  Settings                                            │
+       │  ┌────┬──────┬─────────┬─────┐                       │
+       │  │ ⛰  │  ◎   │    ▤    │  ⚒  │                       │  ← Controls/Primitives/TabStrip
+       │  │Map │Radar │ Storage │ Dev │                       │
+       │  │▀▀▀▀│      │         │     │                       │
+       │  └────┴──────┴─────────┴─────┘                       │
+       │  ┌──────────────────────────────────────────────┐    │
+       │  │                                              │    │
+       │  │   the selected tab's body (one UserControl   │    │
+       │  │   per tab, in Controls/Composites)           │    │
+       │  │                                              │    │
+       │  └──────────────────────────────────────────────┘    │
+       └──────────────────────────────────────────────────────┘
+
+     WHAT THIS REPLACED: three separate windows and three bar keys — App Settings, Map Controls and Dev
+     Tools. They are now tabs, which is why the bar's right cluster is down to Panes / Sites / Settings. A
+     NEW GROUP OF SETTINGS IS A TAB, NOT A WINDOW: add a SettingsTab enum member (append only — the ordinal
+     is the persisted index), a TabEntry in BuildTabs below, and a body UserControl in Composites.
+
+     ⚠️ THE SELECTED TAB IS NOT VIEW STATE. It lives on MapViewModel.SettingsTabIndex so it survives close/
+     reopen, persists across launches, and can be targeted from anywhere via MapViewModel.OpenSettings(tab).
+     The strip binds it TwoWay; the bodies below key their visibility off the same index.
+
+     ⚠️ VISIBILITY, NOT x:Load, for the three shipping tabs. x:Load bound to a bool UNLOADS again when it
+     goes false, so every tab switch would tear down and rebuild a body — and these bodies are cheap. The
+     dev tab is the deliberate exception: it must NEVER be constructed in Release (its two engine VMs are
+     null there), and x:Load is exactly the tool for "do not build this at all".
+
+     TOP RAIL OR SIDE RAIL. The rail can also run down the left (right-click it → "Tabs on the side"),
+     persisted in AppSettings.SettingsTabPlacement. Top is the default because it costs no width, and this
+     window has a 360px-wide URL box in its Map tab; a side rail earns its keep once there are enough tabs
+     that a horizontal row would wrap. See ApplyPlacement in the code-behind.
+
+     ⚠️ The strip is not a WinUI TabView. TabView is a DOCUMENT-tab host — drag-reorder, tear-out, close and
+     add buttons, overflow scrolling — none of which a settings window wants, and all of which live in a
+     template you would have to copy wholesale to restyle. TabStrip is a UserControl we own outright. -->
+
+<UserControl x:Class="Anvil.Controls.Windows.SettingsWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:Anvil.Controls.Primitives"
+             xmlns:cmp="using:Anvil.Controls.Composites"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <!-- Dark surface fills the whole window. -->
+    <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- title -->
+            <RowDefinition Height="*"/>    <!-- strip + body -->
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Settings" Margin="16,14,16,0"
+                   FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+        <!-- ⚠️ The strip, its hairline and the body are placed FROM CODE-BEHIND (ApplyPlacement), not here:
+             a top rail wants [strip over body] and a side rail wants [strip beside body], which is a
+             different Grid.Row/Column/Span for all three. That grid has BOTH an Auto row and an Auto column
+             so either arrangement fits without re-templating; the code-behind is the one place that knows
+             which is which. Do not pin Grid.Row/Column on these three in markup — it will be overwritten. -->
+        <Grid x:Name="ContentHost" Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- The rail. Placement is pushed by ApplyPlacement from the persisted setting; the right-click
+                 flyout is what writes it. -->
+            <ctl:TabStrip x:Name="Strip"
+                          HorizontalAlignment="Left" VerticalAlignment="Top"
+                          ItemsSource="{x:Bind Tabs}"
+                          SelectedIndex="{x:Bind ViewModel.SettingsTabIndex, Mode=TwoWay}">
+                <ctl:TabStrip.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="Tabs on top" Click="OnPlaceTabsTop"/>
+                        <MenuFlyoutItem Text="Tabs on the side" Click="OnPlaceTabsLeft"/>
+                    </MenuFlyout>
+                </ctl:TabStrip.ContextFlyout>
+            </ctl:TabStrip>
+
+            <!-- Hairline along the rail's inner edge, so the tabs read as a rail rather than as floating
+                 keys. Which edge is ApplyPlacement's call. -->
+            <Border x:Name="StripDivider"
+                    Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+            <!-- Bodies. Exactly one is visible; the rest keep their state because they stay loaded. -->
+            <ScrollViewer x:Name="Body"
+                          VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
+                <Grid>
+                    <cmp:MapSettingsTab ViewModel="{x:Bind ViewModel}"
+                                        Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 0), Mode=OneWay}"/>
+
+                    <cmp:RadarSettingsTab ViewModel="{x:Bind ViewModel}"
+                                          Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 1), Mode=OneWay}"/>
+
+                    <cmp:StorageSettingsTab ViewModel="{x:Bind ViewModel}"
+                                            Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 2), Mode=OneWay}"/>
+
+                    <!-- ⚠️ x:Load, not Visibility — see the header. LoadDevTab is hard-false in Release, so
+                         this body is never constructed there and its null engine VMs are never bound. -->
+                    <cmp:DevSettingsTab x:Name="DevTab"
+                                        x:Load="{x:Bind LoadDevTab(ViewModel.SettingsTabIndex), Mode=OneWay}"
+                                        ViewModel="{x:Bind ViewModel}"
+                                        SweepVm="{x:Bind SweepVm}"
+                                        ValidationVm="{x:Bind ValidationVm}"
+                                        Loaded="OnDevTabLoaded"/>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Pin: keep this window on top. -->
+        <ctl:PinToggle IsChecked="{x:Bind ViewModel.IsSettingsWindowOnTop, Mode=TwoWay}"/>
+    </Grid>
+</UserControl>

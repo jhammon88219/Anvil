@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TabStrip — a rail of tabs that selects ONE of them. Chrome only: it draws the tabs and reports the
+     selected index, and knows nothing about the bodies its host swaps underneath.
+
+     PLACEMENT="Top" (default)                    PLACEMENT="Left"
+     ┌──────────────────────────────────────┐     ┌────────┬─────────────────────────┐
+     │  ⛰ Map │ ◎ Radar │ ▤ Storage │ ⚒ Dev │     │▎⛰ Map  │                         │
+     │  ▀▀▀▀▀▀                              │     │ ◎ Radar│                         │
+     ├──────────────────────────────────────┤     │ ▤ Storg│                         │
+     │            (host's body)             │     │ ⚒ Dev  │                         │
+     └──────────────────────────────────────┘     └────────┴─────────────────────────┘
+        ▀ underline on the selected tab             ▎leading bar on the selected tab
+
+     A tab is a MARK OVER A NAME, the same language as the keys in the bottom bar — but deliberately NOT
+     the same control: a bar key is a square sized off the bar's height, and a tab is content-width so a
+     row of them reads as one rail rather than a row of loose buttons. The look lives in
+     Controls/Styles.xaml (SettingsTabKeyStyle); everything below is structure.
+
+     ⚠️ SELECTION IS SHOWN BY THE INDICATOR, not by flooding the tab. Same reasoning as the bar keys: a
+     filled block per selected tab fights everything around it. The face steps up one surface level and the
+     accent goes on a 2px edge.
+
+     ⚠️ The two indicators BOTH live in the item template, and the strip pushes IsVertical onto every entry.
+     A DataTemplate's x:Bind resolves against the ENTRY, so a tab cannot read the strip's Placement itself.
+
+     ⚠️ Clicking the ALREADY-selected tab: the handler re-asserts IsChecked (see OnTabClick). A ToggleButton
+     flips itself on click, and a OneWay binding does not push back when the source did not change — so the
+     current tab would go dark. This is the same trap the pane-layout key documented; do not "simplify" the
+     re-assert away. -->
+
+<UserControl x:Class="Anvil.Controls.Primitives.TabStrip"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- ONE tab. The root is the ToggleButton so the shared style's visual states drive the face; the
+             glyph/name/indicators inside are the part worth hand-tuning. -->
+        <DataTemplate x:Key="TabItemTemplate" x:DataType="prim:TabEntry">
+            <ToggleButton Style="{StaticResource SettingsTabKeyStyle}"
+                          IsChecked="{x:Bind IsSelected, Mode=OneWay}"
+                          ToolTipService.ToolTip="{x:Bind Tooltip}"
+                          Click="OnTabClick">
+                <Grid>
+                    <!-- Mark over a name, centred. Padding is on this grid rather than the button so the
+                         indicators below can still reach the tab's true edges. -->
+                    <Grid Margin="14,8,14,8" RowSpacing="3">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <FontIcon Grid.Row="0"
+                                  FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  FontSize="16"
+                                  Glyph="{x:Bind Glyph}"/>
+                        <TextBlock Grid.Row="1"
+                                   Text="{x:Bind Label}"
+                                   FontSize="12"
+                                   HorizontalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- TOP rail: underline on the bottom edge. -->
+                    <Rectangle Height="2" VerticalAlignment="Bottom" Margin="6,0,6,0"
+                               RadiusX="1" RadiusY="1"
+                               Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                               Visibility="{x:Bind prim:TabStrip.Show(ShowUnderline), Mode=OneWay}"/>
+
+                    <!-- SIDE rail: bar on the leading edge. -->
+                    <Rectangle Width="2" HorizontalAlignment="Left" Margin="0,6,0,6"
+                               RadiusX="1" RadiusY="1"
+                               Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                               Visibility="{x:Bind prim:TabStrip.Show(ShowSideBar), Mode=OneWay}"/>
+                </Grid>
+            </ToggleButton>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <!-- ⚠️ The panel's Orientation is set from code-behind (ApplyPlacement), not here: an ItemsPanelTemplate
+         has no binding path back to this control's Placement DP. ItemsPanelRoot is the seam. -->
+    <ItemsControl x:Name="Host"
+                  ItemTemplate="{StaticResource TabItemTemplate}">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal"/>
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+    </ItemsControl>
+</UserControl>

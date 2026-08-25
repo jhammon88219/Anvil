@@ -59,8 +59,8 @@
 
   <!-- DEV-ONLY: the fixed corpus for the velocity-dealias regression harness (manifest + the committed
        ~10 MB .V06 volumes it references, served to the WebView via the "radarcorpus" host). Debug only,
-       so the ~40 MB never ships in a Release MSIX — the harness is unreachable there anyway (DevVisibility
-       collapses its UI, ValidationVm is null). See docs/radar-validation.md and RadarCorpusProvider. -->
+       so the ~40 MB never ships in a Release MSIX — the harness is unreachable there anyway (the Settings
+       window omits its Dev tab, and ValidationVm is null). See docs/radar-validation.md and RadarCorpusProvider. -->
   <ItemGroup Condition="'$(Configuration)'=='Debug'">
     <Content Include="Assets\RadarCorpus\radar-corpus.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

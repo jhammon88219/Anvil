@@ -3,7 +3,7 @@
      app can access (operational WSR-88D, research/test, TDWR). Floats over the map (map stays live),
      opened by the "Sites" button on the bar (left of the Settings cog). Shares the OverlayBar surface
      chrome but is its own larger footprint. Bound to the coordinator
-     MapViewModel (like AppSettingsWindow): it reaches into ViewModel.SiteExplorer.* for the list/detail
+     MapViewModel (like SettingsWindow): it reaches into ViewModel.SiteExplorer.* for the list/detail
      and ViewModel.IsSiteExplorerOpen for its own visibility/close.
 
        Radar Sites   118 of 204                             [pin]   ← own title + live count

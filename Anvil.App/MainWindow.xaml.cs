@@ -19,26 +19,21 @@ namespace Anvil
 	{
 		public MapViewModel ViewModel { get; }
 
-		/// <summary>DEV-ONLY site-sweep engine. Non-null only in Debug builds (see the ctor). The dev
-		/// button + window bind to this and are collapsed in Release via <see cref="DevVisibility"/>.</summary>
+		/// <summary>DEV-ONLY site-sweep engine. Non-null only in Debug builds (see the ctor). Handed to the
+		/// Settings window, whose Dev tab exists only in Debug.</summary>
 		public SiteSweepViewModel? SweepVm { get; }
 
 		/// <summary>DEV-ONLY velocity-dealias validation engine (fixed-corpus regression scorer). Non-null
-		/// only in Debug builds. Its button + window bind to this and are collapsed in Release via
-		/// <see cref="DevVisibility"/>.</summary>
+		/// only in Debug builds. Handed to the Settings window's Debug-only Dev tab.</summary>
 		public RadarValidationViewModel? ValidationVm { get; }
 
 		/// <summary>Generic bool → Visibility for x:Bind. A Window has no Window.Resources, and x:Bind on a
 		/// Window can't use {StaticResource converter}, so visibility conversions are functions here.</summary>
 		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
-		/// <summary>Visibility of the dev-only tools (the dev button + window). Visible in Debug,
-		/// Collapsed in Release, so the sweep is never reachable in a shipped build.</summary>
-#if DEBUG
-		public Visibility DevVisibility => Visibility.Visible;
-#else
-		public Visibility DevVisibility => Visibility.Collapsed;
-#endif
+		// NOTE: DevVisibility is gone. It existed to collapse the dev bar key in Release; there is no dev key
+		// any more — the dev tools are a tab of the Settings window, and SettingsWindow omits that tab from
+		// its strip (and never constructs its body) in Release.
 
 		// ===== Pane watermarks =====
 		// The overlay grid in MainWindow.xaml has to line its cells up with the page's pane rects, so both
@@ -88,8 +83,9 @@ namespace Anvil
 		private void OnCyclePaneLayout(object sender, RoutedEventArgs e) => ViewModel.Radar.CyclePaneLayout();
 
 		// ===== Right-cluster key sizing =====
-		// The seven keys on the right (3 pane toggles + 4 window buttons) are the SAME SQUARE as the three
-		// temporal keys at the bar's centre — they sit in one bar and have to read as one set. Neither
+		// The three keys on the right (the cycling pane key + the Sites and Settings window buttons) are the
+		// SAME SQUARE as the three temporal keys at the bar's centre — they sit in one bar and have to read
+		// as one set. Neither
 		// cluster hardcodes that size: each measures the height its row was given and mirrors it onto Width,
 		// through the shared Layout/BarKeyMetrics so the two halves can't drift apart.
 		//
@@ -111,18 +107,18 @@ namespace Anvil
 			var icon = BarKeyMetrics.DrawnIconFor(side);
 
 			// The names share ONE size — the one that fits the widest of them ("Settings") — so the cluster
-			// reads as a set rather than five keys with five type sizes. Probe measured once; the labels
-			// are fixed strings. ⚠️ DevName is included even in Release, where its key is collapsed: it is
-			// still a live TextBlock, and leaving it out would change the fitted size between the two
-			// builds for no reason.
+			// reads as a set rather than three keys with three type sizes. Probe measured once; the labels
+			// are fixed strings. ⚠️ "Settings" was the widest when this cluster held five keys too, so
+			// dropping the Map and Dev keys did not change the fitted size — the centred temporal keys are
+			// unaffected either way.
 			if (_rightNameProbe <= 0)
 			{
-				_rightNameProbe = BarKeyMetrics.ProbeWidthOf(PaneName, DevName, MapName, SitesName, SettingsName);
+				_rightNameProbe = BarKeyMetrics.ProbeWidthOf(PaneName, SitesName, SettingsName);
 			}
 
 			var nameFont = BarKeyMetrics.NameFontFor(side, _rightNameProbe);
 
-			foreach (var key in new Control[] { PaneLayoutKey, DevKey, MapKey, SitesKey, SettingsKey })
+			foreach (var key in new Control[] { PaneLayoutKey, SitesKey, SettingsKey })
 			{
 				if (key.Width != side)
 				{
@@ -135,7 +131,7 @@ namespace Anvil
 			// both. (It could when these keys were glyph-only — that is why this used to be one line.)
 			foreach (var (glyphIcon, name) in new[]
 			{
-				(DevGlyph, DevName), (MapGlyph, MapName), (SitesGlyph, SitesName), (SettingsGlyph, SettingsName),
+				(SitesGlyph, SitesName), (SettingsGlyph, SettingsName),
 			})
 			{
 				glyphIcon.FontSize = glyph;
@@ -261,9 +257,9 @@ namespace Anvil
 				System.IO.Path.Combine(_radarService.CacheDirectory, "Diagnostics"));
 
 #if DEBUG
-			// DEV-ONLY automated site sweep. Constructed only in Debug; the button + window that reach it are
-			// hidden in Release via DevVisibility, so the tool is unreachable in a shipped build. (The engine
-			// TYPE lives in Anvil.Core and ships with it, but is never constructed here in Release.)
+			// DEV-ONLY automated site sweep. Constructed only in Debug; the Settings window's Dev tab, which is
+			// the only thing that reaches it, is omitted from the tab strip in Release. (The engine TYPE lives
+			// in Anvil.Core and ships with it, but is never constructed here in Release.)
 			SweepVm = new SiteSweepViewModel(ViewModel.Radar);
 
 			// DEV-ONLY velocity-dealias regression harness (fixed-corpus scorer). Same Debug-only lifetime
@@ -285,21 +281,32 @@ namespace Anvil
 			// window caption is the chrome). Each flag is INDEPENDENT — any combination may be open at once.
 			// The radar console (Row 1, the bottom bar) is deliberately NOT here.
 			_windows.Initialize(this, ViewModel);
+			// ONE settings window with a tab strip — it absorbed the former App Settings, Map Controls and Dev
+			// Tools windows, which is why the bar's right cluster is down to Panes / Sites / Settings.
+			// ⚠️ Sized for the TALLEST tab (Map), because WindowManager sizes a window once, at open — there
+			// is no per-tab resize, and adding one would fight any size the user had dragged it to.
+			// The dev VMs are handed over unconditionally; they are null in Release, where SettingsWindow
+			// omits the dev tab from its strip and never constructs its body.
 			_windows.Register(
 				id: "settings",
 				isOpen: () => ViewModel.IsSettingsWindowOpen,
 				close: () => ViewModel.IsSettingsWindowOpen = false,
-				buildContent: () => new Controls.Windows.AppSettingsWindow { ViewModel = ViewModel },
-				title: "App Settings", width: 460, height: 420,
+				buildContent: () =>
+				{
+					var settings = new Controls.Windows.SettingsWindow
+					{
+						ViewModel = ViewModel,
+						SweepVm = SweepVm,
+						ValidationVm = ValidationVm,
+					};
+					// Wired per-instance (the window's content is rebuilt each time it opens) so a finished
+					// dev run still pops its results dialog.
+					settings.SweepReportRequested += OnSweepReportRequested;
+					settings.ValidationReportRequested += OnValidationReportRequested;
+					return settings;
+				},
+				title: "Settings", width: 520, height: 640,
 				alwaysOnTop: () => ViewModel.IsSettingsWindowOnTop,
-				customChrome: true);
-			_windows.Register(
-				id: "map",
-				isOpen: () => ViewModel.IsMapControlsWindowOpen,
-				close: () => ViewModel.IsMapControlsWindowOpen = false,
-				buildContent: () => new Controls.Windows.MapControlsWindow { ViewModel = ViewModel },
-				title: "Map Controls", width: 460, height: 760,
-				alwaysOnTop: () => ViewModel.IsMapControlsWindowOnTop,
 				customChrome: true);
 			_windows.Register(
 				id: "sites",
@@ -343,31 +350,8 @@ namespace Anvil
 				title: "Pipeline Console", width: 720, height: 470,
 				alwaysOnTop: () => ViewModel.IsPipelineConsoleOnTop, // user-toggled via the pin in the console
 				customChrome: true); // extend content into the title bar so the dark surface replaces the caption
-#if DEBUG
-			// DEV-ONLY dev tools (site sweep + dealias validation). Registered only in Debug, where the dev
-			// VMs exist; the "Dev" button that drives the flag is collapsed in Release.
-			_windows.Register(
-				id: "devtools",
-				isOpen: () => ViewModel.IsDevToolsWindowOpen,
-				close: () => ViewModel.IsDevToolsWindowOpen = false,
-				buildContent: () =>
-				{
-					var dev = new Controls.Windows.DevToolsWindow
-					{
-						ViewModel = ViewModel,
-						SweepVm = SweepVm,
-						ValidationVm = ValidationVm,
-					};
-					// Wired per-instance (the window's content is rebuilt each time it opens) so a finished
-					// run still pops its results dialog.
-					dev.SweepReportRequested += OnSweepReportRequested;
-					dev.ValidationReportRequested += OnValidationReportRequested;
-					return dev;
-				},
-				title: "Dev Tools", width: 460, height: 560,
-				alwaysOnTop: () => ViewModel.IsDevToolsWindowOnTop,
-				customChrome: true);
-#endif
+			// (The dev tools no longer register a window of their own — they are the Settings window's
+			// Debug-only Dev tab, registered above with everything else.)
 
 			// Start maximized.
 			(AppWindow.Presenter as OverlappedPresenter)?.Maximize();
