@@ -74,20 +74,29 @@ namespace Anvil.Controls.Composites
 			Apply(NowPill, NowGlyph, NowName);
 			Apply(ForePill, ForeGlyph, ForeName);
 
-			// The panel key is the same SQUARE as the trio but carries no name, so its glyph takes the solo
-			// ratio — the whole square rather than the share a name leaves over. Sized through the same
-			// helper as the rest, so it can't drift when the bar's height changes.
-			if (PanelKey.Width != side)
+			// The panel key: same HEIGHT as the trio (the shared stretch, and the same inset margin so the
+			// four read as one row), HALF the width, and a solo mark because it carries no name. Every
+			// number still comes from the measured side through BarKeyMetrics, so it tracks the bar.
+			var narrow = BarKeyMetrics.NarrowWidthFor(side);
+			if (PanelKey.Width != narrow)
 			{
-				PanelKey.Width = side;
+				PanelKey.Width = narrow;
 			}
 
-			if (!PanelKey.Margin.Equals(PanelMargin(inset)))
+			if (!PanelKey.Margin.Equals(inset))
 			{
-				PanelKey.Margin = PanelMargin(inset);
+				PanelKey.Margin = inset;
 			}
 
-			PanelGlyph.FontSize = BarKeyMetrics.SoloGlyphFor(side);
+			// Three dots + the two gaps between them, laid out as six equal units so the gaps read slightly
+			// larger than the dots — evenly-sized gaps make the trio blur into a bar at small sizes.
+			var dot = BarKeyMetrics.SoloDrawnIconFor(side) / 6;
+			PanelDots.Spacing = dot * 1.5;
+			foreach (var pip in new[] { Dot1, Dot2, Dot3 })
+			{
+				pip.Width = dot;
+				pip.Height = dot;
+			}
 
 			void Apply(ToggleButton pill, FontIcon glyph, TextBlock name)
 			{
@@ -105,16 +114,6 @@ namespace Anvil.Controls.Composites
 				name.FontSize = nameFont;
 			}
 		}
-
-		// The panel key carries the trio's vertical inset PLUS a leading gap, so the ellipsis reads as
-		// attached to the group rather than as a fourth member of it. ⚠️ Keep the extra space on the LEFT
-		// only — a symmetric gap would centre it as one of four equals, which is what the ellipsis is
-		// deliberately not.
-		private static Thickness PanelMargin(Thickness inset) =>
-			new(PanelGap, inset.Top, 0, inset.Bottom);
-
-		/// <summary>Gap between the ForeCast key and the ellipsis, on top of the row's own ColumnSpacing.</summary>
-		private const double PanelGap = 6;
 
 		// Widest name measured at the probe size — computed once, since the three labels are fixed strings.
 		private double _probeWidth;

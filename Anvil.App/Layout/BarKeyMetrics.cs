@@ -11,6 +11,10 @@ namespace Anvil.Layout
 	/// a MARK OVER A NAME. That size is not a constant anywhere: the row stretches to whatever the bar's
 	/// tallest content needs (quad panes add a chip row and it grows), each cluster measures the height it
 	/// was given, and mirrors it onto the keys' Width.</para>
+	/// <para>⚠️ ONE key breaks both halves of that: the nameless three-dot key at the end of the temporal
+	/// row is <see cref="NarrowWidthFor"/> wide rather than square, and carries a solo mark instead of a
+	/// mark over a name. It is deliberately subordinate to the row it sits beside — see TemporalToggles.
+	/// Its HEIGHT still comes from the same stretch, so it stays part of the row.</para>
 	/// <para>This class exists because TWO controls do that measuring — <c>TemporalToggles</c> for the
 	/// centre and <c>MainWindow</c> for the right cluster — and if each kept its own copy of the arithmetic
 	/// the two halves of one bar would drift apart the first time either was tuned. The keys sit side by
@@ -31,21 +35,16 @@ namespace Anvil.Layout
 		/// layout pass, or a host that forgets to stretch). Keeps keys clickable rather than vanishing.</summary>
 		public const double MinSide = 28;
 
-		// ===== Mark size. THREE ratios: a named font glyph, a named drawn icon, and a solo glyph — because
-		// a mark that has a name under it only gets part of the square, and one that doesn't gets all of it.
+		// ===== Mark size. THREE ratios: a named font glyph, a named drawn icon, and a SOLO drawn icon —
+		// because a mark with a name under it only gets part of the square, and one without gets all of it.
 		//
-		// ⚠️ SoloGlyphRatio was retired once, when naming the right cluster left nothing in the bar solo, on
+		// ⚠️ The solo ratio was retired once, when naming the right cluster left nothing in the bar solo, on
 		// the standing condition "re-add it only if a genuinely nameless key appears". One has: the Timeframe
-		// key beside the temporal trio, which is an ellipsis and nothing else (see TemporalToggles).
+		// key beside the temporal trio, which is three dots and nothing else (see TemporalToggles).
 
 		/// <summary>Glyph size for a key carrying a NAME under it — every named glyph key in the bar — as a
 		/// fraction of the side. Small because the name takes the rest of the square.</summary>
 		public const double LabelledGlyphRatio = 0.30;
-
-		/// <summary>Glyph size for a key with NO name, as a fraction of the side. Half again the labelled
-		/// ratio, because the mark has the whole square to itself — matching the labelled size would leave a
-		/// nameless key looking like a named one whose word failed to load.</summary>
-		public const double SoloGlyphRatio = 0.45;
 
 		/// <summary>Size of DRAWN art — the pane key's rectangles — as a fraction of the side.
 		/// <para>⚠️ Deliberately BELOW <see cref="LabelledGlyphRatio"/>, which looks like an inconsistency
@@ -54,6 +53,17 @@ namespace Anvil.Layout
 		/// drawn icon visibly the largest mark in the bar.</para></summary>
 		public const double DrawnIconRatio = 0.27;
 
+		/// <summary>Drawn-art extent for a key with NO name, as a fraction of the side — the mark has the
+		/// whole square to itself, so it runs about half again as large as a named one. Sits below what a
+		/// solo FONT glyph would take for the same reason <see cref="DrawnIconRatio"/> sits below
+		/// <see cref="LabelledGlyphRatio"/>: drawn art has no em-box padding to lose.</summary>
+		public const double SoloDrawnIconRatio = 0.40;
+
+		/// <summary>How wide a NAMELESS key is relative to the square the named keys occupy. Half: the mark
+		/// needs no more, and the narrower key is what keeps it reading as subordinate to the row it sits
+		/// beside rather than as another member of it.</summary>
+		public const double NarrowWidthRatio = 0.5;
+
 		/// <summary>The square's side for a cluster row of <paramref name="rowHeight"/>.</summary>
 		public static double SideFor(double rowHeight) =>
 			Math.Max(MinSide, rowHeight - (2 * VerticalInset));
@@ -61,11 +71,16 @@ namespace Anvil.Layout
 		/// <summary>Glyph size for a glyph-over-name key of <paramref name="side"/>.</summary>
 		public static double LabelledGlyphFor(double side) => side * LabelledGlyphRatio;
 
-		/// <summary>Glyph size for a NAMELESS key of <paramref name="side"/>.</summary>
-		public static double SoloGlyphFor(double side) => side * SoloGlyphRatio;
-
 		/// <summary>Drawn-art box size for a key of <paramref name="side"/>.</summary>
 		public static double DrawnIconFor(double side) => side * DrawnIconRatio;
+
+		/// <summary>Drawn-art extent for a NAMELESS key of <paramref name="side"/>.</summary>
+		public static double SoloDrawnIconFor(double side) => side * SoloDrawnIconRatio;
+
+		/// <summary>Width of a NAMELESS key whose named neighbours are <paramref name="side"/> squares.
+		/// ⚠️ WIDTH only — its HEIGHT still comes from the same stretch as everything else in the row, so
+		/// the key is a narrow upright, not a smaller square floating in the middle of the bar.</summary>
+		public static double NarrowWidthFor(double side) => side * NarrowWidthRatio;
 
 		// ===== The NAME under the mark. Shared here for the same reason the square is: both clusters
 		// fit names now, they sit side by side, and a name rendered a point larger on one half than the

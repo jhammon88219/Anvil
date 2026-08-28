@@ -162,19 +162,23 @@
                          hairline at rest, accent border + raised face when ON. Nothing here repeats per
                          pane.
 
-                         The wider gap between the two groups is the only thing separating them — they are
-                         different KINDS of control and a plain gap says so without adding a divider line:
-                           left  — pane layout, an ACTION that cycles (its icon is the readout, never lit)
-                           right — window buttons, four INDEPENDENT latches (any combination open) -->
+                         Two KINDS of control sit here — the pane key is an ACTION that cycles (its icon is
+                         the readout, never lit); Sites and Settings are INDEPENDENT window latches (any
+                         combination open). ⚠️ They are NOT separated by a wider gap any more: this was two
+                         nested grids at 14px and 6px, which read as a spacing mistake rather than as a
+                         grouping. ONE spacing for all three, matching the temporal cluster's, so the whole
+                         bar has a single rhythm. Keep it one flat grid — the moment it nests again the two
+                         gaps drift apart. -->
                     <Grid x:Name="RightCluster"
                           Grid.Column="2"
                           HorizontalAlignment="Right"
                           VerticalAlignment="Stretch"
-                          ColumnSpacing="14"
+                          ColumnSpacing="8"
                           SizeChanged="OnRightClusterSizeChanged">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/> <!-- pane layout (one cycling key) -->
-                            <ColumnDefinition Width="Auto"/> <!-- window buttons (independent) -->
+                            <ColumnDefinition Width="Auto"/> <!-- site explorer -->
+                            <ColumnDefinition Width="Auto"/> <!-- settings -->
                         </Grid.ColumnDefinitions>
 
                         <!-- ===== PANE LAYOUT — ONE key that CYCLES =====
@@ -289,23 +293,17 @@
                              that one set the icon FontFamily on the BUTTON, which now renders the NAME in
                              the icon font — boxes instead of words. The glyph carries its own font on the
                              FontIcon. -->
-                        <Grid Grid.Column="1" ColumnSpacing="6">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/> <!-- site explorer -->
-                                <ColumnDefinition Width="Auto"/> <!-- settings -->
-                            </Grid.ColumnDefinitions>
-
-                            <!-- ⚠️ THERE WERE FOUR KEYS HERE. "Map" (global map controls) and the
-                                 Debug-only "Dev" key are gone: their windows became TABS of the Settings
-                                 window, so the gear now opens all of it. Adding a group of settings means
-                                 adding a tab (Controls/Windows/SettingsWindow), NOT a key here — this
-                                 cluster is for windows that are not settings.
-                                 ⚠️ The Timeframe key briefly lived here too, as the third window latch. It
-                                 moved to the CENTRE cluster, hard against the temporal trio, because a
-                                 panel that only ever configures those three modes belongs beside them —
-                                 see TemporalToggles. What is left here is genuinely global. -->
+                        <!-- ⚠️ THERE WERE FOUR KEYS HERE. "Map" (global map controls) and the
+                             Debug-only "Dev" key are gone: their windows became TABS of the Settings
+                             window, so the gear now opens all of it. Adding a group of settings means
+                             adding a tab (Controls/Windows/SettingsWindow), NOT a key here — this
+                             cluster is for windows that are not settings.
+                             ⚠️ The Timeframe key briefly lived here too, as the third window latch. It
+                             moved to the CENTRE cluster, hard against the temporal trio, because a
+                             panel that only ever configures those three modes belongs beside them —
+                             see TemporalToggles. What is left here is genuinely global. -->
                             <ToggleButton x:Name="SitesKey"
-                                          Grid.Column="0"
+                                          Grid.Column="1"
                                           Style="{StaticResource BarKeyToggleStyle}"
                                           ToolTipService.ToolTip="Radar site explorer"
                                           IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}">
@@ -323,7 +321,7 @@
                                 </Grid>
                             </ToggleButton>
                             <ToggleButton x:Name="SettingsKey"
-                                          Grid.Column="1"
+                                          Grid.Column="2"
                                           Style="{StaticResource BarKeyToggleStyle}"
                                           ToolTipService.ToolTip="Settings — map, radar, storage"
                                           IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}">
@@ -340,7 +338,6 @@
                                                HorizontalAlignment="Center"/>
                                 </Grid>
                             </ToggleButton>
-                        </Grid>
                     </Grid>
 
                     <!-- ===== TEMPORAL MODE KEYS — THE BAR'S CENTERPIECE =====

@@ -1,18 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- TemporalToggles — the PastCast / NowCast / ForeCast temporal features as three big square keys.
 
-       ┌──────────┐┌──────────┐┌──────────┐ ┌─────┐  ┐ each key is SQUARE and as tall as the bar's
-       │    ↺     ││   ((•))  ││    ☁     │ │ ••• │  │ content row: height comes from the bar, width
-       │ PastCast ││ NowCast  ││ ForeCast │ │     │  │ from the height (code-behind), so both follow
-       └──────────┘└──────────┘└──────────┘ └─────┘  ┘ the bar and can't go stale
-          ^           ^           ^            ^      lit = that mode is ACTIVE (a projection of its
-          │           │           │            │      subsystem, not a stored flag), so the lit
-          │           │           │            └── their shared settings panel (a LATCH: lit =
-          │           │           │                the Timeframe window is open). NAMELESS —
-          │           │           │                the one such key in the bar; see below.
-          │           │           └── SPC outlooks        state can't drift from reality
+       ┌──────────┐┌──────────┐┌──────────┐┌────┐  ┐ a MODE key is SQUARE and as tall as the bar's
+       │    ↺     ││   ((•))  ││    ☁     ││  •  │  │ content row: height comes from the bar, width
+       │ PastCast ││ NowCast  ││ ForeCast ││  •  │  │ from the height (code-behind), so both follow
+       └──────────┘└──────────┘└──────────┘│  •  │  │ the bar and can't go stale
+          ^           ^           ^        └────┘  ┘ lit = that mode is ACTIVE (a projection of its
+          │           │           │           ^      subsystem, not a stored flag), so the lit
+          │           │           │           │      state can't drift from reality
+          │           │           │           └── their shared settings panel (a LATCH: lit = the
+          │           │           │               Timeframe window is open). NAMELESS and HALF
+          │           │           │               WIDTH — full height, so it stays part of the
+          │           │           │               row; half width, so it can't read as a fourth
+          │           │           └── SPC outlooks      mode. The one such key in the bar.
           │           └── live radar / current alerts
           └── historical replay
+
+       All four sit on ONE spacing (the row's ColumnSpacing) — no extra gap before the dots.
 
      A MODE key is a GLYPH OVER A NAME and nothing else — it is a mode switch, not a readout. A third tier
      carrying live status (replay date / warning counts / outlook day) was built and REMOVED: it made the
@@ -162,18 +166,30 @@
              three modes and nothing else, so it belongs against them. The right cluster keeps what is
              genuinely global (panes, sites, settings).
 
-             ⚠️ AN ELLIPSIS IS THE POINT. "•••" is the universal "there is more behind this" mark, and
+             ⚠️ AN ELLIPSIS IS THE POINT. Three dots are the universal "there is more behind this" mark, and
              placed hard against the trio it reads as "more, for THESE" — which is precisely what it is.
              That adjacency is what teaches the panel's existence; a named key over in the right cluster had
              to be found first.
 
+             ⚠️ THE DOTS RUN VERTICALLY AND ARE DRAWN, not a font glyph. Vertical because the key is HALF the
+             width of a mode key (BarKeyMetrics.NarrowWidthFor) — a horizontal ellipsis would crowd its own
+             edges in that space, while a vertical one has the height to breathe and reads as a divider-ish
+             pip strip rather than a squashed word. Drawn (three Ellipses) for the same reason the pane key's
+             icons are drawn: it removes the "verify this codepoint renders" risk entirely, and it scales off
+             the measured side like everything else in the row.
+
+             ⚠️ HALF WIDTH IS THE SUBORDINATION. Same HEIGHT as its neighbours — it is part of the row, and
+             its height still comes from the shared stretch, never from a set value — but half the width, so
+             it cannot read as a fourth mode however long you look at it. Width and dot size both come from
+             Layout/BarKeyMetrics so they track the bar with nothing to keep in sync by hand.
+
              ⚠️ NAMELESS, deliberately, and the ONE exception to the bar's mark-over-a-name rule. That rule
-             exists because a lone glyph has to be LEARNED (a globe, a tower, a gear mean nothing until you
+             exists because a lone mark has to be LEARNED (a globe, a tower, a gear mean nothing until you
              know what is behind them) — an ellipsis is the one mark that doesn't, and naming it would be
              worse: any word for it ("More", "Panel", "Timeframe") reads as a FOURTH MODE in a row of three,
              which is the one thing this key must not look like. No name is what keeps it subordinate.
-             Its glyph therefore takes BarKeyMetrics.SoloGlyphRatio — the whole square, not the fraction a
-             named key leaves over.
+             Its dots therefore take BarKeyMetrics.SoloDrawnIconRatio — the mark has the key to itself, not
+             the fraction a named key leaves over.
 
              ⚠️ IT IS STILL A LATCH, not an action: lit = the panel is open, click = close it. Same contract
              as Sites and Settings, so the two-families rule survives the move — this key just moved house,
@@ -182,17 +198,27 @@
              ⚠️ CENTRING: this key is INSIDE the centred cluster, so the bar's midpoint now falls in the
              middle of FOUR keys, not three. The trio therefore sits a little left of dead centre. That was
              the trade for adjacency and it is deliberate — do not "fix" it by hanging this key outside the
-             Auto column, which would put it back in a star column and let it drift with the console. -->
-        <!-- ⚠️ No Margin here: the code-behind owns it (inset + the leading gap), exactly as it does for the
-             trio. Two owners would fight on the first SizeChanged. -->
+             Auto column, which would put it back in a star column and let it drift with the console.
+
+             ⚠️ ONE spacing for all four keys — the row's ColumnSpacing, nothing extra here. An added gap
+             before this key was tried and removed: it made the group look like "three keys, then a stray",
+             and the half width already does the subordinating without a hole in the row. -->
+        <!-- ⚠️ No Margin and no Width here: the code-behind owns both (the row's inset, and half the
+             measured side), exactly as it does for the trio. Two owners would fight on the first
+             SizeChanged. -->
         <ToggleButton x:Name="PanelKey"
                       Grid.Column="3"
                       Style="{StaticResource BarKeyToggleStyle}"
                       ToolTipService.ToolTip="Settings for the active timeframe — PastCast, NowCast and ForeCast"
                       IsChecked="{x:Bind ViewModel.IsTemporalWindowOpen, Mode=TwoWay}">
-            <FontIcon x:Name="PanelGlyph"
-                      FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                      Glyph="&#xE712;"/>
+            <!-- Three drawn dots, stacked. Sizes + spacing come from the code-behind; the brush is fixed
+                 because Shapes do not inherit the content Foreground the template's states drive — the same
+                 reason the pane key's rectangles carry their own. -->
+            <StackPanel x:Name="PanelDots" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Ellipse x:Name="Dot1" Fill="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Ellipse x:Name="Dot2" Fill="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Ellipse x:Name="Dot3" Fill="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
         </ToggleButton>
     </Grid>
 </UserControl>
