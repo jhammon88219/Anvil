@@ -283,7 +283,7 @@ namespace Anvil.ViewModels
 
 			// FOUR panes always exist; the layout decides how many are VISIBLE. Keeping the hidden ones
 			// alive means a pane remembers its product across a trip through single-pane, and it lets the
-			// bar's chips bind to fixed Pane0…Pane3 properties instead of an index into a mutating list.
+			// notches bind to fixed Pane0…Pane3 properties instead of an index into a mutating list.
 			var panes = new RadarPaneViewModel[PaneLayoutInfo.MaxPanes];
 			for (var i = 0; i < panes.Length; i++)
 			{
@@ -308,14 +308,14 @@ namespace Anvil.ViewModels
 		public IReadOnlyList<RadarPaneViewModel> Panes { get; }
 
 		/// <summary>The MAIN pane — bottom-left in a quad, and the view you were already looking at
-		/// before entering a layout. Named accessors so the bar's chips can x:Bind directly.</summary>
+		/// before entering a layout. Named accessors so the notches can x:Bind directly.</summary>
 		public RadarPaneViewModel Pane0 => Panes[0];
 		public RadarPaneViewModel Pane1 => Panes[1];
 		public RadarPaneViewModel Pane2 => Panes[2];
 		public RadarPaneViewModel Pane3 => Panes[3];
 
-		/// <summary>A pane's product changed (its chip). Only that pane re-renders in the WebView; the
-		/// loop, the frames and every other pane are untouched — which is what makes a chip change in a
+		/// <summary>A pane's product changed (its notch). Only that pane re-renders in the WebView; the
+		/// loop, the frames and every other pane are untouched — which is what makes a product change in a
 		/// quad cost nothing for the other three.</summary>
 		private void OnPaneProductChanged(RadarPaneViewModel pane)
 		{
@@ -331,7 +331,7 @@ namespace Anvil.ViewModels
 			}
 
 			// A switch just re-renders bytes already decoded (velocity is prefetched; Rule 3) — instant.
-			// (The pane's watermark follows on its own: it is a XAML overlay bound to pane.ShortLabel.)
+			// (The pane's notch follows on its own: it is a XAML overlay bound to the pane view model.)
 			_ = _mapService.SetRadarProductAsync(pane.Index, pane.ProductId);
 
 			// The loop's storm motion is computed ON DEMAND — gated out while nothing Doppler is in view
@@ -914,7 +914,7 @@ namespace Anvil.ViewModels
 		// ===== Pane layout ==============================================================================
 		// A pane is a PRODUCT VIEW of one site: panes share the site, the camera and the time cursor, and
 		// differ only in the moment they draw. So the layout lives on the RADAR view model — it decides how
-		// many product views exist, which is what the bar's chip cluster mirrors and what the page lays its
+		// many product views exist, which is what the notch grid mirrors and what the page lays its
 		// maps out from. Two-pane is side-by-side only (see PaneLayout).
 		private PaneLayout _paneLayout = PaneLayout.Single;
 
@@ -974,7 +974,7 @@ namespace Anvil.ViewModels
 
 		// Which panes have been revealed at least once. A pane gets its DEFAULT product the first time
 		// it appears and its REMEMBERED one every time after, so a trip through single-pane doesn't
-		// silently undo a chip the user set.
+		// silently undo a product the user set.
 		private readonly bool[] _paneEverShown = new bool[PaneLayoutInfo.MaxPanes];
 
 		private int IndexOfProduct(string id)
@@ -1075,7 +1075,7 @@ namespace Anvil.ViewModels
 			}
 
 			// Each pane resolves its ramp from its selected option, so they all have to re-announce now
-			// that the table has landed — otherwise a chip draws its name with no scale beside it.
+			// that the table has landed — otherwise a notch draws its product name with no scale beside it.
 			foreach (var pane in Panes)
 			{
 				pane.RaiseProductDerived();
@@ -1083,7 +1083,7 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>Short label of the MAIN pane's product. Kept for callers that want "what is the app
-		/// showing" in one string; the per-pane watermarks come from each pane's own ShortLabel.</summary>
+		/// showing" in one string; each pane's notch reads its own ShortLabel instead.</summary>
 		public string SelectedProductShortLabel => Pane0.ShortLabel;
 
 		// ===== Tilt (elevation) selection ===============================================================

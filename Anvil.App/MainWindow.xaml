@@ -1,18 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MainWindow — the app shell. The map fills the whole window; the entire UI is ONE bar overlaid on
-     its bottom edge.
+<!-- MainWindow — the app shell. The map fills the whole window; the UI is ONE bar overlaid on its bottom
+     edge, plus a small hideable NOTCH at the top of each map pane.
 
-       ┌─────────────────────────────┬─────────────────────────────┐
-       │ Ref                         │ Vel                         │  pane watermarks — top-left
-       │        map pane 2           │        map pane 3           │  of each pane, the ONLY thing
-       ├─────────────────────────────┼─────────────────────────────┤  drawn inside a pane (quad
-       │ SRV                         │ CC                          │  shown; single/two collapse
-       │    map pane 0  (MAIN)       │        map pane 1           │  to fewer cells)
+       ┌──────────────┬──────────────┬──────────────┬──────────────┐
+       │       ┌──────┴──────┐       │       ┌──────┴──────┐       │  pane NOTCHES — top-centre of each
+       │       │Ref˅│▓▒░▒▓│0.5°˅     │       │Vel˅│▓▒░▒▓│0.5°˅     │  pane: product, colour-ramp legend,
+       │       └────╮ ˄ ╭────┘       │       └────╮ ˄ ╭────┘       │  tilt. Quad shown; single/two
+       │        map pane 2           │        map pane 3           │  collapse to fewer cells. The tab
+       ├─────────────────────────────┼─────────────────────────────┤  hides one notch, independently.
+       │       ┌─────────────┐       │       ┌─────────────┐       │
+       │       │SRV˅│▓▒░▒▓│0.5°˅     │       │CC ˅│▓▒░▒▓│0.5°˅     │
+       │       └────╮ ˄ ╭────┘       │       └────╮ ˄ ╭────┘       │
+       │    map pane 0  (MAIN)       │        map pane 1           │
        ├─────────────────────────────┴─────────────────────────────┤
        │                       ╭─ Hide ─╮                          │  OverlayBar pull-tab
-       │ [chip] │ ══ scrubber ══                                    │
-       │        │ tilt ◀▶ frame · site   ↺   ((•))  ☁   ⋮      ▤  📡  ⚙ │
-       │                              PastCast NowCast ForeCast    Sites Settings │
+       │ ══ scrubber ══                                            │
+       │ ◀ ▶ ▶  3/10 │ time·site   ↺   ((•))  ☁   ⋮      ▤  📡  ⚙   │
+       │                            PastCast NowCast ForeCast    Sites Settings │
        └────────────────────────────────┴──────────────────────────┘
                                         ↑ bar midpoint — the four centre keys straddle it
                                                           ↑ ⋮ = the Timeframe panel (nameless,
@@ -24,16 +28,25 @@
                                                                    with the count inside the
                                                                    accent anchor cell and NO name
 
+     ⚠️ WHAT REPEATS PER PANE IS NOT IN THE BAR ANY MORE. It used to be: the bar's left cluster carried a
+     160px "chip" per pane (a combined product-selector-and-colour-ramp) plus the one tilt combo, which is
+     what made the bar's left half a width BUDGET that the centred temporal keys had to be defended from.
+     Both moved into the pane notches — where the legend sits on the field it describes — so the bar's left
+     is now just the global time module and the chip's width floor is gone with it. Add a PER-PANE control
+     to PaneNotchContent; add a GLOBAL one to RadarControls or to the right cluster here.
+
+     ⚠️ THE PANE WATERMARK IS GONE TOO (the big ghosted "Ref" in a pane's corner). The notch says the same
+     thing better, a few pixels away. See the PANE NOTCHES block below.
+
      ⚠️ MOST keys in the bar are a SQUARE holding a MARK OVER A NAME. TWO are not, both nameless and
      both on purpose: the ⋮ Timeframe key (half width, so it cannot read as a fourth temporal mode) and
      the pane-layout key (a WIDE mark — it is a picture of the map band — carrying its pane count inside
      the anchor cell instead of a label under it). See Layout/BarKeyMetrics.
 
-     Left of the bar is RadarControls (per-pane chips + the one global time module); the CENTER is the
-     three temporal mode keys plus the ⋮ panel key, held on the bar's midpoint by a [*, Auto, *] grid so
-     no amount of growth on either side can shift them (quad panes add chips on the left — the keys do
-     not move); right is the pane-layout key then the app-wide window buttons, all on one spacing. The
-     gaps between the three clusters are empty bar, by design.
+     Left of the bar is RadarControls (the global time module); the CENTER is the three temporal mode keys
+     plus the ⋮ panel key, held on the bar's midpoint by a [*, Auto, *] grid so no amount of growth on
+     either side can shift them; right is the pane-layout key then the app-wide window buttons, all on one
+     spacing. The gaps between the three clusters are empty bar, by design.
 
      ⚠️ EVERY key in this bar takes its LOOK from ONE style chain in Controls/Styles.xaml
      (BarChromeButtonStyle → BarKeyToggleStyle for the ones that latch / BarIconButtonStyle for the one
@@ -46,10 +59,10 @@
      instance — that is what put ~40 duplicated attributes in this file before.
      The transport buttons in RadarControls are the one cluster still on the old stock look.
 
-     There is no top bar any more. It existed to hold the controls that must not repeat per pane —
-     but once the bottom bar was split into a per-pane cluster and a global cluster, that distinction
-     lives INSIDE one bar and the second strip of chrome was pure cost (a band of map covered at the
-     top AND the bottom). -->
+     There is no top BAR — the notches are islands, not a strip. A full-width top bar existed once, to hold
+     the controls that must not repeat per pane; that distinction now lives inside the one bottom bar, and
+     a second full band of chrome was pure cost (a stripe of map covered at the top AND the bottom). A
+     notch costs a pane only the few hundred pixels it actually occupies, and hides. -->
 <Window
     x:Class="Anvil.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -80,22 +93,45 @@
         <!-- Full-window map (bottom layer; the bar floats on top of it). -->
         <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="2"/>
 
-        <!-- ===== PANE WATERMARKS =====
-             One per pane: the ONLY thing drawn inside a pane, since panes carry no chrome.
+        <!-- ===== PANE NOTCHES =====
+             One per pane: a small hideable island of chrome at the TOP of that pane, holding everything
+             that describes THAT pane — its product, its colour-ramp legend, its tilt. It is the only thing
+             drawn inside a pane.
 
-             This is a 3x3 [*, gutter, *] grid laid over EXACTLY the WebView's rect (Row 0 + RowSpan 2,
-             matching the WebView above), so its cells coincide with the page's pane rects: the page
-             splits the same area the same way, both using PaneLayoutInfo.GutterPx. Each watermark is
-             placed by PaneLayoutInfo.CellOf via the x:Bind functions below, and self-aligns to its
-             cell's top-left.
+               ┌─ pane ──────────────────────────────────────┐
+               │              ┌──────────────────┐           │  the notch: centred on the PANE, not on
+               │              │ Ref ˅│▓▒░▒▓│0.5°˅│           │  the window, so in multi-pane each one
+               │              └─────╮ ˄ ╭───────┘            │  sits over the field it describes
+               │                    ╰───╯                    │
+               │            …the pane's map…                 │
+               └─────────────────────────────────────────────┘
 
-             ⚠️ The pane ARRANGEMENT (pane 0 = main = bottom-left) is expressed twice: here through
-             CellOf, and in map.js paneRects() which lays out the real maps. Same rule, opposite sides of
-             the WebView boundary — change both.
+             ⚠️ THE WATERMARK IS GONE. Each pane used to carry a big ghosted product label in its top-left
+             corner, because every control lived in the bottom bar and the pane had no other way to say what
+             it was showing. The notch names the product a few pixels away, lit, with its ramp attached, so
+             the watermark was the same fact said twice and worse. (If a pane ever needs to stay identifiable
+             with its notch HIDDEN, that is where a watermark would come back — as the empty state, not as a
+             permanent overlay.)
 
-             It lives in XAML rather than in the page so the whole visual is editable under XAML Hot
-             Reload while the app runs, and so it picks up the app's theme brushes. -->
-        <Grid Grid.Row="0" Grid.RowSpan="2" IsHitTestVisible="False">
+             SAME OVERLAY GRID AS THE WATERMARKS USED: a 3x3 [*, gutter, *] laid over EXACTLY the WebView's
+             rect (Row 0 + RowSpan 2, matching the WebView above), so its cells coincide with the page's
+             pane rects — both sides split the same area the same way, both using PaneLayoutInfo.GutterPx.
+             Each notch is placed by PaneLayoutInfo.CellOf via the x:Bind functions below and self-aligns to
+             the TOP CENTRE of its cell.
+
+             ⚠️ The pane ARRANGEMENT (pane 0 = main = bottom-left) is expressed twice: here through CellOf,
+             and in map.js paneRects() which lays out the real maps. Same rule, opposite sides of the WebView
+             boundary — change both.
+
+             ⚠️ NO IsHitTestVisible="False" on this grid, unlike the watermark grid it replaces: these are
+             real controls now. The grid itself has no Background, so its EMPTY areas still hit-test straight
+             through to the map — only the notches themselves catch the pointer. Declared BEFORE the bottom
+             bar so the bar draws over it and stays clickable where the two overlap.
+
+             ⚠️ Four notches, four INDEPENDENT hide toggles, and no view-model state for any of them: the
+             show/hide flag is view state on each OverlayBar. Hiding the notch over the storm you are
+             watching while the other three keep their legends is the case that actually comes up. -->
+        <Grid x:Name="PaneNotchLayer" Grid.Row="0" Grid.RowSpan="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="{x:Bind PaneGutter}"/> <!-- the groove -->
@@ -107,30 +143,73 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <ctl:PaneWatermark Text="{x:Bind ViewModel.Radar.Pane0.ShortLabel, Mode=OneWay}"
-                               Visibility="{x:Bind WatermarkVisibility(ViewModel.Radar.IsTransportEnabled, ViewModel.Radar.Pane0.IsVisible), Mode=OneWay}"
-                               Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
-                               Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
-                               Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
-                               Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"/>
-            <ctl:PaneWatermark Text="{x:Bind ViewModel.Radar.Pane1.ShortLabel, Mode=OneWay}"
-                               Visibility="{x:Bind WatermarkVisibility(ViewModel.Radar.IsTransportEnabled, ViewModel.Radar.Pane1.IsVisible), Mode=OneWay}"
-                               Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
-                               Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
-                               Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
-                               Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"/>
-            <ctl:PaneWatermark Text="{x:Bind ViewModel.Radar.Pane2.ShortLabel, Mode=OneWay}"
-                               Visibility="{x:Bind WatermarkVisibility(ViewModel.Radar.IsTransportEnabled, ViewModel.Radar.Pane2.IsVisible), Mode=OneWay}"
-                               Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
-                               Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
-                               Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
-                               Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"/>
-            <ctl:PaneWatermark Text="{x:Bind ViewModel.Radar.Pane3.ShortLabel, Mode=OneWay}"
-                               Visibility="{x:Bind WatermarkVisibility(ViewModel.Radar.IsTransportEnabled, ViewModel.Radar.Pane3.IsVisible), Mode=OneWay}"
-                               Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
-                               Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
-                               Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
-                               Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"/>
+            <ctl:OverlayBar x:Name="Notch0" Edge="Top"
+                            IsIsland="True"
+                            ShowTabLabel="False"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Top"
+                            Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane0.IsVisible), Mode=OneWay}"
+                            Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
+                            Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
+                            Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
+                            Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}">
+                <ctl:OverlayBar.BarContent>
+                    <comp:PaneNotchContent Pane="{x:Bind ViewModel.Radar.Pane0}"
+                                           Radar="{x:Bind ViewModel.Radar}"
+                                           IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
+                </ctl:OverlayBar.BarContent>
+            </ctl:OverlayBar>
+
+            <ctl:OverlayBar x:Name="Notch1" Edge="Top"
+                            IsIsland="True"
+                            ShowTabLabel="False"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Top"
+                            Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane1.IsVisible), Mode=OneWay}"
+                            Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
+                            Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
+                            Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
+                            Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}">
+                <ctl:OverlayBar.BarContent>
+                    <comp:PaneNotchContent Pane="{x:Bind ViewModel.Radar.Pane1}"
+                                           Radar="{x:Bind ViewModel.Radar}"
+                                           IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
+                </ctl:OverlayBar.BarContent>
+            </ctl:OverlayBar>
+
+            <ctl:OverlayBar x:Name="Notch2" Edge="Top"
+                            IsIsland="True"
+                            ShowTabLabel="False"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Top"
+                            Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane2.IsVisible), Mode=OneWay}"
+                            Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
+                            Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
+                            Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}"
+                            Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 2), Mode=OneWay}">
+                <ctl:OverlayBar.BarContent>
+                    <comp:PaneNotchContent Pane="{x:Bind ViewModel.Radar.Pane2}"
+                                           Radar="{x:Bind ViewModel.Radar}"
+                                           IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
+                </ctl:OverlayBar.BarContent>
+            </ctl:OverlayBar>
+
+            <ctl:OverlayBar x:Name="Notch3" Edge="Top"
+                            IsIsland="True"
+                            ShowTabLabel="False"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Top"
+                            Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane3.IsVisible), Mode=OneWay}"
+                            Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
+                            Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
+                            Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}"
+                            Grid.ColumnSpan="{x:Bind PaneColumnSpan(ViewModel.Radar.PaneLayout, 3), Mode=OneWay}">
+                <ctl:OverlayBar.BarContent>
+                    <comp:PaneNotchContent Pane="{x:Bind ViewModel.Radar.Pane3}"
+                                           Radar="{x:Bind ViewModel.Radar}"
+                                           IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
+                </ctl:OverlayBar.BarContent>
+            </ctl:OverlayBar>
         </Grid>
 
         <!-- ===== Row 1: the bottom bar. Left = the radar console; CENTER = the temporal mode pills;

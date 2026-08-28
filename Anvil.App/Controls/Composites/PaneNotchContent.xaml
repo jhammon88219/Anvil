@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PaneNotchContent — what sits inside one pane's notch: everything that describes THIS pane, and
+     nothing that describes the loop.
+
+       ┌──────────────────────────────────────────────────┐
+       │  Ref ˅ │ ▓▓▒▒░░░░│░░░▒▒▓▓▓▓▓▓ │ 0.5° ˅          │   FULL (single / two across)
+       │        │ -30            +75 dBZ │                │
+       └──────────────────────────────────────────────────┘
+          ^^^      ^^^^^^^^^^^^^^^^^^^^^   ^^^^
+          product   the legend: ramp,      tilt
+          selector  scale, inspect tick
+
+       ┌────────────────────────────────┐
+       │  Ref ˅ │ ▓▓▒▒░░░▒▒▓▓ │ 0.5° ˅  │   COMPACT (quad) — the scale numbers drop
+       └────────────────────────────────┘
+
+     THE THREE ARE SEPARATE CONTROLS, and that is the point. The selector and the legend used to be ONE
+     control (ProductColorRampComboBox), because a 160px chip in the bottom bar could not hold two. The
+     notch can, so they came apart: ProductComboBox draws no ramp anywhere, ProductColorRamp is the legend.
+
+     ⚠️ TILT IS GLOBAL TODAY, PER-PANE SOON. A different tilt is a different VOLUME — the whole loop is
+     re-cut when it changes (docs/radar-loop-flow.md Rule 7) — so every pane renders the same elevation and
+     all four of these combos are bound to the ONE value on RadarViewModel. It is shown per pane anyway,
+     because it IS the elevation this pane is drawing, and because per-pane product AND tilt are coming:
+     when they land, the only change here is which view model the Tilt combo binds to. Nothing else about
+     this control assumes the value is shared.
+
+     TWO view-model DPs, not one, because the two halves of a pane's identity live in two places today:
+     Pane (the product, its ramp, its inspect read-out) and Radar (the tilt + whether a loop is loaded at
+     all). That is the seam the note above is about — when tilt goes per-pane, Pane grows it and the Radar
+     DP is left holding only the enabled-state. -->
+<UserControl x:Class="Anvil.Controls.Composites.PaneNotchContent"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ctl="using:Anvil.Controls.Primitives"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- Thin vertical rule between the three groups, matching the bar's divider. -->
+        <Style x:Key="NotchDividerStyle" TargetType="Border">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Opacity" Value="0.4"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="Background" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- ⚠️ DORMANT until a site is picked. The notch is up from launch, so with no loop its controls are
+         disabled by their own IsEnabled gates and the whole row is dimmed here — one cue for the pair,
+         rather than each control inventing its own disabled look. Same treatment, same reason, as the
+         scrubber's ScrubberOpacity in RadarControls. -->
+    <Grid VerticalAlignment="Center" ColumnSpacing="10"
+          Opacity="{x:Bind DormantOpacity(Radar.IsTransportEnabled), Mode=OneWay}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/> <!-- product -->
+            <ColumnDefinition Width="Auto"/> <!-- divider -->
+            <ColumnDefinition Width="Auto"/> <!-- the legend -->
+            <ColumnDefinition Width="Auto"/> <!-- divider -->
+            <ColumnDefinition Width="Auto"/> <!-- tilt -->
+        </Grid.ColumnDefinitions>
+
+        <ctl:ProductComboBox Grid.Column="0"
+                             VerticalAlignment="Center"
+                             IsEnabled="{x:Bind Radar.IsTransportEnabled, Mode=OneWay}"
+                             ItemsSource="{x:Bind Pane.ProductOptions, Mode=OneWay}"
+                             SelectedIndex="{x:Bind Pane.ProductIndex, Mode=TwoWay}"
+                             ToolTipService.ToolTip="What this pane draws"/>
+
+        <Border Grid.Column="1" Style="{StaticResource NotchDividerStyle}"/>
+
+        <!-- The legend for this pane's product. Width is fixed per form rather than left to stretch: the
+             notch is content-sized, so a ramp free to size itself would make the notch's width follow the
+             ramp's contents and shift the whole island sideways under the pane's centre. Compact drops the
+             scale numbers with ShowScale, which is also what takes the second row out of the notch and
+             halves its height. -->
+        <ctl:ProductColorRamp Grid.Column="2"
+                              VerticalAlignment="Center"
+                              Width="{x:Bind RampWidth(IsCompact), Mode=OneWay}"
+                              ShowScale="{x:Bind ShowScale(IsCompact), Mode=OneWay}"
+                              Ramp="{x:Bind Pane.Ramp, Mode=OneWay}"
+                              InspectFraction="{x:Bind Pane.InspectFraction, Mode=OneWay}"
+                              IsInspectVisible="{x:Bind Pane.IsInspectMarkerVisible, Mode=OneWay}"/>
+
+        <Border Grid.Column="3" Style="{StaticResource NotchDividerStyle}"/>
+
+        <!-- Elevation. Data-driven from the VCP's own table, carried in every cached tilt, so the choices
+             are what this radar actually scans right now and they follow a VCP change. See the header note
+             on why a global value is drawn in every pane's notch. -->
+        <ctl:TiltComboBox Grid.Column="4"
+                          VerticalAlignment="Center"
+                          ItemsSource="{x:Bind Radar.RadarTiltOptions, Mode=OneWay}"
+                          SelectedIndex="{x:Bind Radar.RadarTiltIndex, Mode=TwoWay}"
+                          IsEnabled="{x:Bind Radar.CanSelectTilt, Mode=OneWay}"
+                          ToolTipService.ToolTip="Elevation angle (tilt). Shared by every pane for now."/>
+    </Grid>
+</UserControl>

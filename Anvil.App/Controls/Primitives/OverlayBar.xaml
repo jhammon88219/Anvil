@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ============================================================================
      OverlayBar — a CHROME-ONLY shell: the centered show/hide pull-tab, the theme-aware
-     surface + hairline border (wrapping the tab), and the bottom-overlay collapse behavior. It is a
-     content slot: the host fills BarContent with the actual controls (loop transport,
-     product selectors, …), so section content is composed in MainWindow, not here.
-     (Named for what it IS — a bottom overlay shell — not for what it happens to host;
-     the actual radar transport lives in the RadarControls section it hosts.)
+     surface + hairline border (wrapping the tab), and the collapse behavior. It is a content
+     slot: the host fills BarContent with the actual controls, so section content is composed
+     by the host, never here.
+
+     TWO SHAPES, ONE CONTROL. Three plain DPs move the geometry and nothing else — Edge
+     (which side the tab hangs off), IsIsland (does it span the host edge to edge, or is it a
+     centred island that must draw its own left/right edges), ShowTabLabel (word beside the
+     chevron, or chevron alone). Every combination keeps the same surface, the same hairline
+     rule and the same collapse, which is the whole reason there is not a second copy of this
+     file for the notch. See the class remarks in the code-behind.
+
+       Edge=Bottom, IsIsland=False — THE APP'S ONE BAR (MainWindow, full width)
 
          …map, full height, showing through…
                               ╭── ˅ Hide ──╮                      ← the pull-tab, centered
@@ -14,16 +21,25 @@
              BarContent — the HOST fills this slot                  AROUND the tab, never across
        ══════════════════════ window bottom ═══════════════════════
 
-     Hidden, only the tab remains (it reads "Show") and the bar Border collapses — the map is
-     never resized either way.
+       Edge=Top, IsIsland=True, ShowTabLabel=False — THE PANE NOTCH (one per map pane)
 
-     It renders as a bottom OVERLAY: the host places it VerticalAlignment=Bottom over the
-     full-height map, so showing/hiding the bar never resizes the map. The control's own
-     backdrop is transparent — only the tab and the bar draw — so the map shows through
-     beside the centered tab.
+       ═══════════════════════ pane top edge ══════════════════════
+                     ┌─────────────────────────┐   ← the island: it stops where its content
+                     │  BarContent (the slot)  │     stops, so the map runs edge to edge
+                     └────────╮  ˄  ╭──────────┘     behind it. Left/right/bottom hairline,
+                              ╰─────╯                bottom corners rounded, tab BELOW.
+            …the pane's map, showing through either side…
 
-     The show/hide state (IsOverlayBarVisible) is pure view state and lives on this
-     control, not a view model.
+     Hidden, only the tab remains (it reads "Show", or is a bare chevron) and the bar Border
+     collapses — the map is never resized either way, in either shape.
+
+     It renders as an OVERLAY: the host places it over the full-height map, so showing/hiding
+     never resizes the map. The control's own backdrop is transparent — only the tab and the
+     bar draw — so the map shows through beside them.
+
+     The show/hide state (IsOverlayBarVisible) is pure view state and lives on this control,
+     not on a view model — which is exactly what gives the four pane notches four independent
+     hide toggles with no view-model plumbing at all.
      ============================================================================ -->
 <UserControl x:Class="Anvil.Controls.Primitives.OverlayBar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -47,7 +63,7 @@
                 <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                 <Setter Property="BorderThickness" Value="1,1,1,0"/>
                 <Setter Property="CornerRadius" Value="7,7,0,0"/>
-                <Setter Property="Padding" Value="16,3"/>
+                <!-- No Padding setter: ApplyChrome owns it, because it depends on ShowTabLabel. -->
                 <!-- Lap the tab's (borderless) bottom over the bar's 1px top border so the two merge into
                      one hairline that wraps the tab — with no border line showing across the tab bottom.
                      -2 (not -1) so the opaque tab body fully covers the bar's top border across DPI scales
@@ -110,7 +126,7 @@
                 BorderThickness="0,1,0,0"
                 Visibility="{x:Bind VisibleWhen(IsOverlayBarVisible), Mode=OneWay}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                Padding="16,10">
+                Padding="16,10">   <!-- overwritten by ApplyChrome; an island is tighter -->
             <ContentPresenter HorizontalAlignment="Stretch"
                               Content="{x:Bind BarContent, Mode=OneWay}"/>
         </Border>
@@ -122,14 +138,17 @@
                 Grid.Row="0"
                 Style="{StaticResource OverlayBarTabStyle}"
                 Click="OnToggleOverlayBarClick"
-                ToolTipService.ToolTip="Show / hide the bar">
+                ToolTipService.ToolTip="{x:Bind ToggleTooltip(IsOverlayBarVisible), Mode=OneWay}">
             <StackPanel Orientation="Horizontal"
                         Spacing="6"
                         VerticalAlignment="Center">
                 <FontIcon Glyph="{x:Bind ToggleGlyph(IsOverlayBarVisible), Mode=OneWay}"
                           FontSize="14"
                           VerticalAlignment="Center"/>
+                <!-- The word is optional (ShowTabLabel): four notch tabs all reading "Hide" is noise
+                     where four chevrons are not. The tooltip carries the wording either way. -->
                 <TextBlock Text="{x:Bind ToggleLabel(IsOverlayBarVisible), Mode=OneWay}"
+                           Visibility="{x:Bind VisibleWhen(ShowTabLabel), Mode=OneWay}"
                            FontSize="15"
                            VerticalAlignment="Center"/>
             </StackPanel>

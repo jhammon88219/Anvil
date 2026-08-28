@@ -140,5 +140,13 @@ namespace Anvil.Controls.Primitives
 		// Nothing reacts to hover or press by design; Disabled is the only state that changes anything.
 		private void OnIsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e) =>
 			VisualStateManager.GoToState(this, IsEnabled ? "Normal" : "Disabled", true);
+
+		/// <summary>
+		/// Closed-state label, with a placeholder when there is nothing to choose. A radar's elevations come
+		/// from the VCP table carried in a cached tilt, so before a site is loaded the list is EMPTY - and an
+		/// empty combo renders as a bare chevron with no text, which reads as broken rather than as "not yet".
+		/// The pane notch is on screen from launch (dormant), so that state is now visible and needs a face.
+		/// </summary>
+		public string LabelText(RadarTiltOption? item) => item?.Label ?? "—";
 	}
 }

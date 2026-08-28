@@ -9,7 +9,7 @@
 	/// a wide monitor.</para>
 	///
 	/// <para>The enum is the identifier; <see cref="PaneLayoutInfo"/> turns it into the grid the page
-	/// and the bar's chip cluster both lay themselves out from, so "how many panes and how are they
+	/// and MainWindow's pane-notch grid both lay themselves out from, so "how many panes and how are they
 	/// arranged" is answered in exactly one place.</para>
 	/// </summary>
 	public enum PaneLayout
@@ -29,7 +29,7 @@
 	{
 		/// <summary>
 		/// Width of the groove between panes, in CSS/effective pixels. ONE constant, shared by the page
-		/// (which positions the panes and draws the groove) and MainWindow's watermark overlay grid (whose
+		/// (which positions the panes and draws the groove) and MainWindow's pane-notch overlay grid (whose
 		/// cells have to match the panes' real rects) — passed to JS in
 		/// <c>IMapService.SetPaneLayoutAsync</c> rather than written down twice.
 		/// </summary>
@@ -40,7 +40,7 @@
 
 		/// <summary>
 		/// Where pane <paramref name="index"/> sits in a 3x3 <c>[*, gutter, *]</c> overlay grid laid over
-		/// the same rect as the page's panes — the placement MainWindow's pane watermarks use. Rows and
+		/// the same rect as the page's panes — the placement MainWindow's pane notches use. Rows and
 		/// columns 0 and 2 are the panes; row/column 1 is the groove.
 		///
 		/// <para>⚠️ Pane 0 is the MAIN pane and sits BOTTOM-LEFT, so a quad reads

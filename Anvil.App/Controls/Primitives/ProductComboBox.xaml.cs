@@ -9,27 +9,26 @@ using Windows.System;
 namespace Anvil.Controls.Primitives
 {
 	/// <summary>
-	/// The radar Product selector, drawing each product's color ramp beside its name so the selector doubles
-	/// as the legend (see ProductColorRampComboBox.xaml for the two presentations and why this is a
-	/// UserControl rather than a templated ComboBox).
+	/// The radar Product selector: a short name and a chevron, with the full product name in the dropdown
+	/// rows (see ProductComboBox.xaml for the two presentations and why this is a UserControl rather than a
+	/// templated ComboBox).
 	///
-	/// Host contract: bind <see cref="ItemsSource"/> to the product list and <see cref="SelectedIndex"/>
-	/// two-way to the VM's product index, then feed the live inspect read-out in through
-	/// <see cref="InspectFraction"/> / <see cref="IsInspectVisible"/> — plain DPs, which is what replaced the
-	/// attached properties the old ControlTemplate needed.
+	/// <para>Host contract: bind <see cref="ItemsSource"/> to the product list and <see cref="SelectedIndex"/>
+	/// two-way to the pane's product index. That is the whole contract — this control draws no colour ramp,
+	/// so it takes no inspect state. The legend beside it (<see cref="ProductColorRamp"/>) owns all of
+	/// that; see the header comment in the XAML for why the two came apart.</para>
 	/// </summary>
-	public sealed partial class ProductColorRampComboBox : UserControl
+	public sealed partial class ProductComboBox : UserControl
 	{
 		// Guards the two-way echo between our SelectedIndex and the dropdown ListView's own selection.
 		private bool _syncingSelection;
 		private bool _isPointerOver;
 		private bool _isPressed;
 
-		public ProductColorRampComboBox()
+		public ProductComboBox()
 		{
 			InitializeComponent();
-			// WinUI has no public Cursor property — ProtectedCursor is set from inside the control itself.
-			// Children inherit it, so the ramp reads as clickable too.
+			// WinUI has no public Cursor property - ProtectedCursor is set from inside the control itself.
 			ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.Hand);
 		}
 
@@ -42,9 +41,9 @@ namespace Anvil.Controls.Primitives
 
 		public static readonly DependencyProperty ItemsSourceProperty =
 			DependencyProperty.Register(nameof(ItemsSource), typeof(IReadOnlyList<RadarProductOption>),
-				typeof(ProductColorRampComboBox), new PropertyMetadata(null, OnSelectionInputChanged));
+				typeof(ProductComboBox), new PropertyMetadata(null, OnSelectionInputChanged));
 
-		/// <summary>Index of the selected product. Two-way bindable to the VM's product index.</summary>
+		/// <summary>Index of the selected product. Two-way bindable to the pane's product index.</summary>
 		public int SelectedIndex
 		{
 			get => (int)GetValue(SelectedIndexProperty);
@@ -52,7 +51,7 @@ namespace Anvil.Controls.Primitives
 		}
 
 		public static readonly DependencyProperty SelectedIndexProperty =
-			DependencyProperty.Register(nameof(SelectedIndex), typeof(int), typeof(ProductColorRampComboBox),
+			DependencyProperty.Register(nameof(SelectedIndex), typeof(int), typeof(ProductComboBox),
 				new PropertyMetadata(-1, OnSelectionInputChanged));
 
 		/// <summary>The selected product, resolved from ItemsSource + SelectedIndex. Drives the closed area.</summary>
@@ -64,34 +63,12 @@ namespace Anvil.Controls.Primitives
 
 		public static readonly DependencyProperty SelectedItemProperty =
 			DependencyProperty.Register(nameof(SelectedItem), typeof(RadarProductOption),
-				typeof(ProductColorRampComboBox), new PropertyMetadata(null));
-
-		/// <summary>Where the Inspect marker sits along the selected product's ramp (0-1).</summary>
-		public double InspectFraction
-		{
-			get => (double)GetValue(InspectFractionProperty);
-			set => SetValue(InspectFractionProperty, value);
-		}
-
-		public static readonly DependencyProperty InspectFractionProperty =
-			DependencyProperty.Register(nameof(InspectFraction), typeof(double), typeof(ProductColorRampComboBox),
-				new PropertyMetadata(0.0));
-
-		/// <summary>Whether the Inspect marker is shown (inspect mode on + a value under the cursor).</summary>
-		public bool IsInspectVisible
-		{
-			get => (bool)GetValue(IsInspectVisibleProperty);
-			set => SetValue(IsInspectVisibleProperty, value);
-		}
-
-		public static readonly DependencyProperty IsInspectVisibleProperty =
-			DependencyProperty.Register(nameof(IsInspectVisible), typeof(bool), typeof(ProductColorRampComboBox),
-				new PropertyMetadata(false));
+				typeof(ProductComboBox), new PropertyMetadata(null));
 
 		// SelectedItem is derived from the two inputs, so re-resolve it when either lands (the list arrives
 		// from the VM after the index in practice, so this can't assume an order).
 		private static void OnSelectionInputChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
-			((ProductColorRampComboBox)d).ResolveSelectedItem();
+			((ProductComboBox)d).ResolveSelectedItem();
 
 		private void ResolveSelectedItem()
 		{
@@ -118,12 +95,11 @@ namespace Anvil.Controls.Primitives
 			DropDown.ShowAt(Root);
 		}
 
-		// Match the dropdown to the closed control's width (less the presenter's 1px border each side) so the
-		// rows' ramps line up with the one in the closed area, and sync the ListView to the current product.
+		// Sync the ListView to the current product. It no longer forces the flyout to the closed control's
+		// width - see the XAML note: with no ramps there is nothing to line up, and the closed state is far
+		// narrower than a full product name.
 		private void OnDropDownOpening(object? sender, object e)
 		{
-			ProductList.Width = System.Math.Max(0, Root.ActualWidth - 2);
-
 			_syncingSelection = true;
 			ProductList.SelectedIndex = SelectedIndex;
 			_syncingSelection = false;

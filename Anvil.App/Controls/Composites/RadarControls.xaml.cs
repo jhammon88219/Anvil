@@ -16,11 +16,13 @@ using Windows.UI;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The whole radar console in one control: the center transport cluster (prev · play/stop · next +
-	/// a linear scrubber + frame N/M and time), the left display controls (product + tilt), and the
-	/// right selected-site readout. All bound to one <see cref="RadarViewModel"/>. Site-marker
-	/// visibility and Inspect live in the Map Controls window instead — they are global map controls,
-	/// and in multi-pane only the product/tilt selection repeats per pane.
+	/// The GLOBAL time module of the bottom bar: the segmented scrubber, the transport (prev · play/stop ·
+	/// next), the frame counter and the selected-site readout. All bound to one <see cref="RadarViewModel"/>.
+	///
+	/// <para>Nothing per-pane lives here any more. The product selector and the tilt combo moved into the
+	/// per-pane notch (<c>Composites/PaneNotchContent</c>); site-marker visibility and Inspect are in the
+	/// Settings window's Radar tab. What is left is the state every pane shares — one site, one camera, one
+	/// time cursor — which is why none of it multiplies with the pane layout.</para>
 	/// </summary>
 	public sealed partial class RadarControls : UserControl
 	{
@@ -187,10 +189,6 @@ namespace Anvil.Controls.Composites
 		// Dim the scrubber while the transport isn't enabled yet (Grid has no IsEnabled; interaction is
 		// blocked via IsHitTestVisible + the pointer-handler guard, this is the visual cue).
 		public double ScrubberOpacity(bool enabled) => enabled ? 1.0 : 0.4;
-
-		/// <summary>bool -> Visibility for x:Bind (used by the pane chips, which collapse with their
-		/// pane). A function rather than a converter so the chips can x:Bind straight to the pane.</summary>
-		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
 		// Foreground for the staleness readout, ramped continuously by the newest frame's age in minutes:
 		// green while fresh → amber at ~12 min (the Live→Recent boundary) → red at ~30 min (Recent→Stale),

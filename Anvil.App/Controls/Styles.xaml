@@ -106,7 +106,7 @@
 
          ⚠️ The border lives on its OWN backdrop Border, a SIBLING of the content rather than its
          parent. That is what lets the checked state thicken the stroke 1px → 2px without nudging the
-         content half a pixel as it lights up. Same trick as ProductColorRampComboBox.
+         content half a pixel as it lights up. Same trick as ProductComboBox.
 
          The Checked* states never fire on a plain Button (nothing calls GoToState for them), so this
          template is safe for both Button and ToggleButton consumers. -->

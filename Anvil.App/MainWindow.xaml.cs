@@ -1,4 +1,5 @@
 ﻿using Microsoft.UI.Windowing;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
@@ -10,7 +11,10 @@ using Anvil.Layout;
 using System;
 using System.Globalization;
 using System.IO;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Windows.Foundation;
+using Windows.Graphics;
 using Windows.UI.ViewManagement;
 
 namespace Anvil
@@ -35,11 +39,15 @@ namespace Anvil
 		// any more — the dev tools are a tab of the Settings window, and SettingsWindow omits that tab from
 		// its strip (and never constructs its body) in Release.
 
-		// ===== Pane watermarks =====
+		// ===== Pane notches =====
 		// The overlay grid in MainWindow.xaml has to line its cells up with the page's pane rects, so both
 		// sides take the groove width from the same constant and the placement from PaneLayoutInfo.CellOf.
 		// x:Bind functions rather than VM properties: this is view geometry, so it stays in the view and
 		// Anvil.Core keeps no notion of grid cells.
+		//
+		// These four placement helpers are UNCHANGED from when this grid held the pane watermarks - the
+		// notch sits in exactly the same cell the watermark did, just aligned to its top centre instead of
+		// its top left.
 		public GridLength PaneGutter => new(PaneLayoutInfo.GutterPx);
 
 		public int PaneRow(PaneLayout layout, int index) => layout.CellOf(index).Row;
@@ -47,10 +55,122 @@ namespace Anvil
 		public int PaneRowSpan(PaneLayout layout, int index) => layout.CellOf(index).RowSpan;
 		public int PaneColumnSpan(PaneLayout layout, int index) => layout.CellOf(index).ColumnSpan;
 
-		/// <summary>A pane's watermark shows only while that pane is up AND a loop is actually displayed —
-		/// the gate the single watermark used before multi-pane.</summary>
-		public Visibility WatermarkVisibility(bool hasLoop, bool paneVisible) =>
-			hasLoop && paneVisible ? Visibility.Visible : Visibility.Collapsed;
+		/// <summary>
+		/// A pane's notch shows whenever that pane is up — from launch, with no loop and no site.
+		///
+		/// <para>⚠️ It deliberately does NOT wait for a loop. The notch is the pane's identity, so a map
+		/// with no notch reads as a map with no controls rather than as one waiting for a site; appearing
+		/// only once a loop lands also made it pop in over the map with no warning. It sits DORMANT
+		/// instead — dimmed, with its controls disabled (see PaneNotchContent.IsDormant) — which says
+		/// "this is yours once you pick a site" in a way an absent control cannot.</para>
+		/// </summary>
+		public Visibility NotchVisibility(bool paneVisible) =>
+			paneVisible ? Visibility.Visible : Visibility.Collapsed;
+
+		/// <summary>
+		/// Whether the notches take their tighter form (no scale numbers under the ramp, shorter ramp).
+		/// Quad only: a quad pane is half the window wide, and the full notch would take a real bite out of
+		/// it. Two-across panes are still wide enough for the numbers.
+		/// </summary>
+		public bool NotchCompact(PaneLayout layout) => layout == PaneLayout.Quad;
+
+		// ===== Pane notches vs the TITLE BAR =====
+		// ⚠️ THE TOP-ROW NOTCHES SIT INSIDE THE WINDOW'S CAPTION. This window sets
+		// ExtendsContentIntoTitleBar = true (so the map runs edge to edge) and never calls SetTitleBar, so
+		// WinUI applies a DEFAULT drag region across the whole top of the window. That band is NON-CLIENT:
+		// the system takes its input for dragging and double-click-to-maximize, and XAML controls inside it
+		// are only partly reachable. It is why a notch in the top band behaved as if its dropdown were
+		// dead - the flyout opened (IsOpen true) but the clicks that should have driven it were being
+		// swallowed by the caption - while the BOTTOM-row notches in a quad, which sit below the band,
+		// worked perfectly. That asymmetry is what identified it.
+		//
+		// The fix is to punch interactive holes in the caption: every visible notch is registered as a
+		// PASSTHROUGH non-client region, which hands its rect back to XAML. Everything around the notches
+		// stays draggable, so the window still behaves like a window.
+		//
+		// ⚠️ Rects are PHYSICAL pixels relative to the window, so they are scaled by RasterizationScale -
+		// pass logical units and the holes land in the wrong place on any display that is not 100%.
+		private RectInt32[] _notchRegions = Array.Empty<RectInt32>();
+
+		// LayoutUpdated rather than SizeChanged: a notch also MOVES without resizing (the window resizes,
+		// the pane layout changes, a notch is hidden). It fires often, so the work is four transforms and an
+		// equality check, and SetRegionRects is only called when the rects actually change.
+		private void OnPaneNotchLayerLayoutUpdated(object? sender, object e) => UpdateNotchInputRegions();
+
+		private void UpdateNotchInputRegions()
+		{
+			if (Content?.XamlRoot is not { } root)
+			{
+				return;
+			}
+
+			var scale = root.RasterizationScale;
+
+			// Keep clear of the caption buttons: a passthrough rect over them would break close/maximize.
+			// The insets are already physical pixels.
+			var captionLeft = AppWindow.TitleBar.LeftInset;
+			var captionRight = AppWindow.Size.Width - AppWindow.TitleBar.RightInset;
+
+			var rects = new List<RectInt32>(PaneLayoutInfo.MaxPanes);
+			foreach (var notch in new FrameworkElement[] { Notch0, Notch1, Notch2, Notch3 })
+			{
+				if (notch.Visibility != Visibility.Visible || notch.ActualWidth <= 0 || notch.ActualHeight <= 0)
+				{
+					continue;
+				}
+
+				var origin = notch.TransformToVisual(null).TransformPoint(new Point(0, 0));
+				var left = (int)Math.Floor(origin.X * scale);
+				var right = (int)Math.Ceiling((origin.X + notch.ActualWidth) * scale);
+				left = Math.Max(left, (int)captionLeft);
+				right = Math.Min(right, (int)captionRight);
+				if (right <= left)
+				{
+					continue;
+				}
+
+				rects.Add(new RectInt32(
+					left,
+					(int)Math.Floor(origin.Y * scale),
+					right - left,
+					(int)Math.Ceiling(notch.ActualHeight * scale)));
+			}
+
+			var next = rects.ToArray();
+			if (SameRegions(_notchRegions, next))
+			{
+				return;
+			}
+
+			_notchRegions = next;
+			var source = InputNonClientPointerSource.GetForWindowId(AppWindow.Id);
+			if (next.Length == 0)
+			{
+				source.ClearRegionRects(NonClientRegionKind.Passthrough);
+			}
+			else
+			{
+				source.SetRegionRects(NonClientRegionKind.Passthrough, next);
+			}
+		}
+
+		private static bool SameRegions(RectInt32[] a, RectInt32[] b)
+		{
+			if (a.Length != b.Length)
+			{
+				return false;
+			}
+
+			for (var i = 0; i < a.Length; i++)
+			{
+				if (a[i].X != b[i].X || a[i].Y != b[i].Y || a[i].Width != b[i].Width || a[i].Height != b[i].Height)
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
 
 		// ===== Pane layout key =====
 		// ONE key that cycles. Three drawn icons are stacked in the same cell and exactly one shows —
@@ -298,6 +418,11 @@ namespace Anvil
 
 			ExtendsContentIntoTitleBar = true;
 			InitializeComponent();
+
+			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs
+			// THE TITLE BAR block above). Hooked straight after InitializeComponent so the very first layout
+			// pass registers the holes - otherwise the notch is dead until something else forces a relayout.
+			PaneNotchLayer.LayoutUpdated += OnPaneNotchLayerLayoutUpdated;
 
 			// App-wide windows: every panel that isn't the radar console lives in its own native OS window
 			// (multi-monitor). The manager watches the coordinator VM's open flags and opens/closes a window

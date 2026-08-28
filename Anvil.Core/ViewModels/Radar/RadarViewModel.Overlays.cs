@@ -48,13 +48,13 @@ namespace Anvil.ViewModels
 		// ── Inspector ("read the value under the cursor", RadarScope-style) ────────────────────────────
 		// Inspect is a GLOBAL instrument: one armed cursor mode over the whole map, not a per-pane toggle.
 		// The VALUE, though, is per pane — at one lat/lon each pane reads its OWN product's grid, so four
-		// panes give four readings of the same point, each ticking on its own chip ramp. That is the whole
-		// point of it in multi-pane: four numbers for one gate, read in a glance at the chip cluster.
+		// panes give four readings of the same point, each ticking on its own notch ramp. That is the whole
+		// point of it in multi-pane: four numbers for one gate, read across the four notches.
 		// The value tooltip itself is drawn in the WebView next to the cursor (instant, no host round-trip
-		// per mouse move); the host only receives the numbers that drive the chip ticks.
+		// per mouse move); the host only receives the numbers that drive the notch ticks.
 		private bool _isInspecting;
 
-		/// <summary>Whether inspect mode is engaged (the Map Controls window's toggle). One mode for every
+		/// <summary>Whether inspect mode is engaged (the Settings window's Radar tab). One mode for every
 		/// pane.</summary>
 		public bool IsInspecting
 		{
@@ -79,7 +79,7 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>Called from the view when the WebView pushes the value under the cursor for ONE pane
-		/// (null = no data there). Each pane owns its own reading and its own chip tick.</summary>
+		/// (null = no data there). Each pane owns its own reading and its own notch tick.</summary>
 		public void SetInspectValue(int paneIndex, double? value)
 		{
 			if (paneIndex >= 0 && paneIndex < Panes.Count)

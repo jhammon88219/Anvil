@@ -7,7 +7,7 @@
 // WHAT IS ON SCREEN — the pane grid (quad shown; the gutter is paneGutter px of page background):
 //
 //   ┌──────────────┬──────────────┐   maps[0] is the PRIMARY pane and sits BOTTOM-LEFT — the same
-//   │   maps[2]    │   maps[3]    │   arrangement MainWindow's watermark grid uses. paneRects()
+//   │   maps[2]    │   maps[3]    │   arrangement MainWindow's notch grid uses. paneRects()
 //   ├──────────────┼──────────────┤   below is the page's half of that rule; the XAML grid is the
 //   │   maps[0]    │   maps[1]    │   other half. ⚠️ CHANGE BOTH OR THEY DRIFT.
 //   │   (PRIMARY)  │              │
@@ -73,7 +73,7 @@ try {
     // ---- Pane state -------------------------------------------------------------------------------
     const MAX_PANES = 4;
     // Width of the groove between panes, in CSS px. The host passes this in setPaneLayout so the XAML
-    // watermark grid and the page can't drift apart — this value is only the pre-layout default.
+    // notch grid and the page cannot drift apart — this value is only the pre-layout default.
     let paneGutter = 5;
     let maps = [];            // live maps, contiguous; index = pane index, maps[0] = PRIMARY
     let cols = 1, rows = 1;
@@ -284,7 +284,7 @@ try {
     }
 
     // Host command: choose the pane grid. cols x rows, plus the groove width so the page and the XAML
-    // watermark grid share one constant. Panes are created/destroyed around the layout change; the
+    // notch grid share one constant. Panes are created/destroyed around the layout change; the
     // camera, the loop and every overlay survive it.
     window.setPaneLayout = function (c, r, gutterPx) {
         cols = Math.max(1, c | 0);

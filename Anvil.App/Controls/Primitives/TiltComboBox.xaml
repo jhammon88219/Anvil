@@ -15,7 +15,7 @@
      surface, since the default flyout brush is acrylic and washes out over the map.
 
      (Was a HandCursorComboBox wearing NoBackgroundComboBoxStyle; both are gone now. Same reasoning as
-     ProductColorRampComboBox — see that file — except this one has no ramp and no hover treatment.) -->
+     ProductComboBox — see that file — except this one has no hover treatment.) -->
 <UserControl
     x:Class="Anvil.Controls.Primitives.TiltComboBox"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -63,7 +63,7 @@
                    HorizontalAlignment="Left"
                    VerticalAlignment="Center"
                    Foreground="{ThemeResource ComboBoxForeground}"
-                   Text="{x:Bind SelectedItem.Label, Mode=OneWay}"/>
+                   Text="{x:Bind LabelText(SelectedItem), Mode=OneWay}"/>
 
         <FontIcon x:Name="DropDownGlyph"
                   Grid.Column="1"

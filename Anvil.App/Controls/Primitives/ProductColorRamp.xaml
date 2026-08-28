@@ -11,9 +11,15 @@
 
      With no ramp yet, a muted ghost bar holds the footprint so nothing jumps when one arrives.
 
-     It's the legend, parted out so it can be reused: ProductColorRampComboBox renders one in its CLOSED area
-     for the selected product (ShowScale on — the selector IS the scale, so the separate Color Scale section
-     goes away) and one per DROPDOWN ROW (ShowScale off — just the ramp). -->
+     THE LEGEND, STANDING ALONE. It used to be parted out of the product selector so the two could share
+     one 160px chip in the bottom bar — the selector WAS the scale. In the pane notch they are separate
+     controls side by side (see ProductComboBox), so this is simply the legend for whatever its host pane
+     is drawing: ramp, scale, inspect tick, hover read-out. ShowScale is what a cramped host turns off.
+
+     ⚠️ StripAlignMargin is still published for a sibling that wants to line up with the STRIP rather than
+     with this control's overall centre (the min/max row under the strip drags that centre down). The
+     selector used it when the two were one control; keep it — the notch's tilt combo has the same problem
+     the moment anything wants to sit level with the ramp itself. -->
 <UserControl
     x:Class="Anvil.Controls.Primitives.ProductColorRamp"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

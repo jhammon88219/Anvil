@@ -1,340 +1,256 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- RadarControls — the radar half of the bottom bar, laid out entirely with Grids (no StackPanels):
+<!-- RadarControls — the GLOBAL time module, and only that. Laid out entirely with Grids (no StackPanels):
 
-       PANE CHIPS  │  GLOBAL TIME MODULE
-       [product]   │  [———————— scrubber ————————]
-                   │                      10:42 PM  2 min ago
-                   │  [tilt] ◀ ▶ ▶  3 / 10  │  KTLX     VCP 212 · precip · SAILS ×2
-                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                                             the site readout is a 2x2 BLOCK: time over site,
-                                             age over scan. Stacking it (it used to be one long
-                                             line) is what keeps this half narrow enough for the
-                                             temporal pills to hold the bar's centre.
+       [———————————— scrubber ————————————]
+                              10:42 PM  2 min ago
+       ◀ ▶ ▶  3 / 10  │       KTLX      VCP 212 · precip · SAILS ×2
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                              the site readout is a 2x2 BLOCK: time over site,
+                              age over scan. Stacking it (it used to be one long
+                              line) is what keeps this half narrow.
 
-     THE ORGANIZING RULE (settled before multi-pane): the bar is split into what repeats per pane and
-     what does not. A pane differs from its siblings ONLY by product (and, later, tilt), so the pane
-     chips are the only thing that multiplies — in quad-pane the single chip becomes a 2x2 cluster whose
-     arrangement MIRRORS the pane grid. Pane 0 is the MAIN pane and sits BOTTOM-LEFT on the map, so its
-     chip stays put in the bottom row and the others appear right / above / above-right. Everything else
-     here is global: one site, one camera, one time cursor shared by every pane, which is why the
-     scrubber does NOT repeat.
+     THE ORGANIZING RULE: the bar holds what does NOT repeat per pane. One site, one camera, one time
+     cursor, shared by every pane — which is why the scrubber does not multiply.
 
-     SCRUBBER WIDTH is deliberately NOT the full bar: the time module is auto-width, so the scrubber
+     ⚠️ THE PANE CHIPS AND THE TILT COMBO ARE GONE FROM HERE. This control used to be two clusters,
+     [pane chips] │ [time module], where a chip was a 160px combined product-selector-and-colour-ramp, one
+     per pane, growing to a 2x2 in quad. Both halves of that — the chips and the one tilt combo in the
+     control row — moved into the per-pane NOTCH at the top of each map pane (Composites/PaneNotchContent),
+     where a pane's legend sits on the field it describes. What is left is global, so there is no per-pane
+     cluster, no divider between clusters, and no ChipWidth.
+
+     ⚠️ AND SO THE WIDTH BUDGET IS GONE. The old note here said every pixel added on this side ate into
+     the room the centred temporal keys need, and named ChipWidth as the knob to reach for first. The chips
+     were the growth risk — 160px per pane, doubled in quad — and they are not here any more. This cluster
+     is now a fixed size that does not track the pane layout at all.
+
+     SCRUBBER WIDTH is still deliberately NOT the full bar: the module is auto-width, so the scrubber
      stretches to exactly the control row beneath it and stops at the end of the site readout. Every
-     variable-length readout in that row (frame count, time, ICAO, age, scan) carries a RESERVED fixed
-     width, so the module's width — and therefore the scrubber's — is a constant. Without that the
-     scrubber would resize (and reflow all its cells) every time the age ticked over. That rule survived
-     the readout being stacked into a block — the block's two COLUMNS carry the reserved widths now.
+     variable-length readout in that row (frame count, time, ICAO, age, scan) keeps a RESERVED fixed width,
+     so the module's width — and therefore the scrubber's — is a constant. Without that the scrubber would
+     resize (and reflow all its cells) every time the age ticked over. That rule survived the readout being
+     stacked into a block — the block's two COLUMNS carry the reserved widths now — and it survived the
+     chips leaving, which changed nothing about it.
 
-     ⚠️ WIDTH IS A BUDGET NOW. MainWindow centres the temporal pills on the bar's true midpoint, so this
-     half is what decides whether they have room to breathe before the two collide — every px added here
-     eats into that. The two knobs are the ChipWidth resource (×2 in quad) and the site block's two
-     reserved columns; reach for them before letting this cluster grow.
-
-     The global controls that flank this (temporal toggles at the bar's centre, window buttons at the
-     right) are composed by MainWindow; site-marker visibility and Inspect live in the Map Controls
-     window. All bound to one RadarViewModel. -->
+     The global controls that flank this (temporal keys at the bar's centre, window buttons at the right)
+     are composed by MainWindow; site-marker visibility and Inspect live in the Settings window's Radar
+     tab. All bound to one RadarViewModel. -->
 <UserControl x:Class="Anvil.Controls.Composites.RadarControls"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:controls="using:Anvil.Controls.Primitives"
              xmlns:vm="using:Anvil.ViewModels"
              xmlns:layout="using:Anvil.Layout"
              mc:Ignorable="d">
 
     <UserControl.Resources>
         <x:Double x:Key="ReadoutFontSize">13</x:Double>
-        <!-- ONE width for all four pane chips — they must stay identical, and in quad this is doubled
-             across the cluster, so it is the single knob for how much bar the per-pane half occupies.
-             FLOOR: the chip must still fit [short name][ramp strip][chevron] with the ramp's min/max
-             numbers ("-30" … "+75 dBZ") side by side under the strip without colliding — roughly 66px
-             of text over a strip that is this width minus ~62px of fixed furniture. Below ~140 they
-             touch. -->
-        <x:Double x:Key="ChipWidth">160</x:Double>
-        <!-- Thin vertical rule between clusters. -->
+        <!-- The one vertical rule left, between the frame counter and the site block. (It was 34 tall
+             when a chip cluster sat beside it; the sole consumer overrode it to 20, so that is the value now.) -->
         <Style x:Key="BarDividerStyle" TargetType="Border">
             <Setter Property="Width" Value="1"/>
-            <Setter Property="Height" Value="34"/>
+            <Setter Property="Height" Value="20"/>
             <Setter Property="Opacity" Value="0.4"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Background" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
         </Style>
     </UserControl.Resources>
 
-    <!-- Left-aligned: MainWindow right-aligns the global cluster in the same bar row, and the gap between
-         them is empty bar. -->
-    <Grid HorizontalAlignment="Left" VerticalAlignment="Center" ColumnSpacing="12">
+    <!-- ONE cluster now, left-aligned: MainWindow centres the temporal keys and right-aligns the window
+         buttons in the same bar row, and the gaps between the three are empty bar by design.
+
+         ⚠️ It used to be TWO clusters — [pane chips] │ [time module] — and the outer grid, the divider and
+         the ChipWidth resource all existed to hold them apart. The chips (and the tilt combo that sat in
+         the control row below) moved into the pane notches, so this control IS the time module and needs
+         no column structure at all. Everything left here is global; a per-pane control belongs in
+         Composites/PaneNotchContent.
+
+         The grid is auto-width: row 1 is all fixed widths, so it sets the module's width, and row 0's
+         scrubber stretches to match it exactly. -->
+    <Grid HorizontalAlignment="Left" VerticalAlignment="Center" RowSpacing="8">
+        <!-- ⚠️ THE Auto COLUMN IS LOAD-BEARING, not tidiness. A Grid with no ColumnDefinitions gets one
+             implicit STAR column, and a star column measures its children with the width AVAILABLE — which
+             here is half the bar. EqualCellsPanel then reports that whole width as the scrubber's desired
+             size and the scrubber stretches most of the way to the centred temporal keys. An Auto column
+             measures with INFINITY, EqualCellsPanel returns 0, and row 1 is left to set the module width,
+             which is the rule the header note describes. The old outer cluster grid supplied this by
+             accident (the module sat in one of its Auto columns); losing it when the chips left is what
+             broke the scrubber. -->
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/> <!-- pane chips -->
-            <ColumnDefinition Width="Auto"/> <!-- divider -->
-            <ColumnDefinition Width="Auto"/> <!-- global time module -->
+            <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- segmented scrubber -->
+            <RowDefinition Height="Auto"/> <!-- transport · frame · site readout -->
+        </Grid.RowDefinitions>
 
-        <!-- ============================ PANE CHIPS ============================
-             The per-pane cluster: one chip per pane. A chip is the Product combo, which draws each
-             product's COLOR RAMP next to its short name — so the chip is simultaneously that pane's
-             selector, its legend, and (via the inspect tick riding the ramp) its live inspect readout.
-             Four panes therefore give four readings of one gate, side by side in this cluster.
-
-             ⚠️ THE CLUSTER MIRRORS THE PANE GRID, so a chip sits where its pane is. Pane 0 is the MAIN
-             pane and lives BOTTOM-LEFT, so it is in the bottom row here; panes 2/3 appear in the row
-             ABOVE when quad is entered. Hidden chips collapse, and the spacing is per-chip Margin
-             rather than Grid Row/ColumnSpacing — spacing would reserve a gap for the empty top row and
-             make the bar taller in single-pane, which is exactly what we are avoiding. So the bar grows
-             a row for quad and only for quad.
-             Fixed named cells (not an ItemsControl): mirroring is POSITIONAL, which is the whole point,
-             and x:Bind stays direct. -->
-        <Grid x:Name="PaneChips" Grid.Column="0" VerticalAlignment="Center">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- top row of the pane grid: panes 2 + 3 -->
-                <RowDefinition Height="Auto"/> <!-- bottom row: the MAIN pane 0, and pane 1 -->
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- MAIN pane — bottom-left, always shown -->
-            <controls:ProductColorRampComboBox
-                      Grid.Row="1" Grid.Column="0"
-                      Width="{StaticResource ChipWidth}"
-                      IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
-                      Visibility="{x:Bind VisibleWhen(ViewModel.Pane0.IsVisible), Mode=OneWay}"
-                      ItemsSource="{x:Bind ViewModel.Pane0.ProductOptions}"
-                      SelectedIndex="{x:Bind ViewModel.Pane0.ProductIndex, Mode=TwoWay}"
-                      InspectFraction="{x:Bind ViewModel.Pane0.InspectFraction, Mode=OneWay}"
-                      IsInspectVisible="{x:Bind ViewModel.Pane0.IsInspectMarkerVisible, Mode=OneWay}"/>
-
-            <!-- bottom-right (two across, quad) -->
-            <controls:ProductColorRampComboBox
-                      Grid.Row="1" Grid.Column="1"
-                      Margin="6,0,0,0"
-                      Width="{StaticResource ChipWidth}"
-                      IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
-                      Visibility="{x:Bind VisibleWhen(ViewModel.Pane1.IsVisible), Mode=OneWay}"
-                      ItemsSource="{x:Bind ViewModel.Pane1.ProductOptions}"
-                      SelectedIndex="{x:Bind ViewModel.Pane1.ProductIndex, Mode=TwoWay}"
-                      InspectFraction="{x:Bind ViewModel.Pane1.InspectFraction, Mode=OneWay}"
-                      IsInspectVisible="{x:Bind ViewModel.Pane1.IsInspectMarkerVisible, Mode=OneWay}"/>
-
-            <!-- top-left (quad) -->
-            <controls:ProductColorRampComboBox
-                      Grid.Row="0" Grid.Column="0"
-                      Margin="0,0,0,6"
-                      Width="{StaticResource ChipWidth}"
-                      IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
-                      Visibility="{x:Bind VisibleWhen(ViewModel.Pane2.IsVisible), Mode=OneWay}"
-                      ItemsSource="{x:Bind ViewModel.Pane2.ProductOptions}"
-                      SelectedIndex="{x:Bind ViewModel.Pane2.ProductIndex, Mode=TwoWay}"
-                      InspectFraction="{x:Bind ViewModel.Pane2.InspectFraction, Mode=OneWay}"
-                      IsInspectVisible="{x:Bind ViewModel.Pane2.IsInspectMarkerVisible, Mode=OneWay}"/>
-
-            <!-- top-right (quad) -->
-            <controls:ProductColorRampComboBox
-                      Grid.Row="0" Grid.Column="1"
-                      Margin="6,0,0,6"
-                      Width="{StaticResource ChipWidth}"
-                      IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
-                      Visibility="{x:Bind VisibleWhen(ViewModel.Pane3.IsVisible), Mode=OneWay}"
-                      ItemsSource="{x:Bind ViewModel.Pane3.ProductOptions}"
-                      SelectedIndex="{x:Bind ViewModel.Pane3.ProductIndex, Mode=TwoWay}"
-                      InspectFraction="{x:Bind ViewModel.Pane3.InspectFraction, Mode=OneWay}"
-                      IsInspectVisible="{x:Bind ViewModel.Pane3.IsInspectMarkerVisible, Mode=OneWay}"/>
+        <!-- Segmented scrubber: one cell per frame (ViewModel.Segments), each lighting up as its frame
+             decodes — the load indicator for the whole loop. The playhead is repositioned in
+             code-behind over the current segment; pointer press/drag seeks. It measures to zero width
+             on its own (EqualCellsPanel returns 0 under infinite width), which is what lets the
+             control row below define the module width. -->
+        <Grid x:Name="ScrubberHost"
+              Grid.Row="0"
+              Height="16"
+              Background="Transparent"
+              IsHitTestVisible="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
+              Opacity="{x:Bind ScrubberOpacity(ViewModel.IsTransportEnabled), Mode=OneWay}"
+              SizeChanged="OnScrubberSizeChanged"
+              PointerPressed="OnScrubberPointerPressed"
+              PointerMoved="OnScrubberPointerMoved"
+              PointerReleased="OnScrubberPointerReleased"
+              PointerCaptureLost="OnScrubberPointerReleased"
+              PointerCanceled="OnScrubberPointerReleased">
+            <!-- Always-present track so the scrubber occupies the same footprint whether or not a loop
+                 is loaded (the cells render on top as frames decode). -->
+            <Border Height="6"
+                    VerticalAlignment="Center"
+                    CornerRadius="3"
+                    Background="{ThemeResource ControlFillColorSecondaryBrush}"/>
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Segments, Mode=OneWay}"
+                          IsHitTestVisible="False"
+                          VerticalAlignment="Center"
+                          Height="8">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <layout:EqualCellsPanel/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RadarFrameSegment">
+                        <Border Margin="1,0"
+                                CornerRadius="2"
+                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                Opacity="{x:Bind ReadyOpacity, Mode=OneWay}"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Border x:Name="Playhead"
+                    Width="3"
+                    Height="16"
+                    CornerRadius="1.5"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource TextFillColorPrimaryBrush}"
+                    IsHitTestVisible="False">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="PlayheadTransform"/>
+                </Border.RenderTransform>
+            </Border>
         </Grid>
 
-        <Border Grid.Column="1" Style="{StaticResource BarDividerStyle}"/>
+        <!-- Control row. EVERY text column has a reserved fixed width (see the header note) so the
+             module — and the scrubber above it — never changes width as the readouts update. -->
+        <Grid Grid.Row="1" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/> <!-- prev -->
+                <ColumnDefinition Width="Auto"/> <!-- play/stop -->
+                <ColumnDefinition Width="Auto"/> <!-- next -->
+                <ColumnDefinition Width="52"/>   <!-- frame N / M -->
+                <ColumnDefinition Width="Auto"/> <!-- divider -->
+                <ColumnDefinition Width="Auto"/> <!-- site readout, stacked 2x2 -->
+            </Grid.ColumnDefinitions>
 
-        <!-- ============================ GLOBAL TIME MODULE ============================
-             Everything time-related, in two rows. The grid is auto-width, so row 1 (all fixed widths)
-             sets the module width and row 0's scrubber stretches to match it exactly. -->
-        <Grid Grid.Column="2" VerticalAlignment="Center" RowSpacing="8">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- segmented scrubber -->
-                <RowDefinition Height="Auto"/> <!-- tilt · transport · frame · site readout -->
-            </Grid.RowDefinitions>
+            <Button Grid.Column="0"
+                    Style="{StaticResource TransportButtonStyle}"
+                    Width="30"
+                    Height="30"
+                    Click="OnPrevClick"
+                    IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
+                    ToolTipService.ToolTip="Previous frame">
+                <FontIcon Glyph="&#xE892;" FontSize="13"/>
+            </Button>
+            <Button Grid.Column="1"
+                    Style="{StaticResource TransportButtonStyle}"
+                    Width="38"
+                    Height="38"
+                    Click="OnPlayStopClick"
+                    IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
+                    ToolTipService.ToolTip="Play / stop (stop returns to the newest frame)">
+                <FontIcon Glyph="{x:Bind PlayStopGlyph(ViewModel.IsPlaying), Mode=OneWay}" FontSize="17"/>
+            </Button>
+            <Button Grid.Column="2"
+                    Style="{StaticResource TransportButtonStyle}"
+                    Width="30"
+                    Height="30"
+                    Click="OnNextClick"
+                    IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
+                    ToolTipService.ToolTip="Next frame">
+                <FontIcon Glyph="&#xE893;" FontSize="13"/>
+            </Button>
 
-            <!-- Segmented scrubber: one cell per frame (ViewModel.Segments), each lighting up as its frame
-                 decodes — the load indicator for the whole loop. The playhead is repositioned in
-                 code-behind over the current segment; pointer press/drag seeks. It measures to zero width
-                 on its own (EqualCellsPanel returns 0 under infinite width), which is what lets the
-                 control row below define the module width. -->
-            <Grid x:Name="ScrubberHost"
-                  Grid.Row="0"
-                  Height="16"
-                  Background="Transparent"
-                  IsHitTestVisible="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
-                  Opacity="{x:Bind ScrubberOpacity(ViewModel.IsTransportEnabled), Mode=OneWay}"
-                  SizeChanged="OnScrubberSizeChanged"
-                  PointerPressed="OnScrubberPointerPressed"
-                  PointerMoved="OnScrubberPointerMoved"
-                  PointerReleased="OnScrubberPointerReleased"
-                  PointerCaptureLost="OnScrubberPointerReleased"
-                  PointerCanceled="OnScrubberPointerReleased">
-                <!-- Always-present track so the scrubber occupies the same footprint whether or not a loop
-                     is loaded (the cells render on top as frames decode). -->
-                <Border Height="6"
-                        VerticalAlignment="Center"
-                        CornerRadius="3"
-                        Background="{ThemeResource ControlFillColorSecondaryBrush}"/>
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Segments, Mode=OneWay}"
-                              IsHitTestVisible="False"
-                              VerticalAlignment="Center"
-                              Height="8">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <layout:EqualCellsPanel/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:RadarFrameSegment">
-                            <Border Margin="1,0"
-                                    CornerRadius="2"
-                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
-                                    Opacity="{x:Bind ReadyOpacity, Mode=OneWay}"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <Border x:Name="Playhead"
-                        Width="3"
-                        Height="16"
-                        CornerRadius="1.5"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Center"
-                        Background="{ThemeResource TextFillColorPrimaryBrush}"
-                        IsHitTestVisible="False">
-                    <Border.RenderTransform>
-                        <TranslateTransform x:Name="PlayheadTransform"/>
-                    </Border.RenderTransform>
-                </Border>
-            </Grid>
+            <!-- Frame N/M (current / total). -->
+            <TextBlock Grid.Column="3"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center"
+                       Text="{x:Bind FrameCountText(ViewModel.CurrentFrameIndex, ViewModel.MaxFrameIndex), Mode=OneWay}"
+                       FontSize="{StaticResource ReadoutFontSize}"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                       ToolTipService.ToolTip="Which frame of the loop is on screen"/>
+            <Border Grid.Column="4" Style="{StaticResource BarDividerStyle}"/>
 
-            <!-- Control row. EVERY text column has a reserved fixed width (see the header note) so the
-                 module — and the scrubber above it — never changes width as the readouts update. -->
-            <Grid Grid.Row="1" ColumnSpacing="10">
+            <!-- ===== SITE READOUT — a 2x2 block, not a line =====
+                   10:42 PM   2 min ago            row 0: WHEN (time of the frame on screen,
+                   KTLX       VCP 212 · precip …   then how old the newest one is)
+                                                   row 1: WHERE (site, then how it's scanning)
+
+                 It was one long line; stacking it halves the readout's footprint, which is the
+                 whole point — that width came straight off the time module (and so off the
+                 scrubber), buying back room in the bar for the bigger temporal pills at centre.
+                 The pairing also reads better than the old order did: the two TIME facts share a
+                 row, the two SITE facts share the row under it, and each column's two values line
+                 up on one left edge.
+
+                 ⚠️ Both columns keep a RESERVED FIXED WIDTH for the same reason the old row did —
+                 the module is auto-width, so any readout free to resize (the age ticking over, a
+                 VCP change) would resize the scrubber above and reflow every one of its cells. -->
+            <Grid Grid.Column="5"
+                  VerticalAlignment="Center"
+                  RowSpacing="2"
+                  ColumnSpacing="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- frame time · age -->
+                    <RowDefinition Height="Auto"/> <!-- site ICAO · scan strategy -->
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/> <!-- tilt -->
-                    <ColumnDefinition Width="Auto"/> <!-- prev -->
-                    <ColumnDefinition Width="Auto"/> <!-- play/stop -->
-                    <ColumnDefinition Width="Auto"/> <!-- next -->
-                    <ColumnDefinition Width="52"/>   <!-- frame N / M -->
-                    <ColumnDefinition Width="Auto"/> <!-- divider -->
-                    <ColumnDefinition Width="Auto"/> <!-- site readout, stacked 2x2 -->
+                    <ColumnDefinition Width="64"/>  <!-- frame time / ICAO -->
+                    <ColumnDefinition Width="200"/> <!-- age / scan strategy -->
                 </Grid.ColumnDefinitions>
 
-                <!-- Tilt (elevation). Data-driven from ViewModel.RadarTiltOptions, read from the VCP's
-                     elevation table carried in every cached tilt — so the choices are what this radar
-                     actually scans right now, and they follow a VCP change. GLOBAL for v1: every pane
-                     shows the same elevation, because a different tilt is a different VOLUME (a second
-                     frame set), not just a different build of the same frame. When per-pane tilt lands
-                     this control moves into the chip. -->
-                <controls:TiltComboBox Grid.Column="0"
-                          ItemsSource="{x:Bind ViewModel.RadarTiltOptions}"
-                          SelectedIndex="{x:Bind ViewModel.RadarTiltIndex, Mode=TwoWay}"
-                          IsEnabled="{x:Bind ViewModel.CanSelectTilt, Mode=OneWay}"
-                          ToolTipService.ToolTip="Elevation angle (tilt)"/>
-
-                <Button Grid.Column="1"
-                        Style="{StaticResource TransportButtonStyle}"
-                        Width="30"
-                        Height="30"
-                        Click="OnPrevClick"
-                        IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
-                        ToolTipService.ToolTip="Previous frame">
-                    <FontIcon Glyph="&#xE892;" FontSize="13"/>
-                </Button>
-                <Button Grid.Column="2"
-                        Style="{StaticResource TransportButtonStyle}"
-                        Width="38"
-                        Height="38"
-                        Click="OnPlayStopClick"
-                        IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
-                        ToolTipService.ToolTip="Play / stop (stop returns to the newest frame)">
-                    <FontIcon Glyph="{x:Bind PlayStopGlyph(ViewModel.IsPlaying), Mode=OneWay}" FontSize="17"/>
-                </Button>
-                <Button Grid.Column="3"
-                        Style="{StaticResource TransportButtonStyle}"
-                        Width="30"
-                        Height="30"
-                        Click="OnNextClick"
-                        IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
-                        ToolTipService.ToolTip="Next frame">
-                    <FontIcon Glyph="&#xE893;" FontSize="13"/>
-                </Button>
-
-                <!-- Frame N/M (current / total). -->
-                <TextBlock Grid.Column="4"
-                           HorizontalAlignment="Right"
+                <!-- The DISPLAYED frame's time (the one you scrubbed to), not the newest. -->
+                <TextBlock Grid.Row="0" Grid.Column="0"
                            VerticalAlignment="Center"
-                           Text="{x:Bind FrameCountText(ViewModel.CurrentFrameIndex, ViewModel.MaxFrameIndex), Mode=OneWay}"
+                           Text="{x:Bind ViewModel.CurrentFrameTimeText, Mode=OneWay}"
                            FontSize="{StaticResource ReadoutFontSize}"
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                           ToolTipService.ToolTip="Which frame of the loop is on screen"/>
-                <Border Grid.Column="5" Style="{StaticResource BarDividerStyle}" Height="20"/>
+                           ToolTipService.ToolTip="When the frame on screen was scanned"/>
+                <!-- Age of the freshest frame, color-ramped fresh(green) to stale(red) by AgeBrush so
+                     freshness reads at a glance. Sits beside the frame time because the two together
+                     answer one question: how current is what I'm looking at. -->
+                <TextBlock Grid.Row="0" Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Text="{x:Bind ViewModel.RadarAgeText, Mode=OneWay}"
+                           FontSize="{StaticResource ReadoutFontSize}"
+                           Foreground="{x:Bind AgeBrush(ViewModel.RadarAgeMinutes), Mode=OneWay}"
+                           ToolTipService.ToolTip="How long ago the newest available frame was scanned. Green = fresh, red = stale."/>
 
-                <!-- ===== SITE READOUT — a 2x2 block, not a line =====
-                       10:42 PM   2 min ago            row 0: WHEN (time of the frame on screen,
-                       KTLX       VCP 212 · precip …   then how old the newest one is)
-                                                       row 1: WHERE (site, then how it's scanning)
-
-                     It was one long line; stacking it halves the readout's footprint, which is the
-                     whole point — that width came straight off the time module (and so off the
-                     scrubber), buying back room in the bar for the bigger temporal pills at centre.
-                     The pairing also reads better than the old order did: the two TIME facts share a
-                     row, the two SITE facts share the row under it, and each column's two values line
-                     up on one left edge.
-
-                     ⚠️ Both columns keep a RESERVED FIXED WIDTH for the same reason the old row did —
-                     the module is auto-width, so any readout free to resize (the age ticking over, a
-                     VCP change) would resize the scrubber above and reflow every one of its cells. -->
-                <Grid Grid.Column="6"
-                      VerticalAlignment="Center"
-                      RowSpacing="2"
-                      ColumnSpacing="10">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/> <!-- frame time · age -->
-                        <RowDefinition Height="Auto"/> <!-- site ICAO · scan strategy -->
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="64"/>  <!-- frame time / ICAO -->
-                        <ColumnDefinition Width="200"/> <!-- age / scan strategy -->
-                    </Grid.ColumnDefinitions>
-
-                    <!-- The DISPLAYED frame's time (the one you scrubbed to), not the newest. -->
-                    <TextBlock Grid.Row="0" Grid.Column="0"
-                               VerticalAlignment="Center"
-                               Text="{x:Bind ViewModel.CurrentFrameTimeText, Mode=OneWay}"
-                               FontSize="{StaticResource ReadoutFontSize}"
-                               ToolTipService.ToolTip="When the frame on screen was scanned"/>
-                    <!-- Age of the freshest frame, color-ramped fresh(green) to stale(red) by AgeBrush so
-                         freshness reads at a glance. Sits beside the frame time because the two together
-                         answer one question: how current is what I'm looking at. -->
-                    <TextBlock Grid.Row="0" Grid.Column="1"
-                               VerticalAlignment="Center"
-                               Text="{x:Bind ViewModel.RadarAgeText, Mode=OneWay}"
-                               FontSize="{StaticResource ReadoutFontSize}"
-                               Foreground="{x:Bind AgeBrush(ViewModel.RadarAgeMinutes), Mode=OneWay}"
-                               ToolTipService.ToolTip="How long ago the newest available frame was scanned. Green = fresh, red = stale."/>
-
-                    <!-- The site. The location name is the ICAO's tooltip — the ICAO is the real label —
-                         and the rendered elevation is the Tilt combo, not here. -->
-                    <TextBlock Grid.Row="1" Grid.Column="0"
-                               VerticalAlignment="Center"
-                               Text="{x:Bind ViewModel.RadarSiteId, Mode=OneWay}"
-                               FontWeight="SemiBold"
-                               FontSize="{StaticResource ReadoutFontSize}"
-                               ToolTipService.ToolTip="{x:Bind ViewModel.RadarSiteName, Mode=OneWay}"/>
-                    <!-- Scan strategy for the whole volume; see RadarVcpText for why SAILS belongs here.
-                         Beside the ICAO because it describes THAT radar's current behaviour. -->
-                    <TextBlock Grid.Row="1" Grid.Column="1"
-                               VerticalAlignment="Center"
-                               Text="{x:Bind RadarVcpText(ViewModel.RadarModeText), Mode=OneWay}"
-                               FontSize="{StaticResource ReadoutFontSize}"
-                               TextTrimming="CharacterEllipsis"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               ToolTipService.ToolTip="The radar's scan strategy for the whole volume. VCP = Volume Coverage Pattern, a number chosen by the operator: 'precip' patterns scan faster and more often for rain/storms; 'clear-air' patterns scan slower for better sensitivity in dry weather. SAILS/MRLE ×N means the radar squeezes in N extra scans of the lowest tilt per volume, giving fresher data near the ground during fast-changing weather."/>
-                </Grid>
+                <!-- The site. The location name is the ICAO's tooltip — the ICAO is the real label —
+                     and the rendered elevation is the Tilt combo, not here. -->
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                           VerticalAlignment="Center"
+                           Text="{x:Bind ViewModel.RadarSiteId, Mode=OneWay}"
+                           FontWeight="SemiBold"
+                           FontSize="{StaticResource ReadoutFontSize}"
+                           ToolTipService.ToolTip="{x:Bind ViewModel.RadarSiteName, Mode=OneWay}"/>
+                <!-- Scan strategy for the whole volume; see RadarVcpText for why SAILS belongs here.
+                     Beside the ICAO because it describes THAT radar's current behaviour. -->
+                <TextBlock Grid.Row="1" Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Text="{x:Bind RadarVcpText(ViewModel.RadarModeText), Mode=OneWay}"
+                           FontSize="{StaticResource ReadoutFontSize}"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           ToolTipService.ToolTip="The radar's scan strategy for the whole volume. VCP = Volume Coverage Pattern, a number chosen by the operator: 'precip' patterns scan faster and more often for rain/storms; 'clear-air' patterns scan slower for better sensitivity in dry weather. SAILS/MRLE ×N means the radar squeezes in N extra scans of the lowest tilt per volume, giving fresher data near the ground during fast-changing weather."/>
             </Grid>
         </Grid>
     </Grid>

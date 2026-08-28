@@ -12,8 +12,8 @@ namespace Anvil.Controls.Primitives
 	/// <summary>
 	/// A radar product's color scale as a compact bar (see ProductColorRamp.xaml): the ramp, its min/max
 	/// values, the live Inspect tick, and a hover read-out of the value under the pointer. Parted out from
-	/// the selector so it can be reused — <see cref="ProductColorRampComboBox"/> renders one in its closed
-	/// area (with the scale) and one per dropdown row (without).
+	/// the selector back when the two shared one 160px chip in the bottom bar; in the pane notch it stands
+	/// alone beside <see cref="ProductComboBox"/>, which draws no ramp at all.
 	/// </summary>
 	public sealed partial class ProductColorRamp : UserControl
 	{

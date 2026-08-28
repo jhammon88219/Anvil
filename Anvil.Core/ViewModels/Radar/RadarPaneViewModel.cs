@@ -12,11 +12,12 @@ namespace Anvil.ViewModels
 	///
 	/// <para>Four are always constructed; <see cref="IsVisible"/> follows the layout. Keeping the hidden
 	/// ones alive means a pane remembers its product across a trip through single-pane, and it lets the
-	/// bar's chips bind to fixed properties (Pane0…Pane3) instead of an index into a mutating list.</para>
+	/// notches bind to fixed properties (Pane0…Pane3) instead of an index into a mutating list.</para>
 	///
-	/// <para>The chip in the bottom bar binds straight to this: the Product combo IS the chip, drawing the
-	/// product's colour ramp beside its name, so the one control is simultaneously this pane's selector,
-	/// its legend, and — via <see cref="InspectFraction"/> — its live Inspect readout.</para>
+	/// <para>The pane's NOTCH binds straight to this - the small hideable island of chrome at the top of
+	/// that pane (App: Composites/PaneNotchContent). It holds the product selector, the colour-ramp legend
+	/// and, for now, the shared tilt. The selector and the legend used to be ONE control, a chip in the
+	/// bottom bar; they came apart when the notch gave them room.</para>
 	/// </summary>
 	public sealed class RadarPaneViewModel : ObservableObject
 	{
@@ -45,7 +46,7 @@ namespace Anvil.ViewModels
 
 		private bool _isVisible;
 
-		/// <summary>Whether the current layout shows this pane. Drives the chip's visibility in the bar.</summary>
+		/// <summary>Whether the current layout shows this pane. Drives its notch's visibility.</summary>
 		public bool IsVisible
 		{
 			get => _isVisible;
@@ -54,7 +55,7 @@ namespace Anvil.ViewModels
 
 		private int _productIndex;
 
-		/// <summary>Index into <see cref="ProductOptions"/> — what this pane draws. Two-way with the chip.</summary>
+		/// <summary>Index into <see cref="ProductOptions"/> — what this pane draws. Two-way with the notch's product selector.</summary>
 		public int ProductIndex
 		{
 			get => _productIndex;
@@ -77,7 +78,7 @@ namespace Anvil.ViewModels
 		/// <summary>The JS product id (radar-products.js) this pane renders.</summary>
 		public string ProductId => SelectedProduct?.Id ?? "reflectivity";
 
-		/// <summary>Short label ("Ref"/"Vel"/…) — this pane's watermark, drawn in its corner by the page.</summary>
+		/// <summary>Short label ("Ref"/"Vel"/…) shown in this pane's notch.</summary>
 		public string ShortLabel => SelectedProduct?.ShortLabel ?? string.Empty;
 
 		/// <summary>
@@ -98,7 +99,7 @@ namespace Anvil.ViewModels
 		// ── Inspect ────────────────────────────────────────────────────────────────────────────────────
 		// Inspect is a GLOBAL instrument — one armed cursor over the map — but the VALUE is per pane: at
 		// one lat/lon each pane reads its own product's grid, so four panes give four readings of the same
-		// point, each ticking on its own chip ramp.
+		// point, each ticking on its own notch ramp.
 		private bool _hasInspectValue;
 		private double _inspectFraction;
 		private string _inspectValueText = string.Empty;
@@ -109,7 +110,7 @@ namespace Anvil.ViewModels
 		/// <summary>The inspected value formatted with this pane's product unit (e.g. "47.5 dBZ").</summary>
 		public string InspectValueText => _inspectValueText;
 
-		/// <summary>Whether the live inspect tick should be drawn on this pane's chip ramp.</summary>
+		/// <summary>Whether the live inspect tick should be drawn on this pane's notch ramp.</summary>
 		public bool IsInspectMarkerVisible => _isInspecting && _hasInspectValue && Ramp is not null;
 
 		private bool _isInspecting;
