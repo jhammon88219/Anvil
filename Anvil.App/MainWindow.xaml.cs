@@ -72,11 +72,14 @@ namespace Anvil
 
 		// The tooltip is where the CURRENT layout is named, since the icon now shows the next one. Takes
 		// the current layout (not the next), and states both halves so the key is never ambiguous.
+		// ⚠️ It also carries what the MARK cannot: the key is nameless now, and while the numeral says how
+		// many panes the next click gives you, nothing on it explains the accent cell. One sentence here is
+		// cheaper than a second visual tier on a 24px mark.
 		public string PaneLayoutTooltip(PaneLayout layout) => layout switch
 		{
-			PaneLayout.Single => "Single pane — click for two across",
-			PaneLayout.TwoAcross => "Two panes — click for four",
-			_ => "Four panes — click for single",
+			PaneLayout.Single => "One pane — click for two across. The accent cell is the main pane.",
+			PaneLayout.TwoAcross => "Two panes — click for four. The accent cell is the main pane.",
+			_ => "Four panes — click for one. The accent cell is the main pane.",
 		};
 
 		// The view knows only "advance"; the ORDER is the view model's (Radar.NextPaneLayout).
@@ -104,21 +107,21 @@ namespace Anvil
 		{
 			var side = BarKeyMetrics.SideFor(e.NewSize.Height);
 			var glyph = BarKeyMetrics.LabelledGlyphFor(side);
-			var icon = BarKeyMetrics.DrawnIconFor(side);
 
-			// The names share ONE size — the one that fits the widest of them ("Settings") — so the cluster
-			// reads as a set rather than three keys with three type sizes. Probe measured once; the labels
-			// are fixed strings. ⚠️ "Settings" was the widest when this cluster held five keys too, so
-			// neither dropping the Map and Dev keys nor moving Timeframe to the centre changed the fitted
-			// size — the centred temporal keys are unaffected either way.
+			// The two names share ONE size — the one that fits the wider of them ("Settings") — so the
+			// cluster reads as a set rather than as keys with their own type sizes. Probe measured once; the
+			// labels are fixed strings. ⚠️ "Settings" has been the widest through every change to this
+			// cluster (five keys, then three, then losing "Panes"), so the fitted size has never moved and
+			// the centred temporal keys have never had to.
 			if (_rightNameProbe <= 0)
 			{
-				_rightNameProbe = BarKeyMetrics.ProbeWidthOf(PaneName, SitesName, SettingsName);
+				_rightNameProbe = BarKeyMetrics.ProbeWidthOf(SitesName, SettingsName);
 			}
 
 			var nameFont = BarKeyMetrics.NameFontFor(side, _rightNameProbe);
 
-			foreach (var key in new Control[] { PaneLayoutKey, SitesKey, SettingsKey })
+			// ⚠️ The pane key is NOT in this loop — it is the one key wider than the square (below).
+			foreach (var key in new Control[] { SitesKey, SettingsKey })
 			{
 				if (key.Width != side)
 				{
@@ -138,18 +141,39 @@ namespace Anvil
 				name.FontSize = nameFont;
 			}
 
-			PaneName.FontSize = nameFont; // the pane key's mark is drawn, so only its name takes a font
+			// ===== The pane key's mark =====
+			// It is the one mark in the bar that is WIDE rather than square (it is a picture of the map
+			// band), and the one that is NAMELESS and textless — so nothing above applies to it and every
+			// number comes from the wide-mark helpers instead. All three layouts are sized even though only
+			// one is visible; visibility flips as the layout cycles, and a hidden one must already be right.
+			// ⚠️ This key is WIDER THAN THE SQUARE. The mark has to be large for the quad "4" to read at
+			// all, and at that size a square key would crop it to its own border — so the key widens to hold
+			// the mark rather than the mark shrinking to fit the key. Height still comes from the stretch,
+			// like every other key; only the width is ours to set.
+			var keyWidth = BarKeyMetrics.WideKeyWidthFor(side);
+			if (PaneLayoutKey.Width != keyWidth)
+			{
+				PaneLayoutKey.Width = keyWidth;
+			}
 
-			// The pane key's drawn icons carry no font, so they scale here instead. All three are sized
-			// even though only one is visible — visibility flips as the layout cycles.
+			var markWidth = BarKeyMetrics.WideIconWidthFor(side);
+			var markHeight = BarKeyMetrics.WideIconHeightFor(side);
+			var markGap = BarKeyMetrics.WideIconGapFor(side);
+
 			foreach (var paneIcon in new[] { SinglePaneIcon, DualPaneIcon, QuadPaneIcon })
 			{
-				if (paneIcon.Width != icon)
+				if (paneIcon.Width != markWidth)
 				{
-					paneIcon.Width = icon;
-					paneIcon.Height = icon;
+					paneIcon.Width = markWidth;
+					paneIcon.Height = markHeight;
 				}
 			}
+
+			// The grooves between cells, scaled with the mark rather than left at a fixed 2px — on a tall
+			// bar a fixed gap closes up and the four quad cells read as one block.
+			DualPaneIcon.ColumnSpacing = markGap;
+			QuadPaneIcon.ColumnSpacing = markGap;
+			QuadPaneIcon.RowSpacing = markGap;
 		}
 
 		// Widest right-cluster name at the probe size — measured once (fixed strings).

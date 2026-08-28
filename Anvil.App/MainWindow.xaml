@@ -11,29 +11,33 @@
        ├─────────────────────────────┴─────────────────────────────┤
        │                       ╭─ Hide ─╮                          │  OverlayBar pull-tab
        │ [chip] │ ══ scrubber ══                                    │
-       │        │ tilt ◀▶ frame · site   ↺   ((•))  ☁     ▫▫    ⚙  🌐  📡  ⚙ │
-       │                              PastCast NowCast ForeCast  Panes  Dev Map Sites Settings │
+       │        │ tilt ◀▶ frame · site   ↺   ((•))  ☁   ⋮      ▤  📡  ⚙ │
+       │                              PastCast NowCast ForeCast    Sites Settings │
        └────────────────────────────────┴──────────────────────────┘
-                                        ↑ bar midpoint — the keys straddle it, always
-                                                                 ↑ pane layout: ONE key that
-                                                                   CYCLES 1→2→4, its icon
-                                                                   drawing what the NEXT click
-                                                                   gives you; then the window
-                                                                   buttons (wider gap between)
+                                        ↑ bar midpoint — the four centre keys straddle it
+                                                          ↑ ⋮ = the Timeframe panel (nameless,
+                                                            half width, a window latch among
+                                                            mode toggles)
+                                                                 ↑ ▤ pane layout: ONE key that
+                                                                   CYCLES 1→2→4. Its mark draws
+                                                                   what the NEXT click gives you,
+                                                                   with the count inside the
+                                                                   accent anchor cell and NO name
 
-     ⚠️ EVERY key in the bar is a SQUARE holding a MARK OVER A NAME — the three temporal keys and all
-     five on the right. The right cluster was glyph-only until its keys were named; the names cost no
-     width (they are fitted inside the square the key already had), so the centred keys did not move.
+     ⚠️ MOST keys in the bar are a SQUARE holding a MARK OVER A NAME. TWO are not, both nameless and
+     both on purpose: the ⋮ Timeframe key (half width, so it cannot read as a fourth temporal mode) and
+     the pane-layout key (a WIDE mark — it is a picture of the map band — carrying its pane count inside
+     the anchor cell instead of a label under it). See Layout/BarKeyMetrics.
 
      Left of the bar is RadarControls (per-pane chips + the one global time module); the CENTER is the
-     three temporal mode keys, held on the bar's exact midpoint by a [*, Auto, *] grid so no amount of
-     growth on either side can shift them (quad panes add chips on the left — the keys do not move);
-     right is the pane-layout key then the app-wide window buttons. The gaps between the three
-     clusters are empty bar, by design.
+     three temporal mode keys plus the ⋮ panel key, held on the bar's midpoint by a [*, Auto, *] grid so
+     no amount of growth on either side can shift them (quad panes add chips on the left — the keys do
+     not move); right is the pane-layout key then the app-wide window buttons, all on one spacing. The
+     gaps between the three clusters are empty bar, by design.
 
-     ⚠️ EVERY key in this bar — the three temporal keys and all five on the right — takes its LOOK from
-     ONE style chain in Controls/Styles.xaml (BarChromeButtonStyle → BarKeyToggleStyle for the seven that
-     latch / BarIconButtonStyle for the one that acts):
+     ⚠️ EVERY key in this bar takes its LOOK from ONE style chain in Controls/Styles.xaml
+     (BarChromeButtonStyle → BarKeyToggleStyle for the ones that latch / BarIconButtonStyle for the one
+     that acts):
      hairline at rest, accent BORDER + raised face when ON. And they are all the SAME SQUARE: neither
      cluster hardcodes a size, each measures the height its row was given and mirrors it onto Width, via
      the shared Layout/BarKeyMetrics — which also fits the NAMES, so a word is the same size on both
@@ -210,48 +214,70 @@
                              storm, and a stacked pair halves the vertical extent that matters most on a
                              wide monitor.
 
-                             ⚠️ The ICONS are drawn (Rectangles), not font glyphs: Segoe Fluent has no clean
-                             1 / 2 / 4-pane trio, and a drawn icon states the layout exactly — each is a
-                             little picture of a pane grid. All three are stacked in the one cell and only
-                             the NEXT layout's is visible. They are STROKED, not filled: everything beside
-                             them is a thin-outline Segoe Fluent glyph, and solid blocks read heavier and
-                             denser than their neighbours. The brush is fixed because Shapes do not inherit
-                             the content Foreground that the template's states drive.
-                             ⚠️ Hollow shapes do NOT cost the key its click target — the template's Surface
-                             Border has Background="Transparent", which hit-tests across the whole key. -->
+                             ⚠️ THE MARK IS A LITERAL PICTURE OF THE MAP BAND, so unlike every other
+                             mark in the bar its box is NOT SQUARE — it is wide (26:14, see
+                             BarKeyMetrics.WideIconAspect), and the cells inside divide that one box. That
+                             is what makes the three silhouettes read as different layouts rather than as
+                             three grids: one wide rectangle, then two half-wide ones, then four. All three
+                             are stacked in the same cell and only the NEXT layout's is visible.
+
+                             ⚠️ THE MARK CARRIES NO TEXT AT ALL — no name under it, no count inside it.
+                             Just the cells, with the ANCHOR one filled in accent: pane 0, the LEFT cell in
+                             two-across and the BOTTOM-LEFT in quad, matching where pane 0 actually sits on
+                             the map. Everything in words is the tooltip's job.
+                             ⚠️ History, so it is not re-attempted blind: the pane COUNT was put inside the
+                             anchor cell as a numeral (1 / 2 / 4), which is why the label came off and the
+                             mark grew to 82% of the key's width. It worked in single and two-across and
+                             failed in QUAD — that anchor cell is under a quarter of the mark's height, so
+                             the "4" stayed a smudge even at the largest mark the bar can hold. Centring
+                             the digit over the whole mark was mocked up and rejected too: it lands on the
+                             seam between cells, so it cannot share the mark with an accent-filled anchor
+                             without half the glyph losing contrast. The count went; the anchor stayed.
+                             ⚠️ Consequence: the mark is now sized for its own shapes rather than for a
+                             digit, so WideIconRatio can be lowered freely if it reads too large. It was
+                             set for legibility that no longer has to be served.
+
+                             ⚠️ Drawn (Rectangles + TextBlocks), not a font glyph: Segoe Fluent has no
+                             clean 1 / 2 / 4-pane trio. The unfilled cells stay STROKED because everything
+                             beside them is a thin-outline glyph and solid blocks read heavier; the anchor
+                             is the deliberate exception, and its accent is the only one in the bar that
+                             does not mean "this key is on" (this key never lights — see above). Brushes
+                             are fixed because Shapes do not inherit the content Foreground the template
+                             drives.
+                             ⚠️ Hollow shapes do NOT cost the key its click target — the template's
+                             Surface Border has Background="Transparent", which hit-tests the whole key.
+                             ⚠️ THE KEY ITSELF IS WIDER THAN THE SQUARE (BarKeyMetrics.WideKeyWidthFor):
+                             at this mark size a square key would crop the mark to its own border, so the
+                             key widens to hold the mark rather than the mark shrinking to fit. It costs
+                             the bar's centring nothing — this cluster sits in a star column.
+                             ⚠️ No Width/Height/spacing in this markup: every one of them is measured off
+                             the bar in OnRightClusterSizeChanged. Pin any of it here and the mark stops
+                             tracking the bar's height. -->
                         <Button x:Name="PaneLayoutKey"
                                 Grid.Column="0"
                                 Style="{StaticResource BarIconButtonStyle}"
                                 ToolTipService.ToolTip="{x:Bind PaneLayoutTooltip(ViewModel.Radar.PaneLayout), Mode=OneWay}"
                                 Click="OnCyclePaneLayout">
-                            <!-- Mark over a NAME, like every other key in the bar. ⚠️ The name is the
-                                 fixed word "Panes", NOT the layout: the icon already changes per click,
-                                 and a name that changed with it would be a second moving part saying the
-                                 same thing — and it would read as a readout of the CURRENT layout, which
-                                 is precisely the confusion the icon rule exists to avoid. What the click
-                                 does in words stays in the tooltip. -->
-                            <Grid Margin="3,0" RowSpacing="2">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/> <!-- drawn icon -->
-                                    <RowDefinition Height="Auto"/> <!-- name -->
-                                </Grid.RowDefinitions>
-                                <Grid Grid.Row="0" HorizontalAlignment="Center">
-                                <Grid x:Name="SinglePaneIcon" Width="14" Height="14"
+                            <Grid>
+                                <!-- SINGLE — one wide pane, and it is the anchor. -->
+                                <Grid x:Name="SinglePaneIcon"
                                       Visibility="{x:Bind SinglePaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
-                                    <Rectangle Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
                                 </Grid>
 
-                                <Grid x:Name="DualPaneIcon" Width="14" Height="14" ColumnSpacing="2"
+                                <!-- TWO ACROSS — anchor LEFT, matching pane 0 on the map. -->
+                                <Grid x:Name="DualPaneIcon"
                                       Visibility="{x:Bind DualPaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition/>
                                         <ColumnDefinition/>
                                     </Grid.ColumnDefinitions>
-                                    <Rectangle Grid.Column="0" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
                                     <Rectangle Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
                                 </Grid>
 
-                                <Grid x:Name="QuadPaneIcon" Width="14" Height="14" ColumnSpacing="2" RowSpacing="2"
+                                <!-- QUAD — anchor BOTTOM-LEFT, matching pane 0 on the map. -->
+                                <Grid x:Name="QuadPaneIcon"
                                       Visibility="{x:Bind QuadPaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition/>
@@ -263,13 +289,9 @@
                                     </Grid.RowDefinitions>
                                     <Rectangle Grid.Row="0" Grid.Column="0" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
                                     <Rectangle Grid.Row="0" Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
-                                    <Rectangle Grid.Row="1" Grid.Column="0" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
                                     <Rectangle Grid.Row="1" Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
                                 </Grid>
-                                </Grid>
-                                <TextBlock x:Name="PaneName" Grid.Row="1"
-                                           Text="Panes"
-                                           HorizontalAlignment="Center"/>
                             </Grid>
                         </Button>
 
