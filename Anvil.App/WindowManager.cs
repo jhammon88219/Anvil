@@ -10,18 +10,21 @@ namespace Anvil
 	// ============================================================================================
 	// APP-WIDE WINDOWS (removable feature — see Windows/ + the manager.Register calls in MainWindow).
 	//
-	// Every app-wide panel (the three temporal settings panels — Past Event / Live Radar / SPC Outlooks —
-	// plus App Settings, Map Controls, Site Explorer, the Pipeline Console and the dev tools) lives in its
-	// OWN top-level OS window, not docked in MainWindow, so a multi-monitor user can park control panels on
-	// a second screen. The radar console (per-pane, Row 2) is deliberately NOT one of these; it stays in the
+	// Every app-wide panel (Timeframe, Settings, Site Explorer and the Pipeline Console) lives in its OWN
+	// top-level OS window, not docked in MainWindow, so a multi-monitor user can park control panels on a
+	// second screen. The radar console (per-pane, Row 2) is deliberately NOT one of these; it stays in the
 	// main window.
 	//
-	// MODEL — a panel IS a window. There is no docked state and no in-window copy: opening a panel's feature
-	// opens its window; closing the window turns the feature off. Each window carries a single IsOpen bool on
-	// the coordinator VM; this manager watches that state and reconciles IsOpen → a live Window. The flags are
-	// INDEPENDENT — no one-at-a-time grouping, so any combination may be open at once. Content is a fresh
-	// instance of the section control bound to the shared singleton VM, hosted headerless (the window's own
-	// content supplies the title; the native caption supplies the buttons).
+	// ⚠️ THE PANEL COUNT KEEPS FALLING, on purpose. Settings absorbed App Settings + Map Controls + Dev Tools
+	// as TABS; Timeframe then absorbed Past Event + Live Radar + SPC Outlooks the same way (so their three
+	// mode keys could go back to being plain toggles — see MapViewModel's temporal region). A new GROUP of
+	// controls is a tab of an existing panel far more often than it is a new window here.
+	//
+	// MODEL — a panel IS a window. There is no docked state and no in-window copy: each window carries a
+	// single IsOpen bool on the coordinator VM, and this manager watches that state and reconciles IsOpen →
+	// a live Window. The flags are INDEPENDENT — no one-at-a-time grouping, so any combination may be open at
+	// once. Content is a fresh instance of the section control bound to the shared singleton VM, hosted
+	// headerless (the window's own content supplies the title; the native caption supplies the buttons).
 	//
 	// ⚠️ CHROME POLICY — uniform, owned HERE (in OpenWindow), not per-registration: every panel gets a
 	// CLOSE-ONLY caption (no minimize, no maximize) and is hidden from the taskbar + Alt-Tab. A panel's hide

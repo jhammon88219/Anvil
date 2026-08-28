@@ -84,8 +84,8 @@ namespace Anvil
 
 		// ===== Right-cluster key sizing =====
 		// The three keys on the right (the cycling pane key + the Sites and Settings window buttons) are the
-		// SAME SQUARE as the three temporal keys at the bar's centre — they sit in one bar and have to read
-		// as one set. Neither
+		// SAME SQUARE as the temporal keys at the bar's centre — they sit in one bar and have to read as one
+		// set. Neither
 		// cluster hardcodes that size: each measures the height its row was given and mirrors it onto Width,
 		// through the shared Layout/BarKeyMetrics so the two halves can't drift apart.
 		//
@@ -109,8 +109,8 @@ namespace Anvil
 			// The names share ONE size — the one that fits the widest of them ("Settings") — so the cluster
 			// reads as a set rather than three keys with three type sizes. Probe measured once; the labels
 			// are fixed strings. ⚠️ "Settings" was the widest when this cluster held five keys too, so
-			// dropping the Map and Dev keys did not change the fitted size — the centred temporal keys are
-			// unaffected either way.
+			// neither dropping the Map and Dev keys nor moving Timeframe to the centre changed the fitted
+			// size — the centred temporal keys are unaffected either way.
 			if (_rightNameProbe <= 0)
 			{
 				_rightNameProbe = BarKeyMetrics.ProbeWidthOf(PaneName, SitesName, SettingsName);
@@ -316,31 +316,18 @@ namespace Anvil
 				title: "Radar Sites", width: 660, height: 470,
 				alwaysOnTop: () => ViewModel.IsSiteExplorerOnTop,
 				customChrome: true);
-			// The three temporal features each get their OWN window, so Now + Fore (which coexist as modes)
-			// can be parked side by side. Past excludes the other two by mode, so it never shares the screen.
+			// ONE window for all three timeframes, tabbed — it replaced the three separate Past/Now/Fore
+			// windows so that their mode keys could stop doubling as window latches (the ⚠️ history note is
+			// in MapViewModel's temporal region). Its key is "Timeframe", in the right cluster above.
+			// ⚠️ Sized for the TALLEST tab (PastCast), for the same reason the Settings window is: a window is
+			// sized once, at open, and a per-tab resize would fight whatever size the user dragged it to.
 			_windows.Register(
-				id: "past",
-				isOpen: () => ViewModel.IsPastWindowOpen,
-				close: () => ViewModel.IsPastWindowOpen = false,
-				buildContent: () => new Controls.Windows.PastCastWindow { ViewModel = ViewModel },
-				title: "Past Event", width: 460, height: 610,
-				alwaysOnTop: () => ViewModel.IsPastWindowOnTop,
-				customChrome: true);
-			_windows.Register(
-				id: "now",
-				isOpen: () => ViewModel.IsNowWindowOpen,
-				close: () => ViewModel.IsNowWindowOpen = false,
-				buildContent: () => new Controls.Windows.NowCastWindow { ViewModel = ViewModel },
-				title: "Live Radar", width: 460, height: 440,
-				alwaysOnTop: () => ViewModel.IsNowWindowOnTop,
-				customChrome: true);
-			_windows.Register(
-				id: "fore",
-				isOpen: () => ViewModel.IsForeWindowOpen,
-				close: () => ViewModel.IsForeWindowOpen = false,
-				buildContent: () => new Controls.Windows.ForeCastWindow { ViewModel = ViewModel },
-				title: "SPC Outlooks", width: 460, height: 340,
-				alwaysOnTop: () => ViewModel.IsForeWindowOnTop,
+				id: "temporal",
+				isOpen: () => ViewModel.IsTemporalWindowOpen,
+				close: () => ViewModel.IsTemporalWindowOpen = false,
+				buildContent: () => new Controls.Windows.TemporalWindow { ViewModel = ViewModel },
+				title: "Timeframe", width: 480, height: 700,
+				alwaysOnTop: () => ViewModel.IsTemporalWindowOnTop,
 				customChrome: true);
 			_windows.Register(
 				id: "pipeline",

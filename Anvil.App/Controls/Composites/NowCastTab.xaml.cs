@@ -2,16 +2,15 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Windows
+namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The NowCast settings panel (see the XAML header), hosted in its own OS window by
-	/// <see cref="WindowManager"/> and driven by <see cref="MapViewModel.IsNowWindowOpen"/>. Bound to the
-	/// coordinator <see cref="MapViewModel"/>.
+	/// The NowCast tab body of the Timeframe window (see the XAML header) — watch boxes, storm-based warnings
+	/// and today's storm reports. Bound to the coordinator <see cref="MapViewModel"/>.
 	/// </summary>
-	public sealed partial class NowCastWindow : UserControl
+	public sealed partial class NowCastTab : UserControl
 	{
-		public NowCastWindow()
+		public NowCastTab()
 		{
 			InitializeComponent();
 		}
@@ -28,6 +27,6 @@ namespace Anvil.Controls.Windows
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(NowCastWindow), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(NowCastTab), new PropertyMetadata(null));
 	}
 }

@@ -13,11 +13,11 @@ namespace Anvil.Controls.Composites
 {
 	/// <summary>
 	/// The overlay bar's CENTRE section: three temporal features (PastCast / NowCast / ForeCast), each a
-	/// SINGLE toggle. A click activates the mode and opens that feature's settings window (see
-	/// <see cref="PastCastWindow"/> / <see cref="NowCastWindow"/> / <see cref="ForeCastWindow"/> — three
-	/// INDEPENDENT windows); clicking the active mode flips its window open/closed, and you leave a mode by
-	/// choosing another (Past excludes Now/Fore; Now and Fore coexist). The lit state binds OneWay
-	/// to <see cref="MapViewModel.IsPastCast"/> etc.; the click routes through
+	/// SINGLE toggle that toggles ITS MODE and nothing else — unlit → on, LIT → off. Turning one on also
+	/// opens the Timeframe panel (<see cref="Anvil.Controls.Windows.TemporalWindow"/>) on that mode's tab,
+	/// but the panel belongs to its own bar key; these keys never show or hide it. You can also leave a mode
+	/// by choosing another (Past excludes Now/Fore; Now and Fore coexist). The lit state binds OneWay to
+	/// <see cref="MapViewModel.IsPastCast"/> etc.; the click routes through
 	/// <see cref="MapViewModel.ToggleTemporalMode"/>. Binds the coordinator <see cref="MapViewModel"/>.
 	/// </summary>
 	public sealed partial class TemporalToggles : UserControl
@@ -74,6 +74,21 @@ namespace Anvil.Controls.Composites
 			Apply(NowPill, NowGlyph, NowName);
 			Apply(ForePill, ForeGlyph, ForeName);
 
+			// The panel key is the same SQUARE as the trio but carries no name, so its glyph takes the solo
+			// ratio — the whole square rather than the share a name leaves over. Sized through the same
+			// helper as the rest, so it can't drift when the bar's height changes.
+			if (PanelKey.Width != side)
+			{
+				PanelKey.Width = side;
+			}
+
+			if (!PanelKey.Margin.Equals(PanelMargin(inset)))
+			{
+				PanelKey.Margin = PanelMargin(inset);
+			}
+
+			PanelGlyph.FontSize = BarKeyMetrics.SoloGlyphFor(side);
+
 			void Apply(ToggleButton pill, FontIcon glyph, TextBlock name)
 			{
 				if (pill.Width != side)
@@ -91,6 +106,16 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
+		// The panel key carries the trio's vertical inset PLUS a leading gap, so the ellipsis reads as
+		// attached to the group rather than as a fourth member of it. ⚠️ Keep the extra space on the LEFT
+		// only — a symmetric gap would centre it as one of four equals, which is what the ellipsis is
+		// deliberately not.
+		private static Thickness PanelMargin(Thickness inset) =>
+			new(PanelGap, inset.Top, 0, inset.Bottom);
+
+		/// <summary>Gap between the ForeCast key and the ellipsis, on top of the row's own ColumnSpacing.</summary>
+		private const double PanelGap = 6;
+
 		// Widest name measured at the probe size — computed once, since the three labels are fixed strings.
 		private double _probeWidth;
 
@@ -104,8 +129,9 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalToggles), new PropertyMetadata(null));
 
-		// Each mode's single toggle routes here (IsChecked is OneWay to the mode projection, so the click
-		// drives the VM, not the reverse). See MapViewModel.ToggleTemporalMode for the activate/flip rules.
+		// Each mode's toggle routes here (IsChecked is OneWay to the mode projection, so the click drives the
+		// VM, not the reverse). ToggleTemporalMode just flips that mode on or off — the panel is not this
+		// key's business any more; see MapViewModel's temporal region.
 		private void OnPastClick(object sender, RoutedEventArgs e) => ViewModel?.ToggleTemporalMode(TemporalMode.Past);
 		private void OnNowClick(object sender, RoutedEventArgs e) => ViewModel?.ToggleTemporalMode(TemporalMode.Now);
 		private void OnForeClick(object sender, RoutedEventArgs e) => ViewModel?.ToggleTemporalMode(TemporalMode.Fore);

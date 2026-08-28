@@ -31,16 +31,21 @@ namespace Anvil.Layout
 		/// layout pass, or a host that forgets to stretch). Keeps keys clickable rather than vanishing.</summary>
 		public const double MinSide = 28;
 
-		// ===== Mark size. TWO ratios — one for a font glyph, one for drawn art — because EVERY key in the
-		// bar now carries a NAME under its mark, so the mark never gets the whole square.
+		// ===== Mark size. THREE ratios: a named font glyph, a named drawn icon, and a solo glyph — because
+		// a mark that has a name under it only gets part of the square, and one that doesn't gets all of it.
 		//
-		// ⚠️ There used to be a third, SoloGlyphRatio (0.45), for the right cluster back when those keys
-		// were glyph-only. Naming them retired it: a solo mark could be half again the size of a labelled
-		// one, and nothing in the bar is solo any more. Re-add it only if a genuinely nameless key appears.
+		// ⚠️ SoloGlyphRatio was retired once, when naming the right cluster left nothing in the bar solo, on
+		// the standing condition "re-add it only if a genuinely nameless key appears". One has: the Timeframe
+		// key beside the temporal trio, which is an ellipsis and nothing else (see TemporalToggles).
 
-		/// <summary>Glyph size for a key carrying a NAME under it — every glyph key in the bar — as a
+		/// <summary>Glyph size for a key carrying a NAME under it — every named glyph key in the bar — as a
 		/// fraction of the side. Small because the name takes the rest of the square.</summary>
 		public const double LabelledGlyphRatio = 0.30;
+
+		/// <summary>Glyph size for a key with NO name, as a fraction of the side. Half again the labelled
+		/// ratio, because the mark has the whole square to itself — matching the labelled size would leave a
+		/// nameless key looking like a named one whose word failed to load.</summary>
+		public const double SoloGlyphRatio = 0.45;
 
 		/// <summary>Size of DRAWN art — the pane key's rectangles — as a fraction of the side.
 		/// <para>⚠️ Deliberately BELOW <see cref="LabelledGlyphRatio"/>, which looks like an inconsistency
@@ -55,6 +60,9 @@ namespace Anvil.Layout
 
 		/// <summary>Glyph size for a glyph-over-name key of <paramref name="side"/>.</summary>
 		public static double LabelledGlyphFor(double side) => side * LabelledGlyphRatio;
+
+		/// <summary>Glyph size for a NAMELESS key of <paramref name="side"/>.</summary>
+		public static double SoloGlyphFor(double side) => side * SoloGlyphRatio;
 
 		/// <summary>Drawn-art box size for a key of <paramref name="side"/>.</summary>
 		public static double DrawnIconFor(double side) => side * DrawnIconRatio;

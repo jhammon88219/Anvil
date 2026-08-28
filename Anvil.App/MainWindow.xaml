@@ -295,11 +295,15 @@
                                 <ColumnDefinition Width="Auto"/> <!-- settings -->
                             </Grid.ColumnDefinitions>
 
-                            <!-- ⚠️ THERE WERE FOUR KEYS HERE. "Map" (global map controls) and the Debug-only
-                                 "Dev" key are gone: their windows became TABS of the Settings window, so
-                                 the gear now opens all of it. Adding a group of settings means adding a
-                                 tab (Controls/Windows/SettingsWindow), NOT a key here — this cluster is
-                                 for windows that are not settings. -->
+                            <!-- ⚠️ THERE WERE FOUR KEYS HERE. "Map" (global map controls) and the
+                                 Debug-only "Dev" key are gone: their windows became TABS of the Settings
+                                 window, so the gear now opens all of it. Adding a group of settings means
+                                 adding a tab (Controls/Windows/SettingsWindow), NOT a key here — this
+                                 cluster is for windows that are not settings.
+                                 ⚠️ The Timeframe key briefly lived here too, as the third window latch. It
+                                 moved to the CENTRE cluster, hard against the temporal trio, because a
+                                 panel that only ever configures those three modes belongs beside them —
+                                 see TemporalToggles. What is left here is genuinely global. -->
                             <ToggleButton x:Name="SitesKey"
                                           Grid.Column="0"
                                           Style="{StaticResource BarKeyToggleStyle}"

@@ -20,6 +20,13 @@
      filled block per selected tab fights everything around it. The face steps up one surface level and the
      accent goes on a 2px edge.
 
+     A tab can be UNAVAILABLE (TabEntry.IsEnabled false) — greyed and unpickable but still IN the rail, so
+     the rail neither reflows nor hides that the feature exists. The host owns that flag AND the selection
+     that goes with it: the strip will not move off a tab that goes disabled, because only the host knows
+     where the selection belongs instead. (Today: the Timeframe window, where each of the three tabs is live
+     only while its own mode is running — so all three can be disabled at once, and that window carries an
+     empty state for it.)
+
      ⚠️ The two indicators BOTH live in the item template, and the strip pushes IsVertical onto every entry.
      A DataTemplate's x:Bind resolves against the ENTRY, so a tab cannot read the strip's Placement itself.
 
@@ -37,12 +44,18 @@
              mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- ONE tab. The root is the ToggleButton so the shared style's visual states drive the face; the
-             glyph/name/indicators inside are the part worth hand-tuning. -->
+        <!-- ONE tab. The ToggleButton carries the shared style's visual states (including Disabled), and the
+             glyph/name/indicators inside are the part worth hand-tuning.
+             ⚠️ THE TOOLTIP IS ON THE OUTER GRID, not on the button, so a DISABLED tab can still say why it is
+             unavailable — a disabled control is not hit-testable, so the pointer falls through to this parent.
+             That is also why the Grid needs Background="Transparent": a Grid with a null background catches
+             nothing, and the tooltip would be dead exactly when it matters most. -->
         <DataTemplate x:Key="TabItemTemplate" x:DataType="prim:TabEntry">
+            <Grid Background="Transparent"
+                  ToolTipService.ToolTip="{x:Bind Tooltip, Mode=OneWay}">
             <ToggleButton Style="{StaticResource SettingsTabKeyStyle}"
+                          IsEnabled="{x:Bind IsEnabled, Mode=OneWay}"
                           IsChecked="{x:Bind IsSelected, Mode=OneWay}"
-                          ToolTipService.ToolTip="{x:Bind Tooltip}"
                           Click="OnTabClick">
                 <Grid>
                     <!-- Mark over a name, centred. Padding is on this grid rather than the button so the
@@ -75,6 +88,7 @@
                                Visibility="{x:Bind prim:TabStrip.Show(ShowSideBar), Mode=OneWay}"/>
                 </Grid>
             </ToggleButton>
+            </Grid>
         </DataTemplate>
     </UserControl.Resources>
 

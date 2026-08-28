@@ -5,24 +5,23 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Windows
+namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The PastCast settings panel (see the XAML header), hosted in its own OS window by
-	/// <see cref="WindowManager"/> and driven by <see cref="MapViewModel.IsPastWindowOpen"/>. Bound to the
-	/// coordinator <see cref="MapViewModel"/>; the replay form drives <c>ViewModel.Radar</c> and the
-	/// historical outlook drives <c>ViewModel.PastOutlook</c>.
+	/// The PastCast tab body of the Timeframe window (see the XAML header) — the replay form, the historical
+	/// SPC outlook and that day's storm reports. Bound to the coordinator <see cref="MapViewModel"/>; the
+	/// replay form drives <c>ViewModel.Radar</c> and the historical outlook drives <c>ViewModel.PastOutlook</c>.
 	///
 	/// Date and window bind RadarViewModel indices straight from XAML; the editable hour/minute combos and
 	/// the AM/PM pair convert to/from the VM's <c>PastEventTime</c> (a <see cref="TimeSpan"/>) here, so that
 	/// view detail stays out of the view model.
 	/// </summary>
-	public sealed partial class PastCastWindow : UserControl
+	public sealed partial class PastCastTab : UserControl
 	{
 		// True while we're pushing VM state INTO the widgets, so their change events don't loop back.
 		private bool _syncing;
 
-		public PastCastWindow()
+		public PastCastTab()
 		{
 			InitializeComponent();
 			HourCombo.ItemsSource = Enumerable.Range(1, 12).ToList();
@@ -30,6 +29,8 @@ namespace Anvil.Controls.Windows
 			Loaded += (_, _) => SyncFromViewModel();
 			// An editable combo only renders a programmatically-set value once it's realized (visible), so
 			// re-sync on any transition to visible rather than relying on Loaded alone.
+			// ⚠️ Load-bearing now that this is a TAB body: the window keeps all three tabs loaded and switches
+			// them on Visibility, so this body spends most of its life collapsed and comes back through here.
 			RegisterPropertyChangedCallback(VisibilityProperty, OnVisibilityChanged);
 		}
 
@@ -41,12 +42,12 @@ namespace Anvil.Controls.Windows
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(PastCastWindow),
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(PastCastTab),
 				new PropertyMetadata(null, OnViewModelChanged));
 
 		private static void OnViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
 		{
-			var self = (PastCastWindow)d;
+			var self = (PastCastTab)d;
 			if (e.OldValue is MapViewModel oldVm) oldVm.Radar.PropertyChanged -= self.OnRadarPropertyChanged;
 			if (e.NewValue is MapViewModel newVm) newVm.Radar.PropertyChanged += self.OnRadarPropertyChanged;
 			self.SyncFromViewModel();
@@ -165,7 +166,9 @@ namespace Anvil.Controls.Windows
 			}
 		}
 
-		// Return focus to the map WebView so the user can immediately interact with it.
+		// Return focus to the map WebView so the user can immediately interact with it. Only finds it when
+		// this body shares the main window's XamlRoot; hosted in the Timeframe window (its own OS window,
+		// its own XamlRoot) the lookup misses and this is a no-op, same as it was before the merge.
 		private void FocusMap()
 		{
 			if (XamlRoot?.Content is FrameworkElement root &&
