@@ -14,15 +14,20 @@
        │    map pane 0  (MAIN)       │        map pane 1           │
        ├─────────────────────────────┴─────────────────────────────┤
        │                       ╭─ Hide ─╮                          │  OverlayBar pull-tab
-       │  ◉   ══ scrubber ══                                       │
-       │  ◉  ◀ ▶ ▶  3/10 │ time·site  ↺ │⋮  ((•))│⋮   ☁ │⋮    ▤  📡  ⚙   │
-       │Markers                   PastCast  NowCast  ForeCast    Sites Settings │
+       │  ◉   ⊕   ══ scrubber ══                                   │
+       │  ◉   ⊕  ◀ ▶ ▶  3/10 │ time·site ↺ │⋮  ((•))│⋮   ☁ │⋮   ▤  📡  ⚙   │
+       │Markers Inspect           PastCast  NowCast  ForeCast    Sites Settings │
        └──────────────────────────────────┴────────────────────────┘
           ↑ ◉ = show / hide the on-map radar site markers. Lit = showing;
-            the glyph and tooltip speak for the CLICK (open eye + "Hide
-            Radar Sites" while they show). Named Markers, not Sites — the
-            right cluster's Sites key opens a window, which is a different
-            species entirely.
+          │   the glyph and tooltip speak for the CLICK (open eye + "Hide
+          │   Radar Sites" while they show). Named Markers, not Sites — the
+          │   right cluster's Sites key opens a window, which is a different
+          │   species entirely.
+                ↑ ⊕ = Inspect, the armed cursor mode. Lit = armed, greyed
+                  until a loop is loaded. Its reticle is a DRAWN PathIcon,
+                  not a codepoint. Both of these are GESTURES you make while
+                  reading the map, which is why they are keys and not rows
+                  in the Settings window's Radar tab.
                                           ↑ bar midpoint — NowCast sits on it
                                             ↑ ⋮ = each mode's SIDE CAR: a full-height
                                               settings latch on its own key, lit only
@@ -50,7 +55,7 @@
      (a square mode half PLUS a settings side car beside it, so the key is wider than it is tall). See
      Controls/Styles.xaml, section 2.
 
-     Left of the bar is the marker key then RadarControls (the global time module); the CENTER is the three
+     Left of the bar are the marker and Inspect keys then RadarControls (the global time module); the CENTER is the three
      temporal split keys, held on the bar's midpoint by a [*, Auto, *] grid so no amount of growth on either
      side can shift them; right is the pane-layout key then the app-wide window buttons, all on one spacing.
      The gaps between the three clusters are empty bar, by design.
@@ -244,13 +249,19 @@
                         <ColumnDefinition Width="*"/>    <!-- window buttons, right edge   ┘ sits centered-->
                     </Grid.ColumnDefinitions>
 
-                    <!-- ===== LEFT CLUSTER: the marker key, then the time module ===== -->
+                    <!-- ===== LEFT CLUSTER: the two map-gesture keys, then the time module =====
+                         Markers and Inspect both came OUT of the Settings window's Radar tab, and the line
+                         that decides what belongs here is the same for both: a GESTURE you make constantly
+                         while reading the map wants a key; a PREFERENCE you set once and leave belongs in
+                         Settings. The TDWR / research-radar switches and the mile grid stayed behind on
+                         exactly that test. -->
                     <Grid Grid.Column="0"
                           HorizontalAlignment="Left"
                           VerticalAlignment="Center"
                           ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/> <!-- show/hide radar site markers -->
+                            <ColumnDefinition Width="Auto"/> <!-- the inspect cursor mode -->
                             <ColumnDefinition Width="Auto"/> <!-- the global time module -->
                         </Grid.ColumnDefinitions>
 
@@ -298,9 +309,56 @@
                             </Grid>
                         </ToggleButton>
 
+                        <!-- ===== INSPECT — the armed cursor mode =====
+                             Lit = armed; click again to disarm, like any toggle in this bar. It reads the
+                             active product's value under the pointer in EVERY pane at once (one armed cursor
+                             over a shared camera), and the value itself appears on each pane's own product
+                             ramp — the mode is global, the readout is per-pane, which is why the key is here
+                             and the numbers are not.
+
+                             ⚠️ DISABLED UNTIL A LOOP IS LOADED (Radar.IsTransportEnabled), same gate the
+                             transport buttons use: with nothing decoded there is no value to read.
+
+                             ⚠️ It lived in the Settings window's Radar tab, under a "Tools" heading, and came
+                             out for the same reason the marker key did: it is a gesture you make while
+                             reading the map, not a preference you set once. That heading is gone with it.
+
+                             ⚠️ THE MARK IS A DRAWN PATH, NOT A FONT GLYPH — a reticle: a ring with four
+                             ticks and a centre dot. Segoe Fluent has no reticle anyone here has verified,
+                             and a wrong codepoint ships as an empty box, so this sidesteps the question
+                             entirely (the same call the pane key's cells and the side car's dots made).
+                             ⚠️ It is a PathIcon rather than loose Shapes ON PURPOSE: an IconElement inherits
+                             the ContentPresenter's Foreground exactly as a FontIcon does, so the mark
+                             brightens with the name through every hover / pressed / checked state for free.
+                             Loose Shapes do NOT inherit it, and would sit dim while the name lit up.
+                             ⚠️ PathIcon does NOT scale with FontSize — it draws Data at its authored size.
+                             The geometry is authored in an 18-unit box, which is what a BarKeyGlyphSize (21)
+                             FontIcon actually inks once its em-box padding is taken off, so the two read at
+                             the same weight. Re-author the path, don't add a scale transform. -->
+                        <ToggleButton x:Name="InspectKey"
+                                      Grid.Column="1"
+                                      Style="{StaticResource BarKeyToggleStyle}"
+                                      ToolTipService.ToolTip="Inspect — read radar values under the cursor (click again to turn it off)"
+                                      IsEnabled="{x:Bind ViewModel.Radar.IsTransportEnabled, Mode=OneWay}"
+                                      IsChecked="{x:Bind ViewModel.Radar.IsInspecting, Mode=TwoWay}">
+                            <Grid Margin="3,0" RowSpacing="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <PathIcon Grid.Row="0"
+                                          HorizontalAlignment="Center"
+                                          Data="M3.5,9 A5.5,5.5 0 1,0 14.5,9 A5.5,5.5 0 1,0 3.5,9 Z M5.5,9 A3.5,3.5 0 1,0 12.5,9 A3.5,3.5 0 1,0 5.5,9 Z M7.8,9 A1.2,1.2 0 1,0 10.2,9 A1.2,1.2 0 1,0 7.8,9 Z M8.2,0 H9.8 V3.2 H8.2 Z M8.2,14.8 H9.8 V18 H8.2 Z M0,8.2 H3.2 V9.8 H0 Z M14.8,8.2 H18 V9.8 H14.8 Z"/>
+                                <TextBlock Grid.Row="1"
+                                           Text="Inspect"
+                                           HorizontalAlignment="Center"
+                                           FontSize="{StaticResource BarKeyNameSize}"/>
+                            </Grid>
+                        </ToggleButton>
+
                         <!-- PER-PANE + TIME. In multi-pane the chip cluster inside this grows to a 2x2 that
                              mirrors the pane grid; the time module beside it does not multiply. -->
-                        <comp:RadarControls Grid.Column="1"
+                        <comp:RadarControls Grid.Column="2"
                                             VerticalAlignment="Center"
                                             ViewModel="{x:Bind ViewModel.Radar}"/>
                     </Grid>

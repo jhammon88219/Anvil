@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- RadarSettingsTab — the Radar tab of the Settings window: what the map DRAWS over the basemap for radar,
-     and the one cursor tool that reads it.
+<!-- RadarSettingsTab — the Radar tab of the Settings window: what the map DRAWS over the basemap for radar.
 
        ┌──────────────────────────────────────────────────────┐
        │  RADAR SITES                                         │
@@ -10,18 +9,18 @@
        │    [ ] Show mile grid (centered on the radar)        │
        │    Spacing (mi) [10 ]                                │
        │    Opacity ─────●──────                              │
-       │  TOOLS                                               │
-       │    [ ] Inspect values under the cursor               │
        └──────────────────────────────────────────────────────┘
 
-     WHY THESE THREE ARE TOGETHER, and why they are not in the Map tab: all three are radar CONTENT drawn
-     over the basemap, and all three are GLOBAL — one copy for the whole map, not one per pane. The Map tab
-     next door owns the basemap and the camera; a control that would need a copy per pane belongs in
-     RadarControls instead.
+     WHY THESE ARE TOGETHER, and why they are not in the Map tab: both are radar CONTENT drawn over the
+     basemap, and both are GLOBAL — one copy for the whole map, not one per pane. The Map tab next door owns
+     the basemap and the camera; a control that would need a copy per pane belongs in RadarControls instead.
 
-     ⚠️ Inspect is a MAP tool, not a per-pane radar control: one armed cursor mode over a shared camera,
-     reading every pane at one point. Only its VALUE readout is per-pane (the live tick on each pane chip's
-     product ramp), which is why the mode lives here and the readout does not.
+     ⚠️ THE TOOLS SECTION IS GONE with the Inspect toggle — Inspect is a MODE you arm and disarm while
+     reading the map, not a setting, so it is a key in the OverlayBar now (MainWindow, InspectKey), beside
+     the marker key. It is still a MAP tool rather than a per-pane radar control: one armed cursor over a
+     shared camera, reading every pane at one point, with only its VALUE readout per-pane (the live tick on
+     each pane's product ramp). That reasoning put it in this tab; being a gesture rather than a preference
+     is what took it out again.
 
      ⚠️ Neither marker toggle affects a LOADED loop — hiding a marker never unloads its data.
 
@@ -52,8 +51,6 @@
             <RowDefinition Height="Auto"/> <!-- Grid toggle -->
             <RowDefinition Height="Auto"/> <!-- Spacing combo -->
             <RowDefinition Height="Auto"/> <!-- Opacity slider -->
-            <RowDefinition Height="Auto"/> <!-- Tools label -->
-            <RowDefinition Height="Auto"/> <!-- Inspect toggle -->
         </Grid.RowDefinitions>
 
         <!-- ── Radar Sites ── -->
@@ -109,17 +106,5 @@
                     Value="{x:Bind ViewModel.MileGrid.Opacity, Mode=TwoWay}"
                     ToolTipService.ToolTip="Mile grid line opacity"/>
         </Grid>
-
-        <!-- ── Tools ── -->
-        <!-- Inspect reads the active product's value under the pointer; the readout itself stays on the
-             radar console's product ramp (the live tick). Disabled until a loop is loaded. -->
-        <TextBlock Grid.Row="7" Text="Tools" Margin="0,6,0,0"
-                   Style="{StaticResource SettingsSectionLabelStyle}"/>
-
-        <CheckBox Grid.Row="8" Margin="4,0,0,0"
-                  Content="Inspect values under the cursor"
-                  IsEnabled="{x:Bind ViewModel.Radar.IsTransportEnabled, Mode=OneWay}"
-                  IsChecked="{x:Bind ViewModel.Radar.IsInspecting, Mode=TwoWay}"
-                  ToolTipService.ToolTip="Read the radar value under the cursor on the map, marked live on the product color scale"/>
     </Grid>
 </UserControl>
