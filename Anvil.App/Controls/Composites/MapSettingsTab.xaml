@@ -31,6 +31,7 @@
 <UserControl x:Class="Anvil.Controls.Composites.MapSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -53,8 +54,7 @@
         </Grid.RowDefinitions>
 
         <!-- ── Basemap ── -->
-        <TextBlock Grid.Row="0" Text="Basemap"
-                   Style="{StaticResource SettingsSectionLabelStyle}"/>
+        <prim:SectionHeading Grid.Row="0" Text="Basemap"/>
         <ComboBox Grid.Row="1" Margin="4,0,0,0"
                   Width="240" HorizontalAlignment="Left"
                   ItemsSource="{x:Bind ViewModel.AvailableStyles}"
@@ -86,8 +86,7 @@
                    Style="{StaticResource SettingsFieldLabelStyle}"/>
 
         <!-- ── View extent ── -->
-        <TextBlock Grid.Row="5" Text="View" Margin="0,6,0,0"
-                   Style="{StaticResource SettingsSectionLabelStyle}"/>
+        <prim:SectionHeading Grid.Row="5" Margin="0,6,0,0" Text="View"/>
 
         <!-- Base extent: mask everything outside the contiguous 48 (on by default), or the full map. A
              single isolated state (below) still overrides this until cleared. -->
@@ -117,8 +116,7 @@
         </Button>
 
         <!-- ── State Isolation ── -->
-        <TextBlock Grid.Row="9" Text="State Isolation" Margin="0,6,0,0"
-                   Style="{StaticResource SettingsSectionLabelStyle}"/>
+        <prim:SectionHeading Grid.Row="9" Margin="0,6,0,0" Text="State isolation"/>
 
         <!-- Arms hover-to-highlight + click-to-isolate on the map (the original workflow). -->
         <CheckBox Grid.Row="10" Margin="4,0,0,0"

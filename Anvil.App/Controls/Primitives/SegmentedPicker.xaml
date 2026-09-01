@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SegmentedPicker — a row of mutually-exclusive segments, for a SHORT fixed list where the choice is
+     worth one click rather than two.
+
+       ┌──────┬──────┬──────┬──────┬──────┬──────┐   one border round the row, hairlines between
+       │ 30m  │  1h  │ ▓2h▓ │  3h  │  6h  │ 12h  │   the segments, accent on the selected one
+       └──────┴──────┴──────┴──────┴──────┴──────┘
+
+     ⚠️ IT EXISTS BECAUSE WinUI HAS NO SEGMENTED CONTROL. The nearest thing in this app is
+     Primitives/TabStrip, which is a tab RAIL — it selects a body to show, carries a mark over a name, and
+     draws an accent edge tied to a placement. This selects a VALUE. Deriving one from the other would mean
+     unpicking most of what each is for, so they stay separate.
+
+     ⚠️ USE IT ONLY FOR A SHORT, FIXED LIST. Every option is on screen at once, so the row's width is the
+     item count times the longest label — a combo box is the right answer the moment either can grow. Today
+     the one consumer is the PastCast window's replay duration, which is six fixed labels.
+
+     ⚠️ THE SEGMENTS ARE BUILT IN CODE, not by an ItemsControl. Each one needs a corner radius and a border
+     that depend on its POSITION in the row (the ends round outward, and every segment but the first draws
+     the divider on its left), and a DataTemplate cannot see its own index. Building them is shorter than
+     the converters and attached properties that would take.
+
+     ⚠️ ONE DIVIDER PER SEAM. Every segment carries the full outer border EXCEPT its left edge, and the
+     first segment adds that left edge back. Give them all four edges and every internal seam draws twice,
+     at double weight.
+
+     Host contract: ItemsSource (the labels, in order) + SelectedIndex (TwoWay). The index is the value —
+     this control never looks at what the labels say. -->
+<UserControl x:Class="Anvil.Controls.Primitives.SegmentedPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- LOCAL, not in Controls/Styles.xaml: this control is its only consumer. It speaks the same
+             vocabulary as the bar keys — the OverlayBarSurface* faces in resting → raised order, accent
+             reserved for "this one is on" — without deriving from that chain, which draws a bordered square
+             and would fight the shared row border here.
+             ⚠️ The CornerRadius and BorderThickness are deliberately NOT set here: they are per-segment and
+             positional, so the code-behind owns them. Setting them in the style would silently win on
+             whichever segment the code forgot. -->
+        <Style x:Key="SegmentStyle" TargetType="ToggleButton">
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="UseSystemFocusVisuals" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Fill.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                            <Setter Target="Label.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Fill.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                            <Setter Target="Label.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="Label.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+
+                                    <!-- SELECTED. This is the one place in the app where accent FILLS a
+                                         control rather than edging it, and it is deliberate: a segmented
+                                         row has no border of its own to light (the row's border belongs to
+                                         all of them), so the fill is the only thing that can say which. -->
+                                    <VisualState x:Name="Checked">
+                                        <VisualState.Setters>
+                                            <Setter Target="Fill.Background" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                            <Setter Target="Label.Foreground" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+
+                                    <VisualState x:Name="CheckedPointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Fill.Background" Value="{ThemeResource AccentFillColorSecondaryBrush}"/>
+                                            <Setter Target="Label.Foreground" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+
+                                    <VisualState x:Name="CheckedPressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Fill.Background" Value="{ThemeResource AccentFillColorTertiaryBrush}"/>
+                                            <Setter Target="Label.Foreground" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+
+                                    <VisualState x:Name="CheckedDisabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="Fill.Background" Value="{ThemeResource AccentFillColorDisabledBrush}"/>
+                                            <Setter Target="Label.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+
+                            <Border x:Name="Fill"
+                                    Background="{ThemeResource OverlayBarSurfaceElevatedBrush}"
+                                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="{TemplateBinding CornerRadius}"/>
+
+                            <TextBlock x:Name="Label"
+                                       Text="{TemplateBinding Content}"
+                                       FontSize="12"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Equal star columns, added in code alongside the segments — the row divides its width evenly however
+         many options it is given, so a label never decides how wide its neighbour is. -->
+    <Grid x:Name="Segments"/>
+</UserControl>

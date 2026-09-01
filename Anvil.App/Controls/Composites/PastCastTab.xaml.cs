@@ -1,40 +1,28 @@
-using System;
-using System.ComponentModel;
-using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The PastCast tab body of the Timeframe window (see the XAML header) — the replay form, the historical
-	/// SPC outlook and that day's storm reports. Bound to the coordinator <see cref="MapViewModel"/>; the
-	/// replay form drives <c>ViewModel.Radar</c> and the historical outlook drives <c>ViewModel.PastOutlook</c>.
+	/// The PastCast window's body (see the XAML header) — the Timeframe card + pickers, the historical SPC
+	/// outlook and that day's storm reports. Bound to the coordinator <see cref="MapViewModel"/>; the
+	/// timeframe drives <c>ViewModel.Radar</c> and the historical outlook drives <c>ViewModel.PastOutlook</c>.
 	///
-	/// Date and window bind RadarViewModel indices straight from XAML; the editable hour/minute combos and
-	/// the AM/PM pair convert to/from the VM's <c>PastEventTime</c> (a <see cref="TimeSpan"/>) here, so that
-	/// view detail stays out of the view model.
+	/// ⚠️ THERE IS NO WIDGET-SYNC CODE HERE ANY MORE, and that is the point of the pickers. This class used
+	/// to carry ~110 lines converting between the view model's <c>PastEventTime</c> (a TimeSpan) and an
+	/// editable hour combo, an editable minute combo and an AM/PM checkbox pair — a `_syncing` re-entry
+	/// guard, a push and a pull, a text parser, four handlers, and a Visibility callback that existed
+	/// because an editable combo will not render a programmatically-set value until it is realized. A
+	/// TimePicker binds to that TimeSpan directly, so all of it went. Everything left below is presentation
+	/// for the summary card, which has no state of its own.
 	/// </summary>
 	public sealed partial class PastCastTab : UserControl
 	{
-		// True while we're pushing VM state INTO the widgets, so their change events don't loop back.
-		private bool _syncing;
-
 		public PastCastTab()
 		{
 			InitializeComponent();
-			HourCombo.ItemsSource = Enumerable.Range(1, 12).ToList();
-			MinuteCombo.ItemsSource = Enumerable.Range(0, 12).Select(i => (i * 5).ToString("00")).ToList();
-			Loaded += (_, _) => SyncFromViewModel();
-			// An editable combo only renders a programmatically-set value once it's realized (visible), so
-			// re-sync on any transition to visible rather than relying on Loaded alone.
-			// ⚠️ NOT load-bearing today — this body has its own window now, so it is built visible and stays
-			// visible, and Loaded alone would do. It was load-bearing when the three modes were TABS of one
-			// window that kept them all loaded and switched them on Visibility. Kept because an editable
-			// combo losing its displayed value while collapsed is a real trap, and the next host that
-			// collapses this control would hit it silently.
-			RegisterPropertyChangedCallback(VisibilityProperty, OnVisibilityChanged);
 		}
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
@@ -46,115 +34,45 @@ namespace Anvil.Controls.Composites
 
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(PastCastTab),
-				new PropertyMetadata(null, OnViewModelChanged));
+				new PropertyMetadata(null));
 
-		private static void OnViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-		{
-			var self = (PastCastTab)d;
-			if (e.OldValue is MapViewModel oldVm) oldVm.Radar.PropertyChanged -= self.OnRadarPropertyChanged;
-			if (e.NewValue is MapViewModel newVm) newVm.Radar.PropertyChanged += self.OnRadarPropertyChanged;
-			self.SyncFromViewModel();
-		}
+		// ===== The summary card =====
+		// Three states, and the card's whole job is telling them apart:
+		//   nothing loaded  → "Not loaded yet",         Load is the accent action
+		//   loaded, clean   → the load's own status,    Load steps back to a plain button
+		//   loaded, dirty   → "Selection changed…",     Load lights again, and the card's edge with it
+		// The dirty state is the one the old trailing status line could not show: that text was written by
+		// the load and never revisited, so after an edit it described a window that was no longer selected.
 
-		// Keep the time widgets in step if PastEventTime changes elsewhere (e.g. a reset).
-		private void OnRadarPropertyChanged(object? sender, PropertyChangedEventArgs e)
-		{
-			if (!_syncing && e.PropertyName == nameof(RadarViewModel.PastEventTime))
-			{
-				SyncFromViewModel();
-			}
-		}
+		/// <summary>The card's footer line.</summary>
+		public string CardFooter(bool loaded, bool dirty, string status) =>
+			!loaded ? "Not loaded yet" :
+			dirty ? "Selection changed — press Load" :
+			status;
 
-		// Re-apply the VM time whenever the panel transitions to visible (see the ctor note). Deferred so
-		// the editable combos are realized before we set their values.
-		private void OnVisibilityChanged(DependencyObject sender, DependencyProperty dp)
-		{
-			if (Visibility == Visibility.Visible)
-			{
-				DispatcherQueue?.TryEnqueue(SyncFromViewModel);
-			}
-		}
+		/// <summary>Footer colour: accent while the selection is ahead of what is loaded, quiet otherwise.</summary>
+		public Brush? FooterBrush(bool dirty) => Resource(dirty
+			? "AccentTextFillColorPrimaryBrush"
+			: "TextFillColorTertiaryBrush");
 
-		// VM TimeSpan -> hour / minute / AM-PM widgets. Use SelectedItem (reliable) for in-list values;
-		// fall back to Text only for an off-list minute (e.g. a typed 23).
-		private void SyncFromViewModel()
-		{
-			if (ViewModel?.Radar is not RadarViewModel radar)
-			{
-				return;
-			}
+		/// <summary>The card's edge, which picks up the accent in the dirty state so the change reads from
+		/// the card's shape and not only from its text.</summary>
+		public Brush? CardStroke(bool dirty) => Resource(dirty
+			? "AccentFillColorDefaultBrush"
+			: "CardStrokeColorDefaultSolidBrush");
 
-			_syncing = true;
-			TimeSpan t = radar.PastEventTime;
-			bool pm = t.Hours >= 12;
-			int hour12 = t.Hours % 12;
-			if (hour12 == 0) hour12 = 12;
+		/// <summary>Load is accent whenever pressing it would DO something — that is, always except when a
+		/// window is loaded and the pickers still agree with it.</summary>
+		public Style? LoadStyle(bool loaded, bool dirty) =>
+			Lookup(loaded && !dirty ? "DefaultButtonStyle" : "AccentButtonStyle") as Style;
 
-			HourCombo.SelectedItem = hour12;
-			string mm = t.Minutes.ToString("00");
-			if (MinuteCombo.Items.Contains(mm))
-			{
-				MinuteCombo.SelectedItem = mm;
-			}
-			else
-			{
-				MinuteCombo.SelectedItem = null;
-				MinuteCombo.Text = mm;
-			}
-			AmCheck.IsChecked = !pm;
-			PmCheck.IsChecked = pm;
-			_syncing = false;
-		}
+		// ⚠️ TryGetValue, never the indexer: a ResourceDictionary's indexer THROWS on a missing key, and
+		// these run the moment the panel opens — a renamed system brush would take the window down rather
+		// than draw the wrong colour. Null is a survivable answer for both a Brush and a Style.
+		private static Brush? Resource(string key) => Lookup(key) as Brush;
 
-		// hour / minute / AM-PM widgets -> VM TimeSpan.
-		private void PushToViewModel()
-		{
-			if (_syncing || ViewModel?.Radar is not RadarViewModel radar)
-			{
-				return;
-			}
-
-			int hour12 = ParseClamped(HourCombo.Text, 1, 12, fallback: 12);
-			int minute = ParseClamped(MinuteCombo.Text, 0, 59, fallback: 0);
-			bool pm = PmCheck.IsChecked == true;
-			int hour24 = (hour12 % 12) + (pm ? 12 : 0);
-			radar.PastEventTime = new TimeSpan(hour24, minute, 0);
-		}
-
-		private static int ParseClamped(string? text, int min, int max, int fallback)
-		{
-			if (int.TryParse(text?.Trim(), out int v))
-			{
-				return Math.Clamp(v, min, max);
-			}
-			return fallback;
-		}
-
-		private void OnTimePartChanged(object sender, SelectionChangedEventArgs e) => PushToViewModel();
-
-		private void OnTimeTextSubmitted(ComboBox sender, ComboBoxTextSubmittedEventArgs args)
-		{
-			// Accept arbitrary typed values (e.g. a minute not in the 5-step dropdown): mark handled so
-			// the combo doesn't revert to a list item, push to the VM, then reflect the clamped result.
-			args.Handled = true;
-			PushToViewModel();
-			SyncFromViewModel();
-		}
-
-		// AM/PM behave as a mutually-exclusive pair (radio-like): one is always selected.
-		private void OnAmClick(object sender, RoutedEventArgs e)
-		{
-			AmCheck.IsChecked = true;
-			PmCheck.IsChecked = false;
-			PushToViewModel();
-		}
-
-		private void OnPmClick(object sender, RoutedEventArgs e)
-		{
-			PmCheck.IsChecked = true;
-			AmCheck.IsChecked = false;
-			PushToViewModel();
-		}
+		private static object? Lookup(string key) =>
+			Application.Current.Resources.TryGetValue(key, out var value) ? value : null;
 
 		private async void OnLoadClick(object sender, RoutedEventArgs e)
 		{
@@ -170,8 +88,8 @@ namespace Anvil.Controls.Composites
 		}
 
 		// Return focus to the map WebView so the user can immediately interact with it. Only finds it when
-		// this body shares the main window's XamlRoot; hosted in the Timeframe window (its own OS window,
-		// its own XamlRoot) the lookup misses and this is a no-op, same as it was before the merge.
+		// this body shares the main window's XamlRoot; hosted in its own OS window (its own XamlRoot) the
+		// lookup misses and this is a no-op, same as it was before the split.
 		private void FocusMap()
 		{
 			if (XamlRoot?.Content is FrameworkElement root &&

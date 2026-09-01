@@ -502,7 +502,7 @@ namespace Anvil.ViewModels
 			{
 				// No site yet: just ARM the window (date/time/range) so any site you click next loads it,
 				// and report success so the flyout closes and you can go site-surfing on the map.
-				_vm._pastWindowLoaded = true;
+				_vm.MarkReplayWindowLoaded();
 				_vm.PastEventStatus = "Window set — click a radar site on the map to load it.";
 				return true;
 			}
@@ -571,7 +571,7 @@ namespace Anvil.ViewModels
 
 			_vm.PastEventStatus = $"Loaded {keys.Count} frames{(sampled ? " (sampled)" : "")} · " +
 				$"{localStart:MMM d, h:mm tt} +{_vm.PastEventDurationOptions[_vm._pastEventDurationIndex]}";
-			_vm._pastWindowLoaded = true;
+			_vm.MarkReplayWindowLoaded();
 			return true;
 		}
 

@@ -308,17 +308,16 @@
 
     <!-- ───────────────────────────── TextBlock — settings-body labels ─────────────────────────────
 
-         The two label ranks inside a Settings tab body: a SECTION heading ("Basemap", "Storage") and an
-         inline FIELD label ("State", "Spacing (mi)"). Every tab uses both, which is what puts them here —
-         they were copied into the local Resources of all three windows the tabs replaced, and the copies
-         had already begun to drift. -->
-    <Style x:Key="SettingsSectionLabelStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="12"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="CharacterSpacing" Value="40"/>
-        <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
-    </Style>
+         The inline FIELD label ("State", "Spacing (mi)") inside a panel body. Shared because every Settings
+         tab and every temporal window uses it — it was copied into the local Resources of all three windows
+         the tabs replaced, and the copies had already begun to drift.
 
+         ⚠️ THE SECTION HEADING RANK IS NO LONGER A STYLE. SettingsSectionLabelStyle used to sit here (12px
+         semibold, letter-spaced, TERTIARY) and is DELETED: it could only make the words louder, which left
+         every heading in the app quieter than the controls beneath it, and the fix — a hairline running to
+         the panel's edge — is a SIBLING element that no TextBlock style can add. It is
+         Controls/Primitives/SectionHeading now. Don't re-add a heading style here; a second rank is exactly
+         the drift this file warns about. -->
     <Style x:Key="SettingsFieldLabelStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="VerticalAlignment" Value="Center"/>

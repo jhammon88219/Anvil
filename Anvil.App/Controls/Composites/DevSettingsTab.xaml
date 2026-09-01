@@ -41,6 +41,7 @@
 <UserControl x:Class="Anvil.Controls.Composites.DevSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -66,7 +67,7 @@
                 <RowDefinition Height="Auto"/> <!-- start/stop + report -->
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Text="Site sweep" Style="{StaticResource SettingsSectionLabelStyle}"/>
+            <prim:SectionHeading Grid.Row="0" Text="Site sweep"/>
 
             <!-- Live status + per-second dwell countdown. Prominent, always visible. -->
             <Border Grid.Row="1" CornerRadius="6" Padding="10,7"
@@ -137,7 +138,7 @@
                 <RowDefinition Height="Auto"/> <!-- run/stop + report -->
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Text="Dealias validation" Style="{StaticResource SettingsSectionLabelStyle}"/>
+            <prim:SectionHeading Grid.Row="0" Text="Dealias validation"/>
 
             <!-- Live status + per-volume progress. Prominent, always visible. -->
             <Border Grid.Row="1" CornerRadius="6" Padding="10,7"
@@ -176,7 +177,7 @@
                 <RowDefinition Height="Auto"/> <!-- the toggle -->
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Text="Pipeline console" Style="{StaticResource SettingsSectionLabelStyle}"/>
+            <prim:SectionHeading Grid.Row="0" Text="Pipeline console"/>
 
             <TextBlock Grid.Row="1" TextWrapping="Wrap" FontSize="12"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"

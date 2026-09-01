@@ -457,21 +457,33 @@ namespace Anvil.ViewModels
 		public int PastEventYearIndex
 		{
 			get => _pastEventYearIndex;
-			set { var c = Math.Clamp(value, 0, PastEventYearOptions.Count - 1); SetProperty(ref _pastEventYearIndex, c); }
+			set
+			{
+				var c = Math.Clamp(value, 0, PastEventYearOptions.Count - 1);
+				if (SetProperty(ref _pastEventYearIndex, c)) { OnReplaySelectionChanged(); }
+			}
 		}
 
 		/// <summary>Selected month index (0-11).</summary>
 		public int PastEventMonthIndex
 		{
 			get => _pastEventMonthIndex;
-			set { var c = Math.Clamp(value, 0, 11); SetProperty(ref _pastEventMonthIndex, c); }
+			set
+			{
+				var c = Math.Clamp(value, 0, 11);
+				if (SetProperty(ref _pastEventMonthIndex, c)) { OnReplaySelectionChanged(); }
+			}
 		}
 
 		/// <summary>Selected day index (0-30).</summary>
 		public int PastEventDayIndex
 		{
 			get => _pastEventDayIndex;
-			set { var c = Math.Clamp(value, 0, 30); SetProperty(ref _pastEventDayIndex, c); }
+			set
+			{
+				var c = Math.Clamp(value, 0, 30);
+				if (SetProperty(ref _pastEventDayIndex, c)) { OnReplaySelectionChanged(); }
+			}
 		}
 
 		// Once a replay window has been loaded (Load pressed with data found), the window is "armed":
@@ -493,7 +505,7 @@ namespace Anvil.ViewModels
 					return;
 				}
 
-				_pastWindowLoaded = false; // re-arm from scratch each time the mode is toggled
+				ClearReplayWindowLoaded(); // re-arm from scratch each time the mode is toggled
 				OnPropertyChanged(nameof(IsLiveControlsEnabled));
 				OnPropertyChanged(nameof(IsTransportEnabled)); // the transport gate differs by mode (PastCast enables earlier)
 				// The offered tilts depend on the mode, not just the radar: a live loop shows only the
@@ -521,7 +533,7 @@ namespace Anvil.ViewModels
 		public TimeSpan PastEventTime
 		{
 			get => _pastEventTime;
-			set => SetProperty(ref _pastEventTime, value);
+			set { if (SetProperty(ref _pastEventTime, value)) { OnReplaySelectionChanged(); } }
 		}
 
 		/// <summary>The replay window's UTC start, reconstructed from the Year/Month/Day/time controls
@@ -529,14 +541,19 @@ namespace Anvil.ViewModels
 		/// the month's length). This VM owns the replay-date state, so overlays keyed to the replay date (the
 		/// historical outlook, storm reports) read the instant from here rather than each re-deriving it.
 		/// <see cref="LoadSelectedPastEventAsync"/> keeps its own inline copy because it also needs the end.</summary>
-		internal DateTimeOffset ReplayStartUtc()
+		internal DateTimeOffset ReplayStartUtc() => ReplayStartLocal().ToUniversalTime();
+
+		/// <summary>The same instant in LOCAL time — what the Timeframe card shows, and the only form the
+		/// user ever sees. <see cref="ReplayStartUtc"/> is this converted; both exist so the conversion
+		/// happens in exactly one place.</summary>
+		private DateTimeOffset ReplayStartLocal()
 		{
 			var year = PastEventYearOptions[_pastEventYearIndex];
 			var month = _pastEventMonthIndex + 1;
 			var day = Math.Min(_pastEventDayIndex + 1, DateTime.DaysInMonth(year, month));
 			var localMidnight = new DateTimeOffset(year, month, day, 0, 0, 0,
 				TimeZoneInfo.Local.GetUtcOffset(new DateTime(year, month, day)));
-			return (localMidnight + _pastEventTime).ToUniversalTime();
+			return localMidnight + _pastEventTime;
 		}
 
 		/// <summary>Selected window-duration index (into <see cref="PastEventDurationOptions"/>).</summary>
@@ -546,8 +563,171 @@ namespace Anvil.ViewModels
 			set
 			{
 				var clamped = Math.Clamp(value, 0, PastEventMinutesByIndex.Length - 1);
-				SetProperty(ref _pastEventDurationIndex, clamped);
+				if (SetProperty(ref _pastEventDurationIndex, clamped)) { OnReplaySelectionChanged(); }
 			}
+		}
+
+		// ── The replay window as ONE selection: the Timeframe card ───────────────────────────────
+		// The PastCast window shows a SUMMARY CARD above the pickers. The card previews what Load WILL do
+		// (PastEventDateText / PastEventRangeText, both derived live from the pickers), and its footer
+		// reports whether that is what is actually on the map (HasLoadedReplayWindow +
+		// IsReplaySelectionDirty). Everything in this block feeds that card.
+		//
+		// ⚠️ WHY THE CARD NEEDS A DIRTY FLAG. PastEventStatus is written once, by the load, and describes
+		// the window that WAS loaded. Touch any picker afterwards and the card would be previewing one
+		// window while claiming another is on screen. The dirty flag is what lets it say so instead.
+
+		/// <summary>
+		/// The replay date as a single value, for a calendar picker.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ THIS IS A FACADE OVER THE THREE INDEX PROPERTIES, NOT A REPLACEMENT FOR THEM. The indices are
+		/// read directly by <c>RadarLoopEngine</c> and subscribed to BY NAME by both
+		/// <c>StormReportsViewModel</c> and <c>PastOutlookViewModel</c>; swapping them for one date would
+		/// reach into the parked radar engine for what is a form-layout change. The calendar writes a date
+		/// here, and everything downstream still reads the indices exactly as it did.
+		/// <para>⚠️ It raises ONLY the index properties that actually changed. Both overlay view models
+		/// re-fetch on any of those three names, so raising all three for a one-day move would kick off
+		/// three refreshes where one is needed.</para>
+		/// <para>A null (a cleared picker) is IGNORED rather than treated as a date: there is no such thing
+		/// as a replay with no date, and the last good one is a better answer than an empty control.</para>
+		/// </remarks>
+		public DateTimeOffset? PastEventDate
+		{
+			get
+			{
+				var local = ReplayStartLocal();
+				return new DateTimeOffset(local.Year, local.Month, local.Day, 0, 0, 0, TimeSpan.Zero);
+			}
+			set
+			{
+				if (value is not { } date)
+				{
+					return;
+				}
+
+				var yearIndex = Math.Clamp(date.Year - PastEventStartYear, 0, PastEventYearOptions.Count - 1);
+				var changed = false;
+
+				if (_pastEventYearIndex != yearIndex)
+				{
+					_pastEventYearIndex = yearIndex;
+					OnPropertyChanged(nameof(PastEventYearIndex));
+					changed = true;
+				}
+
+				if (_pastEventMonthIndex != date.Month - 1)
+				{
+					_pastEventMonthIndex = date.Month - 1;
+					OnPropertyChanged(nameof(PastEventMonthIndex));
+					changed = true;
+				}
+
+				if (_pastEventDayIndex != date.Day - 1)
+				{
+					_pastEventDayIndex = date.Day - 1;
+					OnPropertyChanged(nameof(PastEventDayIndex));
+					changed = true;
+				}
+
+				if (changed)
+				{
+					OnReplaySelectionChanged();
+				}
+			}
+		}
+
+		/// <summary>Earliest date the calendar offers — the start of the decodable WSR-88D archive.</summary>
+		public DateTimeOffset PastEventMinDate { get; } =
+			new(PastEventStartYear, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+		/// <summary>Latest date the calendar offers: today. ⚠️ Without a bound a calendar will happily
+		/// offer 2087, which the three year/month/day combos could never express — the constraint used to
+		/// live in the year list, so it has to be restated here.
+		/// <para>⚠️ Built from PARTS, like <see cref="PastEventMinDate"/> and <see cref="PastEventDate"/>,
+		/// and NOT from a <see cref="DateTime"/>: the <c>DateTimeOffset(DateTime, TimeSpan)</c> constructor
+		/// THROWS when the DateTime's Kind is Local and the offset is anything other than the machine's own
+		/// ("The UTC Offset of the local dateTime parameter does not match the offset argument").
+		/// <c>DateTime.Today</c> is Local, so <c>new(DateTime.Today, TimeSpan.Zero)</c> crashes the moment
+		/// the calendar binds. All three of these dates are plain calendar days at a zero offset — keep them
+		/// on the same parts-based idiom and the trap cannot come back.</para></summary>
+		public DateTimeOffset PastEventMaxDate
+		{
+			get
+			{
+				var today = DateTime.Today;
+				return new DateTimeOffset(today.Year, today.Month, today.Day, 0, 0, 0, TimeSpan.Zero);
+			}
+		}
+
+		/// <summary>Short labels for the same durations, for the Timeframe card's segmented picker.
+		/// ⚠️ Kept beside <see cref="PastEventDurationOptions"/> and <c>PastEventMinutesByIndex</c>: all
+		/// three are indexed by <see cref="PastEventDurationIndex"/>, same order and same length, so they
+		/// only stay in step if they stay together.</summary>
+		public IReadOnlyList<string> PastEventDurationShortLabels { get; } =
+			new[] { "30m", "1h", "2h", "3h", "6h", "12h" };
+
+		/// <summary>The selected date, as the card's headline ("Tue May 24, 2011").</summary>
+		public string PastEventDateText => ReplayStartLocal().ToString("ddd MMM d, yyyy");
+
+		/// <summary>The selected window, as the card's second line ("5:00 PM → 7:00 PM"). Derived from the
+		/// pickers, so it previews what Load will do rather than reporting what was loaded.</summary>
+		public string PastEventRangeText
+		{
+			get
+			{
+				var start = ReplayStartLocal();
+				var end = start.AddMinutes(PastEventMinutesByIndex[_pastEventDurationIndex]);
+				return $"{start:h:mm tt} → {end:h:mm tt}";
+			}
+		}
+
+		/// <summary>Whether a replay window has been loaded (or armed) this session.</summary>
+		public bool HasLoadedReplayWindow => _pastWindowLoaded;
+
+		/// <summary>
+		/// Whether the pickers now describe a DIFFERENT window from the one that was loaded — so the card
+		/// can offer Load again instead of reporting a frame count for a window you have since edited away.
+		/// </summary>
+		public bool IsReplaySelectionDirty =>
+			_pastWindowLoaded
+			&& (_loadedWindowDurationIndex != _pastEventDurationIndex || _loadedWindowStartUtc != ReplayStartUtc());
+
+		// What the last load actually loaded, for the comparison above.
+		private DateTimeOffset? _loadedWindowStartUtc;
+		private int _loadedWindowDurationIndex = -1;
+
+		/// <summary>Record that the current selection is now the loaded (or armed) window. Called by the
+		/// loop engine from both of its success paths — arming without a site, and a real load.</summary>
+		internal void MarkReplayWindowLoaded()
+		{
+			_pastWindowLoaded = true;
+			_loadedWindowStartUtc = ReplayStartUtc();
+			_loadedWindowDurationIndex = _pastEventDurationIndex;
+			OnPropertyChanged(nameof(HasLoadedReplayWindow));
+			OnPropertyChanged(nameof(IsReplaySelectionDirty));
+		}
+
+		// Forget the loaded window (leaving or re-entering replay mode). Nothing is loaded, so nothing can
+		// be dirty.
+		private void ClearReplayWindowLoaded()
+		{
+			_pastWindowLoaded = false;
+			_loadedWindowStartUtc = null;
+			_loadedWindowDurationIndex = -1;
+			OnPropertyChanged(nameof(HasLoadedReplayWindow));
+			OnPropertyChanged(nameof(IsReplaySelectionDirty));
+		}
+
+		// Any change to date, start time or duration moves the card's preview AND can make it disagree with
+		// what is loaded. One hook, called from every one of those setters, so a new field can never be
+		// added that updates the pickers but not the card.
+		private void OnReplaySelectionChanged()
+		{
+			OnPropertyChanged(nameof(PastEventDate));
+			OnPropertyChanged(nameof(PastEventDateText));
+			OnPropertyChanged(nameof(PastEventRangeText));
+			OnPropertyChanged(nameof(IsReplaySelectionDirty));
 		}
 
 		/// <summary>Status line for the Past Event Viewer (loading / loaded N frames / errors).</summary>

@@ -37,6 +37,7 @@
 <UserControl x:Class="Anvil.Controls.Composites.RadarSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -54,8 +55,7 @@
         </Grid.RowDefinitions>
 
         <!-- ── Radar Sites ── -->
-        <TextBlock Grid.Row="0" Text="Radar Sites"
-                   Style="{StaticResource SettingsSectionLabelStyle}"/>
+        <prim:SectionHeading Grid.Row="0" Text="Radar sites"/>
 
         <!-- Opt-in TDWRs (the FAA Terminal Doppler Weather Radar T*** network). PERSISTED. -->
         <CheckBox Grid.Row="1" Margin="4,0,0,0"
@@ -70,8 +70,7 @@
                   ToolTipService.ToolTip="Show research/test radar markers such as KCRI (ROC test bed, Norman OK)"/>
 
         <!-- ── Mile Grid ── -->
-        <TextBlock Grid.Row="3" Text="Mile Grid" Margin="0,6,0,0"
-                   Style="{StaticResource SettingsSectionLabelStyle}"/>
+        <prim:SectionHeading Grid.Row="3" Margin="0,6,0,0" Text="Mile grid"/>
 
         <CheckBox Grid.Row="4" Margin="4,0,0,0"
                   Content="Show mile grid (centered on the radar)"
