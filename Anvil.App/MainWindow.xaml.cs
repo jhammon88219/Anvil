@@ -189,16 +189,18 @@ namespace Anvil
 		public Visibility DualPaneVisibility(PaneLayout layout) => VisibleWhen(IsTwoAcross(layout));
 		public Visibility QuadPaneVisibility(PaneLayout layout) => VisibleWhen(IsQuad(layout));
 
-		// The tooltip is where the CURRENT layout is named, since the icon now shows the next one. Takes
-		// the current layout (not the next), and states both halves so the key is never ambiguous.
-		// ⚠️ It also carries what the MARK cannot: the key is nameless now, and while the numeral says how
-		// many panes the next click gives you, nothing on it explains the accent cell. One sentence here is
-		// cheaper than a second visual tier on a 24px mark.
+		// The tooltip says what the CLICK DOES, which is also what the mark draws — the key advertises its
+		// action, not its state, and the tooltip agrees with it rather than describing the key twice.
+		// ⚠️ Takes the CURRENT layout (not the next), because "switch to X" is phrased from where you are.
+		// ⚠️ HISTORY: it used to name the current layout AND the next one ("Two panes — click for four"),
+		// plus a sentence explaining the accent cell, on the reasoning that a nameless key needs the words.
+		// That made the one-line tooltip carry three facts. It carries one now; the accent cell is left to
+		// be inferred from the map, where the anchor pane is plainly the same corner.
 		public string PaneLayoutTooltip(PaneLayout layout) => layout switch
 		{
-			PaneLayout.Single => "One pane — click for two across. The accent cell is the main pane.",
-			PaneLayout.TwoAcross => "Two panes — click for four. The accent cell is the main pane.",
-			_ => "Four panes — click for one. The accent cell is the main pane.",
+			PaneLayout.Single => "Switch to Dual Pane Mode",
+			PaneLayout.TwoAcross => "Switch to Quad Pane Mode",
+			_ => "Switch to Single Pane Mode",
 		};
 
 		// The view knows only "advance"; the ORDER is the view model's (Radar.NextPaneLayout).
