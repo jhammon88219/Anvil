@@ -1,224 +1,116 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalToggles — the PastCast / NowCast / ForeCast temporal features as three big square keys.
+<!-- TemporalToggles — the PastCast / NowCast / ForeCast features as three SPLIT keys: a mode toggle with
+     that mode's settings-window latch down its right edge.
 
-       ┌──────────┐┌──────────┐┌──────────┐┌────┐  ┐ a MODE key is SQUARE and as tall as the bar's
-       │    ↺     ││   ((•))  ││    ☁     ││  •  │  │ content row: height comes from the bar, width
-       │ PastCast ││ NowCast  ││ ForeCast ││  •  │  │ from the height (code-behind), so both follow
-       └──────────┘└──────────┘└──────────┘│  •  │  │ the bar and can't go stale
-          ^           ^           ^        └────┘  ┘ lit = that mode is ACTIVE (a projection of its
-          │           │           │           ^      subsystem, not a stored flag), so the lit
-          │           │           │           │      state can't drift from reality
-          │           │           │           └── their shared settings panel (a LATCH: lit = the
-          │           │           │               Timeframe window is open). NAMELESS and HALF
-          │           │           │               WIDTH — full height, so it stays part of the
-          │           │           │               row; half width, so it can't read as a fourth
-          │           │           └── SPC outlooks      mode. The one such key in the bar.
-          │           └── live radar / current alerts
-          └── historical replay
+       ┌──────────┬─┐┌──────────┬─┐┌──────────┬─┐   ┐ the MODE HALF is the bar's shared square
+       │    ↺     │·││   ((•))  │·││    ☁     │·│   │ (BarKeySide), so its glyph and name match the
+       │ PastCast │·││ NowCast  │·││ ForeCast │·│   │ Sites and Settings keys exactly; the car is
+       │          │·││          │·││          │·│   │ added beside it, not carved out of it
+       └──────────┴─┘└──────────┴─┘└──────────┴─┘   ┘ the SIDE CAR — one window per mode, latched here
+            ^              ^              ^
+            │              │              └── SPC outlooks
+            │              └── live radar / current alerts
+            └── historical replay
 
-       All four sit on ONE spacing (the row's ColumnSpacing) — no extra gap before the dots.
+     ⚠️ EACH KEY OWNS ITS OWN WINDOW AGAIN, and that is the point of the split. The square is a MODE switch
+     (lit = this mode is on the map, click a lit one to turn it off); the car is a WINDOW latch (filled =
+     this mode's panel is on the screen). Two contracts, two controls, both visible at once — see
+     Controls/Primitives/SplitTemporalToggle for the shape and the full history.
+     HISTORY, do not undo: these keys ONCE owned a window each with no second control, so a click turned the
+     mode on when unlit and flipped the window when lit — one click doing two different things depending on
+     invisible state. That was fixed by moving all three panels into ONE tabbed Timeframe window behind a
+     shared three-dot key at the end of this row. The car fixes the same bug without that cost: the panels
+     are three windows again, so NowCast and ForeCast (which coexist) can be parked on two monitors.
+     ⚠️ THE THREE-DOT KEY IS GONE with the tabbed window it opened. Do not re-add a shared panel key beside
+     these three — there is no shared panel any more, and a fourth key in this row was exactly the thing that
+     had to be kept nameless and half-width to stop it reading as a fourth mode.
 
      A MODE key is a GLYPH OVER A NAME and nothing else — it is a mode switch, not a readout. A third tier
      carrying live status (replay date / warning counts / outlook day) was built and REMOVED: it made the
-     keys read as dashboard tiles when their whole job is "which timeframe am I in". Don't re-add it;
-     that state belongs in the Timeframe panel. Whether the KEY is lit is the only state it reports.
-
-     ⚠️ THE THREE NAMED KEYS AND THE ELLIPSIS ARE DIFFERENT SPECIES, sitting together on purpose. The three
-     are MODE toggles (what is on the MAP); the ellipsis is a WINDOW latch (what is on the SCREEN) — the
-     same contract as Sites and Settings on the bar's right edge, which is where it started. It moved here
-     because the panel it opens configures these three modes and nothing else, and that adjacency is what
-     makes it findable at all. The gap before it, and its having no name, are what keep it from reading as
-     a fourth mode.
+     keys read as dashboard tiles when their whole job is "which timeframe am I in". Don't re-add it; that
+     state belongs in the mode's own window.
 
      ⚠️ The glyphs are a REVERSAL of the older "text pills, not icon-over-label stacks" rule, made
-     deliberately: that rule came from a SMALL pill, where it was icon OR word and the word won. A key
-     this size fits both, so the trade no longer applies. Codepoints were picked by rendering candidates
-     in the actual font — a wrong one ships as an empty box, so verify visually before swapping one.
+     deliberately: that rule came from a SMALL pill, where it was icon OR word and the word won. A key this
+     size fits both. Codepoints were picked by rendering candidates in the actual font — a wrong one ships as
+     an empty box, so verify visually before swapping one. (The car's three-dot mark is DRAWN, not a glyph,
+     precisely to keep that risk off it — and it is the mark the retired shared panel key used, which is why
+     it needs no name to be read as "there is more behind this".)
 
-     ⚠️ A KEY TOGGLES ITS MODE, AND NOTHING ELSE. Unlit → click turns the mode on; LIT → click turns it OFF.
-     That is all a lit toggle has ever meant anywhere, and getting back to it is the whole reason the
-     Timeframe window exists.
-     HISTORY, do not undo: these keys used to OWN a window each — a click activated the mode AND opened its
-     settings window, and clicking a lit key flipped that window instead of turning the mode off. The
-     window's open state appeared nowhere on the key, so one click did two different things depending on
-     state you could not see: arm NowCast by clicking a site marker (mode on, panel never shown) or close
-     the ForeCast window, and the only route back to the panel was a key that looked like it would switch
-     the feature off. The panels are now TABS of ONE window with its OWN key — the ellipsis at the end of
-     this row, an honest window latch. Two families of key, still: the named ones say what is on the MAP,
-     the latches say what is on the SCREEN. They just no longer live in two separate clusters.
-     Turning a mode ON still opens the Timeframe panel on that mode's tab, so the common path stays one
-     click. Turning a mode off leaves the panel alone — it belongs to its own key now.
-     You can also leave a mode by choosing another (Past is exclusive with Now/Fore; Now and Fore coexist).
-     The click routes through MapViewModel.ToggleTemporalMode; the key's lit state binds OneWay to
-     MapViewModel.IsPastCast/IsNowCast/IsForeCast (projections of the subsystems).
+     THE LOOK IS NOT HERE — it is SplitTemporalToggle, which owns both halves' states locally. ⚠️ These are
+     the one cluster NOT on Controls/Styles.xaml's BarKeyToggleStyle: a key divided in two cannot use a style
+     whose job is drawing ONE stroke around ONE square. The shared vocabulary is kept by hand there instead
+     (same surfaces, same accent rule, and the same BarKeySide square from that file's SIZES section), so a
+     change to the bar's key look now has TWO places to visit — the price of the split, and the reason both
+     files say so. This file owns only WHICH three keys there are, what they say, and what they bind to.
 
-     THE LOOK IS NOT HERE — it is BarKeyToggleStyle in Controls/Styles.xaml (lit = an ACCENT BORDER over a
-     face raised one surface level, deliberately not the default toggle's accent-filled block). This file
-     owns the key's CONTENT and arrangement; that style owns its states. Change the look there.
-     ⚠️ That style is SHARED with MainWindow's window buttons, which are the same glyph-over-name key —
-     a change there shows up on both clusters, which is the point (one bar, one language).
-
-     The keys carry the FULL names (PastCast / NowCast / ForeCast) so the display vocabulary matches the
-     one the code uses everywhere. They sit at the bottom bar's exact HORIZONTAL CENTER — where the radar
-     console used to be — pinned there by MainWindow's [*, Auto, *] bar grid: this control is the Auto
-     column between two equal stars, so neither the console on the left nor the window buttons on the
-     right can push it off centre, however wide they get (quad adds product chips left; the keys hold).
+     The keys carry the FULL names (PastCast / NowCast / ForeCast) so the display vocabulary matches the one
+     the code uses everywhere. They sit at the bottom bar's exact HORIZONTAL CENTER, pinned there by
+     MainWindow's [*, Auto, *] bar grid: this control is the Auto column between two equal stars, so neither
+     the console on the left nor the window buttons on the right can push it off centre, however wide they
+     get. With the three-dot key gone the row is three keys again, so the bar's midpoint falls on the middle
+     of NowCast rather than between keys.
      ⚠️ Keep this control's own WIDTH content-sized and symmetric — a horizontal stretch or a one-sided
-     margin here would re-introduce the drift the bar grid exists to prevent. HEIGHT is the opposite: it
-     must STRETCH (here and at the host), because the row's height is what sizes the squares.
+     margin here would re-introduce the drift the bar grid exists to prevent.
 
-     SIZING — the keys are square and adaptive, not a fixed size. Height comes from the bar's content
-     row (stretch); the code-behind mirrors that onto Width, scales the glyph off it, and MEASURES the
-     longest name to pick the one font size that fits all three (the names are long enough that a
-     height-derived size would overflow the square, and sizing each key to its own text would render
-     "NowCast" bigger than "ForeCast"). So the keys grow with the bar — quad adds a chip row and the
-     squares follow — with no magic numbers to keep in sync with a layout that moves. Tuning knobs are
-     consts at the top of the code-behind. The ellipsis key is the SAME square but takes
-     BarKeyMetrics.SoloGlyphRatio, since it has no name to share the square with.
+     SIZING — there is NONE here, and none in the code-behind. Every dimension is declared in XAML: the
+     shared numbers in Controls/Styles.xaml's SIZES section (BarKeySide, the glyph and name sizes, the car's
+     width), the per-key ones in the key that uses them. ⚠️ This is a reversal — the keys used to be MEASURED
+     off the bar's content height by a whole helper class, because the per-pane product chips lived in the
+     bar and grew it in quad layout. Those chips moved to the pane notches, the bar's height stopped moving,
+     and the machinery was reacting to nothing. The keys declare their size and the bar's Auto row sizes to
+     them. Read the ⚠️ history in that section before putting any of it back.
      Bound to the coordinator MapViewModel. -->
 <UserControl x:Class="Anvil.Controls.Composites.TemporalToggles"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <!-- Stretch, NOT Center: the row's height is what the keys are measured against, so this has to
-         fill the bar's content row for them to reach full height. The host must stretch it too. -->
+    <!-- ⚠️ Center, NOT Stretch — and this is a REVERSAL. The keys used to be measured against the height
+         this row was given, so it had to fill the bar's content row or the squares collapsed. They declare
+         their own size now (Styles.xaml, BarKeySide) and the bar's row sizes to THEM, so stretching this
+         would only leave the keys floating in a taller row. -->
     <Grid x:Name="PillRow"
-          VerticalAlignment="Stretch"
-          ColumnSpacing="8"
-          SizeChanged="OnPillRowSizeChanged">
+          VerticalAlignment="Center"
+          ColumnSpacing="8">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/> <!-- the ellipsis: their shared panel -->
         </Grid.ColumnDefinitions>
 
         <!-- PASTCAST — glyph E81C, a clock with a counter-clockwise arrow: history/rewind. -->
-        <ToggleButton x:Name="PastPill"
-                      Grid.Column="0"
-                      Style="{StaticResource BarKeyToggleStyle}"
-                      ToolTipService.ToolTip="PastCast — replay a historical radar window (click again to turn it off)"
-                      IsChecked="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
-                      Click="OnPastClick">
-            <Grid Margin="3,0" RowSpacing="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- glyph -->
-                    <RowDefinition Height="Auto"/> <!-- name -->
-                </Grid.RowDefinitions>
-                <FontIcon x:Name="PastGlyph" Grid.Row="0"
-                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                          Glyph="&#xE81C;"/>
-                <TextBlock x:Name="PastName" Grid.Row="1"
-                           Text="PastCast"
-                           HorizontalAlignment="Center"/>
-            </Grid>
-        </ToggleButton>
+        <prim:SplitTemporalToggle x:Name="PastKey"
+                                  Grid.Column="0"
+                                  Glyph="&#xE81C;"
+                                  ModeName="PastCast"
+                                  ModeToolTip="PastCast — replay a historical radar window (click again to turn it off)"
+                                  IsModeOn="{x:Bind ViewModel.IsPastCast, Mode=OneWay}"
+                                  IsPanelOpen="{x:Bind ViewModel.IsPastWindowOpen, Mode=TwoWay}"
+                                  ModeClick="OnPastClick"/>
 
         <!-- NOWCAST — glyph E93E, a dot radiating signal waves: live. Deliberately NOT the tower (EC05),
              which reads as "a radar site" and would collide with the on-map site markers' language. -->
-        <ToggleButton x:Name="NowPill"
-                      Grid.Column="1"
-                      Style="{StaticResource BarKeyToggleStyle}"
-                      ToolTipService.ToolTip="NowCast — live radar / current conditions (click again to turn it off)"
-                      IsChecked="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
-                      Click="OnNowClick">
-            <Grid Margin="3,0" RowSpacing="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <FontIcon x:Name="NowGlyph" Grid.Row="0"
-                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                          Glyph="&#xE93E;"/>
-                <TextBlock x:Name="NowName" Grid.Row="1"
-                           Text="NowCast"
-                           HorizontalAlignment="Center"/>
-            </Grid>
-        </ToggleButton>
+        <prim:SplitTemporalToggle x:Name="NowKey"
+                                  Grid.Column="1"
+                                  Glyph="&#xE93E;"
+                                  ModeName="NowCast"
+                                  ModeToolTip="NowCast — live radar / current conditions (click again to turn it off)"
+                                  IsModeOn="{x:Bind ViewModel.IsNowCast, Mode=OneWay}"
+                                  IsPanelOpen="{x:Bind ViewModel.IsNowWindowOpen, Mode=TwoWay}"
+                                  ModeClick="OnNowClick"/>
 
         <!-- FORECAST — glyph E753, a cloud: the weather-outlook idiom. -->
-        <ToggleButton x:Name="ForePill"
-                      Grid.Column="2"
-                      Style="{StaticResource BarKeyToggleStyle}"
-                      ToolTipService.ToolTip="ForeCast — SPC outlooks (click again to turn it off)"
-                      IsChecked="{x:Bind ViewModel.IsForeCast, Mode=OneWay}"
-                      Click="OnForeClick">
-            <Grid Margin="3,0" RowSpacing="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <FontIcon x:Name="ForeGlyph" Grid.Row="0"
-                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                          Glyph="&#xE753;"/>
-                <TextBlock x:Name="ForeName" Grid.Row="1"
-                           Text="ForeCast"
-                           HorizontalAlignment="Center"/>
-            </Grid>
-        </ToggleButton>
-
-        <!-- ===== THE PANEL KEY — an ellipsis, and the ONLY nameless key in the bar =====
-             It opens the Timeframe window (PastCast / NowCast / ForeCast as three tabs), which is why it
-             sits HERE and not in MainWindow's right cluster where it started: that panel configures these
-             three modes and nothing else, so it belongs against them. The right cluster keeps what is
-             genuinely global (panes, sites, settings).
-
-             ⚠️ AN ELLIPSIS IS THE POINT. Three dots are the universal "there is more behind this" mark, and
-             placed hard against the trio it reads as "more, for THESE" — which is precisely what it is.
-             That adjacency is what teaches the panel's existence; a named key over in the right cluster had
-             to be found first.
-
-             ⚠️ THE DOTS RUN VERTICALLY AND ARE DRAWN, not a font glyph. Vertical because the key is HALF the
-             width of a mode key (BarKeyMetrics.NarrowWidthFor) — a horizontal ellipsis would crowd its own
-             edges in that space, while a vertical one has the height to breathe and reads as a divider-ish
-             pip strip rather than a squashed word. Drawn (three Ellipses) for the same reason the pane key's
-             icons are drawn: it removes the "verify this codepoint renders" risk entirely, and it scales off
-             the measured side like everything else in the row.
-
-             ⚠️ HALF WIDTH IS THE SUBORDINATION. Same HEIGHT as its neighbours — it is part of the row, and
-             its height still comes from the shared stretch, never from a set value — but half the width, so
-             it cannot read as a fourth mode however long you look at it. Width and dot size both come from
-             Layout/BarKeyMetrics so they track the bar with nothing to keep in sync by hand.
-
-             ⚠️ NAMELESS, deliberately, and the ONE exception to the bar's mark-over-a-name rule. That rule
-             exists because a lone mark has to be LEARNED (a globe, a tower, a gear mean nothing until you
-             know what is behind them) — an ellipsis is the one mark that doesn't, and naming it would be
-             worse: any word for it ("More", "Panel", "Timeframe") reads as a FOURTH MODE in a row of three,
-             which is the one thing this key must not look like. No name is what keeps it subordinate.
-             Its dots therefore take BarKeyMetrics.SoloDrawnIconRatio — the mark has the key to itself, not
-             the fraction a named key leaves over.
-
-             ⚠️ IT IS STILL A LATCH, not an action: lit = the panel is open, click = close it. Same contract
-             as Sites and Settings, so the two-families rule survives the move — this key just moved house,
-             it did not change species.
-
-             ⚠️ CENTRING: this key is INSIDE the centred cluster, so the bar's midpoint now falls in the
-             middle of FOUR keys, not three. The trio therefore sits a little left of dead centre. That was
-             the trade for adjacency and it is deliberate — do not "fix" it by hanging this key outside the
-             Auto column, which would put it back in a star column and let it drift with the console.
-
-             ⚠️ ONE spacing for all four keys — the row's ColumnSpacing, nothing extra here. An added gap
-             before this key was tried and removed: it made the group look like "three keys, then a stray",
-             and the half width already does the subordinating without a hole in the row. -->
-        <!-- ⚠️ No Margin and no Width here: the code-behind owns both (the row's inset, and half the
-             measured side), exactly as it does for the trio. Two owners would fight on the first
-             SizeChanged. -->
-        <ToggleButton x:Name="PanelKey"
-                      Grid.Column="3"
-                      Style="{StaticResource BarKeyToggleStyle}"
-                      ToolTipService.ToolTip="Settings for the active timeframe — PastCast, NowCast and ForeCast"
-                      IsChecked="{x:Bind ViewModel.IsTemporalWindowOpen, Mode=TwoWay}">
-            <!-- Three drawn dots, stacked. Sizes + spacing come from the code-behind; the brush is fixed
-                 because Shapes do not inherit the content Foreground the template's states drive — the same
-                 reason the pane key's rectangles carry their own. -->
-            <StackPanel x:Name="PanelDots" VerticalAlignment="Center" HorizontalAlignment="Center">
-                <Ellipse x:Name="Dot1" Fill="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <Ellipse x:Name="Dot2" Fill="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <Ellipse x:Name="Dot3" Fill="{ThemeResource TextFillColorSecondaryBrush}"/>
-            </StackPanel>
-        </ToggleButton>
+        <prim:SplitTemporalToggle x:Name="ForeKey"
+                                  Grid.Column="2"
+                                  Glyph="&#xE753;"
+                                  ModeName="ForeCast"
+                                  ModeToolTip="ForeCast — SPC outlooks (click again to turn it off)"
+                                  IsModeOn="{x:Bind ViewModel.IsForeCast, Mode=OneWay}"
+                                  IsPanelOpen="{x:Bind ViewModel.IsForeWindowOpen, Mode=TwoWay}"
+                                  ModeClick="OnForeClick"/>
     </Grid>
 </UserControl>

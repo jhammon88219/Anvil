@@ -7,7 +7,6 @@ using Anvil.Models;
 using Anvil.Services;
 using Anvil.ViewModels;
 using Anvil.Dialogs;
-using Anvil.Layout;
 using System;
 using System.Globalization;
 using System.IO;
@@ -205,99 +204,26 @@ namespace Anvil
 		// The view knows only "advance"; the ORDER is the view model's (Radar.NextPaneLayout).
 		private void OnCyclePaneLayout(object sender, RoutedEventArgs e) => ViewModel.Radar.CyclePaneLayout();
 
-		// ===== Right-cluster key sizing =====
-		// The three keys on the right (the cycling pane key + the Sites and Settings window buttons) are the
-		// SAME SQUARE as the temporal keys at the bar's centre — they sit in one bar and have to read as one
-		// set. Neither
-		// cluster hardcodes that size: each measures the height its row was given and mirrors it onto Width,
-		// through the shared Layout/BarKeyMetrics so the two halves can't drift apart.
+		// Register one temporal mode's settings window. All three are the SAME TemporalWindow class; only the
+		// mode, the caption and the size differ, so the wiring lives here once rather than three times.
 		//
-		// Code-behind rather than a binding for the same reason TemporalToggles is: ActualHeight raises no
-		// property-changed notification in WinUI, so an x:Bind would size the keys once and then silently
-		// stop tracking.
-		//
-		// ⚠️ WIDTH ONLY — never Height. The keys take their height from the vertical stretch (set in
-		// BarChromeButtonStyle). A key that demanded the height it was last handed would hold the bar open
-		// at that height and the bar could never shrink again: the row feeds the key, and the key would feed
-		// the row right back.
-		//
-		// ⚠️ It cannot loop: setting Width re-fires SizeChanged (the cluster got wider), but HEIGHT is
-		// unchanged on that pass, so every value is already correct and the guards make it a no-op.
-		private void OnRightClusterSizeChanged(object sender, SizeChangedEventArgs e)
+		// ⚠️ The window is opened and closed by the SIDE CAR on that mode's bar key, and by the caption
+		// Close (which routes back through this close action). There is no bar key of its own — that is the
+		// whole point of the split key. And the view model closes a window whose mode has stopped
+		// (MapViewModel.OnTemporalModesChanged), so a panel can never outlive the thing it configures.
+		private void RegisterTemporalWindow(TemporalMode mode, string title, double width, double height)
 		{
-			var side = BarKeyMetrics.SideFor(e.NewSize.Height);
-			var glyph = BarKeyMetrics.LabelledGlyphFor(side);
-
-			// The two names share ONE size — the one that fits the wider of them ("Settings") — so the
-			// cluster reads as a set rather than as keys with their own type sizes. Probe measured once; the
-			// labels are fixed strings. ⚠️ "Settings" has been the widest through every change to this
-			// cluster (five keys, then three, then losing "Panes"), so the fitted size has never moved and
-			// the centred temporal keys have never had to.
-			if (_rightNameProbe <= 0)
-			{
-				_rightNameProbe = BarKeyMetrics.ProbeWidthOf(SitesName, SettingsName);
-			}
-
-			var nameFont = BarKeyMetrics.NameFontFor(side, _rightNameProbe);
-
-			// ⚠️ The pane key is NOT in this loop — it is the one key wider than the square (below).
-			foreach (var key in new Control[] { SitesKey, SettingsKey })
-			{
-				if (key.Width != side)
-				{
-					key.Width = side;
-				}
-			}
-
-			// Glyph + name sizes are set on the elements themselves, NOT via the key's FontSize: the name
-			// and the glyph want different sizes out of one key, so a single inherited FontSize can't serve
-			// both. (It could when these keys were glyph-only — that is why this used to be one line.)
-			foreach (var (glyphIcon, name) in new[]
-			{
-				(SitesGlyph, SitesName), (SettingsGlyph, SettingsName),
-			})
-			{
-				glyphIcon.FontSize = glyph;
-				name.FontSize = nameFont;
-			}
-
-			// ===== The pane key's mark =====
-			// It is the one mark in the bar that is WIDE rather than square (it is a picture of the map
-			// band), and the one that is NAMELESS and textless — so nothing above applies to it and every
-			// number comes from the wide-mark helpers instead. All three layouts are sized even though only
-			// one is visible; visibility flips as the layout cycles, and a hidden one must already be right.
-			// ⚠️ This key is WIDER THAN THE SQUARE. The mark has to be large for the quad "4" to read at
-			// all, and at that size a square key would crop it to its own border — so the key widens to hold
-			// the mark rather than the mark shrinking to fit the key. Height still comes from the stretch,
-			// like every other key; only the width is ours to set.
-			var keyWidth = BarKeyMetrics.WideKeyWidthFor(side);
-			if (PaneLayoutKey.Width != keyWidth)
-			{
-				PaneLayoutKey.Width = keyWidth;
-			}
-
-			var markWidth = BarKeyMetrics.WideIconWidthFor(side);
-			var markHeight = BarKeyMetrics.WideIconHeightFor(side);
-			var markGap = BarKeyMetrics.WideIconGapFor(side);
-
-			foreach (var paneIcon in new[] { SinglePaneIcon, DualPaneIcon, QuadPaneIcon })
-			{
-				if (paneIcon.Width != markWidth)
-				{
-					paneIcon.Width = markWidth;
-					paneIcon.Height = markHeight;
-				}
-			}
-
-			// The grooves between cells, scaled with the mark rather than left at a fixed 2px — on a tall
-			// bar a fixed gap closes up and the four quad cells read as one block.
-			DualPaneIcon.ColumnSpacing = markGap;
-			QuadPaneIcon.ColumnSpacing = markGap;
-			QuadPaneIcon.RowSpacing = markGap;
+			_windows.Register(
+				id: "temporal." + mode,
+				isOpen: () => ViewModel.IsTemporalWindowOpen(mode),
+				close: () => ViewModel.SetTemporalWindowOpen(mode, false),
+				// ⚠️ Mode FIRST: the window builds its body when both properties have landed, and setting Mode
+				// last would have it build the default (Past) body and then throw it away.
+				buildContent: () => new Controls.Windows.TemporalWindow { Mode = mode, ViewModel = ViewModel },
+				title: title, width: width, height: height,
+				alwaysOnTop: () => ViewModel.IsTemporalWindowOnTop(mode),
+				customChrome: true);
 		}
-
-		// Widest right-cluster name at the probe size — measured once (fixed strings).
-		private double _rightNameProbe;
 
 		// Opens the site-sweep results pop-up (Save / Close). Raised by the dev window on run completion
 		// or its Report button.
@@ -465,19 +391,18 @@ namespace Anvil
 				title: "Radar Sites", width: 660, height: 470,
 				alwaysOnTop: () => ViewModel.IsSiteExplorerOnTop,
 				customChrome: true);
-			// ONE window for all three timeframes, tabbed — it replaced the three separate Past/Now/Fore
-			// windows so that their mode keys could stop doubling as window latches (the ⚠️ history note is
-			// in MapViewModel's temporal region). Its key is "Timeframe", in the right cluster above.
-			// ⚠️ Sized for the TALLEST tab (PastCast), for the same reason the Settings window is: a window is
-			// sized once, at open, and a per-tab resize would fight whatever size the user dragged it to.
-			_windows.Register(
-				id: "temporal",
-				isOpen: () => ViewModel.IsTemporalWindowOpen,
-				close: () => ViewModel.IsTemporalWindowOpen = false,
-				buildContent: () => new Controls.Windows.TemporalWindow { ViewModel = ViewModel },
-				title: "Timeframe", width: 480, height: 700,
-				alwaysOnTop: () => ViewModel.IsTemporalWindowOnTop,
-				customChrome: true);
+			// THREE windows, one per timeframe — one TemporalWindow class registered three times, differing
+			// only in Mode, title, size and which flags it reads. They are opened by the SETTINGS RAIL at the
+			// foot of each mode's key in the bar's centre cluster, never by a key of their own.
+			// ⚠️ These replaced ONE tabbed "Timeframe" window (and its shared three-dot key), which had itself
+			// replaced three windows. The round trip is deliberate and the reasoning is in MapViewModel's
+			// temporal region: the tabbed panel existed to stop a mode key meaning two things at once, and
+			// splitting the key fixes that without making the two coexisting modes share one panel.
+			// ⚠️ Each is sized for ITS OWN body now, which is the other thing the split bought — the tabbed
+			// window had to be sized for the tallest tab, because a window is sized once, at open.
+			RegisterTemporalWindow(TemporalMode.Past, "PastCast", 480, 700);
+			RegisterTemporalWindow(TemporalMode.Now, "NowCast", 480, 560);
+			RegisterTemporalWindow(TemporalMode.Fore, "ForeCast", 480, 540);
 			_windows.Register(
 				id: "pipeline",
 				isOpen: () => ViewModel.IsPipelineConsoleOpen,

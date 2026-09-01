@@ -15,18 +15,20 @@
        ├─────────────────────────────┴─────────────────────────────┤
        │                       ╭─ Hide ─╮                          │  OverlayBar pull-tab
        │ ══ scrubber ══                                            │
-       │ ◀ ▶ ▶  3/10 │ time·site   ↺   ((•))  ☁   ⋮      ▤  📡  ⚙   │
-       │                            PastCast NowCast ForeCast    Sites Settings │
-       └────────────────────────────────┴──────────────────────────┘
-                                        ↑ bar midpoint — the four centre keys straddle it
-                                                          ↑ ⋮ = the Timeframe panel (nameless,
-                                                            half width, a window latch among
-                                                            mode toggles)
+       │ ◀ ▶ ▶  3/10 │ time·site   ↺ │⋮  ((•))│⋮   ☁ │⋮     ▤  📡  ⚙   │
+       │                          PastCast  NowCast  ForeCast    Sites Settings │
+       └──────────────────────────────────┴────────────────────────┘
+                                          ↑ bar midpoint — NowCast sits on it
+                                            ↑ ⋮ = each mode's SIDE CAR: a full-height
+                                              settings latch on its own key, lit only
+                                              while that mode runs. One window per mode.
+                                              (Same three-dot mark the retired shared
+                                              panel key used, now inside its own mode.)
                                                                  ↑ ▤ pane layout: ONE key that
                                                                    CYCLES 1→2→4. Its mark draws
                                                                    what the NEXT click gives you,
-                                                                   with the count inside the
-                                                                   accent anchor cell and NO name
+                                                                   with the accent anchor cell
+                                                                   marking pane 0, and NO name
 
      ⚠️ WHAT REPEATS PER PANE IS NOT IN THE BAR ANY MORE. It used to be: the bar's left cluster carried a
      160px "chip" per pane (a combined product-selector-and-colour-ramp) plus the one tilt combo, which is
@@ -38,25 +40,29 @@
      ⚠️ THE PANE WATERMARK IS GONE TOO (the big ghosted "Ref" in a pane's corner). The notch says the same
      thing better, a few pixels away. See the PANE NOTCHES block below.
 
-     ⚠️ MOST keys in the bar are a SQUARE holding a MARK OVER A NAME. TWO are not, both nameless and
-     both on purpose: the ⋮ Timeframe key (half width, so it cannot read as a fourth temporal mode) and
-     the pane-layout key (a WIDE mark — it is a picture of the map band — carrying its pane count inside
-     the anchor cell instead of a label under it). See Layout/BarKeyMetrics.
+     ⚠️ MOST keys in the bar are a SQUARE holding a MARK OVER A NAME. TWO are not, both on purpose: the
+     pane-layout key (nameless, with a WIDE mark — it is a picture of the map band) and each temporal key
+     (a square mode half PLUS a settings side car beside it, so the key is wider than it is tall). See
+     Controls/Styles.xaml, section 2.
 
-     Left of the bar is RadarControls (the global time module); the CENTER is the three temporal mode keys
-     plus the ⋮ panel key, held on the bar's midpoint by a [*, Auto, *] grid so no amount of growth on
-     either side can shift them; right is the pane-layout key then the app-wide window buttons, all on one
-     spacing. The gaps between the three clusters are empty bar, by design.
+     Left of the bar is RadarControls (the global time module); the CENTER is the three temporal split
+     keys, held on the bar's midpoint by a [*, Auto, *] grid so no amount of growth on either side can
+     shift them; right is the pane-layout key then the app-wide window buttons, all on one spacing. The
+     gaps between the three clusters are empty bar, by design.
 
-     ⚠️ EVERY key in this bar takes its LOOK from ONE style chain in Controls/Styles.xaml
+     ⚠️ THE KEYS IN THIS CLUSTER take their LOOK from ONE style chain in Controls/Styles.xaml
      (BarChromeButtonStyle → BarKeyToggleStyle for the ones that latch / BarIconButtonStyle for the one
-     that acts):
-     hairline at rest, accent BORDER + raised face when ON. And they are all the SAME SQUARE: neither
-     cluster hardcodes a size, each measures the height its row was given and mirrors it onto Width, via
-     the shared Layout/BarKeyMetrics — which also fits the NAMES, so a word is the same size on both
-     halves of the bar (right cluster: OnRightClusterSizeChanged below; centre: TemporalToggles' own
-     code-behind). Nothing here should set a size, corner radius or font per
-     instance — that is what put ~40 duplicated attributes in this file before.
+     that acts): hairline at rest, accent BORDER + raised face when ON, and the SAME SQUARE, set by that
+     chain from the shared BarKeySide. ⚠️ The three temporal keys are NOT on that chain — a key divided in
+     two cannot use a style whose job is drawing one stroke around one square — so they keep the same
+     vocabulary by hand in SplitTemporalToggle. Two homes for one look; both files say so.
+     ⚠️ SIZES ARE DECLARED, NOT MEASURED. They used to be: each cluster measured the height its row was
+     given and mirrored it onto Width, because the per-pane product chips lived in the bar and changed its
+     height. The chips moved to the pane notches and the whole apparatus (a Layout/BarKeyMetrics class, two
+     SizeChanged handlers, a name-font probe) was deleted — read the ⚠️ history in Styles.xaml section 2
+     before reviving any of it. Nothing here should set a size, corner radius or font per instance unless
+     that key is the ONLY consumer of it (the pane key's wide mark, in this file's own Resources) — per-
+     instance attributes are what put ~40 duplicated values in this file before.
      The transport buttons in RadarControls are the one cluster still on the old stock look.
 
      There is no top BAR — the notches are islands, not a strip. A full-width top bar existed once, to hold
@@ -255,9 +261,20 @@
                     <Grid x:Name="RightCluster"
                           Grid.Column="2"
                           HorizontalAlignment="Right"
-                          VerticalAlignment="Stretch"
-                          ColumnSpacing="8"
-                          SizeChanged="OnRightClusterSizeChanged">
+                          VerticalAlignment="Center"
+                          ColumnSpacing="8">
+                        <Grid.Resources>
+                            <!-- The pane key's WIDE mark, and the key it needs. These live HERE, not in
+                                 Controls/Styles.xaml, because this key is their only consumer — the house
+                                 rule in that file is that a shared number earns its place by having two.
+                                 They are quoted against a 26x14 reference box (the map band's shape), which
+                                 is what the drawn cells below divide: 59 x 32 holds that 26:14 ratio, and
+                                 the 5px groove is its 2px gap at the same scale. -->
+                            <x:Double x:Key="PaneKeyWidth">78</x:Double>
+                            <x:Double x:Key="PaneMarkWidth">59</x:Double>
+                            <x:Double x:Key="PaneMarkHeight">32</x:Double>
+                            <x:Double x:Key="PaneMarkGap">5</x:Double>
+                        </Grid.Resources>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/> <!-- pane layout (one cycling key) -->
                             <ColumnDefinition Width="Auto"/> <!-- site explorer -->
@@ -294,8 +311,8 @@
                              wide monitor.
 
                              ⚠️ THE MARK IS A LITERAL PICTURE OF THE MAP BAND, so unlike every other
-                             mark in the bar its box is NOT SQUARE — it is wide (26:14, see
-                             BarKeyMetrics.WideIconAspect), and the cells inside divide that one box. That
+                             mark in the bar its box is NOT SQUARE — it is wide (26:14, doubled to the
+                             52x28 PaneMarkWidth/Height above), and the cells inside divide that box. That
                              is what makes the three silhouettes read as different layouts rather than as
                              three grids: one wide rectangle, then two half-wide ones, then four. All three
                              are stacked in the same cell and only the NEXT layout's is visible.
@@ -325,27 +342,32 @@
                              drives.
                              ⚠️ Hollow shapes do NOT cost the key its click target — the template's
                              Surface Border has Background="Transparent", which hit-tests the whole key.
-                             ⚠️ THE KEY ITSELF IS WIDER THAN THE SQUARE (BarKeyMetrics.WideKeyWidthFor):
-                             at this mark size a square key would crop the mark to its own border, so the
-                             key widens to hold the mark rather than the mark shrinking to fit. It costs
-                             the bar's centring nothing — this cluster sits in a star column.
-                             ⚠️ No Width/Height/spacing in this markup: every one of them is measured off
-                             the bar in OnRightClusterSizeChanged. Pin any of it here and the mark stops
-                             tracking the bar's height. -->
+                             ⚠️ THE KEY ITSELF IS WIDER THAN THE SQUARE (PaneKeyWidth): at this mark size
+                             a square key would crop the mark to its own border, so the key widens to hold
+                             the mark rather than the mark shrinking to fit. Only its WIDTH is overridden —
+                             the height stays the shared square from BarChromeButtonStyle, because one row
+                             of keys has one height. It costs the bar's centring nothing: this cluster sits
+                             in a star column of the [*, Auto, *] grid. -->
                         <Button x:Name="PaneLayoutKey"
                                 Grid.Column="0"
                                 Style="{StaticResource BarIconButtonStyle}"
+                                Width="{StaticResource PaneKeyWidth}"
                                 ToolTipService.ToolTip="{x:Bind PaneLayoutTooltip(ViewModel.Radar.PaneLayout), Mode=OneWay}"
                                 Click="OnCyclePaneLayout">
                             <Grid>
                                 <!-- SINGLE — one wide pane, and it is the anchor. -->
                                 <Grid x:Name="SinglePaneIcon"
+                                      Width="{StaticResource PaneMarkWidth}"
+                                      Height="{StaticResource PaneMarkHeight}"
                                       Visibility="{x:Bind SinglePaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
                                     <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
                                 </Grid>
 
                                 <!-- TWO ACROSS — anchor LEFT, matching pane 0 on the map. -->
                                 <Grid x:Name="DualPaneIcon"
+                                      Width="{StaticResource PaneMarkWidth}"
+                                      Height="{StaticResource PaneMarkHeight}"
+                                      ColumnSpacing="{StaticResource PaneMarkGap}"
                                       Visibility="{x:Bind DualPaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition/>
@@ -357,6 +379,10 @@
 
                                 <!-- QUAD — anchor BOTTOM-LEFT, matching pane 0 on the map. -->
                                 <Grid x:Name="QuadPaneIcon"
+                                      Width="{StaticResource PaneMarkWidth}"
+                                      Height="{StaticResource PaneMarkHeight}"
+                                      ColumnSpacing="{StaticResource PaneMarkGap}"
+                                      RowSpacing="{StaticResource PaneMarkGap}"
                                       Visibility="{x:Bind QuadPaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition/>
@@ -384,11 +410,11 @@
                              tower and a gear are only obvious once you already know what is behind them,
                              and the tooltip that carried that meaning needs a hover to appear.
 
-                             ⚠️ The names cost NO width: a key is a SQUARE sized off the bar's height, so
-                             the name is fitted INSIDE the square it already occupied (see
-                             Layout/BarKeyMetrics). The cluster is exactly as wide as it was, and the
-                             centred temporal keys do not move. Keep it that way — a name long enough to
-                             force a wider key would break both.
+                             ⚠️ The names cost NO width: a key is a fixed SQUARE, so the name is fitted
+                             INSIDE the square it already occupied (BarKeyNameSize, Styles.xaml). The
+                             cluster is exactly as wide as it was, and the centred temporal keys do not
+                             move. Keep it that way — a name long enough to force a wider key breaks both,
+                             and there is no probe measuring it for you any more.
 
                              ⚠️ The style is BarKeyToggleStyle, NOT the old BarIconToggleStyle (deleted):
                              that one set the icon FontFamily on the BUTTON, which now renders the NAME in
@@ -415,8 +441,10 @@
                                     </Grid.RowDefinitions>
                                     <FontIcon x:Name="SitesGlyph" Grid.Row="0"
                                               FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                              FontSize="{StaticResource BarKeyGlyphSize}"
                                               Glyph="&#xEC05;"/>
                                     <TextBlock x:Name="SitesName" Grid.Row="1"
+                                               FontSize="{StaticResource BarKeyNameSize}"
                                                Text="Sites"
                                                HorizontalAlignment="Center"/>
                                 </Grid>
@@ -433,8 +461,10 @@
                                     </Grid.RowDefinitions>
                                     <FontIcon x:Name="SettingsGlyph" Grid.Row="0"
                                               FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                              FontSize="{StaticResource BarKeyGlyphSize}"
                                               Glyph="&#xE713;"/>
                                     <TextBlock x:Name="SettingsName" Grid.Row="1"
+                                               FontSize="{StaticResource BarKeyNameSize}"
                                                Text="Settings"
                                                HorizontalAlignment="Center"/>
                                 </Grid>
@@ -446,12 +476,13 @@
                          (see the ⚠️ above). LAST in markup on purpose: if the console on the left ever
                          outgrows its half it slides UNDER these rather than over them, so the keys stay
                          clickable. Past excludes Now/Fore; Now and Fore coexist.
-                         ⚠️ VerticalAlignment=Stretch is REQUIRED, not cosmetic: the keys are squares
-                         measured off the height they are given, so centring this instead would collapse
-                         the row to its content height and shrink them to nothing. -->
+                         ⚠️ Center, and this is a REVERSAL: Stretch used to be REQUIRED here, because the
+                         keys were squares measured off the height they were given and centring collapsed
+                         them. They are a fixed size now (Styles.xaml, BarKeySide) and this row is what
+                         makes the BAR that tall, so stretching would only pad around them. -->
                     <comp:TemporalToggles Grid.Column="1"
                                           HorizontalAlignment="Center"
-                                          VerticalAlignment="Stretch"
+                                          VerticalAlignment="Center"
                                           ViewModel="{x:Bind ViewModel}"/>
                 </Grid>
             </ctl:OverlayBar.BarContent>

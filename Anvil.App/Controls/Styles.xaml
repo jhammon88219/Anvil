@@ -3,11 +3,14 @@
      Styles.xaml — the app-wide shared resource dictionary. Merged in App.xaml, so anything in any
      control or window can reference these by key.
 
-     ORGANIZATION — two sections, in this order, and please keep it that way:
+     ORGANIZATION — three sections, in this order, and please keep it that way:
 
        1. THEME BRUSHES   the ThemeDictionaries block. Colors that must follow Win11 light/dark.
                           MUST come first: the styles below resolve these keys.
-       2. STYLES          reusable Styles, grouped by the control they target. Within the section,
+       2. SIZES           the handful of numbers two different clusters have to agree on.
+                          MUST precede the styles: StaticResource resolves at parse time, in
+                          document order, and cannot look forward.
+       3. STYLES          reusable Styles, grouped by the control they target. Within the section,
                           a BASE style must appear ABOVE anything BasedOn it — XAML resolves
                           BasedOn at parse time and cannot look forward.
 
@@ -66,7 +69,60 @@
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
-    <!-- ══════════════════════════════ 2. STYLES ══════════════════════════════ -->
+    <!-- ══════════════════════════════ 2. SIZES ══════════════════════════════
+         How big a key in the bottom bar is. FIVE numbers, and they are here for exactly one reason:
+         TWO clusters have to agree on them. The temporal keys sit at the bar's centre and the pane /
+         Sites / Settings keys sit at its right edge, side by side in one strip — a local copy in
+         either would let the two halves of one bar drift apart the first time either was tuned.
+
+         ⚠️ THESE ARE THE ONLY SIZES THAT ARE SHARED. Anything used by ONE key belongs to that key,
+         not here — the pane key's wide mark lives in MainWindow.xaml's own Resources, the side car's
+         mark lives in SplitTemporalToggle.xaml. Same rule as the styles below: more than one
+         consumer, or it doesn't earn a place in this file.
+
+         ⚠️ HISTORY — THERE USED TO BE A WHOLE CLASS FOR THIS (Anvil.App/Layout/BarKeyMetrics), and
+         it is GONE. It existed to COMPUTE: the bar's height was set by the per-pane product chips,
+         which grew it in quad layout, so every key measured the row it was given and mirrored that
+         onto its Width, with ratios and floors and a name-font probe on top. The chips moved to the
+         pane notches, the bar's height stopped moving, and all that machinery was left reacting to
+         nothing — while leaving the keys at whatever size the radar console implied rather than a
+         size anyone chose. The keys declare a size now and the bar's Auto row sizes to THEM, so
+         there is nothing to compute and no code to hold it: five numbers, applied by Setters and by
+         XAML, and no code-behind sizing anywhere in the bar. Don't re-introduce the measuring.
+
+         ⚠️ ONE THING WAS LOST WITH IT, knowingly: the name font size used to be MEASURED against the
+         longest label so a rename could never overflow its key. It is a chosen constant now
+         (BarKeyNameSize). The labels are fixed strings and an overflow is visible the moment it
+         happens, so the probe was paying for a problem nobody had. If a long name ever does land,
+         the fix is this number — not a return to measuring. -->
+
+    <!-- The square every bar key is built on. THE knob: change this and both clusters follow. -->
+    <x:Double x:Key="BarKeySide">72</x:Double>
+
+    <!-- The glyph in a key that also carries a NAME — small, because the name takes the rest of the
+         square. Roughly 0.30 of the side; a solo glyph would want more, but no key is solo now. -->
+    <x:Double x:Key="BarKeyGlyphSize">21</x:Double>
+
+    <!-- The name under the glyph. One size for every key in the bar, so the two clusters read as one
+         set rather than as keys with their own type sizes. ⚠️ Sized to fit the LONGEST name in the
+         bar ("PastCast" / "ForeCast" / "Settings") inside BarKeySide less its padding — check it
+         against this if you rename a key. -->
+    <x:Double x:Key="BarKeyNameSize">13</x:Double>
+
+    <!-- The SIDE CAR: the settings column on a split temporal key (Controls/Primitives/
+         SplitTemporalToggle). Shared because it decides how wide those keys are, and therefore how
+         much of the bar the centre cluster takes. ⚠️ It runs the FULL height of the key — that is the
+         whole point of it, and what a foot rail could not do: the glyph-and-name stack already owns
+         the key's height, so a settings affordance carved out of the height is always a sliver,
+         while one carved out of the width can be full size. -->
+    <x:Double x:Key="BarSideCarWidth">28</x:Double>
+
+    <!-- HEIGHT of the drawn three-dot mark inside the car. Its WIDTH is not a number anywhere: the
+         Viewbox takes it from the shape's own 6x26 box, which is TALL — the dots run vertically, along
+         the car rather than across it. -->
+    <x:Double x:Key="BarSideCarMarkHeight">24</x:Double>
+
+    <!-- ══════════════════════════════ 3. STYLES ══════════════════════════════ -->
 
     <!-- ───────────────────── ButtonBase — the shared bar-chrome look ─────────────────────
 
@@ -91,11 +147,13 @@
          keys and BarIconButtonStyle for the one that acts. Both are empty derivations, which is the
          point — every key in the bar is the same square holding a mark over a name.
 
-         ⚠️ NO Width AND NO Height, HERE OR IN ANYTHING DERIVED. Every bar key is a SQUARE sized off the
-         BAR: it stretches to the full height of its cluster row (hence VerticalAlignment=Stretch here)
-         and the hosting control's code-behind sets Width from that measured height — see
-         Layout/BarKeyMetrics, which is the one copy of that arithmetic for both clusters. Pin either
-         dimension in XAML and the key stops being square, stops tracking the bar, or both.
+         ⚠️ THE SQUARE IS SET HERE, and that is a REVERSAL. Every bar key is BarKeySide on both sides,
+         applied by the two Setters below, and the bar's Auto content row sizes to the keys. It used to
+         be the other way round — the key stretched to the row and each cluster's code-behind measured
+         that height and mirrored it onto Width — because the per-pane product chips lived in the bar
+         and changed its height. They don't any more. See the ⚠️ history in section 2.
+         ⚠️ A key that needs a different WIDTH overrides it locally (the pane key, whose mark is a wide
+         picture of the map band). Nothing should override the HEIGHT: one row of keys, one height.
 
          WHY A ControlTemplate (this file's default is: don't). The checked look is applied by the
          default template's own visual states, so a Style full of Setters cannot reach it — a Setter
@@ -115,7 +173,9 @@
         <Setter Property="MinHeight" Value="0"/>
         <Setter Property="Padding" Value="0"/>
         <Setter Property="CornerRadius" Value="8"/>
-        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="Width" Value="{StaticResource BarKeySide}"/>
+        <Setter Property="Height" Value="{StaticResource BarKeySide}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="UseSystemFocusVisuals" Value="True"/>

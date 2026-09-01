@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- PastCastTab — the PastCast tab of the Timeframe window: date / start / window, the historical SPC
-     outlook for that date, and that day's storm reports. One of three tab bodies (see
-     Controls/Windows/TemporalWindow); the window supplies the surface, the title and the pin, so this is
-     content only. Bound to the coordinator MapViewModel.
+<!-- PastCastTab — the body of the PastCast window: date / start / window, the historical SPC outlook for
+     that date, and that day's storm reports. One of three mode bodies (see Controls/Windows/TemporalWindow,
+     registered once per mode); the window supplies the surface, the title and the pin, so this is content
+     only.
+     ⚠️ The file keeps its "Tab" name from when the three were tabs of one Timeframe window. It is the same
+     control, unchanged by the split; renaming all three would be churn. Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────┐
        │  Date    [2013] [05] [20]                            │

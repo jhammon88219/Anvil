@@ -11,10 +11,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace Anvil.ViewModels
 {
 	/// <summary>Which temporal feature a toggle click refers to (PastCast / NowCast / ForeCast). Identifies
-	/// the toggle for <see cref="MapViewModel.ToggleTemporalMode"/>, and doubles as the tab ordinal in the
-	/// Timeframe window (<see cref="MapViewModel.TemporalTabIndex"/>) — the three modes and its three tabs
-	/// are the same three things. It is NOT an open-state; the panel has its own
-	/// <see cref="MapViewModel.IsTemporalWindowOpen"/> flag, owned by its own bar key.</summary>
+	/// the mode for <see cref="MapViewModel.ToggleTemporalMode"/>, and addresses that mode's settings window
+	/// for <see cref="MapViewModel.OpenTemporal"/> and its siblings — every mode has exactly one window, so
+	/// one enum names both. It is NOT an open-state: each window has its own flag, latched by the settings
+	/// rail at the foot of that mode's key.</summary>
 	public enum TemporalMode { Past, Now, Fore }
 
 	/// <summary>Which tab the Settings window shows. Identifies a tab for <see cref="MapViewModel.OpenSettings"/>
@@ -80,10 +80,9 @@ namespace Anvil.ViewModels
 			// them honest: re-raise them whenever the radar mode/loop or the outlook overlay changes,
 			// including changes NOT driven by the toggles (e.g. clicking an on-map radar site marker starts a
 			// live loop, which should light NowCast).
-			// ⚠️ Nothing here touches the Timeframe panel's OPEN state. A mode turning off no longer closes a
-			// window — the panel is owned by its own bar key (IsTemporalWindowOpen), which is the whole point
-			// of the split. Aiming its TAB is fair game: a mode that switches on elsewhere should be the tab
-			// you land on next time the panel opens.
+			// ⚠️ These paths all end at OnTemporalModesChanged, which CLOSES the settings
+			// window whose rail has just gone dead. A window configures a RUNNING mode, and nothing on screen
+			// could close one whose mode had stopped.
 			Radar.PropertyChanged += (_, e) =>
 			{
 				if (e.PropertyName == nameof(RadarViewModel.IsPastEventMode))
@@ -109,14 +108,13 @@ namespace Anvil.ViewModels
 				else if (e.PropertyName == nameof(RadarViewModel.HasRadarLoop))
 				{
 					// A live loop starting (e.g. an on-map site-marker click) arms NowCast so it reflects reality.
-					// ⚠️ This path writes the FIELD, so it does not open the panel — clicking a site marker
-					// should not throw a window over the map. It aims the tab instead, so the Timeframe key
-					// (which is sitting right there, unlit) opens on NowCast when the user does want it.
+					// ⚠️ This path writes the FIELD, so it does NOT open the NowCast window — clicking a site
+					// marker should not throw a panel over the map. It only lights the key, which lights that
+					// key's settings rail with it, so the window is one click away the moment it is wanted.
 					if (Radar.HasRadarLoop && !Radar.IsPastEventMode && !_isNowCast)
 					{
 						_isNowCast = true;
 						OnPropertyChanged(nameof(IsNowCast));
-						TemporalTabIndex = (int)TemporalMode.Now;
 						OnTemporalModesChanged();
 					}
 				}
@@ -265,23 +263,22 @@ namespace Anvil.ViewModels
 		// one on clears whatever it excludes — see the IsPastCast/IsNowCast/IsForeCast setters + the ctor
 		// Radar/Outlook subscriptions. With ALL THREE OFF the map is a blank basemap (the "cleared" state — click the active
 		// toggle to reach it). ALL THREE START OFF — nothing is armed at launch (a clean map). Activating a
-		// toggle also OPENS the Timeframe panel on that mode's tab, so the common path is still one click.
+		// toggle also OPENS that mode's settings window, so the common path is still one click.
 		//
 		// ⚠️ A TOGGLE ONLY TOGGLES ITS MODE. Clicking a LIT key turns that mode OFF — the one behaviour every
-		// user already expects from a lit toggle. It does NOT govern a window.
-		// HISTORY, do not undo: these keys used to mean two things at once — "turn the mode on" when unlit,
-		// "flip my settings window" when lit. The window's open state was invisible on the key, so the same
-		// click did two different things depending on state the user could not see: arm NowCast by clicking a
-		// site marker, or close the ForeCast window, and the only way back to the panel was to click a key
-		// that looked like it would turn the feature off. Painting the second state onto the key was
-		// considered and rejected as still needing to be LEARNED. The fix was to stop overloading: the panel
-		// moved to its OWN key on the bar's right edge (IsTemporalWindowOpen), where the keys are already
-		// honest window latches, and these three went back to being plain mode switches. Two families of key,
-		// each internally consistent: CENTRE = what is on the map, RIGHT = what is on the screen.
-		// The three panels became TABS of that one window (see TemporalTabIndex) — the same move the Settings
-		// window made when it absorbed App Settings / Map Controls / Dev Tools. The cost, accepted: Now and
-		// Fore can no longer be parked on two monitors at once. Past excludes the other two anyway, so at
-		// most two tabs are ever live, and the strip doubles as a readout of which modes are on.
+		// user already expects from a lit toggle. It does NOT govern a window; the SETTINGS RAIL at the foot
+		// of the same key does that, and shows its own state while doing it.
+		// HISTORY, do not undo: these keys used to mean two things at once through ONE control — "turn the
+		// mode on" when unlit, "flip my settings window" when lit. The window's open state was invisible on
+		// the key, so the same click did two different things depending on state the user could not see: arm
+		// NowCast by clicking a site marker, or close the ForeCast window, and the only route back to the
+		// panel was a key that looked like it would switch the feature off. Painting the second state onto
+		// the one key was considered and rejected — it still had to be LEARNED. The first fix was to stop
+		// pairing them at all: the three panels became TABS of one Timeframe window behind its own three-dot
+		// key, and the keys went back to being plain mode switches. That worked, and cost what tabs cost —
+		// Now and Fore coexist as modes, but their panels could no longer sit on two monitors. The key is
+		// SPLIT now instead, which buys both: two controls, two contracts, both visible at once, and three
+		// windows again. See Controls/Primitives/SplitTemporalToggle.
 
 		/// <summary>PastCast (historical replay). Projection of <see cref="RadarViewModel.IsPastEventMode"/>:
 		/// on enters replay (clearing any live loop), off exits replay to a blank basemap. Turning it on
@@ -293,7 +290,7 @@ namespace Anvil.ViewModels
 			{
 				if (value == Radar.IsPastEventMode) { return; }
 				Radar.IsPastEventMode = value; // both directions clear the layer (enter = arm replay, leave = blank)
-				if (value) { OpenTemporal(TemporalMode.Past); } // on → show its controls; off leaves the panel alone
+				if (value) { OpenTemporal(TemporalMode.Past); } // on → show its window (off closes it, via OnTemporalModesChanged)
 			}
 		}
 
@@ -319,7 +316,7 @@ namespace Anvil.ViewModels
 				if (value)
 				{
 					if (Radar.IsPastEventMode) { Radar.IsPastEventMode = false; } // leave replay for live mode
-					OpenTemporal(TemporalMode.Now); // on → show its controls (marker-click arming bypasses this setter)
+					OpenTemporal(TemporalMode.Now); // on → show its window (marker-click arming bypasses this setter)
 				}
 				else if (!Radar.IsPastEventMode)
 				{
@@ -346,14 +343,15 @@ namespace Anvil.ViewModels
 				// DO coexist — no exclusion between them.) Mirrors how arming NowCast leaves replay.
 				if (value && Radar.IsPastEventMode) { Radar.IsPastEventMode = false; }
 				Outlook.IsOutlookVisible = value;
-				if (value) { OpenTemporal(TemporalMode.Fore); } // on → show its controls; off leaves the panel alone
+				if (value) { OpenTemporal(TemporalMode.Fore); } // on → show its window (off closes it, via OnTemporalModesChanged)
 			}
 		}
 
-		/// <summary>Handles a click on a temporal mode toggle: it TOGGLES THAT MODE, and nothing else. Unlit →
-		/// on (which also opens the Timeframe panel on that mode's tab); lit → off. The panel's own key is
-		/// what shows and hides the panel — see the ⚠️ history note at the top of this region before making
-		/// this key mean two things again.</summary>
+		/// <summary>Handles a click on the MODE half of a split temporal key: it TOGGLES THAT MODE, and
+		/// nothing else. Unlit →
+		/// on (which also opens that mode's window); lit → off. The SETTINGS RAIL at the foot of the same key
+		/// is what shows and hides the window — see the ⚠️ history note at the top of this region before making
+		/// either half mean two things again.</summary>
 		/// <remarks>
 		/// The lit state is bound OneWay to the mode PROJECTION, and a ToggleButton has already flipped its own
 		/// IsChecked by the time this runs — so if a subsystem declines the change (nothing to project onto),
@@ -378,117 +376,154 @@ namespace Anvil.ViewModels
 			});
 		}
 
-		// ===== The Timeframe panel (ONE window, three tabs) ===============================================
-		// The three temporal features' settings used to be three windows opened by their three mode keys.
-		// They are now TABS of one window with its own key on the bar's right edge, so that a mode key can go
-		// back to being a plain toggle (see the region header above for why).
+		// ===== The three temporal windows (one per mode) =================================================
+		// Each mode's settings live in their OWN window, opened by the SETTINGS RAIL at the foot of that
+		// mode's bar key (Controls/Primitives/SplitTemporalToggle). One key, two contracts: the square runs
+		// the mode, the rail shows its window.
 		//
-		// ⚠️ The panel's lifetime belongs to ITS key alone. Nothing in the mode setters closes it: turn every
-		// mode off and the panel stays up, showing the controls of a mode that is not running — which is
-		// exactly what you want when setting up a past event before loading it. Only the key (and the
-		// window's caption Close, which flips the same flag) puts it away.
+		// ⚠️ HISTORY, so the wheel is not turned twice. These were three windows, then ONE window with three
+		// tabs behind a shared three-dot key, and now three windows again. The tabbed panel existed to fix a
+		// real bug — a mode key that meant "turn the mode on" when unlit and "flip my window" when lit, with
+		// the window's open state visible NOWHERE on the key. Splitting the key fixes that bug WITHOUT
+		// collapsing the windows: mode state is on the square, window state is on the rail, and neither is
+		// hidden. What comes back is exactly what the tabs cost — Now and Fore coexist as modes, so their
+		// panels can be parked on two monitors again. Do NOT re-merge them into one tabbed window; the
+		// overloaded key was the bug, not the pairing of a mode with its window.
+		//
+		// ⚠️ A WINDOW CANNOT OUTLIVE ITS MODE. The rail is disabled while its mode is off, so a window can
+		// only be OPENED while its mode runs, and OnTemporalModesChanged CLOSES one whose mode has just
+		// stopped. That rule is stronger than the tabbed panel's (its tabs merely greyed, and the window
+		// stayed up showing dead controls), and it is what keeps the rail honest: an unlit rail can never be
+		// hiding an open window, so a dark rail always means "there is nothing open here".
+		//
+		// ⚠️ Pinning is PER WINDOW, not shared. The whole reason for three windows is that two of these modes
+		// coexist and can go on two monitors; one shared pin would undo that the first time either was
+		// unpinned. All three default ON, the house default for every panel — see the flags above.
 
-		private bool _isTemporalWindowOpen;
-		private bool _isTemporalWindowOnTop = true;
-		// Defaults to NowCast: nothing is armed at launch, so EVERY tab is greyed and the panel shows its
-		// empty state — the index only decides which body appears the moment a mode starts, and NowCast is
-		// the one the app is usually reaching for (a site-marker click arms it).
-		private int _temporalTabIndex = (int)TemporalMode.Now;
+		private bool _isPastWindowOpen;
+		private bool _isNowWindowOpen;
+		private bool _isForeWindowOpen;
+		private bool _isPastWindowOnTop = true;
+		private bool _isNowWindowOnTop = true;
+		private bool _isForeWindowOnTop = true;
 
-		/// <summary>Whether the Timeframe panel is open. Two-ways with its bar key, like every other window
-		/// key on the bar's right edge.</summary>
-		public bool IsTemporalWindowOpen
+		/// <summary>Whether the PastCast window is open. Two-ways with the settings rail on the PastCast key;
+		/// forced false when PastCast stops (see <see cref="OnTemporalModesChanged"/>).</summary>
+		public bool IsPastWindowOpen
 		{
-			get => _isTemporalWindowOpen;
-			set => SetProperty(ref _isTemporalWindowOpen, value);
+			get => _isPastWindowOpen;
+			set => SetProperty(ref _isPastWindowOpen, value);
 		}
 
-		/// <summary>Whether the Timeframe panel stays on top (title-bar pin).</summary>
-		public bool IsTemporalWindowOnTop
+		/// <summary>Whether the NowCast window is open. Two-ways with the settings rail on the NowCast key.</summary>
+		public bool IsNowWindowOpen
 		{
-			get => _isTemporalWindowOnTop;
-			set => SetProperty(ref _isTemporalWindowOnTop, value);
+			get => _isNowWindowOpen;
+			set => SetProperty(ref _isNowWindowOpen, value);
 		}
 
-		/// <summary>How many tabs the Timeframe panel has — one per <see cref="TemporalMode"/>.</summary>
-		public const int TemporalTabCount = 3;
-
-		/// <summary>
-		/// Which tab the Timeframe panel shows, as an index into <see cref="TemporalMode"/>. Deliberately NOT
-		/// persisted (unlike the Settings window's tab): it tracks whichever mode was most recently turned on,
-		/// and a fresh launch has no mode on at all. Clamped, so no caller can select a tab that isn't there.
-		/// </summary>
-		public int TemporalTabIndex
+		/// <summary>Whether the ForeCast window is open. Two-ways with the settings rail on the ForeCast key.</summary>
+		public bool IsForeWindowOpen
 		{
-			get => _temporalTabIndex;
-			set => SetProperty(ref _temporalTabIndex, Math.Clamp(value, 0, TemporalTabCount - 1));
+			get => _isForeWindowOpen;
+			set => SetProperty(ref _isForeWindowOpen, value);
 		}
 
-		// ===== Tab availability — A TAB IS LIVE ONLY WHILE ITS MODE IS ======================================
-		// One rule, applied uniformly: a tab configures a RUNNING mode, so it is greyed whenever that mode is
-		// off. Nothing in these bodies starts anything — the date/start/window fields drive a replay that is
-		// already armed (Load only fills it with frames), the watch/warning toggles overlay a live loop, the
-		// day/product selectors pick which outlook is drawn. With the mode off there is nothing to act on.
-		// ⚠️ You start a mode from its KEY, never from its tab. That is the whole two-families split: the
-		// centre keys run what is on the MAP, this panel configures whatever is already running.
-		// The exclusions then fall out for free — Past excludes Now + Fore, so a replay greys BOTH of their
-		// tabs without a rule of its own, and the strip becomes an honest picture of what is running.
-		// ⚠️ ALL THREE CAN BE OFF AT ONCE (the launch state), and then every tab is greyed — which is why the
-		// window has an EMPTY STATE keyed off HasActiveTemporalMode. Don't "fix" that by force-enabling the
-		// selected tab; nothing is running, and the panel should say so rather than offer dead controls.
-
-		/// <summary>Whether the PastCast tab can be picked — only while a replay is up.</summary>
-		public bool IsPastTabEnabled => IsPastCast;
-
-		/// <summary>Whether the NowCast tab can be picked — only while live mode is armed (so never during a
-		/// PastCast replay, which excludes it).</summary>
-		public bool IsNowTabEnabled => IsNowCast;
-
-		/// <summary>Whether the ForeCast tab can be picked — only while the outlook overlay is on (so never
-		/// during a PastCast replay, which excludes it).</summary>
-		public bool IsForeTabEnabled => IsForeCast;
-
-		/// <summary>Whether ANY temporal mode is running. False = every tab is greyed and the Timeframe panel
-		/// shows its empty state instead of a body.</summary>
-		public bool HasActiveTemporalMode => IsPastCast || IsNowCast || IsForeCast;
-
-		/// <summary>
-		/// Re-raise everything that depends on which modes are running, and keep the panel off a tab that has
-		/// just gone dead. Called from every place a mode can change: the Radar subscriptions (Past + the
-		/// marker-click arming of Now), the Outlook subscription (Fore) and the <see cref="IsNowCast"/> setter.
-		/// </summary>
-		private void OnTemporalModesChanged()
+		/// <summary>Whether the PastCast window stays on top (title-bar pin).</summary>
+		public bool IsPastWindowOnTop
 		{
-			OnPropertyChanged(nameof(IsPastTabEnabled));
-			OnPropertyChanged(nameof(IsNowTabEnabled));
-			OnPropertyChanged(nameof(IsForeTabEnabled));
-			OnPropertyChanged(nameof(HasActiveTemporalMode));
-
-			// If the selected tab's mode just stopped, fall to one that is still running. With NOTHING running
-			// the index is left where it is — the empty state covers the body, and whichever mode starts next
-			// selects its own tab anyway.
-			if (IsTemporalTabEnabled(_temporalTabIndex)) { return; }
-			if (IsPastCast) { TemporalTabIndex = (int)TemporalMode.Past; }
-			else if (IsNowCast) { TemporalTabIndex = (int)TemporalMode.Now; }
-			else if (IsForeCast) { TemporalTabIndex = (int)TemporalMode.Fore; }
+			get => _isPastWindowOnTop;
+			set => SetProperty(ref _isPastWindowOnTop, value);
 		}
 
-		private bool IsTemporalTabEnabled(int index) => index switch
+		/// <summary>Whether the NowCast window stays on top (title-bar pin).</summary>
+		public bool IsNowWindowOnTop
 		{
-			(int)TemporalMode.Past => IsPastTabEnabled,
-			(int)TemporalMode.Now => IsNowTabEnabled,
-			(int)TemporalMode.Fore => IsForeTabEnabled,
+			get => _isNowWindowOnTop;
+			set => SetProperty(ref _isNowWindowOnTop, value);
+		}
+
+		/// <summary>Whether the ForeCast window stays on top (title-bar pin).</summary>
+		public bool IsForeWindowOnTop
+		{
+			get => _isForeWindowOnTop;
+			set => SetProperty(ref _isForeWindowOnTop, value);
+		}
+
+		/// <summary>Whether <paramref name="which"/> mode is currently RUNNING. The one place the three
+		/// projections are read by mode rather than by name, so a caller that already has a
+		/// <see cref="TemporalMode"/> does not have to re-open the switch.</summary>
+		public bool IsTemporalModeOn(TemporalMode which) => which switch
+		{
+			TemporalMode.Past => IsPastCast,
+			TemporalMode.Now => IsNowCast,
+			TemporalMode.Fore => IsForeCast,
 			_ => false,
 		};
 
-		/// <summary>Open the Timeframe panel on a specific mode's tab (opening it if it is closed). The one
-		/// entry point for "show me the controls for that timeframe" — used by the mode setters, and the
-		/// mirror of <see cref="OpenSettings"/>.</summary>
-		public void OpenTemporal(TemporalMode which)
+		/// <summary>Whether <paramref name="which"/> mode's settings window is open.</summary>
+		public bool IsTemporalWindowOpen(TemporalMode which) => which switch
 		{
-			TemporalTabIndex = (int)which;
-			IsTemporalWindowOpen = true;
+			TemporalMode.Past => IsPastWindowOpen,
+			TemporalMode.Now => IsNowWindowOpen,
+			TemporalMode.Fore => IsForeWindowOpen,
+			_ => false,
+		};
+
+		/// <summary>Show or hide <paramref name="which"/> mode's settings window.</summary>
+		public void SetTemporalWindowOpen(TemporalMode which, bool open)
+		{
+			switch (which)
+			{
+				case TemporalMode.Past: IsPastWindowOpen = open; break;
+				case TemporalMode.Now: IsNowWindowOpen = open; break;
+				case TemporalMode.Fore: IsForeWindowOpen = open; break;
+			}
 		}
+
+		/// <summary>Whether <paramref name="which"/> mode's window is pinned on top, so a window can read its
+		/// own pin state without a switch of its own.</summary>
+		public bool IsTemporalWindowOnTop(TemporalMode which) => which switch
+		{
+			TemporalMode.Past => IsPastWindowOnTop,
+			TemporalMode.Now => IsNowWindowOnTop,
+			TemporalMode.Fore => IsForeWindowOnTop,
+			_ => true,
+		};
+
+		/// <summary>Set <paramref name="which"/> mode's on-top flag (driven by that window's title-bar pin).</summary>
+		public void SetTemporalWindowOnTop(TemporalMode which, bool onTop)
+		{
+			switch (which)
+			{
+				case TemporalMode.Past: IsPastWindowOnTop = onTop; break;
+				case TemporalMode.Now: IsNowWindowOnTop = onTop; break;
+				case TemporalMode.Fore: IsForeWindowOnTop = onTop; break;
+			}
+		}
+
+		/// <summary>
+		/// Keep the windows honest about which modes are running. Called from every place a mode can change:
+		/// the Radar subscriptions (Past + the marker-click arming of Now), the Outlook subscription (Fore)
+		/// and the <see cref="IsNowCast"/> setter.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ A window configures a RUNNING mode. When a mode stops — turned off at its own key, or excluded
+		/// by another (Past excludes Now + Fore) — its window has nothing left to act on AND its rail has just
+		/// gone dead, so leaving the window up would strand it: no lit control anywhere could close it. That
+		/// is the one thing the tabbed panel got to skip, because its key was independent of every mode.
+		/// </remarks>
+		private void OnTemporalModesChanged()
+		{
+			if (!IsPastCast) { IsPastWindowOpen = false; }
+			if (!IsNowCast) { IsNowWindowOpen = false; }
+			if (!IsForeCast) { IsForeWindowOpen = false; }
+		}
+
+		/// <summary>Open a mode's settings window. The one entry point for "show me the controls for that
+		/// timeframe" — used by the mode setters when a mode is switched on, and the mirror of
+		/// <see cref="OpenSettings"/>.</summary>
+		public void OpenTemporal(TemporalMode which) => SetTemporalWindowOpen(which, true);
 
 		// ===== App-wide windows (Settings / Site Explorer) ================================================
 		// Same model as the temporal windows above: one independent bool per window, opened by its key on the

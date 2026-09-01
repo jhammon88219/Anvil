@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- NowCastTab — the NowCast tab of the Timeframe window: watch boxes + storm-based warnings, and today's
-     storm reports. One of three tab bodies (see Controls/Windows/TemporalWindow); the window supplies the
-     surface, the title and the pin, so this is content only. Bound to the coordinator MapViewModel.
+<!-- NowCastTab — the body of the NowCast window: watch boxes + storm-based warnings, and today's storm
+     reports. One of three mode bodies (see Controls/Windows/TemporalWindow, registered once per mode); the
+     window supplies the surface, the title and the pin, so this is content only.
+     ⚠️ The file keeps its "Tab" name from when the three were tabs of one Timeframe window. It is the same
+     control, unchanged by the split; renaming all three would be churn. Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────┐
        │  Watches   [x] Tornado / Severe Thunderstorm         │

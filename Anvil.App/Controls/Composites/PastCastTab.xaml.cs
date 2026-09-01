@@ -29,8 +29,11 @@ namespace Anvil.Controls.Composites
 			Loaded += (_, _) => SyncFromViewModel();
 			// An editable combo only renders a programmatically-set value once it's realized (visible), so
 			// re-sync on any transition to visible rather than relying on Loaded alone.
-			// ⚠️ Load-bearing now that this is a TAB body: the window keeps all three tabs loaded and switches
-			// them on Visibility, so this body spends most of its life collapsed and comes back through here.
+			// ⚠️ NOT load-bearing today — this body has its own window now, so it is built visible and stays
+			// visible, and Loaded alone would do. It was load-bearing when the three modes were TABS of one
+			// window that kept them all loaded and switched them on Visibility. Kept because an editable
+			// combo losing its displayed value while collapsed is a real trap, and the next host that
+			// collapses this control would hit it silently.
 			RegisterPropertyChangedCallback(VisibilityProperty, OnVisibilityChanged);
 		}
 

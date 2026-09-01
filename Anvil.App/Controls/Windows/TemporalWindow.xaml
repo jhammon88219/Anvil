@@ -1,73 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalWindow — ONE panel for all three timeframes, organized as tabs. Hosted in its own OS window by
-     WindowManager (the native caption is the only chrome), so there is no panel frame: the root is the dark
-     surface, stretched to fill the window.
+<!-- TemporalWindow — ONE mode's settings panel. Hosted in its own OS window by WindowManager (the native
+     caption is the only chrome), so there is no panel frame: the root is the dark surface, stretched to fill
+     the window.
 
-       ┌─ Timeframe ────────────────────────────────────[pin]─┐
-       │  Timeframe                                           │
-       │  ┌┈┈┈┈┈┈┈┈┈┬──────────┬┈┈┈┈┈┈┈┈┈┈┐                   │
-       │  ┊    ↺    ┊   ((•))  │    ☁     ┊                   │  ← Controls/Primitives/TabStrip
-       │  ┊PastCast ┊ NowCast  │ ForeCast ┊                   │
-       │  ┊ greyed  ┊ ▀▀▀▀▀▀▀▀ │  greyed  ┊                   │
-       │  └┈┈┈┈┈┈┈┈┈┴──────────┴┈┈┈┈┈┈┈┈┈┈┘                   │
-       │      A TAB IS LIVE ONLY WHILE ITS MODE IS             │
+       ┌─ NowCast ──────────────────────────────────────[pin]─┐
+       │  NowCast                                             │  ← the mode's name, from Mode
        │  ┌──────────────────────────────────────────────┐    │
        │  │                                              │    │
-       │  │   the selected tab's body (one UserControl   │    │
-       │  │   per tab, in Controls/Composites)           │    │
-       │  │   — or the EMPTY STATE, when no mode is up   │    │
+       │  │   that mode's body — ONE UserControl from     │    │
+       │  │   Controls/Composites, built by ApplyMode     │    │
+       │  │   (PastCastTab / NowCastTab / ForeCastTab)    │    │
        │  │                                              │    │
        │  └──────────────────────────────────────────────┘    │
        └──────────────────────────────────────────────────────┘
 
-     WHAT THIS REPLACED, and why: three separate windows (Past Event / Live Radar / SPC Outlooks), each
-     opened by its own mode key in the bar's centre cluster. That made a mode key mean two things — "turn
-     this mode on" when unlit, "flip my window" when lit — and the window's open state was nowhere on the
-     key, so the same click did two different things depending on state the user could not see. The keys are
-     plain mode toggles again (lit → click turns the mode OFF), and this one window has its OWN key on the
-     bar's right edge, beside Sites and Settings, where a key means "show/hide my window" and nothing else.
-     See the ⚠️ history note in MapViewModel's temporal region before undoing any of that.
+     ⚠️ ONE CLASS, THREE WINDOWS. This is registered three times (MainWindow), once per TemporalMode, each
+     with its own id, title, size and open flag. The alternative — three near-identical window classes — is
+     three copies of one layout waiting to drift apart, which is the thing this repo keeps deleting.
+     The BODIES keep their old file names (PastCastTab / NowCastTab / ForeCastTab) even though there are no
+     tabs any more: they are the same three controls, unchanged, and renaming them would be churn.
 
-     ⚠️ THE PRICE, accepted: Now and Fore are modes that COEXIST, and they can no longer be parked on two
-     monitors at once. Past excludes the other two, so at most two tabs are ever live; the strip itself says
-     which ones those are.
+     WHAT THIS REPLACED, and why: ONE window with the three modes as TABS, opened by a shared three-dot key.
+     That existed because the three mode keys each owned a window and so meant two things at once — "turn the
+     mode on" when unlit, "flip my window" when lit — with the window's open state visible nowhere. The keys
+     are SPLIT now (Controls/Primitives/SplitTemporalToggle): the square runs the mode, the rail at its foot
+     latches this window, and both states are on screen. That fixes the overloading without collapsing the
+     windows, which is what buys back the tabs' one real cost — NowCast and ForeCast coexist as modes, so
+     their panels can be parked on two monitors again.
+     ⚠️ Do NOT re-absorb these into a tabbed panel. See MapViewModel's temporal region before trying.
 
-     ⚠️ THE SELECTED TAB IS NOT VIEW STATE. It lives on MapViewModel.TemporalTabIndex so it survives close/
-     reopen and so that turning a mode on anywhere in the app lands this panel on that mode's tab. Unlike
-     the Settings window's tab it is NOT persisted across launches — it tracks the most recently armed mode,
-     and a fresh launch has no mode armed (so it rests on NowCast, whose tab is always available).
+     ⚠️ THIS WINDOW CANNOT OUTLIVE ITS MODE. Its rail can only be clicked while the mode runs, and
+     MapViewModel.OnTemporalModesChanged closes the window when the mode stops — so there is no "every tab
+     greyed" state to design for and no empty state to show. The panel is only ever up when it has something
+     to act on, which is why nothing in these bodies needs to check whether its mode is running.
+     ⚠️ A BODY NEVER STARTS ITS MODE — that is the key's job, and it always was. The date/start/window fields
+     drive a replay that is already armed, the watch/warning toggles overlay a live loop, the day/product
+     selectors pick which outlook is drawn.
 
-     ⚠️ A TAB IS LIVE ONLY WHILE ITS MODE IS RUNNING (MapViewModel.IsPast/Now/ForeTabEnabled, pushed onto the
-     entries by ApplyTabAvailability — a DataTemplate's x:Bind resolves against the ENTRY, so a tab cannot
-     read the view model itself). None of these bodies STARTS anything: the date/start/window fields drive a
-     replay that is already armed, the watch/warning toggles overlay a live loop, the day/product selectors
-     pick which outlook is drawn. With the mode off they have nothing to act on.
-     The exclusions then fall out for free — Past excludes Now + Fore, so a replay greys BOTH of their tabs
-     with no rule of its own, and the strip is an honest picture of what is running.
-     A disabled tab stays IN the rail rather than disappearing (a vanishing tab reflows the strip and hides
-     that the feature exists), and its tooltip says why — naming the REPLAY when that is the reason, rather
-     than "you haven't switched it on".
-     ⚠️ Moving the SELECTION off a tab whose mode just stopped is the VIEW MODEL's job
-     (OnTemporalModesChanged), not this window's: one rule, one owner.
+     ⚠️ THE BODY IS BUILT IN CODE, not declared here behind x:Load. Only one of the three is ever wanted per
+     window, Mode never changes after construction, and building the one asked for is both cheaper and
+     plainer than loading and hiding three. It also sidesteps x:Load's real hazard: bound to a bool it
+     UNLOADS again when that bool goes false, and PastCastTab hand-syncs live widget state (its editable
+     hour/minute combos) that an unload would drop.
 
-     ⚠️ ALL THREE MODES CAN BE OFF (the launch state) — then every tab is greyed, no body shows, and the
-     EMPTY STATE takes the space. It names the bar keys, because starting a mode is the one thing this panel
-     deliberately cannot do. Do NOT "fix" the all-greyed strip by force-enabling the selected tab; nothing
-     is running, and dead controls would be the worse answer.
-
-     ⚠️ VISIBILITY, NOT x:Load. All three bodies stay loaded and switch on Visibility: PastCastTab holds
-     live widget state (the editable hour/minute combos it syncs by hand) that an unload/rebuild would drop
-     on every tab click. It also re-syncs on each transition to visible, which is what makes that safe.
-
-     TOP RAIL ONLY. The Settings window's rail can move to the side because it has a 360px URL box and a
-     growing tab list; three fixed tabs over a narrow form have nothing to gain from it, so the placement
-     setting is deliberately not plumbed here. -->
-
+     ⚠️ THE PIN IS WIRED IN CODE-BEHIND for the same reason: which on-top flag it drives depends on Mode,
+     which an x:Bind path cannot express. See the pin section of the code-behind. -->
 <UserControl x:Class="Anvil.Controls.Windows.TemporalWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctl="using:Anvil.Controls.Primitives"
-             xmlns:cmp="using:Anvil.Controls.Composites"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -76,55 +57,20 @@
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- title -->
-            <RowDefinition Height="Auto"/> <!-- strip -->
             <RowDefinition Height="*"/>    <!-- body -->
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Timeframe" Margin="16,14,16,0"
+        <!-- The mode's own name, in the same vocabulary as its bar key. Filled by ApplyMode. -->
+        <TextBlock x:Name="TitleText" Grid.Row="0" Margin="16,14,16,0"
                    FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
-        <Grid Grid.Row="1">
-            <ctl:TabStrip x:Name="Strip"
-                          HorizontalAlignment="Left" VerticalAlignment="Top"
-                          Margin="12,10,12,0"
-                          ItemsSource="{x:Bind Tabs}"
-                          SelectedIndex="{x:Bind ViewModel.TemporalTabIndex, Mode=TwoWay}"/>
-
-            <!-- Hairline under the rail, so the tabs read as a rail rather than as loose keys. -->
-            <Border Height="1" VerticalAlignment="Bottom" Margin="12,0,12,0"
-                    Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-        </Grid>
-
-        <!-- Bodies. At most one is visible; the rest keep their state because they stay loaded. With no mode
-             running, NONE of them shows and the empty state below takes the space. -->
-        <ScrollViewer Grid.Row="2" Margin="16,14,16,14"
+        <ScrollViewer Grid.Row="1" Margin="16,14,16,14"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
-            <Grid>
-                <cmp:PastCastTab ViewModel="{x:Bind ViewModel}"
-                                 Visibility="{x:Bind TabVisibility(ViewModel.TemporalTabIndex, 0, ViewModel.HasActiveTemporalMode), Mode=OneWay}"/>
-
-                <cmp:NowCastTab ViewModel="{x:Bind ViewModel}"
-                                Visibility="{x:Bind TabVisibility(ViewModel.TemporalTabIndex, 1, ViewModel.HasActiveTemporalMode), Mode=OneWay}"/>
-
-                <cmp:ForeCastTab ViewModel="{x:Bind ViewModel}"
-                                 Visibility="{x:Bind TabVisibility(ViewModel.TemporalTabIndex, 2, ViewModel.HasActiveTemporalMode), Mode=OneWay}"/>
-
-                <!-- EMPTY STATE — every tab is greyed because nothing is running. It names the way OUT (the
-                     bar keys), because that is the one thing this panel cannot do for you. -->
-                <StackPanel Spacing="6" Margin="0,10,0,0"
-                            Visibility="{x:Bind EmptyVisibility(ViewModel.HasActiveTemporalMode), Mode=OneWay}">
-                    <TextBlock Text="No timeframe is running"
-                               FontSize="14" FontWeight="SemiBold"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <TextBlock TextWrapping="Wrap" FontSize="12"
-                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                               Text="Start one with the PastCast, NowCast or ForeCast key in the bar. Its settings appear here, and its tab turns on."/>
-                </StackPanel>
-            </Grid>
+            <ContentPresenter x:Name="BodyHost"/>
         </ScrollViewer>
 
-        <!-- Pin: keep this window on top. -->
-        <ctl:PinToggle IsChecked="{x:Bind ViewModel.IsTemporalWindowOnTop, Mode=TwoWay}"/>
+        <!-- Pin: keep this window on top. Bound in code-behind — the flag it drives depends on Mode. -->
+        <ctl:PinToggle x:Name="Pin"/>
     </Grid>
 </UserControl>

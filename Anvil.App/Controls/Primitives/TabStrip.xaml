@@ -23,9 +23,12 @@
      A tab can be UNAVAILABLE (TabEntry.IsEnabled false) — greyed and unpickable but still IN the rail, so
      the rail neither reflows nor hides that the feature exists. The host owns that flag AND the selection
      that goes with it: the strip will not move off a tab that goes disabled, because only the host knows
-     where the selection belongs instead. (Today: the Timeframe window, where each of the three tabs is live
-     only while its own mode is running — so all three can be disabled at once, and that window carries an
-     empty state for it.)
+     where the selection belongs instead.
+     ⚠️ NOTHING SETS IT TODAY. Its one consumer was the Timeframe window, where each of three tabs was live
+     only while its own mode ran; that window is gone — the three temporal panels are three windows again,
+     latched by the settings rail on each mode's bar key (Controls/Primitives/SplitTemporalToggle), and the
+     Settings window's tabs are always available. The support is kept because it is the strip's answer to
+     "this tab exists but you can't use it yet", which is a question a settings rail will ask again.
 
      ⚠️ The two indicators BOTH live in the item template, and the strip pushes IsVertical onto every entry.
      A DataTemplate's x:Bind resolves against the ENTRY, so a tab cannot read the strip's Placement itself.
