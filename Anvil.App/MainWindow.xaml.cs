@@ -203,6 +203,18 @@ namespace Anvil
 			_ => "Switch to Single Pane Mode",
 		};
 
+		// ===== The marker key (show / hide radar site markers) =====
+		// Both of these take the CURRENT visibility and answer in terms of the CLICK, which is why the key
+		// reads "Hide…" exactly when the markers are showing. The border already carries the state (lit =
+		// showing, the bar's rule everywhere); repeating it in the words would leave nothing saying what the
+		// button actually does.
+		public string SitesVisibleTooltip(bool visible) => visible ? "Hide Radar Sites" : "Show Radar Sites";
+
+		// E7B3 RedEye (open) / ED1A Hide (crossed-out). ⚠️ Unlike every other glyph in this bar these two
+		// have NOT been checked by rendering them in the real font — a wrong codepoint ships as an empty box,
+		// so verify on first run.
+		public string SitesVisibleGlyph(bool visible) => visible ? "" : "";
+
 		// The view knows only "advance"; the ORDER is the view model's (Radar.NextPaneLayout).
 		private void OnCyclePaneLayout(object sender, RoutedEventArgs e) => ViewModel.Radar.CyclePaneLayout();
 

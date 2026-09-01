@@ -4,7 +4,6 @@
 
        ┌──────────────────────────────────────────────────────┐
        │  RADAR SITES                                         │
-       │    [x] Show site markers                             │
        │    [ ] Show TDWRs                                    │
        │    [ ] Show research radars                          │
        │  MILE GRID                                           │
@@ -24,9 +23,17 @@
      reading every pane at one point. Only its VALUE readout is per-pane (the live tick on each pane chip's
      product ramp), which is why the mode lives here and the readout does not.
 
-     ⚠️ None of the marker toggles affect a LOADED loop — hiding a marker never unloads its data. The three
-     are together because splitting them (master toggle on the radar console, TDWR/research in App Settings)
-     meant hunting two places for "why is my site gone". -->
+     ⚠️ Neither marker toggle affects a LOADED loop — hiding a marker never unloads its data.
+
+     ⚠️ THE MASTER "show site markers" TOGGLE IS NOT HERE ANY MORE — it is a key in the OverlayBar, left of
+     the radar console (MainWindow, SitesVisibleKey). What is left here is the two OPT-IN networks, which is
+     the honest split: hiding all markers is a thing you do constantly while reading a busy map, so it wants
+     a one-click key on the bar; choosing whether TDWRs and research radars exist at all is a preference you
+     set once. ⚠️ HISTORY, so this is not simply reverted: all three were deliberately put together HERE,
+     because with the master toggle on the radar console and the other two in App Settings you had to hunt
+     two places for "why is my site gone". That reasoning still holds for the pair, and the bar key is
+     discoverable in a way a console control was not — but if a third marker toggle ever appears, think hard
+     before splitting it off too. -->
 
 <UserControl x:Class="Anvil.Controls.Composites.RadarSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -39,7 +46,6 @@
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Radar Sites label -->
-            <RowDefinition Height="Auto"/> <!-- Show site markers -->
             <RowDefinition Height="Auto"/> <!-- Show TDWRs -->
             <RowDefinition Height="Auto"/> <!-- Show research radars -->
             <RowDefinition Height="Auto"/> <!-- Mile Grid label -->
@@ -54,34 +60,29 @@
         <TextBlock Grid.Row="0" Text="Radar Sites"
                    Style="{StaticResource SettingsSectionLabelStyle}"/>
 
-        <CheckBox Grid.Row="1" Margin="4,0,0,0"
-                  Content="Show site markers"
-                  IsChecked="{x:Bind ViewModel.Radar.RadarSitesVisible, Mode=TwoWay}"
-                  ToolTipService.ToolTip="Show the on-map radar site markers. Hiding them never affects the loaded radar loop."/>
-
         <!-- Opt-in TDWRs (the FAA Terminal Doppler Weather Radar T*** network). PERSISTED. -->
-        <CheckBox Grid.Row="2" Margin="4,0,0,0"
+        <CheckBox Grid.Row="1" Margin="4,0,0,0"
                   Content="Show TDWRs"
                   IsChecked="{x:Bind ViewModel.Radar.ShowTdwrs, Mode=TwoWay}"
                   ToolTipService.ToolTip="Show FAA Terminal Doppler Weather Radar markers (e.g. TOKC, TDAL)"/>
 
         <!-- Opt-in research/test radars (e.g. the ROC test bed KCRI). PERSISTED. -->
-        <CheckBox Grid.Row="3" Margin="4,0,0,0"
+        <CheckBox Grid.Row="2" Margin="4,0,0,0"
                   Content="Show research radars"
                   IsChecked="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"
                   ToolTipService.ToolTip="Show research/test radar markers such as KCRI (ROC test bed, Norman OK)"/>
 
         <!-- ── Mile Grid ── -->
-        <TextBlock Grid.Row="4" Text="Mile Grid" Margin="0,6,0,0"
+        <TextBlock Grid.Row="3" Text="Mile Grid" Margin="0,6,0,0"
                    Style="{StaticResource SettingsSectionLabelStyle}"/>
 
-        <CheckBox Grid.Row="5" Margin="4,0,0,0"
+        <CheckBox Grid.Row="4" Margin="4,0,0,0"
                   Content="Show mile grid (centered on the radar)"
                   IsChecked="{x:Bind ViewModel.MileGrid.IsShown, Mode=TwoWay}"
                   ToolTipService.ToolTip="Overlay a square grid centered on the selected radar. Pick one and select a site to see it."/>
 
         <!-- Spacing: one cell = N miles square. -->
-        <Grid Grid.Row="6" Margin="4,0,0,0" ColumnSpacing="12">
+        <Grid Grid.Row="5" Margin="4,0,0,0" ColumnSpacing="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -96,7 +97,7 @@
         </Grid>
 
         <!-- Grid line opacity. -->
-        <Grid Grid.Row="7" Margin="4,2,0,0" ColumnSpacing="12">
+        <Grid Grid.Row="6" Margin="4,2,0,0" ColumnSpacing="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -112,10 +113,10 @@
         <!-- ── Tools ── -->
         <!-- Inspect reads the active product's value under the pointer; the readout itself stays on the
              radar console's product ramp (the live tick). Disabled until a loop is loaded. -->
-        <TextBlock Grid.Row="8" Text="Tools" Margin="0,6,0,0"
+        <TextBlock Grid.Row="7" Text="Tools" Margin="0,6,0,0"
                    Style="{StaticResource SettingsSectionLabelStyle}"/>
 
-        <CheckBox Grid.Row="9" Margin="4,0,0,0"
+        <CheckBox Grid.Row="8" Margin="4,0,0,0"
                   Content="Inspect values under the cursor"
                   IsEnabled="{x:Bind ViewModel.Radar.IsTransportEnabled, Mode=OneWay}"
                   IsChecked="{x:Bind ViewModel.Radar.IsInspecting, Mode=TwoWay}"

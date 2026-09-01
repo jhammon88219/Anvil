@@ -14,10 +14,15 @@
        │    map pane 0  (MAIN)       │        map pane 1           │
        ├─────────────────────────────┴─────────────────────────────┤
        │                       ╭─ Hide ─╮                          │  OverlayBar pull-tab
-       │ ══ scrubber ══                                            │
-       │ ◀ ▶ ▶  3/10 │ time·site   ↺ │⋮  ((•))│⋮   ☁ │⋮     ▤  📡  ⚙   │
-       │                          PastCast  NowCast  ForeCast    Sites Settings │
+       │  ◉   ══ scrubber ══                                       │
+       │  ◉  ◀ ▶ ▶  3/10 │ time·site  ↺ │⋮  ((•))│⋮   ☁ │⋮    ▤  📡  ⚙   │
+       │Markers                   PastCast  NowCast  ForeCast    Sites Settings │
        └──────────────────────────────────┴────────────────────────┘
+          ↑ ◉ = show / hide the on-map radar site markers. Lit = showing;
+            the glyph and tooltip speak for the CLICK (open eye + "Hide
+            Radar Sites" while they show). Named Markers, not Sites — the
+            right cluster's Sites key opens a window, which is a different
+            species entirely.
                                           ↑ bar midpoint — NowCast sits on it
                                             ↑ ⋮ = each mode's SIDE CAR: a full-height
                                               settings latch on its own key, lit only
@@ -45,10 +50,10 @@
      (a square mode half PLUS a settings side car beside it, so the key is wider than it is tall). See
      Controls/Styles.xaml, section 2.
 
-     Left of the bar is RadarControls (the global time module); the CENTER is the three temporal split
-     keys, held on the bar's midpoint by a [*, Auto, *] grid so no amount of growth on either side can
-     shift them; right is the pane-layout key then the app-wide window buttons, all on one spacing. The
-     gaps between the three clusters are empty bar, by design.
+     Left of the bar is the marker key then RadarControls (the global time module); the CENTER is the three
+     temporal split keys, held on the bar's midpoint by a [*, Auto, *] grid so no amount of growth on either
+     side can shift them; right is the pane-layout key then the app-wide window buttons, all on one spacing.
+     The gaps between the three clusters are empty bar, by design.
 
      ⚠️ THE KEYS IN THIS CLUSTER take their LOOK from ONE style chain in Controls/Styles.xaml
      (BarChromeButtonStyle → BarKeyToggleStyle for the ones that latch / BarIconButtonStyle for the one
@@ -239,12 +244,66 @@
                         <ColumnDefinition Width="*"/>    <!-- window buttons, right edge   ┘ sits centered-->
                     </Grid.ColumnDefinitions>
 
-                    <!-- PER-PANE + TIME. In multi-pane the chip cluster inside this grows to a 2x2 that
-                         mirrors the pane grid; the time module beside it does not multiply. -->
-                    <comp:RadarControls Grid.Column="0"
-                                            HorizontalAlignment="Left"
+                    <!-- ===== LEFT CLUSTER: the marker key, then the time module ===== -->
+                    <Grid Grid.Column="0"
+                          HorizontalAlignment="Left"
+                          VerticalAlignment="Center"
+                          ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/> <!-- show/hide radar site markers -->
+                            <ColumnDefinition Width="Auto"/> <!-- the global time module -->
+                        </Grid.ColumnDefinitions>
+
+                        <!-- ===== SHOW / HIDE RADAR SITE MARKERS =====
+                             The master marker toggle, back in the bar. It lived on the old radar console,
+                             then moved into the Settings window's Radar tab with the two opt-in network
+                             toggles (TDWRs, research radars) so that "why is my site gone" had ONE place to
+                             look. This half of that came back out, and the split is deliberate: hiding every
+                             marker is something you do constantly while reading a busy map, so it wants a
+                             one-click key on the bar; whether TDWRs and research radars exist at all is a
+                             preference you set once and leave. Those two stay in Settings.
+
+                             ⚠️ LIT = MARKERS ARE SHOWING, which is the bar's rule everywhere (accent means
+                             "this is on"), NOT "hiding is armed". The GLYPH and the TOOLTIP are the parts
+                             that speak in terms of the click: an open eye with "Hide Radar Sites" while
+                             they show, a closed eye with "Show Radar Sites" while they don't. State on the
+                             border, action in the words — the same division the pane key uses.
+
+                             ⚠️ NAMED "Markers", NOT "Sites". The right cluster already has a "Sites" key and
+                             it does something else entirely (it opens the Radar Sites window). Two keys
+                             named Sites in one bar, one toggling map content and one latching a window,
+                             would be the worst kind of collision — same word, different species.
+
+                             ⚠️ Glyphs E7B3 (RedEye) / ED1A (Hide) — these are NOT yet verified by rendering
+                             in the real font, unlike every other glyph in this bar. A wrong codepoint ships
+                             as an empty box, so check them on the first run and swap if either is blank. -->
+                        <ToggleButton x:Name="SitesVisibleKey"
+                                      Grid.Column="0"
+                                      Style="{StaticResource BarKeyToggleStyle}"
+                                      ToolTipService.ToolTip="{x:Bind SitesVisibleTooltip(ViewModel.Radar.RadarSitesVisible), Mode=OneWay}"
+                                      IsChecked="{x:Bind ViewModel.Radar.RadarSitesVisible, Mode=TwoWay}">
+                            <Grid Margin="3,0" RowSpacing="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <FontIcon Grid.Row="0"
+                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                          FontSize="{StaticResource BarKeyGlyphSize}"
+                                          Glyph="{x:Bind SitesVisibleGlyph(ViewModel.Radar.RadarSitesVisible), Mode=OneWay}"/>
+                                <TextBlock Grid.Row="1"
+                                           Text="Markers"
+                                           HorizontalAlignment="Center"
+                                           FontSize="{StaticResource BarKeyNameSize}"/>
+                            </Grid>
+                        </ToggleButton>
+
+                        <!-- PER-PANE + TIME. In multi-pane the chip cluster inside this grows to a 2x2 that
+                             mirrors the pane grid; the time module beside it does not multiply. -->
+                        <comp:RadarControls Grid.Column="1"
                                             VerticalAlignment="Center"
                                             ViewModel="{x:Bind ViewModel.Radar}"/>
+                    </Grid>
 
                     <!-- ===== GLOBAL CLUSTER =====
                          Every key here shares the bar's one look with the temporal keys at the centre:
