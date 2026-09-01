@@ -67,15 +67,37 @@ namespace Anvil.ViewModels
 				RebuildProductOptions();
 				_selectedProductOption = ProductOptions.FirstOrDefault(o => o.Type == keepType) ?? ProductOptions[0];
 				OnPropertyChanged(nameof(SelectedProductOption));
+				OnPropertyChanged(nameof(HasOutlook)); // the cascade can drop a product this day lacks
 				RebuildCycleOptions();
 				_selectedCycleOption = CycleOptions[0];
 				OnPropertyChanged(nameof(SelectedCycleOption));
+				OnPropertyChanged(nameof(SelectedDayIndex));
 
 				_ = ApplyAsync();
 			}
 		}
 
 		private int SelectedDay => _selectedDayOption.Day;
+
+		/// <summary>Short labels for the same three days, for the card's segmented Day picker. ⚠️ Kept
+		/// beside <see cref="Days"/>, same order and length — the row is already labelled "Day", so the
+		/// segments only have to carry the number.</summary>
+		public IReadOnlyList<string> DayShortLabels { get; } = new[] { "1", "2", "3" };
+
+		/// <summary>The selected day as an INDEX, for the segmented picker (which selects by position).
+		/// Routes through <see cref="SelectedDayOption"/> so the product/cycle cascade still runs.</summary>
+		public int SelectedDayIndex
+		{
+			// Days are 1-3 in order, so the number IS the position — and IReadOnlyList has no IndexOf.
+			get => _selectedDayOption.Day - 1;
+			set
+			{
+				if (value >= 0 && value < Days.Count)
+				{
+					SelectedDayOption = Days[value];
+				}
+			}
+		}
 
 		// ── Product (None + the day's products) ──
 
@@ -90,6 +112,7 @@ namespace Anvil.ViewModels
 			{
 				if (value is null || _selectedProductOption == value) return;
 				SetProperty(ref _selectedProductOption, value);
+				OnPropertyChanged(nameof(HasOutlook)); // "None" is the section's off switch
 				_ = ApplyAsync();
 			}
 		}
@@ -155,29 +178,67 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		// ── Readouts ──
+		// ── The outlook card ──────────────────────────────────────────────────────────────────────
+		// The section shows a CARD above its pickers, mirroring the Timeframe card in the same window: a
+		// headline, a line of context, and a footer. Three properties rather than one status string, and
+		// they are only ever written together (SetCard) so the card can never be half-updated.
+		//
+		// ⚠️ THE FOOTER IS THE ERROR CHANNEL AS WELL AS THE TIMES SLOT, and that is what makes a two-tier
+		// card survive a failure. This used to be ONE composed StatusText that carried the product line AND
+		// every error ("Outlook fetch failed", "No Categorical in the 20Z issuance…"), which a headline /
+		// sub-line split cannot represent — there is no sensible HEADLINE for a failure. Keeping the
+		// headline as "what you asked for" and letting the footer say "and here is what came back" works for
+		// both outcomes. Don't move an error into the headline.
+		//
+		// ⚠️ THE CONTEXT LINE GAINS THE CYCLE ONLY ONCE IT IS KNOWN. With Auto the cycle is resolved by
+		// falling back through the day's issuances, so while loading there is no cycle to name yet.
 
-		private string _statusText = string.Empty;
-		public string StatusText
+		private string _cardHeadline = NoOutlookHeadline;
+		private string _cardContext = string.Empty;
+		private string _cardFooter = string.Empty;
+
+		/// <summary>The card's headline: the product you asked for, or that nothing is drawn.</summary>
+		public string CardHeadline
 		{
-			get => _statusText;
-			private set => SetProperty(ref _statusText, value);
+			get => _cardHeadline;
+			private set => SetProperty(ref _cardHeadline, value);
 		}
 
-		private string _timesText = string.Empty;
-		public string TimesText
+		/// <summary>The card's middle line: which day, issuance and date the headline refers to.</summary>
+		public string CardContext
 		{
-			get => _timesText;
-			private set
-			{
-				if (SetProperty(ref _timesText, value))
-				{
-					OnPropertyChanged(nameof(HasTimes));
-				}
-			}
+			get => _cardContext;
+			private set => SetProperty(ref _cardContext, value);
 		}
 
-		public bool HasTimes => _timesText.Length > 0;
+		/// <summary>The card's footer: the issued/valid times when the outlook was found, and the reason
+		/// when it was not.</summary>
+		public string CardFooter
+		{
+			get => _cardFooter;
+			private set => SetProperty(ref _cardFooter, value);
+		}
+
+		/// <summary>Whether a product is selected at all. False = "None", which is this section's off
+		/// switch — Cycle and Opacity have nothing to act on and are disabled.</summary>
+		public bool HasOutlook => _selectedProductOption.Type is not null;
+
+		private const string NoOutlookHeadline = "No outlook drawn";
+
+		// Every card update goes through here, so no path can leave one of the three lines describing a
+		// previous selection.
+		private void SetCard(string headline, string context, string footer)
+		{
+			CardHeadline = headline;
+			CardContext = context;
+			CardFooter = footer;
+		}
+
+		// "Day 1 · May 24, 2011", plus the issuance once it is known.
+		private static string ContextFor(int day, DateOnly date, int? cycle) =>
+			cycle is { } c
+				? $"Day {day} · {c:D2}Z issuance · {date:MMM d, yyyy}"
+				: $"Day {day} · {date:MMM d, yyyy}";
 
 		// ── Lifecycle / coordination (called by MapViewModel) ──
 
@@ -222,14 +283,13 @@ namespace Anvil.ViewModels
 			if (type is null)
 			{
 				await _mapService.ClearOutlookAsync();
-				StatusText = string.Empty;
-				TimesText = string.Empty;
+				SetCard(NoOutlookHeadline, string.Empty, string.Empty);
 				return;
 			}
 
 			var day = SelectedDay;
 			var date = ConvectiveDay(_radar.ReplayStartUtc());
-			StatusText = "Loading outlook…";
+			SetCard(_selectedProductOption.Label, ContextFor(day, date, null), "Loading…");
 
 			var (result, cycleUsed) = await EnsureWithFallbackAsync(date, day);
 			if (token != _applyToken) return; // a newer selection won
@@ -237,17 +297,18 @@ namespace Anvil.ViewModels
 			if (result is null || result.Error is not null)
 			{
 				await _mapService.ClearOutlookAsync();
-				StatusText = result?.Error is { } err ? $"Outlook fetch failed: {err}" : "Outlook fetch failed.";
-				TimesText = string.Empty;
+				SetCard(_selectedProductOption.Label, ContextFor(day, date, null),
+					result?.Error is { } err ? $"Outlook fetch failed: {err}" : "Outlook fetch failed.");
 				return;
 			}
 			if (!result.Found || !result.AvailableTypes.Contains(type.Value))
 			{
 				await _mapService.ClearOutlookAsync();
-				StatusText = result.Found
-					? $"No {_selectedProductOption.Label} in the {cycleUsed:D2}Z issuance for {date:MMM d, yyyy}."
-					: $"No archived outlook for {date:MMM d, yyyy} (Day {day}).";
-				TimesText = string.Empty;
+				SetCard(_selectedProductOption.Label,
+					ContextFor(day, date, result.Found ? cycleUsed : null),
+					result.Found
+						? $"Not in the {cycleUsed:D2}Z issuance for this date."
+						: "No archived outlook for this date.");
 				return;
 			}
 
@@ -261,16 +322,14 @@ namespace Anvil.ViewModels
 			await _mapService.ShowOutlookAsync(product);
 			await _mapService.SetOutlookOpacityAsync(_opacity);
 
-			StatusText = $"{_selectedProductOption.Label} · Day {day} · {cycleUsed:D2}Z · {date:MMM d, yyyy}";
-			TimesText = FormatTimes(result.Times);
+			SetCard(_selectedProductOption.Label, ContextFor(day, date, cycleUsed), FormatTimes(result.Times));
 		}
 
 		private async Task ClearAsync()
 		{
 			if (!_isMapReady) return;
 			await _mapService.ClearOutlookAsync();
-			StatusText = string.Empty;
-			TimesText = string.Empty;
+			SetCard(NoOutlookHeadline, string.Empty, string.Empty);
 		}
 
 		// Honors an explicit cycle override; otherwise tries the auto cycle first, then the day's remaining

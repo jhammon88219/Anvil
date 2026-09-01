@@ -99,7 +99,9 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
-		// x:Bind helper for the outlook's issued/valid readout.
-		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+		// x:Bind helper: collapse a card line that has nothing to say, so the card closes up rather than
+		// leaving a gap where the context or footer would be.
+		public Visibility HasText(string? value) =>
+			string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
 	}
 }

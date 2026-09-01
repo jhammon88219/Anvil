@@ -591,72 +591,111 @@ namespace Anvil.ViewModels
 		/// three refreshes where one is needed.</para>
 		/// <para>A null (a cleared picker) is IGNORED rather than treated as a date: there is no such thing
 		/// as a replay with no date, and the last good one is a better answer than an empty control.</para>
+		/// <para>⚠️ IT MUST HAND BACK THE SAME FRAME IT IS GIVEN — see <see cref="LocalMidnight"/>. This
+		/// property STACK-OVERFLOWED the app when the getter emitted a zero offset: CalendarDatePicker works
+		/// in LOCAL time, so a UTC-midnight value came back as the previous evening, the binding wrote the
+		/// earlier day in, the getter emitted THAT at zero offset, and the two walked backwards a day per
+		/// round trip — synchronously, through the binding, so it blew the stack rather than merely landing
+		/// on the wrong date.</para>
 		/// </remarks>
 		public DateTimeOffset? PastEventDate
 		{
 			get
 			{
 				var local = ReplayStartLocal();
-				return new DateTimeOffset(local.Year, local.Month, local.Day, 0, 0, 0, TimeSpan.Zero);
+				return LocalMidnight(local.Year, local.Month, local.Day);
 			}
 			set
 			{
-				if (value is not { } date)
+				// ⚠️ RE-ENTRANCY GUARD, and it is not belt-and-braces. Raising below makes the binding read
+				// the getter and push the result straight back into this setter; if those two ever disagree
+				// again the recursion is unbounded, and a StackOverflowException cannot be caught — it takes
+				// the process with it. The frame fix above is the real answer; this is what keeps a future
+				// mismatch to a picker that will not move.
+				if (value is not { } date || _settingPastEventDate)
 				{
 					return;
 				}
 
-				var yearIndex = Math.Clamp(date.Year - PastEventStartYear, 0, PastEventYearOptions.Count - 1);
-				var changed = false;
-
-				if (_pastEventYearIndex != yearIndex)
+				_settingPastEventDate = true;
+				try
 				{
-					_pastEventYearIndex = yearIndex;
-					OnPropertyChanged(nameof(PastEventYearIndex));
-					changed = true;
+					ApplyPastEventDate(date);
 				}
-
-				if (_pastEventMonthIndex != date.Month - 1)
+				finally
 				{
-					_pastEventMonthIndex = date.Month - 1;
-					OnPropertyChanged(nameof(PastEventMonthIndex));
-					changed = true;
-				}
-
-				if (_pastEventDayIndex != date.Day - 1)
-				{
-					_pastEventDayIndex = date.Day - 1;
-					OnPropertyChanged(nameof(PastEventDayIndex));
-					changed = true;
-				}
-
-				if (changed)
-				{
-					OnReplaySelectionChanged();
+					_settingPastEventDate = false;
 				}
 			}
 		}
 
+		private bool _settingPastEventDate;
+
+		// ⚠️ The incoming value's OWN date parts are used as-is, with no time-zone conversion: it is a
+		// calendar day, not an instant. Converting a zero-offset midnight to local time would move it to the
+		// previous day, which is exactly the shift that caused the overflow.
+		private void ApplyPastEventDate(DateTimeOffset date)
+		{
+			var yearIndex = Math.Clamp(date.Year - PastEventStartYear, 0, PastEventYearOptions.Count - 1);
+			var changed = false;
+
+			if (_pastEventYearIndex != yearIndex)
+			{
+				_pastEventYearIndex = yearIndex;
+				OnPropertyChanged(nameof(PastEventYearIndex));
+				changed = true;
+			}
+
+			if (_pastEventMonthIndex != date.Month - 1)
+			{
+				_pastEventMonthIndex = date.Month - 1;
+				OnPropertyChanged(nameof(PastEventMonthIndex));
+				changed = true;
+			}
+
+			if (_pastEventDayIndex != date.Day - 1)
+			{
+				_pastEventDayIndex = date.Day - 1;
+				OnPropertyChanged(nameof(PastEventDayIndex));
+				changed = true;
+			}
+
+			if (changed)
+			{
+				OnReplaySelectionChanged();
+			}
+		}
+
+		/// <summary>
+		/// A calendar day as LOCAL midnight — the one frame every date this view model hands a picker is
+		/// expressed in.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ THE OFFSET IS THE WHOLE POINT. CalendarDatePicker interprets and returns local time, so a date
+		/// handed to it at any other offset comes back as a different calendar day; see the overflow note on
+		/// <see cref="PastEventDate"/>. Min, Max and the selected date all go through here so they cannot
+		/// disagree about which day they mean.
+		/// <para>⚠️ Built from PARTS, never from a <see cref="DateTime"/>: the
+		/// <c>DateTimeOffset(DateTime, TimeSpan)</c> constructor THROWS when the DateTime's Kind is Local and
+		/// the offset is not the machine's own, which crashed the panel on open once already.</para>
+		/// </remarks>
+		private static DateTimeOffset LocalMidnight(int year, int month, int day) =>
+			new(year, month, day, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(year, month, day)));
+
 		/// <summary>Earliest date the calendar offers — the start of the decodable WSR-88D archive.</summary>
-		public DateTimeOffset PastEventMinDate { get; } =
-			new(PastEventStartYear, 1, 1, 0, 0, 0, TimeSpan.Zero);
+		public DateTimeOffset PastEventMinDate => LocalMidnight(PastEventStartYear, 1, 1);
 
 		/// <summary>Latest date the calendar offers: today. ⚠️ Without a bound a calendar will happily
 		/// offer 2087, which the three year/month/day combos could never express — the constraint used to
 		/// live in the year list, so it has to be restated here.
-		/// <para>⚠️ Built from PARTS, like <see cref="PastEventMinDate"/> and <see cref="PastEventDate"/>,
-		/// and NOT from a <see cref="DateTime"/>: the <c>DateTimeOffset(DateTime, TimeSpan)</c> constructor
-		/// THROWS when the DateTime's Kind is Local and the offset is anything other than the machine's own
-		/// ("The UTC Offset of the local dateTime parameter does not match the offset argument").
-		/// <c>DateTime.Today</c> is Local, so <c>new(DateTime.Today, TimeSpan.Zero)</c> crashes the moment
-		/// the calendar binds. All three of these dates are plain calendar days at a zero offset — keep them
-		/// on the same parts-based idiom and the trap cannot come back.</para></summary>
+		/// <para>⚠️ Goes through <see cref="LocalMidnight"/> like every other date here — same frame, same
+		/// parts-based construction, same two traps avoided.</para></summary>
 		public DateTimeOffset PastEventMaxDate
 		{
 			get
 			{
 				var today = DateTime.Today;
-				return new DateTimeOffset(today.Year, today.Month, today.Day, 0, 0, 0, TimeSpan.Zero);
+				return LocalMidnight(today.Year, today.Month, today.Day);
 			}
 		}
 
