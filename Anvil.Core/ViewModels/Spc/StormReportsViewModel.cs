@@ -66,7 +66,22 @@ namespace Anvil.ViewModels
 			set { if (SetProperty(ref _showHail, value)) { OnKindToggled(); } }
 		}
 
-		private bool AnyShown => _showTornado || _showWind || _showHail;
+		/// <summary>
+		/// Whether this section has a day to act on at all — always true in NowCast (today is always a day),
+		/// and in PastCast only once a replay window has been LOADED.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ It gates the controls, not just the readout: before a window is loaded there is no convective
+		/// day, so a type toggle would have nothing to fetch and nothing to draw.
+		/// ⚠️ It has to be a VM property rather than a host binding because this control is shared by BOTH
+		/// temporal windows, and the answer differs between them.
+		/// </remarks>
+		public bool IsReady => !_radar.IsPastEventMode || _radar.HasLoadedReplayWindow;
+
+		/// <summary>Whether ANY type is switched on. False = nothing is drawn, so Opacity has nothing to act
+		/// on and the section's controls below the types are disabled — the same off-switch rule the
+		/// outlook's "None" follows.</summary>
+		public bool AnyShown => _showTornado || _showWind || _showHail;
 
 		// ── Opacity ──
 
@@ -90,12 +105,69 @@ namespace Anvil.ViewModels
 		public int WindCount { get => _windCount; private set => SetProperty(ref _windCount, value); }
 		public int HailCount { get => _hailCount; private set => SetProperty(ref _hailCount, value); }
 
-		private string _statusText = string.Empty;
-		public string StatusText
+		// ── The reports card ──────────────────────────────────────────────────────────────────────
+		// The section shows a CARD above its type rows, the same shape as the Timeframe and outlook cards in
+		// the same window: headline, context, footer. Written only through SetCard so it cannot be left half
+		// describing a previous day.
+		//
+		// ⚠️ THE FOOTER IS THE ERROR AND PROGRESS CHANNEL, exactly as in PastOutlookViewModel — headline is
+		// the answer, footer is what came back. A failed fetch has no sensible headline.
+		//
+		// ⚠️ THE HEADLINE IS A TOTAL THAT THE ROWS BELOW ALSO BREAK DOWN, which is a real redundancy and was
+		// accepted deliberately: the card is the section's summary line, and a section whose card said
+		// something the rows did not would be inventing a second fact to display. If it ever reads as noise,
+		// the honest fix is to drop the card here rather than to find it different words.
+
+		private string _cardHeadline = "No reports loaded";
+		private string _cardContext = string.Empty;
+		private string _cardFooterMessage = string.Empty;
+
+		/// <summary>The card's headline: the total across the shown types.</summary>
+		public string CardHeadline
 		{
-			get => _statusText;
-			private set => SetProperty(ref _statusText, value);
+			get => _cardHeadline;
+			private set => SetProperty(ref _cardHeadline, value);
 		}
+
+		/// <summary>The card's middle line: which convective day the counts are for.</summary>
+		public string CardContext
+		{
+			get => _cardContext;
+			private set => SetProperty(ref _cardContext, value);
+		}
+
+		/// <summary>
+		/// The card's footer: loading and failure messages, and — when there is nothing to report — the fact
+		/// that no type is switched on.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ COMPOSED, not stored, because two different things want this line. The counts now populate with
+		/// every type off, so the card can truthfully say "448 reports" while the map is empty; without the
+		/// second clause that reads as a bug. A real message always wins — an error is more urgent than a
+		/// filter being empty.
+		/// </remarks>
+		public string CardFooter =>
+			_cardFooterMessage.Length > 0 ? _cardFooterMessage :
+			AnyShown ? string.Empty :
+			"None shown — pick a type below";
+
+		private const string NoReportsHeadline = "No reports";
+
+		private void SetCard(string headline, string context, string footer)
+		{
+			CardHeadline = headline;
+			CardContext = context;
+			if (_cardFooterMessage != footer)
+			{
+				_cardFooterMessage = footer;
+				OnPropertyChanged(nameof(CardFooter));
+			}
+		}
+
+		// ⚠️ The date is stamped "12Z-12Z" because the SPC convective day is NOT the calendar day: reports
+		// before 12Z belong to the previous one. Without that the card looks wrong to anyone reading it
+		// against a wall clock late in the evening.
+		private static string ContextFor(DateOnly day) => $"{day:MMM d, yyyy} · 12Z-12Z";
 
 		// ── Lifecycle ──
 
@@ -104,7 +176,10 @@ namespace Anvil.ViewModels
 		{
 			_isMapReady = true;
 			await _mapService.SetStormReportsOpacityAsync(_opacity);
-			if (AnyShown) { await EnsureAndShowAsync(); }
+			// ⚠️ Unconditional. The counts are this section's READOUT, not a by-product of drawing dots, so
+			// they have to be right before any type is switched on. Cost: one report fetch at launch that
+			// used to happen only when a box was ticked.
+			await EnsureAndShowAsync();
 		}
 
 		/// <summary>Kicks off the storm-report background refresh loop (called once at launch). Only does work
@@ -118,8 +193,10 @@ namespace Anvil.ViewModels
 		{
 			try
 			{
-				// Nothing to refresh unless we're in NowCast with something shown (past days are immutable).
-				if (!_isMapReady || _radar.IsPastEventMode || !AnyShown) { return; }
+				// ⚠️ NOT gated on anything being shown: today's counts are a live readout even with every type
+				// switched off, exactly as the warning counts in the same window are. Past days are immutable,
+				// so replay mode still skips.
+				if (!_isMapReady || _radar.IsPastEventMode) { return; }
 
 				var day = TodayConvectiveDay();
 				var result = await _reportService.EnsureReportsAsync(day, immutable: false);
@@ -135,26 +212,28 @@ namespace Anvil.ViewModels
 		// reloads, and update the counts — but only if we're still in the state that asked for it.
 		private void ApplyRefreshed(DateOnly day, StormReportResult result)
 		{
-			if (!_isMapReady || _radar.IsPastEventMode || !AnyShown || !result.Found) { return; }
+			if (!_isMapReady || _radar.IsPastEventMode || !result.Found) { return; }
 			SetCounts(result);
 			_loadedDay = day;
 			_ = _mapService.SetStormReportsSourceAsync(_reportService.LocalUrl(day));
-			StatusText = SummaryFor(day, result);
+			SetCard(SummaryFor(result), ContextFor(day), string.Empty);
 		}
 
 		// ── Reactions ──
 
 		private void OnRadarChanged(object? sender, PropertyChangedEventArgs e)
 		{
-			// A mode flip (past↔live) or a replay-date change moves the overlay to a different convective day.
+			// ⚠️ A LOAD, not a picker move. HasLoadedReplayWindow is re-raised by every successful load (and
+			// by leaving replay), which is exactly when the replay day this overlay follows can change. The
+			// date/time properties are deliberately NOT watched: they describe the window Load would set up
+			// next, so reacting to them fetched reports for a day the user had not committed to yet.
 			if (e.PropertyName is nameof(RadarViewModel.IsPastEventMode)
-				or nameof(RadarViewModel.PastEventYearIndex)
-				or nameof(RadarViewModel.PastEventMonthIndex)
-				or nameof(RadarViewModel.PastEventDayIndex)
-				or nameof(RadarViewModel.PastEventTime))
+				or nameof(RadarViewModel.HasLoadedReplayWindow))
 			{
-				_loadedDay = null; // the day context changed — force a re-fetch on next show
-				if (_isMapReady && AnyShown) { _ = EnsureAndShowAsync(); }
+				OnPropertyChanged(nameof(IsReady)); // both names change the answer
+				// Still deduped on the DAY: re-loading the same window, or a load whose window sits inside the
+				// convective day already showing, has nothing new to fetch.
+				if (_isMapReady && ActiveDay() != _loadedDay) { _ = EnsureAndShowAsync(); }
 			}
 		}
 
@@ -163,8 +242,17 @@ namespace Anvil.ViewModels
 		// filter so the dots hide without tearing the source down.
 		private void OnKindToggled()
 		{
+			// ⚠️ Raised here rather than in the three setters: all of them land here, and AnyShown depends on
+			// all three, so one place cannot miss a case. CardFooter goes with it — its second clause reads
+			// AnyShown, so the "none shown" line has to appear and clear with the checkboxes.
+			OnPropertyChanged(nameof(AnyShown));
+			OnPropertyChanged(nameof(CardFooter));
+
 			if (!_isMapReady) { return; }
-			if (AnyShown && _loadedDay != ActiveDay())
+			// ⚠️ A LIVE day is refetched when a type is switched on, a past one is not: today's reports
+			// accumulate through the day, a historical day is immutable. Without the live case the counts
+			// fetched at launch would still be on screen when you finally tick a box in the evening.
+			if (AnyShown && (_loadedDay != ActiveDay() || !_radar.IsPastEventMode))
 			{
 				_ = EnsureAndShowAsync();
 			}
@@ -176,26 +264,48 @@ namespace Anvil.ViewModels
 
 		// ── Core ──
 
-		// The convective day the overlay should show: the replay day in PastCast, today otherwise.
-		private DateOnly ActiveDay() =>
-			_radar.IsPastEventMode ? ConvectiveDay(_radar.ReplayStartUtc()) : TodayConvectiveDay();
+		// The convective day the overlay should show: the LOADED replay day in PastCast, today otherwise.
+		// Null means there is nothing to show yet — PastCast is up but no window has been loaded.
+		//
+		// ⚠️ IT READS THE LOADED WINDOW, NOT THE PICKERS. Between editing a date and pressing Load the two
+		// disagree, and following the pickers meant the counts described a day that was not on the map —
+		// they populated the moment you touched the date, before Load had done anything.
+		private DateOnly? ActiveDay() =>
+			_radar.IsPastEventMode
+				? _radar.LoadedReplayStartUtc is { } start ? ConvectiveDay(start) : null
+				: TodayConvectiveDay();
 
-		// Fetch (past = immutable/cache-forever, live = re-fetch) and show the active day's reports.
+		// Fetch (past = immutable/cache-forever, live = re-fetch) the active day's reports, publish the
+		// counts + card, and push the dots for whichever types are switched on.
+		//
+		// ⚠️ IT RUNS WITH EVERY TYPE OFF, and that is the point. It used to return early unless something was
+		// shown, so the numbers sat at zero until you ticked a box — which read as broken data rather than as
+		// an empty filter. The counts describe the day; the checkboxes only decide what is DRAWN, and pushing
+		// an all-false kind filter simply draws nothing.
 		private async Task EnsureAndShowAsync()
 		{
-			if (!_isMapReady || !AnyShown) { return; }
+			if (!_isMapReady) { return; }
 
 			var token = ++_applyToken;
-			var day = ActiveDay();
+			if (ActiveDay() is not { } day)
+			{
+				// PastCast is up but nothing has been loaded — there is no day to report on yet.
+				_loadedDay = null;
+				TornadoCount = 0;
+				WindCount = 0;
+				HailCount = 0;
+				SetCard("No reports loaded", string.Empty, "Load a timeframe to see its reports");
+				return;
+			}
 			var immutable = _radar.IsPastEventMode;
-			StatusText = "Loading storm reports…";
+			SetCard(CardHeadline, ContextFor(day), "Loading…");
 
 			var result = await _reportService.EnsureReportsAsync(day, immutable);
 			if (token != _applyToken) { return; } // a newer day/selection won
 
 			if (!result.Found)
 			{
-				StatusText = result.Error ?? "Storm reports unavailable.";
+				SetCard(NoReportsHeadline, ContextFor(day), result.Error ?? "Storm reports unavailable.");
 				return;
 			}
 
@@ -204,7 +314,7 @@ namespace Anvil.ViewModels
 			await _mapService.SetStormReportsSourceAsync(_reportService.LocalUrl(day));
 			await _mapService.SetStormReportKindsAsync(_showTornado, _showWind, _showHail);
 			await _mapService.SetStormReportsOpacityAsync(_opacity);
-			StatusText = SummaryFor(day, result);
+			SetCard(SummaryFor(result), ContextFor(day), string.Empty);
 		}
 
 		private void SetCounts(StormReportResult result)
@@ -214,8 +324,14 @@ namespace Anvil.ViewModels
 			HailCount = result.Hail;
 		}
 
-		private static string SummaryFor(DateOnly day, StormReportResult result) =>
-			$"{day:MMM d, yyyy} · {result.Tornado + result.Wind + result.Hail} reports";
+		// The card's headline. ⚠️ The TOTAL, not the shown subset: the per-type rows underneath already say
+		// which types are on, and a headline that moved every time a checkbox flipped would read as the data
+		// changing rather than the filter.
+		private static string SummaryFor(StormReportResult result)
+		{
+			var total = result.Tornado + result.Wind + result.Hail;
+			return total == 1 ? "1 report" : $"{total} reports";
+		}
 
 		// The SPC "convective day" (12Z→12Z) containing an instant — the date SPC files that day's reports
 		// under (before 12Z belongs to the previous convective day). Matches the outlook's valid window.

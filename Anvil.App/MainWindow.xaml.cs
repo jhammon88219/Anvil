@@ -236,7 +236,11 @@ namespace Anvil
 				buildContent: () => new Controls.Windows.TemporalWindow { Mode = mode, ViewModel = ViewModel },
 				title: title, width: width, height: height,
 				alwaysOnTop: () => ViewModel.IsTemporalWindowOnTop(mode),
-				customChrome: true);
+				customChrome: true,
+				// ⚠️ The HEIGHT argument above is only a fallback now — these three windows measure their own
+				// content and size to it, because their bodies differ a lot and none of them scrolls. Width
+				// is still real: it is the width the content is measured AT.
+				sizeToContent: true);
 		}
 
 		// Opens the site-sweep results pop-up (Save / Close). Raised by the dev window on run completion
@@ -412,8 +416,9 @@ namespace Anvil
 			// replaced three windows. The round trip is deliberate and the reasoning is in MapViewModel's
 			// temporal region: the tabbed panel existed to stop a mode key meaning two things at once, and
 			// splitting the key fixes that without making the two coexisting modes share one panel.
-			// ⚠️ Each is sized for ITS OWN body now, which is the other thing the split bought — the tabbed
-			// window had to be sized for the tallest tab, because a window is sized once, at open.
+			// ⚠️ Each SIZES ITSELF TO ITS OWN BODY now (sizeToContent), which the tabbed window could never
+			// do — it had to be sized for the tallest tab, because a window is sized once, at open. The
+			// heights below are only the fallback for a measure that comes back degenerate.
 			RegisterTemporalWindow(TemporalMode.Past, "PastCast", 480, 700);
 			RegisterTemporalWindow(TemporalMode.Now, "NowCast", 480, 560);
 			RegisterTemporalWindow(TemporalMode.Fore, "ForeCast", 480, 540);

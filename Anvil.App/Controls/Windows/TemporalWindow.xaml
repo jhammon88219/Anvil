@@ -5,6 +5,7 @@
 
        ┌─ NowCast ──────────────────────────────────────[pin]─┐
        │  NowCast                                             │  ← the mode's name, from Mode
+       │  (the window is sized to fit this — no scroller)     │
        │  ┌──────────────────────────────────────────────┐    │
        │  │                                              │    │
        │  │   that mode's body — ONE UserControl from     │    │
@@ -40,8 +41,7 @@
      ⚠️ THE BODY IS BUILT IN CODE, not declared here behind x:Load. Only one of the three is ever wanted per
      window, Mode never changes after construction, and building the one asked for is both cheaper and
      plainer than loading and hiding three. It also sidesteps x:Load's real hazard: bound to a bool it
-     UNLOADS again when that bool goes false, and PastCastTab hand-syncs live widget state (its editable
-     hour/minute combos) that an unload would drop.
+     UNLOADS again when that bool goes false, which is a trap for any body holding live widget state.
 
      ⚠️ THE PIN IS WIRED IN CODE-BEHIND for the same reason: which on-top flag it drives depends on Mode,
      which an x:Bind path cannot express. See the pin section of the code-behind. -->
@@ -57,6 +57,9 @@
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- title -->
+            <!-- ⚠️ Star, and it still measures correctly for sizeToContent: a star row given infinite
+                 available height behaves as Auto, so the window's measured height is title + body. Star
+                 rather than Auto so the body also FILLS the window if the user drags it larger. -->
             <RowDefinition Height="*"/>    <!-- body -->
         </Grid.RowDefinitions>
 
@@ -65,10 +68,12 @@
                    FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
-        <ScrollViewer Grid.Row="1" Margin="16,14,16,14"
-                      VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
-            <ContentPresenter x:Name="BodyHost"/>
-        </ScrollViewer>
+        <!-- ⚠️ NO ScrollViewer. The window is sized to this content instead (WindowManager's
+             sizeToContent), so there is nothing to scroll — a scroller here would only ever show a bar that
+             could not move. If a body ever outgrows the monitor the manager clamps the window and the
+             bottom rows become unreachable: that is the signal to put a scroller back, not to raise the
+             clamp. -->
+        <ContentPresenter x:Name="BodyHost" Grid.Row="1" Margin="16,14,16,14"/>
 
         <!-- Pin: keep this window on top. Bound in code-behind — the flag it drives depends on Mode. -->
         <ctl:PinToggle x:Name="Pin"/>

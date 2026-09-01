@@ -261,10 +261,10 @@ namespace Anvil.ViewModels
 		{
 			// A replay date/time change should move the outlook with it, but only when we own the layer
 			// (past mode) and a product is actually shown.
-			if (e.PropertyName is nameof(RadarViewModel.PastEventYearIndex)
-				or nameof(RadarViewModel.PastEventMonthIndex)
-				or nameof(RadarViewModel.PastEventDayIndex)
-				or nameof(RadarViewModel.PastEventTime))
+			// ⚠️ A LOAD, not a picker move — HasLoadedReplayWindow is re-raised by every successful load. The
+			// date/time properties are deliberately not watched: they describe the window Load would set up
+			// next, so reacting to them re-fetched for a day the user had not committed to.
+			if (e.PropertyName is nameof(RadarViewModel.HasLoadedReplayWindow))
 			{
 				if (_radar.IsPastEventMode && _selectedProductOption.Type is not null)
 				{
@@ -288,7 +288,17 @@ namespace Anvil.ViewModels
 			}
 
 			var day = SelectedDay;
-			var date = ConvectiveDay(_radar.ReplayStartUtc());
+			// ⚠️ THE LOADED WINDOW, NOT THE PICKERS. Between editing a date and pressing Load the two describe
+			// different days, and following the pickers fetched an outlook for a day that was not on the map.
+			// Same rule the storm reports follow; both overlays key to what is actually loaded.
+			if (_radar.LoadedReplayStartUtc is not { } replayStart)
+			{
+				await _mapService.ClearOutlookAsync();
+				SetCard(NoOutlookHeadline, string.Empty, "Load a timeframe to see its outlook");
+				return;
+			}
+
+			var date = ConvectiveDay(replayStart);
 			SetCard(_selectedProductOption.Label, ContextFor(day, date, null), "Loading…");
 
 			var (result, cycleUsed) = await EnsureWithFallbackAsync(date, day);
@@ -342,7 +352,7 @@ namespace Anvil.ViewModels
 			}
 
 			PastOutlookResult? last = null;
-			var order = OrderedAutoCycles(day, _radar.ReplayStartUtc());
+			var order = OrderedAutoCycles(day, _radar.LoadedReplayStartUtc ?? _radar.ReplayStartUtc());
 			foreach (var c in order)
 			{
 				var r = await _outlookService.EnsurePastOutlookAsync(date, day, c);

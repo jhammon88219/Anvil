@@ -732,6 +732,17 @@ namespace Anvil.ViewModels
 			_pastWindowLoaded
 			&& (_loadedWindowDurationIndex != _pastEventDurationIndex || _loadedWindowStartUtc != ReplayStartUtc());
 
+		/// <summary>
+		/// The UTC start of the window that was actually LOADED, or null if none has been. Distinct from
+		/// <see cref="ReplayStartUtc"/>, which follows the PICKERS and so describes what Load would do next.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ Overlays keyed to the replay day (the storm reports) must read THIS, not the pickers: between
+		/// editing a date and pressing Load the two disagree, and an overlay following the pickers would be
+		/// describing a day that is not on the map.
+		/// </remarks>
+		public DateTimeOffset? LoadedReplayStartUtc => _loadedWindowStartUtc;
+
 		// What the last load actually loaded, for the comparison above.
 		private DateTimeOffset? _loadedWindowStartUtc;
 		private int _loadedWindowDurationIndex = -1;
@@ -743,6 +754,7 @@ namespace Anvil.ViewModels
 			_pastWindowLoaded = true;
 			_loadedWindowStartUtc = ReplayStartUtc();
 			_loadedWindowDurationIndex = _pastEventDurationIndex;
+			OnPropertyChanged(nameof(LoadedReplayStartUtc));
 			OnPropertyChanged(nameof(HasLoadedReplayWindow));
 			OnPropertyChanged(nameof(IsReplaySelectionDirty));
 		}
@@ -754,6 +766,7 @@ namespace Anvil.ViewModels
 			_pastWindowLoaded = false;
 			_loadedWindowStartUtc = null;
 			_loadedWindowDurationIndex = -1;
+			OnPropertyChanged(nameof(LoadedReplayStartUtc));
 			OnPropertyChanged(nameof(HasLoadedReplayWindow));
 			OnPropertyChanged(nameof(IsReplaySelectionDirty));
 		}

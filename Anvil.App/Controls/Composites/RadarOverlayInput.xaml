@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- RadarOverlayInput — how the RADAR LAYER ITSELF is drawn, as opposed to what is drawn over it. Reused in
+     BOTH temporal windows (PastCast and NowCast), like StormReportsInput.
+
+       Opacity ──────────────●──
+
+     ⚠️ ONE SLIDER TODAY, and a whole control for it on purpose: this is the section every future setting
+     that belongs to the radar LAYER goes in, and adding the second one should not mean inventing the
+     section then. Its neighbours are the outlook's opacity and the reports' opacity — the radar's had no
+     home at all until now.
+     ⚠️ RadarOpacity was WIRED BUT UNREACHABLE before this: the property drives the map and has since the
+     ribbon UI, but every generation of chrome since dropped its slider, so the value sat at its 0.85
+     default with no way to change it. This is a re-add, not a new feature.
+
+     ⚠️ THE VALUE IS GLOBAL — one map, one radar layer, one number, shared by live and replay. That is
+     survivable in two windows only because PastCast and NowCast are MUTUALLY EXCLUSIVE modes (Past clears
+     Now, and MapViewModel closes the window of a mode that stops), so the two hosts can never both be on
+     screen showing the same value. If that exclusivity ever changes, this becomes one control in two places
+     disagreeing about which one you just moved.
+
+     ⚠️ IT IS NOT GATED ON A LOADED WINDOW, unlike the outlook and storm-report controls beside it. Those
+     were gated because they have nothing to FETCH without a convective day; opacity fetches nothing, so
+     setting it before a load is harmless and lets you have the layer looking right when the frames arrive.
+
+     ⚠️ THE SECTION HEADING IS NOT HERE — each host window draws its own, the same rule StormReportsInput
+     follows. A window owns its section structure; this is content.
+
+     Bound to RadarViewModel. -->
+<UserControl x:Class="Anvil.Controls.Composites.RadarOverlayInput"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid ColumnSpacing="12" VerticalAlignment="Top">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="60"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Column="0" Text="Opacity" Style="{StaticResource SettingsFieldLabelStyle}"/>
+        <Slider Grid.Column="1"
+                HorizontalAlignment="Stretch"
+                Minimum="0" Maximum="1"
+                StepFrequency="0.05" SmallChange="0.05"
+                IsThumbToolTipEnabled="False"
+                VerticalAlignment="Center"
+                Value="{x:Bind ViewModel.RadarOpacity, Mode=TwoWay}"
+                ToolTipService.ToolTip="Opacity of the radar layer — turn it down to read an outlook through it"/>
+    </Grid>
+</UserControl>

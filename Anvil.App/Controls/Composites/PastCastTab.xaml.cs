@@ -69,6 +69,15 @@ namespace Anvil.Controls.Composites
 		// ⚠️ TryGetValue, never the indexer: a ResourceDictionary's indexer THROWS on a missing key, and
 		// these run the moment the panel opens — a renamed system brush would take the window down rather
 		// than draw the wrong colour. Null is a survivable answer for both a Brush and a Style.
+		/// <summary>Whether pressing Load would DO anything: nothing loaded yet, or the pickers have moved
+		/// since. ⚠️ A loaded-and-clean window has nothing to re-fetch — the archive day is immutable — so the
+		/// button goes dead rather than offering a no-op.</summary>
+		public bool LoadEnabled(bool loaded, bool dirty) => !loaded || dirty;
+
+		/// <summary>The outlook's Cycle and Opacity need BOTH a loaded window (there is no day to fetch for
+		/// otherwise) and a product that is not None (nothing to tune).</summary>
+		public bool OutlookDetailEnabled(bool loaded, bool hasOutlook) => loaded && hasOutlook;
+
 		private static Brush? Resource(string key) => Lookup(key) as Brush;
 
 		private static object? Lookup(string key) =>

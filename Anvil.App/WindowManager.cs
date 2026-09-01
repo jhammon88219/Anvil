@@ -50,6 +50,7 @@ namespace Anvil
 			public required string Title;
 			public double Width;
 			public double Height;
+			public bool SizeToContent; // measure the content for HEIGHT; Height is then only a fallback
 			public Func<bool> AlwaysOnTop = () => false; // topmost (evaluated live so a pin toggle can flip it)
 			public bool CustomChrome; // extend content into the title bar so the dark surface replaces the caption
 		}
@@ -89,7 +90,8 @@ namespace Anvil
 			double width,
 			double height,
 			Func<bool>? alwaysOnTop = null,
-			bool customChrome = false)
+			bool customChrome = false,
+			bool sizeToContent = false)
 		{
 			_regs[id] = new Registration
 			{
@@ -102,6 +104,7 @@ namespace Anvil
 				Height = height,
 				AlwaysOnTop = alwaysOnTop ?? (() => false),
 				CustomChrome = customChrome,
+				SizeToContent = sizeToContent,
 			};
 		}
 
@@ -200,7 +203,7 @@ namespace Anvil
 				}
 
 				int w = (int)Math.Ceiling(reg.Width * scale);
-				int h = (int)Math.Ceiling(reg.Height * scale);
+				int h = (int)Math.Ceiling(MeasuredHeight(reg, content, appWindow, scale) * scale);
 				appWindow.ResizeClient(new Windows.Graphics.SizeInt32(w, h));
 
 				if (_owner.AppWindow is AppWindow owner)
@@ -216,6 +219,46 @@ namespace Anvil
 			_windows[reg.Id] = window;
 			window.Activate();
 		}
+
+		// The panel's HEIGHT: measured from its content when the registration asks for it, otherwise the
+		// registered value.
+		//
+		// ⚠️ WIDTH IS NEVER MEASURED. These bodies are vertical stacks that wrap to whatever width they are
+		// given, so width is the INPUT to the measure and height is the answer. Measuring both would just
+		// return whatever the widest single control happened to want.
+		//
+		// ⚠️ IT IS A ONE-SHOT, at open. Content that grows later (a card gaining a footer line, a longer
+		// status) does not resize the window — the same as the fixed sizes this replaced. The window stays
+		// resizable, which is the escape hatch.
+		//
+		// ⚠️ CLAMPED TO THE MONITOR'S WORK AREA. A panel with no ScrollViewer and a taller-than-screen
+		// content would put its bottom rows out of reach for good, so an oversized measure is capped rather
+		// than honoured. If a panel ever hits this cap it needs its scroller back, not a bigger clamp.
+		//
+		// ⚠️ A DEGENERATE MEASURE FALLS BACK to the registered height. Measuring an element that is not yet
+		// in a visual tree is not guaranteed to produce anything useful, and a window sized 0 would be a far
+		// worse failure than one sized as it always used to be.
+		private static double MeasuredHeight(Registration reg, FrameworkElement content, AppWindow appWindow, double scale)
+		{
+			if (!reg.SizeToContent)
+			{
+				return reg.Height;
+			}
+
+			content.Measure(new Windows.Foundation.Size(reg.Width, double.PositiveInfinity));
+			var desired = content.DesiredSize.Height;
+			if (double.IsNaN(desired) || desired <= 0)
+			{
+				return reg.Height;
+			}
+
+			var workArea = DisplayArea.GetFromWindowId(appWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
+			var maxLogical = (workArea.Height / scale) - WorkAreaMargin;
+			return maxLogical > 0 ? Math.Min(desired, maxLogical) : desired;
+		}
+
+		// Breathing room left below a content-sized panel so it never runs flush to the taskbar.
+		private const double WorkAreaMargin = 48;
 
 		private void OnWindowClosed(Registration reg)
 		{

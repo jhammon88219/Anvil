@@ -20,6 +20,13 @@ namespace Anvil.Controls.Composites
 		/// the bound count property raises PropertyChanged.</summary>
 		public string Fmt(int count) => count.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
+		// x:Bind helper: collapse a card line that has nothing to say, so the card closes up rather than
+		// leaving a gap where the context or footer would be. Same helper as PastCastTab's.
+		public Microsoft.UI.Xaml.Visibility HasText(string? value) =>
+			string.IsNullOrEmpty(value)
+				? Microsoft.UI.Xaml.Visibility.Collapsed
+				: Microsoft.UI.Xaml.Visibility.Visible;
+
 		/// <summary>The storm-reports view model; bound from the host (MainWindow → ViewModel.StormReports).</summary>
 		public StormReportsViewModel ViewModel
 		{

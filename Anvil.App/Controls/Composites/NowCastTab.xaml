@@ -6,7 +6,11 @@
      control, unchanged by the split; renaming all three would be churn. Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────┐
-       │  Watches   [x] Tornado / Severe Thunderstorm         │
+       │  Radar ──────────────────────────────────────────    │
+       │  Opacity ─────────●──                                │  ← sections run in the map's
+       │  ────────────────────────────────────────────────    │     Z-ORDER: radar, then the
+       │  Watches and warnings ───────────────────────────    │     alerts over it, then the
+       │  Watches   [x] Tornado / Severe Thunderstorm         │     reports on top
        │  Opacity   ──────●───────────                        │
        │  Warnings  [x] Tornado / Severe Thunderstorm         │
        │  Active     ■ Tornado 3      ■ Severe 24             │  ← live counts, even when hidden
@@ -28,6 +32,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:comp="using:Anvil.Controls.Composites"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -42,90 +47,132 @@
 
     <Grid VerticalAlignment="Top" RowSpacing="12">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- the radar layer itself -->
+            <RowDefinition Height="Auto"/> <!-- divider -->
             <RowDefinition Height="Auto"/> <!-- watches + warnings -->
             <RowDefinition Height="Auto"/> <!-- divider -->
             <RowDefinition Height="Auto"/> <!-- storm reports (today) -->
         </Grid.RowDefinitions>
 
-        <!-- Body: label column + control column, one row per option. -->
-        <Grid Grid.Row="0" ColumnSpacing="12" RowSpacing="10" VerticalAlignment="Top">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+        <!-- ===================== RADAR: the layer everything else is drawn OVER ===================== -->
+        <!-- ⚠️ Sections run in the map's Z-ORDER — radar underneath, watches/warnings over it, reports on
+             top. Same control and same ordering as the PastCast window; the value behind it is global, which
+             is only safe because Past and Now are mutually exclusive modes and these two windows can never
+             be open at once. -->
+        <Grid Grid.Row="0">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- Watches -->
-                <RowDefinition Height="Auto"/> <!-- Watch opacity -->
-                <RowDefinition Height="Auto"/> <!-- Warnings -->
-                <RowDefinition Height="Auto"/> <!-- Warning active counts -->
-                <RowDefinition Height="Auto"/> <!-- Warning opacity -->
+                <RowDefinition Height="Auto"/> <!-- section heading -->
+                <RowDefinition Height="Auto"/> <!-- the shared control -->
             </Grid.RowDefinitions>
-
-            <!-- Watches: active Tornado / Severe Thunderstorm watch boxes. -->
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Watches" Style="{StaticResource NowLabelStyle}"/>
-            <CheckBox Grid.Row="0" Grid.Column="1"
-                      Content="Tornado / Severe Thunderstorm"
-                      MinWidth="0"
-                      VerticalAlignment="Center"
-                      IsChecked="{x:Bind ViewModel.Watches.IsVisible, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Show active Tornado / Severe Thunderstorm watch boxes"/>
-
-            <!-- Opacity: overall watch-polygon opacity (fill + outline together). -->
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Opacity" Style="{StaticResource NowLabelStyle}"/>
-            <Slider Grid.Row="1" Grid.Column="1"
-                    Width="180" HorizontalAlignment="Left"
-                    Minimum="0" Maximum="1"
-                    StepFrequency="0.05" SmallChange="0.05"
-                    IsThumbToolTipEnabled="False"
-                    VerticalAlignment="Center"
-                    Value="{x:Bind ViewModel.Watches.Opacity, Mode=TwoWay}"
-                    ToolTipService.ToolTip="Overall opacity of the watch polygons"/>
-
-            <!-- Warnings: active storm-based Tornado / Severe Thunderstorm warning polygons (the modern
-                 forecaster-drawn polygons). Drawn above the watch boxes. -->
-            <TextBlock Grid.Row="2" Grid.Column="0" Text="Warnings" Style="{StaticResource NowLabelStyle}"/>
-            <CheckBox Grid.Row="2" Grid.Column="1"
-                      Content="Tornado / Severe Thunderstorm"
-                      MinWidth="0"
-                      VerticalAlignment="Center"
-                      IsChecked="{x:Bind ViewModel.Warnings.IsVisible, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Show active Tornado / Severe Thunderstorm warning polygons"/>
-
-            <!-- Active counts by type: number of live Tornado / Severe Thunderstorm warnings right now.
-                 Color swatches match the map (TO red, SV yellow); the count stays in the default text
-                 color so it reads in both light and dark. Updated each refresh from WarningsViewModel. -->
-            <TextBlock Grid.Row="3" Grid.Column="0" Text="Active" Style="{StaticResource NowLabelStyle}"/>
-            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="18" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                            ToolTipService.ToolTip="Active Tornado Warnings">
-                    <Border Width="11" Height="11" CornerRadius="2" Background="#FF2A2A" VerticalAlignment="Center"/>
-                    <TextBlock Text="Tornado" Style="{StaticResource NowLabelStyle}"/>
-                    <TextBlock Text="{x:Bind Fmt(ViewModel.Warnings.TornadoWarningCount), Mode=OneWay}"
-                               FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                            ToolTipService.ToolTip="Active Severe Thunderstorm Warnings">
-                    <Border Width="11" Height="11" CornerRadius="2" Background="#FFD21A" VerticalAlignment="Center"/>
-                    <TextBlock Text="Severe" Style="{StaticResource NowLabelStyle}"/>
-                    <TextBlock Text="{x:Bind Fmt(ViewModel.Warnings.SevereWarningCount), Mode=OneWay}"
-                               FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                </StackPanel>
-            </StackPanel>
-
-            <!-- Opacity: overall warning-polygon opacity (fill + outline together). -->
-            <TextBlock Grid.Row="4" Grid.Column="0" Text="Opacity" Style="{StaticResource NowLabelStyle}"/>
-            <Slider Grid.Row="4" Grid.Column="1"
-                    Width="180" HorizontalAlignment="Left"
-                    Minimum="0" Maximum="1"
-                    StepFrequency="0.05" SmallChange="0.05"
-                    IsThumbToolTipEnabled="False"
-                    VerticalAlignment="Center"
-                    Value="{x:Bind ViewModel.Warnings.Opacity, Mode=TwoWay}"
-                    ToolTipService.ToolTip="Overall opacity of the warning polygons"/>
+            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Radar"/>
+            <comp:RadarOverlayInput Grid.Row="1" ViewModel="{x:Bind ViewModel.Radar, Mode=OneWay}"/>
         </Grid>
 
         <Border Grid.Row="1" Height="1" Margin="0,2"
                 Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-        <comp:StormReportsInput Grid.Row="2" ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
+
+        <!-- ⚠️ This block gained a heading when Radar landed above it: an UNHEADED section sandwiched
+             between two headed ones reads as a mistake, where a trailing one merely read as unfinished. The
+             two overlays share one heading because they are one idea — current-conditions alerts. -->
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- section heading -->
+                <RowDefinition Height="Auto"/> <!-- the watch + warning rows -->
+            </Grid.RowDefinitions>
+            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Watches and warnings"/>
+
+            <!-- Body: label column + control column, one row per option. -->
+            <Grid Grid.Row="1" ColumnSpacing="12" RowSpacing="10" VerticalAlignment="Top">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Watches -->
+                    <RowDefinition Height="Auto"/> <!-- Watch opacity -->
+                    <RowDefinition Height="Auto"/> <!-- Warnings -->
+                    <RowDefinition Height="Auto"/> <!-- Warning active counts -->
+                    <RowDefinition Height="Auto"/> <!-- Warning opacity -->
+                </Grid.RowDefinitions>
+
+                <!-- Watches: active Tornado / Severe Thunderstorm watch boxes. -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Watches" Style="{StaticResource NowLabelStyle}"/>
+                <CheckBox Grid.Row="0" Grid.Column="1"
+                          Content="Tornado / Severe Thunderstorm"
+                          MinWidth="0"
+                          VerticalAlignment="Center"
+                          IsChecked="{x:Bind ViewModel.Watches.IsVisible, Mode=TwoWay}"
+                          ToolTipService.ToolTip="Show active Tornado / Severe Thunderstorm watch boxes"/>
+
+                <!-- Opacity: overall watch-polygon opacity (fill + outline together). -->
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Opacity" Style="{StaticResource NowLabelStyle}"/>
+                <Slider Grid.Row="1" Grid.Column="1"
+                        Width="180" HorizontalAlignment="Left"
+                        Minimum="0" Maximum="1"
+                        StepFrequency="0.05" SmallChange="0.05"
+                        IsThumbToolTipEnabled="False"
+                        VerticalAlignment="Center"
+                        Value="{x:Bind ViewModel.Watches.Opacity, Mode=TwoWay}"
+                        ToolTipService.ToolTip="Overall opacity of the watch polygons"/>
+
+                <!-- Warnings: active storm-based Tornado / Severe Thunderstorm warning polygons (the modern
+                     forecaster-drawn polygons). Drawn above the watch boxes. -->
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Warnings" Style="{StaticResource NowLabelStyle}"/>
+                <CheckBox Grid.Row="2" Grid.Column="1"
+                          Content="Tornado / Severe Thunderstorm"
+                          MinWidth="0"
+                          VerticalAlignment="Center"
+                          IsChecked="{x:Bind ViewModel.Warnings.IsVisible, Mode=TwoWay}"
+                          ToolTipService.ToolTip="Show active Tornado / Severe Thunderstorm warning polygons"/>
+
+                <!-- Active counts by type: number of live Tornado / Severe Thunderstorm warnings right now.
+                     Color swatches match the map (TO red, SV yellow); the count stays in the default text
+                     color so it reads in both light and dark. Updated each refresh from WarningsViewModel. -->
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Active" Style="{StaticResource NowLabelStyle}"/>
+                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="18" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                ToolTipService.ToolTip="Active Tornado Warnings">
+                        <Border Width="11" Height="11" CornerRadius="2" Background="#FF2A2A" VerticalAlignment="Center"/>
+                        <TextBlock Text="Tornado" Style="{StaticResource NowLabelStyle}"/>
+                        <TextBlock Text="{x:Bind Fmt(ViewModel.Warnings.TornadoWarningCount), Mode=OneWay}"
+                                   FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                ToolTipService.ToolTip="Active Severe Thunderstorm Warnings">
+                        <Border Width="11" Height="11" CornerRadius="2" Background="#FFD21A" VerticalAlignment="Center"/>
+                        <TextBlock Text="Severe" Style="{StaticResource NowLabelStyle}"/>
+                        <TextBlock Text="{x:Bind Fmt(ViewModel.Warnings.SevereWarningCount), Mode=OneWay}"
+                                   FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Opacity: overall warning-polygon opacity (fill + outline together). -->
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Opacity" Style="{StaticResource NowLabelStyle}"/>
+                <Slider Grid.Row="4" Grid.Column="1"
+                        Width="180" HorizontalAlignment="Left"
+                        Minimum="0" Maximum="1"
+                        StepFrequency="0.05" SmallChange="0.05"
+                        IsThumbToolTipEnabled="False"
+                        VerticalAlignment="Center"
+                        Value="{x:Bind ViewModel.Warnings.Opacity, Mode=TwoWay}"
+                        ToolTipService.ToolTip="Overall opacity of the warning polygons"/>
+            </Grid>
+        </Grid>
+
+        <Border Grid.Row="3" Height="1" Margin="0,2"
+                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+        <!-- ===================== STORM REPORTS ===================== -->
+        <!-- ⚠️ The heading is HERE, not inside StormReportsInput: that control is shared by BOTH
+             temporal windows, and a window owns its own section structure while the control is just
+             content. Putting it inside would give this section a heading in a window whose other
+             sections might not have one. -->
+        <Grid Grid.Row="4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- section heading -->
+                <RowDefinition Height="Auto"/> <!-- the shared control -->
+            </Grid.RowDefinitions>
+            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Storm reports"/>
+            <comp:StormReportsInput Grid.Row="1" ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
+        </Grid>
     </Grid>
 </UserControl>

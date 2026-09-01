@@ -18,6 +18,9 @@
        │  Start   [ 5:00 PM                   ▾]              │  ← the PICKERS (ViewModel.Radar)
        │  Window  [30m│1h│▓2h▓│3h│6h│12h]                     │
        │  ────────────────────────────────────────────────    │
+       │  Radar ──────────────────────────────────────────    │
+       │  Opacity ─────────●──                                │  ← the layer everything else
+       │  ────────────────────────────────────────────────    │     is drawn OVER
        │  SPC outlook ────────────────────────────────────    │
        │  ┌────────────────────────────────────────────┐      │
        │  │ Categorical                                │      │  the SAME card shape as above,
@@ -30,7 +33,14 @@
        │  Cycle   [Auto                     ▾]                │     date (ViewModel.PastOutlook)
        │  Opacity ──────●───────────                          │
        │  ────────────────────────────────────────────────    │
-       │  StormReportsInput  (that day's verification dots)   │
+       │  Storm reports ──────────────────────────────────    │
+       │  ┌────────────────────────────────────────────┐      │
+       │  │ 448 reports · May 20, 2013 · 12Z-12Z       │      │  the same card again — a
+       │  └────────────────────────────────────────────┘      │  RESULT, no action
+       │  [x] ● Tornado                            42         │
+       │  [x] ● Wind                              310         │  ← that day's verification dots
+       │  [x] ● Hail                               96         │
+       │  Opacity ──────●───────────                          │
        └──────────────────────────────────────────────────────┘
 
      Laid out ENTIRELY with grids (rows/columns, no StackPanels) so rows are easy to add/rearrange: a fixed
@@ -48,7 +58,9 @@
        • Timeframe (row 0, ViewModel.Radar) — a CalendarDatePicker on the PastEventDate facade, a TimePicker
          bound straight to PastEventTime, and a SegmentedPicker on PastEventDurationIndex. No element names
          are load-bearing here any more; there is no widget-sync code left to reach them.
-       • Historical outlook (row 2, ViewModel.PastOutlook) — a card over Day / Product / Cycle / Opacity.
+     ⚠️ SECTIONS RUN IN THE MAP'S Z-ORDER — radar underneath, outlook over it, reports on top — and each
+     layer's opacity lives in its own section. Keep a new section in that order.
+       • Historical outlook (ViewModel.PastOutlook) — a card over Day / Product / Cycle / Opacity.
          Selecting a product fetches the archived issuance for the entered replay date and overlays it on
          the past radar; there is no Load, so the card is a RESULT rather than a preview.
          ⚠️ Cycle and Opacity are DISABLED while Product is None — None is that section's off switch.
@@ -70,7 +82,9 @@
 
     <Grid VerticalAlignment="Top" RowSpacing="12">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- radar: date / start / window -->
+            <RowDefinition Height="Auto"/> <!-- timeframe: the card + the pickers -->
+            <RowDefinition Height="Auto"/> <!-- divider -->
+            <RowDefinition Height="Auto"/> <!-- the radar layer itself -->
             <RowDefinition Height="Auto"/> <!-- divider -->
             <RowDefinition Height="Auto"/> <!-- historical SPC outlook -->
             <RowDefinition Height="Auto"/> <!-- divider -->
@@ -116,8 +130,12 @@
                                    Foreground="{x:Bind FooterBrush(ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"/>
                     </StackPanel>
 
+                    <!-- ⚠️ DISABLED once a window is loaded and the pickers still agree with it — there is
+                         nothing left to do, and the archive day is immutable so a re-load would fetch the
+                         same frames. Editing any picker makes the selection dirty and brings it back. -->
                     <Button Grid.Column="1" Content="Load" MinWidth="84"
                             VerticalAlignment="Center"
+                            IsEnabled="{x:Bind LoadEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
                             Style="{x:Bind LoadStyle(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
                             Click="OnLoadClick"/>
                 </Grid>
@@ -185,8 +203,24 @@
         <Border Grid.Row="1" Height="1" Margin="0,2"
                 Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
+        <!-- ===================== RADAR: the layer everything else is drawn OVER ===================== -->
+        <!-- ⚠️ Sections run in the map's Z-ORDER — radar underneath, outlook over it, reports on top — and
+             each layer's opacity lives in its own section. That ordering is why this sits here rather than
+             at the end. -->
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- section heading -->
+                <RowDefinition Height="Auto"/> <!-- the shared control -->
+            </Grid.RowDefinitions>
+            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Radar"/>
+            <comp:RadarOverlayInput Grid.Row="1" ViewModel="{x:Bind ViewModel.Radar, Mode=OneWay}"/>
+        </Grid>
+
+        <Border Grid.Row="3" Height="1" Margin="0,2"
+                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
         <!-- ===================== SPC OUTLOOK: the card, then the pickers ===================== -->
-        <Grid Grid.Row="2" VerticalAlignment="Top">
+        <Grid Grid.Row="4" VerticalAlignment="Top">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- section heading -->
                 <RowDefinition Height="Auto"/> <!-- the card -->
@@ -246,6 +280,7 @@
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Day" Style="{StaticResource SettingsFieldLabelStyle}"/>
                 <prim:SegmentedPicker Grid.Row="0" Grid.Column="1"
                                       HorizontalAlignment="Left" Width="180"
+                                      IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
                                       ItemsSource="{x:Bind ViewModel.PastOutlook.DayShortLabels}"
                                       SelectedIndex="{x:Bind ViewModel.PastOutlook.SelectedDayIndex, Mode=TwoWay}"
                                       ToolTipService.ToolTip="Outlook day (1-3) for the replay date"/>
@@ -254,6 +289,7 @@
                      carry a single combined probabilistic), so it stays a dropdown — its length changes. -->
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"/>
                 <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                          IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
                           ItemsSource="{x:Bind ViewModel.PastOutlook.ProductOptions, Mode=OneWay}"
                           DisplayMemberPath="Label"
                           SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedProductOption, Mode=TwoWay}"
@@ -266,7 +302,7 @@
                      inline "cycle" label, which was the single most haphazard thing in this window. -->
                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Cycle" Style="{StaticResource SettingsFieldLabelStyle}"/>
                 <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
-                          IsEnabled="{x:Bind ViewModel.PastOutlook.HasOutlook, Mode=OneWay}"
+                          IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
                           ItemsSource="{x:Bind ViewModel.PastOutlook.CycleOptions, Mode=OneWay}"
                           DisplayMemberPath="Label"
                           SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedCycleOption, Mode=TwoWay}"
@@ -275,7 +311,7 @@
                 <TextBlock Grid.Row="3" Grid.Column="0" Text="Opacity" Style="{StaticResource SettingsFieldLabelStyle}"/>
                 <Slider Grid.Row="3" Grid.Column="1"
                         HorizontalAlignment="Stretch"
-                        IsEnabled="{x:Bind ViewModel.PastOutlook.HasOutlook, Mode=OneWay}"
+                        IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
                         Minimum="0" Maximum="1"
                         StepFrequency="0.05" SmallChange="0.05"
                         IsThumbToolTipEnabled="False"
@@ -285,8 +321,20 @@
             </Grid>
         </Grid>
 
-        <Border Grid.Row="3" Height="1" Margin="0,2"
+        <Border Grid.Row="5" Height="1" Margin="0,2"
                 Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-        <comp:StormReportsInput Grid.Row="4" ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
+        <!-- ===================== STORM REPORTS ===================== -->
+        <!-- ⚠️ The heading is HERE, not inside StormReportsInput: that control is shared by BOTH
+             temporal windows, and a window owns its own section structure while the control is just
+             content. Putting it inside would give this section a heading in a window whose other
+             sections might not have one. -->
+        <Grid Grid.Row="6">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- section heading -->
+                <RowDefinition Height="Auto"/> <!-- the shared control -->
+            </Grid.RowDefinitions>
+            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Storm reports"/>
+            <comp:StormReportsInput Grid.Row="1" ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
+        </Grid>
     </Grid>
 </UserControl>
