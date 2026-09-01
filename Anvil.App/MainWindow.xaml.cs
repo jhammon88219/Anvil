@@ -91,6 +91,14 @@ namespace Anvil
 		// pass logical units and the holes land in the wrong place on any display that is not 100%.
 		private RectInt32[] _notchRegions = Array.Empty<RectInt32>();
 
+		// ⚠️ SET ON Closed, AND EVERY NOTCH-REGION PATH MUST CHECK IT. A closing window still runs one or
+		// more layout passes as its content tears down, so LayoutUpdated fires AFTER the native window is
+		// gone - and every member this method touches (Content, AppWindow) is a projection over that dead
+		// object, so touching one throws COMException "The WinUI Desktop Window object has already been
+		// closed". Unsubscribing in Closed is not enough on its own: a pass already queued still lands.
+		// (It never reproduced under VS Stop, which kills the process instead of closing the window.)
+		private bool _isClosed;
+
 		// LayoutUpdated rather than SizeChanged: a notch also MOVES without resizing (the window resizes,
 		// the pane layout changes, a notch is hidden). It fires often, so the work is four transforms and an
 		// equality check, and SetRegionRects is only called when the rects actually change.
@@ -98,6 +106,11 @@ namespace Anvil
 
 		private void UpdateNotchInputRegions()
 		{
+			if (_isClosed)
+			{
+				return;
+			}
+
 			if (Content?.XamlRoot is not { } root)
 			{
 				return;
@@ -447,8 +460,15 @@ namespace Anvil
 			ViewModel.StormReports.StartBackgroundRefresh();
 
 			// Write a final flush + report on close so the run's last events aren't lost between
-			// the ~2 s background flushes.
-			Closed += (_, _) => Services.RadarDiagnostics.FlushAll();
+			// the ~2 s background flushes. Also latch _isClosed and drop the layout hook FIRST - the
+			// teardown still runs layout passes, and the notch-region work touches the native window
+			// (see _isClosed).
+			Closed += (_, _) =>
+			{
+				_isClosed = true;
+				PaneNotchLayer.LayoutUpdated -= OnPaneNotchLayerLayoutUpdated;
+				Services.RadarDiagnostics.FlushAll();
+			};
 		}
 
 		private async Task InitializeMapAsync()
