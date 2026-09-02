@@ -97,10 +97,13 @@ namespace Anvil.ViewModels
 					// The live "now" overlays (watch boxes + storm-based warnings) are CURRENT-conditions data,
 					// so they must clear when we drop into a historical replay — otherwise today's watches/
 					// warnings hang over past radar. (Storm reports re-key to the replay day, so they stay.)
+					// ⚠️ HideAll, not IsVisible = false: both are per-type overlays now, so visibility is
+					// DERIVED from their two toggles. Writing it directly would hide the layers while
+					// leaving the NowCast checkboxes ticked.
 					if (Radar.IsPastEventMode)
 					{
-						if (Watches.IsVisible) { Watches.IsVisible = false; }
-						if (Warnings.IsVisible) { Warnings.IsVisible = false; }
+						Watches.HideAll();
+						Warnings.HideAll();
 					}
 					PastOutlook.OnPastModeChanged(Radar.IsPastEventMode);
 					OnTemporalModesChanged();

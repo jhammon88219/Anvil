@@ -129,6 +129,13 @@ namespace Anvil.Services
 		Task SetWatchesVisibleAsync(bool visible);
 
 		/// <summary>
+		/// Restricts the watch boxes to the given phenomena — each flag draws that type (TO / SV) and
+		/// nothing else. Independent of <see cref="SetWatchesVisibleAsync"/>: the host drives visibility
+		/// from "is either type shown", and this decides which of the two are drawn when it is.
+		/// </summary>
+		Task SetWatchKindsAsync(bool tornado, bool severe);
+
+		/// <summary>
 		/// Sets the overall opacity (0-1) of the watch polygons. Scales both the faint fill and the bold
 		/// outline together, so the slider fades the whole overlay (1 = the default look).
 		/// </summary>
@@ -143,6 +150,12 @@ namespace Anvil.Services
 		/// <summary>Shows or hides the storm-based warning polygons (Tornado / Severe Thunderstorm
 		/// Warnings). These sit above the watch boxes.</summary>
 		Task SetWarningsVisibleAsync(bool visible);
+
+		/// <summary>
+		/// Restricts the warning polygons to the given phenomena — each flag draws that type (TO / SV) and
+		/// nothing else. Same relationship to <see cref="SetWarningsVisibleAsync"/> as the watch pair.
+		/// </summary>
+		Task SetWarningKindsAsync(bool tornado, bool severe);
 
 		/// <summary>
 		/// Sets the overall opacity (0-1) of the warning polygons. Scales both the faint fill and the bold

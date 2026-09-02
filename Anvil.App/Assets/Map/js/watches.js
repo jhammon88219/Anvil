@@ -38,5 +38,6 @@ const overlay = createGeojsonOverlay({
 
 export const setSource = overlay.setSource;
 export const setVisible = overlay.setVisible;
+export const setKinds = overlay.setKinds;
 export const setOpacity = overlay.setOpacity;
 export const reAdd = overlay.reAdd;

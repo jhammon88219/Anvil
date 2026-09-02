@@ -9,22 +9,49 @@
        │  Radar ──────────────────────────────────────────    │
        │  Opacity ─────────●──                                │  ← sections run in the map's
        │  ────────────────────────────────────────────────    │     Z-ORDER: radar, then the
-       │  Watches and warnings ───────────────────────────    │     alerts over it, then the
-       │  Watches   [x] Tornado / Severe Thunderstorm         │     reports on top
-       │  Opacity   ──────●───────────                        │
-       │  Warnings  [x] Tornado / Severe Thunderstorm         │
-       │  Active     ■ Tornado 3      ■ Severe 24             │  ← live counts, even when hidden
-       │  Opacity   ──────●───────────                        │
+       │  Watches ────────────────────────────────────────    │     alerts over it, then the
+       │  ┌────────────────────────────────────────────┐      │     reports on top
+       │  │ 2 active watches                           │      │
+       │  │ Updated 12:04 PM                           │      │  the same card + type rows in
+       │  └────────────────────────────────────────────┘      │  all three overlay sections —
+       │  [ ] ■ Tornado                             1         │  PhenomOverlayInput here,
+       │  [ ] ■ Severe thunderstorm                 1         │  StormReportsInput below
+       │  Opacity ──────●───────────                          │
        │  ────────────────────────────────────────────────    │
+       │  Warnings ───────────────────────────────────────    │
+       │  ┌────────────────────────────────────────────┐      │
+       │  │ 7 active warnings                          │      │
+       │  │ Updated 12:04 PM · checking every 15s      │      │
+       │  └────────────────────────────────────────────┘      │
+       │  [ ] ■ Tornado                             0         │
+       │  [x] ■ Severe thunderstorm                 7         │
+       │  Opacity ──────●───────────                          │
+       │  ────────────────────────────────────────────────    │
+       │  Storm reports ──────────────────────────────────    │
        │  StormReportsInput  (today's reports)                │
        └──────────────────────────────────────────────────────┘
 
      The body holds the "now"-oriented live-conditions options: the SPC Watch boxes and the storm-based
      Warning polygons (Tornado / Severe Thunderstorm). Both are active, event-driven current-conditions
      alerts, so they live under NowCast rather than ForeCast, in the UI and in the VM layer alike (their own
-     WatchesViewModel / WarningsViewModel). Laid out with grids ([label | control] rows, no StackPanels) so
-     more live settings drop in as new rows. Storm reports stay a separate control — the PastCast tab shows
-     the same block, so it is content of TWO hosts.
+     WatchesViewModel / WarningsViewModel).
+
+     ⚠️ THE WINDOW FOLLOWS PASTCAST'S SECTION GRAMMAR, deliberately: a Primitives/SectionHeading, then a
+     summary CARD, then a rule, then the rows. It used to be headings over bare [label | control] grids with
+     a local NowLabelStyle — character-for-character the shared SettingsFieldLabelStyle at a different
+     width — which is most of why the two windows read as two different forms. Every row here is now a
+     shared control or the shared label style. Add a section = a heading plus its control, in Z-order.
+
+     ⚠️ WATCHES AND WARNINGS HAVE SEPARATE HEADINGS, which reverses an earlier decision (they shared one,
+     "Watches and warnings", because they are one idea — current-conditions alerts). What changed is that
+     each now carries its OWN card describing its OWN active set, and one heading cannot introduce two
+     cards. They are also visually identical — the same two type rows, the same two colours — so the
+     headings are the only thing telling you which is which.
+
+     Both alert sections are the SAME control (Composites/PhenomOverlayInput) bound to a different view
+     model, exactly as watches.js and warnings.js are the same JS factory with a different config. Storm
+     reports stay their own control — the PastCast window shows that same block, so it is content of TWO
+     hosts.
 
      ⚠️ This tab does NOT arm or clear NowCast; that is the NowCast key in the bottom bar's centre cluster.
      A tab body configures a mode, the key runs it. -->
@@ -37,28 +64,22 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <UserControl.Resources>
-        <Style x:Key="NowLabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
-        </Style>
-    </UserControl.Resources>
-
     <Grid VerticalAlignment="Top" RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- the radar layer itself -->
             <RowDefinition Height="Auto"/> <!-- divider -->
-            <RowDefinition Height="Auto"/> <!-- watches + warnings -->
+            <RowDefinition Height="Auto"/> <!-- watches -->
+            <RowDefinition Height="Auto"/> <!-- divider -->
+            <RowDefinition Height="Auto"/> <!-- warnings -->
             <RowDefinition Height="Auto"/> <!-- divider -->
             <RowDefinition Height="Auto"/> <!-- storm reports (today) -->
         </Grid.RowDefinitions>
 
         <!-- ===================== RADAR: the layer everything else is drawn OVER ===================== -->
-        <!-- ⚠️ Sections run in the map's Z-ORDER — radar underneath, watches/warnings over it, reports on
-             top. Same control and same ordering as the PastCast window; the value behind it is global, which
-             is only safe because Past and Now are mutually exclusive modes and these two windows can never
-             be open at once. -->
+        <!-- ⚠️ Sections run in the map's Z-ORDER — radar underneath, watches, then warnings over those,
+             reports on top. Same control and same ordering as the PastCast window; the value behind it is
+             global, which is only safe because Past and Now are mutually exclusive modes and these two
+             windows can never be open at once. -->
         <Grid Grid.Row="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- section heading -->
@@ -71,102 +92,40 @@
         <Border Grid.Row="1" Height="1" Margin="0,2"
                 Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
-        <!-- ⚠️ This block gained a heading when Radar landed above it: an UNHEADED section sandwiched
-             between two headed ones reads as a mistake, where a trailing one merely read as unfinished. The
-             two overlays share one heading because they are one idea — current-conditions alerts. -->
+        <!-- ===================== WATCHES: the large county-aggregated outlook areas ===================== -->
         <Grid Grid.Row="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- section heading -->
-                <RowDefinition Height="Auto"/> <!-- the watch + warning rows -->
+                <RowDefinition Height="Auto"/> <!-- the shared control -->
             </Grid.RowDefinitions>
-            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Watches and warnings"/>
-
-            <!-- Body: label column + control column, one row per option. -->
-            <Grid Grid.Row="1" ColumnSpacing="12" RowSpacing="10" VerticalAlignment="Top">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- Watches -->
-                    <RowDefinition Height="Auto"/> <!-- Watch opacity -->
-                    <RowDefinition Height="Auto"/> <!-- Warnings -->
-                    <RowDefinition Height="Auto"/> <!-- Warning active counts -->
-                    <RowDefinition Height="Auto"/> <!-- Warning opacity -->
-                </Grid.RowDefinitions>
-
-                <!-- Watches: active Tornado / Severe Thunderstorm watch boxes. -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Watches" Style="{StaticResource NowLabelStyle}"/>
-                <CheckBox Grid.Row="0" Grid.Column="1"
-                          Content="Tornado / Severe Thunderstorm"
-                          MinWidth="0"
-                          VerticalAlignment="Center"
-                          IsChecked="{x:Bind ViewModel.Watches.IsVisible, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Show active Tornado / Severe Thunderstorm watch boxes"/>
-
-                <!-- Opacity: overall watch-polygon opacity (fill + outline together). -->
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Opacity" Style="{StaticResource NowLabelStyle}"/>
-                <Slider Grid.Row="1" Grid.Column="1"
-                        Width="180" HorizontalAlignment="Left"
-                        Minimum="0" Maximum="1"
-                        StepFrequency="0.05" SmallChange="0.05"
-                        IsThumbToolTipEnabled="False"
-                        VerticalAlignment="Center"
-                        Value="{x:Bind ViewModel.Watches.Opacity, Mode=TwoWay}"
-                        ToolTipService.ToolTip="Overall opacity of the watch polygons"/>
-
-                <!-- Warnings: active storm-based Tornado / Severe Thunderstorm warning polygons (the modern
-                     forecaster-drawn polygons). Drawn above the watch boxes. -->
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="Warnings" Style="{StaticResource NowLabelStyle}"/>
-                <CheckBox Grid.Row="2" Grid.Column="1"
-                          Content="Tornado / Severe Thunderstorm"
-                          MinWidth="0"
-                          VerticalAlignment="Center"
-                          IsChecked="{x:Bind ViewModel.Warnings.IsVisible, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Show active Tornado / Severe Thunderstorm warning polygons"/>
-
-                <!-- Active counts by type: number of live Tornado / Severe Thunderstorm warnings right now.
-                     Color swatches match the map (TO red, SV yellow); the count stays in the default text
-                     color so it reads in both light and dark. Updated each refresh from WarningsViewModel. -->
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="Active" Style="{StaticResource NowLabelStyle}"/>
-                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="18" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                                ToolTipService.ToolTip="Active Tornado Warnings">
-                        <Border Width="11" Height="11" CornerRadius="2" Background="#FF2A2A" VerticalAlignment="Center"/>
-                        <TextBlock Text="Tornado" Style="{StaticResource NowLabelStyle}"/>
-                        <TextBlock Text="{x:Bind Fmt(ViewModel.Warnings.TornadoWarningCount), Mode=OneWay}"
-                                   FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                                ToolTipService.ToolTip="Active Severe Thunderstorm Warnings">
-                        <Border Width="11" Height="11" CornerRadius="2" Background="#FFD21A" VerticalAlignment="Center"/>
-                        <TextBlock Text="Severe" Style="{StaticResource NowLabelStyle}"/>
-                        <TextBlock Text="{x:Bind Fmt(ViewModel.Warnings.SevereWarningCount), Mode=OneWay}"
-                                   FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </StackPanel>
-
-                <!-- Opacity: overall warning-polygon opacity (fill + outline together). -->
-                <TextBlock Grid.Row="4" Grid.Column="0" Text="Opacity" Style="{StaticResource NowLabelStyle}"/>
-                <Slider Grid.Row="4" Grid.Column="1"
-                        Width="180" HorizontalAlignment="Left"
-                        Minimum="0" Maximum="1"
-                        StepFrequency="0.05" SmallChange="0.05"
-                        IsThumbToolTipEnabled="False"
-                        VerticalAlignment="Center"
-                        Value="{x:Bind ViewModel.Warnings.Opacity, Mode=TwoWay}"
-                        ToolTipService.ToolTip="Overall opacity of the warning polygons"/>
-            </Grid>
+            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Watches"/>
+            <comp:PhenomOverlayInput Grid.Row="1" AlertNoun="watches"
+                                     ViewModel="{x:Bind ViewModel.Watches, Mode=OneWay}"/>
         </Grid>
 
         <Border Grid.Row="3" Height="1" Margin="0,2"
+                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+        <!-- ===================== WARNINGS: the imminent-threat polygons, drawn over the watches ========= -->
+        <Grid Grid.Row="4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- section heading -->
+                <RowDefinition Height="Auto"/> <!-- the shared control -->
+            </Grid.RowDefinitions>
+            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Warnings"/>
+            <comp:PhenomOverlayInput Grid.Row="1" AlertNoun="warnings"
+                                     ViewModel="{x:Bind ViewModel.Warnings, Mode=OneWay}"/>
+        </Grid>
+
+        <Border Grid.Row="5" Height="1" Margin="0,2"
                 Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
         <!-- ===================== STORM REPORTS ===================== -->
         <!-- ⚠️ The heading is HERE, not inside StormReportsInput: that control is shared by BOTH
              temporal windows, and a window owns its own section structure while the control is just
              content. Putting it inside would give this section a heading in a window whose other
-             sections might not have one. -->
-        <Grid Grid.Row="4">
+             sections might not have one. (The same rule keeps the two headings above out of
+             PhenomOverlayInput, which is shared between the two sections in THIS window.) -->
+        <Grid Grid.Row="6">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- section heading -->
                 <RowDefinition Height="Auto"/> <!-- the shared control -->

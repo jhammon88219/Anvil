@@ -348,11 +348,24 @@ try {
     window.clearOutlook = function () { if (Outlook) forEachMap(function (m) { Outlook.clear(m); }); };
     window.setOutlookOpacity = function (opacity) { if (Outlook) forEachMap(function (m) { Outlook.setOpacity(m, opacity); }); };
 
+    // Watches and warnings both carry a `phenom` of TO (tornado) or SV (severe thunderstorm), and both
+    // hosts offer one checkbox per phenomenon. The host sends two bools; the overlay wants the list of
+    // phenom values to draw. ⚠️ These are the SAME codes the two modules colour by (see their `colors`
+    // tables) — the filter and the colour read one property, so they cannot disagree about what a
+    // tornado is.
+    function phenomKinds(torn, severe) {
+        const kinds = [];
+        if (torn) kinds.push('TO');
+        if (severe) kinds.push('SV');
+        return kinds;
+    }
+
     // SPC watch boxes live in watches.js — load once and delegate (passing each map). applyStyle calls
     // Watches.reAdd(map) after a basemap switch (setStyle drops the layers; the data stays in memory).
     import('./watches.js').then(function (m) { Watches = m; }).catch(function (e) { console.error('watches.js load failed: ' + e); });
     window.setWatchSource = function (url) { if (Watches) forEachMap(function (m) { Watches.setSource(m, url); }); };
     window.setWatchesVisible = function (on) { if (Watches) forEachMap(function (m) { Watches.setVisible(m, on); }); };
+    window.setWatchKinds = function (torn, severe) { if (Watches) forEachMap(function (m) { Watches.setKinds(m, phenomKinds(torn, severe)); }); };
     window.setWatchesOpacity = function (o) { if (Watches) forEachMap(function (m) { Watches.setOpacity(m, o); }); };
 
     // Storm-based warning polygons live in warnings.js — same lazy-load/delegate pattern as watches.
@@ -360,6 +373,7 @@ try {
     import('./warnings.js').then(function (m) { Warnings = m; }).catch(function (e) { console.error('warnings.js load failed: ' + e); });
     window.setWarningSource = function (url) { if (Warnings) forEachMap(function (m) { Warnings.setSource(m, url); }); };
     window.setWarningsVisible = function (on) { if (Warnings) forEachMap(function (m) { Warnings.setVisible(m, on); }); };
+    window.setWarningKinds = function (torn, severe) { if (Warnings) forEachMap(function (m) { Warnings.setKinds(m, phenomKinds(torn, severe)); }); };
     window.setWarningsOpacity = function (o) { if (Warnings) forEachMap(function (m) { Warnings.setOpacity(m, o); }); };
 
     // SPC storm-report dots (Tornado / Wind / Hail verification) live in storm-reports.js — same lazy-load/

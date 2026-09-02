@@ -433,7 +433,9 @@ namespace Anvil
 			// do — it had to be sized for the tallest tab, because a window is sized once, at open. The
 			// heights below are only the fallback for a measure that comes back degenerate.
 			RegisterTemporalWindow(TemporalMode.Past, "PastCast", 480, 700);
-			RegisterTemporalWindow(TemporalMode.Now, "NowCast", 480, 560);
+			// ⚠️ NowCast's fallback grew with its body: watches and warnings are a card over type rows each
+			// now, not a checkbox and a slider each, which puts it within a card's height of PastCast.
+			RegisterTemporalWindow(TemporalMode.Now, "NowCast", 480, 700);
 			RegisterTemporalWindow(TemporalMode.Fore, "ForeCast", 480, 540);
 			_windows.Register(
 				id: "pipeline",

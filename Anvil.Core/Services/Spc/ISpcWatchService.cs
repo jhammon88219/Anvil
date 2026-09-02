@@ -29,6 +29,16 @@ namespace Anvil.Services
 	/// <summary>Outcome of a single <see cref="ISpcWatchService.RefreshAsync"/> call.</summary>
 	public enum SpcWatchFetchStatus { Updated, FailedCacheKept, FailedNoCache }
 
-	/// <summary>Result of a refresh: status, the number of active watches written, and a message.</summary>
-	public sealed record SpcWatchFetchResult(SpcWatchFetchStatus Status, int ActiveCount = 0, string? Message = null);
+	/// <summary>
+	/// Result of a refresh: status, the number of active watches written, that total broken out by
+	/// phenomenon, and a message. The per-type counts feed the NowCast rows, which switch TO and SV
+	/// independently — matching <see cref="WarningFetchResult"/>, whose counts serve the same rows one
+	/// section below.
+	/// </summary>
+	public sealed record SpcWatchFetchResult(
+		SpcWatchFetchStatus Status,
+		int ActiveCount = 0,
+		int TornadoCount = 0,
+		int SevereCount = 0,
+		string? Message = null);
 }

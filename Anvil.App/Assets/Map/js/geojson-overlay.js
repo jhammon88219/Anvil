@@ -17,7 +17,7 @@
 // together and 1.0 is the designed look. Tune the LOOK by changing fillBase/lineBase/lineWidth in the
 // caller's config (watches.js / warnings.js) — never by changing the multiplier's range.
 //
-// createGeojsonOverlay(config) returns { setSource, setVisible, setOpacity, reAdd } bound to the config's
+// createGeojsonOverlay(config) returns { setSource, setVisible, setKinds, setOpacity, reAdd } bound to the config's
 // source/layer ids, color, and base opacities. Each caller (watches.js/warnings.js) is then just that
 // config plus re-exports. Overlays that don't fit this fill+line shape stay hand-written: storm-reports.js
 // (per-type circle layers + click popups) and outlook.js (CIG hatching + nested-ring clipping).
@@ -31,6 +31,15 @@
 //   lineWidth   — outline width in px
 //   beforeId    — optional (map) => layer id to insert BENEATH; omitted = on top of the stack
 //   logName     — label used in the console.error on a failed fetch
+//
+// PER-KIND FILTERING (setKinds) — the same colorProp that picks a feature's COLOR also decides whether it
+// is drawn at all. The host shows one checkbox per value (tornado / severe thunderstorm), and the shown
+// set arrives here as a list applied to both layers as a `match` filter. It is deliberately ONE filter on
+// the existing two layers rather than a layer per kind (which is what storm-reports.js does): those are
+// three independent circle layers with their own click handlers, where these two share a source, a colour
+// expression and an opacity multiplier, so splitting them would double every one of those for nothing.
+// ⚠️ A null kind list means NO FILTER — everything draws. That is the state before the host has ever
+// pushed one, so an overlay whose host does not use kinds behaves exactly as it did before this existed.
 
 export function createGeojsonOverlay(config) {
     const {
@@ -43,6 +52,9 @@ export function createGeojsonOverlay(config) {
     let url = null;
     let data = null;
     let visible = false;
+    // Which colorProp values to draw (e.g. ['TO'] for tornado only). null = no filter, draw everything —
+    // see the PER-KIND FILTERING note above.
+    let kinds = null;
     // Overall opacity multiplier (0..1) — scales BOTH the faint fill and the bold outline from their base
     // values, so the slider fades the whole overlay together (1 = the default look).
     let opacity = 1;
@@ -53,6 +65,20 @@ export function createGeojsonOverlay(config) {
         Object.keys(colors).forEach(function (k) { expr.push(k, colors[k]); });
         expr.push(colorDefault);
         return expr;
+    }
+
+    // ['match', ['to-string', ['get', colorProp]], [k1, k2, …], true, false] — true for a shown kind,
+    // false for everything else. `match` (not `in`) because its array-of-labels form is the oldest,
+    // most widely supported way to express a set membership test in the style spec.
+    function filterExpr() {
+        if (!kinds) return null;
+        if (!kinds.length) return false; // nothing shown — a constant-false filter draws nothing
+        return ['match', ['to-string', ['get', colorProp]], kinds, true, false];
+    }
+
+    function applyFilter(map) {
+        const expr = filterExpr();
+        [fillLayerId, lineLayerId].forEach(function (id) { if (map.getLayer(id)) map.setFilter(id, expr); });
     }
 
     function removeLayers(map) {
@@ -71,12 +97,17 @@ export function createGeojsonOverlay(config) {
         // Insert beneath the caller's chosen layer (e.g. the state/country lines, so borders read through
         // the fill). When two overlays share the same beforeId, add order decides which sits higher.
         const before = beforeId ? beforeId(map) : undefined;
+        // ⚠️ The filter is set at ADD time as well as in setKinds: a basemap switch drops the layers and
+        // re-adds them here, and without this the re-added pair would draw every kind again.
+        const filter = filterExpr();
         map.addLayer({
             id: fillLayerId, type: 'fill', source: sourceId,
+            filter: filter === null ? undefined : filter,
             paint: { 'fill-color': colorExpr(), 'fill-opacity': fillBase * opacity }
         }, before);
         map.addLayer({
             id: lineLayerId, type: 'line', source: sourceId,
+            filter: filter === null ? undefined : filter,
             paint: { 'line-color': colorExpr(), 'line-width': lineWidth, 'line-opacity': lineBase * opacity }
         }, before);
     }
@@ -109,6 +140,14 @@ export function createGeojsonOverlay(config) {
             visible = !!on;
             if (on && !data) load(map); // first enable → fetch, then refreshLayers runs in .then
             else refreshLayers(map);
+        },
+        // Restrict drawing to the given colorProp values (an array, e.g. ['TO','SV']); null/undefined
+        // clears the filter. Updates live layers in place; otherwise picked up the next time they are
+        // added. The host also drives setVisible from "is any kind shown", so an empty list normally
+        // arrives at a hidden overlay — the constant-false filter is the belt to that braces.
+        setKinds: function (map, list) {
+            kinds = list ? Array.prototype.slice.call(list) : null;
+            applyFilter(map);
         },
         // Set the overall opacity multiplier (0..1). Updates the live layers in place if present; otherwise
         // it's picked up the next time the layers are added (basemap switch / first show).

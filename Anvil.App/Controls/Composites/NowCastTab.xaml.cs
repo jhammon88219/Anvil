@@ -5,8 +5,10 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The NowCast tab body of the Timeframe window (see the XAML header) — watch boxes, storm-based warnings
-	/// and today's storm reports. Bound to the coordinator <see cref="MapViewModel"/>.
+	/// The NowCast window body (see the XAML header) — watch boxes, storm-based warnings and today's storm
+	/// reports, one section each. Bound to the coordinator <see cref="MapViewModel"/>.
+	/// <para>No helpers here on purpose: every section is a shared control that owns its own formatting.
+	/// The old count formatter went with the hand-built "Active" readout it served.</para>
 	/// </summary>
 	public sealed partial class NowCastTab : UserControl
 	{
@@ -14,10 +16,6 @@ namespace Anvil.Controls.Composites
 		{
 			InitializeComponent();
 		}
-
-		/// <summary>x:Bind formatter for the per-type active-warning counts (int → display string). Used by
-		/// the "Active" readout; re-evaluates when the bound count property raises PropertyChanged.</summary>
-		public string Fmt(int count) => count.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel

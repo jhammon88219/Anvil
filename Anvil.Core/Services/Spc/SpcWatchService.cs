@@ -60,7 +60,7 @@ namespace Anvil.Services
 
 				// Only cache a real FeatureCollection. An ArcGIS error object lacks a features array; in
 				// that case keep the last-known-good cache instead of blanking it.
-				if (!TryGetFeatureCount(json, out var count))
+				if (!TryGetFeatureCounts(json, out var count, out var tornado, out var severe))
 				{
 					return Failed(cacheExists, "Response was not a GeoJSON FeatureCollection.");
 				}
@@ -77,7 +77,7 @@ namespace Anvil.Services
 				// Atomic write (temp then move) so a partial/failed write never blanks the last-known-good cache.
 				await AtomicWriteAsync(cacheFile, json, cancellationToken);
 
-				return new SpcWatchFetchResult(SpcWatchFetchStatus.Updated, count);
+				return new SpcWatchFetchResult(SpcWatchFetchStatus.Updated, count, tornado, severe);
 			}
 			catch (OperationCanceledException)
 			{
@@ -114,18 +114,42 @@ namespace Anvil.Services
 			new(cacheExists ? SpcWatchFetchStatus.FailedCacheKept : SpcWatchFetchStatus.FailedNoCache,
 				Message: message);
 
-		// Confirms the body is a GeoJSON FeatureCollection and returns its feature count. A missing
-		// "features" array (e.g. an ArcGIS {"error":...} object) returns false.
-		private static bool TryGetFeatureCount(string geoJson, out int count)
+		// Confirms the body is a GeoJSON FeatureCollection and returns its feature count, plus that count
+		// broken out by `phenom` for the per-type NowCast rows. A missing "features" array (e.g. an ArcGIS
+		// {"error":...} object) returns false.
+		// ⚠️ The query already filters to TO/SV, so tornado + severe normally equals count — but they are
+		// counted independently rather than one being derived from the other, so an unexpected third
+		// phenomenon shows up as a total the two rows do not add to instead of being silently folded into
+		// one of them.
+		private static bool TryGetFeatureCounts(string geoJson, out int count, out int tornado, out int severe)
 		{
 			count = 0;
+			tornado = 0;
+			severe = 0;
 			try
 			{
-				if (JsonNode.Parse(geoJson)?["features"] is JsonArray features)
+				if (JsonNode.Parse(geoJson)?["features"] is not JsonArray features)
 				{
-					count = features.Count;
-					return true;
+					return false;
 				}
+
+				count = features.Count;
+				foreach (var feature in features)
+				{
+					// ⚠️ TryGetValue, not GetValue: a feature carrying a non-string phenom would THROW, and
+					// the catch below turns any throw into "not a FeatureCollection" — i.e. one odd
+					// property would discard a perfectly good fetch. An unreadable phenom just goes
+					// uncounted.
+					if (feature?["properties"]?["phenom"] is not JsonValue value ||
+						!value.TryGetValue<string>(out var phenom))
+					{
+						continue;
+					}
+
+					if (phenom == "TO") { tornado++; }
+					else if (phenom == "SV") { severe++; }
+				}
+				return true;
 			}
 			catch
 			{

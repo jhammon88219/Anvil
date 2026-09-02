@@ -10,12 +10,13 @@ namespace Anvil.ViewModels
 	/// (the modern forecaster-drawn polygons). Sibling of <see cref="WatchesViewModel"/>: watches are the
 	/// large outlook areas, warnings are the imminent-threat polygons, so each gets its own layer, toggle,
 	/// and refresh loop. Surfaced under NowCast in the UI (current-conditions alerts, not a forecast).
-	/// The show/hide toggle, opacity, map-ready latch, and source push come from
-	/// <see cref="MapOverlayViewModel"/>; this class adds the ~1-min ADAPTIVE background refresh loop and
-	/// the per-type active-warning counts. Fetch/cache is in <see cref="IWarningService"/>; the map is
-	/// driven through <see cref="IMapService"/>.
+	/// Visibility, opacity, the map-ready latch and the source push come from
+	/// <see cref="MapOverlayViewModel"/>; the per-type toggles, the live counts and the section card come
+	/// from <see cref="PhenomOverlayViewModel"/>, shared with <see cref="WatchesViewModel"/>. This class
+	/// adds only what is specific to warnings: the ~1-min ADAPTIVE background refresh loop. Fetch/cache is
+	/// in <see cref="IWarningService"/>; the map is driven through <see cref="IMapService"/>.
 	/// </summary>
-	public sealed class WarningsViewModel : MapOverlayViewModel
+	public sealed class WarningsViewModel : PhenomOverlayViewModel
 	{
 		private readonly IMapService _mapService;
 		private readonly IWarningService _warningService;
@@ -34,24 +35,16 @@ namespace Anvil.ViewModels
 		protected override Task SetVisibleAsync(bool visible) => _mapService.SetWarningsVisibleAsync(visible);
 		protected override Task SetOpacityAsync(double opacity) => _mapService.SetWarningsOpacityAsync(opacity);
 		protected override Task SetSourceAsync(string url) => _mapService.SetWarningSourceAsync(url);
+		protected override Task SetKindsAsync(bool tornado, bool severe) => _mapService.SetWarningKindsAsync(tornado, severe);
 
-		// Live per-type active-warning counts for the NowCast readout, updated each refresh (UI thread).
-		private int _tornadoWarningCount;
-		private int _severeWarningCount;
+		protected override string ItemNounSingular => "warning";
+		protected override string ItemNounPlural => "warnings";
 
-		/// <summary>Number of active Tornado Warnings (NowCast readout). Updated each refresh cycle.</summary>
-		public int TornadoWarningCount
-		{
-			get => _tornadoWarningCount;
-			private set => SetProperty(ref _tornadoWarningCount, value);
-		}
-
-		/// <summary>Number of active Severe Thunderstorm Warnings (NowCast readout). Updated each cycle.</summary>
-		public int SevereWarningCount
-		{
-			get => _severeWarningCount;
-			private set => SetProperty(ref _severeWarningCount, value);
-		}
+		// ⚠️ The one overlay that states its cadence on the card. Warnings are the short-fused layer and
+		// the poll is ADAPTIVE, so "how current is this number" has a genuinely variable answer; watches
+		// tick along at a fixed 2 min and saying so would just be noise.
+		protected override string CadenceSuffix =>
+			$" · checking every {(_hasActiveWarnings ? ActiveInterval : IdleInterval).TotalSeconds:0}s";
 
 		/// <summary>Kicks off the warning background refresh loop (called once at launch).</summary>
 		public void StartBackgroundRefresh() => _ = RefreshWarningsInBackgroundAsync();
@@ -85,15 +78,22 @@ namespace Anvil.ViewModels
 					// Push the per-type counts to the NowCast readout on the UI thread, then reload the map.
 					_dispatcher.Post(() =>
 					{
-						TornadoWarningCount = result.TornadoCount;
-						SevereWarningCount = result.SevereCount;
+						ApplyRefreshed(result.ActiveCount, result.TornadoCount, result.SevereCount);
 						RepushSource();
 					});
 				}
 				else if (first)
 				{
 					// First cycle with no data yet — still point the page at the (empty) cache.
-					_dispatcher.Post(RepushSource);
+					_dispatcher.Post(() =>
+					{
+						ApplyRefreshFailed(result.Message);
+						RepushSource();
+					});
+				}
+				else
+				{
+					_dispatcher.Post(() => ApplyRefreshFailed(result.Message));
 				}
 			}
 			catch (Exception ex)
