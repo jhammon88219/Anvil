@@ -14,20 +14,21 @@
        │    map pane 0  (MAIN)       │        map pane 1           │
        ├─────────────────────────────┴─────────────────────────────┤
        │                       ╭─ Hide ─╮                          │  OverlayBar pull-tab
-       │  ◉   ⊕   ══ scrubber ══                                   │
-       │  ◉   ⊕  ◀ ▶ ▶  3/10 │ time·site ↺ │⋮  ((•))│⋮   ☁ │⋮   ▤  📡  ⚙   │
-       │Markers Inspect           PastCast  NowCast  ForeCast    Sites Settings │
+       │  ◉   ⌕   ══ scrubber ══                                   │
+       │  ◉   ⌕  ◀ ▶ ▶  3/10 │ time·site ↺ │⋮  ((•))│⋮   ☁ │⋮   ▤  ⊚  📡  ⚙  │
+       │Markers Inspect           PastCast  NowCast  ForeCast  Location Sites Settings │
        └──────────────────────────────────┴────────────────────────┘
           ↑ ◉ = show / hide the on-map radar site markers. Lit = showing;
           │   the glyph and tooltip speak for the CLICK (open eye + "Hide
           │   Radar Sites" while they show). Named Markers, not Sites — the
           │   right cluster's Sites key opens a window, which is a different
           │   species entirely.
-                ↑ ⊕ = Inspect, the armed cursor mode. Lit = armed, greyed
-                  until a loop is loaded. Its reticle is a DRAWN PathIcon,
-                  not a codepoint. Both of these are GESTURES you make while
-                  reading the map, which is why they are keys and not rows
-                  in the Settings window's Radar tab.
+                ↑ ⌕ = Inspect, the armed cursor mode. Lit = armed, greyed
+                  until a loop is loaded. A MAGNIFIER (E721), and it was a
+                  drawn reticle until the Location key claimed that mark —
+                  see both blocks below. Both of these are GESTURES you make
+                  while reading the map, which is why they are keys and not
+                  rows in the Settings window's Radar tab.
                                           ↑ bar midpoint — NowCast sits on it
                                             ↑ ⋮ = each mode's SIDE CAR: a full-height
                                               settings latch on its own key, lit only
@@ -39,6 +40,17 @@
                                                                    what the NEXT click gives you,
                                                                    with the accent anchor cell
                                                                    marking pane 0, and NO name
+                                                                     ↑ ⊚ = Location. Drops the single
+                                                                       user-location marker (a
+                                                                       reticle, markers.js) and LIT
+                                                                       means it is on the map —
+                                                                       clicking it lit takes it off,
+                                                                       because nothing else in the
+                                                                       shipped UI can. Its mark is a
+                                                                       drawn PathIcon of that same
+                                                                       reticle: the key pictures what
+                                                                       it drops, which is why Inspect
+                                                                       gave the reticle up.
 
      ⚠️ WHAT REPEATS PER PANE IS NOT IN THE BAR ANY MORE. It used to be: the bar's left cluster carried a
      160px "chip" per pane (a combined product-selector-and-colour-ramp) plus the one tilt combo, which is
@@ -57,7 +69,8 @@
 
      Left of the bar are the marker and Inspect keys then RadarControls (the global time module); the CENTER is the three
      temporal split keys, held on the bar's midpoint by a [*, Auto, *] grid so no amount of growth on either
-     side can shift them; right is the pane-layout key then the app-wide window buttons, all on one spacing.
+     side can shift them; right is the pane-layout key, then Location, then the app-wide window buttons, all
+     on one spacing.
      The gaps between the three clusters are empty bar, by design.
 
      ⚠️ THE KEYS IN THIS CLUSTER take their LOOK from ONE style chain in Controls/Styles.xaml
@@ -323,18 +336,20 @@
                              out for the same reason the marker key did: it is a gesture you make while
                              reading the map, not a preference you set once. That heading is gone with it.
 
-                             ⚠️ THE MARK IS A DRAWN PATH, NOT A FONT GLYPH — a reticle: a ring with four
-                             ticks and a centre dot. Segoe Fluent has no reticle anyone here has verified,
-                             and a wrong codepoint ships as an empty box, so this sidesteps the question
-                             entirely (the same call the pane key's cells and the side car's dots made).
-                             ⚠️ It is a PathIcon rather than loose Shapes ON PURPOSE: an IconElement inherits
-                             the ContentPresenter's Foreground exactly as a FontIcon does, so the mark
-                             brightens with the name through every hover / pressed / checked state for free.
-                             Loose Shapes do NOT inherit it, and would sit dim while the name lit up.
-                             ⚠️ PathIcon does NOT scale with FontSize — it draws Data at its authored size.
-                             The geometry is authored in an 18-unit box, which is what a BarKeyGlyphSize (21)
-                             FontIcon actually inks once its em-box padding is taken off, so the two read at
-                             the same weight. Re-author the path, don't add a scale transform. -->
+                             ⚠️ THE MARK IS A MAGNIFYING GLASS (E721 Search), AND IT USED TO BE A DRAWN
+                             RETICLE. The reticle was chosen to sidestep the empty-box risk — Segoe Fluent
+                             has no reticle verified here — but it COLLIDED with the Location key's mark in
+                             the right cluster, which pictures the reticle it drops on the map. Two rings
+                             with ticks in one bar, three keys apart, is one mark meaning two things; the
+                             glyph that is not a reticle is the one that had to move, and inspecting is what
+                             a magnifier says without being learned.
+                             ⚠️ So this key is back on a plain FontIcon like Sites and Settings, and the
+                             PathIcon reasoning that used to live here (an 18-unit box matching what a
+                             BarKeyGlyphSize FontIcon inks) now applies only to the Location key. Don't
+                             re-derive it here.
+                             ⚠️ E721 is a standard, long-lived Search codepoint, but it has NOT been checked
+                             by rendering it in the real font on this machine — the house rule stands, and a
+                             wrong codepoint ships as an empty box. Confirm on first run. -->
                         <ToggleButton x:Name="InspectKey"
                                       Grid.Column="1"
                                       Style="{StaticResource BarKeyToggleStyle}"
@@ -346,9 +361,10 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <PathIcon Grid.Row="0"
-                                          HorizontalAlignment="Center"
-                                          Data="M3.5,9 A5.5,5.5 0 1,0 14.5,9 A5.5,5.5 0 1,0 3.5,9 Z M5.5,9 A3.5,3.5 0 1,0 12.5,9 A3.5,3.5 0 1,0 5.5,9 Z M7.8,9 A1.2,1.2 0 1,0 10.2,9 A1.2,1.2 0 1,0 7.8,9 Z M8.2,0 H9.8 V3.2 H8.2 Z M8.2,14.8 H9.8 V18 H8.2 Z M0,8.2 H3.2 V9.8 H0 Z M14.8,8.2 H18 V9.8 H14.8 Z"/>
+                                <FontIcon Grid.Row="0"
+                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                          FontSize="{StaticResource BarKeyGlyphSize}"
+                                          Glyph="&#xE721;"/>
                                 <TextBlock Grid.Row="1"
                                            Text="Inspect"
                                            HorizontalAlignment="Center"
@@ -368,13 +384,13 @@
                          hairline at rest, accent border + raised face when ON. Nothing here repeats per
                          pane.
 
-                         Two KINDS of control sit here — the pane key is an ACTION that cycles (its icon is
-                         the readout, never lit); Sites and Settings are INDEPENDENT window latches (any
-                         combination open). ⚠️ They are NOT separated by a wider gap any more: this was two
-                         nested grids at 14px and 6px, which read as a spacing mistake rather than as a
-                         grouping. ONE spacing for all three, matching the temporal cluster's, so the whole
-                         bar has a single rhythm. Keep it one flat grid — the moment it nests again the two
-                         gaps drift apart. -->
+                         THREE KINDS of control sit here — the pane key is an ACTION that cycles (its icon
+                         is the readout, never lit); Location latches on something it put on the MAP; Sites and
+                         Settings are INDEPENDENT window latches (any combination open). ⚠️ They are NOT
+                         separated by a wider gap any more: this was two nested grids at 14px and 6px, which
+                         read as a spacing mistake rather than as a grouping. ONE spacing for all of them,
+                         matching the temporal cluster's, so the whole bar has a single rhythm. Keep it one
+                         flat grid — the moment it nests again the gaps drift apart. -->
                     <Grid x:Name="RightCluster"
                           Grid.Column="2"
                           HorizontalAlignment="Right"
@@ -394,6 +410,7 @@
                         </Grid.Resources>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/> <!-- pane layout (one cycling key) -->
+                            <ColumnDefinition Width="Auto"/> <!-- locate (drop / remove your marker) -->
                             <ColumnDefinition Width="Auto"/> <!-- site explorer -->
                             <ColumnDefinition Width="Auto"/> <!-- settings -->
                         </Grid.ColumnDefinitions>
@@ -517,6 +534,68 @@
                             </Grid>
                         </Button>
 
+                        <!-- ===== LOCATION — drop (or remove) the marker at your location =====
+                             Between the pane key and the window latches because that is what it is: not a
+                             window, and not a per-pane control. It is the only key here that puts something
+                             ON THE MAP, which is why it sits at the boundary between the view-mode key and
+                             the two that open panels.
+
+                             ⚠️ IT LATCHES, and that is the whole design argument. As a plain action button
+                             it would be a ONE-WAY DOOR: nothing else in the shipped UI can take the marker
+                             back off the map (MarkersViewModel.RemoveSelectedMarker needs the Selected
+                             Marker window, which is still pending re-add). Lit = your marker is out there;
+                             clicking it lit removes it. Re-locating after you have moved is off-then-on —
+                             two clicks for the rare case, none for the common one.
+
+                             ⚠️ IsChecked is ONE-WAY and re-asserted in the handler, the same shape the
+                             temporal keys use: the click starts async work (an OS fix, then an IP fallback)
+                             that can FAIL, and on failure no marker is dropped and no property changes — so
+                             nothing would pull the optimistically-checked key back down. The handler awaits
+                             and re-reads the view model. Do not "simplify" this to a TwoWay bind.
+
+                             ⚠️ Enabled off CanLocate: a second click mid-resolve is a no-op in the view
+                             model anyway, and a key that visibly does nothing is worse than a greyed one.
+                             The tooltip carries the "Locating…" / "Location unavailable" text, because the
+                             bar has no status area and a failure would otherwise be completely silent.
+
+                             ⚠️ THE MARK IS A DRAWN PathIcon, NOT A CODEPOINT — same reasoning as the
+                             Inspect key: no location glyph in Segoe Fluent has been verified by rendering
+                             it here, and a wrong one ships as an empty box. It is authored in an 18-unit
+                             box, which is what a BarKeyGlyphSize FontIcon actually inks, so it reads at the
+                             same weight as the Sites and Settings glyphs beside it. PathIcon (not loose
+                             Shapes) so it inherits the template's Foreground through every state.
+
+                             ⚠️ IT IS DELIBERATELY THE SAME FAMILY AS THE ON-MAP MARKER — a ring, four
+                             ticks, a core — because a key should picture what it drops, the way the pane
+                             key draws the layout it gives you. ⚠️ THIS IS WHY THE INSPECT KEY IS A
+                             MAGNIFIER: Inspect was ALSO a drawn reticle, and two ring-and-tick marks in one
+                             bar is one picture meaning two things. This key kept the reticle because it is
+                             the only one of the two that draws something real on the map; Inspect moved to
+                             the glyph. Do NOT give Inspect a reticle back — put a different mark on THIS
+                             key first, and change the marker with it. -->
+                        <ToggleButton x:Name="LocationKey"
+                                      Grid.Column="1"
+                                      Style="{StaticResource BarKeyToggleStyle}"
+                                      IsEnabled="{x:Bind ViewModel.Markers.CanLocate, Mode=OneWay}"
+                                      IsChecked="{x:Bind ViewModel.Markers.HasUserLocationMarker, Mode=OneWay}"
+                                      ToolTipService.ToolTip="{x:Bind LocationTooltip(ViewModel.Markers.HasUserLocationMarker, ViewModel.Markers.LocateStatusText), Mode=OneWay}"
+                                      Click="OnToggleUserLocation">
+                            <Grid Margin="3,0" RowSpacing="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <!-- Ring (donut 3.6-5.2), SOLID core (r 2.2), four ticks standing off it. -->
+                                <PathIcon Grid.Row="0"
+                                          HorizontalAlignment="Center"
+                                          Data="M3.8,9 A5.2,5.2 0 1,0 14.2,9 A5.2,5.2 0 1,0 3.8,9 Z M5.4,9 A3.6,3.6 0 1,0 12.6,9 A3.6,3.6 0 1,0 5.4,9 Z M6.8,9 A2.2,2.2 0 1,0 11.2,9 A2.2,2.2 0 1,0 6.8,9 Z M8.2,0 H9.8 V3 H8.2 Z M8.2,15 H9.8 V18 H8.2 Z M0,8.2 H3 V9.8 H0 Z M15,8.2 H18 V9.8 H15 Z"/>
+                                <TextBlock Grid.Row="1"
+                                           Text="Location"
+                                           HorizontalAlignment="Center"
+                                           FontSize="{StaticResource BarKeyNameSize}"/>
+                            </Grid>
+                        </ToggleButton>
+
                         <!-- ===== WINDOW BUTTONS =====
                              Each latches while its window is open (IsChecked two-ways with the open flag),
                              and any combination may be open at once.
@@ -547,7 +626,7 @@
                              panel that only ever configures those three modes belongs beside them —
                              see TemporalToggles. What is left here is genuinely global. -->
                             <ToggleButton x:Name="SitesKey"
-                                          Grid.Column="1"
+                                          Grid.Column="2"
                                           Style="{StaticResource BarKeyToggleStyle}"
                                           ToolTipService.ToolTip="Radar site explorer"
                                           IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}">
@@ -567,7 +646,7 @@
                                 </Grid>
                             </ToggleButton>
                             <ToggleButton x:Name="SettingsKey"
-                                          Grid.Column="2"
+                                          Grid.Column="3"
                                           Style="{StaticResource BarKeyToggleStyle}"
                                           ToolTipService.ToolTip="Settings — map, radar, storage"
                                           IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}">

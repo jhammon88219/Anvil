@@ -231,6 +231,26 @@ namespace Anvil
 		// The view knows only "advance"; the ORDER is the view model's (Radar.NextPaneLayout).
 		private void OnCyclePaneLayout(object sender, RoutedEventArgs e) => ViewModel.Radar.CyclePaneLayout();
 
+		// ===== The Location key (drop / remove the user-location marker) =====
+		// Phrased from where you ARE, like every other action tooltip in the bar. The transient locate
+		// status WINS when there is one: the bar has no status area, so a failed fix ("Location
+		// unavailable") would otherwise be completely silent — the key would simply spring back up.
+		public string LocationTooltip(bool hasMarker, string status) =>
+			status.Length > 0 ? status
+			: hasMarker ? "Remove your location marker"
+			: "Drop a marker at your location";
+
+		// ⚠️ Re-assert IsChecked AFTER the await, not before: the click has already flipped the toggle
+		// optimistically, and the resolve can fail (no OS consent, no fix, offline) without changing any
+		// view-model property — so nothing would raise to pull the key back down. This is the same shape
+		// SplitTemporalToggle uses for a mode a subsystem may decline. The view model owns the decision of
+		// what a click MEANS (drop when absent, remove when present); this only reports the outcome.
+		private async void OnToggleUserLocation(object sender, RoutedEventArgs e)
+		{
+			await ViewModel.Markers.ToggleUserLocationAsync();
+			LocationKey.IsChecked = ViewModel.Markers.HasUserLocationMarker;
+		}
+
 		// Register one temporal mode's settings window. All three are the SAME TemporalWindow class; only the
 		// mode, the caption and the size differ, so the wiring lives here once rather than three times.
 		//

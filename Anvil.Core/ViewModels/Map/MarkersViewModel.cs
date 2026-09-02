@@ -56,6 +56,11 @@ namespace Anvil.ViewModels
 		/// Radar Site Explorer can compute distance-to-site; read-only view over the private list.</summary>
 		public MapMarker? UserLocationMarker => _markers.FirstOrDefault(m => m.Kind == MarkerKind.UserLocation);
 
+		/// <summary>Whether the singleton user-location marker is currently on the map. This is what the
+		/// bar's Location key LATCHES on: lit = the marker is out there, which follows the bar's one rule
+		/// that accent means "this is on". Raised by every path that adds or drops the marker.</summary>
+		public bool HasUserLocationMarker => UserLocationMarker is not null;
+
 		// ── 1. Locate action (Map card) ──
 		private bool _isLocating;
 		private string _locateStatus = string.Empty; // transient only: "Locating…" / "Location unavailable"
@@ -133,6 +138,44 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		/// <summary>
+		/// The Location key's ONE action: drop the marker when there is none, remove it when there is.
+		/// ⚠️ Deliberately a toggle rather than a re-locate: without it there is no way to take the
+		/// marker back off the map (RemoveSelectedMarker needs the Selected Marker window, which is
+		/// still pending re-add), and a key that can only ever add is a one-way door. Re-locating is
+		/// off-then-on — two clicks for the rarer action, none for the common one.
+		/// </summary>
+		public async Task ToggleUserLocationAsync()
+		{
+			if (HasUserLocationMarker)
+			{
+				RemoveUserLocationMarker();
+				return;
+			}
+			await ShowMyLocationAsync();
+		}
+
+		/// <summary>Takes the user-location marker off the map and out of the model, whether or not it is
+		/// the selected one. Separate from <see cref="RemoveSelectedMarker"/> because the Location key acts
+		/// on the marker by KIND — it has no idea what happens to be selected.</summary>
+		public void RemoveUserLocationMarker()
+		{
+			if (UserLocationMarker is not { } marker)
+			{
+				return;
+			}
+			_markers.Remove(marker);
+			if (_isMapReady)
+			{
+				_ = _mapService.ClearUserLocationAsync();
+			}
+			OnPropertyChanged(nameof(HasUserLocationMarker));
+			if (ReferenceEquals(marker, _selectedMarker))
+			{
+				SelectedMarker = null;
+			}
+		}
+
 		// Singleton enforcement lives here (not in the type): drop any existing user-location marker
 		// and add the fresh one. Returns the new marker so the caller can select it.
 		private MapMarker UpsertUserLocationMarker(double latitude, double longitude, string label, LocationSource source)
@@ -141,6 +184,7 @@ namespace Anvil.ViewModels
 			var marker = new MapMarker(UserMarkerId, MarkerKind.UserLocation, latitude, longitude, label,
 				source, canDrag: true, isSingleton: true);
 			_markers.Add(marker);
+			OnPropertyChanged(nameof(HasUserLocationMarker));
 			return marker;
 		}
 
@@ -245,9 +289,13 @@ namespace Anvil.ViewModels
 				return;
 			}
 			_markers.Remove(marker);
-			if (marker.Kind == MarkerKind.UserLocation && _isMapReady)
+			if (marker.Kind == MarkerKind.UserLocation)
 			{
-				_ = _mapService.ClearUserLocationAsync();
+				if (_isMapReady)
+				{
+					_ = _mapService.ClearUserLocationAsync();
+				}
+				OnPropertyChanged(nameof(HasUserLocationMarker)); // un-latches the bar's Location key
 			}
 			SelectedMarker = null;
 		}
