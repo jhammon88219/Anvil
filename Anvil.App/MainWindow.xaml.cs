@@ -436,7 +436,7 @@ namespace Anvil
 			// ⚠️ NowCast's fallback grew with its body: watches and warnings are a card over type rows each
 			// now, not a checkbox and a slider each, which puts it within a card's height of PastCast.
 			RegisterTemporalWindow(TemporalMode.Now, "NowCast", 480, 700);
-			RegisterTemporalWindow(TemporalMode.Fore, "ForeCast", 480, 540);
+			RegisterTemporalWindow(TemporalMode.Fore, "ForeCast", 480, 640);
 			_windows.Register(
 				id: "pipeline",
 				isOpen: () => ViewModel.IsPipelineConsoleOpen,

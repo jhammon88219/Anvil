@@ -264,6 +264,53 @@ namespace Anvil.ViewModels
 		/// <summary>Countdown label to the next SPC outlook refresh (e.g. "next ~9 min").</summary>
 		public string OutlookNextUpdateText => NextUpdate.CountdownOf(_nextOutlookRefreshAt);
 
+		// ── The ForeCast window's section card ──
+		// Three lines in the shape every card in the two temporal windows uses (headline / context /
+		// footer), composed from state this VM already kept — the title, the issued/valid line and the
+		// countdown were all being computed and shown NOWHERE. ⚠️ Nothing new is fetched or tracked here;
+		// if a line looks wrong, the bug is upstream in ApplyCurrentOutlook, not in these three getters.
+
+		/// <summary>Whether a product (not "None") is selected — the section's off switch, and so the gate
+		/// on its opacity slider. Same role as PastOutlookViewModel.HasOutlook.</summary>
+		public bool HasOutlook => _selectedOption?.Product is not null;
+
+		/// <summary>The card's headline: which outlook is drawn, e.g. "Day 1 · Categorical".</summary>
+		public string CardHeadline => _outlookCardTitle.Length > 0 ? _outlookCardTitle : "No outlook drawn";
+
+		/// <summary>The card's middle line: the authoritative issued/valid times from the cached GeoJSON.
+		/// Empty for "None", which collapses the line rather than leaving a gap.</summary>
+		public string CardContext => OutlookTimesText;
+
+		/// <summary>
+		/// The card's footer: how long until the next refresh, or — with nothing selected — what to do
+		/// about it.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ It re-reads <see cref="OutlookNextUpdateText"/> rather than formatting its own countdown, so
+		/// the card and the next-update readout can never disagree. That also means this must be raised
+		/// wherever that one is: on the 1 s tick as well as on a selection change.
+		/// </remarks>
+		public string CardFooter
+		{
+			get
+			{
+				if (!HasOutlook) { return "Pick a product below"; }
+				var countdown = OutlookNextUpdateText;
+				return countdown.Length == 0
+					? string.Empty
+					: char.ToUpperInvariant(countdown[0]) + countdown[1..];
+			}
+		}
+
+		// Re-raises the three card lines. Called from both places their inputs move: the selection funnel
+		// (UpdateOutlookCard) and the countdown tick.
+		private void RaiseCard()
+		{
+			OnPropertyChanged(nameof(CardHeadline));
+			OnPropertyChanged(nameof(CardContext));
+			OnPropertyChanged(nameof(CardFooter));
+		}
+
 		/// <summary>Called by MainWindow after each outlook refresh with the next refresh schedule.</summary>
 		public void SetOutlookRefreshSchedule(DateTimeOffset cycleStart, DateTimeOffset next)
 		{
@@ -271,6 +318,7 @@ namespace Anvil.ViewModels
 			_nextOutlookRefreshAt = next;
 			OnPropertyChanged(nameof(OutlookNextUpdateProgress));
 			OnPropertyChanged(nameof(OutlookNextUpdateText));
+			RaiseCard();
 		}
 
 		// App-lifetime 1s tick that advances the outlook next-update progress bar (independent of any
@@ -282,6 +330,7 @@ namespace Anvil.ViewModels
 			{
 				OnPropertyChanged(nameof(OutlookNextUpdateProgress));
 				OnPropertyChanged(nameof(OutlookNextUpdateText));
+				RaiseCard();
 			}
 		}
 
@@ -420,6 +469,8 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(OutlookCardTitle));
 			OnPropertyChanged(nameof(OutlookIssuedText));
 			OnPropertyChanged(nameof(OutlookValidText));
+			OnPropertyChanged(nameof(HasOutlook));
+			RaiseCard();
 		}
 
 		// The product the current narrative belongs to — so a same-product refresh updates the
