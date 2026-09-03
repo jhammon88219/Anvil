@@ -111,7 +111,7 @@ namespace Anvil.Services
 		/// straight into the renderer, skipping our own VAD entirely.</summary>
 		/// <remarks>⚠️ Call this OR <see cref="ComputeStormMotionAsync"/> for a given loop, never both — the
 		/// chain decides. Doc 01 §5 orders the providers; the local VAD is the fallback.</remarks>
-		Task SetStormMotionAsync(double speedMs, double directionDeg, string source, int levels, double topM);
+		Task SetStormMotionAsync(double speedMs, double directionDeg, string source, int levels, double topM, string tier);
 
 		/// <summary>
 		/// Enables or disables inspect mode (read the value under the cursor). While on, the WebView

@@ -437,8 +437,8 @@ try {
     // correct, so the motion comes from a full-volume wind profile). urls = a JSON array string.
     // Storm motion supplied by the HOST's wind-profile provider chain (Level III NVW), rather than computed
     // from our own Level II VAD. See radar.js applyExternalMotion.
-    window.setStormMotion = function (speedMs, dirDeg, source, layers, topM) {
-        if (window.RadarLayer) window.RadarLayer.setStormMotion(speedMs, dirDeg, source, layers, topM);
+    window.setStormMotion = function (speedMs, dirDeg, source, layers, topM, tier) {
+        if (window.RadarLayer) window.RadarLayer.setStormMotion(speedMs, dirDeg, source, layers, topM, tier);
     };
     window.computeStormMotion = function (urls) {
         if (window.RadarLayer) window.RadarLayer.computeStormMotion(urls);

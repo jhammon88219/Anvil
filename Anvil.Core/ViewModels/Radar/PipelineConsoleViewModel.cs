@@ -314,10 +314,21 @@ namespace Anvil.ViewModels
 				var basis = v.Cuts > 0
 					? string.Format(CultureInfo.InvariantCulture, "{0} cuts", v.Cuts)
 					: string.Format(CultureInfo.InvariantCulture, "{0} levels", v.Layers);
+
+				// ⚠️ PROVIDER and TIER are different claims and both belong here. On our own VAD path the
+				// source IS the tier ("Bunkers R" / "Mean wind"); on the external path it is the provider
+				// ("NVW"), which said where the profile came from but not what kind of estimate it is. Show
+				// both when they differ, so the readout never implies a full Bunkers vector it didn't compute.
+				var origin = string.IsNullOrEmpty(v.Source) ? "auto" : v.Source;
+				if (!string.IsNullOrEmpty(v.Tier) && !string.Equals(v.Tier, v.Source, StringComparison.Ordinal))
+				{
+					origin = origin + " · " + v.Tier;
+				}
+
 				StormMotionText = string.Format(
 					CultureInfo.InvariantCulture,
 					"{0:F0}° @ {1:F0} kt ({2:F0} mph) · {3} · {4} · top {5:F1} km",
-					v.DirDeg, kt, mph, string.IsNullOrEmpty(v.Source) ? "auto" : v.Source, basis, v.TopM / 1000.0);
+					v.DirDeg, kt, mph, origin, basis, v.TopM / 1000.0);
 			}
 			else if (v.Insufficient)
 			{
@@ -386,6 +397,7 @@ namespace Anvil.ViewModels
 			public int Cuts { get; set; }
 			public double TopM { get; set; }
 			public int Layers { get; set; }
+			public string Tier { get; set; } = string.Empty;
 			public string Why { get; set; } = string.Empty;
 		}
 

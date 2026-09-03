@@ -532,7 +532,7 @@
         const m = _autoMotion;
         if (!m) return;
         if (m.insufficient) post({ type: 'radarStormMotion', insufficient: true, topM: m.topM || 0, why: m.why || '' });
-        else post({ type: 'radarStormMotion', speedMs: m.speedMs, dirDeg: m.dirDeg, source: m.source, layers: m.layers, topM: m.topM, cuts: m.cuts });
+        else post({ type: 'radarStormMotion', speedMs: m.speedMs, dirDeg: m.dirDeg, source: m.source, layers: m.layers, topM: m.topM, cuts: m.cuts, tier: m.tier || '' });
     }
     // Drop every loaded/cached frame's SRV geometry so it rebuilds with the current storm motion, and (if SRV
     // is the active product) re-queue. Shared by manual setStormMotion and the auto-motion result — a motion
@@ -1352,6 +1352,7 @@
                 source: (m && m.source) || '',
                 cuts: (m && m.cuts) || 0,
                 layers: (m && m.layers) || 0,
+                tier: (m && m.tier) || '',
                 topM: (m && m.topM) || 0,
                 why: (m && m.why) || ''
             };
@@ -1604,12 +1605,12 @@
         // SRV/auto is active, and only re-requests when the newest volume changes). Off-thread; on success it
         // pushes the readout and rebuilds SRV once. No-op in manual mode. See computeStormMotionForVolume.
         // Host-supplied motion (Level III NVW). See applyExternalMotion.
-        setStormMotion: function (speedMs, dirDeg, source, layers, topM) {
+        setStormMotion: function (speedMs, dirDeg, source, layers, topM, tier) {
             // ⚠️ `cuts` stays 0 ON PURPOSE — it counts VAD elevation cuts, which an external profile has
             // none of. The console renders levels instead when cuts is 0; don't fake a cut count here.
             applyExternalMotion({
                 speedMs: speedMs, dirDeg: dirDeg, source: source || 'NVW',
-                layers: layers || 0, cuts: 0, topM: topM || 0
+                layers: layers || 0, cuts: 0, topM: topM || 0, tier: tier || ''
             });
         },
         computeStormMotion: function (urls) {

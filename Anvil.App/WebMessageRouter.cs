@@ -131,7 +131,7 @@ namespace Anvil
 		private void HandleStormMotion(JsonElement root) =>
 			_viewModel.Radar.SetAutoStormMotion(
 				Dbl(root, "speedMs"), Dbl(root, "dirDeg"), Str(root, "source"), Flag(root, "insufficient"),
-				Str(root, "why"));
+				Str(root, "why"), Str(root, "tier"));
 
 		// Velocity build progress: how many loaded frames have their (lazily-built, dealiased) velocity
 		// geometry ready (drives the "Building velocity N/M" readout + holds playback at the built frontier),

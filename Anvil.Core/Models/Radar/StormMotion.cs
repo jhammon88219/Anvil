@@ -53,6 +53,11 @@ namespace Anvil.Models
 		/// <summary>Height of the highest profile level, metres AGL.</summary>
 		public double ProfileTopM { get; init; }
 
+		/// <summary>Which estimate this is, for the readout. ⚠️ This path has NO mean-wind fallback tier — a
+		/// solution here is always the full Bunkers right-mover — but naming it explicitly keeps the readout
+		/// honest if a weaker tier is ever added, rather than a call site asserting "Bunkers R" by hand.</summary>
+		public string Tier => HasSolution ? "Bunkers R" : string.Empty;
+
 		public bool HasSolution => Failure == StormMotionFailure.None;
 
 		public static StormMotionResult NoSolution(

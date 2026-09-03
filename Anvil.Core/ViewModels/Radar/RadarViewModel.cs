@@ -1076,7 +1076,7 @@ namespace Anvil.ViewModels
 			_ => "insufficient profile",
 		};
 
-		public void SetAutoStormMotion(double speedMs, double directionDeg, string? source, bool insufficient = false, string? why = null)
+		public void SetAutoStormMotion(double speedMs, double directionDeg, string? source, bool insufficient = false, string? why = null, string? tier = null)
 		{
 			if (insufficient)
 			{
@@ -1085,7 +1085,14 @@ namespace Anvil.ViewModels
 			}
 			var kt = speedMs / 0.514444;
 			var mph = speedMs * 2.23694;
-			var src = string.IsNullOrWhiteSpace(source) ? "" : " · " + source;
+			// Provider and tier are different claims — see the pipeline console for the full note.
+			var origin = string.IsNullOrWhiteSpace(source) ? "" : source;
+			if (!string.IsNullOrWhiteSpace(tier) && !string.Equals(tier, source, StringComparison.Ordinal))
+			{
+				origin = string.IsNullOrEmpty(origin) ? tier! : origin + " · " + tier;
+			}
+
+			var src = string.IsNullOrWhiteSpace(origin) ? "" : " · " + origin;
 			AutoStormMotionText = $"{Math.Round(directionDeg)}° at {Math.Round(kt)} kt ({Math.Round(mph)} mph){src}";
 		}
 
@@ -1175,7 +1182,7 @@ namespace Anvil.ViewModels
 							+ $"{rm.HeadingDeg:F0} deg @ {rm.SpeedKt:F0} kt");
 						await _mapService.SetStormMotionAsync(
 							rm.SpeedMs, rm.HeadingDeg, resolved.ProfileSource ?? "NVW",
-							resolved.LevelCount, resolved.ProfileTopM);
+							resolved.LevelCount, resolved.ProfileTopM, resolved.Tier);
 						return;
 					}
 
