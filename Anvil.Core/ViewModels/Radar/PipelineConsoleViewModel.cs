@@ -317,7 +317,8 @@ namespace Anvil.ViewModels
 			{
 				VwpStatusText = string.Format(
 					CultureInfo.InvariantCulture,
-					"Storm motion: insufficient (top {0:F1} km) — SRV shows base velocity.", v.TopM / 1000.0);
+					"Storm motion: {0} (top {1:F1} km) — SRV shows base velocity.",
+					RadarViewModel.DescribeStormMotionFailure(v.Why), v.TopM / 1000.0);
 				StormMotionText = string.Empty;
 			}
 			else if (v.InFlight)
@@ -378,6 +379,7 @@ namespace Anvil.ViewModels
 			public string Source { get; set; } = string.Empty;
 			public int Cuts { get; set; }
 			public double TopM { get; set; }
+			public string Why { get; set; } = string.Empty;
 		}
 
 		private sealed class FrameSnap

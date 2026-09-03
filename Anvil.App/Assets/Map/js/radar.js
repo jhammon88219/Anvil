@@ -507,7 +507,7 @@
     function publishAutoMotion() {
         const m = _autoMotion;
         if (!m) return;
-        if (m.insufficient) post({ type: 'radarStormMotion', insufficient: true, topM: m.topM || 0 });
+        if (m.insufficient) post({ type: 'radarStormMotion', insufficient: true, topM: m.topM || 0, why: m.why || '' });
         else post({ type: 'radarStormMotion', speedMs: m.speedMs, dirDeg: m.dirDeg, source: m.source, layers: m.layers, topM: m.topM, cuts: m.cuts });
     }
     // Drop every loaded/cached frame's SRV geometry so it rebuilds with the current storm motion, and (if SRV
@@ -1327,7 +1327,8 @@
                 dirDeg: (m && !m.insufficient) ? m.dirDeg : 0,
                 source: (m && m.source) || '',
                 cuts: (m && m.cuts) || 0,
-                topM: (m && m.topM) || 0
+                topM: (m && m.topM) || 0,
+                why: (m && m.why) || ''
             };
             var done = new Array(ids.length);
             var first = new Array(ids.length);

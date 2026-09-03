@@ -1058,11 +1058,25 @@ namespace Anvil.ViewModels
 		/// estimate's source ("Bunkers R" / "Mean wind"). When <paramref name="insufficient"/> the volume's
 		/// merged profile was too shallow to trust (SRV stays at base velocity), shown as such. Refreshes the
 		/// <see cref="AutoStormMotionText"/> readout.</summary>
-		public void SetAutoStormMotion(double speedMs, double directionDeg, string? source, bool insufficient = false)
+		/// <summary>Plain-English form of the decoder's typed no-solution reason (doc 03 §9: "storm motion is
+		/// blank" must always be traceable to a named cause, never to a bare null). Unknown/empty reasons fall
+		/// back to the generic wording rather than showing a raw token.</summary>
+		public static string DescribeStormMotionFailure(string? why) => why switch
+		{
+			"shallow" => "profile too shallow",
+			"foldSuspect" => "profile suspect (fold)",
+			"noHead" => "no 5.5–6 km wind",
+			"noTail" => "no 0–0.5 km wind",
+			"fewPts" => "too few levels",
+			"fewCuts" => "too few usable cuts",
+			_ => "insufficient profile",
+		};
+
+		public void SetAutoStormMotion(double speedMs, double directionDeg, string? source, bool insufficient = false, string? why = null)
 		{
 			if (insufficient)
 			{
-				AutoStormMotionText = "Auto — insufficient profile";
+				AutoStormMotionText = "Auto — " + DescribeStormMotionFailure(why);
 				return;
 			}
 			var kt = speedMs / 0.514444;

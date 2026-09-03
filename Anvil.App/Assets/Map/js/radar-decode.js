@@ -712,10 +712,23 @@ function buildVelocity(radar, siteLat, siteLon, minDbz, wantGrid) {
 // wind + 7.5 m/s to the RIGHT of the 0–6 km shear); weak shear falls back to the plain 0–6 km mean wind.
 // decodeVwp(buffers) ties it together: the host (radar.js) fetches a volume's bottom ~5 velocity tilts and
 // hands their buffers here; the tiny result is pushed back for the SRV builder + the App Settings readout.
-const VAD_MIN_PTS = 30;         // min valid gates around a ring to trust its harmonic fit
-const VAD_MAX_CLUSTER = 0.6;    // reject a ring whose az are clustered (resultant length > this ⇒ a wedge, not a circle)
-const VAD_MAX_RESID = 6;        // max RMS fit residual (m/s) — rejects convectively contaminated rings
-const VAD_MAX_SPEED = 80;       // reject an implausible fitted wind speed (m/s)
+// ⚠️ QC constants are SPEC VALUES, not tuned ones — docs/radar/02-vad-spec.md §3.3/§4. Don't "adjust one
+// until a site works"; a looser gate here renders as a clean, confident, wrong vector on the map.
+const VAD_MIN_PTS = 30;         // min valid gates around a ring to trust its harmonic fit (spec 25; ours stricter)
+const VAD_MIN_COVERAGE_DEG = 180; // §4.2 — min azimuthal SPAN actually populated (NOT gate count)
+const VAD_COVERAGE_BIN_DEG = 10;  // §4.2 — span is measured as the sum of occupied 10° azimuth bins
+const VAD_MAX_RESID = 2.0;      // §4.1 — max RMS fit residual (m/s). Was 6.0, looser than even the
+                                // operational 5.0; a fully-aliased ring scores 3.86 and slipped straight
+                                // through. 2.0 also rejects the 3%-folded-sector case (RMS 2.67).
+const VAD_SYMMETRY_MAX = 7.0;   // §4 — |a0| (divergence + fall speed) ceiling, m/s
+const VAD_FIT_PASSES = 2;       // §4.3 — refit once with |residual| > RMS gates dropped
+const VAD_MAX_SPEED = 60;       // §5.2 — reject an implausible fitted wind speed (m/s); was 80
+const VAD_SANITY_GAP_M = 500;   // §5.2 — a direction swing across a gap SMALLER than this is a fold…
+const VAD_SANITY_DIR_DEG = 90;  // §5.2 — …if it exceeds this many degrees
+const VAD_MIN_RANGE_M = 10000;  // §3.3 — inside this, ground clutter saturates the ring
+const VAD_MAX_RANGE_M = 60000;  // §3.3 — beyond this, beam broadening breaks the uniform-wind assumption
+                                // over the ring. ⚠️ This is why DEPTH must come from HIGHER TILTS, not from
+                                // longer ranges: at 0.5° the whole legal window only reaches ~700 m.
 const AE_M = 8494667;           // 4⁄3-Earth effective radius (m) for beam-height h ≈ r·sinφ + r²/2aₑ
 const BUNKERS_D = 7.5;          // Bunkers deviation magnitude (m/s), right of the 0–6 km shear
 const BUNKERS_MIN_SHEAR = 3;    // below this 0–6 km shear (m/s) use the mean wind, not a supercell deviation
@@ -728,7 +741,28 @@ const VWP_MIN_PTS = 8;          // …and carry at least this many ring points (
 // so 2.5 km cleanly separates them. Mirrored in tools/storm_motion_check.py.
 const VWP_MEAN_MIN_TOP = 2500;
 const VWP_MEAN_MIN_PTS = 5;
+const VWP_MAX_GAP_M = 1500;     // doc 01 §5 — max gap between consecutive levels inside 0–6 km
 const VWP_MAX_PHI = 7.0;        // ignore cuts above this angle — their 0–6 km span is too near-range/sparse to fit
+
+// Median UNAMBIGUOUS RANGE (m) of the current cut's radials, or 0 when unreadable. Echoes beyond it are
+// second-trip returns folded back into the ring, so a VAD fit must not reach past it (doc 02 §3.3). Read the
+// same way as nyquistForRadial: Message 31 carries it in the RAD sub-block, legacy Message 1 on the record
+// itself; the decoder reports it in KM in both cases (readShort()/10).
+function unambiguousRangeM(radar, n) {
+    const scans = radar.data && radar.data[radar.elevation];
+    if (!scans) return 0;
+    const arr = [];
+    for (let i = 0; i < n; i++) {
+        const rec = scans[i] && scans[i].record;
+        if (!rec) continue;
+        const km = (rec.radial && typeof rec.radial.unambiguous_range === 'number')
+            ? rec.radial.unambiguous_range : rec.unambiguous_range;
+        if (typeof km === 'number' && km > 1 && isFinite(km)) arr.push(km * 1000);
+    }
+    if (!arr.length) return 0;
+    arr.sort(function (a, b) { return a - b; });
+    return arr[arr.length >> 1];
+}
 
 // Median elevation angle (deg) of the current cut's radials — φ for the height/VAD math. NaN if none.
 function medianElevationAngle(radar, n) {
@@ -760,7 +794,8 @@ function solve3(a, b, c, d, e, f, g, h, ii, r0, r1, r2) {
 // fit recovers the horizontal wind (u,v) at each ring's beam height, using THIS cut's own elevation φ. Returns
 // an array of { h, u, v } (m, m/s, m/s), empty when the current cut has no velocity or every ring is too sparse
 // / folded / convectively contaminated to fit. The heavy step is the dealias, run once per cut; each cut casts
-// its own VAD→Bunkers vote (they reach different heights) and combineCutMotions takes the median.
+// its ring points to ONE merged profile (decodeVwp), which is what spans 0–6 km: no single cut can, since
+// the 0–500 m tail needs φ ≤ 2.83° and the 5.5–6 km head needs φ ≥ 5.06° inside the legal 10–60 km window.
 // VWP path: dealias the cut, then fit its VAD wind profile.
 function vadPointsForCut(radar) {
     return vadFitFromRadials(dealiasSweep(momentRadials(radar, 'velocity'), radar), radar);
@@ -783,12 +818,17 @@ function vadFitFromRadials(radials, radar) {
     const firstGateM = ref.first_gate * 1000, gateSizeM = ref.gate_size * 1000, nGates = ref.moment_data.length;
     if (!isFinite(firstGateM) || !(gateSizeM > 0)) return [];
 
-    // Per-radial azimuth sin/cos, once (skip null / dataless / bad-azimuth radials).
+    // Per-radial azimuth sin/cos + coverage bin, once (skip null / dataless / bad-azimuth radials).
     const azSin = new Float64Array(n), azCos = new Float64Array(n), has = new Uint8Array(n);
+    const nBins = Math.ceil(360 / VAD_COVERAGE_BIN_DEG);
+    const azBin = new Uint8Array(n);
     for (let i = 0; i < n; i++) {
         const dd = radials[i]; if (!dd || !dd.moment_data) continue;
         const az = radar.getAzimuth(i); if (typeof az !== 'number') continue;
         const a = az * D2R; azSin[i] = Math.sin(a); azCos[i] = Math.cos(a); has[i] = 1;
+        let b = Math.floor(((az % 360) + 360) % 360 / VAD_COVERAGE_BIN_DEG);
+        if (b >= nBins) b = nBins - 1;
+        azBin[i] = b;
     }
 
     // One VAD fit per range ring (gate index j), stepping ~1 km in range to keep it cheap.
@@ -800,29 +840,76 @@ function vadFitFromRadials(radials, radar) {
     // topped under 1.7 km with no stated reason. `rej.pts` dominating means coverage (no data / too few gates
     // around the ring), `clu` means the echo is a WEDGE not an annulus, `res` means the fit is there but noisy
     // (convective contamination or a bad dealias) — three different bugs with three different fixes.
-    const rej = { rings: 0, pts: 0, clu: 0, sng: 0, res: 0, spd: 0, lastOkKm: 0 };
-    for (let j = 0; j < nGates; j += stride) {
+    const rej = { rings: 0, pts: 0, cov: 0, sng: 0, res: 0, sym: 0, spd: 0, lastOkKm: 0, maxKm: 0 };
+    // RANGE WINDOW (doc 02 §3.3) — the fit runs ONLY over 10–60 km, and never past this cut's unambiguous
+    // range. ⚠️ We previously fit every ring out to the last gate (~300 km), which is why profiles appeared
+    // to reach 5–6 km on a 0.5° cut: that depth came from rings whose uniform-wind assumption is long dead.
+    let maxRangeM = VAD_MAX_RANGE_M;
+    const unamb = unambiguousRangeM(radar, n);
+    if (unamb > 0) maxRangeM = Math.min(maxRangeM, unamb);
+    rej.maxKm = Math.round(maxRangeM / 1000);
+    const jStart = Math.max(0, Math.ceil((VAD_MIN_RANGE_M - firstGateM) / gateSizeM));
+    const jEnd = Math.min(nGates - 1, Math.floor((maxRangeM - firstGateM) / gateSizeM));
+    // Per-ring sample buffers, allocated ONCE per cut — the dealias rewrite's rule: nothing per-gate in the
+    // hot path. `keep` is the two-pass outlier mask, rewritten for each ring as it is filled.
+    const sBuf = new Float64Array(n), cBuf = new Float64Array(n), vBuf = new Float64Array(n);
+    const keep = new Uint8Array(n), bins = new Uint8Array(nBins);
+    for (let j = jStart; j <= jEnd; j += stride) {
         rej.rings++;
-        let sN = 0, Ss = 0, Sc = 0, Sss = 0, Scc = 0, Ssc = 0, Sv = 0, Svs = 0, Svc = 0;
+        // Collect this ring's valid samples once, and mark which azimuth bins they occupy.
+        let m = 0;
+        bins.fill(0);
         for (let i = 0; i < n; i++) {
             if (!has[i]) continue;
             const v = radials[i].moment_data[j];
             if (v === null || v === undefined) continue;
-            const s = azSin[i], c = azCos[i];
-            sN++; Ss += s; Sc += c; Sss += s * s; Scc += c * c; Ssc += s * c; Sv += v; Svs += v * s; Svc += v * c;
+            sBuf[m] = azSin[i]; cBuf[m] = azCos[i]; vBuf[m] = v; keep[m] = 1;
+            bins[azBin[i]] = 1;
+            m++;
         }
-        if (sN < VAD_MIN_PTS) { rej.pts++; continue; }
-        if (Math.hypot(Ss, Sc) / sN > VAD_MAX_CLUSTER) { rej.clu++; continue; } // az clustered in a wedge → can't fit a full circle
-        const sol = solve3(sN, Ss, Sc, Ss, Sss, Ssc, Sc, Ssc, Scc, Sv, Svs, Svc);
+        if (m < VAD_MIN_PTS) { rej.pts++; continue; }
+        // AZIMUTHAL SPAN, not gate count (doc 02 §4.2): least squares will fit three coefficients to a 45°
+        // arc and hand back a confident answer (16.6° mean direction error), so a ring with 300 gates piled
+        // into one quadrant must fail. Replaces the old resultant-length proxy, which conflated the spread
+        // of the azimuths with the shape of their distribution.
+        let occupied = 0;
+        for (let b = 0; b < nBins; b++) { if (bins[b]) occupied++; }
+        if (occupied * VAD_COVERAGE_BIN_DEG < VAD_MIN_COVERAGE_DEG) { rej.cov++; continue; }
+        // TWO-PASS FIT (doc 02 §4.3): after pass 1, gates whose residual exceeds the RMS are dropped and the
+        // fit re-run — removes isolated bad gates without a separate despeckle stage.
+        let sol = null, rms = Infinity;
+        for (let pass = 0; pass < VAD_FIT_PASSES; pass++) {
+            let sN = 0, Ss = 0, Sc = 0, Sss = 0, Scc = 0, Ssc = 0, Sv = 0, Svs = 0, Svc = 0;
+            for (let i = 0; i < m; i++) {
+                if (!keep[i]) continue;
+                const s = sBuf[i], c = cBuf[i], v = vBuf[i];
+                sN++; Ss += s; Sc += c; Sss += s * s; Scc += c * c; Ssc += s * c; Sv += v; Svs += v * s; Svc += v * c;
+            }
+            if (sN < VAD_MIN_PTS) { sol = null; break; }   // outlier pass ate too much of the ring
+            sol = solve3(sN, Ss, Sc, Ss, Sss, Ssc, Sc, Ssc, Scc, Sv, Svs, Svc);
+            if (!sol) break;
+            let se = 0;
+            for (let i = 0; i < m; i++) {
+                if (!keep[i]) continue;
+                const e = vBuf[i] - (sol[0] + sol[1] * sBuf[i] + sol[2] * cBuf[i]); se += e * e;
+            }
+            rms = Math.sqrt(se / sN);
+            if (pass + 1 < VAD_FIT_PASSES) {
+                for (let i = 0; i < m; i++) {
+                    if (!keep[i]) continue;
+                    const e = vBuf[i] - (sol[0] + sol[1] * sBuf[i] + sol[2] * cBuf[i]);
+                    if (Math.abs(e) > rms) keep[i] = 0;
+                }
+            }
+        }
         if (!sol) { rej.sng++; continue; }
+        if (rms > VAD_MAX_RESID) { rej.res++; continue; } // contamination / bad dealias / aliasing on this ring
         const a0 = sol[0], a1 = sol[1], b1 = sol[2];
-        let se = 0;
-        for (let i = 0; i < n; i++) {
-            if (!has[i]) continue;
-            const v = radials[i].moment_data[j]; if (v === null || v === undefined) continue;
-            const e = v - (a0 + a1 * azSin[i] + b1 * azCos[i]); se += e * e;
-        }
-        if (Math.sqrt(se / sN) > VAD_MAX_RESID) { rej.res++; continue; } // convective contamination / bad dealias on this ring
+        // SYMMETRY TEST (doc 02 §4): a0 carries divergence + fall speed. A ring sampling a clean uniform wind
+        // has a small a0 relative to the harmonic amplitude; a large one means the circle isn't representative.
+        // `amp` is the ORPG's SPW — the amplitude BEFORE the cos φ correction, which is what it compares.
+        const amp = Math.hypot(a1, b1);
+        if (!(Math.abs(a0) < VAD_SYMMETRY_MAX && Math.abs(a0) - amp <= 0)) { rej.sym++; continue; }
         const u = a1 / cosPhi, vv = b1 / cosPhi;
         if (!(Math.hypot(u, vv) < VAD_MAX_SPEED)) { rej.spd++; continue; }
         const r = firstGateM + j * gateSizeM;
@@ -836,15 +923,83 @@ function vadFitFromRadials(radials, radar) {
     return points;
 }
 
+// Bunkers layer bounds (m AGL) — Bunkers et al. (2000); docs/radar/03-bunkers-storm-motion-spec.md §2.
+// Named rather than inline so the three layers can't drift apart, and so the Python mirror can cite them.
+const BUNKERS_MEAN_TOP = 6000;  // 0–6 km mean wind (advection)
+const BUNKERS_TAIL_TOP = 500;   // 0–0.5 km — tail of the shear vector
+const BUNKERS_HEAD_BOT = 5500;  // 5.5–6 km — head of the shear vector
+const BUNKERS_HEAD_TOP = 6000;
+
+// PROFILE SANITY (doc 02 §5.2): the wind direction cannot swing >90° between levels less than 500 m apart.
+// That is the signature of a residual velocity FOLD, not of meteorology. Applied PER CUT by decodeVwp before
+// a cut's points join the merged profile — a bad cut is dropped rather than allowed to poison the shared fit.
+// ⚠️ Do NOT run this on the merged profile: adjacent levels there can come from different beams, where a
+// direction step is ordinary sampling difference rather than a fold.
+function profileFoldSuspect(prof) {
+    for (let i = 1; i < prof.length; i++) {
+        const a = prof[i - 1], b = prof[i];
+        if (b.h - a.h >= VAD_SANITY_GAP_M) continue;
+        let d = Math.abs(Math.atan2(b.u, b.v) - Math.atan2(a.u, a.v)) / D2R;
+        if (d > 180) d = 360 - d;
+        if (d > VAD_SANITY_DIR_DEG) return true;
+    }
+    return false;
+}
+
+// HEIGHT-WEIGHTED (trapezoidal) mean wind over [h0,h1] m AGL, or null when the layer holds no observation.
+// `prof` must be sorted ascending by h.
+// ⚠️ NOT a plain average of the levels inside the layer, which is what this used to be. VAD ring heights go
+// as r·sinφ + r²/2aₑ, so equal steps in RANGE bunch levels near the ground; an unweighted mean therefore
+// silently over-weights whichever part of the layer happens to be densely sampled — always the bottom, for
+// us — and drags the 0–6 km mean toward weak low-level flow. That is a candidate mechanism for the ~3 kt
+// storm motions in the open low-speed bug. Spec: docs/radar/03-bunkers-storm-motion-spec.md §4, which also
+// notes Bunkers (2000) is NON-pressure-weighted and that the height-weighted form is the radar analogue.
+// ⚠️ Endpoints are INTERPOLATED to h0/h1 only where the profile genuinely brackets them. Where it simply
+// stops, the integral stops with it — this function never extrapolates to manufacture a layer edge.
+function meanLayer(prof, h0, h1) {
+    const inLayer = [];
+    for (let i = 0; i < prof.length; i++) { const p = prof[i]; if (p.h >= h0 && p.h <= h1) inLayer.push(p); }
+    if (!inLayer.length) return null;   // no observation IN the layer — the caller decides what that means
+    function edge(hEdge, below, above) {
+        if (!below || !above || above.h <= below.h) return null;
+        const f = (hEdge - below.h) / (above.h - below.h);
+        return { h: hEdge, u: below.u + f * (above.u - below.u), v: below.v + f * (above.v - below.v) };
+    }
+    let lo = null, hi = null;
+    for (let i = 0; i < prof.length; i++) { if (prof[i].h < h0) lo = prof[i]; }        // last level below h0
+    for (let i = prof.length - 1; i >= 0; i--) { if (prof[i].h > h1) hi = prof[i]; }   // first level above h1
+    const knots = inLayer.slice();
+    const eLo = edge(h0, lo, knots[0]);
+    if (eLo) knots.unshift(eLo);
+    const eHi = edge(h1, knots[knots.length - 1], hi);
+    if (eHi) knots.push(eHi);
+    let iu = 0, iv = 0, dz = 0;
+    for (let i = 0; i + 1 < knots.length; i++) {
+        const a = knots[i], b = knots[i + 1], d = b.h - a.h;
+        if (d <= 0) continue;
+        iu += (a.u + b.u) / 2 * d; iv += (a.v + b.v) / 2 * d; dz += d;
+    }
+    if (dz <= 0) {   // one level (or coincident heights) — the trapezoid degenerates to the level itself
+        let u = 0, v = 0;
+        for (let i = 0; i < inLayer.length; i++) { u += inLayer[i].u; v += inLayer[i].v; }
+        return { u: u / inLayer.length, v: v / inLayer.length };
+    }
+    return { u: iu / dz, v: iv / dz };
+}
+
 // Merge a set of VAD ring points (from one or more cuts) into a storm motion via Bunkers. Sorts by height,
-// takes the 0–6 km mean wind, and deviates 7.5 m/s to the RIGHT of the 0–6 km shear (the right-moving
-// supercell estimate); weak shear falls back to the mean wind. ⚠️ Guarded: a profile that doesn't reach
-// VWP_MIN_TOP with ≥ VWP_MIN_PTS rings is too shallow to anchor a 0–6 km estimate, so it returns
-// { insufficient:true, topM } — the caller then leaves SRV at base velocity and shows an "insufficient"
-// readout rather than emitting a confidently-wrong deep motion (the single-low-tilt failure mode). Otherwise
-// returns { speedMs, dirDeg (bearing MOVED TOWARD), source, layers, topM }.
+// takes the height-weighted 0–6 km mean wind, and deviates 7.5 m/s to the RIGHT of the 0–6 km shear (the
+// right-moving supercell estimate). THREE outcomes, in descending confidence:
+//   'Bunkers R'  — a real observation in BOTH 0–0.5 km and 5.5–6 km; the full supercell estimate.
+//   'Mean wind'  — the profile is deep enough to mean but a Bunkers layer is empty (or the shear is
+//                  degenerate). An honest advection proxy, NOT a Bunkers vector. `why` says which.
+//   insufficient — too shallow/sparse for any of it; the caller leaves SRV at base velocity.
+// ⚠️ The middle tier exists because we have no fallback wind-profile provider (no Level III NVW, no model
+// sounding), so the alternative to a mean wind is base velocity — which for SRV is definitionally wrong.
+// It is deliberately NOT labelled Bunkers, so the readout never overstates the claim.
+// Returns { speedMs, dirDeg (bearing MOVED TOWARD), source, layers, topM, deep, why, rej }.
 function bunkersFromProfile(prof) {
-    // Diagnostic ring-rejection tally from vadFitFromRadials, forwarded to cutDetail. Captured BEFORE the
+    // Diagnostic ring-rejection tally from vadFitFromRadials (per-cut callers only). Captured BEFORE the
     // slice/sort below, which returns a plain array and would drop it. Absent when the caller hand-built a
     // profile (the unit-test mirror), so every read is guarded.
     const rej = prof ? prof.rej : null;
@@ -854,105 +1009,86 @@ function bunkersFromProfile(prof) {
     // Genuinely too shallow/sparse for ANY trustworthy motion → insufficient (SRV stays at base velocity).
     // This still guards the single-low-tilt failure mode: a ~1.3–1.8 km profile is just boundary-layer flow,
     // not a storm motion.
-    if (top < VWP_MEAN_MIN_TOP || prof.length < VWP_MEAN_MIN_PTS) return { insufficient: true, topM: Math.round(top), rej: rej };
+    if (top < VWP_MEAN_MIN_TOP || prof.length < VWP_MEAN_MIN_PTS) return { insufficient: true, topM: Math.round(top), why: 'shallow', rej: rej };
 
-    function meanLayer(h0, h1) {
-        let u = 0, v = 0, c = 0;
-        for (let i = 0; i < prof.length; i++) { const p = prof[i]; if (p.h >= h0 && p.h <= h1) { u += p.u; v += p.v; c++; } }
-        return c ? { u: u / c, v: v / c } : null;
-    }
-    const mean = meanLayer(0, 6000) || meanLayer(0, top); // 0–6 km mean wind (all sampled levels if it tops below 6 km)
+    const mean = meanLayer(prof, 0, BUNKERS_MEAN_TOP) || meanLayer(prof, 0, top); // 0–6 km mean wind
     if (!mean) return { insufficient: true, topM: Math.round(top), rej: rej };
 
     // DEEP enough to trust the 0–6 km shear for a Bunkers supercell DEVIATION? Otherwise return the mean wind
     // ALONE — a serviceable storm-motion proxy (what RadarScope effectively shows) rather than base velocity.
-    const deep = top >= VWP_MIN_TOP && prof.length >= VWP_MIN_PTS;
-    let mu = mean.u, mv = mean.v, source = 'Mean wind';
+    // ⚠️ NO SUBSTITUTION FOR A MISSING LAYER. This used to fall back to the top / bottom SAMPLED ring when
+    // either Bunkers layer was empty, which manufactures a "6 km wind" out of (say) a 5.1 km one and emits a
+    // confident Bunkers vector not grounded in observation — doc 03 §5 names this the single most likely place
+    // our behaviour was going wrong. A real observation in BOTH layers is now required; without it there is no
+    // shear vector, and the result drops to the honest Mean-wind tier instead of inventing one.
+    // ⚠️ This SUPERSEDES the old `top >= VWP_MIN_TOP` proxy: reaching 5000 m says nothing about whether a ring
+    // actually landed in 5500–6000 m. VWP_MIN_TOP is kept only as the cheap pre-check below.
+    const bot = meanLayer(prof, 0, BUNKERS_TAIL_TOP);
+    const tp = meanLayer(prof, BUNKERS_HEAD_BOT, BUNKERS_HEAD_TOP);
+    // COVERAGE GAP (doc 01 §5): consecutive levels within 0–6 km must be no more than 1500 m apart, or the
+    // trapezoidal mean is interpolating across a hole. ⚠️ This matters far more now the profile is MERGED
+    // from several cuts: the tail can come from the 0.5° cut and the head from the 6.4°, leaving the middle
+    // of the column unsampled — a shape that looks deep and is actually two clusters with a void between.
+    let gapOk = true, prevH = null;
+    for (let i = 0; i < prof.length; i++) {
+        const h = prof[i].h;
+        if (h > BUNKERS_MEAN_TOP) break;
+        if (prevH !== null && h - prevH > VWP_MAX_GAP_M) { gapOk = false; break; }
+        prevH = h;
+    }
+    const deep = !!bot && !!tp && gapOk && prof.length >= VWP_MIN_PTS && top >= VWP_MIN_TOP;
+    // Why the Bunkers tier was declined, for the diagnostics line — the "make the failure say which" lesson.
+    const why = deep ? null : (!tp ? 'noHead' : !bot ? 'noTail' : !gapOk ? 'gapTooLarge' : 'fewPts');
+    let mu = mean.u, mv = mean.v, source = 'Mean wind', tierWhy = why;
     if (deep) {
-        // Bunkers shear = (5.5–6 km mean) − (0–0.5 km mean); fall back to the top/bottom sampled ring when thin.
-        let bot = meanLayer(0, 500), tp = meanLayer(5500, 6000);
-        if (!bot) bot = { u: prof[0].u, v: prof[0].v };
-        if (!tp) tp = { u: prof[prof.length - 1].u, v: prof[prof.length - 1].v };
+        // Bunkers shear = (5.5–6 km mean) − (0–0.5 km mean), both real observations.
         const shu = tp.u - bot.u, shv = tp.v - bot.v, shMag = Math.hypot(shu, shv);
         if (shMag > BUNKERS_MIN_SHEAR) {
             // Right-moving deviation: 7.5 m/s to the RIGHT of the shear (a 90° clockwise turn of the unit shear).
             mu = mean.u + BUNKERS_D * (shv / shMag);
             mv = mean.v + BUNKERS_D * (-shu / shMag);
             source = 'Bunkers R';
+        } else {
+            tierWhy = 'weakShear';   // degenerate hodograph — the mean wind IS the answer, not a failure
         }
     }
     let dirDeg = Math.atan2(mu, mv) / D2R; if (dirDeg < 0) dirDeg += 360; // bearing the storm MOVES TOWARD
-    return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, layers: prof.length, topM: Math.round(top), deep: deep, rej: rej };
+    return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, layers: prof.length, topM: Math.round(top), deep: deep, why: tierWhy, rej: rej };
 }
 
-// Combine the per-cut Bunkers motions into ONE robust estimate: the COMPONENTWISE MEDIAN of the sufficient
-// cuts' (u,v). ⚠️ This is deliberately NOT a naive merge of every cut's ring points — each cut that reaches
-// VWP_MIN_TOP already gives an independent motion (its beam climbs through the whole 0–6 km column with
-// range), and the deep cuts agree closely, so the median rejects a CONTAMINATED cut (storm core in the beam,
-// a bad dealias) and the base tilt's clutter-biased low-level winds that a point-merge would let corrupt the
-// shared mean/shear (measured on Moore 2013: per-cut median → ENE ~27 kt, the real storm track; a point-merge
-// → a wrong ~16 kt). Needs ≥ VWP_MIN_CUTS sufficient cuts, else "insufficient". Mirrored in
-// tools/storm_motion_check.py.
-const VWP_MIN_CUTS = 2;
-// Ring-rejection tally as a compact token: "<rings>r@<lastOkKm>km:pts92,clu18,res14" — total rings examined,
-// the range of the OUTERMOST accepted ring (where the profile stopped climbing), then only the NON-ZERO
-// reject reasons, largest first. Zeros are omitted so a healthy cut stays short. "" when unavailable.
-function rejDetail(rej) {
-    if (!rej) return '';
-    const parts = [['pts', rej.pts], ['clu', rej.clu], ['res', rej.res], ['spd', rej.spd], ['sng', rej.sng]]
-        .filter(function (p) { return p[1] > 0; })
-        .sort(function (a, b) { return b[1] - a[1]; })
-        .map(function (p) { return p[0] + p[1]; });
-    return '/' + (rej.rings || 0) + 'r@' + (rej.lastOkKm || 0) + 'km:' + (parts.length ? parts.join(',') : '-');
-}
-// Compact per-cut detail for the diagnostics readout (radar.js onVwpResult logs it): each sufficient cut's
-// OWN motion (dir@speed) plus its top / ring-points / tier — so we can see whether the cuts AGREE on a wrong
-// motion (a VAD fit/amplitude bug) or SCATTER (folding aloft corrupting the fits → a bad median) vs the
-// combined result, and tune the shallow/pts thresholds. Every entry then carries the ring-rejection tally
-// (rejDetail) that says WHY the profile stopped where it did. E.g. "65°@34kt/8700m/40pD/232r@221km:pts180"
-// (deep/Bunkers-capable), "70°@31kt/3200m/6pM/232r@48km:pts140,clu60" (mean wind),
-// "1789m/xx/232r@11km:pts120,clu95,res16" (insufficient — and the clu95 says the echo was a wedge, not a ring).
-function cutDetail(motions) {
-    return motions.map(function (m) {
-        if (!m) return 'xx';
-        if (m.insufficient) return Math.round(m.topM || 0) + 'm/xx' + rejDetail(m.rej);
-        return Math.round(m.dirDeg) + '°@' + Math.round(m.speedMs / 0.514444) + 'kt/'
-            + Math.round(m.topM || 0) + 'm/' + (m.layers || 0) + 'p' + (m.deep ? 'D' : 'M') + rejDetail(m.rej);
-    });
-}
-function combineCutMotions(motions) {
-    const good = motions.filter(function (m) { return m && !m.insufficient; });
-    if (good.length < VWP_MIN_CUTS) {
-        let t = 0; for (let i = 0; i < motions.length; i++) if (motions[i] && motions[i].topM > t) t = motions[i].topM;
-        return { insufficient: true, topM: t, detail: cutDetail(motions) };
-    }
-    // Prefer the DEEP (Bunkers-capable) cuts when we have enough; otherwise use the shallow MEAN-WIND cuts.
-    // Don't blend the two tiers — a Bunkers cut carries a deliberate +7.5 m/s rightward deviation the
-    // mean-wind cuts lack, so a median across both would land on a meaningless half-deviation.
-    const deepCuts = good.filter(function (m) { return m.deep; });
-    const tier = deepCuts.length >= VWP_MIN_CUTS ? deepCuts : good;
-    const us = tier.map(function (m) { return m.speedMs * Math.sin(m.dirDeg * D2R); }).sort(function (a, b) { return a - b; });
-    const vs = tier.map(function (m) { return m.speedMs * Math.cos(m.dirDeg * D2R); }).sort(function (a, b) { return a - b; });
-    function median(a) { const n = a.length, h = n >> 1; return (n % 2) ? a[h] : (a[h - 1] + a[h]) / 2; }
-    const mu = median(us), mv = median(vs);
-    let dirDeg = Math.atan2(mu, mv) / D2R; if (dirDeg < 0) dirDeg += 360;
-    const source = tier.some(function (m) { return m.source === 'Bunkers R'; }) ? 'Bunkers R' : 'Mean wind';
-    let layers = 0, topM = 0;
-    for (let i = 0; i < tier.length; i++) { layers += tier[i].layers || 0; if (tier[i].topM > topM) topM = tier[i].topM; }
-    return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, cuts: tier.length, layers: layers, topM: topM, detail: cutDetail(motions) };
+// ONE CUT'S CONTRIBUTION to the merged profile, for the diagnostics line: elevation, ring points kept, the
+// height span they cover, and the ring-rejection tally. A dropped cut says why instead.
+// e.g. "2.4d:41p/425-2724m/232r<117@60km:pts180" · "5.1d:DROPPED(fold)".
+function cutTag(phi, pts, why) {
+    const head = (isFinite(phi) ? phi.toFixed(1) : '?') + 'd:';
+    if (why) return head + 'DROPPED(' + why + ')' + rejDetail(pts && pts.rej);
+    if (!pts || !pts.length) return head + '0p' + rejDetail(pts && pts.rej);
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < pts.length; i++) { if (pts[i].h < lo) lo = pts[i].h; if (pts[i].h > hi) hi = pts[i].h; }
+    return head + pts.length + 'p/' + Math.round(lo) + '-' + Math.round(hi) + 'm' + rejDetail(pts.rej);
 }
 
-// Full-volume VWP storm motion: for each supplied buffer, take EVERY velocity-bearing cut's own VAD → Bunkers
-// motion, and combine them all (median) into one robust estimate. ⚠️ It iterates ALL velocity elevations in a
-// buffer, not just the lowest, because the two provisioning paths differ: a modern volume hands us several
-// single-tilt files (one velocity cut each), but a LEGACY .gz archive can't be tilt-extracted at all
-// (`Level2RadarService`: it gunzips to an AR2V with no bzip2 LDM records), so its base .V06 is cached WHOLE and
-// arrives as ONE buffer holding every cut. Iterating elevations handles both — one vote per velocity cut ≤
-// VWP_MAX_PHI. Off the UI thread (radar-worker 'vwp' task) since the per-cut dealias is the cost. Returns the
-// combined motion, or { insufficient:true } when fewer than VWP_MIN_CUTS cuts reached the 0–6 km depth.
+// Full-volume VWP storm motion: every velocity-bearing cut contributes its VAD ring points to ONE MERGED
+// profile, which is then run through Bunkers once.
+// ⚠️ THIS REPLACED A PER-CUT MEDIAN (each cut computed its own Bunkers motion; the componentwise median of
+// those was taken). Read before reverting: that design is IMPOSSIBLE under the doc 02 §3.3 range window.
+// Inside 10–60 km the 0–500 m shear tail requires φ ≤ 2.83° and the 5.5–6 km head requires φ ≥ 5.06°, so no
+// single cut can supply both and every cut would return 'noTail'/'noHead' forever.
+// ⚠️ The median was originally chosen because a point-merge measured WRONG on Moore 2013 (~16 kt vs the real
+// ENE ~27 kt), attributed to the base tilt's clutter-biased low-level winds. Those rings are exactly what the
+// 10–60 km window now excludes, so the premise is gone — but the finding predates this change and the merged
+// path has NOT yet been re-measured against Moore 2013. Do that before trusting it on real data.
+// Contamination control moved to PER-CUT QC (profileFoldSuspect) applied before a cut joins the merge.
+// ⚠️ It iterates ALL velocity elevations in a buffer, not just the lowest, because the two provisioning paths
+// differ: a modern volume hands us several single-tilt files (one velocity cut each), but a LEGACY .gz archive
+// can't be tilt-extracted at all (`Level2RadarService`: it gunzips to an AR2V with no bzip2 LDM records), so
+// its base .V06 is cached WHOLE and arrives as ONE buffer holding every cut. Iterating elevations handles both.
+// Off the UI thread (radar-worker 'vwp' task) since the per-cut dealias is the cost.
 export function decodeVwp(buffers) {
     return loadDecoder().then(function (dec) {
-        const motions = [];
+        const merged = [];
+        const detail = [];
+        let cuts = 0;
         for (let b = 0; b < buffers.length; b++) {
             try {
                 const radar = new dec.Level2Radar(dec.Buffer.from(new Uint8Array(buffers[b])));
@@ -962,14 +1098,26 @@ export function decodeVwp(buffers) {
                     const vr = momentRadials(radar, 'velocity');
                     let hasVel = false;
                     for (let i = 0; i < vr.length; i++) { if (vr[i] && vr[i].moment_data) { hasVel = true; break; } }
-                    if (!hasVel) continue;                               // reflectivity-only cut → not a VAD vote
+                    if (!hasVel) continue;                               // reflectivity-only cut → no VAD levels
                     const phi = medianElevationAngle(radar, vr.length);
-                    if (isFinite(phi) && phi > VWP_MAX_PHI) continue;    // too high: 0–6 km sampled too sparsely
-                    motions.push(bunkersFromProfile(vadPointsForCut(radar)));
+                    if (isFinite(phi) && phi > VWP_MAX_PHI) continue;    // above the ceiling
+                    const pts = vadPointsForCut(radar);
+                    // PER-CUT QC BEFORE MERGING. This is what keeps a contaminated cut (storm core in the
+                    // beam, a residual fold) out of the shared profile — the job the old per-cut median did.
+                    // Run per cut, NOT on the merged profile: across a cut boundary two levels at similar
+                    // heights come from different beams, so a cross-cut direction step is not a fold signature.
+                    if (!pts || !pts.length) { detail.push(cutTag(phi, pts, null)); continue; }
+                    if (profileFoldSuspect(pts)) { detail.push(cutTag(phi, pts, 'fold')); continue; }
+                    for (let i = 0; i < pts.length; i++) merged.push(pts[i]);
+                    cuts++;
+                    detail.push(cutTag(phi, pts, null));
                 }
-            } catch (e) { /* skip a buffer that won't decode; the other buffers/cuts still vote */ }
+            } catch (e) { /* skip a buffer that won't decode; the other buffers/cuts still contribute */ }
         }
-        return combineCutMotions(motions);
+        const res = bunkersFromProfile(merged);
+        res.cuts = cuts;
+        res.detail = detail;
+        return res;
     });
 }
 

@@ -130,7 +130,8 @@ namespace Anvil
 		// converts to knots. `insufficient` means the profile was too shallow to trust.
 		private void HandleStormMotion(JsonElement root) =>
 			_viewModel.Radar.SetAutoStormMotion(
-				Dbl(root, "speedMs"), Dbl(root, "dirDeg"), Str(root, "source"), Flag(root, "insufficient"));
+				Dbl(root, "speedMs"), Dbl(root, "dirDeg"), Str(root, "source"), Flag(root, "insufficient"),
+				Str(root, "why"));
 
 		// Velocity build progress: how many loaded frames have their (lazily-built, dealiased) velocity
 		// geometry ready (drives the "Building velocity N/M" readout + holds playback at the built frontier),
