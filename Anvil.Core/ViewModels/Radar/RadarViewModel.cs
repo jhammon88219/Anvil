@@ -1173,8 +1173,14 @@ namespace Anvil.ViewModels
 			{
 				if (_stormMotion is not null)
 				{
-					// The loop's newest frame time IS the volume we want a motion for; no need to re-parse the key.
-					var when = NewestLoadedFrameTime?.UtcDateTime ?? DateTime.UtcNow;
+					// ⚠️ Ask about the REFERENCE VOLUME's time, not whatever is loaded right now. In replay this
+					// fires straight after first paint, and replay paints OLDEST-first — so the only loaded
+					// frame is the far end of the window from the volume we are actually computing for. Using
+					// the loaded time there would query the product ~3 h away, fall outside the provider's
+					// age tolerance, and silently never use NVW on a recent replay.
+					var when = Services.Level2RadarService.ParseVolumeTime(key)?.UtcDateTime
+						?? NewestLoadedFrameTime?.UtcDateTime
+						?? DateTime.UtcNow;
 					var resolved = await _stormMotion.ResolveAsync(site.Id, when);
 					if (resolved.HasSolution && resolved.RightMover is { } rm)
 					{

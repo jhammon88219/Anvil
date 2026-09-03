@@ -635,9 +635,19 @@ namespace Anvil.ViewModels
 				await EnsureAndAddFrameAsync(site, keys, 0, ct, prioritized: true);
 
 				// First paint is up. Same law as the live path: arm velocity+SRV building (Rule 3) and compute
-				// the loop's one storm motion (Rules 4/5) from the OLDEST first-paint volume, both in parallel
-				// with the backfill. No live frame here.
-				_vm._motionRefKey = keys[0];
+				// the loop's one storm motion (Rules 4/5), both in parallel with the backfill. No live frame here.
+				// ⚠️ THE MOTION REFERENCE IS THE NEWEST VOLUME, NOT THE FIRST-PAINTED ONE. Replay paints
+				// OLDEST-first, and this used to be keys[0] to match — but that tracked a RENDERING concern.
+				// The loop has exactly ONE storm motion (Rule 5), so that single volume decides SRV for the
+				// whole window, and a user framing an event naturally starts BEFORE it. Picking the oldest
+				// therefore chose the volume LEAST likely to contain storms: measured on Moore 2013, a
+				// 2 PM–5 PM window computed from the 2 PM clear-air volume returned "profile too shallow
+				// (top 2.5 km)" and SRV stayed at base velocity for all three hours, including the 4 PM
+				// supercell. The same window started at 3 PM resolved 63°@34kt Bunkers R.
+				// ⚠️ Known residual: a window that ENDS after the storms depart now picks clear air, where the
+				// oldest would have worked. The real fix is to retry other volumes when the motion comes back
+				// insufficient — see docs/radar/storm-motion.md §4. Newest is the better DEFAULT, not a cure.
+				_vm._motionRefKey = keys[^1];
 				_vm._lastVwpKey = null;
 				if (_vm._isMapReady)
 				{

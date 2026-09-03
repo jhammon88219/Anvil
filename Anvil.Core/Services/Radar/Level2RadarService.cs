@@ -1915,7 +1915,7 @@ namespace Anvil.Services
 			return output.ToArray();
 		}
 
-		private static DateTimeOffset? ParseVolumeTime(string key)
+		internal static DateTimeOffset? ParseVolumeTime(string key)
 		{
 			var name = key.Substring(key.LastIndexOf('/') + 1); // e.g. KTLX20260613_214422_V06
 			if (name.Length < 19)
