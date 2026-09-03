@@ -794,7 +794,15 @@ function vadFitFromRadials(radials, radar) {
     // One VAD fit per range ring (gate index j), stepping ~1 km in range to keep it cheap.
     const stride = Math.max(1, Math.round(1000 / gateSizeM));
     const points = []; // { h, u, v }
+    // DIAGNOSTIC ONLY (no effect on the fit): tally WHY each ring was thrown out, and how far out the last
+    // ACCEPTED ring sat. A cut that yields a near-empty profile is indistinguishable in the log from a cut
+    // with no velocity at all, which is what stalled the KBGM 2026-09-02 "insufficient" case — 7 of 8 cuts
+    // topped under 1.7 km with no stated reason. `rej.pts` dominating means coverage (no data / too few gates
+    // around the ring), `clu` means the echo is a WEDGE not an annulus, `res` means the fit is there but noisy
+    // (convective contamination or a bad dealias) — three different bugs with three different fixes.
+    const rej = { rings: 0, pts: 0, clu: 0, sng: 0, res: 0, spd: 0, lastOkKm: 0 };
     for (let j = 0; j < nGates; j += stride) {
+        rej.rings++;
         let sN = 0, Ss = 0, Sc = 0, Sss = 0, Scc = 0, Ssc = 0, Sv = 0, Svs = 0, Svc = 0;
         for (let i = 0; i < n; i++) {
             if (!has[i]) continue;
@@ -803,10 +811,10 @@ function vadFitFromRadials(radials, radar) {
             const s = azSin[i], c = azCos[i];
             sN++; Ss += s; Sc += c; Sss += s * s; Scc += c * c; Ssc += s * c; Sv += v; Svs += v * s; Svc += v * c;
         }
-        if (sN < VAD_MIN_PTS) continue;
-        if (Math.hypot(Ss, Sc) / sN > VAD_MAX_CLUSTER) continue; // az clustered in a wedge → can't fit a full circle
+        if (sN < VAD_MIN_PTS) { rej.pts++; continue; }
+        if (Math.hypot(Ss, Sc) / sN > VAD_MAX_CLUSTER) { rej.clu++; continue; } // az clustered in a wedge → can't fit a full circle
         const sol = solve3(sN, Ss, Sc, Ss, Sss, Ssc, Sc, Ssc, Scc, Sv, Svs, Svc);
-        if (!sol) continue;
+        if (!sol) { rej.sng++; continue; }
         const a0 = sol[0], a1 = sol[1], b1 = sol[2];
         let se = 0;
         for (let i = 0; i < n; i++) {
@@ -814,12 +822,17 @@ function vadFitFromRadials(radials, radar) {
             const v = radials[i].moment_data[j]; if (v === null || v === undefined) continue;
             const e = v - (a0 + a1 * azSin[i] + b1 * azCos[i]); se += e * e;
         }
-        if (Math.sqrt(se / sN) > VAD_MAX_RESID) continue; // convective contamination / bad dealias on this ring
+        if (Math.sqrt(se / sN) > VAD_MAX_RESID) { rej.res++; continue; } // convective contamination / bad dealias on this ring
         const u = a1 / cosPhi, vv = b1 / cosPhi;
-        if (!(Math.hypot(u, vv) < VAD_MAX_SPEED)) continue;
+        if (!(Math.hypot(u, vv) < VAD_MAX_SPEED)) { rej.spd++; continue; }
         const r = firstGateM + j * gateSizeM;
+        rej.lastOkKm = Math.round(r / 1000);
         points.push({ h: r * sinPhi + r * r / (2 * AE_M), u: u, v: vv });
     }
+    // Ride the counts along on the returned ARRAY rather than changing the return shape — both callers
+    // (vadPointsForCut and the temporal-seed path at _decodeVadProfile) only ever index/length it, and a
+    // {points, rej} pair would churn the seed path for a diagnostic. bunkersFromProfile copies it forward.
+    points.rej = rej;
     return points;
 }
 
@@ -831,13 +844,17 @@ function vadFitFromRadials(radials, radar) {
 // readout rather than emitting a confidently-wrong deep motion (the single-low-tilt failure mode). Otherwise
 // returns { speedMs, dirDeg (bearing MOVED TOWARD), source, layers, topM }.
 function bunkersFromProfile(prof) {
-    if (!prof || prof.length < 2) return { insufficient: true, topM: 0 };
+    // Diagnostic ring-rejection tally from vadFitFromRadials, forwarded to cutDetail. Captured BEFORE the
+    // slice/sort below, which returns a plain array and would drop it. Absent when the caller hand-built a
+    // profile (the unit-test mirror), so every read is guarded.
+    const rej = prof ? prof.rej : null;
+    if (!prof || prof.length < 2) return { insufficient: true, topM: 0, rej: rej };
     prof = prof.slice().sort(function (p, q) { return p.h - q.h; });
     const top = prof[prof.length - 1].h;
     // Genuinely too shallow/sparse for ANY trustworthy motion → insufficient (SRV stays at base velocity).
     // This still guards the single-low-tilt failure mode: a ~1.3–1.8 km profile is just boundary-layer flow,
     // not a storm motion.
-    if (top < VWP_MEAN_MIN_TOP || prof.length < VWP_MEAN_MIN_PTS) return { insufficient: true, topM: Math.round(top) };
+    if (top < VWP_MEAN_MIN_TOP || prof.length < VWP_MEAN_MIN_PTS) return { insufficient: true, topM: Math.round(top), rej: rej };
 
     function meanLayer(h0, h1) {
         let u = 0, v = 0, c = 0;
@@ -845,7 +862,7 @@ function bunkersFromProfile(prof) {
         return c ? { u: u / c, v: v / c } : null;
     }
     const mean = meanLayer(0, 6000) || meanLayer(0, top); // 0–6 km mean wind (all sampled levels if it tops below 6 km)
-    if (!mean) return { insufficient: true, topM: Math.round(top) };
+    if (!mean) return { insufficient: true, topM: Math.round(top), rej: rej };
 
     // DEEP enough to trust the 0–6 km shear for a Bunkers supercell DEVIATION? Otherwise return the mean wind
     // ALONE — a serviceable storm-motion proxy (what RadarScope effectively shows) rather than base velocity.
@@ -865,7 +882,7 @@ function bunkersFromProfile(prof) {
         }
     }
     let dirDeg = Math.atan2(mu, mv) / D2R; if (dirDeg < 0) dirDeg += 360; // bearing the storm MOVES TOWARD
-    return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, layers: prof.length, topM: Math.round(top), deep: deep };
+    return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, layers: prof.length, topM: Math.round(top), deep: deep, rej: rej };
 }
 
 // Combine the per-cut Bunkers motions into ONE robust estimate: the COMPONENTWISE MEDIAN of the sufficient
@@ -877,17 +894,30 @@ function bunkersFromProfile(prof) {
 // → a wrong ~16 kt). Needs ≥ VWP_MIN_CUTS sufficient cuts, else "insufficient". Mirrored in
 // tools/storm_motion_check.py.
 const VWP_MIN_CUTS = 2;
+// Ring-rejection tally as a compact token: "<rings>r@<lastOkKm>km:pts92,clu18,res14" — total rings examined,
+// the range of the OUTERMOST accepted ring (where the profile stopped climbing), then only the NON-ZERO
+// reject reasons, largest first. Zeros are omitted so a healthy cut stays short. "" when unavailable.
+function rejDetail(rej) {
+    if (!rej) return '';
+    const parts = [['pts', rej.pts], ['clu', rej.clu], ['res', rej.res], ['spd', rej.spd], ['sng', rej.sng]]
+        .filter(function (p) { return p[1] > 0; })
+        .sort(function (a, b) { return b[1] - a[1]; })
+        .map(function (p) { return p[0] + p[1]; });
+    return '/' + (rej.rings || 0) + 'r@' + (rej.lastOkKm || 0) + 'km:' + (parts.length ? parts.join(',') : '-');
+}
 // Compact per-cut detail for the diagnostics readout (radar.js onVwpResult logs it): each sufficient cut's
 // OWN motion (dir@speed) plus its top / ring-points / tier — so we can see whether the cuts AGREE on a wrong
 // motion (a VAD fit/amplitude bug) or SCATTER (folding aloft corrupting the fits → a bad median) vs the
-// combined result, and tune the shallow/pts thresholds. E.g. "65°@34kt/8700m/40pD" (deep/Bunkers-capable),
-// "70°@31kt/3200m/6pM" (mean wind), "1789m/xx" (insufficient).
+// combined result, and tune the shallow/pts thresholds. Every entry then carries the ring-rejection tally
+// (rejDetail) that says WHY the profile stopped where it did. E.g. "65°@34kt/8700m/40pD/232r@221km:pts180"
+// (deep/Bunkers-capable), "70°@31kt/3200m/6pM/232r@48km:pts140,clu60" (mean wind),
+// "1789m/xx/232r@11km:pts120,clu95,res16" (insufficient — and the clu95 says the echo was a wedge, not a ring).
 function cutDetail(motions) {
     return motions.map(function (m) {
         if (!m) return 'xx';
-        if (m.insufficient) return Math.round(m.topM || 0) + 'm/xx';
+        if (m.insufficient) return Math.round(m.topM || 0) + 'm/xx' + rejDetail(m.rej);
         return Math.round(m.dirDeg) + '°@' + Math.round(m.speedMs / 0.514444) + 'kt/'
-            + Math.round(m.topM || 0) + 'm/' + (m.layers || 0) + 'p' + (m.deep ? 'D' : 'M');
+            + Math.round(m.topM || 0) + 'm/' + (m.layers || 0) + 'p' + (m.deep ? 'D' : 'M') + rejDetail(m.rej);
     });
 }
 function combineCutMotions(motions) {

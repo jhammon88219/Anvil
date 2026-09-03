@@ -28,7 +28,15 @@ No network, no Py-ART, deterministic. Exit 0 = all pass, 1 = a failure. (For a R
 Py-ART's vad_browning, see tools/storm_motion_realcheck.py.)
 
 WARNING: if you edit vadPointsForCut / bunkersFromProfile / solve3 / the VAD_* / BUNKERS_* / VWP_* constants
-in radar-decode.js, mirror the edit below and re-run, or this stops guarding the shipped code. Usage:
+in radar-decode.js, mirror the edit below and re-run, or this stops guarding the shipped code.
+
+DELIBERATE non-mirror: radar-decode.js also carries a per-ring REJECTION TALLY (the `rej` counters in
+vadFitFromRadials, rendered by rejDetail into the `vwp result ... [...]` diagnostics line, and passed through
+bunkersFromProfile as an extra 'rej' key). That is instrumentation only -- it changes no branch, no threshold
+and no returned number -- so it is not mirrored here. This script reads results with .get(), so the extra key
+is invisible to it. Mirror the MATH; leave the counters to the app.
+
+Usage:
   py -3.12 tools/storm_motion_check.py [-v]
 
 Does NOT touch the C# app.

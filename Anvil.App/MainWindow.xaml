@@ -375,6 +375,7 @@
                         <!-- PER-PANE + TIME. In multi-pane the chip cluster inside this grows to a 2x2 that
                              mirrors the pane grid; the time module beside it does not multiply. -->
                         <comp:RadarControls Grid.Column="2"
+                                            Margin="20,0,0,0"
                                             VerticalAlignment="Center"
                                             ViewModel="{x:Bind ViewModel.Radar}"/>
                     </Grid>
