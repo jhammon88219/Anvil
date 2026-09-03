@@ -182,7 +182,7 @@
 
             <!-- Frame N/M (current / total). -->
             <TextBlock Grid.Column="3"
-                       HorizontalAlignment="Right"
+                       HorizontalAlignment="Center"
                        VerticalAlignment="Center"
                        Text="{x:Bind FrameCountText(ViewModel.CurrentFrameIndex, ViewModel.MaxFrameIndex), Mode=OneWay}"
                        FontSize="{StaticResource ReadoutFontSize}"
