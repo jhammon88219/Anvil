@@ -373,16 +373,127 @@ namespace Anvil.Services
 		}
 
 		// How many velocity tilts (base + higher) to feed the full-volume storm-motion VAD, and the angle
-		// ceiling. Each cut that reaches ~6 km casts an independent vote (the WebView takes the median), so we
-		// want SEVERAL cuts spanning up to ~6-7° — the deeper cuts (~2-5°) are the well-conditioned ones and
-		// outvote a contaminated tilt. 8 covers a typical VCP's 0.5-5.1° block.
+		// ceiling.
+		// ⚠️ THE CUTS ARE CHOSEN BY TARGET HEIGHT, NOT BY TAKING THE LOWEST N (see SelectVwpTargets). The
+		// WebView merges every cut's ring points into ONE profile spanning 0-6 km, so what matters is that
+		// the SET covers that column — not that the angles are small.
+		// ⚠️ The ceiling was 7.0° while selection took the lowest 8, which in VCP 212 topped out at 5.1°. A
+		// 5.1° beam reaches the 5.5-6 km Bunkers shear head only at r = 60 km EXACTLY — the outer edge of the
+		// VAD's legal fit window — so it yielded ~0 usable rings there and the profile reported 'noHead'.
+		// 6.4° puts that same layer at r = 48-52 km, mid-window, with several rings. Hence 12°.
 		private const int VwpMaxTilts = 8;
-		private const float VwpMaxTiltDeg = 7.0f;
+		private const float VwpMaxTiltDeg = 12.0f;
+
+		// Heights (m above radar level) the merged VWP profile must cover, spanning the Bunkers layers: the
+		// 0-500 m shear tail, the 0-6 km mean, and the 5.5-6 km shear head.
+		private static readonly double[] VwpTargetHeightsM = { 250, 1250, 2250, 3250, 4250, 5750 };
+
+		// ⚠️ MUST MATCH radar-decode.js VAD_MIN_RANGE_M / VAD_MAX_RANGE_M — the window the VAD actually fits
+		// rings in (docs/radar/02-vad-spec.md §3.3). A cut is only useful for a target height if its beam
+		// passes through that height INSIDE this window.
+		private const double VwpFitMinRangeM = 10000;
+		private const double VwpFitMaxRangeM = 60000;
+
+		// Selection stops short of the fit window's outer edge so a chosen cut has real rings ABOVE the
+		// target, not one marginal ring at maximum range. This is the whole fix: 5.1° "reaches" 5500 m at
+		// exactly 60 km and is useless; requiring the target by 55 km picks 6.4° instead.
+		private const double VwpSelectMaxRangeM = 55000;
+
+		private const double EarthEffectiveRadiusM = 8494667.0;
 
 		// How many of the VWP's higher-tilt extractions to run concurrently. Extracting each cut bzip2-decodes
 		// the raw volume, so doing all ~7 SEQUENTIALLY was the SRV long pole (~16 s measured; the download is
 		// only ~13 MB). These are CPU-bound, so keep it modest — it overlaps the JS dual-pol decode.
 		private const int VwpExtractConcurrency = 4;
+
+		/// <summary>Beam height (m above radar level) at slant range <paramref name="rangeM"/> and elevation
+		/// <paramref name="elevationDeg"/>, under the 4/3-earth model. Mirrors radar-decode.js.</summary>
+		private static double BeamHeightM(double rangeM, double elevationDeg)
+			=> (rangeM * Math.Sin(elevationDeg * Math.PI / 180.0))
+				+ (rangeM * rangeM / (2 * EarthEffectiveRadiusM));
+
+		/// <summary>
+		/// Picks the higher cuts to extract for the storm-motion VAD, so their beams TOGETHER sample the whole
+		/// 0-6 km column inside the VAD's legal fit window.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ THIS REPLACED "take the lowest N cuts". Read before reverting. The WebView merges every cut's
+		/// ring points into ONE profile (a per-cut Bunkers estimate is impossible under the fit window — the
+		/// 0-500 m tail needs φ ≤ 2.83° and the 5.5-6 km head needs φ ≥ 5.06°), so the SET has to cover the
+		/// column. Taking the lowest 8 gave 0.5-5.1° in VCP 212: eight cuts crowded into the bottom 5 km,
+		/// none of which sampled the shear head anywhere useful, so the profile reported 'noHead' and storm
+		/// motion fell back to a plain mean wind. Measured at KBGM and KBUF.
+		///
+		/// <para>Greedy by ascending target height: for each target not already covered by a chosen cut, take
+		/// the LOWEST available angle whose beam passes through it inside the window — lowest because a
+		/// shallower beam needs a smaller 1/cos φ correction and its rings are larger, so azimuthal coverage
+		/// is better.</para>
+		///
+		/// <para>⚠️ A volume can lack tilts its VCP advertises (KTLX VCP 212 designs 17 cuts and has shipped
+		/// 12). Selection is best-effort: an uncovered target is skipped, and the set is topped up with the
+		/// next unused low angles so an odd VCP degrades to roughly the old behaviour instead of returning a
+		/// near-empty set.</para>
+		/// </remarks>
+		internal static List<float> SelectVwpTargets(IReadOnlyList<float> availableAscending)
+		{
+			var budget = VwpMaxTilts - 1; // the base cut is already in the list
+			var chosen = new List<float>();
+			if (availableAscending.Count == 0)
+			{
+				return chosen;
+			}
+
+			var baseAngle = availableAscending[0];
+			bool Covers(double angle, double target)
+				=> BeamHeightM(VwpFitMinRangeM, angle) <= target
+					&& BeamHeightM(VwpSelectMaxRangeM, angle) >= target;
+
+			foreach (var target in VwpTargetHeightsM)
+			{
+				if (chosen.Count >= budget)
+				{
+					break;
+				}
+
+				// Already covered by the base cut or something we picked for a lower target?
+				if (Covers(baseAngle, target) || chosen.Any(a => Covers(a, target)))
+				{
+					continue;
+				}
+
+				foreach (var angle in availableAscending)
+				{
+					if (angle <= baseAngle || angle > VwpMaxTiltDeg || chosen.Contains(angle))
+					{
+						continue;
+					}
+
+					if (Covers(angle, target))
+					{
+						chosen.Add(angle);
+						break;
+					}
+				}
+			}
+
+			// Top up with the next unused low angles: more well-conditioned rings in the lower profile, and a
+			// graceful floor when a volume simply doesn't carry the cuts its VCP advertises.
+			foreach (var angle in availableAscending)
+			{
+				if (chosen.Count >= budget)
+				{
+					break;
+				}
+
+				if (angle > baseAngle && angle <= VwpMaxTiltDeg && !chosen.Contains(angle))
+				{
+					chosen.Add(angle);
+				}
+			}
+
+			chosen.Sort();
+			return chosen;
+		}
 
 		public async Task<IReadOnlyList<string>> EnsureVwpTiltsAsync(RadarSite site, string key, CancellationToken cancellationToken = default)
 		{
@@ -441,18 +552,9 @@ namespace Anvil.Services
 				return urls; // no elevation table → base only (the WebView reads whatever cuts the buffer holds)
 			}
 
-			// The higher cuts to extract: the lowest distinct angle is the base (already added), so skip it and
-			// take the next few up to the angle ceiling / tilt budget.
+			// The higher cuts to extract, chosen so the MERGED profile spans 0-6 km. See SelectVwpTargets.
 			var sorted = tilts.Where(a => a > 0f).Distinct().OrderBy(a => a).ToList();
-			var targets = new List<float>();
-			for (var i = 1; i < sorted.Count && targets.Count < VwpMaxTilts - 1; i++)
-			{
-				if (sorted[i] > VwpMaxTiltDeg)
-				{
-					break;
-				}
-				targets.Add(sorted[i]);
-			}
+			var targets = SelectVwpTargets(sorted);
 
 			// Extract the higher cuts in ONE decompression pass over the raw (TryExtractTiltsByAngles) rather
 			// than a per-tilt EnsureCachedAsync that re-read + re-bzip2-decompressed the WHOLE volume for each
