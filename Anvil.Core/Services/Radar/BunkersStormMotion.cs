@@ -11,8 +11,8 @@ namespace Anvil.Services
 	/// left-mover. Pure function: no I/O, no logging, no clock.
 	/// </summary>
 	/// <remarks>
-	/// Contract and constants: <c>docs/03-bunkers-storm-motion-spec.md</c>. Golden values:
-	/// <c>docs/04-test-vectors.md</c> BUNK-01..06, pinned by <c>Anvil.Tests/BunkersStormMotionTests.cs</c>.
+	/// Contract and constants: <c>docs/radar/03-bunkers-storm-motion-spec.md</c>. Golden values:
+	/// <c>docs/radar/04-test-vectors.md</c> BUNK-01..06, pinned by <c>Anvil.Tests/BunkersStormMotionTests.cs</c>.
 	///
 	/// <para>⚠️ NEVER EXTRAPOLATE. If the profile does not actually reach 5500–6000 m there is no shear head
 	/// and there is no Bunkers motion — return the named failure. Substituting the highest sampled level

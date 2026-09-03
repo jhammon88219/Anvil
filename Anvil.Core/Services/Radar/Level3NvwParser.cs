@@ -13,7 +13,7 @@ namespace Anvil.Services
 	/// profile, computed by the ORPG from dealiased velocity. Pure: no I/O, no clock, no logging.
 	/// </summary>
 	/// <remarks>
-	/// Format notes and their provenance live in <c>docs/nexrad_p48_nvw_decode.md</c>; every structural claim
+	/// Format notes and their provenance live in <c>docs/radar/05-nvw-product-48.md</c>; every structural claim
 	/// below was verified against a real product (<c>TLX_NVW_2020_03_31_00_02_54</c>) and is pinned by
 	/// <c>Anvil.Tests/Level3NvwParserTests.cs</c>.
 	///

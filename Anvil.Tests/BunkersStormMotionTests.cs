@@ -7,7 +7,7 @@ using Xunit;
 namespace Anvil.Tests
 {
 	/// <summary>
-	/// Golden vectors BUNK-01..06 from <c>docs/04-test-vectors.md</c>, computed externally.
+	/// Golden vectors BUNK-01..06 from <c>docs/radar/04-test-vectors.md</c>, computed externally.
 	///
 	/// <para>⚠️ Do NOT adjust a tolerance to make one of these pass. If the implementation disagrees with a
 	/// golden value, either the implementation is wrong or the spec needs a documented amendment — say which.</para>
