@@ -55,7 +55,9 @@ D2R = math.pi / 180.0
 VAD_MIN_PTS = 30          # min valid gates around a ring (spec 25; ours stricter)
 VAD_MIN_COVERAGE_DEG = 180  # 4.2 -- min azimuthal SPAN populated, measured in occupied bins
 VAD_COVERAGE_BIN_DEG = 10   # 4.2
-VAD_MAX_RESID = 2.0       # 4.1 -- was 6.0; a fully-aliased ring scores RMS 3.86 and slipped through
+VAD_MAX_RESID = 5.0       # 4.1 AS AMENDED -- the doc's 2.0 is calibrated on synthetic sweeps and is
+                          # tighter than the NWS's own VAD achieves on real data (NVW reported 2.3-4.2
+                          # m/s residuals on KMVX 2026-09-03). Operational value. See docs/radar/storm-motion.md
 VAD_SYMMETRY_MAX = 7.0    # 4   -- |a0| ceiling (divergence + fall speed), m/s
 VAD_FIT_PASSES = 2        # 4.3 -- refit once with |residual| > RMS gates dropped
 VAD_MAX_SPEED = 60.0      # 5.2 -- reject an implausible fitted wind speed (m/s); was 80

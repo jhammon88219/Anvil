@@ -717,9 +717,16 @@ function buildVelocity(radar, siteLat, siteLon, minDbz, wantGrid) {
 const VAD_MIN_PTS = 30;         // min valid gates around a ring to trust its harmonic fit (spec 25; ours stricter)
 const VAD_MIN_COVERAGE_DEG = 180; // §4.2 — min azimuthal SPAN actually populated (NOT gate count)
 const VAD_COVERAGE_BIN_DEG = 10;  // §4.2 — span is measured as the sum of occupied 10° azimuth bins
-const VAD_MAX_RESID = 2.0;      // §4.1 — max RMS fit residual (m/s). Was 6.0, looser than even the
-                                // operational 5.0; a fully-aliased ring scores 3.86 and slipped straight
-                                // through. 2.0 also rejects the 3%-folded-sector case (RMS 2.67).
+// ⚠️ AMENDED AGAINST REAL DATA — doc 02 §4.1 recommends 2.0 m/s and that is TOO TIGHT. Its case is built
+// on synthetic sweeps where a clean fit scores 1.00 m/s, but real returns are not that clean: measured on
+// KMVX 2026-09-03 19:19Z, the NWS's OWN operational VAD (Level III NVW) reported per-level fit residuals of
+// 4.5–8.1 kt = 2.3–4.2 m/s on that very volume. A 2.0 m/s gate rejects what the reference implementation
+// itself accepts — with it we salvaged 11 ring points to 2.7 km where NVW got 41 levels to 5.8 km.
+// So: the OPERATIONAL value (18 km/hr). It is still tighter than the invented 6.0 this replaced, and it
+// still rejects the fully-aliased case only in combination with the other gates — which is fine, because
+// unlike the spec's assumed pipeline we dealias first and have the symmetry + coverage gates as well.
+// ⚠️ Do NOT re-tighten this to 2.0 from the spec text alone. Re-measure against NVW on a real volume first.
+const VAD_MAX_RESID = 5.0;      // §4.1 as amended — max RMS fit residual (m/s)
 const VAD_SYMMETRY_MAX = 7.0;   // §4 — |a0| (divergence + fall speed) ceiling, m/s
 const VAD_FIT_PASSES = 2;       // §4.3 — refit once with |residual| > RMS gates dropped
 const VAD_MAX_SPEED = 60;       // §5.2 — reject an implausible fitted wind speed (m/s); was 80
