@@ -65,7 +65,9 @@ VAD_MIN_RANGE_M = 10000.0 # 3.3 -- inside this, ground clutter saturates the rin
 VAD_MAX_RANGE_M = 60000.0 # 3.3 -- beyond this, beam broadening breaks the uniform-wind assumption
 AE_M = 8494667.0          # 4/3-Earth effective radius (m): h ~ r*sinphi + r^2/2ae
 BUNKERS_D = 7.5           # Bunkers deviation magnitude (m/s), right of the 0-6 km shear
-BUNKERS_MIN_SHEAR = 3.0   # below this 0-6 km shear (m/s) use the mean wind, not a supercell deviation
+BUNKERS_MIN_SHEAR = 1.0   # doc 03 section 3 step 7 -- below this the orthogonal direction is undefined.
+                          # Was 3.0 (invented). Below it we return the mean wind, not NoSolution -- a
+                          # documented divergence: no provider chain to fall through to.
 BUNKERS_MEAN_TOP = 6000.0 # 0-6 km mean wind (advection)          -- spec doc 03 section 2
 BUNKERS_TAIL_TOP = 500.0  # 0-0.5 km, tail of the shear vector
 BUNKERS_HEAD_BOT = 5500.0 # 5.5-6 km, head of the shear vector
@@ -74,6 +76,8 @@ VWP_MIN_TOP = 5000.0      # merged profile must reach >= this height (m) to trus
 VWP_MIN_PTS = 8           # ...and carry at least this many ring points (for the Bunkers deviation)
 VWP_MEAN_MIN_TOP = 2500.0 # a shallower profile still gives a serviceable MEAN-WIND motion (no deviation)
 VWP_MEAN_MIN_PTS = 5      # ...with at least this many ring points; below this floor -> "insufficient"
+VAD_TARGET_STEP_M = 250.0 # doc 02 section 3.2 -- one level per target height, every 250 m to 6 km
+VAD_TARGET_TOL_M = 125.0  # a candidate must land within half a step
 VWP_MAX_GAP_M = 1500.0    # doc 01 section 5 -- max gap between consecutive levels inside 0-6 km
 
 
@@ -200,7 +204,7 @@ def vad_points_for_cut(radials, phi_deg, first_gate_km, gate_size_km):
         if not (math.hypot(u, vv) < VAD_MAX_SPEED):
             continue
         r = first_gate_m + j * gate_size_m
-        points.append({'h': r * sin_phi + r * r / (2.0 * AE_M), 'u': u, 'v': vv})
+        points.append({'h': r * sin_phi + r * r / (2.0 * AE_M), 'u': u, 'v': vv, 'phi': phi, 'r': r})
     return points
 
 
@@ -219,15 +223,42 @@ def profile_fold_suspect(prof):
     return False
 
 
+def select_target_heights(points):
+    """Mirror of `selectTargetHeights` (doc 02 section 3.2). ONE level per target height, chosen as the
+    candidate landing closest to the target; ties go to the LOWEST elevation (smallest 1/cos(phi) blow-up).
+
+    NOT optional: a naive merge of every ring is not a hodograph. At one height a 0.5 deg cut samples a
+    ~50 km-radius circle and a 2.4 deg cut ~14 km -- different air in a supercell -- so keeping all of them
+    weights the profile by ring count per cut. Measured on Moore 2013: 0-6 km mean 39 kt vs Py-ART's 21 kt."""
+    out = []
+    t = 0.0
+    while t <= BUNKERS_MEAN_TOP:
+        best, best_d = None, float('inf')
+        for p in points:
+            d = abs(p['h'] - t)
+            if d > VAD_TARGET_TOL_M:
+                continue
+            # A hand-built profile may carry no phi; treat it as the least-preferred tie-break (matches JS).
+            if d < best_d - 1e-9 or (abs(d - best_d) <= 1e-9 and best is not None
+                                     and p.get('phi', float('inf')) < best.get('phi', float('inf'))):
+                best, best_d = p, d
+        if best is not None:
+            out.append(dict(best))
+        t += VAD_TARGET_STEP_M
+    return out
+
+
 def merge_cuts(cut_point_lists):
-    """Mirror of `decodeVwp`'s merge: per-cut QC, then ONE profile sorted by height. Returns (profile, cuts)."""
+    """Mirror of `decodeVwp`'s merge: per-cut QC, ONE profile sorted by height, then target-height selection.
+    Returns (profile, cuts)."""
     merged, cuts = [], 0
     for pts in cut_point_lists:
         if not pts or profile_fold_suspect(pts):
             continue
         merged.extend(pts)
         cuts += 1
-    return sorted(merged, key=lambda q: q['h']), cuts
+    merged.sort(key=lambda q: q['h'])
+    return select_target_heights(merged), cuts
 
 
 def mean_layer(prof, h0, h1):
@@ -493,9 +524,9 @@ def test_per_cut_qc_drops_contaminated():
     print("Test 4: PER-CUT QC -> a folded cut is dropped before it can contaminate the merged profile")
     # This is what replaced the per-cut median as the contamination control. A cut whose direction swings
     # >90 deg across a <500 m gap carries a residual fold; it must never join the merge.
-    good = [{'h': 200.0 + 100 * i, 'u': 12.0, 'v': 5.0} for i in range(20)]
-    folded = [{'h': 200.0 + 100 * i, 'u': 12.0 if i % 2 else -12.0, 'v': 5.0 if i % 2 else -5.0}
-              for i in range(20)]
+    good = [{'h': 200.0 + 100 * i, 'u': 12.0, 'v': 5.0, 'phi': 1.5} for i in range(20)]
+    folded = [{'h': 200.0 + 100 * i, 'u': 12.0 if i % 2 else -12.0, 'v': 5.0 if i % 2 else -5.0,
+               'phi': 1.5} for i in range(20)]
     check("clean cut passes QC", not profile_fold_suspect(good))
     check("folded cut is flagged", profile_fold_suspect(folded))
     prof, n = merge_cuts([good, folded, good])

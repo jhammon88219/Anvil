@@ -731,7 +731,14 @@ const VAD_MAX_RANGE_M = 60000;  // §3.3 — beyond this, beam broadening breaks
                                 // longer ranges: at 0.5° the whole legal window only reaches ~700 m.
 const AE_M = 8494667;           // 4⁄3-Earth effective radius (m) for beam-height h ≈ r·sinφ + r²/2aₑ
 const BUNKERS_D = 7.5;          // Bunkers deviation magnitude (m/s), right of the 0–6 km shear
-const BUNKERS_MIN_SHEAR = 3;    // below this 0–6 km shear (m/s) use the mean wind, not a supercell deviation
+const BUNKERS_MIN_SHEAR = 1;    // doc 03 §3 step 7 — below this 0–6 km shear (m/s) the direction
+                                // orthogonal to the shear is undefined, so no deviation can be placed.
+                                // ⚠️ Was 3, which was an invented figure; the spec's floor is a
+                                // NUMERICAL one (degenerate shear), not a judgement about when Bunkers
+                                // is meteorologically meaningful. ⚠️ We diverge on what happens BELOW
+                                // it: the spec returns NoSolution(DegenerateShear), we fall back to the
+                                // mean wind, because we have no provider chain to fall through to and a
+                                // mean wind still beats base velocity for SRV.
 const VWP_MIN_TOP = 5000;       // merged profile must reach ≥ this height (m) to trust a 0–6 km Bunkers estimate
 const VWP_MIN_PTS = 8;          // …and carry at least this many ring points (for a Bunkers supercell DEVIATION)
 // A shallower profile can't anchor the 0–6 km Bunkers shear, but it CAN give a serviceable MEAN-WIND storm
@@ -914,7 +921,7 @@ function vadFitFromRadials(radials, radar) {
         if (!(Math.hypot(u, vv) < VAD_MAX_SPEED)) { rej.spd++; continue; }
         const r = firstGateM + j * gateSizeM;
         rej.lastOkKm = Math.round(r / 1000);
-        points.push({ h: r * sinPhi + r * r / (2 * AE_M), u: u, v: vv });
+        points.push({ h: r * sinPhi + r * r / (2 * AE_M), u: u, v: vv, phi: phi, r: r });
     }
     // Ride the counts along on the returned ARRAY rather than changing the return shape — both callers
     // (vadPointsForCut and the temporal-seed path at _decodeVadProfile) only ever index/length it, and a
@@ -929,6 +936,39 @@ const BUNKERS_MEAN_TOP = 6000;  // 0–6 km mean wind (advection)
 const BUNKERS_TAIL_TOP = 500;   // 0–0.5 km — tail of the shear vector
 const BUNKERS_HEAD_BOT = 5500;  // 5.5–6 km — head of the shear vector
 const BUNKERS_HEAD_TOP = 6000;
+
+// TARGET-HEIGHT SELECTION (doc 02 §3.2). Reduce every accepted ring point from every cut to ONE level per
+// target height on a regular grid — "pick target heights, and for each choose the elevation/range pair that
+// lands closest", which is what the operational VWP does and what gives Bunkers the regular grid it wants.
+//
+// ⚠️ THIS IS NOT OPTIONAL POLISH — a naive merge of every ring is NOT a hodograph. At one height the 0.5° cut
+// samples a ~50 km-radius circle while the 2.4° samples ~14 km; in a supercell those are different air. Taking
+// all of them weights the profile by however many rings each cut happened to contribute (measured on Moore
+// 2013: 206 of 294 points below 2.6 km) and produced a 0-6 km mean wind of 39 kt against Py-ART's 21 kt.
+// One level per height, from one sampling geometry, is what makes the profile mean anything.
+//
+// ⚠️ TIE-BREAK is the LOWEST elevation among candidates equally close to the target. A shallower beam needs a
+// smaller 1/cos φ correction to recover the horizontal wind, so it amplifies fit error least.
+const VAD_TARGET_STEP_M = 250;                          // doc 02 §3.2 — "e.g. every 250 m to 6 km"
+const VAD_TARGET_TOL_M = VAD_TARGET_STEP_M / 2;         // a candidate must land within half a step
+function selectTargetHeights(points) {
+    const out = [];
+    for (let t = 0; t <= BUNKERS_MEAN_TOP; t += VAD_TARGET_STEP_M) {
+        let best = null, bestD = Infinity;
+        for (let i = 0; i < points.length; i++) {
+            const p = points[i], d = Math.abs(p.h - t);
+            if (d > VAD_TARGET_TOL_M) continue;
+            // A hand-built profile may carry no phi; treat it as the least-preferred tie-break.
+            const pPhi = (typeof p.phi === 'number') ? p.phi : Infinity;
+            const bPhi = (best && typeof best.phi === 'number') ? best.phi : Infinity;
+            if (d < bestD - 1e-9 || (Math.abs(d - bestD) <= 1e-9 && best && pPhi < bPhi)) {
+                best = p; bestD = d;
+            }
+        }
+        if (best) out.push({ h: best.h, u: best.u, v: best.v, phi: best.phi, r: best.r });
+    }
+    return out;
+}
 
 // PROFILE SANITY (doc 02 §5.2): the wind direction cannot swing >90° between levels less than 500 m apart.
 // That is the signature of a residual velocity FOLD, not of meteorology. Applied PER CUT by decodeVwp before
@@ -1114,9 +1154,13 @@ export function decodeVwp(buffers) {
                 }
             } catch (e) { /* skip a buffer that won't decode; the other buffers/cuts still contribute */ }
         }
-        const res = bunkersFromProfile(merged);
+        // One level per target height (doc 02 §3.2) BEFORE Bunkers — see selectTargetHeights.
+        merged.sort(function (a, b) { return a.h - b.h; });
+        const profile = selectTargetHeights(merged);
+        const res = bunkersFromProfile(profile);
         res.cuts = cuts;
         res.detail = detail;
+        res.rings = merged.length;   // candidate rings considered, vs res.layers = levels selected
         return res;
     });
 }
