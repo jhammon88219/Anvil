@@ -29,6 +29,13 @@ namespace Anvil.Services
 	/// convergence is for the JS path to hand its profile to this function instead. Until then, a change here
 	/// must be mirrored there.</para>
 	/// </remarks>
+	// ⚠️⚠️ PARKED 2026-09-03 — storm motion is FINISHED FOR NOW and deliberately left alone to collect
+	// real-use logs. Verified on both paths before parking: NVW live (matched the NWS's own VAD to 2°/5 kt
+	// on the same volume) and the local VAD via PastCast Moore 2013.
+	// ⚠️ A SPEC-FAITHFUL CHANGE MADE DURING THAT SESSION COST ~4× THE RING POINTS and was caught only by
+	// running real data against an independent reference — no test, build or review caught it.
+	// Read docs/radar/storm-motion.md (esp. §2.4 and §5) BEFORE changing anything here, and verify on both
+	// paths before re-parking.
 	public static class BunkersStormMotion
 	{
 		/// <summary>Deviation magnitude, m/s, right of the 0–6 km shear. Bunkers et al. (2000).
