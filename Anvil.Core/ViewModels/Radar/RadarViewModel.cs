@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -179,13 +180,16 @@ namespace Anvil.ViewModels
 		// a site simply list nothing.
 		private const int PastEventStartYear = 1991;
 		private bool _isPastEventMode;
-		// Default to 2011-05-24 (a frequently-revisited event). Indices are into the option lists:
-		// year 1991-based, month 0-based, day 0-based.
+		// The selected window, as the indices the pickers bind to: year 1991-based, month 0-based,
+		// day 0-based. ⚠️ These initializers are the FALLBACK, not the default the user gets: the ctor
+		// restores the last chosen timeframe from settings (RestorePastCastSelection) and every picker
+		// change persists it again (PersistPastCastSelection). They still matter — a missing or
+		// unparseable persisted value lands back here (2011-05-24 17:00 +2 h, a revisited event).
 		private int _pastEventYearIndex = 2011 - PastEventStartYear;
 		private int _pastEventMonthIndex = 5 - 1;
 		private int _pastEventDayIndex = 24 - 1;
-		private TimeSpan _pastEventTime = new(17, 0, 0); // default 5:00 PM
-		private int _pastEventDurationIndex = 2; // default 2 hours (index into PastEventDurationOptions)
+		private TimeSpan _pastEventTime = new(17, 0, 0); // 5:00 PM
+		private int _pastEventDurationIndex = 2; // 2 hours (index into PastEventDurationOptions)
 		private string _pastEventStatus = string.Empty;
 
 		// Serializes loop mutation so the archive (re)load and the live-frame poll can't
@@ -263,6 +267,10 @@ namespace Anvil.ViewModels
 			_radarService = radarService;
 			_settings = settings;
 			_engine = new RadarLoopEngine(this);
+
+			// Reopen PastCast on the timeframe the user last chose, not on the built-in default. Before any
+			// binding exists, so it writes the fields directly and raises nothing.
+			RestorePastCastSelection();
 
 			// The DOW Event Viewer is its own view model (a standalone mobile-radar frame through the
 			// same render path); watch its IsShowing so the shared display / color-scale gate follows it.
@@ -781,6 +789,69 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(PastEventDateText));
 			OnPropertyChanged(nameof(PastEventRangeText));
 			OnPropertyChanged(nameof(IsReplaySelectionDirty));
+			PersistPastCastSelection();
+		}
+
+		// ── The chosen timeframe SURVIVES A RESTART ──────────────────────────────────────────────
+		// Reopening PastCast offers the event you were last watching. The pair below is the whole feature:
+		// the ctor restores, and the one selection hook above persists.
+		//
+		// ⚠️ IT FOLLOWS THE PICKERS, NOT THE LOAD. Anything you dial in is remembered whether or not you
+		// pressed Load — "chosen" is the selection, and a half-set window you were about to load is a
+		// better thing to come back to than the one before it. Nothing about the loaded state is persisted:
+		// a restored selection is NOT loaded, so the card correctly opens on "Not loaded yet".
+		//
+		// ⚠️ Settings store VALUES (a calendar day, minutes past midnight, a window length), never the
+		// picker INDICES — see the AppSettings block for why. So both directions convert.
+
+		// Pull the last chosen timeframe out of settings, into the picker fields. ⚠️ Ctor-time only: it
+		// writes the FIELDS, not the properties, so nothing raises and nothing persists straight back.
+		// Every value is validated independently — one unparseable entry falls back to that field's own
+		// default rather than discarding the rest of the selection.
+		private void RestorePastCastSelection()
+		{
+			var stored = _settings.Settings;
+
+			if (DateOnly.TryParseExact(stored.PastCastDate, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+				DateTimeStyles.None, out var date))
+			{
+				// Clamp to what the calendar actually offers (PastEventMinDate…PastEventMaxDate). A persisted
+				// date can only land outside it if the machine clock moved or the file was hand-edited.
+				var earliest = new DateOnly(PastEventStartYear, 1, 1);
+				var today = DateOnly.FromDateTime(DateTime.Today);
+				if (date < earliest) { date = earliest; }
+				if (date > today) { date = today; }
+
+				_pastEventYearIndex = Math.Clamp(date.Year - PastEventStartYear, 0, PastEventYearOptions.Count - 1);
+				_pastEventMonthIndex = date.Month - 1;
+				_pastEventDayIndex = date.Day - 1;
+			}
+
+			if (stored.PastCastStartMinutes is >= 0 and < 24 * 60)
+			{
+				_pastEventTime = TimeSpan.FromMinutes(stored.PastCastStartMinutes);
+			}
+
+			// A length the picker no longer offers keeps the default duration — never the nearest match,
+			// which would silently load a different window than the one that was saved.
+			var durationIndex = Array.IndexOf(PastEventMinutesByIndex, stored.PastCastDurationMinutes);
+			if (durationIndex >= 0)
+			{
+				_pastEventDurationIndex = durationIndex;
+			}
+		}
+
+		// Write the current selection back. Cheap to call on every keystroke of a date scrub: the settings
+		// service debounces its own save (~500 ms), so this only ever sets three properties.
+		private void PersistPastCastSelection()
+		{
+			// ⚠️ The DATE comes from ReplayStartLocal, not from the raw indices, because that is where the
+			// day is clamped to the month's length — so what lands in settings is always a real calendar day.
+			var local = ReplayStartLocal();
+			var stored = _settings.Settings;
+			stored.PastCastDate = local.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+			stored.PastCastStartMinutes = (int)_pastEventTime.TotalMinutes;
+			stored.PastCastDurationMinutes = PastEventMinutesByIndex[_pastEventDurationIndex];
 		}
 
 		/// <summary>Status line for the Past Event Viewer (loading / loaded N frames / errors).</summary>

@@ -112,5 +112,48 @@ namespace Anvil.Services
 			get => _settingsTabPlacement;
 			set => SetProperty(ref _settingsTabPlacement, value);
 		}
+
+		// ── PastCast timeframe (the replay window's pickers) ─────────────────────────────────────────
+		// The last timeframe the user chose, so reopening PastCast offers the event they were last
+		// watching instead of the built-in default. These three ARE the defaults now — RadarViewModel
+		// restores from them on construction and writes them back on every picker change.
+		// ⚠️ Stored as VALUES, not as the picker INDICES the view model works in: the year index is
+		// 1991-based and the duration index points into a fixed option list, so a persisted index would
+		// silently change meaning if either list ever moved. A calendar day + a local time-of-day + a
+		// window length can't.
+
+		private string _pastCastDate = "2011-05-24";
+		/// <summary>
+		/// The replay window's calendar day as <c>yyyy-MM-dd</c> (a LOCAL calendar date, not an instant —
+		/// see <c>RadarViewModel.LocalMidnight</c>). Default 2011-05-24, a frequently-revisited event.
+		/// ⚠️ A STRING for the same reason <see cref="SettingsTabPlacement"/> is one: an unparseable or
+		/// hand-edited value falls back to the default instead of failing the whole settings load.
+		/// </summary>
+		public string PastCastDate
+		{
+			get => _pastCastDate;
+			set => SetProperty(ref _pastCastDate, value);
+		}
+
+		private int _pastCastStartMinutes = 17 * 60;
+		/// <summary>Start time-of-day of the replay window, as minutes past LOCAL midnight (default
+		/// 5:00 PM). Minutes rather than a <c>TimeSpan</c>/<c>DateTime</c> so nothing about a time ZONE or
+		/// a date is smuggled into the value — it is exactly what the TimePicker holds.</summary>
+		public int PastCastStartMinutes
+		{
+			get => _pastCastStartMinutes;
+			set => SetProperty(ref _pastCastStartMinutes, value);
+		}
+
+		private int _pastCastDurationMinutes = 120;
+		/// <summary>How long a window the replay loads, in minutes (default 2 hours). ⚠️ The LENGTH, not
+		/// the segmented picker's index: the view model maps it back through its own minutes table, so a
+		/// value that table no longer offers falls back to the default rather than selecting a different
+		/// duration.</summary>
+		public int PastCastDurationMinutes
+		{
+			get => _pastCastDurationMinutes;
+			set => SetProperty(ref _pastCastDurationMinutes, value);
+		}
 	}
 }
