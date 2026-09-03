@@ -502,6 +502,30 @@
         // the last thing gating the dual-pol second wave. Arm it now if the backfill is also done.
         maybeArmFullPrefetch();
     }
+    // Apply a storm motion computed by the HOST (the Level III NVW provider chain) instead of by our own
+    // VAD. Deliberately runs the same tail as onVwpResult — republish, rebuild SRV only if the subtracted
+    // value actually changed, top up SRV in the background, then let the dual-pol wave arm — so an external
+    // motion and a locally-computed one are indistinguishable downstream.
+    // ⚠️ The host only calls this when the provider chain SUCCEEDS; when it fails the host asks for a local
+    // VWP instead, so the two never race for the same loop. `_autoMotionKey` is stamped 'external' so a
+    // republish request for the same volume is recognised.
+    function applyExternalMotion(m) {
+        if (!m) return;
+        const before = resolveStormMotion();
+        _autoMotion = m;
+        _autoMotionKey = 'external';
+        publishAutoMotion();
+        const after = resolveStormMotion();
+        const changed = (after.speedMs !== before.speedMs || after.dirDeg !== before.dirDeg);
+        hostLog('storm motion EXTERNAL '
+            + (m.insufficient ? 'INSUFFICIENT'
+                : Math.round(m.dirDeg) + '°@' + Math.round(m.speedMs / 0.514444) + 'kt ' + (m.source || ''))
+            + ' rebuild=' + changed);
+        if (changed) dropAllSrvAndRequeue();
+        if (viewProducts().indexOf('srv') < 0 && velPrefetch && srvMotionReady()) queueAllUpgrades('srvfill');
+        maybeArmFullPrefetch();
+    }
+
     function shortKey(u) { var m = /([A-Z]{3,4}_[0-9]{8}_[0-9]{6})/.exec(u || ''); return m ? m[1] : (u || '?'); }
     // Surface the loop's auto motion to the host (App Settings readout). speed is m/s → host converts to kt.
     function publishAutoMotion() {
@@ -1578,6 +1602,13 @@
         // Compute the loop's AUTO storm motion from the newest volume's tilt URLs (the host provides them when
         // SRV/auto is active, and only re-requests when the newest volume changes). Off-thread; on success it
         // pushes the readout and rebuilds SRV once. No-op in manual mode. See computeStormMotionForVolume.
+        // Host-supplied motion (Level III NVW). See applyExternalMotion.
+        setStormMotion: function (speedMs, dirDeg, source, layers) {
+            applyExternalMotion({
+                speedMs: speedMs, dirDeg: dirDeg, source: source || 'NVW',
+                layers: layers || 0, cuts: 0, topM: 0
+            });
+        },
         computeStormMotion: function (urls) {
             if (typeof urls === 'string') { try { urls = JSON.parse(urls); } catch (e) { urls = []; } }
             if (Array.isArray(urls)) computeStormMotionForVolume(urls);

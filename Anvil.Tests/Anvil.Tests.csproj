@@ -21,4 +21,12 @@
     <ProjectReference Include="..\Anvil.Core\Anvil.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The ONLY checked-in binary fixture. Everything else in this project is synthesized in memory
+         (SyntheticVolume) on purpose. A real NEXRAD Level III product is the exception because the
+         alternative is testing our encoder against our decoder, which proves nothing about the real
+         format. 3 KB, fetched once from s3://unidata-nexrad-level3/. -->
+    <None Include="Fixtures\*.bin" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

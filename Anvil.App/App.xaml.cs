@@ -105,6 +105,14 @@ namespace Anvil
 			services.AddSingleton<IRadarSiteProvider, RadarSiteProvider>();
 			services.AddSingleton<ILocationService, LocationService>();
 			services.AddSingleton<IDowEventProvider, DowEventProvider>();
+
+			// Wind-profile provider chain for the storm motion (doc 01 section 5), in PRIORITY ORDER. The NWS's
+			// own VAD (Level III NVW) first; our Level II VAD is the fallback and is NOT registered here — it
+			// lives in the WebView and RadarViewModel falls through to it when the chain declines.
+			// Add a model-sounding provider by inserting it into this array, nothing else.
+			services.AddSingleton<Level3NvwProvider>();
+			services.AddSingleton(sp => new StormMotionService(
+				new IWindProfileProvider[] { sp.GetRequiredService<Level3NvwProvider>() }));
 			services.AddSingleton<ISettingsService, SettingsService>();
 
 			// ── UI-thread marshaller seam (Core interface, WinUI impl). Resolved on the UI thread. ──

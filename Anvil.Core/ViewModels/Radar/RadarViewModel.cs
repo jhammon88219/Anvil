@@ -255,9 +255,10 @@ namespace Anvil.ViewModels
 		// token bumps) can't pollute this session's first-frame timing / ready count.
 		private bool _loopRenderBegun;
 
-		public RadarViewModel(IMapService mapService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, IDowEventProvider dowEventProvider, ISettingsService settings)
+		public RadarViewModel(IMapService mapService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, IDowEventProvider dowEventProvider, ISettingsService settings, StormMotionService? stormMotion = null)
 		{
 			_mapService = mapService;
+			_stormMotion = stormMotion;
 			_radarSiteProvider = radarSiteProvider;
 			_radarService = radarService;
 			_settings = settings;
@@ -1042,6 +1043,9 @@ namespace Anvil.ViewModels
 		// whenever a Doppler product is in view; the WebView merges their VAD profiles → Bunkers (per volume,
 		// cached) and reports the result back via SetAutoStormMotion for the readout.
 		private string _autoStormMotionText = "Auto — awaiting SRV";
+		/// <summary>The wind-profile provider chain (doc 01 §5). Null = no chain configured, in which case the
+		/// local Level II VAD is used directly, exactly as before this existed.</summary>
+		private readonly StormMotionService? _stormMotion;
 		private string? _motionRefKey; // the FIRST-PAINT volume the loop's one storm motion is computed from
 		private string? _lastVwpKey;   // the ref key we last asked the WebView to compute an auto motion for
 
@@ -1141,10 +1145,45 @@ namespace Anvil.ViewModels
 			_ = ComputeAutoStormMotionAsync(site, _motionRefKey);
 		}
 
+		/// <summary>
+		/// Resolves the loop's ONE storm motion, following the provider chain of doc 01 §5.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ ORDER IS THE SPEC'S, NOT A PREFERENCE. The NWS's own VAD (Level III NVW) is tried first: it is
+		/// computed by the ORPG from dealiased velocity over the full volume, with QC we cannot match, and it
+		/// costs ONE ~3 kB fetch. Our Level II VAD is the fallback.
+		///
+		/// <para>The fallback is not optional. The NVW bucket is REAL-TIME ONLY, so every PastCast replay —
+		/// and any site or moment the product is missing — lands on our own retrieval.</para>
+		///
+		/// <para>⚠️ Skipping the local VAD when NVW answers is also the big perf win: it avoids
+		/// EnsureVwpTiltsAsync's ~8 tilt extractions and the 8 dealiases that follow, which is the most
+		/// expensive thing in the storm-motion path.</para>
+		/// </remarks>
 		private async Task ComputeAutoStormMotionAsync(RadarSite site, string key)
 		{
 			try
 			{
+				if (_stormMotion is not null)
+				{
+					// The loop's newest frame time IS the volume we want a motion for; no need to re-parse the key.
+					var when = NewestLoadedFrameTime?.UtcDateTime ?? DateTime.UtcNow;
+					var resolved = await _stormMotion.ResolveAsync(site.Id, when);
+					if (resolved.HasSolution && resolved.RightMover is { } rm)
+					{
+						Diag($"storm-motion {key} from {resolved.ProfileSource}: "
+							+ $"{rm.HeadingDeg:F0} deg @ {rm.SpeedKt:F0} kt");
+						await _mapService.SetStormMotionAsync(
+							rm.SpeedMs, rm.HeadingDeg, resolved.ProfileSource ?? "NVW",
+							resolved.MeanWind is null ? 0 : 1);
+						return;
+					}
+
+					// A named failure here is informative — it says the NWS product existed and why it was
+					// unusable, rather than just "we fell back".
+					Diag($"storm-motion {key}: chain declined ({resolved.Failure}) — using local VAD");
+				}
+
 				var urls = await _radarService.EnsureVwpTiltsAsync(site, key);
 				if (urls.Count > 0)
 				{

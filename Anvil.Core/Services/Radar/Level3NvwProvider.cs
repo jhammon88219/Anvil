@@ -1,0 +1,207 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Xml.Linq;
+using Anvil.Models;
+
+namespace Anvil.Services
+{
+	/// <summary>
+	/// Wind profile from the NWS's own VAD — NEXRAD Level III product 48 (NVW), fetched from the public
+	/// <c>unidata-nexrad-level3</c> bucket and decoded by <see cref="Level3NvwParser"/>.
+	/// </summary>
+	/// <remarks>
+	/// ⚠️ THIS BUCKET IS REAL-TIME ONLY. It is "NEXRAD Level III real-time select data", not the deep archive
+	/// that <c>unidata-nexrad-level2</c> is. Verified: a listing for KTLX on 2013-05-20 returns nothing. So
+	/// this provider serves NowCast and returns null for PastCast replays, which is exactly why the wind
+	/// profile is a provider CHAIN — our own Level II VAD remains the fallback for historical windows.
+	///
+	/// <para>Key format is flat, no directory prefixes: <c>{SSS}_{PPP}_{YYYY}_{MM}_{DD}_{HH}_{MM}_{SS}</c>,
+	/// where SSS is the 3-letter site with no leading K (TLX, FTG, HGX).</para>
+	/// </remarks>
+	public sealed class Level3NvwProvider : IWindProfileProvider
+	{
+		private const string BucketUrl = "https://unidata-nexrad-level3.s3.amazonaws.com/";
+		private const string ProductMnemonic = "NVW";
+
+		/// <summary>How far from the requested volume time a product may sit and still be used. A VWP is
+		/// produced once per volume scan (~4–6 min), so a match further away than this is a different
+		/// situation, not a rounding difference.</summary>
+		private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(10);
+
+		private readonly HttpClient _http;
+		private readonly string _cacheDirectory;
+
+		public Level3NvwProvider(string? cacheDirectory = null, HttpClient? http = null)
+		{
+			_cacheDirectory = cacheDirectory ?? Path.Combine(
+				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+				"Anvil", "Level3Nvw");
+			Directory.CreateDirectory(_cacheDirectory);
+
+			_http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+			if (_http.DefaultRequestHeaders.UserAgent.Count == 0)
+			{
+				_http.DefaultRequestHeaders.UserAgent.ParseAdd("Anvil/1.0");
+			}
+		}
+
+		public string Name => "NVW";
+
+		public async Task<WindProfile?> TryGetAsync(
+			string siteId, DateTime volumeTimeUtc, CancellationToken cancellationToken = default)
+		{
+			try
+			{
+				var site3 = ToThreeLetterSite(siteId);
+				if (site3 is null)
+				{
+					return null;
+				}
+
+				var key = await FindNearestKeyAsync(site3, volumeTimeUtc, cancellationToken).ConfigureAwait(false);
+				if (key is null)
+				{
+					return null;
+				}
+
+				var bytes = await ReadOrDownloadAsync(key, cancellationToken).ConfigureAwait(false);
+				if (bytes is null || bytes.Length == 0)
+				{
+					return null;
+				}
+
+				var profile = Level3NvwParser.Parse(bytes, siteId);
+
+				// ⚠️ A product with ZERO levels is a legitimate state (clear air aloft: the RPG emits the
+				// product with an empty table). Report it as "no profile" so the chain falls through, rather
+				// than handing an empty profile to Bunkers and getting a less specific failure.
+				return profile is { Levels.Count: > 0 } ? profile : null;
+			}
+			catch (OperationCanceledException)
+			{
+				throw;
+			}
+			catch (Exception)
+			{
+				return null; // any other trouble: this source simply has no answer
+			}
+		}
+
+		/// <summary>
+		/// The bucket uses a 3-letter site id with no leading K. ⚠️ Taking the LAST three characters (rather
+		/// than trimming a leading 'K') is deliberate: it also handles TDWR ids like TDFW -> DFW and the
+		/// P/T-prefixed OCONUS sites, none of which start with K.
+		/// </summary>
+		internal static string? ToThreeLetterSite(string siteId)
+		{
+			if (string.IsNullOrWhiteSpace(siteId))
+			{
+				return null;
+			}
+
+			var s = siteId.Trim().ToUpperInvariant();
+			return s.Length < 3 ? null : s[^3..];
+		}
+
+		/// <summary>
+		/// Lists the day's keys for this site and returns the one nearest <paramref name="target"/>, or null
+		/// if the nearest is further away than <see cref="MaxAge"/>.
+		/// <para>⚠️ A volume near 00Z can be served by a product filed under the PREVIOUS day, so both days
+		/// are listed. Prefix listing is cheap (a few dozen keys).</para>
+		/// </summary>
+		private async Task<string?> FindNearestKeyAsync(
+			string site3, DateTime target, CancellationToken cancellationToken)
+		{
+			var keys = new List<(string Key, DateTime When)>();
+			foreach (var day in new[] { target.Date.AddDays(-1), target.Date })
+			{
+				var prefix = $"{site3}_{ProductMnemonic}_{day:yyyy_MM_dd}_";
+				keys.AddRange(await ListAsync(prefix, cancellationToken).ConfigureAwait(false));
+			}
+
+			if (keys.Count == 0)
+			{
+				return null;
+			}
+
+			var best = keys.OrderBy(k => Math.Abs((k.When - target).Ticks)).First();
+			return Math.Abs((best.When - target).TotalMinutes) <= MaxAge.TotalMinutes ? best.Key : null;
+		}
+
+		private async Task<List<(string Key, DateTime When)>> ListAsync(
+			string prefix, CancellationToken cancellationToken)
+		{
+			var found = new List<(string, DateTime)>();
+			var url = $"{BucketUrl}?list-type=2&prefix={Uri.EscapeDataString(prefix)}&max-keys=1000";
+			using var response = await _http.GetAsync(url, cancellationToken).ConfigureAwait(false);
+			if (!response.IsSuccessStatusCode)
+			{
+				return found;
+			}
+
+			var xml = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+			var doc = XDocument.Parse(xml);
+			var ns = doc.Root?.GetDefaultNamespace() ?? XNamespace.None;
+			foreach (var key in doc.Descendants(ns + "Key").Select(static k => k.Value))
+			{
+				if (TryParseKeyTime(key, out var when))
+				{
+					found.Add((key, when));
+				}
+			}
+
+			return found;
+		}
+
+		/// <summary>Reads the timestamp out of a flat key: everything after the site and product mnemonic is
+		/// <c>yyyy_MM_dd_HH_mm_ss</c>.</summary>
+		internal static bool TryParseKeyTime(string key, out DateTime whenUtc)
+		{
+			whenUtc = default;
+			var parts = key.Split('_');
+			if (parts.Length < 8)
+			{
+				return false;
+			}
+
+			var stamp = string.Join('_', parts[^6..]);
+			return DateTime.TryParseExact(
+				stamp, "yyyy_MM_dd_HH_mm_ss", CultureInfo.InvariantCulture,
+				DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out whenUtc);
+		}
+
+		/// <summary>Products are immutable once written, so a cached file is always good.</summary>
+		private async Task<byte[]?> ReadOrDownloadAsync(string key, CancellationToken cancellationToken)
+		{
+			var path = Path.Combine(_cacheDirectory, key);
+			if (File.Exists(path))
+			{
+				return await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+			}
+
+			using var response = await _http.GetAsync(BucketUrl + key, cancellationToken).ConfigureAwait(false);
+			if (!response.IsSuccessStatusCode)
+			{
+				return null;
+			}
+
+			var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+			try
+			{
+				await File.WriteAllBytesAsync(path, bytes, cancellationToken).ConfigureAwait(false);
+			}
+			catch (IOException)
+			{
+				// A cache write failure must not fail the fetch.
+			}
+
+			return bytes;
+		}
+	}
+}

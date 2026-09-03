@@ -135,6 +135,10 @@ namespace Anvil.Services
 		public Task ComputeStormMotionAsync(IReadOnlyList<string> tiltUrls) =>
 			_mapView.RunScriptAsync(Call("computeStormMotion", System.Text.Json.JsonSerializer.Serialize(tiltUrls)));
 
+		public Task SetStormMotionAsync(double speedMs, double directionDeg, string source, int levels) =>
+			_mapView.RunScriptAsync(Call("setStormMotion", speedMs, directionDeg,
+				System.Text.Json.JsonSerializer.Serialize(source), levels));
+
 		public Task SetRadarInspectAsync(bool enabled) =>
 			_mapView.RunScriptAsync(Call("setRadarInspect", enabled));
 

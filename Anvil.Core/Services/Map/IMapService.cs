@@ -107,6 +107,12 @@ namespace Anvil.Services
 		/// profile, which is why the whole set is needed. No-op while manual mode is active.</summary>
 		Task ComputeStormMotionAsync(IReadOnlyList<string> tiltUrls);
 
+		/// <summary>Pushes a storm motion computed by the HOST's wind-profile provider chain (Level III NVW)
+		/// straight into the renderer, skipping our own VAD entirely.</summary>
+		/// <remarks>⚠️ Call this OR <see cref="ComputeStormMotionAsync"/> for a given loop, never both — the
+		/// chain decides. Doc 01 §5 orders the providers; the local VAD is the fallback.</remarks>
+		Task SetStormMotionAsync(double speedMs, double directionDeg, string source, int levels);
+
 		/// <summary>
 		/// Enables or disables inspect mode (read the value under the cursor). While on, the WebView
 		/// shows a value tooltip at the pointer and posts the value for the color-scale marker.

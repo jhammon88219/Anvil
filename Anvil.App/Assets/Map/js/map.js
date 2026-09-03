@@ -435,6 +435,11 @@ try {
     // Compute the AUTO (VAD-derived) storm motion for one volume from its bottom velocity tilt URLs — the
     // host calls this for the displayed volume while SRV/auto is active (a single tilt is too shallow to be
     // correct, so the motion comes from a full-volume wind profile). urls = a JSON array string.
+    // Storm motion supplied by the HOST's wind-profile provider chain (Level III NVW), rather than computed
+    // from our own Level II VAD. See radar.js applyExternalMotion.
+    window.setStormMotion = function (speedMs, dirDeg, source, layers) {
+        if (window.RadarLayer) window.RadarLayer.setStormMotion(speedMs, dirDeg, source, layers);
+    };
     window.computeStormMotion = function (urls) {
         if (window.RadarLayer) window.RadarLayer.computeStormMotion(urls);
     };
