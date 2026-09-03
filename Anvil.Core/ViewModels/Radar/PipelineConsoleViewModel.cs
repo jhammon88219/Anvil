@@ -308,10 +308,16 @@ namespace Anvil.ViewModels
 				var kt = v.SpeedMs / KnotsPerMs;
 				var mph = v.SpeedMs * 2.23694;
 				VwpStatusText = "Storm motion: resolved.";
+				// ⚠️ "cuts" counts VAD elevation cuts and only means something for our own Level II retrieval.
+				// A profile from an external provider (Level III NVW) has LEVELS instead, so the unit is
+				// chosen by which one the result actually carries rather than printed blindly.
+				var basis = v.Cuts > 0
+					? string.Format(CultureInfo.InvariantCulture, "{0} cuts", v.Cuts)
+					: string.Format(CultureInfo.InvariantCulture, "{0} levels", v.Layers);
 				StormMotionText = string.Format(
 					CultureInfo.InvariantCulture,
-					"{0:F0}° @ {1:F0} kt ({2:F0} mph) · {3} · {4} cuts · top {5:F1} km",
-					v.DirDeg, kt, mph, string.IsNullOrEmpty(v.Source) ? "auto" : v.Source, v.Cuts, v.TopM / 1000.0);
+					"{0:F0}° @ {1:F0} kt ({2:F0} mph) · {3} · {4} · top {5:F1} km",
+					v.DirDeg, kt, mph, string.IsNullOrEmpty(v.Source) ? "auto" : v.Source, basis, v.TopM / 1000.0);
 			}
 			else if (v.Insufficient)
 			{
@@ -379,6 +385,7 @@ namespace Anvil.ViewModels
 			public string Source { get; set; } = string.Empty;
 			public int Cuts { get; set; }
 			public double TopM { get; set; }
+			public int Layers { get; set; }
 			public string Why { get; set; } = string.Empty;
 		}
 

@@ -1351,6 +1351,7 @@
                 dirDeg: (m && !m.insufficient) ? m.dirDeg : 0,
                 source: (m && m.source) || '',
                 cuts: (m && m.cuts) || 0,
+                layers: (m && m.layers) || 0,
                 topM: (m && m.topM) || 0,
                 why: (m && m.why) || ''
             };
@@ -1603,10 +1604,12 @@
         // SRV/auto is active, and only re-requests when the newest volume changes). Off-thread; on success it
         // pushes the readout and rebuilds SRV once. No-op in manual mode. See computeStormMotionForVolume.
         // Host-supplied motion (Level III NVW). See applyExternalMotion.
-        setStormMotion: function (speedMs, dirDeg, source, layers) {
+        setStormMotion: function (speedMs, dirDeg, source, layers, topM) {
+            // ⚠️ `cuts` stays 0 ON PURPOSE — it counts VAD elevation cuts, which an external profile has
+            // none of. The console renders levels instead when cuts is 0; don't fake a cut count here.
             applyExternalMotion({
                 speedMs: speedMs, dirDeg: dirDeg, source: source || 'NVW',
-                layers: layers || 0, cuts: 0, topM: 0
+                layers: layers || 0, cuts: 0, topM: topM || 0
             });
         },
         computeStormMotion: function (urls) {

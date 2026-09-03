@@ -135,9 +135,10 @@ namespace Anvil.Services
 		public Task ComputeStormMotionAsync(IReadOnlyList<string> tiltUrls) =>
 			_mapView.RunScriptAsync(Call("computeStormMotion", System.Text.Json.JsonSerializer.Serialize(tiltUrls)));
 
-		public Task SetStormMotionAsync(double speedMs, double directionDeg, string source, int levels) =>
-			_mapView.RunScriptAsync(Call("setStormMotion", speedMs, directionDeg,
-				System.Text.Json.JsonSerializer.Serialize(source), levels));
+		// ⚠️ `source` is passed RAW: Call's FormatArg already wraps a string in quotes. Serializing it first
+		// double-encoded it and the readout literally showed "NVW" with the quotes in it.
+		public Task SetStormMotionAsync(double speedMs, double directionDeg, string source, int levels, double topM) =>
+			_mapView.RunScriptAsync(Call("setStormMotion", speedMs, directionDeg, source, levels, topM));
 
 		public Task SetRadarInspectAsync(bool enabled) =>
 			_mapView.RunScriptAsync(Call("setRadarInspect", enabled));

@@ -1096,6 +1096,25 @@ function bunkersFromProfile(prof) {
     return { speedMs: Math.hypot(mu, mv), dirDeg: dirDeg, source: source, layers: prof.length, topM: Math.round(top), deep: deep, why: tierWhy, rej: rej };
 }
 
+// Ring-rejection tally as a compact token: "<rings>r<maxKm>@<lastOkKm>km:pts92,cov18,res14" — rings examined,
+// the range cap in force, the range of the OUTERMOST accepted ring, then only the NON-ZERO reject reasons,
+// largest first. Zeros are omitted so a healthy cut stays short. "" when unavailable.
+// ⚠️ This is the ONLY window into WHY a cut's profile stopped where it did. It was accidentally deleted once
+// (in the per-cut-median -> merged-profile refactor) while cutTag still called it; every call then threw a
+// ReferenceError that decodeVwp's per-buffer try/catch swallowed, so the diagnostics silently went blank AND
+// a legacy .gz volume — one buffer holding every cut — lost all cuts after the first. If `detail` ever comes
+// back as `[]` in the vwp result line, suspect exactly this.
+function rejDetail(rej) {
+    if (!rej) return '';
+    const parts = [['pts', rej.pts], ['cov', rej.cov], ['res', rej.res], ['sym', rej.sym],
+                   ['spd', rej.spd], ['sng', rej.sng]]
+        .filter(function (p) { return p[1] > 0; })
+        .sort(function (a, b) { return b[1] - a[1]; })
+        .map(function (p) { return p[0] + p[1]; });
+    return '/' + (rej.rings || 0) + 'r' + (rej.maxKm ? '<' + rej.maxKm : '') + '@' + (rej.lastOkKm || 0)
+        + 'km:' + (parts.length ? parts.join(',') : '-');
+}
+
 // ONE CUT'S CONTRIBUTION to the merged profile, for the diagnostics line: elevation, ring points kept, the
 // height span they cover, and the ring-rejection tally. A dropped cut says why instead.
 // e.g. "2.4d:41p/425-2724m/232r<117@60km:pts180" · "5.1d:DROPPED(fold)".
@@ -1146,11 +1165,19 @@ export function decodeVwp(buffers) {
                     // beam, a residual fold) out of the shared profile — the job the old per-cut median did.
                     // Run per cut, NOT on the merged profile: across a cut boundary two levels at similar
                     // heights come from different beams, so a cross-cut direction step is not a fold signature.
-                    if (!pts || !pts.length) { detail.push(cutTag(phi, pts, null)); continue; }
-                    if (profileFoldSuspect(pts)) { detail.push(cutTag(phi, pts, 'fold')); continue; }
+                    // ⚠️ DIAGNOSTICS MUST NOT BE ABLE TO BREAK THE DATA PATH. cutTag is instrumentation; it
+                    // once threw a ReferenceError that the per-buffer catch below swallowed, which silently
+                    // blanked the detail line AND aborted every remaining cut in that buffer. Its own guard
+                    // keeps a reporting bug from ever costing us a cut again.
+                    const tag = function (why) {
+                        try { detail.push(cutTag(phi, pts, why)); }
+                        catch (e) { detail.push('?d:tag-failed'); }
+                    };
+                    if (!pts || !pts.length) { tag(null); continue; }
+                    if (profileFoldSuspect(pts)) { tag('fold'); continue; }
                     for (let i = 0; i < pts.length; i++) merged.push(pts[i]);
                     cuts++;
-                    detail.push(cutTag(phi, pts, null));
+                    tag(null);
                 }
             } catch (e) { /* skip a buffer that won't decode; the other buffers/cuts still contribute */ }
         }

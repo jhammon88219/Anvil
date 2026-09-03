@@ -116,7 +116,11 @@ namespace Anvil.Services
 			var right = new MotionVector(mean.Value.U + rx, mean.Value.V + ry);
 			var left = new MotionVector(mean.Value.U - rx, mean.Value.V - ry);
 
-			return new StormMotionResult(right, left, mean, shear, source, when, StormMotionFailure.None);
+			return new StormMotionResult(right, left, mean, shear, source, when, StormMotionFailure.None)
+			{
+				LevelCount = levels.Count,
+				ProfileTopM = levels[^1].HeightAglM,
+			};
 		}
 
 		/// <summary>

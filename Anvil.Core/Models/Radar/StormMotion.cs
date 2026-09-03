@@ -46,6 +46,13 @@ namespace Anvil.Models
 		DateTime ValidTimeUtc,
 		StormMotionFailure Failure)
 	{
+		/// <summary>How many profile levels backed this result. Doc 01 §6 requires it to reach the UI: a
+		/// motion from 25 levels and one from 4 are not equally trustworthy.</summary>
+		public int LevelCount { get; init; }
+
+		/// <summary>Height of the highest profile level, metres AGL.</summary>
+		public double ProfileTopM { get; init; }
+
 		public bool HasSolution => Failure == StormMotionFailure.None;
 
 		public static StormMotionResult NoSolution(

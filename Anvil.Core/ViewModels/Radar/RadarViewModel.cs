@@ -255,7 +255,7 @@ namespace Anvil.ViewModels
 		// token bumps) can't pollute this session's first-frame timing / ready count.
 		private bool _loopRenderBegun;
 
-		public RadarViewModel(IMapService mapService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, IDowEventProvider dowEventProvider, ISettingsService settings, StormMotionService? stormMotion = null)
+		public RadarViewModel(IMapService mapService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, IDowEventProvider dowEventProvider, ISettingsService settings, StormMotionService? stormMotion)
 		{
 			_mapService = mapService;
 			_stormMotion = stormMotion;
@@ -1175,7 +1175,7 @@ namespace Anvil.ViewModels
 							+ $"{rm.HeadingDeg:F0} deg @ {rm.SpeedKt:F0} kt");
 						await _mapService.SetStormMotionAsync(
 							rm.SpeedMs, rm.HeadingDeg, resolved.ProfileSource ?? "NVW",
-							resolved.MeanWind is null ? 0 : 1);
+							resolved.LevelCount, resolved.ProfileTopM);
 						return;
 					}
 
