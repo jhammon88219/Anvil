@@ -202,22 +202,14 @@ namespace Anvil.ViewModels
 		/// <summary>
 		/// Authoritative "Issued … · Valid … → …" line for the loaded outlook, parsed from
 		/// the product's cached GeoJSON (local time). Empty when None is selected or the
-		/// cache has no times yet; bound to a readout that hides while empty.
+		/// cache has no times yet. Reaches the ForeCast card as <see cref="CardContext"/>, whose host
+		/// collapses the line while it is empty — so there is no separate "has times" flag.
 		/// </summary>
 		public string OutlookTimesText
 		{
 			get => _outlookTimesText;
-			private set
-			{
-				if (SetProperty(ref _outlookTimesText, value))
-				{
-					OnPropertyChanged(nameof(HasOutlookTimes));
-				}
-			}
+			private set => SetProperty(ref _outlookTimesText, value);
 		}
-
-		/// <summary>Whether an issued/valid readout is available to show.</summary>
-		public bool HasOutlookTimes => _outlookTimesText.Length > 0;
 
 		/// <summary>The full legend for the selected product — SPC's own colors + level names for every
 		/// level in that product's scale, least-severe first (shown even when today's issuance omits some).
@@ -227,27 +219,11 @@ namespace Anvil.ViewModels
 		/// <summary>Whether the loaded outlook has any legend rows to show.</summary>
 		public bool HasLegend => _legendEntries.Count > 0;
 
-		// ── SPC outlook info card (shown while an outlook, not "None", is selected). Title +
-		//    issued/effective times come from the cached GeoJSON; the forecast-discussion text is
-		//    fetched lazily from SPC's HTML page (GetNarrativeAsync). All recomputed in
+		// ── The ForeCast window's two text surfaces: the card's headline, and SPC's forecast discussion
+		//    (fetched from their HTML page via GetNarrativeAsync, disk cached). Both are recomputed in
 		//    UpdateOutlookCard when the selection changes or the outlook cache refreshes. ──
 		private string _outlookCardTitle = string.Empty;
-		private string _outlookIssuedText = string.Empty;
-		private string _outlookValidText = string.Empty;
 		private string _outlookNarrative = string.Empty;
-
-		/// <summary>Whether an outlook is actually shown (a product selected AND the layer toggled
-		/// on) — drives the Outlook Details window's visibility.</summary>
-		public bool HasOutlookCard => _isOutlookVisible && _selectedOption?.Product is not null;
-
-		/// <summary>Card header for the selected outlook, e.g. "Day 1 · Tornado".</summary>
-		public string OutlookCardTitle => _outlookCardTitle;
-
-		/// <summary>When the outlook was issued (local), or "—".</summary>
-		public string OutlookIssuedText => _outlookIssuedText;
-
-		/// <summary>The outlook's valid window (local), or "—".</summary>
-		public string OutlookValidText => _outlookValidText;
 
 		/// <summary>SPC forecast-discussion text for the selected outlook (or a status line).</summary>
 		public string OutlookNarrativeText
@@ -256,10 +232,9 @@ namespace Anvil.ViewModels
 			private set => SetProperty(ref _outlookNarrative, value);
 		}
 
-
-
-		/// <summary>Progress (0-100) toward the next SPC outlook refresh, for the Outlook bar.</summary>
-		public double OutlookNextUpdateProgress => NextUpdate.ProgressOf(_outlookCycleStart, _nextOutlookRefreshAt);
+		// ⚠️ There is no OutlookNextUpdateProgress companion: the card's footer states the countdown in
+		// WORDS and no ProgressBar binds the outlook refresh, so the 0-100 fraction had no reader.
+		// Re-adding a bar means the getter back plus a raise wherever the countdown is raised below.
 
 		/// <summary>Countdown label to the next SPC outlook refresh (e.g. "next ~9 min").</summary>
 		public string OutlookNextUpdateText => NextUpdate.CountdownOf(_nextOutlookRefreshAt);
@@ -316,7 +291,6 @@ namespace Anvil.ViewModels
 		{
 			_outlookCycleStart = cycleStart;
 			_nextOutlookRefreshAt = next;
-			OnPropertyChanged(nameof(OutlookNextUpdateProgress));
 			OnPropertyChanged(nameof(OutlookNextUpdateText));
 			RaiseCard();
 		}
@@ -328,7 +302,6 @@ namespace Anvil.ViewModels
 			using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
 			while (await timer.WaitForNextTickAsync())
 			{
-				OnPropertyChanged(nameof(OutlookNextUpdateProgress));
 				OnPropertyChanged(nameof(OutlookNextUpdateText));
 				RaiseCard();
 			}
@@ -402,13 +375,13 @@ namespace Anvil.ViewModels
 				.ToList();
 		}
 
-		// Reads the issued/valid/expire times for the current product from its cached GeoJSON
-		// (local time) and updates both the ribbon readout and the info card. The ribbon line is
-		// cleared when None is selected or no times are available; the card follows the selection.
+		// Reads the issued/valid/expire times for the current product from its cached GeoJSON (local time)
+		// into OutlookTimesText — the ForeCast card's middle line. Cleared when None is selected or no
+		// times are available.
 		private void UpdateOutlookTimes()
 		{
-			// When the layer is toggled off, treat the selection as "none" so the times readout,
-			// the Outlook Details window, and HasOutlookCard all reflect what's actually on the map.
+			// When the layer is toggled off, treat the selection as "none" so the times line, the legend
+			// and the card all reflect what's actually on the map.
 			var product = _isOutlookVisible ? _selectedOption?.Product : null;
 			var times = product is null ? null : _spcOutlookService.GetTimesForProduct(product);
 
@@ -438,37 +411,30 @@ namespace Anvil.ViewModels
 				OutlookTimesText = string.Join("  ·  ", parts);
 			}
 
-			UpdateOutlookCard(product, times);
+			UpdateOutlookCard(product);
 		}
 
-		// Updates the SPC outlook info card: title + issued/effective from the cached times, and
-		// kicks off the (lazy, disk-cached) forecast-discussion fetch. Cleared for "None".
-		private void UpdateOutlookCard(SpcOutlookProduct? product, SpcOutlookTimes? times)
+		// Sets the card's headline and kicks off the (lazy, disk-cached) forecast-discussion fetch. Cleared
+		// for "None". ⚠️ Takes no times: the issued/valid strings it used to format went with the deleted
+		// Outlook Details window, and the card's own times line is OutlookTimesText, set by the caller.
+		private void UpdateOutlookCard(SpcOutlookProduct? product)
 		{
 			if (product is null)
 			{
 				_outlookCardTitle = string.Empty;
-				_outlookIssuedText = string.Empty;
-				_outlookValidText = string.Empty;
 				_narrativeFor = null;
 				OutlookNarrativeText = string.Empty;
 			}
 			else
 			{
 				_outlookCardTitle = $"Day {product.Day} · {product.TypeLabel}";
-				_outlookIssuedText = times?.Issued is { } iss
-					? iss.ToLocalTime().ToString("ddd MMM d · h:mm tt")
-					: "—";
-				_outlookValidText = times?.Valid is { } v && times?.Expire is { } e
-					? $"{v.ToLocalTime():ddd h:mm tt} → {e.ToLocalTime():ddd h:mm tt}"
-					: "—";
 				_ = RefreshOutlookNarrativeAsync(product);
 			}
 
-			OnPropertyChanged(nameof(HasOutlookCard));
-			OnPropertyChanged(nameof(OutlookCardTitle));
-			OnPropertyChanged(nameof(OutlookIssuedText));
-			OnPropertyChanged(nameof(OutlookValidText));
+			// ⚠️ The title is a FIELD, not a property: CardHeadline reads it directly, so RaiseCard() below
+			// is what announces it. Separate OutlookCardTitle / OutlookIssuedText / OutlookValidText /
+			// HasOutlookCard properties fed the deleted Outlook Details window; the issued + valid strings
+			// they formatted are now one line, built in ApplyCurrentOutlook as OutlookTimesText.
 			OnPropertyChanged(nameof(HasOutlook));
 			RaiseCard();
 		}

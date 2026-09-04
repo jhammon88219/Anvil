@@ -95,7 +95,6 @@ namespace Anvil.ViewModels
 			set
 			{
 				if (!SetProperty(ref _selectedState, value)) { return; }
-				OnPropertyChanged(nameof(IsolatedStateName));
 				OnPropertyChanged(nameof(HasIsolatedState));
 				// ⚠️ This is the line that makes a MAP CLICK show up in the combo: states.js reports the
 				// isolated state, SetSelectedFromSystem lands it here, and the combo re-resolves to it.
@@ -112,10 +111,6 @@ namespace Anvil.ViewModels
 			SelectedState = name;
 			_applyingFromSystem = false;
 		}
-
-		/// <summary>Alias of <see cref="SelectedState"/> for readouts / the router doc (the WebView-reported
-		/// isolated state).</summary>
-		public string? IsolatedStateName => _selectedState;
 
 		/// <summary>Whether a state is currently isolated. Drives a future "Isolated: Texas" readout.</summary>
 		public bool HasIsolatedState => !string.IsNullOrEmpty(_selectedState);

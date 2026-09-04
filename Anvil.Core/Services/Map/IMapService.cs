@@ -198,6 +198,14 @@ namespace Anvil.Services
 		/// <summary>Reads the page's storm-report state back as a short JSON string (url, feature count, kind
 		/// flags, whether the layers exist) — a diagnostic seam, so a "the dots are still there" report can be
 		/// answered with what the PAGE thinks it is drawing rather than with what the host believes it pushed.</summary>
+		/// <remarks>
+		/// ⚠️ DELIBERATELY UNCALLED — break-glass, not plumbing. It is what settled the 2026-09-04 stale-dots
+		/// bug after two rounds were lost to reasoning about which side was wrong, so the seam is kept wired
+		/// end to end (here → MapService → window.describeStormReports → storm-reports.js describe()) and you
+		/// add the ONE await where you are debugging. Don't delete it as dead code, and don't wire it into the
+		/// normal show path — a readback on every push is noise. ⚠️ feats=-1 means the page's fetch had not
+		/// resolved yet, not that data is missing.
+		/// </remarks>
 		Task<string> DescribeStormReportsAsync();
 
 		/// <summary>Highlights the selected site marker (empty clears the highlight).</summary>

@@ -1,4 +1,4 @@
-﻿using Anvil.Models;
+using Anvil.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Anvil.ViewModels

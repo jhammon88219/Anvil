@@ -370,6 +370,10 @@ namespace Anvil.ViewModels
 		}
 
 		// Shape of RadarLayer.pipelineSnapshot() (radar.js). Single-letter keys match case-insensitively.
+		// ⚠️ These three DTOs MIRROR THE PAYLOAD, not the console's UI — several members (Cf, VelPrefetch,
+		// FullPrefetch, Wanted, TimingFrozen, and most of VwpSnap) are deserialized and not displayed yet.
+		// That is deliberate: the shape is the documentation of what radar.js sends, and the console is only
+		// partly surfaced. Delete a member here only when radar.js stops sending it.
 		private sealed class Snap
 		{
 			public int N { get; set; }

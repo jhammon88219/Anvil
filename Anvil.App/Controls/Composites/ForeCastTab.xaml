@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ForeCastTab — the body of the ForeCast window: the SPC outlook (card + day / product / opacity) and
-     its legend. One of three mode bodies (see Controls/Windows/TemporalWindow, registered once per mode);
+<!-- ForeCastTab — the body of the ForeCast window: the SPC outlook (card + day / product / opacity) with
+     its legend, then SPC's forecast discussion. One of three mode bodies (see Controls/Windows/TemporalWindow, registered once per mode);
      the window supplies the surface, the title and the pin, so this is content only.
      ⚠️ The file keeps its "Tab" name from when the three were tabs of one Timeframe window. It is the same
      control, unchanged by the split; renaming all three would be churn. Bound to the coordinator
@@ -21,10 +21,21 @@
        │   ■ Moderate                                         │     section for now; both it and
        │   ▨ Enhanced   (hatched = significant)               │     the rule hide with HasLegend
        └──────────────────────────────────────────────────────┘
+       ┌──────────────────────────────────────────────────────┐
+       │  ›  Forecast discussion                              │  ← COLLAPSED on load; opening it
+       └──────────────────────────────────────────────────────┘     scrolls inside a 240px cap
 
-     ONE SECTION, ONE EXPANDER (Styles.xaml SectionExpanderStyle), open on load — there is only one thing
-     in this window, so it opens showing it. Inside: a summary CARD, then [label | control] rows in one
-     aligned 60px column, then the legend. This was the loosest of the three bodies — no section structure
+       (expanded)
+       ┌──────────────────────────────────────────────────────┐
+       │  ⌄  Forecast discussion                            ▲ │
+       │  SPC AC 021257                                     █ │  SPC's own teletype prose,
+       │  DAY 1 CONVECTIVE OUTLOOK                          █ │  fixed-pitch so its columns
+       │  ...VALID 021300Z - 031200Z...                     ▼ │  and rules line up
+       └──────────────────────────────────────────────────────┘
+
+     TWO SECTIONS, TWO EXPANDERS (Styles.xaml SectionExpanderStyle). SPC outlook is open on load — it is
+     what the window is for. Inside it: a summary CARD, then [label | control] rows in one aligned 60px
+     column, then the legend. Forecast discussion is COLLAPSED on load; see its own note below. This was the loosest of the three bodies — no section structure
      at all, a local OutlookLabelStyle that was character-for-character the shared SettingsFieldLabelStyle,
      and a hand-rolled letter-spaced "Legend" label. All three are gone.
      ⚠️ The window sizes to its content ONCE, at open, so collapsing this section leaves the window at its
@@ -46,9 +57,11 @@
      ⚠️ Opacity is DISABLED while Product is None — None is this section's off switch, the same rule the
      PastCast outlook and the storm-report dots follow.
 
-     ⚠️ The SPC forecast discussion (OutlookNarrativeText, scraped and cached) is still not surfaced. It is
-     long prose and these windows size to content with no scroller, so it wants its own bounded section —
-     deferred, and likely to arrive with per-section Expanders rather than on its own.
+     ⚠️ THE FORECAST DISCUSSION IS ITS OWN SECTION, collapsed, bounded. It was deferred for exactly as long
+     as these bodies had no section structure to hang it on ("wants its own bounded section — likely to
+     arrive with per-section Expanders"); the Expanders arrived, so it did. Collapsed because the window
+     sizes to content ONCE at open and this prose runs to a length SPC picks. Don't open it by default and
+     don't unbound it.
 
      ⚠️ This tab does NOT turn ForeCast on or off; that is the ForeCast key in the bottom bar's centre
      cluster. A tab body configures a mode, the key runs it. -->
@@ -93,6 +106,7 @@
     <Grid VerticalAlignment="Top" RowSpacing="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- SPC outlook: the card, the selectors, the legend -->
+            <RowDefinition Height="Auto"/> <!-- Forecast discussion: SPC's prose, bounded -->
         </Grid.RowDefinitions>
 
         <!-- ===================== SPC OUTLOOK: the card, then the selectors ===================== -->
@@ -182,9 +196,9 @@
                      (None, or the layer off), leaving the section with just the card and the selectors.
                      ⚠️ Temporary address — the legend is going somewhere else eventually, it just doesn't
                      have a home yet, so it rides along with what it describes.
-                     ⚠️ The ONE bounded thing in these windows: they size to content and have no scroller, and
-                     this list's length is decided by SPC rather than by us, so an unusually long scale
-                     scrolls here instead of pushing the window past the screen. -->
+                     ⚠️ BOUNDED, like the discussion section below: these windows size to content and have no
+                     scroller of their own, and this list's length is decided by SPC rather than by us, so an
+                     unusually long scale scrolls here instead of pushing the window past the screen. -->
                 <Border Grid.Row="3" Height="1" Margin="0,14"
                         Visibility="{x:Bind ViewModel.Outlook.HasLegend, Converter={StaticResource BoolToVis}, Mode=OneWay}"
                         Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
@@ -196,6 +210,37 @@
                                   ItemTemplate="{StaticResource OutlookLegendItemTemplate}"/>
                 </ScrollViewer>
             </Grid>
+        </Expander>
+
+        <!-- ===================== FORECAST DISCUSSION: SPC's own prose ===================== -->
+        <!-- SPC's forecast discussion for the selected day, scraped from their HTML product page and disk
+             cached (OutlookViewModel.OutlookNarrativeText ← SpcOutlookService.GetNarrativeAsync). It was
+             fetched on every selection change and every 15-min refresh cycle for years while being shown
+             NOWHERE; this section is where it finally lands.
+             ⚠️ COLLAPSED ON LOAD, unlike the outlook section — and that is the whole design. The window sizes
+             to its content ONCE, at open, so a section that is open at that moment sets the window height.
+             This is long prose of a length SPC decides, so opening by default would size the window to a
+             stranger's paragraph count and hit TemporalWindow's work-area clamp.
+             ⚠️ BOUNDED for the same reason: MaxHeight + an inner scroller, the same treatment the legend
+             above gets. These two are the only scrollers in the temporal windows, and they are NOT the
+             window-body ScrollViewer that TemporalWindow deliberately refuses — they are inner regions whose
+             CONTENT LENGTH IS NOT OURS TO DECIDE. Don't generalise either one into a body scroller.
+             ⚠️ DISABLED while Product is None, the same off switch the opacity slider uses. Fire-weather
+             products have no scraped page (their layout differs); the text says so itself rather than the
+             section hiding, so the row never silently vanishes. -->
+        <Expander Grid.Row="1" Header="Forecast discussion" IsExpanded="False"
+                  IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="240"
+                          HorizontalScrollMode="Disabled">
+                <!-- Monospace: SPC ships the discussion as pre-formatted teletype text (ExtractPreText pulls
+                     it out of a <pre> block), so its columns and hand-drawn separators only line up in a
+                     fixed-pitch face. IsTextSelectionEnabled so a forecaster line can be copied out. -->
+                <TextBlock Text="{x:Bind ViewModel.Outlook.OutlookNarrativeText, Mode=OneWay}"
+                           FontFamily="Consolas" FontSize="12" TextWrapping="Wrap"
+                           IsTextSelectionEnabled="True"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </ScrollViewer>
         </Expander>
     </Grid>
 </UserControl>

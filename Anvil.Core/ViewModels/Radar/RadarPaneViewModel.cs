@@ -102,13 +102,15 @@ namespace Anvil.ViewModels
 		// point, each ticking on its own notch ramp.
 		private bool _hasInspectValue;
 		private double _inspectFraction;
-		private string _inspectValueText = string.Empty;
 
 		/// <summary>Position (0-1) of the inspected value along this pane's ramp.</summary>
+		/// <remarks>
+		/// ⚠️ A POSITION, not a number — the notch draws a tick on the ramp and nothing more. The formatted
+		/// value ("47.5 dBZ", speeds in m/s + mph) is drawn by the WebView beside the cursor, so a host-side
+		/// InspectValueText re-formatted it per pane on every pointer move for no reader; it is deleted.
+		/// Putting the number in the notch means that string back, and its raise below.
+		/// </remarks>
 		public double InspectFraction => _inspectFraction;
-
-		/// <summary>The inspected value formatted with this pane's product unit (e.g. "47.5 dBZ").</summary>
-		public string InspectValueText => _inspectValueText;
 
 		/// <summary>Whether the live inspect tick should be drawn on this pane's notch ramp.</summary>
 		public bool IsInspectMarkerVisible => _isInspecting && _hasInspectValue && Ramp is not null;
@@ -144,12 +146,6 @@ namespace Anvil.ViewModels
 				}
 
 				_inspectFraction = Math.Clamp((v - r.Min) / span, 0, 1);
-				// Speed products (velocity / SRV / spectrum width — unit "m/s") read as the native m/s value
-				// PLUS mph to match the on-map inspector tooltip; others keep their native unit (dBZ / CC).
-				_inspectValueText = r.Unit == "m/s"
-					? $"{v:0.0} m/s ({v * 2.23694:0.0} mph)"
-					: v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) +
-						(string.IsNullOrEmpty(r.Unit) ? string.Empty : " " + r.Unit);
 				_hasInspectValue = true;
 			}
 			else
@@ -158,7 +154,6 @@ namespace Anvil.ViewModels
 			}
 
 			OnPropertyChanged(nameof(InspectFraction));
-			OnPropertyChanged(nameof(InspectValueText));
 			OnPropertyChanged(nameof(IsInspectMarkerVisible));
 		}
 
