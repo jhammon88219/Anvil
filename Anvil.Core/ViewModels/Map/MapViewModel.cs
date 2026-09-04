@@ -552,6 +552,33 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		/// <summary>
+		/// Whether the MapControlsStrip is showing — the notched strip of camera tools that straddles the
+		/// bottom bar's pull-tab. Toggled by the bar's "Map" key; PERSISTED, so it comes back the way you
+		/// left it.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ UNLIKE ITS NEIGHBOURS IN THAT CLUSTER, this drives no window — Sites and Settings latch a real
+		/// OS window, this one latches a strip drawn over the map. It sits with them because it is the same
+		/// gesture (a latch you leave set), not because it opens anything.
+		/// ⚠️ It is NOT the bar's own pull-tab. The tab collapses the bar and the strip rides DOWN with it,
+		/// still visible; clearing both is two gestures, this key first. See MapControlsStrip.
+		/// </remarks>
+		public bool IsMapControlsStripVisible
+		{
+			get => _settingsService.Settings.MapControlsStripVisible;
+			set
+			{
+				if (_settingsService.Settings.MapControlsStripVisible == value)
+				{
+					return;
+				}
+
+				_settingsService.Settings.MapControlsStripVisible = value; // auto-persists
+				OnPropertyChanged();
+			}
+		}
+
 		/// <summary>Whether the Radar Site Explorer window is open (toggled by the "Sites" button).</summary>
 		public bool IsSiteExplorerOpen
 		{

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
 using Anvil.Models;
 using Anvil.Services;
+using Anvil.Controls.Composites;
 using Anvil.ViewModels;
 using Anvil.Dialogs;
 using System;
@@ -34,6 +35,15 @@ namespace Anvil
 		/// <summary>Generic bool → Visibility for x:Bind. A Window has no Window.Resources, and x:Bind on a
 		/// Window can't use {StaticResource converter}, so visibility conversions are functions here.</summary>
 		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+
+		// Pull the map-controls strip DOWN over the bar's pull-tab so the tab rises through the strip's
+		// notch. Set here rather than in XAML because the amount is MapControlsStrip.BarOverlap — the same
+		// arithmetic that cuts the notch, so the two can never drift — and XAML cannot bind a Thickness to
+		// a static. ⚠️ Called once from the ctor; the value is fixed (the tab is a fixed size, see
+		// Controls/Styles.xaml), so there is nothing to re-apply on resize.
+		private void ApplyStripOverlap() =>
+			MapControls.Margin = new Thickness(0, 0, 0, -MapControlsStrip.BarOverlap);
+
 
 		// NOTE: DevVisibility is gone. It existed to collapse the dev bar key in Release; there is no dev key
 		// any more — the dev tools are a tab of the Settings window, and SettingsWindow omits that tab from
@@ -402,6 +412,7 @@ namespace Anvil
 
 			ExtendsContentIntoTitleBar = true;
 			InitializeComponent();
+			ApplyStripOverlap();
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs
 			// THE TITLE BAR block above). Hooked straight after InitializeComponent so the very first layout

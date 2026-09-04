@@ -155,5 +155,19 @@ namespace Anvil.Services
 			get => _pastCastDurationMinutes;
 			set => SetProperty(ref _pastCastDurationMinutes, value);
 		}
+
+		private bool _mapControlsStripVisible = true;
+		/// <summary>Whether the MapControlsStrip — the notched strip of camera tools straddling the bottom
+		/// bar's pull-tab — is showing. Toggled by the bar's "Map" key. Default ON, so the tools it exists to
+		/// un-hide are visible on a first run.</summary>
+		/// <remarks>
+		/// ⚠️ It is NOT the same switch as the bar's own pull-tab. Hiding the bar carries the strip DOWN with
+		/// it and leaves it visible; hiding both is deliberately two gestures, this one first.
+		/// </remarks>
+		public bool MapControlsStripVisible
+		{
+			get => _mapControlsStripVisible;
+			set => SetProperty(ref _mapControlsStripVisible, value);
+		}
 	}
 }

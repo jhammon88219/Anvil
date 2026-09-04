@@ -137,16 +137,33 @@ namespace Anvil.Controls.Primitives
 
 			// Tab border on its three outer sides, open toward the bar, so the two hairlines merge.
 			TabButton.BorderThickness = top ? new Thickness(1, 0, 1, 1) : new Thickness(1, 1, 1, 0);
-			TabButton.CornerRadius = top ? new CornerRadius(0, 0, 7, 7) : new CornerRadius(7, 7, 0, 0);
 			// Lap the tab's (borderless) inner edge over the bar's hairline so the two merge (see the style comment).
 			TabButton.Margin = top ? new Thickness(0, -2, 0, 0) : new Thickness(0, 0, 0, -2);
 			// A tab with no word in it only has to hold a chevron, so it loses the label's side padding -
 			// otherwise an unlabelled tab is a wide empty lozenge.
 			TabButton.Padding = ShowTabLabel ? new Thickness(16, 3, 16, 3) : new Thickness(9, 2, 9, 2);
 
+			// ⚠️ THE LABELLED TAB IS A FIXED SIZE; the chevron-only notch tabs stay content-sized (NaN = Auto).
+			// Two reasons, both in Controls/Styles.xaml beside the numbers: the label flips "Hide"/"Show", which
+			// would resize a content-sized tab on every click, and Composites/MapControlsStrip cuts a notch that
+			// TRACES this tab at a uniform offset — it cannot trace a width nobody knows. Keep the two in step:
+			// these resources are the single source for both.
+			TabButton.Width = ShowTabLabel ? SharedSize("OverlayBarTabWidth") : double.NaN;
+			TabButton.Height = ShowTabLabel ? SharedSize("OverlayBarTabHeight") : double.NaN;
+			TabButton.CornerRadius = top
+				? new CornerRadius(0, 0, SharedSize("OverlayBarTabRadius"), SharedSize("OverlayBarTabRadius"))
+				: new CornerRadius(SharedSize("OverlayBarTabRadius"), SharedSize("OverlayBarTabRadius"), 0, 0);
+
 			// The chevron points TOWARD the bar for "hide"; force the x:Bind glyph + label to re-evaluate.
 			Bindings?.Update();
 		}
+
+		/// <summary>Reads one of the app-wide tab sizes from Controls/Styles.xaml. Falls back to the value
+		/// baked in here if the resource is missing, so a mis-keyed lookup degrades to a correct-looking tab
+		/// rather than a zero-sized one.</summary>
+		private static double SharedSize(string key) =>
+			Application.Current.Resources.TryGetValue(key, out var v) && v is double d ? d
+				: key == "OverlayBarTabRadius" ? 7 : key == "OverlayBarTabHeight" ? 28 : 96;
 
 		// x:Bind function mapping a bool to Visibility (no value-converter lookup needed).
 		public Visibility VisibleWhen(bool value) =>

@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ============================================================================
+     MapControlsStrip — the map's camera tools, ON the map instead of two clicks deep in Settings.
+     A narrow strip floating just above the bottom OverlayBar, notched underneath so the bar's
+     pull-tab passes through it, with the tools flanking the tab.
+
+              ┌────────┐          ┌────────┐          ← icon-only tools; the tooltip carries
+              │  (⌖)   │          │  (⛶)   │            the words, so the strip stays narrow
+       ┌──────┴────────┴──╮    ╭──┴────────┴──────┐
+       │                  │    │                  │   ← ONE shape: a rounded strip whose underside
+       └──────────────────┘    └──────────────────┘     is cut away for the tab
+                          ╭────╮
+       ───────────────────┘  ˅ └────────────────────   ← the OverlayBar's tab, rising through the notch
+                    the bar (BarContent)
+
+     ⚠️ THE NOTCH IS THE TAB'S OWN OUTLINE PUSHED OUT 6px ON EVERY SIDE — same corner radius, arcs
+     concentric with the tab's. That is why the tab's width/height/radius are SHARED numbers in
+     Controls/Styles.xaml (OverlayBarTabWidth / …Height / …Radius) rather than local to OverlayBar:
+     both controls read them, so the trace cannot drift when the tab is restyled. Hard-code either
+     side and the next tab tweak leaves a notch cut around nothing.
+
+     ⚠️ IT RIDES DOWN WITH THE BAR AND STAYS VISIBLE. MainWindow stacks it directly above the
+     OverlayBar, so collapsing the bar with the tab carries this down with the tab, tools intact.
+     Clearing BOTH is deliberately two gestures — the "Map" key first, then the tab. Do not make the
+     tab hide this as well; being reachable is the whole point of the strip.
+
+     ⚠️ THE COLUMNS ARE [*, notch, *] AND MUST STAY THAT WAY. Two EQUAL star columns put the notch on
+     the strip's exact midpoint, and MainWindow centres the strip, so the notch lands on the centred
+     tab whatever the two sides hold. With [Auto, notch, Auto] an uneven pair of sides would slide the
+     notch off the tab, which is the one thing that would make the shape read as a mistake. So the
+     sides may hold different numbers of tools — symmetry is the aim, not a rule — and the lighter
+     side simply carries the slack.
+
+     ⚠️ Its VISIBILITY is PERSISTED (AppSettings.MapControlsStripVisible, via
+     MapViewModel.IsMapControlsStripVisible), unlike the bar's own pull-tab, which is pure view state.
+
+     Host contract: ViewModel (MapViewModel). Add a tool = one Button in either side's panel.
+     ============================================================================ -->
+<UserControl x:Class="Anvil.Controls.Composites.MapControlsStrip"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- A tool button. LOCAL, not in Styles.xaml: this strip is its only consumer, which is that
+             file's house rule. Deliberately NOT the bar-key chain — a bar key is a 72px square carrying
+             a mark over a NAME, and a row of those would make this a second bar rather than a strip.
+             Minimal template so it stays opaque in every state and cannot pick up the stock button's
+             chrome. -->
+        <Style x:Key="StripToolButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="Root"
+                              Background="{TemplateBinding Background}"
+                              BorderBrush="{TemplateBinding BorderBrush}"
+                              BorderThickness="{TemplateBinding BorderThickness}"
+                              CornerRadius="{TemplateBinding CornerRadius}">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <ContentPresenter x:Name="Glyph"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Content="{TemplateBinding Content}"
+                                              Foreground="{TemplateBinding Foreground}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- ⚠️ NO Background on the root, and there must never be one: the notch has to be a real hole. A
+         background here would hit-test over the tab underneath and swallow the click that hides the bar.
+         Only the Path draws, and a Path hit-tests its filled geometry alone. -->
+    <Grid x:Name="Root" SizeChanged="OnRootSizeChanged">
+        <!-- The shell. Its geometry is built in CODE (BuildShellGeometry) because the strip is
+             content-sized and the notch must stay centred as tools are added — a fixed Data string
+             cannot do that. -->
+        <Path x:Name="Shell"
+              Fill="{ThemeResource OverlayBarSurfaceBrush}"
+              Stroke="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+              StrokeThickness="1"/>
+
+        <Grid x:Name="Tools" Margin="7,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>                        <!-- ┐ EQUAL stars: they are what -->
+                <ColumnDefinition x:Name="NotchColumn" Width="108"/> <!-- │ hold the notch on the strip's -->
+                <ColumnDefinition Width="*"/>                        <!-- ┘ midpoint, and so on the tab -->
+            </Grid.ColumnDefinitions>
+
+            <!-- The tools sit toward the notch rather than centring in their column, so they read as
+                 flanking the tab rather than as two loose groups adrift on a strip — but they are held
+                 15px OFF the cut. Hard against it they crowded the notch's inner edge and the strip
+                 looked mis-cut rather than deliberately shaped.
+                 ⚠️ THE TWO MARGINS ARE MIRRORED AND MUST STAY EQUAL — an uneven pair moves each side's
+                 tools a different distance from the tab, which is exactly the asymmetry the [*, notch, *]
+                 columns exist to prevent. -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4"
+                        Margin="0,0,15,0"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                <!-- Reset north — undo a right-drag rotate/tilt. Same view-model call as the Settings
+                     window's Map tab; that copy stays, this is the reachable one. -->
+                <Button Style="{StaticResource StripToolButtonStyle}"
+                        Click="OnResetNorthClick"
+                        ToolTipService.ToolTip="Reset the map's rotation and 3D tilt — face north, flat">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE72C;"/>
+                </Button>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
+                        Margin="15,0,0,0"
+                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                <!-- Fit to view — frame the effective region (isolated state, else CONUS). -->
+                <Button Style="{StaticResource StripToolButtonStyle}"
+                        Click="OnFitToViewClick"
+                        ToolTipService.ToolTip="Frame the current view (isolated state, else CONUS) — center &amp; zoom to fit">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

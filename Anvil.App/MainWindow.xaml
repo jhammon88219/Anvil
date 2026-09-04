@@ -253,436 +253,488 @@
              columns absorb that and the pills do NOT drift. If the left ever grows past its half it
              simply overlaps rather than pushing; the pills are LAST in markup so they stay on top and
              clickable. ===== -->
-        <ctl:OverlayBar Grid.Row="1">
-            <ctl:OverlayBar.BarContent>
-                <Grid ColumnSpacing="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>    <!-- radar console, left-aligned  ┐ equal stars: -->
-                        <ColumnDefinition Width="Auto"/> <!-- temporal pills, DEAD CENTER  │ the Auto     -->
-                        <ColumnDefinition Width="*"/>    <!-- window buttons, right edge   ┘ sits centered-->
-                    </Grid.ColumnDefinitions>
+        <!-- ⚠️ THE STRIP AND THE BAR ARE ONE STACK, and that is what makes the strip ride down with
+             the tab. The OverlayBar's own top edge IS its tab's top edge (the tab is its first row), so
+             collapsing the bar shortens this whole panel and the strip travels down with the tab, still
+             visible. Hiding both is two gestures on purpose — the Map key, then the tab.
+             ⚠️ Bottom-aligned, and its row is Auto: the row grows by the strip's height, which costs the
+             MAP nothing, because the WebView spans both rows at full height either way. -->
+        <StackPanel Grid.Row="1" VerticalAlignment="Bottom">
 
-                    <!-- ===== LEFT CLUSTER: the two map-gesture keys, then the time module =====
-                         Markers and Inspect both came OUT of the Settings window's Radar tab, and the line
-                         that decides what belongs here is the same for both: a GESTURE you make constantly
-                         while reading the map wants a key; a PREFERENCE you set once and leave belongs in
-                         Settings. The TDWR / research-radar switches and the mile grid stayed behind on
-                         exactly that test. -->
-                    <Grid Grid.Column="0"
-                          HorizontalAlignment="Left"
-                          VerticalAlignment="Center"
-                          ColumnSpacing="8">
+            <!-- ⚠️ THE NEGATIVE BOTTOM MARGIN IS LOAD-BEARING, not spacing. It pulls the strip DOWN over
+                 the tab so the tab rises through the strip's notch; without it the two merely touch and
+                 the cut reads as a mistake. The number is MapControlsStrip.BarOverlap — the same
+                 arithmetic as the notch's own depth, exposed by the control so the two cannot disagree.
+                 It is applied in code-behind (ApplyStripOverlap): XAML cannot bind a Thickness to a
+                 static. ⚠️ HorizontalAlignment=Center is what lands the notch on the centred tab. -->
+            <comp:MapControlsStrip x:Name="MapControls"
+                                   HorizontalAlignment="Center"
+                                   Visibility="{x:Bind VisibleWhen(ViewModel.IsMapControlsStripVisible), Mode=OneWay}"
+                                   ViewModel="{x:Bind ViewModel}"/>
+
+            <ctl:OverlayBar>
+                <ctl:OverlayBar.BarContent>
+                    <Grid ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/> <!-- show/hide radar site markers -->
-                            <ColumnDefinition Width="Auto"/> <!-- the inspect cursor mode -->
-                            <ColumnDefinition Width="Auto"/> <!-- the global time module -->
+                            <ColumnDefinition Width="*"/>    <!-- radar console, left-aligned  ┐ equal stars: -->
+                            <ColumnDefinition Width="Auto"/> <!-- temporal pills, DEAD CENTER  │ the Auto     -->
+                            <ColumnDefinition Width="*"/>    <!-- window buttons, right edge   ┘ sits centered-->
                         </Grid.ColumnDefinitions>
 
-                        <!-- ===== SHOW / HIDE RADAR SITE MARKERS =====
-                             The master marker toggle, back in the bar. It lived on the old radar console,
-                             then moved into the Settings window's Radar tab with the two opt-in network
-                             toggles (TDWRs, research radars) so that "why is my site gone" had ONE place to
-                             look. This half of that came back out, and the split is deliberate: hiding every
-                             marker is something you do constantly while reading a busy map, so it wants a
-                             one-click key on the bar; whether TDWRs and research radars exist at all is a
-                             preference you set once and leave. Those two stay in Settings.
+                        <!-- ===== LEFT CLUSTER: the two map-gesture keys, then the time module =====
+                             Markers and Inspect both came OUT of the Settings window's Radar tab, and the line
+                             that decides what belongs here is the same for both: a GESTURE you make constantly
+                             while reading the map wants a key; a PREFERENCE you set once and leave belongs in
+                             Settings. The TDWR / research-radar switches and the mile grid stayed behind on
+                             exactly that test. -->
+                        <Grid Grid.Column="0"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center"
+                              ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/> <!-- show/hide radar site markers -->
+                                <ColumnDefinition Width="Auto"/> <!-- the inspect cursor mode -->
+                                <ColumnDefinition Width="Auto"/> <!-- the global time module -->
+                            </Grid.ColumnDefinitions>
 
-                             ⚠️ LIT = MARKERS ARE SHOWING, which is the bar's rule everywhere (accent means
-                             "this is on"), NOT "hiding is armed". The GLYPH and the TOOLTIP are the parts
-                             that speak in terms of the click: an open eye with "Hide Radar Sites" while
-                             they show, a closed eye with "Show Radar Sites" while they don't. State on the
-                             border, action in the words — the same division the pane key uses.
+                            <!-- ===== SHOW / HIDE RADAR SITE MARKERS =====
+                                 The master marker toggle, back in the bar. It lived on the old radar console,
+                                 then moved into the Settings window's Radar tab with the two opt-in network
+                                 toggles (TDWRs, research radars) so that "why is my site gone" had ONE place to
+                                 look. This half of that came back out, and the split is deliberate: hiding every
+                                 marker is something you do constantly while reading a busy map, so it wants a
+                                 one-click key on the bar; whether TDWRs and research radars exist at all is a
+                                 preference you set once and leave. Those two stay in Settings.
 
-                             ⚠️ NAMED "Markers", NOT "Sites". The right cluster already has a "Sites" key and
-                             it does something else entirely (it opens the Radar Sites window). Two keys
-                             named Sites in one bar, one toggling map content and one latching a window,
-                             would be the worst kind of collision — same word, different species.
+                                 ⚠️ LIT = MARKERS ARE SHOWING, which is the bar's rule everywhere (accent means
+                                 "this is on"), NOT "hiding is armed". The GLYPH and the TOOLTIP are the parts
+                                 that speak in terms of the click: an open eye with "Hide Radar Sites" while
+                                 they show, a closed eye with "Show Radar Sites" while they don't. State on the
+                                 border, action in the words — the same division the pane key uses.
 
-                             ⚠️ Glyphs E7B3 (RedEye) / ED1A (Hide) — these are NOT yet verified by rendering
-                             in the real font, unlike every other glyph in this bar. A wrong codepoint ships
-                             as an empty box, so check them on the first run and swap if either is blank. -->
-                        <ToggleButton x:Name="SitesVisibleKey"
-                                      Grid.Column="0"
-                                      Style="{StaticResource BarKeyToggleStyle}"
-                                      ToolTipService.ToolTip="{x:Bind SitesVisibleTooltip(ViewModel.Radar.RadarSitesVisible), Mode=OneWay}"
-                                      IsChecked="{x:Bind ViewModel.Radar.RadarSitesVisible, Mode=TwoWay}">
-                            <Grid Margin="3,0" RowSpacing="2">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <FontIcon Grid.Row="0"
-                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                          FontSize="{StaticResource BarKeyGlyphSize}"
-                                          Glyph="{x:Bind SitesVisibleGlyph(ViewModel.Radar.RadarSitesVisible), Mode=OneWay}"/>
-                                <TextBlock Grid.Row="1"
-                                           Text="Markers"
-                                           HorizontalAlignment="Center"
-                                           FontSize="{StaticResource BarKeyNameSize}"/>
-                            </Grid>
-                        </ToggleButton>
+                                 ⚠️ NAMED "Markers", NOT "Sites". The right cluster already has a "Sites" key and
+                                 it does something else entirely (it opens the Radar Sites window). Two keys
+                                 named Sites in one bar, one toggling map content and one latching a window,
+                                 would be the worst kind of collision — same word, different species.
 
-                        <!-- ===== INSPECT — the armed cursor mode =====
-                             Lit = armed; click again to disarm, like any toggle in this bar. It reads the
-                             active product's value under the pointer in EVERY pane at once (one armed cursor
-                             over a shared camera), and the value itself appears on each pane's own product
-                             ramp — the mode is global, the readout is per-pane, which is why the key is here
-                             and the numbers are not.
-
-                             ⚠️ DISABLED UNTIL A LOOP IS LOADED (Radar.IsTransportEnabled), same gate the
-                             transport buttons use: with nothing decoded there is no value to read.
-
-                             ⚠️ It lived in the Settings window's Radar tab, under a "Tools" heading, and came
-                             out for the same reason the marker key did: it is a gesture you make while
-                             reading the map, not a preference you set once. That heading is gone with it.
-
-                             ⚠️ THE MARK IS A MAGNIFYING GLASS (E721 Search), AND IT USED TO BE A DRAWN
-                             RETICLE. The reticle was chosen to sidestep the empty-box risk — Segoe Fluent
-                             has no reticle verified here — but it COLLIDED with the Location key's mark in
-                             the right cluster, which pictures the reticle it drops on the map. Two rings
-                             with ticks in one bar, three keys apart, is one mark meaning two things; the
-                             glyph that is not a reticle is the one that had to move, and inspecting is what
-                             a magnifier says without being learned.
-                             ⚠️ So this key is back on a plain FontIcon like Sites and Settings, and the
-                             PathIcon reasoning that used to live here (an 18-unit box matching what a
-                             BarKeyGlyphSize FontIcon inks) now applies only to the Location key. Don't
-                             re-derive it here.
-                             ⚠️ E721 is a standard, long-lived Search codepoint, but it has NOT been checked
-                             by rendering it in the real font on this machine — the house rule stands, and a
-                             wrong codepoint ships as an empty box. Confirm on first run. -->
-                        <ToggleButton x:Name="InspectKey"
-                                      Grid.Column="1"
-                                      Style="{StaticResource BarKeyToggleStyle}"
-                                      ToolTipService.ToolTip="Inspect — read radar values under the cursor (click again to turn it off)"
-                                      IsEnabled="{x:Bind ViewModel.Radar.IsTransportEnabled, Mode=OneWay}"
-                                      IsChecked="{x:Bind ViewModel.Radar.IsInspecting, Mode=TwoWay}">
-                            <Grid Margin="3,0" RowSpacing="2">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <FontIcon Grid.Row="0"
-                                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                          FontSize="{StaticResource BarKeyGlyphSize}"
-                                          Glyph="&#xE721;"/>
-                                <TextBlock Grid.Row="1"
-                                           Text="Inspect"
-                                           HorizontalAlignment="Center"
-                                           FontSize="{StaticResource BarKeyNameSize}"/>
-                            </Grid>
-                        </ToggleButton>
-
-                        <!-- PER-PANE + TIME. In multi-pane the chip cluster inside this grows to a 2x2 that
-                             mirrors the pane grid; the time module beside it does not multiply. -->
-                        <comp:RadarControls Grid.Column="2"
-                                            Margin="20,0,0,0"
-                                            VerticalAlignment="Center"
-                                            ViewModel="{x:Bind ViewModel.Radar}"/>
-                    </Grid>
-
-                    <!-- ===== GLOBAL CLUSTER =====
-                         Every key here shares the bar's one look with the temporal keys at the centre:
-                         hairline at rest, accent border + raised face when ON. Nothing here repeats per
-                         pane.
-
-                         THREE KINDS of control sit here — the pane key is an ACTION that cycles (its icon
-                         is the readout, never lit); Location latches on something it put on the MAP; Sites and
-                         Settings are INDEPENDENT window latches (any combination open). ⚠️ They are NOT
-                         separated by a wider gap any more: this was two nested grids at 14px and 6px, which
-                         read as a spacing mistake rather than as a grouping. ONE spacing for all of them,
-                         matching the temporal cluster's, so the whole bar has a single rhythm. Keep it one
-                         flat grid — the moment it nests again the gaps drift apart. -->
-                    <Grid x:Name="RightCluster"
-                          Grid.Column="2"
-                          HorizontalAlignment="Right"
-                          VerticalAlignment="Center"
-                          ColumnSpacing="8">
-                        <Grid.Resources>
-                            <!-- The pane key's WIDE mark, and the key it needs. These live HERE, not in
-                                 Controls/Styles.xaml, because this key is their only consumer — the house
-                                 rule in that file is that a shared number earns its place by having two.
-                                 They are quoted against a 26x14 reference box (the map band's shape), which
-                                 is what the drawn cells below divide: 59 x 32 holds that 26:14 ratio, and
-                                 the 5px groove is its 2px gap at the same scale. -->
-                            <x:Double x:Key="PaneKeyWidth">78</x:Double>
-                            <x:Double x:Key="PaneMarkWidth">59</x:Double>
-                            <x:Double x:Key="PaneMarkHeight">32</x:Double>
-                            <x:Double x:Key="PaneMarkGap">5</x:Double>
-                        </Grid.Resources>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/> <!-- pane layout (one cycling key) -->
-                            <ColumnDefinition Width="Auto"/> <!-- locate (drop / remove your marker) -->
-                            <ColumnDefinition Width="Auto"/> <!-- site explorer -->
-                            <ColumnDefinition Width="Auto"/> <!-- settings -->
-                        </Grid.ColumnDefinitions>
-
-                        <!-- ===== PANE LAYOUT — ONE key that CYCLES =====
-                             Sits in the bar rather than inside a window because it IS the view mode. One
-                             key, not one per layout: a click advances Single → Two across → Quad → Single.
-
-                             ⚠️ THE ICON DRAWS THE **NEXT** LAYOUT, NOT THE CURRENT ONE — it advertises what
-                             the click will DO, the way a play button shows a play triangle while paused.
-                             Drawing the current layout was tried and is confusing: the app opens in single
-                             pane showing a single square, which reads as "click me for one pane". So in
-                             quad you see the single-square icon, because that is where the next click lands.
-                             It binds Radar.NextPaneLayout for exactly this reason.
-
-                             ⚠️ Consequence, and it is deliberate: this key no longer reports the CURRENT
-                             layout. The map itself and the chip cluster in RadarControls both show that, and
-                             the tooltip names it in words — an action control that lies about its action is
-                             the worse trade.
-
-                             ⚠️ It is a Button, NOT a ToggleButton, and never lights. There is no "off" pane
-                             layout to be un-lit — every state is an on-state — so the accent border would
-                             be meaningless here. Its neighbours latch because their windows really are
-                             open or closed; this one is an action.
-
-                             ⚠️ The ORDER lives in the view model (Radar.NextPaneLayout / CyclePaneLayout),
-                             not here. The view knows only "advance" and "draw what is next"; it does not
-                             own the sequence, or the icon and the click could disagree.
-
-                             There is deliberately no "two stacked": weather is read left-to-right across a
-                             storm, and a stacked pair halves the vertical extent that matters most on a
-                             wide monitor.
-
-                             ⚠️ THE MARK IS A LITERAL PICTURE OF THE MAP BAND, so unlike every other
-                             mark in the bar its box is NOT SQUARE — it is wide (26:14, doubled to the
-                             52x28 PaneMarkWidth/Height above), and the cells inside divide that box. That
-                             is what makes the three silhouettes read as different layouts rather than as
-                             three grids: one wide rectangle, then two half-wide ones, then four. All three
-                             are stacked in the same cell and only the NEXT layout's is visible.
-
-                             ⚠️ THE MARK CARRIES NO TEXT AT ALL — no name under it, no count inside it.
-                             Just the cells, with the ANCHOR one filled in accent: pane 0, the LEFT cell in
-                             two-across and the BOTTOM-LEFT in quad, matching where pane 0 actually sits on
-                             the map. Everything in words is the tooltip's job.
-                             ⚠️ History, so it is not re-attempted blind: the pane COUNT was put inside the
-                             anchor cell as a numeral (1 / 2 / 4), which is why the label came off and the
-                             mark grew to 82% of the key's width. It worked in single and two-across and
-                             failed in QUAD — that anchor cell is under a quarter of the mark's height, so
-                             the "4" stayed a smudge even at the largest mark the bar can hold. Centring
-                             the digit over the whole mark was mocked up and rejected too: it lands on the
-                             seam between cells, so it cannot share the mark with an accent-filled anchor
-                             without half the glyph losing contrast. The count went; the anchor stayed.
-                             ⚠️ Consequence: the mark is now sized for its own shapes rather than for a
-                             digit, so WideIconRatio can be lowered freely if it reads too large. It was
-                             set for legibility that no longer has to be served.
-
-                             ⚠️ Drawn (Rectangles + TextBlocks), not a font glyph: Segoe Fluent has no
-                             clean 1 / 2 / 4-pane trio. The unfilled cells stay STROKED because everything
-                             beside them is a thin-outline glyph and solid blocks read heavier; the anchor
-                             is the deliberate exception, and its accent is the only one in the bar that
-                             does not mean "this key is on" (this key never lights — see above). Brushes
-                             are fixed because Shapes do not inherit the content Foreground the template
-                             drives.
-                             ⚠️ Hollow shapes do NOT cost the key its click target — the template's
-                             Surface Border has Background="Transparent", which hit-tests the whole key.
-                             ⚠️ THE KEY ITSELF IS WIDER THAN THE SQUARE (PaneKeyWidth): at this mark size
-                             a square key would crop the mark to its own border, so the key widens to hold
-                             the mark rather than the mark shrinking to fit. Only its WIDTH is overridden —
-                             the height stays the shared square from BarChromeButtonStyle, because one row
-                             of keys has one height. It costs the bar's centring nothing: this cluster sits
-                             in a star column of the [*, Auto, *] grid. -->
-                        <Button x:Name="PaneLayoutKey"
-                                Grid.Column="0"
-                                Style="{StaticResource BarIconButtonStyle}"
-                                Width="{StaticResource PaneKeyWidth}"
-                                ToolTipService.ToolTip="{x:Bind PaneLayoutTooltip(ViewModel.Radar.PaneLayout), Mode=OneWay}"
-                                Click="OnCyclePaneLayout">
-                            <Grid>
-                                <!-- SINGLE — one wide pane, and it is the anchor. -->
-                                <Grid x:Name="SinglePaneIcon"
-                                      Width="{StaticResource PaneMarkWidth}"
-                                      Height="{StaticResource PaneMarkHeight}"
-                                      Visibility="{x:Bind SinglePaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
-                                    <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
-                                </Grid>
-
-                                <!-- TWO ACROSS — anchor LEFT, matching pane 0 on the map. -->
-                                <Grid x:Name="DualPaneIcon"
-                                      Width="{StaticResource PaneMarkWidth}"
-                                      Height="{StaticResource PaneMarkHeight}"
-                                      ColumnSpacing="{StaticResource PaneMarkGap}"
-                                      Visibility="{x:Bind DualPaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition/>
-                                        <ColumnDefinition/>
-                                    </Grid.ColumnDefinitions>
-                                    <Rectangle Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
-                                    <Rectangle Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
-                                </Grid>
-
-                                <!-- QUAD — anchor BOTTOM-LEFT, matching pane 0 on the map. -->
-                                <Grid x:Name="QuadPaneIcon"
-                                      Width="{StaticResource PaneMarkWidth}"
-                                      Height="{StaticResource PaneMarkHeight}"
-                                      ColumnSpacing="{StaticResource PaneMarkGap}"
-                                      RowSpacing="{StaticResource PaneMarkGap}"
-                                      Visibility="{x:Bind QuadPaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition/>
-                                        <ColumnDefinition/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition/>
-                                        <RowDefinition/>
-                                    </Grid.RowDefinitions>
-                                    <Rectangle Grid.Row="0" Grid.Column="0" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
-                                    <Rectangle Grid.Row="0" Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
-                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
-                                    <Rectangle Grid.Row="1" Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
-                                </Grid>
-                            </Grid>
-                        </Button>
-
-                        <!-- ===== LOCATION — drop (or remove) the marker at your location =====
-                             Between the pane key and the window latches because that is what it is: not a
-                             window, and not a per-pane control. It is the only key here that puts something
-                             ON THE MAP, which is why it sits at the boundary between the view-mode key and
-                             the two that open panels.
-
-                             ⚠️ IT LATCHES, and that is the whole design argument. As a plain action button
-                             it would be a ONE-WAY DOOR: nothing else in the shipped UI can take the marker
-                             back off the map (MarkersViewModel.RemoveSelectedMarker needs the Selected
-                             Marker window, which is still pending re-add). Lit = your marker is out there;
-                             clicking it lit removes it. Re-locating after you have moved is off-then-on —
-                             two clicks for the rare case, none for the common one.
-
-                             ⚠️ IsChecked is ONE-WAY and re-asserted in the handler, the same shape the
-                             temporal keys use: the click starts async work (an OS fix, then an IP fallback)
-                             that can FAIL, and on failure no marker is dropped and no property changes — so
-                             nothing would pull the optimistically-checked key back down. The handler awaits
-                             and re-reads the view model. Do not "simplify" this to a TwoWay bind.
-
-                             ⚠️ Enabled off CanLocate: a second click mid-resolve is a no-op in the view
-                             model anyway, and a key that visibly does nothing is worse than a greyed one.
-                             The tooltip carries the "Locating…" / "Location unavailable" text, because the
-                             bar has no status area and a failure would otherwise be completely silent.
-
-                             ⚠️ THE MARK IS A DRAWN PathIcon, NOT A CODEPOINT — same reasoning as the
-                             Inspect key: no location glyph in Segoe Fluent has been verified by rendering
-                             it here, and a wrong one ships as an empty box. It is authored in an 18-unit
-                             box, which is what a BarKeyGlyphSize FontIcon actually inks, so it reads at the
-                             same weight as the Sites and Settings glyphs beside it. PathIcon (not loose
-                             Shapes) so it inherits the template's Foreground through every state.
-
-                             ⚠️ IT IS DELIBERATELY THE SAME FAMILY AS THE ON-MAP MARKER — a ring, four
-                             ticks, a core — because a key should picture what it drops, the way the pane
-                             key draws the layout it gives you. ⚠️ THIS IS WHY THE INSPECT KEY IS A
-                             MAGNIFIER: Inspect was ALSO a drawn reticle, and two ring-and-tick marks in one
-                             bar is one picture meaning two things. This key kept the reticle because it is
-                             the only one of the two that draws something real on the map; Inspect moved to
-                             the glyph. Do NOT give Inspect a reticle back — put a different mark on THIS
-                             key first, and change the marker with it. -->
-                        <ToggleButton x:Name="LocationKey"
-                                      Grid.Column="1"
-                                      Style="{StaticResource BarKeyToggleStyle}"
-                                      IsEnabled="{x:Bind ViewModel.Markers.CanLocate, Mode=OneWay}"
-                                      IsChecked="{x:Bind ViewModel.Markers.HasUserLocationMarker, Mode=OneWay}"
-                                      ToolTipService.ToolTip="{x:Bind LocationTooltip(ViewModel.Markers.HasUserLocationMarker, ViewModel.Markers.LocateStatusText), Mode=OneWay}"
-                                      Click="OnToggleUserLocation">
-                            <Grid Margin="3,0" RowSpacing="2">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <!-- Ring (donut 3.6-5.2), SOLID core (r 2.2), four ticks standing off it. -->
-                                <PathIcon Grid.Row="0"
-                                          HorizontalAlignment="Center"
-                                          Data="M3.8,9 A5.2,5.2 0 1,0 14.2,9 A5.2,5.2 0 1,0 3.8,9 Z M5.4,9 A3.6,3.6 0 1,0 12.6,9 A3.6,3.6 0 1,0 5.4,9 Z M6.8,9 A2.2,2.2 0 1,0 11.2,9 A2.2,2.2 0 1,0 6.8,9 Z M8.2,0 H9.8 V3 H8.2 Z M8.2,15 H9.8 V18 H8.2 Z M0,8.2 H3 V9.8 H0 Z M15,8.2 H18 V9.8 H15 Z"/>
-                                <TextBlock Grid.Row="1"
-                                           Text="Location"
-                                           HorizontalAlignment="Center"
-                                           FontSize="{StaticResource BarKeyNameSize}"/>
-                            </Grid>
-                        </ToggleButton>
-
-                        <!-- ===== WINDOW BUTTONS =====
-                             Each latches while its window is open (IsChecked two-ways with the open flag),
-                             and any combination may be open at once.
-
-                             ⚠️ GLYPH OVER A NAME, same as the temporal keys — these were glyph-only, and a
-                             bar where the centre keys are named and the right ones are not made the right
-                             cluster read as decoration. A glyph alone also has to be LEARNED: a globe, a
-                             tower and a gear are only obvious once you already know what is behind them,
-                             and the tooltip that carried that meaning needs a hover to appear.
-
-                             ⚠️ The names cost NO width: a key is a fixed SQUARE, so the name is fitted
-                             INSIDE the square it already occupied (BarKeyNameSize, Styles.xaml). The
-                             cluster is exactly as wide as it was, and the centred temporal keys do not
-                             move. Keep it that way — a name long enough to force a wider key breaks both,
-                             and there is no probe measuring it for you any more.
-
-                             ⚠️ The style is BarKeyToggleStyle, NOT the old BarIconToggleStyle (deleted):
-                             that one set the icon FontFamily on the BUTTON, which now renders the NAME in
-                             the icon font — boxes instead of words. The glyph carries its own font on the
-                             FontIcon. -->
-                        <!-- ⚠️ THERE WERE FOUR KEYS HERE. "Map" (global map controls) and the
-                             Debug-only "Dev" key are gone: their windows became TABS of the Settings
-                             window, so the gear now opens all of it. Adding a group of settings means
-                             adding a tab (Controls/Windows/SettingsWindow), NOT a key here — this
-                             cluster is for windows that are not settings.
-                             ⚠️ The Timeframe key briefly lived here too, as the third window latch. It
-                             moved to the CENTRE cluster, hard against the temporal trio, because a
-                             panel that only ever configures those three modes belongs beside them —
-                             see TemporalToggles. What is left here is genuinely global. -->
-                            <ToggleButton x:Name="SitesKey"
-                                          Grid.Column="2"
+                                 ⚠️ Glyphs E7B3 (RedEye) / ED1A (Hide) — these are NOT yet verified by rendering
+                                 in the real font, unlike every other glyph in this bar. A wrong codepoint ships
+                                 as an empty box, so check them on the first run and swap if either is blank. -->
+                            <ToggleButton x:Name="SitesVisibleKey"
+                                          Grid.Column="0"
                                           Style="{StaticResource BarKeyToggleStyle}"
-                                          ToolTipService.ToolTip="Radar site explorer"
-                                          IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}">
+                                          ToolTipService.ToolTip="{x:Bind SitesVisibleTooltip(ViewModel.Radar.RadarSitesVisible), Mode=OneWay}"
+                                          IsChecked="{x:Bind ViewModel.Radar.RadarSitesVisible, Mode=TwoWay}">
                                 <Grid Margin="3,0" RowSpacing="2">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
-                                    <FontIcon x:Name="SitesGlyph" Grid.Row="0"
+                                    <FontIcon Grid.Row="0"
                                               FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                                               FontSize="{StaticResource BarKeyGlyphSize}"
-                                              Glyph="&#xEC05;"/>
-                                    <TextBlock x:Name="SitesName" Grid.Row="1"
-                                               FontSize="{StaticResource BarKeyNameSize}"
-                                               Text="Sites"
-                                               HorizontalAlignment="Center"/>
+                                              Glyph="{x:Bind SitesVisibleGlyph(ViewModel.Radar.RadarSitesVisible), Mode=OneWay}"/>
+                                    <TextBlock Grid.Row="1"
+                                               Text="Markers"
+                                               HorizontalAlignment="Center"
+                                               FontSize="{StaticResource BarKeyNameSize}"/>
                                 </Grid>
                             </ToggleButton>
-                            <ToggleButton x:Name="SettingsKey"
-                                          Grid.Column="3"
+
+                            <!-- ===== INSPECT — the armed cursor mode =====
+                                 Lit = armed; click again to disarm, like any toggle in this bar. It reads the
+                                 active product's value under the pointer in EVERY pane at once (one armed cursor
+                                 over a shared camera), and the value itself appears on each pane's own product
+                                 ramp — the mode is global, the readout is per-pane, which is why the key is here
+                                 and the numbers are not.
+
+                                 ⚠️ DISABLED UNTIL A LOOP IS LOADED (Radar.IsTransportEnabled), same gate the
+                                 transport buttons use: with nothing decoded there is no value to read.
+
+                                 ⚠️ It lived in the Settings window's Radar tab, under a "Tools" heading, and came
+                                 out for the same reason the marker key did: it is a gesture you make while
+                                 reading the map, not a preference you set once. That heading is gone with it.
+
+                                 ⚠️ THE MARK IS A MAGNIFYING GLASS (E721 Search), AND IT USED TO BE A DRAWN
+                                 RETICLE. The reticle was chosen to sidestep the empty-box risk — Segoe Fluent
+                                 has no reticle verified here — but it COLLIDED with the Location key's mark in
+                                 the right cluster, which pictures the reticle it drops on the map. Two rings
+                                 with ticks in one bar, three keys apart, is one mark meaning two things; the
+                                 glyph that is not a reticle is the one that had to move, and inspecting is what
+                                 a magnifier says without being learned.
+                                 ⚠️ So this key is back on a plain FontIcon like Sites and Settings, and the
+                                 PathIcon reasoning that used to live here (an 18-unit box matching what a
+                                 BarKeyGlyphSize FontIcon inks) now applies only to the Location key. Don't
+                                 re-derive it here.
+                                 ⚠️ E721 is a standard, long-lived Search codepoint, but it has NOT been checked
+                                 by rendering it in the real font on this machine — the house rule stands, and a
+                                 wrong codepoint ships as an empty box. Confirm on first run. -->
+                            <ToggleButton x:Name="InspectKey"
+                                          Grid.Column="1"
                                           Style="{StaticResource BarKeyToggleStyle}"
-                                          ToolTipService.ToolTip="Settings — map, radar, storage"
-                                          IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}">
+                                          ToolTipService.ToolTip="Inspect — read radar values under the cursor (click again to turn it off)"
+                                          IsEnabled="{x:Bind ViewModel.Radar.IsTransportEnabled, Mode=OneWay}"
+                                          IsChecked="{x:Bind ViewModel.Radar.IsInspecting, Mode=TwoWay}">
                                 <Grid Margin="3,0" RowSpacing="2">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
-                                    <FontIcon x:Name="SettingsGlyph" Grid.Row="0"
+                                    <FontIcon Grid.Row="0"
                                               FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                                               FontSize="{StaticResource BarKeyGlyphSize}"
-                                              Glyph="&#xE713;"/>
-                                    <TextBlock x:Name="SettingsName" Grid.Row="1"
-                                               FontSize="{StaticResource BarKeyNameSize}"
-                                               Text="Settings"
-                                               HorizontalAlignment="Center"/>
+                                              Glyph="&#xE721;"/>
+                                    <TextBlock Grid.Row="1"
+                                               Text="Inspect"
+                                               HorizontalAlignment="Center"
+                                               FontSize="{StaticResource BarKeyNameSize}"/>
                                 </Grid>
                             </ToggleButton>
-                    </Grid>
 
-                    <!-- ===== TEMPORAL MODE KEYS — THE BAR'S CENTERPIECE =====
-                         The Auto column between two equal stars, so this is the bar's exact midpoint
-                         (see the ⚠️ above). LAST in markup on purpose: if the console on the left ever
-                         outgrows its half it slides UNDER these rather than over them, so the keys stay
-                         clickable. Past excludes Now/Fore; Now and Fore coexist.
-                         ⚠️ Center, and this is a REVERSAL: Stretch used to be REQUIRED here, because the
-                         keys were squares measured off the height they were given and centring collapsed
-                         them. They are a fixed size now (Styles.xaml, BarKeySide) and this row is what
-                         makes the BAR that tall, so stretching would only pad around them. -->
-                    <comp:TemporalToggles Grid.Column="1"
-                                          HorizontalAlignment="Center"
-                                          VerticalAlignment="Center"
-                                          ViewModel="{x:Bind ViewModel}"/>
-                </Grid>
-            </ctl:OverlayBar.BarContent>
-        </ctl:OverlayBar>
+                            <!-- PER-PANE + TIME. In multi-pane the chip cluster inside this grows to a 2x2 that
+                                 mirrors the pane grid; the time module beside it does not multiply. -->
+                            <comp:RadarControls Grid.Column="2"
+                                                Margin="20,0,0,0"
+                                                VerticalAlignment="Center"
+                                                ViewModel="{x:Bind ViewModel.Radar}"/>
+                        </Grid>
+
+                        <!-- ===== GLOBAL CLUSTER =====
+                             Every key here shares the bar's one look with the temporal keys at the centre:
+                             hairline at rest, accent border + raised face when ON. Nothing here repeats per
+                             pane.
+
+                             THREE KINDS of control sit here — the pane key is an ACTION that cycles (its icon
+                             is the readout, never lit); Location latches on something it put on the MAP; Sites and
+                             Settings are INDEPENDENT window latches (any combination open). ⚠️ They are NOT
+                             separated by a wider gap any more: this was two nested grids at 14px and 6px, which
+                             read as a spacing mistake rather than as a grouping. ONE spacing for all of them,
+                             matching the temporal cluster's, so the whole bar has a single rhythm. Keep it one
+                             flat grid — the moment it nests again the gaps drift apart. -->
+                        <Grid x:Name="RightCluster"
+                              Grid.Column="2"
+                              HorizontalAlignment="Right"
+                              VerticalAlignment="Center"
+                              ColumnSpacing="8">
+                            <Grid.Resources>
+                                <!-- The pane key's WIDE mark, and the key it needs. These live HERE, not in
+                                     Controls/Styles.xaml, because this key is their only consumer — the house
+                                     rule in that file is that a shared number earns its place by having two.
+                                     They are quoted against a 26x14 reference box (the map band's shape), which
+                                     is what the drawn cells below divide: 59 x 32 holds that 26:14 ratio, and
+                                     the 5px groove is its 2px gap at the same scale. -->
+                                <x:Double x:Key="PaneKeyWidth">78</x:Double>
+                                <x:Double x:Key="PaneMarkWidth">59</x:Double>
+                                <x:Double x:Key="PaneMarkHeight">32</x:Double>
+                                <x:Double x:Key="PaneMarkGap">5</x:Double>
+                            </Grid.Resources>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/> <!-- pane layout (one cycling key) -->
+                                <ColumnDefinition Width="Auto"/> <!-- locate (drop / remove your marker) -->
+                                <ColumnDefinition Width="Auto"/> <!-- site explorer -->
+                                <ColumnDefinition Width="Auto"/> <!-- map controls strip -->
+                                <ColumnDefinition Width="Auto"/> <!-- settings -->
+                            </Grid.ColumnDefinitions>
+
+                            <!-- ===== PANE LAYOUT — ONE key that CYCLES =====
+                                 Sits in the bar rather than inside a window because it IS the view mode. One
+                                 key, not one per layout: a click advances Single → Two across → Quad → Single.
+
+                                 ⚠️ THE ICON DRAWS THE **NEXT** LAYOUT, NOT THE CURRENT ONE — it advertises what
+                                 the click will DO, the way a play button shows a play triangle while paused.
+                                 Drawing the current layout was tried and is confusing: the app opens in single
+                                 pane showing a single square, which reads as "click me for one pane". So in
+                                 quad you see the single-square icon, because that is where the next click lands.
+                                 It binds Radar.NextPaneLayout for exactly this reason.
+
+                                 ⚠️ Consequence, and it is deliberate: this key no longer reports the CURRENT
+                                 layout. The map itself and the chip cluster in RadarControls both show that, and
+                                 the tooltip names it in words — an action control that lies about its action is
+                                 the worse trade.
+
+                                 ⚠️ It is a Button, NOT a ToggleButton, and never lights. There is no "off" pane
+                                 layout to be un-lit — every state is an on-state — so the accent border would
+                                 be meaningless here. Its neighbours latch because their windows really are
+                                 open or closed; this one is an action.
+
+                                 ⚠️ The ORDER lives in the view model (Radar.NextPaneLayout / CyclePaneLayout),
+                                 not here. The view knows only "advance" and "draw what is next"; it does not
+                                 own the sequence, or the icon and the click could disagree.
+
+                                 There is deliberately no "two stacked": weather is read left-to-right across a
+                                 storm, and a stacked pair halves the vertical extent that matters most on a
+                                 wide monitor.
+
+                                 ⚠️ THE MARK IS A LITERAL PICTURE OF THE MAP BAND, so unlike every other
+                                 mark in the bar its box is NOT SQUARE — it is wide (26:14, doubled to the
+                                 52x28 PaneMarkWidth/Height above), and the cells inside divide that box. That
+                                 is what makes the three silhouettes read as different layouts rather than as
+                                 three grids: one wide rectangle, then two half-wide ones, then four. All three
+                                 are stacked in the same cell and only the NEXT layout's is visible.
+
+                                 ⚠️ THE MARK CARRIES NO TEXT AT ALL — no name under it, no count inside it.
+                                 Just the cells, with the ANCHOR one filled in accent: pane 0, the LEFT cell in
+                                 two-across and the BOTTOM-LEFT in quad, matching where pane 0 actually sits on
+                                 the map. Everything in words is the tooltip's job.
+                                 ⚠️ History, so it is not re-attempted blind: the pane COUNT was put inside the
+                                 anchor cell as a numeral (1 / 2 / 4), which is why the label came off and the
+                                 mark grew to 82% of the key's width. It worked in single and two-across and
+                                 failed in QUAD — that anchor cell is under a quarter of the mark's height, so
+                                 the "4" stayed a smudge even at the largest mark the bar can hold. Centring
+                                 the digit over the whole mark was mocked up and rejected too: it lands on the
+                                 seam between cells, so it cannot share the mark with an accent-filled anchor
+                                 without half the glyph losing contrast. The count went; the anchor stayed.
+                                 ⚠️ Consequence: the mark is now sized for its own shapes rather than for a
+                                 digit, so WideIconRatio can be lowered freely if it reads too large. It was
+                                 set for legibility that no longer has to be served.
+
+                                 ⚠️ Drawn (Rectangles + TextBlocks), not a font glyph: Segoe Fluent has no
+                                 clean 1 / 2 / 4-pane trio. The unfilled cells stay STROKED because everything
+                                 beside them is a thin-outline glyph and solid blocks read heavier; the anchor
+                                 is the deliberate exception, and its accent is the only one in the bar that
+                                 does not mean "this key is on" (this key never lights — see above). Brushes
+                                 are fixed because Shapes do not inherit the content Foreground the template
+                                 drives.
+                                 ⚠️ Hollow shapes do NOT cost the key its click target — the template's
+                                 Surface Border has Background="Transparent", which hit-tests the whole key.
+                                 ⚠️ THE KEY ITSELF IS WIDER THAN THE SQUARE (PaneKeyWidth): at this mark size
+                                 a square key would crop the mark to its own border, so the key widens to hold
+                                 the mark rather than the mark shrinking to fit. Only its WIDTH is overridden —
+                                 the height stays the shared square from BarChromeButtonStyle, because one row
+                                 of keys has one height. It costs the bar's centring nothing: this cluster sits
+                                 in a star column of the [*, Auto, *] grid. -->
+                            <Button x:Name="PaneLayoutKey"
+                                    Grid.Column="0"
+                                    Style="{StaticResource BarIconButtonStyle}"
+                                    Width="{StaticResource PaneKeyWidth}"
+                                    ToolTipService.ToolTip="{x:Bind PaneLayoutTooltip(ViewModel.Radar.PaneLayout), Mode=OneWay}"
+                                    Click="OnCyclePaneLayout">
+                                <Grid>
+                                    <!-- SINGLE — one wide pane, and it is the anchor. -->
+                                    <Grid x:Name="SinglePaneIcon"
+                                          Width="{StaticResource PaneMarkWidth}"
+                                          Height="{StaticResource PaneMarkHeight}"
+                                          Visibility="{x:Bind SinglePaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
+                                        <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
+                                    </Grid>
+
+                                    <!-- TWO ACROSS — anchor LEFT, matching pane 0 on the map. -->
+                                    <Grid x:Name="DualPaneIcon"
+                                          Width="{StaticResource PaneMarkWidth}"
+                                          Height="{StaticResource PaneMarkHeight}"
+                                          ColumnSpacing="{StaticResource PaneMarkGap}"
+                                          Visibility="{x:Bind DualPaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition/>
+                                            <ColumnDefinition/>
+                                        </Grid.ColumnDefinitions>
+                                        <Rectangle Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
+                                        <Rectangle Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
+                                    </Grid>
+
+                                    <!-- QUAD — anchor BOTTOM-LEFT, matching pane 0 on the map. -->
+                                    <Grid x:Name="QuadPaneIcon"
+                                          Width="{StaticResource PaneMarkWidth}"
+                                          Height="{StaticResource PaneMarkHeight}"
+                                          ColumnSpacing="{StaticResource PaneMarkGap}"
+                                          RowSpacing="{StaticResource PaneMarkGap}"
+                                          Visibility="{x:Bind QuadPaneVisibility(ViewModel.Radar.NextPaneLayout), Mode=OneWay}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition/>
+                                            <ColumnDefinition/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition/>
+                                            <RowDefinition/>
+                                        </Grid.RowDefinitions>
+                                        <Rectangle Grid.Row="0" Grid.Column="0" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
+                                        <Rectangle Grid.Row="0" Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
+                                        <Rectangle Grid.Row="1" Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
+                                        <Rectangle Grid.Row="1" Grid.Column="1" Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.5" RadiusX="1" RadiusY="1"/>
+                                    </Grid>
+                                </Grid>
+                            </Button>
+
+                            <!-- ===== LOCATION — drop (or remove) the marker at your location =====
+                                 Between the pane key and the window latches because that is what it is: not a
+                                 window, and not a per-pane control. It is the only key here that puts something
+                                 ON THE MAP, which is why it sits at the boundary between the view-mode key and
+                                 the two that open panels.
+
+                                 ⚠️ IT LATCHES, and that is the whole design argument. As a plain action button
+                                 it would be a ONE-WAY DOOR: nothing else in the shipped UI can take the marker
+                                 back off the map (MarkersViewModel.RemoveSelectedMarker needs the Selected
+                                 Marker window, which is still pending re-add). Lit = your marker is out there;
+                                 clicking it lit removes it. Re-locating after you have moved is off-then-on —
+                                 two clicks for the rare case, none for the common one.
+
+                                 ⚠️ IsChecked is ONE-WAY and re-asserted in the handler, the same shape the
+                                 temporal keys use: the click starts async work (an OS fix, then an IP fallback)
+                                 that can FAIL, and on failure no marker is dropped and no property changes — so
+                                 nothing would pull the optimistically-checked key back down. The handler awaits
+                                 and re-reads the view model. Do not "simplify" this to a TwoWay bind.
+
+                                 ⚠️ Enabled off CanLocate: a second click mid-resolve is a no-op in the view
+                                 model anyway, and a key that visibly does nothing is worse than a greyed one.
+                                 The tooltip carries the "Locating…" / "Location unavailable" text, because the
+                                 bar has no status area and a failure would otherwise be completely silent.
+
+                                 ⚠️ THE MARK IS A DRAWN PathIcon, NOT A CODEPOINT — same reasoning as the
+                                 Inspect key: no location glyph in Segoe Fluent has been verified by rendering
+                                 it here, and a wrong one ships as an empty box. It is authored in an 18-unit
+                                 box, which is what a BarKeyGlyphSize FontIcon actually inks, so it reads at the
+                                 same weight as the Sites and Settings glyphs beside it. PathIcon (not loose
+                                 Shapes) so it inherits the template's Foreground through every state.
+
+                                 ⚠️ IT IS DELIBERATELY THE SAME FAMILY AS THE ON-MAP MARKER — a ring, four
+                                 ticks, a core — because a key should picture what it drops, the way the pane
+                                 key draws the layout it gives you. ⚠️ THIS IS WHY THE INSPECT KEY IS A
+                                 MAGNIFIER: Inspect was ALSO a drawn reticle, and two ring-and-tick marks in one
+                                 bar is one picture meaning two things. This key kept the reticle because it is
+                                 the only one of the two that draws something real on the map; Inspect moved to
+                                 the glyph. Do NOT give Inspect a reticle back — put a different mark on THIS
+                                 key first, and change the marker with it. -->
+                            <ToggleButton x:Name="LocationKey"
+                                          Grid.Column="1"
+                                          Style="{StaticResource BarKeyToggleStyle}"
+                                          IsEnabled="{x:Bind ViewModel.Markers.CanLocate, Mode=OneWay}"
+                                          IsChecked="{x:Bind ViewModel.Markers.HasUserLocationMarker, Mode=OneWay}"
+                                          ToolTipService.ToolTip="{x:Bind LocationTooltip(ViewModel.Markers.HasUserLocationMarker, ViewModel.Markers.LocateStatusText), Mode=OneWay}"
+                                          Click="OnToggleUserLocation">
+                                <Grid Margin="3,0" RowSpacing="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <!-- Ring (donut 3.6-5.2), SOLID core (r 2.2), four ticks standing off it. -->
+                                    <PathIcon Grid.Row="0"
+                                              HorizontalAlignment="Center"
+                                              Data="M3.8,9 A5.2,5.2 0 1,0 14.2,9 A5.2,5.2 0 1,0 3.8,9 Z M5.4,9 A3.6,3.6 0 1,0 12.6,9 A3.6,3.6 0 1,0 5.4,9 Z M6.8,9 A2.2,2.2 0 1,0 11.2,9 A2.2,2.2 0 1,0 6.8,9 Z M8.2,0 H9.8 V3 H8.2 Z M8.2,15 H9.8 V18 H8.2 Z M0,8.2 H3 V9.8 H0 Z M15,8.2 H18 V9.8 H15 Z"/>
+                                    <TextBlock Grid.Row="1"
+                                               Text="Location"
+                                               HorizontalAlignment="Center"
+                                               FontSize="{StaticResource BarKeyNameSize}"/>
+                                </Grid>
+                            </ToggleButton>
+
+                            <!-- ===== WINDOW BUTTONS =====
+                                 Each latches while its window is open (IsChecked two-ways with the open flag),
+                                 and any combination may be open at once.
+
+                                 ⚠️ GLYPH OVER A NAME, same as the temporal keys — these were glyph-only, and a
+                                 bar where the centre keys are named and the right ones are not made the right
+                                 cluster read as decoration. A glyph alone also has to be LEARNED: a globe, a
+                                 tower and a gear are only obvious once you already know what is behind them,
+                                 and the tooltip that carried that meaning needs a hover to appear.
+
+                                 ⚠️ The names cost NO width: a key is a fixed SQUARE, so the name is fitted
+                                 INSIDE the square it already occupied (BarKeyNameSize, Styles.xaml). The
+                                 cluster is exactly as wide as it was, and the centred temporal keys do not
+                                 move. Keep it that way — a name long enough to force a wider key breaks both,
+                                 and there is no probe measuring it for you any more.
+
+                                 ⚠️ The style is BarKeyToggleStyle, NOT the old BarIconToggleStyle (deleted):
+                                 that one set the icon FontFamily on the BUTTON, which now renders the NAME in
+                                 the icon font — boxes instead of words. The glyph carries its own font on the
+                                 FontIcon. -->
+                            <!-- ⚠️ THERE WERE FOUR KEYS HERE. "Map" (global map controls) and the
+                                 Debug-only "Dev" key are gone: their windows became TABS of the Settings
+                                 window, so the gear now opens all of it. Adding a group of settings means
+                                 adding a tab (Controls/Windows/SettingsWindow), NOT a key here — this
+                                 cluster is for windows that are not settings.
+                                 ⚠️ The Timeframe key briefly lived here too, as the third window latch. It
+                                 moved to the CENTRE cluster, hard against the temporal trio, because a
+                                 panel that only ever configures those three modes belongs beside them —
+                                 see TemporalToggles. What is left here is genuinely global. -->
+                                <ToggleButton x:Name="SitesKey"
+                                              Grid.Column="2"
+                                              Style="{StaticResource BarKeyToggleStyle}"
+                                              ToolTipService.ToolTip="Radar site explorer"
+                                              IsChecked="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=TwoWay}">
+                                    <Grid Margin="3,0" RowSpacing="2">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <FontIcon x:Name="SitesGlyph" Grid.Row="0"
+                                                  FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                                  FontSize="{StaticResource BarKeyGlyphSize}"
+                                                  Glyph="&#xEC05;"/>
+                                        <TextBlock x:Name="SitesName" Grid.Row="1"
+                                                   FontSize="{StaticResource BarKeyNameSize}"
+                                                   Text="Sites"
+                                                   HorizontalAlignment="Center"/>
+                                    </Grid>
+                                </ToggleButton>
+                                <!-- ===== SHOW / HIDE THE MAP CONTROLS STRIP =====
+                                     ⚠️ THE ODD ONE OUT IN THIS CLUSTER: its neighbours latch a real OS WINDOW,
+                                     this latches a strip drawn over the map. It belongs here anyway because it
+                                     is the same GESTURE — a latch you set and leave — and because the strip is
+                                     map chrome, which is what the rest of this cluster governs.
+                                     ⚠️ It is NOT the bar's own pull-tab, and the two must not be conflated: the
+                                     tab collapses the BAR and carries the strip down with it, still visible;
+                                     this key clears the STRIP. Hiding both is this key first, then the tab.
+                                     ⚠️ Named "Map", which does collide with the Settings window's Map TAB.
+                                     Accepted — different surfaces. If it ever confuses anyone, rename THIS one;
+                                     the tab held the name first. -->
+                                <ToggleButton x:Name="MapControlsKey"
+                                              Grid.Column="3"
+                                              Style="{StaticResource BarKeyToggleStyle}"
+                                              ToolTipService.ToolTip="Show/Hide the map controls strip"
+                                              IsChecked="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=TwoWay}">
+                                    <Grid Margin="3,0" RowSpacing="2">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <FontIcon x:Name="MapControlsGlyph" Grid.Row="0"
+                                                  FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                                  FontSize="{StaticResource BarKeyGlyphSize}"
+                                                  Glyph="&#xE774;"/>
+                                        <TextBlock x:Name="MapControlsName" Grid.Row="1"
+                                                   FontSize="{StaticResource BarKeyNameSize}"
+                                                   Text="Map"
+                                                   HorizontalAlignment="Center"/>
+                                    </Grid>
+                                </ToggleButton>
+                                <ToggleButton x:Name="SettingsKey"
+                                              Grid.Column="4"
+                                              Style="{StaticResource BarKeyToggleStyle}"
+                                              ToolTipService.ToolTip="Settings — map, radar, storage"
+                                              IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}">
+                                    <Grid Margin="3,0" RowSpacing="2">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <FontIcon x:Name="SettingsGlyph" Grid.Row="0"
+                                                  FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                                  FontSize="{StaticResource BarKeyGlyphSize}"
+                                                  Glyph="&#xE713;"/>
+                                        <TextBlock x:Name="SettingsName" Grid.Row="1"
+                                                   FontSize="{StaticResource BarKeyNameSize}"
+                                                   Text="Settings"
+                                                   HorizontalAlignment="Center"/>
+                                    </Grid>
+                                </ToggleButton>
+                        </Grid>
+
+                        <!-- ===== TEMPORAL MODE KEYS — THE BAR'S CENTERPIECE =====
+                             The Auto column between two equal stars, so this is the bar's exact midpoint
+                             (see the ⚠️ above). LAST in markup on purpose: if the console on the left ever
+                             outgrows its half it slides UNDER these rather than over them, so the keys stay
+                             clickable. Past excludes Now/Fore; Now and Fore coexist.
+                             ⚠️ Center, and this is a REVERSAL: Stretch used to be REQUIRED here, because the
+                             keys were squares measured off the height they were given and centring collapsed
+                             them. They are a fixed size now (Styles.xaml, BarKeySide) and this row is what
+                             makes the BAR that tall, so stretching would only pad around them. -->
+                        <comp:TemporalToggles Grid.Column="1"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              ViewModel="{x:Bind ViewModel}"/>
+                    </Grid>
+                </ctl:OverlayBar.BarContent>
+            </ctl:OverlayBar>
+        </StackPanel>
     </Grid>
 </Window>
