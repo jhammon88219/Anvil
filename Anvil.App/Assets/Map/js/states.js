@@ -299,9 +299,31 @@ function framedBbox(rings, frac) {
 // zoom out past where the bounds fill the viewport), so the masked void can't be panned/zoomed into. Null
 // rings (full map) releases the lock. ⚠️ maxBounds is RECTANGULAR — a state locks to its BOUNDING BOX (plus
 // margin), not its polygon; the box corners (masked void) stay reachable, as MapLibre has no polygon limit.
+// ⚠⚠ CANCEL ANY CAMERA EASE BEFORE TOUCHING THE CAMERA, AND SWALLOW WHAT MapLibre THROWS.
+// Both of these are load-bearing, and together they are the fix for a HARD MAP FREEZE (2026-09-04).
+// setMaxBounds() re-enters constrainInternal → setZoom → _calcMatrices; run that while a fitBounds ease
+// is mid-flight and it reads a half-updated transform and throws
+// "Cannot read properties of null (reading '0')". The throw lands INSIDE MapLibre's own frame
+// (_onEaseFrame ← _renderFrameCallback), so the frame aborts WITHOUT clearing its running flag and every
+// later frame throws "Attempting to run(), but is already running." — the render loop is dead for good,
+// the map is frozen, and the WinUI chrome around it still works so it does not look like a crash.
+// ⚠ It is the SAME CLASS as the custom-layer rule in radar.js: a throw inside a frame kills the frame.
+// Nothing here may be allowed to throw.
+// ⚠ It was latent for as long as isolation lived behind a click in the Settings window — you cannot click
+// faster than a 700 ms ease. The map controls strip's isolation combo made it trivial to hit, because a
+// closed WinUI ComboBox cycles its selection on the MOUSEWHEEL: one isolate command per tick, ten a second.
+function stopCamera(map) {
+    try { map.stop(); } catch (e) { /* nothing in flight */ }
+}
+
 function applyMaxBounds(map, rings) {
-    if (!rings || !rings.length) { map.setMaxBounds(null); return; } // full map — free pan
-    map.setMaxBounds(framedBbox(rings, lockMarginFrac()));
+    stopCamera(map);
+    try {
+        if (!rings || !rings.length) { map.setMaxBounds(null); return; } // full map — free pan
+        map.setMaxBounds(framedBbox(rings, lockMarginFrac()));
+    } catch (e) {
+        console.error('states: setMaxBounds failed: ' + e);
+    }
 }
 
 // Apply the current mask (fill only) from the effective rings, keep the radar-site coverage filter matched
@@ -379,9 +401,17 @@ function bboxOfRings(rings) {
 
 function fitRings(map, rings) {
     if (!rings || !rings.length) return;
-    // framedBbox carries the per-region FIT margin; FIT_PADDING is a pixel inset on top to keep the framing
-    // off the bars. The looser LOCK margin (lockMarginFrac) leaves room for both, so maxBounds never clamps.
-    map.fitBounds(framedBbox(rings, fitMarginFrac()), { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM, duration: 700 });
+    // ⚠ Same rule as applyMaxBounds above — supersede the in-flight ease rather than racing it, and never
+    // let MapLibre throw out of here. A NaN bbox (which is what a corrupted transform produces) reaches
+    // fitBounds as "Invalid LngLat object: (NaN, NaN)".
+    stopCamera(map);
+    try {
+        // framedBbox carries the per-region FIT margin; FIT_PADDING is a pixel inset on top to keep the framing
+        // off the bars. The looser LOCK margin (lockMarginFrac) leaves room for both, so maxBounds never clamps.
+        map.fitBounds(framedBbox(rings, fitMarginFrac()), { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM, duration: 700 });
+    } catch (e) {
+        console.error('states: fitBounds failed: ' + e);
+    }
 }
 
 export function fitToView(map) {

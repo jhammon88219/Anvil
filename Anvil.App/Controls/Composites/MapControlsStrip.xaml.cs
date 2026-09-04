@@ -1,6 +1,7 @@
 using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Foundation;
 using Anvil.ViewModels;
@@ -172,6 +173,27 @@ namespace Anvil.Controls.Composites
 			var geometry = new PathGeometry();
 			geometry.Figures.Add(figure);
 			return geometry;
+		}
+
+		/// <summary>
+		/// Swallow the mousewheel while the isolation dropdown is CLOSED, so rolling over the strip cannot
+		/// cycle the isolated region.
+		/// </summary>
+		/// <remarks>
+		/// ⚠⚠ A closed WinUI ComboBox changes its SELECTION on the wheel, and this one's selection is a
+		/// heavyweight global mode: each tick masks the map, re-locks pan/zoom and starts a 700 ms camera
+		/// ease. Scrolling it fast FROZE THE MAP OUTRIGHT (2026-09-04) — see the stopCamera note in
+		/// states.js for the mechanism. That crash is fixed on the JS side too, and independently; this
+		/// stops the app asking for ten isolations a second in the first place, which nobody ever wants.
+		/// ⚠ Only while CLOSED. An OPEN dropdown must still scroll its 52 states, and scrolling that list
+		/// changes nothing until a row is clicked.
+		/// </remarks>
+		private void OnIsolationWheel(object sender, PointerRoutedEventArgs e)
+		{
+			if (!IsolationCombo.IsDropDownOpen)
+			{
+				e.Handled = true;
+			}
 		}
 
 		// Reset north — animate bearing + pitch back to 0. Fire-and-forget through IMapService, the same

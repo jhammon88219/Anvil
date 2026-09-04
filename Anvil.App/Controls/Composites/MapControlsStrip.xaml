@@ -193,8 +193,10 @@
                         Grid.Column="2" Orientation="Horizontal" Spacing="4"
                         Margin="15,0,0,0"
                         HorizontalAlignment="Left" VerticalAlignment="Center">
-                <ComboBox Width="170"
+                <ComboBox x:Name="IsolationCombo"
+                          Width="170"
                           PlaceholderText="Isolate State"
+                          PointerWheelChanged="OnIsolationWheel"
                           ItemsSource="{x:Bind ViewModel.StateIso.IsolationOptions, Mode=OneWay}"
                           ItemTemplate="{StaticResource IsolationOptionTemplate}"
                           SelectedItem="{x:Bind ViewModel.StateIso.SelectedIsolationOption, Mode=TwoWay}"
