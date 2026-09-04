@@ -2,6 +2,7 @@
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
 using Anvil.Models;
 using Anvil.Services;
@@ -339,6 +340,10 @@ namespace Anvil
 		// with it after construction (below).
 		private readonly WindowManager _windows;
 
+		/// <summary>Serilog-backed log for this window. Its one job today is the WebView2 death report —
+		/// see <see cref="OnWebViewProcessFailed"/>.</summary>
+		private readonly ILogger<MainWindow> _logger;
+
 		public MainWindow(
 			MapViewModel viewModel,
 			MapService mapService,
@@ -349,7 +354,8 @@ namespace Anvil
 			IStormReportService stormReportService,
 			ILevel2RadarService radarService,
 			ISettingsService settingsService,
-			WindowManager windows)
+			WindowManager windows,
+			ILogger<MainWindow> logger)
 		{
 			// The DI container (App.ConfigureServices) built the whole graph and injected it here; this
 			// window is just the composition ROOT that wires the WebView-coupled bits the container can't.
@@ -365,6 +371,7 @@ namespace Anvil
 			_radarService = radarService;
 			_settingsService = settingsService;
 			_windows = windows;
+			_logger = logger;
 
 			// MapService needs THIS window as its IMapView (the seam that runs JS). The container couldn't
 			// pass it via ctor without a MainWindow↔MapService cycle, so attach now that both exist — well
@@ -529,8 +536,13 @@ namespace Anvil
 		private async Task InitializeWebViewAsync(WebView2 webView, string url)
 		{
 			// Dark default so there's no white flash before the page (and MapLibre) paint.
+			// ⚠️ This is ALSO what a DEAD renderer paints — see OnWebViewProcessFailed.
 			webView.DefaultBackgroundColor = Microsoft.UI.Colors.Black;
 			await webView.EnsureCoreWebView2Async();
+
+			// The WebView2 death report. Subscribed FIRST, before any host mapping or navigation, so a
+			// failure during startup is caught too.
+			webView.CoreWebView2.ProcessFailed += OnWebViewProcessFailed;
 
 			// The curated DOW frames folder ships with the app (its README is Content), so it normally
 			// exists; guard the create for the rare read-only-package case (which would otherwise throw).
@@ -570,6 +582,60 @@ namespace Anvil
 
 			webView.CoreWebView2.WebMessageReceived += _router.OnWebMessageReceived;
 			webView.Source = new Uri(url);
+		}
+
+		/// <summary>
+		/// The WebView2 process died. PURE INSTRUMENTATION — it reports and does not recover.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ THIS IS THE "ENTIRE MAP WENT BLACK" EVENT, and until it existed the failure was invisible.
+		/// The renderer dying leaves the app itself perfectly healthy — C# keeps running, the bar and the pane
+		/// notches keep drawing, the refresh loops keep logging — while the WebView paints its
+		/// <c>DefaultBackgroundColor</c>, which is deliberately BLACK (the no-white-flash choice above). So the
+		/// symptom is a black rectangle where the map was, with working WinUI chrome around it, and nothing
+		/// anywhere said why.
+		/// <para>Observed 2026-09-03 on a 26-frame PastCast replay: the radar JSONL's JS event stream stopped
+		/// dead mid-<c>fullPrefetch</c> while Serilog kept writing for another ~10 s. Diagnosing that took
+		/// cross-referencing two logs by timestamp; this handler makes it one line. Suspected cause is renderer
+		/// memory (a fully-built 26-frame legacy-volume loop retains ~2.1 GB of gate geometry — see
+		/// <c>docs/app-notes.md</c>), which <see cref="CoreWebView2ProcessFailedKind"/> +
+		/// <c>ExitCode</c> will confirm or refute the next time it happens.</para>
+		/// <para>⚠️ Logged at CRITICAL: the app is alive but its entire map surface is gone, which is as bad as
+		/// a crash from where the user sits. It ALSO writes into the radar diagnostics stream, because that is
+		/// the timeline the JS events stop in — the death marker belongs in the same file as the last frame
+		/// event, not only in the Serilog file.</para>
+		/// <para>⚠️ It does NOT reload the WebView. <c>ProcessFailed</c> IS the hook a recovery would hang off,
+		/// but recovering means re-running the whole bootstrap (host mappings, navigation, then every overlay
+		/// re-added through <c>reAddAll</c>, panes and radar loop included) and deciding what happens to the
+		/// loop that was on screen. That is a feature, not instrumentation; keep them separate so this handler
+		/// can never be the thing that breaks.</para>
+		/// </remarks>
+		private void OnWebViewProcessFailed(object? sender, CoreWebView2ProcessFailedEventArgs e)
+		{
+			// Everything here is best-effort and defensive: we are already in a failure path, and a throw from
+			// a diagnostic handler would replace a legible report with an unhandled exception.
+			var kind = "unknown";
+			var reason = "unknown";
+			var exitCode = -1;
+			var process = string.Empty;
+			var frames = 0;
+			try { kind = e.ProcessFailedKind.ToString(); } catch { /* best effort */ }
+			try { reason = e.Reason.ToString(); } catch { /* not populated for every kind */ }
+			try { exitCode = e.ExitCode; } catch { /* not populated for every kind */ }
+			try { process = e.ProcessDescription ?? string.Empty; } catch { /* not populated for every kind */ }
+			try { frames = e.FrameInfosForFailedProcess?.Count ?? 0; } catch { /* frame-only kinds */ }
+
+			_logger.LogCritical(
+				"WebView2 process failed: kind={Kind} reason={Reason} exitCode={ExitCode} process={Process} frames={Frames}. " +
+				"The map surface is now blank (DefaultBackgroundColor) while the app keeps running; it will NOT self-recover.",
+				kind, reason, exitCode, process, frames);
+
+			// Same event, into the radar stream — the JS events simply STOP at the moment of death, so this is
+			// the line that explains the end of that timeline.
+			Services.RadarDiagnostics.Log("app", "webview.processfailed",
+				("kind", kind), ("reason", reason), ("exitCode", exitCode),
+				("process", process), ("frames", frames));
+			Services.RadarDiagnostics.FlushAll(); // the renderer is gone; don't wait on the ~2 s flush timer
 		}
 
 		/// <summary>

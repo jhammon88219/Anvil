@@ -20,8 +20,11 @@
        #mapcover — an opaque dark lid (z-index 5) over everything until the launch CONUS mask lands,
                    then faded out. Without it the world basemap paints for ~½s first: the flash.
 
-     ⚠️ The pane product WATERMARK is NOT here — it is a XAML control overlaid on the WebView
-     (Controls/Primitives/PaneWatermark) so it stays editable under Hot Reload. -->
+     ⚠️ A pane's CHROME is NOT here — each pane's notch (product selector + colour ramp + tilt) is a XAML
+     control overlaid on the WebView (Controls/Primitives/OverlayBar in its island form, filled with
+     Composites/PaneNotchContent) so it stays editable under Hot Reload and can use the app's theme
+     brushes. The old ghosted PaneWatermark this comment used to name is DELETED — the notch names the
+     product a few pixels away, lit, with its ramp attached. -->
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -88,9 +91,9 @@
             border-bottom: 1px solid rgba(255,255,255,.14);
         }
 
-        /* NB: the pane WATERMARK (the product label in each pane's corner) is not styled here — it is a
-           XAML control overlaid on the WebView (Controls/Primitives/PaneWatermark), so it can be edited
-           under XAML Hot Reload and picks up the app's theme brushes. */
+        /* NB: a pane's NOTCH (product selector + colour ramp + tilt) is not styled here — it is a XAML
+           control overlaid on the WebView (see the header comment), so it can be edited under XAML Hot
+           Reload and picks up the app's theme brushes. */
 
         /* Opaque dark cover over the map until the launch mask (CONUS) is applied. Without it the world
            basemap (Canada/Mexico/oceans) paints on first 'load' and shows for ~½s before the mask lands
@@ -121,6 +124,42 @@
         <div class="gutter h" id="gutterH"></div>
     </div>
     <div id="mapcover"></div>
+
+    <!-- ⚠️ THE PAGE'S DEATH REPORT, AND IT MUST STAY THE FIRST SCRIPT ON THE PAGE. Nothing in here caught
+         an uncaught error before this existed: a throw outside a try/catch (or a rejected promise nobody
+         awaits) killed whatever was mid-flight and left NO trace on the C# side, which is a black or
+         half-drawn map with a healthy-looking log. Registering these handlers ahead of the other tags is
+         what lets them also report a LOAD or PARSE failure in maplibre / radar.js / map.js — after those
+         tags it would be too late for exactly the failures that blank the whole page.
+         Its sibling is MainWindow.OnWebViewProcessFailed, which covers the case this cannot: the render
+         process dying, when no JS runs at all. Both land in the radar diagnostics stream, so the moment the
+         JS events stop there is a line saying why. -->
+    <script>
+        (function () {
+            function report(kind, msg, src, line, col, stack) {
+                try {
+                    if (!window.chrome || !window.chrome.webview) return; // plain browser / dev harness
+                    window.chrome.webview.postMessage(JSON.stringify({
+                        type: 'pageError', kind: kind, msg: String(msg || ''),
+                        src: String(src || ''), line: line || 0, col: col || 0,
+                        stack: String(stack || '').slice(0, 2000)   // capped: a deep stack must not blow the message
+                    }));
+                } catch (e) { /* a reporter that throws is worse than no reporter */ }
+            }
+            window.addEventListener('error', function (e) {
+                // Two shapes arrive here: a real exception (has .error) and a resource/script LOAD failure
+                // (no .error, target is the element that failed) — the latter is how a missing or broken
+                // vendored bundle shows up, so keep both.
+                if (e && e.error) report('exception', e.message, e.filename, e.lineno, e.colno, e.error.stack);
+                else if (e && e.target && e.target.src) report('load', 'failed to load ' + e.target.src, e.target.src, 0, 0, '');
+                else if (e) report('exception', e.message, e.filename, e.lineno, e.colno, '');
+            }, true); // CAPTURE: resource load errors do not bubble
+            window.addEventListener('unhandledrejection', function (e) {
+                var r = e ? e.reason : null;
+                report('rejection', (r && r.message) ? r.message : r, '', 0, 0, r && r.stack);
+            });
+        })();
+    </script>
 
     <script src="vendor/maplibre-gl.js"></script>
     <script src="vendor/pmtiles.js"></script>

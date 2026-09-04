@@ -7,8 +7,8 @@
 //   MAIN THREAD (radar.js)                    WORKERS (this file)
 //   ──────────────────────                    ───────────────────
 //   map render, pan/zoom, GL upload   ──url──►  pool of min(4, cores−1)   ─┐ fetch → bzip2 → gates
-//   (must never block — a hitch here            one task = one frame       │ → colors, then the
-//    is visible as a stutter)        ◄─arrays─  ────────────────────────  ─┘ typed arrays come back
+//   (must never block — a hitch here            N fetches in flight,       │ → colors, then the
+//    is visible as a stutter)        ◄─arrays─  ONE decode at a time     ─┘ typed arrays come back
 //                                               ZERO-COPY (transferred)
 //                                    ──urls──►  a DEDICATED vwp worker    ── the ~8-tilt storm-motion
 //                                    ◄─motion─  ────────────────────────     job, so it never queues
@@ -16,6 +16,25 @@
 //
 //   The URL is posted, not the bytes: the ~7 MB body read happens HERE. Workers are pre-warmed at
 //   map-ready (each eagerly imports the decoder) so the first site click doesn't pay the cold start.
+//
+// ⚠️ A WORKER RUNS ONE DECODE AT A TIME, AND THAT IS A CORRECTNESS REQUIREMENT, NOT A THROTTLE.
+// radar.js hands work out by plain round-robin with no busy tracking (getWorker), so a 12-wide replay
+// backfill over a pool of 4 puts ~3 jobs on each worker at once. radar-decode.js keeps per-decode state
+// at MODULE level (the dealias memo _sharedDealiased, plus _dealiasInfo / _decodeSeedProfile /
+// _decodeVadProfile / _stormMotion) and clears it SYNCHRONOUSLY at the top of decodeAndBuild while the
+// work itself happens in a .then() continuation. So with two jobs interleaved the order is:
+//   B clears the memo ─► A's body runs, FILLS the memo ─► B's body runs, finds it non-null
+// and frame B renders frame A's dealiased Doppler field. Measured 2026-09-03 on a 26-frame El Reno
+// replay: frames 6, 8 and 10 came back with byte-identical dealias signatures and velTris to frames
+// 3, 5 and 2 — each pair two consecutive jobs on the SAME worker. It does not self-heal either: the
+// later dual-pol re-decode reports the frame's own field, but mergeFrameResult keeps geometry that is
+// already marked built, so the borrowed velocity survives for the life of the loop.
+// The fix below serializes the DECODE CALL per worker (fetches still overlap, so throughput is
+// unchanged — the bodies were always synchronous and already monopolized the worker thread; all that
+// was missing was keeping each reset next to its own body).
+// ⚠️ The deeper fix is to stop keeping per-decode state in module scope at all — thread it through as a
+// context object — which touches every builder signature in radar-decode.js. Until that happens, DO NOT
+// remove this queue, and DO NOT start a decode anywhere outside it.
 
 // Resolve the volume bytes: use a pre-supplied ArrayBuffer if the caller transferred one (kept for any
 // one-off caller), else fetch the same-origin url (the normal loop/upgrade path).
@@ -44,6 +63,19 @@ function loadBuffers(d) {
 var _decoder = import('./radar-decode.js');
 function decoder() { return _decoder; }
 
+// The one-decode-at-a-time queue (see the ⚠️ note in the header for what breaks without it). Every call
+// into radar-decode.js goes through here, so a decode's module-level state can never be clobbered by the
+// next job's setup. Only the DECODE is queued — loadAb/loadBuffers run before it, so the fetches of the
+// jobs waiting behind this one are already in flight by the time their turn comes.
+var _decodeQueue = Promise.resolve();
+function queueDecode(run) {
+    const started = _decodeQueue.then(run);
+    // ⚠️ The chain must never carry a rejection forward, or one failed volume wedges every later decode in
+    // this worker. The tail swallows it; the caller still sees the real result via `started`.
+    _decodeQueue = started.then(function () { }, function () { });
+    return started;
+}
+
 self.onmessage = function (e) {
     const d = e.data;
     // Full-volume VWP storm motion (radar.js computeStormMotionForVolume): decode a volume's bottom velocity
@@ -51,7 +83,9 @@ self.onmessage = function (e) {
     // back (no geometry). See radar-decode decodeVwp; runs off-thread because the per-cut dealias is the cost.
     if (d.vwp) {
         loadBuffers(d).then(function (buffers) {
-            return decoder().then(function (m) { return m.decodeVwp(buffers); });
+            return decoder().then(function (m) {
+                return queueDecode(function () { return m.decodeVwp(buffers); });
+            });
         }).then(function (motion) {
             self.postMessage({ vwp: true, reqId: d.reqId, motion: motion });
         }).catch(function (err) {
@@ -64,7 +98,9 @@ self.onmessage = function (e) {
     if (d.gridOnly) {
         loadAb(d).then(function (ab) {
             return decoder().then(function (m) {
-                return m.decodeGridOnly(ab, d.siteLat, d.siteLon, d.minDbz, d.product, d.stormMotion, d.seedProfile);
+                return queueDecode(function () {
+                    return m.decodeGridOnly(ab, d.siteLat, d.siteLon, d.minDbz, d.product, d.stormMotion, d.seedProfile);
+                });
             });
         }).then(function (res) {
             const msg = { token: d.token, index: d.index, url: d.url, gridsOnly: true, gridProduct: d.product, grids: {} };
@@ -80,7 +116,9 @@ self.onmessage = function (e) {
     }
     loadAb(d).then(function (ab) {
         return decoder().then(function (m) {
-            return m.decodeAndBuild(ab, d.siteLat, d.siteLon, d.minDbz, d.buildProducts, d.buildGrids, d.stormMotion, d.seedProfile);
+            return queueDecode(function () {
+                return m.decodeAndBuild(ab, d.siteLat, d.siteLon, d.minDbz, d.buildProducts, d.buildGrids, d.stormMotion, d.seedProfile);
+            });
         });
     }).then(function (res) {
         // Product geometry + inspector grids are keyed by product id (radar-products.js); we forward them

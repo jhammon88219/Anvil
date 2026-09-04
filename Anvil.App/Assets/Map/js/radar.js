@@ -797,6 +797,18 @@
         try { getWorker(); getVwpWorker(); } catch (e) { hostLog('prewarm failed: ' + (e && e.message ? e.message : e)); }
     };
 
+    // ONE DECODE AT A TIME on the main thread too — the no-Worker fallback shares radar-decode.js's
+    // module-level per-decode state (the dealias memo and friends) exactly as a worker does, so two
+    // overlapping fallback decodes hand the second frame the first frame's Doppler field. Same queue, same
+    // reason: see the ⚠️ header note in radar-worker.js, which carries the full mechanism and the evidence.
+    // Only reached when the Worker API is unavailable; costs nothing otherwise.
+    let _mainDecodeQueue = Promise.resolve();
+    function queueMainDecode(run) {
+        const started = _mainDecodeQueue.then(run);
+        _mainDecodeQueue = started.then(function () { }, function () { }); // a failure must not wedge later decodes
+        return started;
+    }
+
     // Wraps a decode result (r2 from decodeAndBuild / decodeDowFrame — already the keyed
     // { moments, grids, built, gridsBuilt, ... } shape) into what applyFrameResult consumes, just
     // stamping this load's token/index/url. Used by the main-thread decode fallback and the DOW path.
@@ -1200,7 +1212,9 @@
             }).then(function (ab) {
                 if (myToken !== loopToken) return;
                 return import('./radar-decode.js').then(function (m) {
-                    return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, buildIds, wantGrids, resolveStormMotion(), _loopSeedProfile);
+                    return queueMainDecode(function () {
+                        return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, buildIds, wantGrids, resolveStormMotion(), _loopSeedProfile);
+                    });
                 }).then(function (r2) {
                     applyFrameResult(frameResultFrom(r2, myToken, index, url));
                 });
@@ -1229,7 +1243,9 @@
             }).then(function (ab) {
                 if (myToken !== loopToken) { upgradeDone(index); return; }
                 return import('./radar-decode.js').then(function (m) {
-                    return m.decodeGridOnly(ab, siteLat, siteLon, MIN_DBZ, prod, resolveStormMotion(), _loopSeedProfile);
+                    return queueMainDecode(function () {
+                        return m.decodeGridOnly(ab, siteLat, siteLon, MIN_DBZ, prod, resolveStormMotion(), _loopSeedProfile);
+                    });
                 }).then(function (r2) {
                     applyGridResult({ token: myToken, index: index, url: url, gridsOnly: true, gridProduct: prod, grids: r2.grids });
                 });

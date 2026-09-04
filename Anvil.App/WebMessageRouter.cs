@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
 using Anvil.ViewModels;
 
@@ -25,6 +26,10 @@ namespace Anvil
 
 		private readonly MapViewModel _viewModel;
 
+		/// <summary>Serilog-backed log. Deliberately used by ONE handler — <see cref="HandlePageError"/>; the
+		/// high-volume <c>radarLog</c> channel stays on <c>Debug.WriteLine</c> so it can't flood the file.</summary>
+		private readonly ILogger<WebMessageRouter> _logger;
+
 		// type → handler for every synchronous message. mapReady is NOT here (it's an async one-shot).
 		private readonly Dictionary<string, Action<JsonElement>> _handlers;
 
@@ -36,9 +41,10 @@ namespace Anvil
 		/// </summary>
 		public event Func<Task>? MapReady;
 
-		public WebMessageRouter(MapViewModel viewModel)
+		public WebMessageRouter(MapViewModel viewModel, ILogger<WebMessageRouter> logger)
 		{
 			_viewModel = viewModel;
+			_logger = logger;
 			_handlers = new Dictionary<string, Action<JsonElement>>
 			{
 				["radarLog"] = HandleRadarLog,
@@ -54,7 +60,35 @@ namespace Anvil
 				["markerClick"] = HandleMarkerClick,
 				["markerMoved"] = HandleMarkerMoved,
 				["radarFrameReady"] = HandleRadarFrameReady,
+				["pageError"] = HandlePageError,
 			};
+		}
+
+		/// <summary>
+		/// An uncaught JS error / rejected promise / failed script load in the page (map.html registers the
+		/// handlers as its first script). PURE INSTRUMENTATION.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ Logged at CRITICAL and NOT batched with the <c>radarLog</c> traffic. <see cref="HandleRadarLog"/>
+		/// deliberately stays on <c>Debug.WriteLine</c> because it is a flood; this is the opposite — it should
+		/// never fire, and when it does the page is broken in a way the user sees as a blank or half-drawn map.
+		/// It goes to BOTH sinks for the same reason <c>MainWindow.OnWebViewProcessFailed</c> does: Serilog is
+		/// where a session is reconstructed, and the radar JSONL is the timeline the JS events stop in.
+		/// </remarks>
+		private void HandlePageError(JsonElement root)
+		{
+			var kind = Str(root, "kind") ?? "unknown";
+			var msg = Str(root, "msg") ?? string.Empty;
+			var src = Str(root, "src") ?? string.Empty;
+			var line = (int)Dbl(root, "line");
+			var col = (int)Dbl(root, "col");
+			var stack = Str(root, "stack") ?? string.Empty;
+
+			_logger.LogCritical(
+				"Map page error ({Kind}): {Message} at {Source}:{Line}:{Column}. Stack: {Stack}",
+				kind, msg, src, line, col, stack);
+			Services.RadarDiagnostics.Log("js", "page.error",
+				("kind", kind), ("msg", msg), ("src", src), ("line", line), ("col", col), ("stack", stack));
 		}
 
 		public async void OnWebMessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs args)
