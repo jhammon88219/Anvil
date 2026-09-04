@@ -43,8 +43,7 @@
 <UserControl x:Class="Anvil.Controls.Composites.MapControlsStrip"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:Anvil.ViewModels"
-             xmlns:conv="using:Anvil.Converters"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -102,24 +101,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
-
-        <!-- One row of the isolation combo. The top three are ACTIONS and carry hover text; the 52 states
-             carry none, because a state name explains itself and 52 identical tooltips would be noise
-             (Tooltip is null there, which shows nothing at all rather than an empty box).
-             ⚠️ The rule is drawn by the FIRST STATE row, not by a separator ITEM — a ComboBox has no
-             non-selectable rows, so a separator item would be selectable and would isolate nothing. -->
-        <DataTemplate x:Key="IsolationOptionTemplate" x:DataType="vm:StateIsolationOption">
-            <StackPanel ToolTipService.ToolTip="{x:Bind Tooltip}">
-                <!-- ⚠️ The rule is drawn BY the first state row, not by a separator ITEM: a ComboBox has
-                     no non-selectable rows, so a separator would be pickable and would isolate nothing. -->
-                <Border Height="1" Margin="0,3,0,6"
-                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                        Visibility="{x:Bind StartsStateList, Converter={StaticResource BoolToVis}}"/>
-                <TextBlock Text="{x:Bind Label}"/>
-            </StackPanel>
-        </DataTemplate>
 
     </UserControl.Resources>
 
@@ -188,19 +169,19 @@
                  re-resolves and reads that state's name. Armed-with-nothing-picked keeps reading "Select to
                  Isolate", which is honest: the map is visibly in hover mode.
                  ⚠️ The PLACEHOLDER shows when nothing is masked at all, because SelectedIsolationOption is
-                 NULL there — "No Isolation" is a row you pick, not a row the combo rests in. -->
+                 NULL there — "No Isolation" is a row you pick, not a row the picker rests in.
+                 ⚠⚠ IT IS Primitives/IsolationComboBox, NOT A ComboBox, FOR A CORRECTNESS REASON — a closed
+                 WinUI ComboBox cycles its selection on the MOUSEWHEEL, and rolling it here froze the map
+                 outright. See that control's header; don't swap it back. -->
             <StackPanel x:Name="RightTools"
                         Grid.Column="2" Orientation="Horizontal" Spacing="4"
                         Margin="15,0,0,0"
                         HorizontalAlignment="Left" VerticalAlignment="Center">
-                <ComboBox x:Name="IsolationCombo"
-                          Width="170"
-                          PlaceholderText="Isolate State"
-                          PointerWheelChanged="OnIsolationWheel"
-                          ItemsSource="{x:Bind ViewModel.StateIso.IsolationOptions, Mode=OneWay}"
-                          ItemTemplate="{StaticResource IsolationOptionTemplate}"
-                          SelectedItem="{x:Bind ViewModel.StateIso.SelectedIsolationOption, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Mask the map down to CONUS or a single state"/>
+                <prim:IsolationComboBox Width="170"
+                                        PlaceholderText="Isolate State"
+                                        ItemsSource="{x:Bind ViewModel.StateIso.IsolationOptions, Mode=OneWay}"
+                                        SelectedItem="{x:Bind ViewModel.StateIso.SelectedIsolationOption, Mode=TwoWay}"
+                                        ToolTipService.ToolTip="Mask the map down to CONUS or a single state"/>
             </StackPanel>
         </Grid>
     </Grid>

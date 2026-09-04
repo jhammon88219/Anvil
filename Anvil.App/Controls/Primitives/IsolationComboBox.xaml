@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- IsolationComboBox — the map controls strip's state-isolation picker: the three isolation ACTIONS over
+     the 52 places, in one boxed dropdown.
+
+       CLOSED     ┌──────────────────────────┐
+                  │ Isolate State          ˅ │   placeholder (muted) when nothing is masked;
+                  └──────────────────────────┘   otherwise the row's own label
+
+                  ┌──────────────────────────┐
+       OPEN       │ No Isolation             │   ← the three ACTIONS carry hover text
+                  │ Isolate CONUS            │
+                  │ Select to Isolate        │
+                  │ ────────────────────────  │  ← rule drawn BY the first state row
+                  │ Alabama                  │
+                  │ Alaska                 ⋮ │   ← 52 places, scrolling
+                  └──────────────────────────┘
+
+     ⚠️⚠️ IT IS NOT A ComboBox, AND THAT IS THE WHOLE REASON IT EXISTS. A closed WinUI ComboBox cycles its
+     SELECTION on the MOUSEWHEEL, and this selection is a heavyweight global mode — each change masks the
+     map, re-locks pan/zoom and starts a 700 ms camera ease. Rolling the wheel over it FROZE THE MAP
+     (2026-09-04; see states.js stopCamera for the mechanism). PointerWheelChanged + e.Handled does NOT fix
+     that: ComboBox handles the wheel in a CLASS handler, which runs BEFORE any instance handler, so the
+     selection has already changed by the time you see the event — measured, not assumed.
+     A Grid does not respond to the wheel at all, so this shape cannot have the bug.
+     ⚠️ Same construction as Primitives/TiltComboBox and ProductComboBox, which are Flyout+ListView for
+     their own reasons — this is the third, and the one with a correctness reason. Don't "simplify" any of
+     them back to a ComboBox.
+
+     ⚠️ The flyout is given an explicitly OPAQUE surface: the default flyout brush is acrylic and washes
+     out over the map.
+
+     Host contract: ItemsSource + SelectedItem (TwoWay) + PlaceholderText. -->
+<UserControl
+    x:Class="Anvil.Controls.Primitives.IsolationComboBox"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:Anvil.ViewModels"
+    xmlns:conv="using:Anvil.Converters"
+    mc:Ignorable="d"
+    IsTabStop="True"
+    UseSystemFocusVisuals="True"
+    KeyDown="OnKeyDown"
+    IsEnabledChanged="OnIsEnabledChanged">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <!-- ⚠️ Background="Transparent" is what makes the whole box tappable (a null background does not
+         hit-test), NOT a look. The Border below draws the actual face. -->
+    <Grid x:Name="Root" Background="Transparent" Tapped="OnTapped">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal"/>
+                <VisualState x:Name="Disabled">
+                    <VisualState.Setters>
+                        <Setter Target="SelectedLabel.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                        <Setter Target="Placeholder.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                        <Setter Target="DropDownGlyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <!-- The box. Unlike TiltComboBox (borderless, because it blends into a pane notch) this one sits on
+             the strip beside icon buttons, so it keeps a visible field. -->
+        <Border x:Name="Box"
+                Grid.ColumnSpan="2"
+                MinHeight="32"
+                CornerRadius="4"
+                BorderThickness="1"
+                Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                Control.IsTemplateFocusTarget="True"/>
+
+        <TextBlock x:Name="SelectedLabel"
+                   Grid.Column="0"
+                   Margin="10,5,0,6"
+                   VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis"
+                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                   Visibility="{x:Bind HasSelection(SelectedItem), Mode=OneWay}"
+                   Text="{x:Bind LabelOf(SelectedItem), Mode=OneWay}"/>
+
+        <!-- Shown only when NOTHING is masked — which is exactly when SelectedItem is null (see
+             StateIsolationViewModel: "No Isolation" is a row you PICK, not one the picker rests in). -->
+        <TextBlock x:Name="Placeholder"
+                   Grid.Column="0"
+                   Margin="10,5,0,6"
+                   VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis"
+                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                   Visibility="{x:Bind NoSelection(SelectedItem), Mode=OneWay}"
+                   Text="{x:Bind PlaceholderText, Mode=OneWay}"/>
+
+        <FontIcon x:Name="DropDownGlyph"
+                  Grid.Column="1"
+                  Margin="8,0,10,0"
+                  VerticalAlignment="Center"
+                  FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                  FontSize="12"
+                  Glyph="&#xE70D;"
+                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                  IsHitTestVisible="False"/>
+
+        <FlyoutBase.AttachedFlyout>
+            <Flyout x:Name="DropDown" Placement="Top" Opening="OnDropDownOpening">
+                <Flyout.FlyoutPresenterStyle>
+                    <Style TargetType="FlyoutPresenter">
+                        <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
+                        <Setter Property="BorderBrush" Value="{ThemeResource SurfaceStrokeColorFlyoutBrush}"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}"/>
+                        <Setter Property="Padding" Value="0,4,0,4"/>
+                        <Setter Property="MinWidth" Value="0"/>
+                        <Setter Property="ScrollViewer.HorizontalScrollMode" Value="Disabled"/>
+                        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+                    </Style>
+                </Flyout.FlyoutPresenterStyle>
+
+                <!-- ⚠️ Placement=Top: the strip sits at the bottom of the window, so a 52-row list opens
+                     UPWARD. MaxHeight keeps it on screen and scrolling. -->
+                <ListView x:Name="OptionList"
+                          MaxHeight="360"
+                          SelectionMode="Single"
+                          ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"
+                          SelectionChanged="OnOptionListSelectionChanged">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="MinHeight" Value="32"/>
+                            <Setter Property="Padding" Value="11,0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <!-- The top three are ACTIONS and carry hover text; the 52 states carry none,
+                             because a state name explains itself and 52 identical tooltips would be noise
+                             (Tooltip is null there, which shows nothing rather than an empty box).
+                             ⚠️ The rule is drawn BY the first state row, not by a separator ITEM — a list
+                             has no non-selectable rows, so a separator would be pickable and would
+                             isolate nothing. -->
+                        <DataTemplate x:DataType="vm:StateIsolationOption">
+                            <StackPanel ToolTipService.ToolTip="{x:Bind Tooltip}">
+                                <Border Height="1" Margin="0,3,0,6"
+                                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                                        Visibility="{x:Bind StartsStateList, Converter={StaticResource BoolToVis}}"/>
+                                <TextBlock Text="{x:Bind Label}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Flyout>
+        </FlyoutBase.AttachedFlyout>
+    </Grid>
+</UserControl>
