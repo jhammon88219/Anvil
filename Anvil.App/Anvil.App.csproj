@@ -163,9 +163,6 @@
     <Content Update="Assets\Map\js\geojson-overlay.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Update="Assets\Map\js\grid.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Update="Assets\Map\js\radar-ramps.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

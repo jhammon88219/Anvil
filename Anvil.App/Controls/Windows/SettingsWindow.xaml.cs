@@ -89,7 +89,7 @@ namespace Anvil.Controls.Windows
 			var tabs = new ObservableCollection<TabEntry>
 			{
 				new() { Glyph = "", Label = "Map",     Tooltip = "Basemap, tile source, view extent and state isolation" },
-				new() { Glyph = "", Label = "Radar",   Tooltip = "Radar site markers, the mile grid and the Inspect cursor" },
+				new() { Glyph = "", Label = "Radar",   Tooltip = "Which radar-site marker networks are shown" },
 				new() { Glyph = "", Label = "Storage", Tooltip = "The on-disk radar cache: size, clearing and its limit" },
 			};
 

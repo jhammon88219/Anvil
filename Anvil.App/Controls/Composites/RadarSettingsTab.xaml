@@ -5,15 +5,18 @@
        │  ⌄  Radar sites                                      │
        │    [ ] Show TDWRs                                    │
        │    [ ] Show research radars                          │
-       │  ⌄  Mile grid                                        │
-       │    [ ] Show mile grid (centered on the radar)        │
-       │    Spacing (mi) [10 ]                                │
-       │    Opacity ─────●──────                              │
        └──────────────────────────────────────────────────────┘
 
-     WHY THESE ARE TOGETHER, and why they are not in the Map tab: both are radar CONTENT drawn over the
-     basemap, and both are GLOBAL — one copy for the whole map, not one per pane. The Map tab next door owns
-     the basemap and the camera; a control that would need a copy per pane belongs in RadarControls instead.
+     WHY THIS IS NOT IN THE MAP TAB: these are radar CONTENT drawn over the basemap, and they are GLOBAL —
+     one copy for the whole map, not one per pane. The Map tab next door owns the basemap and the camera; a
+     control that would need a copy per pane belongs in RadarControls instead.
+
+     ⚠️ THE MILE GRID IS GONE, deleted rather than hidden (its VM, its JS module and its IMapService seam
+     with it). It drew a square grid anchored to the selected radar as a distance reference, and it did not
+     work: at any opacity that made the lines visible over radar returns they were lost in the basemap's own
+     lines, and at any opacity that kept them out of the way they were invisible over returns. A distance
+     reference wants a different form — range rings from the site, or a point-to-point measure tool — not a
+     grid competing with everything already drawn. Don't re-add this one.
 
      ⚠️ THE TOOLS SECTION IS GONE with the Inspect toggle — Inspect is a MODE you arm and disarm while
      reading the map, not a setting, so it is a key in the OverlayBar now (MainWindow, InspectKey), beside
@@ -45,7 +48,6 @@
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- radar sites -->
-            <RowDefinition Height="Auto"/> <!-- mile grid -->
         </Grid.RowDefinitions>
 
         <Expander Grid.Row="0" Header="Radar sites" IsExpanded="True"
@@ -70,49 +72,5 @@
             </Grid>
         </Expander>
 
-        <Expander Grid.Row="1" Header="Mile grid" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
-            <Grid RowSpacing="8">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- Grid toggle -->
-                    <RowDefinition Height="Auto"/> <!-- Spacing combo -->
-                    <RowDefinition Height="Auto"/> <!-- Opacity slider -->
-                </Grid.RowDefinitions>
-
-                <CheckBox Grid.Row="0" Margin="4,0,0,0"
-                          Content="Show mile grid (centered on the radar)"
-                          IsChecked="{x:Bind ViewModel.MileGrid.IsShown, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Overlay a square grid centered on the selected radar. Pick one and select a site to see it."/>
-
-                <!-- Spacing: one cell = N miles square. -->
-                <Grid Grid.Row="1" Margin="4,0,0,0" ColumnSpacing="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Spacing (mi)"
-                               Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <ComboBox Grid.Column="1"
-                              Width="120" HorizontalAlignment="Left"
-                              ItemsSource="{x:Bind ViewModel.MileGrid.SpacingOptions}"
-                              SelectedItem="{x:Bind ViewModel.MileGrid.SpacingMiles, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Grid cell size in miles"/>
-                </Grid>
-
-                <!-- Grid line opacity. -->
-                <Grid Grid.Row="2" Margin="4,2,0,0" ColumnSpacing="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Opacity"
-                               Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <Slider Grid.Column="1" MinWidth="180" HorizontalAlignment="Left"
-                            Minimum="0" Maximum="1" StepFrequency="0.05"
-                            Value="{x:Bind ViewModel.MileGrid.Opacity, Mode=TwoWay}"
-                            ToolTipService.ToolTip="Mile grid line opacity"/>
-                </Grid>
-            </Grid>
-        </Expander>
     </Grid>
 </UserControl>

@@ -5,10 +5,10 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The Settings window's Radar tab (see the XAML header): radar-site marker visibility, the mile grid,
-	/// and the Inspect cursor tool — the radar content drawn over the basemap, all of it global rather than
-	/// per-pane. Bound to the coordinator <see cref="MapViewModel"/>; the state it drives lives on
-	/// <see cref="MapViewModel.Radar"/> and <see cref="MapViewModel.MileGrid"/>.
+	/// The Settings window's Radar tab (see the XAML header): radar-site marker visibility for the two opt-in
+	/// networks (TDWR + research) — the radar content drawn over the basemap, global rather than per-pane.
+	/// Bound to the coordinator <see cref="MapViewModel"/>; the state it drives lives on
+	/// <see cref="MapViewModel.Radar"/>.
 	/// </summary>
 	public sealed partial class RadarSettingsTab : UserControl
 	{

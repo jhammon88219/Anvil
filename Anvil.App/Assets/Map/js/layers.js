@@ -13,7 +13,7 @@
 //
 // So: pass firstSymbolLayerId to sit UNDER labels but OVER the borders (the outlook does this — its
 // fills are faint and the borders would be lost beneath them anyway). Pass firstBoundaryLayerId to sit
-// under the borders as well (watches, warnings, the mile grid). Pass nothing to sit on top of
+// under the borders as well (watches, warnings). Pass nothing to sit on top of
 // everything (storm-report dots). Two overlays sharing one beforeId are ordered by ADD order — which
 // is why reAddAll() in map.js is an explicit ordered list, not a loop over whatever is loaded.
 

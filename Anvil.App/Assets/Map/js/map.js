@@ -19,7 +19,6 @@
 //   ── top ──   storm-report dots      (no beforeId — always over everything)
 //               place labels           ┐ basemap symbol layers
 //               state / country lines  ┘ basemap line layers
-//               mile grid              ← under the borders, over the radar
 //               warning polygons       ┐ both target firstBoundaryLayerId; watches are re-added
 //               watch boxes            ┘ FIRST, so warnings land above them
 //               outlook fills + hatch  ← under the labels (firstSymbolLayerId)
@@ -91,7 +90,6 @@ try {
     var Watches = null;
     var Warnings = null;
     var StormReports = null;
-    var Grid = null;
     var Markers = null;
     var RadarSites = null;
     var States = null;
@@ -107,7 +105,6 @@ try {
         if (Warnings) Warnings.reAdd(map);               // re-add the warning polygons (above the watches)
         if (StormReports) StormReports.reAdd(map);       // re-add the storm-report dots (top of the stack)
         if (window.RadarLayer) window.RadarLayer.reAdd(map);  // this pane's own radar layer + range ring
-        if (Grid) Grid.reAdd(map);                       // re-anchor the mile grid over the radar, under the borders/labels
         if (States) States.reAdd(map);                   // re-add LAST so the isolation mask lands on top of everything
     }
 
@@ -393,13 +390,6 @@ try {
         forEachMap(function (m, i) { out.push('[' + i + '] ' + StormReports.describe(m)); });
         return out.join(' ');
     };
-
-    // Mile distance grid (square grid anchored to the selected radar) lives in grid.js — same lazy-load/
-    // delegate pattern. Sits over the radar, under the borders/labels. applyStyle calls Grid.reAdd(map).
-    import('./grid.js').then(function (m) { Grid = m; }).catch(function (e) { console.error('grid.js load failed: ' + e); });
-    window.showMileGrid = function (lat, lon, spacingMiles) { if (Grid) forEachMap(function (m) { Grid.show(m, lat, lon, spacingMiles); }); };
-    window.clearMileGrid = function () { if (Grid) forEachMap(function (m) { Grid.clear(m); }); };
-    window.setMileGridOpacity = function (o) { if (Grid) forEachMap(function (m) { Grid.setOpacity(m, o); }); };
 
     // Animated camera moves go to the PRIMARY only; onPaneMove mirrors them to the other panes as they
     // play, so the panes stay locked without four animations fighting each other.

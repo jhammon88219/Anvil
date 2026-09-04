@@ -285,8 +285,8 @@
                              Markers and Inspect both came OUT of the Settings window's Radar tab, and the line
                              that decides what belongs here is the same for both: a GESTURE you make constantly
                              while reading the map wants a key; a PREFERENCE you set once and leave belongs in
-                             Settings. The TDWR / research-radar switches and the mile grid stayed behind on
-                             exactly that test. -->
+                             Settings. The TDWR / research-radar switches stayed behind on exactly that
+                             test. -->
                         <Grid Grid.Column="0"
                               HorizontalAlignment="Left"
                               VerticalAlignment="Center"

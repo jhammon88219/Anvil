@@ -73,7 +73,6 @@ namespace Anvil.ViewModels
 			Markers = new MarkersViewModel(mapService, locationService);
 			SiteExplorer = new RadarSiteExplorerViewModel(Radar, Markers, radarService, mapService);
 			StateIso = new StateIsolationViewModel(mapService);
-			MileGrid = new MileGridViewModel(mapService, Radar);
 			PipelineConsole = new PipelineConsoleViewModel(mapService, Radar); // PIPELINE CONSOLE (remove with the feature)
 
 			// The Past/Now/Fore toggles PROJECT subsystem state (see the Temporal toggles region), so keep
@@ -183,10 +182,6 @@ namespace Anvil.ViewModels
 		/// everything else). An app-wide mode toggled by the "Isolate" button on the top bar; a building
 		/// block for the planned stream mode.</summary>
 		public StateIsolationViewModel StateIso { get; }
-
-		/// <summary>The mile distance grid (a square grid anchored to the selected radar, hide/show + opacity).
-		/// Surfaced in the Map Controls window.</summary>
-		public MileGridViewModel MileGrid { get; }
 
 		/// <summary>The App Settings "Storage" section VM (radar cache size readout + Clear + the persisted
 		/// size cap). The settings service's first real consumer.</summary>
@@ -837,7 +832,6 @@ namespace Anvil.ViewModels
 			await PastOutlook.OnMapsReadyAsync();
 			await StormReports.OnMapsReadyAsync();
 			await StateIso.OnMapsReadyAsync();
-			await MileGrid.OnMapsReadyAsync();
 		}
 	}
 }

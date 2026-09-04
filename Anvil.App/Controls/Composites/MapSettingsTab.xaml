@@ -10,8 +10,8 @@
        └──────────────────────────────────────────────────────┘
 
      WHAT BELONGS IN THIS TAB: controls that act on the BASEMAP — what is drawn under everything, and
-     where its tiles come from. What the map DRAWS on top (radar-site markers, the mile grid, the Inspect
-     cursor) is the Radar tab next door. The older, wider rule still holds underneath both: nothing in
+     where its tiles come from. What the map DRAWS on top (the radar-site marker networks) is the Radar tab
+     next door. The older, wider rule still holds underneath both: nothing in
      either tab repeats per pane — a control needing a copy per pane belongs in RadarControls.
 
      ⚠️ IT USED TO OWN THE CAMERA TOO, and no longer does. Fit to view and Reset north went to
