@@ -152,10 +152,6 @@ namespace Anvil.ViewModels
 				: _mapService.ClearStateIsolationAsync());    // clear()  — same, without the hover teardown
 		}
 
-		/// <summary>Exit isolation but STAY armed (back to hover mode so another state can be picked).</summary>
-		public Task ClearIsolationAsync() =>
-			_isMapReady ? _mapService.ClearStateIsolationAsync() : Task.CompletedTask;
-
 		/// <summary>The WebView reports which state is isolated (name), or that isolation cleared (null).
 		/// Routed from the <c>stateIsolated</c> message; updates the combo without echoing a command.</summary>
 		public void OnStateIsolated(string? name) => SetSelectedFromSystem(name);

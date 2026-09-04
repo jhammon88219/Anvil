@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Anvil.Models;
@@ -182,7 +182,7 @@ namespace Anvil.ViewModels
 		{
 			_markers.RemoveAll(m => m.Kind == MarkerKind.UserLocation);
 			var marker = new MapMarker(UserMarkerId, MarkerKind.UserLocation, latitude, longitude, label,
-				source, canDrag: true, isSingleton: true);
+				source, canDrag: true);
 			_markers.Add(marker);
 			OnPropertyChanged(nameof(HasUserLocationMarker));
 			return marker;

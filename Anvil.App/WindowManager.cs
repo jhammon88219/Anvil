@@ -109,11 +109,9 @@ namespace Anvil
 		}
 
 		/// <summary>
-		/// Re-evaluate every panel's IsOpen against its window. Called automatically on any coordinator
-		/// PropertyChanged; call it manually for open-state sources that aren't the coordinator VM.
+		/// Re-evaluate every panel's IsOpen against its window. Driven by the coordinator's PropertyChanged
+		/// — every window's open state is a bool on it, so there is no other source to reconcile from.
 		/// </summary>
-		public void ReconcileAll() => RequestReconcile();
-
 		private void RequestReconcile()
 		{
 			if (_dispatcher is null) return;

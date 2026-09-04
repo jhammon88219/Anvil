@@ -448,17 +448,6 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isForeWindowOnTop, value);
 		}
 
-		/// <summary>Whether <paramref name="which"/> mode is currently RUNNING. The one place the three
-		/// projections are read by mode rather than by name, so a caller that already has a
-		/// <see cref="TemporalMode"/> does not have to re-open the switch.</summary>
-		public bool IsTemporalModeOn(TemporalMode which) => which switch
-		{
-			TemporalMode.Past => IsPastCast,
-			TemporalMode.Now => IsNowCast,
-			TemporalMode.Fore => IsForeCast,
-			_ => false,
-		};
-
 		/// <summary>Whether <paramref name="which"/> mode's settings window is open.</summary>
 		public bool IsTemporalWindowOpen(TemporalMode which) => which switch
 		{

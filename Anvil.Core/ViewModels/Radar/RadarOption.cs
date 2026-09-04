@@ -1,4 +1,4 @@
-using Anvil.Models;
+﻿using Anvil.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Anvil.ViewModels
@@ -26,9 +26,7 @@ namespace Anvil.ViewModels
 	/// One entry in the radar Product (moment) selector — the C# mirror of the JS registry in
 	/// <c>radar-products.js</c>. <see cref="Id"/> is the product id passed to <c>window.setRadarProduct</c>
 	/// (must match the JS ids); <see cref="ShortLabel"/> is what the combo shows ("Ref"/"Vel"/…) with
-	/// <see cref="Label"/> as the full name behind a tooltip; <see cref="IsLazy"/> marks a product built
-	/// lazily (velocity — the only one that dealiases), so its frames aren't display-ready until built
-	/// (drives the scrubber's "still loading" gate).
+	/// <see cref="Label"/> as the full name behind a tooltip.
 	///
 	/// Observable (not a record) because <see cref="Ramp"/> is filled in LATER: the ramps are pushed from
 	/// the WebView (radar-ramps.js) once it loads, and the combo draws each product's ramp from it — so the
@@ -36,12 +34,11 @@ namespace Anvil.ViewModels
 	/// </summary>
 	public sealed class RadarProductOption : ObservableObject
 	{
-		public RadarProductOption(string id, string label, string shortLabel, bool isLazy)
+		public RadarProductOption(string id, string label, string shortLabel)
 		{
 			Id = id;
 			Label = label;
 			ShortLabel = shortLabel;
-			IsLazy = isLazy;
 		}
 
 		/// <summary>Product id — must match the JS product id (radar-products.js).</summary>
@@ -52,9 +49,6 @@ namespace Anvil.ViewModels
 
 		/// <summary>Compact name shown in the combo ("Ref", "Vel", "CC", "KDP", "ZDR", "SW").</summary>
 		public string ShortLabel { get; }
-
-		/// <summary>Whether this product's geometry is built lazily (velocity only — it dealiases).</summary>
-		public bool IsLazy { get; }
 
 		private RadarRampInfo? _ramp;
 

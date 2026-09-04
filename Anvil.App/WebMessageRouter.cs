@@ -21,7 +21,7 @@ namespace Anvil
 	/// </summary>
 	public sealed class WebMessageRouter
 	{
-		// Ramp payloads (radarRamp/radarRamps) come from JS with camelCase keys; deserialize case-insensitively.
+		// The radarRamps payload comes from JS with camelCase keys; deserialize case-insensitively.
 		private static readonly JsonSerializerOptions RampJsonOptions = new() { PropertyNameCaseInsensitive = true };
 
 		private readonly MapViewModel _viewModel;
@@ -53,7 +53,6 @@ namespace Anvil
 				["radarBuildProgress"] = HandleBuildProgress,
 				["radarRender"] = static root => Services.RadarDiagnostics.JsRender(root),
 				["radarRamps"] = HandleRadarRamps,
-				["radarRamp"] = HandleRadarRamp,
 				["radarInspect"] = HandleRadarInspect,
 				["radarSiteClick"] = HandleRadarSiteClick,
 				["stateIsolated"] = HandleStateIsolated,
@@ -194,8 +193,9 @@ namespace Anvil
 			_viewModel.Radar.SetBuildProgress(
 				Int(root, "built"), Int(root, "total"), BoolArray(root, "ready"), BoolArray(root, "complete"));
 
-		// The FULL ramp table keyed by product id (pushed once when radar-ramps.js loads) — lets the Product
-		// combo draw every product's scale next to its name, not just the active one.
+		// The FULL ramp table keyed by product id, pushed ONCE when radar-ramps.js loads. ⚠️ This is the only
+		// ramp feed: each RadarProductOption keeps its own ramp, and a pane's notch resolves the legend it
+		// draws LOCALLY from the option its product selector holds — so no per-switch push is needed.
 		private void HandleRadarRamps(JsonElement root)
 		{
 			if (root.TryGetProperty("ramps", out var rampsEl))
@@ -203,16 +203,6 @@ namespace Anvil
 				var ramps = JsonSerializer.Deserialize<Dictionary<string, Models.RadarRampInfo>>(
 					rampsEl.GetRawText(), RampJsonOptions);
 				_viewModel.Radar.SetAllRamps(ramps);
-			}
-		}
-
-		// The active product's color ramp (pushed from radar-ramps.js) — feeds the inspect marker.
-		private void HandleRadarRamp(JsonElement root)
-		{
-			if (root.TryGetProperty("ramp", out var rampEl))
-			{
-				var ramp = JsonSerializer.Deserialize<Models.RadarRampInfo>(rampEl.GetRawText(), RampJsonOptions);
-				_viewModel.Radar.SetColorScale(ramp);
 			}
 		}
 

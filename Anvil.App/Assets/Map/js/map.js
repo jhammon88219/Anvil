@@ -421,12 +421,8 @@ try {
     window.setRadarOpacity = function (opacity) {
         if (window.RadarLayer) window.RadarLayer.setOpacity(opacity);
     };
-    // The PRIMARY pane's rendered product, tracked so the legend can be (re)pushed for it (see below).
-    // Panes 2-4 carry their own products; the legend feed follows pane 1.
-    var radarProduct = 'reflectivity';
     window.setRadarProduct = function (pane, product) {
         if (window.RadarLayer) window.RadarLayer.setProduct(pane, product);
-        if ((pane | 0) === 0) { radarProduct = product; postRampFor(product); }
     };
     // Speculatively build velocity in the background (host calls this once reflectivity has rendered),
     // so a later switch to the Velocity product is instant.
@@ -464,17 +460,13 @@ try {
         if (window.RadarLayer) window.RadarLayer.clear();
     };
 
-    // Color-scale legend feed. The ramps in radar-ramps.js are the SINGLE source of truth for gate
-    // colors, so the host's legend tool window is fed from them (never hard-coded): eager-load the
-    // ramps and push the active product's ramp to the host on load + on every product switch. The
-    // host renders the bar from these exact stops, so the legend can't drift from the pixels.
+    // Color-scale legend feed. The ramps in radar-ramps.js are the SINGLE source of truth for gate colors,
+    // so the host's legends are fed from them (never hard-coded) and can't drift from the pixels.
+    // ⚠️ ONE PUSH, ONCE — the whole table, on load. There used to be a SECOND, per-product `radarRamp`
+    // message re-pushing the primary pane's active ramp on every switch, for a global Color Scale window;
+    // that window is gone and the legend is per PANE now, resolved host-side from the table below. Don't
+    // re-add a per-switch push: with N panes there is no single "active" product to send.
     var radarRamps = null;
-    function postRampFor(product) {
-        var r = radarRamps && radarRamps[product];
-        if (r && window.chrome && window.chrome.webview) {
-            window.chrome.webview.postMessage(JSON.stringify({ type: 'radarRamp', ramp: r }));
-        }
-    }
     import('./radar-ramps.js').then(function (m) {
         // Key each exported ramp by its own `id` (matches the product id from radar-products.js), so a
         // new product's ramp is picked up automatically — no per-product edit here.
@@ -483,13 +475,11 @@ try {
             var r = m[k];
             if (r && r.id && Array.isArray(r.stops)) radarRamps[r.id] = r;
         });
-        // Push the WHOLE table once: the Product combo draws EVERY product's ramp next to its name, so the
-        // host needs them all — not just the active one (which postRampFor sends for the inspect marker).
+        // Push the WHOLE table: every pane picks its own product, so the host needs them all.
         if (window.chrome && window.chrome.webview) {
             window.chrome.webview.postMessage(JSON.stringify({ type: 'radarRamps', ramps: radarRamps }));
         }
-        postRampFor(radarProduct); // whatever product is active once the ramps are loaded
-    }).catch(function (e) { /* legend stays empty if ramps can't load */ });
+    }).catch(function (e) { /* legends stay empty if ramps can't load */ });
 
     // User-location marker (the pulsing blue dot) lives in markers.js — load it once and delegate the
     // shims to it (passing the map). It's only invoked on a "My Location" click, long after this loads,

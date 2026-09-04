@@ -280,7 +280,6 @@ namespace Anvil.ViewModels
 				if (e.PropertyName == nameof(DowViewModel.IsShowing))
 				{
 					OnPropertyChanged(nameof(HasRadarDisplay));
-					OnPropertyChanged(nameof(HasColorScale));
 				}
 			};
 
@@ -404,7 +403,6 @@ namespace Anvil.ViewModels
 				}
 				OnPropertyChanged(nameof(HasRadarLoop));
 				OnPropertyChanged(nameof(HasRadarDisplay));
-				OnPropertyChanged(nameof(HasColorScale));
 				RaiseRadarReadout();
 				// Past Event mode: before a window is armed, a site pick just targets it (Load drives the
 				// first replay); once armed, a site pick auto-loads the same window for the new site (like
@@ -456,11 +454,9 @@ namespace Anvil.ViewModels
 		public IReadOnlyList<int> PastEventYearOptions { get; } =
 			Enumerable.Range(PastEventStartYear, DateTime.Now.Year - PastEventStartYear + 1).ToList();
 
-		/// <summary>Month choices (1-12).</summary>
-		public IReadOnlyList<int> PastEventMonthOptions { get; } = Enumerable.Range(1, 12).ToList();
-
-		/// <summary>Day choices (1-31; an out-of-range day for the month is clamped on Load).</summary>
-		public IReadOnlyList<int> PastEventDayOptions { get; } = Enumerable.Range(1, 31).ToList();
+		// ⚠️ There are no Month/Day OPTION lists: the form is a DatePicker bound through the PastEventDate
+		// facade, so only the three INDEX properties below survive (the engine + the two overlay VMs read
+		// them by name). A month/day combo would need its list back.
 
 		/// <summary>Selected year index (into <see cref="PastEventYearOptions"/>).</summary>
 		public int PastEventYearIndex
@@ -515,7 +511,6 @@ namespace Anvil.ViewModels
 				}
 
 				ClearReplayWindowLoaded(); // re-arm from scratch each time the mode is toggled
-				OnPropertyChanged(nameof(IsLiveControlsEnabled));
 				OnPropertyChanged(nameof(IsTransportEnabled)); // the transport gate differs by mode (PastCast enables earlier)
 				// The offered tilts depend on the mode, not just the radar: a live loop shows only the
 				// tilts the chunks feed can serve fresh, while replay (all-historical) offers the whole
@@ -534,9 +529,6 @@ namespace Anvil.ViewModels
 				}
 			}
 		}
-
-		/// <summary>Inverse of <see cref="IsPastEventMode"/>; bound to IsEnabled on the live-only controls.</summary>
-		public bool IsLiveControlsEnabled => !_isPastEventMode;
 
 		/// <summary>Start time-of-day of the replay window (bound to a TimePicker, local time).</summary>
 		public TimeSpan PastEventTime
@@ -861,11 +853,10 @@ namespace Anvil.ViewModels
 			private set => SetProperty(ref _pastEventStatus, value);
 		}
 
-		// ── User-tunable loop settings (Radar Loop tool window). SelectedIndex-bound combos,
-		//    matching the existing Product combo pattern. ──
-
-		/// <summary>Loop-length presets (frame counts) for the combo.</summary>
-		public IReadOnlyList<int> LoopLengthOptions { get; } = new[] { 6, 10, 15, 20, 25, 30 };
+		// ── User-tunable loop settings. ⚠️ The three OPTION LISTS these indices used to point into are
+		//    GONE with the Radar Loop tool window that hosted the combos — only the index properties and
+		//    their *ByIndex tables survive, so each setting sits at its default. Re-surfacing any of them
+		//    means a new list beside its *ByIndex table (the two are indexed alike and must move together).
 
 		/// <summary>Selected loop-length index; changing it rebuilds the loop at the new length.</summary>
 		public int LoopLengthIndex
@@ -881,9 +872,6 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>Update-interval presets (live-frame poll cadence) for the combo.</summary>
-		public IReadOnlyList<string> RefreshIntervalOptions { get; } = new[] { "20 s", "30 s", "45 s", "60 s" };
-
 		/// <summary>Selected update-interval index; applied on the next live poll (no reload).</summary>
 		public int RefreshIntervalIndex
 		{
@@ -894,9 +882,6 @@ namespace Anvil.ViewModels
 				SetProperty(ref _refreshIntervalIndex, clamped);
 			}
 		}
-
-		/// <summary>Playback-speed presets for the combo.</summary>
-		public IReadOnlyList<string> PlaybackSpeedOptions { get; } = new[] { "0.5×", "1×", "1.5×", "2×" };
 
 		/// <summary>Selected playback-speed index; applied on the next animation tick.</summary>
 		public int PlaybackSpeedIndex
@@ -1034,21 +1019,7 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>Segoe Fluent glyph for the play/pause button (pause when playing).</summary>
-		public string PlayPauseGlyph => _isPlaying ? "" : "";
-
-		// Whether the loop is "engaged" — playing OR paused mid-loop. Stop is offered in both states
-		// (so you can stop from a pause), and disabled only once stopped/idle (or freshly loaded).
-		private bool _loopEngaged;
-
-		/// <summary>Whether the Stop button is enabled (the loop is playing or paused, not stopped).</summary>
-		public bool CanStopLoop => _loopEngaged;
-
-		private void SetLoopEngaged(bool value) =>
-			SetProperty(ref _loopEngaged, value, nameof(CanStopLoop));
-
-		/// <summary>Toggles loop playback (no-op until the loop is fully loaded). Pressing play OR
-		/// pause engages the loop, so Stop becomes available (and stays available while paused).</summary>
+		/// <summary>Toggles loop playback (no-op until the loop is fully loaded).</summary>
 		public void ToggleRadarPlay()
 		{
 			if (!IsTransportEnabled)
@@ -1057,15 +1028,14 @@ namespace Anvil.ViewModels
 			}
 
 			IsPlaying = !_isPlaying;
-			SetLoopEngaged(true);
 		}
 
-		/// <summary>Stops the loop: halts playback, disengages (disabling Stop), and returns to the
-		/// newest frame. Enabled only while playing or paused.</summary>
+		/// <summary>Stops the loop: halts playback and returns to the newest frame. ⚠️ The transport is ONE
+		/// play/stop button gated on <see cref="IsTransportEnabled"/> — there is no separate Stop button to
+		/// enable, so nothing tracks "engaged" (playing OR paused) as a state of its own.</summary>
 		public void StopRadarLoop()
 		{
 			IsPlaying = false;
-			SetLoopEngaged(false);
 			CurrentFrameIndex = MaxFrameIndex; // snap back to the latest frame
 		}
 
@@ -1084,7 +1054,6 @@ namespace Anvil.ViewModels
 				IsPlaying = false; // pause in place so the manual step isn't immediately overwritten
 			}
 
-			SetLoopEngaged(true);
 			// Stepping FORWARD can't pass the built frontier (onto a blank slower-product / undecoded frame);
 			// stepping back is always allowed. The setter clamps to [0, MaxFrameIndex].
 			var target = _currentFrameIndex + delta;
@@ -1416,18 +1385,19 @@ namespace Anvil.ViewModels
 
 		/// <summary>The radar products (moments) selectable in the Product combo — the single source the
 		/// combo binds to, mirroring the JS registry in <c>radar-products.js</c>. <see cref="RadarProductOption.Id"/>
-		/// must match the JS product id passed to <c>window.setRadarProduct</c>; <see cref="RadarProductOption.IsLazy"/>
-		/// marks the expensive-to-build product (velocity) whose frames aren't display-ready until built.
+		/// must match the JS product id passed to <c>window.setRadarProduct</c>. ⚠️ There is no per-product
+		/// "expensive to build" flag any more — every product builds on demand, and the display-ready gate
+		/// keys off reflectivity by id (see <c>IsFrameDisplayReady</c>).
 		/// Adding a product = one entry here + the JS side (a build fn + ramp + registry entry).</summary>
 		public IReadOnlyList<RadarProductOption> RadarProductOptions { get; } = new[]
 		{
-			new RadarProductOption("reflectivity", "Reflectivity", "Ref", false),
-			new RadarProductOption("velocity", "Velocity", "Vel", true),
-			new RadarProductOption("srv", "Storm-Rel Velocity", "SRV", true),
-			new RadarProductOption("cc", "Correlation Coefficient", "CC", false),
-			new RadarProductOption("kdp", "Specific Differential Phase", "KDP", false),
-			new RadarProductOption("zdr", "Differential Reflectivity", "ZDR", false),
-			new RadarProductOption("sw", "Spectrum Width", "SW", false),
+			new RadarProductOption("reflectivity", "Reflectivity", "Ref"),
+			new RadarProductOption("velocity", "Velocity", "Vel"),
+			new RadarProductOption("srv", "Storm-Rel Velocity", "SRV"),
+			new RadarProductOption("cc", "Correlation Coefficient", "CC"),
+			new RadarProductOption("kdp", "Specific Differential Phase", "KDP"),
+			new RadarProductOption("zdr", "Differential Reflectivity", "ZDR"),
+			new RadarProductOption("sw", "Spectrum Width", "SW"),
 		};
 
 		/// <summary>
@@ -1450,10 +1420,6 @@ namespace Anvil.ViewModels
 				pane.RaiseProductDerived();
 			}
 		}
-
-		/// <summary>Short label of the MAIN pane's product. Kept for callers that want "what is the app
-		/// showing" in one string; each pane's notch reads its own ShortLabel instead.</summary>
-		public string SelectedProductShortLabel => Pane0.ShortLabel;
 
 		// ===== Tilt (elevation) selection ===============================================================
 		// Unlike a PRODUCT switch — which re-renders bytes already decoded in the WebView — a TILT switch
@@ -1602,20 +1568,12 @@ namespace Anvil.ViewModels
 					return;
 				}
 
-				OnPropertyChanged(nameof(RadarSitesToggleLabel));
-
 				if (_isMapReady)
 				{
 					_ = _mapService.SetRadarSitesVisibleAsync(value);
 				}
 			}
 		}
-
-		/// <summary>Label for the site-visibility toggle button, reflecting its action.</summary>
-		public string RadarSitesToggleLabel => _radarSitesVisible ? "Hide Sites" : "Show Sites";
-
-		/// <summary>Flips <see cref="RadarSitesVisible"/>; bound to the ribbon toggle button.</summary>
-		public void ToggleRadarSitesVisible() => RadarSitesVisible = !_radarSitesVisible;
 
 		/// <summary>
 		/// Whether the research/test radar markers (e.g. KCRI) are shown — the "Show Research Radars"

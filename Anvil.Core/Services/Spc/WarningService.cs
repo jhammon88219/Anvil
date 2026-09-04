@@ -209,9 +209,6 @@ namespace Anvil.Services
 		/// <summary>Test hook: the ids currently in the active set.</summary>
 		internal IReadOnlyCollection<string> ActiveIds => _active.Keys.ToList();
 
-		/// <summary>Test hook: the merge classification recorded on the last <see cref="ApplyFetch"/>.</summary>
-		internal string LastClassification => _lastClassification;
-
 		/// <summary>
 		/// Transforms a CAP active-alerts geo+json body into our render-schema features (keyed by cap_id,
 		/// carrying phenom/expiration/prod_type + the storm-based geometry) and collects their ids. Skips

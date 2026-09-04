@@ -98,7 +98,7 @@ namespace Anvil.ViewModels
 				await _mapService.ShowDowFrameAsync(ev.Url);
 				await _mapService.SetRadarProductAsync(0, _dowProductIndex == 1 ? "velocity" : "reflectivity");
 				DowStatus = $"Showing {ev.Label}";
-				IsShowing = true; // RadarViewModel re-raises HasRadarDisplay/HasColorScale off this
+				IsShowing = true; // RadarViewModel re-raises HasRadarDisplay off this
 			}
 			catch (Exception ex)
 			{

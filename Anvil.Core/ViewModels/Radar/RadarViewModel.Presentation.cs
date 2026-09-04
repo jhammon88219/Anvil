@@ -274,17 +274,13 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(RadarLoadingText));
 		}
 
-		/// <summary>Whether the loop is currently playing.</summary>
+		/// <summary>Whether the loop is currently playing. ⚠️ The play/stop button's glyph is picked by the
+		/// view (RadarControls' <c>PlayStopGlyph</c> x:Bind function) off this bool — the VM does not carry
+		/// a glyph property.</summary>
 		public bool IsPlaying
 		{
 			get => _isPlaying;
-			private set
-			{
-				if (SetProperty(ref _isPlaying, value))
-				{
-					OnPropertyChanged(nameof(PlayPauseGlyph));
-				}
-			}
+			private set => SetProperty(ref _isPlaying, value);
 		}
 	}
 }

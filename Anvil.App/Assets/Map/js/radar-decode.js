@@ -1560,11 +1560,12 @@ const BUILDERS = {
     sw: buildSpectrumWidth,
 };
 
-// buildLazy (default true) gates the LAZY products (radar-products.js `lazy:true` — today only velocity,
-// the ONLY product that must dealias via dealiasSweep, by far the priciest step per frame): when the user
-// isn't on a lazy product the host passes buildLazy=false and those builds are skipped. The result's
+// buildProducts says which EXTRA products to build beyond reflectivity: true = all (the dev harness), or
+// an array of ids (what radar.js passes — its visible panes' products). ⚠️ There is no per-product "lazy"
+// flag any more: a `lazy:true` in the registry used to mark the dealiasing products so the host could skip
+// them wholesale, but on-demand building made every product opt-in, so the array IS the gate. The result's
 // built[id] tells the host a refl-only frame must be re-decoded before it can show velocity (see radar.js
-// setProduct). Non-lazy products (reflectivity, CC) are cheap and always built.
+// setProduct).
 export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buildGrids, stormMotion, seedProfile) {
     if (buildProducts === undefined) buildProducts = true; // build everything unless told otherwise (dev harness)
     if (buildGrids === undefined) buildGrids = true;
@@ -1597,9 +1598,8 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
         // headroom on such a loop was ~765 MB against the renderer's ~4192 MB heap cap, so building all seven
         // put one Inspect click inside the margin. You can only READ one value per pane, so the other grids
         // were never reachable — this is waste, not a feature. The host passes its VISIBLE pane products.
-        // Build each product's geometry through the registry (radar-products.js). Non-lazy products
-        // (reflectivity, CC) always build; lazy products (velocity — the only one that dealiases) build
-        // only when buildLazy is set (the active product is lazy, or velocity prefetch is on). Every
+        // Build each product's geometry through the registry (radar-products.js). Reflectivity always
+        // builds; everything else only when buildProducts asks for it (see wantBuild above). Every
         // BUILDERS entry shares the (radar, lat, lon, minDbz, wantGrid) signature so this stays a
         // data-driven loop; results[] keeps the full {geom,grid} for the range-ring extent below.
         // Per-product grid decision, same shape as wantBuild above (true | array | falsy).

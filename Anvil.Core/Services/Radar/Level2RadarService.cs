@@ -392,6 +392,9 @@ namespace Anvil.Services
 		// rings in (docs/radar/02-vad-spec.md §3.3). A cut is only useful for a target height if its beam
 		// passes through that height INSIDE this window.
 		private const double VwpFitMinRangeM = 10000;
+		// ⚠️ DELIBERATELY UNREFERENCED — kept as the record of the JS constant it must match, and because
+		// VwpSelectMaxRangeM below is defined by stopping short of it (the "exactly 60 km" in its comment
+		// is THIS number). Selection uses VwpSelectMaxRangeM; don't "clean up" this one.
 		private const double VwpFitMaxRangeM = 60000;
 
 		// Selection stops short of the fit window's outer edge so a chosen cut has real rings ABOVE the

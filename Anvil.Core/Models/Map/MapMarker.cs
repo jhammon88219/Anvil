@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace Anvil.Models
@@ -7,13 +7,13 @@ namespace Anvil.Models
 	/// A point marker shown on the map and editable in the "Selected Marker" tool window. Unlike the
 	/// immutable domain records (<see cref="RadarSite"/> etc.) this is a <b>mutable, observable</b>
 	/// entity, because its position changes when the user drags it. <see cref="Kind"/> distinguishes
-	/// marker types; <see cref="CanDrag"/> / <see cref="IsSingleton"/> are capability data (not
-	/// subclasses), so a new kind is just a new enum value + the flags it's created with.
+	/// marker types; <see cref="CanDrag"/> is capability data (not a subclass), so a new kind is just a
+	/// new enum value + the flags it's created with.
 	/// </summary>
 	public sealed class MapMarker : INotifyPropertyChanged
 	{
 		public MapMarker(string id, MarkerKind kind, double latitude, double longitude, string label,
-			LocationSource positionSource, bool canDrag = true, bool isSingleton = false)
+			LocationSource positionSource, bool canDrag = true)
 		{
 			Id = id;
 			Kind = kind;
@@ -22,7 +22,6 @@ namespace Anvil.Models
 			_label = label;
 			_positionSource = positionSource;
 			CanDrag = canDrag;
-			IsSingleton = isSingleton;
 		}
 
 		/// <summary>Stable identifier, also used as the JS-side marker id (drag/click correlation).</summary>
@@ -33,9 +32,6 @@ namespace Anvil.Models
 
 		/// <summary>Whether the user can drag this marker to refine its position.</summary>
 		public bool CanDrag { get; }
-
-		/// <summary>Whether only one marker of this kind may exist at a time.</summary>
-		public bool IsSingleton { get; }
 
 		private double _latitude;
 		public double Latitude

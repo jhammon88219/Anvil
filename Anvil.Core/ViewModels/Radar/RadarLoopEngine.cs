@@ -38,8 +38,7 @@ namespace Anvil.ViewModels
 			Services.RadarDiagnostics.BeginSession(site?.Id);
 			_vm._loopCts?.Cancel();
 			_vm._loopCts = null;
-			_vm.IsPlaying = false;
-			_vm.SetLoopEngaged(false); // a freshly (re)loaded loop is stopped -> Stop disabled
+			_vm.IsPlaying = false;      // a freshly (re)loaded loop is stopped
 			_vm.IsLoopReady = false;
 
 			// Highlight the selected site marker (null clears it).
@@ -454,7 +453,6 @@ namespace Anvil.ViewModels
 			_vm._loopCts?.Cancel();
 			_vm._loopCts = null;
 			_vm.IsPlaying = false;
-			_vm.SetLoopEngaged(false);
 			_vm.IsLoopReady = false;
 			_vm.IsInspecting = false;
 			Services.RadarDiagnostics.BeginSession(null); // close any open session; Load opens the replay one

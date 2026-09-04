@@ -1,7 +1,6 @@
-using System;
+﻿using System;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
-using Windows.UI;
 
 namespace Anvil.Converters
 {
@@ -14,9 +13,6 @@ namespace Anvil.Converters
 	{
 		public object Convert(object value, Type targetType, object parameter, string language) =>
 			new SolidColorBrush(ColorUtil.FromHex(value as string));
-
-		/// <summary>Parses "#RRGGBB"/"#AARRGGBB" to a Color (kept for callers; delegates to <see cref="ColorUtil"/>).</summary>
-		public static Color ParseHex(string? hex) => ColorUtil.FromHex(hex);
 
 		public object ConvertBack(object value, Type targetType, object parameter, string language) =>
 			throw new NotSupportedException();

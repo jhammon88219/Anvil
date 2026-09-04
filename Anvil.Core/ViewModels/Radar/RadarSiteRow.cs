@@ -1,4 +1,4 @@
-using Anvil.Models;
+﻿using Anvil.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Anvil.ViewModels
@@ -7,9 +7,8 @@ namespace Anvil.ViewModels
 	/// A presentation row for the dock "Radar Sites" list. Wraps an immutable
 	/// <see cref="RadarSite"/> with the observable, view-facing state the list needs so its rows
 	/// can render the same states as the on-map site buttons: <see cref="IsOffline"/> drives the
-	/// "down" (no recent data) look, and <see cref="IsAvailable"/> is bound to the row's IsEnabled
-	/// so down rows aren't clickable. (Selection itself is the ListView's own SelectedItem state —
-	/// the row only carries what selection can't express.)
+	/// "down" (no recent data) look and <see cref="StatusLabel"/> spells it out. (Selection itself is
+	/// the ListView's own SelectedItem state — the row only carries what selection can't express.)
 	/// </summary>
 	public sealed class RadarSiteRow : ObservableObject
 	{
@@ -43,13 +42,9 @@ namespace Anvil.ViewModels
 			{
 				if (SetProperty(ref _isOffline, value))
 				{
-					OnPropertyChanged(nameof(IsAvailable));
 					OnPropertyChanged(nameof(StatusLabel));
 				}
 			}
 		}
-
-		/// <summary>Inverse of <see cref="IsOffline"/>; bound to the row's IsEnabled (down = not clickable).</summary>
-		public bool IsAvailable => !_isOffline;
 	}
 }

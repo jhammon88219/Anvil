@@ -94,11 +94,6 @@
     let Geo = null;
     import('./geo.js').then(function (m) { Geo = m; }).catch(function (e) { hostLog('geo.js load failed: ' + (e && e.message ? e.message : e)); });
 
-    // Product registry (radar-products.js — the single source of truth shared with radar-decode.js).
-    // Same tiny-module dynamic-import pattern as geo.js: loaded once at startup, cached in `Products`,
-    // resolved long before the user can switch products / the first frame upgrades. productLazy() tells
-    // the render/upgrade paths whether the active product is built lazily (velocity today); it defaults
-    // to non-lazy for an unknown/not-yet-loaded id, which is safe (the default reflectivity isn't lazy).
     // Range ring + sweep pulse (radar-scope.js). Same dynamic-import-and-cache pattern as geo.js: the
     // draw calls below are guarded on `Scope`, which is loaded long before any site click can decode a
     // frame. It owns the drawn radius + the animation handle; it reads our views/site through `init`.
@@ -130,9 +125,12 @@
     // so the call sites can go straight to it.
     function inspectOn() { return !!(Inspect && Inspect.isOn()); }
 
+    // Product registry (radar-products.js — the single source of truth shared with radar-decode.js).
+    // Same tiny-module dynamic-import pattern as geo.js: loaded once at startup, cached in `Products`,
+    // resolved long before the user can switch products / the first frame upgrades. ⚠️ We read it ONLY to
+    // ask whether an id exists — the registry carries no per-product traits any more (see its header).
     let Products = null;
     import('./radar-products.js').then(function (m) { Products = m.PRODUCTS; }).catch(function (e) { hostLog('radar-products.js load failed: ' + (e && e.message ? e.message : e)); });
-    function productLazy(p) { return !!(Products && Products[p] && Products[p].lazy); }
     function productKnown(p) { return !Products || !!Products[p]; } // permissive until the registry loads
     // The non-reflectivity products we want built RIGHT NOW (reflectivity is always built by the decoder).
     // ON-DEMAND model: build ONLY the active product — the decode no longer builds all seven every time. The
@@ -844,12 +842,6 @@
 
     // GL objects live on the VIEW (per context) — see makeView.
 
-    function showError(msg) {
-        document.body.insertAdjacentHTML('beforeend',
-            '<div style="position:absolute;top:8px;left:8px;z-index:10;background:rgba(120,0,0,.85);' +
-            'color:#fff;font:12px sans-serif;padding:6px 8px;border-radius:4px;max-width:60%">' +
-            'Radar: ' + msg + '</div>');
-    }
     function hostLog(msg) {
         try { console.log('[radar] ' + msg); } catch (e) { /* ignore */ }
         post({ type: 'radarLog', msg: String(msg) });
