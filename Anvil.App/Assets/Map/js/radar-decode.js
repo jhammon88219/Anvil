@@ -1586,23 +1586,40 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
         const t0 = performance.now();
         const radar = new dec.Level2Radar(dec.Buffer.from(new Uint8Array(ab)));
         const t1 = performance.now();
-        // buildGrids (default true) gates the per-gate inspector VALUE arrays — the host passes false
-        // when Inspect is off (the common case) so long loops don't retain ~Int16 N×G per product per
-        // frame. The range ring uses only the grid's scalar metadata, which is always computed, so it's
-        // unaffected. Re-decoded on demand when Inspect is toggled on (see radar.js setInspect).
+        // buildGrids gates the per-gate inspector VALUE arrays. THREE forms, mirroring buildProducts:
+        // `true` = every product built (the dev harness), an ARRAY of ids = only those, falsy = none (the
+        // common case, Inspect off). The range ring uses only the grid's scalar metadata, which is always
+        // computed, so it's unaffected. Re-decoded on demand when Inspect is toggled on (radar.js setInspect).
+        // ⚠️ THE ARRAY FORM EXISTS FOR MEMORY, AND THE NUMBERS ARE BRUTAL. A value grid is a DENSE
+        // Int16Array(radials x gates) — pre-filled with no-data, so unlike the geometry (which only emits
+        // gates above threshold) a clear-air frame costs exactly as much as a tornado: ~2.6 MB per frame for
+        // reflectivity, ~15 MB/frame across all seven products, so ~600 MB on a 39-frame replay. Measured
+        // headroom on such a loop was ~765 MB against the renderer's ~4192 MB heap cap, so building all seven
+        // put one Inspect click inside the margin. You can only READ one value per pane, so the other grids
+        // were never reachable — this is waste, not a feature. The host passes its VISIBLE pane products.
         // Build each product's geometry through the registry (radar-products.js). Non-lazy products
         // (reflectivity, CC) always build; lazy products (velocity — the only one that dealiases) build
         // only when buildLazy is set (the active product is lazy, or velocity prefetch is on). Every
         // BUILDERS entry shares the (radar, lat, lon, minDbz, wantGrid) signature so this stays a
         // data-driven loop; results[] keeps the full {geom,grid} for the range-ring extent below.
-        const results = {}, moments = {}, grids = {}, built = {};
+        // Per-product grid decision, same shape as wantBuild above (true | array | falsy).
+        const wantGridFor = function (id) {
+            return buildGrids === true ||
+                (Array.isArray(buildGrids) && buildGrids.indexOf(id) >= 0);
+        };
+        const results = {}, moments = {}, grids = {}, built = {}, gridsExtra = {};
         for (let pi = 0; pi < PRODUCT_IDS.length; pi++) {
             const id = PRODUCT_IDS[pi];
             if (!wantBuild(id)) { moments[id] = null; grids[id] = null; built[id] = false; continue; }
-            const r = BUILDERS[id](radar, siteLat, siteLon, minDbz, buildGrids);
+            const wantGrid = wantGridFor(id);
+            const r = BUILDERS[id](radar, siteLat, siteLon, minDbz, wantGrid);
             results[id] = r;
             moments[id] = r.geom || null;
-            grids[id] = buildGrids ? (r.grid || null) : null;
+            grids[id] = wantGrid ? (r.grid || null) : null;
+            // Which grids THIS decode actually built — the frame-level gridsBuilt flag can't express a
+            // subset, and the host's readiness checks (activeGridReady / missingGridProduct) need to know
+            // per product. Marked even when the grid came back null: built-with-no-data must not re-queue.
+            gridsExtra[id] = wantGrid;
             built[id] = true;
         }
         const t2 = performance.now();
@@ -1654,7 +1671,12 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
             // renders/upgrades via a map lookup instead of the old flat velPositions/ccPositions fields.
             // grids are only shipped when buildGrids (inspector on); rangeMeters above already captured
             // the extent, so a null grid here doesn't affect the range ring.
-            moments: moments, grids: grids, built: built, gridsBuilt: !!buildGrids,
+            // ⚠️ gridsBuilt means EVERY built product's grid is present, so only the `true` form sets it —
+            // an array builds a SUBSET and reports it through gridsExtra instead. Getting this wrong the
+            // other way (gridsBuilt true on a subset) would tell the host every product is inspectable and
+            // the Inspector would read a missing grid.
+            moments: moments, grids: grids, built: built,
+            gridsBuilt: buildGrids === true, gridsExtra: gridsExtra,
             rangeMeters: rangeMeters,
             decodeMs: Math.round(t1 - t0), buildMs: Math.round(t2 - t1),
             radials: radials, gates: gates, bytes: bytes,

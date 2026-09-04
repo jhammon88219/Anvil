@@ -61,8 +61,28 @@ namespace Anvil
 				["markerMoved"] = HandleMarkerMoved,
 				["radarFrameReady"] = HandleRadarFrameReady,
 				["pageError"] = HandlePageError,
+				["radarMemory"] = HandleRadarMemory,
 			};
 		}
+
+		/// <summary>
+		/// Periodic retained-geometry sample from <c>radar.js</c> (<c>sampleMemory</c>). READ-ONLY telemetry:
+		/// how many bytes of decoded geometry the page is holding, plus the heap limit the WebView enforces.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ Diagnostics stream ONLY, never Serilog — it is periodic, and the point of it is a graphable
+		/// series sitting in the same timeline as the frame events and (if it happens again) the
+		/// <c>webview.processfailed</c> line. Added to turn the ESTIMATED ~2.1 GB footprint behind the
+		/// 2026-09-03 renderer OOM into a measured one; <c>docs/app-notes.md</c> carries that story.
+		/// </remarks>
+		private static void HandleRadarMemory(JsonElement root) =>
+			Services.RadarDiagnostics.Log("js", "memory",
+				("frames", Int(root, "frames")), ("cached", Int(root, "cached")),
+				("geoms", Int(root, "geoms")), ("grids", Int(root, "grids")),
+				("geomMb", Int(root, "geomMb")), ("gridMb", Int(root, "gridMb")),
+				("retainedMb", Int(root, "retainedMb")),
+				("heapMb", Int(root, "heapMb")), ("heapTotalMb", Int(root, "heapTotalMb")),
+				("heapLimitMb", Int(root, "heapLimitMb")));
 
 		/// <summary>
 		/// An uncaught JS error / rejected promise / failed script load in the page (map.html registers the

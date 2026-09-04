@@ -230,6 +230,93 @@
         while (decodedCache.size > DECODE_CACHE_MAX) decodedCache.delete(decodedCache.keys().next().value);
     }
 
+    // ---- Retained-geometry accounting (READ-ONLY instrumentation) ----
+    // Why this exists: the render process was killed by Chromium with reason=OutOfMemory on a 26-frame
+    // PastCast replay (2026-09-03 20:15, RenderProcessExited / 0xE0000008 — see MainWindow.
+    // OnWebViewProcessFailed). The footprint driving that was ESTIMATED off the diagnostics' tris/velTris
+    // counts at 72 B/gate (~2.1 GB for a fully-built loop) — arithmetic, never measured, and it says nothing
+    // about WHICH ceiling was hit. This measures the retained total exactly and reports the heap limit the
+    // WebView actually enforces, so the next OOM arrives with a curve instead of an inference.
+    //
+    // ⚠️ MEASURES ONLY — it allocates nothing, frees nothing and changes no behaviour. Do not let it grow
+    // into a memory MANAGER; the fix (gating the dual-pol second wave by loop size) is a separate change.
+    // ⚠️ It counts CPU-side bytes: the typed arrays held by frames[]/decodedCache. The GL buffers these get
+    // uploaded into are a SEPARATE (GPU) pool this cannot see — worth remembering, since the failure we are
+    // chasing is the process dying, not a lost context.
+    // ⚠️ It also cannot see the PEAK, which is what actually kills the process: buildGates accumulates into
+    // plain JS arrays before copying to typed arrays, four workers do that at once, and each holds a ~45 MB
+    // volume. Retained is the floor; expect the crash to land ABOVE whatever this last reported.
+    const MEM_SAMPLE_MS = 5000;
+    let lastMemSample = '';
+
+    // Sum the typed arrays reachable from frames[] + decodedCache.
+    // ⚠️ DEDUPED BY ArrayBuffer IDENTITY, because the cache SHARES its arrays with frames[] by reference
+    // (see cachePut's note) — counting both would roughly double every number and make the total fiction.
+    function retainedGeometry() {
+        const seen = new Set();     // ArrayBuffers already counted (bytes)
+        const seenObj = new Set();  // geometry / grid OBJECTS already counted (items)
+        let geomBytes = 0, gridBytes = 0, geoms = 0, grids = 0;
+        function addArray(a, isGrid) {
+            if (!a || !a.buffer || seen.has(a.buffer)) return;
+            seen.add(a.buffer);
+            if (isGrid) gridBytes += a.buffer.byteLength; else geomBytes += a.buffer.byteLength;
+        }
+        // ⚠️ The ITEM COUNTS need the same dedupe as the bytes, and it was missed the first time round: a
+        // frame in both frames[] and decodedCache holds the SAME object, so `geoms` read exactly 2x the truth
+        // (364 for a 26-frame loop that really had 26 x 7 = 182). The bytes were always right — the buffer
+        // set below caught them — which is what made the discrepancy easy to miss.
+        function walk(res) {
+            if (!res) return;
+            const mo = res.moments || {};
+            Object.keys(mo).forEach(function (id) {
+                const g = mo[id];
+                if (!g || seenObj.has(g)) return;
+                seenObj.add(g);
+                geoms++; addArray(g.positions, false); addArray(g.colors, false);
+            });
+            const gr = res.grids || {};
+            Object.keys(gr).forEach(function (id) {
+                const v = gr[id];
+                if (!v || seenObj.has(v)) return;
+                seenObj.add(v);
+                grids++; addArray(v.az, true); addArray(v.values, true);
+            });
+        }
+        for (let i = 0; i < frames.length; i++) walk(frames[i]);
+        decodedCache.forEach(walk);
+        return { geomBytes: geomBytes, gridBytes: gridBytes, geoms: geoms, grids: grids };
+    }
+
+    function sampleMemory() {
+        try {
+            const r = retainedGeometry();
+            const mb = function (b) { return Math.round(b / 1048576); };
+            // performance.memory is non-standard and Chromium-only (and can be absent or coarsened) — the
+            // LIMIT is the interesting field: it is the number our ~2.1 GB estimate has to be compared against.
+            const pm = (typeof performance !== 'undefined' && performance.memory) ? performance.memory : null;
+            const sample = {
+                type: 'radarMemory',
+                frames: frames.length, cached: decodedCache.size,
+                geoms: r.geoms, grids: r.grids,
+                geomMb: mb(r.geomBytes), gridMb: mb(r.gridBytes), retainedMb: mb(r.geomBytes + r.gridBytes),
+                heapMb: pm ? mb(pm.usedJSHeapSize) : -1,
+                heapTotalMb: pm ? mb(pm.totalJSHeapSize) : -1,
+                heapLimitMb: pm ? mb(pm.jsHeapSizeLimit) : -1,
+            };
+            // Collapse an idle app to ONE line: only report when something actually moved. A flat trace is
+            // not evidence, and a 5 s heartbeat would bury the frame events this file exists to carry.
+            const key = sample.frames + '/' + sample.cached + '/' + sample.geoms + '/' + sample.grids +
+                '/' + sample.retainedMb + '/' + sample.heapMb;
+            if (key === lastMemSample) return;
+            lastMemSample = key;
+            post(sample);
+        } catch (e) { /* a measurement must never be able to break a loop */ }
+    }
+
+    // Runs for the app's lifetime rather than per loop: the window that matters is exactly the minutes
+    // AFTER a loop finishes loading (the dual-pol second wave), and the dedupe above keeps an idle app quiet.
+    setInterval(sampleMemory, MEM_SAMPLE_MS);
+
     // ---- Lazy-upgrade queue (bounded, current-frame-first) ----
     // Switching to Velocity (or turning Inspect on) needs the loaded frames re-decoded to add the
     // geometry they were built without (velocity/dealias, or the inspector grids). Firing all of them
@@ -613,10 +700,32 @@
     // lands, so it fires as soon as whichever finished last settles the trio. A no-op until then, and a no-op
     // once armed. queueAllUpgrades only touches frames actually missing a dual-pol product (needsUpgrade),
     // so it's self-limiting.
+    // ⚠️ MEMORY CEILING — the second wave is SKIPPED on a long loop, and this is why.
+    // The renderer's JS heap is capped at ~4192 MB (measured off performance.memory.jsHeapSizeLimit; it is a
+    // per-renderer V8 limit, NOT related to how much RAM the machine has). Gate geometry is ~72 B/gate held
+    // per product per frame, so a fully-built 26-frame PastCast loop retains ~2.2 GB — over half the cap —
+    // and roughly HALF of that is these four dual-pol products, sitting there unviewed. A 39-frame loop
+    // measured 3.4 GB, i.e. 82% of the cap, and a 26-frame loop already killed the render process once
+    // (2026-09-03, reason=OutOfMemory). So above this many frames the wave does not arm and the dual-pol
+    // products build ON DEMAND instead — which is simply how they behaved before the wave existed.
+    // The cost is honest and bounded: on a long replay, the FIRST switch to CC/KDP/ZDR/SW pays one decode
+    // (current frame first) instead of being instant. The trio is untouched — refl/vel/SRV are staged during
+    // the load either way, so nothing about first paint, the scrubber fill or playback changes.
+    // ⚠️ 12 keeps every LIVE loop (~10-11 frames) exactly as it was; it is PastCast (26-40) that is gated.
+    // Retune against measurement, not taste: the memory samples (cat:"memory" in the diagnostics JSONL) show
+    // retainedMb per frame count, so the headroom for a given loop length is a number, not a guess.
+    const FULL_PREFETCH_MAX_FRAMES = 12;
+    let fullPrefetchDeclined = false; // one-shot, so the skip is logged once per loop rather than per frame
     function maybeArmFullPrefetch() {
-        if (fullPrefetch || !trioSettled()) return;
+        if (fullPrefetch || fullPrefetchDeclined || !trioSettled()) return;
         var extra = dualPolIds();
         if (!extra.length) return;
+        if (frames.length > FULL_PREFETCH_MAX_FRAMES) {
+            fullPrefetchDeclined = true;
+            hostLog('fullPrefetch DECLINED: ' + frames.length + ' frames > ' + FULL_PREFETCH_MAX_FRAMES +
+                ' — ' + extra.join('+') + ' build on demand (renderer memory ceiling)');
+            return;
+        }
         fullPrefetch = true;
         hostLog('fullPrefetch armed (' + extra.join('+') + ') across ' + frames.length + ' frame(s)');
         queueAllUpgrades('fullprefetch');
@@ -844,7 +953,12 @@
             var pid = bkeys[bi];
             if (res.built[pid]) {                          // built now → take it (geometry may be null = no data)
                 mMo[pid] = mo[pid]; mBuilt[pid] = true;
-                if (res.gridsBuilt) { mGr[pid] = rGr[pid]; mGridsExtra[pid] = true; }
+                // A decode builds grids for ALL its products (gridsBuilt) or a SUBSET (gridsExtra — the
+                // visible panes' products while Inspect is on); either way, only take a grid this decode
+                // actually produced, and keep the prior one for every product it skipped.
+                if (res.gridsBuilt || (res.gridsExtra && res.gridsExtra[pid])) {
+                    mGr[pid] = rGr[pid]; mGridsExtra[pid] = true;
+                }
                 else if (pid in pGr) mGr[pid] = pGr[pid];  // this decode skipped grids → keep prior grid
             } else if (pBuilt[pid]) {                      // skipped now, but we already had it → keep it
                 mMo[pid] = pMo[pid]; mBuilt[pid] = true;
@@ -1156,6 +1270,14 @@
         // reflectivity/CC with prefetch off we skip it and re-decode on demand (setProduct).
         const wantedIds = wantedProducts(); // extra products to build this decode (active + velocity prefetch)
         const wantGrids = inspectOn(); // inspector value grids are only needed while Inspect is on
+        // ⚠️ WHICH grids, not just whether. A value grid is a dense Int16 (radials x gates) — ~2.6 MB a frame
+        // for reflectivity, ~15 MB across all seven — and Inspect can only ever READ the product a pane is
+        // showing. Building the rest was ~600 MB of unreachable data on a 39-frame replay, inside the ~765 MB
+        // of headroom such a loop had left under the renderer's ~4192 MB cap. So ask for exactly the VISIBLE
+        // panes' products (the same set activeGridReady / missingGridProduct judge readiness against, so the
+        // upgrade queue can't chase a grid this will never build). Switching a pane's product while inspecting
+        // builds that product's grid on demand through the grids-only path above.
+        const gridIds = wantGrids ? viewProducts() : false;
         // Grids-only fast path (turning Inspect on): the frame already has the active product's GEOMETRY
         // (and nothing lazy is pending for it) and only its inspector VALUE GRID is missing — so build just
         // that one grid and merge it, instead of a full re-decode of every product's geometry + a redundant
@@ -1203,7 +1325,7 @@
             // thread, hitching pan/zoom. A loop that changed while the fetch was in flight is still dropped by
             // token in applyFrameResult; a fetch/decode failure comes back as {token,index,url,error}, which
             // applyFrameResult already turns into upgradeDone + radarFrameReady(hasData:false) — same as before.
-            w.postMessage({ url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, buildProducts: buildIds, buildGrids: wantGrids, stormMotion: resolveStormMotion(), seedProfile: _loopSeedProfile });
+            w.postMessage({ url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, buildProducts: buildIds, buildGrids: gridIds, stormMotion: resolveStormMotion(), seedProfile: _loopSeedProfile });
         } else {
             // No Worker API — fetch + decode on the main thread (unchanged fallback path).
             fetch(url, { cache: 'no-store' }).then(function (r) {
@@ -1213,7 +1335,7 @@
                 if (myToken !== loopToken) return;
                 return import('./radar-decode.js').then(function (m) {
                     return queueMainDecode(function () {
-                        return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, buildIds, wantGrids, resolveStormMotion(), _loopSeedProfile);
+                        return m.decodeAndBuild(ab, siteLat, siteLon, MIN_DBZ, buildIds, gridIds, resolveStormMotion(), _loopSeedProfile);
                     });
                 }).then(function (r2) {
                     applyFrameResult(frameResultFrom(r2, myToken, index, url));
@@ -1400,6 +1522,7 @@
             resetUpgrades();        // and drop any pending/in-flight lazy-upgrade decodes from it
             velPrefetch = false;    // new site: build reflectivity first; the host re-arms velocity prefetch once it's ready
             fullPrefetch = false;   // …and the dual-pol second wave re-arms itself once THIS loop's trio settles
+            fullPrefetchDeclined = false; // a new loop may be short enough to warrant the wave — re-decide, and log it again
             // ⚠️ Forget the previous loop's storm motion: a NEW site must NOT prefetch SRV with the old site's
             // motion (that built SRV wrong, then rebuilt the whole loop when the real motion landed). srvMotionReady
             // reads false until THIS loop's motion is computed; vwpGen++ drops any still-in-flight compute for the old loop.
@@ -1507,6 +1630,7 @@
             loopToken++;        // drop any in-flight decode still carrying the OLD tilt
             resetUpgrades();    // and its pending upgrades; the host's addFrame sweep re-drives the fill
             fullPrefetch = false; // the dual-pol second wave re-arms once THIS tilt's trio settles
+            fullPrefetchDeclined = false; // …and the frame-count decision is re-made for the re-cut loop
             var n = Math.max(0, count | 0);
             for (var i = 0; i < n; i++) { if (frames[i]) frames[i].stale = true; }
             // PIPELINE CONSOLE: a retile is a fresh fill, so time it as one (remove with the feature).
