@@ -182,6 +182,24 @@ namespace Anvil.Services
 		/// <summary>Sets the overall opacity (0-1) of the storm-report dots.</summary>
 		Task SetStormReportsOpacityAsync(double opacity);
 
+		/// <summary>
+		/// Tears the storm-report overlay down: drops the source, the three layers and any open popup, and
+		/// forgets the loaded day.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ This exists because there was NO way to empty the overlay, only to re-point it at another day.
+		/// Every path that ends with "there is nothing to show" — leaving a loaded replay, a day whose
+		/// reports won't fetch — used to just return, leaving the PREVIOUS day's dots drawn over the new
+		/// mode's map. It also resets the page's own kind flags, so the caller must re-push
+		/// <see cref="SetStormReportKindsAsync"/> when a day comes back (the normal show path already does).
+		/// </remarks>
+		Task ClearStormReportsAsync();
+
+		/// <summary>Reads the page's storm-report state back as a short JSON string (url, feature count, kind
+		/// flags, whether the layers exist) — a diagnostic seam, so a "the dots are still there" report can be
+		/// answered with what the PAGE thinks it is drawing rather than with what the host believes it pushed.</summary>
+		Task<string> DescribeStormReportsAsync();
+
 		// Mile distance grid — a square grid anchored to the selected radar at a chosen mile spacing.
 		/// <summary>Draws (or re-anchors) the square mile grid centered on a radar site at the given spacing
 		/// in miles.</summary>

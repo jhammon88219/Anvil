@@ -86,6 +86,12 @@ namespace Anvil.Services
 		public Task SetStormReportsOpacityAsync(double opacity) =>
 			_mapView.RunScriptAsync(Call("setStormReportsOpacity", opacity));
 
+		public Task ClearStormReportsAsync() =>
+			_mapView.RunScriptAsync(Call("clearStormReports"));
+
+		public Task<string> DescribeStormReportsAsync() =>
+			_mapView.RunScriptAsync(Call("describeStormReports"));
+
 		// Mile distance grid (square grid anchored to the selected radar).
 		public Task ShowMileGridAsync(double latitude, double longitude, double spacingMiles) =>
 			_mapView.RunScriptAsync(Call("showMileGrid", latitude, longitude, spacingMiles));

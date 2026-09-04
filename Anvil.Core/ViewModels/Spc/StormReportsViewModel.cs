@@ -30,6 +30,13 @@ namespace Anvil.ViewModels
 		private int _applyToken;            // guards a stale async apply when the selection/day changes mid-fetch
 		private DateOnly? _loadedDay;       // the convective day whose points are currently on the map (null = none)
 
+		// ⚠️ IN-FLIGHT GUARD. _applyToken decides which finished run gets to touch the map; it does NOT stop
+		// two runs starting. Leaving replay raises IsPastEventMode and then HasLoadedReplayWindow from the
+		// SAME setter, so this VM was reliably firing two EnsureAndShowAsync calls for the same day, both
+		// fetching and both writing the same cache file.
+		private bool _fetchInFlight;
+		private DateOnly? _inFlightDay;
+
 		public StormReportsViewModel(IMapService mapService, IStormReportService reportService, RadarViewModel radar, IDispatcher dispatcher, ILogger<StormReportsViewModel> logger)
 		{
 			_mapService = mapService;
@@ -286,26 +293,69 @@ namespace Anvil.ViewModels
 		{
 			if (!_isMapReady) { return; }
 
+			var active = ActiveDay();
+
+			// ⚠️⚠️ DEDUPE BEFORE TAKING A TOKEN, AND NEVER TOUCH _applyToken ON A CALL THAT BAILS.
+			// _applyToken means "a newer run has superseded me"; a run that supersedes nothing must not claim
+			// one. This dedupe used to sit AFTER `++_applyToken`, so the dropped call invalidated the very run
+			// it was deduping against — that run finished its fetch, saw a newer token, and returned without
+			// pushing anything, leaving the PREVIOUS day's dots on the map. Leaving replay raises
+			// IsPastEventMode and then HasLoadedReplayWindow from the same setter, so this fired every time.
+			// (Measured 2026-09-04: fetch completed in 0.4 s, cache rewritten, map never updated.)
+			if (active is { } busy && _fetchInFlight && _inFlightDay == busy) { return; }
+
 			var token = ++_applyToken;
-			if (ActiveDay() is not { } day)
+			if (active is not { } day)
 			{
 				// PastCast is up but nothing has been loaded — there is no day to report on yet.
-				_loadedDay = null;
+				// ⚠️ The map has to be EMPTIED here, not just the counts zeroed: whatever day was showing
+				// before is still drawn otherwise, which is how today's dots ended up over historical radar.
 				TornadoCount = 0;
 				WindCount = 0;
 				HailCount = 0;
 				SetCard("No reports loaded", string.Empty, "Load a timeframe to see its reports");
+				await ClearOverlayAsync();
 				return;
 			}
+
 			var immutable = _radar.IsPastEventMode;
 			SetCard(CardHeadline, ContextFor(day), "Loading…");
 
-			var result = await _reportService.EnsureReportsAsync(day, immutable);
-			if (token != _applyToken) { return; } // a newer day/selection won
+			StormReportResult result;
+			_fetchInFlight = true;
+			_inFlightDay = day;
+			try
+			{
+				result = await _reportService.EnsureReportsAsync(day, immutable);
+			}
+			catch (Exception ex)
+			{
+				// ⚠️ THIS USED TO BE UNCAUGHT, and the caller is fire-and-forget, so a throw here surfaced
+				// only as an unobserved-task crash in the log — while the map silently kept the PREVIOUS
+				// day's dots, because every push below was skipped. Whatever went wrong, the overlay must
+				// not go on claiming to show a day we could not load.
+				_logger.LogWarning(ex, "Storm reports fetch failed for {Day}", day);
+				if (token == _applyToken)
+				{
+					SetCard(NoReportsHeadline, ContextFor(day), "Storm reports unavailable.");
+					await ClearOverlayAsync();
+				}
+				return;
+			}
+			finally
+			{
+				_fetchInFlight = false;
+				_inFlightDay = null;
+			}
+
+			// ⚠️ THIS RETURN IS WHERE THE BUG HID FOR TWO ROUNDS — it is the one exit that changes nothing and
+			// says nothing, so a run silently dropped here looks exactly like a run that never started.
+			if (token != _applyToken) { return; }
 
 			if (!result.Found)
 			{
 				SetCard(NoReportsHeadline, ContextFor(day), result.Error ?? "Storm reports unavailable.");
+				await ClearOverlayAsync();
 				return;
 			}
 
@@ -315,6 +365,14 @@ namespace Anvil.ViewModels
 			await _mapService.SetStormReportKindsAsync(_showTornado, _showWind, _showHail);
 			await _mapService.SetStormReportsOpacityAsync(_opacity);
 			SetCard(SummaryFor(result), ContextFor(day), string.Empty);
+		}
+
+		// Empty the overlay and forget the day, so nothing can later dedupe against a day that is no longer
+		// drawn. The page also resets its own kind flags, which the show path above re-pushes.
+		private async Task ClearOverlayAsync()
+		{
+			_loadedDay = null;
+			await _mapService.ClearStormReportsAsync();
 		}
 
 		private void SetCounts(StormReportResult result)

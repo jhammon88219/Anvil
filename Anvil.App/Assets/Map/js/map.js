@@ -382,6 +382,17 @@ try {
     window.setStormReportsSource = function (url) { if (StormReports) forEachMap(function (m) { StormReports.setSource(m, url); }); };
     window.setStormReportKinds = function (torn, wind, hail) { if (StormReports) forEachMap(function (m) { StormReports.setKinds(m, torn, wind, hail); }); };
     window.setStormReportsOpacity = function (o) { if (StormReports) forEachMap(function (m) { StormReports.setOpacity(m, o); }); };
+    // Empty the overlay outright (leaving a replay, or a day whose reports won't load). Without this the
+    // host could only ever re-point the dots at ANOTHER day, so "no day" left the old day's dots drawn.
+    window.clearStormReports = function () { if (StormReports) forEachMap(function (m) { StormReports.clear(m); }); };
+    // Diagnostic readback — what the PAGE thinks it is drawing, per pane. Reported to the host so a
+    // "the dots are still there" bug can be pinned to the side that is actually wrong.
+    window.describeStormReports = function () {
+        if (!StormReports) return 'module-not-loaded';
+        var out = [];
+        forEachMap(function (m, i) { out.push('[' + i + '] ' + StormReports.describe(m)); });
+        return out.join(' ');
+    };
 
     // Mile distance grid (square grid anchored to the selected radar) lives in grid.js — same lazy-load/
     // delegate pattern. Sits over the radar, under the borders/labels. applyStyle calls Grid.reAdd(map).

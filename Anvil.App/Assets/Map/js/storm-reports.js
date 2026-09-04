@@ -217,3 +217,16 @@ export function clear(map) {
 export function reAdd(map) {
     refreshReportLayers(map);
 }
+
+// What is this module ACTUALLY drawing right now? The host logs this beside its own view of the same
+// state, so "the dots are still there" can be diagnosed without guessing which side is wrong: a source
+// the page never re-pointed, data it failed to fetch, or layers left visible.
+export function describe(map) {
+    var src = map.getSource('spc-reports');
+    var n = reportsData && reportsData.features ? reportsData.features.length : -1;
+    var vis = KIND_LAYERS.map(function (l) {
+        return l.kind + ':' + (map.getLayer(l.id) ? (map.getLayoutProperty(l.id, 'visibility') || 'visible') : 'none-layer');
+    }).join(',');
+    return 'url=' + (reportsUrl || 'null') + ' feats=' + n + ' src=' + (src ? 'yes' : 'no') +
+        ' kinds=' + kinds.torn + '/' + kinds.wind + '/' + kinds.hail + ' layers=' + vis;
+}

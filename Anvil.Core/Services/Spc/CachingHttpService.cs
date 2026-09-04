@@ -40,13 +40,41 @@ namespace Anvil.Services
 		/// default headers (e.g. Accept) in their constructor.</summary>
 		protected HttpClient Http { get; }
 
+		// ⚠️ THE TEMP NAME MUST BE UNIQUE PER WRITE, NOT "<path>.tmp".
+		// Two writers of the SAME cache file at the same time is normal here, not exceptional: every one of
+		// these services has a periodic refresh loop AND event-driven callers, so a mode change landing on
+		// top of a refresh has both writing today's file. With a shared temp name the second File.Create
+		// threw IOException ("used by another process"), which propagated out through a fire-and-forget
+		// caller and left the overlay showing the PREVIOUS day's data (measured 2026-09-04: switching out
+		// of PastCast left the replay day's storm-report dots on the map). A per-write name makes the
+		// concurrent case harmless — both write their own temp, and the last Move wins with identical
+		// content, which is what "atomic" was supposed to mean.
+		private static string TempPathFor(string path) =>
+			$"{path}.{Environment.ProcessId:x}-{Guid.NewGuid():N}.tmp";
+
+		// Best-effort cleanup so a failed write can't leave the temp behind. Never throws over the real error.
+		private static void TryDeleteTemp(string temp)
+		{
+			try { if (File.Exists(temp)) { File.Delete(temp); } }
+			catch { /* the cache sweep will get it */ }
+		}
+
 		/// <summary>Atomically writes <paramref name="content"/> to <paramref name="path"/> via a temp file +
-		/// move, so a partial/failed write never blanks the last-known-good cache.</summary>
+		/// move, so a partial/failed write never blanks the last-known-good cache. Safe against a concurrent
+		/// write of the same path — see the note on <see cref="TempPathFor"/>.</summary>
 		protected static async Task AtomicWriteAsync(string path, string content, CancellationToken ct = default)
 		{
-			var temp = path + ".tmp";
-			await File.WriteAllTextAsync(temp, content, ct);
-			File.Move(temp, path, overwrite: true);
+			var temp = TempPathFor(path);
+			try
+			{
+				await File.WriteAllTextAsync(temp, content, ct);
+				File.Move(temp, path, overwrite: true);
+			}
+			catch
+			{
+				TryDeleteTemp(temp);
+				throw;
+			}
 		}
 
 		/// <summary>Atomically writes to <paramref name="path"/> via a temp file + move, letting the caller
@@ -54,12 +82,20 @@ namespace Anvil.Services
 		/// flushed/closed before the move.</summary>
 		protected static async Task AtomicWriteAsync(string path, Func<Stream, Task> writeBody, CancellationToken ct = default)
 		{
-			var temp = path + ".tmp";
-			await using (var stream = File.Create(temp))
+			var temp = TempPathFor(path);
+			try
 			{
-				await writeBody(stream);
+				await using (var stream = File.Create(temp))
+				{
+					await writeBody(stream);
+				}
+				File.Move(temp, path, overwrite: true);
 			}
-			File.Move(temp, path, overwrite: true);
+			catch
+			{
+				TryDeleteTemp(temp);
+				throw;
+			}
 		}
 	}
 }
