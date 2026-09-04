@@ -80,6 +80,36 @@ namespace Anvil.Controls.Composites
 		private void OnRootSizeChanged(object sender, SizeChangedEventArgs e) =>
 			Shell.Data = BuildShellGeometry(e.NewSize.Width, e.NewSize.Height);
 
+		private void OnToolsLayoutUpdated(object? sender, object e) => EqualiseSides();
+
+		/// <summary>
+		/// Push both side columns out to the wider one's width, so the notch this grid RESERVES lands on
+		/// the notch the Path DRAWS.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️⚠️ THIS IS CORRECTNESS, NOT COSMETICS. The cut is drawn at the shell's midpoint; the middle
+		/// column reserves the room for it. Those two coincide ONLY when the side columns are equal —
+		/// unequal sides slide the reserved gap off the drawn cut and a tool ends up sitting on the pull-tab
+		/// (measured: the isolation combo did exactly that).
+		/// ⚠️ Star columns cannot do this job here, which is what the first attempt got wrong. `[*, notch, *]`
+		/// equalises only when the grid has spare width to divide; this strip is CONTENT-sized, so the stars
+		/// just took their content's width and the sides came out uneven.
+		/// ⚠️ THE CHANGE GUARD IS LOAD-BEARING: this runs on every layout pass, and writing MinWidth
+		/// unconditionally would schedule another pass forever. Only a real change is written, and widening
+		/// a column cannot change either panel's DesiredSize, so it settles in one extra pass.
+		/// </remarks>
+		private void EqualiseSides()
+		{
+			double want = Math.Max(LeftTools.DesiredSize.Width, RightTools.DesiredSize.Width);
+			if (want <= 0 || Math.Abs(want - LeftColumn.MinWidth) < 0.5)
+			{
+				return;
+			}
+
+			LeftColumn.MinWidth = want;
+			RightColumn.MinWidth = want;
+		}
+
 		/// <summary>
 		/// A rounded rectangle with a notch cut into the bottom edge, centred. The notch is the tab's
 		/// rectangle grown by <see cref="NotchClearance"/> on every side, so its arcs are CONCENTRIC with

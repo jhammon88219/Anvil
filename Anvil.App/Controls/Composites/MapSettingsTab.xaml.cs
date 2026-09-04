@@ -26,18 +26,8 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(MapSettingsTab), new PropertyMetadata(null));
 
-		// "Fit to view" — frame the current region (isolated state, else CONUS). Fire-and-forget: the camera
-		// move runs through IMapService (map.fitBounds), same seam as every other map command.
-		private void OnFitToViewClick(object sender, RoutedEventArgs e)
-		{
-			_ = ViewModel?.FitToViewAsync();
-		}
-
-		// "Reset north" — undo a right-click-drag rotate/tilt by animating bearing + pitch back to 0.
-		// Fire-and-forget through IMapService (map.resetNorthPitch), same seam as Fit-to-view.
-		private void OnResetNorthClick(object sender, RoutedEventArgs e)
-		{
-			_ = ViewModel?.ResetOrientationAsync();
-		}
+		// ⚠️ The Fit-to-view and Reset-north handlers lived here and are GONE: both moved to
+		// Composites/MapControlsStrip, which calls the same MapViewModel methods. This tab is now
+		// binding-only — nothing left needs code.
 	}
 }

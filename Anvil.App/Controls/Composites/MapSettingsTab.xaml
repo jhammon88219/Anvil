@@ -1,29 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MapSettingsTab — the Map tab of the Settings window: what the BASEMAP is, and where the camera may go.
+<!-- MapSettingsTab — the Map tab of the Settings window: what the BASEMAP is. One section.
 
        ┌──────────────────────────────────────────────────────┐
        │  ⌄  Basemap                                          │
        │    [Data Viz Black          ]                        │
-       │    [ ] Use online tiles       ← SOURCE, not style:   │
-       │    [https://api.protomaps…]     the styles are       │
-       │    Offline — bundled PMTiles.   Protomaps-SCHEMA, so │
-       │                                 both sources render  │
-       │                                 identically          │
-       │  ⌄  View                                             │
-       │    [x] CONUS only (mask outside the lower 48)        │
-       │    ( Fit to view )   ( Reset north )                 │
-       │  ⌄  State isolation                                  │
-       │    [ ] Isolate a state (hover & click the map)       │
-       │    State [Oklahoma        ]   ← also the ONLY way to │
-       │                                 SWITCH states once   │
-       │                                 the mask blocks the  │
-       │                                 map clicks           │
+       │    [ ] Use online tiles                              │  ← SOURCE, not style: the styles
+       │    [https://api.protomaps…]                          │     are Protomaps-SCHEMA, so both
+       │    Offline — bundled PMTiles.                        │     sources render identically
        └──────────────────────────────────────────────────────┘
 
-     WHAT BELONGS IN THIS TAB: controls that act on the MAP ITSELF — the basemap under everything, and
-     where the camera is allowed to be. What the map DRAWS on top (radar-site markers, the mile grid, the
-     Inspect cursor) is the Radar tab next door. The older, wider rule still holds underneath both: nothing
-     in either tab repeats per pane — a control that would need a copy per pane belongs in RadarControls.
+     WHAT BELONGS IN THIS TAB: controls that act on the BASEMAP — what is drawn under everything, and
+     where its tiles come from. What the map DRAWS on top (radar-site markers, the mile grid, the Inspect
+     cursor) is the Radar tab next door. The older, wider rule still holds underneath both: nothing in
+     either tab repeats per pane — a control needing a copy per pane belongs in RadarControls.
+
+     ⚠️ IT USED TO OWN THE CAMERA TOO, and no longer does. Fit to view and Reset north went to
+     Composites/MapControlsStrip; the CONUS checkbox, the "isolate a state (hover & click)" checkbox and
+     the state-name combo went with them, collapsed into that strip's ONE isolation combo (No Isolation /
+     Isolate CONUS / Select to Isolate / the 52 states). All of it is a GESTURE you make while reading the
+     map, which is the same test that pulled Markers and Inspect out of the Radar tab; what is left here is
+     a PREFERENCE you set once.
+     ⚠️ So this tab is down to a single section, which is thin for a tab. That is fine for now — do NOT
+     re-add the camera controls to fill it out. One control in two places is one that will drift.
 
      This was the top half of the former MapControlsWindow, which is now two tabs rather than one long
      scroll. -->
@@ -39,8 +37,6 @@
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- basemap -->
-            <RowDefinition Height="Auto"/> <!-- view -->
-            <RowDefinition Height="Auto"/> <!-- state isolation -->
         </Grid.RowDefinitions>
 
         <Expander Grid.Row="0" Header="Basemap" IsExpanded="True"
@@ -85,74 +81,5 @@
             </Grid>
         </Expander>
 
-        <Expander Grid.Row="1" Header="View" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
-            <Grid RowSpacing="8">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- CONUS toggle -->
-                    <RowDefinition Height="Auto"/> <!-- Fit to view button -->
-                    <RowDefinition Height="Auto"/> <!-- Reset north button -->
-                </Grid.RowDefinitions>
-
-                <!-- Base extent: mask everything outside the contiguous 48 (on by default), or the full map. A
-                     single isolated state (below) still overrides this until cleared. -->
-                <CheckBox Grid.Row="0" Margin="4,0,0,0"
-                          Content="CONUS only (mask outside the lower 48)"
-                          IsChecked="{x:Bind ViewModel.StateIso.IsConusIsolated, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Hide everything outside the contiguous United States. Uncheck for the full map (incl. AK/HI/PR)."/>
-
-                <!-- Fit-to-view: frame the current region (isolated state, else CONUS) — center + zoom. -->
-                <Button Grid.Row="1" Margin="4,2,0,0"
-                        Click="OnFitToViewClick"
-                        ToolTipService.ToolTip="Frame the current view (isolated state, else CONUS) — center &amp; zoom to fit">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" Glyph="&#xE740;"/>
-                        <TextBlock Text="Fit to view" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-
-                <!-- Reset north: animate bearing + pitch back to 0 (north up, flat). -->
-                <Button Grid.Row="2" Margin="4,2,0,0"
-                        Click="OnResetNorthClick"
-                        ToolTipService.ToolTip="Reset the map's rotation and 3D tilt — face north, flat">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" Glyph="&#xE72C;"/>
-                        <TextBlock Text="Reset north" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-            </Grid>
-        </Expander>
-
-        <Expander Grid.Row="2" Header="State isolation" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
-            <Grid RowSpacing="8">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- Isolate toggle -->
-                    <RowDefinition Height="Auto"/> <!-- State combo row -->
-                </Grid.RowDefinitions>
-
-                <!-- Arms hover-to-highlight + click-to-isolate on the map (the original workflow). -->
-                <CheckBox Grid.Row="0" Margin="4,0,0,0"
-                          Content="Isolate a state (hover &amp; click the map)"
-                          IsChecked="{x:Bind ViewModel.StateIso.IsArmed, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Highlight a state on hover; click it to isolate. Or pick one below."/>
-
-                <!-- Direct pick by name — also the way to SWITCH states while one is isolated. -->
-                <Grid Grid.Row="1" Margin="4,0,0,0" ColumnSpacing="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="State"
-                               Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <ComboBox Grid.Column="1"
-                              Width="200" HorizontalAlignment="Left"
-                              PlaceholderText="Pick a state…"
-                              ItemsSource="{x:Bind ViewModel.StateIso.States}"
-                              SelectedItem="{x:Bind ViewModel.StateIso.SelectedState, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Isolate this state (arms isolation if it's off)"/>
-                </Grid>
-            </Grid>
-        </Expander>
     </Grid>
 </UserControl>

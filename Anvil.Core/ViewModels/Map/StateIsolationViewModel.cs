@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Anvil.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -31,6 +32,8 @@ namespace Anvil.ViewModels
 		public StateIsolationViewModel(IMapService mapService)
 		{
 			_mapService = mapService;
+			IsolationOptions = BuildOptions(States);
+			RefreshSelectedOption(); // CONUS is the launch default, so the combo opens reading it
 		}
 
 		private bool _isConusIsolated = true;
@@ -46,6 +49,7 @@ namespace Anvil.ViewModels
 			{
 				if (!SetProperty(ref _isConusIsolated, value)) { return; }
 				if (_isMapReady) { _ = _mapService.SetConusIsolationAsync(value); }
+				RefreshSelectedOption();
 			}
 		}
 
@@ -62,6 +66,7 @@ namespace Anvil.ViewModels
 				if (!SetProperty(ref _isArmed, value)) { return; }
 				if (!value) { SetSelectedFromSystem(null); } // leaving the mode → full map, clear the pick
 				if (_isMapReady) { _ = _mapService.SetStateIsolationAsync(value); }
+				RefreshSelectedOption();
 			}
 		}
 
@@ -92,6 +97,9 @@ namespace Anvil.ViewModels
 				if (!SetProperty(ref _selectedState, value)) { return; }
 				OnPropertyChanged(nameof(IsolatedStateName));
 				OnPropertyChanged(nameof(HasIsolatedState));
+				// ⚠️ This is the line that makes a MAP CLICK show up in the combo: states.js reports the
+				// isolated state, SetSelectedFromSystem lands it here, and the combo re-resolves to it.
+				RefreshSelectedOption();
 				if (_applyingFromSystem) { return; } // came from the WebView — don't echo the command back
 				if (!string.IsNullOrEmpty(value)) { _ = IsolateStateAsync(value!); }
 			}
@@ -127,6 +135,115 @@ namespace Anvil.ViewModels
 		/// <summary>The WebView reports which state is isolated (name), or that isolation cleared (null).
 		/// Routed from the <c>stateIsolated</c> message; updates the combo without echoing a command.</summary>
 		public void OnStateIsolated(string? name) => SetSelectedFromSystem(name);
+
+		// ── The ONE combo on the map controls strip ──────────────────────────────────────────────────
+		// Three controls collapsed into one list: the CONUS checkbox, the "isolate a state (hover & click)"
+		// checkbox, and the state-name combo that used to sit in the Settings window's Map tab. The rows
+		// above the states are ACTIONS and carry hover text; the states explain themselves.
+
+		/// <summary>Every row of the isolation combo: the three actions, then the 52 places.</summary>
+		public IReadOnlyList<StateIsolationOption> IsolationOptions { get; }
+
+		private static IReadOnlyList<StateIsolationOption> BuildOptions(IReadOnlyList<string> states)
+		{
+			var rows = new List<StateIsolationOption>
+			{
+				new(StateIsolationKind.None, "No Isolation", "Show the whole map"),
+				new(StateIsolationKind.Conus, "Isolate CONUS", "Mask everything outside the lower 48"),
+				new(StateIsolationKind.Arm, "Select to Isolate", "Then click a state on the map"),
+			};
+			rows.AddRange(states.Select((n, i) => new StateIsolationOption(StateIsolationKind.State, n, startsStateList: i == 0)));
+			return rows;
+		}
+
+		// Set while a pick is being APPLIED, so the cascade of property changes it causes (IsArmed clearing
+		// SelectedState, and so on) cannot fight the selection that started it. The option is re-resolved
+		// once, from the settled state, when the flag drops.
+		private bool _applyingOption;
+
+		private StateIsolationOption? _selectedIsolationOption;
+
+		/// <summary>
+		/// The combo's selection. NULL when nothing is masked at all, which is what lets the placeholder
+		/// ("Isolate State") show — "No Isolation" is a row you can PICK, not a state the combo rests in.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ IT IS DERIVED, NOT STORED. The truth is <see cref="IsConusIsolated"/> / <see cref="IsArmed"/> /
+		/// <see cref="SelectedState"/>; this resolves them into one row (see <see cref="ResolveOption"/>) and
+		/// is re-resolved whenever any of the three moves — including a MAP CLICK, which is how arming then
+		/// clicking Oklahoma leaves the combo reading "Oklahoma".
+		/// ⚠️ Arming OUTRANKS CONUS in the readout: while armed with nothing picked it reads "Select to
+		/// Isolate", because the mode you are in is the more useful thing to report.
+		/// </remarks>
+		public StateIsolationOption? SelectedIsolationOption
+		{
+			get => _selectedIsolationOption;
+			set
+			{
+				if (!SetProperty(ref _selectedIsolationOption, value)) { return; }
+				if (_applyingOption || value is null) { return; }
+
+				_applyingOption = true;
+				try
+				{
+					switch (value.Kind)
+					{
+						case StateIsolationKind.None:
+							IsArmed = false;          // also drops any isolated state
+							IsConusIsolated = false;
+							break;
+						case StateIsolationKind.Conus:
+							IsArmed = false;
+							IsConusIsolated = true;
+							break;
+						case StateIsolationKind.Arm:
+							IsArmed = true;           // hover mode; the state arrives on the map click
+							break;
+						case StateIsolationKind.State:
+							SelectedState = value.Label;
+							break;
+					}
+				}
+				finally
+				{
+					_applyingOption = false;
+				}
+
+				RefreshSelectedOption(); // settle on what the three flags actually say now
+			}
+		}
+
+		// Which row the CURRENT state of the three flags corresponds to (null = nothing masked).
+		private StateIsolationOption? ResolveOption()
+		{
+			if (HasIsolatedState)
+			{
+				return IsolationOptions.FirstOrDefault(o => o.Kind == StateIsolationKind.State && o.Label == _selectedState);
+			}
+
+			if (_isArmed) { return IsolationOptions.First(o => o.Kind == StateIsolationKind.Arm); }
+			if (_isConusIsolated) { return IsolationOptions.First(o => o.Kind == StateIsolationKind.Conus); }
+			return null; // placeholder
+		}
+
+		// Push the resolved row into the combo without re-running the setter's apply branch.
+		private void RefreshSelectedOption()
+		{
+			if (_applyingOption) { return; }
+
+			var resolved = ResolveOption();
+			if (ReferenceEquals(resolved, _selectedIsolationOption)) { return; }
+
+			_applyingOption = true;
+			try
+			{
+				SelectedIsolationOption = resolved;
+			}
+			finally
+			{
+				_applyingOption = false;
+			}
+		}
 
 		/// <summary>Marks the map page ready and applies the initial map extent (CONUS by default) plus any
 		/// pre-ready armed state.</summary>

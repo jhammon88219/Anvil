@@ -4,14 +4,13 @@
      A narrow strip floating just above the bottom OverlayBar, notched underneath so the bar's
      pull-tab passes through it, with the tools flanking the tab.
 
-              ┌────────┐          ┌────────┐          ← icon-only tools; the tooltip carries
-              │  (⌖)   │          │  (⛶)   │            the words, so the strip stays narrow
-       ┌──────┴────────┴──╮    ╭──┴────────┴──────┐
-       │                  │    │                  │   ← ONE shape: a rounded strip whose underside
-       └──────────────────┘    └──────────────────┘     is cut away for the tab
-                          ╭────╮
-       ───────────────────┘  ˅ └────────────────────   ← the OverlayBar's tab, rising through the notch
-                    the bar (BarContent)
+       ┌──────────────────────────────────────────────────────┐
+       │  slack        (⌘) (⛶) │        │  [Isolate State ▾]  │
+       └───────────────────────╯        ╰─────────────────────┘
+        ↑ slack sits on the OUTER ends — both sides grow toward the notch
+                                ╭──────╮
+       ─────────────────────────┘  ˅   └──────────────────   ← the OverlayBar's tab,
+                    the bar (BarContent)                    rising through the notch
 
      ⚠️ THE NOTCH IS THE TAB'S OWN OUTLINE PUSHED OUT 6px ON EVERY SIDE — same corner radius, arcs
      concentric with the tab's. That is why the tab's width/height/radius are SHARED numbers in
@@ -24,12 +23,17 @@
      Clearing BOTH is deliberately two gestures — the "Map" key first, then the tab. Do not make the
      tab hide this as well; being reachable is the whole point of the strip.
 
-     ⚠️ THE COLUMNS ARE [*, notch, *] AND MUST STAY THAT WAY. Two EQUAL star columns put the notch on
-     the strip's exact midpoint, and MainWindow centres the strip, so the notch lands on the centred
-     tab whatever the two sides hold. With [Auto, notch, Auto] an uneven pair of sides would slide the
-     notch off the tab, which is the one thing that would make the shape read as a mistake. So the
-     sides may hold different numbers of tools — symmetry is the aim, not a rule — and the lighter
-     side simply carries the slack.
+     ⚠️⚠️ THE TWO SIDE COLUMNS MUST BE EQUAL, and that is CORRECTNESS. The cut is DRAWN at the shell's
+     midpoint; the tool grid RESERVES it as its middle column. Those two coincide only when the sides
+     are equal — uneven sides slide the reserved gap off the drawn cut and a tool sits on the pull-tab.
+     EqualiseSides() in the code-behind holds them equal.
+     ⚠️ STAR COLUMNS CANNOT DO THIS, which the first attempt got wrong: [*, notch, *] equalises only
+     when the grid has spare width to divide, and this strip is CONTENT-sized, so the stars just took
+     their content's width and the sides came out uneven.
+     ⚠️ So the sides may hold different amounts — symmetry is the aim, not a rule — and the lighter
+     side carries the slack. Both panels grow OUTWARD from the notch (left panel right-aligned, right
+     panel left-aligned), so that slack always lands at the strip's OUTER ends, where it reads as
+     margin rather than as a hole beside the tab.
 
      ⚠️ Its VISIBILITY is PERSISTED (AppSettings.MapControlsStripVisible, via
      MapViewModel.IsMapControlsStripVisible), unlike the bar's own pull-tab, which is pure view state.
@@ -39,6 +43,8 @@
 <UserControl x:Class="Anvil.Controls.Composites.MapControlsStrip"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Anvil.ViewModels"
+             xmlns:conv="using:Anvil.Converters"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -96,12 +102,31 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- One row of the isolation combo. The top three are ACTIONS and carry hover text; the 52 states
+             carry none, because a state name explains itself and 52 identical tooltips would be noise
+             (Tooltip is null there, which shows nothing at all rather than an empty box).
+             ⚠️ The rule is drawn by the FIRST STATE row, not by a separator ITEM — a ComboBox has no
+             non-selectable rows, so a separator item would be selectable and would isolate nothing. -->
+        <DataTemplate x:Key="IsolationOptionTemplate" x:DataType="vm:StateIsolationOption">
+            <StackPanel ToolTipService.ToolTip="{x:Bind Tooltip}">
+                <!-- ⚠️ The rule is drawn BY the first state row, not by a separator ITEM: a ComboBox has
+                     no non-selectable rows, so a separator would be pickable and would isolate nothing. -->
+                <Border Height="1" Margin="0,3,0,6"
+                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                        Visibility="{x:Bind StartsStateList, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Text="{x:Bind Label}"/>
+            </StackPanel>
+        </DataTemplate>
+
     </UserControl.Resources>
 
     <!-- ⚠️ NO Background on the root, and there must never be one: the notch has to be a real hole. A
          background here would hit-test over the tab underneath and swallow the click that hides the bar.
          Only the Path draws, and a Path hit-tests its filled geometry alone. -->
-    <Grid x:Name="Root" SizeChanged="OnRootSizeChanged">
+    <Grid x:Name="Root" SizeChanged="OnRootSizeChanged" LayoutUpdated="OnToolsLayoutUpdated">
         <!-- The shell. Its geometry is built in CODE (BuildShellGeometry) because the strip is
              content-sized and the notch must stay centred as tools are added — a fixed Data string
              cannot do that. -->
@@ -110,21 +135,32 @@
               Stroke="{ThemeResource CardStrokeColorDefaultSolidBrush}"
               StrokeThickness="1"/>
 
+        <!-- ⚠️⚠️ THE TWO SIDE COLUMNS MUST BE THE SAME WIDTH, and that is a CORRECTNESS rule, not a
+             cosmetic one. The notch is DRAWN at the Path's midpoint, while this grid RESERVES it as the
+             middle column — the two only coincide when the sides are equal. Unequal sides slide the
+             reserved gap off the drawn cut and a tool lands on the tab (measured: the combo sat on the
+             pull-tab).
+             ⚠️ Star columns do NOT do this here, which is what the first attempt got wrong: the strip is
+             content-sized, so stars have no leftover to split evenly and simply take their content's
+             width. The sides are Auto and EqualiseSides() (code-behind) pushes both to the wider one's
+             MinWidth after each layout pass — self-correcting as tools are added, which a hard-coded
+             width would not be. -->
         <Grid x:Name="Tools" Margin="7,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>                        <!-- ┐ EQUAL stars: they are what -->
-                <ColumnDefinition x:Name="NotchColumn" Width="108"/> <!-- │ hold the notch on the strip's -->
-                <ColumnDefinition Width="*"/>                        <!-- ┘ midpoint, and so on the tab -->
+                <ColumnDefinition x:Name="LeftColumn" Width="Auto"/>  <!-- ┐ held equal by  -->
+                <ColumnDefinition x:Name="NotchColumn" Width="108"/>  <!-- │ EqualiseSides() -->
+                <ColumnDefinition x:Name="RightColumn" Width="Auto"/> <!-- ┘                 -->
             </Grid.ColumnDefinitions>
 
-            <!-- The tools sit toward the notch rather than centring in their column, so they read as
-                 flanking the tab rather than as two loose groups adrift on a strip — but they are held
-                 15px OFF the cut. Hard against it they crowded the notch's inner edge and the strip
-                 looked mis-cut rather than deliberately shaped.
-                 ⚠️ THE TWO MARGINS ARE MIRRORED AND MUST STAY EQUAL — an uneven pair moves each side's
-                 tools a different distance from the tab, which is exactly the asymmetry the [*, notch, *]
-                 columns exist to prevent. -->
-            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4"
+            <!-- ⚠️ BOTH SIDES GROW OUTWARD FROM THE NOTCH: the left panel is RIGHT-aligned so it fills
+                 right-to-left, the right panel is LEFT-aligned so it fills left-to-right. So the tools
+                 always hug the tab and whatever slack the equalised columns carry sits at the strip's
+                 OUTER ends, where it reads as margin instead of as a hole in the middle.
+                 ⚠️ The 15px margins hold both sides OFF the cut — hard against it they crowded the notch's
+                 inner edge and the strip looked mis-cut rather than deliberately shaped. They are mirrored
+                 and must stay equal, or the two sides sit different distances from the tab. -->
+            <StackPanel x:Name="LeftTools"
+                        Grid.Column="0" Orientation="Horizontal" Spacing="4"
                         Margin="0,0,15,0"
                         HorizontalAlignment="Right" VerticalAlignment="Center">
                 <!-- Reset north — undo a right-drag rotate/tilt. Same view-model call as the Settings
@@ -134,17 +170,35 @@
                         ToolTipService.ToolTip="Reset the map's rotation and 3D tilt — face north, flat">
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE72C;"/>
                 </Button>
-            </StackPanel>
 
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
-                        Margin="15,0,0,0"
-                        HorizontalAlignment="Left" VerticalAlignment="Center">
                 <!-- Fit to view — frame the effective region (isolated state, else CONUS). -->
                 <Button Style="{StaticResource StripToolButtonStyle}"
                         Click="OnFitToViewClick"
                         ToolTipService.ToolTip="Frame the current view (isolated state, else CONUS) — center &amp; zoom to fit">
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
                 </Button>
+            </StackPanel>
+
+            <!-- ===== STATE ISOLATION — THREE CONTROLS COLLAPSED INTO ONE LIST =====
+                 It replaced the Settings window's Map tab CONUS checkbox, its "isolate a state (hover &
+                 click)" arm checkbox, and its state-name combo. One row each: No Isolation / Isolate CONUS /
+                 Select to Isolate, then the 52 places.
+                 ⚠️ "Select to Isolate" ARMS the map — it is a MODE, not a resting choice. Hovering a state
+                 then highlights it, and the click reports back through states.js, at which point the combo
+                 re-resolves and reads that state's name. Armed-with-nothing-picked keeps reading "Select to
+                 Isolate", which is honest: the map is visibly in hover mode.
+                 ⚠️ The PLACEHOLDER shows when nothing is masked at all, because SelectedIsolationOption is
+                 NULL there — "No Isolation" is a row you pick, not a row the combo rests in. -->
+            <StackPanel x:Name="RightTools"
+                        Grid.Column="2" Orientation="Horizontal" Spacing="4"
+                        Margin="15,0,0,0"
+                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                <ComboBox Width="170"
+                          PlaceholderText="Isolate State"
+                          ItemsSource="{x:Bind ViewModel.StateIso.IsolationOptions, Mode=OneWay}"
+                          ItemTemplate="{StaticResource IsolationOptionTemplate}"
+                          SelectedItem="{x:Bind ViewModel.StateIso.SelectedIsolationOption, Mode=TwoWay}"
+                          ToolTipService.ToolTip="Mask the map down to CONUS or a single state"/>
             </StackPanel>
         </Grid>
     </Grid>
