@@ -122,10 +122,34 @@ namespace Anvil.ViewModels
 
 		/// <summary>Isolate a state by name (arms the mode if needed). Used by the combo and available for a
 		/// future stream-mode preset; the on-map click path goes straight through the WebView.</summary>
-		public Task IsolateStateAsync(string name)
+		public Task IsolateStateAsync(string name) =>
+			_isMapReady ? _mapService.SelectIsolatedStateAsync(name) : Task.CompletedTask;
+
+		/// <summary>
+		/// Drop any single-state isolation and leave hover mode, from whatever combination is on now.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ IT CANNOT BE WRITTEN AS <c>IsArmed = false</c>. That setter clears the isolated state as a side
+		/// effect, but only when arming actually CHANGES — and since a list pick no longer arms, the common
+		/// case is isolated-but-not-armed, where the assignment is a no-op and the state would survive
+		/// "No Isolation". The two JS entry points differ the same way: disarm() clears isolation as part of
+		/// leaving hover mode, clear() is the not-armed equivalent.
+		/// </remarks>
+		private async Task ResetIsolationAsync()
 		{
-			if (!_isArmed) { IsArmed = true; } // arm first (its setter issues the arm command)
-			return _isMapReady ? _mapService.SelectIsolatedStateAsync(name) : Task.CompletedTask;
+			bool wasArmed = _isArmed;
+			if (wasArmed)
+			{
+				_isArmed = false;          // the field, so the setter's own clear path can't double-fire
+				OnPropertyChanged(nameof(IsArmed));
+			}
+
+			SetSelectedFromSystem(null);   // forget the state without echoing a command back
+
+			if (!_isMapReady) { return; }
+			await (wasArmed
+				? _mapService.SetStateIsolationAsync(false)   // disarm() — also clears the isolated state
+				: _mapService.ClearStateIsolationAsync());    // clear()  — same, without the hover teardown
 		}
 
 		/// <summary>Exit isolation but STAY armed (back to hover mode so another state can be picked).</summary>
@@ -164,16 +188,17 @@ namespace Anvil.ViewModels
 		private StateIsolationOption? _selectedIsolationOption;
 
 		/// <summary>
-		/// The combo's selection. NULL when nothing is masked at all, which is what lets the placeholder
-		/// ("Isolate State") show — "No Isolation" is a row you can PICK, not a state the combo rests in.
+		/// The picker's selection — always one of the four real states of this subsystem: no isolation,
+		/// CONUS, armed-and-waiting, or one named state.
 		/// </summary>
 		/// <remarks>
 		/// ⚠️ IT IS DERIVED, NOT STORED. The truth is <see cref="IsConusIsolated"/> / <see cref="IsArmed"/> /
 		/// <see cref="SelectedState"/>; this resolves them into one row (see <see cref="ResolveOption"/>) and
 		/// is re-resolved whenever any of the three moves — including a MAP CLICK, which is how arming then
-		/// clicking Oklahoma leaves the combo reading "Oklahoma".
+		/// clicking Oklahoma leaves the picker reading "Oklahoma".
 		/// ⚠️ Arming OUTRANKS CONUS in the readout: while armed with nothing picked it reads "Select to
 		/// Isolate", because the mode you are in is the more useful thing to report.
+		/// ⚠️ It is never null, so the picker's placeholder is a fallback that should not be reachable.
 		/// </remarks>
 		public StateIsolationOption? SelectedIsolationOption
 		{
@@ -189,11 +214,13 @@ namespace Anvil.ViewModels
 					switch (value.Kind)
 					{
 						case StateIsolationKind.None:
-							IsArmed = false;          // also drops any isolated state
+							_ = ResetIsolationAsync();
 							IsConusIsolated = false;
 							break;
 						case StateIsolationKind.Conus:
-							IsArmed = false;
+							// ⚠️ The reset is what makes this work from an isolated state: a state OVERRIDES the
+							// base extent, so switching to CONUS has to drop it or nothing visibly changes.
+							_ = ResetIsolationAsync();
 							IsConusIsolated = true;
 							break;
 						case StateIsolationKind.Arm:
@@ -223,7 +250,11 @@ namespace Anvil.ViewModels
 
 			if (_isArmed) { return IsolationOptions.First(o => o.Kind == StateIsolationKind.Arm); }
 			if (_isConusIsolated) { return IsolationOptions.First(o => o.Kind == StateIsolationKind.Conus); }
-			return null; // placeholder
+
+			// ⚠️ "No Isolation" IS A STATE THE PICKER RESTS IN, not just a row you press. It used to resolve
+			// to null here, which showed the placeholder — so picking "No Isolation" left the box reading
+			// "Isolate State" and looked as though the pick had not taken.
+			return IsolationOptions.First(o => o.Kind == StateIsolationKind.None);
 		}
 
 		// Push the resolved row into the combo without re-running the setter's apply branch.
@@ -252,6 +283,20 @@ namespace Anvil.ViewModels
 			_isMapReady = true;
 			if (_isConusIsolated) { await _mapService.SetConusIsolationAsync(true); } // launch default: CONUS
 			if (_isArmed) { await _mapService.SetStateIsolationAsync(true); }
+
+			// ⚠⚠ REPLAY THE ISOLATED STATE TOO. Every command here is dropped while the page is not ready
+			// (see the _isMapReady guards), so ANY state this VM holds must be re-applied when it becomes
+			// ready — and this one was missing, which is a silent, INTERMITTENT "nothing happened".
+			// ⚠️ It only became reachable when isolation MOVED to the map controls strip: the strip is on
+			// screen from launch, so a pick can land before mapReady. From the Settings window you had to
+			// open the window first, by which time the page was long ready — which is exactly why this
+			// looked like a regression in code that had not changed.
+			// ⚠️ Add a command to this VM = add its replay here. The guard is not optional and neither is
+			// the replay; dropping a command with no way back is the whole bug.
+			if (!string.IsNullOrEmpty(_selectedState))
+			{
+				await _mapService.SelectIsolatedStateAsync(_selectedState!);
+			}
 		}
 	}
 }

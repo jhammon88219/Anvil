@@ -3,8 +3,8 @@
      the 52 places, in one boxed dropdown.
 
        CLOSED     ┌──────────────────────────┐
-                  │ Isolate State          ˅ │   placeholder (muted) when nothing is masked;
-                  └──────────────────────────┘   otherwise the row's own label
+                  │ No Isolation           ˅ │   always the CURRENT state of the subsystem — no
+                  └──────────────────────────┘   isolation, CONUS, armed, or one named state
 
                   ┌──────────────────────────┐
        OPEN       │ No Isolation             │   ← the three ACTIONS carry hover text
@@ -28,6 +28,10 @@
 
      ⚠️ The flyout is given an explicitly OPAQUE surface: the default flyout brush is acrylic and washes
      out over the map.
+
+     ⚠️ PlaceholderText is a FALLBACK that should not be reachable: the view model resolves every
+     combination to a real row, "No Isolation" included. If you ever SEE it, the option list failed to
+     build — that is the bug it is there to make visible, not a resting state.
 
      Host contract: ItemsSource + SelectedItem (TwoWay) + PlaceholderText. -->
 <UserControl
@@ -89,8 +93,8 @@
                    Visibility="{x:Bind HasSelection(SelectedItem), Mode=OneWay}"
                    Text="{x:Bind LabelOf(SelectedItem), Mode=OneWay}"/>
 
-        <!-- Shown only when NOTHING is masked — which is exactly when SelectedItem is null (see
-             StateIsolationViewModel: "No Isolation" is a row you PICK, not one the picker rests in). -->
+        <!-- The unreachable fallback (see the header): the view model resolves every combination to a
+             real row, so SelectedItem is never null in practice. -->
         <TextBlock x:Name="Placeholder"
                    Grid.Column="0"
                    Margin="10,5,0,6"

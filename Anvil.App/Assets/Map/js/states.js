@@ -289,9 +289,11 @@ function lockMarginFrac() { return isolatedName ? STATE_LOCK_MARGIN : CONUS_LOCK
 function framedBbox(rings, frac) {
     const b = bboxOfRings(rings);
     const dx = (b[1][0] - b[0][0]) * frac, dy = (b[1][1] - b[0][1]) * frac;
+    // ⚠️ LATITUDE is clamped (Web Mercator has no poles); LONGITUDE is NOT — a wrapped box legitimately
+    // runs past 180, and clamping it is what made Alaska span the world. See bboxOfRings.
     return [
-        [Math.max(-180, b[0][0] - dx), Math.max(-85, b[0][1] - dy)],
-        [Math.min(180, b[1][0] + dx), Math.min(85, b[1][1] + dy)]
+        [b[0][0] - dx, Math.max(-85, b[0][1] - dy)],
+        [b[1][0] + dx, Math.min(85, b[1][1] + dy)]
     ];
 }
 
@@ -316,13 +318,30 @@ function stopCamera(map) {
     try { map.stop(); } catch (e) { /* nothing in flight */ }
 }
 
+// ⚠⚠ REPORT A CAMERA THROW — DO NOT SWALLOW ONE, AND DO NOT LET IT ESCAPE INTO A MapLibre FRAME.
+// Both halves are load-bearing, and getting either wrong cost a debugging round:
+//  • a plain catch (what was here first) hides the ORIGINATING call, leaving only the downstream _render
+//    failures in the log — and catching never undoes the damage anyway, since setMaxBounds stores its
+//    bounds before it throws;
+//  • rethrowing inline would land inside MapLibre's own frame, which aborts the frame WITHOUT clearing its
+//    running flag and kills the render loop for good.
+// Rethrowing on a timeout puts the real error in front of window.onerror (→ the host's pageError hook)
+// from a clean stack, so it is reported AND the frame survives.
+function reportCameraThrow(where, detail, e) {
+    setTimeout(function () {
+        throw new Error('states.' + where + ' failed (' + detail + '): ' + ((e && e.message) ? e.message : String(e)));
+    }, 0);
+}
+
 function applyMaxBounds(map, rings) {
     stopCamera(map);
+    // ⚠️ An unusable box RELEASES the lock rather than applying a bad one: free panning is a far smaller
+    // problem than a dead transform (see safeBbox).
+    const bb = (rings && rings.length) ? safeBbox(framedBbox(rings, lockMarginFrac())) : null;
     try {
-        if (!rings || !rings.length) { map.setMaxBounds(null); return; } // full map — free pan
-        map.setMaxBounds(framedBbox(rings, lockMarginFrac()));
+        map.setMaxBounds(bb);
     } catch (e) {
-        console.error('states: setMaxBounds failed: ' + e);
+        reportCameraThrow('setMaxBounds', 'bbox=' + JSON.stringify(bb), e);
     }
 }
 
@@ -386,17 +405,53 @@ const FIT_PADDING = { top: 60, bottom: 110, left: 40, right: 40 };
 // map maxZoom is untouched.) Raise further if needed.
 const FIT_MAX_ZOOM = 16;
 
+// ⚠⚠ ANTIMERIDIAN-AWARE, AND THAT IS A CRASH FIX, NOT A NICETY. Alaska's rings run from ~172°E to
+// ~-129°W, so a naive min/max spans the ENTIRE WORLD (-180..180). Handing setMaxBounds a 360°-wide lng
+// range drives MapLibre's constrain math to zoom = Infinity, which makes the projection matrix singular:
+// mat4.invert returns null, fromInvProjectionMatrix maps over it, and EVERY render throws
+// "Cannot read properties of null (reading '0')" from then on. The map is dead and stays dead — measured
+// 2026-09-04, isolating Alaska did it on the first try.
+// So: measure the span BOTH ways — as-is, and with negative longitudes shifted +360 — and keep the
+// NARROWER one. For a region that does not cross the seam the raw span always wins and nothing changes;
+// for Alaska the wrapped span is ~59° instead of 360°.
+// ⚠️ A wrapped box has east > 180 ON PURPOSE (Alaska ≈ 172..231). MapLibre reads that as crossing the
+// antimeridian, which is why framedBbox must NOT clamp longitude back into ±180 — doing so is what
+// produced the world-wide box in the first place.
 function bboxOfRings(rings) {
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minRaw = Infinity, maxRaw = -Infinity;
+    let minWrap = Infinity, maxWrap = -Infinity;
     rings.forEach(function (ring) {
         ring.forEach(function (p) {
-            if (p[0] < minX) minX = p[0];
-            if (p[0] > maxX) maxX = p[0];
-            if (p[1] < minY) minY = p[1];
-            if (p[1] > maxY) maxY = p[1];
+            const x = p[0], y = p[1];
+            if (x < minRaw) minRaw = x;
+            if (x > maxRaw) maxRaw = x;
+            const w = x < 0 ? x + 360 : x;          // put the eastern hemisphere and the wrap on one line
+            if (w < minWrap) minWrap = w;
+            if (w > maxWrap) maxWrap = w;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
         });
     });
-    return [[minX, minY], [maxX, maxY]];
+    // ⚠️ THE >180 GATE IS NOT REDUNDANT with the narrower-span test. Only a region that really straddles
+    // the seam has a raw span wider than half the world, and the shift by 360 carries float error — enough
+    // that "wrapped is narrower" measured TRUE for ordinary states (Alabama, Arizona, Puerto Rico) whose
+    // two spans are equal, handing them a needless >180 box. Ask the question that actually distinguishes
+    // the case first.
+    return (maxRaw - minRaw) > 180 && (maxWrap - minWrap) < (maxRaw - minRaw)
+        ? [[minWrap, minY], [maxWrap, maxY]]
+        : [[minRaw, minY], [maxRaw, maxY]];
+}
+
+// ⚠️ THE LAST LINE OF DEFENCE: never hand MapLibre a box that can wreck the transform. Returns null for
+// anything non-finite, inverted, or a full world-width lock (which is not a lock at all, and is exactly
+// the shape that produced zoom = Infinity). Callers RELEASE the lock rather than set a bad one.
+function safeBbox(bb) {
+    const ok = function (v) { return typeof v === 'number' && isFinite(v); };
+    if (!bb || !ok(bb[0][0]) || !ok(bb[0][1]) || !ok(bb[1][0]) || !ok(bb[1][1])) return null;
+    if (bb[1][0] <= bb[0][0] || bb[1][1] <= bb[0][1]) return null;
+    if (bb[1][0] - bb[0][0] >= 360) return null;
+    return bb;
 }
 
 function fitRings(map, rings) {
@@ -405,12 +460,14 @@ function fitRings(map, rings) {
     // let MapLibre throw out of here. A NaN bbox (which is what a corrupted transform produces) reaches
     // fitBounds as "Invalid LngLat object: (NaN, NaN)".
     stopCamera(map);
+    // framedBbox carries the per-region FIT margin; FIT_PADDING is a pixel inset on top to keep the framing
+    // off the bars. The looser LOCK margin (lockMarginFrac) leaves room for both, so maxBounds never clamps.
+    const bb = safeBbox(framedBbox(rings, fitMarginFrac()));
+    if (!bb) return;   // nothing sane to frame; leave the camera where it is
     try {
-        // framedBbox carries the per-region FIT margin; FIT_PADDING is a pixel inset on top to keep the framing
-        // off the bars. The looser LOCK margin (lockMarginFrac) leaves room for both, so maxBounds never clamps.
-        map.fitBounds(framedBbox(rings, fitMarginFrac()), { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM, duration: 700 });
+        map.fitBounds(bb, { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM, duration: 700 });
     } catch (e) {
-        console.error('states: fitBounds failed: ' + e);
+        reportCameraThrow('fitBounds', 'bbox=' + JSON.stringify(bb), e);
     }
 }
 
@@ -444,10 +501,14 @@ export function disarm(map) {
     postIsolated(null);
 }
 
-// Isolate a state by name (e.g. "Texas"), from the combo or programmatically. Arms hover mode implicitly if
-// it wasn't, and FRAMES the state (the camera may be over a different state / CONUS — see isolate's note).
+// Isolate a state by NAME (the strip's picker, or programmatically), and FRAME it — the camera may be over
+// a different state / CONUS (see isolate's note).
+// ⚠️ IT DOES NOT ARM HOVER MODE, and used to. Naming a state is a deliberate, complete choice; arming
+// left the map hover-highlighting afterwards so a stray click isolated something else, which is most of why
+// the isolation logic felt quirky. Arming is now ONLY what "Select to Isolate" does (arm()).
+// ⚠️ The hover layers + handlers are still set up, which is harmless: every handler gates on `armed`, so
+// they sit inert until something actually arms.
 export function isolateState(map, name) {
-    armed = true;
     ensureData().then(function () { addHoverLayers(map); bindHandlers(map); isolate(map, name, true); });
 }
 
