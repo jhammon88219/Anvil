@@ -54,12 +54,28 @@
             <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="#FF1A1A1A"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="#FF2B2B2B"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="#FF383838"/>
+
+            <!-- Expander (every panel section). Header on the raised face, body on the ground. -->
+            <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="#FF1A1A1A"/>
+            <SolidColorBrush x:Key="ExpanderHeaderPointerOverBackground" Color="#FF2B2B2B"/>
+            <SolidColorBrush x:Key="ExpanderHeaderPressedBackground" Color="#FF2B2B2B"/>
+            <SolidColorBrush x:Key="ExpanderContentBackground" Color="#FF000000"/>
+            <StaticResource x:Key="ExpanderHeaderBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
+            <StaticResource x:Key="ExpanderContentBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="#FFF3F3F3"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="#FFE4E4E4"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="#FFDCDCDC"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="#FFD0D0D0"/>
+
+            <!-- Expander (every panel section). Header on the raised face, body on the ground. -->
+            <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="#FFE4E4E4"/>
+            <SolidColorBrush x:Key="ExpanderHeaderPointerOverBackground" Color="#FFDCDCDC"/>
+            <SolidColorBrush x:Key="ExpanderHeaderPressedBackground" Color="#FFDCDCDC"/>
+            <SolidColorBrush x:Key="ExpanderContentBackground" Color="#FFF3F3F3"/>
+            <StaticResource x:Key="ExpanderHeaderBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
+            <StaticResource x:Key="ExpanderContentBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
@@ -306,18 +322,54 @@
          styles collapsed into this one. Don't re-add a font setter here. -->
     <Style x:Key="BarKeyToggleStyle" TargetType="ToggleButton" BasedOn="{StaticResource BarChromeButtonStyle}"/>
 
+    <!-- ───────────────────────────── Expander — a panel SECTION ─────────────────────────────
+
+         Every section in every temporal window and every Settings tab is one of these.
+
+           COLLAPSED                          EXPANDED
+          ┌────────────────────────┐     ┌────────────────────────┐
+          │ ›  Warnings              │     │ ⌄  Warnings              │  ← header, raised face
+          └────────────────────────┘     ├────────────────────────┤
+                                             │ ┌───────────────────┐ │
+                                             │ │ 7 active warnings  │ │  ← body, on the window's
+                                             │ └───────────────────┘ │     own ground
+                                             │ [x] ■ Severe         7   │
+                                             └────────────────────────┘
+
+         The header text is the SECTION TITLE — pass a plain string to Header and the HeaderTemplate
+         below renders it, so a call site is one line and every section reads the same.
+
+         ⚠️ HorizontalContentAlignment must be Stretch. Expander does NOT stretch its content by
+         default, so without it every card, slider and combo inside collapses to its own width and the
+         section looks half-built.
+
+         ⚠️ This REPLACED Controls/Primitives/SectionHeading (a title + a hairline to the panel's edge),
+         which is DELETED. The expander's own box is the boundary now, and it can be closed. -->
+    <Style x:Key="SectionExpanderStyle" TargetType="Expander">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Padding" Value="12"/>
+        <Setter Property="HeaderTemplate">
+            <Setter.Value>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}"
+                               FontSize="16" FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                </DataTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ───────────────────────────── TextBlock — settings-body labels ─────────────────────────────
 
          The inline FIELD label ("State", "Spacing (mi)") inside a panel body. Shared because every Settings
          tab and every temporal window uses it — it was copied into the local Resources of all three windows
          the tabs replaced, and the copies had already begun to drift.
 
-         ⚠️ THE SECTION HEADING RANK IS NO LONGER A STYLE. SettingsSectionLabelStyle used to sit here (12px
-         semibold, letter-spaced, TERTIARY) and is DELETED: it could only make the words louder, which left
-         every heading in the app quieter than the controls beneath it, and the fix — a hairline running to
-         the panel's edge — is a SIBLING element that no TextBlock style can add. It is
-         Controls/Primitives/SectionHeading now. Don't re-add a heading style here; a second rank is exactly
-         the drift this file warns about. -->
+         ⚠️ THE SECTION HEADING RANK IS NOT A STYLE, AND IS NOT A CONTROL ANY MORE EITHER. It was
+         SettingsSectionLabelStyle here, then Controls/Primitives/SectionHeading (a title + a hairline to
+         the panel's edge); both are DELETED. A section title is the Header of a SectionExpanderStyle
+         Expander now — see that style above. -->
     <Style x:Key="SettingsFieldLabelStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="VerticalAlignment" Value="Center"/>

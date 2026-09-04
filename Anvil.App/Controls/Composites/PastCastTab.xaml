@@ -7,49 +7,31 @@
      control, unchanged by the split; renaming all three would be churn. Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────┐
-       │  Timeframe ──────────────────────────────────────    │
-       │  ┌──────────────────────────────────┬─────────┐      │
-       │  │ Tue May 24, 2011                 │         │      │  the CARD previews what Load
-       │  │ 5:00 PM → 7:00 PM                │  Load   │      │  will do; its footer reports
-       │  │ 28 frames loaded                 │         │      │  whether that is on the map
-       │  └──────────────────────────────────┴─────────┘      │
-       │  ────────────────────────────────────────────────    │
+       │  ⌄  Timeframe                                        │  ← the only one open on load
+       │  ┌──────────────────────────────────────────┐        │
+       │  │ Tue May 24, 2011              │  Load    │        │
+       │  │ 5:00 PM → 7:00 PM             │          │        │  the CARD previews what Load
+       │  │ 28 frames loaded              │          │        │  will do; its footer reports
+       │  └──────────────────────────────────────────┘        │
+       │  ──────────────────────────────────────────          │  whether that is on the map
        │  Date    [ May 24, 2011              ▾]              │
        │  Start   [ 5:00 PM                   ▾]              │  ← the PICKERS (ViewModel.Radar)
-       │  Window  [30m│1h│▓2h▓│3h│6h│12h]                     │
-       │  ────────────────────────────────────────────────    │
-       │  Radar ──────────────────────────────────────────    │
-       │  Opacity ─────────●──                                │  ← the layer everything else
-       │  ────────────────────────────────────────────────    │     is drawn OVER
-       │  SPC outlook ────────────────────────────────────    │
-       │  ┌────────────────────────────────────────────┐      │
-       │  │ Categorical                                │      │  the SAME card shape as above,
-       │  │ Day 1 · 20Z issuance · May 24, 2011        │      │  but a RESULT — no Load, the
-       │  │ Issued 3:44 PM · Valid → Wed 7:00 AM       │      │  outlook applies on selection
-       │  └────────────────────────────────────────────┘      │
-       │  ────────────────────────────────────────────────    │
-       │  Day     [▓1▓│ 2 │ 3 ]                               │
-       │  Product [Categorical              ▾]                │  ← historical SPC outlook for that
-       │  Cycle   [Auto                     ▾]                │     date (ViewModel.PastOutlook)
-       │  Opacity ──────●───────────                          │
-       │  ────────────────────────────────────────────────    │
-       │  Storm reports ──────────────────────────────────    │
-       │  ┌────────────────────────────────────────────┐      │
-       │  │ 448 reports · May 20, 2013 · 12Z-12Z       │      │  the same card again — a
-       │  └────────────────────────────────────────────┘      │  RESULT, no action
-       │  [x] ● Tornado                            42         │
-       │  [x] ● Wind                              310         │  ← that day's verification dots
-       │  [x] ● Hail                               96         │
-       │  Opacity ──────●───────────                          │
+       │  Window  [30m│1h│▓▓2h▓▓│3h│6h│12h]                   │
+       │  ›  Radar                                            │  ← the layer everything else
+       │  ›  SPC outlook                                      │     is drawn OVER
+       │  ›  Storm reports                                    │  ← that day's verification dots
        └──────────────────────────────────────────────────────┘
 
      Laid out ENTIRELY with grids (rows/columns, no StackPanels) so rows are easy to add/rearrange: a fixed
      [label | control] outer grid, one row per field.
 
-     ⚠️ THE SECTION FOLLOWS THE SETTINGS TABS' LANGUAGE, deliberately — a Primitives/SectionHeading over
-     SettingsFieldLabelStyle rows in one aligned label column. It used to carry a local PastLabelStyle that
-     was character-for-character the shared field label, and no section headings at all, which is most of
-     why the window read as loose controls rather than as part of this app.
+     EVERY SECTION IS AN EXPANDER (Styles.xaml SectionExpanderStyle) — header = the section title, body =
+     its controls, SettingsFieldLabelStyle rows in one aligned label column. Timeframe is the only one open
+     on load: it is the section you came to use, and the other three act on a window it has to load first.
+     Expanded state is view-only and NOT persisted — reopening the window gives you these defaults again.
+     ⚠️ The window sizes to its content ONCE, at open (WindowManager's sizeToContent), so opening a second
+     section afterwards grows the body past the window's bottom. Known and accepted for now — a scroller is
+     coming, hand-rolled rather than WinUI's.
 
      ⚠️ THE CARD IS A PREVIEW, NOT A RECEIPT. Its two readouts come from the pickers below (PastEventDateText
      / PastEventRangeText), so they describe what Load WILL do; only the footer describes what already
@@ -58,8 +40,8 @@
        • Timeframe (row 0, ViewModel.Radar) — a CalendarDatePicker on the PastEventDate facade, a TimePicker
          bound straight to PastEventTime, and a SegmentedPicker on PastEventDurationIndex. No element names
          are load-bearing here any more; there is no widget-sync code left to reach them.
-     ⚠️ SECTIONS RUN IN THE MAP'S Z-ORDER — radar underneath, outlook over it, reports on top — and each
-     layer's opacity lives in its own section. Keep a new section in that order.
+     Sections run in the map's Z-ORDER — radar underneath, outlook over it, reports on top — and each
+     layer's opacity lives in its own section, which is why Radar sits second rather than last.
        • Historical outlook (ViewModel.PastOutlook) — a card over Day / Product / Cycle / Opacity.
          Selecting a product fetches the archived issuance for the entered replay date and overlays it on
          the past radar; there is no Load, so the card is a RESULT rather than a preview.
@@ -80,261 +62,242 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <Grid VerticalAlignment="Top" RowSpacing="12">
+    <Grid VerticalAlignment="Top" RowSpacing="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- timeframe: the card + the pickers -->
-            <RowDefinition Height="Auto"/> <!-- divider -->
             <RowDefinition Height="Auto"/> <!-- the radar layer itself -->
-            <RowDefinition Height="Auto"/> <!-- divider -->
             <RowDefinition Height="Auto"/> <!-- historical SPC outlook -->
-            <RowDefinition Height="Auto"/> <!-- divider -->
             <RowDefinition Height="Auto"/> <!-- storm reports (verification) -->
         </Grid.RowDefinitions>
 
         <!-- ===================== TIMEFRAME: the card, then the pickers ===================== -->
-        <Grid Grid.Row="0" VerticalAlignment="Top">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- section label -->
-                <RowDefinition Height="Auto"/> <!-- summary card + Load -->
-                <RowDefinition Height="Auto"/> <!-- rule -->
-                <RowDefinition Height="Auto"/> <!-- the three pickers -->
-            </Grid.RowDefinitions>
-
-            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Timeframe"/>
-
-            <!-- THE CARD previews what Load WILL do — both readouts derive from the pickers below, not from
-                 the last load — and its footer says whether that is what is actually on the map. Those two
-                 disagree the moment a picker moves, which is the state the old trailing status line could
-                 not express: it was written once, by the load, and then just sat there.
-                 ⚠️ Load is the ACCENT action except in the one state where there is nothing to do (loaded,
-                 and the pickers still agree with it), where it steps back to a plain button. -->
-            <Border Grid.Row="1" CornerRadius="8" Padding="13,12"
-                    Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                    BorderThickness="1"
-                    BorderBrush="{x:Bind CardStroke(ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}">
-                <Grid ColumnSpacing="14">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Text="{x:Bind ViewModel.Radar.PastEventDateText, Mode=OneWay}"
-                                   FontSize="15"
-                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                        <TextBlock Text="{x:Bind ViewModel.Radar.PastEventRangeText, Mode=OneWay}"
-                                   FontSize="13" Margin="0,4,0,0"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        <TextBlock Text="{x:Bind CardFooter(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty, ViewModel.Radar.PastEventStatus), Mode=OneWay}"
-                                   FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                                   Foreground="{x:Bind FooterBrush(ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"/>
-                    </StackPanel>
-
-                    <!-- ⚠️ DISABLED once a window is loaded and the pickers still agree with it — there is
-                         nothing left to do, and the archive day is immutable so a re-load would fetch the
-                         same frames. Editing any picker makes the selection dirty and brings it back. -->
-                    <Button Grid.Column="1" Content="Load" MinWidth="84"
-                            VerticalAlignment="Center"
-                            IsEnabled="{x:Bind LoadEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
-                            Style="{x:Bind LoadStyle(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
-                            Click="OnLoadClick"/>
-                </Grid>
-            </Border>
-
-            <Border Grid.Row="2" Height="1" Margin="0,14"
-                    Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-            <!-- THE PICKERS. Everything below the rule is what you change; everything above it is what
-                 happens when you press Load. -->
-            <Grid Grid.Row="3" ColumnSpacing="12" RowSpacing="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="60"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+        <Expander Grid.Row="0" Header="Timeframe" IsExpanded="True"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- Date -->
-                    <RowDefinition Height="Auto"/> <!-- Start -->
-                    <RowDefinition Height="Auto"/> <!-- Window -->
+                    <RowDefinition Height="Auto"/> <!-- summary card + Load -->
+                    <RowDefinition Height="Auto"/> <!-- rule -->
+                    <RowDefinition Height="Auto"/> <!-- the three pickers -->
                 </Grid.RowDefinitions>
 
-                <!-- ⚠️ ONE calendar, not three combos. Its Date is a DateTimeOffset?, which the view model
-                     exposes as a FACADE over the year/month/day indices everything downstream still reads —
-                     see PastEventDate. It also cannot express Feb 30, which three independent combos could,
-                     so the day-clamp in the loop engine is no longer reachable from this form.
-                     ⚠️ Min/MaxDate are REQUIRED, not decoration: the year combo used to bound the choice to
-                     the archive's range, and a bare calendar will happily offer next century.
-                     ⚠️ EVERY date bound here comes from RadarViewModel.LocalMidnight, and it must. This
-                     picker interprets and returns LOCAL time, so a date given at any other offset comes
-                     back as a different calendar day — the getter and this control then walk each other a
-                     day per round trip, synchronously through the binding, and STACK-OVERFLOW the app. That
-                     is not hypothetical; it happened. Don't hand it a UTC-framed date. -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Date" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                <CalendarDatePicker Grid.Row="0" Grid.Column="1"
-                                    HorizontalAlignment="Stretch"
-                                    DateFormat="{}{month.abbreviated} {day.integer}, {year.full}"
-                                    MinDate="{x:Bind ViewModel.Radar.PastEventMinDate}"
-                                    MaxDate="{x:Bind ViewModel.Radar.PastEventMaxDate}"
-                                    Date="{x:Bind ViewModel.Radar.PastEventDate, Mode=TwoWay}"
-                                    ToolTipService.ToolTip="The date to replay (local time)"/>
+                <!-- THE CARD previews what Load WILL do — both readouts derive from the pickers below, not from
+                     the last load — and its footer says whether that is what is actually on the map. Those two
+                     disagree the moment a picker moves, which is the state the old trailing status line could
+                     not express: it was written once, by the load, and then just sat there.
+                     ⚠️ Load is the ACCENT action except in the one state where there is nothing to do (loaded,
+                     and the pickers still agree with it), where it steps back to a plain button. -->
+                <Border Grid.Row="0" CornerRadius="8" Padding="13,12"
+                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                        BorderThickness="1"
+                        BorderBrush="{x:Bind CardStroke(ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}">
+                    <Grid ColumnSpacing="14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                <!-- ⚠️ ONE picker, bound STRAIGHT to the view model's TimeSpan. It replaced an editable hour
-                     combo, an editable minute combo, an AM/PM checkbox pair, and the ~110 lines of
-                     code-behind that converted between them and kept them in step. PastEventTime was always
-                     a TimeSpan; the form simply was not shaped like one. -->
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Start" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                <TimePicker Grid.Row="1" Grid.Column="1"
-                            HorizontalAlignment="Stretch"
-                            ClockIdentifier="12HourClock"
-                            MinuteIncrement="5"
-                            Time="{x:Bind ViewModel.Radar.PastEventTime, Mode=TwoWay}"
-                            ToolTipService.ToolTip="Start of the replay window (local time)"/>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind ViewModel.Radar.PastEventDateText, Mode=OneWay}"
+                                       FontSize="15"
+                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="{x:Bind ViewModel.Radar.PastEventRangeText, Mode=OneWay}"
+                                       FontSize="13" Margin="0,4,0,0"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock Text="{x:Bind CardFooter(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty, ViewModel.Radar.PastEventStatus), Mode=OneWay}"
+                                       FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                                       Foreground="{x:Bind FooterBrush(ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"/>
+                        </StackPanel>
 
-                <!-- ⚠️ Six segments, not a dropdown: the list is short and fixed, so the choice is worth one
-                     click. The SHORT labels are their own list on the view model, kept beside the long ones
-                     and the minutes array because all three are indexed by PastEventDurationIndex. -->
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="Window" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                <prim:SegmentedPicker Grid.Row="2" Grid.Column="1"
-                                      ItemsSource="{x:Bind ViewModel.Radar.PastEventDurationShortLabels}"
-                                      SelectedIndex="{x:Bind ViewModel.Radar.PastEventDurationIndex, Mode=TwoWay}"
-                                      ToolTipService.ToolTip="How much of the day to replay, starting at the time above"/>
+                        <!-- ⚠️ DISABLED once a window is loaded and the pickers still agree with it — there is
+                             nothing left to do, and the archive day is immutable so a re-load would fetch the
+                             same frames. Editing any picker makes the selection dirty and brings it back. -->
+                        <Button Grid.Column="1" Content="Load" MinWidth="84"
+                                VerticalAlignment="Center"
+                                IsEnabled="{x:Bind LoadEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
+                                Style="{x:Bind LoadStyle(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
+                                Click="OnLoadClick"/>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Height="1" Margin="0,14"
+                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+                <!-- THE PICKERS. Everything below the rule is what you change; everything above it is what
+                     happens when you press Load. -->
+                <Grid Grid.Row="2" ColumnSpacing="12" RowSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Date -->
+                        <RowDefinition Height="Auto"/> <!-- Start -->
+                        <RowDefinition Height="Auto"/> <!-- Window -->
+                    </Grid.RowDefinitions>
+
+                    <!-- ⚠️ ONE calendar, not three combos. Its Date is a DateTimeOffset?, which the view model
+                         exposes as a FACADE over the year/month/day indices everything downstream still reads —
+                         see PastEventDate. It also cannot express Feb 30, which three independent combos could,
+                         so the day-clamp in the loop engine is no longer reachable from this form.
+                         ⚠️ Min/MaxDate are REQUIRED, not decoration: the year combo used to bound the choice to
+                         the archive's range, and a bare calendar will happily offer next century.
+                         ⚠️ EVERY date bound here comes from RadarViewModel.LocalMidnight, and it must. This
+                         picker interprets and returns LOCAL time, so a date given at any other offset comes
+                         back as a different calendar day — the getter and this control then walk each other a
+                         day per round trip, synchronously through the binding, and STACK-OVERFLOW the app. That
+                         is not hypothetical; it happened. Don't hand it a UTC-framed date. -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Date" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <CalendarDatePicker Grid.Row="0" Grid.Column="1"
+                                        HorizontalAlignment="Stretch"
+                                        DateFormat="{}{month.abbreviated} {day.integer}, {year.full}"
+                                        MinDate="{x:Bind ViewModel.Radar.PastEventMinDate}"
+                                        MaxDate="{x:Bind ViewModel.Radar.PastEventMaxDate}"
+                                        Date="{x:Bind ViewModel.Radar.PastEventDate, Mode=TwoWay}"
+                                        ToolTipService.ToolTip="The date to replay (local time)"/>
+
+                    <!-- ⚠️ ONE picker, bound STRAIGHT to the view model's TimeSpan. It replaced an editable hour
+                         combo, an editable minute combo, an AM/PM checkbox pair, and the ~110 lines of
+                         code-behind that converted between them and kept them in step. PastEventTime was always
+                         a TimeSpan; the form simply was not shaped like one. -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Start" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <TimePicker Grid.Row="1" Grid.Column="1"
+                                HorizontalAlignment="Stretch"
+                                ClockIdentifier="12HourClock"
+                                MinuteIncrement="5"
+                                Time="{x:Bind ViewModel.Radar.PastEventTime, Mode=TwoWay}"
+                                ToolTipService.ToolTip="Start of the replay window (local time)"/>
+
+                    <!-- ⚠️ Six segments, not a dropdown: the list is short and fixed, so the choice is worth one
+                         click. The SHORT labels are their own list on the view model, kept beside the long ones
+                         and the minutes array because all three are indexed by PastEventDurationIndex. -->
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Window" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <prim:SegmentedPicker Grid.Row="2" Grid.Column="1"
+                                          ItemsSource="{x:Bind ViewModel.Radar.PastEventDurationShortLabels}"
+                                          SelectedIndex="{x:Bind ViewModel.Radar.PastEventDurationIndex, Mode=TwoWay}"
+                                          ToolTipService.ToolTip="How much of the day to replay, starting at the time above"/>
+                </Grid>
             </Grid>
-        </Grid>
-
-        <Border Grid.Row="1" Height="1" Margin="0,2"
-                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+        </Expander>
 
         <!-- ===================== RADAR: the layer everything else is drawn OVER ===================== -->
         <!-- ⚠️ Sections run in the map's Z-ORDER — radar underneath, outlook over it, reports on top — and
              each layer's opacity lives in its own section. That ordering is why this sits here rather than
              at the end. -->
-        <Grid Grid.Row="2">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- section heading -->
-                <RowDefinition Height="Auto"/> <!-- the shared control -->
-            </Grid.RowDefinitions>
-            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Radar"/>
-            <comp:RadarOverlayInput Grid.Row="1" ViewModel="{x:Bind ViewModel.Radar, Mode=OneWay}"/>
-        </Grid>
-
-        <Border Grid.Row="3" Height="1" Margin="0,2"
-                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+        <Expander Grid.Row="1" Header="Radar"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <comp:RadarOverlayInput ViewModel="{x:Bind ViewModel.Radar, Mode=OneWay}"/>
+        </Expander>
 
         <!-- ===================== SPC OUTLOOK: the card, then the pickers ===================== -->
-        <Grid Grid.Row="4" VerticalAlignment="Top">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- section heading -->
-                <RowDefinition Height="Auto"/> <!-- the card -->
-                <RowDefinition Height="Auto"/> <!-- rule -->
-                <RowDefinition Height="Auto"/> <!-- the pickers -->
-            </Grid.RowDefinitions>
-
-            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="SPC outlook"/>
-
-            <!-- THE CARD, deliberately the same shape as the Timeframe card above it — headline, context,
-                 footer — so the window reads as one system rather than two forms stacked.
-                 ⚠️ IT IS A RESULT, NOT A PREVIEW, which is the one way it differs from Timeframe's: there is
-                 no Load here, the outlook applies the moment you pick it, so the card describes what is on
-                 the map right now. That is also why it carries no button.
-                 ⚠️ The FOOTER is the error channel as well as the times slot — see the ⚠️ on SetCard in
-                 PastOutlookViewModel for why a two-tier card needs that to survive a failed fetch. -->
-            <Border Grid.Row="1" CornerRadius="8" Padding="13,12"
-                    Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                    BorderThickness="1"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                <StackPanel>
-                    <TextBlock Text="{x:Bind ViewModel.PastOutlook.CardHeadline, Mode=OneWay}"
-                               FontSize="15"
-                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                    <TextBlock Text="{x:Bind ViewModel.PastOutlook.CardContext, Mode=OneWay}"
-                               FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
-                               Visibility="{x:Bind HasText(ViewModel.PastOutlook.CardContext), Mode=OneWay}"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <TextBlock Text="{x:Bind ViewModel.PastOutlook.CardFooter, Mode=OneWay}"
-                               FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                               Visibility="{x:Bind HasText(ViewModel.PastOutlook.CardFooter), Mode=OneWay}"
-                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                </StackPanel>
-            </Border>
-
-            <Border Grid.Row="2" Height="1" Margin="0,14"
-                    Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-            <Grid Grid.Row="3" ColumnSpacing="12" RowSpacing="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="60"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+        <Expander Grid.Row="2" Header="SPC outlook"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- Day -->
-                    <RowDefinition Height="Auto"/> <!-- Product -->
-                    <RowDefinition Height="Auto"/> <!-- Cycle -->
-                    <RowDefinition Height="Auto"/> <!-- Opacity -->
+                    <RowDefinition Height="Auto"/> <!-- the card -->
+                    <RowDefinition Height="Auto"/> <!-- rule -->
+                    <RowDefinition Height="Auto"/> <!-- the pickers -->
                 </Grid.RowDefinitions>
 
-                <!-- ⚠️ Segmented, not a dropdown: three fixed options is exactly what that primitive is for,
-                     and the row is already labelled "Day" so the segments only carry the number.
-                     ⚠️ DAYS 1-3 IS A PRODUCT BOUNDARY, not an arbitrary cap — SPC has no categorical outlook
-                     beyond day 3; days 4-8 are one combined probabilistic on a single daily issuance. If
-                     they are ever added this row goes back to a ComboBox: eight segments in this width is
-                     past what SegmentedPicker is good for. -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Day" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                <prim:SegmentedPicker Grid.Row="0" Grid.Column="1"
-                                      HorizontalAlignment="Left" Width="180"
-                                      IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
-                                      ItemsSource="{x:Bind ViewModel.PastOutlook.DayShortLabels}"
-                                      SelectedIndex="{x:Bind ViewModel.PastOutlook.SelectedDayIndex, Mode=TwoWay}"
-                                      ToolTipService.ToolTip="Outlook day (1-3) for the replay date"/>
+                <!-- THE CARD, deliberately the same shape as the Timeframe card above it — headline, context,
+                     footer — so the window reads as one system rather than two forms stacked.
+                     ⚠️ IT IS A RESULT, NOT A PREVIEW, which is the one way it differs from Timeframe's: there is
+                     no Load here, the outlook applies the moment you pick it, so the card describes what is on
+                     the map right now. That is also why it carries no button.
+                     ⚠️ The FOOTER is the error channel as well as the times slot — see the ⚠️ on SetCard in
+                     PastOutlookViewModel for why a two-tier card needs that to survive a failed fetch. -->
+                <Border Grid.Row="0" CornerRadius="8" Padding="13,12"
+                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                        BorderThickness="1"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                    <StackPanel>
+                        <TextBlock Text="{x:Bind ViewModel.PastOutlook.CardHeadline, Mode=OneWay}"
+                                   FontSize="15"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.PastOutlook.CardContext, Mode=OneWay}"
+                                   FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Visibility="{x:Bind HasText(ViewModel.PastOutlook.CardContext), Mode=OneWay}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.PastOutlook.CardFooter, Mode=OneWay}"
+                                   FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Visibility="{x:Bind HasText(ViewModel.PastOutlook.CardFooter), Mode=OneWay}"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    </StackPanel>
+                </Border>
 
-                <!-- The product list CASCADES with the day (day 1 breaks out tornado/wind/hail; days 2-3
-                     carry a single combined probabilistic), so it stays a dropdown — its length changes. -->
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
-                          IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
-                          ItemsSource="{x:Bind ViewModel.PastOutlook.ProductOptions, Mode=OneWay}"
-                          DisplayMemberPath="Label"
-                          SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedProductOption, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Historical outlook product — None clears the overlay"/>
+                <Border Grid.Row="1" Height="1" Margin="0,14"
+                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
-                <!-- ⚠️ Cycle and Opacity are DISABLED while the product is None. None is this section's off
-                     switch, so neither has anything to act on; they used to stay fully live over an empty
-                     readout, which reads as a bug rather than as a state.
-                     ⚠️ Cycle now has its OWN ROW. It used to be crammed in beside Day behind a lowercase
-                     inline "cycle" label, which was the single most haphazard thing in this window. -->
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="Cycle" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
-                          IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
-                          ItemsSource="{x:Bind ViewModel.PastOutlook.CycleOptions, Mode=OneWay}"
-                          DisplayMemberPath="Label"
-                          SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedCycleOption, Mode=TwoWay}"
-                          ToolTipService.ToolTip="SPC issuance cycle (UTC); Auto picks the one in effect at the replay time"/>
+                <Grid Grid.Row="2" ColumnSpacing="12" RowSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Day -->
+                        <RowDefinition Height="Auto"/> <!-- Product -->
+                        <RowDefinition Height="Auto"/> <!-- Cycle -->
+                        <RowDefinition Height="Auto"/> <!-- Opacity -->
+                    </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="Opacity" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                <Slider Grid.Row="3" Grid.Column="1"
-                        HorizontalAlignment="Stretch"
-                        IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
-                        Minimum="0" Maximum="1"
-                        StepFrequency="0.05" SmallChange="0.05"
-                        IsThumbToolTipEnabled="False"
-                        VerticalAlignment="Center"
-                        Value="{x:Bind ViewModel.PastOutlook.Opacity, Mode=TwoWay}"
-                        ToolTipService.ToolTip="Outlook fill opacity (outlines stay solid)"/>
+                    <!-- ⚠️ Segmented, not a dropdown: three fixed options is exactly what that primitive is for,
+                         and the row is already labelled "Day" so the segments only carry the number.
+                         ⚠️ DAYS 1-3 IS A PRODUCT BOUNDARY, not an arbitrary cap — SPC has no categorical outlook
+                         beyond day 3; days 4-8 are one combined probabilistic on a single daily issuance. If
+                         they are ever added this row goes back to a ComboBox: eight segments in this width is
+                         past what SegmentedPicker is good for. -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Day" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <prim:SegmentedPicker Grid.Row="0" Grid.Column="1"
+                                          HorizontalAlignment="Left" Width="180"
+                                          IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
+                                          ItemsSource="{x:Bind ViewModel.PastOutlook.DayShortLabels}"
+                                          SelectedIndex="{x:Bind ViewModel.PastOutlook.SelectedDayIndex, Mode=TwoWay}"
+                                          ToolTipService.ToolTip="Outlook day (1-3) for the replay date"/>
+
+                    <!-- The product list CASCADES with the day (day 1 breaks out tornado/wind/hail; days 2-3
+                         carry a single combined probabilistic), so it stays a dropdown — its length changes. -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                              IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
+                              ItemsSource="{x:Bind ViewModel.PastOutlook.ProductOptions, Mode=OneWay}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedProductOption, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Historical outlook product — None clears the overlay"/>
+
+                    <!-- ⚠️ Cycle and Opacity are DISABLED while the product is None. None is this section's off
+                         switch, so neither has anything to act on; they used to stay fully live over an empty
+                         readout, which reads as a bug rather than as a state.
+                         ⚠️ Cycle now has its OWN ROW. It used to be crammed in beside Day behind a lowercase
+                         inline "cycle" label, which was the single most haphazard thing in this window. -->
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Cycle" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
+                              IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
+                              ItemsSource="{x:Bind ViewModel.PastOutlook.CycleOptions, Mode=OneWay}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedCycleOption, Mode=TwoWay}"
+                              ToolTipService.ToolTip="SPC issuance cycle (UTC); Auto picks the one in effect at the replay time"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Opacity" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <Slider Grid.Row="3" Grid.Column="1"
+                            HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
+                            Minimum="0" Maximum="1"
+                            StepFrequency="0.05" SmallChange="0.05"
+                            IsThumbToolTipEnabled="False"
+                            VerticalAlignment="Center"
+                            Value="{x:Bind ViewModel.PastOutlook.Opacity, Mode=TwoWay}"
+                            ToolTipService.ToolTip="Outlook fill opacity (outlines stay solid)"/>
+                </Grid>
             </Grid>
-        </Grid>
+        </Expander>
 
-        <Border Grid.Row="5" Height="1" Margin="0,2"
-                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
         <!-- ===================== STORM REPORTS ===================== -->
         <!-- ⚠️ The heading is HERE, not inside StormReportsInput: that control is shared by BOTH
              temporal windows, and a window owns its own section structure while the control is just
              content. Putting it inside would give this section a heading in a window whose other
              sections might not have one. -->
-        <Grid Grid.Row="6">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- section heading -->
-                <RowDefinition Height="Auto"/> <!-- the shared control -->
-            </Grid.RowDefinitions>
-            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Storm reports"/>
-            <comp:StormReportsInput Grid.Row="1" ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
-        </Grid>
+        <Expander Grid.Row="3" Header="Storm reports"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <comp:StormReportsInput ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
+        </Expander>
     </Grid>
 </UserControl>

@@ -2,7 +2,7 @@
 <!-- StorageSettingsTab — the Storage tab of the Settings window: what Anvil is keeping on disk.
 
        ┌──────────────────────────────────────────────────────┐
-       │  RADAR CACHE                                         │
+       │  ⌄  Radar cache                                      │
        │    Radar cache          4.2 GB      ( Clear now )    │  ← live size, re-read on landing here
        │    Cache limit             [5 ▾] GB                  │  ← PERSISTED; the startup sweep's cap
        └──────────────────────────────────────────────────────┘
@@ -22,52 +22,57 @@
 <UserControl x:Class="Anvil.Controls.Composites.StorageSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <!-- Body: [section label] over its controls, grid rows (no StackPanels). -->
+    <!-- Body: one Expander per section (Styles.xaml SectionExpanderStyle), grid rows inside each. -->
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- Radar cache label -->
-            <RowDefinition Height="Auto"/> <!-- size + clear -->
-            <RowDefinition Height="Auto"/> <!-- limit -->
+            <RowDefinition Height="Auto"/> <!-- radar cache -->
         </Grid.RowDefinitions>
 
-        <prim:SectionHeading Grid.Row="0" Text="Radar cache"/>
+        <Expander Grid.Row="0" Header="Radar cache" IsExpanded="True"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- size + clear -->
+                    <RowDefinition Height="Auto"/> <!-- limit -->
+                </Grid.RowDefinitions>
 
-        <!-- Live cache size + Clear now. The VM guards against overlapping clears via CanClear. -->
-        <Grid Grid.Row="1" ColumnSpacing="8" Margin="4,0,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="On disk"/>
-            <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
-                       Margin="0,0,4,0"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Text="{x:Bind ViewModel.Storage.CacheSizeText, Mode=OneWay}"/>
-            <Button Grid.Column="2" Content="Clear now"
-                    IsEnabled="{x:Bind ViewModel.Storage.CanClear, Mode=OneWay}"
-                    Click="OnClearCacheClick"
-                    ToolTipService.ToolTip="Delete all cached radar volumes now (the app re-downloads what it needs)"/>
-        </Grid>
+                <!-- Live cache size + Clear now. The VM guards against overlapping clears via CanClear. -->
+                <Grid Grid.Row="0" ColumnSpacing="8" Margin="4,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="On disk"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
+                               Margin="0,0,4,0"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Text="{x:Bind ViewModel.Storage.CacheSizeText, Mode=OneWay}"/>
+                    <Button Grid.Column="2" Content="Clear now"
+                            IsEnabled="{x:Bind ViewModel.Storage.CanClear, Mode=OneWay}"
+                            Click="OnClearCacheClick"
+                            ToolTipService.ToolTip="Delete all cached radar volumes now (the app re-downloads what it needs)"/>
+                </Grid>
 
-        <!-- Cache size cap (persisted via the settings service). -->
-        <Grid Grid.Row="2" ColumnSpacing="8" Margin="4,0,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Cache limit"/>
-            <ComboBox Grid.Column="1" HorizontalAlignment="Right" MinWidth="72"
-                      ItemsSource="{x:Bind ViewModel.Storage.CacheLimitOptions}"
-                      SelectedItem="{x:Bind ViewModel.Storage.CacheLimitGb, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Maximum on-disk radar cache; enforced at the next launch"/>
-            <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="GB"/>
-        </Grid>
+                <!-- Cache size cap (persisted via the settings service). -->
+                <Grid Grid.Row="1" ColumnSpacing="8" Margin="4,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Cache limit"/>
+                    <ComboBox Grid.Column="1" HorizontalAlignment="Right" MinWidth="72"
+                              ItemsSource="{x:Bind ViewModel.Storage.CacheLimitOptions}"
+                              SelectedItem="{x:Bind ViewModel.Storage.CacheLimitGb, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Maximum on-disk radar cache; enforced at the next launch"/>
+                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="GB"/>
+                </Grid>
+            </Grid>
+        </Expander>
     </Grid>
 </UserControl>

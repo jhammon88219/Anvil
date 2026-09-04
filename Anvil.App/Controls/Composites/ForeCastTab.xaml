@@ -7,29 +7,29 @@
      MapViewModel; every control here drives ViewModel.Outlook.
 
        ┌──────────────────────────────────────────────────────┐
-       │  SPC outlook ────────────────────────────────────    │
-       │  ┌────────────────────────────────────────────┐      │
-       │  │ Day 1 · Categorical                        │      │  the card: which outlook is drawn,
-       │  │ Issued 12:57 PM · Valid → Wed 7:00 AM      │      │  when SPC issued it, and how long
-       │  │ Next ~9 min                                │      │  until the next refresh
-       │  └────────────────────────────────────────────┘      │
-       │  ────────────────────────────────────────────────    │
+       │  ⌄  SPC outlook                                      │  ← the window's one section
+       │  ┌──────────────────────────────────────────┐        │
+       │  │ Day 1 · Categorical                      │        │  the card: which outlook is
+       │  │ Issued 12:57 PM · Valid → Wed 7:00 AM    │        │  drawn, when SPC issued it,
+       │  │ Next ~9 min                              │        │  and the refresh countdown
+       │  └──────────────────────────────────────────┘        │
        │  Day      [Day 1 · Wed Sep 2          ▾]             │  ← self-labeling; cascades Product
        │  Product  [Categorical                ▾]             │
        │  Opacity  ──────●───────────                         │
-       │  ────────────────────────────────────────────────    │
-       │  Legend ─────────────────────────────────────────    │
-       │   ■ High                                             │  ← colors read from the SAME SPC
-       │   ■ Moderate                                         │     GeoJSON the map draws
-       │   ▨ Enhanced        (hatched = significant)          │
+       │  ──────────────────────────────────────────          │
+       │   ■ High                                             │  ← the legend rides INSIDE this
+       │   ■ Moderate                                         │     section for now; both it and
+       │   ▨ Enhanced   (hatched = significant)               │     the rule hide with HasLegend
        └──────────────────────────────────────────────────────┘
 
-     ⚠️ IT FOLLOWS PASTCAST'S SECTION GRAMMAR, deliberately, as NowCast now does: a
-     Primitives/SectionHeading, then a summary CARD, then a rule, then [label | control] rows in one
-     aligned 60px column. This was the loosest of the three bodies — no headings at all, a local
-     OutlookLabelStyle that was character-for-character the shared SettingsFieldLabelStyle, and a
-     hand-rolled letter-spaced "Legend" label (the last copy of the retired SettingsSectionLabelStyle look,
-     which SectionHeading exists to replace). All three are gone.
+     ONE SECTION, ONE EXPANDER (Styles.xaml SectionExpanderStyle), open on load — there is only one thing
+     in this window, so it opens showing it. Inside: a summary CARD, then [label | control] rows in one
+     aligned 60px column, then the legend. This was the loosest of the three bodies — no section structure
+     at all, a local OutlookLabelStyle that was character-for-character the shared SettingsFieldLabelStyle,
+     and a hand-rolled letter-spaced "Legend" label. All three are gone.
+     ⚠️ The window sizes to its content ONCE, at open, so collapsing this section leaves the window at its
+     full height and re-expanding it is fine, but a section that GROWS after open runs past the bottom. A
+     hand-rolled scroller is coming; WinUI's is not wanted.
 
      ⚠️ THE CARD COSTS NO VIEW-MODEL WORK. Its three lines are OutlookViewModel state that was already
      being computed and shown nowhere — the title, the issued/valid line, and the refresh countdown. See
@@ -56,7 +56,6 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conv="using:Anvil.Converters"
-             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -91,118 +90,112 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <Grid VerticalAlignment="Top" RowSpacing="12">
+    <Grid VerticalAlignment="Top" RowSpacing="8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- SPC outlook: the card + the selectors -->
-            <RowDefinition Height="Auto"/> <!-- divider -->
-            <RowDefinition Height="Auto"/> <!-- legend -->
+            <RowDefinition Height="Auto"/> <!-- SPC outlook: the card, the selectors, the legend -->
         </Grid.RowDefinitions>
 
         <!-- ===================== SPC OUTLOOK: the card, then the selectors ===================== -->
-        <Grid Grid.Row="0" VerticalAlignment="Top">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- section heading -->
-                <RowDefinition Height="Auto"/> <!-- the card -->
-                <RowDefinition Height="Auto"/> <!-- rule -->
-                <RowDefinition Height="Auto"/> <!-- the selectors -->
-            </Grid.RowDefinitions>
-
-            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="SPC outlook"/>
-
-            <!-- THE CARD, the same shape as the PastCast outlook's and for the same reason: it is a
-                 RESULT, not a preview — there is no Load here, the outlook applies the moment you pick it,
-                 so it describes what is on the map right now. That is also why it carries no button. -->
-            <Border Grid.Row="1" CornerRadius="8" Padding="13,12"
-                    Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                    BorderThickness="1"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                <StackPanel>
-                    <TextBlock Text="{x:Bind ViewModel.Outlook.CardHeadline, Mode=OneWay}"
-                               FontSize="15"
-                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                    <TextBlock Text="{x:Bind ViewModel.Outlook.CardContext, Mode=OneWay}"
-                               FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
-                               Visibility="{x:Bind HasText(ViewModel.Outlook.CardContext), Mode=OneWay}"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <TextBlock Text="{x:Bind ViewModel.Outlook.CardFooter, Mode=OneWay}"
-                               FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                               Visibility="{x:Bind HasText(ViewModel.Outlook.CardFooter), Mode=OneWay}"
-                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                </StackPanel>
-            </Border>
-
-            <Border Grid.Row="2" Height="1" Margin="0,14"
-                    Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-            <Grid Grid.Row="3" ColumnSpacing="12" RowSpacing="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="60"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+        <Expander Grid.Row="0" Header="SPC outlook" IsExpanded="True"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- Day -->
-                    <RowDefinition Height="Auto"/> <!-- Product -->
-                    <RowDefinition Height="Auto"/> <!-- Opacity -->
+                    <RowDefinition Height="Auto"/> <!-- the card -->
+                    <RowDefinition Height="Auto"/> <!-- rule -->
+                    <RowDefinition Height="Auto"/> <!-- the selectors -->
+                    <RowDefinition Height="Auto"/> <!-- legend rule -->
+                    <RowDefinition Height="Auto"/> <!-- legend entries -->
                 </Grid.RowDefinitions>
 
-                <!-- Day: self-labeling ("Day 1 · Sat Jun 14"); changing it cascades the product list.
-                     ⚠️ A ComboBox, not a SegmentedPicker like PastCast's Day row — the live outlook runs to
-                     EIGHT days (d4-8 are the extended probabilistic), which is well past what that
-                     primitive suits. -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Day" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
-                          ItemsSource="{x:Bind ViewModel.Outlook.Days}"
-                          DisplayMemberPath="Label"
-                          SelectedItem="{x:Bind ViewModel.Outlook.SelectedDayOption, Mode=TwoWay}"
-                          ToolTipService.ToolTip="SPC outlook day"/>
+                <!-- THE CARD, the same shape as the PastCast outlook's and for the same reason: it is a
+                     RESULT, not a preview — there is no Load here, the outlook applies the moment you pick it,
+                     so it describes what is on the map right now. That is also why it carries no button. -->
+                <Border Grid.Row="0" CornerRadius="8" Padding="13,12"
+                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                        BorderThickness="1"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                    <StackPanel>
+                        <TextBlock Text="{x:Bind ViewModel.Outlook.CardHeadline, Mode=OneWay}"
+                                   FontSize="15"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.Outlook.CardContext, Mode=OneWay}"
+                                   FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Visibility="{x:Bind HasText(ViewModel.Outlook.CardContext), Mode=OneWay}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.Outlook.CardFooter, Mode=OneWay}"
+                                   FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Visibility="{x:Bind HasText(ViewModel.Outlook.CardFooter), Mode=OneWay}"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    </StackPanel>
+                </Border>
 
-                <!-- Product: the day's outlook types (+ None). The list CASCADES with the day, so it stays
-                     a dropdown — its length changes. -->
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
-                          ItemsSource="{x:Bind ViewModel.Outlook.ProductOptions, Mode=OneWay}"
-                          DisplayMemberPath="Label"
-                          SelectedItem="{x:Bind ViewModel.Outlook.SelectedOption, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Outlook product (None clears the overlay)"/>
+                <Border Grid.Row="1" Height="1" Margin="0,14"
+                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
-                <!-- ⚠️ DISABLED while the product is None: None is this section's off switch, so there is
-                     nothing on the map for the slider to fade. Same rule as the PastCast outlook's. -->
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="Opacity" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                <Slider Grid.Row="2" Grid.Column="1"
-                        HorizontalAlignment="Stretch"
-                        IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}"
-                        Minimum="0" Maximum="1"
-                        StepFrequency="0.05" SmallChange="0.05"
-                        IsThumbToolTipEnabled="False"
-                        VerticalAlignment="Center"
-                        Value="{x:Bind ViewModel.Outlook.OutlookOpacity, Mode=TwoWay}"
-                        ToolTipService.ToolTip="Outlook fill opacity (outlines stay solid)"/>
+                <Grid Grid.Row="2" ColumnSpacing="12" RowSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Day -->
+                        <RowDefinition Height="Auto"/> <!-- Product -->
+                        <RowDefinition Height="Auto"/> <!-- Opacity -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Day: self-labeling ("Day 1 · Sat Jun 14"); changing it cascades the product list.
+                         ⚠️ A ComboBox, not a SegmentedPicker like PastCast's Day row — the live outlook runs to
+                         EIGHT days (d4-8 are the extended probabilistic), which is well past what that
+                         primitive suits. -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Day" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                              ItemsSource="{x:Bind ViewModel.Outlook.Days}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{x:Bind ViewModel.Outlook.SelectedDayOption, Mode=TwoWay}"
+                              ToolTipService.ToolTip="SPC outlook day"/>
+
+                    <!-- Product: the day's outlook types (+ None). The list CASCADES with the day, so it stays
+                         a dropdown — its length changes. -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                              ItemsSource="{x:Bind ViewModel.Outlook.ProductOptions, Mode=OneWay}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{x:Bind ViewModel.Outlook.SelectedOption, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Outlook product (None clears the overlay)"/>
+
+                    <!-- ⚠️ DISABLED while the product is None: None is this section's off switch, so there is
+                         nothing on the map for the slider to fade. Same rule as the PastCast outlook's. -->
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Opacity" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <Slider Grid.Row="2" Grid.Column="1"
+                            HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}"
+                            Minimum="0" Maximum="1"
+                            StepFrequency="0.05" SmallChange="0.05"
+                            IsThumbToolTipEnabled="False"
+                            VerticalAlignment="Center"
+                            Value="{x:Bind ViewModel.Outlook.OutlookOpacity, Mode=TwoWay}"
+                            ToolTipService.ToolTip="Outlook fill opacity (outlines stay solid)"/>
+                </Grid>
+
+                <!-- THE LEGEND lives INSIDE this section rather than beside it: it is a key to the outlook
+                     the rows above chose, so it belongs to them. Both halves hide together on HasLegend
+                     (None, or the layer off), leaving the section with just the card and the selectors.
+                     ⚠️ Temporary address — the legend is going somewhere else eventually, it just doesn't
+                     have a home yet, so it rides along with what it describes.
+                     ⚠️ The ONE bounded thing in these windows: they size to content and have no scroller, and
+                     this list's length is decided by SPC rather than by us, so an unusually long scale
+                     scrolls here instead of pushing the window past the screen. -->
+                <Border Grid.Row="3" Height="1" Margin="0,14"
+                        Visibility="{x:Bind ViewModel.Outlook.HasLegend, Converter={StaticResource BoolToVis}, Mode=OneWay}"
+                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+                <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" MaxHeight="200"
+                              HorizontalScrollMode="Disabled"
+                              Visibility="{x:Bind ViewModel.Outlook.HasLegend, Converter={StaticResource BoolToVis}, Mode=OneWay}">
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Outlook.LegendEntries, Mode=OneWay}"
+                                  ItemTemplate="{StaticResource OutlookLegendItemTemplate}"/>
+                </ScrollViewer>
             </Grid>
-        </Grid>
-
-        <Border Grid.Row="1" Height="1" Margin="0,2"
-                Visibility="{x:Bind ViewModel.Outlook.HasLegend, Converter={StaticResource BoolToVis}, Mode=OneWay}"
-                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-        <!-- ===================== LEGEND ===================== -->
-        <!-- The loaded outlook's risk/probability levels, colors + names pulled straight from SPC's own
-             outlook GeoJSON (the same file the map draws), most-severe first.
-             ⚠️ THE WHOLE SECTION HIDES with None or the layer off (HasLegend) — heading, rule and all, or
-             an empty heading would sit under the selectors claiming there is a key to read. -->
-        <Grid Grid.Row="2"
-              Visibility="{x:Bind ViewModel.Outlook.HasLegend, Converter={StaticResource BoolToVis}, Mode=OneWay}">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- section heading -->
-                <RowDefinition Height="Auto"/> <!-- the entries -->
-            </Grid.RowDefinitions>
-            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Legend"/>
-            <!-- ⚠️ The ONE bounded thing in these windows. They size to content and have no scroller by
-                 design; this list is the one part whose length is decided by SPC rather than by us, so an
-                 unusually long scale scrolls here instead of pushing the window past the screen. -->
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="200" HorizontalScrollMode="Disabled">
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Outlook.LegendEntries, Mode=OneWay}"
-                              ItemTemplate="{StaticResource OutlookLegendItemTemplate}"/>
-            </ScrollViewer>
-        </Grid>
+        </Expander>
     </Grid>
 </UserControl>

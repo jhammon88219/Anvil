@@ -6,29 +6,17 @@
      control, unchanged by the split; renaming all three would be churn. Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────┐
-       │  Radar ──────────────────────────────────────────    │
-       │  Opacity ─────────●──                                │  ← sections run in the map's
-       │  ────────────────────────────────────────────────    │     Z-ORDER: radar, then the
-       │  Watches ────────────────────────────────────────    │     alerts over it, then the
-       │  ┌────────────────────────────────────────────┐      │     reports on top
-       │  │ 2 active watches                           │      │
-       │  │ Updated 12:04 PM                           │      │  the same card + type rows in
-       │  └────────────────────────────────────────────┘      │  all three overlay sections —
-       │  [ ] ■ Tornado                             1         │  PhenomOverlayInput here,
-       │  [ ] ■ Severe thunderstorm                 1         │  StormReportsInput below
+       │  ›  Radar                                            │  ← collapsed
+       │  ⌄  Warnings                                         │  ← OPEN by default — the one
+       │  ┌──────────────────────────────────────────┐        │
+       │  │ 7 active warnings                        │        │     section you actually watch
+       │  │ Updated 12:04 PM · checking every 15s    │        │
+       │  └──────────────────────────────────────────┘        │
+       │  [ ] ■ Tornado                            0          │
+       │  [x] ■ Severe thunderstorm                7          │
        │  Opacity ──────●───────────                          │
-       │  ────────────────────────────────────────────────    │
-       │  Warnings ───────────────────────────────────────    │
-       │  ┌────────────────────────────────────────────┐      │
-       │  │ 7 active warnings                          │      │
-       │  │ Updated 12:04 PM · checking every 15s      │      │
-       │  └────────────────────────────────────────────┘      │
-       │  [ ] ■ Tornado                             0         │
-       │  [x] ■ Severe thunderstorm                 7         │
-       │  Opacity ──────●───────────                          │
-       │  ────────────────────────────────────────────────    │
-       │  Storm reports ──────────────────────────────────    │
-       │  StormReportsInput  (today's reports)                │
+       │  ›  Watches                                          │  same control as Warnings,
+       │  ›  Storm reports                                    │  a different view model
        └──────────────────────────────────────────────────────┘
 
      The body holds the "now"-oriented live-conditions options: the SPC Watch boxes and the storm-based
@@ -36,17 +24,22 @@
      alerts, so they live under NowCast rather than ForeCast, in the UI and in the VM layer alike (their own
      WatchesViewModel / WarningsViewModel).
 
-     ⚠️ THE WINDOW FOLLOWS PASTCAST'S SECTION GRAMMAR, deliberately: a Primitives/SectionHeading, then a
-     summary CARD, then a rule, then the rows. It used to be headings over bare [label | control] grids with
-     a local NowLabelStyle — character-for-character the shared SettingsFieldLabelStyle at a different
-     width — which is most of why the two windows read as two different forms. Every row here is now a
-     shared control or the shared label style. Add a section = a heading plus its control, in Z-order.
+     EVERY SECTION IS AN EXPANDER (Styles.xaml SectionExpanderStyle) — header = the section title,
+     body = its controls. Warnings is the only one open on load; the rest start closed, so the window
+     opens short and you open what you came for. Expanded state is view-only and NOT persisted: reopening
+     the window gives you these defaults again.
+     ⚠️ The window sizes to its content ONCE, at open (WindowManager's sizeToContent), so expanding a
+     section afterwards grows the body past the window. That is known and accepted for now — a scroller
+     is coming, hand-rolled rather than WinUI's.
 
-     ⚠️ WATCHES AND WARNINGS HAVE SEPARATE HEADINGS, which reverses an earlier decision (they shared one,
-     "Watches and warnings", because they are one idea — current-conditions alerts). What changed is that
-     each now carries its OWN card describing its OWN active set, and one heading cannot introduce two
-     cards. They are also visually identical — the same two type rows, the same two colours — so the
-     headings are the only thing telling you which is which.
+     ⚠️ WARNINGS SITS ABOVE WATCHES, which puts it out of the map's Z-order (watches are drawn under
+     warnings). Deliberate: it is the section you actually watch during severe weather, so it gets the
+     slot under Radar rather than the one its layer order would give it.
+
+     ⚠️ WATCHES AND WARNINGS ARE SEPARATE SECTIONS, not one "Watches and warnings". Each carries its
+     OWN card describing its OWN active set, and one header cannot introduce two cards. They are also
+     visually identical — the same two type rows, the same two colours — so the titles are the only
+     thing telling you which is which.
 
      Both alert sections are the SAME control (Composites/PhenomOverlayInput) bound to a different view
      model, exactly as watches.js and warnings.js are the same JS factory with a different config. Storm
@@ -59,79 +52,41 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:comp="using:Anvil.Controls.Composites"
-             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <Grid VerticalAlignment="Top" RowSpacing="12">
+    <Grid VerticalAlignment="Top" RowSpacing="8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- the radar layer itself -->
-            <RowDefinition Height="Auto"/> <!-- divider -->
-            <RowDefinition Height="Auto"/> <!-- watches -->
-            <RowDefinition Height="Auto"/> <!-- divider -->
+            <RowDefinition Height="Auto"/> <!-- radar -->
             <RowDefinition Height="Auto"/> <!-- warnings -->
-            <RowDefinition Height="Auto"/> <!-- divider -->
+            <RowDefinition Height="Auto"/> <!-- watches -->
             <RowDefinition Height="Auto"/> <!-- storm reports (today) -->
         </Grid.RowDefinitions>
 
-        <!-- ===================== RADAR: the layer everything else is drawn OVER ===================== -->
-        <!-- ⚠️ Sections run in the map's Z-ORDER — radar underneath, watches, then warnings over those,
-             reports on top. Same control and same ordering as the PastCast window; the value behind it is
-             global, which is only safe because Past and Now are mutually exclusive modes and these two
-             windows can never be open at once. -->
-        <Grid Grid.Row="0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- section heading -->
-                <RowDefinition Height="Auto"/> <!-- the shared control -->
-            </Grid.RowDefinitions>
-            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Radar"/>
-            <comp:RadarOverlayInput Grid.Row="1" ViewModel="{x:Bind ViewModel.Radar, Mode=OneWay}"/>
-        </Grid>
+        <!-- The radar layer everything else is drawn over; the value behind it is global, which is only
+             safe because Past and Now are mutually exclusive so those two windows can't both be open. -->
+        <Expander Grid.Row="0" Header="Radar" Style="{StaticResource SectionExpanderStyle}">
+            <comp:RadarOverlayInput ViewModel="{x:Bind ViewModel.Radar, Mode=OneWay}"/>
+        </Expander>
 
-        <Border Grid.Row="1" Height="1" Margin="0,2"
-                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-        <!-- ===================== WATCHES: the large county-aggregated outlook areas ===================== -->
-        <Grid Grid.Row="2">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- section heading -->
-                <RowDefinition Height="Auto"/> <!-- the shared control -->
-            </Grid.RowDefinitions>
-            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Watches"/>
-            <comp:PhenomOverlayInput Grid.Row="1" AlertNoun="watches"
-                                     ViewModel="{x:Bind ViewModel.Watches, Mode=OneWay}"/>
-        </Grid>
-
-        <Border Grid.Row="3" Height="1" Margin="0,2"
-                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-        <!-- ===================== WARNINGS: the imminent-threat polygons, drawn over the watches ========= -->
-        <Grid Grid.Row="4">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- section heading -->
-                <RowDefinition Height="Auto"/> <!-- the shared control -->
-            </Grid.RowDefinitions>
-            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Warnings"/>
-            <comp:PhenomOverlayInput Grid.Row="1" AlertNoun="warnings"
+        <!-- The imminent-threat polygons — open on load, and above Watches. -->
+        <Expander Grid.Row="1" Header="Warnings" IsExpanded="True"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <comp:PhenomOverlayInput AlertNoun="warnings"
                                      ViewModel="{x:Bind ViewModel.Warnings, Mode=OneWay}"/>
-        </Grid>
+        </Expander>
 
-        <Border Grid.Row="5" Height="1" Margin="0,2"
-                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-        <!-- ===================== STORM REPORTS ===================== -->
-        <!-- ⚠️ The heading is HERE, not inside StormReportsInput: that control is shared by BOTH
-             temporal windows, and a window owns its own section structure while the control is just
-             content. Putting it inside would give this section a heading in a window whose other
-             sections might not have one. (The same rule keeps the two headings above out of
-             PhenomOverlayInput, which is shared between the two sections in THIS window.) -->
-        <Grid Grid.Row="6">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- section heading -->
-                <RowDefinition Height="Auto"/> <!-- the shared control -->
-            </Grid.RowDefinitions>
-            <prim:SectionHeading Grid.Row="0" Margin="0,0,0,12" Text="Storm reports"/>
-            <comp:StormReportsInput Grid.Row="1" ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
-        </Grid>
+        <!-- The large county-aggregated watch areas. Same control as Warnings above. -->
+        <Expander Grid.Row="2" Header="Watches" Style="{StaticResource SectionExpanderStyle}">
+            <comp:PhenomOverlayInput AlertNoun="watches"
+                                     ViewModel="{x:Bind ViewModel.Watches, Mode=OneWay}"/>
+        </Expander>
+
+        <!-- ⚠️ The title is HERE, not inside StormReportsInput: that control is shared by BOTH temporal
+             windows, and a window owns its own section structure while the control is just content. -->
+        <Expander Grid.Row="3" Header="Storm reports" Style="{StaticResource SectionExpanderStyle}">
+            <comp:StormReportsInput ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
+        </Expander>
     </Grid>
 </UserControl>
