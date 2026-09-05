@@ -4,9 +4,7 @@
 replayed from the archive — and GPU-renders it over local, fully style-controlled vector basemaps, with
 SPC outlooks, watches, warnings, and storm reports layered on top.
 
-<img width="3840" height="2088" alt="KTLX reflectivity from the May 24 2011 Oklahoma outbreak, replayed from the archive with the Past Event Viewer" src="media/ktlx-2011-outbreak.png" />
-
-<img width="3840" height="2088" alt="The same May 24 2011 replay with the full workstation UI — the Past Event controls and per-product timing" src="media/ktlx-2011-outbreak-2.png" />
+<img width="3840" height="2088" alt="The 31 May 2013 El Reno supercell replayed from the archive on KTLX at 0.5° reflectivity, with the PastCast panel showing the loaded two-hour window and the frame scrubber part-way through 26 frames" src="media/hero-el-reno-replay.png" />
 
 ## What it does
 
@@ -19,16 +17,22 @@ port of Py-ART's region-based algorithm, and derives storm motion automatically 
 wind profile. Elevation cuts, SAILS re-scans, and split-cut Doppler companions all resolve from the
 volume's own tables. Curated Doppler On Wheels mobile-radar frames render through the same pipeline.
 
+<img width="3840" height="2088" alt="One KTLX volume rendered as four products at once — storm-relative velocity, correlation coefficient, reflectivity and velocity — each pane carrying its own product selector, colour ramp and elevation angle" src="media/multipane-quad.png" />
+
 **You can run it live or replay history.** The live loop pulls recent volumes from the AWS archive and
 stitches in a near-real-time frame from the chunks bucket, cutting the usual ~10-minute archive latency
 to a minute or two. The Past Event Viewer plays any site and date back through the 1990s through the
 exact same pipeline — scrub it, loop it, and read the decoded value under the cursor off the Inspector.
+
+<img width="3840" height="2088" alt="A live loop over the Carolinas with ten severe-thunderstorm warning polygons from the NWS CAP feed, the NowCast panel showing the per-type counts and the fifteen-second refresh cadence" src="media/nowcast-warnings.png" />
 
 **It overlays the severe-weather picture on top.** SPC convective and fire outlooks (Days 1–8, with
 significant-area hatching), tornado and severe-thunderstorm watches, storm-based warning polygons from
 the authoritative NWS CAP feed, and SPC storm reports as verification dots — all keyed to the right
 forecast window, so a replayed event lines up with the outlook that was in effect and the reports that
 verified it.
+
+<img width="3840" height="2088" alt="The SPC Day 1 categorical outlook issued at 20Z on 31 May 2013 with the 263 storm reports that verified it — 31 tornado, 153 wind and 79 hail — plotted across the same 12Z-to-12Z convective day" src="media/pastcast-outlook-reports.png" />
 
 **The basemap is local and fully yours.** Instead of a tile service, Anvil reads one offline PMTiles
 archive with style JSON you control, so a cartography change is a file edit and panning costs nothing.
@@ -38,6 +42,9 @@ online tile source instead — they're tied to the Protomaps *schema*, not to th
 and the map looks identical either way; offline stays the default. It's a Windows desktop app (WinUI 3,
 packaged MSIX) in active development, with the UI mid-rebuild — several capabilities live in the view
 models ahead of the controls that expose them.
+
+<img width="3840" height="2088" alt="Oklahoma isolated from the CONUS view: everything outside the state is masked away while the El Reno line still renders inside it, and radar sites in neighbouring states stay visible where their coverage reaches in" src="media/state-isolation.png" />
+
 **Not for operational use;** rely on official NWS products for any safety-of-life decision.
 
 ## Run it
