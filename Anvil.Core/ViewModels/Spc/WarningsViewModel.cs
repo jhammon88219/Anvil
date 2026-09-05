@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Anvil.Services;
@@ -45,6 +46,13 @@ namespace Anvil.ViewModels
 		// tick along at a fixed 2 min and saying so would just be noise.
 		protected override string CadenceSuffix =>
 			$" · checking every {(_hasActiveWarnings ? ActiveInterval : IdleInterval).TotalSeconds:0}s";
+
+		// Cancels this VM's app-lifetime loops when the window closes. See Shutdown().
+		private readonly CancellationTokenSource _shutdown = new();
+
+		/// <summary>Stops this subsystem's app-lifetime loops. Called from <see cref="MapViewModel.Shutdown"/>
+		/// on the main window's Closed, so no loop ticks into a XAML runtime that is being torn down.</summary>
+		public void Shutdown() => _shutdown.Cancel();
 
 		/// <summary>Kicks off the warning background refresh loop (called once at launch).</summary>
 		public void StartBackgroundRefresh() => _ = RefreshWarningsInBackgroundAsync();
@@ -103,6 +111,6 @@ namespace Anvil.ViewModels
 
 			// Poll fast while anything is active, slow when the map is clear.
 			return _hasActiveWarnings ? ActiveInterval : IdleInterval;
-		});
+		}, _shutdown.Token);
 	}
 }

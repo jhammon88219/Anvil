@@ -77,6 +77,13 @@ namespace Anvil.ViewModels
 			_selectedOption = DefaultOptionForDay();
 		}
 
+		// Cancels this VM's app-lifetime loops when the window closes. See Shutdown().
+		private readonly CancellationTokenSource _shutdown = new();
+
+		/// <summary>Stops this subsystem's app-lifetime loops. Called from <see cref="MapViewModel.Shutdown"/>
+		/// on the main window's Closed, so no loop ticks into a XAML runtime that is being torn down.</summary>
+		public void Shutdown() => _shutdown.Cancel();
+
 		/// <summary>Kicks off the outlook background refresh loop (called once at launch). Watches have
 		/// their own loop — see <see cref="WatchesViewModel.StartBackgroundRefresh"/>.</summary>
 		public void StartBackgroundRefresh()
@@ -115,7 +122,7 @@ namespace Anvil.ViewModels
 			// the refresh itself takes seconds, negligible vs the 15-min interval). Runs every cycle.
 			var cycleStart = DateTimeOffset.Now;
 			_dispatcher.Post(() => SetOutlookRefreshSchedule(cycleStart, cycleStart + OutlookRefreshInterval));
-		});
+		}, _shutdown.Token);
 
 		/// <summary>Outlook days that have products (1-8), each labeled with its date;
 		/// static for the app lifetime.</summary>
@@ -299,11 +306,19 @@ namespace Anvil.ViewModels
 		// radar loop, so the outlook bar updates even when no loop is active).
 		private async Task RunProgressTickAsync()
 		{
-			using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-			while (await timer.WaitForNextTickAsync())
+			try
 			{
-				OnPropertyChanged(nameof(OutlookNextUpdateText));
-				RaiseCard();
+				using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+				while (await timer.WaitForNextTickAsync(_shutdown.Token))
+				{
+					OnPropertyChanged(nameof(OutlookNextUpdateText));
+					RaiseCard();
+				}
+			}
+			catch (OperationCanceledException)
+			{
+				// Window closed. This tick raises PropertyChanged straight at live bindings, so it is
+				// exactly the kind of loop that must not outlive the XAML tree it is notifying.
 			}
 		}
 

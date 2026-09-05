@@ -1593,14 +1593,42 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		// Cancels the two APP-LIFETIME loops below when the window closes. Separate from _loopCts, which is
+		// per-radar-loop and is re-created on every site click; this one is created once and never reset.
+		private readonly CancellationTokenSource _shutdown = new();
+
+		/// <summary>
+		/// Stops every loop this subsystem owns. Called from <see cref="MapViewModel.Shutdown"/> on the main
+		/// window's Closed.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ Cancels BOTH tokens, and they have different owners: <c>_shutdown</c> stops the two loops
+		/// started by <see cref="OnMapsReadyAsync"/>, while <c>_loopCts</c> is the ENGINE's — cancelling it is
+		/// exactly what a site switch already does, so the engine's playback / refresh / live-poll / debug-tick
+		/// loops stop through the path they already have. Nothing in RadarLoopEngine changes for this.
+		/// </remarks>
+		public void Shutdown()
+		{
+			_shutdown.Cancel();
+			_loopCts?.Cancel();
+		}
+
 		// App-lifetime 1s tick that advances the radar next-update progress bar.
 		private async Task RunProgressTickAsync()
 		{
-			using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-			while (await timer.WaitForNextTickAsync())
+			try
 			{
-				OnPropertyChanged(nameof(RadarNextFrameProgress));
-				OnPropertyChanged(nameof(RadarNextFrameText));
+				using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+				while (await timer.WaitForNextTickAsync(_shutdown.Token))
+				{
+					OnPropertyChanged(nameof(RadarNextFrameProgress));
+					OnPropertyChanged(nameof(RadarNextFrameText));
+				}
+			}
+			catch (OperationCanceledException)
+			{
+				// Window closed. This tick raises PropertyChanged straight at live bindings, so it must not
+				// outlive the XAML tree it is notifying.
 			}
 		}
 
@@ -1642,10 +1670,17 @@ namespace Anvil.ViewModels
 
 		private async Task RunSiteStatusLoopAsync()
 		{
-			while (true)
+			try
 			{
-				await RefreshLiveSiteStatusAsync();
-				await Task.Delay(TimeSpan.FromMinutes(10));
+				while (!_shutdown.IsCancellationRequested)
+				{
+					await RefreshLiveSiteStatusAsync();
+					await Task.Delay(TimeSpan.FromMinutes(10), _shutdown.Token);
+				}
+			}
+			catch (OperationCanceledException)
+			{
+				// Window closed mid-wait; a 10-minute sleep is otherwise the longest-lived thing in the app.
 			}
 		}
 

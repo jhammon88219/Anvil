@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Anvil.Services;
@@ -38,6 +39,13 @@ namespace Anvil.ViewModels
 
 		protected override string ItemNounSingular => "watch";
 		protected override string ItemNounPlural => "watches";
+
+		// Cancels this VM's app-lifetime loops when the window closes. See Shutdown().
+		private readonly CancellationTokenSource _shutdown = new();
+
+		/// <summary>Stops this subsystem's app-lifetime loops. Called from <see cref="MapViewModel.Shutdown"/>
+		/// on the main window's Closed, so no loop ticks into a XAML runtime that is being torn down.</summary>
+		public void Shutdown() => _shutdown.Cancel();
 
 		/// <summary>Kicks off the watch background refresh loop (called once at launch).</summary>
 		public void StartBackgroundRefresh() => _ = RefreshWatchesInBackgroundAsync();
@@ -82,6 +90,6 @@ namespace Anvil.ViewModels
 			{
 				_logger.LogWarning(ex, "Watches refresh aborted");
 			}
-		});
+		}, _shutdown.Token);
 	}
 }

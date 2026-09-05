@@ -569,6 +569,12 @@ namespace Anvil
 			{
 				_isClosed = true;
 				PaneNotchLayer.LayoutUpdated -= OnPaneNotchLayerLayoutUpdated;
+
+				// Stop every app-lifetime background loop BEFORE the flush. They resume on this window's
+				// DispatcherQueue and end in property notifications / map pushes, so one still ticking after
+				// this point is notifying a XAML tree that is being destroyed. See MapViewModel.Shutdown.
+				ViewModel.Shutdown();
+
 				Services.RadarDiagnostics.FlushAll();
 			};
 		}
@@ -714,11 +720,18 @@ namespace Anvil
 
 		/// <summary>
 		/// IMapView seam: the ONLY place that touches WebView2 / ExecuteScriptAsync.
-		/// Valid only once the map's CoreWebView2 has initialized.
+		/// Valid only once the map's CoreWebView2 has initialized, and only until the window closes.
 		/// </summary>
+		/// <remarks>
+		/// ⚠️ The _isClosed check is the SECOND half of the shutdown story (MapViewModel.Shutdown is the
+		/// first): cancelling a loop stops the NEXT cycle, but a cycle already in flight still runs to its
+		/// end, and its end is usually a map push landing here. CoreWebView2 is NOT null at that point — it
+		/// is non-null and dead — so the guard above cannot catch it. Same reasoning as the notch-region
+		/// latch: after Closed, every WebView2 member is a projection over a torn-down object.
+		/// </remarks>
 		public async Task<string> RunScriptAsync(string javaScript)
 		{
-			if (MainMapWebView.CoreWebView2 is null)
+			if (_isClosed || MainMapWebView.CoreWebView2 is null)
 			{
 				return string.Empty;
 			}

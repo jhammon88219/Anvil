@@ -871,5 +871,38 @@ namespace Anvil.ViewModels
 			await StormReports.OnMapsReadyAsync();
 			await StateIso.OnMapsReadyAsync();
 		}
+
+		/// <summary>
+		/// Called by the view from the main window's Closed: stops every app-lifetime background loop the
+		/// subsystems own. The mirror of <see cref="OnMapsReadyAsync"/> — that one hands out startup, this
+		/// one takes it back — and the fan-out list is the same one, so a subsystem added to that method
+		/// should be added here too.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ WHY THIS EXISTS. These loops (SPC refreshes, the two 1 s progress ticks, the 10-min site-status
+		/// sweep) were started and never stopped: they were awaited from the UI thread, so their
+		/// continuations resume on the window's DispatcherQueue, and every one of them ends in
+		/// OnPropertyChanged or a map push. After Closed that is a notification into a XAML tree being torn
+		/// down and a script call into a dead WebView. MainWindow already carries a scar from the same
+		/// family — see its _isClosed latch, which exists because a teardown layout pass reached the native
+		/// window after it was gone.
+		/// ⚠️ HOUSEKEEPING, NOT A CRASH FIX — do not cite it as one. It was written while chasing the
+		/// debugger-only shutdown dialog, which turned out to be Visual Studio's XAML tooling and nothing of
+		/// ours (see the gotcha in CLAUDE.md). The process exits seconds later either way, so what this buys
+		/// is a clean teardown, not a fixed symptom.
+		/// ⚠️ Cancellation lands at loop BOUNDARIES: a cycle already in flight finishes. It cannot start
+		/// another one.
+		/// </remarks>
+		public void Shutdown()
+		{
+			// The console polls the WebView on a 400 ms timer while open — stop it before the WebView goes.
+			PipelineConsole.IsOpen = false;
+
+			Radar.Shutdown();
+			Outlook.Shutdown();
+			Watches.Shutdown();
+			Warnings.Shutdown();
+			StormReports.Shutdown();
+		}
 	}
 }

@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Anvil.Models;
@@ -191,6 +192,13 @@ namespace Anvil.ViewModels
 
 		/// <summary>Kicks off the storm-report background refresh loop (called once at launch). Only does work
 		/// while NowCast is showing some report type — a historical day is immutable and never refreshed.</summary>
+		// Cancels this VM's app-lifetime loops when the window closes. See Shutdown().
+		private readonly CancellationTokenSource _shutdown = new();
+
+		/// <summary>Stops this subsystem's app-lifetime loops. Called from <see cref="MapViewModel.Shutdown"/>
+		/// on the main window's Closed, so no loop ticks into a XAML runtime that is being torn down.</summary>
+		public void Shutdown() => _shutdown.Cancel();
+
 		public void StartBackgroundRefresh() => _ = RefreshReportsInBackgroundAsync();
 
 		// Today's reports grow through the day; a few-minute refresh keeps the NowCast overlay current.
@@ -213,7 +221,7 @@ namespace Anvil.ViewModels
 			{
 				_logger.LogWarning(ex, "Storm reports refresh aborted");
 			}
-		});
+		}, _shutdown.Token);
 
 		// UI-thread continuation of a background refresh: re-point the page at the (freshly cached) file so it
 		// reloads, and update the counts — but only if we're still in the state that asked for it.
