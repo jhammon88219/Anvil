@@ -15,6 +15,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Windows.Foundation;
+using Windows.Storage.Pickers;   // the basemap folder picker (Map settings tab)
 using Windows.Graphics;
 using Windows.UI.ViewManagement;
 
@@ -277,7 +278,13 @@ namespace Anvil
 				close: () => ViewModel.SetTemporalWindowOpen(mode, false),
 				// ⚠️ Mode FIRST: the window builds its body when both properties have landed, and setting Mode
 				// last would have it build the default (Past) body and then throw it away.
-				buildContent: () => new Controls.Windows.TemporalWindow { Mode = mode, ViewModel = ViewModel },
+				buildContent: () =>
+				{
+					var w = new Controls.Windows.TemporalWindow { Mode = mode, ViewModel = ViewModel };
+					// Only PastCast's body carries the DOW section; the other two never raise this.
+					w.ImportDowEventRequested += OnImportDowEventRequested;
+					return w;
+				},
 				title: title, width: width, height: height,
 				alwaysOnTop: () => ViewModel.IsTemporalWindowOnTop(mode),
 				customChrome: true,
@@ -285,6 +292,60 @@ namespace Anvil
 				// content and size to it, because their bodies differ a lot and none of them scrolls. Width
 				// is still real: it is the width the content is measured AT.
 				sizeToContent: true);
+		}
+
+		// Imports a .dow.json mobile-radar frame into the DOW library, for the PastCast window's DOW section.
+		// Here for the same reason as the folder picker below: the picker needs a window HWND, and the body
+		// raising the request is a UserControl inside a UserControl.
+		// ⚠️ The frame is COPIED into %LocalAppData%\Anvil\DowEvents rather than referenced where it sits —
+		// the WebView fetches it, so it has to be same-origin under the mapped dowevents host.
+		private async void OnImportDowEventRequested(object? sender, EventArgs e)
+		{
+			var picker = new FileOpenPicker
+			{
+				SuggestedStartLocation = PickerLocationId.ComputerFolder,
+			};
+			// .dow.json is a DOUBLE extension and the picker only matches the last one, so this filters to
+			// .json and the import validates from there.
+			picker.FileTypeFilter.Add(".json");
+			WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+
+			try
+			{
+				var file = await picker.PickSingleFileAsync();
+				await ViewModel.Radar.Dow.ImportAsync(file?.Path); // null (cancelled) is ignored
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "DOW frame import failed");
+			}
+		}
+
+		// Picks the folder holding the offline basemap archive, for the Settings window's Map tab. Lives
+		// here because a WinRT FolderPicker must be initialized with a window HWND, and the settings panel is
+		// a UserControl hosted in a window rather than a window itself — the same reason the report dialogs
+		// below are raised up to here.
+		// ⚠️ The chosen folder takes effect on the NEXT LAUNCH: the mapdata virtual host is mapped once, in
+		// this class's WebView bootstrap, before any page loads. The tab's status line says so; nothing here
+		// tries to re-map a live WebView.
+		private async void OnBrowseMapDataFolderRequested(object? sender, EventArgs e)
+		{
+			var picker = new FolderPicker
+			{
+				SuggestedStartLocation = PickerLocationId.ComputerFolder,
+			};
+			picker.FileTypeFilter.Add("*"); // required: the picker throws on show with an empty filter list
+			WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+
+			try
+			{
+				var folder = await picker.PickSingleFolderAsync();
+				ViewModel.SetMapDataFolder(folder?.Path); // null (cancelled) is ignored by the setter
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Basemap folder picker failed");
+			}
 		}
 
 		// Opens the site-sweep results pop-up (Save / Close). Raised by the dev window on run completion
@@ -447,6 +508,7 @@ namespace Anvil
 					// dev run still pops its results dialog.
 					settings.SweepReportRequested += OnSweepReportRequested;
 					settings.ValidationReportRequested += OnValidationReportRequested;
+					settings.BrowseMapDataFolderRequested += OnBrowseMapDataFolderRequested;
 					return settings;
 				},
 				title: "Settings", width: 520, height: 640,
@@ -555,15 +617,16 @@ namespace Anvil
 			// failure during startup is caught too.
 			webView.CoreWebView2.ProcessFailed += OnWebViewProcessFailed;
 
-			// The curated DOW frames folder ships with the app (its README is Content), so it normally
-			// exists; guard the create for the rare read-only-package case (which would otherwise throw).
-			try { Directory.CreateDirectory(DowEventProvider.EventsDirectory); } catch { /* folder ships with the app */ }
+			// The DOW library is a per-user folder under %LocalAppData% that the app IMPORTS into, so it does
+			// not exist on a fresh install - create it before the host mapping below points at it.
+			// (It used to live inside the read-only package, which is exactly why importing was impossible.)
+			try { Directory.CreateDirectory(DowEventProvider.EventsDirectory); } catch { /* mapping just resolves to nothing */ }
 
 			// Map each virtual host → local folder so the page can fetch everything offline, same-origin:
 			//   mapassets  → bundled MapLibre style/glyphs/sprites/libraries
 			//   mapdata    → the user-configured (external, ~29 GB) basemap PMTiles folder
 			//   spcoutlooks/spcwatches/warnings/stormreports/radarlevel2 → the services' on-disk caches
-			//   dowevents  → the bundled curated DOW (mobile-radar) frames
+			//   dowevents  → the user's imported DOW (mobile-radar) frame library (%LocalAppData%)
 			// Services own their cache folders; MainWindow owns the WebView2 mappings.
 			var hostFolders = new (string Host, string Folder)[]
 			{

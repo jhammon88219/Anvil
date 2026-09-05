@@ -148,14 +148,14 @@
                      window's Map tab; that copy stays, this is the reachable one. -->
                 <Button Style="{StaticResource StripToolButtonStyle}"
                         Click="OnResetNorthClick"
-                        ToolTipService.ToolTip="Reset the map's rotation and 3D tilt — face north, flat">
+                        ToolTipService.ToolTip="Reset North/Flat">
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE72C;"/>
                 </Button>
 
                 <!-- Fit to view — frame the effective region (isolated state, else CONUS). -->
                 <Button Style="{StaticResource StripToolButtonStyle}"
                         Click="OnFitToViewClick"
-                        ToolTipService.ToolTip="Frame the current view (isolated state, else CONUS) — center &amp; zoom to fit">
+                        ToolTipService.ToolTip="Fit To View">
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
                 </Button>
             </StackPanel>

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SweepReportDialog — DEV-ONLY. The site-sweep results pop-up: a summary line over a scrollable,
      read-only monospace dump of the report (suspects first), with Save… (writes the markdown to disk via
-     a FileSavePicker) and Close. A ContentDialog like SettingsDialog. Populated from a SweepReport.
+     a FileSavePicker) and Close. A ContentDialog, like its ValidationReportDialog sibling. Populated from a
+     SweepReport.
 
        ┌─ Site sweep report ──────────────────────────────────┐
        │  160 sites · 4 suspect · 2 no-data · 1 timeout       │  ← summary line

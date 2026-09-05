@@ -3,10 +3,13 @@
 
        ┌──────────────────────────────────────────────────────┐
        │  ⌄  Basemap                                          │
-       │    [Data Viz Black          ]                        │
-       │    [ ] Use online tiles                              │  ← SOURCE, not style: the styles
-       │    [https://api.protomaps…]                          │     are Protomaps-SCHEMA, so both
-       │    Offline — bundled PMTiles.                        │     sources render identically
+       │    [Data Viz Black          ]                        │  <- STYLE
+       │    ────────────────────────────────────              │
+       │    C:\Users\...\Desktop           [Browse…]          │  <- the SOURCE pair: offline
+       │    Found usa_full.pmtiles.                           │     is a FOLDER, online is a
+       │    [ ] Use online tiles                              │     URL. Both stay editable
+       │    [https://api.protomaps…]                          │     whichever is active - you
+       │    Offline — bundled PMTiles.                        │     set one up BEFORE switching
        └──────────────────────────────────────────────────────┘
 
      WHAT BELONGS IN THIS TAB: controls that act on the BASEMAP — what is drawn under everything, and
@@ -22,6 +25,17 @@
      a PREFERENCE you set once.
      ⚠️ So this tab is down to a single section, which is thin for a tab. That is fine for now — do NOT
      re-add the camera controls to fill it out. One control in two places is one that will drift.
+
+     ⚠️ THE OFFLINE FOLDER ROW IS THE OLD SettingsDialog, INLINED - AND THAT DIALOG IS NOW DELETED. It did
+     exactly this job and NOTHING opened it (its caller was lost in a UI rewrite), which left "name the file
+     usa_full.pmtiles and drop it on your Desktop" as the only way to load a basemap, with a missing file
+     rendering as a black map and no error at all. It belongs HERE because the folder IS the offline tile
+     source, so it sits beside the online URL rather than in Storage. The dialog was deleted rather than
+     kept alongside: one control in two places is one that will drift.
+     ⚠️ A FOLDER CHANGE NEEDS A RESTART, and the status line says so once you change one. The mapdata host
+     is mapped once, in MainWindow's WebView bootstrap, before any page loads - so unlike the online URL
+     below it, this cannot be applied live. Don't add an "apply now" button; it would have to re-run the
+     whole bootstrap.
 
      This was the top half of the former MapControlsWindow, which is now two tabs rather than one long
      scroll. -->
@@ -44,6 +58,9 @@
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- Basemap combo -->
+                    <RowDefinition Height="Auto"/> <!-- rule -->
+                    <RowDefinition Height="Auto"/> <!-- Offline source: folder + Browse -->
+                    <RowDefinition Height="Auto"/> <!-- Offline source: status / restart note -->
                     <RowDefinition Height="Auto"/> <!-- Use online tiles -->
                     <RowDefinition Height="Auto"/> <!-- Online tiles URL -->
                     <RowDefinition Height="Auto"/> <!-- Tile source status -->
@@ -56,10 +73,38 @@
                           SelectedItem="{x:Bind ViewModel.SelectedStyle, Mode=TwoWay}"
                           ToolTipService.ToolTip="Map basemap style"/>
 
+                <Border Grid.Row="1" Height="1" Margin="4,10,0,4" HorizontalAlignment="Left" Width="360"
+                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+                <!-- OFFLINE SOURCE: the folder holding the ~29 GB usa_full.pmtiles archive.
+                     ⚠️ The path is READ-ONLY text, not a TextBox. A hand-typed path that does not exist fails
+                     silently at the NEXT launch as a black map - the exact failure this row exists to end -
+                     and the folder picker cannot produce one. -->
+                <Grid Grid.Row="2" Margin="4,0,0,0" ColumnSpacing="8" HorizontalAlignment="Left" Width="360">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               Text="{x:Bind ViewModel.MapDataFolder, Mode=OneWay}"
+                               ToolTipService.ToolTip="{x:Bind ViewModel.MapDataFolder, Mode=OneWay}"/>
+                    <Button Grid.Column="1" Content="Browse…" Click="OnBrowseMapDataClick"
+                            ToolTipService.ToolTip="Pick the folder holding the offline basemap archive"/>
+                </Grid>
+
+                <!-- Whether the archive is actually THERE, plus - once changed - that it takes a restart.
+                     ⚠️ One line, not two: both answer the same question ("will the map draw?"), and a separate
+                     restart row would sit empty for the whole life of a normal session. -->
+                <TextBlock Grid.Row="3" Margin="4,4,0,0"
+                           TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
+                           Text="{x:Bind MapDataLine(ViewModel.MapDataStatus, ViewModel.MapDataFolderChanged), Mode=OneWay}"
+                           Style="{StaticResource SettingsFieldLabelStyle}"/>
+
                 <!-- Tile SOURCE — orthogonal to the style above. The styles are Protomaps-schema styles, so every
                      one of them renders identically against either source; this only changes where the vector
                      tiles come from. Offline is the default and the fallback. -->
-                <CheckBox Grid.Row="1" Margin="4,4,0,0"
+                <CheckBox Grid.Row="4" Margin="4,4,0,0"
                           Content="Use online tiles (needs a network connection)"
                           IsChecked="{x:Bind ViewModel.UseOnlineTiles, Mode=TwoWay}"
                           ToolTipService.ToolTip="Stream the basemap instead of reading the bundled offline PMTiles file. The map's look is unchanged — same styles, same fonts."/>
@@ -68,13 +113,13 @@
                      half-typed URL would re-style every pane on each keystroke.
                      ⚠️ Stays ENABLED while offline on purpose — you paste the key BEFORE flipping the toggle, and
                      disabling it would force the trip through an unusable online state to configure one. -->
-                <TextBox Grid.Row="2" Margin="4,2,0,0"
+                <TextBox Grid.Row="5" Margin="4,2,0,0"
                          Width="360" HorizontalAlignment="Left"
                          PlaceholderText="https://api.protomaps.com/tiles/v4.json?key=…"
                          Text="{x:Bind ViewModel.OnlineTilesUrl, Mode=TwoWay}"
                          ToolTipService.ToolTip="A Protomaps-schema source: the Protomaps API TileJSON (free for non-commercial use, needs your key), a {z}/{x}/{y} template, or a self-hosted pmtiles:// archive."/>
 
-                <TextBlock Grid.Row="3" Margin="4,2,0,0"
+                <TextBlock Grid.Row="6" Margin="4,2,0,0"
                            TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
                            Text="{x:Bind ViewModel.TileSourceStatus, Mode=OneWay}"
                            Style="{StaticResource SettingsFieldLabelStyle}"/>

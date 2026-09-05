@@ -38,16 +38,12 @@
     <Content Include="Assets\Radar\tdwr-sites.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <!-- Curated DOW (mobile-radar) frames for the DOW Event Viewer (offline-converted via
-         tools/dow_import.py). The folder ships even when empty so the dowevents host has a target. -->
-    <Content Include="Assets\DowEvents\*.dow.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <!-- Ships the README so the DowEvents folder always exists in the (read-only) package, giving the
-         dowevents virtual host a folder to map even before any frames are added. -->
-    <Content Include="Assets\DowEvents\README.md">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <!-- NOTHING FOR THE DOW EVENT VIEWER SHIPS HERE ANY MORE. Its library moved to the writable
+         %LocalAppData%\Anvil\DowEvents (DowEventProvider.EventsDirectory) so frames can be IMPORTED at
+         runtime; a package folder is read-only, so a picker was impossible while it lived here. Two
+         Content entries used to sit at this spot - an *.dow.json glob and the folder's README - and the
+         glob packaged whatever ~20 MB sample happened to be in the working copy into every Debug AND
+         Release build. Don't re-add them: the app now ships with an empty library by design. -->
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />

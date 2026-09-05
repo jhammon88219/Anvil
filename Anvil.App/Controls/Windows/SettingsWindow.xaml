@@ -99,7 +99,9 @@
             <ScrollViewer x:Name="Body"
                           VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
                 <Grid>
-                    <cmp:MapSettingsTab ViewModel="{x:Bind ViewModel}"
+                    <!-- x:Name'd so the code-behind can relay its Browse request: the folder picker needs
+                         a window HWND, which neither this UserControl nor the tab has. -->
+                    <cmp:MapSettingsTab x:Name="MapTab" ViewModel="{x:Bind ViewModel}"
                                         Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 0), Mode=OneWay}"/>
 
                     <cmp:RadarSettingsTab ViewModel="{x:Bind ViewModel}"

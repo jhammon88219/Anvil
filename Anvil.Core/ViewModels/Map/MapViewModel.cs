@@ -692,6 +692,55 @@ namespace Anvil.ViewModels
 		// Offline is the DEFAULT and the fallback: an online config that can't work (no API key) is
 		// ignored rather than obeyed, so the map is never left blank.
 
+		// ── The OFFLINE half of the source pair: which folder holds the ~29 GB PMTiles archive. ──────
+		// ⚠️ Changing it needs a RESTART and that is not a papercut we can design away: the mapdata host is
+		// mapped once, in MainWindow's WebView bootstrap, before any page loads. So this pair is
+		// "folder + status + a line telling you to restart", not a live switch like the online URL beside it.
+		// ⚠️ This replaced Dialogs/SettingsDialog, a ContentDialog that did the same job and that NOTHING
+		// opened — its caller was lost in a UI rewrite, which left Desktop placement the only way to load a
+		// basemap and made a missing file look like a broken build. Keep the control HERE, in one place:
+		// the dialog was deleted rather than kept alongside, so the two can never drift.
+
+		/// <summary>The EFFECTIVE basemap folder (the persisted one, else the resolved Desktop default).</summary>
+		public string MapDataFolder => _settingsService.MapDataFolder;
+
+		/// <summary>Whether the basemap archive is actually in <see cref="MapDataFolder"/> — the difference
+		/// between "configured" and "working". A missing file draws a dark map with no error, so this line
+		/// is the only place the app admits it.</summary>
+		public string MapDataStatus => _settingsService.MapDataFilePresent()
+			? $"Found {_settingsService.MapDataFileName}."
+			: $"No {_settingsService.MapDataFileName} in this folder — the basemap will be blank.";
+
+		/// <summary>Whether the persisted folder is unset, i.e. the effective one came from the Desktop
+		/// walk. Worth saying out loud: it is a GUESS, and the reason a fresh install can look broken.</summary>
+		public bool IsMapDataFolderDefault =>
+			string.IsNullOrWhiteSpace(_settingsService.Settings.MapDataFolder);
+
+		private bool _mapDataFolderChanged;
+
+		/// <summary>Whether the folder was changed this session, so the view can ask for a restart.</summary>
+		public bool MapDataFolderChanged
+		{
+			get => _mapDataFolderChanged;
+			private set => SetProperty(ref _mapDataFolderChanged, value);
+		}
+
+		/// <summary>Points the basemap at <paramref name="folder"/> (persisted immediately; applies on the
+		/// next launch). Ignores a blank path — the picker returns null when the user cancels.</summary>
+		public void SetMapDataFolder(string? folder)
+		{
+			if (string.IsNullOrWhiteSpace(folder) || _settingsService.Settings.MapDataFolder == folder)
+			{
+				return;
+			}
+
+			_settingsService.Settings.MapDataFolder = folder; // auto-persists
+			MapDataFolderChanged = true;
+			OnPropertyChanged(nameof(MapDataFolder));
+			OnPropertyChanged(nameof(MapDataStatus));
+			OnPropertyChanged(nameof(IsMapDataFolderDefault));
+		}
+
 		/// <summary>
 		/// Stream basemap tiles from <see cref="OnlineTilesUrl"/> instead of the bundled offline PMTiles
 		/// file. Persisted; default off. Has no effect while <see cref="CanUseOnlineTiles"/> is false.

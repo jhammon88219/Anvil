@@ -1,15 +1,33 @@
-# DOW event frames
+# DOW event frames — this folder is RETIRED
 
-Drop curated **`.dow.json`** frames here (produced by [`tools/dow_import.py`](../../../tools/dow_import.py))
-and they appear in the app's **DOW Event Viewer** tool window.
+**Nothing reads this folder any more, and nothing here ships with the app.** Frames are no longer
+bundled; the DOW Event Viewer keeps its own library that you import into at runtime.
 
-- One file = one mobile-radar (Doppler on Wheels) sweep, decoded + rendered through the normal radar
-  pipeline (reflectivity / velocity / CC + Inspect + the color-scale legend), centered on the truck's
-  position for that deployment.
-- The file name becomes the picker label (e.g. `goshen_2009-06-05_DOW7.dow.json` →
-  "goshen 2009-06-05 DOW7"). Name them clearly.
-- These ship with the app (`Content` / `PreserveNewest`), so only add **openly-licensed** data and
-  carry the source's required citation/acknowledgment (CSWR / FARM). See `tools/README.md`.
+## Where the library lives now
 
-This folder is intentionally kept in source (with this README) so the `dowevents` virtual host always
-has a folder to map, even before any events are added.
+```
+%LocalAppData%\Anvil\DowEvents
+```
+
+`DowEventProvider.EventsDirectory`, mapped to the `dowevents` WebView host. Import frames through
+**PastCast → DOW event → Import…**, which copies the chosen `.dow.json` in.
+
+## Why it moved (2026-09-04)
+
+This folder is inside the installed MSIX, which is **read-only** — so a frame could only ever arrive by
+being committed and packaged, and no in-app picker was possible at all. It also meant the `*.dow.json`
+glob in `Anvil.App.csproj` built whatever ~20 MB sample happened to be sitting here into **every Debug
+and Release package**. Both problems have the same fix: a writable library outside the package.
+
+The frame still has to be reachable by the WebView, which *fetches* it — that is why Import copies into
+the library rather than pointing at the file where it lies. An arbitrary `C:\…` path is not same-origin.
+
+## If you have a `.dow.json` sitting in this folder
+
+It is not loaded from here. Import it once (the copy is yours to keep or delete afterwards), then this
+folder can go.
+
+Frames are produced by [`tools/dow_import.py`](../../../tools/dow_import.py); one file is one
+mobile-radar sweep, rendered through the normal radar pipeline and centred on the truck's position. The
+file name becomes the list label, so name them clearly. Use **openly-licensed** data only and carry the
+source's required citation/acknowledgment (CSWR / FARM) — see `tools/README.md`.

@@ -20,7 +20,15 @@
        │  ›  Radar                                            │  ← the layer everything else
        │  ›  SPC outlook                                      │     is drawn OVER
        │  ›  Storm reports                                    │  ← that day's verification dots
+       │  ›  DOW event                                        │  ← a STANDALONE mobile-radar
        └──────────────────────────────────────────────────────┘
+
+     ⚠️ THE DOW SECTION IS LAST AND IS NOT PART OF THE Z-ORDER above it. Every other section here layers
+     something over the replay loop; a DOW frame REPLACES it (radar.js showDow resets frames[] and takes the
+     layer), so it is not "another overlay" and must not be filed among them. It lives in PastCast because a
+     curated mobile-radar frame is a past event, and because this mode is already not running a live loop.
+     ⚠️ Loading one WIPES a loaded replay window, and pressing Load in Timeframe wipes the DOW frame back.
+     That is inherent — there is one radar layer — and the section says so rather than trying to prevent it.
 
      Laid out ENTIRELY with grids (rows/columns, no StackPanels) so rows are easy to add/rearrange: a fixed
      [label | control] outer grid, one row per field.
@@ -68,6 +76,7 @@
             <RowDefinition Height="Auto"/> <!-- the radar layer itself -->
             <RowDefinition Height="Auto"/> <!-- historical SPC outlook -->
             <RowDefinition Height="Auto"/> <!-- storm reports (verification) -->
+            <RowDefinition Height="Auto"/> <!-- DOW event (standalone frame, NOT an overlay) -->
         </Grid.RowDefinitions>
 
         <!-- ===================== TIMEFRAME: the card, then the pickers ===================== -->
@@ -298,6 +307,62 @@
         <Expander Grid.Row="3" Header="Storm reports"
                   Style="{StaticResource SectionExpanderStyle}">
             <comp:StormReportsInput ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
+        </Expander>
+
+        <!-- ===================== DOW EVENT: a standalone curated mobile-radar frame ===================== -->
+        <!-- The DOW (Doppler on Wheels) Event Viewer: one offline-converted frame (tools/dow_import.py)
+             rendered through the SAME pipeline as NEXRAD - WebGL fill, real-extent range ring, product
+             toggle, Inspect, legend - but with no loop, no live poll and no site machinery.
+             ⚠️ NOT AN OVERLAY, which is why it sits below the Z-ordered sections rather than among them:
+             showing a frame REPLACES the radar layer. Loading one clears a loaded replay and vice versa.
+             ⚠️ THE LIBRARY IS A FOLDER THE APP OWNS (%LocalAppData%\Anvil\DowEvents), and Import COPIES into
+             it. It cannot simply reference the file where it lies: the WebView FETCHES the frame, so it has
+             to be same-origin under the mapped dowevents host. That is also why the app ships with an empty
+             library - these frames are ~20 MB and are no longer packaged.
+             ⚠️ Import… raises an event rather than opening the picker here: a FileOpenPicker needs a window
+             HWND and this is a UserControl. Same chain as the Map tab's folder browse. -->
+        <Expander Grid.Row="4" Header="DOW event"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- the frame list -->
+                    <RowDefinition Height="Auto"/> <!-- Import / Load / Clear / Remove -->
+                    <RowDefinition Height="Auto"/> <!-- status -->
+                </Grid.RowDefinitions>
+
+                <!-- The library. A ListView rather than a combo: it is the LIBRARY as well as the picker, so
+                     an empty one has to be able to say it is empty. Height-capped for the same reason the
+                     legend is - the window sizes to content once, and this list's length is the user's. -->
+                <ListView Grid.Row="0" MaxHeight="140" SelectionMode="Single"
+                          ItemsSource="{x:Bind ViewModel.Radar.Dow.DowEvents, Mode=OneWay}"
+                          DisplayMemberPath="Label"
+                          SelectedIndex="{x:Bind ViewModel.Radar.Dow.DowEventIndex, Mode=TwoWay}"
+                          Visibility="{x:Bind VisibleWhen(ViewModel.Radar.Dow.HasDowEvents), Mode=OneWay}"/>
+
+                <TextBlock Grid.Row="0" TextWrapping="Wrap"
+                           Text="No frames yet. Convert one with tools/dow_import.py, then Import it."
+                           Style="{StaticResource SettingsFieldLabelStyle}"
+                           Visibility="{x:Bind HiddenWhen(ViewModel.Radar.Dow.HasDowEvents), Mode=OneWay}"/>
+
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                    <Button Content="Import…" Click="OnImportDowClick"
+                            ToolTipService.ToolTip="Copy a .dow.json frame into the library"/>
+                    <Button Content="Load" Click="OnLoadDowClick"
+                            IsEnabled="{x:Bind ViewModel.Radar.Dow.CanLoad, Mode=OneWay}"
+                            ToolTipService.ToolTip="Show this frame (replaces whatever radar is on the map)"/>
+                    <Button Content="Clear" Click="OnClearDowClick"
+                            IsEnabled="{x:Bind ViewModel.Radar.Dow.IsShowing, Mode=OneWay}"
+                            ToolTipService.ToolTip="Take the DOW frame off the map"/>
+                    <Button Content="Remove" Click="OnRemoveDowClick"
+                            IsEnabled="{x:Bind ViewModel.Radar.Dow.CanLoad, Mode=OneWay}"
+                            ToolTipService.ToolTip="Delete this frame from the library"/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="2" TextWrapping="Wrap"
+                           Text="{x:Bind ViewModel.Radar.Dow.DowStatus, Mode=OneWay}"
+                           Visibility="{x:Bind HasText(ViewModel.Radar.Dow.DowStatus), Mode=OneWay}"
+                           Style="{StaticResource SettingsFieldLabelStyle}"/>
+            </Grid>
         </Expander>
     </Grid>
 </UserControl>

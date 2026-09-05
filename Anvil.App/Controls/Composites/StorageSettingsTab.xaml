@@ -14,10 +14,10 @@
      The cache LIMIT is the user-facing half of Level2RadarService's startup sweep: the age cap and the
      diagnostics retention beside it are consts in that class, but the size cap is this setting.
 
-     THIN ON PURPOSE, for now. Two things belong here and are not built yet: the basemap-data folder picker
-     (SettingsDialog exists but has ZERO callers, so ResolveDefaultFolder walking the Desktop is currently
-     the only way a basemap is found — see docs/ui-pending-re-add.md) and an open-logs button. Both are
-     features rather than a re-organization, so they were left out of the window merge deliberately. -->
+     THIN ON PURPOSE, for now. One thing belongs here and is not built yet: an open-logs button.
+     ⚠️ The basemap-data folder picker is NOT missing any more and does NOT belong here — it lives on the
+     MAP tab, beside the online-tiles URL, because the folder IS the offline tile source and the two read as
+     one choice. Don't move it here to fill this tab out. -->
 
 <UserControl x:Class="Anvil.Controls.Composites.StorageSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

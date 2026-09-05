@@ -18,8 +18,18 @@ namespace Anvil.Controls.Windows
 		{
 			Tabs = BuildTabs();
 			InitializeComponent();
+			// The Map tab is a plain child (not x:Load'd like the dev tab), so it exists now.
+			MapTab.BrowseMapDataFolderRequested += (_, _) => BrowseMapDataFolderRequested?.Invoke(this, EventArgs.Empty);
 			ApplyPlacement(); // establish the default arrangement even if a host never sets ViewModel
 		}
+
+		/// <summary>
+		/// Raised when the Map tab's Browse… is clicked, relayed straight up. ⚠️ Neither this control nor the
+		/// tab can show the picker: a WinRT <c>FolderPicker</c> needs a window HWND and BOTH are UserControls
+		/// (this one is hosted in a window by <c>WindowManager</c>). MainWindow — a real Window — shows it,
+		/// exactly as it does for the dev tab's report dialogs.
+		/// </summary>
+		public event EventHandler? BrowseMapDataFolderRequested;
 
 		/// <summary>The strip's tabs, in <see cref="SettingsTab"/> order. Built once per window instance.</summary>
 		public ObservableCollection<TabEntry> Tabs { get; }

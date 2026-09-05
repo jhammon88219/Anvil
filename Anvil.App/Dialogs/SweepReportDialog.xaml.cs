@@ -9,7 +9,7 @@ namespace Anvil.Dialogs
 	/// <summary>
 	/// DEV-ONLY site-sweep results pop-up (see the XAML header). Shows a <see cref="SweepReport"/> and,
 	/// on Save…, writes its markdown to a file the user picks. Save is deferred so a failed/cancelled
-	/// pick keeps the dialog open. Built as a ContentDialog, mirroring <see cref="SettingsDialog"/>.
+	/// pick keeps the dialog open. Built as a ContentDialog, mirroring <see cref="ValidationReportDialog"/>.
 	/// </summary>
 	public sealed partial class SweepReportDialog : ContentDialog
 	{

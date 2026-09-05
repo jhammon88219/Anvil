@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -112,5 +113,34 @@ namespace Anvil.Controls.Composites
 		// leaving a gap where the context or footer would be.
 		public Visibility HasText(string? value) =>
 			string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
+
+		public Visibility VisibleWhen(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
+
+		public Visibility HiddenWhen(bool on) => on ? Visibility.Collapsed : Visibility.Visible;
+
+		// ===== DOW event section =====
+		// ⚠️ Import raises an event instead of showing the picker: a WinRT FileOpenPicker must be
+		// initialized with a window HWND, and this is a UserControl inside another UserControl
+		// (TemporalWindow) hosted in a window by WindowManager. So the request bubbles up to MainWindow,
+		// the same chain the Map settings tab uses for the basemap folder.
+		public event EventHandler? ImportDowEventRequested;
+
+		private void OnImportDowClick(object sender, RoutedEventArgs e) =>
+			ImportDowEventRequested?.Invoke(this, EventArgs.Empty);
+
+		private async void OnLoadDowClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is { } vm) await vm.Radar.Dow.LoadDowEventAsync();
+		}
+
+		private async void OnClearDowClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is { } vm) await vm.Radar.Dow.ClearDowEventAsync();
+		}
+
+		private async void OnRemoveDowClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is { } vm) await vm.Radar.Dow.RemoveSelectedAsync();
+		}
 	}
 }
