@@ -303,10 +303,9 @@ namespace Anvil.ViewModels
 
 			Panes = panes;
 
-			// Observable rows for the dock's "Radar Sites" list (site + offline state).
-			var rows = _radarSiteProvider.GetSites().Select(s => new RadarSiteRow(s)).ToList();
-			RadarSiteRows = rows;
-			_rowBySite = rows.ToDictionary(r => r.Site);
+			// Observable rows (site + offline state) — the Site Explorer's list, and the one place the
+			// ~10-min status loop writes IsOffline so its dots and the on-map markers can't disagree.
+			RadarSiteRows = _radarSiteProvider.GetSites().Select(s => new RadarSiteRow(s)).ToList();
 		}
 
 		// ===== Panes ====================================================================================
@@ -352,10 +351,18 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>Observable rows (site + offline state) for the dock's "Radar Sites" list.</summary>
+		/// <summary>
+		/// Observable rows (site + offline state). The Site Explorer filters a view over THESE instances
+		/// (<c>RadarSiteExplorerViewModel.FilteredSites</c>), and <c>SiteSweepViewModel</c> reads their
+		/// <c>IsOffline</c> to skip dead sites — so a row is shared state, not a private list model.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ There is NO second list and no selection mirror. A <c>SelectedSiteRow</c> property, a
+		/// <c>_syncingSelection</c> guard and a <c>_rowBySite</c> dictionary used to two-way bind the dock's
+		/// "Radar Sites" ListView; that list is gone, the Site Explorer owns its own <c>SelectedSite</c>,
+		/// and all three were DELETED. Selection has one source of truth, <see cref="SelectedRadarOption"/>.
+		/// </remarks>
 		public IReadOnlyList<RadarSiteRow> RadarSiteRows { get; }
-
-		private readonly IReadOnlyDictionary<RadarSite, RadarSiteRow> _rowBySite;
 
 		/// <summary>Radar site options: a leading "None" entry plus the curated sites.</summary>
 		public IReadOnlyList<RadarOption> RadarOptions { get; }
@@ -380,11 +387,6 @@ namespace Anvil.ViewModels
 				Services.RadarDiagnostics.Log("vm", "select",
 					("to", value?.Site?.Id ?? "none"), ("mode", _isPastEventMode ? "past" : "live"));
 
-				// Mirror the selection to the dock list (so a map-marker pick highlights its row).
-				// Guarded so the list's own setter doesn't bounce back into a re-select.
-				_syncingSelection = true;
-				SelectedSiteRow = value?.Site is { } site && _rowBySite.TryGetValue(site, out var row) ? row : null;
-				_syncingSelection = false;
 				Dow.OnNexradTookOver(); // a NEXRAD selection takes over the radar layer from any DOW frame
 				// Open every site switch in REFLECTIVITY. SRV (and velocity, until its dealias lands) can't be
 				// instant on a fresh site — the storm motion isn't computed yet — so carrying SRV over from the
@@ -891,28 +893,6 @@ namespace Anvil.ViewModels
 			{
 				var clamped = Math.Clamp(value, 0, PlaybackMsByIndex.Length - 1);
 				SetProperty(ref _playbackSpeedIndex, clamped);
-			}
-		}
-
-		private RadarSiteRow? _selectedSiteRow;
-		private bool _syncingSelection;
-
-		/// <summary>
-		/// The row selected in the dock's "Radar Sites" list. Two-way bound to the ListView's
-		/// SelectedItem so a map-marker pick highlights the matching row and a list pick activates the
-		/// site — both funnel through the single <see cref="SelectedRadarOption"/> source of truth.
-		/// </summary>
-		public RadarSiteRow? SelectedSiteRow
-		{
-			get => _selectedSiteRow;
-			set
-			{
-				if (!SetProperty(ref _selectedSiteRow, value)) return;
-				if (_syncingSelection) return; // pushed from SelectedRadarOption — don't re-activate
-				// The list drove this: select the matching option (a plain select, not a toggle).
-				SelectedRadarOption = value is null
-					? RadarOptions[0]
-					: RadarOptions.FirstOrDefault(o => o.Site is { } s && s == value.Site) ?? RadarOptions[0];
 			}
 		}
 
