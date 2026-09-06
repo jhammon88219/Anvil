@@ -14,6 +14,69 @@ namespace Anvil.Services
 		Task ApplyStyleAsync(MapStyle style);
 
 		/// <summary>
+		/// DEV TOOL. Applies a live LEVELS transform to the basemap's colours, or clears it when
+		/// <paramref name="tuning"/> is null.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ The page re-paints EXISTING layers (<c>setPaintProperty</c>) rather than re-styling: a
+		/// <c>setStyle</c> drops every custom source and layer and has to be followed by the whole
+		/// <c>reAddAll</c> overlay restore, which is not something to run from a slider.
+		/// ⚠️ It touches the BASEMAP only. Radar and the overlays are data and are never tuned.
+		/// </remarks>
+		Task SetStyleTuningAsync(MapStyleTuning? tuning);
+
+		/// <summary>
+		/// DEV TOOL. Replaces the per-slot colour override table. <paramref name="json"/> is a serialised
+		/// <c>{"layer|prop|index": "#rrggbb"}</c>; empty clears every override.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ A SLOT IS (layer, paint property, OCCURRENCE INDEX) — not a layer (one property can hold
+		/// several colours) and not a distinct colour (<c>#ffffff</c> is the earth fill AND 12 road casings
+		/// AND 8 label halos, so editing by colour moves unrelated things together).
+		/// ⚠️ An override WINS over the global transform for its slot; everything else still grades.
+		/// </remarks>
+		Task SetStyleOverridesAsync(string json);
+
+		/// <summary>
+		/// DEV TOOL. STARTS loading the basemap's colour-slot list. The result lands in the page's
+		/// <c>__anvilStyleSlots</c>; read it with <see cref="PollStyleSlotsAsync"/>.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ START-THEN-POLL because taking the snapshot is a FETCH and <c>ExecuteScriptAsync</c> does not
+		/// await a promise — the same shape the dealias validation harness uses for the same reason.
+		/// </remarks>
+		Task LoadStyleSlotsAsync();
+
+		/// <summary>DEV TOOL. The slot list as JSON once <see cref="LoadStyleSlotsAsync"/> has landed, else empty.</summary>
+		Task<string> PollStyleSlotsAsync();
+
+		/// <summary>
+		/// DEV TOOL. Every slot's RESOLVED colour, in document order, as a JSON array — the export payload.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ ORDER IS THE CONTRACT: the host rewrites the Nth <c>#rrggbb</c> literal in the pristine style
+		/// FILE with the Nth entry here. That keeps the file's formatting (re-serialising the JSON rewrites
+		/// all ~10,000 lines and buries the real changes) and lets two slots that share a source colour
+		/// diverge. ⚠️ The host must check this count against the file's own literal count before writing.
+		/// ⚠️ It is also why the colour maths exists once, in <c>style-tune.js</c>: the host never computes
+		/// a colour, it only places what the page worked out.
+		/// </remarks>
+		Task<string> GetStyleSlotColorsAsync();
+
+		/// <summary>
+		/// Switches the page's visual identity: sets the theme's chrome palette AND applies the basemap
+		/// that identity owns, in that order, as one command.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ It takes the style too, and does NOT compose out of <see cref="ApplyStyleAsync"/>, because the
+		/// ORDER is load-bearing: the palette attribute has to land before the style re-add, or the layers
+		/// whose colors are READ at build time rather than cascaded (the isolation mask and hover, the range
+		/// ring, the sweep) come back wearing the previous theme. Two separate calls could interleave; one
+		/// cannot. So a theme change is this call ALONE — don't also push the style.
+		/// </remarks>
+		Task ApplyThemeAsync(AppTheme theme, MapStyle style);
+
+		/// <summary>
 		/// Switches where the basemap's vector tiles come from: the bundled offline PMTiles file
 		/// (<paramref name="online"/> false) or <paramref name="tilesUrl"/> (a Protomaps-schema TileJSON
 		/// endpoint, a <c>{z}/{x}/{y}</c> template, or a remote <c>pmtiles://</c> archive).

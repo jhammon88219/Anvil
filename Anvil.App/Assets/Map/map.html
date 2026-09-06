@@ -33,11 +33,17 @@
 
     <link href="vendor/maplibre-gl.css" rel="stylesheet" />
 
+    <!-- The chrome palette, and the ONE home for every color the page draws that isn't data. A
+         render-blocking stylesheet, linked FIRST, so --anvil-ground is resolved before the body
+         paints (no flash) and the CSS radar-sites.js injects at runtime can use the variables too.
+         ⚠️ The rules below own LAYOUT; theme.css owns COLOR. Keep a literal color out of here. -->
+    <link href="theme.css" rel="stylesheet" />
+
     <style>
         html, body {
             margin: 0;
             height: 100%;
-            background: #0a0a0a;
+            background: var(--anvil-ground);
             overflow: hidden;
         }
 
@@ -53,7 +59,7 @@
 
         .pane {
             position: absolute;
-            background: #0a0a0a;
+            background: var(--anvil-ground);
             display: none; /* map.js shows the panes the layout uses */
         }
 
@@ -67,28 +73,29 @@
         /* ===== THE GROOVE =====
            Panes are separated by a dark channel with a hairline on EACH side, not a single drawn line.
            Two reasons it is a groove: a lone hairline gets lost over bright radar returns, and a lone
-           dark gap disappears between two dark panes — the pair reads over both. The hairline color is
-           the dark-theme value of the app's CardStrokeColorDefaultSolidBrush, which is the same edge
-           the OverlayBar draws; a ThemeResource can't reach in here, and the map band is always dark
-           regardless of app theme, so a fixed value is correct.
+           dark gap disappears between two dark panes — the pair reads over both. The hairline is the
+           app's CardStrokeColorDefaultSolidBrush, the same edge the OverlayBar draws; a ThemeResource
+           can't reach in here, so theme.css carries the value (--anvil-groove-edge).
+           ⚠️ It used to be a literal, justified as "the map band is always dark regardless of app
+           theme" — which stopped being true the moment the basemap became the theme's choice.
            Non-interactive: the panes are positioned with the gap already subtracted, so these divs are
            pure decoration over ground no map occupies. */
         .gutter {
             position: absolute;
-            background: #0a0a0a;
+            background: var(--anvil-ground);
             pointer-events: none;
             box-sizing: border-box;
             display: none; /* map.js shows the ones the layout needs */
         }
 
         .gutter.v {
-            border-left: 1px solid rgba(255,255,255,.14);
-            border-right: 1px solid rgba(255,255,255,.14);
+            border-left: 1px solid var(--anvil-groove-edge);
+            border-right: 1px solid var(--anvil-groove-edge);
         }
 
         .gutter.h {
-            border-top: 1px solid rgba(255,255,255,.14);
-            border-bottom: 1px solid rgba(255,255,255,.14);
+            border-top: 1px solid var(--anvil-groove-edge);
+            border-bottom: 1px solid var(--anvil-groove-edge);
         }
 
         /* NB: a pane's NOTCH (product selector + colour ramp + tilt) is not styled here — it is a XAML
@@ -102,7 +109,7 @@
         #mapcover {
             position: absolute;
             inset: 0;
-            background: #0a0a0a;
+            background: var(--anvil-ground);
             z-index: 5;
             transition: opacity 0.25s ease-out;
         }

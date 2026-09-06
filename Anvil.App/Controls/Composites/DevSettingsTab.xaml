@@ -50,6 +50,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Site sweep section -->
             <RowDefinition Height="Auto"/> <!-- Dealias validation section -->
+            <RowDefinition Height="Auto"/> <!-- Map style tuner section -->
             <RowDefinition Height="Auto"/> <!-- Pipeline console section -->
         </Grid.RowDefinitions>
 
@@ -163,7 +164,100 @@
         <!-- ===== Section 3: the Pipeline Console's open toggle. =====
              A toggle rather than a button because the window's existence IS the state (WindowManager
              reconciles the flag), so it unlatches when you close the console from its own caption. -->
-        <Expander Grid.Row="2" Header="Pipeline console" IsExpanded="True"
+        <!-- MAP STYLE TUNER. Five sliders over a LEVELS transform of the basemap's colours, applied LIVE.
+             ⚠️ It exists to kill the F5 loop: tuning a basemap by editing a JSON asset and redeploying the
+             MSIX is minutes per colour. The tuned map is not the product — the EXPORTED style file is, which
+             then becomes a bundled asset like the other five.
+             ⚠️ White is THE knob. The whole "too bright" pass that preceded this tool was one number.
+             ⚠️ Export writes a COPY of the pristine style with the colours substituted, so the file keeps its
+             formatting; drop it into Assets/Map and it is a real style. The click bubbles to MainWindow for
+             the save picker (a UserControl has no HWND) — same chain as the report dialogs. -->
+        <Expander Grid.Row="2" Header="Map style tuner" IsExpanded="True"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- summary readout -->
+                    <RowDefinition Height="Auto"/> <!-- white -->
+                    <RowDefinition Height="Auto"/> <!-- black -->
+                    <RowDefinition Height="Auto"/> <!-- gamma -->
+                    <RowDefinition Height="Auto"/> <!-- tint hue -->
+                    <RowDefinition Height="Auto"/> <!-- tint strength -->
+                    <RowDefinition Height="Auto"/> <!-- reset + export -->
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" CornerRadius="6" Padding="10,7"
+                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}">
+                    <TextBlock FontSize="12" TextWrapping="Wrap"
+                               Text="{x:Bind TuneVm.SummaryText, Mode=OneWay}"/>
+                </Border>
+
+                <!-- ⚠️ Sliders, not NumberBoxes: this is a look you judge by eye while dragging, and the VM
+                     debounces the push. The value readouts come from the summary above. -->
+                <Grid Grid.Row="1" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="96"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="White" VerticalAlignment="Center"
+                               Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <Slider Grid.Column="1" Minimum="60" Maximum="255" StepFrequency="1"
+                            Value="{x:Bind TuneVm.White, Mode=TwoWay}"/>
+                </Grid>
+
+                <Grid Grid.Row="2" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="96"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Black" VerticalAlignment="Center"
+                               Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <Slider Grid.Column="1" Minimum="0" Maximum="120" StepFrequency="1"
+                            Value="{x:Bind TuneVm.Black, Mode=TwoWay}"/>
+                </Grid>
+
+                <Grid Grid.Row="3" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="96"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Gamma" VerticalAlignment="Center"
+                               Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <Slider Grid.Column="1" Minimum="0.4" Maximum="2.5" StepFrequency="0.01"
+                            Value="{x:Bind TuneVm.Gamma, Mode=TwoWay}"/>
+                </Grid>
+
+                <Grid Grid.Row="4" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="96"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Tint hue" VerticalAlignment="Center"
+                               Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <Slider Grid.Column="1" Minimum="0" Maximum="360" StepFrequency="1"
+                            Value="{x:Bind TuneVm.TintHue, Mode=TwoWay}"/>
+                </Grid>
+
+                <Grid Grid.Row="5" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="96"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Tint" VerticalAlignment="Center"
+                               Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <Slider Grid.Column="1" Minimum="0" Maximum="1" StepFrequency="0.01"
+                            Value="{x:Bind TuneVm.TintStrength, Mode=TwoWay}"/>
+                </Grid>
+
+                <!-- ⚠️ Export lives in the EDITOR window, not here: it writes every slot's resolved
+                     colour, so it belongs with the list of slots rather than with the global grade. -->
+                <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <Button Content="Reset" Click="OnTuneResetClick"/>
+                    <ToggleSwitch OffContent="Editor hidden" OnContent="Editor shown"
+                                  IsOn="{x:Bind ViewModel.IsStyleEditorOpen, Mode=TwoWay}"/>
+                </StackPanel>
+            </Grid>
+        </Expander>
+        <Expander Grid.Row="3" Header="Pipeline console" IsExpanded="True"
                   Style="{StaticResource SectionExpanderStyle}">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>

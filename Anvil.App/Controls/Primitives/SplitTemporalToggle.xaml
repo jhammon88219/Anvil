@@ -278,6 +278,76 @@
             <ColumnDefinition Width="Auto"/> <!-- the side car -->
         </Grid.ColumnDefinitions>
 
+        <!-- ⚠️ THE FACE, THE STROKE AND THE MARK'S INK ARE STATES, NOT CODE — AND THAT IS A CORRECTNESS FIX,
+             not tidying. They used to be assigned in the code-behind from
+             Application.Current.Resources.TryGetValue, which resolves against Application.RequestedTheme —
+             the OS theme, settable only before content loads. The app pins its palette on the ROOT ELEMENT's
+             RequestedTheme instead (see MainWindow.ApplyAppTheme), so every {ThemeResource} in XAML resolved
+             correctly while those code lookups kept handing back the OTHER theme's brush: on a dark-mode
+             machine the light theme's lit key came back with a near-BLACK elevated face and white text.
+             Symmetric and latent — a light-mode machine had the mirror of it in the dark theme.
+             Here the framework resolves against this element's ActualTheme, and re-resolves on a live
+             switch, which the code path could not do (it only re-ran when a DP changed).
+             ⚠️ Do NOT reintroduce a brush lookup in the code-behind for anything that varies by theme.
+             The two `double` lookups elsewhere in the app are fine — a size has no theme. -->
+        <VisualStateManager.VisualStateGroups>
+
+            <!-- Is the MODE on? Drives the key's whole ground + stroke. Both states set every value: a
+                 property left unset in one branch keeps whatever the other branch wrote. -->
+            <VisualStateGroup x:Name="ModeStates">
+                <VisualState x:Name="ModeOff">
+                    <VisualState.Setters>
+                        <!-- Transparent rather than a theme key: "no fill" is not a colour that varies —
+                             an unlit key shows the bar's own surface through it in either theme. -->
+                        <Setter Target="Face.Background" Value="Transparent"/>
+                        <Setter Target="Shell.BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}"/>
+                        <Setter Target="Shell.BorderThickness" Value="1"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="ModeOn">
+                    <VisualState.Setters>
+                        <!-- The FACE spans both halves, so a lit key reads as one object rather than as a
+                             lit square with a dark strip beside it. The halves' own template states paint
+                             over this on hover and press. -->
+                        <Setter Target="Face.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                        <Setter Target="Shell.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                        <Setter Target="Shell.BorderThickness" Value="2"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+
+            <!-- The three-dot mark's ink. Shapes do not inherit the content Foreground the templates drive,
+                 so it is addressed here — and it has THREE values, not two: dimmed while the car is dead,
+                 the usual secondary text colour while it is live, and the on-accent colour once the car
+                 fills, where the ordinary ink would sit on a saturated ground and disappear.
+                 ⚠️ TextOnAccentFillColorPrimaryBrush, never a hardcoded dark: the accent is light in the
+                 dark theme and dark in the light one, so the ink on top has to flip with it. -->
+            <VisualStateGroup x:Name="MarkStates">
+                <VisualState x:Name="MarkDead">
+                    <VisualState.Setters>
+                        <Setter Target="MarkDot1.Fill" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                        <Setter Target="MarkDot2.Fill" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                        <Setter Target="MarkDot3.Fill" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="MarkLive">
+                    <VisualState.Setters>
+                        <Setter Target="MarkDot1.Fill" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <Setter Target="MarkDot2.Fill" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <Setter Target="MarkDot3.Fill" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="MarkOnAccent">
+                    <VisualState.Setters>
+                        <Setter Target="MarkDot1.Fill" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                        <Setter Target="MarkDot2.Fill" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                        <Setter Target="MarkDot3.Fill" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+
+        </VisualStateManager.VisualStateGroups>
+
         <!-- FACE — the key's ground, under both halves. Elevated when the mode is on; that is what makes the
              car part of a lit key rather than a dark strip beside one. -->
         <Border x:Name="Face" Grid.Column="0" Grid.ColumnSpan="2"

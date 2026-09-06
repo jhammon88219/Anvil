@@ -1,0 +1,225 @@
+/* ============================================================================================
+   theme.css — THE one home for every chrome color the map page draws.
+
+   Loaded by map.html BEFORE anything else, as a render-blocking <link>, so the ground is right on
+   the very first paint (no flash) and every module — including the CSS radar-sites.js injects at
+   runtime — can use these variables.
+
+       :root                        the values, today's look ("anvilDark")
+         --anvil-ground             page + pane + gutter + cover ground
+         --anvil-key-*              the on-map radar-site keys
+         --anvil-scope-*            the range ring + sweep pulse
+         --anvil-state-*            state isolation: hover, mask outline, water fallback
+         --anvil-marker-*           the user-location reticle
+         --anvil-readout-*          the Inspect value chip + its crosshair
+         --anvil-popup-*            the storm-report popup surface
+         --anvil-hatch-ink          the outlook CIG hatch lines
+
+   ⚠️ THE MEMBERSHIP RULE — CHROME LIVES HERE, DATA NEVER DOES. If a color tells you what something
+   IS, it is not the theme's and it does not belong in this file: every product ramp
+   (radar-ramps.js), the watch/warning TO=red / SV=yellow pair, the storm-report dot colors, the
+   site key's green/red availability square, the TDWR-blue / research-violet class bars. Theming
+   those doesn't restyle the legend, it breaks it. The site key is the case worth studying — its
+   FACE is in here and the two colored end zones are deliberately not.
+
+   ⚠️ DROP SHADOWS ARE NOT VARIABLES, on purpose. Every rgba(0,0,0,…) shadow left inline across the
+   modules stays black in any theme — a shadow is an absence of light, not a palette choice. Adding
+   them here would be ~10 more variables that no theme would ever set differently.
+
+   ⚠️ TWO KINDS OF CONSUMER, and they fail differently:
+     CSS   — uses var(--anvil-x) directly, and NO fallback value. A missing variable makes the
+             declaration invalid and the element renders unstyled: loud, obvious, harmless.
+     JS    — MapLibre paint properties, canvas strokes and SVG attributes cannot read var(), so
+             theme.js reads the computed value. Those calls DO pass a fallback, because an empty
+             string handed to MapLibre as a color THROWS, and a throw inside render aborts the
+             frame and blanks every layer above it. Same principle as safeBbox in states.js:
+             a wrong color beats a dead map.
+
+   ADDING A THEME: append a  :root[data-theme="<id>"]  block below overriding only what differs.
+   The host sets that attribute — a `theme` URL param at launch (so the first paint is right, the same
+   reason `conus` and `tiles` are params) and window.applyTheme for a live switch.
+
+   ⚠️ "anvilDark" HAS NO BLOCK OF ITS OWN, and that is not an omission — it IS the bare :root below.
+   The host still sends theme=anvilDark, which matches no attribute selector, so these defaults apply.
+   That also means a page opened with no param at all, or with an id from a newer build, lands on the
+   dark identity rather than on nothing.
+
+   ⚠️ Two cross-file invariants, and NOTHING CHECKS EITHER at build time: a block's id must match an
+   AppTheme id in Services/Theme/ThemeProvider.cs, and its --anvil-ground must match that theme's
+   GroundColor (which C# paints on the WebView before this file has loaded).
+   ============================================================================================ */
+
+:root {
+    /* ── GROUND ────────────────────────────────────────────────────────────────────────────────
+       The page's own surface, behind and between the maps. ⚠️ Must match AppTheme.GroundColor on
+       the C# side, which paints the WebView before this file has loaded — see that property. */
+    --anvil-ground: #0a0a0a;
+
+    /* The groove between panes: a hairline on EACH side of the dark channel. This is the dark-theme
+       value of the app's CardStrokeColorDefaultSolidBrush, the same edge the OverlayBar draws.
+       (It used to be a fixed literal on the grounds that "the map band is always dark regardless of
+       app theme" — which stops being true the moment a light theme exists.) */
+    --anvil-groove-edge: rgba(255, 255, 255, .14);
+
+    /* ── RADAR SITE KEYS (radar-sites.js) ──────────────────────────────────────────────────────
+       The pushable graphite key. Face is a top→bottom gradient over a hard bottom EDGE, which is
+       what makes it read as a physical key rather than a chip. */
+    --anvil-key-face-top: #3b3b3e;
+    --anvil-key-face-bottom: #2c2c2f;
+    --anvil-key-border: #5a5a5e;
+    --anvil-key-edge: #161618;
+    --anvil-key-text: #f3f3f3;
+
+    /* The operational-NEXRAD class bar. Deliberately NEUTRAL — it is the majority of the network and
+       has to stay quiet, so unlike the TDWR/research bars beside it, it carries no identity color
+       and IS chrome. */
+    --anvil-key-class-neutral: #44444a;
+    --anvil-key-class-neutral-text: #cfcfd3;
+
+    /* Selected = the key INVERTED. In a light theme this inverts the other way — which is exactly
+       why it is a role ("the selected face") and not "the white face". */
+    --anvil-key-sel-face-top: #ffffff;
+    --anvil-key-sel-face-bottom: #e8e8e8;
+    --anvil-key-sel-border: #b9b9b9;
+    --anvil-key-sel-edge: #9a9a9a;
+    --anvil-key-sel-text: #1a1a1a;
+
+    /* The collision fan's leader line + origin ring, back to a key's true site. */
+    --anvil-leader: #8a8f98;
+
+    /* ── RANGE RING + SWEEP (radar-scope.js) ───────────────────────────────────────────────────
+       The selected site's scope furniture. The sweep is a warm afterglow wedge behind a brighter
+       arm; the ring is cool so the two never read as one object. */
+    --anvil-scope-ring: #9fe0ff;
+    --anvil-scope-sweep-fill: #ffe6a0;
+    --anvil-scope-sweep-arm: #fff4c8;
+
+    /* ── STATE ISOLATION (states.js) ───────────────────────────────────────────────────────────
+       Hover tint + outline for the pick-a-state mode, and the mask's own outline. */
+    --anvil-state-hover: #4aa3ff;
+    --anvil-state-mask-outline: #8a8a8a;
+
+    /* The isolation mask fills with the BASEMAP's live water color, read off the style so it tracks
+       whatever is loaded. This is only the fallback for a style whose water layer is atypical, so it
+       tracks the theme's own basemap (dataVizBlack water is #1c1c1c). */
+    --anvil-state-water-fallback: #1c1c1c;
+
+    /* ── USER LOCATION (markers.js) ────────────────────────────────────────────────────────────*/
+    --anvil-marker-reticle: #2f8fff;
+    --anvil-marker-ring: #ffffff;
+
+    /* ── INSPECT READOUT (radar-inspect.js) ────────────────────────────────────────────────────
+       The value chip under the cursor, and the mirrored crosshair drawn in the other panes. */
+    --anvil-readout-text: #ffffff;
+    --anvil-readout-bg: rgba(10, 12, 16, .85);
+    --anvil-readout-border: rgba(255, 255, 255, .25);
+    --anvil-readout-crosshair: rgba(255, 255, 255, .9);
+
+    /* ── STORM REPORT POPUP (storm-reports.js) ─────────────────────────────────────────────────
+       The popup SURFACE only. The three dot colors it opens from are data — see the rule above. */
+    --anvil-popup-bg: rgba(22, 24, 28, 0.96);
+    --anvil-popup-text: #eaeaea;
+    --anvil-popup-meta: #b6b6b6;
+    --anvil-popup-body: #d2d2d2;
+    --anvil-popup-close: #aaaaaa;
+
+    /* ── OUTLOOK CIG HATCHING (outlook.js) ─────────────────────────────────────────────────────
+       The INK the hatch tiles are drawn with. The PATTERN (dashes / lines / cross-hatch) encodes
+       which CIG group an area is and is data; the ink is chrome — it exists to read over the SPC
+       fills underneath, so it flips with the theme while the pattern never does. */
+    --anvil-hatch-ink: rgba(235, 235, 235, 0.9);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   anvilLight — the light identity, over the Data Viz Light basemap (earth #e0e0e0, water #c1c1c1).
+
+   ⚠️ THE BASEMAP WAS DIMMED, NOT SWAPPED (2026-09-06). Its earth was #ffffff and the app read as blinding;
+   the map is most of the pixels, so no amount of chrome tuning fixes a white one. The style file itself was
+   scaled to a #e0e0e0 white point — see docs/theming.md for the transform and why a uniform scale was the
+   only safe one. ⚠️ Re-pointing this theme at Data Viz Grayscale was tried first and REVERTED: a theme and
+   its basemap are a named pair, and grayscale belongs to the AnvilGray identity that does not exist yet.
+   ⚠️ THREE VALUES BELOW ARE TIED TO THE BASEMAP, not to the word "light", and move whenever it does:
+   --anvil-ground, --anvil-state-water-fallback and --anvil-state-mask-outline.
+
+   ⚠️ THIS IS NOT "THE DARK VALUES, LIGHTENED". Several roles INVERT rather than lighten, because
+   what they encode is a relationship to the ground, not a brightness:
+     · the site key's SELECTED state is "the face, inverted" — a light key on dark, so here it is a
+       DARK key on light. Swapping the two blocks' key/key-sel groups is exactly right.
+     · the user-location reticle's casing is the fat outer stroke that separates the mark from the
+       map, the trick map labels use for legibility. White over a dark map; DARK over a light one.
+     · the Inspect readout and the storm-report popup are surfaces that must sit ON TOP of the map,
+       so they stay near-opaque and flip which end of the scale they sit at.
+   Roles that only ever needed more contrast against a bright ground (the ring, the sweep, the state
+   hover) are DEEPER and more saturated here, not paler — a pale wash vanishes on white.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="anvilLight"] {
+    /* ── GROUND ─────────────────────────────────────────────────────────────────────────────── */
+    /* Just off the basemap's own earth (#e0e0e0) — a step DARKER, where the dark theme's ground is a step
+       lighter than its black earth. Either way it is a contrast step away from the map, so the gutters
+       between panes read as channels rather than as glare.
+       ⚠️ Must match AppTheme.GroundColor for "anvilLight". */
+    --anvil-ground: #d8d8d8;
+    --anvil-groove-edge: rgba(0, 0, 0, .14);
+
+    /* ── RADAR SITE KEYS ────────────────────────────────────────────────────────────────────── */
+    /* The resting key is now the LIGHT one and the selected key is the dark one — the two groups
+       trade places with the dark theme's. */
+    --anvil-key-face-top: #fdfdfd;
+    --anvil-key-face-bottom: #ebebeb;
+    --anvil-key-border: #b9b9b9;
+    --anvil-key-edge: #a8a8ac;
+    --anvil-key-text: #1a1a1a;
+
+    --anvil-key-class-neutral: #d2d2d8;
+    --anvil-key-class-neutral-text: #3a3a40;
+
+    --anvil-key-sel-face-top: #3b3b3e;
+    --anvil-key-sel-face-bottom: #2c2c2f;
+    --anvil-key-sel-border: #5a5a5e;
+    --anvil-key-sel-edge: #161618;
+    --anvil-key-sel-text: #f3f3f3;
+
+    --anvil-leader: #5c6068;
+
+    /* ── RANGE RING + SWEEP ─────────────────────────────────────────────────────────────────── */
+    /* Deeper and more saturated, not paler: the ring draws at 0.55 opacity and the sweep peaks at
+       0.42, so the dark theme's pale cyan and cream would be invisible over white earth. */
+    --anvil-scope-ring: #0f7fb8;
+    --anvil-scope-sweep-fill: #d99a1f;
+    --anvil-scope-sweep-arm: #b87d10;
+
+    /* ── STATE ISOLATION ────────────────────────────────────────────────────────────────────── */
+    --anvil-state-hover: #1668c9;
+    /* ⚠️ MUST CONTRAST WITH THE MASK, WHICH IS THE WATER COLOUR — this line traces the isolated state's
+       border ON TOP of that fill, so it is read against the water and never against the land. Fine here
+       (#6a6a6a on #c1c1c1 water), and the dark theme has the same relationship inverted (a light #8a8a8a
+       line on its #1c1c1c mask). ⚠️ A FUTURE AnvilGray WILL NEED THIS DARKER: grayscale's water is #707070,
+       which this value all but disappears against. */
+    --anvil-state-mask-outline: #6a6a6a;
+    /* The style's own water, so the mask matches when the live read can't find the water layer.
+       ⚠️ Data Viz Light's water AFTER the dimming pass (#dcdcdc -> #c1c1c1). */
+    --anvil-state-water-fallback: #c1c1c1;
+
+    /* ── USER LOCATION ──────────────────────────────────────────────────────────────────────── */
+    /* ⚠️ The casing INVERTS — it exists to separate the reticle from the map, so it is dark here. */
+    --anvil-marker-reticle: #1668c9;
+    --anvil-marker-ring: #1a1a1a;
+
+    /* ── INSPECT READOUT ────────────────────────────────────────────────────────────────────── */
+    --anvil-readout-text: #101010;
+    --anvil-readout-bg: rgba(250, 250, 250, .92);
+    --anvil-readout-border: rgba(0, 0, 0, .25);
+    --anvil-readout-crosshair: rgba(20, 20, 20, .9);
+
+    /* ── STORM REPORT POPUP ─────────────────────────────────────────────────────────────────── */
+    --anvil-popup-bg: rgba(252, 252, 253, 0.97);
+    --anvil-popup-text: #1a1a1a;
+    --anvil-popup-meta: #5a5a5a;
+    --anvil-popup-body: #333333;
+    --anvil-popup-close: #666666;
+
+    /* ── OUTLOOK CIG HATCHING ───────────────────────────────────────────────────────────────── */
+    /* Dark ink over the SPC fills, which are the same colors in both themes. */
+    --anvil-hatch-ink: rgba(30, 30, 30, 0.85);
+}

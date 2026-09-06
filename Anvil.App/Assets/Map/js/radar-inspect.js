@@ -61,8 +61,9 @@ function ensureInspectTip() {
     const el = document.createElement('div');
     el.id = 'radar-inspect-tip';
     el.style.cssText = 'position:absolute;z-index:20;pointer-events:none;display:none;' +
-        'font:600 12px/1.3 "Segoe UI",sans-serif;color:#fff;background:rgba(10,12,16,.85);' +
-        'border:1px solid rgba(255,255,255,.25);border-radius:4px;padding:3px 7px;white-space:nowrap;' +
+        'font:600 12px/1.3 "Segoe UI",sans-serif;color:var(--anvil-readout-text);' +
+        'background:var(--anvil-readout-bg);' +
+        'border:1px solid var(--anvil-readout-border);border-radius:4px;padding:3px 7px;white-space:nowrap;' +
         'box-shadow:0 1px 4px rgba(0,0,0,.55);';
     document.body.appendChild(el);
     inspectTip = el;
@@ -78,7 +79,7 @@ function ensureCrossEl(v) {
     el.className = 'radar-inspect-cross';
     el.style.cssText = 'position:absolute;z-index:19;pointer-events:none;display:none;' +
         'width:17px;height:17px;margin-left:-8.5px;margin-top:-8.5px;';
-    const bar = 'position:absolute;background:rgba(255,255,255,.9);box-shadow:0 0 2px rgba(0,0,0,.9);';
+    const bar = 'position:absolute;background:var(--anvil-readout-crosshair);box-shadow:0 0 2px rgba(0,0,0,.9);';
     const h = document.createElement('div');
     h.style.cssText = bar + 'left:0;top:8px;width:17px;height:1.5px;';
     const w = document.createElement('div');

@@ -67,6 +67,9 @@ function addReportLayers(map) {
                 'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 7, 5, 10, 7],
                 'circle-opacity': reportsOpacity,
                 'circle-stroke-width': 1,
+                // ⚠️ Deliberately NOT themed, unlike the popup surface below. This ring is part of the
+                // DATA mark — it separates a bright dot from whatever it lands on — and a dark ring
+                // does that job on a light basemap just as well as on a dark one.
                 'circle-stroke-color': 'rgba(20,20,20,0.85)',
                 'circle-stroke-opacity': reportsOpacity
             }
@@ -107,16 +110,19 @@ function timeText(t) {
 
 function ensurePopupStyle() {
     if (document.getElementById('spc-report-popup-style')) return;
+    // The popup SURFACE is chrome (theme.css); the three dot colors it opens from are data and stay
+    // in META above. ⚠️ The tip is a BORDER-COLOR trick — MapLibre draws the little arrow as a CSS
+    // triangle — so it has to repeat the background var rather than inherit it.
     var css = [
-        '.spc-report-popup .maplibregl-popup-content{background:rgba(22,24,28,0.96);color:#eaeaea;',
+        '.spc-report-popup .maplibregl-popup-content{background:var(--anvil-popup-bg);color:var(--anvil-popup-text);',
         'font:12px/1.45 "Segoe UI",system-ui,sans-serif;border-radius:8px;padding:9px 12px;',
         'box-shadow:0 4px 16px rgba(0,0,0,0.5);max-width:280px;}',
-        '.spc-report-popup .maplibregl-popup-tip{border-top-color:rgba(22,24,28,0.96);',
-        'border-bottom-color:rgba(22,24,28,0.96);}',
-        '.spc-report-popup .maplibregl-popup-close-button{color:#aaa;font-size:15px;padding:0 4px;}',
+        '.spc-report-popup .maplibregl-popup-tip{border-top-color:var(--anvil-popup-bg);',
+        'border-bottom-color:var(--anvil-popup-bg);}',
+        '.spc-report-popup .maplibregl-popup-close-button{color:var(--anvil-popup-close);font-size:15px;padding:0 4px;}',
         '.spc-report-title{font-weight:600;margin-bottom:3px;}',
-        '.spc-report-meta{color:#b6b6b6;margin-bottom:4px;}',
-        '.spc-report-com{color:#d2d2d2;}'
+        '.spc-report-meta{color:var(--anvil-popup-meta);margin-bottom:4px;}',
+        '.spc-report-com{color:var(--anvil-popup-body);}'
     ].join('');
     var st = document.createElement('style');
     st.id = 'spc-report-popup-style';

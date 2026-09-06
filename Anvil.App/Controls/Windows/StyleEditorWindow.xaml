@@ -1,0 +1,130 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- StyleEditorWindow — the DEV style editor's body: every colour in the loaded basemap, editable live.
+     Debug-only; opened by the switch in Settings → Dev → "Map style editor".
+
+       ┌────────────────────────────────────────────────────────┐
+       │  Map style editor                                 [📌] │
+       │  86 slots · 3 overridden                               │
+       │  [ Search layer or property…            ]  [Clear all] │
+       │ ┌────────────────────────────────────────────────────┐ │
+       │ │ ▇  earth · fill-color                    #e0e0e0   │ │  ← the swatch opens the ONE
+       │ │ ▇  water · fill-color                    #2b4c6f   │ │    shared colour picker; the
+       │ │ ▇  landuse_park · fill-color [3]         #dcdcdc   │ │    hex box is the second way in
+       │ │ ▇  roads_major · line-color              #cecece   │ │  ← [n] = the nth colour in one
+       │ │                                                    │ │    expression
+       │ └────────────────────────────────────────────────────┘ │
+       │                                        [Export style…] │
+       └────────────────────────────────────────────────────────┘
+
+     ⚠️ A ROW IS A SLOT — (layer, paint property, occurrence index) — NOT a layer and NOT a distinct
+     colour. One property can hold several colours (landuse_park's ['case', …] holds seven), and one
+     colour is shared by unrelated roles (#ffffff is the earth fill AND twelve road casings AND eight
+     label halos). Editing by colour would move three unrelated things at once, which is the opposite of
+     full control. See ViewModels/Map/StyleSlotRow.
+
+     ⚠️ THE MAP IS THE PREVIEW. The swatch shows the slot's BASE colour (or its override) and deliberately
+     does NOT mirror the global transform — a second copy of that maths in the list is exactly the drift
+     this design avoids. To see the transform, look at the map.
+
+     ⚠️ It is a WINDOW rather than another Dev-tab section because it is a workbench: ~86 rows wants
+     height, and you keep it open beside the map while you work. Same arrangement as the Pipeline Console
+     — a switch on the Dev tab, a registered window here.
+
+     ⚠️ Sliders for the global transform stay on the DEV TAB, not here. The transform is a grade you set
+     once and leave; this window is where you fix what the grade got wrong. -->
+<UserControl x:Class="Anvil.Controls.Windows.StyleEditorWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Anvil.ViewModels"
+             xmlns:ctl="using:Anvil.Controls.Primitives"
+             xmlns:conv="using:Anvil.Converters"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <conv:HexToBrushConverter x:Key="HexToBrush"/>
+    </UserControl.Resources>
+
+    <Grid Background="{ThemeResource OverlayBarSurfaceBrush}" Padding="16,12,16,16" RowSpacing="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- title + pin -->
+            <RowDefinition Height="Auto"/> <!-- count readout -->
+            <RowDefinition Height="Auto"/> <!-- search + clear -->
+            <RowDefinition Height="*"/>    <!-- the slot list -->
+            <RowDefinition Height="Auto"/> <!-- export -->
+        </Grid.RowDefinitions>
+
+        <!-- The window is headerless (customChrome), so it supplies its own title, and the pin sits where
+             the caption buttons would be. -->
+        <Grid Grid.Row="0">
+            <TextBlock Text="Map style editor" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <ctl:PinToggle HorizontalAlignment="Right" VerticalAlignment="Top"
+                           IsChecked="{x:Bind ViewModel.IsStyleEditorOnTop, Mode=TwoWay}"/>
+        </Grid>
+
+        <TextBlock Grid.Row="1" FontSize="12"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Text="{x:Bind CountText, Mode=OneWay}"/>
+
+        <Grid Grid.Row="2" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="SearchBox" Grid.Column="0"
+                     PlaceholderText="Filter by layer or property…"
+                     TextChanged="OnSearchChanged"/>
+            <Button Grid.Column="1" Content="Clear overrides" Click="OnClearOverridesClick"/>
+        </Grid>
+
+        <!-- ⚠️ ONE ROW PER SLOT, virtualised: 86 rows here, and a bigger style would be more. -->
+        <ListView Grid.Row="3" x:Name="SlotList"
+                  SelectionMode="None"
+                  ItemsSource="{x:Bind Rows, Mode=OneWay}"
+                  ScrollViewer.HorizontalScrollMode="Disabled">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:StyleSlotRow">
+                    <Grid ColumnSpacing="10" Padding="0,3">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- ⚠️ A Button, so the whole chip is the hit target and it gets focus + keyboard
+                             for free. Its Tag carries the SLOT KEY, which is how the shared picker learns
+                             which row it was opened from. -->
+                        <Button Grid.Column="0" Width="30" Height="24" Padding="0"
+                                Tag="{x:Bind Key}"
+                                Click="OnSwatchClick"
+                                ToolTipService.ToolTip="Pick a colour"
+                                Background="{x:Bind EffectiveColor, Mode=OneWay, Converter={StaticResource HexToBrush}}"
+                                BorderThickness="1"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind Label}" FontSize="12"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{x:Bind Family}" FontSize="10"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        </StackPanel>
+
+                        <!-- The hex box is the SECOND way in, kept beside the picker rather than replaced
+                             by it: pasting a value you already have is faster than finding it on a
+                             spectrum, and it is the only way to READ what a slot currently is. -->
+                        <TextBox Grid.Column="2" Width="96" FontSize="12"
+                                 Text="{x:Bind EffectiveColor, Mode=OneWay}"
+                                 Tag="{x:Bind Key}"
+                                 LostFocus="OnSlotColorCommitted"
+                                 KeyDown="OnSlotColorKeyDown"/>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button Content="Export style…" Click="OnExportClick"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

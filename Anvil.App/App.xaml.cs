@@ -96,6 +96,9 @@ namespace Anvil
 
 			// ── Providers + data services (leaf singletons; each owns its own on-disk cache / config). ──
 			services.AddSingleton<IStyleProvider, StyleProvider>();
+			// The app's visual identities. Beside the style provider because a theme OWNS one of its
+			// styles — the pairing is the point, and the two lists have to be read together.
+			services.AddSingleton<IThemeProvider, ThemeProvider>();
 			services.AddSingleton<IRegionProvider, RegionProvider>();
 			services.AddSingleton<ISpcOutlookService, SpcOutlookService>();
 			services.AddSingleton<ISpcWatchService, SpcWatchService>();

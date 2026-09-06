@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MapSettingsTab — the Map tab of the Settings window: what the BASEMAP is. One section.
+<!-- MapSettingsTab — the Map tab of the Settings window: the app's THEME, and the BASEMAP under it.
 
        ┌──────────────────────────────────────────────────────┐
+       │  ⌄  Theme                                            │
+       │    [Anvil Dark              ]                        │  <- the IDENTITY: app chrome +
+       │    Sets the app's chrome, the map page's…               the page's colours + the
+       ├──────────────────────────────────────────────────────┤     basemap, all together
        │  ⌄  Basemap                                          │
-       │    [Data Viz Black          ]                        │  <- STYLE
+       │    [Data Viz Black          ]                        │  <- STYLE (an OVERRIDE of the
+       │                                                      │     theme's, for this session)
        │    ────────────────────────────────────              │
        │    C:\Users\...\Desktop           [Browse…]          │  <- the SOURCE pair: offline
        │    Found usa_full.pmtiles.                           │     is a FOLDER, online is a
@@ -12,8 +17,12 @@
        │    Offline — bundled PMTiles.                        │     set one up BEFORE switching
        └──────────────────────────────────────────────────────┘
 
-     WHAT BELONGS IN THIS TAB: controls that act on the BASEMAP — what is drawn under everything, and
-     where its tiles come from. What the map DRAWS on top (the radar-site marker networks) is the Radar tab
+     WHAT BELONGS IN THIS TAB: the app's LOOK — the theme, and the basemap it draws itself over, plus
+     where that basemap's tiles come from.
+     ⚠️ THE THEME IS APP-WIDE, NOT MAP-ONLY — it sets the window chrome too — and it is here rather than in
+     a tab of its own because it OWNS the basemap below it, and separating a thing from the thing it
+     controls is how the two drift. Revisit if the theme ever grows options that have nothing to do with
+     the map. What the map DRAWS on top (the radar-site marker networks) is the Radar tab
      next door. The older, wider rule still holds underneath both: nothing in
      either tab repeats per pane — a control needing a copy per pane belongs in RadarControls.
 
@@ -50,10 +59,37 @@
     <!-- Body: one Expander per section (Styles.xaml SectionExpanderStyle), grid rows inside each. -->
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- theme -->
             <RowDefinition Height="Auto"/> <!-- basemap -->
         </Grid.RowDefinitions>
 
-        <Expander Grid.Row="0" Header="Basemap" IsExpanded="True"
+        <!-- THEME. Above Basemap because it OWNS the basemap: picking a theme sets the style below it.
+             ⚠️ The two are knowingly redundant right now. Two themes cover two of the five bundled styles,
+             so the Basemap combo stays as an override for the other three — see the note on it. When the
+             theme list either grows to cover every style or the extra styles are dropped, that combo goes
+             and this one is the only picker. Don't "tidy" the pair by deleting this one. -->
+        <Expander Grid.Row="0" Header="Theme" IsExpanded="True"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid RowSpacing="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Theme combo -->
+                    <RowDefinition Height="Auto"/> <!-- what it covers -->
+                </Grid.RowDefinitions>
+
+                <ComboBox Grid.Row="0" Margin="4,0,0,0"
+                          Width="240" HorizontalAlignment="Left"
+                          ItemsSource="{x:Bind ViewModel.AvailableThemes}"
+                          DisplayMemberPath="DisplayName"
+                          SelectedItem="{x:Bind ViewModel.SelectedTheme, Mode=TwoWay}"
+                          ToolTipService.ToolTip="The app's visual identity: window chrome and the basemap under it"/>
+
+                <TextBlock Grid.Row="1" Margin="4,2,0,0" TextWrapping="Wrap" MaxWidth="360"
+                           HorizontalAlignment="Left" Opacity="0.75"
+                           Text="Sets the app's chrome, the map page's colours and the basemap. Applies immediately."/>
+            </Grid>
+        </Expander>
+
+        <Expander Grid.Row="1" Header="Basemap" IsExpanded="True"
                   Style="{StaticResource SectionExpanderStyle}">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
@@ -66,12 +102,17 @@
                     <RowDefinition Height="Auto"/> <!-- Tile source status -->
                 </Grid.RowDefinitions>
 
+                <!-- ⚠️ AN OVERRIDE, NOT AN INDEPENDENT SETTING. The theme above owns the basemap and sets
+                     this when it changes; picking a style here diverges from the theme for the SESSION only,
+                     since the style itself is not persisted — the next launch takes the theme's again. It
+                     stays because two themes cover two of the five bundled styles and the other three would
+                     otherwise be unreachable. -->
                 <ComboBox Grid.Row="0" Margin="4,0,0,0"
                           Width="240" HorizontalAlignment="Left"
                           ItemsSource="{x:Bind ViewModel.AvailableStyles}"
                           DisplayMemberPath="DisplayName"
                           SelectedItem="{x:Bind ViewModel.SelectedStyle, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Map basemap style"/>
+                          ToolTipService.ToolTip="Override the theme's basemap for this session"/>
 
                 <Border Grid.Row="1" Height="1" Margin="4,10,0,4" HorizontalAlignment="Left" Width="360"
                         Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>

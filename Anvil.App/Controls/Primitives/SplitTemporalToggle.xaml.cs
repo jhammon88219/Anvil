@@ -1,6 +1,5 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 
 namespace Anvil.Controls.Primitives
 {
@@ -23,9 +22,11 @@ namespace Anvil.Controls.Primitives
 			// moving when the product chips left for the pane notches, so it was measuring a row that never
 			// changed. See the ⚠️ history in that section before adding a number back to code.
 			//
-			// The face, the stroke and the mark's ink are all looked up from the current theme rather than
-			// bound, so they have to be re-resolved when the theme flips.
-			ActualThemeChanged += (_, _) => ApplyState();
+			// ⚠️ NO ActualThemeChanged HOOK, and that is the point of the visual-state rewrite. The face, the
+			// stroke and the mark's ink used to be resolved in code, which took a snapshot of a theme, so a
+			// flip had to re-run this method by hand — and it snapshotted the APPLICATION's theme, which is
+			// the wrong one (see the ⚠️ block in the XAML). They are {ThemeResource} setters in visual states
+			// now, so the framework re-resolves them against this element on a switch, unasked.
 			ApplyState();
 		}
 
@@ -141,54 +142,14 @@ namespace Anvil.Controls.Primitives
 				CarKey.IsChecked = IsPanelOpen;
 			}
 
-			// The FACE spans both halves, so a lit key reads as one object rather than as a lit top with a
-			// dark strip under it. The halves' own fills paint over this on hover and press.
-			Face.Background = (IsModeOn ? Brush("OverlayBarSurfaceElevatedBrush") : null) ?? Transparent;
-
-			// The SHELL is the whole key's stroke — accent and 2px when the mode is on, hairline otherwise.
-			// It is drawn over both halves and never hit-tested, so thickening it nudges nothing and steals
-			// no pointer from the halves.
-			Shell.BorderThickness = new Thickness(IsModeOn ? 2 : 1);
-			var stroke = Brush(IsModeOn ? "AccentFillColorDefaultBrush" : "ControlStrokeColorDefaultBrush");
-			if (stroke is not null)
-			{
-				Shell.BorderBrush = stroke;
-			}
-
-			ApplyMarkInk();
+			// The FACE (the ground under both halves), the SHELL (the whole key's stroke, accent and 2px
+			// when the mode is on) and the mark's ink are all VISUAL STATES now — see the ⚠️ block above the
+			// groups in the XAML. This method only says WHICH state; the framework picks the brushes, against
+			// this element's ActualTheme rather than the application's.
+			VisualStateManager.GoToState(this, IsModeOn ? "ModeOn" : "ModeOff", false);
+			VisualStateManager.GoToState(this,
+				!IsModeOn ? "MarkDead" : IsPanelOpen ? "MarkOnAccent" : "MarkLive", false);
 		}
 
-		// The three-dot mark is Shapes, which do not inherit the content Foreground the templates drive, so its
-		// ink is set here — and it has THREE values, not two: dimmed while the car is dead, the usual
-		// secondary text colour while it is live, and the on-accent colour once the car fills, where the
-		// ordinary ink would sit on a saturated ground and disappear.
-		//
-		// ⚠️ TextOnAccentFillColorPrimaryBrush, not a hardcoded dark: the accent is light in dark theme and
-		// dark in light theme, so the ink on top has to flip with it. Looking the brushes up from the app's
-		// resources takes a snapshot of the CURRENT theme, which is why the constructor re-runs ApplyState on
-		// ActualThemeChanged.
-		private void ApplyMarkInk()
-		{
-			var ink = Brush(
-				!IsModeOn ? "TextFillColorDisabledBrush" :
-				IsPanelOpen ? "TextOnAccentFillColorPrimaryBrush" :
-				"TextFillColorSecondaryBrush");
-
-			if (ink is null)
-			{
-				return;
-			}
-
-			MarkDot1.Fill = ink;
-			MarkDot2.Fill = ink;
-			MarkDot3.Fill = ink;
-		}
-
-		private static Brush? Brush(string key) =>
-			Application.Current.Resources.TryGetValue(key, out var value) ? value as Brush : null;
-
-		// The unlit face. A literal rather than a theme key, because "no fill" is not a colour that varies:
-		// an unlit key shows the bar's own surface through it in either theme.
-		private static readonly SolidColorBrush Transparent = new(Microsoft.UI.Colors.Transparent);
 	}
 }

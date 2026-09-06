@@ -44,6 +44,9 @@
 // became visually indistinguishable from operational sites.)
 
 import { coverageDistanceMeters } from './geo.js';
+// The leader lines are SVG presentation attributes, which can't read a CSS variable — so this one
+// color comes through theme.js. Everything else the keys draw is CSS and uses var() directly.
+import * as Theme from './theme.js';
 
 // Class glyphs for the RIGHT-side class bar (the mirror of the left availability square): a radar sweep
 // for operational NEXRAD (neutral bar — stays quiet since it's the majority), a plane for TDWR (blue),
@@ -127,26 +130,28 @@ function ensureStyle() {
             align-items: stretch;              /* the status square fills the full key height */
             font: 700 12px/1 "Segoe UI", sans-serif;
             letter-spacing: .3px;
-            color: #f3f3f3;
-            background: linear-gradient(#3b3b3e, #2c2c2f);
-            border: 1px solid #5a5a5e;
+            color: var(--anvil-key-text);
+            background: linear-gradient(var(--anvil-key-face-top), var(--anvil-key-face-bottom));
+            border: 1px solid var(--anvil-key-border);
             border-radius: 6px;
             overflow: hidden;                  /* clip the square's corners to the key radius */
             cursor: pointer;
             white-space: nowrap;
             user-select: none;
-            box-shadow: 0 3px 0 #161618, 0 4px 6px rgba(0, 0, 0, .45);
+            box-shadow: 0 3px 0 var(--anvil-key-edge), 0 4px 6px rgba(0, 0, 0, .45);
             transition: transform .05s ease, box-shadow .05s ease, filter .1s ease;
         }
         .radar-site-btn:hover { filter: brightness(1.18); }
         .radar-site-btn:active {
             transform: translateY(2px);
-            box-shadow: 0 1px 0 #161618, 0 1px 2px rgba(0, 0, 0, .4);
+            box-shadow: 0 1px 0 var(--anvil-key-edge), 0 1px 2px rgba(0, 0, 0, .4);
         }
 
         /* Status square: green = available, red = offline (the staleness-ramp endpoint colors, so the
            palette matches the freshness readout). A full-height block filling the LEFT of the key; always
-           shows availability, independent of selection (still reads on the light selected face). */
+           shows availability, independent of selection (still reads on the light selected face).
+           ⚠️ DATA, NOT CHROME — these two stay literal while the key face around them is themed. The
+           color IS the status; a theme that could restyle it would be able to lie. (theme.css) */
         .radar-site-swatch {
             flex: 0 0 auto;
             align-self: stretch;
@@ -163,11 +168,11 @@ function ensureStyle() {
            onto its edge like a pressed key; the status square still shows availability on the light face.
            The active site's "radar" is also the big geographic range ring + sweep drawn on the MAP (radar.js). */
         .radar-site-btn.selected {
-            color: #1a1a1a;
-            background: linear-gradient(#ffffff, #e8e8e8);
-            border-color: #b9b9b9;
+            color: var(--anvil-key-sel-text);
+            background: linear-gradient(var(--anvil-key-sel-face-top), var(--anvil-key-sel-face-bottom));
+            border-color: var(--anvil-key-sel-border);
             transform: translateY(2px);
-            box-shadow: 0 1px 0 #9a9a9a, 0 1px 3px rgba(0, 0, 0, .4);
+            box-shadow: 0 1px 0 var(--anvil-key-sel-edge), 0 1px 3px rgba(0, 0, 0, .4);
         }
         .radar-site-btn.selected:hover { filter: brightness(1.03); }
 
@@ -185,7 +190,9 @@ function ensureStyle() {
             justify-content: center;
         }
         .radar-site-class svg { width: 13px; height: 13px; display: block; }
-        .radar-site-class.nexrad { background: #44444a; color: #cfcfd3; border-left: 1px solid #5a5a5e; }
+        /* ⚠️ nexrad is CHROME (a deliberately quiet neutral — the absence of an identity color, since
+           it is the majority of the network); tdwr + research are DATA and stay literal. */
+        .radar-site-class.nexrad { background: var(--anvil-key-class-neutral); color: var(--anvil-key-class-neutral-text); border-left: 1px solid var(--anvil-key-border); }
         .radar-site-class.tdwr { background: #2f6fb0; color: #ffffff; }
         .radar-site-class.research { background: #6b4bd6; color: #ffffff; }
 
@@ -299,8 +306,9 @@ function updateFan() {
             const o = v.el.querySelector('.radar-site-offset');
             if (o) { o.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)'; fanLast.push(o); }
             v.el.style.zIndex = '4'; // the offset key rides above the leader-line overlay + operational keys
-            lines += '<circle cx="' + v.x.toFixed(1) + '" cy="' + v.y.toFixed(1) + '" r="3" fill="none" stroke="#8a8f98" stroke-width="1.5"/>'
-                + '<line x1="' + v.x.toFixed(1) + '" y1="' + v.y.toFixed(1) + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="#8a8f98" stroke-width="1" stroke-dasharray="2 2"/>';
+            const leader = Theme.color('--anvil-leader', '#8a8f98');
+            lines += '<circle cx="' + v.x.toFixed(1) + '" cy="' + v.y.toFixed(1) + '" r="3" fill="none" stroke="' + leader + '" stroke-width="1.5"/>'
+                + '<line x1="' + v.x.toFixed(1) + '" y1="' + v.y.toFixed(1) + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="' + leader + '" stroke-width="1" stroke-dasharray="2 2"/>';
         }
     });
     if (lineSvg) lineSvg.innerHTML = lines;
@@ -397,6 +405,12 @@ export function setStatus(json) {
 // green/red DOT and selection is the inverted-light key). Kept so the host's setRadarSitesAccent shim
 // (MapService.SetRadarSiteAccentAsync → map.js) stays valid; the OverlayBar still uses the accent itself.
 export function setAccent(border, glow) { /* markers no longer use an accent halo */ }
+
+// Redraw the collision fan's leader lines after a theme change. ⚠️ The KEYS need nothing — they are
+// styled by the injected rules above, so they re-cascade the moment data-theme flips — but the leader
+// lines are an SVG string whose stroke is baked in at build time, and they would otherwise keep the old
+// color until the next pan or zoom happened to rebuild them.
+export function refresh() { updateFan(); }
 
 // Show/hide all site buttons. Independent of the radar layer — an active loop keeps rendering while
 // the markers are hidden. Research markers stay subject to their own toggle via markerVisible().

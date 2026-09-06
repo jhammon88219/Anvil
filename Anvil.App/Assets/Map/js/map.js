@@ -55,6 +55,13 @@ let styleUrl = 'https://mapassets/' + (params.get('style') || 'style.json');
 // Passed as URL params so the launch map is built on the right source instead of flipping after ready.
 let tileMode = params.get('tiles') === 'online' ? 'online' : 'offline';
 let tileUrl = params.get('tilesUrl') || '';
+// ---- THEME ------------------------------------------------------------------------------------------
+// The app's visual identity, as an id matching a :root[data-theme="…"] block in theme.css (and an
+// AppTheme in the host's ThemeProvider). Applied IMMEDIATELY, at parse time — before MapLibre exists and
+// before the body paints — because --anvil-ground is the page's own background, and picking it up after
+// load would flash the other theme's ground. Same reason `conus` and `tiles` are params rather than a
+// post-ready push. A page with no param keeps theme.css's bare :root block.
+if (params.get('theme')) document.documentElement.dataset.theme = params.get('theme');
 // The RESOLVED style handed to new maps: the style OBJECT once patched (online), or just the style URL
 // (offline, where nothing needs patching). A pane created later reads this, so it matches its siblings.
 let styleSpec = null;
@@ -93,6 +100,7 @@ try {
     var Markers = null;
     var RadarSites = null;
     var States = null;
+    var StyleTune = null;   // DEV style tuner (loaded lazily on the first tuning; see window.setStyleTuning)
 
     // Restore every overlay onto one map, in stack order. TWO callers: applyStyle (setStyle drops all
     // custom sources/layers) and a NEWLY CREATED pane (which starts with nothing but the basemap). One
@@ -106,6 +114,10 @@ try {
         if (StormReports) StormReports.reAdd(map);       // re-add the storm-report dots (top of the stack)
         if (window.RadarLayer) window.RadarLayer.reAdd(map);  // this pane's own radar layer + range ring
         if (States) States.reAdd(map);                   // re-add LAST so the isolation mask lands on top of everything
+        // ⚠️ The DEV style tuner re-applies AFTER a re-add because setStyle restored the basemap's
+        // PRISTINE colours underneath. It re-paints basemap layers only and adds nothing to the stack, so
+        // its position here is about the basemap being back, not about z-order.
+        if (StyleTune) StyleTune.reAdd(map, styleUrl);
     }
 
     // ---- Camera sync ------------------------------------------------------------------------------
@@ -316,6 +328,9 @@ try {
     let styleGen = 0;
     window.applyStyle = function (url) {
         styleUrl = url; // a pane created later is built on the CURRENT basemap, not the launch one
+        // A different basemap is a different set of pristine colours; the tuner must re-snapshot rather
+        // than transform the old style's values. (reAddAll re-applies the tuning once the style settles.)
+        if (StyleTune) StyleTune.reset();
         const gen = ++styleGen;
         resolveStyle(url).then(function (spec) {
             if (gen !== styleGen) return;
@@ -338,6 +353,80 @@ try {
         tileUrl = url || '';
         window.applyStyle(styleUrl);
     };
+    // Host command: switch the app's visual identity. `themeId` names a :root[data-theme="…"] block in
+    // theme.css; `url` is the basemap that identity owns (a theme owns its style, so the two move
+    // together and the host sends them as one command).
+    //
+    // ⚠️ ORDER IS THE WHOLE POINT OF THIS BEING ONE FUNCTION. The attribute must land BEFORE the style
+    // re-add, because reAddAll rebuilds the layers whose colors are READ rather than cascaded (the
+    // isolation mask + hover, the range ring, the sweep) — flip the order and those come back in the old
+    // theme until something else happens to re-add them. Two separate host calls could interleave; this
+    // cannot.
+    //
+    // ⚠️ applyStyle is ALWAYS called, even for a theme that somehow named the current basemap: it is what
+    // drives the re-add, so skipping it as an optimisation would leave the read-at-build-time colors
+    // stale. The CSS-styled chrome (the site keys, the popup, the readout, the page ground) needs none of
+    // this — it re-cascades the instant the attribute changes.
+    window.applyTheme = function (themeId, url) {
+        document.documentElement.dataset.theme = themeId || '';
+        // Both of these bake a color into markup at build time and so cannot re-cascade. Cheap, and
+        // no-ops when there is no marker / no fanned key.
+        if (Markers && Markers.refresh) Markers.refresh();
+        if (RadarSites && RadarSites.refresh) RadarSites.refresh();
+        window.applyStyle(url || styleUrl);
+    };
+
+    // ---- DEV STYLE EDITOR ---------------------------------------------------------------------------
+    // Host commands for the Debug-only style tuner/editor: a global LEVELS transform, a per-slot override
+    // table, and two read-backs (the slot list, and every slot's resolved colour for export).
+    //
+    // ⚠️ LOADED LAZILY, ON FIRST USE. It is a dev tool and its module fetches the style FILE — neither cost
+    // belongs on the launch path, where resolveStyle deliberately avoids a fetch offline.
+    // ⚠️ It re-paints EXISTING basemap layers (setPaintProperty) and adds nothing, so it is not part of
+    // reAddAll's stack order — but it does have to run after one, because setStyle puts the pristine
+    // colours back. See the call at the end of reAddAll.
+    function withStyleTune(fn) {
+        if (StyleTune) return fn(StyleTune);
+        return import('./style-tune.js')
+            .then(function (m) { StyleTune = m; return fn(m); })
+            .catch(function (e) { console.error('style-tune.js load failed: ' + e); });
+    }
+
+    // ⚠️ READ-BACKS GO THROUGH A GLOBAL, NOT A RETURN VALUE. ExecuteScriptAsync does not await a promise,
+    // and the snapshot is a fetch — so the host STARTS a load and then POLLS window.__anvilStyleSlots,
+    // exactly as the dealias validation harness polls __anvilValidation. Same trap, same shape.
+    window.__anvilStyleSlots = '';
+
+    window.loadStyleSlots = function () {
+        return withStyleTune(function (m) {
+            return m.loadSlots(styleUrl).then(function (list) {
+                window.__anvilStyleSlots = JSON.stringify(list);
+            });
+        });
+    };
+
+    // The global levels transform. `json` is a serialised {white, black, gamma, tintHue, tintStrength};
+    // an empty string clears it.
+    window.setStyleTuning = function (json) {
+        const t = json ? JSON.parse(json) : null;
+        return withStyleTune(function (m) { return m.setTransform(maps, styleUrl, t); });
+    };
+
+    // The per-slot override table: a serialised {"layer|prop|index": "#rrggbb"}. An empty string clears
+    // every override and falls the whole style back to the transform.
+    window.setStyleOverrides = function (json) {
+        const table = json ? JSON.parse(json) : null;
+        return withStyleTune(function (m) { return m.setOverrides(maps, styleUrl, table); });
+    };
+
+    // Every slot's RESOLVED colour, in document order, as JSON — the export payload. Synchronous, because
+    // by export time the snapshot is long since taken.
+    // ⚠️ The ORDER is the contract: the host rewrites the Nth #rrggbb literal in the pristine style file
+    // with the Nth entry, which is what keeps the file's formatting instead of re-serialising it.
+    window.getStyleSlotColors = function () {
+        return StyleTune ? JSON.stringify(StyleTune.exportSlotColors()) : '';
+    };
+
     // SPC outlook overlay (probability fills + per-CIG hatching; nested groups clipped) lives in
     // outlook.js — load once and delegate (passing each map). applyStyle calls Outlook.reAdd(map).
     import('./outlook.js').then(function (m) { Outlook = m; }).catch(function (e) { console.error('outlook.js load failed: ' + e); });

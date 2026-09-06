@@ -1,7 +1,7 @@
 using System;
+using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.Composites
@@ -35,7 +35,40 @@ namespace Anvil.Controls.Composites
 
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(PastCastTab),
-				new PropertyMetadata(null));
+				new PropertyMetadata(null, (d, e) => ((PastCastTab)d).OnViewModelChanged(e)));
+
+		// ===== The card's accent state =====
+		// ⚠️ THIS LISTENER EXISTS ONLY BECAUSE THE CARD'S TWO ACCENT BRUSHES ARE VISUAL STATES — see the ⚠️
+		// block above the state groups in the XAML for why they had to stop being x:Bind functions. Every
+		// other value on this card is still a plain x:Bind; do not route more through here.
+		private void OnViewModelChanged(DependencyPropertyChangedEventArgs e)
+		{
+			if (e.OldValue is MapViewModel old && old.Radar is RadarViewModel oldRadar)
+			{
+				oldRadar.PropertyChanged -= OnRadarPropertyChanged;
+			}
+
+			if (e.NewValue is MapViewModel now && now.Radar is RadarViewModel radar)
+			{
+				radar.PropertyChanged += OnRadarPropertyChanged;
+			}
+
+			ApplySelectionState();
+		}
+
+		private void OnRadarPropertyChanged(object? sender, PropertyChangedEventArgs e)
+		{
+			// The card's edge and footer both light on the DIRTY flag alone; the other card readouts are
+			// x:Bind and need nothing from here.
+			if (e.PropertyName == nameof(RadarViewModel.IsReplaySelectionDirty))
+			{
+				ApplySelectionState();
+			}
+		}
+
+		private void ApplySelectionState() =>
+			VisualStateManager.GoToState(this,
+				ViewModel?.Radar?.IsReplaySelectionDirty == true ? "SelectionDirty" : "SelectionClean", false);
 
 		// ===== The summary card =====
 		// Three states, and the card's whole job is telling them apart:
@@ -51,16 +84,10 @@ namespace Anvil.Controls.Composites
 			dirty ? "Selection changed — press Load" :
 			status;
 
-		/// <summary>Footer colour: accent while the selection is ahead of what is loaded, quiet otherwise.</summary>
-		public Brush? FooterBrush(bool dirty) => Resource(dirty
-			? "AccentTextFillColorPrimaryBrush"
-			: "TextFillColorTertiaryBrush");
-
-		/// <summary>The card's edge, which picks up the accent in the dirty state so the change reads from
-		/// the card's shape and not only from its text.</summary>
-		public Brush? CardStroke(bool dirty) => Resource(dirty
-			? "AccentFillColorDefaultBrush"
-			: "CardStrokeColorDefaultSolidBrush");
+		// NOTE: the footer colour and the card's edge USED to be x:Bind functions here (FooterBrush /
+		// CardStroke), resolving brushes from Application.Current.Resources. Both are visual states now — the
+		// SelectionClean / SelectionDirty pair in the XAML — because that lookup resolves against the
+		// application's theme rather than this element's. Do not bring them back.
 
 		/// <summary>Load is accent whenever pressing it would DO something — that is, always except when a
 		/// window is loaded and the pickers still agree with it.</summary>
@@ -68,8 +95,11 @@ namespace Anvil.Controls.Composites
 			Lookup(loaded && !dirty ? "DefaultButtonStyle" : "AccentButtonStyle") as Style;
 
 		// ⚠️ TryGetValue, never the indexer: a ResourceDictionary's indexer THROWS on a missing key, and
-		// these run the moment the panel opens — a renamed system brush would take the window down rather
-		// than draw the wrong colour. Null is a survivable answer for both a Brush and a Style.
+		// this runs the moment the panel opens — a renamed style would take the window down rather than draw
+		// the wrong one. Null is a survivable answer for a Style.
+		// ⚠️ A STYLE IS SAFE TO LOOK UP THIS WAY, a Brush is not. DefaultButtonStyle / AccentButtonStyle are
+		// keyed once, not per theme, and the brushes inside them are their own ThemeResources resolved
+		// per-element; a colour key genuinely has one value per theme and this lookup picks the wrong one.
 		/// <summary>Whether pressing Load would DO anything: nothing loaded yet, or the pickers have moved
 		/// since. ⚠️ A loaded-and-clean window has nothing to re-fetch — the archive day is immutable — so the
 		/// button goes dead rather than offering a no-op.</summary>
@@ -78,8 +108,6 @@ namespace Anvil.Controls.Composites
 		/// <summary>The outlook's Cycle and Opacity need BOTH a loaded window (there is no day to fetch for
 		/// otherwise) and a product that is not None (nothing to tune).</summary>
 		public bool OutlookDetailEnabled(bool loaded, bool hasOutlook) => loaded && hasOutlook;
-
-		private static Brush? Resource(string key) => Lookup(key) as Brush;
 
 		private static object? Lookup(string key) =>
 			Application.Current.Resources.TryGetValue(key, out var value) ? value : null;

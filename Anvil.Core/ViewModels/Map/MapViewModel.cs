@@ -43,12 +43,13 @@ namespace Anvil.ViewModels
 		private bool _isMapReady;
 
 		private MapStyle? _selectedStyle;
+		private AppTheme _selectedTheme;
 
 		// The region the main map is framed on (CONUS).
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IDowEventProvider dowEventProvider, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, StormMotionService? stormMotion)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IDowEventProvider dowEventProvider, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, StormMotionService? stormMotion)
 		{
 			_mapService = mapService;
 			_styleProvider = styleProvider;
@@ -132,11 +133,19 @@ namespace Anvil.ViewModels
 
 			AvailableStyles = _styleProvider.GetStyles();
 
+			// The app's visual identity. ONE object owns both the WinUI chrome palette and the basemap
+			// under it, so the two can't be chosen apart and drift out of one look. Resolve absorbs an
+			// empty (never chosen) or unrecognized (written by another build) id.
+			AvailableThemes = themeProvider.GetThemes();
+			_selectedTheme = themeProvider.Resolve(settingsService.Settings.ThemeId);
+
 			// Assign the backing field directly (not the setter) so the default
 			// selection does NOT trigger a map command during construction. The page
-			// loads this style via its URL, so there is nothing to re-apply. Default to
-			// Data Viz Black.
-			_selectedStyle = AvailableStyles.FirstOrDefault(s => s.Id == "dataVizBlack")
+			// loads this style via its URL, so there is nothing to re-apply.
+			// ⚠️ The basemap is the THEME's choice now, not a free-standing default. It used to be a
+			// hardcoded "dataVizBlack" right here — which is also why picking any other style never
+			// survived a restart: there was nowhere for the choice to live.
+			_selectedStyle = AvailableStyles.FirstOrDefault(s => s.Id == _selectedTheme.MapStyleId)
 				?? AvailableStyles.FirstOrDefault();
 
 			// The main map is framed on CONUS.
@@ -247,6 +256,28 @@ namespace Anvil.ViewModels
 					PipelineConsole.IsOpen = value;
 				}
 			}
+		}
+
+		private bool _isStyleEditorOpen;
+		/// <summary>Whether the DEV style editor window is open. Independent of every other window.</summary>
+		/// <remarks>
+		/// ⚠️ The flag lives here (with the other window flags) even though the tool is Debug-only, because
+		/// WindowManager reconciles windows off THIS object's PropertyChanged and knows nothing about build
+		/// configuration. Nothing opens it in Release — the Dev tab that owns its switch is not built there —
+		/// which is the same arrangement the Pipeline Console already has.
+		/// </remarks>
+		public bool IsStyleEditorOpen
+		{
+			get => _isStyleEditorOpen;
+			set => SetProperty(ref _isStyleEditorOpen, value);
+		}
+
+		private bool _isStyleEditorOnTop = true;
+		/// <summary>Pin state for the style editor. Defaults TRUE like every other panel.</summary>
+		public bool IsStyleEditorOnTop
+		{
+			get => _isStyleEditorOnTop;
+			set => SetProperty(ref _isStyleEditorOnTop, value);
 		}
 
 		// ===== Temporal toggles (Past / Now / Fore) — INDEPENDENT, deselectable ==========================
@@ -645,6 +676,54 @@ namespace Anvil.ViewModels
 
 		public IReadOnlyList<MapStyle> AvailableStyles { get; }
 
+		/// <summary>Every visual identity the app can wear, in picker order.</summary>
+		public IReadOnlyList<AppTheme> AvailableThemes { get; }
+
+		/// <summary>
+		/// The app's active visual identity — the chrome palette and the basemap under it. The view watches
+		/// this to set the WinUI palette everything else derives from (see MainWindow).
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ THE SETTER DELIBERATELY BYPASSES <see cref="SelectedStyle"/>'s SETTER. A theme owns its
+		/// basemap, so the field is assigned directly and the style is pushed as part of ONE
+		/// <c>ApplyThemeAsync</c> call — going through the property would push a second, independent
+		/// <c>applyStyle</c>, which is both a wasted full overlay re-add and a race: the page must set the
+		/// palette before re-adding the layers whose colors are read rather than cascaded.
+		/// ⚠️ Pre-ready changes are DROPPED and replayed by <see cref="OnMapsReadyAsync"/>, like every
+		/// other command here. The page also gets the launch theme in its URL, so the first paint is
+		/// already right and that replay is only for a change made in the gap.
+		/// </remarks>
+		public AppTheme SelectedTheme
+		{
+			get => _selectedTheme;
+			set
+			{
+				if (value is null || ReferenceEquals(_selectedTheme, value))
+				{
+					return;
+				}
+
+				_selectedTheme = value;
+				_settingsService.Settings.ThemeId = value.Id;   // auto-saves, debounced
+
+				// The theme's basemap, resolved the same way the constructor does. A theme naming a style
+				// that isn't in the list keeps the current one rather than blanking the map.
+				var style = AvailableStyles.FirstOrDefault(s => s.Id == value.MapStyleId) ?? _selectedStyle;
+				if (style is not null)
+				{
+					_selectedStyle = style;         // ⚠️ field, not the property — see the remarks
+					OnPropertyChanged(nameof(SelectedStyle));
+				}
+
+				OnPropertyChanged();
+
+				if (_isMapReady && style is not null)
+				{
+					_ = _mapService.ApplyThemeAsync(value, style);
+				}
+			}
+		}
+
 		/// <summary>The region the main, full-window map is framed on.</summary>
 		public MapRegion? MainRegion => _mainRegion;
 
@@ -852,11 +931,13 @@ namespace Anvil.ViewModels
 		{
 			_isMapReady = true;
 
-			// The page loaded the selected style via its URL; re-apply it to pick up any
-			// change made before the map was ready (idempotent when unchanged).
+			// The page loaded the selected THEME and style via its URL, so the first paint is already
+			// right; this replays a change made in the gap before the map was ready (idempotent when
+			// unchanged). ⚠️ One call, not a theme push AND a style push — ApplyThemeAsync carries both,
+			// in the order the page needs them. See SelectedTheme.
 			if (_selectedStyle is not null)
 			{
-				await _mapService.ApplyStyleAsync(_selectedStyle);
+				await _mapService.ApplyThemeAsync(_selectedTheme, _selectedStyle);
 			}
 
 			// Hand off subsystem startup: outlook (startup overlay + progress), watches (source + toggle),

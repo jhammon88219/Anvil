@@ -28,10 +28,14 @@
 // Draggable because the fix IS approximate (OS or IP): the user drops it where they actually are, and each
 // drag posts back to the host, which re-flags the position as manual.
 
+import * as Theme from './theme.js';
+
 let userLocationMarker = null;
 const USER_MARKER_ID = 'user'; // singleton; the host correlates drag/click by this fixed id
 
-const RETICLE_BLUE = '#2f8fff';
+// ⚠️ The reticle is built from SVG presentation attributes, which can't read a CSS variable — so the
+// two colors come through theme.js. READ PER BUILD, not once into a module const: a const would latch
+// the palette that happened to be loaded at import time and never follow a theme change.
 
 function ensureUserLocationStyle() {
     if (document.getElementById('user-location-style')) return;
@@ -52,11 +56,13 @@ function ensureUserLocationStyle() {
 function reticleSvg() {
     const ring = '<circle cx="18" cy="18" r="9"/>';
     const ticks = '<path d="M18,7 V3.5 M18,29 V32.5 M7,18 H3.5 M29,18 H32.5"/>';
+    const casing = Theme.color('--anvil-marker-ring', '#ffffff');
+    const ink = Theme.color('--anvil-marker-reticle', '#2f8fff');
     return '<svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">' +
-        '<g fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round">' + ring + ticks + '</g>' +
-        '<g fill="none" stroke="' + RETICLE_BLUE + '" stroke-width="2.5" stroke-linecap="round">' + ring + ticks + '</g>' +
-        '<circle cx="18" cy="18" r="4.5" fill="#fff"/>' +
-        '<circle cx="18" cy="18" r="3" fill="' + RETICLE_BLUE + '"/>' +
+        '<g fill="none" stroke="' + casing + '" stroke-width="5.5" stroke-linecap="round">' + ring + ticks + '</g>' +
+        '<g fill="none" stroke="' + ink + '" stroke-width="2.5" stroke-linecap="round">' + ring + ticks + '</g>' +
+        '<circle cx="18" cy="18" r="4.5" fill="' + casing + '"/>' +
+        '<circle cx="18" cy="18" r="3" fill="' + ink + '"/>' +
         '</svg>';
 }
 
@@ -89,4 +95,14 @@ export function show(map, lng, lat, label) {
 
 export function clear() {
     if (userLocationMarker) { userLocationMarker.remove(); userLocationMarker = null; }
+}
+
+// Redraw the reticle in place after a theme change, keeping the marker's position, draggability and
+// handlers. ⚠️ Needed because the two colors are BAKED INTO THE SVG MARKUP at build time — an SVG
+// presentation attribute can't read a CSS variable, so unlike everything styled by a rule, this one
+// does not re-cascade on its own. No-op when no marker is placed.
+export function refresh() {
+    if (!userLocationMarker) return;
+    const el = userLocationMarker.getElement();
+    if (el) el.innerHTML = reticleSvg();
 }

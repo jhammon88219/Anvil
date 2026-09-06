@@ -29,6 +29,11 @@ namespace Anvil
 		/// Settings window, whose Dev tab exists only in Debug.</summary>
 		public SiteSweepViewModel? SweepVm { get; }
 
+		/// <summary>DEV-ONLY live basemap style tuner (Debug builds only, like the two engines above).
+		/// ⚠️ Its absence in Release is why a persisted tuning is NOT applied there: a working draft is not
+		/// a shipped look — the style file it exports is.</summary>
+		public MapStyleTuningViewModel? TuneVm { get; }
+
 		/// <summary>DEV-ONLY velocity-dealias validation engine (fixed-corpus regression scorer). Non-null
 		/// only in Debug builds. Handed to the Settings window's Debug-only Dev tab.</summary>
 		public RadarValidationViewModel? ValidationVm { get; }
@@ -348,6 +353,79 @@ namespace Anvil
 			}
 		}
 
+		// DEV TOOL. Writes the edited basemap out as a real style file: the PRISTINE file with every colour
+		// literal replaced by that slot's resolved colour.
+		//
+		// ⚠️ POSITIONAL TEXT SUBSTITUTION, NOT A RE-SERIALIZED STYLE. Round-tripping 414 KB of JSON through a
+		// parser reformats all ~10,000 lines and buries the real changes; replacing the Nth #rrggbb literal
+		// in the original leaves formatting untouched and gives a reviewable diff. (Learned the hard way
+		// doing this by hand — see docs/theming.md.)
+		// ⚠️ POSITIONAL rather than a find/replace by colour, because two slots can start the same colour and
+		// end different — which is the whole point of per-slot overrides.
+		// ⚠️ THE ORDER IS AN ASSUMPTION: that the page enumerates slots in the same order the literals appear
+		// in the file. It holds (layers in order, paint keys in insertion order, colours within a value in
+		// order), but it is checked rather than trusted — a count mismatch aborts the write instead of
+		// producing a scrambled style.
+		// ⚠️ The COLOURS come from the page, which owns the maths (style-tune.js). Nothing here computes one.
+		private async void OnExportTunedStyleRequested(object? sender, EventArgs e)
+		{
+#if DEBUG
+			if (TuneVm is null) return;
+
+			try
+			{
+				var json = await TuneVm.GetSlotColorsJsonAsync();
+				if (string.IsNullOrWhiteSpace(json)) return;
+
+				var colors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
+				if (colors is null || colors.Count == 0) return;
+
+				// The style the theme is currently on, read from the app's own Assets (package content).
+				var fileName = ViewModel.SelectedStyle?.FileName;
+				if (string.IsNullOrEmpty(fileName)) return;
+				var source = Path.Combine(AppContext.BaseDirectory, "Assets", "Map", fileName);
+				if (!File.Exists(source)) return;
+
+				var text = File.ReadAllText(source);
+				var literal = new System.Text.RegularExpressions.Regex("#[0-9a-fA-F]{6}");
+
+				var found = literal.Matches(text).Count;
+				if (found != colors.Count)
+				{
+					_logger.LogError(
+						"Tuned style export ABORTED: the style file has {Found} colour literals but the page " +
+						"reported {Reported} slots. The two enumerations have diverged; writing would scramble " +
+						"the style.", found, colors.Count);
+					return;
+				}
+
+				var n = 0;
+				text = literal.Replace(text, _ => colors[n++]);
+
+				var picker = new FileSavePicker
+				{
+					SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+					SuggestedFileName = Path.GetFileNameWithoutExtension(fileName) + "-tuned",
+				};
+				picker.FileTypeChoices.Add("Map style", new List<string> { ".json" });
+				WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+
+				var target = await picker.PickSaveFileAsync();
+				if (target is null) return;   // cancelled
+
+				await Windows.Storage.FileIO.WriteTextAsync(target, text);
+				_logger.LogInformation("Exported edited basemap style to {Path} ({Count} colours placed)",
+					target.Path, colors.Count);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Tuned style export failed");
+			}
+#else
+			await Task.CompletedTask;
+#endif
+		}
+
 		// Opens the site-sweep results pop-up (Save / Close). Raised by the dev window on run completion
 		// or its Report button.
 		private async void OnSweepReportRequested(object? sender, SweepReport report)
@@ -461,6 +539,10 @@ namespace Anvil
 			// in Anvil.Core and ships with it, but is never constructed here in Release.)
 			SweepVm = new SiteSweepViewModel(ViewModel.Radar);
 
+			// DEV-ONLY live basemap style tuner. Constructed here so the persisted draft is restored and
+			// pushed at map-ready; the Dev tab only binds it.
+			TuneVm = new MapStyleTuningViewModel(_mapService);
+
 			// DEV-ONLY velocity-dealias regression harness (fixed-corpus scorer). Same Debug-only lifetime
 			// as the sweep: driven through the map service (window.radarValidate) against the bundled corpus.
 			ValidationVm = new RadarValidationViewModel(_mapService, new RadarCorpusProvider());
@@ -473,6 +555,26 @@ namespace Anvil
 
 			ExtendsContentIntoTitleBar = true;
 			InitializeComponent();
+
+			// The theme's BASE palette, applied to the whole XAML tree. This one line is what makes WinUI's
+			// several hundred system brushes (text ranks, card strokes, focus rects, every stock control)
+			// resolve to the same light/dark ground the theme's own surfaces in Controls/Styles.xaml are
+			// authored against. Set straight after InitializeComponent, before the first render, so nothing
+			// paints on the other palette first. A panel window that is ALREADY open needs the change pushed
+			// to it (ApplyAppTheme); one opened later copies this window's ActualTheme itself.
+			// ⚠️ This PINS the app to the chosen identity instead of following the OS. Following the OS is a
+			// different feature — a "System" theme that resolves to the light or dark identity — and it is
+			// not built; the two shipped themes are picked explicitly.
+			ApplyAppTheme();
+
+			// The identity can change at runtime, and the WinUI half of it lives out here: Core raises the
+			// property, the view turns it into a palette. (The map half is pushed by the view model itself,
+			// as one ApplyThemeAsync command.)
+			ViewModel.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(MapViewModel.SelectedTheme)) ApplyAppTheme();
+			};
+
 			ApplyStripOverlap();
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs
@@ -503,16 +605,38 @@ namespace Anvil
 						ViewModel = ViewModel,
 						SweepVm = SweepVm,
 						ValidationVm = ValidationVm,
+						TuneVm = TuneVm,
 					};
 					// Wired per-instance (the window's content is rebuilt each time it opens) so a finished
 					// dev run still pops its results dialog.
 					settings.SweepReportRequested += OnSweepReportRequested;
 					settings.ValidationReportRequested += OnValidationReportRequested;
 					settings.BrowseMapDataFolderRequested += OnBrowseMapDataFolderRequested;
+					settings.ExportTunedStyleRequested += OnExportTunedStyleRequested;
 					return settings;
 				},
 				title: "Settings", width: 520, height: 640,
 				alwaysOnTop: () => ViewModel.IsSettingsWindowOnTop,
+				customChrome: true);
+			// DEV style editor. ⚠️ The registration is NOT #if DEBUG'd — same as the Pipeline Console's —
+			// because WindowManager reconciles off a VM flag and knows nothing about build configuration.
+			// Nothing opens it in Release: its switch lives on the Dev tab, which is not built there.
+			_windows.Register(
+				id: "styleEditor",
+				isOpen: () => ViewModel.IsStyleEditorOpen,
+				close: () => ViewModel.IsStyleEditorOpen = false,
+				buildContent: () =>
+				{
+					var editor = new Controls.Windows.StyleEditorWindow
+					{
+						ViewModel = ViewModel,
+						TuneVm = TuneVm,
+					};
+					editor.ExportRequested += OnExportTunedStyleRequested;
+					return editor;
+				},
+				title: "Map style editor", width: 520, height: 720,
+				alwaysOnTop: () => ViewModel.IsStyleEditorOnTop,
 				customChrome: true);
 			_windows.Register(
 				id: "sites",
@@ -586,7 +710,7 @@ namespace Anvil
 			var styleFile = ViewModel.SelectedStyle?.FileName ?? "style.json";
 			var main = ViewModel.MainRegion;
 			await InitializeWebViewAsync(MainMapWebView, BuildMapUrl(main, main?.Zoom ?? 4, styleFile, ViewModel.StateIso.IsConusIsolated,
-				ViewModel.IsOnlineTilesActive, ViewModel.OnlineTilesUrl));
+				ViewModel.IsOnlineTilesActive, ViewModel.OnlineTilesUrl, ViewModel.SelectedTheme.Id));
 		}
 
 		// Builds the page URL for the map: framed at the given center/zoom, on the given
@@ -596,8 +720,51 @@ namespace Anvil
 		// `onlineTiles`/`tilesUrl` = the basemap tile source, passed the same way and for the same reason as
 		// `conus`: the page builds its FIRST map on the right source instead of loading the offline basemap
 		// and then re-styling onto the online one (a visible reload of every tile at launch).
+		// The WinUI half of a theme change: the palette every system brush resolves against, pushed to this
+		// window's tree, to any panel window already open, and to the WebView's pre-paint ground.
+		// ⚠️ THE PAGE'S OWN CHROME IS NOT HERE. That travels as one IMapService.ApplyThemeAsync command from
+		// the view model, because the page needs the palette set before it re-adds its layers. Splitting the
+		// push across two owners is deliberate — each writes only what it can address.
+		private void ApplyAppTheme()
+		{
+			var theme = ViewModel.SelectedTheme;
+
+			if (Content is FrameworkElement themeRoot)
+			{
+				themeRoot.RequestedTheme = theme.Base == ThemeBase.Dark ? ElementTheme.Dark : ElementTheme.Light;
+			}
+
+			// ⚠️ A panel window is its own top-level XAML tree and takes its palette once, when it opens —
+			// nothing propagates a later change, so open ones have to be told.
+			_windows.ApplyOwnerTheme();
+
+			// Only ever seen in the gap before the page paints, and on a dead renderer — but on a dead
+			// renderer it is the whole window, so it should at least be the right color.
+			if (MainMapWebView?.CoreWebView2 is not null)
+			{
+				MainMapWebView.DefaultBackgroundColor = ParseGroundColor(theme.GroundColor);
+			}
+		}
+
+		// "#RRGGBB" (the form theme.css uses, so the two halves of the ground color read alike) → a Color.
+		// ⚠️ Falls back to BLACK rather than throwing: this runs on the WebView bootstrap, and a malformed
+		// value should cost a slightly-wrong flash frame, never the map.
+		private static Windows.UI.Color ParseGroundColor(string hex)
+		{
+			if (!string.IsNullOrWhiteSpace(hex) && hex.TrimStart('#').Length == 6
+				&& int.TryParse(hex.TrimStart('#'), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
+			{
+				return Microsoft.UI.ColorHelper.FromArgb(255, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
+			}
+
+			return Microsoft.UI.Colors.Black;
+		}
+
+		// `themeId` = the chrome palette, passed for exactly the same reason as `conus` and the tile source:
+		// --anvil-ground IS the page's background, so a post-ready push would flash the other theme's ground
+		// before the map paints.
 		private static string BuildMapUrl(MapRegion? region, double zoom, string styleFile, bool conus,
-			bool onlineTiles, string tilesUrl)
+			bool onlineTiles, string tilesUrl, string themeId)
 		{
 			var lng = region?.Longitude ?? -95.5;
 			var lat = region?.Latitude ?? 37.0;
@@ -609,14 +776,17 @@ namespace Anvil
 				$"&zoom={zoom.ToString(CultureInfo.InvariantCulture)}" +
 				$"&conus={(conus ? "true" : "false")}" +
 				$"&tiles={(onlineTiles ? "online" : "offline")}" +
-				$"&tilesUrl={Uri.EscapeDataString(tilesUrl ?? "")}";
+				$"&tilesUrl={Uri.EscapeDataString(tilesUrl ?? "")}" +
+				$"&theme={Uri.EscapeDataString(themeId ?? "")}";
 		}
 
 		private async Task InitializeWebViewAsync(WebView2 webView, string url)
 		{
-			// Dark default so there's no white flash before the page (and MapLibre) paint.
+			// The theme's ground, so there's no flash before the page (and MapLibre) paint.
 			// ⚠️ This is ALSO what a DEAD renderer paints — see OnWebViewProcessFailed.
-			webView.DefaultBackgroundColor = Microsoft.UI.Colors.Black;
+			// ⚠️ The page paints the same color from --anvil-ground in theme.css. C# can't read the page's
+			// CSS, so the value is written in both places and AppTheme.GroundColor is the C# half.
+			webView.DefaultBackgroundColor = ParseGroundColor(ViewModel.SelectedTheme.GroundColor);
 			await webView.EnsureCoreWebView2Async();
 
 			// The WebView2 death report. Subscribed FIRST, before any host mapping or navigation, so a
@@ -744,6 +914,14 @@ namespace Anvil
 		{
 			_webReady = true;
 			await PushRadarSiteAccentAsync();
+#if DEBUG
+			// Push the restored style-tuning draft. Debug only — in Release TuneVm does not exist, which is
+			// deliberate: a working draft is not a shipped look (see TuneVm).
+			if (TuneVm is not null)
+			{
+				await TuneVm.OnMapsReadyAsync();
+			}
+#endif
 		}
 
 		// OS accent/theme changed (fires on a background thread) — re-push on the UI thread so the

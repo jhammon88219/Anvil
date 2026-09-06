@@ -28,6 +28,37 @@ namespace Anvil.Services
 		public Task ApplyStyleAsync(MapStyle style) =>
 			_mapView.RunScriptAsync(Call("applyStyle", $"https://mapassets/{style.FileName}"));
 
+		// The tuning travels as JSON rather than as five positional args so the page can grow a parameter
+		// without a signature change on both sides. An empty string clears it.
+		public Task SetStyleTuningAsync(MapStyleTuning? tuning) =>
+			_mapView.RunScriptAsync(Call("setStyleTuning", tuning is null || tuning.IsIdentity
+				? ""
+				: $"{{\"white\":{tuning.White.ToString(CultureInfo.InvariantCulture)}," +
+				  $"\"black\":{tuning.Black.ToString(CultureInfo.InvariantCulture)}," +
+				  $"\"gamma\":{tuning.Gamma.ToString(CultureInfo.InvariantCulture)}," +
+				  $"\"tintHue\":{tuning.TintHue.ToString(CultureInfo.InvariantCulture)}," +
+				  $"\"tintStrength\":{tuning.TintStrength.ToString(CultureInfo.InvariantCulture)}}}"));
+
+		// ⚠️ The override table is passed through Call, which single-quotes the payload — same pattern as
+		// radarRemap's mapping JSON. Keys are ids and properties from the style file, values are #rrggbb;
+		// neither can contain a quote, so nothing needs escaping here.
+		public Task SetStyleOverridesAsync(string json) =>
+			_mapView.RunScriptAsync(Call("setStyleOverrides", json ?? ""));
+
+		public Task LoadStyleSlotsAsync() =>
+			_mapView.RunScriptAsync("window.loadStyleSlots()");
+
+		public Task<string> PollStyleSlotsAsync() =>
+			_mapView.RunScriptAsync("window.__anvilStyleSlots");
+
+		public Task<string> GetStyleSlotColorsAsync() =>
+			_mapView.RunScriptAsync("window.getStyleSlotColors()");
+
+		// One command, because the page has to set the palette BEFORE re-adding the style's layers —
+		// see the interface remarks.
+		public Task ApplyThemeAsync(AppTheme theme, MapStyle style) =>
+			_mapView.RunScriptAsync(Call("applyTheme", theme.Id, $"https://mapassets/{style.FileName}"));
+
 		// Tile source: the style file is unchanged either way — the page patches its ONE basemap source.
 		// ⚠️ The URL is the only USER-TYPED string that reaches the page, and FormatArg quotes without
 		// escaping, so a stray quote/backslash would break the whole script line. Neither is legal in a URL,

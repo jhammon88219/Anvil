@@ -53,6 +53,12 @@
 const STATES_URL = 'https://mapassets/state-boundaries.geojson';
 const CONUS_URL = 'https://mapassets/conus-boundary.geojson'; // pre-dissolved lower-48 boundary (see header)
 
+// The hover tint, the mask's outline and the water fallback are MapLibre PAINT properties, which can't
+// read a CSS variable — so they come through theme.js. ⚠️ Each read passes a fallback: an empty string
+// handed to MapLibre as a color throws, and a throw in render blanks every layer above. Same rule as
+// safeBbox below — a wrong color beats a dead map.
+import * as Theme from './theme.js';
+
 // The world rectangle used as the mask's outer ring. Y capped at MapLibre's Web-Mercator limit (~85.05°);
 // X full span (renderWorldCopies is off, so one world is all there is).
 const WORLD_RING = [[-180, -85.05], [180, -85.05], [180, 85.05], [-180, 85.05], [-180, -85.05]];
@@ -91,7 +97,7 @@ function waterColor(map) {
             if (typeof c === 'string') return c;
         }
     } catch (e) { /* fall through */ }
-    return '#1c1c1c';
+    return Theme.color('--anvil-state-water-fallback', '#1c1c1c');
 }
 
 function ensureData() {
@@ -161,19 +167,20 @@ function addHoverLayers(map) {
     if (!statesData) return;
     if (!map.getSource(SRC)) map.addSource(SRC, { type: 'geojson', data: statesData, promoteId: 'name' });
     const hovered = ['boolean', ['feature-state', 'hover'], false];
+    const hoverColor = Theme.color('--anvil-state-hover', '#4aa3ff');
     if (!map.getLayer(FILL)) {
         map.addLayer({
             id: FILL, type: 'fill', source: SRC,
             // fill-opacity 0 when not hovered still hit-tests for mousemove/click (opacity doesn't remove
             // a feature from queryRenderedFeatures) — so the whole state stays clickable while invisible.
-            paint: { 'fill-color': '#4aa3ff', 'fill-opacity': ['case', hovered, 0.12, 0.0] }
+            paint: { 'fill-color': hoverColor, 'fill-opacity': ['case', hovered, 0.12, 0.0] }
         });
     }
     if (!map.getLayer(LINE)) {
         map.addLayer({
             id: LINE, type: 'line', source: SRC,
             paint: {
-                'line-color': '#4aa3ff',
+                'line-color': hoverColor,
                 'line-width': ['case', hovered, 3.0, 0.0],
                 'line-opacity': ['case', hovered, 0.9, 0.0]
             }
@@ -267,7 +274,7 @@ function renderOutline(map, geometry) {
     if (!map.getLayer(MASK_LINE)) {
         map.addLayer({
             id: MASK_LINE, type: 'line', source: OUTLINE_SRC,
-            paint: { 'line-color': '#8a8a8a', 'line-width': 1.2 }
+            paint: { 'line-color': Theme.color('--anvil-state-mask-outline', '#8a8a8a'), 'line-width': 1.2 }
         });
     }
 }

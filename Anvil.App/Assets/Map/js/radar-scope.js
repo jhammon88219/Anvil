@@ -30,6 +30,10 @@
 // single remaining guard is in radar.js, which skips these calls until this module has loaded.
 
 import * as Geo from './geo.js';
+// The ring + sweep are MapLibre PAINT properties, which can't read a CSS variable — hence theme.js.
+// ⚠️ Each read passes a fallback: an empty color string throws inside render, which aborts the frame
+// and blanks every layer above the radar.
+import * as Theme from './theme.js';
 
 const RANGE_SRC = 'level2-range', RANGE_LAYER = 'level2-range';
 const SWEEP_SRC = 'level2-sweep', SWEEP_FILL_LAYER = 'level2-sweep-fill', SWEEP_ARM_LAYER = 'level2-sweep-arm';
@@ -69,7 +73,7 @@ function addRangeRing(v) {
     if (!map.getLayer(RANGE_LAYER)) {
         map.addLayer({
             id: RANGE_LAYER, type: 'line', source: RANGE_SRC,
-            paint: { 'line-color': '#9fe0ff', 'line-width': 1.3, 'line-opacity': 0.55, 'line-blur': 0.3 },
+            paint: { 'line-color': Theme.color('--anvil-scope-ring', '#9fe0ff'), 'line-width': 1.3, 'line-opacity': 0.55, 'line-blur': 0.3 },
         }, host.beforeId(map));
     }
 }
@@ -144,13 +148,13 @@ function ensureSweepLayer(v) {
             // ⚠️ antialias MUST be off: it outlines every polygon, so the 64 abutting triangles' shared
             // radial edges would each draw a 1px seam — reading as a fan of faint lines, exactly the
             // raggedness we're removing. Off, the triangles blend seamlessly (opacity steps are ~1%).
-            paint: { 'fill-color': '#ffe6a0', 'fill-opacity': ['get', 'o'], 'fill-antialias': false },
+            paint: { 'fill-color': Theme.color('--anvil-scope-sweep-fill', '#ffe6a0'), 'fill-opacity': ['get', 'o'], 'fill-antialias': false },
         }, before);
     }
     if (!map.getLayer(SWEEP_ARM_LAYER)) {
         map.addLayer({
             id: SWEEP_ARM_LAYER, type: 'line', source: SWEEP_SRC,
-            paint: { 'line-color': '#fff4c8', 'line-width': 2, 'line-blur': 1.2, 'line-opacity': ['get', 'o'] },
+            paint: { 'line-color': Theme.color('--anvil-scope-sweep-arm', '#fff4c8'), 'line-width': 2, 'line-blur': 1.2, 'line-opacity': ['get', 'o'] },
         }, before);
     }
 }

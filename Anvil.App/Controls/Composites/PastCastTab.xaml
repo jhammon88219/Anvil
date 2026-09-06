@@ -79,6 +79,35 @@
             <RowDefinition Height="Auto"/> <!-- DOW event (standalone frame, NOT an overlay) -->
         </Grid.RowDefinitions>
 
+        <!-- ⚠️ THE CARD'S TWO ACCENT BRUSHES ARE STATES, NOT x:Bind FUNCTIONS — a correctness fix, not a
+             tidy-up. They used to come from code, through Application.Current.Resources.TryGetValue, which
+             resolves against Application.RequestedTheme — the OS theme, and settable only before content
+             loads. The app pins its palette on the ROOT ELEMENT's RequestedTheme instead
+             (MainWindow.ApplyAppTheme), so those lookups quietly returned the OTHER theme's brush: on a
+             dark-mode machine, the light theme drew its dirty-state accent in the dark theme's colours.
+             {ThemeResource} in a state setter resolves against THIS element and re-resolves on a live
+             switch, which an x:Bind function cannot — it only re-runs when its bound inputs change, and the
+             theme is not one of them.
+             ⚠️ LoadStyle() is deliberately still an x:Bind function: DefaultButtonStyle / AccentButtonStyle
+             are keyed STYLES, defined once rather than per theme, and the brushes inside them are their own
+             ThemeResources. A Style has no theme to get wrong. -->
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="SelectionStates">
+                <VisualState x:Name="SelectionClean">
+                    <VisualState.Setters>
+                        <Setter Target="CardEdge.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <Setter Target="FooterText.Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="SelectionDirty">
+                    <VisualState.Setters>
+                        <Setter Target="CardEdge.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                        <Setter Target="FooterText.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
         <!-- ===================== TIMEFRAME: the card, then the pickers ===================== -->
         <Expander Grid.Row="0" Header="Timeframe" IsExpanded="True"
                   Style="{StaticResource SectionExpanderStyle}">
@@ -95,10 +124,10 @@
                      not express: it was written once, by the load, and then just sat there.
                      ⚠️ Load is the ACCENT action except in the one state where there is nothing to do (loaded,
                      and the pickers still agree with it), where it steps back to a plain button. -->
-                <Border Grid.Row="0" CornerRadius="8" Padding="13,12"
+                <Border x:Name="CardEdge" Grid.Row="0" CornerRadius="8" Padding="13,12"
                         Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
                         BorderThickness="1"
-                        BorderBrush="{x:Bind CardStroke(ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}">
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
                     <Grid ColumnSpacing="14">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -112,9 +141,10 @@
                             <TextBlock Text="{x:Bind ViewModel.Radar.PastEventRangeText, Mode=OneWay}"
                                        FontSize="13" Margin="0,4,0,0"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <TextBlock Text="{x:Bind CardFooter(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty, ViewModel.Radar.PastEventStatus), Mode=OneWay}"
+                            <TextBlock x:Name="FooterText"
+                                       Text="{x:Bind CardFooter(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty, ViewModel.Radar.PastEventStatus), Mode=OneWay}"
                                        FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                                       Foreground="{x:Bind FooterBrush(ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"/>
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                         </StackPanel>
 
                         <!-- ⚠️ DISABLED once a window is loaded and the pickers still agree with it — there is

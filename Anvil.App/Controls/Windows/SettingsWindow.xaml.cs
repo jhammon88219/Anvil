@@ -72,6 +72,16 @@ namespace Anvil.Controls.Windows
 		public static readonly DependencyProperty SweepVmProperty =
 			DependencyProperty.Register(nameof(SweepVm), typeof(SiteSweepViewModel), typeof(SettingsWindow), new PropertyMetadata(null));
 
+		/// <summary>DEV-ONLY live basemap style tuner, handed straight to the Dev tab. Null in Release.</summary>
+		public MapStyleTuningViewModel? TuneVm
+		{
+			get => (MapStyleTuningViewModel?)GetValue(TuneVmProperty);
+			set => SetValue(TuneVmProperty, value);
+		}
+
+		public static readonly DependencyProperty TuneVmProperty =
+			DependencyProperty.Register(nameof(TuneVm), typeof(MapStyleTuningViewModel), typeof(SettingsWindow), new PropertyMetadata(null));
+
 		/// <summary>The dealias-validation engine for the dev tab. NULL in Release.</summary>
 		public RadarValidationViewModel? ValidationVm
 		{
@@ -87,6 +97,9 @@ namespace Anvil.Controls.Windows
 
 		/// <summary>Raised when the dev tab asks to show a finished dealias-validation report.</summary>
 		public event EventHandler<RadarValidationReport>? ValidationReportRequested;
+
+		/// <summary>Relayed from the Dev tab's style tuner: MainWindow owns the save picker.</summary>
+		public event EventHandler? ExportTunedStyleRequested;
 
 		// The strip's content. Glyphs are Segoe Fluent codepoints — ⚠️ verify one by RENDERING it in the real
 		// font before swapping; a wrong codepoint ships as an empty box.
@@ -195,6 +208,7 @@ namespace Anvil.Controls.Windows
 			if (sender is not Composites.DevSettingsTab tab) return;
 			tab.SweepReportRequested += (_, report) => SweepReportRequested?.Invoke(this, report);
 			tab.ValidationReportRequested += (_, report) => ValidationReportRequested?.Invoke(this, report);
+			tab.ExportTunedStyleRequested += (_, _) => ExportTunedStyleRequested?.Invoke(this, EventArgs.Empty);
 		}
 
 		private void OnPlaceTabsTop(object sender, RoutedEventArgs e)

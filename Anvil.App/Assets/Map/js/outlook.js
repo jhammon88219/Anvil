@@ -24,6 +24,8 @@
 
 // Slots beneath place names (readable through the fill) — see layers.js.
 import { firstSymbolLayerId } from './layers.js';
+// The hatch tiles are drawn on a 2D canvas, which can't read a CSS variable — hence theme.js.
+import * as Theme from './theme.js';
 
 let currentOutlookUrl = null;    // GeoJSON URL currently shown (re-add after a basemap switch)
 let outlookData = null;          // fetched + CLIPPED GeoJSON (reused on re-add — no re-fetch/re-clip)
@@ -50,7 +52,9 @@ function sigRank(label) {
 // into continuous stripes.
 function makeHatchImage(tile, width, opts) {
     opts = opts || {};
-    const COLOR = 'rgba(235,235,235,0.9)';
+    // ⚠️ The INK is chrome and themed; the PATTERN (dashes / lines / cross-hatch) encodes which CIG
+    // group an area is and is data — see the membership rule in theme.css.
+    const COLOR = Theme.color('--anvil-hatch-ink', 'rgba(235,235,235,0.9)');
     const c = document.createElement('canvas');
     c.width = c.height = tile;
     const ctx = c.getContext('2d');

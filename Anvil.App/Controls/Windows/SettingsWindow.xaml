@@ -117,6 +117,7 @@
                                         ViewModel="{x:Bind ViewModel}"
                                         SweepVm="{x:Bind SweepVm}"
                                         ValidationVm="{x:Bind ValidationVm}"
+                                        TuneVm="{x:Bind TuneVm}"
                                         Loaded="OnDevTabLoaded"/>
                 </Grid>
             </ScrollViewer>

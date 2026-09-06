@@ -156,6 +156,27 @@ namespace Anvil.Services
 			set => SetProperty(ref _pastCastDurationMinutes, value);
 		}
 
+		private string _themeId = "";
+		/// <summary>
+		/// The app's chosen visual identity, as an <see cref="IThemeProvider"/> theme id — which owns BOTH
+		/// the WinUI chrome palette and the basemap style under it. Empty = use the provider's default;
+		/// resolve through <c>IThemeProvider.Resolve</c>, which also absorbs an id this build doesn't have.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ A STRING, and empty-means-default, for the same reasons <see cref="SettingsTabPlacement"/> and
+		/// <see cref="MapDataFolder"/> are: an unrecognized value falls back instead of failing the whole
+		/// settings load, and the default itself is named in exactly one place (the provider) rather than
+		/// copied here where the two could drift.
+		/// ⚠️ NOTHING WRITES THIS YET — the app ships one theme, so there is no picker to write it. It is
+		/// here because the basemap style is now the theme's, and the style has never persisted at all: the
+		/// selection reset to Data Viz Black on every launch. The writer arrives with the picker.
+		/// </remarks>
+		public string ThemeId
+		{
+			get => _themeId;
+			set => SetProperty(ref _themeId, value);
+		}
+
 		private bool _mapControlsStripVisible = true;
 		/// <summary>Whether the MapControlsStrip — the notched strip of camera tools straddling the bottom
 		/// bar's pull-tab — is showing. Toggled by the bar's "Map" key. Default ON, so the tools it exists to

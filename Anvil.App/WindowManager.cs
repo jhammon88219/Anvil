@@ -142,6 +142,29 @@ namespace Anvil
 			}
 		}
 
+		/// <summary>
+		/// Re-applies the owner's light/dark palette to every panel window that is currently open. Called
+		/// by <c>MainWindow</c> when the app's theme changes.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ Needed because a panel takes its palette ONCE, in <see cref="OpenWindow"/> — each is its own
+		/// top-level Window with its own XAML tree, so it does not inherit the main window's theme and
+		/// nothing propagates a later change to it. Without this, panels left open across a theme switch
+		/// keep the previous palette until they are closed and reopened.
+		/// </remarks>
+		public void ApplyOwnerTheme()
+		{
+			if (_owner?.Content is not FrameworkElement ownerRoot) return;
+
+			foreach (var window in _windows.Values)
+			{
+				if (window.Content is FrameworkElement content)
+				{
+					content.RequestedTheme = ownerRoot.ActualTheme;
+				}
+			}
+		}
+
 		private void OpenWindow(Registration reg)
 		{
 			if (_owner is null) return;
