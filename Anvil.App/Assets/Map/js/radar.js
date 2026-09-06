@@ -79,6 +79,7 @@
             uploadedFrame: -1,         // which frame's geometry is in THIS view's buffers
             uploadedProduct: '',       // which product's geometry is uploaded (re-upload on a switch)
             ctxBound: false,           // webglcontextlost/restored listeners attached to this canvas
+            detached: false,           // detachView ran: a ctxlost after this is OUR teardown, not a fault
             inspectMove: null, inspectOut: null, inspectCamera: null, // bound inspect handlers (to off() them)
             crossEl: null,             // this pane's mirrored inspect crosshair (created on first use)
         };
@@ -834,8 +835,11 @@
         if (!v || v.ctxBound || !v.map || !v.map.getCanvas) return;
         try {
             const c = v.map.getCanvas();
-            c.addEventListener('webglcontextlost', function () { post({ type: 'radarRender', kind: 'ctxlost', pane: v.index, cf: currentFrame }); }, false);
-            c.addEventListener('webglcontextrestored', function () { post({ type: 'radarRender', kind: 'ctxrestored', pane: v.index, cf: currentFrame }); }, false);
+            // ⚠️ Destroying a pane fires webglcontextlost too, so the event alone cannot tell a FAULT
+            // from our own teardown. detachView sets v.detached first; without this flag routine pane
+            // cycling wrote warn-level noise into the very JSONL the radar park exists to grep.
+            c.addEventListener('webglcontextlost', function () { post({ type: 'radarRender', kind: 'ctxlost', pane: v.index, cf: currentFrame, intentional: !!v.detached }); }, false);
+            c.addEventListener('webglcontextrestored', function () { post({ type: 'radarRender', kind: 'ctxrestored', pane: v.index, cf: currentFrame, intentional: !!v.detached }); }, false);
             v.ctxBound = true;
         } catch (e) { hostLog('ctx listener attach failed: ' + (e && e.message ? e.message : e)); }
     }
@@ -1444,6 +1448,7 @@
         detachView: function (map) {
             const v = viewFor(map);
             if (!v) return;
+            v.detached = true;  // the ctxlost that map.remove() is about to fire is expected, not a fault
             if (inspectOn()) Inspect.unbindView(v);
             try { removeLayer(v); } catch (e) { /* already torn down */ }
             views = views.filter(function (o) { return o !== v; });

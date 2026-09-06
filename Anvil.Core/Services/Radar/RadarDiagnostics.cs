@@ -347,7 +347,13 @@ namespace Anvil.Services
 				if (GetInt(msg, "blanks") is { } blanks) Stats.RenderBlanks = Math.Max(Stats.RenderBlanks, blanks);
 				// Severity for the machine log: a blank/error frame or lost GL context is worth flagging;
 				// "recovered"/"restored" are just info.
-				string? lvl = kind is "error" or "blank" ? "error" : kind is "ctxlost" ? "warn" : null;
+				// ⚠️ A ctxlost carrying intentional:true is radar.js's own detachView teardown (every pane
+				// destroyed by a layout change fires one), NOT a fault. Warning on those made routine pane
+				// cycling look alarming in the log the radar park exists to grep, so only a REAL loss warns.
+				var intentional = GetBool(msg, "intentional") ?? false;
+				string? lvl = kind is "error" or "blank" ? "error"
+					: kind is "ctxlost" && !intentional ? "warn"
+					: null;
 				WriteEnvelope("js", "render", ("lvl", lvl), ("kind", kind), ("js", (object)msg.Clone()));
 			}
 		}
