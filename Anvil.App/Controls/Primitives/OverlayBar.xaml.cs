@@ -30,9 +30,13 @@ namespace Anvil.Controls.Primitives
 	/// <item><see cref="IsIsland"/> - whether the bar spans its host edge to edge (false: a hairline on the
 	/// facing edge only) or is a centred island that has to draw its own left/right edges and round its two
 	/// inner corners (true: the pane notch).</item>
-	/// <item><see cref="ShowTabLabel"/> - whether the tab reads "Hide"/"Show" beside its chevron. Off for
-	/// the notch: four panes means four tabs, and four copies of the word "Hide" across the top of the map
-	/// is noise where four chevrons are not. The tooltip still says it in words.</item>
+	/// <item><see cref="ShowTabLabel"/> - whether the tab reads "Hide"/"Show" beside its chevron, which
+	/// also decides whether the tab is the fixed shared size or content-sized. ⚠️ ON in both shapes today,
+	/// so the notch tab and the bar tab are the SAME tab. It was off for the notch (four panes means four
+	/// tabs, and four copies of "Hide" across the top of the map is noise where four chevrons are not) -
+	/// but a wordless tab also came out a third the width and shorter, wearing the same corner radius at a
+	/// smaller scale, so it read as a different tab rather than a quieter one. The knob is kept, unused,
+	/// because it is the only expression of "a tab may be wordless"; delete it if nothing wants it back.</item>
 	/// </list>
 	/// </summary>
 	public sealed partial class OverlayBar : UserControl
@@ -143,11 +147,15 @@ namespace Anvil.Controls.Primitives
 			// otherwise an unlabelled tab is a wide empty lozenge.
 			TabButton.Padding = ShowTabLabel ? new Thickness(16, 3, 16, 3) : new Thickness(9, 2, 9, 2);
 
-			// ⚠️ THE LABELLED TAB IS A FIXED SIZE; the chevron-only notch tabs stay content-sized (NaN = Auto).
-			// Two reasons, both in Controls/Styles.xaml beside the numbers: the label flips "Hide"/"Show", which
-			// would resize a content-sized tab on every click, and Composites/MapControlsStrip cuts a notch that
-			// TRACES this tab at a uniform offset — it cannot trace a width nobody knows. Keep the two in step:
-			// these resources are the single source for both.
+			// ⚠️ THE LABELLED TAB IS A FIXED SIZE, and every tab in the app is labelled now, so this is the
+			// one tab shape - the notch's included. Three reasons, the first two in Controls/Styles.xaml beside
+			// the numbers: the label flips "Hide"/"Show", which would resize a content-sized tab on every click;
+			// Composites/MapControlsStrip cuts a notch that TRACES this tab at a uniform offset, and cannot
+			// trace a width nobody knows; and a content-sized tab is sized by its glyph's font metrics, which is
+			// nobody's decision - it is what made the notch tab a third the bar tab's width. Keep the resources
+			// and the strip in step: these are the single source for both.
+			// (The NaN branch survives only for a ShowTabLabel=False host, of which there are none - see the
+			// class remarks. It is content-sizing, not a second designed shape.)
 			TabButton.Width = ShowTabLabel ? SharedSize("OverlayBarTabWidth") : double.NaN;
 			TabButton.Height = ShowTabLabel ? SharedSize("OverlayBarTabHeight") : double.NaN;
 			TabButton.CornerRadius = top

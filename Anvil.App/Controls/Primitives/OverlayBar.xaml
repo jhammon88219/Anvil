@@ -21,17 +21,27 @@
              BarContent — the HOST fills this slot                  AROUND the tab, never across
        ══════════════════════ window bottom ═══════════════════════
 
-       Edge=Top, IsIsland=True, ShowTabLabel=False — THE PANE NOTCH (one per map pane)
+       Edge=Top, IsIsland=True — THE PANE NOTCH (one per map pane)
 
        ═══════════════════════ pane top edge ══════════════════════
                      ┌─────────────────────────┐   ← the island: it stops where its content
                      │  BarContent (the slot)  │     stops, so the map runs edge to edge
-                     └────────╮  ˄  ╭──────────┘     behind it. Left/right/bottom hairline,
-                              ╰─────╯                bottom corners rounded, tab BELOW.
+                     └──────╮ ˄ Hide ╭─────────┘     behind it. Left/right/bottom hairline,
+                            ╰─────────╯              bottom corners rounded, tab BELOW.
             …the pane's map, showing through either side…
 
-     Hidden, only the tab remains (it reads "Show", or is a bare chevron) and the bar Border
-     collapses — the map is never resized either way, in either shape.
+     ⚠️ THE NOTCH TAB IS THE SAME TAB AS THE BAR'S — labelled, and the same fixed size, because
+     one control drawing two differently-shaped tabs reads as an inconsistency rather than as a
+     variant. It was chevron-only and content-sized (ShowTabLabel=False): the word was dropped on
+     the grounds that four tabs reading "Hide" across the top of the map is noise, but the result
+     was a tab a third the width and a few px shorter than the bar's, wearing the same 7px corner
+     radius at a much smaller scale — so it read as rounder, not smaller. Matching won.
+     ⚠️ ShowTabLabel therefore has NO false consumer today. It is kept because it is the only knob
+     that says a tab may be wordless; delete it and the chevron-only shape has to be rebuilt from
+     scratch to try again. If it is still unused next time this file is opened, delete it.
+
+     Hidden, only the tab remains (it reads "Show") and the bar Border collapses — the map is
+     never resized either way, in either shape.
 
      It renders as an OVERLAY: the host places it over the full-height map, so showing/hiding
      never resizes the map. The control's own backdrop is transparent — only the tab and the
@@ -145,8 +155,9 @@
                 <FontIcon Glyph="{x:Bind ToggleGlyph(IsOverlayBarVisible), Mode=OneWay}"
                           FontSize="14"
                           VerticalAlignment="Center"/>
-                <!-- The word is optional (ShowTabLabel): four notch tabs all reading "Hide" is noise
-                     where four chevrons are not. The tooltip carries the wording either way. -->
+                <!-- The word is optional (ShowTabLabel), but nothing turns it off today — both shapes
+                     label their tab, so the notch tab and the bar tab are the same tab. The tooltip
+                     carries the wording either way. See the ⚠️ in the header. -->
                 <TextBlock Text="{x:Bind ToggleLabel(IsOverlayBarVisible), Mode=OneWay}"
                            Visibility="{x:Bind VisibleWhen(ShowTabLabel), Mode=OneWay}"
                            FontSize="15"

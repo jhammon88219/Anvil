@@ -5,12 +5,12 @@
        ┌──────────────┬──────────────┬──────────────┬──────────────┐
        │       ┌──────┴──────┐       │       ┌──────┴──────┐       │  pane NOTCHES — top-centre of each
        │       │Ref˅│▓▒░▒▓│0.5°˅     │       │Vel˅│▓▒░▒▓│0.5°˅     │  pane: product, colour-ramp legend,
-       │       └────╮ ˄ ╭────┘       │       └────╮ ˄ ╭────┘       │  tilt. Quad shown; single/two
+       │       └──╮ ˄ Hide ╭──┘      │       └──╮ ˄ Hide ╭──┘      │  tilt. Quad shown; single/two
        │        map pane 2           │        map pane 3           │  collapse to fewer cells. The tab
        ├─────────────────────────────┼─────────────────────────────┤  hides one notch, independently.
        │       ┌─────────────┐       │       ┌─────────────┐       │
        │       │SRV˅│▓▒░▒▓│0.5°˅     │       │CC ˅│▓▒░▒▓│0.5°˅     │
-       │       └────╮ ˄ ╭────┘       │       └────╮ ˄ ╭────┘       │
+       │       └──╮ ˄ Hide ╭──┘      │       └──╮ ˄ Hide ╭──┘      │
        │    map pane 0  (MAIN)       │        map pane 1           │
        ├─────────────────────────────┴─────────────────────────────┤
        │                       ╭─ Hide ─╮                          │  OverlayBar pull-tab
@@ -174,7 +174,7 @@
 
             <ctl:OverlayBar x:Name="Notch0" Edge="Top"
                             IsIsland="True"
-                            ShowTabLabel="False"
+                            ShowTabLabel="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
                             Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane0.IsVisible), Mode=OneWay}"
@@ -191,7 +191,7 @@
 
             <ctl:OverlayBar x:Name="Notch1" Edge="Top"
                             IsIsland="True"
-                            ShowTabLabel="False"
+                            ShowTabLabel="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
                             Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane1.IsVisible), Mode=OneWay}"
@@ -208,7 +208,7 @@
 
             <ctl:OverlayBar x:Name="Notch2" Edge="Top"
                             IsIsland="True"
-                            ShowTabLabel="False"
+                            ShowTabLabel="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
                             Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane2.IsVisible), Mode=OneWay}"
@@ -225,7 +225,7 @@
 
             <ctl:OverlayBar x:Name="Notch3" Edge="Top"
                             IsIsland="True"
-                            ShowTabLabel="False"
+                            ShowTabLabel="True"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
                             Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane3.IsVisible), Mode=OneWay}"

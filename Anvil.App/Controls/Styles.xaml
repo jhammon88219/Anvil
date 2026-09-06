@@ -322,15 +322,20 @@
          styles collapsed into this one. Don't re-add a font setter here. -->
     <Style x:Key="BarKeyToggleStyle" TargetType="ToggleButton" BasedOn="{StaticResource BarChromeButtonStyle}"/>
 
-    <!-- THE BOTTOM BAR'S PULL-TAB, sized rather than content-sized — and it has to be, for two reasons.
-         (1) MapControlsStrip cuts a NOTCH that traces this tab, offset a uniform 6px on every side, so the
-         tab's width, height and corner radius are the strip's geometry too; a content-sized tab would make
-         that trace approximate. (2) The label flips "Hide"/"Show", which would resize a content-sized tab
-         under the notch every time you clicked it.
-         ⚠️ These apply ONLY to the LABELLED tab (the app's one bottom bar). The four pane notches are
-         chevron-only islands and stay content-sized — see ApplyChrome, which is the only place they are
-         read. Change one of these and the strip follows automatically; change the tab's PADDING without
-         changing these and the glyph will crop. -->
+    <!-- EVERY PULL-TAB IN THE APP — the bottom bar's and all four pane notches'. Sized rather than
+         content-sized, and it has to be, for two reasons. (1) MapControlsStrip cuts a NOTCH that traces
+         the BAR's tab, offset a uniform 6px on every side, so the tab's width, height and corner radius
+         are the strip's geometry too; a content-sized tab would make that trace approximate. (2) The
+         label flips "Hide"/"Show", which would resize a content-sized tab under the notch every time you
+         clicked it.
+         ⚠️ These used to apply ONLY to the bottom bar, the four notches being chevron-only islands left at
+         their content's size — which made the notch tab about a THIRD the bar tab's width and a few px
+         shorter, at the same 7px radius, so it read as a different tab. The notches are labelled now and
+         take these three numbers with everything else. ApplyChrome is still the only place they are read.
+         ⚠️ So a change here now moves FIVE tabs and the strip's notch together — which is the point, but
+         check the quad layout: at 96 the tab is wider than a narrow notch island would be, and a tab wider
+         than its island overhangs it. Change the tab's PADDING without changing these and the glyph
+         crops. -->
     <x:Double x:Key="OverlayBarTabWidth">96</x:Double>
     <x:Double x:Key="OverlayBarTabHeight">28</x:Double>
     <x:Double x:Key="OverlayBarTabRadius">7</x:Double>
