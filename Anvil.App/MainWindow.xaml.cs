@@ -29,11 +29,6 @@ namespace Anvil
 		/// Settings window, whose Dev tab exists only in Debug.</summary>
 		public SiteSweepViewModel? SweepVm { get; }
 
-		/// <summary>DEV-ONLY live basemap style tuner (Debug builds only, like the two engines above).
-		/// ⚠️ Its absence in Release is why a persisted tuning is NOT applied there: a working draft is not
-		/// a shipped look — the style file it exports is.</summary>
-		public MapStyleTuningViewModel? TuneVm { get; }
-
 		/// <summary>DEV-ONLY velocity-dealias validation engine (fixed-corpus regression scorer). Non-null
 		/// only in Debug builds. Handed to the Settings window's Debug-only Dev tab.</summary>
 		public RadarValidationViewModel? ValidationVm { get; }
@@ -333,6 +328,27 @@ namespace Anvil
 		// ⚠️ The chosen folder takes effect on the NEXT LAUNCH: the mapdata virtual host is mapped once, in
 		// this class's WebView bootstrap, before any page loads. The tab's status line says so; nothing here
 		// tries to re-map a live WebView.
+		// Shows the style-import picker and hands the path back to the Map tab, which owns the library work
+		// and the status line. ⚠️ Only the PICKER is up here: it needs a window HWND, which a UserControl
+		// does not have. Same split as the basemap folder below.
+		private async Task ImportStyleAsync(Controls.Windows.SettingsWindow settings)
+		{
+			var picker = new FileOpenPicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };
+			picker.FileTypeFilter.Add(".json");
+			WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+
+			try
+			{
+				var file = await picker.PickSingleFileAsync();
+				if (file is null) return;   // cancelled
+				await settings.MapSettingsTab.ImportAsync(_styleLibrary, file.Path);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Style import picker failed");
+			}
+		}
+
 		private async void OnBrowseMapDataFolderRequested(object? sender, EventArgs e)
 		{
 			var picker = new FolderPicker
@@ -351,79 +367,6 @@ namespace Anvil
 			{
 				_logger.LogError(ex, "Basemap folder picker failed");
 			}
-		}
-
-		// DEV TOOL. Writes the edited basemap out as a real style file: the PRISTINE file with every colour
-		// literal replaced by that slot's resolved colour.
-		//
-		// ⚠️ POSITIONAL TEXT SUBSTITUTION, NOT A RE-SERIALIZED STYLE. Round-tripping 414 KB of JSON through a
-		// parser reformats all ~10,000 lines and buries the real changes; replacing the Nth #rrggbb literal
-		// in the original leaves formatting untouched and gives a reviewable diff. (Learned the hard way
-		// doing this by hand — see docs/theming.md.)
-		// ⚠️ POSITIONAL rather than a find/replace by colour, because two slots can start the same colour and
-		// end different — which is the whole point of per-slot overrides.
-		// ⚠️ THE ORDER IS AN ASSUMPTION: that the page enumerates slots in the same order the literals appear
-		// in the file. It holds (layers in order, paint keys in insertion order, colours within a value in
-		// order), but it is checked rather than trusted — a count mismatch aborts the write instead of
-		// producing a scrambled style.
-		// ⚠️ The COLOURS come from the page, which owns the maths (style-tune.js). Nothing here computes one.
-		private async void OnExportTunedStyleRequested(object? sender, EventArgs e)
-		{
-#if DEBUG
-			if (TuneVm is null) return;
-
-			try
-			{
-				var json = await TuneVm.GetSlotColorsJsonAsync();
-				if (string.IsNullOrWhiteSpace(json)) return;
-
-				var colors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
-				if (colors is null || colors.Count == 0) return;
-
-				// The style the theme is currently on, read from the app's own Assets (package content).
-				var fileName = ViewModel.SelectedStyle?.FileName;
-				if (string.IsNullOrEmpty(fileName)) return;
-				var source = Path.Combine(AppContext.BaseDirectory, "Assets", "Map", fileName);
-				if (!File.Exists(source)) return;
-
-				var text = File.ReadAllText(source);
-				var literal = new System.Text.RegularExpressions.Regex("#[0-9a-fA-F]{6}");
-
-				var found = literal.Matches(text).Count;
-				if (found != colors.Count)
-				{
-					_logger.LogError(
-						"Tuned style export ABORTED: the style file has {Found} colour literals but the page " +
-						"reported {Reported} slots. The two enumerations have diverged; writing would scramble " +
-						"the style.", found, colors.Count);
-					return;
-				}
-
-				var n = 0;
-				text = literal.Replace(text, _ => colors[n++]);
-
-				var picker = new FileSavePicker
-				{
-					SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
-					SuggestedFileName = Path.GetFileNameWithoutExtension(fileName) + "-tuned",
-				};
-				picker.FileTypeChoices.Add("Map style", new List<string> { ".json" });
-				WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
-
-				var target = await picker.PickSaveFileAsync();
-				if (target is null) return;   // cancelled
-
-				await Windows.Storage.FileIO.WriteTextAsync(target, text);
-				_logger.LogInformation("Exported edited basemap style to {Path} ({Count} colours placed)",
-					target.Path, colors.Count);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Tuned style export failed");
-			}
-#else
-			await Task.CompletedTask;
-#endif
 		}
 
 		// Opens the site-sweep results pop-up (Save / Close). Raised by the dev window on run completion
@@ -484,6 +427,9 @@ namespace Anvil
 
 		// App settings (offline basemap folder, …). Read when mapping the "mapdata" WebView host.
 		private readonly ISettingsService _settingsService;
+		// The user's imported basemap styles. Injected rather than reached through IStyleProvider because
+		// the host does the IMPORT and REMOVE; the provider only reads the merged list.
+		private readonly IMapStyleLibrary _styleLibrary;
 
 		// Hosts each app-wide panel in its own OS window (multi-monitor). MainWindow registers each window
 		// with it after construction (below).
@@ -503,6 +449,7 @@ namespace Anvil
 			IStormReportService stormReportService,
 			ILevel2RadarService radarService,
 			ISettingsService settingsService,
+			IMapStyleLibrary styleLibrary,
 			WindowManager windows,
 			ILogger<MainWindow> logger)
 		{
@@ -519,6 +466,7 @@ namespace Anvil
 			_stormReportService = stormReportService;
 			_radarService = radarService;
 			_settingsService = settingsService;
+			_styleLibrary = styleLibrary;
 			_windows = windows;
 			_logger = logger;
 
@@ -538,10 +486,6 @@ namespace Anvil
 			// the only thing that reaches it, is omitted from the tab strip in Release. (The engine TYPE lives
 			// in Anvil.Core and ships with it, but is never constructed here in Release.)
 			SweepVm = new SiteSweepViewModel(ViewModel.Radar);
-
-			// DEV-ONLY live basemap style tuner. Constructed here so the persisted draft is restored and
-			// pushed at map-ready; the Dev tab only binds it.
-			TuneVm = new MapStyleTuningViewModel(_mapService);
 
 			// DEV-ONLY velocity-dealias regression harness (fixed-corpus scorer). Same Debug-only lifetime
 			// as the sweep: driven through the map service (window.radarValidate) against the bundled corpus.
@@ -611,32 +555,12 @@ namespace Anvil
 					settings.SweepReportRequested += OnSweepReportRequested;
 					settings.ValidationReportRequested += OnValidationReportRequested;
 					settings.BrowseMapDataFolderRequested += OnBrowseMapDataFolderRequested;
+					settings.ImportStyleRequested += (_, _) => _ = ImportStyleAsync(settings);
+					settings.MapSettingsTab.Library = _styleLibrary;
 					return settings;
 				},
 				title: "Settings", width: 520, height: 640,
 				alwaysOnTop: () => ViewModel.IsSettingsWindowOnTop,
-				customChrome: true);
-			// DEV style editor. ⚠️ The registration is NOT #if DEBUG'd — same as the Pipeline Console's —
-			// because WindowManager reconciles off a VM flag and knows nothing about build configuration.
-			// Nothing opens it in Release: its switch lives on the Dev tab, which is not built there.
-			_windows.Register(
-				id: "styleEditor",
-				isOpen: () => ViewModel.IsStyleEditorOpen,
-				close: () => ViewModel.IsStyleEditorOpen = false,
-				buildContent: () =>
-				{
-					var editor = new Controls.Windows.StyleEditorWindow
-					{
-						ViewModel = ViewModel,
-						TuneVm = TuneVm,
-					};
-					editor.ExportRequested += OnExportTunedStyleRequested;
-					return editor;
-				},
-				// Wider than the other panels: two swatch columns + the arrow cost ~80px, and the grade's
-				// sliders sit two-across. It is a workbench, not a settings pane.
-				title: "Map style editor", width: 620, height: 760,
-				alwaysOnTop: () => ViewModel.IsStyleEditorOnTop,
 				customChrome: true);
 			_windows.Register(
 				id: "sites",
@@ -707,9 +631,11 @@ namespace Anvil
 		{
 			// The page loads the currently-selected basemap directly (no flash to the
 			// default, then re-style). The view model's default is Data Viz Black.
-			var styleFile = ViewModel.SelectedStyle?.FileName ?? "style.json";
+			// ⚠️ The full URL, not a file name: an imported style is on a different virtual host, and the
+			// model is the one place that knows which (see MapStyle.Url).
+			var styleUrl = ViewModel.SelectedStyle?.Url ?? "https://mapassets/style.json";
 			var main = ViewModel.MainRegion;
-			await InitializeWebViewAsync(MainMapWebView, BuildMapUrl(main, main?.Zoom ?? 4, styleFile, ViewModel.StateIso.IsConusIsolated,
+			await InitializeWebViewAsync(MainMapWebView, BuildMapUrl(main, main?.Zoom ?? 4, styleUrl, ViewModel.StateIso.IsConusIsolated,
 				ViewModel.IsOnlineTilesActive, ViewModel.OnlineTilesUrl, ViewModel.SelectedTheme.Id));
 		}
 
@@ -763,14 +689,14 @@ namespace Anvil
 		// `themeId` = the chrome palette, passed for exactly the same reason as `conus` and the tile source:
 		// --anvil-ground IS the page's background, so a post-ready push would flash the other theme's ground
 		// before the map paints.
-		private static string BuildMapUrl(MapRegion? region, double zoom, string styleFile, bool conus,
+		private static string BuildMapUrl(MapRegion? region, double zoom, string styleUrl, bool conus,
 			bool onlineTiles, string tilesUrl, string themeId)
 		{
 			var lng = region?.Longitude ?? -95.5;
 			var lat = region?.Latitude ?? 37.0;
 			return "https://mapassets/map.html" +
 				"?interactive=true" +
-				$"&style={styleFile}" +
+				$"&style={Uri.EscapeDataString(styleUrl)}" +
 				$"&lng={lng.ToString(CultureInfo.InvariantCulture)}" +
 				$"&lat={lat.ToString(CultureInfo.InvariantCulture)}" +
 				$"&zoom={zoom.ToString(CultureInfo.InvariantCulture)}" +
@@ -798,11 +724,18 @@ namespace Anvil
 			// (It used to live inside the read-only package, which is exactly why importing was impossible.)
 			try { Directory.CreateDirectory(DowEventProvider.EventsDirectory); } catch { /* mapping just resolves to nothing */ }
 
+			// Same story for the imported-style library: a writable per-user folder the app copies INTO, which
+			// has to exist before the mapping below points at it. ⚠️ The mapping is what makes an import
+			// usable WITHOUT a restart — re-mapping a host takes effect only after a page reload, so the host
+			// is pointed at the folder once, here, and later arrivals are just files in an already-mapped dir.
+			try { Directory.CreateDirectory(MapStyleLibrary.StylesDirectory); } catch { /* as above */ }
+
 			// Map each virtual host → local folder so the page can fetch everything offline, same-origin:
 			//   mapassets  → bundled MapLibre style/glyphs/sprites/libraries
 			//   mapdata    → the user-configured (external, ~29 GB) basemap PMTiles folder
 			//   spcoutlooks/spcwatches/warnings/stormreports/radarlevel2 → the services' on-disk caches
 			//   dowevents  → the user's imported DOW (mobile-radar) frame library (%LocalAppData%)
+			//   mapstyles  → the user's imported basemap styles (%LocalAppData%)
 			// Services own their cache folders; MainWindow owns the WebView2 mappings.
 			var hostFolders = new (string Host, string Folder)[]
 			{
@@ -814,6 +747,7 @@ namespace Anvil
 				(StormReportService.CacheHostName, _stormReportService.CacheDirectory),
 				(Level2RadarService.CacheHostName, _radarService.CacheDirectory),
 				(DowEventProvider.HostName, DowEventProvider.EventsDirectory),
+				(MapStyleLibrary.HostName, MapStyleLibrary.StylesDirectory),
 			};
 			foreach (var (host, folder) in hostFolders)
 			{
@@ -914,14 +848,6 @@ namespace Anvil
 		{
 			_webReady = true;
 			await PushRadarSiteAccentAsync();
-#if DEBUG
-			// Push the restored style-tuning draft. Debug only — in Release TuneVm does not exist, which is
-			// deliberate: a working draft is not a shipped look (see TuneVm).
-			if (TuneVm is not null)
-			{
-				await TuneVm.OnMapsReadyAsync();
-			}
-#endif
 		}
 
 		// OS accent/theme changed (fires on a background thread) — re-push on the UI thread so the

@@ -177,6 +177,24 @@ namespace Anvil.Services
 			set => SetProperty(ref _themeId, value);
 		}
 
+		private string _mapStyleId = "";
+		/// <summary>
+		/// The basemap the user last had selected, as an <c>IStyleProvider</c> style id. Empty = follow the
+		/// theme's own style.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ It exists because a style can now be IMPORTED. A theme names a BUNDLED style, so without a
+		/// stored choice an imported basemap would be deselected on every launch — which makes importing one
+		/// close to pointless. The Basemap picker used to be a deliberate session-only override; this is that
+		/// decision reversed, knowingly.
+		/// ⚠️ An id that no longer resolves (a deleted import) falls back to the theme's style, not to blank.
+		/// </remarks>
+		public string MapStyleId
+		{
+			get => _mapStyleId;
+			set => SetProperty(ref _mapStyleId, value);
+		}
+
 		private bool _mapControlsStripVisible = true;
 		/// <summary>Whether the MapControlsStrip — the notched strip of camera tools straddling the bottom
 		/// bar's pull-tab — is showing. Toggled by the bar's "Map" key. Default ON, so the tools it exists to

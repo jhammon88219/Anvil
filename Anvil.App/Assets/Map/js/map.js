@@ -46,7 +46,10 @@ const params = new URLSearchParams(location.search);
 const interactive = params.get('interactive') === 'true';
 // `let`, not const: applyStyle updates it so a pane created LATER is built on the current basemap
 // rather than the launch one.
-let styleUrl = 'https://mapassets/' + (params.get('style') || 'style.json');
+// ⚠️ The param is a FULL URL, not a file name. A style can live on either of two virtual hosts —
+// mapassets (bundled, read-only package content) or mapstyles (the user's imported copies) — and the HOST
+// decides which. Prefixing a host here would have made this the third place that had to know.
+let styleUrl = params.get('style') || 'https://mapassets/style.json';
 // ---- Basemap TILE SOURCE (offline PMTiles vs online tiles) -----------------------------------------
 // The five styles are Protomaps-SCHEMA styles: every layer filters on protomaps source-layers, and the
 // ONLY thing tying them to the bundled ~29 GB file is one source url. So "go online" is a SOURCE SWAP,
@@ -100,7 +103,6 @@ try {
     var Markers = null;
     var RadarSites = null;
     var States = null;
-    var StyleTune = null;   // DEV style tuner (loaded lazily on the first tuning; see window.setStyleTuning)
 
     // Restore every overlay onto one map, in stack order. TWO callers: applyStyle (setStyle drops all
     // custom sources/layers) and a NEWLY CREATED pane (which starts with nothing but the basemap). One
@@ -114,10 +116,6 @@ try {
         if (StormReports) StormReports.reAdd(map);       // re-add the storm-report dots (top of the stack)
         if (window.RadarLayer) window.RadarLayer.reAdd(map);  // this pane's own radar layer + range ring
         if (States) States.reAdd(map);                   // re-add LAST so the isolation mask lands on top of everything
-        // ⚠️ The DEV style tuner re-applies AFTER a re-add because setStyle restored the basemap's
-        // PRISTINE colours underneath. It re-paints basemap layers only and adds nothing to the stack, so
-        // its position here is about the basemap being back, not about z-order.
-        if (StyleTune) StyleTune.reAdd(map, styleUrl);
     }
 
     // ---- Camera sync ------------------------------------------------------------------------------
@@ -328,9 +326,6 @@ try {
     let styleGen = 0;
     window.applyStyle = function (url) {
         styleUrl = url; // a pane created later is built on the CURRENT basemap, not the launch one
-        // A different basemap is a different set of pristine colours; the tuner must re-snapshot rather
-        // than transform the old style's values. (reAddAll re-applies the tuning once the style settles.)
-        if (StyleTune) StyleTune.reset();
         const gen = ++styleGen;
         resolveStyle(url).then(function (spec) {
             if (gen !== styleGen) return;
@@ -374,57 +369,6 @@ try {
         if (Markers && Markers.refresh) Markers.refresh();
         if (RadarSites && RadarSites.refresh) RadarSites.refresh();
         window.applyStyle(url || styleUrl);
-    };
-
-    // ---- DEV STYLE EDITOR ---------------------------------------------------------------------------
-    // Host commands for the Debug-only style tuner/editor: a global LEVELS transform, a per-slot override
-    // table, and two read-backs (the slot list, and every slot's resolved colour for export).
-    //
-    // ⚠️ LOADED LAZILY, ON FIRST USE. It is a dev tool and its module fetches the style FILE — neither cost
-    // belongs on the launch path, where resolveStyle deliberately avoids a fetch offline.
-    // ⚠️ It re-paints EXISTING basemap layers (setPaintProperty) and adds nothing, so it is not part of
-    // reAddAll's stack order — but it does have to run after one, because setStyle puts the pristine
-    // colours back. See the call at the end of reAddAll.
-    function withStyleTune(fn) {
-        if (StyleTune) return fn(StyleTune);
-        return import('./style-tune.js')
-            .then(function (m) { StyleTune = m; return fn(m); })
-            .catch(function (e) { console.error('style-tune.js load failed: ' + e); });
-    }
-
-    // ⚠️ READ-BACKS GO THROUGH A GLOBAL, NOT A RETURN VALUE. ExecuteScriptAsync does not await a promise,
-    // and the snapshot is a fetch — so the host STARTS a load and then POLLS window.__anvilStyleSlots,
-    // exactly as the dealias validation harness polls __anvilValidation. Same trap, same shape.
-    window.__anvilStyleSlots = '';
-
-    window.loadStyleSlots = function () {
-        return withStyleTune(function (m) {
-            return m.loadSlots(styleUrl).then(function (list) {
-                window.__anvilStyleSlots = JSON.stringify(list);
-            });
-        });
-    };
-
-    // The global levels transform. `json` is a serialised {white, black, gamma, tintHue, tintStrength};
-    // an empty string clears it.
-    window.setStyleTuning = function (json) {
-        const t = json ? JSON.parse(json) : null;
-        return withStyleTune(function (m) { return m.setTransform(maps, styleUrl, t); });
-    };
-
-    // The per-slot override table: a serialised {"layer|prop|index": "#rrggbb"}. An empty string clears
-    // every override and falls the whole style back to the transform.
-    window.setStyleOverrides = function (json) {
-        const table = json ? JSON.parse(json) : null;
-        return withStyleTune(function (m) { return m.setOverrides(maps, styleUrl, table); });
-    };
-
-    // Every slot's RESOLVED colour, in document order, as JSON — the export payload. Synchronous, because
-    // by export time the snapshot is long since taken.
-    // ⚠️ The ORDER is the contract: the host rewrites the Nth #rrggbb literal in the pristine style file
-    // with the Nth entry, which is what keeps the file's formatting instead of re-serialising it.
-    window.getStyleSlotColors = function () {
-        return StyleTune ? JSON.stringify(StyleTune.exportSlotColors()) : '';
     };
 
     // SPC outlook overlay (probability fills + per-CIG hatching; nested groups clipped) lives in

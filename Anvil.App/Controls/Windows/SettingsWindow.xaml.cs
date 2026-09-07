@@ -20,6 +20,7 @@ namespace Anvil.Controls.Windows
 			InitializeComponent();
 			// The Map tab is a plain child (not x:Load'd like the dev tab), so it exists now.
 			MapTab.BrowseMapDataFolderRequested += (_, _) => BrowseMapDataFolderRequested?.Invoke(this, EventArgs.Empty);
+			MapTab.ImportStyleRequested += (_, _) => ImportStyleRequested?.Invoke(this, EventArgs.Empty);
 			ApplyPlacement(); // establish the default arrangement even if a host never sets ViewModel
 		}
 
@@ -30,6 +31,13 @@ namespace Anvil.Controls.Windows
 		/// exactly as it does for the dev tab's report dialogs.
 		/// </summary>
 		public event EventHandler? BrowseMapDataFolderRequested;
+
+		/// <summary>Relayed from the Map tab: MainWindow owns the file picker (a UserControl has no HWND),
+		/// then hands the chosen path back to <see cref="MapTab"/>, which owns the library work.</summary>
+		public event EventHandler? ImportStyleRequested;
+
+		/// <summary>The Map tab, so the host can call back into it after its picker returns.</summary>
+		public Controls.Composites.MapSettingsTab MapSettingsTab => MapTab;
 
 		/// <summary>The strip's tabs, in <see cref="SettingsTab"/> order. Built once per window instance.</summary>
 		public ObservableCollection<TabEntry> Tabs { get; }

@@ -172,29 +172,7 @@
              ⚠️ Export writes a COPY of the pristine style with the colours substituted, so the file keeps its
              formatting; drop it into Assets/Map and it is a real style. The click bubbles to MainWindow for
              the save picker (a UserControl has no HWND) — same chain as the report dialogs. -->
-        <!-- ===== Section 3: the DEV map style editor. A SWITCH ONLY. =====
-             ⚠️ The sliders used to live here and the slot list in the window, which made one tool two
-             places — you graded on the tab and then looked at the list somewhere else. Everything moved
-             INTO the window; this is just the way in. Same arrangement as the Pipeline Console below. -->
-        <Expander Grid.Row="2" Header="Map style editor" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
-            <Grid RowSpacing="8">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0" TextWrapping="Wrap" FontSize="12"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           Text="Re-colour the current basemap live: a global grade plus a per-colour override for every slot in the style. Session-only — nothing persists, and Export writes a real style file you can drop into Assets/Map."/>
-
-                <ToggleSwitch Grid.Row="1"
-                              OffContent="Editor hidden" OnContent="Editor shown"
-                              IsOn="{x:Bind ViewModel.IsStyleEditorOpen, Mode=TwoWay}"/>
-            </Grid>
-        </Expander>
-
-        <Expander Grid.Row="3" Header="Pipeline console" IsExpanded="True"
+        <Expander Grid.Row="2" Header="Pipeline console" IsExpanded="True"
                   Style="{StaticResource SectionExpanderStyle}">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
