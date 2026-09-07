@@ -172,91 +172,28 @@
              ⚠️ Export writes a COPY of the pristine style with the colours substituted, so the file keeps its
              formatting; drop it into Assets/Map and it is a real style. The click bubbles to MainWindow for
              the save picker (a UserControl has no HWND) — same chain as the report dialogs. -->
-        <Expander Grid.Row="2" Header="Map style tuner" IsExpanded="True"
+        <!-- ===== Section 3: the DEV map style editor. A SWITCH ONLY. =====
+             ⚠️ The sliders used to live here and the slot list in the window, which made one tool two
+             places — you graded on the tab and then looked at the list somewhere else. Everything moved
+             INTO the window; this is just the way in. Same arrangement as the Pipeline Console below. -->
+        <Expander Grid.Row="2" Header="Map style editor" IsExpanded="True"
                   Style="{StaticResource SectionExpanderStyle}">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- summary readout -->
-                    <RowDefinition Height="Auto"/> <!-- white -->
-                    <RowDefinition Height="Auto"/> <!-- black -->
-                    <RowDefinition Height="Auto"/> <!-- gamma -->
-                    <RowDefinition Height="Auto"/> <!-- tint hue -->
-                    <RowDefinition Height="Auto"/> <!-- tint strength -->
-                    <RowDefinition Height="Auto"/> <!-- reset + export -->
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" CornerRadius="6" Padding="10,7"
-                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}">
-                    <TextBlock FontSize="12" TextWrapping="Wrap"
-                               Text="{x:Bind TuneVm.SummaryText, Mode=OneWay}"/>
-                </Border>
+                <TextBlock Grid.Row="0" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="Re-colour the current basemap live: a global grade plus a per-colour override for every slot in the style. Session-only — nothing persists, and Export writes a real style file you can drop into Assets/Map."/>
 
-                <!-- ⚠️ Sliders, not NumberBoxes: this is a look you judge by eye while dragging, and the VM
-                     debounces the push. The value readouts come from the summary above. -->
-                <Grid Grid.Row="1" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="96"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="White" VerticalAlignment="Center"
-                               Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <Slider Grid.Column="1" Minimum="60" Maximum="255" StepFrequency="1"
-                            Value="{x:Bind TuneVm.White, Mode=TwoWay}"/>
-                </Grid>
-
-                <Grid Grid.Row="2" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="96"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Black" VerticalAlignment="Center"
-                               Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <Slider Grid.Column="1" Minimum="0" Maximum="120" StepFrequency="1"
-                            Value="{x:Bind TuneVm.Black, Mode=TwoWay}"/>
-                </Grid>
-
-                <Grid Grid.Row="3" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="96"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Gamma" VerticalAlignment="Center"
-                               Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <Slider Grid.Column="1" Minimum="0.4" Maximum="2.5" StepFrequency="0.01"
-                            Value="{x:Bind TuneVm.Gamma, Mode=TwoWay}"/>
-                </Grid>
-
-                <Grid Grid.Row="4" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="96"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Tint hue" VerticalAlignment="Center"
-                               Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <Slider Grid.Column="1" Minimum="0" Maximum="360" StepFrequency="1"
-                            Value="{x:Bind TuneVm.TintHue, Mode=TwoWay}"/>
-                </Grid>
-
-                <Grid Grid.Row="5" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="96"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Tint" VerticalAlignment="Center"
-                               Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <Slider Grid.Column="1" Minimum="0" Maximum="1" StepFrequency="0.01"
-                            Value="{x:Bind TuneVm.TintStrength, Mode=TwoWay}"/>
-                </Grid>
-
-                <!-- ⚠️ Export lives in the EDITOR window, not here: it writes every slot's resolved
-                     colour, so it belongs with the list of slots rather than with the global grade. -->
-                <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                    <Button Content="Reset" Click="OnTuneResetClick"/>
-                    <ToggleSwitch OffContent="Editor hidden" OnContent="Editor shown"
-                                  IsOn="{x:Bind ViewModel.IsStyleEditorOpen, Mode=TwoWay}"/>
-                </StackPanel>
+                <ToggleSwitch Grid.Row="1"
+                              OffContent="Editor hidden" OnContent="Editor shown"
+                              IsOn="{x:Bind ViewModel.IsStyleEditorOpen, Mode=TwoWay}"/>
             </Grid>
         </Expander>
+
         <Expander Grid.Row="3" Header="Pipeline console" IsExpanded="True"
                   Style="{StaticResource SectionExpanderStyle}">
             <Grid RowSpacing="8">

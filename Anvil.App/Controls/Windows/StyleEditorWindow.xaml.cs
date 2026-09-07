@@ -61,12 +61,23 @@ namespace Anvil.Controls.Windows
 		/// </summary>
 		public ObservableCollection<StyleSlotRow> Rows { get; } = new();
 
-		/// <summary>"86 slots · 3 overridden", or the loading state before the page has answered.</summary>
-		public string CountText => TuneVm is null
-			? ""
-			: TuneVm.Slots.Count == 0
-				? "Reading the basemap's colours…"
-				: $"{TuneVm.Slots.Count} slots · {TuneVm.OverrideCount} overridden";
+		/// <summary>
+		/// "Data Viz Light · 86 slots · 3 edited", or the loading state before the page has answered.
+		/// ⚠️ It names the STYLE because that is what Export writes into — the editor always works on the
+		/// basemap the theme currently has, and there is otherwise nothing on screen saying which.
+		/// </summary>
+		public string CountText
+		{
+			get
+			{
+				var style = ViewModel?.SelectedStyle?.DisplayName;
+				var prefix = string.IsNullOrEmpty(style) ? "" : style + " · ";
+				if (TuneVm is null) return "";
+				return TuneVm.Slots.Count == 0
+					? prefix + "reading the basemap's colours…"
+					: $"{prefix}{TuneVm.Slots.Count} slots · {TuneVm.OverrideCount} edited";
+			}
+		}
 
 		private async void OnLoaded(object sender, RoutedEventArgs e)
 		{
@@ -105,6 +116,10 @@ namespace Anvil.Controls.Windows
 		private void OnSearchChanged(object sender, TextChangedEventArgs e) => Rebuild();
 
 		private void OnFilterChanged(object sender, RoutedEventArgs e) => Rebuild();
+
+		// ⚠️ Resets the SLIDERS only. Per-slot colours are Clear all, which is a separate button on
+		// purpose — neither reset can destroy the other's work.
+		private void OnResetGradeClick(object sender, RoutedEventArgs e) => TuneVm?.Reset();
 
 		// Per-row revert. Clears just this slot, leaving the rest of the edits and the global grade alone.
 		private void OnRevertSlotClick(object sender, RoutedEventArgs e)

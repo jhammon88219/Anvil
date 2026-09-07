@@ -53,16 +53,6 @@ namespace Anvil.Controls.Composites
 			set => SetValue(ViewModelProperty, value);
 		}
 
-		/// <summary>DEV-ONLY live basemap style tuner. Null in Release, where this body is never built.</summary>
-		public MapStyleTuningViewModel? TuneVm
-		{
-			get => (MapStyleTuningViewModel?)GetValue(TuneVmProperty);
-			set => SetValue(TuneVmProperty, value);
-		}
-
-		public static readonly DependencyProperty TuneVmProperty =
-			DependencyProperty.Register(nameof(TuneVm), typeof(MapStyleTuningViewModel), typeof(DevSettingsTab), new PropertyMetadata(null));
-
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(DevSettingsTab), new PropertyMetadata(null));
 
@@ -72,12 +62,6 @@ namespace Anvil.Controls.Composites
 		/// <summary>Raised when the user asks to see the finished dealias-validation report.</summary>
 		public event EventHandler<RadarValidationReport>? ValidationReportRequested;
 
-		/// <summary>
-		/// Raised by the style tuner's Export button. ⚠️ It bubbles rather than acting: writing the file
-		/// needs a save picker, a save picker needs a window HWND, and this is a UserControl. Same chain as
-		/// the report dialogs above and the basemap folder picker on the Map tab.
-		/// </summary>
-		public event EventHandler? ExportTunedStyleRequested;
 
 		// Seed the sweep NumberBoxes from the VM once it's bound (they're double-valued; the VM props are int),
 		// and subscribe both VMs for auto-opening their reports on completion.
@@ -148,8 +132,6 @@ namespace Anvil.Controls.Composites
 		}
 
 		private void OnValidationStopClick(object sender, RoutedEventArgs e) => ValidationVm?.Stop();
-
-		private void OnTuneResetClick(object sender, RoutedEventArgs e) => TuneVm?.Reset();
 
 		private void OnValidationReportClick(object sender, RoutedEventArgs e)
 		{

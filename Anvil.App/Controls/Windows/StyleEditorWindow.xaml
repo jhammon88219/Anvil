@@ -1,21 +1,32 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<!-- StyleEditorWindow — the DEV style editor's body: every colour in the loaded basemap, editable live.
-     Debug-only; opened by the switch in Settings → Dev → "Map style editor".
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StyleEditorWindow — the DEV style editor: the whole basemap-colour tool in ONE window.
+     Debug-only; opened by the "Editor shown" switch on Settings → Dev.
 
-       ┌────────────────────────────────────────────────────────┐
-       │  Map style editor                                 [📌] │
-       │  86 slots · 3 overridden                               │
-       │  [ Search… ]  [ ] Edited only            [Clear all]   │
-       │ ┌────────────────────────────────────────────────────┐ │
-       │ │   ▇  earth · fill-color                  #e0e0e0   │ │ ← the swatch opens the ONE
-       │ │ ▌ ▇  water · fill-color                  #2b4c6f ↺ │ │   shared picker; the hex box
-       │ │   ▇  landuse_park · fill-color [3]       #dcdcdc   │ │   is the second way in
-       │ │   ▇  roads_major · line-color            #cecece   │ │ ← [n] = the nth colour in one
-       │ │ ▲                                                  │ │   expression
-       │ │ └ accent edge + ↺ revert = EDITED (both hidden otherwise)
-       │ └────────────────────────────────────────────────────┘ │
-       │                                        [Export style…] │
-       └────────────────────────────────────────────────────────┘
+     ┌──────────────────────────────────────────────────────────────────┐
+     │  Map style editor                                           [📌] │
+     │  Data Viz Light · 86 slots · 3 edited                            │
+     │  ⌄ Global grade                                                  │
+     │    White [───●─] 224      Tint hue [──●──] 210                   │
+     │    Black [●────]   0      Tint     [●────] 0.00                  │
+     │    Gamma [──●──] 1.00                          [Reset grade]     │
+     │  ⌄ Colours                                                       │
+     │    [ Filter… ]        [ ] Edited only          [Clear all]       │
+     │     Default    Edited                                            │
+     │    ┌────────────────────────────────────────────────────────┐    │
+     │    │  ▓▓   →   ┌╌╌┐   earth · fill-color         #ffffff    │    │
+     │    │  ▓▓   →   ▓▓▓▓   water · fill-color         #2b4c6f ↺  │    │
+     │    │  ▓▓   →   ┌╌╌┐   landuse_park · f-c [3]     #fafafa    │    │
+     │    └────────────────────────────────────────────────────────┘    │
+     │                                              [Export style…]     │
+     └──────────────────────────────────────────────────────────────────┘
+
+     ⚠️ TWO SWATCHES ARE THE EDITED INDICATOR, and they are literal on purpose. The left square is the
+     style's OWN colour, the right one is yours; an untouched slot draws the right square as a DASHED
+     EMPTY box, so "nothing on the right" means "I have not touched this". It replaced a thin accent
+     strip, which marked an edited row but read as any old indicator and showed no before/after.
+     ⚠️ ONLY THE RIGHT SQUARE IS CLICKABLE — it is the value you are setting. The left is a read-only
+     reference. Do not make it a button "for symmetry": a click there has no meaning that revert does not
+     already have, and losing the reference is what makes a before/after pair worth two columns.
 
      ⚠️ A ROW IS A SLOT — (layer, paint property, occurrence index) — NOT a layer and NOT a distinct
      colour. One property can hold several colours (landuse_park's ['case', …] holds seven), and one
@@ -23,16 +34,14 @@
      label halos). Editing by colour would move three unrelated things at once, which is the opposite of
      full control. See ViewModels/Map/StyleSlotRow.
 
-     ⚠️ THE MAP IS THE PREVIEW. The swatch shows the slot's BASE colour (or its override) and deliberately
-     does NOT mirror the global transform — a second copy of that maths in the list is exactly the drift
-     this design avoids. To see the transform, look at the map.
+     ⚠️ THE GRADE LIVES HERE, not on the Dev tab. It used to be split — sliders on the tab, list in this
+     window — which made one tool two places. The tab keeps only the switch that opens this.
+     ⚠️ TWO reset buttons, deliberately: "Reset grade" puts the sliders back, "Clear all" drops every
+     per-slot colour. Neither can destroy the other's work, which one combined button could not promise.
 
-     ⚠️ It is a WINDOW rather than another Dev-tab section because it is a workbench: ~86 rows wants
-     height, and you keep it open beside the map while you work. Same arrangement as the Pipeline Console
-     — a switch on the Dev tab, a registered window here.
-
-     ⚠️ Sliders for the global transform stay on the DEV TAB, not here. The transform is a grade you set
-     once and leave; this window is where you fix what the grade got wrong. -->
+     ⚠️ THE MAP IS THE PREVIEW. The swatches show the slot's own colours and deliberately do NOT mirror
+     the global grade — a second copy of that maths in the list is exactly the drift this design avoids.
+     To see what the grade does, look at the map. -->
 <UserControl x:Class="Anvil.Controls.Windows.StyleEditorWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -48,11 +57,13 @@
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
-    <Grid Background="{ThemeResource OverlayBarSurfaceBrush}" Padding="16,12,16,16" RowSpacing="10">
+    <Grid Background="{ThemeResource OverlayBarSurfaceBrush}" Padding="16,12,16,14" RowSpacing="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- title + pin -->
-            <RowDefinition Height="Auto"/> <!-- count readout -->
-            <RowDefinition Height="Auto"/> <!-- search + clear -->
+            <RowDefinition Height="Auto"/> <!-- style + counts -->
+            <RowDefinition Height="Auto"/> <!-- global grade -->
+            <RowDefinition Height="Auto"/> <!-- colours: filter row -->
+            <RowDefinition Height="Auto"/> <!-- column captions -->
             <RowDefinition Height="*"/>    <!-- the slot list -->
             <RowDefinition Height="Auto"/> <!-- export -->
         </Grid.RowDefinitions>
@@ -69,7 +80,67 @@
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Text="{x:Bind CountText, Mode=OneWay}"/>
 
-        <Grid Grid.Row="2" ColumnSpacing="8">
+        <!-- ===== GLOBAL GRADE ===== -->
+        <Expander Grid.Row="2" Header="Global grade" IsExpanded="True"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid RowSpacing="6" ColumnSpacing="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="62"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                    <ColumnDefinition Width="62"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="White" VerticalAlignment="Center"
+                           Style="{StaticResource SettingsFieldLabelStyle}"/>
+                <Slider Grid.Row="0" Grid.Column="1" Minimum="60" Maximum="255" StepFrequency="1"
+                        Value="{x:Bind TuneVm.White, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" FontSize="12"
+                           Text="{x:Bind TuneVm.White, Mode=OneWay}"/>
+
+                <TextBlock Grid.Row="0" Grid.Column="3" Text="Tint hue" VerticalAlignment="Center"
+                           Style="{StaticResource SettingsFieldLabelStyle}"/>
+                <Slider Grid.Row="0" Grid.Column="4" Minimum="0" Maximum="360" StepFrequency="1"
+                        Value="{x:Bind TuneVm.TintHue, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="0" Grid.Column="5" VerticalAlignment="Center" FontSize="12"
+                           Text="{x:Bind TuneVm.TintHue, Mode=OneWay}"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Black" VerticalAlignment="Center"
+                           Style="{StaticResource SettingsFieldLabelStyle}"/>
+                <Slider Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="120" StepFrequency="1"
+                        Value="{x:Bind TuneVm.Black, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" FontSize="12"
+                           Text="{x:Bind TuneVm.Black, Mode=OneWay}"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="3" Text="Tint" VerticalAlignment="Center"
+                           Style="{StaticResource SettingsFieldLabelStyle}"/>
+                <Slider Grid.Row="1" Grid.Column="4" Minimum="0" Maximum="1" StepFrequency="0.01"
+                        Value="{x:Bind TuneVm.TintStrength, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="1" Grid.Column="5" VerticalAlignment="Center" FontSize="12"
+                           Text="{x:Bind TuneVm.TintStrength, Mode=OneWay}"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Gamma" VerticalAlignment="Center"
+                           Style="{StaticResource SettingsFieldLabelStyle}"/>
+                <Slider Grid.Row="2" Grid.Column="1" Minimum="0.4" Maximum="2.5" StepFrequency="0.01"
+                        Value="{x:Bind TuneVm.Gamma, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" FontSize="12"
+                           Text="{x:Bind TuneVm.Gamma, Mode=OneWay}"/>
+
+                <!-- ⚠️ Resets the SLIDERS only. Clearing per-slot colours is the other button, below. -->
+                <Button Grid.Row="2" Grid.Column="4" Grid.ColumnSpan="2" Content="Reset grade"
+                        HorizontalAlignment="Right" Click="OnResetGradeClick"/>
+            </Grid>
+        </Expander>
+
+        <!-- ===== COLOURS ===== -->
+        <Grid Grid.Row="3" ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -78,15 +149,29 @@
             <TextBox x:Name="SearchBox" Grid.Column="0"
                      PlaceholderText="Filter by layer or property…"
                      TextChanged="OnSearchChanged"/>
-            <!-- The second half of "which ones have I changed": the accent edge answers it while you scroll,
-                 this answers it for the whole style at once. -->
+            <!-- The whole-style answer to "which have I changed"; the swatch pair answers it per row. -->
             <CheckBox x:Name="EditedOnly" Grid.Column="1" Content="Edited only"
                       Checked="OnFilterChanged" Unchecked="OnFilterChanged"/>
-            <Button Grid.Column="2" Content="Clear overrides" Click="OnClearOverridesClick"/>
+            <!-- ⚠️ Drops every per-slot colour. The grade is the other button, above. -->
+            <Button Grid.Column="2" Content="Clear all" Click="OnClearOverridesClick"/>
+        </Grid>
+
+        <!-- Captions over the two swatch columns; these widths must match the row template's. -->
+        <Grid Grid.Row="4" ColumnSpacing="10" Margin="0,2,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="44"/>
+                <ColumnDefinition Width="18"/>
+                <ColumnDefinition Width="44"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Default" FontSize="11" HorizontalAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+            <TextBlock Grid.Column="2" Text="Edited" FontSize="11" HorizontalAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
         </Grid>
 
         <!-- ⚠️ ONE ROW PER SLOT, virtualised: 86 rows here, and a bigger style would be more. -->
-        <ListView Grid.Row="3" x:Name="SlotList"
+        <ListView Grid.Row="5" x:Name="SlotList"
                   SelectionMode="None"
                   ItemsSource="{x:Bind Rows, Mode=OneWay}"
                   ScrollViewer.HorizontalScrollMode="Disabled">
@@ -94,35 +179,47 @@
                 <DataTemplate x:DataType="vm:StyleSlotRow">
                     <Grid ColumnSpacing="10" Padding="0,3">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="4"/>
-                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="44"/>
+                            <ColumnDefinition Width="18"/>
+                            <ColumnDefinition Width="44"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="86"/>
+                            <ColumnDefinition Width="30"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- EDITED MARKER. An accent edge down the row, so a scroll down the list reads as
-                             "these four are mine" without comparing any hex values.
-                             ⚠️ Accent = "this one is on", the same vocabulary the bar keys use — an edited
-                             slot is a slot that is overriding, so it lights. ⚠️ It is a THEME brush in
-                             XAML, never a colour picked in a converter: a converter has no element and so
-                             cannot resolve a theme brush correctly (docs/theming.md). -->
-                        <Border Grid.Column="0" CornerRadius="2"
-                                Background="{ThemeResource AccentFillColorDefaultBrush}"
-                                Visibility="{x:Bind IsOverridden, Mode=OneWay, Converter={StaticResource BoolToVis}}"/>
-
-                        <!-- ⚠️ A Button, so the whole chip is the hit target and it gets focus + keyboard
-                             for free. Its Tag carries the SLOT KEY, which is how the shared picker learns
-                             which row it was opened from. -->
-                        <Button Grid.Column="1" Width="30" Height="24" Padding="0"
-                                Tag="{x:Bind Key}"
-                                Click="OnSwatchClick"
-                                ToolTipService.ToolTip="Pick a colour"
-                                Background="{x:Bind EffectiveColor, Mode=OneWay, Converter={StaticResource HexToBrush}}"
+                        <!-- DEFAULT: the style's own colour, read-only. -->
+                        <Border Grid.Column="0" Height="26" CornerRadius="4"
                                 BorderThickness="1"
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                                Background="{x:Bind BaseColor, Converter={StaticResource HexToBrush}}"/>
 
-                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Grid.Column="1" Text="&#x2192;" FontSize="13"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+
+                        <!-- EDITED: yours. The Button is always live (it is how you set one); the dashed
+                             Rectangle sits over it while nothing is set and says so.
+                             ⚠️ A Rectangle, not a Border — a WinUI Border cannot draw a dashed stroke.
+                             ⚠️ Its Background comes from OverrideColor, NOT EffectiveColor: the converter
+                             returns transparent for null, which is exactly the empty state. -->
+                        <Grid Grid.Column="2">
+                            <Button Height="26" Padding="0" HorizontalAlignment="Stretch"
+                                    Tag="{x:Bind Key}"
+                                    Click="OnSwatchClick"
+                                    ToolTipService.ToolTip="Pick a colour"
+                                    CornerRadius="4"
+                                    BorderThickness="1"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                                    Background="{x:Bind OverrideColor, Mode=OneWay, Converter={StaticResource HexToBrush}}"/>
+                            <Rectangle Height="26" RadiusX="4" RadiusY="4"
+                                       IsHitTestVisible="False"
+                                       StrokeThickness="1"
+                                       StrokeDashArray="2,2"
+                                       Stroke="{ThemeResource TextFillColorTertiaryBrush}"
+                                       Visibility="{x:Bind IsOverridden, Mode=OneWay, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"/>
+                        </Grid>
+
+                        <StackPanel Grid.Column="3" VerticalAlignment="Center">
                             <TextBlock Text="{x:Bind Label}" FontSize="12"
                                        TextTrimming="CharacterEllipsis"/>
                             <TextBlock Text="{x:Bind Family}" FontSize="10"
@@ -132,22 +229,21 @@
                         <!-- The hex box is the SECOND way in, kept beside the picker rather than replaced
                              by it: pasting a value you already have is faster than finding it on a
                              spectrum, and it is the only way to READ what a slot currently is. -->
-                        <TextBox Grid.Column="3" Width="96" FontSize="12"
+                        <TextBox Grid.Column="4" FontSize="12"
                                  Text="{x:Bind EffectiveColor, Mode=OneWay}"
                                  Tag="{x:Bind Key}"
                                  LostFocus="OnSlotColorCommitted"
                                  KeyDown="OnSlotColorKeyDown"/>
 
-                        <!-- Per-row revert, shown ONLY on an edited row — so it doubles as a second edited
-                             marker and gives the accent edge something to do. Emptying the hex box clears a
-                             slot too, but that is not a thing anyone discovers. -->
-                        <Button Grid.Column="4" Width="30" Height="30" Padding="0"
+                        <!-- Per-row revert, shown ONLY on an edited row. Emptying the hex box clears a slot
+                             too, but that is not a thing anyone discovers.
+                             ⚠️ E7A7 (Undo) is NOT verified by rendering — a wrong codepoint ships as an
+                             empty box, and the tooltip is the only other thing carrying the meaning. -->
+                        <Button Grid.Column="5" Width="30" Height="30" Padding="0"
                                 Tag="{x:Bind Key}"
                                 Click="OnRevertSlotClick"
                                 ToolTipService.ToolTip="Revert to the style's own colour"
                                 Visibility="{x:Bind IsOverridden, Mode=OneWay, Converter={StaticResource BoolToVis}}">
-                            <!-- ⚠️ E7A7 (Undo) is NOT verified by rendering — a wrong codepoint ships as an
-                                 empty box, and the tooltip is the only other thing carrying the meaning. -->
                             <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12" Glyph="&#xE7A7;"/>
                         </Button>
                     </Grid>
@@ -155,7 +251,7 @@
             </ListView.ItemTemplate>
         </ListView>
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
             <Button Content="Export style…" Click="OnExportClick"/>
         </StackPanel>
     </Grid>

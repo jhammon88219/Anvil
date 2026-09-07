@@ -605,14 +605,12 @@ namespace Anvil
 						ViewModel = ViewModel,
 						SweepVm = SweepVm,
 						ValidationVm = ValidationVm,
-						TuneVm = TuneVm,
 					};
 					// Wired per-instance (the window's content is rebuilt each time it opens) so a finished
 					// dev run still pops its results dialog.
 					settings.SweepReportRequested += OnSweepReportRequested;
 					settings.ValidationReportRequested += OnValidationReportRequested;
 					settings.BrowseMapDataFolderRequested += OnBrowseMapDataFolderRequested;
-					settings.ExportTunedStyleRequested += OnExportTunedStyleRequested;
 					return settings;
 				},
 				title: "Settings", width: 520, height: 640,
@@ -635,7 +633,9 @@ namespace Anvil
 					editor.ExportRequested += OnExportTunedStyleRequested;
 					return editor;
 				},
-				title: "Map style editor", width: 520, height: 720,
+				// Wider than the other panels: two swatch columns + the arrow cost ~80px, and the grade's
+				// sliders sit two-across. It is a workbench, not a settings pane.
+				title: "Map style editor", width: 620, height: 760,
 				alwaysOnTop: () => ViewModel.IsStyleEditorOnTop,
 				customChrome: true);
 			_windows.Register(
