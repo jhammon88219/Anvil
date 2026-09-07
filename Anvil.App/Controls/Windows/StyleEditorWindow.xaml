@@ -5,13 +5,14 @@
        ┌────────────────────────────────────────────────────────┐
        │  Map style editor                                 [📌] │
        │  86 slots · 3 overridden                               │
-       │  [ Search layer or property…            ]  [Clear all] │
+       │  [ Search… ]  [ ] Edited only            [Clear all]   │
        │ ┌────────────────────────────────────────────────────┐ │
-       │ │ ▇  earth · fill-color                    #e0e0e0   │ │  ← the swatch opens the ONE
-       │ │ ▇  water · fill-color                    #2b4c6f   │ │    shared colour picker; the
-       │ │ ▇  landuse_park · fill-color [3]         #dcdcdc   │ │    hex box is the second way in
-       │ │ ▇  roads_major · line-color              #cecece   │ │  ← [n] = the nth colour in one
-       │ │                                                    │ │    expression
+       │ │   ▇  earth · fill-color                  #e0e0e0   │ │ ← the swatch opens the ONE
+       │ │ ▌ ▇  water · fill-color                  #2b4c6f ↺ │ │   shared picker; the hex box
+       │ │   ▇  landuse_park · fill-color [3]       #dcdcdc   │ │   is the second way in
+       │ │   ▇  roads_major · line-color            #cecece   │ │ ← [n] = the nth colour in one
+       │ │ ▲                                                  │ │   expression
+       │ │ └ accent edge + ↺ revert = EDITED (both hidden otherwise)
        │ └────────────────────────────────────────────────────┘ │
        │                                        [Export style…] │
        └────────────────────────────────────────────────────────┘
@@ -44,6 +45,7 @@
 
     <UserControl.Resources>
         <conv:HexToBrushConverter x:Key="HexToBrush"/>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}" Padding="16,12,16,16" RowSpacing="10">
@@ -71,11 +73,16 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBox x:Name="SearchBox" Grid.Column="0"
                      PlaceholderText="Filter by layer or property…"
                      TextChanged="OnSearchChanged"/>
-            <Button Grid.Column="1" Content="Clear overrides" Click="OnClearOverridesClick"/>
+            <!-- The second half of "which ones have I changed": the accent edge answers it while you scroll,
+                 this answers it for the whole style at once. -->
+            <CheckBox x:Name="EditedOnly" Grid.Column="1" Content="Edited only"
+                      Checked="OnFilterChanged" Unchecked="OnFilterChanged"/>
+            <Button Grid.Column="2" Content="Clear overrides" Click="OnClearOverridesClick"/>
         </Grid>
 
         <!-- ⚠️ ONE ROW PER SLOT, virtualised: 86 rows here, and a bigger style would be more. -->
@@ -87,15 +94,27 @@
                 <DataTemplate x:DataType="vm:StyleSlotRow">
                     <Grid ColumnSpacing="10" Padding="0,3">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
+
+                        <!-- EDITED MARKER. An accent edge down the row, so a scroll down the list reads as
+                             "these four are mine" without comparing any hex values.
+                             ⚠️ Accent = "this one is on", the same vocabulary the bar keys use — an edited
+                             slot is a slot that is overriding, so it lights. ⚠️ It is a THEME brush in
+                             XAML, never a colour picked in a converter: a converter has no element and so
+                             cannot resolve a theme brush correctly (docs/theming.md). -->
+                        <Border Grid.Column="0" CornerRadius="2"
+                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                Visibility="{x:Bind IsOverridden, Mode=OneWay, Converter={StaticResource BoolToVis}}"/>
 
                         <!-- ⚠️ A Button, so the whole chip is the hit target and it gets focus + keyboard
                              for free. Its Tag carries the SLOT KEY, which is how the shared picker learns
                              which row it was opened from. -->
-                        <Button Grid.Column="0" Width="30" Height="24" Padding="0"
+                        <Button Grid.Column="1" Width="30" Height="24" Padding="0"
                                 Tag="{x:Bind Key}"
                                 Click="OnSwatchClick"
                                 ToolTipService.ToolTip="Pick a colour"
@@ -103,7 +122,7 @@
                                 BorderThickness="1"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
                             <TextBlock Text="{x:Bind Label}" FontSize="12"
                                        TextTrimming="CharacterEllipsis"/>
                             <TextBlock Text="{x:Bind Family}" FontSize="10"
@@ -113,11 +132,24 @@
                         <!-- The hex box is the SECOND way in, kept beside the picker rather than replaced
                              by it: pasting a value you already have is faster than finding it on a
                              spectrum, and it is the only way to READ what a slot currently is. -->
-                        <TextBox Grid.Column="2" Width="96" FontSize="12"
+                        <TextBox Grid.Column="3" Width="96" FontSize="12"
                                  Text="{x:Bind EffectiveColor, Mode=OneWay}"
                                  Tag="{x:Bind Key}"
                                  LostFocus="OnSlotColorCommitted"
                                  KeyDown="OnSlotColorKeyDown"/>
+
+                        <!-- Per-row revert, shown ONLY on an edited row — so it doubles as a second edited
+                             marker and gives the accent edge something to do. Emptying the hex box clears a
+                             slot too, but that is not a thing anyone discovers. -->
+                        <Button Grid.Column="4" Width="30" Height="30" Padding="0"
+                                Tag="{x:Bind Key}"
+                                Click="OnRevertSlotClick"
+                                ToolTipService.ToolTip="Revert to the style's own colour"
+                                Visibility="{x:Bind IsOverridden, Mode=OneWay, Converter={StaticResource BoolToVis}}">
+                            <!-- ⚠️ E7A7 (Undo) is NOT verified by rendering — a wrong codepoint ships as an
+                                 empty box, and the tooltip is the only other thing carrying the meaning. -->
+                            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12" Glyph="&#xE7A7;"/>
+                        </Button>
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>

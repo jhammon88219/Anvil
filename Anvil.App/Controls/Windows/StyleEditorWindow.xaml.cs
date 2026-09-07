@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Microsoft.UI;
@@ -83,11 +84,19 @@ namespace Anvil.Controls.Windows
 			if (TuneVm is null) return;
 
 			var query = SearchBox.Text?.Trim();
-			var matches = string.IsNullOrEmpty(query)
-				? TuneVm.Slots
-				: TuneVm.Slots.Where(r =>
+			IEnumerable<StyleSlotRow> matches = TuneVm.Slots;
+
+			if (!string.IsNullOrEmpty(query))
+			{
+				matches = matches.Where(r =>
 					r.LayerId.Contains(query, StringComparison.OrdinalIgnoreCase) ||
 					r.Property.Contains(query, StringComparison.OrdinalIgnoreCase));
+			}
+
+			if (EditedOnly.IsChecked == true)
+			{
+				matches = matches.Where(r => r.IsOverridden);
+			}
 
 			foreach (var row in matches) Rows.Add(row);
 			Bindings.Update();
@@ -95,10 +104,29 @@ namespace Anvil.Controls.Windows
 
 		private void OnSearchChanged(object sender, TextChangedEventArgs e) => Rebuild();
 
+		private void OnFilterChanged(object sender, RoutedEventArgs e) => Rebuild();
+
+		// Per-row revert. Clears just this slot, leaving the rest of the edits and the global grade alone.
+		private void OnRevertSlotClick(object sender, RoutedEventArgs e)
+		{
+			if (TuneVm is null || sender is not Button button || button.Tag is not string key) return;
+
+			var row = TuneVm.Slots.FirstOrDefault(r => r.Key == key);
+			if (row is null) return;
+
+			TuneVm.SetOverride(row, null);
+
+			// ⚠️ The row may now fail the "Edited only" filter, so the LIST has to be rebuilt rather than
+			// just re-bound — otherwise the row you just reverted sits there with its marker gone, in a list
+			// that claims to show only edited rows.
+			Rebuild();
+		}
+
 		private void OnClearOverridesClick(object sender, RoutedEventArgs e)
 		{
 			TuneVm?.ClearOverrides();
-			Bindings.Update();
+			// Rebuild rather than re-bind: under "Edited only" the list should now be EMPTY.
+			Rebuild();
 		}
 
 		// Commit on Enter as well as on focus loss: typing a hex and tabbing away is the common path, but
@@ -125,7 +153,7 @@ namespace Anvil.Controls.Windows
 			{
 				TuneVm.SetOverride(row, null);
 				box.Text = row.EffectiveColor;
-				Bindings.Update();
+				Rebuild();
 				return;
 			}
 
@@ -140,7 +168,10 @@ namespace Anvil.Controls.Windows
 			}
 
 			TuneVm.SetOverride(row, text.ToLowerInvariant());
-			Bindings.Update();
+			// The row's edited state just changed, and under "Edited only" that changes what belongs in the
+			// list — so rebuild rather than re-bind. (The picker's live path guards this on the filter being
+			// on, because it fires per frame of a drag; a committed hex box fires once.)
+			Rebuild();
 		}
 
 		private static bool TryParse(string? hex, out Color color)
@@ -239,6 +270,11 @@ namespace Anvil.Controls.Windows
 			var c = args.NewColor;
 			TuneVm.SetOverride(_pickerRow, $"#{c.R:x2}{c.G:x2}{c.B:x2}");
 			Bindings.Update();
+
+			// ⚠️ A row that was NOT edited has just become edited, so under "Edited only" it now belongs in
+			// a list it is not in. Only rebuild in that mode — doing it on every drag of the spectrum would
+			// rebuild the whole list per frame.
+			if (EditedOnly.IsChecked == true) Rebuild();
 		}
 
 		/// <summary>Raised by the Export button; MainWindow owns the save picker (a UserControl has no HWND).</summary>
