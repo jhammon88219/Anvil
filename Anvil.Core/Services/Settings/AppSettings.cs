@@ -177,6 +177,29 @@ namespace Anvil.Services
 			set => SetProperty(ref _themeId, value);
 		}
 
+		private string _mapIsolation = "";
+		/// <summary>
+		/// What the map's isolation picker was resting on: <c>"None"</c>, <c>"Conus"</c>, or a state NAME
+		/// (matching <c>StateIsolationViewModel.States</c>). Empty or unrecognized = No Isolation, which is
+		/// also the first-run default — the app opens on the whole map and masking is something you ask for.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ ONE string holding the resolved PICK, not the view model's three flags
+		/// (<c>IsConusIsolated</c>/<c>IsArmed</c>/<c>SelectedState</c>). Those can't disagree this way: a pair
+		/// of settings could persist "a state is isolated" with no state named. The kinds and the state names
+		/// share one value space safely because no state is called "None" or "Conus".
+		/// ⚠️ "Select to Isolate" (armed, nothing picked) deliberately persists as <c>"None"</c> — arming is a
+		/// pending GESTURE ("now click a state"), and relaunching into hover-armed mode with no mask on screen
+		/// would read as the app having lost the pick rather than as a mode you left running.
+		/// ⚠️ A state NAME rather than an index, for the usual reason (see the PastCast block): the picker's
+		/// list is positional and an index would silently name a different place if it ever moved.
+		/// </remarks>
+		public string MapIsolation
+		{
+			get => _mapIsolation;
+			set => SetProperty(ref _mapIsolation, value);
+		}
+
 		private bool _mapControlsStripVisible = true;
 		/// <summary>Whether the MapControlsStrip — the notched strip of camera tools straddling the bottom
 		/// bar's pull-tab — is showing. Toggled by the bar's "Map" key. Default ON, so the tools it exists to

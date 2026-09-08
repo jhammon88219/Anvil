@@ -20,6 +20,7 @@ namespace Anvil.ViewModels
 	public sealed class StateIsolationViewModel : ObservableObject
 	{
 		private readonly IMapService _mapService;
+		private readonly ISettingsService _settings;
 
 		// Readiness guard: JS commands only run once the map page has reported 'mapReady'. A toggle flipped
 		// before then is remembered and applied in OnMapsReadyAsync (mirrors the other subsystem VMs).
@@ -29,19 +30,60 @@ namespace Anvil.ViewModels
 		// the WebView (a map click / a clear) rather than from the combo.
 		private bool _applyingFromSystem;
 
-		public StateIsolationViewModel(IMapService mapService)
+		// The two non-place values AppSettings.MapIsolation can hold. Spelled out here rather than reused from
+		// the row labels ("No Isolation" / "Isolate CONUS") so re-wording a row can never invalidate a settings
+		// file — the stored value names the KIND, not what the picker calls it.
+		private const string NoneValue = "None";
+		private const string ConusValue = "Conus";
+
+		public StateIsolationViewModel(IMapService mapService, ISettingsService settings)
 		{
 			_mapService = mapService;
+			_settings = settings;
 			IsolationOptions = BuildOptions(States);
-			RefreshSelectedOption(); // CONUS is the launch default, so the combo opens reading it
+			RestoreIsolation();      // FIELDS only — see the method; the map isn't ready and mustn't be commanded
+			RefreshSelectedOption(); // so the combo opens reading whatever was restored
 		}
 
-		private bool _isConusIsolated = true;
+		// Pull the last isolation back out of settings, into the FIELDS. ⚠️ Ctor-time only, and fields rather
+		// than properties for two reasons: the property setters issue map commands (the page does not exist
+		// yet), and writing through them would persist straight back what we just read. The restored value is
+		// applied for real in OnMapsReadyAsync, which already replays all three flags.
+		private void RestoreIsolation()
+		{
+			var stored = _settings.Settings.MapIsolation;
+
+			if (stored == ConusValue) { _isConusIsolated = true; return; }
+
+			// A place we still know about. Anything else — empty, "None", or a name this build's list no
+			// longer has — leaves both fields at their defaults, which IS No Isolation.
+			if (States.Contains(stored)) { _selectedState = stored; }
+		}
+
+		// Write the resolved pick back. Cheap to call on every change: the settings service debounces its own
+		// save, and an unchanged value doesn't even raise.
+		private void PersistIsolation(StateIsolationOption? resolved)
+		{
+			_settings.Settings.MapIsolation = resolved is null ? NoneValue : resolved.Kind switch
+			{
+				StateIsolationKind.State => resolved.Label,
+				StateIsolationKind.Conus => ConusValue,
+				// ⚠️ Arm lands here WITH None, deliberately — see the AppSettings remarks.
+				_ => NoneValue,
+			};
+		}
+
+		private bool _isConusIsolated;
 
 		/// <summary>Base map extent: true = mask everything outside CONUS (the contiguous 48 + DC), false =
-		/// the full map. The launch default (on) — this app is CONUS-only for now. Independent of single-state
-		/// isolation (an isolated state overrides it until cleared, then the view falls back to this). Bound
-		/// to the "CONUS only" toggle in the Map Controls card.</summary>
+		/// the full map. Independent of single-state isolation (an isolated state overrides it until cleared,
+		/// then the view falls back to this). Bound to the isolation picker on the map controls strip.</summary>
+		/// <remarks>
+		/// ⚠️ The launch default is OFF, and the whole isolation pick is PERSISTED (see
+		/// <see cref="AppSettings.MapIsolation"/>) — so this field's default is only what a first run sees.
+		/// CONUS used to be the hardcoded launch default; it isn't, because a mask the user never asked for is
+		/// a worse first impression than the whole map, and anyone who wants it now gets it back on every run.
+		/// </remarks>
 		public bool IsConusIsolated
 		{
 			get => _isConusIsolated;
@@ -254,6 +296,15 @@ namespace Anvil.ViewModels
 			if (_applyingOption) { return; }
 
 			var resolved = ResolveOption();
+
+			// ⚠️ THIS IS THE ONE PLACE THE PICK IS PERSISTED, and it sits ABOVE the early-out on purpose.
+			// Every path that moves any of the three flags ends here — the three setters, ResetIsolationAsync
+			// (through the option setter's tail call), and a MAP CLICK arriving via OnStateIsolated — so
+			// persisting the RESOLVED row catches all of them with no writer per flag. Re-writing an unchanged
+			// value costs nothing (SetProperty no-ops, so no save is even queued); missing one because the
+			// combo happened to already read it would silently drop the setting.
+			PersistIsolation(resolved);
+
 			if (ReferenceEquals(resolved, _selectedIsolationOption)) { return; }
 
 			_applyingOption = true;
@@ -272,7 +323,7 @@ namespace Anvil.ViewModels
 		public async Task OnMapsReadyAsync()
 		{
 			_isMapReady = true;
-			if (_isConusIsolated) { await _mapService.SetConusIsolationAsync(true); } // launch default: CONUS
+			if (_isConusIsolated) { await _mapService.SetConusIsolationAsync(true); } // restored, or picked pre-ready
 			if (_isArmed) { await _mapService.SetStateIsolationAsync(true); }
 
 			// ⚠⚠ REPLAY THE ISOLATED STATE TOO. Every command here is dropped while the page is not ready
