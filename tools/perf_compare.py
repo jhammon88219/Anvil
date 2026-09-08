@@ -46,6 +46,10 @@ METRICS = [
     ("t_live",           "First live frame",       "s",  -1),
     ("decode_p50",       "Frame decode p50",       "ms", -1),
     ("decode_p95",       "Frame decode p95",       "ms", -1),
+    ("volume_mb",        "Volume bytes decoded",   "MB", -1),
+    ("fetch_p50",        "Frame fetch p50",        "ms", -1),
+    ("wait_p50",         "Queued behind decode p50", "ms", -1),
+    ("round_p50",        "Frame dispatch->arrival p50", "ms", -1),
     ("frames_decoded",   "Frames decoded",         "",    0),
     ("suspects",         "Suspect frames",         "",   -1),
     ("render_errors",    "Render errors",          "",   -1),
@@ -78,6 +82,7 @@ def load_run(path):
     """
     mem_retained, mem_heap, mem_frames, mem_cached, heap_limits = [], [], [], [], []
     decode_ms, timings = [], defaultdict(list)
+    fetch_ms, wait_ms, round_ms, vol_bytes = [], [], [], []
     frames_decoded = suspects = render_errors = render_blanks = 0
     pan_p50, pan_p95, pan_long, mk_attached, mk_shown = [], [], [], [], []
     pan_cadence, pan_long_ms = [], []
@@ -129,6 +134,13 @@ def load_run(path):
                 js = e.get("js") or {}
                 if isinstance(js.get("decodeMs"), (int, float)):
                     decode_ms.append(js["decodeMs"])
+                # Phase split (added 2026-09-08). decodeMs alone hid where a frame's wall clock went;
+                # absent in older runs, which is why every one of these is guarded rather than defaulted.
+                for key, sink in (("fetchMs", fetch_ms), ("waitMs", wait_ms), ("roundMs", round_ms)):
+                    if isinstance(js.get(key), (int, float)):
+                        sink.append(js[key])
+                if isinstance(js.get("bytes"), (int, float)) and js["bytes"] > 0:
+                    vol_bytes.append(js["bytes"])
             elif cat == "render":
                 js = e.get("js") or {}
                 # radar.js rate-limits these and carries running TOTALS, so take the max, never a count.
@@ -170,6 +182,13 @@ def load_run(path):
         "t_live": statistics.median(timings["live"]) if timings["live"] else None,
         "decode_p50": pct(dm, 0.50),
         "decode_p95": pct(dm, 0.95),
+        # Median volume size actually decoded per frame. A legacy PastCast volume ships ~43 MB to render
+        # one tilt against ~7 MB for a live single-tilt frame - so this row is the one that says whether
+        # single-tilt extraction landed, and decode_p50 is the row that says what it bought.
+        "volume_mb": (statistics.median(vol_bytes) / 1048576.0) if vol_bytes else None,
+        "fetch_p50": statistics.median(fetch_ms) if fetch_ms else None,
+        "wait_p50": statistics.median(wait_ms) if wait_ms else None,
+        "round_p50": statistics.median(round_ms) if round_ms else None,
         "frames_decoded": frames_decoded,
         "suspects": suspects,
         "render_errors": render_errors,

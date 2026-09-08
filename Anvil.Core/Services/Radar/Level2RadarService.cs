@@ -197,10 +197,26 @@ namespace Anvil.Services
 		// questions — the base path anchors on the first radial and needs no VCP table (so it works on a
 		// legacy volume whose Message 5 won't parse), while targeting a specific tilt inherently requires
 		// that table. Both yield the same KIND of buffer, so nothing downstream knows which ran.
-		private static byte[]? ExtractTilt(byte[] data, string siteId, float? tiltAngle) =>
-			tiltAngle is null
+		// ⚠️ TWO WALKERS, TRIED IN ORDER — the LDM one first, ALWAYS, so the battle-hardened modern path is
+		// bit-for-bit unchanged and cannot regress. It returns null on a legacy volume (its control-word walk
+		// finds no bzip2 blocks in an uncompressed AR2V and bails with records=0), and only THEN does the
+		// uncompressed walker get a turn. Additive by construction: nothing modern reaches the second call.
+		//
+		// ⚠️ Higher tilts still return null on a legacy volume, exactly as before — the caller then falls back
+		// to the base tilt honestly (see LoadLoopCoreAsync). Legacy tilt SELECTION is reachable from the same
+		// walker and is deliberately not wired up in this change; do that as its own step, with its own
+		// TiltCheck run, rather than smuggling it in behind a perf fix.
+		private static byte[]? ExtractTilt(byte[] data, string siteId, float? tiltAngle)
+		{
+			var ldm = tiltAngle is null
 				? TryExtractLowestTilt(data, siteId)
 				: TryExtractTiltByAngle(data, siteId, tiltAngle.Value, out _);
+			if (ldm is not null || tiltAngle is not null)
+			{
+				return ldm;
+			}
+			return TryExtractLowestTiltUncompressed(data, siteId, out _);
+		}
 
 		public async Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, float? tiltAngle = null, bool prioritized = false, CancellationToken cancellationToken = default)
 		{

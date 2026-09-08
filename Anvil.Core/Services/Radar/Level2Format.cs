@@ -744,6 +744,186 @@ namespace Anvil.Services
 			return records > 0 ? output.ToArray() : null;
 		}
 
+		// Whether the 4 bytes at `at` read as a radar callsign (A-Z / 0-9). In an UNCOMPRESSED walk the
+		// ICAO sits at a KNOWN offset (Message 31 body + 0) rather than being searched for, so this is not
+		// identification — it is an ALIGNMENT CHECK. If the walk has desynced, the odds of landing on four
+		// callsign-shaped bytes are small, so this is the cheap tripwire that turns a silent mis-parse into
+		// a clean bail-out. (Digits are legal: the ROC test bed KCRI writes radials under "NOK5".)
+		private static bool LooksLikeCallsign(byte[] raw, int at)
+		{
+			if (at + 4 > raw.Length)
+			{
+				return false;
+			}
+			for (var i = 0; i < 4; i++)
+			{
+				var c = raw[at + i];
+				if (!((c >= (byte)'A' && c <= (byte)'Z') || (c >= (byte)'0' && c <= (byte)'9')))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+		/// <summary>
+		/// Extracts the lowest tilt from an <b>UNCOMPRESSED</b> AR2V volume — the legacy sibling of
+		/// <see cref="TryExtractLowestTilt"/>, producing the same KIND of buffer (24-byte header + leading
+		/// metadata + the base surveillance cut + its Doppler companion).
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ <b>WHY THIS EXISTS.</b> Pre-2016 archive keys are <c>.gz</c>, and they gunzip to a fully
+		/// uncompressed AR2V — no 4-byte control words, no bzip2 LDM blocks. <see cref="TryExtractLowestTilt"/>
+		/// walks exactly that structure, so on a legacy volume it finds nothing, returns null, and the caller
+		/// caches the WHOLE ~43 MB volume. The tilt was never unreachable; the walker was looking for a
+		/// structure that is not there. Consequence, measured: PastCast shipped ~43 MB to the WebView to
+		/// render one tilt (~7 MB for a live single-tilt frame), and decodeMs ran ~1900 ms against live's
+		/// ~357 ms — on every frame of every replay.
+		/// <para>⚠️ <b>THE DECISION LOGIC IS DELIBERATELY IDENTICAL to TryExtractLowestTilt</b> — anchor on
+		/// the first real radial, track the cut's settled angle as the MAX over its own radials, close at an
+		/// elevation-NUMBER increase confirmed by angle, and keep at most ONE same-angle Doppler companion.
+		/// Only the WALKER differs. Do not "improve" one path's rules without the other: the split-cut and
+		/// settling-radial traps behind those rules cost real bugs (see the comments over there), and two
+		/// extractors that disagree about what the base tilt is would be worse than one that is simply wrong.</para>
+		/// <para>⚠️ Record layout, validated by walking 105 cached legacy volumes to exactly 100% of their
+		/// length (<c>tools/legacy_volume_scan.py</c>): 12-byte legacy CTM header, 16-byte message header,
+		/// body. Size is a big-endian u16 at messageHeader+0 in HALFWORDS covering header+body; type is at
+		/// messageHeader+3. Message 31 (digital radial) is VARIABLE length, so its record is
+		/// <c>12 + size*2</c>; everything else sits in a fixed <see cref="RadarDataSize"/> frame.</para>
+		/// <para>⚠️ Fields come from KNOWN offsets here (ICAO at body+0, elevation number at body+22, angle at
+		/// body+24) rather than an <see cref="IndexOf"/> scan for the callsign, so this path inherits none of
+		/// that scan's false-match risk and needs no <c>TryDetectIcao</c>. The +22/+24 offsets are the same
+		/// ones <see cref="ElevationOf"/> / <see cref="ElevationAngleOf"/> use.</para>
+		/// <para>⚠️ EVERY anomaly bails, because the caller's existing fallback — cache the whole volume — is
+		/// always correct, just slow. A mis-parse that produced a plausible-looking buffer would be far worse
+		/// than no extraction at all. That is also how pre-2008 Message-1 volumes degrade safely: they carry
+		/// no type-31 records, so nothing is kept and the caller falls back.</para>
+		/// </remarks>
+		internal static byte[]? TryExtractLowestTiltUncompressed(byte[] raw, string siteId, out bool completedTilt)
+		{
+			completedTilt = false;
+			const int headerSize = 24;
+			if (raw.Length < headerSize + CtmHeaderSize + MessageHeaderSize)
+			{
+				return null;
+			}
+
+			// Confirm the container before trusting any offset inside it. The LDM path needs no such check
+			// (a bzip2 block either inflates or it does not), but a fixed-offset walk has no self-check.
+			if (raw[0] != (byte)'A' || raw[1] != (byte)'R' || raw[2] != (byte)'2' || raw[3] != (byte)'V')
+			{
+				return null;
+			}
+
+			using var output = new MemoryStream(8 * 1024 * 1024);
+			output.Write(raw, 0, headerSize);
+
+			const float tiltTol = 0.20f; // the Doppler companion shares the base angle within jitter
+			var pos = headerSize;
+			var records = 0;
+			var radials = 0;
+			var inTilt1 = false;       // have we reached the first real radial yet?
+			var baseAngle = float.NaN; // settled angle of the base tilt (the MAX over its radials)
+			var baseTiltNum = 0;       // the base tilt's elevation NUMBER
+			var baseElev = 0;          // highest elevation NUMBER still accepted as the base tilt
+			var keptDoppler = false;   // did we keep a higher-numbered same-angle (Doppler) cut?
+
+			while (pos + CtmHeaderSize + MessageHeaderSize <= raw.Length)
+			{
+				var mh = pos + CtmHeaderSize;
+				var sizeHalfwords = (raw[mh] << 8) | raw[mh + 1];
+				var msgType = raw[mh + 3];
+				// Message 31 is variable-length and declares its own size; every other type sits in a fixed
+				// frame. Getting this wrong desyncs the walk, which the guards below then catch.
+				var rec = msgType == 31 ? CtmHeaderSize + sizeHalfwords * 2 : RadarDataSize;
+				if (rec <= CtmHeaderSize + MessageHeaderSize || pos + rec > raw.Length)
+				{
+					break; // truncated or desynced — serve what we have (the return re-checks it)
+				}
+
+				if (msgType != 31)
+				{
+					// Leading metadata (Msg 5/13/15/…) the decoder needs — Message 5 in particular carries the
+					// VCP table that ReadElevationAngles later reads back out of the extracted tilt. Only what
+					// precedes the first radial is kept; trailing end-of-volume messages are not needed.
+					if (!inTilt1)
+					{
+						output.Write(raw, pos, rec);
+						records++;
+					}
+					pos += rec;
+					continue;
+				}
+
+				var body = mh + MessageHeaderSize;
+				if (body + 28 > raw.Length || !LooksLikeCallsign(raw, body))
+				{
+					break; // the walk has drifted off a record boundary
+				}
+
+				var elev = raw[body + 22];
+				if (elev is < 1 or > 32)
+				{
+					break; // an elevation number this far out means we are not where we think we are
+				}
+				var angle = System.Buffers.Binary.BinaryPrimitives.ReadSingleBigEndian(raw.AsSpan(body + 24, 4));
+				radials++;
+
+				if (!inTilt1)
+				{
+					inTilt1 = true;
+					baseAngle = angle;
+					baseTiltNum = elev;
+					baseElev = elev;
+					output.Write(raw, pos, rec);
+					records++;
+					pos += rec;
+					continue;
+				}
+
+				// The cut's SETTLED angle is the max over its own radials: the first radial of a cut is a
+				// settling radial that reads low (a real 0.5° base reads 0.26°). Anchoring on that alone puts
+				// the 0.48° Doppler companion 0.22° away — outside tiltTol — so the companion is dropped and
+				// the extract has NO VELOCITY AT ALL. Same trap as docs/radar-tilts.md; it produced a wrong
+				// answer while this very function was being scoped.
+				if (elev == baseTiltNum && !float.IsNaN(angle) && angle > baseAngle)
+				{
+					baseAngle = angle;
+				}
+
+				if (elev > baseElev)
+				{
+					if (!float.IsNaN(angle) && angle > baseAngle + tiltTol)
+					{
+						completedTilt = true; // crossed into a genuinely higher tilt
+						break;
+					}
+					if (keptDoppler)
+					{
+						completedTilt = true; // a split cut is only ever TWO cuts; we already have both
+						break;
+					}
+					baseElev = elev;
+					keptDoppler = true;
+				}
+
+				output.Write(raw, pos, rec);
+				records++;
+				pos += rec;
+			}
+
+			RadarDiagnostics.Log("svc", "extract", ("site", siteId), ("path", "uncompressed"),
+				("records", records), ("radials", radials), ("baseElev", baseElev),
+				("keptDoppler", keptDoppler), ("completedTilt", completedTilt),
+				("bytes", records > 0 ? output.Length : 0), ("srcBytes", raw.Length),
+				("msg", $"baseAngle={(float.IsNaN(baseAngle) ? "?" : baseAngle.ToString("0.00"))}°"));
+
+			// ⚠️ No companion means the walk ran but the PAIRING failed, and a base cut without its Doppler
+			// companion is a tilt with no velocity — worse than not extracting, because the caller would
+			// cache it and every frame of the replay would silently lose Velocity/SRV. Fall back instead.
+			return records > 0 && radials > 0 && keptDoppler ? output.ToArray() : null;
+		}
+
 		// Builds a minimal uncompressed volume containing only the tilt at <paramref name="targetAngle"/>
 		// — the higher-tilt sibling of TryExtractLowestTilt, producing a byte-identical KIND of buffer
 		// (24-byte header + leading metadata + one surveillance cut + its Doppler companion). Because the
@@ -1248,19 +1428,37 @@ namespace Anvil.Services
 		// gate-count check rejects coincidental ASCII matches in non-moment data.
 		internal static bool HasMoment(byte[] block, byte[] name)
 		{
-			var p = IndexOf(block, name);
-			if (p < 0 || p + 10 > block.Length)
+			// ⚠️ KEEPS SEARCHING PAST A FAILED GATE CHECK — it used to test only the FIRST match and give up,
+			// which is a false NEGATIVE whenever a coincidental copy of the name sits before a real block.
+			// Measured 2026-09-08 on KINX_20130531_234913: its extract holds 721 "DVEL" byte sequences — 720
+			// real ones plus one landing inside elev 1's payload at offset 4.3 M with a nonsense gate count of
+			// 17990. Reading only that one, this reported "no velocity" for a volume that plainly has it.
+			// The gate-count test was always the thing that separates a real block from a coincidence; all
+			// that was missing was continuing the scan when it fails. Rarely reachable on a single
+			// decompressed LDM block (the original caller), near-certain on a whole multi-radial buffer.
+			var from = 0;
+			while (true)
 			{
-				return false;
+				var p = IndexOf(block, name, from);
+				if (p < 0 || p + 10 > block.Length)
+				{
+					return false;
+				}
+				var gates = (block[p + 8] << 8) | block[p + 9];
+				if (gates is >= 1 and <= 2000)
+				{
+					return true;
+				}
+				from = p + 1; // coincidental ASCII match — keep looking for a real one
 			}
-			var gates = (block[p + 8] << 8) | block[p + 9];
-			return gates is >= 1 and <= 2000;
 		}
 
-		internal static int IndexOf(byte[] haystack, byte[] needle)
+		internal static int IndexOf(byte[] haystack, byte[] needle) => IndexOf(haystack, needle, 0);
+
+		internal static int IndexOf(byte[] haystack, byte[] needle, int startAt)
 		{
 			var last = haystack.Length - needle.Length;
-			for (var i = 0; i <= last; i++)
+			for (var i = Math.Max(0, startAt); i <= last; i++)
 			{
 				var k = 0;
 				while (k < needle.Length && haystack[i + k] == needle[k])

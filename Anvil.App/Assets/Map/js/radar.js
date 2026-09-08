@@ -1126,6 +1126,11 @@
             type: 'radarFrame', index: res.index, empty: !!res.empty, cached: !!res.cached,
             tris: reflCount, velTris: velCount,
             decodeMs: res.decodeMs, buildMs: res.buildMs, bytes: res.bytes,
+            // Where the frame's WALL-CLOCK time went (see radar-worker.js). decodeMs alone hid this:
+            // fetchMs = the volume read, waitMs = queued behind another decode in the same worker,
+            // roundMs = dispatch→arrival here, so roundMs − fetch − wait − decode is scheduling slack.
+            fetchMs: res.fetchMs, waitMs: res.waitMs,
+            roundMs: (typeof res.dispatchAt === 'number') ? (Date.now() - res.dispatchAt) : undefined,
             elevList: res.elevList, velElev: res.velElev, velNyq: res.velNyq,
             velNyqSrc: res.velNyqSrc, velNyqRad: res.velNyqRad, velNyqVol: res.velNyqVol,
             reflStats: res.reflStats, velStats: res.velStats, dealias: res.dealias,
@@ -1402,7 +1407,7 @@
             // thread, hitching pan/zoom. A loop that changed while the fetch was in flight is still dropped by
             // token in applyFrameResult; a fetch/decode failure comes back as {token,index,url,error}, which
             // applyFrameResult already turns into upgradeDone + radarFrameReady(hasData:false) — same as before.
-            w.postMessage({ url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, buildProducts: buildIds, buildGrids: gridIds, stormMotion: resolveStormMotion(), seedProfile: _loopSeedProfile });
+            w.postMessage({ url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, buildProducts: buildIds, buildGrids: gridIds, stormMotion: resolveStormMotion(), seedProfile: _loopSeedProfile, dispatchAt: Date.now() });
         } else {
             // No Worker API — fetch + decode on the main thread (unchanged fallback path).
             fetch(url, { cache: 'no-store' }).then(function (r) {

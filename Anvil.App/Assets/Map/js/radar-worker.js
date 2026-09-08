@@ -114,9 +114,21 @@ self.onmessage = function (e) {
         });
         return;
     }
+    // ── Phase timing (READ-ONLY instrumentation) ───────────────────────────────────────────────────
+    // decodeMs measures only the decode CALL, so it hid where a frame's wall-clock time actually went:
+    // a PastCast first paint measured 7.7 s against a 2.2 s decodeMs, and nothing said whether the other
+    // 5.5 s was fetching 43 MB or waiting behind other jobs. These split it:
+    //   fetchMs = pulling the volume (the worker fetches it itself, so this is real I/O, not queueing)
+    //   waitMs  = sat in THIS worker's one-decode-at-a-time queue behind another job
+    // ⚠️ performance.now() is per-context — a worker's timeOrigin is NOT the main thread's — so these are
+    // DURATIONS only. The host's round-trip is computed from the echoed `dispatchAt`, which is Date.now()
+    // (a shared epoch) precisely because the two clocks cannot be compared directly.
+    var tRecv = performance.now(), tFetched = 0, tStarted = 0;
     loadAb(d).then(function (ab) {
+        tFetched = performance.now();
         return decoder().then(function (m) {
             return queueDecode(function () {
+                tStarted = performance.now();
                 return m.decodeAndBuild(ab, d.siteLat, d.siteLon, d.minDbz, d.buildProducts, d.buildGrids, d.stormMotion, d.seedProfile);
             });
         });
@@ -126,6 +138,8 @@ self.onmessage = function (e) {
         const msg = {
             token: d.token, index: d.index, url: d.url, built: res.built, gridsBuilt: res.gridsBuilt,
             decodeMs: res.decodeMs, buildMs: res.buildMs,
+            fetchMs: Math.round(tFetched - tRecv), waitMs: Math.round(tStarted - tFetched),
+            dispatchAt: d.dispatchAt, // echoed so the host can measure the full round trip (shared epoch)
             radials: res.radials, gates: res.gates, bytes: res.bytes, rangeMeters: res.rangeMeters,
             elevList: res.elevList, velElev: res.velElev, reflStats: res.reflStats, velStats: res.velStats,
             velNyq: res.velNyq, dealias: res.dealias, seedProfile: res.seedProfile,
