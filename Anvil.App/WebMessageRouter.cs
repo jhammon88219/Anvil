@@ -61,6 +61,7 @@ namespace Anvil
 				["radarFrameReady"] = HandleRadarFrameReady,
 				["pageError"] = HandlePageError,
 				["radarMemory"] = HandleRadarMemory,
+				["perfPan"] = HandlePerfPan,
 			};
 		}
 
@@ -82,6 +83,30 @@ namespace Anvil
 				("retainedMb", Int(root, "retainedMb")),
 				("heapMb", Int(root, "heapMb")), ("heapTotalMb", Int(root, "heapTotalMb")),
 				("heapLimitMb", Int(root, "heapLimitMb")));
+
+		/// <summary>
+		/// DEV-ONLY frame-time sample for one camera gesture, from <c>perf-probe.js</c>. READ-ONLY
+		/// telemetry: how long each rendered frame took while the user was panning or zooming.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ Only ever fires in a DEBUG build — the probe is imported solely when <c>BuildMapUrl</c>
+		/// appends <c>?perf=1</c>, which it does under <c>#if DEBUG</c>. The handler is registered
+		/// unconditionally anyway, because a message type that is silently unroutable is worse than a
+		/// dictionary entry that never fires.
+		/// <para>Diagnostics stream ONLY, never Serilog, for the same reason as
+		/// <see cref="HandleRadarMemory"/>: it is a series, and it is only meaningful sitting in the same
+		/// timeline as the memory samples and frame events. <c>tools/perf_compare.py</c> reads it from
+		/// there.</para>
+		/// <para>⚠️ <c>p95</c> and <c>long</c> are the pair worth reading, not <c>p50</c>: a drag that is
+		/// smooth apart from four 90 ms stalls has a fine median and feels broken.</para>
+		/// </remarks>
+		private static void HandlePerfPan(JsonElement root) =>
+			Services.RadarDiagnostics.Log("js", "perf.pan",
+				("n", Int(root, "n")), ("durMs", Int(root, "durMs")),
+				("p50", Dbl(root, "p50")), ("p95", Dbl(root, "p95")), ("max", Dbl(root, "max")),
+				("long", Int(root, "long")), ("longPct", Dbl(root, "longPct")),
+				("panes", Int(root, "panes")),
+				("mkAttached", Int(root, "mkAttached")), ("mkShown", Int(root, "mkShown")));
 
 		/// <summary>
 		/// An uncaught JS error / rejected promise / failed script load in the page (map.html registers the

@@ -103,6 +103,7 @@ try {
     var Markers = null;
     var RadarSites = null;
     var States = null;
+    var PerfProbe = null;   // DEV-ONLY frame-time sampler; null unless ?perf=1 (see the import below)
 
     // Restore every overlay onto one map, in stack order. TWO callers: applyStyle (setStyle drops all
     // custom sources/layers) and a NEWLY CREATED pane (which starts with nothing but the basemap). One
@@ -284,6 +285,7 @@ try {
             minZoom: 2
         });
         m.on('move', onPaneMove);
+        if (PerfProbe) PerfProbe.attach(m); // dev pan probe: a pane added later still gets sampled
         // The primary's load runs the LAUNCH sequence (mask, reveal, mapReady) — see below. A pane added
         // later just needs the overlay stack the others already have.
         if (i > 0) m.once('load', function () { reAddAll(m); });
@@ -544,6 +546,32 @@ try {
         if (RadarSites) RadarSites.setAccent(border, glow);
         else pendingSiteAccent = [border, glow];
     };
+
+    // ── DEV PAN PROBE (perf-probe.js) ─────────────────────────────────────────────────────────────
+    // Frame-time sampling during a camera move, so a rendering change can be MEASURED rather than
+    // argued about. Loaded ONLY when the host put ?perf=1 in the page URL, which MainWindow does only
+    // in a DEBUG build — so Release never fetches this module and pays nothing.
+    // ⚠️ The import is async, so panes created before it lands are attached HERE, on resolve; panes
+    // created after are attached by createMap. Both paths are needed — neither covers the other.
+    // ⚠️ Excisable: this block, perf-probe.js, the `perf` param and the router's "perfPan" handler are
+    // the whole feature. Grep `perfPan`.
+    if (params.get('perf') === '1') {
+        import('./perf-probe.js').then(function (m) {
+            PerfProbe = m;
+            // Stamp each sample with what was on screen for that gesture — the pane count, and the
+            // marker counts that the "detach hidden markers" change is meant to move.
+            m.setContext(function () {
+                const ctx = { panes: maps.length };
+                if (RadarSites && RadarSites.stats) {
+                    const st = RadarSites.stats();
+                    ctx.mkAttached = st.attached;
+                    ctx.mkShown = st.shown;
+                }
+                return ctx;
+            });
+            forEachMap(function (mp) { m.attach(mp); });
+        }).catch(function (e) { console.error('perf-probe.js load failed: ' + e); });
+    }
 
     // Radar sweep pulse. The host (C#) calls pulseRadarSweep() when a genuinely-new frame lands; we
     // delegate to the radar layer, which runs ONE sweep revolution (arm + trailing afterglow) then

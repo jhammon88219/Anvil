@@ -184,6 +184,12 @@
     <Content Update="Assets\Map\js\radar-validate.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- DEV-ONLY pan frame-time sampler. Ships like radar-validate.js (its closest analogue): the file
+         is packaged, but nothing imports it unless the page URL carries ?perf=1, which MainWindow adds
+         only in a DEBUG build. -->
+    <Content Update="Assets\Map\js\perf-probe.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Update="Assets\Map\js\states.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

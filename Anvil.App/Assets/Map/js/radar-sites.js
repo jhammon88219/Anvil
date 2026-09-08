@@ -432,3 +432,19 @@ export function setTdwrVisible(visible) {
     tdwrVisible = !!visible;
     applyVisibility();
 }
+
+// ── DEV MEASUREMENT SEAM (perf-probe.js) ──────────────────────────────────────────────────────────
+// How many marker objects this module is holding, and how many of those are actually shown. Read only
+// by the dev pan probe, to stamp each frame-time sample with what was drawing during the gesture.
+//
+// ⚠️ `attached` vs `shown` is THE number the marker work is about: today every site is attached to the
+// map whether or not it is visible (hiding is a CSS display flip), so MapLibre reprojects all of them on
+// every move — attached == total, always, and turning markers off buys nothing. If hidden markers are
+// ever detached instead, `attached` starts tracking `shown`, and that gap closing IS the fix landing.
+export function stats() {
+    let shown = 0;
+    radarMarkerObjs.forEach(function (m) {
+        if (m.getElement().style.display !== 'none') shown++;
+    });
+    return { attached: radarMarkerObjs.length, shown: shown };
+}

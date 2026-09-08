@@ -675,7 +675,15 @@ namespace Anvil
 				$"&conus={(conus ? "true" : "false")}" +
 				$"&tiles={(onlineTiles ? "online" : "offline")}" +
 				$"&tilesUrl={Uri.EscapeDataString(tilesUrl ?? "")}" +
-				$"&theme={Uri.EscapeDataString(themeId ?? "")}";
+				$"&theme={Uri.EscapeDataString(themeId ?? "")}"
+#if DEBUG
+				// DEV-ONLY: arms the pan frame-time probe (Assets/Map/js/perf-probe.js). map.js imports
+				// that module only when this param is present, so a Release page never fetches it and
+				// pays nothing. It is a URL param for the same reason `theme` is — the page has to know
+				// before it builds its first map, and JS has no #if DEBUG of its own.
+				+ "&perf=1"
+#endif
+				;
 		}
 
 		private async Task InitializeWebViewAsync(WebView2 webView, string url)
