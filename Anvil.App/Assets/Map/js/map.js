@@ -433,8 +433,8 @@ try {
     // Level II radar shims — delegate to RadarLayer (radar.js). None of them take a map: RadarLayer
     // holds ONE loop rendered through N views, so the loop commands are pane-agnostic and the only
     // pane-addressed one is setRadarProduct.
-    window.radarBeginLoop = function (lat, lon) {
-        if (window.RadarLayer) window.RadarLayer.beginLoop(lat, lon);
+    window.radarBeginLoop = function (lat, lon, expectedFrames) {
+        if (window.RadarLayer) window.RadarLayer.beginLoop(lat, lon, expectedFrames);
     };
     window.radarAddFrame = function (url, index) {
         if (window.RadarLayer) window.RadarLayer.addFrame(url, index);

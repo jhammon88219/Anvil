@@ -621,7 +621,7 @@ namespace Anvil.ViewModels
 
 				if (_vm._isMapReady)
 				{
-					await _vm._mapService.BeginRadarLoopAsync(site);
+					await _vm._mapService.BeginRadarLoopAsync(site, keys.Count);
 				}
 				_vm._loopRenderBegun = true;
 
@@ -754,7 +754,7 @@ namespace Anvil.ViewModels
 
 			if (_vm._isMapReady)
 			{
-				await _vm._mapService.BeginRadarLoopAsync(site);
+				await _vm._mapService.BeginRadarLoopAsync(site, keys.Count);
 			}
 
 			// The loop (and its JS token) is now (re)started — frame-ready events from here on

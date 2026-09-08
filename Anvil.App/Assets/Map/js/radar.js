@@ -257,6 +257,9 @@
     // and total retained collapses back to frames[] alone. The cost is that returning to a PastCast site
     // re-decodes ~30% of its frames. RAISING THIS TO "make revisits instant again" walks straight back
     // into the OOM — the whole point is that two PastCast loops must never be resident at once.
+    // The loop's INTENDED frame count, pushed by the host at beginLoop. See maybeArmFullPrefetch.
+    let _expectedFrames = 0;
+
     const DECODE_CACHE_MAX_BYTES = 768 * 1024 * 1024;
     const DECODE_CACHE_MAX = 96;    // secondary bound, so tiny-frame loops can't grow the Map unboundedly
 
@@ -800,14 +803,25 @@
         if (fullPrefetch || fullPrefetchDeclined || !trioSettled()) return;
         var extra = dualPolIds();
         if (!extra.length) return;
-        if (frames.length > FULL_PREFETCH_MAX_FRAMES) {
+        // ⚠️⚠️ SIZE THE LOOP BY WHAT IT WILL HOLD, NOT BY WHAT HAS ARRIVED. frames[] grows as the backfill
+        // lands, and trioSettled() goes true the moment EVERY frame present has its duo — which, just after
+        // first paint, is ONE frame. Gating on frames.length therefore read "1 frame" and armed the wave on
+        // loops of 26-28, exactly what FULL_PREFETCH_MAX_FRAMES exists to prevent.
+        // ⚠️ THE SLOW DECODE USED TO HIDE THIS. At ~1900 ms/frame the storm motion never settled while only
+        // one frame existed, so the race never opened; single-tilt extraction cut decode to ~320 ms and it
+        // opened immediately — measured 2026-09-08, "armed across 1 frame(s)" on three consecutive replays,
+        // +858 MB of retained geometry for products nobody was viewing. A perf win exposing a latent
+        // ordering bug is the pattern to expect here, not the exception.
+        var loopSize = Math.max(frames.length, _expectedFrames);
+        if (loopSize > FULL_PREFETCH_MAX_FRAMES) {
             fullPrefetchDeclined = true;
-            hostLog('fullPrefetch DECLINED: ' + frames.length + ' frames > ' + FULL_PREFETCH_MAX_FRAMES +
+            hostLog('fullPrefetch DECLINED: ' + loopSize + ' frames > ' + FULL_PREFETCH_MAX_FRAMES +
                 ' — ' + extra.join('+') + ' build on demand (renderer memory ceiling)');
             return;
         }
         fullPrefetch = true;
-        hostLog('fullPrefetch armed (' + extra.join('+') + ') across ' + frames.length + ' frame(s)');
+        hostLog('fullPrefetch armed (' + extra.join('+') + ') across ' + loopSize + ' frame(s)'
+            + (loopSize !== frames.length ? ' (expected; ' + frames.length + ' loaded so far)' : ''));
         queueAllUpgrades('fullprefetch');
     }
     // ===== PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit) =====
@@ -1593,7 +1607,7 @@
             };
         },
         // ===== END PIPELINE CONSOLE =====
-        beginLoop: function (lat, lon) {
+        beginLoop: function (lat, lon, expectedFrames) {
             forEachView(attachContextListeners);
             // New site → drop the old range ring + sweep (the first decoded frame redraws them at
             // the new site's range); same site (a reload) → keep them up, no flicker.
@@ -1606,6 +1620,11 @@
             velPrefetch = false;    // new site: build reflectivity first; the host re-arms velocity prefetch once it's ready
             fullPrefetch = false;   // …and the dual-pol second wave re-arms itself once THIS loop's trio settles
             fullPrefetchDeclined = false; // a new loop may be short enough to warrant the wave — re-decide, and log it again
+            // ⚠️ How many frames this loop WILL hold, from the host (it knows; we cannot). See the guard in
+            // maybeArmFullPrefetch — without this the wave reads a half-built loop and arms on a size the
+            // loop never actually has. 0 when a caller omits it, which degrades to the old frames.length gate.
+            expectedFrames = (typeof expectedFrames === 'number' && expectedFrames > 0) ? (expectedFrames | 0) : 0;
+            _expectedFrames = expectedFrames;
             // ⚠️ Forget the previous loop's storm motion: a NEW site must NOT prefetch SRV with the old site's
             // motion (that built SRV wrong, then rebuilt the whole loop when the real motion landed). srvMotionReady
             // reads false until THIS loop's motion is computed; vwpGen++ drops any still-in-flight compute for the old loop.
@@ -1669,6 +1688,10 @@
                 if (from === oldCurrent && to >= 0) newCurrent = to;
             }
             frames = nf;
+            // Keep the loop-size gate honest across an incremental reload: nf is PRE-SIZED to newCount, so
+            // frames.length is authoritative again here — but leaving a stale _expectedFrames behind could
+            // over-decline the wave on a loop that shrank. See maybeArmFullPrefetch.
+            _expectedFrames = newCount;
             pendingFrame = -1;
             if (newCurrent >= 0 && frames[newCurrent]) {
                 // The displayed frame survived: keep its image up. The GL buffers already hold this

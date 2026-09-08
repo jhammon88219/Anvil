@@ -62,7 +62,14 @@ namespace Anvil.Services
 		Task SetOutlookOpacityAsync(double opacity);
 
 		/// <summary>Starts a new radar loop for the site (clears any existing frames).</summary>
-		Task BeginRadarLoopAsync(RadarSite site);
+		/// <param name="expectedFrames">
+		/// How many frames this loop will end up holding. ⚠️ NOT cosmetic — the page's dual-pol second wave
+		/// is gated on loop SIZE (a long replay cannot afford it, see FULL_PREFETCH_MAX_FRAMES), and the page
+		/// cannot infer that size for itself: frames arrive one at a time, so <c>frames.length</c> is a moving
+		/// target that reads 1 just after first paint. Measured 2026-09-08: the wave armed "across 1 frame(s)"
+		/// on three separate 26-28 frame replays and cost ~858 MB of geometry the user never asked to see.
+		/// </param>
+		Task BeginRadarLoopAsync(RadarSite site, int expectedFrames);
 
 		/// <summary>
 		/// Adds a cached volume as frame <paramref name="index"/> of the current loop; the

@@ -101,8 +101,8 @@ namespace Anvil.Services
 
 		// The loop is driven frame-by-frame: begin (with the site's antenna coords, needed to
 		// project the gates), then add each cached volume URL as a frame, then show by index.
-		public Task BeginRadarLoopAsync(RadarSite site) =>
-			_mapView.RunScriptAsync(Call("radarBeginLoop", site.Latitude, site.Longitude));
+		public Task BeginRadarLoopAsync(RadarSite site, int expectedFrames) =>
+			_mapView.RunScriptAsync(Call("radarBeginLoop", site.Latitude, site.Longitude, expectedFrames));
 
 		public Task AddRadarFrameAsync(string localUrl, int index) =>
 			_mapView.RunScriptAsync(Call("radarAddFrame", localUrl, index));
