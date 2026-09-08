@@ -328,27 +328,6 @@ namespace Anvil
 		// ⚠️ The chosen folder takes effect on the NEXT LAUNCH: the mapdata virtual host is mapped once, in
 		// this class's WebView bootstrap, before any page loads. The tab's status line says so; nothing here
 		// tries to re-map a live WebView.
-		// Shows the style-import picker and hands the path back to the Map tab, which owns the library work
-		// and the status line. ⚠️ Only the PICKER is up here: it needs a window HWND, which a UserControl
-		// does not have. Same split as the basemap folder below.
-		private async Task ImportStyleAsync(Controls.Windows.SettingsWindow settings)
-		{
-			var picker = new FileOpenPicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };
-			picker.FileTypeFilter.Add(".json");
-			WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
-
-			try
-			{
-				var file = await picker.PickSingleFileAsync();
-				if (file is null) return;   // cancelled
-				await settings.MapSettingsTab.ImportAsync(_styleLibrary, file.Path);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Style import picker failed");
-			}
-		}
-
 		private async void OnBrowseMapDataFolderRequested(object? sender, EventArgs e)
 		{
 			var picker = new FolderPicker
@@ -427,9 +406,6 @@ namespace Anvil
 
 		// App settings (offline basemap folder, …). Read when mapping the "mapdata" WebView host.
 		private readonly ISettingsService _settingsService;
-		// The user's imported basemap styles. Injected rather than reached through IStyleProvider because
-		// the host does the IMPORT and REMOVE; the provider only reads the merged list.
-		private readonly IMapStyleLibrary _styleLibrary;
 
 		// Hosts each app-wide panel in its own OS window (multi-monitor). MainWindow registers each window
 		// with it after construction (below).
@@ -449,7 +425,6 @@ namespace Anvil
 			IStormReportService stormReportService,
 			ILevel2RadarService radarService,
 			ISettingsService settingsService,
-			IMapStyleLibrary styleLibrary,
 			WindowManager windows,
 			ILogger<MainWindow> logger)
 		{
@@ -466,7 +441,6 @@ namespace Anvil
 			_stormReportService = stormReportService;
 			_radarService = radarService;
 			_settingsService = settingsService;
-			_styleLibrary = styleLibrary;
 			_windows = windows;
 			_logger = logger;
 
@@ -555,8 +529,6 @@ namespace Anvil
 					settings.SweepReportRequested += OnSweepReportRequested;
 					settings.ValidationReportRequested += OnValidationReportRequested;
 					settings.BrowseMapDataFolderRequested += OnBrowseMapDataFolderRequested;
-					settings.ImportStyleRequested += (_, _) => _ = ImportStyleAsync(settings);
-					settings.MapSettingsTab.Library = _styleLibrary;
 					return settings;
 				},
 				title: "Settings", width: 520, height: 640,
@@ -724,18 +696,11 @@ namespace Anvil
 			// (It used to live inside the read-only package, which is exactly why importing was impossible.)
 			try { Directory.CreateDirectory(DowEventProvider.EventsDirectory); } catch { /* mapping just resolves to nothing */ }
 
-			// Same story for the imported-style library: a writable per-user folder the app copies INTO, which
-			// has to exist before the mapping below points at it. ⚠️ The mapping is what makes an import
-			// usable WITHOUT a restart — re-mapping a host takes effect only after a page reload, so the host
-			// is pointed at the folder once, here, and later arrivals are just files in an already-mapped dir.
-			try { Directory.CreateDirectory(MapStyleLibrary.StylesDirectory); } catch { /* as above */ }
-
 			// Map each virtual host → local folder so the page can fetch everything offline, same-origin:
 			//   mapassets  → bundled MapLibre style/glyphs/sprites/libraries
 			//   mapdata    → the user-configured (external, ~29 GB) basemap PMTiles folder
 			//   spcoutlooks/spcwatches/warnings/stormreports/radarlevel2 → the services' on-disk caches
 			//   dowevents  → the user's imported DOW (mobile-radar) frame library (%LocalAppData%)
-			//   mapstyles  → the user's imported basemap styles (%LocalAppData%)
 			// Services own their cache folders; MainWindow owns the WebView2 mappings.
 			var hostFolders = new (string Host, string Folder)[]
 			{
@@ -747,7 +712,6 @@ namespace Anvil
 				(StormReportService.CacheHostName, _stormReportService.CacheDirectory),
 				(Level2RadarService.CacheHostName, _radarService.CacheDirectory),
 				(DowEventProvider.HostName, DowEventProvider.EventsDirectory),
-				(MapStyleLibrary.HostName, MapStyleLibrary.StylesDirectory),
 			};
 			foreach (var (host, folder) in hostFolders)
 			{

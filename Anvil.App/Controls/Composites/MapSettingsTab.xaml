@@ -1,6 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<!-- MapSettingsTab — the Map tab of the Settings window: the app's THEME, the BASEMAP under it, and
-     the library of imported basemap styles.
+<!-- MapSettingsTab — the Map tab of the Settings window: the app's THEME, and the BASEMAP under it.
 
        ┌──────────────────────────────────────────────────────┐
        │  ⌄  Theme                                            │
@@ -16,11 +15,6 @@
        │    [ ] Use online tiles                              │     URL. Both stay editable
        │    [https://api.protomaps…]                          │     whichever is active - you
        │    Offline — bundled PMTiles.                        │     set one up BEFORE switching
-       ├──────────────────────────────────────────────────────┤
-       │  ⌄  Styles                                           │
-       │    [Import style…]                                   │  <- author in MAPUTNIK, import the
-       │    Imported "Night Ops" and selected it.             │     result. There is no in-app
-       │    Night Ops                             [Remove]    │     editor - see the note below
        └──────────────────────────────────────────────────────┘
 
      WHAT BELONGS IN THIS TAB: the app's LOOK — the theme, and the basemap it draws itself over, plus
@@ -67,7 +61,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- theme -->
             <RowDefinition Height="Auto"/> <!-- basemap -->
-            <RowDefinition Height="Auto"/> <!-- styles: import library -->
         </Grid.RowDefinitions>
 
         <!-- THEME. Above Basemap because it OWNS the basemap: picking a theme sets the style below it.
@@ -109,13 +102,12 @@
                     <RowDefinition Height="Auto"/> <!-- Tile source status -->
                 </Grid.RowDefinitions>
 
-                <!-- ⚠️ AN OVERRIDE OF THE THEME'S BASEMAP, AND IT PERSISTS. The theme above owns a basemap
-                     and sets this when it changes; picking one here diverges from the theme until you
-                     change theme again. ⚠️ It used to be session-only, deliberately — importing a style
-                     reversed that, because a theme names a BUNDLED style and an import would therefore be
-                     deselected on every launch. Empty in settings means "follow the theme".
-                     ⚠️ ItemsSource is an ObservableCollection so an IMPORT appears here immediately;
-                     ViewModel.RefreshStyles() is what re-reads it. -->
+                <!-- ⚠️ A SESSION-ONLY OVERRIDE OF THE THEME'S BASEMAP. The theme above owns a basemap and
+                     sets this when it changes; picking one here diverges from the theme until you change
+                     theme again, and the divergence does NOT survive a restart — deliberately, because a
+                     theme and its basemap are a named pair and launching on a look no identity describes
+                     is worse than losing the override. (It persisted for as long as styles could be
+                     imported; that went with the import feature.) -->
                 <ComboBox Grid.Row="0" Margin="4,0,0,0"
                           Width="240" HorizontalAlignment="Left"
                           ItemsSource="{x:Bind ViewModel.AvailableStyles}"
@@ -176,71 +168,6 @@
             </Grid>
         </Expander>
 
-
-        <!-- STYLES: importing and removing style documents.
-             ⚠️ IMPORT IS THE WHOLE STORY — THERE IS NO IN-APP EDITOR, BY DECISION. A live colour tuner
-             (a global levels grade + a per-slot override table + a positional export that rewrote the
-             style file's Nth #rrggbb literal) was built and then REMOVED: re-colouring a basemap is a
-             job Maputnik already does properly, and matching it would have meant growing widths,
-             opacities, fonts, filters and zoom stops — a style editor, in a weather app. So the app owns
-             one half of that loop and owns it well: you author elsewhere, import the result here, and it
-             becomes a real selectable basemap. ⚠️ Don't re-add an editor; extend the IMPORT if something
-             is missing.
-             ⚠️ It sits BELOW Basemap because an import SELECTS itself in that picker — the two rows are
-             one gesture read downward. -->
-        <Expander Grid.Row="2" Header="Styles" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
-            <Grid RowSpacing="10">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- import button -->
-                    <RowDefinition Height="Auto"/> <!-- status / error line -->
-                    <RowDefinition Height="Auto"/> <!-- imported list -->
-                </Grid.RowDefinitions>
-
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="4,0,0,0">
-                    <Button Content="Import style…" Click="OnImportStyleClick"
-                            ToolTipService.ToolTip="Add a MapLibre style document to your library"/>
-                </StackPanel>
-
-                <!-- ⚠️ THE ERROR CHANNEL. An import can fail for reasons the user can act on (not JSON, no
-                     layers, no sources), and a picker that silently does nothing is the worst version of
-                     that. Same footer-carries-the-failure shape the temporal cards use. -->
-                <TextBlock Grid.Row="1" Margin="4,0,0,0" TextWrapping="Wrap" MaxWidth="360"
-                           FontSize="12"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           Text="{x:Bind ImportStatus, Mode=OneWay}"/>
-
-                <!-- Imported styles only: the bundled five are not removable, so listing them here would
-                     be a list where most rows do nothing. -->
-                <!-- ⚠️ ItemsSource is assigned in CODE, not x:Bind. MapStyle is a RECORD, and x:Bind on a
-                     collection of one makes the XAML type-info generator emit setters for its init-only
-                     properties, which does not compile (CS8852). Nothing here needs the compiled binding:
-                     the rows are two fields and a button. -->
-                <ItemsControl x:Name="ImportedList" Grid.Row="2" Margin="4,0,0,0" MaxWidth="360"
-                              HorizontalAlignment="Left">
-                    <ItemsControl.ItemTemplate>
-                        <!-- ⚠️ {Binding}, NOT x:Bind. MapStyle is a RECORD, so its properties are init-only,
-                             and an x:DataType makes the XAML type-info generator emit setters for them —
-                             which does not compile (CS8852). {Binding} generates no type info at all.
-                             The same reason ForeCastTab binds its legend rows this way. -->
-                        <DataTemplate>
-                            <Grid ColumnSpacing="8" Padding="0,3">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{Binding DisplayName}" FontSize="12"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"/>
-                                <Button Grid.Column="1" Content="Remove" FontSize="12"
-                                        Tag="{Binding FileName}"
-                                        Click="OnRemoveStyleClick"/>
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </Grid>
-        </Expander>
 
     </Grid>
 </UserControl>

@@ -46,9 +46,9 @@ const params = new URLSearchParams(location.search);
 const interactive = params.get('interactive') === 'true';
 // `let`, not const: applyStyle updates it so a pane created LATER is built on the current basemap
 // rather than the launch one.
-// ⚠️ The param is a FULL URL, not a file name. A style can live on either of two virtual hosts —
-// mapassets (bundled, read-only package content) or mapstyles (the user's imported copies) — and the HOST
-// decides which. Prefixing a host here would have made this the third place that had to know.
+// ⚠️ The param is a FULL URL, not a file name — MapStyle.Url is the one place a style's location is
+// decided, so nothing on this side prefixes a host. (It became a full URL when styles could live on a
+// second host; that feature is gone, but the seam is the right shape and stays.)
 let styleUrl = params.get('style') || 'https://mapassets/style.json';
 // ---- Basemap TILE SOURCE (offline PMTiles vs online tiles) -----------------------------------------
 // The five styles are Protomaps-SCHEMA styles: every layer filters on protomaps source-layers, and the

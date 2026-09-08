@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -132,9 +131,7 @@ namespace Anvil.ViewModels
 				}
 			};
 
-			// ⚠️ An ObservableCollection, not a snapshot: importing a style has to show up in the picker
-			// without a restart. RefreshStyles() re-reads the provider (bundled + the user's library).
-			AvailableStyles = new ObservableCollection<MapStyle>(_styleProvider.GetStyles());
+			AvailableStyles = _styleProvider.GetStyles();
 
 			// The app's visual identity. ONE object owns both the WinUI chrome palette and the basemap
 			// under it, so the two can't be chosen apart and drift out of one look. Resolve absorbs an
@@ -145,13 +142,12 @@ namespace Anvil.ViewModels
 			// Assign the backing field directly (not the setter) so the default selection does NOT trigger a
 			// map command during construction. The page loads this style via its URL, so there is nothing to
 			// re-apply.
-			// ⚠️ THE STORED STYLE WINS OVER THE THEME'S, and that is what makes an IMPORT usable: the theme
-			// names a bundled style, so without this an imported one would be reselected every launch and
-			// forgotten every close. The theme still supplies the value whenever nothing is stored, and
-			// changing theme overwrites the store (see SelectedTheme). An id that no longer resolves — a
-			// deleted import — falls back to the theme rather than to nothing.
-			_selectedStyle = AvailableStyles.FirstOrDefault(s => s.Id == settingsService.Settings.MapStyleId)
-				?? AvailableStyles.FirstOrDefault(s => s.Id == _selectedTheme.MapStyleId)
+			// ⚠️ The basemap is the THEME's choice — it used to be a hardcoded "dataVizBlack" right here.
+			// ⚠️ The Basemap picker below is a SESSION-ONLY override of it, deliberately: a theme and its
+			// basemap are a named pair, so a divergence that outlived the session would mean launching on a
+			// look no identity actually describes. (A persisted MapStyleId existed for as long as styles
+			// could be imported; it went with that feature.)
+			_selectedStyle = AvailableStyles.FirstOrDefault(s => s.Id == _selectedTheme.MapStyleId)
 				?? AvailableStyles.FirstOrDefault();
 
 			// The main map is framed on CONUS.
@@ -658,31 +654,8 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>Every basemap the picker offers: the five bundled, then the user's imported ones.</summary>
-		public ObservableCollection<MapStyle> AvailableStyles { get; }
-
-		/// <summary>
-		/// Re-reads the style list after an import or a removal, keeping the current selection if it still
-		/// exists. ⚠️ Call it from anything that changes the library — the picker binds this collection, and
-		/// the provider is read fresh rather than cached precisely so this is the only step needed.
-		/// </summary>
-		public void RefreshStyles()
-		{
-			var current = _selectedStyle?.Id;
-			AvailableStyles.Clear();
-			foreach (var style in _styleProvider.GetStyles())
-			{
-				AvailableStyles.Add(style);
-			}
-
-			// ⚠️ Re-point at the SAME id rather than keeping the old instance: the provider builds fresh
-			// records, so the combo's SelectedItem would otherwise reference one that is no longer in the
-			// list and blank itself. A selection that has been REMOVED falls back to the theme's style.
-			var replacement = AvailableStyles.FirstOrDefault(s => s.Id == current)
-				?? AvailableStyles.FirstOrDefault(s => s.Id == _selectedTheme.MapStyleId)
-				?? AvailableStyles.FirstOrDefault();
-			SelectedStyle = replacement;
-		}
+		/// <summary>The five bundled basemaps, in picker order.</summary>
+		public IReadOnlyList<MapStyle> AvailableStyles { get; }
 
 		/// <summary>Every visual identity the app can wear, in picker order.</summary>
 		public IReadOnlyList<AppTheme> AvailableThemes { get; }
@@ -720,9 +693,6 @@ namespace Anvil.ViewModels
 				if (style is not null)
 				{
 					_selectedStyle = style;         // ⚠️ field, not the property — see the remarks
-					// …but the STORE still moves, or the previous basemap would win back on the next launch and
-					// the theme switch would look like it had half-applied.
-					_settingsService.Settings.MapStyleId = style.Id;
 					OnPropertyChanged(nameof(SelectedStyle));
 				}
 
@@ -764,9 +734,6 @@ namespace Anvil.ViewModels
 				}
 
 				_selectedStyle = value;
-				// ⚠️ PERSISTED. It used to be a session-only override of the theme's basemap; an imported style
-				// that vanished on restart made that untenable. Empty means "follow the theme".
-				_settingsService.Settings.MapStyleId = value?.Id ?? "";
 				OnPropertyChanged();
 
 				// Only push a style change once the map can receive it. Pre-ready

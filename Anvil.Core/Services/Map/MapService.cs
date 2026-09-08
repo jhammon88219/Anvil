@@ -25,8 +25,8 @@ namespace Anvil.Services
 		/// creates both — this breaks the MainWindow↔MapService constructor cycle.</summary>
 		public void Attach(IMapView mapView) => _mapView = mapView;
 
-		// ⚠️ style.Url, never an interpolated host: an IMPORTED style lives on a different one
-		// (mapstyles, a writable per-user folder) and the model is the single place that knows which.
+		// ⚠️ style.Url, never an interpolated host — the model is the single place that decides where a
+		// style lives (MapStyle.Url), and this was one of three call sites that used to interpolate one.
 		public Task ApplyStyleAsync(MapStyle style) =>
 			_mapView.RunScriptAsync(Call("applyStyle", style.Url));
 

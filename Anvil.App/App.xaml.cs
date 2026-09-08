@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -95,9 +95,6 @@ namespace Anvil
 			services.AddLogging(builder => builder.AddSerilog(dispose: true));
 
 			// ── Providers + data services (leaf singletons; each owns its own on-disk cache / config). ──
-			// The user's imported basemap styles (a writable %LocalAppData% folder + its own virtual host).
-			// Registered BEFORE the style provider, which merges its list with the bundled five.
-			services.AddSingleton<IMapStyleLibrary, MapStyleLibrary>();
 			services.AddSingleton<IStyleProvider, StyleProvider>();
 			// The app's visual identities. Beside the style provider because a theme OWNS one of its
 			// styles — the pairing is the point, and the two lists have to be read together.
