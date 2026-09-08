@@ -75,7 +75,10 @@ namespace Anvil.Services
 		// A descriptive User-Agent is REQUIRED by api.weather.gov (it 403s a blank UA) and harmless to the
 		// WWA service. Accept is set per-request (geo+json for CAP; */* for the Akamai-fronted WWA
 		// cross-check, which caches keyed on Accept — a no-Accept request can be served a stale empty).
-		public WarningService() : base("Warnings", "Anvil/1.0 (severe-weather app)")
+		// ⚠️ WarningsHealthLog writes ONE warnings-health-{stamp}.jsonl per app run into this same folder
+		// (plus a rewritten -latest.md), so this is the one service with per-launch files to bound.
+		public WarningService() : base("Warnings", "Anvil/1.0 (severe-weather app)",
+			stampedLogPattern: "warnings-health-*.jsonl", keepStampedNewest: 15)
 		{
 			_health = new WarningsHealthLog(CacheDirectory);
 		}

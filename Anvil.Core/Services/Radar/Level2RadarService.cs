@@ -327,9 +327,22 @@ namespace Anvil.Services
 				// can walk, so they have no tilt selection at all.
 				if (toWrite is null)
 				{
-					byte[] raw;
-					using (var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+					// ⚠️ The first-paint frame splits this whole-object download across parallel sub-ranges;
+					// the backfill deliberately does NOT. Same rule as the prefix path above: a replay backfill
+					// runs up to 12 frames at once, so splitting each into 4 would open ~48 S3 connections and
+					// over-subscribe the link without adding bandwidth. Only the frame nothing else is waiting
+					// behind gets its own streams.
+					// ⚠️ This is the path a LEGACY .gz always takes — it cannot range-prefix (a partial gzip
+					// stream is not decompressible), so before this it paid ~43 MB on ONE stream. Measured
+					// 2026-09-08: a cold site sat 13 s before its first extract event, which was the whole of
+					// a 16 s first paint. Fetch is now the dominant cost in a replay (fetch p50 1444 ms vs
+					// decode p50 316 ms), which is what makes this the next lever rather than decode.
+					byte[]? raw = prioritized
+						? await GetFullParallelAsync(key, cancellationToken)
+						: null;
+					if (raw is null)
 					{
+						using var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 						response.EnsureSuccessStatusCode();
 						raw = await response.Content.ReadAsByteArrayAsync(cancellationToken);
 					}
@@ -363,6 +376,7 @@ namespace Anvil.Services
 				var temp = cacheFile + ".tmp";
 				await File.WriteAllBytesAsync(temp, toWrite, cancellationToken);
 				File.Move(temp, cacheFile, overwrite: true);
+				MaybeSweepAfterWrite(); // the folder just grew — see the note over MaybeSweepAfterWrite
 
 				// Having paid for the whole volume, keep it: every OTHER tilt is now a local extract. This
 				// is the same bytes the prefetch would fetch, so retaining costs disk we'd have spent
@@ -774,23 +788,29 @@ namespace Anvil.Services
 			return result;
 		}
 
-		// How many parallel sub-range streams to split the WHOLE VWP raw volume download into. That raw is the
-		// biggest single download in the pipeline and SRV's long pole (docs/radar-loop-flow.md honest-gap #1):
+		// How many parallel sub-range streams to split a WHOLE-OBJECT download into. TWO callers now: the VWP
+		// raw, and the first-paint frame of a LEGACY (.gz) volume — which cannot use the 5 MB prefix path at
+		// all, because a partial gzip stream is not decompressible, so it always pays for the whole ~43 MB.
+		// The VWP raw is the biggest single download in the pipeline and SRV's long pole (docs/radar-loop-flow.md honest-gap #1):
 		// the storm motion needs the whole volume's bottom tilts, and a single S3 stream is throughput-limited
 		// + bimodal (measured 0.4-3.7 s for just 5 MB), so an ~86 MB single stream is the slow tail SRV waits
 		// on. Splitting it aggregates bandwidth. Kept modest so it doesn't over-subscribe the link while it
 		// OVERLAPS the archive backfill (Rule 4: the motion computes in parallel with the backfill) — the trio
 		// (Ref/Vel) latency the console measures is the guardrail if this needs tuning.
-		private const int VwpDownloadStreams = 4;
+		private const int FullDownloadStreams = 4;
 
-		// Downloads a full S3 object over VwpDownloadStreams concurrent sub-range streams and concatenates
+		// Downloads a full S3 object over FullDownloadStreams concurrent sub-range streams and concatenates
 		// them — the multi-stream analogue of PrefetchRawVolumesAsync's single GET, for the one download big
 		// enough to matter (the VWP raw). Probes the first chunk to learn the total size from Content-Range,
 		// then fetches the remainder in parallel. Returns null (caller falls back to the single-stream path)
 		// if ranges aren't honored or any sub-range fails; returns the whole object if the server sent 200.
 		private async Task<byte[]?> GetFullParallelAsync(string key, CancellationToken ct)
 		{
-			const int probeBytes = 8 * 1024 * 1024; // first chunk: enough to carry the base tilt while we learn the size
+			// First chunk, sized to be useful on its own for the VWP caller (it carries the base tilt) while the
+			// response teaches us the object's total length. ⚠️ For a LEGACY .gz caller these bytes are just
+			// compressed stream — nothing can be read out of them until the whole object is reassembled and
+			// gunzipped — so the probe is purely a size query there, not a head start.
+			const int probeBytes = 8 * 1024 * 1024;
 			long total;
 			byte[] head;
 			using (var req = new HttpRequestMessage(HttpMethod.Get, BucketBase + key))
@@ -815,10 +835,10 @@ namespace Anvil.Services
 
 			var start = head.LongLength;
 			var remaining = total - start;
-			var per = (remaining + VwpDownloadStreams - 1) / VwpDownloadStreams;
-			var parts = new byte[VwpDownloadStreams][];
+			var per = (remaining + FullDownloadStreams - 1) / FullDownloadStreams;
+			var parts = new byte[FullDownloadStreams][];
 			var ok = true;
-			await Task.WhenAll(Enumerable.Range(0, VwpDownloadStreams).Select(async i =>
+			await Task.WhenAll(Enumerable.Range(0, FullDownloadStreams).Select(async i =>
 			{
 				var from = start + (long)i * per;
 				var to = Math.Min(from + per, total) - 1;
@@ -1519,6 +1539,34 @@ namespace Anvil.Services
 		// accumulate forever). Best-effort + off the ctor thread: a failure here must never affect startup
 		// or radar loading. Tune via CacheMaxAge / DiagnosticsKeepRuns (top of class) + the user-facing size
 		// cap AppSettings.RadarCacheMaxGb (read through SizeCapBytes).
+		// ⚠️ THE SIZE CAP USED TO BE ENFORCED ONLY AT LAUNCH, so a long session blew straight past the user's
+		// RadarCacheMaxGb and stayed there until the next restart (measured 2026-09-08: 6.3 GB against a 5 GB
+		// setting). PruneCache only ever trims the ONE site being loaded, so every other site you visit
+		// accumulates. This re-runs the whole-folder sweep during the session, driven by cache WRITES rather
+		// than a timer: the folder only grows when we write to it, so an idle app does nothing at all.
+		// ⚠️ Mid-session sweeps PROTECT recently-written volumes (see SweepVolumeCache's parameter) — the
+		// startup one does not need to, because nothing is loaded yet.
+		private const int SweepIntervalMinutes = 10;
+		private static readonly TimeSpan SweepProtectWindow = TimeSpan.FromMinutes(30);
+		private long _lastSweepTicks = DateTime.UtcNow.Ticks;
+
+		private void MaybeSweepAfterWrite()
+		{
+			var now = DateTime.UtcNow;
+			var last = new DateTime(Interlocked.Read(ref _lastSweepTicks), DateTimeKind.Utc);
+			if (now - last < TimeSpan.FromMinutes(SweepIntervalMinutes))
+			{
+				return;
+			}
+			// Claim the slot before starting, so concurrent backfill writes can't launch several sweeps.
+			Interlocked.Exchange(ref _lastSweepTicks, now.Ticks);
+			_ = Task.Run(() =>
+			{
+				try { SweepVolumeCache(SizeCapBytes, SweepProtectWindow); }
+				catch (Exception ex) { _logger.LogWarning(ex, "Periodic cache sweep failed"); }
+			});
+		}
+
 		private void SweepCacheOnStartup()
 		{
 			_ = Task.Run(() =>
@@ -1535,7 +1583,14 @@ namespace Anvil.Services
 		//   2) SIZE — if what survives still exceeds sizeCapBytes, delete oldest-first until under.
 		// Age uses LastWriteTimeUtc so it covers every file type uniformly (archive/live/raw). The Diagnostics
 		// subfolder is a separate concern (TrimDiagnostics) and is excluded by the extension filter.
-		private void SweepVolumeCache(long sizeCapBytes)
+		/// <param name="protectNewerThan">
+		/// Files written more recently than this are exempt from the SIZE cap. ⚠️ Load-bearing once the sweep
+		/// runs mid-session rather than only at startup: the size pass deletes oldest-first, and the volumes an
+		/// ACTIVE loop is holding are simply the most recently written ones. Deleting those is not fatal (a
+		/// re-decode re-downloads) but it silently turns a product or tilt switch into a network round trip.
+		/// Null = no protection, which is correct at startup, where nothing is loaded yet.
+		/// </param>
+		private void SweepVolumeCache(long sizeCapBytes, TimeSpan? protectNewerThan = null)
 		{
 			var files = Directory.EnumerateFiles(CacheDirectory)
 				.Where(IsVolumeFile)
@@ -1556,8 +1611,13 @@ namespace Anvil.Services
 			int sizedOut = 0; long sizedBytes = 0;
 			if (total > sizeCapBytes)
 			{
+				// ⚠️ The protected set still counts toward `total` — it is real disk. We simply decline to
+				// reclaim it, so a session whose ACTIVE loops alone exceed the cap stays over rather than
+				// evicting what is on screen. The next sweep gets it once those files age past the window.
+				var cutoff = protectNewerThan is { } w ? now - w : (DateTimeOffset?)null;
 				foreach (var fi in files.OrderBy(fi => fi.LastWriteTimeUtc))
 				{
+					if (cutoff is { } c && fi.LastWriteTimeUtc > c) continue;
 					if (total <= sizeCapBytes) break;
 					long len = fi.Length;
 					try { fi.Delete(); total -= len; sizedOut++; sizedBytes += len; }
@@ -1568,7 +1628,7 @@ namespace Anvil.Services
 			if (agedOut > 0 || sizedOut > 0)
 			{
 				_logger.LogInformation(
-					"Cache startup sweep: removed {AgedOut} aged file(s) ({AgedMB:F0} MB) + {SizedOut} over-cap file(s) ({SizedMB:F0} MB); folder now ~{TotalMB:F0} MB",
+					"Cache sweep: removed {AgedOut} aged file(s) ({AgedMB:F0} MB) + {SizedOut} over-cap file(s) ({SizedMB:F0} MB); folder now ~{TotalMB:F0} MB",
 					agedOut, agedBytes / 1024.0 / 1024, sizedOut, sizedBytes / 1024.0 / 1024, total / 1024.0 / 1024);
 			}
 		}

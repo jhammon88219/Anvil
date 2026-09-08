@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,7 +22,14 @@ namespace Anvil.Services
 	{
 		/// <param name="cacheSubfolder">Folder name under <c>%LocalAppData%\Anvil</c> this service caches into.</param>
 		/// <param name="userAgent">User-Agent to send — NOAA/IEM/SPC endpoints reject a blank one.</param>
-		protected CachingHttpService(string cacheSubfolder, string userAgent = "Anvil/1.0")
+		/// <param name="stampedLogPattern">
+		/// Optional glob for PER-LAUNCH stamped files this service's folder accumulates (e.g.
+		/// <c>warnings-health-*.jsonl</c>, one per app run). Those are kept newest-N rather than by age,
+		/// because a burst of short sessions leaves hundreds of them well inside any age window.
+		/// </param>
+		/// <param name="keepStampedNewest">How many of <paramref name="stampedLogPattern"/> to keep.</param>
+		protected CachingHttpService(string cacheSubfolder, string userAgent = "Anvil/1.0",
+			string? stampedLogPattern = null, int keepStampedNewest = 15)
 		{
 			CacheDirectory = Path.Combine(
 				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -30,7 +38,79 @@ namespace Anvil.Services
 
 			Http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 			Http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
+
+			SweepCacheOnStartup(stampedLogPattern, keepStampedNewest);
 		}
+		// ── Startup cache sweep ───────────────────────────────────────────────────────────────────────
+		// ⚠️ WHY THIS EXISTS: nothing ever deleted from these folders. TryDeleteTemp's own comment said
+		// "the cache sweep will get it" — and there was no sweep. Three things grew without bound:
+		//   • per-date immutable caches — one file per replay date ever browsed (past-{date}-d{day}-c{cycle},
+		//     reports-v2-{date}, narrative-day{N}), which is unbounded in the number of events you look at;
+		//   • per-launch stamped logs — warnings-health-{stamp}.jsonl, ONE PER APP RUN, forever;
+		//   • orphaned .tmp files from any write that threw between the temp write and the move.
+		// Each file is small; the FILE COUNT is the problem, in a folder that is also a WebView2 virtual host.
+		//
+		// ⚠️ AGE, NOT SIZE — deliberately unlike Level2RadarService's sweep. These are kilobytes, so a size
+		// cap would never bind; what needs bounding is how long a file nobody will ask for again survives.
+		// ⚠️ THE LIVE CACHES ARE SAFE BY CONSTRUCTION, not by an exclusion list: today's outlook, the watch
+		// and warning snapshots are rewritten in place on every refresh, so their mtime is always fresh and
+		// an age sweep cannot reach them. That means NO filename knowledge lives here — a service can add,
+		// rename or restructure its cache files and this keeps working.
+		// ⚠️ The age is generous on purpose. These caches are the LAST-KNOWN-GOOD fallback when a feed is
+		// down, and deleting one turns a stale overlay into an empty one. 30 days is far longer than any
+		// outage worth surviving, and still bounds the growth that matters.
+		// ⚠️ Best-effort throughout, and OFF THE STARTUP PATH: a failure to tidy must never be visible.
+		private static readonly TimeSpan CacheMaxAge = TimeSpan.FromDays(30);
+		private static readonly TimeSpan OrphanTempMinAge = TimeSpan.FromHours(1); // never race a live write
+
+		private void SweepCacheOnStartup(string? stampedPattern, int keepStampedNewest)
+		{
+			_ = Task.Run(() =>
+			{
+				try
+				{
+					var now = DateTime.UtcNow;
+
+					// 1. Orphaned temps. Only ones old enough that no in-flight write could still own them —
+					//    AtomicWriteAsync's names are unique per write, so a fresh .tmp may be live right now.
+					foreach (var temp in Directory.EnumerateFiles(CacheDirectory, "*.tmp"))
+					{
+						try
+						{
+							if (now - File.GetLastWriteTimeUtc(temp) > OrphanTempMinAge) File.Delete(temp);
+						}
+						catch { /* best effort */ }
+					}
+
+					// 2. Age cap over everything else. Live caches are rewritten in place, so they never age out.
+					foreach (var file in Directory.EnumerateFiles(CacheDirectory))
+					{
+						if (file.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)) continue;
+						try
+						{
+							if (now - File.GetLastWriteTimeUtc(file) > CacheMaxAge) File.Delete(file);
+						}
+						catch { /* best effort */ }
+					}
+
+					// 3. Per-launch stamped logs: keep the newest N regardless of age, because they are written
+					//    once per run and a burst of short sessions would otherwise leave hundreds inside the
+					//    age window. Newest-by-name works because the stamp sorts chronologically.
+					if (stampedPattern is not null && keepStampedNewest > 0)
+					{
+						var stamped = Directory.EnumerateFiles(CacheDirectory, stampedPattern)
+							.OrderByDescending(f => f, StringComparer.OrdinalIgnoreCase)
+							.Skip(keepStampedNewest);
+						foreach (var old in stamped)
+						{
+							try { File.Delete(old); } catch { /* best effort */ }
+						}
+					}
+				}
+				catch { /* the folder may not exist yet, or be locked — tidying is never worth a throw */ }
+			});
+		}
+
 
 		/// <summary>The per-user on-disk cache folder (created in the constructor). MainWindow maps it to the
 		/// service's WebView virtual host; this satisfies each <c>ISpc*Service.CacheDirectory</c> contract.</summary>

@@ -39,6 +39,9 @@ namespace Anvil.Services
 		private static bool _started;
 		private static string? _jsonlPath;
 		private static string? _reportPath;
+		// Set by WriteLine whenever an event is recorded, cleared by WriteReport once the .md is rebuilt.
+		// Guarded by Gate like everything else here. Starts true so the first render always happens.
+		private static bool _reportDirty = true;
 		private static string? _suspectDir;
 		private static string _stamp = "";
 		private static readonly DateTimeOffset LaunchTime = DateTimeOffset.Now;
@@ -413,6 +416,7 @@ namespace Anvil.Services
 			try
 			{
 				Pending.Append(JsonSerializer.Serialize(dict, JsonOpts)).Append('\n');
+				_reportDirty = true; // something happened → the .md is stale (see WriteReport)
 			}
 			catch
 			{
@@ -436,14 +440,27 @@ namespace Anvil.Services
 		}
 
 		/// <summary>Regenerates the human-readable <c>.md</c> report from the in-memory model.</summary>
+		/// <remarks>
+		/// ⚠️ SKIPS ENTIRELY WHEN NOTHING HAS BEEN LOGGED SINCE THE LAST RENDER. <see cref="Flush"/> has always
+		/// had that early-out; this did not, so the 2 s background loop rebuilt a multi-KB report — glossary,
+		/// aggregates, per-frame table — and rewrote it to disk roughly 1,800 times an hour on a COMPLETELY
+		/// IDLE app. Every event funnels through <c>WriteLine</c>, so one flag there is the whole fix.
+		/// <para>⚠️ Consequence, accepted: an idle app's report stops advancing its own "Uptime" line, because
+		/// nothing else in it changed either. The report then reflects the last thing that actually happened,
+		/// which is the more useful reading of it anyway.</para>
+		/// <para>⚠️ The FLUSH cadence is deliberately NOT backed off alongside this. The JSONL is the
+		/// crash-safe half — sleeping longer would lose events in exactly the scenario this exists for (a
+		/// renderer OOM mid-replay), and an empty Flush is nearly free.</para>
+		/// </remarks>
 		public static void WriteReport()
 		{
 			string path; string text;
 			lock (Gate)
 			{
-				if (_reportPath is null) return;
+				if (_reportPath is null || !_reportDirty) return;
 				path = _reportPath;
 				text = RenderReport();
+				_reportDirty = false;
 			}
 			try { File.WriteAllText(path, text); }
 			catch { /* transient lock; next regen retries */ }
