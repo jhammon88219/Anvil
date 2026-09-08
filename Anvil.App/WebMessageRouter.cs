@@ -99,12 +99,19 @@ namespace Anvil
 		/// there.</para>
 		/// <para>⚠️ <c>p95</c> and <c>long</c> are the pair worth reading, not <c>p50</c>: a drag that is
 		/// smooth apart from four 90 ms stalls has a fine median and feels broken.</para>
+		/// <para>⚠️ <c>longPct</c> IS MEANINGLESS WITHOUT <c>cadence</c>/<c>longMs</c>, which is why all
+		/// three are logged together. "Long" is relative to the display's measured frame interval, not a
+		/// fixed millisecond count: the probe's first version used a flat 32 ms and reported ~98% long on
+		/// a 30 Hz machine whose idle cadence is 33.3 ms — including on an empty basemap with no radar
+		/// loaded. A sample must carry the calibration it was judged against or the log cannot be read
+		/// back later. <c>cal</c> is 0 when the baseline had not settled when the gesture ran.</para>
 		/// </remarks>
 		private static void HandlePerfPan(JsonElement root) =>
 			Services.RadarDiagnostics.Log("js", "perf.pan",
 				("n", Int(root, "n")), ("durMs", Int(root, "durMs")),
 				("p50", Dbl(root, "p50")), ("p95", Dbl(root, "p95")), ("max", Dbl(root, "max")),
 				("long", Int(root, "long")), ("longPct", Dbl(root, "longPct")),
+				("cadence", Dbl(root, "cadence")), ("longMs", Dbl(root, "longMs")), ("cal", Int(root, "cal")),
 				("panes", Int(root, "panes")),
 				("mkAttached", Int(root, "mkAttached")), ("mkShown", Int(root, "mkShown")));
 

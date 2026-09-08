@@ -50,8 +50,10 @@ METRICS = [
     ("suspects",         "Suspect frames",         "",   -1),
     ("render_errors",    "Render errors",          "",   -1),
     ("render_blanks",    "Render blanks",          "",   -1),
+    ("pan_cadence",      "Display cadence",        "ms",  0),
     ("pan_p50",          "Pan frame time p50",     "ms", -1),
     ("pan_p95",          "Pan frame time p95",     "ms", -1),
+    ("pan_long_ms",      "Long-frame threshold",   "ms",  0),
     ("pan_long_pct",     "Pan long frames",        "%",  -1),
     ("pan_samples",      "Pan gestures sampled",   "",    0),
     ("mk_attached",      "Markers attached",       "",    0),
@@ -78,6 +80,7 @@ def load_run(path):
     decode_ms, timings = [], defaultdict(list)
     frames_decoded = suspects = render_errors = render_blanks = 0
     pan_p50, pan_p95, pan_long, mk_attached, mk_shown = [], [], [], [], []
+    pan_cadence, pan_long_ms = [], []
     sites, sessions, stamp = set(), 0, None
     first_ts = last_ts = None
     skipped = 0
@@ -135,6 +138,12 @@ def load_run(path):
                 pan_p50.append(e.get("p50", 0))
                 pan_p95.append(e.get("p95", 0))
                 pan_long.append(e.get("longPct", 0))
+                # The calibration each sample was judged against. Without these, longPct cannot be
+                # compared across machines - or even across runs on one machine, if a display changes.
+                if e.get("cadence"):
+                    pan_cadence.append(e["cadence"])
+                if e.get("longMs"):
+                    pan_long_ms.append(e["longMs"])
                 if e.get("mkAttached"):
                     mk_attached.append(e["mkAttached"])
                 if e.get("mkShown") is not None:
@@ -168,6 +177,8 @@ def load_run(path):
         "pan_p50": statistics.median(pan_p50) if pan_p50 else None,
         "pan_p95": statistics.median(pan_p95) if pan_p95 else None,
         "pan_long_pct": statistics.median(pan_long) if pan_long else None,
+        "pan_cadence": statistics.median(pan_cadence) if pan_cadence else None,
+        "pan_long_ms": statistics.median(pan_long_ms) if pan_long_ms else None,
         "pan_samples": len(pan_p50),
         "mk_attached": statistics.median(mk_attached) if mk_attached else None,
         "mk_shown": statistics.median(mk_shown) if mk_shown else None,

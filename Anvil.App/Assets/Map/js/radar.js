@@ -215,7 +215,69 @@
     // capped to bound memory (the cached res also carries the inspector value-grids, so inspect stays
     // instant on revisit too). Survives beginLoop/clear on purpose — only the cap evicts.
     const decodedCache = new Map(); // url -> stored applyFrameResult-shaped result (arrays shared with frames[])
-    const DECODE_CACHE_MAX = 96;    // ~a handful of sites' worth of loop frames; tune down if memory bites
+
+    // ⚠️⚠️ THE CAP IS BYTES FIRST, COUNT SECOND, AND THE COUNT ALONE WAS THE BUG.
+    // This used to be `DECODE_CACHE_MAX = 96` and nothing else — a cap on the NUMBER of frames, for
+    // entries whose size varies by two orders of magnitude. Measured on a real 3-site PastCast session
+    // (radar-diag-20260908-122438), a 26-frame trio-only loop retains ~1065 MB, i.e. ~41 MB per frame,
+    // so 96 frames authorises ~3.9 GB against a measured jsHeapSizeLimit of 4192 MB. The same log shows
+    // the accumulation directly: at every site switch `frames` drops to 0 while `cached` and
+    // `retainedMb` do not, because this cache deliberately survives beginLoop.
+    //     KTLX  frames 26  cached 26  retained 1065 MB
+    //     KVNX  frames  0  cached 26  retained 1065 MB   <- loop torn down, bytes kept
+    //     KVNX  frames 28  cached 54  retained 1872 MB
+    //     KINX  frames 26  cached 80  retained 2605 MB   <- 62% of the ceiling, three sites in
+    // A fourth site reaches the 96-frame cap at roughly the limit, which is the renderer OOM of
+    // 2026-09-03 (see MainWindow.OnWebViewProcessFailed). Hence a byte budget.
+    //
+    // ⚠️ EVICTION ORDER IS WHY LRU MATTERS HERE, not just tidiness. The cache SHARES its typed arrays
+    // with frames[] by reference, so evicting an entry whose frame is still loaded frees NOTHING. LRU
+    // puts the current loop at the tail and dead sites at the head, so trimming from the head evicts
+    // exactly the entries that are the sole owner of their bytes. Do not switch this to any other
+    // eviction order without re-deriving that.
+    // ⚠️ Over-eviction is HARMLESS, under-eviction is not. Dropping an entry the current loop still
+    // holds costs nothing (frames[] keeps rendering it); the cache is consulted only on beginLoop/re-add.
+    // So when in doubt this evicts.
+    // ⚠️ RE-MEASURED, NEVER REMEMBERED. Entries are MUTATED in place after insertion — the grids-only
+    // upgrade path mirrors a value grid into the cached object without going through cachePut — so a
+    // size stored at insert time drifts DOWNWARD-biased, which under-evicts, which is the failure this
+    // whole change exists to prevent. Recomputing is a few dozen byteLength reads per put; pay it.
+    // ⚠️ Retune against the `cat:"memory"` samples in the diagnostics JSONL (retainedMb vs frame count),
+    // never against taste. Headroom arithmetic: a 40-frame PastCast loop can hold ~1.6 GB in frames[]
+    // on its own, four decode workers hold a ~45 MB volume each mid-build, and the sampler measures
+    // RETAINED rather than peak — so the cache's share has to stay well under half the ceiling.
+    //
+    // ⚠️⚠️ 768 MB IS DELIBERATELY SMALLER THAN ONE PASTCAST LOOP (~1065 MB measured), AND THAT IS THE
+    // DESIGN, NOT AN OVERSIGHT. The two loop kinds have wildly different frame costs — a live frame is
+    // ~15 MB, a PastCast legacy-volume frame ~41 MB — so one budget buys very different things:
+    //   • live loops   (~15 MB/frame): ~50 frames, i.e. four-plus whole loops. Revisits stay instant.
+    //   • PastCast     (~41 MB/frame): ~18 frames, LESS than one loop. Cross-site caching is given up.
+    // Giving it up is the point: PastCast is the case that was killing the renderer, and because the
+    // cache holds the CURRENT loop too, a budget below one loop means previous sites are fully evicted
+    // and total retained collapses back to frames[] alone. The cost is that returning to a PastCast site
+    // re-decodes ~30% of its frames. RAISING THIS TO "make revisits instant again" walks straight back
+    // into the OOM — the whole point is that two PastCast loops must never be resident at once.
+    const DECODE_CACHE_MAX_BYTES = 768 * 1024 * 1024;
+    const DECODE_CACHE_MAX = 96;    // secondary bound, so tiny-frame loops can't grow the Map unboundedly
+
+    // Bytes of geometry + value grids one cache entry holds. `for...in` rather than Object.keys so a
+    // hot path that runs per decode allocates nothing.
+    function entryBytes(res) {
+        if (!res) return 0;
+        let b = 0, id, g;
+        const mo = res.moments;
+        if (mo) for (id in mo) { g = mo[id]; if (g) { if (g.positions) b += g.positions.byteLength; if (g.colors) b += g.colors.byteLength; } }
+        const gr = res.grids;
+        if (gr) for (id in gr) { g = gr[id]; if (g) { if (g.az) b += g.az.byteLength; if (g.values) b += g.values.byteLength; } }
+        return b;
+    }
+
+    function cacheBytes() {
+        let total = 0;
+        decodedCache.forEach(function (res) { total += entryBytes(res); });
+        return total;
+    }
+
     function cacheGet(url) {
         if (!url) return null;
         const v = decodedCache.get(url);
@@ -226,7 +288,26 @@
         if (!url || res.empty || res.error) return; // don't cache empties/failures — let them re-fetch
         decodedCache.delete(url);
         decodedCache.set(url, res);
-        while (decodedCache.size > DECODE_CACHE_MAX) decodedCache.delete(decodedCache.keys().next().value);
+
+        // Trim oldest-first until BOTH bounds are satisfied. The byte total is recomputed once up front
+        // and then decremented per eviction, so a full walk happens at most once per put.
+        let bytes = cacheBytes();
+        let evicted = 0, freed = 0;
+        while ((bytes > DECODE_CACHE_MAX_BYTES || decodedCache.size > DECODE_CACHE_MAX) && decodedCache.size > 1) {
+            const oldest = decodedCache.keys().next().value;
+            const victim = decodedCache.get(oldest);
+            const vb = entryBytes(victim);
+            decodedCache.delete(oldest);
+            bytes -= vb; freed += vb; evicted++;
+        }
+        // ⚠️ `decodedCache.size > 1` above: never evict the entry just inserted, even if it alone busts
+        // the budget. A cache that can drop the frame it was handed would re-decode it immediately and
+        // spin. One oversized entry is survivable; a decode loop is not.
+        if (evicted > 0) {
+            hostLog('decodeCache trim: evicted ' + evicted + ' frame(s), freed ' +
+                Math.round(freed / 1048576) + ' MB, now ' + decodedCache.size + ' frame(s) / ' +
+                Math.round(bytes / 1048576) + ' MB (cap ' + Math.round(DECODE_CACHE_MAX_BYTES / 1048576) + ' MB)');
+        }
     }
 
     // ---- Retained-geometry accounting (READ-ONLY instrumentation) ----
