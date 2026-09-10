@@ -691,7 +691,8 @@ function dealiasSweepCore(radials, radar, seedProfile) {
 // radials, so the inspected value matches the rendered pixel). Returns { geom, grid }; both null if
 // the volume carries no velocity.
 // minDbz is accepted (unused) so every builder shares ONE signature and decodeAndBuild can call them
-// uniformly through the BUILDERS map — velocity isn't reflectivity-masked (unlike CC/DOW-velocity).
+// uniformly through the BUILDERS map — velocity isn't display-masked at all (unlike CC/ZDR, which take
+// the maskByQuality union, and DOW-velocity, which still takes a bare reflectivity mask).
 function buildVelocity(radar, siteLat, siteLon, minDbz, wantGrid) {
     const sd = velocityDealiased(radar);          // shared with SRV within this decode (one dealias)
     if (!sd.radials) return { geom: null, grid: null };
@@ -1272,15 +1273,22 @@ function buildSpectrumWidth(radar, siteLat, siteLon, minDbz, wantGrid) {
     return { geom: geom, grid: buildGrid(radials, getAz, 100, SPECTRUM_WIDTH_RAMP.unit, 1, wantGrid) };
 }
 
+// The ρHV floor at/above which a gate is treated as METEOROLOGICAL for display purposes — the second arm
+// of maskByQuality (CC + ZDR). ⚠️ NOT the same idea as KDP_RHO_MIN, and they should not be merged:
+// this one asks "is there real weather here at all", KDP_RHO_MIN asks "is ΦDP clean enough to differentiate",
+// which is a stricter question with a different right answer (0.90, the operational value).
+const MET_RHO_MIN = 0.80;
+
 // Lowest-tilt correlation-coefficient (ρHV) geometry. CC is a dual-pol moment collected in the
 // long-PRT SURVEILLANCE cut alongside reflectivity, so it lives at the lowest elevation NUMBER (like
 // reflectivity), NOT the Doppler cut. Null if the volume carries no CC (legacy single-pol file).
 //
-// CC is MASKED BY REFLECTIVITY: it's only meaningful where there's actual precip signal. Without the
-// mask, clear-air ground clutter / biological / noise returns carry real-but-random low CC and paint
-// the whole domain with colorful speckle (RadarScope masks it the same way). We keep a CC gate only
-// where the co-located reflectivity gate is >= minDbz — aligned by RANGE, since CC and reflectivity
-// can use different gate geometry. The result shows CC exactly where the reflectivity product draws.
+// CC IS DISPLAY-MASKED, because clear-air ground clutter / biological / noise returns carry
+// real-but-random low CC and would paint the whole domain with colorful speckle. ⚠️ The mask is the UNION
+// in maskByQuality (Z >= minDbz OR ρHV >= MET_RHO_MIN), NOT a bare reflectivity floor — read that
+// function's note before changing it. The floor alone was hiding 39.3% of the signal-bearing gates in the
+// corpus (real precip under 10 dBZ), while a ρHV floor alone erases every low-CC gate, which is the one
+// thing CC is for. ⚠️ So CC NO LONGER draws exactly where reflectivity draws; it draws over a wider area.
 function buildCorrelation(radar, siteLat, siteLon, minDbz, wantGrid) {
     const elevs = radar.listElevations();
     if (!elevs || !elevs.length) return { geom: null, grid: null };
@@ -1290,9 +1298,10 @@ function buildCorrelation(radar, siteLat, siteLon, minDbz, wantGrid) {
     // Legacy Message-1 (single-pol) volumes have no ρHV at all, so bail before building anything.
     if (!ccR.some(function (c) { return c && c.moment_data; })) return { geom: null, grid: null };
 
-    // CC is only meaningful where there's precip — mask it to reflectivity >= minDbz (shared with the
-    // DOW velocity mask). Without it, clear-air / clutter ρHV speckles the whole domain.
-    const masked = maskByReflectivity(ccR, reflR, minDbz);
+    // ⚠️ ccR is passed as BOTH the data and the ρHV arm — CC censored partly by its own value. That is
+    // not circular reasoning, it is the union doing its job: a low-CC gate is still drawn whenever the Z
+    // arm vouches for it, which is exactly the debris-ball / hail case CC exists to show.
+    const masked = maskByQuality(ccR, reflR, ccR, minDbz, MET_RHO_MIN);
 
     const getAz = function (i) { return radar.getAzimuth(i); };
     const geom = buildGates(masked, getAz, siteLat, siteLon, function (v) {
@@ -1300,7 +1309,7 @@ function buildCorrelation(radar, siteLat, siteLon, minDbz, wantGrid) {
         return rampColor(CORRELATION_RAMP, v);
     });
     // The inspector grid uses the UNMASKED ρHV (ccR), so the cursor reads the true value anywhere
-    // there's signal — not only where the reflectivity-masked geometry draws.
+    // there's signal — not only where the masked geometry draws.
     return { geom: geom, grid: buildGrid(ccR, getAz, 1000, CORRELATION_RAMP.unit, 2, wantGrid) };
 }
 
@@ -1315,10 +1324,13 @@ function buildZdr(radar, siteLat, siteLon, minDbz, wantGrid) {
     radar.setElevation(Math.min.apply(null, elevs));
     const zdrR = momentRadials(radar, 'zdr');
     const reflR = momentRadials(radar, 'reflect');
+    const rhoR = momentRadials(radar, 'rho');   // second arm of the display mask — see maskByQuality
     // Legacy single-pol volumes carry no ZDR — bail before building anything.
     if (!zdrR.some(function (z) { return z && z.moment_data; })) return { geom: null, grid: null };
 
-    const masked = maskByReflectivity(zdrR, reflR, minDbz);
+    // Same union as CC (see maskByQuality): clear-air ZDR is noise, but a reflectivity floor alone hides
+    // real weak precip. ZDR takes ρHV as a genuine second field here, not its own value.
+    const masked = maskByQuality(zdrR, reflR, rhoR, minDbz, MET_RHO_MIN);
     const getAz = function (i) { return radar.getAzimuth(i); };
     const geom = buildGates(masked, getAz, siteLat, siteLon, function (v) {
         if (v === null || v === undefined) return null;
@@ -1475,6 +1487,57 @@ function buildKdp(radar, siteLat, siteLon, minDbz, wantGrid) {
 // carry a real-but-meaningless velocity — so without this the whole domain renders as velocity speckle.
 // Keeping velocity only where there's actual precip makes it match the (dBZ-thresholded) reflectivity.
 // Same idea as the CC reflectivity mask. Returns new radials; input unchanged.
+// The DISPLAY mask for the dual-pol pair (CC + ZDR): keep a gate where the range-aligned reflectivity
+// is at least `minDbz` **OR** the range-aligned ρHV is at least `minRho`. A UNION, deliberately — the two
+// arms catch different things and either one alone is wrong:
+//
+//   Z arm    keeps HIGH-Z / LOW-CC gates — debris balls, hail, the non-meteorological signatures that are
+//            the entire diagnostic point of CC. A ρHV floor alone erases 100% of them (measured).
+//   ρHV arm  keeps LOW-Z / HIGH-CC gates — weak precip, snow, drizzle, storm edges. The reflectivity floor
+//            alone hides these: measured across the six corpus volumes, **39.3% of all signal-bearing
+//            gates** are meteorological (ρHV ≥ 0.80) yet sit under 10 dBZ, so we were refusing to draw
+//            over a third of the real echo (KILX: 50.3%).
+//   neither  clear-air noise / biological returns — low Z AND random low CC. Dropped by both arms, which
+//            is what keeps the domain from filling with colorful speckle.
+//
+// ⚠️ **Reflectivity is NOT a censoring field, and this is why the floor cannot simply be lowered.** The
+// RDA has already censored below-SNR gates to raw 0 (→ null) before the volume was written, so a dBZ
+// floor is second-guessing work that is done; what it actually does here is act as a crude signal-strength
+// proxy. Measured gain of the union over the reflectivity floor alone: +26.6% to +50.3% of signal-bearing
+// gates drawn, 100% of the low-CC gates retained, and 0.0% of the added gates fail both tests. See
+// docs/radar-products-history.md.
+// ⚠️ Range alignment matters: CC/ZDR/Z can use different gate geometry, so every lookup goes through the
+// range→index conversion rather than sharing an index.
+function maskByQuality(radials, reflRadials, rhoRadials, minDbz, minRho) {
+    const out = new Array(radials.length);
+    for (let i = 0; i < radials.length; i++) {
+        const d = radials[i];
+        if (!d || !d.moment_data) { out[i] = d; continue; }
+        const zr = reflRadials && reflRadials[i];
+        const zd = zr && zr.moment_data;
+        const rr = rhoRadials && rhoRadials[i];
+        const rd = rr && rr.moment_data;
+        const md = new Array(d.moment_data.length);
+        for (let j = 0; j < d.moment_data.length; j++) {
+            const range = d.first_gate + j * d.gate_size; // km
+            let keep = false;
+            if (zd) {
+                const zj = Math.round((range - zr.first_gate) / zr.gate_size);
+                const zv = (zj >= 0 && zj < zd.length) ? zd[zj] : null;
+                keep = (zv !== null && zv !== undefined && zv >= minDbz);
+            }
+            if (!keep && rd) {
+                const rj = Math.round((range - rr.first_gate) / rr.gate_size);
+                const rv = (rj >= 0 && rj < rd.length) ? rd[rj] : null;
+                keep = (rv !== null && rv !== undefined && rv >= minRho);
+            }
+            md[j] = keep ? d.moment_data[j] : null;
+        }
+        out[i] = { moment_data: md, first_gate: d.first_gate, gate_size: d.gate_size };
+    }
+    return out;
+}
+
 function maskByReflectivity(radials, reflRadials, minDbz) {
     const out = new Array(radials.length);
     for (let i = 0; i < radials.length; i++) {
@@ -1595,7 +1658,7 @@ export function decodeDowFrame(json, minDbz) {
 // The per-product geometry builders, keyed by product id (radar-products.js). Adding a product = add a
 // build fn here + a PRODUCTS entry + a ramp; decodeAndBuild then loops over the registry automatically.
 // Every builder shares the (radar, siteLat, siteLon, minDbz, wantGrid) signature (buildVelocity ignores
-// minDbz — it isn't reflectivity-masked) so the loop can call them uniformly.
+// minDbz — it isn't display-masked) so the loop can call them uniformly.
 const BUILDERS = {
     reflectivity: buildReflectivity,
     velocity: buildVelocity,
