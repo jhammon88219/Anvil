@@ -234,6 +234,13 @@ def verdict(before, after, blo, bhi, direction, n_before):
     arrow = "{:+,.1f} ({:+.0f}%)".format(delta, ratio) if before else "{:+,.1f}".format(delta)
     if direction == 0:
         return arrow, ""
+    # ⚠️ A ZERO BASELINE HAS NO PERCENTAGE, AND THE PERCENTAGE IS WHAT THE TESTS BELOW READ. Without this,
+    # `ratio` stays 0.0 for any move off zero and the row is reported "flat" — so 0 -> 6 suspect frames, or
+    # 0 -> N render errors, printed as though nothing happened. Those are exactly the rows that must shout:
+    # the counters that are normally zero are the correctness ones. Judge them on direction alone.
+    if before == 0 and delta != 0:
+        improved = (delta < 0) if direction < 0 else (delta > 0)
+        return arrow, "BETTER" if improved else "WORSE"
     # An exact tie is flat, not noise. Counters that are 0 in both runs (suspects, render errors) sit
     # inside their own zero-width before-spread, so the noise test below would call every clean run
     # "noise" - which reads as "we could not tell", when in fact nothing happened at all.

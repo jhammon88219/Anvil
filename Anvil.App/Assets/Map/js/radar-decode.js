@@ -21,7 +21,7 @@
 //   not all seven — and can also emit an inspector value GRID per product (the Int16 lookup the
 //   Inspector reads). Everything comes back as keyed maps {moments:{id:…}, grids:{id:…}, built:{id}}.
 
-import { REFLECTIVITY_RAMP, VELOCITY_RAMP, SRV_RAMP, CORRELATION_RAMP, KDP_RAMP, ZDR_RAMP, SPECTRUM_WIDTH_RAMP, rampColor } from './radar-ramps.js';
+import { REFLECTIVITY_RAMP, VELOCITY_RAMP, SRV_RAMP, CORRELATION_RAMP, KDP_RAMP, ZDR_RAMP, SPECTRUM_WIDTH_RAMP, rampColor, RANGE_FOLDED_COLOR } from './radar-ramps.js';
 import { PRODUCTS, PRODUCT_IDS } from './radar-products.js';
 import { metersPerDeg } from './geo.js';
 
@@ -80,9 +80,14 @@ function momentRadials(radar, moment) {
 }
 
 // Builds gate-quad geometry from a list of radials: mercator x,y per vertex + rgba per vertex
-// (2 triangles per gate). `colorFn(value)` returns [r,g,b] for a gate, or null to skip it
+// (2 triangles per gate). `colorFn(value, rangeFolded)` returns [r,g,b] for a gate, or null to skip it
 // (no-data / below threshold). Returns null if nothing is drawn. Shared by reflectivity and
 // velocity so the geometry math stays identical.
+// ⚠️ `rangeFolded` (0/1) is the THIRD gate state — see RANGE_FOLDED_COLOR in radar-ramps.js. It is a
+// SECOND ARGUMENT precisely so every existing colorFn keeps working untouched: a colorFn that ignores it
+// behaves exactly as before, and only the Doppler products opt in. The flag rides on the radial as a
+// lazily-allocated Uint8Array (null when the sweep has no folding at all, which is the common case), so
+// reading it costs nothing on a clear sweep.
 function buildGates(radials, getAzimuth, siteLat, siteLon, colorFn) {
     if (!radials || !radials.length) return null;
     const { mPerDegLat, mPerDegLon } = metersPerDeg(siteLat); // canonical projection — see geo.js (per-gate formula stays inline below for perf)
@@ -104,6 +109,7 @@ function buildGates(radials, getAzimuth, siteLat, siteLon, colorFn) {
         const firstGate = d.first_gate; // km to first gate
         const gateSize = d.gate_size;   // km per gate
         const data = d.moment_data;
+        const rfFlags = d.range_folded || null; // Uint8Array or null — see the note above
         if (!isFinite(firstGate) || !isFinite(gateSize)) continue;
 
         const firstGateM = firstGate * 1000;
@@ -113,7 +119,7 @@ function buildGates(radials, getAzimuth, siteLat, siteLon, colorFn) {
         const sinR = Math.sin(azR), cosR = Math.cos(azR);
 
         for (let j = 0; j < data.length; j++) {
-            const col = colorFn(data[j]);
+            const col = colorFn(data[j], rfFlags ? rfFlags[j] : 0);
             if (!col) continue;
 
             const rNear = firstGateM + j * gateSizeM;
@@ -668,7 +674,11 @@ function dealiasSweepCore(radials, radar, seedProfile) {
             if (dv > vmax) vmax = dv;
             if (dv > 55 || dv < -55) hi++; // implausibly fast at 0.5° => over-unfolded / noise
         }
-        out[r] = { moment_data: mdOut, first_gate: src.first_gate, gate_size: src.gate_size };
+        // ⚠️ range_folded is carried through UNCHANGED. Dealiasing rewrites values, but a range-folded
+        // gate has no value to rewrite (it entered as null and stays null) — the flag is a property of
+        // the acquisition, not of the unfold. Dropping it here is what would silently disable the purple
+        // haze on the one product that most needs it, since velocity is only ever drawn dealiased.
+        out[r] = { moment_data: mdOut, first_gate: src.first_gate, gate_size: src.gate_size, range_folded: src.range_folded };
     }
     _dealiasInfo = numReg + 'reg splits' + INTERVAL_SPLITS +
         ' v[' + (isFinite(vmin) ? Math.round(vmin) : '?') + ',' +
@@ -688,7 +698,8 @@ function buildVelocity(radar, siteLat, siteLon, minDbz, wantGrid) {
     radar.setElevation(sd.elev);                  // buildGates' getAzimuth reads the current cut — pin it
     const dealiased = sd.radials;
     const getAz = function (i) { return radar.getAzimuth(i); };
-    const geom = buildGates(dealiased, getAz, siteLat, siteLon, function (v) {
+    const geom = buildGates(dealiased, getAz, siteLat, siteLon, function (v, rf) {
+        if (rf) return RANGE_FOLDED_COLOR;   // range-folded: a class of its own, drawn before the null test
         if (v === null || v === undefined) return null;
         return rampColor(VELOCITY_RAMP, v);
     });
@@ -1231,9 +1242,10 @@ function buildSrv(radar, siteLat, siteLon, minDbz, wantGrid) {
             const v = src[j];
             out[j] = (v === null || v === undefined) ? null : (v - off);
         }
-        return { moment_data: out, first_gate: d.first_gate, gate_size: d.gate_size };
+        return { moment_data: out, first_gate: d.first_gate, gate_size: d.gate_size, range_folded: d.range_folded };
     });
-    const geom = buildGates(srv, getAz, siteLat, siteLon, function (v) {
+    const geom = buildGates(srv, getAz, siteLat, siteLon, function (v, rf) {
+        if (rf) return RANGE_FOLDED_COLOR;   // SRV is velocity minus a constant, so it folds identically
         if (v === null || v === undefined) return null;
         return rampColor(SRV_RAMP, v);
     });
@@ -1252,7 +1264,8 @@ function buildSpectrumWidth(radar, siteLat, siteLon, minDbz, wantGrid) {
     const radials = momentRadials(radar, 'spectrum');
     if (!radials.some(function (s) { return s && s.moment_data; })) return { geom: null, grid: null };
     const getAz = function (i) { return radar.getAzimuth(i); };
-    const geom = buildGates(radials, getAz, siteLat, siteLon, function (v) {
+    const geom = buildGates(radials, getAz, siteLat, siteLon, function (v, rf) {
+        if (rf) return RANGE_FOLDED_COLOR;   // same Doppler cut as velocity, so it folds with it
         if (v === null || v === undefined) return null;
         return rampColor(SPECTRUM_WIDTH_RAMP, v);
     });
@@ -1321,10 +1334,22 @@ function rangeIndexOf(from, to, j) {
     return Math.round((from.first_gate + j * from.gate_size - to.first_gate) / to.gate_size);
 }
 
-// KDP quality/tuning constants (see buildKdp). Fixed 3 km least-squares window is a robust v1; an
-// adaptive-by-Z window is a later refinement.
-const KDP_RHO_MIN = 0.85;   // gates below this ρHV have too-noisy differential phase to trust
-const KDP_WINDOW_KM = 3.0;  // half-length (km) of the ΦDP least-squares range window
+// KDP quality/tuning constants (see buildKdp). These implement the NWS OPERATIONAL two-window scheme
+// (Ryzhkov et al. 2005; described as the current operational algorithm in Reimel & Kumjian 2021,
+// JTECH) — see docs/radar-products-history.md.
+// ⚠️ THE TWO WINDOWS ARE THE ALGORITHM, NOT A TUNING KNOB. A single window cannot both suppress noise
+// in light rain and preserve fine-scale KDP peaks in convection; the operational design runs BOTH
+// least-squares fits per radial and picks per gate on reflectivity. We ran the long window only until
+// 2026-09-10, which is exactly the light-rain branch — so peak KDP in convective cores was
+// systematically UNDER-estimated, the one place the product earns its keep.
+const KDP_RHO_MIN = 0.90;   // gates below this ρHV have too-noisy differential phase to trust. 0.90 is the
+                            // operational WSR-88D value; we used 0.85 (more permissive → noisier gates).
+const KDP_WINDOW_KM = 3.0;  // half-length (km) of the LONG (light-rain) window. At 250 m gates this is
+                            // 12 gates either side = the operational 25-gate branch.
+const KDP_WINDOW_SHORT_KM = 1.0; // half-length (km) of the SHORT (convective) window ≈ the operational
+                            // 9-gate branch. Higher resolution, noisier — correct where signal is strong.
+const KDP_SHORT_DBZ = 40.0; // reflectivity at/above which the SHORT window is used. The operational
+                            // switch point; NOT related to minDbz (which is a QC floor, not a regime).
 const KDP_MIN_VALID = 5;    // min valid samples in a window to estimate a slope
 const KDP_ABS_MAX = 15.0;   // reject |KDP| beyond this (°/km): real S-band KDP tops out ~10-12 even in
                             // violent cores, so a larger magnitude is a ΦDP-unwrap / short-window LS blowup.
@@ -1341,6 +1366,8 @@ function kdpFromPhi(phi, refl, rho, minDbz) {
     const pd = phi.moment_data, n = pd.length, gateKm = phi.gate_size;
     const ph = new Float64Array(n);     // unwrapped ΦDP (deg) at valid gates
     const valid = new Uint8Array(n);
+    const zh = new Float64Array(n);     // range-aligned reflectivity per gate; NaN where unknown. Drives
+    zh.fill(NaN);                       // the operational short/long window choice (KDP_SHORT_DBZ).
     let prev = null, accum = 0;
     for (let j = 0; j < n; j++) {
         let v = pd[j];
@@ -1354,6 +1381,7 @@ function kdpFromPhi(phi, refl, rho, minDbz) {
             const zj = rangeIndexOf(phi, refl, j);
             const zv = (zj >= 0 && zj < refl.moment_data.length) ? refl.moment_data[zj] : null;
             if (zv === null || zv === undefined || zv < minDbz) ok = false;
+            else zh[j] = zv;
         }
         if (ok) {
             if (prev !== null) { // cumulative unwrap of the ~360° ΦDP fold (compare to last RAW valid value)
@@ -1368,24 +1396,42 @@ function kdpFromPhi(phi, refl, rho, minDbz) {
             // keep `prev`/`accum` across isolated dropouts so the unwrap stays continuous
         }
     }
-    const w = Math.max(1, Math.round(KDP_WINDOW_KM / gateKm));
-    const out = new Array(n);
-    for (let i = 0; i < n; i++) {
-        if (!valid[i]) { out[i] = null; continue; }
+    const wLong = Math.max(1, Math.round(KDP_WINDOW_KM / gateKm));
+    const wShort = Math.max(1, Math.round(KDP_WINDOW_SHORT_KM / gateKm));
+
+    // Least-squares slope of ΦDP vs range over the valid gates within ±w of i, halved (ΦDP = 2·∫KDP dr).
+    // Returns null where the window can't support an estimate. The x offset cancels, so absolute range
+    // is irrelevant — only the spacing matters.
+    function slopeAt(i, w) {
         let lo = i - w, hi = i + w;
         if (lo < 0) lo = 0;
         if (hi >= n) hi = n - 1;
-        // Least-squares slope of ΦDP vs range over the window's valid gates (x offset cancels).
         let sx = 0, sy = 0, sxx = 0, sxy = 0, cnt = 0;
         for (let k = lo; k <= hi; k++) {
             if (!valid[k]) continue;
             const x = k * gateKm, y = ph[k];
             sx += x; sy += y; sxx += x * x; sxy += x * y; cnt++;
         }
-        if (cnt < KDP_MIN_VALID) { out[i] = null; continue; }
+        if (cnt < KDP_MIN_VALID) return null;
         const denom = cnt * sxx - sx * sx;
-        if (denom === 0) { out[i] = null; continue; }
-        const kdp = 0.5 * (cnt * sxy - sx * sy) / denom; // ½·(deg/km)
+        if (denom === 0) return null;
+        return 0.5 * (cnt * sxy - sx * sy) / denom; // ½·(deg/km)
+    }
+
+    const out = new Array(n);
+    for (let i = 0; i < n; i++) {
+        if (!valid[i]) { out[i] = null; continue; }
+        // Operational two-window selection: the SHORT (high-resolution) fit in convection, the LONG
+        // (low-noise) fit elsewhere. ⚠️ Fall back to the long window when reflectivity is unknown —
+        // a single-pol/absent Z must not silently promote every gate to the noisier short fit.
+        const z = zh[i];
+        const useShort = (z === z) && z >= KDP_SHORT_DBZ; // z === z rejects NaN
+        let kdp = slopeAt(i, useShort ? wShort : wLong);
+        // ⚠️ The short window needs KDP_MIN_VALID samples in a much smaller span, so a sparse core can
+        // fail it where the long window would succeed. Fall back rather than punching holes in exactly
+        // the strong-signal region the short window exists to resolve.
+        if (kdp === null && useShort) kdp = slopeAt(i, wLong);
+        if (kdp === null) { out[i] = null; continue; }
         out[i] = (kdp > KDP_ABS_MAX || kdp < -KDP_ABS_MAX) ? null : kdp; // drop unphysical unwrap/window spikes
     }
     return out;

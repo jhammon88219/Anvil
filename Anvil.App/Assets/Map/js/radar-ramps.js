@@ -27,6 +27,18 @@
 //     The legend draws a continuous gradient.
 //   - min/max are the legend's display bounds (values clamp to the end stops).
 
+// RANGE-FOLDED gates — the "purple haze". NOT a ramp value and NOT part of any ramp's stops: it is a
+// THIRD display class alongside "has a value" and "no data", flagged per gate by the decoder (raw data
+// value 1 in the Message 31 moment block; raw 0 is below-threshold, which stays no-data). The returns at
+// these gates are range-ambiguous — a second-trip echo overlaid on the first — so there is no velocity
+// to draw and no ramp position to give it.
+// ⚠️ It is DATA, not chrome, so it does not move with the theme (same rule as the product ramps and the
+// SPC colors). Purple is the WSR-88D operational convention and every other viewer uses it.
+// ⚠️ Rendered on the DOPPLER products only (velocity / SRV / spectrum width). Range folding is a
+// short-PRT Doppler-cut phenomenon; the long-PRT surveillance reflectivity is not normally folded, and
+// painting purple over reflectivity would read as a data class that product does not have.
+export const RANGE_FOLDED_COLOR = [122, 79, 173];
+
 // Returns [r,g,b] (0-255 ints) for `value` under `ramp`. Values past the ends clamp.
 export function rampColor(ramp, value) {
     const s = ramp.stops;

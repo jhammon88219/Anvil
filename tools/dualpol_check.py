@@ -35,8 +35,10 @@ import numpy as np
 BUCKET = "https://unidata-nexrad-level2.s3.amazonaws.com/"
 S3NS = "{http://s3.amazonaws.com/doc/2006-03-01/}"
 MIN_DBZ = 10            # radar.js MIN_DBZ
-KDP_RHO_MIN = 0.85      # radar-decode.js kdpFromPhi constants
-KDP_WINDOW_KM = 3.0
+KDP_RHO_MIN = 0.90      # radar-decode.js kdpFromPhi constants — keep in sync
+KDP_WINDOW_KM = 3.0         # LONG (light-rain) half-window ~= operational 25-gate branch
+KDP_WINDOW_SHORT_KM = 1.0   # SHORT (convective) half-window ~= operational 9-gate branch
+KDP_SHORT_DBZ = 40.0        # reflectivity at/above which the SHORT window is used
 KDP_MIN_VALID = 5
 KDP_ABS_MAX = 15.0      # reject |KDP| beyond this (unphysical unwrap/short-window spikes)
 
@@ -83,7 +85,8 @@ def field2d(radar, name, sweep):
 # is the identity here (refl[j]/rho[j]/phi[j] co-located) - the algorithm is what we're validating.
 def kdp_mirror(phi, refl, rho, gate_km):
     R, G = phi.shape
-    w = max(1, int(round(KDP_WINDOW_KM / gate_km)))
+    w_long = max(1, int(round(KDP_WINDOW_KM / gate_km)))
+    w_short = max(1, int(round(KDP_WINDOW_SHORT_KM / gate_km)))
     x = np.arange(G) * gate_km
     out = np.full((R, G), np.nan)
     for r in range(R):
@@ -116,16 +119,28 @@ def kdp_mirror(phi, refl, rho, gate_km):
         c_xx = np.concatenate([[0.0], np.cumsum(xv * x)])   # x*x only at valid gates
         c_xy = np.concatenate([[0.0], np.cumsum(xv * y)])
         idx = np.arange(G)
-        lo = np.clip(idx - w, 0, G - 1)
-        hi = np.clip(idx + w, 0, G - 1) + 1
-        cnt = c_cnt[hi] - c_cnt[lo]
-        sx = c_x[hi] - c_x[lo]
-        sy = c_y[hi] - c_y[lo]
-        sxx = c_xx[hi] - c_xx[lo]
-        sxy = c_xy[hi] - c_xy[lo]
-        denom = cnt * sxx - sx * sx
-        good = valid & (cnt >= KDP_MIN_VALID) & (denom != 0)
-        slope = np.where(good, 0.5 * (cnt * sxy - sx * sy) / np.where(denom == 0, 1.0, denom), np.nan)
+
+        def slope_for(w):
+            """Halved least-squares slope of PhiDP vs range over +/- w valid gates (NaN where unsupported)."""
+            lo = np.clip(idx - w, 0, G - 1)
+            hi = np.clip(idx + w, 0, G - 1) + 1
+            cnt = c_cnt[hi] - c_cnt[lo]
+            sx = c_x[hi] - c_x[lo]
+            sy = c_y[hi] - c_y[lo]
+            sxx = c_xx[hi] - c_xx[lo]
+            sxy = c_xy[hi] - c_xy[lo]
+            denom = cnt * sxx - sx * sx
+            good = valid & (cnt >= KDP_MIN_VALID) & (denom != 0)
+            return np.where(good, 0.5 * (cnt * sxy - sx * sy) / np.where(denom == 0, 1.0, denom), np.nan)
+
+        # Operational two-window selection, mirroring radar-decode.js kdpFromPhi: SHORT (high-resolution)
+        # fit at/above KDP_SHORT_DBZ, LONG (low-noise) fit elsewhere, with a fall back to LONG wherever
+        # the short window lacks the samples (or reflectivity is unknown).
+        s_long = slope_for(w_long)
+        s_short = slope_for(w_short)
+        zh = np.where(valid, rf, np.nan)
+        use_short = np.isfinite(zh) & (zh >= KDP_SHORT_DBZ)
+        slope = np.where(use_short & np.isfinite(s_short), s_short, s_long)
         slope = np.where(np.abs(slope) > KDP_ABS_MAX, np.nan, slope)  # drop unphysical unwrap/window spikes
         out[r] = slope
     return out

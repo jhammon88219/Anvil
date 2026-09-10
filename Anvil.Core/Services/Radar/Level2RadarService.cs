@@ -536,12 +536,12 @@ namespace Anvil.Services
 			// instead of one throughput-limited S3 stream (docs/radar-loop-flow.md honest-gap #1). Identical
 			// bytes → the same full .raw the display tilt-switch path reads, so no correctness change; falls
 			// back to the single-stream prefetch if ranges aren't honored / a sub-range fails.
+			var isGz = key.EndsWith(".gz", StringComparison.Ordinal); // also read by the legacy branch below
 			var swDownload = System.Diagnostics.Stopwatch.StartNew();
 			try
 			{
 				var time = ParseVolumeTime(key);
 				var rawFile = time is null ? null : RawCacheFileFor(site.Id, time.Value);
-				var isGz = key.EndsWith(".gz", StringComparison.Ordinal);
 				if (!isGz && rawFile is not null && !File.Exists(rawFile))
 				{
 					var raw = await GetFullParallelAsync(key, cancellationToken);
@@ -570,13 +570,25 @@ namespace Anvil.Services
 
 			var urls = new List<string> { baseVol.LocalUrl };
 
-			// ⚠️ Legacy .gz archives can't be tilt-extracted (they gunzip to an AR2V with no bzip2 LDM records —
-			// see the extract path above), so the base .V06 was cached as the WHOLE multi-elevation volume. Every
-			// cut is already in that one buffer and the WebView's decodeVwp reads them all, so DON'T attempt the
-			// higher tilts here — each attempt would re-download + re-gunzip the whole volume only to fail.
-			if (key.EndsWith(".gz", StringComparison.Ordinal))
+			// ⚠️⚠️ LEGACY .gz NEEDS ITS OWN WHOLE-VOLUME FILE FOR THE VAD, AND THIS IS A REGRESSION FIX.
+			// It used to be free: a legacy volume could not be tilt-extracted, so EnsureCachedAsync cached the
+			// WHOLE multi-elevation volume as the base .V06, and decodeVwp read all ~17 cuts straight out of
+			// that one buffer. Single-tilt extraction (TryExtractLowestTiltUncompressed, 2026-09-08) removed
+			// that side effect — the base is now ONE cut — and PastCast storm motion silently died with it:
+			// the merged profile topped out at ~700 m instead of 6 km, decodeVwp returned INSUFFICIENT, and per
+			// the churn-free rule SRV fell back to rendering base velocity. Symptom: Velocity and SRV look
+			// IDENTICAL in replay (measured: cuts=9 "63°@35kt Bunkers R" before, "INSUFFICIENT top=705" after).
+			// NowCast was unaffected — modern volumes still extract several cuts, and live usually hits NVW.
+			// ⚠️ So fetch the whole volume ONCE PER LOOP for this path only, gunzipped, under its own name.
+			// ⚠️ It returns ONLY that url, not the base as well: decodeVwp iterates every cut in every buffer,
+			// so passing both would feed the base cut twice.
+			// ⚠️ The higher-tilt extraction below still does not apply — TryExtractTiltsByAngles walks LDM
+			// blocks, which an uncompressed AR2V does not have. Teaching the uncompressed walker to cut several
+			// tilts (the deferred "legacy tilt selection") is what would let this drop back to ~8 MB a cut.
+			if (isGz)
 			{
-				return urls;
+				var whole = await EnsureLegacyWholeVolumeAsync(site, key, cancellationToken);
+				return whole is not null ? new List<string> { whole } : urls;
 			}
 
 			var tilts = baseVol.Tilts;
@@ -1455,6 +1467,77 @@ namespace Anvil.Services
 		// volume download contains every tilt, so this is the whole prefetch (see PrefetchRawVolumesAsync).
 		private string RawCacheFileFor(string siteId, DateTimeOffset time) =>
 			Path.Combine(CacheDirectory, $"{siteId}_{time:yyyyMMdd_HHmmss}.raw");
+
+		// The whole, GUNZIPPED legacy volume kept for the VAD alone (see EnsureVwpTiltsAsync's .gz branch).
+		// ⚠️ It cannot be the ".raw" above — that one is defined as still-COMPRESSED and is deliberately kept
+		// out of anything the WebView fetches. This file is the opposite: it is exactly what the decoder
+		// expects (an uncompressed AR2V, all cuts), which is what the legacy base .V06 used to be, so it is
+		// named ".V06" and served over the same host.
+		// ⚠️ The "_vwp" suffix keeps it out of the one glob that enumerates cache files by shape
+		// (`{site}_live_*.V06`), and StampOf still parses its timestamp, so PruneCache groups it with the rest
+		// of that volume and the startup/periodic sweeps count and reclaim it like any other volume file.
+		private string VwpWholeCacheFileFor(string siteId, DateTimeOffset time) =>
+			Path.Combine(CacheDirectory, $"{siteId}_{time:yyyyMMdd_HHmmss}_vwp.V06");
+
+		private static string VwpWholeLocalUrlFor(string siteId, DateTimeOffset time) =>
+			$"https://{CacheHostName}/{siteId}_{time:yyyyMMdd_HHmmss}_vwp.V06";
+
+		/// <summary>
+		/// Ensures the whole, gunzipped legacy volume is cached for the VAD, and returns its URL (null if it
+		/// could not be produced — the caller then falls back to the single-tilt base, i.e. today's broken
+		/// behaviour rather than a crash).
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ ONCE PER LOOP, not per frame: only the storm-motion REFERENCE volume comes through here
+		/// (RadarViewModel keys it off <c>_loadedKeys[^1]</c>), so a replay pays one ~43 MB file, not 26.
+        /// That is the whole reason this is a separate method rather than something EnsureCachedAsync does.
+		/// </remarks>
+		private async Task<string?> EnsureLegacyWholeVolumeAsync(RadarSite site, string key, CancellationToken ct)
+		{
+			var time = ParseVolumeTime(key);
+			if (time is null)
+			{
+				return null;
+			}
+
+			var file = VwpWholeCacheFileFor(site.Id, time.Value);
+			var url = VwpWholeLocalUrlFor(site.Id, time.Value);
+			if (File.Exists(file))
+			{
+				return url;
+			}
+
+			try
+			{
+				// Parallel sub-ranges first (this is a ~43 MB object and the VAD is SRV's long pole), single
+				// stream if ranges aren't honoured — the same two-step every other whole-object fetch uses.
+				var raw = await GetFullParallelAsync(key, ct);
+				if (raw is null)
+				{
+					using var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, ct);
+					response.EnsureSuccessStatusCode();
+					raw = await response.Content.ReadAsByteArrayAsync(ct);
+				}
+
+				var data = await Task.Run(() => Gunzip(raw), ct); // off the caller's thread: ~43 MB out
+				var temp = file + ".tmp";
+				await File.WriteAllBytesAsync(temp, data, ct);
+				File.Move(temp, file, overwrite: true);
+
+				RadarDiagnostics.Log("svc", "vwp.provision", ("site", site.Id), ("path", "legacy-whole"),
+					("bytes", data.LongLength), ("msg", "gunzipped whole volume cached for the VAD"));
+				return url;
+			}
+			catch (OperationCanceledException)
+			{
+				throw;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "{Site} legacy whole-volume fetch for the VAD failed", site.Id);
+				return null;
+			}
+		}
 
 		// The "yyyyMMdd_HHmmss" stamp embedded in a cache filename, or null if it doesn't parse. Used by
 		// the prune to group a volume's files (base tilt + every extracted tilt + the raw) under ONE
