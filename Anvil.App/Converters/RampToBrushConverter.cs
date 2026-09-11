@@ -12,12 +12,21 @@ namespace Anvil.Converters
 	///
 	/// Honors the ramp's <see cref="RadarRampInfo.Interpolate"/> flag:
 	/// <list type="bullet">
-	/// <item><b>true</b> (velocity / CC / KDP / ZDR / SW) — one gradient stop per ramp stop, so WinUI
-	/// blends between them into a smooth bar.</item>
-	/// <item><b>false</b> (reflectivity) — DISCRETE NWS bands: each stop's color is emitted twice (at its
-	/// own offset and again at the next stop's offset), which pins the color flat across the band and
-	/// produces the hard edges the gates are actually painted with.</item>
+	/// <item><b>true</b> (spectrum width — the one ramp still ours) — one gradient stop per ramp stop,
+	/// so WinUI blends between them into a smooth bar.</item>
+	/// <item><b>false</b> (every official NWS table) — DISCRETE bands: each stop's color is emitted twice
+	/// (at its own offset and again at the next stop's offset), which pins the color flat across the band
+	/// and produces the hard edges the gates are actually painted with.</item>
 	/// </list>
+	/// <para>
+	/// ⚠️ EXPECT ~500 GRADIENT STOPS on the official 256-level ramps, not the handful the old designed
+	/// ramps produced: those tables are 254 bands, and a discrete ramp emits two stops per band. That is
+	/// deliberate and is not a bug to "optimise" by flipping <see cref="RadarRampInfo.Interpolate"/> —
+	/// the bands are what the gates are painted with, and this converter exists precisely so the bar
+	/// cannot drift from them. The brush is built once per ramp change (a product switch), never per
+	/// frame. Stops outside <c>[Min, Max]</c> clamp onto the end offsets, which is how a table spanning
+	/// the full product range (velocity ±63.5 m/s) draws correctly on a narrower display window (±50).
+	/// </para>
 	/// A null/empty ramp yields an empty brush (the caller shows a ghost placeholder instead).
 	/// </summary>
 	public sealed class RampToBrushConverter : IValueConverter

@@ -80,8 +80,14 @@ namespace Anvil.Controls.Composites
 		/// How wide the legend's ramp is drawn. FIXED per form, deliberately: the notch is content-sized,
 		/// so a ramp left to stretch would let its own contents set the island's width and slide it around
 		/// under the pane's centre line every time a product changed.
+		/// <para>
+		/// ⚠️ These two numbers are the ONLY lever on the notch's width — everything else in the row is
+		/// content-sized — so widening the notch means widening the ramp. Raised from 190/108 once the
+		/// official NWS tables landed: those are 254-band scales where the old ones were 8-19 stops, so
+		/// the bar now has real detail to show and the extra width buys resolution rather than padding.
+		/// </para>
 		/// </summary>
-		public double RampWidth(bool compact) => compact ? 108 : 190;
+		public double RampWidth(bool compact) => compact ? 126 : 216;
 
 		/// <summary>Compact hides the min/max row, which is also what takes the notch down to one line.</summary>
 		public bool ShowScale(bool compact) => !compact;

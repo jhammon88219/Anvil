@@ -508,7 +508,15 @@ try {
         radarRamps = {};
         Object.keys(m).forEach(function (k) {
             var r = m[k];
-            if (r && r.id && Array.isArray(r.stops)) radarRamps[r.id] = r;
+            if (!r || !r.id || !Array.isArray(r.stops)) return;
+            // ⚠️ Push the LEGEND's view of a ramp, not the object the decoder uses. The official
+            // 254-band tables carry an `index` descriptor ({scale, offset, colors}) purely so
+            // rampColor can skip its scan per gate — it duplicates every colour already in `stops`,
+            // so forwarding it would double this payload for something the host has no use for.
+            radarRamps[r.id] = {
+                id: r.id, label: r.label, unit: r.unit,
+                min: r.min, max: r.max, interpolate: r.interpolate, stops: r.stops
+            };
         });
         // Push the WHOLE table: every pane picks its own product, so the host needs them all.
         if (window.chrome && window.chrome.webview) {
