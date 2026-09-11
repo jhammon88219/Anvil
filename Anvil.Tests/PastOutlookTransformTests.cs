@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using Anvil.Models;
 using Anvil.Services;
@@ -101,6 +102,53 @@ namespace Anvil.Tests
 			// hand-typed ramp was SPC's stroke colours shifted a level, so a 15% risk drew red where SPC
 			// draws it yellow. #FFEB7F is what NOAA's published symbology actually says.
 			Assert.Equal("#FFEB7F", feats[0].GetProperty("properties").GetProperty("fill").GetString());
+		}
+
+		[Fact]
+		public void ColorizeByDn_ColoursAnUnstyledFireFeed()
+		{
+			// The exact shape NOAA's ArcGIS fire-weather query returns: a numeric `dn` and NO symbology.
+			// Before this, outlook.js's coalesce drew every risk level as one flat grey #888888.
+			const string arcgis = """
+			{ "type": "FeatureCollection", "features": [
+			  { "type": "Feature", "properties": { "dn": 5, "valid": "202609111700" },
+			    "geometry": { "type": "Polygon", "coordinates": [[[-98,35],[-97,35],[-97,36],[-98,36],[-98,35]]] } },
+			  { "type": "Feature", "properties": { "dn": 8, "valid": "202609111700" },
+			    "geometry": { "type": "Polygon", "coordinates": [[[-99,35],[-98,35],[-98,36],[-99,36],[-99,35]]] } } ] }
+			""";
+
+			var ok = SpcOutlookColors.TryColorizeByDn(arcgis, SpcOutlookType.FireWeather, out var gj);
+			Assert.True(ok);
+
+			using var doc = JsonDocument.Parse(gj);
+			var feats = doc.RootElement.GetProperty("features");
+			var fills = new List<string?>();
+			foreach (var f in feats.EnumerateArray())
+			{
+				var props = f.GetProperty("properties");
+				fills.Add(props.GetProperty("fill").GetString());
+				Assert.Equal("202609111700", props.GetProperty("valid").GetString()); // existing props kept
+			}
+
+			Assert.Equal(new[] { "#E69800", "#FF0000" }, fills);   // Elevated, Critical
+			Assert.DoesNotContain("#888888", fills);               // the grey this replaced
+		}
+
+		[Fact]
+		public void ColorizeByDn_LeavesFeaturesThatAlreadyCarryColours()
+		{
+			// ⚠️ The precedence rule, per feature. The days 3-8 fire feed ships its own fill/stroke while
+			// its PUBLISHED symbology is outline-only, so overwriting from the catalog would replace the
+			// colours SPC actually draws. Leaving styled features alone is also what makes this safe to
+			// run on every refresh — including a 304 — which is how an already-cached file gets repaired.
+			const string styled = """
+			{ "type": "FeatureCollection", "features": [
+			  { "type": "Feature", "properties": { "dn": 40, "label": "0.40", "fill": "#FFBF80", "stroke": "#FF7F00" },
+			    "geometry": { "type": "Polygon", "coordinates": [[[-98,35],[-97,35],[-97,36],[-98,36],[-98,35]]] } } ] }
+			""";
+
+			// Nothing needed colouring, so the caller is told to leave the cache untouched.
+			Assert.False(SpcOutlookColors.TryColorizeByDn(styled, SpcOutlookType.ExtendedFireWeather, out _));
 		}
 
 		[Fact]

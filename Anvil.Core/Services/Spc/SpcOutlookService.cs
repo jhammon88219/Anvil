@@ -240,7 +240,12 @@ namespace Anvil.Services
 					outcome = await TryFetchAsync(endpoint.FallbackUrl, cacheFile, ct);
 				}
 
-				if (outcome == FetchOutcome.Updated)
+				// ⚠️ Runs on 304 TOO, not just Updated. Whether a cache needs colouring is a property of
+				// the FILE, never of the fetch that happened to touch it. Gating on Updated left every
+				// cache written before this existed grey forever: conditional GETs keep returning 304
+				// until SPC republishes, so the repair never fired. Skipping styled features (see
+				// TryColorizeByDn) makes running it every cycle free and idempotent.
+				if (outcome is not null)
 				{
 					ColorizeIfUnstyled(endpoint, cacheFile);
 				}

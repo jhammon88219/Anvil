@@ -134,8 +134,16 @@ namespace Anvil.Services
 		/// uppercase <c>DN</c>. Both spellings are accepted so one helper serves either shape.
 		/// </para>
 		/// </summary>
-		/// <returns>False when the document is not a feature collection, or no feature could be
-		/// coloured — in which case the caller should leave the cached file untouched.</returns>
+		/// <para>
+		/// ⚠️ A feature that ALREADY carries a <c>fill</c> is left exactly as it is — the precedence rule
+		/// on <see cref="SpcRiskCatalog"/>, applied per feature. It is not hypothetical: the days 3-8
+		/// fire outlook ships <c>fill</c>/<c>stroke</c> in its own feed while its published symbology is
+		/// outline-only, so overwriting from the catalog would replace the colours SPC actually draws.
+		/// Skipping styled features is also what makes this safe to run on EVERY refresh, which is how a
+		/// cache written before this existed gets repaired.
+		/// </para>
+		/// <returns>False when the document is not a feature collection, or nothing needed colouring —
+		/// in which case the caller should leave the cached file untouched.</returns>
 		public static bool TryColorizeByDn(string geoJson, SpcOutlookType type, out string colorized)
 		{
 			colorized = string.Empty;
@@ -161,7 +169,7 @@ namespace Anvil.Services
 
 				var buffer = new System.Buffers.ArrayBufferWriter<byte>();
 				using var writer = new Utf8JsonWriter(buffer);
-				var matched = 0;
+				var coloured = 0;
 
 				writer.WriteStartObject();
 				writer.WriteString("type", "FeatureCollection");
@@ -175,10 +183,18 @@ namespace Anvil.Services
 						continue;
 					}
 
+					// The feed wins where it speaks: a feature that already has a fill is copied through
+					// untouched, so this can run on every refresh without ever overwriting real colours.
+					if (HasFill(f))
+					{
+						f.WriteTo(writer);
+						continue;
+					}
+
 					var level = TryReadDn(f, out var dn) ? SpcRiskCatalog.Level(type, dn) : null;
 					if (level is not null)
 					{
-						matched++;
+						coloured++;
 					}
 
 					writer.WriteStartObject();
@@ -216,15 +232,23 @@ namespace Anvil.Services
 				writer.WriteEndObject();
 				writer.Flush();
 
-				if (matched == 0)
+				if (coloured == 0)
 				{
-					return false;
+					return false; // nothing needed us — leave the cache byte-for-byte as fetched
 				}
 
 				colorized = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
 				return true;
 			}
 		}
+
+		/// <summary>Whether a feature already carries a non-empty <c>fill</c> of its own.</summary>
+		private static bool HasFill(JsonElement feature) =>
+			feature.TryGetProperty("properties", out var props) &&
+			props.ValueKind == JsonValueKind.Object &&
+			props.TryGetProperty("fill", out var fill) &&
+			fill.ValueKind == JsonValueKind.String &&
+			!string.IsNullOrWhiteSpace(fill.GetString());
 
 		/// <summary>Reads a feature's severity ordinal, accepting either spelling and either JSON type.</summary>
 		private static bool TryReadDn(JsonElement feature, out double dn)

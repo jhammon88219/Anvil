@@ -80,7 +80,16 @@ def fetch(url):
 
 
 def hex_of(color):
+    """#RRGGBB, or None when there is no colour -- including a FULLY TRANSPARENT one.
+
+    ⚠️ The alpha channel is load-bearing and easy to drop. SPC draws the days 3-8 fire-weather
+    outlook OUTLINE-ONLY: its fills are [130,130,130,0] and [189,229,252,0] -- alpha 0. Ignoring
+    the fourth channel records those as an opaque grey and a pale blue, which is how a legend ends
+    up showing a colour SPC never draws. Every other layer in both services is alpha 255.
+    """
     if not color:
+        return None
+    if len(color) > 3 and color[3] == 0:
         return None
     return "#%02X%02X%02X" % (color[0], color[1], color[2])
 
@@ -127,7 +136,14 @@ def read_layer(svc, layer_id, family, kind):
         fill = hex_of(symbol.get("color"))
         stroke = hex_of((symbol.get("outline") or {}).get("color")) or fill
         if not fill:
-            raise SystemExit("layer %d: level %r has no fill colour" % (layer_id, raw))
+            # An OUTLINE-ONLY level (transparent fill): SPC draws the days 3-8 fire outlook this way.
+            # The legend swatch is a filled chip, so it takes the outline colour -- the only colour
+            # SPC actually puts on screen for that level. Derived, and said out loud here because it
+            # is the one place this file does not copy a value verbatim.
+            fill = stroke
+        if not fill:
+            raise SystemExit("layer %d: level %r has neither a fill nor an outline colour"
+                             % (layer_id, raw))
 
         code = code_for(family, raw, label)
         if code is None:
