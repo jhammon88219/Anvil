@@ -46,6 +46,17 @@ OUT = REPO / "Anvil.App" / "Assets" / "Map" / "js" / "radar-ramp-tables.js"
 AWIPS = ("https://raw.githubusercontent.com/Unidata/awips2/unidata_18.2.1/edexOsgi/"
          "com.raytheon.uf.common.dataplugin.radar/utility/common_static/base/colormaps/Radar/")
 
+# ⚠️⚠️ AWIPS SAYS WHICH TABLE GOES WITH WHICH PRODUCT -- WE DO NOT CHOOSE. This file pairs every radar
+# product code with the colormap AWIPS draws it in. Harvesting it is what turns "which table looks right?"
+# into a lookup, and it is not academic: velocity's 8-bit table was picked BY HAND as
+# `OSF/256 Level Velocity` because it sat beside the reflectivity one -- and that table is an ORPHAN no
+# style rule references. Its inbound extreme fades to grey, so a violent couplet's inbound half lost
+# almost all separation from ordinary inbound flow (RGB distance 75 between -45 and -15 m/s, against 230
+# on the table AWIPS actually pairs with product 301). Derive, never choose.
+STYLE_RULES = ("https://raw.githubusercontent.com/Unidata/awips2/unidata_18.2.1/edexOsgi/"
+               "com.raytheon.uf.common.dataplugin.radar/utility/common_static/base/styleRules/"
+               "radarImageryStyleRules.xml")
+
 KT = 0.514444  # knots -> m/s; the legacy 16-level velocity products threshold in KNOTS
 
 # The 16-level velocity/SRM thresholds, read from a REAL N0S product's threshold block
@@ -57,59 +68,81 @@ VEL16_KT = [-64, -50, -36, -26, -20, -10, -1, 0, 10, 20, 26, 36, 50, 64]
 REF16_DBZ = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75]
 
 # product -> how to build each variant.
-#   file      : the .cmap under the AWIPS Radar/ tree
+#   product   : the NEXRAD Level III product code. AWIPS's own style rules say which colormap draws it,
+#               so the .cmap path is DERIVED, never named here (see STYLE_RULES above for why).
 #   scale/off : level -> value is (level - off) / scale, MEASURED (see `measured` for the evidence)
 SPEC = OrderedDict([
     ("reflectivity", {
         "label": "Reflectivity", "unit": "dBZ", "min": 5, "max": 75,
-        "bands16": {"file": "OSF/16 Level Reflectivity.cmap", "thresholds": REF16_DBZ,
+        "bands16": {"product": 19, "thresholds": REF16_DBZ,
                     "measured": "thresholds are the universal 5-75 dBZ by 5 of the 16-level product"},
-        "levels256": {"file": "OSF/256 Level Reflectivity.cmap", "scale": 2.0, "offset": 66.0,
+        "levels256": {"product": 300, "scale": 2.0, "offset": 66.0,
                       "measured": "fitted from N0B raw-vs-decoded, max|resid| 2.3e-11"},
     }),
     ("velocity", {
         "label": "Base Velocity", "unit": "m/s", "min": -50, "max": 50,
-        "bands16": {"file": "OSF/16 Level Velocity.cmap",
+        "bands16": {"product": 25,
                     "thresholds": [v * KT for v in VEL16_KT],
                     "measured": "thresholds read from a real N0S threshold block (same 16-level "
                                 "velocity family; N0V is not carried in the bucket to confirm directly)"},
-        "levels256": {"file": "OSF/256 Level Velocity.cmap", "scale": 2.0, "offset": 129.0,
+        # ⚠️ Product 301 is super-res velocity (N0G) -- the exact product the mapping was fitted from.
+        "levels256": {"product": 301, "scale": 2.0, "offset": 129.0,
                       "measured": "fitted from N0G raw-vs-decoded, max|resid| 7.6e-12"},
     }),
     ("srv", {
         "label": "Storm-Rel Velocity", "unit": "m/s", "min": -50, "max": 50,
-        "bands16": {"file": "OSF/SRM Radial Velocity.cmap",
+        "bands16": {"product": 56,
                     "thresholds": [v * KT for v in VEL16_KT],
                     "measured": "thresholds read from a real N0S (SRM) threshold block"},
-        # ⚠️ There is NO 256-level SRM table published; SRM is drawn with the velocity scale.
-        "levels256": {"file": "OSF/256 Level Velocity.cmap", "scale": 2.0, "offset": 129.0,
-                      "measured": "velocity's own table and mapping -- the NWS publishes no 256-level "
-                                  "SRM colormap, and SRM is the same quantity in a shifted frame"},
+        # ⚠️ There is NO 8-bit SRM product, so none of AWIPS's rules name a 256-level SRM table. SRM is
+        # the same quantity in a shifted frame, so it borrows VELOCITY's product-301 pairing.
+        "levels256": {"product": 301, "scale": 2.0, "offset": 129.0,
+                      "measured": "velocity's own table and mapping -- there is no 8-bit SRM product, "
+                                  "and SRM is the same quantity in a shifted frame"},
     }),
     ("cc", {
         "label": "Correlation Coeff", "unit": "ρHV", "min": 0.2, "max": 1.05,
-        "levels256": {"file": "DualPol/Correlation Coeff.cmap", "scale": 300.0, "offset": -60.5,
+        "levels256": {"product": 161, "scale": 300.0, "offset": -60.5,
                       "measured": "scale/offset read from a real N0C product header"},
     }),
     ("kdp", {
         "label": "Specific Differential Phase", "unit": "°/km", "min": -1, "max": 5,
-        "levels256": {"file": "DualPol/Spec Differential Phase.cmap", "scale": 20.0, "offset": 43.0,
+        "levels256": {"product": 163, "scale": 20.0, "offset": 43.0,
                       "measured": "scale/offset read from a real N0K product header"},
     }),
     ("zdr", {
         "label": "Differential Reflectivity", "unit": "dB", "min": -4, "max": 6,
-        "levels256": {"file": "DualPol/Differential Refl.cmap", "scale": 16.0, "offset": 128.0,
+        "levels256": {"product": 159, "scale": 16.0, "offset": 128.0,
                       "measured": "scale/offset read from a real N0X product header"},
     }),
     ("sw", {
         "label": "Spectrum Width", "unit": "m/s", "min": 0, "max": 14,
         # ⚠️ UNVERIFIED. NSW is not carried in the Level III bucket, so neither variant's mapping can
         # be measured. Emitted for completeness, selected by nothing.
-        "bands16": {"file": "OSF/Spectrum Width.cmap", "levels": 8, "thresholds": None,
-                    "measured": None},
-        "levels256": {"file": "Spectrum Width.cmap", "scale": None, "offset": None, "measured": None},
+        "bands16": {"product": 30, "levels": 8, "thresholds": None, "measured": None},
+        "levels256": {"product": 155, "scale": None, "offset": None, "measured": None},
     }),
 ])
+
+
+def pairings():
+    """{product code -> colormap path}, read from AWIPS's own radarImageryStyleRules.xml."""
+    req = urllib.request.Request(STYLE_RULES, headers={"User-Agent": "Anvil-ramp-generator/1.0"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        xml = r.read().decode("utf-8", "replace")
+    out = {}
+    for rule in re.findall(r"<styleRule>(.*?)</styleRule>", xml, re.S):
+        cmap = re.search(r"<defaultColormap>(.*?)</defaultColormap>", rule)
+        if not cmap:
+            continue
+        path = cmap.group(1)
+        if not path.startswith("Radar/"):
+            continue
+        for a, b in re.findall(r"<paramLevel>(\d+)</paramLevel>|<parameter>(\d+)</parameter>", rule):
+            out[int(a or b)] = path[len("Radar/"):] + ".cmap"
+    if not out:
+        raise SystemExit("radarImageryStyleRules.xml yielded no product->colormap pairings")
+    return out
 
 
 def fetch(path):
@@ -162,6 +195,18 @@ def build_levels(path, scale, offset):
 def harvest():
     doc = OrderedDict()
     folded_seen = OrderedDict()
+    rules = pairings()
+
+    def cmap_for(variant, prod, which):
+        """The colormap AWIPS pairs with this product code. Fails loudly rather than guessing."""
+        code = variant.get("product")
+        path = rules.get(code)
+        if path is None:
+            raise SystemExit(
+                f"{prod}/{which}: AWIPS's style rules name no colormap for product code {code}. "
+                "Pick a code that appears in radarImageryStyleRules.xml rather than choosing a file.")
+        return path
+
     for prod, spec in SPEC.items():
         entry = OrderedDict([("label", spec["label"]), ("unit", spec["unit"]),
                              ("min", spec["min"]), ("max", spec["max"])])
@@ -169,10 +214,10 @@ def harvest():
         if b:
             thresholds = b.get("thresholds")
             if thresholds and b.get("measured"):
-                data, folded = build_bands(b["file"], thresholds, b.get("levels", 16))
+                data, folded = build_bands(cmap_for(b, prod, "bands16"), thresholds, b.get("levels", 16))
                 entry["bands16"] = OrderedDict([
                     ("verified", True),
-                    ("source", b["file"]),
+                    ("source", cmap_for(b, prod, "bands16")),
                     ("mapping", b["measured"]),
                     ("stops", [OrderedDict([("v", round(v, 6)), ("color", hexc(c))])
                                for v, c in zip(thresholds, data)]),
@@ -181,17 +226,17 @@ def harvest():
                     folded_seen[prod] = hexc(folded)
             else:
                 entry["bands16"] = OrderedDict([
-                    ("verified", False), ("source", b["file"]),
+                    ("verified", False), ("source", cmap_for(b, prod, "bands16")),
                     ("mapping", None),
                     ("note", "no Level III product carried to measure this product's thresholds"),
                 ])
         lv = spec.get("levels256")
         if lv:
             if lv.get("scale") is not None:
-                cols, folded = build_levels(lv["file"], lv["scale"], lv["offset"])
+                cols, folded = build_levels(cmap_for(lv, prod, "levels256"), lv["scale"], lv["offset"])
                 entry["levels256"] = OrderedDict([
                     ("verified", True),
-                    ("source", lv["file"]),
+                    ("source", cmap_for(lv, prod, "levels256")),
                     ("mapping", lv["measured"]),
                     ("scale", lv["scale"]), ("offset", lv["offset"]),
                     ("colors", [hexc(c) for c in cols]),
@@ -199,7 +244,7 @@ def harvest():
                 folded_seen[prod] = hexc(folded)
             else:
                 entry["levels256"] = OrderedDict([
-                    ("verified", False), ("source", lv["file"]), ("mapping", None),
+                    ("verified", False), ("source", cmap_for(lv, prod, "levels256")), ("mapping", None),
                     ("note", "NSW is not carried in the Level III bucket, so level->value is unmeasurable"),
                 ])
         doc[prod] = entry
