@@ -1454,6 +1454,7 @@ namespace Anvil.ViewModels
 
 				_selectedTiltAngle = RadarTiltOptions[value].Angle;
 				OnPropertyChanged(nameof(SelectedTiltLabel));
+				SetTiltUnavailable(null);   // a fresh pick; the engine re-arms it if this one is absent too
 				_engine.ReloadForTiltChange();
 			}
 		}
@@ -1466,6 +1467,41 @@ namespace Anvil.ViewModels
 
 		/// <summary>Whether a tilt can be picked: a loop is up and its VCP offered more than one.</summary>
 		public bool CanSelectTilt => RadarTiltOptions.Count > 1;
+
+		private float? _tiltUnavailableAngle;
+
+		/// <summary>
+		/// Why the tilt picker snapped back to the base tilt, or empty when it didn't. A volume can carry
+		/// FEWER cuts than its VCP designs — AVSET terminates the scan early once there is nothing aloft
+		/// worth scanning — so a tilt the picker legitimately offers can be absent from the actual data
+		/// (measured: KTLX VCP 212 designs 17 cuts to 19.5° and ships 12 topping at 6.4°).
+		/// <para>⚠️ This is a NORMAL, DELIBERATE radar behaviour, not an error, and saying so is the whole
+		/// point: the fallback already worked, but it was SILENT — the picker jumped back to 0.5° with no
+		/// reason given, which reads as the app ignoring the click. Silent wrongness is the worst outcome
+		/// this codebase has, so the fallback now names its cause.</para>
+		/// <para>⚠️ Surfaced as the tilt combo's TOOLTIP, not as label text: the readouts around it carry
+		/// reserved fixed widths, and a variable-length suffix would resize the notch. Same reasoning as
+		/// the Location key carrying <c>LocateStatusText</c> in its tooltip because the bar has no status
+		/// area.</para>
+		/// </summary>
+		public string TiltUnavailableNotice =>
+			_tiltUnavailableAngle is { } a
+				? $"{a:0.0}° is not in this volume — the radar stopped scanning below it (AVSET). "
+					+ "Showing the base tilt."
+				: string.Empty;
+
+		/// <summary>Records that <paramref name="angle"/> was absent so the UI can say why it fell back;
+		/// null clears it. Called by the loop engine's one fallback seam, <c>SetTiltToBase</c>.</summary>
+		internal void SetTiltUnavailable(float? angle)
+		{
+			if (Nullable.Equals(_tiltUnavailableAngle, angle))
+			{
+				return;
+			}
+
+			_tiltUnavailableAngle = angle;
+			OnPropertyChanged(nameof(TiltUnavailableNotice));
+		}
 
 		// Rebuilds the tilt list from a freshly-loaded volume's VCP elevation table, preserving the
 		// current selection BY ANGLE (a VCP change reorders/renumbers tilts, so an index would silently

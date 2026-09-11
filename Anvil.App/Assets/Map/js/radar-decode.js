@@ -310,9 +310,17 @@ function nyquistForRadial(radar, i, out) {
         // Message 31 (super-res) carries Nyquist in the RAD sub-block (cm/s); legacy Message 1 puts
         // it on the record itself, already in m/s (the decoder divides by 100 there). The >100 guard
         // below normalizes whichever path supplied cm/s, and leaves an already-m/s value alone.
-        // ⚠️ The RAD (per-radial) and VOL (volume-level) blocks can hold DIFFERENT Nyquists — using
-        // the VOL fallback (~2 m/s higher) corrupts the fold arithmetic and is the suspected cause of
-        // couplet mis-folds in the live path (`out.src` surfaces this to the diagnostics log).
+        // ⚠️ The RAD (per-radial) and VOL (volume-level) values can differ (~2 m/s), and the VOL one
+        // would corrupt the fold arithmetic, so RAD wins wherever it exists (`out.src` surfaces which
+        // was used to the diagnostics log).
+        // ⚠️ TWO CORRECTIONS TO WHAT THIS COMMENT USED TO SAY, both from real evidence:
+        //   1. It called VOL the "suspected cause of couplet mis-folds in the live path". That was
+        //      INVESTIGATED AND REFUTED (2026-08-03) — live .V06s carry the RAD block and `nyqSrc` never
+        //      logged `vol`. Don't reopen it on the strength of this comment. docs/velocity-dealias.md.
+        //   2. The Level II wire-format research (docs/radar/ Brief A, Q3) found the Volume Data Constant
+        //      block carries NO Nyquist field at all — so the library's volume-level value is not an ICD
+        //      quantity and is NOT authoritative. ⚠️ It still must NOT be deleted: it is the path for
+        //      LEGACY Message 1 volumes, which put Nyquist on the record itself (already m/s).
         let nv, src;
         if (rec.radial && typeof rec.radial.nyquist_velocity === 'number') {
             nv = rec.radial.nyquist_velocity; src = 'rad';

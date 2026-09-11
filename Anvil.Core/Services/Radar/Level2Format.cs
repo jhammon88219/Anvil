@@ -510,7 +510,17 @@ namespace Anvil.Services
 
 		// Real WSR-88D volume coverage patterns. Used to validate the (best-effort) VCP parse:
 		// anything outside the known sets is a bad read, shown as "VCP ?" rather than a wrong number.
-		internal static readonly HashSet<int> ClearAirVcps = new() { 31, 32, 35 };
+		// ⚠️ 34 = SZ-2 clear air (7 elevations, ~10 min, one SAILS option) and is CURRENTLY DEPLOYED.
+		// Its absence was a live bug, not a tidy-up: TryReadElevationTable gates on IsKnownVcp and
+		// `continue`s past an unrecognised one, so a VCP 34 volume produced an EMPTY elevation table —
+		// no tilt choice at all, and "VCP ?" in the readout. ⚠️ THIS IS THE SECOND TIME THIS EXACT SHAPE
+		// OF BUG HAS SHIPPED (see the TDWR note below: 80 was missing and read as "VCP ?"). The set is a
+		// hand-maintained allow-list with no test behind it, which is what makes a third recurrence
+		// likely — the committed VCP-table asset in the research backlog is the real fix.
+		internal static readonly HashSet<int> ClearAirVcps = new() { 31, 32, 34, 35 };
+		// ⚠️ 11 / 21 / 121 / 211 / 221 are RETIRED (removed under the ROC's 2015 VCP Improvement
+		// Initiative) and are kept ON PURPOSE: the archive goes back to 1991 and PastCast replays it, so a
+		// retired pattern is still a legitimate read on an old volume. Don't "clean these up".
 		internal static readonly HashSet<int> PrecipVcps = new() { 11, 12, 21, 112, 121, 211, 212, 215, 221 };
 		// TDWR (Terminal Doppler Weather Radar) volume coverage patterns — a separate C-band network
 		// that publishes the same Archive Level II family (AR2V0008). 90 = "monitor" (clear-air; 16

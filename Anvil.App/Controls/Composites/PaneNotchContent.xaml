@@ -94,6 +94,6 @@
                           ItemsSource="{x:Bind Radar.RadarTiltOptions, Mode=OneWay}"
                           SelectedIndex="{x:Bind Radar.RadarTiltIndex, Mode=TwoWay}"
                           IsEnabled="{x:Bind Radar.CanSelectTilt, Mode=OneWay}"
-                          ToolTipService.ToolTip="Elevation angle (tilt). Shared by every pane for now."/>
+                          ToolTipService.ToolTip="{x:Bind TiltTooltip(Radar.TiltUnavailableNotice), Mode=OneWay}"/>
     </Grid>
 </UserControl>

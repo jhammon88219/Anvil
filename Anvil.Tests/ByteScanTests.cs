@@ -89,5 +89,43 @@ namespace Anvil.Tests
 			Assert.True(Level2Format.IsKnownVcp(80));    // TDWR
 			Assert.False(Level2Format.IsKnownVcp(999));
 		}
+
+		/// <summary>
+		/// Every CURRENTLY DEPLOYED WSR-88D pattern must be recognised. ⚠️ This is not a tautology over a
+		/// constant: an unknown VCP fails the <c>IsKnownVcp</c> gate inside
+		/// <c>TryReadElevationTable</c>, which then returns an EMPTY elevation table — so the tilt picker
+		/// offers nothing and the readout says "VCP ?". That has now shipped TWICE, for TDWR 80 and again
+		/// for clear-air 34, because the set is a hand-maintained allow-list. This test is what makes a
+		/// third recurrence fail loudly instead of silently emptying a picker on a real site.
+		/// </summary>
+		[Theory]
+		[InlineData(12)]    // precip, SZ-2
+		[InlineData(112)]   // precip, SZ-2 long-range
+		[InlineData(212)]   // precip, SZ-2
+		[InlineData(215)]   // precip, general surveillance
+		[InlineData(31)]    // clear air, long pulse
+		[InlineData(34)]    // clear air, SZ-2 — was MISSING, emptied the tilt list on these sites
+		[InlineData(35)]    // clear air, SZ-2
+		public void EveryDeployedVcpIsRecognised(int vcp)
+		{
+			Assert.True(Level2Format.IsKnownVcp(vcp), $"VCP {vcp} is deployed but unknown — the tilt list "
+				+ "will come back empty on any site running it.");
+		}
+
+		/// <summary>
+		/// Retired patterns stay recognised ON PURPOSE: the archive reaches back to 1991 and PastCast
+		/// replays it, so a 2005 volume on VCP 11 is a legitimate read, not a bad parse.
+		/// </summary>
+		[Theory]
+		[InlineData(11)]
+		[InlineData(21)]
+		[InlineData(121)]
+		[InlineData(211)]
+		[InlineData(221)]
+		public void RetiredVcpsStayRecognisedForTheArchive(int vcp)
+		{
+			Assert.True(Level2Format.IsKnownVcp(vcp), $"VCP {vcp} is retired but still appears in archive "
+				+ "volumes PastCast can replay.");
+		}
 	}
 }

@@ -53,6 +53,19 @@ namespace Anvil.Controls.Composites
 			set => SetValue(IsCompactProperty, value);
 		}
 
+		/// <summary>
+		/// The tilt combo's tooltip: normally what the control is, but the AVSET fallback reason when a
+		/// picked tilt turned out not to be in the volume. ⚠️ The tooltip is deliberately the surface —
+		/// the notch's readouts carry reserved widths, so appending to the LABEL would resize it every
+		/// time a fallback fired. Same pattern as the Location key carrying its status in a tooltip.
+		/// </summary>
+		// ⚠️ INSTANCE, not static: x:Bind resolves a function call against the page instance, and a static
+		// member there is a compile error (CS0176).
+		public string TiltTooltip(string notice) =>
+			string.IsNullOrEmpty(notice)
+				? "Elevation angle (tilt). Shared by every pane for now."
+				: notice;
+
 		public static readonly DependencyProperty IsCompactProperty =
 			DependencyProperty.Register(nameof(IsCompact), typeof(bool), typeof(PaneNotchContent),
 				new PropertyMetadata(false, OnCompactChanged));

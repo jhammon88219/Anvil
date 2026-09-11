@@ -327,7 +327,7 @@ namespace Anvil.ViewModels
 					Diag($"tilt {missing:0.00}° not present in this volume -> falling back to base tilt");
 					Services.RadarDiagnostics.Log("vm", "tilt.absent", ("lvl", "warn"),
 						("angle", missing), ("site", site.Id));
-					SetTiltToBase();
+					SetTiltToBase(missing);
 					// Observe the live fetch we started for the tilt that turned out not to exist — the retry
 					// below starts its own. Leaving it unawaited would surface as an unobserved task exception.
 					if (liveRefetch is not null)
@@ -366,7 +366,7 @@ namespace Anvil.ViewModels
 				Diag($"tilt {absent:0.00}° not present in any volume -> falling back to base tilt");
 				Services.RadarDiagnostics.Log("vm", "tilt.absent", ("lvl", "warn"),
 					("angle", absent), ("site", site.Id), ("via", "retile-backfill"));
-				SetTiltToBase();
+				SetTiltToBase(absent);
 				if (liveRefetch is not null)
 				{
 					try { await liveRefetch; } catch { /* discarded with the abandoned tilt */ }
@@ -780,7 +780,7 @@ namespace Anvil.ViewModels
 				Diag($"tilt {missing:0.00}° not present in this volume -> falling back to base tilt");
 				Services.RadarDiagnostics.Log("vm", "tilt.absent", ("lvl", "warn"),
 					("angle", missing), ("site", site.Id));
-				SetTiltToBase();
+				SetTiltToBase(missing);
 				await LoadLoopCoreAsync(site, ct);
 				return;
 			}
@@ -1061,10 +1061,14 @@ namespace Anvil.ViewModels
 		}
 
 		// Drops back to the base tilt without triggering a reload (the caller is already loading).
-		private void SetTiltToBase()
+		// ⚠️ `absent` is the tilt that turned out not to be in the volume — it is recorded so the UI can
+		// SAY SO (RadarViewModel.TiltUnavailableNotice). This is the ONE seam all three fallback sites
+		// converge on, which is why the notice lives here rather than being set three times.
+		private void SetTiltToBase(float? absent = null)
 		{
 			_vm._selectedTiltAngle = null;
 			_vm._radarTiltIndex = 0;
+			_vm.SetTiltUnavailable(absent);
 			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.RadarTiltIndex));
 			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.SelectedTiltLabel));
 		}
