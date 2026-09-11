@@ -72,6 +72,8 @@ S3NS = "{http://s3.amazonaws.com/doc/2006-03-01/}"
 PRODUCT = "N0K"
 CACHE = os.path.join(tempfile.gettempdir(), "anvil_l3_cache")
 MAX_OFFSET_S = 300          # a product further than this from the volume time is a different scan
+MIN_CORE_GATES = 200        # below this, coreMAE is a handful of gates and reports nothing; the corpus
+                            # is quiet-day volumes, so most have single-digit core counts
 L3_STEP = 0.05              # deg/km, the N0K quantization step (measured; see --show-encoding)
 
 
@@ -173,6 +175,10 @@ def score(ours_l3, ref):
         # "different estimator, same storm" (high r, differences are smoothing/magnitude) from
         # "misaligned or broken" (low r). A gate-for-gate tolerance cannot make that distinction.
         "r": float(np.corrcoef(a, b)[0, 1]) if n > 2 and np.std(a) > 0 and np.std(b) > 0 else float("nan"),
+        # NOISE. Our spread against the operational spread over the same gates. This is what the PhiDP
+        # pre-smoothing moves, and unlike coreMAE it is computed over every co-valid gate, so it is not
+        # hostage to a corpus that barely has cores. 1.0 = as tight as the NWS; higher = noisier.
+        "sdratio": float(np.std(a) / np.std(b)) if np.std(b) > 0 else float("nan"),
     }
 
 
@@ -221,9 +227,9 @@ def main():
             print(f"no corpus volume named {args.volume}")
             return 2
 
-    hdr = f"{'volume':<26} {'gates':>7} {'bias':>7} {'MAE':>6} {'r':>6} {'coreMAE':>8}"
+    hdr = f"{'volume':<26} {'gates':>7} {'bias':>7} {'MAE':>6} {'r':>6} {'sd/N0K':>7} {'coreMAE':>8}"
     if args.compare_windows:
-        hdr += f" {'coreMAE_1w':>11} {'verdict':>9}"
+        hdr += f" {'sd_before':>11} {'verdict':>9}"
     print(hdr)
     print("-" * len(hdr))
 
@@ -268,18 +274,29 @@ def main():
             print(f"{name:<26} SKIP (no co-valid gates)")
             continue
 
-        core = f"{s['core_mae']:>8.3f}" if np.isfinite(s['core_mae']) else f"{'no core':>8}"
+        # ⚠️ A coreMAE over a handful of gates is noise, not a verdict - say so rather than printing it.
+        core = (f"{s['core_mae']:>8.3f}" if np.isfinite(s['core_mae']) and s['core_n'] >= MIN_CORE_GATES
+                else (f"{'n=' + str(s['core_n']):>8}" if s['core_n'] else f"{'no core':>8}"))
         line = (f"{name:<26} {s['n']:>7,} {s['bias']:>+7.3f} {s['mae']:>6.3f} "
-                f"{s['r']:>6.2f} {core}")
+                f"{s['r']:>6.2f} {s['sdratio']:>6.2f}x {core}")
         if args.compare_windows:
-            one, _, _ = our_kdp(radar, 1e9)          # the pre-change behaviour
+            # TRUE pre-2026-09-10 behaviour: long window only AND raw PhiDP. Flipping only the window
+            # would leave the smoothing in and silently compare the change against half of itself.
+            dp.KDP_SMOOTH = False
+            try:
+                one, _, _ = our_kdp(radar, 1e9)
+            finally:
+                dp.KDP_SMOOTH = True
             s1 = score(resample_to_l3(one, l2_az, l2_rng, r3.azimuth["data"], r3.range["data"]), ref)
+            # Compare on the SPREAD, not on a 7-gate core sample: sd/N0K is defined over every co-valid
+            # gate, so it is the only before/after this corpus can actually support.
             verdict = "n/a"
-            if s1 and np.isfinite(s1["core_mae"]) and np.isfinite(s["core_mae"]):
-                verdict = "BETTER" if s["core_mae"] < s1["core_mae"] else (
-                          "same" if abs(s["core_mae"] - s1["core_mae"]) < 1e-9 else "WORSE")
-            c1 = f"{s1['core_mae']:>11.3f}" if s1 and np.isfinite(s1['core_mae']) else f"{'no core':>11}"
+            if s1 and np.isfinite(s1["sdratio"]) and np.isfinite(s["sdratio"]):
+                verdict = ("TIGHTER" if s["sdratio"] < s1["sdratio"] - 0.01 else
+                           "looser" if s["sdratio"] > s1["sdratio"] + 0.01 else "same")
+            c1 = f"{s1['sdratio']:>10.2f}x" if s1 and np.isfinite(s1['sdratio']) else f"{'n/a':>11}"
             line += f" {c1} {verdict:>9}"
+            s["sd_before"] = s1["sdratio"] if s1 else float("nan")
             s["core_mae_1w"] = s1["core_mae"] if s1 else float("nan")
         print(line)
         rows.append(s)
@@ -290,8 +307,25 @@ def main():
         return 1
 
     tot = sum(r["n"] for r in rows)
-    w = lambda k: sum(r[k] * r["n"] for r in rows) / tot          # noqa: E731  gate-weighted mean
-    print(f"{'WEIGHTED TOTAL':<26} {tot:>7,} {w('bias'):>+7.3f} {w('mae'):>6.3f} {w('r'):>6.2f}")
+
+    def w(k):
+        """Gate-weighted mean over the rows that HAVE the metric.
+
+        ⚠️ NaN-aware on purpose: a volume with a handful of co-valid gates has no defined correlation or
+        spread ratio, and including it turned the whole total into NaN - one 10-gate row hid every other
+        number in the table.
+        """
+        num = sum(r[k] * r["n"] for r in rows if np.isfinite(r.get(k, float("nan"))))
+        den = sum(r["n"] for r in rows if np.isfinite(r.get(k, float("nan"))))
+        return num / den if den else float("nan")
+    line = (f"{'WEIGHTED TOTAL':<26} {tot:>7,} {w('bias'):>+7.3f} {w('mae'):>6.3f} "
+            f"{w('r'):>6.2f} {w('sdratio'):>6.2f}x")
+    if args.compare_windows and any("sd_before" in r for r in rows):
+        before = w("sd_before")
+        line += f" {'':>8} {before:>10.2f}x"
+        if np.isfinite(before) and np.isfinite(w("sdratio")):
+            line += f" {'TIGHTER' if w('sdratio') < before else 'looser':>9}"
+    print(line)
     print()
     print("bias/MAE/coreMAE in deg/km; r = Pearson correlation over co-valid gates.")
     print("READ r FIRST. KDP is DERIVED, so two implementations differ by far more than one L3")
@@ -300,9 +334,11 @@ def main():
     print("What a correct estimator looks like: r high (same structure), bias near zero (no systematic")
     print("offset), coreMAE falling. coreMAE is restricted to |N0K| >= 1.0 deg/km, where the two-window")
     print("switch acts; a whole-sweep mean is dominated by light rain both algorithms agree on.")
-    print("'no core' = the volume has no gate above that threshold, so it cannot score the change at all.")
+    print(f"'no core'/'n=N' = fewer than {MIN_CORE_GATES} gates above that threshold, so coreMAE is a sample")
+    print("too small to read - this corpus is quiet-day volumes. sd/N0K is the metric to judge on: it is")
+    print("our spread over the operational spread across EVERY co-valid gate. 1.00x = as tight as the NWS.")
     if args.compare_windows:
-        print("coreMAE_1w is the pre-2026-09-10 single-window result on the same gates.")
+        print("sd_before is the TRUE pre-2026-09-10 result (long window AND raw PhiDP) on the same gates.")
     return 0
 
 

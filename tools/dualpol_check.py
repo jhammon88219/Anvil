@@ -41,6 +41,10 @@ KDP_WINDOW_SHORT_KM = 1.0   # SHORT (convective) half-window ~= operational 9-ga
 KDP_SHORT_DBZ = 40.0        # reflectivity at/above which the SHORT window is used
 KDP_MIN_VALID = 5
 KDP_ABS_MAX = 15.0      # reject |KDP| beyond this (unphysical unwrap/short-window spikes)
+# HARNESS SWITCH ONLY. The shipped JS has no such flag - it always smooths. kdp_scorecard.py flips this
+# off to reproduce the pre-2026-09-10 behaviour (raw PhiDP) so it can measure the smoothing's effect.
+# Leave it True for any real validation run.
+KDP_SMOOTH = True
 
 
 def list_keys(site, day):
@@ -117,27 +121,43 @@ def kdp_mirror(phi, refl, rho, gate_km):
         c_x = np.concatenate([[0.0], np.cumsum(xv)])
         c_y = np.concatenate([[0.0], np.cumsum(y)])
         c_xx = np.concatenate([[0.0], np.cumsum(xv * x)])   # x*x only at valid gates
-        c_xy = np.concatenate([[0.0], np.cumsum(xv * y)])
+        c_ph = c_y                                          # unwrapped phase at valid gates, for smooth()
         idx = np.arange(G)
 
-        def slope_for(w):
-            """Halved least-squares slope of PhiDP vs range over +/- w valid gates (NaN where unsupported)."""
+        def smooth(w):
+            """Mean of the VALID gates within +/- w (STEP 1 of the operational algorithm).
+
+            Mirrors radar-decode.js kdpFromPhi `smooth`. Fitting a slope to RAW PhiDP is what made our
+            KDP ~5x noisier than Level III N0K; each branch smooths at its own width before fitting.
+            """
+            lo = np.clip(idx - w, 0, G - 1)
+            hi = np.clip(idx + w, 0, G - 1) + 1
+            cnt = c_cnt[hi] - c_cnt[lo]
+            tot = c_ph[hi] - c_ph[lo]
+            return np.where(cnt > 0, tot / np.where(cnt == 0, 1.0, cnt), np.nan)
+
+        def slope_for(w, src):
+            """Halved least-squares slope of `src` vs range over +/- w valid gates (NaN where unsupported)."""
+            sv = np.where(valid, np.nan_to_num(src, nan=0.0), 0.0)
+            c_y2 = np.concatenate([[0.0], np.cumsum(sv)])
+            c_xy2 = np.concatenate([[0.0], np.cumsum(xv * sv)])
             lo = np.clip(idx - w, 0, G - 1)
             hi = np.clip(idx + w, 0, G - 1) + 1
             cnt = c_cnt[hi] - c_cnt[lo]
             sx = c_x[hi] - c_x[lo]
-            sy = c_y[hi] - c_y[lo]
+            sy = c_y2[hi] - c_y2[lo]
             sxx = c_xx[hi] - c_xx[lo]
-            sxy = c_xy[hi] - c_xy[lo]
+            sxy = c_xy2[hi] - c_xy2[lo]
             denom = cnt * sxx - sx * sx
             good = valid & (cnt >= KDP_MIN_VALID) & (denom != 0)
             return np.where(good, 0.5 * (cnt * sxy - sx * sy) / np.where(denom == 0, 1.0, denom), np.nan)
 
         # Operational two-window selection, mirroring radar-decode.js kdpFromPhi: SHORT (high-resolution)
         # fit at/above KDP_SHORT_DBZ, LONG (low-noise) fit elsewhere, with a fall back to LONG wherever
-        # the short window lacks the samples (or reflectivity is unknown).
-        s_long = slope_for(w_long)
-        s_short = slope_for(w_short)
+        # the short window lacks the samples (or reflectivity is unknown). Each branch fits its OWN
+        # smoothed profile - see smooth().
+        s_long = slope_for(w_long, smooth(w_long) if KDP_SMOOTH else ph)
+        s_short = slope_for(w_short, smooth(w_short) if KDP_SMOOTH else ph)
         zh = np.where(valid, rf, np.nan)
         use_short = np.isfinite(zh) & (zh >= KDP_SHORT_DBZ)
         slope = np.where(use_short & np.isfinite(s_short), s_short, s_long)

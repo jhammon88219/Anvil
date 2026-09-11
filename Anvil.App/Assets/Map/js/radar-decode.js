@@ -1411,17 +1411,48 @@ function kdpFromPhi(phi, refl, rho, minDbz) {
     const wLong = Math.max(1, Math.round(KDP_WINDOW_KM / gateKm));
     const wShort = Math.max(1, Math.round(KDP_WINDOW_SHORT_KM / gateKm));
 
-    // Least-squares slope of ΦDP vs range over the valid gates within ±w of i, halved (ΦDP = 2·∫KDP dr).
+    // ⚠️ STEP 1 OF THE OPERATIONAL ALGORITHM, and skipping it is what made our KDP ~5x noisier than the
+    // NWS's own (measured against Level III N0K, 2026-09-10: sd 0.583 vs 0.099, means agreeing to 0.007).
+    // The operational scheme SMOOTHS ΦDP with a moving average FIRST and fits the least-squares slope to
+    // the SMOOTHED profile — we were fitting raw ΦDP, and a slope through noisy phase is noise amplified.
+    // ⚠️ EACH BRANCH GETS ITS OWN SMOOTHING WIDTH, matching its fit window. Measured with one global
+    // smoothing instead: 9-gate wins in cores (r 0.53 vs 0.37) while 25-gate wins overall (MAE 0.134 vs
+    // 0.232) — they trade off exactly the way the two FIT windows do, so pairing them is the design, not
+    // a tidy-up. One shared smoothing would give up whichever half it didn't pick.
+    //
+    // Mean of the VALID gates within ±w, via prefix sums so each gate costs two subtractions rather than
+    // a 2w+1 scan (a 25-gate window over ~1800 gates × 720 radials otherwise shows up in the frame time).
+    function smooth(w) {
+        const ps = new Float64Array(n + 1), pc = new Float64Array(n + 1);
+        for (let j = 0; j < n; j++) {
+            const ok = valid[j] === 1;
+            ps[j + 1] = ps[j] + (ok ? ph[j] : 0);
+            pc[j + 1] = pc[j] + (ok ? 1 : 0);
+        }
+        const out = new Float64Array(n);
+        for (let i = 0; i < n; i++) {
+            let lo = i - w, hi = i + w;
+            if (lo < 0) lo = 0;
+            if (hi >= n) hi = n - 1;
+            const c = pc[hi + 1] - pc[lo];
+            out[i] = c > 0 ? (ps[hi + 1] - ps[lo]) / c : NaN;
+        }
+        return out;
+    }
+    const phShort = smooth(wShort), phLong = smooth(wLong);
+
+    // Least-squares slope of `src` vs range over the valid gates within ±w of i, halved (ΦDP = 2·∫KDP dr).
     // Returns null where the window can't support an estimate. The x offset cancels, so absolute range
-    // is irrelevant — only the spacing matters.
-    function slopeAt(i, w) {
+    // is irrelevant — only the spacing matters. ⚠️ `src` is a SMOOTHED profile; it is finite at every gate
+    // where valid[] is set (that gate is always inside its own smoothing window), so no NaN guard is needed.
+    function slopeAt(i, w, src) {
         let lo = i - w, hi = i + w;
         if (lo < 0) lo = 0;
         if (hi >= n) hi = n - 1;
         let sx = 0, sy = 0, sxx = 0, sxy = 0, cnt = 0;
         for (let k = lo; k <= hi; k++) {
             if (!valid[k]) continue;
-            const x = k * gateKm, y = ph[k];
+            const x = k * gateKm, y = src[k];
             sx += x; sy += y; sxx += x * x; sxy += x * y; cnt++;
         }
         if (cnt < KDP_MIN_VALID) return null;
@@ -1438,11 +1469,11 @@ function kdpFromPhi(phi, refl, rho, minDbz) {
         // a single-pol/absent Z must not silently promote every gate to the noisier short fit.
         const z = zh[i];
         const useShort = (z === z) && z >= KDP_SHORT_DBZ; // z === z rejects NaN
-        let kdp = slopeAt(i, useShort ? wShort : wLong);
+        let kdp = useShort ? slopeAt(i, wShort, phShort) : slopeAt(i, wLong, phLong);
         // ⚠️ The short window needs KDP_MIN_VALID samples in a much smaller span, so a sparse core can
         // fail it where the long window would succeed. Fall back rather than punching holes in exactly
         // the strong-signal region the short window exists to resolve.
-        if (kdp === null && useShort) kdp = slopeAt(i, wLong);
+        if (kdp === null && useShort) kdp = slopeAt(i, wLong, phLong);
         if (kdp === null) { out[i] = null; continue; }
         out[i] = (kdp > KDP_ABS_MAX || kdp < -KDP_ABS_MAX) ? null : kdp; // drop unphysical unwrap/window spikes
     }
