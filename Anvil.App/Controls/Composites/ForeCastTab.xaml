@@ -69,6 +69,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conv="using:Anvil.Converters"
+             xmlns:local="using:Anvil.Controls.Composites"
+             xmlns:models="using:Anvil.Models"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -77,25 +79,35 @@
         <conv:HexToBrushConverter x:Key="HexToBrush"/>
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
 
-        <!-- One legend row: an official SPC color swatch (fill + stroke straight from the outlook GeoJSON)
-             next to the level's name. Significant/hatched levels overlay white '/' stripes to mirror how the
-             map draws them (a hatch pattern, not a solid). Item type: Anvil.Models.OutlookLegendEntry. -->
-        <DataTemplate x:Key="OutlookLegendItemTemplate">
+        <!-- One legend row: the official NOAA colour swatch (fill + stroke from SpcRiskCatalog, harvested
+             from SPC's published symbology) next to the level's own name.
+             ⚠️ A Conditional Intensity Group is drawn as HATCHING over the fill, and the DIRECTION is the
+             only thing telling the groups apart — every CIG level is black. So the swatch traces
+             outlook.js's sig-hatch tiles exactly: two Paths, '' and '/', shown by the same back/fwd rule
+             makeHatchImage uses, which makes CIG3 (both) fall out for free. Getting a direction wrong here
+             makes the legend disagree with our own map AND with spc.noaa.gov.
+             Item type: Anvil.Models.SpcRiskLevel. -->
+        <DataTemplate x:Key="OutlookLegendItemTemplate" x:DataType="models:SpcRiskLevel">
             <Grid Margin="0,2" ColumnSpacing="9">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Grid Width="20" Height="13" VerticalAlignment="Center">
-                    <Border Background="{Binding Fill, Converter={StaticResource HexToBrush}}"
-                            BorderBrush="{Binding Stroke, Converter={StaticResource HexToBrush}}"
+                    <Border Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"
+                            BorderBrush="{x:Bind Stroke, Converter={StaticResource HexToBrush}}"
                             BorderThickness="1" CornerRadius="2"/>
-                    <Path Stroke="White" StrokeThickness="1"
-                          Visibility="{Binding IsSignificant, Converter={StaticResource BoolToVis}}"
+                    <!-- '' — CIG1, and half of CIG3's cross. -->
+                    <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
+                          Visibility="{x:Bind local:ForeCastTab.HatchBackward(Hatch)}"
+                          Data="M0,0 L13,13 M7,0 L20,13 M0,6.5 L6.5,13 M13,0 L20,6.5"/>
+                    <!-- '/' — CIG2, and the other half of CIG3. -->
+                    <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
+                          Visibility="{x:Bind local:ForeCastTab.HatchForward(Hatch)}"
                           Data="M0,13 L13,0 M7,13 L20,0 M0,6.5 L6.5,0 M13,13 L20,6.5"/>
                 </Grid>
                 <!-- 13px, matching the type rows in the other two windows' sections. -->
-                <TextBlock Grid.Column="1" Text="{Binding Label}"
+                <TextBlock Grid.Column="1" Text="{x:Bind OfficialName}"
                            FontSize="13" VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>

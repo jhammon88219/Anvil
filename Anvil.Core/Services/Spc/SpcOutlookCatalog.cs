@@ -31,10 +31,17 @@ namespace Anvil.Services
 
 		// Fire weather isn't published as GeoJSON on spc.noaa.gov (images only), so it
 		// comes from NOAA's ArcGIS SPC_firewx MapServer as a per-layer GeoJSON query.
-		// Each day is a group layer; the main outlook area is its FIRST sub-layer
-		// (Day 1 = 1, Day 2 = 4, then +3 per day: 7, 10, 13, 16, 19, 22). The second
-		// sub-layer in each group (2, 5, 8, ...) is the "dry thunderstorm" area — a
-		// possible future product. outSR=4326 forces WGS84 lon/lat for MapLibre.
+		// Each day is a group layer. outSR=4326 forces WGS84 lon/lat for MapLibre.
+		//
+		// ⚠️⚠️ THE SUB-LAYER ORDER FLIPS AFTER DAY 2, and reading it wrong is silent — you get real
+		// polygons for the wrong product. Days 1-2 are [outlook, dry thunderstorm], so the outlook is
+		// the FIRST sub-layer (1, 4). Days 3-8 are [dry thunderstorm, winds and low humidity], so the
+		// outlook is the SECOND (8, 11, 14, 17, 20, 23). This list read 7, 10, 13, ... until 2026-09
+		// and was therefore serving DRY-THUNDERSTORM areas as the days 3-8 fire outlook.
+		// ⚠️ The two are also different PRODUCTS, not one scale over more days: days 1-2 are categorical
+		// (Elevated / Critical / Extreme, keyed on dn), days 3-8 are probabilistic (Marginal 40% /
+		// Critical 70%, keyed on a label string) — which is why SpcOutlookType keeps them apart and
+		// SpcRiskCatalog carries a separate scale for each.
 		private const string ArcFire = "https://mapservices.weather.noaa.gov/vector/rest/services/fire_weather/SPC_firewx/MapServer/";
 		private const string ArcQuery = "/query?where=1%3D1&outFields=*&outSR=4326&f=geojson";
 
@@ -68,12 +75,12 @@ namespace Anvil.Services
 			new SpcOutlookEndpoint("day2-fire", 2, SpcOutlookType.FireWeather, "Day 2 Fire Weather", ArcFire + "4" + ArcQuery, null),
 
 			// ---- Extended fire weather (Day 3-8) — same MapServer, later layers ----
-			new SpcOutlookEndpoint("day3-fire", 3, SpcOutlookType.ExtendedFireWeather, "Day 3 Fire Weather", ArcFire + "7" + ArcQuery, null),
-			new SpcOutlookEndpoint("day4-fire", 4, SpcOutlookType.ExtendedFireWeather, "Day 4 Fire Weather", ArcFire + "10" + ArcQuery, null),
-			new SpcOutlookEndpoint("day5-fire", 5, SpcOutlookType.ExtendedFireWeather, "Day 5 Fire Weather", ArcFire + "13" + ArcQuery, null),
-			new SpcOutlookEndpoint("day6-fire", 6, SpcOutlookType.ExtendedFireWeather, "Day 6 Fire Weather", ArcFire + "16" + ArcQuery, null),
-			new SpcOutlookEndpoint("day7-fire", 7, SpcOutlookType.ExtendedFireWeather, "Day 7 Fire Weather", ArcFire + "19" + ArcQuery, null),
-			new SpcOutlookEndpoint("day8-fire", 8, SpcOutlookType.ExtendedFireWeather, "Day 8 Fire Weather", ArcFire + "22" + ArcQuery, null),
+			new SpcOutlookEndpoint("day3-fire", 3, SpcOutlookType.ExtendedFireWeather, "Day 3 Fire Weather", ArcFire + "8" + ArcQuery, null),
+			new SpcOutlookEndpoint("day4-fire", 4, SpcOutlookType.ExtendedFireWeather, "Day 4 Fire Weather", ArcFire + "11" + ArcQuery, null),
+			new SpcOutlookEndpoint("day5-fire", 5, SpcOutlookType.ExtendedFireWeather, "Day 5 Fire Weather", ArcFire + "14" + ArcQuery, null),
+			new SpcOutlookEndpoint("day6-fire", 6, SpcOutlookType.ExtendedFireWeather, "Day 6 Fire Weather", ArcFire + "17" + ArcQuery, null),
+			new SpcOutlookEndpoint("day7-fire", 7, SpcOutlookType.ExtendedFireWeather, "Day 7 Fire Weather", ArcFire + "20" + ArcQuery, null),
+			new SpcOutlookEndpoint("day8-fire", 8, SpcOutlookType.ExtendedFireWeather, "Day 8 Fire Weather", ArcFire + "23" + ArcQuery, null),
 		};
 	}
 }

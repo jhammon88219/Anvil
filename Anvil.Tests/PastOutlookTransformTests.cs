@@ -8,8 +8,9 @@ namespace Anvil.Tests
 	/// <summary>
 	/// The IEM→renderer transform (<see cref="SpcOutlookColors.TryBuildProduct"/>) that lets historical
 	/// outlooks reuse the live outlook render path: it must filter to the requested product's category,
-	/// color each feature by threshold (the renderer reads <c>fill</c>/<c>stroke</c>), and mark significant
-	/// areas <c>LABEL="SIGN"</c> so they hatch. Deterministic — no network.
+	/// color each feature by threshold (the renderer reads <c>fill</c>/<c>stroke</c>) from
+	/// <see cref="SpcRiskCatalog"/>, and label significant areas with a CIG code so they hatch.
+	/// Deterministic — no network.
 	/// </summary>
 	public class PastOutlookTransformTests
 	{
@@ -53,7 +54,7 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public void Tornado_KeepsProbAndSignificant_AndLabelsSign()
+		public void Tornado_KeepsProbAndSignificant_AndMapsLegacySignToCig1()
 		{
 			var ok = SpcOutlookColors.TryBuildProduct(Root(), SpcOutlookType.Tornado, out var gj, out _);
 			Assert.True(ok);
@@ -71,7 +72,11 @@ namespace Anvil.Tests
 					signLabel = p.GetProperty("LABEL").GetString();
 				}
 			}
-			Assert.Equal("SIGN", signLabel); // significant area is hatched by the renderer
+			// ⚠️ The emitted label is CIG1, not the "SIGN" that came IN. Before NWS service change 26-11
+			// (2026-03-02) SPC drew one significant-severe area under that label; every archive older than
+			// that — i.e. everything PastCast replays — still carries it, and the renderer now routes
+			// hatching by CIG code. SpcRiskCatalog aliases the two so historical outlooks keep hatching.
+			Assert.Equal("CIG1", signLabel);
 		}
 
 		[Fact]
@@ -92,8 +97,10 @@ namespace Anvil.Tests
 			using var doc = JsonDocument.Parse(gj);
 			var feats = doc.RootElement.GetProperty("features");
 			Assert.Equal(1, feats.GetArrayLength()); // only ANY SEVERE, not the categorical
-			// 15% uses the probabilistic ramp (red), NOT a categorical color.
-			Assert.Equal("#FF0000", feats[0].GetProperty("properties").GetProperty("fill").GetString());
+			// ⚠️ This assertion used to demand #FF0000 — and that was the BUG, encoded as a test. The old
+			// hand-typed ramp was SPC's stroke colours shifted a level, so a 15% risk drew red where SPC
+			// draws it yellow. #FFEB7F is what NOAA's published symbology actually says.
+			Assert.Equal("#FFEB7F", feats[0].GetProperty("properties").GetProperty("fill").GetString());
 		}
 
 		[Fact]

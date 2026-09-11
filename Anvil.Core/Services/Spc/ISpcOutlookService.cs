@@ -41,12 +41,13 @@ namespace Anvil.Services
 		SpcOutlookTimes? GetTimesForProduct(SpcOutlookProduct product);
 
 		/// <summary>
-		/// The FULL legend for the product's family — every SPC-defined risk / probability level, in SPC's
-		/// own published colors, ordered least-severe first — shown whether or not today's issuance contains
-		/// each level. A static reference scale (see <see cref="SpcOutlookLegend"/>), so the legend is
-		/// complete even on a quiet day.
+		/// The FULL legend for the product's family — every SPC-defined risk / probability level and
+		/// Conditional Intensity Group, in NOAA's own published colors, ordered least-severe first — shown
+		/// whether or not today's issuance contains each level. Read from the offline
+		/// <see cref="SpcRiskCatalog"/>, not from the cached file, so the legend is complete on a quiet day
+		/// and available with no network at all.
 		/// </summary>
-		IReadOnlyList<OutlookLegendEntry> GetLegendForProduct(SpcOutlookProduct product);
+		IReadOnlyList<SpcRiskLevel> GetLegendForProduct(SpcOutlookProduct product);
 
 		/// <summary>
 		/// Fetches every product and writes each to the cache (one GeoJSON per product).

@@ -1,63 +1,44 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Text.Json;
 using Anvil.Models;
 
 namespace Anvil.Services
 {
 	/// <summary>
-	/// Turns an IEM archive SPC-outlook GeoJSON (which carries a bare <c>category</c>/<c>threshold</c> but
-	/// NO colors) into the schema the map renderer (<c>outlook.js</c>) expects: per-feature <c>fill</c> /
-	/// <c>stroke</c> hex + a <c>LABEL</c> ("SIGN" ⇒ hatched, else solid fill) + <c>ISSUE_ISO</c>/
-	/// <c>EXPIRE_ISO</c> for the times readout. This is what lets historical outlooks reuse the existing
-	/// live-outlook render path with zero JS change.
+	/// Colours the two SPC feeds that publish NO symbology of their own, turning each into the schema
+	/// <c>outlook.js</c> expects: per-feature <c>fill</c>/<c>stroke</c> hex + a <c>LABEL</c> (a CIG code
+	/// ⇒ hatched, anything else ⇒ solid fill) + <c>ISSUE_ISO</c>/<c>EXPIRE_ISO</c> for the times readout.
+	/// That is what lets both reuse the live render path with zero JS change.
 	///
-	/// Colors follow SPC's published outlook legend (categorical / shared probabilistic / fire). The
-	/// renderer coalesces an unknown threshold to gray, so a stray value degrades gracefully.
+	/// <para>The two, and how each is keyed:</para>
+	/// <list type="bullet">
+	/// <item><see cref="TryBuildProduct"/> — the IEM past-outlook archive, which carries a bare
+	/// <c>category</c>/<c>threshold</c> string ("MRGL", "0.15", "SIGN").</item>
+	/// <item><see cref="TryColorizeByDn"/> — the live NOAA ArcGIS fire-weather feed, which carries only a
+	/// numeric <c>dn</c> ordinal and no label at all.</item>
+	/// </list>
+	///
+	/// <para>
+	/// ⚠️ Every colour comes from <see cref="SpcRiskCatalog"/> — NOAA's published symbology, harvested by
+	/// <c>tools/make_spc_catalog.py</c>. This file used to hold THREE hand-typed tables (categorical,
+	/// fire, and one shared probability ramp) and all three had drifted: the probability ramp was SPC's
+	/// stroke colours shifted a level, so a 15% wind risk drew RED where SPC draws it yellow; the fire
+	/// table was keyed on strings the live feed never emits. Don't reintroduce a local table — add to the
+	/// catalog and regenerate.
+	/// </para>
 	/// </summary>
 	public static class SpcOutlookColors
 	{
-		// ── SPC categorical (General Thunder → High) ──
-		private static readonly Dictionary<string, (string Fill, string Stroke)> Categorical = new(StringComparer.OrdinalIgnoreCase)
-		{
-			["TSTM"] = ("#C1E9C1", "#55A555"),
-			["MRGL"] = ("#66A366", "#3C7A3C"),
-			["SLGT"] = ("#FFE066", "#D6B000"),
-			["ENH"]  = ("#FFA366", "#E07711"),
-			["MDT"]  = ("#E6635C", "#C0392B"),
-			["HIGH"] = ("#EE99EE", "#CC33CC"),
-		};
-
-		// ── SPC fire weather (by threshold code; dry-thunderstorm areas included) ──
-		private static readonly Dictionary<string, (string Fill, string Stroke)> Fire = new(StringComparer.OrdinalIgnoreCase)
-		{
-			["ELEV"] = ("#FFCC33", "#D6A017"),
-			["CRIT"] = ("#FF6600", "#CC4E00"),
-			["EXTM"] = ("#FF00FF", "#CC00CC"),
-			["IDRT"] = ("#CC9966", "#A5794A"), // isolated dry thunderstorm
-			["SDRT"] = ("#996633", "#73491F"), // scattered dry thunderstorm
-		};
-
-		// Shared probabilistic ramp for Tornado / Wind / Hail (percent → color). Ordered ascending.
-		private static readonly (double P, string Fill, string Stroke)[] Prob =
-		{
-			(0.02, "#008B00", "#006400"),
-			(0.05, "#8B4726", "#5E2F19"),
-			(0.10, "#FFC800", "#D6A700"),
-			(0.15, "#FF0000", "#CC0000"),
-			(0.30, "#FF00FF", "#CC00CC"),
-			(0.45, "#912CEE", "#6E1FB5"),
-			(0.60, "#104E8B", "#0B385F"),
-		};
-
-		private const string SigStroke = "#000000";
+		// Last-resort neutral, matching outlook.js's own coalesce. Reached only by a level the catalog
+		// has never seen — which, after a service change, is the signal to re-run the generator.
+		private const string UnknownFill = "#888888";
+		private const string UnknownStroke = "#555555";
 
 		/// <summary>
 		/// Builds one product's renderer-ready GeoJSON from an IEM outlook collection, keeping only the
-		/// features for <paramref name="type"/> and coloring each. Returns false (with an empty document)
-		/// when the issuance carried nothing for this product.
+		/// features for <paramref name="type"/> and colouring each. Returns false (with an empty
+		/// document) when the issuance carried nothing for this product.
 		/// </summary>
 		public static bool TryBuildProduct(JsonElement iemRoot, SpcOutlookType type,
 			out string geoJson, out SpcOutlookTimes? times)
@@ -99,7 +80,7 @@ namespace Anvil.Services
 				}
 
 				var threshold = GetStr(props, "threshold") ?? string.Empty;
-				var (fill, stroke, label) = Style(type, category, threshold);
+				var (fill, stroke, label) = Style(type, threshold);
 
 				// First feature's times represent the issuance (all share them).
 				issue ??= ParseIso(GetStr(props, "issue"));
@@ -138,6 +119,137 @@ namespace Anvil.Services
 			return true;
 		}
 
+		/// <summary>
+		/// Adds <c>fill</c>/<c>stroke</c>/<c>LABEL</c> to every feature of a GeoJSON collection whose
+		/// only styling key is a numeric <c>dn</c> ordinal — NOAA's ArcGIS fire-weather layers. Existing
+		/// properties are preserved (the times readout reads <c>valid</c>/<c>expire</c> from them).
+		/// <para>
+		/// ⚠️ This is why fire weather used to draw FLAT GREY at every risk level: the ArcGIS GeoJSON
+		/// query returns attributes only, never symbology, so <c>outlook.js</c>'s
+		/// <c>['coalesce', ['get','fill'], '#888888']</c> was the whole colour story — Elevated,
+		/// Critical and Extreme were indistinguishable on the map.
+		/// </para>
+		/// <para>
+		/// ⚠️ Feature property names here are LOWERCASE (<c>dn</c>), unlike the SPC convective feed's
+		/// uppercase <c>DN</c>. Both spellings are accepted so one helper serves either shape.
+		/// </para>
+		/// </summary>
+		/// <returns>False when the document is not a feature collection, or no feature could be
+		/// coloured — in which case the caller should leave the cached file untouched.</returns>
+		public static bool TryColorizeByDn(string geoJson, SpcOutlookType type, out string colorized)
+		{
+			colorized = string.Empty;
+			JsonDocument doc;
+			try
+			{
+				doc = JsonDocument.Parse(geoJson);
+			}
+			catch (JsonException)
+			{
+				return false;
+			}
+
+			using (doc)
+			{
+				var root = doc.RootElement;
+				if (root.ValueKind != JsonValueKind.Object ||
+					!root.TryGetProperty("features", out var features) ||
+					features.ValueKind != JsonValueKind.Array)
+				{
+					return false;
+				}
+
+				var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+				using var writer = new Utf8JsonWriter(buffer);
+				var matched = 0;
+
+				writer.WriteStartObject();
+				writer.WriteString("type", "FeatureCollection");
+				writer.WritePropertyName("features");
+				writer.WriteStartArray();
+
+				foreach (var f in features.EnumerateArray())
+				{
+					if (f.ValueKind != JsonValueKind.Object)
+					{
+						continue;
+					}
+
+					var level = TryReadDn(f, out var dn) ? SpcRiskCatalog.Level(type, dn) : null;
+					if (level is not null)
+					{
+						matched++;
+					}
+
+					writer.WriteStartObject();
+					foreach (var member in f.EnumerateObject())
+					{
+						if (!member.NameEquals("properties"))
+						{
+							member.WriteTo(writer);
+						}
+					}
+
+					writer.WritePropertyName("properties");
+					writer.WriteStartObject();
+					if (f.TryGetProperty("properties", out var props) &&
+						props.ValueKind == JsonValueKind.Object)
+					{
+						foreach (var p in props.EnumerateObject())
+						{
+							// Drop any pre-existing styling keys so ours are authoritative and can't
+							// be duplicated into an invalid object.
+							if (!p.NameEquals("fill") && !p.NameEquals("stroke") && !p.NameEquals("LABEL"))
+							{
+								p.WriteTo(writer);
+							}
+						}
+					}
+					writer.WriteString("fill", level?.Fill ?? UnknownFill);
+					writer.WriteString("stroke", level?.Stroke ?? UnknownStroke);
+					writer.WriteString("LABEL", level?.Code ?? string.Empty);
+					writer.WriteEndObject();
+					writer.WriteEndObject();
+				}
+
+				writer.WriteEndArray();
+				writer.WriteEndObject();
+				writer.Flush();
+
+				if (matched == 0)
+				{
+					return false;
+				}
+
+				colorized = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
+				return true;
+			}
+		}
+
+		/// <summary>Reads a feature's severity ordinal, accepting either spelling and either JSON type.</summary>
+		private static bool TryReadDn(JsonElement feature, out double dn)
+		{
+			dn = 0;
+			if (!feature.TryGetProperty("properties", out var props) ||
+				props.ValueKind != JsonValueKind.Object)
+			{
+				return false;
+			}
+
+			if (!props.TryGetProperty("dn", out var value) && !props.TryGetProperty("DN", out value))
+			{
+				return false;
+			}
+
+			return value.ValueKind switch
+			{
+				JsonValueKind.Number => value.TryGetDouble(out dn),
+				JsonValueKind.String => double.TryParse(value.GetString(), NumberStyles.Float,
+					CultureInfo.InvariantCulture, out dn),
+				_ => false,
+			};
+		}
+
 		// The IEM `category` value each product type maps to; null means "fire" (take all F-collection features).
 		private static string? CategoryFor(SpcOutlookType type) => type switch
 		{
@@ -149,46 +261,26 @@ namespace Anvil.Services
 			_ => null, // FireWeather / ExtendedFireWeather
 		};
 
-		// Resolves the fill/stroke/LABEL for one feature. Significant ("SIGN") always hatches (LABEL=SIGN).
-		private static (string Fill, string Stroke, string Label) Style(SpcOutlookType type, string? category, string threshold)
+		/// <summary>
+		/// Resolves one IEM feature's fill/stroke/LABEL from its threshold code.
+		/// <para>
+		/// ⚠️ The emitted <c>LABEL</c> is the catalog's own code, and that is what drives the hatching:
+		/// <c>outlook.js</c> routes a feature to a hatch layer when its LABEL is a CIG code. Archived
+		/// outlooks predating NWS service change 26-11 carry the legacy <c>"SIGN"</c>, which the catalog
+		/// aliases to CIG1 — so a 2011 replay still hatches, under the group SPC would draw today.
+		/// </para>
+		/// </summary>
+		private static (string Fill, string Stroke, string Label) Style(SpcOutlookType type, string threshold)
 		{
-			if (string.Equals(threshold, "SIGN", StringComparison.OrdinalIgnoreCase))
+			var level = SpcRiskCatalog.Level(type, threshold);
+			if (level is null)
 			{
-				return ("#000000", SigStroke, "SIGN"); // hatched by the renderer; fill is unused under the pattern
+				return (UnknownFill, UnknownStroke, string.Empty);
 			}
 
-			var isFire = type is SpcOutlookType.FireWeather or SpcOutlookType.ExtendedFireWeather;
-			if (isFire && Fire.TryGetValue(threshold, out var fc))
-			{
-				return (fc.Fill, fc.Stroke, string.Empty);
-			}
-
-			var isCategorical = type is SpcOutlookType.Categorical
-				|| string.Equals(category, "CATEGORICAL", StringComparison.OrdinalIgnoreCase);
-			if (isCategorical && Categorical.TryGetValue(threshold, out var cc))
-			{
-				return (cc.Fill, cc.Stroke, string.Empty);
-			}
-
-			// Probabilistic tornado/wind/hail AND the Day 2-3 combined "ANY SEVERE": threshold is a
-			// fraction like "0.05".
-			if (double.TryParse(threshold, NumberStyles.Float, CultureInfo.InvariantCulture, out var p))
-			{
-				var (fill, stroke) = ProbColor(p);
-				return (fill, stroke, string.Empty);
-			}
-
-			return ("#888888", "#555555", string.Empty); // unknown ⇒ neutral (matches the renderer's coalesce)
-		}
-
-		private static (string Fill, string Stroke) ProbColor(double p)
-		{
-			var best = Prob[0];
-			foreach (var band in Prob)
-			{
-				if (p + 1e-6 >= band.P) best = band; // highest band at or below p
-			}
-			return (best.Fill, best.Stroke);
+			// Only a conditional-intensity level may carry a hatching LABEL; a solid level's label must
+			// stay clear of the "CIG"/"SIG" substrings outlook.js filters on.
+			return (level.Fill, level.Stroke, level.IsConditionalIntensity ? level.Code : string.Empty);
 		}
 
 		private static string? GetStr(JsonElement obj, string name) =>

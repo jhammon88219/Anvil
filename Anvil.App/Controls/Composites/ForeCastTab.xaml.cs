@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Anvil.Models;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.Composites
@@ -20,6 +21,21 @@ namespace Anvil.Controls.Composites
 		// leaving a gap where the context or footer would be. Same helper as the other two bodies'.
 		public Visibility HasText(string? value) =>
 			string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
+
+		// x:Bind helpers for the legend swatch's Conditional Intensity hatching. Deliberately split the
+		// SAME way outlook.js's makeHatchImage takes its `back` / `fwd` flags: each asks "does this
+		// pattern include this diagonal?", so the cross (CIG3) needs no case of its own and the swatch
+		// cannot drift out of step with the map's tiles. STATIC because they are called from a
+		// DataTemplate, whose x:Bind root is the SpcRiskLevel item, not this control.
+		// ⚠️ The direction is the data here — every CIG level is black, so the pattern is the only thing
+		// distinguishing group 1 from group 2. See SpcHatchPattern.
+		public static Visibility HatchBackward(SpcHatchPattern pattern) =>
+			pattern is SpcHatchPattern.BackwardDiagonal or SpcHatchPattern.DiagonalCross
+				? Visibility.Visible : Visibility.Collapsed;
+
+		public static Visibility HatchForward(SpcHatchPattern pattern) =>
+			pattern is SpcHatchPattern.ForwardDiagonal or SpcHatchPattern.DiagonalCross
+				? Visibility.Visible : Visibility.Collapsed;
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel

@@ -90,11 +90,12 @@ namespace Anvil.Services
 			}
 		}
 
-		// The FULL canonical legend for the product's family — every SPC-defined level, least-severe first —
-		// regardless of what today's issuance actually contains. A static reference scale (SpcOutlookLegend),
-		// not derived from the cached file, so the legend is complete even on a quiet day.
-		public IReadOnlyList<OutlookLegendEntry> GetLegendForProduct(SpcOutlookProduct product) =>
-			SpcOutlookLegend.For(product.Type);
+		// The FULL canonical scale for the product's family — every SPC-defined level, least-severe first —
+		// regardless of what today's issuance actually contains. Comes from the embedded SpcRiskCatalog
+		// (NOAA's published symbology), not from the cached file, so it is complete on a quiet day and needs
+		// no network. ⚠️ The catalog is also the ONLY colour source for the levels the feed never sends.
+		public IReadOnlyList<SpcRiskLevel> GetLegendForProduct(SpcOutlookProduct product) =>
+			SpcRiskCatalog.ScaleFor(product.Type).Levels;
 
 		private static DateTimeOffset? ReadIso(JsonElement props, string name) =>
 			props.TryGetProperty(name, out var el) &&
@@ -239,6 +240,11 @@ namespace Anvil.Services
 					outcome = await TryFetchAsync(endpoint.FallbackUrl, cacheFile, ct);
 				}
 
+				if (outcome == FetchOutcome.Updated)
+				{
+					ColorizeIfUnstyled(endpoint, cacheFile);
+				}
+
 				return outcome switch
 				{
 					FetchOutcome.Updated => new SpcOutlookFetchResult(endpoint.Id, SpcOutlookFetchStatus.Updated),
@@ -254,6 +260,45 @@ namespace Anvil.Services
 			{
 				// Never let one product abort the batch; keep last-known-good on disk.
 				return Failed(endpoint.Id, cacheExists, ex.Message);
+			}
+		}
+
+		/// <summary>
+		/// Bakes official colours into a freshly-fetched product whose SOURCE publishes none.
+		/// <para>
+		/// Only the fire-weather products need this: they come from NOAA's ArcGIS MapServer, whose
+		/// GeoJSON query returns attributes (a numeric <c>dn</c>) and never symbology — so every risk
+		/// level arrived unstyled and <c>outlook.js</c> drew all of them as one flat grey. The convective
+		/// products ship SPC's own <c>fill</c>/<c>stroke</c> per feature and are left ALONE, which is the
+		/// precedence rule stated on <see cref="SpcRiskCatalog"/>: the feed wins where it speaks.
+		/// </para>
+		/// <para>
+		/// ⚠️ Best-effort by design. A failure here must not fail the refresh — the uncoloured cache
+		/// still renders (greyly, as before), which beats reporting a fetch that actually succeeded as
+		/// failed. The rewrite goes through the same atomic temp+move as the download, so a crash
+		/// mid-write can't leave a half-written cache.
+		/// </para>
+		/// </summary>
+		private static void ColorizeIfUnstyled(SpcOutlookEndpoint endpoint, string cacheFile)
+		{
+			if (endpoint.Type is not (SpcOutlookType.FireWeather or SpcOutlookType.ExtendedFireWeather))
+			{
+				return;
+			}
+
+			try
+			{
+				var raw = File.ReadAllText(cacheFile);
+				if (SpcOutlookColors.TryColorizeByDn(raw, endpoint.Type, out var colorized))
+				{
+					var temp = cacheFile + "." + Environment.ProcessId + "-" + Guid.NewGuid().ToString("N") + ".tmp";
+					File.WriteAllText(temp, colorized);
+					File.Move(temp, cacheFile, overwrite: true);
+				}
+			}
+			catch
+			{
+				// Leave the cache as fetched; the map still draws, just without official colours.
 			}
 		}
 

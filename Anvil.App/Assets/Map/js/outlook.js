@@ -10,8 +10,8 @@
 //   │▒▒▒▒▒▒▒▒ 5%  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒│   straight from the SPC GeoJSON (never hand-coded here)
 //   │▒▒▒┌────────────────────┐▒▒▒▒▒▒▒▒│
 //   │▒▒▒│▓▓▓▓ 10% ▓▓▓▓▓▓▓▓▓▓▓│▒▒▒▒▒▒▒▒│   hatching = the Conditional Intensity Groups:
-//   │▒▒▒│▓▓┌───────────┐▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG1  ╱ ╱ ╱   dashed  '/'
-//   │▒▒▒│▓▓│ ╱╱╱ CIG1  │▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG2  ╱╱╱╱╱   solid   '/'
+//   │▒▒▒│▓▓┌───────────┐▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG1  ╲╲╲╲╲   solid   '\'
+//   │▒▒▒│▓▓│ ╲╲╲ CIG1  │▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG2  ╱╱╱╱╱   solid   '/'
 //   │▒▒▒│▓▓│ ╱╳╱ CIG2… │▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG3  ╳╳╳╳╳   cross-hatch
 //   │▒▒▒│▓▓└───────────┘▓▓▓▓▓│▒▒▒▒▒▒▒▒│
 //   │▒▒▒└────────────────────┘▒▒▒▒▒▒▒▒│   ⚠️ the groups NEST (CIG3 ⊂ CIG2 ⊂ CIG1), so each lower
@@ -69,12 +69,19 @@ function makeHatchImage(tile, width, opts) {
     return ctx.getImageData(0, 0, tile, tile);
 }
 
-// One hatch image per Conditional Intensity Group, mirroring SPC's intensity legend: CIG1 = '/' DASHES,
-// CIG2 = '\' solid LINES, CIG3 = solid CROSS-HATCH. setStyle drops registered images, so re-ensure each add.
+// One hatch image per Conditional Intensity Group, mirroring SPC's OWN fill styles exactly:
+// CIG1 = esriSFSBackwardDiagonal ('\'), CIG2 = esriSFSForwardDiagonal ('/'), CIG3 = esriSFSDiagonalCross.
+// ⚠️ THE DIRECTIONS ARE NOT INTERCHANGEABLE. Until 2026-09 this drew CIG1 as DASHED '/' and CIG2 as
+// solid '\' — i.e. the two lowest groups swapped against SPC — so an area SPC calls CIG2 read as CIG1
+// to anyone comparing Anvil against spc.noaa.gov. The pattern is the only thing distinguishing the
+// groups (every CIG level is black), so getting it backwards misreports the intensity outright.
+// The authority is SpcRiskCatalog's `hatch` field, harvested from the published symbology — if these
+// ever need to change, change them there first and mirror here. setStyle drops registered images, so
+// re-ensure on each add.
 const HATCH_TILE = 28;
 function ensureHatchImages(map) {
-    if (!map.hasImage('sig-hatch-1')) map.addImage('sig-hatch-1', makeHatchImage(HATCH_TILE, 1.6, { fwd: true, dash: [2.5, 4] }));
-    if (!map.hasImage('sig-hatch-2')) map.addImage('sig-hatch-2', makeHatchImage(HATCH_TILE, 1.6, { back: true }));
+    if (!map.hasImage('sig-hatch-1')) map.addImage('sig-hatch-1', makeHatchImage(HATCH_TILE, 1.6, { back: true }));
+    if (!map.hasImage('sig-hatch-2')) map.addImage('sig-hatch-2', makeHatchImage(HATCH_TILE, 1.6, { fwd: true }));
     if (!map.hasImage('sig-hatch-3')) map.addImage('sig-hatch-3', makeHatchImage(HATCH_TILE, 1.6, { fwd: true, back: true }));
 }
 
@@ -151,8 +158,11 @@ function addOutlookLayers(map) {
 
     const before = firstSymbolLayerId(map);
     // Solid fill for the probability areas, excluding the significant areas — so the hatch shows the
-    // probability color underneath through its gaps. Convective "cake layers" carry their own fill;
-    // fire weather falls back to gray.
+    // probability color underneath through its gaps. EVERY feature reaching here now carries its own
+    // fill: the convective "cake layers" ship it, and the two feeds that don't (fire weather, keyed on
+    // `dn`, and the IEM past-outlook archive, keyed on a threshold string) are coloured host-side from
+    // SpcRiskCatalog before the page sees them. The coalesce is a genuine last resort now, not the fire
+    // path's normal behaviour — fire weather used to render every risk level as this flat gray.
     map.addLayer({
         id: 'spc-outlook-fill',
         type: 'fill',

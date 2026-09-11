@@ -45,7 +45,7 @@ namespace Anvil.ViewModels
 
 		// Legend rows for the loaded outlook (official SPC colors + names, read from the same cached GeoJSON
 		// the map draws). Empty when None is selected or the layer is off.
-		private IReadOnlyList<OutlookLegendEntry> _legendEntries = System.Array.Empty<OutlookLegendEntry>();
+		private IReadOnlyList<SpcRiskLevel> _legendEntries = System.Array.Empty<SpcRiskLevel>();
 
 		// Fill opacity (0-1) for the outlook polygons; the outlines stay opaque so the
 		// basemap reads through. Driven by the ribbon's opacity slider.
@@ -218,10 +218,12 @@ namespace Anvil.ViewModels
 			private set => SetProperty(ref _outlookTimesText, value);
 		}
 
-		/// <summary>The full legend for the selected product — SPC's own colors + level names for every
-		/// level in that product's scale, least-severe first (shown even when today's issuance omits some).
-		/// Bound to the legend in the ForeCast card; empty (and hidden) when None is selected or off.</summary>
-		public IReadOnlyList<OutlookLegendEntry> LegendEntries => _legendEntries;
+		/// <summary>The full legend for the selected product — NOAA's own colors + level names for every
+		/// level in that product's scale, least-severe first (shown even when today's issuance omits some),
+		/// with the Conditional Intensity Groups last, each carrying the hatch pattern the map draws it
+		/// with. Bound to the legend in the ForeCast card; empty (and hidden) when None is selected or
+		/// off.</summary>
+		public IReadOnlyList<SpcRiskLevel> LegendEntries => _legendEntries;
 
 		/// <summary>Whether the loaded outlook has any legend rows to show.</summary>
 		public bool HasLegend => _legendEntries.Count > 0;
@@ -403,7 +405,7 @@ namespace Anvil.ViewModels
 			// Legend = the selected product's FULL scale (least→most severe), gated by the same visibility as
 			// the times so it appears only when an outlook is actually shown.
 			_legendEntries = product is null
-				? System.Array.Empty<OutlookLegendEntry>()
+				? System.Array.Empty<SpcRiskLevel>()
 				: _spcOutlookService.GetLegendForProduct(product);
 			OnPropertyChanged(nameof(LegendEntries));
 			OnPropertyChanged(nameof(HasLegend));
