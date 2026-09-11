@@ -39,19 +39,31 @@
          (here) rather than inside a single control so every consumer references the SAME keys and
          they can't drift. (Moved out of OverlayBar.xaml's local ThemeDictionaries.)
 
-         The family, resting → raised:
-           Surface           the bar / window ground
-           SurfaceHover      hovering something interactive on that ground
-           SurfaceElevated   a control that is ON / selected — it sits above the ground
-           SurfaceElevatedHover   … and hovered
+         The family, in three tiers — a RESTING surface and its hover, three times over:
+           Surface / SurfaceHover                 the bar / window ground
+           SurfaceRaised / SurfaceRaisedHover     a second resting tier sitting ON that ground
+           SurfaceElevated / SurfaceElevatedHover a control that is ON / selected
 
          ⚠️ "Elevated" is LIGHTER than the ground in dark theme and DARKER in light. Elevation is not
          a direction, it is a contrast step away from the ground: on the light ground (#F3F3F3) there
-         is almost no headroom above, so going lighter would make a selected control invisible. -->
+         is almost no headroom above, so going lighter would make a selected control invisible. The
+         Raised pair follows the same rule, one smaller step.
+
+         ⚠️ RAISED IS A RESTING SURFACE, ELEVATED IS A STATE. The map-controls tier is raised because
+         it sits on the bar; a bar key is elevated because it is switched on. Don't borrow Elevated for
+         a tier — it is already spent on "this control is ON", and the bar reads accent + elevation as
+         that one meaning.
+         ⚠️ RAISED NEEDS ITS OWN HOVER, and that is not decoration. A control resting on the raised
+         surface cannot hover to SurfaceHover: in dark the raised ground (#141414) is already past it
+         (#1A1A1A), and in light (#EAEAEA vs #E4E4E4) the hover would be DARKER than a step that is
+         itself meant to read as darker — so the hover either vanishes or inverts. Each tier hovers one
+         step further from its own ground. -->
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Default">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="#FF000000"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="#FF1A1A1A"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceRaisedBrush" Color="#FF141414"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceRaisedHoverBrush" Color="#FF242424"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="#FF2B2B2B"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="#FF383838"/>
 
@@ -66,6 +78,8 @@
         <ResourceDictionary x:Key="Light">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="#FFF3F3F3"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="#FFE4E4E4"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceRaisedBrush" Color="#FFEAEAEA"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceRaisedHoverBrush" Color="#FFDDDDDD"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="#FFDCDCDC"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="#FFD0D0D0"/>
 
@@ -80,6 +94,8 @@
         <ResourceDictionary x:Key="HighContrast">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceRaisedBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+            <SolidColorBrush x:Key="OverlayBarSurfaceRaisedHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
         </ResourceDictionary>

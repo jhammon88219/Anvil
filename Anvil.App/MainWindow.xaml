@@ -13,11 +13,20 @@
        │       └──╮ ˄ Hide ╭──┘      │       └──╮ ˄ Hide ╭──┘      │
        │    map pane 0  (MAIN)       │        map pane 1           │
        ├─────────────────────────────┴─────────────────────────────┤
-       │                       ╭─ Hide ─╮                          │  OverlayBar pull-tab
-       │  ◉   ⌕   ══ scrubber ══                                   │
+       │                 ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                     │  ONE rail, one tab per tier
+       ├─────────────────┘         └─┘       └─────────────────────┤
+       │  ⌘  ⛶                                    [Isolate State ▾]│  TOOLS tier — raised surface
+       ├───────────────────────────────────────────────────────────┤
+       │  ◉   ⌕   ══ scrubber ══                                   │  BAR tier — the ground
        │  ◉   ⌕  ◀ ▶ ▶  3/10 │ time·site ↺ │⋮  ((•))│⋮   ☁ │⋮   ▤  ⊚  📡  ⚙  │
        │Markers Inspect           PastCast  NowCast  ForeCast  Location Sites Settings │
        └──────────────────────────────────┴────────────────────────┘
+          ↑ TWO TIERS, ONE RAIL. Each tab wears the face of the tier it owns
+            (Tools raised, Bar on the ground) and is named for it, because two
+            lozenges on one rail both reading "Hide" name no difference. The
+            rail is shared because it must be: an OverlayBar draws its tab in
+            row 0 of its own grid, so the lower tier's tab would land in the
+            seam between the two. Both tiers run ShowTab=False.
           ↑ ◉ = show / hide the on-map radar site markers. Lit = showing;
           │   the glyph and tooltip speak for the CLICK (open eye + "Hide
           │   Radar Sites" while they show). Named Markers, not Sites — the
@@ -253,26 +262,41 @@
              columns absorb that and the pills do NOT drift. If the left ever grows past its half it
              simply overlaps rather than pushing; the pills are LAST in markup so they stay on top and
              clickable. ===== -->
-        <!-- ⚠️ THE STRIP AND THE BAR ARE ONE STACK, and that is what makes the strip ride down with
-             the tab. The OverlayBar's own top edge IS its tab's top edge (the tab is its first row), so
-             collapsing the bar shortens this whole panel and the strip travels down with the tab, still
-             visible. Hiding both is two gestures on purpose — the Map key, then the tab.
-             ⚠️ Bottom-aligned, and its row is Auto: the row grows by the strip's height, which costs the
-             MAP nothing, because the WebView spans both rows at full height either way. -->
+        <!-- ⚠️ THE BOTTOM CHROME IS TWO STACKED TIERS UNDER ONE SHARED RAIL, bottom-aligned, and its row
+             is Auto: the row grows by the tools tier's height, which costs the MAP nothing, because the
+             WebView spans both rows at full height either way.
+             ⚠️ THE RAIL IS SHARED BECAUSE IT HAS TO BE. An OverlayBar draws its tab as row 0 of its own
+             grid, directly above its surface — so the lower tier's tab would land in the SEAM between the
+             two tiers, where it can be neither seen nor clicked. Both tiers therefore run ShowTab=False
+             and both tabs sit here, above the stack. Hiding a tier shortens the panel and the rail travels
+             down with it, still reachable. -->
         <StackPanel Grid.Row="1" VerticalAlignment="Bottom">
 
-            <!-- ⚠️ THE NEGATIVE BOTTOM MARGIN IS LOAD-BEARING, not spacing. It pulls the strip DOWN over
-                 the tab so the tab rises through the strip's notch; without it the two merely touch and
-                 the cut reads as a mistake. The number is MapControlsStrip.BarOverlap — the same
-                 arithmetic as the notch's own depth, exposed by the control so the two cannot disagree.
-                 It is applied in code-behind (ApplyStripOverlap): XAML cannot bind a Thickness to a
-                 static. ⚠️ HorizontalAlignment=Center is what lands the notch on the centred tab. -->
-            <comp:MapControlsStrip x:Name="MapControls"
-                                   HorizontalAlignment="Center"
-                                   Visibility="{x:Bind VisibleWhen(ViewModel.IsMapControlsStripVisible), Mode=OneWay}"
-                                   ViewModel="{x:Bind ViewModel}"/>
+            <!-- ⚠️ EACH TAB WEARS THE FACE OF THE TIER IT OWNS — Tools raised, Bar on the ground — and
+                 that colour-keying is what tells two lozenges on one rail apart before either label is
+                 read. The labels are NOUNS for the same reason: two tabs cannot both say "Hide" and name
+                 a difference, so the verb moved into the tooltip.
+                 ⚠️ ORDER MATCHES THE STACK: Tools (the upper tier) left, Bar (the lower) right. -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+                <ctl:OverlayBarTab Target="Tools" Raised="True"
+                                   IsShown="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=TwoWay}"/>
+                <ctl:OverlayBarTab Target="Bar"
+                                   IsShown="{x:Bind BottomBar.IsOverlayBarVisible, Mode=TwoWay}"/>
+            </StackPanel>
 
-            <ctl:OverlayBar>
+            <!-- The UPPER TIER: the map's camera tools, on the raised surface. Its visibility is PERSISTED
+                 (AppSettings.MapControlsStripVisible) — unlike the bar's, which is pure view state — so the
+                 Tools tab two-ways the view-model flag rather than this control's own. -->
+            <ctl:OverlayBar x:Name="MapControlsTier"
+                            ShowTab="False"
+                            IsRaised="True"
+                            IsOverlayBarVisible="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=OneWay}">
+                <ctl:OverlayBar.BarContent>
+                    <comp:MapControlsStrip ViewModel="{x:Bind ViewModel}"/>
+                </ctl:OverlayBar.BarContent>
+            </ctl:OverlayBar>
+
+            <ctl:OverlayBar x:Name="BottomBar" ShowTab="False">
                 <ctl:OverlayBar.BarContent>
                     <Grid ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
@@ -432,7 +456,6 @@
                                 <ColumnDefinition Width="Auto"/> <!-- pane layout (one cycling key) -->
                                 <ColumnDefinition Width="Auto"/> <!-- locate (drop / remove your marker) -->
                                 <ColumnDefinition Width="Auto"/> <!-- site explorer -->
-                                <ColumnDefinition Width="Auto"/> <!-- map controls strip -->
                                 <ColumnDefinition Width="Auto"/> <!-- settings -->
                             </Grid.ColumnDefinitions>
 
@@ -666,39 +689,14 @@
                                                    HorizontalAlignment="Center"/>
                                     </Grid>
                                 </ToggleButton>
-                                <!-- ===== SHOW / HIDE THE MAP CONTROLS STRIP =====
-                                     ⚠️ THE ODD ONE OUT IN THIS CLUSTER: its neighbours latch a real OS WINDOW,
-                                     this latches a strip drawn over the map. It belongs here anyway because it
-                                     is the same GESTURE — a latch you set and leave — and because the strip is
-                                     map chrome, which is what the rest of this cluster governs.
-                                     ⚠️ It is NOT the bar's own pull-tab, and the two must not be conflated: the
-                                     tab collapses the BAR and carries the strip down with it, still visible;
-                                     this key clears the STRIP. Hiding both is this key first, then the tab.
-                                     ⚠️ Named "Map", which does collide with the Settings window's Map TAB.
-                                     Accepted — different surfaces. If it ever confuses anyone, rename THIS one;
-                                     the tab held the name first. -->
-                                <ToggleButton x:Name="MapControlsKey"
-                                              Grid.Column="3"
-                                              Style="{StaticResource BarKeyToggleStyle}"
-                                              ToolTipService.ToolTip="Show/Hide the map controls strip"
-                                              IsChecked="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=TwoWay}">
-                                    <Grid Margin="3,0" RowSpacing="2">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-                                        <FontIcon x:Name="MapControlsGlyph" Grid.Row="0"
-                                                  FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                                  FontSize="{StaticResource BarKeyGlyphSize}"
-                                                  Glyph="&#xE774;"/>
-                                        <TextBlock x:Name="MapControlsName" Grid.Row="1"
-                                                   FontSize="{StaticResource BarKeyNameSize}"
-                                                   Text="Map"
-                                                   HorizontalAlignment="Center"/>
-                                    </Grid>
-                                </ToggleButton>
+                                <!-- ⚠️ THE "Map" KEY IS GONE (it was column 3, glyph E774, latching
+                                     IsMapControlsStripVisible). The map-tools tier now carries its own tab on
+                                     the rail above the bar, which is the same gesture in the place the thing
+                                     actually is — so the key was a second control for one flag, and the one
+                                     further from what it toggles. The FLAG is untouched and still persisted;
+                                     the tab two-ways it. Don't re-add a key for it. -->
                                 <ToggleButton x:Name="SettingsKey"
-                                              Grid.Column="4"
+                                              Grid.Column="3"
                                               Style="{StaticResource BarKeyToggleStyle}"
                                               ToolTipService.ToolTip="Settings — map, radar, storage"
                                               IsChecked="{x:Bind ViewModel.IsSettingsWindowOpen, Mode=TwoWay}">

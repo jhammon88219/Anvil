@@ -1,42 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ============================================================================
      MapControlsStrip — the map's camera tools, ON the map instead of two clicks deep in Settings.
-     A narrow strip floating just above the bottom OverlayBar, notched underneath so the bar's
-     pull-tab passes through it, with the tools flanking the tab.
+     It is the CONTENT of the bottom chrome's upper tier: MainWindow drops it into an OverlayBar
+     (IsRaised, ShowTab=False) that supplies the surface, the hairline and the padding, exactly the
+     way RadarControls is content for the bar below it.
 
-       ┌──────────────────────────────────────────────────────┐
-       │  slack        (⌘) (⛶) │        │  [Isolate State ▾]  │
-       └───────────────────────╯        ╰─────────────────────┘
-        ↑ slack sits on the OUTER ends — both sides grow toward the notch
-                                ╭──────╮
-       ─────────────────────────┘  ˅   └──────────────────   ← the OverlayBar's tab,
-                    the bar (BarContent)                    rising through the notch
+       ╭─ ˅ Tools ─╮ ╭─ ˅ Bar ─╮                                    ← MainWindow's shared rail
+     ──┘           └─┘         └──────────────────────────────────
+       (⌘) (⛶)                                  [Isolate State ▾]   ← THIS, on the raised surface
+     ───────────────────────────────────────────────────────────── ← the hairline between tiers
+       ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
+     ═══════════════════════ window bottom ═══════════════════════
 
-     ⚠️ THE NOTCH IS THE TAB'S OWN OUTLINE PUSHED OUT 6px ON EVERY SIDE — same corner radius, arcs
-     concentric with the tab's. That is why the tab's width/height/radius are SHARED numbers in
-     Controls/Styles.xaml (OverlayBarTabWidth / …Height / …Radius) rather than local to OverlayBar:
-     both controls read them, so the trace cannot drift when the tab is restyled. Hard-code either
-     side and the next tab tweak leaves a notch cut around nothing.
+     ⚠️ IT ALIGNS TO THE BAR'S CLUSTERS, not to itself. Camera tools sit left over Markers/Inspect,
+     the isolation picker sits right over the window keys, and both tiers carry the same 16px side
+     padding so the two rows line up. That alignment is the whole payoff of going full width — it
+     is why the tools do not need a container of their own to look placed.
 
-     ⚠️ IT RIDES DOWN WITH THE BAR AND STAYS VISIBLE. MainWindow stacks it directly above the
-     OverlayBar, so collapsing the bar with the tab carries this down with the tab, tools intact.
-     Clearing BOTH is deliberately two gestures — the "Map" key first, then the tab. Do not make the
-     tab hide this as well; being reachable is the whole point of the strip.
+     ⚠️ HISTORY: this was a content-sized ISLAND that floated above the bar with a NOTCH cut in its
+     underside, so the bar's pull-tab could rise through it. That shape is gone, and with it went a
+     path builder, an equal-sides invariant that was correctness rather than cosmetics, three shared
+     tab constants and a standing rule against ever giving this control a Background. Don't
+     reintroduce the notch: see docs/ui-bottom-bar.md for what it cost and why the tab moved instead.
 
-     ⚠️⚠️ THE TWO SIDE COLUMNS MUST BE EQUAL, and that is CORRECTNESS. The cut is DRAWN at the shell's
-     midpoint; the tool grid RESERVES it as its middle column. Those two coincide only when the sides
-     are equal — uneven sides slide the reserved gap off the drawn cut and a tool sits on the pull-tab.
-     EqualiseSides() in the code-behind holds them equal.
-     ⚠️ STAR COLUMNS CANNOT DO THIS, which the first attempt got wrong: [*, notch, *] equalises only
-     when the grid has spare width to divide, and this strip is CONTENT-sized, so the stars just took
-     their content's width and the sides came out uneven.
-     ⚠️ So the sides may hold different amounts — symmetry is the aim, not a rule — and the lighter
-     side carries the slack. Both panels grow OUTWARD from the notch (left panel right-aligned, right
-     panel left-aligned), so that slack always lands at the strip's OUTER ends, where it reads as
-     margin rather than as a hole beside the tab.
-
-     ⚠️ Its VISIBILITY is PERSISTED (AppSettings.MapControlsStripVisible, via
-     MapViewModel.IsMapControlsStripVisible), unlike the bar's own pull-tab, which is pure view state.
+     ⚠️ ITS HOVER IS THE RAISED PAIR, and that is not a detail. A control resting on the raised
+     surface cannot hover to OverlayBarSurfaceHoverBrush — in dark the raised ground (#141414) is
+     already past it (#1A1A1A), so the hover would be invisible; in light it would go the wrong way.
+     Each tier hovers one step further from its OWN ground.
 
      Host contract: ViewModel (MapViewModel). Add a tool = one Button in either side's panel.
      ============================================================================ -->
@@ -51,9 +41,9 @@
     <UserControl.Resources>
         <!-- A tool button. LOCAL, not in Styles.xaml: this strip is its only consumer, which is that
              file's house rule. Deliberately NOT the bar-key chain — a bar key is a 72px square carrying
-             a mark over a NAME, and a row of those would make this a second bar rather than a strip.
-             Minimal template so it stays opaque in every state and cannot pick up the stock button's
-             chrome. -->
+             a mark over a NAME, and a row of those would make this a second bar rather than a tier of
+             tools. Minimal template so it stays opaque in every state and cannot pick up the stock
+             button's chrome. -->
         <Style x:Key="StripToolButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="32"/>
             <Setter Property="Height" Value="32"/>
@@ -75,7 +65,7 @@
                                     <VisualState x:Name="Normal"/>
                                     <VisualState x:Name="PointerOver">
                                         <VisualState.Setters>
-                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
                                             <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                                         </VisualState.Setters>
                                     </VisualState>
@@ -101,88 +91,52 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
     </UserControl.Resources>
 
-    <!-- ⚠️ NO Background on the root, and there must never be one: the notch has to be a real hole. A
-         background here would hit-test over the tab underneath and swallow the click that hides the bar.
-         Only the Path draws, and a Path hit-tests its filled geometry alone. -->
-    <Grid x:Name="Root" SizeChanged="OnRootSizeChanged" LayoutUpdated="OnToolsLayoutUpdated">
-        <!-- The shell. Its geometry is built in CODE (BuildShellGeometry) because the strip is
-             content-sized and the notch must stay centred as tools are added — a fixed Data string
-             cannot do that. -->
-        <Path x:Name="Shell"
-              Fill="{ThemeResource OverlayBarSurfaceBrush}"
-              Stroke="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-              StrokeThickness="1"/>
+    <!-- ⚠️ NO Background here: the OverlayBar hosting this tier paints the raised surface, and a second
+         opaque fill would be one more place the tier's colour is written. One cell, two children — the
+         tools hug the window edges the bar's own clusters hug. -->
+    <Grid>
+        <!-- Camera tools, LEFT — over the bar's Markers / Inspect keys. -->
+        <StackPanel x:Name="LeftTools"
+                    Orientation="Horizontal" Spacing="4"
+                    HorizontalAlignment="Left" VerticalAlignment="Center">
+            <!-- Reset north — undo a right-drag rotate/tilt. -->
+            <Button Style="{StaticResource StripToolButtonStyle}"
+                    Click="OnResetNorthClick"
+                    ToolTipService.ToolTip="Reset North/Flat">
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE72C;"/>
+            </Button>
 
-        <!-- ⚠️⚠️ THE TWO SIDE COLUMNS MUST BE THE SAME WIDTH, and that is a CORRECTNESS rule, not a
-             cosmetic one. The notch is DRAWN at the Path's midpoint, while this grid RESERVES it as the
-             middle column — the two only coincide when the sides are equal. Unequal sides slide the
-             reserved gap off the drawn cut and a tool lands on the tab (measured: the combo sat on the
-             pull-tab).
-             ⚠️ Star columns do NOT do this here, which is what the first attempt got wrong: the strip is
-             content-sized, so stars have no leftover to split evenly and simply take their content's
-             width. The sides are Auto and EqualiseSides() (code-behind) pushes both to the wider one's
-             MinWidth after each layout pass — self-correcting as tools are added, which a hard-coded
-             width would not be. -->
-        <Grid x:Name="Tools" Margin="7,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="LeftColumn" Width="Auto"/>  <!-- ┐ held equal by  -->
-                <ColumnDefinition x:Name="NotchColumn" Width="108"/>  <!-- │ EqualiseSides() -->
-                <ColumnDefinition x:Name="RightColumn" Width="Auto"/> <!-- ┘                 -->
-            </Grid.ColumnDefinitions>
+            <!-- Fit to view — frame the effective region (isolated state, else CONUS). -->
+            <Button Style="{StaticResource StripToolButtonStyle}"
+                    Click="OnFitToViewClick"
+                    ToolTipService.ToolTip="Fit To View">
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
+            </Button>
+        </StackPanel>
 
-            <!-- ⚠️ BOTH SIDES GROW OUTWARD FROM THE NOTCH: the left panel is RIGHT-aligned so it fills
-                 right-to-left, the right panel is LEFT-aligned so it fills left-to-right. So the tools
-                 always hug the tab and whatever slack the equalised columns carry sits at the strip's
-                 OUTER ends, where it reads as margin instead of as a hole in the middle.
-                 ⚠️ The 15px margins hold both sides OFF the cut — hard against it they crowded the notch's
-                 inner edge and the strip looked mis-cut rather than deliberately shaped. They are mirrored
-                 and must stay equal, or the two sides sit different distances from the tab. -->
-            <StackPanel x:Name="LeftTools"
-                        Grid.Column="0" Orientation="Horizontal" Spacing="4"
-                        Margin="0,0,15,0"
-                        HorizontalAlignment="Right" VerticalAlignment="Center">
-                <!-- Reset north — undo a right-drag rotate/tilt. Same view-model call as the Settings
-                     window's Map tab; that copy stays, this is the reachable one. -->
-                <Button Style="{StaticResource StripToolButtonStyle}"
-                        Click="OnResetNorthClick"
-                        ToolTipService.ToolTip="Reset North/Flat">
-                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE72C;"/>
-                </Button>
-
-                <!-- Fit to view — frame the effective region (isolated state, else CONUS). -->
-                <Button Style="{StaticResource StripToolButtonStyle}"
-                        Click="OnFitToViewClick"
-                        ToolTipService.ToolTip="Fit To View">
-                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
-                </Button>
-            </StackPanel>
-
-            <!-- ===== STATE ISOLATION — THREE CONTROLS COLLAPSED INTO ONE LIST =====
-                 It replaced the Settings window's Map tab CONUS checkbox, its "isolate a state (hover &
-                 click)" arm checkbox, and its state-name combo. One row each: No Isolation / Isolate CONUS /
-                 Select to Isolate, then the 52 places.
-                 ⚠️ "Select to Isolate" ARMS the map — it is a MODE, not a resting choice. Hovering a state
-                 then highlights it, and the click reports back through states.js, at which point the combo
-                 re-resolves and reads that state's name. Armed-with-nothing-picked keeps reading "Select to
-                 Isolate", which is honest: the map is visibly in hover mode.
-                 ⚠️ The PLACEHOLDER shows when nothing is masked at all, because SelectedIsolationOption is
-                 NULL there — "No Isolation" is a row you pick, not a row the picker rests in.
-                 ⚠⚠ IT IS Primitives/IsolationComboBox, NOT A ComboBox, FOR A CORRECTNESS REASON — a closed
-                 WinUI ComboBox cycles its selection on the MOUSEWHEEL, and rolling it here froze the map
-                 outright. See that control's header; don't swap it back. -->
-            <StackPanel x:Name="RightTools"
-                        Grid.Column="2" Orientation="Horizontal" Spacing="4"
-                        Margin="15,0,0,0"
-                        HorizontalAlignment="Left" VerticalAlignment="Center">
-                <prim:IsolationComboBox Width="170"
-                                        PlaceholderText="Isolate State"
-                                        ItemsSource="{x:Bind ViewModel.StateIso.IsolationOptions, Mode=OneWay}"
-                                        SelectedItem="{x:Bind ViewModel.StateIso.SelectedIsolationOption, Mode=TwoWay}"
-                                        ToolTipService.ToolTip="Mask the map down to CONUS or a single state"/>
-            </StackPanel>
-        </Grid>
+        <!-- ===== STATE ISOLATION — THREE CONTROLS COLLAPSED INTO ONE LIST =====
+             RIGHT, over the bar's window keys. It replaced the Settings window's Map tab CONUS checkbox,
+             its "isolate a state (hover & click)" arm checkbox, and its state-name combo. One row each:
+             No Isolation / Isolate CONUS / Select to Isolate, then the 52 places.
+             ⚠️ "Select to Isolate" ARMS the map — it is a MODE, not a resting choice. Hovering a state
+             then highlights it, and the click reports back through states.js, at which point the combo
+             re-resolves and reads that state's name. Armed-with-nothing-picked keeps reading "Select to
+             Isolate", which is honest: the map is visibly in hover mode.
+             ⚠️ The PLACEHOLDER shows when nothing is masked at all, because SelectedIsolationOption is
+             NULL there — "No Isolation" is a row you pick, not a row the picker rests in.
+             ⚠⚠ IT IS Primitives/IsolationComboBox, NOT A ComboBox, FOR A CORRECTNESS REASON — a closed
+             WinUI ComboBox cycles its selection on the MOUSEWHEEL, and rolling it here froze the map
+             outright. See that control's header; don't swap it back. -->
+        <StackPanel x:Name="RightTools"
+                    Orientation="Horizontal" Spacing="4"
+                    HorizontalAlignment="Right" VerticalAlignment="Center">
+            <prim:IsolationComboBox Width="170"
+                                    PlaceholderText="Isolate State"
+                                    ItemsSource="{x:Bind ViewModel.StateIso.IsolationOptions, Mode=OneWay}"
+                                    SelectedItem="{x:Bind ViewModel.StateIso.SelectedIsolationOption, Mode=TwoWay}"
+                                    ToolTipService.ToolTip="Mask the map down to CONUS or a single state"/>
+        </StackPanel>
     </Grid>
 </UserControl>

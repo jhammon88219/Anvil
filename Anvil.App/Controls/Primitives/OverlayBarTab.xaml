@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ============================================================================
+     OverlayBarTab — ONE pull-tab lozenge: the flat-bottomed tab that reads as attached to the
+     surface it toggles, with the chevron that inverts with its state. It is chrome only; it
+     owns no surface of its own beyond its own face.
+
+     It exists as its own control because there are now TWO kinds of host: an OverlayBar that
+     draws ONE tab for itself (the four pane notches), and MainWindow's bottom RAIL, which draws
+     TWO side by side for the two tiers stacked beneath it. One tab, one definition.
+
+       Edge=Bottom (the rail, and every bar)        Edge=Top (a pane notch)
+
+              ╭── ˅ Hide ──╮                        ═══════ pane top ══════
+         ─────┘            └─────                   ──────╮ ˄ Hide ╭───────
+           the surface below it                           ╰────────╯
+
+     ⚠️ THE LAP IS LOAD-BEARING, not spacing. The tab's inner edge is borderless and laps -2px
+     over the host surface's hairline, so the two merge into ONE line that wraps AROUND the tab
+     rather than running across its foot. -2 and not -1: at fractional scales a 1px lap left a
+     subpixel sliver of the host's border showing under the tab.
+
+     ⚠️ TWO LABEL MODES, and which one you get depends on how many tabs share the rail.
+     Target empty  → the tab reads the VERB ("Hide" / "Show"). Right when the tab is alone above
+                     its surface, because the surface is obvious and the action is the question.
+     Target set    → the tab reads that NOUN ("Tools", "Bar") and the verb moves into the tooltip.
+                     Required the moment two tabs sit on one rail: two lozenges both reading
+                     "Hide" name no difference between themselves.
+
+     ⚠️ RAISED IS THE FACE, NOT THE GEOMETRY. A tab belonging to a raised tier wears that tier's
+     surface, so it reads as a piece of it; the ground-surface tab beside it then reads as a
+     window down onto the tier below. That colour-keying is what lets two tabs on one rail be
+     told apart before either label is read — so if the tiers ever stop differing in surface,
+     the labels are carrying it alone.
+     ============================================================================ -->
+<UserControl x:Class="Anvil.Controls.Primitives.OverlayBarTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- A minimal template, so the tab stays fully OPAQUE in every state: the stock Button
+             template layers translucent overlays for hover/press, and a translucent pull-tab over a
+             moving map is unreadable. Rest/hover are explicit opaque colours and nothing else.
+
+             ⚠️ TWO VisualStateGroups drive the face and they must keep targeting DIFFERENT
+             properties: CommonStates (the Button's own, free) flips the HOVER overlay's opacity,
+             SurfaceStates (driven from code by Raised) re-points the RESTING background. Have both
+             write Root.Background and the winner is whichever ran last — which is the state you are
+             not thinking about.
+             ⚠️ The hover fill is an overlay Border rather than a background swap for that reason
+             alone: it keeps the two groups off each other's property. -->
+        <Style x:Key="TabShellStyle" TargetType="Button">
+            <Setter Property="Background" Value="{ThemeResource OverlayBarSurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <!-- No Padding / BorderThickness / CornerRadius / Margin setters: ApplyChrome owns all
+                 four, because every one of them depends on Edge or ShowLabel. -->
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="Root"
+                              Background="{TemplateBinding Background}"
+                              BorderBrush="{TemplateBinding BorderBrush}"
+                              BorderThickness="{TemplateBinding BorderThickness}"
+                              CornerRadius="{TemplateBinding CornerRadius}"
+                              Padding="{TemplateBinding Padding}">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="HoverFace.Opacity" Value="1"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="HoverFace.Opacity" Value="1"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled"/>
+                                </VisualStateGroup>
+
+                                <!-- Which tier's surface this tab belongs to. Driven from code by the
+                                     Raised property. ⚠️ The brushes are {ThemeResource} IN A SETTER on
+                                     purpose: a C# resource lookup resolves against the OS theme, not
+                                     the theme the app pinned on its root, and hands back the other
+                                     theme's colour. See the theming note in CLAUDE.md. -->
+                                <VisualStateGroup x:Name="SurfaceStates">
+                                    <VisualState x:Name="GroundSurface"/>
+                                    <VisualState x:Name="RaisedSurface">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+                                            <Setter Target="HoverFace.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+
+                            <Border x:Name="HoverFace"
+                                    Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                                    CornerRadius="{TemplateBinding CornerRadius}"
+                                    Opacity="0"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Content="{TemplateBinding Content}"
+                                              Foreground="{TemplateBinding Foreground}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Button x:Name="TabButton"
+            Style="{StaticResource TabShellStyle}"
+            Click="OnTabClick"
+            ToolTipService.ToolTip="{x:Bind Tooltip(IsShown, Target), Mode=OneWay}">
+        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <FontIcon Glyph="{x:Bind Chevron(IsShown, Edge), Mode=OneWay}"
+                      FontSize="14"
+                      VerticalAlignment="Center"/>
+            <TextBlock Text="{x:Bind Word(IsShown, Target), Mode=OneWay}"
+                       Visibility="{x:Bind VisibleWhen(ShowLabel), Mode=OneWay}"
+                       FontSize="15"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
+    </Button>
+</UserControl>

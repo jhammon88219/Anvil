@@ -1,23 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ============================================================================
-     OverlayBar — a CHROME-ONLY shell: the centered show/hide pull-tab, the theme-aware
-     surface + hairline border (wrapping the tab), and the collapse behavior. It is a content
-     slot: the host fills BarContent with the actual controls, so section content is composed
-     by the host, never here.
+     OverlayBar — a CHROME-ONLY shell: a theme-aware surface with a hairline border along the edge
+     it attaches to, an optional show/hide pull-tab, and the collapse behavior. It is a content
+     slot: the host fills BarContent with the actual controls, so section content is composed by
+     the host, never here.
 
-     TWO SHAPES, ONE CONTROL. Three plain DPs move the geometry and nothing else — Edge
-     (which side the tab hangs off), IsIsland (does it span the host edge to edge, or is it a
+     TWO SHAPES, ONE CONTROL. Plain DPs move the geometry and the face; nothing else changes.
+     Edge (which side the tab hangs off), IsIsland (does it span the host edge to edge, or is it a
      centred island that must draw its own left/right edges), ShowTabLabel (word beside the
-     chevron, or chevron alone). Every combination keeps the same surface, the same hairline
-     rule and the same collapse, which is the whole reason there is not a second copy of this
-     file for the notch. See the class remarks in the code-behind.
+     chevron, or chevron alone), ShowTab (does it draw a tab AT ALL), IsRaised (which tier's
+     surface it wears). Every combination keeps the same surface, the same hairline rule and the
+     same collapse, which is the whole reason there is not a second copy of this file for the
+     notch. See the class remarks in the code-behind.
 
-       Edge=Bottom, IsIsland=False — THE APP'S ONE BAR (MainWindow, full width)
+       Edge=Bottom, IsIsland=False — A FULL-WIDTH TIER OF THE BOTTOM CHROME
 
          …map, full height, showing through…
                               ╭── ˅ Hide ──╮                      ← the pull-tab, centered
        ───────────────────────┘            └───────────────────── ← ONE hairline: it runs along
-                                                                    the bar's top edge and wraps
+                                                                    the tier's top edge and wraps
              BarContent — the HOST fills this slot                  AROUND the tab, never across
        ══════════════════════ window bottom ═══════════════════════
 
@@ -30,15 +31,15 @@
                             ╰─────────╯              bottom corners rounded, tab BELOW.
             …the pane's map, showing through either side…
 
-     ⚠️ THE NOTCH TAB IS THE SAME TAB AS THE BAR'S — labelled, and the same fixed size, because
-     one control drawing two differently-shaped tabs reads as an inconsistency rather than as a
-     variant. It was chevron-only and content-sized (ShowTabLabel=False): the word was dropped on
-     the grounds that four tabs reading "Hide" across the top of the map is noise, but the result
-     was a tab a third the width and a few px shorter than the bar's, wearing the same 7px corner
-     radius at a much smaller scale — so it read as rounder, not smaller. Matching won.
-     ⚠️ ShowTabLabel therefore has NO false consumer today. It is kept because it is the only knob
-     that says a tab may be wordless; delete it and the chevron-only shape has to be rebuilt from
-     scratch to try again. If it is still unused next time this file is opened, delete it.
+     ⚠️ THE TAB IS Primitives/OverlayBarTab, not drawn here, because it has a SECOND host: the
+     bottom chrome is TWO of these stacked (map tools over the bar) and a tab drawn in row 0 of the
+     lower one would land in the SEAM between them, unreachable. So MainWindow puts both tabs on
+     one rail above the stack and both tiers run ShowTab=False. One tab, one definition, two kinds
+     of host.
+     ⚠️ CONSEQUENCE: with ShowTab=False this control does not own its own show/hide gesture — the
+     rail's tab drives IsOverlayBarVisible from outside. The four pane notches are unaffected: they
+     each still draw their own tab and own their own state, which is what gives them four
+     independent toggles with no view-model plumbing at all.
 
      Hidden, only the tab remains (it reads "Show") and the bar Border collapses — the map is
      never resized either way, in either shape.
@@ -46,90 +47,43 @@
      It renders as an OVERLAY: the host places it over the full-height map, so showing/hiding
      never resizes the map. The control's own backdrop is transparent — only the tab and the
      bar draw — so the map shows through beside them.
-
-     The show/hide state (IsOverlayBarVisible) is pure view state and lives on this control,
-     not on a view model — which is exactly what gives the four pane notches four independent
-     hide toggles with no view-model plumbing at all.
      ============================================================================ -->
 <UserControl x:Class="Anvil.Controls.Primitives.OverlayBar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <UserControl.Resources>
-        <ResourceDictionary>
-            <!-- The opaque surface + hover brushes (OverlayBarSurfaceBrush / …HoverBrush) are defined
-                 app-wide in Controls/Styles.xaml so the app-wide windows can share them; they
-                 resolve here via ThemeResource and follow the Win11 light/dark setting at runtime. -->
-
-            <!-- The centered pull-tab: a flat-bottomed tab that reads as attached to the bar's top edge
-                 (bottom border omitted; the negative bottom margin laps over the bar's top border so the two merge).
-                 A minimal template keeps it fully opaque in every state — no default-template overlay can
-                 introduce translucency; hover/press only swap to an explicit opaque color. -->
-            <Style x:Key="OverlayBarTabStyle" TargetType="Button">
-                <Setter Property="Background" Value="{ThemeResource OverlayBarSurfaceBrush}"/>
-                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                <Setter Property="BorderThickness" Value="1,1,1,0"/>
-                <Setter Property="CornerRadius" Value="7,7,0,0"/>
-                <!-- No Padding setter: ApplyChrome owns it, because it depends on ShowTabLabel. -->
-                <!-- Lap the tab's (borderless) bottom over the bar's 1px top border so the two merge into
-                     one hairline that wraps the tab — with no border line showing across the tab bottom.
-                     -2 (not -1) so the opaque tab body fully covers the bar's top border across DPI scales
-                     (a 1px lap left a subpixel sliver of the border visible under the tab). -->
-                <Setter Property="Margin" Value="0,0,0,-2"/>
-                <Setter Property="HorizontalAlignment" Value="Center"/>
-                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Grid x:Name="Root"
-                                  Background="{TemplateBinding Background}"
-                                  BorderBrush="{TemplateBinding BorderBrush}"
-                                  BorderThickness="{TemplateBinding BorderThickness}"
-                                  CornerRadius="{TemplateBinding CornerRadius}"
-                                  Padding="{TemplateBinding Padding}">
-                                <VisualStateManager.VisualStateGroups>
-                                    <VisualStateGroup x:Name="CommonStates">
-                                        <VisualState x:Name="Normal"/>
-                                        <VisualState x:Name="PointerOver">
-                                            <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
-                                            </VisualState.Setters>
-                                        </VisualState>
-                                        <VisualState x:Name="Pressed">
-                                            <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
-                                            </VisualState.Setters>
-                                        </VisualState>
-                                        <VisualState x:Name="Disabled"/>
-                                    </VisualStateGroup>
-                                </VisualStateManager.VisualStateGroups>
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                  Content="{TemplateBinding Content}"
-                                                  Foreground="{TemplateBinding Foreground}"/>
-                            </Grid>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
-        </ResourceDictionary>
-    </UserControl.Resources>
-
     <!-- Transparent root: only the tab + bar draw, so the map shows through beside the tab.
          This control is ONLY the chrome (tab + bar). Nothing floats above it in-window: every app-wide
-         panel (the three temporal windows, App Settings, Map Controls, Site Explorer, the Pipeline Console,
-         the dev tools) is a real top-level OS window owned by WindowManager. -->
+         panel (the three temporal windows, App Settings, Site Explorer, the Pipeline Console) is a real
+         top-level OS window owned by WindowManager. -->
     <Grid>
+        <VisualStateManager.VisualStateGroups>
+            <!-- Which tier's surface this bar wears. Driven from code by IsRaised.
+                 ⚠️ A {ThemeResource} IN A SETTER, never a C# resource lookup: a lookup resolves against
+                 the OS theme rather than the theme the app pinned on its root element, and hands back the
+                 other theme's brush. See the theming gotcha in CLAUDE.md. -->
+            <VisualStateGroup x:Name="SurfaceStates">
+                <VisualState x:Name="GroundSurface"/>
+                <VisualState x:Name="RaisedSurface">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.Background" Value="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- pull-tab -->
             <RowDefinition Height="Auto"/> <!-- overlay bar (collapses when hidden) -->
         </Grid.RowDefinitions>
 
-        <!-- The bar itself: a content slot the host fills (see BarContent). Collapses when hidden. Its top
-             border + the tab's left/top/right border (below) share ONE brush and merge where the tab meets
-             the bar, so the hairline runs along the bar top and wraps AROUND the tab (never through it). -->
+        <!-- The bar itself: a content slot the host fills (see BarContent). Collapses when hidden. Its
+             hairline and the tab's three-sided border share ONE brush and merge where the two meet, so the
+             line runs along the bar's edge and wraps AROUND the tab (never through it). -->
         <Border x:Name="BarBorder"
                 Grid.Row="1"
                 Background="{ThemeResource OverlayBarSurfaceBrush}"
@@ -141,28 +95,11 @@
                               Content="{x:Bind BarContent, Mode=OneWay}"/>
         </Border>
 
-        <!-- Centered pull-tab: reads Hide (bar showing) / Show (bar hidden). A flat-bottomed tab with a
-             left/top/right border (OverlayBarTabStyle) that laps -1px over the bar's top border, so the
-             two merge into one hairline that wraps around the tab. -->
-        <Button x:Name="TabButton"
-                Grid.Row="0"
-                Style="{StaticResource OverlayBarTabStyle}"
-                Click="OnToggleOverlayBarClick"
-                ToolTipService.ToolTip="{x:Bind ToggleTooltip(IsOverlayBarVisible), Mode=OneWay}">
-            <StackPanel Orientation="Horizontal"
-                        Spacing="6"
-                        VerticalAlignment="Center">
-                <FontIcon Glyph="{x:Bind ToggleGlyph(IsOverlayBarVisible), Mode=OneWay}"
-                          FontSize="14"
-                          VerticalAlignment="Center"/>
-                <!-- The word is optional (ShowTabLabel), but nothing turns it off today — both shapes
-                     label their tab, so the notch tab and the bar tab are the same tab. The tooltip
-                     carries the wording either way. See the ⚠️ in the header. -->
-                <TextBlock Text="{x:Bind ToggleLabel(IsOverlayBarVisible), Mode=OneWay}"
-                           Visibility="{x:Bind VisibleWhen(ShowTabLabel), Mode=OneWay}"
-                           FontSize="15"
-                           VerticalAlignment="Center"/>
-            </StackPanel>
-        </Button>
+        <!-- The pull-tab. Collapsed entirely when the host owns the tab instead (ShowTab=False, which is
+             how the bottom chrome stacks two of these under one shared rail). -->
+        <prim:OverlayBarTab x:Name="Tab"
+                            Grid.Row="0"
+                            IsShown="{x:Bind IsOverlayBarVisible, Mode=TwoWay}"
+                            ShowLabel="{x:Bind ShowTabLabel, Mode=OneWay}"/>
     </Grid>
 </UserControl>
