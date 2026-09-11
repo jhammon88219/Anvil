@@ -84,8 +84,10 @@ def three_letter(icao):
     return icao.strip().upper()[-3:]
 
 
-def list_keys(site3, day):
-    prefix = f"{site3}_{PRODUCT}_{day:%Y_%m_%d}_"
+def list_keys(site3, day, product=None):
+    """Level III keys for one site/day/product. `product` defaults to this tool's N0K; the dual-pol
+    scorecard passes N0C / N0X through the same plumbing."""
+    prefix = f"{site3}_{product or PRODUCT}_{day:%Y_%m_%d}_"
     url = f"{BUCKET}?list-type=2&prefix={urllib.parse.quote(prefix)}&max-keys=1000"
     with urllib.request.urlopen(url, timeout=60) as r:
         root = ET.fromstring(r.read())
@@ -99,15 +101,16 @@ def list_keys(site3, day):
     return out
 
 
-def fetch_nearest(icao, when):
-    """The N0K product nearest `when`, or None. A volume near 00Z can be filed under the previous day."""
+def fetch_nearest(icao, when, product=None):
+    """The Level III product nearest `when`, or None. A volume near 00Z can be filed under the
+    previous day, so both are listed."""
     site3 = three_letter(icao)
     keys = []
     for day in (when.date() - datetime.timedelta(days=1), when.date()):
         try:
-            keys += list_keys(site3, day)
+            keys += list_keys(site3, day, product)
         except Exception as e:
-            print(f"    listing failed for {site3} {day}: {type(e).__name__}: {e}")
+            print(f"    listing failed for {site3} {day} {product or PRODUCT}: {type(e).__name__}: {e}")
     if not keys:
         return None, None
     key, stamp = min(keys, key=lambda kv: abs((kv[1] - when).total_seconds()))
@@ -205,10 +208,18 @@ def our_kdp(radar, short_dbz):
 # ---------------------------------------------------------------- main
 
 def volume_time(path):
-    """KILX_20260812_010848.V06 -> datetime. The corpus filenames carry the volume stamp."""
-    base = os.path.basename(path)
-    parts = base.split("_")
-    return parts[0], datetime.datetime.strptime(parts[1] + parts[2].split(".")[0], "%Y%m%d%H%M%S")
+    """KILX_20260812_010848.V06 -> (ICAO, datetime), or (None, None) if the name isn't in that form.
+
+    ⚠️ Returns rather than throws: the corpus directory is a working folder and a stray file (a
+    half-minted extraction, say) should skip that row, not abort the whole run partway through the table.
+    """
+    parts = os.path.basename(path).split("_")
+    if len(parts) < 3:
+        return None, None
+    try:
+        return parts[0], datetime.datetime.strptime(parts[1] + parts[2].split(".")[0], "%Y%m%d%H%M%S")
+    except ValueError:
+        return None, None
 
 
 def main():
@@ -237,6 +248,9 @@ def main():
     for path in files:
         name = os.path.basename(path)
         icao, when = volume_time(path)
+        if icao is None:
+            print(f"{name:<26} SKIP (filename is not SITE_YYYYMMDD_HHMMSS.V06)")
+            continue
         try:
             radar = pyart.io.read_nexrad_archive(path)
         except Exception as e:

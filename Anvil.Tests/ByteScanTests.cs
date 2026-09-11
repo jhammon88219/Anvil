@@ -1,4 +1,6 @@
 ﻿using System.Text;
+using System;
+using System.IO;
 using Anvil.Services;
 using Xunit;
 
@@ -110,6 +112,62 @@ namespace Anvil.Tests
 		{
 			Assert.True(Level2Format.IsKnownVcp(vcp), $"VCP {vcp} is deployed but unknown — the tilt list "
 				+ "will come back empty on any site running it.");
+		}
+
+		// ── Message 5 elevation-table parse, against REAL BYTES ────────────────────────────────────
+		// ⚠️ Each fixture is the 24-byte AR2V header + the single Message 5 record lifted out of a
+		// committed corpus volume. Synthetic bytes would only confirm our own reading of the format —
+		// the same reasoning that put a real Level III product in Fixtures/. They are ~2.4 KB because
+		// the table walk checks every record's type, so a one-record block is found on the first stride.
+		//
+		// What this pins: the OFFSETS AND STRIDE (pattern_number at body+4, num_elevations at body+6, a
+		// 22-byte header, 46-byte per-cut blocks, angle = raw/8*0.043945) and the collapsing rule that
+		// turns designed cuts into the tilt list the picker shows. ⚠️ Those offsets were verified against
+		// other open-source parsers, NOT a verbatim ICD table — the commissioned research could not
+		// extract it. Real bytes with a known answer are the strongest check available here, and a stride
+		// or encoding regression moves these angles immediately.
+		// ⚠️ THREE PATTERNS ON PURPOSE: clear-air 35 (9 tilts), precip 212 (14) and precip 215 (15). One
+		// VCP would not catch a stride bug that happens to land right on a 14-cut table.
+		private static byte[] Fixture(string name) =>
+			File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", name));
+
+		[Theory]
+		[InlineData("level2-msg5-vcp35.bin", 35)]
+		[InlineData("level2-msg5-vcp212.bin", 212)]
+		[InlineData("level2-msg5-vcp215.bin", 215)]
+		public void ScanModeParsesFromRealVolumes(string fixture, int expectedVcp)
+		{
+			var (vcp, _) = Level2Format.ReadModeFromExtractedTilt(Fixture(fixture));
+			Assert.Equal(expectedVcp, vcp);
+			Assert.True(Level2Format.IsKnownVcp(vcp));
+		}
+
+		[Fact]
+		public void ElevationTableParsesFromARealClearAirVolume()
+		{
+			// VCP 35's 14 designed cuts collapse to 9 distinct tilts: the split cuts repeat an angle.
+			var angles = Level2Format.ReadElevationAnglesFromExtractedTilt(Fixture("level2-msg5-vcp35.bin"));
+			Assert.Equal(new[] { 0.31f, 0.88f, 1.27f, 1.8f, 2.42f, 3.08f, 4.0f, 5.1f, 6.42f }, angles);
+		}
+
+		[Fact]
+		public void ElevationTableParsesFromARealVcp212Volume()
+		{
+			// 19 designed cuts -> 14 distinct: the split cuts AND the SAILS re-scan each repeat an angle
+			// already in the list, which is exactly what ReadElevationAngles exists to collapse.
+			var angles = Level2Format.ReadElevationAnglesFromExtractedTilt(Fixture("level2-msg5-vcp212.bin"));
+			Assert.Equal(new[] { 0.48f, 0.88f, 1.27f, 1.8f, 2.42f, 3.08f, 4.0f, 5.1f, 6.42f,
+								 8.0f, 10.02f, 12.48f, 15.6f, 19.51f }, angles);
+		}
+
+		[Fact]
+		public void ElevationTableParsesFromARealVcp215Volume()
+		{
+			// 215 differs from 212 in the UPPER tilts (12.0/14.02/16.7 against 12.48/15.6), which is what
+			// makes it worth a second precip fixture rather than a duplicate.
+			var angles = Level2Format.ReadElevationAnglesFromExtractedTilt(Fixture("level2-msg5-vcp215.bin"));
+			Assert.Equal(new[] { 0.48f, 0.88f, 1.27f, 1.8f, 2.42f, 3.08f, 4.0f, 5.1f, 6.42f,
+								 8.0f, 10.02f, 12.0f, 14.02f, 16.7f, 19.51f }, angles);
 		}
 
 		/// <summary>

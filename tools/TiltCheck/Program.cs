@@ -14,9 +14,16 @@ using System.Text;
 using System.Xml.Linq;
 using Anvil.Services;
 
-var site = args.Length > 0 ? args[0].ToUpperInvariant() : "KTLX";
-var day = args.Length > 1 ? args[1] : DateTime.UtcNow.ToString("yyyy/MM/dd");
-var atTime = args.Length > 2 ? args[2] : null;
+var positional = args.TakeWhile(a => !a.StartsWith("--")).ToArray();
+var site = positional.Length > 0 ? positional[0].ToUpperInvariant() : "KTLX";
+var day = positional.Length > 1 ? positional[1] : DateTime.UtcNow.ToString("yyyy/MM/dd");
+var atTime = positional.Length > 2 ? positional[2] : null;
+// --out <path>: write the extracted base tilt to disk. This is how a volume is MINTED FOR THE CORPUS
+// (Anvil.App/Assets/RadarCorpus/) — the corpus holds our own single-tilt extractions, not raw archive
+// volumes, so it has to come out of this exact code path or it would not be the bytes the app decodes.
+var outPath = Array.FindIndex(args, a => a == "--out") is var oi && oi >= 0 && oi + 1 < args.Length
+    ? args[oi + 1]
+    : null;
 
 var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
 const string bucket = "https://unidata-nexrad-level2.s3.amazonaws.com/";
@@ -70,6 +77,11 @@ if (baseTilt is null)
     return 1;
 }
 Console.WriteLine($"base tilt (existing path): {baseTilt.Length / (1024.0 * 1024.0):0.00} MB, complete={baseComplete}");
+if (outPath is not null)
+{
+    File.WriteAllBytes(outPath, baseTilt);
+    Console.WriteLine($"wrote {outPath} ({baseTilt.Length:N0} bytes)");
+}
 
 // ---- the designed tilt table, read from the base tilt's carried metadata ---------------------
 var failuresEarly = 0;

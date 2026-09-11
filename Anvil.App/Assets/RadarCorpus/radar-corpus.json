@@ -6,6 +6,7 @@
     { "id": "KCBX-145302", "file": "KCBX_20260720_145302.V06", "name": "Boise (residual at-Nyquist)",   "lat": 43.4908, "lon": -116.2344, "expectedPct": 0.7, "tolerancePct": 2.0, "dualPol": { "cc": 0.79, "zdr": 1.33, "sw": 3.14 } },
     { "id": "KGRB-153535", "file": "KGRB_20260720_153535.V06", "name": "Green Bay (residual at-Nyquist)", "lat": 44.4983, "lon": -88.1111, "expectedPct": 0.0, "tolerancePct": 2.0, "dualPol": { "cc": 0.90, "zdr": 0.83, "sw": 3.29 } },
     { "id": "KIWA-145829", "file": "KIWA_20260720_145829.V06", "name": "Phoenix (residual at-Nyquist)",   "lat": 33.2892, "lon": -111.6692, "expectedPct": 0.0, "tolerancePct": 2.0, "dualPol": { "cc": 0.74, "zdr": 3.61, "sw": 3.18 } },
+    { "id": "KMLB-200222", "file": "KMLB_20260905_200222.V06", "name": "Melbourne FL 2026-09-05 CONVECTIVE - the corpus's only volume with real KDP cores (2,423 gates at |N0K| >= 1.0 vs 7 on KGRB). BASELINES UNSEEDED: reconcile expectedPct on the first in-app Validate run, per docs/radar-validation.md.", "lat": 28.1131, "lon": -80.6544, "expectedPct": 0.0, "tolerancePct": 2.0 },
     { "id": "KILX-010848", "file": "KILX_20260812_010848.V06", "name": "Lincoln IL (over-unfold suspect 2026-08-12: low-Nyquist 24.7 m/s, ~10k fragmented regions, default anchored +91 m/s)", "lat": 40.1506, "lon": -89.3367, "expectedPct": 5.8, "tolerancePct": 2.0 }
   ]
 }
