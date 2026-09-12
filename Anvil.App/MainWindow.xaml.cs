@@ -7,6 +7,7 @@ using Microsoft.Web.WebView2.Core;
 using Anvil.Models;
 using Anvil.Services;
 using Anvil.Controls.Composites;
+using Anvil.Controls.Primitives;   // BarEdgeStyle, for the bar's runtime edge swap
 using Anvil.ViewModels;
 using Anvil.Dialogs;
 using System;
@@ -40,6 +41,17 @@ namespace Anvil
 		// NOTE: ApplyStripOverlap is gone. The map-controls strip used to be an island hung over the bar's
 		// pull-tab by a negative margin, so the tab could rise through a notch cut in its underside; it is a
 		// full-width tier now and the tabs sit on a rail above both tiers. docs/ui-bottom-bar.md.
+
+		// ⚠️ WHICH EDGE THE BAR WEARS DEPENDS ON WHETHER THE TOOLS TIER IS THERE, and nothing else in the
+		// app moves EdgeStyle at runtime. With the tier showing, the bar sits UNDER it and receives its
+		// shadow; hide the tier and the bar is suddenly the top of the assembly with the map above it, so
+		// it has to cast one instead. Getting this wrong is not subtle in either direction: an inset band
+		// with nothing above it is a smudge along the bar's top edge, and a cast band under a tier would
+		// push the two apart and show map through the gap.
+		private void ApplyBarEdgeStyle() =>
+			BottomBar.EdgeStyle = ViewModel.IsMapControlsStripVisible
+				? BarEdgeStyle.InsetShadow
+				: BarEdgeStyle.CastShadow;
 
 		// NOTE: DevVisibility is gone. It existed to collapse the dev bar key in Release; there is no dev key
 		// any more — the dev tools are a tab of the Settings window, and SettingsWindow omits that tab from
@@ -486,7 +498,10 @@ namespace Anvil
 			ViewModel.PropertyChanged += (_, e) =>
 			{
 				if (e.PropertyName == nameof(MapViewModel.SelectedTheme)) ApplyAppTheme();
+				if (e.PropertyName == nameof(MapViewModel.IsMapControlsStripVisible)) ApplyBarEdgeStyle();
 			};
+
+			ApplyBarEdgeStyle();
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs
 			// THE TITLE BAR block above). Hooked straight after InitializeComponent so the very first layout

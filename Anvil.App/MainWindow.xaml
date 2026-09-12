@@ -13,14 +13,22 @@
        │       └──╮ ˄ Hide ╭──┘      │       └──╮ ˄ Hide ╭──┘      │
        │    map pane 0  (MAIN)       │        map pane 1           │
        ├─────────────────────────────┴─────────────────────────────┤
+       │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  …thrown UP onto the map
        │                 ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                     │  ONE rail, one tab per tier
-       ├─────────────────┘         └─┘       └─────────────────────┤
        │  ⌘  ⛶                                    [Isolate State ▾]│  TOOLS tier — raised surface
-       ├───────────────────────────────────────────────────────────┤
+       │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  │  …and DOWN onto the bar
        │  ◉   ⌕   ══ scrubber ══                                   │  BAR tier — the ground
        │  ◉   ⌕  ◀ ▶ ▶  3/10 │ time·site ↺ │⋮  ((•))│⋮   ☁ │⋮   ▤  ⊚  📡  ⚙  │
        │Markers Inspect           PastCast  NowCast  ForeCast  Location Sites Settings │
        └──────────────────────────────────┴────────────────────────┘
+          ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
+            is drawn by whichever side owns it: the tools tier throws its own up
+            onto the map, and the BAR draws the band it receives from the tier
+            above it. Same treatment on all four pane notches, on three sides.
+            OverlayBar.EdgeStyle picks per instance, because only the host knows
+            what is beyond a given edge. ⚠️ The bar's value MOVES at runtime: hide
+            the tools tier and the bar is suddenly the top of the stack, so it
+            starts casting instead of receiving (MainWindow.ApplyBarEdgeStyle).
           ↑ TWO TIERS, ONE RAIL. Each tab wears the face of the tier it owns
             (Tools raised, Bar on the ground) and is named for it, because two
             lozenges on one rail both reading "Hide" name no difference. The
@@ -184,6 +192,7 @@
             <ctl:OverlayBar x:Name="Notch0" Edge="Top"
                             IsIsland="True"
                             ShowTabLabel="True"
+                            EdgeStyle="CastShadow"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
                             Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane0.IsVisible), Mode=OneWay}"
@@ -201,6 +210,7 @@
             <ctl:OverlayBar x:Name="Notch1" Edge="Top"
                             IsIsland="True"
                             ShowTabLabel="True"
+                            EdgeStyle="CastShadow"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
                             Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane1.IsVisible), Mode=OneWay}"
@@ -218,6 +228,7 @@
             <ctl:OverlayBar x:Name="Notch2" Edge="Top"
                             IsIsland="True"
                             ShowTabLabel="True"
+                            EdgeStyle="CastShadow"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
                             Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane2.IsVisible), Mode=OneWay}"
@@ -235,6 +246,7 @@
             <ctl:OverlayBar x:Name="Notch3" Edge="Top"
                             IsIsland="True"
                             ShowTabLabel="True"
+                            EdgeStyle="CastShadow"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
                             Visibility="{x:Bind NotchVisibility(ViewModel.Radar.Pane3.IsVisible), Mode=OneWay}"
@@ -290,13 +302,19 @@
             <ctl:OverlayBar x:Name="MapControlsTier"
                             ShowTab="False"
                             IsRaised="True"
+                            EdgeStyle="CastShadow"
                             IsOverlayBarVisible="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=OneWay}">
                 <ctl:OverlayBar.BarContent>
                     <comp:MapControlsStrip ViewModel="{x:Bind ViewModel}"/>
                 </ctl:OverlayBar.BarContent>
             </ctl:OverlayBar>
 
-            <ctl:OverlayBar x:Name="BottomBar" ShowTab="False">
+            <!-- ⚠️ EdgeStyle IS DYNAMIC HERE, and it is the only place in the app that it moves.
+                 With the tools tier showing, the bar RECEIVES that tier's shadow. Hide the tier and the
+                 bar becomes the top of the assembly, with the map above it - so it has to start CASTING
+                 instead. MainWindow.ApplyBarEdgeStyle owns the swap; a fixed value is wrong in one of
+                 the two states whichever one you pick. -->
+            <ctl:OverlayBar x:Name="BottomBar" ShowTab="False" EdgeStyle="InsetShadow">
                 <ctl:OverlayBar.BarContent>
                     <Grid ColumnSpacing="16">
                         <Grid.ColumnDefinitions>

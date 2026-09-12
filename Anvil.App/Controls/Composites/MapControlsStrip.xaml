@@ -2,15 +2,20 @@
 <!-- ============================================================================
      MapControlsStrip — the map's camera tools, ON the map instead of two clicks deep in Settings.
      It is the CONTENT of the bottom chrome's upper tier: MainWindow drops it into an OverlayBar
-     (IsRaised, ShowTab=False) that supplies the surface, the hairline and the padding, exactly the
-     way RadarControls is content for the bar below it.
+     (IsRaised, ShowTab=False, EdgeStyle=CastShadow) that supplies the surface, the EDGE and the
+     padding, exactly the way RadarControls is content for the bar below it.
+
+       ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← shadow, thrown onto the map
 
        ╭─ ˅ Tools ─╮ ╭─ ˅ Bar ─╮                                    ← MainWindow's shared rail
-     ──┘           └─┘         └──────────────────────────────────
        (⌘) (⛶)                                  [Isolate State ▾]   ← THIS, on the raised surface
-     ───────────────────────────────────────────────────────────── ← the hairline between tiers
+       ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   ← …and onto the bar: NO rule
        ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
      ═══════════════════════ window bottom ═══════════════════════
+
+     ⚠️ THERE IS NO LINE ANYWHERE ON THIS TIER. Its top edge throws a shadow onto the map and the
+     bar below draws the band it receives from this one's underside. A hairline under a shadow reads
+     as a seam someone forgot to finish - the two are alternatives, not layers.
 
      ⚠️ IT ALIGNS TO THE BAR'S CLUSTERS, not to itself. Camera tools sit left over Markers/Inspect,
      the isolation picker sits right over the window keys, and both tiers carry the same 16px side

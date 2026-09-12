@@ -67,6 +67,12 @@
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="#FF2B2B2B"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="#FF383838"/>
 
+            <!-- ⚠️ SHADOWS ARE LITERAL BLACK IN EVERY THEME (the same rule theme.css states for the
+                 map page's drop shadows), so the gradients live inline in OverlayBar.xaml and only
+                 their STRENGTH is themed. A light ground needs far less of it before the shadow reads
+                 as grime rather than as depth. 0 would disable shadows entirely. -->
+            <x:Double x:Key="OverlayBarShadowOpacity">1</x:Double>
+
             <!-- Expander (every panel section). Header on the raised face, body on the ground. -->
             <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="#FF1A1A1A"/>
             <SolidColorBrush x:Key="ExpanderHeaderPointerOverBackground" Color="#FF2B2B2B"/>
@@ -83,6 +89,8 @@
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="#FFDCDCDC"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="#FFD0D0D0"/>
 
+            <x:Double x:Key="OverlayBarShadowOpacity">0.4</x:Double>
+
             <!-- Expander (every panel section). Header on the raised face, body on the ground. -->
             <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="#FFE4E4E4"/>
             <SolidColorBrush x:Key="ExpanderHeaderPointerOverBackground" Color="#FFDCDCDC"/>
@@ -98,6 +106,9 @@
             <SolidColorBrush x:Key="OverlayBarSurfaceRaisedHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+
+            <!-- No shadows in high contrast: depth cues are exactly what that mode removes. -->
+            <x:Double x:Key="OverlayBarShadowOpacity">0</x:Double>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 

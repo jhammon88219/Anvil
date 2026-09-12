@@ -1,35 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ============================================================================
-     OverlayBar — a CHROME-ONLY shell: a theme-aware surface with a hairline border along the edge
-     it attaches to, an optional show/hide pull-tab, and the collapse behavior. It is a content
-     slot: the host fills BarContent with the actual controls, so section content is composed by
-     the host, never here.
+     OverlayBar — a CHROME-ONLY shell: a theme-aware surface, an edge treatment where it meets
+     whatever is beyond it, an optional show/hide pull-tab, and the collapse behavior. It is a
+     content slot: the host fills BarContent with the actual controls, so section content is
+     composed by the host, never here.
 
-     TWO SHAPES, ONE CONTROL. Plain DPs move the geometry and the face; nothing else changes.
-     Edge (which side the tab hangs off), IsIsland (does it span the host edge to edge, or is it a
-     centred island that must draw its own left/right edges), ShowTabLabel (word beside the
-     chevron, or chevron alone), ShowTab (does it draw a tab AT ALL), IsRaised (which tier's
-     surface it wears). Every combination keeps the same surface, the same hairline rule and the
-     same collapse, which is the whole reason there is not a second copy of this file for the
-     notch. See the class remarks in the code-behind.
+     TWO SHAPES, ONE CONTROL. Plain DPs move the geometry, the face and the edge; nothing else
+     changes. See the class remarks in the code-behind for the full list.
 
        Edge=Bottom, IsIsland=False — A FULL-WIDTH TIER OF THE BOTTOM CHROME
 
          …map, full height, showing through…
-                              ╭── ˅ Hide ──╮                      ← the pull-tab, centered
-       ───────────────────────┘            └───────────────────── ← ONE hairline: it runs along
-                                                                    the tier's top edge and wraps
-             BarContent — the HOST fills this slot                  AROUND the tab, never across
+              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ← CastShadow: this tier's
+                              ╭── ˅ Hide ──╮                          shadow, thrown UP onto the map
+       ─────────────────────────────────────────────────────────────
+             BarContent — the HOST fills this slot
        ══════════════════════ window bottom ═══════════════════════
 
        Edge=Top, IsIsland=True — THE PANE NOTCH (one per map pane)
 
        ═══════════════════════ pane top edge ══════════════════════
-                     ┌─────────────────────────┐   ← the island: it stops where its content
-                     │  BarContent (the slot)  │     stops, so the map runs edge to edge
-                     └──────╮ ˄ Hide ╭─────────┘     behind it. Left/right/bottom hairline,
-                            ╰─────────╯              bottom corners rounded, tab BELOW.
+                    ░┌─────────────────────────┐░   ← an island casts on THREE sides:
+                    ░│  BarContent (the slot)  │░     left, right and the outward edge
+                    ░└──────╮ ˄ Hide ╭─────────┘░
+                     ░░░░░░░╰─────────╯░░░░░░░░░
             …the pane's map, showing through either side…
+
+     ⚠️ THE EDGE IS A SHADOW, NOT A LINE (EdgeStyle). Three values, and which one an instance wants
+     depends entirely on WHAT IS BEYOND ITS OUTWARD EDGE — which only the host knows:
+       CastShadow   the map is beyond it, so it throws a shadow outward onto the map.
+       InsetShadow  another tier is directly above it, so it RECEIVES that tier's shadow as a dark
+                    band inside its own top edge. (A cast band here would push the two tiers apart
+                    and let the map show through the gap.)
+       Hairline     the original 1px rule. Still the default; nothing is forced onto shadows.
+     ⚠️ The two are not interchangeable and the difference is not cosmetic: one occupies LAYOUT space
+     outside the surface, the other overlays the surface and occupies none.
 
      ⚠️ THE TAB IS Primitives/OverlayBarTab, not drawn here, because it has a SECOND host: the
      bottom chrome is TWO of these stacked (map tools over the bar) and a tab drawn in row 0 of the
@@ -45,8 +50,8 @@
      never resized either way, in either shape.
 
      It renders as an OVERLAY: the host places it over the full-height map, so showing/hiding
-     never resizes the map. The control's own backdrop is transparent — only the tab and the
-     bar draw — so the map shows through beside them.
+     never resizes the map. The control's own backdrop is transparent — only the tab, the shadow
+     and the bar draw — so the map shows through beside them.
      ============================================================================ -->
 <UserControl x:Class="Anvil.Controls.Primitives.OverlayBar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -56,9 +61,41 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <!-- Transparent root: only the tab + bar draw, so the map shows through beside the tab.
-         This control is ONLY the chrome (tab + bar). Nothing floats above it in-window: every app-wide
-         panel (the three temporal windows, App Settings, Site Explorer, the Pipeline Console) is a real
+    <UserControl.Resources>
+        <!-- ⚠️ THE SHADOW GRADIENTS ARE LITERAL BLACK, NOT THEME BRUSHES, and that is deliberate: a
+             shadow is the absence of light in any theme (the same rule theme.css states for the map
+             page's drop shadows). Only their STRENGTH is themed, through OverlayBarShadowOpacity on
+             each element — one number per theme instead of eight gradients.
+             ⚠️ Because they carry no theme, ApplyChrome is allowed to pick between them in C#. That is
+             NOT a hole in the never-resolve-a-theme-brush-in-code rule: these four live in this
+             control's own Resources and resolve the same in every theme.
+             Three stops, not two: a linear ramp reads as a grey band with an edge on it, and the whole
+             point is that this edge has none. -->
+        <LinearGradientBrush x:Key="ShadowFadeUp" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#00000000" Offset="0"/>
+            <GradientStop Color="#2E000000" Offset="0.55"/>
+            <GradientStop Color="#99000000" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="ShadowFadeDown" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#99000000" Offset="0"/>
+            <GradientStop Color="#2E000000" Offset="0.45"/>
+            <GradientStop Color="#00000000" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="ShadowFadeRight" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#00000000" Offset="0"/>
+            <GradientStop Color="#2E000000" Offset="0.55"/>
+            <GradientStop Color="#99000000" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="ShadowFadeLeft" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#99000000" Offset="0"/>
+            <GradientStop Color="#2E000000" Offset="0.45"/>
+            <GradientStop Color="#00000000" Offset="1"/>
+        </LinearGradientBrush>
+    </UserControl.Resources>
+
+    <!-- Transparent root: only the tab, the shadows and the bar draw, so the map shows through beside
+         them. This control is ONLY the chrome. Nothing floats above it in-window: every app-wide panel
+         (the three temporal windows, App Settings, Site Explorer, the Pipeline Console) is a real
          top-level OS window owned by WindowManager. -->
     <Grid>
         <VisualStateManager.VisualStateGroups>
@@ -77,13 +114,23 @@
         </VisualStateManager.VisualStateGroups>
 
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- pull-tab -->
+            <RowDefinition Height="Auto"/> <!-- pull-tab, and the cast shadow behind it -->
             <RowDefinition Height="Auto"/> <!-- overlay bar (collapses when hidden) -->
         </Grid.RowDefinitions>
 
-        <!-- The bar itself: a content slot the host fills (see BarContent). Collapses when hidden. Its
-             hairline and the tab's three-sided border share ONE brush and merge where the two meet, so the
-             line runs along the bar's edge and wraps AROUND the tab (never through it). -->
+        <!-- ⚠️ THE CAST SHADOW LIVES IN THE TAB'S ROW, which is what makes it free: with a tab it hides
+             behind one that is already there, and with ShowTab=False the row collapses to exactly this
+             band's height, so the shadow reserves its own space over the map and the surface below it
+             never moves. Visibility, row and alignment are ApplyChrome's. -->
+        <Border x:Name="CastShadow"
+                Grid.Row="0"
+                Height="14"
+                VerticalAlignment="Bottom"
+                Opacity="{ThemeResource OverlayBarShadowOpacity}"
+                IsHitTestVisible="False"
+                Visibility="Collapsed"/>
+
+        <!-- The bar itself: a content slot the host fills (see BarContent). Collapses when hidden. -->
         <Border x:Name="BarBorder"
                 Grid.Row="1"
                 Background="{ThemeResource OverlayBarSurfaceBrush}"
@@ -94,6 +141,38 @@
             <ContentPresenter HorizontalAlignment="Stretch"
                               Content="{x:Bind BarContent, Mode=OneWay}"/>
         </Border>
+
+        <!-- ⚠️ THE RECEIVED SHADOW OVERLAYS THE SURFACE and takes NO layout space — it shares the
+             BarBorder's cell. It has to: a band that occupied space would hold the two tiers apart and
+             the map would show through the gap they are supposed to be glued across.
+             ⚠️ IsHitTestVisible=False on every shadow, or the band swallows clicks on the row beneath it. -->
+        <Border x:Name="InsetShadow"
+                Grid.Row="1"
+                Height="10"
+                VerticalAlignment="Top"
+                Opacity="{ThemeResource OverlayBarShadowOpacity}"
+                IsHitTestVisible="False"
+                Visibility="Collapsed"/>
+
+        <!-- An ISLAND casts on three sides, so it needs these two as well — a plate lit only along one
+             edge reads as half-stuck to the map. They hang OUTSIDE the island on a negative margin, so
+             they never narrow it. Collapsed for a full-width bar, whose sides run off the window. -->
+        <Border x:Name="SideShadowLeft"
+                Grid.Row="1"
+                Width="12"
+                Margin="-12,0,0,0"
+                HorizontalAlignment="Left"
+                Opacity="{ThemeResource OverlayBarShadowOpacity}"
+                IsHitTestVisible="False"
+                Visibility="Collapsed"/>
+        <Border x:Name="SideShadowRight"
+                Grid.Row="1"
+                Width="12"
+                Margin="0,0,-12,0"
+                HorizontalAlignment="Right"
+                Opacity="{ThemeResource OverlayBarShadowOpacity}"
+                IsHitTestVisible="False"
+                Visibility="Collapsed"/>
 
         <!-- The pull-tab. Collapsed entirely when the host owns the tab instead (ShowTab=False, which is
              how the bottom chrome stacks two of these under one shared rail). -->

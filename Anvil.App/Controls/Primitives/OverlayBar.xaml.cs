@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace Anvil.Controls.Primitives
 {
@@ -13,15 +14,35 @@ namespace Anvil.Controls.Primitives
 	}
 
 	/// <summary>
+	/// How the bar's outward edge meets whatever is beyond it. ⚠️ Which value an instance wants depends
+	/// on WHAT IS BEYOND THAT EDGE, which only the host knows - so this is never inferred here.
+	/// </summary>
+	public enum BarEdgeStyle
+	{
+		/// <summary>A 1px rule. The original treatment, and still the default.</summary>
+		Hairline,
+		/// <summary>
+		/// The MAP is beyond it: throw a soft shadow outward onto the map. Takes layout space in the
+		/// tab's row, so the surface never moves.
+		/// </summary>
+		CastShadow,
+		/// <summary>
+		/// ANOTHER TIER is directly beyond it: receive that tier's shadow as a band inside this one's
+		/// own edge. ⚠️ Not interchangeable with <see cref="CastShadow"/> - a cast band between two
+		/// glued tiers would hold them apart and let the map show through the gap.
+		/// </summary>
+		InsetShadow,
+	}
+
+	/// <summary>
 	/// Chrome-only shell for an overlay bar: a theme-aware surface, a hairline card border
 	/// (<c>CardStrokeColorDefaultSolidBrush</c>, same as the settings cards) that runs along the bar's edge
 	/// and wraps around the tab, the optional <see cref="Primitives.OverlayBarTab"/> that collapses it, and
 	/// the collapse behavior itself. The host fills <see cref="BarContent"/> with the actual controls, so
 	/// section content is composed by the host.
 	/// <para>
-	/// FIVE knobs shape it. Four move only geometry - the surface, the hairline, the lapped tab and the
-	/// collapse behave identically in every combination, which is the point of having one control rather
-	/// than a second copy for the notch - and the fifth picks which tier's surface it wears:
+	/// SIX knobs shape it. The surface, the edge, the lapped tab and the collapse behave identically in
+	/// every combination, which is the point of having one control rather than a second copy for the notch:
 	/// </para>
 	/// <list type="bullet">
 	/// <item><see cref="Edge"/> - BOTTOM (tab above; the bottom chrome) or TOP (tab hanging below; the
@@ -40,6 +61,9 @@ namespace Anvil.Controls.Primitives
 	/// stay here once two of these are stacked.</item>
 	/// <item><see cref="IsRaised"/> - whether this bar is a tier RESTING ON another bar: it wears the raised
 	/// surface and a tighter padding, both saying the same thing about its rank.</item>
+	/// <item><see cref="EdgeStyle"/> - a rule, a shadow cast outward onto the map, or a shadow received
+	/// from the tier above. ⚠️ The host picks it, because which one is right depends on what is beyond
+	/// the edge, and only the host knows that.</item>
 	/// </list>
 	/// </summary>
 	public sealed partial class OverlayBar : UserControl
@@ -142,6 +166,21 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(IsRaised), typeof(bool), typeof(OverlayBar),
 				new PropertyMetadata(false, OnSurfaceChanged));
 
+		/// <summary>
+		/// How this bar's outward edge meets what is beyond it - a rule, a shadow thrown onto the map, or
+		/// a shadow received from the tier above. See <see cref="BarEdgeStyle"/>: the host picks, because
+		/// only the host knows what is on the other side.
+		/// </summary>
+		public BarEdgeStyle EdgeStyle
+		{
+			get => (BarEdgeStyle)GetValue(EdgeStyleProperty);
+			set => SetValue(EdgeStyleProperty, value);
+		}
+
+		public static readonly DependencyProperty EdgeStyleProperty =
+			DependencyProperty.Register(nameof(EdgeStyle), typeof(BarEdgeStyle), typeof(OverlayBar),
+				new PropertyMetadata(BarEdgeStyle.Hairline, OnChromeChanged));
+
 		private static void OnChromeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
 			((OverlayBar)d).ApplyChrome();
 
@@ -176,9 +215,14 @@ namespace Anvil.Controls.Primitives
 
 			// The bar's hairline always runs along the edge FACING THE TAB - which is still the right edge
 			// when there is no tab, because that is the edge the next tier (or the rail) sits against.
-			BarBorder.BorderThickness = top
-				? new Thickness(island ? 1 : 0, 0, island ? 1 : 0, 1)
-				: new Thickness(island ? 1 : 0, 1, island ? 1 : 0, 0);
+			// ⚠️ A shadowed edge draws NO line at all: the two are alternatives, not layers. A hairline
+			// under a shadow reads as a seam someone forgot to finish.
+			bool shadowed = EdgeStyle != BarEdgeStyle.Hairline;
+			BarBorder.BorderThickness = shadowed
+				? new Thickness(0)
+				: top
+					? new Thickness(island ? 1 : 0, 0, island ? 1 : 0, 1)
+					: new Thickness(island ? 1 : 0, 1, island ? 1 : 0, 0);
 
 			// Only an island rounds anything, and only its two INNER corners - the ones away from the edge it
 			// is attached to. A full-width bar's corners are off-screen.
@@ -195,11 +239,46 @@ namespace Anvil.Controls.Primitives
 				? new Thickness(12, 6, 12, 6)
 				: IsRaised ? new Thickness(16, 7, 16, 7) : new Thickness(16, 10, 16, 10);
 
+			// ── The edge ────────────────────────────────────────────────────────────────────────────
+			// A CAST shadow falls OUTWARD, into the tab's row, so it reserves its own space over the map
+			// and never moves the surface. A RECEIVED one overlays the surface's own outward edge and
+			// takes no space at all - it has to, or the band would hold two glued tiers apart.
+			Grid.SetRow(CastShadow, top ? 1 : 0);
+			CastShadow.VerticalAlignment = top ? VerticalAlignment.Top : VerticalAlignment.Bottom;
+			CastShadow.Background = Fade(top ? "ShadowFadeDown" : "ShadowFadeUp");
+
+			Grid.SetRow(InsetShadow, top ? 0 : 1);
+			InsetShadow.VerticalAlignment = top ? VerticalAlignment.Bottom : VerticalAlignment.Top;
+			InsetShadow.Background = Fade(top ? "ShadowFadeUp" : "ShadowFadeDown");
+
+			// The sides follow the surface, and only an island has any: a full-width bar's run off-window.
+			Grid.SetRow(SideShadowLeft, top ? 0 : 1);
+			Grid.SetRow(SideShadowRight, top ? 0 : 1);
+			SideShadowLeft.Background = Fade("ShadowFadeRight");   // darkest where it meets the island
+			SideShadowRight.Background = Fade("ShadowFadeLeft");
+
+			bool casts = EdgeStyle == BarEdgeStyle.CastShadow;
+			CastShadow.Visibility = casts ? Visibility.Visible : Visibility.Collapsed;
+			InsetShadow.Visibility = EdgeStyle == BarEdgeStyle.InsetShadow ? Visibility.Visible : Visibility.Collapsed;
+			SideShadowLeft.Visibility = SideShadowRight.Visibility =
+				casts && island ? Visibility.Visible : Visibility.Collapsed;
+
 			// The tab: this bar's own, or none at all when the host draws it (see ShowTab).
 			Tab.Edge = Edge;
 			Tab.ShowLabel = ShowTabLabel;
 			Tab.Visibility = ShowTab ? Visibility.Visible : Visibility.Collapsed;
 		}
+
+		/// <summary>
+		/// One of the four shadow gradients from this control's own Resources.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ A C# resource lookup, and a SAFE one: these four are literal black and live in this
+		/// control's Resources, not in a ThemeDictionary, so unlike a theme brush they cannot come back
+		/// in the wrong theme. A shadow is the absence of light in either theme - only its STRENGTH is
+		/// themed, and that rides on each element's Opacity as a themed double.
+		/// </remarks>
+		private Brush? Fade(string key) => Resources[key] as Brush;
 
 		// x:Bind function mapping a bool to Visibility (no value-converter lookup needed).
 		public Visibility VisibleWhen(bool value) =>
