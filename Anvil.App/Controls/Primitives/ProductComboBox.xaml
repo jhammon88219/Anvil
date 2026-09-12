@@ -60,7 +60,7 @@
                 <VisualState x:Name="Normal"/>
                 <VisualState x:Name="PointerOver">
                     <VisualState.Setters>
-                        <Setter Target="HoverSurface.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                        <Setter Target="HoverSurface.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
                         <Setter Target="HoverSurface.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                         <Setter Target="HoverSurface.BorderThickness" Value="1"/>
                         <Setter Target="Lift.Y" Value="-1"/>
@@ -68,7 +68,7 @@
                 </VisualState>
                 <VisualState x:Name="Pressed">
                     <VisualState.Setters>
-                        <Setter Target="HoverSurface.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                        <Setter Target="HoverSurface.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
                         <Setter Target="HoverSurface.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                         <Setter Target="HoverSurface.BorderThickness" Value="1"/>
                     </VisualState.Setters>

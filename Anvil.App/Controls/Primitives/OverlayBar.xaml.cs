@@ -68,6 +68,13 @@ namespace Anvil.Controls.Primitives
 	/// </summary>
 	public sealed partial class OverlayBar : UserControl
 	{
+		/// <summary>
+		/// How far a cast shadow reaches past the surface. It is BOTH the band's height and the negative
+		/// margin that hangs it outside, so it lives here rather than in the XAML - split across two files
+		/// the two halves drift, and the band starts reserving part of its own depth again.
+		/// </summary>
+		private const double CastShadowDepth = 14;
+
 		public OverlayBar()
 		{
 			InitializeComponent();
@@ -96,8 +103,11 @@ namespace Anvil.Controls.Primitives
 			set => SetValue(IsOverlayBarVisibleProperty, value);
 		}
 
+		// ⚠️ The callback is load-bearing: the shadows are cast BY the surface, so a collapsed bar must
+		// stop casting. Without it a hidden tier left its band hanging over the map with no plate under it.
 		public static readonly DependencyProperty IsOverlayBarVisibleProperty =
-			DependencyProperty.Register(nameof(IsOverlayBarVisible), typeof(bool), typeof(OverlayBar), new PropertyMetadata(true));
+			DependencyProperty.Register(nameof(IsOverlayBarVisible), typeof(bool), typeof(OverlayBar),
+				new PropertyMetadata(true, OnChromeChanged));
 
 		/// <summary>Top or bottom edge (default <see cref="BarEdge.Bottom"/>).</summary>
 		public BarEdge Edge
@@ -240,11 +250,16 @@ namespace Anvil.Controls.Primitives
 				: IsRaised ? new Thickness(16, 7, 16, 7) : new Thickness(16, 10, 16, 10);
 
 			// ── The edge ────────────────────────────────────────────────────────────────────────────
-			// A CAST shadow falls OUTWARD, into the tab's row, so it reserves its own space over the map
-			// and never moves the surface. A RECEIVED one overlays the surface's own outward edge and
-			// takes no space at all - it has to, or the band would hold two glued tiers apart.
-			Grid.SetRow(CastShadow, top ? 1 : 0);
-			CastShadow.VerticalAlignment = top ? VerticalAlignment.Top : VerticalAlignment.Bottom;
+			// ⚠️ NEITHER BAND RESERVES LAYOUT. A CAST shadow shares the SURFACE's cell and hangs outside
+			// it on a negative margin; a RECEIVED one shares that cell and overlays the surface's own
+			// outward edge. A band that took space would hold apart two things meant to touch - which is
+			// exactly what the cast band did while it lived in the tab's row (see the ⚠⚠ in the XAML).
+			Grid.SetRow(CastShadow, top ? 0 : 1);
+			CastShadow.Height = CastShadowDepth;
+			CastShadow.VerticalAlignment = top ? VerticalAlignment.Bottom : VerticalAlignment.Top;
+			CastShadow.Margin = top
+				? new Thickness(0, 0, 0, -CastShadowDepth)
+				: new Thickness(0, -CastShadowDepth, 0, 0);
 			CastShadow.Background = Fade(top ? "ShadowFadeDown" : "ShadowFadeUp");
 
 			Grid.SetRow(InsetShadow, top ? 0 : 1);
@@ -257,14 +272,22 @@ namespace Anvil.Controls.Primitives
 			SideShadowLeft.Background = Fade("ShadowFadeRight");   // darkest where it meets the island
 			SideShadowRight.Background = Fade("ShadowFadeLeft");
 
-			bool casts = EdgeStyle == BarEdgeStyle.CastShadow;
+			// ⚠️ A COLLAPSED BAR CASTS NOTHING. The shadow is thrown by the surface, so when the surface
+			// is hidden every band goes with it - otherwise hiding a tier leaves its shadow hanging over
+			// the map with no plate above it to explain the darkening.
+			bool lit = IsOverlayBarVisible;
+			bool casts = lit && EdgeStyle == BarEdgeStyle.CastShadow;
 			CastShadow.Visibility = casts ? Visibility.Visible : Visibility.Collapsed;
-			InsetShadow.Visibility = EdgeStyle == BarEdgeStyle.InsetShadow ? Visibility.Visible : Visibility.Collapsed;
+			InsetShadow.Visibility = lit && EdgeStyle == BarEdgeStyle.InsetShadow ? Visibility.Visible : Visibility.Collapsed;
 			SideShadowLeft.Visibility = SideShadowRight.Visibility =
 				casts && island ? Visibility.Visible : Visibility.Collapsed;
 
 			// The tab: this bar's own, or none at all when the host draws it (see ShowTab).
+			// ⚠️ A tab wears the plate it STANDS ON, so a bar that draws its own hands it its own face.
+			// (MainWindow's rail owns the other case - there the tabs stand on whichever tier is showing,
+			// which is why their face moves at runtime and this one never does.)
 			Tab.Edge = Edge;
+			Tab.Raised = IsRaised;
 			Tab.ShowLabel = ShowTabLabel;
 			Tab.Visibility = ShowTab ? Visibility.Visible : Visibility.Collapsed;
 		}

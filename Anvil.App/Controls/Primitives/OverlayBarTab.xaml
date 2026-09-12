@@ -26,11 +26,15 @@
                      Required the moment two tabs sit on one rail: two lozenges both reading
                      "Hide" name no difference between themselves.
 
-     ⚠️ RAISED IS THE FACE, NOT THE GEOMETRY. A tab belonging to a raised tier wears that tier's
-     surface, so it reads as a piece of it; the ground-surface tab beside it then reads as a
-     window down onto the tier below. That colour-keying is what lets two tabs on one rail be
-     told apart before either label is read — so if the tiers ever stop differing in surface,
-     the labels are carrying it alone.
+     ⚠️ RAISED IS THE FACE, NOT THE GEOMETRY, AND IT FOLLOWS THE PLATE DIRECTLY BENEATH THE TAB —
+     not the thing the tab toggles. A tab is meant to read as a piece of the surface it is standing
+     on, so on MainWindow's rail BOTH tabs go raised while the map-tools tier is up and BOTH drop to
+     the ground when it is hidden and the rail comes to rest on the bar. A bar that draws its own tab
+     just hands it its own face (OverlayBar.ApplyChrome).
+     ⚠️ HISTORY: the two rail tabs were briefly keyed to the tier each one TOGGLES (Tools raised, Bar
+     ground) so their colours told them apart. It made the Bar tab a darker notch in a raised edge -
+     a tab sitting on a surface it did not match. The LABELS disambiguate; the face says what you are
+     standing on.
      ============================================================================ -->
 <UserControl x:Class="Anvil.Controls.Primitives.OverlayBarTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -118,7 +122,7 @@
             Click="OnTabClick"
             ToolTipService.ToolTip="{x:Bind Tooltip(IsShown, Target), Mode=OneWay}">
         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-            <FontIcon Glyph="{x:Bind Chevron(IsShown, Edge), Mode=OneWay}"
+            <FontIcon Glyph="{x:Bind Chevron(IsShown), Mode=OneWay}"
                       FontSize="14"
                       VerticalAlignment="Center"/>
             <TextBlock Text="{x:Bind Word(IsShown, Target), Mode=OneWay}"

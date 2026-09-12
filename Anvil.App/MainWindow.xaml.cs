@@ -42,16 +42,28 @@ namespace Anvil
 		// pull-tab by a negative margin, so the tab could rise through a notch cut in its underside; it is a
 		// full-width tier now and the tabs sit on a rail above both tiers. docs/ui-bottom-bar.md.
 
-		// ⚠️ WHICH EDGE THE BAR WEARS DEPENDS ON WHETHER THE TOOLS TIER IS THERE, and nothing else in the
-		// app moves EdgeStyle at runtime. With the tier showing, the bar sits UNDER it and receives its
-		// shadow; hide the tier and the bar is suddenly the top of the assembly with the map above it, so
-		// it has to cast one instead. Getting this wrong is not subtle in either direction: an inset band
-		// with nothing above it is a smudge along the bar's top edge, and a cast band under a tier would
-		// push the two apart and show map through the gap.
-		private void ApplyBarEdgeStyle() =>
-			BottomBar.EdgeStyle = ViewModel.IsMapControlsStripVisible
-				? BarEdgeStyle.InsetShadow
-				: BarEdgeStyle.CastShadow;
+		// ⚠️ EVERYTHING THAT DEPENDS ON *WHAT THE RAIL IS SITTING ON* IS DECIDED HERE, TOGETHER. The
+		// map-tools tier comes and goes, and two separate things answer to that one fact:
+		//
+		//   the TABS' FACE - a tab wears the plate it stands on, so both go raised while the tier is up
+		//                    and both drop to the ground once the rail comes to rest on the bar.
+		//   the BAR'S EDGE - with the tier showing the bar sits UNDER it and RECEIVES its shadow; hide the
+		//                    tier and the bar is the top of the assembly with the map above it, so it has
+		//                    to CAST instead.
+		//
+		// ⚠️ They are one method because they are one rule. Split them and the tabs can end up lit for a
+		// plate the shadow says is not there. ⚠️ Nothing else in the app moves EdgeStyle at runtime, and
+		// getting it wrong is not subtle either way: an inset band with nothing above it is a smudge along
+		// the bar's top edge, and a cast band under a tier pushes the two apart and shows map through the
+		// gap.
+		private void ApplyRailSeating()
+		{
+			bool onTools = ViewModel.IsMapControlsStripVisible;
+
+			ToolsTab.Raised = onTools;
+			BarTab.Raised = onTools;
+			BottomBar.EdgeStyle = onTools ? BarEdgeStyle.InsetShadow : BarEdgeStyle.CastShadow;
+		}
 
 		// NOTE: DevVisibility is gone. It existed to collapse the dev bar key in Release; there is no dev key
 		// any more — the dev tools are a tab of the Settings window, and SettingsWindow omits that tab from
@@ -498,10 +510,10 @@ namespace Anvil
 			ViewModel.PropertyChanged += (_, e) =>
 			{
 				if (e.PropertyName == nameof(MapViewModel.SelectedTheme)) ApplyAppTheme();
-				if (e.PropertyName == nameof(MapViewModel.IsMapControlsStripVisible)) ApplyBarEdgeStyle();
+				if (e.PropertyName == nameof(MapViewModel.IsMapControlsStripVisible)) ApplyRailSeating();
 			};
 
-			ApplyBarEdgeStyle();
+			ApplyRailSeating();
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs
 			// THE TITLE BAR block above). Hooked straight after InitializeComponent so the very first layout

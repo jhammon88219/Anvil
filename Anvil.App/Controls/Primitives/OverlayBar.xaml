@@ -118,14 +118,21 @@
             <RowDefinition Height="Auto"/> <!-- overlay bar (collapses when hidden) -->
         </Grid.RowDefinitions>
 
-        <!-- ⚠️ THE CAST SHADOW LIVES IN THE TAB'S ROW, which is what makes it free: with a tab it hides
-             behind one that is already there, and with ShowTab=False the row collapses to exactly this
-             band's height, so the shadow reserves its own space over the map and the surface below it
-             never moves. Visibility, row and alignment are ApplyChrome's. -->
+        <!-- ⚠⚠ THE CAST SHADOW HANGS OUTSIDE THE SURFACE ON A NEGATIVE MARGIN AND RESERVES NO LAYOUT,
+             exactly like the side bands below. It shipped in the TAB'S ROW instead, reasoned as "with
+             ShowTab=False that row collapses to the band's height, so the shadow reserves its own space
+             over the map" - which is only true when the thing standing above the surface is the tab IN
+             that row. With the tabs on MainWindow's rail that row held nothing but the band, so 14px of
+             empty layout opened between the rail and the plate and the map showed through the slot. The
+             shadow then hid its own evidence: 0% to 60% black over a dark basemap is invisible, so it
+             read as a hole rather than as a band that was too tall.
+             ⚠️ It is the same failure the InsetShadow note below describes, one level up - a band that
+             occupies space holds things apart that are supposed to be glued.
+             ⚠️ Hanging it means it paints over whatever is beyond that edge, so the HOST must draw
+             anything that sits there AFTER this control. MainWindow's bottom Grid declares its rail last
+             for exactly that reason. Depth, row, alignment and margin are all ApplyChrome's. -->
         <Border x:Name="CastShadow"
                 Grid.Row="0"
-                Height="14"
-                VerticalAlignment="Bottom"
                 Opacity="{ThemeResource OverlayBarShadowOpacity}"
                 IsHitTestVisible="False"
                 Visibility="Collapsed"/>

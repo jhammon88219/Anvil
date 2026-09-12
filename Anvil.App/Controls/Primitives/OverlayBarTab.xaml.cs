@@ -84,9 +84,14 @@ namespace Anvil.Controls.Primitives
 				new PropertyMetadata(string.Empty));
 
 		/// <summary>
-		/// Whether this tab wears the RAISED surface (the tier that sits on the bar) rather than the ground.
-		/// Face only - the geometry is identical either way.
+		/// Whether this tab wears the RAISED surface rather than the ground. Face only - the geometry is
+		/// identical either way.
 		/// </summary>
+		/// <remarks>
+		/// ⚠️ It follows the plate DIRECTLY BENEATH THE TAB, never the thing the tab toggles: a tab reads
+		/// as a piece of the surface it stands on. On MainWindow's rail that means both tabs move together
+		/// as the map-tools tier comes and goes (MainWindow.ApplyRailSeating).
+		/// </remarks>
 		public bool Raised
 		{
 			get => (bool)GetValue(RaisedProperty);
@@ -138,7 +143,7 @@ namespace Anvil.Controls.Primitives
 				? new CornerRadius(0, 0, SharedSize("OverlayBarTabRadius"), SharedSize("OverlayBarTabRadius"))
 				: new CornerRadius(SharedSize("OverlayBarTabRadius"), SharedSize("OverlayBarTabRadius"), 0, 0);
 
-			// The chevron points TOWARD the surface for "hide", so it inverts with Edge.
+			// Re-evaluate the glyph, the word and the tooltip for the new shape.
 			Bindings?.Update();
 		}
 
@@ -156,13 +161,17 @@ namespace Anvil.Controls.Primitives
 		private const string ChevronUp = "\uE70E";   // Segoe Fluent ChevronUp
 		private const string ChevronDown = "\uE70D"; // Segoe Fluent ChevronDown
 
-		/// <summary>The chevron points toward the surface it would collapse, so it inverts with both the
-		/// state and the edge: bottom-edge hide = down, top-edge hide = up.</summary>
-		public string Chevron(bool shown, BarEdge edge)
-		{
-			bool pointUp = edge == BarEdge.Top ? shown : !shown;
-			return pointUp ? ChevronUp : ChevronDown;
-		}
+		/// <summary>
+		/// UP MEANS SHOW, DOWN MEANS HIDE - everywhere, whichever edge the tab hangs off.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ The arrow states the ACTION, not a direction of travel, and it used to take
+		/// <see cref="Edge"/> for exactly that reason: it pointed TOWARD the surface it would collapse, so
+		/// a top-edge pane notch showed an UP arrow while it was open. Consistent as a motion metaphor,
+		/// and backwards as a label - up on one tab meant "show" and up on another meant "hide". The tab
+		/// answers one question now: which way does this click move things.
+		/// </remarks>
+		public string Chevron(bool shown) => shown ? ChevronDown : ChevronUp;
 
 		/// <summary>The word on the tab: the noun when the rail has more than one tab, else the verb.</summary>
 		public string Word(bool shown, string target) =>
