@@ -31,6 +31,21 @@ namespace Anvil.Controls.Primitives
 			InitializeComponent();
 			ApplyChrome();
 			ApplySurface();
+
+			// ⚠⚠ RE-APPLY THE FACE ONCE THE TEMPLATE EXISTS, AND THIS IS NOT BELT-AND-BRACES.
+			// SurfaceStates lives inside TabButton's ControlTemplate, and a Button's template is applied
+			// on its first MEASURE - not in its constructor. VisualStateManager.GoToState is a silent
+			// no-op until then (it returns false and nothing is written), so every ApplySurface that runs
+			// during construction is thrown away.
+			// Every host sets Raised exactly there: OverlayBar hands a notch's tab its face from
+			// ApplyChrome, and MainWindow.ApplyRailSeating runs in the window's ctor - both inside
+			// InitializeComponent, both before layout. The result shipped as pane-notch tabs that never
+			// matched their own plate, and rail tabs that were wrong until the first time the tools tier
+			// was toggled (which re-ran it, by then after layout - which is exactly why it looked like a
+			// STARTUP bug rather than a broken property).
+			// ⚠️ OverlayBar does NOT need this: its groups sit on its own root Grid, which exists the
+			// moment InitializeComponent returns. Templated control = wait for the template.
+			Loaded += (_, _) => ApplySurface();
 		}
 
 		/// <summary>Whether the surface this tab toggles is currently shown. Two-way; the host owns the truth.</summary>
@@ -112,6 +127,7 @@ namespace Anvil.Controls.Primitives
 		// assignment because the value is a theme brush: resolving one in C# returns the OS theme's brush,
 		// not the theme the app pinned on its root element (CLAUDE.md, and it shipped as a near-black key
 		// on a light theme once already).
+		// ⚠️ Does nothing until TabButton's template is applied - see the Loaded hook in the ctor.
 		private void ApplySurface() =>
 			VisualStateManager.GoToState(TabButton, Raised ? "RaisedSurface" : "GroundSurface", false);
 
