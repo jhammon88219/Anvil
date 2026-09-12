@@ -49,7 +49,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IDowEventProvider dowEventProvider, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, StormMotionService? stormMotion)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, StormMotionService? stormMotion)
 		{
 			_mapService = mapService;
 			_styleProvider = styleProvider;
@@ -73,6 +73,7 @@ namespace Anvil.ViewModels
 			StormReports = new StormReportsViewModel(mapService, stormReportService, Radar, dispatcher, loggerFactory.CreateLogger<StormReportsViewModel>());
 			Markers = new MarkersViewModel(mapService, locationService);
 			SiteExplorer = new RadarSiteExplorerViewModel(Radar, Markers, radarService, mapService);
+			SavedEvents = new SavedEventsViewModel(savedEventLibrary, Radar, mapService);
 			StateIso = new StateIsolationViewModel(mapService, settingsService);
 			PipelineConsole = new PipelineConsoleViewModel(mapService, Radar); // PIPELINE CONSOLE (remove with the feature)
 
@@ -188,6 +189,10 @@ namespace Anvil.ViewModels
 		/// <summary>The Radar Site Explorer subsystem view model (searchable/filterable browser over the
 		/// whole radar network + per-site detail). Opened by the "Sites" button on the bar.</summary>
 		public RadarSiteExplorerViewModel SiteExplorer { get; }
+
+		/// <summary>PastCast's saved events — the curated built-ins plus the user's own, each a set of radar
+		/// legs that fill the Timeframe pickers and select a site (see SavedEventsViewModel).</summary>
+		public SavedEventsViewModel SavedEvents { get; }
 
 		/// <summary>State Isolation mode (hover-to-highlight + click-to-isolate a single US state, masking
 		/// everything else). An app-wide mode toggled by the "Isolate" button on the top bar; a building

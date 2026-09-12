@@ -1,0 +1,36 @@
+{
+  "_note": "Curated BUILT-IN PastCast events. Read-only in the app; a user's own events live in %LocalAppData%\\Anvil\\SavedEvents.json. Every start is UTC on a 5-minute mark, every window is one of 30/60/120/180/360/720 minutes, and every leg must pass tools/check_saved_events.py (the archive really holds volumes for that site and window). Each event names its source for the times.",
+  "events": [
+    {
+      "id": "el-reno-2013",
+      "name": "El Reno, OK",
+      "notes": "EF3, 2.6 miles wide - the widest tornado on record.",
+      "source": "NWS Norman event summary: tornado 6:03-6:43 PM CDT (23:03-23:43Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KTLX", "startUtc": "2013-05-31T22:30:00Z", "minutes": 120 }
+      ]
+    },
+    {
+      "id": "moore-2013",
+      "name": "Moore, OK",
+      "notes": "EF5 through Moore.",
+      "source": "NWS Norman event summary: tornado 2:56-3:35 PM CDT (19:56-20:35Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KTLX", "startUtc": "2013-05-20T19:30:00Z", "minutes": 120 }
+      ]
+    },
+    {
+      "id": "joplin-2011",
+      "name": "Joplin, MO",
+      "notes": "EF5, rain-wrapped through Joplin.",
+      "source": "NWS Springfield event summary: tornado 5:34-6:12 PM CDT (22:34-23:12Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KSGF", "startUtc": "2011-05-22T22:00:00Z", "minutes": 120 },
+        { "site": "KINX", "startUtc": "2011-05-22T22:00:00Z", "minutes": 120 }
+      ]
+    }
+  ]
+}

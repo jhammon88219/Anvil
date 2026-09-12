@@ -446,7 +446,8 @@ namespace Anvil.ViewModels
 		/// <summary>Durations offered for a past-event window (label + minutes).</summary>
 		public IReadOnlyList<string> PastEventDurationOptions { get; } =
 			new[] { "30 min", "1 hour", "2 hours", "3 hours", "6 hours", "12 hours" };
-		private static readonly int[] PastEventMinutesByIndex = { 30, 60, 120, 180, 360, 720 };
+		// ⚠️ Mirrored by SavedEventLeg.AllowedDurationMinutes (internal so the test can hold the two in step).
+		internal static readonly int[] PastEventMinutesByIndex = { 30, 60, 120, 180, 360, 720 };
 		// Cap on frames loaded. Short windows load every volume (~5 min apart, smooth); longer windows
 		// are evenly SUBSAMPLED to this many frames (so a 12 h window is an overview, ~18 min apart,
 		// rather than 140+ frames melting memory).
@@ -772,6 +773,55 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(LoadedReplayStartUtc));
 			OnPropertyChanged(nameof(HasLoadedReplayWindow));
 			OnPropertyChanged(nameof(IsReplaySelectionDirty));
+		}
+
+		// ── Saved events: the two seams SavedEventsViewModel drives ──────────────────────────────
+		// A saved event is the pickers' three values plus a site, so applying one is just writing those —
+		// through the SAME setters a hand edit uses, so the card, the dirty flag and the persisted
+		// selection all follow without a parallel path.
+
+		/// <summary>
+		/// Puts a saved window into the pickers. <paramref name="startUtc"/> is converted to local time HERE
+		/// and nowhere else (the pickers are local; a saved event is UTC).
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ The date goes through <see cref="LocalMidnight"/> like every other date handed to the calendar —
+		/// see the stack-overflow note on <see cref="PastEventDate"/>.
+		/// ⚠️ A duration the picker doesn't offer leaves the window length ALONE rather than snapping to the
+		/// nearest one; the library refuses such a leg, so this is only a guard.
+		/// </remarks>
+		internal void ApplyReplayWindow(DateTimeOffset startUtc, int durationMinutes)
+		{
+			var local = startUtc.ToLocalTime();
+			ApplyPastEventDate(LocalMidnight(local.Year, local.Month, local.Day));
+			PastEventTime = new TimeSpan(local.Hour, local.Minute, 0);
+			var index = Array.IndexOf(PastEventMinutesByIndex, durationMinutes);
+			if (index >= 0)
+			{
+				PastEventDurationIndex = index;
+			}
+		}
+
+		/// <summary>
+		/// Selects a replay site WITHOUT loading it — a saved event arms, Load loads.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ <b>Why this isn't just <c>SelectedRadarOption = option</c>:</b> once a window is loaded, that
+		/// setter AUTO-LOADS the new site (the click-another-site gesture). Picking an event must not start a
+		/// load behind the user's back, so a DIFFERENT site first forgets the loaded window, which routes the
+		/// setter down the not-armed path (clear the replay, highlight the marker, start nothing).
+		/// ⚠️ The SAME site does nothing here: the loop stays on screen, the pickers having moved already make
+		/// the selection dirty, and the card says "press Load" — the honest state.
+		/// </remarks>
+		internal void SelectReplaySiteWithoutLoading(RadarOption option)
+		{
+			if (!_isPastEventMode || ReferenceEquals(_selectedRadarOption, option))
+			{
+				return;
+			}
+
+			ClearReplayWindowLoaded();
+			SelectedRadarOption = option;
 		}
 
 		// Any change to date, start time or duration moves the card's preview AND can make it disagree with

@@ -17,6 +17,19 @@
        │  Date    [ May 24, 2011              ▾]              │
        │  Start   [ 5:00 PM                   ▾]              │  ← the PICKERS (ViewModel.Radar)
        │  Window  [30m│1h│▓▓2h▓▓│3h│6h│12h]                   │
+       │  ›  Saved events                                     │  ← jump the pickers to a named
+       │     [ Search events, sites or years          ]       │     event; NOT a map layer
+       │     [▓All▓│Built-in│Yours]                           │
+       │     YOURS                                            │
+       │     ▌Tuesday's MCS                  [KDVN] [🗑]      │  ← delete: yours only, confirms
+       │     ▌Sep 1, 2026 · 7:00 AM · 6h                      │
+       │     BUILT-IN                                         │
+       │      Joplin, MO                     [KSGF +1]        │
+       │      May 22, 2011 · 5:00 PM · 2h                     │
+       │      KSGF ▕▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▕  5:00 PM · 2h            │  ← legs: only on the picked row,
+       │      KINX ▕░░░░░░░░░░░░░░░░▕  5:00 PM · 2h            │     only when there's a choice
+       │      [← Previous radar]  [Next radar →]              │
+       │     [ Save current timeframe ]                       │
        │  ›  Radar                                            │  ← the layer everything else
        │  ›  SPC outlook                                      │     is drawn OVER
        │  ›  Storm reports                                    │  ← that day's verification dots
@@ -60,12 +73,20 @@
      hosts.
 
      ⚠️ This tab does NOT enter or leave replay; that is the PastCast key in the bottom bar's centre cluster
-     (Load fills the armed replay with frames). A tab body configures a mode, the key runs it. -->
+     (Load fills the armed replay with frames). A tab body configures a mode, the key runs it.
+
+     ⚠️ SAVED EVENTS SITS DIRECTLY UNDER TIMEFRAME, outside the Z-order run, because it is not a layer: it
+     is a shortcut INTO the Timeframe pickers (ViewModel.SavedEvents). Picking a row ARMS — it fills the
+     pickers, selects the site without loading, and flies there — and Load still does the loading. Editing a
+     picker afterwards clears the row's highlight. It opens COLLAPSED; Timeframe stays the only open section.
+     ⚠️ The list is a ListView with SelectionMode=None + ItemClick, because "picked" is view-model state
+     (it must clear when the pickers move), not ListView selection. MaxHeight-capped like the DOW list. -->
 <UserControl x:Class="Anvil.Controls.Composites.PastCastTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:comp="using:Anvil.Controls.Composites"
              xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:vm="using:Anvil.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -73,6 +94,7 @@
     <Grid VerticalAlignment="Top" RowSpacing="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- timeframe: the card + the pickers -->
+            <RowDefinition Height="Auto"/> <!-- saved events (a shortcut into the pickers, not a layer) -->
             <RowDefinition Height="Auto"/> <!-- the radar layer itself -->
             <RowDefinition Height="Auto"/> <!-- historical SPC outlook -->
             <RowDefinition Height="Auto"/> <!-- storm reports (verification) -->
@@ -218,17 +240,251 @@
             </Grid>
         </Expander>
 
+        <!-- ===================== SAVED EVENTS: named timeframes, built-in + yours ===================== -->
+        <Expander Grid.Row="1" Header="Saved events"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid RowSpacing="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- search -->
+                    <RowDefinition Height="Auto"/> <!-- All / Built-in / Yours -->
+                    <RowDefinition Height="Auto"/> <!-- the list (or its empty state) -->
+                    <RowDefinition Height="Auto"/> <!-- a pick that only partly applied -->
+                    <RowDefinition Height="Auto"/> <!-- save: the button, or the form -->
+                </Grid.RowDefinitions>
+
+                <TextBox Grid.Row="0"
+                         PlaceholderText="Search events, sites or years"
+                         Text="{x:Bind ViewModel.SavedEvents.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                <prim:SegmentedPicker Grid.Row="1" HorizontalAlignment="Left" Width="240"
+                                      ItemsSource="{x:Bind ViewModel.SavedEvents.FilterLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.SavedEvents.FilterIndex, Mode=TwoWay}"/>
+
+                <!-- ⚠️ SelectionMode=None: "picked" lives on the row view model, because it has to CLEAR when a
+                     picker moves, which ListView selection would not do. ItemClick picks; the buttons inside a
+                     row (delete, legs, previous/next) take their own clicks and never reach ItemClick. -->
+                <ListView Grid.Row="2" MaxHeight="340"
+                          SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnSavedEventClick"
+                          ItemsSource="{x:Bind ViewModel.SavedEvents.Rows}"
+                          Visibility="{x:Bind VisibleWhen(ViewModel.SavedEvents.HasRows), Mode=OneWay}">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="MinHeight" Value="0"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SavedEventRow">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/> <!-- group header (first row of a group) -->
+                                    <RowDefinition Height="Auto"/> <!-- the event -->
+                                    <RowDefinition Height="Auto"/> <!-- legs (picked + several radars) -->
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="{x:Bind GroupLabel}" FontSize="11"
+                                           Margin="8,10,0,4"
+                                           Visibility="{x:Bind ShowGroupHeader, Mode=OneWay}"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+
+                                <!-- Picked = the ELEVATED face + an accent edge, the bar's "this one is on". -->
+                                <Border Grid.Row="1" Grid.RowSpan="2" CornerRadius="4"
+                                        Background="{ThemeResource OverlayBarSurfaceElevatedBrush}"
+                                        Visibility="{x:Bind IsSelected, Mode=OneWay}"/>
+                                <Border Grid.Row="1" Grid.RowSpan="2" Width="3" HorizontalAlignment="Left"
+                                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                        Visibility="{x:Bind IsSelected, Mode=OneWay}"/>
+
+                                <Grid Grid.Row="1" Padding="12,8,8,8" ColumnSpacing="10"
+                                      ToolTipService.ToolTip="{x:Bind ToolTip}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{x:Bind Name}" FontSize="14" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                        <TextBlock FontSize="12" Margin="0,2,0,0"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                                            <Run Text="{x:Bind DateText}"/><Run Text=" · "/><Run Text="{x:Bind SummaryText}"/>
+                                        </TextBlock>
+                                        <TextBlock Text="{x:Bind Notes}" FontSize="12" Margin="0,2,0,0"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Visibility="{x:Bind HasNotes}"
+                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                                VerticalAlignment="Top">
+                                        <Border CornerRadius="4" Padding="6,1" BorderThickness="1" VerticalAlignment="Center"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                                            <TextBlock Text="{x:Bind SitesText}" FontFamily="Consolas" FontSize="11"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </Border>
+                                        <!-- ⚠️ Yours only — a built-in has no delete at all, and the library refuses one
+                                             anyway. The flyout confirms, since there is no undo. -->
+                                        <Button Visibility="{x:Bind CanDelete}" Padding="6,4" MinWidth="0"
+                                                Background="Transparent" BorderThickness="0"
+                                                ToolTipService.ToolTip="Remove this event">
+                                            <FontIcon Glyph="&#xE74D;" FontSize="13"/>
+                                            <Button.Flyout>
+                                                <Flyout>
+                                                    <StackPanel Spacing="10" MaxWidth="240">
+                                                        <TextBlock Text="{x:Bind DeletePrompt}" TextWrapping="Wrap"/>
+                                                        <Button Content="Remove" Tag="{x:Bind}"
+                                                                Style="{StaticResource AccentButtonStyle}"
+                                                                Click="OnRemoveSavedEventClick"/>
+                                                    </StackPanel>
+                                                </Flyout>
+                                            </Button.Flyout>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- THE LEGS: one lane per radar, drawn to scale inside the event's span. A lane is a
+                                     button — clicking it arms that radar's window. ⚠️ The track is a FIXED width
+                                     (PastCastTab.LegTrackWidth) so the fractions become pixels without a measure pass. -->
+                                <Grid Grid.Row="2" Padding="12,0,8,10" RowSpacing="6"
+                                      Visibility="{x:Bind ShowLegs, Mode=OneWay}">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <ItemsControl Grid.Row="0" ItemsSource="{x:Bind Legs}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:SavedEventLegRow">
+                                                <Button Tag="{x:Bind}" Click="OnSavedEventLegClick"
+                                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                                        Background="Transparent" BorderThickness="0" Padding="0,2"
+                                                        ToolTipService.ToolTip="Arm this radar's window">
+                                                    <Grid ColumnSpacing="8">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="40"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{x:Bind SiteText}"
+                                                                   FontFamily="Consolas" FontSize="11" VerticalAlignment="Center"/>
+                                                        <Grid Grid.Column="1" Width="{x:Bind comp:PastCastTab.LegTrackWidth}" Height="16">
+                                                            <Border CornerRadius="3"
+                                                                    Background="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                                            <Border CornerRadius="3" HorizontalAlignment="Left" BorderThickness="1"
+                                                                    Margin="{x:Bind comp:PastCastTab.LegOffset(LeftFraction)}"
+                                                                    Width="{x:Bind comp:PastCastTab.LegWidth(WidthFraction)}"
+                                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                                                                    Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+                                                            <Border CornerRadius="3" HorizontalAlignment="Left"
+                                                                    Margin="{x:Bind comp:PastCastTab.LegOffset(LeftFraction)}"
+                                                                    Width="{x:Bind comp:PastCastTab.LegWidth(WidthFraction)}"
+                                                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                                    Visibility="{x:Bind IsCurrent, Mode=OneWay}"/>
+                                                        </Grid>
+                                                        <TextBlock Grid.Column="2" Text="{x:Bind TimeText}" FontSize="11"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <Grid Grid.Row="1" ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" HorizontalAlignment="Stretch" Tag="{x:Bind}"
+                                                IsEnabled="{x:Bind CanGoPrevious, Mode=OneWay}"
+                                                Click="OnSavedEventPreviousLegClick">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <FontIcon Glyph="&#xE72B;" FontSize="12"/>
+                                                <TextBlock Text="Previous radar" FontSize="12"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Column="1" HorizontalAlignment="Stretch" Tag="{x:Bind}"
+                                                IsEnabled="{x:Bind CanGoNext, Mode=OneWay}"
+                                                Click="OnSavedEventNextLegClick">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="Next radar" FontSize="12"/>
+                                                <FontIcon Glyph="&#xE72A;" FontSize="12"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </Grid>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <TextBlock Grid.Row="2" TextWrapping="Wrap"
+                           Text="{x:Bind ViewModel.SavedEvents.EmptyText, Mode=OneWay}"
+                           Style="{StaticResource SettingsFieldLabelStyle}"
+                           Visibility="{x:Bind HiddenWhen(ViewModel.SavedEvents.HasRows), Mode=OneWay}"/>
+
+                <TextBlock Grid.Row="3" TextWrapping="Wrap"
+                           Text="{x:Bind ViewModel.SavedEvents.Status, Mode=OneWay}"
+                           Style="{StaticResource SettingsFieldLabelStyle}"
+                           Visibility="{x:Bind HasText(ViewModel.SavedEvents.Status), Mode=OneWay}"/>
+
+                <!-- SAVE: a button that opens an inline form. The form states exactly what will be saved (the
+                     pickers + the selected site), so a save never captures something the user didn't see. -->
+                <Button Grid.Row="4" HorizontalAlignment="Stretch" Click="OnOpenSaveEventClick"
+                        Visibility="{x:Bind HiddenWhen(ViewModel.SavedEvents.IsSaveFormOpen), Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE734;" FontSize="13"/>
+                        <TextBlock Text="Save current timeframe"/>
+                    </StackPanel>
+                </Button>
+
+                <Border Grid.Row="4" CornerRadius="8" Padding="13,12" BorderThickness="1"
+                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                        BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                        Visibility="{x:Bind VisibleWhen(ViewModel.SavedEvents.IsSaveFormOpen), Mode=OneWay}">
+                    <Grid RowSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/> <!-- title -->
+                            <RowDefinition Height="Auto"/> <!-- what will be saved -->
+                            <RowDefinition Height="Auto"/> <!-- name -->
+                            <RowDefinition Height="Auto"/> <!-- error -->
+                            <RowDefinition Height="Auto"/> <!-- notes -->
+                            <RowDefinition Height="Auto"/> <!-- Cancel / Save -->
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="Save current timeframe" FontSize="14"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <TextBlock Grid.Row="1" Text="{x:Bind ViewModel.SavedEvents.SaveSummary, Mode=OneWay}"
+                                   FontSize="12" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBox Grid.Row="2" PlaceholderText="Name, like Tuesday's MCS"
+                                 Text="{x:Bind ViewModel.SavedEvents.NewEventName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Grid.Row="3" Text="{x:Bind ViewModel.SavedEvents.SaveError, Mode=OneWay}"
+                                   FontSize="12" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                   Visibility="{x:Bind HasText(ViewModel.SavedEvents.SaveError), Mode=OneWay}"/>
+                        <TextBox Grid.Row="4" PlaceholderText="Notes (optional)"
+                                 Text="{x:Bind ViewModel.SavedEvents.NewEventNotes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                            <Button Content="Cancel" Click="OnCancelSaveEventClick"/>
+                            <Button Content="Save" Style="{StaticResource AccentButtonStyle}" Click="OnConfirmSaveEventClick"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Expander>
+
         <!-- ===================== RADAR: the layer everything else is drawn OVER ===================== -->
         <!-- ⚠️ Sections run in the map's Z-ORDER — radar underneath, outlook over it, reports on top — and
              each layer's opacity lives in its own section. That ordering is why this sits here rather than
              at the end. -->
-        <Expander Grid.Row="1" Header="Radar"
+        <Expander Grid.Row="2" Header="Radar"
                   Style="{StaticResource SectionExpanderStyle}">
             <comp:RadarOverlayInput ViewModel="{x:Bind ViewModel.Radar, Mode=OneWay}"/>
         </Expander>
 
         <!-- ===================== SPC OUTLOOK: the card, then the pickers ===================== -->
-        <Expander Grid.Row="2" Header="SPC outlook"
+        <Expander Grid.Row="3" Header="SPC outlook"
                   Style="{StaticResource SectionExpanderStyle}">
             <Grid>
                 <Grid.RowDefinitions>
@@ -334,7 +590,7 @@
              temporal windows, and a window owns its own section structure while the control is just
              content. Putting it inside would give this section a heading in a window whose other
              sections might not have one. -->
-        <Expander Grid.Row="3" Header="Storm reports"
+        <Expander Grid.Row="4" Header="Storm reports"
                   Style="{StaticResource SectionExpanderStyle}">
             <comp:StormReportsInput ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
         </Expander>
@@ -351,7 +607,7 @@
              library - these frames are ~20 MB and are no longer packaged.
              ⚠️ Import… raises an event rather than opening the picker here: a FileOpenPicker needs a window
              HWND and this is a UserControl. Same chain as the Map tab's folder browse. -->
-        <Expander Grid.Row="4" Header="DOW event"
+        <Expander Grid.Row="5" Header="DOW event"
                   Style="{StaticResource SectionExpanderStyle}">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>

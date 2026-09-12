@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.Composites
@@ -145,6 +146,60 @@ namespace Anvil.Controls.Composites
 		public Visibility VisibleWhen(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 
 		public Visibility HiddenWhen(bool on) => on ? Visibility.Collapsed : Visibility.Visible;
+
+		// ===== Saved events section =====
+		// Every handler here forwards to ViewModel.SavedEvents; the row or leg rides in the sender's Tag
+		// (a DataTemplate button has no other way to say which item it belongs to).
+
+		/// <summary>Pixel width of a leg timeline's track. FIXED so the view model's fractions become pixels
+		/// with no measure pass; it fits the 480-wide PastCast window beside the site and time columns.</summary>
+		public static double LegTrackWidth => 200;
+
+		/// <summary>Where a leg's bar starts inside the track.</summary>
+		public static Thickness LegOffset(double leftFraction) => new(leftFraction * LegTrackWidth, 0, 0, 0);
+
+		/// <summary>How wide a leg's bar is. Floored so a short leg in a long event is still clickable.</summary>
+		public static double LegWidth(double widthFraction) => Math.Max(6, widthFraction * LegTrackWidth);
+
+		private void OnSavedEventClick(object sender, ItemClickEventArgs e)
+		{
+			if (e.ClickedItem is SavedEventRow row) ViewModel?.SavedEvents.Pick(row);
+		}
+
+		private void OnSavedEventLegClick(object sender, RoutedEventArgs e)
+		{
+			if ((sender as FrameworkElement)?.Tag is SavedEventLegRow leg) ViewModel?.SavedEvents.PickLeg(leg);
+		}
+
+		private void OnSavedEventPreviousLegClick(object sender, RoutedEventArgs e)
+		{
+			if ((sender as FrameworkElement)?.Tag is SavedEventRow row) ViewModel?.SavedEvents.PreviousLeg(row);
+		}
+
+		private void OnSavedEventNextLegClick(object sender, RoutedEventArgs e)
+		{
+			if ((sender as FrameworkElement)?.Tag is SavedEventRow row) ViewModel?.SavedEvents.NextLeg(row);
+		}
+
+		private void OnRemoveSavedEventClick(object sender, RoutedEventArgs e)
+		{
+			// Close the confirm flyout BEFORE the row goes: removing the item tears down the template that
+			// owns the flyout, which would otherwise leave it open with nothing behind it.
+			if (XamlRoot is { } root)
+			{
+				foreach (var popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(root))
+				{
+					popup.IsOpen = false;
+				}
+			}
+			if ((sender as FrameworkElement)?.Tag is SavedEventRow row) ViewModel?.SavedEvents.Remove(row);
+		}
+
+		private void OnOpenSaveEventClick(object sender, RoutedEventArgs e) => ViewModel?.SavedEvents.OpenSaveForm();
+
+		private void OnCancelSaveEventClick(object sender, RoutedEventArgs e) => ViewModel?.SavedEvents.CancelSave();
+
+		private void OnConfirmSaveEventClick(object sender, RoutedEventArgs e) => ViewModel?.SavedEvents.ConfirmSave();
 
 		// ===== DOW event section =====
 		// ⚠️ Import raises an event instead of showing the picker: a WinRT FileOpenPicker must be

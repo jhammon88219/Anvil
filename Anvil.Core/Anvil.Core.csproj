@@ -38,6 +38,11 @@
          ⚠️ RootNamespace is `Anvil`, so the manifest name is `Anvil.Assets.spc-risk-catalog.json` —
          SpcRiskCatalog.ResourceName must track this path. -->
     <EmbeddedResource Include="Assets\spc-risk-catalog.json" />
+    <!-- The curated BUILT-IN PastCast saved events, read by SavedEventLibrary (manifest name
+         `Anvil.Assets.saved-events.json`). Embedded for the same reason as the catalog: read-only by
+         design, and a user's own events live in %LocalAppData%\Anvil\SavedEvents.json instead.
+         Verify every leg against the archive with tools/check_saved_events.py before shipping an edit. -->
+    <EmbeddedResource Include="Assets\saved-events.json" />
   </ItemGroup>
 
   <ItemGroup>
