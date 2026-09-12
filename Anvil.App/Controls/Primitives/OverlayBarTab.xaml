@@ -122,7 +122,7 @@
             Click="OnTabClick"
             ToolTipService.ToolTip="{x:Bind Tooltip(IsShown, Target), Mode=OneWay}">
         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-            <FontIcon Glyph="{x:Bind Chevron(IsShown), Mode=OneWay}"
+            <FontIcon Glyph="{x:Bind Chevron(IsShown, Edge), Mode=OneWay}"
                       FontSize="14"
                       VerticalAlignment="Center"/>
             <TextBlock Text="{x:Bind Word(IsShown, Target), Mode=OneWay}"

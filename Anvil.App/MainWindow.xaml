@@ -34,7 +34,7 @@
           ↑ TWO TIERS, ONE RAIL. Both tabs wear the plate they STAND ON, not the
             tier they toggle, so they move together with the stack. They are
             named because that is what tells them apart — two lozenges both
-            reading "Hide" name no difference. ˄ = show, ˅ = hide, everywhere.
+            reading "Hide" name no difference. The arrow points the way the tier moves.
             The rail is shared because it must be: an OverlayBar draws its tab
             in row 0 of its own grid, so the lower tier's tab would land in the
             seam between the two. Both tiers run ShowTab=False.

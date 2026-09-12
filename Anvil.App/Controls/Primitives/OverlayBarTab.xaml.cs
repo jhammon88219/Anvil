@@ -159,7 +159,7 @@ namespace Anvil.Controls.Primitives
 				? new CornerRadius(0, 0, SharedSize("OverlayBarTabRadius"), SharedSize("OverlayBarTabRadius"))
 				: new CornerRadius(SharedSize("OverlayBarTabRadius"), SharedSize("OverlayBarTabRadius"), 0, 0);
 
-			// Re-evaluate the glyph, the word and the tooltip for the new shape.
+			// Re-evaluate the glyph (it depends on Edge), the word and the tooltip.
 			Bindings?.Update();
 		}
 
@@ -178,16 +178,22 @@ namespace Anvil.Controls.Primitives
 		private const string ChevronDown = "\uE70D"; // Segoe Fluent ChevronDown
 
 		/// <summary>
-		/// UP MEANS SHOW, DOWN MEANS HIDE - everywhere, whichever edge the tab hangs off.
+		/// The arrow points THE WAY THE PANEL WILL MOVE. On a bottom-edge tab that is down to hide and up to
+		/// show; on a top-edge pane notch it is the reverse - up to hide, down to show.
 		/// </summary>
 		/// <remarks>
-		/// ⚠️ The arrow states the ACTION, not a direction of travel, and it used to take
-		/// <see cref="Edge"/> for exactly that reason: it pointed TOWARD the surface it would collapse, so
-		/// a top-edge pane notch showed an UP arrow while it was open. Consistent as a motion metaphor,
-		/// and backwards as a label - up on one tab meant "show" and up on another meant "hide". The tab
-		/// answers one question now: which way does this click move things.
+		/// ⚠️⚠️ IT TAKES <see cref="Edge"/> AND MUST KEEP TAKING IT. It was briefly made edge-blind ("up = show,
+		/// down = hide, everywhere") after "up means show" was said about the BOTTOM tabs and read as a
+		/// universal rule. On a notch hanging from the top of a pane that put a DOWN arrow on an open notch
+		/// whose click collapses it UPWARD - every notch pointing the opposite way at the opposite time. The
+		/// rule was always motion, and motion depends on which edge the panel is attached to.
 		/// </remarks>
-		public string Chevron(bool shown) => shown ? ChevronDown : ChevronUp;
+		public string Chevron(bool shown, BarEdge edge)
+		{
+			// Bottom edge: shown -> hide moves it DOWN.  Top edge: shown -> hide moves it UP.
+			bool pointUp = edge == BarEdge.Top ? shown : !shown;
+			return pointUp ? ChevronUp : ChevronDown;
+		}
 
 		/// <summary>The word on the tab: the noun when the rail has more than one tab, else the verb.</summary>
 		public string Word(bool shown, string target) =>
