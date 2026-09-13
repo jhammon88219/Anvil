@@ -417,7 +417,9 @@ namespace Anvil.ViewModels
 					}
 					else
 					{
-						_ = _engine.SelectPastSiteAsync(value?.Site);
+						// Kept (not discarded) so LoadReplayAtSiteAsync can wait for the clear to finish before
+						// it loads — otherwise its ClearRadarAsync could land on top of the new loop.
+						_pastSiteSelect = _engine.SelectPastSiteAsync(value?.Site);
 					}
 				}
 				else
@@ -802,26 +804,41 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		// The not-armed site pick's clear (SelectPastSiteAsync), so a follow-up load can wait for it.
+		private Task _pastSiteSelect = Task.CompletedTask;
+
 		/// <summary>
-		/// Selects a replay site WITHOUT loading it — a saved event arms, Load loads.
+		/// Selects a replay site (when given) and loads the pickers' window at it — EXACTLY ONE load.
 		/// </summary>
 		/// <remarks>
-		/// ⚠️ <b>Why this isn't just <c>SelectedRadarOption = option</c>:</b> once a window is loaded, that
-		/// setter AUTO-LOADS the new site (the click-another-site gesture). Picking an event must not start a
-		/// load behind the user's back, so a DIFFERENT site first forgets the loaded window, which routes the
-		/// setter down the not-armed path (clear the replay, highlight the marker, start nothing).
-		/// ⚠️ The SAME site does nothing here: the loop stays on screen, the pickers having moved already make
-		/// the selection dirty, and the card says "press Load" — the honest state.
+		/// ⚠️ <b>Why this isn't just <c>SelectedRadarOption = option</c>:</b> that setter's behaviour depends on
+		/// hidden state — once a window is loaded it auto-loads the new site, otherwise it only clears and
+		/// highlights. So a DIFFERENT site first forgets the loaded window (always the clear-only path), the
+		/// clear is AWAITED, and then one explicit load runs. Without the await, the clear's
+		/// <c>ClearRadarAsync</c> could land after the new loop had begun drawing.
+		/// ⚠️ The SAME site skips straight to the load — which the engine treats as a fresh replay, the same as
+		/// pressing Load. Loaded and already matching = nothing to do (the archive day is immutable).
+		/// ⚠️ The pickers must already hold the window: callers apply it FIRST.
 		/// </remarks>
-		internal void SelectReplaySiteWithoutLoading(RadarOption option)
+		internal async Task<bool> LoadReplayAtSiteAsync(RadarOption? option)
 		{
-			if (!_isPastEventMode || ReferenceEquals(_selectedRadarOption, option))
+			if (!_isPastEventMode)
 			{
-				return;
+				return false;
 			}
 
-			ClearReplayWindowLoaded();
-			SelectedRadarOption = option;
+			if (option is not null && !ReferenceEquals(_selectedRadarOption, option))
+			{
+				ClearReplayWindowLoaded();
+				SelectedRadarOption = option;
+				await _pastSiteSelect;
+			}
+			else if (_pastWindowLoaded && !IsReplaySelectionDirty)
+			{
+				return true;
+			}
+
+			return await LoadSelectedPastEventAsync();
 		}
 
 		// Any change to date, start time or duration moves the card's preview AND can make it disagree with

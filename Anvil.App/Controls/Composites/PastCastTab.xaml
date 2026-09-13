@@ -24,10 +24,10 @@
        │     ▌Tuesday's MCS                  [KDVN] [🗑]      │  ← delete: yours only, confirms
        │     ▌Sep 1, 2026 · 7:00 AM · 6h                      │
        │     BUILT-IN                                         │
-       │      Joplin, MO                     [KSGF +1]        │
-       │      May 22, 2011 · 5:00 PM · 2h                     │
-       │      KSGF ▕▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▕  5:00 PM · 2h            │  ← legs: only on the picked row,
-       │      KINX ▕░░░░░░░░░░░░░░░░▕  5:00 PM · 2h            │     only when there's a choice
+       │      Long-track storm               [KGWX +1]        │  (illustrative; picking a row or
+       │      Apr 27, 2011 · 3:00 → 6:30 PM                   │   a leg LOADS it)
+       │      KGWX ▕▓▓▓▓▓▓▓▓░░░░░░░░▕  3:00 PM · 1h            │  ← legs: only on the picked row,
+       │      KBMX ▕░░░░▓▓▓▓▓▓▓▓▓▓▓▓▕  3:30 PM · 3h            │     only when there's a choice
        │      [← Previous radar]  [Next radar →]              │
        │     [ Save current timeframe ]                       │
        │  ›  Radar                                            │  ← the layer everything else
@@ -76,9 +76,9 @@
      (Load fills the armed replay with frames). A tab body configures a mode, the key runs it.
 
      ⚠️ SAVED EVENTS SITS DIRECTLY UNDER TIMEFRAME, outside the Z-order run, because it is not a layer: it
-     is a shortcut INTO the Timeframe pickers (ViewModel.SavedEvents). Picking a row ARMS — it fills the
-     pickers, selects the site without loading, and flies there — and Load still does the loading. Editing a
-     picker afterwards clears the row's highlight. It opens COLLAPSED; Timeframe stays the only open section.
+     is a shortcut INTO the Timeframe pickers (ViewModel.SavedEvents). Picking a row LOADS it — it fills the
+     pickers, flies to the site, and runs the same replay load the Load button does, once. Editing a picker
+     afterwards clears the row's highlight. It opens COLLAPSED; Timeframe stays the only open section.
      ⚠️ The list is a ListView with SelectionMode=None + ItemClick, because "picked" is view-model state
      (it must clear when the pickers move), not ListView selection. MaxHeight-capped like the DOW list. -->
 <UserControl x:Class="Anvil.Controls.Composites.PastCastTab"
@@ -344,7 +344,7 @@
                                 </Grid>
 
                                 <!-- THE LEGS: one lane per radar, drawn to scale inside the event's span. A lane is a
-                                     button — clicking it arms that radar's window. ⚠️ The track is a FIXED width
+                                     button — clicking it loads that radar's window. ⚠️ The track is a FIXED width
                                      (PastCastTab.LegTrackWidth) so the fractions become pixels without a measure pass. -->
                                 <Grid Grid.Row="2" Padding="12,0,8,10" RowSpacing="6"
                                       Visibility="{x:Bind ShowLegs, Mode=OneWay}">
@@ -359,7 +359,7 @@
                                                 <Button Tag="{x:Bind}" Click="OnSavedEventLegClick"
                                                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                                                         Background="Transparent" BorderThickness="0" Padding="0,2"
-                                                        ToolTipService.ToolTip="Arm this radar's window">
+                                                        ToolTipService.ToolTip="Load this radar's window">
                                                     <Grid ColumnSpacing="8">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="40"/>

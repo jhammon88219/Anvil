@@ -28,8 +28,7 @@
       "source": "NWS Springfield event summary: tornado 5:34-6:12 PM CDT (22:34-23:12Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KSGF", "startUtc": "2011-05-22T22:00:00Z", "minutes": 120 },
-        { "site": "KINX", "startUtc": "2011-05-22T22:00:00Z", "minutes": 120 }
+        { "site": "KSGF", "startUtc": "2011-05-22T22:00:00Z", "minutes": 120 }
       ]
     }
   ]

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading.Tasks;
 using Anvil.Models;
 using Anvil.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -15,10 +16,10 @@ namespace Anvil.ViewModels
 	/// own events.
 	/// </summary>
 	/// <remarks>
-	/// ⚠️⚠️ <b>PICKING AN EVENT ARMS, IT NEVER LOADS.</b> It writes the leg's window into the Timeframe
-	/// pickers, selects the leg's site WITHOUT loading (<see cref="RadarViewModel.SelectReplaySiteWithoutLoading"/>),
-	/// and flies the map there. The card then reads "Selection changed — press Load" (or "Not loaded yet"),
-	/// and Load does the rest through the unchanged replay path. There is no event mode in the engine.
+	/// ⚠️⚠️ <b>PICKING AN EVENT LOADS IT.</b> It writes the leg's window into the Timeframe pickers, flies the
+	/// map to the leg's site, and loads through <see cref="RadarViewModel.LoadReplayAtSiteAsync"/> — the same
+	/// replay path Load uses, exactly once. There is no event mode in the engine. (It armed-only at first;
+	/// changed by request 2026-09-12 — a pick is a request to watch.)
 	/// <para>⚠️ <b>THE HIGHLIGHT CLEARS THE MOMENT THE PICKERS STOP MATCHING</b> — any date/start/window
 	/// edit, a different site clicked on the map, or leaving PastCast. The list never points at an event
 	/// the Timeframe no longer describes. Our own writes are fenced by <c>_applying</c> so picking an event
@@ -27,6 +28,7 @@ namespace Anvil.ViewModels
 	/// replay loop is one site (every pane shares it), so Previous/Next radar re-arm a leg by hand. An
 	/// automatic handoff mid-playback would be a multi-site loop — an engine change, and the engine is
 	/// parked.</para>
+	/// <para>⚠️ Saving does NOT load — the new event already describes what the pickers hold.</para>
 	/// </remarks>
 	public sealed class SavedEventsViewModel : ObservableObject
 	{
@@ -160,7 +162,7 @@ namespace Anvil.ViewModels
 			if (row.CanGoNext) Apply(row, row.CurrentLegIndex + 1);
 		}
 
-		private void Apply(SavedEventRow row, int legIndex)
+		private async void Apply(SavedEventRow row, int legIndex)
 		{
 			if (!_radar.IsPastEventMode)
 			{
@@ -170,35 +172,51 @@ namespace Anvil.ViewModels
 			}
 
 			var leg = row.Event.Legs[Math.Clamp(legIndex, 0, row.Event.Legs.Count - 1)];
+			RadarOption? option = null;
+			Task<bool> load;
+
 			_applying = true;
 			try
 			{
 				Select(row.Id, legIndex);
 				Status = string.Empty;
 
-				// ⚠️ ORDER: window FIRST, site second. If the site is the same as the loaded one, the moved
-				// pickers are what make the card say "press Load"; if it differs, the site seam forgets the
-				// loaded window, and it must do so after the pickers hold the new one.
+				// ⚠️ ORDER: window FIRST, then site + load. The load reads the pickers, so they must already
+				// hold this leg's window when it starts.
 				_radar.ApplyReplayWindow(leg.StartUtc, leg.DurationMinutes);
 
 				if (leg.SiteId is { } siteId)
 				{
-					var option = _radar.RadarOptions.FirstOrDefault(o =>
+					option = _radar.RadarOptions.FirstOrDefault(o =>
 						string.Equals(o.Site?.Id, siteId, StringComparison.OrdinalIgnoreCase));
 					if (option?.Site is { } site)
 					{
-						_radar.SelectReplaySiteWithoutLoading(option);
 						_ = _mapService.FlyToAsync(site.Longitude, site.Latitude, 7);
 					}
 					else
 					{
-						Status = $"{siteId} isn't in the radar site list, so only the timeframe was set.";
+						Status = $"{siteId} isn't in the radar site list, so the timeframe loaded at the current site.";
 					}
 				}
+
+				// ⚠️ Started INSIDE the fence: the site change it makes is raised synchronously, before the
+				// first await, and must not read as the user moving away from the event.
+				load = _radar.LoadReplayAtSiteAsync(option);
 			}
 			finally
 			{
 				_applying = false;
+			}
+
+			try
+			{
+				await load;
+			}
+			catch (Exception ex)
+			{
+				// async void: an escaped exception would take the app down. The card's footer carries the
+				// load's own failures; this is only for the unexpected.
+				Status = $"Couldn't load this event: {ex.Message}";
 			}
 		}
 
