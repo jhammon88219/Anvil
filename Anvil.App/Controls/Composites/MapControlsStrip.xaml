@@ -8,10 +8,12 @@
        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← shadow, thrown onto the map
 
        ╭─ ˅ Tools ─╮ ╭─ ˅ Bar ─╮                                    ← MainWindow's shared rail
-       (⌘) (⛶)              status  [Search places  ⌕] [Isolate State ▾]   ← THIS, on the raised surface
-                                    ┌───────────────────┐
-                                    │ Moore, OK  pop 62k│   ← suggestions (the AutoSuggestBox popup)
-                                    └───────────────────┘
+       (⌘) (⛶)     (▣) [Search places             ⌕] (⊚) status   [Isolate State ▾]   ← THIS, on the raised surface
+                      ┌─────────────────────────────┐
+                      │ Moore, OK          pop 62k  │   ← suggestions (the AutoSuggestBox popup)
+                      └─────────────────────────────┘
+                   ↑   ↑ the box is CENTERED on the tier ↑ ⊚ Location (latches: lit = your marker is out)
+                   ▣ marker viewer — a PLACEHOLDER with no action yet; the window it will open is future work
        ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   ← …and onto the bar: NO rule
        ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
      ═══════════════════════ window bottom ═══════════════════════
@@ -36,13 +38,28 @@
      already past it (#1A1A1A), so the hover would be invisible; in light it would go the wrong way.
      Each tier hovers one step further from its OWN ground.
 
-     PLACE SEARCH sits right, beside the isolation picker: both answer "where on the map". Typing shows
+     PLACE SEARCH sits in the CENTER, on the tier's exact midpoint (a [*, Auto, *] grid, the same trick as the
+     bar's temporal pills below it); its status text hangs off the box's right in the third column so a
+     message never pushes the box off-center. Typing shows
      GAZETTEER rows (offline); Enter/a row flies there and drops the search pin (MarkersViewModel).
      ⚠️ ONLINE (Nominatim) runs ONLY on Enter when the gazetteer found nothing — its policy forbids
      autocomplete. Don't wire it to TextChanged. ⚠️ Clearing the box removes the pin; that is the remove.
      ⚠️ An AutoSuggestBox is safe here (the wheel hazard is a CLOSED ComboBox cycling its selection).
      ⚠️ No Ctrl+F: the WebView owns keyboard focus once the map is clicked, so an accelerator here
      would work only sometimes.
+
+     THE SEARCH IS FLANKED: marker viewer LEFT (a placeholder), LOCATION RIGHT. Both sit in the star
+     columns hugging the box, so neither shifts it off the midpoint. Location moved here from the bar's
+     right cluster — it is a "where on the map" move like search, and an occasional one.
+     ⚠️ LOCATION LATCHES: as a plain button it would be a one-way door (nothing else in the shipped UI
+     removes the marker — the Selected Marker window is pending re-add). Lit = your marker is out; clicking
+     it lit removes it. ⚠️ IsChecked is ONE-WAY and re-asserted after the await in the handler: the locate
+     can FAIL without any property changing, so nothing else would pull the toggle back down. Don't make
+     it TwoWay. The tooltip carries "Locating…" / "Location unavailable" — a failure is otherwise silent.
+     ⚠️ Its mark is a DRAWN reticle (PathIcon, 18-unit box), the same family as the on-map marker — a key
+     pictures what it drops. That is why the bar's Inspect key is a magnifier; don't give it a reticle.
+     ⚠️ The viewer's mark is a drawn TEARDROP, the search pin's shape. Its button has NO Click on purpose;
+     wire it when the marker window exists (open bool + WindowManager registration — CLAUDE.md "Add a window").
 
      Host contract: ViewModel (MapViewModel). Add a tool = one Button in either side's panel.
      ============================================================================ -->
@@ -110,6 +127,81 @@
             </Setter>
         </Style>
 
+        <!-- The LATCHING tool (Location): StripToolButtonStyle's look plus the bar's lit vocabulary — accent
+             BORDER + Elevated face while checked (Elevated is "a control that is ON", never a tier). A separate
+             style because a Button style can't target a ToggleButton. -->
+        <Style x:Key="StripToolToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid x:Name="Root"
+                              Background="{TemplateBinding Background}"
+                              BorderBrush="{TemplateBinding BorderBrush}"
+                              BorderThickness="{TemplateBinding BorderThickness}"
+                              CornerRadius="{TemplateBinding CornerRadius}">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Checked">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="CheckedPointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="CheckedPressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="CheckedDisabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <ContentPresenter x:Name="Glyph"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Content="{TemplateBinding Content}"
+                                              Foreground="{TemplateBinding Foreground}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- One isolation row, for BOTH sections of the picker. The modes carry hover text; the places
              have a null Tooltip, which shows nothing rather than an empty box. -->
         <DataTemplate x:Key="IsolationRowTemplate" x:DataType="vm:StateIsolationOption">
@@ -133,8 +225,8 @@
     </UserControl.Resources>
 
     <!-- ⚠️ NO Background here: the OverlayBar hosting this tier paints the raised surface, and a second
-         opaque fill would be one more place the tier's colour is written. One cell, two children — the
-         tools hug the window edges the bar's own clusters hug. -->
+         opaque fill would be one more place the tier's colour is written. One cell, three children — the
+         tools hug the window edges the bar's own clusters hug, and place search holds the center. -->
     <Grid>
         <!-- Camera tools, LEFT — over the bar's Markers / Inspect keys. -->
         <StackPanel x:Name="LeftTools"
@@ -155,6 +247,62 @@
             </Button>
         </StackPanel>
 
+        <!-- ===== PLACE SEARCH — CENTER =====
+             A [*, Auto, *] grid spanning the tier puts the box on the exact midpoint. ⚠️ No Background on this
+             Grid: a background-less Grid isn't hit-testable, so its empty star columns don't swallow clicks
+             meant for the camera tools or the isolation picker beneath them. -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- MARKER VIEWER — PLACEHOLDER. No Click until the marker window exists (see the header).
+                 A teardrop with an eye, the search pin's own shape. -->
+            <Button x:Name="MarkerViewerButton"
+                    Grid.Column="0"
+                    HorizontalAlignment="Right" Margin="0,0,6,0"
+                    Style="{StaticResource StripToolButtonStyle}"
+                    ToolTipService.ToolTip="Markers (coming soon)">
+                <PathIcon Data="M9,0 C5.1,0 2,3.1 2,7 C2,12 9,18 9,18 C9,18 16,12 16,7 C16,3.1 12.9,0 9,0 Z M9,4.5 A2.5,2.5 0 1,0 9,9.5 A2.5,2.5 0 1,0 9,4.5 Z"/>
+            </Button>
+
+            <AutoSuggestBox x:Name="PlaceSearchBox"
+                            Grid.Column="1"
+                            Width="402" VerticalAlignment="Center"
+                            PlaceholderText="Search places"
+                            QueryIcon="Find"
+                            TextMemberPath="Display"
+                            ItemsSource="{x:Bind ViewModel.PlaceSearch.Suggestions}"
+                            ItemTemplate="{StaticResource PlaceRowTemplate}"
+                            TextChanged="OnPlaceSearchTextChanged"
+                            QuerySubmitted="OnPlaceSearchQuerySubmitted"
+                            ToolTipService.ToolTip="Find a city or town and fly there. Clear the box to remove the pin."/>
+
+            <StackPanel Grid.Column="2"
+                        Orientation="Horizontal" Spacing="10" Margin="6,0,0,0"
+                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                <!-- LOCATION — drop / remove your marker. ONE-WAY IsChecked, re-asserted in the handler. -->
+                <ToggleButton x:Name="LocationToggle"
+                              Style="{StaticResource StripToolToggleStyle}"
+                              IsEnabled="{x:Bind ViewModel.Markers.CanLocate, Mode=OneWay}"
+                              IsChecked="{x:Bind ViewModel.Markers.HasUserLocationMarker, Mode=OneWay}"
+                              ToolTipService.ToolTip="{x:Bind LocationTooltip(ViewModel.Markers.HasUserLocationMarker, ViewModel.Markers.LocateStatusText), Mode=OneWay}"
+                              Click="OnToggleUserLocation">
+                    <!-- Ring (donut 3.6-5.2), SOLID core (r 2.2), four ticks standing off it. -->
+                    <PathIcon Data="M3.8,9 A5.2,5.2 0 1,0 14.2,9 A5.2,5.2 0 1,0 3.8,9 Z M5.4,9 A3.6,3.6 0 1,0 12.6,9 A3.6,3.6 0 1,0 5.4,9 Z M6.8,9 A2.2,2.2 0 1,0 11.2,9 A2.2,2.2 0 1,0 6.8,9 Z M8.2,0 H9.8 V3 H8.2 Z M8.2,15 H9.8 V18 H8.2 Z M0,8.2 H3 V9.8 H0 Z M15,8.2 H18 V9.8 H15 Z"/>
+                </ToggleButton>
+
+                <!-- Place search status ("Searching online…", "No places match …"); collapsed when empty. -->
+                <TextBlock Text="{x:Bind ViewModel.PlaceSearch.StatusText, Mode=OneWay}"
+                           Visibility="{x:Bind ViewModel.PlaceSearch.HasStatus, Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </Grid>
+
         <!-- ===== STATE ISOLATION — THREE CONTROLS COLLAPSED INTO ONE LIST =====
              RIGHT, over the bar's window keys. It replaced the Settings window's Map tab CONUS checkbox,
              its "isolate a state (hover & click)" arm checkbox, and its state-name combo. One row each:
@@ -172,23 +320,6 @@
         <StackPanel x:Name="RightTools"
                     Orientation="Horizontal" Spacing="4"
                     HorizontalAlignment="Right" VerticalAlignment="Center">
-            <!-- Place search status ("Searching online…", "No places match …"); collapsed when empty. -->
-            <TextBlock Text="{x:Bind ViewModel.PlaceSearch.StatusText, Mode=OneWay}"
-                       Visibility="{x:Bind ViewModel.PlaceSearch.HasStatus, Mode=OneWay}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       VerticalAlignment="Center" Margin="0,0,6,0"/>
-
-            <AutoSuggestBox x:Name="PlaceSearchBox"
-                            Width="230" Margin="0,0,4,0" VerticalAlignment="Center"
-                            PlaceholderText="Search places"
-                            QueryIcon="Find"
-                            TextMemberPath="Display"
-                            ItemsSource="{x:Bind ViewModel.PlaceSearch.Suggestions}"
-                            ItemTemplate="{StaticResource PlaceRowTemplate}"
-                            TextChanged="OnPlaceSearchTextChanged"
-                            QuerySubmitted="OnPlaceSearchQuerySubmitted"
-                            ToolTipService.ToolTip="Find a city or town and fly there. Clear the box to remove the pin."/>
-
             <prim:SectionedComboBox Width="170"
                                     PlaceholderText="Isolate State"
                                     PinnedItemsSource="{x:Bind ViewModel.StateIso.IsolationModes, Mode=OneWay}"

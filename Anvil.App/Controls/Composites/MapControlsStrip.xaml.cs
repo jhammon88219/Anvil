@@ -43,6 +43,25 @@ namespace Anvil.Controls.Composites
 		private void OnFitToViewClick(object sender, RoutedEventArgs e) =>
 			_ = ViewModel?.FitToViewAsync();
 
+		// Location (moved here from the bar). The transient locate status WINS in the tooltip: there is nowhere
+		// else a failed fix ("Location unavailable") would show — the toggle would simply spring back up.
+		public string LocationTooltip(bool hasMarker, string status) =>
+			status.Length > 0 ? status
+			: hasMarker ? "Remove your location marker"
+			: "Drop a marker at your location";
+
+		// ⚠️ Re-assert IsChecked AFTER the await: the click already flipped the toggle optimistically, and the
+		// resolve can fail without changing any view-model property, so nothing would pull it back down.
+		private async void OnToggleUserLocation(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is not { } vm)
+			{
+				return;
+			}
+			await vm.Markers.ToggleUserLocationAsync();
+			LocationToggle.IsChecked = vm.Markers.HasUserLocationMarker;
+		}
+
 		// Place search. Only the USER's typing refreshes rows — arrowing through the list (SuggestionChosen) and
 		// our own Text writes (ProgrammaticChange) must not, or picking a row would re-query as you move.
 		private void OnPlaceSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)

@@ -61,6 +61,36 @@ namespace Anvil.ViewModels
 		/// <summary>Hard reset of the current loop: cancels the in-flight load and reloads from scratch.</summary>
 		public void ResetRadarLoop() => _engine.ResetRadarLoop();
 
+		/// <summary>The bar's refresh button: poll the live (chunks) frame NOW instead of waiting for the timer.
+		/// Debounced — ignored while a check is running and until <see cref="ForceLiveCheckCooldown"/> has passed
+		/// since the press, so a double-click or a hammered button is one fetch. The button's IsEnabled binds
+		/// <see cref="CanForceLiveCheck"/>, which is the visible cooldown.</summary>
+		public async Task ForceLiveFrameCheckAsync()
+		{
+			if (!CanForceLiveCheck) return;
+			_forceLiveBusy = true;
+			OnPropertyChanged(nameof(CanForceLiveCheck));
+			var pressedAt = DateTimeOffset.UtcNow;
+			try
+			{
+				await _engine.ForceLiveFrameCheckAsync();
+				var left = ForceLiveCheckCooldown - (DateTimeOffset.UtcNow - pressedAt);
+				if (left > TimeSpan.Zero) await Task.Delay(left);
+			}
+			finally
+			{
+				_forceLiveBusy = false;
+				OnPropertyChanged(nameof(CanForceLiveCheck));
+			}
+		}
+
+		/// <summary>True when the refresh button can fire: a LIVE site is selected and no check is in its
+		/// run-or-cooldown window. Re-raised by RaiseRadarReadout (selection changes + the 1 s tick).</summary>
+		public bool CanForceLiveCheck => !_forceLiveBusy && !IsPastEventMode && _selectedRadarOption?.Site is not null;
+
+		private static readonly TimeSpan ForceLiveCheckCooldown = TimeSpan.FromSeconds(2);
+		private bool _forceLiveBusy;
+
 		/// <summary>Loads the historical loop for the selected site over the chosen window (the Load button).</summary>
 		public Task<bool> LoadSelectedPastEventAsync() => _engine.LoadSelectedPastEventAsync();
 
@@ -517,6 +547,7 @@ namespace Anvil.ViewModels
 
 				ClearReplayWindowLoaded(); // re-arm from scratch each time the mode is toggled
 				OnPropertyChanged(nameof(IsTransportEnabled)); // the transport gate differs by mode (PastCast enables earlier)
+				OnPropertyChanged(nameof(CanForceLiveCheck));  // replay has no live frame to check
 				// The offered tilts depend on the mode, not just the radar: a live loop shows only the
 				// tilts the chunks feed can serve fresh, while replay (all-historical) offers the whole
 				// VCP. Rebuild from the last-known VCP now rather than waiting for a frame to land.

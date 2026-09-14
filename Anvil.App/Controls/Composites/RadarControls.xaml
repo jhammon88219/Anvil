@@ -2,7 +2,7 @@
 <!-- RadarControls — the GLOBAL time module, and only that. Laid out entirely with Grids (no StackPanels):
 
        [———————————— scrubber ————————————]
-                              10:42 PM  2 min ago
+                              10:42 PM  2 min ago ⟳   ← ⟳ = check for a newer frame now (2 s debounce)
        ◀ ▶ ▶  3 / 10  │       KTLX      VCP 212 · precip · SAILS ×2
                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                               the site readout is a 2x2 BLOCK: time over site,
@@ -191,7 +191,7 @@
             <Border Grid.Column="4" Style="{StaticResource BarDividerStyle}"/>
 
             <!-- ===== SITE READOUT — a 2x2 block, not a line =====
-                   10:42 PM   2 min ago            row 0: WHEN (time of the frame on screen,
+                   10:42 PM   2 min ago ⟳          row 0: WHEN (time of the frame on screen,
                    KTLX       VCP 212 · precip …   then how old the newest one is)
                                                    row 1: WHERE (site, then how it's scanning)
 
@@ -226,13 +226,36 @@
                            ToolTipService.ToolTip="When the frame on screen was scanned"/>
                 <!-- Age of the freshest frame, color-ramped fresh(green) to stale(red) by AgeBrush so
                      freshness reads at a glance. Sits beside the frame time because the two together
-                     answer one question: how current is what I'm looking at. -->
-                <TextBlock Grid.Row="0" Grid.Column="1"
-                           VerticalAlignment="Center"
-                           Text="{x:Bind ViewModel.RadarAgeText, Mode=OneWay}"
-                           FontSize="{StaticResource ReadoutFontSize}"
-                           Foreground="{x:Bind AgeBrush(ViewModel.RadarAgeMinutes), Mode=OneWay}"
-                           ToolTipService.ToolTip="How long ago the newest available frame was scanned. Green = fresh, red = stale."/>
+                     answer one question: how current is what I'm looking at.
+                     The small refresh button rides right after the age text, INSIDE the reserved 200px
+                     column, so it never widens the module. It polls the live frame now instead of waiting
+                     for the timer; the VM debounces it (disabled while running + 2 s after a press), and
+                     the disabled look IS the cooldown cue. Height 18 so row 0 doesn't grow. -->
+                <Grid Grid.Row="0" Grid.Column="1" ColumnSpacing="6" HorizontalAlignment="Left">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/> <!-- age -->
+                        <ColumnDefinition Width="Auto"/> <!-- check now -->
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               VerticalAlignment="Center"
+                               Text="{x:Bind ViewModel.RadarAgeText, Mode=OneWay}"
+                               FontSize="{StaticResource ReadoutFontSize}"
+                               Foreground="{x:Bind AgeBrush(ViewModel.RadarAgeMinutes), Mode=OneWay}"
+                               ToolTipService.ToolTip="How long ago the newest available frame was scanned. Green = fresh, red = stale."/>
+                    <Button Grid.Column="1"
+                            Style="{StaticResource TransportButtonStyle}"
+                            Width="22"
+                            Height="18"
+                            CornerRadius="4"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            VerticalAlignment="Center"
+                            Click="OnForceLiveCheckClick"
+                            IsEnabled="{x:Bind ViewModel.CanForceLiveCheck, Mode=OneWay}"
+                            ToolTipService.ToolTip="Check for a newer frame now (skips the poll timer)">
+                        <FontIcon Glyph="&#xE72C;" FontSize="11"/>
+                    </Button>
+                </Grid>
 
                 <!-- The site. The location name is the ICAO's tooltip — the ICAO is the real label —
                      and the rendered elevation is the Tilt combo, not here. -->

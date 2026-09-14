@@ -732,8 +732,8 @@ function buildVelocity(radar, siteLat, siteLon, minDbz, wantGrid) {
 // wind + 7.5 m/s to the RIGHT of the 0–6 km shear); weak shear falls back to the plain 0–6 km mean wind.
 // decodeVwp(buffers) ties it together: the host (radar.js) fetches a volume's bottom ~5 velocity tilts and
 // hands their buffers here; the tiny result is pushed back for the SRV builder + the App Settings readout.
-// ⚠️⚠️ PARKED 2026-09-03 — the storm-motion path (VAD fit → merged profile → Bunkers) is FINISHED FOR NOW
-// and deliberately left alone to collect real-use logs. Verified on both paths before parking.
+// The storm-motion path (VAD fit → merged profile → Bunkers) was verified 2026-09-03 on both paths
+// (NVW live + local VAD on PastCast Moore 2013); re-verify on both after changing it.
 // ⚠️ VAD_MAX_RESID BELOW IS 5.0, NOT the 2.0 doc 02 §4.1 recommends — that is a MEASURED amendment, not an
 // oversight: 2.0 is tighter than the NWS's own VAD achieves on real returns and cost us ~4× the ring points
 // (11 ring points to 2.7 km, vs 46–50 per cut to 6.0 km at 5.0). Re-measure against Level III NVW on a real

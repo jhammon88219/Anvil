@@ -93,6 +93,9 @@ namespace Anvil.Controls.Composites
 
 		private void OnNextClick(object sender, RoutedEventArgs e) => ViewModel?.StepFrame(+1);
 
+		// Refresh button beside the age readout: one live poll now. The VM owns the debounce + cooldown.
+		private void OnForceLiveCheckClick(object sender, RoutedEventArgs e) => _ = ViewModel?.ForceLiveFrameCheckAsync();
+
 		// ---- Segmented scrubber interaction ----
 		// The scrubber is drawn (cells + playhead), not a Slider, so seeking is handled here: press/drag on
 		// the strip maps the pointer x to a frame index. Playback pauses on grab so the drag isn't fought by

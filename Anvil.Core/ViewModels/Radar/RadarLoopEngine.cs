@@ -823,6 +823,51 @@ namespace Anvil.ViewModels
 		private Task RefreshLiveFrameAsync(RadarSite site, CancellationToken ct) =>
 			ApplyLivePollAsync(site, FetchLiveFrameAsync(site, ct), ct);
 
+		// The bar's "check now" button: ONE live poll immediately instead of waiting out the timer. Same path
+		// and same _loopGate as the periodic poll, so it can't interleave with a reload or retile. No timer
+		// reset needed: RecordLivePoll stamps _lastLivePollAt, and RunLiveFrameRefreshAsync already reads that
+		// to push its own next poll out rather than double-fetching. Live loops only (replay has no live slot);
+		// skipped mid-initial-load, whose own inline live poll is already coming. Debounce lives on the VM.
+		internal async Task ForceLiveFrameCheckAsync()
+		{
+			if (_vm.IsPastEventMode || _vm._loadInProgress
+				|| _vm._selectedRadarOption?.Site is not { } site || _vm._loopCts is not { } cts)
+			{
+				return;
+			}
+
+			var ct = cts.Token;
+			Services.RadarDiagnostics.Log("vm", "live.force", ("site", site.Id));
+			try
+			{
+				await _vm._loopGate.WaitAsync(ct);
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
+
+			try
+			{
+				if (ReferenceEquals(_vm._selectedRadarOption?.Site, site))
+				{
+					await RefreshLiveFrameAsync(site, ct);
+				}
+			}
+			catch (OperationCanceledException)
+			{
+				// Site changed / app closing.
+			}
+			catch (Exception ex)
+			{
+				Services.RadarDiagnostics.Log("vm", "live.force.fail", ("lvl", "warn"), ("error", ex.Message));
+			}
+			finally
+			{
+				_vm._loopGate.Release();
+			}
+		}
+
 		// Starts the live (chunks) frame fetch — the slow part (~2-3 s of chunk list + downloads + bzip2).
 		// Split out from the apply so the INITIAL load can OVERLAP it with the archive backfill (both are
 		// independent network work) rather than running it strictly afterwards. Best-effort: records the

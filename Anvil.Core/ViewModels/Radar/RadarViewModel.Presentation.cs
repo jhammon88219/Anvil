@@ -268,6 +268,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(RadarModeText));
 			OnPropertyChanged(nameof(RadarAgeText));
 			OnPropertyChanged(nameof(RadarAgeMinutes));
+			OnPropertyChanged(nameof(CanForceLiveCheck));
 			OnPropertyChanged(nameof(NewestLoadedFrameTime));
 			OnPropertyChanged(nameof(RadarLoopSpanText));
 			OnPropertyChanged(nameof(RadarStatus));
