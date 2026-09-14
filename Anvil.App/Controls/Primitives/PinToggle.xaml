@@ -1,21 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- PinToggle — the "keep this window on top" pin used in each app-wide window's title-bar area. Self-positions
-     at the top-right, inset from the right edge so it clears the system caption button that floats there when
-     content is extended into the title bar. Bind IsChecked to that window's on-top VM flag; WindowManager
-     applies the flag to the window's always-on-top presenter. Interactive controls in the title-bar drag
-     region receive input automatically (WinUI), so no SetTitleBar is needed.
+<!-- PinToggle — the "keep this window above Anvil" pin used in each app-wide window's title-bar area.
+     Self-positions at the top-right, inset from the right edge so it clears the system caption buttons that
+     float there when content is extended into the title bar. Bind IsChecked to that window's on-top VM flag;
+     WindowManager makes a pinned window an OWNED window of the main window — above Anvil, NOT above other
+     apps (it is not topmost). Interactive controls in the title-bar drag region receive input automatically
+     (WinUI), so no SetTitleBar is needed.
 
        ┌──────────────────────────────────────────────────────────┐
-       │                                      [lock] [pin]    ✕   │
-       │                                               ^     ^^^  │
-       │   …the hosting window's own content…          │     the ONE caption button
-       │                                               └── this control, inset to clear it
-       │                                         (LockToggle sits left of it, 6 px gap)
+       │                              [lock] [pin]    –   □   ✕   │
+       │                                       ^      ^^^^^^^^^^  │
+       │   …the hosting window's own content…  │      THREE caption buttons (maximize greyed)
+       │                                       └── this control, inset 140 to clear them
+       │                                 (LockToggle sits left of it, 6 px gap)
        └──────────────────────────────────────────────────────────┘
 
-     ⚠️ THE INSET TRACKS THE CAPTION BUTTON COUNT. Panel windows have a CLOSE-ONLY caption (WindowManager
-     turns minimize + maximize off), so this clears ONE button at ~46px — it was 140 back when three sat
-     there. Re-add a caption button anywhere and this number moves with it, or the pin lands on top of it.
+     ⚠️ THE INSET TRACKS THE CAPTION BUTTON COUNT. Panel windows have MINIMIZE + CLOSE, and Windows still
+     draws the disabled maximize box, so this clears THREE buttons at ~140 — it was 48 while panels were
+     close-only. Change the caption buttons again and this number moves with it, or the pin lands on them.
      -->
 <UserControl x:Class="Anvil.Controls.Primitives.PinToggle"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -24,12 +25,12 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              HorizontalAlignment="Right" VerticalAlignment="Top"
-             Margin="0,2,48,0">
+             Margin="0,2,140,0">
     <ToggleButton Width="32" Height="28"
                   Padding="0" MinWidth="0" MinHeight="0"
                   CornerRadius="6" Background="Transparent" BorderThickness="0"
                   IsChecked="{x:Bind IsChecked, Mode=TwoWay}"
-                  ToolTipService.ToolTip="Keep this window on top">
+                  ToolTipService.ToolTip="Keep above Anvil">
         <FontIcon Glyph="&#xE718;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14"/>
     </ToggleButton>
 </UserControl>

@@ -287,7 +287,7 @@ namespace Anvil
 					return w;
 				},
 				title: title, anchor: anchor,
-				alwaysOnTop: () => ViewModel.IsTemporalWindowOnTop(mode),
+				keepAboveOwner: () => ViewModel.IsTemporalWindowOnTop(mode),
 				isLocked: () => ViewModel.IsTemporalWindowLocked(mode),
 				customChrome: true);
 		}
@@ -537,7 +537,7 @@ namespace Anvil
 					return settings;
 				},
 				title: "Settings", anchor: WindowAnchor.Center,
-				alwaysOnTop: () => ViewModel.IsSettingsWindowOnTop,
+				keepAboveOwner: () => ViewModel.IsSettingsWindowOnTop,
 				isLocked: () => ViewModel.IsSettingsWindowLocked,
 				customChrome: true);
 			_windows.Register(
@@ -546,7 +546,7 @@ namespace Anvil
 				close: () => ViewModel.IsSiteExplorerOpen = false,
 				buildContent: () => new Controls.Windows.RadarSiteExplorerWindow { ViewModel = ViewModel },
 				title: "Radar Sites", anchor: WindowAnchor.Center,
-				alwaysOnTop: () => ViewModel.IsSiteExplorerOnTop,
+				keepAboveOwner: () => ViewModel.IsSiteExplorerOnTop,
 				isLocked: () => ViewModel.IsSiteExplorerLocked,
 				customChrome: true);
 			// THREE windows, one per timeframe — one TemporalWindow class registered three times, differing
@@ -567,7 +567,7 @@ namespace Anvil
 				close: () => ViewModel.IsPipelineConsoleOpen = false,
 				buildContent: () => new Controls.Windows.PipelineConsoleWindow { ViewModel = ViewModel },
 				title: "Pipeline Console", anchor: WindowAnchor.Center,
-				alwaysOnTop: () => ViewModel.IsPipelineConsoleOnTop, // user-toggled via the pin in the console
+				keepAboveOwner: () => ViewModel.IsPipelineConsoleOnTop, // user-toggled via the pin in the console
 				isLocked: () => ViewModel.IsPipelineConsoleLocked,
 				customChrome: true); // extend content into the title bar so the dark surface replaces the caption
 			// (The dev tools no longer register a window of their own — they are the Settings window's

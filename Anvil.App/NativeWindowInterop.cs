@@ -35,6 +35,7 @@ namespace Anvil
 		public delegate IntPtr SubclassProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, UIntPtr id, UIntPtr refData);
 
 		public const uint WM_WINDOWPOSCHANGING = 0x0046;
+		public const uint WM_WINDOWPOSCHANGED = 0x0047;
 		public const uint WM_NCDESTROY = 0x0082;
 		public const uint WM_NCHITTEST = 0x0084;
 		public const uint WM_SYSCOMMAND = 0x0112;
@@ -70,6 +71,12 @@ namespace Anvil
 		public static extern bool GetClientRect(IntPtr hWnd, out RECT rect);
 
 		[DllImport("user32.dll")]
+		public static extern bool IsIconic(IntPtr hWnd);
+
+		// Where Windows parks a minimized top-level window.
+		public const int MinimizedParkingCoordinate = -32000;
+
+		[DllImport("user32.dll")]
 		public static extern bool ClientToScreen(IntPtr hWnd, ref POINT point);
 
 		[DllImport("user32.dll")]
@@ -77,6 +84,37 @@ namespace Anvil
 
 		[DllImport("dwmapi.dll")]
 		private static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out RECT value, int size);
+
+		// x64-only app, so the Ptr variant always exists (it's a macro over SetWindowLong on 32-bit).
+		[DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
+		private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int index, IntPtr value);
+
+		private const int GWLP_HWNDPARENT = -8;
+		private const int GWL_EXSTYLE = -20;
+		private const long WS_EX_APPWINDOW = 0x00040000;
+
+		[DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+		private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int index);
+
+		/// <summary>
+		/// Give <paramref name="hWnd"/> a taskbar button even while it is OWNED. Windows never puts an owned window
+		/// on the taskbar on its own, and a minimized window with no taskbar button collapses into a little title
+		/// bar parked at the bottom-left of the screen instead of going to the taskbar. ⚠️ Call BEFORE the window
+		/// is first shown — the taskbar decides on a window's button when it appears.
+		/// </summary>
+		public static void ForceTaskbarButton(IntPtr hWnd)
+		{
+			long exStyle = GetWindowLongPtr(hWnd, GWL_EXSTYLE).ToInt64();
+			SetWindowLongPtr(hWnd, GWL_EXSTYLE, new IntPtr(exStyle | WS_EX_APPWINDOW));
+		}
+
+		/// <summary>
+		/// Make <paramref name="hWnd"/> an OWNED window of <paramref name="ownerHwnd"/> (or un-own it with
+		/// <see cref="IntPtr.Zero"/>). An owned window always stacks above its owner and moves through the
+		/// z-order WITH it, so it sits over Anvil without floating over other apps the way topmost does.
+		/// </summary>
+		public static void SetOwner(IntPtr hWnd, IntPtr ownerHwnd) =>
+			SetWindowLongPtr(hWnd, GWLP_HWNDPARENT, ownerHwnd);
 
 		/// <summary>
 		/// Move and size <paramref name="hWnd"/> so its VISIBLE frame lands exactly on the given physical-pixel

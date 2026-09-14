@@ -28,11 +28,15 @@ namespace Anvil
 	// headerless (the window's own content supplies the title; the native caption supplies the buttons).
 	//
 	// ⚠️ CHROME POLICY — uniform, owned HERE (in OpenWindow), not per-registration: every panel gets a
-	// CLOSE-ONLY caption (no minimize, no maximize) and is hidden from the taskbar + Alt-Tab. A panel's hide
-	// is its bar key, which also unlatches the toggle; minimize did the same thing WORSE (window gone, toggle
-	// still lit). See the comments in OpenWindow for the full reasoning before changing any of it.
-	// Consequence: with no switcher entry, the only route back to a panel buried behind the main window is
-	// toggling its bar key off/on.
+	// MINIMIZE + CLOSE caption (maximize off, so Windows greys its box) and a taskbar/Alt-Tab entry. See the
+	// comments in OpenWindow for the full reasoning before changing any of it.
+	//
+	// ⚠️ PIN = "ABOVE ANVIL", NOT TOPMOST. A pinned panel is a Win32 OWNED window of the main window
+	// (NativeWindowInterop.SetOwner): it always stacks above Anvil and moves through the z-order WITH it, so
+	// another app covers both, and minimizing Anvil takes pinned panels with it. It used to be
+	// OverlappedPresenter.IsAlwaysOnTop, which floated panels over every app and the desktop — wrong for a
+	// single-monitor user. Unpinned = un-owned, an ordinary window that can fall behind Anvil.
+	// IsAlwaysOnTop is never set. (A future multi-monitor mode may want different rules; not built.)
 	//
 	// ⚠️ PLACEMENT — every panel opens in a FIXED SPOT measured off the MAIN WINDOW'S client area (never the
 	// monitor), so the spots travel with the main window to whatever screen it is on:
@@ -94,7 +98,7 @@ namespace Anvil
 			public required Func<FrameworkElement> BuildContent; // a fresh section instance bound to the shared VM
 			public required string Title;
 			public WindowAnchor Anchor;
-			public Func<bool> AlwaysOnTop = () => false; // topmost (evaluated live so a pin toggle can flip it)
+			public Func<bool> KeepAboveOwner = () => false; // owned by the main window (evaluated live so a pin toggle can flip it)
 			public Func<bool> IsLocked = () => false;    // no move/resize (read live by the subclass, per message)
 			public bool CustomChrome; // extend content into the title bar so the dark surface replaces the caption
 		}
@@ -105,6 +109,7 @@ namespace Anvil
 		{
 			public required Func<bool> IsLocked;
 			public bool Placing; // our own placement calls pass through even while locked
+			public bool WasIconic; // minimized as of the last WM_WINDOWPOSCHANGED — marks the RESTORE move
 			public SubclassProc? Proc;
 		}
 
@@ -149,7 +154,7 @@ namespace Anvil
 			Func<FrameworkElement> buildContent,
 			string title,
 			WindowAnchor anchor,
-			Func<bool>? alwaysOnTop = null,
+			Func<bool>? keepAboveOwner = null,
 			Func<bool>? isLocked = null,
 			bool customChrome = false)
 		{
@@ -161,7 +166,7 @@ namespace Anvil
 				BuildContent = buildContent,
 				Title = title,
 				Anchor = anchor,
-				AlwaysOnTop = alwaysOnTop ?? (() => false),
+				KeepAboveOwner = keepAboveOwner ?? (() => false),
 				IsLocked = isLocked ?? (() => false),
 				CustomChrome = customChrome,
 			};
@@ -186,19 +191,17 @@ namespace Anvil
 				bool have = _windows.ContainsKey(reg.Id);
 				if (want && !have) OpenWindow(reg);
 				else if (!want && have) CloseWindow(reg.Id, programmatic: true);
-				else if (want && have) ApplyAlwaysOnTop(reg); // keep an open window's topmost state in sync
+				else if (want && have) ApplyPinned(reg, _windows[reg.Id]); // keep an open window's pin in sync
 			}
 		}
 
-		// Push the panel's current always-on-top state onto its open window's presenter (so a pin toggle,
-		// which flips the VM flag, takes effect on the next reconcile).
-		private void ApplyAlwaysOnTop(Registration reg)
+		// Own the panel by the main window while pinned, un-own it while not (see PIN in the header). Runs at
+		// open and on every reconcile, so a pin toggle — which flips the VM flag — takes effect immediately.
+		private void ApplyPinned(Registration reg, Window window)
 		{
-			if (_windows.TryGetValue(reg.Id, out var window)
-				&& window.AppWindow?.Presenter is OverlappedPresenter presenter)
-			{
-				presenter.IsAlwaysOnTop = reg.AlwaysOnTop();
-			}
+			if (_owner is null) return;
+			var owner = reg.KeepAboveOwner() ? WinRT.Interop.WindowNative.GetWindowHandle(_owner) : IntPtr.Zero;
+			SetOwner(WinRT.Interop.WindowNative.GetWindowHandle(window), owner);
 		}
 
 		/// <summary>
@@ -258,31 +261,34 @@ namespace Anvil
 
 			if (window.AppWindow is AppWindow appWindow)
 			{
-				// A panel is app chrome, not an app: keep it out of the taskbar + Alt-Tab so it can't read as a
-				// second Anvil. With minimize gone (below) a panel can't vanish, so the switcher entry only ever
-				// offered a second way to raise one — at the cost of eight bogus taskbar buttons.
-				appWindow.IsShownInSwitchers = false;
+				// ⚠️ A TASKBAR + ALT-TAB ENTRY, and it is what makes minimize (below) safe: a minimized panel is
+				// found again from its taskbar button. HISTORY: panels were hidden from the switchers while they
+				// were close-only; minimize came back (user's call) to recover a panel lost behind other windows.
+				// ⚠️⚠️ IsShownInSwitchers ALONE IS NOT ENOUGH for a PINNED panel: an owned window never gets a
+				// taskbar button, and minimizing a window with no button collapses it into a small title bar
+				// parked at the bottom-left of the screen (over the radar controls) instead of going to the
+				// taskbar. WS_EX_APPWINDOW forces the button; it has to land before the first show (Activate).
+				appWindow.IsShownInSwitchers = true;
+				ForceTaskbarButton(hwnd);
 
-				// Topmost windows (e.g. the Pipeline Console) float above the main window even when the map has
-				// focus — so a single-monitor user can watch them while interacting with the map. It doesn't
-				// take focus, so the map underneath stays clickable/draggable.
 				if (appWindow.Presenter is OverlappedPresenter presenter)
 				{
-					presenter.IsAlwaysOnTop = reg.AlwaysOnTop();
+					// Never topmost — "pinned" is ownership, applied below (see PIN in the header).
+					presenter.IsAlwaysOnTop = false;
 
-					// CLOSE-ONLY CAPTION — the panel's bar key IS its hide, so the caption keeps only ✕.
-					// ⚠️ MINIMIZE is the one that had to go: it hides the window while the bar key stays LIT, so
-					// the app claims a panel is open with nothing on screen. The bar key does the same job AND
-					// unlatches itself. MAXIMIZE travels with it, not on its own merits — drop only the minimize
-					// box and the button still draws, greyed; drop both and the caption collapses to one button.
+					// MINIMIZE + CLOSE CAPTION. ⚠️ Accepted trade: a minimized panel leaves its bar key LIT with
+					// nothing on screen — the taskbar button is the way back. MAXIMIZE stays off; Windows still
+					// draws its box, greyed, so the caption is THREE buttons wide (PinToggle's inset tracks that).
 					// ⚠️ IsResizable is deliberately LEFT ALONE (defaults true). The LOCK is what stops resizing,
 					// in the subclass — flipping IsResizable would restyle the frame (and change the invisible
 					// border the placement just measured) every time the lock toggled.
-					// Static policy, set once at open — unlike IsAlwaysOnTop these never belong in the reconcile.
-					presenter.IsMinimizable = false;
+					// Static policy, set once at open — unlike the pin these never belong in the reconcile.
+					presenter.IsMinimizable = true;
 					presenter.IsMaximizable = false;
 				}
 			}
+
+			ApplyPinned(reg, window);
 
 			// Place BEFORE Activate so it opens already-fitted (no default-size flash), then once more after —
 			// see PlaceVisibleFrame for why the second call is what makes the 5 px margins exact.
@@ -361,8 +367,22 @@ namespace Anvil
 						// ⚠️ The choke point: drags, snap, Win+Arrow and Alt+Space Move/Size all arrive as a
 						// SetWindowPos. Strip the move + size from it; z-order and show/hide still pass.
 						var pos = System.Runtime.InteropServices.Marshal.PtrToStructure<WINDOWPOS>(lParam);
-						pos.Flags |= SWP_NOMOVE | SWP_NOSIZE;
-						System.Runtime.InteropServices.Marshal.StructureToPtr(pos, lParam, false);
+						// ⚠️⚠️ MINIMIZE AND RESTORE MUST PASS. Both are moves too (to the -32000 parking spot and
+						// back). Blocking minimize left the window flagged minimized but still on screen, so
+						// WinUI stopped drawing it and an empty frame sat there; blocking restore would strand it
+						// off-screen. Minimizing = iconic now or heading to the parking spot; restoring = was
+						// iconic at the last CHANGED.
+						bool minimizeOrRestore = IsIconic(h) || state.WasIconic
+							|| pos.X <= MinimizedParkingCoordinate || pos.Y <= MinimizedParkingCoordinate;
+						if (!minimizeOrRestore)
+						{
+							pos.Flags |= SWP_NOMOVE | SWP_NOSIZE;
+							System.Runtime.InteropServices.Marshal.StructureToPtr(pos, lParam, false);
+						}
+						break;
+
+					case WM_WINDOWPOSCHANGED:
+						state.WasIconic = IsIconic(h);
 						break;
 
 					case WM_NCHITTEST when locked:

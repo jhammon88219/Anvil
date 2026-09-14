@@ -218,9 +218,9 @@ namespace Anvil.ViewModels
 		private bool _isPipelineConsoleOpen;
 		private bool _isPipelineConsoleOnTop = true;
 
-		/// <summary>Whether the Pipeline Console window stays above the main window (topmost). User-toggled from
-		/// the pin in the console's title-bar area; <c>WindowManager</c> applies it to that window's
-		/// presenter. Defaults on — the house default for every panel now, not a console quirk (see the
+		/// <summary>Whether the Pipeline Console window stays above the main window (owned by it — not topmost
+		/// over other apps). User-toggled from the pin in the console's title-bar area; <c>WindowManager</c>
+		/// applies it. Defaults on — the house default for every panel now, not a console quirk (see the
 		/// per-window flags below).</summary>
 		public bool IsPipelineConsoleOnTop
 		{
@@ -228,12 +228,11 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isPipelineConsoleOnTop, value);
 		}
 
-		// Per-window always-on-top flags (topmost), each driven by that window's title-bar pin and applied to
-		// its presenter by WindowManager.
-		// ⚠️ ALL DEFAULT ON, deliberately — a panel is app chrome, and it is hidden from the taskbar/Alt-Tab
-		// (see WindowManager's chrome policy), so an UNPINNED panel can slip behind the main window with no
-		// switcher route back. Pinned-by-default means a panel you opened is a panel you can see. Unpinning is
-		// the opt-out, for parking one on a second monitor.
+		// Per-window "keep above Anvil" flags, each driven by that window's title-bar pin. WindowManager makes a
+		// pinned window an OWNED window of the main window — above Anvil only, never topmost over other apps.
+		// ⚠️ ALL DEFAULT ON, deliberately — an UNPINNED panel can slip behind the main window, so pinned-by-
+		// default means a panel you opened is a panel you can see. Unpinning is the opt-out, for parking one on
+		// a second monitor. (A lost panel is also recoverable from its taskbar button now.)
 		// ⚠️ These are the FIELD defaults, not a re-arm on open: unpin a panel and it stays unpinned when you
 		// reopen it this session. Don't "fix" that by re-arming in the open path — a toggle that silently
 		// resets itself is worse than one that remembers.

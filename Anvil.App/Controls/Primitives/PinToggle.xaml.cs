@@ -4,9 +4,9 @@ using Microsoft.UI.Xaml.Controls;
 namespace Anvil.Controls.Primitives
 {
 	/// <summary>
-	/// A "keep this window on top" pin for an app-wide window's title-bar area (see PinToggle.xaml). Bind
-	/// <see cref="IsChecked"/> two-way to the window's on-top VM flag; <c>WindowManager</c> applies the
-	/// flag to the window's always-on-top presenter.
+	/// A "keep this window above Anvil" pin for an app-wide window's title-bar area (see PinToggle.xaml). Bind
+	/// <see cref="IsChecked"/> two-way to the window's on-top VM flag; <c>WindowManager</c> makes a pinned
+	/// window an OWNED window of the main window (above Anvil only — not topmost over other apps).
 	/// </summary>
 	public sealed partial class PinToggle : UserControl
 	{
@@ -15,7 +15,7 @@ namespace Anvil.Controls.Primitives
 			InitializeComponent();
 		}
 
-		/// <summary>Whether the pin is engaged (window kept on top). Two-way bindable to the VM flag.</summary>
+		/// <summary>Whether the pin is engaged (window kept above Anvil). Two-way bindable to the VM flag.</summary>
 		public bool IsChecked
 		{
 			get => (bool)GetValue(IsCheckedProperty);
