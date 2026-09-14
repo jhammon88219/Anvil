@@ -203,6 +203,15 @@ namespace Anvil.Services
 		public Task ClearUserLocationAsync() =>
 			_mapView.RunScriptAsync(Call("clearUserLocation"));
 
+		// ⚠️ The label is a place NAME, and names carry apostrophes ("Coeur d'Alene") — FormatArg quotes without
+		// escaping, so escape here (same local fix as SetTileSourceAsync) rather than stripping them.
+		public Task ShowPlaceMarkerAsync(double longitude, double latitude, string label) =>
+			_mapView.RunScriptAsync(Call("showPlaceMarker", longitude, latitude,
+				(label ?? "").Replace("\\", "\\\\").Replace("'", "\\'")));
+
+		public Task ClearPlaceMarkerAsync() =>
+			_mapView.RunScriptAsync(Call("clearPlaceMarker"));
+
 		public Task ShowDowFrameAsync(string url) =>
 			_mapView.RunScriptAsync(Call("showDowFrame", url));
 

@@ -316,6 +316,13 @@ namespace Anvil.Services
 		/// <summary>Removes the user-location marker, if any.</summary>
 		Task ClearUserLocationAsync();
 
+		/// <summary>Places (or moves) the search-result pin, labelled <paramref name="label"/> (e.g. "Moore, OK").
+		/// Primary pane only, like the user-location marker.</summary>
+		Task ShowPlaceMarkerAsync(double longitude, double latitude, string label);
+
+		/// <summary>Removes the search-result pin, if any.</summary>
+		Task ClearPlaceMarkerAsync();
+
 		/// <summary>
 		/// Shows a single curated DOW (mobile-radar) frame from its <c>dowevents</c> host URL, reusing
 		/// the radar render pipeline. The WebView fetches the <c>.dow.json</c> and decodes it on the

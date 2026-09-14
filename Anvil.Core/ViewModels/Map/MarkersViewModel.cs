@@ -176,6 +176,46 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		// ── Search-result pin (PlaceSearchViewModel) ──
+		// A singleton like the user marker, but FIXED: it marks where a named place is, so there is nothing to
+		// refine by dragging. A new search replaces it; clearing the search box removes it.
+		private const string PlaceMarkerId = "place";
+
+		/// <summary>The pin for the last place found by the search box, if any.</summary>
+		public MapMarker? PlaceMarker => _markers.FirstOrDefault(m => m.Kind == MarkerKind.SearchResult);
+
+		/// <summary>Drops (or moves) the search-result pin on <paramref name="place"/> and flies there.</summary>
+		public async Task ShowPlaceAsync(PlaceResult place)
+		{
+			_markers.RemoveAll(m => m.Kind == MarkerKind.SearchResult);
+			_markers.Add(new MapMarker(PlaceMarkerId, MarkerKind.SearchResult, place.Latitude, place.Longitude,
+				place.Display, LocationSource.None, canDrag: false));
+
+			if (_isMapReady)
+			{
+				await _mapService.ShowPlaceMarkerAsync(place.Longitude, place.Latitude, place.Display);
+				await _mapService.FlyToAsync(place.Longitude, place.Latitude, place.FlyToZoom);
+			}
+		}
+
+		/// <summary>Takes the search-result pin off the map and out of the model. No-op when there is none.</summary>
+		public void RemovePlaceMarker()
+		{
+			if (PlaceMarker is not { } marker)
+			{
+				return;
+			}
+			_markers.Remove(marker);
+			if (_isMapReady)
+			{
+				_ = _mapService.ClearPlaceMarkerAsync();
+			}
+			if (ReferenceEquals(marker, _selectedMarker))
+			{
+				SelectedMarker = null;
+			}
+		}
+
 		// Singleton enforcement lives here (not in the type): drop any existing user-location marker
 		// and add the fresh one. Returns the new marker so the caller can select it.
 		private MapMarker UpsertUserLocationMarker(double latitude, double longitude, string label, LocationSource source)
@@ -213,6 +253,7 @@ namespace Anvil.ViewModels
 		public string SelectedMarkerKindLabel => _selectedMarker?.Kind switch
 		{
 			MarkerKind.UserLocation => "My Location",
+			MarkerKind.SearchResult => "Place",
 			_ => "Marker"
 		};
 
@@ -296,6 +337,10 @@ namespace Anvil.ViewModels
 					_ = _mapService.ClearUserLocationAsync();
 				}
 				OnPropertyChanged(nameof(HasUserLocationMarker)); // un-latches the bar's Location key
+			}
+			else if (marker.Kind == MarkerKind.SearchResult && _isMapReady)
+			{
+				_ = _mapService.ClearPlaceMarkerAsync();
 			}
 			SelectedMarker = null;
 		}

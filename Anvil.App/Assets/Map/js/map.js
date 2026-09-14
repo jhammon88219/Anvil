@@ -524,14 +524,16 @@ try {
         }
     }).catch(function (e) { /* legends stay empty if ramps can't load */ });
 
-    // User-location marker (the pulsing blue dot) lives in markers.js — load it once and delegate the
-    // shims to it (passing the map). It's only invoked on a "My Location" click, long after this loads,
-    // so the cached `Markers` is always ready by then; the guards are belt-and-suspenders.
+    // The user-location reticle and the search-result pin live in markers.js — load it once and delegate
+    // the shims to it (passing the map). They're only invoked on a user action, long after this loads, so
+    // the cached `Markers` is always ready by then; the guards are belt-and-suspenders.
     // ⚠️ PRIMARY-ONLY: a maplibregl.Marker is a DOM overlay bound to one map, so mirroring it would mean
     // N marker objects to keep in sync for no added information (every pane shows the same ground).
     import('./markers.js').then(function (m) { Markers = m; }).catch(function (e) { console.error('markers.js load failed: ' + e); });
     window.showUserLocation = function (lng, lat, label) { if (Markers) Markers.show(primary(), lng, lat, label); };
     window.clearUserLocation = function () { if (Markers) Markers.clear(); };
+    window.showPlaceMarker = function (lng, lat, label) { if (Markers) Markers.showPlace(primary(), lng, lat, label); };
+    window.clearPlaceMarker = function () { if (Markers) Markers.clearPlace(); };
 
     // Radar site marker buttons live in radar-sites.js — load once and delegate (passing the map).
     // ⚠️ PRIMARY-ONLY, deliberately: these are ~160 DOM markers plus a collision fan-out recomputed on

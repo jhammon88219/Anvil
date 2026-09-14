@@ -27,11 +27,25 @@
 //
 // Draggable because the fix IS approximate (OS or IP): the user drops it where they actually are, and each
 // drag posts back to the host, which re-flags the position as manual.
+//
+// ── THE SEARCH PIN (showPlace / clearPlace) ── the place the map-tools tier's search box found.
+//
+//                ╭───╮
+//               │  ○  │ ╭ Moore, OK ╮      .place-pin        28x38, anchored at its BOTTOM tip
+//                ╲   ╱  ╰───────────╯      .place-pin-label  the name chip, right of the head
+//                  ▼   ← the coordinate
+//
+// ⚠️ A TEARDROP, NOT A RING: the reticle means "you are here", the pin means "this named place" — a
+// different shape so the two never read as one another, and neither as a rectangular site key. It wears
+// the reticle's two colors (same casing trick) so the app's own marks share one palette.
+// ⚠️ NOT DRAGGABLE — a named place doesn't move. It is removed by clearing the search box (host side).
 
 import * as Theme from './theme.js';
 
 let userLocationMarker = null;
+let placeMarker = null;
 const USER_MARKER_ID = 'user'; // singleton; the host correlates drag/click by this fixed id
+const PLACE_MARKER_ID = 'place'; // singleton search pin; MarkersViewModel.PlaceMarkerId
 
 // ⚠️ The reticle is built from SVG presentation attributes, which can't read a CSS variable — so the
 // two colors come through theme.js. READ PER BUILD, not once into a module const: a const would latch
@@ -66,9 +80,9 @@ function reticleSvg() {
         '</svg>';
 }
 
-function postMarker(type, extra) {
+function postMarker(type, id, extra) {
     if (!(window.chrome && window.chrome.webview)) return;
-    const msg = { type: type, id: USER_MARKER_ID };
+    const msg = { type: type, id: id };
     if (extra) { for (const k in extra) msg[k] = extra[k]; }
     window.chrome.webview.postMessage(JSON.stringify(msg));
 }
@@ -85,11 +99,11 @@ export function show(map, lng, lat, label) {
     userLocationMarker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat([lng, lat]).addTo(map);
     userLocationMarker.on('dragend', function () {
         const p = userLocationMarker.getLngLat();
-        postMarker('markerMoved', { lng: p.lng, lat: p.lat });
+        postMarker('markerMoved', USER_MARKER_ID, { lng: p.lng, lat: p.lat });
     });
     el.addEventListener('click', function (ev) {
         ev.stopPropagation();
-        postMarker('markerClick');
+        postMarker('markerClick', USER_MARKER_ID);
     });
 }
 
@@ -102,7 +116,70 @@ export function clear() {
 // presentation attribute can't read a CSS variable, so unlike everything styled by a rule, this one
 // does not re-cascade on its own. No-op when no marker is placed.
 export function refresh() {
-    if (!userLocationMarker) return;
-    const el = userLocationMarker.getElement();
-    if (el) el.innerHTML = reticleSvg();
+    if (userLocationMarker) {
+        const el = userLocationMarker.getElement();
+        if (el) el.innerHTML = reticleSvg();
+    }
+    if (placeMarker) {
+        const svgHost = placeMarker.getElement().querySelector('.place-pin-art');
+        if (svgHost) svgHost.innerHTML = pinSvg();
+    }
+}
+
+// ── Search pin ──────────────────────────────────────────────────────────────────────────────────────
+
+function ensurePlaceStyle() {
+    if (document.getElementById('place-pin-style')) return;
+    const s = document.createElement('style');
+    s.id = 'place-pin-style';
+    // The chip is CSS, so it reads the theme variables directly and re-cascades on a theme switch; only the
+    // SVG art needs the refresh() rebuild. pointer-events:none on the chip keeps it from eating map drags.
+    s.textContent =
+        '.place-pin{position:relative;width:28px;height:38px;cursor:pointer;}' +
+        '.place-pin-art svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));}' +
+        '.place-pin-label{position:absolute;left:30px;top:5px;white-space:nowrap;pointer-events:none;' +
+        'font:500 12px/1.3 "Segoe UI",system-ui,sans-serif;padding:2px 7px;border-radius:4px;' +
+        'color:var(--anvil-place-label-text);background:var(--anvil-place-label-bg);' +
+        'border:1px solid var(--anvil-place-label-border);box-shadow:0 1px 3px rgba(0,0,0,.35);}';
+    document.head.appendChild(s);
+}
+
+// A teardrop whose tip sits on the coordinate (the marker is bottom-anchored): ink body in a casing
+// stroke, casing-colored eye. Stroke joins are round so the tip stays inside the 38px box.
+function pinSvg() {
+    const casing = Theme.color('--anvil-marker-ring', '#ffffff');
+    const ink = Theme.color('--anvil-marker-reticle', '#2f8fff');
+    return '<svg width="28" height="38" viewBox="0 0 28 38" aria-hidden="true">' +
+        '<path d="M14,36 C14,36 3,22.5 3,13.5 A11,11 0 1 1 25,13.5 C25,22.5 14,36 14,36 Z" fill="' + ink +
+        '" stroke="' + casing + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+        '<circle cx="14" cy="13.5" r="4" fill="' + casing + '"/>' +
+        '</svg>';
+}
+
+// Place (or replace) the search pin at [lng, lat] with its name chip. A click selects it host-side.
+export function showPlace(map, lng, lat, label) {
+    ensurePlaceStyle();
+    clearPlace();
+    const el = document.createElement('div');
+    el.className = 'place-pin';
+    el.title = label || '';
+    const art = document.createElement('div');
+    art.className = 'place-pin-art';
+    art.innerHTML = pinSvg();
+    el.appendChild(art);
+    if (label) {
+        const chip = document.createElement('div');
+        chip.className = 'place-pin-label';
+        chip.textContent = label; // textContent, never innerHTML: the label is a place name from a geocoder
+        el.appendChild(chip);
+    }
+    placeMarker = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([lng, lat]).addTo(map);
+    el.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        postMarker('markerClick', PLACE_MARKER_ID);
+    });
+}
+
+export function clearPlace() {
+    if (placeMarker) { placeMarker.remove(); placeMarker = null; }
 }

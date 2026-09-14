@@ -10,7 +10,8 @@
          --anvil-key-*              the on-map radar-site keys
          --anvil-scope-*            the range ring + sweep pulse
          --anvil-state-*            state isolation: hover, mask outline, water fallback
-         --anvil-marker-*           the user-location reticle
+         --anvil-marker-*           the user-location reticle (+ the search pin's ink/casing)
+         --anvil-place-label-*      the search pin's name chip
          --anvil-readout-*          the Inspect value chip + its crosshair
          --anvil-popup-*            the storm-report popup surface
          --anvil-hatch-ink          the outlook CIG hatch lines
@@ -107,6 +108,12 @@
     /* ── USER LOCATION (markers.js) ────────────────────────────────────────────────────────────*/
     --anvil-marker-reticle: #2f8fff;
     --anvil-marker-ring: #ffffff;
+
+    /* ── SEARCH PIN LABEL (markers.js) ─────────────────────────────────────────────────────────
+       The pin itself reuses the two marker colors above; this is only the name chip beside it. */
+    --anvil-place-label-text: #ffffff;
+    --anvil-place-label-bg: rgba(10, 12, 16, .85);
+    --anvil-place-label-border: rgba(255, 255, 255, .25);
 
     /* ── INSPECT READOUT (radar-inspect.js) ────────────────────────────────────────────────────
        The value chip under the cursor, and the mirrored crosshair drawn in the other panes. */
@@ -205,6 +212,11 @@
     /* ⚠️ The casing INVERTS — it exists to separate the reticle from the map, so it is dark here. */
     --anvil-marker-reticle: #1668c9;
     --anvil-marker-ring: #1a1a1a;
+
+    /* ── SEARCH PIN LABEL ───────────────────────────────────────────────────────────────────── */
+    --anvil-place-label-text: #101010;
+    --anvil-place-label-bg: rgba(250, 250, 250, .92);
+    --anvil-place-label-border: rgba(0, 0, 0, .18);
 
     /* ── INSPECT READOUT ────────────────────────────────────────────────────────────────────── */
     --anvil-readout-text: #101010;

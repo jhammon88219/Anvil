@@ -8,6 +8,9 @@ namespace Anvil.Models
 	public enum MarkerKind
 	{
 		/// <summary>The user's current/refined location — a singleton, draggable marker.</summary>
-		UserLocation
+		UserLocation,
+
+		/// <summary>The place the search box found — a singleton, fixed pin (see PlaceSearchViewModel).</summary>
+		SearchResult
 	}
 }

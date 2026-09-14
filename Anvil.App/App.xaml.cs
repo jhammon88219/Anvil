@@ -107,6 +107,8 @@ namespace Anvil
 			services.AddSingleton<ILevel2RadarService, Level2RadarService>();
 			services.AddSingleton<IRadarSiteProvider, RadarSiteProvider>();
 			services.AddSingleton<ILocationService, LocationService>();
+			// Place search: embedded gazetteer first, Nominatim on submit as the fallback.
+			services.AddSingleton<IPlaceSearchService, PlaceSearchService>();
 			services.AddSingleton<IDowEventProvider, DowEventProvider>();
 			// PastCast saved events: embedded curated built-ins + the user's %LocalAppData%\Anvil\SavedEvents.json.
 			services.AddSingleton<ISavedEventLibrary, SavedEventLibrary>();

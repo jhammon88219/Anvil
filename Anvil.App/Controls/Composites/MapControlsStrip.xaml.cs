@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Anvil.Models;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.Composites
@@ -41,5 +42,34 @@ namespace Anvil.Controls.Composites
 		// Fit to view — frame the effective region (isolated state, else CONUS).
 		private void OnFitToViewClick(object sender, RoutedEventArgs e) =>
 			_ = ViewModel?.FitToViewAsync();
+
+		// Place search. Only the USER's typing refreshes rows — arrowing through the list (SuggestionChosen) and
+		// our own Text writes (ProgrammaticChange) must not, or picking a row would re-query as you move.
+		private void OnPlaceSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+		{
+			if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+			{
+				ViewModel?.PlaceSearch.UpdateSuggestions(sender.Text);
+			}
+		}
+
+		// Enter or a row click. The box closes its list on submit, so when the online fallback comes back with
+		// several places to pick from, reopen it.
+		private async void OnPlaceSearchQuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+		{
+			if (ViewModel is not { } vm)
+			{
+				return;
+			}
+			var went = await vm.PlaceSearch.SubmitAsync(args.QueryText, args.ChosenSuggestion as PlaceResult);
+			if (went is not null)
+			{
+				sender.Text = went.Display;
+			}
+			else if (vm.PlaceSearch.Suggestions.Count > 0)
+			{
+				sender.IsSuggestionListOpen = true;
+			}
+		}
 	}
 }

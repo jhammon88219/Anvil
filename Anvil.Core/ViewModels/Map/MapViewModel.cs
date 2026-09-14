@@ -49,7 +49,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, StormMotionService? stormMotion)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, StormMotionService? stormMotion)
 		{
 			_mapService = mapService;
 			_styleProvider = styleProvider;
@@ -72,6 +72,7 @@ namespace Anvil.ViewModels
 			Warnings = new WarningsViewModel(mapService, warningService, dispatcher, loggerFactory.CreateLogger<WarningsViewModel>());
 			StormReports = new StormReportsViewModel(mapService, stormReportService, Radar, dispatcher, loggerFactory.CreateLogger<StormReportsViewModel>());
 			Markers = new MarkersViewModel(mapService, locationService);
+			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
 			SiteExplorer = new RadarSiteExplorerViewModel(Radar, Markers, radarService, mapService);
 			SavedEvents = new SavedEventsViewModel(savedEventLibrary, Radar, mapService);
 			StateIso = new StateIsolationViewModel(mapService, settingsService);
@@ -185,6 +186,9 @@ namespace Anvil.ViewModels
 
 		/// <summary>The map markers + user-location subsystem view model (locate action + marker editor).</summary>
 		public MarkersViewModel Markers { get; }
+
+		/// <summary>The map-tools tier's place search (gazetteer suggestions, online fallback, fly-to + pin).</summary>
+		public PlaceSearchViewModel PlaceSearch { get; }
 
 		/// <summary>The Radar Site Explorer subsystem view model (searchable/filterable browser over the
 		/// whole radar network + per-site detail). Opened by the "Sites" button on the bar.</summary>

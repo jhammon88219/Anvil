@@ -8,7 +8,10 @@
        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← shadow, thrown onto the map
 
        ╭─ ˅ Tools ─╮ ╭─ ˅ Bar ─╮                                    ← MainWindow's shared rail
-       (⌘) (⛶)                                  [Isolate State ▾]   ← THIS, on the raised surface
+       (⌘) (⛶)              status  [Search places  ⌕] [Isolate State ▾]   ← THIS, on the raised surface
+                                    ┌───────────────────┐
+                                    │ Moore, OK  pop 62k│   ← suggestions (the AutoSuggestBox popup)
+                                    └───────────────────┘
        ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   ← …and onto the bar: NO rule
        ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
      ═══════════════════════ window bottom ═══════════════════════
@@ -33,6 +36,14 @@
      already past it (#1A1A1A), so the hover would be invisible; in light it would go the wrong way.
      Each tier hovers one step further from its OWN ground.
 
+     PLACE SEARCH sits right, beside the isolation picker: both answer "where on the map". Typing shows
+     GAZETTEER rows (offline); Enter/a row flies there and drops the search pin (MarkersViewModel).
+     ⚠️ ONLINE (Nominatim) runs ONLY on Enter when the gazetteer found nothing — its policy forbids
+     autocomplete. Don't wire it to TextChanged. ⚠️ Clearing the box removes the pin; that is the remove.
+     ⚠️ An AutoSuggestBox is safe here (the wheel hazard is a CLOSED ComboBox cycling its selection).
+     ⚠️ No Ctrl+F: the WebView owns keyboard focus once the map is clicked, so an accelerator here
+     would work only sometimes.
+
      Host contract: ViewModel (MapViewModel). Add a tool = one Button in either side's panel.
      ============================================================================ -->
 <UserControl x:Class="Anvil.Controls.Composites.MapControlsStrip"
@@ -40,6 +51,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:vm="using:Anvil.ViewModels"
+             xmlns:models="using:Anvil.Models"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -105,6 +117,19 @@
                 <TextBlock Text="{x:Bind Label}" VerticalAlignment="Center"/>
             </Grid>
         </DataTemplate>
+
+        <!-- One place-search row: the name left, population (or the OpenStreetMap credit) right. -->
+        <DataTemplate x:Key="PlaceRowTemplate" x:DataType="models:PlaceResult">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Bind Display}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind Detail}" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </Grid>
+        </DataTemplate>
     </UserControl.Resources>
 
     <!-- ⚠️ NO Background here: the OverlayBar hosting this tier paints the raised surface, and a second
@@ -147,6 +172,23 @@
         <StackPanel x:Name="RightTools"
                     Orientation="Horizontal" Spacing="4"
                     HorizontalAlignment="Right" VerticalAlignment="Center">
+            <!-- Place search status ("Searching online…", "No places match …"); collapsed when empty. -->
+            <TextBlock Text="{x:Bind ViewModel.PlaceSearch.StatusText, Mode=OneWay}"
+                       Visibility="{x:Bind ViewModel.PlaceSearch.HasStatus, Mode=OneWay}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       VerticalAlignment="Center" Margin="0,0,6,0"/>
+
+            <AutoSuggestBox x:Name="PlaceSearchBox"
+                            Width="230" Margin="0,0,4,0" VerticalAlignment="Center"
+                            PlaceholderText="Search places"
+                            QueryIcon="Find"
+                            TextMemberPath="Display"
+                            ItemsSource="{x:Bind ViewModel.PlaceSearch.Suggestions}"
+                            ItemTemplate="{StaticResource PlaceRowTemplate}"
+                            TextChanged="OnPlaceSearchTextChanged"
+                            QuerySubmitted="OnPlaceSearchQuerySubmitted"
+                            ToolTipService.ToolTip="Find a city or town and fly there. Clear the box to remove the pin."/>
+
             <prim:SectionedComboBox Width="170"
                                     PlaceholderText="Isolate State"
                                     PinnedItemsSource="{x:Bind ViewModel.StateIso.IsolationModes, Mode=OneWay}"
