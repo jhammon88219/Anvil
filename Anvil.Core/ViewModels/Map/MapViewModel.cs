@@ -19,10 +19,12 @@ namespace Anvil.ViewModels
 
 	/// <summary>Which tab the Settings window shows. Identifies a tab for <see cref="MapViewModel.OpenSettings"/>
 	/// and nothing else — the window's own strip holds the display order and the labels. ⚠️ The ordinal IS the
-	/// persisted index, so REORDERING these silently moves a saved tab choice; only ever append.
-	/// <c>Dev</c> exists in every build but is only reachable in Debug (the strip omits its entry, and the
-	/// window never loads its body, in Release).</summary>
-	public enum SettingsTab { Map, Radar, Storage, Dev }
+	/// persisted index, so REORDERING these silently moves a saved tab choice; only ever add — and add BEFORE
+	/// <c>Dev</c>, which must stay LAST: it exists in every build but is only reachable in Debug (the strip
+	/// omits its entry, and the window never loads its body, in Release), so anything after it would leave
+	/// Release with a hole in its indices. Inserting before Dev only shifts Dev's own saved index, which a
+	/// Debug session shrugs off (it reopens on the tab before it, once).</summary>
+	public enum SettingsTab { Map, Radar, Storage, WindowMode, Dev }
 
 	/// <summary>
 	/// View model for the NON-radar map concerns: selectable basemap styles + current selection,
@@ -663,6 +665,45 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isSiteExplorerOpen, value);
 		}
 
+		// ===== Monitor mode (Single now, Multi later) =====================================================
+		// The DISTINCTION exists before the second mode does: every panel behaviour built so far (placement off
+		// the main window, pinned = owned by the main window, default-locked) is the SINGLE-monitor design, and
+		// WindowManager reads MonitorMode at each point where Multi would differ (grep "MONITOR MODE").
+		// ⚠️ MULTI IS NOT BUILT. It shows on the Window Mode tab, greyed; MonitorMode resolves to Single whatever
+		// the settings file says, so a hand-edited "Multi" can't half-switch anything. Building Multi = flip
+		// IsMultiMonitorModeBuilt, then fill in every MONITOR MODE (multi: TODO) branch.
+
+		/// <summary>Whether the multi-monitor mode has been built. False — see the region note.</summary>
+		public static bool IsMultiMonitorModeBuilt => false;
+
+		/// <summary>The picker's labels, indexed by <see cref="Models.MonitorMode"/>'s ordinal.</summary>
+		public IReadOnlyList<string> MonitorModeLabels { get; } = new[] { "Single monitor", "Multi-monitor" };
+
+		/// <summary>The EFFECTIVE monitor mode: the persisted choice, but always Single until Multi is built.</summary>
+		public MonitorMode MonitorMode =>
+			IsMultiMonitorModeBuilt && Enum.TryParse<MonitorMode>(_settingsService.Settings.MonitorMode, out var mode)
+				? mode
+				: MonitorMode.Single;
+
+		/// <summary>Two-way for the Window Mode tab's picker. PERSISTED. A write of an unbuilt mode is refused and
+		/// the picker re-asserted.</summary>
+		public int MonitorModeIndex
+		{
+			get => (int)MonitorMode;
+			set
+			{
+				var requested = (MonitorMode)Math.Clamp(value, 0, 1);
+				var effective = IsMultiMonitorModeBuilt ? requested : MonitorMode.Single;
+				var name = effective.ToString();
+				if (!string.Equals(name, _settingsService.Settings.MonitorMode, StringComparison.Ordinal))
+				{
+					_settingsService.Settings.MonitorMode = name;
+					OnPropertyChanged(nameof(MonitorMode));
+				}
+				OnPropertyChanged(); // re-assert, so a refused pick doesn't leave the picker lying
+			}
+		}
+
 		// ===== Settings window tabs =======================================================================
 		// The Settings window is one window with a tab strip, not the three windows (App Settings / Map
 		// Controls / Dev Tools) it replaced. The SELECTED TAB lives here rather than as view state on the
@@ -670,12 +711,12 @@ namespace Anvil.ViewModels
 		// targeted from anywhere via OpenSettings().
 
 		/// <summary>How many tabs the strip actually offers. Debug builds add the dev tab; Release stops at
-		/// Storage. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
+		/// Window Mode. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
 		/// selecting a tab that does not exist in a shipped build.</summary>
 #if DEBUG
-		public const int SettingsTabCount = 4;
+		public const int SettingsTabCount = 5;
 #else
-		public const int SettingsTabCount = 3;
+		public const int SettingsTabCount = 4;
 #endif
 
 		private int _settingsTabIndex;

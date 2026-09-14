@@ -41,6 +41,18 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(SelectedIndex), typeof(int), typeof(SegmentedPicker),
 				new PropertyMetadata(0, (d, _) => ((SegmentedPicker)d).ApplySelection()));
 
+		/// <summary>One segment to show but not allow (greyed, unclickable) — an option that exists but isn't
+		/// available yet. -1 (the default) disables none.</summary>
+		public int DisabledIndex
+		{
+			get => (int)GetValue(DisabledIndexProperty);
+			set => SetValue(DisabledIndexProperty, value);
+		}
+
+		public static readonly DependencyProperty DisabledIndexProperty =
+			DependencyProperty.Register(nameof(DisabledIndex), typeof(int), typeof(SegmentedPicker),
+				new PropertyMetadata(-1, (d, _) => ((SegmentedPicker)d).Rebuild()));
+
 		// Build one column and one segment per label.
 		//
 		// ⚠️ The corner radius and border are POSITIONAL, which is the whole reason this is code and not an
@@ -78,6 +90,7 @@ namespace Anvil.Controls.Primitives
 					// left, top, right, bottom — the left edge only on the first, so seams don't double.
 					BorderThickness = new Thickness(first ? 1 : 0, 1, 1, 1),
 					CornerRadius = new CornerRadius(first ? 4 : 0, last ? 4 : 0, last ? 4 : 0, first ? 4 : 0),
+					IsEnabled = i != DisabledIndex,
 				};
 
 				var index = i;

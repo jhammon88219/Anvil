@@ -5,11 +5,11 @@
 
        ┌─ Settings ──────────────────────────────[lock][pin]─┐
        │  Settings                                            │
-       │  ┌────┬──────┬─────────┬─────┐                       │
-       │  │ ⛰  │  ◎   │    ▤    │  ⚒  │                       │  ← Controls/Primitives/TabStrip
-       │  │Map │Radar │ Storage │ Dev │                       │
-       │  │▀▀▀▀│      │         │     │                       │
-       │  └────┴──────┴─────────┴─────┘                       │
+       │  ┌────┬──────┬─────────┬─────────────┬─────┐         │
+       │  │ ⛰  │  ◎   │    ▤    │      ▭      │  ⚒  │         │  ← Controls/Primitives/TabStrip
+       │  │Map │Radar │ Storage │ Window Mode │ Dev │         │
+       │  │▀▀▀▀│      │         │             │     │         │
+       │  └────┴──────┴─────────┴─────────────┴─────┘         │
        │  ┌──────────────────────────────────────────────┐    │
        │  │                                              │    │
        │  │   the selected tab's body (one UserControl   │    │
@@ -20,8 +20,9 @@
 
      WHAT THIS REPLACED: three separate windows and three bar keys — App Settings, Map Controls and Dev
      Tools. They are now tabs, which is why the bar's right cluster is down to Panes / Sites / Settings. A
-     NEW GROUP OF SETTINGS IS A TAB, NOT A WINDOW: add a SettingsTab enum member (append only — the ordinal
-     is the persisted index), a TabEntry in BuildTabs below, and a body UserControl in Composites.
+     NEW GROUP OF SETTINGS IS A TAB, NOT A WINDOW: add a SettingsTab enum member (never reorder — the ordinal
+     is the persisted index — and add it BEFORE Dev, which must stay last), a TabEntry in BuildTabs below
+     (before the #if DEBUG block), and a body UserControl in Composites at that index.
 
      ⚠️ THE SELECTED TAB IS NOT VIEW STATE. It lives on MapViewModel.SettingsTabIndex so it survives close/
      reopen, persists across launches, and can be targeted from anywhere via MapViewModel.OpenSettings(tab).
@@ -109,6 +110,9 @@
 
                     <cmp:StorageSettingsTab ViewModel="{x:Bind ViewModel}"
                                             Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 2), Mode=OneWay}"/>
+
+                    <cmp:WindowModeSettingsTab ViewModel="{x:Bind ViewModel}"
+                                               Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 3), Mode=OneWay}"/>
 
                     <!-- ⚠️ x:Load, not Visibility — see the header. LoadDevTab is hard-false in Release, so
                          this body is never constructed there and its null engine VMs are never bound. -->

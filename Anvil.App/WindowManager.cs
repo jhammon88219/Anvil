@@ -4,6 +4,7 @@ using System.ComponentModel;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Anvil.Models;
 using static Anvil.NativeWindowInterop;
 
 namespace Anvil
@@ -64,6 +65,14 @@ namespace Anvil
 	// BOTH moving and resizing, enforced in a window subclass at WM_WINDOWPOSCHANGING — the one choke point
 	// that also catches Aero snap, Win+Arrow and the Alt+Space Move/Size commands, which a click-blocking
 	// overlay would not. The resize-edge hit tests are masked too so a locked frame doesn't offer the arrows.
+	//
+	// ⚠️ MONITOR MODE — everything above is the SINGLE-monitor design (MapViewModel.MonitorMode; only Single is
+	// built). The manager reads the mode at the three points where Multi would differ, each marked
+	// "MONITOR MODE (multi: TODO)" and each running Single's rule for Multi today:
+	//   1. PIN          (ApplyPinned)          — Single: pinned = owned by the main window.
+	//   2. PLACEMENT    (TryGetReferenceArea)  — Single: measured off the main window's client area.
+	//   3. CHROME       (OpenWindow)           — Single: minimize + close, taskbar button, never topmost.
+	// Building Multi = fill in those three branches (and whatever new ones it finds), then enable the mode.
 	// ============================================================================================
 
 	/// <summary>Where a panel window opens relative to the main window. See the PLACEMENT block above.</summary>
@@ -125,6 +134,7 @@ namespace Anvil
 		private Window? _owner;
 		private DispatcherQueue? _dispatcher;
 		private Func<double> _availableBottom = () => double.PositiveInfinity;
+		private Func<MonitorMode> _monitorMode = () => MonitorMode.Single;
 
 		/// <summary>
 		/// Wire the manager to the owner window + the coordinator VM whose PropertyChanged drives reconciles.
@@ -132,11 +142,14 @@ namespace Anvil
 		/// </summary>
 		/// <param name="availableBottom">The bottom of the space panels may use, in LOGICAL px from the top of
 		/// the owner's content — the top edge of whatever bottom chrome is showing. Read at each open.</param>
-		public void Initialize(Window owner, INotifyPropertyChanged coordinator, Func<double> availableBottom)
+		/// <param name="monitorMode">The effective monitor mode, read live at each MONITOR MODE decision point.</param>
+		public void Initialize(Window owner, INotifyPropertyChanged coordinator, Func<double> availableBottom,
+			Func<MonitorMode> monitorMode)
 		{
 			_owner = owner;
 			_dispatcher = owner.DispatcherQueue;
 			_availableBottom = availableBottom;
+			_monitorMode = monitorMode;
 			coordinator.PropertyChanged += (_, _) => RequestReconcile();
 			owner.Closed += (_, _) => CloseAll(); // don't leak panel windows when the app closes
 		}
@@ -200,7 +213,14 @@ namespace Anvil
 		private void ApplyPinned(Registration reg, Window window)
 		{
 			if (_owner is null) return;
-			var owner = reg.KeepAboveOwner() ? WinRT.Interop.WindowNative.GetWindowHandle(_owner) : IntPtr.Zero;
+			bool ownByMain = _monitorMode() switch
+			{
+				// MONITOR MODE (multi: TODO) — Multi borrows Single's rule until a second screen exists to build it.
+				MonitorMode.Multi => reg.KeepAboveOwner(),
+				// Single: pinned = owned by the main window (above Anvil only).
+				_ => reg.KeepAboveOwner(),
+			};
+			var owner = ownByMain ? WinRT.Interop.WindowNative.GetWindowHandle(_owner) : IntPtr.Zero;
 			SetOwner(WinRT.Interop.WindowNative.GetWindowHandle(window), owner);
 		}
 
@@ -259,6 +279,34 @@ namespace Anvil
 			var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
 			var frameLock = AttachFrameLock(reg, hwnd);
 
+			switch (_monitorMode())
+			{
+				// MONITOR MODE (multi: TODO) — Multi borrows Single's chrome until a second screen exists to build it.
+				case MonitorMode.Multi:
+				default:
+					ApplySingleMonitorChrome(window, hwnd);
+					break;
+			}
+
+			ApplyPinned(reg, window);
+
+			// Place BEFORE Activate so it opens already-fitted (no default-size flash), then once more after —
+			// see PlaceVisibleFrame for why the second call is what makes the 5 px margins exact.
+			var target = ComputePlacement(reg.Anchor, scale);
+			frameLock.Placing = true;
+			if (target is { } before) PlaceVisibleFrame(hwnd, before.X, before.Y, before.W, before.H);
+
+			window.Closed += (_, _) => OnWindowClosed(reg);
+			_windows[reg.Id] = window;
+			window.Activate();
+
+			if (target is { } after) PlaceVisibleFrame(hwnd, after.X, after.Y, after.W, after.H);
+			frameLock.Placing = false;
+		}
+
+		// The single-monitor CHROME POLICY (see the header): taskbar button, minimize + close, never topmost.
+		private static void ApplySingleMonitorChrome(Window window, IntPtr hwnd)
+		{
 			if (window.AppWindow is AppWindow appWindow)
 			{
 				// ⚠️ A TASKBAR + ALT-TAB ENTRY, and it is what makes minimize (below) safe: a minimized panel is
@@ -287,21 +335,6 @@ namespace Anvil
 					presenter.IsMaximizable = false;
 				}
 			}
-
-			ApplyPinned(reg, window);
-
-			// Place BEFORE Activate so it opens already-fitted (no default-size flash), then once more after —
-			// see PlaceVisibleFrame for why the second call is what makes the 5 px margins exact.
-			var target = ComputePlacement(reg.Anchor, scale);
-			frameLock.Placing = true;
-			if (target is { } before) PlaceVisibleFrame(hwnd, before.X, before.Y, before.W, before.H);
-
-			window.Closed += (_, _) => OnWindowClosed(reg);
-			_windows[reg.Id] = window;
-			window.Activate();
-
-			if (target is { } after) PlaceVisibleFrame(hwnd, after.X, after.Y, after.W, after.H);
-			frameLock.Placing = false;
 		}
 
 		// The panel's designated rect in SCREEN physical px, from the owner's client area and the anchor
@@ -311,10 +344,7 @@ namespace Anvil
 		{
 			if (_owner is null || scale <= 0) return null;
 
-			var ownerHwnd = WinRT.Interop.WindowNative.GetWindowHandle(_owner);
-			if (!GetClientRect(ownerHwnd, out var client)) return null;
-			var origin = new POINT();
-			if (!ClientToScreen(ownerHwnd, ref origin)) return null;
+			if (!TryGetReferenceArea(out var origin, out var client)) return null;
 
 			double ownerWidth = (client.Right - client.Left) / scale;
 			double ownerHeight = (client.Bottom - client.Top) / scale;
@@ -350,6 +380,26 @@ namespace Anvil
 				origin.Y + (int)Math.Round(y * scale),
 				(int)Math.Round(w * scale),
 				(int)Math.Round(h * scale));
+		}
+
+		// The area panel placement is measured off: its screen-space origin + its size (physical px).
+		private bool TryGetReferenceArea(out POINT origin, out RECT client)
+		{
+			origin = default;
+			client = default;
+			if (_owner is null) return false;
+
+			switch (_monitorMode())
+			{
+				// MONITOR MODE (multi: TODO) — Multi will likely measure off a chosen monitor's work area rather
+				// than the main window; until it is built it borrows Single's rule.
+				case MonitorMode.Multi:
+				default:
+					// Single: the main window's client area, so the spots travel with it.
+					var ownerHwnd = WinRT.Interop.WindowNative.GetWindowHandle(_owner);
+					if (!GetClientRect(ownerHwnd, out client)) return false;
+					return ClientToScreen(ownerHwnd, ref origin);
+			}
 		}
 
 		// Subclass the panel's HWND so a LOCKED window refuses to move or resize. Installed before placement

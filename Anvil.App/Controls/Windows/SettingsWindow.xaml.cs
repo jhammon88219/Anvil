@@ -93,7 +93,9 @@ namespace Anvil.Controls.Windows
 		//   E774 globe   — was the MAP bar key's glyph; that window became this tab, so its mark came along.
 		//   EC05 tower   — the Sites bar key's glyph, reused deliberately: this tab IS radar site markers.
 		//   EDA2 drive   — the only one NOT inherited from a shipped key. Eyeball it on first run.
+		//   E7F4 monitor — Window Mode. NOT inherited from a shipped key and NOT verified. Eyeball it on first run.
 		//   E912 toolbox — was the Dev bar key's glyph (a second GEAR until that collided with Settings).
+		// ⚠️ Order = the SettingsTab enum. New tabs go BEFORE the #if DEBUG block — Dev must stay last.
 		private static ObservableCollection<TabEntry> BuildTabs()
 		{
 			var tabs = new ObservableCollection<TabEntry>
@@ -101,6 +103,7 @@ namespace Anvil.Controls.Windows
 				new() { Glyph = "", Label = "Map",     Tooltip = "Basemap, tile source, view extent and state isolation" },
 				new() { Glyph = "", Label = "Radar",   Tooltip = "Which radar-site marker networks are shown" },
 				new() { Glyph = "", Label = "Storage", Tooltip = "The on-disk radar cache: size, clearing and its limit" },
+				new() { Glyph = "", Label = "Window Mode", Tooltip = "Single- or multi-monitor window layout" },
 			};
 
 #if DEBUG

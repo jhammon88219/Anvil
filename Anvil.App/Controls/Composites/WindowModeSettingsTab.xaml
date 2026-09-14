@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WindowModeSettingsTab — the Window Mode tab of the Settings window: how Anvil lays its windows out for
+     the screens it has.
+
+       ┌──────────────────────────────────────────────────────┐
+       │  ⌄  Monitor setup                                    │
+       │    Mode      ┌─────────────────┬────────────────┐    │
+       │              │▓Single monitor▓│ Multi-monitor  │    │  ← Multi greyed (DisabledIndex=1)
+       │              └─────────────────┴────────────────┘    │
+       │    Multi-monitor is coming — it needs a second       │  ← the explanation (a disabled
+       │    screen to build and test. Anvil runs in           │    segment shows no tooltip)
+       │    single-monitor mode.                              │
+       └──────────────────────────────────────────────────────┘
+
+     ⚠️ THE BONES, NOT THE FEATURE. MapViewModel.MonitorMode is what WindowManager reads at each point where
+     the two modes would differ (grep "MONITOR MODE"); every one of them runs the single-monitor rule today.
+     Enabling the Multi segment is the LAST step of building multi-monitor, not the first. -->
+
+<UserControl x:Class="Anvil.Controls.Composites.WindowModeSettingsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <!-- Body: one Expander per section (Styles.xaml SectionExpanderStyle), grid rows inside each. -->
+    <Grid RowSpacing="8" VerticalAlignment="Top">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- monitor setup -->
+        </Grid.RowDefinitions>
+
+        <Expander Grid.Row="0" Header="Monitor setup" IsExpanded="True"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid RowSpacing="8" ColumnSpacing="12" Margin="4,0,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- picker -->
+                    <RowDefinition Height="Auto"/> <!-- explanation -->
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="Mode"/>
+                <prim:SegmentedPicker Grid.Row="0" Grid.Column="1"
+                                      HorizontalAlignment="Left" Width="280"
+                                      ItemsSource="{x:Bind ViewModel.MonitorModeLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.MonitorModeIndex, Mode=TwoWay}"
+                                      DisabledIndex="1"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                           TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="Multi-monitor is coming — it needs a second screen to build and test. Anvil runs in single-monitor mode."/>
+            </Grid>
+        </Expander>
+    </Grid>
+</UserControl>

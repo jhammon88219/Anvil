@@ -25,7 +25,9 @@
      at double weight.
 
      Host contract: ItemsSource (the labels, in order) + SelectedIndex (TwoWay). The index is the value —
-     this control never looks at what the labels say. -->
+     this control never looks at what the labels say. Optional DisabledIndex greys ONE segment that exists
+     but can't be chosen yet (the Window Mode tab's Multi-monitor). A disabled segment shows no tooltip, so
+     the host explains it in text beside the picker. -->
 <UserControl x:Class="Anvil.Controls.Primitives.SegmentedPicker"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

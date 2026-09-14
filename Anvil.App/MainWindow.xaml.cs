@@ -509,8 +509,10 @@ namespace Anvil
 			// the bar hidden too it sits at the window bottom. (Its cast shadow hangs on a negative margin and
 			// reserves no layout, so it doesn't count.) The rail's tabs stand above it but are centred, so the
 			// edge panels never cover them.
-			_windows.Initialize(this, ViewModel, availableBottom: () =>
-				MapControlsTier.TransformToVisual(Content).TransformPoint(new Windows.Foundation.Point(0, 0)).Y);
+			_windows.Initialize(this, ViewModel,
+				availableBottom: () =>
+					MapControlsTier.TransformToVisual(Content).TransformPoint(new Windows.Foundation.Point(0, 0)).Y,
+				monitorMode: () => ViewModel.MonitorMode);
 			// ONE settings window with a tab strip — it absorbed the former App Settings, Map Controls and Dev
 			// Tools windows, which is why the bar's right cluster is down to Panes / Sites / Settings.
 			// ⚠️ Every panel's size AND spot come from its anchor (WindowManager's PLACEMENT block) — there

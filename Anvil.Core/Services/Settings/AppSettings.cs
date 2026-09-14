@@ -91,7 +91,7 @@ namespace Anvil.Services
 		private int _settingsTabIndex;
 		/// <summary>
 		/// Which tab the Settings window reopens on. ⚠️ Persisted as a raw INDEX, so it can outlive the tab
-		/// that wrote it: a Debug session can quit on the dev tab (index 3) and a Release build then has no
+		/// that wrote it: a Debug session can quit on the dev tab (index 4) and a Release build then has no
 		/// such tab. <see cref="ViewModels.MapViewModel.SettingsTabIndex"/> clamps on load — never trust this
 		/// value against a tab count without clamping first.
 		/// </summary>
@@ -111,6 +111,18 @@ namespace Anvil.Services
 		{
 			get => _settingsTabPlacement;
 			set => SetProperty(ref _settingsTabPlacement, value);
+		}
+
+		private string _monitorMode = "Single";
+		/// <summary>
+		/// The monitor mode (<c>"Single"</c> or <c>"Multi"</c>), from the Settings window's Window Mode tab. A STRING
+		/// for the same reason as <see cref="SettingsTabPlacement"/>. ⚠️ Multi is not built:
+		/// <see cref="ViewModels.MapViewModel.MonitorMode"/> resolves any value to Single until it is.
+		/// </summary>
+		public string MonitorMode
+		{
+			get => _monitorMode;
+			set => SetProperty(ref _monitorMode, value);
 		}
 
 		// ── PastCast timeframe (the replay window's pickers) ─────────────────────────────────────────
