@@ -3,9 +3,9 @@
      caption is the only chrome), so there is no panel frame: the root is the dark surface, stretched to fill
      the window.
 
-       ┌─ NowCast ──────────────────────────────────────[pin]─┐
+       ┌─ NowCast ───────────────────────────────[lock][pin]─┐
        │  NowCast                                             │  ← the mode's name, from Mode
-       │  (the window is sized to fit this — no scroller)     │
+       │  (fixed 480 × full height at an edge — no scroller)  │
        │  ┌──────────────────────────────────────────────┐    │
        │  │                                              │    │
        │  │   that mode's body — ONE UserControl from     │    │
@@ -43,8 +43,8 @@
      plainer than loading and hiding three. It also sidesteps x:Load's real hazard: bound to a bool it
      UNLOADS again when that bool goes false, which is a trap for any body holding live widget state.
 
-     ⚠️ THE PIN IS WIRED IN CODE-BEHIND for the same reason: which on-top flag it drives depends on Mode,
-     which an x:Bind path cannot express. See the pin section of the code-behind. -->
+     ⚠️ THE PIN AND LOCK ARE WIRED IN CODE-BEHIND for the same reason: which flag each drives depends on
+     Mode, which an x:Bind path cannot express. See the constructor of the code-behind. -->
 <UserControl x:Class="Anvil.Controls.Windows.TemporalWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -57,9 +57,7 @@
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- title -->
-            <!-- ⚠️ Star, and it still measures correctly for sizeToContent: a star row given infinite
-                 available height behaves as Auto, so the window's measured height is title + body. Star
-                 rather than Auto so the body also FILLS the window if the user drags it larger. -->
+            <!-- Star so the body fills the full-height window WindowManager opens it at. -->
             <RowDefinition Height="*"/>    <!-- body -->
         </Grid.RowDefinitions>
 
@@ -68,14 +66,13 @@
                    FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
-        <!-- ⚠️ NO ScrollViewer. The window is sized to this content instead (WindowManager's
-             sizeToContent), so there is nothing to scroll — a scroller here would only ever show a bar that
-             could not move. If a body ever outgrows the monitor the manager clamps the window and the
-             bottom rows become unreachable: that is the signal to put a scroller back, not to raise the
-             clamp. -->
+        <!-- ⚠️ NO ScrollViewer. The window opens at the FULL height above the bottom chrome (WindowManager's
+             edge anchors), so a body shorter than that just shows surface below it. A body TALLER than that
+             is clipped at the bottom — the planned hand-rolled scroller is the fix, not a taller window. -->
         <ContentPresenter x:Name="BodyHost" Grid.Row="1" Margin="16,14,16,14"/>
 
-        <!-- Pin: keep this window on top. Bound in code-behind — the flag it drives depends on Mode. -->
+        <!-- Lock + pin. Bound in code-behind — the flags they drive depend on Mode. -->
+        <ctl:LockToggle x:Name="Lock"/>
         <ctl:PinToggle x:Name="Pin"/>
     </Grid>
 </UserControl>

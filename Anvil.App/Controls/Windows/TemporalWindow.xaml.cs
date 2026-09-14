@@ -24,6 +24,8 @@ namespace Anvil.Controls.Windows
 			// up a callback per assignment.
 			Pin.RegisterPropertyChangedCallback(PinToggle.IsCheckedProperty, (_, _) =>
 				ViewModel?.SetTemporalWindowOnTop(Mode, Pin.IsChecked));
+			Lock.RegisterPropertyChangedCallback(LockToggle.IsCheckedProperty, (_, _) =>
+				ViewModel?.SetTemporalWindowLocked(Mode, Lock.IsChecked));
 		}
 
 		/// <summary>Which mode this window configures. Set once at construction by the registration in
@@ -90,6 +92,7 @@ namespace Anvil.Controls.Windows
 			// The pin shows the flag's CURRENT value — these persist across a window being closed and
 			// reopened, so a panel unpinned earlier in the session comes back unpinned.
 			Pin.IsChecked = ViewModel.IsTemporalWindowOnTop(Mode);
+			Lock.IsChecked = ViewModel.IsTemporalWindowLocked(Mode);
 
 			if (_builtFor == Mode && BodyHost.Content is not null)
 			{

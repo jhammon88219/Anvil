@@ -6,7 +6,7 @@
      MapViewModel (like SettingsWindow): it reaches into ViewModel.SiteExplorer.* for the list/detail
      and ViewModel.IsSiteExplorerOpen for its own visibility/close.
 
-       Radar Sites   118 of 204                             [pin]   ← own title + live count
+       Radar Sites   118 of 204                       [lock][pin]   ← own title + live count
        [ Search ICAO or name…    ] [All networks ▾] [x] Online only
        ┌── list (260px) ─────┐ ┌── detail ──────────────────┐
        │ ● KTLX   NEXRAD     │ │ KTLX                       │
@@ -255,7 +255,8 @@
                 </Grid>
             </Grid>
 
-        <!-- Pin: keep this window on top. -->
+        <!-- Lock (no move/resize) + pin (keep on top). -->
+        <ctl:LockToggle IsChecked="{x:Bind ViewModel.IsSiteExplorerLocked, Mode=TwoWay}"/>
         <ctl:PinToggle IsChecked="{x:Bind ViewModel.IsSiteExplorerOnTop, Mode=TwoWay}"/>
     </Grid>
 </UserControl>

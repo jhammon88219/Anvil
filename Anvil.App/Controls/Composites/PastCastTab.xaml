@@ -50,9 +50,9 @@
      its controls, SettingsFieldLabelStyle rows in one aligned label column. Timeframe is the only one open
      on load: it is the section you came to use, and the other three act on a window it has to load first.
      Expanded state is view-only and NOT persisted — reopening the window gives you these defaults again.
-     ⚠️ The window sizes to its content ONCE, at open (WindowManager's sizeToContent), so opening a second
-     section afterwards grows the body past the window's bottom. Known and accepted for now — a scroller is
-     coming, hand-rolled rather than WinUI's.
+     ⚠️ The window opens at a FIXED full height (WindowManager's Left anchor), not sized to this body, so
+     opening enough sections can run the body past the window's bottom. Known and accepted for now — a
+     scroller is coming, hand-rolled rather than WinUI's.
 
      ⚠️ THE CARD IS A PREVIEW, NOT A RECEIPT. Its two readouts come from the pickers below (PastEventDateText
      / PastEventRangeText), so they describe what Load WILL do; only the footer describes what already

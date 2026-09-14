@@ -25,12 +25,12 @@
      WatchesViewModel / WarningsViewModel).
 
      EVERY SECTION IS AN EXPANDER (Styles.xaml SectionExpanderStyle) — header = the section title,
-     body = its controls. Warnings is the only one open on load; the rest start closed, so the window
-     opens short and you open what you came for. Expanded state is view-only and NOT persisted: reopening
+     body = its controls. Warnings is the only one open on load; the rest start closed, so the body starts
+     short and you open what you came for. Expanded state is view-only and NOT persisted: reopening
      the window gives you these defaults again.
-     ⚠️ The window sizes to its content ONCE, at open (WindowManager's sizeToContent), so expanding a
-     section afterwards grows the body past the window. That is known and accepted for now — a scroller
-     is coming, hand-rolled rather than WinUI's.
+     ⚠️ The window opens at a FIXED full height (WindowManager's Left anchor), not sized to this body, so
+     expanding enough sections can run the body past the window. That is known and accepted for now — a
+     scroller is coming, hand-rolled rather than WinUI's.
 
      ⚠️ WARNINGS SITS ABOVE WATCHES, which puts it out of the map's Z-order (watches are drawn under
      warnings). Deliberate: it is the section you actually watch during severe weather, so it gets the

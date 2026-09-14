@@ -3,7 +3,7 @@
      WindowManager (the native caption is the only chrome), so there is no panel frame: the root is the dark
      surface, stretched to fill the window.
 
-       ┌─ Settings ─────────────────────────────────────[pin]─┐
+       ┌─ Settings ──────────────────────────────[lock][pin]─┐
        │  Settings                                            │
        │  ┌────┬──────┬─────────┬─────┐                       │
        │  │ ⛰  │  ◎   │    ▤    │  ⚒  │                       │  ← Controls/Primitives/TabStrip
@@ -122,7 +122,8 @@
             </ScrollViewer>
         </Grid>
 
-        <!-- Pin: keep this window on top. -->
+        <!-- Lock (no move/resize) + pin (keep on top). -->
+        <ctl:LockToggle IsChecked="{x:Bind ViewModel.IsSettingsWindowLocked, Mode=TwoWay}"/>
         <ctl:PinToggle IsChecked="{x:Bind ViewModel.IsSettingsWindowOnTop, Mode=TwoWay}"/>
     </Grid>
 </UserControl>

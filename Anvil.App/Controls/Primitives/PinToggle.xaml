@@ -6,10 +6,11 @@
      region receive input automatically (WinUI), so no SetTitleBar is needed.
 
        ┌──────────────────────────────────────────────────────────┐
-       │                                             [pin]    ✕   │
+       │                                      [lock] [pin]    ✕   │
        │                                               ^     ^^^  │
        │   …the hosting window's own content…          │     the ONE caption button
        │                                               └── this control, inset to clear it
+       │                                         (LockToggle sits left of it, 6 px gap)
        └──────────────────────────────────────────────────────────┘
 
      ⚠️ THE INSET TRACKS THE CAPTION BUTTON COUNT. Panel windows have a CLOSE-ONLY caption (WindowManager

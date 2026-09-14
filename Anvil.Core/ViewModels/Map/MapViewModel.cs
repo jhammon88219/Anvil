@@ -250,6 +250,36 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isSiteExplorerOnTop, value);
 		}
 
+		// Per-window LOCK flags, each driven by that window's title-bar lock (LockToggle) and enforced by
+		// WindowManager's window subclass: locked = the window can be neither moved nor resized.
+		// ⚠️ ALL DEFAULT ON — a panel opens in its designated spot (see WindowManager's PLACEMENT block) and
+		// stays there until the user deliberately unlocks it. FIELD defaults, like the pins: an unlocked panel
+		// stays unlocked when reopened this session (it still reopens in its designated spot).
+		private bool _isSettingsWindowLocked = true;
+		private bool _isSiteExplorerLocked = true;
+		private bool _isPipelineConsoleLocked = true;
+
+		/// <summary>Whether the Settings window is locked in place (title-bar lock).</summary>
+		public bool IsSettingsWindowLocked
+		{
+			get => _isSettingsWindowLocked;
+			set => SetProperty(ref _isSettingsWindowLocked, value);
+		}
+
+		/// <summary>Whether the Radar Sites window is locked in place (title-bar lock).</summary>
+		public bool IsSiteExplorerLocked
+		{
+			get => _isSiteExplorerLocked;
+			set => SetProperty(ref _isSiteExplorerLocked, value);
+		}
+
+		/// <summary>Whether the Pipeline Console window is locked in place (title-bar lock).</summary>
+		public bool IsPipelineConsoleLocked
+		{
+			get => _isPipelineConsoleLocked;
+			set => SetProperty(ref _isPipelineConsoleLocked, value);
+		}
+
 		/// <summary>Whether the Pipeline Console window is open. INDEPENDENT of the other windows (it may sit
 		/// alongside them). Forwards to <see cref="PipelineConsoleViewModel.IsOpen"/> so polling runs only
 		/// while it's open.</summary>
@@ -420,6 +450,9 @@ namespace Anvil.ViewModels
 		private bool _isPastWindowOnTop = true;
 		private bool _isNowWindowOnTop = true;
 		private bool _isForeWindowOnTop = true;
+		private bool _isPastWindowLocked = true;
+		private bool _isNowWindowLocked = true;
+		private bool _isForeWindowLocked = true;
 
 		/// <summary>Whether the PastCast window is open. Two-ways with the settings rail on the PastCast key;
 		/// forced false when PastCast stops (see <see cref="OnTemporalModesChanged"/>).</summary>
@@ -502,6 +535,47 @@ namespace Anvil.ViewModels
 				case TemporalMode.Past: IsPastWindowOnTop = onTop; break;
 				case TemporalMode.Now: IsNowWindowOnTop = onTop; break;
 				case TemporalMode.Fore: IsForeWindowOnTop = onTop; break;
+			}
+		}
+
+		/// <summary>Whether the PastCast window is locked in place (title-bar lock).</summary>
+		public bool IsPastWindowLocked
+		{
+			get => _isPastWindowLocked;
+			set => SetProperty(ref _isPastWindowLocked, value);
+		}
+
+		/// <summary>Whether the NowCast window is locked in place (title-bar lock).</summary>
+		public bool IsNowWindowLocked
+		{
+			get => _isNowWindowLocked;
+			set => SetProperty(ref _isNowWindowLocked, value);
+		}
+
+		/// <summary>Whether the ForeCast window is locked in place (title-bar lock).</summary>
+		public bool IsForeWindowLocked
+		{
+			get => _isForeWindowLocked;
+			set => SetProperty(ref _isForeWindowLocked, value);
+		}
+
+		/// <summary>Whether <paramref name="which"/> mode's window is locked in place (can't move or resize).</summary>
+		public bool IsTemporalWindowLocked(TemporalMode which) => which switch
+		{
+			TemporalMode.Past => IsPastWindowLocked,
+			TemporalMode.Now => IsNowWindowLocked,
+			TemporalMode.Fore => IsForeWindowLocked,
+			_ => true,
+		};
+
+		/// <summary>Set <paramref name="which"/> mode's lock flag (driven by that window's title-bar lock).</summary>
+		public void SetTemporalWindowLocked(TemporalMode which, bool locked)
+		{
+			switch (which)
+			{
+				case TemporalMode.Past: IsPastWindowLocked = locked; break;
+				case TemporalMode.Now: IsNowWindowLocked = locked; break;
+				case TemporalMode.Fore: IsForeWindowLocked = locked; break;
 			}
 		}
 

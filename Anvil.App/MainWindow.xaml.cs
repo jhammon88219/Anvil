@@ -289,7 +289,7 @@ namespace Anvil
 		// Close (which routes back through this close action). There is no bar key of its own — that is the
 		// whole point of the split key. And the view model closes a window whose mode has stopped
 		// (MapViewModel.OnTemporalModesChanged), so a panel can never outlive the thing it configures.
-		private void RegisterTemporalWindow(TemporalMode mode, string title, double width, double height)
+		private void RegisterTemporalWindow(TemporalMode mode, string title, WindowAnchor anchor)
 		{
 			_windows.Register(
 				id: "temporal." + mode,
@@ -304,13 +304,10 @@ namespace Anvil
 					w.ImportDowEventRequested += OnImportDowEventRequested;
 					return w;
 				},
-				title: title, width: width, height: height,
+				title: title, anchor: anchor,
 				alwaysOnTop: () => ViewModel.IsTemporalWindowOnTop(mode),
-				customChrome: true,
-				// ⚠️ The HEIGHT argument above is only a fallback now — these three windows measure their own
-				// content and size to it, because their bodies differ a lot and none of them scrolls. Width
-				// is still real: it is the width the content is measured AT.
-				sizeToContent: true);
+				isLocked: () => ViewModel.IsTemporalWindowLocked(mode),
+				customChrome: true);
 		}
 
 		// Imports a .dow.json mobile-radar frame into the DOW library, for the PastCast window's DOW section.
@@ -525,11 +522,17 @@ namespace Anvil
 			// to match; content is a fresh section instance bound to this same VM, rendered headerless (the
 			// window caption is the chrome). Each flag is INDEPENDENT — any combination may be open at once.
 			// The radar console (Row 1, the bottom bar) is deliberately NOT here.
-			_windows.Initialize(this, ViewModel);
+			// ⚠️ The panels' usable band ends at the top of the MAP TOOLS TIER, which is the top of the bottom
+			// chrome in every state: hidden, the tier collapses to zero height ON the bar's top edge, and with
+			// the bar hidden too it sits at the window bottom. (Its cast shadow hangs on a negative margin and
+			// reserves no layout, so it doesn't count.) The rail's tabs stand above it but are centred, so the
+			// edge panels never cover them.
+			_windows.Initialize(this, ViewModel, availableBottom: () =>
+				MapControlsTier.TransformToVisual(Content).TransformPoint(new Windows.Foundation.Point(0, 0)).Y);
 			// ONE settings window with a tab strip — it absorbed the former App Settings, Map Controls and Dev
 			// Tools windows, which is why the bar's right cluster is down to Panes / Sites / Settings.
-			// ⚠️ Sized for the TALLEST tab (Map), because WindowManager sizes a window once, at open — there
-			// is no per-tab resize, and adding one would fight any size the user had dragged it to.
+			// ⚠️ Every panel's size AND spot come from its anchor (WindowManager's PLACEMENT block) — there
+			// are no per-window sizes, and nothing sizes to its content any more.
 			// The dev VMs are handed over unconditionally; they are null in Release, where SettingsWindow
 			// omits the dev tab from its strip and never constructs its body.
 			_windows.Register(
@@ -551,16 +554,18 @@ namespace Anvil
 					settings.BrowseMapDataFolderRequested += OnBrowseMapDataFolderRequested;
 					return settings;
 				},
-				title: "Settings", width: 520, height: 640,
+				title: "Settings", anchor: WindowAnchor.Center,
 				alwaysOnTop: () => ViewModel.IsSettingsWindowOnTop,
+				isLocked: () => ViewModel.IsSettingsWindowLocked,
 				customChrome: true);
 			_windows.Register(
 				id: "sites",
 				isOpen: () => ViewModel.IsSiteExplorerOpen,
 				close: () => ViewModel.IsSiteExplorerOpen = false,
 				buildContent: () => new Controls.Windows.RadarSiteExplorerWindow { ViewModel = ViewModel },
-				title: "Radar Sites", width: 660, height: 470,
+				title: "Radar Sites", anchor: WindowAnchor.Center,
 				alwaysOnTop: () => ViewModel.IsSiteExplorerOnTop,
+				isLocked: () => ViewModel.IsSiteExplorerLocked,
 				customChrome: true);
 			// THREE windows, one per timeframe — one TemporalWindow class registered three times, differing
 			// only in Mode, title, size and which flags it reads. They are opened by the SETTINGS RAIL at the
@@ -569,21 +574,19 @@ namespace Anvil
 			// replaced three windows. The round trip is deliberate and the reasoning is in MapViewModel's
 			// temporal region: the tabbed panel existed to stop a mode key meaning two things at once, and
 			// splitting the key fixes that without making the two coexisting modes share one panel.
-			// ⚠️ Each SIZES ITSELF TO ITS OWN BODY now (sizeToContent), which the tabbed window could never
-			// do — it had to be sized for the tallest tab, because a window is sized once, at open. The
-			// heights below are only the fallback for a measure that comes back degenerate.
-			RegisterTemporalWindow(TemporalMode.Past, "PastCast", 480, 700);
-			// ⚠️ NowCast's fallback grew with its body: watches and warnings are a card over type rows each
-			// now, not a checkbox and a slider each, which puts it within a card's height of PastCast.
-			RegisterTemporalWindow(TemporalMode.Now, "NowCast", 480, 700);
-			RegisterTemporalWindow(TemporalMode.Fore, "ForeCast", 480, 640);
+			// ⚠️ Past and Now SHARE the left edge, which is safe only because Past excludes Now — the two can
+			// never be open together. Now and Fore coexist, so Fore takes the other edge.
+			RegisterTemporalWindow(TemporalMode.Past, "PastCast", WindowAnchor.Left);
+			RegisterTemporalWindow(TemporalMode.Now, "NowCast", WindowAnchor.Left);
+			RegisterTemporalWindow(TemporalMode.Fore, "ForeCast", WindowAnchor.Right);
 			_windows.Register(
 				id: "pipeline",
 				isOpen: () => ViewModel.IsPipelineConsoleOpen,
 				close: () => ViewModel.IsPipelineConsoleOpen = false,
 				buildContent: () => new Controls.Windows.PipelineConsoleWindow { ViewModel = ViewModel },
-				title: "Pipeline Console", width: 720, height: 470,
+				title: "Pipeline Console", anchor: WindowAnchor.Center,
 				alwaysOnTop: () => ViewModel.IsPipelineConsoleOnTop, // user-toggled via the pin in the console
+				isLocked: () => ViewModel.IsPipelineConsoleLocked,
 				customChrome: true); // extend content into the title bar so the dark surface replaces the caption
 			// (The dev tools no longer register a window of their own — they are the Settings window's
 			// Debug-only Dev tab, registered above with everything else.)

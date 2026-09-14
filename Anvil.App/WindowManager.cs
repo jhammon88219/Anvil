@@ -4,6 +4,7 @@ using System.ComponentModel;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using static Anvil.NativeWindowInterop;
 
 namespace Anvil
 {
@@ -29,10 +30,48 @@ namespace Anvil
 	// ⚠️ CHROME POLICY — uniform, owned HERE (in OpenWindow), not per-registration: every panel gets a
 	// CLOSE-ONLY caption (no minimize, no maximize) and is hidden from the taskbar + Alt-Tab. A panel's hide
 	// is its bar key, which also unlatches the toggle; minimize did the same thing WORSE (window gone, toggle
-	// still lit). Panels stay freely RESIZABLE. See the comments in OpenWindow for the full reasoning before
-	// changing any of it. Consequence: with no switcher entry, the only route back to a panel buried behind
-	// the main window is toggling its bar key off/on.
+	// still lit). See the comments in OpenWindow for the full reasoning before changing any of it.
+	// Consequence: with no switcher entry, the only route back to a panel buried behind the main window is
+	// toggling its bar key off/on.
+	//
+	// ⚠️ PLACEMENT — every panel opens in a FIXED SPOT measured off the MAIN WINDOW'S client area (never the
+	// monitor), so the spots travel with the main window to whatever screen it is on:
+	//
+	//   ┌─ main window ───────────────────────────────────────────────────────────┐
+	//   │┌──────┐            ┌────────────────────────────────┐          ┌──────┐│  ← 5 px margins
+	//   ││ Left │            │ Center — ≈16:9, sized as if    │          │Right ││
+	//   ││ 480  │            │ BOTH edge strips were occupied │          │ 480  ││
+	//   ││      │            │ (so it never depends on what   │          │      ││
+	//   ││ full │            │  else happens to be open)      │          │ full ││
+	//   ││height│            └────────────────────────────────┘          │height││
+	//   │└──────┘                                                         └──────┘│  ← 5 px above…
+	//   │═══════════════════ map tools tier (or the bar, if hidden) ══════════════│  …the bottom chrome
+	//   └──────────────────────────────────────────────────────────────────────────┘
+	//
+	// ⚠️ MEASURED ONCE, AT OPEN, and always to the designated spot — a window reopened after being dragged
+	// comes back home, and nothing reflows when other panels open or chrome hides. Overlap is allowed.
+	// ⚠️ The centre window has a FLOOR (CenterMinWidth × CenterMinHeight): below it, it stops honouring the
+	// strips and overlaps them, still centred. An edge window never shrinks below 480 except to fit the
+	// main window itself.
+	// ⚠️ Margins are to the VISIBLE frame — Windows 11's invisible resize border is measured and added back
+	// (NativeWindowInterop.PlaceVisibleFrame), or every 5 px gap would really be ~12.
+	//
+	// ⚠️ LOCK — every panel has a title-bar lock (LockToggle) beside its pin, DEFAULT LOCKED. Locked refuses
+	// BOTH moving and resizing, enforced in a window subclass at WM_WINDOWPOSCHANGING — the one choke point
+	// that also catches Aero snap, Win+Arrow and the Alt+Space Move/Size commands, which a click-blocking
+	// overlay would not. The resize-edge hit tests are masked too so a locked frame doesn't offer the arrows.
 	// ============================================================================================
+
+	/// <summary>Where a panel window opens relative to the main window. See the PLACEMENT block above.</summary>
+	public enum WindowAnchor
+	{
+		/// <summary>Flush left, 480 wide, full height above the bottom chrome (PastCast, NowCast).</summary>
+		Left,
+		/// <summary>Flush right, 480 wide, full height above the bottom chrome (ForeCast).</summary>
+		Right,
+		/// <summary>Centred, ≈16:9, sized between the two edge strips (Settings, Sites, Pipeline Console).</summary>
+		Center,
+	}
 
 	/// <summary>
 	/// Hosts each app-wide panel in its own <see cref="Window"/>, keeping the window's existence in sync with
@@ -41,6 +80,12 @@ namespace Anvil
 	/// </summary>
 	public sealed class WindowManager
 	{
+		// ----- Placement geometry, in LOGICAL px (scaled by the owner's DPI at open) -----
+		private const double Margin = 5;
+		private const double EdgeWidth = 480;
+		private const double CenterMinWidth = 520;
+		private const double CenterMinHeight = 400;
+
 		private sealed class Registration
 		{
 			public required string Id;
@@ -48,30 +93,45 @@ namespace Anvil
 			public required Action Close;                        // set IsOpen=false (the OS-caption Close path)
 			public required Func<FrameworkElement> BuildContent; // a fresh section instance bound to the shared VM
 			public required string Title;
-			public double Width;
-			public double Height;
-			public bool SizeToContent; // measure the content for HEIGHT; Height is then only a fallback
+			public WindowAnchor Anchor;
 			public Func<bool> AlwaysOnTop = () => false; // topmost (evaluated live so a pin toggle can flip it)
+			public Func<bool> IsLocked = () => false;    // no move/resize (read live by the subclass, per message)
 			public bool CustomChrome; // extend content into the title bar so the dark surface replaces the caption
+		}
+
+		// One open window's subclass state. The delegate is held HERE so the GC can't collect it while Win32
+		// still calls through it; it is removed at WM_NCDESTROY.
+		private sealed class FrameLock
+		{
+			public required Func<bool> IsLocked;
+			public bool Placing; // our own placement calls pass through even while locked
+			public SubclassProc? Proc;
 		}
 
 		private readonly Dictionary<string, Registration> _regs = new();
 		private readonly Dictionary<string, Window> _windows = new();
+		// Keyed by INSTANCE, not id: a panel closed and reopened quickly can have its new window's lock attached
+		// before the old HWND's WM_NCDESTROY runs, and removing by id would drop the new window's delegate.
+		private readonly HashSet<FrameLock> _locks = new();
 		// Ids we are closing ourselves (the flag went false elsewhere), so the Closed handler doesn't mistake
 		// it for the user clicking the OS caption's Close and re-fire the Close action.
 		private readonly HashSet<string> _closingProgrammatically = new();
 
 		private Window? _owner;
 		private DispatcherQueue? _dispatcher;
+		private Func<double> _availableBottom = () => double.PositiveInfinity;
 
 		/// <summary>
 		/// Wire the manager to the owner window + the coordinator VM whose PropertyChanged drives reconciles.
 		/// Call once, on the UI thread, after the owner exists.
 		/// </summary>
-		public void Initialize(Window owner, INotifyPropertyChanged coordinator)
+		/// <param name="availableBottom">The bottom of the space panels may use, in LOGICAL px from the top of
+		/// the owner's content — the top edge of whatever bottom chrome is showing. Read at each open.</param>
+		public void Initialize(Window owner, INotifyPropertyChanged coordinator, Func<double> availableBottom)
 		{
 			_owner = owner;
 			_dispatcher = owner.DispatcherQueue;
+			_availableBottom = availableBottom;
 			coordinator.PropertyChanged += (_, _) => RequestReconcile();
 			owner.Closed += (_, _) => CloseAll(); // don't leak panel windows when the app closes
 		}
@@ -79,7 +139,8 @@ namespace Anvil
 		/// <summary>
 		/// Register a panel. <paramref name="isOpen"/> reads the panel's VM state, <paramref name="close"/> turns
 		/// the feature off (used when the user closes the window via its caption), and <paramref name="buildContent"/>
-		/// makes a fresh section instance (bound to the shared VM, rendered headerless).
+		/// makes a fresh section instance (bound to the shared VM, rendered headerless). <paramref name="anchor"/>
+		/// decides where it opens AND how big — there are no per-window sizes.
 		/// </summary>
 		public void Register(
 			string id,
@@ -87,11 +148,10 @@ namespace Anvil
 			Action close,
 			Func<FrameworkElement> buildContent,
 			string title,
-			double width,
-			double height,
+			WindowAnchor anchor,
 			Func<bool>? alwaysOnTop = null,
-			bool customChrome = false,
-			bool sizeToContent = false)
+			Func<bool>? isLocked = null,
+			bool customChrome = false)
 		{
 			_regs[id] = new Registration
 			{
@@ -100,11 +160,10 @@ namespace Anvil
 				Close = close,
 				BuildContent = buildContent,
 				Title = title,
-				Width = width,
-				Height = height,
+				Anchor = anchor,
 				AlwaysOnTop = alwaysOnTop ?? (() => false),
+				IsLocked = isLocked ?? (() => false),
 				CustomChrome = customChrome,
-				SizeToContent = sizeToContent,
 			};
 		}
 
@@ -194,9 +253,9 @@ namespace Anvil
 				window.ExtendsContentIntoTitleBar = true;
 			}
 
-			// Size + center over the main window BEFORE Activate so it opens already-fitted (no default-size
-			// flash). Still freely RESIZABLE (see the caption note below). AppWindow works in physical pixels,
-			// so scale the panel's logical footprint by the monitor's DPI scale.
+			var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+			var frameLock = AttachFrameLock(reg, hwnd);
+
 			if (window.AppWindow is AppWindow appWindow)
 			{
 				// A panel is app chrome, not an app: keep it out of the taskbar + Alt-Tab so it can't read as a
@@ -216,70 +275,118 @@ namespace Anvil
 					// the app claims a panel is open with nothing on screen. The bar key does the same job AND
 					// unlatches itself. MAXIMIZE travels with it, not on its own merits — drop only the minimize
 					// box and the button still draws, greyed; drop both and the caption collapses to one button.
-					// ⚠️ IsResizable is deliberately LEFT ALONE (defaults true) — drag-resize is how a panel's
-					// size gets tuned, and it's what makes losing maximize free. Don't "finish the set" here.
+					// ⚠️ IsResizable is deliberately LEFT ALONE (defaults true). The LOCK is what stops resizing,
+					// in the subclass — flipping IsResizable would restyle the frame (and change the invisible
+					// border the placement just measured) every time the lock toggled.
 					// Static policy, set once at open — unlike IsAlwaysOnTop these never belong in the reconcile.
 					presenter.IsMinimizable = false;
 					presenter.IsMaximizable = false;
 				}
-
-				int w = (int)Math.Ceiling(reg.Width * scale);
-				int h = (int)Math.Ceiling(MeasuredHeight(reg, content, appWindow, scale) * scale);
-				appWindow.ResizeClient(new Windows.Graphics.SizeInt32(w, h));
-
-				if (_owner.AppWindow is AppWindow owner)
-				{
-					var pos = owner.Position;
-					var size = owner.Size;
-					appWindow.Move(new Windows.Graphics.PointInt32(
-						pos.X + (size.Width - w) / 2, pos.Y + (size.Height - h) / 2));
-				}
 			}
+
+			// Place BEFORE Activate so it opens already-fitted (no default-size flash), then once more after —
+			// see PlaceVisibleFrame for why the second call is what makes the 5 px margins exact.
+			var target = ComputePlacement(reg.Anchor, scale);
+			frameLock.Placing = true;
+			if (target is { } before) PlaceVisibleFrame(hwnd, before.X, before.Y, before.W, before.H);
 
 			window.Closed += (_, _) => OnWindowClosed(reg);
 			_windows[reg.Id] = window;
 			window.Activate();
+
+			if (target is { } after) PlaceVisibleFrame(hwnd, after.X, after.Y, after.W, after.H);
+			frameLock.Placing = false;
 		}
 
-		// The panel's HEIGHT: measured from its content when the registration asks for it, otherwise the
-		// registered value.
-		//
-		// ⚠️ WIDTH IS NEVER MEASURED. These bodies are vertical stacks that wrap to whatever width they are
-		// given, so width is the INPUT to the measure and height is the answer. Measuring both would just
-		// return whatever the widest single control happened to want.
-		//
-		// ⚠️ IT IS A ONE-SHOT, at open. Content that grows later (a card gaining a footer line, a longer
-		// status) does not resize the window — the same as the fixed sizes this replaced. The window stays
-		// resizable, which is the escape hatch.
-		//
-		// ⚠️ CLAMPED TO THE MONITOR'S WORK AREA. A panel with no ScrollViewer and a taller-than-screen
-		// content would put its bottom rows out of reach for good, so an oversized measure is capped rather
-		// than honoured. If a panel ever hits this cap it needs its scroller back, not a bigger clamp.
-		//
-		// ⚠️ A DEGENERATE MEASURE FALLS BACK to the registered height. Measuring an element that is not yet
-		// in a visual tree is not guaranteed to produce anything useful, and a window sized 0 would be a far
-		// worse failure than one sized as it always used to be.
-		private static double MeasuredHeight(Registration reg, FrameworkElement content, AppWindow appWindow, double scale)
+		// The panel's designated rect in SCREEN physical px, from the owner's client area and the anchor
+		// rules in the PLACEMENT block. Null if the owner can't be measured (the window then opens wherever
+		// WinUI puts it, which beats a zero-size window).
+		private (int X, int Y, int W, int H)? ComputePlacement(WindowAnchor anchor, double scale)
 		{
-			if (!reg.SizeToContent)
+			if (_owner is null || scale <= 0) return null;
+
+			var ownerHwnd = WinRT.Interop.WindowNative.GetWindowHandle(_owner);
+			if (!GetClientRect(ownerHwnd, out var client)) return null;
+			var origin = new POINT();
+			if (!ClientToScreen(ownerHwnd, ref origin)) return null;
+
+			double ownerWidth = (client.Right - client.Left) / scale;
+			double ownerHeight = (client.Bottom - client.Top) / scale;
+			if (ownerWidth <= 2 * Margin || ownerHeight <= 2 * Margin) return null;
+
+			// The usable band: the owner's top down to the top of the bottom chrome.
+			double bottom = Math.Clamp(_availableBottom(), 2 * Margin + 1, ownerHeight);
+			double bandHeight = bottom - 2 * Margin;
+
+			double x, y, w, h;
+			switch (anchor)
 			{
-				return reg.Height;
+				case WindowAnchor.Left:
+				case WindowAnchor.Right:
+					w = Math.Min(EdgeWidth, ownerWidth - 2 * Margin);
+					h = bandHeight;
+					x = anchor == WindowAnchor.Left ? Margin : ownerWidth - Margin - w;
+					y = Margin;
+					break;
+
+				default:
+					// ⚠️ Sized as if BOTH strips were occupied, whether or not they are — see PLACEMENT.
+					double reserved = 2 * (Margin + EdgeWidth + Margin);
+					w = Math.Min(Math.Max(ownerWidth - reserved, CenterMinWidth), ownerWidth - 2 * Margin);
+					h = Math.Min(Math.Max(w * 9 / 16, CenterMinHeight), bandHeight);
+					x = (ownerWidth - w) / 2;
+					y = Margin + (bandHeight - h) / 2;
+					break;
 			}
 
-			content.Measure(new Windows.Foundation.Size(reg.Width, double.PositiveInfinity));
-			var desired = content.DesiredSize.Height;
-			if (double.IsNaN(desired) || desired <= 0)
-			{
-				return reg.Height;
-			}
-
-			var workArea = DisplayArea.GetFromWindowId(appWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
-			var maxLogical = (workArea.Height / scale) - WorkAreaMargin;
-			return maxLogical > 0 ? Math.Min(desired, maxLogical) : desired;
+			return (
+				origin.X + (int)Math.Round(x * scale),
+				origin.Y + (int)Math.Round(y * scale),
+				(int)Math.Round(w * scale),
+				(int)Math.Round(h * scale));
 		}
 
-		// Breathing room left below a content-sized panel so it never runs flush to the taskbar.
-		private const double WorkAreaMargin = 48;
+		// Subclass the panel's HWND so a LOCKED window refuses to move or resize. Installed before placement
+		// (with Placing set) so our own SetWindowPos calls pass; the lock flag is read live on every message,
+		// so the title-bar toggle needs no push from the reconcile.
+		private FrameLock AttachFrameLock(Registration reg, IntPtr hwnd)
+		{
+			var state = new FrameLock { IsLocked = reg.IsLocked };
+			state.Proc = (h, msg, wParam, lParam, id, refData) =>
+			{
+				bool locked = !state.Placing && state.IsLocked();
+				switch (msg)
+				{
+					case WM_WINDOWPOSCHANGING when locked:
+						// ⚠️ The choke point: drags, snap, Win+Arrow and Alt+Space Move/Size all arrive as a
+						// SetWindowPos. Strip the move + size from it; z-order and show/hide still pass.
+						var pos = System.Runtime.InteropServices.Marshal.PtrToStructure<WINDOWPOS>(lParam);
+						pos.Flags |= SWP_NOMOVE | SWP_NOSIZE;
+						System.Runtime.InteropServices.Marshal.StructureToPtr(pos, lParam, false);
+						break;
+
+					case WM_NCHITTEST when locked:
+						// Don't offer resize arrows on a frame that won't resize.
+						var hit = DefSubclassProc(h, msg, wParam, lParam).ToInt32();
+						return hit is >= HTLEFT and <= HTBOTTOMRIGHT ? new IntPtr(HTBORDER) : new IntPtr(hit);
+
+					case WM_SYSCOMMAND when locked:
+						int command = wParam.ToInt32() & 0xFFF0;
+						if (command is SC_MOVE or SC_SIZE) return IntPtr.Zero;
+						break;
+
+					case WM_NCDESTROY:
+						RemoveWindowSubclass(h, state.Proc!, id);
+						_locks.Remove(state);
+						break;
+				}
+				return DefSubclassProc(h, msg, wParam, lParam);
+			};
+
+			SetWindowSubclass(hwnd, state.Proc, UIntPtr.Zero, UIntPtr.Zero);
+			_locks.Add(state);
+			return state;
+		}
 
 		private void OnWindowClosed(Registration reg)
 		{
