@@ -22,22 +22,23 @@ namespace Anvil.ViewModels
 	/// window's Map tab.
 	/// </summary>
 	/// <remarks>
-	/// ⚠️ THE TOP THREE ROWS ARE ACTIONS, THE REST ARE PLACES, and the two are told apart by
-	/// <see cref="Tooltip"/>: only the actions carry hover text, because a state name explains itself and
-	/// 52 identical tooltips would be noise. <see cref="StartsStateList"/> marks the first state so the
-	/// view can rule a line above it.
+	/// ⚠️ THE ACTIONS AND THE PLACES ARE TWO LISTS (<see cref="StateIsolationViewModel.IsolationModes"/>
+	/// pinned above <see cref="StateIsolationViewModel.IsolationPlaces"/>). Only the actions carry hover
+	/// text, because a state name explains itself and 52 identical tooltips would be noise.
 	/// ⚠️ Plain and immutable — a row never changes, the SELECTION does. Anything that varies belongs on
 	/// <see cref="StateIsolationViewModel"/>.
 	/// </remarks>
 	public sealed class StateIsolationOption
 	{
-		public StateIsolationOption(StateIsolationKind kind, string label, string? tooltip = null, bool startsStateList = false)
+		public StateIsolationOption(StateIsolationKind kind, string label, string? tooltip = null)
 		{
 			Kind = kind;
 			Label = label;
 			Tooltip = tooltip;
-			StartsStateList = startsStateList;
 		}
+
+		/// <summary>The picker's closed face reads this.</summary>
+		public override string ToString() => Label;
 
 		/// <summary>What picking this row does.</summary>
 		public StateIsolationKind Kind { get; }
@@ -48,9 +49,5 @@ namespace Anvil.ViewModels
 
 		/// <summary>Hover text, or null for the state rows (see the remarks).</summary>
 		public string? Tooltip { get; }
-
-		/// <summary>True on the FIRST state row only, so the view can draw a rule between the actions above
-		/// and the places below.</summary>
-		public bool StartsStateList { get; }
 	}
 }

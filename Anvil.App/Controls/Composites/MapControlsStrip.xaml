@@ -39,6 +39,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:vm="using:Anvil.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -96,6 +97,14 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- One isolation row, for BOTH sections of the picker. The modes carry hover text; the places
+             have a null Tooltip, which shows nothing rather than an empty box. -->
+        <DataTemplate x:Key="IsolationRowTemplate" x:DataType="vm:StateIsolationOption">
+            <Grid Background="Transparent" ToolTipService.ToolTip="{x:Bind Tooltip}">
+                <TextBlock Text="{x:Bind Label}" VerticalAlignment="Center"/>
+            </Grid>
+        </DataTemplate>
     </UserControl.Resources>
 
     <!-- ⚠️ NO Background here: the OverlayBar hosting this tier paints the raised surface, and a second
@@ -129,18 +138,21 @@
              then highlights it, and the click reports back through states.js, at which point the combo
              re-resolves and reads that state's name. Armed-with-nothing-picked keeps reading "Select to
              Isolate", which is honest: the map is visibly in hover mode.
-             ⚠️ The PLACEHOLDER shows when nothing is masked at all, because SelectedIsolationOption is
-             NULL there — "No Isolation" is a row you pick, not a row the picker rests in.
-             ⚠⚠ IT IS Primitives/IsolationComboBox, NOT A ComboBox, FOR A CORRECTNESS REASON — a closed
+             The three modes are PINNED above a rule and never scroll away; the places scroll below.
+             ⚠️ The PLACEHOLDER should be unreachable: the VM resolves every combination to a real row,
+             "No Isolation" included. Seeing it means the lists failed to build.
+             ⚠⚠ IT IS Primitives/SectionedComboBox, NOT A ComboBox, FOR A CORRECTNESS REASON — a closed
              WinUI ComboBox cycles its selection on the MOUSEWHEEL, and rolling it here froze the map
              outright. See that control's header; don't swap it back. -->
         <StackPanel x:Name="RightTools"
                     Orientation="Horizontal" Spacing="4"
                     HorizontalAlignment="Right" VerticalAlignment="Center">
-            <prim:IsolationComboBox Width="170"
+            <prim:SectionedComboBox Width="170"
                                     PlaceholderText="Isolate State"
-                                    ItemsSource="{x:Bind ViewModel.StateIso.IsolationOptions, Mode=OneWay}"
+                                    PinnedItemsSource="{x:Bind ViewModel.StateIso.IsolationModes, Mode=OneWay}"
+                                    ItemsSource="{x:Bind ViewModel.StateIso.IsolationPlaces, Mode=OneWay}"
                                     SelectedItem="{x:Bind ViewModel.StateIso.SelectedIsolationOption, Mode=TwoWay}"
+                                    ItemTemplate="{StaticResource IsolationRowTemplate}"
                                     ToolTipService.ToolTip="Mask the map down to CONUS or a single state"/>
         </StackPanel>
     </Grid>

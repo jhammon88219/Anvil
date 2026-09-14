@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SectionedComboBox — a boxed dropdown whose list can carry an optional PINNED section that never
+     scrolls, ruled off from the main list below it that does.
+
+       CLOSED     ┌──────────────────────────┐
+                  │ Texas                  ˅ │   always SelectedItem.ToString(), from EITHER section, however
+                  └──────────────────────────┘   it was chosen (a pick here or a push from the view model)
+
+                  ┌──────────────────────────┐
+       OPEN       │ No Isolation             │ ┐
+                  │ Isolate CONUS            │ │ PinnedItemsSource — fixed, never scrolls out of view
+                  │ Select to Isolate        │ ┘
+                  │──────────────────────────│   rule (a real Border, not an item)
+                  │ Tennessee                │ ┐
+                  │▌Texas                    │ │ ItemsSource — scrolls, capped at MaxDropDownHeight;
+                  │ Utah                   ⋮ │ ┘ opens with the selection scrolled into view
+                  └──────────────────────────┘
+
+       NO PINNED ITEMS → the pinned list AND the rule collapse; it is a plain dropdown list.
+
+     ⚠️⚠️ IT IS NOT A ComboBox, AND THAT IS A CORRECTNESS RULE, NOT A LOOK. A closed WinUI ComboBox cycles
+     its SELECTION on the MOUSEWHEEL, in a CLASS handler that runs before any instance handler, so
+     e.Handled cannot stop it (measured). On the isolation picker that froze the map (2026-09-04; see
+     states.js stopCamera). This control has NO path from the wheel to SelectedItem:
+       · the closed face is a Grid, which does nothing with the wheel;
+       · inside the dropdown the wheel only SCROLLS the main list;
+       · SelectedItem is written in ONE place, OnItemClick (a pointer click, or Enter/Space on a row).
+     ⚠️ SingleSelectionFollowsFocus="False" on both lists is part of that: with the default (True) an
+     ARROW KEY would select, and a selection that commits is a pick nobody made. Don't remove it, and
+     don't commit from SelectionChanged — the lists' selection is only the highlight.
+
+     ⚠️ The flyout presenter's own ScrollViewer is DISABLED vertically. Left on, a short window would
+     scroll the WHOLE dropdown and carry the pinned section out of view — the one thing it must not do.
+     With it off, the main list's * row is what shrinks.
+
+     ⚠️ The flyout is given an explicitly OPAQUE surface: the default flyout brush is acrylic and washes
+     out over the map.
+
+     Host contract: ItemsSource (+ optional PinnedItemsSource) + SelectedItem (TwoWay) + PlaceholderText;
+     optional ItemTemplate (applied to BOTH sections; without it rows show ToString()), MaxDropDownHeight,
+     DropDownPlacement (Top by default — the strips live at the bottom of the window). -->
+<UserControl
+    x:Class="Anvil.Controls.Primitives.SectionedComboBox"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    IsTabStop="True"
+    UseSystemFocusVisuals="True"
+    KeyDown="OnKeyDown"
+    IsEnabledChanged="OnIsEnabledChanged">
+
+    <UserControl.Resources>
+        <Style x:Key="SectionedRowStyle" TargetType="ListViewItem">
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Padding" Value="11,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- ⚠️ Background="Transparent" is what makes the whole box tappable (a null background does not
+         hit-test), NOT a look. The Border below draws the actual face. -->
+    <Grid x:Name="Root" Background="Transparent" Tapped="OnTapped">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal"/>
+                <VisualState x:Name="Disabled">
+                    <VisualState.Setters>
+                        <Setter Target="SelectedLabel.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                        <Setter Target="Placeholder.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                        <Setter Target="DropDownGlyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Border x:Name="Box"
+                Grid.ColumnSpan="2"
+                MinHeight="32"
+                CornerRadius="4"
+                BorderThickness="1"
+                Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                Control.IsTemplateFocusTarget="True"/>
+
+        <TextBlock x:Name="SelectedLabel"
+                   Grid.Column="0"
+                   Margin="10,5,0,6"
+                   VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis"
+                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                   Visibility="{x:Bind HasSelection(SelectedItem), Mode=OneWay}"
+                   Text="{x:Bind LabelOf(SelectedItem), Mode=OneWay}"/>
+
+        <TextBlock x:Name="Placeholder"
+                   Grid.Column="0"
+                   Margin="10,5,0,6"
+                   VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis"
+                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                   Visibility="{x:Bind NoSelection(SelectedItem), Mode=OneWay}"
+                   Text="{x:Bind PlaceholderText, Mode=OneWay}"/>
+
+        <FontIcon x:Name="DropDownGlyph"
+                  Grid.Column="1"
+                  Margin="8,0,10,0"
+                  VerticalAlignment="Center"
+                  FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                  FontSize="12"
+                  Glyph="&#xE70D;"
+                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                  IsHitTestVisible="False"/>
+
+        <FlyoutBase.AttachedFlyout>
+            <Flyout x:Name="DropDown" Opening="OnDropDownOpening" Opened="OnDropDownOpened">
+                <Flyout.FlyoutPresenterStyle>
+                    <Style TargetType="FlyoutPresenter">
+                        <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
+                        <Setter Property="BorderBrush" Value="{ThemeResource SurfaceStrokeColorFlyoutBrush}"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}"/>
+                        <Setter Property="Padding" Value="0,4,0,4"/>
+                        <Setter Property="MinWidth" Value="0"/>
+                        <Setter Property="ScrollViewer.HorizontalScrollMode" Value="Disabled"/>
+                        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+                        <!-- ⚠️ See the header: the presenter must never scroll the pinned section away. -->
+                        <Setter Property="ScrollViewer.VerticalScrollMode" Value="Disabled"/>
+                        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled"/>
+                    </Style>
+                </Flyout.FlyoutPresenterStyle>
+
+                <Grid x:Name="DropDownPanel">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Pinned: sized to its rows, never scrolls. -->
+                    <ListView x:Name="PinnedList"
+                              Grid.Row="0"
+                              SelectionMode="Single"
+                              SingleSelectionFollowsFocus="False"
+                              IsItemClickEnabled="True"
+                              ItemClick="OnItemClick"
+                              PreviewKeyDown="OnPinnedListPreviewKeyDown"
+                              ScrollViewer.VerticalScrollMode="Disabled"
+                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                              ItemContainerStyle="{StaticResource SectionedRowStyle}"
+                              ItemTemplate="{x:Bind ItemTemplate, Mode=OneWay}"
+                              ItemsSource="{x:Bind PinnedItemsSource, Mode=OneWay}"/>
+
+                    <!-- ⚠️ NOT CardStrokeColorDefaultSolidBrush: in dark that is #1C1C1C, the SAME value as
+                         the presenter's SolidBackgroundFillColorSecondaryBrush, so the rule vanishes. This
+                         one is a translucent stroke (#28FFFFFF dark / #37000000 light) that reads on both. -->
+                    <Border x:Name="SectionRule"
+                            Grid.Row="1"
+                            Height="1"
+                            Margin="0,4,0,4"
+                            Background="{ThemeResource ControlStrongStrokeColorDisabledBrush}"/>
+
+                    <ListView x:Name="MainList"
+                              Grid.Row="2"
+                              SelectionMode="Single"
+                              SingleSelectionFollowsFocus="False"
+                              IsItemClickEnabled="True"
+                              ItemClick="OnItemClick"
+                              PreviewKeyDown="OnMainListPreviewKeyDown"
+                              MaxHeight="{x:Bind MaxDropDownHeight, Mode=OneWay}"
+                              ItemContainerStyle="{StaticResource SectionedRowStyle}"
+                              ItemTemplate="{x:Bind ItemTemplate, Mode=OneWay}"
+                              ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"/>
+                </Grid>
+            </Flyout>
+        </FlyoutBase.AttachedFlyout>
+    </Grid>
+</UserControl>

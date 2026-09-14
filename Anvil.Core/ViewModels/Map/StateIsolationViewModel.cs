@@ -40,7 +40,8 @@ namespace Anvil.ViewModels
 		{
 			_mapService = mapService;
 			_settings = settings;
-			IsolationOptions = BuildOptions(States);
+			IsolationModes = BuildModes();
+			IsolationPlaces = States.Select(n => new StateIsolationOption(StateIsolationKind.State, n)).ToList();
 			RestoreIsolation();      // FIELDS only — see the method; the map isn't ready and mustn't be commanded
 			RefreshSelectedOption(); // so the combo opens reading whatever was restored
 		}
@@ -198,20 +199,18 @@ namespace Anvil.ViewModels
 		// checkbox, and the state-name combo that used to sit in the Settings window's Map tab. The rows
 		// above the states are ACTIONS and carry hover text; the states explain themselves.
 
-		/// <summary>Every row of the isolation combo: the three actions, then the 52 places.</summary>
-		public IReadOnlyList<StateIsolationOption> IsolationOptions { get; }
+		/// <summary>The three isolation actions — the picker's PINNED section, never scrolled away.</summary>
+		public IReadOnlyList<StateIsolationOption> IsolationModes { get; }
 
-		private static IReadOnlyList<StateIsolationOption> BuildOptions(IReadOnlyList<string> states)
+		/// <summary>The 52 places — the picker's scrolling section, below the rule.</summary>
+		public IReadOnlyList<StateIsolationOption> IsolationPlaces { get; }
+
+		private static IReadOnlyList<StateIsolationOption> BuildModes() => new StateIsolationOption[]
 		{
-			var rows = new List<StateIsolationOption>
-			{
-				new(StateIsolationKind.None, "No Isolation", "Show the whole map"),
-				new(StateIsolationKind.Conus, "Isolate CONUS", "Mask everything outside the lower 48"),
-				new(StateIsolationKind.Arm, "Select to Isolate", "Then click a state on the map"),
-			};
-			rows.AddRange(states.Select((n, i) => new StateIsolationOption(StateIsolationKind.State, n, startsStateList: i == 0)));
-			return rows;
-		}
+			new(StateIsolationKind.None, "No Isolation", "Show the whole map"),
+			new(StateIsolationKind.Conus, "Isolate CONUS", "Mask everything outside the lower 48"),
+			new(StateIsolationKind.Arm, "Select to Isolate", "Then click a state on the map"),
+		};
 
 		// Set while a pick is being APPLIED, so the cascade of property changes it causes (IsArmed clearing
 		// SelectedState, and so on) cannot fight the selection that started it. The option is re-resolved
@@ -278,16 +277,16 @@ namespace Anvil.ViewModels
 		{
 			if (HasIsolatedState)
 			{
-				return IsolationOptions.FirstOrDefault(o => o.Kind == StateIsolationKind.State && o.Label == _selectedState);
+				return IsolationPlaces.FirstOrDefault(o => o.Label == _selectedState);
 			}
 
-			if (_isArmed) { return IsolationOptions.First(o => o.Kind == StateIsolationKind.Arm); }
-			if (_isConusIsolated) { return IsolationOptions.First(o => o.Kind == StateIsolationKind.Conus); }
+			if (_isArmed) { return IsolationModes.First(o => o.Kind == StateIsolationKind.Arm); }
+			if (_isConusIsolated) { return IsolationModes.First(o => o.Kind == StateIsolationKind.Conus); }
 
 			// ⚠️ "No Isolation" IS A STATE THE PICKER RESTS IN, not just a row you press. It used to resolve
 			// to null here, which showed the placeholder — so picking "No Isolation" left the box reading
 			// "Isolate State" and looked as though the pick had not taken.
-			return IsolationOptions.First(o => o.Kind == StateIsolationKind.None);
+			return IsolationModes.First(o => o.Kind == StateIsolationKind.None);
 		}
 
 		// Push the resolved row into the combo without re-running the setter's apply branch.
