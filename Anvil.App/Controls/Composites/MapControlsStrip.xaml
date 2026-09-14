@@ -8,7 +8,8 @@
        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← shadow, thrown onto the map
 
        ╭─ ˅ Tools ─╮ ╭─ ˅ Bar ─╮                                    ← MainWindow's shared rail
-       (⌘) (⛶)     (▣) [Search places             ⌕] (⊚) status   [Isolate State ▾]   ← THIS, on the raised surface
+       (⌘) (⛶) [▢][▥][▦]   (▣) [Search places             ⌕] (⊚) status   [Isolate State ▾]   ← THIS, on the raised surface
+               ↑ pane layout: 1 / 2 / 4, the current one LIT; square marks, accent cell = pane 0
                       ┌─────────────────────────────┐
                       │ Moore, OK          pop 62k  │   ← suggestions (the AutoSuggestBox popup)
                       └─────────────────────────────┘
@@ -60,6 +61,17 @@
      pictures what it drops. That is why the bar's Inspect key is a magnifier; don't give it a reticle.
      ⚠️ The viewer's mark is a drawn TEARDROP, the search pin's shape. Its button has NO Click on purpose;
      wire it when the marker window exists (open bool + WindowManager registration — CLAUDE.md "Add a window").
+
+     PANE LAYOUT sits LEFT after the camera tools: THREE toggles (1 / 2 / 4), the current one lit. It moved
+     here from the bar, where it was one wide key that cycled and drew the NEXT layout — three toggles show
+     the current layout and reach any layout in one click, which the cycling key could do neither of.
+     ⚠️ ONE-WAY IsChecked + re-assert in OnPaneLayoutClick: clicking the LIT toggle sets the layout it already
+     is (no property change), and the toggle would otherwise un-light itself. Every layout is an on-state.
+     ⚠️ SQUARE marks (18×18), NOT the map band's 26:14 shape: at 32 px a wide quad mark's cells were ~10×5
+     and read as a smudge (mocked up and rejected). Solid blocks with 2 px gaps, not outlines — small solid
+     shapes stay distinct where hairlines merge. Accent cell = pane 0 (left; bottom-left in quad), as on the map.
+     Drawn Rectangles with fixed theme brushes — Shapes don't inherit the template's Foreground.
+     Tooltips read "Activate N-pane mode". No "two stacked": weather reads left-to-right across a storm.
 
      Host contract: ViewModel (MapViewModel). Add a tool = one Button in either side's panel.
      ============================================================================ -->
@@ -245,6 +257,55 @@
                     ToolTipService.ToolTip="Fit To View">
                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
             </Button>
+
+            <!-- PANE LAYOUT — three toggles, current one lit (see the header). Tag = the PaneLayout name. -->
+            <StackPanel Orientation="Horizontal" Spacing="2" Margin="8,0,0,0">
+                <ToggleButton x:Name="SinglePaneToggle" Tag="Single"
+                              Style="{StaticResource StripToolToggleStyle}"
+                              IsChecked="{x:Bind IsSinglePane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
+                              Click="OnPaneLayoutClick"
+                              ToolTipService.ToolTip="Activate 1-pane mode">
+                    <Grid Width="18" Height="18">
+                        <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
+                    </Grid>
+                </ToggleButton>
+
+                <ToggleButton x:Name="TwoPaneToggle" Tag="TwoAcross"
+                              Style="{StaticResource StripToolToggleStyle}"
+                              IsChecked="{x:Bind IsTwoPane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
+                              Click="OnPaneLayoutClick"
+                              ToolTipService.ToolTip="Activate 2-pane mode">
+                    <Grid Width="18" Height="18" ColumnSpacing="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Rectangle Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
+                        <Rectangle Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1.5" RadiusY="1.5"/>
+                    </Grid>
+                </ToggleButton>
+
+                <ToggleButton x:Name="QuadPaneToggle" Tag="Quad"
+                              Style="{StaticResource StripToolToggleStyle}"
+                              IsChecked="{x:Bind IsQuadPane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
+                              Click="OnPaneLayoutClick"
+                              ToolTipService.ToolTip="Activate 4-pane mode">
+                    <Grid Width="18" Height="18" ColumnSpacing="2" RowSpacing="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <Rectangle Grid.Row="0" Grid.Column="0" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                        <Rectangle Grid.Row="0" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                        <Rectangle Grid.Row="1" Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
+                        <Rectangle Grid.Row="1" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                    </Grid>
+                </ToggleButton>
+            </StackPanel>
         </StackPanel>
 
         <!-- ===== PLACE SEARCH — CENTER =====

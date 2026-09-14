@@ -22,6 +22,14 @@ namespace Anvil.Controls.Composites
 		public Visibility HasText(string? value) =>
 			string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
 
+		// x:Bind helper: the legend shows only while there is one AND the outlook section it keys is open.
+		public Visibility LegendVisibility(bool hasLegend, bool sectionExpanded) =>
+			hasLegend && sectionExpanded ? Visibility.Visible : Visibility.Collapsed;
+
+		// x:Bind helper: a hatch group absent from today's outlook is dimmed as well as labelled. STATIC —
+		// called from a DataTemplate. An Opacity, not a brush, so no theme brush is resolved in C#.
+		public static double HatchRowOpacity(bool inOutlook) => inOutlook ? 1.0 : 0.45;
+
 		// x:Bind helpers for the legend swatch's Conditional Intensity hatching. Deliberately split the
 		// SAME way outlook.js's makeHatchImage takes its `back` / `fwd` flags: each asks "does this
 		// pattern include this diagonal?", so the cross (CIG3) needs no case of its own and the swatch

@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.Models;
@@ -42,6 +43,28 @@ namespace Anvil.Controls.Composites
 		// Fit to view — frame the effective region (isolated state, else CONUS).
 		private void OnFitToViewClick(object sender, RoutedEventArgs e) =>
 			_ = ViewModel?.FitToViewAsync();
+
+		// Pane layout (moved here from the bar): which of the three toggles is lit. x:Bind can't compare against
+		// an enum literal, so one typed function per layout.
+		public bool IsSinglePane(PaneLayout layout) => layout == PaneLayout.Single;
+		public bool IsTwoPane(PaneLayout layout) => layout == PaneLayout.TwoAcross;
+		public bool IsQuadPane(PaneLayout layout) => layout == PaneLayout.Quad;
+
+		// ⚠️ Re-assert all three after setting: clicking the LIT toggle changes no property, so nothing would
+		// re-light it after the ToggleButton unchecked itself.
+		private void OnPaneLayoutClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is not { } vm || sender is not FrameworkElement { Tag: string tag } ||
+				!Enum.TryParse<PaneLayout>(tag, out var layout))
+			{
+				return;
+			}
+			vm.Radar.PaneLayout = layout;
+			var current = vm.Radar.PaneLayout;
+			SinglePaneToggle.IsChecked = IsSinglePane(current);
+			TwoPaneToggle.IsChecked = IsTwoPane(current);
+			QuadPaneToggle.IsChecked = IsQuadPane(current);
+		}
 
 		// Location (moved here from the bar). The transient locate status WINS in the tooltip: there is nowhere
 		// else a failed fix ("Location unavailable") would show — the toggle would simply spring back up.

@@ -16,14 +16,18 @@
        │  Day      [Day 1 · Wed Sep 2          ▾]             │  ← self-labeling; cascades Product
        │  Product  [Categorical                ▾]             │
        │  Opacity  ──────●───────────                         │
-       │  ──────────────────────────────────────────          │
-       │   ■ High                                             │  ← the legend rides INSIDE this
-       │   ■ Moderate                                         │     section for now; both it and
-       │   ▨ Enhanced   (hatched = significant)               │     the rule hide with HasLegend
        └──────────────────────────────────────────────────────┘
+         ──────────────────────────────────────────────────     ← the LEGEND: its own star row, so it
+          ■ 2%                                             ▲     fills every pixel down to the discussion
+          ■ 5%                                             █     and scrolls inside that; hides with
+          ■ 10%                                            █     HasLegend OR the outlook section collapsed
+          Intensity hatching                     [✓] Show  █  ← HasHatchLegend (none on Categorical/fire)
+          ╲ CIG1                               In Outlook  █  ← status from the CACHED GeoJSON, so a
+          ╱ CIG2                               In Outlook  █     hidden hatch can't be forgotten
+          ╳ CIG3                           Not In Outlook  ▼  ← dimmed
        ┌──────────────────────────────────────────────────────┐
-       │  ›  Forecast discussion                              │  ← COLLAPSED on load; opening it
-       └──────────────────────────────────────────────────────┘     scrolls inside a 240px cap
+       │  ›  Forecast discussion                              │  ← pinned to the BOTTOM; COLLAPSED on
+       └──────────────────────────────────────────────────────┘     load, opens into a 240px cap
 
        (expanded)
        ┌──────────────────────────────────────────────────────┐
@@ -113,24 +117,57 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Grid>
         </DataTemplate>
+
+        <!-- One Conditional Intensity Group row: the hatch swatch (same two Paths + rule as above), its
+             name, and whether today's outlook carries it. A group NOT in the outlook is dimmed as well as
+             worded, so the "In Outlook" rows are the ones the eye lands on.
+             Item type: Anvil.Models.OutlookHatchLegendRow. -->
+        <DataTemplate x:Key="OutlookHatchRowTemplate" x:DataType="models:OutlookHatchLegendRow">
+            <Grid Margin="0,2" ColumnSpacing="9" Opacity="{x:Bind local:ForeCastTab.HatchRowOpacity(InOutlook)}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid Width="20" Height="13" VerticalAlignment="Center">
+                    <Border Background="{x:Bind Level.Fill, Converter={StaticResource HexToBrush}}"
+                            BorderBrush="{x:Bind Level.Stroke, Converter={StaticResource HexToBrush}}"
+                            BorderThickness="1" CornerRadius="2"/>
+                    <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
+                          Visibility="{x:Bind local:ForeCastTab.HatchBackward(Level.Hatch)}"
+                          Data="M0,0 L13,13 M7,0 L20,13 M0,6.5 L6.5,13 M13,0 L20,6.5"/>
+                    <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
+                          Visibility="{x:Bind local:ForeCastTab.HatchForward(Level.Hatch)}"
+                          Data="M0,13 L13,0 M7,13 L20,0 M0,6.5 L6.5,0 M13,13 L20,6.5"/>
+                </Grid>
+                <TextBlock Grid.Column="1" Text="{x:Bind Level.OfficialName}"
+                           FontSize="13" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind StatusText}"
+                           FontSize="12" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </Grid>
+        </DataTemplate>
     </UserControl.Resources>
 
-    <Grid VerticalAlignment="Top" RowSpacing="8">
+    <!-- ⚠️ NOT top-aligned, unlike the Past/Now roots: TemporalWindow hands this the full window height and
+         the legend's star row is what fills it. -->
+    <Grid RowSpacing="8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- SPC outlook: the card, the selectors, the legend -->
-            <RowDefinition Height="Auto"/> <!-- Forecast discussion: SPC's prose, bounded -->
+            <RowDefinition Height="Auto"/> <!-- SPC outlook: the card, the selectors -->
+            <RowDefinition Height="*"/>    <!-- the legend: fills the rest, scrolls inside -->
+            <RowDefinition Height="Auto"/> <!-- Forecast discussion: SPC's prose, bounded, at the bottom -->
         </Grid.RowDefinitions>
 
         <!-- ===================== SPC OUTLOOK: the card, then the selectors ===================== -->
-        <Expander Grid.Row="0" Header="SPC outlook" IsExpanded="True"
+        <Expander x:Name="OutlookSection" Grid.Row="0" Header="SPC outlook" IsExpanded="True"
                   Style="{StaticResource SectionExpanderStyle}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- the card -->
                     <RowDefinition Height="Auto"/> <!-- rule -->
                     <RowDefinition Height="Auto"/> <!-- the selectors -->
-                    <RowDefinition Height="Auto"/> <!-- legend rule -->
-                    <RowDefinition Height="Auto"/> <!-- legend entries -->
                 </Grid.RowDefinitions>
 
                 <!-- THE CARD, the same shape as the PastCast outlook's and for the same reason: it is a
@@ -203,26 +240,48 @@
                             ToolTipService.ToolTip="Outlook fill opacity (outlines stay solid)"/>
                 </Grid>
 
-                <!-- THE LEGEND lives INSIDE this section rather than beside it: it is a key to the outlook
-                     the rows above chose, so it belongs to them. Both halves hide together on HasLegend
-                     (None, or the layer off), leaving the section with just the card and the selectors.
-                     ⚠️ Temporary address — the legend is going somewhere else eventually, it just doesn't
-                     have a home yet, so it rides along with what it describes.
-                     ⚠️ BOUNDED, like the discussion section below: these windows size to content and have no
-                     scroller of their own, and this list's length is decided by SPC rather than by us, so an
-                     unusually long scale scrolls here instead of pushing the window past the screen. -->
-                <Border Grid.Row="3" Height="1" Margin="0,14"
-                        Visibility="{x:Bind ViewModel.Outlook.HasLegend, Converter={StaticResource BoolToVis}, Mode=OneWay}"
-                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-                <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" MaxHeight="200"
-                              HorizontalScrollMode="Disabled"
-                              Visibility="{x:Bind ViewModel.Outlook.HasLegend, Converter={StaticResource BoolToVis}, Mode=OneWay}">
-                    <ItemsControl ItemsSource="{x:Bind ViewModel.Outlook.LegendEntries, Mode=OneWay}"
-                                  ItemTemplate="{StaticResource OutlookLegendItemTemplate}"/>
-                </ScrollViewer>
             </Grid>
         </Expander>
+
+        <!-- ===================== THE LEGEND: fills the window ===================== -->
+        <!-- A key to the outlook the section above chose, so it hides when that section is collapsed as well
+             as on HasLegend (None, or the layer off). It sits OUTSIDE the Expander only so it can take a star
+             row — an Expander's content sizes to itself, and the old 200px cap is what cut the list off.
+             ⚠️ Its ScrollViewer is bounded by the ROW, not a MaxHeight: the window is full height, so the
+             legend gets every pixel between the selectors and the discussion and only scrolls past that.
+             ⚠️ The hatching block reads "In Outlook" from the CACHED file, not the catalog — that is the whole
+             point: with hatching hidden, those rows are the reminder that it exists. -->
+        <Grid Grid.Row="1"
+              Visibility="{x:Bind LegendVisibility(ViewModel.Outlook.HasLegend, OutlookSection.IsExpanded), Mode=OneWay}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- rule -->
+                <RowDefinition Height="*"/>    <!-- entries -->
+            </Grid.RowDefinitions>
+            <Border Grid.Row="0" Height="1" Margin="0,6,0,10"
+                    Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
+                <StackPanel>
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Outlook.LegendEntries, Mode=OneWay}"
+                                  ItemTemplate="{StaticResource OutlookLegendItemTemplate}"/>
+
+                    <!-- Hatching heading + the Show box. Absent on products with no intensity groups. -->
+                    <Grid Margin="0,12,0,2" ColumnSpacing="8"
+                          Visibility="{x:Bind ViewModel.Outlook.HasHatchLegend, Converter={StaticResource BoolToVis}, Mode=OneWay}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Intensity hatching" VerticalAlignment="Center"
+                                   Style="{StaticResource SettingsFieldLabelStyle}"/>
+                        <CheckBox Grid.Column="1" Content="Show" MinWidth="0"
+                                  IsChecked="{x:Bind ViewModel.Outlook.ShowHatching, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Show or hide the hatched intensity areas (fills stay)"/>
+                    </Grid>
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Outlook.HatchLegendRows, Mode=OneWay}"
+                                  ItemTemplate="{StaticResource OutlookHatchRowTemplate}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
 
         <!-- ===================== FORECAST DISCUSSION: SPC's own prose ===================== -->
         <!-- SPC's forecast discussion for the selected day, scraped from their HTML product page and disk
@@ -240,7 +299,7 @@
              ⚠️ DISABLED while Product is None, the same off switch the opacity slider uses. Fire-weather
              products have no scraped page (their layout differs); the text says so itself rather than the
              section hiding, so the row never silently vanishes. -->
-        <Expander Grid.Row="1" Header="Forecast discussion" IsExpanded="False"
+        <Expander Grid.Row="2" Header="Forecast discussion" IsExpanded="False"
                   IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}"
                   Style="{StaticResource SectionExpanderStyle}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="240"

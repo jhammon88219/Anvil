@@ -34,10 +34,6 @@ namespace Anvil
 		/// only in Debug builds. Handed to the Settings window's Debug-only Dev tab.</summary>
 		public RadarValidationViewModel? ValidationVm { get; }
 
-		/// <summary>Generic bool → Visibility for x:Bind. A Window has no Window.Resources, and x:Bind on a
-		/// Window can't use {StaticResource converter}, so visibility conversions are functions here.</summary>
-		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
-
 		// NOTE: ApplyStripOverlap is gone. The map-controls strip used to be an island hung over the bar's
 		// pull-tab by a negative margin, so the tab could rise through a notch cut in its underside; it is a
 		// full-width tier now and the tabs sit on a rail above both tiers. docs/ui-bottom-bar.md.
@@ -215,37 +211,7 @@ namespace Anvil
 			return true;
 		}
 
-		// ===== Pane layout key =====
-		// ONE key that cycles. Three drawn icons are stacked in the same cell and exactly one shows —
-		// whichever layout the NEXT click lands on, so the icon advertises the action rather than the
-		// state. x:Bind can't compare against an enum literal, and a Window can't use a
-		// {StaticResource converter}, so the comparisons are x:Bind functions — typed, not stringly-typed,
-		// and each re-evaluates because it takes the layout as its argument.
-		public bool IsSinglePane(PaneLayout layout) => layout == PaneLayout.Single;
-		public bool IsTwoAcross(PaneLayout layout) => layout == PaneLayout.TwoAcross;
-		public bool IsQuad(PaneLayout layout) => layout == PaneLayout.Quad;
-
-		// Which of the three stacked icons shows. Built on the comparisons above so the enum is tested in
-		// exactly one place per layout.
-		// ⚠️ The XAML passes Radar.NextPaneLayout here, NOT Radar.PaneLayout — these say "draw the icon for
-		// this layout", and the choice of WHICH layout is the binding's. Read them with that in mind.
-		public Visibility SinglePaneVisibility(PaneLayout layout) => VisibleWhen(IsSinglePane(layout));
-		public Visibility DualPaneVisibility(PaneLayout layout) => VisibleWhen(IsTwoAcross(layout));
-		public Visibility QuadPaneVisibility(PaneLayout layout) => VisibleWhen(IsQuad(layout));
-
-		// The tooltip says what the CLICK DOES, which is also what the mark draws — the key advertises its
-		// action, not its state, and the tooltip agrees with it rather than describing the key twice.
-		// ⚠️ Takes the CURRENT layout (not the next), because "switch to X" is phrased from where you are.
-		// ⚠️ HISTORY: it used to name the current layout AND the next one ("Two panes — click for four"),
-		// plus a sentence explaining the accent cell, on the reasoning that a nameless key needs the words.
-		// That made the one-line tooltip carry three facts. It carries one now; the accent cell is left to
-		// be inferred from the map, where the anchor pane is plainly the same corner.
-		public string PaneLayoutTooltip(PaneLayout layout) => layout switch
-		{
-			PaneLayout.Single => "Switch to Dual Pane Mode",
-			PaneLayout.TwoAcross => "Switch to Quad Pane Mode",
-			_ => "Switch to Single Pane Mode",
-		};
+		// (The pane-layout key moved to MapControlsStrip as three 1/2/4 toggles.)
 
 		// ===== The marker key (show / hide radar site markers) =====
 		// Both of these take the CURRENT visibility and answer in terms of the CLICK, which is why the key
@@ -258,9 +224,6 @@ namespace Anvil
 		// have NOT been checked by rendering them in the real font — a wrong codepoint ships as an empty box,
 		// so verify on first run.
 		public string SitesVisibleGlyph(bool visible) => visible ? "" : "";
-
-		// The view knows only "advance"; the ORDER is the view model's (Radar.NextPaneLayout).
-		private void OnCyclePaneLayout(object sender, RoutedEventArgs e) => ViewModel.Radar.CyclePaneLayout();
 
 		// (The Location key's tooltip + click handler moved with the key to MapControlsStrip.)
 

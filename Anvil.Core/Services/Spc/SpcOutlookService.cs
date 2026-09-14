@@ -97,6 +97,61 @@ namespace Anvil.Services
 		public IReadOnlyList<SpcRiskLevel> GetLegendForProduct(SpcOutlookProduct product) =>
 			SpcRiskCatalog.ScaleFor(product.Type).Levels;
 
+		public IReadOnlySet<string> GetHatchGroupsInOutlook(SpcOutlookProduct product)
+		{
+			var cacheFile = Path.Combine(CacheDirectory, product.CacheFileName);
+			try
+			{
+				return File.Exists(cacheFile) ? ReadHatchGroups(File.ReadAllText(cacheFile)) : new HashSet<string>();
+			}
+			catch
+			{
+				return new HashSet<string>(); // unreadable cache -> nothing claimed "In Outlook"
+			}
+		}
+
+		// Collects the CIG codes from every feature's LABEL. ⚠️ Mirrors outlook.js sigRank: "CIG<n>" is
+		// itself, any other label containing "SIG" (legacy SIGN) is CIG1 — change both or neither, or the
+		// legend says "Not In Outlook" for hatching the map is drawing.
+		internal static IReadOnlySet<string> ReadHatchGroups(string geojson)
+		{
+			var groups = new HashSet<string>(StringComparer.Ordinal);
+			try
+			{
+				using var doc = JsonDocument.Parse(geojson);
+				if (!doc.RootElement.TryGetProperty("features", out var features) ||
+					features.ValueKind != JsonValueKind.Array)
+				{
+					return groups;
+				}
+
+				foreach (var feature in features.EnumerateArray())
+				{
+					if (!feature.TryGetProperty("properties", out var props) ||
+						!props.TryGetProperty("LABEL", out var label) ||
+						label.ValueKind != JsonValueKind.String)
+					{
+						continue;
+					}
+
+					var text = label.GetString() ?? string.Empty;
+					if (text.StartsWith("CIG", StringComparison.Ordinal))
+					{
+						groups.Add(text);
+					}
+					else if (text.Contains("SIG", StringComparison.Ordinal))
+					{
+						groups.Add("CIG1");
+					}
+				}
+			}
+			catch (JsonException)
+			{
+				// malformed -> whatever was collected (normally nothing)
+			}
+			return groups;
+		}
+
 		private static DateTimeOffset? ReadIso(JsonElement props, string name) =>
 			props.TryGetProperty(name, out var el) &&
 			el.ValueKind == JsonValueKind.String &&

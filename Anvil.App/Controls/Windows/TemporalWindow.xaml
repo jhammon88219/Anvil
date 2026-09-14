@@ -68,8 +68,11 @@
 
         <!-- ⚠️ NO ScrollViewer. The window opens at the FULL height above the bottom chrome (WindowManager's
              edge anchors), so a body shorter than that just shows surface below it. A body TALLER than that
-             is clipped at the bottom — the planned hand-rolled scroller is the fix, not a taller window. -->
-        <ContentPresenter x:Name="BodyHost" Grid.Row="1" Margin="16,14,16,14"/>
+             is clipped at the bottom — the planned hand-rolled scroller is the fix, not a taller window.
+             VerticalContentAlignment Stretch hands the body the full row height: Past/Now top-align their own
+             roots and are unaffected, ForeCast stretches so its legend can fill what is left. -->
+        <ContentPresenter x:Name="BodyHost" Grid.Row="1" Margin="16,14,16,14"
+                          HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
 
         <!-- Lock + pin. Bound in code-behind — the flags they drive depend on Mode. -->
         <ctl:LockToggle x:Name="Lock"/>

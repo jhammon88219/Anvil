@@ -46,6 +46,11 @@ namespace Anvil.ViewModels
 		// Legend rows for the loaded outlook (official SPC colors + names, read from the same cached GeoJSON
 		// the map draws). Empty when None is selected or the layer is off.
 		private IReadOnlyList<SpcRiskLevel> _legendEntries = System.Array.Empty<SpcRiskLevel>();
+		private IReadOnlyList<OutlookHatchLegendRow> _hatchLegendRows = System.Array.Empty<OutlookHatchLegendRow>();
+
+		// Whether the CIG hatching is drawn. Session-only, starts shown — a fresh launch never hides hatching
+		// the user has forgotten about.
+		private bool _showHatching = true;
 
 		// Fill opacity (0-1) for the outlook polygons; the outlines stay opaque so the
 		// basemap reads through. Driven by the ribbon's opacity slider.
@@ -218,15 +223,33 @@ namespace Anvil.ViewModels
 			private set => SetProperty(ref _outlookTimesText, value);
 		}
 
-		/// <summary>The full legend for the selected product — NOAA's own colors + level names for every
-		/// level in that product's scale, least-severe first (shown even when today's issuance omits some),
-		/// with the Conditional Intensity Groups last, each carrying the hatch pattern the map draws it
-		/// with. Bound to the legend in the ForeCast card; empty (and hidden) when None is selected or
-		/// off.</summary>
+		/// <summary>The SOLID half of the selected product's legend — NOAA's own colors + level names for every
+		/// category/probability level in its scale, least-severe first (shown even when today's issuance omits
+		/// some). The hatched half is <see cref="HatchLegendRows"/>. Empty (and hidden) when None or off.</summary>
 		public IReadOnlyList<SpcRiskLevel> LegendEntries => _legendEntries;
 
+		/// <summary>The Conditional Intensity Groups in the product's scale, each marked with whether the
+		/// cached outlook actually contains it. Empty for products with no CIGs (Categorical, fire).</summary>
+		public IReadOnlyList<OutlookHatchLegendRow> HatchLegendRows => _hatchLegendRows;
+
 		/// <summary>Whether the loaded outlook has any legend rows to show.</summary>
-		public bool HasLegend => _legendEntries.Count > 0;
+		public bool HasLegend => _legendEntries.Count > 0 || _hatchLegendRows.Count > 0;
+
+		/// <summary>Whether the product has intensity groups at all — gates the hatching block + its box.</summary>
+		public bool HasHatchLegend => _hatchLegendRows.Count > 0;
+
+		/// <summary>Draws or hides the CIG hatching on the map (fills and outlines stay).</summary>
+		public bool ShowHatching
+		{
+			get => _showHatching;
+			set
+			{
+				if (SetProperty(ref _showHatching, value) && _isMapReady)
+				{
+					_ = _mapService.SetOutlookHatchingVisibleAsync(value);
+				}
+			}
+		}
 
 		// ── The ForeCast window's two text surfaces: the card's headline, and SPC's forecast discussion
 		//    (fetched from their HTML page via GetNarrativeAsync, disk cached). Both are recomputed in
@@ -371,7 +394,7 @@ namespace Anvil.ViewModels
 			var product = _selectedOption?.Product;
 			if (product is not null && _isOutlookVisible)
 			{
-				_ = _mapService.ShowOutlookAsync(product);
+				_ = ShowWithHatchingAsync(product);
 			}
 			else
 			{
@@ -379,6 +402,14 @@ namespace Anvil.ViewModels
 			}
 
 			UpdateOutlookTimes();
+		}
+
+		// ⚠️ ORDERED: the page resets hatching to shown on every show (the layer is shared with PastCast), so
+		// the hatching push must land after the show, never alongside it.
+		private async Task ShowWithHatchingAsync(SpcOutlookProduct product)
+		{
+			await _mapService.ShowOutlookAsync(product);
+			await _mapService.SetOutlookHatchingVisibleAsync(_showHatching);
 		}
 
 		// Labels each outlook day with the calendar date it covers (Day N = today + N-1,
@@ -404,11 +435,22 @@ namespace Anvil.ViewModels
 
 			// Legend = the selected product's FULL scale (least→most severe), gated by the same visibility as
 			// the times so it appears only when an outlook is actually shown.
-			_legendEntries = product is null
+			// Split at the kind: solid rows stay plain, CIG rows carry "In Outlook" read from the same cache file
+			// (re-read on every refresh, since this runs from OnOutlooksRefreshed too).
+			var scale = product is null
 				? System.Array.Empty<SpcRiskLevel>()
 				: _spcOutlookService.GetLegendForProduct(product);
+			var present = product is null
+				? new HashSet<string>()
+				: _spcOutlookService.GetHatchGroupsInOutlook(product);
+			_legendEntries = scale.Where(l => !l.IsConditionalIntensity).ToList();
+			_hatchLegendRows = scale.Where(l => l.IsConditionalIntensity)
+				.Select(l => new OutlookHatchLegendRow(l, present.Contains(l.Code)))
+				.ToList();
 			OnPropertyChanged(nameof(LegendEntries));
+			OnPropertyChanged(nameof(HatchLegendRows));
 			OnPropertyChanged(nameof(HasLegend));
+			OnPropertyChanged(nameof(HasHatchLegend));
 
 			if (times is null)
 			{
@@ -505,7 +547,7 @@ namespace Anvil.ViewModels
 			var startupProduct = _selectedOption?.Product;
 			if (startupProduct is not null && _isOutlookVisible)
 			{
-				await _mapService.ShowOutlookAsync(startupProduct);
+				await ShowWithHatchingAsync(startupProduct);
 			}
 			await _mapService.SetOutlookOpacityAsync(_outlookOpacity);
 			UpdateOutlookTimes();

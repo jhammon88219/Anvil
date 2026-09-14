@@ -30,6 +30,10 @@ import * as Theme from './theme.js';
 let currentOutlookUrl = null;    // GeoJSON URL currently shown (re-add after a basemap switch)
 let outlookData = null;          // fetched + CLIPPED GeoJSON (reused on re-add — no re-fetch/re-clip)
 let currentOutlookOpacity = 0.05;
+// Whether the CIG hatch layers are drawn (ForeCast legend's "Show" box). ⚠️ RESET to shown by every
+// show(): the layer is shared with the PastCast outlook, which has no such box, so a hide must never
+// leak into it. The live OutlookViewModel re-pushes its own value right after each show.
+let hatchingVisible = true;
 
 // SPC marks its "significant"/intensity areas as separate polygons (Conditional Intensity Groups):
 // LABEL = "CIG1"/"CIG2"/"CIG3" (tornado & wind go to 3, hail to 2); legacy single-significant "SIGN"
@@ -185,6 +189,7 @@ function addOutlookLayers(map) {
             type: 'fill',
             source: 'spc-outlook',
             filter: s.filter,
+            layout: { visibility: hatchingVisible ? 'visible' : 'none' },
             paint: { 'fill-pattern': s.img }
         }, before);
     });
@@ -218,6 +223,7 @@ function loadOutlook(map, url) {
 export function show(map, url) {
     currentOutlookUrl = url;
     outlookData = null;
+    hatchingVisible = true; // see hatchingVisible — a new outlook always starts hatched
     loadOutlook(map, url);
 }
 
@@ -232,6 +238,14 @@ export function setOpacity(map, opacity) {
     if (map.getLayer('spc-outlook-fill')) {
         map.setPaintProperty('spc-outlook-fill', 'fill-opacity', opacity);
     }
+}
+
+// Hides/shows ONLY the CIG hatch layers; fills and outlines stay. Remembered for re-adds.
+export function setHatchingVisible(map, visible) {
+    hatchingVisible = !!visible;
+    ['spc-outlook-sig1', 'spc-outlook-sig2', 'spc-outlook-sig3'].forEach(function (id) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', hatchingVisible ? 'visible' : 'none');
+    });
 }
 
 // Re-add after a basemap switch: reuse the already-clipped data, or re-fetch if it isn't loaded yet.

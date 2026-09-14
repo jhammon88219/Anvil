@@ -61,6 +61,12 @@ namespace Anvil.Services
 		/// </summary>
 		Task SetOutlookOpacityAsync(double opacity);
 
+		/// <summary>
+		/// Shows or hides the outlook's Conditional Intensity hatching (fills + outlines unaffected).
+		/// ⚠️ The page resets this to shown on every <see cref="ShowOutlookAsync"/>, so push it AFTER a show.
+		/// </summary>
+		Task SetOutlookHatchingVisibleAsync(bool visible);
+
 		/// <summary>Starts a new radar loop for the site (clears any existing frames).</summary>
 		/// <param name="expectedFrames">
 		/// How many frames this loop will end up holding. ⚠️ NOT cosmetic — the page's dual-pol second wave

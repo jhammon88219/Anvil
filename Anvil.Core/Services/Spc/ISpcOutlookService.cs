@@ -50,6 +50,13 @@ namespace Anvil.Services
 		IReadOnlyList<SpcRiskLevel> GetLegendForProduct(SpcOutlookProduct product);
 
 		/// <summary>
+		/// The Conditional Intensity Group codes (<c>"CIG1"</c>…) the product's CACHED GeoJSON actually
+		/// contains — what the legend marks "In Outlook". Legacy <c>SIGN</c> counts as CIG1, matching the
+		/// map. Empty when the file is missing, malformed, or has no hatched areas.
+		/// </summary>
+		IReadOnlySet<string> GetHatchGroupsInOutlook(SpcOutlookProduct product);
+
+		/// <summary>
 		/// Fetches every product and writes each to the cache (one GeoJSON per product).
 		/// Conditional GETs skip unchanged outlooks; the last-known-good file is kept on
 		/// failure; per-product failures are isolated and reported via the results

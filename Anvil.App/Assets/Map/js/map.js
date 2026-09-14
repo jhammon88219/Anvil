@@ -379,6 +379,7 @@ try {
     window.showOutlook = function (url) { if (Outlook) forEachMap(function (m) { Outlook.show(m, url); }); };
     window.clearOutlook = function () { if (Outlook) forEachMap(function (m) { Outlook.clear(m); }); };
     window.setOutlookOpacity = function (opacity) { if (Outlook) forEachMap(function (m) { Outlook.setOpacity(m, opacity); }); };
+    window.setOutlookHatching = function (visible) { if (Outlook) forEachMap(function (m) { Outlook.setHatchingVisible(m, visible); }); };
 
     // Watches and warnings both carry a `phenom` of TO (tornado) or SV (severe thunderstorm), and both
     // hosts offer one checkbox per phenomenon. The host sends two bools; the overlay wants the list of
