@@ -181,7 +181,7 @@
                                 </GroupStyle>
                             </ListView.GroupStyle>
                             <!-- ROWS ARE KEYS — each item is a small card in the map key's vocabulary: TRANSPARENT at
-                                 rest (only its square, bar and hairline show — filled cards made the list read crowded),
+                                 rest with NO stroke (only its square and bar show — filled, outlined cards read crowded),
                                  LIFTED on hover (raised fill + 1 px rise), and a PERMANENT selected state.
                                  ⚠️ The container is RETEMPLATED (no ListViewItemPresenter): the stock selection
                                  wash + accent pill would fight the card. SELECTED is deliberately QUIET — the
@@ -205,8 +205,8 @@
                                                     </Grid.RenderTransform>
                                                     <VisualStateManager.VisualStateGroups>
                                                         <VisualStateGroup x:Name="CommonStates">
-                                                            <!-- RESTING: transparent centre (the Card's own default) — only the
-                                                                 status square, the network bar and a hairline read, so a long list
+                                                            <!-- RESTING: transparent centre, no stroke (the Card's own defaults) —
+                                                                 only the status square and the network bar read, so a long list
                                                                  stays light instead of a wall of filled cards. -->
                                                             <VisualState x:Name="Normal"/>
                                                             <!-- HOVER LIFTS: the raised surface fills in and the card rises 1 px. -->
@@ -245,10 +245,12 @@
                                                         </VisualStateGroup>
                                                     </VisualStateManager.VisualStateGroups>
 
+                                                    <!-- No stroke at rest or on hover (BorderBrush Transparent); the 1 px
+                                                         thickness stays so the selected accent stroke doesn't shift the row. -->
                                                     <Border x:Name="Card"
                                                             CornerRadius="6" BorderThickness="1"
                                                             Background="Transparent"
-                                                            BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                                            BorderBrush="Transparent"/>
                                                     <ContentPresenter Margin="1"
                                                                       Content="{TemplateBinding Content}"
                                                                       ContentTemplate="{TemplateBinding ContentTemplate}"
@@ -262,9 +264,9 @@
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:RadarSiteRow">
-                                    <Grid MinHeight="42">
+                                    <Grid MinHeight="50">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="10"/>  <!-- status square -->
+                                            <ColumnDefinition Width="14"/>  <!-- status square -->
                                             <ColumnDefinition Width="*"/>   <!-- ICAO + name -->
                                             <ColumnDefinition Width="Auto"/> <!-- favorite -->
                                             <ColumnDefinition Width="30"/>  <!-- network bar -->
@@ -274,14 +276,14 @@
                                         <Border Grid.Column="0" CornerRadius="5,0,0,5"
                                                 Background="{x:Bind Availability, Converter={StaticResource AvailabilityToBrush}, Mode=OneWay}"/>
 
-                                        <StackPanel Grid.Column="1" Margin="10,4" VerticalAlignment="Center">
+                                        <StackPanel Grid.Column="1" Margin="12,5" VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <TextBlock Text="{x:Bind Id}" FontWeight="SemiBold" FontSize="13"/>
-                                                <FontIcon Glyph="&#xE80F;" FontSize="11" VerticalAlignment="Center"
+                                                <TextBlock Text="{x:Bind Id}" FontWeight="SemiBold" FontSize="15"/>
+                                                <FontIcon Glyph="&#xE80F;" FontSize="12" VerticalAlignment="Center"
                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                           Visibility="{x:Bind win:RadarAtlasWindow.ShowIf(IsHome), Mode=OneWay}"/>
                                             </StackPanel>
-                                            <TextBlock Text="{x:Bind Name}" FontSize="11"
+                                            <TextBlock Text="{x:Bind Name}" FontSize="12"
                                                        TextTrimming="CharacterEllipsis"
                                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                         </StackPanel>
@@ -292,7 +294,7 @@
                                                 Background="Transparent" BorderThickness="0"
                                                 Click="OnRowFavoriteClick"
                                                 ToolTipService.ToolTip="{x:Bind win:RadarAtlasWindow.FavoriteToolTip(IsFavorite), Mode=OneWay}">
-                                            <FontIcon FontSize="13"
+                                            <FontIcon FontSize="14"
                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                       Glyph="{x:Bind win:RadarAtlasWindow.StarGlyph(IsFavorite), Mode=OneWay}"/>
                                         </Button>
