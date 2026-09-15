@@ -55,7 +55,29 @@ namespace Anvil.ViewModels
 				{
 					RaiseScan();
 				}
+
+				if (e.PropertyName is nameof(RadarViewModel.SelectedRadarOption))
+				{
+					FollowRadarSelection();
+				}
 			};
+
+			FollowRadarSelection();
+		}
+
+		/// <summary>
+		/// Mirrors the map's radar pick into the list: whichever way a site gets selected (marker click, this
+		/// explorer, a saved event) the explorer shows THAT site, so opening it lands on the loaded radar.
+		/// "None" leaves the list selection alone — clearing the radar isn't a reason to blank the detail.
+		/// </summary>
+		private void FollowRadarSelection()
+		{
+			if (_radar.SelectedRadarOption?.Site is { } site)
+			{
+				SelectedSite = _radar.RadarSiteRows.FirstOrDefault(r => r.Site == site) ?? _selectedSite;
+			}
+			OnPropertyChanged(nameof(CanLoadOnMap));
+			OnPropertyChanged(nameof(LoadButtonText));
 		}
 
 		// ── Search + filters ─────────────────────────────────────────────────────────────────────
@@ -141,6 +163,9 @@ namespace Anvil.ViewModels
 				FilteredSites.Add(row);
 			}
 			OnPropertyChanged(nameof(ResultCountText));
+			// The Clear() dropped the ListView's selection (its null echo was ignored — see SelectedSite);
+			// re-raise so a selection that survived the filter is highlighted again.
+			OnPropertyChanged(nameof(SelectedSite));
 		}
 
 		// ── Selection + detail ───────────────────────────────────────────────────────────────────
@@ -149,11 +174,19 @@ namespace Anvil.ViewModels
 
 		/// <summary>The selected row driving the detail pane; setting it refreshes the detail + kicks
 		/// the on-demand scan-info fetch.</summary>
+		/// <remarks>⚠️ A null write while the current row ISN'T in <see cref="FilteredSites"/> is ignored: it's
+		/// the ListView echoing "I can't show that" (a filter hides the loaded site, or a rebuild's Clear()),
+		/// not the user deselecting — honouring it would lose the map-synced site behind a search.</remarks>
 		public RadarSiteRow? SelectedSite
 		{
 			get => _selectedSite;
 			set
 			{
+				if (value is null && _selectedSite is not null && !FilteredSites.Contains(_selectedSite))
+				{
+					return;
+				}
+
 				if (SetProperty(ref _selectedSite, value))
 				{
 					RaiseDetail();
@@ -164,6 +197,12 @@ namespace Anvil.ViewModels
 
 		/// <summary>Whether a site is selected (detail pane visibility / Load button enablement).</summary>
 		public bool HasSelection => _selectedSite is not null;
+
+		/// <summary>Load button enablement: a site is selected AND it isn't already the map's radar site.</summary>
+		public bool CanLoadOnMap => _selectedSite?.Site is { } s && _radar.SelectedRadarOption?.Site != s;
+
+		/// <summary>The load button's label — "On map" (disabled) says WHY it can't be pressed.</summary>
+		public string LoadButtonText => CanLoadOnMap ? "Load on map" : "On map";
 
 		public string DetailId => _selectedSite?.Id ?? string.Empty;
 		public string DetailName => _selectedSite?.Name ?? string.Empty;
@@ -297,7 +336,7 @@ namespace Anvil.ViewModels
 		/// flies to it, and closes the explorer. No-op with nothing selected.</summary>
 		public void LoadOnMap()
 		{
-			if (_selectedSite?.Site is not { } site) return;
+			if (!CanLoadOnMap || _selectedSite?.Site is not { } site) return;
 
 			var option = _radar.RadarOptions.FirstOrDefault(o => o.Site == site);
 			if (option is not null)
@@ -312,6 +351,8 @@ namespace Anvil.ViewModels
 		private void RaiseDetail()
 		{
 			OnPropertyChanged(nameof(HasSelection));
+			OnPropertyChanged(nameof(CanLoadOnMap));
+			OnPropertyChanged(nameof(LoadButtonText));
 			OnPropertyChanged(nameof(DetailId));
 			OnPropertyChanged(nameof(DetailName));
 			OnPropertyChanged(nameof(DetailClassLabel));

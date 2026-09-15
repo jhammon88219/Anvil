@@ -32,12 +32,26 @@ namespace Anvil.Controls.Windows
 		// x:Bind helpers (bool → Visibility) — no value-converter lookup needed on a UserControl.
 		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 		public Visibility CollapsedWhen(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
+		public Visibility VisibleWhenText(string value) => string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
 
 		// The selected row's status-dot brush, for the detail pane (safe when nothing is selected).
 		public Microsoft.UI.Xaml.Media.Brush SelectedStatusBrush(RadarSiteRow? row) =>
 			(Microsoft.UI.Xaml.Media.Brush)_offlineToBrush.Convert(row?.IsOffline ?? false, typeof(Microsoft.UI.Xaml.Media.Brush), null!, null!);
 
 		private readonly OfflineToBrushConverter _offlineToBrush = new();
+
+		// The selection follows the map's radar site, which can be far down the list — keep it on screen,
+		// both when the window opens onto it and when a marker click moves it while open.
+		private void OnSiteListLoaded(object sender, RoutedEventArgs e) => ScrollToSelection((ListView)sender);
+		private void OnSiteListSelectionChanged(object sender, SelectionChangedEventArgs e) => ScrollToSelection((ListView)sender);
+
+		private static void ScrollToSelection(ListView list)
+		{
+			if (list.SelectedItem is { } item)
+			{
+				list.ScrollIntoView(item);
+			}
+		}
 
 		// Load the selected site's radar loop on the map, then close the panel.
 		private void OnLoadClick(object sender, RoutedEventArgs e)

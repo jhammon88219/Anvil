@@ -8,20 +8,30 @@
 
        Radar Sites   118 of 204                       [lock][pin]   ← own title + live count
        [ Search ICAO or name…    ] [All networks ▾] [x] Online only
-       ┌── list (260px) ─────┐ ┌── detail ──────────────────┐
-       │ ● KTLX   NEXRAD     │ │ KTLX                       │
-       │   Oklahoma City     │ │ Oklahoma City, OK          │
-       │ ● KCRI   RESEARCH   │ │ NETWORK        STATUS      │
-       │   ROC test bed      │ │ Operational    ● Online    │
-       │ ○ KLIX   NEXRAD     │ │ COORDINATES  35.33,-97.28  │
-       │   New Orleans       │ │ 142 mi from your marker    │
-       │ …                   │ │ LATEST SCAN  18:42Z        │
-       │                     │ │ SCAN MODE (VCP)  212 …     │
-       │                     │ │       ( Load on map )      │
-       └─────────────────────┘ └────────────────────────────┘
+       ┌── list (360px) ─────────────┐   detail (scrolls, capped 760 wide, left-aligned)
+       │ ● KTLX           Operational│   KTLX                    (● Online) (Operational) [Load on map]
+       │   Oklahoma City             │   Norman
+       │ ● KCRI              Research│   ───────────────────────────────────────────────────────────── hairline
+       │   ROC test bed              │   LATEST SCAN   12:06 PM (4 min ago)     ┌──────────────────┐
+       │ ○ KLIX           Operational│   SCAN MODE     VCP 35 · clear-air      │  [cam]           │ ← PLACEHOLDER
+       │   New Orleans               │   COORDINATES   35.333, -97.278         │  Site photo      │   240×135
+       │ …                           │   DISTANCE      142 mi from your loc.   └──────────────────┘
+       └─────────────────────────────┘
+
+     The header owns the action: the button reads "On map" (disabled) while the selected site IS the
+     map's site. Chips are neutral pills; only the status dot carries colour. The DISTANCE row collapses
+     when there's no location marker, so it never leaves a hole.
+
+     The row's network label sits flush RIGHT only because the item container stretches its content
+     (HorizontalContentAlignment=Stretch) — without it the row Grid shrinks and the label hugs the name.
+     The photo panel is a dummy: nothing feeds it yet (no bundled per-site photos exist).
 
      No outer frame in the sketch because there is none in the app either — the OS caption is the only
      chrome, and content extends into it, which is why the title + count row is drawn here.
+
+     The list selection FOLLOWS the map's radar site (marker click → that row selected, scrolled into
+     view, even while the window is closed), and "Load on map" greys out while the selected row IS the
+     map's site. A search/filter that hides the loaded site keeps it in the detail pane.
 
      ⚠️ The detail's live scan info has TWO sources, and the split is deliberate: the site the LOOP is
      on reads its time straight off RadarViewModel (no fetch — re-fetching it would download the whole
@@ -112,7 +122,7 @@
                       ColumnSpacing="14">
                     
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="260"/>
+                        <ColumnDefinition Width="360"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
@@ -122,11 +132,14 @@
                             BorderThickness="1" CornerRadius="8">
                         <ListView ItemsSource="{x:Bind ViewModel.SiteExplorer.FilteredSites, Mode=OneWay}"
                                   SelectedItem="{x:Bind ViewModel.SiteExplorer.SelectedSite, Mode=TwoWay}"
-                                  SelectionMode="Single">
+                                  SelectionMode="Single"
+                                  Loaded="OnSiteListLoaded"
+                                  SelectionChanged="OnSiteListSelectionChanged">
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
                                     <Setter Property="Padding" Value="10,6"/>
                                     <Setter Property="MinHeight" Value="0"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                 </Style>
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
@@ -164,93 +177,144 @@
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                    Visibility="{x:Bind CollapsedWhen(ViewModel.SiteExplorer.HasSelection), Mode=OneWay}"/>
 
-                        <Grid RowSpacing="10"
-                              VerticalAlignment="Top"
-                              Visibility="{x:Bind VisibleWhen(ViewModel.SiteExplorer.HasSelection), Mode=OneWay}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      Visibility="{x:Bind VisibleWhen(ViewModel.SiteExplorer.HasSelection), Mode=OneWay}">
+                        <!-- Width-capped + left-aligned: on a wide window the detail stays one compact block
+                             instead of spreading its fields (and stranding the button) across the pane.
+                             ⚠️ The cap is a star COLUMN's MaxWidth, not the Grid's MaxWidth+Left — a Left-aligned
+                             Grid sizes to content, which collapses the * columns and un-pins the button. -->
+                        <Grid RowSpacing="12"
+                              VerticalAlignment="Top">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MaxWidth="760"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/> <!-- title -->
-                                <RowDefinition Height="Auto"/> <!-- network + status -->
-                                <RowDefinition Height="Auto"/> <!-- coords -->
-                                <RowDefinition Height="Auto"/> <!-- distance -->
-                                <RowDefinition Height="Auto"/> <!-- latest scan -->
-                                <RowDefinition Height="Auto"/> <!-- vcp/mode -->
-                                <RowDefinition Height="*"/>    <!-- spacer -->
-                                <RowDefinition Height="Auto"/> <!-- load button -->
+                                <RowDefinition Height="Auto"/> <!-- header: title | chips | action -->
+                                <RowDefinition Height="Auto"/> <!-- hairline -->
+                                <RowDefinition Height="Auto"/> <!-- body: fields | photo -->
                             </Grid.RowDefinitions>
 
-                            <StackPanel Grid.Row="0">
-                                <TextBlock Text="{x:Bind ViewModel.SiteExplorer.DetailId, Mode=OneWay}"
-                                           FontSize="22" FontWeight="Bold"/>
-                                <TextBlock Text="{x:Bind ViewModel.SiteExplorer.DetailName, Mode=OneWay}"
-                                           FontSize="13"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
-
-                            <Grid Grid.Row="1" ColumnSpacing="24">
+                            <Grid Grid.Row="0" ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Spacing="2">
-                                    <TextBlock Text="NETWORK" Style="{StaticResource FieldLabelStyle}"/>
-                                    <TextBlock Text="{x:Bind ViewModel.SiteExplorer.DetailClassLabel, Mode=OneWay}"
-                                               Style="{StaticResource FieldValueStyle}"/>
+
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="{x:Bind ViewModel.SiteExplorer.DetailId, Mode=OneWay}"
+                                               FontSize="22" FontWeight="Bold"/>
+                                    <TextBlock Text="{x:Bind ViewModel.SiteExplorer.DetailName, Mode=OneWay}"
+                                               FontSize="13" TextTrimming="CharacterEllipsis"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </StackPanel>
-                                <StackPanel Grid.Column="1" Spacing="2">
-                                    <TextBlock Text="STATUS" Style="{StaticResource FieldLabelStyle}"/>
+
+                                <!-- Status chip: neutral pill, the dot is the only colour. -->
+                                <Border Grid.Column="1" VerticalAlignment="Center"
+                                        CornerRadius="11" Padding="10,3"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Ellipse Width="9" Height="9" VerticalAlignment="Center"
+                                        <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                                  Fill="{x:Bind SelectedStatusBrush(ViewModel.SiteExplorer.SelectedSite), Mode=OneWay}"/>
                                         <TextBlock Text="{x:Bind ViewModel.SiteExplorer.DetailStatusText, Mode=OneWay}"
-                                                   Style="{StaticResource FieldValueStyle}"/>
+                                                   FontSize="12"/>
                                     </StackPanel>
-                                </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="2" VerticalAlignment="Center"
+                                        CornerRadius="11" Padding="10,3"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                    <TextBlock Text="{x:Bind ViewModel.SiteExplorer.DetailClassLabel, Mode=OneWay}"
+                                               FontSize="12"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Border>
+
+                                <Button Grid.Column="3" VerticalAlignment="Center" MinWidth="120"
+                                        Margin="8,0,0,0"
+                                        Click="OnLoadClick"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        Content="{x:Bind ViewModel.SiteExplorer.LoadButtonText, Mode=OneWay}"
+                                        IsEnabled="{x:Bind ViewModel.SiteExplorer.CanLoadOnMap, Mode=OneWay}"/>
                             </Grid>
 
-                            <StackPanel Grid.Row="2" Spacing="2">
-                                <TextBlock Text="COORDINATES" Style="{StaticResource FieldLabelStyle}"/>
-                                <TextBlock Text="{x:Bind ViewModel.SiteExplorer.DetailCoords, Mode=OneWay}"
-                                           Style="{StaticResource FieldValueStyle}"/>
-                            </StackPanel>
+                            <Rectangle Grid.Row="1" Height="1"
+                                       Fill="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
-                            <TextBlock Grid.Row="3"
-                                       Text="{x:Bind ViewModel.SiteExplorer.DetailDistanceText, Mode=OneWay}"
-                                       FontSize="12"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                            <Grid Grid.Row="2" ColumnSpacing="24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="240"/>
+                                </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Row="4"
-                                        Spacing="2">
-                                <!-- Latest Scan -->
-                                <TextBlock Text="LATEST SCAN"
-                                           Style="{StaticResource FieldLabelStyle}"/>
-                                <!-- Spinner and value share ONE cell so the ring never indents the value: laid
-                                     out side by side, an inactive ring still reserves its width and pushed this
-                                     line out of line with every other field. They can't collide — the value is
-                                     empty for exactly as long as the fetch is in flight (see LatestScanText). -->
-                                <Grid>
-                                    <TextBlock Text="{x:Bind ViewModel.SiteExplorer.LatestScanText, Mode=OneWay}"
+                                <!-- Label | value sheet. -->
+                                <Grid Grid.Column="0" ColumnSpacing="16" RowSpacing="10" VerticalAlignment="Top">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Text="LATEST SCAN" VerticalAlignment="Center"
+                                               Style="{StaticResource FieldLabelStyle}"/>
+                                    <!-- Spinner and value share ONE cell so the ring never indents the value: laid
+                                         out side by side, an inactive ring still reserves its width and pushed this
+                                         line out of line with every other field. They can't collide — the value is
+                                         empty for exactly as long as the fetch is in flight (see LatestScanText). -->
+                                    <Grid Grid.Row="0" Grid.Column="1">
+                                        <TextBlock Text="{x:Bind ViewModel.SiteExplorer.LatestScanText, Mode=OneWay}"
+                                                   Style="{StaticResource FieldValueStyle}"/>
+                                        <ProgressRing Width="14"
+                                                      Height="14"
+                                                      HorizontalAlignment="Left"
+                                                      VerticalAlignment="Center"
+                                                      IsActive="{x:Bind ViewModel.SiteExplorer.IsLoadingScanInfo, Mode=OneWay}"
+                                                      Visibility="{x:Bind VisibleWhen(ViewModel.SiteExplorer.IsLoadingScanInfo), Mode=OneWay}"/>
+                                    </Grid>
+
+                                    <TextBlock Grid.Row="1" Text="SCAN MODE" VerticalAlignment="Center"
+                                               Style="{StaticResource FieldLabelStyle}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1"
+                                               Text="{x:Bind ViewModel.SiteExplorer.VcpModeText, Mode=OneWay}"
                                                Style="{StaticResource FieldValueStyle}"/>
-                                    <ProgressRing Width="14"
-                                                  Height="14"
-                                                  HorizontalAlignment="Left"
-                                                  VerticalAlignment="Center"
-                                                  IsActive="{x:Bind ViewModel.SiteExplorer.IsLoadingScanInfo, Mode=OneWay}"
-                                                  Visibility="{x:Bind VisibleWhen(ViewModel.SiteExplorer.IsLoadingScanInfo), Mode=OneWay}"/>
+
+                                    <TextBlock Grid.Row="2" Text="COORDINATES" VerticalAlignment="Center"
+                                               Style="{StaticResource FieldLabelStyle}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1"
+                                               Text="{x:Bind ViewModel.SiteExplorer.DetailCoords, Mode=OneWay}"
+                                               Style="{StaticResource FieldValueStyle}"/>
+
+                                    <!-- Collapses with no location marker, so it never leaves a gap. -->
+                                    <TextBlock Grid.Row="3" Text="DISTANCE" VerticalAlignment="Center"
+                                               Style="{StaticResource FieldLabelStyle}"
+                                               Visibility="{x:Bind VisibleWhenText(ViewModel.SiteExplorer.DetailDistanceText), Mode=OneWay}"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1"
+                                               Text="{x:Bind ViewModel.SiteExplorer.DetailDistanceText, Mode=OneWay}"
+                                               Style="{StaticResource FieldValueStyle}"
+                                               Visibility="{x:Bind VisibleWhenText(ViewModel.SiteExplorer.DetailDistanceText), Mode=OneWay}"/>
                                 </Grid>
-                            </StackPanel>
 
-                            <StackPanel Grid.Row="5" Spacing="2">
-                                <TextBlock Text="SCAN MODE (VCP)" Style="{StaticResource FieldLabelStyle}"/>
-                                <TextBlock Text="{x:Bind ViewModel.SiteExplorer.VcpModeText, Mode=OneWay}"
-                                           Style="{StaticResource FieldValueStyle}"/>
-                            </StackPanel>
-
-                            <Button Grid.Row="7" HorizontalAlignment="Stretch"
-                                    Click="OnLoadClick"
-                                    Style="{StaticResource AccentButtonStyle}"
-                                    Content="Load on map"
-                                    IsEnabled="{x:Bind ViewModel.SiteExplorer.HasSelection, Mode=OneWay}"/>
+                                <!-- Site photo — DUMMY placeholder; nothing feeds it yet. 16:9. -->
+                                <Border Grid.Column="1" Height="135" VerticalAlignment="Top"
+                                        CornerRadius="8" BorderThickness="1"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+                                        <FontIcon Glyph="&#xE722;" FontSize="24"
+                                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        <TextBlock Text="Site photo" FontSize="12" HorizontalAlignment="Center"
+                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                         </Grid>
+                        </ScrollViewer>
                     </Grid>
                 </Grid>
             </Grid>
