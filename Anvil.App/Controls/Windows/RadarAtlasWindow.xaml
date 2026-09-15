@@ -270,7 +270,7 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="50"/>   <!-- status square (== MinHeight) -->
                                             <ColumnDefinition Width="*"/>    <!-- ICAO + name -->
-                                            <ColumnDefinition Width="30"/>   <!-- network bar -->
+                                            <ColumnDefinition Width="40"/>   <!-- network bar (22 px glyph) -->
                                             <ColumnDefinition Width="Auto"/> <!-- favorite -->
                                         </Grid.ColumnDefinitions>
 
@@ -309,7 +309,7 @@
                                             <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"/>
                                             <Border Background="{x:Bind win:RadarAtlasWindow.NetworkBrush(Site.Class)}"/>
 
-                                            <Viewbox Width="14" Height="14"
+                                            <Viewbox Width="22" Height="22"
                                                      Visibility="{x:Bind win:RadarAtlasWindow.ClassVisible(Site.Class, 'Operational')}">
                                                 <Canvas Width="24" Height="24">
                                                     <Ellipse Canvas.Left="5.6" Canvas.Top="15.6" Width="2.8" Height="2.8"
@@ -322,14 +322,14 @@
                                                           StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
                                                 </Canvas>
                                             </Viewbox>
-                                            <Viewbox Width="14" Height="14"
+                                            <Viewbox Width="22" Height="22"
                                                      Visibility="{x:Bind win:RadarAtlasWindow.ClassVisible(Site.Class, 'Tdwr')}">
                                                 <Canvas Width="24" Height="24">
                                                     <Path Fill="White"
                                                           Data="M12 2 C12.6 2 13 2.9 13 4 V9.2 L20 13.2 V15.1 L13 13.1 V17 L15 18.5 V20 L12 19 L9 20 V18.5 L11 17 V13.1 L4 15.1 V13.2 L11 9.2 V4 C11 2.9 11.4 2 12 2 Z"/>
                                                 </Canvas>
                                             </Viewbox>
-                                            <Viewbox Width="14" Height="14"
+                                            <Viewbox Width="22" Height="22"
                                                      Visibility="{x:Bind win:RadarAtlasWindow.ClassVisible(Site.Class, 'Research')}">
                                                 <Canvas Width="24" Height="24">
                                                     <Path Data="M9 3 H15" Stroke="White" StrokeThickness="2"
