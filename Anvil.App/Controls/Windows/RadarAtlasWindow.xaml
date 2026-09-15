@@ -10,11 +10,11 @@
        [ Search ICAO or name…    ] [All networks ▾] [x] Online only [x] Favorites only
        ┌── list (360px) ─────────────┐   detail (scrolls, capped 760 wide, left-aligned)
        │ HOME                        │   KTLX        (● Online) (NEXRAD) [★] [⌂ Home site] [On map]
-       │▐█ KTLX ⌂ Norman       ☆ ◗▌│   Norman                     ← a row is a KEY: status square | name | ☆ | network bar
+       │██ KTLX ⌂ Norman       ◗ ☆ │   Norman                     ← a row is a KEY: status SQUARE | name | network bar | ☆
        │ FAVORITES · 2               │   ───────────────────────────────────────────────────────────── hairline
-       │▐█ TMCI Kansas City    ★ ✈▌│   LATEST SCAN   12:06 PM (4 min ago)     ┌──────────────────┐
+       │██ TMCI Kansas City    ✈ ★ │   LATEST SCAN   12:06 PM (4 min ago)     ┌──────────────────┐
        │ ALL SITES · 201             │   SCAN MODE     VCP 35 · clear-air      │  [cam]           │ ← PLACEHOLDER
-       │▐█ KABR Aberdeen       ☆ ◗▌│   COORDINATES   35.333, -97.278         │  Site photo      │   240×135
+       │██ KABR Aberdeen       ◗ ☆ │   COORDINATES   35.333, -97.278         │  Site photo      │   240×135
        │ …                           │   DISTANCE      142 mi from your loc.   └──────────────────┘
        └─────────────────────────────┘
 
@@ -25,8 +25,8 @@
      header act on the selected site (RadarSiteFavoritesViewModel). Home is one site: setting it moves it.
 
      ROWS ARE KEYS, in the map key's vocabulary without copying it: a card per row (transparent centre at rest,
-     lifted on hover), the STATUS square
-     full height on the left, the NETWORK bar on the right (neutral ◗ NEXRAD / blue ✈ TDWR / violet ⚗ research,
+     lifted on hover), the STATUS block a true square
+     (width == row height) on the left, the NETWORK bar just left of the star (neutral ◗ NEXRAD / blue ✈ TDWR / violet ⚗ research,
      the key's own glyphs as paths). Selected = elevated face + thin accent stroke — quiet on purpose; the map
      key's bright inverted face stays on the MAP only.
 
@@ -264,15 +264,17 @@
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:RadarSiteRow">
+                                    <!-- ⚠️ The status column's WIDTH == the row's MinHeight (50), so the colour block is a
+                                         true square. Change one, change both. -->
                                     <Grid MinHeight="50">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="14"/>  <!-- status square -->
-                                            <ColumnDefinition Width="*"/>   <!-- ICAO + name -->
+                                            <ColumnDefinition Width="50"/>   <!-- status square (== MinHeight) -->
+                                            <ColumnDefinition Width="*"/>    <!-- ICAO + name -->
+                                            <ColumnDefinition Width="30"/>   <!-- network bar -->
                                             <ColumnDefinition Width="Auto"/> <!-- favorite -->
-                                            <ColumnDefinition Width="30"/>  <!-- network bar -->
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- STATUS — the map key's left zone: full height, square, the same literals. -->
+                                        <!-- STATUS — the map key's left zone: a full-height SQUARE, the same literals. -->
                                         <Border Grid.Column="0" CornerRadius="5,0,0,5"
                                                 Background="{x:Bind Availability, Converter={StaticResource AvailabilityToBrush}, Mode=OneWay}"/>
 
@@ -289,7 +291,7 @@
                                         </StackPanel>
 
                                         <!-- Favorite star: toggles without selecting the row (the Button takes the click). -->
-                                        <Button Grid.Column="2" VerticalAlignment="Center"
+                                        <Button Grid.Column="3" VerticalAlignment="Center"
                                                 Padding="8,4" MinWidth="0" MinHeight="0"
                                                 Background="Transparent" BorderThickness="0"
                                                 Click="OnRowFavoriteClick"
@@ -299,15 +301,13 @@
                                                       Glyph="{x:Bind win:RadarAtlasWindow.StarGlyph(IsFavorite), Mode=OneWay}"/>
                                         </Button>
 
-                                        <!-- NETWORK — the map key's right zone: a themed neutral bar for NEXRAD, the data
-                                             blue / violet for TDWR / research, each with the key's own glyph (the SVG
-                                             paths from radar-sites.js CLASS_GLYPH, redrawn as XAML). -->
-                                        <Grid Grid.Column="3" ToolTipService.ToolTip="{x:Bind ClassLabel}">
-                                            <Border CornerRadius="0,5,5,0" BorderThickness="1,0,0,0"
-                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"/>
-                                            <Border CornerRadius="0,5,5,0"
-                                                    Background="{x:Bind win:RadarAtlasWindow.NetworkBrush(Site.Class)}"/>
+                                        <!-- NETWORK — left of the star: a themed neutral bar for NEXRAD, the data blue /
+                                             violet for TDWR / research, each with the key's own glyph (the SVG paths from
+                                             radar-sites.js CLASS_GLYPH, redrawn as XAML). Mid-row, so square corners and no
+                                             divider hairline. -->
+                                        <Grid Grid.Column="2" ToolTipService.ToolTip="{x:Bind ClassLabel}">
+                                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+                                            <Border Background="{x:Bind win:RadarAtlasWindow.NetworkBrush(Site.Class)}"/>
 
                                             <Viewbox Width="14" Height="14"
                                                      Visibility="{x:Bind win:RadarAtlasWindow.ClassVisible(Site.Class, 'Operational')}">
