@@ -27,6 +27,19 @@ namespace Anvil.Converters
 		private static readonly SolidColorBrush Offline = new(ColorHelper.FromArgb(0xFF, 0xF8, 0x51, 0x49));
 		private static readonly SolidColorBrush Unknown = new(ColorHelper.FromArgb(0xFF, 0x6E, 0x76, 0x81));
 
+		// INK for text drawn ON those fills (the Atlas row prints its ICAO + name inside the status block). Dark ink
+		// on the bright green/red (≈8:1 / ≈6:1), white on the mid grey (≈4.6:1) — white on green is only ≈2.5:1.
+		// Literal too: the fill is data, so the ink that must read against it can't follow the theme either.
+		private static readonly SolidColorBrush DarkInk = new(ColorHelper.FromArgb(0xFF, 0x0D, 0x11, 0x17));
+		private static readonly SolidColorBrush LightInk = new(ColorHelper.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
+
+		/// <summary>The text brush that reads on <see cref="For"/>'s fill for the same availability.</summary>
+		public static Brush InkFor(SiteAvailability availability) => availability switch
+		{
+			SiteAvailability.Online or SiteAvailability.Offline => DarkInk,
+			_ => LightInk,
+		};
+
 		/// <summary>For x:Bind functions (the Atlas's detail dot), which can't use a StaticResource converter.</summary>
 		public static Brush For(SiteAvailability availability) => availability switch
 		{
