@@ -91,7 +91,7 @@ namespace Anvil.Controls.Windows
 		// The strip's content. Glyphs are Segoe Fluent codepoints — ⚠️ verify one by RENDERING it in the real
 		// font before swapping; a wrong codepoint ships as an empty box.
 		//   E774 globe   — was the MAP bar key's glyph; that window became this tab, so its mark came along.
-		//   EC05 tower   — the Sites bar key's glyph, reused deliberately: this tab IS radar site markers.
+		//   EC05 tower   — the Atlas bar key's glyph, reused deliberately: this tab IS radar site markers.
 		//   EDA2 drive   — the only one NOT inherited from a shipped key. Eyeball it on first run.
 		//   E7F4 monitor — Window Mode. NOT inherited from a shipped key and NOT verified. Eyeball it on first run.
 		//   E912 toolbox — was the Dev bar key's glyph (a second GEAR until that collided with Settings).

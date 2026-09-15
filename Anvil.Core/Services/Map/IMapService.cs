@@ -269,10 +269,16 @@ namespace Anvil.Services
 		Task SetTdwrsVisibleAsync(bool visible);
 
 		/// <summary>
-		/// Marks which site markers are offline (no recent data in the feed). JSON is an array
-		/// of site IDs; those markers render in the muted "offline" style.
+		/// Replaces every site marker's availability. JSON is <c>{ offline: [ids], unknown: [ids], replayDay: bool }</c>;
+		/// the rest are online. Pushed by RadarViewModel's SITE AVAILABILITY block — the same state its rows hold.
 		/// </summary>
-		Task SetRadarSitesStatusAsync(string offlineIdsJson);
+		Task SetRadarSitesStatusAsync(string statusJson);
+
+		/// <summary>
+		/// Sets ONE site marker's live availability (<c>"online"</c> / <c>"offline"</c>) as that site's check lands,
+		/// so a pass cascades across the map. The pass's closing <see cref="SetRadarSitesStatusAsync"/> reconciles.
+		/// </summary>
+		Task SetRadarSiteStatusAsync(string siteId, string state);
 
 		/// <summary>
 		/// Sets the accent color driving the "available" site-marker status halo, so it matches the

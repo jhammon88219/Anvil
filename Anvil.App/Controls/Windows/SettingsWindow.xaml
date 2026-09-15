@@ -19,7 +19,7 @@
        └──────────────────────────────────────────────────────┘
 
      WHAT THIS REPLACED: three separate windows and three bar keys — App Settings, Map Controls and Dev
-     Tools. They are now tabs, which is why the bar's right cluster is down to Panes / Sites / Settings. A
+     Tools. They are now tabs, which is why the bar's right cluster is down to Panes / Atlas / Settings. A
      NEW GROUP OF SETTINGS IS A TAB, NOT A WINDOW: add a SettingsTab enum member (never reorder — the ordinal
      is the persisted index — and add it BEFORE Dev, which must stay last), a TabEntry in BuildTabs below
      (before the #if DEBUG block), and a body UserControl in Composites at that index.

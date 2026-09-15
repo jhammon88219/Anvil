@@ -1857,18 +1857,12 @@ namespace Anvil.Services
 			return keys;
 		}
 
-		// A site whose newest archive volume is older than this is treated as "down" (offline).
-		// This is measured against the ARCHIVE bucket, which itself lags real time by ~10 min (the
-		// reason the chunks bucket exists for the live frame). Stacked on a clear-air VCP's ~10-min
-		// volume cadence, a perfectly healthy quiet site's newest archive volume is routinely
-		// ~20-25 min old — so the threshold must clear that or clear-air sites false-flag as down
-		// (the KMQT/KIWA/KSGF/KINX-etc. false positives). 30 min gives headroom over the worst
-		// healthy case while still catching a genuine outage (which keeps climbing past it).
-		private static readonly TimeSpan LiveSiteStaleness = TimeSpan.FromMinutes(30);
-
-		public async Task<IReadOnlyCollection<string>> GetLiveSiteIdsAsync(CancellationToken cancellationToken = default)
+		// The staleness threshold (and why it is 30 min) lives in RadarSiteStatus — the ONE freshness rule,
+		// shared with the Atlas's scan fetch and the loaded loop so they can't grade a site differently.
+		public async Task<IReadOnlyCollection<string>> GetLiveSiteIdsAsync(IProgress<SiteCheckResult>? progress = null, CancellationToken cancellationToken = default)
 		{
 			var now = DateTimeOffset.UtcNow;
+			var failedDays = 0;
 
 			// A site counts as "live" only if its NEWEST volume is recent (within LiveSiteStaleness).
 			// The old existence-only check (any data today OR yesterday) couldn't catch a site that
@@ -1891,7 +1885,16 @@ namespace Anvil.Services
 				catch
 				{
 					// Best effort: a failed listing just leaves those sites out of the candidate set.
+					failedDays++;
 				}
+			}
+
+			// ⚠️ BOTH listings failed = we learned NOTHING, and an empty candidate set would return "no site is
+			// live" — every marker red on a network blip, the opposite of the err-toward-available rule below.
+			// Throw so the caller keeps what it already knew instead.
+			if (failedDays == 2)
+			{
+				throw new InvalidOperationException("Radar archive site listing failed for both days; availability unknown.");
 			}
 
 			// Probe each candidate's newest volume time with bounded concurrency; a stale newest means
@@ -1906,7 +1909,7 @@ namespace Anvil.Services
 				try
 				{
 					var newest = await NewestArchiveVolumeTimeAsync(id, now, cancellationToken);
-					fresh = newest is { } t && now - t <= LiveSiteStaleness;
+					fresh = newest is { } t && RadarSiteStatus.IsFresh(t, now);
 				}
 				catch (OperationCanceledException)
 				{
@@ -1930,6 +1933,9 @@ namespace Anvil.Services
 						live.Add(id);
 					}
 				}
+
+				// Report THIS site now, not when the slowest probe finishes — the map cascades grey → colour.
+				progress?.Report(new SiteCheckResult(id, fresh));
 			});
 			await Task.WhenAll(probes);
 			return live;

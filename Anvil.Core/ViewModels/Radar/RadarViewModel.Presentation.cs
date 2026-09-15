@@ -195,7 +195,7 @@ namespace Anvil.ViewModels
 
 		/// <summary>
 		/// Collection time of the freshest LOADED frame — the exact instant the Selected Site readout
-		/// shows (null when no loop). Exposed so the Radar Site Explorer can report the SAME number for the
+		/// shows (null when no loop). Exposed so the Radar Atlas can report the SAME number for the
 		/// site the loop is showing, instead of a second (staler) estimate fetched from the buckets: the
 		/// live frame's real sweep time is only knowable by building the frame, which is far too expensive
 		/// to redo per site click. Re-raised by RaiseRadarReadout, so readers track the loop live.

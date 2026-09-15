@@ -115,7 +115,7 @@
     <!-- ══════════════════════════════ 2. SIZES ══════════════════════════════
          How big a key in the bottom bar is. FIVE numbers, and they are here for exactly one reason:
          TWO clusters have to agree on them. The temporal keys sit at the bar's centre and the pane /
-         Sites / Settings keys sit at its right edge, side by side in one strip — a local copy in
+         Atlas / Settings keys sit at its right edge, side by side in one strip — a local copy in
          either would let the two halves of one bar drift apart the first time either was tuned.
 
          ⚠️ THESE ARE THE ONLY SIZES THAT ARE SHARED. Anything used by ONE key belongs to that key,

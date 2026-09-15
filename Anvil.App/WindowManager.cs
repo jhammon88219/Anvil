@@ -12,7 +12,7 @@ namespace Anvil
 	// ============================================================================================
 	// APP-WIDE WINDOWS (removable feature — see Windows/ + the manager.Register calls in MainWindow).
 	//
-	// Every app-wide panel (Timeframe, Settings, Site Explorer and the Pipeline Console) lives in its OWN
+	// Every app-wide panel (Timeframe, Settings, Radar Atlas and the Pipeline Console) lives in its OWN
 	// top-level OS window, not docked in MainWindow, so a multi-monitor user can park control panels on a
 	// second screen. The radar console (per-pane, Row 2) is deliberately NOT one of these; it stays in the
 	// main window.
@@ -82,7 +82,7 @@ namespace Anvil
 		Left,
 		/// <summary>Flush right, 480 wide, full height above the bottom chrome (ForeCast).</summary>
 		Right,
-		/// <summary>Centred, ≈16:9, sized between the two edge strips (Settings, Sites, Pipeline Console).</summary>
+		/// <summary>Centred, ≈16:9, sized between the two edge strips (Settings, Radar Atlas, Pipeline Console).</summary>
 		Center,
 	}
 

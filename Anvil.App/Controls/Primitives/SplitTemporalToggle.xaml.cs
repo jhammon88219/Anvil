@@ -97,7 +97,7 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(IsPanelOpen), typeof(bool), typeof(SplitTemporalToggle),
 				new PropertyMetadata(false, (d, _) => ((SplitTemporalToggle)d).ApplyState()));
 
-		/// <summary>Keep the car enabled even while the mode is off — for a key with no mode (the bar's Sites
+		/// <summary>Keep the car enabled even while the mode is off — for a key with no mode (the bar's Atlas
 		/// key, whose car opens a flyout). See the ⚠️ in the XAML header.</summary>
 		public bool CarAlwaysLive
 		{

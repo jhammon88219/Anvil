@@ -53,7 +53,7 @@ namespace Anvil.ViewModels
 		private readonly List<MapMarker> _markers = new();
 
 		/// <summary>The current user-location marker, if one has been placed (else null). Exposed so the
-		/// Radar Site Explorer can compute distance-to-site; read-only view over the private list.</summary>
+		/// Radar Atlas can compute distance-to-site; read-only view over the private list.</summary>
 		public MapMarker? UserLocationMarker => _markers.FirstOrDefault(m => m.Kind == MarkerKind.UserLocation);
 
 		/// <summary>Whether the singleton user-location marker is currently on the map. This is what the

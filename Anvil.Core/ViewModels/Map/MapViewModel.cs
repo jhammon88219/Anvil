@@ -76,7 +76,7 @@ namespace Anvil.ViewModels
 			Markers = new MarkersViewModel(mapService, locationService);
 			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
 			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
-			SiteExplorer = new RadarSiteExplorerViewModel(Radar, Markers, radarService, SiteFavorites);
+			RadarAtlas = new RadarAtlasViewModel(Radar, Markers, radarService, SiteFavorites);
 			SavedEvents = new SavedEventsViewModel(savedEventLibrary, Radar, mapService);
 			StateIso = new StateIsolationViewModel(mapService, settingsService);
 			PipelineConsole = new PipelineConsoleViewModel(mapService, Radar); // PIPELINE CONSOLE (remove with the feature)
@@ -193,12 +193,12 @@ namespace Anvil.ViewModels
 		/// <summary>The map-tools tier's place search (gazetteer suggestions, online fallback, fly-to + pin).</summary>
 		public PlaceSearchViewModel PlaceSearch { get; }
 
-		/// <summary>The Radar Site Explorer subsystem view model (searchable/filterable browser over the
-		/// whole radar network + per-site detail). Opened by the "Sites" button on the bar.</summary>
-		public RadarSiteExplorerViewModel SiteExplorer { get; }
+		/// <summary>The Radar Atlas subsystem view model (searchable/filterable browser over the
+		/// whole radar network + per-site detail). Opened by the "Atlas" key on the bar.</summary>
+		public RadarAtlasViewModel RadarAtlas { get; }
 
-		/// <summary>The home radar site + favorite sites (the bar's Home key, the Sites key's flyout, the
-		/// explorer's pinned sections, load-home-on-launch).</summary>
+		/// <summary>The home radar site + favorite sites (the bar's Home key, the Atlas key's flyout, the
+		/// Atlas's pinned sections, load-home-on-launch).</summary>
 		public RadarSiteFavoritesViewModel SiteFavorites { get; }
 
 		/// <summary>PastCast's saved events — the curated built-ins plus the user's own, each a set of radar
@@ -244,7 +244,7 @@ namespace Anvil.ViewModels
 		// reopen it this session. Don't "fix" that by re-arming in the open path — a toggle that silently
 		// resets itself is worse than one that remembers.
 		private bool _isSettingsWindowOnTop = true;
-		private bool _isSiteExplorerOnTop = true;
+		private bool _isRadarAtlasOnTop = true;
 
 		/// <summary>Whether the Settings window stays on top (title-bar pin).</summary>
 		public bool IsSettingsWindowOnTop
@@ -253,11 +253,11 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isSettingsWindowOnTop, value);
 		}
 
-		/// <summary>Whether the Radar Sites window stays on top (title-bar pin).</summary>
-		public bool IsSiteExplorerOnTop
+		/// <summary>Whether the Radar Atlas window stays on top (title-bar pin).</summary>
+		public bool IsRadarAtlasOnTop
 		{
-			get => _isSiteExplorerOnTop;
-			set => SetProperty(ref _isSiteExplorerOnTop, value);
+			get => _isRadarAtlasOnTop;
+			set => SetProperty(ref _isRadarAtlasOnTop, value);
 		}
 
 		// Per-window LOCK flags, each driven by that window's title-bar lock (LockToggle) and enforced by
@@ -266,7 +266,7 @@ namespace Anvil.ViewModels
 		// stays there until the user deliberately unlocks it. FIELD defaults, like the pins: an unlocked panel
 		// stays unlocked when reopened this session (it still reopens in its designated spot).
 		private bool _isSettingsWindowLocked = true;
-		private bool _isSiteExplorerLocked = true;
+		private bool _isRadarAtlasLocked = true;
 		private bool _isPipelineConsoleLocked = true;
 
 		/// <summary>Whether the Settings window is locked in place (title-bar lock).</summary>
@@ -276,11 +276,11 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isSettingsWindowLocked, value);
 		}
 
-		/// <summary>Whether the Radar Sites window is locked in place (title-bar lock).</summary>
-		public bool IsSiteExplorerLocked
+		/// <summary>Whether the Radar Atlas window is locked in place (title-bar lock).</summary>
+		public bool IsRadarAtlasLocked
 		{
-			get => _isSiteExplorerLocked;
-			set => SetProperty(ref _isSiteExplorerLocked, value);
+			get => _isRadarAtlasLocked;
+			set => SetProperty(ref _isRadarAtlasLocked, value);
 		}
 
 		/// <summary>Whether the Pipeline Console window is locked in place (title-bar lock).</summary>
@@ -612,15 +612,15 @@ namespace Anvil.ViewModels
 		/// <see cref="OpenSettings"/>.</summary>
 		public void OpenTemporal(TemporalMode which) => SetTemporalWindowOpen(which, true);
 
-		// ===== App-wide windows (Settings / Site Explorer) ================================================
+		// ===== App-wide windows (Settings / Radar Atlas) ================================================
 		// Same model as the temporal windows above: one independent bool per window, opened by its key on the
 		// bar's right edge and closed by the window's caption Close. No one-at-a-time grouping — these are real
 		// OS windows, so any combination may be open at once.
 		// ⚠️ There used to be FOUR keys here. Map Controls and the dev tools are no longer windows of their own
 		// — they are TABS of the Settings window (see SettingsTabIndex below), which is why the bar's right
-		// cluster is down to Panes / Sites / Settings. A new group of settings is a tab, not a window.
+		// cluster is down to Panes / Atlas / Settings. A new group of settings is a tab, not a window.
 		private bool _isSettingsWindowOpen;
-		private bool _isSiteExplorerOpen;
+		private bool _isRadarAtlasOpen;
 
 		/// <summary>Whether the Settings window is open. Opening it freshens whatever the landing tab shows
 		/// live (today: the Storage tab's radar-cache size).</summary>
@@ -642,7 +642,7 @@ namespace Anvil.ViewModels
 		/// left it.
 		/// </summary>
 		/// <remarks>
-		/// ⚠️ UNLIKE ITS NEIGHBOURS IN THAT CLUSTER, this drives no window — Sites and Settings latch a real
+		/// ⚠️ UNLIKE ITS NEIGHBOURS IN THAT CLUSTER, this drives no window — Atlas and Settings latch a real
 		/// OS window, this one latches a strip drawn over the map. It sits with them because it is the same
 		/// gesture (a latch you leave set), not because it opens anything.
 		/// ⚠️ It is NOT the bar's own pull-tab. The tab collapses the bar and the strip rides DOWN with it,
@@ -663,11 +663,11 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>Whether the Radar Site Explorer window is open (toggled by the "Sites" button).</summary>
-		public bool IsSiteExplorerOpen
+		/// <summary>Whether the Radar Atlas window is open (toggled by the "Atlas" key).</summary>
+		public bool IsRadarAtlasOpen
 		{
-			get => _isSiteExplorerOpen;
-			set => SetProperty(ref _isSiteExplorerOpen, value);
+			get => _isRadarAtlasOpen;
+			set => SetProperty(ref _isRadarAtlasOpen, value);
 		}
 
 		// ===== Monitor mode (Single now, Multi later) =====================================================

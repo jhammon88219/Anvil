@@ -11,8 +11,8 @@ namespace Anvil.ViewModels
 	/// <summary>
 	/// The user's HOME radar site and FAVORITE sites. Owns the persisted ids (<see cref="AppSettings.HomeSiteId"/>,
 	/// <see cref="AppSettings.FavoriteSiteIds"/>), mirrors them onto the shared <see cref="RadarSiteRow"/>s
-	/// (<c>IsHome</c>/<c>IsFavorite</c>, so the explorer rows light without a lookup), and is the one place a
-	/// site gets LOADED from a list: the bar's Home key, the Sites flyout and the explorer's Load button all
+	/// (<c>IsHome</c>/<c>IsFavorite</c>, so the Atlas rows light without a lookup), and is the one place a
+	/// site gets LOADED from a list: the bar's Home key, the Atlas flyout and the Atlas's Load button all
 	/// funnel through <see cref="LoadOnMap"/> into <see cref="RadarViewModel.SelectedRadarOption"/> — the same
 	/// pipeline a marker click uses.
 	/// </summary>
@@ -56,19 +56,19 @@ namespace Anvil.ViewModels
 				else if (e.PropertyName is nameof(RadarViewModel.ShowTdwrs) or nameof(RadarViewModel.ShowResearchRadars))
 				{
 					// A hidden network's sites leave the flyout and disable Home (RadarViewModel.IsNetworkShown).
-					// The explorer rebuilds off the same radar change itself, so no PinnedChanged here.
+					// The Atlas rebuilds off the same radar change itself, so no PinnedChanged here.
 					RebuildPinned();
 					RaiseHomeState();
 				}
 			};
 		}
 
-		/// <summary>Raised after home or the favorite set changes, so lists sectioned over them (the site
-		/// explorer) can rebuild.</summary>
+		/// <summary>Raised after home or the favorite set changes, so lists sectioned over them (the Radar
+		/// Atlas) can rebuild.</summary>
 		public event EventHandler? PinnedChanged;
 
-		/// <summary>Home first, then the favorites in the order they were starred (home excluded). The Sites
-		/// flyout's list.</summary>
+		/// <summary>Home first, then the favorites in the order they were starred (home excluded). The Atlas
+		/// flyout\'s list.</summary>
 		public ObservableCollection<RadarSiteRow> PinnedSites { get; }
 
 		/// <summary>True when there is neither a home site nor a favorite (the flyout shows a hint instead).</summary>
@@ -91,7 +91,7 @@ namespace Anvil.ViewModels
 
 		/// <summary>Always says WHY when the key can't act — it's hosted on a wrapper so it shows while disabled.</summary>
 		public string HomeKeyToolTip =>
-			HomeSite is not { } home ? "Add a home radar site first — open Sites and choose Set as home"
+			HomeSite is not { } home ? "Add a home radar site first — open the Atlas and choose Set as home"
 			: !IsHomeShown ? $"{home.Id} is a {home.ClassLabel} site — turn on {NetworkToggleName(home)} in Settings → Radar to use Home"
 			: !CanPickSites ? "Home isn't available in PastCast"
 			: IsHomeOnMap ? $"Home — {home.Id} is on the map"
@@ -103,7 +103,7 @@ namespace Anvil.ViewModels
 		/// <summary>One line for Settings → Radar.</summary>
 		public string HomeSiteSummary => HomeSite is { } home
 			? $"Home site: {home.Id} · {home.Name}"
-			: "No home site yet — set one from the site explorer.";
+			: "No home site yet — set one from the Radar Atlas.";
 
 		/// <summary>Load the home site when the app opens. PERSISTED; default off.</summary>
 		public bool LoadHomeOnLaunch

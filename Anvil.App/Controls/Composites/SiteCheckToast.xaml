@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SiteCheckToast — the map's "site check" moment: a pill at the top centre of the map, under the pane notch,
+     while a radar site availability pass cascades across the markers, then a short summary that fades.
+
+                 ╭─────────────────────────────────────────────╮
+       checking  │ [▓▓▓▓▓▓░░░]  Checking radar sites · 127 / 204 │
+                 ╰─────────────────────────────────────────────╯
+                 ╭─────────────────────────────────────────────────────╮
+       done (4s) │ ✓ Site check complete · 181 online · 23 offline      │   ← counts in the status green / red
+                 ╰─────────────────────────────────────────────────────╯
+       failed    │ Couldn't check radar sites — last known status stays │
+
+     ⚠️ ANNOUNCED PASSES ONLY (RadarViewModel.IsSiteCheckAnnounced): the launch pass and the one after leaving
+     PastCast — the passes that start with grey, unchecked keys and so actually cascade. The 10-minute refreshes
+     change a site or two and run silently; a toast every ten minutes would be noise.
+     ⚠️ NEVER hit-testable: it floats over the map band (and over the caption band, which is non-client), so it
+     must not eat a click meant for the map or a notch.
+     The green / red are DATA (the availability square's literals), not theme brushes. -->
+<UserControl x:Class="Anvil.Controls.Composites.SiteCheckToast"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             IsHitTestVisible="False">
+
+    <Border x:Name="Pill"
+            CornerRadius="16" Padding="14,7" BorderThickness="1"
+            Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+            Opacity="0">
+        <Border.OpacityTransition>
+            <ScalarTransition Duration="0:0:0.3"/>
+        </Border.OpacityTransition>
+
+        <Grid>
+            <StackPanel x:Name="CheckingPanel" Orientation="Horizontal" Spacing="10">
+                <ProgressBar x:Name="CheckProgress" Width="90" Minimum="0" Maximum="1" VerticalAlignment="Center"/>
+                <TextBlock x:Name="CheckingText" FontSize="13" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <StackPanel x:Name="DonePanel" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                <TextBlock Text="✓" FontSize="13" FontWeight="SemiBold" Foreground="#FF3FB950"/>
+                <TextBlock Text="Site check complete ·" FontSize="13"/>
+                <TextBlock x:Name="OnlineText" FontSize="13" Foreground="#FF3FB950"/>
+                <TextBlock Text="·" FontSize="13"/>
+                <TextBlock x:Name="OfflineText" FontSize="13" Foreground="#FFF85149"/>
+            </StackPanel>
+
+            <TextBlock x:Name="FailedText" FontSize="13" Visibility="Collapsed"
+                       Text="Couldn't check radar sites — last known status stays"/>
+        </Grid>
+    </Border>
+</UserControl>

@@ -19,7 +19,7 @@
        │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  │  …and DOWN onto the bar
        │  ◉   ⌕   ══ scrubber ══                                   │  BAR tier — the ground
        │  ◉   ⌕  ◀ ▶ ▶  3/10 │ time·site ↺  ⌂    │⋮  ((•))│⋮   ☁ │⋮   📡│⋮  ⚙  │
-       │Markers Inspect                 Home  PastCast  NowCast  ForeCast  Sites  Settings │
+       │Markers Inspect                 Home  PastCast  NowCast  ForeCast  Atlas  Settings │
        └──────────────────────────────────┴────────────────────────┘
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
             is drawn by whichever side owns it: the tools tier throws its own up
@@ -40,8 +40,8 @@
             seam between the two. Both tiers run ShowTab=False.
           ↑ ◉ = show / hide the on-map radar site markers. Lit = showing;
           │   the glyph and tooltip speak for the CLICK (open eye + "Hide
-          │   Radar Sites" while they show). Named Markers, not Sites — the
-          │   right cluster's Sites key opens a window, which is a different
+          │   Radar Sites" while they show). Named Markers, not Atlas — the
+          │   right cluster's Atlas key opens a window, which is a different
           │   species entirely.
                 ↑ ⌕ = Inspect, the armed cursor mode. Lit = armed, greyed
                   until a loop is loaded. A MAGNIFIER (E721), and it was a
@@ -62,8 +62,10 @@
             occasional one, so it fails the bar's constant-gesture test. See MapControlsStrip.
           ↑ ⌂ = Home, the last key of the left cluster: loads the home radar site. Lit = home is on the
             map; greyed with no home set and in PastCast.
-          ↑ 📡│⋮ = Sites is a SPLIT key (SplitTemporalToggle with CarAlwaysLive): the square latches the
-            explorer window, the car opens the home/favorites flyout — live with no mode to gate it.
+          ↑ 📡│⋮ = Atlas is a SPLIT key (SplitTemporalToggle with CarAlwaysLive): the square latches the
+            Atlas window, the car opens the home/favorites flyout — live with no mode to gate it.
+          ↑ Not drawn above: the SITE CHECK TOAST, a pill at the top centre of the map band under the notch —
+            "Checking radar sites · n / N" while a launch pass cascades, then "Site check complete" (4 s).
 
      ⚠️ WHAT REPEATS PER PANE IS NOT IN THE BAR ANY MORE. It used to be: the bar's left cluster carried a
      160px "chip" per pane (a combined product-selector-and-colour-ramp) plus the one tilt combo, which is
@@ -173,6 +175,17 @@
              ⚠️ Four notches, four INDEPENDENT hide toggles, and no view-model state for any of them: the
              show/hide flag is view state on each OverlayBar. Hiding the notch over the storm you are
              watching while the other three keep their legends is the case that actually comes up. -->
+        <!-- SITE CHECK TOAST — top centre of the map band, clear of the pane notch above it. Shows only for
+             ANNOUNCED availability passes (launch, leaving PastCast) while they cascade across the markers, then
+             a summary that fades. Never hit-testable (see Composites/SiteCheckToast). ⚠️ Top margin = notch
+             height + a gap; it doesn't track a hidden notch, and in quad it lands on the groove between the top
+             two notches, which is clear too. -->
+        <comp:SiteCheckToast Grid.Row="0"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Top"
+                             Margin="0,84,0,0"
+                             ViewModel="{x:Bind ViewModel.Radar}"/>
+
         <Grid x:Name="PaneNotchLayer" Grid.Row="0" Grid.RowSpan="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -356,8 +369,8 @@
                                  they show, a closed eye with "Show Radar Sites" while they don't. State on the
                                  border, action in the words — the same division the pane key uses.
 
-                                 ⚠️ NAMED "Markers", NOT "Sites". The right cluster already has a "Sites" key and
-                                 it does something else entirely (it opens the Radar Sites window). Two keys
+                                 ⚠️ NAMED "Markers". The right cluster's "Atlas" key was once named "Sites", and
+                                 it does something else entirely (it opens the Radar Atlas window). Two keys
                                  named Sites in one bar, one toggling map content and one latching a window,
                                  would be the worst kind of collision — same word, different species.
 
@@ -406,7 +419,7 @@
                                  with ticks in one bar, three keys apart, is one mark meaning two things; the
                                  glyph that is not a reticle is the one that had to move, and inspecting is what
                                  a magnifier says without being learned.
-                                 ⚠️ So this key is back on a plain FontIcon like Sites and Settings, and the
+                                 ⚠️ So this key is back on a plain FontIcon like Atlas and Settings, and the
                                  PathIcon reasoning that used to live here (an 18-unit box matching what a
                                  BarKeyGlyphSize FontIcon inks) now applies only to the Location key. Don't
                                  re-derive it here.
@@ -448,7 +461,7 @@
                                  site IS on the map — so IsChecked is ONE-WAY and re-asserted in OnHomeKeyClick
                                  (a ToggleButton flips itself before the handler runs).
                                  Greyed with no home site set, and in PastCast (a pick there would re-target the
-                                 replay). The home site is set in the site explorer.
+                                 replay). The home site is set in the Radar Atlas.
                                  ⚠️ E80F (Home) is NOT verified by rendering in the real font — check on first run.
                                  ⚠️ THE TOOLTIP IS ON A WRAPPER, NOT THE KEY: WinUI shows no tooltip on a disabled
                                  control, and a greyed Home key is exactly when it has to explain itself ("add a
@@ -485,7 +498,7 @@
                              hairline at rest, accent border + raised face when ON. Nothing here repeats per
                              pane.
 
-                             ONE KIND of control sits here: Sites and Settings are INDEPENDENT window latches (any
+                             ONE KIND of control sits here: Atlas and Settings are INDEPENDENT window latches (any
                              combination open). (The pane-layout key and Location used to sit here too; both moved
                              to the tools tier — see MapControlsStrip.) ⚠️ They are NOT
                              separated by a wider gap any more: this was two nested grids at 14px and 6px, which
@@ -498,7 +511,7 @@
                               VerticalAlignment="Center"
                               ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/> <!-- site explorer -->
+                                <ColumnDefinition Width="Auto"/> <!-- Radar Atlas -->
                                 <ColumnDefinition Width="Auto"/> <!-- settings -->
                             </Grid.ColumnDefinitions>
 
@@ -536,20 +549,20 @@
                                  panel that only ever configures those three modes belongs beside them —
                                  see TemporalToggles. What is left here is genuinely global. -->
                                 <!-- ⚠️ SITES IS A SPLIT KEY, the one non-temporal SplitTemporalToggle. The square
-                                     latches the explorer window (IsModeOn = window open; the click flips the
-                                     flag in OnSitesKeyClick). The side car opens the home/favorites FLYOUT —
-                                     CarAlwaysLive, because Sites has no mode to gate it, and MainWindow's
+                                     latches the Atlas window (IsModeOn = window open; the click flips the
+                                     flag in OnAtlasKeyClick). The side car opens the home/favorites FLYOUT —
+                                     CarAlwaysLive, because Atlas has no mode to gate it, and MainWindow's
                                      InitializeSitesFlyout drives IsPanelOpen both ways (a light-dismiss must
                                      un-fill the car). -->
-                                <ctl:SplitTemporalToggle x:Name="SitesKey"
+                                <ctl:SplitTemporalToggle x:Name="AtlasKey"
                                                          Grid.Column="0"
                                                          Glyph="&#xEC05;"
-                                                         ModeName="Sites"
-                                                         ModeToolTip="Radar site explorer"
+                                                         ModeName="Atlas"
+                                                         ModeToolTip="Radar Atlas"
                                                          CarToolTip="Home and favorite sites"
                                                          CarAlwaysLive="True"
-                                                         IsModeOn="{x:Bind ViewModel.IsSiteExplorerOpen, Mode=OneWay}"
-                                                         ModeClick="OnSitesKeyClick"/>
+                                                         IsModeOn="{x:Bind ViewModel.IsRadarAtlasOpen, Mode=OneWay}"
+                                                         ModeClick="OnAtlasKeyClick"/>
                                 <!-- ⚠️ THE "Map" KEY IS GONE (it was column 3, glyph E774, latching
                                      IsMapControlsStripVisible). The map-tools tier now carries its own tab on
                                      the rail above the bar, which is the same gesture in the place the thing

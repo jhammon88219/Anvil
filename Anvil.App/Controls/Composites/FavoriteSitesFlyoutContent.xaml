@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FavoriteSitesFlyoutContent — the body of the flyout on the Sites key's side car (MainWindow owns the
-     Flyout): the home radar site, then the favorites, then a way into the full site explorer. Clicking a
+<!-- FavoriteSitesFlyoutContent — the body of the flyout on the Atlas key's side car (MainWindow owns the
+     Flyout): the home radar site, then the favorites, then a way into the full Radar Atlas. Clicking a
      site LOADS it; the host closes the flyout.
 
        ┌──────────────────────────────────┐
        │ ⌂  KTLX   Norman               ● │  ← home first (⌂), then favorites (★) in starred order
-       │ ★  KFWS   Dallas/Ft Worth      ● │     ● = online / offline, the explorer's dot
+       │ ★  KFWS   Dallas/Ft Worth      ● │     ● = online / offline / grey not-checked, the Atlas's dot
        │ ★  KINX   Tulsa                ● │
        │──────────────────────────────────│
-       │ Open site explorer               │
+       │ Open Radar Atlas               │
        └──────────────────────────────────┘
 
      Empty (no home, no favorites): a hint line replaces the list. In PastCast the list is DISABLED and a
-     note says why — a pick would re-target the replay, which the Home key must not do either. The explorer
+     note says why — a pick would re-target the replay, which the Home key must not do either. The Atlas
      link stays live in both.
 
      ⚠️ A ListView with IsItemClickEnabled and SelectionMode None, NOT selection: a pick is an action, and a
@@ -29,7 +29,7 @@
              mc:Ignorable="d">
 
     <UserControl.Resources>
-        <conv:OfflineToBrushConverter x:Key="OfflineToBrush"/>
+        <conv:SiteAvailabilityToBrushConverter x:Key="AvailabilityToBrush"/>
     </UserControl.Resources>
 
     <Grid Width="260" RowSpacing="6">
@@ -38,7 +38,7 @@
             <RowDefinition Height="Auto"/> <!-- empty hint -->
             <RowDefinition Height="Auto"/> <!-- PastCast note -->
             <RowDefinition Height="Auto"/> <!-- rule -->
-            <RowDefinition Height="Auto"/> <!-- open explorer -->
+            <RowDefinition Height="Auto"/> <!-- open Atlas -->
         </Grid.RowDefinitions>
 
         <ListView Grid.Row="0" MaxHeight="320"
@@ -73,14 +73,14 @@
                                    TextTrimming="CharacterEllipsis"
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                         <Ellipse Grid.Column="3" Width="8" Height="8" VerticalAlignment="Center"
-                                 Fill="{x:Bind IsOffline, Converter={StaticResource OfflineToBrush}, Mode=OneWay}"/>
+                                 Fill="{x:Bind Availability, Converter={StaticResource AvailabilityToBrush}, Mode=OneWay}"/>
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
 
         <TextBlock Grid.Row="1" Margin="8,4"
-                   Text="Star sites in the site explorer, or set a home site, to pin them here."
+                   Text="Star sites in the Radar Atlas, or set a home site, to pin them here."
                    TextWrapping="Wrap" FontSize="12"
                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                    Visibility="{x:Bind VisibleWhen(ViewModel.IsEmpty), Mode=OneWay}"/>
@@ -96,7 +96,7 @@
         <Button Grid.Row="4"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                 Background="Transparent" BorderThickness="0" Padding="8,6"
-                Content="Open site explorer"
-                Click="OnOpenExplorerClick"/>
+                Content="Open Radar Atlas"
+                Click="OnOpenAtlasClick"/>
     </Grid>
 </UserControl>

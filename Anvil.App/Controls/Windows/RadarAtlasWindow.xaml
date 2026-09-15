@@ -1,28 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- RadarSiteExplorerWindow — a non-modal, searchable master–detail browser over the WHOLE radar network the
+<!-- RadarAtlasWindow — a non-modal, searchable master–detail browser over the WHOLE radar network the
      app can access (operational WSR-88D, research/test, TDWR). Floats over the map (map stays live),
-     opened by the "Sites" button on the bar (left of the Settings cog). Shares the OverlayBar surface
+     opened by the "Atlas" key on the bar (left of the Settings cog). Shares the OverlayBar surface
      chrome but is its own larger footprint. Bound to the coordinator
-     MapViewModel (like SettingsWindow): it reaches into ViewModel.SiteExplorer.* for the list/detail
-     and ViewModel.IsSiteExplorerOpen for its own visibility/close.
+     MapViewModel (like SettingsWindow): it reaches into ViewModel.RadarAtlas.* for the list/detail
+     and ViewModel.IsRadarAtlasOpen for its own visibility/close.
 
-       Radar Sites   118 of 204                       [lock][pin]   ← own title + live count
+       Radar Atlas   118 of 204                       [lock][pin]   ← own title + live count
        [ Search ICAO or name…    ] [All networks ▾] [x] Online only [x] Favorites only
        ┌── list (360px) ─────────────┐   detail (scrolls, capped 760 wide, left-aligned)
-       │ HOME                        │   KTLX        (● Online) (Operational) [★] [⌂ Home site] [On map]
-       │ ● KTLX ⌂       Operational ☆│   Norman
+       │ HOME                        │   KTLX        (● Online) (NEXRAD) [★] [⌂ Home site] [On map]
+       │▐█ KTLX ⌂ Norman       ☆ ◗▌│   Norman                     ← a row is a KEY: status square | name | ☆ | network bar
        │ FAVORITES · 2               │   ───────────────────────────────────────────────────────────── hairline
-       │ ● KFWS         Operational ★│   LATEST SCAN   12:06 PM (4 min ago)     ┌──────────────────┐
+       │▐█ TMCI Kansas City    ★ ✈▌│   LATEST SCAN   12:06 PM (4 min ago)     ┌──────────────────┐
        │ ALL SITES · 201             │   SCAN MODE     VCP 35 · clear-air      │  [cam]           │ ← PLACEHOLDER
-       │ ○ KABR         Operational ☆│   COORDINATES   35.333, -97.278         │  Site photo      │   240×135
+       │▐█ KABR Aberdeen       ☆ ◗▌│   COORDINATES   35.333, -97.278         │  Site photo      │   240×135
        │ …                           │   DISTANCE      142 mi from your loc.   └──────────────────┘
        └─────────────────────────────┘
 
      SECTIONS (Home / Favorites · n / All sites · n) come from a grouped CollectionViewSource over
-     SiteExplorer.SiteGroups. ⚠️ Its Source is set in code when ViewModel lands (OnViewModelChanged) — a CVS
+     RadarAtlas.SiteGroups. ⚠️ Its Source is set in code when ViewModel lands (OnViewModelChanged) — a CVS
      can't x:Bind — and it must land BEFORE the SelectedItem binding runs, which the DP callback order gives.
      A row sits in ONE section. The row's ☆/★ toggles favorite without selecting the row; [★] and [⌂] in the
      header act on the selected site (RadarSiteFavoritesViewModel). Home is one site: setting it moves it.
+
+     ROWS ARE KEYS, in the map key's vocabulary without copying it: a raised card per row, the STATUS square
+     full height on the left, the NETWORK bar on the right (neutral ◗ NEXRAD / blue ✈ TDWR / violet ⚗ research,
+     the key's own glyphs as paths). Selected = elevated face + thin accent stroke — quiet on purpose; the map
+     key's bright inverted face stays on the MAP only.
+
+     ⚠️ NETWORK ≠ STATUS. The row's right-hand bar (NEXRAD / TDWR / Research, named in its tooltip) and the
+     network filter are the radar's NETWORK; the square + STATUS pill are whether data is flowing (green Online · red Offline · grey
+     "Checking…" before the first pass). The network read "Operational" once, which looked like a status
+     beside a red dot. In PastCast the status is the REPLAY DAY's ("Data on replay day") and the checkbox
+     relabels to match. Status comes from RadarSiteRow.Availability, bound DIRECTLY (not through a VM
+     snapshot), so a pass that lands while a site is selected updates the pill and dot in place.
 
      The header owns the action: the button reads "On map" (disabled) while the selected site IS the
      map's site. Chips are neutral pills; only the status dot carries colour. The DISTANCE row collapses
@@ -44,7 +56,7 @@
      chunks listing and clobber the shared live cache), every other site asks
      ILevel2RadarService.GetLatestScanAsync. -->
 
-<UserControl x:Class="Anvil.Controls.Windows.RadarSiteExplorerWindow"
+<UserControl x:Class="Anvil.Controls.Windows.RadarAtlasWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctl="using:Anvil.Controls.Primitives"
@@ -56,7 +68,7 @@
              mc:Ignorable="d">
 
     <UserControl.Resources>
-        <conv:OfflineToBrushConverter x:Key="OfflineToBrush"/>
+        <conv:SiteAvailabilityToBrushConverter x:Key="AvailabilityToBrush"/>
 
         <!-- The list's sections. Source set in code-behind (see the header). -->
         <CollectionViewSource x:Key="SiteGroupsSource" IsSourceGrouped="True"/>
@@ -93,12 +105,12 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Radar Sites"
+                    <TextBlock Grid.Column="0" Text="Radar Atlas"
                                FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
                                VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <TextBlock Grid.Column="1"
-                               Text="{x:Bind ViewModel.SiteExplorer.ResultCountText, Mode=OneWay}"
+                               Text="{x:Bind ViewModel.RadarAtlas.ResultCountText, Mode=OneWay}"
                                FontSize="12" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                 </Grid>
@@ -113,24 +125,24 @@
                     </Grid.ColumnDefinitions>
                     <TextBox Grid.Column="0"
                              PlaceholderText="Search ICAO or name…"
-                             Text="{x:Bind ViewModel.SiteExplorer.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                             Text="{x:Bind ViewModel.RadarAtlas.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     <ComboBox Grid.Column="1" MinWidth="130"
-                              SelectedIndex="{x:Bind ViewModel.SiteExplorer.SelectedClassIndex, Mode=TwoWay}"
+                              SelectedIndex="{x:Bind ViewModel.RadarAtlas.SelectedClassIndex, Mode=TwoWay}"
                               ToolTipService.ToolTip="Filter by network">
                         <ComboBoxItem Content="All networks"/>
-                        <ComboBoxItem Content="Operational"/>
+                        <ComboBoxItem Content="NEXRAD"/>
                         <!-- Greyed while Settings → Radar hides the network (the list hides its sites too). -->
                         <ComboBoxItem Content="Research"
-                                      IsEnabled="{x:Bind ViewModel.SiteExplorer.IsResearchFilterEnabled, Mode=OneWay}"/>
+                                      IsEnabled="{x:Bind ViewModel.RadarAtlas.IsResearchFilterEnabled, Mode=OneWay}"/>
                         <ComboBoxItem Content="TDWR"
-                                      IsEnabled="{x:Bind ViewModel.SiteExplorer.IsTdwrFilterEnabled, Mode=OneWay}"/>
+                                      IsEnabled="{x:Bind ViewModel.RadarAtlas.IsTdwrFilterEnabled, Mode=OneWay}"/>
                     </ComboBox>
-                    <CheckBox Grid.Column="2" Content="Online only"
+                    <CheckBox Grid.Column="2" Content="{x:Bind ViewModel.RadarAtlas.OnlineOnlyLabel, Mode=OneWay}"
                               VerticalAlignment="Center"
-                              IsChecked="{x:Bind ViewModel.SiteExplorer.OnlineOnly, Mode=TwoWay}"/>
+                              IsChecked="{x:Bind ViewModel.RadarAtlas.OnlineOnly, Mode=TwoWay}"/>
                     <CheckBox Grid.Column="3" Content="Favorites only"
                               VerticalAlignment="Center"
-                              IsChecked="{x:Bind ViewModel.SiteExplorer.FavoritesOnly, Mode=TwoWay}"/>
+                              IsChecked="{x:Bind ViewModel.RadarAtlas.FavoritesOnly, Mode=TwoWay}"/>
                 </Grid>
 
                 <!-- Body: site list (left) | detail (right). Side + bottom inset. -->
@@ -148,7 +160,7 @@
                             BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                             BorderThickness="1" CornerRadius="8">
                         <ListView ItemsSource="{Binding Source={StaticResource SiteGroupsSource}}"
-                                  SelectedItem="{x:Bind ViewModel.SiteExplorer.SelectedSite, Mode=TwoWay}"
+                                  SelectedItem="{x:Bind ViewModel.RadarAtlas.SelectedSite, Mode=TwoWay}"
                                   SelectionMode="Single"
                                   Loaded="OnSiteListLoaded"
                                   SelectionChanged="OnSiteListSelectionChanged">
@@ -167,49 +179,151 @@
                                     </GroupStyle.HeaderTemplate>
                                 </GroupStyle>
                             </ListView.GroupStyle>
+                            <!-- ROWS ARE KEYS — each item is a small raised card in the map key's vocabulary.
+                                 ⚠️ The container is RETEMPLATED (no ListViewItemPresenter): the stock selection
+                                 wash + accent pill would fight the card. SELECTED is deliberately QUIET — the
+                                 elevated surface with a thin accent stroke (the bar's "lit" vocabulary), NOT the
+                                 map key's bright inverted face, which reads as a flashlight in a list.
+                                 ⚠️ A Border doesn't clip its children to its corners, so the status square and the
+                                 network bar carry their own inner radii (5 = card 6 − its 1 px stroke). -->
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
-                                    <Setter Property="Padding" Value="10,6"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Margin" Value="6,2"/>
                                     <Setter Property="MinHeight" Value="0"/>
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="UseSystemFocusVisuals" Value="True"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListViewItem">
+                                                <Grid>
+                                                    <VisualStateManager.VisualStateGroups>
+                                                        <VisualStateGroup x:Name="CommonStates">
+                                                            <VisualState x:Name="Normal"/>
+                                                            <VisualState x:Name="PointerOver">
+                                                                <VisualState.Setters>
+                                                                    <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                            <VisualState x:Name="Pressed">
+                                                                <VisualState.Setters>
+                                                                    <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                            <VisualState x:Name="Selected">
+                                                                <VisualState.Setters>
+                                                                    <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                                                    <Setter Target="Card.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                            <VisualState x:Name="PointerOverSelected">
+                                                                <VisualState.Setters>
+                                                                    <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedHoverBrush}"/>
+                                                                    <Setter Target="Card.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                            <VisualState x:Name="PressedSelected">
+                                                                <VisualState.Setters>
+                                                                    <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                                                    <Setter Target="Card.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                        </VisualStateGroup>
+                                                    </VisualStateManager.VisualStateGroups>
+
+                                                    <Border x:Name="Card"
+                                                            CornerRadius="6" BorderThickness="1"
+                                                            Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
+                                                            BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                                    <ContentPresenter Margin="1"
+                                                                      Content="{TemplateBinding Content}"
+                                                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                                      HorizontalContentAlignment="Stretch"
+                                                                      VerticalContentAlignment="Stretch"/>
+                                                </Grid>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
                                 </Style>
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:RadarSiteRow">
-                                    <Grid ColumnSpacing="8">
+                                    <Grid MinHeight="42">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="10"/>  <!-- status square -->
+                                            <ColumnDefinition Width="*"/>   <!-- ICAO + name -->
+                                            <ColumnDefinition Width="Auto"/> <!-- favorite -->
+                                            <ColumnDefinition Width="30"/>  <!-- network bar -->
                                         </Grid.ColumnDefinitions>
-                                        <!-- Status dot (online/offline). -->
-                                        <Ellipse Grid.Column="0" Width="9" Height="9" VerticalAlignment="Center"
-                                                 Fill="{x:Bind IsOffline, Converter={StaticResource OfflineToBrush}, Mode=OneWay}"/>
-                                        <StackPanel Grid.Column="1">
+
+                                        <!-- STATUS — the map key's left zone: full height, square, the same literals. -->
+                                        <Border Grid.Column="0" CornerRadius="5,0,0,5"
+                                                Background="{x:Bind Availability, Converter={StaticResource AvailabilityToBrush}, Mode=OneWay}"/>
+
+                                        <StackPanel Grid.Column="1" Margin="10,4" VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <TextBlock Text="{x:Bind Id}" FontWeight="SemiBold" FontSize="13"/>
                                                 <FontIcon Glyph="&#xE80F;" FontSize="11" VerticalAlignment="Center"
                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                          Visibility="{x:Bind win:RadarSiteExplorerWindow.ShowIf(IsHome), Mode=OneWay}"/>
+                                                          Visibility="{x:Bind win:RadarAtlasWindow.ShowIf(IsHome), Mode=OneWay}"/>
                                             </StackPanel>
                                             <TextBlock Text="{x:Bind Name}" FontSize="11"
                                                        TextTrimming="CharacterEllipsis"
                                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                         </StackPanel>
-                                        <TextBlock Grid.Column="2" Text="{x:Bind ClassLabel}" FontSize="10"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+
                                         <!-- Favorite star: toggles without selecting the row (the Button takes the click). -->
-                                        <Button Grid.Column="3" VerticalAlignment="Center"
-                                                Padding="6,4" MinWidth="0" MinHeight="0"
+                                        <Button Grid.Column="2" VerticalAlignment="Center"
+                                                Padding="8,4" MinWidth="0" MinHeight="0"
                                                 Background="Transparent" BorderThickness="0"
                                                 Click="OnRowFavoriteClick"
-                                                ToolTipService.ToolTip="{x:Bind win:RadarSiteExplorerWindow.FavoriteToolTip(IsFavorite), Mode=OneWay}">
+                                                ToolTipService.ToolTip="{x:Bind win:RadarAtlasWindow.FavoriteToolTip(IsFavorite), Mode=OneWay}">
                                             <FontIcon FontSize="13"
                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                      Glyph="{x:Bind win:RadarSiteExplorerWindow.StarGlyph(IsFavorite), Mode=OneWay}"/>
+                                                      Glyph="{x:Bind win:RadarAtlasWindow.StarGlyph(IsFavorite), Mode=OneWay}"/>
                                         </Button>
+
+                                        <!-- NETWORK — the map key's right zone: a themed neutral bar for NEXRAD, the data
+                                             blue / violet for TDWR / research, each with the key's own glyph (the SVG
+                                             paths from radar-sites.js CLASS_GLYPH, redrawn as XAML). -->
+                                        <Grid Grid.Column="3" ToolTipService.ToolTip="{x:Bind ClassLabel}">
+                                            <Border CornerRadius="0,5,5,0" BorderThickness="1,0,0,0"
+                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+                                            <Border CornerRadius="0,5,5,0"
+                                                    Background="{x:Bind win:RadarAtlasWindow.NetworkBrush(Site.Class)}"/>
+
+                                            <Viewbox Width="14" Height="14"
+                                                     Visibility="{x:Bind win:RadarAtlasWindow.ClassVisible(Site.Class, 'Operational')}">
+                                                <Canvas Width="24" Height="24">
+                                                    <Ellipse Canvas.Left="5.6" Canvas.Top="15.6" Width="2.8" Height="2.8"
+                                                             Fill="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                    <Path Data="M7 12.5 A4.5 4.5 0 0 1 11.5 17"
+                                                          Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="2"
+                                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                                    <Path Data="M7 7.5 A9.5 9.5 0 0 1 16.5 17"
+                                                          Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="2"
+                                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                                </Canvas>
+                                            </Viewbox>
+                                            <Viewbox Width="14" Height="14"
+                                                     Visibility="{x:Bind win:RadarAtlasWindow.ClassVisible(Site.Class, 'Tdwr')}">
+                                                <Canvas Width="24" Height="24">
+                                                    <Path Fill="White"
+                                                          Data="M12 2 C12.6 2 13 2.9 13 4 V9.2 L20 13.2 V15.1 L13 13.1 V17 L15 18.5 V20 L12 19 L9 20 V18.5 L11 17 V13.1 L4 15.1 V13.2 L11 9.2 V4 C11 2.9 11.4 2 12 2 Z"/>
+                                                </Canvas>
+                                            </Viewbox>
+                                            <Viewbox Width="14" Height="14"
+                                                     Visibility="{x:Bind win:RadarAtlasWindow.ClassVisible(Site.Class, 'Research')}">
+                                                <Canvas Width="24" Height="24">
+                                                    <Path Data="M9 3 H15" Stroke="White" StrokeThickness="2"
+                                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                                    <Path Data="M10 3 V8 L5.6 16.3 A1.9 1.9 0 0 0 7.3 19 H16.7 A1.9 1.9 0 0 0 18.4 16.3 L14 8 V3"
+                                                          Stroke="White" StrokeThickness="2" StrokeLineJoin="Round"
+                                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                                </Canvas>
+                                            </Viewbox>
+                                        </Grid>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -223,10 +337,10 @@
                                    VerticalAlignment="Center" 
                                    HorizontalAlignment="Center"
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                   Visibility="{x:Bind CollapsedWhen(ViewModel.SiteExplorer.HasSelection), Mode=OneWay}"/>
+                                   Visibility="{x:Bind CollapsedWhen(ViewModel.RadarAtlas.HasSelection), Mode=OneWay}"/>
 
                         <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                      Visibility="{x:Bind VisibleWhen(ViewModel.SiteExplorer.HasSelection), Mode=OneWay}">
+                                      Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.HasSelection), Mode=OneWay}">
                         <!-- Width-capped + left-aligned: on a wide window the detail stays one compact block
                              instead of spreading its fields (and stranding the button) across the pane.
                              ⚠️ The cap is a star COLUMN's MaxWidth, not the Grid's MaxWidth+Left — a Left-aligned
@@ -254,9 +368,9 @@
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                    <TextBlock Text="{x:Bind ViewModel.SiteExplorer.DetailId, Mode=OneWay}"
+                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailId, Mode=OneWay}"
                                                FontSize="22" FontWeight="Bold"/>
-                                    <TextBlock Text="{x:Bind ViewModel.SiteExplorer.DetailName, Mode=OneWay}"
+                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailName, Mode=OneWay}"
                                                FontSize="13" TextTrimming="CharacterEllipsis"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </StackPanel>
@@ -267,8 +381,8 @@
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                                                 Fill="{x:Bind SelectedStatusBrush(ViewModel.SiteExplorer.SelectedSite), Mode=OneWay}"/>
-                                        <TextBlock Text="{x:Bind ViewModel.SiteExplorer.DetailStatusText, Mode=OneWay}"
+                                                 Fill="{x:Bind win:RadarAtlasWindow.StatusBrush(ViewModel.RadarAtlas.SelectedSite.Availability), Mode=OneWay}"/>
+                                        <TextBlock Text="{x:Bind ViewModel.RadarAtlas.SelectedSite.StatusLabel, Mode=OneWay}"
                                                    FontSize="12"/>
                                     </StackPanel>
                                 </Border>
@@ -276,7 +390,7 @@
                                 <Border Grid.Column="2" VerticalAlignment="Center"
                                         CornerRadius="11" Padding="10,3"
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                                    <TextBlock Text="{x:Bind ViewModel.SiteExplorer.DetailClassLabel, Mode=OneWay}"
+                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailClassLabel, Mode=OneWay}"
                                                FontSize="12"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </Border>
@@ -284,25 +398,25 @@
                                 <Button Grid.Column="3" VerticalAlignment="Center"
                                         Margin="8,0,0,0"
                                         Click="OnDetailFavoriteClick"
-                                        ToolTipService.ToolTip="{x:Bind win:RadarSiteExplorerWindow.FavoriteToolTip(ViewModel.SiteExplorer.SelectedSite.IsFavorite), Mode=OneWay}">
+                                        ToolTipService.ToolTip="{x:Bind win:RadarAtlasWindow.FavoriteToolTip(ViewModel.RadarAtlas.SelectedSite.IsFavorite), Mode=OneWay}">
                                     <FontIcon FontSize="16"
-                                              Glyph="{x:Bind win:RadarSiteExplorerWindow.StarGlyph(ViewModel.SiteExplorer.SelectedSite.IsFavorite), Mode=OneWay}"/>
+                                              Glyph="{x:Bind win:RadarAtlasWindow.StarGlyph(ViewModel.RadarAtlas.SelectedSite.IsFavorite), Mode=OneWay}"/>
                                 </Button>
 
                                 <Button Grid.Column="4" VerticalAlignment="Center"
                                         Click="OnDetailHomeClick"
-                                        ToolTipService.ToolTip="{x:Bind win:RadarSiteExplorerWindow.HomeToolTip(ViewModel.SiteExplorer.SelectedSite.IsHome), Mode=OneWay}">
+                                        ToolTipService.ToolTip="{x:Bind win:RadarAtlasWindow.HomeToolTip(ViewModel.RadarAtlas.SelectedSite.IsHome), Mode=OneWay}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <FontIcon FontSize="14" Glyph="&#xE80F;"/>
-                                        <TextBlock Text="{x:Bind win:RadarSiteExplorerWindow.HomeLabel(ViewModel.SiteExplorer.SelectedSite.IsHome), Mode=OneWay}"/>
+                                        <TextBlock Text="{x:Bind win:RadarAtlasWindow.HomeLabel(ViewModel.RadarAtlas.SelectedSite.IsHome), Mode=OneWay}"/>
                                     </StackPanel>
                                 </Button>
 
                                 <Button Grid.Column="5" VerticalAlignment="Center" MinWidth="120"
                                         Click="OnLoadClick"
                                         Style="{StaticResource AccentButtonStyle}"
-                                        Content="{x:Bind ViewModel.SiteExplorer.LoadButtonText, Mode=OneWay}"
-                                        IsEnabled="{x:Bind ViewModel.SiteExplorer.CanLoadOnMap, Mode=OneWay}"/>
+                                        Content="{x:Bind ViewModel.RadarAtlas.LoadButtonText, Mode=OneWay}"
+                                        IsEnabled="{x:Bind ViewModel.RadarAtlas.CanLoadOnMap, Mode=OneWay}"/>
                             </Grid>
 
                             <Rectangle Grid.Row="1" Height="1"
@@ -334,36 +448,36 @@
                                          line out of line with every other field. They can't collide — the value is
                                          empty for exactly as long as the fetch is in flight (see LatestScanText). -->
                                     <Grid Grid.Row="0" Grid.Column="1">
-                                        <TextBlock Text="{x:Bind ViewModel.SiteExplorer.LatestScanText, Mode=OneWay}"
+                                        <TextBlock Text="{x:Bind ViewModel.RadarAtlas.LatestScanText, Mode=OneWay}"
                                                    Style="{StaticResource FieldValueStyle}"/>
                                         <ProgressRing Width="14"
                                                       Height="14"
                                                       HorizontalAlignment="Left"
                                                       VerticalAlignment="Center"
-                                                      IsActive="{x:Bind ViewModel.SiteExplorer.IsLoadingScanInfo, Mode=OneWay}"
-                                                      Visibility="{x:Bind VisibleWhen(ViewModel.SiteExplorer.IsLoadingScanInfo), Mode=OneWay}"/>
+                                                      IsActive="{x:Bind ViewModel.RadarAtlas.IsLoadingScanInfo, Mode=OneWay}"
+                                                      Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.IsLoadingScanInfo), Mode=OneWay}"/>
                                     </Grid>
 
                                     <TextBlock Grid.Row="1" Text="SCAN MODE" VerticalAlignment="Center"
                                                Style="{StaticResource FieldLabelStyle}"/>
                                     <TextBlock Grid.Row="1" Grid.Column="1"
-                                               Text="{x:Bind ViewModel.SiteExplorer.VcpModeText, Mode=OneWay}"
+                                               Text="{x:Bind ViewModel.RadarAtlas.VcpModeText, Mode=OneWay}"
                                                Style="{StaticResource FieldValueStyle}"/>
 
                                     <TextBlock Grid.Row="2" Text="COORDINATES" VerticalAlignment="Center"
                                                Style="{StaticResource FieldLabelStyle}"/>
                                     <TextBlock Grid.Row="2" Grid.Column="1"
-                                               Text="{x:Bind ViewModel.SiteExplorer.DetailCoords, Mode=OneWay}"
+                                               Text="{x:Bind ViewModel.RadarAtlas.DetailCoords, Mode=OneWay}"
                                                Style="{StaticResource FieldValueStyle}"/>
 
                                     <!-- Collapses with no location marker, so it never leaves a gap. -->
                                     <TextBlock Grid.Row="3" Text="DISTANCE" VerticalAlignment="Center"
                                                Style="{StaticResource FieldLabelStyle}"
-                                               Visibility="{x:Bind VisibleWhenText(ViewModel.SiteExplorer.DetailDistanceText), Mode=OneWay}"/>
+                                               Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.DetailDistanceText), Mode=OneWay}"/>
                                     <TextBlock Grid.Row="3" Grid.Column="1"
-                                               Text="{x:Bind ViewModel.SiteExplorer.DetailDistanceText, Mode=OneWay}"
+                                               Text="{x:Bind ViewModel.RadarAtlas.DetailDistanceText, Mode=OneWay}"
                                                Style="{StaticResource FieldValueStyle}"
-                                               Visibility="{x:Bind VisibleWhenText(ViewModel.SiteExplorer.DetailDistanceText), Mode=OneWay}"/>
+                                               Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.DetailDistanceText), Mode=OneWay}"/>
                                 </Grid>
 
                                 <!-- Site photo — DUMMY placeholder; nothing feeds it yet. 16:9. -->
@@ -386,7 +500,7 @@
             </Grid>
 
         <!-- Lock (no move/resize) + pin (keep on top). -->
-        <ctl:LockToggle IsChecked="{x:Bind ViewModel.IsSiteExplorerLocked, Mode=TwoWay}"/>
-        <ctl:PinToggle IsChecked="{x:Bind ViewModel.IsSiteExplorerOnTop, Mode=TwoWay}"/>
+        <ctl:LockToggle IsChecked="{x:Bind ViewModel.IsRadarAtlasLocked, Mode=TwoWay}"/>
+        <ctl:PinToggle IsChecked="{x:Bind ViewModel.IsRadarAtlasOnTop, Mode=TwoWay}"/>
     </Grid>
 </UserControl>

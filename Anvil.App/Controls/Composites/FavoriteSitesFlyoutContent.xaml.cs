@@ -6,8 +6,8 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// Body of the Sites key's side-car flyout: home + favorite sites, click to load, plus a link to the full
-	/// explorer. It raises events rather than touching the flyout — the host (<c>MainWindow</c>) owns the
+	/// Body of the Atlas key's side-car flyout: home + favorite sites, click to load, plus a link to the full
+	/// Atlas. It raises events rather than touching the flyout — the host (<c>MainWindow</c>) owns the
 	/// Flyout and the window flag.
 	/// </summary>
 	public sealed partial class FavoriteSitesFlyoutContent : UserControl
@@ -29,8 +29,8 @@ namespace Anvil.Controls.Composites
 		/// <summary>A site row was clicked and its load has been started.</summary>
 		public event EventHandler? SitePicked;
 
-		/// <summary>"Open site explorer" was clicked.</summary>
-		public event EventHandler? OpenExplorerRequested;
+		/// <summary>"Open Radar Atlas" was clicked.</summary>
+		public event EventHandler? OpenAtlasRequested;
 
 		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 		public Visibility CollapsedWhen(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
@@ -46,7 +46,7 @@ namespace Anvil.Controls.Composites
 			SitePicked?.Invoke(this, EventArgs.Empty);
 		}
 
-		private void OnOpenExplorerClick(object sender, RoutedEventArgs e) =>
-			OpenExplorerRequested?.Invoke(this, EventArgs.Empty);
+		private void OnOpenAtlasClick(object sender, RoutedEventArgs e) =>
+			OpenAtlasRequested?.Invoke(this, EventArgs.Empty);
 	}
 }

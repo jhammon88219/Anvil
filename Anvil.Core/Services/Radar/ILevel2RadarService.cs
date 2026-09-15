@@ -35,7 +35,7 @@ namespace Anvil.Services
 		Task<IReadOnlyList<string>> GetRecentKeysAsync(RadarSite site, int count, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// The freshest scan known for a site (the Radar Site Explorer's detail pane): when it was
+		/// The freshest scan known for a site (the Radar Atlas's detail pane): when it was
 		/// collected + the VCP/scan-mode line. Null when the site has no recent data.
 		///
 		/// Consults BOTH feeds, because they disagree by design: the archive bucket runs ~5-10 min behind
@@ -121,12 +121,14 @@ namespace Anvil.Services
 		Task<RadarVolume?> GetLiveFrameAsync(RadarSite site, float? tiltAngle = null, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Returns the set of site IDs that have data in the archive bucket within the last day —
-		/// i.e. the sites this feed can actually show right now. A site NOT in the set is offline
-		/// in this feed (no data flowing), like KLIX, even if the radar is physically scanning.
-		/// One date-prefix listing per day (today + yesterday); cheap.
+		/// Returns the set of site IDs whose NEWEST archive volume is fresh (<see cref="RadarSiteStatus.IsFresh"/>)
+		/// — the sites this feed can actually show right now. A site NOT in the set is offline in this feed (no
+		/// data flowing), even if the radar is physically scanning. Two date-prefix listings find the candidates,
+		/// then each candidate's newest volume is probed (10 at a time).
+		/// <paramref name="progress"/> gets each candidate's result as ITS probe lands (the map's cascade); sites
+		/// with no folder at all are only in the final set. Throws when both listings fail (nothing was learned).
 		/// </summary>
-		Task<IReadOnlyCollection<string>> GetLiveSiteIdsAsync(CancellationToken cancellationToken = default);
+		Task<IReadOnlyCollection<string>> GetLiveSiteIdsAsync(IProgress<SiteCheckResult>? progress = null, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Returns the site IDs that have any Level II data in the archive bucket over the UTC date(s)

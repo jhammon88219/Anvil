@@ -55,8 +55,8 @@
      ⚠️ THE CAR IS DISABLED WHILE THE MODE IS OFF, and the view model closes a window whose mode has just
      stopped (MapViewModel.OnTemporalModesChanged). So an unlit car can never be hiding an open window,
      which is what lets it read as a STATE rather than merely as a button.
-     ⚠️ EXCEPT WITH CarAlwaysLive. The bar's SITES key reuses this control for a key with NO mode: its square
-     latches the site explorer WINDOW (IsModeOn = window open) and its car opens the home/favorites FLYOUT
+     ⚠️ EXCEPT WITH CarAlwaysLive. The bar's ATLAS key reuses this control for a key with NO mode: its square
+     latches the Radar Atlas WINDOW (IsModeOn = window open) and its car opens the home/favorites FLYOUT
      (MainWindow drives IsPanelOpen), which must work whether the window is open or not. The three temporal
      keys leave it false, so the contract above still holds for them. (CarToolTip names the car per key.)
 
@@ -66,7 +66,7 @@
      accent in the bar that is not a plain "this key is lit" (the pane key's anchor cell was the first).
 
      ⚠️ THIS KEY IS NOT A SQUARE, and it is one of only two that aren't. Its MODE HALF is the shared
-     BarKeySide square, so its glyph and name match Sites and Settings exactly; the car is added beside it,
+     BarKeySide square, so its glyph and name match Atlas and Settings exactly; the car is added beside it,
      making the key BarKeySide + BarSideCarWidth wide. (The other exception is the pane key, whose mark is a
      wide picture of the map band.) Nothing here sets that total: the two halves declare their own widths
      and the Grid adds them up, so the number cannot drift out of step with its parts.

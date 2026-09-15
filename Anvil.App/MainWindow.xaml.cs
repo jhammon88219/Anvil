@@ -236,9 +236,9 @@ namespace Anvil
 			HomeKey.IsChecked = ViewModel.SiteFavorites.IsHomeOnMap;
 		}
 
-		// ===== The Sites key (split: explorer window | home/favorites flyout) =====
-		private void OnSitesKeyClick(object sender, RoutedEventArgs e) =>
-			ViewModel.IsSiteExplorerOpen = !ViewModel.IsSiteExplorerOpen;
+		// ===== The Atlas key (split: Atlas window | home/favorites flyout) =====
+		private void OnAtlasKeyClick(object sender, RoutedEventArgs e) =>
+			ViewModel.IsRadarAtlasOpen = !ViewModel.IsRadarAtlasOpen;
 
 		// The car's filled state mirrors the flyout BOTH ways: the car opens it, and a light-dismiss or a pick
 		// closes it, which has to un-fill the car. Nothing in a view model — a flyout is session-transient.
@@ -254,21 +254,21 @@ namespace Anvil
 			// The app pins its palette on the ROOT element, and a flyout's popup isn't under it — hand the
 			// body the root's theme each time it opens (a theme switch can happen between opens).
 			flyout.Opening += (_, _) => content.RequestedTheme = ((FrameworkElement)Content).ActualTheme;
-			flyout.Closed += (_, _) => SitesKey.IsPanelOpen = false;
+			flyout.Closed += (_, _) => AtlasKey.IsPanelOpen = false;
 			content.SitePicked += (_, _) => flyout.Hide();
-			content.OpenExplorerRequested += (_, _) =>
+			content.OpenAtlasRequested += (_, _) =>
 			{
 				flyout.Hide();
-				ViewModel.IsSiteExplorerOpen = true;
+				ViewModel.IsRadarAtlasOpen = true;
 			};
 
-			SitesKey.RegisterPropertyChangedCallback(SplitTemporalToggle.IsPanelOpenProperty, (_, _) =>
+			AtlasKey.RegisterPropertyChangedCallback(SplitTemporalToggle.IsPanelOpenProperty, (_, _) =>
 			{
-				if (SitesKey.IsPanelOpen && !flyout.IsOpen)
+				if (AtlasKey.IsPanelOpen && !flyout.IsOpen)
 				{
-					flyout.ShowAt(SitesKey);
+					flyout.ShowAt(AtlasKey);
 				}
-				else if (!SitesKey.IsPanelOpen && flyout.IsOpen)
+				else if (!AtlasKey.IsPanelOpen && flyout.IsOpen)
 				{
 					flyout.Hide();
 				}
@@ -526,7 +526,7 @@ namespace Anvil
 					MapControlsTier.TransformToVisual(Content).TransformPoint(new Windows.Foundation.Point(0, 0)).Y,
 				monitorMode: () => ViewModel.MonitorMode);
 			// ONE settings window with a tab strip — it absorbed the former App Settings, Map Controls and Dev
-			// Tools windows, which is why the bar's right cluster is down to Panes / Sites / Settings.
+			// Tools windows, which is why the bar's right cluster is down to Panes / Atlas / Settings.
 			// ⚠️ Every panel's size AND spot come from its anchor (WindowManager's PLACEMENT block) — there
 			// are no per-window sizes, and nothing sizes to its content any more.
 			// The dev VMs are handed over unconditionally; they are null in Release, where SettingsWindow
@@ -556,12 +556,12 @@ namespace Anvil
 				customChrome: true);
 			_windows.Register(
 				id: "sites",
-				isOpen: () => ViewModel.IsSiteExplorerOpen,
-				close: () => ViewModel.IsSiteExplorerOpen = false,
-				buildContent: () => new Controls.Windows.RadarSiteExplorerWindow { ViewModel = ViewModel },
-				title: "Radar Sites", anchor: WindowAnchor.Center,
-				keepAboveOwner: () => ViewModel.IsSiteExplorerOnTop,
-				isLocked: () => ViewModel.IsSiteExplorerLocked,
+				isOpen: () => ViewModel.IsRadarAtlasOpen,
+				close: () => ViewModel.IsRadarAtlasOpen = false,
+				buildContent: () => new Controls.Windows.RadarAtlasWindow { ViewModel = ViewModel },
+				title: "Radar Atlas", anchor: WindowAnchor.Center,
+				keepAboveOwner: () => ViewModel.IsRadarAtlasOnTop,
+				isLocked: () => ViewModel.IsRadarAtlasLocked,
 				customChrome: true);
 			// THREE windows, one per timeframe — one TemporalWindow class registered three times, differing
 			// only in Mode, title, size and which flags it reads. They are opened by the SETTINGS RAIL at the

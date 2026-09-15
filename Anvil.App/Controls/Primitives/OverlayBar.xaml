@@ -95,7 +95,7 @@
 
     <!-- Transparent root: only the tab, the shadows and the bar draw, so the map shows through beside
          them. This control is ONLY the chrome. Nothing floats above it in-window: every app-wide panel
-         (the three temporal windows, App Settings, Site Explorer, the Pipeline Console) is a real
+         (the three temporal windows, App Settings, Radar Atlas, the Pipeline Console) is a real
          top-level OS window owned by WindowManager. -->
     <Grid>
         <VisualStateManager.VisualStateGroups>

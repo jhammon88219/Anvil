@@ -7,6 +7,8 @@
 //
 //        ┌─┬────────┬─┐        LEFT square  .radar-site-swatch  = AVAILABILITY
 //        │█│  KTLX  │◗│                     green = data flowing · red (.offline) = nothing recent
+//                                                 grey (.unknown) = not checked yet (launch, just left PastCast)
+//                                                 a pass CASCADES: each key eases grey → colour as ITS check lands
 //        └─┴────────┴─┘        CENTRE       .radar-site-label    = the ICAO
 //         ▲     ▲    ▲         RIGHT bar    .radar-site-class    = NETWORK, and it MIRRORS the left
 //         │     │    └── nexrad ◗ (graphite) · tdwr ✈ (blue) · research ⚗ (violet)
@@ -66,7 +68,9 @@ let researchVisible = false;      // research/test radars (e.g. KCRI) are an opt
 let researchIds = new Set();      // ids flagged research (site.research) in the current list
 let tdwrVisible = false;          // Terminal Doppler Weather Radars (T***) are an opt-in extra layer
 let tdwrIds = new Set();          // ids flagged tdwr (site.tdwr) in the current list
-let radarSiteOffline = new Set(); // site ids with no recent data in the feed (red availability dot)
+let radarSiteOffline = new Set(); // site ids KNOWN to have no recent data (red availability square)
+let radarSiteUnknown = null;      // site ids not checked yet; null = no status push yet, so EVERY site is unknown (grey)
+let radarStatusReplayDay = false; // true while the status describes the PastCast replay day, not the live feed
 let siteCoords = {};              // id -> [lng, lat] (kept so the isolation filter can measure coverage)
 
 // Collision fan-out: when the opt-in TDWR/research keys would pile onto a neighbor at low zoom (the OKC
@@ -157,8 +161,13 @@ function ensureStyle() {
             align-self: stretch;
             width: 22px;
             background: #3fb950;
+            /* Eases a key grey → green / red as its site's check lands, so a pass reads as a cascade. */
+            transition: background-color .35s ease;
         }
         .radar-site-btn.offline .radar-site-swatch { background: #f85149; }
+        /* Not checked yet: grey, so a site is never green merely because nobody has looked. Same literal as
+           the host's SiteAvailabilityToBrushConverter (DATA, like the other two). */
+        .radar-site-btn.unknown .radar-site-swatch { background: #6e7681; }
 
         /* The ID text sits on the key face to the right of the square. */
         .radar-site-label { padding: 5px 9px; }
@@ -204,12 +213,18 @@ function ensureStyle() {
     document.head.appendChild(siteStyle);
 }
 
-// Applies a marker's availability (dot color via the .offline class) + tooltip from the offline set.
+// Applies a marker's availability (square color via .offline / .unknown) + tooltip from the pushed status.
+// ⚠️ The host (RadarViewModel's SITE AVAILABILITY block) pushes the SAME state the Atlas rows hold, so the
+// tooltip words match the Atlas's status pill.
 function applySiteStatus(el, id) {
-    const off = radarSiteOffline.has(id);
+    const unknown = radarSiteUnknown === null || radarSiteUnknown.has(id);
+    const off = !unknown && radarSiteOffline.has(id);
+    el.classList.toggle('unknown', unknown);
     el.classList.toggle('offline', off);
     const name = el.dataset.siteName || '';
-    el.title = name + (off ? ' · offline (no recent data)' : '');
+    el.title = name + (unknown ? ' · checking availability'
+        : off ? (radarStatusReplayDay ? ' · no data on the replay day' : ' · offline (no recent data)')
+        : '');
 }
 
 // ── Collision fan-out ───────────────────────────────────────────────────────────────────────────────
@@ -394,11 +409,32 @@ export function setIsolation(rings, radiusKm) {
     applyVisibility();
 }
 
-// Which sites are offline (array of ids). Re-styles existing markers.
+// Site availability from the host: { offline: [ids], unknown: [ids], replayDay: bool }. Re-styles existing
+// markers. A payload that can't be read leaves every site UNKNOWN (grey) — never green by default.
 export function setStatus(json) {
-    try { radarSiteOffline = new Set((typeof json === 'string') ? JSON.parse(json) : json); }
-    catch (e) { radarSiteOffline = new Set(); }
+    try {
+        const s = (typeof json === 'string') ? JSON.parse(json) : json;
+        radarSiteOffline = new Set((s && s.offline) || []);
+        radarSiteUnknown = new Set((s && s.unknown) || []);
+        radarStatusReplayDay = !!(s && s.replayDay);
+    } catch (e) {
+        radarSiteOffline = new Set();
+        radarSiteUnknown = null;
+        radarStatusReplayDay = false;
+    }
     Object.keys(radarMarkers).forEach(function (k) { applySiteStatus(radarMarkers[k], k); });
+}
+
+// ONE site's live result, the moment its check lands — a pass CASCADES across the map (grey keys easing to
+// green / red one by one; the swatch's colour transition does the easing). The pass's closing setStatus
+// reconciles everything, including sites the pass never probed individually.
+export function setOneStatus(id, state) {
+    if (radarSiteUnknown === null) radarSiteUnknown = new Set(Object.keys(radarMarkers)); // first result of a fresh page
+    radarSiteUnknown.delete(id);
+    if (state === 'offline') radarSiteOffline.add(id); else radarSiteOffline.delete(id);
+    radarStatusReplayDay = false; // per-site results only come from LIVE passes
+    const btn = radarMarkers[id];
+    if (btn) applySiteStatus(btn, id);
 }
 
 // No-op: the on-map markers no longer use the OS accent (the halo was removed — availability is a fixed

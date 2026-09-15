@@ -10,7 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace Anvil.ViewModels
 {
 	/// <summary>
-	/// View model for the Radar Site Explorer — a searchable/filterable master–detail browser over the
+	/// View model for the Radar Atlas — a searchable/filterable master–detail browser over the
 	/// whole radar network the app can access (operational WSR-88D, research/test, TDWR). A dedicated
 	/// subsystem VM constructed by the <see cref="MapViewModel"/> coordinator; it reuses existing state
 	/// rather than duplicating it:
@@ -25,14 +25,14 @@ namespace Anvil.ViewModels
 	/// site's latest-scan time and VCP/scan mode on demand via
 	/// <see cref="ILevel2RadarService.GetLatestScanAsync"/>.
 	/// </summary>
-	public sealed class RadarSiteExplorerViewModel : ObservableObject
+	public sealed class RadarAtlasViewModel : ObservableObject
 	{
 		private readonly RadarViewModel _radar;
 		private readonly MarkersViewModel _markers;
 		private readonly ILevel2RadarService _radarService;
 		private readonly RadarSiteFavoritesViewModel _favorites;
 
-		public RadarSiteExplorerViewModel(RadarViewModel radar, MarkersViewModel markers,
+		public RadarAtlasViewModel(RadarViewModel radar, MarkersViewModel markers,
 			ILevel2RadarService radarService, RadarSiteFavoritesViewModel favorites)
 		{
 			_radar = radar;
@@ -47,9 +47,18 @@ namespace Anvil.ViewModels
 			// Starring a site or moving home re-sections the list (Home / Favorites / All sites).
 			_favorites.PinnedChanged += (_, _) => RebuildFiltered();
 
+			// A status pass (or one site's evidence) can move a row across "Online only".
+			_radar.SiteAvailabilityChanged += (_, _) =>
+			{
+				if (_onlineOnly)
+				{
+					RebuildFiltered();
+				}
+			};
+
 			// For the site the loop is showing, our scan read-out IS the loop's — so re-raise it whenever the
 			// loop's frame time / mode / selection changes, and the two stay in lock-step (a new live frame
-			// updates both at once) instead of the explorer freezing at whatever it fetched on selection.
+			// updates both at once) instead of the Atlas freezing at whatever it fetched on selection.
 			_radar.PropertyChanged += (_, e) =>
 			{
 				if (e.PropertyName is nameof(RadarViewModel.NewestLoadedFrameTime)
@@ -63,6 +72,11 @@ namespace Anvil.ViewModels
 				if (e.PropertyName is nameof(RadarViewModel.SelectedRadarOption))
 				{
 					FollowRadarSelection();
+				}
+
+				if (e.PropertyName is nameof(RadarViewModel.IsPastEventMode))
+				{
+					OnPropertyChanged(nameof(OnlineOnlyLabel));
 				}
 
 				// Settings → Radar decides which networks exist in the list, same as on the map.
@@ -86,7 +100,7 @@ namespace Anvil.ViewModels
 
 		/// <summary>
 		/// Mirrors the map's radar pick into the list: whichever way a site gets selected (marker click, this
-		/// explorer, a saved event) the explorer shows THAT site, so opening it lands on the loaded radar.
+		/// Atlas, a saved event) the Atlas shows THAT site, so opening it lands on the loaded radar.
 		/// "None" leaves the list selection alone — clearing the radar isn't a reason to blank the detail.
 		/// </summary>
 		private void FollowRadarSelection()
@@ -144,6 +158,9 @@ namespace Anvil.ViewModels
 				}
 			}
 		}
+
+		/// <summary>The checkbox names what the status MEANS right now: the live feed, or PastCast's replay day.</summary>
+		public string OnlineOnlyLabel => _radar.IsPastEventMode ? "Data on replay day only" : "Online only";
 
 		private bool _favoritesOnly;
 
@@ -276,7 +293,6 @@ namespace Anvil.ViewModels
 		public string DetailName => _selectedSite?.Name ?? string.Empty;
 		public string DetailClassLabel => _selectedSite?.ClassLabel ?? string.Empty;
 		public string DetailCoords => _selectedSite?.Coords ?? string.Empty;
-		public string DetailStatusText => _selectedSite is null ? string.Empty : _selectedSite.StatusLabel;
 
 		/// <summary>Great-circle distance from the user-location marker (if any) to the selected site.</summary>
 		public string DetailDistanceText
@@ -291,7 +307,7 @@ namespace Anvil.ViewModels
 
 		// Scan info (latest scan time + VCP/scan mode). TWO sources, deliberately:
 		//   • The site the LOOP is showing — read straight off the radar VM. It already holds the exact
-		//     sweep time + mode, so the explorer and the Selected Site readout agree to the second and
+		//     sweep time + mode, so the Atlas and the Selected Site readout agree to the second and
 		//     advance together. (Re-fetching it would mean rebuilding the live frame — a ~8-12 s,
 		//     tens-of-MB chunks download per click, which would also clobber the shared live-frame cache.)
 		//   • Any OTHER site — fetched on demand (GetLatestScanAsync). Nothing is displaying a time for it,
@@ -379,6 +395,9 @@ namespace Anvil.ViewModels
 				else
 				{
 					_fetchedScan = scan;
+					// The newest scan (archive, or chunks when fresher) is authoritative evidence for this site's
+					// status — graded by the same rule as the pass, so the pill can't contradict this readout.
+					_radar.ReportSiteScan(row.Site, scan.ScanTime, canMarkOffline: true);
 				}
 				RaiseScan();
 			}
@@ -401,7 +420,7 @@ namespace Anvil.ViewModels
 
 		// ── Load on map ──────────────────────────────────────────────────────────────────────────
 		/// <summary>Loads the selected site's radar loop on the map (same pipeline a marker click uses),
-		/// flies to it, and closes the explorer. No-op with nothing selected.</summary>
+		/// flies to it, and closes the Atlas. No-op with nothing selected.</summary>
 		public void LoadOnMap()
 		{
 			if (!CanLoadOnMap || _selectedSite is null) return;
@@ -419,7 +438,6 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(DetailName));
 			OnPropertyChanged(nameof(DetailClassLabel));
 			OnPropertyChanged(nameof(DetailCoords));
-			OnPropertyChanged(nameof(DetailStatusText));
 			OnPropertyChanged(nameof(DetailDistanceText));
 		}
 

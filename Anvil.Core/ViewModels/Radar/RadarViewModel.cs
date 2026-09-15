@@ -333,9 +333,23 @@ namespace Anvil.ViewModels
 
 			Panes = panes;
 
-			// Observable rows (site + offline state) — the Site Explorer's list, and the one place the
-			// ~10-min status loop writes IsOffline so its dots and the on-map markers can't disagree.
+			// Observable rows (site + availability) — the Atlas's list and the flyout's. Their availability is
+			// written ONLY by the SITE AVAILABILITY block, which pushes the same state to the markers.
 			RadarSiteRows = _radarSiteProvider.GetSites().Select(s => new RadarSiteRow(s)).ToList();
+
+			// A loaded loop's newest frame is EVIDENCE for its own site (SITE AVAILABILITY block): a site whose
+			// loop just landed a fresh frame can't sit red for up to a 10-min pass. ⚠️ It may only mark a site
+			// ONLINE — a loop fills in older frames as it loads, so a transiently old "newest" must never flag a
+			// healthy site down. Going DOWN is left to the pass and the Atlas's authoritative scan fetch.
+			PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(NewestLoadedFrameTime)
+					&& _selectedRadarOption?.Site is { } site
+					&& NewestLoadedFrameTime is { } newest)
+				{
+					ReportSiteScan(site, newest, canMarkOffline: false);
+				}
+			};
 		}
 
 		// ===== Panes ====================================================================================
@@ -382,14 +396,14 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>
-		/// Observable rows (site + offline state). The Site Explorer filters a view over THESE instances
-		/// (<c>RadarSiteExplorerViewModel.FilteredSites</c>), and <c>SiteSweepViewModel</c> reads their
+		/// Observable rows (site + offline state). The Radar Atlas filters a view over THESE instances
+		/// (<c>RadarAtlasViewModel.FilteredSites</c>), and <c>SiteSweepViewModel</c> reads their
 		/// <c>IsOffline</c> to skip dead sites — so a row is shared state, not a private list model.
 		/// </summary>
 		/// <remarks>
 		/// ⚠️ There is NO second list and no selection mirror. A <c>SelectedSiteRow</c> property, a
 		/// <c>_syncingSelection</c> guard and a <c>_rowBySite</c> dictionary used to two-way bind the dock's
-		/// "Radar Sites" ListView; that list is gone, the Site Explorer owns its own <c>SelectedSite</c>,
+		/// "Radar Sites" ListView; that list is gone, the Radar Atlas owns its own <c>SelectedSite</c>,
 		/// and all three were DELETED. Selection has one source of truth, <see cref="SelectedRadarOption"/>.
 		/// </remarks>
 		public IReadOnlyList<RadarSiteRow> RadarSiteRows { get; }
@@ -413,7 +427,7 @@ namespace Anvil.ViewModels
 				}
 
 				// Trace every selection change. A spurious reload with NO preceding "siteClick" means the
-				// setter was driven programmatically (mode toggle / Site Explorer / a binding write-back).
+				// setter was driven programmatically (mode toggle / Radar Atlas / a binding write-back).
 				Services.RadarDiagnostics.Log("vm", "select",
 					("to", value?.Site?.Id ?? "none"), ("mode", _isPastEventMode ? "past" : "live"));
 
@@ -559,9 +573,11 @@ namespace Anvil.ViewModels
 				PastEventStatus = value ? "Pick a site, set a start time, then Load." : string.Empty;
 				// Leaving replay: restore the LIVE site availability promptly (the status loop skips its
 				// pushes while in past mode, so it wouldn't refresh the markers for up to ~10 min).
+				// ⚠️ The rows still hold the REPLAY DAY's availability — grey them first so replay-day dots are
+				// never read as live ones, even if the live pass fails.
 				if (!value)
 				{
-					_ = RefreshLiveSiteStatusAsync();
+					_ = ResetThenRefreshLiveSiteStatusAsync();
 				}
 			}
 		}
@@ -1692,7 +1708,7 @@ namespace Anvil.ViewModels
 
 		/// <summary>
 		/// Whether a site's NETWORK is switched on — the two opt-in toggles above (operational sites always are).
-		/// ⚠️ The ONE rule every site LIST follows, not just the map markers: the site explorer and the Sites
+		/// ⚠️ The ONE rule every site LIST follows, not just the map markers: the Radar Atlas and the Atlas
 		/// flyout / Home key hide a hidden network's sites too, so turning TDWRs off can't leave TMCI one click
 		/// away in a list while its marker is gone. It never unloads a loop that is already showing.
 		/// </summary>
@@ -1813,50 +1829,210 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		// One live-availability pass: flag sites with no data in the live feed as "down". Skipped while
-		// in Past Event mode — there the markers reflect the chosen date's availability instead (see
-		// ApplyPastAvailabilityAsync), so we mustn't overwrite it with the live set.
+		// ===== SITE AVAILABILITY — the ONE writer of RadarSiteRow.Availability + the marker status push =====
+		// Everything that shows whether a site is up reads what this block writes: the on-map key's square, the
+		// Atlas's dot / status pill / "Online only" filter, the Atlas flyout dot, the dev sweep's skip list.
+		// Evidence from three places lands here and is graded by ONE rule (RadarSiteStatus.IsFresh): the 10-min
+		// archive pass, a scan time the Atlas fetched, and a loaded loop's newest frame.
+		// ⚠️ Don't write a row's availability anywhere else — two writers is how a list and the map disagree.
+
+		/// <summary>Raised after availability changes (a pass, a reset, or one site's evidence), so filtered
+		/// lists can re-filter.</summary>
+		public event EventHandler? SiteAvailabilityChanged;
+
+		// The running pass. ⚠️ _sitePassId drops a result from a pass that has been superseded (a PastCast exit
+		// starts a new one mid-loop) — and Progress<T> POSTS, so a report can land after its pass returned.
+		private int _sitePassId;
+		private bool _isSiteCheckRunning;
+		private int _sitesChecked;
+
+		/// <summary>True while a live availability pass is running (the map is cascading).</summary>
+		public bool IsSiteCheckRunning
+		{
+			get => _isSiteCheckRunning;
+			private set => SetProperty(ref _isSiteCheckRunning, value);
+		}
+
+		/// <summary>Sites whose result has landed in the running pass, out of <see cref="SiteCheckTotal"/>. Sites
+		/// with no archive folder at all aren't probed one by one, so this jumps to the total when the pass ends.</summary>
+		public int SitesChecked
+		{
+			get => _sitesChecked;
+			private set => SetProperty(ref _sitesChecked, value);
+		}
+
+		public int SiteCheckTotal => RadarSiteRows.Count;
+
+		private bool _isSiteCheckAnnounced;
+
+		/// <summary>Whether the running pass is worth ANNOUNCING (the map's site-check toast): it began with sites
+		/// still unchecked — the launch pass, or the one after leaving PastCast. The 10-min refreshes run silently.</summary>
+		public bool IsSiteCheckAnnounced
+		{
+			get => _isSiteCheckAnnounced;
+			private set => SetProperty(ref _isSiteCheckAnnounced, value);
+		}
+
+		/// <summary>Sites currently known up / down (for the "site check complete" summary).</summary>
+		public int SitesOnline => RadarSiteRows.Count(r => r.Availability == SiteAvailability.Online);
+		public int SitesOffline => RadarSiteRows.Count(r => r.Availability == SiteAvailability.Offline);
+
+		/// <summary>Raised when a live pass ENDS: <c>true</c> = completed (counts are final), <c>false</c> = it
+		/// failed or was cut short (entering PastCast).</summary>
+		public event EventHandler<bool>? SiteCheckFinished;
+
+		// One live pass. Skipped in PastCast, where availability is the REPLAY DAY's (ApplyPastAvailabilityAsync).
+		// Each site lands the moment its probe does (OnSiteChecked → one marker), then the whole set reconciles.
+		// ⚠️ A failed pass keeps what we already knew — the service throws on a total listing failure rather
+		// than returning "nothing is live" and turning every site red.
 		private async Task RefreshLiveSiteStatusAsync()
 		{
 			if (_isPastEventMode)
 			{
 				return;
 			}
+
+			var pass = ++_sitePassId;
+			SitesChecked = 0;
+			// Decided BEFORE IsSiteCheckRunning flips, so the toast sees it when it reacts to that flip.
+			IsSiteCheckAnnounced = RadarSiteRows.Any(r => r.Availability == SiteAvailability.Unknown);
+			IsSiteCheckRunning = true;
+			var completed = false;
 			try
 			{
-				var live = await _radarService.GetLiveSiteIdsAsync();
-				if (!_isPastEventMode)
+				// Constructed HERE, on the UI thread, so every report is posted back to it.
+				var progress = new Progress<SiteCheckResult>(result => OnSiteChecked(pass, result));
+				var live = await _radarService.GetLiveSiteIdsAsync(progress);
+				if (!_isPastEventMode && pass == _sitePassId)
 				{
-					await ApplySiteAvailabilityAsync(live);
+					await ApplySiteAvailabilityAsync(live, replayDay: false);
+					completed = true;
 				}
 			}
-			catch
+			catch (Exception ex)
 			{
-				// Best effort: a failed status check just leaves the markers as they are.
+				Services.RadarDiagnostics.Log("vm", "site.status.failed", ("error", ex.GetType().Name));
+			}
+			finally
+			{
+				if (pass == _sitePassId)
+				{
+					if (completed)
+					{
+						SitesChecked = SiteCheckTotal;
+						OnPropertyChanged(nameof(SitesOnline));
+						OnPropertyChanged(nameof(SitesOffline));
+					}
+					IsSiteCheckRunning = false;
+					SiteCheckFinished?.Invoke(this, completed);
+				}
 			}
 		}
 
-		// Renders the given set of AVAILABLE site IDs as normal and the rest as "down" — on the on-map
-		// markers and the list rows. Shared by the live loop and the past-event availability pass.
-		private async Task ApplySiteAvailabilityAsync(IReadOnlyCollection<string> availableIds)
+		// One site's result, mid-pass: its row and its ONE marker, so the map cascades. Rows and marker change
+		// together here exactly as they do in ApplySiteAvailabilityAsync — the one-writer rule still holds.
+		private void OnSiteChecked(int pass, SiteCheckResult result)
 		{
-			var available = new HashSet<string>(availableIds, StringComparer.OrdinalIgnoreCase);
-			var offline = _radarSiteProvider.GetSites()
-				.Select(s => s.Id)
-				.Where(id => !available.Contains(id))
-				.ToList();
-			// These awaits resume on the UI thread, so updating the observable rows is safe.
-			var offlineSet = new HashSet<string>(offline, StringComparer.OrdinalIgnoreCase);
-			foreach (var row in RadarSiteRows)
+			if (pass != _sitePassId || !_isSiteCheckRunning || _isPastEventMode)
 			{
-				row.IsOffline = offlineSet.Contains(row.Id);
+				return;
 			}
+			SitesChecked++;
+
+			var row = RadarSiteRows.FirstOrDefault(r => string.Equals(r.Id, result.SiteId, StringComparison.OrdinalIgnoreCase));
+			var next = result.IsLive ? SiteAvailability.Online : SiteAvailability.Offline;
+			if (row is null || (row.Availability == next && !row.IsReplayDay))
+			{
+				return;
+			}
+			row.SetAvailability(next, isReplayDay: false);
 			if (_isMapReady)
 			{
-				await _mapService.SetRadarSitesStatusAsync(System.Text.Json.JsonSerializer.Serialize(offline));
+				_ = _mapService.SetRadarSiteStatusAsync(row.Id, result.IsLive ? "online" : "offline");
 			}
-			Services.RadarDiagnostics.Log("vm", "site.status", ("offline", offline.Count),
-				("ids", offline.Count is > 0 and <= 20 ? string.Join(",", offline) : null));
+		}
+
+		// Leaving PastCast: grey every site ("Checking…") until the live pass lands.
+		private async Task ResetThenRefreshLiveSiteStatusAsync()
+		{
+			foreach (var row in RadarSiteRows)
+			{
+				row.SetAvailability(SiteAvailability.Unknown, isReplayDay: false);
+			}
+			await PushSiteStatusAsync();
+			SiteAvailabilityChanged?.Invoke(this, EventArgs.Empty);
+			await RefreshLiveSiteStatusAsync();
+		}
+
+		// A whole pass: the given AVAILABLE ids are online, every other site offline. replayDay says which
+		// question was answered (live feed vs. had data on the PastCast day), and the rows label it.
+		private async Task ApplySiteAvailabilityAsync(IReadOnlyCollection<string> availableIds, bool replayDay)
+		{
+			var available = new HashSet<string>(availableIds, StringComparer.OrdinalIgnoreCase);
+			// These awaits resume on the UI thread, so updating the observable rows is safe.
+			foreach (var row in RadarSiteRows)
+			{
+				row.SetAvailability(available.Contains(row.Id) ? SiteAvailability.Online : SiteAvailability.Offline, replayDay);
+			}
+			await PushSiteStatusAsync();
+			SiteAvailabilityChanged?.Invoke(this, EventArgs.Empty);
+
+			// ⚠️ Always NAME the ids (capped): the old "only when ≤ 20" gate left a 22-site outage unreadable.
+			var offline = RadarSiteRows.Where(r => r.IsOffline).Select(r => r.Id).ToList();
+			Services.RadarDiagnostics.Log("vm", "site.status",
+				("scope", replayDay ? "replay-day" : "live"), ("offline", offline.Count),
+				("ids", string.Join(",", offline.Take(80))));
+		}
+
+		/// <summary>
+		/// One piece of evidence for one site: its newest scan time, graded by <see cref="RadarSiteStatus.IsFresh"/>
+		/// — the same rule as the pass. Live mode only (a replay-day status isn't about the live feed).
+		/// <paramref name="canMarkOffline"/> is false for evidence that can be transiently old (a loop mid-load).
+		/// </summary>
+		internal void ReportSiteScan(RadarSite site, DateTimeOffset newestScanUtc, bool canMarkOffline)
+		{
+			if (_isPastEventMode)
+			{
+				return;
+			}
+			var row = RadarSiteRows.FirstOrDefault(r => r.Site == site);
+			if (row is null)
+			{
+				return;
+			}
+
+			var fresh = RadarSiteStatus.IsFresh(newestScanUtc, DateTimeOffset.UtcNow);
+			if (!fresh && !canMarkOffline)
+			{
+				return;
+			}
+			var next = fresh ? SiteAvailability.Online : SiteAvailability.Offline;
+			if (row.Availability == next && !row.IsReplayDay)
+			{
+				return;
+			}
+
+			Services.RadarDiagnostics.Log("vm", "site.status.evidence",
+				("site", site.Id), ("to", next.ToString()), ("scanUtc", newestScanUtc.ToString("O")));
+			row.SetAvailability(next, isReplayDay: false);
+			_ = PushSiteStatusAsync();
+			SiteAvailabilityChanged?.Invoke(this, EventArgs.Empty);
+		}
+
+		// The markers get the SAME state the rows hold — offline, not-yet-checked, and which question it answers.
+		private Task PushSiteStatusAsync()
+		{
+			if (!_isMapReady)
+			{
+				return Task.CompletedTask; // the first pass runs after map-ready and pushes then
+			}
+			var payload = new
+			{
+				offline = RadarSiteRows.Where(r => r.Availability == SiteAvailability.Offline).Select(r => r.Id).ToList(),
+				unknown = RadarSiteRows.Where(r => r.Availability == SiteAvailability.Unknown).Select(r => r.Id).ToList(),
+				replayDay = RadarSiteRows.Any(r => r.IsReplayDay),
+			};
+			return _mapService.SetRadarSitesStatusAsync(System.Text.Json.JsonSerializer.Serialize(payload));
 		}
 
 		// Past Event Viewer: gray out sites that had no data on the window's UTC date(s), so you can see
@@ -1869,7 +2045,7 @@ namespace Anvil.ViewModels
 				var available = await _radarService.GetSiteIdsForDateAsync(startUtc, endUtc);
 				if (_isPastEventMode)
 				{
-					await ApplySiteAvailabilityAsync(available);
+					await ApplySiteAvailabilityAsync(available, replayDay: true);
 				}
 			}
 			catch

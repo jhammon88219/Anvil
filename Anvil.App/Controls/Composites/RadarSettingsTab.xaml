@@ -6,7 +6,7 @@
        │    [ ] Show TDWRs                                    │
        │    [ ] Show research radars                          │
        │  ⌄  Home site                                        │
-       │    Home site: KTLX · Norman                          │  ← set in the site explorer, not here
+       │    Home site: KTLX · Norman                          │  ← set in the Radar Atlas, not here
        │    [ ] Load home site on launch                      │  ← PERSISTED, default off
        └──────────────────────────────────────────────────────┘
 
@@ -76,7 +76,7 @@
             </Grid>
         </Expander>
 
-        <!-- The home site is PICKED in the site explorer (where you can see what you're choosing); this only
+        <!-- The home site is PICKED in the Radar Atlas (where you can see what you're choosing); this only
              shows it and holds the one launch preference. -->
         <Expander Grid.Row="1" Header="Home site" IsExpanded="True"
                   Style="{StaticResource SectionExpanderStyle}">
