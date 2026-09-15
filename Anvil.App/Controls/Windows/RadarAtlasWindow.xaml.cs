@@ -67,10 +67,6 @@ namespace Anvil.Controls.Windows
 		public static Microsoft.UI.Xaml.Media.Brush StatusBrush(Anvil.Models.SiteAvailability availability) =>
 			SiteAvailabilityToBrushConverter.For(availability);
 
-		// The row's ICAO + name + home mark sit INSIDE the status block, so their brush follows the fill.
-		public static Microsoft.UI.Xaml.Media.Brush StatusInk(Anvil.Models.SiteAvailability availability) =>
-			SiteAvailabilityToBrushConverter.InkFor(availability);
-
 		// The selection follows the map's radar site, which can be far down the list — keep it on screen,
 		// both when the window opens onto it and when a marker click moves it while open.
 		private void OnSiteListLoaded(object sender, RoutedEventArgs e) => ScrollToSelection((ListView)sender);

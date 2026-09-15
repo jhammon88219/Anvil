@@ -10,11 +10,11 @@
        [ Search ICAO or name…    ] [All networks ▾] [x] Online only [x] Favorites only
        ┌── list (360px) ─────────────┐   detail (scrolls, capped 760 wide, left-aligned)
        │ HOME                        │   KTLX        (● Online) (NEXRAD) [★] [⌂ Home site] [On map]
-       │[KTLX ⌂ Norman       ] ◗ ☆ │   Norman                     ← a row is a KEY: status block HOLDS the name | network bar | ☆
+       │██ KTLX ⌂ Norman       ◗ ☆ │   Norman                     ← a row is a KEY: status SQUARE | name | network bar | ☆
        │ FAVORITES · 2               │   ───────────────────────────────────────────────────────────── hairline
-       │[TMCI Kansas City    ] ✈ ★ │   LATEST SCAN   12:06 PM (4 min ago)     ┌──────────────────┐
+       │██ TMCI Kansas City    ✈ ★ │   LATEST SCAN   12:06 PM (4 min ago)     ┌──────────────────┐
        │ ALL SITES · 201             │   SCAN MODE     VCP 35 · clear-air      │  [cam]           │ ← PLACEHOLDER
-       │[KABR Aberdeen       ] ◗ ☆ │   COORDINATES   35.333, -97.278         │  Site photo      │   240×135
+       │██ KABR Aberdeen       ◗ ☆ │   COORDINATES   35.333, -97.278         │  Site photo      │   240×135
        │ …                           │   DISTANCE      142 mi from your loc.   └──────────────────┘
        └─────────────────────────────┘
 
@@ -25,9 +25,8 @@
      header act on the selected site (RadarSiteFavoritesViewModel). Home is one site: setting it moves it.
 
      ROWS ARE KEYS, in the map key's vocabulary without copying it: a card per row (transparent centre at rest,
-     lifted on hover), the STATUS block on the left
-     holding the ICAO + name (one width for every row — it fills what the fixed network bar + star leave; text in a per-status ink for
-     contrast — dark on green/red, white on grey), the NETWORK bar just left of the star (neutral ◗ NEXRAD / blue ✈ TDWR / violet ⚗ research,
+     lifted on hover), the STATUS block a true square
+     (width == row height) on the left, the NETWORK bar just left of the star (neutral ◗ NEXRAD / blue ✈ TDWR / violet ⚗ research,
      the key's own glyphs as paths). Selected = elevated face + thin accent stroke — quiet on purpose; the map
      key's bright inverted face stays on the MAP only.
 
@@ -265,37 +264,34 @@
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:RadarSiteRow">
-                                    <!-- The STATUS block holds the ICAO + name and FILLS the star column, so every row's block
-                                         is the SAME width whatever the name's length (the network bar is fixed and the star
-                                         button's width never varies). A name too long for it trims. -->
+                                    <!-- ⚠️ The status column's WIDTH == the row's MinHeight (50), so the colour block is a
+                                         true square. Change one, change both. -->
                                     <Grid MinHeight="50">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>    <!-- status block: ICAO + name -->
+                                            <ColumnDefinition Width="50"/>   <!-- status square (== MinHeight) -->
+                                            <ColumnDefinition Width="*"/>    <!-- ICAO + name -->
                                             <ColumnDefinition Width="40"/>   <!-- network bar (22 px glyph) -->
                                             <ColumnDefinition Width="Auto"/> <!-- favorite -->
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- STATUS — the map key's colours (same literals), text in the INK that reads on
-                                             that fill (dark on green/red, white on grey — StatusInk). The name line is the
-                                             same ink at reduced opacity, not a theme brush (it must read on DATA colour). -->
-                                        <Border Grid.Column="0" Margin="0,0,6,0" CornerRadius="5"
-                                                Background="{x:Bind Availability, Converter={StaticResource AvailabilityToBrush}, Mode=OneWay}">
-                                            <StackPanel Margin="12,5" VerticalAlignment="Center">
-                                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                                    <TextBlock Text="{x:Bind Id}" FontWeight="Bold" FontSize="15"
-                                                               Foreground="{x:Bind win:RadarAtlasWindow.StatusInk(Availability), Mode=OneWay}"/>
-                                                    <FontIcon Glyph="&#xE80F;" FontSize="12" VerticalAlignment="Center"
-                                                              Foreground="{x:Bind win:RadarAtlasWindow.StatusInk(Availability), Mode=OneWay}"
-                                                              Visibility="{x:Bind win:RadarAtlasWindow.ShowIf(IsHome), Mode=OneWay}"/>
-                                                </StackPanel>
-                                                <TextBlock Text="{x:Bind Name}" FontSize="12" FontWeight="SemiBold"
-                                                           TextTrimming="CharacterEllipsis" Opacity="0.8"
-                                                           Foreground="{x:Bind win:RadarAtlasWindow.StatusInk(Availability), Mode=OneWay}"/>
+                                        <!-- STATUS — the map key's left zone: a full-height SQUARE, the same literals. -->
+                                        <Border Grid.Column="0" CornerRadius="5,0,0,5"
+                                                Background="{x:Bind Availability, Converter={StaticResource AvailabilityToBrush}, Mode=OneWay}"/>
+
+                                        <StackPanel Grid.Column="1" Margin="12,5" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{x:Bind Id}" FontWeight="SemiBold" FontSize="15"/>
+                                                <FontIcon Glyph="&#xE80F;" FontSize="12" VerticalAlignment="Center"
+                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                          Visibility="{x:Bind win:RadarAtlasWindow.ShowIf(IsHome), Mode=OneWay}"/>
                                             </StackPanel>
-                                        </Border>
+                                            <TextBlock Text="{x:Bind Name}" FontSize="12"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        </StackPanel>
 
                                         <!-- Favorite star: toggles without selecting the row (the Button takes the click). -->
-                                        <Button Grid.Column="2" VerticalAlignment="Center"
+                                        <Button Grid.Column="3" VerticalAlignment="Center"
                                                 Padding="8,4" MinWidth="0" MinHeight="0"
                                                 Background="Transparent" BorderThickness="0"
                                                 Click="OnRowFavoriteClick"
@@ -309,7 +305,7 @@
                                              violet for TDWR / research, each with the key's own glyph (the SVG paths from
                                              radar-sites.js CLASS_GLYPH, redrawn as XAML). Mid-row, so square corners and no
                                              divider hairline. -->
-                                        <Grid Grid.Column="1" ToolTipService.ToolTip="{x:Bind ClassLabel}">
+                                        <Grid Grid.Column="2" ToolTipService.ToolTip="{x:Bind ClassLabel}">
                                             <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"/>
                                             <Border Background="{x:Bind win:RadarAtlasWindow.NetworkBrush(Site.Class)}"/>
 
