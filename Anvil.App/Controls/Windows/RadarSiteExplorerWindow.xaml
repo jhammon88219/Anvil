@@ -7,16 +7,22 @@
      and ViewModel.IsSiteExplorerOpen for its own visibility/close.
 
        Radar Sites   118 of 204                       [lock][pin]   ← own title + live count
-       [ Search ICAO or name…    ] [All networks ▾] [x] Online only
+       [ Search ICAO or name…    ] [All networks ▾] [x] Online only [x] Favorites only
        ┌── list (360px) ─────────────┐   detail (scrolls, capped 760 wide, left-aligned)
-       │ ● KTLX           Operational│   KTLX                    (● Online) (Operational) [Load on map]
-       │   Oklahoma City             │   Norman
-       │ ● KCRI              Research│   ───────────────────────────────────────────────────────────── hairline
-       │   ROC test bed              │   LATEST SCAN   12:06 PM (4 min ago)     ┌──────────────────┐
-       │ ○ KLIX           Operational│   SCAN MODE     VCP 35 · clear-air      │  [cam]           │ ← PLACEHOLDER
-       │   New Orleans               │   COORDINATES   35.333, -97.278         │  Site photo      │   240×135
+       │ HOME                        │   KTLX        (● Online) (Operational) [★] [⌂ Home site] [On map]
+       │ ● KTLX ⌂       Operational ☆│   Norman
+       │ FAVORITES · 2               │   ───────────────────────────────────────────────────────────── hairline
+       │ ● KFWS         Operational ★│   LATEST SCAN   12:06 PM (4 min ago)     ┌──────────────────┐
+       │ ALL SITES · 201             │   SCAN MODE     VCP 35 · clear-air      │  [cam]           │ ← PLACEHOLDER
+       │ ○ KABR         Operational ☆│   COORDINATES   35.333, -97.278         │  Site photo      │   240×135
        │ …                           │   DISTANCE      142 mi from your loc.   └──────────────────┘
        └─────────────────────────────┘
+
+     SECTIONS (Home / Favorites · n / All sites · n) come from a grouped CollectionViewSource over
+     SiteExplorer.SiteGroups. ⚠️ Its Source is set in code when ViewModel lands (OnViewModelChanged) — a CVS
+     can't x:Bind — and it must land BEFORE the SelectedItem binding runs, which the DP callback order gives.
+     A row sits in ONE section. The row's ☆/★ toggles favorite without selecting the row; [★] and [⌂] in the
+     header act on the selected site (RadarSiteFavoritesViewModel). Home is one site: setting it moves it.
 
      The header owns the action: the button reads "On map" (disabled) while the selected site IS the
      map's site. Chips are neutral pills; only the status dot carries colour. The DISTANCE row collapses
@@ -44,12 +50,16 @@
              xmlns:ctl="using:Anvil.Controls.Primitives"
              xmlns:conv="using:Anvil.Converters"
              xmlns:vm="using:Anvil.ViewModels"
+             xmlns:win="using:Anvil.Controls.Windows"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
     <UserControl.Resources>
         <conv:OfflineToBrushConverter x:Key="OfflineToBrush"/>
+
+        <!-- The list's sections. Source set in code-behind (see the header). -->
+        <CollectionViewSource x:Key="SiteGroupsSource" IsSourceGrouped="True"/>
 
         <!-- Small caps field label in the detail pane. -->
         <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
@@ -99,6 +109,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBox Grid.Column="0"
                              PlaceholderText="Search ICAO or name…"
@@ -108,12 +119,18 @@
                               ToolTipService.ToolTip="Filter by network">
                         <ComboBoxItem Content="All networks"/>
                         <ComboBoxItem Content="Operational"/>
-                        <ComboBoxItem Content="Research"/>
-                        <ComboBoxItem Content="TDWR"/>
+                        <!-- Greyed while Settings → Radar hides the network (the list hides its sites too). -->
+                        <ComboBoxItem Content="Research"
+                                      IsEnabled="{x:Bind ViewModel.SiteExplorer.IsResearchFilterEnabled, Mode=OneWay}"/>
+                        <ComboBoxItem Content="TDWR"
+                                      IsEnabled="{x:Bind ViewModel.SiteExplorer.IsTdwrFilterEnabled, Mode=OneWay}"/>
                     </ComboBox>
                     <CheckBox Grid.Column="2" Content="Online only"
                               VerticalAlignment="Center"
                               IsChecked="{x:Bind ViewModel.SiteExplorer.OnlineOnly, Mode=TwoWay}"/>
+                    <CheckBox Grid.Column="3" Content="Favorites only"
+                              VerticalAlignment="Center"
+                              IsChecked="{x:Bind ViewModel.SiteExplorer.FavoritesOnly, Mode=TwoWay}"/>
                 </Grid>
 
                 <!-- Body: site list (left) | detail (right). Side + bottom inset. -->
@@ -130,11 +147,26 @@
                     <Border Grid.Column="0"
                             BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                             BorderThickness="1" CornerRadius="8">
-                        <ListView ItemsSource="{x:Bind ViewModel.SiteExplorer.FilteredSites, Mode=OneWay}"
+                        <ListView ItemsSource="{Binding Source={StaticResource SiteGroupsSource}}"
                                   SelectedItem="{x:Bind ViewModel.SiteExplorer.SelectedSite, Mode=TwoWay}"
                                   SelectionMode="Single"
                                   Loaded="OnSiteListLoaded"
                                   SelectionChanged="OnSiteListSelectionChanged">
+                            <ListView.GroupStyle>
+                                <GroupStyle>
+                                    <GroupStyle.HeaderContainerStyle>
+                                        <Style TargetType="ListViewHeaderItem">
+                                            <Setter Property="MinHeight" Value="0"/>
+                                            <Setter Property="Padding" Value="10,10,10,4"/>
+                                        </Style>
+                                    </GroupStyle.HeaderContainerStyle>
+                                    <GroupStyle.HeaderTemplate>
+                                        <DataTemplate x:DataType="vm:RadarSiteGroup">
+                                            <TextBlock Text="{x:Bind Header}" Style="{StaticResource FieldLabelStyle}"/>
+                                        </DataTemplate>
+                                    </GroupStyle.HeaderTemplate>
+                                </GroupStyle>
+                            </ListView.GroupStyle>
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
                                     <Setter Property="Padding" Value="10,6"/>
@@ -149,12 +181,18 @@
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <!-- Status dot (online/offline). -->
                                         <Ellipse Grid.Column="0" Width="9" Height="9" VerticalAlignment="Center"
                                                  Fill="{x:Bind IsOffline, Converter={StaticResource OfflineToBrush}, Mode=OneWay}"/>
                                         <StackPanel Grid.Column="1">
-                                            <TextBlock Text="{x:Bind Id}" FontWeight="SemiBold" FontSize="13"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{x:Bind Id}" FontWeight="SemiBold" FontSize="13"/>
+                                                <FontIcon Glyph="&#xE80F;" FontSize="11" VerticalAlignment="Center"
+                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                          Visibility="{x:Bind win:RadarSiteExplorerWindow.ShowIf(IsHome), Mode=OneWay}"/>
+                                            </StackPanel>
                                             <TextBlock Text="{x:Bind Name}" FontSize="11"
                                                        TextTrimming="CharacterEllipsis"
                                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
@@ -162,6 +200,16 @@
                                         <TextBlock Grid.Column="2" Text="{x:Bind ClassLabel}" FontSize="10"
                                                    VerticalAlignment="Center"
                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        <!-- Favorite star: toggles without selecting the row (the Button takes the click). -->
+                                        <Button Grid.Column="3" VerticalAlignment="Center"
+                                                Padding="6,4" MinWidth="0" MinHeight="0"
+                                                Background="Transparent" BorderThickness="0"
+                                                Click="OnRowFavoriteClick"
+                                                ToolTipService.ToolTip="{x:Bind win:RadarSiteExplorerWindow.FavoriteToolTip(IsFavorite), Mode=OneWay}">
+                                            <FontIcon FontSize="13"
+                                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                      Glyph="{x:Bind win:RadarSiteExplorerWindow.StarGlyph(IsFavorite), Mode=OneWay}"/>
+                                        </Button>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -198,9 +246,11 @@
                             <Grid Grid.Row="0" ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/> <!-- status chip -->
+                                    <ColumnDefinition Width="Auto"/> <!-- network chip -->
+                                    <ColumnDefinition Width="Auto"/> <!-- favorite -->
+                                    <ColumnDefinition Width="Auto"/> <!-- home -->
+                                    <ColumnDefinition Width="Auto"/> <!-- load -->
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Column="0" Margin="0,0,16,0">
@@ -231,8 +281,24 @@
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </Border>
 
-                                <Button Grid.Column="3" VerticalAlignment="Center" MinWidth="120"
+                                <Button Grid.Column="3" VerticalAlignment="Center"
                                         Margin="8,0,0,0"
+                                        Click="OnDetailFavoriteClick"
+                                        ToolTipService.ToolTip="{x:Bind win:RadarSiteExplorerWindow.FavoriteToolTip(ViewModel.SiteExplorer.SelectedSite.IsFavorite), Mode=OneWay}">
+                                    <FontIcon FontSize="16"
+                                              Glyph="{x:Bind win:RadarSiteExplorerWindow.StarGlyph(ViewModel.SiteExplorer.SelectedSite.IsFavorite), Mode=OneWay}"/>
+                                </Button>
+
+                                <Button Grid.Column="4" VerticalAlignment="Center"
+                                        Click="OnDetailHomeClick"
+                                        ToolTipService.ToolTip="{x:Bind win:RadarSiteExplorerWindow.HomeToolTip(ViewModel.SiteExplorer.SelectedSite.IsHome), Mode=OneWay}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon FontSize="14" Glyph="&#xE80F;"/>
+                                        <TextBlock Text="{x:Bind win:RadarSiteExplorerWindow.HomeLabel(ViewModel.SiteExplorer.SelectedSite.IsHome), Mode=OneWay}"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Grid.Column="5" VerticalAlignment="Center" MinWidth="120"
                                         Click="OnLoadClick"
                                         Style="{StaticResource AccentButtonStyle}"
                                         Content="{x:Bind ViewModel.SiteExplorer.LoadButtonText, Mode=OneWay}"

@@ -75,7 +75,8 @@ namespace Anvil.ViewModels
 			StormReports = new StormReportsViewModel(mapService, stormReportService, Radar, dispatcher, loggerFactory.CreateLogger<StormReportsViewModel>());
 			Markers = new MarkersViewModel(mapService, locationService);
 			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
-			SiteExplorer = new RadarSiteExplorerViewModel(Radar, Markers, radarService, mapService);
+			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
+			SiteExplorer = new RadarSiteExplorerViewModel(Radar, Markers, radarService, SiteFavorites);
 			SavedEvents = new SavedEventsViewModel(savedEventLibrary, Radar, mapService);
 			StateIso = new StateIsolationViewModel(mapService, settingsService);
 			PipelineConsole = new PipelineConsoleViewModel(mapService, Radar); // PIPELINE CONSOLE (remove with the feature)
@@ -195,6 +196,10 @@ namespace Anvil.ViewModels
 		/// <summary>The Radar Site Explorer subsystem view model (searchable/filterable browser over the
 		/// whole radar network + per-site detail). Opened by the "Sites" button on the bar.</summary>
 		public RadarSiteExplorerViewModel SiteExplorer { get; }
+
+		/// <summary>The home radar site + favorite sites (the bar's Home key, the Sites key's flyout, the
+		/// explorer's pinned sections, load-home-on-launch).</summary>
+		public RadarSiteFavoritesViewModel SiteFavorites { get; }
 
 		/// <summary>PastCast's saved events — the curated built-ins plus the user's own, each a set of radar
 		/// legs that fill the Timeframe pickers and select a site (see SavedEventsViewModel).</summary>
@@ -1055,6 +1060,8 @@ namespace Anvil.ViewModels
 			await PastOutlook.OnMapsReadyAsync();
 			await StormReports.OnMapsReadyAsync();
 			await StateIso.OnMapsReadyAsync();
+			// LAST: load-home-on-launch flies the camera, and an isolation replay above would override it.
+			await SiteFavorites.OnMapsReadyAsync();
 		}
 
 		/// <summary>

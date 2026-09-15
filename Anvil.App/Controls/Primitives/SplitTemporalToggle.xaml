@@ -55,6 +55,10 @@
      ⚠️ THE CAR IS DISABLED WHILE THE MODE IS OFF, and the view model closes a window whose mode has just
      stopped (MapViewModel.OnTemporalModesChanged). So an unlit car can never be hiding an open window,
      which is what lets it read as a STATE rather than merely as a button.
+     ⚠️ EXCEPT WITH CarAlwaysLive. The bar's SITES key reuses this control for a key with NO mode: its square
+     latches the site explorer WINDOW (IsModeOn = window open) and its car opens the home/favorites FLYOUT
+     (MainWindow drives IsPanelOpen), which must work whether the window is open or not. The three temporal
+     keys leave it false, so the contract above still holds for them. (CarToolTip names the car per key.)
 
      ⚠️ ACCENT MEANS TWO THINGS INSIDE THIS ONE KEY: the STROKE means "this mode is on", the CAR FILL means
      "this mode's window is open". Everywhere else in the bar accent means only the former. It is deliberate
@@ -374,7 +378,6 @@
 
         <ToggleButton x:Name="CarKey" Grid.Column="1"
                       Style="{StaticResource SideCarStyle}"
-                      ToolTipService.ToolTip="Open settings for this temporal mode"
                       Checked="OnCarToggled"
                       Unchecked="OnCarToggled">
             <!-- Three dots, stacked VERTICALLY, authored in a 6x26 box. The Viewbox is given only a

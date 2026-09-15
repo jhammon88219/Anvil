@@ -227,6 +227,54 @@ namespace Anvil
 
 		// (The Location key's tooltip + click handler moved with the key to MapControlsStrip.)
 
+		// ===== The Home key =====
+		// ⚠️ RE-ASSERT after the click. The ToggleButton has already flipped itself, and when the click changes
+		// nothing (home already showing) no property change arrives to put the key back.
+		private void OnHomeKeyClick(object sender, RoutedEventArgs e)
+		{
+			ViewModel.SiteFavorites.GoHome();
+			HomeKey.IsChecked = ViewModel.SiteFavorites.IsHomeOnMap;
+		}
+
+		// ===== The Sites key (split: explorer window | home/favorites flyout) =====
+		private void OnSitesKeyClick(object sender, RoutedEventArgs e) =>
+			ViewModel.IsSiteExplorerOpen = !ViewModel.IsSiteExplorerOpen;
+
+		// The car's filled state mirrors the flyout BOTH ways: the car opens it, and a light-dismiss or a pick
+		// closes it, which has to un-fill the car. Nothing in a view model — a flyout is session-transient.
+		private void InitializeSitesFlyout()
+		{
+			var content = new FavoriteSitesFlyoutContent { ViewModel = ViewModel.SiteFavorites };
+			var flyout = new Flyout
+			{
+				Content = content,
+				Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.TopEdgeAlignedRight,
+			};
+
+			// The app pins its palette on the ROOT element, and a flyout's popup isn't under it — hand the
+			// body the root's theme each time it opens (a theme switch can happen between opens).
+			flyout.Opening += (_, _) => content.RequestedTheme = ((FrameworkElement)Content).ActualTheme;
+			flyout.Closed += (_, _) => SitesKey.IsPanelOpen = false;
+			content.SitePicked += (_, _) => flyout.Hide();
+			content.OpenExplorerRequested += (_, _) =>
+			{
+				flyout.Hide();
+				ViewModel.IsSiteExplorerOpen = true;
+			};
+
+			SitesKey.RegisterPropertyChangedCallback(SplitTemporalToggle.IsPanelOpenProperty, (_, _) =>
+			{
+				if (SitesKey.IsPanelOpen && !flyout.IsOpen)
+				{
+					flyout.ShowAt(SitesKey);
+				}
+				else if (!SitesKey.IsPanelOpen && flyout.IsOpen)
+				{
+					flyout.Hide();
+				}
+			});
+		}
+
 		// Register one temporal mode's settings window. All three are the SAME TemporalWindow class; only the
 		// mode, the caption and the size differ, so the wiring lives here once rather than three times.
 		//
@@ -456,6 +504,7 @@ namespace Anvil
 			};
 
 			ApplyRailSeating();
+			InitializeSitesFlyout();
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs
 			// THE TITLE BAR block above). Hooked straight after InitializeComponent so the very first layout

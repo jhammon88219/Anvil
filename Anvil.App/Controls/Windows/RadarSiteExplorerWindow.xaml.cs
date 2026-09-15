@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Data;
 using Anvil.Converters;
 using Anvil.ViewModels;
 
@@ -27,7 +28,27 @@ namespace Anvil.Controls.Windows
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(RadarSiteExplorerWindow), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(RadarSiteExplorerWindow), new PropertyMetadata(null, OnViewModelChanged));
+
+		// The grouped list's CollectionViewSource can't x:Bind, so its Source is handed over here. ⚠️ This
+		// metadata callback runs before x:Bind's own DP listener, so the sections exist by the time the
+		// SelectedItem binding pushes the map-synced site — otherwise the ListView would null it out.
+		private static void OnViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+		{
+			var window = (RadarSiteExplorerWindow)d;
+			((CollectionViewSource)window.Resources["SiteGroupsSource"]).Source =
+				(e.NewValue as MapViewModel)?.SiteExplorer.SiteGroups;
+		}
+
+		// Favorite / home presentation. STATIC so the row template (x:DataType RadarSiteRow) can call them too.
+		// E734 FavoriteStar / E735 FavoriteStarFill — ⚠️ unverified codepoints, check on first run.
+		public static string StarGlyph(bool favorite) => favorite ? "" : "";
+		public static string FavoriteToolTip(bool favorite) => favorite ? "Remove from favorites" : "Add to favorites";
+		public static string HomeLabel(bool isHome) => isHome ? "Home site" : "Set as home";
+		public static string HomeToolTip(bool isHome) => isHome
+			? "Clear the home site"
+			: "Make this the home site — the bar's Home key loads it";
+		public static Visibility ShowIf(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
 		// x:Bind helpers (bool → Visibility) — no value-converter lookup needed on a UserControl.
 		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
@@ -50,6 +71,31 @@ namespace Anvil.Controls.Windows
 			if (list.SelectedItem is { } item)
 			{
 				list.ScrollIntoView(item);
+			}
+		}
+
+		// A row's star. The row is the Button's DataContext (the item template's).
+		private void OnRowFavoriteClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is not null && (sender as FrameworkElement)?.DataContext is RadarSiteRow row)
+			{
+				ViewModel.SiteFavorites.ToggleFavorite(row);
+			}
+		}
+
+		private void OnDetailFavoriteClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel?.SiteExplorer.SelectedSite is { } row)
+			{
+				ViewModel.SiteFavorites.ToggleFavorite(row);
+			}
+		}
+
+		private void OnDetailHomeClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel?.SiteExplorer.SelectedSite is { } row)
+			{
+				ViewModel.SiteFavorites.ToggleHome(row);
 			}
 		}
 

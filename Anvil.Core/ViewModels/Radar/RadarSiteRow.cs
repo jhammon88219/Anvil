@@ -46,5 +46,24 @@ namespace Anvil.ViewModels
 				}
 			}
 		}
+
+		private bool _isFavorite;
+
+		/// <summary>Starred by the user. Written ONLY by <see cref="RadarSiteFavoritesViewModel"/>, which also
+		/// persists it.</summary>
+		public bool IsFavorite
+		{
+			get => _isFavorite;
+			set => SetProperty(ref _isFavorite, value);
+		}
+
+		private bool _isHome;
+
+		/// <summary>The user's home site (at most one row). Written ONLY by <see cref="RadarSiteFavoritesViewModel"/>.</summary>
+		public bool IsHome
+		{
+			get => _isHome;
+			set => SetProperty(ref _isHome, value);
+		}
 	}
 }

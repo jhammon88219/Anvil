@@ -30,18 +30,22 @@ namespace Anvil.ViewModels
 		private readonly RadarViewModel _radar;
 		private readonly MarkersViewModel _markers;
 		private readonly ILevel2RadarService _radarService;
-		private readonly IMapService _mapService;
+		private readonly RadarSiteFavoritesViewModel _favorites;
 
 		public RadarSiteExplorerViewModel(RadarViewModel radar, MarkersViewModel markers,
-			ILevel2RadarService radarService, IMapService mapService)
+			ILevel2RadarService radarService, RadarSiteFavoritesViewModel favorites)
 		{
 			_radar = radar;
 			_markers = markers;
 			_radarService = radarService;
-			_mapService = mapService;
+			_favorites = favorites;
 
 			FilteredSites = new ObservableCollection<RadarSiteRow>();
+			SiteGroups = new ObservableCollection<RadarSiteGroup>();
 			RebuildFiltered();
+
+			// Starring a site or moving home re-sections the list (Home / Favorites / All sites).
+			_favorites.PinnedChanged += (_, _) => RebuildFiltered();
 
 			// For the site the loop is showing, our scan read-out IS the loop's — so re-raise it whenever the
 			// loop's frame time / mode / selection changes, and the two stay in lock-step (a new live frame
@@ -59,6 +63,21 @@ namespace Anvil.ViewModels
 				if (e.PropertyName is nameof(RadarViewModel.SelectedRadarOption))
 				{
 					FollowRadarSelection();
+				}
+
+				// Settings → Radar decides which networks exist in the list, same as on the map.
+				if (e.PropertyName is nameof(RadarViewModel.ShowTdwrs) or nameof(RadarViewModel.ShowResearchRadars))
+				{
+					OnPropertyChanged(nameof(IsTdwrFilterEnabled));
+					OnPropertyChanged(nameof(IsResearchFilterEnabled));
+					if ((_selectedClassIndex == 2 && !_radar.ShowResearchRadars) || (_selectedClassIndex == 3 && !_radar.ShowTdwrs))
+					{
+						SelectedClassIndex = 0; // the filter pointed at a network that just vanished (rebuilds)
+					}
+					else
+					{
+						RebuildFiltered();
+					}
 				}
 			};
 
@@ -126,16 +145,41 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>The filtered site rows shown in the list (shared instances from the radar VM).</summary>
+		private bool _favoritesOnly;
+
+		/// <summary>When set, shows only the home site and favorites.</summary>
+		public bool FavoritesOnly
+		{
+			get => _favoritesOnly;
+			set
+			{
+				if (SetProperty(ref _favoritesOnly, value))
+				{
+					RebuildFiltered();
+				}
+			}
+		}
+
+		/// <summary>The filtered site rows, FLAT and in display order (shared instances from the radar VM). The
+		/// list binds <see cref="SiteGroups"/>; this is the membership the selection guard checks.</summary>
 		public ObservableCollection<RadarSiteRow> FilteredSites { get; }
 
+		/// <summary>The same rows as the list's SECTIONS (Home / Favorites / All sites) for a grouped
+		/// CollectionViewSource. Empty sections are omitted; a row is in exactly one.</summary>
+		public ObservableCollection<RadarSiteGroup> SiteGroups { get; }
+
 		/// <summary>Header count, e.g. "42 of 203 sites".</summary>
-		public string ResultCountText => $"{FilteredSites.Count} of {_radar.RadarSiteRows.Count} sites";
+		public string ResultCountText =>
+			$"{FilteredSites.Count} of {_radar.RadarSiteRows.Count(r => _radar.IsNetworkShown(r.Site))} sites";
+
+		/// <summary>The network filter's TDWR / Research entries grey out while Settings → Radar hides that network.</summary>
+		public bool IsTdwrFilterEnabled => _radar.ShowTdwrs;
+		public bool IsResearchFilterEnabled => _radar.ShowResearchRadars;
 
 		private void RebuildFiltered()
 		{
 			var search = _searchText.Trim();
-			IEnumerable<RadarSiteRow> q = _radar.RadarSiteRows;
+			IEnumerable<RadarSiteRow> q = _radar.RadarSiteRows.Where(r => _radar.IsNetworkShown(r.Site));
 
 			q = _selectedClassIndex switch
 			{
@@ -150,6 +194,11 @@ namespace Anvil.ViewModels
 				q = q.Where(r => !r.IsOffline);
 			}
 
+			if (_favoritesOnly)
+			{
+				q = q.Where(r => r.IsHome || r.IsFavorite);
+			}
+
 			if (search.Length > 0)
 			{
 				q = q.Where(r =>
@@ -157,10 +206,29 @@ namespace Anvil.ViewModels
 					r.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
 			}
 
+			// Sections. Favorites keep the order they were starred in (the flyout's order); a row lands in ONE
+			// section — a ListView can't hold the same item twice.
+			var matched = q.ToHashSet();
+			var home = _favorites.PinnedSites.Where(r => r.IsHome && matched.Contains(r)).ToList();
+			var favorites = _favorites.PinnedSites.Where(r => !r.IsHome && matched.Contains(r)).ToList();
+			var rest = _radar.RadarSiteRows.Where(r => matched.Contains(r) && !r.IsHome && !r.IsFavorite).ToList();
+
+			// ⚠️ FilteredSites clears FIRST: clearing the groups drops the ListView's selection, and its null echo
+			// is only ignored while the selected row is absent from FilteredSites (see SelectedSite).
 			FilteredSites.Clear();
-			foreach (var row in q)
+			SiteGroups.Clear();
+			AddSection("Home", home);
+			AddSection($"Favorites · {favorites.Count}", favorites);
+			AddSection($"All sites · {rest.Count}", rest);
+
+			void AddSection(string header, List<RadarSiteRow> rows)
 			{
-				FilteredSites.Add(row);
+				if (rows.Count == 0) return;
+				foreach (var row in rows)
+				{
+					FilteredSites.Add(row);
+				}
+				SiteGroups.Add(new RadarSiteGroup(header, rows));
 			}
 			OnPropertyChanged(nameof(ResultCountText));
 			// The Clear() dropped the ListView's selection (its null echo was ignored — see SelectedSite);
@@ -336,15 +404,9 @@ namespace Anvil.ViewModels
 		/// flies to it, and closes the explorer. No-op with nothing selected.</summary>
 		public void LoadOnMap()
 		{
-			if (!CanLoadOnMap || _selectedSite?.Site is not { } site) return;
+			if (!CanLoadOnMap || _selectedSite is null) return;
 
-			var option = _radar.RadarOptions.FirstOrDefault(o => o.Site == site);
-			if (option is not null)
-			{
-				_radar.SelectedRadarOption = option;
-				// List-picked sites aren't on-screen like a marker click, so recenter on the site.
-				_ = _mapService.FlyToAsync(site.Longitude, site.Latitude, 7);
-			}
+			_favorites.LoadOnMap(_selectedSite);
 		}
 
 		// Re-raises all detail-pane bindings after a selection change.

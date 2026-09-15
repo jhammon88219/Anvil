@@ -1,4 +1,5 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using System.Collections.Generic;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Anvil.Services
 {
@@ -224,6 +225,37 @@ namespace Anvil.Services
 		{
 			get => _mapControlsStripVisible;
 			set => SetProperty(ref _mapControlsStripVisible, value);
+		}
+
+		// ── Home + favorite radar sites (RadarSiteFavoritesViewModel) ─────────────────────────────────
+		// ⚠️ All stored as ICAO ids ("KTLX"), never list positions — the site list is regenerated and an index
+		// would silently name a different radar.
+
+		private string _homeSiteId = "";
+		/// <summary>The home radar site's ICAO; empty = none set. Loaded by the bar's Home key.</summary>
+		public string HomeSiteId
+		{
+			get => _homeSiteId;
+			set => SetProperty(ref _homeSiteId, value ?? "");
+		}
+
+		private List<string> _favoriteSiteIds = new();
+		/// <summary>Favorite radar site ICAOs, in the order they were starred (the flyout's order).</summary>
+		/// <remarks>⚠️ REPLACE the list, never mutate it: auto-save listens to PropertyChanged, which only fires
+		/// when a NEW list is assigned — an Add on the existing one would never reach disk.</remarks>
+		public List<string> FavoriteSiteIds
+		{
+			get => _favoriteSiteIds;
+			set => SetProperty(ref _favoriteSiteIds, value ?? new());
+		}
+
+		private bool _loadHomeOnLaunch;
+		/// <summary>Start the home site's live loop when the app opens (Settings → Radar). Default OFF — the
+		/// app has always launched with no radar, and that stays the first-run behaviour.</summary>
+		public bool LoadHomeOnLaunch
+		{
+			get => _loadHomeOnLaunch;
+			set => SetProperty(ref _loadHomeOnLaunch, value);
 		}
 	}
 }

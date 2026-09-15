@@ -27,6 +27,7 @@ namespace Anvil.Controls.Primitives
 			// flip had to re-run this method by hand — and it snapshotted the APPLICATION's theme, which is
 			// the wrong one (see the ⚠️ block in the XAML). They are {ThemeResource} setters in visual states
 			// now, so the framework re-resolves them against this element on a switch, unasked.
+			ApplyContent();
 			ApplyState();
 		}
 
@@ -96,6 +97,29 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(IsPanelOpen), typeof(bool), typeof(SplitTemporalToggle),
 				new PropertyMetadata(false, (d, _) => ((SplitTemporalToggle)d).ApplyState()));
 
+		/// <summary>Keep the car enabled even while the mode is off — for a key with no mode (the bar's Sites
+		/// key, whose car opens a flyout). See the ⚠️ in the XAML header.</summary>
+		public bool CarAlwaysLive
+		{
+			get => (bool)GetValue(CarAlwaysLiveProperty);
+			set => SetValue(CarAlwaysLiveProperty, value);
+		}
+
+		public static readonly DependencyProperty CarAlwaysLiveProperty =
+			DependencyProperty.Register(nameof(CarAlwaysLive), typeof(bool), typeof(SplitTemporalToggle),
+				new PropertyMetadata(false, (d, _) => ((SplitTemporalToggle)d).ApplyState()));
+
+		/// <summary>Tooltip for the side car. Defaults to the temporal wording all three mode keys share.</summary>
+		public string CarToolTip
+		{
+			get => (string)GetValue(CarToolTipProperty);
+			set => SetValue(CarToolTipProperty, value);
+		}
+
+		public static readonly DependencyProperty CarToolTipProperty =
+			DependencyProperty.Register(nameof(CarToolTip), typeof(string), typeof(SplitTemporalToggle),
+				new PropertyMetadata("Open settings for this temporal mode", (d, _) => ((SplitTemporalToggle)d).ApplyContent()));
+
 		// The mode half raises the click and then re-asserts its own lit state from the view model's answer.
 		//
 		// ⚠️ The re-assert is load-bearing. A ToggleButton has ALREADY flipped its own IsChecked by the time
@@ -125,6 +149,7 @@ namespace Anvil.Controls.Primitives
 			ModeGlyph.Glyph = Glyph;
 			NameText.Text = ModeName;
 			ToolTipService.SetToolTip(ModeKey, ModeToolTip);
+			ToolTipService.SetToolTip(CarKey, CarToolTip);
 		}
 
 		// One place that pushes every piece of state onto the key, so no caller has to remember which part of
@@ -135,7 +160,9 @@ namespace Anvil.Controls.Primitives
 
 			// THE rule: no mode, no window. The car is dead while the key is unlit, which is what makes a
 			// dark car mean "there is nothing open here" rather than "you haven't found the button yet".
-			CarKey.IsEnabled = IsModeOn;
+			// (CarAlwaysLive is the one exception — a key with no mode at all.)
+			var carLive = IsModeOn || CarAlwaysLive;
+			CarKey.IsEnabled = carLive;
 
 			if ((CarKey.IsChecked == true) != IsPanelOpen)
 			{
@@ -148,7 +175,7 @@ namespace Anvil.Controls.Primitives
 			// this element's ActualTheme rather than the application's.
 			VisualStateManager.GoToState(this, IsModeOn ? "ModeOn" : "ModeOff", false);
 			VisualStateManager.GoToState(this,
-				!IsModeOn ? "MarkDead" : IsPanelOpen ? "MarkOnAccent" : "MarkLive", false);
+				!carLive ? "MarkDead" : IsPanelOpen ? "MarkOnAccent" : "MarkLive", false);
 		}
 
 	}

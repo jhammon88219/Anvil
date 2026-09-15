@@ -1691,6 +1691,19 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>
+		/// Whether a site's NETWORK is switched on — the two opt-in toggles above (operational sites always are).
+		/// ⚠️ The ONE rule every site LIST follows, not just the map markers: the site explorer and the Sites
+		/// flyout / Home key hide a hidden network's sites too, so turning TDWRs off can't leave TMCI one click
+		/// away in a list while its marker is gone. It never unloads a loop that is already showing.
+		/// </summary>
+		public bool IsNetworkShown(RadarSite site) => site.Class switch
+		{
+			RadarSiteClass.Tdwr => ShowTdwrs,
+			RadarSiteClass.Research => ShowResearchRadars,
+			_ => true,
+		};
+
+		/// <summary>
 		/// Whether the TDWR markers (the FAA Terminal Doppler Weather Radar `T***` network) are shown —
 		/// the "Show TDWRs" toggle. Off by default (an opt-in extra layer, mirroring RadarScope).
 		/// Independent of the operational "Show Sites" and "Show Research Radars" toggles and of any

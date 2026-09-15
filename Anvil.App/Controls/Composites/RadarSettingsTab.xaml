@@ -5,6 +5,9 @@
        │  ⌄  Radar sites                                      │
        │    [ ] Show TDWRs                                    │
        │    [ ] Show research radars                          │
+       │  ⌄  Home site                                        │
+       │    Home site: KTLX · Norman                          │  ← set in the site explorer, not here
+       │    [ ] Load home site on launch                      │  ← PERSISTED, default off
        └──────────────────────────────────────────────────────┘
 
      WHY THIS IS NOT IN THE MAP TAB: these are radar CONTENT drawn over the basemap, and they are GLOBAL —
@@ -48,6 +51,7 @@
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- radar sites -->
+            <RowDefinition Height="Auto"/> <!-- home site -->
         </Grid.RowDefinitions>
 
         <Expander Grid.Row="0" Header="Radar sites" IsExpanded="True"
@@ -69,6 +73,28 @@
                           Content="Show research radars"
                           IsChecked="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"
                           ToolTipService.ToolTip="Show research/test radar markers such as KCRI (ROC test bed, Norman OK)"/>
+            </Grid>
+        </Expander>
+
+        <!-- The home site is PICKED in the site explorer (where you can see what you're choosing); this only
+             shows it and holds the one launch preference. -->
+        <Expander Grid.Row="1" Header="Home site" IsExpanded="True"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- current home -->
+                    <RowDefinition Height="Auto"/> <!-- load on launch -->
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Margin="4,0,0,0"
+                           Text="{x:Bind ViewModel.SiteFavorites.HomeSiteSummary, Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                <!-- PERSISTED (AppSettings.LoadHomeOnLaunch), default off. -->
+                <CheckBox Grid.Row="1" Margin="4,0,0,0"
+                          Content="Load home site on launch"
+                          IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
+                          ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
             </Grid>
         </Expander>
 
