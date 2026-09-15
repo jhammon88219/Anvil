@@ -10,7 +10,7 @@
        [ Search ICAO or name…    ] [All networks ▾] [x] Online only [x] Favorites only
        ┌── list (360px) ─────────────┐   detail (scrolls, capped 760 wide, left-aligned)
        │ HOME                        │   KTLX        (● Online) (NEXRAD) [★] [⌂ Home site] [On map]
-       │██ KTLX ⌂ Norman       ◗ ☆ │   Norman                     ← a row is a KEY: status SQUARE | name | network bar | ☆
+       │██ KTLX ⌂ Norman       ◗ ☆ │   Norman                     ← a row is a KEY: status BAR (½ square) | name | network bar | ☆
        │ FAVORITES · 2               │   ───────────────────────────────────────────────────────────── hairline
        │██ TMCI Kansas City    ✈ ★ │   LATEST SCAN   12:06 PM (4 min ago)     ┌──────────────────┐
        │ ALL SITES · 201             │   SCAN MODE     VCP 35 · clear-air      │  [cam]           │ ← PLACEHOLDER
@@ -25,8 +25,8 @@
      header act on the selected site (RadarSiteFavoritesViewModel). Home is one site: setting it moves it.
 
      ROWS ARE KEYS, in the map key's vocabulary without copying it: a card per row (transparent centre at rest,
-     lifted on hover), the STATUS block a true square
-     (width == row height) on the left, the NETWORK bar just left of the star (neutral ◗ NEXRAD / blue ✈ TDWR / violet ⚗ research,
+     lifted on hover), the STATUS block a tall bar
+     (width == half the row height) on the left, the NETWORK bar just left of the star (neutral ◗ NEXRAD / blue ✈ TDWR / violet ⚗ research,
      the key's own glyphs as paths). Selected = elevated face + thin accent stroke — quiet on purpose; the map
      key's bright inverted face stays on the MAP only.
 
@@ -187,7 +187,7 @@
                                  wash + accent pill would fight the card. SELECTED is deliberately QUIET — the
                                  elevated surface with a thin accent stroke (the bar's "lit" vocabulary), NOT the
                                  map key's bright inverted face, which reads as a flashlight in a list.
-                                 ⚠️ A Border doesn't clip its children to its corners, so the status square and the
+                                 ⚠️ A Border doesn't clip its children to its corners, so the status bar and the
                                  network bar carry their own inner radii (5 = card 6 − its 1 px stroke). -->
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
@@ -206,7 +206,7 @@
                                                     <VisualStateManager.VisualStateGroups>
                                                         <VisualStateGroup x:Name="CommonStates">
                                                             <!-- RESTING: transparent centre, no stroke (the Card's own defaults) —
-                                                                 only the status square and the network bar read, so a long list
+                                                                 only the status bar and the network bar read, so a long list
                                                                  stays light instead of a wall of filled cards. -->
                                                             <VisualState x:Name="Normal"/>
                                                             <!-- HOVER LIFTS: the raised surface fills in and the card rises 1 px. -->
@@ -264,17 +264,17 @@
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:RadarSiteRow">
-                                    <!-- ⚠️ The status column's WIDTH == the row's MinHeight (50), so the colour block is a
-                                         true square. Change one, change both. -->
+                                    <!-- The status column is HALF the row's MinHeight (25 of 50), so the colour block is a
+                                         2:1 tall bar. Keep the ratio if you retune either. -->
                                     <Grid MinHeight="50">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="50"/>   <!-- status square (== MinHeight) -->
+                                            <ColumnDefinition Width="25"/>   <!-- status bar (½ MinHeight) -->
                                             <ColumnDefinition Width="*"/>    <!-- ICAO + name -->
                                             <ColumnDefinition Width="40"/>   <!-- network bar (22 px glyph) -->
                                             <ColumnDefinition Width="Auto"/> <!-- favorite -->
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- STATUS — the map key's left zone: a full-height SQUARE, the same literals. -->
+                                        <!-- STATUS — the map key's left zone: a full-height half-width bar, the same literals. -->
                                         <Border Grid.Column="0" CornerRadius="5,0,0,5"
                                                 Background="{x:Bind Availability, Converter={StaticResource AvailabilityToBrush}, Mode=OneWay}"/>
 
