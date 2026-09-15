@@ -24,7 +24,8 @@
      A row sits in ONE section. The row's ☆/★ toggles favorite without selecting the row; [★] and [⌂] in the
      header act on the selected site (RadarSiteFavoritesViewModel). Home is one site: setting it moves it.
 
-     ROWS ARE KEYS, in the map key's vocabulary without copying it: a raised card per row, the STATUS square
+     ROWS ARE KEYS, in the map key's vocabulary without copying it: a card per row (transparent centre at rest,
+     lifted on hover), the STATUS square
      full height on the left, the NETWORK bar on the right (neutral ◗ NEXRAD / blue ✈ TDWR / violet ⚗ research,
      the key's own glyphs as paths). Selected = elevated face + thin accent stroke — quiet on purpose; the map
      key's bright inverted face stays on the MAP only.
@@ -179,7 +180,9 @@
                                     </GroupStyle.HeaderTemplate>
                                 </GroupStyle>
                             </ListView.GroupStyle>
-                            <!-- ROWS ARE KEYS — each item is a small raised card in the map key's vocabulary.
+                            <!-- ROWS ARE KEYS — each item is a small card in the map key's vocabulary: TRANSPARENT at
+                                 rest (only its square, bar and hairline show — filled cards made the list read crowded),
+                                 LIFTED on hover (raised fill + 1 px rise), and a PERMANENT selected state.
                                  ⚠️ The container is RETEMPLATED (no ListViewItemPresenter): the stock selection
                                  wash + accent pill would fight the card. SELECTED is deliberately QUIET — the
                                  elevated surface with a thin accent stroke (the bar's "lit" vocabulary), NOT the
@@ -197,19 +200,30 @@
                                         <Setter.Value>
                                             <ControlTemplate TargetType="ListViewItem">
                                                 <Grid>
+                                                    <Grid.RenderTransform>
+                                                        <TranslateTransform x:Name="Lift"/>
+                                                    </Grid.RenderTransform>
                                                     <VisualStateManager.VisualStateGroups>
                                                         <VisualStateGroup x:Name="CommonStates">
+                                                            <!-- RESTING: transparent centre (the Card's own default) — only the
+                                                                 status square, the network bar and a hairline read, so a long list
+                                                                 stays light instead of a wall of filled cards. -->
                                                             <VisualState x:Name="Normal"/>
+                                                            <!-- HOVER LIFTS: the raised surface fills in and the card rises 1 px. -->
                                                             <VisualState x:Name="PointerOver">
                                                                 <VisualState.Setters>
-                                                                    <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                                                    <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+                                                                    <Setter Target="Lift.Y" Value="-1"/>
                                                                 </VisualState.Setters>
                                                             </VisualState>
                                                             <VisualState x:Name="Pressed">
                                                                 <VisualState.Setters>
-                                                                    <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                                                    <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
                                                                 </VisualState.Setters>
                                                             </VisualState>
+                                                            <!-- SELECTED IS PERMANENT: the same elevated face + accent stroke in all
+                                                                 three selected states, so hovering or pressing a selected row never
+                                                                 changes how it looks. -->
                                                             <VisualState x:Name="Selected">
                                                                 <VisualState.Setters>
                                                                     <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
@@ -218,7 +232,7 @@
                                                             </VisualState>
                                                             <VisualState x:Name="PointerOverSelected">
                                                                 <VisualState.Setters>
-                                                                    <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedHoverBrush}"/>
+                                                                    <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
                                                                     <Setter Target="Card.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
                                                                 </VisualState.Setters>
                                                             </VisualState>
@@ -233,7 +247,7 @@
 
                                                     <Border x:Name="Card"
                                                             CornerRadius="6" BorderThickness="1"
-                                                            Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
+                                                            Background="Transparent"
                                                             BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                                                     <ContentPresenter Margin="1"
                                                                       Content="{TemplateBinding Content}"
