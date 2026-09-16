@@ -8,10 +8,10 @@
 
        Radar Atlas   118 of 204                       [lock][pin]   ← own title + live count
        [ Search ICAO or name…    ] [All networks ▾] [x] Online only [x] Favorites only
-       ┌── list (360px) ─────────────┐   detail (scrolls, capped 760 wide, left-aligned)
+       ┌── list (360px, NO outline) ──┐←32→ detail (scrolls, capped 760 wide, LEFT-aligned, 24 below search)
        │ HOME                        │   KTLX   (● Online ⑦) (NEXRAD ⑦) [★] [⌂ Home site] [On map]
        │██ KTLX ⌂ Norman       ◗ ☆ │   Norman                     ← a row is a KEY: status BAR (½ square) | name | network bar | ☆
-       │ FAVORITES · 2               │   ───────────────────────────────────────────────────── hairline
+       │ FAVORITES · 2               │
        │██ TMCI Kansas City    ✈ ★ │   ┌─ site card ──────────────────────────────────────────┐
        │ ALL SITES · 201             │   │ LATEST SCAN  12:06 PM (4 min ago)  ┌──────────────┐ │
        │██ KABR Aberdeen       ◗ ☆ │   │ SCAN MODE    VCP 35 · clear-air    │ [cam]        │ │ ← PLACEHOLDER
@@ -155,20 +155,24 @@
                               IsChecked="{x:Bind ViewModel.RadarAtlas.FavoritesOnly, Mode=TwoWay}"/>
                 </Grid>
 
-                <!-- Body: site list (left) | detail (right). Side + bottom inset. -->
+                <!-- Body: site list (left) | detail (right). Side + bottom inset.
+                     ⚠️ THE 32 IS THE SEPARATION. There is no rule and no outline between the two regions —
+                     the gutter alone divides them, which is why it can't be trimmed back toward the 14 it
+                     used to be. Space between regions must beat the space inside one (the list's own rows
+                     sit 6 apart) or the eye can't tell where the list ends. -->
                 <Grid Grid.Row="2"
                       Margin="16,0,16,14"
-                      ColumnSpacing="14">
+                      ColumnSpacing="32">
                     
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="360"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Left: the filtered site list. -->
+                    <!-- Left: the filtered site list. NO outline — the gutter separates it from the detail,
+                         and a box around rows that are already cards read as a frame inside a frame. -->
                     <Border Grid.Column="0"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                            BorderThickness="1" CornerRadius="8">
+                            BorderThickness="0" CornerRadius="8">
                         <ListView ItemsSource="{Binding Source={StaticResource SiteGroupsSource}}"
                                   SelectedItem="{x:Bind ViewModel.RadarAtlas.SelectedSite, Mode=TwoWay}"
                                   SelectionMode="Single"
@@ -355,8 +359,10 @@
                         </ListView>
                     </Border>
 
-                    <!-- Right: detail pane for the selected site. -->
-                    <Grid Grid.Column="1">
+                    <!-- Right: detail pane for the selected site. Drops 14 further than the list so it clears
+                         the search row by 24 in total (the parent's RowSpacing of 10 plus this) — the detail is
+                         a fresh region and shouldn't start hard against the filters. -->
+                    <Grid Grid.Column="1" Margin="0,14,0,0">
                         <!-- Empty hint when nothing is selected. -->
                         <TextBlock Text="Select a site to see its details."
                                    VerticalAlignment="Center" 
@@ -378,7 +384,6 @@
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/> <!-- header: title | chips | action -->
-                                <RowDefinition Height="Auto"/> <!-- hairline -->
                                 <RowDefinition Height="Auto"/> <!-- site card: fields | photo -->
                                 <RowDefinition Height="Auto"/> <!-- stat strip -->
                             </Grid.RowDefinitions>
@@ -451,14 +456,11 @@
                                         IsEnabled="{x:Bind ViewModel.RadarAtlas.CanLoadOnMap, Mode=OneWay}"/>
                             </Grid>
 
-                            <Rectangle Grid.Row="1" Height="1"
-                                       Fill="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
                             <!-- SITE CARD — the precise form of the facts (a clock time, the full mode line),
                                  with the photo INSIDE the same card on an inset surface. ⚠️ The photo gets a
                                  surface change, NOT its own border: a bordered box inside a bordered card reads
                                  as clutter, and the surface fences it just as well. -->
-                            <Border Grid.Row="2" CornerRadius="8" Padding="16" BorderThickness="1"
+                            <Border Grid.Row="1" CornerRadius="8" Padding="16" BorderThickness="1"
                                     BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                                 <Grid ColumnSpacing="24">
@@ -550,7 +552,7 @@
                                  and the hint's sentence always agree.
                                  ⚠️ The distance tile COLLAPSES with no location marker — an empty tile would
                                  read as missing data rather than as a feature you haven't used. -->
-                            <Grid Grid.Row="3" ColumnSpacing="12">
+                            <Grid Grid.Row="2" ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
