@@ -1708,8 +1708,8 @@ namespace Anvil.ViewModels
 
 		/// <summary>
 		/// Whether a site's NETWORK is switched on — the two opt-in toggles above (operational sites always are).
-		/// ⚠️ The ONE rule every site LIST follows, not just the map markers: the Radar Atlas and the Atlas
-		/// flyout / Home key hide a hidden network's sites too, so turning TDWRs off can't leave TMCI one click
+		/// ⚠️ The ONE rule every site LIST follows, not just the map markers: the Radar Atlas and the tools
+		/// tier's site picker hide a hidden network's sites too, so turning TDWRs off can't leave TMCI one click
 		/// away in a list while its marker is gone. It never unloads a loop that is already showing.
 		/// </summary>
 		public bool IsNetworkShown(RadarSite site) => site.Class switch
@@ -1831,7 +1831,7 @@ namespace Anvil.ViewModels
 
 		// ===== SITE AVAILABILITY — the ONE writer of RadarSiteRow.Availability + the marker status push =====
 		// Everything that shows whether a site is up reads what this block writes: the on-map key's square, the
-		// Atlas's dot / status pill / "Online only" filter, the Atlas flyout dot, the dev sweep's skip list.
+		// Atlas's dot / status pill / "Online only" filter, the site picker's dot, the dev sweep's skip list.
 		// Evidence from three places lands here and is graded by ONE rule (RadarSiteStatus.IsFresh): the 10-min
 		// archive pass, a scan time the Atlas fetched, and a loaded loop's newest frame.
 		// ⚠️ Don't write a row's availability anywhere else — two writers is how a list and the map disagree.

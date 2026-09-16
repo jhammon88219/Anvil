@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace Anvil.ViewModels
 {
 	/// <summary>
-	/// A presentation row for one radar site, shared by the Radar Atlas, the Atlas flyout and the dev site
+	/// A presentation row for one radar site, shared by the Radar Atlas, the tools tier's site picker and the dev site
 	/// sweep. Wraps an immutable <see cref="RadarSite"/> with the observable state those lists need, so they
 	/// render the same states as the on-map site keys.
 	/// </summary>

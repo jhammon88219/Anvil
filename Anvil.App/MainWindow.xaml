@@ -15,11 +15,11 @@
        ├─────────────────────────────┴─────────────────────────────┤
        │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  …thrown UP onto the map
        │                 ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                     │  ONE rail, one tab per tier
-       │  ⌘  ⛶ ▢▥▦  ▣ [Search places     ⌕] ⊚       [Isolate State ▾]│  TOOLS tier — raised surface
+       │ [⌂ KTLX Oklahoma City ˅]  ▣ [Search places ⌕] ⊚  ▢▥▦ ⌘ ⛶ [Isolate ▾]│  TOOLS tier — raised surface
        │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  │  …and DOWN onto the bar
        │  ◉   ⌕   ══ scrubber ══                                   │  BAR tier — the ground
-       │  ◉   ⌕  ◀ ▶ ▶  3/10 │ time·site ↺  ⌂    │⋮  ((•))│⋮   ☁ │⋮   📡│⋮  ⚙  │
-       │Markers Inspect                 Home  PastCast  NowCast  ForeCast  Atlas  Settings │
+       │  ◉   ⌕  ◀ ▶ ▶  3/10 │ time·site ↺       │⋮  ((•))│⋮   ☁ │⋮     📡   ⚙  │
+       │Markers Inspect                 PastCast  NowCast  ForeCast     Atlas Settings │
        └──────────────────────────────────┴────────────────────────┘
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
             is drawn by whichever side owns it: the tools tier throws its own up
@@ -60,10 +60,11 @@
           ↑ ⊚ = Location, and ▣ = the (future) marker viewer, flank the place search on the TOOLS
             tier. Location left this bar: it is a "where on the map" move like search, and an
             occasional one, so it fails the bar's constant-gesture test. See MapControlsStrip.
-          ↑ ⌂ = Home, the last key of the left cluster: loads the home radar site. Lit = home is on the
-            map; greyed with no home set and in PastCast.
-          ↑ 📡│⋮ = Atlas is a SPLIT key (SplitTemporalToggle with CarAlwaysLive): the square latches the
-            Atlas window, the car opens the home/favorites flyout — live with no mode to gate it.
+          ↑ [⌂ KTLX ˅] = the SITE PICKER (home + favorites), LEFT on the tools tier over the time module.
+            It replaced this bar's Home key AND the side car that used to hang off the Atlas key — two doors
+            to one list. The tools tier's left is radar + map (which site), its right is map only.
+            See MapControlsStrip. Don't re-add a Home key here.
+          ↑ 📡 = Atlas, a plain window latch again, like Settings.
           ↑ Not drawn above: the SITE CHECK TOAST, a pill at the top centre of the map band under the notch —
             "Checking radar sites · n / N" while a launch pass cascades, then "Site check complete" (4 s).
 
@@ -351,7 +352,6 @@
                                 <ColumnDefinition Width="Auto"/> <!-- show/hide radar site markers -->
                                 <ColumnDefinition Width="Auto"/> <!-- the inspect cursor mode -->
                                 <ColumnDefinition Width="Auto"/> <!-- the global time module -->
-                                <ColumnDefinition Width="Auto"/> <!-- home site -->
                             </Grid.ColumnDefinitions>
 
                             <!-- ===== SHOW / HIDE RADAR SITE MARKERS =====
@@ -455,42 +455,8 @@
                                                 VerticalAlignment="Center"
                                                 ViewModel="{x:Bind ViewModel.Radar}"/>
 
-                            <!-- ===== HOME — load the home radar site =====
-                                 Beside the time module because it answers the same question the site readout
-                                 there shows: WHICH radar. An ACTION wearing the bar's lit rule — lit = the home
-                                 site IS on the map — so IsChecked is ONE-WAY and re-asserted in OnHomeKeyClick
-                                 (a ToggleButton flips itself before the handler runs).
-                                 Greyed with no home site set, and in PastCast (a pick there would re-target the
-                                 replay). The home site is set in the Radar Atlas.
-                                 ⚠️ E80F (Home) is NOT verified by rendering in the real font — check on first run.
-                                 ⚠️ THE TOOLTIP IS ON A WRAPPER, NOT THE KEY: WinUI shows no tooltip on a disabled
-                                 control, and a greyed Home key is exactly when it has to explain itself ("add a
-                                 home radar site first"). Transparent background so the wrapper is hit-testable. -->
-                            <Grid Grid.Column="3"
-                                  Margin="12,0,0,0"
-                                  Background="Transparent"
-                                  ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.HomeKeyToolTip, Mode=OneWay}">
-                            <ToggleButton x:Name="HomeKey"
-                                          Style="{StaticResource BarKeyToggleStyle}"
-                                          IsEnabled="{x:Bind ViewModel.SiteFavorites.IsHomeKeyEnabled, Mode=OneWay}"
-                                          IsChecked="{x:Bind ViewModel.SiteFavorites.IsHomeOnMap, Mode=OneWay}"
-                                          Click="OnHomeKeyClick">
-                                <Grid Margin="3,0" RowSpacing="2">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <FontIcon Grid.Row="0"
-                                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                              FontSize="{StaticResource BarKeyGlyphSize}"
-                                              Glyph="&#xE80F;"/>
-                                    <TextBlock Grid.Row="1"
-                                               Text="Home"
-                                               HorizontalAlignment="Center"
-                                               FontSize="{StaticResource BarKeyNameSize}"/>
-                                </Grid>
-                            </ToggleButton>
-                            </Grid>
+                            <!-- ⚠️ THE HOME KEY IS GONE (it was column 3). Home and the favorites are one list now,
+                                 the SITE PICKER on the tools tier directly above this cluster — see MapControlsStrip. -->
                         </Grid>
 
                         <!-- ===== GLOBAL CLUSTER =====
@@ -548,21 +514,29 @@
                                  moved to the CENTRE cluster, hard against the temporal trio, because a
                                  panel that only ever configures those three modes belongs beside them —
                                  see TemporalToggles. What is left here is genuinely global. -->
-                                <!-- ⚠️ SITES IS A SPLIT KEY, the one non-temporal SplitTemporalToggle. The square
-                                     latches the Atlas window (IsModeOn = window open; the click flips the
-                                     flag in OnAtlasKeyClick). The side car opens the home/favorites FLYOUT —
-                                     CarAlwaysLive, because Atlas has no mode to gate it, and MainWindow's
-                                     InitializeSitesFlyout drives IsPanelOpen both ways (a light-dismiss must
-                                     un-fill the car). -->
-                                <ctl:SplitTemporalToggle x:Name="AtlasKey"
-                                                         Grid.Column="0"
-                                                         Glyph="&#xEC05;"
-                                                         ModeName="Atlas"
-                                                         ModeToolTip="Radar Atlas"
-                                                         CarToolTip="Home and favorite sites"
-                                                         CarAlwaysLive="True"
-                                                         IsModeOn="{x:Bind ViewModel.IsRadarAtlasOpen, Mode=OneWay}"
-                                                         ModeClick="OnAtlasKeyClick"/>
+                                <!-- ⚠️ ATLAS WAS A SPLIT KEY (a SplitTemporalToggle whose car opened a home/favorites
+                                     flyout). That flyout became the tools tier's SITE PICKER (MapControlsStrip), so this
+                                     is a plain window latch again, exactly like Settings. Don't re-split it. -->
+                                <ToggleButton x:Name="AtlasKey"
+                                              Grid.Column="0"
+                                              Style="{StaticResource BarKeyToggleStyle}"
+                                              ToolTipService.ToolTip="Radar Atlas"
+                                              IsChecked="{x:Bind ViewModel.IsRadarAtlasOpen, Mode=TwoWay}">
+                                    <Grid Margin="3,0" RowSpacing="2">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <FontIcon Grid.Row="0"
+                                                  FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                                  FontSize="{StaticResource BarKeyGlyphSize}"
+                                                  Glyph="&#xEC05;"/>
+                                        <TextBlock Grid.Row="1"
+                                                   FontSize="{StaticResource BarKeyNameSize}"
+                                                   Text="Atlas"
+                                                   HorizontalAlignment="Center"/>
+                                    </Grid>
+                                </ToggleButton>
                                 <!-- ⚠️ THE "Map" KEY IS GONE (it was column 3, glyph E774, latching
                                      IsMapControlsStripVisible). The map-tools tier now carries its own tab on
                                      the rail above the bar, which is the same gesture in the place the thing

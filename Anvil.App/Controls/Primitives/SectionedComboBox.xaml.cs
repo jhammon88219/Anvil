@@ -103,6 +103,33 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(MaxDropDownHeight), typeof(double),
 				typeof(SectionedComboBox), new PropertyMetadata(360d));
 
+		/// <summary>Optional template for the CLOSED face; null shows <c>SelectedItem.ToString()</c>.</summary>
+		public DataTemplate? FaceTemplate
+		{
+			get => (DataTemplate?)GetValue(FaceTemplateProperty);
+			set => SetValue(FaceTemplateProperty, value);
+		}
+
+		public static readonly DependencyProperty FaceTemplateProperty =
+			DependencyProperty.Register(nameof(FaceTemplate), typeof(DataTemplate),
+				typeof(SectionedComboBox), new PropertyMetadata(null));
+
+		/// <summary>Optional host content under both sections, below its own rule. Never selectable; with it
+		/// set the dropdown opens even when both lists are empty (the footer can explain why).</summary>
+		public object? FooterContent
+		{
+			get => GetValue(FooterContentProperty);
+			set => SetValue(FooterContentProperty, value);
+		}
+
+		public static readonly DependencyProperty FooterContentProperty =
+			DependencyProperty.Register(nameof(FooterContent), typeof(object),
+				typeof(SectionedComboBox), new PropertyMetadata(null));
+
+		/// <summary>A row was clicked — raised on EVERY click, including one on the row already selected
+		/// (which changes no property, so no binding hears it). Raised after <see cref="SelectedItem"/> is set.</summary>
+		public event EventHandler<object>? ItemPicked;
+
 		/// <summary>Which side of the box the dropdown opens on. Top by default: the strips sit at the
 		/// bottom of the window.</summary>
 		public FlyoutPlacementMode DropDownPlacement
@@ -118,8 +145,11 @@ namespace Anvil.Controls.Primitives
 		// ── Closed-state face ────────────────────────────────────────────────────────────────────
 		public string LabelOf(object? item) => item?.ToString() ?? string.Empty;
 
-		public Visibility HasSelection(object? item) =>
-			item is null ? Visibility.Collapsed : Visibility.Visible;
+		public Visibility ShowsLabel(object? item, DataTemplate? face) =>
+			item is null || face is not null ? Visibility.Collapsed : Visibility.Visible;
+
+		public Visibility ShowsFace(object? item, DataTemplate? face) =>
+			item is null || face is null ? Visibility.Collapsed : Visibility.Visible;
 
 		public Visibility NoSelection(object? item) =>
 			item is null ? Visibility.Visible : Visibility.Collapsed;
@@ -138,7 +168,7 @@ namespace Anvil.Controls.Primitives
 
 		private void OpenDropDown()
 		{
-			if (!IsEnabled || (!HasAny(PinnedItemsSource) && !HasAny(ItemsSource))) { return; }
+			if (!IsEnabled || (!HasAny(PinnedItemsSource) && !HasAny(ItemsSource) && FooterContent is null)) { return; }
 			DropDown.ShowAt(Root, new FlyoutShowOptions { Placement = DropDownPlacement });
 		}
 
@@ -153,6 +183,9 @@ namespace Anvil.Controls.Primitives
 			PinnedList.Visibility = pinned ? Visibility.Visible : Visibility.Collapsed;
 			MainList.Visibility = main ? Visibility.Visible : Visibility.Collapsed;
 			SectionRule.Visibility = pinned && main ? Visibility.Visible : Visibility.Collapsed;
+			bool footer = FooterContent is not null;
+			Footer.Visibility = footer ? Visibility.Visible : Visibility.Collapsed;
+			FooterRule.Visibility = footer && (pinned || main) ? Visibility.Visible : Visibility.Collapsed;
 
 			// Pinned wins if one instance sits in both lists, so only one row is ever lit.
 			bool inPinned = Contains(PinnedItemsSource, SelectedItem);
@@ -182,7 +215,11 @@ namespace Anvil.Controls.Primitives
 		{
 			SelectedItem = e.ClickedItem;
 			DropDown.Hide();
+			ItemPicked?.Invoke(this, e.ClickedItem);
 		}
+
+		/// <summary>Close the dropdown — for a <see cref="FooterContent"/> action.</summary>
+		public void CloseDropDown() => DropDown.Hide();
 
 		// ── Keyboard across the rule ─────────────────────────────────────────────────────────────
 		// Two lists don't hand focus to each other on their own: Down off the last pinned row enters the

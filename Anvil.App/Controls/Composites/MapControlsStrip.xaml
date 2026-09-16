@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ============================================================================
-     MapControlsStrip — the map's camera tools, ON the map instead of two clicks deep in Settings.
+     MapControlsStrip — the map's tools and the radar-site picker, ON the map instead of two clicks deep in Settings.
      It is the CONTENT of the bottom chrome's upper tier: MainWindow drops it into an OverlayBar
      (IsRaised, ShowTab=False, EdgeStyle=CastShadow) that supplies the surface, the EDGE and the
      padding, exactly the way RadarControls is content for the bar below it.
@@ -8,13 +8,21 @@
        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← shadow, thrown onto the map
 
        ╭─ ˅ Tools ─╮ ╭─ ˅ Bar ─╮                                    ← MainWindow's shared rail
-       (⌘) (⛶) [▢][▥][▦]   (▣) [Search places             ⌕] (⊚) status   [Isolate State ▾]   ← THIS, on the raised surface
-               ↑ pane layout: 1 / 2 / 4, the current one LIT; square marks, accent cell = pane 0
-                      ┌─────────────────────────────┐
-                      │ Moore, OK          pop 62k  │   ← suggestions (the AutoSuggestBox popup)
-                      └─────────────────────────────┘
-                   ↑   ↑ the box is CENTERED on the tier ↑ ⊚ Location (latches: lit = your marker is out)
-                   ▣ marker viewer — a PLACEHOLDER with no action yet; the window it will open is future work
+       ┌──────────────────────────────┐
+       │ ⌂ KTLX  Oklahoma City      ● │  ← PINNED: home            (the site picker's dropdown, opening UP)
+       │──────────────────────────────│
+       │ ★ KINX  Tulsa              ● │  ← favorites, starred order, scrolls
+       │ ★ KFWS  Dallas/Ft Worth    ● │     ● = online / offline / grey not-checked
+       │──────────────────────────────│
+       │ Open Radar Atlas             │  ← footer (+ a hint line above it when there are no sites)
+       └──────────────────────────────┘          ┌─────────────────────────────┐
+                                                  │ Moore, OK          pop 62k  │   ← place suggestions
+                                                  └─────────────────────────────┘
+       [⌂ KTLX  Oklahoma City   ˅]     (▣) [Search places        ⌕] (⊚) status     [▢][▥][▦] (⌘) (⛶) [Isolate State ▾]   ← THIS
+        ↑ LEFT = RADAR + MAP:              ↑ CENTER = where; the box is          ↑ RIGHT = MAP ONLY: pane layout
+          which site (over the console,      CENTERED on the tier                  (1/2/4, current one LIT, accent
+          which answers when)              ▣ marker viewer — a PLACEHOLDER         cell = pane 0), reset north,
+                                           ⊚ Location (lit = your marker is out)   fit to view, isolation
        ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   ← …and onto the bar: NO rule
        ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
      ═══════════════════════ window bottom ═══════════════════════
@@ -23,10 +31,12 @@
      bar below draws the band it receives from this one's underside. A hairline under a shadow reads
      as a seam someone forgot to finish - the two are alternatives, not layers.
 
-     ⚠️ IT ALIGNS TO THE BAR'S CLUSTERS, not to itself. Camera tools sit left over Markers/Inspect,
-     the isolation picker sits right over the window keys, and both tiers carry the same 16px side
-     padding so the two rows line up. That alignment is the whole payoff of going full width — it
-     is why the tools do not need a container of their own to look placed.
+     ⚠️ IT ALIGNS TO THE BAR'S CLUSTERS, not to itself, and the SIDES MEAN SOMETHING. LEFT sits over the
+     radar console, so it holds the control that changes WHICH radar you are looking at (the console below
+     answers WHEN). RIGHT sits over the window keys and holds the tools that touch ONLY the map — pane
+     layout, reset north, fit to view, isolation — none of which loads or changes radar data. A new tool
+     goes on the side whose question it answers. Both tiers carry the same 16px side padding so the two
+     rows line up; that alignment is why the tools need no container of their own to look placed.
 
      ⚠️ HISTORY: this was a content-sized ISLAND that floated above the bar with a NOTCH cut in its
      underside, so the bar's pull-tab could rise through it. That shape is gone, and with it went a
@@ -62,7 +72,21 @@
      ⚠️ The viewer's mark is a drawn TEARDROP, the search pin's shape. Its button has NO Click on purpose;
      wire it when the marker window exists (open bool + WindowManager registration — CLAUDE.md "Add a window").
 
-     PANE LAYOUT sits LEFT after the camera tools: THREE toggles (1 / 2 / 4), the current one lit. It moved
+     SITE PICKER, LEFT — home + favorite radar sites (RadarSiteFavoritesViewModel). It replaced TWO doors to
+     one list: the bar's Home key, and the side car on the bar's Atlas key (whose flyout this dropdown absorbed).
+     The FACE is the site on the map now: ⌂ when it is home, ★ when a favorite, bare otherwise (a site loaded
+     from a marker is still named, with no row lit). Home is the PINNED section, so going home is two clicks.
+     ⚠️ A pick ACTS through ItemPicked, NOT SelectedItem: picking the site already loaded must still fly back to
+     it, and that changes no property. SelectedItem is ONE-WAY from LoadedSite and re-asserted after the pick
+     (a refused pick would otherwise leave the face naming a site that never loaded).
+     ⚠️ DISABLED in PastCast (a pick would re-target the replay); the tooltip sits on a WRAPPER so it still
+     explains itself — WinUI shows no tooltip on a disabled control.
+     ⚠️ The face has a FIXED width so a long name never resizes the tier; the name trims.
+     ⚠️ Glyphs E80F (Home) / E735 (FavoriteStarFill) are NOT verified by rendering in the real font.
+
+     PANE LAYOUT sits RIGHT, first of the map tools: THREE toggles (1 / 2 / 4), the current one lit.
+     It stays with the map tools even though each pane carries its own radar product: what THIS control
+     changes is how the map is split. What each pane shows is chosen in its notch (PaneNotchContent). It moved
      here from the bar, where it was one wide key that cycled and drew the NEXT layout — three toggles show
      the current layout and reach any layout in one click, which the cycling key could do neither of.
      ⚠️ ONE-WAY IsChecked + re-assert in OnPaneLayoutClick: clicking the LIT toggle sets the layout it already
@@ -73,7 +97,7 @@
      Drawn Rectangles with fixed theme brushes — Shapes don't inherit the template's Foreground.
      Tooltips read "Activate N-pane mode". No "two stacked": weather reads left-to-right across a storm.
 
-     Host contract: ViewModel (MapViewModel). Add a tool = one Button in either side's panel.
+     Host contract: ViewModel (MapViewModel). Add a tool = one Button in the panel of the side it belongs to.
      ============================================================================ -->
 <UserControl x:Class="Anvil.Controls.Composites.MapControlsStrip"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -81,11 +105,15 @@
              xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:vm="using:Anvil.ViewModels"
              xmlns:models="using:Anvil.Models"
+             xmlns:conv="using:Anvil.Converters"
+             xmlns:comp="using:Anvil.Controls.Composites"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
     <UserControl.Resources>
+        <conv:SiteAvailabilityToBrushConverter x:Key="AvailabilityToBrush"/>
+
         <!-- A tool button. LOCAL, not in Styles.xaml: this strip is its only consumer, which is that
              file's house rule. Deliberately NOT the bar-key chain — a bar key is a 72px square carrying
              a mark over a NAME, and a row of those would make this a second bar rather than a tier of
@@ -222,6 +250,47 @@
             </Grid>
         </DataTemplate>
 
+        <!-- One site-picker ROW (both sections): pin mark, id, name, availability dot. -->
+        <DataTemplate x:Key="SiteRowTemplate" x:DataType="vm:RadarSiteRow">
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                          Glyph="{x:Bind comp:MapControlsStrip.PinGlyph(IsHome, IsFavorite), Mode=OneWay}"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind Id}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind Name}" FontSize="12" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                <Ellipse Grid.Column="3" Width="8" Height="8" VerticalAlignment="Center"
+                         Fill="{x:Bind Availability, Converter={StaticResource AvailabilityToBrush}, Mode=OneWay}"/>
+            </Grid>
+        </DataTemplate>
+
+        <!-- The site picker's FACE: the pin mark (collapsed for a site that is neither), id and name — no dot.
+             No foregrounds set: the text inherits the picker's, so it greys with it in PastCast. -->
+        <DataTemplate x:Key="SiteFaceTemplate" x:DataType="vm:RadarSiteRow">
+            <!-- A Grid, not a horizontal StackPanel: only a * column gives the name a width to trim to.
+                 Gaps are MARGINS, not ColumnSpacing, so a collapsed mark leaves no gap behind. -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <FontIcon Margin="0,0,8,0"
+                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
+                          Glyph="{x:Bind comp:MapControlsStrip.PinGlyph(IsHome, IsFavorite), Mode=OneWay}"
+                          Visibility="{x:Bind comp:MapControlsStrip.PinVisibility(IsHome, IsFavorite), Mode=OneWay}"/>
+                <TextBlock Grid.Column="1" Margin="0,0,8,0" Text="{x:Bind Id}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+            </Grid>
+        </DataTemplate>
+
         <!-- One place-search row: the name left, population (or the OpenStreetMap credit) right. -->
         <DataTemplate x:Key="PlaceRowTemplate" x:DataType="models:PlaceResult">
             <Grid ColumnSpacing="12">
@@ -240,78 +309,42 @@
          opaque fill would be one more place the tier's colour is written. One cell, three children — the
          tools hug the window edges the bar's own clusters hug, and place search holds the center. -->
     <Grid>
-        <!-- Camera tools, LEFT — over the bar's Markers / Inspect keys. -->
-        <StackPanel x:Name="LeftTools"
-                    Orientation="Horizontal" Spacing="4"
-                    HorizontalAlignment="Left" VerticalAlignment="Center">
-            <!-- Reset north — undo a right-drag rotate/tilt. -->
-            <Button Style="{StaticResource StripToolButtonStyle}"
-                    Click="OnResetNorthClick"
-                    ToolTipService.ToolTip="Reset North/Flat">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE72C;"/>
-            </Button>
-
-            <!-- Fit to view — frame the effective region (isolated state, else CONUS). -->
-            <Button Style="{StaticResource StripToolButtonStyle}"
-                    Click="OnFitToViewClick"
-                    ToolTipService.ToolTip="Fit To View">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
-            </Button>
-
-            <!-- PANE LAYOUT — three toggles, current one lit (see the header). Tag = the PaneLayout name. -->
-            <StackPanel Orientation="Horizontal" Spacing="2" Margin="8,0,0,0">
-                <ToggleButton x:Name="SinglePaneToggle" Tag="Single"
-                              Style="{StaticResource StripToolToggleStyle}"
-                              IsChecked="{x:Bind IsSinglePane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
-                              Click="OnPaneLayoutClick"
-                              ToolTipService.ToolTip="Activate 1-pane mode">
-                    <Grid Width="18" Height="18">
-                        <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
-                    </Grid>
-                </ToggleButton>
-
-                <ToggleButton x:Name="TwoPaneToggle" Tag="TwoAcross"
-                              Style="{StaticResource StripToolToggleStyle}"
-                              IsChecked="{x:Bind IsTwoPane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
-                              Click="OnPaneLayoutClick"
-                              ToolTipService.ToolTip="Activate 2-pane mode">
-                    <Grid Width="18" Height="18" ColumnSpacing="2">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition/>
-                            <ColumnDefinition/>
-                        </Grid.ColumnDefinitions>
-                        <Rectangle Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
-                        <Rectangle Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1.5" RadiusY="1.5"/>
-                    </Grid>
-                </ToggleButton>
-
-                <ToggleButton x:Name="QuadPaneToggle" Tag="Quad"
-                              Style="{StaticResource StripToolToggleStyle}"
-                              IsChecked="{x:Bind IsQuadPane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
-                              Click="OnPaneLayoutClick"
-                              ToolTipService.ToolTip="Activate 4-pane mode">
-                    <Grid Width="18" Height="18" ColumnSpacing="2" RowSpacing="2">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition/>
-                            <ColumnDefinition/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition/>
-                            <RowDefinition/>
-                        </Grid.RowDefinitions>
-                        <Rectangle Grid.Row="0" Grid.Column="0" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
-                        <Rectangle Grid.Row="0" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
-                        <Rectangle Grid.Row="1" Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
-                        <Rectangle Grid.Row="1" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
-                    </Grid>
-                </ToggleButton>
-            </StackPanel>
-        </StackPanel>
+        <!-- ===== SITE PICKER — LEFT, over the radar console (see the header) =====
+             The wrapper carries the tooltip (a disabled control shows none); Transparent so it hit-tests. -->
+        <Grid x:Name="LeftTools"
+              HorizontalAlignment="Left" VerticalAlignment="Center"
+              Background="Transparent"
+              ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
+            <prim:SectionedComboBox x:Name="SitePicker"
+                                    Width="260"
+                                    PlaceholderText="Radar site"
+                                    PinnedItemsSource="{x:Bind ViewModel.SiteFavorites.HomeSites, Mode=OneWay}"
+                                    ItemsSource="{x:Bind ViewModel.SiteFavorites.FavoriteSites, Mode=OneWay}"
+                                    SelectedItem="{x:Bind ViewModel.SiteFavorites.LoadedSite, Mode=OneWay}"
+                                    ItemTemplate="{StaticResource SiteRowTemplate}"
+                                    FaceTemplate="{StaticResource SiteFaceTemplate}"
+                                    IsEnabled="{x:Bind ViewModel.SiteFavorites.CanPickSites, Mode=OneWay}"
+                                    ItemPicked="OnSitePicked">
+                <prim:SectionedComboBox.FooterContent>
+                    <StackPanel Spacing="4">
+                        <TextBlock Margin="11,2,11,2"
+                                   Text="Set a home site or star favorites in the Radar Atlas to list them here."
+                                   TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                   Visibility="{x:Bind ViewModel.SiteFavorites.IsEmpty, Mode=OneWay}"/>
+                        <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                Background="Transparent" BorderThickness="0" Padding="11,6"
+                                Content="Open Radar Atlas"
+                                Click="OnOpenAtlasClick"/>
+                    </StackPanel>
+                </prim:SectionedComboBox.FooterContent>
+            </prim:SectionedComboBox>
+        </Grid>
 
         <!-- ===== PLACE SEARCH — CENTER =====
              A [*, Auto, *] grid spanning the tier puts the box on the exact midpoint. ⚠️ No Background on this
              Grid: a background-less Grid isn't hit-testable, so its empty star columns don't swallow clicks
-             meant for the camera tools or the isolation picker beneath them. -->
+             meant for the site picker or the map tools beneath them. -->
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -364,24 +397,89 @@
             </StackPanel>
         </Grid>
 
-        <!-- ===== STATE ISOLATION — THREE CONTROLS COLLAPSED INTO ONE LIST =====
-             RIGHT, over the bar's window keys. It replaced the Settings window's Map tab CONUS checkbox,
-             its "isolate a state (hover & click)" arm checkbox, and its state-name combo. One row each:
-             No Isolation / Isolate CONUS / Select to Isolate, then the 52 places.
-             ⚠️ "Select to Isolate" ARMS the map — it is a MODE, not a resting choice. Hovering a state
-             then highlights it, and the click reports back through states.js, at which point the combo
-             re-resolves and reads that state's name. Armed-with-nothing-picked keeps reading "Select to
-             Isolate", which is honest: the map is visibly in hover mode.
-             The three modes are PINNED above a rule and never scroll away; the places scroll below.
-             ⚠️ The PLACEHOLDER should be unreachable: the VM resolves every combination to a real row,
-             "No Isolation" included. Seeing it means the lists failed to build.
-             ⚠⚠ IT IS Primitives/SectionedComboBox, NOT A ComboBox, FOR A CORRECTNESS REASON — a closed
-             WinUI ComboBox cycles its selection on the MOUSEWHEEL, and rolling it here froze the map
-             outright. See that control's header; don't swap it back. -->
+        <!-- ===== MAP TOOLS — RIGHT, over the window keys: pane layout, reset north, fit, isolation ===== -->
         <StackPanel x:Name="RightTools"
                     Orientation="Horizontal" Spacing="4"
                     HorizontalAlignment="Right" VerticalAlignment="Center">
+            <!-- PANE LAYOUT — three toggles, current one lit (see the header). Tag = the PaneLayout name. -->
+            <StackPanel Orientation="Horizontal" Spacing="2" Margin="0,0,8,0">
+                <ToggleButton x:Name="SinglePaneToggle" Tag="Single"
+                              Style="{StaticResource StripToolToggleStyle}"
+                              IsChecked="{x:Bind IsSinglePane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
+                              Click="OnPaneLayoutClick"
+                              ToolTipService.ToolTip="Activate 1-pane mode">
+                    <Grid Width="18" Height="18">
+                        <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
+                    </Grid>
+                </ToggleButton>
+
+                <ToggleButton x:Name="TwoPaneToggle" Tag="TwoAcross"
+                              Style="{StaticResource StripToolToggleStyle}"
+                              IsChecked="{x:Bind IsTwoPane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
+                              Click="OnPaneLayoutClick"
+                              ToolTipService.ToolTip="Activate 2-pane mode">
+                    <Grid Width="18" Height="18" ColumnSpacing="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Rectangle Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
+                        <Rectangle Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1.5" RadiusY="1.5"/>
+                    </Grid>
+                </ToggleButton>
+
+                <ToggleButton x:Name="QuadPaneToggle" Tag="Quad"
+                              Style="{StaticResource StripToolToggleStyle}"
+                              IsChecked="{x:Bind IsQuadPane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
+                              Click="OnPaneLayoutClick"
+                              ToolTipService.ToolTip="Activate 4-pane mode">
+                    <Grid Width="18" Height="18" ColumnSpacing="2" RowSpacing="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <Rectangle Grid.Row="0" Grid.Column="0" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                        <Rectangle Grid.Row="0" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                        <Rectangle Grid.Row="1" Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
+                        <Rectangle Grid.Row="1" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                    </Grid>
+                </ToggleButton>
+            </StackPanel>
+
+            <!-- Reset north — undo a right-drag rotate/tilt. -->
+            <Button Style="{StaticResource StripToolButtonStyle}"
+                    Click="OnResetNorthClick"
+                    ToolTipService.ToolTip="Reset North/Flat">
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE72C;"/>
+            </Button>
+
+            <!-- Fit to view — frame the effective region (isolated state, else CONUS). -->
+            <Button Style="{StaticResource StripToolButtonStyle}"
+                    Click="OnFitToViewClick"
+                    ToolTipService.ToolTip="Fit To View">
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
+            </Button>
+
+            <!-- ===== STATE ISOLATION — THREE CONTROLS COLLAPSED INTO ONE LIST =====
+                 LAST on the right, over the bar's window keys. It replaced the Settings window's Map tab CONUS checkbox,
+                 its "isolate a state (hover & click)" arm checkbox, and its state-name combo. One row each:
+                 No Isolation / Isolate CONUS / Select to Isolate, then the 52 places.
+                 ⚠️ "Select to Isolate" ARMS the map — it is a MODE, not a resting choice. Hovering a state
+                 then highlights it, and the click reports back through states.js, at which point the combo
+                 re-resolves and reads that state's name. Armed-with-nothing-picked keeps reading "Select to
+                 Isolate", which is honest: the map is visibly in hover mode.
+                 The three modes are PINNED above a rule and never scroll away; the places scroll below.
+                 ⚠️ The PLACEHOLDER should be unreachable: the VM resolves every combination to a real row,
+                 "No Isolation" included. Seeing it means the lists failed to build.
+                 ⚠⚠ IT IS Primitives/SectionedComboBox, NOT A ComboBox, FOR A CORRECTNESS REASON — a closed
+                 WinUI ComboBox cycles its selection on the MOUSEWHEEL, and rolling it here froze the map
+                 outright. See that control's header; don't swap it back. -->
             <prim:SectionedComboBox Width="170"
+                                    Margin="8,0,0,0"
                                     PlaceholderText="Isolate State"
                                     PinnedItemsSource="{x:Bind ViewModel.StateIso.IsolationModes, Mode=OneWay}"
                                     ItemsSource="{x:Bind ViewModel.StateIso.IsolationPlaces, Mode=OneWay}"

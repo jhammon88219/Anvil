@@ -47,7 +47,7 @@ namespace Anvil.Controls.Windows
 		public static string HomeLabel(bool isHome) => isHome ? "Home site" : "Set as home";
 		public static string HomeToolTip(bool isHome) => isHome
 			? "Clear the home site"
-			: "Make this the home site — the bar's Home key loads it";
+			: "Make this the home site — it tops the site picker on the tools tier";
 		public static Visibility ShowIf(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
 		// The row's network bar (the map key's right zone): its data fill, and which of the three glyphs shows.

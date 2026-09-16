@@ -232,7 +232,7 @@ namespace Anvil.Services
 		// would silently name a different radar.
 
 		private string _homeSiteId = "";
-		/// <summary>The home radar site's ICAO; empty = none set. Loaded by the bar's Home key.</summary>
+		/// <summary>The home radar site's ICAO; empty = none set. Pinned at the top of the tools tier's site picker.</summary>
 		public string HomeSiteId
 		{
 			get => _homeSiteId;

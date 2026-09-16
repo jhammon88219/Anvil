@@ -197,8 +197,8 @@ namespace Anvil.ViewModels
 		/// whole radar network + per-site detail). Opened by the "Atlas" key on the bar.</summary>
 		public RadarAtlasViewModel RadarAtlas { get; }
 
-		/// <summary>The home radar site + favorite sites (the bar's Home key, the Atlas key's flyout, the
-		/// Atlas's pinned sections, load-home-on-launch).</summary>
+		/// <summary>The home radar site + favorite sites (the tools tier's site picker, the Atlas's pinned
+		/// sections, load-home-on-launch).</summary>
 		public RadarSiteFavoritesViewModel SiteFavorites { get; }
 
 		/// <summary>PastCast's saved events — the curated built-ins plus the user's own, each a set of radar

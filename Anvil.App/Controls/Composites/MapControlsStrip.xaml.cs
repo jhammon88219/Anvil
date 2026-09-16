@@ -7,8 +7,8 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The map-tools tier of the bottom chrome: camera tools left, state isolation right (see the XAML
-	/// header for the shape and the rules). It is pure content - the <c>OverlayBar</c> that hosts it owns
+	/// The map-tools tier of the bottom chrome: the radar-site picker left, place search center, map-only
+	/// tools right (see the XAML header for the shape and the rules). It is pure content - the <c>OverlayBar</c> that hosts it owns
 	/// the surface, the hairline and the padding, and MainWindow's rail owns the tab that hides it.
 	/// </summary>
 	/// <remarks>
@@ -34,6 +34,36 @@ namespace Anvil.Controls.Composites
 
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(MapControlsStrip), new PropertyMetadata(null));
+
+		// ===== Site picker (home + favorites) =====
+		// E80F Home / E735 FavoriteStarFill — ⚠️ unverified codepoints, see the XAML header. A site that is
+		// neither gets no mark (only the FACE can show one — the lists hold only home and favorites).
+		public static string PinGlyph(bool isHome, bool isFavorite) =>
+			isHome ? "\uE80F" : isFavorite ? "\uE735" : string.Empty;
+
+		public static Visibility PinVisibility(bool isHome, bool isFavorite) =>
+			isHome || isFavorite ? Visibility.Visible : Visibility.Collapsed;
+
+		// ⚠️ Every click lands here, the already-loaded site included (that one re-flies). Then RE-ASSERT the
+		// face: the picker set SelectedItem itself, and a refused pick changes no property to put it back.
+		private void OnSitePicked(object? sender, object item)
+		{
+			if (ViewModel is not { } vm || item is not RadarSiteRow row)
+			{
+				return;
+			}
+			vm.SiteFavorites.Pick(row);
+			SitePicker.SelectedItem = vm.SiteFavorites.LoadedSite;
+		}
+
+		private void OnOpenAtlasClick(object sender, RoutedEventArgs e)
+		{
+			SitePicker.CloseDropDown();
+			if (ViewModel is { } vm)
+			{
+				vm.IsRadarAtlasOpen = true;
+			}
+		}
 
 		// Reset north — animate bearing + pitch back to 0. Fire-and-forget through IMapService, the same
 		// seam the Settings window's Map tab uses.

@@ -8,7 +8,7 @@ namespace Anvil.Converters
 {
 	/// <summary>
 	/// Maps <see cref="ViewModels.RadarSiteRow.Availability"/> to a status-dot brush: online = green, offline =
-	/// red, not checked yet = grey. Used by the Radar Atlas's list + detail dots and the Atlas flyout.
+	/// red, not checked yet = grey. Used by the Radar Atlas's list + detail dots and the tools tier's site picker.
 	/// </summary>
 	/// <remarks>
 	/// ⚠️ FIXED COLOURS, NOT THEME BRUSHES — availability is DATA, and by the membership rule (docs/theming.md)

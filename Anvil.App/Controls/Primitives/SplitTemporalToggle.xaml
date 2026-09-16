@@ -55,10 +55,9 @@
      ⚠️ THE CAR IS DISABLED WHILE THE MODE IS OFF, and the view model closes a window whose mode has just
      stopped (MapViewModel.OnTemporalModesChanged). So an unlit car can never be hiding an open window,
      which is what lets it read as a STATE rather than merely as a button.
-     ⚠️ EXCEPT WITH CarAlwaysLive. The bar's ATLAS key reuses this control for a key with NO mode: its square
-     latches the Radar Atlas WINDOW (IsModeOn = window open) and its car opens the home/favorites FLYOUT
-     (MainWindow drives IsPanelOpen), which must work whether the window is open or not. The three temporal
-     keys leave it false, so the contract above still holds for them. (CarToolTip names the car per key.)
+     (The bar's Atlas key once reused this control with a CarAlwaysLive flag, its car opening a home/favorites
+     flyout. That became the tools tier's site picker and the flag is gone — every user of this control is a
+     temporal mode again, so the rule above has no exception.)
 
      ⚠️ ACCENT MEANS TWO THINGS INSIDE THIS ONE KEY: the STROKE means "this mode is on", the CAR FILL means
      "this mode's window is open". Everywhere else in the bar accent means only the former. It is deliberate

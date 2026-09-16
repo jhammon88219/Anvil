@@ -18,13 +18,25 @@
 
        NO PINNED ITEMS → the pinned list AND the rule collapse; it is a plain dropdown list.
 
+       OPTIONAL EXTRAS (the site picker uses all three; the isolation picker none):
+                  ┌──────────────────────────┐
+       FACE       │ ⌂ KTLX  Oklahoma City  ˅ │   FaceTemplate: the closed face renders SelectedItem through a
+                  └──────────────────────────┘   template instead of ToString()
+                  │ …the two sections…       │
+                  │──────────────────────────│   a second rule, shown only when a section above has rows
+       FOOTER     │ Open Radar Atlas         │   FooterContent: host-authored, never selectable; with it set
+                  └──────────────────────────┘   the dropdown opens even when BOTH lists are empty
+       ItemPicked fires on EVERY row click — including a click on the row that is already selected, which
+       changes no property and so reaches no binding. A host that ACTS on a pick listens here.
+
      ⚠️⚠️ IT IS NOT A ComboBox, AND THAT IS A CORRECTNESS RULE, NOT A LOOK. A closed WinUI ComboBox cycles
      its SELECTION on the MOUSEWHEEL, in a CLASS handler that runs before any instance handler, so
      e.Handled cannot stop it (measured). On the isolation picker that froze the map (2026-09-04; see
      states.js stopCamera). This control has NO path from the wheel to SelectedItem:
        · the closed face is a Grid, which does nothing with the wheel;
        · inside the dropdown the wheel only SCROLLS the main list;
-       · SelectedItem is written in ONE place, OnItemClick (a pointer click, or Enter/Space on a row).
+       · SelectedItem is written in ONE place, OnItemClick (a pointer click, or Enter/Space on a row),
+         which is also the one place ItemPicked is raised.
      ⚠️ SingleSelectionFollowsFocus="False" on both lists is part of that: with the default (True) an
      ARROW KEY would select, and a selection that commits is a pick nobody made. Don't remove it, and
      don't commit from SelectionChanged — the lists' selection is only the highlight.
@@ -38,7 +50,8 @@
 
      Host contract: ItemsSource (+ optional PinnedItemsSource) + SelectedItem (TwoWay) + PlaceholderText;
      optional ItemTemplate (applied to BOTH sections; without it rows show ToString()), MaxDropDownHeight,
-     DropDownPlacement (Top by default — the strips live at the bottom of the window). -->
+     DropDownPlacement (Top by default — the strips live at the bottom of the window), FaceTemplate,
+     FooterContent (+ CloseDropDown() for a footer action), ItemPicked. -->
 <UserControl
     x:Class="Anvil.Controls.Primitives.SectionedComboBox"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -75,6 +88,7 @@
                         <Setter Target="SelectedLabel.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
                         <Setter Target="Placeholder.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
                         <Setter Target="DropDownGlyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                        <Setter Target="Face.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -95,8 +109,20 @@
                    VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis"
                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                   Visibility="{x:Bind HasSelection(SelectedItem), Mode=OneWay}"
+                   Visibility="{x:Bind ShowsLabel(SelectedItem, FaceTemplate), Mode=OneWay}"
                    Text="{x:Bind LabelOf(SelectedItem), Mode=OneWay}"/>
+
+        <!-- The templated face (FaceTemplate set). Foreground is inherited by the template's text. -->
+        <ContentPresenter x:Name="Face"
+                          Grid.Column="0"
+                          Margin="10,5,0,6"
+                          VerticalAlignment="Center"
+                          IsHitTestVisible="False"
+                          HorizontalContentAlignment="Stretch"
+                          Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                          Visibility="{x:Bind ShowsFace(SelectedItem, FaceTemplate), Mode=OneWay}"
+                          Content="{x:Bind SelectedItem, Mode=OneWay}"
+                          ContentTemplate="{x:Bind FaceTemplate, Mode=OneWay}"/>
 
         <TextBlock x:Name="Placeholder"
                    Grid.Column="0"
@@ -140,6 +166,8 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <!-- Pinned: sized to its rows, never scrolls. -->
@@ -176,6 +204,18 @@
                               ItemContainerStyle="{StaticResource SectionedRowStyle}"
                               ItemTemplate="{x:Bind ItemTemplate, Mode=OneWay}"
                               ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"/>
+
+                    <!-- Footer: host content below its own rule (same brush as the section rule). -->
+                    <Border x:Name="FooterRule"
+                            Grid.Row="3"
+                            Height="1"
+                            Margin="0,4,0,4"
+                            Background="{ThemeResource ControlStrongStrokeColorDisabledBrush}"/>
+
+                    <ContentPresenter x:Name="Footer"
+                                      Grid.Row="4"
+                                      HorizontalContentAlignment="Stretch"
+                                      Content="{x:Bind FooterContent, Mode=OneWay}"/>
                 </Grid>
             </Flyout>
         </FlyoutBase.AttachedFlyout>
