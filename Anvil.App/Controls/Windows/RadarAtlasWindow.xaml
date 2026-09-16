@@ -9,14 +9,23 @@
        Radar Atlas   118 of 204                       [lock][pin]   ← own title + live count
        [ Search ICAO or name…    ] [All networks ▾] [x] Online only [x] Favorites only
        ┌── list (360px) ─────────────┐   detail (scrolls, capped 760 wide, left-aligned)
-       │ HOME                        │   KTLX        (● Online) (NEXRAD) [★] [⌂ Home site] [On map]
+       │ HOME                        │   KTLX   (● Online ⑦) (NEXRAD ⑦) [★] [⌂ Home site] [On map]
        │██ KTLX ⌂ Norman       ◗ ☆ │   Norman                     ← a row is a KEY: status BAR (½ square) | name | network bar | ☆
-       │ FAVORITES · 2               │   ───────────────────────────────────────────────────────────── hairline
-       │██ TMCI Kansas City    ✈ ★ │   LATEST SCAN   12:06 PM (4 min ago)     ┌──────────────────┐
-       │ ALL SITES · 201             │   SCAN MODE     VCP 35 · clear-air      │  [cam]           │ ← PLACEHOLDER
-       │██ KABR Aberdeen       ◗ ☆ │   COORDINATES   35.333, -97.278         │  Site photo      │   240×135
-       │ …                           │   DISTANCE      142 mi from your loc.   └──────────────────┘
-       └─────────────────────────────┘
+       │ FAVORITES · 2               │   ───────────────────────────────────────────────────── hairline
+       │██ TMCI Kansas City    ✈ ★ │   ┌─ site card ──────────────────────────────────────────┐
+       │ ALL SITES · 201             │   │ LATEST SCAN  12:06 PM (4 min ago)  ┌──────────────┐ │
+       │██ KABR Aberdeen       ◗ ☆ │   │ SCAN MODE    VCP 35 · clear-air    │ [cam]        │ │ ← PLACEHOLDER
+       │ …                           │   │ COORDINATES  35.333, -97.278   ⑦   │ Site photo   │ │   200×113, INSET surface
+       │                             │   └────────────────────────────────────└──────────────┘─┘
+       │                             │   ┌ 4 min     ⑦┐ ┌ VCP 35    ⑦┐ ┌ 142 mi    ⑦┐ ← stat strip: the
+       │                             │   │ SINCE LAST │ │ clear-air  │ │ FROM YOU   │   same facts, said short
+       └─────────────────────────────┘   └ SCAN ──────┘ └────────────┘ └────────────┘   (distance collapses)
+
+     ⑦ = GlossaryHint, the "?" that explains one readout (Primitives/GlossaryHint + Core's RadarGlossary).
+     ⚠️ HOVER TARGET IS THE "?" ONLY, never the tile — someone who knows what a VCP is shouldn't trip a
+     popover just crossing the pane. The words live in Core, NEVER in this XAML.
+     ⚠️ CARD = PRECISE (clock time, full mode line), STRIP = GLANCEABLE (an age, the VCP alone). Both read the
+     same properties, so they can't disagree; the age tile's green→amber→red knees are the glossary's own.
 
      SECTIONS (Home / Favorites · n / All sites · n) come from a grouped CollectionViewSource over
      RadarAtlas.SiteGroups. ⚠️ Its Source is set in code when ViewModel lands (OnViewModelChanged) — a CVS
@@ -370,7 +379,8 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/> <!-- header: title | chips | action -->
                                 <RowDefinition Height="Auto"/> <!-- hairline -->
-                                <RowDefinition Height="Auto"/> <!-- body: fields | photo -->
+                                <RowDefinition Height="Auto"/> <!-- site card: fields | photo -->
+                                <RowDefinition Height="Auto"/> <!-- stat strip -->
                             </Grid.RowDefinitions>
 
                             <Grid Grid.Row="0" ColumnSpacing="8">
@@ -400,15 +410,21 @@
                                                  Fill="{x:Bind win:RadarAtlasWindow.StatusBrush(ViewModel.RadarAtlas.SelectedSite.Availability), Mode=OneWay}"/>
                                         <TextBlock Text="{x:Bind ViewModel.RadarAtlas.SelectedSite.StatusLabel, Mode=OneWay}"
                                                    FontSize="12"/>
+                                        <ctl:GlossaryHint VerticalAlignment="Center"
+                                                          Card="{x:Bind ViewModel.RadarAtlas.StatusHint, Mode=OneWay}"/>
                                     </StackPanel>
                                 </Border>
 
                                 <Border Grid.Column="2" VerticalAlignment="Center"
                                         CornerRadius="11" Padding="10,3"
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailClassLabel, Mode=OneWay}"
-                                               FontSize="12"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailClassLabel, Mode=OneWay}"
+                                                   FontSize="12"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        <ctl:GlossaryHint VerticalAlignment="Center"
+                                                          Card="{x:Bind ViewModel.RadarAtlas.NetworkHint, Mode=OneWay}"/>
+                                    </StackPanel>
                                 </Border>
 
                                 <Button Grid.Column="3" VerticalAlignment="Center"
@@ -438,75 +454,149 @@
                             <Rectangle Grid.Row="1" Height="1"
                                        Fill="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
-                            <Grid Grid.Row="2" ColumnSpacing="24">
+                            <!-- SITE CARD — the precise form of the facts (a clock time, the full mode line),
+                                 with the photo INSIDE the same card on an inset surface. ⚠️ The photo gets a
+                                 surface change, NOT its own border: a bordered box inside a bordered card reads
+                                 as clutter, and the surface fences it just as well. -->
+                            <Border Grid.Row="2" CornerRadius="8" Padding="16" BorderThickness="1"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                                <Grid ColumnSpacing="24">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="200"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Label | value rows, each fenced by a hairline so the eye can cross the
+                                         gap to the value with the photo sitting alongside. The LAST row has no
+                                         rule (nothing follows it to separate from). -->
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Top">
+                                        <Border BorderThickness="0,0,0,1" Padding="0,0,0,8"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                                            <Grid ColumnSpacing="16">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="110"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="LATEST SCAN" VerticalAlignment="Center"
+                                                           Style="{StaticResource FieldLabelStyle}"/>
+                                                <!-- Spinner and value share ONE cell so the ring never indents the
+                                                     value: side by side, an inactive ring still reserves its width
+                                                     and pushed this line out of line with every other field. They
+                                                     can't collide — the value is empty for exactly as long as the
+                                                     fetch is in flight (see LatestScanText). -->
+                                                <Grid Grid.Column="1">
+                                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.LatestScanText, Mode=OneWay}"
+                                                               Style="{StaticResource FieldValueStyle}"/>
+                                                    <ProgressRing Width="14"
+                                                                  Height="14"
+                                                                  HorizontalAlignment="Left"
+                                                                  VerticalAlignment="Center"
+                                                                  IsActive="{x:Bind ViewModel.RadarAtlas.IsLoadingScanInfo, Mode=OneWay}"
+                                                                  Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.IsLoadingScanInfo), Mode=OneWay}"/>
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+
+                                        <Border BorderThickness="0,0,0,1" Padding="0,8"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                                            <Grid ColumnSpacing="16">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="110"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="SCAN MODE" VerticalAlignment="Center"
+                                                           Style="{StaticResource FieldLabelStyle}"/>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{x:Bind ViewModel.RadarAtlas.VcpModeText, Mode=OneWay}"
+                                                           Style="{StaticResource FieldValueStyle}"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <Grid ColumnSpacing="16" Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="110"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="COORDINATES" VerticalAlignment="Center"
+                                                       Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{x:Bind ViewModel.RadarAtlas.DetailCoords, Mode=OneWay}"
+                                                       Style="{StaticResource FieldValueStyle}"/>
+                                            <ctl:GlossaryHint Grid.Column="2" VerticalAlignment="Center"
+                                                              Card="{x:Bind ViewModel.RadarAtlas.CoordsHint, Mode=OneWay}"/>
+                                        </Grid>
+                                    </StackPanel>
+
+                                    <!-- Site photo — DUMMY placeholder; nothing feeds it yet. 16:9. -->
+                                    <Border Grid.Column="1" Height="113" VerticalAlignment="Top"
+                                            CornerRadius="6"
+                                            Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+                                            <FontIcon Glyph="&#xE722;" FontSize="24"
+                                                      Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                            <TextBlock Text="Site photo" FontSize="12" HorizontalAlignment="Center"
+                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- STAT STRIP — the same facts said SHORT, for the glance that answers "is this
+                                 radar worth loading?". Each tile carries its own "?" hint.
+                                 ⚠️ The age tile is the only one that carries colour, and its knees are the
+                                 glossary's (green → amber at RecentKnee → red past Staleness), so the colour
+                                 and the hint's sentence always agree.
+                                 ⚠️ The distance tile COLLAPSES with no location marker — an empty tile would
+                                 read as missing data rather than as a feature you haven't used. -->
+                            <Grid Grid.Row="3" ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="240"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Label | value sheet. -->
-                                <Grid Grid.Column="0" ColumnSpacing="16" RowSpacing="10" VerticalAlignment="Top">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-
-                                    <TextBlock Grid.Row="0" Text="LATEST SCAN" VerticalAlignment="Center"
-                                               Style="{StaticResource FieldLabelStyle}"/>
-                                    <!-- Spinner and value share ONE cell so the ring never indents the value: laid
-                                         out side by side, an inactive ring still reserves its width and pushed this
-                                         line out of line with every other field. They can't collide — the value is
-                                         empty for exactly as long as the fetch is in flight (see LatestScanText). -->
-                                    <Grid Grid.Row="0" Grid.Column="1">
-                                        <TextBlock Text="{x:Bind ViewModel.RadarAtlas.LatestScanText, Mode=OneWay}"
-                                                   Style="{StaticResource FieldValueStyle}"/>
-                                        <ProgressRing Width="14"
-                                                      Height="14"
-                                                      HorizontalAlignment="Left"
-                                                      VerticalAlignment="Center"
-                                                      IsActive="{x:Bind ViewModel.RadarAtlas.IsLoadingScanInfo, Mode=OneWay}"
-                                                      Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.IsLoadingScanInfo), Mode=OneWay}"/>
+                                <Border Grid.Column="0" CornerRadius="8" Padding="12"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailAgeValue, Mode=OneWay}"
+                                                       FontSize="20" FontWeight="SemiBold"
+                                                       Foreground="{x:Bind win:RadarAtlasWindow.AgeBrush(ViewModel.RadarAtlas.DetailAgeMinutes), Mode=OneWay}"/>
+                                            <TextBlock Text="SINCE LAST SCAN" Style="{StaticResource FieldLabelStyle}"/>
+                                        </StackPanel>
+                                        <ctl:GlossaryHint HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                          Card="{x:Bind ViewModel.RadarAtlas.AgeHint, Mode=OneWay}"/>
                                     </Grid>
+                                </Border>
 
-                                    <TextBlock Grid.Row="1" Text="SCAN MODE" VerticalAlignment="Center"
-                                               Style="{StaticResource FieldLabelStyle}"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="1"
-                                               Text="{x:Bind ViewModel.RadarAtlas.VcpModeText, Mode=OneWay}"
-                                               Style="{StaticResource FieldValueStyle}"/>
+                                <Border Grid.Column="1" CornerRadius="8" Padding="12"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailScanValue, Mode=OneWay}"
+                                                       FontSize="20" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailScanLabel, Mode=OneWay}"
+                                                       Style="{StaticResource FieldLabelStyle}"/>
+                                        </StackPanel>
+                                        <ctl:GlossaryHint HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                          Card="{x:Bind ViewModel.RadarAtlas.ScanHint, Mode=OneWay}"/>
+                                    </Grid>
+                                </Border>
 
-                                    <TextBlock Grid.Row="2" Text="COORDINATES" VerticalAlignment="Center"
-                                               Style="{StaticResource FieldLabelStyle}"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="1"
-                                               Text="{x:Bind ViewModel.RadarAtlas.DetailCoords, Mode=OneWay}"
-                                               Style="{StaticResource FieldValueStyle}"/>
-
-                                    <!-- Collapses with no location marker, so it never leaves a gap. -->
-                                    <TextBlock Grid.Row="3" Text="DISTANCE" VerticalAlignment="Center"
-                                               Style="{StaticResource FieldLabelStyle}"
-                                               Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.DetailDistanceText), Mode=OneWay}"/>
-                                    <TextBlock Grid.Row="3" Grid.Column="1"
-                                               Text="{x:Bind ViewModel.RadarAtlas.DetailDistanceText, Mode=OneWay}"
-                                               Style="{StaticResource FieldValueStyle}"
-                                               Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.DetailDistanceText), Mode=OneWay}"/>
-                                </Grid>
-
-                                <!-- Site photo — DUMMY placeholder; nothing feeds it yet. 16:9. -->
-                                <Border Grid.Column="1" Height="135" VerticalAlignment="Top"
-                                        CornerRadius="8" BorderThickness="1"
-                                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-                                        <FontIcon Glyph="&#xE722;" FontSize="24"
-                                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                                        <TextBlock Text="Site photo" FontSize="12" HorizontalAlignment="Center"
-                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                                    </StackPanel>
+                                <Border Grid.Column="2" CornerRadius="8" Padding="12"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.DetailDistanceValue), Mode=OneWay}">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailDistanceValue, Mode=OneWay}"
+                                                       FontSize="20" FontWeight="SemiBold"/>
+                                            <TextBlock Text="FROM YOU" Style="{StaticResource FieldLabelStyle}"/>
+                                        </StackPanel>
+                                        <ctl:GlossaryHint HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                          Card="{x:Bind ViewModel.RadarAtlas.DistanceHint, Mode=OneWay}"/>
+                                    </Grid>
                                 </Border>
                             </Grid>
                         </Grid>

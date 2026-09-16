@@ -67,6 +67,27 @@ namespace Anvil.Controls.Windows
 		public static Microsoft.UI.Xaml.Media.Brush StatusBrush(Anvil.Models.SiteAvailability availability) =>
 			SiteAvailabilityToBrushConverter.For(availability);
 
+		// The age tile's colour, ramped by the newest scan's age: green while current, amber past the
+		// glossary's RecentKnee, red past RadarSiteStatus.Staleness (where the site reads offline), grey with
+		// no scan at all. ⚠️ LITERAL data colours — the same three the status square and the map key use, and
+		// the same knees the hint's words name, so the colour and the sentence can't disagree.
+		public static Microsoft.UI.Xaml.Media.Brush AgeBrush(double? minutes)
+		{
+			if (minutes is not double m)
+			{
+				return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x6E, 0x76, 0x81));
+			}
+			if (m <= Anvil.Services.RadarGlossary.RecentKnee.TotalMinutes)
+			{
+				return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x3F, 0xB9, 0x50));
+			}
+			if (m <= Anvil.Services.RadarSiteStatus.Staleness.TotalMinutes)
+			{
+				return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xD2, 0x99, 0x22));
+			}
+			return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xF8, 0x51, 0x49));
+		}
+
 		// The selection follows the map's radar site, which can be far down the list — keep it on screen,
 		// both when the window opens onto it and when a marker click moves it while open.
 		private void OnSiteListLoaded(object sender, RoutedEventArgs e) => ScrollToSelection((ListView)sender);

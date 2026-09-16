@@ -359,11 +359,77 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		// Re-raise the scan read-out (both derived properties).
+		// ── At-a-glance tiles + the "?" hints ────────────────────────────────────────────────────
+		// The tiles are the SAME facts the fields below them show, said shorter: the field sheet is the
+		// precise form (a clock time, the full mode line) and the tile is the glanceable one (an age, the
+		// VCP alone). Both read the same properties, so they can't disagree.
+		//
+		// ⚠️ Every hint's words come from RadarGlossary — nothing explains a radar concept in this file.
+
+		/// <summary>The selected site's newest scan time — the ONE source both the field and the tile read.</summary>
+		private DateTimeOffset? DetailScanTime =>
+			IsLoadedSite(_selectedSite) ? _radar.NewestLoadedFrameTime : _fetchedScan?.ScanTime;
+
+		private TimeSpan? DetailAge =>
+			DetailScanTime is { } scan ? DateTimeOffset.Now - scan.ToLocalTime() : null;
+
+		/// <summary>Age of the newest scan in minutes (drives the tile's colour). Null with no scan time.</summary>
+		public double? DetailAgeMinutes => DetailAge?.TotalMinutes;
+
+		/// <summary>Compact age for the tile — "4 min", "2 hr", "&lt;1 min". The field below shows the clock time.</summary>
+		public string DetailAgeValue
+		{
+			get
+			{
+				if (DetailAge is not { } age) return "—";
+				if (age.TotalMinutes < 1) return "<1 min";
+				if (age.TotalMinutes < 60) return $"{age.TotalMinutes:0} min";
+				if (age.TotalHours < 24) return $"{age.TotalHours:0} hr";
+				return $"{age.TotalDays:0} d";
+			}
+		}
+
+		// "VCP 35 · clear-air" splits into the tile's value and its label. Parsing our own formatted line is
+		// contained on purpose: the mode is only ever handed around as that one string (Level2Format builds it),
+		// so a second, structured path would mean a second source of truth for the same fact.
+		private string[] ModeParts => VcpModeText.Split(" · ", StringSplitOptions.RemoveEmptyEntries);
+
+		/// <summary>Tile value — "VCP 35" (or "—" before anything is known).</summary>
+		public string DetailScanValue => ModeParts.Length > 0 ? ModeParts[0] : "—";
+
+		/// <summary>Tile label — the regime word ("clear-air" / "precip"), empty when the line has none.</summary>
+		public string DetailScanLabel => ModeParts.Length > 1 ? ModeParts[1] : "Scan pattern";
+
+		/// <summary>Miles to the selected site, or null with no location marker.</summary>
+		private double? DetailMiles =>
+			_selectedSite is not null && _markers.UserLocationMarker is { } u
+				? HaversineMiles(u.Latitude, u.Longitude, _selectedSite.Site.Latitude, _selectedSite.Site.Longitude)
+				: null;
+
+		/// <summary>Tile value — "142 mi", empty without a location marker (the tile collapses).</summary>
+		public string DetailDistanceValue => DetailMiles is { } mi ? $"{mi:0} mi" : string.Empty;
+
+		public RadarGlossaryCard AgeHint => RadarGlossary.DataAge(DetailAge);
+		public RadarGlossaryCard ScanHint => RadarGlossary.ScanPattern(VcpModeText);
+		public RadarGlossaryCard DistanceHint => RadarGlossary.Distance(DetailMiles);
+		public RadarGlossaryCard CoordsHint => RadarGlossary.Coordinates();
+		public RadarGlossaryCard StatusHint =>
+			RadarGlossary.Status(_selectedSite?.Availability ?? SiteAvailability.Unknown, _selectedSite?.IsReplayDay ?? false);
+		public RadarGlossaryCard NetworkHint =>
+			RadarGlossary.Network(_selectedSite?.Site.Class ?? RadarSiteClass.Operational);
+
+		// Re-raise the scan read-out (the fields, the tiles they feed, and the hints that read them back).
 		private void RaiseScan()
 		{
 			OnPropertyChanged(nameof(LatestScanText));
 			OnPropertyChanged(nameof(VcpModeText));
+			OnPropertyChanged(nameof(DetailAgeValue));
+			OnPropertyChanged(nameof(DetailAgeMinutes));
+			OnPropertyChanged(nameof(DetailScanValue));
+			OnPropertyChanged(nameof(DetailScanLabel));
+			OnPropertyChanged(nameof(AgeHint));
+			OnPropertyChanged(nameof(ScanHint));
+			OnPropertyChanged(nameof(StatusHint));
 		}
 
 		private async Task LoadDetailAsync(RadarSiteRow? row, int token)
@@ -443,6 +509,11 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(DetailClassLabel));
 			OnPropertyChanged(nameof(DetailCoords));
 			OnPropertyChanged(nameof(DetailDistanceText));
+			OnPropertyChanged(nameof(DetailDistanceValue));
+			OnPropertyChanged(nameof(DistanceHint));
+			OnPropertyChanged(nameof(CoordsHint));
+			OnPropertyChanged(nameof(StatusHint));
+			OnPropertyChanged(nameof(NetworkHint));
 		}
 
 		// Two largest non-zero units of an age span (yr/mo/day/hr/min) with an "ago" suffix,

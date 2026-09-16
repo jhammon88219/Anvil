@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GlossaryHint — the small "?" that explains one radar readout to someone who doesn't know the jargon.
+     Sits in the corner of a stat tile or beside a field label in the Radar Atlas detail pane; hovering (or
+     focusing) JUST the "?" opens a rich tooltip built from one RadarGlossaryCard.
+
+       ┌ tile ──────────────┐        hover the ? ↓
+       │ 5 min          (?) │   ┌──────────────────────────────┐
+       │ Since last scan    │   │ Data age                     │ ← Term      (15, semibold)
+       └────────────────────┘   │ Time since this site finished│ ← Technical (11, tertiary)
+                                │                              │
+                                │ How old the newest sweep is… │ ← Definition (12, wraps)
+                                │ ┌──────────────────────────┐ │
+                                │ │ 5 minutes old — arriving │ │ ← Now: THIS site's value in words,
+                                │ │ normally.                │ │   on an accent-tinted plate
+                                │ └──────────────────────────┘ │
+                                │ ────────────────────────────  │ ← hairline
+                                │ Under 12 minutes is current… │ ← Context (11, the scale)
+                                └──────────────────────────────┘
+
+     ⚠️ THE HOVER TARGET IS THE "?" ALONE, never the whole tile — a reader who already knows what a VCP is
+     shouldn't trip a popover just crossing the pane with the pointer.
+     ⚠️ It's a BUTTON (not a bare Border) so keyboard focus opens the same tooltip; there is no click action.
+     ⚠️ The "?" is TEXT, not a FontIcon — no unverified glyph codepoint to get wrong.
+     ⚠️ Now and Context COLLAPSE when their strings are empty (a static fact like coordinates has no "now"),
+     so the popover never shows an empty plate or a hairline with nothing under it. -->
+<UserControl x:Class="Anvil.Controls.Primitives.GlossaryHint"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+    <Button Padding="0" MinWidth="0" MinHeight="0" Width="18" Height="18"
+            CornerRadius="9" BorderThickness="0"
+            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+            AutomationProperties.Name="{x:Bind HintName(Card), Mode=OneWay}">
+        <Button.Content>
+            <TextBlock Text="?" FontSize="11" FontWeight="SemiBold"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Button.Content>
+        <ToolTipService.ToolTip>
+            <ToolTip>
+                <StackPanel MaxWidth="300" Spacing="2">
+                    <TextBlock Text="{x:Bind Card.Term, Mode=OneWay}"
+                               FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock Text="{x:Bind Card.Technical, Mode=OneWay}"
+                               FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+
+                    <TextBlock Text="{x:Bind Card.Definition, Mode=OneWay}"
+                               FontSize="12" TextWrapping="Wrap" LineHeight="17"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                    <!-- THIS site's value, said out loud. Tinted so the eye finds it without reading. -->
+                    <Border CornerRadius="4" Padding="8,6" Margin="0,8,0,0"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                            Visibility="{x:Bind ShowIfText(Card.Now), Mode=OneWay}">
+                        <TextBlock Text="{x:Bind Card.Now, Mode=OneWay}"
+                                   FontSize="12" TextWrapping="Wrap" LineHeight="17"/>
+                    </Border>
+
+                    <Rectangle Height="1" Margin="0,8,0,6"
+                               Fill="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                               Visibility="{x:Bind ShowIfText(Card.Context), Mode=OneWay}"/>
+                    <TextBlock Text="{x:Bind Card.Context, Mode=OneWay}"
+                               FontSize="11" TextWrapping="Wrap" LineHeight="16"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                               Visibility="{x:Bind ShowIfText(Card.Context), Mode=OneWay}"/>
+                </StackPanel>
+            </ToolTip>
+        </ToolTipService.ToolTip>
+    </Button>
+</UserControl>
