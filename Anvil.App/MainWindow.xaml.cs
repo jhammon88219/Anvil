@@ -655,7 +655,16 @@ namespace Anvil
 			// ⚠️ The page paints the same color from --anvil-ground in theme.css. C# can't read the page's
 			// CSS, so the value is written in both places and AppTheme.GroundColor is the C# half.
 			webView.DefaultBackgroundColor = ParseGroundColor(ViewModel.SelectedTheme.GroundColor);
-			await webView.EnsureCoreWebView2Async();
+
+			// ⚠️ COLOUR IDENTITY: Chromium colour-manages the page to the monitor's profile while WinUI draws
+			// values untouched, so the same literal came out as two colours (the site keys' #3fb950 measured
+			// ~#6fce62 on the map vs exactly #3fb950 in the Atlas). Forcing sRGB makes the page emit its
+			// values as written — so a radar ramp, SPC colour or status square is the number in the file, and
+			// matches the chrome beside it. Arguments are fixed per user-data folder: any second WebView2 must
+			// be created with these SAME options or its creation fails.
+			var environment = await CoreWebView2Environment.CreateWithOptionsAsync(null, null,
+				new CoreWebView2EnvironmentOptions { AdditionalBrowserArguments = "--force-color-profile=srgb" });
+			await webView.EnsureCoreWebView2Async(environment);
 
 			// The WebView2 death report. Subscribed FIRST, before any host mapping or navigation, so a
 			// failure during startup is caught too.
