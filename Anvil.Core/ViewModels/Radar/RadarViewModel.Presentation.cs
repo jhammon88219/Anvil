@@ -102,6 +102,21 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		/// <summary>
+		/// The VOLUME's scan strategy out of a mode string: everything before the "0.5°" sweep token —
+		/// "VCP 212 · precip · SAILS/MRLE ×1 · 0.5°×2" → "VCP 212 · precip · SAILS/MRLE ×1". The token is
+		/// dropped because it restates the SAILS count (2 sweeps = the base + 1 extra) and read as a
+		/// contradiction ("×1" vs "×2") beside it. ⚠️ The ONE cut rule: the bar's Scan readout and the Radar
+		/// Atlas's Scan mode both call it, so they can't disagree. No token (archive "VCP 212 · precip", "—",
+		/// "loading…") → the string unchanged.
+		/// </summary>
+		public static string ScanStrategyText(string? mode)
+		{
+			if (string.IsNullOrEmpty(mode)) return string.Empty;
+			var idx = mode.IndexOf("0.5°", System.StringComparison.Ordinal);
+			return idx > 0 ? mode[..idx].TrimEnd(' ', '·') : mode;
+		}
+
 		// The VCP/regime mode string of the currently displayed frame, parsed from its cached tilt
 		// (null when that frame's mode isn't known yet). Used by both replay and the live-loop fallback.
 		private string? DisplayedFrameMode() =>

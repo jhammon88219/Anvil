@@ -341,17 +341,21 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>VCP / scan-mode line for the selected site (from the loop when it's the loaded site).</summary>
+		/// <summary>
+		/// VCP / scan-mode line for the selected site (from the loop when it's the loaded site). Cut with the
+		/// bar's own rule (<see cref="RadarViewModel.ScanStrategyText"/>), so the two read identically — no
+		/// trailing "0.5°×N" to contradict the SAILS count.
+		/// </summary>
 		public string VcpModeText
 		{
 			get
 			{
 				if (IsLoadedSite(_selectedSite))
 				{
-					var mode = _radar.RadarModeText;
+					var mode = RadarViewModel.ScanStrategyText(_radar.RadarModeText);
 					return string.IsNullOrEmpty(mode) ? "—" : mode;
 				}
-				return string.IsNullOrEmpty(_fetchedScan?.ModeText) ? string.Empty : _fetchedScan!.ModeText!;
+				return RadarViewModel.ScanStrategyText(_fetchedScan?.ModeText);
 			}
 		}
 

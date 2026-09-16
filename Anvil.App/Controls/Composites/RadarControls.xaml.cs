@@ -180,14 +180,9 @@ namespace Anvil.Controls.Composites
 		// SAILS belongs HERE, not on the Tilt row: it counts re-scans of the BASE tilt, a property of
 		// the volume that holds whichever tilt is on screen. On the Tilt row it could only ever be true
 		// for 0.5° and disappeared as soon as a higher tilt was selected.
-		public string RadarVcpText(string mode) =>
-			string.IsNullOrEmpty(mode) ? string.Empty : mode[..SweepIndex(mode)].TrimEnd(' ', '·');
-
-		private static int SweepIndex(string mode)
-		{
-			var idx = mode.IndexOf("0.5°", StringComparison.Ordinal);
-			return idx > 0 ? idx : mode.Length; // no sweep segment (e.g. "—" / "loading…") — keep it all
-		}
+		//
+		// The cut itself is RadarViewModel.ScanStrategyText — shared with the Radar Atlas's Scan mode line.
+		public string RadarVcpText(string mode) => RadarViewModel.ScanStrategyText(mode);
 
 		// Dim the scrubber while the transport isn't enabled yet (Grid has no IsEnabled; interaction is
 		// blocked via IsHitTestVisible + the pointer-handler guard, this is the visual cue).
