@@ -18,10 +18,10 @@
        └──────────────────────────────┘          ┌─────────────────────────────┐
                                                   │ Moore, OK          pop 62k  │   ← place suggestions
                                                   └─────────────────────────────┘
-       [⌂ KTLX  Oklahoma City   ˅]     (▣) [Search places        ⌕] (⊚) status     [▢][▥][▦] (⌘) (⛶) [Isolate State ▾]   ← THIS
-        ↑ LEFT = RADAR + MAP:              ↑ CENTER = where; the box is          ↑ RIGHT = MAP ONLY: pane layout
-          which site (over the console,      CENTERED on the tier                  (1/2/4, current one LIT, accent
-          which answers when)              ▣ marker viewer — a PLACEHOLDER         cell = pane 0), reset north,
+       (👁) [⌂ KTLX  Oklahoma City   ˅]  (▣) [Search places     ⌕] (⊚) status     [▢][▥][▦] (⌘) (⛶) [Isolate State ▾]   ← THIS
+        ↑ LEFT = RADAR + MAP: show the     ↑ CENTER = where; the box is          ↑ RIGHT = MAP ONLY: pane layout
+          sites, pick one (over the          CENTERED on the tier                  (1/2/4, current one LIT, accent
+          console, which answers when)     ▣ marker viewer — a PLACEHOLDER         cell = pane 0), reset north,
                                            ⊚ Location (lit = your marker is out)   fit to view, isolation
        ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   ← …and onto the bar: NO rule
        ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
@@ -71,6 +71,17 @@
      pictures what it drops. That is why the bar's Inspect key is a magnifier; don't give it a reticle.
      ⚠️ The viewer's mark is a drawn TEARDROP, the search pin's shape. Its button has NO Click on purpose;
      wire it when the marker window exists (open bool + WindowManager registration — CLAUDE.md "Add a window").
+
+     SITE MARKERS, LEFT EDGE — show / hide every radar site marker (Radar.RadarSitesVisible, TwoWay). It moved here
+     from the bar: showing the sites and picking one are the same question (WHICH radar), and you reach for them
+     together — markers on to change site, off once you have one.
+     ⚠️ LIT = MARKERS ARE SHOWING (accent = this is on, everywhere). The GLYPH and TOOLTIP speak for the CLICK: an
+     open eye + "Hide radar sites" while they show, a closed eye + "Show radar sites" while they don't.
+     ⚠️ The words say "radar sites", NEVER "markers": ▣ below is the MARKER viewer (search pins, your location).
+     On the bar this key was NAMED "Markers"; icon-only here, the tooltip is the only name it has.
+     ⚠️ Glyphs E7B3 (RedEye) / ED1A (Hide) are NOT verified by rendering in the real font — at 32px a blank
+     box is easy to miss, so check on first run.
+     ⚠️ Hiding a marker never unloads a loop. TDWR / research networks stay in Settings → Radar (set-once).
 
      SITE PICKER, LEFT — home + favorite radar sites (RadarSiteFavoritesViewModel). It replaced TWO doors to
      one list: the bar's Home key, and the side car on the bar's Atlas key (whose flyout this dropdown absorbed).
@@ -309,37 +320,49 @@
          opaque fill would be one more place the tier's colour is written. One cell, three children — the
          tools hug the window edges the bar's own clusters hug, and place search holds the center. -->
     <Grid>
-        <!-- ===== SITE PICKER — LEFT, over the radar console (see the header) =====
-             The wrapper carries the tooltip (a disabled control shows none); Transparent so it hit-tests. -->
-        <Grid x:Name="LeftTools"
-              HorizontalAlignment="Left" VerticalAlignment="Center"
-              Background="Transparent"
-              ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
-            <prim:SectionedComboBox x:Name="SitePicker"
-                                    Width="260"
-                                    PlaceholderText="Radar site"
-                                    PinnedItemsSource="{x:Bind ViewModel.SiteFavorites.HomeSites, Mode=OneWay}"
-                                    ItemsSource="{x:Bind ViewModel.SiteFavorites.FavoriteSites, Mode=OneWay}"
-                                    SelectedItem="{x:Bind ViewModel.SiteFavorites.LoadedSite, Mode=OneWay}"
-                                    ItemTemplate="{StaticResource SiteRowTemplate}"
-                                    FaceTemplate="{StaticResource SiteFaceTemplate}"
-                                    IsEnabled="{x:Bind ViewModel.SiteFavorites.CanPickSites, Mode=OneWay}"
-                                    ItemPicked="OnSitePicked">
-                <prim:SectionedComboBox.FooterContent>
-                    <StackPanel Spacing="4">
-                        <TextBlock Margin="11,2,11,2"
-                                   Text="Set a home site or star favorites in the Radar Atlas to list them here."
-                                   TextWrapping="Wrap" FontSize="12"
-                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                   Visibility="{x:Bind ViewModel.SiteFavorites.IsEmpty, Mode=OneWay}"/>
-                        <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                Background="Transparent" BorderThickness="0" Padding="11,6"
-                                Content="Open Radar Atlas"
-                                Click="OnOpenAtlasClick"/>
-                    </StackPanel>
-                </prim:SectionedComboBox.FooterContent>
-            </prim:SectionedComboBox>
-        </Grid>
+        <!-- ===== RADAR SITES — LEFT, over the radar console (see the header): show them, pick one ===== -->
+        <StackPanel x:Name="LeftTools"
+                    Orientation="Horizontal" Spacing="8"
+                    HorizontalAlignment="Left" VerticalAlignment="Center">
+            <!-- SITE MARKERS — plain TwoWay toggle (a click always changes the flag, so no re-assert). -->
+            <ToggleButton x:Name="SitesVisibleToggle"
+                          Style="{StaticResource StripToolToggleStyle}"
+                          IsChecked="{x:Bind ViewModel.Radar.RadarSitesVisible, Mode=TwoWay}"
+                          ToolTipService.ToolTip="{x:Bind SitesVisibleTooltip(ViewModel.Radar.RadarSitesVisible), Mode=OneWay}">
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
+                          Glyph="{x:Bind SitesVisibleGlyph(ViewModel.Radar.RadarSitesVisible), Mode=OneWay}"/>
+            </ToggleButton>
+
+            <!-- SITE PICKER. The wrapper carries the tooltip (a disabled control shows none); Transparent so it
+                 hit-tests. -->
+            <Grid Background="Transparent"
+                  ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
+                <prim:SectionedComboBox x:Name="SitePicker"
+                                        Width="260"
+                                        PlaceholderText="Radar site"
+                                        PinnedItemsSource="{x:Bind ViewModel.SiteFavorites.HomeSites, Mode=OneWay}"
+                                        ItemsSource="{x:Bind ViewModel.SiteFavorites.FavoriteSites, Mode=OneWay}"
+                                        SelectedItem="{x:Bind ViewModel.SiteFavorites.LoadedSite, Mode=OneWay}"
+                                        ItemTemplate="{StaticResource SiteRowTemplate}"
+                                        FaceTemplate="{StaticResource SiteFaceTemplate}"
+                                        IsEnabled="{x:Bind ViewModel.SiteFavorites.CanPickSites, Mode=OneWay}"
+                                        ItemPicked="OnSitePicked">
+                    <prim:SectionedComboBox.FooterContent>
+                        <StackPanel Spacing="4">
+                            <TextBlock Margin="11,2,11,2"
+                                       Text="Set a home site or star favorites in the Radar Atlas to list them here."
+                                       TextWrapping="Wrap" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                       Visibility="{x:Bind ViewModel.SiteFavorites.IsEmpty, Mode=OneWay}"/>
+                            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                    Background="Transparent" BorderThickness="0" Padding="11,6"
+                                    Content="Open Radar Atlas"
+                                    Click="OnOpenAtlasClick"/>
+                        </StackPanel>
+                    </prim:SectionedComboBox.FooterContent>
+                </prim:SectionedComboBox>
+            </Grid>
+        </StackPanel>
 
         <!-- ===== PLACE SEARCH — CENTER =====
              A [*, Auto, *] grid spanning the tier puts the box on the exact midpoint. ⚠️ No Background on this

@@ -22,21 +22,21 @@
      grid competing with everything already drawn. Don't re-add this one.
 
      ⚠️ THE TOOLS SECTION IS GONE with the Inspect toggle — Inspect is a MODE you arm and disarm while
-     reading the map, not a setting, so it is a key in the OverlayBar now (MainWindow, InspectKey), beside
-     the marker key. It is still a MAP tool rather than a per-pane radar control: one armed cursor over a
+     reading the map, not a setting, so it is a key in the OverlayBar now (MainWindow, InspectKey), on the
+     bar's left. It is still a MAP tool rather than a per-pane radar control: one armed cursor over a
      shared camera, reading every pane at one point, with only its VALUE readout per-pane (the live tick on
      each pane's product ramp). That reasoning put it in this tab; being a gesture rather than a preference
      is what took it out again.
 
      ⚠️ Neither marker toggle affects a LOADED loop — hiding a marker never unloads its data.
 
-     ⚠️ THE MASTER "show site markers" TOGGLE IS NOT HERE ANY MORE — it is a key in the OverlayBar, left of
-     the radar console (MainWindow, SitesVisibleKey). What is left here is the two OPT-IN networks, which is
+     ⚠️ THE MASTER "show site markers" TOGGLE IS NOT HERE ANY MORE — it is a toggle on the tools tier, beside
+     the site picker (MapControlsStrip, SitesVisibleToggle). What is left here is the two OPT-IN networks, which is
      the honest split: hiding all markers is a thing you do constantly while reading a busy map, so it wants
-     a one-click key on the bar; choosing whether TDWRs and research radars exist at all is a preference you
+     a one-click toggle on the map chrome; choosing whether TDWRs and research radars exist at all is a preference you
      set once. ⚠️ HISTORY, so this is not simply reverted: all three were deliberately put together HERE,
      because with the master toggle on the radar console and the other two in App Settings you had to hunt
-     two places for "why is my site gone". That reasoning still holds for the pair, and the bar key is
+     two places for "why is my site gone". That reasoning still holds for the pair, and the tools-tier toggle is
      discoverable in a way a console control was not — but if a third marker toggle ever appears, think hard
      before splitting it off too. -->
 

@@ -35,6 +35,14 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(MapControlsStrip), new PropertyMetadata(null));
 
+		// ===== Site markers (show / hide) =====
+		// Both take the CURRENT visibility and answer for the CLICK (see the XAML header). "radar sites", never
+		// "markers" — that word belongs to the marker viewer beside the search box.
+		public string SitesVisibleTooltip(bool visible) => visible ? "Hide radar sites" : "Show radar sites";
+
+		// E7B3 RedEye (open) / ED1A Hide (crossed-out) — ⚠️ unverified codepoints, see the XAML header.
+		public string SitesVisibleGlyph(bool visible) => visible ? "\uE7B3" : "\uED1A";
+
 		// ===== Site picker (home + favorites) =====
 		// E80F Home / E735 FavoriteStarFill — ⚠️ unverified codepoints, see the XAML header. A site that is
 		// neither gets no mark (only the FACE can show one — the lists hold only home and favorites).

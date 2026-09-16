@@ -15,11 +15,11 @@
        ├─────────────────────────────┴─────────────────────────────┤
        │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  …thrown UP onto the map
        │                 ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                     │  ONE rail, one tab per tier
-       │ [⌂ KTLX Oklahoma City ˅]  ▣ [Search places ⌕] ⊚  ▢▥▦ ⌘ ⛶ [Isolate ▾]│  TOOLS tier — raised surface
+       │ 👁 [⌂ KTLX Oklahoma City ˅] ▣ [Search places ⌕] ⊚ ▢▥▦ ⌘ ⛶ [Isolate ▾]│  TOOLS tier — raised surface
        │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  │  …and DOWN onto the bar
-       │  ◉   ⌕   ══ scrubber ══                                   │  BAR tier — the ground
-       │  ◉   ⌕  ◀ ▶ ▶  3/10 │ time·site ↺       │⋮  ((•))│⋮   ☁ │⋮     📡   ⚙  │
-       │Markers Inspect                 PastCast  NowCast  ForeCast     Atlas Settings │
+       │  ⌕   ══ scrubber ══                                   │  BAR tier — the ground
+       │  ⌕  ◀ ▶ ▶  3/10 │ time·site ↺            │⋮  ((•))│⋮   ☁ │⋮     📡   ⚙  │
+       │Inspect                         PastCast  NowCast  ForeCast     Atlas Settings │
        └──────────────────────────────────┴────────────────────────┘
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
             is drawn by whichever side owns it: the tools tier throws its own up
@@ -38,17 +38,14 @@
             The rail is shared because it must be: an OverlayBar draws its tab
             in row 0 of its own grid, so the lower tier's tab would land in the
             seam between the two. Both tiers run ShowTab=False.
-          ↑ ◉ = show / hide the on-map radar site markers. Lit = showing;
-          │   the glyph and tooltip speak for the CLICK (open eye + "Hide
-          │   Radar Sites" while they show). Named Markers, not Atlas — the
-          │   right cluster's Atlas key opens a window, which is a different
-          │   species entirely.
+          ↑ 👁 = show / hide the on-map radar site markers — on the TOOLS tier now, beside the site
+            picker (it left this bar; see MapControlsStrip).
                 ↑ ⌕ = Inspect, the armed cursor mode. Lit = armed, greyed
                   until a loop is loaded. A MAGNIFIER (E721), and it was a
                   drawn reticle until the Location key claimed that mark —
-                  see both blocks below. Both of these are GESTURES you make
-                  while reading the map, which is why they are keys and not
-                  rows in the Settings window's Radar tab.
+                  see its block below. It is a GESTURE you make
+                  while reading the map, which is why it is a key and not
+                  a row in the Settings window's Radar tab.
                                           ↑ bar midpoint — NowCast sits on it
                                             ↑ ⋮ = each mode's SIDE CAR: a full-height
                                               settings latch on its own key, lit only
@@ -83,7 +80,7 @@
      tall). (The wide, nameless pane-layout key was the other; it moved to the tools tier.) See
      Controls/Styles.xaml, section 2.
 
-     Left of the bar are the marker and Inspect keys then RadarControls (the global time module); the CENTER is the three
+     Left of the bar is the Inspect key then RadarControls (the global time module); the CENTER is the three
      temporal split keys, held on the bar's midpoint by a [*, Auto, *] grid so no amount of growth on either
      side can shift them; right is the app-wide window buttons, all
      on one spacing.
@@ -338,65 +335,22 @@
                             <ColumnDefinition Width="*"/>    <!-- window buttons, right edge   ┘ sits centered-->
                         </Grid.ColumnDefinitions>
 
-                        <!-- ===== LEFT CLUSTER: the two map-gesture keys, then the time module =====
-                             Markers and Inspect both came OUT of the Settings window's Radar tab, and the line
-                             that decides what belongs here is the same for both: a GESTURE you make constantly
-                             while reading the map wants a key; a PREFERENCE you set once and leave belongs in
-                             Settings. The TDWR / research-radar switches stayed behind on exactly that
-                             test. -->
+                        <!-- ===== LEFT CLUSTER: the Inspect key, then the time module =====
+                             Everything here is about READING the radar that is loaded. Inspect came OUT of the
+                             Settings window's Radar tab on the line that decides what belongs here: a GESTURE you
+                             make constantly while reading the map wants a key; a PREFERENCE you set once and leave
+                             belongs in Settings.
+                             ⚠️ THE MARKERS KEY IS GONE from here (it was column 0). Showing site markers is part
+                             of choosing WHICH radar, so it sits beside the site picker on the tools tier — see
+                             MapControlsStrip. Don't re-add it here. -->
                         <Grid Grid.Column="0"
                               HorizontalAlignment="Left"
                               VerticalAlignment="Center"
                               ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/> <!-- show/hide radar site markers -->
                                 <ColumnDefinition Width="Auto"/> <!-- the inspect cursor mode -->
                                 <ColumnDefinition Width="Auto"/> <!-- the global time module -->
                             </Grid.ColumnDefinitions>
-
-                            <!-- ===== SHOW / HIDE RADAR SITE MARKERS =====
-                                 The master marker toggle, back in the bar. It lived on the old radar console,
-                                 then moved into the Settings window's Radar tab with the two opt-in network
-                                 toggles (TDWRs, research radars) so that "why is my site gone" had ONE place to
-                                 look. This half of that came back out, and the split is deliberate: hiding every
-                                 marker is something you do constantly while reading a busy map, so it wants a
-                                 one-click key on the bar; whether TDWRs and research radars exist at all is a
-                                 preference you set once and leave. Those two stay in Settings.
-
-                                 ⚠️ LIT = MARKERS ARE SHOWING, which is the bar's rule everywhere (accent means
-                                 "this is on"), NOT "hiding is armed". The GLYPH and the TOOLTIP are the parts
-                                 that speak in terms of the click: an open eye with "Hide Radar Sites" while
-                                 they show, a closed eye with "Show Radar Sites" while they don't. State on the
-                                 border, action in the words — the same division the pane key uses.
-
-                                 ⚠️ NAMED "Markers". The right cluster's "Atlas" key was once named "Sites", and
-                                 it does something else entirely (it opens the Radar Atlas window). Two keys
-                                 named Sites in one bar, one toggling map content and one latching a window,
-                                 would be the worst kind of collision — same word, different species.
-
-                                 ⚠️ Glyphs E7B3 (RedEye) / ED1A (Hide) — these are NOT yet verified by rendering
-                                 in the real font, unlike every other glyph in this bar. A wrong codepoint ships
-                                 as an empty box, so check them on the first run and swap if either is blank. -->
-                            <ToggleButton x:Name="SitesVisibleKey"
-                                          Grid.Column="0"
-                                          Style="{StaticResource BarKeyToggleStyle}"
-                                          ToolTipService.ToolTip="{x:Bind SitesVisibleTooltip(ViewModel.Radar.RadarSitesVisible), Mode=OneWay}"
-                                          IsChecked="{x:Bind ViewModel.Radar.RadarSitesVisible, Mode=TwoWay}">
-                                <Grid Margin="3,0" RowSpacing="2">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <FontIcon Grid.Row="0"
-                                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                              FontSize="{StaticResource BarKeyGlyphSize}"
-                                              Glyph="{x:Bind SitesVisibleGlyph(ViewModel.Radar.RadarSitesVisible), Mode=OneWay}"/>
-                                    <TextBlock Grid.Row="1"
-                                               Text="Markers"
-                                               HorizontalAlignment="Center"
-                                               FontSize="{StaticResource BarKeyNameSize}"/>
-                                </Grid>
-                            </ToggleButton>
 
                             <!-- ===== INSPECT — the armed cursor mode =====
                                  Lit = armed; click again to disarm, like any toggle in this bar. It reads the
@@ -409,7 +363,7 @@
                                  transport buttons use: with nothing decoded there is no value to read.
 
                                  ⚠️ It lived in the Settings window's Radar tab, under a "Tools" heading, and came
-                                 out for the same reason the marker key did: it is a gesture you make while
+                                 out because it is a gesture you make while
                                  reading the map, not a preference you set once. That heading is gone with it.
 
                                  ⚠️ THE MARK IS A MAGNIFYING GLASS (E721 Search), AND IT USED TO BE A DRAWN
@@ -427,7 +381,7 @@
                                  by rendering it in the real font on this machine — the house rule stands, and a
                                  wrong codepoint ships as an empty box. Confirm on first run. -->
                             <ToggleButton x:Name="InspectKey"
-                                          Grid.Column="1"
+                                          Grid.Column="0"
                                           Style="{StaticResource BarKeyToggleStyle}"
                                           ToolTipService.ToolTip="Inspect — read radar values under the cursor (click again to turn it off)"
                                           IsEnabled="{x:Bind ViewModel.Radar.IsTransportEnabled, Mode=OneWay}"
@@ -450,7 +404,7 @@
 
                             <!-- PER-PANE + TIME. In multi-pane the chip cluster inside this grows to a 2x2 that
                                  mirrors the pane grid; the time module beside it does not multiply. -->
-                            <comp:RadarControls Grid.Column="2"
+                            <comp:RadarControls Grid.Column="1"
                                                 Margin="20,0,0,0"
                                                 VerticalAlignment="Center"
                                                 ViewModel="{x:Bind ViewModel.Radar}"/>

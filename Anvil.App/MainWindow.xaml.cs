@@ -213,18 +213,7 @@ namespace Anvil
 
 		// (The pane-layout key moved to MapControlsStrip as three 1/2/4 toggles.)
 
-		// ===== The marker key (show / hide radar site markers) =====
-		// Both of these take the CURRENT visibility and answer in terms of the CLICK, which is why the key
-		// reads "Hide…" exactly when the markers are showing. The border already carries the state (lit =
-		// showing, the bar's rule everywhere); repeating it in the words would leave nothing saying what the
-		// button actually does.
-		public string SitesVisibleTooltip(bool visible) => visible ? "Hide Radar Sites" : "Show Radar Sites";
-
-		// E7B3 RedEye (open) / ED1A Hide (crossed-out). ⚠️ Unlike every other glyph in this bar these two
-		// have NOT been checked by rendering them in the real font — a wrong codepoint ships as an empty box,
-		// so verify on first run.
-		public string SitesVisibleGlyph(bool visible) => visible ? "" : "";
-
+		// (The marker key's glyph + tooltip moved with it to MapControlsStrip.)
 		// (The Location key's tooltip + click handler moved with the key to MapControlsStrip.)
 
 		// (The Home key and the Atlas key's home/favorites flyout are gone: both became the tools tier's site
