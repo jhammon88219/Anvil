@@ -124,12 +124,15 @@
                           Content="{x:Bind SelectedItem, Mode=OneWay}"
                           ContentTemplate="{x:Bind FaceTemplate, Mode=OneWay}"/>
 
+        <!-- ⚠️ SECONDARY, not Tertiary: tertiary sits so close to TextFillColorDisabledBrush that an enabled
+             box with nothing picked (the site picker at launch) read as disabled. Secondary is what the stock
+             ComboBox uses for its placeholder (ComboBoxPlaceHolderForeground). -->
         <TextBlock x:Name="Placeholder"
                    Grid.Column="0"
                    Margin="10,5,0,6"
                    VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis"
-                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Visibility="{x:Bind NoSelection(SelectedItem), Mode=OneWay}"
                    Text="{x:Bind PlaceholderText, Mode=OneWay}"/>
 
