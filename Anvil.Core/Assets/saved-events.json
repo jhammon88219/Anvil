@@ -22,6 +22,49 @@
       ]
     },
     {
+      "id": "philadelphia-ms-2011",
+      "name": "Philadelphia, MS",
+      "notes": "EF5, April 27 Super Outbreak - Neshoba County.",
+      "source": "Wikipedia (NWS Jackson survey): tornado 2:30-3:00 PM CDT (19:30-20:00Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KDGX", "startUtc": "2011-04-27T19:00:00Z", "minutes": 120 },
+        { "site": "KGWX", "startUtc": "2011-04-27T19:00:00Z", "minutes": 120 }
+      ]
+    },
+    {
+      "id": "hackleburg-2011",
+      "name": "Hackleburg-Phil Campbell, AL",
+      "notes": "EF5, April 27 Super Outbreak - 102 miles across north Alabama.",
+      "source": "Wikipedia (NWS Huntsville/Birmingham surveys): tornado 3:05-4:50 PM CDT (20:05-21:50Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KHTX", "startUtc": "2011-04-27T19:45:00Z", "minutes": 180 },
+        { "site": "KGWX", "startUtc": "2011-04-27T19:45:00Z", "minutes": 180 }
+      ]
+    },
+    {
+      "id": "smithville-2011",
+      "name": "Smithville, MS",
+      "notes": "EF5, April 27 Super Outbreak - through Smithville into Alabama.",
+      "source": "Wikipedia (NWS Memphis survey): tornado 3:43-4:23 PM CDT (20:43-21:23Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KGWX", "startUtc": "2011-04-27T20:15:00Z", "minutes": 120 }
+      ]
+    },
+    {
+      "id": "rainsville-2011",
+      "name": "Rainsville, AL",
+      "notes": "EF5, April 27 Super Outbreak - DeKalb County into Georgia.",
+      "source": "Wikipedia (NWS Huntsville survey): tornado 6:19 PM CDT-7:55 PM EDT (23:19-23:55Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KFFC", "startUtc": "2011-04-27T22:45:00Z", "minutes": 120 },
+        { "site": "KBMX", "startUtc": "2011-04-27T22:45:00Z", "minutes": 120 }
+      ]
+    },
+    {
       "id": "joplin-2011",
       "name": "Joplin, MO",
       "notes": "EF5, rain-wrapped through Joplin.",
@@ -29,6 +72,16 @@
       "defaultLeg": 0,
       "legs": [
         { "site": "KSGF", "startUtc": "2011-05-22T22:00:00Z", "minutes": 120 }
+      ]
+    },
+    {
+      "id": "el-reno-piedmont-2011",
+      "name": "El Reno-Piedmont, OK",
+      "notes": "EF5, 63 miles from the Caddo/Canadian line past Guthrie.",
+      "source": "NWS Norman event summary: tornado 3:50-5:35 PM CDT (20:50-22:35Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KTLX", "startUtc": "2011-05-24T20:30:00Z", "minutes": 180 }
       ]
     }
   ]
