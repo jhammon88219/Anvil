@@ -15,6 +15,9 @@
 //         │     └── selected inverts the FACE to a light key; both end zones still read
 //         └── availability, independent of selection
 //
+//   SIZES: the key is 22px tall inside its border (12px text + 5px top/bottom padding); both end squares
+//   are 22px wide; the label has 5px side padding; the class glyph is 18px in its square.
+//
 //   The class bar keeps its color through offline AND selection, on purpose: the two opt-in networks
 //   are otherwise indistinguishable from the ~160 operational keys at a glance.
 //
@@ -54,8 +57,10 @@ import * as Theme from './theme.js';
 // for operational NEXRAD (neutral bar — stays quiet since it's the majority), a plane for TDWR (blue),
 // a flask for research (violet). Inline SVG so they're self-contained in the WebView (no icon-font or
 // emoji dependency); fill/stroke inherit `currentColor` from the bar's per-class color.
+// The nexrad viewBox is CROPPED to its drawing (which sits in the lower-left of a 24 box) so it centres in
+// the square and reads the same size as the plane and flask.
 const CLASS_GLYPH = {
-    nexrad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="7" cy="17" r="1.4" fill="currentColor" stroke="none"/><path d="M7 12.5a4.5 4.5 0 0 1 4.5 4.5"/><path d="M7 7.5a9.5 9.5 0 0 1 9.5 9.5"/></svg>',
+    nexrad: '<svg viewBox="2.5 3.5 18 18"fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="7" cy="17" r="1.4" fill="currentColor" stroke="none"/><path d="M7 12.5a4.5 4.5 0 0 1 4.5 4.5"/><path d="M7 7.5a9.5 9.5 0 0 1 9.5 9.5"/></svg>',
     tdwr: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 0 1 .9 1 2v5.2l7 4v1.9l-7 -2v3.9l2 1.5v1.5l-3 -1l-3 1v-1.5l2 -1.5v-3.9l-7 2v-1.9l7 -4v-5.2c0 -1.1 .4 -2 1 -2z"/></svg>',
     research: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v5l-4.4 8.3a1.9 1.9 0 0 0 1.7 2.7h9.4a1.9 1.9 0 0 0 1.7 -2.7l-4.4 -8.3v-5"/></svg>'
 };
@@ -169,8 +174,9 @@ function ensureStyle() {
            the host's SiteAvailabilityToBrushConverter (DATA, like the other two). */
         .radar-site-btn.unknown .radar-site-swatch { background: #6e7681; }
 
-        /* The ID text sits on the key face to the right of the square. */
-        .radar-site-label { padding: 5px 9px; }
+        /* The ID text sits on the key face to the right of the square. The VERTICAL padding sets the key's
+           height (12px text + 5+5 = the 22px the two end squares fill) — tighten only the sides. */
+        .radar-site-label { padding: 5px 5px; }
 
         /* Selected = inverted "light" key (dark text on a near-white face). Distinct from BOTH the dark
            unselected keys and the red/green square (orange sat too close to the offline red). Latches down
@@ -198,7 +204,8 @@ function ensureStyle() {
             align-items: center;
             justify-content: center;
         }
-        .radar-site-class svg { width: 13px; height: 13px; display: block; }
+        /* 18px glyph in the 22px square: as big as it gets without growing the key (2px breathing room). */
+        .radar-site-class svg { width: 18px; height: 18px; display: block; }
         /* ⚠️ nexrad is CHROME (a deliberately quiet neutral — the absence of an identity color, since
            it is the majority of the network); tdwr + research are DATA and stay literal. */
         .radar-site-class.nexrad { background: var(--anvil-key-class-neutral); color: var(--anvil-key-class-neutral-text); border-left: 1px solid var(--anvil-key-border); }
