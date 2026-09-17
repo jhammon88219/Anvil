@@ -95,21 +95,16 @@ namespace Anvil.ViewModels
 					OnPropertyChanged(nameof(IsPastCast));
 					// Entering replay takes the radar layer — disarm the (mutually exclusive) live toggle.
 					if (Radar.IsPastEventMode && _isNowCast) { _isNowCast = false; OnPropertyChanged(nameof(IsNowCast)); }
+					// ⚠️ The radar show/hide checkbox lives only in the NowCast window's header; the PastCast
+					// window has the same slider with no way to un-hide. So a replay always starts visible.
+					if (Radar.IsPastEventMode) { Radar.ShowRadarLayer = true; }
 					// The map has ONE outlook layer: hand it to the historical (PastOutlook) overlay in past
 					// mode and back to the live outlook otherwise. Entering clears the live outlook (showing
 					// today's forecast over historical radar would be wrong); PastOutlook then drives it.
 					if (Radar.IsPastEventMode && Outlook.IsOutlookVisible) { Outlook.IsOutlookVisible = false; }
 					// The live "now" overlays (watch boxes + storm-based warnings) are CURRENT-conditions data,
-					// so they must clear when we drop into a historical replay — otherwise today's watches/
-					// warnings hang over past radar. (Storm reports re-key to the replay day, so they stay.)
-					// ⚠️ HideAll, not IsVisible = false: both are per-type overlays now, so visibility is
-					// DERIVED from their two toggles. Writing it directly would hide the layers while
-					// leaving the NowCast checkboxes ticked.
-					if (Radar.IsPastEventMode)
-					{
-						Watches.HideAll();
-						Warnings.HideAll();
-					}
+					// so they must not hang over a historical replay. Entering replay disarmed NowCast above,
+					// and OnTemporalModesChanged below gates them off — their ticks are left alone.
 					PastOutlook.OnPastModeChanged(Radar.IsPastEventMode);
 					OnTemporalModesChanged();
 				}
@@ -605,6 +600,13 @@ namespace Anvil.ViewModels
 			if (!IsPastCast) { IsPastWindowOpen = false; }
 			if (!IsNowCast) { IsNowWindowOpen = false; }
 			if (!IsForeCast) { IsForeWindowOpen = false; }
+
+			// ⚠️ THE OVERLAY TICKS MEAN "SHOW WHILE THE MODE RUNS", so the mode is the draw gate. Everything
+			// starts ticked and the map still launches clean, because no mode is on yet. Watches + warnings
+			// are NowCast's; storm reports appear in BOTH the Now and Past windows, so either mode draws them.
+			Watches.IsModeActive = IsNowCast;
+			Warnings.IsModeActive = IsNowCast;
+			StormReports.IsModeActive = IsNowCast || IsPastCast;
 		}
 
 		/// <summary>Open a mode's settings window. The one entry point for "show me the controls for that

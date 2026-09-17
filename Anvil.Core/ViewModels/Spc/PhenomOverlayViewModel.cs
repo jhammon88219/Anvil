@@ -15,51 +15,75 @@ namespace Anvil.ViewModels
 	/// the same shape too, and this is where that lives. A third TO/SV overlay should derive from this,
 	/// not copy it.</para>
 	///
-	/// <para>⚠️ THERE IS NO MASTER SHOW/HIDE. The section used to carry one checkbox reading
-	/// "Tornado / Severe Thunderstorm"; it is now one checkbox per type, so the layer is simply on when
-	/// either is on. <see cref="MapOverlayViewModel.IsVisible"/> is still the base's visibility gate, but
-	/// it is DERIVED here — the view never binds it. Same model as the storm-report dots, whose three
-	/// type toggles have no master either.</para>
+	/// <para>⚠️ THERE IS NO MASTER SHOW/HIDE ROW. The section used to carry one checkbox reading
+	/// "Tornado / Severe Thunderstorm"; it is now one checkbox per type, plus a select-all in the section
+	/// HEADER (<see cref="AllShown"/> / <see cref="ToggleAll"/>) that only writes the type ticks.
+	/// <see cref="MapOverlayViewModel.IsVisible"/> is still the base's visibility gate, but it is DERIVED
+	/// here (ticks AND <see cref="IsModeActive"/>) — the view never binds it.</para>
 	/// </summary>
 	public abstract class PhenomOverlayViewModel : MapOverlayViewModel
 	{
 		// ── What the map draws ──
 
-		private bool _showTornado;
-		private bool _showSevere;
+		// ⚠️ BOTH TICKED BY DEFAULT, and that does NOT mean drawn at launch: a tick means "show this while
+		// NowCast is on" (see IsModeActive). The map still starts clean; arming NowCast brings them up.
+		private bool _showTornado = true;
+		private bool _showSevere = true;
+		private bool _isModeActive;
 
-		/// <summary>Draw tornado (TO) features. Off by default, like every overlay in this window.</summary>
+		/// <summary>Draw tornado (TO) features while the mode is on. Ticked by default.</summary>
 		public bool ShowTornado
 		{
 			get => _showTornado;
 			set { if (SetProperty(ref _showTornado, value)) { OnKindsChanged(); } }
 		}
 
-		/// <summary>Draw severe-thunderstorm (SV) features. Off by default.</summary>
+		/// <summary>Draw severe-thunderstorm (SV) features while the mode is on. Ticked by default.</summary>
 		public bool ShowSevere
 		{
 			get => _showSevere;
 			set { if (SetProperty(ref _showSevere, value)) { OnKindsChanged(); } }
 		}
 
-		/// <summary>Whether anything is drawn at all — the derived visibility, and the gate on the opacity
-		/// slider (nothing on the map, nothing for it to fade).</summary>
+		/// <summary>Whether any type is ticked — the gate on the opacity slider and the card's footer.
+		/// NOT the same as "on the map": that also needs <see cref="IsModeActive"/>.</summary>
 		public bool AnyShown => _showTornado || _showSevere;
 
+		/// <summary>The section header's tri-state: true = every type ticked, false = none, null = some.</summary>
+		public bool? AllShown => _showTornado && _showSevere ? true : AnyShown ? null : false;
+
 		/// <summary>
-		/// Clears both type toggles, taking the overlay off the map. Used when entering replay: these are
-		/// CURRENT-conditions layers, so they must not hang over historical radar.
+		/// The section header checkbox: ticks every type, unless every type is already ticked, in which case
+		/// it clears them all. A partial section therefore goes to ALL on, the usual select-all convention.
+		/// </summary>
+		public void ToggleAll()
+		{
+			var on = AllShown != true;
+			// Fields, then ONE OnKindsChanged — going through both setters would push a half-applied filter.
+			if (_showTornado == on && _showSevere == on) { return; }
+			_showTornado = on;
+			_showSevere = on;
+			OnPropertyChanged(nameof(ShowTornado));
+			OnPropertyChanged(nameof(ShowSevere));
+			OnKindsChanged();
+		}
+
+		/// <summary>
+		/// Whether the mode that owns this overlay is running (NowCast) — set by <c>MapViewModel</c>. The
+		/// layer is drawn only while this is on AND a type is ticked.
 		/// </summary>
 		/// <remarks>
-		/// ⚠️ Not <c>IsVisible = false</c>. Visibility is derived from the toggles now, so writing it
-		/// directly would hide the layer while leaving both boxes ticked — the window would then report a
-		/// state the map does not show.
+		/// ⚠️ This REPLACED a HideAll() that cleared both ticks on entering replay and never restored them.
+		/// Gating on the mode hides current-conditions alerts over historical radar just the same, and the
+		/// ticks survive the round trip.
 		/// </remarks>
-		public void HideAll()
+		public bool IsModeActive
 		{
-			ShowTornado = false;
-			ShowSevere = false;
+			get => _isModeActive;
+			set { if (SetProperty(ref _isModeActive, value)) { ApplyVisibility(); } }
 		}
+
+		private bool ShouldDraw => AnyShown && _isModeActive;
 
 		// ⚠️ Raised from ONE place because both setters land here and AnyShown (and the card's footer,
 		// which reads it) depend on both — the same reason StormReportsViewModel funnels its three.
@@ -69,20 +93,27 @@ namespace Anvil.ViewModels
 		private void OnKindsChanged()
 		{
 			OnPropertyChanged(nameof(AnyShown));
+			OnPropertyChanged(nameof(AllShown));
 			RaiseCard();
 
 			if (!IsMapReady) { return; }
 			_ = SetKindsAsync(_showTornado, _showSevere);
-			IsVisible = AnyShown;
+			ApplyVisibility();
 		}
+
+		private void ApplyVisibility() => IsVisible = ShouldDraw;
 
 		/// <summary>Push the shown phenomena to the page (the feature-specific IMapService call).</summary>
 		protected abstract Task SetKindsAsync(bool tornado, bool severe);
 
 		public override async Task OnMapsReadyAsync()
 		{
-			await base.OnMapsReadyAsync();
+			// Kinds FIRST (the page keeps the filter and applies it at layer-add), then the base pushes
+			// visibility — same ordering rule as OnKindsChanged. IsVisible is written before the base sets
+			// IsMapReady, so this assignment pushes nothing on its own.
 			await SetKindsAsync(_showTornado, _showSevere);
+			IsVisible = ShouldDraw;
+			await base.OnMapsReadyAsync();
 		}
 
 		// ── Live counts ──

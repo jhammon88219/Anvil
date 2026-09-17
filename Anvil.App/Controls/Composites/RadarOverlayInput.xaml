@@ -2,7 +2,10 @@
 <!-- RadarOverlayInput — how the RADAR LAYER ITSELF is drawn, as opposed to what is drawn over it. Reused in
      BOTH temporal windows (PastCast and NowCast), like StormReportsInput.
 
-       Opacity ──────────────●──
+       Opacity ──────────────●──  80%    ← readout = the VM value, not the slider's
+
+     ⚠️ SLIDER + READOUT DISABLE WHILE THE LAYER IS HIDDEN (RadarViewModel.ShowRadarLayer, the NowCast window's
+     Radar header checkbox). Hidden = opacity 0 on the map; the readout keeps showing the value it returns to.
 
      ⚠️ ONE SLIDER TODAY, and a whole control for it on purpose: this is the section every future setting
      that belongs to the radar LAYER goes in, and adding the second one should not mean inventing the
@@ -37,16 +40,22 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="60"/>
             <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="36"/> <!-- readout: reserved width, so the slider never resizes -->
         </Grid.ColumnDefinitions>
 
         <TextBlock Grid.Column="0" Text="Opacity" Style="{StaticResource SettingsFieldLabelStyle}"/>
         <Slider Grid.Column="1"
                 HorizontalAlignment="Stretch"
+                IsEnabled="{x:Bind ViewModel.ShowRadarLayer, Mode=OneWay}"
                 Minimum="0" Maximum="1"
                 StepFrequency="0.05" SmallChange="0.05"
                 IsThumbToolTipEnabled="False"
                 VerticalAlignment="Center"
                 Value="{x:Bind ViewModel.RadarOpacity, Mode=TwoWay}"
                 ToolTipService.ToolTip="Opacity of the radar layer — turn it down to read an outlook through it"/>
+        <TextBlock Grid.Column="2" Text="{x:Bind Percent(ViewModel.RadarOpacity), Mode=OneWay}"
+                   Opacity="{x:Bind DimUnless(ViewModel.ShowRadarLayer), Mode=OneWay}"
+                   FontSize="12" TextAlignment="Right" VerticalAlignment="Center"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
     </Grid>
 </UserControl>

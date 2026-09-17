@@ -11,7 +11,7 @@
        ────────────────────────────────────────────────
        [ ] ■ Tornado                              0     ← one row per phenomenon: the toggle, the
        [x] ■ Severe thunderstorm                  7       map colour, the name, that type's count
-       Opacity ──────●──────────────
+       Opacity ──────●──────────────  100%   ← readout = the VM value pushed to the map
 
      ⚠️ IT IS THE STORM-REPORT ROWS, DELIBERATELY. StormReportsInput draws the same card over the same
      kind of type rows one section below, so the two read as one control used three times rather than as
@@ -22,7 +22,8 @@
      ⚠️ THERE IS NO MASTER SHOW/HIDE ROW. It used to be one checkbox reading "Tornado / Severe
      Thunderstorm" with the counts stranded on a separate "Active" line below it; splitting the checkbox
      in two put the count on the line that switches it and left nothing for a master to do. The layer is
-     on when either type is on (PhenomOverlayViewModel.AnyShown, which also drives visibility).
+     on when either type is on AND its mode runs (PhenomOverlayViewModel.AnyShown + IsModeActive). The
+     select-all lives in the HOST's section header (NowCastTab), not here.
 
      ⚠️ The swatch colours are the phenom colours the map draws (watches.js / warnings.js, both TO red /
      SV yellow). They are literals in both places — change one, change the other.
@@ -124,6 +125,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="60"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="36"/> <!-- readout: reserved width, so the slider never resizes -->
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="Opacity" Style="{StaticResource SettingsFieldLabelStyle}"/>
                 <Slider Grid.Column="1"
@@ -135,6 +137,10 @@
                         VerticalAlignment="Center"
                         Value="{x:Bind ViewModel.Opacity, Mode=TwoWay}"
                         ToolTipService.ToolTip="Overall opacity of the polygons (fill and outline together)"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind Percent(ViewModel.Opacity), Mode=OneWay}"
+                           Opacity="{x:Bind DimUnless(ViewModel.AnyShown), Mode=OneWay}"
+                           FontSize="12" TextAlignment="Right" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Grid>
         </Grid>
     </Grid>

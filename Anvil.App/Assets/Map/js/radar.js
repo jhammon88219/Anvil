@@ -889,7 +889,7 @@
     // (uploadedFrame / uploadedProduct are PER VIEW — the GL buffers they describe belong to one
     //  canvas's context. See makeView.)
     let siteLat = 0, siteLon = 0;   // shared: every pane draws the same site
-    let opacity = 0.85;             // shared: one radar opacity across the panes
+    let opacity = 0.80;             // shared: one radar opacity across the panes. The host pushes its own at map-ready (RadarViewModel owns it).
     let loopToken = 0;      // bumped per loop so stale async frames are dropped
     // Range ring + sweep pulse live in radar-scope.js: a thin circle at the radar's REAL outer data
     // extent (rangeMeters from the decode) plus the one-shot rotating arm + fading wedge that sweeps

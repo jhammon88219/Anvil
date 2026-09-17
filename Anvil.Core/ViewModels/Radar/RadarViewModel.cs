@@ -100,7 +100,8 @@ namespace Anvil.ViewModels
 
 		// Selected radar site option ("None" clears the layer) + radar layer opacity.
 		private RadarOption? _selectedRadarOption;
-		private double _radarOpacity = 0.85;
+		private double _radarOpacity = 0.80;
+		private bool _showRadarLayer = true;
 
 		// Whether the on-map radar site marker buttons are shown. Independent of the radar
 		// layer: hiding the markers leaves any active loop rendering.
@@ -1155,7 +1156,8 @@ namespace Anvil.ViewModels
 			CurrentFrameIndex = target;
 		}
 
-		/// <summary>Opacity (0-1) of the radar layer. Driven by the ribbon's radar slider.</summary>
+		/// <summary>Opacity (0-1) of the radar layer — the temporal windows' Radar slider. Kept while the
+		/// layer is hidden, so showing it again restores this value.</summary>
 		public double RadarOpacity
 		{
 			get => _radarOpacity;
@@ -1163,10 +1165,36 @@ namespace Anvil.ViewModels
 			{
 				if (SetProperty(ref _radarOpacity, value) && _isMapReady)
 				{
-					_ = _mapService.SetRadarOpacityAsync(value);
+					_ = PushRadarOpacityAsync();
 				}
 			}
 		}
+
+		/// <summary>
+		/// Show/hide the radar layer — the NowCast window's Radar header checkbox. On by default; not persisted.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ HIDING IS OPACITY 0, NOT AN UNLOAD. The loop keeps fetching and decoding underneath, so showing
+		/// it again is instant — and it saves no memory. The same map command as the slider, so there is one
+		/// radar opacity on the page and this VM is the only thing that decides it.
+		/// </remarks>
+		public bool ShowRadarLayer
+		{
+			get => _showRadarLayer;
+			set
+			{
+				if (SetProperty(ref _showRadarLayer, value) && _isMapReady)
+				{
+					_ = PushRadarOpacityAsync();
+				}
+			}
+		}
+
+		// ⚠️ The ONLY radar opacity push. The page keeps its own default (radar.js `opacity`), which is why
+		// OnMapsReadyAsync pushes too: without it the page drew its default until the slider first moved,
+		// and the window's readout would have described a value the map was not using.
+		private Task PushRadarOpacityAsync() =>
+			_mapService.SetRadarOpacityAsync(_showRadarLayer ? _radarOpacity : 0);
 
 		// ===== Storm-Relative Velocity (SRV) storm motion ===============================================
 		// SRV = base velocity − the storm motion's component along each beam, so a storm's own translation is
@@ -1782,6 +1810,7 @@ namespace Anvil.ViewModels
 		public async Task OnMapsReadyAsync()
 		{
 			_isMapReady = true;
+			await PushRadarOpacityAsync();
 
 			// Provide the radar sites as clickable on-map markers. `research`/`tdwr` flag the extra
 			// networks so the page can gate them behind the "Show Research Radars" / "Show TDWRs" toggles.

@@ -51,23 +51,25 @@ namespace Anvil.ViewModels
 			_radar.PropertyChanged += OnRadarChanged;
 		}
 
-		// ── Per-type toggles (default all off, so the app launches with no dots) ──
+		// ── Per-type toggles ──
+		// ⚠️ ALL TICKED BY DEFAULT, and the app still launches with no dots: a tick means "draw while a mode
+		// that shows reports is running" (IsModeActive), and no mode runs at launch.
 
-		private bool _showTornado;
+		private bool _showTornado = true;
 		public bool ShowTornado
 		{
 			get => _showTornado;
 			set { if (SetProperty(ref _showTornado, value)) { OnKindToggled(); } }
 		}
 
-		private bool _showWind;
+		private bool _showWind = true;
 		public bool ShowWind
 		{
 			get => _showWind;
 			set { if (SetProperty(ref _showWind, value)) { OnKindToggled(); } }
 		}
 
-		private bool _showHail;
+		private bool _showHail = true;
 		public bool ShowHail
 		{
 			get => _showHail;
@@ -91,9 +93,47 @@ namespace Anvil.ViewModels
 		/// outlook's "None" follows.</summary>
 		public bool AnyShown => _showTornado || _showWind || _showHail;
 
+		/// <summary>The section header's tri-state: true = every type ticked, false = none, null = some.</summary>
+		public bool? AllShown => _showTornado && _showWind && _showHail ? true : AnyShown ? null : false;
+
+		/// <summary>
+		/// The section header checkbox: ticks every type, unless all are already ticked, in which case it
+		/// clears them. A partial section goes to ALL on. No-op while <see cref="IsReady"/> is false, the
+		/// same gate the type rows carry.
+		/// </summary>
+		public void ToggleAll()
+		{
+			if (!IsReady) { return; }
+			var on = AllShown != true;
+			// Fields, then ONE OnKindToggled — three setters would run three fetch/filter passes.
+			_showTornado = on;
+			_showWind = on;
+			_showHail = on;
+			OnPropertyChanged(nameof(ShowTornado));
+			OnPropertyChanged(nameof(ShowWind));
+			OnPropertyChanged(nameof(ShowHail));
+			OnKindToggled();
+		}
+
+		private bool _isModeActive;
+
+		/// <summary>
+		/// Whether a mode that shows reports is running (NowCast or PastCast) — set by <c>MapViewModel</c>.
+		/// Dots are drawn only while this is on; the ticks and the counts don't depend on it.
+		/// </summary>
+		public bool IsModeActive
+		{
+			get => _isModeActive;
+			set { if (SetProperty(ref _isModeActive, value)) { ApplyKinds(); } }
+		}
+
+		// ⚠️ THE ONE PLACE THE KIND FILTER IS PUSHED, so the mode gate cannot be skipped by any path.
+		private Task PushKindsAsync() => _mapService.SetStormReportKindsAsync(
+			_showTornado && _isModeActive, _showWind && _isModeActive, _showHail && _isModeActive);
+
 		// ── Opacity ──
 
-		private double _opacity = 0.9;
+		private double _opacity = 1.0;
 		public double Opacity
 		{
 			get => _opacity;
@@ -261,19 +301,25 @@ namespace Anvil.ViewModels
 			// all three, so one place cannot miss a case. CardFooter goes with it — its second clause reads
 			// AnyShown, so the "none shown" line has to appear and clear with the checkboxes.
 			OnPropertyChanged(nameof(AnyShown));
+			OnPropertyChanged(nameof(AllShown));
 			OnPropertyChanged(nameof(CardFooter));
+			ApplyKinds();
+		}
 
+		// Fetch-or-filter for the current ticks + mode. Shared by a tick flip and a mode flip.
+		private void ApplyKinds()
+		{
 			if (!_isMapReady) { return; }
 			// ⚠️ A LIVE day is refetched when a type is switched on, a past one is not: today's reports
 			// accumulate through the day, a historical day is immutable. Without the live case the counts
 			// fetched at launch would still be on screen when you finally tick a box in the evening.
-			if (AnyShown && (_loadedDay != ActiveDay() || !_radar.IsPastEventMode))
+			if (AnyShown && _isModeActive && (_loadedDay != ActiveDay() || !_radar.IsPastEventMode))
 			{
 				_ = EnsureAndShowAsync();
 			}
 			else
 			{
-				_ = _mapService.SetStormReportKindsAsync(_showTornado, _showWind, _showHail);
+				_ = PushKindsAsync();
 			}
 		}
 
@@ -370,7 +416,7 @@ namespace Anvil.ViewModels
 			SetCounts(result);
 			_loadedDay = day;
 			await _mapService.SetStormReportsSourceAsync(_reportService.LocalUrl(day));
-			await _mapService.SetStormReportKindsAsync(_showTornado, _showWind, _showHail);
+			await PushKindsAsync();
 			await _mapService.SetStormReportsOpacityAsync(_opacity);
 			SetCard(SummaryFor(result), ContextFor(day), string.Empty);
 		}

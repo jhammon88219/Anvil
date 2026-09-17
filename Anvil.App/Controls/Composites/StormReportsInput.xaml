@@ -12,7 +12,7 @@
        [x] ● Tornado                             42     ← one row per type: the toggle, the SPC dot
        [x] ● Wind                               310       colour, the name and that type's count,
        [x] ● Hail                                96       all as ONE object
-       Opacity ──────●──────────────
+       Opacity ──────●──────────────  100%   ← readout = the VM value pushed to the map
 
      ⚠️ THE SWATCHES USED TO BE DRAWN TWICE. There was a toggle row (three checkboxes, each with a coloured
      dot and a name) and a separate Count row that repeated all three dots with numbers beside them — the
@@ -151,6 +151,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="60"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="36"/> <!-- readout: reserved width, so the slider never resizes -->
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="Opacity" Style="{StaticResource SettingsFieldLabelStyle}"/>
                 <Slider Grid.Column="1"
@@ -162,6 +163,10 @@
                         VerticalAlignment="Center"
                         Value="{x:Bind ViewModel.Opacity, Mode=TwoWay}"
                         ToolTipService.ToolTip="Overall opacity of the storm-report dots"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind Percent(ViewModel.Opacity), Mode=OneWay}"
+                           Opacity="{x:Bind DimUnless(ViewModel.AnyShown), Mode=OneWay}"
+                           FontSize="12" TextAlignment="Right" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Grid>
         </Grid>
     </Grid>
