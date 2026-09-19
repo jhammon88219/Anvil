@@ -83,7 +83,7 @@ namespace Anvil.Services
 				{
 					return dtos
 						.Where(d => !string.IsNullOrWhiteSpace(d.Id))
-						.Select(d => new RadarSite(d.Id!, d.Name ?? d.Id!, d.Lat, d.Lon, siteClass))
+						.Select(d => new RadarSite(d.Id!, d.Name ?? d.Id!, d.Lat, d.Lon, siteClass, d.St))
 						.ToList();
 				}
 			}
@@ -110,6 +110,10 @@ namespace Anvil.Services
 			public string? Name { get; set; }
 			public double Lat { get; set; }
 			public double Lon { get; set; }
+
+			/// <summary>State / territory code, written by <c>tools/make_site_states.py</c>. Absent in an
+			/// older copy of the file, which just leaves that site out of the Atlas's place filters.</summary>
+			public string? St { get; set; }
 		}
 	}
 }

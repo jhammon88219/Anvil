@@ -23,6 +23,17 @@ namespace Anvil.ViewModels
 		public string Id => Site.Id;
 		public string Name => Site.Name;
 
+		/// <summary>USPS state / territory code, or null for a site the generator couldn't place.</summary>
+		public string? State => Site.State;
+
+		/// <summary>The site's geography bucket for the Atlas's region filter; null without a state.</summary>
+		public RadarSiteRegion? Region => RadarSiteRegions.For(Site.State);
+
+		/// <summary>The row's second line — "Norman · OK", or just the name when there's no state. The
+		/// state is the cheapest way to make a 200-row list findable: "Melbourne" only helps if you already
+		/// knew it was in Florida.</summary>
+		public string NameAndState => string.IsNullOrEmpty(Site.State) ? Name : $"{Name} · {Site.State}";
+
 		/// <summary>The site's NETWORK (NEXRAD / Research / TDWR) — not its status; see the remarks.</summary>
 		public string ClassLabel => Site.Class switch
 		{

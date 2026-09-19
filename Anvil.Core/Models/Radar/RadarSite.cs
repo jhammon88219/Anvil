@@ -23,6 +23,11 @@ namespace Anvil.Models
 	/// site (TDWR volumes are the same AR2V0008 Archive Level II family). Mirrors the immutable-record
 	/// style of <see cref="MapRegion"/> / <see cref="MapStyle"/>.
 	/// </summary>
+	/// <param name="State">USPS state / territory code ("OK", "PR", "GU"), or the HOST country's ISO code
+	/// for the overseas military sites ("JP", "KR", "PT"). ⚠️ GENERATED — <c>tools/make_site_states.py</c>
+	/// point-in-polygons each antenna against the basemap's own state layer and writes it into the bundled
+	/// site files; regenerate, never hand-edit. Null only if a future site resolves to nothing, which
+	/// simply leaves it out of the Atlas's state and region filters.</param>
 	public record RadarSite(string Id, string Name, double Latitude, double Longitude,
-		RadarSiteClass Class = RadarSiteClass.Operational);
+		RadarSiteClass Class = RadarSiteClass.Operational, string? State = null);
 }

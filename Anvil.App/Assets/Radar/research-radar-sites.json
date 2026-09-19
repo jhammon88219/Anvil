@@ -1,8 +1,9 @@
 [
     {
-        "id":  "KCRI",
-        "name":  "ROC Test Radar, Norman OK",
-        "lat":  35.238333,
-        "lon":  -97.46
+        "id": "KCRI",
+        "name": "ROC Test Radar, Norman OK",
+        "lat": 35.238333,
+        "lon": -97.46,
+        "st": "OK"
     }
 ]

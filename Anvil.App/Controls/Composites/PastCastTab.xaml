@@ -7,7 +7,9 @@
      control, unchanged by the split; renaming all three would be churn. Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────┐
-       │  ⌄  Timeframe                                        │  ← the only one open on load
+       │ ⌄  Timeframe                                         │  ← 24 px COMPACT headers (half
+       │                                                      │     the 48 SectionExpanderStyle
+       │                                                      │     gives); only one open on load
        │  ┌──────────────────────────────────────────┐        │
        │  │ Tue May 24, 2011              │  Load    │        │
        │  │ 5:00 PM → 7:00 PM             │          │        │  the CARD previews what Load
@@ -17,7 +19,7 @@
        │  Date    [ May 24, 2011              ▾]              │
        │  Start   [ 5:00 PM                   ▾]              │  ← the PICKERS (ViewModel.Radar)
        │  Window  [30m│1h│▓▓2h▓▓│3h│6h│12h]                   │
-       │  ›  Saved events                                     │  ← jump the pickers to a named
+       │ ›  Saved events                                      │  ← jump the pickers to a named
        │     [ Search events, sites or years          ]       │     event; NOT a map layer
        │     [▓All▓│Built-in│Yours]                           │
        │     YOURS                                            │
@@ -30,10 +32,10 @@
        │      KBMX ▕░░░░▓▓▓▓▓▓▓▓▓▓▓▓▕  3:30 PM · 3h            │     only when there's a choice
        │      [← Previous radar]  [Next radar →]              │
        │     [ Save current timeframe ]                       │
-       │  ›  Radar                                            │  ← the layer everything else
-       │  ›  SPC outlook                                      │     is drawn OVER
-       │  ›  Storm reports                                    │  ← that day's verification dots
-       │  ›  DOW event                                        │  ← a STANDALONE mobile-radar
+       │ › [x] Radar                                          │  ← the layer everything else
+       │ ›  SPC outlook                                       │     is drawn OVER
+       │ › [x] Storm reports                                  │  ← that day's verification dots
+       │ ›  DOW event                                         │  ← a STANDALONE mobile-radar
        └──────────────────────────────────────────────────────┘
 
      ⚠️ THE DOW SECTION IS LAST AND IS NOT PART OF THE Z-ORDER above it. Every other section here layers
@@ -46,13 +48,29 @@
      Laid out ENTIRELY with grids (rows/columns, no StackPanels) so rows are easy to add/rearrange: a fixed
      [label | control] outer grid, one row per field.
 
-     EVERY SECTION IS AN EXPANDER (Styles.xaml SectionExpanderStyle) — header = the section title, body =
-     its controls, SettingsFieldLabelStyle rows in one aligned label column. Timeframe is the only one open
+     EVERY SECTION IS AN EXPANDER (Styles.xaml CustomHeaderSectionExpanderStyle, the app-wide 24 px
+     section) — header = an optional select-all checkbox + the section title, body = its controls,
+     SettingsFieldLabelStyle rows in one aligned label column. Timeframe is the only one open
      on load: it is the section you came to use, and the other three act on a window it has to load first.
      Expanded state is view-only and NOT persisted — reopening the window gives you these defaults again.
      ⚠️ The window opens at a FIXED full height (WindowManager's Left anchor), not sized to this body, so
      opening enough sections can run the body past the window's bottom. Known and accepted for now — a
-     scroller is coming, hand-rolled rather than WinUI's.
+     scroller is coming, hand-rolled rather than WinUI's. The compact headers and the 8 px row spacing (24
+     before) are what buy the closed stack back.
+
+     ⚠️ THE HEADER CHECKBOX IS A SELECT-ALL, exactly as in NowCastTab: IsChecked is ONE-WAY and the Click
+     hands the decision to the view model, whose answer overwrites the box's own toggle. Only the two
+     sections that ARE a layer carry one — Radar (RadarViewModel.ShowRadarLayer) and Storm reports
+     (ToggleAll / AllShown). Timeframe, Saved events and DOW event are not layers, and SPC outlook has no
+     boolean to bind: its Product = None IS its off switch. Those four put a SectionHeaderTitleOnlyStyle
+     title in the same panel, indented into the empty box column so every title in the window lines up.
+     Clicking a box does not expand/collapse — the CheckBox takes the pointer first.
+
+     ⚠️ THE HEIGHT IS NOT THIS WINDOW'S TO SET: 24 px comes from SectionExpanderStyle and the keys
+     beside it in Styles.xaml, which every Expander in the app takes — four separate pins, all load-bearing,
+     described in the ⚠️⚠️ there. Retune them THERE and Settings and the other two windows move with these.
+     Here, every header — box or no box — is a SectionHeaderPanelStyle panel, because that panel is what
+     holds the height; a bare TextBlock in the Header slot comes out ~5 px shorter than its neighbours.
 
      ⚠️ THE CARD IS A PREVIEW, NOT A RECEIPT. Its two readouts come from the pickers below (PastEventDateText
      / PastEventRangeText), so they describe what Load WILL do; only the footer describes what already
@@ -91,7 +109,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <Grid VerticalAlignment="Top" RowSpacing="24">
+    <Grid VerticalAlignment="Top" RowSpacing="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- timeframe: the card + the pickers -->
             <RowDefinition Height="Auto"/> <!-- saved events (a shortcut into the pickers, not a layer) -->
@@ -131,8 +149,13 @@
         </VisualStateManager.VisualStateGroups>
 
         <!-- ===================== TIMEFRAME: the card, then the pickers ===================== -->
-        <Expander Grid.Row="0" Header="Timeframe" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <Expander Grid.Row="0" IsExpanded="True"
+                  Style="{StaticResource CustomHeaderSectionExpanderStyle}">
+            <Expander.Header>
+                <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
+                    <TextBlock Text="Timeframe" Style="{StaticResource SectionHeaderTitleOnlyStyle}"/>
+                </StackPanel>
+            </Expander.Header>
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- summary card + Load -->
@@ -241,8 +264,12 @@
         </Expander>
 
         <!-- ===================== SAVED EVENTS: named timeframes, built-in + yours ===================== -->
-        <Expander Grid.Row="1" Header="Saved events"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <Expander Grid.Row="1" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
+            <Expander.Header>
+                <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
+                    <TextBlock Text="Saved events" Style="{StaticResource SectionHeaderTitleOnlyStyle}"/>
+                </StackPanel>
+            </Expander.Header>
             <Grid RowSpacing="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- search -->
@@ -478,14 +505,27 @@
         <!-- ⚠️ Sections run in the map's Z-ORDER — radar underneath, outlook over it, reports on top — and
              each layer's opacity lives in its own section. That ordering is why this sits here rather than
              at the end. -->
-        <Expander Grid.Row="2" Header="Radar"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <Expander Grid.Row="2" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
+            <Expander.Header>
+                <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
+                    <CheckBox Style="{StaticResource SectionHeaderCheckBoxStyle}"
+                              IsChecked="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
+                              Click="OnRadarHeaderClick"
+                              AutomationProperties.Name="Show radar layer"
+                              ToolTipService.ToolTip="Show the radar layer"/>
+                    <TextBlock Text="Radar" Style="{StaticResource SectionHeaderTitleStyle}"/>
+                </StackPanel>
+            </Expander.Header>
             <comp:RadarOverlayInput ViewModel="{x:Bind ViewModel.Radar, Mode=OneWay}"/>
         </Expander>
 
         <!-- ===================== SPC OUTLOOK: the card, then the pickers ===================== -->
-        <Expander Grid.Row="3" Header="SPC outlook"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <Expander Grid.Row="3" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
+            <Expander.Header>
+                <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
+                    <TextBlock Text="SPC outlook" Style="{StaticResource SectionHeaderTitleOnlyStyle}"/>
+                </StackPanel>
+            </Expander.Header>
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- the card -->
@@ -590,8 +630,18 @@
              temporal windows, and a window owns its own section structure while the control is just
              content. Putting it inside would give this section a heading in a window whose other
              sections might not have one. -->
-        <Expander Grid.Row="4" Header="Storm reports"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <Expander Grid.Row="4" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
+            <Expander.Header>
+                <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
+                    <CheckBox Style="{StaticResource SectionHeaderCheckBoxStyle}"
+                              IsEnabled="{x:Bind ViewModel.StormReports.IsReady, Mode=OneWay}"
+                              IsChecked="{x:Bind ViewModel.StormReports.AllShown, Mode=OneWay}"
+                              Click="OnStormReportsHeaderClick"
+                              AutomationProperties.Name="Show all storm reports"
+                              ToolTipService.ToolTip="Show or hide every report type"/>
+                    <TextBlock Text="Storm reports" Style="{StaticResource SectionHeaderTitleStyle}"/>
+                </StackPanel>
+            </Expander.Header>
             <comp:StormReportsInput ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
         </Expander>
 
@@ -607,8 +657,12 @@
              library - these frames are ~20 MB and are no longer packaged.
              ⚠️ Import… raises an event rather than opening the picker here: a FileOpenPicker needs a window
              HWND and this is a UserControl. Same chain as the Map tab's folder browse. -->
-        <Expander Grid.Row="5" Header="DOW event"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <Expander Grid.Row="5" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
+            <Expander.Header>
+                <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
+                    <TextBlock Text="DOW event" Style="{StaticResource SectionHeaderTitleOnlyStyle}"/>
+                </StackPanel>
+            </Expander.Header>
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- the frame list -->

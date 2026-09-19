@@ -4,8 +4,9 @@
 
        Opacity ──────────────●──  80%    ← readout = the VM value, not the slider's
 
-     ⚠️ SLIDER + READOUT DISABLE WHILE THE LAYER IS HIDDEN (RadarViewModel.ShowRadarLayer, the NowCast window's
-     Radar header checkbox). Hidden = opacity 0 on the map; the readout keeps showing the value it returns to.
+     ⚠️ SLIDER + READOUT DISABLE WHILE THE LAYER IS HIDDEN (RadarViewModel.ShowRadarLayer — the Radar header
+     checkbox, which both windows carry). Hidden = opacity 0 on the map; the readout keeps showing the value
+     it returns to.
 
      ⚠️ ONE SLIDER TODAY, and a whole control for it on purpose: this is the section every future setting
      that belongs to the radar LAYER goes in, and adding the second one should not mean inventing the

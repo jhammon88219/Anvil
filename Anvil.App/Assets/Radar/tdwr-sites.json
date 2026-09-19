@@ -3,258 +3,301 @@
         "id": "TADW",
         "name": "Andrews Air Force Base",
         "lat": 38.6704,
-        "lon": -76.8446
+        "lon": -76.8446,
+        "st": "MD"
     },
     {
         "id": "TATL",
         "name": "Atlanta",
         "lat": 33.6433,
-        "lon": -84.2524
+        "lon": -84.2524,
+        "st": "GA"
     },
     {
         "id": "TBNA",
         "name": "Nashville",
         "lat": 35.9767,
-        "lon": -86.6618
+        "lon": -86.6618,
+        "st": "TN"
     },
     {
         "id": "TBOS",
         "name": "Boston",
         "lat": 42.1515,
-        "lon": -70.9302
+        "lon": -70.9302,
+        "st": "MA"
     },
     {
         "id": "TBWI",
         "name": "Baltimore/Wash",
         "lat": 39.087,
-        "lon": -76.6276
+        "lon": -76.6276,
+        "st": "MD"
     },
     {
         "id": "TCLT",
         "name": "Charlotte",
         "lat": 35.3269,
-        "lon": -80.8772
+        "lon": -80.8772,
+        "st": "NC"
     },
     {
         "id": "TCMH",
         "name": "Columbus,OH",
         "lat": 39.9878,
-        "lon": -82.71
+        "lon": -82.71,
+        "st": "OH"
     },
     {
         "id": "TCVG",
         "name": "Covington",
         "lat": 38.8799,
-        "lon": -84.5737
+        "lon": -84.5737,
+        "st": "KY"
     },
     {
         "id": "TDAL",
         "name": "Dallas Love Field",
         "lat": 32.9076,
-        "lon": -96.9568
+        "lon": -96.9568,
+        "st": "TX"
     },
     {
         "id": "TDAY",
         "name": "Dayton",
         "lat": 39.9875,
-        "lon": -84.1102
+        "lon": -84.1102,
+        "st": "OH"
     },
     {
         "id": "TDCA",
         "name": "Washington National",
         "lat": 38.7474,
-        "lon": -76.9509
+        "lon": -76.9509,
+        "st": "MD"
     },
     {
         "id": "TDEN",
         "name": "Denver",
         "lat": 39.7256,
-        "lon": -104.5431
+        "lon": -104.5431,
+        "st": "CO"
     },
     {
         "id": "TDFW",
         "name": "Dallas/Ft. Worth",
         "lat": 33.0396,
-        "lon": -96.8974
+        "lon": -96.8974,
+        "st": "TX"
     },
     {
         "id": "TDTW",
         "name": "Detroit",
         "lat": 42.071,
-        "lon": -83.4704
+        "lon": -83.4704,
+        "st": "MI"
     },
     {
         "id": "TEWR",
         "name": "Newark",
         "lat": 40.588,
-        "lon": -74.2503
+        "lon": -74.2503,
+        "st": "NJ"
     },
     {
         "id": "TFLL",
         "name": "Fort Lauderdale",
         "lat": 26.1263,
-        "lon": -80.3478
+        "lon": -80.3478,
+        "st": "FL"
     },
     {
         "id": "THOU",
         "name": "Houston Hobby",
         "lat": 29.5328,
-        "lon": -95.2444
+        "lon": -95.2444,
+        "st": "TX"
     },
     {
         "id": "TIAD",
         "name": "Dulles",
         "lat": 39.0675,
-        "lon": -77.5012
+        "lon": -77.5012,
+        "st": "VA"
     },
     {
         "id": "TIAH",
         "name": "Houston International",
         "lat": 30.0297,
-        "lon": -95.5708
+        "lon": -95.5708,
+        "st": "TX"
     },
     {
         "id": "TIDS",
         "name": "Indianapolis",
         "lat": 39.5978,
-        "lon": -86.4085
+        "lon": -86.4085,
+        "st": "IN"
     },
     {
         "id": "TJFK",
         "name": "New York City",
         "lat": 40.5668,
-        "lon": -73.8874
+        "lon": -73.8874,
+        "st": "NY"
     },
     {
         "id": "TLAS",
         "name": "Las Vegas",
         "lat": 36.1292,
-        "lon": -115.0147
+        "lon": -115.0147,
+        "st": "NV"
     },
     {
         "id": "TLVE",
         "name": "Cleveland,OH",
         "lat": 41.2805,
-        "lon": -81.9659
+        "lon": -81.9659,
+        "st": "OH"
     },
     {
         "id": "TMCI",
         "name": "Kansas City",
         "lat": 39.4488,
-        "lon": -94.7396
+        "lon": -94.7396,
+        "st": "MO"
     },
     {
         "id": "TMCO",
         "name": "Orlando International",
         "lat": 28.2584,
-        "lon": -81.3133
+        "lon": -81.3133,
+        "st": "FL"
     },
     {
         "id": "TMDW",
         "name": "Chicago Midway",
         "lat": 41.69,
-        "lon": -87.8034
+        "lon": -87.8034,
+        "st": "IL"
     },
     {
         "id": "TMEM",
         "name": "Memphis",
         "lat": 34.8867,
-        "lon": -90.0007
+        "lon": -90.0007,
+        "st": "MS"
     },
     {
         "id": "TMKE",
         "name": "Milwaukee",
         "lat": 42.7619,
-        "lon": -87.9994
+        "lon": -87.9994,
+        "st": "WI"
     },
     {
         "id": "TMSP",
         "name": "Minneapolis",
         "lat": 44.8197,
-        "lon": -92.9392
+        "lon": -92.9392,
+        "st": "MN"
     },
     {
         "id": "TMSY",
         "name": "New Orleans",
         "lat": 29.9385,
-        "lon": -90.3811
+        "lon": -90.3811,
+        "st": "LA"
     },
     {
         "id": "TOKC",
         "name": "Oklahoma City",
         "lat": 35.2474,
-        "lon": -97.5395
+        "lon": -97.5395,
+        "st": "OK"
     },
     {
         "id": "TORD",
         "name": "Chicago O'Hare",
         "lat": 41.7712,
-        "lon": -87.8363
+        "lon": -87.8363,
+        "st": "IL"
     },
     {
         "id": "TPBI",
         "name": "West Palm Beach",
         "lat": 26.6572,
-        "lon": -80.2586
+        "lon": -80.2586,
+        "st": "FL"
     },
     {
         "id": "TPHL",
         "name": "Philadelphia",
         "lat": 39.9084,
-        "lon": -75.0426
+        "lon": -75.0426,
+        "st": "NJ"
     },
     {
         "id": "TPHX",
         "name": "Phoenix",
         "lat": 33.3678,
-        "lon": -112.158
+        "lon": -112.158,
+        "st": "AZ"
     },
     {
         "id": "TPIT",
         "name": "Pittsburgh",
         "lat": 40.4641,
-        "lon": -80.4697
+        "lon": -80.4697,
+        "st": "PA"
     },
     {
         "id": "TRDU",
         "name": "Raleigh Durham",
         "lat": 35.9898,
-        "lon": -78.6787
+        "lon": -78.6787,
+        "st": "NC"
     },
     {
         "id": "TSDF",
         "name": "Louisville,KY",
         "lat": 38.0109,
-        "lon": -85.5995
+        "lon": -85.5995,
+        "st": "KY"
     },
     {
         "id": "TSJU",
         "name": "San Juan",
         "lat": 18.4313,
-        "lon": -66.1722
+        "lon": -66.1722,
+        "st": "PR"
     },
     {
         "id": "TSLC",
         "name": "Salt Lake City",
         "lat": 40.9341,
-        "lon": -111.9214
+        "lon": -111.9214,
+        "st": "UT"
     },
     {
         "id": "TSTL",
         "name": "St. Louis",
         "lat": 38.7668,
-        "lon": -90.4698
+        "lon": -90.4698,
+        "st": "MO"
     },
     {
         "id": "TTPA",
         "name": "Tampa Bay",
         "lat": 27.8196,
-        "lon": -82.5179
+        "lon": -82.5179,
+        "st": "FL"
     },
     {
         "id": "TTUL",
         "name": "Tulsa",
         "lat": 36.0236,
-        "lon": -95.8175
+        "lon": -95.8175,
+        "st": "OK"
     }
 ]

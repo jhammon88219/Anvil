@@ -7,7 +7,8 @@
      MapViewModel; every control here drives ViewModel.Outlook.
 
        ┌──────────────────────────────────────────────────────┐
-       │  ⌄  SPC outlook                                      │  ← the window's one section
+       │ ⌄  SPC outlook                                       │  ← the window's one section, at
+       │                                                      │     the app-wide 24 px header
        │  ┌──────────────────────────────────────────┐        │
        │  │ Day 1 · Categorical                      │        │  the card: which outlook is
        │  │ Issued 12:57 PM · Valid → Wed 7:00 AM    │        │  drawn, when SPC issued it,
@@ -26,18 +27,19 @@
           ╱ CIG2                               In Outlook  █     hidden hatch can't be forgotten
           ╳ CIG3                           Not In Outlook  ▼  ← dimmed
        ┌──────────────────────────────────────────────────────┐
-       │  ›  Forecast discussion                              │  ← pinned to the BOTTOM; COLLAPSED on
+       │ ›  Forecast discussion                               │  ← pinned to the BOTTOM; COLLAPSED on
        └──────────────────────────────────────────────────────┘     load, opens into a 240px cap
 
        (expanded)
        ┌──────────────────────────────────────────────────────┐
-       │  ⌄  Forecast discussion                            ▲ │
+       │ ⌄  Forecast discussion                             ▲ │
        │  SPC AC 021257                                     █ │  SPC's own teletype prose,
        │  DAY 1 CONVECTIVE OUTLOOK                          █ │  fixed-pitch so its columns
        │  ...VALID 021300Z - 031200Z...                     ▼ │  and rules line up
        └──────────────────────────────────────────────────────┘
 
-     TWO SECTIONS, TWO EXPANDERS (Styles.xaml SectionExpanderStyle). SPC outlook is open on load — it is
+     TWO SECTIONS, TWO EXPANDERS (Styles.xaml SectionExpanderStyle — the 24 px header every section in
+     the app wears, Settings and the other two temporal windows included). SPC outlook is open on load — it is
      what the window is for. Inside it: a summary CARD, then [label | control] rows in one aligned 60px
      column, then the legend. Forecast discussion is COLLAPSED on load; see its own note below. This was the loosest of the three bodies — no section structure
      at all, a local OutlookLabelStyle that was character-for-character the shared SettingsFieldLabelStyle,
@@ -45,6 +47,14 @@
      ⚠️ The window sizes to its content ONCE, at open, so collapsing this section leaves the window at its
      full height and re-expanding it is fine, but a section that GROWS after open runs past the bottom. A
      hand-rolled scroller is coming; WinUI's is not wanted.
+
+     ⚠️ NEITHER HEADER CARRIES A SELECT-ALL BOX, unlike NowCast's and PastCast's, and that is not an
+     omission to be tidied up. A box up there is a LAYER's show/hide; the only boolean this window has is
+     OutlookViewModel.IsOutlookVisible, which IS the ForeCast mode (MapViewModel.IsForeCast projects onto
+     it), and a tab body never arms or clears its own mode — see the last ⚠️ in this header. The
+     discussion is prose, not a layer at all. So both pass a plain string Header and take the shared
+     template; SectionHeaderTitleOnlyStyle's 28 px indent is for a window that MIXES the two kinds, which
+     this one does not.
 
      ⚠️ THE CARD COSTS NO VIEW-MODEL WORK. Its three lines are OutlookViewModel state that was already
      being computed and shown nowhere — the title, the issued/valid line, and the refresh countdown. See

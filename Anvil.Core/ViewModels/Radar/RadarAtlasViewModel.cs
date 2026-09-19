@@ -42,17 +42,33 @@ namespace Anvil.ViewModels
 
 			FilteredSites = new ObservableCollection<RadarSiteRow>();
 			SiteGroups = new ObservableCollection<RadarSiteGroup>();
+			BuildPlaceOptions();
 			RebuildFiltered();
 
 			// Starring a site or moving home re-sections the list (Home / Favorites / All sites).
 			_favorites.PinnedChanged += (_, _) => RebuildFiltered();
 
-			// A status pass (or one site's evidence) can move a row across "Online only".
+			// A status pass (or one site's evidence) can move a row across a status filter.
 			_radar.SiteAvailabilityChanged += (_, _) =>
 			{
-				if (_onlineOnly)
+				if (HasStatusFilter)
 				{
 					RebuildFiltered();
+				}
+			};
+
+			// Dropping or placing the location marker decides whether "Nearest" can be sorted by at all —
+			// and if it's the live sort, the order itself changes underneath us.
+			_markers.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(MarkersViewModel.HasUserLocationMarker))
+				{
+					OnPropertyChanged(nameof(CanSortByDistance));
+					if (_sortMode == AtlasSortMode.Nearest)
+					{
+						SortMode = CanSortByDistance ? AtlasSortMode.Nearest : AtlasSortMode.Icao;
+						RebuildFiltered();
+					}
 				}
 			};
 
@@ -74,9 +90,13 @@ namespace Anvil.ViewModels
 					FollowRadarSelection();
 				}
 
+				// The status words name a different question in PastCast — and a chip may be showing them.
 				if (e.PropertyName is nameof(RadarViewModel.IsPastEventMode))
 				{
-					OnPropertyChanged(nameof(OnlineOnlyLabel));
+					OnPropertyChanged(nameof(StatusOnlineLabel));
+					OnPropertyChanged(nameof(StatusOfflineLabel));
+					OnPropertyChanged(nameof(StatusUncheckedLabel));
+					RebuildChips();
 				}
 
 				// Settings → Radar decides which networks exist in the list, same as on the map.
@@ -84,14 +104,7 @@ namespace Anvil.ViewModels
 				{
 					OnPropertyChanged(nameof(IsTdwrFilterEnabled));
 					OnPropertyChanged(nameof(IsResearchFilterEnabled));
-					if ((_selectedClassIndex == 2 && !_radar.ShowResearchRadars) || (_selectedClassIndex == 3 && !_radar.ShowTdwrs))
-					{
-						SelectedClassIndex = 0; // the filter pointed at a network that just vanished (rebuilds)
-					}
-					else
-					{
-						RebuildFiltered();
-					}
+					RebuildFiltered();
 				}
 			};
 
@@ -129,38 +142,184 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		private int _selectedClassIndex; // 0 = All, 1 = Operational, 2 = Research, 3 = TDWR
+		// ── Network ──────────────────────────────────────────────────────────────────────────────
+		// Independently tickable, unlike the single-pick combo this replaced: "NEXRAD + TDWR but not
+		// research" is a question you can now ask. ⚠️ ALL THREE DEFAULT TRUE — "no filter" here means
+		// everything ticked, not nothing, so an unticked box always reads as a narrowing.
+		private bool _filterNexrad = true;
+		private bool _filterTdwr = true;
+		private bool _filterResearch = true;
 
-		/// <summary>Network filter (bound to a ComboBox SelectedIndex): All / Operational / Research / TDWR.</summary>
-		public int SelectedClassIndex
+		public bool FilterNexrad
 		{
-			get => _selectedClassIndex;
+			get => _filterNexrad;
+			set { if (SetProperty(ref _filterNexrad, value)) RebuildFiltered(); }
+		}
+
+		public bool FilterTdwr
+		{
+			get => _filterTdwr;
+			set { if (SetProperty(ref _filterTdwr, value)) RebuildFiltered(); }
+		}
+
+		public bool FilterResearch
+		{
+			get => _filterResearch;
+			set { if (SetProperty(ref _filterResearch, value)) RebuildFiltered(); }
+		}
+
+		/// <summary>
+		/// The networks Settings → Radar currently permits, each with its tick state and label.
+		/// </summary>
+		/// <remarks>⚠️ THE reference for "is the network filter narrowed": narrowing is measured against what
+		/// is SELECTABLE right now, not against all three. Otherwise turning TDWRs off in Settings would leave
+		/// a permanent "NEXRAD +1" chip the user could never clear, because a hidden network can't be re-ticked.</remarks>
+		private List<(RadarSiteClass Class, bool Ticked, string Label)> EnabledNetworks()
+		{
+			var list = new List<(RadarSiteClass, bool, string)>
+			{
+				(RadarSiteClass.Operational, _filterNexrad, "NEXRAD"),
+			};
+			if (_radar.ShowResearchRadars) list.Add((RadarSiteClass.Research, _filterResearch, "Research"));
+			if (_radar.ShowTdwrs) list.Add((RadarSiteClass.Tdwr, _filterTdwr, "TDWR"));
+			return list;
+		}
+
+		// ── Status ───────────────────────────────────────────────────────────────────────────────
+		// Three independent ticks, not the old "Online only" checkbox: during an outage the useful question
+		// is "what's DOWN", which a single boolean couldn't ask. NONE ticked means no status filter at all.
+		private bool _statusOnline;
+		private bool _statusOffline;
+		private bool _statusUnchecked;
+
+		public bool StatusOnline
+		{
+			get => _statusOnline;
+			set { if (SetProperty(ref _statusOnline, value)) RebuildFiltered(); }
+		}
+
+		public bool StatusOffline
+		{
+			get => _statusOffline;
+			set { if (SetProperty(ref _statusOffline, value)) RebuildFiltered(); }
+		}
+
+		public bool StatusUnchecked
+		{
+			get => _statusUnchecked;
+			set { if (SetProperty(ref _statusUnchecked, value)) RebuildFiltered(); }
+		}
+
+		private bool HasStatusFilter => _statusOnline || _statusOffline || _statusUnchecked;
+
+		// ⚠️ The status words name what the state MEANS right now — the live feed, or the PastCast replay
+		// day. Same rule the row's StatusLabel follows; the two must never disagree.
+		public string StatusOnlineLabel => _radar.IsPastEventMode ? "Data on replay day" : "Online";
+		public string StatusOfflineLabel => _radar.IsPastEventMode ? "No data on replay day" : "Offline";
+		public string StatusUncheckedLabel => "Not yet checked";
+
+		// ── Place ────────────────────────────────────────────────────────────────────────────────
+		// Region and state both come from RadarSite.State, which tools/make_site_states.py stamps in. The
+		// option lists are built ONCE from every site the app knows: a list that shrank as you filtered
+		// would keep moving the entry you were reaching for.
+		private const string AllRegions = "All regions";
+		private const string AllStates = "All states";
+
+		/// <summary>"All regions" + every region that actually has a site.</summary>
+		public ObservableCollection<string> RegionOptions { get; } = new() { AllRegions };
+
+		/// <summary>"All states" + every state code that actually has a site, alphabetical.</summary>
+		public ObservableCollection<string> StateOptions { get; } = new() { AllStates };
+
+		private string _selectedRegion = AllRegions;
+
+		public string SelectedRegion
+		{
+			get => _selectedRegion;
 			set
 			{
-				if (SetProperty(ref _selectedClassIndex, value))
+				if (SetProperty(ref _selectedRegion, string.IsNullOrEmpty(value) ? AllRegions : value))
 				{
 					RebuildFiltered();
 				}
 			}
 		}
 
-		private bool _onlineOnly;
+		private string _selectedState = AllStates;
 
-		/// <summary>When set, hides sites with no recent data in the feed (offline markers).</summary>
-		public bool OnlineOnly
+		public string SelectedState
 		{
-			get => _onlineOnly;
+			get => _selectedState;
 			set
 			{
-				if (SetProperty(ref _onlineOnly, value))
+				if (SetProperty(ref _selectedState, string.IsNullOrEmpty(value) ? AllStates : value))
 				{
 					RebuildFiltered();
 				}
 			}
 		}
 
-		/// <summary>The checkbox names what the status MEANS right now: the live feed, or PastCast's replay day.</summary>
-		public string OnlineOnlyLabel => _radar.IsPastEventMode ? "Data on replay day only" : "Online only";
+		// Region and state are independent, so a contradictory pair (Alaska + FL) is expressible and yields
+		// nothing. That's deliberate: the empty list plus two clearable chips explains itself, where silently
+		// re-pointing one of them would leave the user staring at a filter they didn't set.
+		private void BuildPlaceOptions()
+		{
+			foreach (var region in _radar.RadarSiteRows
+				.Select(r => r.Region)
+				.Where(r => r is not null)
+				.Select(r => r!.Value)
+				.Distinct()
+				.OrderBy(r => (int)r))
+			{
+				RegionOptions.Add(RadarSiteRegions.DisplayName(region));
+			}
+
+			foreach (var state in _radar.RadarSiteRows
+				.Select(r => r.State)
+				.Where(s => !string.IsNullOrEmpty(s))
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.OrderBy(s => s, StringComparer.OrdinalIgnoreCase))
+			{
+				StateOptions.Add(state!);
+			}
+		}
+
+		// ── Sort ─────────────────────────────────────────────────────────────────────────────────
+		private AtlasSortMode _sortMode = AtlasSortMode.Icao;
+
+		/// <summary>Order of the "All sites" section. Home and Favorites are never re-ordered.</summary>
+		public AtlasSortMode SortMode
+		{
+			get => _sortMode;
+			private set
+			{
+				if (SetProperty(ref _sortMode, value))
+				{
+					OnPropertyChanged(nameof(SortIndex));
+				}
+			}
+		}
+
+		/// <summary>The sort as a RadioButtons index (0 ICAO / 1 Name / 2 Nearest).</summary>
+		public int SortIndex
+		{
+			get => (int)_sortMode;
+			set
+			{
+				// RadioButtons reports -1 while it rebuilds its items; that isn't a user choice.
+				if (value < 0 || value > (int)AtlasSortMode.Nearest) return;
+				var mode = (AtlasSortMode)value;
+				if (mode == AtlasSortMode.Nearest && !CanSortByDistance) return;
+				if (mode != _sortMode)
+				{
+					SortMode = mode;
+					RebuildFiltered();
+				}
+			}
+		}
+
+		/// <summary>Whether "Nearest" can be picked — it needs somewhere to measure from.</summary>
+		public bool CanSortByDistance => _markers.UserLocationMarker is not null;
 
 		private bool _favoritesOnly;
 
@@ -185,30 +344,175 @@ namespace Anvil.ViewModels
 		/// CollectionViewSource. Empty sections are omitted; a row is in exactly one.</summary>
 		public ObservableCollection<RadarSiteGroup> SiteGroups { get; }
 
-		/// <summary>Header count, e.g. "42 of 203 sites".</summary>
-		public string ResultCountText =>
-			$"{FilteredSites.Count} of {_radar.RadarSiteRows.Count(r => _radar.IsNetworkShown(r.Site))} sites";
+		/// <summary>Every site Settings → Radar currently permits — the denominator of the count.</summary>
+		private int VisibleSiteCount => _radar.RadarSiteRows.Count(r => _radar.IsNetworkShown(r.Site));
+
+		/// <summary>
+		/// The feedback row's count. It changes PHRASING, not just numbers: "204 sites" while nothing narrows
+		/// the list, "118 of 204" once something does — so the line always says something true, and the row
+		/// is never empty (it's permanent, and an empty permanent row reads as a bug).
+		/// </summary>
+		public string ResultCountText => IsNarrowed
+			? $"{FilteredSites.Count} of {VisibleSiteCount}"
+			: $"{VisibleSiteCount} sites";
 
 		/// <summary>The network filter's TDWR / Research entries grey out while Settings → Radar hides that network.</summary>
 		public bool IsTdwrFilterEnabled => _radar.ShowTdwrs;
 		public bool IsResearchFilterEnabled => _radar.ShowResearchRadars;
+
+		// ── The feedback row: chips + clear ──────────────────────────────────────────────────────
+		/// <summary>The active filters, one chip per GROUP, rebuilt with the list. See <see cref="AtlasFilterChip"/>
+		/// for which filters earn a chip and which don't.</summary>
+		public ObservableCollection<AtlasFilterChip> Chips { get; } = new();
+
+		/// <summary>Whether anything is FILTERING the list. ⚠️ Sort is not a filter and is excluded — it's
+		/// what "Clear all" acts on and what the button's enablement reads.</summary>
+		public bool HasActiveFilters =>
+			EnabledNetworks().Any(n => !n.Ticked) || HasStatusFilter || _favoritesOnly ||
+			_selectedRegion != AllRegions || _selectedState != AllStates;
+
+		/// <summary>Whether ANYTHING is cutting the list down, search included — the count's phrasing rule.</summary>
+		private bool IsNarrowed => HasActiveFilters || _searchText.Trim().Length > 0;
+
+		/// <summary>A chip's ✕ — clears the whole group it stands for.</summary>
+		public void ClearChip(AtlasFilterChip chip)
+		{
+			switch (chip.Kind)
+			{
+				case AtlasFilterKind.Network:
+					// Back to every network Settings allows; a hidden one's flag is left as it was, since it
+					// isn't part of the narrowing (see EnabledNetworks).
+					_filterNexrad = true;
+					if (_radar.ShowResearchRadars) _filterResearch = true;
+					if (_radar.ShowTdwrs) _filterTdwr = true;
+					RaiseNetworkFlags();
+					break;
+				case AtlasFilterKind.Status:
+					_statusOnline = _statusOffline = _statusUnchecked = false;
+					RaiseStatusFlags();
+					break;
+				case AtlasFilterKind.Region:
+					SetProperty(ref _selectedRegion, AllRegions, nameof(SelectedRegion));
+					break;
+				case AtlasFilterKind.State:
+					SetProperty(ref _selectedState, AllStates, nameof(SelectedState));
+					break;
+				case AtlasFilterKind.Sort:
+					SortMode = AtlasSortMode.Icao;
+					break;
+			}
+			RebuildFiltered();
+		}
+
+		/// <summary>
+		/// The "Clear all" key beside the Filters flyout. ⚠️ Clears the FILTERS and leaves the sort alone —
+		/// a button named for filters yanking the chosen order would be a surprise, and the sort chip staying
+		/// put is honest, because that order is still in effect.
+		/// </summary>
+		public void ClearAllFilters()
+		{
+			_filterNexrad = true;
+			if (_radar.ShowResearchRadars) _filterResearch = true;
+			if (_radar.ShowTdwrs) _filterTdwr = true;
+			_statusOnline = _statusOffline = _statusUnchecked = false;
+			_favoritesOnly = false;
+			SetProperty(ref _selectedRegion, AllRegions, nameof(SelectedRegion));
+			SetProperty(ref _selectedState, AllStates, nameof(SelectedState));
+			RaiseNetworkFlags();
+			RaiseStatusFlags();
+			OnPropertyChanged(nameof(FavoritesOnly));
+			RebuildFiltered();
+		}
+
+		private void RaiseNetworkFlags()
+		{
+			OnPropertyChanged(nameof(FilterNexrad));
+			OnPropertyChanged(nameof(FilterTdwr));
+			OnPropertyChanged(nameof(FilterResearch));
+		}
+
+		private void RaiseStatusFlags()
+		{
+			OnPropertyChanged(nameof(StatusOnline));
+			OnPropertyChanged(nameof(StatusOffline));
+			OnPropertyChanged(nameof(StatusUnchecked));
+		}
+
+		// One chip per group, labelled by its picks: "NEXRAD" alone, "NEXRAD +1" for two. The compaction is
+		// what caps the row — five groups, so five chips, however many boxes are ticked inside them.
+		private void RebuildChips()
+		{
+			Chips.Clear();
+
+			var networks = EnabledNetworks();
+			if (networks.Any(n => !n.Ticked))
+			{
+				var ticked = networks.Where(n => n.Ticked).Select(n => n.Label).ToList();
+				Chips.Add(new AtlasFilterChip(AtlasFilterKind.Network,
+					ticked.Count == 0 ? "No network" : Summarize(ticked)));
+			}
+
+			if (HasStatusFilter)
+			{
+				var picked = new List<string>();
+				if (_statusOnline) picked.Add(StatusOnlineLabel);
+				if (_statusOffline) picked.Add(StatusOfflineLabel);
+				if (_statusUnchecked) picked.Add(StatusUncheckedLabel);
+				Chips.Add(new AtlasFilterChip(AtlasFilterKind.Status, Summarize(picked)));
+			}
+
+			if (_selectedRegion != AllRegions)
+			{
+				Chips.Add(new AtlasFilterChip(AtlasFilterKind.Region, _selectedRegion));
+			}
+
+			if (_selectedState != AllStates)
+			{
+				Chips.Add(new AtlasFilterChip(AtlasFilterKind.State, _selectedState));
+			}
+
+			// Sort shows only when it ISN'T the default — a chip for "the order it's always in" is noise.
+			if (_sortMode != AtlasSortMode.Icao)
+			{
+				Chips.Add(new AtlasFilterChip(AtlasFilterKind.Sort,
+					_sortMode == AtlasSortMode.Nearest ? "Nearest first" : "By name"));
+			}
+
+			static string Summarize(List<string> picks) =>
+				picks.Count > 1 ? $"{picks[0]} +{picks.Count - 1}" : picks[0];
+		}
 
 		private void RebuildFiltered()
 		{
 			var search = _searchText.Trim();
 			IEnumerable<RadarSiteRow> q = _radar.RadarSiteRows.Where(r => _radar.IsNetworkShown(r.Site));
 
-			q = _selectedClassIndex switch
+			// Network. Measured against what Settings permits, so a hidden network's stale flag can't filter
+			// anything (its rows are gone already) — see EnabledNetworks.
+			var networks = EnabledNetworks();
+			if (networks.Any(n => !n.Ticked))
 			{
-				1 => q.Where(r => r.Site.Class == RadarSiteClass.Operational),
-				2 => q.Where(r => r.Site.Class == RadarSiteClass.Research),
-				3 => q.Where(r => r.Site.Class == RadarSiteClass.Tdwr),
-				_ => q,
-			};
+				var allowed = networks.Where(n => n.Ticked).Select(n => n.Class).ToHashSet();
+				q = q.Where(r => allowed.Contains(r.Site.Class));
+			}
 
-			if (_onlineOnly)
+			// Status. Nothing ticked = no status filter; otherwise a row must match one of the ticks.
+			if (HasStatusFilter)
 			{
-				q = q.Where(r => !r.IsOffline);
+				q = q.Where(r =>
+					(_statusOnline && r.Availability == SiteAvailability.Online) ||
+					(_statusOffline && r.Availability == SiteAvailability.Offline) ||
+					(_statusUnchecked && r.Availability == SiteAvailability.Unknown));
+			}
+
+			if (_selectedRegion != AllRegions)
+			{
+				q = q.Where(r => r.Region is { } region && RadarSiteRegions.DisplayName(region) == _selectedRegion);
+			}
+
+			if (_selectedState != AllStates)
+			{
+				q = q.Where(r => string.Equals(r.State, _selectedState, StringComparison.OrdinalIgnoreCase));
 			}
 
 			if (_favoritesOnly)
@@ -228,7 +532,7 @@ namespace Anvil.ViewModels
 			var matched = q.ToHashSet();
 			var home = _favorites.PinnedSites.Where(r => r.IsHome && matched.Contains(r)).ToList();
 			var favorites = _favorites.PinnedSites.Where(r => !r.IsHome && matched.Contains(r)).ToList();
-			var rest = _radar.RadarSiteRows.Where(r => matched.Contains(r) && !r.IsHome && !r.IsFavorite).ToList();
+			var rest = SortRows(_radar.RadarSiteRows.Where(r => matched.Contains(r) && !r.IsHome && !r.IsFavorite));
 
 			// ⚠️ FilteredSites clears FIRST: clearing the groups drops the ListView's selection, and its null echo
 			// is only ignored while the selected row is absent from FilteredSites (see SelectedSite).
@@ -247,11 +551,37 @@ namespace Anvil.ViewModels
 				}
 				SiteGroups.Add(new RadarSiteGroup(header, rows));
 			}
+			RebuildChips();
 			OnPropertyChanged(nameof(ResultCountText));
+			OnPropertyChanged(nameof(HasActiveFilters));
 			// The Clear() dropped the ListView's selection (its null echo was ignored — see SelectedSite);
 			// re-raise so a selection that survived the filter is highlighted again.
 			OnPropertyChanged(nameof(SelectedSite));
 		}
+
+		/// <summary>
+		/// Orders the "All sites" section. ⚠️ ONLY that section: Home and Favorites are in the order the user
+		/// pinned them, and re-sorting them would throw that away.
+		/// </summary>
+		private List<RadarSiteRow> SortRows(IEnumerable<RadarSiteRow> rows) => _sortMode switch
+		{
+			AtlasSortMode.Name => rows
+				.OrderBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase)
+				.ThenBy(r => r.Id, StringComparer.OrdinalIgnoreCase)
+				.ToList(),
+			// A site with no distance (no marker, which shouldn't reach here) sinks rather than leading.
+			AtlasSortMode.Nearest => rows
+				.OrderBy(r => MilesTo(r) ?? double.MaxValue)
+				.ThenBy(r => r.Id, StringComparer.OrdinalIgnoreCase)
+				.ToList(),
+			_ => rows.OrderBy(r => r.Id, StringComparer.OrdinalIgnoreCase).ToList(),
+		};
+
+		/// <summary>Great-circle miles from the user-location marker to a row's site, or null without one.</summary>
+		private double? MilesTo(RadarSiteRow row) =>
+			_markers.UserLocationMarker is { } u
+				? HaversineMiles(u.Latitude, u.Longitude, row.Site.Latitude, row.Site.Longitude)
+				: null;
 
 		// ── Selection + detail ───────────────────────────────────────────────────────────────────
 		private RadarSiteRow? _selectedSite;
@@ -400,11 +730,9 @@ namespace Anvil.ViewModels
 		/// <summary>Tile label — the regime word ("clear-air" / "precip"), empty when the line has none.</summary>
 		public string DetailScanLabel => ModeParts.Length > 1 ? ModeParts[1] : "Scan pattern";
 
-		/// <summary>Miles to the selected site, or null with no location marker.</summary>
-		private double? DetailMiles =>
-			_selectedSite is not null && _markers.UserLocationMarker is { } u
-				? HaversineMiles(u.Latitude, u.Longitude, _selectedSite.Site.Latitude, _selectedSite.Site.Longitude)
-				: null;
+		/// <summary>Miles to the selected site, or null with no location marker. Same measurement the
+		/// "Nearest" sort uses — one distance, so the tile and the order can't disagree.</summary>
+		private double? DetailMiles => _selectedSite is null ? null : MilesTo(_selectedSite);
 
 		/// <summary>Tile value — "142 mi", empty without a location marker (the tile collapses).</summary>
 		public string DetailDistanceValue => DetailMiles is { } mi ? $"{mi:0} mi" : string.Empty;

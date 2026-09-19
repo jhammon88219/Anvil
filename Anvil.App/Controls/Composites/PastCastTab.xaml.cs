@@ -113,6 +113,20 @@ namespace Anvil.Controls.Composites
 		private static object? Lookup(string key) =>
 			Application.Current.Resources.TryGetValue(key, out var value) ? value : null;
 
+		// Header select-all boxes, same contract as NowCastTab's: IsChecked is bound ONE-WAY, so the box has
+		// already flipped itself by the time Click fires and the VM's answer overwrites it. Only the two
+		// sections that are a map layer have one.
+		private void OnRadarHeaderClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel?.Radar is RadarViewModel radar)
+			{
+				radar.ShowRadarLayer = !radar.ShowRadarLayer;
+			}
+		}
+
+		private void OnStormReportsHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.StormReports.ToggleAll();
+
 		private async void OnLoadClick(object sender, RoutedEventArgs e)
 		{
 			if (ViewModel?.Radar is not RadarViewModel radar)

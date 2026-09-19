@@ -101,6 +101,20 @@ namespace Anvil.Controls.Windows
 			}
 		}
 
+		// A chip's ✕ — clears the whole filter group the chip stands for. The chip is the Button's
+		// DataContext (the item template's), exactly like the row star below.
+		private void OnChipClearClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is not null && (sender as FrameworkElement)?.DataContext is AtlasFilterChip chip)
+			{
+				ViewModel.RadarAtlas.ClearChip(chip);
+			}
+		}
+
+		// "Clear all" — the filters, NOT the sort (see RadarAtlasViewModel.ClearAllFilters).
+		private void OnClearFiltersClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.RadarAtlas.ClearAllFilters();
+
 		// A row's star. The row is the Button's DataContext (the item template's).
 		private void OnRowFavoriteClick(object sender, RoutedEventArgs e)
 		{
