@@ -40,6 +40,33 @@
 			}
 		}
 
+		// ── Range ruler ("how far is that, and how much coverage is left past it") ────────────────────
+		// The second armed instrument over the same map, and deliberately shaped like the first: ONE global
+		// mode, no per-pane copy, not persisted. What it measures is geographic, so every pane draws the
+		// spoke; only the handles you grab are on the primary.
+		// ⚠️ NOT PERSISTED, and not replayed in OnMapsReadyAsync — like Inspect, and unlike ShowTdwrs. It is
+		// a gesture you make while reading a loop, so launching into an armed ruler with no radar up would
+		// read as the app having left something switched on.
+		private bool _isRangeRulerOn;
+
+		/// <summary>Whether the range ruler is armed (the tools tier's Ruler key). One spoke for every pane.</summary>
+		public bool IsRangeRulerOn
+		{
+			get => _isRangeRulerOn;
+			set
+			{
+				if (!SetProperty(ref _isRangeRulerOn, value))
+				{
+					return;
+				}
+
+				if (_isMapReady)
+				{
+					_ = _mapService.SetRangeRulerAsync(value);
+				}
+			}
+		}
+
 		/// <summary>Called from the view when the WebView pushes the value under the cursor for ONE pane
 		/// (null = no data there). Each pane owns its own reading and its own notch tick.</summary>
 		public void SetInspectValue(int paneIndex, double? value)

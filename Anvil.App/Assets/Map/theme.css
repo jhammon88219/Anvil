@@ -95,6 +95,15 @@
     --anvil-scope-sweep-fill: #ffe6a0;
     --anvil-scope-sweep-arm: #fff4c8;
 
+    /* ── RANGE RULER (radar-ruler.js) ──────────────────────────────────────────────────────────
+       The spoke is read over RETURNS, not over the basemap, so it is a light ink over a dark casing
+       — the trick map labels use. ⚠️ The pair INVERTS between themes (see the light block); they are
+       a figure/ground pair, not two independent colours. The bead is the one accent: it is the point
+       being measured, and it must not read as another tick. */
+    --anvil-ruler-ink: #e8edf2;
+    --anvil-ruler-casing: #000000;
+    --anvil-ruler-bead: #4aa8ff;
+
     /* ── STATE ISOLATION (states.js) ───────────────────────────────────────────────────────────
        Hover tint + outline for the pick-a-state mode, and the mask's own outline. */
     --anvil-state-hover: #4aa3ff;
@@ -195,6 +204,13 @@
     --anvil-scope-ring: #0f7fb8;
     --anvil-scope-sweep-fill: #d99a1f;
     --anvil-scope-sweep-arm: #b87d10;
+
+    /* ── RANGE RULER ────────────────────────────────────────────────────────────────────────── */
+    /* ⚠️ INVERTED, exactly as the location reticle's casing is: the casing exists to separate the
+       spoke from whatever is under it, so over pale earth it is the LIGHT half and the ink is dark. */
+    --anvil-ruler-ink: #12161a;
+    --anvil-ruler-casing: #ffffff;
+    --anvil-ruler-bead: #1668c9;
 
     /* ── STATE ISOLATION ────────────────────────────────────────────────────────────────────── */
     --anvil-state-hover: #1668c9;

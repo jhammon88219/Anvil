@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- ============================================================================
      MapControlsStrip — the map's tools and the radar-site picker, ON the map instead of two clicks deep in Settings.
      It is the CONTENT of the bottom chrome's upper tier: MainWindow drops it into an OverlayBar
@@ -18,11 +18,11 @@
        └──────────────────────────────┘          ┌─────────────────────────────┐
                                                   │ Moore, OK          pop 62k  │   ← place suggestions
                                                   └─────────────────────────────┘
-       (👁) [⌂ KTLX  Oklahoma City   ˅]  (▣) [Search places     ⌕] (⊚) status     [▢][▥][▦] (⌘) (⛶) [Isolate State ▾]   ← THIS
+       (👁) [⌂ KTLX  Oklahoma City   ˅] (⌸)  (▣) [Search places     ⌕] (⊚) status     [▢][▥][▦] (⌘) (⛶) [Isolate State ▾]   ← THIS
         ↑ LEFT = RADAR + MAP: show the     ↑ CENTER = where; the box is          ↑ RIGHT = MAP ONLY: pane layout
           sites, pick one (over the          CENTERED on the tier                  (1/2/4, current one LIT, accent
-          console, which answers when)     ▣ marker viewer — a PLACEHOLDER         cell = pane 0), reset north,
-                                           ⊚ Location (lit = your marker is out)   fit to view, isolation
+          console, which answers when),    ▣ marker viewer — a PLACEHOLDER         cell = pane 0), reset north,
+          then ⌸ the RANGE RULER           ⊚ Location (lit = your marker is out)   fit to view, isolation
        ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   ← …and onto the bar: NO rule
        ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
      ═══════════════════════ window bottom ═══════════════════════
@@ -362,6 +362,26 @@
                     </prim:SectionedComboBox.FooterContent>
                 </prim:SectionedComboBox>
             </Grid>
+
+            <!-- RANGE RULER - arm the graduated spoke from the loaded site out to the range ring. LEFT,
+                 because what it measures against is RADAR (the ring is the data's own outer extent) and it
+                 dies with the loop; the right cluster's tools touch only the map. Plain TwoWay: a click
+                 always changes the mode, so there is nothing to re-assert.
+                 ⚠️ Disabled with nothing on screen, so you cannot arm it onto an empty map - but a ruler armed
+                 on a loop that then clears STAYS armed (lit and disabled) and draws itself again at the next
+                 site, still on the bearing you left it. Sticky on purpose: measuring from each site in turn is
+                 the gesture, so re-arming per site would be the annoyance. Unlike Inspect, which disarms.
+                 The icon is a PathIcon, not a FontIcon: the same choice the Location reticle beside it made,
+                 and it does not bet the control on an unverified Segoe glyph. -->
+            <ToggleButton x:Name="RangeRulerToggle"
+                          Style="{StaticResource StripToolToggleStyle}"
+                          IsEnabled="{x:Bind ViewModel.Radar.HasRadarDisplay, Mode=OneWay}"
+                          IsChecked="{x:Bind ViewModel.Radar.IsRangeRulerOn, Mode=TwoWay}"
+                          ToolTipService.ToolTip="Range ruler - drag the bead to measure from the site (click again to turn it off)">
+                <!-- A graduated bar: outer rect, hollowed, with four ticks hanging off its top edge
+                     (EvenOdd puts the ticks back inside the hole). -->
+                <PathIcon Data="M1,6 H17 V12 H1 Z M2.4,7.4 H15.6 V10.6 H2.4 Z M4.2,7.4 H5.0 V10.2 H4.2 Z M7.0,7.4 H7.8 V9.2 H7.0 Z M9.8,7.4 H10.6 V10.2 H9.8 Z M12.6,7.4 H13.4 V9.2 H12.6 Z"/>
+            </ToggleButton>
         </StackPanel>
 
         <!-- ===== PLACE SEARCH — CENTER =====

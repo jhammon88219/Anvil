@@ -150,6 +150,12 @@ namespace Anvil.Services
 		public Task SetRadarInspectAsync(bool enabled) =>
 			_mapView.RunScriptAsync(Call("setRadarInspect", enabled));
 
+		public Task SetRangeRulerAsync(bool enabled) =>
+			_mapView.RunScriptAsync(Call("setRangeRuler", enabled));
+
+		public Task SetDistanceUnitsAsync(string unit) =>
+			_mapView.RunScriptAsync(Call("setDistanceUnits", Models.DistanceUnits.Normalize(unit)));
+
 		public Task ShowRadarSitesAsync(string sitesJson) =>
 			_mapView.RunScriptAsync(Call("showRadarSites", sitesJson));
 

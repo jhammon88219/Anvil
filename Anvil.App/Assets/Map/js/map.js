@@ -370,6 +370,7 @@ try {
         // no-ops when there is no marker / no fanned key.
         if (Markers && Markers.refresh) Markers.refresh();
         if (RadarSites && RadarSites.refresh) RadarSites.refresh();
+        if (window.RadarLayer && window.RadarLayer.refreshRuler) window.RadarLayer.refreshRuler();
         window.applyStyle(url || styleUrl);
     };
 
@@ -480,6 +481,16 @@ try {
     // which tracks the mouse and posts {type:"radarInspect"} for the color-scale marker.
     window.setRadarInspect = function (on) {
         if (window.RadarLayer) window.RadarLayer.setInspect(on);
+    };
+    // RANGE RULER: the graduated spoke from the site out to the range ring (radar-ruler.js, via
+    // RadarLayer because the radius it ends on is the radar's). Arming it with no loop up is fine.
+    window.setRangeRuler = function (on) {
+        if (window.RadarLayer) window.RadarLayer.setRuler(on);
+    };
+    // The app's ground-distance unit for readouts the PAGE draws ('km' | 'mi' | 'nm'). Pushed at
+    // map-ready and on every change, so the page and the host never format the same distance differently.
+    window.setDistanceUnits = function (unit) {
+        if (window.RadarLayer) window.RadarLayer.setDistanceUnits(unit);
     };
     // PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit): read-only inner-state snapshot,
     // polled by the host only while the Pipeline Console card is open. Returns null if no loop is loaded.

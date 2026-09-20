@@ -184,6 +184,11 @@
     <Content Update="Assets\Map\js\radar-inspect.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- The RANGE RULER (a bolt-on: this entry, the module, and two shims in map.js/radar.js are
+         the whole feature). -->
+    <Content Update="Assets\Map\js\radar-ruler.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Update="Assets\Map\js\radar-validate.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

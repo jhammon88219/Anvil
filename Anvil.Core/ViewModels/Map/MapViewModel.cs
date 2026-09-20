@@ -711,6 +711,40 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		// ===== Distance units =============================================================================
+		// The unit every GROUND-DISTANCE readout is shown in. It lives on the coordinator rather than on
+		// RadarViewModel because it is an app-wide display preference, not a radar one — the ruler is simply
+		// its first consumer. ⚠️ It is also pushed INTO the page (which formats the ruler's chip and tick
+		// labels itself), so the token crosses the seam verbatim and both sides share one meaning.
+
+		/// <summary>The picker's labels, in <see cref="Models.DistanceUnits.All"/> order.</summary>
+		public IReadOnlyList<string> DistanceUnitLabels { get; } = Models.DistanceUnits.Labels;
+
+		/// <summary>The chosen unit as a <see cref="Models.DistanceUnits"/> token. PERSISTED.</summary>
+		public string DistanceUnits => Models.DistanceUnits.Normalize(_settingsService.Settings.DistanceUnits);
+
+		/// <summary>Two-way for the Radar tab's Readouts picker. Writes the TOKEN, never the index.</summary>
+		public int DistanceUnitIndex
+		{
+			get => Models.DistanceUnits.IndexOf(DistanceUnits);
+			set
+			{
+				var token = Models.DistanceUnits.FromIndex(value);
+				if (string.Equals(token, DistanceUnits, StringComparison.Ordinal))
+				{
+					return;
+				}
+
+				_settingsService.Settings.DistanceUnits = token; // persists (auto-save)
+				OnPropertyChanged();
+				OnPropertyChanged(nameof(DistanceUnits));
+				if (_isMapReady)
+				{
+					_ = _mapService.SetDistanceUnitsAsync(token);
+				}
+			}
+		}
+
 		// ===== Settings window tabs =======================================================================
 		// The Settings window is one window with a tab strip, not the three windows (App Settings / Map
 		// Controls / Dev Tools) it replaced. The SELECTED TAB lives here rather than as view state on the
@@ -1050,6 +1084,10 @@ namespace Anvil.ViewModels
 			{
 				await _mapService.ApplyThemeAsync(_selectedTheme, _selectedStyle);
 			}
+
+			// The page formats its own distance readouts, and defaults to kilometres — push the persisted
+			// unit before any subsystem can draw one, or a user who chose miles sees km until they touch it.
+			await _mapService.SetDistanceUnitsAsync(DistanceUnits);
 
 			// Hand off subsystem startup: outlook (startup overlay + progress), watches (source + toggle),
 			// and radar (site markers, offline-status loop, radar progress bar). Markers has no startup

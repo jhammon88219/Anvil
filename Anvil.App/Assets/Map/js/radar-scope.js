@@ -100,6 +100,11 @@ export function setRange(rangeMeters) {
     host.forEachView(addRangeRing);
 }
 
+// The drawn radius, in metres (0 = no frame decoded yet). ⚠️ The ONE radius on the page: radar-ruler.js
+// reads it through here rather than keeping its own, so the ruler's far end can never disagree with the
+// ring it lands on. Nothing else about the ruler is ours.
+export function getRange() { return currentRangeMeters; }
+
 // ---- Sweep pulse ----
 // The trailing afterglow as a FILLED WEDGE: a fan of SWEEP_TRAIL_N abutting triangles from the site out
 // to the range-ring edge, spanning SWEEP_TRAIL_DEG BEHIND the leading bearing (0 = due north). Because

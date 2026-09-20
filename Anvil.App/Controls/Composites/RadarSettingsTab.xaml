@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- RadarSettingsTab — the Radar tab of the Settings window: what the map DRAWS over the basemap for radar.
 
        ┌──────────────────────────────────────────────────────┐
@@ -8,6 +8,8 @@
        │  ⌄  Home site                                        │
        │    Home site: KTLX · Norman                          │  ← set in the Radar Atlas, not here
        │    [ ] Load home site on launch                      │  ← PERSISTED, default off
+       │  ⌄  Readouts                                         │
+       │    Distance  [ km | mi | nm ]                        │  ← PERSISTED, app-wide
        └──────────────────────────────────────────────────────┘
 
      WHY THIS IS NOT IN THE MAP TAB: these are radar CONTENT drawn over the basemap, and they are GLOBAL —
@@ -20,6 +22,14 @@
      lines, and at any opacity that kept them out of the way they were invisible over returns. A distance
      reference wants a different form — range rings from the site, or a point-to-point measure tool — not a
      grid competing with everything already drawn. Don't re-add this one.
+     → THAT DIFFERENT FORM NOW EXISTS: the RANGE RULER (Assets/Map/js/radar-ruler.js), armed from the tools
+     tier beside the site picker. It draws ONE cased line instead of a field of them, which is the part the
+     grid could not do at any opacity. The unit it speaks in is the Readouts section.
+
+     ⚠️ WHY "READOUTS" IS IN THIS TAB and not the Map tab: the Map tab owns the app's LOOK (theme, basemap),
+     and a unit is not a look - it is how a RADAR measurement is spoken, and every consumer of it today is a
+     radar instrument. ⚠️ GROUND DISTANCES ONLY: heights and wind-profile layer bounds stay in km whatever is
+     picked here, because those are meteorological quantities with a conventional unit (Models/Map/DistanceUnits).
 
      ⚠️ THE TOOLS SECTION IS GONE with the Inspect toggle — Inspect is a MODE you arm and disarm while
      reading the map, not a setting, so it is a key in the OverlayBar now (MainWindow, InspectKey), on the
@@ -45,6 +55,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              mc:Ignorable="d">
 
     <!-- Body: one Expander per section (Styles.xaml SectionExpanderStyle), grid rows inside each. -->
@@ -52,6 +63,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- radar sites -->
             <RowDefinition Height="Auto"/> <!-- home site -->
+            <RowDefinition Height="Auto"/> <!-- readouts -->
         </Grid.RowDefinitions>
 
         <Expander Grid.Row="0" Header="Radar sites" IsExpanded="True"
@@ -95,6 +107,38 @@
                           Content="Load home site on launch"
                           IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
                           ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
+            </Grid>
+        </Expander>
+
+        <!-- READOUTS - how a measurement is SPOKEN, not what is drawn. One setting so far; it is a section
+             rather than a loose row because the next one of its kind (UTC vs local times) lands beside it. -->
+        <Expander Grid.Row="2" Header="Readouts" IsExpanded="True"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid RowSpacing="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- distance unit -->
+                    <RowDefinition Height="Auto"/> <!-- what it covers -->
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Margin="4,0,12,0"
+                           VerticalAlignment="Center" Text="Distance"/>
+
+                <!-- A SegmentedPicker, not a ComboBox: three fixed options, and the whole set is worth
+                     seeing at once. PERSISTED (AppSettings.DistanceUnits) and pushed into the map page,
+                     which formats the ruler's own chip and tick labels itself. -->
+                <prim:SegmentedPicker Grid.Row="0" Grid.Column="1"
+                                      HorizontalAlignment="Left" Width="280"
+                                      ItemsSource="{x:Bind ViewModel.DistanceUnitLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.DistanceUnitIndex, Mode=TwoWay}"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                           Margin="4,2,0,0" TextWrapping="Wrap" MaxWidth="420"
+                           HorizontalAlignment="Left" Opacity="0.75"
+                           Text="Ground distances - the range ruler's readout and its range labels. Heights and wind-profile levels stay in kilometres."/>
             </Grid>
         </Expander>
 

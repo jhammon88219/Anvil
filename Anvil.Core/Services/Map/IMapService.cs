@@ -146,6 +146,23 @@ namespace Anvil.Services
 		Task SetRadarInspectAsync(bool enabled);
 
 		/// <summary>
+		/// Arms or disarms the RANGE RULER: a graduated spoke from the loaded site out to the range ring,
+		/// with a draggable bead (range + azimuth) and knob (azimuth). Drawn in every pane; its handles and
+		/// readout chip are primary-pane only.
+		/// </summary>
+		/// <remarks>⚠️ Armed with no loop up it draws nothing and waits — the radius it ends on is the
+		/// decoded outer extent, so it appears with the first frame. Not persisted: a mode, like Inspect.</remarks>
+		Task SetRangeRulerAsync(bool enabled);
+
+		/// <summary>
+		/// Tells the page which unit to format GROUND DISTANCES in — an <c>Anvil.Models.DistanceUnits</c>
+		/// token (<c>"km"</c> / <c>"mi"</c> / <c>"nm"</c>).
+		/// </summary>
+		/// <remarks>⚠️ Push it at map-ready as well as on change: the page defaults to kilometres, and a
+		/// user who left it on miles must not see the ruler disagree with the setting on first paint.</remarks>
+		Task SetDistanceUnitsAsync(string unit);
+
+		/// <summary>
 		/// Provides the radar sites to the map as clickable on-map markers. JSON is an array
 		/// of <c>{ id, name, lng, lat }</c>.
 		/// </summary>

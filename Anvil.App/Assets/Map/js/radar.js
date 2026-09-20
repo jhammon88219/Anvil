@@ -126,6 +126,23 @@
     // so the call sites can go straight to it.
     function inspectOn() { return !!(Inspect && Inspect.isOn()); }
 
+    // The RANGE RULER (radar-ruler.js): the graduated spoke from the site out to the range ring. Same
+    // dynamic-import-and-cache pattern as radar-scope.js, and it is a BOLT-ON — it owns its own mode,
+    // handles and layers, reads our views/site and the SCOPE's radius through `init`, and nothing in the
+    // loop's behaviour depends on it. Deleting this block, its module and the two shims removes it whole.
+    let Ruler = null;
+    import('./radar-ruler.js').then(function (m) {
+        Ruler = m;
+        Ruler.init({
+            forEachView: forEachView,
+            primaryView: function () { return views.length ? views[0] : null; },
+            beforeId: beforeId,
+            getSite: function () { return { lat: siteLat, lon: siteLon }; },
+            // ⚠️ Through Scope, never a copy: one radius on the page (see radar-scope.js getRange).
+            getRange: function () { return Scope ? Scope.getRange() : 0; },
+        });
+    }).catch(function (e) { hostLog('radar-ruler.js load failed: ' + (e && e.message ? e.message : e)); });
+
     // Product registry (radar-products.js — the single source of truth shared with radar-decode.js).
     // Same tiny-module dynamic-import pattern as geo.js: loaded once at startup, cached in `Products`,
     // resolved long before the user can switch products / the first frame upgrades. ⚠️ We read it ONLY to
@@ -1176,6 +1193,7 @@
             // Draw the real outer-extent range ring (RadarScope-style) from this frame's decoded
             // range — AFTER the radar layer (re)add above, so the ring sits on top of the fill.
             if (res.rangeMeters > 0 && Scope) Scope.setRange(res.rangeMeters);
+            if (res.rangeMeters > 0 && Ruler) Ruler.rangeChanged(); // re-extend the ruler to the new outer edge
         }
         post({ type: 'radarFrameReady', index: res.index, hasData: !res.empty });
         // The AUTO (VAD-derived) storm motion is NO LONGER computed per frame — a single tilt is too shallow
@@ -1533,6 +1551,7 @@
                 try {
                     if (currentFrame >= 0) showCurrent(v, 'setViews');
                     if (Scope) Scope.attachView(v);
+                    if (Ruler) Ruler.attachView(v);
                 } catch (e) {
                     // One bad pane must not cost the others their setup, or the loop its progress post.
                     hostLog('setViews pane=' + v.index + ' deferred: ' + (e && e.message ? e.message : e));
@@ -1550,6 +1569,7 @@
             if (!v) return;
             v.detached = true;  // the ctxlost that map.remove() is about to fire is expected, not a fault
             if (inspectOn()) Inspect.unbindView(v);
+            if (Ruler) Ruler.detachView(v);
             try { removeLayer(v); } catch (e) { /* already torn down */ }
             views = views.filter(function (o) { return o !== v; });
             forEachView(function (o, i) { o.index = i; });
@@ -1613,6 +1633,7 @@
             // the new site's range); same site (a reload) → keep them up, no flicker.
             if (lat !== siteLat || lon !== siteLon) {
                 if (Scope) Scope.reset();
+                if (Ruler) Ruler.reset(); // keeps the MODE and the bearing; only the drawn spoke goes
             }
             siteLat = lat; siteLon = lon;
             loopToken++;            // invalidate any in-flight frames from a previous loop
@@ -1753,6 +1774,7 @@
             pendingFrame = -1;
             removeLayerAll();
             if (Scope) Scope.reset();
+            if (Ruler) Ruler.reset();
             postBuildProgress(); // frames=[] -> 0/0 clears the "building" readout
             hostLog('clear token=' + loopToken);
         },
@@ -1871,6 +1893,7 @@
             if (!v) return;
             if (currentFrame >= 0) addLayer(v);
             if (Scope) Scope.attachView(v);
+            if (Ruler) Ruler.attachView(v);
         },
         // Toggle inspect mode (read the value under the cursor). Attaches/detaches the mousemove
         // handlers + crosshair cursor and hides the tooltip / clears the host marker when off.
@@ -1888,6 +1911,23 @@
             }
             hostLog('inspect=' + Inspect.isOn() + ' panes=' + views.length);
         },
+        // Arm/disarm the range ruler (radar-ruler.js). Armed with no loop up it simply waits — the first
+        // decoded frame gives it a radius through rangeChanged() above.
+        setRuler: function (on) {
+            if (!Ruler) return;
+            Ruler.setEnabled(on);
+            hostLog('ruler=' + Ruler.isOn() + ' panes=' + views.length);
+        },
+        // The app's ground-distance unit ('km' | 'mi' | 'nm'), for every readout the page draws itself.
+        // ⚠️ ONE consumer today — the ruler's chip and tick labels. The Inspector's tooltip shows the
+        // VALUE under the cursor and no distance (its header sketch draws a "38 km 214°" line that was
+        // never built), so there is nothing there to convert yet; add it here when that line arrives.
+        setDistanceUnits: function (unit) {
+            if (Ruler) Ruler.setUnits(unit);
+        },
+        // Re-render what a theme change cannot re-cascade (SVG-baked handle colours). The ruler's LAYERS
+        // come back through reAdd with the style switch, exactly as the ring's do.
+        refreshRuler: function () { if (Ruler) Ruler.refresh(); },
     };
 
     // ---- Dev-only velocity-dealias validation (fixed-corpus regression scorer) ----

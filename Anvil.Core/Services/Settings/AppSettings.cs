@@ -257,5 +257,24 @@ namespace Anvil.Services
 			get => _loadHomeOnLaunch;
 			set => SetProperty(ref _loadHomeOnLaunch, value);
 		}
+
+		private string _distanceUnits = Models.DistanceUnits.Kilometers;
+		/// <summary>
+		/// The unit every GROUND-DISTANCE readout is shown in — the range ruler's chip and the Inspector's
+		/// range — as a <see cref="Models.DistanceUnits"/> token (<c>"km"</c> / <c>"mi"</c> / <c>"nm"</c>).
+		/// Set in Settings -> Radar -> Readouts.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ A TOKEN STRING, not an enum, for the same reason as <see cref="SettingsTabPlacement"/>: an
+		/// unrecognized value falls back to kilometres (<c>DistanceUnits.Normalize</c>) instead of failing the
+		/// whole settings load. It is also pushed into the map page verbatim, so the two sides format alike.
+		/// ⚠️ It does NOT reach heights or wind-profile layer bounds — see the remarks on
+		/// <see cref="Models.DistanceUnits"/>.
+		/// </remarks>
+		public string DistanceUnits
+		{
+			get => _distanceUnits;
+			set => SetProperty(ref _distanceUnits, Models.DistanceUnits.Normalize(value));
+		}
 	}
 }
