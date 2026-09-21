@@ -103,6 +103,9 @@
     --anvil-ruler-ink: #e8edf2;
     --anvil-ruler-casing: #000000;
     --anvil-ruler-bead: #4aa8ff;
+    /* ⚠️ --anvil-scope-ring and --anvil-ruler-ink can be OVERRIDDEN by the user (Settings → Radar → Range
+       ring & ruler): map.js setScopeColor writes both INLINE on :root, which outranks this block and the
+       light one. Editing these values changes the "Theme default" swatch only. */
 
     /* ── STATE ISOLATION (states.js) ───────────────────────────────────────────────────────────
        Hover tint + outline for the pick-a-state mode, and the mask's own outline. */

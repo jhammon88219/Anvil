@@ -1928,6 +1928,16 @@
         // Re-render what a theme change cannot re-cascade (SVG-baked handle colours). The ruler's LAYERS
         // come back through reAdd with the style switch, exactly as the ring's do.
         refreshRuler: function () { if (Ruler) Ruler.refresh(); },
+        // Where the ruler starts (site, or the user's location — see radar-ruler.js setAnchor).
+        setRulerAnchor: function (wantLocation, hasLocation, lng, lat) {
+            if (Ruler) Ruler.setAnchor(wantLocation, hasLocation, lng, lat);
+        },
+        // The ring + ruler colour just changed (map.js setScopeColor already rewrote the CSS variables):
+        // push it into the layers and handles already on screen.
+        refreshScopeColors: function () {
+            if (Scope) Scope.refreshColors();
+            if (Ruler) Ruler.refresh();
+        },
     };
 
     // ---- Dev-only velocity-dealias validation (fixed-corpus regression scorer) ----

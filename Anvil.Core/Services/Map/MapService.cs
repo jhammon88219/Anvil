@@ -156,6 +156,14 @@ namespace Anvil.Services
 		public Task SetDistanceUnitsAsync(string unit) =>
 			_mapView.RunScriptAsync(Call("setDistanceUnits", Models.DistanceUnits.Normalize(unit)));
 
+		public Task SetRangeRulerAnchorAsync(bool fromLocation, bool hasLocation, double lng, double lat) =>
+			_mapView.RunScriptAsync(Call("setRangeRulerAnchor", fromLocation, hasLocation, lng, lat));
+
+		// ⚠️ Normalized HERE too, not only in AppSettings: the value is interpolated into page CSS, so this seam
+		// refuses anything that is not a bare #RRGGBB whoever calls it.
+		public Task SetScopeColorAsync(string hex) =>
+			_mapView.RunScriptAsync(Call("setScopeColor", Models.ScopeColors.Normalize(hex)));
+
 		public Task ShowRadarSitesAsync(string sitesJson) =>
 			_mapView.RunScriptAsync(Call("showRadarSites", sitesJson));
 

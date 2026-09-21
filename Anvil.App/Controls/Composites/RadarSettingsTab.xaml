@@ -10,6 +10,9 @@
        │    [ ] Load home site on launch                      │  ← PERSISTED, default off
        │  ⌄  Readouts                                         │
        │    Distance  [ km | mi | nm ]                        │  ← PERSISTED, app-wide
+       │  ⌄  Range ring & ruler                               │
+       │    Ruler from  [ Radar site | My location ]          │  ← PERSISTED; no marker = site
+       │    Colour      (A)(■)(■)(■)(■)(■)(■)                 │  ← A = theme; ring AND ruler
        └──────────────────────────────────────────────────────┘
 
      WHY THIS IS NOT IN THE MAP TAB: these are radar CONTENT drawn over the basemap, and they are GLOBAL —
@@ -64,6 +67,7 @@
             <RowDefinition Height="Auto"/> <!-- radar sites -->
             <RowDefinition Height="Auto"/> <!-- home site -->
             <RowDefinition Height="Auto"/> <!-- readouts -->
+            <RowDefinition Height="Auto"/> <!-- range ring & ruler -->
         </Grid.RowDefinitions>
 
         <Expander Grid.Row="0" Header="Radar sites" IsExpanded="True"
@@ -139,6 +143,43 @@
                            Margin="4,2,0,0" TextWrapping="Wrap" MaxWidth="420"
                            HorizontalAlignment="Left" Opacity="0.75"
                            Text="Ground distances - the range ruler's readout and its range labels. Heights and wind-profile levels stay in kilometres."/>
+            </Grid>
+        </Expander>
+
+        <!-- RANGE RING & RULER - the two PREFERENCES behind the tools tier's Ruler key (arming it is a gesture
+             and stays on the tier). One section because they are one object: the ruler ends ON the ring and
+             wears its colour, so recolouring one without the other would read as two unrelated marks.
+             ⚠️ The anchor's "My location" is kept even with no location marker placed - the ruler measures
+             from the site meanwhile and its chip says so. Don't grey the segment: a preference you set before
+             dropping a marker should simply start working when you drop it.
+             ⚠️ Colour is PRESETS (Models/Radar/ScopeColors explains why not a free picker). A = the theme's
+             own, and the only one that adapts to the light theme. The sweep pulse keeps its own colour. -->
+        <Expander Grid.Row="3" Header="Range ring &amp; ruler" IsExpanded="True"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid RowSpacing="8" ColumnSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- anchor -->
+                    <RowDefinition Height="Auto"/> <!-- colour -->
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Margin="4,0,0,0"
+                           VerticalAlignment="Center" Text="Ruler from"/>
+                <prim:SegmentedPicker Grid.Row="0" Grid.Column="1"
+                                      HorizontalAlignment="Left" Width="240"
+                                      ItemsSource="{x:Bind ViewModel.Radar.RulerAnchorLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.Radar.RulerAnchorIndex, Mode=TwoWay}"
+                                      ToolTipService.ToolTip="Where the range ruler starts: the radar site, or your location marker (the site until one is placed)"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Margin="4,0,0,0"
+                           VerticalAlignment="Center" Text="Colour"/>
+                <prim:ColorSwatchPicker Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left"
+                                        ItemsSource="{x:Bind ViewModel.Radar.ScopeColorSwatches}"
+                                        ToolTips="{x:Bind ViewModel.Radar.ScopeColorNames}"
+                                        SelectedIndex="{x:Bind ViewModel.Radar.ScopeColorIndex, Mode=TwoWay}"/>
             </Grid>
         </Expander>
 

@@ -492,6 +492,24 @@ try {
     window.setDistanceUnits = function (unit) {
         if (window.RadarLayer) window.RadarLayer.setDistanceUnits(unit);
     };
+    // Ruler anchor: the preference (site vs your location) + the location to honour it with, re-sent by
+    // the host on every move of the location marker (radar-ruler.js never reads markers.js).
+    window.setRangeRulerAnchor = function (wantLocation, hasLocation, lng, lat) {
+        if (window.RadarLayer) window.RadarLayer.setRulerAnchor(wantLocation, hasLocation, lng, lat);
+    };
+    // RANGE RING + RULER COLOUR (Settings → Radar). A USER override of two theme variables, written
+    // INLINE on :root so it outranks both theme blocks and survives a theme switch; '' removes it and the
+    // theme's own colours come back. ⚠️ The host only ever sends a bare #RRGGBB or '' (ScopeColors.Normalize,
+    // applied at the MapService seam) — this writes it into page CSS, so don't widen what it accepts.
+    const SCOPE_COLOR_VARS = ['--anvil-scope-ring', '--anvil-ruler-ink'];
+    window.setScopeColor = function (hex) {
+        const style = document.documentElement.style;
+        const ok = /^#[0-9A-Fa-f]{6}$/.test(hex || '');
+        SCOPE_COLOR_VARS.forEach(function (name) {
+            if (ok) style.setProperty(name, hex); else style.removeProperty(name);
+        });
+        if (window.RadarLayer && window.RadarLayer.refreshScopeColors) window.RadarLayer.refreshScopeColors();
+    };
     // PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit): read-only inner-state snapshot,
     // polled by the host only while the Pipeline Console card is open. Returns null if no loop is loaded.
     window.radarPipelineSnapshot = function () {

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ColorSwatchPicker — a row of colour swatches, one of which is chosen. SegmentedPicker's sibling for the
+     case where the VALUE is a colour and a name would make you imagine it.
+
+       ╭──╮ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐
+       │ A│ │██│ │██│ │██│ │██│ │██│ │██│    A = "no colour of my own" (the host's default — here the
+       ╰──╯ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘        theme's), drawn as an empty chip with a letter
+        ↑ the chosen one wears an ACCENT RING outside its chip; hover draws the same ring in grey
+
+     ⚠️ THE CHIP COLOURS ARE DATA, not chrome: each is a literal SolidColorBrush built from the hex the
+     host hands over, which is why building them in C# is safe here. The RINGS (hover, chosen) are theme
+     brushes and so live in VisualState setters, per the app's rule — never resolve those in code.
+
+     ⚠️ BUILT IN CODE, like SegmentedPicker, and for the same kind of reason: each swatch's fill comes from
+     its own item and the empty item needs a different face, which a DataTemplate over strings can't do
+     without converters. Host contract: ItemsSource (hex strings; "" = the default swatch) + SelectedIndex
+     (TwoWay) + optional ToolTips (names, parallel to ItemsSource). The INDEX is the value.
+     SelectedIndex -1 lights nothing (a hand-set colour that is not a preset) — clicking still works. -->
+<UserControl x:Class="Anvil.Controls.Primitives.ColorSwatchPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- LOCAL: this control is its only consumer. Accent means "this one is on", as everywhere. -->
+        <Style x:Key="SwatchStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="UseSystemFocusVisuals" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Ring.BorderBrush" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Ring.BorderBrush" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="Chip.Opacity" Value="0.4"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Checked">
+                                        <VisualState.Setters>
+                                            <Setter Target="Ring.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="CheckedPointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Ring.BorderBrush" Value="{ThemeResource AccentFillColorSecondaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="CheckedPressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Ring.BorderBrush" Value="{ThemeResource AccentFillColorTertiaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="CheckedDisabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="Ring.BorderBrush" Value="{ThemeResource AccentFillColorDisabledBrush}"/>
+                                            <Setter Target="Chip.Opacity" Value="0.4"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+
+                            <Border x:Name="Ring" BorderThickness="2" CornerRadius="7" Padding="2"
+                                    BorderBrush="Transparent">
+                                <Border x:Name="Chip" CornerRadius="4"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                        BorderThickness="1">
+                                    <TextBlock Text="{TemplateBinding Content}" FontSize="11"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Border>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <StackPanel x:Name="Swatches" Orientation="Horizontal" Spacing="4"/>
+</UserControl>

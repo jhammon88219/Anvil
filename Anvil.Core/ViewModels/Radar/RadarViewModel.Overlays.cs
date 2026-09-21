@@ -1,4 +1,8 @@
-﻿namespace Anvil.ViewModels
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace Anvil.ViewModels
 {
 	// RadarViewModel (partial): the inspector (read the value under the cursor).
 	// ⚠️ The color-scale LEGEND is not here and is not on this VM at all — it is per PANE now
@@ -65,6 +69,95 @@
 					_ = _mapService.SetRangeRulerAsync(value);
 				}
 			}
+		}
+
+		// ── Range ruler ANCHOR (site, or the user's location) ──────────────────────────────────────────
+		// The anchor is a PREFERENCE (persisted, Settings → Radar), unlike the armed mode above. The location
+		// itself belongs to MarkersViewModel; MapViewModel forwards every change of it to SetRulerLocation, so
+		// this VM holds only a copy of the point and never reaches into Markers.
+
+		private double? _rulerLat, _rulerLon;
+
+		/// <summary>The anchor picker's labels, in <see cref="Models.RulerAnchors.All"/> order.</summary>
+		public IReadOnlyList<string> RulerAnchorLabels { get; } = Models.RulerAnchors.Labels;
+
+		/// <summary>Two-way for the Radar tab's anchor picker. PERSISTED as the token, never the index.</summary>
+		public int RulerAnchorIndex
+		{
+			get => Models.RulerAnchors.IndexOf(_settings.Settings.RulerAnchor);
+			set
+			{
+				var token = Models.RulerAnchors.FromIndex(value);
+				if (token == Models.RulerAnchors.Normalize(_settings.Settings.RulerAnchor))
+				{
+					return;
+				}
+				_settings.Settings.RulerAnchor = token; // persists (auto-save)
+				OnPropertyChanged();
+				_ = PushRulerAnchorAsync();
+			}
+		}
+
+		/// <summary>Called by the coordinator whenever the user-location marker is placed, dragged, re-located
+		/// or removed (null = no marker).</summary>
+		public void SetRulerLocation(double? latitude, double? longitude)
+		{
+			_rulerLat = latitude;
+			_rulerLon = longitude;
+			_ = PushRulerAnchorAsync();
+		}
+
+		// ⚠️ Pushed even when the anchor is Site: it costs one call and keeps the page's copy of the point
+		// current, so flipping the picker to My location later draws from the RIGHT place at once.
+		private Task PushRulerAnchorAsync()
+		{
+			if (!_isMapReady)
+			{
+				return Task.CompletedTask;
+			}
+			var wantLocation = Models.RulerAnchors.Normalize(_settings.Settings.RulerAnchor) == Models.RulerAnchors.Location;
+			var has = _rulerLat is not null && _rulerLon is not null;
+			return _mapService.SetRangeRulerAnchorAsync(wantLocation, has, _rulerLon ?? 0, _rulerLat ?? 0);
+		}
+
+		// ── Scope colour (range ring + ruler) ─────────────────────────────────────────────────────────
+		/// <summary>The swatches, in picker order: each preset's hex (empty = the theme's colour).</summary>
+		public IReadOnlyList<string> ScopeColorSwatches { get; } = Models.ScopeColors.Presets.Select(p => p.Hex).ToArray();
+
+		/// <summary>The swatches' names (tooltips), parallel to <see cref="ScopeColorSwatches"/>.</summary>
+		public IReadOnlyList<string> ScopeColorNames { get; } = Models.ScopeColors.Presets.Select(p => p.Name).ToArray();
+
+		/// <summary>Two-way for the Radar tab's swatch row. PERSISTED as the hex. -1 = a hand-edited colour that
+		/// is not a preset (it still applies; no swatch lights).</summary>
+		public int ScopeColorIndex
+		{
+			get => Models.ScopeColors.IndexOf(_settings.Settings.ScopeColor);
+			set
+			{
+				if (value < 0)
+				{
+					return; // the picker never writes -1; don't let a binding echo erase a custom colour
+				}
+				var hex = Models.ScopeColors.FromIndex(value);
+				if (hex == Models.ScopeColors.Normalize(_settings.Settings.ScopeColor))
+				{
+					return;
+				}
+				_settings.Settings.ScopeColor = hex; // persists (auto-save)
+				OnPropertyChanged();
+				if (_isMapReady)
+				{
+					_ = _mapService.SetScopeColorAsync(hex);
+				}
+			}
+		}
+
+		/// <summary>Replays the two PERSISTED ruler/scope preferences into a freshly loaded page (the page
+		/// defaults to theme colours and the site anchor). Called from <see cref="OnMapsReadyAsync"/>.</summary>
+		private async Task PushScopePreferencesAsync()
+		{
+			await _mapService.SetScopeColorAsync(Models.ScopeColors.Normalize(_settings.Settings.ScopeColor));
+			await PushRulerAnchorAsync();
 		}
 
 		/// <summary>Called from the view when the WebView pushes the value under the cursor for ONE pane

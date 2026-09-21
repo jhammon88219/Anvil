@@ -105,6 +105,18 @@ export function setRange(rangeMeters) {
 // ring it lands on. Nothing else about the ruler is ours.
 export function getRange() { return currentRangeMeters; }
 
+// Re-read the ring colour into every pane's live layer — after Settings → Radar overrides it (map.js
+// setScopeColor writes --anvil-scope-ring inline on :root) or clears the override. A paint property holds
+// the colour it was given at add time, so the CSS change alone would not reach a ring already on screen.
+// The sweep is deliberately untouched: its warm afterglow is not the ring's colour (see theme.css).
+export function refreshColors() {
+    if (!host) return;
+    const c = Theme.color('--anvil-scope-ring', '#9fe0ff');
+    host.forEachView(function (v) {
+        if (v.map && v.map.getLayer(RANGE_LAYER)) v.map.setPaintProperty(RANGE_LAYER, 'line-color', c);
+    });
+}
+
 // ---- Sweep pulse ----
 // The trailing afterglow as a FILLED WEDGE: a fan of SWEEP_TRAIL_N abutting triangles from the site out
 // to the range-ring edge, spanning SWEEP_TRAIL_DEG BEHIND the leading bearing (0 = due north). Because

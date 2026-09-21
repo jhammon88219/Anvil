@@ -276,5 +276,29 @@ namespace Anvil.Services
 			get => _distanceUnits;
 			set => SetProperty(ref _distanceUnits, Models.DistanceUnits.Normalize(value));
 		}
+
+		private string _scopeColor = Models.ScopeColors.ThemeDefault;
+		/// <summary>
+		/// The colour of the range ring AND the range ruler (one colour, so the ruler reads as part of the
+		/// ring it ends on), as a <see cref="Models.ScopeColors"/> token: <c>#RRGGBB</c>, or empty for the
+		/// theme's own. Set in Settings -> Radar -> Range ring &amp; ruler.
+		/// </summary>
+		/// <remarks>⚠️ Written into the page as a CSS custom-property override, so it only ever holds what
+		/// <c>ScopeColors.Normalize</c> lets through. It overrides BOTH themes; the sweep pulse keeps its own.</remarks>
+		public string ScopeColor
+		{
+			get => _scopeColor;
+			set => SetProperty(ref _scopeColor, Models.ScopeColors.Normalize(value));
+		}
+
+		private string _rulerAnchor = Models.RulerAnchors.Site;
+		/// <summary>Where the range ruler starts: <c>"Site"</c> (default) or <c>"Location"</c> (the user-location
+		/// marker). A <see cref="Models.RulerAnchors"/> token. ⚠️ "Location" with no marker placed is kept as-is —
+		/// the page falls back to the site and says so, rather than this forgetting the preference.</summary>
+		public string RulerAnchor
+		{
+			get => _rulerAnchor;
+			set => SetProperty(ref _rulerAnchor, Models.RulerAnchors.Normalize(value));
+		}
 	}
 }

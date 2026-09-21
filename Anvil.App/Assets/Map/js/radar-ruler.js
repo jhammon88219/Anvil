@@ -1,19 +1,48 @@
-// The RANGE RULER: a graduated spoke from the site's true location out to the range ring, dragged
-// around to measure how far something is and how much coverage is left beyond it.
+// The RANGE RULER: a graduated spoke from the site (or from you) out to the range ring, dragged around to
+// measure how far something is and how much coverage is left beyond it.
 //
-//                    ╱▔▔▔▔▔▔▔╲              radar-ruler-line    the AXIS, site → ring, plus a
+//                    ╱▔▔▔▔▔▔▔╲              radar-ruler-line    the AXIS, origin → ring, plus a
 //                  ╱           ╲                                perpendicular tick every step
 //                 │      ┌──────┤◄─ knob    radar-ruler-labels  majors carry a range label
 //                 │   ┌──┴──────│                               (collision-thinned by MapLibre,
 //                 │ ╳─┼──┼──●───┤                                not by us)
-//                 │   ╵  ╵  ▲   │           ╳ = the site's TRUE location (the anchor)
+//                 │   ╵  ╵  ▲   │           ╳ = the site's TRUE location (the default anchor)
 //                  ╲        ╲  ╱            ● = the BEAD: the thing being measured
 //                    ╲▁▁▁▁▁▁╲╱              ◄ = the KNOB: rides the ring, swings the spoke
-//                             ╲  ┌──────────────────────┐
-//                              ╲ │ 151 km · 068°        │  ← the chip, anchored to the BEAD
-//                                │ 79 km to the ring    │    (not to the cursor — you let go
-//                                │ ring 230 km          │     of it and the number stays put)
-//                                └──────────────────────┘
+//                             ╲  ┌─────────────────────────────┐
+//                              ╲ │ 151 km (94 mi) · 068°       │  ← the chip, anchored to the BEAD
+//                                │ 79 km (49 mi) to the ring   │    (not to the cursor — you let go
+//                                │ ring 230 km (143 mi)        │     of it and the number stays put)
+//                                └─────────────────────────────┘
+//
+// MILES RIDE ALONG in brackets on every chip distance, the way the Inspector puts mph after m/s: the
+// headline speaks the chosen unit, the bracket speaks the one road signs and warnings use. Only on the
+// CHIP — tick labels stay single-unit, since two numbers per tick is the mush the ladder exists to avoid.
+// When the chosen unit already IS miles the bracket is dropped rather than repeating itself.
+//
+// ── THE ANCHOR: SITE (default) or MY LOCATION ──────────────────────────────────────────────────────
+//
+//                    ╱▔▔▔▔▔▔▔▔▔▔▔╲             SITE: the spoke starts at ╳ and is always exactly one
+//                  ╱               ╲                 radius long.
+//                 │  ⊕─┼──┼──●──┼───┤◄─ knob   MY LOCATION: it starts at ⊕ (the reticle markers.js
+//                 │    ╳            │                already draws — nothing new is drawn for it) and
+//                  ╲               ╱                 runs to where the RAY meets the ring: the FAR
+//                    ╲▁▁▁▁▁▁▁▁▁▁▁╱                   crossing, so it is longer on one side of you than
+//                                                     on the other. Ticks and the chip measure from YOU.
+//      ┌───────────────────────────────────┐
+//      │ 151 km (94 mi) · 068° from you    │   ← headline, now from you
+//      │ 60 km (37 mi) to the ring         │   ← along THIS bearing, to the far edge
+//      │ site 42 km (26 mi) · 245° from you│   ← where the radar is, which replaces "ring 230 km"
+//      └───────────────────────────────────┘
+//
+// ⚠️ OUTSIDE THE RING a bearing can MISS the coverage entirely. The spoke is then drawn one radius long so
+// there is still something to hold, and the chip says it misses instead of inventing a distance. Pointing
+// AT the coverage from outside, the spoke runs to the ring's FAR edge (the data is between the crossings).
+// ⚠️ "My location" with NO location marker falls back to the site, and the chip says so — the preference is
+// never silently ignored, and it is kept (not rewritten to Site) so dropping a marker honours it at once.
+// ⚠️ EVERYTHING IS DONE IN THE SITE'S FRAME — metres east/north of the site, the gates' own equirectangular
+// projection — including your point. Never a second projection centred on you: the far end would miss the
+// ring it is meant to land on by the difference between two cos(lat)s.
 //
 // TWO HANDLES, TWO JOBS. The BEAD is "point at that thing": drag it anywhere and it takes BOTH the
 // range and the azimuth, swinging the whole spoke to follow. The KNOB only takes the azimuth, so you
@@ -31,6 +60,11 @@
 // basemap's own lines. This draws ONE line and cases it in black the way map labels case their text, so
 // it is read against returns rather than competing with them. Don't solve legibility with opacity here.
 //
+// ⚠️ ITS COLOUR IS THE RING'S. Settings → Radar can override both at once: map.js setScopeColor writes the
+// two CSS variables (--anvil-scope-ring, --anvil-ruler-ink) INLINE on :root, which outranks either theme
+// block, and refresh() below re-reads them into the live layers and the baked handle SVG. Only the ink
+// moves; the casing and the bead's accent stay themed, because they are what keep the spoke legible.
+//
 // ── WHAT LIVES WHERE ────────────────────────────────────────────────────────────────────────────────
 // The AXIS + TICKS + LABELS are geographic GeoJSON layers, so they are drawn in EVERY pane (the panes
 // share a camera; a measurement visible in one only would read as broken). The two HANDLES and the chip
@@ -38,9 +72,10 @@
 // for the same reason: per-pane DOM is expensive and four draggable beads for one measurement is four
 // ways to ask the same question.
 //
-// STATE OWNED HERE: the mode, the azimuth, the bead's range, and the unit. The RADIUS is not ours —
-// radar-scope.js owns it and we read it through the host, so there is one radius on the page and the
-// ruler can never disagree with the ring it ends on.
+// STATE OWNED HERE: the mode, the azimuth, the bead's range, the unit and the anchor. The RADIUS is not
+// ours — radar-scope.js owns it and we read it through the host, so there is one radius on the page and
+// the ruler can never disagree with the ring it ends on. The LOCATION is not ours either: the host pushes
+// it (setAnchor) every time the marker moves; this module never reads markers.js.
 //
 // ⚠️ TICK SPACING IS DERIVED FROM ZOOM, not fixed. Ticks are geographic, so a fixed step is a grey mush
 // at z4 and three marks at z10; the step comes off the ladder below so marks stay ~28 px apart, and the
@@ -56,9 +91,9 @@
 //
 // ⚠️ ANTIMERIDIAN: a spoke from an Alaskan site crosses ±180. Generated coordinates are left UNWRAPPED
 // (continuous past ±180) exactly as the ring's are, which is what makes the line draw across the seam
-// instead of round the world — but a lng arriving FROM MapLibre (a drag) comes back wrapped, so every
-// one of them goes through unwrapLng() into the site's frame first. Skip that and a drag near PABC reads
-// as a 39,000 km measurement.
+// instead of round the world — but a lng arriving FROM MapLibre (a drag) or from the host (your location)
+// can come back wrapped, so every one of them goes through toXY → unwrapLng() into the site's frame first.
+// Skip that and a drag near PABC reads as a 39,000 km measurement.
 
 import * as Geo from './geo.js';
 // ⚠️ Every Theme.color() passes a fallback: an empty colour string throws inside a MapLibre paint
@@ -86,8 +121,11 @@ let host = null;
 
 let on = false;
 let azRad = 45 * Geo.D2R;   // spoke bearing, clockwise from north
-let beadMeters = 0;         // where the bead sits along it (0 = unset -> half the radius on first draw)
+let beadMeters = -1;        // the bead's distance FROM THE ORIGIN (-1 = unset -> half the spoke on next draw)
 let units = 'km';
+// The anchor as the host last pushed it. `wanted` is the preference; `has` whether there is a location to
+// honour it with. See fromLocation().
+let anchor = { wanted: false, has: false, lng: 0, lat: 0 };
 
 let knob = null, bead = null, chip = null;
 let rebuildRaf = 0;
@@ -95,14 +133,66 @@ let boundMap = null;        // the primary map we listen to (move/zoom) — trac
 
 function radius() { return host ? host.getRange() : 0; }
 function live() { return on && radius() > 0; }
+function fromLocation() { return anchor.wanted && anchor.has; }
 
-// A lng from MapLibre, moved into the site's own frame — see the antimeridian note above.
+// A lng from outside (MapLibre, the host), moved into the site's own frame — see the antimeridian note.
 function unwrapLng(lng, siteLon) { return lng - 360 * Math.round((lng - siteLon) / 360); }
 
+// ---- The site's frame -----------------------------------------------------------------------------
+// Metres east (x) / north (y) of the site, by the SAME metres-per-degree geo.js uses for the gates and the
+// ring. toLngLat(frame, r·sin az, r·cos az) is exactly Geo.siteToLngLat(site, r, az), so a spoke from the
+// site lands on the ring pixel-for-pixel, and a spoke from anywhere else is measured on the same grid.
+function frame() {
+    const s = host.getSite(), k = Geo.metersPerDeg(s.lat);
+    return { s: s, kx: k.mPerDegLon, ky: k.mPerDegLat };
+}
+function toXY(f, lng, lat) { return [(unwrapLng(lng, f.s.lon) - f.s.lon) * f.kx, (lat - f.s.lat) * f.ky]; }
+function toLngLat(f, x, y) { return [f.s.lon + x / f.kx, f.s.lat + y / f.ky]; }
+
+// How far along the ray from `o` (unit direction ux,uy) the ring (radius R, centred on the site = the
+// frame's origin) is crossed — the FAR crossing, or null when the ray never reaches it. From inside the
+// ring there is always exactly one forward crossing; from outside there are two or none.
+function reach(o, ux, uy, R) {
+    const b = o[0] * ux + o[1] * uy;                 // o · u
+    const c = o[0] * o[0] + o[1] * o[1] - R * R;     // |o|² − R²
+    const disc = b * b - c;
+    if (disc < 0) return null;                       // the ray's LINE misses the circle
+    const t = -b + Math.sqrt(disc);
+    return t > 0 ? t : null;                         // both crossings behind you
+}
+
+// The spoke as it stands right now: origin, unit direction, length, and whether it meets the ring.
+function spoke(f) {
+    const o = fromLocation() ? toXY(f, anchor.lng, anchor.lat) : [0, 0];
+    const ux = Math.sin(azRad), uy = Math.cos(azRad), R = radius();
+    const t = fromLocation() ? reach(o, ux, uy, R) : R;
+    return { o: o, ux: ux, uy: uy, len: t === null ? R : t, hits: t !== null };
+}
+function along(f, sp, m) { return toLngLat(f, sp.o[0] + m * sp.ux, sp.o[1] + m * sp.uy); }
+
+// A dragged point as range + bearing FROM THE ORIGIN (not from the site, once you are the origin).
+function polarFromOrigin(ll) {
+    const f = frame(), o = spoke(f).o, p = toXY(f, ll.lng, ll.lat);
+    const dx = p[0] - o[0], dy = p[1] - o[1];
+    let az = Math.atan2(dx, dy);
+    if (az < 0) az += 2 * Math.PI;
+    return { az: az, range: Math.sqrt(dx * dx + dy * dy) };
+}
+
+// ---- Formatting -----------------------------------------------------------------------------------
 function fmtDistance(meters) {
     const per = UNIT_METERS[units] || UNIT_METERS.km;
     const v = meters / per;
     return (Math.abs(v) < 10 ? v.toFixed(1) : String(Math.round(v))) + ' ' + units;
+}
+
+// A chip distance: the chosen unit, then statute miles in brackets (skipped when the unit is miles).
+// ⚠️ The miles part uses the same divisor and decimal rule as fmtDistance — one formatter, two units.
+function fmtChipDistance(meters) {
+    const main = fmtDistance(meters);
+    if (units === 'mi') return main;
+    const mi = meters / UNIT_METERS.mi;
+    return main + ' (' + (Math.abs(mi) < 10 ? mi.toFixed(1) : String(Math.round(mi))) + ' mi)';
 }
 
 function fmtAz(rad) {
@@ -120,23 +210,18 @@ function metersPerPixel(map) {
 // Everything the panes draw, built ONCE per rebuild from the primary map's scale and handed to every
 // pane: the features are geographic, so all panes get the identical FeatureCollection (the sweep does
 // the same thing for the same reason).
-function rulerGeoJSON(mpp) {
-    const s = host.getSite(), R = radius();
-    const at = function (m, az) { return Geo.siteToLngLat(s.lat, s.lon, m, az); };
+function rulerGeoJSON(f, sp, mpp) {
     const feats = [{
         type: 'Feature', properties: { k: 'axis' },
-        geometry: { type: 'LineString', coordinates: [at(0, azRad), at(R, azRad)] },
+        geometry: { type: 'LineString', coordinates: [along(f, sp, 0), along(f, sp, sp.len)] },
     }];
 
-    // A tick is a short segment PERPENDICULAR to the axis, built by stepping either side of the axis
-    // point along the perpendicular bearing — so ticks stay parallel to each other at every range.
-    const perp = azRad + Math.PI / 2;
-    const mPerDeg = Geo.metersPerDeg(s.lat);
-    const tick = function (m, halfMeters) {
-        const c = at(m, azRad);
-        const dx = (halfMeters * Math.sin(perp)) / mPerDeg.mPerDegLon;
-        const dy = (halfMeters * Math.cos(perp)) / mPerDeg.mPerDegLat;
-        return [[c[0] - dx, c[1] - dy], [c[0] + dx, c[1] + dy]];
+    // A tick is a short segment PERPENDICULAR to the axis — (uy, −ux) is u turned a right angle — so ticks
+    // stay parallel to each other at every range and on every bearing.
+    const px = sp.uy, py = -sp.ux;
+    const tick = function (m, h) {
+        const cx = sp.o[0] + m * sp.ux, cy = sp.o[1] + m * sp.uy;
+        return [toLngLat(f, cx - h * px, cy - h * py), toLngLat(f, cx + h * px, cy + h * py)];
     };
 
     let pair = STEPS[STEPS.length - 1];
@@ -146,7 +231,7 @@ function rulerGeoJSON(mpp) {
     const minorStep = pair[0], majorStep = pair[1];
     const minorHalf = TICK_PX * mpp, majorHalf = minorHalf * 1.7;
 
-    for (let m = minorStep; m <= R + 1; m += minorStep) {
+    for (let m = minorStep; m <= sp.len + 1; m += minorStep) {
         const major = Math.abs(m / majorStep - Math.round(m / majorStep)) < 1e-6;
         feats.push({
             type: 'Feature', properties: { k: major ? 'major' : 'minor' },
@@ -165,6 +250,9 @@ function rulerGeoJSON(mpp) {
     return { type: 'FeatureCollection', features: feats };
 }
 
+function inkColor() { return Theme.color('--anvil-ruler-ink', '#e8edf2'); }
+function casingColor() { return Theme.color('--anvil-ruler-casing', '#000000'); }
+
 function addLayers(v, data) {
     const map = v && v.map;
     if (!map) return;
@@ -172,8 +260,7 @@ function addLayers(v, data) {
     else map.addSource(SRC, { type: 'geojson', data: data });
 
     const before = host.beforeId(map);
-    const ink = Theme.color('--anvil-ruler-ink', '#e8edf2');
-    const casing = Theme.color('--anvil-ruler-casing', '#000000');
+    const ink = inkColor(), casing = casingColor();
     // ⚠️ THE CASING IS THE WHOLE LEGIBILITY STORY (see the mile-grid note at the top): a fat dark line
     // under a thin light one reads over bright returns AND over pale basemap alike, which no single
     // stroke at any opacity does.
@@ -224,19 +311,17 @@ function removeLayers(v) {
 }
 
 // ---- Handles + chip (primary pane only) ------------------------------------------------------------
-// Both handles bake their colours into SVG markup, so a theme change can't re-cascade them — refresh()
-// re-renders both, the way markers.js does for the reticle.
+// Both handles bake their colours into SVG markup, so a theme or colour change can't re-cascade them —
+// refresh() re-renders both, the way markers.js does for the reticle.
 function knobSvg() {
-    const casing = Theme.color('--anvil-ruler-casing', '#000000');
-    const ink = Theme.color('--anvil-ruler-ink', '#e8edf2');
+    const casing = casingColor(), ink = inkColor();
     return '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">' +
         '<circle cx="12" cy="12" r="7.5" fill="' + ink + '" stroke="' + casing + '" stroke-width="1.5"/>' +
         '<circle cx="12" cy="12" r="2.5" fill="' + casing + '"/></svg>';
 }
 
 function beadSvg() {
-    const casing = Theme.color('--anvil-ruler-casing', '#000000');
-    const ink = Theme.color('--anvil-ruler-ink', '#e8edf2');
+    const casing = casingColor(), ink = inkColor();
     const core = Theme.color('--anvil-ruler-bead', '#4aa8ff');
     return '<svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">' +
         '<circle cx="13" cy="13" r="8" fill="none" stroke="' + casing + '" stroke-width="4.5"/>' +
@@ -281,17 +366,29 @@ function ensureChip() {
     return el;
 }
 
-function drawChip(v) {
+function drawChip(v, f, sp) {
     const map = v && v.map;
     if (!map) return;
     const el = ensureChip();
-    const R = radius(), s = host.getSite();
-    const p = map.project(Geo.siteToLngLat(s.lat, s.lon, beadMeters, azRad));
+    const p = map.project(along(f, sp, beadMeters));
     const rect = map.getContainer().getBoundingClientRect();
-    el.innerHTML =
-        '<div>' + fmtDistance(beadMeters) + ' · ' + fmtAz(azRad) + '</div>' +
-        '<div style="font-weight:400;opacity:.8">' + fmtDistance(Math.max(0, R - beadMeters)) + ' to the ring</div>' +
-        '<div style="font-weight:400;opacity:.6">ring ' + fmtDistance(R) + '</div>';
+    const sub = function (t) { return '<div style="font-weight:400;opacity:.8">' + t + '</div>'; };
+    const faint = function (t) { return '<div style="font-weight:400;opacity:.6">' + t + '</div>'; };
+
+    let html = '<div>' + fmtChipDistance(beadMeters) + ' · ' + fmtAz(azRad) +
+        (fromLocation() ? ' from you' : '') + '</div>';
+    html += sp.hits
+        ? sub(fmtChipDistance(Math.max(0, sp.len - beadMeters)) + ' to the ring')
+        : sub('this bearing misses the coverage');
+    if (fromLocation()) {
+        // Where the radar is, from you: the site is the frame's origin, so it is simply −o.
+        const d = Math.sqrt(sp.o[0] * sp.o[0] + sp.o[1] * sp.o[1]);
+        html += faint('site ' + fmtChipDistance(d) + ' · ' + fmtAz(Math.atan2(-sp.o[0], -sp.o[1])) + ' from you');
+    } else {
+        html += faint('ring ' + fmtChipDistance(radius()));
+        if (anchor.wanted) html += faint('no location set — measuring from the site');
+    }
+    el.innerHTML = html;
     el.style.display = 'block';
     el.style.left = (rect.left + p.x + 18) + 'px';
     el.style.top = (rect.top + p.y + 14) + 'px';
@@ -299,28 +396,23 @@ function drawChip(v) {
 
 function hideChip() { if (chip) chip.style.display = 'none'; }
 
-function positionHandles() {
+function positionHandles(f, sp) {
     const v = host.primaryView();
     if (!v || !v.map) return;
-    const s = host.getSite(), R = radius();
-    const knobAt = Geo.siteToLngLat(s.lat, s.lon, R, azRad);
-    const beadAt = Geo.siteToLngLat(s.lat, s.lon, beadMeters, azRad);
+    const knobAt = along(f, sp, sp.len), beadAt = along(f, sp, beadMeters);
     if (!knob) {
         knob = makeHandle(v.map, knobAt, knobSvg(), function (ll) {
             // KNOB: azimuth only. The range it was dragged to is discarded — rebuild puts it back on the ring.
-            const site = host.getSite();
-            const polar = Geo.lngLatToPolar(site.lat, site.lon, unwrapLng(ll.lng, site.lon), ll.lat);
-            azRad = polar.azDeg * Geo.D2R;
+            azRad = polarFromOrigin(ll).az;
             rebuild();
         });
     } else knob.setLngLat(knobAt);
     if (!bead) {
         bead = makeHandle(v.map, beadAt, beadSvg(), function (ll) {
-            // BEAD: takes BOTH, clamped to the ring — you cannot measure past where the data stops.
-            const site = host.getSite();
-            const polar = Geo.lngLatToPolar(site.lat, site.lon, unwrapLng(ll.lng, site.lon), ll.lat);
-            azRad = polar.azDeg * Geo.D2R;
-            beadMeters = Math.min(polar.rangeMeters, radius());
+            // BEAD: takes BOTH; rebuild clamps it to the spoke — you cannot measure past where the data stops.
+            const polar = polarFromOrigin(ll);
+            azRad = polar.az;
+            beadMeters = polar.range;
             rebuild();
         });
     } else bead.setLngLat(beadAt);
@@ -333,8 +425,8 @@ function clearHandles() {
 }
 
 // ---- Rebuild --------------------------------------------------------------------------------------
-// ONE entry point for "the picture is stale": mode, azimuth, bead, unit, radius, zoom and pan all land
-// here. Coalesced to one rebuild per animation frame so a pinch-zoom doesn't queue a hundred setDatas.
+// ONE entry point for "the picture is stale": mode, azimuth, bead, unit, anchor, radius, zoom and pan all
+// land here. Coalesced to one rebuild per animation frame so a pinch-zoom doesn't queue a hundred setDatas.
 function rebuild() {
     if (rebuildRaf) return;
     rebuildRaf = requestAnimationFrame(function () {
@@ -343,12 +435,16 @@ function rebuild() {
         if (!live()) { host.forEachView(removeLayers); clearHandles(); return; }
         const v = host.primaryView();
         if (!v || !v.map) return;
-        const R = radius();
-        if (!(beadMeters > 0) || beadMeters > R) beadMeters = R / 2;   // first draw, or the radius shrank
-        const data = rulerGeoJSON(metersPerPixel(v.map));
+        const f = frame(), sp = spoke(f);
+        // First draw → half the spoke. Afterwards CLAMP, never reset: swinging the knob from you shortens
+        // and lengthens the spoke with the bearing, and the bead jumping to the middle each time would lose
+        // the measurement the knob exists to keep.
+        if (beadMeters < 0) beadMeters = sp.len / 2;
+        else if (beadMeters > sp.len) beadMeters = sp.len;
+        const data = rulerGeoJSON(f, sp, metersPerPixel(v.map));
         host.forEachView(function (view) { addLayers(view, data); });
-        positionHandles();
-        drawChip(v);
+        positionHandles(f, sp);
+        drawChip(v, f, sp);
     });
 }
 
@@ -384,12 +480,24 @@ export function setEnabled(enabled) {
 }
 
 // The decode reported a new outer extent (a new site, or a tilt whose cut reaches further). The spoke
-// re-extends to it; a bead now beyond the data is pulled back to the middle by rebuild().
+// re-extends to it; a bead now beyond the data is pulled back onto it by rebuild().
 export function rangeChanged() { if (on) rebuild(); }
 
 // Host changed the distance unit. Labels and the chip are rebuilt; nothing about the geometry moves.
 export function setUnits(u) {
     units = (u && UNIT_METERS[u]) ? u : 'km';
+    if (on) rebuild();
+}
+
+// Host pushed the anchor: the PREFERENCE (wantLocation) and the location to honour it with, if any. Sent
+// on every move of the location marker, so a changed ORIGIN (site ↔ you) restarts the bead at half the
+// spoke, but a marker merely dragged keeps the bead's range — you are refining where you are, not starting
+// a new measurement.
+export function setAnchor(wantLocation, hasLocation, lng, lat) {
+    const has = !!hasLocation && isFinite(lng) && isFinite(lat);
+    const wasFromLocation = fromLocation();
+    anchor = { wanted: !!wantLocation, has: has, lng: +lng, lat: +lat };
+    if (fromLocation() !== wasFromLocation) beadMeters = -1;
     if (on) rebuild();
 }
 
@@ -399,7 +507,9 @@ export function attachView(v) {
     if (!host || !live()) return;
     const p = host.primaryView();
     if (!p || !p.map) return;
-    addLayers(v, rulerGeoJSON(metersPerPixel(p.map)));
+    const f = frame(), sp = spoke(f);
+    if (beadMeters < 0 || beadMeters > sp.len) { rebuild(); return; }   // let rebuild settle the bead first
+    addLayers(v, rulerGeoJSON(f, sp, metersPerPixel(p.map)));
     bindMap();
 }
 
@@ -409,18 +519,30 @@ export function detachView(v) {
     if (v && boundMap === v.map) { unbindMap(); clearHandles(); }
 }
 
-// Re-render the two handles after a theme change — their colours are baked into SVG markup, so unlike
-// the layers (which a style switch re-adds from fresh Theme.color reads) they cannot re-cascade.
+// Re-read the colours after a theme switch or a Settings colour change: the handles bake theirs into SVG
+// markup, and the live layers hold theirs as paint properties — neither re-cascades from the CSS on its own.
 export function refresh() {
     if (knob) knob.getElement().innerHTML = knobSvg();
     if (bead) bead.getElement().innerHTML = beadSvg();
+    if (!host) return;
+    const ink = inkColor(), casing = casingColor();
+    host.forEachView(function (v) {
+        const map = v.map;
+        if (!map) return;
+        if (map.getLayer(CASING_LAYER)) map.setPaintProperty(CASING_LAYER, 'line-color', casing);
+        if (map.getLayer(LINE_LAYER)) map.setPaintProperty(LINE_LAYER, 'line-color', ink);
+        if (map.getLayer(LABEL_LAYER)) {
+            map.setPaintProperty(LABEL_LAYER, 'text-color', ink);
+            map.setPaintProperty(LABEL_LAYER, 'text-halo-color', casing);
+        }
+    });
 }
 
-// The loop was cleared or the site changed: drop the picture but KEEP the mode and the bearing, so a
-// ruler you armed is still armed at the next site and still pointing the way you left it.
+// The loop was cleared or the site changed: drop the picture but KEEP the mode, the bearing and the anchor,
+// so a ruler you armed is still armed at the next site and still pointing the way you left it.
 export function reset() {
     if (!host) return;
     host.forEachView(removeLayers);
     clearHandles();
-    beadMeters = 0;
+    beadMeters = -1;
 }

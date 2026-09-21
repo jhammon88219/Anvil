@@ -316,6 +316,12 @@ namespace Anvil.ViewModels
 			marker.Latitude = latitude;
 			marker.Longitude = longitude;
 			marker.PositionSource = LocationSource.Manual; // dragged → no longer the GPS/IP fix
+			if (marker.Kind == MarkerKind.UserLocation)
+			{
+				// The marker object is mutated in place, so nothing about HasUserLocationMarker changed — raise
+				// the position itself for the consumers that measure FROM it (the range ruler's anchor).
+				OnPropertyChanged(nameof(UserLocationMarker));
+			}
 			if (ReferenceEquals(marker, _selectedMarker))
 			{
 				RaiseSelectedMarker();

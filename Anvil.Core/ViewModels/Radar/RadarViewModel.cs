@@ -1825,6 +1825,9 @@ namespace Anvil.ViewModels
 			await _mapService.SetResearchRadarsVisibleAsync(ShowResearchRadars);
 			await _mapService.SetTdwrsVisibleAsync(ShowTdwrs);
 
+			// The PERSISTED range-ring colour and ruler anchor (every command this VM holds is replayed here).
+			await PushScopePreferencesAsync();
+
 			// Lay the panes out from the view model's layout (Single at launch). Pushed even when it IS
 			// single so the page takes its groove width from PaneLayoutInfo rather than its own default,
 			// and so a restored layout applies without the user touching the picker.

@@ -81,6 +81,18 @@ namespace Anvil.ViewModels
 			StateIso = new StateIsolationViewModel(mapService, settingsService);
 			PipelineConsole = new PipelineConsoleViewModel(mapService, Radar); // PIPELINE CONSOLE (remove with the feature)
 
+			// The range ruler can measure FROM the user-location marker, which Markers owns and Radar does not
+			// know about — so the coordinator hands the point across. Placed, dragged, re-located or removed:
+			// all of them end here. (HasUserLocationMarker covers add/remove/relocate; UserLocationMarker a drag.)
+			Markers.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName is nameof(MarkersViewModel.HasUserLocationMarker) or nameof(MarkersViewModel.UserLocationMarker))
+				{
+					var u = Markers.UserLocationMarker;
+					Radar.SetRulerLocation(u?.Latitude, u?.Longitude);
+				}
+			};
+
 			// The Past/Now/Fore toggles PROJECT subsystem state (see the Temporal toggles region), so keep
 			// them honest: re-raise them whenever the radar mode/loop or the outlook overlay changes,
 			// including changes NOT driven by the toggles (e.g. clicking an on-map radar site marker starts a

@@ -163,6 +163,20 @@ namespace Anvil.Services
 		Task SetDistanceUnitsAsync(string unit);
 
 		/// <summary>
+		/// Where the range ruler starts. <paramref name="fromLocation"/> is the PREFERENCE; <paramref name="hasLocation"/>
+		/// says whether there is a location to honour it with (else the page measures from the site and says so on
+		/// the chip). <paramref name="lng"/>/<paramref name="lat"/> are ignored when there is none.
+		/// </summary>
+		/// <remarks>⚠️ Re-push on every move of the location marker: the page does not watch markers.js.</remarks>
+		Task SetRangeRulerAnchorAsync(bool fromLocation, bool hasLocation, double lng, double lat);
+
+		/// <summary>
+		/// Recolours the range ring and the range ruler together: a <c>#RRGGBB</c> override, or empty for the
+		/// theme's own colours. Applies live and survives a theme switch (the override outranks both themes).
+		/// </summary>
+		Task SetScopeColorAsync(string hex);
+
+		/// <summary>
 		/// Provides the radar sites to the map as clickable on-map markers. JSON is an array
 		/// of <c>{ id, name, lng, lat }</c>.
 		/// </summary>
