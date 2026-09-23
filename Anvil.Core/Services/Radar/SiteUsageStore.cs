@@ -39,8 +39,9 @@ namespace Anvil.Services
 			Directory.CreateDirectory(dir);
 			_filePath = Path.Combine(dir, "site-usage.json");
 			_sites = Load();
-			// DIAG (usage persistence): what this launch found. Pair with the "saved" lines to see whether a
-			// session's writes survive to the next launch.
+			// What this launch found. Kept permanently: a launch once found NO file after a session that had
+			// saved, and nothing logged why. This line plus the "saved" lines show whether a session's writes
+			// reach the next launch — a handful of lines per session.
 			_logger.LogInformation("SiteUsageStore loaded {Count} site(s) from {Path} (exists={Exists})",
 				_sites.Count, _filePath, File.Exists(_filePath));
 		}
@@ -86,7 +87,8 @@ namespace Anvil.Services
 		public void ClearAll()
 		{
 			if (_sites.Count == 0) return;
-			_logger.LogInformation("SiteUsageStore ClearAll ({Count} site(s))", _sites.Count); // DIAG
+			// Logged so a "my stats vanished" report can tell a user clear from a lost file.
+			_logger.LogInformation("SiteUsageStore ClearAll ({Count} site(s))", _sites.Count);
 			_sites.Clear();
 			Commit(null);
 		}
@@ -138,16 +140,18 @@ namespace Anvil.Services
 				var temp = $"{_filePath}.{Environment.ProcessId}-{Guid.NewGuid():N}.tmp";
 				File.WriteAllText(temp, json);
 				File.Move(temp, _filePath, overwrite: true);
-				// DIAG (usage persistence): read the file straight back — if the move didn't land where the next
-				// launch will look, this says so now instead of as missing stats later.
+				// Read the file straight back — if the move didn't land where the next launch will look, this says
+				// so now instead of as missing stats later. Saves are rare (a load, a 5-min checkpoint, a clear,
+				// close), so the check and the line cost nothing that matters.
 				var onDisk = File.Exists(_filePath) ? new FileInfo(_filePath).Length : -1;
 				_logger.LogInformation("SiteUsageStore saved {Count} site(s) ({Bytes} bytes written, {OnDisk} on disk, temp left={TempLeft})",
 					_sites.Count, json.Length, onDisk, File.Exists(temp));
 			}
 			catch (Exception ex)
 			{
-				// DIAG: catch-all while persistence is under investigation — anything thrown here used to escape
-				// silently into a property setter or the Closed handler.
+				// Catch-all ON PURPOSE: Save runs inside the SelectedRadarOption setter and the window's Closed
+				// handler, where anything that escaped would vanish without a trace. Usage stats are never worth
+				// breaking either — log and move on.
 				_logger.LogWarning(ex, "Failed to save site usage.");
 			}
 		}

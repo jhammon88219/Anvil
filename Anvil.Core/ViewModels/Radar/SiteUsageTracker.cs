@@ -110,7 +110,8 @@ namespace Anvil.ViewModels
 		/// <summary>Bank the running stretch (app closing). The clock is left stopped.</summary>
 		public void Shutdown()
 		{
-			// DIAG (usage persistence): proves the Closed → MapViewModel.Shutdown path reached us.
+			// Proves the Closed → MapViewModel.Shutdown path reached us: a run with no "usage shutdown" line was
+			// killed (e.g. VS Stop), and its unbanked stretch — up to one CheckpointEvery — was lost by design.
 			Services.RadarDiagnostics.Log("usage", "shutdown", ("site", _currentId ?? "none"),
 				("runningSec", _runningSince is { } s ? (int)(_now() - s).TotalSeconds : -1));
 			Bank(keepRunning: false);
