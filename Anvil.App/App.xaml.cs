@@ -112,6 +112,8 @@ namespace Anvil
 			services.AddSingleton<IDowEventProvider, DowEventProvider>();
 			// PastCast saved events: embedded curated built-ins + the user's %LocalAppData%\Anvil\SavedEvents.json.
 			services.AddSingleton<ISavedEventLibrary, SavedEventLibrary>();
+			// Per-site usage (the Atlas's "Your use" strip): %LocalAppData%\Anvil\Usage\site-usage.json.
+			services.AddSingleton<SiteUsageStore>();
 
 			// Wind-profile provider chain for the storm motion (doc 01 section 5), in PRIORITY ORDER. The NWS's
 			// own VAD (Level III NVW) first; our Level II VAD is the fallback and is NOT registered here — it

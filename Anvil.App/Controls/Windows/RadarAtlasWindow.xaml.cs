@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
@@ -137,6 +138,26 @@ namespace Anvil.Controls.Windows
 			if (ViewModel?.RadarAtlas.SelectedSite is { } row)
 			{
 				ViewModel.SiteFavorites.ToggleHome(row);
+			}
+		}
+
+		// "Your use" Clear — confirm first (the dialog says how much goes), then clear one site or all of them.
+		// ⚠️ XamlRoot is THIS control's: the Atlas is its own OS window, so the dialog must open over it.
+		private async void OnClearUsageClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel?.RadarAtlas is not { } atlas)
+			{
+				return;
+			}
+
+			var dialog = new Anvil.Dialogs.ClearSiteUsageDialog(
+				atlas.ClearUsageTitle, atlas.ClearUsageBody, atlas.ClearAllUsageLabel)
+			{
+				XamlRoot = XamlRoot,
+			};
+			if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+			{
+				atlas.ClearUsage(dialog.AllSites);
 			}
 		}
 

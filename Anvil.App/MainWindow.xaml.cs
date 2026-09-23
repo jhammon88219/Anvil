@@ -533,6 +533,15 @@ namespace Anvil
 			// Start maximized.
 			(AppWindow.Presenter as OverlappedPresenter)?.Maximize();
 
+			// The Atlas's site-hours clock PAUSES while the main window is minimized. Read the presenter state on
+			// EVERY change rather than trusting one flag — SetMinimized is idempotent, so the extra calls are free.
+			AppWindow.Changed += (_, _) =>
+			{
+				if (_isClosed) return;
+				ViewModel.SiteUsage.SetMinimized(
+					(AppWindow.Presenter as OverlappedPresenter)?.State == OverlappedPresenterState.Minimized);
+			};
+
 			_ = InitializeMapAsync();
 
 			// Start the SPC outlook + watch background refresh loops (each owned by its own subsystem VM):

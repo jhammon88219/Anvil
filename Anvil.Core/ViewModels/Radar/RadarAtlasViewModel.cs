@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Anvil.Models;
@@ -31,14 +32,19 @@ namespace Anvil.ViewModels
 		private readonly MarkersViewModel _markers;
 		private readonly ILevel2RadarService _radarService;
 		private readonly RadarSiteFavoritesViewModel _favorites;
+		private readonly SiteUsageTracker _usage;
 
 		public RadarAtlasViewModel(RadarViewModel radar, MarkersViewModel markers,
-			ILevel2RadarService radarService, RadarSiteFavoritesViewModel favorites)
+			ILevel2RadarService radarService, RadarSiteFavoritesViewModel favorites, SiteUsageTracker usage)
 		{
 			_radar = radar;
 			_markers = markers;
 			_radarService = radarService;
 			_favorites = favorites;
+			_usage = usage;
+
+			// Any recorded change can move the selected site's numbers — or its RANK, which depends on every site.
+			_usage.Changed += (_, _) => RaiseUsage();
 
 			FilteredSites = new ObservableCollection<RadarSiteRow>();
 			SiteGroups = new ObservableCollection<RadarSiteGroup>();
@@ -758,6 +764,8 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(AgeHint));
 			OnPropertyChanged(nameof(ScanHint));
 			OnPropertyChanged(nameof(StatusHint));
+			// A frame landing / the selection moving also moves the running site-hours clock and "Now".
+			RaiseUsage();
 		}
 
 		private async Task LoadDetailAsync(RadarSiteRow? row, int token)
@@ -842,7 +850,155 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(CoordsHint));
 			OnPropertyChanged(nameof(StatusHint));
 			OnPropertyChanged(nameof(NetworkHint));
+			RaiseUsage();
 		}
+
+		// ── Your use (SiteUsageTracker read-back) ────────────────────────────────────────────────
+		// The words for the tiles and the Clear confirmation live HERE, not in XAML — same rule as the chips.
+		// ⚠️ The "?" on Site hours is RadarGlossary.SiteHours; the clock rule it states is SiteUsageTracker's.
+
+		private SiteUsage? SelectedUsage => _selectedSite is null ? null : _usage.Get(_selectedSite.Id);
+		private bool IsSelectedCurrent => _selectedSite is not null && _usage.IsCurrent(_selectedSite.Id);
+		private double SelectedSeconds => _selectedSite is null ? 0 : _usage.SecondsLoaded(_selectedSite.Id);
+
+		/// <summary>Whether the selected site has ANY usage (the tiles show) — else the one-line empty state.
+		/// The current site counts even straight after a clear, since its clock is already running again.</summary>
+		public bool HasUsage => SelectedUsage is not null || IsSelectedCurrent;
+
+		/// <summary>Whether the header's Clear shows — only when there's recorded history to clear.</summary>
+		public bool CanClearUsage => SelectedUsage is not null;
+
+		/// <summary>The one-line empty state for a never-used site.</summary>
+		public string UsageEmptyText => _selectedSite is null ? string.Empty : $"You haven't loaded {_selectedSite.Id} yet.";
+
+		/// <summary>"since Mar 4, 2026" beside the header, empty with no history.</summary>
+		public string UsageSinceText => SelectedUsage?.FirstUsedUtc is { } first
+			? $"since {first.ToLocalTime():MMM d, yyyy}"
+			: string.Empty;
+
+		public string UsageLoadsValue => (SelectedUsage?.TotalLoads ?? 0).ToString(CultureInfo.CurrentCulture);
+
+		/// <summary>"LOADS · 22 LIVE, 5 REPLAY" — collapses to "ALL LIVE"/"ALL REPLAY" when one side is empty.</summary>
+		public string UsageLoadsLabel
+		{
+			get
+			{
+				var u = SelectedUsage;
+				if (u is null || u.TotalLoads == 0) return "LOADS";
+				if (u.ReplayLoads == 0) return "LOADS · ALL LIVE";
+				if (u.LiveLoads == 0) return "LOADS · ALL REPLAY";
+				return $"LOADS · {u.LiveLoads} LIVE, {u.ReplayLoads} REPLAY";
+			}
+		}
+
+		/// <summary>The Site hours tile — "6.4" once there's an hour, minutes before that ("18 min", "&lt;1 min"),
+		/// so a new site doesn't read "0.0".</summary>
+		public string SiteHoursValue
+		{
+			get
+			{
+				var s = SelectedSeconds;
+				if (s < 60) return "<1 min";
+				if (s < 3600) return $"{s / 60:0} min";
+				return (s / 3600).ToString("0.0", CultureInfo.CurrentCulture);
+			}
+		}
+
+		/// <summary>"Now" while the site is loaded, else a compact age ("3 hr ago", "2 days ago", "Mar 4").</summary>
+		public string LastUsedValue
+		{
+			get
+			{
+				if (IsSelectedCurrent) return "Now";
+				if (SelectedUsage?.LastUsedUtc is not { } last) return "—";
+				var age = DateTimeOffset.UtcNow - last;
+				if (age.TotalMinutes < 1) return "Just now";
+				if (age.TotalMinutes < 60) return $"{age.TotalMinutes:0} min ago";
+				if (age.TotalHours < 24) return $"{age.TotalHours:0} hr ago";
+				if (age.TotalDays < 2) return "Yesterday";
+				if (age.TotalDays < 60) return $"{age.TotalDays:0} days ago";
+				return last.ToLocalTime().ToString("MMM d", CultureInfo.CurrentCulture);
+			}
+		}
+
+		private int? SelectedRank => _selectedSite is null ? null : _usage.Rank(_selectedSite.Id);
+
+		public string RankValue => SelectedRank is { } r ? $"#{r}" : "—";
+
+		public string RankLabel => _usage.UsedSiteCount switch
+		{
+			0 => "OF SITES YOU USE",
+			1 => "YOUR ONLY SITE SO FAR",
+			var n => $"OF {n} SITES YOU USE",
+		};
+
+		public RadarGlossaryCard SiteHoursHint =>
+			RadarGlossary.SiteHours(_selectedSite?.Id ?? "This site", SelectedSeconds, SelectedUsage?.TotalLoads ?? 0);
+
+		// ── Clear (the confirmation's words + the act) ──
+
+		public string ClearUsageTitle => $"Clear your use of {DetailId}?";
+
+		public string ClearUsageBody
+		{
+			get
+			{
+				var u = SelectedUsage;
+				var loads = u?.TotalLoads ?? 0;
+				var since = u?.FirstUsedUtc is { } f ? $", recorded since {f.ToLocalTime():MMM d, yyyy}" : string.Empty;
+				return $"This removes {HistorySpan(u?.FirstUsedUtc)} for this site: {loads} load{(loads == 1 ? "" : "s")} " +
+					$"and {HoursWords(SelectedSeconds)}{since}. It can't be undone.";
+			}
+		}
+
+		public string ClearAllUsageLabel
+		{
+			get
+			{
+				var (sites, seconds, since) = _usage.Totals();
+				return $"Clear all {sites} site{(sites == 1 ? "" : "s")} instead ({HistorySpan(since, bare: true)}, {HoursWords(seconds)})";
+			}
+		}
+
+		/// <summary>Forget the selected site's usage, or every site's.</summary>
+		public void ClearUsage(bool allSites)
+		{
+			if (allSites) _usage.ClearAll();
+			else if (_selectedSite is not null) _usage.Clear(_selectedSite.Id);
+		}
+
+		private void RaiseUsage()
+		{
+			OnPropertyChanged(nameof(HasUsage));
+			OnPropertyChanged(nameof(CanClearUsage));
+			OnPropertyChanged(nameof(UsageEmptyText));
+			OnPropertyChanged(nameof(UsageSinceText));
+			OnPropertyChanged(nameof(UsageLoadsValue));
+			OnPropertyChanged(nameof(UsageLoadsLabel));
+			OnPropertyChanged(nameof(SiteHoursValue));
+			OnPropertyChanged(nameof(LastUsedValue));
+			OnPropertyChanged(nameof(RankValue));
+			OnPropertyChanged(nameof(RankLabel));
+			OnPropertyChanged(nameof(SiteHoursHint));
+		}
+
+		// "6 months of history" / "today's history"; bare = "6 months" (the checkbox's parenthesis).
+		private static string HistorySpan(DateTimeOffset? since, bool bare = false)
+		{
+			var days = since is { } s ? (DateTimeOffset.UtcNow - s).TotalDays : 0;
+			if (days < 1) return bare ? "today" : "today's history";
+			string span;
+			if (days < 14) span = $"{days:0} day{(Math.Round(days) == 1 ? "" : "s")}";
+			else if (days < 60) span = $"{days / 7:0} weeks";
+			else if (days < 730) span = $"{days / 30.44:0} months";
+			else span = $"{days / 365.25:0} years";
+			return bare ? span : $"{span} of history";
+		}
+
+		// "6.4 site hours" / "18 minutes loaded" — the same one-hour switch the tile makes.
+		private static string HoursWords(double seconds) => seconds < 3600
+			? $"{seconds / 60:0} minute{(Math.Round(seconds / 60) == 1 ? "" : "s")} loaded"
+			: $"{seconds / 3600:0.0} site hours";
 
 		// Two largest non-zero units of an age span (yr/mo/day/hr/min) with an "ago" suffix,
 		// e.g. "2 hr 5 min ago"; "just now" under a minute.

@@ -470,7 +470,31 @@ namespace Anvil.ViewModels
 				else
 				{
 					_ = _engine.StartRadarLoopAsync(value?.Site);
+					if (value?.Site is { } site)
+					{
+						RaiseSiteLoaded(site, replay: false);
+					}
 				}
+			}
+		}
+
+		// ── SITE USAGE seam (the Atlas's "Your use" strip; SiteUsageTracker listens) ─────────────────
+		/// <summary>
+		/// A loop the USER asked for: a live site pick (raised from <see cref="SelectedRadarOption"/>), or a
+		/// PastCast replay window that actually loaded (raised by the engine's success path). ⚠️ A PastCast site
+		/// pick that only ARMS or targets the window is not a load. Silenced while <see cref="IsSiteUsageSuppressed"/>.
+		/// </summary>
+		public event EventHandler<SiteLoad>? SiteLoaded;
+
+		/// <summary>Set by the Debug site sweep for the length of a run, so a machine cycling 200 sites doesn't
+		/// read as the user's history.</summary>
+		internal bool IsSiteUsageSuppressed { get; set; }
+
+		internal void RaiseSiteLoaded(RadarSite site, bool replay)
+		{
+			if (!IsSiteUsageSuppressed)
+			{
+				SiteLoaded?.Invoke(this, new SiteLoad(site, replay));
 			}
 		}
 

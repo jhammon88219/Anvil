@@ -169,6 +169,7 @@ namespace Anvil.ViewModels
 
 			var startedAt = DateTimeOffset.Now;
 			var wasSelected = _radar.SelectedRadarOption; // restore the user's selection afterward
+			_radar.IsSiteUsageSuppressed = true; // the sweep's loads are not the user's (Atlas "Your use")
 
 			RadarDiagnostics.Log("dev", "sweep.start", ("sites", sites.Count),
 				("dwellSec", DwellSeconds), ("timeoutSec", PerSiteTimeoutSeconds),
@@ -189,7 +190,9 @@ namespace Anvil.ViewModels
 			}
 			finally
 			{
-				// Best-effort restore: clear the sweep's last selection back to what the user had.
+				// Best-effort restore: clear the sweep's last selection back to what the user had. Usage counting
+				// resumes FIRST, so the restored site is on the clock again (at the cost of one counted load).
+				_radar.IsSiteUsageSuppressed = false;
 				try { _radar.SelectedRadarOption = wasSelected; } catch { /* ignore */ }
 
 				var report = new SweepReport(startedAt, DateTimeOffset.Now, DwellSeconds, OperationalOnly,

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ClearSiteUsageDialog — the confirmation behind the Radar Atlas's "Your use" Clear. Says HOW MUCH goes
+     (the span of history, the loads, the site hours) before anything is erased, and offers the whole
+     record as a checkbox so wiping everything isn't a site-by-site chore.
+
+       ┌─ Clear your use of KTLX? ───────────────────────────┐
+       │  This removes 6 months of history for this site:    │  ← body (the VM's words)
+       │  27 loads and 6.4 site hours, recorded since        │
+       │  Mar 4, 2026. It can't be undone.                   │
+       │  ☐ Clear all 14 sites instead (9 months, 41.2 …)    │  ← AllSites
+       │                              [ Clear ]  ( Cancel )  │  Clear = critical red; CANCEL is default
+       └─────────────────────────────────────────────────────┘
+
+     ⚠️ DefaultButton is Close (Cancel), so Enter never erases anything.
+     ⚠️ Every string comes from RadarAtlasViewModel (ClearUsageTitle / Body / ClearAllUsageLabel) — the dialog
+     assembles none of its own words. -->
+<ContentDialog x:Class="Anvil.Dialogs.ClearSiteUsageDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+               xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+               mc:Ignorable="d"
+               PrimaryButtonText="Clear"
+               CloseButtonText="Cancel"
+               DefaultButton="Close">
+
+    <!-- The destructive key reads as one. Only the resting fill is re-coloured (a Style can't reach the
+         template's hover/pressed keys), so it drops to the stock hover — acceptable for a once-in-a-while
+         confirmation. -->
+    <ContentDialog.PrimaryButtonStyle>
+        <Style TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+            <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+        </Style>
+    </ContentDialog.PrimaryButtonStyle>
+
+    <StackPanel Spacing="14" MaxWidth="420">
+        <TextBlock x:Name="BodyText" TextWrapping="Wrap"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        <CheckBox x:Name="AllSitesBox"/>
+    </StackPanel>
+</ContentDialog>

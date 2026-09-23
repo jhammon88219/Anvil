@@ -570,6 +570,7 @@ namespace Anvil.ViewModels
 			_vm.PastEventStatus = $"Loaded {keys.Count} frames{(sampled ? " (sampled)" : "")} · " +
 				$"{localStart:MMM d, h:mm tt} +{_vm.PastEventDurationOptions[_vm._pastEventDurationIndex]}";
 			_vm.MarkReplayWindowLoaded();
+			_vm.RaiseSiteLoaded(site, replay: true);
 			return true;
 		}
 

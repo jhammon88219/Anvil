@@ -51,7 +51,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, StormMotionService? stormMotion)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, StormMotionService? stormMotion)
 		{
 			_mapService = mapService;
 			_styleProvider = styleProvider;
@@ -76,7 +76,8 @@ namespace Anvil.ViewModels
 			Markers = new MarkersViewModel(mapService, locationService);
 			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
 			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
-			RadarAtlas = new RadarAtlasViewModel(Radar, Markers, radarService, SiteFavorites);
+			SiteUsage = new SiteUsageTracker(Radar, siteUsageStore);
+			RadarAtlas = new RadarAtlasViewModel(Radar, Markers, radarService, SiteFavorites, SiteUsage);
 			SavedEvents = new SavedEventsViewModel(savedEventLibrary, Radar, mapService);
 			StateIso = new StateIsolationViewModel(mapService, settingsService);
 			PipelineConsole = new PipelineConsoleViewModel(mapService, Radar); // PIPELINE CONSOLE (remove with the feature)
@@ -203,6 +204,10 @@ namespace Anvil.ViewModels
 		/// <summary>The Radar Atlas subsystem view model (searchable/filterable browser over the
 		/// whole radar network + per-site detail). Opened by the "Atlas" key on the bar.</summary>
 		public RadarAtlasViewModel RadarAtlas { get; }
+
+		/// <summary>Per-site usage (loads + the site-hours clock) behind the Atlas's "Your use" strip. MainWindow
+		/// pushes minimize/restore into it (<see cref="SiteUsageTracker.SetMinimized"/>).</summary>
+		public SiteUsageTracker SiteUsage { get; }
 
 		/// <summary>The home radar site + favorite sites (the tools tier's site picker, the Atlas's pinned
 		/// sections, load-home-on-launch).</summary>
@@ -1147,6 +1152,7 @@ namespace Anvil.ViewModels
 			Watches.Shutdown();
 			Warnings.Shutdown();
 			StormReports.Shutdown();
+			SiteUsage.Shutdown(); // bank the running site-hours stretch
 		}
 	}
 }
