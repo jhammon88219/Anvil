@@ -39,6 +39,10 @@ namespace Anvil.Services
 			Directory.CreateDirectory(dir);
 			_filePath = Path.Combine(dir, "site-usage.json");
 			_sites = Load();
+			// DIAG (usage persistence): what this launch found. Pair with the "saved" lines to see whether a
+			// session's writes survive to the next launch.
+			_logger.LogInformation("SiteUsageStore loaded {Count} site(s) from {Path} (exists={Exists})",
+				_sites.Count, _filePath, File.Exists(_filePath));
 		}
 
 		/// <summary>Raised after any change, with the site ICAO — or null when EVERY site changed (clear all).</summary>
@@ -82,6 +86,7 @@ namespace Anvil.Services
 		public void ClearAll()
 		{
 			if (_sites.Count == 0) return;
+			_logger.LogInformation("SiteUsageStore ClearAll ({Count} site(s))", _sites.Count); // DIAG
 			_sites.Clear();
 			Commit(null);
 		}
@@ -133,9 +138,16 @@ namespace Anvil.Services
 				var temp = $"{_filePath}.{Environment.ProcessId}-{Guid.NewGuid():N}.tmp";
 				File.WriteAllText(temp, json);
 				File.Move(temp, _filePath, overwrite: true);
+				// DIAG (usage persistence): read the file straight back — if the move didn't land where the next
+				// launch will look, this says so now instead of as missing stats later.
+				var onDisk = File.Exists(_filePath) ? new FileInfo(_filePath).Length : -1;
+				_logger.LogInformation("SiteUsageStore saved {Count} site(s) ({Bytes} bytes written, {OnDisk} on disk, temp left={TempLeft})",
+					_sites.Count, json.Length, onDisk, File.Exists(temp));
 			}
-			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+			catch (Exception ex)
 			{
+				// DIAG: catch-all while persistence is under investigation — anything thrown here used to escape
+				// silently into a property setter or the Closed handler.
 				_logger.LogWarning(ex, "Failed to save site usage.");
 			}
 		}
