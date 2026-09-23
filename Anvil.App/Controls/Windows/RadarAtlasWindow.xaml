@@ -20,9 +20,10 @@
        │ …                                 │   │ SINCE LAST │ │ clear-air  │ │ FROM YOU   │   same facts, short
        └───────────────────────────────────┘   └ SCAN ──────┘ └────────────┘ └────────────┘   (distance collapses)
                                                YOUR USE  since Mar 4, 2026  [⌫ Clear]   ← Clear → ClearSiteUsageDialog
-                                               ┌ 27       ┐ ┌ 6.4     ⑦┐ ┌ Now      ┐ ┌ #1          ┐
-                                               │ LOADS ·  │ │ SITE     │ │ LAST USED│ │ OF 14 SITES │ ← never used: ONE line
-                                               └ 22 LIVE… ┘ └ HOURS ───┘ └──────────┘ └ YOU USE ────┘   "You haven't loaded X yet."
+                                               ┌ 27       ┐ ┌ 6.4 hr  ⑦┐ ┌ Now      ┐ ┌ #1          ┐
+                                               │ LOADS ·  │ │ SITE LOAD│ │ LAST USED│ │ OF 14 SITES │ ← never used: ONE line
+                                               │ 22 NOW-  │ │ TIME ·   │ │          │ │ YOU USE     │   "You haven't loaded X yet."
+                                               └ CAST, 5… ┘ └ 5.2 HR N…┘ └──────────┘ └─────────────┘   (both splits: NowCast, PastCast)
 
      THE FILTER BLOCK IS TWO ROWS AND THE SPLIT IS THE WHOLE POINT: row 1 is where you CHANGE the
      filtering, row 2 is what filtering is currently IN EFFECT. Don't move a control between them.
@@ -733,8 +734,11 @@
                                  ⚠️ Clear shows only with recorded history, and always CONFIRMS
                                  (Dialogs/ClearSiteUsageDialog) — it says how much goes before anything does.
                                  ⚠️ A never-used site swaps the four tiles for ONE line: a row of zeros and dashes
-                                 would read as missing data. Only Site hours has a "?" (RadarGlossary.SiteHours);
-                                 the others say what they are. Every word comes from the VM. -->
+                                 would read as missing data. Only Site load time has a "?" (RadarGlossary.SiteLoadTime);
+                                 the others say what they are. Every word comes from the VM.
+                                 ⚠️ Loads and Site load time split the SAME way, by mode ("22 NOWCAST, 5 PASTCAST" /
+                                 "5.2 HR NOWCAST, 1.2 HR PASTCAST", "ALL NOWCAST" when one side is empty) — keep
+                                 the two labels alike. Both labels wrap. -->
                             <StackPanel Grid.Row="3" Spacing="8" Margin="0,8,0,0">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="YOUR USE" VerticalAlignment="Center"
@@ -790,12 +794,13 @@
                                             Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                         <Grid>
                                             <StackPanel>
-                                                <TextBlock Text="{x:Bind ViewModel.RadarAtlas.SiteHoursValue, Mode=OneWay}"
+                                                <TextBlock Text="{x:Bind ViewModel.RadarAtlas.LoadTimeValue, Mode=OneWay}"
                                                            FontSize="20" FontWeight="SemiBold"/>
-                                                <TextBlock Text="SITE HOURS" Style="{StaticResource FieldLabelStyle}"/>
+                                                <TextBlock Text="{x:Bind ViewModel.RadarAtlas.LoadTimeLabel, Mode=OneWay}"
+                                                           TextWrapping="Wrap" Style="{StaticResource FieldLabelStyle}"/>
                                             </StackPanel>
                                             <ctl:GlossaryHint HorizontalAlignment="Right" VerticalAlignment="Top"
-                                                              Card="{x:Bind ViewModel.RadarAtlas.SiteHoursHint, Mode=OneWay}"/>
+                                                              Card="{x:Bind ViewModel.RadarAtlas.LoadTimeHint, Mode=OneWay}"/>
                                         </Grid>
                                     </Border>
 

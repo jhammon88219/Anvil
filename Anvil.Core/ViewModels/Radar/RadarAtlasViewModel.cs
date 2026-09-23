@@ -855,7 +855,8 @@ namespace Anvil.ViewModels
 
 		// ── Your use (SiteUsageTracker read-back) ────────────────────────────────────────────────
 		// The words for the tiles and the Clear confirmation live HERE, not in XAML — same rule as the chips.
-		// ⚠️ The "?" on Site hours is RadarGlossary.SiteHours; the clock rule it states is SiteUsageTracker's.
+		// ⚠️ The "?" on Site load time is RadarGlossary.SiteLoadTime; the clock rule it states is SiteUsageTracker's.
+		// ⚠️ Both split tiles use the app's MODE names (NowCast / PastCast) the same way — keep them alike.
 
 		private SiteUsage? SelectedUsage => _selectedSite is null ? null : _usage.Get(_selectedSite.Id);
 		private bool IsSelectedCurrent => _selectedSite is not null && _usage.IsCurrent(_selectedSite.Id);
@@ -878,30 +879,52 @@ namespace Anvil.ViewModels
 
 		public string UsageLoadsValue => (SelectedUsage?.TotalLoads ?? 0).ToString(CultureInfo.CurrentCulture);
 
-		/// <summary>"LOADS · 22 LIVE, 5 REPLAY" — collapses to "ALL LIVE"/"ALL REPLAY" when one side is empty.</summary>
+		/// <summary>"LOADS · 22 NOWCAST, 5 PASTCAST" — collapses to "ALL NOWCAST"/"ALL PASTCAST" when one side is
+		/// empty.</summary>
 		public string UsageLoadsLabel
 		{
 			get
 			{
 				var u = SelectedUsage;
-				if (u is null || u.TotalLoads == 0) return "LOADS";
-				if (u.ReplayLoads == 0) return "LOADS · ALL LIVE";
-				if (u.LiveLoads == 0) return "LOADS · ALL REPLAY";
-				return $"LOADS · {u.LiveLoads} LIVE, {u.ReplayLoads} REPLAY";
+				return u is null || u.TotalLoads == 0
+					? "LOADS"
+					: SplitLabel("LOADS", u.LiveLoads > 0, u.ReplayLoads > 0,
+						u.LiveLoads.ToString(CultureInfo.CurrentCulture), u.ReplayLoads.ToString(CultureInfo.CurrentCulture));
 			}
 		}
 
-		/// <summary>The Site hours tile — "6.4" once there's an hour, minutes before that ("18 min", "&lt;1 min"),
-		/// so a new site doesn't read "0.0".</summary>
-		public string SiteHoursValue
+		private double SelectedSecondsIn(bool replay) => _selectedSite is null ? 0 : _usage.SecondsLoaded(_selectedSite.Id, replay);
+
+		/// <summary>The Site load time tile — "6.4 hr" once there's an hour, minutes before that ("18 min",
+		/// "&lt;1 min"), so a new site doesn't read "0.0 hr".</summary>
+		public string LoadTimeValue => ShortTime(SelectedSeconds);
+
+		/// <summary>"SITE LOAD TIME · 5.2 HR NOWCAST, 1.2 HR PASTCAST" — the loads label's rule, in time. A side
+		/// under a minute counts as empty, so a stray few seconds don't split the label.</summary>
+		public string LoadTimeLabel
 		{
 			get
 			{
-				var s = SelectedSeconds;
-				if (s < 60) return "<1 min";
-				if (s < 3600) return $"{s / 60:0} min";
-				return (s / 3600).ToString("0.0", CultureInfo.CurrentCulture);
+				double now = SelectedSecondsIn(replay: false), past = SelectedSecondsIn(replay: true);
+				return now + past < 60
+					? "SITE LOAD TIME"
+					: SplitLabel("SITE LOAD TIME", now >= 60, past >= 60,
+						ShortTime(now).ToUpperInvariant(), ShortTime(past).ToUpperInvariant());
 			}
+		}
+
+		// "<NAME> · ALL NOWCAST" / "· ALL PASTCAST" / "· <a> NOWCAST, <b> PASTCAST".
+		private static string SplitLabel(string name, bool hasNow, bool hasPast, string nowText, string pastText) =>
+			!hasPast ? $"{name} · ALL NOWCAST"
+			: !hasNow ? $"{name} · ALL PASTCAST"
+			: $"{name} · {nowText} NOWCAST, {pastText} PASTCAST";
+
+		// "6.4 hr" / "18 min" / "<1 min".
+		private static string ShortTime(double seconds)
+		{
+			if (seconds < 60) return "<1 min";
+			if (seconds < 3600) return $"{seconds / 60:0} min";
+			return $"{(seconds / 3600).ToString("0.0", CultureInfo.CurrentCulture)} hr";
 		}
 
 		/// <summary>"Now" while the site is loaded, else a compact age ("3 hr ago", "2 days ago", "Mar 4").</summary>
@@ -932,8 +955,9 @@ namespace Anvil.ViewModels
 			var n => $"OF {n} SITES YOU USE",
 		};
 
-		public RadarGlossaryCard SiteHoursHint =>
-			RadarGlossary.SiteHours(_selectedSite?.Id ?? "This site", SelectedSeconds, SelectedUsage?.TotalLoads ?? 0);
+		public RadarGlossaryCard LoadTimeHint =>
+			RadarGlossary.SiteLoadTime(_selectedSite?.Id ?? "This site",
+				SelectedSecondsIn(replay: false), SelectedSecondsIn(replay: true), SelectedUsage?.TotalLoads ?? 0);
 
 		// ── Clear (the confirmation's words + the act) ──
 
@@ -975,11 +999,12 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(UsageSinceText));
 			OnPropertyChanged(nameof(UsageLoadsValue));
 			OnPropertyChanged(nameof(UsageLoadsLabel));
-			OnPropertyChanged(nameof(SiteHoursValue));
+			OnPropertyChanged(nameof(LoadTimeValue));
+			OnPropertyChanged(nameof(LoadTimeLabel));
 			OnPropertyChanged(nameof(LastUsedValue));
 			OnPropertyChanged(nameof(RankValue));
 			OnPropertyChanged(nameof(RankLabel));
-			OnPropertyChanged(nameof(SiteHoursHint));
+			OnPropertyChanged(nameof(LoadTimeHint));
 		}
 
 		// "6 months of history" / "today's history"; bare = "6 months" (the checkbox's parenthesis).
@@ -995,10 +1020,10 @@ namespace Anvil.ViewModels
 			return bare ? span : $"{span} of history";
 		}
 
-		// "6.4 site hours" / "18 minutes loaded" — the same one-hour switch the tile makes.
+		// "6.4 hours of load time" / "18 minutes of load time" — the same one-hour switch the tile makes.
 		private static string HoursWords(double seconds) => seconds < 3600
-			? $"{seconds / 60:0} minute{(Math.Round(seconds / 60) == 1 ? "" : "s")} loaded"
-			: $"{seconds / 3600:0.0} site hours";
+			? $"{seconds / 60:0} minute{(Math.Round(seconds / 60) == 1 ? "" : "s")} of load time"
+			: $"{seconds / 3600:0.0} hours of load time";
 
 		// Two largest non-zero units of an age span (yr/mo/day/hr/min) with an "ago" suffix,
 		// e.g. "2 hr 5 min ago"; "just now" under a minute.

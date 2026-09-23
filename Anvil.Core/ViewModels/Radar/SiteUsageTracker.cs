@@ -11,7 +11,8 @@ namespace Anvil.ViewModels
 
 	/// <summary>
 	/// Decides WHEN usage happened and tells <see cref="SiteUsageStore"/>: counts each
-	/// <see cref="RadarViewModel.SiteLoaded"/>, and runs the SITE-HOURS clock for the loaded site. Built by the
+	/// <see cref="RadarViewModel.SiteLoaded"/>, and runs the SITE LOAD TIME clock for the loaded site,
+	/// banking each stretch in the bucket of the mode its load was in (NowCast live / PastCast replay). Built by the
 	/// <see cref="MapViewModel"/> coordinator; the Radar Atlas reads it back.
 	/// </summary>
 	/// <remarks>
@@ -21,7 +22,7 @@ namespace Anvil.ViewModels
 	/// SelectedRadarOption change (stop the old clock) is raised BEFORE SiteLoaded (start the new one).
 	/// ⚠️ A running stretch lives only in memory until it's banked — on a selection change, a minimize, a
 	/// clear, shutdown, or a checkpoint every <see cref="CheckpointEvery"/> (so a crash costs at most that).
-	/// The wording that explains this rule is RadarGlossary.SiteHours — change both.
+	/// The wording that explains this rule is RadarGlossary.SiteLoadTime — change both.
 	/// </remarks>
 	public sealed class SiteUsageTracker
 	{
@@ -31,6 +32,7 @@ namespace Anvil.ViewModels
 		private readonly SiteUsageStore _store;
 		private readonly Func<DateTimeOffset> _now;
 		private string? _currentId;          // the site on the clock (null = none)
+		private bool _currentReplay;         // the mode of the load that started it — which bucket it banks into
 		private DateTimeOffset? _runningSince; // null = paused (minimized) or nothing on the clock
 		private bool _minimized;
 
@@ -70,6 +72,7 @@ namespace Anvil.ViewModels
 			Bank(keepRunning: false);
 			_store.RecordLoad(siteId, replay, _now());
 			_currentId = siteId;
+			_currentReplay = replay;
 			_runningSince = _minimized ? null : _now();
 		}
 
@@ -124,7 +127,7 @@ namespace Anvil.ViewModels
 			var now = _now();
 			if (_currentId is { } id && _runningSince is { } since)
 			{
-				_store.AddTimeLoaded(id, now - since, now);
+				_store.AddTimeLoaded(id, _currentReplay, now - since, now);
 			}
 			_runningSince = keepRunning && _currentId is not null && !_minimized ? now : null;
 		}
@@ -138,9 +141,18 @@ namespace Anvil.ViewModels
 		public bool IsCurrent(string siteId) =>
 			string.Equals(siteId, _currentId, StringComparison.OrdinalIgnoreCase);
 
-		/// <summary>Site hours in seconds, INCLUDING the unbanked running stretch for the current site.</summary>
+		/// <summary>Site load time in seconds, both modes, INCLUDING the unbanked running stretch.</summary>
 		public double SecondsLoaded(string siteId) =>
-			(_store.Get(siteId)?.SecondsLoaded ?? 0) + RunningSeconds(siteId);
+			SecondsLoaded(siteId, replay: false) + SecondsLoaded(siteId, replay: true);
+
+		/// <summary>One mode's share of the site load time (NowCast = false, PastCast = true), running stretch
+		/// included when it's that mode's.</summary>
+		public double SecondsLoaded(string siteId, bool replay)
+		{
+			var u = _store.Get(siteId);
+			var banked = u is null ? 0 : replay ? u.ReplaySeconds : u.LiveSeconds;
+			return banked + (_currentReplay == replay ? RunningSeconds(siteId) : 0);
+		}
 
 		private double RunningSeconds(string siteId) =>
 			IsCurrent(siteId) && _runningSince is { } since ? Math.Max(0, (_now() - since).TotalSeconds) : 0;
@@ -148,7 +160,7 @@ namespace Anvil.ViewModels
 		/// <summary>How many sites have any usage at all.</summary>
 		public int UsedSiteCount => _store.All.Count;
 
-		/// <summary>1-based rank among used sites by site hours (ties broken by loads, then ICAO), or null if
+		/// <summary>1-based rank among used sites by site load time (ties broken by loads, then ICAO), or null if
 		/// this site is unused.</summary>
 		public int? Rank(string siteId)
 		{

@@ -11,7 +11,7 @@ namespace Anvil.Services
 	/// <summary>
 	/// The per-site usage record (<see cref="SiteUsage"/>) behind the Radar Atlas's "Your use" strip, persisted
 	/// to <c>%LocalAppData%\Anvil\Usage\site-usage.json</c>. A plain store: it counts what it is told —
-	/// deciding WHEN a load or a stretch of site hours happened is <c>SiteUsageTracker</c>'s job.
+	/// deciding WHEN a load or a stretch of site load time happened is <c>SiteUsageTracker</c>'s job.
 	/// </summary>
 	/// <remarks>
 	/// ⚠️ NOT in <c>AppSettings</c>: this is data that grows with every site you touch, not a preference, and
@@ -66,12 +66,14 @@ namespace Anvil.Services
 			Commit(siteId);
 		}
 
-		/// <summary>Add a stretch of site hours that ended at <paramref name="endedAt"/>. Zero/negative is ignored.</summary>
-		public void AddTimeLoaded(string siteId, TimeSpan span, DateTimeOffset endedAt)
+		/// <summary>Add a stretch of site load time, in the bucket of the mode it ran in, that ended at
+		/// <paramref name="endedAt"/>. Zero/negative is ignored.</summary>
+		public void AddTimeLoaded(string siteId, bool replay, TimeSpan span, DateTimeOffset endedAt)
 		{
 			if (span <= TimeSpan.Zero) return;
 			var u = GetOrAdd(siteId);
-			u.SecondsLoaded += span.TotalSeconds;
+			if (replay) u.ReplaySeconds += span.TotalSeconds;
+			else u.LiveSeconds += span.TotalSeconds;
 			u.FirstUsedUtc ??= endedAt - span;
 			u.LastUsedUtc = Latest(u.LastUsedUtc, endedAt);
 			Commit(siteId);
@@ -120,7 +122,19 @@ namespace Anvil.Services
 			try
 			{
 				var loaded = JsonSerializer.Deserialize<Dictionary<string, SiteUsage>>(File.ReadAllText(_filePath));
-				return loaded is null ? empty : new Dictionary<string, SiteUsage>(loaded, StringComparer.OrdinalIgnoreCase);
+				if (loaded is null) return empty;
+
+				// The first build kept ONE unsplit total. Fold it into NowCast — PastCast couldn't be timed apart
+				// then — and drop it, so the next save writes only the split form.
+				foreach (var u in loaded.Values)
+				{
+					if (u.SecondsLoaded is { } legacy)
+					{
+						u.LiveSeconds += legacy;
+						u.SecondsLoaded = null;
+					}
+				}
+				return new Dictionary<string, SiteUsage>(loaded, StringComparer.OrdinalIgnoreCase);
 			}
 			catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
 			{

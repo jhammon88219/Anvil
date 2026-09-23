@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ClearSiteUsageDialog — the confirmation behind the Radar Atlas's "Your use" Clear. Says HOW MUCH goes
-     (the span of history, the loads, the site hours) before anything is erased, and offers the whole
+     (the span of history, the loads, the load time) before anything is erased, and offers the whole
      record as a checkbox so wiping everything isn't a site-by-site chore.
 
        ┌─ Clear your use of KTLX? ───────────────────────────┐
        │  This removes 6 months of history for this site:    │  ← body (the VM's words)
-       │  27 loads and 6.4 site hours, recorded since        │
-       │  Mar 4, 2026. It can't be undone.                   │
+       │  27 loads and 6.4 hours of load time, recorded      │
+       │  since Mar 4, 2026. It can't be undone.             │
        │  ☐ Clear all 14 sites instead (9 months, 41.2 …)    │  ← AllSites
        │                              [ Clear ]  ( Cancel )  │  Clear = critical red; CANCEL is default
        └─────────────────────────────────────────────────────┘

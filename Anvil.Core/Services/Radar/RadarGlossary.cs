@@ -147,26 +147,35 @@ namespace Anvil.Services
 				"Operated by the NWS, the Air Force and the FAA together."),
 		};
 
-		// ── Site hours (the Atlas's "Your use" strip) ────────────────────────────────────────────
+		// ── Site load time (the Atlas's "Your use" strip) ────────────────────────────────────────
 		// ⚠️ The Context sentence states SiteUsageTracker's clock rule — move them together.
-		public static RadarGlossaryCard SiteHours(string siteId, double seconds, int loads) => new(
-			"Site hours",
+		public static RadarGlossaryCard SiteLoadTime(string siteId, double nowCastSeconds, double pastCastSeconds, int loads) => new(
+			"Site load time",
 			"Total time this site has been your loaded radar",
-			$"How long {siteId} has been the radar on your map, added up across every session. Live loops " +
-				"and PastCast replays both count.",
-			SiteHoursNow(seconds, loads),
+			$"How long {siteId} has been the radar on your map, added up across every session and split by " +
+				"mode: NowCast for live loops, PastCast for replays.",
+			SiteLoadTimeNow(nowCastSeconds, pastCastSeconds, loads),
 			"The clock pauses while Anvil is minimized and stops when you switch sites or clear the radar.");
 
-		private static string SiteHoursNow(double seconds, int loads)
+		private static string SiteLoadTimeNow(double nowCast, double pastCast, int loads)
 		{
+			var seconds = nowCast + pastCast;
 			if (seconds < 60) return loads == 0 ? string.Empty : "Under a minute so far.";
-			// Same precision as the tile (6.4 hours), so the sentence and the number agree.
-			var total = seconds < 3600
-				? SpokenAge(TimeSpan.FromSeconds(seconds))
-				: $"{seconds / 3600:0.#} hour{(Math.Round(seconds / 3600, 1) == 1 ? string.Empty : "s")}";
-			if (loads <= 1) return $"{total} so far.";
-			return $"{total} so far, about {SpokenAge(TimeSpan.FromSeconds(seconds / loads)).ToLowerInvariant()} per load.";
+
+			// Which modes it came from — "all in NowCast" beats "0 minutes in PastCast".
+			var split = pastCast < 60 ? "all in NowCast"
+				: nowCast < 60 ? "all in PastCast"
+				: $"{LoadTimeWords(nowCast)} in NowCast, {LoadTimeWords(pastCast)} in PastCast";
+			var perLoad = loads > 1
+				? $", about {SpokenAge(TimeSpan.FromSeconds(seconds / loads)).ToLowerInvariant()} per load"
+				: string.Empty;
+			return $"{LoadTimeWords(seconds)} so far — {split}{perLoad}.";
 		}
+
+		// Same precision as the tile (6.4 hours), so the sentence and the number agree.
+		private static string LoadTimeWords(double seconds) => seconds < 3600
+			? SpokenAge(TimeSpan.FromSeconds(seconds)).ToLowerInvariant()
+			: $"{seconds / 3600:0.#} hour{(Math.Round(seconds / 3600, 1) == 1 ? string.Empty : "s")}";
 
 		// Age in words for a sentence ("4 minutes", "2 hours") — the tile shows the compact form instead.
 		private static string SpokenAge(TimeSpan span)

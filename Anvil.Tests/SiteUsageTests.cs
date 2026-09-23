@@ -9,7 +9,7 @@ namespace Anvil.Tests
 {
 	/// <summary>
 	/// The Radar Atlas's "Your use" record: <see cref="SiteUsageStore"/> persistence and
-	/// <see cref="SiteUsageTracker"/>'s site-hours clock (start on load, stop on selection change, pause while
+	/// <see cref="SiteUsageTracker"/>'s site-load-time clock (start on load, stop on selection change, pause while
 	/// minimized, checkpoint, clear). The tracker runs on a hand-cranked clock through its test ctor, so no
 	/// radar VM is needed. Each test gets a throwaway folder.
 	/// </summary>
@@ -58,12 +58,12 @@ namespace Anvil.Tests
 
 			// Running stretch is visible before it's banked…
 			Assert.Equal(1800, t.SecondsLoaded("KTLX"), 3);
-			Assert.Equal(0, store.Get("KTLX")!.SecondsLoaded);
+			Assert.Equal(0, store.Get("KTLX")!.TotalSeconds);
 
 			// …and banked (then stopped) when the selection moves off the site.
 			t.OnSelectionChanged("KFWS");
 			clock.Advance(TimeSpan.FromHours(2));
-			Assert.Equal(1800, store.Get("KTLX")!.SecondsLoaded, 3);
+			Assert.Equal(1800, store.Get("KTLX")!.TotalSeconds, 3);
 			Assert.Equal(1800, t.SecondsLoaded("KTLX"), 3);
 			Assert.False(t.IsCurrent("KTLX"));
 		}
@@ -114,11 +114,11 @@ namespace Anvil.Tests
 
 			clock.Advance(SiteUsageTracker.CheckpointEvery - TimeSpan.FromSeconds(1));
 			t.OnFrameLanded();
-			Assert.Equal(0, store.Get("KTLX")!.SecondsLoaded);
+			Assert.Equal(0, store.Get("KTLX")!.TotalSeconds);
 
 			clock.Advance(TimeSpan.FromSeconds(1));
 			t.OnFrameLanded();
-			Assert.Equal(SiteUsageTracker.CheckpointEvery.TotalSeconds, store.Get("KTLX")!.SecondsLoaded, 3);
+			Assert.Equal(SiteUsageTracker.CheckpointEvery.TotalSeconds, store.Get("KTLX")!.TotalSeconds, 3);
 
 			// The clock keeps running after a checkpoint, with no double count.
 			clock.Advance(TimeSpan.FromMinutes(1));
@@ -136,7 +136,7 @@ namespace Anvil.Tests
 
 			clock.Advance(TimeSpan.FromMinutes(2));
 			t.Shutdown();
-			Assert.Equal(120, store.Get("KTLX")!.SecondsLoaded, 3);
+			Assert.Equal(120, store.Get("KTLX")!.TotalSeconds, 3);
 			Assert.Equal(0, store.Get("KTLX")!.TotalLoads);
 		}
 
@@ -151,7 +151,7 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public void Rank_OrdersBySiteHours_IncludingTheRunningStretch()
+		public void Rank_OrdersBySiteLoadTime_IncludingTheRunningStretch()
 		{
 			var (t, _, clock) = New();
 			t.OnSiteLoaded("KFWS", replay: false);
@@ -180,7 +180,48 @@ namespace Anvil.Tests
 			var reloaded = NewStore(dir).Get("ktlx"); // ICAO lookup is case-insensitive
 			Assert.NotNull(reloaded);
 			Assert.Equal(1, reloaded!.ReplayLoads);
-			Assert.Equal(45 * 60, reloaded.SecondsLoaded, 3);
+			Assert.Equal(45 * 60, reloaded.ReplaySeconds, 3);
+		}
+
+		[Fact]
+		public void LoadTime_SplitsByTheModeOfTheLoad()
+		{
+			var (t, store, clock) = New();
+			t.OnSiteLoaded("KTLX", replay: false);
+			clock.Advance(TimeSpan.FromMinutes(20));
+			t.OnSiteLoaded("KTLX", replay: true); // a replay of the same site: banks the NowCast stretch
+			clock.Advance(TimeSpan.FromMinutes(7));
+
+			// The running PastCast stretch counts toward PastCast only.
+			Assert.Equal(20 * 60, t.SecondsLoaded("KTLX", replay: false), 3);
+			Assert.Equal(7 * 60, t.SecondsLoaded("KTLX", replay: true), 3);
+			Assert.Equal(27 * 60, t.SecondsLoaded("KTLX"), 3);
+
+			t.Shutdown();
+			var u = store.Get("KTLX")!;
+			Assert.Equal(20 * 60, u.LiveSeconds, 3);
+			Assert.Equal(7 * 60, u.ReplaySeconds, 3);
+		}
+
+		[Fact]
+		public void Store_LegacyUnsplitTotal_FoldsIntoNowCast_AndIsNotWrittenBack()
+		{
+			var dir = TempDir();
+			Directory.CreateDirectory(dir);
+			var path = Path.Combine(dir, "site-usage.json");
+			File.WriteAllText(path,
+				"{ \"KTLX\": { \"LiveLoads\": 3, \"ReplayLoads\": 0, \"SecondsLoaded\": 532.4, " +
+				"\"FirstUsedUtc\": \"2026-09-23T20:14:45+00:00\", \"LastUsedUtc\": \"2026-09-23T20:33:46+00:00\" } }");
+
+			var store = NewStore(dir);
+			var u = store.Get("KTLX")!;
+			Assert.Equal(532.4, u.LiveSeconds, 3);
+			Assert.Equal(0, u.ReplaySeconds);
+			Assert.Null(u.SecondsLoaded);
+
+			store.RecordLoad("KTLX", replay: false, T0); // any save rewrites the file
+			Assert.DoesNotContain("SecondsLoaded", File.ReadAllText(path));
+			Assert.Equal(532.4, NewStore(dir).Get("KTLX")!.LiveSeconds, 3); // not folded twice
 		}
 
 		[Fact]
