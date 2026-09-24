@@ -101,16 +101,19 @@
     let Scope = null;
     // Which rings + the distance unit, held HERE until the module lands: the host replays both at map-ready,
     // which can beat this import, and a dropped push would draw the default rings in kilometres.
-    let _ringOpts = null, _ringUnits = 'km';
+    // The ring LOOK (setRangeRingStyle) is held for the same reason.
+    let _ringOpts = null, _ringUnits = 'km', _ringStyle = null;
     import('./radar-scope.js').then(function (m) {
         Scope = m;
         Scope.init({
             forEachView: forEachView,
             viewCount: function () { return views.length; },
+            primaryView: primaryView,
             beforeId: beforeId,
             getSite: function () { return { lat: siteLat, lon: siteLon }; },
         });
         Scope.setUnits(_ringUnits);
+        if (_ringStyle) Scope.setStyle(_ringStyle);
         if (_ringOpts) Scope.setRings(_ringOpts);
         syncScope();
     }).catch(function (e) { hostLog('radar-scope.js load failed: ' + (e && e.message ? e.message : e)); });
@@ -1587,6 +1590,7 @@
             v.detached = true;  // the ctxlost that map.remove() is about to fire is expected, not a fault
             if (inspectOn()) Inspect.unbindView(v);
             if (Ruler) Ruler.detachView(v);
+            if (Scope) Scope.detachView(v); // the label handle lives on the primary map only
             try { removeLayer(v); } catch (e) { /* already torn down */ }
             views = views.filter(function (o) { return o !== v; });
             forEachView(function (o, i) { o.index = i; });
@@ -1944,14 +1948,22 @@
             if (Ruler) Ruler.setUnits(unit);
             if (Scope) Scope.setUnits(unit);
         },
-        // Which range rings to draw (Settings → Radar → Range rings & ruler); spacing 0 = Auto.
+        // Which range rings to draw (Settings → Radar Range Ring); spacing 0 = Auto.
         setRangeRings: function (refl, vel, dist, spacing) {
             _ringOpts = { refl: refl, vel: vel, dist: dist, spacing: spacing };
             if (Scope) Scope.setRings(_ringOpts);
         },
-        // Re-render what a theme change cannot re-cascade (SVG-baked handle colours). The ruler's LAYERS
-        // come back through reAdd with the style switch, exactly as the ring's do.
-        refreshRuler: function () { if (Ruler) Ruler.refresh(); },
+        // How the range rings look (Settings → Radar Range Ring) — radar-scope.js setStyle has the shape.
+        setRangeRingStyle: function (o) {
+            _ringStyle = o;
+            if (Scope) Scope.setStyle(o);
+        },
+        // Re-render what a theme change cannot re-cascade (SVG-baked handle colours — the ruler's two and the
+        // ring's label handle). Their LAYERS come back through reAdd with the style switch.
+        refreshRuler: function () {
+            if (Ruler) Ruler.refresh();
+            if (Scope) Scope.refreshColors();
+        },
         // Where the ruler starts (site, or the user's location — see radar-ruler.js setAnchor).
         setRulerAnchor: function (wantLocation, hasLocation, lng, lat) {
             if (Ruler) Ruler.setAnchor(wantLocation, hasLocation, lng, lat);

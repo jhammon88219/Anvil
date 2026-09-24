@@ -516,6 +516,14 @@ try {
     window.setRangeRings = function (refl, vel, dist, spacing) {
         if (window.RadarLayer && window.RadarLayer.setRangeRings) window.RadarLayer.setRangeRings(!!refl, !!vel, !!dist, Number(spacing) || 0);
     };
+    // RANGE RING LOOK (Settings → Radar Range Ring): one JSON object (RangeRingsViewModel.BuildStyleJson),
+    // single-quoted by the host and parsed here. radar-scope.js validates every field before it reaches a
+    // paint property, so a malformed push keeps the current look rather than breaking the render.
+    window.setRangeRingStyle = function (json) {
+        let o = null;
+        try { o = JSON.parse(json); } catch (e) { return; }
+        if (window.RadarLayer && window.RadarLayer.setRangeRingStyle) window.RadarLayer.setRangeRingStyle(o);
+    };
     // PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit): read-only inner-state snapshot,
     // polled by the host only while the Pipeline Console card is open. Returns null if no loop is loaded.
     window.radarPipelineSnapshot = function () {

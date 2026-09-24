@@ -9,10 +9,14 @@ namespace Anvil.Models
 	/// means "the theme's own colour" (theme.css <c>--anvil-scope-ring</c> / <c>--anvil-ruler-ink</c>).
 	/// </summary>
 	/// <remarks>
-	/// ⚠️ PRESETS, NOT A FREE PICKER, on purpose. The ring draws at ~0.55 opacity over returns and the ruler
-	/// over a dark casing: a free colour wheel invites a near-black ring on the dark basemap that simply
-	/// vanishes. Each preset here is bright enough to survive both. What it can't guarantee is the LIGHT
-	/// theme — White and Yellow wash out over pale earth; "Theme default" is the one that adapts.
+	/// PRESETS FIRST. The ring draws at ~0.55 opacity over returns and the ruler over a dark casing: a free
+	/// colour wheel invites a near-black ring on the dark basemap that simply vanishes. Each preset here is
+	/// bright enough to survive both. What it can't guarantee is the LIGHT theme — White and Yellow wash out
+	/// over pale earth; "Theme default" is the one that adapts.
+	/// ⚠️ Since 2026-09-24 the Radar Range Ring tab ALSO offers a custom colour (ColorSwatchPicker's "+" chip,
+	/// at the user's request), so any valid #RRGGBB can be stored — IndexOf returns -1 for it. The presets
+	/// stay the safe choices; a vanishing custom colour is the user's call. The same list now serves every
+	/// ring colour (velocity, distance, labels), each with its own theme default.
 	/// ⚠️ The sweep pulse is NOT covered: it is a warm afterglow deliberately unlike the ring (theme.css
 	/// explains), and recolouring it with the ring would merge the two into one object.
 	/// ⚠️ The token is the HEX itself (or empty), persisted verbatim and pushed into the page as a CSS

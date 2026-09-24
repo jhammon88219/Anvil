@@ -2,10 +2,13 @@
 <!-- ColorSwatchPicker — a row of colour swatches, one of which is chosen. SegmentedPicker's sibling for the
      case where the VALUE is a colour and a name would make you imagine it.
 
-       ╭──╮ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐
-       │ A│ │██│ │██│ │██│ │██│ │██│ │██│    A = "no colour of my own" (the host's default — here the
-       ╰──╯ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘        theme's), drawn as an empty chip with a letter
+       ╭──╮ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐
+       │ A│ │██│ │██│ │██│ │██│ │██│ │██│ │ +│  A = "no colour of my own" (the host's default — here the
+       ╰──╯ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘      theme's), drawn as an empty chip with a letter
         ↑ the chosen one wears an ACCENT RING outside its chip; hover draws the same ring in grey
+                                              ↑ CUSTOM chip, only with AllowCustom: opens a ColorPicker
+                                                flyout that writes CustomHex (two-way). Once a non-preset
+                                                colour is chosen the chip wears it and is the lit one.
 
      ⚠️ THE CHIP COLOURS ARE DATA, not chrome: each is a literal SolidColorBrush built from the hex the
      host hands over, which is why building them in C# is safe here. The RINGS (hover, chosen) are theme

@@ -23,8 +23,11 @@ namespace Anvil.ViewModels
 	/// <c>Dev</c>, which must stay LAST: it exists in every build but is only reachable in Debug (the strip
 	/// omits its entry, and the window never loads its body, in Release), so anything after it would leave
 	/// Release with a hole in its indices. Inserting before Dev only shifts Dev's own saved index, which a
-	/// Debug session shrugs off (it reopens on the tab before it, once).</summary>
-	public enum SettingsTab { Map, Radar, Storage, WindowMode, Dev }
+	/// Debug session shrugs off (it reopens on the tab before it, once).
+	/// ⚠️ ONE deliberate exception: <c>RangeRing</c> was inserted after <c>Radar</c> (2026-09-24) because the user
+	/// asked for it to sit there. The cost was a one-time shift — a Settings window last closed on Storage or
+	/// Window Mode reopened one tab to the left, once. Don't take that as licence to reorder.</summary>
+	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, Dev }
 
 	/// <summary>
 	/// View model for the NON-radar map concerns: selectable basemap styles + current selection,
@@ -778,9 +781,9 @@ namespace Anvil.ViewModels
 		/// Window Mode. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
 		/// selecting a tab that does not exist in a shipped build.</summary>
 #if DEBUG
-		public const int SettingsTabCount = 5;
+		public const int SettingsTabCount = 6;
 #else
-		public const int SettingsTabCount = 4;
+		public const int SettingsTabCount = 5;
 #endif
 
 		private int _settingsTabIndex;

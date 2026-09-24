@@ -7,16 +7,28 @@
 //              ┆│  ┆╳───▶ ┆   │┆                            stops (reach.vel); past it no vel / SRV
 //              ┆│  ┆╲▒▒▒▒ ┆   │┆          level2-range-dist DISTANCE RINGS, faint dotted, every step of
 //               ┆╲  └┄┄┄┄┄┘  ╱┆           (+ -label)        the distance unit out to DIST_EXTENT_M,
-//                  ╲▁▁▁▁▁▁▁╱                                labelled at north ("100 km")
+//                  ╲▁▁▁▁▁▁▁╱                                labelled along ONE bearing ("100 km")
 //                                          level2-sweep-*    arm + comet tail, one revolution then a
 //                                                            fade, only on a genuinely NEW frame
 //
-//   WHICH RINGS: Settings → Radar → Range rings & ruler (setRings; default outline + velocity). SIZE: the
-//   DISPLAYED frame's reach (radar.js syncScope → setReach), never the last frame to decode. The distance
-//   rings do NOT follow the data — they run to DIST_EXTENT_M so they stay put when a TDWR's upper tilt
-//   shrinks the other two to 89 km; only Auto spacing reads the reach.
-//   ⚠️ The user's ring colour (--anvil-scope-ring) is the OUTLINE's only; velocity and distance keep their
-//   own colours so the three never read as one. The ruler ends at reach.refl even when the outline is off.
+//   THE LABEL HANDLE (primary pane only, DOM, like the ruler's knob):
+//
+//              ╳ ─ ◆ ─ ┆ 25 km ─ ┆ 50 km ─ ┆ 75 km …        ◆ sits on the label axis, half a step out (at
+//            site  handle                                    least HANDLE_MIN_PX from the site). Drag it
+//                                                            round and every label swings with it; let go
+//                                                            and the bearing is posted to the host
+//                                                            (rangeRingLabelBearing) to persist.
+//
+//   WHICH RINGS: Settings → Radar Range Ring (setRings; default outline + velocity). HOW THEY LOOK: the same
+//   tab (setStyle — per-ring opacity/width/pattern, velocity/distance/label colours, label size/halo/bearing,
+//   handle on/off). SIZE: the DISPLAYED frame's reach (radar.js syncScope → setReach), never the last frame to
+//   decode. The distance rings do NOT follow the data — they run to DIST_EXTENT_M so they stay put when a
+//   TDWR's upper tilt shrinks the other two to 89 km; only Auto spacing reads the reach.
+//   ⚠️ The OUTLINE's colour is the --anvil-scope-ring CSS variable (map.js setScopeColor), shared with the
+//   ruler; the other colours come in setStyle ('' = the theme's). The ruler ends at reach.refl even when the
+//   outline is off.
+//   ⚠️ A style change DROPS and RE-ADDS the ring layers rather than patching paint properties: a dash pattern
+//   can't be set back to solid with setPaintProperty on every MapLibre version, and re-adding is cheap.
 //
 //   ⚠️ fill-antialias MUST stay off — it outlines every triangle and the tail becomes a fan of spokes.
 //   Faint seams between triangles can still show; that is known and cosmetic (a canvas conic-gradient
@@ -55,11 +67,26 @@ const SWEEP_TRAIL_N = 64;     // wedge triangles across the trail — high so th
 const SWEEP_PEAK = 0.42;      // peak fill opacity right behind the arm (the wedge is a translucent glow)
 const SWEEP_GAMMA = 1.6;      // trailing-fade shape (>1 = fades to nothing faster → a comet-tail falloff)
 
-// { forEachView(fn), viewCount(), beforeId(map), getSite() -> {lat,lon} } — supplied by radar.js.
+// Line patterns, in LINE WIDTHS (MapLibre's unit). ⚠️ The keys MIRROR Models/Radar/RingStyle.cs RingLines.
+const DASHES = { solid: null, dashed: [4, 3], dotted: [1, 3], dashdot: [6, 3, 1, 3] };
+const HANDLE_MIN_PX = 56;     // the label handle never sits closer than this to the site (it'd fight the key)
+
+// { forEachView(fn), viewCount(), primaryView(), beforeId(map), getSite() -> {lat,lon} } — from radar.js.
 let host = null;
 let reflMeters = 0, velMeters = 0;                          // the DISPLAYED frame's reach (setReach)
 let rings = { refl: true, vel: true, dist: false, spacing: 0 }; // setRings; spacing 0 = Auto
 let units = 'km';                                            // setUnits — the distance rings' unit
+// setStyle. ⚠️ These defaults MIRROR RingStyle.*Default / RingLabelStyle.Default: they are what draws before
+// the host's first push (and the host pushes at map-ready, so they rarely show).
+let style = {
+    refl: { op: 0.55, w: 1.3, line: 'solid' },
+    vel: { color: '', op: 0.6, w: 1.2, line: 'dashed' },
+    dist: { color: '', op: 0.45, w: 0.8, line: 'dotted' },
+    label: { color: '', op: 1, size: 10, halo: 1.2 },
+    bearing: 0,     // degrees clockwise from north — where the distance labels sit
+    handle: true,   // show the label handle
+};
+let labelHandle = null, handleMap = null;                    // the DOM handle + the map it lives on
 let sweepAnimStart = 0, sweepRaf = 0;
 
 export function init(h) { host = h; }
@@ -86,17 +113,48 @@ function autoStep() {
     const v = reflMeters / (Geo.UNIT_METERS[units] || 1000);
     return v <= 120 ? 25 : v <= 300 ? 50 : 100;
 }
+function stepMeters() { return autoStep() * (Geo.UNIT_METERS[units] || 1000); }
+function distExtent() { return Math.max(DIST_EXTENT_M, reflMeters); }
 function distCollection() {
-    const per = Geo.UNIT_METERS[units] || 1000, step = autoStep() * per, s = host.getSite();
-    const extent = Math.max(DIST_EXTENT_M, reflMeters), features = [];
+    const per = Geo.UNIT_METERS[units] || 1000, step = stepMeters(), s = host.getSite();
+    const az = style.bearing * Geo.D2R, extent = distExtent(), features = [];
     for (let r = step, n = 0; r <= extent + 1 && n < DIST_MAX_RINGS; r += step, n++) {
         features.push(ringFeature(r));
         features.push({
             type: 'Feature', properties: { label: Math.round(r / per) + ' ' + units },
-            geometry: { type: 'Point', coordinates: Geo.siteToLngLat(s.lat, s.lon, r, 0) },
+            geometry: { type: 'Point', coordinates: Geo.siteToLngLat(s.lat, s.lon, r, az) },
         });
     }
     return { type: 'FeatureCollection', features: features };
+}
+
+// ---- Looks ----
+// A ring's colour: the user's hex, else the theme's variable for that ring (always with a fallback — an empty
+// colour throws inside MapLibre's render).
+function velColor() { return style.vel.color || Theme.color('--anvil-scope-vel', '#ffa07a'); }
+function distColor() { return style.dist.color || Theme.color('--anvil-scope-dist', '#c7cdd4'); }
+function labelColor() { return style.label.color || distColor(); }
+function casingColor() { return Theme.color('--anvil-ruler-casing', '#000000'); }
+
+// A line layer's paint from one ring's style. The dash array is only present when there is one — a solid
+// ring simply has no 'line-dasharray' (see the re-add note at the top).
+function linePaint(s, color, extra) {
+    const p = Object.assign({ 'line-color': color, 'line-width': s.w, 'line-opacity': s.op }, extra || {});
+    const dash = DASHES[s.line];
+    if (dash) p['line-dasharray'] = dash;
+    return p;
+}
+
+// Merge a pushed style over the current one, field by field, dropping anything malformed: every value lands
+// in a MapLibre paint property, where NaN or a non-colour throws mid-render.
+function num(v, lo, hi, dflt) { v = Number(v); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt; }
+function hex(v) { return /^#[0-9A-Fa-f]{6}$/.test(v || '') ? v : ''; }
+function mergeRing(cur, o) {
+    if (!o) return cur;
+    return {
+        color: hex(o.color), op: num(o.op, 0.05, 1, cur.op), w: num(o.w, 0.5, 6, cur.w),
+        line: Object.prototype.hasOwnProperty.call(DASHES, o.line) ? o.line : cur.line,
+    };
 }
 
 function setSource(map, id, data) {
@@ -126,7 +184,7 @@ function drawRings(v) {
         if (!map.getLayer(DIST_LAYER)) {
             map.addLayer({
                 id: DIST_LAYER, type: 'line', source: DIST_SRC, filter: ['==', ['geometry-type'], 'LineString'],
-                paint: { 'line-color': Theme.color('--anvil-scope-dist', '#c7cdd4'), 'line-width': 0.8, 'line-opacity': 0.45, 'line-dasharray': [1, 3] },
+                paint: linePaint(style.dist, distColor()),
             }, beforeFor(map, DIST_LAYER));
         }
         if (!map.getLayer(DIST_LABEL_LAYER)) {
@@ -134,12 +192,12 @@ function drawRings(v) {
                 id: DIST_LABEL_LAYER, type: 'symbol', source: DIST_SRC, filter: ['==', ['geometry-type'], 'Point'],
                 layout: {
                     // ⚠️ 'Noto Sans Medium' — the one stack the bundled glyph host serves (see radar-ruler.js).
-                    'text-field': ['get', 'label'], 'text-font': ['Noto Sans Medium'], 'text-size': 10,
+                    'text-field': ['get', 'label'], 'text-font': ['Noto Sans Medium'], 'text-size': style.label.size,
                     'text-offset': [0, -0.7], 'text-allow-overlap': false, 'text-padding': 4,
                 },
                 paint: {
-                    'text-color': Theme.color('--anvil-scope-dist', '#c7cdd4'),
-                    'text-halo-color': Theme.color('--anvil-ruler-casing', '#000000'), 'text-halo-width': 1.2,
+                    'text-color': labelColor(), 'text-opacity': style.label.op,
+                    'text-halo-color': casingColor(), 'text-halo-width': style.label.halo,
                 },
             }, beforeFor(map, DIST_LAYER));
         }
@@ -152,7 +210,7 @@ function drawRings(v) {
         if (!map.getLayer(VEL_LAYER)) {
             map.addLayer({
                 id: VEL_LAYER, type: 'line', source: VEL_SRC,
-                paint: { 'line-color': Theme.color('--anvil-scope-vel', '#ffa07a'), 'line-width': 1.2, 'line-opacity': 0.6, 'line-dasharray': [4, 3] },
+                paint: linePaint(style.vel, velColor()),
             }, beforeFor(map, VEL_LAYER));
         }
     } else {
@@ -164,12 +222,14 @@ function drawRings(v) {
         if (!map.getLayer(RANGE_LAYER)) {
             map.addLayer({
                 id: RANGE_LAYER, type: 'line', source: RANGE_SRC,
-                paint: { 'line-color': Theme.color('--anvil-scope-ring', '#9fe0ff'), 'line-width': 1.3, 'line-opacity': 0.55, 'line-blur': 0.3 },
+                paint: linePaint(style.refl, Theme.color('--anvil-scope-ring', '#9fe0ff'), { 'line-blur': 0.3 }),
             }, beforeFor(map, RANGE_LAYER));
         }
     } else {
         drop(map, [RANGE_LAYER], RANGE_SRC);
     }
+
+    syncHandle();
 }
 function removeRings(v) {
     const map = v && v.map;
@@ -177,6 +237,84 @@ function removeRings(v) {
     drop(map, [DIST_LABEL_LAYER, DIST_LAYER], DIST_SRC);
     drop(map, [VEL_LAYER], VEL_SRC);
     drop(map, [RANGE_LAYER], RANGE_SRC);
+}
+function redrawAll() {
+    host.forEachView(function (v) { removeRings(v); drawRings(v); });
+    syncHandle();
+}
+
+// ---- The label handle (primary pane only) ----
+// A DOM marker on the label axis. Dragging it takes only the BEARING (like the ruler's knob): the handle is
+// snapped back onto the axis every move, and the labels in every pane follow live — only the source's data
+// changes, no layer is re-added mid-drag. Letting go posts the bearing to the host, which persists it and
+// deliberately does NOT push it back (RangeRingsViewModel.OnLabelBearingDragged).
+function metersPerPixel(map) {
+    return 156543.03392804097 * Math.cos(map.getCenter().lat * Geo.D2R) / Math.pow(2, map.getZoom());
+}
+function handleWanted() { return !!(host && rings.dist && style.handle && reflMeters > 0); }
+// Half a ring step out along the axis — between the site and the first label — but never closer than
+// HANDLE_MIN_PX on screen, so zoomed out it doesn't sit on the site key.
+function handleLngLat(map) {
+    const s = host.getSite();
+    const r = Math.min(distExtent(), Math.max(stepMeters() / 2, HANDLE_MIN_PX * metersPerPixel(map)));
+    return Geo.siteToLngLat(s.lat, s.lon, r, style.bearing * Geo.D2R);
+}
+function handleSvg() {
+    const fill = labelColor(), casing = casingColor();
+    return '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">' +
+        '<rect x="4.5" y="4.5" width="11" height="11" rx="2" transform="rotate(45 10 10)" fill="' + fill +
+        '" stroke="' + casing + '" stroke-width="1.5"/>' +
+        '<circle cx="10" cy="10" r="1.8" fill="' + casing + '"/></svg>';
+}
+// A dragged point → bearing from the site, whole degrees. In the site's own frame (geo.js metres per degree),
+// with the lng unwrapped first — a drag near an Alaskan site can come back on the far side of ±180.
+function bearingOf(ll) {
+    const s = host.getSite(), k = Geo.metersPerDeg(s.lat);
+    const lng = ll.lng - 360 * Math.round((ll.lng - s.lon) / 360);
+    let deg = Math.round(Math.atan2((lng - s.lon) * k.mPerDegLon, (ll.lat - s.lat) * k.mPerDegLat) / Geo.D2R);
+    deg = ((deg % 360) + 360) % 360;
+    return deg;
+}
+function moveLabels() {
+    const data = distCollection();
+    host.forEachView(function (v) {
+        const src = v.map && v.map.getSource(DIST_SRC);
+        if (src) src.setData(data);
+    });
+}
+function onHandleZoom() { if (labelHandle && handleMap) labelHandle.setLngLat(handleLngLat(handleMap)); }
+function dropHandle() {
+    if (handleMap) handleMap.off('zoom', onHandleZoom);
+    if (labelHandle) labelHandle.remove();
+    labelHandle = null;
+    handleMap = null;
+}
+function syncHandle() {
+    const v = host && host.primaryView ? host.primaryView() : null;
+    if (!handleWanted() || !v || !v.map) { dropHandle(); return; }
+    if (handleMap && handleMap !== v.map) dropHandle();
+    if (labelHandle) { labelHandle.setLngLat(handleLngLat(v.map)); return; }
+
+    const el = document.createElement('div');
+    el.className = 'radar-ring-handle';
+    el.title = 'Drag to move the distance labels';
+    el.style.cursor = 'grab';
+    el.innerHTML = handleSvg();
+    labelHandle = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(handleLngLat(v.map)).addTo(v.map);
+    handleMap = v.map;
+    handleMap.on('zoom', onHandleZoom);
+    labelHandle.on('drag', function () {
+        const deg = bearingOf(labelHandle.getLngLat());
+        if (deg !== style.bearing) { style.bearing = deg; moveLabels(); }
+        labelHandle.setLngLat(handleLngLat(handleMap)); // back onto the axis
+    });
+    labelHandle.on('dragend', function () {
+        try {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage(JSON.stringify({ type: 'rangeRingLabelBearing', deg: style.bearing }));
+            }
+        } catch (e) { /* host gone — the bearing still holds for this session */ }
+    });
 }
 // Every pane has every ring it should — a pane added since the last frame fails this, which is what gets
 // it rings without a new decode.
@@ -206,7 +344,33 @@ export function setReach(refl, vel) {
     return reflMoved;
 }
 
-// Which rings to draw (Settings → Radar). spacing = the distance rings' step in the unit, 0 = Auto.
+// How the rings look (Settings → Radar Range Ring) — see `style` above for the shape. Anything missing or
+// malformed keeps its current value. Redraws every pane's rings and the handle.
+export function setStyle(o) {
+    if (!o) return;
+    style = {
+        refl: mergeRing(style.refl, o.refl),
+        vel: mergeRing(style.vel, o.vel),
+        dist: mergeRing(style.dist, o.dist),
+        label: o.label ? {
+            color: hex(o.label.color), op: num(o.label.op, 0.05, 1, style.label.op),
+            size: num(o.label.size, 8, 20, style.label.size), halo: num(o.label.halo, 0, 4, style.label.halo),
+        } : style.label,
+        bearing: ((Math.round(num(o.bearing, -1e6, 1e6, style.bearing)) % 360) + 360) % 360,
+        handle: o.handle === undefined ? style.handle : !!o.handle,
+    };
+    if (!host) return;
+    redrawAll();
+    if (labelHandle) labelHandle.getElement().innerHTML = handleSvg(); // its colours are baked in
+}
+
+// A pane is going away (radar.js detachView, before map.remove()). Only the handle is ours to clean up:
+// the ring layers go with the map.
+export function detachView(v) {
+    if (v && handleMap && v.map === handleMap) dropHandle();
+}
+
+// Which rings to draw (Settings → Radar Range Ring). spacing = the distance rings' step in the unit, 0 = Auto.
 export function setRings(o) {
     rings = { refl: !!o.refl, vel: !!o.vel, dist: !!o.dist, spacing: Number(o.spacing) > 0 ? Number(o.spacing) : 0 };
     if (host) host.forEachView(drawRings);
@@ -233,6 +397,7 @@ export function refreshColors() {
     host.forEachView(function (v) {
         if (v.map && v.map.getLayer(RANGE_LAYER)) v.map.setPaintProperty(RANGE_LAYER, 'line-color', c);
     });
+    if (labelHandle) labelHandle.getElement().innerHTML = handleSvg(); // a theme switch moves its colours too
 }
 
 // ---- Sweep pulse ----
@@ -352,6 +517,7 @@ export function attachView(v) {
 export function reset() {
     if (!host) return;
     host.forEachView(removeRings);
+    dropHandle();
     stop();
     reflMeters = 0;
     velMeters = 0;

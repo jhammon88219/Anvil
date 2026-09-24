@@ -303,6 +303,9 @@ namespace Anvil.ViewModels
 			// binding exists, so it writes the fields directly and raises nothing.
 			RestorePastCastSelection();
 
+			// Range rings: which are drawn, how they look (Settings → Radar Range Ring). Replayed at map-ready.
+			RangeRings = new RangeRingsViewModel(mapService, settings);
+
 			// The DOW Event Viewer is its own view model (a standalone mobile-radar frame through the
 			// same render path); watch its IsShowing so the shared display / color-scale gate follows it.
 			Dow = new DowViewModel(mapService, dowEventProvider);
@@ -508,6 +511,9 @@ namespace Anvil.ViewModels
 
 		/// <summary>The DOW Event Viewer view model (a standalone curated mobile-radar frame).</summary>
 		public DowViewModel Dow { get; }
+
+		/// <summary>The range rings' preferences — which rings, their look, the label bearing.</summary>
+		public RangeRingsViewModel RangeRings { get; }
 
 		// ── Past Event Viewer ────────────────────────────────────────────────────────────────────
 		// A second radar "mode": instead of the live loop (recent volumes + a near-real-time frame

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- RingStyleEditor — the four LOOK rows for ONE range ring, drawn three times by RangeRingSettingsTab
+     (reflectivity outline, velocity reach, distance rings) over one RingStyleViewModel each.
+
+       Colour     (A)(■)(■)(■)(■)(■)(■)(+)          ← A = the theme's colour for this ring; + = custom picker
+       Opacity    ━━━━━━━━━━●━━━━━━━━━   55 %       ← 5–100
+       Thickness  ━━━●━━━━━━━━━━━━━━━━   1.3 px     ← 0.5–6, tenths
+       Line       [ Solid | Dashed | Dotted | Dash-dot ]
+
+     Everything applies LIVE (the map is the preview) and persists on its own — there is no Apply button.
+     ⚠️ One control for all three rings on purpose: three hand-written copies of these rows would drift.
+     ⚠️ Readouts are x:Bind FUNCTIONS (Pct/Px in the code-behind), not VM strings — they're formatting only. -->
+<UserControl x:Class="Anvil.Controls.Composites.RingStyleEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             mc:Ignorable="d">
+
+    <Grid RowSpacing="8" ColumnSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- colour -->
+            <RowDefinition Height="Auto"/> <!-- opacity -->
+            <RowDefinition Height="Auto"/> <!-- thickness -->
+            <RowDefinition Height="Auto"/> <!-- line -->
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="72"/>   <!-- label: fixed so the three editors line up -->
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>    <!-- readout -->
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Colour"/>
+        <prim:ColorSwatchPicker Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Left"
+                                AllowCustom="True"
+                                ItemsSource="{x:Bind ViewModel.ColorSwatches, Mode=OneWay}"
+                                ToolTips="{x:Bind ViewModel.ColorNames, Mode=OneWay}"
+                                SelectedIndex="{x:Bind ViewModel.ColorIndex, Mode=TwoWay}"
+                                CustomHex="{x:Bind ViewModel.ColorHex, Mode=TwoWay}"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Opacity"/>
+        <Slider Grid.Row="1" Grid.Column="1" Width="220" VerticalAlignment="Center"
+                Minimum="5" Maximum="100" StepFrequency="1" SmallChange="1" LargeChange="10"
+                IsThumbToolTipEnabled="False"
+                Value="{x:Bind ViewModel.Opacity, Mode=TwoWay}"/>
+        <TextBlock Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
+                   Text="{x:Bind Pct(ViewModel.Opacity), Mode=OneWay}"/>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Thickness"/>
+        <Slider Grid.Row="2" Grid.Column="1" Width="220" VerticalAlignment="Center"
+                Minimum="0.5" Maximum="6" StepFrequency="0.1" SmallChange="0.1" LargeChange="0.5"
+                IsThumbToolTipEnabled="False"
+                Value="{x:Bind ViewModel.Width, Mode=TwoWay}"/>
+        <TextBlock Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
+                   Text="{x:Bind Px(ViewModel.Width), Mode=OneWay}"/>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Line"/>
+        <prim:SegmentedPicker Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
+                              HorizontalAlignment="Left" Width="320"
+                              ItemsSource="{x:Bind ViewModel.LineLabels, Mode=OneWay}"
+                              SelectedIndex="{x:Bind ViewModel.LineIndex, Mode=TwoWay}"/>
+    </Grid>
+</UserControl>

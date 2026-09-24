@@ -92,6 +92,8 @@ namespace Anvil.Controls.Windows
 		// font before swapping; a wrong codepoint ships as an empty box.
 		//   E774 globe   — was the MAP bar key's glyph; that window became this tab, so its mark came along.
 		//   EC05 tower   — the Atlas bar key's glyph, reused deliberately: this tab IS radar site markers.
+		//   E81D ring    — Radar Range Ring: a dot inside a ring, a site and its range ring. VERIFIED by
+		//                  rendering it in Segoe Fluent Icons (2026-09-24).
 		//   EDA2 drive   — the only one NOT inherited from a shipped key. Eyeball it on first run.
 		//   E7F4 monitor — Window Mode. NOT inherited from a shipped key and NOT verified. Eyeball it on first run.
 		//   E912 toolbox — was the Dev bar key's glyph (a second GEAR until that collided with Settings).
@@ -102,6 +104,7 @@ namespace Anvil.Controls.Windows
 			{
 				new() { Glyph = "", Label = "Map",     Tooltip = "Basemap, tile source, view extent and state isolation" },
 				new() { Glyph = "", Label = "Radar",   Tooltip = "Which radar-site marker networks are shown" },
+				new() { Glyph = "", Label = "Radar Range Ring", Tooltip = "Which range rings are drawn, how each looks, the distance labels and the ruler's anchor" },
 				new() { Glyph = "", Label = "Storage", Tooltip = "The on-disk radar cache: size, clearing and its limit" },
 				new() { Glyph = "", Label = "Window Mode", Tooltip = "Single- or multi-monitor window layout" },
 			};

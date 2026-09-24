@@ -5,11 +5,11 @@
 
        ┌─ Settings ──────────────────────────────[lock][pin]─┐
        │  Settings                                            │
-       │  ┌────┬──────┬─────────┬─────────────┬─────┐         │
-       │  │ ⛰  │  ◎   │    ▤    │      ▭      │  ⚒  │         │  ← Controls/Primitives/TabStrip
-       │  │Map │Radar │ Storage │ Window Mode │ Dev │         │
-       │  │▀▀▀▀│      │         │             │     │         │
-       │  └────┴──────┴─────────┴─────────────┴─────┘         │
+       │  ┌────┬──────┬──────────────────┬─────────┬─────────────┬─────┐
+       │  │ ⛰  │  ◎   │        ⊙         │    ▤    │      ▭      │  ⚒  │  ← Controls/Primitives/TabStrip
+       │  │Map │Radar │ Radar Range Ring │ Storage │ Window Mode │ Dev │
+       │  │▀▀▀▀│      │                  │         │             │     │
+       │  └────┴──────┴──────────────────┴─────────┴─────────────┴─────┘
        │  ┌──────────────────────────────────────────────┐    │
        │  │                                              │    │
        │  │   the selected tab's body (one UserControl   │    │
@@ -28,7 +28,7 @@
      reopen, persists across launches, and can be targeted from anywhere via MapViewModel.OpenSettings(tab).
      The strip binds it TwoWay; the bodies below key their visibility off the same index.
 
-     ⚠️ VISIBILITY, NOT x:Load, for the three shipping tabs. x:Load bound to a bool UNLOADS again when it
+     ⚠️ VISIBILITY, NOT x:Load, for the shipping tabs. x:Load bound to a bool UNLOADS again when it
      goes false, so every tab switch would tear down and rebuild a body — and these bodies are cheap. The
      dev tab is the deliberate exception: it must NEVER be constructed in Release (its two engine VMs are
      null there), and x:Load is exactly the tool for "do not build this at all".
@@ -108,11 +108,14 @@
                     <cmp:RadarSettingsTab ViewModel="{x:Bind ViewModel}"
                                           Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 1), Mode=OneWay}"/>
 
+                    <cmp:RangeRingSettingsTab ViewModel="{x:Bind ViewModel}"
+                                              Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 2), Mode=OneWay}"/>
+
                     <cmp:StorageSettingsTab ViewModel="{x:Bind ViewModel}"
-                                            Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 2), Mode=OneWay}"/>
+                                            Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 3), Mode=OneWay}"/>
 
                     <cmp:WindowModeSettingsTab ViewModel="{x:Bind ViewModel}"
-                                               Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 3), Mode=OneWay}"/>
+                                               Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 4), Mode=OneWay}"/>
 
                     <!-- ⚠️ x:Load, not Visibility — see the header. LoadDevTab is hard-false in Release, so
                          this body is never constructed there and its null engine VMs are never bound. -->

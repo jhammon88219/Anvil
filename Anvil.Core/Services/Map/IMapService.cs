@@ -181,8 +181,16 @@ namespace Anvil.Services
 		/// reach, and fixed-spacing distance rings every <paramref name="distanceSpacing"/> of the distance unit
 		/// (0 = Auto). The page sizes the first two from the DISPLAYED frame.
 		/// </summary>
-		/// <remarks>⚠️ Replay at map-ready (PushScopePreferencesAsync): the page defaults to outline + velocity.</remarks>
+		/// <remarks>⚠️ Replay at map-ready (RangeRingsViewModel.OnMapsReadyAsync): the page defaults to outline + velocity.</remarks>
 		Task SetRangeRingsAsync(bool reflectivity, bool velocity, bool distance, int distanceSpacing);
+
+		/// <summary>
+		/// How the range rings LOOK — per-ring opacity/width/pattern, the velocity + distance colours, the
+		/// distance labels' colour/opacity/size/halo, their bearing and whether their drag handle shows. One JSON
+		/// object built by <c>RangeRingsViewModel.BuildStyleJson</c>; the outline's colour is NOT in it
+		/// (<see cref="SetScopeColorAsync"/>).
+		/// </summary>
+		Task SetRangeRingStyleAsync(string styleJson);
 
 		/// <summary>
 		/// Provides the radar sites to the map as clickable on-map markers. JSON is an array

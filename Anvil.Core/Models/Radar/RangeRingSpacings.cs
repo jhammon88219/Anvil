@@ -5,7 +5,7 @@ using System.Linq;
 namespace Anvil.Models
 {
 	/// <summary>
-	/// The spacing of the DISTANCE rings (Settings → Radar → Range rings &amp; ruler), in whatever ground unit
+	/// The spacing of the DISTANCE rings (Settings → Radar Range Ring), in whatever ground unit
 	/// <see cref="DistanceUnits"/> is set to — "50" means 50 km, 50 mi or 50 nm. <see cref="Auto"/> (0) lets the
 	/// page pick a step from the reach of the data on screen (radar-scope.js autoStep), so a TDWR's 89 km upper
 	/// tilt gets rings every 25 and a NEXRAD's 460 km every 100.

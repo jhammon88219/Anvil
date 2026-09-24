@@ -301,7 +301,7 @@ namespace Anvil.Services
 			set => SetProperty(ref _rulerAnchor, Models.RulerAnchors.Normalize(value));
 		}
 
-		// ── Range rings (Settings → Radar → Range rings & ruler) ──────────────────────────────────────
+		// ── Range rings (Settings → Radar Range Ring) ─────────────────────────────────────────────────
 		// Three independent rings around the loaded site. The page sizes the first two from the DISPLAYED
 		// frame: where its reflectivity ends (the outline, default on) and where its velocity ends (default
 		// on). The third is fixed-spacing distance rings (default off). ⚠️ Hiding the reflectivity ring does
@@ -338,6 +338,85 @@ namespace Anvil.Services
 		{
 			get => _distanceRingSpacing;
 			set => SetProperty(ref _distanceRingSpacing, Models.RangeRingSpacings.Normalize(value));
+		}
+
+		// ── Range ring LOOK (Settings → Radar Range Ring) ─────────────────────────────────────────────
+		// Each ring's stroke is ONE record (opacity/width/pattern), replaced whole — see Models.RingStyle. Colours
+		// are separate ScopeColors tokens ("" = the theme's colour for that ring); the OUTLINE's colour is
+		// ScopeColor above, because the ruler wears it too. ⚠️ Every colour here reaches a MapLibre paint
+		// property, so only a ScopeColors.Normalize'd #RRGGBB is stored.
+
+		private Models.RingStyle _outlineRingStyle = Models.RingStyle.OutlineDefault;
+		/// <summary>The reflectivity outline's stroke.</summary>
+		public Models.RingStyle OutlineRingStyle
+		{
+			get => _outlineRingStyle;
+			set => SetProperty(ref _outlineRingStyle, (value ?? Models.RingStyle.OutlineDefault).Normalized());
+		}
+
+		private Models.RingStyle _velocityRingStyle = Models.RingStyle.VelocityDefault;
+		/// <summary>The velocity reach ring's stroke.</summary>
+		public Models.RingStyle VelocityRingStyle
+		{
+			get => _velocityRingStyle;
+			set => SetProperty(ref _velocityRingStyle, (value ?? Models.RingStyle.VelocityDefault).Normalized());
+		}
+
+		private Models.RingStyle _distanceRingStyle = Models.RingStyle.DistanceDefault;
+		/// <summary>The distance rings' stroke.</summary>
+		public Models.RingStyle DistanceRingStyle
+		{
+			get => _distanceRingStyle;
+			set => SetProperty(ref _distanceRingStyle, (value ?? Models.RingStyle.DistanceDefault).Normalized());
+		}
+
+		private string _velocityRingColor = Models.ScopeColors.ThemeDefault;
+		/// <summary>The velocity ring's colour; empty = theme.css <c>--anvil-scope-vel</c>.</summary>
+		public string VelocityRingColor
+		{
+			get => _velocityRingColor;
+			set => SetProperty(ref _velocityRingColor, Models.ScopeColors.Normalize(value));
+		}
+
+		private string _distanceRingColor = Models.ScopeColors.ThemeDefault;
+		/// <summary>The distance rings' colour; empty = theme.css <c>--anvil-scope-dist</c>.</summary>
+		public string DistanceRingColor
+		{
+			get => _distanceRingColor;
+			set => SetProperty(ref _distanceRingColor, Models.ScopeColors.Normalize(value));
+		}
+
+		private string _distanceLabelColor = Models.ScopeColors.ThemeDefault;
+		/// <summary>The distance labels' colour; empty = whatever colour the distance rings are.</summary>
+		public string DistanceLabelColor
+		{
+			get => _distanceLabelColor;
+			set => SetProperty(ref _distanceLabelColor, Models.ScopeColors.Normalize(value));
+		}
+
+		private Models.RingLabelStyle _distanceLabelStyle = Models.RingLabelStyle.Default;
+		/// <summary>The distance labels' opacity, text size and halo.</summary>
+		public Models.RingLabelStyle DistanceLabelStyle
+		{
+			get => _distanceLabelStyle;
+			set => SetProperty(ref _distanceLabelStyle, (value ?? Models.RingLabelStyle.Default).Normalized());
+		}
+
+		private double _distanceLabelBearing;
+		/// <summary>Where the distance labels sit around the site, degrees clockwise from north (0 = north, the
+		/// old fixed spot). Written by dragging the label HANDLE on the map, or by the Settings slider.</summary>
+		public double DistanceLabelBearing
+		{
+			get => _distanceLabelBearing;
+			set => SetProperty(ref _distanceLabelBearing, Models.RingLabelBearing.Normalize(value));
+		}
+
+		private bool _showDistanceLabelHandle = true;
+		/// <summary>Whether the map shows the drag handle that swings the distance labels (primary pane only).</summary>
+		public bool ShowDistanceLabelHandle
+		{
+			get => _showDistanceLabelHandle;
+			set => SetProperty(ref _showDistanceLabelHandle, value);
 		}
 	}
 }

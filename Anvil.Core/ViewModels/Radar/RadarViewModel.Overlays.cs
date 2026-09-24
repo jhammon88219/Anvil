@@ -120,121 +120,17 @@ namespace Anvil.ViewModels
 			return _mapService.SetRangeRulerAnchorAsync(wantLocation, has, _rulerLon ?? 0, _rulerLat ?? 0);
 		}
 
-		// ── Scope colour (range ring + ruler) ─────────────────────────────────────────────────────────
-		/// <summary>The swatches, in picker order: each preset's hex (empty = the theme's colour).</summary>
-		public IReadOnlyList<string> ScopeColorSwatches { get; } = Models.ScopeColors.Presets.Select(p => p.Hex).ToArray();
-
-		/// <summary>The swatches' names (tooltips), parallel to <see cref="ScopeColorSwatches"/>.</summary>
-		public IReadOnlyList<string> ScopeColorNames { get; } = Models.ScopeColors.Presets.Select(p => p.Name).ToArray();
-
-		/// <summary>Two-way for the Radar tab's swatch row. PERSISTED as the hex. -1 = a hand-edited colour that
-		/// is not a preset (it still applies; no swatch lights).</summary>
-		public int ScopeColorIndex
-		{
-			get => Models.ScopeColors.IndexOf(_settings.Settings.ScopeColor);
-			set
-			{
-				if (value < 0)
-				{
-					return; // the picker never writes -1; don't let a binding echo erase a custom colour
-				}
-				var hex = Models.ScopeColors.FromIndex(value);
-				if (hex == Models.ScopeColors.Normalize(_settings.Settings.ScopeColor))
-				{
-					return;
-				}
-				_settings.Settings.ScopeColor = hex; // persists (auto-save)
-				OnPropertyChanged();
-				if (_isMapReady)
-				{
-					_ = _mapService.SetScopeColorAsync(hex);
-				}
-			}
-		}
-
-		// ── Range rings (which rings, and the distance rings' spacing) ─────────────────────────────────
-		// PREFERENCES (persisted, Settings → Radar → Range rings & ruler). The page SIZES the reflectivity and
-		// velocity rings from the displayed frame; all this VM decides is which are drawn.
-
-		/// <summary>The reflectivity outline (where the data ends). Two-way for the Radar tab. PERSISTED.</summary>
-		public bool ShowReflectivityRing
-		{
-			get => _settings.Settings.ShowReflectivityRing;
-			set
-			{
-				if (_settings.Settings.ShowReflectivityRing == value) { return; }
-				_settings.Settings.ShowReflectivityRing = value; // persists (auto-save)
-				OnPropertyChanged();
-				_ = PushRangeRingsAsync();
-			}
-		}
-
-		/// <summary>The velocity reach ring. Two-way for the Radar tab. PERSISTED.</summary>
-		public bool ShowVelocityRing
-		{
-			get => _settings.Settings.ShowVelocityRing;
-			set
-			{
-				if (_settings.Settings.ShowVelocityRing == value) { return; }
-				_settings.Settings.ShowVelocityRing = value;
-				OnPropertyChanged();
-				_ = PushRangeRingsAsync();
-			}
-		}
-
-		/// <summary>The fixed-spacing distance rings. Two-way for the Radar tab. PERSISTED. Also greys the
-		/// spacing picker.</summary>
-		public bool ShowDistanceRings
-		{
-			get => _settings.Settings.ShowDistanceRings;
-			set
-			{
-				if (_settings.Settings.ShowDistanceRings == value) { return; }
-				_settings.Settings.ShowDistanceRings = value;
-				OnPropertyChanged();
-				_ = PushRangeRingsAsync();
-			}
-		}
-
-		/// <summary>The spacing picker's labels, in <see cref="Models.RangeRingSpacings.All"/> order.</summary>
-		public IReadOnlyList<string> DistanceRingSpacingLabels { get; } = Models.RangeRingSpacings.Labels;
-
-		/// <summary>Two-way for the spacing picker. PERSISTED as the value, never the index.</summary>
-		public int DistanceRingSpacingIndex
-		{
-			get => Models.RangeRingSpacings.IndexOf(_settings.Settings.DistanceRingSpacing);
-			set
-			{
-				var spacing = Models.RangeRingSpacings.FromIndex(value);
-				if (spacing == Models.RangeRingSpacings.Normalize(_settings.Settings.DistanceRingSpacing))
-				{
-					return;
-				}
-				_settings.Settings.DistanceRingSpacing = spacing; // persists (auto-save)
-				OnPropertyChanged();
-				_ = PushRangeRingsAsync();
-			}
-		}
-
-		private Task PushRangeRingsAsync()
-		{
-			if (!_isMapReady)
-			{
-				return Task.CompletedTask; // replayed at map-ready (PushScopePreferencesAsync)
-			}
-			var s = _settings.Settings;
-			return _mapService.SetRangeRingsAsync(s.ShowReflectivityRing, s.ShowVelocityRing, s.ShowDistanceRings,
-				s.DistanceRingSpacing);
-		}
+		// ── Range rings: which, how they look, the outline/ruler colour ────────────────────────────────
+		// All of it lives on the RangeRings sub-VM (Settings → Radar Range Ring); this VM only constructs it and
+		// replays it at map-ready below.
 
 		/// <summary>Replays the PERSISTED ruler/scope preferences into a freshly loaded page (the page defaults
 		/// to theme colours, the site anchor, and outline + velocity rings). Called from
 		/// <see cref="OnMapsReadyAsync"/>.</summary>
 		private async Task PushScopePreferencesAsync()
 		{
-			await _mapService.SetScopeColorAsync(Models.ScopeColors.Normalize(_settings.Settings.ScopeColor));
+			await RangeRings.OnMapsReadyAsync();
 			await PushRulerAnchorAsync();
-			await PushRangeRingsAsync();
 		}
 
 		/// <summary>Called from the view when the WebView pushes the value under the cursor for ONE pane

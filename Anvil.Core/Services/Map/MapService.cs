@@ -168,6 +168,11 @@ namespace Anvil.Services
 			_mapView.RunScriptAsync(Call("setRangeRings", reflectivity, velocity, distance,
 				Models.RangeRingSpacings.Normalize(distanceSpacing)));
 
+		// Single-quoted + JSON.parsed in the shim (the radarValidate pattern). The JSON is built from normalized
+		// values only (hex colours, numbers, pattern tokens), so it never carries an apostrophe.
+		public Task SetRangeRingStyleAsync(string styleJson) =>
+			_mapView.RunScriptAsync(Call("setRangeRingStyle", styleJson));
+
 		public Task ShowRadarSitesAsync(string sitesJson) =>
 			_mapView.RunScriptAsync(Call("showRadarSites", sitesJson));
 

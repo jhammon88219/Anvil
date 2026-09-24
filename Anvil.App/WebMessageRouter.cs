@@ -56,6 +56,8 @@ namespace Anvil
 				["radarInspect"] = HandleRadarInspect,
 				["radarSiteClick"] = HandleRadarSiteClick,
 				["stateIsolated"] = HandleStateIsolated,
+				// The distance labels' drag handle was let go (radar-scope.js) — persist its bearing, no echo.
+				["rangeRingLabelBearing"] = root => _viewModel.Radar.RangeRings.OnLabelBearingDragged(Dbl(root, "deg")),
 				["markerClick"] = HandleMarkerClick,
 				["markerMoved"] = HandleMarkerMoved,
 				["radarFrameReady"] = HandleRadarFrameReady,
