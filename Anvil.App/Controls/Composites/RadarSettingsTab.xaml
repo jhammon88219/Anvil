@@ -10,9 +10,13 @@
        │    [ ] Load home site on launch                      │  ← PERSISTED, default off
        │  ⌄  Readouts                                         │
        │    Distance  [ km | mi | nm ]                        │  ← PERSISTED, app-wide
-       │  ⌄  Range ring & ruler                               │
-       │    Ruler from  [ Radar site | My location ]          │  ← PERSISTED; no marker = site
-       │    Colour      (A)(■)(■)(■)(■)(■)(■)                 │  ← A = theme; ring AND ruler
+       │  ⌄  Range rings & ruler                              │
+       │    Rings       [x] ── Reflectivity reach             │  ← PERSISTED, default on (the outline)
+       │                [x] ┄┄ Velocity reach                 │  ← PERSISTED, default on
+       │                [ ] ·· Distance rings                 │  ← PERSISTED, default off
+       │    Spacing     [ Auto | 25 | 50 | 100 ]              │  ← in the Readouts unit; greyed while
+       │    Ruler from  [ Radar site | My location ]          │    distance rings are off
+       │    Colour      (A)(■)(■)(■)(■)(■)(■)                 │  ← A = theme; OUTLINE AND ruler only
        └──────────────────────────────────────────────────────┘
 
      WHY THIS IS NOT IN THE MAP TAB: these are radar CONTENT drawn over the basemap, and they are GLOBAL —
@@ -67,7 +71,7 @@
             <RowDefinition Height="Auto"/> <!-- radar sites -->
             <RowDefinition Height="Auto"/> <!-- home site -->
             <RowDefinition Height="Auto"/> <!-- readouts -->
-            <RowDefinition Height="Auto"/> <!-- range ring & ruler -->
+            <RowDefinition Height="Auto"/> <!-- range rings & ruler -->
         </Grid.RowDefinitions>
 
         <Expander Grid.Row="0" Header="Radar sites" IsExpanded="True"
@@ -146,18 +150,28 @@
             </Grid>
         </Expander>
 
-        <!-- RANGE RING & RULER - the two PREFERENCES behind the tools tier's Ruler key (arming it is a gesture
-             and stays on the tier). One section because they are one object: the ruler ends ON the ring and
-             wears its colour, so recolouring one without the other would read as two unrelated marks.
+        <!-- RANGE RINGS & RULER - the PREFERENCES behind the scope furniture and the tools tier's Ruler key
+             (arming it is a gesture and stays on the tier). One section because they are one object: the ruler
+             ends ON the reflectivity ring and wears its colour, so recolouring one without the other would read
+             as two unrelated marks.
+             ⚠️ WHICH RINGS is a set-once preference (the CLAUDE.md placement test), so it lives here and not on
+             the tools tier. The page SIZES the reflectivity and velocity rings from the frame on screen
+             (radar-scope.js); these rows only choose which are drawn. Distance rings speak the READOUTS unit —
+             there is deliberately no second unit setting — and the ruler still ends at the reflectivity
+             reach with that ring switched off.
+             ⚠️ The checkbox swatches are literal copies of theme.css's DARK ring colours — they identify the
+             line, they don't restyle it, so they're DATA brushes like ColorSwatchPicker's chips.
              ⚠️ The anchor's "My location" is kept even with no location marker placed - the ruler measures
              from the site meanwhile and its chip says so. Don't grey the segment: a preference you set before
              dropping a marker should simply start working when you drop it.
              ⚠️ Colour is PRESETS (Models/Radar/ScopeColors explains why not a free picker). A = the theme's
              own, and the only one that adapts to the light theme. The sweep pulse keeps its own colour. -->
-        <Expander Grid.Row="3" Header="Range ring &amp; ruler" IsExpanded="True"
+        <Expander Grid.Row="3" Header="Range rings &amp; ruler" IsExpanded="True"
                   Style="{StaticResource SectionExpanderStyle}">
             <Grid RowSpacing="8" ColumnSpacing="12">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- rings -->
+                    <RowDefinition Height="Auto"/> <!-- distance spacing -->
                     <RowDefinition Height="Auto"/> <!-- anchor -->
                     <RowDefinition Height="Auto"/> <!-- colour -->
                 </Grid.RowDefinitions>
@@ -166,17 +180,54 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Margin="4,0,0,0"
+                <TextBlock Grid.Row="0" Grid.Column="0" Margin="4,6,0,0"
+                           VerticalAlignment="Top" Text="Rings"/>
+                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="0">
+                    <CheckBox IsChecked="{x:Bind ViewModel.Radar.ShowReflectivityRing, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Where the radar's reflectivity data ends on the frame you're viewing">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Rectangle Width="18" Height="2" VerticalAlignment="Center" Fill="#FF9FE0FF"/>
+                            <TextBlock Text="Reflectivity reach"/>
+                        </StackPanel>
+                    </CheckBox>
+                    <CheckBox IsChecked="{x:Bind ViewModel.Radar.ShowVelocityRing, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Where velocity data ends. Past it there is no velocity or storm-relative velocity">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Line X1="0" Y1="0" X2="18" Y2="0" VerticalAlignment="Center"
+                                  Stroke="#FFFFA07A" StrokeThickness="2" StrokeDashArray="2,1.5"/>
+                            <TextBlock Text="Velocity reach"/>
+                        </StackPanel>
+                    </CheckBox>
+                    <CheckBox IsChecked="{x:Bind ViewModel.Radar.ShowDistanceRings, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Evenly spaced rings for judging distance from the radar, in your distance unit">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Line X1="0" Y1="0" X2="18" Y2="0" VerticalAlignment="Center"
+                                  Stroke="#FFC7CDD4" StrokeThickness="1" StrokeDashArray="1,3"/>
+                            <TextBlock Text="Distance rings"/>
+                        </StackPanel>
+                    </CheckBox>
+                </StackPanel>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Margin="4,0,0,0"
+                           VerticalAlignment="Center" Text="Spacing"/>
+                <prim:SegmentedPicker Grid.Row="1" Grid.Column="1"
+                                      HorizontalAlignment="Left" Width="240"
+                                      ItemsSource="{x:Bind ViewModel.Radar.DistanceRingSpacingLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.Radar.DistanceRingSpacingIndex, Mode=TwoWay}"
+                                      IsEnabled="{x:Bind ViewModel.Radar.ShowDistanceRings, Mode=OneWay}"
+                                      ToolTipService.ToolTip="How far apart the distance rings are, in your distance unit (Readouts). Auto picks a step to suit the radar's reach"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Margin="4,0,0,0"
                            VerticalAlignment="Center" Text="Ruler from"/>
-                <prim:SegmentedPicker Grid.Row="0" Grid.Column="1"
+                <prim:SegmentedPicker Grid.Row="2" Grid.Column="1"
                                       HorizontalAlignment="Left" Width="240"
                                       ItemsSource="{x:Bind ViewModel.Radar.RulerAnchorLabels}"
                                       SelectedIndex="{x:Bind ViewModel.Radar.RulerAnchorIndex, Mode=TwoWay}"
                                       ToolTipService.ToolTip="Where the range ruler starts: the radar site, or your location marker (the site until one is placed)"/>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Margin="4,0,0,0"
+                <TextBlock Grid.Row="3" Grid.Column="0" Margin="4,0,0,0"
                            VerticalAlignment="Center" Text="Colour"/>
-                <prim:ColorSwatchPicker Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left"
+                <prim:ColorSwatchPicker Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left"
                                         ItemsSource="{x:Bind ViewModel.Radar.ScopeColorSwatches}"
                                         ToolTips="{x:Bind ViewModel.Radar.ScopeColorNames}"
                                         SelectedIndex="{x:Bind ViewModel.Radar.ScopeColorIndex, Mode=TwoWay}"/>

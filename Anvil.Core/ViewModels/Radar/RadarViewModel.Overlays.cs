@@ -152,12 +152,89 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>Replays the two PERSISTED ruler/scope preferences into a freshly loaded page (the page
-		/// defaults to theme colours and the site anchor). Called from <see cref="OnMapsReadyAsync"/>.</summary>
+		// ── Range rings (which rings, and the distance rings' spacing) ─────────────────────────────────
+		// PREFERENCES (persisted, Settings → Radar → Range rings & ruler). The page SIZES the reflectivity and
+		// velocity rings from the displayed frame; all this VM decides is which are drawn.
+
+		/// <summary>The reflectivity outline (where the data ends). Two-way for the Radar tab. PERSISTED.</summary>
+		public bool ShowReflectivityRing
+		{
+			get => _settings.Settings.ShowReflectivityRing;
+			set
+			{
+				if (_settings.Settings.ShowReflectivityRing == value) { return; }
+				_settings.Settings.ShowReflectivityRing = value; // persists (auto-save)
+				OnPropertyChanged();
+				_ = PushRangeRingsAsync();
+			}
+		}
+
+		/// <summary>The velocity reach ring. Two-way for the Radar tab. PERSISTED.</summary>
+		public bool ShowVelocityRing
+		{
+			get => _settings.Settings.ShowVelocityRing;
+			set
+			{
+				if (_settings.Settings.ShowVelocityRing == value) { return; }
+				_settings.Settings.ShowVelocityRing = value;
+				OnPropertyChanged();
+				_ = PushRangeRingsAsync();
+			}
+		}
+
+		/// <summary>The fixed-spacing distance rings. Two-way for the Radar tab. PERSISTED. Also greys the
+		/// spacing picker.</summary>
+		public bool ShowDistanceRings
+		{
+			get => _settings.Settings.ShowDistanceRings;
+			set
+			{
+				if (_settings.Settings.ShowDistanceRings == value) { return; }
+				_settings.Settings.ShowDistanceRings = value;
+				OnPropertyChanged();
+				_ = PushRangeRingsAsync();
+			}
+		}
+
+		/// <summary>The spacing picker's labels, in <see cref="Models.RangeRingSpacings.All"/> order.</summary>
+		public IReadOnlyList<string> DistanceRingSpacingLabels { get; } = Models.RangeRingSpacings.Labels;
+
+		/// <summary>Two-way for the spacing picker. PERSISTED as the value, never the index.</summary>
+		public int DistanceRingSpacingIndex
+		{
+			get => Models.RangeRingSpacings.IndexOf(_settings.Settings.DistanceRingSpacing);
+			set
+			{
+				var spacing = Models.RangeRingSpacings.FromIndex(value);
+				if (spacing == Models.RangeRingSpacings.Normalize(_settings.Settings.DistanceRingSpacing))
+				{
+					return;
+				}
+				_settings.Settings.DistanceRingSpacing = spacing; // persists (auto-save)
+				OnPropertyChanged();
+				_ = PushRangeRingsAsync();
+			}
+		}
+
+		private Task PushRangeRingsAsync()
+		{
+			if (!_isMapReady)
+			{
+				return Task.CompletedTask; // replayed at map-ready (PushScopePreferencesAsync)
+			}
+			var s = _settings.Settings;
+			return _mapService.SetRangeRingsAsync(s.ShowReflectivityRing, s.ShowVelocityRing, s.ShowDistanceRings,
+				s.DistanceRingSpacing);
+		}
+
+		/// <summary>Replays the PERSISTED ruler/scope preferences into a freshly loaded page (the page defaults
+		/// to theme colours, the site anchor, and outline + velocity rings). Called from
+		/// <see cref="OnMapsReadyAsync"/>.</summary>
 		private async Task PushScopePreferencesAsync()
 		{
 			await _mapService.SetScopeColorAsync(Models.ScopeColors.Normalize(_settings.Settings.ScopeColor));
 			await PushRulerAnchorAsync();
+			await PushRangeRingsAsync();
 		}
 
 		/// <summary>Called from the view when the WebView pushes the value under the cursor for ONE pane

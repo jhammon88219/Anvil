@@ -164,6 +164,10 @@ namespace Anvil.Services
 		public Task SetScopeColorAsync(string hex) =>
 			_mapView.RunScriptAsync(Call("setScopeColor", Models.ScopeColors.Normalize(hex)));
 
+		public Task SetRangeRingsAsync(bool reflectivity, bool velocity, bool distance, int distanceSpacing) =>
+			_mapView.RunScriptAsync(Call("setRangeRings", reflectivity, velocity, distance,
+				Models.RangeRingSpacings.Normalize(distanceSpacing)));
+
 		public Task ShowRadarSitesAsync(string sitesJson) =>
 			_mapView.RunScriptAsync(Call("showRadarSites", sitesJson));
 

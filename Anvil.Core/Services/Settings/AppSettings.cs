@@ -300,5 +300,44 @@ namespace Anvil.Services
 			get => _rulerAnchor;
 			set => SetProperty(ref _rulerAnchor, Models.RulerAnchors.Normalize(value));
 		}
+
+		// ── Range rings (Settings → Radar → Range rings & ruler) ──────────────────────────────────────
+		// Three independent rings around the loaded site. The page sizes the first two from the DISPLAYED
+		// frame: where its reflectivity ends (the outline, default on) and where its velocity ends (default
+		// on). The third is fixed-spacing distance rings (default off). ⚠️ Hiding the reflectivity ring does
+		// NOT move the range ruler: it still ends at the reflectivity reach.
+
+		private bool _showReflectivityRing = true;
+		/// <summary>The outline where the displayed frame's reflectivity data ends (the ring the app always had).</summary>
+		public bool ShowReflectivityRing
+		{
+			get => _showReflectivityRing;
+			set => SetProperty(ref _showReflectivityRing, value);
+		}
+
+		private bool _showVelocityRing = true;
+		/// <summary>Where the displayed frame's velocity data ends — past it, no velocity or SRV.</summary>
+		public bool ShowVelocityRing
+		{
+			get => _showVelocityRing;
+			set => SetProperty(ref _showVelocityRing, value);
+		}
+
+		private bool _showDistanceRings;
+		/// <summary>Faint fixed-spacing rings for judging distance, in <see cref="DistanceUnits"/>.</summary>
+		public bool ShowDistanceRings
+		{
+			get => _showDistanceRings;
+			set => SetProperty(ref _showDistanceRings, value);
+		}
+
+		private int _distanceRingSpacing = Models.RangeRingSpacings.Auto;
+		/// <summary>The distance rings' step in the distance unit — a <see cref="Models.RangeRingSpacings"/> value
+		/// (0 = Auto).</summary>
+		public int DistanceRingSpacing
+		{
+			get => _distanceRingSpacing;
+			set => SetProperty(ref _distanceRingSpacing, Models.RangeRingSpacings.Normalize(value));
+		}
 	}
 }

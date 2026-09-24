@@ -111,9 +111,9 @@ const STEPS = [
     [1000, 5000], [2000, 10000], [5000, 25000], [10000, 50000],
     [25000, 100000], [50000, 250000], [100000, 500000],
 ];
-// ⚠️ MIRRORS Models/Map/DistanceUnits.cs — same divisors, same "one decimal below 10" rule. The host
-// formats the same distances for its own readouts; if these two drift, one screen disagrees with another.
-const UNIT_METERS = { km: 1000, mi: 1609.344, nm: 1852 };
+// ⚠️ The divisors live in geo.js (UNIT_METERS, shared with the distance rings); the "one decimal below 10"
+// rule is ours, and both MIRROR Models/Map/DistanceUnits.cs. If they drift, one screen disagrees with another.
+const UNIT_METERS = Geo.UNIT_METERS;
 
 // { forEachView(fn), primaryView() -> view | null, getSite() -> {lat,lon}, getRange() -> metres,
 //   beforeId(map) -> string|undefined } — supplied by radar.js.

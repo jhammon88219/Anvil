@@ -510,6 +510,12 @@ try {
         });
         if (window.RadarLayer && window.RadarLayer.refreshScopeColors) window.RadarLayer.refreshScopeColors();
     };
+    // RANGE RINGS (Settings → Radar): which of the three rings to draw — the reflectivity outline, the velocity
+    // reach, and fixed-spacing distance rings every `spacing` of the distance unit (0 = Auto). radar.js holds
+    // the choice until its scope module loads; the radii come from the displayed frame, not from here.
+    window.setRangeRings = function (refl, vel, dist, spacing) {
+        if (window.RadarLayer && window.RadarLayer.setRangeRings) window.RadarLayer.setRangeRings(!!refl, !!vel, !!dist, Number(spacing) || 0);
+    };
     // PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit): read-only inner-state snapshot,
     // polled by the host only while the Pipeline Console card is open. Returns null if no loop is loaded.
     window.radarPipelineSnapshot = function () {

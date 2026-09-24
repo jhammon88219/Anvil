@@ -92,6 +92,11 @@
        The selected site's scope furniture. The sweep is a warm afterglow wedge behind a brighter
        arm; the ring is cool so the two never read as one object. */
     --anvil-scope-ring: #9fe0ff;
+    /* The two other range rings (radar-scope.js): the dashed VELOCITY reach is warm so it never reads as
+       the cool outline; the dotted DISTANCE rings are a quiet neutral — a ruler, not a boundary. The
+       user's ring colour overrides the outline ONLY. */
+    --anvil-scope-vel: #ffa07a;
+    --anvil-scope-dist: #c7cdd4;
     --anvil-scope-sweep-fill: #ffe6a0;
     --anvil-scope-sweep-arm: #fff4c8;
 
@@ -205,6 +210,8 @@
     /* Deeper and more saturated, not paler: the ring draws at 0.55 opacity and the sweep peaks at
        0.42, so the dark theme's pale cyan and cream would be invisible over white earth. */
     --anvil-scope-ring: #0f7fb8;
+    --anvil-scope-vel: #c2410c;
+    --anvil-scope-dist: #4b5563;
     --anvil-scope-sweep-fill: #d99a1f;
     --anvil-scope-sweep-arm: #b87d10;
 

@@ -254,6 +254,19 @@ function sweepStats(radials, getAzimuth) {
     return { rad: rad, azLo: Math.round(lo), azHi: Math.round(hi), span: Math.round(hi - lo), gates: gates };
 }
 
+// How far a sweep's data reaches, in METRES: first gate + its longest radial's gates (the decoder speaks km).
+// 0 = no data. This is what the range rings are drawn at (radar-scope.js setReach).
+function sweepReachMeters(radials) {
+    let best = 0;
+    for (let i = 0; i < radials.length; i++) {
+        const d = radials[i];
+        if (!d || !d.moment_data || !isFinite(d.first_gate) || !isFinite(d.gate_size)) continue;
+        const r = (d.first_gate + d.moment_data.length * d.gate_size) * 1000;
+        if (r > best) best = r;
+    }
+    return best;
+}
+
 // Last sweep's dealiasing diagnostics (region count, seed mean, global shift, value range),
 // surfaced into the debug log so the unfold can be verified without guessing at the picture.
 let _dealiasInfo = '';
@@ -1682,6 +1695,11 @@ export function decodeDowFrame(json, minDbz) {
         built: { reflectivity: true, velocity: true, cc: true },
         gridsBuilt: true,
         rangeMeters: rangeMeters,
+        reach: {
+            refl: rangeMeters,
+            vel: velGrid && isFinite(velGrid.firstGate) && isFinite(velGrid.gateSize)
+                ? (velGrid.firstGate + velGrid.nGates * velGrid.gateSize) * 1000 : 0,
+        },
         decodeMs: Math.round(t1 - t0), buildMs: 0,
         radials: nRad, gates: reflR && reflR[0] ? reflR[0].moment_data.length : 0, bytes: 0,
         elevList: String(json.elevationDeg), velElev: -1, reflStats: null, velStats: null,
@@ -1777,6 +1795,7 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
         let radials = 0, gates = 0, elevList = '', velElevNum = -1, velNyq = 0;
         let velNyqSrc = '', velNyqRad = 0, velNyqVol = 0; // instrumentation: which Nyquist field was used
         let reflStats = null, velStats = null;
+        let reflReach = 0, velReach = 0; // the range rings' radii — see sweepReachMeters
         try {
             const elevs = radar.listElevations();
             elevList = (elevs || []).join(',');
@@ -1785,6 +1804,7 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
                 const reflArr = momentRadials(radar, 'reflect');
                 reflStats = sweepStats(reflArr, function (i) { return radar.getAzimuth(i); });
                 radials = reflStats.rad; gates = reflStats.gates;
+                reflReach = sweepReachMeters(reflArr);
 
                 const ve = findVelocityElevation(radar);
                 if (ve !== null) {
@@ -1792,6 +1812,7 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
                     radar.setElevation(ve);
                     const velArr = momentRadials(radar, 'velocity');
                     velStats = sweepStats(velArr, function (i) { return radar.getAzimuth(i); });
+                    velReach = sweepReachMeters(velArr);
                     const det = sweepNyquistDetail(radar, velArr.length);
                     velNyq = isFinite(det.med) ? Math.round(det.med * 10) / 10 : 0;
                     velNyqSrc = det.src; // 'rad' (correct) | 'vol' (fallback, suspect) | 'mixed' | 'none'
@@ -1826,6 +1847,10 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
             moments: moments, grids: grids, built: built,
             gridsBuilt: buildGrids === true, gridsExtra: gridsExtra,
             rangeMeters: rangeMeters,
+            // Where THIS frame's reflectivity and velocity stop (metres) — the range rings. Measured from the
+            // sweeps themselves, so it holds whichever products were built (velocity's reach is known even on a
+            // refl-only decode). A TDWR's 0.48° is refl 417 km / vel 89 km; its upper tilts are 89 / 89.
+            reach: { refl: reflReach || rangeMeters, vel: velReach },
             decodeMs: Math.round(t1 - t0), buildMs: Math.round(t2 - t1),
             radials: radials, gates: gates, bytes: bytes,
             elevList: elevList, velElev: velElevNum, reflStats: reflStats, velStats: velStats, velNyq: velNyq,

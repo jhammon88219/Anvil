@@ -177,6 +177,14 @@ namespace Anvil.Services
 		Task SetScopeColorAsync(string hex);
 
 		/// <summary>
+		/// Which range rings the page draws around the loaded site: the reflectivity outline, the velocity
+		/// reach, and fixed-spacing distance rings every <paramref name="distanceSpacing"/> of the distance unit
+		/// (0 = Auto). The page sizes the first two from the DISPLAYED frame.
+		/// </summary>
+		/// <remarks>⚠️ Replay at map-ready (PushScopePreferencesAsync): the page defaults to outline + velocity.</remarks>
+		Task SetRangeRingsAsync(bool reflectivity, bool velocity, bool distance, int distanceSpacing);
+
+		/// <summary>
 		/// Provides the radar sites to the map as clickable on-map markers. JSON is an array
 		/// of <c>{ id, name, lng, lat }</c>.
 		/// </summary>

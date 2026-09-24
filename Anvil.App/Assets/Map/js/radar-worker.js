@@ -140,7 +140,7 @@ self.onmessage = function (e) {
             decodeMs: res.decodeMs, buildMs: res.buildMs,
             fetchMs: Math.round(tFetched - tRecv), waitMs: Math.round(tStarted - tFetched),
             dispatchAt: d.dispatchAt, // echoed so the host can measure the full round trip (shared epoch)
-            radials: res.radials, gates: res.gates, bytes: res.bytes, rangeMeters: res.rangeMeters,
+            radials: res.radials, gates: res.gates, bytes: res.bytes, rangeMeters: res.rangeMeters, reach: res.reach,
             elevList: res.elevList, velElev: res.velElev, reflStats: res.reflStats, velStats: res.velStats,
             velNyq: res.velNyq, dealias: res.dealias, seedProfile: res.seedProfile,
             moments: {}, grids: {},

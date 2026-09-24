@@ -24,6 +24,11 @@
 
 export const D2R = Math.PI / 180;
 
+// Metres per ground-distance unit — the page's ONE table (the range ruler's labels and the distance rings
+// both read it). ⚠️ MIRRORS Models/Map/DistanceUnits.cs — same divisors; if the two drift, the host's
+// readouts and the map's disagree.
+export const UNIT_METERS = { km: 1000, mi: 1609.344, nm: 1852 };
+
 // Metres per degree at a latitude (equirectangular). Latitude is ~constant; longitude shrinks by cos.
 export function metersPerDeg(lat) {
     return { mPerDegLat: 111320, mPerDegLon: 111320 * Math.cos(lat * D2R) };

@@ -99,6 +99,9 @@
     // draw calls below are guarded on `Scope`, which is loaded long before any site click can decode a
     // frame. It owns the drawn radius + the animation handle; it reads our views/site through `init`.
     let Scope = null;
+    // Which rings + the distance unit, held HERE until the module lands: the host replays both at map-ready,
+    // which can beat this import, and a dropped push would draw the default rings in kilometres.
+    let _ringOpts = null, _ringUnits = 'km';
     import('./radar-scope.js').then(function (m) {
         Scope = m;
         Scope.init({
@@ -107,6 +110,9 @@
             beforeId: beforeId,
             getSite: function () { return { lat: siteLat, lon: siteLon }; },
         });
+        Scope.setUnits(_ringUnits);
+        if (_ringOpts) Scope.setRings(_ringOpts);
+        syncScope();
     }).catch(function (e) { hostLog('radar-scope.js load failed: ' + (e && e.message ? e.message : e)); });
 
     // The Inspector (radar-inspect.js): the cursor-readout mode. Same dynamic-import-and-cache pattern
@@ -1089,8 +1095,8 @@
     //   → reconcile what's on screen → fire downstream triggers.
     // The couplings that are easy to break by reordering: res.empty must be computed from the MERGED
     // moments (cachePut must not cache a no-geometry frame); upgradeDone must precede queueUpgrade
-    // (it frees the slot the pump then takes); Scope.setRange must follow the layer (re)add, or the ring
-    // draws under the fill. Each is restated at its line — keep it that way.
+    // (it frees the slot the pump then takes); syncScope must follow the layer (re)add, or the rings
+    // draw under the fill. Each is restated at its line — keep it that way.
     function applyFrameResult(res) {
         if (!res || res.token !== loopToken) return; // stale (loop changed)
         if (res.error) {
@@ -1130,6 +1136,7 @@
             built: res.built || {},         // { id: bool } — whether that product's build ran (lazy bookkeeping)
             gridsExtra: res.gridsExtra || (mergeable ? prev.gridsExtra : undefined), // per-product grid bookkeeping (merge/grids-only)
             velNyq: res.velNyq || prevVelNyq || 0, // Nyquist (m/s) — lets the inspector show the raw fold of a dealiased gate
+            reach: res.reach || (mergeable ? prev.reach : null) || null, // { refl, vel } metres — the range rings (syncScope)
             // url = this frame's stable volume URL (so a product/inspect switch can re-decode it),
             // gridsBuilt = whether the inspector value grids were built (skipped by default; built on
             // demand — see setProduct / setInspect).
@@ -1190,10 +1197,10 @@
                 invalidateUploads();
                 showCurrentAll('re-add');
             }
-            // Draw the real outer-extent range ring (RadarScope-style) from this frame's decoded
-            // range — AFTER the radar layer (re)add above, so the ring sits on top of the fill.
-            if (res.rangeMeters > 0 && Scope) Scope.setRange(res.rangeMeters);
-            if (res.rangeMeters > 0 && Ruler) Ruler.rangeChanged(); // re-extend the ruler to the new outer edge
+            // Rings follow the DISPLAYED frame (syncScope) — AFTER the radar layer (re)add above, so they sit
+            // on top of the fill. The show paths above already synced; this covers a frame that arrived
+            // without changing what's on screen (a no-op unless a pane is missing its rings).
+            syncScope();
         }
         post({ type: 'radarFrameReady', index: res.index, hasData: !res.empty });
         // The AUTO (VAD-derived) storm motion is NO LONGER computed per frame — a single tilt is too shallow
@@ -1358,7 +1365,17 @@
             addLayer(v);
         }
     }
-    function showCurrentAll(reason) { forEachView(function (v) { showCurrent(v, reason); }); }
+    function showCurrentAll(reason) { forEachView(function (v) { showCurrent(v, reason); }); syncScope(); }
+
+    // The range rings follow the frame ON SCREEN — never the last one to decode (a prefetch landing for another
+    // frame must not resize them). Every change of currentFrame goes through showCurrentAll, which ends here;
+    // a frame with no reach (none decoded yet) leaves the rings alone. The ruler re-extends only when the
+    // reflectivity reach actually moved (a new site or tilt), not on every frame.
+    function syncScope() {
+        var f = frames[currentFrame];
+        if (!Scope || !f || !f.reach) return;
+        if (Scope.setReach(f.reach.refl, f.reach.vel) && Ruler) Ruler.rangeChanged();
+    }
     function repaintAll() {
         forEachView(function (v) { if (v.map.getLayer(LAYER_ID)) v.map.triggerRepaint(); });
     }
@@ -1923,7 +1940,14 @@
         // VALUE under the cursor and no distance (its header sketch draws a "38 km 214°" line that was
         // never built), so there is nothing there to convert yet; add it here when that line arrives.
         setDistanceUnits: function (unit) {
+            _ringUnits = unit;
             if (Ruler) Ruler.setUnits(unit);
+            if (Scope) Scope.setUnits(unit);
+        },
+        // Which range rings to draw (Settings → Radar → Range rings & ruler); spacing 0 = Auto.
+        setRangeRings: function (refl, vel, dist, spacing) {
+            _ringOpts = { refl: refl, vel: vel, dist: dist, spacing: spacing };
+            if (Scope) Scope.setRings(_ringOpts);
         },
         // Re-render what a theme change cannot re-cascade (SVG-baked handle colours). The ruler's LAYERS
         // come back through reAdd with the style switch, exactly as the ring's do.

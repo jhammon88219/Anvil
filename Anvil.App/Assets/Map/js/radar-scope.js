@@ -1,16 +1,22 @@
-// The radar SCOPE furniture: the range ring at the data's true outer extent, and the one-shot sweep
-// pulse that rotates out to that same edge.
+// The radar SCOPE furniture: the range rings around the site, and the one-shot sweep pulse that rotates
+// out to the reflectivity edge.
 //
-//                  ╱▔▔▔▔▔▔▔╲              level2-range      the ring, a 128-pt circle at the data's
-//                ╱     ▁▁▁    ╲                              TRUE outer extent (rangeMeters), so it
-//               │    ╱█████▏   │                             traces exactly where the returns stop
-//               │   ╱███████▏  │           level2-sweep-arm  the crisp leading arm
-//               │  ╳────────▶  │           level2-sweep-fill SWEEP_TRAIL_N abutting triangles behind
-//               │   ╲▒▒▒▒▒▒▒   │                             it, opacity falling off by SWEEP_GAMMA
-//                ╲    ░░░░    ╱                              — a comet tail, not a hard wedge
-//                  ╲▁▁▁▁▁▁▁╱
-//                                          One revolution (SWEEP_MS) then a fade (SWEEP_FADE_MS),
-//                                          fired only on a genuinely NEW frame. No sweep in replay.
+//                  ╱▔▔▔▔▔▔▔╲              level2-range      REFLECTIVITY OUTLINE — where the DISPLAYED
+//               ┆╱  ┌┄┄┄┄┄┐  ╲┆                             frame's reflectivity stops (reach.refl)
+//              ┆│  ┆╱████▏┆   │┆          level2-range-vel  VELOCITY REACH, dashed — where its velocity
+//              ┆│  ┆╳───▶ ┆   │┆                            stops (reach.vel); past it no vel / SRV
+//              ┆│  ┆╲▒▒▒▒ ┆   │┆          level2-range-dist DISTANCE RINGS, faint dotted, every step of
+//               ┆╲  └┄┄┄┄┄┘  ╱┆           (+ -label)        the distance unit out to DIST_EXTENT_M,
+//                  ╲▁▁▁▁▁▁▁╱                                labelled at north ("100 km")
+//                                          level2-sweep-*    arm + comet tail, one revolution then a
+//                                                            fade, only on a genuinely NEW frame
+//
+//   WHICH RINGS: Settings → Radar → Range rings & ruler (setRings; default outline + velocity). SIZE: the
+//   DISPLAYED frame's reach (radar.js syncScope → setReach), never the last frame to decode. The distance
+//   rings do NOT follow the data — they run to DIST_EXTENT_M so they stay put when a TDWR's upper tilt
+//   shrinks the other two to 89 km; only Auto spacing reads the reach.
+//   ⚠️ The user's ring colour (--anvil-scope-ring) is the OUTLINE's only; velocity and distance keep their
+//   own colours so the three never read as one. The ruler ends at reach.refl even when the outline is off.
 //
 //   ⚠️ fill-antialias MUST stay off — it outlines every triangle and the tail becomes a fan of spokes.
 //   Faint seams between triangles can still show; that is known and cosmetic (a canvas conic-gradient
@@ -35,7 +41,12 @@ import * as Geo from './geo.js';
 // and blanks every layer above the radar.
 import * as Theme from './theme.js';
 
-const RANGE_SRC = 'level2-range', RANGE_LAYER = 'level2-range';
+const RANGE_SRC = 'level2-range', RANGE_LAYER = 'level2-range';                 // reflectivity outline
+const VEL_SRC = 'level2-range-vel', VEL_LAYER = 'level2-range-vel';             // velocity reach
+const DIST_SRC = 'level2-range-dist', DIST_LAYER = 'level2-range-dist';         // distance rings
+const DIST_LABEL_LAYER = 'level2-range-dist-label';
+const DIST_EXTENT_M = 460000; // distance rings run to a NEXRAD's full reach whatever is on screen
+const DIST_MAX_RINGS = 40;    // a cap, not a design value: 25 nm to 460 km is 10 rings
 const SWEEP_SRC = 'level2-sweep', SWEEP_FILL_LAYER = 'level2-sweep-fill', SWEEP_ARM_LAYER = 'level2-sweep-arm';
 const SWEEP_MS = 1300;        // duration of one revolution
 const SWEEP_FADE_MS = 400;    // brief fade-out of the trail once the revolution completes
@@ -46,68 +57,175 @@ const SWEEP_GAMMA = 1.6;      // trailing-fade shape (>1 = fades to nothing fast
 
 // { forEachView(fn), viewCount(), beforeId(map), getSite() -> {lat,lon} } — supplied by radar.js.
 let host = null;
-let currentRangeMeters = 0;
+let reflMeters = 0, velMeters = 0;                          // the DISPLAYED frame's reach (setReach)
+let rings = { refl: true, vel: true, dist: false, spacing: 0 }; // setRings; spacing 0 = Auto
+let units = 'km';                                            // setUnits — the distance rings' unit
 let sweepAnimStart = 0, sweepRaf = 0;
 
 export function init(h) { host = h; }
 
-// ---- Range ring (real outer data extent) ----
-// A 128-point circle at currentRangeMeters around the site, using the same equirectangular
-// metres-per-degree approximation as the gate geometry (radar-decode buildGates) so the ring
-// lines up exactly with the data's edge.
-function ringGeoJSON() {
-    const N = 128, R = currentRangeMeters, s = host.getSite();
-    const coords = [];
-    for (let k = 0; k <= N; k++) {
-        coords.push(Geo.siteToLngLat(s.lat, s.lon, R, (k / N) * 2 * Math.PI));
-    }
-    return { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
+// ---- Range rings ----
+// Each ring is a 128-point circle around the site, using the same equirectangular metres-per-degree
+// approximation as the gate geometry (radar-decode buildGates) so a ring lines up exactly with the data's
+// edge. The RADII are shared (one site, one displayed frame); the SOURCES + LAYERS are per map, so each pane
+// draws its own rings from the same numbers.
+function circle(R) {
+    const N = 128, s = host.getSite(), coords = [];
+    for (let k = 0; k <= N; k++) coords.push(Geo.siteToLngLat(s.lat, s.lon, R, (k / N) * 2 * Math.PI));
+    return coords;
 }
-// The RADIUS is shared (one site, one range); the SOURCE + LAYER are per map, so each pane draws
-// its own ring from the same number.
-function addRangeRing(v) {
+function ringFeature(R) {
+    return { type: 'Feature', geometry: { type: 'LineString', coordinates: circle(R) } };
+}
+
+// The distance rings' step, in the distance UNIT. A fixed setting wins; Auto picks from the displayed
+// reflectivity reach so a short reach gets finer rings (a TDWR's 89 km upper tilt → every 25; a NEXRAD's
+// 460 km → every 100 km, or 50 mi).
+function autoStep() {
+    if (rings.spacing > 0) return rings.spacing;
+    const v = reflMeters / (Geo.UNIT_METERS[units] || 1000);
+    return v <= 120 ? 25 : v <= 300 ? 50 : 100;
+}
+function distCollection() {
+    const per = Geo.UNIT_METERS[units] || 1000, step = autoStep() * per, s = host.getSite();
+    const extent = Math.max(DIST_EXTENT_M, reflMeters), features = [];
+    for (let r = step, n = 0; r <= extent + 1 && n < DIST_MAX_RINGS; r += step, n++) {
+        features.push(ringFeature(r));
+        features.push({
+            type: 'Feature', properties: { label: Math.round(r / per) + ' ' + units },
+            geometry: { type: 'Point', coordinates: Geo.siteToLngLat(s.lat, s.lon, r, 0) },
+        });
+    }
+    return { type: 'FeatureCollection', features: features };
+}
+
+function setSource(map, id, data) {
+    if (map.getSource(id)) map.getSource(id).setData(data);
+    else map.addSource(id, { type: 'geojson', data: data });
+}
+function drop(map, layerIds, srcId) {
+    layerIds.forEach(function (id) { if (map.getLayer(id)) map.removeLayer(id); });
+    if (map.getSource(srcId)) map.removeSource(srcId);
+}
+// Stacking, bottom to top: distance rings, velocity, outline — then everything the host puts above radar.
+// A ring switched on later is slotted under the next ring UP that exists, so the order holds.
+function beforeFor(map, id) {
+    const above = id === DIST_LAYER ? [VEL_LAYER, RANGE_LAYER] : id === VEL_LAYER ? [RANGE_LAYER] : [];
+    for (let i = 0; i < above.length; i++) if (map.getLayer(above[i])) return above[i];
+    return host.beforeId(map);
+}
+
+// Bring ONE pane's rings in line with the state: add what should show, update the radii, drop the rest.
+function drawRings(v) {
     const map = v && v.map;
-    if (!map || !(currentRangeMeters > 0)) return;
-    if (map.getSource(RANGE_SRC)) map.getSource(RANGE_SRC).setData(ringGeoJSON());
-    else map.addSource(RANGE_SRC, { type: 'geojson', data: ringGeoJSON() });
-    if (!map.getLayer(RANGE_LAYER)) {
-        map.addLayer({
-            id: RANGE_LAYER, type: 'line', source: RANGE_SRC,
-            paint: { 'line-color': Theme.color('--anvil-scope-ring', '#9fe0ff'), 'line-width': 1.3, 'line-opacity': 0.55, 'line-blur': 0.3 },
-        }, host.beforeId(map));
+    if (!map) return;
+    const have = reflMeters > 0;
+
+    if (have && rings.dist) {
+        setSource(map, DIST_SRC, distCollection());
+        if (!map.getLayer(DIST_LAYER)) {
+            map.addLayer({
+                id: DIST_LAYER, type: 'line', source: DIST_SRC, filter: ['==', ['geometry-type'], 'LineString'],
+                paint: { 'line-color': Theme.color('--anvil-scope-dist', '#c7cdd4'), 'line-width': 0.8, 'line-opacity': 0.45, 'line-dasharray': [1, 3] },
+            }, beforeFor(map, DIST_LAYER));
+        }
+        if (!map.getLayer(DIST_LABEL_LAYER)) {
+            map.addLayer({
+                id: DIST_LABEL_LAYER, type: 'symbol', source: DIST_SRC, filter: ['==', ['geometry-type'], 'Point'],
+                layout: {
+                    // ⚠️ 'Noto Sans Medium' — the one stack the bundled glyph host serves (see radar-ruler.js).
+                    'text-field': ['get', 'label'], 'text-font': ['Noto Sans Medium'], 'text-size': 10,
+                    'text-offset': [0, -0.7], 'text-allow-overlap': false, 'text-padding': 4,
+                },
+                paint: {
+                    'text-color': Theme.color('--anvil-scope-dist', '#c7cdd4'),
+                    'text-halo-color': Theme.color('--anvil-ruler-casing', '#000000'), 'text-halo-width': 1.2,
+                },
+            }, beforeFor(map, DIST_LAYER));
+        }
+    } else {
+        drop(map, [DIST_LABEL_LAYER, DIST_LAYER], DIST_SRC);
+    }
+
+    if (have && rings.vel && velMeters > 0) {
+        setSource(map, VEL_SRC, ringFeature(velMeters));
+        if (!map.getLayer(VEL_LAYER)) {
+            map.addLayer({
+                id: VEL_LAYER, type: 'line', source: VEL_SRC,
+                paint: { 'line-color': Theme.color('--anvil-scope-vel', '#ffa07a'), 'line-width': 1.2, 'line-opacity': 0.6, 'line-dasharray': [4, 3] },
+            }, beforeFor(map, VEL_LAYER));
+        }
+    } else {
+        drop(map, [VEL_LAYER], VEL_SRC);
+    }
+
+    if (have && rings.refl) {
+        setSource(map, RANGE_SRC, ringFeature(reflMeters));
+        if (!map.getLayer(RANGE_LAYER)) {
+            map.addLayer({
+                id: RANGE_LAYER, type: 'line', source: RANGE_SRC,
+                paint: { 'line-color': Theme.color('--anvil-scope-ring', '#9fe0ff'), 'line-width': 1.3, 'line-opacity': 0.55, 'line-blur': 0.3 },
+            }, beforeFor(map, RANGE_LAYER));
+        }
+    } else {
+        drop(map, [RANGE_LAYER], RANGE_SRC);
     }
 }
-function removeRangeRing(v) {
+function removeRings(v) {
     const map = v && v.map;
-    if (map && map.getLayer(RANGE_LAYER)) map.removeLayer(RANGE_LAYER);
-    if (map && map.getSource(RANGE_SRC)) map.removeSource(RANGE_SRC);
+    if (!map) return;
+    drop(map, [DIST_LABEL_LAYER, DIST_LAYER], DIST_SRC);
+    drop(map, [VEL_LAYER], VEL_SRC);
+    drop(map, [RANGE_LAYER], RANGE_SRC);
+}
+// Every pane has every ring it should — a pane added since the last frame fails this, which is what gets
+// it rings without a new decode.
+function allUp() {
+    let up = host.viewCount() > 0;
+    host.forEachView(function (v) {
+        const m = v.map;
+        if (rings.refl && !m.getLayer(RANGE_LAYER)) up = false;
+        if (rings.vel && velMeters > 0 && !m.getLayer(VEL_LAYER)) up = false;
+        if (rings.dist && !m.getLayer(DIST_LAYER)) up = false;
+    });
+    return up;
 }
 
-// Draw/update the ring for the freshly-decoded range. Per-frame ranges are ~identical, so
-// only rebuild when it actually changes (or a layer is missing, e.g. after a re-add). The sweep
-// pulse owns its own layer (added on demand in pulse()), so nothing to ensure here.
-export function setRange(rangeMeters) {
-    if (!host || !(rangeMeters > 0)) return;
-    const same = Math.abs(rangeMeters - currentRangeMeters) < 500;
-    // Unchanged radius AND every pane already has its ring up -> nothing to do. A pane added since
-    // the last frame fails the second test, which is what gets it a ring without a new decode.
-    let allUp = host.viewCount() > 0;
-    host.forEachView(function (v) { if (!v.map.getLayer(RANGE_LAYER)) allUp = false; });
-    if (same && allUp) {
-        return;
-    }
-    currentRangeMeters = rangeMeters;
-    host.forEachView(addRangeRing);
+// The DISPLAYED frame's reach (metres), from radar.js syncScope. Frames of one site and tilt reach the same
+// distance, so this only redraws when a radius really moves (a new site, a tilt) or a pane is missing its
+// rings. Returns true when the REFLECTIVITY reach moved — the ruler re-extends on that.
+export function setReach(refl, vel) {
+    if (!host || !(refl > 0)) return false;
+    const v = vel > 0 ? vel : 0;
+    const reflMoved = Math.abs(refl - reflMeters) >= 500;
+    const velMoved = Math.abs(v - velMeters) >= 500;
+    if (!reflMoved && !velMoved && allUp()) return false;
+    reflMeters = refl;
+    velMeters = v;
+    host.forEachView(drawRings);
+    return reflMoved;
 }
 
-// The drawn radius, in metres (0 = no frame decoded yet). ⚠️ The ONE radius on the page: radar-ruler.js
-// reads it through here rather than keeping its own, so the ruler's far end can never disagree with the
-// ring it lands on. Nothing else about the ruler is ours.
-export function getRange() { return currentRangeMeters; }
+// Which rings to draw (Settings → Radar). spacing = the distance rings' step in the unit, 0 = Auto.
+export function setRings(o) {
+    rings = { refl: !!o.refl, vel: !!o.vel, dist: !!o.dist, spacing: Number(o.spacing) > 0 ? Number(o.spacing) : 0 };
+    if (host) host.forEachView(drawRings);
+}
 
-// Re-read the ring colour into every pane's live layer — after Settings → Radar overrides it (map.js
-// setScopeColor writes --anvil-scope-ring inline on :root) or clears the override. A paint property holds
-// the colour it was given at add time, so the CSS change alone would not reach a ring already on screen.
+// The distance rings' unit (Settings → Radar → Readouts). Only they (and their labels) use it.
+export function setUnits(u) {
+    units = Geo.UNIT_METERS[u] ? u : 'km';
+    if (host && rings.dist) host.forEachView(drawRings);
+}
+
+// The reflectivity reach, in metres (0 = no frame yet). ⚠️ The ONE radius on the page: radar-ruler.js reads
+// it through here rather than keeping its own, so the ruler's far end can never disagree with the outline it
+// lands on — and it keeps ending there when the outline is switched off.
+export function getRange() { return reflMeters; }
+
+// Re-read the ring colours into every pane's live layers — after Settings → Radar overrides the outline's
+// (map.js setScopeColor writes --anvil-scope-ring inline on :root) or clears it. A paint property holds the
+// colour it was given at add time, so the CSS change alone would not reach a ring already on screen.
 // The sweep is deliberately untouched: its warm afterglow is not the ring's colour (see theme.css).
 export function refreshColors() {
     if (!host) return;
@@ -129,7 +247,7 @@ function sweepWedgeGeoJSON(leadRad, fade) {
     const s = host.getSite();
     const center = [s.lon, s.lat];
     const step = (SWEEP_TRAIL_DEG * Math.PI / 180) / SWEEP_TRAIL_N;
-    const tipAt = function (a) { return Geo.siteToLngLat(s.lat, s.lon, currentRangeMeters, a); };
+    const tipAt = function (a) { return Geo.siteToLngLat(s.lat, s.lon, reflMeters, a); };
     let prevTip = tipAt(leadRad);
     for (let i = 1; i <= SWEEP_TRAIL_N; i++) {
         const ang = leadRad - i * step;
@@ -154,7 +272,7 @@ function sweepWedgeGeoJSON(leadRad, fade) {
 // basemap they are drawn over.
 function ensureSweepLayer(v) {
     const map = v && v.map;
-    if (!map || !(currentRangeMeters > 0)) return;
+    if (!map || !(reflMeters > 0)) return;
     if (!map.getSource(SWEEP_SRC)) map.addSource(SWEEP_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
     const before = host.beforeId(map);
     // Fill = the fading wedge (renders only the Polygon features); line = the crisp arm (only the
@@ -183,7 +301,7 @@ function clearSweepData() {
 }
 function sweepPulseFrame() {
     sweepRaf = 0;
-    if (!host.viewCount() || !(currentRangeMeters > 0)) return; // nothing to draw (e.g. layer dropped)
+    if (!host.viewCount() || !(reflMeters > 0)) return; // nothing to draw (e.g. layer dropped)
     const el = performance.now() - sweepAnimStart;
     if (el >= SWEEP_MS + SWEEP_FADE_MS) { clearSweepData(); return; }            // revolution done → hide arm
     let lead, fade;
@@ -202,7 +320,7 @@ function sweepPulseFrame() {
 // Fire ONE sweep pulse (the app calls this when a genuinely-new frame lands). Restarts if one is
 // already mid-flight. No-op until a frame has decoded (no radius to sweep yet).
 export function pulse() {
-    if (!host || !(currentRangeMeters > 0)) return;
+    if (!host || !(reflMeters > 0)) return;
     host.forEachView(ensureSweepLayer);
     sweepAnimStart = performance.now();
     if (!sweepRaf) sweepRaf = requestAnimationFrame(sweepPulseFrame);
@@ -225,16 +343,16 @@ export function stop() {
 // created (setViews) and when a basemap switch drops its layers (reAdd).
 export function attachView(v) {
     if (!host) return;
-    addRangeRing(v);
+    drawRings(v);
     if (sweepRaf) ensureSweepLayer(v);
 }
 
-// Drop the ring + sweep everywhere and forget the radius — a new site, a clear, or a DOW frame. The
-// next decoded frame redraws the ring at the new range. (radar.js called this exact triad in three
-// places; it is one call now.)
+// Drop the rings + sweep everywhere and forget the radii — a new site, a clear, or a DOW frame. The next
+// displayed frame redraws them at its reach. The ring CHOICE (setRings) and unit survive: they're settings.
 export function reset() {
     if (!host) return;
-    host.forEachView(removeRangeRing);
+    host.forEachView(removeRings);
     stop();
-    currentRangeMeters = 0;
+    reflMeters = 0;
+    velMeters = 0;
 }
