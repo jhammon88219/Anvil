@@ -335,6 +335,38 @@ namespace Anvil.Services
 		private bool? _foreCastShowHatching;
 		public bool? ForeCastShowHatching { get => _foreCastShowHatching; set => SetProperty(ref _foreCastShowHatching, value); }
 
+		// ── Temporal SESSION: which modes were on, and each mode's window (MapViewModel "Temporal session") ──
+		// ⚠️ Restored at MAP-READY (a mode drives the map), before the home-site launch. Modes default OFF
+		// (the app has always launched clean), so these are plain bools. A window flag is only honoured while
+		// its mode is back on — a window can't outlive its mode.
+		private bool _pastCastOn;
+		public bool PastCastOn { get => _pastCastOn; set => SetProperty(ref _pastCastOn, value); }
+		private bool _nowCastOn;
+		public bool NowCastOn { get => _nowCastOn; set => SetProperty(ref _nowCastOn, value); }
+		private bool _foreCastOn;
+		public bool ForeCastOn { get => _foreCastOn; set => SetProperty(ref _foreCastOn, value); }
+
+		private bool _pastWindowOpen;
+		public bool PastWindowOpen { get => _pastWindowOpen; set => SetProperty(ref _pastWindowOpen, value); }
+		private bool _nowWindowOpen;
+		public bool NowWindowOpen { get => _nowWindowOpen; set => SetProperty(ref _nowWindowOpen, value); }
+		private bool _foreWindowOpen;
+		public bool ForeWindowOpen { get => _foreWindowOpen; set => SetProperty(ref _foreWindowOpen, value); }
+
+		// Title-bar pin + lock per temporal window. Nullable: null = the VM's house default (both ON).
+		private bool? _pastWindowOnTop;
+		public bool? PastWindowOnTop { get => _pastWindowOnTop; set => SetProperty(ref _pastWindowOnTop, value); }
+		private bool? _nowWindowOnTop;
+		public bool? NowWindowOnTop { get => _nowWindowOnTop; set => SetProperty(ref _nowWindowOnTop, value); }
+		private bool? _foreWindowOnTop;
+		public bool? ForeWindowOnTop { get => _foreWindowOnTop; set => SetProperty(ref _foreWindowOnTop, value); }
+		private bool? _pastWindowLocked;
+		public bool? PastWindowLocked { get => _pastWindowLocked; set => SetProperty(ref _pastWindowLocked, value); }
+		private bool? _nowWindowLocked;
+		public bool? NowWindowLocked { get => _nowWindowLocked; set => SetProperty(ref _nowWindowLocked, value); }
+		private bool? _foreWindowLocked;
+		public bool? ForeWindowLocked { get => _foreWindowLocked; set => SetProperty(ref _foreWindowLocked, value); }
+
 		private Dictionary<string, bool> _sectionExpanded = new();
 		/// <summary>Which temporal-window sections the user opened or closed, keyed "window/section"
 		/// (e.g. "now/warnings"). A key that is absent = the section's XAML default.</summary>

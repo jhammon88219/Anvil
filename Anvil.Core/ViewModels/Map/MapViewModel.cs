@@ -93,6 +93,10 @@ namespace Anvil.ViewModels
 			TemporalWindowPersistence.Attach(settingsService.Settings, Radar, Warnings, Watches, StormReports,
 				DamageSurveys, PastOutlook, Outlook);
 
+			// The temporal SESSION: window pin + lock now; modes + open windows at map-ready. See that region.
+			RestoreWindowChrome();
+			PropertyChanged += (_, e) => SaveTemporalSession(e.PropertyName);
+
 			// The range ruler can measure FROM the user-location marker, which Markers owns and Radar does not
 			// know about — so the coordinator hands the point across. Placed, dragged, re-located or removed:
 			// all of them end here. (HasUserLocationMarker covers add/remove/relocate; UserLocationMarker a drag.)
@@ -692,7 +696,83 @@ namespace Anvil.ViewModels
 		/// <summary>Open a mode's settings window. The one entry point for "show me the controls for that
 		/// timeframe" — used by the mode setters when a mode is switched on, and the mirror of
 		/// <see cref="OpenSettings"/>.</summary>
-		public void OpenTemporal(TemporalMode which) => SetTemporalWindowOpen(which, true);
+		public void OpenTemporal(TemporalMode which)
+		{
+			// While the session is being restored, a mode coming back on must NOT pop its window — the saved
+			// window flag decides that, and an open-then-close would flash a real OS window.
+			if (_restoringSession) { return; }
+			SetTemporalWindowOpen(which, true);
+		}
+
+		// ===== Temporal SESSION (which modes were on + their windows) — persisted =====================
+		// ⚠️ PIN + LOCK restore in the CONSTRUCTOR (pure VM state; WindowManager reads them as it opens).
+		// ⚠️ MODES + WINDOWS restore at MAP-READY (RestoreTemporalSession): turning a mode on drives the map.
+		// Saving starts only after that restore, and stops at Shutdown — the app closing is not the user
+		// switching things off (WindowManager closes the windows programmatically then, but belt and braces).
+		// ⚠️ PastCast comes back ARMED, not loaded: the saved timeframe is in the pickers, Load is one click.
+		private bool _restoringSession;
+		private bool _sessionRestored;
+		private bool _shuttingDown;
+
+		private void RestoreWindowChrome()
+		{
+			var s = _settingsService.Settings;
+			if (s.PastWindowOnTop is bool pt) { IsPastWindowOnTop = pt; }
+			if (s.NowWindowOnTop is bool nt) { IsNowWindowOnTop = nt; }
+			if (s.ForeWindowOnTop is bool ft) { IsForeWindowOnTop = ft; }
+			if (s.PastWindowLocked is bool pl) { IsPastWindowLocked = pl; }
+			if (s.NowWindowLocked is bool nl) { IsNowWindowLocked = nl; }
+			if (s.ForeWindowLocked is bool fl) { IsForeWindowLocked = fl; }
+		}
+
+		internal void RestoreTemporalSession() // internal: TemporalSessionTests call it without a full map-ready
+		{
+			if (_sessionRestored) { return; }
+			var s = _settingsService.Settings;
+			_restoringSession = true;
+			try
+			{
+				// Past excludes Now + Fore, so a file can't honestly hold both; Past wins if it somehow does.
+				if (s.PastCastOn) { IsPastCast = true; }
+				else
+				{
+					if (s.NowCastOn) { IsNowCast = true; }
+					if (s.ForeCastOn) { IsForeCast = true; }
+				}
+			}
+			finally { _restoringSession = false; }
+
+			// A window only comes back with its mode (a window can't outlive its mode).
+			IsPastWindowOpen = IsPastCast && s.PastWindowOpen;
+			IsNowWindowOpen = IsNowCast && s.NowWindowOpen;
+			IsForeWindowOpen = IsForeCast && s.ForeWindowOpen;
+			_sessionRestored = true;
+		}
+
+		private void SaveTemporalSession(string? property)
+		{
+			if (_shuttingDown) { return; }
+			var s = _settingsService.Settings;
+			switch (property)
+			{
+				case nameof(IsPastWindowOnTop): s.PastWindowOnTop = IsPastWindowOnTop; return;
+				case nameof(IsNowWindowOnTop): s.NowWindowOnTop = IsNowWindowOnTop; return;
+				case nameof(IsForeWindowOnTop): s.ForeWindowOnTop = IsForeWindowOnTop; return;
+				case nameof(IsPastWindowLocked): s.PastWindowLocked = IsPastWindowLocked; return;
+				case nameof(IsNowWindowLocked): s.NowWindowLocked = IsNowWindowLocked; return;
+				case nameof(IsForeWindowLocked): s.ForeWindowLocked = IsForeWindowLocked; return;
+			}
+			if (!_sessionRestored) { return; } // the launch state (all off) isn't a choice
+			switch (property)
+			{
+				case nameof(IsPastCast): s.PastCastOn = IsPastCast; break;
+				case nameof(IsNowCast): s.NowCastOn = IsNowCast; break;
+				case nameof(IsForeCast): s.ForeCastOn = IsForeCast; break;
+				case nameof(IsPastWindowOpen): s.PastWindowOpen = IsPastWindowOpen; break;
+				case nameof(IsNowWindowOpen): s.NowWindowOpen = IsNowWindowOpen; break;
+				case nameof(IsForeWindowOpen): s.ForeWindowOpen = IsForeWindowOpen; break;
+			}
+		}
 
 		// ===== App-wide windows (Settings / Radar Atlas) ================================================
 		// Same model as the temporal windows above: one independent bool per window, opened by its key on the
@@ -1185,6 +1265,9 @@ namespace Anvil.ViewModels
 			await DamageSurveys.OnMapsReadyAsync(); // no Shutdown: it has no loop
 			await StateIso.OnMapsReadyAsync();
 			RadarNws.Start(); // the launch NWS status check — fire-and-forget, it touches no map
+			// The modes that were on last run, and their windows. BEFORE the home-site launch: a restored
+			// PastCast means "replay", and SiteFavorites skips starting a live loop in that case.
+			RestoreTemporalSession();
 			// LAST: load-home-on-launch flies the camera, and an isolation replay above would override it.
 			await SiteFavorites.OnMapsReadyAsync();
 		}
@@ -1212,6 +1295,8 @@ namespace Anvil.ViewModels
 		/// </remarks>
 		public void Shutdown()
 		{
+			_shuttingDown = true; // from here on, nothing that switches off is a user choice — see Temporal SESSION
+
 			// The console polls the WebView on a 400 ms timer while open — stop it before the WebView goes.
 			PipelineConsole.IsOpen = false;
 

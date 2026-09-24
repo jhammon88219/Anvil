@@ -193,7 +193,9 @@ namespace Anvil.ViewModels
 			if (_launchHandled) return Task.CompletedTask;
 			_launchHandled = true;
 
-			if (LoadHomeOnLaunch && IsHomeShown && CanPickSites)
+			// Not when PastCast came back from the last session: a live loop means nothing in replay, and
+			// starting one would only be torn down (MapViewModel restores the modes just before this).
+			if (LoadHomeOnLaunch && IsHomeShown && CanPickSites && !_radar.IsPastEventMode)
 			{
 				LoadOnMap(HomeSite!);
 			}
