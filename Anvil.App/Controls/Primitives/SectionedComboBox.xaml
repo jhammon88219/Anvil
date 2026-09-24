@@ -45,6 +45,9 @@
      scroll the WHOLE dropdown and carry the pinned section out of view — the one thing it must not do.
      With it off, the main list's * row is what shrinks.
 
+     ⚠️ The flyout is a WINDOWED popup (ShouldConstrainToRootBounds="False") so it opens ABOVE the
+     over-map panel windows, which are OS windows owned by the main window. Same on Product/TiltComboBox.
+
      ⚠️ The flyout is given an explicitly OPAQUE surface: the default flyout brush is acrylic and washes
      out over the map.
 
@@ -147,7 +150,10 @@
                   IsHitTestVisible="False"/>
 
         <FlyoutBase.AttachedFlyout>
-            <Flyout x:Name="DropDown" Opening="OnDropDownOpening" Opened="OnDropDownOpened">
+            <!-- ⚠️ ShouldConstrainToRootBounds="False" = a WINDOWED popup (its own HWND). Constrained, the
+                 dropdown draws inside the main window's surface, and every over-map panel is an OS window
+                 OWNED by the main window, so it paints over the dropdown (NowCast hid the site list). -->
+            <Flyout x:Name="DropDown" ShouldConstrainToRootBounds="False" Opening="OnDropDownOpening" Opened="OnDropDownOpened">
                 <Flyout.FlyoutPresenterStyle>
                     <Style TargetType="FlyoutPresenter">
                         <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>

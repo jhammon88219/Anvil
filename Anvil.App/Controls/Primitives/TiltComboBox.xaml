@@ -76,7 +76,8 @@
                   IsHitTestVisible="False"/>
 
         <FlyoutBase.AttachedFlyout>
-            <Flyout x:Name="DropDown" Placement="Bottom" Opening="OnDropDownOpening">
+            <!-- ⚠️ Windowed popup, or an owned panel window paints over it (see SectionedComboBox). -->
+            <Flyout x:Name="DropDown" Placement="Bottom" ShouldConstrainToRootBounds="False" Opening="OnDropDownOpening">
                 <Flyout.FlyoutPresenterStyle>
                     <Style TargetType="FlyoutPresenter">
                         <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
