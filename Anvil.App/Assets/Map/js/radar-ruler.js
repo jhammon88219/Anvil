@@ -313,6 +313,7 @@ function removeLayers(v) {
 // ---- Handles + chip (primary pane only) ------------------------------------------------------------
 // Both handles bake their colours into SVG markup, so a theme or colour change can't re-cascade them —
 // refresh() re-renders both, the way markers.js does for the reticle.
+// ⚠️ radar-scope.js handleSvg() (the distance-label handle) is a deliberate COPY of this — change both.
 function knobSvg() {
     const casing = casingColor(), ink = inkColor();
     return '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">' +

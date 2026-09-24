@@ -13,12 +13,13 @@
 //
 //   THE LABEL HANDLE (primary pane only, DOM, like the ruler's knob):
 //
-//                                                 450 km     the outermost label lifts clear of the handle
-//              ╳ ─ ┆ 100 km ─ ┆ 200 km ─ … ───────(⟳)       (⟳) a 30 px round grip ON the OUTERMOST distance
-//            site                                            ring, at the labels' bearing. Drag it round and
-//                                                            every label swings with it, live, in every pane;
-//                                                            let go and the bearing is posted to the host
-//                                                            (rangeRingLabelBearing) to persist.
+//                                                 450 km     a label on/near the outer ring lifts clear of it
+//              ╳ ─ ┆ 100 km ─ ┆ 200 km ─ … ───────◉        ◉ the ruler's KNOB, drawn identically (24 px ink
+//            site                          outer ring ┘      disc, dark casing, centre dot), ON the OUTER ring
+//                                                            (reach.refl, the ring the ruler's knob rides), at
+//                                                            the labels' bearing. Drag it round and every label
+//                                                            swings with it, live, in every pane; let go and
+//                                                            the bearing is posted (rangeRingLabelBearing).
 //
 //   WHICH RINGS: Settings → Radar Range Ring (setRings; default outline + velocity). HOW THEY LOOK: the same
 //   tab (setStyle — per-ring opacity/width/pattern, velocity/distance/label colours, label size/halo/bearing,
@@ -129,16 +130,16 @@ function distRingsData() {
     return { type: 'FeatureCollection', features: distRadii().map(ringFeature) };
 }
 // The labels are a SEPARATE source from the rings they name: moving them (the handle, the Position slider)
-// then re-tiles only a few points, never the ring lines. The outermost carries `outer` so its text lifts
-// clear of the handle sitting on that ring.
+// then re-tiles only a few points, never the ring lines. A label sitting on (or just inside) the OUTER ring —
+// where the handle rides — carries `outer` so its text lifts clear of the handle.
 function distLabelsData() {
     const per = Geo.UNIT_METERS[units] || 1000, s = host.getSite(), az = style.bearing * Geo.D2R;
-    const radii = distRadii();
+    const near = stepMeters() * 0.3;
     return {
         type: 'FeatureCollection',
-        features: radii.map(function (r, i) {
+        features: distRadii().map(function (r) {
             return {
-                type: 'Feature', properties: { label: Math.round(r / per) + ' ' + units, outer: i === radii.length - 1 },
+                type: 'Feature', properties: { label: Math.round(r / per) + ' ' + units, outer: Math.abs(r - reflMeters) < near },
                 geometry: { type: 'Point', coordinates: Geo.siteToLngLat(s.lat, s.lon, r, az) },
             };
         }),
@@ -245,7 +246,7 @@ function drawRings(v) {
             layout: {
                 // ⚠️ 'Noto Sans Medium' — the one stack the bundled glyph host serves (see radar-ruler.js).
                 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Medium'], 'text-size': style.label.size,
-                // The outermost label lifts well clear of the handle that sits on its ring.
+                // A label on/near the OUTER ring lifts well clear of the handle that rides it.
                 'text-offset': ['case', ['boolean', ['get', 'outer'], false], ['literal', [0, -2.3]], ['literal', [0, -0.7]]],
                 'text-allow-overlap': labelsLive, 'text-ignore-placement': labelsLive, 'text-padding': 4,
             },
@@ -302,35 +303,35 @@ function moveLabels() {
 }
 
 // ---- The label handle (primary pane only) ----
-// A DOM marker ON the outermost distance ring, at the labels' bearing. Dragging it takes only the BEARING
-// (like the ruler's knob): the handle is snapped back onto the ring every move, and the labels in every pane
-// follow live. Letting go posts the bearing to the host, which persists it and deliberately does NOT push it
-// back (RangeRingsViewModel.OnLabelBearingDragged).
+// A DOM marker ON the OUTER ring — the reflectivity reach, the ring the ruler's knob rides — at the labels'
+// bearing. Dragging it takes only the BEARING (exactly the ruler's knob): the handle is snapped back onto the
+// ring every move, and the labels in every pane follow live. Letting go posts the bearing to the host, which
+// persists it and deliberately does NOT push it back (RangeRingsViewModel.OnLabelBearingDragged).
 function handleWanted() { return !!(host && rings.dist && style.handle && reflMeters > 0); }
 function handleLngLat() {
-    const s = host.getSite(), radii = distRadii();
-    return Geo.siteToLngLat(s.lat, s.lon, radii[radii.length - 1] || stepMeters(), style.bearing * Geo.D2R);
+    const s = host.getSite();
+    return Geo.siteToLngLat(s.lat, s.lon, reflMeters, style.bearing * Geo.D2R);
 }
-// A round grip with a circular double arrow ("swing me round"), in the labels' colour on a dark casing and a
-// soft glow — it has to read over bright returns and the dark basemap alike.
+// ⚠️ A COPY of radar-ruler.js knobSvg() — same size, same ink disc on a dark casing with a casing-coloured
+// centre dot, same colour variables — so the two "swing me round the ring" handles read as one kind of
+// control. Change both or neither.
 function handleSvg() {
-    const fill = labelColor(), casing = casingColor();
-    return '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">' +
-        '<circle cx="15" cy="15" r="12" fill="' + fill + '" stroke="' + casing + '" stroke-width="2.5"/>' +
-        '<path d="M9.2 13.2 A6 6 0 0 1 19.8 11.4" fill="none" stroke="' + casing + '" stroke-width="2" stroke-linecap="round"/>' +
-        '<path d="M20.8 16.8 A6 6 0 0 1 10.2 18.6" fill="none" stroke="' + casing + '" stroke-width="2" stroke-linecap="round"/>' +
-        '<path d="M20.9 8.4 L20.4 12.4 L16.6 11.3 Z" fill="' + casing + '"/>' +
-        '<path d="M9.1 21.6 L9.6 17.6 L13.4 18.7 Z" fill="' + casing + '"/></svg>';
+    const casing = casingColor(), ink = Theme.color('--anvil-ruler-ink', '#e8edf2');
+    return '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">' +
+        '<circle cx="12" cy="12" r="7.5" fill="' + ink + '" stroke="' + casing + '" stroke-width="1.5"/>' +
+        '<circle cx="12" cy="12" r="2.5" fill="' + casing + '"/></svg>';
 }
 function ensureHandleStyle() {
     if (document.getElementById('radar-ring-handle-style')) return;
     const s = document.createElement('style');
     s.id = 'radar-ring-handle-style';
+    // ⚠️ Same shape as radar-ruler.js's handle CSS: the ELEMENT gets the cursor and nothing else. MapLibre
+    // positions a marker by writing `transform: translate(...)` on that element, so a transform transition
+    // (or a hover scale) there animates/overrides its POSITION — the handle lagged and wobbled on every pan.
     s.textContent =
-        '.radar-ring-handle{cursor:grab;transition:transform .15s ease;}' +
-        '.radar-ring-handle:hover{transform:scale(1.15);}' +
+        '.radar-ring-handle{cursor:grab;}' +
         '.radar-ring-handle:active{cursor:grabbing;}' +
-        '.radar-ring-handle svg{display:block;filter:drop-shadow(0 0 3px rgba(0,0,0,.9)) drop-shadow(0 1px 2px rgba(0,0,0,.7));}';
+        '.radar-ring-handle svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));}';
     document.head.appendChild(s);
 }
 // A dragged point → bearing from the site, whole degrees. In the site's own frame (geo.js metres per degree),
