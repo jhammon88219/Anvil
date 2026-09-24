@@ -14,13 +14,21 @@
        │    Line      [ Solid | Dashed | Dotted | Dash-dot ]      │
        │  ⌄  Velocity reach          (same four rows)             │
        │  ⌄  Distance rings          (same four rows)             │  ← greyed while distance rings are off
-       │  ⌄  Distance labels                                      │
+       │  ⌄  Distance labels ("100 mi", "200 mi"…)               │
        │    Colour    (A)(■)(■)(■)(■)(■)(■)(+)                    │  ← A = same as the distance rings
        │    Opacity   ━━━━━━━━━━━━●  100 %                        │
+       │    Font      [ Regular | Medium | Italic ]               │  ← only the bundled glyph stacks
        │    Size      ━━━●━━━━━━━━━  10 px                        │
+       │    Spacing   ●━━━━━━━━━━━━  0.00 em                      │  ← letter spacing
        │    Halo      ━━●━━━━━━━━━━  1.2 px                       │
-       │    Position  ━━━━━━●━━━━━━  045°  [ North ]              │  ← also set by dragging the ⟳ handle
-       │    [x] Show the drag handle on the map                   │
+       │    Halo colour (A)(■)(■)(■)(■)(■)(■)(+)                  │  ← A = the theme's dark casing
+       │    Placement [ Above | On the ring | Below ]             │
+       │    Lines     [ 1 | 2 | 4 ]                               │  ← label lines round the site
+       │    Position  ━━━━━━●━━━━━━  045°  [ North ]              │  ← also set by dragging the knob
+       │    [x] Show the unit (100 mi, not 100)                   │
+       │    [x] Show the drag knob on the map                     │
+       │  ⌄  Knobs                                                │
+       │    Size      ━━━━●━━━━━━━━  32 px                        │  ← SHARED: label knob + ruler knob
        │  ⌄  Range ruler                                          │
        │    Ruler from [ Radar site | My location ]               │
        │                                   [ Restore default look ]│  ← look only; which rings is kept
@@ -49,6 +57,7 @@
             <RowDefinition Height="Auto"/> <!-- velocity -->
             <RowDefinition Height="Auto"/> <!-- distance -->
             <RowDefinition Height="Auto"/> <!-- labels -->
+            <RowDefinition Height="Auto"/> <!-- knobs -->
             <RowDefinition Height="Auto"/> <!-- ruler -->
             <RowDefinition Height="Auto"/> <!-- restore -->
         </Grid.RowDefinitions>
@@ -111,7 +120,8 @@
                                  IsEnabled="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}"/>
         </Expander>
 
-        <!-- DISTANCE LABELS - their own rows, not a RingStyleEditor: text has a size and a halo, not a pattern. -->
+        <!-- DISTANCE LABELS - their own rows, not a RingStyleEditor: text has a font, size and halo, not a pattern.
+             Grouped: how the text LOOKS, then what it SAYS and where it SITS. -->
         <Expander Grid.Row="4" Header="Distance labels" IsExpanded="True"
                   Style="{StaticResource SectionExpanderStyle}">
             <!-- ⚠️ A ContentControl only to carry IsEnabled: a Panel has none, and it greys every row at once. -->
@@ -119,12 +129,18 @@
                             IsEnabled="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}">
             <Grid RowSpacing="8" ColumnSpacing="12">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- colour -->
-                    <RowDefinition Height="Auto"/> <!-- opacity -->
-                    <RowDefinition Height="Auto"/> <!-- size -->
-                    <RowDefinition Height="Auto"/> <!-- halo -->
-                    <RowDefinition Height="Auto"/> <!-- position -->
-                    <RowDefinition Height="Auto"/> <!-- handle -->
+                    <RowDefinition Height="Auto"/> <!-- 0 colour -->
+                    <RowDefinition Height="Auto"/> <!-- 1 opacity -->
+                    <RowDefinition Height="Auto"/> <!-- 2 font -->
+                    <RowDefinition Height="Auto"/> <!-- 3 size -->
+                    <RowDefinition Height="Auto"/> <!-- 4 letter spacing -->
+                    <RowDefinition Height="Auto"/> <!-- 5 halo width -->
+                    <RowDefinition Height="Auto"/> <!-- 6 halo colour -->
+                    <RowDefinition Height="Auto"/> <!-- 7 placement -->
+                    <RowDefinition Height="Auto"/> <!-- 8 label lines -->
+                    <RowDefinition Height="Auto"/> <!-- 9 position -->
+                    <RowDefinition Height="Auto"/> <!-- 10 show unit -->
+                    <RowDefinition Height="Auto"/> <!-- 11 handle -->
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="72"/>
@@ -148,30 +164,69 @@
                 <TextBlock Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
                            Text="{x:Bind Pct(ViewModel.Radar.RangeRings.LabelOpacity), Mode=OneWay}"/>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Size"/>
-                <Slider Grid.Row="2" Grid.Column="1" Width="220" VerticalAlignment="Center"
-                        Minimum="8" Maximum="20" StepFrequency="1" SmallChange="1" LargeChange="2"
+                <!-- Only the three stacks the bundled glyph host serves; any other renders nothing. -->
+                <TextBlock Grid.Row="2" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Font"/>
+                <prim:SegmentedPicker Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
+                                      HorizontalAlignment="Left" Width="240"
+                                      ItemsSource="{x:Bind ViewModel.Radar.RangeRings.LabelFontLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.LabelFontIndex, Mode=TwoWay}"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Size"/>
+                <Slider Grid.Row="3" Grid.Column="1" Width="220" VerticalAlignment="Center"
+                        Minimum="8" Maximum="24" StepFrequency="1" SmallChange="1" LargeChange="2"
                         IsThumbToolTipEnabled="False"
                         Value="{x:Bind ViewModel.Radar.RangeRings.LabelSize, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
+                <TextBlock Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
                            Text="{x:Bind Px0(ViewModel.Radar.RangeRings.LabelSize), Mode=OneWay}"/>
 
-                <TextBlock Grid.Row="3" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Halo"/>
-                <Slider Grid.Row="3" Grid.Column="1" Width="220" VerticalAlignment="Center"
+                <TextBlock Grid.Row="4" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Spacing"/>
+                <Slider Grid.Row="4" Grid.Column="1" Width="220" VerticalAlignment="Center"
+                        Minimum="0" Maximum="0.5" StepFrequency="0.01" SmallChange="0.01" LargeChange="0.05"
+                        IsThumbToolTipEnabled="False"
+                        ToolTipService.ToolTip="Extra space between the letters"
+                        Value="{x:Bind ViewModel.Radar.RangeRings.LabelSpacing, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="4" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
+                           Text="{x:Bind Em(ViewModel.Radar.RangeRings.LabelSpacing), Mode=OneWay}"/>
+
+                <TextBlock Grid.Row="5" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Halo"/>
+                <Slider Grid.Row="5" Grid.Column="1" Width="220" VerticalAlignment="Center"
                         Minimum="0" Maximum="4" StepFrequency="0.1" SmallChange="0.1" LargeChange="0.5"
                         IsThumbToolTipEnabled="False"
-                        ToolTipService.ToolTip="The dark outline behind each label that keeps it readable over radar returns"
+                        ToolTipService.ToolTip="The outline behind each label that keeps it readable over radar returns (0 = none)"
                         Value="{x:Bind ViewModel.Radar.RangeRings.LabelHalo, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
+                <TextBlock Grid.Row="5" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
                            Text="{x:Bind Px(ViewModel.Radar.RangeRings.LabelHalo), Mode=OneWay}"/>
 
-                <TextBlock Grid.Row="4" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Position"/>
-                <Slider Grid.Row="4" Grid.Column="1" Width="220" VerticalAlignment="Center"
+                <TextBlock Grid.Row="6" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Halo colour"
+                           TextWrapping="Wrap"/>
+                <prim:ColorSwatchPicker Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Left"
+                                        AllowCustom="True"
+                                        ItemsSource="{x:Bind ViewModel.Radar.RangeRings.HaloColorSwatches}"
+                                        ToolTips="{x:Bind ViewModel.Radar.RangeRings.HaloColorNames}"
+                                        SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.HaloColorIndex, Mode=TwoWay}"
+                                        CustomHex="{x:Bind ViewModel.Radar.RangeRings.HaloColorHex, Mode=TwoWay}"/>
+
+                <TextBlock Grid.Row="7" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Placement"/>
+                <prim:SegmentedPicker Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="2"
+                                      HorizontalAlignment="Left" Width="280"
+                                      ItemsSource="{x:Bind ViewModel.Radar.RangeRings.LabelPlacementLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.LabelPlacementIndex, Mode=TwoWay}"
+                                      ToolTipService.ToolTip="Where each label sits against its ring"/>
+
+                <TextBlock Grid.Row="8" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Lines"/>
+                <prim:SegmentedPicker Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2"
+                                      HorizontalAlignment="Left" Width="160"
+                                      ItemsSource="{x:Bind ViewModel.Radar.RangeRings.LabelAxesLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.LabelAxesIndex, Mode=TwoWay}"
+                                      ToolTipService.ToolTip="How many lines of labels run out from the site, evenly spaced round from the Position bearing"/>
+
+                <TextBlock Grid.Row="9" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Position"/>
+                <Slider Grid.Row="9" Grid.Column="1" Width="220" VerticalAlignment="Center"
                         Minimum="0" Maximum="359" StepFrequency="1" SmallChange="1" LargeChange="15"
                         IsThumbToolTipEnabled="False"
-                        ToolTipService.ToolTip="The bearing the labels sit on, clockwise from north. You can also drag the handle on the outer range ring (it looks like the range ruler's knob)"
+                        ToolTipService.ToolTip="The bearing the labels sit on, clockwise from north. You can also drag the knob on the outer range ring"
                         Value="{x:Bind ViewModel.Radar.RangeRings.LabelBearing, Mode=TwoWay}"/>
-                <StackPanel Grid.Row="4" Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <StackPanel Grid.Row="9" Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                     <TextBlock VerticalAlignment="Center" Opacity="0.75" MinWidth="36"
                                Text="{x:Bind Deg(ViewModel.Radar.RangeRings.LabelBearing), Mode=OneWay}"/>
                     <Button Content="North" Padding="10,2"
@@ -179,18 +234,49 @@
                             ToolTipService.ToolTip="Put the labels back due north of the site"/>
                 </StackPanel>
 
-                <CheckBox Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Margin="4,0,0,0"
-                          Content="Show the drag handle on the map"
+                <CheckBox Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="3" Margin="4,0,0,0"
+                          Content="Show the unit (100 mi, not 100)"
+                          IsChecked="{x:Bind ViewModel.Radar.RangeRings.LabelShowUnits, Mode=TwoWay}"/>
+
+                <CheckBox Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="3" Margin="4,0,0,0"
+                          Content="Show the drag knob on the map"
                           IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowLabelHandle, Mode=TwoWay}"
-                          ToolTipService.ToolTip="The handle on the outer range ring, drawn like the range ruler's knob. Drag it around to move every label; hide it once they're where you want them"/>
+                          ToolTipService.ToolTip="The knob on the outer range ring, drawn like the range ruler's. Drag it around to move every label; hide it once they're where you want them"/>
             </Grid>
             </ContentControl>
+        </Expander>
+
+        <!-- KNOBS - their own section, NOT under the labels: the size is SHARED with the range ruler's knob (the two
+             are drawn identically), so it must stay live while the distance rings are off. -->
+        <Expander Grid.Row="5" Header="Knobs" IsExpanded="True"
+                  Style="{StaticResource SectionExpanderStyle}">
+            <Grid RowSpacing="6" ColumnSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Row="0" Grid.Column="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Size"/>
+                <Slider Grid.Row="0" Grid.Column="1" Width="220" VerticalAlignment="Center"
+                        Minimum="20" Maximum="48" StepFrequency="1" SmallChange="1" LargeChange="4"
+                        IsThumbToolTipEnabled="False"
+                        Value="{x:Bind ViewModel.Radar.RangeRings.KnobSize, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Opacity="0.75"
+                           Text="{x:Bind Px0(ViewModel.Radar.RangeRings.KnobSize), Mode=OneWay}"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="4,0,0,0" Opacity="0.75"
+                           TextWrapping="Wrap" MaxWidth="420" HorizontalAlignment="Left"
+                           Text="Sizes both knobs that ride the outer ring: the distance-label knob and the range ruler's."/>
+            </Grid>
         </Expander>
 
         <!-- RANGE RULER - the anchor preference behind the tools tier's Ruler key (arming it is a gesture and
              stays on the tier). ⚠️ "My location" is kept even with no location marker placed - the ruler
              measures from the site meanwhile and its chip says so. Don't grey the segment. -->
-        <Expander Grid.Row="5" Header="Range ruler" IsExpanded="True"
+        <Expander Grid.Row="6" Header="Range ruler" IsExpanded="True"
                   Style="{StaticResource SectionExpanderStyle}">
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
@@ -206,7 +292,7 @@
             </Grid>
         </Expander>
 
-        <Button Grid.Row="6" HorizontalAlignment="Right" Margin="0,4,0,0"
+        <Button Grid.Row="7" HorizontalAlignment="Right" Margin="0,4,0,0"
                 Content="Restore default look"
                 Click="{x:Bind ViewModel.Radar.RangeRings.ResetLook}"
                 ToolTipService.ToolTip="Put every ring's colour, opacity, thickness and line, and the labels, back to how they started. Which rings are shown is kept"/>

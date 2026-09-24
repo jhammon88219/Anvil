@@ -21,9 +21,11 @@
 //                                                            swings with it, live, in every pane; let go and
 //                                                            the bearing is posted (rangeRingLabelBearing).
 //
+//   ON/OFF: the tools tier's rings key (setRings `all`, the MASTER — a fade, the choice below survives it).
 //   WHICH RINGS: Settings → Radar Range Ring (setRings; default outline + velocity). HOW THEY LOOK: the same
-//   tab (setStyle — per-ring opacity/width/pattern, velocity/distance/label colours, label size/halo/bearing,
-//   handle on/off). SIZE: the DISPLAYED frame's reach (radar.js syncScope → setReach), never the last frame to
+//   tab (setStyle — per-ring opacity/width/pattern, velocity/distance/label colours; label font, size, letter
+//   spacing, halo width + colour, placement above/on/below, unit on/off, 1/2/4 label lines, bearing; handle
+//   on/off and KNOB SIZE, which radar.js also hands to the ruler's knob). SIZE: the DISPLAYED frame's reach (radar.js syncScope → setReach), never the last frame to
 //   decode. The distance rings do NOT follow the data — they run to DIST_EXTENT_M so they stay put when a
 //   TDWR's upper tilt shrinks the other two to 89 km; only Auto spacing reads the reach.
 //   ⚠️ The OUTLINE's colour is the --anvil-scope-ring CSS variable (map.js setScopeColor), shared with the
@@ -80,7 +82,8 @@ const DASHES = { solid: null, dashed: [4, 3], dotted: [1, 3], dashdot: [6, 3, 1,
 // { forEachView(fn), viewCount(), primaryView(), beforeId(map), getSite() -> {lat,lon} } — from radar.js.
 let host = null;
 let reflMeters = 0, velMeters = 0;                          // the DISPLAYED frame's reach (setReach)
-let rings = { refl: true, vel: true, dist: false, spacing: 0 }; // setRings; spacing 0 = Auto
+// setRings; spacing 0 = Auto. `all` is the MASTER switch (the tools tier's rings key) over the other three.
+let rings = { all: true, refl: true, vel: true, dist: false, spacing: 0 };
 let units = 'km';                                            // setUnits — the distance rings' unit
 // setStyle. ⚠️ These defaults MIRROR RingStyle.*Default / RingLabelStyle.Default: they are what draws before
 // the host's first push (and the host pushes at map-ready, so they rarely show).
@@ -88,10 +91,17 @@ let style = {
     refl: { op: 0.55, w: 1.3, line: 'solid' },
     vel: { color: '', op: 0.6, w: 1.2, line: 'dashed' },
     dist: { color: '', op: 0.45, w: 0.8, line: 'dotted' },
-    label: { color: '', op: 1, size: 10, halo: 1.2 },
-    bearing: 0,     // degrees clockwise from north — where the distance labels sit
+    label: { color: '', op: 1, size: 10, halo: 1.2, haloColor: '', font: 'medium', spacing: 0, placement: 'above', units: true, axes: 1 },
+    bearing: 0,     // degrees clockwise from north — where the distance labels sit (the FIRST label line)
     handle: true,   // show the label handle
+    knob: 32,       // the handle's size, px (the ruler's knob takes the same — radar.js)
 };
+// Label fonts → the glyph stacks the bundled host serves. ⚠️ MIRRORS RingLabelFonts; a stack the host lacks
+// renders NOTHING, so only these three.
+const FONTS = { regular: 'Noto Sans Regular', medium: 'Noto Sans Medium', italic: 'Noto Sans Italic' };
+// Label placement → text-offset (ems, screen-up is negative). ⚠️ MIRRORS RingLabelPlacements.
+const PLACE_EM = { above: -0.7, on: 0, below: 0.7 };
+const OUTER_LIFT_EM = 2.3;    // a label at the outer ring clears the knob by this much (knob-size scaled)
 let labelHandle = null, handleMap = null;                    // the DOM handle + the map it lives on
 let sweepAnimStart = 0, sweepRaf = 0;
 
@@ -132,18 +142,30 @@ function distRingsData() {
 // The labels are a SEPARATE source from the rings they name: moving them (the handle, the Position slider)
 // then re-tiles only a few points, never the ring lines. A label sitting on (or just inside) the OUTER ring —
 // where the handle rides — carries `outer` so its text lifts clear of the handle.
+// With more than one label LINE (axes 2 or 4) the extra lines are spaced evenly round from the handle's
+// bearing; only the FIRST line has a handle, so only its outer label lifts.
 function distLabelsData() {
-    const per = Geo.UNIT_METERS[units] || 1000, s = host.getSite(), az = style.bearing * Geo.D2R;
-    const near = stepMeters() * 0.3;
-    return {
-        type: 'FeatureCollection',
-        features: distRadii().map(function (r) {
-            return {
-                type: 'Feature', properties: { label: Math.round(r / per) + ' ' + units, outer: Math.abs(r - reflMeters) < near },
+    const per = Geo.UNIT_METERS[units] || 1000, s = host.getSite(), near = stepMeters() * 0.3;
+    const n = style.label.axes || 1, features = [];
+    distRadii().forEach(function (r) {
+        const text = Math.round(r / per) + (style.label.units ? ' ' + units : '');
+        for (let a = 0; a < n; a++) {
+            const az = (style.bearing + a * 360 / n) * Geo.D2R;
+            features.push({
+                type: 'Feature', properties: { label: text, outer: a === 0 && Math.abs(r - reflMeters) < near },
                 geometry: { type: 'Point', coordinates: Geo.siteToLngLat(s.lat, s.lon, r, az) },
-            };
-        }),
-    };
+            });
+        }
+    });
+    return { type: 'FeatureCollection', features: features };
+}
+// The labels' text-offset: the placement for every label, and a lift (away from the ring, same side as the
+// placement; "on" lifts up) for the one sitting under the knob, scaled with the knob and the text.
+function labelOffset() {
+    const base = PLACE_EM[style.label.placement] || 0;
+    const lift = OUTER_LIFT_EM * (style.knob / 24) * (10 / style.label.size);
+    const outer = base > 0 ? base + lift : Math.min(base, 0) - lift;
+    return ['case', ['boolean', ['get', 'outer'], false], ['literal', [0, outer]], ['literal', [0, base]]];
 }
 
 // ---- Looks ----
@@ -154,6 +176,7 @@ function velColor() { return style.vel.color || Theme.color('--anvil-scope-vel',
 function distColor() { return style.dist.color || Theme.color('--anvil-scope-dist', '#c7cdd4'); }
 function labelColor() { return style.label.color || distColor(); }
 function casingColor() { return Theme.color('--anvil-ruler-casing', '#000000'); }
+function haloColor() { return style.label.haloColor || casingColor(); }
 
 // Merge a pushed style over the current one, field by field, dropping anything malformed: every value lands
 // in a MapLibre paint property, where NaN or a non-colour throws mid-render.
@@ -172,10 +195,14 @@ function mergeRing(cur, o) {
 // velocity reach.
 function ringTargets() {
     return [
-        { id: RANGE_LAYER, s: style.refl, color: reflColor(), on: rings.refl },
-        { id: VEL_LAYER, s: style.vel, color: velColor(), on: rings.vel && velMeters > 0 },
-        { id: DIST_LAYER, s: style.dist, color: distColor(), on: rings.dist },
+        { id: RANGE_LAYER, s: style.refl, color: reflColor(), on: rings.all && rings.refl },
+        { id: VEL_LAYER, s: style.vel, color: velColor(), on: rings.all && rings.vel && velMeters > 0 },
+        { id: DIST_LAYER, s: style.dist, color: distColor(), on: rings.all && rings.dist },
     ];
+}
+// Set a layout property only when it really changes: every layout change re-lays the labels out.
+function setLayout(map, id, key, value) {
+    if (JSON.stringify(map.getLayoutProperty(id, key)) !== JSON.stringify(value)) map.setLayoutProperty(id, key, value);
 }
 // Patch ONE map's ring + label paint to the targets. MapLibre animates each change over the layer's
 // *-transition (FADE_MS). ⚠️ A solid line is `undefined` dasharray — measured on the vendored build: that
@@ -190,12 +217,13 @@ function applyPaint(map) {
     });
     if (map.getLayer(DIST_LABEL_LAYER)) {
         map.setPaintProperty(DIST_LABEL_LAYER, 'text-color', labelColor());
-        map.setPaintProperty(DIST_LABEL_LAYER, 'text-opacity', rings.dist ? style.label.op : 0);
-        map.setPaintProperty(DIST_LABEL_LAYER, 'text-halo-color', casingColor());
+        map.setPaintProperty(DIST_LABEL_LAYER, 'text-opacity', rings.all && rings.dist ? style.label.op : 0);
+        map.setPaintProperty(DIST_LABEL_LAYER, 'text-halo-color', haloColor());
         map.setPaintProperty(DIST_LABEL_LAYER, 'text-halo-width', style.label.halo);
-        if (map.getLayoutProperty(DIST_LABEL_LAYER, 'text-size') !== style.label.size) {
-            map.setLayoutProperty(DIST_LABEL_LAYER, 'text-size', style.label.size);
-        }
+        setLayout(map, DIST_LABEL_LAYER, 'text-size', style.label.size);
+        setLayout(map, DIST_LABEL_LAYER, 'text-font', [FONTS[style.label.font] || FONTS.medium]);
+        setLayout(map, DIST_LABEL_LAYER, 'text-letter-spacing', style.label.spacing);
+        setLayout(map, DIST_LABEL_LAYER, 'text-offset', labelOffset());
     }
 }
 function applyPaintAll() { host.forEachView(function (v) { if (v.map) applyPaint(v.map); }); }
@@ -245,9 +273,10 @@ function drawRings(v) {
             id: DIST_LABEL_LAYER, type: 'symbol', source: DIST_LABEL_SRC,
             layout: {
                 // ⚠️ 'Noto Sans Medium' — the one stack the bundled glyph host serves (see radar-ruler.js).
-                'text-field': ['get', 'label'], 'text-font': ['Noto Sans Medium'], 'text-size': style.label.size,
-                // A label on/near the OUTER ring lifts well clear of the handle that rides it.
-                'text-offset': ['case', ['boolean', ['get', 'outer'], false], ['literal', [0, -2.3]], ['literal', [0, -0.7]]],
+                'text-field': ['get', 'label'], 'text-font': [FONTS[style.label.font] || FONTS.medium],
+                'text-size': style.label.size, 'text-letter-spacing': style.label.spacing,
+                // Placement against the ring; a label on/near the OUTER ring lifts clear of the knob riding it.
+                'text-offset': labelOffset(),
                 'text-allow-overlap': labelsLive, 'text-ignore-placement': labelsLive, 'text-padding': 4,
             },
             paint: {
@@ -307,17 +336,17 @@ function moveLabels() {
 // bearing. Dragging it takes only the BEARING (exactly the ruler's knob): the handle is snapped back onto the
 // ring every move, and the labels in every pane follow live. Letting go posts the bearing to the host, which
 // persists it and deliberately does NOT push it back (RangeRingsViewModel.OnLabelBearingDragged).
-function handleWanted() { return !!(host && rings.dist && style.handle && reflMeters > 0); }
+function handleWanted() { return !!(host && rings.all && rings.dist && style.handle && reflMeters > 0); }
 function handleLngLat() {
     const s = host.getSite();
     return Geo.siteToLngLat(s.lat, s.lon, reflMeters, style.bearing * Geo.D2R);
 }
-// ⚠️ A COPY of radar-ruler.js knobSvg() — same size, same ink disc on a dark casing with a casing-coloured
-// centre dot, same colour variables — so the two "swing me round the ring" handles read as one kind of
-// control. Change both or neither.
+// ⚠️ A COPY of radar-ruler.js knobSvg() — same ink disc on a dark casing with a casing-coloured centre dot,
+// same colour variables, and the SAME SIZE (style.knob; radar.js hands it to the ruler too) — so the two
+// "swing me round the ring" handles read as one kind of control. Change both or neither.
 function handleSvg() {
-    const casing = casingColor(), ink = Theme.color('--anvil-ruler-ink', '#e8edf2');
-    return '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">' +
+    const casing = casingColor(), ink = Theme.color('--anvil-ruler-ink', '#e8edf2'), px = style.knob;
+    return '<svg width="' + px + '" height="' + px + '" viewBox="0 0 24 24" aria-hidden="true">' +
         '<circle cx="12" cy="12" r="7.5" fill="' + ink + '" stroke="' + casing + '" stroke-width="1.5"/>' +
         '<circle cx="12" cy="12" r="2.5" fill="' + casing + '"/></svg>';
 }
@@ -411,17 +440,28 @@ export function setStyle(o) {
         dist: mergeRing(style.dist, o.dist),
         label: o.label ? {
             color: hex(o.label.color), op: num(o.label.op, 0.05, 1, style.label.op),
-            size: num(o.label.size, 8, 20, style.label.size), halo: num(o.label.halo, 0, 4, style.label.halo),
+            size: num(o.label.size, 8, 24, style.label.size), halo: num(o.label.halo, 0, 4, style.label.halo),
+            haloColor: hex(o.label.haloColor),
+            font: FONTS[o.label.font] ? o.label.font : style.label.font,
+            spacing: num(o.label.spacing, 0, 0.5, style.label.spacing),
+            placement: Object.prototype.hasOwnProperty.call(PLACE_EM, o.label.placement) ? o.label.placement : style.label.placement,
+            units: o.label.units === undefined ? style.label.units : !!o.label.units,
+            axes: [1, 2, 4].indexOf(Number(o.label.axes)) >= 0 ? Number(o.label.axes) : style.label.axes,
         } : style.label,
         bearing: ((Math.round(num(o.bearing, -1e6, 1e6, style.bearing)) % 360) + 360) % 360,
         handle: o.handle === undefined ? style.handle : !!o.handle,
+        knob: num(o.knob, 20, 48, style.knob),
     };
     if (!host) return;
-    const moved = style.bearing !== prev.bearing || style.label.size !== prev.label.size;
-    if (moved) setLabelsLive(true);           // BEFORE the size/position change re-places them
+    const L = style.label, P = prev.label;
+    // Anything that re-lays the labels out or re-places them goes through the live path (see "Moving labels").
+    const relaid = L.size !== P.size || L.font !== P.font || L.spacing !== P.spacing || L.placement !== P.placement ||
+        style.knob !== prev.knob;
+    const redata = style.bearing !== prev.bearing || L.units !== P.units || L.axes !== P.axes;
+    if (relaid || redata) setLabelsLive(true); // BEFORE the change re-places them
     applyPaintAll();
-    if (style.bearing !== prev.bearing) moveLabels();
-    if (moved) settleLabelsSoon();
+    if (redata) moveLabels();
+    if (relaid || redata) settleLabelsSoon();
     syncHandle();
     if (labelHandle) labelHandle.getElement().innerHTML = handleSvg(); // its colours are baked in
 }
@@ -435,7 +475,10 @@ export function detachView(v) {
 // Which rings to draw (Settings → Radar Range Ring). spacing = the distance rings' step in the unit, 0 = Auto.
 // On/off is a fade; a new spacing rebuilds the distance geometry.
 export function setRings(o) {
-    const next = { refl: !!o.refl, vel: !!o.vel, dist: !!o.dist, spacing: Number(o.spacing) > 0 ? Number(o.spacing) : 0 };
+    const next = {
+        all: o.all === undefined ? true : !!o.all,
+        refl: !!o.refl, vel: !!o.vel, dist: !!o.dist, spacing: Number(o.spacing) > 0 ? Number(o.spacing) : 0,
+    };
     const respaced = next.spacing !== rings.spacing;
     rings = next;
     if (!host) return;

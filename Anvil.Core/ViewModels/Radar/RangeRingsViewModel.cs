@@ -59,6 +59,20 @@ namespace Anvil.ViewModels
 
 		// ── Which rings ───────────────────────────────────────────────────────────────────────────────
 
+		/// <summary>The MASTER show/hide — the tools tier's rings key beside the Ruler. PERSISTED. Hides every
+		/// ring, label and the handle (a fade) without touching which rings are chosen below.</summary>
+		public bool RingsVisible
+		{
+			get => _settings.Settings.RangeRingsVisible;
+			set
+			{
+				if (_settings.Settings.RangeRingsVisible == value) { return; }
+				_settings.Settings.RangeRingsVisible = value; // persists (auto-save)
+				OnPropertyChanged();
+				_ = PushRingsAsync();
+			}
+		}
+
 		/// <summary>The reflectivity outline (where the data ends). PERSISTED.</summary>
 		public bool ShowReflectivityRing
 		{
@@ -168,6 +182,97 @@ namespace Anvil.ViewModels
 			set => SetLabelStyle(_settings.Settings.DistanceLabelStyle with { Halo = value });
 		}
 
+		/// <summary>The label font picker's labels, in <see cref="RingLabelFonts.All"/> order.</summary>
+		public IReadOnlyList<string> LabelFontLabels { get; } = RingLabelFonts.Labels;
+
+		/// <summary>Label font. PERSISTED as the token.</summary>
+		public int LabelFontIndex
+		{
+			get => RingLabelFonts.IndexOf(_settings.Settings.DistanceLabelStyle.Font);
+			set => SetLabelStyle(_settings.Settings.DistanceLabelStyle with { Font = RingLabelFonts.FromIndex(value) });
+		}
+
+		/// <summary>Extra space between letters, in ems (0–0.5).</summary>
+		public double LabelSpacing
+		{
+			get => _settings.Settings.DistanceLabelStyle.Spacing;
+			set => SetLabelStyle(_settings.Settings.DistanceLabelStyle with { Spacing = value });
+		}
+
+		/// <summary>The placement picker's labels, in <see cref="RingLabelPlacements.All"/> order.</summary>
+		public IReadOnlyList<string> LabelPlacementLabels { get; } = RingLabelPlacements.Labels;
+
+		/// <summary>Where each label sits against its ring. PERSISTED as the token.</summary>
+		public int LabelPlacementIndex
+		{
+			get => RingLabelPlacements.IndexOf(_settings.Settings.DistanceLabelStyle.Placement);
+			set => SetLabelStyle(_settings.Settings.DistanceLabelStyle with { Placement = RingLabelPlacements.FromIndex(value) });
+		}
+
+		/// <summary>"100 mi" (true) or "100" (false).</summary>
+		public bool LabelShowUnits
+		{
+			get => _settings.Settings.DistanceLabelStyle.ShowUnits;
+			set => SetLabelStyle(_settings.Settings.DistanceLabelStyle with { ShowUnits = value });
+		}
+
+		/// <summary>The label-lines picker's labels ("1", "2", "4").</summary>
+		public IReadOnlyList<string> LabelAxesLabels { get; } = RingLabelStyle.AxesChoices.Select(a => a.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+
+		/// <summary>How many label lines run out from the site. PERSISTED as the count.</summary>
+		public int LabelAxesIndex
+		{
+			get => RingLabelStyle.AxesChoices.ToList().IndexOf(_settings.Settings.DistanceLabelStyle.Axes);
+			set
+			{
+				if (value >= 0 && value < RingLabelStyle.AxesChoices.Count)
+				{
+					SetLabelStyle(_settings.Settings.DistanceLabelStyle with { Axes = RingLabelStyle.AxesChoices[value] });
+				}
+			}
+		}
+
+		/// <summary>The halo colour presets; the empty one ("A") means the theme's dark casing.</summary>
+		public IReadOnlyList<string> HaloColorSwatches { get; } = ScopeColors.Presets.Select(p => p.Hex).ToArray();
+
+		/// <summary>Names for <see cref="HaloColorSwatches"/>.</summary>
+		public IReadOnlyList<string> HaloColorNames { get; } =
+			ScopeColors.Presets.Select((p, i) => i == 0 ? "Theme default (dark)" : p.Name).ToArray();
+
+		/// <summary>The lit halo preset; -1 = custom (<see cref="HaloColorHex"/>).</summary>
+		public int HaloColorIndex
+		{
+			get => ScopeColors.IndexOf(_settings.Settings.DistanceLabelHaloColor);
+			set
+			{
+				if (value >= 0)
+				{
+					SetHaloColor(ScopeColors.FromIndex(value));
+				}
+			}
+		}
+
+		/// <summary>The halo colour as <c>#RRGGBB</c> ("" = theme) — the custom chip's value.</summary>
+		public string HaloColorHex
+		{
+			get => ScopeColors.Normalize(_settings.Settings.DistanceLabelHaloColor);
+			set => SetHaloColor(ScopeColors.Normalize(value));
+		}
+
+		/// <summary>Size (px) of the knobs on the outer ring — the label handle AND the ruler's knob.</summary>
+		public double KnobSize
+		{
+			get => _settings.Settings.RingKnobSize;
+			set
+			{
+				var px = RingKnobSize.Normalize(value);
+				if (px == _settings.Settings.RingKnobSize) { return; }
+				_settings.Settings.RingKnobSize = px; // persists (auto-save)
+				OnPropertyChanged();
+				_ = PushStyleAsync();
+			}
+		}
+
 		/// <summary>Where the labels sit, degrees clockwise from north. The map's label HANDLE writes this too.</summary>
 		public double LabelBearing
 		{
@@ -217,7 +322,9 @@ namespace Anvil.ViewModels
 			Distance.Reset(RingStyle.DistanceDefault);
 			var s = _settings.Settings;
 			s.DistanceLabelColor = ScopeColors.ThemeDefault;
+			s.DistanceLabelHaloColor = ScopeColors.ThemeDefault;
 			s.DistanceLabelStyle = RingLabelStyle.Default;
+			s.RingKnobSize = RingKnobSize.Default;
 			s.DistanceLabelBearing = 0;
 			s.ShowDistanceLabelHandle = true;
 			OnPropertyChanged(string.Empty);
@@ -244,6 +351,15 @@ namespace Anvil.ViewModels
 			_ = PushStyleAsync();
 		}
 
+		private void SetHaloColor(string hex)
+		{
+			if (hex == ScopeColors.Normalize(_settings.Settings.DistanceLabelHaloColor)) { return; }
+			_settings.Settings.DistanceLabelHaloColor = hex;
+			OnPropertyChanged(nameof(HaloColorIndex));
+			OnPropertyChanged(nameof(HaloColorHex));
+			_ = PushStyleAsync();
+		}
+
 		private void SetLabelStyle(RingLabelStyle style)
 		{
 			var next = style.Normalized();
@@ -252,6 +368,11 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(LabelOpacity));
 			OnPropertyChanged(nameof(LabelSize));
 			OnPropertyChanged(nameof(LabelHalo));
+			OnPropertyChanged(nameof(LabelFontIndex));
+			OnPropertyChanged(nameof(LabelSpacing));
+			OnPropertyChanged(nameof(LabelPlacementIndex));
+			OnPropertyChanged(nameof(LabelShowUnits));
+			OnPropertyChanged(nameof(LabelAxesIndex));
 			_ = PushStyleAsync();
 		}
 
@@ -259,8 +380,8 @@ namespace Anvil.ViewModels
 		{
 			if (!_isMapReady) { return Task.CompletedTask; }
 			var s = _settings.Settings;
-			return _mapService.SetRangeRingsAsync(s.ShowReflectivityRing, s.ShowVelocityRing, s.ShowDistanceRings,
-				s.DistanceRingSpacing);
+			return _mapService.SetRangeRingsAsync(s.RangeRingsVisible, s.ShowReflectivityRing, s.ShowVelocityRing,
+				s.ShowDistanceRings, s.DistanceRingSpacing);
 		}
 
 		private Task PushOutlineColorAsync() =>
@@ -292,9 +413,16 @@ namespace Anvil.ViewModels
 					op = label.OpacityPct / 100.0,
 					size = label.Size,
 					halo = label.Halo,
+					haloColor = ScopeColors.Normalize(s.DistanceLabelHaloColor),
+					font = RingLabelFonts.Normalize(label.Font),
+					spacing = label.Spacing,
+					placement = RingLabelPlacements.Normalize(label.Placement),
+					units = label.ShowUnits,
+					axes = label.Axes,
 				},
 				bearing = RingLabelBearing.Normalize(s.DistanceLabelBearing),
 				handle = s.ShowDistanceLabelHandle,
+				knob = RingKnobSize.Normalize(s.RingKnobSize), // the ruler's knob takes it too (radar.js)
 			});
 		}
 	}

@@ -18,11 +18,12 @@
        └──────────────────────────────┘          ┌─────────────────────────────┐
                                                   │ Moore, OK          pop 62k  │   ← place suggestions
                                                   └─────────────────────────────┘
-       (👁) [⌂ KTLX  Oklahoma City   ˅] (⌸)  (▣) [Search places     ⌕] (⊚) status     [▢][▥][▦] (⌘) (⛶) [Isolate State ▾]   ← THIS
+       (👁) [⌂ KTLX  Oklahoma City   ˅] (⌸) (◎)  (▣) [Search places  ⌕] (⊚) status   [▢][▥][▦] (⌘) (⛶) [Isolate State ▾]   ← THIS
         ↑ LEFT = RADAR + MAP: show the     ↑ CENTER = where; the box is          ↑ RIGHT = MAP ONLY: pane layout
           sites, pick one (over the          CENTERED on the tier                  (1/2/4, current one LIT, accent
           console, which answers when),    ▣ marker viewer — a PLACEHOLDER         cell = pane 0), reset north,
-          then ⌸ the RANGE RULER           ⊚ Location (lit = your marker is out)   fit to view, isolation
+          ⌸ the RANGE RULER, then ◎ the    ⊚ Location (lit = your marker is out)   fit to view, isolation
+          RANGE RINGS on/off (lit = showing)
        ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   ← …and onto the bar: NO rule
        ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
      ═══════════════════════ window bottom ═══════════════════════
@@ -381,6 +382,20 @@
                 <!-- A graduated bar: outer rect, hollowed, with four ticks hanging off its top edge
                      (EvenOdd puts the ticks back inside the hole). -->
                 <PathIcon Data="M1,6 H17 V12 H1 Z M2.4,7.4 H15.6 V10.6 H2.4 Z M4.2,7.4 H5.0 V10.2 H4.2 Z M7.0,7.4 H7.8 V9.2 H7.0 Z M9.8,7.4 H10.6 V10.2 H9.8 Z M12.6,7.4 H13.4 V9.2 H12.6 Z"/>
+            </ToggleButton>
+
+            <!-- RANGE RINGS - the MASTER show/hide for every range ring, its labels and the label handle
+                 (Radar.RangeRings.RingsVisible, PERSISTED). Beside the Ruler because they are one family: the
+                 ruler ends on the ring. Plain TwoWay (a click always flips it). LIT = RINGS ARE SHOWING; the
+                 tooltip speaks for the click. NOT disabled without a loop - it is a switch you can set ahead.
+                 WHICH rings, and how they look, stay in Settings → Radar Range Ring (set-once).
+                 The icon is a drawn PathIcon (three concentric rings round a centre dot, EvenOdd hollows them),
+                 the same no-unverified-glyph choice as the Ruler's. -->
+            <ToggleButton x:Name="RangeRingsToggle"
+                          Style="{StaticResource StripToolToggleStyle}"
+                          IsChecked="{x:Bind ViewModel.Radar.RangeRings.RingsVisible, Mode=TwoWay}"
+                          ToolTipService.ToolTip="{x:Bind RangeRingsTooltip(ViewModel.Radar.RangeRings.RingsVisible), Mode=OneWay}">
+                <PathIcon Data="M9,0.5 A8.5,8.5 0 1 0 9,17.5 A8.5,8.5 0 1 0 9,0.5 Z M9,1.9 A7.1,7.1 0 1 0 9,16.1 A7.1,7.1 0 1 0 9,1.9 Z M9,3.9 A5.1,5.1 0 1 0 9,14.1 A5.1,5.1 0 1 0 9,3.9 Z M9,5.3 A3.7,3.7 0 1 0 9,12.7 A3.7,3.7 0 1 0 9,5.3 Z M9,7.4 A1.6,1.6 0 1 0 9,10.6 A1.6,1.6 0 1 0 9,7.4 Z"/>
             </ToggleButton>
         </StackPanel>
 

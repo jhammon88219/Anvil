@@ -150,6 +150,8 @@
             // ⚠️ Through Scope, never a copy: one radius on the page (see radar-scope.js getRange).
             getRange: function () { return Scope ? Scope.getRange() : 0; },
         });
+        // The knob size arrives with the ring style, which the host can push before this module lands.
+        if (_ringStyle && _ringStyle.knob) Ruler.setKnobSize(_ringStyle.knob);
     }).catch(function (e) { hostLog('radar-ruler.js load failed: ' + (e && e.message ? e.message : e)); });
 
     // Product registry (radar-products.js — the single source of truth shared with radar-decode.js).
@@ -1948,15 +1950,18 @@
             if (Ruler) Ruler.setUnits(unit);
             if (Scope) Scope.setUnits(unit);
         },
-        // Which range rings to draw (Settings → Radar Range Ring); spacing 0 = Auto.
-        setRangeRings: function (refl, vel, dist, spacing) {
-            _ringOpts = { refl: refl, vel: vel, dist: dist, spacing: spacing };
+        // Which range rings to draw (Settings → Radar Range Ring); spacing 0 = Auto. `visible` = the master
+        // switch (the tools tier's rings key) over all of them.
+        setRangeRings: function (visible, refl, vel, dist, spacing) {
+            _ringOpts = { all: visible, refl: refl, vel: vel, dist: dist, spacing: spacing };
             if (Scope) Scope.setRings(_ringOpts);
         },
         // How the range rings look (Settings → Radar Range Ring) — radar-scope.js setStyle has the shape.
+        // `knob` also sizes the RULER's knob: the two ring-riding knobs are drawn identically.
         setRangeRingStyle: function (o) {
             _ringStyle = o;
             if (Scope) Scope.setStyle(o);
+            if (Ruler && o && o.knob) Ruler.setKnobSize(o.knob);
         },
         // Re-render what a theme change cannot re-cascade (SVG-baked handle colours — the ruler's two and the
         // ring's label handle). Their LAYERS come back through reAdd with the style switch.

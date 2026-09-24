@@ -36,6 +36,9 @@ namespace Anvil.Controls.Composites
 		/// <summary>x:Bind readout: "10 px".</summary>
 		public string Px0(double value) => string.Create(CultureInfo.CurrentCulture, $"{value:0} px");
 
+		/// <summary>x:Bind readout: "0.10 em".</summary>
+		public string Em(double value) => string.Create(CultureInfo.CurrentCulture, $"{value:0.00} em");
+
 		/// <summary>x:Bind readout: "045°".</summary>
 		public string Deg(double value) => string.Create(CultureInfo.InvariantCulture, $"{value:000}°");
 	}

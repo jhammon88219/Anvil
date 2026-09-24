@@ -313,10 +313,12 @@ function removeLayers(v) {
 // ---- Handles + chip (primary pane only) ------------------------------------------------------------
 // Both handles bake their colours into SVG markup, so a theme or colour change can't re-cascade them —
 // refresh() re-renders both, the way markers.js does for the reticle.
-// ⚠️ radar-scope.js handleSvg() (the distance-label handle) is a deliberate COPY of this — change both.
+// ⚠️ radar-scope.js handleSvg() (the distance-label handle) is a deliberate COPY of this — change both. The
+// SIZE is shared too (Settings → Radar Range Ring → Knob size → setKnobSize); the 24-unit viewBox scales.
+let knobPx = 32;
 function knobSvg() {
     const casing = casingColor(), ink = inkColor();
-    return '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">' +
+    return '<svg width="' + knobPx + '" height="' + knobPx + '" viewBox="0 0 24 24" aria-hidden="true">' +
         '<circle cx="12" cy="12" r="7.5" fill="' + ink + '" stroke="' + casing + '" stroke-width="1.5"/>' +
         '<circle cx="12" cy="12" r="2.5" fill="' + casing + '"/></svg>';
 }
@@ -483,6 +485,13 @@ export function setEnabled(enabled) {
 // The decode reported a new outer extent (a new site, or a tilt whose cut reaches further). The spoke
 // re-extends to it; a bead now beyond the data is pulled back onto it by rebuild().
 export function rangeChanged() { if (on) rebuild(); }
+
+// The knob's size in px (shared with the distance-label handle — see knobSvg). Clamped like the host's.
+export function setKnobSize(px) {
+    const n = Number(px);
+    knobPx = isFinite(n) ? Math.min(48, Math.max(20, Math.round(n))) : 32;
+    if (knob) knob.getElement().innerHTML = knobSvg();
+}
 
 // Host changed the distance unit. Labels and the chip are rebuilt; nothing about the geometry moves.
 export function setUnits(u) {

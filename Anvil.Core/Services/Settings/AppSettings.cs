@@ -411,6 +411,31 @@ namespace Anvil.Services
 			set => SetProperty(ref _distanceLabelBearing, Models.RingLabelBearing.Normalize(value));
 		}
 
+		private string _distanceLabelHaloColor = Models.ScopeColors.ThemeDefault;
+		/// <summary>The halo behind the distance labels; empty = the theme's dark casing (the ruler's).</summary>
+		public string DistanceLabelHaloColor
+		{
+			get => _distanceLabelHaloColor;
+			set => SetProperty(ref _distanceLabelHaloColor, Models.ScopeColors.Normalize(value));
+		}
+
+		private double _ringKnobSize = Models.RingKnobSize.Default;
+		/// <summary>Size (px) of the knobs that ride the outer ring: the label handle AND the ruler's knob.</summary>
+		public double RingKnobSize
+		{
+			get => _ringKnobSize;
+			set => SetProperty(ref _ringKnobSize, Models.RingKnobSize.Normalize(value));
+		}
+
+		private bool _rangeRingsVisible = true;
+		/// <summary>The MASTER show/hide for every range ring, label and the handle — the tools tier's key beside
+		/// the Ruler. Which rings (above) is kept underneath it.</summary>
+		public bool RangeRingsVisible
+		{
+			get => _rangeRingsVisible;
+			set => SetProperty(ref _rangeRingsVisible, value);
+		}
+
 		private bool _showDistanceLabelHandle = true;
 		/// <summary>Whether the map shows the drag handle that swings the distance labels (primary pane only).</summary>
 		public bool ShowDistanceLabelHandle

@@ -84,6 +84,64 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void LabelStyle_NewFields_Clamp_AndUnknownTokensFallBack()
+		{
+			var s = new RingLabelStyle(100, 10, 1, Font: "comic", Spacing: 9, Placement: "sideways", Axes: 3).Normalized();
+			Assert.Equal(RingLabelFonts.Medium, s.Font);
+			Assert.Equal(RingLabelStyle.MaxSpacing, s.Spacing);
+			Assert.Equal(RingLabelPlacements.Above, s.Placement);
+			Assert.Equal(1, s.Axes);
+			Assert.Equal(4, new RingLabelStyle(100, 10, 1, Axes: 4).Normalized().Axes);
+		}
+
+		// A settings file written BEFORE the label got font/spacing/placement/units/axes must still load, with
+		// those fields at their defaults — not throw, and not zero them (ShowUnits false, Axes 0).
+		[Fact]
+		public void LabelStyle_FromOlderSettingsFile_TakesDefaults()
+		{
+			var old = JsonSerializer.Deserialize<AppSettings>(
+				"{\"DistanceLabelStyle\":{\"OpacityPct\":70,\"Size\":12,\"Halo\":2}}")!;
+			var l = old.DistanceLabelStyle;
+			Assert.Equal(70, l.OpacityPct);
+			Assert.Equal(RingLabelFonts.Medium, l.Font);
+			Assert.True(l.ShowUnits);
+			Assert.Equal(1, l.Axes);
+			Assert.Equal(RingLabelPlacements.Above, l.Placement);
+		}
+
+		[Fact]
+		public void KnobSize_AndMasterSwitch_Defaults()
+		{
+			var s = new AppSettings();
+			Assert.True(s.RangeRingsVisible);
+			Assert.Equal(RingKnobSize.Default, s.RingKnobSize);
+			s.RingKnobSize = 500;
+			Assert.Equal(RingKnobSize.Max, s.RingKnobSize);
+			s.RingKnobSize = double.NaN;
+			Assert.Equal(RingKnobSize.Default, s.RingKnobSize);
+		}
+
+		[Fact]
+		public void StyleJson_CarriesLabelTextAndKnob()
+		{
+			var s = new AppSettings
+			{
+				DistanceLabelStyle = new RingLabelStyle(100, 14, 1, RingLabelFonts.Italic, 0.2, RingLabelPlacements.Below, false, 4),
+				DistanceLabelHaloColor = "#FFFFFF",
+				RingKnobSize = 40,
+			};
+			using var doc = JsonDocument.Parse(RangeRingsViewModel.BuildStyleJson(s));
+			var label = doc.RootElement.GetProperty("label");
+			Assert.Equal("italic", label.GetProperty("font").GetString());
+			Assert.Equal(0.2, label.GetProperty("spacing").GetDouble(), 6);
+			Assert.Equal("below", label.GetProperty("placement").GetString());
+			Assert.False(label.GetProperty("units").GetBoolean());
+			Assert.Equal(4, label.GetProperty("axes").GetInt32());
+			Assert.Equal("#FFFFFF", label.GetProperty("haloColor").GetString());
+			Assert.Equal(40, doc.RootElement.GetProperty("knob").GetDouble());
+		}
+
+		[Fact]
 		public void StyleJson_CarriesEveryPart_OpacityAsFraction()
 		{
 			var s = new AppSettings { VelocityRingStyle = new RingStyle(40, 2, RingLines.Solid), DistanceLabelBearing = 90 };
