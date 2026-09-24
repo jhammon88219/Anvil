@@ -57,8 +57,12 @@ function ensureUserLocationStyle() {
     s.id = 'user-location-style';
     // The wrapper only sizes the hit area and centres the art; every stroke lives in the SVG below, so
     // the whole look is one geometry rather than a stack of positioned divs.
+    // ⚠️ position:ABSOLUTE, never relative: this rule outranks MapLibre's .maplibregl-marker (same
+    // specificity, injected later). A relative marker sits in normal flow, so with a SECOND marker on the
+    // map one is pushed down by the other's height before MapLibre's transform — a fixed pixel offset that
+    // reads as the marker drifting geographically on every zoom.
     s.textContent =
-        '.user-loc{position:relative;width:36px;height:36px;cursor:grab;}' +
+        '.user-loc{position:absolute;width:36px;height:36px;cursor:grab;}' +
         '.user-loc:active{cursor:grabbing;}' +
         '.user-loc svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));}';
     document.head.appendChild(s);
@@ -134,8 +138,9 @@ function ensurePlaceStyle() {
     s.id = 'place-pin-style';
     // The chip is CSS, so it reads the theme variables directly and re-cascades on a theme switch; only the
     // SVG art needs the refresh() rebuild. pointer-events:none on the chip keeps it from eating map drags.
+    // position:ABSOLUTE for the same reason as .user-loc (and it still anchors the absolute chip).
     s.textContent =
-        '.place-pin{position:relative;width:28px;height:38px;cursor:pointer;}' +
+        '.place-pin{position:absolute;width:28px;height:38px;cursor:pointer;}' +
         '.place-pin-art svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));}' +
         '.place-pin-label{position:absolute;left:30px;top:5px;white-space:nowrap;pointer-events:none;' +
         'font:500 12px/1.3 "Segoe UI",system-ui,sans-serif;padding:2px 7px;border-radius:4px;' +
