@@ -30,9 +30,10 @@ namespace Anvil.Services
 		private const string ResourceName = "Anvil.Assets.saved-events.json";
 		private const string UserFileName = "SavedEvents.json";
 
-		/// <summary>The earliest start a leg may have — the decodable WSR-88D archive's first year, same
+		/// <summary>The earliest start a leg may have — the archive's first day (UTC midnight), same
 		/// bound as the Timeframe calendar.</summary>
-		private static readonly DateTimeOffset ArchiveStart = new(1991, 1, 1, 0, 0, 0, TimeSpan.Zero);
+		private static readonly DateTimeOffset ArchiveStart =
+			new(Level2RadarService.ArchiveFirstDay.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
 
 		private readonly string _userDirectory;
 		private readonly List<SavedEvent> _builtIn;

@@ -1,8 +1,9 @@
 """
 check_archive_start.py - find the absolute earliest radar PastCast can show, straight from the archive.
 
-PastCast's Timeframe calendar opens at a HARD-CODED year (RadarViewModel.PastEventStartYear, mirrored by
-SavedEventLibrary.ArchiveStart). This script asks the NEXRAD Level II archive bucket
+PastCast's Timeframe calendar opens at a HARD-CODED day (Level2RadarService.ArchiveFirstDay, which the
+calendar, the settings restore and SavedEventLibrary all derive from). This script asks the NEXRAD Level II
+archive bucket
 (unidata-nexrad-level2) what actually exists, walking its yyyy/mm/dd/SITE/ prefixes in ascending order,
 and reports the first volume the app would really load - then compares that to the calendar floor.
 
@@ -16,8 +17,8 @@ optional .gz, never _MDM) and MinVolumeBytes (100 KB - smaller objects are abort
 check_saved_events.py. Change all three or none. A day whose only objects are junk does NOT count, and
 year folders before 1988 are ignored (the bucket has a 1970/01/01 of TDWR volumes with an unset clock).
 
-Exit 1 if the calendar floor is LATER than real data (the app hides reachable history); a floor earlier
-than the data is only reported (the calendar offers empty days, which list nothing - harmless).
+Exit 1 if the floor is LATER than real data (the app hides reachable history). A floor earlier than the
+first data anywhere is a WARN (the calendar offers days that list nothing); for one site it is normal.
 
 This proves the data is LISTED, not that it DECODES: check the earliest volume with
 radar_reference.py (Py-ART) and then in the app.
@@ -130,15 +131,12 @@ def sites_on(day):
 
 
 def app_floor():
-    """(calendar floor year, saved-event floor) read from the source, so the check can't go stale."""
-    vm = os.path.join(ROOT, "Anvil.Core", "ViewModels", "Radar", "RadarViewModel.cs")
-    lib = os.path.join(ROOT, "Anvil.Core", "Services", "Radar", "SavedEventLibrary.cs")
-    with open(vm, encoding="utf-8") as f:
-        year = int(re.search(r"PastEventStartYear\s*=\s*(\d{4})", f.read()).group(1))
-    with open(lib, encoding="utf-8") as f:
-        m = re.search(r"ArchiveStart\s*=\s*new\(\s*(\d{4}),\s*(\d+),\s*(\d+)", f.read())
-    saved = date(int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
-    return date(year, 1, 1), saved
+    """Level2RadarService.ArchiveFirstDay, read from the source so the check can't go stale. It is the ONE
+    floor: the calendar's MinDate, the settings-restore clamp and saved-event legs all derive from it."""
+    svc = os.path.join(ROOT, "Anvil.Core", "Services", "Radar", "Level2RadarService.cs")
+    with open(svc, encoding="utf-8") as f:
+        m = re.search(r"ArchiveFirstDay\s*=\s*new\(\s*(\d{4}),\s*(\d+),\s*(\d+)", f.read())
+    return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
 
 
 def first_volume(day_iter, site=None):
@@ -163,15 +161,17 @@ def report_floor(earliest_day, what):
     bogus = archive_years()[1]
     if bogus:
         print(f"\n  ignored  year folder(s) {', '.join(bogus)}: clock artefacts (before {FIRST_PLAUSIBLE_YEAR})")
-    cal, saved = app_floor()
-    print(f"\n  calendar floor (PastEventStartYear)  {cal}")
-    print(f"  saved-event floor (ArchiveStart)     {saved}")
+    cal = app_floor()
+    print(f"\n  app floor (ArchiveFirstDay)          {cal}")
     print(f"  earliest real data ({what}){' ' * max(0, 16 - len(what))}{earliest_day}")
     if cal > earliest_day:
         print(f"  FAIL  the calendar hides {(cal - earliest_day).days} day(s) of real data")
         return 1
     gap = (earliest_day - cal).days
-    print(f"  ok    calendar reaches all data" + (f" (offers {gap} empty day(s) before it)" if gap else ""))
+    if gap and what == "any site":
+        print(f"  WARN  the calendar offers {gap} empty day(s) before the first data - move ArchiveFirstDay")
+        return 0
+    print("  ok    calendar reaches all data" + (f" ({gap} day(s) before this site's first)" if gap else ""))
     return 0
 
 

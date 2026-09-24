@@ -206,9 +206,9 @@ namespace Anvil.ViewModels
 
 		// ── Past Event Viewer (replay a historical window instead of the live loop) ──
 		// Start of the decodable archive. 2008+ is Message-31 super-res; 1991-2007 is legacy AR2V0001
-		// Message 1 (single-pol, no CC), now decoded by the vendored Message-1 path. The WSR-88D
-		// network came online ~1991-1997 (KTLX's earliest archived volumes are ~1993); empty days for
-		// a site simply list nothing.
+		// Message 1 (single-pol, no CC), now decoded by the vendored Message-1 path. The calendar's floor is
+		// the archive's first DAY (Level2RadarService.ArchiveFirstDay, KTLX 1991-06-05); this year is only
+		// the base the year INDEX counts from. Most sites start 1994-1998; empty days simply list nothing.
 		private const int PastEventStartYear = 1991;
 		private bool _isPastEventMode;
 		// The selected window, as the indices the pickers bind to: year 1991-based, month 0-based,
@@ -768,8 +768,15 @@ namespace Anvil.ViewModels
 		private static DateTimeOffset LocalMidnight(int year, int month, int day) =>
 			new(year, month, day, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(year, month, day)));
 
-		/// <summary>Earliest date the calendar offers — the start of the decodable WSR-88D archive.</summary>
-		public DateTimeOffset PastEventMinDate => LocalMidnight(PastEventStartYear, 1, 1);
+		/// <summary>Earliest date the calendar offers — the archive's first day with a loadable volume.</summary>
+		public DateTimeOffset PastEventMinDate
+		{
+			get
+			{
+				var first = Services.Level2RadarService.ArchiveFirstDay;
+				return LocalMidnight(first.Year, first.Month, first.Day);
+			}
+		}
 
 		/// <summary>Latest date the calendar offers: today. ⚠️ Without a bound a calendar will happily
 		/// offer 2087, which the three year/month/day combos could never express — the constraint used to
@@ -961,7 +968,7 @@ namespace Anvil.ViewModels
 			{
 				// Clamp to what the calendar actually offers (PastEventMinDate…PastEventMaxDate). A persisted
 				// date can only land outside it if the machine clock moved or the file was hand-edited.
-				var earliest = new DateOnly(PastEventStartYear, 1, 1);
+				var earliest = Services.Level2RadarService.ArchiveFirstDay;
 				var today = DateOnly.FromDateTime(DateTime.Today);
 				if (date < earliest) { date = earliest; }
 				if (date > today) { date = today; }

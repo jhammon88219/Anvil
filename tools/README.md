@@ -12,8 +12,7 @@
   the velocity, runs the mirror over the bottom tilts, and compares to Py-ART's own `vad_browning`.
   `py -3.12 storm_motion_realcheck.py KTLX 2013 05 20 20 12` (Moore EF5 → ENE ~25-30 kt). Needs `arm_pyart` + network.
 - **`check_archive_start.py`** — the absolute earliest radar PastCast can show, asked of the archive bucket
-  itself, compared against the hard-coded calendar floor (`PastEventStartYear` / `SavedEventLibrary.ArchiveStart`,
-  read from source). `py -3 tools/check_archive_start.py [--site KTLX | --all-sites [--until YYYY-MM-DD]]`;
+  itself, compared against the hard-coded calendar floor (`Level2RadarService.ArchiveFirstDay`, read from source). `py -3 tools/check_archive_start.py [--site KTLX | --all-sites [--until YYYY-MM-DD]]`;
   exit 1 = the calendar hides real data. Stdlib only; same volume filter as `check_saved_events.py`. Ignores the
   bucket's `1970/01/01` folder (TDWR volumes with an unset clock). Proves data is LISTED — decode the earliest
   volume with `py -3.12 tools/radar_reference.py <SITE> <date> <time>` (the tool prints the command).

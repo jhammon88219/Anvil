@@ -28,6 +28,13 @@ namespace Anvil.Services
 	{
 		public const string CacheHostName = "radarlevel2";
 
+		/// <summary>The first UTC day the archive holds a loadable volume, for ANY site — KTLX 1991-06-05
+		/// 16:21:26Z, found by <c>tools/check_archive_start.py</c> (re-run it if this is questioned). The ONE
+		/// floor for the PastCast calendar and saved-event legs. It's the whole NETWORK's first day: most sites
+		/// start 1994-1998, and a date before a site's first day simply lists nothing.
+		/// ⚠️ The bucket also has a <c>1970/01/01</c> folder: TDWR volumes with an unset clock, not a real day.</summary>
+		public static readonly DateOnly ArchiveFirstDay = new(1991, 6, 5);
+
 		private const string BucketBase = "https://unidata-nexrad-level2.s3.amazonaws.com/";
 		// Near-real-time chunk bucket: per-volume folders of S/I/E chunks streamed via LDM as
 		// each completes (see GetLiveFrameAsync). Keys: <SITE>/<VOLUME#>/<yyyyMMdd>-<HHmmss>-<seq>-<S|I|E>.
