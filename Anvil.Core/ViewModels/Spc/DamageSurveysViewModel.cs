@@ -11,8 +11,9 @@ namespace Anvil.ViewModels
 	/// <summary>
 	/// View model for the NWS damage-survey overlay (the Damage Assessment Toolkit's tornado polygons,
 	/// tracks and survey points) — PastCast only. Everything is keyed to the LOADED replay window: a
-	/// surveyed tornado shows when its time on the ground overlaps that window. Three layer toggles; only
-	/// the damage polygons are ticked by default. Fetch/cache/link/filter is in
+	/// surveyed tornado shows when its time on the ground overlaps that window. Three layer toggles;
+	/// polygons and tracks are ticked by default. Tracks come from the DAT and, for anything the DAT lacks,
+	/// NCEI Storm Events (1950 on). Fetch/cache/link/filter is in
 	/// <see cref="IDamageSurveyService"/>; the map is driven through <see cref="IMapService"/>.
 	/// </summary>
 	/// <remarks>
@@ -46,9 +47,10 @@ namespace Anvil.ViewModels
 		}
 
 		// ── Per-layer toggles ──
-		// ⚠️ ONLY THE POLYGONS ARE TICKED BY DEFAULT (the user's call): they are the survey's answer to "where
-		// was the damage and how bad". Tracks and points are there for the offices that draw no polygons and
-		// for the detail. Like every overlay tick, it means "draw while PastCast runs" (IsModeActive).
+		// ⚠️ POLYGONS AND TRACKS ARE TICKED BY DEFAULT (the user's call, revised from polygons-only): the
+		// point of the section is the tornado's path under the radar loop, and most tornadoes — every
+		// pre-DAT one, and most today — have a track but no polygon. Points are detail, off by default.
+		// Like every overlay tick, it means "draw while PastCast runs" (IsModeActive).
 
 		private bool _showAreas = true;
 		public bool ShowAreas
@@ -57,7 +59,7 @@ namespace Anvil.ViewModels
 			set { if (SetProperty(ref _showAreas, value)) { OnKindToggled(); } }
 		}
 
-		private bool _showTracks;
+		private bool _showTracks = true;
 		public bool ShowTracks
 		{
 			get => _showTracks;

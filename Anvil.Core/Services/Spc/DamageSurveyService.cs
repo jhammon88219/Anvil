@@ -27,10 +27,13 @@ namespace Anvil.Services
 	/// ⚠️ ONLY SOME OFFICES DRAW POLYGONS. On 2024-05-06 there were 58 surveyed tracks and 21 polygons, all
 	/// from a handful of WFOs. The polygon layer is the default view by choice, so the VM's card says so
 	/// when a window has tracks but no polygons.
+	/// ⚠️ THE DAT ALONE CANNOT DO PRE-2012 — no tracks before an office adopted it, and retro-entered
+	/// features stamped in local standard time as UTC. NCEI Storm Events (the partial file beside this one)
+	/// supplies those tracks and every link's times; see <see cref="BuildWindow"/>.
 	/// ⚠️ <c>qc</c> is "Y" on every published feature (the public service serves QC'd surveys only), so
 	/// there is no preliminary/final distinction to show.
 	/// </remarks>
-	public sealed class DamageSurveyService : CachingHttpService, IDamageSurveyService
+	public sealed partial class DamageSurveyService : CachingHttpService, IDamageSurveyService
 	{
 		/// <summary>WebView virtual host the cached files are served under. MainWindow owns the actual
 		/// mapping; this constant is the shared contract.</summary>
@@ -48,11 +51,11 @@ namespace Anvil.Services
 
 		/// <summary>
 		/// How far BEFORE the window the day fetch reaches. A track is filed under its START time, so one that
-		/// began just before midnight UTC and is still on the ground inside the window lives in the previous
-		/// day's file. Three hours is longer than any surveyed track (Tri-State ran ~3.5 h but predates the
-		/// DAT's coverage; modern long-trackers run 1-2.5 h).
+		/// began before midnight UTC and is still on the ground inside the window lives in the previous day's
+		/// file — 3 h covers any modern track. The other 6 h is the retro-entered DAT features stamped in
+		/// local standard time as if it were UTC (up to 6 h EARLY in CONUS), which Storm Events re-times.
 		/// </summary>
-		internal static readonly TimeSpan TrackLookback = TimeSpan.FromHours(3);
+		internal static readonly TimeSpan TrackLookback = TimeSpan.FromHours(9);
 
 		// Surveys land days after an event and are revised for weeks. A day older than this is treated as
 		// settled and fetched once; a newer one is re-fetched once its cache is over an hour old.
@@ -98,7 +101,15 @@ namespace Anvil.Services
 				}
 			}
 
-			var built = BuildWindow(byLayer[DatLayer.Areas], byLayer[DatLayer.Tracks], byLayer[DatLayer.Points],
+			// Storm Events rows near the window (±1 day, enough to chain and to re-time what was fetched).
+			var margin = TimeSpan.FromDays(1);
+			var fromMs = (startUtc - margin).ToUnixTimeMilliseconds();
+			var toMs = (endUtc + margin).ToUnixTimeMilliseconds();
+			var seSegments = (await LoadStormEventsAsync(startUtc - margin, endUtc + margin, cancellationToken))
+				.Where(s => s.T1 >= fromMs && s.T0 <= toMs).ToList();
+			var seTracks = StormEvents.BuildTracks(seSegments);
+
+			var built = BuildWindow(byLayer[DatLayer.Areas], byLayer[DatLayer.Tracks], byLayer[DatLayer.Points], seTracks,
 				startUtc.ToUnixTimeMilliseconds(), endUtc.ToUnixTimeMilliseconds());
 
 			var windowFile = Path.Combine(CacheDirectory, WindowCacheName(startUtc, endUtc));
@@ -229,7 +240,8 @@ namespace Anvil.Services
 		{
 			if (!f.TryGetProperty("properties", out var p) || p.ValueKind != JsonValueKind.Object) { return null; }
 			if (!f.TryGetProperty("geometry", out var geom) || geom.ValueKind != JsonValueKind.Object) { return null; }
-			if (!TryBounds(geom, out var box)) { return null; }
+			var vertices = layer == DatLayer.Tracks ? new List<(double Lon, double Lat)>() : null;
+			if (!TryBounds(geom, out var box, vertices)) { return null; }
 
 			var ef = NormalizeEf(Str(p, "efscale"));
 			if (ef is null) { return null; } // wind / tropical — not a tornado survey
@@ -263,7 +275,10 @@ namespace Anvil.Services
 				Fatalities: PositiveInt(Loose(p, layer == DatLayer.Points ? "deaths" : "fatalities")) ?? 0,
 				Comments: Str(p, "comments")?.Trim() ?? string.Empty,
 				DamageText: Str(p, "damage_txt")?.Trim() ?? string.Empty,
-				DegreeText: Str(p, "dod_txt")?.Trim() ?? string.Empty);
+				DegreeText: Str(p, "dod_txt")?.Trim() ?? string.Empty)
+			{
+				Line = vertices,
+			};
 		}
 
 		/// <summary>
@@ -292,11 +307,20 @@ namespace Anvil.Services
 
 		// ── Link + window ────────────────────────────────────────────────────────────────────────────
 
-		// A polygon's time may sit a minute outside its track's start/end (both are hand-entered).
-		private const long LinkSlackMs = 60_000;
-		// Bounding-box slack for the link, in degrees (~1 km): a thin track and the swath around it can
-		// miss each other's boxes by a few hundred metres at the ends.
-		private const double LinkSlackDeg = 0.01;
+		// Bounding-box slack for every link, in degrees (~3 km): a Storm Events path is straight within each
+		// county, so a curved DAT track or swath can sit a little off its box.
+		private const double LinkSlackDeg = 0.03;
+
+		/// <summary>
+		/// The largest time gap a link bridges — between a feature's own time and a track's start→end.
+		/// ⚠️ 7 h, not minutes, ON PURPOSE: retro-entered DAT features are stamped in local STANDARD time as
+		/// if it were UTC (May 24 2011: 14:50Z for a 20:50Z tornado), so the true match is up to 6 h away. The
+		/// closest-in-time candidate wins, so a correctly stamped feature (gap 0) is never pulled elsewhere.
+		/// </summary>
+		private const long MaxLinkGapMs = 7 * 3_600_000L;
+
+		/// <summary>Points get a day: pre-DAT survey points often carry only a DATE (stamped 00:00Z).</summary>
+		private const long MaxPointLinkGapMs = 24 * 3_600_000L;
 
 		/// <summary>
 		/// The span an UNLINKED polygon is assumed to cover, from its own time. ⚠️ Measured, not guessed:
@@ -309,49 +333,128 @@ namespace Anvil.Services
 		internal const long UnlinkedAreaSpanMs = 30 * 60_000;
 
 		/// <summary>
-		/// Links each damage polygon to the track it lies on, then keeps every feature whose time span
-		/// overlaps [startMs, endMs]. A linked polygon takes its track's span (and name, office, rating and
-		/// peak wind for the popup); an unlinked one spans <see cref="UnlinkedAreaSpanMs"/> from its own time. Output is areas (lowest EF first,
-		/// so higher contours draw on top), then tracks, then points.
+		/// Merges the two track sources, links every polygon and point to a track, then keeps each feature
+		/// whose time span overlaps [startMs, endMs]. Output is areas (lowest EF first, so higher contours
+		/// draw on top), then tracks, then points.
 		/// </summary>
-		internal static List<DatFeature> BuildWindow(IReadOnlyList<DatFeature> areas, IReadOnlyList<DatFeature> tracks,
-			IReadOnlyList<DatFeature> points, long startMs, long endMs)
+		/// <remarks>
+		/// 1. TRACKS. A DAT track that matches a Storm Events path (same place, within
+		///    <see cref="MaxLinkGapMs"/>) keeps its curved geometry but takes Storm Events' TIMES — the official
+		///    record, and the fix for the retro-entered DAT times. That path is then dropped as a duplicate;
+		///    every other Storm Events path is a track of its own.
+		/// 2. POLYGONS and POINTS take the span (and name, office, rating, numbers) of the track they lie on,
+		///    nearest in time first. An unlinked one spans <see cref="UnlinkedAreaSpanMs"/> from its own time.
+		/// </remarks>
+		internal static List<DatFeature> BuildWindow(IReadOnlyList<DatFeature> areas, IReadOnlyList<DatFeature> datTracks,
+			IReadOnlyList<DatFeature> points, IReadOnlyList<DatFeature> seTracks, long startMs, long endMs)
 		{
 			bool Overlaps(DatFeature x) => x.T0 <= endMs && x.T1 >= startMs;
 
-			var linkedAreas = new List<DatFeature>(areas.Count);
-			foreach (var a in areas)
+			// 1. Tracks.
+			var matchedSe = new HashSet<DatFeature>(ReferenceEqualityComparer.Instance);
+			var tracks = new List<DatFeature>(datTracks.Count + seTracks.Count);
+			foreach (var t in datTracks)
 			{
-				DatFeature? best = null;
-				var bestDist = double.MaxValue;
-				foreach (var t in tracks)
+				var se = NearestTrack(t, seTracks, MaxLinkGapMs);
+				if (se is null) { tracks.Add(t); continue; }
+				matchedSe.Add(se);
+				tracks.Add(t with
 				{
-					if (a.T0 < t.T0 - LinkSlackMs || a.T0 > t.T1 + LinkSlackMs) { continue; }
-					if (!a.Box.Intersects(t.Box, LinkSlackDeg)) { continue; }
-					var d = a.Box.CenterDistance(t.Box);
-					if (d < bestDist) { bestDist = d; best = t; }
-				}
-				linkedAreas.Add(best is null ? a with { T1 = a.T0 + UnlinkedAreaSpanMs } : a with
+					T0 = se.T0,
+					T1 = se.T1,
+					Name = t.Name.Length > 0 ? t.Name : se.Name,
+					Injuries = Math.Max(t.Injuries, se.Injuries),
+					Fatalities = Math.Max(t.Fatalities, se.Fatalities),
+					Comments = t.Comments.Length > 0 ? t.Comments : se.Comments,
+				});
+			}
+			tracks.AddRange(seTracks.Where(s => !matchedSe.Contains(s)));
+
+			// 2. Polygons and points.
+			DatFeature LinkToTrack(DatFeature f, long maxGap)
+			{
+				var best = NearestTrack(f, tracks, maxGap);
+				return best is null ? f with { T1 = f.T0 + UnlinkedAreaSpanMs } : f with
 				{
 					T0 = best.T0,
 					T1 = best.T1,
-					Name = best.Name,
-					Wfo = best.Wfo,
+					Name = f.Layer == DatLayer.Points && f.Name.Length > 0 ? f.Name : best.Name,
+					Wfo = f.Wfo.Length > 0 ? f.Wfo : best.Wfo,
 					TrackEf = best.Ef,
-					Wind = best.Wind,
+					TrackLabel = best.Label,
+					Wind = f.Layer == DatLayer.Points ? f.Wind : best.Wind,
 					LengthMi = best.LengthMi,
 					WidthYd = best.WidthYd,
 					Injuries = best.Injuries,
 					Fatalities = best.Fatalities,
-					Comments = a.Comments.Length > 0 ? a.Comments : best.Comments,
-				});
+					Comments = f.Comments.Length > 0 ? f.Comments : best.Comments,
+				};
 			}
 
 			var result = new List<DatFeature>();
-			result.AddRange(linkedAreas.Where(Overlaps).OrderBy(a => EfRank(a.Ef)));
+			result.AddRange(areas.Select(a => LinkToTrack(a, MaxLinkGapMs)).Where(Overlaps).OrderBy(a => EfRank(a.Ef)));
 			result.AddRange(tracks.Where(Overlaps));
-			result.AddRange(points.Where(Overlaps));
+			result.AddRange(points.Select(p => LinkToTrack(p, MaxPointLinkGapMs)).Where(Overlaps));
 			return result;
+		}
+
+		/// <summary>
+		/// The whole-hour shifts a retro-entered DAT stamp may carry: 0 (right), or local STANDARD time
+		/// written as UTC — EST 5 h, CST 6, MST 7, PST 8, AKST 9, HST 10, and AST 4.
+		/// </summary>
+		private const long HourMs = 3_600_000L;
+		private static readonly long[] LegacyShiftsMs = { 0, 4 * HourMs, 5 * HourMs, 6 * HourMs, 7 * HourMs, 8 * HourMs, 9 * HourMs, 10 * HourMs };
+
+		// How far an instant lies outside a track's start→end (0 when inside).
+		private static long IntervalGap(long at, DatFeature t) => at < t.T0 ? t.T0 - at : at > t.T1 ? at - t.T1 : 0;
+
+		/// <summary>
+		/// The track a feature belongs to: boxes overlapping and raw time gap within maxGap; then the best
+		/// fit in time allowing the legacy local-time shift; then the nearest LINE to the feature's centre.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ The shift matters when two tornadoes overlap in time AND place. May 24 2011: the Chickasha EF4
+		/// (22:06Z) and the Bridge Creek–Goldsby EF4 (22:26Z) ran side by side, and their DAT polygons are
+		/// stamped 16:06Z and 16:26Z — CST written as UTC. By raw gap both are ~6 h from either track, so
+		/// "nearest in time" picked the wrong one; shifted by 6 h each lands on its own start. Then distance
+		/// to the track's LINE (not its box) separates two tracks the shifted time can't.
+		/// </remarks>
+		private static DatFeature? NearestTrack(DatFeature f, IReadOnlyList<DatFeature> tracks, long maxGap)
+		{
+			DatFeature? best = null;
+			var bestGap = long.MaxValue;
+			var bestDist = double.MaxValue;
+			var cx = (f.Box.MinLon + f.Box.MaxLon) / 2;
+			var cy = (f.Box.MinLat + f.Box.MaxLat) / 2;
+			foreach (var t in tracks)
+			{
+				if (!f.Box.Intersects(t.Box, LinkSlackDeg)) { continue; }
+				if (IntervalGap(f.T0, t) > maxGap) { continue; }
+				var gap = LegacyShiftsMs.Min(s => IntervalGap(f.T0 + s, t));
+				var dist = t.Line is { Count: > 0 } line ? DistanceToLine(cx, cy, line) : f.Box.CenterDistance(t.Box);
+				if (gap < bestGap || (gap == bestGap && dist < bestDist)) { best = t; bestGap = gap; bestDist = dist; }
+			}
+			return best;
+		}
+
+		// Distance (degrees, longitude scaled by cos lat) from a point to a polyline's nearest segment.
+		internal static double DistanceToLine(double lon, double lat, IReadOnlyList<(double Lon, double Lat)> line)
+		{
+			var k = Math.Cos(lat * Math.PI / 180);
+			if (line.Count == 1) { return Math.Sqrt(Sq((line[0].Lon - lon) * k) + Sq(line[0].Lat - lat)); }
+			var best = double.MaxValue;
+			for (var i = 1; i < line.Count; i++)
+			{
+				double ax = (line[i - 1].Lon - lon) * k, ay = line[i - 1].Lat - lat;
+				double bx = (line[i].Lon - lon) * k, by = line[i].Lat - lat;
+				double dx = bx - ax, dy = by - ay;
+				var len2 = dx * dx + dy * dy;
+				var u = len2 > 0 ? Math.Clamp(-(ax * dx + ay * dy) / len2, 0, 1) : 0;
+				best = Math.Min(best, Math.Sqrt(Sq(ax + u * dx) + Sq(ay + u * dy)));
+			}
+			return best;
+
+			static double Sq(double v) => v * v;
 		}
 
 		// ── Write ────────────────────────────────────────────────────────────────────────────────────
@@ -378,7 +481,10 @@ namespace Anvil.Services
 					w.WriteNumber("t1", f.T1);
 					w.WriteString("name", f.Name);
 					w.WriteString("wfo", f.Wfo);
+					w.WriteString("src", f.Source);
+					if (f.Label is { } lbl) { w.WriteString("lbl", lbl); }
 					if (f.TrackEf is { } tef) { w.WriteString("tef", tef); }
+					if (f.TrackLabel is { } tlbl) { w.WriteString("tlbl", tlbl); }
 					if (f.Wind is { } wind) { w.WriteNumber("wind", wind); }
 					if (f.LengthMi is { } len) { w.WriteNumber("len", Math.Round(len, 2)); }
 					if (f.WidthYd is { } wid) { w.WriteNumber("wid", Math.Round(wid)); }
@@ -425,22 +531,27 @@ namespace Anvil.Services
 		private static double? PositiveDouble(double? v) => v is > 0 ? v : null;
 
 		// Bounding box of any GeoJSON geometry, walking its coordinate arrays to the [lon, lat] pairs.
-		private static bool TryBounds(JsonElement geom, out GeoBox box)
+		// Optionally collects the vertices too (tracks keep them, for DistanceToLine).
+		private static bool TryBounds(JsonElement geom, out GeoBox box, List<(double Lon, double Lat)>? vertices = null)
 		{
 			var b = GeoBox.Empty;
-			if (geom.TryGetProperty("coordinates", out var coords)) { Walk(coords, ref b); }
+			if (geom.TryGetProperty("coordinates", out var coords)) { Walk(coords, ref b, vertices); }
 			box = b;
 			return b.IsValid;
 
-			static void Walk(JsonElement el, ref GeoBox acc)
+			static void Walk(JsonElement el, ref GeoBox acc, List<(double Lon, double Lat)>? into)
 			{
 				if (el.ValueKind != JsonValueKind.Array) { return; }
 				if (el.GetArrayLength() >= 2 && el[0].ValueKind == JsonValueKind.Number)
 				{
-					if (el[0].TryGetDouble(out var lon) && el[1].TryGetDouble(out var lat)) { acc = acc.Include(lon, lat); }
+					if (el[0].TryGetDouble(out var lon) && el[1].TryGetDouble(out var lat))
+					{
+						acc = acc.Include(lon, lat);
+						into?.Add((lon, lat));
+					}
 					return;
 				}
-				foreach (var child in el.EnumerateArray()) { Walk(child, ref acc); }
+				foreach (var child in el.EnumerateArray()) { Walk(child, ref acc, into); }
 			}
 		}
 	}
@@ -494,7 +605,20 @@ namespace Anvil.Services
 		string DamageText,
 		string DegreeText)
 	{
-		/// <summary>The linked track's rating, on a polygon only.</summary>
+		/// <summary>The linked track's rating, on a polygon or point only.</summary>
 		public string? TrackEf { get; init; }
+
+		/// <summary>The linked track's display label when it differs from its colour class (old "F3").</summary>
+		public string? TrackLabel { get; init; }
+
+		/// <summary>The rating as published when it differs from <see cref="Ef"/> — a pre-2007 "F3" is
+		/// coloured as EF3 but shown as F3.</summary>
+		public string? Label { get; init; }
+
+		/// <summary>"dat" (NWS Damage Assessment Toolkit) or "se" (NCEI Storm Events).</summary>
+		public string Source { get; init; } = "dat";
+
+		/// <summary>A track's vertices, for the distance-to-line link test (null on polygons and points).</summary>
+		public IReadOnlyList<(double Lon, double Lat)>? Line { get; init; }
 	}
 }

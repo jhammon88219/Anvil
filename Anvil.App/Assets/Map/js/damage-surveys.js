@@ -1,8 +1,12 @@
-// damage-surveys.js — NWS Damage Assessment Toolkit (DAT) tornado surveys for the LOADED replay window:
-// the EF-contour damage POLYGONS some offices draw, the track CENTERLINES every surveyed tornado gets, and
-// the individual survey POINTS. One GeoJSON source (the host writes it per window, features tagged
-// `layer` = area/track/point), one toggle per kind. PastCast only. map.js's window.setDamageSurvey* shims
-// delegate here; reAddAll calls reAdd(map) after a basemap switch or on a new pane.
+// damage-surveys.js — tornado damage surveys for the LOADED replay window: the EF-contour damage POLYGONS
+// some offices draw, the track CENTERLINES, and the individual survey POINTS. One GeoJSON source (the host
+// writes it per window, features tagged `layer` = area/track/point and `src` = dat/se), one toggle per kind.
+// PastCast only. map.js's window.setDamageSurvey* shims delegate here; reAddAll calls reAdd(map) after a
+// basemap switch or on a new pane.
+// Tracks come from two places (the host merges them): the NWS Damage Assessment Toolkit (src "dat" —
+// curved, surveyed) and NCEI Storm Events (src "se" — the official record back to 1950, one STRAIGHT
+// segment per county). An old Storm Events tornado with only a start point is a Point track, drawn as a
+// ringed dot (dat-track-start) under the Tracks toggle.
 //
 //              ░░░░░░░▒▒▒▒▒▓▓▓▒▒▒░░░░░          ░ ▒ ▓ = nested EF polygons (area), lowest EF drawn first
 //     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━     ━ = track centerline (track), EF colour on a dark casing
@@ -53,10 +57,11 @@ const LAYERS = [
     { id: 'dat-area-line', kind: 'areas' },
     { id: 'dat-track-casing', kind: 'tracks' },
     { id: 'dat-track', kind: 'tracks' },
+    { id: 'dat-track-start', kind: 'tracks' },
     { id: 'dat-point', kind: 'points' }
 ];
 // Click priority: the smallest mark wins, so a point on a track on a polygon is still reachable.
-const CLICK_ORDER = ['dat-point', 'dat-track', 'dat-area-fill'];
+const CLICK_ORDER = ['dat-point', 'dat-track-start', 'dat-track', 'dat-area-fill'];
 // Storm-report dots have their own popup; a click on one is theirs.
 const REPORT_LAYERS = ['spc-report-torn', 'spc-report-wind', 'spc-report-hail'];
 
@@ -119,6 +124,20 @@ function addLayers(map) {
             'line-opacity': lineOpacity()
         }
     }, before);
+    // A track with no end point (pre-~1995 Storm Events rows often have none): a ringed dot at its start.
+    map.addLayer({
+        id: 'dat-track-start', type: 'circle', source: SOURCE,
+        filter: ['all', isTrack, ['==', ['geometry-type'], 'Point']],
+        layout: { visibility: vis('tracks') },
+        paint: {
+            'circle-color': EF_COLOR_EXPR,
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 3, 8, 5, 12, 7],
+            'circle-opacity': lineOpacity(),
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': CASING,
+            'circle-stroke-opacity': lineOpacity()
+        }
+    }, before);
     map.addLayer({
         id: 'dat-point', type: 'circle', source: SOURCE, filter: isPoint,
         layout: { visibility: vis('points'), 'circle-sort-key': ['get', 'efn'] },
@@ -172,6 +191,9 @@ function casualtyText(p) {
 }
 
 function efLabel(ef) { return ef === 'N/A' ? 'Unrated' : ef; }
+// The rating as published: an old "F3" is coloured as EF3 but must still read F3.
+function ratingOf(p) { return p.lbl || efLabel(p.ef); }
+function trackRatingOf(p) { return p.tlbl || efLabel(p.tef); }
 
 function popupHtml(p) {
     const color = EF_COLORS[p.ef] || EF_COLORS['N/A'];
@@ -179,21 +201,21 @@ function popupHtml(p) {
     const meta = [];
     const where = [p.name, p.wfo].filter(Boolean).join(' · ');
     if (p.layer === 'point') {
-        title = efLabel(p.ef) + ' damage' + (p.wind ? ' · ' + p.wind + ' mph' : '');
+        title = ratingOf(p) + ' damage' + (p.wind ? ' · ' + p.wind + ' mph' : '');
         if (p.dmg) meta.push(esc(p.dmg));
         if (p.dod) meta.push(esc(p.dod));
         if (where) meta.push(esc(where));
         meta.push(esc(spanText(p.t0, p.t1)));
     } else if (p.layer === 'track') {
-        title = efLabel(p.ef) + ' tornado' + (p.wind ? ' · ' + p.wind + ' mph' : '');
+        title = ratingOf(p) + ' tornado' + (p.wind ? ' · ' + p.wind + ' mph' : '');
         if (where) meta.push(esc(where));
         meta.push(esc(spanText(p.t0, p.t1)));
         if (sizeText(p)) meta.push(esc(sizeText(p)));
         if (casualtyText(p)) meta.push(esc(casualtyText(p)));
     } else {
-        title = efLabel(p.ef) + ' damage area';
+        title = ratingOf(p) + ' damage area';
         // A polygon linked to its track carries the tornado's rating and numbers — say whose they are.
-        if (p.tef) meta.push(esc('Part of ' + efLabel(p.tef) + ' tornado' + (p.wind ? ' · ' + p.wind + ' mph peak' : '')));
+        if (p.tef) meta.push(esc('Part of ' + trackRatingOf(p) + ' tornado' + (p.wind ? ' · ' + p.wind + ' mph peak' : '')));
         if (where) meta.push(esc(where));
         meta.push(esc(spanText(p.t0, p.t1)));
         if (p.tef && sizeText(p)) meta.push(esc(sizeText(p)));
@@ -203,7 +225,9 @@ function popupHtml(p) {
     const lines = meta.filter(Boolean);
     if (lines.length) html += '<div class="dat-popup-meta">' + lines.join('<br>') + '</div>';
     if (p.com) html += '<div class="dat-popup-com">' + esc(p.com) + '</div>';
-    html += '<div class="dat-popup-src">NWS Damage Assessment Toolkit</div>';
+    html += '<div class="dat-popup-src">' + (p.src === 'se'
+        ? 'NCEI Storm Events · path is straight within each county'
+        : 'NWS Damage Assessment Toolkit') + '</div>';
     return html;
 }
 
@@ -308,6 +332,10 @@ export function setOpacity(map, o) {
     if (map.getLayer('dat-area-line')) map.setPaintProperty('dat-area-line', 'line-opacity', lineOpacity());
     if (map.getLayer('dat-track-casing')) map.setPaintProperty('dat-track-casing', 'line-opacity', lineOpacity());
     if (map.getLayer('dat-track')) map.setPaintProperty('dat-track', 'line-opacity', lineOpacity());
+    if (map.getLayer('dat-track-start')) {
+        map.setPaintProperty('dat-track-start', 'circle-opacity', lineOpacity());
+        map.setPaintProperty('dat-track-start', 'circle-stroke-opacity', lineOpacity());
+    }
     if (map.getLayer('dat-point')) {
         map.setPaintProperty('dat-point', 'circle-opacity', opacity);
         map.setPaintProperty('dat-point', 'circle-stroke-opacity', opacity);

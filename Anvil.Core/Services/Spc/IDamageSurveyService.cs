@@ -12,7 +12,8 @@ namespace Anvil.Services
 	/// (MainWindow) maps <see cref="CacheDirectory"/> to a WebView virtual host so the page can fetch it.
 	///
 	/// Keyed to the LOADED replay WINDOW, not a day: a feature is in the window file when its time span
-	/// overlaps the window. Tornado features only — the DAT's wind and tropical entries are dropped.
+	/// overlaps the window. Tornado features only — the DAT's wind and tropical entries are dropped. Tracks
+	/// also come from NCEI Storm Events (1950 → ~3 months ago), which times the DAT features it matches.
 	/// </summary>
 	public interface IDamageSurveyService
 	{

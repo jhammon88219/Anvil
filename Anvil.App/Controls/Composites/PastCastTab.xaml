@@ -34,13 +34,13 @@
        │     [ Save current timeframe ]                       │
        │ › [x] Radar                                          │  ← the layer everything else
        │ ›  SPC outlook                                       │     is drawn OVER
-       │ ⌄ [-] Damage surveys                                 │  ← NWS DAT tornado surveys for
-       │     ┌────────────────────────────────────┐           │     the LOADED window (a tornado
-       │     │ 4 tornado tracks                   │           │     shows if its time on the
-       │     │ Mon May 6, 2024 · 7:00 PM → 9:00 PM│           │     ground overlaps it)
-       │     └────────────────────────────────────┘           │
-       │     [x] ■ Damage polygons              12            │  ← the ONLY default tick
-       │     [ ] ━ Tracks                        4            │
+       │ ⌄ [-] Damage surveys                                 │  ← tornado surveys (NWS DAT +
+       │     ┌────────────────────────────────────┐           │     NCEI Storm Events) for the
+       │     │ 4 tornado tracks                   │           │     LOADED window (a tornado shows
+       │     │ Mon May 6, 2024 · 7:00 PM → 9:00 PM│           │     if its time on the ground
+       │     └────────────────────────────────────┘           │     overlaps it)
+       │     [x] ■ Damage polygons              12            │  ← default ticks: polygons
+       │     [x] ━ Tracks                        4            │     and tracks
        │     [ ] ● Survey points                96            │
        │     [EFU][EF0][EF1][EF2][EF3][EF4][EF5]              │  ← DAT's own EF colours
        │     Opacity  ─────────●────────  70%                 │
@@ -638,13 +638,13 @@
         </Expander>
 
         <!-- ===================== NWS DAMAGE SURVEYS ===================== -->
-        <!-- The NWS Damage Assessment Toolkit's tornado surveys for the LOADED window (ViewModel.DamageSurveys):
-             a tornado shows when its time on the ground overlaps the window. Between the outlook and the
-             reports because that is where it draws — over the radar and outlook, under the report dots.
-             Authored inline (PastCast is its only host), in the same card-over-rows shape as the reports.
-             ⚠️ ONLY "Damage polygons" IS TICKED BY DEFAULT, and only some offices draw polygons — the card's
-             footer says so when a window has tracks but no polygons. Don't "fix" an empty map by changing
-             the default; the user chose it.
+        <!-- Tornado damage surveys for the LOADED window (ViewModel.DamageSurveys): NWS Damage Assessment
+             Toolkit polygons/tracks/points, plus NCEI Storm Events tracks for anything the DAT lacks (all of
+             pre-2012, most of it). A tornado shows when its time on the ground overlaps the window. Between
+             the outlook and the reports because that is where it draws — over the radar and outlook, under
+             the report dots. Authored inline (PastCast is its only host), card-over-rows like the reports.
+             ⚠️ Polygons AND tracks are ticked by default (the user's call): the section exists to put the path
+             under the radar loop, and only some offices draw polygons.
              ⚠️ The EF chips are the DAT's own polygon colours, literals mirrored from damage-surveys.js
              EF_COLORS — change both. Data colours, never themed. -->
         <Expander Grid.Row="4" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
@@ -721,7 +721,7 @@
                     <CheckBox Grid.Row="1" MinWidth="0" HorizontalAlignment="Stretch"
                               IsEnabled="{x:Bind ViewModel.DamageSurveys.IsReady, Mode=OneWay}"
                               IsChecked="{x:Bind ViewModel.DamageSurveys.ShowTracks, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Tornado track centerlines (one per surveyed tornado)">
+                              ToolTipService.ToolTip="Tornado paths — surveyed tracks (NWS DAT), else NCEI Storm Events (straight within each county)">
                         <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
