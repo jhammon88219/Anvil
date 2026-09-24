@@ -19,7 +19,7 @@
        │    Opacity   ━━━━━━━━━━━━●  100 %                        │
        │    Size      ━━━●━━━━━━━━━  10 px                        │
        │    Halo      ━━●━━━━━━━━━━  1.2 px                       │
-       │    Position  ━━━━━━●━━━━━━  045°  [ North ]              │  ← also set by dragging ◆ on the map
+       │    Position  ━━━━━━●━━━━━━  045°  [ North ]              │  ← also set by dragging the ⟳ handle
        │    [x] Show the drag handle on the map                   │
        │  ⌄  Range ruler                                          │
        │    Ruler from [ Radar site | My location ]               │
@@ -169,7 +169,7 @@
                 <Slider Grid.Row="4" Grid.Column="1" Width="220" VerticalAlignment="Center"
                         Minimum="0" Maximum="359" StepFrequency="1" SmallChange="1" LargeChange="15"
                         IsThumbToolTipEnabled="False"
-                        ToolTipService.ToolTip="The bearing the labels sit on, clockwise from north. You can also drag the ◆ handle on the map"
+                        ToolTipService.ToolTip="The bearing the labels sit on, clockwise from north. You can also drag the round handle on the outermost distance ring"
                         Value="{x:Bind ViewModel.Radar.RangeRings.LabelBearing, Mode=TwoWay}"/>
                 <StackPanel Grid.Row="4" Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                     <TextBlock VerticalAlignment="Center" Opacity="0.75" MinWidth="36"
@@ -182,7 +182,7 @@
                 <CheckBox Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Margin="4,0,0,0"
                           Content="Show the drag handle on the map"
                           IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowLabelHandle, Mode=TwoWay}"
-                          ToolTipService.ToolTip="The ◆ on the label line near the site. Drag it around to move every label; hide it once they're where you want them"/>
+                          ToolTipService.ToolTip="The round handle on the outermost distance ring. Drag it around to move every label; hide it once they're where you want them"/>
             </Grid>
             </ContentControl>
         </Expander>

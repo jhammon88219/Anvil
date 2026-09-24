@@ -13,10 +13,11 @@
 //
 //   THE LABEL HANDLE (primary pane only, DOM, like the ruler's knob):
 //
-//              ╳ ─ ◆ ─ ┆ 25 km ─ ┆ 50 km ─ ┆ 75 km …        ◆ sits on the label axis, half a step out (at
-//            site  handle                                    least HANDLE_MIN_PX from the site). Drag it
-//                                                            round and every label swings with it; let go
-//                                                            and the bearing is posted to the host
+//                                                 450 km     the outermost label lifts clear of the handle
+//              ╳ ─ ┆ 100 km ─ ┆ 200 km ─ … ───────(⟳)       (⟳) a 30 px round grip ON the OUTERMOST distance
+//            site                                            ring, at the labels' bearing. Drag it round and
+//                                                            every label swings with it, live, in every pane;
+//                                                            let go and the bearing is posted to the host
 //                                                            (rangeRingLabelBearing) to persist.
 //
 //   WHICH RINGS: Settings → Radar Range Ring (setRings; default outline + velocity). HOW THEY LOOK: the same
@@ -27,8 +28,11 @@
 //   ⚠️ The OUTLINE's colour is the --anvil-scope-ring CSS variable (map.js setScopeColor), shared with the
 //   ruler; the other colours come in setStyle ('' = the theme's). The ruler ends at reach.refl even when the
 //   outline is off.
-//   ⚠️ A style change DROPS and RE-ADDS the ring layers rather than patching paint properties: a dash pattern
-//   can't be set back to solid with setPaintProperty on every MapLibre version, and re-adding is cheap.
+//   ⚠️ NOTHING IS RE-ADDED TO CHANGE A LOOK. Ring layers are created once per pane and kept; a ring switched
+//   off fades to opacity 0, and every colour/opacity/width/pattern change is a setPaintProperty that MapLibre
+//   animates (FADE_MS). The first build re-added layers on every change, and a re-added GeoJSON layer draws
+//   NOTHING until its tiles rebuild — so rings blinked out under an opacity slider and flashed on toggles.
+//   ⚠️ Moving LABELS is the other trap (a symbol re-placed by setData fades in from 0) — see "Moving labels".
 //
 //   ⚠️ fill-antialias MUST stay off — it outlines every triangle and the tail becomes a fan of spokes.
 //   Faint seams between triangles can still show; that is known and cosmetic (a canvas conic-gradient
@@ -56,7 +60,9 @@ import * as Theme from './theme.js';
 const RANGE_SRC = 'level2-range', RANGE_LAYER = 'level2-range';                 // reflectivity outline
 const VEL_SRC = 'level2-range-vel', VEL_LAYER = 'level2-range-vel';             // velocity reach
 const DIST_SRC = 'level2-range-dist', DIST_LAYER = 'level2-range-dist';         // distance rings
-const DIST_LABEL_LAYER = 'level2-range-dist-label';
+const DIST_LABEL_SRC = 'level2-range-dist-labels', DIST_LABEL_LAYER = 'level2-range-dist-label';
+const FADE_MS = 220;          // every look change (colour, opacity, width, on/off) animates over this
+const LIVE_SETTLE_MS = 400;   // labels keep "live" placement this long after they stop moving
 const DIST_EXTENT_M = 460000; // distance rings run to a NEXRAD's full reach whatever is on screen
 const DIST_MAX_RINGS = 40;    // a cap, not a design value: 25 nm to 460 km is 10 rings
 const SWEEP_SRC = 'level2-sweep', SWEEP_FILL_LAYER = 'level2-sweep-fill', SWEEP_ARM_LAYER = 'level2-sweep-arm';
@@ -69,7 +75,6 @@ const SWEEP_GAMMA = 1.6;      // trailing-fade shape (>1 = fades to nothing fast
 
 // Line patterns, in LINE WIDTHS (MapLibre's unit). ⚠️ The keys MIRROR Models/Radar/RingStyle.cs RingLines.
 const DASHES = { solid: null, dashed: [4, 3], dotted: [1, 3], dashdot: [6, 3, 1, 3] };
-const HANDLE_MIN_PX = 56;     // the label handle never sits closer than this to the site (it'd fight the key)
 
 // { forEachView(fn), viewCount(), primaryView(), beforeId(map), getSite() -> {lat,lon} } — from radar.js.
 let host = null;
@@ -114,36 +119,40 @@ function autoStep() {
     return v <= 120 ? 25 : v <= 300 ? 50 : 100;
 }
 function stepMeters() { return autoStep() * (Geo.UNIT_METERS[units] || 1000); }
-function distExtent() { return Math.max(DIST_EXTENT_M, reflMeters); }
-function distCollection() {
-    const per = Geo.UNIT_METERS[units] || 1000, step = stepMeters(), s = host.getSite();
-    const az = style.bearing * Geo.D2R, extent = distExtent(), features = [];
-    for (let r = step, n = 0; r <= extent + 1 && n < DIST_MAX_RINGS; r += step, n++) {
-        features.push(ringFeature(r));
-        features.push({
-            type: 'Feature', properties: { label: Math.round(r / per) + ' ' + units },
-            geometry: { type: 'Point', coordinates: Geo.siteToLngLat(s.lat, s.lon, r, az) },
-        });
-    }
-    return { type: 'FeatureCollection', features: features };
+// The radii of the distance rings, innermost first — the last one is the OUTERMOST, where the handle sits.
+function distRadii() {
+    const step = stepMeters(), extent = Math.max(DIST_EXTENT_M, reflMeters), out = [];
+    for (let r = step; r <= extent + 1 && out.length < DIST_MAX_RINGS; r += step) out.push(r);
+    return out;
+}
+function distRingsData() {
+    return { type: 'FeatureCollection', features: distRadii().map(ringFeature) };
+}
+// The labels are a SEPARATE source from the rings they name: moving them (the handle, the Position slider)
+// then re-tiles only a few points, never the ring lines. The outermost carries `outer` so its text lifts
+// clear of the handle sitting on that ring.
+function distLabelsData() {
+    const per = Geo.UNIT_METERS[units] || 1000, s = host.getSite(), az = style.bearing * Geo.D2R;
+    const radii = distRadii();
+    return {
+        type: 'FeatureCollection',
+        features: radii.map(function (r, i) {
+            return {
+                type: 'Feature', properties: { label: Math.round(r / per) + ' ' + units, outer: i === radii.length - 1 },
+                geometry: { type: 'Point', coordinates: Geo.siteToLngLat(s.lat, s.lon, r, az) },
+            };
+        }),
+    };
 }
 
 // ---- Looks ----
 // A ring's colour: the user's hex, else the theme's variable for that ring (always with a fallback — an empty
 // colour throws inside MapLibre's render).
+function reflColor() { return Theme.color('--anvil-scope-ring', '#9fe0ff'); }
 function velColor() { return style.vel.color || Theme.color('--anvil-scope-vel', '#ffa07a'); }
 function distColor() { return style.dist.color || Theme.color('--anvil-scope-dist', '#c7cdd4'); }
 function labelColor() { return style.label.color || distColor(); }
 function casingColor() { return Theme.color('--anvil-ruler-casing', '#000000'); }
-
-// A line layer's paint from one ring's style. The dash array is only present when there is one — a solid
-// ring simply has no 'line-dasharray' (see the re-add note at the top).
-function linePaint(s, color, extra) {
-    const p = Object.assign({ 'line-color': color, 'line-width': s.w, 'line-opacity': s.op }, extra || {});
-    const dash = DASHES[s.line];
-    if (dash) p['line-dasharray'] = dash;
-    return p;
-}
 
 // Merge a pushed style over the current one, field by field, dropping anything malformed: every value lands
 // in a MapLibre paint property, where NaN or a non-colour throws mid-render.
@@ -157,134 +166,182 @@ function mergeRing(cur, o) {
     };
 }
 
+// What each ring layer should look like RIGHT NOW. A ring switched off is not removed — its opacity goes to
+// 0, so on/off fades like every other change (see the note at the top). The velocity ring also waits for a
+// velocity reach.
+function ringTargets() {
+    return [
+        { id: RANGE_LAYER, s: style.refl, color: reflColor(), on: rings.refl },
+        { id: VEL_LAYER, s: style.vel, color: velColor(), on: rings.vel && velMeters > 0 },
+        { id: DIST_LAYER, s: style.dist, color: distColor(), on: rings.dist },
+    ];
+}
+// Patch ONE map's ring + label paint to the targets. MapLibre animates each change over the layer's
+// *-transition (FADE_MS). ⚠️ A solid line is `undefined` dasharray — measured on the vendored build: that
+// resets it to solid, and a pattern → pattern change works in place too.
+function applyPaint(map) {
+    ringTargets().forEach(function (t) {
+        if (!map.getLayer(t.id)) return;
+        map.setPaintProperty(t.id, 'line-color', t.color);
+        map.setPaintProperty(t.id, 'line-width', t.s.w);
+        map.setPaintProperty(t.id, 'line-opacity', t.on ? t.s.op : 0);
+        map.setPaintProperty(t.id, 'line-dasharray', DASHES[t.s.line] || undefined);
+    });
+    if (map.getLayer(DIST_LABEL_LAYER)) {
+        map.setPaintProperty(DIST_LABEL_LAYER, 'text-color', labelColor());
+        map.setPaintProperty(DIST_LABEL_LAYER, 'text-opacity', rings.dist ? style.label.op : 0);
+        map.setPaintProperty(DIST_LABEL_LAYER, 'text-halo-color', casingColor());
+        map.setPaintProperty(DIST_LABEL_LAYER, 'text-halo-width', style.label.halo);
+        if (map.getLayoutProperty(DIST_LABEL_LAYER, 'text-size') !== style.label.size) {
+            map.setLayoutProperty(DIST_LABEL_LAYER, 'text-size', style.label.size);
+        }
+    }
+}
+function applyPaintAll() { host.forEachView(function (v) { if (v.map) applyPaint(v.map); }); }
+
 function setSource(map, id, data) {
     if (map.getSource(id)) map.getSource(id).setData(data);
     else map.addSource(id, { type: 'geojson', data: data });
 }
-function drop(map, layerIds, srcId) {
+function drop(map, layerIds, srcIds) {
     layerIds.forEach(function (id) { if (map.getLayer(id)) map.removeLayer(id); });
-    if (map.getSource(srcId)) map.removeSource(srcId);
+    srcIds.forEach(function (id) { if (map.getSource(id)) map.removeSource(id); });
 }
-// Stacking, bottom to top: distance rings, velocity, outline — then everything the host puts above radar.
-// A ring switched on later is slotted under the next ring UP that exists, so the order holds.
+// Stacking, bottom to top: distance rings (+ labels), velocity, outline — then everything the host puts above
+// radar. A layer added later is slotted under the next one UP that exists, so the order holds.
 function beforeFor(map, id) {
-    const above = id === DIST_LAYER ? [VEL_LAYER, RANGE_LAYER] : id === VEL_LAYER ? [RANGE_LAYER] : [];
-    for (let i = 0; i < above.length; i++) if (map.getLayer(above[i])) return above[i];
+    const order = [DIST_LAYER, DIST_LABEL_LAYER, VEL_LAYER, RANGE_LAYER];
+    for (let i = order.indexOf(id) + 1; i < order.length; i++) if (map.getLayer(order[i])) return order[i];
     return host.beforeId(map);
 }
+const FADE = { duration: FADE_MS, delay: 0 };
+function addRingLayer(map, id, src) {
+    map.addLayer({
+        id: id, type: 'line', source: src,
+        // Born invisible; applyPaint fades it to its target on the next frame.
+        paint: {
+            'line-opacity': 0, 'line-opacity-transition': FADE, 'line-color-transition': FADE,
+            'line-width-transition': FADE, 'line-blur': id === RANGE_LAYER ? 0.3 : 0,
+        },
+    }, beforeFor(map, id));
+}
 
-// Bring ONE pane's rings in line with the state: add what should show, update the radii, drop the rest.
+// Make sure ONE pane has every ring layer with current geometry, then fade it to the current look. Layers
+// are created once and kept (hidden = opacity 0), so a toggle or a style change never re-adds anything.
 function drawRings(v) {
     const map = v && v.map;
-    if (!map) return;
-    const have = reflMeters > 0;
+    if (!map || !(reflMeters > 0)) return;
 
-    if (have && rings.dist) {
-        setSource(map, DIST_SRC, distCollection());
-        if (!map.getLayer(DIST_LAYER)) {
-            map.addLayer({
-                id: DIST_LAYER, type: 'line', source: DIST_SRC, filter: ['==', ['geometry-type'], 'LineString'],
-                paint: linePaint(style.dist, distColor()),
-            }, beforeFor(map, DIST_LAYER));
-        }
-        if (!map.getLayer(DIST_LABEL_LAYER)) {
-            map.addLayer({
-                id: DIST_LABEL_LAYER, type: 'symbol', source: DIST_SRC, filter: ['==', ['geometry-type'], 'Point'],
-                layout: {
-                    // ⚠️ 'Noto Sans Medium' — the one stack the bundled glyph host serves (see radar-ruler.js).
-                    'text-field': ['get', 'label'], 'text-font': ['Noto Sans Medium'], 'text-size': style.label.size,
-                    'text-offset': [0, -0.7], 'text-allow-overlap': false, 'text-padding': 4,
-                },
-                paint: {
-                    'text-color': labelColor(), 'text-opacity': style.label.op,
-                    'text-halo-color': casingColor(), 'text-halo-width': style.label.halo,
-                },
-            }, beforeFor(map, DIST_LAYER));
-        }
-    } else {
-        drop(map, [DIST_LABEL_LAYER, DIST_LAYER], DIST_SRC);
+    setSource(map, DIST_SRC, distRingsData());
+    setSource(map, DIST_LABEL_SRC, distLabelsData());
+    setSource(map, VEL_SRC, velMeters > 0 ? ringFeature(velMeters) : { type: 'FeatureCollection', features: [] });
+    setSource(map, RANGE_SRC, ringFeature(reflMeters));
+
+    let added = false;
+    if (!map.getLayer(DIST_LAYER)) { addRingLayer(map, DIST_LAYER, DIST_SRC); added = true; }
+    if (!map.getLayer(DIST_LABEL_LAYER)) {
+        map.addLayer({
+            id: DIST_LABEL_LAYER, type: 'symbol', source: DIST_LABEL_SRC,
+            layout: {
+                // ⚠️ 'Noto Sans Medium' — the one stack the bundled glyph host serves (see radar-ruler.js).
+                'text-field': ['get', 'label'], 'text-font': ['Noto Sans Medium'], 'text-size': style.label.size,
+                // The outermost label lifts well clear of the handle that sits on its ring.
+                'text-offset': ['case', ['boolean', ['get', 'outer'], false], ['literal', [0, -2.3]], ['literal', [0, -0.7]]],
+                'text-allow-overlap': labelsLive, 'text-ignore-placement': labelsLive, 'text-padding': 4,
+            },
+            paint: {
+                'text-opacity': 0, 'text-opacity-transition': FADE, 'text-color-transition': FADE,
+                'text-halo-width-transition': FADE,
+            },
+        }, beforeFor(map, DIST_LABEL_LAYER));
+        added = true;
     }
+    if (!map.getLayer(VEL_LAYER)) { addRingLayer(map, VEL_LAYER, VEL_SRC); added = true; }
+    if (!map.getLayer(RANGE_LAYER)) { addRingLayer(map, RANGE_LAYER, RANGE_SRC); added = true; }
 
-    if (have && rings.vel && velMeters > 0) {
-        setSource(map, VEL_SRC, ringFeature(velMeters));
-        if (!map.getLayer(VEL_LAYER)) {
-            map.addLayer({
-                id: VEL_LAYER, type: 'line', source: VEL_SRC,
-                paint: linePaint(style.vel, velColor()),
-            }, beforeFor(map, VEL_LAYER));
-        }
-    } else {
-        drop(map, [VEL_LAYER], VEL_SRC);
-    }
-
-    if (have && rings.refl) {
-        setSource(map, RANGE_SRC, ringFeature(reflMeters));
-        if (!map.getLayer(RANGE_LAYER)) {
-            map.addLayer({
-                id: RANGE_LAYER, type: 'line', source: RANGE_SRC,
-                paint: linePaint(style.refl, Theme.color('--anvil-scope-ring', '#9fe0ff'), { 'line-blur': 0.3 }),
-            }, beforeFor(map, RANGE_LAYER));
-        }
-    } else {
-        drop(map, [RANGE_LAYER], RANGE_SRC);
-    }
-
+    // A layer that was just added must see its 0 before the target, or MapLibre has nothing to fade FROM.
+    if (added) requestAnimationFrame(function () { if (map.getLayer(RANGE_LAYER)) applyPaint(map); });
+    else applyPaint(map);
     syncHandle();
 }
 function removeRings(v) {
     const map = v && v.map;
     if (!map) return;
-    drop(map, [DIST_LABEL_LAYER, DIST_LAYER], DIST_SRC);
-    drop(map, [VEL_LAYER], VEL_SRC);
-    drop(map, [RANGE_LAYER], RANGE_SRC);
+    drop(map, [DIST_LABEL_LAYER, DIST_LAYER, VEL_LAYER, RANGE_LAYER], [DIST_LABEL_SRC, DIST_SRC, VEL_SRC, RANGE_SRC]);
 }
-function redrawAll() {
-    host.forEachView(function (v) { removeRings(v); drawRings(v); });
-    syncHandle();
+
+// ---- Moving labels ----
+// ⚠️ MEASURED, not assumed (vendored MapLibre, 2026-09-24): every setData on a symbol source re-places the
+// labels as NEW symbols, and a new symbol fades in from 0 over the map's fadeDuration. Moving them every
+// frame (a drag) therefore kept them at ~0 — they vanished for the whole drag. With text-allow-overlap +
+// text-ignore-placement they skip collision placement and draw at once, frame after frame. Those two stay ON
+// only while the labels are moving ("live"), then go back off after LIVE_SETTLE_MS of stillness so the labels
+// thin themselves against each other again when you zoom out.
+let labelsLive = false, settleTimer = 0;
+function setLabelsLive(on) {
+    if (labelsLive === on) return;
+    labelsLive = on;
+    host.forEachView(function (v) {
+        const map = v.map;
+        if (!map || !map.getLayer(DIST_LABEL_LAYER)) return;
+        map.setLayoutProperty(DIST_LABEL_LAYER, 'text-allow-overlap', on);
+        map.setLayoutProperty(DIST_LABEL_LAYER, 'text-ignore-placement', on);
+    });
+}
+function settleLabelsSoon() {
+    if (settleTimer) clearTimeout(settleTimer);
+    settleTimer = setTimeout(function () { settleTimer = 0; if (host) setLabelsLive(false); }, LIVE_SETTLE_MS);
+}
+function moveLabels() {
+    setLabelsLive(true);
+    const data = distLabelsData();
+    host.forEachView(function (v) {
+        const src = v.map && v.map.getSource(DIST_LABEL_SRC);
+        if (src) src.setData(data);
+    });
 }
 
 // ---- The label handle (primary pane only) ----
-// A DOM marker on the label axis. Dragging it takes only the BEARING (like the ruler's knob): the handle is
-// snapped back onto the axis every move, and the labels in every pane follow live — only the source's data
-// changes, no layer is re-added mid-drag. Letting go posts the bearing to the host, which persists it and
-// deliberately does NOT push it back (RangeRingsViewModel.OnLabelBearingDragged).
-function metersPerPixel(map) {
-    return 156543.03392804097 * Math.cos(map.getCenter().lat * Geo.D2R) / Math.pow(2, map.getZoom());
-}
+// A DOM marker ON the outermost distance ring, at the labels' bearing. Dragging it takes only the BEARING
+// (like the ruler's knob): the handle is snapped back onto the ring every move, and the labels in every pane
+// follow live. Letting go posts the bearing to the host, which persists it and deliberately does NOT push it
+// back (RangeRingsViewModel.OnLabelBearingDragged).
 function handleWanted() { return !!(host && rings.dist && style.handle && reflMeters > 0); }
-// Half a ring step out along the axis — between the site and the first label — but never closer than
-// HANDLE_MIN_PX on screen, so zoomed out it doesn't sit on the site key.
-function handleLngLat(map) {
-    const s = host.getSite();
-    const r = Math.min(distExtent(), Math.max(stepMeters() / 2, HANDLE_MIN_PX * metersPerPixel(map)));
-    return Geo.siteToLngLat(s.lat, s.lon, r, style.bearing * Geo.D2R);
+function handleLngLat() {
+    const s = host.getSite(), radii = distRadii();
+    return Geo.siteToLngLat(s.lat, s.lon, radii[radii.length - 1] || stepMeters(), style.bearing * Geo.D2R);
 }
+// A round grip with a circular double arrow ("swing me round"), in the labels' colour on a dark casing and a
+// soft glow — it has to read over bright returns and the dark basemap alike.
 function handleSvg() {
     const fill = labelColor(), casing = casingColor();
-    return '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">' +
-        '<rect x="4.5" y="4.5" width="11" height="11" rx="2" transform="rotate(45 10 10)" fill="' + fill +
-        '" stroke="' + casing + '" stroke-width="1.5"/>' +
-        '<circle cx="10" cy="10" r="1.8" fill="' + casing + '"/></svg>';
+    return '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">' +
+        '<circle cx="15" cy="15" r="12" fill="' + fill + '" stroke="' + casing + '" stroke-width="2.5"/>' +
+        '<path d="M9.2 13.2 A6 6 0 0 1 19.8 11.4" fill="none" stroke="' + casing + '" stroke-width="2" stroke-linecap="round"/>' +
+        '<path d="M20.8 16.8 A6 6 0 0 1 10.2 18.6" fill="none" stroke="' + casing + '" stroke-width="2" stroke-linecap="round"/>' +
+        '<path d="M20.9 8.4 L20.4 12.4 L16.6 11.3 Z" fill="' + casing + '"/>' +
+        '<path d="M9.1 21.6 L9.6 17.6 L13.4 18.7 Z" fill="' + casing + '"/></svg>';
+}
+function ensureHandleStyle() {
+    if (document.getElementById('radar-ring-handle-style')) return;
+    const s = document.createElement('style');
+    s.id = 'radar-ring-handle-style';
+    s.textContent =
+        '.radar-ring-handle{cursor:grab;transition:transform .15s ease;}' +
+        '.radar-ring-handle:hover{transform:scale(1.15);}' +
+        '.radar-ring-handle:active{cursor:grabbing;}' +
+        '.radar-ring-handle svg{display:block;filter:drop-shadow(0 0 3px rgba(0,0,0,.9)) drop-shadow(0 1px 2px rgba(0,0,0,.7));}';
+    document.head.appendChild(s);
 }
 // A dragged point → bearing from the site, whole degrees. In the site's own frame (geo.js metres per degree),
 // with the lng unwrapped first — a drag near an Alaskan site can come back on the far side of ±180.
 function bearingOf(ll) {
     const s = host.getSite(), k = Geo.metersPerDeg(s.lat);
     const lng = ll.lng - 360 * Math.round((ll.lng - s.lon) / 360);
-    let deg = Math.round(Math.atan2((lng - s.lon) * k.mPerDegLon, (ll.lat - s.lat) * k.mPerDegLat) / Geo.D2R);
-    deg = ((deg % 360) + 360) % 360;
-    return deg;
+    const deg = Math.round(Math.atan2((lng - s.lon) * k.mPerDegLon, (ll.lat - s.lat) * k.mPerDegLat) / Geo.D2R);
+    return ((deg % 360) + 360) % 360;
 }
-function moveLabels() {
-    const data = distCollection();
-    host.forEachView(function (v) {
-        const src = v.map && v.map.getSource(DIST_SRC);
-        if (src) src.setData(data);
-    });
-}
-function onHandleZoom() { if (labelHandle && handleMap) labelHandle.setLngLat(handleLngLat(handleMap)); }
 function dropHandle() {
-    if (handleMap) handleMap.off('zoom', onHandleZoom);
     if (labelHandle) labelHandle.remove();
     labelHandle = null;
     handleMap = null;
@@ -293,22 +350,23 @@ function syncHandle() {
     const v = host && host.primaryView ? host.primaryView() : null;
     if (!handleWanted() || !v || !v.map) { dropHandle(); return; }
     if (handleMap && handleMap !== v.map) dropHandle();
-    if (labelHandle) { labelHandle.setLngLat(handleLngLat(v.map)); return; }
+    if (labelHandle) { labelHandle.setLngLat(handleLngLat()); return; }
 
+    ensureHandleStyle();
     const el = document.createElement('div');
     el.className = 'radar-ring-handle';
     el.title = 'Drag to move the distance labels';
-    el.style.cursor = 'grab';
     el.innerHTML = handleSvg();
-    labelHandle = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(handleLngLat(v.map)).addTo(v.map);
+    labelHandle = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(handleLngLat()).addTo(v.map);
     handleMap = v.map;
-    handleMap.on('zoom', onHandleZoom);
+    labelHandle.on('dragstart', function () { setLabelsLive(true); });
     labelHandle.on('drag', function () {
         const deg = bearingOf(labelHandle.getLngLat());
         if (deg !== style.bearing) { style.bearing = deg; moveLabels(); }
-        labelHandle.setLngLat(handleLngLat(handleMap)); // back onto the axis
+        labelHandle.setLngLat(handleLngLat()); // back onto the outer ring
     });
     labelHandle.on('dragend', function () {
+        settleLabelsSoon();
         try {
             if (window.chrome && window.chrome.webview) {
                 window.chrome.webview.postMessage(JSON.stringify({ type: 'rangeRingLabelBearing', deg: style.bearing }));
@@ -316,16 +374,12 @@ function syncHandle() {
         } catch (e) { /* host gone — the bearing still holds for this session */ }
     });
 }
-// Every pane has every ring it should — a pane added since the last frame fails this, which is what gets
-// it rings without a new decode.
+
+// Every pane has its ring layers — a pane added since the last frame fails this, which is what gets it rings
+// without a new decode. (Layers exist whether or not a ring is shown; showing is opacity.)
 function allUp() {
     let up = host.viewCount() > 0;
-    host.forEachView(function (v) {
-        const m = v.map;
-        if (rings.refl && !m.getLayer(RANGE_LAYER)) up = false;
-        if (rings.vel && velMeters > 0 && !m.getLayer(VEL_LAYER)) up = false;
-        if (rings.dist && !m.getLayer(DIST_LAYER)) up = false;
-    });
+    host.forEachView(function (v) { if (!v.map.getLayer(RANGE_LAYER) || !v.map.getLayer(DIST_LABEL_LAYER)) up = false; });
     return up;
 }
 
@@ -345,9 +399,11 @@ export function setReach(refl, vel) {
 }
 
 // How the rings look (Settings → Radar Range Ring) — see `style` above for the shape. Anything missing or
-// malformed keeps its current value. Redraws every pane's rings and the handle.
+// malformed keeps its current value. Patches paint in place (a smooth fade); only a moved bearing or a new
+// label size touches the labels' geometry, and that goes through the live-label path.
 export function setStyle(o) {
     if (!o) return;
+    const prev = style;
     style = {
         refl: mergeRing(style.refl, o.refl),
         vel: mergeRing(style.vel, o.vel),
@@ -360,7 +416,12 @@ export function setStyle(o) {
         handle: o.handle === undefined ? style.handle : !!o.handle,
     };
     if (!host) return;
-    redrawAll();
+    const moved = style.bearing !== prev.bearing || style.label.size !== prev.label.size;
+    if (moved) setLabelsLive(true);           // BEFORE the size/position change re-places them
+    applyPaintAll();
+    if (style.bearing !== prev.bearing) moveLabels();
+    if (moved) settleLabelsSoon();
+    syncHandle();
     if (labelHandle) labelHandle.getElement().innerHTML = handleSvg(); // its colours are baked in
 }
 
@@ -371,15 +432,20 @@ export function detachView(v) {
 }
 
 // Which rings to draw (Settings → Radar Range Ring). spacing = the distance rings' step in the unit, 0 = Auto.
+// On/off is a fade; a new spacing rebuilds the distance geometry.
 export function setRings(o) {
-    rings = { refl: !!o.refl, vel: !!o.vel, dist: !!o.dist, spacing: Number(o.spacing) > 0 ? Number(o.spacing) : 0 };
-    if (host) host.forEachView(drawRings);
+    const next = { refl: !!o.refl, vel: !!o.vel, dist: !!o.dist, spacing: Number(o.spacing) > 0 ? Number(o.spacing) : 0 };
+    const respaced = next.spacing !== rings.spacing;
+    rings = next;
+    if (!host) return;
+    if (respaced) host.forEachView(drawRings);
+    else { applyPaintAll(); syncHandle(); }
 }
 
 // The distance rings' unit (Settings → Radar → Readouts). Only they (and their labels) use it.
 export function setUnits(u) {
     units = Geo.UNIT_METERS[u] ? u : 'km';
-    if (host && rings.dist) host.forEachView(drawRings);
+    if (host) host.forEachView(drawRings);
 }
 
 // The reflectivity reach, in metres (0 = no frame yet). ⚠️ The ONE radius on the page: radar-ruler.js reads
@@ -387,17 +453,14 @@ export function setUnits(u) {
 // lands on — and it keeps ending there when the outline is switched off.
 export function getRange() { return reflMeters; }
 
-// Re-read the ring colours into every pane's live layers — after Settings → Radar overrides the outline's
-// (map.js setScopeColor writes --anvil-scope-ring inline on :root) or clears it. A paint property holds the
-// colour it was given at add time, so the CSS change alone would not reach a ring already on screen.
+// Re-read the theme/override colours into every pane's live layers — after Settings changes the outline's
+// (map.js setScopeColor writes --anvil-scope-ring inline on :root) or the theme switches. A paint property
+// holds the colour it was given, so the CSS change alone would not reach a ring already on screen.
 // The sweep is deliberately untouched: its warm afterglow is not the ring's colour (see theme.css).
 export function refreshColors() {
     if (!host) return;
-    const c = Theme.color('--anvil-scope-ring', '#9fe0ff');
-    host.forEachView(function (v) {
-        if (v.map && v.map.getLayer(RANGE_LAYER)) v.map.setPaintProperty(RANGE_LAYER, 'line-color', c);
-    });
-    if (labelHandle) labelHandle.getElement().innerHTML = handleSvg(); // a theme switch moves its colours too
+    applyPaintAll();
+    if (labelHandle) labelHandle.getElement().innerHTML = handleSvg();
 }
 
 // ---- Sweep pulse ----
