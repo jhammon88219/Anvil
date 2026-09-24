@@ -296,17 +296,20 @@ namespace Anvil.Controls.Primitives
 			dy = Math.Clamp(dy, _tops[0] - _tops[_from], _tops[^1] + last.ActualHeight - (_tops[_from] + h));
 			Translation = new Vector3(0, (float)dy, 0);
 
-			// Where the dragged section's middle now sits decides its slot; every sibling it has passed
-			// slides one section-height the other way.
-			double mid = _tops[_from] + dy + h / 2;
+			// The dragged section's LEADING EDGE decides its slot: a sibling steps aside once that edge
+			// crosses the sibling's middle, and every sibling passed slides one section-height the other way.
+			// ⚠️ NOT the dragged section's middle: the clamp above stops it at the block's end, so a section
+			// as tall as (or taller than) the last one could never get its middle past the last one's — the
+			// end sibling would never move out of the way.
+			double top = _tops[_from] + dy, bottom = top + h;
 			int to = _from;
 			for (int i = 0; i < _from; i++)
 			{
-				if (mid < _tops[i] + _block[i].ActualHeight / 2) { to = i; break; }
+				if (top < _tops[i] + _block[i].ActualHeight / 2) { to = i; break; }
 			}
 			for (int i = _block.Count - 1; i > _from; i--)
 			{
-				if (mid > _tops[i] + _block[i].ActualHeight / 2) { to = i; break; }
+				if (bottom > _tops[i] + _block[i].ActualHeight / 2) { to = i; break; }
 			}
 			_to = to;
 
