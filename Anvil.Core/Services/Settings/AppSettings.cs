@@ -270,6 +270,81 @@ namespace Anvil.Services
 			set => SetProperty(ref _pastCastLayerOrder, value ?? new());
 		}
 
+		// ── Temporal-window choices (ViewModels/Map/TemporalWindowPersistence restores + tracks these) ──────
+		// ⚠️ NULLABLE ON PURPOSE: null = "never changed", and the view model keeps ITS OWN default. The
+		// defaults therefore live in exactly one place (the VM field initialisers), and a settings file from
+		// before these existed loads as all-null — no behaviour change until the user touches something.
+		// ⚠️ Outlook products are SpcOutlookType NAMES ("Categorical"), "None" for the off option — never a
+		// list index: the product lists cascade with the day, so a position names different products.
+
+		private double? _radarOpacity;
+		public double? RadarOpacity { get => _radarOpacity; set => SetProperty(ref _radarOpacity, value); }
+		private bool? _showRadarLayer;
+		public bool? ShowRadarLayer { get => _showRadarLayer; set => SetProperty(ref _showRadarLayer, value); }
+
+		private bool? _warningsShowTornado;
+		public bool? WarningsShowTornado { get => _warningsShowTornado; set => SetProperty(ref _warningsShowTornado, value); }
+		private bool? _warningsShowSevere;
+		public bool? WarningsShowSevere { get => _warningsShowSevere; set => SetProperty(ref _warningsShowSevere, value); }
+		private double? _warningsOpacity;
+		public double? WarningsOpacity { get => _warningsOpacity; set => SetProperty(ref _warningsOpacity, value); }
+
+		private bool? _watchesShowTornado;
+		public bool? WatchesShowTornado { get => _watchesShowTornado; set => SetProperty(ref _watchesShowTornado, value); }
+		private bool? _watchesShowSevere;
+		public bool? WatchesShowSevere { get => _watchesShowSevere; set => SetProperty(ref _watchesShowSevere, value); }
+		private double? _watchesOpacity;
+		public double? WatchesOpacity { get => _watchesOpacity; set => SetProperty(ref _watchesOpacity, value); }
+
+		// ONE set for both windows — NowCast and PastCast share StormReportsViewModel.
+		private bool? _stormReportsShowTornado;
+		public bool? StormReportsShowTornado { get => _stormReportsShowTornado; set => SetProperty(ref _stormReportsShowTornado, value); }
+		private bool? _stormReportsShowWind;
+		public bool? StormReportsShowWind { get => _stormReportsShowWind; set => SetProperty(ref _stormReportsShowWind, value); }
+		private bool? _stormReportsShowHail;
+		public bool? StormReportsShowHail { get => _stormReportsShowHail; set => SetProperty(ref _stormReportsShowHail, value); }
+		private double? _stormReportsOpacity;
+		public double? StormReportsOpacity { get => _stormReportsOpacity; set => SetProperty(ref _stormReportsOpacity, value); }
+
+		private bool? _damageSurveysShowAreas;
+		public bool? DamageSurveysShowAreas { get => _damageSurveysShowAreas; set => SetProperty(ref _damageSurveysShowAreas, value); }
+		private bool? _damageSurveysShowTracks;
+		public bool? DamageSurveysShowTracks { get => _damageSurveysShowTracks; set => SetProperty(ref _damageSurveysShowTracks, value); }
+		private bool? _damageSurveysShowPoints;
+		public bool? DamageSurveysShowPoints { get => _damageSurveysShowPoints; set => SetProperty(ref _damageSurveysShowPoints, value); }
+		private double? _damageSurveysOpacity;
+		public double? DamageSurveysOpacity { get => _damageSurveysOpacity; set => SetProperty(ref _damageSurveysOpacity, value); }
+
+		// PastCast's historical outlook. Cycle: the issuance hour (UTC); null = Auto.
+		private int? _pastOutlookDay;
+		public int? PastOutlookDay { get => _pastOutlookDay; set => SetProperty(ref _pastOutlookDay, value); }
+		private string? _pastOutlookProduct;
+		public string? PastOutlookProduct { get => _pastOutlookProduct; set => SetProperty(ref _pastOutlookProduct, value); }
+		private int? _pastOutlookCycle;
+		public int? PastOutlookCycle { get => _pastOutlookCycle; set => SetProperty(ref _pastOutlookCycle, value); }
+		private double? _pastOutlookOpacity;
+		public double? PastOutlookOpacity { get => _pastOutlookOpacity; set => SetProperty(ref _pastOutlookOpacity, value); }
+
+		// ForeCast's live outlook.
+		private int? _foreCastOutlookDay;
+		public int? ForeCastOutlookDay { get => _foreCastOutlookDay; set => SetProperty(ref _foreCastOutlookDay, value); }
+		private string? _foreCastOutlookProduct;
+		public string? ForeCastOutlookProduct { get => _foreCastOutlookProduct; set => SetProperty(ref _foreCastOutlookProduct, value); }
+		private double? _foreCastOutlookOpacity;
+		public double? ForeCastOutlookOpacity { get => _foreCastOutlookOpacity; set => SetProperty(ref _foreCastOutlookOpacity, value); }
+		private bool? _foreCastShowHatching;
+		public bool? ForeCastShowHatching { get => _foreCastShowHatching; set => SetProperty(ref _foreCastShowHatching, value); }
+
+		private Dictionary<string, bool> _sectionExpanded = new();
+		/// <summary>Which temporal-window sections the user opened or closed, keyed "window/section"
+		/// (e.g. "now/warnings"). A key that is absent = the section's XAML default.</summary>
+		/// <remarks>⚠️ REPLACE the dictionary, never mutate it — see FavoriteSiteIds.</remarks>
+		public Dictionary<string, bool> SectionExpanded
+		{
+			get => _sectionExpanded;
+			set => SetProperty(ref _sectionExpanded, value ?? new());
+		}
+
 		private bool _loadHomeOnLaunch;
 		/// <summary>Start the home site's live loop when the app opens (Settings → Radar). Default OFF — the
 		/// app has always launched with no radar, and that stays the first-run behaviour.</summary>

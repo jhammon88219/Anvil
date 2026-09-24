@@ -35,6 +35,8 @@ namespace Anvil.Controls.Composites
 				if (_orderApplied || ViewModel is null) { return; }
 				_orderApplied = true;
 				PanelSection.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Past));
+				PanelSection.PersistExpansion(System.Linq.Enumerable.OfType<PanelSection>(Sections.Children), "past",
+					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			};
 		}
 

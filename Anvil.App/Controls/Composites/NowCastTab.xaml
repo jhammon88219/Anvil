@@ -36,7 +36,9 @@
      slider; that is survivable only because Past and Now are mutually exclusive (their windows can't both
      be open).
 
-     Warnings is the only section open on load. Expanded state is view-only and NOT persisted.
+     Warnings is the only section open on a FIRST run. Every section's open/closed state is then PERSISTED
+     (PanelSection.PersistExpansion → AppSettings.SectionExpanded, keys "now/<LayerId>"), and so is every
+     tick and opacity here (ViewModels/Map/TemporalWindowPersistence).
      ⚠️ The window opens at a FIXED full height (WindowManager's Left anchor), not sized to this body, so
      expanding enough sections can run the body past the window. Known and accepted for now.
 

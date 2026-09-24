@@ -1222,7 +1222,8 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>
-		/// Show/hide the radar layer — the NowCast window's Radar header checkbox. On by default; not persisted.
+		/// Show/hide the radar layer — the Radar header checkbox in the NowCast and PastCast windows. On by
+		/// default; persisted (AppSettings.ShowRadarLayer, via TemporalWindowPersistence).
 		/// </summary>
 		/// <remarks>
 		/// ⚠️ HIDING IS OPACITY 0, NOT AN UNLOAD. The loop keeps fetching and decoding underneath, so showing

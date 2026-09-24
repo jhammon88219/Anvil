@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.Controls.Primitives;
@@ -26,6 +27,8 @@ namespace Anvil.Controls.Composites
 				if (_orderApplied || ViewModel is null) { return; }
 				_orderApplied = true;
 				PanelSection.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Now));
+				PanelSection.PersistExpansion(Sections.Children.OfType<PanelSection>(), "now",
+					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			};
 		}
 

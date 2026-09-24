@@ -88,6 +88,11 @@ namespace Anvil.ViewModels
 			StateIso = new StateIsolationViewModel(mapService, settingsService);
 			PipelineConsole = new PipelineConsoleViewModel(mapService, Radar); // PIPELINE CONSOLE (remove with the feature)
 
+			// Every temporal-window choice (ticks, opacities, outlook pickers) comes back from settings and is
+			// saved as it changes. Before map-ready on purpose — see the class remarks.
+			TemporalWindowPersistence.Attach(settingsService.Settings, Radar, Warnings, Watches, StormReports,
+				DamageSurveys, PastOutlook, Outlook);
+
 			// The range ruler can measure FROM the user-location marker, which Markers owns and Radar does not
 			// know about — so the coordinator hands the point across. Placed, dragged, re-located or removed:
 			// all of them end here. (HasUserLocationMarker covers add/remove/relocate; UserLocationMarker a drag.)
@@ -114,9 +119,8 @@ namespace Anvil.ViewModels
 					OnPropertyChanged(nameof(IsPastCast));
 					// Entering replay takes the radar layer — disarm the (mutually exclusive) live toggle.
 					if (Radar.IsPastEventMode && _isNowCast) { _isNowCast = false; OnPropertyChanged(nameof(IsNowCast)); }
-					// ⚠️ The radar show/hide checkbox lives only in the NowCast window's header; the PastCast
-					// window has the same slider with no way to un-hide. So a replay always starts visible.
-					if (Radar.IsPastEventMode) { Radar.ShowRadarLayer = true; }
+					// NB: a replay used to FORCE ShowRadarLayer on, because only NowCast had the show/hide box.
+					// PastCast has its own now, and the choice is persisted — forcing it would overwrite it.
 					// The map has ONE outlook layer: hand it to the historical (PastOutlook) overlay in past
 					// mode and back to the live outlook otherwise. Entering clears the live outlook (showing
 					// today's forecast over historical radar would be wrong); PastOutlook then drives it.
@@ -662,6 +666,20 @@ namespace Anvil.ViewModels
 			if (mode == TemporalMode.Past) { _settingsService.Settings.PastCastLayerOrder = ids; }
 			else { _settingsService.Settings.NowCastLayerOrder = ids; }
 			PushOverlayOrder();
+		}
+
+		/// <summary>A temporal-window section's saved open/closed state, keyed "window/section"; null = never
+		/// toggled, so the section keeps its XAML default.</summary>
+		public bool? IsSectionExpanded(string key) =>
+			_settingsService.Settings.SectionExpanded.TryGetValue(key, out var open) ? open : null;
+
+		/// <summary>Saves a section's open/closed state (the window calls this as the user toggles it).</summary>
+		public void SetSectionExpanded(string key, bool expanded)
+		{
+			var current = _settingsService.Settings.SectionExpanded;
+			if (current.TryGetValue(key, out var was) && was == expanded) { return; }
+			// A NEW dictionary — auto-save only sees a replaced value (see AppSettings.SectionExpanded).
+			_settingsService.Settings.SectionExpanded = new Dictionary<string, bool>(current) { [key] = expanded };
 		}
 
 		private void PushOverlayOrder()

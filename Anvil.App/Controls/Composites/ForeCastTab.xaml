@@ -38,8 +38,9 @@
        └──────────────────────────────────────────────────────┘
 
      TWO SECTIONS, two Primitives/PanelSections (the one header every section in the app wears, Settings
-     and the other two temporal windows included). SPC outlook is open on load — it is
-     what the window is for. Inside it: a summary CARD, then [label | control] rows in one aligned 60px
+     and the other two temporal windows included). SPC outlook is open on a first run — it is
+     what the window is for. Open/closed is then PERSISTED ("fore/..." in AppSettings.SectionExpanded), and
+     so are Day, Product, opacity and hatching (ViewModels/Map/TemporalWindowPersistence). Inside it: a summary CARD, then [label | control] rows in one aligned 60px
      column, then the legend. Forecast discussion is COLLAPSED on load; see its own note below. This was the loosest of the three bodies — no section structure
      at all, a local OutlookLabelStyle that was character-for-character the shared SettingsFieldLabelStyle,
      and a hand-rolled letter-spaced "Legend" label. All three are gone.
@@ -161,7 +162,7 @@
 
     <!-- ⚠️ NOT top-aligned, unlike the Past/Now roots: TemporalWindow hands this the full window height and
          the legend's star row is what fills it. -->
-    <Grid RowSpacing="8">
+    <Grid x:Name="Root" RowSpacing="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- SPC outlook: the card, the selectors -->
             <RowDefinition Height="*"/>    <!-- the legend: fills the rest, scrolls inside -->

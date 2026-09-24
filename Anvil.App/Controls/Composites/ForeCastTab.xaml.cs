@@ -12,9 +12,20 @@ namespace Anvil.Controls.Composites
 	/// </summary>
 	public sealed partial class ForeCastTab : UserControl
 	{
+		private bool _expansionBound;
+
 		public ForeCastTab()
 		{
 			InitializeComponent();
+			// Once: Loaded fires again every time the window re-shows this body.
+			Loaded += (_, _) =>
+			{
+				if (_expansionBound || ViewModel is null) { return; }
+				_expansionBound = true;
+				Anvil.Controls.Primitives.PanelSection.PersistExpansion(
+					System.Linq.Enumerable.OfType<Anvil.Controls.Primitives.PanelSection>(Root.Children), "fore",
+					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
+			};
 		}
 
 		// x:Bind helper: collapse a card line that has nothing to say, so the card closes up rather than

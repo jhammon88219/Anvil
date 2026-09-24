@@ -419,6 +419,23 @@ namespace Anvil.Controls.Primitives
 			}
 		}
 
+		/// <summary>
+		/// Restores each section's saved open/closed state, then saves every later toggle. Call ONCE per host.
+		/// The key is "window/section" — the section's LayerId, or its lower-cased Header for a non-layer
+		/// section — so it survives a re-order. ⚠️ Renaming a non-layer section's Header forgets its state.
+		/// </summary>
+		public static void PersistExpansion(IEnumerable<PanelSection> sections, string window,
+			Func<string, bool?> get, Action<string, bool> set)
+		{
+			foreach (var section in sections)
+			{
+				var key = window + "/" + (section.IsReorderable ? section.LayerId : section.Header.ToLowerInvariant());
+				if (get(key) is bool open) { section.IsExpanded = open; }
+				section.RegisterPropertyChangedCallback(IsExpandedProperty,
+					(d, _) => set(key, ((PanelSection)d).IsExpanded));
+			}
+		}
+
 		private static int IndexOf(IReadOnlyList<string> list, string id)
 		{
 			for (int i = 0; i < list.Count; i++)

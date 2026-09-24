@@ -60,7 +60,9 @@
      EVERY SECTION IS A Primitives/PanelSection — header = grip (layers only) + chevron + an optional
      select-all box + the title + (layers only) the OPACITY slider; body = its controls, SettingsFieldLabelStyle
      rows in one aligned label column. Timeframe is the only one open on load: it is the section you came to
-     use, and the others act on a window it has to load first. Expanded state is view-only and NOT persisted.
+     use, and the others act on a window it has to load first. That is the FIRST-run state: open/closed is
+     PERSISTED per section (PanelSection.PersistExpansion → AppSettings.SectionExpanded, "past/..."), as is
+     every tick, opacity and outlook pick here (ViewModels/Map/TemporalWindowPersistence).
      ⚠️ THE LAYER RUN'S ORDER IS THE MAP'S Z-ORDER, and the user owns it: drag a layer section by its grip
      (or Alt+Up/Down) and OnSectionsReordered hands the order to MapViewModel.SetLayerOrder, which saves it
      (AppSettings.PastCastLayerOrder — separate from NowCast's) and restacks the map. The XAML order is the
