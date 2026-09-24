@@ -73,13 +73,13 @@
                  as grime rather than as depth. 0 would disable shadows entirely. -->
             <x:Double x:Key="OverlayBarShadowOpacity">1</x:Double>
 
-            <!-- Expander (every panel section). Header on the raised face, body on the ground. -->
-            <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="#FF1A1A1A"/>
-            <SolidColorBrush x:Key="ExpanderHeaderPointerOverBackground" Color="#FF2B2B2B"/>
-            <SolidColorBrush x:Key="ExpanderHeaderPressedBackground" Color="#FF2B2B2B"/>
-            <SolidColorBrush x:Key="ExpanderContentBackground" Color="#FF000000"/>
-            <StaticResource x:Key="ExpanderHeaderBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
-            <StaticResource x:Key="ExpanderContentBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
+            <!-- Primitives/PanelSection (every panel section). Header on the raised face, body on the ground;
+                 LIFTED = the section being dragged. -->
+            <SolidColorBrush x:Key="SectionHeaderBackground" Color="#FF1A1A1A"/>
+            <SolidColorBrush x:Key="SectionHeaderPointerOverBackground" Color="#FF2B2B2B"/>
+            <SolidColorBrush x:Key="SectionHeaderLiftedBackground" Color="#FF383838"/>
+            <SolidColorBrush x:Key="SectionBodyBackground" Color="#FF000000"/>
+            <StaticResource x:Key="SectionBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="#FFF3F3F3"/>
@@ -91,13 +91,12 @@
 
             <x:Double x:Key="OverlayBarShadowOpacity">0.4</x:Double>
 
-            <!-- Expander (every panel section). Header on the raised face, body on the ground. -->
-            <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="#FFE4E4E4"/>
-            <SolidColorBrush x:Key="ExpanderHeaderPointerOverBackground" Color="#FFDCDCDC"/>
-            <SolidColorBrush x:Key="ExpanderHeaderPressedBackground" Color="#FFDCDCDC"/>
-            <SolidColorBrush x:Key="ExpanderContentBackground" Color="#FFF3F3F3"/>
-            <StaticResource x:Key="ExpanderHeaderBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
-            <StaticResource x:Key="ExpanderContentBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
+            <!-- Primitives/PanelSection — see the Default dictionary. -->
+            <SolidColorBrush x:Key="SectionHeaderBackground" Color="#FFE4E4E4"/>
+            <SolidColorBrush x:Key="SectionHeaderPointerOverBackground" Color="#FFDCDCDC"/>
+            <SolidColorBrush x:Key="SectionHeaderLiftedBackground" Color="#FFD0D0D0"/>
+            <SolidColorBrush x:Key="SectionBodyBackground" Color="#FFF3F3F3"/>
+            <StaticResource x:Key="SectionBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
             <SolidColorBrush x:Key="OverlayBarSurfaceBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
@@ -109,6 +108,14 @@
 
             <!-- No shadows in high contrast: depth cues are exactly what that mode removes. -->
             <x:Double x:Key="OverlayBarShadowOpacity">0</x:Double>
+
+            <!-- Primitives/PanelSection. ⚠️ Must exist here too: the control reads them by key, and a key
+                 missing from the active theme dictionary is a XAML parse failure, not a fallback. -->
+            <SolidColorBrush x:Key="SectionHeaderBackground" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+            <SolidColorBrush x:Key="SectionHeaderPointerOverBackground" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="SectionHeaderLiftedBackground" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="SectionBodyBackground" Color="{ThemeResource SystemColorWindowColor}"/>
+            <SolidColorBrush x:Key="SectionBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
@@ -367,137 +374,12 @@
     <x:Double x:Key="OverlayBarTabHeight">28</x:Double>
     <x:Double x:Key="OverlayBarTabRadius">7</x:Double>
 
-    <!-- ───────────────────────────── Expander — a panel SECTION ─────────────────────────────
-
-         Every section in every temporal window and every Settings tab is one of these.
-
-           COLLAPSED                          EXPANDED
-          ┌────────────────────────┐     ┌────────────────────────┐
-          │ ›  Warnings              │     │ ⌄  Warnings              │  ← header, raised face
-          └────────────────────────┘     ├────────────────────────┤
-                                             │ ┌───────────────────┐ │
-                                             │ │ 7 active warnings  │ │  ← body, on the window's
-                                             │ └───────────────────┘ │     own ground
-                                             │ [x] ■ Severe         7   │
-                                             └────────────────────────┘
-
-         The header text is the SECTION TITLE — pass a plain string to Header and the HeaderTemplate
-         below renders it, so a call site is one line and every section reads the same. A section that
-         needs a control up there (a select-all box) passes a UIElement instead and takes
-         CustomHeaderSectionExpanderStyle below.
-
-         ⚠️ ONE HEIGHT FOR EVERY EXPANDER IN THE APP — 24 px, the rank the temporal windows were given
-         first. Settings tabs, PastCast, NowCast and ForeCast all land here, so a section header is the
-         same object wherever you meet it. It is HALF the 48 the stock Expander gives: those windows are
-         stacks of six-ish sections and the tall rank ran the body past the window's bottom before you had
-         opened three of them.
-
-         ⚠️⚠️ THE HEIGHT IS PINNED FROM FOUR SIDES, AND ALL FOUR ARE LOAD-BEARING. A header is as tall as
-         the TALLEST of them, so one left out and the rank drifts back up — which is exactly how it drifted
-         before:
-           1. SectionHeaderContentHeight (24) — the header CONTENT's own fixed height, set on both kinds of
-              header (the string HeaderTemplate's Grid below, SectionHeaderPanelStyle for a custom one). A
-              MINIMUM cannot do this job: content taller than the minimum just wins, and a 16 px title or a
-              stock 32 px CheckBox is taller.
-           2. ExpanderMinHeight (24) — the stock 48, read by key. The Expander MinHeight setter below only
-              beats it for sections that take one of these styles; overriding the key covers the rest.
-           3. ExpanderChevronButtonSize (20) — the chevron box is the OTHER cell of the header row. At its
-              stock 32 it alone holds the header at 34 whatever the content does.
-           4. ExpanderHeaderPadding / ExpanderChevronMargin — no VERTICAL component in either. Stock
-              padding would add its own space on top of the content.
-         ⚠️ Keys 2-4 are read BY KEY from the stock template, so no Setter can reach them; they are
-         app-global deliberately — one height means one place, and a host cannot forget to re-declare them.
-
-         ⚠️ HorizontalContentAlignment must be Stretch. Expander does NOT stretch its content by
-         default, so without it every card, slider and combo inside collapses to its own width and the
-         section looks half-built.
-
-         ⚠️ This REPLACED Controls/Primitives/SectionHeading (a title + a hairline to the panel's edge),
-         which is DELETED. The expander's own box is the boundary now, and it can be closed. -->
-    <x:Double x:Key="SectionHeaderContentHeight">24</x:Double>
-    <x:Double x:Key="ExpanderMinHeight">24</x:Double>
-    <x:Double x:Key="ExpanderChevronButtonSize">20</x:Double>
-    <Thickness x:Key="ExpanderChevronMargin">8,0,6,0</Thickness>
-    <Thickness x:Key="ExpanderHeaderPadding">8,0,0,0</Thickness>
-
-    <Style x:Key="SectionExpanderStyle" TargetType="Expander">
-        <Setter Property="HorizontalAlignment" Value="Stretch"/>
-        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-        <Setter Property="Padding" Value="12"/>
-        <Setter Property="MinHeight" Value="24"/>
-        <Setter Property="HeaderTemplate">
-            <Setter.Value>
-                <!-- ⚠️ The GRID is what fixes the height — a TextBlock sizes to its own line box, which is
-                     ~19 px at 14 px type and would leave a string header shorter than a custom one. 14 px is
-                     the rank SectionHeaderTitleStyle gives a custom header; the two kinds sit in the same
-                     stack in PastCast, so they have to agree on both. -->
-                <DataTemplate>
-                    <Grid Height="{ThemeResource SectionHeaderContentHeight}">
-                        <TextBlock Text="{Binding}"
-                                   FontSize="14" FontWeight="SemiBold"
-                                   VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                    </Grid>
-                </DataTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
-    <!-- The same section with a UIElement header — a select-all CheckBox + the title (NowCast, and the two
-         layer sections of PastCast).
-
-           ┌────────────────────────────────┐
-           │ ›  [x] Warnings                │  ← 24 px, 20 px chevron, 20 px box
-           └────────────────────────────────┘
-
-         ⚠️ HeaderTemplate is nulled because the header is a UIElement here — the base's string template
-         would try to render the panel through a TextBlock. Height and everything else come from the base,
-         so this style is the ONLY difference between the two kinds of section. -->
-    <Style x:Key="CustomHeaderSectionExpanderStyle" TargetType="Expander"
-           BasedOn="{StaticResource SectionExpanderStyle}">
-        <Setter Property="HeaderTemplate" Value="{x:Null}"/>
-    </Style>
-
-    <!-- The row a custom header puts in the Header slot: the select-all box + the title, at the SAME fixed
-         height the string HeaderTemplate above draws. ⚠️ Every custom header goes through this style rather
-         than setting Height at the call site — six call sites setting their own number is how the headers
-         drift apart again. -->
-    <Style x:Key="SectionHeaderPanelStyle" TargetType="StackPanel">
-        <Setter Property="Orientation" Value="Horizontal"/>
-        <Setter Property="Spacing" Value="8"/>
-        <Setter Property="Height" Value="{ThemeResource SectionHeaderContentHeight}"/>
-        <Setter Property="VerticalAlignment" Value="Center"/>
-    </Style>
-
-    <!-- The 20 px glyph box and nothing else: no label, no min size, no padding. ⚠️ MinHeight 0 matters —
-         the stock CheckBox is 32 tall, which is taller than the header. A section header's select-all (VM
-         ToggleAll / AllShown); see the ⚠️ in NowCastTab.xaml for why its IsChecked is ONE-WAY and the click
-         goes to the view model. -->
-    <Style x:Key="SectionHeaderCheckBoxStyle" TargetType="CheckBox">
-        <Setter Property="MinWidth" Value="0"/>
-        <Setter Property="MinHeight" Value="0"/>
-        <Setter Property="Padding" Value="0"/>
-        <Setter Property="VerticalAlignment" Value="Center"/>
-    </Style>
-
-    <!-- The title inside a custom header — the same 14 px SemiBold the string HeaderTemplate above draws. -->
-    <Style x:Key="SectionHeaderTitleStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="14"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="VerticalAlignment" Value="Center"/>
-        <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-    </Style>
-
-    <!-- A custom header with no select-all: the title sits in the box's column so the titles of a MIXED
-         window still line up. 20 (box) + 8 (spacing) = 28. Only for a window that has boxes on some of its
-         sections (PastCast); a window with none of them — Settings, ForeCast — just passes a string Header
-         and gets the template above, flush with the chevron.
-         ⚠️ It still goes inside a SectionHeaderPanelStyle panel, like a title with a box beside it: that
-         panel is what carries the fixed height, and a bare TextBlock in the Header slot would be shorter. -->
-    <Style x:Key="SectionHeaderTitleOnlyStyle" TargetType="TextBlock"
-           BasedOn="{StaticResource SectionHeaderTitleStyle}">
-        <Setter Property="Margin" Value="28,0,0,0"/>
-    </Style>
+    <!-- ───────────────────────────── A panel SECTION ─────────────────────────────
+         Every section in every temporal window and every Settings tab is a Controls/Primitives/PanelSection
+         (it REPLACED the WinUI Expander and its four-sided height pinning — see that control's header).
+         ⚠️ ONE HEADER HEIGHT FOR THE WHOLE APP, and this is the only place it is set. 28, not the old 24:
+         a layer section's header carries an opacity slider, whose 18 px thumb needs the room. -->
+    <x:Double x:Key="SectionHeaderHeight">28</x:Double>
 
     <!-- ───────────────────────────── TextBlock — settings-body labels ─────────────────────────────
 
@@ -507,8 +389,8 @@
 
          ⚠️ THE SECTION HEADING RANK IS NOT A STYLE, AND IS NOT A CONTROL ANY MORE EITHER. It was
          SettingsSectionLabelStyle here, then Controls/Primitives/SectionHeading (a title + a hairline to
-         the panel's edge); both are DELETED. A section title is the Header of a SectionExpanderStyle
-         Expander now — see that style above. -->
+         the panel's edge); both are DELETED. A section title is the Header of a PanelSection now — see
+         SectionHeaderHeight above. -->
     <Style x:Key="SettingsFieldLabelStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="VerticalAlignment" Value="Center"/>

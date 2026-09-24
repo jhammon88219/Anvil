@@ -249,6 +249,27 @@ namespace Anvil.Services
 			set => SetProperty(ref _favoriteSiteIds, value ?? new());
 		}
 
+		// ── Overlay order (the temporal windows' draggable layer sections) ─────────────────────────────
+		// ⚠️ ONE LIST PER WINDOW, by the user's call: Past and Now never run together, so each keeps its own
+		// stack. Top-first Models.LayerOrder ids; EMPTY = the window's own default (its XAML order).
+		// ⚠️ REPLACE the list, never mutate it — see FavoriteSiteIds.
+
+		private List<string> _nowCastLayerOrder = new();
+		/// <summary>The NowCast window's layer-section order, top first (= top of the map).</summary>
+		public List<string> NowCastLayerOrder
+		{
+			get => _nowCastLayerOrder;
+			set => SetProperty(ref _nowCastLayerOrder, value ?? new());
+		}
+
+		private List<string> _pastCastLayerOrder = new();
+		/// <summary>The PastCast window's layer-section order, top first (= top of the map).</summary>
+		public List<string> PastCastLayerOrder
+		{
+			get => _pastCastLayerOrder;
+			set => SetProperty(ref _pastCastLayerOrder, value ?? new());
+		}
+
 		private bool _loadHomeOnLaunch;
 		/// <summary>Start the home site's live loop when the app opens (Settings → Radar). Default OFF — the
 		/// app has always launched with no radar, and that stays the first-run behaviour.</summary>

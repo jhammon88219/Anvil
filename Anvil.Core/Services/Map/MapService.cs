@@ -99,6 +99,10 @@ namespace Anvil.Services
 		public Task ClearStormReportsAsync() =>
 			_mapView.RunScriptAsync(Call("clearStormReports"));
 
+		// A JSON array LITERAL, not a quoted string: the ids are ours (LayerOrder), never user text.
+		public Task SetOverlayOrderAsync(IReadOnlyList<string> topFirst) =>
+			_mapView.RunScriptAsync($"window.setOverlayOrder({System.Text.Json.JsonSerializer.Serialize(topFirst)});");
+
 		public Task<string> DescribeStormReportsAsync() =>
 			_mapView.RunScriptAsync(Call("describeStormReports"));
 

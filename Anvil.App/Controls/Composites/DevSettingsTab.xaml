@@ -41,6 +41,7 @@
 <UserControl x:Class="Anvil.Controls.Composites.DevSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -55,8 +56,7 @@
         </Grid.RowDefinitions>
 
         <!-- ===== Section 1: automated site sweep (SiteSweepViewModel). ===== -->
-        <Expander Grid.Row="0" Header="Site sweep" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="0" Header="Site sweep" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- status / live countdown -->
@@ -121,13 +121,12 @@
                             IsEnabled="{x:Bind SweepVm.HasReport, Mode=OneWay}"/>
                 </StackPanel>
             </Grid>
-        </Expander>
+        </prim:PanelSection>
 
         <!-- Divider between the two tools. -->
 
         <!-- ===== Section 2: dealias validation (RadarValidationViewModel). ===== -->
-        <Expander Grid.Row="1" Header="Dealias validation" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="1" Header="Dealias validation" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- status / live progress -->
@@ -157,7 +156,7 @@
                             IsEnabled="{x:Bind ValidationVm.HasReport, Mode=OneWay}"/>
                 </StackPanel>
             </Grid>
-        </Expander>
+        </prim:PanelSection>
 
         <!-- Divider before the console. -->
 
@@ -172,8 +171,7 @@
              ⚠️ Export writes a COPY of the pristine style with the colours substituted, so the file keeps its
              formatting; drop it into Assets/Map and it is a real style. The click bubbles to MainWindow for
              the save picker (a UserControl has no HWND) — same chain as the report dialogs. -->
-        <Expander Grid.Row="2" Header="Pipeline console" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="2" Header="Pipeline console" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- what it does -->
@@ -188,6 +186,6 @@
                               OffContent="Hidden" OnContent="Shown"
                               IsOn="{x:Bind ViewModel.IsPipelineConsoleOpen, Mode=TwoWay}"/>
             </Grid>
-        </Expander>
+        </prim:PanelSection>
     </Grid>
 </UserControl>

@@ -639,6 +639,36 @@ namespace Anvil.ViewModels
 			Warnings.IsModeActive = IsNowCast;
 			StormReports.IsModeActive = IsNowCast || IsPastCast;
 			DamageSurveys.IsModeActive = IsPastCast;
+
+			PushOverlayOrder(); // Past and Now keep separate stacks, so a mode change can swap which one draws
+		}
+
+		// ===== Overlay ORDER (the temporal windows' draggable layer sections) ===========================
+		// The user drags a window's layer sections into any order and the map follows, top of the list on
+		// top. ⚠️ Each window keeps its OWN order (AppSettings.NowCastLayerOrder / PastCastLayerOrder), and
+		// the map draws the one for the mode that owns the overlays: PastCast while it runs, NowCast
+		// otherwise (ForeCast has one layer, which the page slots in beside NowCast's — layers.js
+		// effectiveOrder). No lock on radar, by the user's call: any layer may go anywhere.
+
+		/// <summary>A window's saved layer order, top first. Empty = that window's XAML default.</summary>
+		public IReadOnlyList<string> LayerOrderFor(TemporalMode mode) =>
+			mode == TemporalMode.Past ? _settingsService.Settings.PastCastLayerOrder : _settingsService.Settings.NowCastLayerOrder;
+
+		/// <summary>Called by a window when its layer sections are re-ordered (drag or Alt+Arrow): persists
+		/// the order and, if that window's mode is the one drawing, re-stacks the map.</summary>
+		public void SetLayerOrder(TemporalMode mode, IEnumerable<string> topFirst)
+		{
+			var ids = LayerOrder.Normalize(topFirst);
+			if (mode == TemporalMode.Past) { _settingsService.Settings.PastCastLayerOrder = ids; }
+			else { _settingsService.Settings.NowCastLayerOrder = ids; }
+			PushOverlayOrder();
+		}
+
+		private void PushOverlayOrder()
+		{
+			if (!_isMapReady) { return; } // replayed by OnMapsReadyAsync
+			var mode = IsPastCast ? TemporalMode.Past : TemporalMode.Now;
+			_ = _mapService.SetOverlayOrderAsync(LayerOrder.Normalize(LayerOrderFor(mode)));
 		}
 
 		/// <summary>Open a mode's settings window. The one entry point for "show me the controls for that
@@ -1120,6 +1150,9 @@ namespace Anvil.ViewModels
 			// The page formats its own distance readouts, and defaults to kilometres — push the persisted
 			// unit before any subsystem can draw one, or a user who chose miles sees km until they touch it.
 			await _mapService.SetDistanceUnitsAsync(DistanceUnits);
+
+			// Before any overlay is added, so the first one lands in the user's order.
+			PushOverlayOrder();
 
 			// Hand off subsystem startup: outlook (startup overlay + progress), watches (source + toggle),
 			// and radar (site markers, offline-status loop, radar progress bar). Markers has no startup

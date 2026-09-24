@@ -63,8 +63,7 @@
         </Grid.RowDefinitions>
 
         <!-- WHICH RINGS. The page SIZES the first two from the frame on screen; these only choose. -->
-        <Expander Grid.Row="0" Header="Rings" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="0" Header="Rings" IsExpanded="True">
             <Grid RowSpacing="8" ColumnSpacing="12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -97,33 +96,29 @@
                                       IsEnabled="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}"
                                       ToolTipService.ToolTip="How far apart the distance rings are, in your distance unit (Radar tab → Readouts). Auto picks a step to suit the radar's reach"/>
             </Grid>
-        </Expander>
+        </prim:PanelSection>
 
         <!-- ⚠️ This ring's colour is AppSettings.ScopeColor — the range ruler wears it too. -->
-        <Expander Grid.Row="1" Header="Reflectivity reach" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="1" Header="Reflectivity reach" IsExpanded="True">
             <StackPanel Spacing="6">
                 <cmp:RingStyleEditor ViewModel="{x:Bind ViewModel.Radar.RangeRings.Outline}"/>
                 <TextBlock Margin="4,0,0,0" Opacity="0.75" TextWrapping="Wrap" MaxWidth="420" HorizontalAlignment="Left"
                            Text="The range ruler takes this ring's colour."/>
             </StackPanel>
-        </Expander>
+        </prim:PanelSection>
 
-        <Expander Grid.Row="2" Header="Velocity reach" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="2" Header="Velocity reach" IsExpanded="True">
             <cmp:RingStyleEditor ViewModel="{x:Bind ViewModel.Radar.RangeRings.Velocity}"/>
-        </Expander>
+        </prim:PanelSection>
 
-        <Expander Grid.Row="3" Header="Distance rings" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="3" Header="Distance rings" IsExpanded="True">
             <cmp:RingStyleEditor ViewModel="{x:Bind ViewModel.Radar.RangeRings.Distance}"
                                  IsEnabled="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}"/>
-        </Expander>
+        </prim:PanelSection>
 
         <!-- DISTANCE LABELS - their own rows, not a RingStyleEditor: text has a font, size and halo, not a pattern.
              Grouped: how the text LOOKS, then what it SAYS and where it SITS. -->
-        <Expander Grid.Row="4" Header="Distance labels" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="4" Header="Distance labels" IsExpanded="True">
             <!-- ⚠️ A ContentControl only to carry IsEnabled: a Panel has none, and it greys every row at once. -->
             <ContentControl HorizontalContentAlignment="Stretch" IsTabStop="False"
                             IsEnabled="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}">
@@ -244,12 +239,11 @@
                           ToolTipService.ToolTip="The knob on the outer range ring, drawn like the range ruler's. Drag it around to move every label; hide it once they're where you want them"/>
             </Grid>
             </ContentControl>
-        </Expander>
+        </prim:PanelSection>
 
         <!-- KNOBS - their own section, NOT under the labels: the size is SHARED with the range ruler's knob (the two
              are drawn identically), so it must stay live while the distance rings are off. -->
-        <Expander Grid.Row="5" Header="Knobs" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="5" Header="Knobs" IsExpanded="True">
             <Grid RowSpacing="6" ColumnSpacing="12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -271,13 +265,12 @@
                            TextWrapping="Wrap" MaxWidth="420" HorizontalAlignment="Left"
                            Text="Sizes both knobs that ride the outer ring: the distance-label knob and the range ruler's."/>
             </Grid>
-        </Expander>
+        </prim:PanelSection>
 
         <!-- RANGE RULER - the anchor preference behind the tools tier's Ruler key (arming it is a gesture and
              stays on the tier). ⚠️ "My location" is kept even with no location marker placed - the ruler
              measures from the site meanwhile and its chip says so. Don't grey the segment. -->
-        <Expander Grid.Row="6" Header="Range ruler" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="6" Header="Range ruler" IsExpanded="True">
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="72"/>
@@ -290,7 +283,7 @@
                                       SelectedIndex="{x:Bind ViewModel.Radar.RulerAnchorIndex, Mode=TwoWay}"
                                       ToolTipService.ToolTip="Where the range ruler starts: the radar site, or your location marker (the site until one is placed)"/>
             </Grid>
-        </Expander>
+        </prim:PanelSection>
 
         <Button Grid.Row="7" HorizontalAlignment="Right" Margin="0,4,0,0"
                 Content="Restore default look"

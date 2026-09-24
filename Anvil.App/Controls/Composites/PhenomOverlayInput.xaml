@@ -11,7 +11,9 @@
        ────────────────────────────────────────────────
        [ ] ■ Tornado                              0     ← one row per phenomenon: the toggle, the
        [x] ■ Severe thunderstorm                  7       map colour, the name, that type's count
-       Opacity ──────●──────────────  100%   ← readout = the VM value pushed to the map
+
+     ⚠️ OPACITY IS NOT HERE — it lives in the host's section header (PanelSection ShowOpacity), so it can be
+     set with the section closed.
 
      ⚠️ IT IS THE STORM-REPORT ROWS, DELIBERATELY. StormReportsInput draws the same card over the same
      kind of type rows one section below, so the two read as one control used three times rather than as
@@ -27,9 +29,6 @@
 
      ⚠️ The swatch colours are the phenom colours the map draws (watches.js / warnings.js, both TO red /
      SV yellow). They are literals in both places — change one, change the other.
-
-     ⚠️ Opacity is DISABLED while both types are off: nothing is on the map, so there is nothing for it to
-     act on. Same off-switch rule as the storm-report dots and the outlook's "None".
 
      ⚠️ THE SECTION HEADING IS NOT HERE — the host draws its own above this control (NowCastTab writes
      "Watches" over one instance and "Warnings" over the other). The window owns its section structure;
@@ -81,7 +80,6 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- Tornado -->
                 <RowDefinition Height="Auto"/> <!-- Severe thunderstorm -->
-                <RowDefinition Height="Auto"/> <!-- Opacity -->
             </Grid.RowDefinitions>
 
             <!-- One row per phenomenon. The count is right-aligned in its own column so the numbers form a
@@ -120,28 +118,6 @@
                                FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </Grid>
             </CheckBox>
-
-            <Grid Grid.Row="2" ColumnSpacing="12" Margin="0,4,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="60"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="36"/> <!-- readout: reserved width, so the slider never resizes -->
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Opacity" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                <Slider Grid.Column="1"
-                        HorizontalAlignment="Stretch"
-                        IsEnabled="{x:Bind ViewModel.AnyShown, Mode=OneWay}"
-                        Minimum="0" Maximum="1"
-                        StepFrequency="0.05" SmallChange="0.05"
-                        IsThumbToolTipEnabled="False"
-                        VerticalAlignment="Center"
-                        Value="{x:Bind ViewModel.Opacity, Mode=TwoWay}"
-                        ToolTipService.ToolTip="Overall opacity of the polygons (fill and outline together)"/>
-                <TextBlock Grid.Column="2" Text="{x:Bind Percent(ViewModel.Opacity), Mode=OneWay}"
-                           Opacity="{x:Bind DimUnless(ViewModel.AnyShown), Mode=OneWay}"
-                           FontSize="12" TextAlignment="Right" VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            </Grid>
         </Grid>
     </Grid>
 </UserControl>

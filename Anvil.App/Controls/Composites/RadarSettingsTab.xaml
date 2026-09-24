@@ -61,7 +61,7 @@
              xmlns:prim="using:Anvil.Controls.Primitives"
              mc:Ignorable="d">
 
-    <!-- Body: one Expander per section (Styles.xaml SectionExpanderStyle), grid rows inside each. -->
+    <!-- Body: one Primitives/PanelSection per section, grid rows inside each. -->
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- radar sites -->
@@ -69,8 +69,7 @@
             <RowDefinition Height="Auto"/> <!-- readouts -->
         </Grid.RowDefinitions>
 
-        <Expander Grid.Row="0" Header="Radar sites" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="0" Header="Radar sites" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- Show TDWRs -->
@@ -89,12 +88,11 @@
                           IsChecked="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"
                           ToolTipService.ToolTip="Show research/test radar markers such as KCRI (ROC test bed, Norman OK)"/>
             </Grid>
-        </Expander>
+        </prim:PanelSection>
 
         <!-- The home site is PICKED in the Radar Atlas (where you can see what you're choosing); this only
              shows it and holds the one launch preference. -->
-        <Expander Grid.Row="1" Header="Home site" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="1" Header="Home site" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- current home -->
@@ -111,12 +109,11 @@
                           IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
                           ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
             </Grid>
-        </Expander>
+        </prim:PanelSection>
 
         <!-- READOUTS - how a measurement is SPOKEN, not what is drawn. One setting so far; it is a section
              rather than a loose row because the next one of its kind (UTC vs local times) lands beside it. -->
-        <Expander Grid.Row="2" Header="Readouts" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="2" Header="Readouts" IsExpanded="True">
             <Grid RowSpacing="4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- distance unit -->
@@ -143,7 +140,7 @@
                            HorizontalAlignment="Left" Opacity="0.75"
                            Text="Ground distances - the range ruler's readout and its range labels. Heights and wind-profile levels stay in kilometres."/>
             </Grid>
-        </Expander>
+        </prim:PanelSection>
 
     </Grid>
 </UserControl>

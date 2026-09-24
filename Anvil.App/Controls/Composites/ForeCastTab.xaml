@@ -7,8 +7,8 @@
      MapViewModel; every control here drives ViewModel.Outlook.
 
        ┌──────────────────────────────────────────────────────┐
-       │ ⌄  SPC outlook                                       │  ← the window's one section, at
-       │                                                      │     the app-wide 24 px header
+       │ ⌄  SPC outlook       ────────●──────   55%           │  ← the window's one section; its
+       │                                                      │     OPACITY rides in the header
        │  ┌──────────────────────────────────────────┐        │
        │  │ Day 1 · Categorical                      │        │  the card: which outlook is
        │  │ Issued 12:57 PM · Valid → Wed 7:00 AM    │        │  drawn, when SPC issued it,
@@ -16,7 +16,6 @@
        │  └──────────────────────────────────────────┘        │
        │  Day      [Day 1 · Wed Sep 2          ▾]             │  ← self-labeling; cascades Product
        │  Product  [Categorical                ▾]             │
-       │  Opacity  ──────●───────────                         │
        └──────────────────────────────────────────────────────┘
          ──────────────────────────────────────────────────     ← the LEGEND: its own star row, so it
           ■ 2%                                             ▲     fills every pixel down to the discussion
@@ -38,8 +37,8 @@
        │  ...VALID 021300Z - 031200Z...                     ▼ │  and rules line up
        └──────────────────────────────────────────────────────┘
 
-     TWO SECTIONS, TWO EXPANDERS (Styles.xaml SectionExpanderStyle — the 24 px header every section in
-     the app wears, Settings and the other two temporal windows included). SPC outlook is open on load — it is
+     TWO SECTIONS, two Primitives/PanelSections (the one header every section in the app wears, Settings
+     and the other two temporal windows included). SPC outlook is open on load — it is
      what the window is for. Inside it: a summary CARD, then [label | control] rows in one aligned 60px
      column, then the legend. Forecast discussion is COLLAPSED on load; see its own note below. This was the loosest of the three bodies — no section structure
      at all, a local OutlookLabelStyle that was character-for-character the shared SettingsFieldLabelStyle,
@@ -52,9 +51,7 @@
      omission to be tidied up. A box up there is a LAYER's show/hide; the only boolean this window has is
      OutlookViewModel.IsOutlookVisible, which IS the ForeCast mode (MapViewModel.IsForeCast projects onto
      it), and a tab body never arms or clears its own mode — see the last ⚠️ in this header. The
-     discussion is prose, not a layer at all. So both pass a plain string Header and take the shared
-     template; SectionHeaderTitleOnlyStyle's 28 px indent is for a window that MIXES the two kinds, which
-     this one does not.
+     discussion is prose, not a layer at all. Nor a grip: one layer has nothing to re-order against.
 
      ⚠️ THE CARD COSTS NO VIEW-MODEL WORK. Its three lines are OutlookViewModel state that was already
      being computed and shown nowhere — the title, the issued/valid line, and the refresh countdown. See
@@ -85,6 +82,7 @@
              xmlns:conv="using:Anvil.Converters"
              xmlns:local="using:Anvil.Controls.Composites"
              xmlns:models="using:Anvil.Models"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -171,8 +169,14 @@
         </Grid.RowDefinitions>
 
         <!-- ===================== SPC OUTLOOK: the card, then the selectors ===================== -->
-        <Expander x:Name="OutlookSection" Grid.Row="0" Header="SPC outlook" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <!-- No LayerId: this window has ONE layer, so there is nothing to re-order it against (the map slots
+             it beside NowCast's stack — layers.js effectiveOrder). Opacity is in the header, greyed while
+             Product is None: None is this section's off switch, the same rule as the PastCast outlook's. -->
+        <prim:PanelSection x:Name="OutlookSection" Grid.Row="0" Header="SPC outlook" IsExpanded="True"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.Outlook.OutlookOpacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}"
+                           OpacityToolTip="Outlook fill opacity (outlines stay solid)">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- the card -->
@@ -213,7 +217,6 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/> <!-- Day -->
                         <RowDefinition Height="Auto"/> <!-- Product -->
-                        <RowDefinition Height="Auto"/> <!-- Opacity -->
                     </Grid.RowDefinitions>
 
                     <!-- Day: self-labeling ("Day 1 · Sat Jun 14"); changing it cascades the product list.
@@ -235,28 +238,15 @@
                               DisplayMemberPath="Label"
                               SelectedItem="{x:Bind ViewModel.Outlook.SelectedOption, Mode=TwoWay}"
                               ToolTipService.ToolTip="Outlook product (None clears the overlay)"/>
-
-                    <!-- ⚠️ DISABLED while the product is None: None is this section's off switch, so there is
-                         nothing on the map for the slider to fade. Same rule as the PastCast outlook's. -->
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Opacity" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <Slider Grid.Row="2" Grid.Column="1"
-                            HorizontalAlignment="Stretch"
-                            IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}"
-                            Minimum="0" Maximum="1"
-                            StepFrequency="0.05" SmallChange="0.05"
-                            IsThumbToolTipEnabled="False"
-                            VerticalAlignment="Center"
-                            Value="{x:Bind ViewModel.Outlook.OutlookOpacity, Mode=TwoWay}"
-                            ToolTipService.ToolTip="Outlook fill opacity (outlines stay solid)"/>
                 </Grid>
 
             </Grid>
-        </Expander>
+        </prim:PanelSection>
 
         <!-- ===================== THE LEGEND: fills the window ===================== -->
         <!-- A key to the outlook the section above chose, so it hides when that section is collapsed as well
-             as on HasLegend (None, or the layer off). It sits OUTSIDE the Expander only so it can take a star
-             row — an Expander's content sizes to itself, and the old 200px cap is what cut the list off.
+             as on HasLegend (None, or the layer off). It sits OUTSIDE the section only so it can take a star
+             row — a section's body sizes to itself, and the old 200px cap is what cut the list off.
              ⚠️ Its ScrollViewer is bounded by the ROW, not a MaxHeight: the window is full height, so the
              legend gets every pixel between the selectors and the discussion and only scrolls past that.
              ⚠️ The hatching block reads "In Outlook" from the CACHED file, not the catalog — that is the whole
@@ -309,9 +299,8 @@
              ⚠️ DISABLED while Product is None, the same off switch the opacity slider uses. Fire-weather
              products have no scraped page (their layout differs); the text says so itself rather than the
              section hiding, so the row never silently vanishes. -->
-        <Expander Grid.Row="2" Header="Forecast discussion" IsExpanded="False"
-                  IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="2" Header="Forecast discussion" IsExpanded="False"
+                           IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="240"
                           HorizontalScrollMode="Disabled">
                 <!-- Monospace: SPC ships the discussion as pre-formatted teletype text (ExtractPreText pulls
@@ -322,6 +311,6 @@
                            IsTextSelectionEnabled="True"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </ScrollViewer>
-        </Expander>
+        </prim:PanelSection>
     </Grid>
 </UserControl>

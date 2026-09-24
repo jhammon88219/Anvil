@@ -13,16 +13,18 @@
 //   │   (PRIMARY)  │              │
 //   └──────────────┴──────────────┘
 //
-// WHAT IS IN EACH PANE — the z-stack, bottom to top (who sits where is decided by layers.js +
-// each module's beforeId; this is the assembled result, and the order reAddAll() restores):
+// WHAT IS IN EACH PANE — the z-stack, bottom to top. The overlays' ORDER IS THE USER'S: they drag
+// the layer sections of the NowCast / PastCast window, and layers.js restack() keeps every pane in that
+// order after each addLayer (setOverlayOrder below). Shown here in the DEFAULT order:
 //
-//   ── top ──   storm-report dots      (no beforeId — always over everything)
-//               place labels           ┐ basemap symbol layers
-//               state / country lines  ┘ basemap line layers
-//               warning polygons       ┐ both target firstBoundaryLayerId; watches are re-added
-//               watch boxes            ┘ FIRST, so warnings land above them
-//               outlook fills + hatch  ← under the labels (firstSymbolLayerId)
-//               RADAR (WebGL layer)    ← beneath the watch fill, via radar.js's own beforeId chain
+//   ── top ──   place labels           ┐ basemap symbol layers
+//               state / country lines  ┘ basemap line layers — the ceiling of the overlay band
+//               storm-report dots      ┐
+//               damage surveys         │
+//               warning polygons       │ the overlay BAND, contiguous, in the user's order
+//               watch boxes            │ (layers.js GROUPS; the list's top = the band's top)
+//               outlook fills + hatch  │
+//               RADAR (WebGL layer)    ┘ + its range rings / sweep / ruler, drawn over it
 //   ── base ──  basemap (bundled PMTiles, or online tiles — same styles either way, see tileSourceFor)
 //
 //   Riding above all of it, NOT in the stack: the state-isolation mask (added last, on top), and the
@@ -105,6 +107,8 @@ try {
     var RadarSites = null;
     var States = null;
     var PerfProbe = null;   // DEV-ONLY frame-time sampler; null unless ?perf=1 (see the import below)
+    var Layers = null;      // layers.js — the user's overlay ORDER (see setOverlayOrder below)
+    var pendingOrder = null;
 
     // Restore every overlay onto one map, in stack order. TWO callers: applyStyle (setStyle drops all
     // custom sources/layers) and a NEWLY CREATED pane (which starts with nothing but the basemap). One
@@ -288,6 +292,7 @@ try {
         });
         m.on('move', onPaneMove);
         if (PerfProbe) PerfProbe.attach(m); // dev pan probe: a pane added later still gets sampled
+        if (Layers) Layers.watchStack(m);   // keep the user's overlay order on this pane too
         // The primary's load runs the LAUNCH sequence (mask, reveal, mapReady) — see below. A pane added
         // later just needs the overlay stack the others already have.
         if (i > 0) m.once('load', function () { reAddAll(m); });
@@ -374,6 +379,24 @@ try {
         if (RadarSites && RadarSites.refresh) RadarSites.refresh();
         if (window.RadarLayer && window.RadarLayer.refreshRuler) window.RadarLayer.refreshRuler();
         window.applyStyle(url || styleUrl);
+    };
+
+    // The user's overlay ORDER — the temporal windows' draggable layer sections, top of the list = top of
+    // the map. The host sends the open window's list of group ids (top first); layers.js fills in the
+    // groups it doesn't name and restacks every pane after each addLayer. See its USER OVERLAY ORDER block.
+    import('./layers.js').then(function (m) {
+        Layers = m;
+        if (pendingOrder) Layers.setOverlayOrder(pendingOrder);
+        forEachMap(function (map) {
+            Layers.watchStack(map);
+            try { Layers.restack(map); } catch (e) { /* style not loaded yet; the next addLayer restacks */ }
+        });
+    }).catch(function (e) { console.error('layers.js load failed: ' + e); });
+    window.setOverlayOrder = function (ids) {
+        pendingOrder = ids;
+        if (!Layers) return;
+        Layers.setOverlayOrder(ids);
+        forEachMap(function (map) { try { Layers.restack(map); } catch (e) { /* style not loaded yet */ } });
     };
 
     // SPC outlook overlay (probability fills + per-CIG hatching; nested groups clipped) lives in

@@ -24,14 +24,13 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <!-- Body: one Expander per section (Styles.xaml SectionExpanderStyle), grid rows inside each. -->
+    <!-- Body: one Primitives/PanelSection per section, grid rows inside each. -->
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- monitor setup -->
         </Grid.RowDefinitions>
 
-        <Expander Grid.Row="0" Header="Monitor setup" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="0" Header="Monitor setup" IsExpanded="True">
             <Grid RowSpacing="8" ColumnSpacing="12" Margin="4,0,0,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- picker -->
@@ -54,6 +53,6 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Text="Multi-monitor is coming — it needs a second screen to build and test. Anvil runs in single-monitor mode."/>
             </Grid>
-        </Expander>
+        </prim:PanelSection>
     </Grid>
 </UserControl>

@@ -26,15 +26,6 @@ namespace Anvil.Controls.Composites
 		public Visibility HasText(string? value) =>
 			string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
 
-		// x:Bind helpers for the opacity READOUT. ⚠️ It formats the VIEW MODEL's value — the number that is
-		// pushed to the map — never Slider.Value, so it cannot describe a value the map is not using.
-		public string Percent(double opacity) =>
-			System.Math.Round(opacity * 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%";
-
-		// A TextBlock has no disabled state, so the readout dims with its slider through Opacity instead
-		// (a theme brush can't be resolved here — see CLAUDE.md).
-		public double DimUnless(bool enabled) => enabled ? 1.0 : 0.4;
-
 		/// <summary>Tooltip for the tornado row, e.g. "Show tornado warnings".</summary>
 		public string TornadoTooltip(string noun) => $"Show tornado {noun}";
 

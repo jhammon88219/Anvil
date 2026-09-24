@@ -257,6 +257,13 @@ namespace Anvil.Services
 		Task SetStormReportsOpacityAsync(double opacity);
 
 		/// <summary>
+		/// Stacks the map's overlays in this order — top of the list draws on top. Ids are
+		/// <c>Models/Map/LayerOrder</c>'s; the page keeps any group the list leaves out at its default spot
+		/// (layers.js effectiveOrder). Empty = the default order.
+		/// </summary>
+		Task SetOverlayOrderAsync(IReadOnlyList<string> topFirst);
+
+		/// <summary>
 		/// Tears the storm-report overlay down: drops the source, the three layers and any open popup, and
 		/// forgets the loaded day.
 		/// </summary>

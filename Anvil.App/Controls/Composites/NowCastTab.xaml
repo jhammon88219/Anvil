@@ -1,60 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- NowCastTab — the body of the NowCast window: watch boxes + storm-based warnings, and today's storm
-     reports. One of three mode bodies (see Controls/Windows/TemporalWindow, registered once per mode); the
-     window supplies the surface, the title and the pin, so this is content only.
+<!-- NowCastTab — the body of the NowCast window: storm reports, warnings, watches and the radar layer, one
+     LAYER SECTION each. One of three mode bodies (see Controls/Windows/TemporalWindow, registered once per
+     mode); the window supplies the surface, the title and the pin, so this is content only.
      ⚠️ The file keeps its "Tab" name from when the three were tabs of one Timeframe window. It is the same
      control, unchanged by the split; renaming all three would be churn. Bound to the coordinator MapViewModel.
 
-       ┌──────────────────────────────────────────────────────┐
-       │ › [x] Radar                                          │  ← 24 px COMPACT headers (half the 48
-       │ ⌄ [x] Warnings                                       │     SectionExpanderStyle gives)
-       │  ┌──────────────────────────────────────────┐        │
-       │  │ 7 active warnings                        │        │
-       │  │ Updated 12:04 PM · checking every 15s    │        │
-       │  └──────────────────────────────────────────┘        │
-       │  [x] ■ Tornado                            0          │
-       │  [x] ■ Severe thunderstorm                7          │
-       │  Opacity ──────────────●  100%                       │  ← readout = the VM value
-       │ › [-] Watches                                        │  [-] = some types ticked
-       │ › [x] Storm reports                                  │
-       └──────────────────────────────────────────────────────┘
+       ┌──────────────────────────────────────────────────────────────┐
+       │ ⠿ › [x] Storm reports   ─────────────────●   100%            │  ← TOP of the list = TOP of the map
+       │ ⠿ ⌄ [x] Warnings        ─────────────────●   100%            │
+       │   ┌──────────────────────────────────────────┐               │
+       │   │ 7 active warnings                        │               │
+       │   │ Updated 12:04 PM · checking every 15s    │               │
+       │   └──────────────────────────────────────────┘               │
+       │   [x] ■ Tornado                            0                 │
+       │   [x] ■ Severe thunderstorm                7                 │
+       │ ⠿ › [-] Watches         ─────────────────●   100%            │  [-] = some types ticked
+       │ ⠿   [x] Radar           ──────────────●──     85%            │  ← no body: nothing to open
+       └──────────────────────────────────────────────────────────────┘
+
+     ⚠️ THE ORDER OF THIS LIST IS THE MAP'S Z-ORDER, and the user owns it: drag a section by its grip ⠿ (or
+     Alt+Up/Down) and OnSectionsReordered hands the new order to MapViewModel.SetLayerOrder, which saves it
+     (AppSettings.NowCastLayerOrder — separate from PastCast's) and restacks the map. The order below is the
+     DEFAULT, matching layers.js DEFAULT_ORDER; a saved order is applied over it once, on first load.
+     ⚠️ Each LayerId is a Models/Map/LayerOrder id, mirrored in layers.js GROUPS — change all three.
 
      ⚠️ THE HEADER CHECKBOX IS A SELECT-ALL for its section (VM ToggleAll / AllShown): all ticked → clears
      them, otherwise ticks them all (a partial [-] goes to all on). IsChecked is ONE-WAY and the click calls
-     the VM — the CheckBox's own toggle is overwritten by the VM's answer. Radar has no type rows, so its box
-     is the layer show/hide (RadarViewModel.ShowRadarLayer). Clicking a box does not expand/collapse: the
-     CheckBox handles the pointer before the header's ToggleButton sees it.
+     the VM. Radar has no type rows, so its box is the layer show/hide (RadarViewModel.ShowRadarLayer).
      ⚠️ EVERY BOX STARTS TICKED, and the map still launches clean: a tick means "draw while the mode runs"
      (IsModeActive, set in MapViewModel.OnTemporalModesChanged). Turning NowCast on brings them all up.
 
-     ⚠️ THE 24 PX HEADER IS NOW EVERY SECTION IN THE APP, not this window's own rank — it lives on
-     Styles.xaml SectionExpanderStyle, pinned there from four sides (read the ⚠️⚠️ on that style before
-     touching any of them). What this window takes is CustomHeaderSectionExpanderStyle: the same section
-     with the string HeaderTemplate nulled, because the header here is a panel — SectionHeaderPanelStyle,
-     which CARRIES THAT HEIGHT, holding a SectionHeaderCheckBoxStyle box and a SectionHeaderTitleStyle
-     title. Don't set Height (or Orientation, or Spacing) on the panel at the call site.
+     ⚠️ OPACITY LIVES IN THE HEADER (PanelSection ShowOpacity), live while the section is closed, and
+     disabled while the layer draws nothing (AnyShown / ShowRadarLayer).
+     ⚠️ THE RADAR VALUE IS GLOBAL — one radar layer, shared by live and replay. PastCast shows the same
+     slider; that is survivable only because Past and Now are mutually exclusive (their windows can't both
+     be open).
 
-     The body holds the "now"-oriented live-conditions options: the SPC Watch boxes and the storm-based
-     Warning polygons (Tornado / Severe Thunderstorm). Both are active, event-driven current-conditions
-     alerts, so they live under NowCast rather than ForeCast, in the UI and in the VM layer alike (their own
-     WatchesViewModel / WarningsViewModel).
-
-     EVERY SECTION IS AN EXPANDER (Styles.xaml CustomHeaderSectionExpanderStyle) — header = the
-     select-all checkbox + the section title, body = its controls. Warnings is the only one open on load; the rest start closed, so the body starts
-     short and you open what you came for. Expanded state is view-only and NOT persisted: reopening
-     the window gives you these defaults again.
+     Warnings is the only section open on load. Expanded state is view-only and NOT persisted.
      ⚠️ The window opens at a FIXED full height (WindowManager's Left anchor), not sized to this body, so
-     expanding enough sections can run the body past the window. That is known and accepted for now — a
-     scroller is coming, hand-rolled rather than WinUI's.
-
-     ⚠️ WARNINGS SITS ABOVE WATCHES, which puts it out of the map's Z-order (watches are drawn under
-     warnings). Deliberate: it is the section you actually watch during severe weather, so it gets the
-     slot under Radar rather than the one its layer order would give it.
-
-     ⚠️ WATCHES AND WARNINGS ARE SEPARATE SECTIONS, not one "Watches and warnings". Each carries its
-     OWN card describing its OWN active set, and one header cannot introduce two cards. They are also
-     visually identical — the same two type rows, the same two colours — so the titles are the only
-     thing telling you which is which.
+     expanding enough sections can run the body past the window. Known and accepted for now.
 
      Both alert sections are the SAME control (Composites/PhenomOverlayInput) bound to a different view
      model, exactly as watches.js and warnings.js are the same JS factory with a different config. Storm
@@ -67,83 +51,64 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:comp="using:Anvil.Controls.Composites"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <Grid VerticalAlignment="Top" RowSpacing="8">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- radar -->
-            <RowDefinition Height="Auto"/> <!-- warnings -->
-            <RowDefinition Height="Auto"/> <!-- watches -->
-            <RowDefinition Height="Auto"/> <!-- storm reports (today) -->
-        </Grid.RowDefinitions>
+    <!-- ⚠️ A StackPanel, not a Grid of rows: the sections' CHILD ORDER is the display order, which is what
+         a drag re-arranges. -->
+    <StackPanel x:Name="Sections" VerticalAlignment="Top" Spacing="8">
 
-        <!-- The radar layer everything else is drawn over; the value behind it is global, which is only
-             safe because Past and Now are mutually exclusive so those two windows can't both be open.
-             Its header box is the layer's show/hide - there are no type rows to select. -->
-        <Expander Grid.Row="0" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
-            <Expander.Header>
-                <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
-                    <CheckBox Style="{StaticResource SectionHeaderCheckBoxStyle}"
-                              IsChecked="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
-                              Click="OnRadarHeaderClick"
-                              AutomationProperties.Name="Show radar layer"
-                              ToolTipService.ToolTip="Show the radar layer"/>
-                    <TextBlock Text="Radar" Style="{StaticResource SectionHeaderTitleStyle}"/>
-                </StackPanel>
-            </Expander.Header>
-            <comp:RadarOverlayInput ViewModel="{x:Bind ViewModel.Radar, Mode=OneWay}"/>
-        </Expander>
+        <prim:PanelSection Header="Storm reports" LayerId="reports" Reordered="OnSectionsReordered"
+                           ShowCheckBox="True"
+                           IsCheckBoxEnabled="{x:Bind ViewModel.StormReports.IsReady, Mode=OneWay}"
+                           IsChecked="{x:Bind ViewModel.StormReports.AllShown, Mode=OneWay}"
+                           CheckBoxClick="OnStormReportsHeaderClick"
+                           CheckBoxToolTip="Show or hide every report type"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.StormReports.Opacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.StormReports.AnyShown, Mode=OneWay}"
+                           OpacityToolTip="Opacity of the storm-report dots">
+            <comp:StormReportsInput ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
+        </prim:PanelSection>
 
-        <!-- The imminent-threat polygons — open on load, and above Watches. -->
-        <Expander Grid.Row="1" IsExpanded="True" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
-            <Expander.Header>
-                <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
-                    <CheckBox Style="{StaticResource SectionHeaderCheckBoxStyle}"
-                              IsChecked="{x:Bind ViewModel.Warnings.AllShown, Mode=OneWay}"
-                              Click="OnWarningsHeaderClick"
-                              AutomationProperties.Name="Show all warnings"
-                              ToolTipService.ToolTip="Show or hide every warning type"/>
-                    <TextBlock Text="Warnings" Style="{StaticResource SectionHeaderTitleStyle}"/>
-                </StackPanel>
-            </Expander.Header>
+        <prim:PanelSection Header="Warnings" LayerId="warnings" Reordered="OnSectionsReordered"
+                           IsExpanded="True"
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Warnings.AllShown, Mode=OneWay}"
+                           CheckBoxClick="OnWarningsHeaderClick"
+                           CheckBoxToolTip="Show or hide every warning type"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.Warnings.Opacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.Warnings.AnyShown, Mode=OneWay}"
+                           OpacityToolTip="Opacity of the warning polygons (fill and outline together)">
             <comp:PhenomOverlayInput AlertNoun="warnings"
                                      ViewModel="{x:Bind ViewModel.Warnings, Mode=OneWay}"/>
-        </Expander>
+        </prim:PanelSection>
 
-        <!-- The large county-aggregated watch areas. Same control as Warnings above. -->
-        <Expander Grid.Row="2" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
-            <Expander.Header>
-                <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
-                    <CheckBox Style="{StaticResource SectionHeaderCheckBoxStyle}"
-                              IsChecked="{x:Bind ViewModel.Watches.AllShown, Mode=OneWay}"
-                              Click="OnWatchesHeaderClick"
-                              AutomationProperties.Name="Show all watches"
-                              ToolTipService.ToolTip="Show or hide every watch type"/>
-                    <TextBlock Text="Watches" Style="{StaticResource SectionHeaderTitleStyle}"/>
-                </StackPanel>
-            </Expander.Header>
+        <prim:PanelSection Header="Watches" LayerId="watches" Reordered="OnSectionsReordered"
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Watches.AllShown, Mode=OneWay}"
+                           CheckBoxClick="OnWatchesHeaderClick"
+                           CheckBoxToolTip="Show or hide every watch type"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.Watches.Opacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.Watches.AnyShown, Mode=OneWay}"
+                           OpacityToolTip="Opacity of the watch boxes (fill and outline together)">
             <comp:PhenomOverlayInput AlertNoun="watches"
                                      ViewModel="{x:Bind ViewModel.Watches, Mode=OneWay}"/>
-        </Expander>
+        </prim:PanelSection>
 
-        <!-- ⚠️ The title is HERE, not inside StormReportsInput: that control is shared by BOTH temporal
-             windows, and a window owns its own section structure while the control is just content.
-             The header box carries the same IsReady gate as the type rows. -->
-        <Expander Grid.Row="3" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
-            <Expander.Header>
-                <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
-                    <CheckBox Style="{StaticResource SectionHeaderCheckBoxStyle}"
-                              IsEnabled="{x:Bind ViewModel.StormReports.IsReady, Mode=OneWay}"
-                              IsChecked="{x:Bind ViewModel.StormReports.AllShown, Mode=OneWay}"
-                              Click="OnStormReportsHeaderClick"
-                              AutomationProperties.Name="Show all storm reports"
-                              ToolTipService.ToolTip="Show or hide every report type"/>
-                    <TextBlock Text="Storm reports" Style="{StaticResource SectionHeaderTitleStyle}"/>
-                </StackPanel>
-            </Expander.Header>
-            <comp:StormReportsInput ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
-        </Expander>
-    </Grid>
+        <!-- Header only: the layer's show/hide and its opacity are all it has. -->
+        <prim:PanelSection Header="Radar" LayerId="radar" Reordered="OnSectionsReordered"
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
+                           CheckBoxClick="OnRadarHeaderClick"
+                           CheckBoxToolTip="Show the radar layer"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.Radar.RadarOpacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
+                           OpacityToolTip="Opacity of the radar layer — turn it down to read what is under it"/>
+    </StackPanel>
 </UserControl>

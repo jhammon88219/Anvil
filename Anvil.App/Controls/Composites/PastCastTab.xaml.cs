@@ -3,6 +3,7 @@ using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Anvil.Controls.Primitives;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.Composites
@@ -22,9 +23,19 @@ namespace Anvil.Controls.Composites
 	/// </summary>
 	public sealed partial class PastCastTab : UserControl
 	{
+		private bool _orderApplied;
+
 		public PastCastTab()
 		{
 			InitializeComponent();
+			// Once: Loaded fires again every time the window re-shows this body, and by then the sections
+			// already ARE the order (a re-order is saved as it happens).
+			Loaded += (_, _) =>
+			{
+				if (_orderApplied || ViewModel is null) { return; }
+				_orderApplied = true;
+				PanelSection.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Past));
+			};
 		}
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
@@ -130,15 +141,13 @@ namespace Anvil.Controls.Composites
 		private void OnDamageSurveysHeaderClick(object sender, RoutedEventArgs e) =>
 			ViewModel?.DamageSurveys.ToggleAll();
 
-		// x:Bind helpers for the damage-survey rows — the same three StormReportsInput carries. The readout
-		// formats the VIEW MODEL's opacity (what the map uses), and dims with its slider through Opacity
-		// because a TextBlock has no disabled state (and a theme brush can't be resolved here).
+		// x:Bind helper for the damage-survey rows' counts.
 		public string Count(int n) => n.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-		public string Percent(double opacity) =>
-			Math.Round(opacity * 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%";
-
-		public double DimUnless(bool enabled) => enabled ? 1.0 : 0.4;
+		// The layer ORDER: a drag (or Alt+Arrow) in the layer run is handed to the VM, which saves it for
+		// THIS window and restacks the map. The saved order is applied once, on first load (constructor).
+		private void OnSectionsReordered(object? sender, EventArgs e) =>
+			ViewModel?.SetLayerOrder(TemporalMode.Past, PanelSection.LayerOrderOf(Sections));
 
 		private async void OnLoadClick(object sender, RoutedEventArgs e)
 		{

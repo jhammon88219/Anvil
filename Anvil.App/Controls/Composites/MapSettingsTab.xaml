@@ -52,11 +52,12 @@
 <UserControl x:Class="Anvil.Controls.Composites.MapSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <!-- Body: one Expander per section (Styles.xaml SectionExpanderStyle), grid rows inside each. -->
+    <!-- Body: one Primitives/PanelSection per section, grid rows inside each. -->
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- theme -->
@@ -68,8 +69,7 @@
              so the Basemap combo stays as an override for the other three — see the note on it. When the
              theme list either grows to cover every style or the extra styles are dropped, that combo goes
              and this one is the only picker. Don't "tidy" the pair by deleting this one. -->
-        <Expander Grid.Row="0" Header="Theme" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="0" Header="Theme" IsExpanded="True">
             <Grid RowSpacing="4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- Theme combo -->
@@ -87,10 +87,9 @@
                            HorizontalAlignment="Left" Opacity="0.75"
                            Text="Sets the app's chrome, the map page's colours and the basemap. Applies immediately."/>
             </Grid>
-        </Expander>
+        </prim:PanelSection>
 
-        <Expander Grid.Row="1" Header="Basemap" IsExpanded="True"
-                  Style="{StaticResource SectionExpanderStyle}">
+        <prim:PanelSection Grid.Row="1" Header="Basemap" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- Basemap combo -->
@@ -166,7 +165,7 @@
                            Text="{x:Bind ViewModel.TileSourceStatus, Mode=OneWay}"
                            Style="{StaticResource SettingsFieldLabelStyle}"/>
             </Grid>
-        </Expander>
+        </prim:PanelSection>
 
 
     </Grid>

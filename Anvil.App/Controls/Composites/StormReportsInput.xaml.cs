@@ -27,15 +27,6 @@ namespace Anvil.Controls.Composites
 				? Microsoft.UI.Xaml.Visibility.Collapsed
 				: Microsoft.UI.Xaml.Visibility.Visible;
 
-		// x:Bind helpers for the opacity READOUT. ⚠️ It formats the VIEW MODEL's value — the number that is
-		// pushed to the map — never Slider.Value, so it cannot describe a value the map is not using.
-		public string Percent(double opacity) =>
-			System.Math.Round(opacity * 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%";
-
-		// A TextBlock has no disabled state, so the readout dims with its slider through Opacity instead
-		// (a theme brush can't be resolved here — see CLAUDE.md).
-		public double DimUnless(bool enabled) => enabled ? 1.0 : 0.4;
-
 		/// <summary>The storm-reports view model; bound from the host (MainWindow → ViewModel.StormReports).</summary>
 		public StormReportsViewModel ViewModel
 		{
