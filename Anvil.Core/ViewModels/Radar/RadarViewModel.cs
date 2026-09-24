@@ -337,6 +337,7 @@ namespace Anvil.ViewModels
 			// Observable rows (site + availability) — the Atlas's list and the flyout's. Their availability is
 			// written ONLY by the SITE AVAILABILITY block, which pushes the same state to the markers.
 			RadarSiteRows = _radarSiteProvider.GetSites().Select(s => new RadarSiteRow(s)).ToList();
+			RefreshSiteEra(); // retired sites start hidden (live); pushed to the markers at map-ready
 
 			// A loaded loop's newest frame is EVIDENCE for its own site (SITE AVAILABILITY block): a site whose
 			// loop just landed a fresh frame can't sit red for up to a 10-min pass. ⚠️ It may only mark a site
@@ -585,6 +586,7 @@ namespace Anvil.ViewModels
 				}
 
 				ClearReplayWindowLoaded(); // re-arm from scratch each time the mode is toggled
+				RefreshSiteEra();          // retired sites: hidden live, dated in replay
 				OnPropertyChanged(nameof(IsTransportEnabled)); // the transport gate differs by mode (PastCast enables earlier)
 				OnPropertyChanged(nameof(CanForceLiveCheck));  // replay has no live frame to check
 				// The offered tilts depend on the mode, not just the radar: a live loop shows only the
@@ -835,6 +837,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(LoadedReplayStartUtc));
 			OnPropertyChanged(nameof(HasLoadedReplayWindow));
 			OnPropertyChanged(nameof(IsReplaySelectionDirty));
+			RefreshSiteEra();
 		}
 
 		// Forget the loaded window (leaving or re-entering replay mode). Nothing is loaded, so nothing can
@@ -847,6 +850,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(LoadedReplayStartUtc));
 			OnPropertyChanged(nameof(HasLoadedReplayWindow));
 			OnPropertyChanged(nameof(IsReplaySelectionDirty));
+			RefreshSiteEra();
 		}
 
 		// ── Saved events: the two seams SavedEventsViewModel drives ──────────────────────────────
@@ -923,6 +927,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(PastEventRangeText));
 			OnPropertyChanged(nameof(IsReplaySelectionDirty));
 			PersistPastCastSelection();
+			RefreshSiteEra(); // dialling the date can bring a retired site into (or out of) range
 		}
 
 		// ── The chosen timeframe SURVIVES A RESTART ──────────────────────────────────────────────
@@ -1759,17 +1764,60 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>
-		/// Whether a site's NETWORK is switched on — the two opt-in toggles above (operational sites always are).
+		/// Whether a site's NETWORK is switched on — the two opt-in toggles above (operational sites always are)
+		/// — AND the site exists in the era being viewed (<see cref="IsInEra"/>: a retired id is hidden live).
 		/// ⚠️ The ONE rule every site LIST follows, not just the map markers: the Radar Atlas and the tools
 		/// tier's site picker hide a hidden network's sites too, so turning TDWRs off can't leave TMCI one click
 		/// away in a list while its marker is gone. It never unloads a loop that is already showing.
+		/// ⚠️ Lists re-filter on <see cref="ShowTdwrs"/>, <see cref="ShowResearchRadars"/> AND <see cref="SiteEraKey"/>.
 		/// </summary>
-		public bool IsNetworkShown(RadarSite site) => site.Class switch
+		public bool IsNetworkShown(RadarSite site) => IsInEra(site) && site.Class switch
 		{
 			RadarSiteClass.Tdwr => ShowTdwrs,
 			RadarSiteClass.Research => ShowResearchRadars,
 			_ => true,
 		};
+
+		// ===== SITE ERA — retired radar ids (moved / renamed: KLIX → KHDC, TPBI → TDJT) =====
+		// A retired id has archive data only up to RadarSite.RetiredOn. It is useless live (it would sit red
+		// forever beside its replacement), but it's the only way to replay the old radar — so it's hidden
+		// live and shown in PastCast while the replay window starts on or before that day. The window is
+		// the LOADED one once there is one, else the pickers (so dialling 2021 reveals KLIX before Load).
+		// ⚠️ Lists AND markers follow it: lists through IsNetworkShown (+ SiteEraKey to re-filter), markers
+		// through setRadarSitesOutOfEra. RefreshSiteEra runs wherever the mode or window can change.
+
+		/// <summary>Whether <paramref name="site"/> existed in the era being viewed. Always true for a working site.</summary>
+		public bool IsInEra(RadarSite site) =>
+			site.RetiredOn is null // skip the window maths for the ~200 working sites
+			|| RadarSiteEra.IsInEra(site, _isPastEventMode ? _loadedWindowStartUtc ?? ReplayStartUtc() : null);
+
+		private string _siteEraKey = "\0"; // never a real key, so the ctor's first refresh always lands
+
+		/// <summary>The out-of-era site ids, joined — changes exactly when the set does. Lists listen for it
+		/// the way they listen for the network toggles.</summary>
+		public string SiteEraKey
+		{
+			get => _siteEraKey;
+			private set => SetProperty(ref _siteEraKey, value);
+		}
+
+		private List<string> OutOfEraIds() =>
+			_radarSiteProvider.GetSites().Where(s => !IsInEra(s)).Select(s => s.Id).ToList();
+
+		private void RefreshSiteEra()
+		{
+			var hidden = OutOfEraIds();
+			var key = string.Join(",", hidden);
+			if (key == _siteEraKey)
+			{
+				return;
+			}
+			SiteEraKey = key;
+			if (_isMapReady)
+			{
+				_ = _mapService.SetRadarSitesOutOfEraAsync(System.Text.Json.JsonSerializer.Serialize(hidden));
+			}
+		}
 
 		/// <summary>
 		/// Whether the TDWR markers (the FAA Terminal Doppler Weather Radar `T***` network) are shown —
@@ -1848,6 +1896,7 @@ namespace Anvil.ViewModels
 			// page never disagree on startup).
 			await _mapService.SetResearchRadarsVisibleAsync(ShowResearchRadars);
 			await _mapService.SetTdwrsVisibleAsync(ShowTdwrs);
+			await _mapService.SetRadarSitesOutOfEraAsync(System.Text.Json.JsonSerializer.Serialize(OutOfEraIds()));
 
 			// The PERSISTED range-ring colour and ruler anchor (every command this VM holds is replayed here).
 			await PushScopePreferencesAsync();
@@ -1930,8 +1979,9 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>Sites currently known up / down (for the "site check complete" summary).</summary>
-		public int SitesOnline => RadarSiteRows.Count(r => r.Availability == SiteAvailability.Online);
-		public int SitesOffline => RadarSiteRows.Count(r => r.Availability == SiteAvailability.Offline);
+		/// <remarks>Out-of-era (retired) sites aren't counted — live, KLIX would be a permanent "offline".</remarks>
+		public int SitesOnline => RadarSiteRows.Count(r => IsInEra(r.Site) && r.Availability == SiteAvailability.Online);
+		public int SitesOffline => RadarSiteRows.Count(r => IsInEra(r.Site) && r.Availability == SiteAvailability.Offline);
 
 		/// <summary>Raised when a live pass ENDS: <c>true</c> = completed (counts are final), <c>false</c> = it
 		/// failed or was cut short (entering PastCast).</summary>

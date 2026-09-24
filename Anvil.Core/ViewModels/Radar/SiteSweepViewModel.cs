@@ -302,6 +302,7 @@ namespace Anvil.ViewModels
 
 			return _radar.RadarOptions
 				.Where(o => o.Site is not null)
+				.Where(o => _radar.IsInEra(o.Site!)) // a retired id (KLIX) has no live data — never sweep it
 				.Where(o => !OperationalOnly || o.Site!.Class == RadarSiteClass.Operational)
 				.Where(o => !SkipOffline || !offline.Contains(o.Site!.Id))
 				.OrderBy(o => o.Site!.Id, StringComparer.OrdinalIgnoreCase)

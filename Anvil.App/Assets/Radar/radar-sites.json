@@ -142,8 +142,8 @@
     {
         "id": "KCBX",
         "name": "Boise",
-        "lat": 43.4908,
-        "lon": -116.2344,
+        "lat": 43.4902,
+        "lon": -116.236,
         "st": "ID"
     },
     {
@@ -345,8 +345,8 @@
     {
         "id": "KFDX",
         "name": "Cannon AFB",
-        "lat": 34.6353,
-        "lon": -103.6294,
+        "lat": 34.6342,
+        "lon": -103.6189,
         "st": "NM"
     },
     {
@@ -448,10 +448,17 @@
         "st": "ME"
     },
     {
+        "id": "KHDC",
+        "name": "Hammond",
+        "lat": 30.5193,
+        "lon": -90.4074,
+        "st": "LA"
+    },
+    {
         "id": "KHDX",
         "name": "Holloman AFB",
-        "lat": 33.0764,
-        "lon": -106.1222,
+        "lat": 33.077,
+        "lon": -106.12,
         "st": "NM"
     },
     {
@@ -534,7 +541,7 @@
     {
         "id": "KIWX",
         "name": "Northern Indiana",
-        "lat": 41.4086,
+        "lat": 41.3586,
         "lon": -85.7,
         "st": "IN"
     },
@@ -576,8 +583,8 @@
     {
         "id": "KLGX",
         "name": "Langley Hill (Nw Washington)",
-        "lat": 47.1158,
-        "lon": -124.1069,
+        "lat": 47.1169,
+        "lon": -124.1067,
         "st": "WA"
     },
     {
@@ -585,7 +592,8 @@
         "name": "Slidell",
         "lat": 30.3367,
         "lon": -89.8253,
-        "st": "LA"
+        "st": "LA",
+        "retired": "2023-11-27"
     },
     {
         "id": "KLNX",
@@ -653,8 +661,8 @@
     {
         "id": "KMAX",
         "name": "Medford",
-        "lat": 42.0811,
-        "lon": -122.7161,
+        "lat": 42.0812,
+        "lon": -122.7174,
         "st": "OR"
     },
     {
@@ -849,8 +857,8 @@
     {
         "id": "KRLX",
         "name": "Charleston, Wv",
-        "lat": 38.3119,
-        "lon": -81.7239,
+        "lat": 38.3111,
+        "lon": -81.7228,
         "st": "WV"
     },
     {
@@ -968,8 +976,8 @@
     {
         "id": "KVBX",
         "name": "Vandenberg AFB",
-        "lat": 34.8381,
-        "lon": -120.3958,
+        "lat": 34.8386,
+        "lon": -120.3979,
         "st": "CA"
     },
     {
@@ -1010,8 +1018,8 @@
     {
         "id": "PABC",
         "name": "Bethel FAA",
-        "lat": 60.7928,
-        "lon": -161.8742,
+        "lat": 60.7919,
+        "lon": -161.8764,
         "st": "AK"
     },
     {
@@ -1038,8 +1046,8 @@
     {
         "id": "PAIH",
         "name": "Middleton Island",
-        "lat": 59.4619,
-        "lon": -146.3011,
+        "lat": 59.4608,
+        "lon": -146.3035,
         "st": "AK"
     },
     {
@@ -1052,15 +1060,15 @@
     {
         "id": "PAPD",
         "name": "Fairbanks FAA",
-        "lat": 65.0356,
-        "lon": -147.4992,
+        "lat": 65.0351,
+        "lon": -147.5014,
         "st": "AK"
     },
     {
         "id": "PGUA",
         "name": "Andersen AFB Agana",
-        "lat": 13.4544,
-        "lon": 144.8083,
+        "lat": 13.4558,
+        "lon": 144.8111,
         "st": "GU"
     },
     {
@@ -1101,22 +1109,23 @@
     {
         "id": "RKSG",
         "name": "Camp Humphreys",
-        "lat": 36.9597,
-        "lon": 127.0183,
+        "lat": 37.2076,
+        "lon": 127.2856,
         "st": "KR"
     },
     {
         "id": "RODN",
         "name": "Kadena Ab",
-        "lat": 26.3019,
-        "lon": 127.9097,
-        "st": "JP"
+        "lat": 26.3078,
+        "lon": 127.9035,
+        "st": "JP",
+        "retired": "2023-08-01"
     },
     {
         "id": "TJUA",
         "name": "San Juan FAA",
-        "lat": 18.1175,
-        "lon": -66.0786,
+        "lat": 18.1157,
+        "lon": -66.0782,
         "st": "PR"
     }
 ]

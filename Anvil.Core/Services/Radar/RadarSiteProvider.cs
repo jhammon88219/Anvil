@@ -30,8 +30,10 @@ namespace Anvil.Services
 	/// ROC test radar <b>KCRI</b> (the one WSR-88D-format research radar in the feed → research file),
 	/// and the <b>TDWRs</b> (the <c>T***</c> ids classified <c>stationType=TDWR</c> by the NWS API →
 	/// TDWR file; note some <c>T***</c> ids like <c>TJUA</c> are actually WSR-88Ds and stay in the
-	/// operational list). TDWR antenna coordinates come from each site's own volume header (the NWS
-	/// API's are rounded to ~1 km, too coarse for gate projection). Regenerate via
+	/// operational list). EVERY site's antenna coordinates come from its own volume header — checked and
+	/// rewritten by <c>tools/check_site_coords.py</c> (the TDWR list shipped up to 9.6 km off, which shifted
+	/// every gate by as much). A moved/renamed radar keeps its old id with a <c>"retired"</c> day (see
+	/// <see cref="RadarSite.RetiredOn"/>) so PastCast can still replay it. Regenerate via
 	/// <c>tools</c> if NOAA changes the networks; the pipeline handles new sites with zero code change.</para>
 	/// </summary>
 	public sealed class RadarSiteProvider : IRadarSiteProvider
@@ -83,7 +85,7 @@ namespace Anvil.Services
 				{
 					return dtos
 						.Where(d => !string.IsNullOrWhiteSpace(d.Id))
-						.Select(d => new RadarSite(d.Id!, d.Name ?? d.Id!, d.Lat, d.Lon, siteClass, d.St))
+						.Select(d => new RadarSite(d.Id!, d.Name ?? d.Id!, d.Lat, d.Lon, siteClass, d.St, RetiredOn(d)))
 						.ToList();
 				}
 			}
@@ -94,6 +96,12 @@ namespace Anvil.Services
 
 			return null;
 		}
+
+		// "retired": "2023-11-27" → that day. An unparseable value is treated as NOT retired: a working site
+		// wrongly hidden is worse than a retired one wrongly shown (it just reads Offline).
+		private static DateOnly? RetiredOn(SiteDto d) =>
+			DateOnly.TryParseExact(d.Retired, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+				System.Globalization.DateTimeStyles.None, out var day) ? day : null;
 
 		// Used only if the bundled data file can't be read — keeps the map usable.
 		private static readonly IReadOnlyList<RadarSite> Fallback = new[]
@@ -114,6 +122,9 @@ namespace Anvil.Services
 			/// <summary>State / territory code, written by <c>tools/make_site_states.py</c>. Absent in an
 			/// older copy of the file, which just leaves that site out of the Atlas's place filters.</summary>
 			public string? St { get; set; }
+
+			/// <summary>Last UTC day with archive data, for a moved/renamed radar ("yyyy-MM-dd"); absent = working.</summary>
+			public string? Retired { get; set; }
 		}
 	}
 }

@@ -59,9 +59,11 @@ namespace Anvil.ViewModels
 				{
 					RaisePickState();
 				}
-				else if (e.PropertyName is nameof(RadarViewModel.ShowTdwrs) or nameof(RadarViewModel.ShowResearchRadars))
+				else if (e.PropertyName is nameof(RadarViewModel.ShowTdwrs) or nameof(RadarViewModel.ShowResearchRadars)
+					or nameof(RadarViewModel.SiteEraKey))
 				{
-					// A hidden network's sites leave the picker (RadarViewModel.IsNetworkShown). The Atlas rebuilds
+					// A hidden network's sites leave the picker (RadarViewModel.IsNetworkShown), and so does a retired
+					// site outside the era being viewed. The Atlas rebuilds
 					// off the same radar change itself, so no PinnedChanged here.
 					RebuildPinned();
 				}

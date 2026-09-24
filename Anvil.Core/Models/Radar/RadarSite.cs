@@ -1,3 +1,5 @@
+using System;
+
 namespace Anvil.Models
 {
 	/// <summary>
@@ -28,6 +30,10 @@ namespace Anvil.Models
 	/// point-in-polygons each antenna against the basemap's own state layer and writes it into the bundled
 	/// site files; regenerate, never hand-edit. Null only if a future site resolves to nothing, which
 	/// simply leaves it out of the Atlas's state and region filters.</param>
+	/// <param name="RetiredOn">The last UTC day this id has archive data, for a radar that was moved or renamed
+	/// (KLIX → KHDC, TPBI → TDJT); null for a working site. A retired site is kept ONLY for PastCast: it is
+	/// hidden live, and shown in replay while the window starts on or before this day — see
+	/// <c>RadarViewModel.IsNetworkShown</c>. Read from the site file's <c>"retired": "yyyy-MM-dd"</c>.</param>
 	public record RadarSite(string Id, string Name, double Latitude, double Longitude,
-		RadarSiteClass Class = RadarSiteClass.Operational, string? State = null);
+		RadarSiteClass Class = RadarSiteClass.Operational, string? State = null, DateOnly? RetiredOn = null);
 }

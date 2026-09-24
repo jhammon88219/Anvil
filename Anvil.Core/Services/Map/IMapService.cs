@@ -300,6 +300,12 @@ namespace Anvil.Services
 		Task SetTdwrsVisibleAsync(bool visible);
 
 		/// <summary>
+		/// Hides the given RETIRED site ids (a JSON array) — moved/renamed radars outside the era being viewed
+		/// (RadarViewModel's SITE ERA block). Replaces the previous set; an empty array hides none.
+		/// </summary>
+		Task SetRadarSitesOutOfEraAsync(string idsJson);
+
+		/// <summary>
 		/// Replaces every site marker's availability. JSON is <c>{ offline: [ids], unknown: [ids], replayDay: bool }</c>;
 		/// the rest are online. Pushed by RadarViewModel's SITE AVAILABILITY block — the same state its rows hold.
 		/// </summary>

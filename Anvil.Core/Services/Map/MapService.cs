@@ -185,6 +185,9 @@ namespace Anvil.Services
 		public Task SetTdwrsVisibleAsync(bool visible) =>
 			_mapView.RunScriptAsync(Call("setTdwrsVisible", visible));
 
+		public Task SetRadarSitesOutOfEraAsync(string idsJson) =>
+			_mapView.RunScriptAsync(Call("setRadarSitesOutOfEra", idsJson));
+
 		public Task SetRadarSitesStatusAsync(string statusJson) =>
 			_mapView.RunScriptAsync(Call("setRadarSitesStatus", statusJson));
 

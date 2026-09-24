@@ -570,9 +570,11 @@ try {
     // every pan/zoom, so they are the one overlay that is genuinely expensive per pane — and site
     // picking wants ONE unambiguous surface. Clicking a marker in pane 1 re-sites every pane.
     var pendingSiteAccent = null; // accent pushed before the module loaded (map-ready can beat the import)
+    var pendingOutOfEra = null;   // same, for the retired-site list — dropped, KLIX would show live
     import('./radar-sites.js').then(function (m) {
         RadarSites = m;
         if (pendingSiteAccent) { m.setAccent(pendingSiteAccent[0], pendingSiteAccent[1]); pendingSiteAccent = null; }
+        if (pendingOutOfEra) { m.setOutOfEra(pendingOutOfEra); pendingOutOfEra = null; }
     }).catch(function (e) { console.error('radar-sites.js load failed: ' + e); });
     window.showRadarSites = function (json) { if (RadarSites) RadarSites.show(primary(), json); };
     window.setSelectedRadarSite = function (id) { if (RadarSites) RadarSites.setSelected(id); };
@@ -581,6 +583,11 @@ try {
     window.setRadarSitesVisible = function (visible) { if (RadarSites) RadarSites.setVisible(visible); };
     window.setResearchRadarsVisible = function (visible) { if (RadarSites) RadarSites.setResearchVisible(visible); };
     window.setTdwrsVisible = function (visible) { if (RadarSites) RadarSites.setTdwrVisible(visible); };
+    // Retired ids (moved/renamed radars) outside the era being viewed — hidden live, dated in PastCast.
+    window.setRadarSitesOutOfEra = function (json) {
+        if (RadarSites) RadarSites.setOutOfEra(json);
+        else pendingOutOfEra = json;
+    };
     // The OS theme accent for the site-status halo. Cache if the module hasn't loaded yet so the
     // map-ready push (which can beat the dynamic import) isn't dropped.
     window.setRadarSiteAccent = function (border, glow) {

@@ -73,6 +73,7 @@ let researchVisible = false;      // research/test radars (e.g. KCRI) are an opt
 let researchIds = new Set();      // ids flagged research (site.research) in the current list
 let tdwrVisible = false;          // Terminal Doppler Weather Radars (T***) are an opt-in extra layer
 let tdwrIds = new Set();          // ids flagged tdwr (site.tdwr) in the current list
+let outOfEraIds = new Set();      // retired ids (KLIX, TPBI) outside the era being viewed — C# decides, pushes the set
 let radarSiteOffline = new Set(); // site ids KNOWN to have no recent data (red availability square)
 let radarSiteUnknown = null;      // site ids not checked yet; null = no status push yet, so EVERY site is unknown (grey)
 let radarStatusReplayDay = false; // true while the status describes the PastCast replay day, not the live feed
@@ -110,8 +111,10 @@ function recomputeCoverage() {
 // (when a state is isolated) the site's range covers that state. The currently-selected site is exempt
 // from the coverage gate so it can't get stranded (its loop keeps rendering; you can still deselect it).
 // So "Show Research Radars" / "Show TDWRs" reveal just those keys, and "Hide Sites" still hides everything.
+// A RETIRED id (moved/renamed radar) shows only in the era it existed: RadarViewModel.IsInEra, pushed here.
 function markerVisible(id) {
     return radarSitesVisible
+        && !outOfEraIds.has(id)
         && (!researchIds.has(id) || researchVisible)
         && (!tdwrIds.has(id) || tdwrVisible)
         && (coveredIds === null || coveredIds.has(id) || id === selectedSiteId);
@@ -473,6 +476,13 @@ export function setResearchVisible(visible) {
 // unaffected. An active TDWR loop keeps rendering while hidden.
 export function setTdwrVisible(visible) {
     tdwrVisible = !!visible;
+    applyVisibility();
+}
+
+// The retired ids to hide (a JSON array). Survives show() — it's C#'s era state, not part of the site list.
+export function setOutOfEra(json) {
+    const ids = (typeof json === 'string') ? JSON.parse(json) : json;
+    outOfEraIds = new Set(ids || []);
     applyVisibility();
 }
 

@@ -111,8 +111,10 @@ namespace Anvil.ViewModels
 					RebuildChips();
 				}
 
-				// Settings → Radar decides which networks exist in the list, same as on the map.
-				if (e.PropertyName is nameof(RadarViewModel.ShowTdwrs) or nameof(RadarViewModel.ShowResearchRadars))
+				// Settings → Radar decides which networks exist in the list, same as on the map — and the era
+				// decides whether a retired site (KLIX) does.
+				if (e.PropertyName is nameof(RadarViewModel.ShowTdwrs) or nameof(RadarViewModel.ShowResearchRadars)
+					or nameof(RadarViewModel.SiteEraKey))
 				{
 					OnPropertyChanged(nameof(IsTdwrFilterEnabled));
 					OnPropertyChanged(nameof(IsResearchFilterEnabled));
