@@ -19,6 +19,15 @@
        │██ KABR Aberdeen · SD       ◗ ☆ │   ┌ 4 min     ⑦┐ ┌ VCP 35    ⑦┐ ┌ 142 mi    ⑦┐ ← stat strip: the
        │ …                                 │   │ SINCE LAST │ │ clear-air  │ │ FROM YOU   │   same facts, short
        └───────────────────────────────────┘   └ SCAN ──────┘ └────────────┘ └────────────┘   (distance collapses)
+                                               NWS STATUS  checked 2 min ago     [⟳ Re-check in 3:04] ← ALL sites, 5-min
+                                               ┌─────────────────────────────────────────────┐   cooldown per attempt
+                                               │ RADAR STATE  ● Operate · Maintenance action… │ ← the radar's OWN report,
+                                               │ ALARMS       Tower/utilities · Transmitter   │   never the Online pill
+                                               │ POWER        Utility power                   │
+                                               │ NWS MESSAGE  NWS RAH · Sep 23, 7:29 AM (27 hr ago)
+                                               │              ┌ THE KRAX WSR-88D RADAR WILL… ┐ ← FTM verbatim, mono
+                                               │              ▾ 1 earlier message            │
+                                               └─────────────────────────────────────────────┘   (not NWS-listed: ONE line)
                                                YOUR USE  since Mar 4, 2026  [⌫ Clear]   ← Clear → ClearSiteUsageDialog
                                                ┌ 27       ┐ ┌ 6.4 hr  ⑦┐ ┌ Now      ┐ ┌ #1          ┐
                                                │ LOADS ·  │ │ SITE LOAD│ │ LAST USED│ │ OF 14 SITES │ ← never used: ONE line
@@ -512,6 +521,7 @@
                                 <RowDefinition Height="Auto"/> <!-- header: title | chips | action -->
                                 <RowDefinition Height="Auto"/> <!-- site card: fields | photo -->
                                 <RowDefinition Height="Auto"/> <!-- stat strip -->
+                                <RowDefinition Height="Auto"/> <!-- NWS status -->
                                 <RowDefinition Height="Auto"/> <!-- your use -->
                             </Grid.RowDefinitions>
 
@@ -739,7 +749,165 @@
                                  ⚠️ Loads and Site load time split the SAME way, by mode ("22 NOWCAST, 5 PASTCAST" /
                                  "5.2 HR NOWCAST, 1.2 HR PASTCAST", "ALL NOWCAST" when one side is empty) — keep
                                  the two labels alike. Both labels wrap. -->
+                            <!-- NWS STATUS — the NWS's own account of this radar (RadarNwsStatusViewModel): what the RDA
+                                 reports about itself, and the newest outage notice (FTM) a WFO issued for it. Header =
+                                 caption · "checked 2 min ago" · Re-check (right). ⚠️ INFORMATION, NOT AVAILABILITY: the
+                                 dot here is the RADAR's own report (green on-line / amber maintenance / red inoperable)
+                                 and never moves the Online/Offline pill above — a quarter of healthy sites say
+                                 "maintenance mandatory" on any day. ⚠️ Re-check covers EVERY site (two requests) and
+                                 cools down 5 min from each attempt; the button counts it down ("Re-check in 3:04").
+                                 The message text is NWS's verbatim (teletype caps, monospace); older ones fold under
+                                 "n earlier messages". A site NWS doesn't list (research) swaps the card for ONE line.
+                                 Every word comes from the VM (RadarNwsSiteDetail). -->
                             <StackPanel Grid.Row="3" Spacing="8" Margin="0,8,0,0">
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="NWS STATUS" VerticalAlignment="Center"
+                                               Style="{StaticResource FieldLabelStyle}"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{x:Bind ViewModel.RadarAtlas.NwsStatus.CheckedText, Mode=OneWay}"
+                                               FontSize="12" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                    <!-- E72C Refresh. -->
+                                    <Button Grid.Column="2" Padding="8,3" MinWidth="0" MinHeight="0"
+                                            VerticalAlignment="Center"
+                                            Click="OnNwsRecheckClick"
+                                            IsEnabled="{x:Bind ViewModel.RadarAtlas.NwsStatus.CanCheck, Mode=OneWay}"
+                                            ToolTipService.ToolTip="{x:Bind ViewModel.RadarAtlas.NwsStatus.CheckToolTip, Mode=OneWay}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon FontSize="12" Glyph="&#xE72C;"/>
+                                            <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsStatus.CheckButtonText, Mode=OneWay}"
+                                                       FontSize="12"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Not checked / unreachable / not an NWS site: the one line. -->
+                                <Border CornerRadius="8" Padding="14,12"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        Visibility="{x:Bind CollapsedWhen(ViewModel.RadarAtlas.NwsDetail.ShowTable), Mode=OneWay}">
+                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.EmptyText, Mode=OneWay}"
+                                               FontSize="13"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Border>
+
+                                <!-- Same label | value rows as the site card; the message row is always last (no rule). -->
+                                <Border CornerRadius="8" Padding="16,0" BorderThickness="1"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                        Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.NwsDetail.ShowTable), Mode=OneWay}">
+                                    <StackPanel>
+                                        <StackPanel Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.NwsDetail.HasStation), Mode=OneWay}">
+                                            <Border BorderThickness="0,0,0,1" Padding="0,8"
+                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                                                <Grid ColumnSpacing="16">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="110"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="RADAR STATE" VerticalAlignment="Center"
+                                                               Style="{StaticResource FieldLabelStyle}"/>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                                        <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                                 Fill="{x:Bind win:RadarAtlasWindow.NwsLevelBrush(ViewModel.RadarAtlas.NwsDetail.Level), Mode=OneWay}"/>
+                                                        <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.StateText, Mode=OneWay}"
+                                                                   Style="{StaticResource FieldValueStyle}"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                            <Border BorderThickness="0,0,0,1" Padding="0,8"
+                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                                                <Grid ColumnSpacing="16">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="110"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="ALARMS" VerticalAlignment="Center"
+                                                               Style="{StaticResource FieldLabelStyle}"/>
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.AlarmsText, Mode=OneWay}"
+                                                               Style="{StaticResource FieldValueStyle}"/>
+                                                </Grid>
+                                            </Border>
+                                            <Border BorderThickness="0,0,0,1" Padding="0,8"
+                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                                                <Grid ColumnSpacing="16">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="110"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="POWER" VerticalAlignment="Center"
+                                                               Style="{StaticResource FieldLabelStyle}"/>
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.PowerText, Mode=OneWay}"
+                                                               Style="{StaticResource FieldValueStyle}"/>
+                                                </Grid>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <Grid ColumnSpacing="16" Padding="0,8,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="110"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="NWS MESSAGE" VerticalAlignment="Top" Margin="0,3,0,0"
+                                                       Style="{StaticResource FieldLabelStyle}"/>
+                                            <StackPanel Grid.Column="1" Spacing="6">
+                                                <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.NoMessageText, Mode=OneWay}"
+                                                           Style="{StaticResource FieldValueStyle}"
+                                                           Visibility="{x:Bind CollapsedWhen(ViewModel.RadarAtlas.NwsDetail.HasMessage), Mode=OneWay}"/>
+                                                <StackPanel Spacing="6"
+                                                            Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.NwsDetail.HasMessage), Mode=OneWay}">
+                                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.Latest.Header, Mode=OneWay}"
+                                                               FontSize="12"
+                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                    <Border CornerRadius="6" Padding="10,8"
+                                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                                        <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.Latest.Text, Mode=OneWay}"
+                                                                   FontFamily="Consolas" FontSize="12" LineHeight="18"
+                                                                   TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                                                    </Border>
+                                                </StackPanel>
+
+                                                <!-- E70D ChevronDown / E70E ChevronUp. -->
+                                                <HyperlinkButton Padding="0,2" Click="OnNwsEarlierClick"
+                                                                 Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.NwsDetail.HasEarlier), Mode=OneWay}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <FontIcon FontSize="10"
+                                                                  Glyph="{x:Bind win:RadarAtlasWindow.ExpandGlyph(ViewModel.RadarAtlas.IsNwsEarlierExpanded), Mode=OneWay}"/>
+                                                        <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.EarlierLabel, Mode=OneWay}"
+                                                                   FontSize="12"/>
+                                                    </StackPanel>
+                                                </HyperlinkButton>
+                                                <ItemsControl ItemsSource="{x:Bind ViewModel.RadarAtlas.NwsDetail.Earlier, Mode=OneWay}"
+                                                              Visibility="{x:Bind VisibleWhenBoth(ViewModel.RadarAtlas.NwsDetail.HasEarlier, ViewModel.RadarAtlas.IsNwsEarlierExpanded), Mode=OneWay}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:RadarNwsMessageRow">
+                                                            <StackPanel Spacing="6" Margin="0,4,0,6">
+                                                                <TextBlock Text="{x:Bind Header}" FontSize="12"
+                                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                                <Border CornerRadius="6" Padding="10,8"
+                                                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                                                    <TextBlock Text="{x:Bind Text}"
+                                                                               FontFamily="Consolas" FontSize="12" LineHeight="18"
+                                                                               TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                                                                </Border>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="4" Spacing="8" Margin="0,8,0,0">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="YOUR USE" VerticalAlignment="Center"
                                                Style="{StaticResource FieldLabelStyle}"/>

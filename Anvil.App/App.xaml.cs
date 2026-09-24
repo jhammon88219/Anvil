@@ -106,6 +106,8 @@ namespace Anvil
 			services.AddSingleton<IStormReportService, StormReportService>();
 			services.AddSingleton<ILevel2RadarService, Level2RadarService>();
 			services.AddSingleton<IRadarSiteProvider, RadarSiteProvider>();
+			// NWS radar status (RDA state + outage FTMs) for the Atlas's NWS STATUS section. No cache.
+			services.AddSingleton<IRadarNwsStatusService, RadarNwsStatusService>();
 			services.AddSingleton<ILocationService, LocationService>();
 			// Place search: embedded gazetteer first, Nominatim on submit as the fallback.
 			services.AddSingleton<IPlaceSearchService, PlaceSearchService>();

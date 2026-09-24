@@ -33,15 +33,21 @@ namespace Anvil.ViewModels
 		private readonly ILevel2RadarService _radarService;
 		private readonly RadarSiteFavoritesViewModel _favorites;
 		private readonly SiteUsageTracker _usage;
+		private readonly RadarNwsStatusViewModel _nws;
 
 		public RadarAtlasViewModel(RadarViewModel radar, MarkersViewModel markers,
-			ILevel2RadarService radarService, RadarSiteFavoritesViewModel favorites, SiteUsageTracker usage)
+			ILevel2RadarService radarService, RadarSiteFavoritesViewModel favorites, SiteUsageTracker usage,
+			RadarNwsStatusViewModel nws)
 		{
 			_radar = radar;
 			_markers = markers;
 			_radarService = radarService;
 			_favorites = favorites;
 			_usage = usage;
+			_nws = nws;
+
+			// A check landing (or the minute rolling, which moves "27 hr ago") re-words the NWS section.
+			_nws.Changed += (_, _) => OnPropertyChanged(nameof(NwsDetail));
 
 			// Any recorded change can move the selected site's numbers — or its RANK, which depends on every site.
 			_usage.Changed += (_, _) => RaiseUsage();
@@ -610,6 +616,7 @@ namespace Anvil.ViewModels
 
 				if (SetProperty(ref _selectedSite, value))
 				{
+					IsNwsEarlierExpanded = false; // a new site opens with its older messages folded
 					RaiseDetail();
 					_ = LoadDetailAsync(value, ++_detailToken);
 				}
@@ -850,8 +857,30 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(CoordsHint));
 			OnPropertyChanged(nameof(StatusHint));
 			OnPropertyChanged(nameof(NetworkHint));
+			OnPropertyChanged(nameof(NwsDetail));
 			RaiseUsage();
 		}
+
+		// ── NWS status (RadarNwsStatusViewModel read-back) ───────────────────────────────────────
+		// ⚠️ Information, not availability: nothing here touches the Online/Offline dot. The words are built
+		// in RadarNwsStatusViewModel.DetailFor; the Re-check button binds NwsStatus directly.
+
+		/// <summary>The NWS check itself — the section header's Re-check button and "checked 2 min ago".</summary>
+		public RadarNwsStatusViewModel NwsStatus => _nws;
+
+		/// <summary>The selected site's NWS STATUS section, every word chosen.</summary>
+		public RadarNwsSiteDetail NwsDetail => _nws.DetailFor(_selectedSite);
+
+		private bool _isNwsEarlierExpanded;
+
+		/// <summary>Whether the older FTMs under the latest one are unfolded. Resets per selected site.</summary>
+		public bool IsNwsEarlierExpanded
+		{
+			get => _isNwsEarlierExpanded;
+			private set => SetProperty(ref _isNwsEarlierExpanded, value);
+		}
+
+		public void ToggleNwsEarlier() => IsNwsEarlierExpanded = !_isNwsEarlierExpanded;
 
 		// ── Your use (SiteUsageTracker read-back) ────────────────────────────────────────────────
 		// The words for the tiles and the Clear confirmation live HERE, not in XAML — same rule as the chips.

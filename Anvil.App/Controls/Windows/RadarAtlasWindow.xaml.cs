@@ -62,6 +62,20 @@ namespace Anvil.Controls.Windows
 		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 		public Visibility CollapsedWhen(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
 		public Visibility VisibleWhenText(string value) => string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
+		public Visibility VisibleWhenBoth(bool a, bool b) => a && b ? Visibility.Visible : Visibility.Collapsed;
+
+		// The NWS STATUS section's radar-state dot: the RADAR's own report, not availability. ⚠️ LITERAL data
+		// colours — the same green / amber / red / grey as AgeBrush and the status square.
+		public static Microsoft.UI.Xaml.Media.Brush NwsLevelBrush(RadarNwsLevel level) => level switch
+		{
+			RadarNwsLevel.Ok => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x3F, 0xB9, 0x50)),
+			RadarNwsLevel.Degraded => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xD2, 0x99, 0x22)),
+			RadarNwsLevel.Down => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xF8, 0x51, 0x49)),
+			_ => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x6E, 0x76, 0x81)),
+		};
+
+		// E70D ChevronDown (folded) / E70E ChevronUp (unfolded).
+		public static string ExpandGlyph(bool expanded) => expanded ? "" : "";
 
 		// The detail pane's status-dot brush. Bound to SelectedSite.Availability, so it tracks a status change
 		// on the selected row, not just a change of selection.
@@ -160,6 +174,14 @@ namespace Anvil.Controls.Windows
 				atlas.ClearUsage(dialog.AllSites);
 			}
 		}
+
+		// NWS STATUS → Re-check: one check for every site; the VM enforces the 5-min cooldown (the button's
+		// IsEnabled mirrors it, but a click racing the tick still lands on the VM's guard).
+		private void OnNwsRecheckClick(object sender, RoutedEventArgs e) =>
+			_ = ViewModel?.RadarAtlas.NwsStatus.CheckAsync();
+
+		private void OnNwsEarlierClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.RadarAtlas.ToggleNwsEarlier();
 
 		// Load the selected site's radar loop on the map, then close the panel.
 		private void OnLoadClick(object sender, RoutedEventArgs e)
