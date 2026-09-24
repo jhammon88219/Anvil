@@ -836,6 +836,13 @@ namespace Anvil.ViewModels
 		/// </remarks>
 		public DateTimeOffset? LoadedReplayStartUtc => _loadedWindowStartUtc;
 
+		/// <summary>The UTC end of the LOADED window (start + its duration), or null if none has been. Same
+		/// rule as <see cref="LoadedReplayStartUtc"/> — the damage-survey overlay filters to this span.</summary>
+		public DateTimeOffset? LoadedReplayEndUtc =>
+			_loadedWindowStartUtc is { } start && _loadedWindowDurationIndex >= 0
+				? start.AddMinutes(PastEventMinutesByIndex[_loadedWindowDurationIndex])
+				: null;
+
 		// What the last load actually loaded, for the comparison above.
 		private DateTimeOffset? _loadedWindowStartUtc;
 		private int _loadedWindowDurationIndex = -1;
@@ -848,6 +855,7 @@ namespace Anvil.ViewModels
 			_loadedWindowStartUtc = ReplayStartUtc();
 			_loadedWindowDurationIndex = _pastEventDurationIndex;
 			OnPropertyChanged(nameof(LoadedReplayStartUtc));
+			OnPropertyChanged(nameof(LoadedReplayEndUtc));
 			OnPropertyChanged(nameof(HasLoadedReplayWindow));
 			OnPropertyChanged(nameof(IsReplaySelectionDirty));
 			RefreshSiteEra();
@@ -861,6 +869,7 @@ namespace Anvil.ViewModels
 			_loadedWindowStartUtc = null;
 			_loadedWindowDurationIndex = -1;
 			OnPropertyChanged(nameof(LoadedReplayStartUtc));
+			OnPropertyChanged(nameof(LoadedReplayEndUtc));
 			OnPropertyChanged(nameof(HasLoadedReplayWindow));
 			OnPropertyChanged(nameof(IsReplaySelectionDirty));
 			RefreshSiteEra();

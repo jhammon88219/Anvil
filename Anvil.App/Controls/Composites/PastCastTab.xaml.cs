@@ -127,6 +127,19 @@ namespace Anvil.Controls.Composites
 		private void OnStormReportsHeaderClick(object sender, RoutedEventArgs e) =>
 			ViewModel?.StormReports.ToggleAll();
 
+		private void OnDamageSurveysHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.DamageSurveys.ToggleAll();
+
+		// x:Bind helpers for the damage-survey rows — the same three StormReportsInput carries. The readout
+		// formats the VIEW MODEL's opacity (what the map uses), and dims with its slider through Opacity
+		// because a TextBlock has no disabled state (and a theme brush can't be resolved here).
+		public string Count(int n) => n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+		public string Percent(double opacity) =>
+			Math.Round(opacity * 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%";
+
+		public double DimUnless(bool enabled) => enabled ? 1.0 : 0.4;
+
 		private async void OnLoadClick(object sender, RoutedEventArgs e)
 		{
 			if (ViewModel?.Radar is not RadarViewModel radar)

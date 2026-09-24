@@ -34,6 +34,16 @@
        │     [ Save current timeframe ]                       │
        │ › [x] Radar                                          │  ← the layer everything else
        │ ›  SPC outlook                                       │     is drawn OVER
+       │ ⌄ [-] Damage surveys                                 │  ← NWS DAT tornado surveys for
+       │     ┌────────────────────────────────────┐           │     the LOADED window (a tornado
+       │     │ 4 tornado tracks                   │           │     shows if its time on the
+       │     │ Mon May 6, 2024 · 7:00 PM → 9:00 PM│           │     ground overlaps it)
+       │     └────────────────────────────────────┘           │
+       │     [x] ■ Damage polygons              12            │  ← the ONLY default tick
+       │     [ ] ━ Tracks                        4            │
+       │     [ ] ● Survey points                96            │
+       │     [EFU][EF0][EF1][EF2][EF3][EF4][EF5]              │  ← DAT's own EF colours
+       │     Opacity  ─────────●────────  70%                 │
        │ › [x] Storm reports                                  │  ← that day's verification dots
        │ ›  DOW event                                         │  ← a STANDALONE mobile-radar
        └──────────────────────────────────────────────────────┘
@@ -60,8 +70,8 @@
 
      ⚠️ THE HEADER CHECKBOX IS A SELECT-ALL, exactly as in NowCastTab: IsChecked is ONE-WAY and the Click
      hands the decision to the view model, whose answer overwrites the box's own toggle. Only the two
-     sections that ARE a layer carry one — Radar (RadarViewModel.ShowRadarLayer) and Storm reports
-     (ToggleAll / AllShown). Timeframe, Saved events and DOW event are not layers, and SPC outlook has no
+     sections that ARE a layer carry one — Radar (RadarViewModel.ShowRadarLayer), Damage surveys and
+     Storm reports (ToggleAll / AllShown). Timeframe, Saved events and DOW event are not layers, and SPC outlook has no
      boolean to bind: its Product = None IS its off switch. Those four put a SectionHeaderTitleOnlyStyle
      title in the same panel, indented into the empty box column so every title in the window lines up.
      Clicking a box does not expand/collapse — the CheckBox takes the pointer first.
@@ -115,6 +125,7 @@
             <RowDefinition Height="Auto"/> <!-- saved events (a shortcut into the pickers, not a layer) -->
             <RowDefinition Height="Auto"/> <!-- the radar layer itself -->
             <RowDefinition Height="Auto"/> <!-- historical SPC outlook -->
+            <RowDefinition Height="Auto"/> <!-- NWS damage surveys (DAT tornado polygons / tracks / points) -->
             <RowDefinition Height="Auto"/> <!-- storm reports (verification) -->
             <RowDefinition Height="Auto"/> <!-- DOW event (standalone frame, NOT an overlay) -->
         </Grid.RowDefinitions>
@@ -626,12 +637,190 @@
             </Grid>
         </Expander>
 
+        <!-- ===================== NWS DAMAGE SURVEYS ===================== -->
+        <!-- The NWS Damage Assessment Toolkit's tornado surveys for the LOADED window (ViewModel.DamageSurveys):
+             a tornado shows when its time on the ground overlaps the window. Between the outlook and the
+             reports because that is where it draws — over the radar and outlook, under the report dots.
+             Authored inline (PastCast is its only host), in the same card-over-rows shape as the reports.
+             ⚠️ ONLY "Damage polygons" IS TICKED BY DEFAULT, and only some offices draw polygons — the card's
+             footer says so when a window has tracks but no polygons. Don't "fix" an empty map by changing
+             the default; the user chose it.
+             ⚠️ The EF chips are the DAT's own polygon colours, literals mirrored from damage-surveys.js
+             EF_COLORS — change both. Data colours, never themed. -->
+        <Expander Grid.Row="4" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
+            <Expander.Header>
+                <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
+                    <CheckBox Style="{StaticResource SectionHeaderCheckBoxStyle}"
+                              IsEnabled="{x:Bind ViewModel.DamageSurveys.IsReady, Mode=OneWay}"
+                              IsChecked="{x:Bind ViewModel.DamageSurveys.AllShown, Mode=OneWay}"
+                              Click="OnDamageSurveysHeaderClick"
+                              AutomationProperties.Name="Show all damage survey layers"
+                              ToolTipService.ToolTip="Show or hide every damage-survey layer"/>
+                    <TextBlock Text="Damage surveys" Style="{StaticResource SectionHeaderTitleStyle}"/>
+                </StackPanel>
+            </Expander.Header>
+            <Grid VerticalAlignment="Top">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- the card -->
+                    <RowDefinition Height="Auto"/> <!-- rule -->
+                    <RowDefinition Height="Auto"/> <!-- three layer rows + EF key + opacity -->
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" CornerRadius="8" Padding="13,12"
+                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                        BorderThickness="1"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                    <StackPanel>
+                        <TextBlock Text="{x:Bind ViewModel.DamageSurveys.CardHeadline, Mode=OneWay}"
+                                   FontSize="15"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.DamageSurveys.CardContext, Mode=OneWay}"
+                                   FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Visibility="{x:Bind HasText(ViewModel.DamageSurveys.CardContext), Mode=OneWay}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.DamageSurveys.CardFooter, Mode=OneWay}"
+                                   FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Visibility="{x:Bind HasText(ViewModel.DamageSurveys.CardFooter), Mode=OneWay}"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="1" Height="1" Margin="0,14"
+                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+                <Grid Grid.Row="2" RowSpacing="9">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Damage polygons -->
+                        <RowDefinition Height="Auto"/> <!-- Tracks -->
+                        <RowDefinition Height="Auto"/> <!-- Survey points -->
+                        <RowDefinition Height="Auto"/> <!-- EF key -->
+                        <RowDefinition Height="Auto"/> <!-- Opacity -->
+                    </Grid.RowDefinitions>
+
+                    <!-- One row per layer; the mark in front says what it draws (a filled square, a line, a
+                         dot), in a neutral EF2 so it reads as "a rating colour", not as one rating. -->
+                    <CheckBox Grid.Row="0" MinWidth="0" HorizontalAlignment="Stretch"
+                              IsEnabled="{x:Bind ViewModel.DamageSurveys.IsReady, Mode=OneWay}"
+                              IsChecked="{x:Bind ViewModel.DamageSurveys.ShowAreas, Mode=TwoWay}"
+                              ToolTipService.ToolTip="EF-rated damage polygons (drawn by some NWS offices)">
+                        <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2"
+                                    Background="#FFFF00" BorderBrush="#6E6E6E" BorderThickness="1"
+                                    VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Damage polygons" FontSize="13" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{x:Bind Count(ViewModel.DamageSurveys.AreaCount), Mode=OneWay}"
+                                       FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </Grid>
+                    </CheckBox>
+
+                    <CheckBox Grid.Row="1" MinWidth="0" HorizontalAlignment="Stretch"
+                              IsEnabled="{x:Bind ViewModel.DamageSurveys.IsReady, Mode=OneWay}"
+                              IsChecked="{x:Bind ViewModel.DamageSurveys.ShowTracks, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Tornado track centerlines (one per surveyed tornado)">
+                        <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Width="11" Height="4" CornerRadius="2"
+                                    Background="#FFFF00" BorderBrush="#141414" BorderThickness="1"
+                                    VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Tracks" FontSize="13" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{x:Bind Count(ViewModel.DamageSurveys.TrackCount), Mode=OneWay}"
+                                       FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </Grid>
+                    </CheckBox>
+
+                    <CheckBox Grid.Row="2" MinWidth="0" HorizontalAlignment="Stretch"
+                              IsEnabled="{x:Bind ViewModel.DamageSurveys.IsReady, Mode=OneWay}"
+                              IsChecked="{x:Bind ViewModel.DamageSurveys.ShowPoints, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Individual survey damage points">
+                        <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Width="11" Height="11" CornerRadius="6"
+                                    Background="#FFFF00" BorderBrush="#141414" BorderThickness="1"
+                                    VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Survey points" FontSize="13" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{x:Bind Count(ViewModel.DamageSurveys.PointCount), Mode=OneWay}"
+                                       FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </Grid>
+                    </CheckBox>
+
+                    <!-- The EF key: the DAT palette every layer is coloured by. -->
+                    <Grid Grid.Row="3" ColumnSpacing="3" Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Height="18" CornerRadius="3" Background="#9C9C9C">
+                            <TextBlock Text="EFU" FontSize="11" Foreground="#141414" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border Grid.Column="1" Height="18" CornerRadius="3" Background="#00FFC5">
+                            <TextBlock Text="EF0" FontSize="11" Foreground="#141414" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border Grid.Column="2" Height="18" CornerRadius="3" Background="#55FF00">
+                            <TextBlock Text="EF1" FontSize="11" Foreground="#141414" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border Grid.Column="3" Height="18" CornerRadius="3" Background="#FFFF00">
+                            <TextBlock Text="EF2" FontSize="11" Foreground="#141414" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border Grid.Column="4" Height="18" CornerRadius="3" Background="#E69800">
+                            <TextBlock Text="EF3" FontSize="11" Foreground="#141414" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border Grid.Column="5" Height="18" CornerRadius="3" Background="#E60000">
+                            <TextBlock Text="EF4" FontSize="11" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border Grid.Column="6" Height="18" CornerRadius="3" Background="#A80084">
+                            <TextBlock Text="EF5" FontSize="11" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+
+                    <Grid Grid.Row="4" ColumnSpacing="12" Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="36"/> <!-- readout: reserved width, so the slider never resizes -->
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Opacity" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                        <Slider Grid.Column="1"
+                                HorizontalAlignment="Stretch"
+                                IsEnabled="{x:Bind ViewModel.DamageSurveys.AnyShown, Mode=OneWay}"
+                                Minimum="0" Maximum="1"
+                                StepFrequency="0.05" SmallChange="0.05"
+                                IsThumbToolTipEnabled="False"
+                                VerticalAlignment="Center"
+                                Value="{x:Bind ViewModel.DamageSurveys.Opacity, Mode=TwoWay}"
+                                ToolTipService.ToolTip="Polygon fill and point opacity (tracks and outlines stay stronger)"/>
+                        <TextBlock Grid.Column="2" Text="{x:Bind Percent(ViewModel.DamageSurveys.Opacity), Mode=OneWay}"
+                                   Opacity="{x:Bind DimUnless(ViewModel.DamageSurveys.AnyShown), Mode=OneWay}"
+                                   FontSize="12" TextAlignment="Right" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Expander>
+
         <!-- ===================== STORM REPORTS ===================== -->
         <!-- ⚠️ The heading is HERE, not inside StormReportsInput: that control is shared by BOTH
              temporal windows, and a window owns its own section structure while the control is just
              content. Putting it inside would give this section a heading in a window whose other
              sections might not have one. -->
-        <Expander Grid.Row="4" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
+        <Expander Grid.Row="5" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
             <Expander.Header>
                 <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
                     <CheckBox Style="{StaticResource SectionHeaderCheckBoxStyle}"
@@ -658,7 +847,7 @@
              library - these frames are ~20 MB and are no longer packaged.
              ⚠️ Import… raises an event rather than opening the picker here: a FileOpenPicker needs a window
              HWND and this is a UserControl. Same chain as the Map tab's folder browse. -->
-        <Expander Grid.Row="5" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
+        <Expander Grid.Row="6" Style="{StaticResource CustomHeaderSectionExpanderStyle}">
             <Expander.Header>
                 <StackPanel Style="{StaticResource SectionHeaderPanelStyle}">
                     <TextBlock Text="DOW event" Style="{StaticResource SectionHeaderTitleOnlyStyle}"/>

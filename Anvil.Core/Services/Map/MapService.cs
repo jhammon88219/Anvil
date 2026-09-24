@@ -102,6 +102,19 @@ namespace Anvil.Services
 		public Task<string> DescribeStormReportsAsync() =>
 			_mapView.RunScriptAsync(Call("describeStormReports"));
 
+		// NWS damage surveys (DAT tornado polygons / tracks / points) for the loaded replay window.
+		public Task SetDamageSurveysSourceAsync(string url) =>
+			_mapView.RunScriptAsync(Call("setDamageSurveysSource", url));
+
+		public Task SetDamageSurveyKindsAsync(bool areas, bool tracks, bool points) =>
+			_mapView.RunScriptAsync(Call("setDamageSurveyKinds", areas, tracks, points));
+
+		public Task SetDamageSurveysOpacityAsync(double opacity) =>
+			_mapView.RunScriptAsync(Call("setDamageSurveysOpacity", opacity));
+
+		public Task ClearDamageSurveysAsync() =>
+			_mapView.RunScriptAsync(Call("clearDamageSurveys"));
+
 		// The loop is driven frame-by-frame: begin (with the site's antenna coords, needed to
 		// project the gates), then add each cached volume URL as a frame, then show by index.
 		public Task BeginRadarLoopAsync(RadarSite site, int expectedFrames) =>

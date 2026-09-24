@@ -282,6 +282,22 @@ namespace Anvil.Services
 		/// </remarks>
 		Task<string> DescribeStormReportsAsync();
 
+		/// <summary>Points the page at a replay window's cached NWS damage-survey GeoJSON (tornado polygons,
+		/// tracks, survey points — tagged <c>layer</c> = area/track/point).</summary>
+		Task SetDamageSurveysSourceAsync(string url);
+
+		/// <summary>Shows the damage-survey layers — each flag toggles one independently (all false hides the
+		/// overlay without tearing down the source).</summary>
+		Task SetDamageSurveyKindsAsync(bool areas, bool tracks, bool points);
+
+		/// <summary>Sets the damage-survey opacity (0-1): polygon fill and point dots; track lines stay a
+		/// little stronger so a path reads through its own polygons.</summary>
+		Task SetDamageSurveysOpacityAsync(double opacity);
+
+		/// <summary>Tears the damage-survey overlay down (source, layers, popup, the page's layer flags) — the
+		/// same "nothing to show" seam as <see cref="ClearStormReportsAsync"/>, for the same reason.</summary>
+		Task ClearDamageSurveysAsync();
+
 		/// <summary>Highlights the selected site marker (empty clears the highlight).</summary>
 		Task SetSelectedRadarSiteAsync(string? siteId);
 

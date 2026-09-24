@@ -100,6 +100,7 @@ try {
     var Watches = null;
     var Warnings = null;
     var StormReports = null;
+    var DamageSurveys = null;
     var Markers = null;
     var RadarSites = null;
     var States = null;
@@ -114,6 +115,7 @@ try {
         if (Outlook) Outlook.reAdd(map);                 // re-add the outlook (reuse clipped data, or re-fetch)
         if (Watches) Watches.reAdd(map);                 // re-add the watch layers (data is still in memory)
         if (Warnings) Warnings.reAdd(map);               // re-add the warning polygons (above the watches)
+        if (DamageSurveys) DamageSurveys.reAdd(map);     // NWS damage surveys (under labels, so under the report dots)
         if (StormReports) StormReports.reAdd(map);       // re-add the storm-report dots (top of the stack)
         if (window.RadarLayer) window.RadarLayer.reAdd(map);  // this pane's own radar layer + range ring
         if (States) States.reAdd(map);                   // re-add LAST so the isolation mask lands on top of everything
@@ -427,6 +429,14 @@ try {
         forEachMap(function (m, i) { out.push('[' + i + '] ' + StormReports.describe(m)); });
         return out.join(' ');
     };
+
+    // NWS damage surveys (DAT tornado polygons / tracks / points for the loaded replay window) live in
+    // damage-surveys.js — same lazy-load/delegate pattern as the storm reports, and the same clear seam.
+    import('./damage-surveys.js').then(function (m) { DamageSurveys = m; }).catch(function (e) { console.error('damage-surveys.js load failed: ' + e); });
+    window.setDamageSurveysSource = function (url) { if (DamageSurveys) forEachMap(function (m) { DamageSurveys.setSource(m, url); }); };
+    window.setDamageSurveyKinds = function (areas, tracks, points) { if (DamageSurveys) forEachMap(function (m) { DamageSurveys.setKinds(m, areas, tracks, points); }); };
+    window.setDamageSurveysOpacity = function (o) { if (DamageSurveys) forEachMap(function (m) { DamageSurveys.setOpacity(m, o); }); };
+    window.clearDamageSurveys = function () { if (DamageSurveys) forEachMap(function (m) { DamageSurveys.clear(m); }); };
 
     // Animated camera moves go to the PRIMARY only; onPaneMove mirrors them to the other panes as they
     // play, so the panes stay locked without four animations fighting each other.
