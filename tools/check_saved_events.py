@@ -11,7 +11,8 @@ optional .gz, never _MDM) and MinVolumeBytes (100 KB - smaller objects are abort
 neither.
 
 Also re-checks the rules SavedEventLibrary.Validate enforces (window length on the picker, start on a
-5-minute mark), so the script is useful before the app is even built.
+5-minute mark), and that every built-in names a type (tornado/hurricane/derecho), so the script is useful
+before the app is even built.
 
     py -3 tools/check_saved_events.py
     py -3 tools/check_saved_events.py --file some-other.json --min 5
@@ -32,6 +33,7 @@ BUCKET = "https://unidata-nexrad-level2.s3.amazonaws.com/"
 S3 = "{http://s3.amazonaws.com/doc/2006-03-01/}"
 MIN_VOLUME_BYTES = 100_000
 ALLOWED_MINUTES = (30, 60, 120, 180, 360, 720)
+EVENT_TYPES = ("tornado", "hurricane", "derecho")  # MIRRORS SavedEventLibrary.ReadKind; built-ins must name one
 KEY_TIME = re.compile(r"^[A-Z0-9]{4}(\d{8})_(\d{6})")
 
 
@@ -96,6 +98,9 @@ def main():
         print(f"{ev.get('id')}  {ev.get('name')}")
         if not ev.get("source"):
             print("  WARN  no source recorded for the times")
+        if ev.get("type") not in EVENT_TYPES:
+            print(f"  FAIL  type {ev.get('type')!r} is not one of {', '.join(EVENT_TYPES)}")
+            failures += 1
         for i, leg in enumerate(ev.get("legs", [])):
             site = leg.get("site")
             start = datetime.fromisoformat(leg["startUtc"].replace("Z", "+00:00")).astimezone(timezone.utc)

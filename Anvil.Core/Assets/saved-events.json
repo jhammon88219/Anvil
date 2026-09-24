@@ -1,8 +1,9 @@
 {
-  "_note": "Curated BUILT-IN PastCast events. Read-only in the app; a user's own events live in %LocalAppData%\\Anvil\\SavedEvents.json. Every start is UTC on a 5-minute mark, every window is one of 30/60/120/180/360/720 minutes, and every leg must pass tools/check_saved_events.py (the archive really holds volumes for that site and window). Each event names its source for the times.",
+  "_note": "Curated BUILT-IN PastCast events. Read-only in the app; a user's own events live in %LocalAppData%\\Anvil\\SavedEvents.json. Every start is UTC on a 5-minute mark, every window is one of 30/60/120/180/360/720 minutes, and every leg must pass tools/check_saved_events.py (the archive really holds volumes for that site and window). Each event names its source for the times, and a type (tornado / hurricane / derecho) that groups and filters the list.",
   "events": [
     {
       "id": "el-reno-2013",
+      "type": "tornado",
       "name": "El Reno, OK",
       "notes": "EF3, 2.6 miles wide - the widest tornado on record.",
       "source": "NWS Norman event summary: tornado 6:03-6:43 PM CDT (23:03-23:43Z)",
@@ -13,6 +14,7 @@
     },
     {
       "id": "moore-2013",
+      "type": "tornado",
       "name": "Moore, OK",
       "notes": "EF5 through Moore.",
       "source": "NWS Norman event summary: tornado 2:56-3:35 PM CDT (19:56-20:35Z)",
@@ -23,6 +25,7 @@
     },
     {
       "id": "philadelphia-ms-2011",
+      "type": "tornado",
       "name": "Philadelphia, MS",
       "notes": "EF5, April 27 Super Outbreak - Neshoba County.",
       "source": "Wikipedia (NWS Jackson survey): tornado 2:30-3:00 PM CDT (19:30-20:00Z)",
@@ -34,6 +37,7 @@
     },
     {
       "id": "hackleburg-2011",
+      "type": "tornado",
       "name": "Hackleburg-Phil Campbell, AL",
       "notes": "EF5, April 27 Super Outbreak - 102 miles across north Alabama.",
       "source": "Wikipedia (NWS Huntsville/Birmingham surveys): tornado 3:05-4:50 PM CDT (20:05-21:50Z)",
@@ -45,6 +49,7 @@
     },
     {
       "id": "smithville-2011",
+      "type": "tornado",
       "name": "Smithville, MS",
       "notes": "EF5, April 27 Super Outbreak - through Smithville into Alabama.",
       "source": "Wikipedia (NWS Memphis survey): tornado 3:43-4:23 PM CDT (20:43-21:23Z)",
@@ -55,6 +60,7 @@
     },
     {
       "id": "rainsville-2011",
+      "type": "tornado",
       "name": "Rainsville, AL",
       "notes": "EF5, April 27 Super Outbreak - DeKalb County into Georgia.",
       "source": "Wikipedia (NWS Huntsville survey): tornado 6:19 PM CDT-7:55 PM EDT (23:19-23:55Z)",
@@ -66,6 +72,7 @@
     },
     {
       "id": "joplin-2011",
+      "type": "tornado",
       "name": "Joplin, MO",
       "notes": "EF5, rain-wrapped through Joplin.",
       "source": "NWS Springfield event summary: tornado 5:34-6:12 PM CDT (22:34-23:12Z)",
@@ -76,12 +83,95 @@
     },
     {
       "id": "el-reno-piedmont-2011",
+      "type": "tornado",
       "name": "El Reno-Piedmont, OK",
       "notes": "EF5, 63 miles from the Caddo/Canadian line past Guthrie.",
       "source": "NWS Norman event summary: tornado 3:50-5:35 PM CDT (20:50-22:35Z)",
       "defaultLeg": 0,
       "legs": [
         { "site": "KTLX", "startUtc": "2011-05-24T20:30:00Z", "minutes": 180 }
+      ]
+    },
+    {
+      "id": "katrina-2005",
+      "type": "hurricane",
+      "name": "Hurricane Katrina",
+      "notes": "Cat 3 at Buras, LA, then again at the Louisiana-Mississippi border.",
+      "source": "NHC Tropical Cyclone Report: landfall near Buras 29 Aug 1110Z, near the LA/MS border 1445Z",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KLIX", "startUtc": "2005-08-29T10:00:00Z", "minutes": 180 },
+        { "site": "KMOB", "startUtc": "2005-08-29T13:30:00Z", "minutes": 180 }
+      ]
+    },
+    {
+      "id": "harvey-2017",
+      "type": "hurricane",
+      "name": "Hurricane Harvey",
+      "notes": "Cat 4 at San Jose Island, then Rockport-Fulton, TX.",
+      "source": "NHC Tropical Cyclone Report / NWS Corpus Christi: landfall ~10 PM CDT 25 Aug (26 Aug 0300Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KCRP", "startUtc": "2017-08-26T01:30:00Z", "minutes": 180 }
+      ]
+    },
+    {
+      "id": "michael-2018",
+      "type": "hurricane",
+      "name": "Hurricane Michael",
+      "notes": "Cat 5 at Mexico Beach, FL.",
+      "source": "NHC Tropical Cyclone Report: landfall near Mexico Beach 12:30 PM CDT 10 Oct (1730Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KEVX", "startUtc": "2018-10-10T16:00:00Z", "minutes": 180 }
+      ]
+    },
+    {
+      "id": "ida-2021",
+      "type": "hurricane",
+      "name": "Hurricane Ida",
+      "notes": "Cat 4 at Port Fourchon, LA.",
+      "source": "NHC update: landfall near Port Fourchon 11:55 AM CDT 29 Aug (1655Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KLIX", "startUtc": "2021-08-29T15:30:00Z", "minutes": 180 }
+      ]
+    },
+    {
+      "id": "ian-2022",
+      "type": "hurricane",
+      "name": "Hurricane Ian",
+      "notes": "Cat 4 at Cayo Costa, then Punta Gorda, FL.",
+      "source": "NHC update: landfall near Cayo Costa 3:05 PM EDT 28 Sep (1905Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KTBW", "startUtc": "2022-09-28T18:00:00Z", "minutes": 180 }
+      ]
+    },
+    {
+      "id": "derecho-2012",
+      "type": "derecho",
+      "name": "Ohio Valley-Mid-Atlantic derecho",
+      "notes": "91 mph at Fort Wayne; ~700 miles in 12 hours to Washington, DC. KRLX's archive stops at 23:54Z as the line arrives.",
+      "source": "SPC derecho case page + NWS service assessment: Fort Wayne by 4 PM EDT (20Z), W Virginia by 7 PM (23Z), DC 0057-0335Z",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KIWX", "startUtc": "2012-06-29T19:00:00Z", "minutes": 120 },
+        { "site": "KILN", "startUtc": "2012-06-29T20:00:00Z", "minutes": 180 },
+        { "site": "KRLX", "startUtc": "2012-06-29T22:30:00Z", "minutes": 120 },
+        { "site": "KLWX", "startUtc": "2012-06-30T00:30:00Z", "minutes": 180 }
+      ]
+    },
+    {
+      "id": "derecho-2020",
+      "type": "derecho",
+      "name": "Iowa derecho",
+      "notes": "Est. 140 mph gusts in Cedar Rapids - the costliest thunderstorm in US history.",
+      "source": "NWS Quad Cities summary: Des Moines ~11 AM CDT (16Z), Cedar Rapids 12:30-12:55 PM CDT (1730-1755Z)",
+      "defaultLeg": 1,
+      "legs": [
+        { "site": "KDMX", "startUtc": "2020-08-10T15:00:00Z", "minutes": 180 },
+        { "site": "KDVN", "startUtc": "2020-08-10T16:30:00Z", "minutes": 180 }
       ]
     }
   ]

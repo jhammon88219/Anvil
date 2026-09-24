@@ -11,7 +11,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace Anvil.ViewModels
 {
 	/// <summary>
-	/// The PastCast window's Saved events section: search + a Built-in/Yours filter over the library,
+	/// The PastCast window's Saved events section: search + a by-type filter (All / Tornado / Hurricane /
+	/// Derecho / Yours) over the library, grouped under a header per type,
 	/// picking an event (or one of its radar legs), saving the current timeframe, and deleting the user's
 	/// own events.
 	/// </summary>
@@ -86,7 +87,8 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>The filter segments, indexed by <see cref="FilterIndex"/>.</summary>
-		public IReadOnlyList<string> FilterLabels { get; } = new[] { "All", "Built-in", "Yours" };
+		/// ⚠️ Indices 1-3 are BUILT-INS of one <see cref="SavedEventKind"/> — see <see cref="PassesFilter"/>.
+		public IReadOnlyList<string> FilterLabels { get; } = new[] { "All", "Tornado", "Hurricane", "Derecho", "Yours" };
 
 		private int _filterIndex;
 		public int FilterIndex
@@ -113,7 +115,7 @@ namespace Anvil.ViewModels
 		{
 			var query = _searchText.Trim();
 			var rows = _library.GetEvents()
-				.Where(e => _filterIndex switch { 1 => e.IsBuiltIn, 2 => !e.IsBuiltIn, _ => true })
+				.Where(PassesFilter)
 				.Where(e => query.Length == 0 || Matches(e, query))
 				.Select(e => new SavedEventRow(e))
 				.ToList();
@@ -136,10 +138,20 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(EmptyText));
 		}
 
+		private bool PassesFilter(SavedEvent e) => _filterIndex switch
+		{
+			1 => e.IsBuiltIn && e.Kind == SavedEventKind.Tornado,
+			2 => e.IsBuiltIn && e.Kind == SavedEventKind.Hurricane,
+			3 => e.IsBuiltIn && e.Kind == SavedEventKind.Derecho,
+			4 => !e.IsBuiltIn,
+			_ => true,
+		};
+
 		private static bool Matches(SavedEvent e, string query)
 		{
 			bool Has(string? s) => s?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
 			return Has(e.Name) || Has(e.Notes)
+				|| (e.Kind != SavedEventKind.Other && Has(e.Kind.ToString()))
 				|| e.Legs.Any(l => Has(l.SiteId))
 				|| Has(e.StartUtc.ToLocalTime().Year.ToString());
 		}

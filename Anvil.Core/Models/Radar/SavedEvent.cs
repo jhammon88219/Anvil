@@ -42,6 +42,7 @@ namespace Anvil.Models
 	/// one fills in the pickers and selects the site; Load does the rest through the unchanged replay path.
 	/// There is deliberately no "event mode" in the radar engine.
 	/// <para>⚠️ Built-ins can't be renamed or removed. The library refuses, not just the UI.</para>
+	/// <para><see cref="Kind"/> only sorts and filters the list; it never changes how the event loads.</para>
 	/// </remarks>
 	public sealed record SavedEvent(
 		string Id,
@@ -50,7 +51,8 @@ namespace Anvil.Models
 		int DefaultLegIndex,
 		string Notes,
 		string Source,
-		bool IsBuiltIn)
+		bool IsBuiltIn,
+		SavedEventKind Kind = SavedEventKind.Other)
 	{
 		/// <summary>The leg picking the event lands on.</summary>
 		public SavedEventLeg DefaultLeg => Legs[Math.Clamp(DefaultLegIndex, 0, Legs.Count - 1)];
@@ -60,5 +62,21 @@ namespace Anvil.Models
 
 		/// <summary>The event's overall span: latest leg end. Derived, never stored.</summary>
 		public DateTimeOffset EndUtc => Legs.Max(l => l.EndUtc);
+	}
+
+	/// <summary>
+	/// What kind of storm a saved event is — the JSON <c>"type"</c> ("tornado" / "hurricane" / "derecho").
+	/// </summary>
+	/// <remarks>
+	/// ⚠️ <see cref="Other"/> is the default so a missing type is harmless (the user's own events carry none);
+	/// an UNKNOWN type string is a parse error, so a typo in a built-in is caught rather than shown as Other.
+	/// The list groups in this declaration order with Other last (<c>SavedEventsViewModel</c>).
+	/// </remarks>
+	public enum SavedEventKind
+	{
+		Other = 0,
+		Tornado,
+		Hurricane,
+		Derecho,
 	}
 }

@@ -68,8 +68,14 @@ namespace Anvil.ViewModels
 
 		// ── List state, written by SavedEventsViewModel ────────────────────────────────────────────
 
-		/// <summary>"Yours" / "Built-in".</summary>
-		public string GroupLabel => Event.IsBuiltIn ? "Built-in" : "Yours";
+		/// <summary>"Yours", or a built-in's kind: "Tornadoes" / "Hurricanes" / "Derechos" / "Other".</summary>
+		public string GroupLabel => !Event.IsBuiltIn ? "Yours" : Event.Kind switch
+		{
+			SavedEventKind.Tornado => "Tornadoes",
+			SavedEventKind.Hurricane => "Hurricanes",
+			SavedEventKind.Derecho => "Derechos",
+			_ => "Other",
+		};
 
 		private bool _showGroupHeader;
 		/// <summary>True on the first row of its group in the CURRENT filtered list.</summary>

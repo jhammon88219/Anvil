@@ -20,12 +20,12 @@
        │  Start   [ 5:00 PM                   ▾]              │  ← the PICKERS (ViewModel.Radar)
        │  Window  [30m│1h│▓▓2h▓▓│3h│6h│12h]                   │
        │ ›  Saved events                                      │  ← jump the pickers to a named
-       │     [ Search events, sites or years          ]       │     event; NOT a map layer
-       │     [▓All▓│Built-in│Yours]                           │
-       │     YOURS                                            │
-       │     ▌Tuesday's MCS                  [KDVN] [🗑]      │  ← delete: yours only, confirms
-       │     ▌Sep 1, 2026 · 7:00 AM · 6h                      │
-       │     BUILT-IN                                         │
+       │     [ Search events, types, sites or years   ]       │     event; NOT a map layer
+       │     [▓All▓│Tornado│Hurricane│Derecho│Yours]          │  ← by TYPE (JSON "type")
+       │     YOURS                                            │  ← group header = first row of
+       │     ▌Tuesday's MCS                  [KDVN] [🗑]      │     a group; yours, then the
+       │     ▌Sep 1, 2026 · 7:00 AM · 6h                      │     built-ins by type
+       │     TORNADOES  (then HURRICANES, DERECHOS)           │
        │      Long-track storm               [KGWX +1]        │  (illustrative; picking a row or
        │      Apr 27, 2011 · 3:00 → 6:30 PM                   │   a leg LOADS it)
        │      KGWX ▕▓▓▓▓▓▓▓▓░░░░░░░░▕  3:00 PM · 1h            │  ← legs: only on the picked row,
@@ -273,17 +273,18 @@
             <Grid RowSpacing="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- search -->
-                    <RowDefinition Height="Auto"/> <!-- All / Built-in / Yours -->
+                    <RowDefinition Height="Auto"/> <!-- All / Tornado / Hurricane / Derecho / Yours -->
                     <RowDefinition Height="Auto"/> <!-- the list (or its empty state) -->
                     <RowDefinition Height="Auto"/> <!-- a pick that only partly applied -->
                     <RowDefinition Height="Auto"/> <!-- save: the button, or the form -->
                 </Grid.RowDefinitions>
 
                 <TextBox Grid.Row="0"
-                         PlaceholderText="Search events, sites or years"
+                         PlaceholderText="Search events, types, sites or years"
                          Text="{x:Bind ViewModel.SavedEvents.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
-                <prim:SegmentedPicker Grid.Row="1" HorizontalAlignment="Left" Width="240"
+                <!-- Five segments = the full width; the three middle ones are BUILT-INS of that type. -->
+                <prim:SegmentedPicker Grid.Row="1" HorizontalAlignment="Stretch"
                                       ItemsSource="{x:Bind ViewModel.SavedEvents.FilterLabels}"
                                       SelectedIndex="{x:Bind ViewModel.SavedEvents.FilterIndex, Mode=TwoWay}"/>
 

@@ -61,9 +61,12 @@ namespace Anvil.Services
 		/// <summary>The user file's full path.</summary>
 		public string UserFilePath => Path.Combine(_userDirectory, UserFileName);
 
+		/// <remarks>⚠️ The ORDER is the list's grouping (the view model starts a header wherever the group
+		/// changes): yours first, then built-ins by <see cref="SavedEventKind"/> (Other last), newest first within each.</remarks>
 		public IReadOnlyList<SavedEvent> GetEvents() =>
 			_user.OrderByDescending(e => e.StartUtc)
-				.Concat(_builtIn.OrderByDescending(e => e.StartUtc))
+				.Concat(_builtIn.OrderBy(e => e.Kind == SavedEventKind.Other ? int.MaxValue : (int)e.Kind)
+					.ThenByDescending(e => e.StartUtc))
 				.ToList();
 
 		public SavedEvent Add(string name, IReadOnlyList<SavedEventLeg> legs, string notes)
@@ -156,7 +159,7 @@ namespace Anvil.Services
 
 		// ── JSON ───────────────────────────────────────────────────────────────────────────────────
 		// Shape (both files):
-		// { "events": [ { "id", "name", "notes", "source", "defaultLeg",
+		// { "events": [ { "id", "type" (tornado|hurricane|derecho, optional), "name", "notes", "source", "defaultLeg",
 		//                 "legs": [ { "site": "KTLX"|null, "startUtc": "2013-05-31T22:30:00Z", "minutes": 120 } ] } ] }
 
 		internal static List<SavedEvent> Parse(string json, bool builtIn, List<string> problems)
@@ -217,8 +220,18 @@ namespace Anvil.Services
 				e.TryGetProperty("defaultLeg", out var d) && d.ValueKind == JsonValueKind.Number ? d.GetInt32() : 0,
 				OptionalString(e, "notes"),
 				OptionalString(e, "source"),
-				builtIn);
+				builtIn,
+				ReadKind(OptionalString(e, "type")));
 		}
+
+		private static SavedEventKind ReadKind(string type) => type.Trim().ToLowerInvariant() switch
+		{
+			"" => SavedEventKind.Other,
+			"tornado" => SavedEventKind.Tornado,
+			"hurricane" => SavedEventKind.Hurricane,
+			"derecho" => SavedEventKind.Derecho,
+			_ => throw new FormatException($"unknown event type '{type}'"),
+		};
 
 		private static string OptionalString(JsonElement e, string name) =>
 			e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";

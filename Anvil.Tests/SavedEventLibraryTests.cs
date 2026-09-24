@@ -38,6 +38,44 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void ShippedBuiltIns_AllNameAType()
+		{
+			Assert.All(new SavedEventLibrary(TempDir()).GetEvents(), e => Assert.NotEqual(SavedEventKind.Other, e.Kind));
+		}
+
+		[Fact]
+		public void BuiltIns_GroupByType_ThenNewestFirst()
+		{
+			var lib = new SavedEventLibrary(TempDir(), """
+				{ "events": [
+				  { "id": "d", "type": "derecho", "name": "D",
+				    "legs": [ { "site": "KDVN", "startUtc": "2020-08-10T16:30:00Z", "minutes": 180 } ] },
+				  { "id": "h", "type": "Hurricane", "name": "H",
+				    "legs": [ { "site": "KLIX", "startUtc": "2005-08-29T10:00:00Z", "minutes": 180 } ] },
+				  { "id": "t-old", "type": "tornado", "name": "T old",
+				    "legs": [ { "site": "KSGF", "startUtc": "2011-05-22T22:00:00Z", "minutes": 120 } ] },
+				  { "id": "none", "name": "Untyped",
+				    "legs": [ { "site": "KTLX", "startUtc": "2019-05-20T19:30:00Z", "minutes": 120 } ] },
+				  { "id": "t-new", "type": "tornado", "name": "T new",
+				    "legs": [ { "site": "KTLX", "startUtc": "2013-05-31T22:30:00Z", "minutes": 120 } ] }
+				] }
+				""");
+			Assert.Empty(lib.Problems);
+			Assert.Equal(new[] { "t-new", "t-old", "h", "d", "none" }, lib.GetEvents().Select(e => e.Id));
+		}
+
+		[Fact]
+		public void UnknownType_IsSkipped_AndReported()
+		{
+			var lib = new SavedEventLibrary(TempDir(), """
+				{ "events": [ { "id": "typo", "type": "hurricaine", "name": "Typo",
+				  "legs": [ { "site": "KLIX", "startUtc": "2005-08-29T10:00:00Z", "minutes": 180 } ] } ] }
+				""");
+			Assert.Empty(lib.GetEvents());
+			Assert.Contains("hurricaine", Assert.Single(lib.Problems));
+		}
+
+		[Fact]
 		public void Durations_MatchTheTimeframePicker()
 		{
 			// SavedEventLeg keeps a copy so the library needn't reach into a view model; this is the tripwire.
