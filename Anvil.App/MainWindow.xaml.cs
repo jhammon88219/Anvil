@@ -129,7 +129,65 @@ namespace Anvil
 		// LayoutUpdated rather than SizeChanged: a notch also MOVES without resizing (the window resizes,
 		// the pane layout changes, a notch is hidden). It fires often, so the work is four transforms and an
 		// equality check, and SetRegionRects is only called when the rects actually change.
-		private void OnPaneNotchLayerLayoutUpdated(object? sender, object e) => UpdateNotchInputRegions();
+		private void OnPaneNotchLayerLayoutUpdated(object? sender, object e)
+		{
+			UpdateCaptionBand();
+			UpdateNotchInputRegions();
+		}
+
+		// ===== CAPTION BAND (no system caption buttons) =====
+		// The system minimize/maximize/close are HIDDEN (TitleBarHeightOption.Collapsed, set in the ctor):
+		// the right-edge ForeCast window sat on top of them. They live on the bar now as
+		// Primitives/WindowCaptionKey, and OnCaption* below drive the presenter.
+		//
+		// ⚠️ ONLY THE BUTTONS WENT. The top band is still the window's caption — drag, double-click to
+		// maximize/restore, Alt+Space, snap — because it is declared EXPLICITLY here as a Caption region: the
+		// full width × the standard 32 epx title-bar height, the same band WinUI's default drag region covered.
+		// Collapsing the title bar is not trusted to leave that default in place, so the band is re-asserted on
+		// every layout pass and size change (only written when the system's copy differs). The pane notches'
+		// Passthrough holes still win over it, exactly as they did over the default.
+		private const double CaptionBandHeight = 32;
+
+		private void UpdateCaptionBand()
+		{
+			if (_isClosed || Content?.XamlRoot is not { } root)
+			{
+				return;
+			}
+
+			var band = new RectInt32(0, 0, AppWindow.Size.Width,
+				(int)Math.Ceiling(CaptionBandHeight * root.RasterizationScale));
+
+			var source = InputNonClientPointerSource.GetForWindowId(AppWindow.Id);
+			if (SameRegions(source.GetRegionRects(NonClientRegionKind.Caption), new[] { band }))
+			{
+				return;
+			}
+
+			source.SetRegionRects(NonClientRegionKind.Caption, new[] { band });
+		}
+
+		private void OnCaptionMinimize(object? sender, EventArgs e) =>
+			(AppWindow.Presenter as OverlappedPresenter)?.Minimize();
+
+		private void OnCaptionMaximizeRestore(object? sender, EventArgs e)
+		{
+			if (AppWindow.Presenter is not OverlappedPresenter presenter)
+			{
+				return;
+			}
+
+			if (presenter.State == OverlappedPresenterState.Maximized)
+			{
+				presenter.Restore();
+			}
+			else
+			{
+				presenter.Maximize();
+			}
+		}
+
+		private void OnCaptionClose(object? sender, EventArgs e) => Close();
 
 		private void UpdateNotchInputRegions()
 		{
@@ -459,6 +517,9 @@ namespace Anvil
 			// pass registers the holes - otherwise the notch is dead until something else forces a relayout.
 			PaneNotchLayer.LayoutUpdated += OnPaneNotchLayerLayoutUpdated;
 
+			// Hide the system caption buttons — they moved to the bar (see the CAPTION BAND block above).
+			AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
+
 			// App-wide windows: every panel that isn't the radar console lives in its own native OS window
 			// (multi-monitor). The manager watches the coordinator VM's open flags and opens/closes a window
 			// to match; content is a fresh section instance bound to this same VM, rendered headerless (the
@@ -540,12 +601,17 @@ namespace Anvil
 
 			// The Atlas's site-hours clock PAUSES while the main window is minimized. Read the presenter state on
 			// EVERY change rather than trusting one flag — SetMinimized is idempotent, so the extra calls are free.
+			// The same read drives the bar's caption key (Maximize ⇄ Restore) and re-asserts the caption band.
 			AppWindow.Changed += (_, _) =>
 			{
 				if (_isClosed) return;
-				ViewModel.SiteUsage.SetMinimized(
-					(AppWindow.Presenter as OverlappedPresenter)?.State == OverlappedPresenterState.Minimized);
+				var state = (AppWindow.Presenter as OverlappedPresenter)?.State;
+				ViewModel.SiteUsage.SetMinimized(state == OverlappedPresenterState.Minimized);
+				CaptionKey.IsMaximized = state == OverlappedPresenterState.Maximized;
+				UpdateCaptionBand();
 			};
+			CaptionKey.IsMaximized =
+				(AppWindow.Presenter as OverlappedPresenter)?.State == OverlappedPresenterState.Maximized;
 
 			_ = InitializeMapAsync();
 

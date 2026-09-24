@@ -18,8 +18,8 @@
        │ 👁 [⌂ KTLX Oklahoma City ˅] ▣ [Search places ⌕] ⊚ ▢▥▦ ⌘ ⛶ [Isolate ▾]│  TOOLS tier — raised surface
        │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  │  …and DOWN onto the bar
        │  ⌕   ══ scrubber ══                                   │  BAR tier — the ground
-       │  ⌕  ◀ ▶ ▶  3/10 │ time·site ↺            │⋮  ((•))│⋮   ☁ │⋮     📡   ⚙  │
-       │Inspect                         PastCast  NowCast  ForeCast     Atlas Settings │
+       │  ⌕  ◀ ▶ ▶  3/10 │ time·site ↺       │⋮  ((•))│⋮   ☁ │⋮    📡   ⚙   –│□│✕ │
+       │Inspect                    PastCast  NowCast  ForeCast   Atlas Settings  window  │
        └──────────────────────────────────┴────────────────────────┘
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
             is drawn by whichever side owns it: the tools tier throws its own up
@@ -433,6 +433,7 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/> <!-- Radar Atlas -->
                                 <ColumnDefinition Width="Auto"/> <!-- settings -->
+                                <ColumnDefinition Width="Auto"/> <!-- window caption (min / max / close) -->
                             </Grid.ColumnDefinitions>
 
                             <!-- ⚠️ THE PANE-LAYOUT KEY AND THE LOCATION KEY ARE GONE from this cluster — both
@@ -517,6 +518,14 @@
                                                    HorizontalAlignment="Center"/>
                                     </Grid>
                                 </ToggleButton>
+                                <!-- THE WINDOW'S OWN CAPTION BUTTONS, moved here: the system min/max/close are hidden
+                                     (the right-edge ForeCast window covered them) — see the CAPTION BAND block in
+                                     MainWindow.xaml.cs. Last in the cluster, so it is the bar's far-right key. -->
+                                <ctl:WindowCaptionKey x:Name="CaptionKey"
+                                                      Grid.Column="2"
+                                                      MinimizeRequested="OnCaptionMinimize"
+                                                      MaximizeRestoreRequested="OnCaptionMaximizeRestore"
+                                                      CloseRequested="OnCaptionClose"/>
                         </Grid>
 
                         <!-- ===== TEMPORAL MODE KEYS — THE BAR'S CENTERPIECE =====
