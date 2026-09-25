@@ -13,11 +13,13 @@ namespace Anvil.Models
 	/// interleaved by <c>Dn</c>.
 	/// </para>
 	/// <para>
-	/// ⚠️ There is deliberately no "no risk" wording here. SPC states it per DAY, not per product — days
-	/// 5-6 say "Potential Too Low" where days 7-8 say "Predictability Too Low", and the convective
-	/// products say "Less Than 2%/5% All Areas" or "No Thunderstorms Forecast" — and it always arrives
-	/// in the feed's own <c>LABEL</c> on the <c>DN == 0</c> feature. Storing one string per product
-	/// would mean inventing wording for the days it does not fit.
+	/// ⚠️ There is deliberately no "no risk" wording here. SPC states it per ISSUANCE, not per product —
+	/// days 4-8 say "Potential Too Low" or "Predictability Too Low" at the forecaster's choice (2026-09-25:
+	/// day 5 read "Predictability", day 7 "Potential" — NOT fixed by day number), the convective products
+	/// say "Less Than 2%/5% All Areas" or "No Thunderstorms Forecast", fire says "Probability Too Low" —
+	/// and it always arrives in the feed's own <c>LABEL</c>/<c>label</c> on the <c>DN == 0</c> feature,
+	/// which <c>outlook.js</c> draws verbatim across CONUS. Storing one string per product would mean
+	/// inventing wording SPC did not send.
 	/// </para>
 	/// </summary>
 	public record SpcProductScale(SpcOutlookType Type, IReadOnlyList<SpcRiskLevel> Levels)

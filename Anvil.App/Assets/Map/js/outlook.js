@@ -21,6 +21,19 @@
 //
 // The hatch tiles are drawn at runtime into a canvas (makeHatchImage) and registered as MapLibre
 // images, so tuning the look = the tile size / line width / dash there, not a bundled asset.
+//
+// A DAY WITH NO RISK AREAS draws SPC's own sentence across CONUS instead, as spc.noaa.gov does:
+//
+//   ┌──────────────────────────────────┐   the text is the feed's LABEL, VERBATIM — never ours.
+//   │                                  │   SPC sends one DN 0 feature for it ("Predictability Too
+//   │      Predictability Too Low      │   Low", "Potential Too Low", "Less Than 5% All Areas",
+//   │                                  │   "No Thunderstorms Forecast", fire's lowercase `label`
+//   └──────────────────────────────────┘   "Probability Too Low"); the forecaster picks the wording,
+//                                          so it can't be mapped from the day number.
+// ⚠️ DN 0 is NEVER a risk level (no catalog level uses it), so a DN 0 feature is kept OUT of the fill /
+// line layers — the fire feed ships a ~200 m placeholder square in Kansas as its "empty" geometry.
+// The note shows only when EVERY feature is DN 0; one real area and it stays hidden. The IEM past
+// archive carries no DN 0 feature, so a dead PastCast day just draws nothing.
 
 // Slots beneath place names (readable through the fill) — see layers.js.
 import { firstSymbolLayerId } from './layers.js';
@@ -41,6 +54,27 @@ let hatchingVisible = true;
 // fill-pattern layers (see ensureHatchImages + addOutlookLayers). The groups nest (CIG3 ⊂ CIG2 ⊂ CIG1),
 // so before rendering we clip each lower group to exclude the higher ones (clipSigFeatures).
 const SIG_FILTER = ['any', ['in', 'CIG', ['get', 'LABEL']], ['in', 'SIG', ['get', 'LABEL']]];
+
+// The "no risk areas" placeholder: DN 0 in either spelling (convective `DN`, fire `dn`) and either JSON
+// type. Everything else — including IEM past features, which carry no DN at all — is a real area.
+const NOT_NOTE = ['!=', ['to-number', ['coalesce', ['get', 'DN'], ['get', 'dn'], -1], -1], 0];
+function isNote(f) {
+    const p = f.properties || {};
+    const dn = p.DN !== undefined ? p.DN : p.dn;
+    return dn !== undefined && dn !== null && Number(dn) === 0;
+}
+// SPC's sentence for an all-placeholder issuance, or null when there's a real area (or no wording).
+function noteText(geojson) {
+    const fs = geojson.features || [];
+    if (fs.length === 0 || !fs.every(isNote)) return null;
+    for (const f of fs) {
+        const t = String(f.properties.LABEL || f.properties.label || '').trim();
+        if (t) return t;
+    }
+    return null;
+}
+// Where the sentence sits — the middle of CONUS, where SPC centres it on its own maps.
+const NOTE_ANCHOR = [-97.5, 38.5];
 
 // Significance rank from a LABEL: CIG1/2/3 -> 1/2/3, legacy "SIGN" -> 1, anything else 0.
 function sigRank(label) {
@@ -148,10 +182,43 @@ function clipSigFeatures(geojson) {
 }
 
 function removeOutlookLayers(map) {
-    ['spc-outlook-line', 'spc-outlook-sig1', 'spc-outlook-sig2', 'spc-outlook-sig3', 'spc-outlook-fill'].forEach(function (id) {
+    ['spc-outlook-note', 'spc-outlook-line', 'spc-outlook-sig1', 'spc-outlook-sig2', 'spc-outlook-sig3', 'spc-outlook-fill'].forEach(function (id) {
         if (map.getLayer(id)) map.removeLayer(id);
     });
     if (map.getSource('spc-outlook')) map.removeSource('spc-outlook');
+    if (map.getSource('spc-outlook-note')) map.removeSource('spc-outlook-note');
+}
+
+// SPC's "no risk areas" sentence (see the header). Its own point source, so it never touches the
+// polygon data. ⚠️ 'Noto Sans Medium' is the one stack the bundled glyph host serves — any other font
+// renders NOTHING. ⚠️ The id keeps the `spc-outlook-` prefix: that is what files it in the outlook's
+// band of the user's layer order (layers.js GROUPS), so it hides and re-stacks with the outlook.
+function addNoteLayer(map, before) {
+    const text = noteText(outlookData);
+    if (!text) return;
+    map.addSource('spc-outlook-note', {
+        type: 'geojson',
+        data: { type: 'Feature', properties: { text: text }, geometry: { type: 'Point', coordinates: NOTE_ANCHOR } }
+    });
+    map.addLayer({
+        id: 'spc-outlook-note',
+        type: 'symbol',
+        source: 'spc-outlook-note',
+        layout: {
+            'text-field': ['get', 'text'],
+            'text-font': ['Noto Sans Medium'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 2, 16, 4, 22, 7, 30],
+            'text-max-width': 30,
+            // It is the only thing the outlook says today — basemap labels must not bump it off.
+            'text-allow-overlap': true,
+            'text-ignore-placement': true
+        },
+        paint: {
+            'text-color': Theme.color('--anvil-outlook-note-text', '#f2f2f2'),
+            'text-halo-color': Theme.color('--anvil-outlook-note-halo', '#000000'),
+            'text-halo-width': 1.6
+        }
+    }, before);
 }
 
 function addOutlookLayers(map) {
@@ -171,7 +238,7 @@ function addOutlookLayers(map) {
         id: 'spc-outlook-fill',
         type: 'fill',
         source: 'spc-outlook',
-        filter: ['!', SIG_FILTER],
+        filter: ['all', ['!', SIG_FILTER], NOT_NOTE],
         paint: {
             'fill-color': ['coalesce', ['get', 'fill'], '#888888'],
             'fill-opacity': currentOutlookOpacity
@@ -198,11 +265,13 @@ function addOutlookLayers(map) {
         id: 'spc-outlook-line',
         type: 'line',
         source: 'spc-outlook',
+        filter: NOT_NOTE,
         paint: {
             'line-color': ['coalesce', ['get', 'stroke'], '#555555'],
             'line-width': 1.5
         }
     }, before);
+    addNoteLayer(map, before);
 }
 
 // Fetch the outlook GeoJSON ourselves, clip the nested CIG areas into exclusive rings, then render.

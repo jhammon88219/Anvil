@@ -152,6 +152,12 @@
        which CIG group an area is and is data; the ink is chrome — it exists to read over the SPC
        fills underneath, so it flips with the theme while the pattern never does. */
     --anvil-hatch-ink: rgba(235, 235, 235, 0.9);
+
+    /* ── OUTLOOK "NO RISK AREAS" SENTENCE (outlook.js) ─────────────────────────────────────────
+       SPC's own wording ("Predictability Too Low"…) drawn across CONUS on a day with no areas. The
+       WORDS are data (verbatim from the feed); the ink is chrome. Halo = the separating casing. */
+    --anvil-outlook-note-text: #f2f2f2;
+    --anvil-outlook-note-halo: #000000;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -260,4 +266,9 @@
     /* ── OUTLOOK CIG HATCHING ───────────────────────────────────────────────────────────────── */
     /* Dark ink over the SPC fills, which are the same colors in both themes. */
     --anvil-hatch-ink: rgba(30, 30, 30, 0.85);
+
+    /* ── OUTLOOK "NO RISK AREAS" SENTENCE ───────────────────────────────────────────────────── */
+    /* ⚠️ INVERTED like the ruler: dark words, light casing over pale earth. */
+    --anvil-outlook-note-text: #1a1a1a;
+    --anvil-outlook-note-halo: #ffffff;
 }
