@@ -1969,7 +1969,8 @@ namespace Anvil.ViewModels
 		public event EventHandler? SiteAvailabilityChanged;
 
 		// The running pass. ⚠️ _sitePassId drops a result from a pass that has been superseded (a PastCast exit
-		// starts a new one mid-loop) — and Progress<T> POSTS, so a report can land after its pass returned.
+		// starts a new one mid-loop; a replay load's day availability replaces it) — and Progress<T> POSTS, so a
+		// report can land after its pass returned.
 		private int _sitePassId;
 		private bool _isSiteCheckRunning;
 		private int _sitesChecked;
@@ -2007,7 +2008,7 @@ namespace Anvil.ViewModels
 		public int SitesOffline => RadarSiteRows.Count(r => IsInEra(r.Site) && r.Availability == SiteAvailability.Offline);
 
 		/// <summary>Raised when a live pass ENDS: <c>true</c> = completed (counts are final), <c>false</c> = it
-		/// failed or was cut short (entering PastCast).</summary>
+		/// failed or was cut short (a PastCast replay's availability replaced it).</summary>
 		public event EventHandler<bool>? SiteCheckFinished;
 
 		// One live pass. Skipped in PastCast, where availability is the REPLAY DAY's (ApplyPastAvailabilityAsync).
@@ -2032,7 +2033,10 @@ namespace Anvil.ViewModels
 				// Constructed HERE, on the UI thread, so every report is posted back to it.
 				var progress = new Progress<SiteCheckResult>(result => OnSiteChecked(pass, result));
 				var live = await _radarService.GetLiveSiteIdsAsync(progress);
-				if (!_isPastEventMode && pass == _sitePassId)
+				// ⚠️ NOT gated on _isPastEventMode: a launch that restores PastCast flips the mode mid-pass, and
+				// dropping the result then left every site grey until a replay loaded. Only a replay-day
+				// availability supersedes a live pass (ApplyPastAvailabilityAsync → SupersedeLivePass).
+				if (pass == _sitePassId)
 				{
 					await ApplySiteAvailabilityAsync(live, replayDay: false);
 					completed = true;
@@ -2062,7 +2066,7 @@ namespace Anvil.ViewModels
 		// together here exactly as they do in ApplySiteAvailabilityAsync — the one-writer rule still holds.
 		private void OnSiteChecked(int pass, SiteCheckResult result)
 		{
-			if (pass != _sitePassId || !_isSiteCheckRunning || _isPastEventMode)
+			if (pass != _sitePassId || !_isSiteCheckRunning)
 			{
 				return;
 			}
@@ -2078,6 +2082,18 @@ namespace Anvil.ViewModels
 			if (_isMapReady)
 			{
 				_ = _mapService.SetRadarSiteStatusAsync(row.Id, result.IsLive ? "online" : "offline");
+			}
+		}
+
+		// A replay's availability is about to own the rows: drop any live pass still in flight (its results and
+		// its end), and end its "running" state here since its own finally no longer will.
+		private void SupersedeLivePass()
+		{
+			_sitePassId++;
+			if (IsSiteCheckRunning)
+			{
+				IsSiteCheckRunning = false;
+				SiteCheckFinished?.Invoke(this, false);
 			}
 		}
 
@@ -2169,6 +2185,7 @@ namespace Anvil.ViewModels
 		// left past mode meanwhile. Best-effort (a failed listing just leaves sites shown as available).
 		private async Task ApplyPastAvailabilityAsync(DateTimeOffset startUtc, DateTimeOffset endUtc)
 		{
+			SupersedeLivePass();
 			try
 			{
 				var available = await _radarService.GetSiteIdsForDateAsync(startUtc, endUtc);

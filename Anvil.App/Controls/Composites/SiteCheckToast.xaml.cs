@@ -84,7 +84,7 @@ namespace Anvil.Controls.Composites
 			}
 			else if (vm.IsPastEventMode)
 			{
-				// Entering PastCast cut the pass short on purpose — nothing failed, so say nothing.
+				// A PastCast replay's availability cut the pass short on purpose — nothing failed, so say nothing.
 				Pill.Opacity = 0;
 				return;
 			}
