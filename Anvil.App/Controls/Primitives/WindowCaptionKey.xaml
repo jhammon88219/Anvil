@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- WindowCaptionKey — the MAIN window's minimize / maximize / close, as one square bar key at the far right
+<!-- WindowCaptionKey — the MAIN window's minimize / maximize / close, as one narrow bar key at the far right
      of the bottom bar (after Settings). The system caption buttons are HIDDEN (MainWindow collapses the title
      bar's button strip) because the right-edge ForeCast window sat on top of them.
 
-        ┌─────────┬─────────┐
-        │    –    │    □    │     one BarKeySide square (72) inside a 1px hairline frame, same radius
-        │         │         │     as every bar key: TWO SQUARES over ONE BAR, 35 · 35 over 70
-        ├─────────┴─────────┤     (maximize ⇄ restore: glyph + tooltip follow IsMaximized)
-        │▓▓▓▓▓▓▓▓ ✕ ▓▓▓▓▓▓▓▓│     ▓ = close's STATIC dim dark red; hover/press = full Windows red
-        │▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│     close gets the whole bottom half — the biggest target, and apart
-        └───────────────────┘     from the other two, so it's the hardest to hit by accident
+        ┌──┐
+        │✕ │     a 24-wide strip, BarKeySide (72) tall, inside the 1px hairline frame every bar key
+        ├──┤     wears: THREE SQUARES STACKED, close · maximize · minimize, top to bottom
+        │□ │     (maximize ⇄ restore: glyph + tooltip follow IsMaximized)
+        ├──┤     CLOSE ON TOP, off the corner: maximized, the bottom-right square is the screen corner
+        │– │     (the easiest target there is), so minimize takes it, never close
+        └──┘     close is NEUTRAL at rest like its neighbours; full Windows red only on hover/press
 
      ⚠️ ONLY THE BUTTONS MOVED. The title band is still the window's caption — drag, double-click to
      maximize/restore, Alt+Space and snap all live there (MainWindow's CAPTION BAND block). This control never
      touches the window itself: it raises three events and MainWindow drives the presenter.
      ⚠️ ONE segment template, re-coloured by LIGHTWEIGHT STYLING: the template reads CaptionSegment* by
-     ThemeResource, and the Close button redefines those keys in its OWN Resources, which the lookup reaches
-     first. Don't fork the template to recolour close.
-     ⚠️ No names under the glyphs: a 35px cell has no room, so each segment carries a tooltip instead. -->
+     ThemeResource, and the Close button redefines its hover/pressed keys in its OWN Resources, which the lookup
+     reaches first (its rest keys fall through to the shared ones). Don't fork the template to recolour close.
+     ⚠️ No names under the glyphs: a 24px cell has no room, so each segment carries a tooltip instead. -->
 <UserControl x:Class="Anvil.Controls.Primitives.WindowCaptionKey"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -105,43 +105,21 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid Width="{StaticResource BarKeySide}" Height="{StaticResource BarKeySide}">
+    <Grid Width="24" Height="{StaticResource BarKeySide}">
         <!-- The three segments sit INSIDE the 1px frame (Margin 1), so their outer corners are the frame's
-             radius less that pixel: 7 on an 8. -->
+             radius less that pixel: 7 on an 8. Rows are equal stars — 70 / 3 each. -->
         <Grid Margin="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="35"/>
-                <ColumnDefinition Width="35"/>
-            </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition Height="35"/>
-                <RowDefinition Height="35"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <Button Grid.Row="0" Grid.Column="0"
+            <!-- CLOSE: neutral at rest, exactly like the other two; the full Windows close red (#C42B1C) on
+                 hover, a step darker pressed. Only the pointer-over/pressed keys are overridden. -->
+            <Button Grid.Row="0"
                     Style="{StaticResource CaptionSegmentStyle}"
-                    CornerRadius="7,0,0,0"
-                    ToolTipService.ToolTip="Minimize"
-                    AutomationProperties.Name="Minimize"
-                    Click="OnMinimizeClick">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12" Glyph="&#xE921;"/>
-            </Button>
-
-            <Button Grid.Row="0" Grid.Column="1"
-                    Style="{StaticResource CaptionSegmentStyle}"
-                    CornerRadius="0,7,0,0"
-                    ToolTipService.ToolTip="{x:Bind MaximizeLabel(IsMaximized), Mode=OneWay}"
-                    AutomationProperties.Name="{x:Bind MaximizeLabel(IsMaximized), Mode=OneWay}"
-                    Click="OnMaximizeRestoreClick">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12"
-                          Glyph="{x:Bind MaximizeGlyph(IsMaximized), Mode=OneWay}"/>
-            </Button>
-
-            <!-- CLOSE: a dim dark red at rest so it reads as the dangerous one without shouting; the full
-                 Windows close red (#C42B1C) on hover, a step darker pressed. -->
-            <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                    Style="{StaticResource CaptionSegmentStyle}"
-                    CornerRadius="0,0,7,7"
+                    CornerRadius="7,7,0,0"
                     ToolTipService.ToolTip="Close"
                     AutomationProperties.Name="Close"
                     Click="OnCloseClick">
@@ -149,18 +127,14 @@
                     <ResourceDictionary>
                         <ResourceDictionary.ThemeDictionaries>
                             <ResourceDictionary x:Key="Default">
-                                <SolidColorBrush x:Key="CaptionSegmentBackground" Color="#FF4E1611"/>
                                 <SolidColorBrush x:Key="CaptionSegmentBackgroundPointerOver" Color="#FFC42B1C"/>
                                 <SolidColorBrush x:Key="CaptionSegmentBackgroundPressed" Color="#FFA3241A"/>
-                                <SolidColorBrush x:Key="CaptionSegmentForeground" Color="#FFD9A8A3"/>
                                 <SolidColorBrush x:Key="CaptionSegmentForegroundPointerOver" Color="#FFFFFFFF"/>
                                 <SolidColorBrush x:Key="CaptionSegmentForegroundPressed" Color="#FFFFFFFF"/>
                             </ResourceDictionary>
                             <ResourceDictionary x:Key="Light">
-                                <SolidColorBrush x:Key="CaptionSegmentBackground" Color="#FFE8BDB8"/>
                                 <SolidColorBrush x:Key="CaptionSegmentBackgroundPointerOver" Color="#FFC42B1C"/>
                                 <SolidColorBrush x:Key="CaptionSegmentBackgroundPressed" Color="#FFA3241A"/>
-                                <SolidColorBrush x:Key="CaptionSegmentForeground" Color="#FF7A1D14"/>
                                 <SolidColorBrush x:Key="CaptionSegmentForegroundPointerOver" Color="#FFFFFFFF"/>
                                 <SolidColorBrush x:Key="CaptionSegmentForegroundPressed" Color="#FFFFFFFF"/>
                             </ResourceDictionary>
@@ -175,14 +149,33 @@
                         </ResourceDictionary.ThemeDictionaries>
                     </ResourceDictionary>
                 </Button.Resources>
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12" Glyph="&#xE8BB;"/>
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="10" Glyph="&#xE8BB;"/>
+            </Button>
+
+            <Button Grid.Row="1"
+                    Style="{StaticResource CaptionSegmentStyle}"
+                    CornerRadius="0"
+                    ToolTipService.ToolTip="{x:Bind MaximizeLabel(IsMaximized), Mode=OneWay}"
+                    AutomationProperties.Name="{x:Bind MaximizeLabel(IsMaximized), Mode=OneWay}"
+                    Click="OnMaximizeRestoreClick">
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="10"
+                          Glyph="{x:Bind MaximizeGlyph(IsMaximized), Mode=OneWay}"/>
+            </Button>
+
+            <Button Grid.Row="2"
+                    Style="{StaticResource CaptionSegmentStyle}"
+                    CornerRadius="0,0,7,7"
+                    ToolTipService.ToolTip="Minimize"
+                    AutomationProperties.Name="Minimize"
+                    Click="OnMinimizeClick">
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="10" Glyph="&#xE921;"/>
             </Button>
 
             <!-- Seams between the segments, drawn over them so close's red never paints across one. -->
-            <Rectangle Grid.Row="0" Grid.Column="1" Width="1" HorizontalAlignment="Left" IsHitTestVisible="False"
+            <Rectangle Grid.Row="1" Height="1" VerticalAlignment="Top" IsHitTestVisible="False"
                        Fill="{ThemeResource ControlStrokeColorDefaultBrush}"/>
-            <Rectangle Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Height="1" VerticalAlignment="Top"
-                       IsHitTestVisible="False" Fill="{ThemeResource ControlStrokeColorDefaultBrush}"/>
+            <Rectangle Grid.Row="2" Height="1" VerticalAlignment="Top" IsHitTestVisible="False"
+                       Fill="{ThemeResource ControlStrokeColorDefaultBrush}"/>
         </Grid>
 
         <!-- The key's frame: the same hairline + radius every bar key rests in (BarChromeButtonStyle). -->
