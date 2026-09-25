@@ -58,6 +58,7 @@ const CONUS_URL = 'https://mapassets/conus-boundary.geojson'; // pre-dissolved l
 // handed to MapLibre as a color throws, and a throw in render blanks every layer above. Same rule as
 // safeBbox below — a wrong color beats a dead map.
 import * as Theme from './theme.js';
+import * as Basemap from './basemap.js';
 
 // The world rectangle used as the mask's outer ring. Y capped at MapLibre's Web-Mercator limit (~85.05°);
 // X full span (renderWorldCopies is off, so one world is all there is).
@@ -91,6 +92,8 @@ function notifyIsolation(rings) { if (onIsolationChange) onIsolationChange(rings
 // The style's water color, read live so the mask matches whatever basemap is loaded AND tracks a switch
 // (dataVizBlack water is #1c1c1c, but each style differs). Falls back if the water layer is atypical.
 function waterColor(map) {
+    // A HIDDEN basemap is one flat blank ground: a water-coloured mask would draw as a visible shape on it.
+    if (Basemap.isHidden()) return Basemap.blank();
     try {
         if (map.getLayer('water')) {
             const c = map.getPaintProperty('water', 'fill-color');

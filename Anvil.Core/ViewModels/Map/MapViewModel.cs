@@ -86,6 +86,7 @@ namespace Anvil.ViewModels
 			RadarAtlas = new RadarAtlasViewModel(Radar, Markers, radarService, SiteFavorites, SiteUsage, RadarNws);
 			SavedEvents = new SavedEventsViewModel(savedEventLibrary, Radar, mapService, PlaceSearch);
 			StateIso = new StateIsolationViewModel(mapService, settingsService);
+			Basemap = new BasemapViewModel(mapService, settingsService);
 			PipelineConsole = new PipelineConsoleViewModel(mapService, Radar); // PIPELINE CONSOLE (remove with the feature)
 
 			// Every temporal-window choice (ticks, opacities, outlook pickers) comes back from settings and is
@@ -177,6 +178,14 @@ namespace Anvil.ViewModels
 			_selectedStyle = AvailableStyles.FirstOrDefault(s => s.Id == _selectedTheme.MapStyleId)
 				?? AvailableStyles.FirstOrDefault();
 
+			// The Map flyout greys the rows the loaded basemap has nothing for. Every style change raises
+			// SelectedStyle (a theme switch included — its setter raises it by name), so one subscription covers both.
+			Basemap.SetStyle(_selectedStyle);
+			PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(SelectedStyle)) { Basemap.SetStyle(_selectedStyle); }
+			};
+
 			// The main map is framed on CONUS.
 			var regions = _regionProvider.GetRegions();
 			_mainRegion = regions.FirstOrDefault(r => r.Id == "conus") ?? regions.FirstOrDefault();
@@ -243,6 +252,10 @@ namespace Anvil.ViewModels
 		/// everything else). An app-wide mode toggled by the "Isolate" button on the top bar; a building
 		/// block for the planned stream mode.</summary>
 		public StateIsolationViewModel StateIso { get; }
+
+		/// <summary>What of the basemap draws: the tools tier's Map key (hide it all) + its layer flyout and
+		/// dimmer. Overlays are untouched.</summary>
+		public BasemapViewModel Basemap { get; }
 
 		/// <summary>The App Settings "Storage" section VM (radar cache size readout + Clear + the persisted
 		/// size cap). The settings service's first real consumer.</summary>
@@ -1319,6 +1332,7 @@ namespace Anvil.ViewModels
 			await StormReports.OnMapsReadyAsync();
 			await DamageSurveys.OnMapsReadyAsync(); // no Shutdown: it has no loop
 			await StateIso.OnMapsReadyAsync();
+			await Basemap.OnMapsReadyAsync(); // after isolation, so a hidden map repaints the mask blank
 			RadarNws.Start(); // the launch NWS status check — fire-and-forget, it touches no map
 			// The modes that were on last run, and their windows. BEFORE the home-site launch: a restored
 			// PastCast means "replay", and SiteFavorites skips starting a live loop in that case.

@@ -18,11 +18,21 @@
        └──────────────────────────────┘          ┌─────────────────────────────┐
                                                   │ Moore, OK          pop 62k  │   ← place suggestions
                                                   └─────────────────────────────┘
-       (👁) [⌂ KTLX  Oklahoma City   ˅] (⌸) (◎)  (▣) [Search places  ⌕] (⊚) status   [▢][▥][▦] (⌘) (⛶) [Isolate State ▾]   ← THIS
+                                                                                             ┌ Map layers ──────┐
+                                                                                             │ ☑ Land           │
+                                                                                             │ ☑ Water          │
+                                                                                             │ ☑ Roads          │  ← the CAR's flyout
+                                                                                             │ ☑ Buildings      │
+                                                                                             │ ☑ Borders        │
+                                                                                             │ ☐ Counties (grey)│  ← greyed unless the
+                                                                                             │ ☑ Place names    │     style has county lines
+                                                                                             │ Dim ──●───── 30% │
+                                                                                             └──────────────────┘
+       (👁) [⌂ KTLX  Oklahoma City   ˅] (⌸) (◎)  (▣) [Search places  ⌕] (⊚) status   [▢][▥][▦] (⌘) (⛶) (▥|▴) [Isolate State ▾]   ← THIS
         ↑ LEFT = RADAR + MAP: show the     ↑ CENTER = where; the box is          ↑ RIGHT = MAP ONLY: pane layout
           sites, pick one (over the          CENTERED on the tier                  (1/2/4, current one LIT, accent
           console, which answers when),    ▣ marker viewer — a PLACEHOLDER         cell = pane 0), reset north,
-          ⌸ the RANGE RULER, then ◎ the    ⊚ Location (lit = your marker is out)   fit to view, isolation
+          ⌸ the RANGE RULER, then ◎ the    ⊚ Location (lit = your marker is out)   fit to view, MAP key + car, isolation
           RANGE RINGS on/off (lit = showing)
        ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   ← …and onto the bar: NO rule
        ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
@@ -110,6 +120,14 @@
      shapes stay distinct where hairlines merge. Accent cell = pane 0 (left; bottom-left in quad), as on the map.
      Drawn Rectangles with fixed theme brushes — Shapes don't inherit the template's Foreground.
      Tooltips read "Activate N-pane mode". No "two stacked": weather reads left-to-right across a storm.
+
+     MAP sits RIGHT, beside state isolation — both take parts of the map away (Basemap = BasemapViewModel).
+     The KEY hides the whole basemap: a blank, THEME-coloured ground (theme.css anvil-map-blank) under the overlays,
+     for screenshots / thumbnails / a clean storm. LIT = THE MAP IS SHOWING (default lit); the tooltip speaks
+     for the click. The CAR opens the layer flyout: which basemap GROUPS draw, and a dimmer (0-90%) that fades
+     the basemap toward blank. ⚠️ Hiding OVERRIDES the ticks without changing them — show again and your set
+     returns (the flyout says so while hidden). ⚠️ The hide is SESSION-ONLY; ticks + dimmer persist.
+     ⚠️ A pair, not SplitTemporalToggle: that is a 72 px bar key; this tier's tools are 32 px.
 
      Host contract: ViewModel (MapViewModel). Add a tool = one Button in the panel of the side it belongs to.
      ============================================================================ -->
@@ -524,6 +542,65 @@
                     ToolTipService.ToolTip="Fit To View">
                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
             </Button>
+
+            <!-- ===== MAP — the basemap's key + its layer flyout (see the header) =====
+                 A pair touching at a 1 px seam: the KEY hides/shows the whole basemap, the narrow CAR opens the
+                 flyout. Plain TwoWay on the key (a click always flips it). -->
+            <StackPanel Orientation="Horizontal" Spacing="1" Margin="8,0,0,0">
+                <ToggleButton x:Name="MapShownToggle"
+                              Style="{StaticResource StripToolToggleStyle}"
+                              IsChecked="{x:Bind ViewModel.Basemap.IsMapShown, Mode=TwoWay}"
+                              ToolTipService.ToolTip="{x:Bind MapShownTooltip(ViewModel.Basemap.IsMapShown), Mode=OneWay}">
+                    <!-- A folded map: three panels, the middle one set back. Drawn, not an unverified glyph. -->
+                    <PathIcon Data="M1,3.6 L5.4,1.8 L5.4,14.6 L1,16.4 Z M6.6,1.8 L11.4,3.6 L11.4,16.4 L6.6,14.6 Z M12.6,3.6 L17,1.8 L17,14.6 L12.6,16.4 Z"/>
+                </ToggleButton>
+                <Button x:Name="MapLayersButton"
+                        Width="16"
+                        Style="{StaticResource StripToolButtonStyle}"
+                        ToolTipService.ToolTip="Map layers and dimmer">
+                    <PathIcon Data="M1,7 L5,3 L9,7 Z"/>
+                    <Button.Flyout>
+                        <!-- ⚠️ Windowed (ShouldConstrainToRootBounds=False), like the tier's pickers — else the owned
+                             panel windows paint over it. -->
+                        <Flyout Placement="TopEdgeAlignedRight" ShouldConstrainToRootBounds="False">
+                            <StackPanel Width="220" Spacing="2">
+                                <TextBlock Text="Map layers" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <TextBlock Text="The map is hidden. These apply when you show it."
+                                           TextWrapping="Wrap" FontSize="12" Margin="0,0,0,4"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                           Visibility="{x:Bind HiddenNoteVisibility(ViewModel.Basemap.IsMapShown), Mode=OneWay}"/>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Basemap.Groups}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:BasemapGroupOption">
+                                            <!-- Wrapper carries the tooltip: a disabled CheckBox shows none. -->
+                                            <Grid Background="Transparent" ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
+                                                <CheckBox Content="{x:Bind Label}" MinHeight="32"
+                                                          IsChecked="{x:Bind IsShown, Mode=TwoWay}"
+                                                          IsEnabled="{x:Bind IsAvailable, Mode=OneWay}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Grid Margin="0,8,0,0" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="36"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Dim" VerticalAlignment="Center"/>
+                                    <Slider Grid.Column="1" Minimum="0" Maximum="90" StepFrequency="5"
+                                            VerticalAlignment="Center"
+                                            Value="{x:Bind ViewModel.Basemap.DimPercent, Mode=TwoWay}"
+                                            ToolTipService.ToolTip="Fade the basemap toward a blank background"/>
+                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                               Text="{x:Bind PercentText(ViewModel.Basemap.DimPercent), Mode=OneWay}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+            </StackPanel>
 
             <!-- ===== STATE ISOLATION — THREE CONTROLS COLLAPSED INTO ONE LIST =====
                  LAST on the right, over the bar's window keys. It replaced the Settings window's Map tab CONUS checkbox,

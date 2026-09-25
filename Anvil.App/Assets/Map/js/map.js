@@ -25,7 +25,9 @@
 //               watch boxes            │ (layers.js GROUPS; the list's top = the band's top)
 //               outlook fills + hatch  │
 //               RADAR (WebGL layer)    ┘ + its range rings / sweep / ruler, drawn over it
+//               dimmer veil            ← basemap.js: fades the fills below it toward the blank ground
 //   ── base ──  basemap (bundled PMTiles, or online tiles — same styles either way, see tileSourceFor)
+//               (the Map key hides every basemap layer and paints the background blank — basemap.js)
 //
 //   Riding above all of it, NOT in the stack: the state-isolation mask (added last, on top), and the
 //   DOM-overlay markers — radar site keys + the user-location dot — which are HTML elements over the
@@ -109,6 +111,7 @@ try {
     var PerfProbe = null;   // DEV-ONLY frame-time sampler; null unless ?perf=1 (see the import below)
     var Layers = null;      // layers.js — the user's overlay ORDER (see setOverlayOrder below)
     var pendingOrder = null;
+    var Basemap = null;     // basemap.js — hide the map / which basemap groups / the dimmer (setBasemap below)
 
     // Restore every overlay onto one map, in stack order. TWO callers: applyStyle (setStyle drops all
     // custom sources/layers) and a NEWLY CREATED pane (which starts with nothing but the basemap). One
@@ -116,7 +119,8 @@ try {
     // ⚠️ ORDER IS LOAD-BEARING: outlook first so radar's beforeId can target it and slot in beneath;
     // states LAST so the isolation mask lands on top of everything.
     function reAddAll(map) {
-        if (Outlook) Outlook.reAdd(map);                 // re-add the outlook (reuse clipped data, or re-fetch)
+        if (Basemap) Basemap.apply(map);                 // basemap first: hidden groups, dimmer veil (a NEW pane needs it)
+        if (Outlook) Outlook.reAdd(map);                // re-add the outlook (reuse clipped data, or re-fetch)
         if (Watches) Watches.reAdd(map);                 // re-add the watch layers (data is still in memory)
         if (Warnings) Warnings.reAdd(map);               // re-add the warning polygons (above the watches)
         if (DamageSurveys) DamageSurveys.reAdd(map);     // NWS damage surveys (under labels, so under the report dots)
@@ -340,7 +344,11 @@ try {
             if (gen !== styleGen) return;
             styleSpec = spec;
             forEachMap(function (m) {
-                m.setStyle(styleForNewMap(), { diff: true });
+                // transformStyle bakes the basemap state (hidden / groups / dim) INTO the next style, so a
+                // theme switch while the map is hidden never flashes the basemap (basemap.js header).
+                const opts = { diff: true };
+                if (Basemap) opts.transformStyle = Basemap.transformFor(m);
+                m.setStyle(styleForNewMap(), opts);
                 // setStyle drops our custom sources/layers/images — re-add them once the new style settles.
                 // Reuse the already-clipped data; only re-fetch if it isn't loaded yet.
                 m.once('idle', function () { reAddAll(m); });
@@ -397,6 +405,26 @@ try {
         if (!Layers) return;
         Layers.setOverlayOrder(ids);
         forEachMap(function (map) { try { Layers.restack(map); } catch (e) { /* style not loaded yet */ } });
+    };
+
+    // The BASEMAP: the Map key hides it (blank, theme-aware ground), the flyout picks which groups draw,
+    // the dimmer fades it toward blank. Overlays are never touched. After a change, the isolation mask is
+    // repainted: it wears the basemap's water colour, and the BLANK colour while the map is hidden.
+    var pendingBasemap = null;
+    import('./basemap.js').then(function (m) {
+        Basemap = m;
+        if (pendingBasemap) window.setBasemap.apply(null, pendingBasemap);
+    }).catch(function (e) { console.error('basemap.js load failed: ' + e); });
+    window.setBasemap = function (hidden, offGroupsJson, dim) {
+        pendingBasemap = [hidden, offGroupsJson, dim];
+        if (!Basemap) return;
+        let off = [];
+        try { off = JSON.parse(offGroupsJson || '[]'); } catch (e) { /* bad payload = nothing unticked */ }
+        Basemap.setState(hidden, off, dim);
+        forEachMap(function (m) {
+            Basemap.apply(m);
+            if (States) States.reAdd(m);
+        });
     };
 
     // SPC outlook overlay (probability fills + per-CIG hatching; nested groups clipped) lives in

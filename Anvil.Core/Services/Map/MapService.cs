@@ -35,6 +35,12 @@ namespace Anvil.Services
 		public Task ApplyThemeAsync(AppTheme theme, MapStyle style) =>
 			_mapView.RunScriptAsync(Call("applyTheme", theme.Id, style.Url));
 
+		// The group ids are ours (BasemapGroups, normalized here), never user text — so the JSON is quote-safe
+		// inside Call's single-quoted string, and the shim JSON.parses it.
+		public Task SetBasemapAsync(bool hidden, IReadOnlyList<string> offGroups, double dim) =>
+			_mapView.RunScriptAsync(Call("setBasemap", hidden,
+				System.Text.Json.JsonSerializer.Serialize(BasemapGroups.Normalize(offGroups)), dim));
+
 		// Tile source: the style file is unchanged either way — the page patches its ONE basemap source.
 		// ⚠️ The URL is the only USER-TYPED string that reaches the page, and FormatArg quotes without
 		// escaping, so a stray quote/backslash would break the whole script line. Neither is legal in a URL,

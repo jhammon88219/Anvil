@@ -10,6 +10,8 @@ namespace Anvil.Models
 	/// page's launch URL param), and the page's <c>style</c> param takes a full URL as a result.
 	/// ⚠️ <see cref="FileName"/> is the file under <c>Assets/Map</c>; <see cref="Id"/> is what
 	/// <c>AppTheme.MapStyleId</c> matches against.
+	/// ⚠️ <see cref="HasCountyLines"/> is a hand-kept fact about the FILE (a <c>boundaries_county</c> layer):
+	/// it greys the Map flyout's Counties row on the styles that have none.
 	/// </remarks>
-	public record MapStyle(string Id, string DisplayName, string FileName, string Url);
+	public record MapStyle(string Id, string DisplayName, string FileName, string Url, bool HasCountyLines = false);
 }

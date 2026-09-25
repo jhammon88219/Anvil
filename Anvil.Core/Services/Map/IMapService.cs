@@ -27,6 +27,15 @@ namespace Anvil.Services
 		Task ApplyThemeAsync(AppTheme theme, MapStyle style);
 
 		/// <summary>
+		/// What of the BASEMAP draws: <paramref name="hidden"/> blanks it entirely (the theme's blank ground; the
+		/// overlays are untouched), <paramref name="offGroups"/> are the unticked <c>Models.BasemapGroups</c> ids,
+		/// and <paramref name="dim"/> (0–0.9) fades the rest toward blank. One command carrying the whole state.
+		/// </summary>
+		/// <remarks>⚠️ Replay at map-ready (BasemapViewModel.OnMapsReadyAsync): the page starts on the full basemap.
+		/// The page survives style/theme switches by itself (basemap.js bakes the state into the next style).</remarks>
+		Task SetBasemapAsync(bool hidden, IReadOnlyList<string> offGroups, double dim);
+
+		/// <summary>
 		/// Switches where the basemap's vector tiles come from: the bundled offline PMTiles file
 		/// (<paramref name="online"/> false) or <paramref name="tilesUrl"/> (a Protomaps-schema TileJSON
 		/// endpoint, a <c>{z}/{x}/{y}</c> template, or a remote <c>pmtiles://</c> archive).

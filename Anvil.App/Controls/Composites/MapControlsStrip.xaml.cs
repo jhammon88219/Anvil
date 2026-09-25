@@ -86,6 +86,14 @@ namespace Anvil.Controls.Composites
 		private void OnFitToViewClick(object sender, RoutedEventArgs e) =>
 			_ = ViewModel?.FitToViewAsync();
 
+		// ===== Map (the basemap key + its flyout) =====
+		// The tooltip speaks for the CLICK, like the site-markers toggle.
+		public string MapShownTooltip(bool shown) => shown ? "Hide the map (blank background)" : "Show the map";
+
+		public Visibility HiddenNoteVisibility(bool shown) => shown ? Visibility.Collapsed : Visibility.Visible;
+
+		public string PercentText(double percent) => $"{percent:0}%";
+
 		// Pane layout (moved here from the bar): which of the three toggles is lit. x:Bind can't compare against
 		// an enum literal, so one typed function per layout.
 		public bool IsSinglePane(PaneLayout layout) => layout == PaneLayout.Single;

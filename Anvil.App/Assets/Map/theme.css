@@ -10,6 +10,7 @@
          --anvil-key-*              the on-map radar-site keys
          --anvil-scope-*            the range ring + sweep pulse
          --anvil-state-*            state isolation: hover, mask outline, water fallback
+         --anvil-map-blank          the ground a HIDDEN basemap leaves (+ what the dimmer fades toward)
          --anvil-marker-*           the user-location reticle (+ the search pin's ink/casing)
          --anvil-place-label-*      the search pin's name chip
          --anvil-readout-*          the Inspect value chip + its crosshair
@@ -121,6 +122,11 @@
        whatever is loaded. This is only the fallback for a style whose water layer is atypical, so it
        tracks the theme's own basemap (dataVizBlack water is #1c1c1c). */
     --anvil-state-water-fallback: #1c1c1c;
+
+    /* ── HIDDEN MAP (basemap.js) ───────────────────────────────────────────────────────────────
+       The flat ground the Map key leaves when it hides the basemap, and the colour the dimmer fades
+       toward. The GROUND itself, so a hidden map runs seamlessly into the pane gutters. */
+    --anvil-map-blank: #0a0a0a;
 
     /* ── USER LOCATION (markers.js) ────────────────────────────────────────────────────────────*/
     --anvil-marker-reticle: #2f8fff;
@@ -239,6 +245,10 @@
     /* The style's own water, so the mask matches when the live read can't find the water layer.
        ⚠️ Data Viz Light's water AFTER the dimming pass (#dcdcdc -> #c1c1c1). */
     --anvil-state-water-fallback: #c1c1c1;
+
+    /* ── HIDDEN MAP ─────────────────────────────────────────────────────────────────────────── */
+    /* The basemap's own earth rather than the (darker) ground: blank here should read as paper. */
+    --anvil-map-blank: #e0e0e0;
 
     /* ── USER LOCATION ──────────────────────────────────────────────────────────────────────── */
     /* ⚠️ The casing INVERTS — it exists to separate the reticle from the map, so it is dark here. */

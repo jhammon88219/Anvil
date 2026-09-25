@@ -24,11 +24,11 @@ namespace Anvil.Services
 			Bundle("regular", "Regular", "style.json"),
 			Bundle("dark", "Dark", "style-dark.json"),
 			Bundle("dataVizlight", "Data Viz Light", "style-dataVizLight.json"),
-			Bundle("dataVizBlack", "Data Viz Black", "style-dataVizBlack.json"),
+			Bundle("dataVizBlack", "Data Viz Black", "style-dataVizBlack.json", hasCountyLines: true),
 			Bundle("dataVizGrayscale", "Data Viz Grayscale", "style-datVizGrayscale.json")
 		};
 
-		private static MapStyle Bundle(string id, string name, string file) =>
-			new(id, name, file, $"https://{BundledHost}/{file}");
+		private static MapStyle Bundle(string id, string name, string file, bool hasCountyLines = false) =>
+			new(id, name, file, $"https://{BundledHost}/{file}", hasCountyLines);
 	}
 }
