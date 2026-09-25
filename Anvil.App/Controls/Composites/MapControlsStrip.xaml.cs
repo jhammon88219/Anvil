@@ -138,7 +138,8 @@ namespace Anvil.Controls.Composites
 		}
 
 		// Enter or a row click. The box closes its list on submit, so when the online fallback comes back with
-		// several places to pick from, reopen it.
+		// several places to pick from, reopen it. A place flown to lands in the box through the one-way
+		// QueryText binding (the same path a PastCast saved event's town pin takes).
 		private async void OnPlaceSearchQuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
 		{
 			if (ViewModel is not { } vm)
@@ -146,11 +147,7 @@ namespace Anvil.Controls.Composites
 				return;
 			}
 			var went = await vm.PlaceSearch.SubmitAsync(args.QueryText, args.ChosenSuggestion as PlaceResult);
-			if (went is not null)
-			{
-				sender.Text = went.Display;
-			}
-			else if (vm.PlaceSearch.Suggestions.Count > 0)
+			if (went is null && vm.PlaceSearch.Suggestions.Count > 0)
 			{
 				sender.IsSuggestionListOpen = true;
 			}

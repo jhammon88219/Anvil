@@ -52,9 +52,19 @@ namespace Anvil.ViewModels
 
 		public bool HasStatus => _statusText.Length > 0;
 
+		private string _queryText = string.Empty;
+
+		/// <summary>
+		/// The box's text, bound ONE-WAY. Raised only when a pin lands (its name goes in the box, so the box's
+		/// X is what takes it off — for a saved-event pin too); the user's own typing is recorded SILENTLY, so
+		/// the next pin always differs from the field and reaches the box, and typing is never echoed back.
+		/// </summary>
+		public string QueryText => _queryText;
+
 		/// <summary>The user edited the text: refresh the gazetteer rows. An empty box removes the pin.</summary>
 		public void UpdateSuggestions(string? text)
 		{
+			_queryText = text ?? string.Empty;
 			CancelOnline();
 			StatusText = string.Empty;
 			ReplaceSuggestions(_search.Suggest(text));
@@ -119,11 +129,77 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		private async Task GoAsync(PlaceResult place)
+		/// <summary>
+		/// Pins the town a PastCast saved event is named for ("Moore, OK"; a hyphenated "El Reno-Piedmont, OK"
+		/// → its FIRST town) exactly as the box would, flying there at <paramref name="zoom"/>.
+		/// </summary>
+		/// <remarks>⚠️ The row pinned must BE that town (name + state), never merely the best-ranked row —
+		/// a name that only looks like "Town, ST" must pin nothing rather than a near miss. Gazetteer first; the
+		/// online geocoder only when it has no such row (a checkout without the generated gazetteer is
+		/// online-only). One click = one lookup, a submit in Nominatim's terms, never autocomplete. A newer
+		/// pick, submit or edit in the box cancels a lookup still in flight.</remarks>
+		/// <returns>False when the name isn't a known town; nothing on the map or in the box changes.</returns>
+		public async Task<bool> ShowNamedPlaceAsync(string? name, double zoom)
+		{
+			CancelOnline();
+			if (NamedTown(name) is not { } town)
+			{
+				return false;
+			}
+			var place = FirstExact(_search.Suggest(town, 1), town);
+			if (place is null)
+			{
+				var cts = _onlineCts = new CancellationTokenSource();
+				try
+				{
+					place = FirstExact(await _search.SearchOnlineAsync(town, cts.Token), town);
+				}
+				catch (OperationCanceledException)
+				{
+					return false;
+				}
+				if (cts.IsCancellationRequested || place is null)
+				{
+					return false;
+				}
+			}
+			ReplaceSuggestions(Array.Empty<PlaceResult>());
+			await GoAsync(place, zoom);
+			return true;
+		}
+
+		private static PlaceResult? FirstExact(IReadOnlyList<PlaceResult> places, string town)
+		{
+			foreach (var p in places)
+			{
+				if (string.Equals(p.Display, town, StringComparison.OrdinalIgnoreCase))
+				{
+					return p;
+				}
+			}
+			return null;
+		}
+
+		// "Town, ST" → itself; "Town-Other Town, ST" → "Town, ST"; anything without a 2-letter state → null.
+		internal static string? NamedTown(string? name)
+		{
+			var comma = name?.LastIndexOf(',') ?? -1;
+			if (comma <= 0)
+			{
+				return null;
+			}
+			var state = name![(comma + 1)..].Trim();
+			var town = name[..comma].Split('-')[0].Trim();
+			return state.Length == 2 && town.Length > 0 ? $"{town}, {state}" : null;
+		}
+
+		private async Task GoAsync(PlaceResult place, double? zoom = null)
 		{
 			CancelOnline();
 			StatusText = string.Empty;
-			await _markers.ShowPlaceAsync(place);
+			_queryText = place.Display;
+			OnPropertyChanged(nameof(QueryText));
+			await _markers.ShowPlaceAsync(place, zoom);
 		}
 
 		private void CancelOnline()

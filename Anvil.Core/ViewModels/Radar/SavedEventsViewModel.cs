@@ -18,7 +18,7 @@ namespace Anvil.ViewModels
 	/// </summary>
 	/// <remarks>
 	/// ⚠️⚠️ <b>PICKING AN EVENT LOADS IT.</b> It writes the leg's window into the Timeframe pickers, flies the
-	/// map to the leg's site, and loads through <see cref="RadarViewModel.LoadReplayAtSiteAsync"/> — the same
+	/// map to the leg's site (or pins + flies to the town the event is named for — see <c>Apply</c>), and loads through <see cref="RadarViewModel.LoadReplayAtSiteAsync"/> — the same
 	/// replay path Load uses, exactly once. There is no event mode in the engine. (It armed-only at first;
 	/// changed by request 2026-09-12 — a pick is a request to watch.)
 	/// <para>⚠️ <b>THE HIGHLIGHT CLEARS THE MOMENT THE PICKERS STOP MATCHING</b> — any date/start/window
@@ -36,6 +36,7 @@ namespace Anvil.ViewModels
 		private readonly ISavedEventLibrary _library;
 		private readonly RadarViewModel _radar;
 		private readonly IMapService _mapService;
+		private readonly PlaceSearchViewModel _places;
 
 		// The picked event, by id so it survives a list rebuild (search, filter, delete).
 		private string? _selectedId;
@@ -54,11 +55,13 @@ namespace Anvil.ViewModels
 			nameof(RadarViewModel.IsPastEventMode),
 		};
 
-		public SavedEventsViewModel(ISavedEventLibrary library, RadarViewModel radar, IMapService mapService)
+		public SavedEventsViewModel(ISavedEventLibrary library, RadarViewModel radar, IMapService mapService,
+			PlaceSearchViewModel places)
 		{
 			_library = library;
 			_radar = radar;
 			_mapService = mapService;
+			_places = places;
 			_radar.PropertyChanged += OnRadarPropertyChanged;
 			Rebuild();
 		}
@@ -158,23 +161,32 @@ namespace Anvil.ViewModels
 
 		// ── Picking ─────────────────────────────────────────────────────────────────────────────────
 
-		/// <summary>Pick an event: its DEFAULT leg.</summary>
-		public void Pick(SavedEventRow row) => Apply(row, row.Event.DefaultLegIndex);
+		// Framing for the town an event is named for: the storm's surroundings with the radar site in view,
+		// not the town's own close-up search zoom.
+		private const double TownZoom = 8;
+
+		/// <summary>Pick an event: its DEFAULT leg, and pin the town it is named for.</summary>
+		public void Pick(SavedEventRow row) => Apply(row, row.Event.DefaultLegIndex, pinTown: true);
 
 		/// <summary>Pick a specific radar leg of an event.</summary>
-		public void PickLeg(SavedEventLegRow leg) => Apply(leg.Owner, leg.Index);
+		public void PickLeg(SavedEventLegRow leg) => Apply(leg.Owner, leg.Index, pinTown: false);
 
 		public void PreviousLeg(SavedEventRow row)
 		{
-			if (row.CanGoPrevious) Apply(row, row.CurrentLegIndex - 1);
+			if (row.CanGoPrevious) Apply(row, row.CurrentLegIndex - 1, pinTown: false);
 		}
 
 		public void NextLeg(SavedEventRow row)
 		{
-			if (row.CanGoNext) Apply(row, row.CurrentLegIndex + 1);
+			if (row.CanGoNext) Apply(row, row.CurrentLegIndex + 1, pinTown: false);
 		}
 
-		private async void Apply(SavedEventRow row, int legIndex)
+		/// <remarks>⚠️ <b>THE TOWN PIN</b> (whole-event picks only): the event's name goes through
+		/// <see cref="PlaceSearchViewModel.ShowNamedPlaceAsync"/> — the search box's own pin, name in the box, so
+		/// the box's X removes it. The map flies to the site first; a pin that lands re-flies to the TOWN. A name
+		/// that isn't a town (hurricanes, derechos, most of the user's own) pins nothing. A leg switch flies
+		/// to its site and leaves the pin where it is.</remarks>
+		private async void Apply(SavedEventRow row, int legIndex, bool pinTown)
 		{
 			if (!_radar.IsPastEventMode)
 			{
@@ -201,11 +213,7 @@ namespace Anvil.ViewModels
 				{
 					option = _radar.RadarOptions.FirstOrDefault(o =>
 						string.Equals(o.Site?.Id, siteId, StringComparison.OrdinalIgnoreCase));
-					if (option?.Site is { } site)
-					{
-						_ = _mapService.FlyToAsync(site.Longitude, site.Latitude, 7);
-					}
-					else
+					if (option?.Site is null)
 					{
 						Status = $"{siteId} isn't in the radar site list, so the timeframe loaded at the current site.";
 					}
@@ -222,6 +230,16 @@ namespace Anvil.ViewModels
 
 			try
 			{
+				// The site flight goes first so the camera never waits on a town lookup that may go online; a
+				// town pin that lands then re-flies to the town.
+				if (option?.Site is { } site)
+				{
+					_ = _mapService.FlyToAsync(site.Longitude, site.Latitude, 7);
+				}
+				if (pinTown)
+				{
+					await _places.ShowNamedPlaceAsync(row.Event.Name, TownZoom);
+				}
 				await load;
 			}
 			catch (Exception ex)

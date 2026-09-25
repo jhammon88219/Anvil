@@ -84,7 +84,7 @@ namespace Anvil.ViewModels
 			RadarNws = new RadarNwsStatusViewModel(radarNwsStatusService,
 				() => Radar.RadarSiteRows.Select(r => (r.Id, r.Site.Class == RadarSiteClass.Tdwr)));
 			RadarAtlas = new RadarAtlasViewModel(Radar, Markers, radarService, SiteFavorites, SiteUsage, RadarNws);
-			SavedEvents = new SavedEventsViewModel(savedEventLibrary, Radar, mapService);
+			SavedEvents = new SavedEventsViewModel(savedEventLibrary, Radar, mapService, PlaceSearch);
 			StateIso = new StateIsolationViewModel(mapService, settingsService);
 			PipelineConsole = new PipelineConsoleViewModel(mapService, Radar); // PIPELINE CONSOLE (remove with the feature)
 

@@ -56,6 +56,8 @@
      GAZETTEER rows (offline); Enter/a row flies there and drops the search pin (MarkersViewModel).
      ⚠️ ONLINE (Nominatim) runs ONLY on Enter when the gazetteer found nothing — its policy forbids
      autocomplete. Don't wire it to TextChanged. ⚠️ Clearing the box removes the pin; that is the remove.
+     ⚠️ Text is ONE-WAY from PlaceSearch.QueryText: picking a PastCast saved event pins the town it is named
+     for through the SAME pin and puts the name in this box, so the box's X clears that pin too.
      ⚠️ An AutoSuggestBox is safe here (the wheel hazard is a CLOSED ComboBox cycling its selection).
      ⚠️ No Ctrl+F: the WebView owns keyboard focus once the map is clicked, so an accelerator here
      would work only sometimes.
@@ -426,6 +428,7 @@
                             PlaceholderText="Search places"
                             QueryIcon="Find"
                             TextMemberPath="Display"
+                            Text="{x:Bind ViewModel.PlaceSearch.QueryText, Mode=OneWay}"
                             ItemsSource="{x:Bind ViewModel.PlaceSearch.Suggestions}"
                             ItemTemplate="{StaticResource PlaceRowTemplate}"
                             TextChanged="OnPlaceSearchTextChanged"

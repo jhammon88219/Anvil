@@ -184,8 +184,9 @@ namespace Anvil.ViewModels
 		/// <summary>The pin for the last place found by the search box, if any.</summary>
 		public MapMarker? PlaceMarker => _markers.FirstOrDefault(m => m.Kind == MarkerKind.SearchResult);
 
-		/// <summary>Drops (or moves) the search-result pin on <paramref name="place"/> and flies there.</summary>
-		public async Task ShowPlaceAsync(PlaceResult place)
+		/// <summary>Drops (or moves) the search-result pin on <paramref name="place"/> and flies there — at
+		/// <paramref name="zoom"/> when given (a saved event frames the storm, not the town), else the place's own.</summary>
+		public async Task ShowPlaceAsync(PlaceResult place, double? zoom = null)
 		{
 			_markers.RemoveAll(m => m.Kind == MarkerKind.SearchResult);
 			_markers.Add(new MapMarker(PlaceMarkerId, MarkerKind.SearchResult, place.Latitude, place.Longitude,
@@ -194,7 +195,7 @@ namespace Anvil.ViewModels
 			if (_isMapReady)
 			{
 				await _mapService.ShowPlaceMarkerAsync(place.Longitude, place.Latitude, place.Display);
-				await _mapService.FlyToAsync(place.Longitude, place.Latitude, place.FlyToZoom);
+				await _mapService.FlyToAsync(place.Longitude, place.Latitude, zoom ?? place.FlyToZoom);
 			}
 		}
 
