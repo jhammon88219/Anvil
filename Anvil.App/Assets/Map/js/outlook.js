@@ -30,6 +30,7 @@
 //   │                                  │   "No Thunderstorms Forecast", fire's lowercase `label`
 //   └──────────────────────────────────┘   "Probability Too Low"); the forecaster picks the wording,
 //                                          so it can't be mapped from the day number.
+// It is a DOM marker ABOVE the radar site keys (addNote says why), click-through, 40 px.
 // ⚠️ DN 0 is NEVER a risk level (no catalog level uses it), so a DN 0 feature is kept OUT of the fill /
 // line layers — the fire feed ships a ~200 m placeholder square in Kansas as its "empty" geometry.
 // The note shows only when EVERY feature is DN 0; one real area and it stays hidden. The IEM past
@@ -182,43 +183,38 @@ function clipSigFeatures(geojson) {
 }
 
 function removeOutlookLayers(map) {
-    ['spc-outlook-note', 'spc-outlook-line', 'spc-outlook-sig1', 'spc-outlook-sig2', 'spc-outlook-sig3', 'spc-outlook-fill'].forEach(function (id) {
+    ['spc-outlook-line', 'spc-outlook-sig1', 'spc-outlook-sig2', 'spc-outlook-sig3', 'spc-outlook-fill'].forEach(function (id) {
         if (map.getLayer(id)) map.removeLayer(id);
     });
     if (map.getSource('spc-outlook')) map.removeSource('spc-outlook');
-    if (map.getSource('spc-outlook-note')) map.removeSource('spc-outlook-note');
+    removeNote(map);
 }
 
-// SPC's "no risk areas" sentence (see the header). Its own point source, so it never touches the
-// polygon data. ⚠️ 'Noto Sans Medium' is the one stack the bundled glyph host serves — any other font
-// renders NOTHING. ⚠️ The id keeps the `spc-outlook-` prefix: that is what files it in the outlook's
-// band of the user's layer order (layers.js GROUPS), so it hides and re-stacks with the outlook.
-function addNoteLayer(map, before) {
-    const text = noteText(outlookData);
+// SPC's "no risk areas" sentence (see the header), ONE per map (every pane gets the outlook).
+// ⚠️ A DOM MARKER, NOT A SYMBOL LAYER — on purpose: the radar site keys are DOM markers, which float over
+// the whole canvas, so no map layer can ever draw above them; this has to be a marker too, with a
+// z-index over theirs (they set none). Consequences: it sits OUTSIDE the user's layer order (it isn't
+// a layer), and it must never take a click — pointer-events:none, so the keys under it stay live.
+// Colours are the theme.css tokens read as CSS vars, so a theme switch restyles it with no rebuild.
+const notes = new WeakMap(); // map -> maplibregl.Marker
+function removeNote(map) {
+    const m = notes.get(map);
+    if (m) { m.remove(); notes.delete(map); }
+}
+function addNote(map) {
+    removeNote(map);
+    const text = outlookData && noteText(outlookData);
     if (!text) return;
-    map.addSource('spc-outlook-note', {
-        type: 'geojson',
-        data: { type: 'Feature', properties: { text: text }, geometry: { type: 'Point', coordinates: NOTE_ANCHOR } }
-    });
-    map.addLayer({
-        id: 'spc-outlook-note',
-        type: 'symbol',
-        source: 'spc-outlook-note',
-        layout: {
-            'text-field': ['get', 'text'],
-            'text-font': ['Noto Sans Medium'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 2, 16, 4, 22, 7, 30],
-            'text-max-width': 30,
-            // It is the only thing the outlook says today — basemap labels must not bump it off.
-            'text-allow-overlap': true,
-            'text-ignore-placement': true
-        },
-        paint: {
-            'text-color': Theme.color('--anvil-outlook-note-text', '#f2f2f2'),
-            'text-halo-color': Theme.color('--anvil-outlook-note-halo', '#000000'),
-            'text-halo-width': 1.6
-        }
-    }, before);
+    const el = document.createElement('div');
+    el.textContent = text;
+    el.style.cssText =
+        'font:600 40px/1.1 "Segoe UI",system-ui,sans-serif;white-space:nowrap;pointer-events:none;' +
+        'color:var(--anvil-outlook-note-text);z-index:5;' +
+        // The halo: a tight ring of shadows, the DOM stand-in for a map label's text-halo.
+        'text-shadow:-2px 0 var(--anvil-outlook-note-halo),2px 0 var(--anvil-outlook-note-halo),' +
+        '0 -2px var(--anvil-outlook-note-halo),0 2px var(--anvil-outlook-note-halo),' +
+        '0 0 8px var(--anvil-outlook-note-halo);';
+    notes.set(map, new maplibregl.Marker({ element: el }).setLngLat(NOTE_ANCHOR).addTo(map));
 }
 
 function addOutlookLayers(map) {
@@ -271,7 +267,7 @@ function addOutlookLayers(map) {
             'line-width': 1.5
         }
     }, before);
-    addNoteLayer(map, before);
+    addNote(map);
 }
 
 // Fetch the outlook GeoJSON ourselves, clip the nested CIG areas into exclusive rings, then render.
