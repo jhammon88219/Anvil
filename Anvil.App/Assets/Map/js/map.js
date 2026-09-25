@@ -412,10 +412,12 @@ try {
     // phenom values to draw. ⚠️ These are the SAME codes the two modules colour by (see their `colors`
     // tables) — the filter and the colour read one property, so they cannot disagree about what a
     // tornado is.
-    function phenomKinds(torn, severe) {
+    // Warnings add a third, FF (flash flood); watches never send it.
+    function phenomKinds(torn, severe, flashFlood) {
         const kinds = [];
         if (torn) kinds.push('TO');
         if (severe) kinds.push('SV');
+        if (flashFlood) kinds.push('FF');
         return kinds;
     }
 
@@ -432,7 +434,7 @@ try {
     import('./warnings.js').then(function (m) { Warnings = m; }).catch(function (e) { console.error('warnings.js load failed: ' + e); });
     window.setWarningSource = function (url) { if (Warnings) forEachMap(function (m) { Warnings.setSource(m, url); }); };
     window.setWarningsVisible = function (on) { if (Warnings) forEachMap(function (m) { Warnings.setVisible(m, on); }); };
-    window.setWarningKinds = function (torn, severe) { if (Warnings) forEachMap(function (m) { Warnings.setKinds(m, phenomKinds(torn, severe)); }); };
+    window.setWarningKinds = function (torn, severe, flashFlood) { if (Warnings) forEachMap(function (m) { Warnings.setKinds(m, phenomKinds(torn, severe, flashFlood)); }); };
     window.setWarningsOpacity = function (o) { if (Warnings) forEachMap(function (m) { Warnings.setOpacity(m, o); }); };
 
     // SPC storm-report dots (Tornado / Wind / Hail verification) live in storm-reports.js — same lazy-load/

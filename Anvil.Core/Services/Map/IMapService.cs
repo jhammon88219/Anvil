@@ -232,10 +232,10 @@ namespace Anvil.Services
 		Task SetWarningsVisibleAsync(bool visible);
 
 		/// <summary>
-		/// Restricts the warning polygons to the given phenomena — each flag draws that type (TO / SV) and
-		/// nothing else. Same relationship to <see cref="SetWarningsVisibleAsync"/> as the watch pair.
+		/// Restricts the warning polygons to the given phenomena — each flag draws that type (TO / SV / FF)
+		/// and nothing else. Same relationship to <see cref="SetWarningsVisibleAsync"/> as the watch pair.
 		/// </summary>
-		Task SetWarningKindsAsync(bool tornado, bool severe);
+		Task SetWarningKindsAsync(bool tornado, bool severe, bool flashFlood);
 
 		/// <summary>
 		/// Sets the overall opacity (0-1) of the warning polygons. Scales both the faint fill and the bold

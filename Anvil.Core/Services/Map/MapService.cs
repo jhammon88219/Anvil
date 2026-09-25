@@ -79,8 +79,8 @@ namespace Anvil.Services
 		public Task SetWarningsVisibleAsync(bool visible) =>
 			_mapView.RunScriptAsync(Call("setWarningsVisible", visible));
 
-		public Task SetWarningKindsAsync(bool tornado, bool severe) =>
-			_mapView.RunScriptAsync(Call("setWarningKinds", tornado, severe));
+		public Task SetWarningKindsAsync(bool tornado, bool severe, bool flashFlood) =>
+			_mapView.RunScriptAsync(Call("setWarningKinds", tornado, severe, flashFlood));
 
 		public Task SetWarningsOpacityAsync(double opacity) =>
 			_mapView.RunScriptAsync(Call("setWarningsOpacity", opacity));

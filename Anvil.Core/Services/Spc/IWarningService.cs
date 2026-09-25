@@ -33,5 +33,14 @@ namespace Anvil.Services
 
 	/// <summary>Result of a refresh: status, the number of active warnings written (total + per phenom for
 	/// the UI readout), and a message. Per-type counts are meaningful only on <see cref="WarningFetchStatus.Updated"/>.</summary>
-	public sealed record WarningFetchResult(WarningFetchStatus Status, int ActiveCount = 0, int TornadoCount = 0, int SevereCount = 0, string? Message = null);
+	public sealed record WarningFetchResult(WarningFetchStatus Status, int ActiveCount = 0, int TornadoCount = 0, int SevereCount = 0, string? Message = null,
+		int FlashFloodCount = 0, WarningThreatCounts? Threats = null);
+
+	/// <summary>How many active warnings carry each ELEVATED damage-threat tag (the IBW tags CAP reports —
+	/// see <c>WarningService.ThreatTier</c>). Base-tagged warnings aren't counted here.</summary>
+	public sealed record WarningThreatCounts(int TornadoEmergency, int TornadoPds, int SevereDestructive,
+		int FlashFloodEmergency, int FlashFloodConsiderable)
+	{
+		public static readonly WarningThreatCounts None = new(0, 0, 0, 0, 0);
+	}
 }

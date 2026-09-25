@@ -51,6 +51,56 @@ namespace Anvil.Tests
 			Assert.NotNull(byId["urn:tor:1"]!["geometry"]);
 		}
 
+		// Flash flood + the IBW damage-threat tags. CAP writes each parameter as a one-element array.
+		private const string CapTagged = """
+		{
+		  "type": "FeatureCollection",
+		  "features": [
+		    { "type": "Feature",
+		      "geometry": { "type": "Polygon", "coordinates": [[[-98,35],[-97,35],[-97,36],[-98,36],[-98,35]]] },
+		      "properties": { "id": "urn:tor:emerg", "event": "Tornado Warning", "expires": "2026-07-21T18:00:00-05:00",
+		        "parameters": { "tornadoDetection": ["OBSERVED"], "tornadoDamageThreat": ["CATASTROPHIC"] } } },
+		    { "type": "Feature",
+		      "geometry": { "type": "Polygon", "coordinates": [[[-98,35],[-97,35],[-97,36],[-98,36],[-98,35]]] },
+		      "properties": { "id": "urn:tor:pds", "event": "Tornado Warning", "expires": "2026-07-21T18:00:00-05:00",
+		        "parameters": { "tornadoDamageThreat": ["CONSIDERABLE"] } } },
+		    { "type": "Feature",
+		      "geometry": { "type": "Polygon", "coordinates": [[[-96,34],[-95,34],[-95,35],[-96,35],[-96,34]]] },
+		      "properties": { "id": "urn:svr:dest", "event": "Severe Thunderstorm Warning", "expires": "2026-07-21T18:30:00-05:00",
+		        "parameters": { "tornadoDetection": ["POSSIBLE"], "thunderstormDamageThreat": ["DESTRUCTIVE"] } } },
+		    { "type": "Feature",
+		      "geometry": { "type": "Polygon", "coordinates": [[[-90,30],[-89,30],[-89,31],[-90,31],[-90,30]]] },
+		      "properties": { "id": "urn:ffw:emerg", "event": "Flash Flood Warning", "expires": "2026-07-21T20:00:00-05:00",
+		        "parameters": { "flashFloodDamageThreat": ["CATASTROPHIC"] } } },
+		    { "type": "Feature",
+		      "geometry": { "type": "Polygon", "coordinates": [[[-90,30],[-89,30],[-89,31],[-90,31],[-90,30]]] },
+		      "properties": { "id": "urn:ffw:base", "event": "Flash Flood Warning", "expires": "2026-07-21T20:00:00-05:00" } },
+		    { "type": "Feature",
+		      "geometry": { "type": "Polygon", "coordinates": [[[-90,30],[-89,30],[-89,31],[-90,31],[-90,30]]] },
+		      "properties": { "id": "urn:ffs:1", "event": "Flash Flood Statement", "expires": "2026-07-21T20:00:00-05:00" } }
+		  ]
+		}
+		""";
+
+		[Fact]
+		public void TransformCap_KeepsFlashFlood_AndReadsTheDamageThreatTier()
+		{
+			Assert.True(WarningService.TryTransformCap(CapTagged, out var features, out _));
+			var byId = features.ToDictionary(f => f!["properties"]!["cap_id"]!.GetValue<string>());
+
+			// The follow-up statement is not a warning; the two FFWs are.
+			Assert.False(byId.ContainsKey("urn:ffs:1"));
+			Assert.Equal("FF", byId["urn:ffw:base"]!["properties"]!["phenom"]!.GetValue<string>());
+
+			int Tier(string id) => byId[id]!["properties"]!["threat_tier"]!.GetValue<int>();
+			Assert.Equal(2, Tier("urn:tor:emerg"));
+			Assert.Equal(1, Tier("urn:tor:pds"));
+			Assert.Equal(2, Tier("urn:svr:dest"));   // SV's top tag; its tornadoDetection is NOT read as a threat
+			Assert.Equal(2, Tier("urn:ffw:emerg"));
+			Assert.Equal(0, Tier("urn:ffw:base"));
+			Assert.Equal("catastrophic", byId["urn:tor:emerg"]!["properties"]!["threat"]!.GetValue<string>());
+		}
+
 		[Fact]
 		public void TransformCap_ReturnsFalse_OnNonFeatureCollection()
 		{

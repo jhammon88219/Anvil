@@ -295,6 +295,8 @@ namespace Anvil.Services
 		public bool? WarningsShowTornado { get => _warningsShowTornado; set => SetProperty(ref _warningsShowTornado, value); }
 		private bool? _warningsShowSevere;
 		public bool? WarningsShowSevere { get => _warningsShowSevere; set => SetProperty(ref _warningsShowSevere, value); }
+		private bool? _warningsShowFlashFlood;
+		public bool? WarningsShowFlashFlood { get => _warningsShowFlashFlood; set => SetProperty(ref _warningsShowFlashFlood, value); }
 		private double? _warningsOpacity;
 		public double? WarningsOpacity { get => _warningsOpacity; set => SetProperty(ref _warningsOpacity, value); }
 

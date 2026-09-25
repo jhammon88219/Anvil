@@ -12,7 +12,7 @@ namespace Anvil.Services
 {
 	/// <summary>
 	/// Default <see cref="IWarningService"/>. Maintains the active, storm-based NWS Tornado / Severe
-	/// Thunderstorm WARNING polygons and caches them on disk as GeoJSON; no WebView2 here — MainWindow
+	/// Thunderstorm / Flash Flood WARNING polygons and caches them on disk as GeoJSON; no WebView2 here — MainWindow
 	/// maps the cache folder to the "warnings" virtual host so the page can fetch
 	/// https://warnings/warnings.geojson.
 	///
@@ -20,9 +20,10 @@ namespace Anvil.Services
 	/// mapservice. We switched after catching the WWA `watch_warn_adv` service reporting ZERO active
 	/// warnings while 24 were really out (its wrong-empty episodes were the "everything disappeared"
 	/// bug, and same-source corroboration couldn't detect them). CAP is authoritative, stable, and its
-	/// active feed already carries the storm-based polygon. We query the two convective warning events
-	/// (Tornado / Severe Thunderstorm) and TRANSFORM each alert into our render schema — `phenom` (TO/SV,
-	/// which warnings.js colors by), `cap_id` (the CAP URN = our merge key), `expiration`, `prod_type`.
+	/// active feed already carries the storm-based polygon. We query the three storm-based warning events
+	/// (Tornado / Severe Thunderstorm / Flash Flood) and TRANSFORM each alert into our render schema —
+	/// `phenom` (TO/SV/FF, which warnings.js colors by), `cap_id` (the CAP URN = our merge key),
+	/// `expiration`, `prod_type`, and the IBW damage-threat TIER (see <see cref="ThreatTier"/>).
 	///
 	/// NORTH-STAR CHECK: every cycle we also fetch the WWA mapservice's id set as an independent
 	/// cross-check and reconcile displayed-vs-CAP-vs-WWA into <see cref="WarningsHealthLog"/> (persisted
@@ -45,13 +46,13 @@ namespace Anvil.Services
 		// convective warning events. Returns a geo+json FeatureCollection with storm-based polygons; each
 		// alert's properties.id is the CAP URN (== WWA's cap_id). Fetched with Accept: application/geo+json.
 		private const string CapUrl =
-			"https://api.weather.gov/alerts/active?event=Tornado%20Warning,Severe%20Thunderstorm%20Warning";
+			"https://api.weather.gov/alerts/active?event=Tornado%20Warning,Severe%20Thunderstorm%20Warning,Flash%20Flood%20Warning";
 
 		// CROSS-CHECK only (never rendered): the WWA mapservice id set for the same warnings, so the
 		// health log can compare the two independent NWS systems. cap_id, no geometry (lightweight).
 		private const string WwaCrossCheckUrl =
 			"https://mapservices.weather.noaa.gov/eventdriven/rest/services/WWA/watch_warn_adv/MapServer/1/query" +
-			"?where=sig%3D%27W%27%20AND%20%28phenom%3D%27TO%27%20OR%20phenom%3D%27SV%27%29" +
+			"?where=sig%3D%27W%27%20AND%20%28phenom%3D%27TO%27%20OR%20phenom%3D%27SV%27%20OR%20phenom%3D%27FF%27%29" +
 			"&outFields=cap_id&returnGeometry=false&outSR=4326&f=geojson";
 
 		// A warning may linger this long past its stated expiration before we prune it (clock-skew grace;
@@ -124,22 +125,43 @@ namespace Anvil.Services
 			_health.Write(WarningsHealthLog.Reconcile(
 				DateTimeOffset.Now, _active.Keys, primaryIds, crossIds, _lastClassification));
 
-			var (tornado, severe) = CountByPhenom();
-			return new WarningFetchResult(WarningFetchStatus.Updated, _active.Count, tornado, severe);
+			var (tornado, severe, flashFlood, threats) = CountByPhenom();
+			return new WarningFetchResult(WarningFetchStatus.Updated, _active.Count, tornado, severe,
+				FlashFloodCount: flashFlood, Threats: threats);
 		}
 
-		// Tallies the current active set by phenom for the UI readout (TO = tornado, SV = severe t-storm).
-		private (int Tornado, int Severe) CountByPhenom()
+		// Tallies the current active set by phenom (TO / SV / FF) and by damage-threat tier for the UI readout.
+		private (int Tornado, int Severe, int FlashFlood, WarningThreatCounts Threats) CountByPhenom()
 		{
-			int tornado = 0, severe = 0;
+			int tornado = 0, severe = 0, flashFlood = 0;
+			int torPds = 0, torEmergency = 0, svDestructive = 0, ffConsiderable = 0, ffEmergency = 0;
 			foreach (var w in _active.Values)
 			{
-				var phenom = Str(w.Feature["properties"]?["phenom"]);
-				if (phenom == "TO") { tornado++; }
-				else if (phenom == "SV") { severe++; }
+				var props = w.Feature["properties"];
+				var phenom = Str(props?["phenom"]);
+				var tier = TierOf(props);
+				switch (phenom)
+				{
+					case "TO":
+						tornado++;
+						if (tier == 2) { torEmergency++; } else if (tier == 1) { torPds++; }
+						break;
+					case "SV":
+						severe++;
+						if (tier == 2) { svDestructive++; }
+						break;
+					case "FF":
+						flashFlood++;
+						if (tier == 2) { ffEmergency++; } else if (tier == 1) { ffConsiderable++; }
+						break;
+				}
 			}
-			return (tornado, severe);
+			return (tornado, severe, flashFlood,
+				new WarningThreatCounts(torEmergency, torPds, svDestructive, ffEmergency, ffConsiderable));
 		}
+
+		private static int TierOf(JsonNode? props) =>
+			props?["threat_tier"] is JsonValue v && v.TryGetValue<int>(out var t) ? t : 0;
 
 		/// <summary>
 		/// The robustness core: folds one fetch (its <paramref name="fetched"/> features and the
@@ -241,18 +263,21 @@ namespace Anvil.Services
 					var id = Str(props["id"]);
 					if (phenom is null || string.IsNullOrEmpty(id))
 					{
-						continue; // not one of our two events, or no id to key on
+						continue; // not one of our three events, or no id to key on
 					}
+					var threat = DamageThreat(props["parameters"], phenom);
 					features.Add(new JsonObject
 					{
 						["type"] = "Feature",
 						["geometry"] = geom.DeepClone(),
 						["properties"] = new JsonObject
 						{
-							["phenom"] = phenom,          // TO/SV — warnings.js colors by this
+							["phenom"] = phenom,          // TO/SV/FF — warnings.js colors by this
 							["prod_type"] = evt,          // human label
 							["cap_id"] = id,              // CAP URN = merge key (matches WWA cap_id)
 							["expiration"] = Str(props["expires"]),
+							["threat"] = threat,          // the IBW tag verbatim, lowercased ("" = base)
+							["threat_tier"] = ThreatTier(threat), // 0/1/2 — warnings.js widens the outline by this
 						},
 					});
 					ids.Add(id);
@@ -265,11 +290,44 @@ namespace Anvil.Services
 			}
 		}
 
-		// Maps a CAP event name to our phenom code (the only two we query).
+		// Maps a CAP event name to our phenom code (the three we query). ⚠️ FF is an EXACT match: "Flood
+		// Warning" (areal, river) and "Flash Flood Statement" (a follow-up) are different products.
 		private static string? PhenomForEvent(string evt) =>
 			evt.StartsWith("Tornado", StringComparison.OrdinalIgnoreCase) ? "TO" :
 			evt.StartsWith("Severe Thunderstorm", StringComparison.OrdinalIgnoreCase) ? "SV" :
+			evt.Equals("Flash Flood Warning", StringComparison.OrdinalIgnoreCase) ? "FF" :
 			null;
+
+		// The Impact-Based Warning damage-threat tag CAP carries in `parameters` (each value an array of one
+		// string): tornadoDamageThreat CONSIDERABLE (= PDS) / CATASTROPHIC (= Tornado Emergency);
+		// thunderstormDamageThreat CONSIDERABLE / DESTRUCTIVE; flashFloodDamageThreat CONSIDERABLE /
+		// CATASTROPHIC (= Flash Flood Emergency). Read ONLY the parameter that belongs to the phenom — an SV
+		// warning also carries a tornadoDetection tag, and that is not its damage threat. "" = base tag.
+		private static string DamageThreat(JsonNode? parameters, string phenom)
+		{
+			var key = phenom switch
+			{
+				"TO" => "tornadoDamageThreat",
+				"SV" => "thunderstormDamageThreat",
+				"FF" => "flashFloodDamageThreat",
+				_ => null,
+			};
+			if (key is null || parameters?[key] is not JsonNode node) { return string.Empty; }
+			var raw = node is JsonArray arr ? (arr.Count > 0 ? Str(arr[0]) : string.Empty) : Str(node);
+			return raw.Trim().ToLowerInvariant();
+		}
+
+		/// <summary>
+		/// The damage-threat tag as a tier the map and the card share: 0 = base, 1 = considerable (a PDS
+		/// tornado, a considerable flash flood), 2 = the TOP tier (catastrophic = an Emergency; SV's
+		/// "destructive" is its own top tag). Internal for tests.
+		/// </summary>
+		internal static int ThreatTier(string threat) => threat switch
+		{
+			"catastrophic" or "destructive" => 2,
+			"considerable" => 1,
+			_ => 0,
+		};
 
 		// Serializes the current active set as a GeoJSON FeatureCollection and moves it over the cache
 		// file. Each stored feature is deep-cloned again so the in-memory copies stay parentless (a JsonNode

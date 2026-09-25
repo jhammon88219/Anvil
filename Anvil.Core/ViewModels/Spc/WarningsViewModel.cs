@@ -7,7 +7,7 @@ using Anvil.Services;
 namespace Anvil.ViewModels
 {
 	/// <summary>
-	/// View model for the storm-based WARNING subsystem — active Tornado / Severe Thunderstorm Warnings
+	/// View model for the storm-based WARNING subsystem — active Tornado / Severe Thunderstorm / Flash Flood Warnings
 	/// (the modern forecaster-drawn polygons). Sibling of <see cref="WatchesViewModel"/>: watches are the
 	/// large outlook areas, warnings are the imminent-threat polygons, so each gets its own layer, toggle,
 	/// and refresh loop. Surfaced under NowCast in the UI (current-conditions alerts, not a forecast).
@@ -36,10 +36,40 @@ namespace Anvil.ViewModels
 		protected override Task SetVisibleAsync(bool visible) => _mapService.SetWarningsVisibleAsync(visible);
 		protected override Task SetOpacityAsync(double opacity) => _mapService.SetWarningsOpacityAsync(opacity);
 		protected override Task SetSourceAsync(string url) => _mapService.SetWarningSourceAsync(url);
-		protected override Task SetKindsAsync(bool tornado, bool severe) => _mapService.SetWarningKindsAsync(tornado, severe);
+		protected override Task SetKindsAsync(bool tornado, bool severe, bool flashFlood) => _mapService.SetWarningKindsAsync(tornado, severe, flashFlood);
 
 		protected override string ItemNounSingular => "warning";
 		protected override string ItemNounPlural => "warnings";
+
+		public override bool SupportsFlashFlood => true;
+
+		// The elevated damage-threat tags from the latest fetch (see WarningService.ThreatTier).
+		private WarningThreatCounts _threats = WarningThreatCounts.None;
+
+		/// <summary>
+		/// The elevated alerts in effect, worst first — "1 tornado emergency · 2 PDS tornado · 1 flash flood
+		/// emergency". Counts EVERY active warning, not just the ticked types, for the same reason the
+		/// headline does; the map marks the same warnings with a heavier outline.
+		/// </summary>
+		public override string CardThreats
+		{
+			get
+			{
+				var t = _threats;
+				var parts = new System.Collections.Generic.List<string>(5);
+				Add(parts, t.TornadoEmergency, "tornado emergency", "tornado emergencies");
+				Add(parts, t.FlashFloodEmergency, "flash flood emergency", "flash flood emergencies");
+				Add(parts, t.TornadoPds, "PDS tornado", "PDS tornado");
+				Add(parts, t.SevereDestructive, "destructive storm", "destructive storms");
+				Add(parts, t.FlashFloodConsiderable, "considerable flash flood", "considerable flash flood");
+				return string.Join(" · ", parts);
+
+				static void Add(System.Collections.Generic.List<string> list, int n, string one, string many)
+				{
+					if (n > 0) { list.Add($"{n} {(n == 1 ? one : many)}"); }
+				}
+			}
+		}
 
 		// ⚠️ The one overlay that states its cadence on the card. Warnings are the short-fused layer and
 		// the poll is ADAPTIVE, so "how current is this number" has a genuinely variable answer; watches
@@ -86,7 +116,8 @@ namespace Anvil.ViewModels
 					// Push the per-type counts to the NowCast readout on the UI thread, then reload the map.
 					_dispatcher.Post(() =>
 					{
-						ApplyRefreshed(result.ActiveCount, result.TornadoCount, result.SevereCount);
+						_threats = result.Threats ?? WarningThreatCounts.None;
+						ApplyRefreshed(result.ActiveCount, result.TornadoCount, result.SevereCount, result.FlashFloodCount);
 						RepushSource();
 					});
 				}

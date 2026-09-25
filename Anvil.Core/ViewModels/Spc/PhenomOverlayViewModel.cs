@@ -5,7 +5,8 @@ namespace Anvil.ViewModels
 {
 	/// <summary>
 	/// Base for a CONVECTIVE ALERT overlay whose features carry a `phenom` of TO (tornado) or SV (severe
-	/// thunderstorm) — the SPC watch boxes and the storm-based warning polygons. Sits between
+	/// thunderstorm) — the SPC watch boxes and the storm-based warning polygons, the latter plus an
+	/// optional third FF (flash flood) type (<see cref="SupportsFlashFlood"/>). Sits between
 	/// <see cref="MapOverlayViewModel"/> (source / visibility / opacity / map-ready latch) and the two
 	/// concrete VMs, and adds everything the NowCast window's two alert sections need: one toggle per
 	/// phenomenon, that phenomenon's live count, and the section's summary card.
@@ -45,12 +46,33 @@ namespace Anvil.ViewModels
 			set { if (SetProperty(ref _showSevere, value)) { OnKindsChanged(); } }
 		}
 
+		private bool _showFlashFlood = true;
+
+		/// <summary>
+		/// Whether this overlay HAS a flash-flood (FF) type. Warnings do; watches don't — SPC watches are
+		/// TO/SV only and a Flash Flood Watch is a zone product with no polygon. ⚠️ When false the FF tick is
+		/// ignored by every aggregate below, so a watch overlay behaves exactly as it did with two types.
+		/// </summary>
+		public virtual bool SupportsFlashFlood => false;
+
+		/// <summary>Draw flash-flood (FF) features while the mode is on. Ticked by default; meaningful
+		/// only when <see cref="SupportsFlashFlood"/>.</summary>
+		public bool ShowFlashFlood
+		{
+			get => _showFlashFlood;
+			set { if (SetProperty(ref _showFlashFlood, value)) { OnKindsChanged(); } }
+		}
+
+		// The FF tick as it counts toward the aggregates — always false on an overlay without an FF type.
+		private bool FlashFloodOn => SupportsFlashFlood && _showFlashFlood;
+
 		/// <summary>Whether any type is ticked — the gate on the opacity slider and the card's footer.
 		/// NOT the same as "on the map": that also needs <see cref="IsModeActive"/>.</summary>
-		public bool AnyShown => _showTornado || _showSevere;
+		public bool AnyShown => _showTornado || _showSevere || FlashFloodOn;
 
 		/// <summary>The section header's tri-state: true = every type ticked, false = none, null = some.</summary>
-		public bool? AllShown => _showTornado && _showSevere ? true : AnyShown ? null : false;
+		public bool? AllShown =>
+			_showTornado && _showSevere && (!SupportsFlashFlood || _showFlashFlood) ? true : AnyShown ? null : false;
 
 		/// <summary>
 		/// The section header checkbox: ticks every type, unless every type is already ticked, in which case
@@ -59,12 +81,15 @@ namespace Anvil.ViewModels
 		public void ToggleAll()
 		{
 			var on = AllShown != true;
-			// Fields, then ONE OnKindsChanged — going through both setters would push a half-applied filter.
-			if (_showTornado == on && _showSevere == on) { return; }
+			// Fields, then ONE OnKindsChanged — going through the setters would push a half-applied filter.
+			var ffSame = !SupportsFlashFlood || _showFlashFlood == on;
+			if (_showTornado == on && _showSevere == on && ffSame) { return; }
 			_showTornado = on;
 			_showSevere = on;
+			if (SupportsFlashFlood) { _showFlashFlood = on; }
 			OnPropertyChanged(nameof(ShowTornado));
 			OnPropertyChanged(nameof(ShowSevere));
+			OnPropertyChanged(nameof(ShowFlashFlood));
 			OnKindsChanged();
 		}
 
@@ -97,21 +122,22 @@ namespace Anvil.ViewModels
 			RaiseCard();
 
 			if (!IsMapReady) { return; }
-			_ = SetKindsAsync(_showTornado, _showSevere);
+			_ = SetKindsAsync(_showTornado, _showSevere, FlashFloodOn);
 			ApplyVisibility();
 		}
 
 		private void ApplyVisibility() => IsVisible = ShouldDraw;
 
-		/// <summary>Push the shown phenomena to the page (the feature-specific IMapService call).</summary>
-		protected abstract Task SetKindsAsync(bool tornado, bool severe);
+		/// <summary>Push the shown phenomena to the page (the feature-specific IMapService call).
+		/// <paramref name="flashFlood"/> is always false on an overlay without an FF type.</summary>
+		protected abstract Task SetKindsAsync(bool tornado, bool severe, bool flashFlood);
 
 		public override async Task OnMapsReadyAsync()
 		{
 			// Kinds FIRST (the page keeps the filter and applies it at layer-add), then the base pushes
 			// visibility — same ordering rule as OnKindsChanged. IsVisible is written before the base sets
 			// IsMapReady, so this assignment pushes nothing on its own.
-			await SetKindsAsync(_showTornado, _showSevere);
+			await SetKindsAsync(_showTornado, _showSevere, FlashFloodOn);
 			IsVisible = ShouldDraw;
 			await base.OnMapsReadyAsync();
 		}
@@ -143,6 +169,15 @@ namespace Anvil.ViewModels
 			private set => SetProperty(ref _severeCount, value);
 		}
 
+		private int _flashFloodCount;
+
+		/// <summary>Active flash-flood (FF) features — the count on the flash-flood row.</summary>
+		public int FlashFloodCount
+		{
+			get => _flashFloodCount;
+			private set => SetProperty(ref _flashFloodCount, value);
+		}
+
 		// ── The card ──
 
 		private DateTimeOffset? _lastUpdated;
@@ -152,10 +187,11 @@ namespace Anvil.ViewModels
 		/// A cycle that actually pulled data: the counts, the "updated" stamp, and a cleared error.
 		/// ⚠️ Call on the UI thread — the refresh loops run on background timers.
 		/// </summary>
-		protected void ApplyRefreshed(int activeCount, int tornadoCount, int severeCount)
+		protected void ApplyRefreshed(int activeCount, int tornadoCount, int severeCount, int flashFloodCount = 0)
 		{
 			TornadoCount = tornadoCount;
 			SevereCount = severeCount;
+			FlashFloodCount = flashFloodCount;
 			_lastUpdated = DateTimeOffset.Now;
 			_errorMessage = string.Empty;
 			ActiveCount = activeCount;
@@ -200,9 +236,30 @@ namespace Anvil.ViewModels
 		public string CardFooter =>
 			_errorMessage.Length > 0 ? _errorMessage :
 			!AnyShown ? "None shown — pick a type below" :
-			!_showSevere ? "Tornado only" :
-			!_showTornado ? "Severe thunderstorm only" :
-			string.Empty;
+			AllShown == true ? string.Empty :
+			ShownPhrase();
+
+		// "Tornado only" / "Tornado and flash flood only" — the ticked types, named in row order.
+		private string ShownPhrase()
+		{
+			var names = new System.Collections.Generic.List<string>(3);
+			if (_showTornado) { names.Add("tornado"); }
+			if (_showSevere) { names.Add("severe thunderstorm"); }
+			if (FlashFloodOn) { names.Add("flash flood"); }
+			var joined = names.Count switch
+			{
+				1 => names[0],
+				2 => $"{names[0]} and {names[1]}",
+				_ => string.Join(", ", names),
+			};
+			return char.ToUpperInvariant(joined[0]) + joined[1..] + " only";
+		}
+
+		/// <summary>
+		/// A card line naming the ELEVATED alerts in effect (a tornado emergency, a PDS…) — the overlay that
+		/// can tell overrides it. Empty = the line collapses. Raised with the other card lines.
+		/// </summary>
+		public virtual string CardThreats => string.Empty;
 
 		/// <summary>Singular noun for the headline ("watch" / "warning").</summary>
 		protected abstract string ItemNounSingular { get; }
@@ -223,6 +280,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(CardHeadline));
 			OnPropertyChanged(nameof(CardContext));
 			OnPropertyChanged(nameof(CardFooter));
+			OnPropertyChanged(nameof(CardThreats));
 		}
 	}
 }

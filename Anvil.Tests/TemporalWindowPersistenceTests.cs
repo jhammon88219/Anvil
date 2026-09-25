@@ -132,7 +132,7 @@ namespace Anvil.Tests
 			var s = new AppSettings
 			{
 				RadarOpacity = 0.35, ShowRadarLayer = false,
-				WarningsShowTornado = false, WarningsShowSevere = true, WarningsOpacity = 0.4,
+				WarningsShowTornado = false, WarningsShowSevere = true, WarningsShowFlashFlood = false, WarningsOpacity = 0.4,
 				WatchesShowTornado = true, WatchesShowSevere = false, WatchesOpacity = 0.6,
 				StormReportsShowTornado = false, StormReportsShowWind = true, StormReportsShowHail = false, StormReportsOpacity = 0.5,
 				DamageSurveysShowAreas = false, DamageSurveysShowTracks = true, DamageSurveysShowPoints = true, DamageSurveysOpacity = 0.25,
@@ -144,6 +144,7 @@ namespace Anvil.Tests
 			Assert.Equal(0.35, rig.Radar.RadarOpacity);
 			Assert.False(rig.Radar.ShowRadarLayer);
 			Assert.False(rig.Warnings.ShowTornado);
+			Assert.False(rig.Warnings.ShowFlashFlood);
 			Assert.Equal(0.4, rig.Warnings.Opacity);
 			Assert.False(rig.Watches.ShowSevere);
 			Assert.Equal(0.6, rig.Watches.Opacity);
@@ -180,6 +181,7 @@ namespace Anvil.Tests
 			Assert.Equal(0.55, s.RadarOpacity);
 			Assert.False(s.WarningsShowTornado);
 			Assert.False(s.WarningsShowSevere);
+			Assert.False(s.WarningsShowFlashFlood);
 			Assert.False(s.StormReportsShowWind);
 			Assert.Equal(0.9, s.DamageSurveysOpacity);
 			Assert.Equal(2, s.PastOutlookDay);

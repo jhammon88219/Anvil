@@ -32,6 +32,12 @@ namespace Anvil.Controls.Composites
 		/// <summary>Tooltip for the severe row, e.g. "Show severe thunderstorm watches".</summary>
 		public string SevereTooltip(string noun) => $"Show severe thunderstorm {noun}";
 
+		/// <summary>Tooltip for the flash-flood row, e.g. "Show flash flood warnings".</summary>
+		public string FlashFloodTooltip(string noun) => $"Show flash flood {noun}";
+
+		// x:Bind helper: the flash-flood row exists only on an overlay that has that type (warnings).
+		public Visibility Shown(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+
 		/// <summary>
 		/// Plural noun for what this instance draws — "watches" or "warnings". The rows are labelled by
 		/// PHENOMENON ("Tornado", "Severe thunderstorm") because the section heading already says which

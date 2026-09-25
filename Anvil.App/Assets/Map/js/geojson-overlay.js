@@ -28,7 +28,10 @@
 //   colors      — { value: cssColor, … } match table for colorProp
 //   colorDefault— fallback color for any other/absent value
 //   fillBase, lineBase — base fill-/line-opacity at opacity multiplier 1 (the default look)
-//   lineWidth   — outline width in px
+//   lineWidth   — outline width in px: a number, or a data-driven MapLibre expression (warnings.js
+//                 widens its outline by the feature's damage-threat tier)
+//   sortKey     — optional expression → fill-sort-key + line-sort-key (higher draws ON TOP), so an
+//                 overlay can keep a small urgent polygon above a large one; omitted = source order
 //   beforeId    — optional (map) => layer id to insert BENEATH; omitted = on top of the stack
 //   logName     — label used in the console.error on a failed fetch
 //
@@ -46,7 +49,7 @@ export function createGeojsonOverlay(config) {
         sourceId, fillLayerId, lineLayerId,
         colorProp, colors, colorDefault,
         fillBase, lineBase, lineWidth,
-        beforeId, logName,
+        beforeId, logName, sortKey,
     } = config;
 
     let url = null;
@@ -103,11 +106,13 @@ export function createGeojsonOverlay(config) {
         map.addLayer({
             id: fillLayerId, type: 'fill', source: sourceId,
             filter: filter === null ? undefined : filter,
+            layout: sortKey ? { 'fill-sort-key': sortKey } : {},
             paint: { 'fill-color': colorExpr(), 'fill-opacity': fillBase * opacity }
         }, before);
         map.addLayer({
             id: lineLayerId, type: 'line', source: sourceId,
             filter: filter === null ? undefined : filter,
+            layout: sortKey ? { 'line-sort-key': sortKey } : {},
             paint: { 'line-color': colorExpr(), 'line-width': lineWidth, 'line-opacity': lineBase * opacity }
         }, before);
     }

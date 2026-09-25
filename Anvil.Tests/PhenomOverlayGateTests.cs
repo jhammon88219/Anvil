@@ -11,17 +11,83 @@ namespace Anvil.Tests
 	/// </summary>
 	public class PhenomOverlayGateTests
 	{
-		private sealed class FakeOverlay : PhenomOverlayViewModel
+		private class FakeOverlay : PhenomOverlayViewModel
 		{
 			public readonly List<bool> VisiblePushes = new();
 			public readonly List<(bool Tornado, bool Severe)> KindPushes = new();
+			public readonly List<bool> FlashFloodPushes = new();
 			protected override string SourceUrl => "https://test/x.geojson";
 			protected override string ItemNounSingular => "warning";
 			protected override string ItemNounPlural => "warnings";
 			protected override Task SetVisibleAsync(bool visible) { VisiblePushes.Add(visible); return Task.CompletedTask; }
 			protected override Task SetOpacityAsync(double opacity) => Task.CompletedTask;
 			protected override Task SetSourceAsync(string url) => Task.CompletedTask;
-			protected override Task SetKindsAsync(bool tornado, bool severe) { KindPushes.Add((tornado, severe)); return Task.CompletedTask; }
+			protected override Task SetKindsAsync(bool tornado, bool severe, bool flashFlood)
+			{
+				KindPushes.Add((tornado, severe));
+				FlashFloodPushes.Add(flashFlood);
+				return Task.CompletedTask;
+			}
+		}
+
+		// The warnings shape: a third FF type.
+		private sealed class FakeFloodOverlay : FakeOverlay
+		{
+			public override bool SupportsFlashFlood => true;
+		}
+
+		[Fact]
+		public async Task NoFlashFloodType_FfTickIgnored_NeverPushed()
+		{
+			var vm = new FakeOverlay { IsModeActive = true };
+			await vm.OnMapsReadyAsync();
+
+			vm.ShowTornado = false;
+			vm.ShowSevere = false;
+
+			Assert.True(vm.ShowFlashFlood);   // the (unused) field keeps its default…
+			Assert.False(vm.AnyShown);        // …but counts for nothing on a watch-shaped overlay
+			Assert.False(vm.AllShown);
+			Assert.False(vm.IsVisible);
+			Assert.DoesNotContain(true, vm.FlashFloodPushes);
+		}
+
+		[Fact]
+		public async Task FlashFloodOnly_KeepsLayerDrawn_AndFooterNamesIt()
+		{
+			var vm = new FakeFloodOverlay { IsModeActive = true };
+			await vm.OnMapsReadyAsync();
+
+			vm.ShowTornado = false;
+			vm.ShowSevere = false;
+
+			Assert.True(vm.AnyShown);
+			Assert.Null(vm.AllShown);
+			Assert.True(vm.IsVisible);
+			Assert.True(vm.FlashFloodPushes[^1]);
+			Assert.Equal("Flash flood only", vm.CardFooter);
+
+			vm.ShowTornado = true;
+			Assert.Equal("Tornado and flash flood only", vm.CardFooter);
+		}
+
+		[Fact]
+		public async Task FlashFloodOverlay_ToggleAll_CoversAllThree()
+		{
+			var vm = new FakeFloodOverlay { IsModeActive = true };
+			await vm.OnMapsReadyAsync();
+
+			vm.ShowFlashFlood = false;
+			Assert.Null(vm.AllShown);          // TO+SV alone is not "all" when FF exists
+
+			vm.ToggleAll();
+			Assert.True(vm.ShowFlashFlood);
+			Assert.True(vm.AllShown);
+			Assert.Equal(string.Empty, vm.CardFooter);
+
+			vm.ToggleAll();
+			Assert.False(vm.ShowFlashFlood);
+			Assert.False(vm.IsVisible);
 		}
 
 		[Fact]

@@ -4,13 +4,16 @@
      watch boxes, once for the storm-based warnings — bound to a PhenomOverlayViewModel each time.
 
        ┌────────────────────────────────────────────┐
-       │ 7 active warnings                          │   the card: the total in effect, when it was
-       │ Updated 12:04 PM · checking every 15s      │   last confirmed, and — in the footer — what
-       │ Severe thunderstorm only                   │   the rows below are actually drawing
+       │ 9 active warnings                          │   the card: the total in effect, the ELEVATED
+       │ 1 tornado emergency · 1 PDS tornado        │   tags (CardThreats, warnings only, collapses
+       │ Updated 12:04 PM · checking every 15s      │   when none), when it was last confirmed, and
+       │ Severe thunderstorm and flash flood only   │   — in the footer — what the rows are drawing
        └────────────────────────────────────────────┘
        ────────────────────────────────────────────────
-       [ ] ■ Tornado                              0     ← one row per phenomenon: the toggle, the
-       [x] ■ Severe thunderstorm                  7       map colour, the name, that type's count
+       [ ] ■ Tornado                              2     ← one row per phenomenon: the toggle, the
+       [x] ■ Severe thunderstorm                  5       map colour, the name, that type's count
+       [x] ■ Flash flood                          2     ← warnings only (SupportsFlashFlood); the
+                                                          watches instance collapses it
 
      ⚠️ OPACITY IS NOT HERE — it lives in the host's section header (PanelSection ShowOpacity), so it can be
      set with the section closed.
@@ -28,7 +31,7 @@
      select-all lives in the HOST's section header (NowCastTab), not here.
 
      ⚠️ The swatch colours are the phenom colours the map draws (watches.js / warnings.js, both TO red /
-     SV yellow). They are literals in both places — change one, change the other.
+     SV yellow; warnings.js FF green). They are literals in both places — change one, change the other.
 
      ⚠️ THE SECTION HEADING IS NOT HERE — the host draws its own above this control (NowCastTab writes
      "Watches" over one instance and "Warnings" over the other). The window owns its section structure;
@@ -62,6 +65,10 @@
                 <TextBlock Text="{x:Bind ViewModel.CardHeadline, Mode=OneWay}"
                            FontSize="15"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <TextBlock Text="{x:Bind ViewModel.CardThreats, Mode=OneWay}"
+                           FontSize="13" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap"
+                           Visibility="{x:Bind HasText(ViewModel.CardThreats), Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                 <TextBlock Text="{x:Bind ViewModel.CardContext, Mode=OneWay}"
                            FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
                            Visibility="{x:Bind HasText(ViewModel.CardContext), Mode=OneWay}"
@@ -76,16 +83,14 @@
         <Border Grid.Row="1" Height="1" Margin="0,14"
                 Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
-        <Grid Grid.Row="2" RowSpacing="9">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- Tornado -->
-                <RowDefinition Height="Auto"/> <!-- Severe thunderstorm -->
-            </Grid.RowDefinitions>
+        <!-- A StackPanel, not a Grid: Grid.RowSpacing still spaces a COLLAPSED row, which would leave a
+             gap under the watches instance where its (absent) flash-flood row would be. -->
+        <StackPanel Grid.Row="2" Spacing="9">
 
             <!-- One row per phenomenon. The count is right-aligned in its own column so the numbers form a
                  column of their own however long the names get — the same three-column row as the
                  storm-report types. -->
-            <CheckBox Grid.Row="0" MinWidth="0" HorizontalAlignment="Stretch"
+            <CheckBox MinWidth="0" HorizontalAlignment="Stretch"
                       IsChecked="{x:Bind ViewModel.ShowTornado, Mode=TwoWay}"
                       ToolTipService.ToolTip="{x:Bind TornadoTooltip(AlertNoun), Mode=OneWay}">
                 <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
@@ -102,7 +107,7 @@
                 </Grid>
             </CheckBox>
 
-            <CheckBox Grid.Row="1" MinWidth="0" HorizontalAlignment="Stretch"
+            <CheckBox MinWidth="0" HorizontalAlignment="Stretch"
                       IsChecked="{x:Bind ViewModel.ShowSevere, Mode=TwoWay}"
                       ToolTipService.ToolTip="{x:Bind SevereTooltip(AlertNoun), Mode=OneWay}">
                 <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
@@ -118,6 +123,25 @@
                                FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </Grid>
             </CheckBox>
-        </Grid>
+
+            <!-- Warnings only. Collapsed on the watches instance (SPC watches have no FF). -->
+            <CheckBox MinWidth="0" HorizontalAlignment="Stretch"
+                      Visibility="{x:Bind Shown(ViewModel.SupportsFlashFlood), Mode=OneWay}"
+                      IsChecked="{x:Bind ViewModel.ShowFlashFlood, Mode=TwoWay}"
+                      ToolTipService.ToolTip="{x:Bind FlashFloodTooltip(AlertNoun), Mode=OneWay}">
+                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2"
+                            Background="#2EE05A" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="Flash flood" FontSize="13" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind Fmt(ViewModel.FlashFloodCount), Mode=OneWay}"
+                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </Grid>
+            </CheckBox>
+        </StackPanel>
     </Grid>
 </UserControl>

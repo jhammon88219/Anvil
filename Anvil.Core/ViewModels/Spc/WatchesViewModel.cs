@@ -35,7 +35,7 @@ namespace Anvil.ViewModels
 		protected override Task SetVisibleAsync(bool visible) => _mapService.SetWatchesVisibleAsync(visible);
 		protected override Task SetOpacityAsync(double opacity) => _mapService.SetWatchesOpacityAsync(opacity);
 		protected override Task SetSourceAsync(string url) => _mapService.SetWatchSourceAsync(url);
-		protected override Task SetKindsAsync(bool tornado, bool severe) => _mapService.SetWatchKindsAsync(tornado, severe);
+		protected override Task SetKindsAsync(bool tornado, bool severe, bool flashFlood) => _mapService.SetWatchKindsAsync(tornado, severe);
 
 		protected override string ItemNounSingular => "watch";
 		protected override string ItemNounPlural => "watches";
