@@ -93,6 +93,17 @@
       ]
     },
     {
+      "id": "bridge-creek-moore-1999",
+      "type": "tornado",
+      "name": "Bridge Creek-Moore, OK",
+      "notes": "F5, May 3 1999 outbreak - DOW measured ~301 mph, the fastest winds ever recorded.",
+      "source": "NWS Norman event summary: tornado 6:23-7:48 PM CDT (23:23Z May 3 - 00:48Z May 4)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KTLX", "startUtc": "1999-05-03T23:00:00Z", "minutes": 120 }
+      ]
+    },
+    {
       "id": "katrina-2005",
       "type": "hurricane",
       "name": "Hurricane Katrina",
