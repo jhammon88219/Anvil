@@ -102,6 +102,15 @@ namespace Anvil.Services
 			set => SetProperty(ref _settingsTabIndex, value);
 		}
 
+		private int _atlasTabIndex;
+		/// <summary>Which tab the Anvil Atlas reopens on: 0 = Radar sites, 1 = Past events. A raw index,
+		/// clamped by <see cref="ViewModels.MapViewModel.AtlasTabIndex"/>.</summary>
+		public int AtlasTabIndex
+		{
+			get => _atlasTabIndex;
+			set => SetProperty(ref _atlasTabIndex, value);
+		}
+
 		private string _settingsTabPlacement = "Top";
 		/// <summary>
 		/// Where the Settings window draws its tab strip: <c>"Top"</c> (a rail across the top, the default) or

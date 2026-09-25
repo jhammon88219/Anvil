@@ -63,14 +63,15 @@ namespace Anvil.Services
 		public string UserFilePath => Path.Combine(_userDirectory, UserFileName);
 
 		/// <remarks>⚠️ The ORDER is the list's grouping (the view model starts a header wherever the group
-		/// changes): yours first, then built-ins by <see cref="SavedEventKind"/> (Other last), newest first within each.</remarks>
+		/// changes): by <see cref="SavedEventKind"/> (Other last), newest first within each. The user's own sit
+		/// IN their kind's group (the Atlas tags them Custom) — agreed in the Anvil Atlas redesign.</remarks>
 		public IReadOnlyList<SavedEvent> GetEvents() =>
-			_user.OrderByDescending(e => e.StartUtc)
-				.Concat(_builtIn.OrderBy(e => e.Kind == SavedEventKind.Other ? int.MaxValue : (int)e.Kind)
-					.ThenByDescending(e => e.StartUtc))
+			_builtIn.Concat(_user)
+				.OrderBy(e => e.Kind == SavedEventKind.Other ? int.MaxValue : (int)e.Kind)
+				.ThenByDescending(e => e.StartUtc)
 				.ToList();
 
-		public SavedEvent Add(string name, IReadOnlyList<SavedEventLeg> legs, string notes)
+		public SavedEvent Add(string name, IReadOnlyList<SavedEventLeg> legs, string notes, SavedEventKind kind = SavedEventKind.Other)
 		{
 			var ev = new SavedEvent(
 				"user-" + Guid.NewGuid().ToString("N"),
@@ -79,7 +80,8 @@ namespace Anvil.Services
 				0,
 				(notes ?? string.Empty).Trim(),
 				string.Empty,
-				IsBuiltIn: false);
+				IsBuiltIn: false,
+				kind);
 
 			if (Validate(ev, DateTimeOffset.UtcNow) is { } problem)
 			{
@@ -89,6 +91,44 @@ namespace Anvil.Services
 			_user.Add(ev);
 			SaveUserEvents();
 			return ev;
+		}
+
+		public SavedEvent? SetLegKey(string id, int legIndex, SavedEventKey? key)
+		{
+			// Same membership rule as Remove: only an event from the USER file can be edited.
+			var index = _user.FindIndex(e => string.Equals(e.Id, id, StringComparison.Ordinal));
+			if (index < 0 || legIndex < 0 || legIndex >= _user[index].Legs.Count)
+			{
+				return null;
+			}
+
+			var ev = _user[index];
+			var legs = ev.Legs.ToList();
+			legs[legIndex] = legs[legIndex] with { Key = key };
+			var updated = ev with { Legs = legs };
+			if (Validate(updated, DateTimeOffset.UtcNow) is { } problem)
+			{
+				throw new ArgumentException(problem);
+			}
+
+			_user[index] = updated;
+			SaveUserEvents();
+			return updated;
+		}
+
+		public SavedEvent? SetKind(string id, SavedEventKind kind)
+		{
+			var index = _user.FindIndex(e => string.Equals(e.Id, id, StringComparison.Ordinal));
+			if (index < 0)
+			{
+				return null;
+			}
+			if (_user[index].Kind != kind)
+			{
+				_user[index] = _user[index] with { Kind = kind };
+				SaveUserEvents();
+			}
+			return _user[index];
 		}
 
 		public bool Remove(string id)
@@ -153,15 +193,36 @@ namespace Anvil.Services
 				{
 					return $"'{site}' isn't a radar site id.";
 				}
+				if (leg.Key is { } key && ValidateKey(leg, key) is { } keyProblem)
+				{
+					return keyProblem;
+				}
 			}
 
+			return null;
+		}
+
+		/// <summary>Why a leg's key time can't be used, in words for the user — or null when it's fine.</summary>
+		/// <remarks>⚠️ OVERLAP, not containment — see <see cref="SavedEventKey"/>.</remarks>
+		public static string? ValidateKey(SavedEventLeg leg, SavedEventKey key)
+		{
+			if (key.EndUtc is { } end && end <= key.StartUtc)
+			{
+				return "The end time must come after the start.";
+			}
+			var last = key.EndUtc ?? key.StartUtc;
+			if (key.StartUtc > leg.EndUtc || last < leg.StartUtc)
+			{
+				return "The time must fall within the replay window.";
+			}
 			return null;
 		}
 
 		// ── JSON ───────────────────────────────────────────────────────────────────────────────────
 		// Shape (both files):
 		// { "events": [ { "id", "type" (tornado|hurricane|derecho, optional), "name", "notes", "source", "defaultLeg",
-		//                 "legs": [ { "site": "KTLX"|null, "startUtc": "2013-05-31T22:30:00Z", "minutes": 120 } ] } ] }
+		//                 "legs": [ { "site": "KTLX"|null, "startUtc": "2013-05-31T22:30:00Z", "minutes": 120,
+		//                             "key": { "startUtc", "endUtc" (optional), "place" (optional) } (optional) } ] } ] }
 
 		internal static List<SavedEvent> Parse(string json, bool builtIn, List<string> problems)
 		{
@@ -210,9 +271,9 @@ namespace Anvil.Services
 				l.TryGetProperty("site", out var s) && s.ValueKind == JsonValueKind.String
 					? s.GetString()!.Trim().ToUpperInvariant()
 					: null,
-				DateTimeOffset.Parse(l.GetProperty("startUtc").GetString()!, CultureInfo.InvariantCulture,
-					DateTimeStyles.AssumeUniversal).ToUniversalTime(),
-				l.GetProperty("minutes").GetInt32())).ToList();
+				ParseUtc(l.GetProperty("startUtc").GetString()),
+				l.GetProperty("minutes").GetInt32(),
+				ReadKey(l))).ToList();
 
 			return new SavedEvent(
 				e.GetProperty("id").GetString() ?? throw new FormatException("an event has no id"),
@@ -224,6 +285,34 @@ namespace Anvil.Services
 				builtIn,
 				ReadKind(OptionalString(e, "type")));
 		}
+
+		private static SavedEventKey? ReadKey(JsonElement leg)
+		{
+			if (!leg.TryGetProperty("key", out var k) || k.ValueKind != JsonValueKind.Object)
+			{
+				return null;
+			}
+			return new SavedEventKey(
+				ParseUtc(k.GetProperty("startUtc").GetString()),
+				k.TryGetProperty("endUtc", out var e) && e.ValueKind == JsonValueKind.String ? ParseUtc(e.GetString()) : null,
+				OptionalString(k, "place").Trim());
+		}
+
+		private static DateTimeOffset ParseUtc(string? text) =>
+			DateTimeOffset.Parse(text ?? throw new FormatException("a time is missing"), CultureInfo.InvariantCulture,
+				DateTimeStyles.AssumeUniversal).ToUniversalTime();
+
+		private static string FormatUtc(DateTimeOffset t) =>
+			t.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+
+		// The JSON "type" a kind writes back as — the inverse of ReadKind. Other writes nothing.
+		private static string? KindToken(SavedEventKind kind) => kind switch
+		{
+			SavedEventKind.Tornado => "tornado",
+			SavedEventKind.Hurricane => "hurricane",
+			SavedEventKind.Derecho => "derecho",
+			_ => null,
+		};
 
 		private static SavedEventKind ReadKind(string type) => type.Trim().ToLowerInvariant() switch
 		{
@@ -284,14 +373,23 @@ namespace Anvil.Services
 				["events"] = new JsonArray(_user.Select(e => (JsonNode)new JsonObject
 				{
 					["id"] = e.Id,
+					["type"] = KindToken(e.Kind),
 					["name"] = e.Name,
 					["notes"] = e.Notes,
 					["defaultLeg"] = e.DefaultLegIndex,
 					["legs"] = new JsonArray(e.Legs.Select(l => (JsonNode)new JsonObject
 					{
 						["site"] = l.SiteId,
-						["startUtc"] = l.StartUtc.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
+						["startUtc"] = FormatUtc(l.StartUtc),
 						["minutes"] = l.DurationMinutes,
+						["key"] = l.Key is { } key
+							? new JsonObject
+							{
+								["startUtc"] = FormatUtc(key.StartUtc),
+								["endUtc"] = key.EndUtc is { } end ? FormatUtc(end) : null,
+								["place"] = key.Place,
+							}
+							: null,
 					}).ToArray()),
 				}).ToArray()),
 			};

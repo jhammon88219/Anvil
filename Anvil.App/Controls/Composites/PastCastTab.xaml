@@ -20,18 +20,16 @@
        │  Start   [ 5:00 PM                   ▾]              │  ← the PICKERS (ViewModel.Radar)
        │  Window  [30m│1h│▓▓2h▓▓│3h│6h│12h]                   │
        │     ›   Saved events                                 │  ← jump the pickers to a named
-       │     [ Search events, types, sites or years   ]       │     event; NOT a map layer
-       │     [▓All▓│Tornado│Hurricane│Derecho│Yours]          │  ← by TYPE (JSON "type")
-       │     YOURS                                            │  ← group header = first row of
-       │     ▌Tuesday's MCS                  [KDVN] [🗑]      │     a group; yours, then the
-       │     ▌Sep 1, 2026 · 7:00 AM · 6h                      │     built-ins by type
-       │     TORNADOES  (then HURRICANES, DERECHOS)           │
-       │      Long-track storm               [KGWX +1]        │  (illustrative; picking a row or
-       │      Apr 27, 2011 · 3:00 → 6:30 PM                   │   a leg LOADS it)
+       │     [ Search events, types, sites  ] Open in Atlas › │     event; NOT a map layer. The
+       │     Tornado · 10                                     │     link opens the Anvil Atlas's
+       │     ▌Tuesday's MCS [Custom]         [KDVN] [🗑]      │     Past events tab on the pick
+       │     ▌Sep 1, 2026 · 7:00 AM · 6h                      │  ← group header = first row of a
+       │      Long-track storm               [KGWX +1]        │     group: by TYPE, yours among
+       │      Apr 27, 2011 · 3:00 → 6:30 PM                   │     them (Custom), newest first
        │      KGWX ▕▓▓▓▓▓▓▓▓░░░░░░░░▕  3:00 PM · 1h            │  ← legs: only on the picked row,
        │      KBMX ▕░░░░▓▓▓▓▓▓▓▓▓▓▓▓▕  3:30 PM · 3h            │     only when there's a choice
-       │      [← Previous radar]  [Next radar →]              │
-       │     [ Save current timeframe ]                       │
+       │      [← Previous radar]  [Next radar →]              │  (picking a row or a leg LOADS it)
+       │     [ Save current timeframe ]                       │  ← the form picks a TYPE too
        │ ⠿ › [x] Storm reports  ──────────●  100%             │  ┐ the LAYER RUN: top of the list
        │ ⠿ ⌄ [-] Damage surveys ──────●────   70%             │  │ = top of the map; drag by ⠿ to
        │     ┌────────────────────────────────────┐           │  │ restack (default order shown)
@@ -267,21 +265,28 @@
         <prim:PanelSection Header="Saved events" ReserveLayerColumns="True">
             <Grid RowSpacing="10">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- search -->
-                    <RowDefinition Height="Auto"/> <!-- All / Tornado / Hurricane / Derecho / Yours -->
+                    <RowDefinition Height="Auto"/> <!-- search | Open in Atlas › -->
+                    <RowDefinition Height="Auto"/> <!-- (the type filter moved to the Atlas) -->
                     <RowDefinition Height="Auto"/> <!-- the list (or its empty state) -->
                     <RowDefinition Height="Auto"/> <!-- a pick that only partly applied -->
                     <RowDefinition Height="Auto"/> <!-- save: the button, or the form -->
                 </Grid.RowDefinitions>
 
-                <TextBox Grid.Row="0"
-                         PlaceholderText="Search events, types, sites or years"
-                         Text="{x:Bind ViewModel.SavedEvents.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-
-                <!-- Five segments = the full width; the three middle ones are BUILT-INS of that type. -->
-                <prim:SegmentedPicker Grid.Row="1" HorizontalAlignment="Stretch"
-                                      ItemsSource="{x:Bind ViewModel.SavedEvents.FilterLabels}"
-                                      SelectedIndex="{x:Bind ViewModel.SavedEvents.FilterIndex, Mode=TwoWay}"/>
+                <!-- ⚠️ THE TYPE FILTER LIVES IN THE ATLAS NOW (Past events tab). This section is the short
+                     way in: search + the list + save. The list shares the Atlas's search and filter (one view
+                     model), so a filter set there narrows this list too. The link opens the Atlas on the pick.
+                     (It sits here rather than in the section header: PanelSection has no header action slot.) -->
+                <Grid Grid.Row="0" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox PlaceholderText="Search events, types, sites or years"
+                             Text="{x:Bind ViewModel.SavedEvents.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <HyperlinkButton Grid.Column="1" Content="Open in Atlas ›" Padding="4,2"
+                                     VerticalAlignment="Center" Click="OnOpenInAtlasClick"
+                                     ToolTipService.ToolTip="Browse every past event in the Anvil Atlas"/>
+                </Grid>
 
                 <!-- ⚠️ SelectionMode=None: "picked" lives on the row view model, because it has to CLEAR when a
                      picker moves, which ListView selection would not do. ItemClick picks; the buttons inside a
@@ -306,7 +311,7 @@
                                     <RowDefinition Height="Auto"/> <!-- legs (picked + several radars) -->
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Text="{x:Bind GroupLabel}" FontSize="11"
+                                <TextBlock Grid.Row="0" Text="{x:Bind GroupHeader}" FontSize="11"
                                            Margin="8,10,0,4"
                                            Visibility="{x:Bind ShowGroupHeader, Mode=OneWay}"
                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
@@ -327,8 +332,17 @@
                                     </Grid.ColumnDefinitions>
 
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="{x:Bind Name}" FontSize="14" TextTrimming="CharacterEllipsis"
-                                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{x:Bind Name}" FontSize="14" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                            <!-- Your own, among the built-ins of its type — the Atlas's same tag. -->
+                                            <Border CornerRadius="8" Padding="6,0" VerticalAlignment="Center"
+                                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                    Visibility="{x:Bind IsCustom}">
+                                                <TextBlock Text="Custom" FontSize="11"
+                                                           Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                            </Border>
+                                        </StackPanel>
                                         <TextBlock FontSize="12" Margin="0,2,0,0"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}">
                                             <Run Text="{x:Bind DateText}"/><Run Text=" · "/><Run Text="{x:Bind SummaryText}"/>
@@ -480,8 +494,15 @@
                         <TextBlock Grid.Row="1" Text="{x:Bind ViewModel.SavedEvents.SaveSummary, Mode=OneWay}"
                                    FontSize="12" TextWrapping="Wrap"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        <TextBox Grid.Row="2" PlaceholderText="Name, like Tuesday's MCS"
-                                 Text="{x:Bind ViewModel.SavedEvents.NewEventName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <StackPanel Grid.Row="2" Spacing="8">
+                            <TextBox PlaceholderText="Name, like Tuesday's MCS"
+                                     Text="{x:Bind ViewModel.SavedEvents.NewEventName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <!-- Every custom event is TYPED, so it lands in its type's group (tagged Custom). -->
+                            <prim:SegmentedPicker HorizontalAlignment="Stretch"
+                                                  ItemsSource="{x:Bind ViewModel.SavedEvents.KindLabels}"
+                                                  SelectedIndex="{x:Bind ViewModel.SavedEvents.NewEventKindIndex, Mode=TwoWay}"
+                                                  ToolTipService.ToolTip="What kind of storm this is"/>
+                        </StackPanel>
                         <TextBlock Grid.Row="3" Text="{x:Bind ViewModel.SavedEvents.SaveError, Mode=OneWay}"
                                    FontSize="12" TextWrapping="Wrap"
                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"

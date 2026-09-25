@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PastEventsAtlasTab — the Anvil Atlas's PAST EVENTS tab: the saved-event library (ViewModel.SavedEvents)
+     as a master–detail browser, the same frame as the Radar sites tab beside it (list 360 | 32 gutter | detail).
+
+       ┌── list column (360) ──────────┐←32→ detail (scrolls, capped 760 wide)
+       │ [ Joplin, KTLX or 2011       ] │   Bridge Creek-Moore, OK (● Tornado) [Custom]   [Edit] [▶ Play in PastCast]
+       │ [All|Tornado|Hurricane|Derecho|Custom]  May 3, 1999 · F5, May 3 1999 outbreak…      ← DetailLine
+       │ Tornado · 10                   │   ┌ 6:23–7:48 PM ┐ ┌ 6:00 PM · 2 hr ┐ ┌ KTLX            ┐
+       │▌Sulphur, OK [Custom]     2024  │   │ ON THE GROUND │ │ REPLAY WINDOW · │ │ RADAR · LEG 1 OF 1
+       │▌El Reno, OK              2013  │   └───────────────┘ └ MAY 3, 1999 ───┘ └─────────────────┘
+       │ Hurricane · 5                  │   ⚠ PastCast is playing Joplin, MO (…). Replace it? [Replace and play] [Keep Joplin, MO]
+       │▌Hurricane Ian            2022  │   LEGS
+       └────────────────────────────────┘   ▌KTLX  Norman · OK                 On the ground 6:23 PM
+                                            SOURCE
+                                            NWS Norman event summary: tornado 6:23-7:48 PM CDT …
+
+     ⚠️ SELECTING A ROW DOES NOT LOAD. The Atlas browses; "Play in PastCast" is the ONE thing that loads
+     (MapViewModel.PlayAtlasEvent: PastCast on — which shuts Now + Fore — then the same Apply a PastCast pick
+     uses, then the Atlas closes). The selection is ViewModel.SavedEvents.AtlasSelection, NOT the PastCast
+     list's "picked" highlight.
+     ⚠️ PLAY ASKS FIRST when PastCast already holds a DIFFERENT replay: the question REPLACES the Play button
+     in place (no ContentDialog — this is an owned OS window, and a dialog over it is a third layer).
+     ⚠️ THE TILES FOLLOW THE SELECTED LEG (SavedEventRow.DetailLegIndex): clicking a leg row shows that leg; it
+     never loads. The KEY tile's label comes from the event's TYPE (On the ground / Landfall / Across), never data.
+     ⚠️ ROWS: the type bar on the left is a STAND-IN for per-type icons (red tornado / blue hurricane / amber
+     derecho — DATA colours, literal, never themed). Custom events carry the accent "Custom" tag everywhere.
+     ⚠️ EDIT is custom-only: the type + the SHOWN leg's key time (local wall clock, end optional). The library
+     re-checks it (it must overlap the leg's window) and the editor shows the refusal in words.
+     The list is a grouped CollectionViewSource over SavedEvents.Groups (Source set in code — a CVS can't
+     x:Bind), same as the sites tab. Search + filter are the SAME ones the PastCast section's list uses. -->
+<UserControl x:Class="Anvil.Controls.Composites.PastEventsAtlasTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:comp="using:Anvil.Controls.Composites"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:vm="using:Anvil.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <CollectionViewSource x:Key="EventGroupsSource" IsSourceGrouped="True"/>
+    </UserControl.Resources>
+
+    <Grid ColumnSpacing="32">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="360"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- LEFT: search, the type filter, the grouped list. -->
+        <Grid Grid.Column="0" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- search -->
+                <RowDefinition Height="Auto"/> <!-- All / Tornado / Hurricane / Derecho / Custom -->
+                <RowDefinition Height="*"/>    <!-- the list (or its empty line) -->
+            </Grid.RowDefinitions>
+
+            <TextBox Grid.Row="0" PlaceholderText="Joplin, KTLX or 2011"
+                     Text="{x:Bind ViewModel.SavedEvents.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+            <prim:SegmentedPicker Grid.Row="1" HorizontalAlignment="Stretch"
+                                  ItemsSource="{x:Bind ViewModel.SavedEvents.FilterLabels}"
+                                  SelectedIndex="{x:Bind ViewModel.SavedEvents.FilterIndex, Mode=TwoWay}"/>
+
+            <ListView Grid.Row="2"
+                      ItemsSource="{Binding Source={StaticResource EventGroupsSource}}"
+                      SelectedItem="{x:Bind ViewModel.SavedEvents.AtlasSelection, Mode=TwoWay}"
+                      SelectionMode="Single"
+                      Loaded="OnListLoaded"
+                      SelectionChanged="OnListSelectionChanged"
+                      ItemContainerStyle="{StaticResource AtlasRowItemStyle}"
+                      Visibility="{x:Bind VisibleWhen(ViewModel.SavedEvents.HasRows), Mode=OneWay}">
+                <ListView.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.HeaderContainerStyle>
+                            <Style TargetType="ListViewHeaderItem">
+                                <Setter Property="MinHeight" Value="0"/>
+                                <Setter Property="Padding" Value="10,10,10,4"/>
+                            </Style>
+                        </GroupStyle.HeaderContainerStyle>
+                        <GroupStyle.HeaderTemplate>
+                            <DataTemplate x:DataType="vm:SavedEventGroup">
+                                <TextBlock Text="{x:Bind Header}" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                            </DataTemplate>
+                        </GroupStyle.HeaderTemplate>
+                    </GroupStyle>
+                </ListView.GroupStyle>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SavedEventRow">
+                        <!-- A slim 12 px type bar — a STAND-IN until the rows get type icons (then it can become
+                             the site rows' 2:1 icon block). -->
+                        <Grid MinHeight="44" ToolTipService.ToolTip="{x:Bind ToolTip}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="12"/>   <!-- type bar -->
+                                <ColumnDefinition Width="*"/>    <!-- name + Custom -->
+                                <ColumnDefinition Width="Auto"/> <!-- year -->
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" CornerRadius="5,0,0,5"
+                                    Background="{x:Bind comp:PastEventsAtlasTab.KindBrush(Event.Kind)}"/>
+
+                            <StackPanel Grid.Column="1" Margin="12,6" Orientation="Horizontal" Spacing="8"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind Name}" FontSize="14" TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center"/>
+                                <Border CornerRadius="8" Padding="6,0" VerticalAlignment="Center"
+                                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                        Visibility="{x:Bind IsCustom}">
+                                    <TextBlock Text="Custom" FontSize="11"
+                                               Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                </Border>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="2" Margin="0,0,12,0" VerticalAlignment="Center"
+                                       Text="{x:Bind YearText}" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <TextBlock Grid.Row="2" TextWrapping="Wrap" Margin="10,4,0,0"
+                       Text="{x:Bind ViewModel.SavedEvents.EmptyText, Mode=OneWay}"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                       Visibility="{x:Bind CollapsedWhen(ViewModel.SavedEvents.HasRows), Mode=OneWay}"/>
+        </Grid>
+
+        <!-- RIGHT: the selected event. -->
+        <Grid Grid.Column="1">
+            <TextBlock Text="Select an event to see its details."
+                       VerticalAlignment="Center" HorizontalAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                       Visibility="{x:Bind CollapsedWhen(ViewModel.SavedEvents.HasAtlasSelection), Mode=OneWay}"/>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          Visibility="{x:Bind VisibleWhen(ViewModel.SavedEvents.HasAtlasSelection), Mode=OneWay}">
+                <!-- Width-capped the same way as the sites detail: a star COLUMN's MaxWidth. -->
+                <Grid RowSpacing="12" VerticalAlignment="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MaxWidth="760"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- header: name | badges | actions (or the replace question) -->
+                        <RowDefinition Height="Auto"/> <!-- the line: date · notes -->
+                        <RowDefinition Height="Auto"/> <!-- tiles (or the custom editor) -->
+                        <RowDefinition Height="Auto"/> <!-- legs -->
+                        <RowDefinition Height="Auto"/> <!-- source -->
+                        <RowDefinition Height="Auto"/> <!-- a play that only partly applied -->
+                    </Grid.RowDefinitions>
+
+                    <!-- HEADER — the same grammar as the sites detail: name, small badges, actions right. -->
+                    <Grid Grid.Row="0" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/> <!-- type badge -->
+                            <ColumnDefinition Width="Auto"/> <!-- Custom -->
+                            <ColumnDefinition Width="Auto"/> <!-- Edit (custom) -->
+                            <ColumnDefinition Width="Auto"/> <!-- Play -->
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Margin="0,0,16,0" VerticalAlignment="Center"
+                                   Text="{x:Bind ViewModel.SavedEvents.AtlasSelection.Name, Mode=OneWay}"
+                                   FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+
+                        <!-- Type badge: a neutral pill; the dot is the only colour (the sites chips' rule). -->
+                        <Border Grid.Column="1" VerticalAlignment="Center" CornerRadius="11" Padding="10,3"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                         Fill="{x:Bind comp:PastEventsAtlasTab.KindBrush(ViewModel.SavedEvents.AtlasSelection.Event.Kind), Mode=OneWay}"/>
+                                <TextBlock Text="{x:Bind ViewModel.SavedEvents.AtlasSelection.KindLabel, Mode=OneWay}" FontSize="12"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" VerticalAlignment="Center" CornerRadius="11" Padding="10,3"
+                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                Visibility="{x:Bind ViewModel.SavedEvents.AtlasSelection.IsCustom, Mode=OneWay}">
+                            <TextBlock Text="Custom" FontSize="12"
+                                       Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                        </Border>
+
+                        <!-- E70F Edit. -->
+                        <Button Grid.Column="3" VerticalAlignment="Center" Margin="8,0,0,0"
+                                Click="OnEditClick"
+                                ToolTipService.ToolTip="Change this event's type and the shown leg's key time"
+                                Visibility="{x:Bind VisibleWhenCustomNotEditing(ViewModel.SavedEvents.AtlasSelection.IsCustom, ViewModel.SavedEvents.IsEditing), Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon FontSize="14" Glyph="&#xE70F;"/>
+                                <TextBlock Text="Edit"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- E768 Play. Hidden while the replace question stands in its place. -->
+                        <Button Grid.Column="4" VerticalAlignment="Center" MinWidth="120"
+                                Click="OnPlayClick"
+                                Style="{StaticResource AccentButtonStyle}"
+                                Visibility="{x:Bind CollapsedWhen(ViewModel.SavedEvents.IsConfirmingReplace), Mode=OneWay}"
+                                ToolTipService.ToolTip="Turn on PastCast and load this leg's window">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon FontSize="14" Glyph="&#xE768;"/>
+                                <TextBlock Text="Play in PastCast"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <TextBlock Grid.Row="1" Margin="0,-6,0,0" TextWrapping="Wrap" FontSize="13"
+                               Text="{x:Bind ViewModel.SavedEvents.AtlasSelection.DetailLine, Mode=OneWay}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                    <!-- THE REPLACE QUESTION — in place of Play, spanning the header's width, under it. -->
+                    <Border Grid.Row="2" CornerRadius="8" Padding="14,10" BorderThickness="1"
+                            Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
+                            BorderBrush="{ThemeResource SystemFillColorCautionBrush}"
+                            Visibility="{x:Bind VisibleWhen(ViewModel.SavedEvents.IsConfirmingReplace), Mode=OneWay}">
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE7BA;" FontSize="16" VerticalAlignment="Center"
+                                      Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap"
+                                       Text="{x:Bind ViewModel.SavedEvents.ReplacePrompt, Mode=OneWay}"/>
+                            <Button Grid.Column="2" Content="Replace and play" Click="OnReplaceClick"
+                                    Style="{StaticResource AccentButtonStyle}"/>
+                            <Button Grid.Column="3" Click="OnKeepClick"
+                                    Content="{x:Bind ViewModel.SavedEvents.KeepLabel, Mode=OneWay}"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- TILES — the SHOWN leg's key time · replay window · radar. -->
+                    <Grid Grid.Row="2" ColumnSpacing="12"
+                          Visibility="{x:Bind TilesVisible(ViewModel.SavedEvents.IsConfirmingReplace, ViewModel.SavedEvents.IsEditing), Mode=OneWay}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" CornerRadius="8" Padding="12"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                            <StackPanel>
+                                <TextBlock Text="{x:Bind ViewModel.SavedEvents.AtlasSelection.DetailLeg.KeyValueText, Mode=OneWay}"
+                                           FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{x:Bind ViewModel.SavedEvents.AtlasSelection.DetailLeg.KeyLabelText, Mode=OneWay}"
+                                           TextWrapping="Wrap" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" CornerRadius="8" Padding="12"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                            <StackPanel>
+                                <TextBlock Text="{x:Bind ViewModel.SavedEvents.AtlasSelection.DetailLeg.WindowValueText, Mode=OneWay}"
+                                           FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{x:Bind ViewModel.SavedEvents.AtlasSelection.DetailLeg.WindowLabelText, Mode=OneWay}"
+                                           TextWrapping="Wrap" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" CornerRadius="8" Padding="12"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                            <StackPanel>
+                                <TextBlock Text="{x:Bind ViewModel.SavedEvents.AtlasSelection.DetailLeg.SiteText, Mode=OneWay}"
+                                           FontSize="20" FontWeight="SemiBold"/>
+                                <TextBlock Text="{x:Bind ViewModel.SavedEvents.AtlasSelection.DetailLeg.RadarLabelText, Mode=OneWay}"
+                                           TextWrapping="Wrap" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- THE EDITOR (custom only) — replaces the tiles while open. -->
+                    <Border Grid.Row="2" CornerRadius="8" Padding="14,12" BorderThickness="1"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                            Visibility="{x:Bind VisibleWhen(ViewModel.SavedEvents.IsEditing), Mode=OneWay}">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="TYPE" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                            <prim:SegmentedPicker HorizontalAlignment="Left"
+                                                  ItemsSource="{x:Bind ViewModel.SavedEvents.KindLabels}"
+                                                  SelectedIndex="{x:Bind ViewModel.SavedEvents.EditKindIndex, Mode=TwoWay}"/>
+
+                            <TextBlock Style="{StaticResource AtlasFieldLabelStyle}" Margin="0,4,0,0">
+                                <Run Text="KEY TIME · LEG "/><Run Text="{x:Bind LegNumber(ViewModel.SavedEvents.AtlasSelection.DetailLegIndex), Mode=OneWay}"/>
+                            </TextBlock>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TimePicker ClockIdentifier="12HourClock" MinuteIncrement="1"
+                                            SelectedTime="{x:Bind ViewModel.SavedEvents.EditKeyStart, Mode=TwoWay}"/>
+                                <TextBlock Text="to" VerticalAlignment="Center"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TimePicker ClockIdentifier="12HourClock" MinuteIncrement="1"
+                                            SelectedTime="{x:Bind ViewModel.SavedEvents.EditKeyEnd, Mode=TwoWay}"/>
+                            </StackPanel>
+                            <TextBlock Text="Local time, like the Timeframe pickers. The end is optional; the time has to fall within the replay window."
+                                       FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                            <TextBlock Text="{x:Bind ViewModel.SavedEvents.EditError, Mode=OneWay}"
+                                       FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                       Visibility="{x:Bind VisibleWhenText(ViewModel.SavedEvents.EditError), Mode=OneWay}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="Clear time" Click="OnClearTimeClick"
+                                        ToolTipService.ToolTip="Remove this leg's key time"/>
+                                <Button Content="Cancel" Click="OnCancelEditClick"/>
+                                <Button Content="Save" Style="{StaticResource AccentButtonStyle}" Click="OnSaveEditClick"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- LEGS — one row per radar; clicking one SHOWS it (the tiles follow), never loads it. -->
+                    <StackPanel Grid.Row="3" Spacing="6" Margin="0,4,0,0">
+                        <TextBlock Text="LEGS" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.SavedEvents.AtlasSelection.Legs, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SavedEventLegRow">
+                                    <Button Tag="{x:Bind}" Click="OnLegClick" Margin="0,0,0,4"
+                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                            Background="Transparent" BorderThickness="0" Padding="0"
+                                            ToolTipService.ToolTip="Show this radar's leg">
+                                        <Grid>
+                                            <!-- Shown = the sites list's quiet selected face: elevated + accent stroke. -->
+                                            <Border CornerRadius="6" BorderThickness="1"
+                                                    Background="{ThemeResource OverlayBarSurfaceElevatedBrush}"
+                                                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                                    Visibility="{x:Bind IsDetail, Mode=OneWay}"/>
+                                            <Grid Padding="12,8" ColumnSpacing="12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{x:Bind SiteText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{x:Bind SiteName}" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                <TextBlock Grid.Column="2" Text="{x:Bind KeyShortText}" FontSize="12"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                            </Grid>
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4" Spacing="6"
+                                Visibility="{x:Bind ViewModel.SavedEvents.AtlasSelection.HasSource, Mode=OneWay}">
+                        <TextBlock Text="SOURCE" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                        <TextBlock Text="{x:Bind ViewModel.SavedEvents.AtlasSelection.SourceText, Mode=OneWay}"
+                                   FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="5" TextWrapping="Wrap" FontSize="12"
+                               Text="{x:Bind ViewModel.SavedEvents.Status, Mode=OneWay}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Visibility="{x:Bind VisibleWhenText(ViewModel.SavedEvents.Status), Mode=OneWay}"/>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

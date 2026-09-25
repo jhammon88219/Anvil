@@ -825,11 +825,66 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>Whether the Radar Atlas window is open (toggled by the "Atlas" key).</summary>
+		/// <summary>Whether the Anvil Atlas window is open (toggled by the "Atlas" key).</summary>
 		public bool IsRadarAtlasOpen
 		{
 			get => _isRadarAtlasOpen;
 			set => SetProperty(ref _isRadarAtlasOpen, value);
+		}
+
+		// ===== The Anvil Atlas: two tabs (Radar sites | Past events) =====================================
+		// Everything you can point the radar at: a PLACE (a site) or a MOMENT (a saved event). The tab is
+		// PERSISTED like the Settings window's. Playing an event is the one cross-subsystem act here, so it
+		// lives on the coordinator: PastCast on (Past excludes Now + Fore), load, close the Atlas.
+
+		/// <summary>Tab count — the clamp for <see cref="AtlasTabIndex"/>.</summary>
+		public const int AtlasTabCount = 2;
+
+		/// <summary>0 = Radar sites, 1 = Past events. PERSISTED, clamped on the way in.</summary>
+		public int AtlasTabIndex
+		{
+			get => Math.Clamp(_settingsService.Settings.AtlasTabIndex, 0, AtlasTabCount - 1);
+			set
+			{
+				var clamped = Math.Clamp(value, 0, AtlasTabCount - 1);
+				if (clamped == _settingsService.Settings.AtlasTabIndex) return;
+				_settingsService.Settings.AtlasTabIndex = clamped;
+				OnPropertyChanged();
+			}
+		}
+
+		/// <summary>Open the Atlas on Past events, on the event PastCast has picked (the PastCast section's
+		/// "Open in Atlas" link).</summary>
+		public void OpenAtlasOnEvents()
+		{
+			SavedEvents.SelectInAtlas(SavedEvents.PickedId);
+			AtlasTabIndex = 1;
+			IsRadarAtlasOpen = true;
+		}
+
+		/// <summary>
+		/// The Past events tab's Play in PastCast: turn PastCast on if needed, load the shown leg, close the
+		/// Atlas. ⚠️ ASKS FIRST (unless <paramref name="confirmed"/>) when PastCast already holds a DIFFERENT
+		/// replay — the question shows in place of the button (SavedEvents.ShowReplaceConfirm).
+		/// </summary>
+		public void PlayAtlasEvent(bool confirmed)
+		{
+			if (!SavedEvents.HasAtlasSelection)
+			{
+				return;
+			}
+			if (!confirmed && SavedEvents.NeedsReplaceConfirm())
+			{
+				SavedEvents.ShowReplaceConfirm();
+				return;
+			}
+
+			if (!IsPastCast)
+			{
+				IsPastCast = true; // synchronous: replay mode is armed before the load below reads it
+			}
+			SavedEvents.PlayAtlasSelection();
+			IsRadarAtlasOpen = false;
 		}
 
 		// ===== Monitor mode (Single now, Multi later) =====================================================

@@ -14,7 +14,7 @@
        │ ★ KINX  Tulsa              ● │  ← favorites, starred order, scrolls
        │ ★ KFWS  Dallas/Ft Worth    ● │     ● = online / offline / grey not-checked
        │──────────────────────────────│
-       │ Open Radar Atlas             │  ← footer (+ a hint line above it when there are no sites)
+       │ Open Atlas                   │  ← footer (+ a hint line above it when there are no sites)
        └──────────────────────────────┘          ┌─────────────────────────────┐
                                                   │ Moore, OK          pop 62k  │   ← place suggestions
                                                   └─────────────────────────────┘
@@ -353,13 +353,13 @@
                     <prim:SectionedComboBox.FooterContent>
                         <StackPanel Spacing="4">
                             <TextBlock Margin="11,2,11,2"
-                                       Text="Set a home site or star favorites in the Radar Atlas to list them here."
+                                       Text="Set a home site or star favorites in the Atlas to list them here."
                                        TextWrapping="Wrap" FontSize="12"
                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                        Visibility="{x:Bind ViewModel.SiteFavorites.IsEmpty, Mode=OneWay}"/>
                             <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                                     Background="Transparent" BorderThickness="0" Padding="11,6"
-                                    Content="Open Radar Atlas"
+                                    Content="Open Atlas"
                                     Click="OnOpenAtlasClick"/>
                         </StackPanel>
                     </prim:SectionedComboBox.FooterContent>

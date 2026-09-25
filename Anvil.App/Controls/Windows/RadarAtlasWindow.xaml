@@ -1,24 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- RadarAtlasWindow — a non-modal, searchable master–detail browser over the WHOLE radar network the
-     app can access (operational WSR-88D, research/test, TDWR). Floats over the map (map stays live),
-     opened by the "Atlas" key on the bar (left of the Settings cog). Shares the OverlayBar surface
-     chrome but is its own larger footprint. Bound to the coordinator
-     MapViewModel (like SettingsWindow): it reaches into ViewModel.RadarAtlas.* for the list/detail
-     and ViewModel.IsRadarAtlasOpen for its own visibility/close.
+<!-- RadarAtlasWindow — the ANVIL ATLAS: everything you can point the radar at. A PLACE (a radar site — this
+     file's Radar sites tab) or a MOMENT (a saved past event — Composites/PastEventsAtlasTab). Floats over the
+     map (map stays live), opened by the "Atlas" key on the bar (left of the Settings cog). Bound to the
+     coordinator MapViewModel (like SettingsWindow): ViewModel.RadarAtlas.* for sites, ViewModel.SavedEvents.*
+     for events, ViewModel.AtlasTabIndex for the tab (PERSISTED), ViewModel.IsRadarAtlasOpen for itself.
+     ⚠️ THE LINE THAT KEEPS IT AN ATLAS: things you can LOAD. Anything that CONFIGURES the radar (ramps, tilts,
+     rings) belongs in Settings or the notches, never a third tab here. Agreed design: docs/anvil-atlas.md.
 
-       Radar Atlas                                     [lock][pin]   ← own title (the caption is empty)
+       ┌──────────────────────────────────────────────────────────────────────────────────────┐
+       │ [logo] Anvil Atlas             160    45    3  │  204          ░░░ lock pin ─ □ ✕ ░░ │ ← TITLE BAND (raised),
+       │ (slot)                        NEXRAD TDWR RES. │ RADAR SITES   ░ reserved 220 px ░░ │   counts FOLLOW THE TAB
+       ├──────────────────────────────────────────────────────────────────────────────────────┤   (types on Past events)
+       │  [📡 Radar sites] [⟲ Past events]                                                    │ ← Primitives/TabStrip
+       ├──────────────────────────────────────────────────────────────────────────────────────┤
        ┌── list column (360, NO outline) ──┐←32→ detail (scrolls, capped 760 wide, LEFT-aligned)
-       │ [ Search ICAO or name…          ] │   KTLX   (● Online ⑦) (NEXRAD ⑦) [★] [⌂ Home site] [On map]
-       │ [⚙ Filters ▾] [☐ Favorites] [Clear all]  ← THE CONTROLS   ← a row is a KEY: status BAR (½ square)
-       │ [NEXRAD +1 ✕] [Online ✕]  118 of 204     ← THE FEEDBACK      | name · state | network bar | ☆
-       │ HOME                              │   ┌─ site card ──────────────────────────────┐
-       │██ KTLX ⌂ Norman · OK       ◗ ☆ │   │ LATEST SCAN  12:06 PM (4 min ago) ┌──────┐ │
-       │ FAVORITES · 2                     │   │ SCAN MODE    VCP 35 · clear-air   │ [cam]│ │ ← PLACEHOLDER
-       │██ TMCI Kansas City · MO    ✈ ★ │   │ COORDINATES  35.333, -97.278   ⑦  │ photo│ │   200×113, INSET
-       │ ALL SITES · 201                   │   └───────────────────────────────────└──────┘─┘
-       │██ KABR Aberdeen · SD       ◗ ☆ │   ┌ 4 min     ⑦┐ ┌ VCP 35    ⑦┐ ┌ 142 mi    ⑦┐ ← stat strip: the
-       │ …                                 │   │ SINCE LAST │ │ clear-air  │ │ FROM YOU   │   same facts, short
-       └───────────────────────────────────┘   └ SCAN ──────┘ └────────────┘ └────────────┘   (distance collapses)
+       │ [ Search ICAO or name…          ] │   KTLX · Norman, OK  (● Online ⑦) (NEXRAD ⑦) [★] [⌂ Home site] [On map]
+       │ [⚙ Filters ▾] [☐ Favorites] [Clear all]  ← THE CONTROLS   WSR-88D · 35.333, -97.278 ⑦   ← SUBTITLE
+       │ [NEXRAD +1 ✕] [Online ✕]  118 of 204     ← THE FEEDBACK
+       │ HOME                              │   ┌ 4 min     ⑦┐ ┌ VCP 35    ⑦┐ ┌ 142 mi    ⑦┐ ┌──────┐
+       │██ KTLX ⌂ Norman · OK       ◗ ☆ │   │ LATEST SCAN │ │ SCAN MODE · │ │ FROM YOU   │ │[cam] │ ← PHOTO slot,
+       │ FAVORITES · 2                     │   │ · 12:06 PM  │ │ CLEAR-AIR   │ │            │ │photo │   a dummy (kept)
+       │██ TMCI Kansas City · MO    ✈ ★ │   └─────────────┘ └────────────┘ └────────────┘ └──────┘
+       │ ALL SITES · 201                   │   ← TILES: the old site card + stat strip, ONE row. Big = the
+       │██ KABR Aberdeen · SD       ◗ ☆ │     glance (an age, the VCP), label = the precision (clock time,
+       │ …                                 │     regime). Distance collapses without a location marker.
+       └───────────────────────────────────┘
+       ← a row is a KEY: status BAR (½ square) | name · state | network bar | ☆
                                                NWS STATUS  checked 2 min ago     [⟳ Re-check in 3:04] ← ALL sites, 5-min
                                                ┌─────────────────────────────────────────────┐   cooldown per attempt
                                                │ RADAR STATE  ● Operate · Maintenance action… │ ← the radar's OWN report,
@@ -61,8 +68,9 @@
      ⑦ = GlossaryHint, the "?" that explains one readout (Primitives/GlossaryHint + Core's RadarGlossary).
      ⚠️ HOVER TARGET IS THE "?" ONLY, never the tile — someone who knows what a VCP is shouldn't trip a
      popover just crossing the pane. The words live in Core, NEVER in this XAML.
-     ⚠️ CARD = PRECISE (clock time, full mode line), STRIP = GLANCEABLE (an age, the VCP alone). Both read the
-     same properties, so they can't disagree; the age tile's green→amber→red knees are the glossary's own.
+     ⚠️ A TILE'S VALUE = GLANCEABLE (an age, the VCP alone), ITS LABEL = PRECISE (the clock time, the regime) —
+     the old site card's job, folded into the tiles. Both read the same properties, so they can't disagree;
+     the age tile's green→amber→red knees are the glossary's own.
 
      SECTIONS (Home / Favorites · n / All sites · n) come from a grouped CollectionViewSource over
      RadarAtlas.SiteGroups. ⚠️ Its Source is set in code when ViewModel lands (OnViewModelChanged) — a CVS
@@ -84,15 +92,18 @@
      snapshot), so a pass that lands while a site is selected updates the pill and dot in place.
 
      The header owns the action: the button reads "On map" (disabled) while the selected site IS the
-     map's site. Chips are neutral pills; only the status dot carries colour. The DISTANCE row collapses
-     when there's no location marker, so it never leaves a hole.
+     map's site. It is the SAME header grammar as a past event's (name · badges · actions), on purpose — the
+     two tabs read as one Atlas. Chips are neutral pills; only the status dot carries colour. The DISTANCE
+     tile collapses when there's no location marker, so it never leaves a hole.
+     ⚠️ The list-row container style and the field label styles live in Styles.xaml (AtlasRowItemStyle,
+     AtlasFieldLabelStyle / AtlasFieldValueStyle) because the Past events tab uses them too.
 
      The row's network label sits flush RIGHT only because the item container stretches its content
      (HorizontalContentAlignment=Stretch) — without it the row Grid shrinks and the label hugs the name.
      The photo panel is a dummy: nothing feeds it yet (no bundled per-site photos exist).
 
-     No outer frame in the sketch because there is none in the app either — the OS caption is the only
-     chrome, and content extends into it, which is why the title is drawn here.
+     The OS caption is the only chrome, and content extends into it — which is why the title BAND is drawn
+     here, and why its right corner stays clear for the lock, pin and caption buttons.
 
      The list selection FOLLOWS the map's radar site (marker click → that row selected, scrolled into
      view, even while the window is closed), and "Load on map" greys out while the selected row IS the
@@ -111,6 +122,7 @@
              xmlns:conv="using:Anvil.Converters"
              xmlns:vm="using:Anvil.ViewModels"
              xmlns:win="using:Anvil.Controls.Windows"
+             xmlns:comp="using:Anvil.Controls.Composites"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -120,47 +132,126 @@
 
         <!-- The list's sections. Source set in code-behind (see the header). -->
         <CollectionViewSource x:Key="SiteGroupsSource" IsSourceGrouped="True"/>
-
-        <!-- Small caps field label in the detail pane. -->
-        <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="CharacterSpacing" Value="40"/>
-            <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
-        </Style>
-        <Style x:Key="FieldValueStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-            <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-        </Style>
     </UserControl.Resources>
 
     <!-- Root Grid -->
     <!-- Dark surface fills the whole window; content sits top-left. -->
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
-            <Grid RowSpacing="10">
+            <Grid>
 
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- title -->
-                    <RowDefinition Height="*"/>    <!-- body: list column | detail -->
+                    <RowDefinition Height="Auto"/> <!-- the title band -->
+                    <RowDefinition Height="Auto"/> <!-- the tabs -->
+                    <RowDefinition Height="*"/>    <!-- body: the selected tab -->
                 </Grid.RowDefinitions>
 
-                <!-- Content extends into the title bar (the native caption shows only the buttons), so
-                     the panel carries its own title. ⚠️ The count is NOT here any more — it's feedback,
-                     and it lives with the filters it answers to. -->
-                <TextBlock Grid.Row="0" Margin="16,14,16,0" Text="Radar Atlas"
-                           FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
-                           VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <!-- THE TITLE BAND — full width, over the tabs. Content extends into the title bar (the native
+                     caption shows only its buttons), so the band IS the window's title.
+                     ⚠️ Its right 220 px are RESERVED: the lock + pin (Margin 178 / 140 from the right) and the
+                     caption buttons sit over that corner, so the counts end before it.
+                     ⚠️ The counts FOLLOW THE TAB (networks on Radar sites, types on Past events) and describe the
+                     WHOLE Atlas, never the filtered list — the result count under the filters answers the search. -->
+                <Grid Grid.Row="0" Padding="16,12,0,12" ColumnSpacing="14"
+                      Background="{ThemeResource OverlayBarSurfaceRaisedBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/> <!-- logo slot -->
+                        <ColumnDefinition Width="*"/>    <!-- name -->
+                        <ColumnDefinition Width="Auto"/> <!-- counts -->
+                        <ColumnDefinition Width="220"/>  <!-- lock / pin / caption corner -->
+                    </Grid.ColumnDefinitions>
 
-                <!-- Body: list column (left) | detail (right). Side + bottom inset.
+                    <!-- LOGO SLOT — a placeholder until the app has a logo. -->
+                    <Grid Width="40" Height="40" VerticalAlignment="Center">
+                        <Rectangle RadiusX="8" RadiusY="8" StrokeThickness="1" StrokeDashArray="3,3"
+                                   Stroke="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        <FontIcon Glyph="&#xE722;" FontSize="16"
+                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    </Grid>
+
+                    <TextBlock Grid.Column="1" Text="Anvil Atlas" VerticalAlignment="Center"
+                               FontSize="22" FontWeight="SemiBold"/>
+
+                    <!-- Radar sites: per network, rule, total. -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center"
+                                Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 0), Mode=OneWay}">
+                        <StackPanel HorizontalAlignment="Right">
+                            <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.NexradCount), Mode=OneWay}"
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="NEXRAD" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                        <StackPanel Visibility="{x:Bind VisibleWhen(ViewModel.Radar.ShowTdwrs), Mode=OneWay}">
+                            <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.TdwrCount), Mode=OneWay}"
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="TDWR" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                        <StackPanel Visibility="{x:Bind VisibleWhen(ViewModel.Radar.ShowResearchRadars), Mode=OneWay}">
+                            <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.ResearchCount), Mode=OneWay}"
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="RESEARCH" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                        <Border Width="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <StackPanel>
+                            <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.ShownSiteCount), Mode=OneWay}"
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="RADAR SITES" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Past events: per type, rule, total, custom. A custom event counts in its type too. -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center"
+                                Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 1), Mode=OneWay}">
+                        <StackPanel>
+                            <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.TornadoCount), Mode=OneWay}"
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="TORNADO" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.HurricaneCount), Mode=OneWay}"
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="HURRICANE" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.DerechoCount), Mode=OneWay}"
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="DERECHO" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                        <Border Width="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <StackPanel>
+                            <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.TotalCount), Mode=OneWay}"
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="PAST EVENTS" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.CustomCount), Mode=OneWay}"
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="CUSTOM" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- THE TABS (Primitives/TabStrip, top rail) + the hairline under them. The index is PERSISTED
+                     (MapViewModel.AtlasTabIndex); the bodies below switch on it and stay loaded. -->
+                <ctl:TabStrip Grid.Row="1" Margin="12,6,12,0"
+                              HorizontalAlignment="Left" VerticalAlignment="Top"
+                              ItemsSource="{x:Bind Tabs}"
+                              SelectedIndex="{x:Bind ViewModel.AtlasTabIndex, Mode=TwoWay}"/>
+                <Border Grid.Row="1" Height="1" VerticalAlignment="Bottom"
+                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+                <!-- PAST EVENTS — its own Composite (list | detail), the same frame as the sites body below. -->
+                <comp:PastEventsAtlasTab Grid.Row="2" Margin="16,12,16,14"
+                                         ViewModel="{x:Bind ViewModel}"
+                                         Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 1), Mode=OneWay}"/>
+
+                <!-- RADAR SITES body: list column (left) | detail (right). Side + bottom inset.
                      ⚠️ THE 32 IS THE SEPARATION. There is no rule and no outline between the two regions —
                      the gutter alone divides them, which is why it can't be trimmed back toward the 14 it
                      used to be. Space between regions must beat the space inside one (the list's own rows
                      sit 6 apart) or the eye can't tell where the list ends. -->
-                <Grid Grid.Row="1"
-                      Margin="16,0,16,14"
-                      ColumnSpacing="32">
+                <Grid Grid.Row="2"
+                      Margin="16,12,16,14"
+                      ColumnSpacing="32"
+                      Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 0), Mode=OneWay}">
 
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="360"/>
@@ -196,7 +287,7 @@
                                          then a rule, because SORT ISN'T A FILTER. -->
                                     <Flyout Placement="Bottom">
                                         <StackPanel Width="260" Spacing="4">
-                                            <TextBlock Text="NETWORK" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="NETWORK" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                             <CheckBox Content="NEXRAD"
                                                       IsChecked="{x:Bind ViewModel.RadarAtlas.FilterNexrad, Mode=TwoWay}"/>
                                             <!-- Greyed while Settings → Radar hides the network (the list
@@ -209,7 +300,7 @@
                                                       IsChecked="{x:Bind ViewModel.RadarAtlas.FilterResearch, Mode=TwoWay}"/>
 
                                             <TextBlock Text="STATUS" Margin="0,10,0,0"
-                                                       Style="{StaticResource FieldLabelStyle}"/>
+                                                       Style="{StaticResource AtlasFieldLabelStyle}"/>
                                             <CheckBox Content="{x:Bind ViewModel.RadarAtlas.StatusOnlineLabel, Mode=OneWay}"
                                                       IsChecked="{x:Bind ViewModel.RadarAtlas.StatusOnline, Mode=TwoWay}"/>
                                             <CheckBox Content="{x:Bind ViewModel.RadarAtlas.StatusOfflineLabel, Mode=OneWay}"
@@ -218,7 +309,7 @@
                                                       IsChecked="{x:Bind ViewModel.RadarAtlas.StatusUnchecked, Mode=TwoWay}"/>
 
                                             <TextBlock Text="PLACE" Margin="0,10,0,0"
-                                                       Style="{StaticResource FieldLabelStyle}"/>
+                                                       Style="{StaticResource AtlasFieldLabelStyle}"/>
                                             <!-- Independent on purpose: a contradictory pair (Alaska + FL)
                                                  empties the list and shows two clearable chips, which
                                                  explains itself better than silently re-pointing one. -->
@@ -232,7 +323,7 @@
                                             <Border Margin="0,12,0,0" Height="1"
                                                     Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                                             <TextBlock Text="SORT" Margin="0,8,0,0"
-                                                       Style="{StaticResource FieldLabelStyle}"/>
+                                                       Style="{StaticResource AtlasFieldLabelStyle}"/>
                                             <!-- Orders the ALL SITES section only — Home and Favorites keep
                                                  the order the user pinned them in. -->
                                             <RadioButtons SelectedIndex="{x:Bind ViewModel.RadarAtlas.SortIndex, Mode=TwoWay}">
@@ -308,7 +399,8 @@
                                       SelectedItem="{x:Bind ViewModel.RadarAtlas.SelectedSite, Mode=TwoWay}"
                                       SelectionMode="Single"
                                       Loaded="OnSiteListLoaded"
-                                      SelectionChanged="OnSiteListSelectionChanged">
+                                      SelectionChanged="OnSiteListSelectionChanged"
+                                      ItemContainerStyle="{StaticResource AtlasRowItemStyle}">
                                 <ListView.GroupStyle>
                                     <GroupStyle>
                                         <GroupStyle.HeaderContainerStyle>
@@ -319,93 +411,11 @@
                                         </GroupStyle.HeaderContainerStyle>
                                         <GroupStyle.HeaderTemplate>
                                             <DataTemplate x:DataType="vm:RadarSiteGroup">
-                                                <TextBlock Text="{x:Bind Header}" Style="{StaticResource FieldLabelStyle}"/>
+                                                <TextBlock Text="{x:Bind Header}" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                             </DataTemplate>
                                         </GroupStyle.HeaderTemplate>
                                     </GroupStyle>
                                 </ListView.GroupStyle>
-                                <!-- ROWS ARE KEYS — each item is a small card in the map key's vocabulary: TRANSPARENT at
-                                     rest with NO stroke (only its square and bar show — filled, outlined cards read crowded),
-                                     LIFTED on hover (raised fill + 1 px rise), and a PERMANENT selected state.
-                                     ⚠️ The container is RETEMPLATED (no ListViewItemPresenter): the stock selection
-                                     wash + accent pill would fight the card. SELECTED is deliberately QUIET — the
-                                     elevated surface with a thin accent stroke (the bar's "lit" vocabulary), NOT the
-                                     map key's bright inverted face, which reads as a flashlight in a list.
-                                     ⚠️ A Border doesn't clip its children to its corners, so the status bar and the
-                                     network bar carry their own inner radii (5 = card 6 − its 1 px stroke). -->
-                                <ListView.ItemContainerStyle>
-                                    <Style TargetType="ListViewItem">
-                                        <Setter Property="Padding" Value="0"/>
-                                        <Setter Property="Margin" Value="6,2"/>
-                                        <Setter Property="MinHeight" Value="0"/>
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                        <Setter Property="UseSystemFocusVisuals" Value="True"/>
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="ListViewItem">
-                                                    <Grid>
-                                                        <Grid.RenderTransform>
-                                                            <TranslateTransform x:Name="Lift"/>
-                                                        </Grid.RenderTransform>
-                                                        <VisualStateManager.VisualStateGroups>
-                                                            <VisualStateGroup x:Name="CommonStates">
-                                                                <!-- RESTING: transparent centre, no stroke (the Card's own defaults) —
-                                                                     only the status bar and the network bar read, so a long list
-                                                                     stays light instead of a wall of filled cards. -->
-                                                                <VisualState x:Name="Normal"/>
-                                                                <!-- HOVER LIFTS: the raised surface fills in and the card rises 1 px. -->
-                                                                <VisualState x:Name="PointerOver">
-                                                                    <VisualState.Setters>
-                                                                        <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
-                                                                        <Setter Target="Lift.Y" Value="-1"/>
-                                                                    </VisualState.Setters>
-                                                                </VisualState>
-                                                                <VisualState x:Name="Pressed">
-                                                                    <VisualState.Setters>
-                                                                        <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
-                                                                    </VisualState.Setters>
-                                                                </VisualState>
-                                                                <!-- SELECTED IS PERMANENT: the same elevated face + accent stroke in all
-                                                                     three selected states, so hovering or pressing a selected row never
-                                                                     changes how it looks. -->
-                                                                <VisualState x:Name="Selected">
-                                                                    <VisualState.Setters>
-                                                                        <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
-                                                                        <Setter Target="Card.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
-                                                                    </VisualState.Setters>
-                                                                </VisualState>
-                                                                <VisualState x:Name="PointerOverSelected">
-                                                                    <VisualState.Setters>
-                                                                        <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
-                                                                        <Setter Target="Card.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
-                                                                    </VisualState.Setters>
-                                                                </VisualState>
-                                                                <VisualState x:Name="PressedSelected">
-                                                                    <VisualState.Setters>
-                                                                        <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
-                                                                        <Setter Target="Card.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
-                                                                    </VisualState.Setters>
-                                                                </VisualState>
-                                                            </VisualStateGroup>
-                                                        </VisualStateManager.VisualStateGroups>
-
-                                                        <!-- No stroke at rest or on hover (BorderBrush Transparent); the 1 px
-                                                             thickness stays so the selected accent stroke doesn't shift the row. -->
-                                                        <Border x:Name="Card"
-                                                                CornerRadius="6" BorderThickness="1"
-                                                                Background="Transparent"
-                                                                BorderBrush="Transparent"/>
-                                                        <ContentPresenter Margin="1"
-                                                                          Content="{TemplateBinding Content}"
-                                                                          ContentTemplate="{TemplateBinding ContentTemplate}"
-                                                                          HorizontalContentAlignment="Stretch"
-                                                                          VerticalContentAlignment="Stretch"/>
-                                                    </Grid>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </ListView.ItemContainerStyle>
                                 <ListView.ItemTemplate>
                                     <DataTemplate x:DataType="vm:RadarSiteRow">
                                         <!-- The status column is HALF the row's MinHeight (25 of 50), so the colour block is a
@@ -518,13 +528,15 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/> <!-- header: title | chips | action -->
-                                <RowDefinition Height="Auto"/> <!-- site card: fields | photo -->
-                                <RowDefinition Height="Auto"/> <!-- stat strip -->
+                                <RowDefinition Height="Auto"/> <!-- header: title | badges | actions -->
+                                <RowDefinition Height="Auto"/> <!-- subtitle: kind · coordinates -->
+                                <RowDefinition Height="Auto"/> <!-- tiles | photo -->
                                 <RowDefinition Height="Auto"/> <!-- NWS status -->
                                 <RowDefinition Height="Auto"/> <!-- your use -->
                             </Grid.RowDefinitions>
 
+                            <!-- HEADER — the SAME grammar as a past event's (Composites/PastEventsAtlasTab): the name,
+                                 small badges, then the actions on the right. "On map" is this tab's Play. -->
                             <Grid Grid.Row="0" ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -535,13 +547,9 @@
                                     <ColumnDefinition Width="Auto"/> <!-- load -->
                                 </Grid.ColumnDefinitions>
 
-                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailId, Mode=OneWay}"
-                                               FontSize="22" FontWeight="Bold"/>
-                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailName, Mode=OneWay}"
-                                               FontSize="13" TextTrimming="CharacterEllipsis"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                </StackPanel>
+                                <TextBlock Grid.Column="0" Margin="0,0,16,0" VerticalAlignment="Center"
+                                           Text="{x:Bind ViewModel.RadarAtlas.DetailTitle, Mode=OneWay}"
+                                           FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
 
                                 <!-- Status chip: neutral pill, the dot is the only colour. -->
                                 <Border Grid.Column="1" VerticalAlignment="Center"
@@ -593,117 +601,49 @@
                                         IsEnabled="{x:Bind ViewModel.RadarAtlas.CanLoadOnMap, Mode=OneWay}"/>
                             </Grid>
 
-                            <!-- SITE CARD — the precise form of the facts (a clock time, the full mode line),
-                                 with the photo INSIDE the same card on an inset surface. ⚠️ The photo gets a
-                                 surface change, NOT its own border: a bordered box inside a bordered card reads
-                                 as clutter, and the surface fences it just as well. -->
-                            <Border Grid.Row="1" CornerRadius="8" Padding="16" BorderThickness="1"
-                                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                                <Grid ColumnSpacing="24">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="200"/>
-                                    </Grid.ColumnDefinitions>
+                            <!-- SUBTITLE — the radar's kind + coordinates (they moved here from the old site card). -->
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,-6,0,0">
+                                <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailSubtitle, Mode=OneWay}"
+                                           FontSize="13" VerticalAlignment="Center"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <ctl:GlossaryHint VerticalAlignment="Center"
+                                                  Card="{x:Bind ViewModel.RadarAtlas.CoordsHint, Mode=OneWay}"/>
+                            </StackPanel>
 
-                                    <!-- Label | value rows, each fenced by a hairline so the eye can cross the
-                                         gap to the value with the photo sitting alongside. The LAST row has no
-                                         rule (nothing follows it to separate from). -->
-                                    <StackPanel Grid.Column="0" VerticalAlignment="Top">
-                                        <Border BorderThickness="0,0,0,1" Padding="0,0,0,8"
-                                                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                                            <Grid ColumnSpacing="16">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="110"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Text="LATEST SCAN" VerticalAlignment="Center"
-                                                           Style="{StaticResource FieldLabelStyle}"/>
-                                                <!-- Spinner and value share ONE cell so the ring never indents the
-                                                     value: side by side, an inactive ring still reserves its width
-                                                     and pushed this line out of line with every other field. They
-                                                     can't collide — the value is empty for exactly as long as the
-                                                     fetch is in flight (see LatestScanText). -->
-                                                <Grid Grid.Column="1">
-                                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.LatestScanText, Mode=OneWay}"
-                                                               Style="{StaticResource FieldValueStyle}"/>
-                                                    <ProgressRing Width="14"
-                                                                  Height="14"
-                                                                  HorizontalAlignment="Left"
-                                                                  VerticalAlignment="Center"
-                                                                  IsActive="{x:Bind ViewModel.RadarAtlas.IsLoadingScanInfo, Mode=OneWay}"
-                                                                  Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.IsLoadingScanInfo), Mode=OneWay}"/>
-                                                </Grid>
-                                            </Grid>
-                                        </Border>
-
-                                        <Border BorderThickness="0,0,0,1" Padding="0,8"
-                                                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                                            <Grid ColumnSpacing="16">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="110"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Text="SCAN MODE" VerticalAlignment="Center"
-                                                           Style="{StaticResource FieldLabelStyle}"/>
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{x:Bind ViewModel.RadarAtlas.VcpModeText, Mode=OneWay}"
-                                                           Style="{StaticResource FieldValueStyle}"/>
-                                            </Grid>
-                                        </Border>
-
-                                        <Grid ColumnSpacing="16" Margin="0,8,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="110"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="COORDINATES" VerticalAlignment="Center"
-                                                       Style="{StaticResource FieldLabelStyle}"/>
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{x:Bind ViewModel.RadarAtlas.DetailCoords, Mode=OneWay}"
-                                                       Style="{StaticResource FieldValueStyle}"/>
-                                            <ctl:GlossaryHint Grid.Column="2" VerticalAlignment="Center"
-                                                              Card="{x:Bind ViewModel.RadarAtlas.CoordsHint, Mode=OneWay}"/>
-                                        </Grid>
-                                    </StackPanel>
-
-                                    <!-- Site photo — DUMMY placeholder; nothing feeds it yet. 16:9. -->
-                                    <Border Grid.Column="1" Height="113" VerticalAlignment="Top"
-                                            CornerRadius="6"
-                                            Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-                                            <FontIcon Glyph="&#xE722;" FontSize="24"
-                                                      Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                                            <TextBlock Text="Site photo" FontSize="12" HorizontalAlignment="Center"
-                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                            </Border>
-
-                            <!-- STAT STRIP — the same facts said SHORT, for the glance that answers "is this
-                                 radar worth loading?". Each tile carries its own "?" hint.
-                                 ⚠️ The age tile is the only one that carries colour, and its knees are the
-                                 glossary's (green → amber at RecentKnee → red past Staleness), so the colour
-                                 and the hint's sentence always agree.
-                                 ⚠️ The distance tile COLLAPSES with no location marker — an empty tile would
-                                 read as missing data rather than as a feature you haven't used. -->
+                            <!-- TILES — the old site card and the stat strip, collapsed into ONE row. The tile says the
+                                 GLANCEABLE form big (an age, the VCP alone) and keeps the card's PRECISE form in its
+                                 label (the clock time, the regime), so nothing the card said is lost. Each carries its
+                                 own "?" hint.
+                                 ⚠️ The age tile is the only one that carries colour, and its knees are the glossary's
+                                 (green → amber at RecentKnee → red past Staleness), so the colour and the hint agree.
+                                 ⚠️ The distance tile COLLAPSES with no location marker — an empty tile would read as
+                                 missing data rather than as a feature you haven't used.
+                                 The PHOTO slot is kept (a dummy — nothing feeds it yet), beside the tiles. -->
                             <Grid Grid.Row="2" ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="200"/>
                                 </Grid.ColumnDefinitions>
 
                                 <Border Grid.Column="0" CornerRadius="8" Padding="12"
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                     <Grid>
                                         <StackPanel>
-                                            <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailAgeValue, Mode=OneWay}"
-                                                       FontSize="20" FontWeight="SemiBold"
-                                                       Foreground="{x:Bind win:RadarAtlasWindow.AgeBrush(ViewModel.RadarAtlas.DetailAgeMinutes), Mode=OneWay}"/>
-                                            <TextBlock Text="SINCE LAST SCAN" Style="{StaticResource FieldLabelStyle}"/>
+                                            <!-- Spinner and value share ONE cell: the value is empty for exactly as
+                                                 long as the fetch is in flight. -->
+                                            <Grid>
+                                                <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailAgeValue, Mode=OneWay}"
+                                                           FontSize="20" FontWeight="SemiBold"
+                                                           Foreground="{x:Bind win:RadarAtlasWindow.AgeBrush(ViewModel.RadarAtlas.DetailAgeMinutes), Mode=OneWay}"/>
+                                                <ProgressRing Width="16" Height="16"
+                                                              HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                              IsActive="{x:Bind ViewModel.RadarAtlas.IsLoadingScanInfo, Mode=OneWay}"
+                                                              Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.IsLoadingScanInfo), Mode=OneWay}"/>
+                                            </Grid>
+                                            <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailScanClockLabel, Mode=OneWay}"
+                                                       TextWrapping="Wrap" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                         </StackPanel>
                                         <ctl:GlossaryHint HorizontalAlignment="Right" VerticalAlignment="Top"
                                                           Card="{x:Bind ViewModel.RadarAtlas.AgeHint, Mode=OneWay}"/>
@@ -716,8 +656,8 @@
                                         <StackPanel>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailScanValue, Mode=OneWay}"
                                                        FontSize="20" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailScanLabel, Mode=OneWay}"
-                                                       Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{x:Bind win:RadarAtlasWindow.ScanModeLabel(ViewModel.RadarAtlas.DetailScanLabel), Mode=OneWay}"
+                                                       TextWrapping="Wrap" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                         </StackPanel>
                                         <ctl:GlossaryHint HorizontalAlignment="Right" VerticalAlignment="Top"
                                                           Card="{x:Bind ViewModel.RadarAtlas.ScanHint, Mode=OneWay}"/>
@@ -731,14 +671,25 @@
                                         <StackPanel>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.DetailDistanceValue, Mode=OneWay}"
                                                        FontSize="20" FontWeight="SemiBold"/>
-                                            <TextBlock Text="FROM YOU" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="FROM YOU" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                         </StackPanel>
                                         <ctl:GlossaryHint HorizontalAlignment="Right" VerticalAlignment="Top"
                                                           Card="{x:Bind ViewModel.RadarAtlas.DistanceHint, Mode=OneWay}"/>
                                     </Grid>
                                 </Border>
-                            </Grid>
 
+                                <!-- Site photo — DUMMY placeholder; nothing feeds it yet. 16:9. -->
+                                <Border Grid.Column="3" Height="113" VerticalAlignment="Top"
+                                        CornerRadius="8"
+                                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+                                        <FontIcon Glyph="&#xE722;" FontSize="24"
+                                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        <TextBlock Text="Site photo" FontSize="12" HorizontalAlignment="Center"
+                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                             <!-- YOUR USE — how much YOU have used this site (SiteUsageTracker). Same tile vocabulary
                                  as the strip above, one more column. Header = caption · "since …" · Clear.
                                  ⚠️ Clear shows only with recorded history, and always CONFIRMS
@@ -767,7 +718,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="NWS STATUS" VerticalAlignment="Center"
-                                               Style="{StaticResource FieldLabelStyle}"/>
+                                               Style="{StaticResource AtlasFieldLabelStyle}"/>
                                     <TextBlock Grid.Column="1"
                                                Text="{x:Bind ViewModel.RadarAtlas.NwsStatus.CheckedText, Mode=OneWay}"
                                                FontSize="12" VerticalAlignment="Center"
@@ -811,12 +762,12 @@
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="RADAR STATE" VerticalAlignment="Center"
-                                                               Style="{StaticResource FieldLabelStyle}"/>
+                                                               Style="{StaticResource AtlasFieldLabelStyle}"/>
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                                                         <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                                                  Fill="{x:Bind win:RadarAtlasWindow.NwsLevelBrush(ViewModel.RadarAtlas.NwsDetail.Level), Mode=OneWay}"/>
                                                         <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.StateText, Mode=OneWay}"
-                                                                   Style="{StaticResource FieldValueStyle}"/>
+                                                                   Style="{StaticResource AtlasFieldValueStyle}"/>
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
@@ -828,10 +779,10 @@
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="ALARMS" VerticalAlignment="Center"
-                                                               Style="{StaticResource FieldLabelStyle}"/>
+                                                               Style="{StaticResource AtlasFieldLabelStyle}"/>
                                                     <TextBlock Grid.Column="1"
                                                                Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.AlarmsText, Mode=OneWay}"
-                                                               Style="{StaticResource FieldValueStyle}"/>
+                                                               Style="{StaticResource AtlasFieldValueStyle}"/>
                                                 </Grid>
                                             </Border>
                                             <Border BorderThickness="0,0,0,1" Padding="0,8"
@@ -842,10 +793,10 @@
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="POWER" VerticalAlignment="Center"
-                                                               Style="{StaticResource FieldLabelStyle}"/>
+                                                               Style="{StaticResource AtlasFieldLabelStyle}"/>
                                                     <TextBlock Grid.Column="1"
                                                                Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.PowerText, Mode=OneWay}"
-                                                               Style="{StaticResource FieldValueStyle}"/>
+                                                               Style="{StaticResource AtlasFieldValueStyle}"/>
                                                 </Grid>
                                             </Border>
                                         </StackPanel>
@@ -856,10 +807,10 @@
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Text="NWS MESSAGE" VerticalAlignment="Top" Margin="0,3,0,0"
-                                                       Style="{StaticResource FieldLabelStyle}"/>
+                                                       Style="{StaticResource AtlasFieldLabelStyle}"/>
                                             <StackPanel Grid.Column="1" Spacing="6">
                                                 <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.NoMessageText, Mode=OneWay}"
-                                                           Style="{StaticResource FieldValueStyle}"
+                                                           Style="{StaticResource AtlasFieldValueStyle}"
                                                            Visibility="{x:Bind CollapsedWhen(ViewModel.RadarAtlas.NwsDetail.HasMessage), Mode=OneWay}"/>
                                                 <StackPanel Spacing="6"
                                                             Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.NwsDetail.HasMessage), Mode=OneWay}">
@@ -910,7 +861,7 @@
                             <StackPanel Grid.Row="4" Spacing="8" Margin="0,8,0,0">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="YOUR USE" VerticalAlignment="Center"
-                                               Style="{StaticResource FieldLabelStyle}"/>
+                                               Style="{StaticResource AtlasFieldLabelStyle}"/>
                                     <TextBlock Text="{x:Bind ViewModel.RadarAtlas.UsageSinceText, Mode=OneWay}"
                                                FontSize="12" VerticalAlignment="Center"
                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
@@ -954,7 +905,7 @@
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.UsageLoadsValue, Mode=OneWay}"
                                                        FontSize="20" FontWeight="SemiBold"/>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.UsageLoadsLabel, Mode=OneWay}"
-                                                       TextWrapping="Wrap" Style="{StaticResource FieldLabelStyle}"/>
+                                                       TextWrapping="Wrap" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                         </StackPanel>
                                     </Border>
 
@@ -965,7 +916,7 @@
                                                 <TextBlock Text="{x:Bind ViewModel.RadarAtlas.LoadTimeValue, Mode=OneWay}"
                                                            FontSize="20" FontWeight="SemiBold"/>
                                                 <TextBlock Text="{x:Bind ViewModel.RadarAtlas.LoadTimeLabel, Mode=OneWay}"
-                                                           TextWrapping="Wrap" Style="{StaticResource FieldLabelStyle}"/>
+                                                           TextWrapping="Wrap" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                             </StackPanel>
                                             <ctl:GlossaryHint HorizontalAlignment="Right" VerticalAlignment="Top"
                                                               Card="{x:Bind ViewModel.RadarAtlas.LoadTimeHint, Mode=OneWay}"/>
@@ -977,7 +928,7 @@
                                         <StackPanel>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.LastUsedValue, Mode=OneWay}"
                                                        FontSize="20" FontWeight="SemiBold"/>
-                                            <TextBlock Text="LAST USED" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="LAST USED" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                         </StackPanel>
                                     </Border>
 
@@ -987,7 +938,7 @@
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.RankValue, Mode=OneWay}"
                                                        FontSize="20" FontWeight="SemiBold"/>
                                             <TextBlock Text="{x:Bind ViewModel.RadarAtlas.RankLabel, Mode=OneWay}"
-                                                       TextWrapping="Wrap" Style="{StaticResource FieldLabelStyle}"/>
+                                                       TextWrapping="Wrap" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                         </StackPanel>
                                     </Border>
                                 </Grid>

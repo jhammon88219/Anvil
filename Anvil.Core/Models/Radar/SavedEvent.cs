@@ -20,7 +20,9 @@ namespace Anvil.Models
 	/// </remarks>
 	/// <param name="SiteId">The radar's ICAO ("KTLX"), or null for a window-only event (Load then waits for
 	/// a site click, exactly as it does with no site selected today).</param>
-	public sealed record SavedEventLeg(string? SiteId, DateTimeOffset StartUtc, int DurationMinutes)
+	/// <param name="Key">The leg's KEY TIME — the moment this radar's view is FOR (the tornado on the ground,
+	/// the landfall, the derecho crossing a city). Optional; null = not known. See <see cref="SavedEventKey"/>.</param>
+	public sealed record SavedEventLeg(string? SiteId, DateTimeOffset StartUtc, int DurationMinutes, SavedEventKey? Key = null)
 	{
 		/// <summary>
 		/// The window lengths the Timeframe picker offers, in its order.
@@ -32,6 +34,22 @@ namespace Anvil.Models
 		/// <summary>When this leg's window ends.</summary>
 		public DateTimeOffset EndUtc => StartUtc.AddMinutes(DurationMinutes);
 	}
+
+	/// <summary>
+	/// A leg's key time: when (and optionally where) the thing the leg exists to show happened — JSON
+	/// <c>"key": { "startUtc", "endUtc"?, "place"? }</c>.
+	/// </summary>
+	/// <remarks>
+	/// ⚠️ <b>It belongs to the LEG, not the event.</b> Katrina has two landfalls, one per radar; a derecho crosses
+	/// a city per leg. What the time is CALLED comes from the event's kind (<see cref="SavedEventKinds.KeyLabel"/>),
+	/// so it is never stored.
+	/// <para>⚠️ It must OVERLAP its leg's window, not sit inside it: a derecho can enter an office's area before
+	/// that radar's leg starts (KILN, 2012) or a DC crossing outlast the leg by minutes. A key entirely outside
+	/// the window would describe a moment the leg can't show.</para>
+	/// </remarks>
+	/// <param name="EndUtc">Null for an instant (a landfall); set for a span (a tornado's track).</param>
+	/// <param name="Place">"Buras", "Cedar Rapids" — empty when the event's name already says where.</param>
+	public sealed record SavedEventKey(DateTimeOffset StartUtc, DateTimeOffset? EndUtc = null, string Place = "");
 
 	/// <summary>
 	/// A named past radar event the PastCast window can jump to: one or more <see cref="SavedEventLeg"/>s,
@@ -68,9 +86,10 @@ namespace Anvil.Models
 	/// What kind of storm a saved event is — the JSON <c>"type"</c> ("tornado" / "hurricane" / "derecho").
 	/// </summary>
 	/// <remarks>
-	/// ⚠️ <see cref="Other"/> is the default so a missing type is harmless (the user's own events carry none);
-	/// an UNKNOWN type string is a parse error, so a typo in a built-in is caught rather than shown as Other.
-	/// The list groups in this declaration order with Other last (<c>SavedEventsViewModel</c>).
+	/// ⚠️ <see cref="Other"/> is the default so a missing type is harmless (user events saved before types
+	/// existed carry none; new ones pick one); an UNKNOWN type string is a parse error, so a typo in a built-in
+	/// is caught rather than shown as Other. The list groups in this declaration order with Other last
+	/// (<see cref="Anvil.Services.SavedEventLibrary.GetEvents"/>), built-ins and the user's own together.
 	/// </remarks>
 	public enum SavedEventKind
 	{
@@ -78,5 +97,31 @@ namespace Anvil.Models
 		Tornado,
 		Hurricane,
 		Derecho,
+	}
+
+	/// <summary>The words each <see cref="SavedEventKind"/> is shown with.</summary>
+	public static class SavedEventKinds
+	{
+		/// <summary>The kinds a user may give their own event, in the picker's order (Other is legacy only).</summary>
+		public static IReadOnlyList<SavedEventKind> Pickable { get; } =
+			new[] { SavedEventKind.Tornado, SavedEventKind.Hurricane, SavedEventKind.Derecho };
+
+		/// <summary>"Tornado" — the badge and the filter pill.</summary>
+		public static string Label(SavedEventKind kind) => kind switch
+		{
+			SavedEventKind.Tornado => "Tornado",
+			SavedEventKind.Hurricane => "Hurricane",
+			SavedEventKind.Derecho => "Derecho",
+			_ => "Other",
+		};
+
+		/// <summary>What a leg's <see cref="SavedEventKey"/> is called for this kind of storm.</summary>
+		public static string KeyLabel(SavedEventKind kind) => kind switch
+		{
+			SavedEventKind.Tornado => "On the ground",
+			SavedEventKind.Hurricane => "Landfall",
+			SavedEventKind.Derecho => "Across",
+			_ => "Key time",
+		};
 	}
 }

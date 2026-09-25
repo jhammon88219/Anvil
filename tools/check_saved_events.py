@@ -11,8 +11,8 @@ optional .gz, never _MDM) and MinVolumeBytes (100 KB - smaller objects are abort
 neither.
 
 Also re-checks the rules SavedEventLibrary.Validate enforces (window length on the picker, start on a
-5-minute mark), and that every built-in names a type (tornado/hurricane/derecho), so the script is useful
-before the app is even built.
+5-minute mark, a leg's key time overlapping its window), and that every built-in names a type
+(tornado/hurricane/derecho) and every leg a key time, so the script is useful before the app is even built.
 
     py -3 tools/check_saved_events.py
     py -3 tools/check_saved_events.py --file some-other.json --min 5
@@ -113,6 +113,19 @@ def main():
                 problems.append(f"{minutes} min is not a Timeframe window")
             if start.minute % 5 or start.second:
                 problems.append("start is not on a 5-minute mark")
+            # The leg's KEY time. MIRRORS SavedEventLibrary.ValidateKey: end after start, and the key must
+            # OVERLAP the window (not sit inside it). Change both or neither.
+            key = leg.get("key")
+            if key is not None:
+                k_start = datetime.fromisoformat(key["startUtc"].replace("Z", "+00:00")).astimezone(timezone.utc)
+                k_end = (datetime.fromisoformat(key["endUtc"].replace("Z", "+00:00")).astimezone(timezone.utc)
+                         if key.get("endUtc") else None)
+                if k_end is not None and k_end <= k_start:
+                    problems.append("key ends before it starts")
+                if k_start > end or (k_end or k_start) < start:
+                    problems.append("key time doesn't overlap the window")
+            else:
+                print("  WARN  leg %d has no key time" % i)
             if problems:
                 print(f"{label}  FAIL  {'; '.join(problems)}")
                 failures += 1

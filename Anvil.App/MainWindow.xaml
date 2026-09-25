@@ -475,7 +475,7 @@
                                 <ToggleButton x:Name="AtlasKey"
                                               Grid.Column="0"
                                               Style="{StaticResource BarKeyToggleStyle}"
-                                              ToolTipService.ToolTip="Radar Atlas"
+                                              ToolTipService.ToolTip="Anvil Atlas — radar sites and past events"
                                               IsChecked="{x:Bind ViewModel.IsRadarAtlasOpen, Mode=TwoWay}">
                                     <Grid Margin="3,0" RowSpacing="2">
                                         <Grid.RowDefinitions>

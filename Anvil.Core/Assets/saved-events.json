@@ -1,5 +1,5 @@
 {
-  "_note": "Curated BUILT-IN PastCast events. Read-only in the app; a user's own events live in %LocalAppData%\\Anvil\\SavedEvents.json. Every start is UTC on a 5-minute mark, every window is one of 30/60/120/180/360/720 minutes, and every leg must pass tools/check_saved_events.py (the archive really holds volumes for that site and window). Each event names its source for the times, and a type (tornado / hurricane / derecho) that groups and filters the list.",
+  "_note": "Curated BUILT-IN PastCast events. Read-only in the app; a user's own events live in %LocalAppData%\\Anvil\\SavedEvents.json. Every start is UTC on a 5-minute mark, every window is one of 30/60/120/180/360/720 minutes, and every leg must pass tools/check_saved_events.py (the archive really holds volumes for that site and window). Each event names its source for the times, and a type (tornado / hurricane / derecho) that groups and filters the list. Each leg's optional key is the moment it is FOR (tornado on the ground / landfall / derecho across a place), from the same source; it must overlap the leg's window.",
   "events": [
     {
       "id": "el-reno-2013",
@@ -9,7 +9,8 @@
       "source": "NWS Norman event summary: tornado 6:03-6:43 PM CDT (23:03-23:43Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KTLX", "startUtc": "2013-05-31T22:30:00Z", "minutes": 120 }
+        { "site": "KTLX", "startUtc": "2013-05-31T22:30:00Z", "minutes": 120,
+          "key": { "startUtc": "2013-05-31T23:03:00Z", "endUtc": "2013-05-31T23:43:00Z" } }
       ]
     },
     {
@@ -20,7 +21,8 @@
       "source": "NWS Norman event summary: tornado 2:56-3:35 PM CDT (19:56-20:35Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KTLX", "startUtc": "2013-05-20T19:30:00Z", "minutes": 120 }
+        { "site": "KTLX", "startUtc": "2013-05-20T19:30:00Z", "minutes": 120,
+          "key": { "startUtc": "2013-05-20T19:56:00Z", "endUtc": "2013-05-20T20:35:00Z" } }
       ]
     },
     {
@@ -31,8 +33,10 @@
       "source": "Wikipedia (NWS Jackson survey): tornado 2:30-3:00 PM CDT (19:30-20:00Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KDGX", "startUtc": "2011-04-27T19:00:00Z", "minutes": 120 },
-        { "site": "KGWX", "startUtc": "2011-04-27T19:00:00Z", "minutes": 120 }
+        { "site": "KDGX", "startUtc": "2011-04-27T19:00:00Z", "minutes": 120,
+          "key": { "startUtc": "2011-04-27T19:30:00Z", "endUtc": "2011-04-27T20:00:00Z" } },
+        { "site": "KGWX", "startUtc": "2011-04-27T19:00:00Z", "minutes": 120,
+          "key": { "startUtc": "2011-04-27T19:30:00Z", "endUtc": "2011-04-27T20:00:00Z" } }
       ]
     },
     {
@@ -43,8 +47,10 @@
       "source": "Wikipedia (NWS Huntsville/Birmingham surveys): tornado 3:05-4:50 PM CDT (20:05-21:50Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KHTX", "startUtc": "2011-04-27T19:45:00Z", "minutes": 180 },
-        { "site": "KGWX", "startUtc": "2011-04-27T19:45:00Z", "minutes": 180 }
+        { "site": "KHTX", "startUtc": "2011-04-27T19:45:00Z", "minutes": 180,
+          "key": { "startUtc": "2011-04-27T20:05:00Z", "endUtc": "2011-04-27T21:50:00Z" } },
+        { "site": "KGWX", "startUtc": "2011-04-27T19:45:00Z", "minutes": 180,
+          "key": { "startUtc": "2011-04-27T20:05:00Z", "endUtc": "2011-04-27T21:50:00Z" } }
       ]
     },
     {
@@ -55,7 +61,8 @@
       "source": "Wikipedia (NWS Memphis survey): tornado 3:43-4:23 PM CDT (20:43-21:23Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KGWX", "startUtc": "2011-04-27T20:15:00Z", "minutes": 120 }
+        { "site": "KGWX", "startUtc": "2011-04-27T20:15:00Z", "minutes": 120,
+          "key": { "startUtc": "2011-04-27T20:43:00Z", "endUtc": "2011-04-27T21:23:00Z" } }
       ]
     },
     {
@@ -66,8 +73,10 @@
       "source": "Wikipedia (NWS Huntsville survey): tornado 6:19 PM CDT-7:55 PM EDT (23:19-23:55Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KFFC", "startUtc": "2011-04-27T22:45:00Z", "minutes": 120 },
-        { "site": "KBMX", "startUtc": "2011-04-27T22:45:00Z", "minutes": 120 }
+        { "site": "KFFC", "startUtc": "2011-04-27T22:45:00Z", "minutes": 120,
+          "key": { "startUtc": "2011-04-27T23:19:00Z", "endUtc": "2011-04-27T23:55:00Z" } },
+        { "site": "KBMX", "startUtc": "2011-04-27T22:45:00Z", "minutes": 120,
+          "key": { "startUtc": "2011-04-27T23:19:00Z", "endUtc": "2011-04-27T23:55:00Z" } }
       ]
     },
     {
@@ -78,7 +87,8 @@
       "source": "NWS Springfield event summary: tornado 5:34-6:12 PM CDT (22:34-23:12Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KSGF", "startUtc": "2011-05-22T22:00:00Z", "minutes": 120 }
+        { "site": "KSGF", "startUtc": "2011-05-22T22:00:00Z", "minutes": 120,
+          "key": { "startUtc": "2011-05-22T22:34:00Z", "endUtc": "2011-05-22T23:12:00Z" } }
       ]
     },
     {
@@ -89,7 +99,8 @@
       "source": "NWS Norman event summary: tornado 3:50-5:35 PM CDT (20:50-22:35Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KTLX", "startUtc": "2011-05-24T20:30:00Z", "minutes": 180 }
+        { "site": "KTLX", "startUtc": "2011-05-24T20:30:00Z", "minutes": 180,
+          "key": { "startUtc": "2011-05-24T20:50:00Z", "endUtc": "2011-05-24T22:35:00Z" } }
       ]
     },
     {
@@ -100,7 +111,8 @@
       "source": "NWS Norman event summary: tornado 6:23-7:48 PM CDT (23:23Z May 3 - 00:48Z May 4)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KTLX", "startUtc": "1999-05-03T23:00:00Z", "minutes": 120 }
+        { "site": "KTLX", "startUtc": "1999-05-03T23:00:00Z", "minutes": 120,
+          "key": { "startUtc": "1999-05-03T23:23:00Z", "endUtc": "1999-05-04T00:48:00Z" } }
       ]
     },
     {
@@ -111,8 +123,10 @@
       "source": "NHC Tropical Cyclone Report: landfall near Buras 29 Aug 1110Z, near the LA/MS border 1445Z",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KLIX", "startUtc": "2005-08-29T10:00:00Z", "minutes": 180 },
-        { "site": "KMOB", "startUtc": "2005-08-29T13:30:00Z", "minutes": 180 }
+        { "site": "KLIX", "startUtc": "2005-08-29T10:00:00Z", "minutes": 180,
+          "key": { "startUtc": "2005-08-29T11:10:00Z", "place": "Buras" } },
+        { "site": "KMOB", "startUtc": "2005-08-29T13:30:00Z", "minutes": 180,
+          "key": { "startUtc": "2005-08-29T14:45:00Z", "place": "LA/MS border" } }
       ]
     },
     {
@@ -120,10 +134,11 @@
       "type": "hurricane",
       "name": "Hurricane Harvey",
       "notes": "Cat 4 at San Jose Island, then Rockport-Fulton, TX.",
-      "source": "NHC Tropical Cyclone Report / NWS Corpus Christi: landfall ~10 PM CDT 25 Aug (26 Aug 0300Z)",
+      "source": "NHC Tropical Cyclone Report / NWS Corpus Christi: landfall on San Jose Island ~5 n mi E of Rockport, ~10 PM CDT 25 Aug (26 Aug 0300Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KCRP", "startUtc": "2017-08-26T01:30:00Z", "minutes": 180 }
+        { "site": "KCRP", "startUtc": "2017-08-26T01:30:00Z", "minutes": 180,
+          "key": { "startUtc": "2017-08-26T03:00:00Z", "place": "San Jose Island" } }
       ]
     },
     {
@@ -134,7 +149,8 @@
       "source": "NHC Tropical Cyclone Report: landfall near Mexico Beach 12:30 PM CDT 10 Oct (1730Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KEVX", "startUtc": "2018-10-10T16:00:00Z", "minutes": 180 }
+        { "site": "KEVX", "startUtc": "2018-10-10T16:00:00Z", "minutes": 180,
+          "key": { "startUtc": "2018-10-10T17:30:00Z", "place": "Mexico Beach" } }
       ]
     },
     {
@@ -145,7 +161,8 @@
       "source": "NHC update: landfall near Port Fourchon 11:55 AM CDT 29 Aug (1655Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KLIX", "startUtc": "2021-08-29T15:30:00Z", "minutes": 180 }
+        { "site": "KLIX", "startUtc": "2021-08-29T15:30:00Z", "minutes": 180,
+          "key": { "startUtc": "2021-08-29T16:55:00Z", "place": "Port Fourchon" } }
       ]
     },
     {
@@ -156,7 +173,8 @@
       "source": "NHC update: landfall near Cayo Costa 3:05 PM EDT 28 Sep (1905Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KTBW", "startUtc": "2022-09-28T18:00:00Z", "minutes": 180 }
+        { "site": "KTBW", "startUtc": "2022-09-28T18:00:00Z", "minutes": 180,
+          "key": { "startUtc": "2022-09-28T19:05:00Z", "place": "Cayo Costa" } }
       ]
     },
     {
@@ -164,13 +182,17 @@
       "type": "derecho",
       "name": "Ohio Valley-Mid-Atlantic derecho",
       "notes": "91 mph at Fort Wayne; ~700 miles in 12 hours to Washington, DC. KRLX's archive stops at 23:54Z as the line arrives.",
-      "source": "SPC derecho case page + NWS service assessment: Fort Wayne by 4 PM EDT (20Z), W Virginia by 7 PM (23Z), DC 0057-0335Z",
+      "source": "SPC derecho case page + NWS service assessment: Fort Wayne by 4 PM EDT (20Z), W Virginia by 7 PM (23Z), DC 0057-0335Z; NWS Wilmington event page: through its area 3:15-7:00 PM EDT (1915-23Z)",
       "defaultLeg": 0,
       "legs": [
-        { "site": "KIWX", "startUtc": "2012-06-29T19:00:00Z", "minutes": 120 },
-        { "site": "KILN", "startUtc": "2012-06-29T20:00:00Z", "minutes": 180 },
-        { "site": "KRLX", "startUtc": "2012-06-29T22:30:00Z", "minutes": 120 },
-        { "site": "KLWX", "startUtc": "2012-06-30T00:30:00Z", "minutes": 180 }
+        { "site": "KIWX", "startUtc": "2012-06-29T19:00:00Z", "minutes": 120,
+          "key": { "startUtc": "2012-06-29T20:00:00Z", "place": "Fort Wayne" } },
+        { "site": "KILN", "startUtc": "2012-06-29T20:00:00Z", "minutes": 180,
+          "key": { "startUtc": "2012-06-29T19:15:00Z", "endUtc": "2012-06-29T23:00:00Z", "place": "southwest Ohio" } },
+        { "site": "KRLX", "startUtc": "2012-06-29T22:30:00Z", "minutes": 120,
+          "key": { "startUtc": "2012-06-29T23:00:00Z", "place": "West Virginia" } },
+        { "site": "KLWX", "startUtc": "2012-06-30T00:30:00Z", "minutes": 180,
+          "key": { "startUtc": "2012-06-30T00:57:00Z", "endUtc": "2012-06-30T03:35:00Z", "place": "Washington, DC" } }
       ]
     },
     {
@@ -181,8 +203,10 @@
       "source": "NWS Quad Cities summary: Des Moines ~11 AM CDT (16Z), Cedar Rapids 12:30-12:55 PM CDT (1730-1755Z)",
       "defaultLeg": 1,
       "legs": [
-        { "site": "KDMX", "startUtc": "2020-08-10T15:00:00Z", "minutes": 180 },
-        { "site": "KDVN", "startUtc": "2020-08-10T16:30:00Z", "minutes": 180 }
+        { "site": "KDMX", "startUtc": "2020-08-10T15:00:00Z", "minutes": 180,
+          "key": { "startUtc": "2020-08-10T16:00:00Z", "place": "Des Moines" } },
+        { "site": "KDVN", "startUtc": "2020-08-10T16:30:00Z", "minutes": 180,
+          "key": { "startUtc": "2020-08-10T17:30:00Z", "endUtc": "2020-08-10T17:55:00Z", "place": "Cedar Rapids" } }
       ]
     }
   ]

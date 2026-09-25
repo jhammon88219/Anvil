@@ -568,7 +568,7 @@ namespace Anvil
 				isOpen: () => ViewModel.IsRadarAtlasOpen,
 				close: () => ViewModel.IsRadarAtlasOpen = false,
 				buildContent: () => new Controls.Windows.RadarAtlasWindow { ViewModel = ViewModel },
-				title: "Radar Atlas", anchor: WindowAnchor.Center,
+				title: "Anvil Atlas", anchor: WindowAnchor.Center,
 				keepAboveOwner: () => ViewModel.IsRadarAtlasOnTop,
 				isLocked: () => ViewModel.IsRadarAtlasLocked,
 				customChrome: true);

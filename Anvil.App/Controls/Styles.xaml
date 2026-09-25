@@ -511,4 +511,99 @@
         </Setter>
     </Style>
 
+    <!-- The Anvil Atlas's small-caps field label + value (both tabs — shared, which is why they live here). -->
+    <Style x:Key="AtlasFieldLabelStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="CharacterSpacing" Value="40"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
+    </Style>
+    <Style x:Key="AtlasFieldValueStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+    </Style>
+
+    <!-- The Anvil Atlas's list rows (Radar sites AND Past events — shared, which is why it lives here).
+         ROWS ARE KEYS — each item is a small card in the map key's vocabulary: TRANSPARENT at
+         rest with NO stroke (only its square and bar show — filled, outlined cards read crowded),
+         LIFTED on hover (raised fill + 1 px rise), and a PERMANENT selected state.
+         ⚠️ The container is RETEMPLATED (no ListViewItemPresenter): the stock selection
+         wash + accent pill would fight the card. SELECTED is deliberately QUIET — the
+         elevated surface with a thin accent stroke (the bar's "lit" vocabulary), NOT the
+         map key's bright inverted face, which reads as a flashlight in a list.
+         ⚠️ A Border doesn't clip its children to its corners, so the status bar and the
+         network bar carry their own inner radii (5 = card 6 − its 1 px stroke). -->
+    <Style x:Key="AtlasRowItemStyle" TargetType="ListViewItem">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="6,2"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListViewItem">
+                    <Grid>
+                        <Grid.RenderTransform>
+                            <TranslateTransform x:Name="Lift"/>
+                        </Grid.RenderTransform>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <!-- RESTING: transparent centre, no stroke (the Card's own defaults) —
+                                     only the status bar and the network bar read, so a long list
+                                     stays light instead of a wall of filled cards. -->
+                                <VisualState x:Name="Normal"/>
+                                <!-- HOVER LIFTS: the raised surface fills in and the card rises 1 px. -->
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+                                        <Setter Target="Lift.Y" Value="-1"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <!-- SELECTED IS PERMANENT: the same elevated face + accent stroke in all
+                                     three selected states, so hovering or pressing a selected row never
+                                     changes how it looks. -->
+                                <VisualState x:Name="Selected">
+                                    <VisualState.Setters>
+                                        <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                        <Setter Target="Card.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="PointerOverSelected">
+                                    <VisualState.Setters>
+                                        <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                        <Setter Target="Card.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="PressedSelected">
+                                    <VisualState.Setters>
+                                        <Setter Target="Card.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                        <Setter Target="Card.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+    
+                        <!-- No stroke at rest or on hover (BorderBrush Transparent); the 1 px
+                             thickness stays so the selected accent stroke doesn't shift the row. -->
+                        <Border x:Name="Card"
+                                CornerRadius="6" BorderThickness="1"
+                                Background="Transparent"
+                                BorderBrush="Transparent"/>
+                        <ContentPresenter Margin="1"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalContentAlignment="Stretch"
+                                          VerticalContentAlignment="Stretch"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

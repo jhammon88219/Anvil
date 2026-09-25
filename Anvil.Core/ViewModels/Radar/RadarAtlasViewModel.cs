@@ -568,6 +568,10 @@ namespace Anvil.ViewModels
 			RebuildChips();
 			OnPropertyChanged(nameof(ResultCountText));
 			OnPropertyChanged(nameof(HasActiveFilters));
+			OnPropertyChanged(nameof(NexradCount));
+			OnPropertyChanged(nameof(TdwrCount));
+			OnPropertyChanged(nameof(ResearchCount));
+			OnPropertyChanged(nameof(ShownSiteCount));
 			// The Clear() dropped the ListView's selection (its null echo was ignored — see SelectedSite);
 			// re-raise so a selection that survived the filter is highlighted again.
 			OnPropertyChanged(nameof(SelectedSite));
@@ -638,6 +642,32 @@ namespace Anvil.ViewModels
 		public string DetailName => _selectedSite?.Name ?? string.Empty;
 		public string DetailClassLabel => _selectedSite?.ClassLabel ?? string.Empty;
 		public string DetailCoords => _selectedSite?.Coords ?? string.Empty;
+
+		/// <summary>"KTLX · Norman, OK" — the detail header, the same grammar as a past event's name.</summary>
+		public string DetailTitle => _selectedSite is not { } s ? string.Empty
+			: string.IsNullOrEmpty(s.State) ? $"{s.Id} · {s.Name}" : $"{s.Id} · {s.Name}, {s.State}";
+
+		/// <summary>"WSR-88D · 35.333, -97.278" — the line under the header (the coordinates moved here from the
+		/// old site card). The radar's kind, not its network badge's word, so the two don't repeat.</summary>
+		public string DetailSubtitle => _selectedSite is not { } s ? string.Empty
+			: $"{s.Site.Class switch { RadarSiteClass.Tdwr => "Terminal Doppler", RadarSiteClass.Research => "Research radar", _ => "WSR-88D" }} · {s.Coords}";
+
+		/// <summary>"LATEST SCAN · 12:06 PM" — the age tile's label carries the clock time the card used to.</summary>
+		public string DetailScanClockLabel => DetailScanTime is { } t
+			? $"LATEST SCAN · {t.ToLocalTime():h:mm tt}"
+			: string.IsNullOrEmpty(_scanStatus) ? "LATEST SCAN" : $"LATEST SCAN · {_scanStatus.ToUpperInvariant()}";
+
+		// ── The Anvil Atlas title band, on the Radar sites tab: the network split of what the Atlas lists ──
+		// Counted over the sites Settings → Radar currently SHOWS (a hidden network lists nothing), never the
+		// filtered list — the band describes the Atlas, the count row under the filters describes the search.
+
+		private int CountShown(RadarSiteClass siteClass) =>
+			_radar.RadarSiteRows.Count(r => r.Site.Class == siteClass && _radar.IsNetworkShown(r.Site));
+
+		public int NexradCount => CountShown(RadarSiteClass.Operational);
+		public int TdwrCount => CountShown(RadarSiteClass.Tdwr);
+		public int ResearchCount => CountShown(RadarSiteClass.Research);
+		public int ShownSiteCount => _radar.RadarSiteRows.Count(r => _radar.IsNetworkShown(r.Site));
 
 		/// <summary>Great-circle distance from the user-location marker (if any) to the selected site.</summary>
 		public string DetailDistanceText
@@ -768,6 +798,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(VcpModeText));
 			OnPropertyChanged(nameof(DetailAgeValue));
 			OnPropertyChanged(nameof(DetailAgeMinutes));
+			OnPropertyChanged(nameof(DetailScanClockLabel));
 			OnPropertyChanged(nameof(DetailScanValue));
 			OnPropertyChanged(nameof(DetailScanLabel));
 			OnPropertyChanged(nameof(AgeHint));
@@ -851,6 +882,8 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(LoadButtonText));
 			OnPropertyChanged(nameof(DetailId));
 			OnPropertyChanged(nameof(DetailName));
+			OnPropertyChanged(nameof(DetailTitle));
+			OnPropertyChanged(nameof(DetailSubtitle));
 			OnPropertyChanged(nameof(DetailClassLabel));
 			OnPropertyChanged(nameof(DetailCoords));
 			OnPropertyChanged(nameof(DetailDistanceText));

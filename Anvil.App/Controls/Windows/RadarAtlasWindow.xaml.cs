@@ -8,11 +8,12 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Windows
 {
 	/// <summary>
-	/// The Radar Atlas panel — a non-modal, searchable master–detail browser over the radar
-	/// network, floating above the OverlayBar. Bound to the coordinator <see cref="MapViewModel"/> (like
-	/// <see cref="SettingsWindow"/>): its visibility follows <see cref="MapViewModel.IsRadarAtlasOpen"/>
-	/// and it reaches into <see cref="MapViewModel.RadarAtlas"/> for the list/detail. The close triangle
-	/// and Load button are handled here in code-behind.
+	/// The Anvil Atlas — everything you can point the radar at: a title band, then two tabs, Radar sites (a
+	/// searchable master–detail browser over the radar network, this file) and Past events
+	/// (<see cref="Composites.PastEventsAtlasTab"/>). Bound to the coordinator <see cref="MapViewModel"/> (like
+	/// <see cref="SettingsWindow"/>): its visibility follows <see cref="MapViewModel.IsRadarAtlasOpen"/>, its tab
+	/// <see cref="MapViewModel.AtlasTabIndex"/>, and it reaches into <see cref="MapViewModel.RadarAtlas"/> for the
+	/// sites list/detail. The Load button is handled here in code-behind.
 	/// </summary>
 	public sealed partial class RadarAtlasWindow : UserControl
 	{
@@ -20,6 +21,22 @@ namespace Anvil.Controls.Windows
 		{
 			InitializeComponent();
 		}
+
+		// The strip's content, in AtlasTabIndex order. ⚠️ E81C (History) is an UNVERIFIED codepoint — check it
+		// renders; EC05 is the Atlas key's own glyph.
+		public System.Collections.ObjectModel.ObservableCollection<Primitives.TabEntry> Tabs { get; } = new()
+		{
+			new() { Glyph = "", Label = "Radar sites", Tooltip = "Every radar the app can load: status, scan, NWS notices and your use" },
+			new() { Glyph = "", Label = "Past events", Tooltip = "Curated and saved storms to replay in PastCast" },
+		};
+
+		public Visibility TabVisibility(int selected, int tab) => selected == tab ? Visibility.Visible : Visibility.Collapsed;
+
+		public string Count(int n) => n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+		/// <summary>"SCAN MODE · CLEAR-AIR" — the scan tile's label keeps the regime the old card spelled out.</summary>
+		public static string ScanModeLabel(string regime) =>
+			string.IsNullOrEmpty(regime) || regime == "Scan pattern" ? "SCAN MODE" : $"SCAN MODE · {regime.ToUpperInvariant()}";
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel

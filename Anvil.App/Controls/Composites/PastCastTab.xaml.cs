@@ -235,6 +235,9 @@ namespace Anvil.Controls.Composites
 
 		private void OnOpenSaveEventClick(object sender, RoutedEventArgs e) => ViewModel?.SavedEvents.OpenSaveForm();
 
+		// "Open in Atlas ›" — the Anvil Atlas's Past events tab, on the picked event.
+		private void OnOpenInAtlasClick(object sender, RoutedEventArgs e) => ViewModel?.OpenAtlasOnEvents();
+
 		private void OnCancelSaveEventClick(object sender, RoutedEventArgs e) => ViewModel?.SavedEvents.CancelSave();
 
 		private void OnConfirmSaveEventClick(object sender, RoutedEventArgs e) => ViewModel?.SavedEvents.ConfirmSave();
