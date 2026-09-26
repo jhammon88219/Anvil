@@ -48,8 +48,11 @@ namespace Anvil.Tests
 			Assert.Contains("No scan time", RadarGlossary.DataAge(null).Now);
 
 		[Theory]
-		[InlineData("VCP 35 · clear-air", "Clear-air mode")]
-		[InlineData("VCP 212 · precip · SAILS/MRLE ×1", "Precipitation mode")]
+		[InlineData("VCP 35 · clear-air", "SZ-2 clear air")]
+		[InlineData("VCP 212 · precip · SAILS/MRLE ×1", "SZ-2 severe convective")]
+		[InlineData("VCP 80 · TDWR hazardous", "microbursts")]
+		[InlineData("VCP 21 · precip", "Retired")]
+		[InlineData("clear-air", "Clear-air mode")]   // no number → falls back to the regime word
 		[InlineData("—", "hasn't reported")]
 		[InlineData("", "hasn't reported")]
 		public void ScanPattern_ReadsTheRegime(string mode, string expected) =>

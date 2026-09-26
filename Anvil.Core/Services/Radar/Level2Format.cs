@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Anvil.Models;
 using SharpCompress.Compressors;
 using SharpCompress.Compressors.BZip2;
 
@@ -508,38 +509,13 @@ namespace Anvil.Services
 			return new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero).AddDays(julian - 1).AddMilliseconds(ms);
 		}
 
-		// Real WSR-88D volume coverage patterns. Used to validate the (best-effort) VCP parse:
-		// anything outside the known sets is a bad read, shown as "VCP ?" rather than a wrong number.
-		// ⚠️ 34 = SZ-2 clear air (7 elevations, ~10 min, one SAILS option) and is CURRENTLY DEPLOYED.
-		// Its absence was a live bug, not a tidy-up: TryReadElevationTable gates on IsKnownVcp and
-		// `continue`s past an unrecognised one, so a VCP 34 volume produced an EMPTY elevation table —
-		// no tilt choice at all, and "VCP ?" in the readout. ⚠️ THIS IS THE SECOND TIME THIS EXACT SHAPE
-		// OF BUG HAS SHIPPED (see the TDWR note below: 80 was missing and read as "VCP ?"). The set is a
-		// hand-maintained allow-list with no test behind it, which is what makes a third recurrence
-		// likely — the committed VCP-table asset in the research backlog is the real fix.
-		internal static readonly HashSet<int> ClearAirVcps = new() { 31, 32, 34, 35 };
-		// ⚠️ 11 / 21 / 121 / 211 / 221 are RETIRED (removed under the ROC's 2015 VCP Improvement
-		// Initiative) and are kept ON PURPOSE: the archive goes back to 1991 and PastCast replays it, so a
-		// retired pattern is still a legitimate read on an old volume. Don't "clean these up".
-		internal static readonly HashSet<int> PrecipVcps = new() { 11, 12, 21, 112, 121, 211, 212, 215, 221 };
-		// TDWR (Terminal Doppler Weather Radar) volume coverage patterns — a separate C-band network
-		// that publishes the same Archive Level II family (AR2V0008). 90 = "monitor" (clear-air; 16
-		// scans/~6 min) and 80 = "hazardous" (precipitation), which the SPG auto-selects on detecting
-		// >20 dBZ or wind shear near the airport. These are NOT WSR-88D VCPs — 90 was previously (and
-		// wrongly) listed as a WSR-88D clear-air VCP, and 80 was unknown, so a TDWR in hazardous mode
-		// read as "VCP ?" (its msg5 VCP failed the IsKnownVcp gate in ReadVcpFromMetadata).
-		internal static readonly HashSet<int> TdwrVcps = new() { 80, 90 };
-
-		internal static bool IsKnownVcp(int vcp) =>
-			ClearAirVcps.Contains(vcp) || PrecipVcps.Contains(vcp) || TdwrVcps.Contains(vcp);
+		// Validates the (best-effort) VCP parse: anything not in VcpCatalog is a bad read, shown as
+		// "VCP ?" rather than a wrong number. ⚠️ An unknown number EMPTIES the elevation table
+		// (TryReadElevationTable `continue`s past it) — see VcpCatalog's remarks. Add patterns THERE.
+		internal static bool IsKnownVcp(int vcp) => VcpCatalog.IsKnown(vcp);
 
 		// Human regime label for a KNOWN vcp (callers gate on IsKnownVcp first).
-		private static string RegimeLabel(int vcp) => vcp switch
-		{
-			90 => "TDWR monitor",
-			80 => "TDWR hazardous",
-			_ => ClearAirVcps.Contains(vcp) ? "clear-air" : "precip",
-		};
+		private static string RegimeLabel(int vcp) => VcpCatalog.Find(vcp)!.RegimeLabel;
 
 		// Maps the VCP number to a human label. Clear-air VCPs scan ~every 10 min and never use
 		// SAILS; precip VCPs (12/212/215/…) run ~4-6 min and may insert extra 0.5° sweeps; TDWR VCPs
@@ -560,7 +536,7 @@ namespace Anvil.Services
 			}
 			// SAILS/MRLE is WSR-88D-only terminology; TDWR re-scans its low tilt differently, so omit
 			// the suffix for TDWR VCPs even when the metadata reports extra low-tilt sweeps.
-			var sails = (!TdwrVcps.Contains(vcp) && sweeps > 1) ? $" · SAILS/MRLE ×{sweeps - 1}" : "";
+			var sails = (VcpCatalog.Find(vcp)!.Network != VcpNetwork.Tdwr && sweeps > 1) ? $" · SAILS/MRLE ×{sweeps - 1}" : "";
 			return $"VCP {vcp} · {RegimeLabel(vcp)}{sails} · 0.5°×{sweeps}";
 		}
 

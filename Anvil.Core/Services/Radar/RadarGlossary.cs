@@ -52,14 +52,35 @@ namespace Anvil.Services
 				vcp is null ? "Volume coverage pattern" : $"Volume coverage pattern {vcp}",
 				"The routine the radar repeats: which tilts it sweeps, in what order, and how quickly it " +
 				"works through them.",
-				ScanPatternNow(modeText),
-				"Clear-air: 31, 32, 35. Precipitation: 12, 212, 215. Sites switch between them on their own " +
-				"as weather moves in.");
+				ScanPatternNow(modeText, vcp),
+				ScanPatternScale(vcp));
 		}
 
-		private static string ScanPatternNow(string? modeText)
+		// The scale sentence is BUILT from VcpCatalog so it can never list a pattern the app doesn't know
+		// (it once said "31, 32, 35" — missing 34, and 32 long retired).
+		private static string ScanPatternScale(int? vcp)
+		{
+			if (vcp is int n && VcpCatalog.Find(n) is { Network: VcpNetwork.Tdwr })
+			{
+				return "Airport radars have just two: 90 (monitor) and 80 (hazardous), switching on their own " +
+					"when weather nears the airport.";
+			}
+			return $"Precipitation: {string.Join(", ", VcpCatalog.Operational(VcpRegime.Precip))}. " +
+				$"Clear-air: {string.Join(", ", VcpCatalog.Operational(VcpRegime.ClearAir))}. " +
+				"Sites switch between them as weather moves in.";
+		}
+
+		private static string ScanPatternNow(string? modeText, int? vcp)
 		{
 			if (string.IsNullOrEmpty(modeText) || modeText == "—") return "This site hasn't reported a scan pattern.";
+			if (vcp is int n && VcpCatalog.Find(n) is { } info)
+			{
+				var tempo = info.Tilts > 0
+					? $" {info.Tilts} tilts, about {info.VolumeMinutes} minutes per volume."
+					: $" About {info.VolumeMinutes} minutes per volume.";
+				var retired = info.Retired ? " Retired — seen only in older archive volumes." : string.Empty;
+				return $"{info.Name}. {info.Summary}{tempo}{retired}";
+			}
 			if (modeText.Contains("clear-air", StringComparison.OrdinalIgnoreCase))
 			{
 				return "Clear-air mode: the dish turns slowly and listens hard, which picks up dust, insects " +
