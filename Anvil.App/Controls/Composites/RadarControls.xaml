@@ -273,7 +273,7 @@
                            FontSize="{StaticResource ReadoutFontSize}"
                            TextTrimming="CharacterEllipsis"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           ToolTipService.ToolTip="The radar's scan strategy for the whole volume. VCP = Volume Coverage Pattern, a number chosen by the operator: 'precip' patterns scan faster and more often for rain/storms; 'clear-air' patterns scan slower for better sensitivity in dry weather. SAILS/MRLE ×N means the radar squeezes in N extra scans of the lowest tilt per volume, giving fresher data near the ground during fast-changing weather."/>
+                           ToolTipService.ToolTip="{x:Bind ScanTooltip(ViewModel.RadarModeText), Mode=OneWay}"/>
             </Grid>
         </Grid>
     </Grid>

@@ -67,11 +67,13 @@ namespace Anvil.Services
 		private readonly HttpClient _http;
 		private readonly ILogger<Level2RadarService> _logger;
 		private readonly ISettingsService _settings;
+		private readonly NonStandardVcpLog _nonStandardVcps;
 
-		public Level2RadarService(ILogger<Level2RadarService> logger, ISettingsService settings)
+		public Level2RadarService(ILogger<Level2RadarService> logger, ISettingsService settings, NonStandardVcpLog nonStandardVcps)
 		{
 			_logger = logger;
 			_settings = settings;
+			_nonStandardVcps = nonStandardVcps;
 			CacheDirectory = Path.Combine(
 				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
 				"Anvil", "RadarLevel2");
@@ -187,16 +189,27 @@ namespace Anvil.Services
 		// table; falls back to VCP + regime alone if that count didn't parse. Null (rendered as "—") when
 		// the VCP itself can't be read (a raw-fallback or legacy volume). (A 2011-era VCP 12 correctly
 		// reads 0.5°×1 — no SAILS existed pre-2014 — which the UI shows as just "0.5°".)
-		private static string? ModeTextFromTilt(byte[] tilt)
+		private static (string? mode, int vcp) ModeTextFromTilt(byte[] tilt)
 		{
 			var (vcp, sweeps) = ReadModeFromExtractedTilt(tilt);
-			if (!IsKnownVcp(vcp))
+			if (!IsUsableVcp(vcp))
 			{
-				return null;
+				return (null, 0);
 			}
 			// Clamp mirrors the live path (SAILS tops out at ×3 = 4 base scans); an out-of-range count
 			// means a misparse, so drop to VCP + regime rather than show a bogus "0.5°×9".
-			return sweeps is >= 1 and <= 6 ? DescribeMode(vcp, sweeps) : DescribeVcp(vcp);
+			return (sweeps is >= 1 and <= 6 ? DescribeMode(vcp, sweeps) : DescribeVcp(vcp), vcp);
+		}
+
+		// Every frame leaving this service passes here: a pattern VcpCatalog doesn't list is written to the
+		// non-standard log (a no-op for a catalogued one). All three return paths — cached, fetched, live.
+		private RadarVolume Noted(RadarVolume volume, int vcp)
+		{
+			if (IsUsableVcp(vcp) && !IsKnownVcp(vcp))
+			{
+				_nonStandardVcps.Record(volume.Site.Id, vcp, volume.VolumeTime, volume.Tilts);
+			}
+			return volume;
 		}
 
 		// Extracts ONE tilt from a decompressed AR2V volume: the base (lowest) tilt when tiltAngle is
@@ -237,7 +250,7 @@ namespace Anvil.Services
 				// Re-derive the scan mode + tilt list from the cached bytes (parse off the UI thread) so a
 				// replay reload / site revisit still shows the VCP and offers tilts, though extraction is
 				// skipped.
-				string? cachedMode = null;
+				(string? mode, int vcp) cachedMode = (null, 0);
 				IReadOnlyList<float>? cachedTilts = null;
 				try
 				{
@@ -248,7 +261,7 @@ namespace Anvil.Services
 				}
 				catch (OperationCanceledException) { throw; }
 				catch { /* both are best-effort; a bad read shows "—" and offers no tilt choice */ }
-				return new RadarVolume(localUrl, site, time, cachedMode, cachedTilts, tiltAngle);
+				return Noted(new RadarVolume(localUrl, site, time, cachedMode.mode, cachedTilts, tiltAngle), cachedMode.vcp);
 			}
 
 			try
@@ -394,9 +407,9 @@ namespace Anvil.Services
 					await WriteRawAsync(rawFile, fullVolume, cancellationToken);
 				}
 
-				var mode = ModeTextFromTilt(toWrite); // VCP + regime for the archive/replay scan line
+				var (mode, vcp) = ModeTextFromTilt(toWrite); // VCP + regime for the archive/replay scan line
 				var tilts = ReadElevationAnglesFromExtractedTilt(toWrite);
-				return new RadarVolume(localUrl, site, time, mode, tilts, tiltAngle);
+				return Noted(new RadarVolume(localUrl, site, time, mode, tilts, tiltAngle), vcp);
 			}
 			catch (OperationCanceledException)
 			{
@@ -1208,7 +1221,7 @@ namespace Anvil.Services
 				("ageMin", Math.Round((DateTimeOffset.UtcNow - ts).TotalMinutes, 1)),
 				("mode", mode),
 				("msg", $"BUILT latest {(tiltAngle is { } tb ? $"{tb:0.00}°" : "0.5°")} sweep ({blocks.Count} chunks)"));
-			return new RadarVolume(LiveUrlFor(site.Id, ts, tiltAngle), site, ts, mode, tilts, tiltAngle);
+			return Noted(new RadarVolume(LiveUrlFor(site.Id, ts, tiltAngle), site, ts, mode, tilts, tiltAngle), sel.vcp);
 		}
 
 		// Decompresses one chunk's single LDM record. S chunks carry the 24-byte volume header +

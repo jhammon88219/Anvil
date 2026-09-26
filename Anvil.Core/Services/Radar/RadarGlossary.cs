@@ -56,6 +56,20 @@ namespace Anvil.Services
 				ScanPatternScale(vcp));
 		}
 
+		/// <summary>
+		/// The bottom bar's Scan-readout tooltip: the same card as the Atlas "?", flattened to plain text
+		/// (tooltips take a string), plus the SAILS sentence when the readout shows SAILS/MRLE.
+		/// </summary>
+		public static string ScanPatternTooltip(string? modeText)
+		{
+			var card = ScanPattern(modeText);
+			var sails = modeText?.Contains("SAILS", StringComparison.Ordinal) == true
+				? "\n\nSAILS/MRLE ×N: the radar squeezes N extra sweeps of its lowest tilt into each volume, so " +
+				  "the view nearest the ground refreshes more often while weather is changing fast."
+				: string.Empty;
+			return $"{card.Technical}\n\n{card.Definition}\n\n{card.Now}{sails}\n\n{card.Context}";
+		}
+
 		// The scale sentence is BUILT from VcpCatalog so it can never list a pattern the app doesn't know
 		// (it once said "31, 32, 35" — missing 34, and 32 long retired).
 		private static string ScanPatternScale(int? vcp)
@@ -80,6 +94,12 @@ namespace Anvil.Services
 					: $" About {info.VolumeMinutes} minutes per volume.";
 				var retired = info.Retired ? " Retired — seen only in older archive volumes." : string.Empty;
 				return $"{info.Name}. {info.Summary}{tempo}{retired}";
+			}
+			if (vcp is not null && modeText.Contains(" · unlisted", StringComparison.Ordinal))
+			{
+				return $"Pattern {vcp} isn't in Anvil's list of standard patterns. It's shown exactly as the radar " +
+					"reported it — usually a test pattern on a research radar, or a new one being rolled out. " +
+					"Anvil keeps a record of each one it sees.";
 			}
 			if (modeText.Contains("clear-air", StringComparison.OrdinalIgnoreCase))
 			{

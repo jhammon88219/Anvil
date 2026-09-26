@@ -58,9 +58,11 @@ namespace Anvil.Services
 			}
 
 			// Authoritative VCP from the leading metadata record's Message 5. Fall back to the
-			// best-effort Message-31 VOL-block read only if Message 5 didn't yield a real VCP.
+			// best-effort Message-31 VOL-block read only if Message 5 didn't yield a real VCP. (Message 5
+			// may return an UNLISTED number — it passed IsPlausibleUnlisted — and that stands; the radial
+			// fallback stays known-only, since it has no table to vouch for an unfamiliar number.)
 			var vcp = ReadVcpFromMetadata(blocks);
-			if (!IsKnownVcp(vcp))
+			if (vcp == 0)
 			{
 				var radialVcp = ReadVcp(blocks[firstRadial].block, icao);
 				if (IsKnownVcp(radialVcp))
@@ -317,7 +319,7 @@ namespace Anvil.Services
 					}
 					var body = pos + CtmHeaderSize + MessageHeaderSize;
 					var vcp = (block[body + 4] << 8) | block[body + 5];
-					if (IsKnownVcp(vcp))
+					if (IsKnownVcp(vcp) || IsPlausibleUnlisted(vcp, ReadCuts(block, body)))
 					{
 						return vcp;
 					}
@@ -325,6 +327,51 @@ namespace Anvil.Services
 			}
 			return 0;
 		}
+
+		// Highest pattern number the RDA accepts (ICD command-message range 1..767).
+		internal const int MaxVcpNumber = 767;
+
+		// One Message 5 body's designed cut table, as (angle°, waveform) in table order. Null when
+		// num_elevations is out of range; Complete=false when the block ends before the last cut (the
+		// known-VCP path tolerates that, an unlisted number does not).
+		private static (List<(double angle, int waveform)> cuts, bool complete)? ReadCuts(byte[] block, int body)
+		{
+			if (body + 8 > block.Length)
+			{
+				return null;
+			}
+			var numElev = (short)((block[body + 6] << 8) | block[body + 7]);
+			if (numElev is <= 0 or > 40)
+			{
+				return null;
+			}
+			const int cutsStart = 22, stride = 46;
+			var cuts = new List<(double angle, int waveform)>(numElev);
+			for (var k = 0; k < numElev; k++)
+			{
+				var off = body + cutsStart + k * stride;
+				if (off + 4 > block.Length)
+				{
+					return (cuts, false);
+				}
+				var raw = (short)((block[off] << 8) | block[off + 1]);
+				cuts.Add((raw / 8.0 * 0.043945, block[off + 3]));
+			}
+			return (cuts, true);
+		}
+
+		// ⚠️ THE GATE FOR A NUMBER VcpCatalog DOESN'T LIST. A known number is trusted on sight; an unlisted
+		// one only when the WHOLE table it arrived in is well-formed — in the ICD range, every cut present,
+		// every angle a real elevation, every waveform a real code (1-5), and a base tilt low enough to be
+		// one. That's what separates "KCRI is testing a new pattern" (show it: "VCP 301 · unlisted", tilts
+		// intact) from a misaligned read (still "VCP ?"). Before this, ANY unlisted number emptied the tilt
+		// picker — the failure that shipped for TDWR 80 and again for 34.
+		internal static bool IsPlausibleUnlisted(int vcp, (List<(double angle, int waveform)> cuts, bool complete)? table) =>
+			vcp is > 0 and <= MaxVcpNumber
+			&& !IsKnownVcp(vcp)
+			&& table is { complete: true, cuts: { Count: > 0 } cuts }
+			&& cuts.TrueForAll(c => c.angle is >= -1 and <= 45 && c.waveform is >= 1 and <= 5)
+			&& cuts.Min(c => c.angle) < 1.6;
 
 		// Number of DESIGNED 0.5° base scans (the SAILS count) from the VCP's elevation table
 		// (TryReadElevationTable), which lists every planned cut up front — so it reports SAILS×N even
@@ -385,29 +432,24 @@ namespace Anvil.Services
 
 					var body = pos + CtmHeaderSize + MessageHeaderSize;
 					var vcp = (block[body + 4] << 8) | block[body + 5];
-					if (!IsKnownVcp(vcp))
+					var table = ReadCuts(block, body);
+					if (IsKnownVcp(vcp))
 					{
-						continue;
-					}
-
-					var numElev = (short)((block[body + 6] << 8) | block[body + 7]);
-					if (numElev is <= 0 or > 40)
-					{
-						return false;
-					}
-
-					const int cutsStart = 22, stride = 46;
-					for (var k = 0; k < numElev; k++)
-					{
-						var off = body + cutsStart + k * stride;
-						if (off + 4 > block.Length)
+						// Known pattern: unchanged behaviour — a bad count ends the search, a truncated table
+						// keeps the cuts it has.
+						if (table is not { } known)
 						{
-							break;
+							return false;
 						}
-						var raw = (short)((block[off] << 8) | block[off + 1]);
-						cuts.Add((raw / 8.0 * 0.043945, block[off + 3]));
+						cuts = known.cuts;
+						return cuts.Count > 0;
 					}
-					return cuts.Count > 0;
+					if (IsPlausibleUnlisted(vcp, table))
+					{
+						cuts = table!.Value.cuts;
+						return true;
+					}
+					// Unlisted AND malformed = a misread frame; keep walking, as before.
 				}
 			}
 			return false;
@@ -509,18 +551,22 @@ namespace Anvil.Services
 			return new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero).AddDays(julian - 1).AddMilliseconds(ms);
 		}
 
-		// Validates the (best-effort) VCP parse: anything not in VcpCatalog is a bad read, shown as
-		// "VCP ?" rather than a wrong number. ⚠️ An unknown number EMPTIES the elevation table
-		// (TryReadElevationTable `continue`s past it) — see VcpCatalog's remarks. Add patterns THERE.
+		// In VcpCatalog. Add patterns THERE — an unlisted number only survives the parse via
+		// IsPlausibleUnlisted (a whole well-formed table behind it).
 		internal static bool IsKnownVcp(int vcp) => VcpCatalog.IsKnown(vcp);
 
-		// Human regime label for a KNOWN vcp (callers gate on IsKnownVcp first).
-		private static string RegimeLabel(int vcp) => VcpCatalog.Find(vcp)!.RegimeLabel;
+		// A number the parse vouched for: known, or unlisted-but-plausible. 0 = the parse failed. Readers
+		// only ever hand back validated numbers, so the range check is all that's left to do here.
+		internal static bool IsUsableVcp(int vcp) => vcp is > 0 and <= MaxVcpNumber;
+
+		// The regime word. ⚠️ "unlisted" is also the Atlas tile's label and the glossary's cue — grep it.
+		internal const string UnlistedLabel = "unlisted";
+		private static string RegimeLabel(int vcp) => VcpCatalog.Find(vcp)?.RegimeLabel ?? UnlistedLabel;
 
 		// Maps the VCP number to a human label. Clear-air VCPs scan ~every 10 min and never use
 		// SAILS; precip VCPs (12/212/215/…) run ~4-6 min and may insert extra 0.5° sweeps; TDWR VCPs
-		// (80/90) are the terminal network's monitor/hazardous modes. An unrecognized number means the
-		// parse failed -> "VCP ?" (no category, since we can't tell).
+		// (80/90) are the terminal network's monitor/hazardous modes. A plausible number the catalog
+		// doesn't list reads "VCP 301 · unlisted"; 0 means the parse failed -> "VCP ?".
 		//
 		// Field ORDER matters: the readout splits this string at the "0.5°" sweep token, putting
 		// everything BEFORE it on the Scan row (the volume's scan strategy) — so the SAILS suffix comes
@@ -530,22 +576,22 @@ namespace Anvil.Services
 		// and vanished the moment you selected 0.9°.
 		internal static string DescribeMode(int vcp, int sweeps)
 		{
-			if (!IsKnownVcp(vcp))
+			if (!IsUsableVcp(vcp))
 			{
 				return $"VCP ? · 0.5°×{sweeps}";
 			}
 			// SAILS/MRLE is WSR-88D-only terminology; TDWR re-scans its low tilt differently, so omit
 			// the suffix for TDWR VCPs even when the metadata reports extra low-tilt sweeps.
-			var sails = (VcpCatalog.Find(vcp)!.Network != VcpNetwork.Tdwr && sweeps > 1) ? $" · SAILS/MRLE ×{sweeps - 1}" : "";
+			var sails = (VcpCatalog.Find(vcp)?.Network != VcpNetwork.Tdwr && sweeps > 1) ? $" · SAILS/MRLE ×{sweeps - 1}" : "";
 			return $"VCP {vcp} · {RegimeLabel(vcp)}{sails} · 0.5°×{sweeps}";
 		}
 
 		// VCP + regime only (no sweep count) — the archive/replay mode line, where per-frame we read
 		// the VCP from the cached tilt's metadata but not (yet) the sweep count. Empty when the VCP
-		// isn't recognized, so the caller shows "—" rather than a bogus "VCP ?".
+		// didn't parse, so the caller shows "—" rather than a bogus "VCP ?".
 		internal static string DescribeVcp(int vcp)
 		{
-			if (!IsKnownVcp(vcp))
+			if (!IsUsableVcp(vcp))
 			{
 				return string.Empty;
 			}

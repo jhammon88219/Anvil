@@ -48,6 +48,15 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void BarTooltipExplainsThePatternAndSailsOnlyWhenShown()
+		{
+			var withSails = RadarGlossary.ScanPatternTooltip("VCP 212 · precip · SAILS/MRLE ×2 · 0.5°×3");
+			Assert.Contains("SZ-2 severe convective", withSails);
+			Assert.Contains("SAILS/MRLE ×N", withSails);
+			Assert.DoesNotContain("SAILS", RadarGlossary.ScanPatternTooltip("VCP 80 · TDWR hazardous · 0.5°×4"));
+		}
+
+		[Fact]
 		public void TdwrScaleNamesTheTwoTerminalModes() =>
 			Assert.Contains("90 (monitor) and 80 (hazardous)", RadarGlossary.ScanPattern("VCP 80 · TDWR hazardous").Context);
 	}

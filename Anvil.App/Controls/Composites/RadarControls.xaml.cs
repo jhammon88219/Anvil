@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Anvil.Models;
+using Anvil.Services;
 using Anvil.ViewModels;
 using Anvil.Layout;
 // ⚠️ Color is IMPORTED, never written inline as a Windows.UI.-qualified name: the sibling namespace
@@ -183,6 +184,9 @@ namespace Anvil.Controls.Composites
 		//
 		// The cut itself is RadarViewModel.ScanStrategyText — shared with the Radar Atlas's Scan mode line.
 		public string RadarVcpText(string mode) => RadarViewModel.ScanStrategyText(mode);
+
+		// Its tooltip explains THIS site's pattern — words from RadarGlossary (VcpCatalog), never XAML.
+		public string ScanTooltip(string mode) => RadarGlossary.ScanPatternTooltip(mode);
 
 		// Dim the scrubber while the transport isn't enabled yet (Grid has no IsEnabled; interaction is
 		// blocked via IsHitTestVisible + the pointer-handler guard, this is the visual cue).
