@@ -1162,6 +1162,14 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		/// <summary>
+		/// The displayed frame's volume time (UTC), or null until that frame's time is known. For overlays that
+		/// follow the SCRUBBER rather than the clock (the storm cells). Raised with the radar readout — on
+		/// every frame change and the readout tick — so a listener should act only when the value moves.
+		/// </summary>
+		public DateTimeOffset? DisplayedFrameTimeUtc =>
+			_currentFrameIndex >= 0 && _currentFrameIndex < _frameTimes.Length ? _frameTimes[_currentFrameIndex] : null;
+
 		/// <summary>Toggles loop playback (no-op until the loop is fully loaded).</summary>
 		public void ToggleRadarPlay()
 		{

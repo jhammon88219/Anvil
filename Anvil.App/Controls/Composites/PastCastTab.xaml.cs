@@ -140,6 +140,9 @@ namespace Anvil.Controls.Composites
 		private void OnStormReportsHeaderClick(object sender, RoutedEventArgs e) =>
 			ViewModel?.StormReports.ToggleAll();
 
+		private void OnStormCellsHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.StormCells.ToggleAll();
+
 		private void OnDamageSurveysHeaderClick(object sender, RoutedEventArgs e) =>
 			ViewModel?.DamageSurveys.ToggleAll();
 

@@ -46,6 +46,8 @@ namespace Anvil.Controls.Composites
 
 		private void OnStormReportsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.StormReports.ToggleAll();
 
+		private void OnStormCellsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.StormCells.ToggleAll();
+
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel
 		{

@@ -105,6 +105,7 @@ namespace Anvil
 			services.AddSingleton<IWarningService, WarningService>();
 			services.AddSingleton<IStormReportService, StormReportService>();
 			services.AddSingleton<IDamageSurveyService, DamageSurveyService>();
+			services.AddSingleton<IStormCellService, StormCellService>();
 			services.AddSingleton<ILevel2RadarService, Level2RadarService>();
 			services.AddSingleton<IRadarSiteProvider, RadarSiteProvider>();
 			// NWS radar status (RDA state + outage FTMs) for the Atlas's NWS STATUS section. No cache.

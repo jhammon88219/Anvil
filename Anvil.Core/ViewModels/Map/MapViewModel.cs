@@ -54,7 +54,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion)
 		{
 			_mapService = mapService;
 			_styleProvider = styleProvider;
@@ -77,6 +77,7 @@ namespace Anvil.ViewModels
 			Warnings = new WarningsViewModel(mapService, warningService, dispatcher, loggerFactory.CreateLogger<WarningsViewModel>());
 			StormReports = new StormReportsViewModel(mapService, stormReportService, Radar, dispatcher, loggerFactory.CreateLogger<StormReportsViewModel>());
 			DamageSurveys = new DamageSurveysViewModel(mapService, damageSurveyService, Radar, loggerFactory.CreateLogger<DamageSurveysViewModel>());
+			StormCells = new StormCellsViewModel(mapService, stormCellService, Radar, dispatcher, loggerFactory.CreateLogger<StormCellsViewModel>());
 			Markers = new MarkersViewModel(mapService, locationService);
 			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
 			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
@@ -94,7 +95,7 @@ namespace Anvil.ViewModels
 			// Every temporal-window choice (ticks, opacities, outlook pickers) comes back from settings and is
 			// saved as it changes. Before map-ready on purpose — see the class remarks.
 			TemporalWindowPersistence.Attach(settingsService.Settings, Radar, Warnings, Watches, StormReports,
-				DamageSurveys, PastOutlook, Outlook);
+				DamageSurveys, PastOutlook, Outlook, StormCells);
 
 			// The temporal SESSION: window pin + lock now; modes + open windows at map-ready. See that region.
 			RestoreWindowChrome();
@@ -223,6 +224,10 @@ namespace Anvil.ViewModels
 		/// <summary>The NWS damage-survey overlay VM (DAT tornado polygons / tracks / points for the LOADED
 		/// replay window). PastCast only; drawn just under the storm-report dots.</summary>
 		public DamageSurveysViewModel DamageSurveys { get; }
+
+		/// <summary>The radar's storm-cell attributes (tracks, TVS, mesocyclones, hail) for the loaded site,
+		/// following the displayed frame. Both the Now and Past windows.</summary>
+		public StormCellsViewModel StormCells { get; }
 
 		/// <summary>The map markers + user-location subsystem view model (locate action + marker editor).</summary>
 		public MarkersViewModel Markers { get; }
@@ -662,6 +667,7 @@ namespace Anvil.ViewModels
 			Warnings.IsModeActive = IsNowCast;
 			StormReports.IsModeActive = IsNowCast || IsPastCast;
 			DamageSurveys.IsModeActive = IsPastCast;
+			StormCells.IsModeActive = IsNowCast || IsPastCast;
 
 			PushOverlayOrder(); // Past and Now keep separate stacks, so a mode change can swap which one draws
 		}
@@ -1339,6 +1345,7 @@ namespace Anvil.ViewModels
 			await PastOutlook.OnMapsReadyAsync();
 			await StormReports.OnMapsReadyAsync();
 			await DamageSurveys.OnMapsReadyAsync(); // no Shutdown: it has no loop
+			await StormCells.OnMapsReadyAsync();
 			await StateIso.OnMapsReadyAsync();
 			await Basemap.OnMapsReadyAsync(); // after isolation, so a hidden map repaints the mask blank
 			RadarNws.Start(); // the launch NWS status check — fire-and-forget, it touches no map
@@ -1382,6 +1389,7 @@ namespace Anvil.ViewModels
 			Watches.Shutdown();
 			Warnings.Shutdown();
 			StormReports.Shutdown();
+			StormCells.Shutdown();
 			RadarNws.Shutdown();
 			SiteUsage.Shutdown(); // bank the running site-hours stretch
 		}

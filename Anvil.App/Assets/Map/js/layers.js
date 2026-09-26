@@ -54,6 +54,7 @@ export function firstBoundaryLayerId(map) {
 // ⚠️ GROUP IDS ARE THE HOST'S — PanelSection.LayerId in the NowCast/PastCast XAML. Change both.
 // Top-first; this is also the default order (the stack before the order was the user's).
 const GROUPS = [
+    ['cells',    ['storm-cell-']],               // storm-cells.js: tracks, TVS, meso, hail — small marks, on top
     ['reports',  ['spc-report-']],
     ['damage',   ['dat-']],
     ['warnings', ['nws-warning-']],

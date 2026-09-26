@@ -19,7 +19,8 @@
        │  Date    [ May 24, 2011              ▾]              │
        │  Start   [ 5:00 PM                   ▾]              │  ← the PICKERS (ViewModel.Radar)
        │  Window  [30m│1h│▓▓2h▓▓│3h│6h│12h]                   │
-       │ ⠿ › [x] Storm reports  ──────────●  100%             │  ┐ the LAYER RUN: top of the list
+       │ ⠿ › [x] Storm cells    ──────────●  100%             │  ┐ the LAYER RUN: top of the list
+       │ ⠿ › [x] Storm reports  ──────────●  100%             │  │
        │ ⠿ ⌄ [-] Damage surveys ──────●────   70%             │  │ = top of the map; drag by ⠿ to
        │     ┌────────────────────────────────────┐           │  │ restack (default order shown)
        │     │ 4 tornado tracks                   │           │  │
@@ -245,6 +246,21 @@
                                           ToolTipService.ToolTip="How much of the day to replay, starting at the time above"/>
                 </Grid>
             </Grid>
+        </prim:PanelSection>
+
+        <!-- ===================== STORM CELLS ===================== -->
+        <!-- The radar's storm-cell attributes for the LOADED window and site, following the scrubber. Shared
+             control (Composites/StormCellsInput) with the Now window, like the storm reports below. -->
+        <prim:PanelSection Header="Storm cells" LayerId="cells" Reordered="OnSectionsReordered"
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.StormCells.AllShown, Mode=OneWay}"
+                           CheckBoxClick="OnStormCellsHeaderClick"
+                           CheckBoxToolTip="Show or hide every storm-cell mark"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.StormCells.Opacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.StormCells.AnyShown, Mode=OneWay}"
+                           OpacityToolTip="Opacity of the storm-cell marks and tracks">
+            <comp:StormCellsInput ViewModel="{x:Bind ViewModel.StormCells, Mode=OneWay}"/>
         </prim:PanelSection>
 
         <!-- ===================== STORM REPORTS ===================== -->

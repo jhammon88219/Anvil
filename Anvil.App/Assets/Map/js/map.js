@@ -105,6 +105,7 @@ try {
     var Warnings = null;
     var StormReports = null;
     var DamageSurveys = null;
+    var StormCells = null;
     var Markers = null;
     var RadarSites = null;
     var States = null;
@@ -125,6 +126,7 @@ try {
         if (Warnings) Warnings.reAdd(map);               // re-add the warning polygons (above the watches)
         if (DamageSurveys) DamageSurveys.reAdd(map);     // NWS damage surveys (under labels, so under the report dots)
         if (StormReports) StormReports.reAdd(map);       // re-add the storm-report dots (top of the stack)
+        if (StormCells) StormCells.reAdd(map);           // radar storm cells: tracks, TVS, meso, hail (restack orders them)
         if (window.RadarLayer) window.RadarLayer.reAdd(map);  // this pane's own radar layer + range ring
         if (States) States.reAdd(map);                   // re-add LAST so the isolation mask lands on top of everything
     }
@@ -490,6 +492,15 @@ try {
     window.setDamageSurveyKinds = function (areas, tracks, points) { if (DamageSurveys) forEachMap(function (m) { DamageSurveys.setKinds(m, areas, tracks, points); }); };
     window.setDamageSurveysOpacity = function (o) { if (DamageSurveys) forEachMap(function (m) { DamageSurveys.setOpacity(m, o); }); };
     window.clearDamageSurveys = function () { if (DamageSurveys) forEachMap(function (m) { DamageSurveys.clear(m); }); };
+
+    // Radar storm-cell attributes (storm-cells.js): every scan of the window in one file; the host then
+    // names the SCAN to draw (it follows the radar scrubber). Same lazy-load/delegate pattern.
+    import('./storm-cells.js').then(function (m) { StormCells = m; }).catch(function (e) { console.error('storm-cells.js load failed: ' + e); });
+    window.setStormCellsSource = function (url) { if (StormCells) forEachMap(function (m) { StormCells.setSource(m, url); }); };
+    window.setStormCellKinds = function (tracks, tvs, meso, hail) { if (StormCells) forEachMap(function (m) { StormCells.setKinds(m, tracks, tvs, meso, hail); }); };
+    window.setStormCellScan = function (ms) { if (StormCells) forEachMap(function (m) { StormCells.setScan(m, ms); }); };
+    window.setStormCellsOpacity = function (o) { if (StormCells) forEachMap(function (m) { StormCells.setOpacity(m, o); }); };
+    window.clearStormCells = function () { if (StormCells) forEachMap(function (m) { StormCells.clear(m); }); };
 
     // Animated camera moves go to the PRIMARY only; onPaneMove mirrors them to the other panes as they
     // play, so the panes stay locked without four animations fighting each other.

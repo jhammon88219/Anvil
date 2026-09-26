@@ -279,6 +279,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(RadarSiteName));
 			OnPropertyChanged(nameof(RadarCardCoords));
 			OnPropertyChanged(nameof(RadarCardTime));
+			OnPropertyChanged(nameof(DisplayedFrameTimeUtc));
 			OnPropertyChanged(nameof(RadarFrameDetail));
 			OnPropertyChanged(nameof(RadarModeText));
 			OnPropertyChanged(nameof(RadarAgeText));

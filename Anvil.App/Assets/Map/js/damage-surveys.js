@@ -62,8 +62,10 @@ const LAYERS = [
 ];
 // Click priority: the smallest mark wins, so a point on a track on a polygon is still reachable.
 const CLICK_ORDER = ['dat-point', 'dat-track-start', 'dat-track', 'dat-area-fill'];
-// Storm-report dots have their own popup; a click on one is theirs.
-const REPORT_LAYERS = ['spc-report-torn', 'spc-report-wind', 'spc-report-hail'];
+// Storm-report dots and storm cells have their own popups; a click on one is theirs.
+// ⚠️ The cell ids mirror storm-cells.js CLICK_LAYERS.
+const REPORT_LAYERS = ['spc-report-torn', 'spc-report-wind', 'spc-report-hail',
+    'storm-cell-tvs', 'storm-cell-hail', 'storm-cell-meso', 'storm-cell-dot'];
 
 let surveysUrl = null;
 let surveysData = null;

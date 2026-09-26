@@ -347,6 +347,17 @@ namespace Anvil.Services
 		private double? _stormReportsOpacity;
 		public double? StormReportsOpacity { get => _stormReportsOpacity; set => SetProperty(ref _stormReportsOpacity, value); }
 
+		private bool? _stormCellsShowTracks;
+		public bool? StormCellsShowTracks { get => _stormCellsShowTracks; set => SetProperty(ref _stormCellsShowTracks, value); }
+		private bool? _stormCellsShowTvs;
+		public bool? StormCellsShowTvs { get => _stormCellsShowTvs; set => SetProperty(ref _stormCellsShowTvs, value); }
+		private bool? _stormCellsShowMeso;
+		public bool? StormCellsShowMeso { get => _stormCellsShowMeso; set => SetProperty(ref _stormCellsShowMeso, value); }
+		private bool? _stormCellsShowHail;
+		public bool? StormCellsShowHail { get => _stormCellsShowHail; set => SetProperty(ref _stormCellsShowHail, value); }
+		private double? _stormCellsOpacity;
+		public double? StormCellsOpacity { get => _stormCellsOpacity; set => SetProperty(ref _stormCellsOpacity, value); }
+
 		private bool? _damageSurveysShowAreas;
 		public bool? DamageSurveysShowAreas { get => _damageSurveysShowAreas; set => SetProperty(ref _damageSurveysShowAreas, value); }
 		private bool? _damageSurveysShowTracks;

@@ -125,6 +125,21 @@ namespace Anvil.Services
 		public Task ClearDamageSurveysAsync() =>
 			_mapView.RunScriptAsync(Call("clearDamageSurveys"));
 
+		public Task SetStormCellsSourceAsync(string url) =>
+			_mapView.RunScriptAsync(Call("setStormCellsSource", url));
+
+		public Task SetStormCellKindsAsync(bool tracks, bool tvs, bool meso, bool hail) =>
+			_mapView.RunScriptAsync(Call("setStormCellKinds", tracks, tvs, meso, hail));
+
+		public Task SetStormCellScanAsync(long? scanMs) =>
+			_mapView.RunScriptAsync($"window.setStormCellScan({scanMs?.ToString(CultureInfo.InvariantCulture) ?? "null"});");
+
+		public Task SetStormCellsOpacityAsync(double opacity) =>
+			_mapView.RunScriptAsync(Call("setStormCellsOpacity", opacity));
+
+		public Task ClearStormCellsAsync() =>
+			_mapView.RunScriptAsync(Call("clearStormCells"));
+
 		// The loop is driven frame-by-frame: begin (with the site's antenna coords, needed to
 		// project the gates), then add each cached volume URL as a frame, then show by index.
 		public Task BeginRadarLoopAsync(RadarSite site, int expectedFrames) =>

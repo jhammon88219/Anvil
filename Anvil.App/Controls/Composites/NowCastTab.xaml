@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- NowCastTab — the body of the NowCast window: storm reports, warnings, watches and the radar layer, one
+<!-- NowCastTab — the body of the NowCast window: storm cells, storm reports, warnings, watches and the radar layer, one
      LAYER SECTION each. One of three mode bodies (see Controls/Windows/TemporalWindow, registered once per
      mode); the window supplies the surface, the title and the pin, so this is content only.
      ⚠️ The file keeps its "Tab" name from when the three were tabs of one Timeframe window. It is the same
      control, unchanged by the split; renaming all three would be churn. Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────────────┐
-       │ ⠿ › [x] Storm reports   ─────────────────●   100%            │  ← TOP of the list = TOP of the map
+       │ ⠿ › [x] Storm cells     ─────────────────●   100%            │  ← TOP of the list = TOP of the map
+       │ ⠿ › [x] Storm reports   ─────────────────●   100%            │
        │ ⠿ ⌄ [x] Warnings        ─────────────────●   100%            │
        │   ┌──────────────────────────────────────────┐               │
        │   │ 7 active warnings                        │               │
@@ -61,6 +62,18 @@
     <!-- ⚠️ A StackPanel, not a Grid of rows: the sections' CHILD ORDER is the display order, which is what
          a drag re-arranges. -->
     <StackPanel x:Name="Sections" VerticalAlignment="Top" Spacing="8">
+
+        <prim:PanelSection Header="Storm cells" LayerId="cells" Reordered="OnSectionsReordered"
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.StormCells.AllShown, Mode=OneWay}"
+                           CheckBoxClick="OnStormCellsHeaderClick"
+                           CheckBoxToolTip="Show or hide every storm-cell mark"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.StormCells.Opacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.StormCells.AnyShown, Mode=OneWay}"
+                           OpacityToolTip="Opacity of the storm-cell marks and tracks">
+            <comp:StormCellsInput ViewModel="{x:Bind ViewModel.StormCells, Mode=OneWay}"/>
+        </prim:PanelSection>
 
         <prim:PanelSection Header="Storm reports" LayerId="reports" Reordered="OnSectionsReordered"
                            ShowCheckBox="True"

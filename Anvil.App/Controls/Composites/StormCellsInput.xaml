@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StormCellsInput — the radar's storm-cell attributes (StormCellsViewModel): a card, one row per mark. Shown
+     in BOTH temporal windows — live cells in Now, the loaded window's in Past — for the LOADED radar site.
+
+       ┌────────────────────────────────────────────┐
+       │ 14 storm cells                             │   the card: cells in the scan ON SCREEN, which
+       │ Scan 4:14 PM · TLX                         │   scan and site, and loading / failure / "no
+       └────────────────────────────────────────────┘   scan near this frame" in the footer
+       ────────────────────────────────────────────────
+       [x] ● Cell tracks                         14     ← one row per mark: the toggle, the map mark,
+       [x] ▼ Tornado vortex (TVS)                 1       the name, and how many the DISPLAYED scan has
+       [x] ◯ Mesocyclone                          2
+       [x] ◆ Severe hail                          3
+
+     ⚠️ THE COUNTS FOLLOW THE SCRUBBER, not the clock: they are the scan the radar frame on screen shows, so
+     they change as the loop plays. That is the point — it is the same number the map is drawing.
+     ⚠️ The marks are the map's (storm-cells.js): white dot, red triangle, yellow ring, cyan diamond. Literals
+     in both places — change one, change the other. Data colours, never themed.
+     ⚠️ Opacity and the section heading are the HOST's (PanelSection), as for every overlay control. -->
+<UserControl x:Class="Anvil.Controls.Composites.StormCellsInput"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid VerticalAlignment="Top">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- the card -->
+            <RowDefinition Height="Auto"/> <!-- rule -->
+            <RowDefinition Height="Auto"/> <!-- the four mark rows -->
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" CornerRadius="8" Padding="13,12"
+                Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                BorderThickness="1"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+            <StackPanel>
+                <TextBlock Text="{x:Bind ViewModel.CardHeadline, Mode=OneWay}"
+                           FontSize="15"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <TextBlock Text="{x:Bind ViewModel.CardContext, Mode=OneWay}"
+                           FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
+                           Visibility="{x:Bind HasText(ViewModel.CardContext), Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Text="{x:Bind ViewModel.CardFooter, Mode=OneWay}"
+                           FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                           Visibility="{x:Bind HasText(ViewModel.CardFooter), Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1" Height="1" Margin="0,14"
+                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+        <StackPanel Grid.Row="2" Spacing="9">
+            <CheckBox MinWidth="0" HorizontalAlignment="Stretch"
+                      IsChecked="{x:Bind ViewModel.ShowTracks, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Show each cell, its id, where it has been and its 15–60 minute forecast track">
+                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="13"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Ellipse Grid.Column="0" Width="9" Height="9" Fill="#FFFFFF" Stroke="#141414" StrokeThickness="1.5"
+                             VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="Cell tracks" FontSize="13" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind Fmt(ViewModel.CellCount), Mode=OneWay}"
+                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </Grid>
+            </CheckBox>
+
+            <CheckBox MinWidth="0" HorizontalAlignment="Stretch"
+                      IsChecked="{x:Bind ViewModel.ShowTvs, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Show tornado vortex signatures (a hollow triangle is an elevated TVS)">
+                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="13"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Path Grid.Column="0" Data="M0,0 L12,0 L6,10 Z" Fill="#FF2A2A" Stroke="#141414" StrokeThickness="1"
+                          VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="Tornado vortex (TVS)" FontSize="13" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind Fmt(ViewModel.TvsCount), Mode=OneWay}"
+                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </Grid>
+            </CheckBox>
+
+            <CheckBox MinWidth="0" HorizontalAlignment="Stretch"
+                      IsChecked="{x:Bind ViewModel.ShowMeso, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Show mesocyclones — strength rank 5 and up (a thicker ring is rank 8+)">
+                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="13"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Ellipse Grid.Column="0" Width="12" Height="12" Stroke="#FFE14D" StrokeThickness="2"
+                             VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="Mesocyclone" FontSize="13" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind Fmt(ViewModel.MesoCount), Mode=OneWay}"
+                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </Grid>
+            </CheckBox>
+
+            <CheckBox MinWidth="0" HorizontalAlignment="Stretch"
+                      IsChecked="{x:Bind ViewModel.ShowHail, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Show cells more likely than not to hold severe hail, with the largest expected size">
+                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="13"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Path Grid.Column="0" Data="M6,0 L12,6 L6,12 L0,6 Z" Fill="#3FD0FF" Stroke="#141414" StrokeThickness="1"
+                          VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="Severe hail" FontSize="13" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind Fmt(ViewModel.HailCount), Mode=OneWay}"
+                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </Grid>
+            </CheckBox>
+        </StackPanel>
+    </Grid>
+</UserControl>

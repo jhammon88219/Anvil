@@ -314,6 +314,22 @@ namespace Anvil.Services
 		/// same "nothing to show" seam as <see cref="ClearStormReportsAsync"/>, for the same reason.</summary>
 		Task ClearDamageSurveysAsync();
 
+		/// <summary>Points the storm-cell overlay at a window's page file (every scan of the window).</summary>
+		Task SetStormCellsSourceAsync(string url);
+
+		/// <summary>Which storm-cell layers draw: cell tracks, TVS, mesocyclones, hail.</summary>
+		Task SetStormCellKindsAsync(bool tracks, bool tvs, bool meso, bool hail);
+
+		/// <summary>The scan to draw, by its volume time (Unix ms), or null for none — the view model picks it
+		/// for the displayed radar frame.</summary>
+		Task SetStormCellScanAsync(long? scanMs);
+
+		/// <summary>Overall opacity (0–1) of the storm-cell marks.</summary>
+		Task SetStormCellsOpacityAsync(double opacity);
+
+		/// <summary>Tears the storm-cell overlay down (source, layers, popup).</summary>
+		Task ClearStormCellsAsync();
+
 		/// <summary>Highlights the selected site marker (empty clears the highlight).</summary>
 		Task SetSelectedRadarSiteAsync(string? siteId);
 

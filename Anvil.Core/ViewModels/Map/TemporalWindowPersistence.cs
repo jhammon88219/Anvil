@@ -27,14 +27,16 @@ namespace Anvil.ViewModels
 		private const string NoneProduct = "None";
 
 		public static void Attach(AppSettings s, RadarViewModel radar, WarningsViewModel warnings, WatchesViewModel watches,
-			StormReportsViewModel reports, DamageSurveysViewModel damage, PastOutlookViewModel pastOutlook, OutlookViewModel outlook)
+			StormReportsViewModel reports, DamageSurveysViewModel damage, PastOutlookViewModel pastOutlook, OutlookViewModel outlook,
+			StormCellsViewModel cells)
 		{
-			Restore(s, radar, warnings, watches, reports, damage, pastOutlook, outlook);
-			Track(s, radar, warnings, watches, reports, damage, pastOutlook, outlook);
+			Restore(s, radar, warnings, watches, reports, damage, pastOutlook, outlook, cells);
+			Track(s, radar, warnings, watches, reports, damage, pastOutlook, outlook, cells);
 		}
 
 		private static void Restore(AppSettings s, RadarViewModel radar, WarningsViewModel warnings, WatchesViewModel watches,
-			StormReportsViewModel reports, DamageSurveysViewModel damage, PastOutlookViewModel pastOutlook, OutlookViewModel outlook)
+			StormReportsViewModel reports, DamageSurveysViewModel damage, PastOutlookViewModel pastOutlook, OutlookViewModel outlook,
+			StormCellsViewModel cells)
 		{
 			if (s.RadarOpacity is double ro) { radar.RadarOpacity = Unit(ro); }
 			if (s.ShowRadarLayer is bool rl) { radar.ShowRadarLayer = rl; }
@@ -57,6 +59,12 @@ namespace Anvil.ViewModels
 			if (s.DamageSurveysShowTracks is bool dt) { damage.ShowTracks = dt; }
 			if (s.DamageSurveysShowPoints is bool dp) { damage.ShowPoints = dp; }
 			if (s.DamageSurveysOpacity is double dop) { damage.Opacity = Unit(dop); }
+
+			if (s.StormCellsShowTracks is bool ct) { cells.ShowTracks = ct; }
+			if (s.StormCellsShowTvs is bool cv) { cells.ShowTvs = cv; }
+			if (s.StormCellsShowMeso is bool cm) { cells.ShowMeso = cm; }
+			if (s.StormCellsShowHail is bool ch) { cells.ShowHail = ch; }
+			if (s.StormCellsOpacity is double cop) { cells.Opacity = Unit(cop); }
 
 			// Past outlook: day FIRST — it cascades (rebuilds) the product and cycle lists the other two pick from.
 			if (s.PastOutlookDay is int pd && pd >= 1 && pd <= pastOutlook.Days.Count) { pastOutlook.SelectedDayIndex = pd - 1; }
@@ -87,7 +95,8 @@ namespace Anvil.ViewModels
 		}
 
 		private static void Track(AppSettings s, RadarViewModel radar, WarningsViewModel warnings, WatchesViewModel watches,
-			StormReportsViewModel reports, DamageSurveysViewModel damage, PastOutlookViewModel pastOutlook, OutlookViewModel outlook)
+			StormReportsViewModel reports, DamageSurveysViewModel damage, PastOutlookViewModel pastOutlook, OutlookViewModel outlook,
+			StormCellsViewModel cells)
 		{
 			radar.PropertyChanged += (_, e) =>
 			{
@@ -138,6 +147,18 @@ namespace Anvil.ViewModels
 					case nameof(DamageSurveysViewModel.ShowTracks): s.DamageSurveysShowTracks = damage.ShowTracks; break;
 					case nameof(DamageSurveysViewModel.ShowPoints): s.DamageSurveysShowPoints = damage.ShowPoints; break;
 					case nameof(DamageSurveysViewModel.Opacity): s.DamageSurveysOpacity = damage.Opacity; break;
+				}
+			};
+
+			cells.PropertyChanged += (_, e) =>
+			{
+				switch (e.PropertyName)
+				{
+					case nameof(StormCellsViewModel.ShowTracks): s.StormCellsShowTracks = cells.ShowTracks; break;
+					case nameof(StormCellsViewModel.ShowTvs): s.StormCellsShowTvs = cells.ShowTvs; break;
+					case nameof(StormCellsViewModel.ShowMeso): s.StormCellsShowMeso = cells.ShowMeso; break;
+					case nameof(StormCellsViewModel.ShowHail): s.StormCellsShowHail = cells.ShowHail; break;
+					case nameof(StormCellsViewModel.Opacity): s.StormCellsOpacity = cells.Opacity; break;
 				}
 			};
 
