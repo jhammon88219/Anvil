@@ -414,6 +414,7 @@ namespace Anvil
 		// NWS damage surveys (DAT tornado polygons / tracks / points) — same reason, its cache folder.
 		private readonly IDamageSurveyService _damageSurveyService;
 		private readonly IStormCellService _stormCellService;
+		private readonly IPastAlertService _pastAlertService;
 
 		// Level II radar data layer (fetch + cache of .V06 volumes). Kept here because
 		// MainWindow owns the WebView2 host mapping for its cache folder.
@@ -440,6 +441,7 @@ namespace Anvil
 			IStormReportService stormReportService,
 			IDamageSurveyService damageSurveyService,
 			IStormCellService stormCellService,
+			IPastAlertService pastAlertService,
 			ILevel2RadarService radarService,
 			ISettingsService settingsService,
 			WindowManager windows,
@@ -458,6 +460,7 @@ namespace Anvil
 			_stormReportService = stormReportService;
 			_damageSurveyService = damageSurveyService;
 			_stormCellService = stormCellService;
+			_pastAlertService = pastAlertService;
 			_radarService = radarService;
 			_settingsService = settingsService;
 			_windows = windows;
@@ -762,7 +765,7 @@ namespace Anvil
 			// Map each virtual host → local folder so the page can fetch everything offline, same-origin:
 			//   mapassets  → bundled MapLibre style/glyphs/sprites/libraries
 			//   mapdata    → the user-configured (external, ~29 GB) basemap PMTiles folder
-			//   spcoutlooks/spcwatches/warnings/stormreports/damagesurveys/stormcells/radarlevel2 → the services' on-disk caches
+			//   spcoutlooks/spcwatches/warnings/stormreports/damagesurveys/stormcells/pastalerts/radarlevel2 → the services' on-disk caches
 			//   dowevents  → the user's imported DOW (mobile-radar) frame library (%LocalAppData%)
 			// Services own their cache folders; MainWindow owns the WebView2 mappings.
 			var hostFolders = new (string Host, string Folder)[]
@@ -775,6 +778,7 @@ namespace Anvil
 				(StormReportService.CacheHostName, _stormReportService.CacheDirectory),
 				(DamageSurveyService.CacheHostName, _damageSurveyService.CacheDirectory),
 				(StormCellService.CacheHostName, _stormCellService.CacheDirectory),
+				(PastAlertService.CacheHostName, _pastAlertService.CacheDirectory),
 				(Level2RadarService.CacheHostName, _radarService.CacheDirectory),
 				(DowEventProvider.HostName, DowEventProvider.EventsDirectory),
 			};

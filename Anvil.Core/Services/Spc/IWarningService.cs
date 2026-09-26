@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -42,5 +43,38 @@ namespace Anvil.Services
 		int FlashFloodEmergency, int FlashFloodConsiderable)
 	{
 		public static readonly WarningThreatCounts None = new(0, 0, 0, 0, 0);
+
+		/// <summary>Counts from alerts' (phenom, tier) — the one tally live and PastCast warnings share.</summary>
+		public static WarningThreatCounts From(IEnumerable<(string Phenom, int Tier)> alerts)
+		{
+			int torE = 0, torP = 0, svD = 0, ffE = 0, ffC = 0;
+			foreach (var (phenom, tier) in alerts)
+			{
+				switch (phenom)
+				{
+					case "TO": if (tier == 2) { torE++; } else if (tier == 1) { torP++; } break;
+					case "SV": if (tier == 2) { svD++; } break;
+					case "FF": if (tier == 2) { ffE++; } else if (tier == 1) { ffC++; } break;
+				}
+			}
+			return new WarningThreatCounts(torE, torP, svD, ffE, ffC);
+		}
+
+		/// <summary>The card line, worst first — "1 tornado emergency · 2 PDS tornado". Empty when none.</summary>
+		public string ToCardLine()
+		{
+			var parts = new List<string>(5);
+			Add(TornadoEmergency, "tornado emergency", "tornado emergencies");
+			Add(FlashFloodEmergency, "flash flood emergency", "flash flood emergencies");
+			Add(TornadoPds, "PDS tornado", "PDS tornado");
+			Add(SevereDestructive, "destructive storm", "destructive storms");
+			Add(FlashFloodConsiderable, "considerable flash flood", "considerable flash flood");
+			return string.Join(" · ", parts);
+
+			void Add(int n, string one, string many)
+			{
+				if (n > 0) { parts.Add($"{n} {(n == 1 ? one : many)}"); }
+			}
+		}
 	}
 }

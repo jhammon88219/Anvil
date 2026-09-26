@@ -217,8 +217,9 @@ namespace Anvil.ViewModels
 			_ => $"{ActiveCount} active {ItemNounPlural}",
 		};
 
-		/// <summary>The card's middle line: when the numbers above were last confirmed.</summary>
-		public string CardContext =>
+		/// <summary>The card's middle line: when the numbers above were last confirmed. A replay overlay says
+		/// which moment they describe instead.</summary>
+		public virtual string CardContext =>
 			_lastUpdated is { } when
 				? $"Updated {when.LocalDateTime:h:mm tt}{CadenceSuffix}"
 				: "Waiting for the first update…";

@@ -330,6 +330,23 @@ namespace Anvil.Services
 		/// <summary>Tears the storm-cell overlay down (source, layers, popup).</summary>
 		Task ClearStormCellsAsync();
 
+		// ── PastCast warnings + watches (past-alerts.js). <paramref name="kind"/> is "warnings" or "watches":
+		// two overlays with the NowCast styles but their own layers, so a replay never touches the live ones.
+
+		/// <summary>Points a PastCast alert overlay at its window file; an EMPTY url clears it.</summary>
+		Task SetPastAlertSourceAsync(string kind, string url);
+
+		Task SetPastAlertVisibleAsync(string kind, bool visible);
+
+		Task SetPastAlertOpacityAsync(string kind, double opacity);
+
+		/// <summary>Which phenomena a PastCast alert overlay draws (watches never send FF).</summary>
+		Task SetPastAlertKindsAsync(string kind, bool tornado, bool severe, bool flashFlood);
+
+		/// <summary>The moment both PastCast alert overlays show (Unix ms) — the displayed radar frame's time;
+		/// null draws nothing.</summary>
+		Task SetPastAlertTimeAsync(long? timeMs);
+
 		/// <summary>Highlights the selected site marker (empty clears the highlight).</summary>
 		Task SetSelectedRadarSiteAsync(string? siteId);
 

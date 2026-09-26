@@ -140,6 +140,21 @@ namespace Anvil.Services
 		public Task ClearStormCellsAsync() =>
 			_mapView.RunScriptAsync(Call("clearStormCells"));
 
+		public Task SetPastAlertSourceAsync(string kind, string url) =>
+			_mapView.RunScriptAsync(Call("setPastAlertSource", kind, url));
+
+		public Task SetPastAlertVisibleAsync(string kind, bool visible) =>
+			_mapView.RunScriptAsync(Call("setPastAlertVisible", kind, visible));
+
+		public Task SetPastAlertOpacityAsync(string kind, double opacity) =>
+			_mapView.RunScriptAsync(Call("setPastAlertOpacity", kind, opacity));
+
+		public Task SetPastAlertKindsAsync(string kind, bool tornado, bool severe, bool flashFlood) =>
+			_mapView.RunScriptAsync(Call("setPastAlertKinds", kind, tornado, severe, flashFlood));
+
+		public Task SetPastAlertTimeAsync(long? timeMs) =>
+			_mapView.RunScriptAsync($"window.setPastAlertTime({timeMs?.ToString(CultureInfo.InvariantCulture) ?? "null"});");
+
 		// The loop is driven frame-by-frame: begin (with the site's antenna coords, needed to
 		// project the gates), then add each cached volume URL as a frame, then show by index.
 		public Task BeginRadarLoopAsync(RadarSite site, int expectedFrames) =>

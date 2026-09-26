@@ -34,6 +34,9 @@
 //                 overlay can keep a small urgent polygon above a large one; omitted = source order
 //   beforeId    — optional (map) => layer id to insert BENEATH; omitted = on top of the stack
 //   logName     — label used in the console.error on a failed fetch
+//   timed       — true for a REPLAY overlay (past-alerts.js): every feature carries t0/t1 (Unix ms) and only
+//                 those in effect at the setTime moment draw (t0 ≤ t < t1); no time yet = nothing drawn.
+//                 The live overlays leave it off and never call setTime.
 //
 // PER-KIND FILTERING (setKinds) — the same colorProp that picks a feature's COLOR also decides whether it
 // is drawn at all. The host shows one checkbox per value (tornado / severe thunderstorm), and the shown
@@ -49,9 +52,10 @@ export function createGeojsonOverlay(config) {
         sourceId, fillLayerId, lineLayerId,
         colorProp, colors, colorDefault,
         fillBase, lineBase, lineWidth,
-        beforeId, logName, sortKey,
+        beforeId, logName, sortKey, timed,
     } = config;
 
+    let timeMs = null;          // timed overlays only: the moment to show (see `timed` above)
     let url = null;
     let data = null;
     let visible = false;
@@ -73,10 +77,18 @@ export function createGeojsonOverlay(config) {
     // ['match', ['to-string', ['get', colorProp]], [k1, k2, …], true, false] — true for a shown kind,
     // false for everything else. `match` (not `in`) because its array-of-labels form is the oldest,
     // most widely supported way to express a set membership test in the style spec.
-    function filterExpr() {
+    function kindsExpr() {
         if (!kinds) return null;
         if (!kinds.length) return false; // nothing shown — a constant-false filter draws nothing
         return ['match', ['to-string', ['get', colorProp]], kinds, true, false];
+    }
+
+    function filterExpr() {
+        const k = kindsExpr();
+        if (!timed) return k;
+        if (timeMs == null || k === false) return false;
+        const t = ['all', ['<=', ['to-number', ['get', 't0']], timeMs], ['>', ['to-number', ['get', 't1']], timeMs]];
+        return k === null ? t : ['all', k, t];
     }
 
     function applyFilter(map) {
@@ -129,7 +141,9 @@ export function createGeojsonOverlay(config) {
     // keeps the last known good data on screen rather than blanking the overlay.
     function load(map) {
         if (!url) return;
+        const asked = url;
         fetch(url, { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (gj) {
+            if (url !== asked) return; // a newer source won (a replay window changed mid-fetch)
             if (gj) data = gj;
             if (gj && map.getSource(sourceId)) map.getSource(sourceId).setData(gj);
             refreshLayers(map);
@@ -138,8 +152,22 @@ export function createGeojsonOverlay(config) {
 
     return {
         setSource: function (map, u) {
+            // ⚠️ A replay overlay pointed at a DIFFERENT window drops the old one at once — keeping it as
+            // "last known good" (right for a live feed) would draw one day's alerts over another's radar.
+            if (timed && u !== url) { data = null; removeLayers(map); }
             url = u;
             if (visible) load(map); // lazy: only fetch when the layer is shown
+        },
+        // Timed overlays: the moment to show (Unix ms; null = nothing).
+        setTime: function (map, ms) {
+            timeMs = ms == null ? null : +ms;
+            applyFilter(map);
+        },
+        // Forget the source and data entirely (a replay unloaded).
+        clear: function (map) {
+            url = null;
+            data = null;
+            removeLayers(map);
         },
         setVisible: function (map, on) {
             visible = !!on;

@@ -19,10 +19,9 @@
 import { firstBoundaryLayerId } from './layers.js';
 import { createGeojsonOverlay } from './geojson-overlay.js';
 
-const overlay = createGeojsonOverlay({
-    sourceId: 'spc-watches',
-    fillLayerId: 'spc-watch-fill',
-    lineLayerId: 'spc-watch-line',
+// ⚠️ THE LOOK is exported: past-alerts.js draws PastCast's copy with exactly these values (on layers of its
+// own), so the two modes cannot drift apart. Ids and z-placement stay below, per overlay.
+export const STYLE = {
     colorProp: 'phenom',
     colors: {
         TO: '#ff3b30',   // tornado watch — red
@@ -32,9 +31,15 @@ const overlay = createGeojsonOverlay({
     fillBase: 0.08,
     lineBase: 0.9,
     lineWidth: 2,
+};
+
+const overlay = createGeojsonOverlay(Object.assign({
+    sourceId: 'spc-watches',
+    fillLayerId: 'spc-watch-fill',
+    lineLayerId: 'spc-watch-line',
     beforeId: firstBoundaryLayerId,
     logName: 'watches',
-});
+}, STYLE));
 
 export const setSource = overlay.setSource;
 export const setVisible = overlay.setVisible;

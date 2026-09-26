@@ -27,6 +27,7 @@
          alternative is testing our encoder against our decoder, which proves nothing about the real
          format. 3 KB, fetched once from s3://unidata-nexrad-level3/. -->
     <None Include="Fixtures\*.bin" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\*.zip" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -106,6 +106,7 @@ try {
     var StormReports = null;
     var DamageSurveys = null;
     var StormCells = null;
+    var PastAlerts = null;
     var Markers = null;
     var RadarSites = null;
     var States = null;
@@ -124,6 +125,7 @@ try {
         if (Outlook) Outlook.reAdd(map);                // re-add the outlook (reuse clipped data, or re-fetch)
         if (Watches) Watches.reAdd(map);                 // re-add the watch layers (data is still in memory)
         if (Warnings) Warnings.reAdd(map);               // re-add the warning polygons (above the watches)
+        if (PastAlerts) PastAlerts.reAdd(map);           // PastCast's own watches + warnings (same groups as the live pair)
         if (DamageSurveys) DamageSurveys.reAdd(map);     // NWS damage surveys (under labels, so under the report dots)
         if (StormReports) StormReports.reAdd(map);       // re-add the storm-report dots (top of the stack)
         if (StormCells) StormCells.reAdd(map);           // radar storm cells: tracks, TVS, meso, hail (restack orders them)
@@ -501,6 +503,15 @@ try {
     window.setStormCellScan = function (ms) { if (StormCells) forEachMap(function (m) { StormCells.setScan(m, ms); }); };
     window.setStormCellsOpacity = function (o) { if (StormCells) forEachMap(function (m) { StormCells.setOpacity(m, o); }); };
     window.clearStormCells = function () { if (StormCells) forEachMap(function (m) { StormCells.clear(m); }); };
+
+    // PastCast's warnings + watches (past-alerts.js): the NowCast looks on layers of their own, filtered to
+    // the displayed frame's time. `kind` is 'warnings' or 'watches'.
+    import('./past-alerts.js').then(function (m) { PastAlerts = m; }).catch(function (e) { console.error('past-alerts.js load failed: ' + e); });
+    window.setPastAlertSource = function (kind, url) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setSource(m, kind, url); }); };
+    window.setPastAlertVisible = function (kind, on) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setVisible(m, kind, on); }); };
+    window.setPastAlertKinds = function (kind, torn, severe, flashFlood) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setKinds(m, kind, phenomKinds(torn, severe, flashFlood)); }); };
+    window.setPastAlertOpacity = function (kind, o) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setOpacity(m, kind, o); }); };
+    window.setPastAlertTime = function (ms) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setTime(m, ms); }); };
 
     // Animated camera moves go to the PRIMARY only; onPaneMove mirrors them to the other panes as they
     // play, so the panes stay locked without four animations fighting each other.

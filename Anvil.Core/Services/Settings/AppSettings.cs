@@ -358,6 +358,22 @@ namespace Anvil.Services
 		private double? _stormCellsOpacity;
 		public double? StormCellsOpacity { get => _stormCellsOpacity; set => SetProperty(ref _stormCellsOpacity, value); }
 
+		// PastCast's own warning/watch sections (separate from the NowCast ones above).
+		private bool? _pastWarningsShowTornado;
+		public bool? PastWarningsShowTornado { get => _pastWarningsShowTornado; set => SetProperty(ref _pastWarningsShowTornado, value); }
+		private bool? _pastWarningsShowSevere;
+		public bool? PastWarningsShowSevere { get => _pastWarningsShowSevere; set => SetProperty(ref _pastWarningsShowSevere, value); }
+		private bool? _pastWarningsShowFlashFlood;
+		public bool? PastWarningsShowFlashFlood { get => _pastWarningsShowFlashFlood; set => SetProperty(ref _pastWarningsShowFlashFlood, value); }
+		private double? _pastWarningsOpacity;
+		public double? PastWarningsOpacity { get => _pastWarningsOpacity; set => SetProperty(ref _pastWarningsOpacity, value); }
+		private bool? _pastWatchesShowTornado;
+		public bool? PastWatchesShowTornado { get => _pastWatchesShowTornado; set => SetProperty(ref _pastWatchesShowTornado, value); }
+		private bool? _pastWatchesShowSevere;
+		public bool? PastWatchesShowSevere { get => _pastWatchesShowSevere; set => SetProperty(ref _pastWatchesShowSevere, value); }
+		private double? _pastWatchesOpacity;
+		public double? PastWatchesOpacity { get => _pastWatchesOpacity; set => SetProperty(ref _pastWatchesOpacity, value); }
+
 		private bool? _damageSurveysShowAreas;
 		public bool? DamageSurveysShowAreas { get => _damageSurveysShowAreas; set => SetProperty(ref _damageSurveysShowAreas, value); }
 		private bool? _damageSurveysShowTracks;

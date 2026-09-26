@@ -133,31 +133,11 @@ namespace Anvil.Services
 		// Tallies the current active set by phenom (TO / SV / FF) and by damage-threat tier for the UI readout.
 		private (int Tornado, int Severe, int FlashFlood, WarningThreatCounts Threats) CountByPhenom()
 		{
-			int tornado = 0, severe = 0, flashFlood = 0;
-			int torPds = 0, torEmergency = 0, svDestructive = 0, ffConsiderable = 0, ffEmergency = 0;
-			foreach (var w in _active.Values)
-			{
-				var props = w.Feature["properties"];
-				var phenom = Str(props?["phenom"]);
-				var tier = TierOf(props);
-				switch (phenom)
-				{
-					case "TO":
-						tornado++;
-						if (tier == 2) { torEmergency++; } else if (tier == 1) { torPds++; }
-						break;
-					case "SV":
-						severe++;
-						if (tier == 2) { svDestructive++; }
-						break;
-					case "FF":
-						flashFlood++;
-						if (tier == 2) { ffEmergency++; } else if (tier == 1) { ffConsiderable++; }
-						break;
-				}
-			}
-			return (tornado, severe, flashFlood,
-				new WarningThreatCounts(torEmergency, torPds, svDestructive, ffEmergency, ffConsiderable));
+			var tagged = _active.Values
+				.Select(w => (Phenom: Str(w.Feature["properties"]?["phenom"]), Tier: TierOf(w.Feature["properties"])))
+				.ToList();
+			return (tagged.Count(a => a.Phenom == "TO"), tagged.Count(a => a.Phenom == "SV"), tagged.Count(a => a.Phenom == "FF"),
+				WarningThreatCounts.From(tagged));
 		}
 
 		private static int TierOf(JsonNode? props) =>

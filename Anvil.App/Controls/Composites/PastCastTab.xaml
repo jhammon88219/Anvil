@@ -30,6 +30,8 @@
        │     [x] ━ Tracks                        4            │  │
        │     [ ] ● Survey points                96            │  │
        │     [EFU][EF0][EF1][EF2][EF3][EF4][EF5]              │  │ ← DAT's own EF colours
+       │ ⠿ › [x] Warnings       ──────────●  100%             │  │ as in effect at the FRAME on
+       │ ⠿ › [x] Watches        ──────────●  100%             │  │ screen (IEM VTEC archive)
        │ ⠿ ›     SPC outlook    ───────●───   55%             │  │ no box: Product None = off
        │ ⠿   [x] Radar          ──────────●─   85%            │  ┘ header only
        │     ›   DOW event                                    │  ← a STANDALONE mobile-radar
@@ -430,6 +432,37 @@
                     </Grid>
                 </Grid>
             </Grid>
+        </prim:PanelSection>
+
+        <!-- ===================== WARNINGS + WATCHES (as in effect at the displayed frame) ===================== -->
+        <!-- ViewModel.PastAlerts: IEM's VTEC archive for the LOADED window, drawn with the NowCast looks on
+             layers of their own and filtered to the frame on screen — a warning reshapes at each follow-up and
+             watch counties drop out as they were cancelled. The SAME control as NowCast's two sections, bound to
+             PastCast's own view models (their ticks + opacity are saved separately from NowCast's). -->
+        <prim:PanelSection Header="Warnings" LayerId="warnings" Reordered="OnSectionsReordered"
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.PastAlerts.Warnings.AllShown, Mode=OneWay}"
+                           CheckBoxClick="OnPastWarningsHeaderClick"
+                           CheckBoxToolTip="Show or hide every warning type"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.PastAlerts.Warnings.Opacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.PastAlerts.Warnings.AnyShown, Mode=OneWay}"
+                           OpacityToolTip="Opacity of the warning polygons (fill and outline together)">
+            <comp:PhenomOverlayInput AlertNoun="warnings"
+                                     ViewModel="{x:Bind ViewModel.PastAlerts.Warnings, Mode=OneWay}"/>
+        </prim:PanelSection>
+
+        <prim:PanelSection Header="Watches" LayerId="watches" Reordered="OnSectionsReordered"
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.PastAlerts.Watches.AllShown, Mode=OneWay}"
+                           CheckBoxClick="OnPastWatchesHeaderClick"
+                           CheckBoxToolTip="Show or hide every watch type"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.PastAlerts.Watches.Opacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.PastAlerts.Watches.AnyShown, Mode=OneWay}"
+                           OpacityToolTip="Opacity of the watch counties (fill and outline together)">
+            <comp:PhenomOverlayInput AlertNoun="watches"
+                                     ViewModel="{x:Bind ViewModel.PastAlerts.Watches, Mode=OneWay}"/>
         </prim:PanelSection>
 
         <!-- ===================== SPC OUTLOOK: the card, then the pickers ===================== -->

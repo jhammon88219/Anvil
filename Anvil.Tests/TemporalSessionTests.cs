@@ -26,7 +26,7 @@ namespace Anvil.Tests
 			var usageDir = Path.Combine(Path.GetTempPath(), "AnvilSessionTests", System.Guid.NewGuid().ToString("N"));
 			return new MapViewModel(N<IMapService>(), N<IStyleProvider>(), N<IThemeProvider>(), N<IRegionProvider>(),
 				N<ISpcOutlookService>(), N<ISpcWatchService>(), N<IWarningService>(), N<IStormReportService>(),
-				N<IDamageSurveyService>(), N<IStormCellService>(), N<IRadarSiteProvider>(), N<ILevel2RadarService>(), N<ILocationService>(),
+				N<IDamageSurveyService>(), N<IStormCellService>(), N<IPastAlertService>(), N<IRadarSiteProvider>(), N<ILevel2RadarService>(), N<ILocationService>(),
 				N<IPlaceSearchService>(), N<IDowEventProvider>(), N<ISavedEventLibrary>(), N<IDispatcher>(),
 				settingsService, NullLoggerFactory.Instance, new SiteUsageStore(NullLogger<SiteUsageStore>.Instance, usageDir),
 				N<IRadarNwsStatusService>(), N<IRadarUptimeService>(), N<IRadarMessageHistoryService>(),

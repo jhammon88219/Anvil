@@ -57,8 +57,8 @@ const GROUPS = [
     ['cells',    ['storm-cell-']],               // storm-cells.js: tracks, TVS, meso, hail — small marks, on top
     ['reports',  ['spc-report-']],
     ['damage',   ['dat-']],
-    ['warnings', ['nws-warning-']],
-    ['watches',  ['spc-watch-']],
+    ['warnings', ['nws-warning-', 'past-warning-']], // live + PastCast's own (past-alerts.js): one group
+    ['watches',  ['spc-watch-', 'past-watch-']],
     ['outlook',  ['spc-outlook-']],
     ['radar',    ['level2-', 'radar-ruler-']],   // the WebGL layer + its range rings, sweep and ruler
 ];

@@ -51,25 +51,7 @@ namespace Anvil.ViewModels
 		/// emergency". Counts EVERY active warning, not just the ticked types, for the same reason the
 		/// headline does; the map marks the same warnings with a heavier outline.
 		/// </summary>
-		public override string CardThreats
-		{
-			get
-			{
-				var t = _threats;
-				var parts = new System.Collections.Generic.List<string>(5);
-				Add(parts, t.TornadoEmergency, "tornado emergency", "tornado emergencies");
-				Add(parts, t.FlashFloodEmergency, "flash flood emergency", "flash flood emergencies");
-				Add(parts, t.TornadoPds, "PDS tornado", "PDS tornado");
-				Add(parts, t.SevereDestructive, "destructive storm", "destructive storms");
-				Add(parts, t.FlashFloodConsiderable, "considerable flash flood", "considerable flash flood");
-				return string.Join(" · ", parts);
-
-				static void Add(System.Collections.Generic.List<string> list, int n, string one, string many)
-				{
-					if (n > 0) { list.Add($"{n} {(n == 1 ? one : many)}"); }
-				}
-			}
-		}
+		public override string CardThreats => _threats.ToCardLine();
 
 		// ⚠️ The one overlay that states its cadence on the card. Warnings are the short-fused layer and
 		// the poll is ADAPTIVE, so "how current is this number" has a genuinely variable answer; watches

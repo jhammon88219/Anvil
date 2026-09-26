@@ -28,15 +28,15 @@ namespace Anvil.ViewModels
 
 		public static void Attach(AppSettings s, RadarViewModel radar, WarningsViewModel warnings, WatchesViewModel watches,
 			StormReportsViewModel reports, DamageSurveysViewModel damage, PastOutlookViewModel pastOutlook, OutlookViewModel outlook,
-			StormCellsViewModel cells)
+			StormCellsViewModel cells, PastAlertsViewModel pastAlerts)
 		{
-			Restore(s, radar, warnings, watches, reports, damage, pastOutlook, outlook, cells);
-			Track(s, radar, warnings, watches, reports, damage, pastOutlook, outlook, cells);
+			Restore(s, radar, warnings, watches, reports, damage, pastOutlook, outlook, cells, pastAlerts);
+			Track(s, radar, warnings, watches, reports, damage, pastOutlook, outlook, cells, pastAlerts);
 		}
 
 		private static void Restore(AppSettings s, RadarViewModel radar, WarningsViewModel warnings, WatchesViewModel watches,
 			StormReportsViewModel reports, DamageSurveysViewModel damage, PastOutlookViewModel pastOutlook, OutlookViewModel outlook,
-			StormCellsViewModel cells)
+			StormCellsViewModel cells, PastAlertsViewModel pastAlerts)
 		{
 			if (s.RadarOpacity is double ro) { radar.RadarOpacity = Unit(ro); }
 			if (s.ShowRadarLayer is bool rl) { radar.ShowRadarLayer = rl; }
@@ -65,6 +65,16 @@ namespace Anvil.ViewModels
 			if (s.StormCellsShowMeso is bool cm) { cells.ShowMeso = cm; }
 			if (s.StormCellsShowHail is bool ch) { cells.ShowHail = ch; }
 			if (s.StormCellsOpacity is double cop) { cells.Opacity = Unit(cop); }
+
+			var pw = pastAlerts.Warnings;
+			if (s.PastWarningsShowTornado is bool pwt) { pw.ShowTornado = pwt; }
+			if (s.PastWarningsShowSevere is bool pws) { pw.ShowSevere = pws; }
+			if (s.PastWarningsShowFlashFlood is bool pwf) { pw.ShowFlashFlood = pwf; }
+			if (s.PastWarningsOpacity is double pwo) { pw.Opacity = Unit(pwo); }
+			var pa = pastAlerts.Watches;
+			if (s.PastWatchesShowTornado is bool pat) { pa.ShowTornado = pat; }
+			if (s.PastWatchesShowSevere is bool pas) { pa.ShowSevere = pas; }
+			if (s.PastWatchesOpacity is double pao) { pa.Opacity = Unit(pao); }
 
 			// Past outlook: day FIRST — it cascades (rebuilds) the product and cycle lists the other two pick from.
 			if (s.PastOutlookDay is int pd && pd >= 1 && pd <= pastOutlook.Days.Count) { pastOutlook.SelectedDayIndex = pd - 1; }
@@ -96,7 +106,7 @@ namespace Anvil.ViewModels
 
 		private static void Track(AppSettings s, RadarViewModel radar, WarningsViewModel warnings, WatchesViewModel watches,
 			StormReportsViewModel reports, DamageSurveysViewModel damage, PastOutlookViewModel pastOutlook, OutlookViewModel outlook,
-			StormCellsViewModel cells)
+			StormCellsViewModel cells, PastAlertsViewModel pastAlerts)
 		{
 			radar.PropertyChanged += (_, e) =>
 			{
@@ -159,6 +169,30 @@ namespace Anvil.ViewModels
 					case nameof(StormCellsViewModel.ShowMeso): s.StormCellsShowMeso = cells.ShowMeso; break;
 					case nameof(StormCellsViewModel.ShowHail): s.StormCellsShowHail = cells.ShowHail; break;
 					case nameof(StormCellsViewModel.Opacity): s.StormCellsOpacity = cells.Opacity; break;
+				}
+			};
+
+			// PastCast's OWN warning/watch choices — separate from NowCast's (the user may want different
+			// layers over a replay than over today).
+			var pastWarnings = pastAlerts.Warnings;
+			pastWarnings.PropertyChanged += (_, e) =>
+			{
+				switch (e.PropertyName)
+				{
+					case nameof(PhenomOverlayViewModel.ShowTornado): s.PastWarningsShowTornado = pastWarnings.ShowTornado; break;
+					case nameof(PhenomOverlayViewModel.ShowSevere): s.PastWarningsShowSevere = pastWarnings.ShowSevere; break;
+					case nameof(PhenomOverlayViewModel.ShowFlashFlood): s.PastWarningsShowFlashFlood = pastWarnings.ShowFlashFlood; break;
+					case nameof(PhenomOverlayViewModel.Opacity): s.PastWarningsOpacity = pastWarnings.Opacity; break;
+				}
+			};
+			var pastWatches = pastAlerts.Watches;
+			pastWatches.PropertyChanged += (_, e) =>
+			{
+				switch (e.PropertyName)
+				{
+					case nameof(PhenomOverlayViewModel.ShowTornado): s.PastWatchesShowTornado = pastWatches.ShowTornado; break;
+					case nameof(PhenomOverlayViewModel.ShowSevere): s.PastWatchesShowSevere = pastWatches.ShowSevere; break;
+					case nameof(PhenomOverlayViewModel.Opacity): s.PastWatchesOpacity = pastWatches.Opacity; break;
 				}
 			};
 
