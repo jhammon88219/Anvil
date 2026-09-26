@@ -35,6 +35,38 @@ if (args.Length > 0 && args[0] == "--uptime")
     return 0;
 }
 
+// --messages SITE [SITE…]: the IEM FTM history (RadarMessageHistoryService) for every bundled site, printed
+// for the named ones — the real-data check for the month-scoped dates and the 3-letter site resolution.
+if (args.Length > 0 && args[0] == "--messages")
+{
+    var assets = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "Anvil.App", "Assets", "Radar");
+    var sites = new List<Anvil.Models.RadarSite>();
+    foreach (var (file, cls) in new[] { ("radar-sites.json", Anvil.Models.RadarSiteClass.Operational),
+                                        ("tdwr-sites.json", Anvil.Models.RadarSiteClass.Tdwr),
+                                        ("research-radar-sites.json", Anvil.Models.RadarSiteClass.Research) })
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(assets, file)));
+        foreach (var e in doc.RootElement.EnumerateArray())
+            sites.Add(new Anvil.Models.RadarSite(e.GetProperty("id").GetString()!, "", 0, 0, cls));
+    }
+    var svc = new RadarMessageHistoryService(
+        Microsoft.Extensions.Logging.Abstractions.NullLogger<RadarMessageHistoryService>.Instance,
+        null, Path.Combine(Path.GetTempPath(), "anvil-messagecheck"), null);
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var all = await svc.GetHistoryAsync(sites);
+    Console.WriteLine($"{all.Count} messages for {all.Select(m => m.SiteId).Distinct().Count()} of {sites.Count} sites in {sw.ElapsedMilliseconds} ms");
+    foreach (var id in args.Skip(1).DefaultIfEmpty("KTLX").Select(a => a.ToUpperInvariant()))
+    {
+        Console.WriteLine($"== {id}");
+        foreach (var m in all.Where(m => m.SiteId == id))
+        {
+            var text = m.Message.Text.Replace('\n', ' ');
+            Console.WriteLine($"   {m.Message.IssuedUtc.ToLocalTime():MMM dd HH:mm} {m.Message.Office}  {text[..Math.Min(90, text.Length)]}");
+        }
+    }
+    return 0;
+}
+
 var positional = args.TakeWhile(a => !a.StartsWith("--")).ToArray();
 var site = positional.Length > 0 ? positional[0].ToUpperInvariant() : "KTLX";
 var day = positional.Length > 1 ? positional[1] : DateTime.UtcNow.ToString("yyyy/MM/dd");

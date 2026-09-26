@@ -122,6 +122,8 @@ namespace Anvil
 			// Data uptime from archive gaps: listing only, final days cached in %LocalAppData%\Anvil\Network\Archive.
 			services.AddSingleton<IArchiveVolumeLister, ArchiveVolumeLister>();
 			services.AddSingleton<IRadarUptimeService, RadarUptimeService>();
+			// FTM history from the IEM text archive, one request per calendar month; past months cached to disk.
+			services.AddSingleton<IRadarMessageHistoryService, RadarMessageHistoryService>();
 
 			// Wind-profile provider chain for the storm motion (doc 01 section 5), in PRIORITY ORDER. The NWS's
 			// own VAD (Level III NVW) first; our Level II VAD is the fallback and is NOT registered here — it

@@ -117,9 +117,10 @@ namespace Anvil.Services
 			obj.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
 		// "NOUS62 KRAH 231129" with an optional correction suffix ("RRA", "CCA").
-		private static readonly Regex WmoHeader = new(@"^[A-Z]{4}\d{2}\s+([A-Z]{4})\s+(\d{2})(\d{2})(\d{2})(\s+[A-Z]{3})?\s*$",
+		// Shared with RadarMessageHistoryService (IEM's archive uses the same product text).
+		internal static readonly Regex WmoHeader = new(@"^[A-Z]{4}\d{2}\s+([A-Z]{4})\s+(\d{2})(\d{2})(\d{2})(\s+[A-Z]{3})?\s*$",
 			RegexOptions.Compiled);
-		private static readonly Regex FtmLine = new(@"^FTM([A-Z0-9]{3})\s*$", RegexOptions.Compiled);
+		internal static readonly Regex FtmLine = new(@"^FTM([A-Z0-9]{3})\s*$", RegexOptions.Compiled);
 
 		/// <summary>Splits the FTM file into messages, newest first. A block without a readable WMO header and
 		/// <c>FTMxxx</c> line is skipped rather than guessed at.</summary>
@@ -178,7 +179,7 @@ namespace Anvil.Services
 
 		// Drops the free-form "Message Date:" line, then re-flows NWS's hard 70-column wrap into paragraphs (a
 		// blank line is a paragraph break) so the text wraps to the card, not to a teletype.
-		private static string BodyText(IEnumerable<string> lines)
+		internal static string BodyText(IEnumerable<string> lines)
 		{
 			var paragraphs = new List<string>();
 			var current = new StringBuilder();
