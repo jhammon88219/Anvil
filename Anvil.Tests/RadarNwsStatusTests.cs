@@ -256,15 +256,13 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public async Task Detail_OlderMessagesFoldUnderTheNewest()
+		public async Task Detail_ShowsTheNewestMessage()
 		{
+			// Older ones are the Atlas's MESSAGE HISTORY now (RadarSiteHistoryViewModel), not a fold here.
 			var (vm, service, _, _) = Build();
 			service.Ftm = "NOUS62 KRAH 231129\nFTMRAX\nDOWN\n====\nNOUS62 KRAH 231729\nFTMRAX\nBACK UP\n====\n";
 			await vm.CheckAsync();
-			var rax = vm.DetailFor(Row("KRAX"));
-			Assert.Equal("BACK UP", rax.Latest!.Text);
-			Assert.Equal("DOWN", Assert.Single(rax.Earlier).Text);
-			Assert.Equal("1 earlier message", rax.EarlierLabel);
+			Assert.Equal("BACK UP", vm.DetailFor(Row("KRAX")).Latest!.Text);
 		}
 
 		[Fact]

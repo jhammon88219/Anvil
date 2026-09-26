@@ -117,6 +117,21 @@ namespace Anvil.Services
 			return "An unrecognized pattern, so the app is showing the number the volume reported.";
 		}
 
+		// ── Data uptime (the Atlas's DATA UPTIME section) ─────────────────────────────────────────
+		// ⚠️ The Context sentence states UptimeCalculator's rules — move them together.
+		public static RadarGlossaryCard DataUptime(double? upFraction) => new(
+			"Data uptime",
+			$"Share of the last {RadarUptimeService.HistoryDays} days with this radar's data reaching the public archive",
+			"How much of the time this radar's scans actually arrived. Worked out from the gaps between volumes " +
+			"in the public archive, so it shows when data stopped, never why — the NWS messages below say why.",
+			upFraction is double f
+				? $"{f * 100:0.0}% of the last {RadarUptimeService.HistoryDays} days had data flowing."
+				: string.Empty,
+			$"No volume for {RadarSiteStatus.Staleness.TotalMinutes:0} minutes counts as down — the same rule that turns " +
+			"the site offline. Shorter holes, where two or more volumes went missing, are listed as gaps but not " +
+			"counted. The NEXRAD program's own goal is 96% availability, measured from maintenance records " +
+			"rather than the archive.");
+
 		// ── Distance ─────────────────────────────────────────────────────────────────────────────
 		public static RadarGlossaryCard Distance(double? miles) => new(
 			"Distance",

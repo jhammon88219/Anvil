@@ -34,13 +34,10 @@ namespace Anvil.ViewModels
 		RadarNwsLevel Level,
 		string AlarmsText,
 		string PowerText,
-		RadarNwsMessageRow? Latest,
-		string NoMessageText,
-		IReadOnlyList<RadarNwsMessageRow> Earlier,
-		string EarlierLabel)
+		RadarNwsMessageRow? Latest,   // the NEWEST only; older ones are the Atlas's MESSAGE HISTORY (30 days)
+		string NoMessageText)
 	{
 		public bool HasMessage => Latest is not null;
-		public bool HasEarlier => Earlier.Count > 0;
 	}
 
 	/// <summary>
@@ -251,7 +248,6 @@ namespace Anvil.ViewModels
 				empty = "NWS doesn't report status for this site.";
 			}
 
-			var earlier = rows.Skip(1).ToList();
 			return new RadarNwsSiteDetail(
 				ShowTable: hasData && (station is not null || rows.Count > 0),
 				EmptyText: empty,
@@ -261,9 +257,7 @@ namespace Anvil.ViewModels
 				AlarmsText: station is null ? string.Empty : AlarmWords(station.AlarmSummary),
 				PowerText: station is null ? string.Empty : PowerWords(station.GeneratorState),
 				Latest: rows.FirstOrDefault(),
-				NoMessageText: _messagesBySite is null ? "Outage messages unavailable." : "No NWS messages in the last 24 hours.",
-				Earlier: earlier,
-				EarlierLabel: earlier.Count == 1 ? "1 earlier message" : $"{earlier.Count} earlier messages");
+				NoMessageText: _messagesBySite is null ? "Outage messages unavailable." : "No NWS messages in the last 24 hours.");
 		}
 
 		private RadarNwsMessageRow ToRow(RadarNwsMessage m)

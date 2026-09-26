@@ -1226,7 +1226,9 @@ namespace Anvil.Services
 
 		// Decompresses one chunk's single LDM record. S chunks carry the 24-byte volume header +
 		// a 4-byte control word before the bzip2 stream; I/E chunks just the control word.
-		private static byte[]? DecompressChunk(byte[] chunk, bool isS)
+		// ⚠️ A volume FILE's first bytes have the S-chunk layout too, which is how ArchiveVolumeLister reads a
+		// VCP from an 8 KB range prefix — both callers must keep meaning the same bytes.
+		internal static byte[]? DecompressChunk(byte[] chunk, bool isS)
 		{
 			var offset = isS ? 28 : 4;
 			if (chunk.Length <= offset)

@@ -35,6 +35,20 @@ if (args.Length > 0 && args[0] == "--uptime")
     return 0;
 }
 
+// --vcp SITE: the hourly scan-pattern sample (RadarScanPatternService) against the live archive — ~720
+// 8 KB range reads the first time; the real-data check for ReadVcpAsync's prefix parse.
+if (args.Length > 0 && args[0] == "--vcp")
+{
+    var svc = new RadarScanPatternService(new ArchiveVolumeLister(),
+        Microsoft.Extensions.Logging.Abstractions.NullLogger<RadarScanPatternService>.Instance,
+        Path.Combine(Path.GetTempPath(), "anvil-vcpcheck"), null);
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var r = await svc.GetReportAsync(args.Length > 1 ? args[1] : "KTLX");
+    Console.WriteLine($"== {r.SiteId}  {r.SampledHours} sampled hours over {r.DaysDone} days in {sw.Elapsed.TotalSeconds:0} s");
+    foreach (var s in r.Shares) Console.WriteLine($"   VCP {s.Vcp,-4} {s.Hours,4} h  {100.0 * s.Hours / Math.Max(1, r.SampledHours),5:0.0}%");
+    return 0;
+}
+
 // --messages SITE [SITE…]: the IEM FTM history (RadarMessageHistoryService) for every bundled site, printed
 // for the named ones — the real-data check for the month-scoped dates and the 3-letter site resolution.
 if (args.Length > 0 && args[0] == "--messages")

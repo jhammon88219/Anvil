@@ -147,6 +147,9 @@ namespace Anvil.Tests
 				IReadOnlyList<DateTimeOffset> times = Enumerable.Range(0, 288).Select(i => start.AddMinutes(5 * i)).Where(t => t <= Now).ToList();
 				return Task.FromResult(times);
 			}
+			public Task<IReadOnlyList<(DateTimeOffset Time, string Key)>> ListVolumesAsync(string siteId, DateOnly utcDay, CancellationToken ct) =>
+				throw new NotSupportedException();
+			public Task<int> ReadVcpAsync(string key, CancellationToken ct) => throw new NotSupportedException();
 		}
 
 		private static RadarUptimeService Service(FakeLister lister, string dir) =>

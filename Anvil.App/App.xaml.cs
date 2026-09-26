@@ -124,6 +124,8 @@ namespace Anvil
 			services.AddSingleton<IRadarUptimeService, RadarUptimeService>();
 			// FTM history from the IEM text archive, one request per calendar month; past months cached to disk.
 			services.AddSingleton<IRadarMessageHistoryService, RadarMessageHistoryService>();
+			// Hourly VCP sample (8 KB range reads) for the Atlas's scan-pattern bar; final days cached.
+			services.AddSingleton<IRadarScanPatternService, RadarScanPatternService>();
 
 			// Wind-profile provider chain for the storm motion (doc 01 section 5), in PRIORITY ORDER. The NWS's
 			// own VAD (Level III NVW) first; our Level II VAD is the fallback and is NOT registered here — it

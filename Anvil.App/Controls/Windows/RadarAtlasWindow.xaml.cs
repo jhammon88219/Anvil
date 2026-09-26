@@ -56,6 +56,7 @@ namespace Anvil.Controls.Windows
 			var window = (RadarAtlasWindow)d;
 			((CollectionViewSource)window.Resources["SiteGroupsSource"]).Source =
 				(e.NewValue as MapViewModel)?.RadarAtlas.SiteGroups;
+			window.AttachHistory((e.NewValue as MapViewModel)?.RadarAtlas.History);
 		}
 
 		// Favorite / home presentation. STATIC so the row template (x:DataType RadarSiteRow) can call them too.
@@ -93,6 +94,67 @@ namespace Anvil.Controls.Windows
 
 		// E70D ChevronDown (folded) / E70E ChevronUp (unfolded).
 		public static string ExpandGlyph(bool expanded) => expanded ? "" : "";
+
+		// ── History sections (RadarSiteHistoryViewModel) ──
+		// ⚠️ LITERAL data colours, the same green / amber / red / grey as NwsLevelBrush and AgeBrush.
+		private static Microsoft.UI.Xaml.Media.SolidColorBrush Literal(byte r, byte g, byte b) =>
+			new(Microsoft.UI.ColorHelper.FromArgb(0xFF, r, g, b));
+
+		public static Microsoft.UI.Xaml.Media.Brush UptimeCellBrush(UptimeCellLevel level) => level switch
+		{
+			UptimeCellLevel.Up => Literal(0x3F, 0xB9, 0x50),
+			UptimeCellLevel.Partial => Literal(0xD2, 0x99, 0x22),
+			UptimeCellLevel.Down => Literal(0xF8, 0x51, 0x49),
+			_ => Literal(0x6E, 0x76, 0x81),
+		};
+
+		public static Microsoft.UI.Xaml.Media.Brush HoleBrush(Anvil.Models.UptimeHoleKind kind) =>
+			kind == Anvil.Models.UptimeHoleKind.Down ? Literal(0xF8, 0x51, 0x49) : Literal(0xD2, 0x99, 0x22);
+
+		// Scan-pattern bar shades, most-used first: a blue for the top pattern, then steps of grey. Data colours,
+		// readable on both themes.
+		public static Microsoft.UI.Xaml.Media.Brush ShareBrush(int index) => index switch
+		{
+			0 => Literal(0x58, 0x8B, 0xE0),
+			1 => Literal(0x8B, 0x94, 0x9E),
+			2 => Literal(0x6E, 0x76, 0x81),
+			_ => Literal(0x48, 0x4F, 0x58),
+		};
+
+		private void OnHistoryMessagesMoreClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.RadarAtlas.History.ToggleMessages();
+
+		// The scan-pattern bar: one star column per pattern, sized by its share. Rebuilt in code because a
+		// proportional row has no WinUI panel (EqualCellsPanel is EQUAL cells) and it's one bar.
+		private RadarSiteHistoryViewModel? _history;
+
+		private void AttachHistory(RadarSiteHistoryViewModel? history)
+		{
+			if (_history is not null) _history.PropertyChanged -= OnHistoryChanged;
+			_history = history;
+			if (_history is not null) _history.PropertyChanged += OnHistoryChanged;
+			RebuildScanBar();
+		}
+
+		private void OnHistoryChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName == nameof(RadarSiteHistoryViewModel.ScanShares)) RebuildScanBar();
+		}
+
+		private void RebuildScanBar()
+		{
+			ScanBar.Children.Clear();
+			ScanBar.ColumnDefinitions.Clear();
+			if (_history is null) return;
+			foreach (var s in _history.ScanShares)
+			{
+				ScanBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(s.Share, GridUnitType.Star) });
+				var segment = new Border { Background = ShareBrush(s.Index) };
+				ToolTipService.SetToolTip(segment, s.Label);
+				Grid.SetColumn(segment, ScanBar.ColumnDefinitions.Count - 1);
+				ScanBar.Children.Add(segment);
+			}
+		}
 
 		// The detail pane's status-dot brush. Bound to SelectedSite.Availability, so it tracks a status change
 		// on the selected row, not just a change of selection.
@@ -197,8 +259,6 @@ namespace Anvil.Controls.Windows
 		private void OnNwsRecheckClick(object sender, RoutedEventArgs e) =>
 			_ = ViewModel?.RadarAtlas.NwsStatus.CheckAsync();
 
-		private void OnNwsEarlierClick(object sender, RoutedEventArgs e) =>
-			ViewModel?.RadarAtlas.ToggleNwsEarlier();
 
 		// Load the selected site's radar loop on the map, then close the panel.
 		private void OnLoadClick(object sender, RoutedEventArgs e)

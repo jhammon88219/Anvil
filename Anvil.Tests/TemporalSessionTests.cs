@@ -29,7 +29,8 @@ namespace Anvil.Tests
 				N<IDamageSurveyService>(), N<IRadarSiteProvider>(), N<ILevel2RadarService>(), N<ILocationService>(),
 				N<IPlaceSearchService>(), N<IDowEventProvider>(), N<ISavedEventLibrary>(), N<IDispatcher>(),
 				settingsService, NullLoggerFactory.Instance, new SiteUsageStore(NullLogger<SiteUsageStore>.Instance, usageDir),
-				N<IRadarNwsStatusService>(), null);
+				N<IRadarNwsStatusService>(), N<IRadarUptimeService>(), N<IRadarMessageHistoryService>(),
+				N<IRadarScanPatternService>(), new NonStandardVcpLog(NullLogger<NonStandardVcpLog>.Instance, usageDir), null);
 		}
 
 		[Fact]

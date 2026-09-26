@@ -37,7 +37,7 @@ namespace Anvil.ViewModels
 
 		public RadarAtlasViewModel(RadarViewModel radar, MarkersViewModel markers,
 			ILevel2RadarService radarService, RadarSiteFavoritesViewModel favorites, SiteUsageTracker usage,
-			RadarNwsStatusViewModel nws)
+			RadarNwsStatusViewModel nws, RadarSiteHistoryViewModel history)
 		{
 			_radar = radar;
 			_markers = markers;
@@ -45,6 +45,7 @@ namespace Anvil.ViewModels
 			_favorites = favorites;
 			_usage = usage;
 			_nws = nws;
+			History = history;
 
 			// A check landing (or the minute rolling, which moves "27 hr ago") re-words the NWS section.
 			_nws.Changed += (_, _) => OnPropertyChanged(nameof(NwsDetail));
@@ -622,9 +623,9 @@ namespace Anvil.ViewModels
 
 				if (SetProperty(ref _selectedSite, value))
 				{
-					IsNwsEarlierExpanded = false; // a new site opens with its older messages folded
 					RaiseDetail();
 					_ = LoadDetailAsync(value, ++_detailToken);
+					History.Show(value?.Site); // fetches only while the Atlas is open — see RadarSiteHistoryViewModel
 				}
 			}
 		}
@@ -903,19 +904,12 @@ namespace Anvil.ViewModels
 		/// <summary>The NWS check itself — the section header's Re-check button and "checked 2 min ago".</summary>
 		public RadarNwsStatusViewModel NwsStatus => _nws;
 
-		/// <summary>The selected site's NWS STATUS section, every word chosen.</summary>
+		/// <summary>The selected site's NWS STATUS section, every word chosen. Its NEWEST message only — the
+		/// older ones live in <see cref="History"/>'s MESSAGE HISTORY (30 days, not the live feed's 24 h).</summary>
 		public RadarNwsSiteDetail NwsDetail => _nws.DetailFor(_selectedSite);
 
-		private bool _isNwsEarlierExpanded;
-
-		/// <summary>Whether the older FTMs under the latest one are unfolded. Resets per selected site.</summary>
-		public bool IsNwsEarlierExpanded
-		{
-			get => _isNwsEarlierExpanded;
-			private set => SetProperty(ref _isNwsEarlierExpanded, value);
-		}
-
-		public void ToggleNwsEarlier() => IsNwsEarlierExpanded = !_isNwsEarlierExpanded;
+		/// <summary>DATA UPTIME / MESSAGE HISTORY / SCAN PATTERNS for the selected site.</summary>
+		public RadarSiteHistoryViewModel History { get; }
 
 		// ── Your use (SiteUsageTracker read-back) ────────────────────────────────────────────────
 		// The words for the tiles and the Clear confirmation live HERE, not in XAML — same rule as the chips.

@@ -54,7 +54,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, StormMotionService? stormMotion)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion)
 		{
 			_mapService = mapService;
 			_styleProvider = styleProvider;
@@ -83,7 +83,9 @@ namespace Anvil.ViewModels
 			SiteUsage = new SiteUsageTracker(Radar, siteUsageStore);
 			RadarNws = new RadarNwsStatusViewModel(radarNwsStatusService,
 				() => Radar.RadarSiteRows.Select(r => (r.Id, r.Site.Class == RadarSiteClass.Tdwr)));
-			RadarAtlas = new RadarAtlasViewModel(Radar, Markers, radarService, SiteFavorites, SiteUsage, RadarNws);
+			var siteHistory = new RadarSiteHistoryViewModel(uptimeService, messageHistoryService, scanPatternService,
+				nonStandardVcps, () => Radar.RadarSiteRows.Select(r => r.Site).ToList(), dispatcher);
+			RadarAtlas = new RadarAtlasViewModel(Radar, Markers, radarService, SiteFavorites, SiteUsage, RadarNws, siteHistory);
 			SavedEvents = new SavedEventsViewModel(savedEventLibrary, Radar, mapService, PlaceSearch);
 			StateIso = new StateIsolationViewModel(mapService, settingsService);
 			Basemap = new BasemapViewModel(mapService, settingsService);
@@ -842,7 +844,13 @@ namespace Anvil.ViewModels
 		public bool IsRadarAtlasOpen
 		{
 			get => _isRadarAtlasOpen;
-			set => SetProperty(ref _isRadarAtlasOpen, value);
+			set
+			{
+				if (SetProperty(ref _isRadarAtlasOpen, value))
+				{
+					RadarAtlas.History.IsActive = value; // the history sections fetch only while someone can see them
+				}
+			}
 		}
 
 		// ===== The Anvil Atlas: two tabs (Radar sites | Past events) =====================================

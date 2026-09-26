@@ -32,9 +32,26 @@
                                                │ ALARMS       Tower/utilities · Transmitter   │   never the Online pill
                                                │ POWER        Utility power                   │
                                                │ NWS MESSAGE  NWS RAH · Sep 23, 7:29 AM (27 hr ago)
-                                               │              ┌ THE KRAX WSR-88D RADAR WILL… ┐ ← FTM verbatim, mono
-                                               │              ▾ 1 earlier message            │
+                                               │              ┌ THE KRAX WSR-88D RADAR WILL… ┐ ← NEWEST FTM only, mono
                                                └─────────────────────────────────────────────┘   (not NWS-listed: ONE line)
+                                               DATA UPTIME  from gaps in the public archive ⑦ ◌  ← only while the Atlas is OPEN
+                                               ┌ 93.8%    ┐ ┌ 98.4%    ┐ ┌ 4          ┐
+                                               │ LAST 7 D │ │ LAST 30 D│ │ OUTAGES·30D│   (no archive data: ONE line, not 0%)
+                                               └──────────┘ └──────────┘ └────────────┘
+                                               ▐█▐█▐█▐▓▐█▐█ … ▐█▐░▐░   ← 30 local days, EqualCellsPanel; • above = NWS msg
+                                               Aug 28      each cell is one day · dot = NWS message      Today
+                                               Sep 25, 8:09 PM   ● Down 13 hr 27 min, ongoing        ✉ ← msg = tooltip
+                                               Sep 14, 3:10 AM   ● Gap 55 min                          (newest 6)
+                                               MESSAGE HISTORY  NWS outage messages · 30 days
+                                               NWS OUN · Sep 25, 8:08 PM                      ← header (+ "filed under TOKC")
+                                               ┌ DUE TO A MAPPING OFFSET IN KTLX RADAR DATA… ┐ ← verbatim, mono
+                                               ▾ 3 older messages                             ← 4 show, rest fold
+                                               SCAN PATTERNS  share of time · hourly sample · 30 days  ("sampling… 12 of 30")
+                                               ▐████████████████▐██████████▐█▐   ← star-column Grid, code-behind
+                                               ● 35 sz-2 clear air · 65%  ● 212 sz-2 severe convective · 31%  ● 215 …
+                                               ┌ NON-STANDARD VCPS  not in Anvil's list ┐  ← only when this site ran one
+                                               │ VCP 301   14 frames · 11 tilts, 0.5–19.5°   Sep 18 – Sep 19 │
+                                               └──────────────────────────────────────────┘
                                                YOUR USE  since Mar 4, 2026  [⌫ Clear]   ← Clear → ClearSiteUsageDialog
                                                ┌ 27       ┐ ┌ 6.4 hr  ⑦┐ ┌ Now      ┐ ┌ #1          ┐
                                                │ LOADS ·  │ │ SITE LOAD│ │ LAST USED│ │ OF 14 SITES │ ← never used: ONE line
@@ -532,6 +549,9 @@
                                 <RowDefinition Height="Auto"/> <!-- subtitle: kind · coordinates -->
                                 <RowDefinition Height="Auto"/> <!-- tiles | photo -->
                                 <RowDefinition Height="Auto"/> <!-- NWS status -->
+                                <RowDefinition Height="Auto"/> <!-- data uptime -->
+                                <RowDefinition Height="Auto"/> <!-- message history -->
+                                <RowDefinition Height="Auto"/> <!-- scan patterns -->
                                 <RowDefinition Height="Auto"/> <!-- your use -->
                             </Grid.RowDefinitions>
 
@@ -824,41 +844,268 @@
                                                                    TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                                                     </Border>
                                                 </StackPanel>
-
-                                                <!-- E70D ChevronDown / E70E ChevronUp. -->
-                                                <HyperlinkButton Padding="0,2" Click="OnNwsEarlierClick"
-                                                                 Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.NwsDetail.HasEarlier), Mode=OneWay}">
-                                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                                        <FontIcon FontSize="10"
-                                                                  Glyph="{x:Bind win:RadarAtlasWindow.ExpandGlyph(ViewModel.RadarAtlas.IsNwsEarlierExpanded), Mode=OneWay}"/>
-                                                        <TextBlock Text="{x:Bind ViewModel.RadarAtlas.NwsDetail.EarlierLabel, Mode=OneWay}"
-                                                                   FontSize="12"/>
-                                                    </StackPanel>
-                                                </HyperlinkButton>
-                                                <ItemsControl ItemsSource="{x:Bind ViewModel.RadarAtlas.NwsDetail.Earlier, Mode=OneWay}"
-                                                              Visibility="{x:Bind VisibleWhenBoth(ViewModel.RadarAtlas.NwsDetail.HasEarlier, ViewModel.RadarAtlas.IsNwsEarlierExpanded), Mode=OneWay}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate x:DataType="vm:RadarNwsMessageRow">
-                                                            <StackPanel Spacing="6" Margin="0,4,0,6">
-                                                                <TextBlock Text="{x:Bind Header}" FontSize="12"
-                                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                                <Border CornerRadius="6" Padding="10,8"
-                                                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                                                                    <TextBlock Text="{x:Bind Text}"
-                                                                               FontFamily="Consolas" FontSize="12" LineHeight="18"
-                                                                               TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                                                                </Border>
-                                                            </StackPanel>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
                                             </StackPanel>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
 
+                            <!-- DATA UPTIME — RadarSiteHistoryViewModel over IRadarUptimeService: 30 local days reconstructed
+                                 from gaps in the public archive. ⚠️ INFORMATION, NOT AVAILABILITY (never moves the pill).
+                                 ⚠️ Fetches only while the Atlas is OPEN (History.IsActive). Four tiles, the 30-cell strip
+                                 (EqualCellsPanel; a dot = an NWS message that day; grey = a day the archive couldn't be
+                                 listed — unknown, not down), then the newest six holes (red down / amber gap) with the
+                                 message that explains each as the icon's tooltip. A site with NO archive data at all
+                                 (KCRI) swaps everything for ONE line rather than "0%". Every word comes from the VM. -->
                             <StackPanel Grid.Row="4" Spacing="8" Margin="0,8,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="DATA UPTIME" VerticalAlignment="Center"
+                                               Style="{StaticResource AtlasFieldLabelStyle}"/>
+                                    <TextBlock Text="from gaps in the public archive" FontSize="12" VerticalAlignment="Center"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                    <ctl:GlossaryHint VerticalAlignment="Center"
+                                                      Card="{x:Bind ViewModel.RadarAtlas.History.UptimeHint, Mode=OneWay}"/>
+                                    <ProgressRing Width="14" Height="14" VerticalAlignment="Center"
+                                                  IsActive="{x:Bind ViewModel.RadarAtlas.History.IsLoadingUptime, Mode=OneWay}"
+                                                  Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.History.IsLoadingUptime), Mode=OneWay}"/>
+                                </StackPanel>
+
+                                <Border CornerRadius="8" Padding="14,12"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.History.UptimeEmptyText), Mode=OneWay}">
+                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.UptimeEmptyText, Mode=OneWay}"
+                                               FontSize="13" TextWrapping="Wrap"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Border>
+
+                                <StackPanel Spacing="12"
+                                            Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.History.HasUptime), Mode=OneWay}">
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" CornerRadius="8" Padding="12"
+                                                Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                            <StackPanel>
+                                                <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.Uptime7Value, Mode=OneWay}"
+                                                           FontSize="20" FontWeight="SemiBold"/>
+                                                <TextBlock Text="LAST 7 DAYS" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="1" CornerRadius="8" Padding="12"
+                                                Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                            <StackPanel>
+                                                <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.Uptime30Value, Mode=OneWay}"
+                                                           FontSize="20" FontWeight="SemiBold"/>
+                                                <TextBlock Text="LAST 30 DAYS" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="2" CornerRadius="8" Padding="12"
+                                                Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                            <StackPanel>
+                                                <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.OutagesValue, Mode=OneWay}"
+                                                           FontSize="20" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.OutagesLabel, Mode=OneWay}"
+                                                           Style="{StaticResource AtlasFieldLabelStyle}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- The strip: one cell per local day, oldest left. -->
+                                    <StackPanel Spacing="4">
+                                        <ItemsControl ItemsSource="{x:Bind ViewModel.RadarAtlas.History.DayCells, Mode=OneWay}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <layout:EqualCellsPanel/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:UptimeDayCell">
+                                                    <Grid Height="24" Margin="1,0" Background="Transparent"
+                                                          ToolTipService.ToolTip="{x:Bind ToolTip}">
+                                                        <Border CornerRadius="2" Margin="0,6,0,0"
+                                                                Background="{x:Bind win:RadarAtlasWindow.UptimeCellBrush(Level)}"/>
+                                                        <Ellipse Width="4" Height="4" VerticalAlignment="Top" HorizontalAlignment="Center"
+                                                                 Fill="{ThemeResource TextFillColorPrimaryBrush}"
+                                                                 Visibility="{x:Bind win:RadarAtlasWindow.ShowIf(HasMessage)}"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Grid>
+                                            <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.StripStartLabel, Mode=OneWay}"
+                                                       FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                            <TextBlock Text="each cell is one day · dot = NWS message" HorizontalAlignment="Center"
+                                                       FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                            <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.StripEndLabel, Mode=OneWay}"
+                                                       HorizontalAlignment="Right"
+                                                       FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        </Grid>
+                                    </StackPanel>
+
+                                    <!-- Holes, newest first. E8BD Message — ⚠️ unverified codepoint, check on first run. -->
+                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.NoHolesText, Mode=OneWay}"
+                                               FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.History.NoHolesText), Mode=OneWay}"/>
+                                    <ItemsControl ItemsSource="{x:Bind ViewModel.RadarAtlas.History.HoleRows, Mode=OneWay}"
+                                                  Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.History.HasHoles), Mode=OneWay}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:UptimeHoleRow">
+                                                <Border BorderThickness="0,1,0,0" Padding="0,7"
+                                                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                                                    <Grid ColumnSpacing="12">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="140"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{x:Bind When}" FontFamily="Consolas" FontSize="12"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                                            <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                                     Fill="{x:Bind win:RadarAtlasWindow.HoleBrush(Kind)}"/>
+                                                            <TextBlock Text="{x:Bind What}" FontSize="13" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                        <FontIcon Grid.Column="2" Glyph="&#xE8BD;" FontSize="13"
+                                                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                                  ToolTipService.ToolTip="{x:Bind MessageHint}"
+                                                                  Visibility="{x:Bind win:RadarAtlasWindow.ShowIf(HasMessage)}"/>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.MoreHolesText, Mode=OneWay}"
+                                               FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.History.MoreHolesText), Mode=OneWay}"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- MESSAGE HISTORY — every NWS outage message about this site in 30 days (IEM archive), newest
+                                 first, verbatim in the NWS STATUS card's mono style. Four show; the rest fold under a
+                                 link. A message FILED under another site but naming this one says so in its header
+                                 ("filed under TOKC"). NWS STATUS above keeps only the newest (the live 24-h feed). -->
+                            <StackPanel Grid.Row="5" Spacing="8" Margin="0,8,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="MESSAGE HISTORY" VerticalAlignment="Center"
+                                               Style="{StaticResource AtlasFieldLabelStyle}"/>
+                                    <TextBlock Text="NWS outage messages · 30 days" FontSize="12" VerticalAlignment="Center"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                </StackPanel>
+                                <Border CornerRadius="8" Padding="14,12"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.History.MessagesEmptyText), Mode=OneWay}">
+                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.MessagesEmptyText, Mode=OneWay}"
+                                               FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Border>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.RadarAtlas.History.MessageRows, Mode=OneWay}"
+                                              Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.History.HasMessages), Mode=OneWay}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:RadarNwsMessageRow">
+                                            <StackPanel Spacing="6" Margin="0,0,0,10">
+                                                <TextBlock Text="{x:Bind Header}" FontSize="12"
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                <Border CornerRadius="6" Padding="10,8"
+                                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                                    <TextBlock Text="{x:Bind Text}"
+                                                               FontFamily="Consolas" FontSize="12" LineHeight="18"
+                                                               TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <!-- E70D ChevronDown / E70E ChevronUp. -->
+                                <HyperlinkButton Padding="0,2" Click="OnHistoryMessagesMoreClick"
+                                                 Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.History.HasMoreMessages), Mode=OneWay}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon FontSize="10"
+                                                  Glyph="{x:Bind win:RadarAtlasWindow.ExpandGlyph(ViewModel.RadarAtlas.History.IsMessagesExpanded), Mode=OneWay}"/>
+                                        <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.MoreMessagesLabel, Mode=OneWay}"
+                                                   FontSize="12"/>
+                                    </StackPanel>
+                                </HyperlinkButton>
+                            </StackPanel>
+
+                            <!-- SCAN PATTERNS — the site's VCP mix from an HOURLY sample (IRadarScanPatternService, ~8 KB
+                                 range reads; ~30 s the first time, cached after). ⚠️ Share of sampled HOURS — the caption
+                                 says "share of time", never "of volumes". The bar is a star-column Grid rebuilt in
+                                 code-behind (RebuildScanBar); it fills day by day while "sampling… n of 30 days" shows.
+                                 NON-STANDARD VCPS (NonStandardVcpLog) sits inside, and only appears when this site has
+                                 run a pattern VcpCatalog doesn't list. -->
+                            <StackPanel Grid.Row="6" Spacing="8" Margin="0,8,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="SCAN PATTERNS" VerticalAlignment="Center"
+                                               Style="{StaticResource AtlasFieldLabelStyle}"/>
+                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.ScanCaption, Mode=OneWay}"
+                                               FontSize="12" VerticalAlignment="Center"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                </StackPanel>
+                                <Border CornerRadius="8" Padding="14,12"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        Visibility="{x:Bind VisibleWhenText(ViewModel.RadarAtlas.History.ScanEmptyText), Mode=OneWay}">
+                                    <TextBlock Text="{x:Bind ViewModel.RadarAtlas.History.ScanEmptyText, Mode=OneWay}"
+                                               FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Border>
+                                <StackPanel Spacing="8"
+                                            Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.History.HasScanShares), Mode=OneWay}">
+                                    <Border CornerRadius="4" Height="20">
+                                        <Grid x:Name="ScanBar" ColumnSpacing="2"/>
+                                    </Border>
+                                    <ItemsControl ItemsSource="{x:Bind ViewModel.RadarAtlas.History.ScanShares, Mode=OneWay}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <layout:WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:ScanShareRow">
+                                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,16,4">
+                                                    <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                             Fill="{x:Bind win:RadarAtlasWindow.ShareBrush(Index)}"/>
+                                                    <TextBlock Text="{x:Bind Label}" FontSize="12"
+                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <Border CornerRadius="8" Padding="14,10"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.History.HasNonStandard), Mode=OneWay}">
+                                    <StackPanel Spacing="6">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="NON-STANDARD VCPS" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                                            <TextBlock Text="not in Anvil's list · shown as the radar reported" FontSize="12"
+                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        </StackPanel>
+                                        <ItemsControl ItemsSource="{x:Bind ViewModel.RadarAtlas.History.NonStandardRows, Mode=OneWay}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:NonStandardVcpRow">
+                                                    <Grid ColumnSpacing="12" Padding="0,4">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="80"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{x:Bind Vcp}" FontSize="13" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="{x:Bind Detail}" FontSize="13"
+                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                        <TextBlock Grid.Column="2" Text="{x:Bind When}" FontFamily="Consolas" FontSize="12"
+                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="7" Spacing="8" Margin="0,8,0,0">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="YOUR USE" VerticalAlignment="Center"
                                                Style="{StaticResource AtlasFieldLabelStyle}"/>
