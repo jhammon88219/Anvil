@@ -78,9 +78,9 @@
      THE FLYOUT holds network (multi-tick), status (three independent ticks, NOT one "online only"),
      region + state, then a rule and the sort. ⚠️ Region and state come from RadarSite.State, which
      tools/make_site_states.py stamps into the bundled site files from the basemap's own state layer —
-     regenerate, never hand-edit. ⚠️ The TDWR/Research ticks grey out with Settings → Radar, and
-     "narrowed" is measured against what's SELECTABLE (see EnabledNetworks) or a hidden network leaves a
-     chip that can't be cleared. Sort's "Nearest" greys out without a location marker.
+     regenerate, never hand-edit. ⚠️ Every network is ALWAYS listed and tickable: the tools tier's three
+     marker toggles hide map keys only, never Atlas rows (2026-09-26 — they used to be Settings checkboxes
+     that removed TDWR/research app-wide). Sort's "Nearest" greys out without a location marker.
 
      ⑦ = GlossaryHint, the "?" that explains one readout (Primitives/GlossaryHint + Core's RadarGlossary).
      ⚠️ HOVER TARGET IS THE "?" ONLY, never the tile — someone who knows what a VCP is shouldn't trip a
@@ -196,12 +196,12 @@
                                        FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
                             <TextBlock Text="NEXRAD" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
                         </StackPanel>
-                        <StackPanel Visibility="{x:Bind VisibleWhen(ViewModel.Radar.ShowTdwrs), Mode=OneWay}">
+                        <StackPanel>
                             <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.TdwrCount), Mode=OneWay}"
                                        FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
                             <TextBlock Text="TDWR" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
                         </StackPanel>
-                        <StackPanel Visibility="{x:Bind VisibleWhen(ViewModel.Radar.ShowResearchRadars), Mode=OneWay}">
+                        <StackPanel>
                             <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.ResearchCount), Mode=OneWay}"
                                        FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
                             <TextBlock Text="RESEARCH" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
@@ -307,13 +307,11 @@
                                             <TextBlock Text="NETWORK" Style="{StaticResource AtlasFieldLabelStyle}"/>
                                             <CheckBox Content="NEXRAD"
                                                       IsChecked="{x:Bind ViewModel.RadarAtlas.FilterNexrad, Mode=TwoWay}"/>
-                                            <!-- Greyed while Settings → Radar hides the network (the list
-                                                 has no sites from it either). -->
+                                            <!-- Always enabled: the map's marker toggles don't remove a network
+                                                 from this list (MapControlsStrip). -->
                                             <CheckBox Content="TDWR"
-                                                      IsEnabled="{x:Bind ViewModel.RadarAtlas.IsTdwrFilterEnabled, Mode=OneWay}"
                                                       IsChecked="{x:Bind ViewModel.RadarAtlas.FilterTdwr, Mode=TwoWay}"/>
                                             <CheckBox Content="Research"
-                                                      IsEnabled="{x:Bind ViewModel.RadarAtlas.IsResearchFilterEnabled, Mode=OneWay}"
                                                       IsChecked="{x:Bind ViewModel.RadarAtlas.FilterResearch, Mode=TwoWay}"/>
 
                                             <TextBlock Text="STATUS" Margin="0,10,0,0"

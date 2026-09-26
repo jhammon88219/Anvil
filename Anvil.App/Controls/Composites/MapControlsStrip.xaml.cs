@@ -35,13 +35,11 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(MapControlsStrip), new PropertyMetadata(null));
 
-		// ===== Site markers (show / hide) =====
-		// Both take the CURRENT visibility and answer for the CLICK (see the XAML header). "radar sites", never
+		// ===== Site markers (one toggle per network) =====
+		// Takes the CURRENT visibility and answers for the CLICK (see the XAML header). "radar sites", never
 		// "markers" — that word belongs to the marker viewer beside the search box.
-		public string SitesVisibleTooltip(bool visible) => visible ? "Hide radar sites" : "Show radar sites";
-
-		// E7B3 RedEye (open) / ED1A Hide (crossed-out) — ⚠️ unverified codepoints, see the XAML header.
-		public string SitesVisibleGlyph(bool visible) => visible ? "\uE7B3" : "\uED1A";
+		public string SitesTooltip(bool visible, string network) =>
+			visible ? $"Hide {network} on the map" : $"Show {network} on the map";
 
 		// ===== Range rings (master show/hide, beside the Ruler) =====
 		// The tooltip speaks for the CLICK, like the site-markers toggle.

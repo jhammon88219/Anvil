@@ -658,7 +658,7 @@ try {
     window.setSelectedRadarSite = function (id) { if (RadarSites) RadarSites.setSelected(id); };
     window.setRadarSitesStatus = function (json) { if (RadarSites) RadarSites.setStatus(json); };
     window.setRadarSiteStatus = function (id, state) { if (RadarSites) RadarSites.setOneStatus(id, state); };
-    window.setRadarSitesVisible = function (visible) { if (RadarSites) RadarSites.setVisible(visible); };
+    window.setNexradSitesVisible = function (visible) { if (RadarSites) RadarSites.setNexradVisible(visible); };
     window.setResearchRadarsVisible = function (visible) { if (RadarSites) RadarSites.setResearchVisible(visible); };
     window.setTdwrsVisible = function (visible) { if (RadarSites) RadarSites.setTdwrVisible(visible); };
     // Retired ids (moved/renamed radars) outside the era being viewed — hidden live, dated in PastCast.

@@ -1,6 +1,6 @@
 // radar-sites.js — the on-map radar-site marker "key" buttons (extracted from map.js). Owns the
 // marker DOM/state and the pushable-key CSS; map.js's window.showRadarSites / setSelectedRadarSite /
-// setRadarSitesStatus / setRadarSitesVisible shims delegate here, passing the map. Posts radarSiteClick
+// setRadarSitesStatus / setNexradSitesVisible (+ TDWR / research) shims delegate here, passing the map. Posts radarSiteClick
 // to the host on a key press. `maplibregl` is the global from the vendored classic script.
 //
 // ANATOMY OF ONE KEY — a pushable graphite button with three zones:
@@ -68,7 +68,7 @@ const CLASS_GLYPH = {
 let radarMarkers = {};        // id -> inner button element (state ops target the button)
 let radarMarkerObjs = [];     // every Marker object (for show/hide + teardown)
 let selectedSiteId = null;
-let radarSitesVisible = true;
+let nexradVisible = true;         // operational NEXRAD keys — one of THREE per-network toggles (no master)
 let researchVisible = false;      // research/test radars (e.g. KCRI) are an opt-in extra layer
 let researchIds = new Set();      // ids flagged research (site.research) in the current list
 let tdwrVisible = false;          // Terminal Doppler Weather Radars (T***) are an opt-in extra layer
@@ -107,16 +107,15 @@ function recomputeCoverage() {
     });
 }
 
-// A marker shows only when the global sites layer is on AND each opt-in category it belongs to is on AND
-// (when a state is isolated) the site's range covers that state. The currently-selected site is exempt
-// from the coverage gate so it can't get stranded (its loop keeps rendering; you can still deselect it).
-// So "Show Research Radars" / "Show TDWRs" reveal just those keys, and "Hide Sites" still hides everything.
+// A marker shows only when ITS NETWORK's toggle is on (NEXRAD / TDWR / research — three independent
+// toggles on the tools tier, no master: all three off = no keys) AND (when a state is isolated) the site's
+// range covers that state. The currently-selected site is exempt from the coverage gate so it can't get
+// stranded (its loop keeps rendering; you can still deselect it).
 // A RETIRED id (moved/renamed radar) shows only in the era it existed: RadarViewModel.IsInEra, pushed here.
 function markerVisible(id) {
-    return radarSitesVisible
+    const networkOn = researchIds.has(id) ? researchVisible : tdwrIds.has(id) ? tdwrVisible : nexradVisible;
+    return networkOn
         && !outOfEraIds.has(id)
-        && (!researchIds.has(id) || researchVisible)
-        && (!tdwrIds.has(id) || tdwrVisible)
         && (coveredIds === null || coveredIds.has(id) || id === selectedSiteId);
 }
 
@@ -458,22 +457,24 @@ export function setAccent(border, glow) { /* markers no longer use an accent hal
 // color until the next pan or zoom happened to rebuild them.
 export function refresh() { updateFan(); }
 
-// Show/hide all site buttons. Independent of the radar layer — an active loop keeps rendering while
-// the markers are hidden. Research markers stay subject to their own toggle via markerVisible().
-export function setVisible(visible) {
-    radarSitesVisible = !!visible;
+// Show/hide just the operational NEXRAD keys. Independent of the radar layer — an active loop keeps
+// rendering while its marker is hidden. TDWR / research keys have their own toggles below.
+// ⚠️ NEXRAD keys are the fan-out's fixed obstacles; hidden ones drop out of it on their own (updateFan
+// only considers displayed keys).
+export function setNexradVisible(visible) {
+    nexradVisible = !!visible;
     applyVisibility();
 }
 
-// Show/hide just the research/test radar markers (the "Show Research Radars" toggle). Off by
-// default; operational markers are unaffected. An active research loop keeps rendering while hidden.
+// Show/hide just the research/test radar markers. Off by default; other networks are unaffected. An
+// active research loop keeps rendering while hidden.
 export function setResearchVisible(visible) {
     researchVisible = !!visible;
     applyVisibility();
 }
 
-// Show/hide just the TDWR markers (the "Show TDWRs" toggle). Off by default; operational markers are
-// unaffected. An active TDWR loop keeps rendering while hidden.
+// Show/hide just the TDWR markers. Off by default; other networks are unaffected. An active TDWR loop
+// keeps rendering while hidden.
 export function setTdwrVisible(visible) {
     tdwrVisible = !!visible;
     applyVisibility();

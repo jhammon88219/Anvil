@@ -28,9 +28,10 @@
                                                                                              │ ☑ Place names    │     style has county lines
                                                                                              │ Dim ──●───── 30% │
                                                                                              └──────────────────┘
-       (👁) [⌂ KTLX  Oklahoma City   ˅] (⌸) (◎)  (▣) [Search places  ⌕] (⊚) status   [▢][▥][▦] (⌘) (⛶) (▥|▴) [Isolate State ▾]   ← THIS
-        ↑ LEFT = RADAR + MAP: show the     ↑ CENTER = where; the box is          ↑ RIGHT = MAP ONLY: pane layout
-          sites, pick one (over the          CENTERED on the tier                  (1/2/4, current one LIT, accent
+       (◗)(✈)(⚗) [⌂ KTLX  Oklahoma City   ˅] (⌸) (◎)  (▣) [Search places  ⌕] (⊚) status   [▢][▥][▦] (⌘) (⛶) (▥|▴) [Isolate State ▾]   ← THIS
+        ↑ LEFT = RADAR + MAP: show each    ↑ CENTER = where; the box is          ↑ RIGHT = MAP ONLY: pane layout
+          network's sites (NEXRAD /          CENTERED on the tier                  (1/2/4, current one LIT, accent
+          TDWR / research), pick one (over the
           console, which answers when),    ▣ marker viewer — a PLACEHOLDER         cell = pane 0), reset north,
           ⌸ the RANGE RULER, then ◎ the    ⊚ Location (lit = your marker is out)   fit to view, MAP key + car, isolation
           RANGE RINGS on/off (lit = showing)
@@ -85,16 +86,15 @@
      ⚠️ The viewer's mark is a drawn TEARDROP, the search pin's shape. Its button has NO Click on purpose;
      wire it when the marker window exists (open bool + WindowManager registration — CLAUDE.md "Add a window").
 
-     SITE MARKERS, LEFT EDGE — show / hide every radar site marker (Radar.RadarSitesVisible, TwoWay). It moved here
-     from the bar: showing the sites and picking one are the same question (WHICH radar), and you reach for them
-     together — markers on to change site, off once you have one.
-     ⚠️ LIT = MARKERS ARE SHOWING (accent = this is on, everywhere). The GLYPH and TOOLTIP speak for the CLICK: an
-     open eye + "Hide radar sites" while they show, a closed eye + "Show radar sites" while they don't.
+     SITE MARKERS, LEFT EDGE — THREE toggles, one per network: ◗ NEXRAD (Radar.ShowNexradSites) · ✈ TDWR
+     (ShowTdwrs) · ⚗ research (ShowResearchRadars), all TwoWay and PERSISTED. They sit here because showing the
+     sites and picking one are the same question (WHICH radar).
+     ⚠️ LIT = THAT NETWORK'S KEYS ARE SHOWING. The mark is fixed (it names the network, the on-map key's own
+     glyph); the TOOLTIP speaks for the click ("Hide TDWR airport radars on the map").
+     ⚠️ MAP MARKERS ONLY: they never remove a site from the Atlas or the site picker, and never unload a loop.
+     ⚠️ NO MASTER: the old "hide all sites" eye is gone (2026-09-26) — all three off = no keys. The TDWR and
+     research toggles moved here from Settings → Radar, where they used to switch those networks off app-wide.
      ⚠️ The words say "radar sites", NEVER "markers": ▣ below is the MARKER viewer (search pins, your location).
-     On the bar this key was NAMED "Markers"; icon-only here, the tooltip is the only name it has.
-     ⚠️ Glyphs E7B3 (RedEye) / ED1A (Hide) are NOT verified by rendering in the real font — at 32px a blank
-     box is easy to miss, so check on first run.
-     ⚠️ Hiding a marker never unloads a loop. TDWR / research networks stay in Settings → Radar (set-once).
 
      SITE PICKER, LEFT — home + favorite radar sites (RadarSiteFavoritesViewModel). It replaced TWO doors to
      one list: the bar's Home key, and the side car on the bar's Atlas key (whose flyout this dropdown absorbed).
@@ -345,13 +345,28 @@
         <StackPanel x:Name="LeftTools"
                     Orientation="Horizontal" Spacing="8"
                     HorizontalAlignment="Left" VerticalAlignment="Center">
-            <!-- SITE MARKERS — plain TwoWay toggle (a click always changes the flag, so no re-assert). -->
-            <ToggleButton x:Name="SitesVisibleToggle"
+            <!-- SITE MARKERS — one plain TwoWay toggle per network (a click always changes the flag, so no
+                 re-assert). The marks are the on-map keys' own network glyphs (radar-sites.js CLASS_GLYPH),
+                 redrawn as FILLED geometry in the 18-unit box: a PathIcon only fills, and only a PathIcon takes the
+                 key's lit / unlit foreground (a stroked Path wouldn't). The sweep's and the flask's strokes became
+                 2-unit bands with round caps; F1 = nonzero fill, so the flask's neck bar and body don't cancel. -->
+            <ToggleButton x:Name="NexradSitesToggle"
                           Style="{StaticResource StripToolToggleStyle}"
-                          IsChecked="{x:Bind ViewModel.Radar.RadarSitesVisible, Mode=TwoWay}"
-                          ToolTipService.ToolTip="{x:Bind SitesVisibleTooltip(ViewModel.Radar.RadarSitesVisible), Mode=OneWay}">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16"
-                          Glyph="{x:Bind SitesVisibleGlyph(ViewModel.Radar.RadarSitesVisible), Mode=OneWay}"/>
+                          IsChecked="{x:Bind ViewModel.Radar.ShowNexradSites, Mode=TwoWay}"
+                          ToolTipService.ToolTip="{x:Bind SitesTooltip(ViewModel.Radar.ShowNexradSites, 'NEXRAD radar sites'), Mode=OneWay}">
+                <PathIcon Data="M2.9,13.5 A1.6,1.6 0 1 1 6.1,13.5 A1.6,1.6 0 1 1 2.9,13.5 Z M4.5,8 A5.5,5.5 0 0 1 10,13.5 A1,1 0 0 1 8,13.5 A3.5,3.5 0 0 0 4.5,10 A1,1 0 0 1 4.5,8 Z M4.5,3 A10.5,10.5 0 0 1 15,13.5 A1,1 0 0 1 13,13.5 A8.5,8.5 0 0 0 4.5,5 A1,1 0 0 1 4.5,3 Z"/>
+            </ToggleButton>
+            <ToggleButton x:Name="TdwrSitesToggle"
+                          Style="{StaticResource StripToolToggleStyle}"
+                          IsChecked="{x:Bind ViewModel.Radar.ShowTdwrs, Mode=TwoWay}"
+                          ToolTipService.ToolTip="{x:Bind SitesTooltip(ViewModel.Radar.ShowTdwrs, 'TDWR airport radars'), Mode=OneWay}">
+                <PathIcon Data="M9,0.9 C9.54,0.9 9.9,1.71 9.9,2.7 V7.38 L16.2,10.98 V12.69 L9.9,10.89 V14.4 L11.7,15.75 V17.1 L9,16.2 L6.3,17.1 V15.75 L8.1,14.4 V10.89 L1.8,12.69 V10.98 L8.1,7.38 V2.7 C8.1,1.71 8.46,0.9 9,0.9 Z"/>
+            </ToggleButton>
+            <ToggleButton x:Name="ResearchSitesToggle"
+                          Style="{StaticResource StripToolToggleStyle}"
+                          IsChecked="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"
+                          ToolTipService.ToolTip="{x:Bind SitesTooltip(ViewModel.Radar.ShowResearchRadars, 'research radars'), Mode=OneWay}">
+                <PathIcon Data="F1 M6.75,2.25 A0.75,0.75 0 0 0 6.75,3.75 H11.25 A0.75,0.75 0 0 0 11.25,2.25 Z M6.75,3 V6.5625 L3.537,12.6225 A2.175,2.175 0 0 0 5.475,15.75 H12.525 A2.175,2.175 0 0 0 14.463,12.6225 L11.25,6.5625 V3 Z M8.25,3.75 H9.75 V6.9375 L13.137,13.3275 A0.675,0.675 0 0 1 12.525,14.25 H5.475 A0.675,0.675 0 0 1 4.863,13.3275 L8.25,6.9375 Z"/>
             </ToggleButton>
 
             <!-- SITE PICKER. The wrapper carries the tooltip (a disabled control shows none); Transparent so it

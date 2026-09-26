@@ -2,9 +2,6 @@
 <!-- RadarSettingsTab — the Radar tab of the Settings window: what the map DRAWS over the basemap for radar.
 
        ┌──────────────────────────────────────────────────────┐
-       │  ⌄  Radar sites                                      │
-       │    [ ] Show TDWRs                                    │
-       │    [ ] Show research radars                          │
        │  ⌄  Home site                                        │
        │    Home site: KTLX · Norman                          │  ← set in the Radar Atlas, not here
        │    [ ] Load home site on launch                      │  ← PERSISTED, default off
@@ -41,17 +38,13 @@
      each pane's product ramp). That reasoning put it in this tab; being a gesture rather than a preference
      is what took it out again.
 
-     ⚠️ Neither marker toggle affects a LOADED loop — hiding a marker never unloads its data.
-
-     ⚠️ THE MASTER "show site markers" TOGGLE IS NOT HERE ANY MORE — it is a toggle on the tools tier, beside
-     the site picker (MapControlsStrip, SitesVisibleToggle). What is left here is the two OPT-IN networks, which is
-     the honest split: hiding all markers is a thing you do constantly while reading a busy map, so it wants
-     a one-click toggle on the map chrome; choosing whether TDWRs and research radars exist at all is a preference you
-     set once. ⚠️ HISTORY, so this is not simply reverted: all three were deliberately put together HERE,
-     because with the master toggle on the radar console and the other two in App Settings you had to hunt
-     two places for "why is my site gone". That reasoning still holds for the pair, and the tools-tier toggle is
-     discoverable in a way a console control was not — but if a third marker toggle ever appears, think hard
-     before splitting it off too. -->
+     ⚠️ THE "RADAR SITES" SECTION IS GONE (2026-09-26). Its Show TDWRs / Show research radars checkboxes became
+     two of THREE per-network marker toggles on the tools tier (MapControlsStrip, NEXRAD · TDWR · research), which
+     also replaced the old master "show site markers" eye. That ends the old "why is my site gone" hunt across
+     two places (the master on the map, the two networks here): every site-marker control is in one place, on
+     the map chrome. ⚠️ They are MAP-MARKER toggles
+     now — they no longer remove a network from the Atlas or the site picker. Don't re-add a marker control
+     here. -->
 
 <UserControl x:Class="Anvil.Controls.Composites.RadarSettingsTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -64,35 +57,13 @@
     <!-- Body: one Primitives/PanelSection per section, grid rows inside each. -->
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- radar sites -->
             <RowDefinition Height="Auto"/> <!-- home site -->
             <RowDefinition Height="Auto"/> <!-- readouts -->
         </Grid.RowDefinitions>
 
-        <prim:PanelSection Grid.Row="0" Header="Radar sites" IsExpanded="True">
-            <Grid RowSpacing="8">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- Show TDWRs -->
-                    <RowDefinition Height="Auto"/> <!-- Show research radars -->
-                </Grid.RowDefinitions>
-
-                <!-- Opt-in TDWRs (the FAA Terminal Doppler Weather Radar T*** network). PERSISTED. -->
-                <CheckBox Grid.Row="0" Margin="4,0,0,0"
-                          Content="Show TDWRs"
-                          IsChecked="{x:Bind ViewModel.Radar.ShowTdwrs, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Show FAA Terminal Doppler Weather Radar markers (e.g. TOKC, TDAL)"/>
-
-                <!-- Opt-in research/test radars (e.g. the ROC test bed KCRI). PERSISTED. -->
-                <CheckBox Grid.Row="1" Margin="4,0,0,0"
-                          Content="Show research radars"
-                          IsChecked="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Show research/test radar markers such as KCRI (ROC test bed, Norman OK)"/>
-            </Grid>
-        </prim:PanelSection>
-
         <!-- The home site is PICKED in the Radar Atlas (where you can see what you're choosing); this only
              shows it and holds the one launch preference. -->
-        <prim:PanelSection Grid.Row="1" Header="Home site" IsExpanded="True">
+        <prim:PanelSection Grid.Row="0" Header="Home site" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- current home -->
@@ -113,7 +84,7 @@
 
         <!-- READOUTS - how a measurement is SPOKEN, not what is drawn. One setting so far; it is a section
              rather than a loose row because the next one of its kind (UTC vs local times) lands beside it. -->
-        <prim:PanelSection Grid.Row="2" Header="Readouts" IsExpanded="True">
+        <prim:PanelSection Grid.Row="1" Header="Readouts" IsExpanded="True">
             <Grid RowSpacing="4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- distance unit -->

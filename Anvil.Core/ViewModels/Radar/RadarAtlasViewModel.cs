@@ -112,13 +112,10 @@ namespace Anvil.ViewModels
 					RebuildChips();
 				}
 
-				// Settings → Radar decides which networks exist in the list, same as on the map — and the era
-				// decides whether a retired site (KLIX) does.
-				if (e.PropertyName is nameof(RadarViewModel.ShowTdwrs) or nameof(RadarViewModel.ShowResearchRadars)
-					or nameof(RadarViewModel.SiteEraKey))
+				// The era decides whether a retired site (KLIX) is in the list. The map's network marker toggles
+				// don't — the Atlas lists every network and filters them with its own Network ticks.
+				if (e.PropertyName is nameof(RadarViewModel.SiteEraKey))
 				{
-					OnPropertyChanged(nameof(IsTdwrFilterEnabled));
-					OnPropertyChanged(nameof(IsResearchFilterEnabled));
 					RebuildFiltered();
 				}
 			};
@@ -184,21 +181,16 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>
-		/// The networks Settings → Radar currently permits, each with its tick state and label.
+		/// The three networks, each with its tick state and label — the reference for "is the network filter
+		/// narrowed". All three are always selectable: the map's marker toggles no longer hide a network from
+		/// the list (2026-09-26), so there's no greyed network to measure around any more.
 		/// </summary>
-		/// <remarks>⚠️ THE reference for "is the network filter narrowed": narrowing is measured against what
-		/// is SELECTABLE right now, not against all three. Otherwise turning TDWRs off in Settings would leave
-		/// a permanent "NEXRAD +1" chip the user could never clear, because a hidden network can't be re-ticked.</remarks>
-		private List<(RadarSiteClass Class, bool Ticked, string Label)> EnabledNetworks()
+		private List<(RadarSiteClass Class, bool Ticked, string Label)> EnabledNetworks() => new()
 		{
-			var list = new List<(RadarSiteClass, bool, string)>
-			{
-				(RadarSiteClass.Operational, _filterNexrad, "NEXRAD"),
-			};
-			if (_radar.ShowResearchRadars) list.Add((RadarSiteClass.Research, _filterResearch, "Research"));
-			if (_radar.ShowTdwrs) list.Add((RadarSiteClass.Tdwr, _filterTdwr, "TDWR"));
-			return list;
-		}
+			(RadarSiteClass.Operational, _filterNexrad, "NEXRAD"),
+			(RadarSiteClass.Research, _filterResearch, "Research"),
+			(RadarSiteClass.Tdwr, _filterTdwr, "TDWR"),
+		};
 
 		// ── Status ───────────────────────────────────────────────────────────────────────────────
 		// Three independent ticks, not the old "Online only" checkbox: during an outage the useful question
@@ -359,8 +351,8 @@ namespace Anvil.ViewModels
 		/// CollectionViewSource. Empty sections are omitted; a row is in exactly one.</summary>
 		public ObservableCollection<RadarSiteGroup> SiteGroups { get; }
 
-		/// <summary>Every site Settings → Radar currently permits — the denominator of the count.</summary>
-		private int VisibleSiteCount => _radar.RadarSiteRows.Count(r => _radar.IsNetworkShown(r.Site));
+		/// <summary>Every site in the era being viewed — the denominator of the count.</summary>
+		private int VisibleSiteCount => _radar.RadarSiteRows.Count(r => _radar.IsInEra(r.Site));
 
 		/// <summary>
 		/// The feedback row's count. It changes PHRASING, not just numbers: "204 sites" while nothing narrows
@@ -370,10 +362,6 @@ namespace Anvil.ViewModels
 		public string ResultCountText => IsNarrowed
 			? $"{FilteredSites.Count} of {VisibleSiteCount}"
 			: $"{VisibleSiteCount} sites";
-
-		/// <summary>The network filter's TDWR / Research entries grey out while Settings → Radar hides that network.</summary>
-		public bool IsTdwrFilterEnabled => _radar.ShowTdwrs;
-		public bool IsResearchFilterEnabled => _radar.ShowResearchRadars;
 
 		// ── The feedback row: chips + clear ──────────────────────────────────────────────────────
 		/// <summary>The active filters, one chip per GROUP, rebuilt with the list. See <see cref="AtlasFilterChip"/>
@@ -395,11 +383,7 @@ namespace Anvil.ViewModels
 			switch (chip.Kind)
 			{
 				case AtlasFilterKind.Network:
-					// Back to every network Settings allows; a hidden one's flag is left as it was, since it
-					// isn't part of the narrowing (see EnabledNetworks).
-					_filterNexrad = true;
-					if (_radar.ShowResearchRadars) _filterResearch = true;
-					if (_radar.ShowTdwrs) _filterTdwr = true;
+					_filterNexrad = _filterResearch = _filterTdwr = true;
 					RaiseNetworkFlags();
 					break;
 				case AtlasFilterKind.Status:
@@ -426,9 +410,7 @@ namespace Anvil.ViewModels
 		/// </summary>
 		public void ClearAllFilters()
 		{
-			_filterNexrad = true;
-			if (_radar.ShowResearchRadars) _filterResearch = true;
-			if (_radar.ShowTdwrs) _filterTdwr = true;
+			_filterNexrad = _filterResearch = _filterTdwr = true;
 			_statusOnline = _statusOffline = _statusUnchecked = false;
 			_favoritesOnly = false;
 			SetProperty(ref _selectedRegion, AllRegions, nameof(SelectedRegion));
@@ -500,7 +482,7 @@ namespace Anvil.ViewModels
 		private void RebuildFiltered()
 		{
 			var search = _searchText.Trim();
-			IEnumerable<RadarSiteRow> q = _radar.RadarSiteRows.Where(r => _radar.IsNetworkShown(r.Site));
+			IEnumerable<RadarSiteRow> q = _radar.RadarSiteRows.Where(r => _radar.IsInEra(r.Site));
 
 			// Network. Measured against what Settings permits, so a hidden network's stale flag can't filter
 			// anything (its rows are gone already) — see EnabledNetworks.
@@ -659,16 +641,16 @@ namespace Anvil.ViewModels
 			: string.IsNullOrEmpty(_scanStatus) ? "LATEST SCAN" : $"LATEST SCAN · {_scanStatus.ToUpperInvariant()}";
 
 		// ── The Anvil Atlas title band, on the Radar sites tab: the network split of what the Atlas lists ──
-		// Counted over the sites Settings → Radar currently SHOWS (a hidden network lists nothing), never the
-		// filtered list — the band describes the Atlas, the count row under the filters describes the search.
+		// Counted over every site in the era being viewed (all three networks, always), never the filtered
+		// list — the band describes the Atlas, the count row under the filters describes the search.
 
 		private int CountShown(RadarSiteClass siteClass) =>
-			_radar.RadarSiteRows.Count(r => r.Site.Class == siteClass && _radar.IsNetworkShown(r.Site));
+			_radar.RadarSiteRows.Count(r => r.Site.Class == siteClass && _radar.IsInEra(r.Site));
 
 		public int NexradCount => CountShown(RadarSiteClass.Operational);
 		public int TdwrCount => CountShown(RadarSiteClass.Tdwr);
 		public int ResearchCount => CountShown(RadarSiteClass.Research);
-		public int ShownSiteCount => _radar.RadarSiteRows.Count(r => _radar.IsNetworkShown(r.Site));
+		public int ShownSiteCount => _radar.RadarSiteRows.Count(r => _radar.IsInEra(r.Site));
 
 		/// <summary>Great-circle distance from the user-location marker (if any) to the selected site.</summary>
 		public string DetailDistanceText

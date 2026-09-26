@@ -59,9 +59,18 @@ namespace Anvil.Services
 			set => SetProperty(ref _onlineTilesUrl, value);
 		}
 
+		// The three SITE-MARKER toggles on the tools tier (MapControlsStrip), one per network. MAP MARKERS ONLY —
+		// the Atlas and the site picker list every network whatever these say.
+		private bool _showNexradSites = true;
+		/// <summary>Show the operational WSR-88D (NEXRAD) site markers. Default on.</summary>
+		public bool ShowNexradSites
+		{
+			get => _showNexradSites;
+			set => SetProperty(ref _showNexradSites, value);
+		}
+
 		private bool _showTdwrs;
-		/// <summary>Show the FAA Terminal Doppler Weather Radar (<c>T***</c>) markers. Opt-in, default off.
-		/// Surfaced as the "Show TDWRs" toggle (App Settings → Radar Settings); persisted here.</summary>
+		/// <summary>Show the FAA Terminal Doppler Weather Radar (<c>T***</c>) markers. Opt-in, default off.</summary>
 		public bool ShowTdwrs
 		{
 			get => _showTdwrs;
@@ -69,8 +78,7 @@ namespace Anvil.Services
 		}
 
 		private bool _showResearchRadars;
-		/// <summary>Show the research/test radar markers (e.g. the ROC test bed KCRI). Opt-in, default off.
-		/// Surfaced as the "Show Research Radars" toggle (App Settings → Radar Settings); persisted here.</summary>
+		/// <summary>Show the research/test radar markers (e.g. the ROC test bed KCRI). Opt-in, default off.</summary>
 		public bool ShowResearchRadars
 		{
 			get => _showResearchRadars;

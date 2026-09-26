@@ -208,8 +208,8 @@ namespace Anvil.Services
 		public Task PulseRadarSweepAsync() =>
 			_mapView.RunScriptAsync(Call("pulseRadarSweep"));
 
-		public Task SetRadarSitesVisibleAsync(bool visible) =>
-			_mapView.RunScriptAsync(Call("setRadarSitesVisible", visible));
+		public Task SetNexradSitesVisibleAsync(bool visible) =>
+			_mapView.RunScriptAsync(Call("setNexradSitesVisible", visible));
 
 		public Task SetResearchRadarsVisibleAsync(bool visible) =>
 			_mapView.RunScriptAsync(Call("setResearchRadarsVisible", visible));

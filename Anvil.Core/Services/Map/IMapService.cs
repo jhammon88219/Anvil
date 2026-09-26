@@ -331,10 +331,10 @@ namespace Anvil.Services
 		Task PulseRadarSweepAsync();
 
 		/// <summary>
-		/// Shows or hides all radar site marker buttons. Independent of the radar layer —
-		/// hiding the markers never clears or hides an active radar loop.
+		/// Shows or hides the operational NEXRAD site markers (TDWR / research have their own). Independent of
+		/// the radar layer — hiding markers never clears or hides an active radar loop.
 		/// </summary>
-		Task SetRadarSitesVisibleAsync(bool visible);
+		Task SetNexradSitesVisibleAsync(bool visible);
 
 		/// <summary>
 		/// Shows or hides just the research/test radar markers (e.g. KCRI) — the "Show Research

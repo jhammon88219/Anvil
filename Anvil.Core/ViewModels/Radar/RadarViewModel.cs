@@ -35,7 +35,7 @@ namespace Anvil.ViewModels
 		private readonly IMapService _mapService;
 		private readonly IRadarSiteProvider _radarSiteProvider;
 		private readonly ILevel2RadarService _radarService;
-		private readonly ISettingsService _settings;   // persisted app settings (ShowTdwrs / ShowResearchRadars)
+		private readonly ISettingsService _settings;   // persisted app settings (the three site-marker toggles, …)
 
 		// The loop engine (site load, live poll, playback, refresh, incremental reload, past-event replay).
 		// Extracted into its own collaborator class (RadarLoopEngine.cs); this VM owns the bindable
@@ -103,10 +103,7 @@ namespace Anvil.ViewModels
 		private double _radarOpacity = 0.80;
 		private bool _showRadarLayer = true;
 
-		// Whether the on-map radar site marker buttons are shown. Independent of the radar
-		// layer: hiding the markers leaves any active loop rendering.
-		private bool _radarSitesVisible = true;
-		// ShowResearchRadars / ShowTdwrs are now PERSISTED — backed by _settings.Settings, not local fields.
+		// ShowNexradSites / ShowResearchRadars / ShowTdwrs are PERSISTED — backed by _settings.Settings, not local fields.
 
 		// Radar loop state. The loop is a sequence of recent volumes (newest last).
 		// _frameTimes[i] is set as each frame's volume caches; _readyCount tracks how many
@@ -1746,33 +1743,29 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(CanSelectTilt));
 		}
 
-		/// <summary>
-		/// Whether the on-map radar site marker buttons are shown. Toggled by the ribbon's
-		/// site-visibility button. Hiding the markers never affects an active radar loop.
-		/// </summary>
-		public bool RadarSitesVisible
+		// ===== SITE MARKERS — three toggles, one per network (MapControlsStrip, left of the site picker) =====
+		// ⚠️ MAP MARKERS ONLY (2026-09-26). They used to be Settings checkboxes that switched TDWR / research off
+		// APP-WIDE (Atlas list + site picker too); now every list shows every network and these hide keys on the
+		// map, nothing else. All three off = no markers (the old "hide all sites" eye is gone). Each is
+		// independent, PERSISTED, pushed at map-ready, and never touches a loaded loop.
+
+		/// <summary>Whether the operational NEXRAD markers are shown. PERSISTED (<see cref="AppSettings.ShowNexradSites"/>).</summary>
+		public bool ShowNexradSites
 		{
-			get => _radarSitesVisible;
+			get => _settings.Settings.ShowNexradSites;
 			set
 			{
-				if (!SetProperty(ref _radarSitesVisible, value))
-				{
-					return;
-				}
-
-				if (_isMapReady)
-				{
-					_ = _mapService.SetRadarSitesVisibleAsync(value);
-				}
+				if (_settings.Settings.ShowNexradSites == value) { return; }
+				_settings.Settings.ShowNexradSites = value; // persists (auto-save)
+				OnPropertyChanged();
+				if (_isMapReady) { _ = _mapService.SetNexradSitesVisibleAsync(value); }
 			}
 		}
 
 		/// <summary>
-		/// Whether the research/test radar markers (e.g. KCRI) are shown — the "Show Research Radars"
-		/// toggle. Off by default (an opt-in extra layer, mirroring RadarScope). Independent of the
-		/// operational "Show Sites" toggle and of any active loop; a research site loads/renders
-		/// through the same pipeline as an operational one. PERSISTED via
-		/// <see cref="AppSettings.ShowResearchRadars"/> (auto-saved), so the choice survives restarts.
+		/// Whether the research/test radar markers (e.g. KCRI) are shown. Off by default (an opt-in extra
+		/// layer, mirroring RadarScope). A research site loads/renders through the same pipeline as an
+		/// operational one. PERSISTED via <see cref="AppSettings.ShowResearchRadars"/> (auto-saved).
 		/// </summary>
 		public bool ShowResearchRadars
 		{
@@ -1786,30 +1779,17 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>
-		/// Whether a site's NETWORK is switched on — the two opt-in toggles above (operational sites always are)
-		/// — AND the site exists in the era being viewed (<see cref="IsInEra"/>: a retired id is hidden live).
-		/// ⚠️ The ONE rule every site LIST follows, not just the map markers: the Radar Atlas and the tools
-		/// tier's site picker hide a hidden network's sites too, so turning TDWRs off can't leave TMCI one click
-		/// away in a list while its marker is gone. It never unloads a loop that is already showing.
-		/// ⚠️ Lists re-filter on <see cref="ShowTdwrs"/>, <see cref="ShowResearchRadars"/> AND <see cref="SiteEraKey"/>.
-		/// </summary>
-		public bool IsNetworkShown(RadarSite site) => IsInEra(site) && site.Class switch
-		{
-			RadarSiteClass.Tdwr => ShowTdwrs,
-			RadarSiteClass.Research => ShowResearchRadars,
-			_ => true,
-		};
-
 		// ===== SITE ERA — retired radar ids (moved / renamed: KLIX → KHDC, TPBI → TDJT) =====
 		// A retired id has archive data only up to RadarSite.RetiredOn. It is useless live (it would sit red
 		// forever beside its replacement), but it's the only way to replay the old radar — so it's hidden
 		// live and shown in PastCast while the replay window starts on or before that day. The window is
 		// the LOADED one once there is one, else the pickers (so dialling 2021 reveals KLIX before Load).
-		// ⚠️ Lists AND markers follow it: lists through IsNetworkShown (+ SiteEraKey to re-filter), markers
+		// ⚠️ Lists AND markers follow it: lists through IsInEra (+ SiteEraKey to re-filter), markers
 		// through setRadarSitesOutOfEra. RefreshSiteEra runs wherever the mode or window can change.
 
-		/// <summary>Whether <paramref name="site"/> existed in the era being viewed. Always true for a working site.</summary>
+		/// <summary>Whether <paramref name="site"/> existed in the era being viewed. Always true for a working site.
+		/// ⚠️ THE rule every site LIST follows (Atlas, site picker) — networks no longer hide from lists, only
+		/// from the map (the three marker toggles). Lists re-filter on <see cref="SiteEraKey"/>.</summary>
 		public bool IsInEra(RadarSite site) =>
 			site.RetiredOn is null // skip the window maths for the ~200 working sites
 			|| RadarSiteEra.IsInEra(site, _isPastEventMode ? _loadedWindowStartUtc ?? ReplayStartUtc() : null);
@@ -1843,11 +1823,9 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>
-		/// Whether the TDWR markers (the FAA Terminal Doppler Weather Radar `T***` network) are shown —
-		/// the "Show TDWRs" toggle. Off by default (an opt-in extra layer, mirroring RadarScope).
-		/// Independent of the operational "Show Sites" and "Show Research Radars" toggles and of any
-		/// active loop; a TDWR loads/renders through the same pipeline as an operational site. PERSISTED
-		/// via <see cref="AppSettings.ShowTdwrs"/> (auto-saved), so the choice survives restarts.
+		/// Whether the TDWR markers (the FAA Terminal Doppler Weather Radar `T***` network) are shown. Off by
+		/// default (an opt-in extra layer, mirroring RadarScope). A TDWR loads/renders through the same pipeline
+		/// as an operational site. PERSISTED via <see cref="AppSettings.ShowTdwrs"/> (auto-saved).
 		/// </summary>
 		public bool ShowTdwrs
 		{
@@ -1914,9 +1892,9 @@ namespace Anvil.ViewModels
 					research = s.Class == RadarSiteClass.Research, tdwr = s.Class == RadarSiteClass.Tdwr });
 			await _mapService.ShowRadarSitesAsync(System.Text.Json.JsonSerializer.Serialize(sites));
 
-			// Push the PERSISTED extra-network visibility (the page defaults to hidden; apply the saved
-			// choice explicitly so a user who left them on last run sees them again, and the toggles and
-			// page never disagree on startup).
+			// Push the PERSISTED per-network marker visibility (the page's defaults are NEXRAD on, the two
+			// opt-in networks off; apply the saved choices explicitly so the toggles and page never disagree).
+			await _mapService.SetNexradSitesVisibleAsync(ShowNexradSites);
 			await _mapService.SetResearchRadarsVisibleAsync(ShowResearchRadars);
 			await _mapService.SetTdwrsVisibleAsync(ShowTdwrs);
 			await _mapService.SetRadarSitesOutOfEraAsync(System.Text.Json.JsonSerializer.Serialize(OutOfEraIds()));

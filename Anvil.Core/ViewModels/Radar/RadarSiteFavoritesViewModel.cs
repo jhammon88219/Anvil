@@ -59,11 +59,10 @@ namespace Anvil.ViewModels
 				{
 					RaisePickState();
 				}
-				else if (e.PropertyName is nameof(RadarViewModel.ShowTdwrs) or nameof(RadarViewModel.ShowResearchRadars)
-					or nameof(RadarViewModel.SiteEraKey))
+				else if (e.PropertyName is nameof(RadarViewModel.SiteEraKey))
 				{
-					// A hidden network's sites leave the picker (RadarViewModel.IsNetworkShown), and so does a retired
-					// site outside the era being viewed. The Atlas rebuilds
+					// A retired site outside the era being viewed leaves the picker (RadarViewModel.IsInEra). The
+					// network marker toggles do NOT — they hide map keys only. The Atlas rebuilds
 					// off the same radar change itself, so no PinnedChanged here.
 					RebuildPinned();
 				}
@@ -100,8 +99,9 @@ namespace Anvil.ViewModels
 		/// <summary>False in PastCast — see the class remarks.</summary>
 		public bool CanPickSites => !_radar.IsPastEventMode;
 
-		/// <summary>Whether the home site's network is switched on in Settings → Radar.</summary>
-		private bool IsHomeShown => HomeSite is { } home && _radar.IsNetworkShown(home.Site);
+		/// <summary>Whether the home site existed in the era being viewed (a retired id drops out). The map's
+		/// network marker toggles don't affect the picker.</summary>
+		private bool IsHomeShown => HomeSite is { } home && _radar.IsInEra(home.Site);
 
 		/// <summary>Says WHY when the picker can't act — the host puts it on a wrapper so it shows while the
 		/// picker is disabled.</summary>
@@ -169,7 +169,7 @@ namespace Anvil.ViewModels
 		/// loaded still flies there — that is how you get back to it after panning away.</summary>
 		public void Pick(RadarSiteRow row)
 		{
-			if (CanPickSites && _radar.IsNetworkShown(row.Site))
+			if (CanPickSites && _radar.IsInEra(row.Site))
 			{
 				LoadOnMap(row);
 			}
@@ -214,7 +214,7 @@ namespace Anvil.ViewModels
 			PinnedSites.Clear();
 			HomeSites.Clear();
 			FavoriteSites.Clear();
-			if (HomeSite is { } home && _radar.IsNetworkShown(home.Site))
+			if (HomeSite is { } home && _radar.IsInEra(home.Site))
 			{
 				PinnedSites.Add(home);
 				HomeSites.Add(home);
@@ -222,7 +222,7 @@ namespace Anvil.ViewModels
 			foreach (var id in _settings.Settings.FavoriteSiteIds)
 			{
 				// Ids for sites this build doesn't have stay persisted but aren't shown.
-				if (byId.TryGetValue(id, out var row) && !row.IsHome && _radar.IsNetworkShown(row.Site)
+				if (byId.TryGetValue(id, out var row) && !row.IsHome && _radar.IsInEra(row.Site)
 					&& !PinnedSites.Contains(row))
 				{
 					PinnedSites.Add(row);
