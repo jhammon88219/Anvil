@@ -35,11 +35,11 @@ namespace Anvil.Services
 		/// ⚠️ The bucket also has a <c>1970/01/01</c> folder: TDWR volumes with an unset clock, not a real day.</summary>
 		public static readonly DateOnly ArchiveFirstDay = new(1991, 6, 5);
 
-		private const string BucketBase = "https://unidata-nexrad-level2.s3.amazonaws.com/";
+		internal const string BucketBase = "https://unidata-nexrad-level2.s3.amazonaws.com/";
 		// Near-real-time chunk bucket: per-volume folders of S/I/E chunks streamed via LDM as
 		// each completes (see GetLiveFrameAsync). Keys: <SITE>/<VOLUME#>/<yyyyMMdd>-<HHmmss>-<seq>-<S|I|E>.
 		private const string ChunksBase = "https://unidata-nexrad-level2-chunks.s3.amazonaws.com/";
-		private static readonly XNamespace S3 = "http://s3.amazonaws.com/doc/2006-03-01/";
+		internal static readonly XNamespace S3 = "http://s3.amazonaws.com/doc/2006-03-01/";
 
 		// ── Cache retention knobs (startup sweep) — THE spot to tune disk usage ────────────────────
 		// The per-site PruneCache (below) only trims the ONE site you're actively loading, so cached
@@ -1829,7 +1829,7 @@ namespace Anvil.Services
 		// that flickers mid-loop (measured: KAMA 2026-08-01 00:20:57Z was 3,962 bytes). We filter these out
 		// during listing, using the <Size> the S3 response already carries. 100 KB is nowhere near any real
 		// volume, so this can only ever drop junk.
-		private const long MinVolumeBytes = 100_000;
+		internal const long MinVolumeBytes = 100_000;
 
 		// Lists all _V06 keys (ascending) under a day prefix, paging through if needed.
 		private async Task<List<string>> KeysForDayAsync(string siteId, DateTimeOffset day, CancellationToken ct)
@@ -2055,7 +2055,7 @@ namespace Anvil.Services
 		//     markers / no LDM bzip2 records), so EnsureCachedAsync's fallback caches the whole
 		//     gunzipped volume and the WebView decodes the lowest tilt.
 		// It deliberately EXCLUDES the "_MDM" metadata sidecars in both eras.
-		private static bool IsVolumeKey(string key)
+		internal static bool IsVolumeKey(string key)
 		{
 			var name = key.EndsWith(".gz", StringComparison.Ordinal) ? key[..^3] : key;
 			name = name.Substring(name.LastIndexOf('/') + 1);

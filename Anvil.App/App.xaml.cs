@@ -119,6 +119,9 @@ namespace Anvil
 			services.AddSingleton<SiteUsageStore>();
 			// Scan patterns VcpCatalog doesn't list, per site: %LocalAppData%\Anvil\Network\nonstandard-vcps.json.
 			services.AddSingleton<NonStandardVcpLog>();
+			// Data uptime from archive gaps: listing only, final days cached in %LocalAppData%\Anvil\Network\Archive.
+			services.AddSingleton<IArchiveVolumeLister, ArchiveVolumeLister>();
+			services.AddSingleton<IRadarUptimeService, RadarUptimeService>();
 
 			// Wind-profile provider chain for the storm motion (doc 01 section 5), in PRIORITY ORDER. The NWS's
 			// own VAD (Level III NVW) first; our Level II VAD is the fallback and is NOT registered here — it

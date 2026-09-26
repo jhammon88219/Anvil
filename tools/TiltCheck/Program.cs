@@ -14,6 +14,27 @@ using System.Text;
 using System.Xml.Linq;
 using Anvil.Services;
 
+// --uptime SITE [SITE…]: the data-uptime report (RadarUptimeService) against the LIVE archive, into a temp
+// cache — listing only, no downloads. The real-data check for UptimeCalculator's gap/down rules.
+if (args.Length > 0 && args[0] == "--uptime")
+{
+    var cache = Path.Combine(Path.GetTempPath(), "anvil-uptimecheck");
+    var svc = new RadarUptimeService(new ArchiveVolumeLister(),
+        Microsoft.Extensions.Logging.Abstractions.NullLogger<RadarUptimeService>.Instance, cache, null, null);
+    foreach (var id in args.Skip(1).DefaultIfEmpty("KTLX"))
+    {
+        var r = await svc.GetReportAsync(id);
+        Console.WriteLine($"== {r.SiteId}  up {r.UpFraction:P2}  ({r.WindowStartUtc:u} → {r.WindowEndUtc:u})");
+        Console.WriteLine("   days: " + string.Join(" ", r.Days.Select(d => d.UpFraction is { } f ? (f >= 0.995 ? "█" : f >= 0.9 ? "▓" : "░") : "?")));
+        foreach (var h in r.Holes.Take(12))
+        {
+            Console.WriteLine($"   {h.Kind,-4} {h.StartUtc.ToLocalTime():MMM dd HH:mm} → {h.EndUtc.ToLocalTime():MMM dd HH:mm}  {h.Duration.TotalMinutes,6:0} min{(h.Ongoing ? "  ONGOING" : "")}");
+        }
+        if (r.Holes.Count > 12) Console.WriteLine($"   … {r.Holes.Count - 12} more");
+    }
+    return 0;
+}
+
 var positional = args.TakeWhile(a => !a.StartsWith("--")).ToArray();
 var site = positional.Length > 0 ? positional[0].ToUpperInvariant() : "KTLX";
 var day = positional.Length > 1 ? positional[1] : DateTime.UtcNow.ToString("yyyy/MM/dd");
