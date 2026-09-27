@@ -3,14 +3,20 @@
      first; the other panel windows get it next. Wrap a body in it: <prim:PanelScroller> …content… </prim:PanelScroller>.
 
        ┌─────────────────────────────────────┬──────┐
-       │                                     │ ████ │  ← THE THUMB: fills the gutter less 2 px each
-       │  content (a ScrollViewer whose own  │ ████ │    side (10 of 14), rounded ends. Height =
-       │  bars are HIDDEN — the wheel, touch │ ████ │    viewport / extent of the track (min 32);
+       │                                     │  ████│  ← THE THUMB: 12 of 16, 4 px in from the left,
+       │  content (a ScrollViewer whose own  │  ████│    flush right, rounded ends. Height =
+       │  bars are HIDDEN — the wheel, touch │  ████│    viewport / extent of the track (min 32);
        │  and keyboard still scroll it)      │      │    rests faint, firms on hover/drag
        │                                     │      │  ← click the empty track = page up / down
        │                                     │      │
        └─────────────────────────────────────┴──────┘
-                                              GUTTER (GutterWidth = 14): ALWAYS CLAIMED
+                                              GUTTER (GutterWidth = 16): ALWAYS CLAIMED
+
+     ⚠️ THE HOST SHOULD BLEED IT INTO ITS OWN RIGHT MARGIN. A panel body sits 16 px in from the window edge
+     (TemporalWindow's BodyHost), and a gutter left inside that margin reads as a thin thumb beside a wider
+     empty strip. PastCastTab gives the scroller Margin right -12, so the gutter ends 4 px from the window
+     edge; the thumb sits flush right in the gutter with 4 px on its left, so it is EQUALLY far (4) from the
+     sections and from the window edge. A new host does the same bleed, or the gaps go uneven.
 
      ⚠️ THE GUTTER NEVER COLLAPSES (the user's rule). When the content fits there is no thumb, but the column
      keeps its width, so opening/closing a section never re-flows the body sideways by a scrollbar's width.
@@ -32,7 +38,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition x:Name="GutterColumn" Width="14"/> <!-- set from GutterWidth in code -->
+            <ColumnDefinition x:Name="GutterColumn" Width="16"/> <!-- set from GutterWidth in code -->
         </Grid.ColumnDefinitions>
 
         <!-- Hidden (not Disabled) keeps wheel / touch / keyboard scrolling; only the built-in bar goes. -->
@@ -48,8 +54,10 @@
         <!-- THE TRACK: transparent, but hit-testable so a click on it pages. The whole gutter is the track. -->
         <Grid x:Name="Track" Grid.Column="1" Background="Transparent"
               PointerPressed="OnTrackPressed" SizeChanged="OnGeometryChanged">
-            <!-- Stretch + Margin 2: the thumb fills the gutter less 2 px each side (10 of 14). -->
-            <Border x:Name="Thumb" Margin="2,0" CornerRadius="5" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+            <!-- Stretch + Margin 4,0,0,0: 12 of the 16, flush RIGHT in the gutter. ⚠️ The asymmetry is the
+                 point: the host bleeds the gutter to 4 px from the window edge, so 4 left (to the sections) and
+                 4 right (to the window edge) are EQUAL on screen. Change with the host's bleed. -->
+            <Border x:Name="Thumb" Margin="4,0,0,0" CornerRadius="6" VerticalAlignment="Top" HorizontalAlignment="Stretch"
                     Background="{ThemeResource ControlStrongFillColorDefaultBrush}"
                     Opacity="0.45" Visibility="Collapsed"
                     PointerEntered="OnThumbEntered" PointerExited="OnThumbExited"

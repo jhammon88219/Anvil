@@ -19,7 +19,8 @@
        │                                                      │  ← 24 px gap before the sections
        │ ⠿ › [x] Storm cells    ──────────●  100%          ┃  │  ┐ the LAYER RUN: top of the list
        │                                                ┃  │  │ ┃ = PanelScroller's thumb, in a
-       │                                                   │  │   14 px gutter that never collapses
+       │                                                   │  │   16 px gutter that never collapses,
+       │                                                   │  │   bled 12 px into the window margin
        │ ⠿ › [x] Storm reports  ──────────●  100%             │  │
        │ ⠿ ⌄ [-] Damage surveys ──────●────   70%             │  │ = top of the map; drag by ⠿ to
        │     ┌────────────────────────────────────┐           │  │ restack (default order shown)
@@ -55,9 +56,9 @@
      ⚠️ Each LayerId is a Models/Map/LayerOrder id, mirrored in layers.js GROUPS — change all three.
      ⚠️ The window opens at a FIXED full height (WindowManager's Left anchor), not sized to this body, so the
      SECTIONS scroll inside Primitives/PanelScroller (the app's hand-rolled scroller, built here first; the
-     other panel windows get it next). Timeframe stays put above it. The scroller's 14 px gutter is ALWAYS
-     claimed — no thumb when everything fits, but no sideways re-flow either — and Timeframe reserves the
-     same 14 on its right so the two line up.
+     other panel windows get it next). Timeframe stays put above it. The scroller's 16 px gutter is ALWAYS
+     claimed — no thumb when everything fits, but no sideways re-flow either — and it BLEEDS 12 px into the
+     window's right margin; Timeframe's right padding is worked out from both so the two line up.
 
      ⚠️ THE HEADER CHECKBOX IS A SELECT-ALL, exactly as in NowCastTab: IsChecked is ONE-WAY and the Click
      hands the decision to the view model, whose answer overwrites the box's own toggle. Every section carries
@@ -144,9 +145,10 @@
         <!-- ⚠️ NOT A SECTION ANY MORE (2026-09-27): it is what the whole window acts on, so it can't be
              collapsed or scrolled away. Padding 12 is PanelSection's own body padding, so it sits exactly where
              it did inside the section; the bottom 24 is the gap before the first section header.
-             ⚠️ The RIGHT 26 = that 12 + PanelScroller.GutterWidth (14), so the card lines up with the section
-             bodies below, which sit left of the scroller's always-claimed gutter. Change both. -->
-            <Grid Grid.Row="0" Padding="12,12,26,24">
+             ⚠️ The RIGHT 16 = that 12 + PanelScroller.GutterWidth (16) − the scroller's 12 px bleed, so the
+             card lines up with the section bodies below, which sit left of the always-claimed gutter. Change
+             all three together. -->
+            <Grid Grid.Row="0" Padding="12,12,16,24">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- summary card + Load -->
                     <RowDefinition Height="Auto"/> <!-- rule -->
@@ -257,7 +259,9 @@
          ⚠️ A StackPanel, not a Grid of rows: the sections' CHILD ORDER is the display order, which is what
          a drag re-arranges. Every section here is a layer now (Timeframe moved out above, DOW to the Atlas), so
          the whole panel is the ONE contiguous run PanelSection.ApplyLayerOrder assumes. -->
-    <prim:PanelScroller Grid.Row="1">
+    <!-- ⚠️ Margin right -12 BLEEDS the scroller's gutter into the window's 16 px body margin (see the
+         PanelScroller header): the gutter ends 4 px from the window edge. -->
+    <prim:PanelScroller Grid.Row="1" Margin="0,0,-12,0">
     <StackPanel x:Name="Sections" VerticalAlignment="Top" Spacing="8">
 
         <!-- ===================== STORM CELLS ===================== -->

@@ -16,7 +16,7 @@ namespace Anvil.Controls.Primitives
 	{
 		/// <summary>The gutter's width in px — ALWAYS claimed, thumb or not. Anything outside the scroller
 		/// that must line up with its content reserves this much on its right.</summary>
-		public const double GutterWidth = 14;
+		public const double GutterWidth = 16;
 
 		private const double MinThumbHeight = 32;
 		private const double RestOpacity = 0.45;
