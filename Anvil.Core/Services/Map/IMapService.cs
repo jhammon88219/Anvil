@@ -347,6 +347,28 @@ namespace Anvil.Services
 		/// null draws nothing.</summary>
 		Task SetPastAlertTimeAsync(long? timeMs);
 
+		// ── Mesoscale discussions (discussions.js) ──
+
+		/// <summary>Points the discussion overlay at a window's page file.</summary>
+		Task SetDiscussionsSourceAsync(string url);
+
+		/// <summary>Which kinds draw, as comma-joined <c>DiscussionKind.Id</c>s ("mcd,mpd"); "" draws none.</summary>
+		Task SetDiscussionKindsAsync(string kindIds);
+
+		/// <summary>The moment the overlay shows (Unix ms): the displayed frame in PastCast, now in NowCast.</summary>
+		Task SetDiscussionTimeAsync(long? timeMs);
+
+		Task SetDiscussionsOpacityAsync(double opacity);
+
+		/// <summary>Outlines the selected discussion (its key), or none for "".</summary>
+		Task SetDiscussionSelectedAsync(string key);
+
+		/// <summary>Frames the discussion's area on the map (primary pane; the others follow the camera).</summary>
+		Task FocusDiscussionAsync(string key);
+
+		/// <summary>Tears the discussion overlay down (source, layers, selection).</summary>
+		Task ClearDiscussionsAsync();
+
 		/// <summary>Highlights the selected site marker (empty clears the highlight).</summary>
 		Task SetSelectedRadarSiteAsync(string? siteId);
 

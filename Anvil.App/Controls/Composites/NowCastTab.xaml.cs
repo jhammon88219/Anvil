@@ -26,6 +26,7 @@ namespace Anvil.Controls.Composites
 			{
 				if (_orderApplied || ViewModel is null) { return; }
 				_orderApplied = true;
+				ViewModel.Discussions.SelectionRequested += OnDiscussionSelectionRequested;
 				PanelSection.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Now));
 				PanelSection.PersistExpansion(Sections.Children.OfType<PanelSection>(), "now",
 					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
@@ -47,6 +48,11 @@ namespace Anvil.Controls.Composites
 		private void OnStormReportsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.StormReports.ToggleAll();
 
 		private void OnStormCellsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.StormCells.ToggleAll();
+
+		private void OnDiscussionsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.Discussions.ToggleAll();
+
+		// A discussion clicked ON THE MAP opens its reader here — the section may be collapsed.
+		private void OnDiscussionSelectionRequested(object? sender, System.EventArgs e) => DiscussionsSection.IsExpanded = true;
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel

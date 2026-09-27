@@ -1,0 +1,47 @@
+492 
+ACUS11 KWNS 061558
+SWOMCD
+SPC MCD 061557 
+KSZ000-NEZ000-061800-
+
+Mesoscale Discussion 0647
+NWS Storm Prediction Center Norman OK
+1057 AM CDT Mon May 06 2024
+
+Areas affected...northwest/north-central KS and south-central NE
+
+Concerning...Severe potential...Tornado Watch likely 
+
+Valid 061557Z - 061800Z
+
+Probability of Watch Issuance...95 percent
+
+SUMMARY...An arc of severe thunderstorms should develop by early
+afternoon along the composite cold front/dryline. Tornadoes, large
+hail, and severe wind gusts are expected with a midday tornado watch
+issuance.
+
+DISCUSSION...15Z surface analysis placed the composite cold
+front/dryline across southwest NE into far western KS. A lobe of
+large-scale ascent indicated by a patch of upper-level cirrus along
+the KS/CO border will rapidly spread northeast and likely aid in
+convective development along the KS/NE border area during the next
+few hours. A plume of at least moderate buoyancy is already present,
+with earlier MLCIN noted in 12Z LBF/DDC soundings waning.
+Enlarged/elongated hodographs will favor supercell structures,
+especially with southern extent where a couple strong tornadoes will
+be possible. Linear frontal forcing and potential for pinching of
+the northeast portion of the surface-based buoyancy plume should
+yield greater potential for upscale growth earlier with northern
+extent. A mix of tornadoes, large hail, and severe wind gusts is
+expected.
+
+..Grams/Smith.. 05/06/2024
+
+...Please see www.spc.noaa.gov for graphic product...
+
+ATTN...WFO...TOP...ICT...GID...LBF...DDC...GLD...
+
+LAT...LON   39220046 40650055 41430064 41860013 41919910 41219818
+            40069774 39069768 38519826 38269914 38170010 38680039
+            39220046

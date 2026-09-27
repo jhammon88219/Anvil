@@ -371,6 +371,13 @@ namespace Anvil.Services
 		public bool? PastWatchesShowTornado { get => _pastWatchesShowTornado; set => SetProperty(ref _pastWatchesShowTornado, value); }
 		private bool? _pastWatchesShowSevere;
 		public bool? PastWatchesShowSevere { get => _pastWatchesShowSevere; set => SetProperty(ref _pastWatchesShowSevere, value); }
+		// Mesoscale discussions (Now + Past share them). ⚠️ Kinds persist as the HIDDEN ids, so a kind added to
+		// DiscussionKinds later is shown by default and needs no new setting.
+		private List<string>? _discussionsHiddenKinds;
+		public List<string>? DiscussionsHiddenKinds { get => _discussionsHiddenKinds; set => SetProperty(ref _discussionsHiddenKinds, value); }
+		private double? _discussionsOpacity;
+		public double? DiscussionsOpacity { get => _discussionsOpacity; set => SetProperty(ref _discussionsOpacity, value); }
+
 		private double? _pastWatchesOpacity;
 		public double? PastWatchesOpacity { get => _pastWatchesOpacity; set => SetProperty(ref _pastWatchesOpacity, value); }
 

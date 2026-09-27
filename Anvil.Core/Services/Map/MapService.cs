@@ -152,6 +152,27 @@ namespace Anvil.Services
 		public Task SetPastAlertKindsAsync(string kind, bool tornado, bool severe, bool flashFlood) =>
 			_mapView.RunScriptAsync(Call("setPastAlertKinds", kind, tornado, severe, flashFlood));
 
+		public Task SetDiscussionsSourceAsync(string url) =>
+			_mapView.RunScriptAsync(Call("setDiscussionsSource", url));
+
+		public Task SetDiscussionKindsAsync(string kindIds) =>
+			_mapView.RunScriptAsync(Call("setDiscussionKinds", kindIds));
+
+		public Task SetDiscussionTimeAsync(long? timeMs) =>
+			_mapView.RunScriptAsync($"window.setDiscussionTime({timeMs?.ToString(CultureInfo.InvariantCulture) ?? "null"});");
+
+		public Task SetDiscussionsOpacityAsync(double opacity) =>
+			_mapView.RunScriptAsync(Call("setDiscussionsOpacity", opacity));
+
+		public Task SetDiscussionSelectedAsync(string key) =>
+			_mapView.RunScriptAsync(Call("setDiscussionSelected", key));
+
+		public Task FocusDiscussionAsync(string key) =>
+			_mapView.RunScriptAsync(Call("focusDiscussion", key));
+
+		public Task ClearDiscussionsAsync() =>
+			_mapView.RunScriptAsync(Call("clearDiscussions"));
+
 		public Task SetPastAlertTimeAsync(long? timeMs) =>
 			_mapView.RunScriptAsync($"window.setPastAlertTime({timeMs?.ToString(CultureInfo.InvariantCulture) ?? "null"});");
 

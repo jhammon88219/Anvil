@@ -16,6 +16,7 @@
        │   [x] ■ Tornado                            0                 │
        │   [x] ■ Severe thunderstorm                7                 │
        │ ⠿ › [-] Watches         ─────────────────●   100%            │  [-] = some types ticked
+       │ ⠿ › [x] Mesoscale discussions ───────────●   100%            │  MDs + MPDs: areas + a reader
        │ ⠿   [x] Radar           ──────────────●──     85%            │  ← no body: nothing to open
        └──────────────────────────────────────────────────────────────┘
 
@@ -113,6 +114,20 @@
                            OpacityToolTip="Opacity of the watch boxes (fill and outline together)">
             <comp:PhenomOverlayInput AlertNoun="watches"
                                      ViewModel="{x:Bind ViewModel.Watches, Mode=OneWay}"/>
+        </prim:PanelSection>
+
+        <!-- Mesoscale discussions: SPC MDs + WPC MPDs, drawn as in effect now, the last 24 h listed to read.
+             Shared control with the Past window. A click on an MD's area opens THIS section (code-behind). -->
+        <prim:PanelSection x:Name="DiscussionsSection" Header="Mesoscale discussions" LayerId="mds" Reordered="OnSectionsReordered"
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Discussions.AllShown, Mode=OneWay}"
+                           CheckBoxClick="OnDiscussionsHeaderClick"
+                           CheckBoxToolTip="Show or hide every discussion kind"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.Discussions.Opacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.Discussions.AnyShown, Mode=OneWay}"
+                           OpacityToolTip="Opacity of the discussion areas and labels">
+            <comp:DiscussionsInput ViewModel="{x:Bind ViewModel.Discussions, Mode=OneWay}"/>
         </prim:PanelSection>
 
         <!-- Header only: the layer's show/hide and its opacity are all it has. -->

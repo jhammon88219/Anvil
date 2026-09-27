@@ -28,15 +28,15 @@ namespace Anvil.ViewModels
 
 		public static void Attach(AppSettings s, RadarViewModel radar, WarningsViewModel warnings, WatchesViewModel watches,
 			StormReportsViewModel reports, DamageSurveysViewModel damage, PastOutlookViewModel pastOutlook, OutlookViewModel outlook,
-			StormCellsViewModel cells, PastAlertsViewModel pastAlerts)
+			StormCellsViewModel cells, PastAlertsViewModel pastAlerts, MesoDiscussionsViewModel discussions)
 		{
-			Restore(s, radar, warnings, watches, reports, damage, pastOutlook, outlook, cells, pastAlerts);
-			Track(s, radar, warnings, watches, reports, damage, pastOutlook, outlook, cells, pastAlerts);
+			Restore(s, radar, warnings, watches, reports, damage, pastOutlook, outlook, cells, pastAlerts, discussions);
+			Track(s, radar, warnings, watches, reports, damage, pastOutlook, outlook, cells, pastAlerts, discussions);
 		}
 
 		private static void Restore(AppSettings s, RadarViewModel radar, WarningsViewModel warnings, WatchesViewModel watches,
 			StormReportsViewModel reports, DamageSurveysViewModel damage, PastOutlookViewModel pastOutlook, OutlookViewModel outlook,
-			StormCellsViewModel cells, PastAlertsViewModel pastAlerts)
+			StormCellsViewModel cells, PastAlertsViewModel pastAlerts, MesoDiscussionsViewModel discussions)
 		{
 			if (s.RadarOpacity is double ro) { radar.RadarOpacity = Unit(ro); }
 			if (s.ShowRadarLayer is bool rl) { radar.ShowRadarLayer = rl; }
@@ -76,6 +76,9 @@ namespace Anvil.ViewModels
 			if (s.PastWatchesShowSevere is bool pas) { pa.ShowSevere = pas; }
 			if (s.PastWatchesOpacity is double pao) { pa.Opacity = Unit(pao); }
 
+			if (s.DiscussionsHiddenKinds is { } hidden) { discussions.RestoreHidden(hidden); }
+			if (s.DiscussionsOpacity is double dso) { discussions.Opacity = Unit(dso); }
+
 			// Past outlook: day FIRST — it cascades (rebuilds) the product and cycle lists the other two pick from.
 			if (s.PastOutlookDay is int pd && pd >= 1 && pd <= pastOutlook.Days.Count) { pastOutlook.SelectedDayIndex = pd - 1; }
 			if (s.PastOutlookProduct is string pp &&
@@ -106,7 +109,7 @@ namespace Anvil.ViewModels
 
 		private static void Track(AppSettings s, RadarViewModel radar, WarningsViewModel warnings, WatchesViewModel watches,
 			StormReportsViewModel reports, DamageSurveysViewModel damage, PastOutlookViewModel pastOutlook, OutlookViewModel outlook,
-			StormCellsViewModel cells, PastAlertsViewModel pastAlerts)
+			StormCellsViewModel cells, PastAlertsViewModel pastAlerts, MesoDiscussionsViewModel discussions)
 		{
 			radar.PropertyChanged += (_, e) =>
 			{
@@ -170,6 +173,13 @@ namespace Anvil.ViewModels
 					case nameof(StormCellsViewModel.ShowHail): s.StormCellsShowHail = cells.ShowHail; break;
 					case nameof(StormCellsViewModel.Opacity): s.StormCellsOpacity = cells.Opacity; break;
 				}
+			};
+
+			// Discussion kinds persist as ONE list of hidden ids (see AppSettings), via the VM's own event.
+			discussions.KindsChanged += (_, _) => s.DiscussionsHiddenKinds = discussions.HiddenKindIds;
+			discussions.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(MesoDiscussionsViewModel.Opacity)) { s.DiscussionsOpacity = discussions.Opacity; }
 			};
 
 			// PastCast's OWN warning/watch choices — separate from NowCast's (the user may want different

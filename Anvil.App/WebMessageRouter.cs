@@ -59,6 +59,14 @@ namespace Anvil
 				// The distance labels' drag handle was let go (radar-scope.js) — persist its bearing, no echo.
 				["rangeRingLabelBearing"] = root => _viewModel.Radar.RangeRings.OnLabelBearingDragged(Dbl(root, "deg")),
 				["markerClick"] = HandleMarkerClick,
+				// A mesoscale discussion's area was clicked (discussions.js) — read it.
+				["discussionPicked"] = root =>
+				{
+					if (root.TryGetProperty("key", out var k) && k.GetString() is { Length: > 0 } key)
+					{
+						_viewModel.Discussions.SelectByKey(key);
+					}
+				},
 				["markerMoved"] = HandleMarkerMoved,
 				["radarFrameReady"] = HandleRadarFrameReady,
 				["pageError"] = HandlePageError,

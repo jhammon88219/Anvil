@@ -32,6 +32,7 @@
        │     [EFU][EF0][EF1][EF2][EF3][EF4][EF5]              │  │ ← DAT's own EF colours
        │ ⠿ › [x] Warnings       ──────────●  100%             │  │ as in effect at the FRAME on
        │ ⠿ › [x] Watches        ──────────●  100%             │  │ screen (IEM VTEC archive)
+       │ ⠿ › [x] Mesoscale discussions ───●  100%             │  │ MDs + MPDs: areas + a reader
        │ ⠿ ›     SPC outlook    ───────●───   55%             │  │ no box: Product None = off
        │ ⠿   [x] Radar          ──────────●─   85%            │  ┘ header only
        │     ›   DOW event                                    │  ← a STANDALONE mobile-radar
@@ -463,6 +464,21 @@
                            OpacityToolTip="Opacity of the watch counties (fill and outline together)">
             <comp:PhenomOverlayInput AlertNoun="watches"
                                      ViewModel="{x:Bind ViewModel.PastAlerts.Watches, Mode=OneWay}"/>
+        </prim:PanelSection>
+
+        <!-- ===================== MESOSCALE DISCUSSIONS ===================== -->
+        <!-- SPC MDs + WPC MPDs for the LOADED window: drawn as in effect at the displayed frame, all of them
+             listed to read. Shared control with the Now window. A click on an MD's area opens THIS section. -->
+        <prim:PanelSection x:Name="DiscussionsSection" Header="Mesoscale discussions" LayerId="mds" Reordered="OnSectionsReordered"
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Discussions.AllShown, Mode=OneWay}"
+                           CheckBoxClick="OnDiscussionsHeaderClick"
+                           CheckBoxToolTip="Show or hide every discussion kind"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.Discussions.Opacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.Discussions.AnyShown, Mode=OneWay}"
+                           OpacityToolTip="Opacity of the discussion areas and labels">
+            <comp:DiscussionsInput ViewModel="{x:Bind ViewModel.Discussions, Mode=OneWay}"/>
         </prim:PanelSection>
 
         <!-- ===================== SPC OUTLOOK: the card, then the pickers ===================== -->

@@ -76,6 +76,7 @@ namespace Anvil.Tests
 			public readonly OutlookViewModel Outlook;
 			public readonly StormCellsViewModel Cells;
 			public readonly PastAlertsViewModel PastAlerts;
+			public readonly MesoDiscussionsViewModel Discussions;
 
 			public Rig(AppSettings settings)
 			{
@@ -103,8 +104,9 @@ namespace Anvil.Tests
 				Outlook = new OutlookViewModel(map, spc, dispatcher, NullLogger<OutlookViewModel>.Instance);
 				Cells = new StormCellsViewModel(map, Null<IStormCellService>.Create(), Radar, dispatcher, NullLogger<StormCellsViewModel>.Instance);
 				PastAlerts = new PastAlertsViewModel(map, Null<IPastAlertService>.Create(), Radar, NullLogger<PastAlertsViewModel>.Instance);
+				Discussions = new MesoDiscussionsViewModel(map, Null<IMesoDiscussionService>.Create(), Radar, dispatcher, NullLogger<MesoDiscussionsViewModel>.Instance);
 
-				TemporalWindowPersistence.Attach(settings, Radar, Warnings, Watches, Reports, Damage, PastOutlook, Outlook, Cells, PastAlerts);
+				TemporalWindowPersistence.Attach(settings, Radar, Warnings, Watches, Reports, Damage, PastOutlook, Outlook, Cells, PastAlerts, Discussions);
 			}
 
 			private static SpcOutlookProduct Product(int day, SpcOutlookType type) =>
@@ -127,6 +129,7 @@ namespace Anvil.Tests
 			Assert.Null(s.ShowRadarLayer);
 			Assert.Null(s.WarningsShowTornado);
 			Assert.Null(s.StormCellsShowTracks);
+			Assert.Null(s.DiscussionsHiddenKinds);
 			Assert.Null(s.PastOutlookProduct);
 			Assert.Null(s.ForeCastOutlookProduct);
 		}
@@ -143,6 +146,7 @@ namespace Anvil.Tests
 				DamageSurveysShowAreas = false, DamageSurveysShowTracks = true, DamageSurveysShowPoints = true, DamageSurveysOpacity = 0.25,
 				StormCellsShowTracks = true, StormCellsShowTvs = false, StormCellsShowMeso = true, StormCellsShowHail = false, StormCellsOpacity = 0.65,
 				PastWarningsShowFlashFlood = false, PastWarningsOpacity = 0.7, PastWatchesShowSevere = false,
+				DiscussionsHiddenKinds = new() { "mpd", "no-such-kind" }, DiscussionsOpacity = 0.8,
 				PastOutlookDay = 2, PastOutlookProduct = "ProbabilisticCombined", PastOutlookOpacity = 0.3,
 				ForeCastOutlookDay = 2, ForeCastOutlookProduct = "Tornado", ForeCastOutlookOpacity = 0.45, ForeCastShowHatching = false,
 			};
@@ -169,6 +173,9 @@ namespace Anvil.Tests
 			Assert.True(rig.PastAlerts.Warnings.ShowTornado);
 			Assert.Equal(0.7, rig.PastAlerts.Warnings.Opacity);
 			Assert.False(rig.PastAlerts.Watches.ShowSevere);
+			Assert.True(rig.Discussions.Kinds.Single(k => k.Kind.Id == "mcd").IsShown);
+			Assert.False(rig.Discussions.Kinds.Single(k => k.Kind.Id == "mpd").IsShown);
+			Assert.Equal(0.8, rig.Discussions.Opacity);
 			Assert.True(rig.PastAlerts.Watches.ShowTornado); // never saved → default, whatever NowCast's watches hold
 			Assert.Equal(2, rig.PastOutlook.SelectedDayOption.Day);
 			Assert.Equal(SpcOutlookType.ProbabilisticCombined, rig.PastOutlook.SelectedProductOption.Type);
@@ -191,6 +198,7 @@ namespace Anvil.Tests
 			rig.Damage.Opacity = 0.9;
 			rig.Cells.ToggleAll();                          // all on → all off
 			rig.PastAlerts.Watches.ToggleAll();             // all on → all off
+			rig.Discussions.Kinds.Single(k => k.Kind.Id == "mcd").IsShown = false;
 			rig.PastOutlook.SelectedDayIndex = 1;           // day 2 cascades product + cycle
 			rig.PastOutlook.SelectedProductOption = rig.PastOutlook.ProductOptions.First(o => o.Type == SpcOutlookType.Categorical);
 			rig.Outlook.SelectedOption = rig.Outlook.ProductOptions[0]; // None
@@ -205,6 +213,7 @@ namespace Anvil.Tests
 			Assert.False(s.StormCellsShowTracks);
 			Assert.False(s.StormCellsShowHail);
 			Assert.False(s.PastWatchesShowTornado);
+			Assert.Equal(new[] { "mcd" }, s.DiscussionsHiddenKinds);
 			Assert.Null(s.WatchesShowTornado);              // the NowCast watch ticks were not touched
 			Assert.Equal(2, s.PastOutlookDay);
 			Assert.Equal("Categorical", s.PastOutlookProduct);

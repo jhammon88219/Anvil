@@ -107,6 +107,7 @@ try {
     var DamageSurveys = null;
     var StormCells = null;
     var PastAlerts = null;
+    var Discussions = null;
     var Markers = null;
     var RadarSites = null;
     var States = null;
@@ -126,6 +127,7 @@ try {
         if (Watches) Watches.reAdd(map);                 // re-add the watch layers (data is still in memory)
         if (Warnings) Warnings.reAdd(map);               // re-add the warning polygons (above the watches)
         if (PastAlerts) PastAlerts.reAdd(map);           // PastCast's own watches + warnings (same groups as the live pair)
+        if (Discussions) Discussions.reAdd(map);         // mesoscale discussions (SPC MD + WPC MPD areas)
         if (DamageSurveys) DamageSurveys.reAdd(map);     // NWS damage surveys (under labels, so under the report dots)
         if (StormReports) StormReports.reAdd(map);       // re-add the storm-report dots (top of the stack)
         if (StormCells) StormCells.reAdd(map);           // radar storm cells: tracks, TVS, meso, hail (restack orders them)
@@ -512,6 +514,17 @@ try {
     window.setPastAlertKinds = function (kind, torn, severe, flashFlood) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setKinds(m, kind, phenomKinds(torn, severe, flashFlood)); }); };
     window.setPastAlertOpacity = function (kind, o) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setOpacity(m, kind, o); }); };
     window.setPastAlertTime = function (ms) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setTime(m, ms); }); };
+
+    // Mesoscale discussions (discussions.js): the window's MDs/MPDs, shown as in effect at a moment; a click
+    // posts 'discussionPicked'. focusDiscussion is an animated camera move → PRIMARY only.
+    import('./discussions.js').then(function (m) { Discussions = m; }).catch(function (e) { console.error('discussions.js load failed: ' + e); });
+    window.setDiscussionsSource = function (url) { if (Discussions) forEachMap(function (m) { Discussions.setSource(m, url); }); };
+    window.setDiscussionKinds = function (csv) { if (Discussions) forEachMap(function (m) { Discussions.setKinds(m, csv); }); };
+    window.setDiscussionTime = function (ms) { if (Discussions) forEachMap(function (m) { Discussions.setTime(m, ms); }); };
+    window.setDiscussionsOpacity = function (o) { if (Discussions) forEachMap(function (m) { Discussions.setOpacity(m, o); }); };
+    window.setDiscussionSelected = function (key) { if (Discussions) forEachMap(function (m) { Discussions.setSelected(m, key); }); };
+    window.focusDiscussion = function (key) { if (Discussions && primary()) Discussions.focus(primary(), key); };
+    window.clearDiscussions = function () { if (Discussions) forEachMap(function (m) { Discussions.clear(m); }); };
 
     // Animated camera moves go to the PRIMARY only; onPaneMove mirrors them to the other panes as they
     // play, so the panes stay locked without four animations fighting each other.

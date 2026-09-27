@@ -54,7 +54,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion)
 		{
 			_mapService = mapService;
 			_styleProvider = styleProvider;
@@ -79,6 +79,7 @@ namespace Anvil.ViewModels
 			DamageSurveys = new DamageSurveysViewModel(mapService, damageSurveyService, Radar, loggerFactory.CreateLogger<DamageSurveysViewModel>());
 			StormCells = new StormCellsViewModel(mapService, stormCellService, Radar, dispatcher, loggerFactory.CreateLogger<StormCellsViewModel>());
 			PastAlerts = new PastAlertsViewModel(mapService, pastAlertService, Radar, loggerFactory.CreateLogger<PastAlertsViewModel>());
+			Discussions = new MesoDiscussionsViewModel(mapService, discussionService, Radar, dispatcher, loggerFactory.CreateLogger<MesoDiscussionsViewModel>());
 			Markers = new MarkersViewModel(mapService, locationService);
 			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
 			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
@@ -96,7 +97,7 @@ namespace Anvil.ViewModels
 			// Every temporal-window choice (ticks, opacities, outlook pickers) comes back from settings and is
 			// saved as it changes. Before map-ready on purpose — see the class remarks.
 			TemporalWindowPersistence.Attach(settingsService.Settings, Radar, Warnings, Watches, StormReports,
-				DamageSurveys, PastOutlook, Outlook, StormCells, PastAlerts);
+				DamageSurveys, PastOutlook, Outlook, StormCells, PastAlerts, Discussions);
 
 			// The temporal SESSION: window pin + lock now; modes + open windows at map-ready. See that region.
 			RestoreWindowChrome();
@@ -233,6 +234,10 @@ namespace Anvil.ViewModels
 		/// <summary>PastCast's warnings + watches, as in effect at the displayed frame of the loaded replay
 		/// (IEM VTEC archive). Its own layers — never the live ones.</summary>
 		public PastAlertsViewModel PastAlerts { get; }
+
+		/// <summary>SPC mesoscale + WPC precipitation discussions: areas on the map, a list and a reader. Now
+		/// and Past (Past follows the scrubber).</summary>
+		public MesoDiscussionsViewModel Discussions { get; }
 
 		/// <summary>The map markers + user-location subsystem view model (locate action + marker editor).</summary>
 		public MarkersViewModel Markers { get; }
@@ -674,6 +679,7 @@ namespace Anvil.ViewModels
 			DamageSurveys.IsModeActive = IsPastCast;
 			StormCells.IsModeActive = IsNowCast || IsPastCast;
 			PastAlerts.IsModeActive = IsPastCast;
+			Discussions.IsModeActive = IsNowCast || IsPastCast;
 
 			PushOverlayOrder(); // Past and Now keep separate stacks, so a mode change can swap which one draws
 		}
@@ -1353,6 +1359,7 @@ namespace Anvil.ViewModels
 			await DamageSurveys.OnMapsReadyAsync(); // no Shutdown: it has no loop
 			await StormCells.OnMapsReadyAsync();
 			await PastAlerts.OnMapsReadyAsync(); // no Shutdown: it has no loop
+			await Discussions.OnMapsReadyAsync();
 			await StateIso.OnMapsReadyAsync();
 			await Basemap.OnMapsReadyAsync(); // after isolation, so a hidden map repaints the mask blank
 			RadarNws.Start(); // the launch NWS status check — fire-and-forget, it touches no map
@@ -1397,6 +1404,7 @@ namespace Anvil.ViewModels
 			Warnings.Shutdown();
 			StormReports.Shutdown();
 			StormCells.Shutdown();
+			Discussions.Shutdown();
 			RadarNws.Shutdown();
 			SiteUsage.Shutdown(); // bank the running site-hours stretch
 		}

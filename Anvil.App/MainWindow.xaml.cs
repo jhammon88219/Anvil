@@ -415,6 +415,7 @@ namespace Anvil
 		private readonly IDamageSurveyService _damageSurveyService;
 		private readonly IStormCellService _stormCellService;
 		private readonly IPastAlertService _pastAlertService;
+		private readonly IMesoDiscussionService _discussionService;
 
 		// Level II radar data layer (fetch + cache of .V06 volumes). Kept here because
 		// MainWindow owns the WebView2 host mapping for its cache folder.
@@ -442,6 +443,7 @@ namespace Anvil
 			IDamageSurveyService damageSurveyService,
 			IStormCellService stormCellService,
 			IPastAlertService pastAlertService,
+			IMesoDiscussionService discussionService,
 			ILevel2RadarService radarService,
 			ISettingsService settingsService,
 			WindowManager windows,
@@ -461,6 +463,7 @@ namespace Anvil
 			_damageSurveyService = damageSurveyService;
 			_stormCellService = stormCellService;
 			_pastAlertService = pastAlertService;
+			_discussionService = discussionService;
 			_radarService = radarService;
 			_settingsService = settingsService;
 			_windows = windows;
@@ -629,6 +632,7 @@ namespace Anvil
 			ViewModel.Warnings.StartBackgroundRefresh();
 			ViewModel.StormReports.StartBackgroundRefresh();
 			ViewModel.StormCells.StartBackgroundRefresh();
+			ViewModel.Discussions.StartBackgroundRefresh();
 
 			// Write a final flush + report on close so the run's last events aren't lost between
 			// the ~2 s background flushes. Also latch _isClosed and drop the layout hook FIRST - the
@@ -765,7 +769,7 @@ namespace Anvil
 			// Map each virtual host → local folder so the page can fetch everything offline, same-origin:
 			//   mapassets  → bundled MapLibre style/glyphs/sprites/libraries
 			//   mapdata    → the user-configured (external, ~29 GB) basemap PMTiles folder
-			//   spcoutlooks/spcwatches/warnings/stormreports/damagesurveys/stormcells/pastalerts/radarlevel2 → the services' on-disk caches
+			//   spcoutlooks/spcwatches/warnings/stormreports/damagesurveys/stormcells/pastalerts/discussions/radarlevel2 → the services' on-disk caches
 			//   dowevents  → the user's imported DOW (mobile-radar) frame library (%LocalAppData%)
 			// Services own their cache folders; MainWindow owns the WebView2 mappings.
 			var hostFolders = new (string Host, string Folder)[]
@@ -779,6 +783,7 @@ namespace Anvil
 				(DamageSurveyService.CacheHostName, _damageSurveyService.CacheDirectory),
 				(StormCellService.CacheHostName, _stormCellService.CacheDirectory),
 				(PastAlertService.CacheHostName, _pastAlertService.CacheDirectory),
+				(MesoDiscussionService.CacheHostName, _discussionService.CacheDirectory),
 				(Level2RadarService.CacheHostName, _radarService.CacheDirectory),
 				(DowEventProvider.HostName, DowEventProvider.EventsDirectory),
 			};

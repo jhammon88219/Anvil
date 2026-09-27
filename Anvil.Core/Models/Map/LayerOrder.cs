@@ -22,9 +22,10 @@ namespace Anvil.Models
 		public const string Reports = "reports";
 		public const string Damage = "damage";
 		public const string Cells = "cells";
+		public const string Discussions = "mds";
 
 		private static readonly HashSet<string> Known =
-			new(StringComparer.Ordinal) { Radar, Outlook, Watches, Warnings, Reports, Damage, Cells };
+			new(StringComparer.Ordinal) { Radar, Outlook, Watches, Warnings, Reports, Damage, Cells, Discussions };
 
 		/// <summary>Drops unknown and repeated ids, so a hand-edited or older settings file can't send the
 		/// page a group it doesn't have.</summary>

@@ -59,6 +59,7 @@ const GROUPS = [
     ['damage',   ['dat-']],
     ['warnings', ['nws-warning-', 'past-warning-']], // live + PastCast's own (past-alerts.js): one group
     ['watches',  ['spc-watch-', 'past-watch-']],
+    ['mds',      ['md-']],                       // discussions.js: SPC MD + WPC MPD areas
     ['outlook',  ['spc-outlook-']],
     ['radar',    ['level2-', 'radar-ruler-']],   // the WebGL layer + its range rings, sweep and ruler
 ];
