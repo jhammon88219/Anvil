@@ -124,12 +124,15 @@ namespace Anvil.Controls.Composites
 		/// otherwise) and a product that is not None (nothing to tune).</summary>
 		public bool OutlookDetailEnabled(bool loaded, bool hasOutlook) => loaded && hasOutlook;
 
+		/// <summary>The outlook's header opacity additionally greys while the box hides it.</summary>
+		public bool OutlookOpacityEnabled(bool loaded, bool shownOnMap) => loaded && shownOnMap;
+
 		private static object? Lookup(string key) =>
 			Application.Current.Resources.TryGetValue(key, out var value) ? value : null;
 
 		// Header select-all boxes, same contract as NowCastTab's: IsChecked is bound ONE-WAY, so the box has
-		// already flipped itself by the time Click fires and the VM's answer overwrites it. Only the two
-		// sections that are a map layer have one.
+		// already flipped itself by the time Click fires and the VM's answer overwrites it. Every layer
+		// section has one (the outlook's is show/hide, disabled while Product is None).
 		private void OnRadarHeaderClick(object sender, RoutedEventArgs e)
 		{
 			if (ViewModel?.Radar is RadarViewModel radar)
@@ -158,6 +161,9 @@ namespace Anvil.Controls.Composites
 
 		private void OnDamageSurveysHeaderClick(object sender, RoutedEventArgs e) =>
 			ViewModel?.DamageSurveys.ToggleAll();
+
+		private void OnOutlookHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.PastOutlook.ToggleShown();
 
 		// x:Bind helper for the damage-survey rows' counts.
 		public string Count(int n) => n.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -197,33 +203,6 @@ namespace Anvil.Controls.Composites
 		public Visibility HasText(string? value) =>
 			string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
 
-		public Visibility VisibleWhen(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
-
-		public Visibility HiddenWhen(bool on) => on ? Visibility.Collapsed : Visibility.Visible;
-
-		// ===== DOW event section =====
-		// ⚠️ Import raises an event instead of showing the picker: a WinRT FileOpenPicker must be
-		// initialized with a window HWND, and this is a UserControl inside another UserControl
-		// (TemporalWindow) hosted in a window by WindowManager. So the request bubbles up to MainWindow,
-		// the same chain the Map settings tab uses for the basemap folder.
-		public event EventHandler? ImportDowEventRequested;
-
-		private void OnImportDowClick(object sender, RoutedEventArgs e) =>
-			ImportDowEventRequested?.Invoke(this, EventArgs.Empty);
-
-		private async void OnLoadDowClick(object sender, RoutedEventArgs e)
-		{
-			if (ViewModel is { } vm) await vm.Radar.Dow.LoadDowEventAsync();
-		}
-
-		private async void OnClearDowClick(object sender, RoutedEventArgs e)
-		{
-			if (ViewModel is { } vm) await vm.Radar.Dow.ClearDowEventAsync();
-		}
-
-		private async void OnRemoveDowClick(object sender, RoutedEventArgs e)
-		{
-			if (ViewModel is { } vm) await vm.Radar.Dow.RemoveSelectedAsync();
-		}
+		// (The DOW event section moved to the Atlas's DOW events tab — Composites/DowEventsAtlasTab.)
 	}
 }

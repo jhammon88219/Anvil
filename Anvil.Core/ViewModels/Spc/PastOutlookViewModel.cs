@@ -68,6 +68,7 @@ namespace Anvil.ViewModels
 				_selectedProductOption = ProductOptions.FirstOrDefault(o => o.Type == keepType) ?? ProductOptions[0];
 				OnPropertyChanged(nameof(SelectedProductOption));
 				OnPropertyChanged(nameof(HasOutlook)); // the cascade can drop a product this day lacks
+				OnPropertyChanged(nameof(ShownOnMap));
 				RebuildCycleOptions();
 				_selectedCycleOption = CycleOptions[0];
 				OnPropertyChanged(nameof(SelectedCycleOption));
@@ -113,6 +114,7 @@ namespace Anvil.ViewModels
 				if (value is null || _selectedProductOption == value) return;
 				SetProperty(ref _selectedProductOption, value);
 				OnPropertyChanged(nameof(HasOutlook)); // "None" is the section's off switch
+				OnPropertyChanged(nameof(ShownOnMap));
 				_ = ApplyAsync();
 			}
 		}
@@ -161,6 +163,36 @@ namespace Anvil.ViewModels
 			opts.AddRange(CandidateCycles(SelectedDay).Select(c => new PastCycleOption($"{c:D2}Z", c)));
 			_cycleOptions = opts;
 			OnPropertyChanged(nameof(CycleOptions));
+		}
+
+		// ── Show / hide (the section header's box) ──
+		// ⚠️ SEPARATE FROM THE PRODUCT PICK on purpose: hiding keeps Day / Product / Cycle as they are, so
+		// ticking the box back brings the SAME outlook back (the fetch is cached — no re-download). "None"
+		// is still "no product"; this is "a product, not drawn right now".
+
+		private bool _isShown = true;
+		/// <summary>Whether the picked outlook is drawn. Default true.</summary>
+		public bool IsShown
+		{
+			get => _isShown;
+			set
+			{
+				if (SetProperty(ref _isShown, value))
+				{
+					OnPropertyChanged(nameof(ShownOnMap));
+					_ = ApplyAsync();
+				}
+			}
+		}
+
+		/// <summary>The header box: ticked only while a product is picked AND shown.</summary>
+		public bool ShownOnMap => _isShown && HasOutlook;
+
+		/// <summary>The header box's click. With no product there is nothing to show, so it stays off.</summary>
+		public void ToggleShown()
+		{
+			if (!HasOutlook) { OnPropertyChanged(nameof(ShownOnMap)); return; } // re-assert the one-way box
+			IsShown = !_isShown;
 		}
 
 		// ── Opacity ──
@@ -288,6 +320,12 @@ namespace Anvil.ViewModels
 			}
 
 			var day = SelectedDay;
+			if (!_isShown)
+			{
+				await _mapService.ClearOutlookAsync();
+				SetCard(_selectedProductOption.Label, $"Day {day}", "Hidden — tick the box to draw it");
+				return;
+			}
 			// ⚠️ THE LOADED WINDOW, NOT THE PICKERS. Between editing a date and pressing Load the two describe
 			// different days, and following the pickers fetched an outlook for a day that was not on the map.
 			// Same rule the storm reports follow; both overlays key to what is actually loaded.

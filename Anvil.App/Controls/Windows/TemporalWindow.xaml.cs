@@ -59,20 +59,8 @@ namespace Anvil.Controls.Windows
 		// registration sets it, and a window is a fresh instance every time it opens. The guard below is what
 		// keeps a second property assignment from throwing the body (and the live widget state inside
 		// PastCastTab) away and rebuilding it.
-		/// <summary>
-		/// Raised when the PastCast body's DOW Import… is clicked, relayed straight up to MainWindow — the
-		/// file picker needs a window HWND and neither this control nor the body has one.
-		/// </summary>
-		public event EventHandler? ImportDowEventRequested;
-
-		// The PastCast body is built in code (see ApplyMode), so its event is wired at construction here
-		// rather than in XAML.
-		private PastCastTab BuildPastBody()
-		{
-			var body = new PastCastTab { ViewModel = ViewModel };
-			body.ImportDowEventRequested += (_, _) => ImportDowEventRequested?.Invoke(this, EventArgs.Empty);
-			return body;
-		}
+		// (The DOW Import relay that lived here went with the DOW section to the Atlas's DOW events tab.)
+		private PastCastTab BuildPastBody() => new() { ViewModel = ViewModel };
 
 		private void ApplyMode()
 		{

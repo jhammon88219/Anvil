@@ -7,18 +7,16 @@
      control, unchanged by the split; renaming all three would be churn. Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────┐
-       │     ⌄   Timeframe                                    │  ← 28 px PanelSection headers;
-       │                                                      │     non-layer titles reserve the
-       │                                                      │     grip + box columns to line up
-       │  ┌──────────────────────────────────────────┐        │
-       │  │ Tue May 24, 2011              │  Load    │        │
-       │  │ 5:00 PM → 7:00 PM             │          │        │  the CARD previews what Load
-       │  │ 28 frames loaded              │          │        │  will do; its footer reports
-       │  └──────────────────────────────────────────┘        │
+       │  ┌──────────────────────────────────────────┐        │  ← TIMEFRAME: FIXED at the top, no
+       │  │ Tue May 24, 2011              │  Load    │        │     header, can't collapse (12 px
+       │  │ 5:00 PM → 7:00 PM             │          │        │     inset = a section body's)
+       │  │ 28 frames loaded              │          │        │  the CARD previews what Load
+       │  └──────────────────────────────────────────┘        │  will do; its footer reports
        │  ──────────────────────────────────────────          │  whether that is on the map
        │  Date    [ May 24, 2011              ▾]              │
        │  Start   [ 5:00 PM                   ▾]              │  ← the PICKERS (ViewModel.Radar)
        │  Window  [30m│1h│▓▓2h▓▓│3h│6h│12h]                   │
+       │                                                      │  ← 24 px gap before the sections
        │ ⠿ › [x] Storm cells    ──────────●  100%             │  ┐ the LAYER RUN: top of the list
        │ ⠿ › [x] Storm reports  ──────────●  100%             │  │
        │ ⠿ ⌄ [-] Damage surveys ──────●────   70%             │  │ = top of the map; drag by ⠿ to
@@ -33,27 +31,21 @@
        │ ⠿ › [x] Warnings       ──────────●  100%             │  │ as in effect at the FRAME on
        │ ⠿ › [x] Watches        ──────────●  100%             │  │ screen (IEM VTEC archive)
        │ ⠿ › [x] Mesoscale discussions ───●  100%             │  │ MDs + MPDs: areas + a reader
-       │ ⠿ ›     SPC outlook    ───────●───   55%             │  │ no box: Product None = off
+       │ ⠿ › [x] SPC outlook    ───────●───   55%             │  │ box = show/hide; greyed at None
        │ ⠿   [x] Radar          ──────────●─   85%            │  ┘ header only
-       │     ›   DOW event                                    │  ← a STANDALONE mobile-radar
        └──────────────────────────────────────────────────────┘
 
-     ⚠️ THE DOW SECTION IS LAST AND IS NOT PART OF THE Z-ORDER above it. Every other section here layers
-     something over the replay loop; a DOW frame REPLACES it (radar.js showDow resets frames[] and takes the
-     layer), so it is not "another overlay" and must not be filed among them. It lives in PastCast because a
-     curated mobile-radar frame is a past event, and because this mode is already not running a live loop.
-     ⚠️ Loading one WIPES a loaded replay window, and pressing Load in Timeframe wipes the DOW frame back.
-     That is inherent — there is one radar layer — and the section says so rather than trying to prevent it.
+     ⚠️ THE DOW EVENT SECTION IS GONE (2026-09-27) — it is the Anvil Atlas's DOW events tab now
+     (Composites/DowEventsAtlasTab). Its Show still turns PastCast on first. Don't re-add it here.
 
      Laid out ENTIRELY with grids (rows/columns, no StackPanels) so rows are easy to add/rearrange: a fixed
      [label | control] outer grid, one row per field.
 
-     EVERY SECTION IS A Primitives/PanelSection — header = grip (layers only) + chevron + an optional
-     select-all box + the title + (layers only) the OPACITY slider; body = its controls, SettingsFieldLabelStyle
-     rows in one aligned label column. Timeframe is the only one open on load: it is the section you came to
-     use, and the others act on a window it has to load first. That is the FIRST-run state: open/closed is
-     PERSISTED per section (PanelSection.PersistExpansion → AppSettings.SectionExpanded, "past/..."), as is
-     every tick, opacity and outlook pick here (ViewModels/Map/TemporalWindowPersistence).
+     EVERY SECTION IS A Primitives/PanelSection — header = grip + chevron + a select-all box + the title +
+     the OPACITY slider; body = its controls, SettingsFieldLabelStyle rows in one aligned label column.
+     Timeframe is NOT a section: it is what every section acts on, so it sits fixed above them. Sections start
+     closed; open/closed is PERSISTED per section (PanelSection.PersistExpansion → AppSettings.SectionExpanded,
+     "past/..."), as is every tick, opacity and outlook pick here (ViewModels/Map/TemporalWindowPersistence).
      ⚠️ THE LAYER RUN'S ORDER IS THE MAP'S Z-ORDER, and the user owns it: drag a layer section by its grip
      (or Alt+Up/Down) and OnSectionsReordered hands the order to MapViewModel.SetLayerOrder, which saves it
      (AppSettings.PastCastLayerOrder — separate from NowCast's) and restacks the map. The XAML order is the
@@ -65,11 +57,9 @@
      before) are what buy the closed stack back.
 
      ⚠️ THE HEADER CHECKBOX IS A SELECT-ALL, exactly as in NowCastTab: IsChecked is ONE-WAY and the Click
-     hands the decision to the view model, whose answer overwrites the box's own toggle. Only the two
-     sections that ARE a layer carry one — Radar (RadarViewModel.ShowRadarLayer), Damage surveys and
-     Storm reports (ToggleAll / AllShown). Timeframe and DOW event are not layers, and SPC outlook has no
-     boolean to bind: its Product = None IS its off switch. Those three set ReserveLayerColumns (or, for the
-     outlook, just leave the box column empty) so every title in the window lines up.
+     hands the decision to the view model, whose answer overwrites the box's own toggle. Every section carries
+     one. The SPC outlook's is SHOW/HIDE (PastOutlookViewModel.IsShown, ToggleShown), separate from its
+     Product pick: None still means "no product" and greys the box out.
      Clicking a box does not expand/collapse.
 
      ⚠️ THE HEIGHT IS NOT THIS WINDOW'S TO SET: Styles.xaml SectionHeaderHeight, app-wide.
@@ -78,7 +68,7 @@
      / PastEventRangeText), so they describe what Load WILL do; only the footer describes what already
      happened. Do not re-point them at the loaded window — the split between the two is the entire reason
      the card can show a stale selection honestly.
-       • Timeframe (row 0, ViewModel.Radar) — a CalendarDatePicker on the PastEventDate facade, a TimePicker
+       • Timeframe (root row 0, ViewModel.Radar) — a CalendarDatePicker on the PastEventDate facade, a TimePicker
          bound straight to PastEventTime, and a SegmentedPicker on PastEventDurationIndex. No element names
          are load-bearing here any more; there is no widget-sync code left to reach them.
      The layer sections run in the map's Z-ORDER (top of the list on top) and each layer's opacity lives in
@@ -86,7 +76,7 @@
        • Historical outlook (ViewModel.PastOutlook) — a card over Day / Product / Cycle; opacity in the header.
          Selecting a product fetches the archived issuance for the entered replay date and overlays it on
          the past radar; there is no Load, so the card is a RESULT rather than a preview.
-         ⚠️ Cycle and the header Opacity are DISABLED while Product is None — None is that section's off switch.
+         ⚠️ Cycle is DISABLED while Product is None; the header Opacity also while the box hides it.
          ⚠️ Days 1-3 is a PRODUCT BOUNDARY (SPC has no categorical past day 3), not an arbitrary cap; see
          the note on that row before widening it.
      Storm reports stay a separate control — the NowCast tab shows the same block, so it is content of TWO
@@ -108,10 +98,13 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <!-- ⚠️ A StackPanel, not a Grid of rows: the sections' CHILD ORDER is the display order, which is what
-         a drag re-arranges. The four layer sections must stay ONE contiguous run (PanelSection.ApplyLayerOrder
-         assumes it); Timeframe and DOW event are the walls around it. -->
-    <StackPanel x:Name="Sections" VerticalAlignment="Top" Spacing="8">
+    <!-- Two rows: the FIXED Timeframe block, then the sections. ⚠️ The VisualStateManager groups live on THIS
+         root (the first element of the UserControl's content) — GoToState looks for them here. -->
+    <Grid VerticalAlignment="Top">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Timeframe: always there, no header, can't be collapsed -->
+            <RowDefinition Height="Auto"/> <!-- the sections -->
+        </Grid.RowDefinitions>
 
         <!-- ⚠️ THE CARD'S TWO ACCENT BRUSHES ARE STATES, NOT x:Bind FUNCTIONS — a correctness fix, not a
              tidy-up. They used to come from code, through Application.Current.Resources.TryGetValue, which
@@ -143,8 +136,10 @@
         </VisualStateManager.VisualStateGroups>
 
         <!-- ===================== TIMEFRAME: the card, then the pickers ===================== -->
-        <prim:PanelSection Header="Timeframe" IsExpanded="True" ReserveLayerColumns="True">
-            <Grid>
+        <!-- ⚠️ NOT A SECTION ANY MORE (2026-09-27): it is what the whole window acts on, so it can't be
+             collapsed or scrolled away. Padding 12 is PanelSection's own body padding, so it sits exactly where
+             it did inside the section; the bottom 24 is the gap before the first section header. -->
+            <Grid Grid.Row="0" Padding="12,12,12,24">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- summary card + Load -->
                     <RowDefinition Height="Auto"/> <!-- rule -->
@@ -249,7 +244,11 @@
                                           ToolTipService.ToolTip="How much of the day to replay, starting at the time above"/>
                 </Grid>
             </Grid>
-        </prim:PanelSection>
+
+    <!-- ⚠️ A StackPanel, not a Grid of rows: the sections' CHILD ORDER is the display order, which is what
+         a drag re-arranges. Every section here is a layer now (Timeframe moved out above, DOW to the Atlas), so
+         the whole panel is the ONE contiguous run PanelSection.ApplyLayerOrder assumes. -->
+    <StackPanel x:Name="Sections" Grid.Row="1" VerticalAlignment="Top" Spacing="8">
 
         <!-- ===================== STORM CELLS ===================== -->
         <!-- The radar's storm-cell attributes for the LOADED window and site, following the scrubber. Shared
@@ -482,14 +481,19 @@
         </prim:PanelSection>
 
         <!-- ===================== SPC OUTLOOK: the card, then the pickers ===================== -->
-        <!-- No header box: the outlook has no boolean to bind — Product = None IS its off switch, so the
-             opacity greys with Cycle while it is None. ReserveLayerColumns keeps the empty box column so
-             the title lines up. -->
+        <!-- The header box is SHOW/HIDE (PastOutlook.IsShown, persisted), separate from the product pick:
+             hiding keeps Day / Product / Cycle, so ticking it back redraws the same outlook from cache.
+             Product = None is still "no product" — the box greys out then (nothing to show). The opacity
+             greys while hidden or None. -->
         <prim:PanelSection Header="SPC outlook" LayerId="outlook" Reordered="OnSectionsReordered"
-                           ReserveLayerColumns="True"
+                           ShowCheckBox="True"
+                           IsCheckBoxEnabled="{x:Bind ViewModel.PastOutlook.HasOutlook, Mode=OneWay}"
+                           IsChecked="{x:Bind ViewModel.PastOutlook.ShownOnMap, Mode=OneWay}"
+                           CheckBoxClick="OnOutlookHeaderClick"
+                           CheckBoxToolTip="Show or hide the outlook (keeps the day, product and cycle you picked)"
                            ShowOpacity="True"
                            OpacityValue="{x:Bind ViewModel.PastOutlook.Opacity, Mode=TwoWay}"
-                           IsOpacityEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
+                           IsOpacityEnabled="{x:Bind OutlookOpacityEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.ShownOnMap), Mode=OneWay}"
                            OpacityToolTip="Outlook fill opacity (outlines stay solid)">
             <Grid>
                 <Grid.RowDefinitions>
@@ -591,59 +595,7 @@
                            IsOpacityEnabled="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
                            OpacityToolTip="Opacity of the radar layer — turn it down to read what is under it"/>
 
-        <!-- ===================== DOW EVENT: a standalone curated mobile-radar frame ===================== -->
-        <!-- The DOW (Doppler on Wheels) Event Viewer: one offline-converted frame (tools/dow_import.py)
-             rendered through the SAME pipeline as NEXRAD - WebGL fill, real-extent range ring, product
-             toggle, Inspect, legend - but with no loop, no live poll and no site machinery.
-             ⚠️ NOT AN OVERLAY, which is why it sits below the Z-ordered sections rather than among them:
-             showing a frame REPLACES the radar layer. Loading one clears a loaded replay and vice versa.
-             ⚠️ THE LIBRARY IS A FOLDER THE APP OWNS (%LocalAppData%\Anvil\DowEvents), and Import COPIES into
-             it. It cannot simply reference the file where it lies: the WebView FETCHES the frame, so it has
-             to be same-origin under the mapped dowevents host. That is also why the app ships with an empty
-             library - these frames are ~20 MB and are no longer packaged.
-             ⚠️ Import… raises an event rather than opening the picker here: a FileOpenPicker needs a window
-             HWND and this is a UserControl. Same chain as the Map tab's folder browse. -->
-        <prim:PanelSection Header="DOW event" ReserveLayerColumns="True">
-            <Grid RowSpacing="8">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- the frame list -->
-                    <RowDefinition Height="Auto"/> <!-- Import / Load / Clear / Remove -->
-                    <RowDefinition Height="Auto"/> <!-- status -->
-                </Grid.RowDefinitions>
-
-                <!-- The library. A ListView rather than a combo: it is the LIBRARY as well as the picker, so
-                     an empty one has to be able to say it is empty. Height-capped for the same reason the
-                     legend is - the window sizes to content once, and this list's length is the user's. -->
-                <ListView Grid.Row="0" MaxHeight="140" SelectionMode="Single"
-                          ItemsSource="{x:Bind ViewModel.Radar.Dow.DowEvents, Mode=OneWay}"
-                          DisplayMemberPath="Label"
-                          SelectedIndex="{x:Bind ViewModel.Radar.Dow.DowEventIndex, Mode=TwoWay}"
-                          Visibility="{x:Bind VisibleWhen(ViewModel.Radar.Dow.HasDowEvents), Mode=OneWay}"/>
-
-                <TextBlock Grid.Row="0" TextWrapping="Wrap"
-                           Text="No frames yet. Convert one with tools/dow_import.py, then Import it."
-                           Style="{StaticResource SettingsFieldLabelStyle}"
-                           Visibility="{x:Bind HiddenWhen(ViewModel.Radar.Dow.HasDowEvents), Mode=OneWay}"/>
-
-                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
-                    <Button Content="Import…" Click="OnImportDowClick"
-                            ToolTipService.ToolTip="Copy a .dow.json frame into the library"/>
-                    <Button Content="Load" Click="OnLoadDowClick"
-                            IsEnabled="{x:Bind ViewModel.Radar.Dow.CanLoad, Mode=OneWay}"
-                            ToolTipService.ToolTip="Show this frame (replaces whatever radar is on the map)"/>
-                    <Button Content="Clear" Click="OnClearDowClick"
-                            IsEnabled="{x:Bind ViewModel.Radar.Dow.IsShowing, Mode=OneWay}"
-                            ToolTipService.ToolTip="Take the DOW frame off the map"/>
-                    <Button Content="Remove" Click="OnRemoveDowClick"
-                            IsEnabled="{x:Bind ViewModel.Radar.Dow.CanLoad, Mode=OneWay}"
-                            ToolTipService.ToolTip="Delete this frame from the library"/>
-                </StackPanel>
-
-                <TextBlock Grid.Row="2" TextWrapping="Wrap"
-                           Text="{x:Bind ViewModel.Radar.Dow.DowStatus, Mode=OneWay}"
-                           Visibility="{x:Bind HasText(ViewModel.Radar.Dow.DowStatus), Mode=OneWay}"
-                           Style="{StaticResource SettingsFieldLabelStyle}"/>
-            </Grid>
-        </prim:PanelSection>
+        <!-- (The DOW event section moved to the Anvil Atlas — Composites/DowEventsAtlasTab, 2026-09-27.) -->
     </StackPanel>
+    </Grid>
 </UserControl>

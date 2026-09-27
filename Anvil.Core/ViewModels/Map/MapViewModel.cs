@@ -871,15 +871,39 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		// ===== The Anvil Atlas: two tabs (Radar sites | Past events) =====================================
-		// Everything you can point the radar at: a PLACE (a site) or a MOMENT (a saved event). The tab is
-		// PERSISTED like the Settings window's. Playing an event is the one cross-subsystem act here, so it
-		// lives on the coordinator: PastCast on (Past excludes Now + Fore), load, close the Atlas.
+		// ===== The Anvil Atlas: three tabs (Radar sites | Past events | DOW events) =======================
+		// Everything you can point the radar at: a PLACE (a site), a MOMENT (a saved event) or a curated
+		// mobile-radar FRAME (DOW, moved here from the PastCast window 2026-09-27 — kept while we find out
+		// whether enough real DOW data exists to be worth it). The tab is PERSISTED like the Settings window's.
+		// Playing an event / showing a DOW frame is the cross-subsystem act here, so it lives on the
+		// coordinator: PastCast on (Past excludes Now + Fore), load, close the Atlas.
 
 		/// <summary>Tab count — the clamp for <see cref="AtlasTabIndex"/>.</summary>
-		public const int AtlasTabCount = 2;
+		public const int AtlasTabCount = 3;
 
-		/// <summary>0 = Radar sites, 1 = Past events. PERSISTED, clamped on the way in.</summary>
+		/// <summary>
+		/// The DOW events tab's Load: PastCast on if needed, show the selected frame, close the Atlas.
+		/// ⚠️ PastCast FIRST because a DOW frame replaces the radar layer, and NowCast's live poll would put
+		/// the live loop straight back over it; PastCast runs no live loop (it arms, it doesn't load).
+		/// </summary>
+		public async Task ShowAtlasDowFrameAsync()
+		{
+			if (!Radar.Dow.CanLoad)
+			{
+				return;
+			}
+			if (!IsPastCast)
+			{
+				IsPastCast = true;
+			}
+			await Radar.Dow.LoadDowEventAsync();
+			if (Radar.Dow.IsShowing)
+			{
+				IsRadarAtlasOpen = false;
+			}
+		}
+
+		/// <summary>0 = Radar sites, 1 = Past events, 2 = DOW events. PERSISTED, clamped on the way in.</summary>
 		public int AtlasTabIndex
 		{
 			get => Math.Clamp(_settingsService.Settings.AtlasTabIndex, 0, AtlasTabCount - 1);

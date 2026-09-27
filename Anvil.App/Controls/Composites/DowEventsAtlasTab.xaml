@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DowEventsAtlasTab — the Anvil Atlas's DOW EVENTS tab: the DOW (Doppler on Wheels) frame library
+     (ViewModel.Radar.Dow), the same frame as the other two tabs (list 360 | 32 gutter | detail). Moved here from
+     the PastCast window's "DOW event" section on 2026-09-27, content unchanged: the frames are things you LOAD,
+     which is what the Atlas is for, and it is still an open question whether enough real DOW data exists to be
+     worth keeping — so it lives here, out of the PastCast stack, until that is settled.
+
+       ┌── list column (360) ──────────┐←32→ detail
+       │ LIBRARY · 3                    │   El Reno 2013-05-31 0003Z                 [▶ Show in PastCast]
+       │▌El Reno 2013-05-31 0003Z       │   One mobile-radar frame, drawn through the NEXRAD pipeline…
+       │▌Moore 2013-05-20 …             │   [Clear] [Remove]
+       │ …                              │   Showing El Reno 2013-05-31 0003Z            ← DowStatus
+       │ [Import…]                      │
+       └────────────────────────────────┘
+       (empty library: "No frames yet. Convert one with tools/dow_import.py, then Import it.")
+
+     ⚠️ A DOW FRAME IS NOT AN OVERLAY: showing one REPLACES the radar layer (radar.js showDow resets frames[]).
+     Show turns PastCast on first (MapViewModel.ShowAtlasDowFrameAsync) — NowCast's live poll would put the
+     live loop straight back over the frame — then closes the Atlas. Pressing Load in PastCast's Timeframe
+     wipes the frame back; there is one radar layer, so that is inherent.
+     ⚠️ SELECTING A ROW DOES NOT LOAD, same rule as Past events.
+     ⚠️ THE LIBRARY IS A FOLDER THE APP OWNS (%LocalAppData%\Anvil\DowEvents), and Import COPIES into it: the
+     WebView FETCHES the frame, so it has to be same-origin under the mapped dowevents host. The app ships an
+     empty library — frames are ~20 MB and are no longer packaged.
+     ⚠️ Import… raises an event rather than opening the picker here: a FileOpenPicker needs a window HWND and this
+     is a UserControl (RadarAtlasWindow forwards it to MainWindow — the Map tab's folder-browse chain). -->
+<UserControl x:Class="Anvil.Controls.Composites.DowEventsAtlasTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid ColumnSpacing="32">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="360"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- LEFT: the library + Import. -->
+        <Grid Grid.Column="0" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- LIBRARY · n -->
+                <RowDefinition Height="*"/>    <!-- the list (or its empty line) -->
+                <RowDefinition Height="Auto"/> <!-- Import -->
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="{x:Bind LibraryHeader(ViewModel.Radar.Dow.DowEvents.Count), Mode=OneWay}"
+                       Style="{StaticResource AtlasFieldLabelStyle}" Margin="10,4,0,0"/>
+
+            <!-- A ListView rather than a combo: it is the LIBRARY as well as the picker, so an empty one has to
+                 be able to say it is empty. -->
+            <ListView Grid.Row="1" SelectionMode="Single"
+                      ItemsSource="{x:Bind ViewModel.Radar.Dow.DowEvents, Mode=OneWay}"
+                      DisplayMemberPath="Label"
+                      SelectedIndex="{x:Bind ViewModel.Radar.Dow.DowEventIndex, Mode=TwoWay}"
+                      Visibility="{x:Bind VisibleWhen(ViewModel.Radar.Dow.HasDowEvents), Mode=OneWay}"/>
+
+            <TextBlock Grid.Row="1" TextWrapping="Wrap" Margin="10,4,0,0"
+                       Text="No frames yet. Convert one with tools/dow_import.py, then Import it."
+                       Style="{StaticResource SettingsFieldLabelStyle}"
+                       Visibility="{x:Bind CollapsedWhen(ViewModel.Radar.Dow.HasDowEvents), Mode=OneWay}"/>
+
+            <Button Grid.Row="2" Click="OnImportClick"
+                    ToolTipService.ToolTip="Copy a .dow.json frame into the library">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon FontSize="14" Glyph="&#xE8B5;"/>
+                    <TextBlock Text="Import…"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <!-- RIGHT: the selected frame and what you can do with it. -->
+        <StackPanel Grid.Column="1" Spacing="12" MaxWidth="760" HorizontalAlignment="Left"
+                    Visibility="{x:Bind VisibleWhen(ViewModel.Radar.Dow.CanLoad), Mode=OneWay}">
+            <Grid ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{x:Bind SelectedLabel(ViewModel.Radar.Dow.SelectedEvent), Mode=OneWay}"
+                           FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Style="{StaticResource AccentButtonStyle}" Click="OnShowClick"
+                        VerticalAlignment="Center"
+                        ToolTipService.ToolTip="PastCast on, then show this frame (it replaces whatever radar is on the map)">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon FontSize="12" Glyph="&#xE768;"/>
+                        <TextBlock Text="Show in PastCast"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <TextBlock TextWrapping="Wrap" Style="{StaticResource SettingsFieldLabelStyle}"
+                       Text="One mobile-radar frame, drawn through the same pipeline as NEXRAD (fill, range ring, product, Inspect, legend) but with no loop. It replaces the radar layer; loading a PastCast timeframe replaces it back."/>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Clear" Click="OnClearClick"
+                        IsEnabled="{x:Bind ViewModel.Radar.Dow.IsShowing, Mode=OneWay}"
+                        ToolTipService.ToolTip="Take the DOW frame off the map"/>
+                <Button Content="Remove" Click="OnRemoveClick"
+                        ToolTipService.ToolTip="Delete this frame from the library"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- The status line sits at the foot of the detail whatever is selected (an import result, a removal). -->
+        <TextBlock Grid.Column="1" VerticalAlignment="Bottom" TextWrapping="Wrap"
+                   Text="{x:Bind ViewModel.Radar.Dow.DowStatus, Mode=OneWay}"
+                   Visibility="{x:Bind VisibleWhenText(ViewModel.Radar.Dow.DowStatus), Mode=OneWay}"
+                   Style="{StaticResource SettingsFieldLabelStyle}"/>
+    </Grid>
+</UserControl>

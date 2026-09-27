@@ -399,6 +399,9 @@ namespace Anvil.Services
 		public int? PastOutlookCycle { get => _pastOutlookCycle; set => SetProperty(ref _pastOutlookCycle, value); }
 		private double? _pastOutlookOpacity;
 		public double? PastOutlookOpacity { get => _pastOutlookOpacity; set => SetProperty(ref _pastOutlookOpacity, value); }
+		private bool? _pastOutlookShown;
+		/// <summary>The section header's show/hide box — separate from the product pick (None = no product).</summary>
+		public bool? PastOutlookShown { get => _pastOutlookShown; set => SetProperty(ref _pastOutlookShown, value); }
 
 		// ForeCast's live outlook.
 		private int? _foreCastOutlookDay;

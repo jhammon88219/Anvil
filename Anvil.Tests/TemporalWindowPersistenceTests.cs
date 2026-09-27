@@ -131,6 +131,8 @@ namespace Anvil.Tests
 			Assert.Null(s.StormCellsShowTracks);
 			Assert.Null(s.DiscussionsHiddenKinds);
 			Assert.Null(s.PastOutlookProduct);
+			Assert.Null(s.PastOutlookShown);
+			Assert.True(rig.PastOutlook.IsShown);
 			Assert.Null(s.ForeCastOutlookProduct);
 		}
 
@@ -147,7 +149,7 @@ namespace Anvil.Tests
 				StormCellsShowTracks = true, StormCellsShowTvs = false, StormCellsShowMeso = true, StormCellsShowHail = false, StormCellsOpacity = 0.65,
 				PastWarningsShowFlashFlood = false, PastWarningsOpacity = 0.7, PastWatchesShowSevere = false,
 				DiscussionsHiddenKinds = new() { "mpd", "no-such-kind" }, DiscussionsOpacity = 0.8,
-				PastOutlookDay = 2, PastOutlookProduct = "ProbabilisticCombined", PastOutlookOpacity = 0.3,
+				PastOutlookDay = 2, PastOutlookProduct = "ProbabilisticCombined", PastOutlookOpacity = 0.3, PastOutlookShown = false,
 				ForeCastOutlookDay = 2, ForeCastOutlookProduct = "Tornado", ForeCastOutlookOpacity = 0.45, ForeCastShowHatching = false,
 			};
 			var rig = new Rig(s);
@@ -180,6 +182,8 @@ namespace Anvil.Tests
 			Assert.Equal(2, rig.PastOutlook.SelectedDayOption.Day);
 			Assert.Equal(SpcOutlookType.ProbabilisticCombined, rig.PastOutlook.SelectedProductOption.Type);
 			Assert.Equal(0.3, rig.PastOutlook.Opacity);
+			Assert.False(rig.PastOutlook.IsShown);
+			Assert.False(rig.PastOutlook.ShownOnMap);
 			Assert.Equal(2, rig.Outlook.SelectedDayOption?.Day);
 			Assert.Equal(SpcOutlookType.Tornado, rig.Outlook.SelectedOption?.Product?.Type);
 			Assert.Equal(0.45, rig.Outlook.OutlookOpacity);
@@ -201,6 +205,7 @@ namespace Anvil.Tests
 			rig.Discussions.Kinds.Single(k => k.Kind.Id == "mcd").IsShown = false;
 			rig.PastOutlook.SelectedDayIndex = 1;           // day 2 cascades product + cycle
 			rig.PastOutlook.SelectedProductOption = rig.PastOutlook.ProductOptions.First(o => o.Type == SpcOutlookType.Categorical);
+			rig.PastOutlook.ToggleShown();                  // header box: shown → hidden
 			rig.Outlook.SelectedOption = rig.Outlook.ProductOptions[0]; // None
 			rig.Outlook.ShowHatching = false;
 
@@ -218,6 +223,8 @@ namespace Anvil.Tests
 			Assert.Equal(2, s.PastOutlookDay);
 			Assert.Equal("Categorical", s.PastOutlookProduct);
 			Assert.Null(s.PastOutlookCycle);                // Auto
+			Assert.False(s.PastOutlookShown);
+			Assert.Equal("Categorical", s.PastOutlookProduct); // hiding kept the pick
 			Assert.Equal("None", s.ForeCastOutlookProduct);
 			Assert.False(s.ForeCastShowHatching);
 		}

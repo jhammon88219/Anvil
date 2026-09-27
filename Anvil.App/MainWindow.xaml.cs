@@ -294,10 +294,7 @@ namespace Anvil
 				// last would have it build the default (Past) body and then throw it away.
 				buildContent: () =>
 				{
-					var w = new Controls.Windows.TemporalWindow { Mode = mode, ViewModel = ViewModel };
-					// Only PastCast's body carries the DOW section; the other two never raise this.
-					w.ImportDowEventRequested += OnImportDowEventRequested;
-					return w;
+					return new Controls.Windows.TemporalWindow { Mode = mode, ViewModel = ViewModel };
 				},
 				title: title, anchor: anchor,
 				keepAboveOwner: () => ViewModel.IsTemporalWindowOnTop(mode),
@@ -305,7 +302,7 @@ namespace Anvil
 				customChrome: true);
 		}
 
-		// Imports a .dow.json mobile-radar frame into the DOW library, for the PastCast window's DOW section.
+		// Imports a .dow.json mobile-radar frame into the DOW library, for the Atlas's DOW events tab.
 		// Here for the same reason as the folder picker below: the picker needs a window HWND, and the body
 		// raising the request is a UserControl inside a UserControl.
 		// ⚠️ The frame is COPIED into %LocalAppData%\Anvil\DowEvents rather than referenced where it sits —
@@ -576,7 +573,12 @@ namespace Anvil
 				id: "sites",
 				isOpen: () => ViewModel.IsRadarAtlasOpen,
 				close: () => ViewModel.IsRadarAtlasOpen = false,
-				buildContent: () => new Controls.Windows.RadarAtlasWindow { ViewModel = ViewModel },
+				buildContent: () =>
+				{
+					var atlas = new Controls.Windows.RadarAtlasWindow { ViewModel = ViewModel };
+					atlas.ImportDowEventRequested += OnImportDowEventRequested; // the DOW events tab
+					return atlas;
+				},
 				title: "Anvil Atlas", anchor: WindowAnchor.Center,
 				keepAboveOwner: () => ViewModel.IsRadarAtlasOnTop,
 				isLocked: () => ViewModel.IsRadarAtlasLocked,

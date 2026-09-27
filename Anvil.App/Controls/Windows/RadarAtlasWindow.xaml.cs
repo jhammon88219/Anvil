@@ -28,7 +28,14 @@ namespace Anvil.Controls.Windows
 		{
 			new() { Glyph = "", Label = "Radar sites", Tooltip = "Every radar the app can load: status, scan, NWS notices and your use" },
 			new() { Glyph = "", Label = "Past events", Tooltip = "Curated and saved storms to replay in PastCast" },
+			// ⚠️ E7F8 is an UNVERIFIED stand-in glyph for a mobile radar — check it renders.
+			new() { Glyph = "", Label = "DOW events", Tooltip = "Doppler on Wheels mobile-radar frames you have imported" },
 		};
+
+		// The DOW tab's Import… needs a file picker, and a picker needs a window HWND: forward to MainWindow.
+		public event EventHandler? ImportDowEventRequested;
+
+		private void OnDowImportRequested(object? sender, EventArgs e) => ImportDowEventRequested?.Invoke(this, EventArgs.Empty);
 
 		public Visibility TabVisibility(int selected, int tab) => selected == tab ? Visibility.Visible : Visibility.Collapsed;
 

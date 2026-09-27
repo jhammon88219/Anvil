@@ -5,13 +5,16 @@
      coordinator MapViewModel (like SettingsWindow): ViewModel.RadarAtlas.* for sites, ViewModel.SavedEvents.*
      for events, ViewModel.AtlasTabIndex for the tab (PERSISTED), ViewModel.IsRadarAtlasOpen for itself.
      ⚠️ THE LINE THAT KEEPS IT AN ATLAS: things you can LOAD. Anything that CONFIGURES the radar (ramps, tilts,
-     rings) belongs in Settings or the notches, never a third tab here. Agreed design: docs/anvil-atlas.md.
+     rings) belongs in Settings or the notches, never a tab here. The third tab, DOW events
+     (Composites/DowEventsAtlasTab), passes that test: a DOW frame is loaded, not configured. Agreed design:
+     docs/anvil-atlas.md.
 
        ┌──────────────────────────────────────────────────────────────────────────────────────┐
        │ [logo] Anvil Atlas             160    45    3  │  204          ░░░ lock pin ─ □ ✕ ░░ │ ← TITLE BAND (raised),
        │ (slot)                        NEXRAD TDWR RES. │ RADAR SITES   ░ reserved 220 px ░░ │   counts FOLLOW THE TAB
-       ├──────────────────────────────────────────────────────────────────────────────────────┤   (types on Past events)
-       │  [📡 Radar sites] [⟲ Past events]                                                    │ ← Primitives/TabStrip
+       ├──────────────────────────────────────────────────────────────────────────────────────┤   (types on Past events,
+       │  [📡 Radar sites] [⟲ Past events] [◉ DOW events]                                     │ ← Primitives/TabStrip;
+       │                                                                                      │   frames on DOW events)
        ├──────────────────────────────────────────────────────────────────────────────────────┤
        ┌── list column (360, NO outline) ──┐←32→ detail (scrolls, capped 760 wide, LEFT-aligned)
        │ [ Search ICAO or name…          ] │   KTLX · Norman, OK  (● Online ⑦) (NEXRAD ⑦) [★] [⌂ Home site] [On map]
@@ -244,6 +247,16 @@
                             <TextBlock Text="CUSTOM" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
                         </StackPanel>
                     </StackPanel>
+
+                    <!-- DOW events: the library's size. -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center"
+                                Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 2), Mode=OneWay}">
+                        <StackPanel>
+                            <TextBlock Text="{x:Bind Count(ViewModel.Radar.Dow.DowEvents.Count), Mode=OneWay}"
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="DOW FRAMES" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                    </StackPanel>
                 </Grid>
 
                 <!-- THE TABS (Primitives/TabStrip, top rail) + the hairline under them. The index is PERSISTED
@@ -259,6 +272,12 @@
                 <comp:PastEventsAtlasTab Grid.Row="2" Margin="16,12,16,14"
                                          ViewModel="{x:Bind ViewModel}"
                                          Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 1), Mode=OneWay}"/>
+
+                <!-- DOW EVENTS — the DOW frame library (moved from PastCast), same frame. Import bubbles up. -->
+                <comp:DowEventsAtlasTab Grid.Row="2" Margin="16,12,16,14"
+                                        ViewModel="{x:Bind ViewModel}"
+                                        ImportRequested="OnDowImportRequested"
+                                        Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 2), Mode=OneWay}"/>
 
                 <!-- RADAR SITES body: list column (left) | detail (right). Side + bottom inset.
                      ⚠️ THE 32 IS THE SEPARATION. There is no rule and no outline between the two regions —
