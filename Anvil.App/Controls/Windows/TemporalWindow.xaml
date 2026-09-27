@@ -5,7 +5,7 @@
 
        ┌─ NowCast ───────────────────────────────[lock][pin]─┐
        │  NowCast                                             │  ← the mode's name, from Mode
-       │  (fixed 480 × full height at an edge — no scroller)  │
+       │  (fixed 480 × full height; the BODY scrolls itself)  │
        │  ┌──────────────────────────────────────────────┐    │
        │  │                                              │    │
        │  │   that mode's body — ONE UserControl from     │    │
@@ -66,9 +66,10 @@
                    FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
-        <!-- ⚠️ NO ScrollViewer. The window opens at the FULL height above the bottom chrome (WindowManager's
-             edge anchors), so a body shorter than that just shows surface below it. A body TALLER than that
-             is clipped at the bottom — the planned hand-rolled scroller is the fix, not a taller window.
+        <!-- ⚠️ NO ScrollViewer HERE. The window opens at the FULL height above the bottom chrome (WindowManager's
+             edge anchors), so a body shorter than that just shows surface below it. A body scrolls ITSELF with
+             Primitives/PanelScroller (PastCast has it; Now/Fore next), because only the body knows what stays
+             fixed — PastCast's Timeframe doesn't scroll, its sections do.
              VerticalContentAlignment Stretch hands the body the full row height: Past/Now top-align their own
              roots and are unaffected, ForeCast stretches so its legend can fill what is left. -->
         <ContentPresenter x:Name="BodyHost" Grid.Row="1" Margin="16,14,16,14"

@@ -185,15 +185,14 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>The header box: ticked only while a product is picked AND shown.</summary>
+		/// <summary>Whether an outlook can actually be on the map: a product is picked AND shown. Gates the
+		/// opacity slider; the header BOX binds <see cref="IsShown"/> alone.</summary>
 		public bool ShownOnMap => _isShown && HasOutlook;
 
-		/// <summary>The header box's click. With no product there is nothing to show, so it stays off.</summary>
-		public void ToggleShown()
-		{
-			if (!HasOutlook) { OnPropertyChanged(nameof(ShownOnMap)); return; } // re-assert the one-way box
-			IsShown = !_isShown;
-		}
+		/// <summary>The header box's click. ⚠️ Works whatever the product, None included (the user's call,
+		/// 2026-09-27): the box is the section's show/hide, and hiding with None picked means a product
+		/// chosen later arrives hidden.</summary>
+		public void ToggleShown() => IsShown = !_isShown;
 
 		// ── Opacity ──
 

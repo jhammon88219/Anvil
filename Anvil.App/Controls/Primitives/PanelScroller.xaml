@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PanelScroller — the app's hand-rolled vertical scroller for panel windows. Built in the PastCast window
+     first; the other panel windows get it next. Wrap a body in it: <prim:PanelScroller> …content… </prim:PanelScroller>.
+
+       ┌─────────────────────────────────────┬──────┐
+       │                                     │  ┃   │  ← THE THUMB: 6 px pill, centred in the gutter.
+       │  content (a ScrollViewer whose own  │  ┃   │    Height = viewport / extent of the track
+       │  bars are HIDDEN — the wheel, touch │  ┃   │    (min 32); rests faint, firms on hover/drag
+       │  and keyboard still scroll it)      │      │
+       │                                     │      │  ← click the empty track = page up / down
+       │                                     │      │
+       └─────────────────────────────────────┴──────┘
+                                              GUTTER (GutterWidth = 14): ALWAYS CLAIMED
+
+     ⚠️ THE GUTTER NEVER COLLAPSES (the user's rule). When the content fits there is no thumb, but the column
+     keeps its width, so opening/closing a section never re-flows the body sideways by a scrollbar's width.
+     ⚠️ IT NEVER CHANGES THE WINDOW'S WIDTH: the gutter comes out of the content's width inside the window.
+     Anything laid out OUTSIDE the scroller that must line up with the content beside it (PastCast's fixed
+     Timeframe block) reserves the same GutterWidth on its right.
+     ⚠️ WHY NOT WinUI's OWN BAR: it is an OVERLAY (the auto-hiding "conscious" scroll indicator) — it claims no
+     space, sits on top of the content's right edge and expands over sliders and % labels on hover. The rule
+     here is the opposite: a fixed lane of its own.
+     ⚠️ The thumb is drawn from THEME brushes in XAML only; code touches geometry and Opacity, never a brush
+     (CLAUDE.md: never resolve a theme brush in C#). -->
+<UserControl x:Class="Anvil.Controls.Primitives.PanelScroller"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition x:Name="GutterColumn" Width="14"/> <!-- set from GutterWidth in code -->
+        </Grid.ColumnDefinitions>
+
+        <!-- Hidden (not Disabled) keeps wheel / touch / keyboard scrolling; only the built-in bar goes. -->
+        <ScrollViewer x:Name="Viewer" Grid.Column="0"
+                      VerticalScrollBarVisibility="Hidden" VerticalScrollMode="Enabled"
+                      HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
+                      ViewChanged="OnViewChanged" SizeChanged="OnGeometryChanged">
+            <ContentPresenter x:Name="Presenter" Content="{x:Bind Body, Mode=OneWay}"
+                              HorizontalContentAlignment="Stretch" VerticalAlignment="Top"
+                              SizeChanged="OnGeometryChanged"/>
+        </ScrollViewer>
+
+        <!-- THE TRACK: transparent, but hit-testable so a click on it pages. The whole gutter is the track. -->
+        <Grid x:Name="Track" Grid.Column="1" Background="Transparent"
+              PointerPressed="OnTrackPressed" SizeChanged="OnGeometryChanged">
+            <Border x:Name="Thumb" Width="6" CornerRadius="3" VerticalAlignment="Top" HorizontalAlignment="Center"
+                    Background="{ThemeResource ControlStrongFillColorDefaultBrush}"
+                    Opacity="0.45" Visibility="Collapsed"
+                    PointerEntered="OnThumbEntered" PointerExited="OnThumbExited"
+                    PointerPressed="OnThumbPressed" PointerMoved="OnThumbMoved"
+                    PointerReleased="OnThumbReleased" PointerCaptureLost="OnThumbCaptureLost">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="ThumbOffset"/>
+                </Border.RenderTransform>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -229,6 +229,23 @@ namespace Anvil.Tests
 			Assert.False(s.ForeCastShowHatching);
 		}
 
+		// The PastCast outlook's header box works whatever the product — None included (the user's call).
+		[Fact]
+		public void PastOutlookBox_TogglesEvenWithNone()
+		{
+			var s = new AppSettings();
+			var rig = new Rig(s);
+			Assert.Null(rig.PastOutlook.SelectedProductOption.Type); // None
+
+			rig.PastOutlook.ToggleShown();
+			Assert.False(rig.PastOutlook.IsShown);
+			Assert.False(s.PastOutlookShown);
+
+			rig.PastOutlook.ToggleShown();
+			Assert.True(rig.PastOutlook.IsShown);
+			Assert.False(rig.PastOutlook.ShownOnMap);                // shown, but nothing picked to draw
+		}
+
 		[Fact]
 		public void SavedValues_SurviveANewSession()
 		{

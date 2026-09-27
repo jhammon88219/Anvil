@@ -17,7 +17,9 @@
        │  Start   [ 5:00 PM                   ▾]              │  ← the PICKERS (ViewModel.Radar)
        │  Window  [30m│1h│▓▓2h▓▓│3h│6h│12h]                   │
        │                                                      │  ← 24 px gap before the sections
-       │ ⠿ › [x] Storm cells    ──────────●  100%             │  ┐ the LAYER RUN: top of the list
+       │ ⠿ › [x] Storm cells    ──────────●  100%          ┃  │  ┐ the LAYER RUN: top of the list
+       │                                                ┃  │  │ ┃ = PanelScroller's thumb, in a
+       │                                                   │  │   14 px gutter that never collapses
        │ ⠿ › [x] Storm reports  ──────────●  100%             │  │
        │ ⠿ ⌄ [-] Damage surveys ──────●────   70%             │  │ = top of the map; drag by ⠿ to
        │     ┌────────────────────────────────────┐           │  │ restack (default order shown)
@@ -31,7 +33,7 @@
        │ ⠿ › [x] Warnings       ──────────●  100%             │  │ as in effect at the FRAME on
        │ ⠿ › [x] Watches        ──────────●  100%             │  │ screen (IEM VTEC archive)
        │ ⠿ › [x] Mesoscale discussions ───●  100%             │  │ MDs + MPDs: areas + a reader
-       │ ⠿ › [x] SPC outlook    ───────●───   55%             │  │ box = show/hide; greyed at None
+       │ ⠿ › [x] SPC outlook    ───────●───   55%             │  │ box = show/hide, any product
        │ ⠿   [x] Radar          ──────────●─   85%            │  ┘ header only
        └──────────────────────────────────────────────────────┘
 
@@ -51,15 +53,16 @@
      (AppSettings.PastCastLayerOrder — separate from NowCast's) and restacks the map. The XAML order is the
      DEFAULT, matching layers.js DEFAULT_ORDER; a saved order is applied over it once, on first load.
      ⚠️ Each LayerId is a Models/Map/LayerOrder id, mirrored in layers.js GROUPS — change all three.
-     ⚠️ The window opens at a FIXED full height (WindowManager's Left anchor), not sized to this body, so
-     opening enough sections can run the body past the window's bottom. Known and accepted for now — a
-     scroller is coming, hand-rolled rather than WinUI's. The compact headers and the 8 px row spacing (24
-     before) are what buy the closed stack back.
+     ⚠️ The window opens at a FIXED full height (WindowManager's Left anchor), not sized to this body, so the
+     SECTIONS scroll inside Primitives/PanelScroller (the app's hand-rolled scroller, built here first; the
+     other panel windows get it next). Timeframe stays put above it. The scroller's 14 px gutter is ALWAYS
+     claimed — no thumb when everything fits, but no sideways re-flow either — and Timeframe reserves the
+     same 14 on its right so the two line up.
 
      ⚠️ THE HEADER CHECKBOX IS A SELECT-ALL, exactly as in NowCastTab: IsChecked is ONE-WAY and the Click
      hands the decision to the view model, whose answer overwrites the box's own toggle. Every section carries
      one. The SPC outlook's is SHOW/HIDE (PastOutlookViewModel.IsShown, ToggleShown), separate from its
-     Product pick: None still means "no product" and greys the box out.
+     Product pick, and live whatever the product (None included).
      Clicking a box does not expand/collapse.
 
      ⚠️ THE HEIGHT IS NOT THIS WINDOW'S TO SET: Styles.xaml SectionHeaderHeight, app-wide.
@@ -100,10 +103,12 @@
 
     <!-- Two rows: the FIXED Timeframe block, then the sections. ⚠️ The VisualStateManager groups live on THIS
          root (the first element of the UserControl's content) — GoToState looks for them here. -->
-    <Grid VerticalAlignment="Top">
+    <!-- ⚠️ STRETCH, and the sections row is STAR: the scroller needs a BOUNDED height to scroll within —
+         TemporalWindow's BodyHost hands this control the full window row. -->
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Timeframe: always there, no header, can't be collapsed -->
-            <RowDefinition Height="Auto"/> <!-- the sections -->
+            <RowDefinition Height="*"/>    <!-- the sections, in the scroller -->
         </Grid.RowDefinitions>
 
         <!-- ⚠️ THE CARD'S TWO ACCENT BRUSHES ARE STATES, NOT x:Bind FUNCTIONS — a correctness fix, not a
@@ -138,8 +143,10 @@
         <!-- ===================== TIMEFRAME: the card, then the pickers ===================== -->
         <!-- ⚠️ NOT A SECTION ANY MORE (2026-09-27): it is what the whole window acts on, so it can't be
              collapsed or scrolled away. Padding 12 is PanelSection's own body padding, so it sits exactly where
-             it did inside the section; the bottom 24 is the gap before the first section header. -->
-            <Grid Grid.Row="0" Padding="12,12,12,24">
+             it did inside the section; the bottom 24 is the gap before the first section header.
+             ⚠️ The RIGHT 26 = that 12 + PanelScroller.GutterWidth (14), so the card lines up with the section
+             bodies below, which sit left of the scroller's always-claimed gutter. Change both. -->
+            <Grid Grid.Row="0" Padding="12,12,26,24">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- summary card + Load -->
                     <RowDefinition Height="Auto"/> <!-- rule -->
@@ -245,10 +252,13 @@
                 </Grid>
             </Grid>
 
-    <!-- ⚠️ A StackPanel, not a Grid of rows: the sections' CHILD ORDER is the display order, which is what
+    <!-- THE SECTIONS SCROLL; Timeframe above them doesn't. Primitives/PanelScroller: its gutter is always
+         claimed, so opening a section never shifts the layout sideways.
+         ⚠️ A StackPanel, not a Grid of rows: the sections' CHILD ORDER is the display order, which is what
          a drag re-arranges. Every section here is a layer now (Timeframe moved out above, DOW to the Atlas), so
          the whole panel is the ONE contiguous run PanelSection.ApplyLayerOrder assumes. -->
-    <StackPanel x:Name="Sections" Grid.Row="1" VerticalAlignment="Top" Spacing="8">
+    <prim:PanelScroller Grid.Row="1">
+    <StackPanel x:Name="Sections" VerticalAlignment="Top" Spacing="8">
 
         <!-- ===================== STORM CELLS ===================== -->
         <!-- The radar's storm-cell attributes for the LOADED window and site, following the scrubber. Shared
@@ -483,12 +493,11 @@
         <!-- ===================== SPC OUTLOOK: the card, then the pickers ===================== -->
         <!-- The header box is SHOW/HIDE (PastOutlook.IsShown, persisted), separate from the product pick:
              hiding keeps Day / Product / Cycle, so ticking it back redraws the same outlook from cache.
-             Product = None is still "no product" — the box greys out then (nothing to show). The opacity
-             greys while hidden or None. -->
+             ⚠️ The box works whatever the product, None included — it never greys. The opacity greys while
+             hidden or None (nothing drawn to fade). -->
         <prim:PanelSection Header="SPC outlook" LayerId="outlook" Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
-                           IsCheckBoxEnabled="{x:Bind ViewModel.PastOutlook.HasOutlook, Mode=OneWay}"
-                           IsChecked="{x:Bind ViewModel.PastOutlook.ShownOnMap, Mode=OneWay}"
+                           IsChecked="{x:Bind ViewModel.PastOutlook.IsShown, Mode=OneWay}"
                            CheckBoxClick="OnOutlookHeaderClick"
                            CheckBoxToolTip="Show or hide the outlook (keeps the day, product and cycle you picked)"
                            ShowOpacity="True"
@@ -597,5 +606,6 @@
 
         <!-- (The DOW event section moved to the Anvil Atlas — Composites/DowEventsAtlasTab, 2026-09-27.) -->
     </StackPanel>
+    </prim:PanelScroller>
     </Grid>
 </UserControl>
