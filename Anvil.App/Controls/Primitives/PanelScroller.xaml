@@ -3,10 +3,10 @@
      first; the other panel windows get it next. Wrap a body in it: <prim:PanelScroller> …content… </prim:PanelScroller>.
 
        ┌─────────────────────────────────────┬──────┐
-       │                                     │  ┃   │  ← THE THUMB: 6 px pill, centred in the gutter.
-       │  content (a ScrollViewer whose own  │  ┃   │    Height = viewport / extent of the track
-       │  bars are HIDDEN — the wheel, touch │  ┃   │    (min 32); rests faint, firms on hover/drag
-       │  and keyboard still scroll it)      │      │
+       │                                     │ ████ │  ← THE THUMB: fills the gutter less 2 px each
+       │  content (a ScrollViewer whose own  │ ████ │    side (10 of 14), rounded ends. Height =
+       │  bars are HIDDEN — the wheel, touch │ ████ │    viewport / extent of the track (min 32);
+       │  and keyboard still scroll it)      │      │    rests faint, firms on hover/drag
        │                                     │      │  ← click the empty track = page up / down
        │                                     │      │
        └─────────────────────────────────────┴──────┘
@@ -48,7 +48,8 @@
         <!-- THE TRACK: transparent, but hit-testable so a click on it pages. The whole gutter is the track. -->
         <Grid x:Name="Track" Grid.Column="1" Background="Transparent"
               PointerPressed="OnTrackPressed" SizeChanged="OnGeometryChanged">
-            <Border x:Name="Thumb" Width="6" CornerRadius="3" VerticalAlignment="Top" HorizontalAlignment="Center"
+            <!-- Stretch + Margin 2: the thumb fills the gutter less 2 px each side (10 of 14). -->
+            <Border x:Name="Thumb" Margin="2,0" CornerRadius="5" VerticalAlignment="Top" HorizontalAlignment="Stretch"
                     Background="{ThemeResource ControlStrongFillColorDefaultBrush}"
                     Opacity="0.45" Visibility="Collapsed"
                     PointerEntered="OnThumbEntered" PointerExited="OnThumbExited"
