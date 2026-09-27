@@ -11,8 +11,8 @@
 //        └──────────────────────────────┘   outline: the kind's outline colour, 2 px
 //        ╔══════════════════════════════╗
 //        ║  the SELECTED one (the one   ║   selected: a dark casing under a 4 px outline, so the one you
-//        ║  the reader shows)           ║   are reading stands out of an overlapping stack
-//        ╚══════════════════════════════╝
+//        ║  the reader shows)           ║   are reading stands out — and it draws EVEN WHEN NOT IN EFFECT
+//        ╚══════════════════════════════╝   at the moment (see baseFilter)
 //
 // ⚠️ KIND_COLORS MIRRORS C# DiscussionKinds (Fill / Outline) — change both. Data colours, never themed.
 // ⚠️ A CLICK YIELDS to every smaller mark with its own popup (report dots, storm cells, survey marks):
@@ -50,18 +50,22 @@ function colorExpr(part) {
     return expr;
 }
 
-// Shown kinds AND in effect at the moment. No moment or no kinds = nothing.
+// Shown kinds AND (in effect at the moment OR the one being read). No kinds = nothing.
+// ⚠️ THE SELECTED DISCUSSION ALWAYS DRAWS, whatever the moment. An MD lives 1–1.5 h, so "in effect at this
+// frame" is empty for much of a replay (El Reno 2011-05-24: nothing at 21:40Z or after 23:15Z, and the
+// Oklahoma MD not issued until 21:48Z) — reading one and not seeing its area was the bug.
 function baseFilter() {
-    if (timeMs == null || !kinds.length) return false;
-    return ['all',
-        ['match', ['get', 'kind'], kinds, true, false],
+    if (!kinds.length) return false;
+    const inEffect = timeMs == null ? false : ['all',
         ['<=', ['to-number', ['get', 't0']], timeMs],
         ['>', ['to-number', ['get', 't1']], timeMs]];
+    const shown = selected ? ['any', inEffect, ['==', ['get', 'key'], selected]] : inEffect;
+    return shown === false ? false : ['all', ['match', ['get', 'kind'], kinds, true, false], shown];
 }
 
 function selectedFilter() {
-    const base = baseFilter();
-    return base === false || !selected ? false : ['all', base, ['==', ['get', 'key'], selected]];
+    if (!kinds.length || !selected) return false;
+    return ['all', ['match', ['get', 'kind'], kinds, true, false], ['==', ['get', 'key'], selected]];
 }
 
 function removeLayers(map) {
