@@ -516,6 +516,89 @@
         </Setter>
     </Style>
 
+    <!-- A SEATED tab (TabStrip.IsSeated — the Anvil Atlas): the strip is the bottom row of a RAISED band.
+         Unselected = transparent on the band, hover = the RAISED hover (a control on a raised tier). Selected =
+         the GROUND (OverlayBarSurfaceBrush, the body's surface) with the top corners rounded and the bottom
+         square, so the tab and the body below read as one surface — the tab IS the indicator (no underline).
+         It stays the ground on hover: lightening it would split it from the body it opens into.
+         Same template shape as SettingsTabKeyStyle; kept beside it on purpose (the house-rule exception above). -->
+    <Style x:Key="SeatedTabKeyStyle" TargetType="ToggleButton">
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="CornerRadius" Value="6,6,0,0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Checked">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedDisabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+
+                        <Border x:Name="Surface"
+                                Background="Transparent"
+                                CornerRadius="{TemplateBinding CornerRadius}"/>
+
+                        <ContentPresenter x:Name="Content"
+                                          Padding="{TemplateBinding Padding}"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- The Anvil Atlas's small-caps field label + value (both tabs — shared, which is why they live here). -->
     <Style x:Key="AtlasFieldLabelStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="11"/>

@@ -64,6 +64,24 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(Placement), typeof(TabPlacement), typeof(TabStrip),
 				new PropertyMetadata(TabPlacement.Top, (d, _) => ((TabStrip)d).ApplyPlacement()));
 
+		/// <summary>SEATED top rail: the strip sits at the bottom of a raised band, and the selected tab is filled
+		/// with the GROUND (the body's surface) and squared off at the bottom, so it reads as an opening into the
+		/// body below — no underline. The Anvil Atlas's title band. Off = the Settings look.</summary>
+		public bool IsSeated
+		{
+			get => (bool)GetValue(IsSeatedProperty);
+			set => SetValue(IsSeatedProperty, value);
+		}
+
+		public static readonly DependencyProperty IsSeatedProperty =
+			DependencyProperty.Register(nameof(IsSeated), typeof(bool), typeof(TabStrip),
+				new PropertyMetadata(false, (d, _) => ((TabStrip)d).ApplyPlacement()));
+
+		/// <summary>The key style for an entry — a static the item template can call (see <see cref="Show"/>).
+		/// Styles are safe to resolve in C#; only theme BRUSHES aren't, and those stay in the style's states.</summary>
+		public static Style KeyStyle(bool seated) =>
+			(Style)Application.Current.Resources[seated ? "SeatedTabKeyStyle" : "SettingsTabKeyStyle"];
+
 		/// <summary>Bool → Visibility for the item template's two indicators. A static so a DataTemplate can
 		/// call it (x:Bind inside a template resolves against the ENTRY, so an instance method here is out of
 		/// reach).</summary>
@@ -92,6 +110,7 @@ namespace Anvil.Controls.Primitives
 			foreach (var entry in Entries)
 			{
 				entry.IsVertical = vertical;
+				entry.IsSeated = IsSeated && !vertical;
 			}
 
 			// ⚠️ ItemsPanelRoot is null until the panel is REALIZED, and the order in which x:Bind pushes

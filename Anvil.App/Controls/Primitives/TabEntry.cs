@@ -80,8 +80,23 @@ namespace Anvil.Controls.Primitives
 			}
 		}
 
-		/// <summary>Selected in a TOP rail: the indicator is an underline on the bottom edge.</summary>
-		public bool ShowUnderline => _isSelected && !_isVertical;
+		private bool _isSeated;
+		/// <summary>Whether the strip is SEATED (<see cref="TabStrip.IsSeated"/>). Written by the strip only; it
+		/// picks the key style and drops the underline — a seated tab's indicator is its ground-coloured face.</summary>
+		public bool IsSeated
+		{
+			get => _isSeated;
+			set
+			{
+				if (SetProperty(ref _isSeated, value))
+				{
+					OnPropertyChanged(nameof(ShowUnderline));
+				}
+			}
+		}
+
+		/// <summary>Selected in a TOP rail: the indicator is an underline on the bottom edge (not when seated).</summary>
+		public bool ShowUnderline => _isSelected && !_isVertical && !_isSeated;
 
 		/// <summary>Selected in a SIDE rail: the indicator is a bar on the leading edge.</summary>
 		public bool ShowSideBar => _isSelected && _isVertical;

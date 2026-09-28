@@ -10,12 +10,12 @@
      docs/anvil-atlas.md.
 
        ┌──────────────────────────────────────────────────────────────────────────────────────┐
-       │ [logo] Anvil Atlas ←35→ 160    45    3  │  204              ░░░ lock pin ─ □ ✕ ░░ │ ← TITLE BAND (raised),
-       │ (slot)                 NEXRAD TDWR RES. │ RADAR SITES       ░ reserved 220 px ░░ │   counts FOLLOW THE TAB
-       ├──────────────────────────────────────────────────────────────────────────────────────┤   (types on Past events,
-       │  [📡 Radar sites] [⟲ Past events] [◉ DOW events]                                     │ ← Primitives/TabStrip;
-       │                                                                                      │   frames on DOW events)
-       ├──────────────────────────────────────────────────────────────────────────────────────┤
+       │ [logo] Anvil Atlas ←35→  204      │  160    45    3        ░░░ lock pin ─ □ ✕ ░░ │ ← THE BAND (raised) holds
+       │ (slot)                RADAR SITES │ NEXRAD TDWR RES.       ░ reserved 220 px ░░ │   title row + tabs row;
+       │ ┌──────────────┐                                                                     │   counts FOLLOW THE TAB,
+       │ │ 📡 Radar sites│  ⟲ Past events   ◉ DOW events                                      │   TOTAL first; TabStrip
+       ├─┘              └─────────────────────────────────────────────────────────────────────┤   IsSeated: selected tab =
+                                                                                                  the GROUND, opens into body
        ┌── list column (360, NO outline) ──┐←32→ detail (scrolls, capped 760 wide, CENTRED)
        │ [ Search ICAO or name…          ] │   KTLX · Norman, OK  (● Online ⑦) (NEXRAD ⑦) [★] [⌂ Home site] [On map]
        │ [⚙ Filters ▾] [☐ Favorites] [Clear all]  ← THE CONTROLS   WSR-88D · 35.333, -97.278 ⑦   ← SUBTITLE
@@ -165,14 +165,19 @@
                     <RowDefinition Height="*"/>    <!-- body: the selected tab -->
                 </Grid.RowDefinitions>
 
-                <!-- THE TITLE BAND — full width, over the tabs. Content extends into the title bar (the native
+                <!-- THE BAND's SURFACE — one raised plate behind BOTH the title row and the tabs row, so the tabs
+                     live inside the band. It ends where the tabs end; the ground (the body) starts right below,
+                     and the selected tab (TabStrip IsSeated) is filled with that ground, opening into the body. -->
+                <Border Grid.Row="0" Grid.RowSpan="2" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+
+                <!-- THE TITLE ROW — full width, over the tabs. Content extends into the title bar (the native
                      caption shows only its buttons), so the band IS the window's title.
                      ⚠️ Its right 220 px are RESERVED: the lock + pin (Margin 178 / 140 from the right) and the
                      caption buttons sit over that corner, so the counts end before it.
                      ⚠️ The counts FOLLOW THE TAB (networks on Radar sites, types on Past events) and describe the
-                     WHOLE Atlas, never the filtered list — the result count under the filters answers the search. -->
-                <Grid Grid.Row="0" Padding="16,12,0,12" ColumnSpacing="14"
-                      Background="{ThemeResource OverlayBarSurfaceRaisedBrush}">
+                     WHOLE Atlas, never the filtered list — the result count under the filters answers the search.
+                     The TOTAL leads, then a rule, then its parts. -->
+                <Grid Grid.Row="0" Padding="16,12,0,8" ColumnSpacing="14">
                     <!-- The counts sit LEFT, right after the name: 35 px from it = the counts' Margin 21 + this
                          Grid's ColumnSpacing 14 (change both together). The * column is the empty middle. -->
                     <Grid.ColumnDefinitions>
@@ -194,11 +199,17 @@
                     <TextBlock Grid.Column="1" Text="Anvil Atlas" VerticalAlignment="Center"
                                FontSize="22" FontWeight="SemiBold"/>
 
-                    <!-- Radar sites: per network, rule, total. -->
+                    <!-- Radar sites: TOTAL first, rule, then per network. -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center"
                                 Margin="21,0,0,0"
                                 Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 0), Mode=OneWay}">
-                        <StackPanel HorizontalAlignment="Right">
+                        <StackPanel>
+                            <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.ShownSiteCount), Mode=OneWay}"
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="RADAR SITES" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                        <Border Width="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <StackPanel>
                             <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.NexradCount), Mode=OneWay}"
                                        FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
                             <TextBlock Text="NEXRAD" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
@@ -213,18 +224,18 @@
                                        FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
                             <TextBlock Text="RESEARCH" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
                         </StackPanel>
-                        <Border Width="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                        <StackPanel>
-                            <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.ShownSiteCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                            <TextBlock Text="RADAR SITES" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
-                        </StackPanel>
                     </StackPanel>
 
-                    <!-- Past events: per type, rule, total, custom. A custom event counts in its type too. -->
+                    <!-- Past events: TOTAL first, rule, then per type + custom. A custom event counts in its type too. -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center"
                                 Margin="21,0,0,0"
                                 Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 1), Mode=OneWay}">
+                        <StackPanel>
+                            <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.TotalCount), Mode=OneWay}"
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="PAST EVENTS" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                        <Border Width="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                         <StackPanel>
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.TornadoCount), Mode=OneWay}"
                                        FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
@@ -239,12 +250,6 @@
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.DerechoCount), Mode=OneWay}"
                                        FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
                             <TextBlock Text="DERECHO" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
-                        </StackPanel>
-                        <Border Width="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                        <StackPanel>
-                            <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.TotalCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                            <TextBlock Text="PAST EVENTS" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.CustomCount), Mode=OneWay}"
@@ -265,14 +270,13 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- THE TABS (Primitives/TabStrip, top rail) + the hairline under them. The index is PERSISTED
-                     (MapViewModel.AtlasTabIndex); the bodies below switch on it and stay loaded. -->
-                <ctl:TabStrip Grid.Row="1" Margin="12,6,12,0"
-                              HorizontalAlignment="Left" VerticalAlignment="Top"
+                <!-- THE TABS (Primitives/TabStrip, top rail, SEATED) — the band's bottom row, sitting ON the band's
+                     bottom edge (no bottom margin, no hairline: the ground/raised edge is the separation). The index
+                     is PERSISTED (MapViewModel.AtlasTabIndex); the bodies below switch on it and stay loaded. -->
+                <ctl:TabStrip Grid.Row="1" Margin="12,0,12,0" IsSeated="True"
+                              HorizontalAlignment="Left" VerticalAlignment="Bottom"
                               ItemsSource="{x:Bind Tabs}"
                               SelectedIndex="{x:Bind ViewModel.AtlasTabIndex, Mode=TwoWay}"/>
-                <Border Grid.Row="1" Height="1" VerticalAlignment="Bottom"
-                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
                 <!-- PAST EVENTS — its own Composite (list | detail), the same frame as the sites body below. -->
                 <comp:PastEventsAtlasTab Grid.Row="2" Margin="16,12,16,14"

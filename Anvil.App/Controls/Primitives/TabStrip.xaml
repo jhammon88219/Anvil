@@ -11,6 +11,14 @@
      └──────────────────────────────────────┘     └────────┴─────────────────────────┘
         ▀ underline on the selected tab             ▎leading bar on the selected tab
 
+     IsSeated (Top only — the Anvil Atlas): the strip is the bottom row of a RAISED band, and the selected tab
+     is filled with the GROUND and squared at the bottom, so it opens into the body below. No underline.
+       ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← raised band (title + counts above)
+       ░┌────────┐░ ◷ Past  ░ ▭ DOW  ░░░░░░░░░
+       ░│ 📡 Radar│░░░░░░░░░░░░░░░░░░░░░░░░░░░
+       ─┘        └──────────────────────────────  ← the band ends; ground below
+       (body, ground)
+
      A tab is a MARK OVER A NAME, the same language as the keys in the bottom bar — but deliberately NOT
      the same control: a bar key is a square sized off the bar's height, and a tab is content-width so a
      row of them reads as one rail rather than a row of loose buttons. The look lives in
@@ -56,7 +64,7 @@
         <DataTemplate x:Key="TabItemTemplate" x:DataType="prim:TabEntry">
             <Grid Background="Transparent"
                   ToolTipService.ToolTip="{x:Bind Tooltip, Mode=OneWay}">
-            <ToggleButton Style="{StaticResource SettingsTabKeyStyle}"
+            <ToggleButton Style="{x:Bind prim:TabStrip.KeyStyle(IsSeated), Mode=OneWay}"
                           IsEnabled="{x:Bind IsEnabled, Mode=OneWay}"
                           IsChecked="{x:Bind IsSelected, Mode=OneWay}"
                           Click="OnTabClick">
