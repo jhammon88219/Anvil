@@ -1,3 +1,5 @@
+using System;
+using System.Globalization;
 using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -17,9 +19,17 @@ namespace Anvil.Controls.Composites
 	{
 		private bool _orderApplied;
 
+		// The header clock. Ticks 4×/s but only WRITES when the shown second changes, so a timer that drifts
+		// against the wall clock never skips or doubles a second. Runs only while this body is loaded.
+		private readonly DispatcherTimer _clock = new() { Interval = System.TimeSpan.FromMilliseconds(250) };
+		private long _shownSecond = -1;
+
 		public NowCastTab()
 		{
 			InitializeComponent();
+			_clock.Tick += (_, _) => UpdateClock();
+			Loaded += (_, _) => { _shownSecond = -1; UpdateClock(); _clock.Start(); };
+			Unloaded += (_, _) => _clock.Stop();
 			// Once: Loaded fires again every time the window re-shows this body, and by then the sections
 			// already ARE the order (a re-order is saved as it happens).
 			Loaded += (_, _) =>
@@ -53,6 +63,48 @@ namespace Anvil.Controls.Composites
 
 		// A discussion clicked ON THE MAP opens its reader here — the section may be collapsed.
 		private void OnDiscussionSelectionRequested(object? sender, System.EventArgs e) => DiscussionsSection.IsExpanded = true;
+
+		// ── Header ──
+
+		/// <summary>A tile with nothing in effect is DIMMED, never hidden — the three keep their places.</summary>
+		public double TileOpacity(int count) => count == 0 ? 0.4 : 1.0;
+
+		private void UpdateClock()
+		{
+			var now = System.DateTimeOffset.Now;
+			var second = now.ToUnixTimeSeconds();
+			if (second == _shownSecond) { return; }
+			_shownSecond = second;
+
+			var culture = CultureInfo.CurrentCulture;
+			ClockTime.Text = now.ToString("h:mm:ss tt", culture);
+			ClockDate.Text = now.ToString("ddd MMM d, yyyy", culture);
+
+			var updated = ViewModel?.Warnings.LastUpdated;
+			var age = updated is { } when ? $"updated {Age(now - when)}" : "waiting for the first warnings update";
+			ClockDetail.Text = $"{ZoneLabel(now.DateTime)} · {now.UtcDateTime:HH:mm} UTC · {age}";
+		}
+
+		// "14 s ago" / "3 min ago" / "2 h ago".
+		private static string Age(System.TimeSpan span) =>
+			span.TotalSeconds < 60 ? $"{System.Math.Max(0, (int)span.TotalSeconds)} s ago" :
+			span.TotalMinutes < 60 ? $"{(int)span.TotalMinutes} min ago" :
+			$"{(int)span.TotalHours} h ago";
+
+		// Windows has no zone ABBREVIATION, only names: "Central Daylight Time" → "CDT" by initials. A name that
+		// doesn't abbreviate cleanly (non-US, localized) falls back to the UTC offset.
+		private static string ZoneLabel(System.DateTime local)
+		{
+			var zone = TimeZoneInfo.Local;
+			var name = zone.IsDaylightSavingTime(local) ? zone.DaylightName : zone.StandardName;
+			var words = name.Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+			if (words.Length is >= 2 and <= 4 && words.All(w => char.IsUpper(w[0])))
+			{
+				return new string(words.Select(w => w[0]).ToArray());
+			}
+			var offset = zone.GetUtcOffset(local);
+			return $"UTC{(offset < System.TimeSpan.Zero ? "−" : "+")}{offset:hh\\:mm}";
+		}
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel

@@ -381,6 +381,11 @@
          a layer section's header carries an opacity slider, whose 18 px thumb needs the room. -->
     <x:Double x:Key="SectionHeaderHeight">28</x:Double>
 
+    <!-- The FIXED block at the top of the PastCast (Timeframe) and NowCast (clock + warning tiles) windows —
+         one MinHeight so the two read as the same band. PastCast's pickers set its natural height; this is
+         tuned to it. If the two differ on screen, change THIS value (NowCast's tiles absorb the slack). -->
+    <x:Double x:Key="TemporalHeaderMinHeight">264</x:Double>
+
     <!-- ───────────────────────────── TextBlock — settings-body labels ─────────────────────────────
 
          The inline FIELD label ("State", "Spacing (mi)") inside a panel body. Shared because every Settings

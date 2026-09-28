@@ -53,6 +53,16 @@ namespace Anvil.ViewModels
 		/// </summary>
 		public override string CardThreats => _threats.ToCardLine();
 
+		/// <summary>The NowCast header tiles' tag lines — the same tally as <see cref="CardThreats"/>, split
+		/// per type ("1 emergency · 2 PDS"). Every active warning, like the counts.</summary>
+		public string TornadoThreats => _threats.TornadoLine;
+
+		/// <inheritdoc cref="TornadoThreats"/>
+		public string SevereThreats => _threats.SevereLine;
+
+		/// <inheritdoc cref="TornadoThreats"/>
+		public string FlashFloodThreats => _threats.FlashFloodLine;
+
 		// ⚠️ The one overlay that states its cadence on the card. Warnings are the short-fused layer and
 		// the poll is ADAPTIVE, so "how current is this number" has a genuinely variable answer; watches
 		// tick along at a fixed 2 min and saying so would just be noise.
@@ -99,6 +109,9 @@ namespace Anvil.ViewModels
 					_dispatcher.Post(() =>
 					{
 						_threats = result.Threats ?? WarningThreatCounts.None;
+							OnPropertyChanged(nameof(TornadoThreats));
+							OnPropertyChanged(nameof(SevereThreats));
+							OnPropertyChanged(nameof(FlashFloodThreats));
 						ApplyRefreshed(result.ActiveCount, result.TornadoCount, result.SevereCount, result.FlashFloodCount);
 						RepushSource();
 					});

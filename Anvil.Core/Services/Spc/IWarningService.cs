@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -76,5 +77,18 @@ namespace Anvil.Services
 				if (n > 0) { parts.Add($"{n} {(n == 1 ? one : many)}"); }
 			}
 		}
+
+		/// <summary>The NowCast header's per-TYPE tag lines — the tile already names the type, so these
+		/// drop it: "1 emergency · 2 PDS". Empty when that type has no elevated tag.</summary>
+		public string TornadoLine => Line((TornadoEmergency, "emergency", "emergencies"), (TornadoPds, "PDS", "PDS"));
+
+		/// <inheritdoc cref="TornadoLine"/>
+		public string SevereLine => Line((SevereDestructive, "destructive", "destructive"));
+
+		/// <inheritdoc cref="TornadoLine"/>
+		public string FlashFloodLine => Line((FlashFloodEmergency, "emergency", "emergencies"), (FlashFloodConsiderable, "considerable", "considerable"));
+
+		private static string Line(params (int N, string One, string Many)[] tags) =>
+			string.Join(" · ", tags.Where(t => t.N > 0).Select(t => $"{t.N} {(t.N == 1 ? t.One : t.Many)}"));
 	}
 }

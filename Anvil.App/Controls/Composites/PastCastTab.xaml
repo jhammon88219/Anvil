@@ -148,7 +148,7 @@
              ⚠️ The RIGHT 16 = that 12 + PanelScroller.GutterWidth (16) − the scroller's 12 px bleed, so the
              card lines up with the section bodies below, which sit left of the always-claimed gutter. Change
              all three together. -->
-            <Grid Grid.Row="0" Padding="12,12,16,24">
+            <Grid Grid.Row="0" Padding="12,12,16,24" MinHeight="{StaticResource TemporalHeaderMinHeight}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- summary card + Load -->
                     <RowDefinition Height="Auto"/> <!-- rule -->

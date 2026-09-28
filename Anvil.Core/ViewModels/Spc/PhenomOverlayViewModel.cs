@@ -183,6 +183,10 @@ namespace Anvil.ViewModels
 		private DateTimeOffset? _lastUpdated;
 		private string _errorMessage = string.Empty;
 
+		/// <summary>When the counts were last confirmed by a fetch that pulled data; null before the first.
+		/// A failed cycle leaves it alone, so its age is how stale the numbers are.</summary>
+		public DateTimeOffset? LastUpdated => _lastUpdated;
+
 		/// <summary>
 		/// A cycle that actually pulled data: the counts, the "updated" stamp, and a cleared error.
 		/// ⚠️ Call on the UI thread — the refresh loops run on background timers.
@@ -193,6 +197,7 @@ namespace Anvil.ViewModels
 			SevereCount = severeCount;
 			FlashFloodCount = flashFloodCount;
 			_lastUpdated = DateTimeOffset.Now;
+			OnPropertyChanged(nameof(LastUpdated));
 			_errorMessage = string.Empty;
 			ActiveCount = activeCount;
 			RaiseCard();
