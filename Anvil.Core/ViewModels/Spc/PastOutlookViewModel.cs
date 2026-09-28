@@ -80,12 +80,7 @@ namespace Anvil.ViewModels
 
 		private int SelectedDay => _selectedDayOption.Day;
 
-		/// <summary>Short labels for the same three days, for the card's segmented Day picker. ⚠️ Kept
-		/// beside <see cref="Days"/>, same order and length — the row is already labelled "Day", so the
-		/// segments only have to carry the number.</summary>
-		public IReadOnlyList<string> DayShortLabels { get; } = new[] { "1", "2", "3" };
-
-		/// <summary>The selected day as an INDEX, for the segmented picker (which selects by position).
+		/// <summary>The selected day as an INDEX (the persistence layer stores it by position).
 		/// Routes through <see cref="SelectedDayOption"/> so the product/cycle cascade still runs.</summary>
 		public int SelectedDayIndex
 		{
@@ -256,6 +251,59 @@ namespace Anvil.ViewModels
 
 		private const string NoOutlookHeadline = "No outlook drawn";
 
+		// ── The legend (mirrors OutlookViewModel's; the section hosts the shared Primitives/OutlookLegend) ──
+		// ⚠️ Set ONLY from a successful show and cleared on every path that clears the layer, so the key can
+		// never describe an outlook that is not on the map (None, hidden, failed fetch, leaving PastCast).
+
+		private IReadOnlyList<SpcRiskLevel> _legendEntries = Array.Empty<SpcRiskLevel>();
+		private IReadOnlyList<OutlookHatchLegendRow> _hatchLegendRows = Array.Empty<OutlookHatchLegendRow>();
+		private bool _showHatching = true;
+
+		/// <summary>The solid half of the drawn product's scale (NOAA colours + names). Empty when nothing is drawn.</summary>
+		public IReadOnlyList<SpcRiskLevel> LegendEntries => _legendEntries;
+
+		/// <summary>The Conditional Intensity Groups in the scale, each marked with whether the archived
+		/// outlook contains it. Empty for products with none.</summary>
+		public IReadOnlyList<OutlookHatchLegendRow> HatchLegendRows => _hatchLegendRows;
+
+		/// <summary>Whether there is anything to key — gates the legend's visibility.</summary>
+		public bool HasLegend => _legendEntries.Count > 0 || _hatchLegendRows.Count > 0;
+
+		/// <summary>Draws or hides the CIG hatching on the map (fills and outlines stay). Session-only, like
+		/// the live outlook's.</summary>
+		public bool ShowHatching
+		{
+			get => _showHatching;
+			set
+			{
+				if (SetProperty(ref _showHatching, value) && _isMapReady && ShownOnMap)
+				{
+					_ = _mapService.SetOutlookHatchingVisibleAsync(value);
+				}
+			}
+		}
+
+		// null = nothing drawn.
+		private void SetLegend(SpcOutlookProduct? product)
+		{
+			var scale = product is null ? Array.Empty<SpcRiskLevel>() : _outlookService.GetLegendForProduct(product);
+			var present = product is null ? new HashSet<string>() : _outlookService.GetHatchGroupsInOutlook(product);
+			_legendEntries = scale.Where(l => !l.IsConditionalIntensity).ToList();
+			_hatchLegendRows = scale.Where(l => l.IsConditionalIntensity)
+				.Select(l => new OutlookHatchLegendRow(l, present.Contains(l.Code)))
+				.ToList();
+			OnPropertyChanged(nameof(LegendEntries));
+			OnPropertyChanged(nameof(HatchLegendRows));
+			OnPropertyChanged(nameof(HasLegend));
+		}
+
+		// Every clear of the shared layer goes through here so the legend leaves with the areas.
+		private async Task ClearLayerAsync()
+		{
+			await _mapService.ClearOutlookAsync();
+			SetLegend(null);
+		}
+
 		// Every card update goes through here, so no path can leave one of the three lines describing a
 		// previous selection.
 		private void SetCard(string headline, string context, string footer)
@@ -313,7 +361,7 @@ namespace Anvil.ViewModels
 			var type = _selectedProductOption.Type;
 			if (type is null)
 			{
-				await _mapService.ClearOutlookAsync();
+				await ClearLayerAsync();
 				SetCard(NoOutlookHeadline, string.Empty, string.Empty);
 				return;
 			}
@@ -321,7 +369,7 @@ namespace Anvil.ViewModels
 			var day = SelectedDay;
 			if (!_isShown)
 			{
-				await _mapService.ClearOutlookAsync();
+				await ClearLayerAsync();
 				SetCard(_selectedProductOption.Label, $"Day {day}", "Hidden — tick the box to draw it");
 				return;
 			}
@@ -330,7 +378,7 @@ namespace Anvil.ViewModels
 			// Same rule the storm reports follow; both overlays key to what is actually loaded.
 			if (_radar.LoadedReplayStartUtc is not { } replayStart)
 			{
-				await _mapService.ClearOutlookAsync();
+				await ClearLayerAsync();
 				SetCard(NoOutlookHeadline, string.Empty, "Load a timeframe to see its outlook");
 				return;
 			}
@@ -343,14 +391,14 @@ namespace Anvil.ViewModels
 
 			if (result is null || result.Error is not null)
 			{
-				await _mapService.ClearOutlookAsync();
+				await ClearLayerAsync();
 				SetCard(_selectedProductOption.Label, ContextFor(day, date, null),
 					result?.Error is { } err ? $"Outlook fetch failed: {err}" : "Outlook fetch failed.");
 				return;
 			}
 			if (!result.Found || !result.AvailableTypes.Contains(type.Value))
 			{
-				await _mapService.ClearOutlookAsync();
+				await ClearLayerAsync();
 				SetCard(_selectedProductOption.Label,
 					ContextFor(day, date, result.Found ? cycleUsed : null),
 					result.Found
@@ -368,6 +416,11 @@ namespace Anvil.ViewModels
 
 			await _mapService.ShowOutlookAsync(product);
 			await _mapService.SetOutlookOpacityAsync(_opacity);
+			// ⚠️ ORDERED after the show: the page resets hatching to shown on every show (the layer is shared
+			// with the live outlook), so the push must land after it. Same rule as OutlookViewModel.
+			await _mapService.SetOutlookHatchingVisibleAsync(_showHatching);
+			if (token != _applyToken) return; // a newer selection won while the show was in flight
+			SetLegend(product);
 
 			SetCard(_selectedProductOption.Label, ContextFor(day, date, cycleUsed), FormatTimes(result.Times));
 		}
@@ -375,7 +428,7 @@ namespace Anvil.ViewModels
 		private async Task ClearAsync()
 		{
 			if (!_isMapReady) return;
-			await _mapService.ClearOutlookAsync();
+			await ClearLayerAsync();
 			SetCard(NoOutlookHeadline, string.Empty, string.Empty);
 		}
 
