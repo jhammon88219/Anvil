@@ -2,7 +2,7 @@
 <!-- PastEventsAtlasTab — the Anvil Atlas's PAST EVENTS tab: the saved-event library (ViewModel.SavedEvents)
      as a master–detail browser, the same frame as the Radar sites tab beside it (list 360 | 32 gutter | detail).
 
-       ┌── list column (360) ──────────┐←32→ detail (scrolls, capped 760 wide)
+       ┌── list column (360) ──────────┐←32→ detail (scrolls, capped 760 wide, centred)
        │ [ Joplin, KTLX or 2011       ] │   Bridge Creek-Moore, OK (● Tornado) [Custom]   [Edit] [▶ Play in PastCast]
        │ [All|Tornado|Hurricane|Derecho|Custom]  May 3, 1999 · F5, May 3 1999 outbreak…      ← DetailLine
        │ Tornado · 10                   │   ┌ 6:23–7:48 PM ┐ ┌ 6:00 PM · 2 hr ┐ ┌ KTLX            ┐
@@ -33,6 +33,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:comp="using:Anvil.Controls.Composites"
              xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:layout="using:Anvil.Layout"
              xmlns:vm="using:Anvil.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -63,14 +64,16 @@
                                   ItemsSource="{x:Bind ViewModel.SavedEvents.FilterLabels}"
                                   SelectedIndex="{x:Bind ViewModel.SavedEvents.FilterIndex, Mode=TwoWay}"/>
 
-            <ListView Grid.Row="2"
-                      ItemsSource="{Binding Source={StaticResource EventGroupsSource}}"
+            <!-- Scrolled by Primitives/PanelScroller (it drives the list's OWN viewer); Margin right -16 bleeds the
+                 gutter into the 32 column gap so the rows keep the full 360 — same as the sites list. -->
+            <prim:PanelScroller Grid.Row="2" Margin="0,0,-16,0"
+                                Visibility="{x:Bind VisibleWhen(ViewModel.SavedEvents.HasRows), Mode=OneWay}">
+            <ListView ItemsSource="{Binding Source={StaticResource EventGroupsSource}}"
                       SelectedItem="{x:Bind ViewModel.SavedEvents.AtlasSelection, Mode=TwoWay}"
                       SelectionMode="Single"
                       Loaded="OnListLoaded"
                       SelectionChanged="OnListSelectionChanged"
-                      ItemContainerStyle="{StaticResource AtlasRowItemStyle}"
-                      Visibility="{x:Bind VisibleWhen(ViewModel.SavedEvents.HasRows), Mode=OneWay}">
+                      ItemContainerStyle="{StaticResource AtlasRowItemStyle}">
                 <ListView.GroupStyle>
                     <GroupStyle>
                         <GroupStyle.HeaderContainerStyle>
@@ -119,6 +122,7 @@
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
+            </prim:PanelScroller>
 
             <TextBlock Grid.Row="2" TextWrapping="Wrap" Margin="10,4,0,0"
                        Text="{x:Bind ViewModel.SavedEvents.EmptyText, Mode=OneWay}"
@@ -133,13 +137,15 @@
                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                        Visibility="{x:Bind CollapsedWhen(ViewModel.SavedEvents.HasAtlasSelection), Mode=OneWay}"/>
 
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                          Visibility="{x:Bind VisibleWhen(ViewModel.SavedEvents.HasAtlasSelection), Mode=OneWay}">
-                <!-- Width-capped the same way as the sites detail: a star COLUMN's MaxWidth. -->
+            <!-- Scrolled + width-capped + CENTRED exactly like the sites detail: PanelScroller bled 12 into the
+                 window margin, Layout/CenteredColumnPanel for the 760 cap. ⚠️ Not MaxWidth on the Grid — this
+                 detail's content is SHORT, and WinUI centred it by that desired width, so it sat far right. -->
+            <prim:PanelScroller Margin="0,0,-12,0"
+                                Visibility="{x:Bind VisibleWhen(ViewModel.SavedEvents.HasAtlasSelection), Mode=OneWay}">
+                <layout:CenteredColumnPanel ColumnWidth="760">
                 <Grid RowSpacing="12" VerticalAlignment="Top">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" MaxWidth="760"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/> <!-- header: name | badges | actions (or the replace question) -->
@@ -360,7 +366,8 @@
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                Visibility="{x:Bind VisibleWhenText(ViewModel.SavedEvents.Status), Mode=OneWay}"/>
                 </Grid>
-            </ScrollViewer>
+                </layout:CenteredColumnPanel>
+            </prim:PanelScroller>
         </Grid>
     </Grid>
 </UserControl>

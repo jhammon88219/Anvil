@@ -23,6 +23,8 @@
      ⚠️ IT NEVER CHANGES THE WINDOW'S WIDTH: the gutter comes out of the content's width inside the window.
      Anything laid out OUTSIDE the scroller that must line up with the content beside it (PastCast's fixed
      Timeframe block) reserves the same GutterWidth on its right.
+     ⚠️ A LIST BODY (ListView/GridView) is NOT wrapped in the scroller's viewer — it sits beside it and the thumb
+     drives the list's own ScrollViewer, so virtualization and ScrollIntoView keep working (the Atlas lists).
      ⚠️ WHY NOT WinUI's OWN BAR: it is an OVERLAY (the auto-hiding "conscious" scroll indicator) — it claims no
      space, sits on top of the content's right edge and expands over sliders and % labels on hover. The rule
      here is the opposite: a fixed lane of its own.
@@ -41,15 +43,21 @@
             <ColumnDefinition x:Name="GutterColumn" Width="16"/> <!-- set from GutterWidth in code -->
         </Grid.ColumnDefinitions>
 
-        <!-- Hidden (not Disabled) keeps wheel / touch / keyboard scrolling; only the built-in bar goes. -->
+        <!-- Hidden (not Disabled) keeps wheel / touch / keyboard scrolling; only the built-in bar goes.
+             Content is set in CODE (ApplyBody): a plain body goes in here… -->
         <ScrollViewer x:Name="Viewer" Grid.Column="0"
                       VerticalScrollBarVisibility="Hidden" VerticalScrollMode="Enabled"
-                      HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled"
-                      ViewChanged="OnViewChanged" SizeChanged="OnGeometryChanged">
-            <ContentPresenter x:Name="Presenter" Content="{x:Bind Body, Mode=OneWay}"
+                      HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+            <ContentPresenter x:Name="Presenter"
                               HorizontalContentAlignment="Stretch" VerticalAlignment="Top"
                               SizeChanged="OnGeometryChanged"/>
         </ScrollViewer>
+
+        <!-- …a ListView/GridView body goes HERE instead, OUTSIDE the viewer, and the thumb drives the list's OWN
+             ScrollViewer (its bar hidden the same way). ⚠️ Never nest a list in the viewer above: it measures
+             unbounded, un-virtualizes every row, and ScrollIntoView scrolls a viewer that can't move. -->
+        <ContentPresenter x:Name="ListPresenter" Grid.Column="0" Visibility="Collapsed"
+                          HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
 
         <!-- THE TRACK: transparent, but hit-testable so a click on it pages. The whole gutter is the track. -->
         <Grid x:Name="Track" Grid.Column="1" Background="Transparent"
