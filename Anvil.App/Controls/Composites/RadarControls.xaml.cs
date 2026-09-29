@@ -105,10 +105,17 @@ namespace Anvil.Controls.Composites
 		// the advancing loop, and the playhead follows via UpdatePlayhead (VM PropertyChanged / SizeChanged).
 		private bool _scrubbing;
 
+		// ⚠️ Where the scrubber's left edge stood at PRESS, in window coordinates. A drag maps the pointer against
+		// THIS, not the scrubber's live position: crossing 9:59 → 10:00 widens the clock and slides the scrubber
+		// right mid-drag, and a live mapping would then read the same pointer as an earlier frame — back to 9:59,
+		// the clock shrinks, the scrubber slides back, and the frame flickers while the hand holds still.
+		private double _dragOriginX;
+
 		private void OnScrubberPointerPressed(object sender, PointerRoutedEventArgs e)
 		{
 			if (ViewModel is null || !ViewModel.IsTransportEnabled || ViewModel.Segments.Count == 0) return;
 			_scrubbing = true;
+			_dragOriginX = ScrubberHost.TransformToVisual(null).TransformPoint(default).X;
 			ScrubberHost.CapturePointer(e.Pointer);
 			if (ViewModel.IsPlaying) ViewModel.ToggleRadarPlay(); // pause in place; stays engaged so Stop remains available
 			SeekToPointer(e);
@@ -135,7 +142,7 @@ namespace Anvil.Controls.Composites
 			var count = ViewModel.Segments.Count;
 			var width = ScrubberHost.ActualWidth;
 			if (count <= 0 || width <= 0) return;
-			var x = e.GetCurrentPoint(ScrubberHost).Position.X;
+			var x = e.GetCurrentPoint(null).Position.X - _dragOriginX; // against the PRESS origin — see _dragOriginX
 			var idx = Math.Clamp((int)Math.Floor(x / (width / count)), 0, count - 1);
 			// Can't scrub past the built frontier onto a blank slower-product / undecoded frame (the reachable
 			// range grows as the active product builds; reflectivity is the full decoded range).
@@ -229,19 +236,8 @@ namespace Anvil.Controls.Composites
 		}
 
 		// ===== Clock column sizing =====
-		// ClockSample's suffix: the culture's LONGER day-half designator ("AM"/"PM"), or none for a 24-hour
-		// culture — so the sample is exactly the widest clock this culture can show.
-		public string ClockSampleSuffix
-		{
-			get
-			{
-				var f = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat;
-				return f.AMDesignator.Length >= f.PMDesignator.Length ? f.AMDesignator : f.PMDesignator;
-			}
-		}
-
-		// Cap the age line to the sample's width, so a long replay age trims instead of widening the column.
-		private void OnClockSampleSizeChanged(object sender, SizeChangedEventArgs e) => AgeText.MaxWidth = e.NewSize.Width;
+		// Cap the age line to the TIME's width, so only the time sizes the clock column (a long replay age trims).
+		private void OnClockTimeSizeChanged(object sender, SizeChangedEventArgs e) => AgeText.MaxWidth = e.NewSize.Width;
 
 		public string ScanValue(string mode, int line)
 		{

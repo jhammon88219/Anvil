@@ -237,27 +237,6 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>
-		/// The widest clock DIGITS any frame of this loop shows: "00:00" when some frame's hour has two digits
-		/// ("10:05"), else "0:00". The bar clock's column is sized by it (RadarControls.ClockSample), so the clock
-		/// is exactly as wide as it needs to be — and ⚠️ LOOP-wide, not per-frame, so scrubbing across 9:59 → 10:00
-		/// never resizes the scrubber under the pointer; it changes only when the loop's frame set does.
-		/// </summary>
-		public string LoopClockSample
-		{
-			get
-			{
-				foreach (var t in _frameTimes)
-				{
-					if (t is { } time && time.ToLocalTime().ToString("%h").Length > 1)
-					{
-						return "00:00";
-					}
-				}
-				return "0:00";
-			}
-		}
-
 		/// <summary>Freshness of the newest frame, driving the status dot color.</summary>
 		public RadarFreshness RadarStatus
 		{
@@ -308,7 +287,6 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(CanForceLiveCheck));
 			OnPropertyChanged(nameof(NewestLoadedFrameTime));
 			OnPropertyChanged(nameof(RadarLoopSpanText));
-			OnPropertyChanged(nameof(LoopClockSample));
 			OnPropertyChanged(nameof(RadarStatus));
 			OnPropertyChanged(nameof(RadarLoadingText));
 		}

@@ -2,7 +2,7 @@
 <!-- RadarControls — the GLOBAL time module, and only that. The "clock face" layout: the displayed frame's
      time is the HERO (the NowCast header's clock, restated), everything else steps down to one quiet line.
 
-       ┌─ clock ────────┐ ┌─ scrubber: the REST of 752 (8 px cells, 16 px) ┐ ┌─ scan ─────────────────┐
+       ┌─ clock ────────┐ ┌─ scrubber: FIXED 420 (8 px cells, 16 px) ───────┐ ┌─ scan ─────────────────┐
        │ 1:07 PM        │ │ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬┃                        │ │ VCP:        212        │
        │                │ │                                                     │ │ Mode:       precip     │
        │ 2 min ago      │ │ 11 / 11            ⏮  ▶  ⏭                      ⟳  │ │ SAILS/MRLE: ×1         │
@@ -22,13 +22,13 @@
      cursor, shared by every pane — which is why the scrubber does not multiply. Per-pane controls (product,
      ramp, tilt) are the pane NOTCH (Composites/PaneNotchContent), not here.
 
-     ⚠️ THE MODULE IS ONE FIXED WIDTH (752), and that is load-bearing: clock column = the widest time THIS LOOP
-     shows (an invisible ClockSample sizes it; the age trims to it), scan column = a reserved 180, and the
-     scrubber takes the remainder (~420, a digit less in a 10–12 o'clock loop). So both gaps beside the
-     scrubber are the same 16, and nothing ticking over (the age, a VCP change, scrubbing across 9:59 → 10:00)
-     can resize the scrubber. (A VCP change DOES slide the site picker above: it tracks the scan text.)
-     ⚠️ WIDTH BUDGET: 752. At 1920 wide the bar's left star column (beside the centred temporal keys) is
-     ~770, so there is ~20 px to spare — widen the module and it clips.
+     ⚠️ ONLY THE CLOCK CHANGES WIDTH. It sits at its real width (a digit wider when the hour needs two); the
+     scrubber block (a FIXED 420, control line included) and the scan block (a reserved 180) are one rigid run
+     that SLIDES right/left behind it, the gap always 16. Nothing else ticking over (the age, a VCP change) can
+     resize or move the scrubber. The site picker above tracks the scan text's END, so it slides with the run
+     (and a longer VCP line slides it a little further).
+     ⚠️ WIDTH BUDGET: ~732 at a 1-digit hour, ~754 at 2. At 1920 wide the bar's left star column (beside the
+     centred temporal keys) is ~770, so there is ~16 px to spare at worst — widen the run and it clips.
 
      History: this was a 2x2 readout block (time/age over site/scan) beside plated 30/38/30 transport buttons.
      J replaced it (2026-09-28) to match the tiles/clock language of the redesigned windows. -->
@@ -76,45 +76,32 @@
 
     <!-- The whole assembly is CENTRED vertically in the bar, and each column is centred within it, so the
          clock, the scrubber block and the scan lines share one midline. -->
-    <!-- ⚠️ ONE FIXED WIDTH (752 = the WIDTH BUDGET) with the scrubber in the STAR column: the clock column is
-         exactly as wide as the widest time in the loop (ClockSample), the scan column is a fixed 180, and the
-         scrubber takes the rest — so both gaps beside it are the same 16, and its right edge never
-         moves. -->
-    <Grid Width="752" HorizontalAlignment="Left" VerticalAlignment="Center" ColumnSpacing="16">
+    <!-- ⚠️ THE CLOCK IS THE ONLY THING THAT CHANGES WIDTH. Column 0 is Auto and holds the clock at its REAL width
+         (it grows a digit when the hour needs two, "10:05"); everything after it — the scrubber block (a FIXED 420,
+         with the control line under it) and the scan block (a reserved 180) — is one rigid run that SLIDES right
+         when the clock grows and back when it shrinks. The gap between them is always the column spacing, 16.
+         The tools tier's site picker ends where the scan text ends, so it slides with this run (MainWindow). -->
+    <Grid HorizontalAlignment="Left" VerticalAlignment="Center" ColumnSpacing="16">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/> <!-- the clock — as wide as ClockSample, never wider -->
-            <ColumnDefinition Width="*"/>    <!-- scrubber over the control line: the remainder -->
+            <ColumnDefinition Width="Auto"/> <!-- the clock, at its real width -->
+            <ColumnDefinition Width="Auto"/> <!-- scrubber over the control line: a fixed 420 -->
             <ColumnDefinition Width="180"/>  <!-- the scan readout: three LABELLED lines — reserved -->
         </Grid.ColumnDefinitions>
 
         <!-- ===== THE CLOCK: the DISPLAYED frame's time (the one scrubbed to), not the newest =====
              LEFT-aligned, so its left edge lines up with the tools tier's first site key above it, and the age
-             sits left under it. The column GROWS by a digit when the hour needs two ("10:05"): the scrubber
-             gives that digit up on its left, its right edge (the site picker's alignment) never moves, and the
-             gap stays 16. ⚠️ Sized per LOOP (ViewModel.LoopClockSample), not per frame — so scrubbing across
-             9:59 → 10:00 never reflows the scrubber mid-drag. A loop that straddles the hour shows its 1-digit
-             frames with one digit of extra gap; that is the price of a scrubber that holds still. -->
+             sits left under it. It follows the frame ON SCREEN: stepping or playing from 9:59 to 10:00 widens
+             it and slides the run after it. ⚠️ A DRAG across that hour doesn't feed back: the scrubber maps the
+             pointer from where it stood at PRESS (_dragOriginX), so the slide can't change which frame is under
+             the pointer. -->
         <Grid Grid.Column="0" VerticalAlignment="Center" RowSpacing="2"
               ToolTipService.ToolTip="When the frame on screen was scanned">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- 1:07 PM -->
                 <RowDefinition Height="Auto"/> <!-- 2 min ago -->
             </Grid.RowDefinitions>
-            <!-- ClockSample: an INVISIBLE widest-case clock for THIS LOOP ("0:00" or "00:00" + the culture's longer
-                 designator) in the same styles, sharing the cell. It is what sizes the Auto column — a layout
-                 ruler, never seen or hit. -->
-            <Grid x:Name="ClockSample" ColumnSpacing="4" HorizontalAlignment="Left"
-                  Opacity="0" IsHitTestVisible="False" SizeChanged="OnClockSampleSizeChanged">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{x:Bind ViewModel.LoopClockSample, Mode=OneWay}" FontSize="40" FontWeight="SemiLight"
-                           LineHeight="42" LineStackingStrategy="BlockLineHeight"/>
-                <TextBlock Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5"
-                           Text="{x:Bind ClockSampleSuffix}" FontSize="16"/>
-            </Grid>
-            <Grid ColumnSpacing="4" HorizontalAlignment="Left">
+            <Grid x:Name="ClockTime" ColumnSpacing="4" HorizontalAlignment="Left"
+                  SizeChanged="OnClockTimeSizeChanged">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
@@ -136,8 +123,8 @@
             </Grid>
             <!-- Age of the FRESHEST frame, ramped green → amber (12 min) → red (30 min) by AgeBrush, knees
                  matching RadarSiteStatus so the colour and the status dot agree. -->
-            <!-- ⚠️ Capped to ClockSample's width in code (OnClockSampleSizeChanged): a long replay age ("11 mo
-                 29 day ago") would otherwise widen the Auto column and squeeze the scrubber. It trims instead. -->
+            <!-- ⚠️ Capped to the TIME's width in code (OnClockTimeSizeChanged): only the time may size this column —
+                 a long replay age ("11 mo 29 day ago") trims instead of pushing the run right. -->
             <TextBlock x:Name="AgeText"
                        Grid.Row="1"
                        HorizontalAlignment="Left"
@@ -149,9 +136,9 @@
         </Grid>
 
         <!-- ===== SCRUBBER over the CONTROL LINE =====
-             ⚠️ A STAR column is safe here ONLY because the outer grid has a fixed Width: unbounded, it would
-             measure EqualCellsPanel with the width AVAILABLE (half the bar) and stretch toward the temporal keys. -->
-        <Grid Grid.Column="1" VerticalAlignment="Center" RowSpacing="6">
+             ⚠️ THE Width="420" IS LOAD-BEARING: in an Auto column EqualCellsPanel measures with infinity and returns
+             0, so without a fixed width the scrubber would have none. Fixed, it never changes as the clock grows. -->
+        <Grid Grid.Column="1" Width="420" VerticalAlignment="Center" RowSpacing="6">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- segmented scrubber -->
                 <RowDefinition Height="Auto"/> <!-- frame count · transport · check now -->
