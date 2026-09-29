@@ -106,20 +106,27 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
+                <!-- ⚠️ TABULAR digits: Segoe's default digits are PROPORTIONAL ("1:11" is narrower than "1:08"), so
+                     every frame nudged the clock's width and the whole run behind it undulated while scrubbing.
+                     Tabular, the width changes only with the digit COUNT (9:59 → 10:00). -->
                 <TextBlock Grid.Column="0"
                            Text="{x:Bind ClockDigits(ViewModel.CurrentFrameTimeText), Mode=OneWay}"
+                           Typography.NumeralAlignment="Tabular"
                            FontSize="40"
                            FontWeight="SemiLight"
                            LineHeight="42"
                            LineStackingStrategy="BlockLineHeight"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                <!-- AM/PM rides the digits' baseline-ish bottom edge, small and secondary. -->
-                <TextBlock Grid.Column="1"
-                           VerticalAlignment="Bottom"
-                           Margin="0,0,0,5"
-                           Text="{x:Bind ClockSuffix(ViewModel.CurrentFrameTimeText), Mode=OneWay}"
-                           FontSize="16"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <!-- AM/PM rides the digits' baseline-ish bottom edge, small and secondary.
+                     ⚠️ Its slot is as wide as the WIDER designator (two invisible samples share the cell), so noon /
+                     midnight don't nudge the width either ("AM" and "PM" differ by a hair). -->
+                <Grid Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5">
+                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
+                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
+                    <TextBlock Text="{x:Bind ClockSuffix(ViewModel.CurrentFrameTimeText), Mode=OneWay}"
+                               FontSize="16"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </Grid>
             </Grid>
             <!-- Age of the FRESHEST frame, ramped green → amber (12 min) → red (30 min) by AgeBrush, knees
                  matching RadarSiteStatus so the colour and the status dot agree. -->

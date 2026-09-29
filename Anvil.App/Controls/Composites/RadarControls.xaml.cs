@@ -236,6 +236,11 @@ namespace Anvil.Controls.Composites
 		}
 
 		// ===== Clock column sizing =====
+		// The culture's day-half designators, as invisible width samples for the AM/PM slot (both, so the slot is
+		// the wider one and a noon crossing can't nudge the clock). Empty in a 24-hour culture.
+		public string AmDesignator => System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.AMDesignator;
+		public string PmDesignator => System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.PMDesignator;
+
 		// Cap the age line to the TIME's width, so only the time sizes the clock column (a long replay age trims).
 		private void OnClockTimeSizeChanged(object sender, SizeChangedEventArgs e) => AgeText.MaxWidth = e.NewSize.Width;
 
