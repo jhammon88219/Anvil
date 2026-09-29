@@ -107,8 +107,9 @@
      the map now (⌂ home, ★ favorite, bare otherwise), and the PINNED top row is that same site (SelectedSites),
      whatever it is. Below the rule: home first, then the favorites (PinnedSites) — a selected home/favorite stays
      in its place there too, so the list never reshuffles on a switch. Going home is still two clicks.
-     ⚠️ Its RIGHT EDGE is aligned to the bar scrubber's (MainWindow.AlignSitePicker → AlignSitePickerRightEdge);
-     the Width in XAML is only the pre-layout value.
+     ⚠️ A FIXED 260 whose RIGHT EDGE sits on the END of the bar's longest scan line (MainWindow.AlignSitePicker →
+     AlignSitePickerRightEdge): it SLIDES as the scan text changes, and PickerSeparator (FillWidth) stretches to
+     fill the gap before it — the one separator that isn't 3 × 3.
      ⚠️ A pick ACTS through ItemPicked, NOT SelectedItem: picking the site already loaded must still fly back to
      it, and that changes no property. SelectedItem is ONE-WAY from LoadedSite and re-asserted after the pick
      (a refused pick would otherwise leave the face naming a site that never loaded).
@@ -430,12 +431,16 @@
                 <PathIcon Data="M9,0.5 A8.5,8.5 0 1 0 9,17.5 A8.5,8.5 0 1 0 9,0.5 Z M9,1.9 A7.1,7.1 0 1 0 9,16.1 A7.1,7.1 0 1 0 9,1.9 Z M9,3.9 A5.1,5.1 0 1 0 9,14.1 A5.1,5.1 0 1 0 9,3.9 Z M9,5.3 A3.7,3.7 0 1 0 9,12.7 A3.7,3.7 0 1 0 9,5.3 Z M9,7.4 A1.6,1.6 0 1 0 9,10.6 A1.6,1.6 0 1 0 9,7.4 Z"/>
             </ToggleButton>
 
-            <prim:MapControlsStripSeparator Margin="8,0"/>
+            <!-- PICKER SEPARATOR — the one STRETCHING separator: 3 rows, as many columns as fill the gap the site
+                 picker leaves (FillWidth). Its Width is SET IN CODE (AlignSitePickerRightEdge): the picker keeps a
+                 fixed 260 and SLIDES so its right edge meets the end of the bar's scan text, and this takes up the
+                 slack. Margins as the others (8 + the panel's 8 = 16 a side). -->
+            <prim:MapControlsStripSeparator x:Name="PickerSeparator" Margin="8,0" FillWidth="True" Width="10"/>
 
             <!-- SITE PICKER — LAST on the left, the group's edge. The wrapper carries the tooltip (a disabled
                  control shows none); Transparent so it hit-tests.
-                 ⚠️ ITS WIDTH IS SET IN CODE (AlignSitePickerRightEdge, called by MainWindow): its RIGHT edge lines
-                 up with the bar's scrubber below. 260 is only the value before the first layout pass. -->
+                 ⚠️ A FIXED 260 that SLIDES: its RIGHT edge sits on the end of the bar's longest scan line (MainWindow
+                 measures it), by widening PickerSeparator before it. So it moves a little when the scan text changes. -->
             <Grid Background="Transparent"
                   ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
                 <prim:SectionedComboBox x:Name="SitePicker"

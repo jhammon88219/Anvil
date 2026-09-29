@@ -61,17 +61,17 @@ namespace Anvil
 			BottomBar.EdgeStyle = onTools ? BarEdgeStyle.InsetShadow : BarEdgeStyle.CastShadow;
 		}
 
-		// ===== Site picker ↔ scrubber =====
-		// The tools tier's site picker keeps its RIGHT edge on the bar scrubber's right edge. They live in two
-		// controls on two tiers, so the edge is MEASURED, not derived from widths: retune a separator margin or
-		// a key size and the picker simply takes up the slack. Re-run whenever either side re-lays out (both
-		// SizeChanged hooks, incl. the tier coming back from hidden); the strip ignores sub-pixel no-ops, so the
-		// re-fire its own resize causes settles at once.
+		// ===== Site picker ↔ scan text =====
+		// The tools tier's site picker (a fixed 260) keeps its RIGHT edge on the END of the bar's longest scan
+		// line, so it slides a little as the scan text changes; the stretching separator before it takes up the
+		// slack. They live in two controls on two tiers, so the edge is MEASURED, not derived from widths. Re-run
+		// whenever either side re-lays out or a scan line changes width (incl. the tier coming back from hidden);
+		// the strip ignores sub-pixel no-ops, so the re-fire its own resize causes settles at once.
 		private void AlignSitePicker()
 		{
 			if (Content is UIElement root)
 			{
-				ToolsStrip.AlignSitePickerRightEdge(TimeModule.ScrubberRightEdge(root), root);
+				ToolsStrip.AlignSitePickerRightEdge(TimeModule.ScanTextRightEdge(root), root);
 			}
 		}
 
@@ -532,10 +532,11 @@ namespace Anvil
 
 			ApplyRailSeating();
 
-			// The tools tier's site picker ends where the bar's scrubber ends (see AlignSitePicker), and its
-			// search box is exactly as wide as the temporal keys below it — both sit on the window's midline, so
+			// The tools tier's site picker ends where the bar's longest scan line ends (see AlignSitePicker), and
+			// its search box is exactly as wide as the temporal keys below it — both sit on the window's midline, so
 			// equal widths make their edges line up.
 			TimeModule.SizeChanged += (_, _) => AlignSitePicker();
+			TimeModule.ScanTextEdgeChanged += (_, _) => AlignSitePicker();
 			ToolsStrip.SizeChanged += (_, _) => AlignSitePicker();
 			TemporalKeys.SizeChanged += (_, e) => ToolsStrip.MatchPlaceSearchWidth(e.NewSize.Width);
 

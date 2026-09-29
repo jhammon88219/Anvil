@@ -16,7 +16,7 @@
          The clock LEADS at the bar's left edge and the scan readout closes the module on the right, so the
          two readouts FLANK the scrubber (2026-09-29, when Inspect left for the tools tier).
          ⚠️ NO SITE ID HERE any more: the tools tier's site picker, directly above, names the loaded site — and
-         its RIGHT EDGE IS ALIGNED TO THIS SCRUBBER'S (MainWindow.AlignSitePicker measures ScrubberRightEdge).
+         its RIGHT EDGE sits on the END OF THE LONGEST SCAN LINE here (MainWindow.AlignSitePicker measures ScanTextRightEdge).
 
      THE ORGANIZING RULE: the bar holds what does NOT repeat per pane. One site, one camera, one time
      cursor, shared by every pane — which is why the scrubber does not multiply. Per-pane controls (product,
@@ -25,8 +25,8 @@
      ⚠️ THE MODULE IS ONE FIXED WIDTH (752), and that is load-bearing: clock column = the widest time THIS LOOP
      shows (an invisible ClockSample sizes it; the age trims to it), scan column = a reserved 180, and the
      scrubber takes the remainder (~420, a digit less in a 10–12 o'clock loop). So both gaps beside the
-     scrubber are the same 16, and nothing ticking over (the age, a VCP change, scrubbing across 9:59 → 10:00) can resize the scrubber, or move
-     the site picker aligned to its right edge.
+     scrubber are the same 16, and nothing ticking over (the age, a VCP change, scrubbing across 9:59 → 10:00)
+     can resize the scrubber. (A VCP change DOES slide the site picker above: it tracks the scan text.)
      ⚠️ WIDTH BUDGET: 752. At 1920 wide the bar's left star column (beside the centred temporal keys) is
      ~770, so there is ~20 px to spare — widen the module and it clips.
 
@@ -52,6 +52,8 @@
         <Style x:Key="ScanValueStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
+            <!-- LEFT, so ActualWidth is the TEXT: ScanTextRightEdge reads it to place the site picker. -->
+            <Setter Property="HorizontalAlignment" Value="Left"/>
             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
         </Style>
@@ -76,8 +78,8 @@
          clock, the scrubber block and the scan lines share one midline. -->
     <!-- ⚠️ ONE FIXED WIDTH (752 = the WIDTH BUDGET) with the scrubber in the STAR column: the clock column is
          exactly as wide as the widest time in the loop (ClockSample), the scan column is a fixed 180, and the
-         scrubber takes the rest — so both gaps beside it are the same 16, and its right edge (which the site
-         picker aligns to) never moves. -->
+         scrubber takes the rest — so both gaps beside it are the same 16, and its right edge never
+         moves. -->
     <Grid Width="752" HorizontalAlignment="Left" VerticalAlignment="Center" ColumnSpacing="16">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/> <!-- the clock — as wide as ClockSample, never wider -->
@@ -272,7 +274,7 @@
              the block's height and the labels' column never move. Values come from ScanValue, which cuts the ONE
              rule's string (RadarViewModel.ScanStrategyText, shared with the Atlas), so they can't disagree with it.
              Labels tertiary, values primary; the whole block carries the glossary tooltip. -->
-        <Grid Grid.Column="2" VerticalAlignment="Center" ColumnSpacing="8" RowSpacing="1"
+        <Grid x:Name="ScanBlock" Grid.Column="2" VerticalAlignment="Center" ColumnSpacing="8" RowSpacing="1"
               Background="Transparent"
               ToolTipService.ToolTip="{x:Bind ScanTooltip(ViewModel.RadarModeText), Mode=OneWay}">
             <Grid.ColumnDefinitions>

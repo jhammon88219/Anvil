@@ -31,6 +31,7 @@ namespace Anvil.Controls.Composites
 		public RadarControls()
 		{
 			InitializeComponent();
+			HookScanTextSizes();
 		}
 
 		/// <summary>The radar view model driving these controls; bound from the host.</summary>
@@ -272,12 +273,39 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
-		/// <summary>The scrubber's right edge in <paramref name="root"/>'s coordinates — the site picker on the
-		/// tools tier aligns its right edge to it (MainWindow.AlignSitePicker). NaN before layout.</summary>
-		public double ScrubberRightEdge(UIElement root) =>
-			ScrubberHost.ActualWidth <= 0
-				? double.NaN
-				: ScrubberHost.TransformToVisual(root).TransformPoint(new Point(ScrubberHost.ActualWidth, 0)).X;
+		/// <summary>Raised when any scan line's text changes width — the site picker on the tools tier tracks the
+		/// end of the longest one (MainWindow.AlignSitePicker).</summary>
+		public event EventHandler? ScanTextEdgeChanged;
+
+		// Every TextBlock in the scan block (labels + fact/stand-in values) reports its size changes; labels never
+		// change, so in practice only a value's new text fires it.
+		private void HookScanTextSizes()
+		{
+			foreach (var child in ScanBlock.Children)
+			{
+				if (child is FrameworkElement text)
+				{
+					text.SizeChanged += (_, _) => ScanTextEdgeChanged?.Invoke(this, EventArgs.Empty);
+				}
+			}
+		}
+
+		/// <summary>The right end of the LONGEST scan line's text, in <paramref name="root"/>'s coordinates — where the
+		/// tools tier's site picker puts its right edge. The values are LEFT-aligned (ScanValueStyle), so a value's
+		/// ActualWidth is its text, not its column; empty ones measure 0 and never win. NaN before layout.</summary>
+		public double ScanTextRightEdge(UIElement root)
+		{
+			double edge = double.NaN;
+			foreach (var child in ScanBlock.Children)
+			{
+				if (child is FrameworkElement text && text.ActualWidth > 0)
+				{
+					var right = text.TransformToVisual(root).TransformPoint(new Point(text.ActualWidth, 0)).X;
+					edge = double.IsNaN(edge) ? right : Math.Max(edge, right);
+				}
+			}
+			return edge;
+		}
 
 		// Its tooltip explains THIS site's pattern — words from RadarGlossary (VcpCatalog), never XAML.
 		public string ScanTooltip(string mode) => RadarGlossary.ScanPatternTooltip(mode);

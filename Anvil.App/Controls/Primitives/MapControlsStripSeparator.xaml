@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- MapControlsStripSeparator — the mark between tool GROUPS on the tools tier (MapControlsStrip): a small
-     3 × 3 GRID OF DOTS, centred in its slot. Every part of its shape is a DP so it can be re-tuned at the use
-     site (or here, for all of them) without touching the strip.
+     GRID OF DOTS, centred in its slot. Every part of its shape is a DP so it can be re-tuned at the use site
+     (or here, for all of them) without touching the strip.
 
-       (◗)(✈)(⚗)   ⁘   (⌕)   ⁘   (⌸)(◎)   ⁘   [KTLX ˅]
-                   ↑
-                   · · ·     DotSize 1.5 · DotGap 2.5  →  a 9.5 × 9.5 block
+       (◗)(✈)(⚗)   ⁘   (⌕)   ⁘   (⌸)(◎)   · · · · · · · · · · ·   [KTLX Oklahoma City ˅]
+                   ↑                        · · · · · · · · · · ·
+                   Columns × Rows (3 × 3)   · · · · · · · · · · ·   ← FillWidth: Rows kept, as many columns as
+                                                                      the host-set Width holds, centred
+                   · · ·     DotSize 1.5 · DotGap 2.5  →  a 9.5 × 9.5 block at 3 × 3
                    · · ·     MARGINS are the host's, and GENEROUS on purpose: the gap is what groups the tools
                    · · ·
 
-     DPs: DotSize (1.5) · DotGap (2.5) · Brush.
+     DPs: Columns (3) · Rows (3) · FillWidth · DotSize (1.5) · DotGap (2.5) · Brush.
+     ⚠️ The grid is REBUILT only when the dot COUNT changes; a FillWidth separator re-lays out on every width
+     change its host makes, and most of those don't change the count.
      ⚠️ DELIBERATELY FAINT (~16% of the text colour — MapControlsStripSeparatorDotBrush below): it must read as
      structure, never as one more tool. The two stock steps were both wrong — Tertiary sat too close to the
      glyphs, Disabled (36%) still did. Picked from a mockup (2026-09-29), 2 px lines → dots.
@@ -41,17 +45,6 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- The nine dots are built in code (BuildDots), sized and spaced by ApplyShape. -->
-    <Grid x:Name="Dots" HorizontalAlignment="Center" VerticalAlignment="Center">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
-    </Grid>
+    <!-- The dots are built in code (BuildDots): Columns × Rows, or FillWidth's count. Centred in the slot. -->
+    <Grid x:Name="Dots" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 </UserControl>

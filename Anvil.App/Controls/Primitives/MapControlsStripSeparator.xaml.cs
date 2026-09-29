@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -6,19 +7,58 @@ using Microsoft.UI.Xaml.Shapes;
 namespace Anvil.Controls.Primitives
 {
 	/// <summary>
-	/// The 3 × 3 dot grid between tool groups on the tools tier (see MapControlsStripSeparator.xaml). Dot size,
-	/// spacing and fill are DPs; <see cref="Brush"/> null keeps the faint theme default.
+	/// The dot grid between tool groups on the tools tier (see MapControlsStripSeparator.xaml): <see cref="Columns"/>
+	/// × <see cref="Rows"/> dots, or — with <see cref="FillWidth"/> — as many columns as its (host-set) Width holds.
+	/// Dot size, spacing and fill are DPs; <see cref="Brush"/> null keeps the faint theme default.
 	/// </summary>
 	public sealed partial class MapControlsStripSeparator : UserControl
 	{
-		private readonly Ellipse[] _dots = new Ellipse[9];
+		private Ellipse[] _dots = Array.Empty<Ellipse>();
+		private int _builtColumns = -1;
+		private int _builtRows = -1;
 
 		public MapControlsStripSeparator()
 		{
 			InitializeComponent();
-			BuildDots();
+			SizeChanged += (_, _) => { if (FillWidth) ApplyShape(); };
 			ApplyShape();
 		}
+
+		/// <summary>Dots across (ignored while <see cref="FillWidth"/> is on).</summary>
+		public int Columns
+		{
+			get => (int)GetValue(ColumnsProperty);
+			set => SetValue(ColumnsProperty, value);
+		}
+
+		public static readonly DependencyProperty ColumnsProperty =
+			DependencyProperty.Register(nameof(Columns), typeof(int), typeof(MapControlsStripSeparator),
+				new PropertyMetadata(3, OnShapeChanged));
+
+		/// <summary>Dots down.</summary>
+		public int Rows
+		{
+			get => (int)GetValue(RowsProperty);
+			set => SetValue(RowsProperty, value);
+		}
+
+		public static readonly DependencyProperty RowsProperty =
+			DependencyProperty.Register(nameof(Rows), typeof(int), typeof(MapControlsStripSeparator),
+				new PropertyMetadata(3, OnShapeChanged));
+
+		/// <summary>
+		/// Fill the control's WIDTH with as many columns as fit at the dot pitch (DotSize + DotGap), centred. The host
+		/// sets Width — the tools tier's picker separator stretches to whatever gap the site picker leaves.
+		/// </summary>
+		public bool FillWidth
+		{
+			get => (bool)GetValue(FillWidthProperty);
+			set => SetValue(FillWidthProperty, value);
+		}
+
+		public static readonly DependencyProperty FillWidthProperty =
+			DependencyProperty.Register(nameof(FillWidth), typeof(bool), typeof(MapControlsStripSeparator),
+				new PropertyMetadata(false, OnShapeChanged));
 
 		/// <summary>Each dot's diameter, in DIPs.</summary>
 		public double DotSize
@@ -53,34 +93,43 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(Brush), typeof(Brush), typeof(MapControlsStripSeparator),
 				new PropertyMetadata(null, OnShapeChanged));
 
+		/// <summary>The width <paramref name="columns"/> dots take at the default size and gap — what a host needs
+		/// to keep a FillWidth separator from dropping below a given count.</summary>
+		public double WidthFor(int columns) => columns * DotSize + Math.Max(0, columns - 1) * DotGap;
+
 		private static void OnShapeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
 			((MapControlsStripSeparator)d).ApplyShape();
 
-		// Nine Ellipses in the 3 × 3 grid, each wearing DotStyle (a STYLE is theme-safe; a brush read in C# isn't).
-		private void BuildDots()
+		// Columns in force: the DP, or — filling — what the laid-out width holds (at least 1).
+		private int EffectiveColumns()
 		{
-			var style = (Style)Resources["DotStyle"];
-			for (int i = 0; i < _dots.Length; i++)
+			if (!FillWidth)
 			{
-				var dot = new Ellipse { Style = style };
-				Grid.SetRow(dot, i / 3);
-				Grid.SetColumn(dot, i % 3);
-				Dots.Children.Add(dot);
-				_dots[i] = dot;
+				return Math.Max(1, Columns);
 			}
+			var pitch = DotSize + DotGap;
+			var width = double.IsNaN(Width) ? ActualWidth : Width;
+			return pitch <= 0 ? 1 : Math.Max(1, (int)Math.Floor((width + DotGap) / pitch));
 		}
 
-		// ONE place every DP lands, every branch setting every value (the OverlayBar rule).
+		// Rebuild the grid only when the COUNT changes (a fill separator re-lays out often); size/gap/brush are
+		// re-applied every time. ONE place every DP lands (the OverlayBar rule).
 		private void ApplyShape()
 		{
+			if (Dots is null)
+			{
+				return; // a DP set before InitializeComponent
+			}
+			int columns = EffectiveColumns();
+			int rows = Math.Max(1, Rows);
+			if (columns != _builtColumns || rows != _builtRows)
+			{
+				BuildDots(columns, rows);
+			}
 			Dots.RowSpacing = DotGap;
 			Dots.ColumnSpacing = DotGap;
 			foreach (var dot in _dots)
 			{
-				if (dot is null)
-				{
-					return; // a DP set before BuildDots ran (XAML attribute on construction)
-				}
 				dot.Width = DotSize;
 				dot.Height = DotSize;
 				if (Brush is { } brush)
@@ -92,6 +141,34 @@ namespace Anvil.Controls.Primitives
 					dot.ClearValue(Shape.FillProperty); // back to DotStyle's theme brush
 				}
 			}
+		}
+
+		// columns × rows Ellipses, each wearing DotStyle (a STYLE is theme-safe; a brush read in C# isn't).
+		private void BuildDots(int columns, int rows)
+		{
+			var style = (Style)Resources["DotStyle"];
+			Dots.Children.Clear();
+			Dots.RowDefinitions.Clear();
+			Dots.ColumnDefinitions.Clear();
+			for (int r = 0; r < rows; r++)
+			{
+				Dots.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+			}
+			for (int c = 0; c < columns; c++)
+			{
+				Dots.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+			}
+			_dots = new Ellipse[columns * rows];
+			for (int i = 0; i < _dots.Length; i++)
+			{
+				var dot = new Ellipse { Style = style };
+				Grid.SetRow(dot, i / columns);
+				Grid.SetColumn(dot, i % columns);
+				Dots.Children.Add(dot);
+				_dots[i] = dot;
+			}
+			_builtColumns = columns;
+			_builtRows = rows;
 		}
 	}
 }

@@ -67,24 +67,28 @@ namespace Anvil.Controls.Composites
 			SitePicker.SelectedItem = vm.SiteFavorites.LoadedSite;
 		}
 
-		// Below this the picker would be too narrow to name a site; the alignment gives way instead.
-		private const double SitePickerMinWidth = 160;
+		// The picker separator never drops below a 3 × 3's width — past that, the alignment gives way.
+		private const int PickerSeparatorMinColumns = 3;
 
-		/// <summary>Size the site picker so its RIGHT edge lands on <paramref name="rightEdge"/> (in
-		/// <paramref name="root"/>'s coordinates) — MainWindow passes the bar scrubber's right edge. Its left edge
-		/// is wherever the tools before it end, so only the width moves; a no-op for a sub-pixel change, which is
-		/// what makes calling it from SizeChanged safe (resizing the picker re-fires it with the same answer).</summary>
+		/// <summary>Slide the (fixed-width) site picker so its RIGHT edge lands on <paramref name="rightEdge"/> (in
+		/// <paramref name="root"/>'s coordinates) — MainWindow passes the end of the bar's longest scan line. It does
+		/// so by setting PickerSeparator's Width: that separator's LEFT edge is fixed by the tools before it, and the
+		/// picker follows its right edge after the separator's margin and the panel spacing. A no-op for a sub-pixel
+		/// change, which is what makes calling it from SizeChanged safe (the resize re-fires it with the same answer).</summary>
 		public void AlignSitePickerRightEdge(double rightEdge, UIElement root)
 		{
-			if (double.IsNaN(rightEdge) || SitePicker.ActualWidth <= 0)
+			if (double.IsNaN(rightEdge) || PickerSeparator.ActualHeight <= 0)
 			{
 				return;
 			}
-			var left = SitePicker.TransformToVisual(root).TransformPoint(default).X;
-			var width = Math.Max(SitePickerMinWidth, rightEdge - left);
-			if (Math.Abs(width - SitePicker.Width) > 0.5)
+			var separatorLeft = PickerSeparator.TransformToVisual(root).TransformPoint(default).X;
+			// separator | its right margin | the panel's spacing | picker
+			var afterSeparator = PickerSeparator.Margin.Right + LeftTools.Spacing;
+			var width = rightEdge - SitePicker.Width - afterSeparator - separatorLeft;
+			width = Math.Max(PickerSeparator.WidthFor(PickerSeparatorMinColumns), width);
+			if (Math.Abs(width - PickerSeparator.Width) > 0.5)
 			{
-				SitePicker.Width = width;
+				PickerSeparator.Width = width;
 			}
 		}
 
