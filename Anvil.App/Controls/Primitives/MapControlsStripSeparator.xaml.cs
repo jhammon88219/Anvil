@@ -1,66 +1,48 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
 
 namespace Anvil.Controls.Primitives
 {
 	/// <summary>
-	/// The short rule between tool groups on the tools tier (see MapControlsStripSeparator.xaml). Every part of
-	/// its shape is a DP; <see cref="Brush"/> null keeps the theme default.
+	/// The 3 × 3 dot grid between tool groups on the tools tier (see MapControlsStripSeparator.xaml). Dot size,
+	/// spacing and fill are DPs; <see cref="Brush"/> null keeps the faint theme default.
 	/// </summary>
 	public sealed partial class MapControlsStripSeparator : UserControl
 	{
+		private readonly Ellipse[] _dots = new Ellipse[9];
+
 		public MapControlsStripSeparator()
 		{
 			InitializeComponent();
+			BuildDots();
 			ApplyShape();
 		}
 
-		/// <summary>Vertical (default) = a rule (Length tall); Horizontal = a dash (Length wide).</summary>
-		public Orientation Orientation
+		/// <summary>Each dot's diameter, in DIPs.</summary>
+		public double DotSize
 		{
-			get => (Orientation)GetValue(OrientationProperty);
-			set => SetValue(OrientationProperty, value);
+			get => (double)GetValue(DotSizeProperty);
+			set => SetValue(DotSizeProperty, value);
 		}
 
-		public static readonly DependencyProperty OrientationProperty =
-			DependencyProperty.Register(nameof(Orientation), typeof(Orientation), typeof(MapControlsStripSeparator),
-				new PropertyMetadata(Orientation.Vertical, OnShapeChanged));
+		public static readonly DependencyProperty DotSizeProperty =
+			DependencyProperty.Register(nameof(DotSize), typeof(double), typeof(MapControlsStripSeparator),
+				new PropertyMetadata(1.5, OnShapeChanged));
 
-		/// <summary>Along the bar, in DIPs.</summary>
-		public double Length
+		/// <summary>The space between neighbouring dots, in DIPs (both directions).</summary>
+		public double DotGap
 		{
-			get => (double)GetValue(LengthProperty);
-			set => SetValue(LengthProperty, value);
+			get => (double)GetValue(DotGapProperty);
+			set => SetValue(DotGapProperty, value);
 		}
 
-		public static readonly DependencyProperty LengthProperty =
-			DependencyProperty.Register(nameof(Length), typeof(double), typeof(MapControlsStripSeparator),
-				new PropertyMetadata(20.0, OnShapeChanged));
+		public static readonly DependencyProperty DotGapProperty =
+			DependencyProperty.Register(nameof(DotGap), typeof(double), typeof(MapControlsStripSeparator),
+				new PropertyMetadata(2.5, OnShapeChanged));
 
-		/// <summary>Across the bar, in DIPs.</summary>
-		public double Thickness
-		{
-			get => (double)GetValue(ThicknessProperty);
-			set => SetValue(ThicknessProperty, value);
-		}
-
-		public static readonly DependencyProperty ThicknessProperty =
-			DependencyProperty.Register(nameof(Thickness), typeof(double), typeof(MapControlsStripSeparator),
-				new PropertyMetadata(2.0, OnShapeChanged));
-
-		/// <summary>The bar's own corners (shadows UserControl.CornerRadius, which a UserControl doesn't draw).</summary>
-		public new CornerRadius CornerRadius
-		{
-			get => (CornerRadius)GetValue(CornerRadiusProperty);
-			set => SetValue(CornerRadiusProperty, value);
-		}
-
-		public static new readonly DependencyProperty CornerRadiusProperty =
-			DependencyProperty.Register(nameof(CornerRadius), typeof(CornerRadius), typeof(MapControlsStripSeparator),
-				new PropertyMetadata(new CornerRadius(1), OnShapeChanged));
-
-		/// <summary>The bar's fill. Null = the theme default drawn in XAML.</summary>
+		/// <summary>The dots' fill. Null = the theme default (DotStyle in XAML).</summary>
 		public Brush? Brush
 		{
 			get => (Brush?)GetValue(BrushProperty);
@@ -74,21 +56,42 @@ namespace Anvil.Controls.Primitives
 		private static void OnShapeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
 			((MapControlsStripSeparator)d).ApplyShape();
 
+		// Nine Ellipses in the 3 × 3 grid, each wearing DotStyle (a STYLE is theme-safe; a brush read in C# isn't).
+		private void BuildDots()
+		{
+			var style = (Style)Resources["DotStyle"];
+			for (int i = 0; i < _dots.Length; i++)
+			{
+				var dot = new Ellipse { Style = style };
+				Grid.SetRow(dot, i / 3);
+				Grid.SetColumn(dot, i % 3);
+				Dots.Children.Add(dot);
+				_dots[i] = dot;
+			}
+		}
+
 		// ONE place every DP lands, every branch setting every value (the OverlayBar rule).
 		private void ApplyShape()
 		{
-			bool across = Orientation == Orientation.Horizontal;
-			double width = across ? Length : Thickness;
-			double height = across ? Thickness : Length;
-			foreach (var mark in new[] { DefaultMark, CustomMark })
+			Dots.RowSpacing = DotGap;
+			Dots.ColumnSpacing = DotGap;
+			foreach (var dot in _dots)
 			{
-				mark.Width = width;
-				mark.Height = height;
-				mark.CornerRadius = CornerRadius;
+				if (dot is null)
+				{
+					return; // a DP set before BuildDots ran (XAML attribute on construction)
+				}
+				dot.Width = DotSize;
+				dot.Height = DotSize;
+				if (Brush is { } brush)
+				{
+					dot.Fill = brush;
+				}
+				else
+				{
+					dot.ClearValue(Shape.FillProperty); // back to DotStyle's theme brush
+				}
 			}
-			CustomMark.Background = Brush;
-			CustomMark.Visibility = Brush is null ? Visibility.Collapsed : Visibility.Visible;
-			DefaultMark.Visibility = Brush is null ? Visibility.Visible : Visibility.Collapsed;
 		}
 	}
 }

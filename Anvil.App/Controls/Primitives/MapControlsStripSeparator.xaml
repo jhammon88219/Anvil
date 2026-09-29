@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MapControlsStripSeparator — the short rule between tool GROUPS on the tools tier (MapControlsStrip).
-     One rounded bar, centred in its slot; every part of its shape is a DP so it can be re-tuned at the use
+<!-- MapControlsStripSeparator — the mark between tool GROUPS on the tools tier (MapControlsStrip): a small
+     3 × 3 GRID OF DOTS, centred in its slot. Every part of its shape is a DP so it can be re-tuned at the use
      site (or here, for all of them) without touching the strip.
 
-       (◗)(✈)(⚗)   │   (⌕)   │   (⌸)(◎)   │   [KTLX ˅]      Orientation=Vertical (default): a RULE
-                   ↑                                         Length = its height, Thickness = its width
-                   this — MARGINS are the host's, and GENEROUS on purpose: the gap is what groups the tools
+       (◗)(✈)(⚗)   ⁘   (⌕)   ⁘   (⌸)(◎)   ⁘   [KTLX ˅]
+                   ↑
+                   · · ·     DotSize 1.5 · DotGap 2.5  →  a 9.5 × 9.5 block
+                   · · ·     MARGINS are the host's, and GENEROUS on purpose: the gap is what groups the tools
+                   · · ·
 
-       (◗)(✈)(⚗)  ─  (⌕)  ─  (⌸)(◎)                          Orientation=Horizontal: a DASH (the first cut)
-                                                             Length = its width, Thickness = its height
-
-     DPs: Orientation · Length (20) · Thickness (2) · CornerRadius (1 = a pill end at 2 thick) · Brush.
-     ⚠️ Brush null = the THEME default, written here as a {ThemeResource} — never resolved in C# (it would
-     snapshot the OS theme, not the app's). A set Brush paints a second bar over it and the default one
-     collapses, so a translucent Brush never shows the default through it.
-     ⚠️ It is NOT a line across the tier: the tier has no seams (see MapControlsStrip's header); this only
-     groups the tools inside it. -->
+     DPs: DotSize (1.5) · DotGap (2.5) · Brush.
+     ⚠️ DELIBERATELY FAINT (~16% of the text colour — MapControlsStripSeparatorDotBrush below): it must read as
+     structure, never as one more tool. The two stock steps were both wrong — Tertiary sat too close to the
+     glyphs, Disabled (36%) still did. Picked from a mockup (2026-09-29), 2 px lines → dots.
+     ⚠️ Brush null = that THEME brush, applied through DotStyle — never resolved in C# (it would snapshot the OS
+     theme, not the app's). A set Brush is a LOCAL Fill on each dot; clearing it hands the style back.
+     ⚠️ It is NOT a line across the tier: the tier has no seams (see MapControlsStrip's header). -->
 <UserControl x:Class="Anvil.Controls.Primitives.MapControlsStripSeparator"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -25,10 +25,33 @@
              IsTabStop="False"
              IsHitTestVisible="False"
              VerticalAlignment="Center">
-    <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-        <Border x:Name="DefaultMark"
-                Background="{ThemeResource TextFillColorTertiaryBrush}"/>
-        <Border x:Name="CustomMark"
-                Visibility="Collapsed"/>
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Default">
+                    <SolidColorBrush x:Key="MapControlsStripSeparatorDotBrush" Color="#29FFFFFF"/> <!-- ~16% white -->
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="MapControlsStripSeparatorDotBrush" Color="#29000000"/> <!-- ~16% black -->
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <Style x:Key="DotStyle" TargetType="Ellipse">
+                <Setter Property="Fill" Value="{ThemeResource MapControlsStripSeparatorDotBrush}"/>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- The nine dots are built in code (BuildDots), sized and spaced by ApplyShape. -->
+    <Grid x:Name="Dots" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
     </Grid>
 </UserControl>

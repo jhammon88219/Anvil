@@ -532,9 +532,12 @@ namespace Anvil
 
 			ApplyRailSeating();
 
-			// The tools tier's site picker ends where the bar's scrubber ends (see AlignSitePicker).
+			// The tools tier's site picker ends where the bar's scrubber ends (see AlignSitePicker), and its
+			// search box is exactly as wide as the temporal keys below it — both sit on the window's midline, so
+			// equal widths make their edges line up.
 			TimeModule.SizeChanged += (_, _) => AlignSitePicker();
 			ToolsStrip.SizeChanged += (_, _) => AlignSitePicker();
+			TemporalKeys.SizeChanged += (_, e) => ToolsStrip.MatchPlaceSearchWidth(e.NewSize.Width);
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs
 			// THE TITLE BAR block above). Hooked straight after InitializeComponent so the very first layout

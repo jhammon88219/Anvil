@@ -209,6 +209,39 @@ namespace Anvil.Controls.Composites
 		//                 "—" when it wasn't (the archive path reads the VCP only).
 		private const string SailsPrefix = "SAILS/MRLE ";
 
+		// The values that mean "no fact here" — drawn DIMMED by the XAML's stand-in TextBlock.
+		private static readonly string[] StandIns = { "—", "?", "none", "n/a", "loading…" };
+
+		private static bool IsStandIn(string value) => Array.IndexOf(StandIns, value) >= 0;
+
+		// ScanValue split for the two TextBlocks sharing each cell: exactly one of these is non-empty.
+		public string ScanFact(string mode, int line)
+		{
+			var value = ScanValue(mode, line);
+			return IsStandIn(value) ? string.Empty : value;
+		}
+
+		public string ScanStandIn(string mode, int line)
+		{
+			var value = ScanValue(mode, line);
+			return IsStandIn(value) ? value : string.Empty;
+		}
+
+		// ===== Clock column sizing =====
+		// ClockSample's suffix: the culture's LONGER day-half designator ("AM"/"PM"), or none for a 24-hour
+		// culture — so the sample is exactly the widest clock this culture can show.
+		public string ClockSampleSuffix
+		{
+			get
+			{
+				var f = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat;
+				return f.AMDesignator.Length >= f.PMDesignator.Length ? f.AMDesignator : f.PMDesignator;
+			}
+		}
+
+		// Cap the age line to the sample's width, so a long replay age trims instead of widening the column.
+		private void OnClockSampleSizeChanged(object sender, SizeChangedEventArgs e) => AgeText.MaxWidth = e.NewSize.Width;
+
 		public string ScanValue(string mode, int line)
 		{
 			var parts = RadarVcpText(mode).Split(" · ");

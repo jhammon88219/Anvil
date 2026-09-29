@@ -34,9 +34,9 @@
           INSPECT ─ ⌸ the RANGE RULER + ◎ the        ▣ marker viewer — PLACEHOLDER   cell = pane 0) ─ reset north,
           RANGE RINGS (lit = showing) ─ then pick    ⊚ Location (lit = marker out)   fit to view ─ MAP key + car, isolation
           one (over the console, which answers when)  ✕ stays while there is text
-        ─ = Primitives/MapControlsStripSeparator, a short VERTICAL rule between GROUPS (20 tall) with GENEROUS
-            margins (8 + the panel's 8 left, 12 + the panel's 4 right = 16 a side). Tune its shape/brush on the
-            control, not here; Orientation=Horizontal makes it a dash again.
+        ─ = Primitives/MapControlsStripSeparator, a faint 3 × 3 DOT GRID between GROUPS with GENEROUS margins
+            (8 + the panel's 8 left, 12 + the panel's 4 right = 16 a side). Tune dot size/gap/brush on the
+            control, not here.
        ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   ← …and onto the bar: NO rule
        ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
      ═══════════════════════ window bottom ═══════════════════════
@@ -44,7 +44,7 @@
      ⚠️ THERE IS NO LINE ANYWHERE ON THIS TIER. Its top edge throws a shadow onto the map and the
      bar below draws the band it receives from this one's underside. A hairline under a shadow reads
      as a seam someone forgot to finish - the two are alternatives, not layers. (The group SEPARATORS are not
-     seams: they are short rules between tools, inside the tier, and never span it.)
+     seams: they are small dot grids between tools, inside the tier, and never span it.)
 
      ⚠️ IT ALIGNS TO THE BAR'S CLUSTERS, not to itself, and the SIDES MEAN SOMETHING. LEFT sits over the
      radar console, so it holds the control that changes WHICH radar you are looking at (the console below
@@ -486,6 +486,8 @@
                 <PathIcon Data="M9,0 C5.1,0 2,3.1 2,7 C2,12 9,18 9,18 C9,18 16,12 16,7 C16,3.1 12.9,0 9,0 Z M9,4.5 A2.5,2.5 0 1,0 9,9.5 A2.5,2.5 0 1,0 9,4.5 Z"/>
             </Button>
 
+            <!-- ⚠️ Width is SET IN CODE (MatchPlaceSearchWidth, from MainWindow) to the bar's temporal keys'
+                 width, so the box and the keys share both edges; 402 is only the pre-layout value. -->
             <AutoSuggestBox x:Name="PlaceSearchBox"
                             Grid.Column="1"
                             Width="402" VerticalAlignment="Center"

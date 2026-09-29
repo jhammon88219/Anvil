@@ -466,7 +466,8 @@
                              keys were squares measured off the height they were given and centring collapsed
                              them. They are a fixed size now (Styles.xaml, BarKeySide) and this row is what
                              makes the BAR that tall, so stretching would only pad around them. -->
-                        <comp:TemporalToggles Grid.Column="1"
+                        <comp:TemporalToggles x:Name="TemporalKeys"
+                                              Grid.Column="1"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
                                               ViewModel="{x:Bind ViewModel}"/>

@@ -88,6 +88,16 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
+		/// <summary>Make the place-search box exactly <paramref name="width"/> wide — MainWindow passes the width of
+		/// the bar's temporal keys. Both are centred on the window's midline, so their edges line up.</summary>
+		public void MatchPlaceSearchWidth(double width)
+		{
+			if (width > 0 && Math.Abs(width - PlaceSearchBox.Width) > 0.5)
+			{
+				PlaceSearchBox.Width = width;
+			}
+		}
+
 		private void OnOpenAtlasClick(object sender, RoutedEventArgs e)
 		{
 			SitePicker.CloseDropDown();
