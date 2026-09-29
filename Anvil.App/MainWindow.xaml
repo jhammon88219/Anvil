@@ -400,7 +400,9 @@
                                  see TemporalToggles. What is left here is genuinely global. -->
                                 <!-- ⚠️ ATLAS WAS A SPLIT KEY (a SplitTemporalToggle whose car opened a home/favorites
                                      flyout). That flyout became the tools tier's SITE PICKER (MapControlsStrip), so this
-                                     is a plain window latch again, exactly like Settings. Don't re-split it. -->
+                                     is a plain window latch again, exactly like Settings. Don't re-split it.
+                                     ⚠️ Its glyph (EC05) is MIRRORED on PastCastTab's "Open Anvil Atlas" button — same
+                                     door, same mark; change both. -->
                                 <ToggleButton x:Name="AtlasKey"
                                               Grid.Column="0"
                                               Style="{StaticResource BarKeyToggleStyle}"

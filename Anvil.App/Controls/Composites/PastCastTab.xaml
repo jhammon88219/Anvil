@@ -36,6 +36,12 @@
        │ ⠿ › [x] Mesoscale discussions ───●  100%             │  │ MDs + MPDs: areas + a reader
        │ ⠿ › [x] SPC outlook    ───────●───   55%             │  │ box = show/hide, any product
        │ ⠿   [x] Radar          ──────────●─   85%            │  ┘ header only
+       │                                                      │
+       │                  (100 px, always)                    │
+       │                                                      │
+       │    ╭────────────────────────────────────────────╮    │  ← OPEN ATLAS: accent hairline, 6 px
+       │    │ 📡 Open Anvil Atlas to play a past event    │    │     corners, the bar's Atlas glyph;
+       │    ╰────────────────────────────────────────────╯    │     opens the Atlas on PAST EVENTS
        └──────────────────────────────────────────────────────┘
 
      ⚠️ THE DOW EVENT SECTION IS GONE (2026-09-27) — it is the Anvil Atlas's DOW events tab now
@@ -107,6 +113,55 @@
 
     <UserControl.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- The OPEN ATLAS button under the sections: transparent face, 1 px ACCENT hairline, 6 px corners (a quiet
+             door, not a primary action). Minimal template so it can't pick up the stock button's chrome; hover and
+             press only fill the face. LOCAL: this window is its only consumer. -->
+        <Style x:Key="OpenAtlasButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="Root"
+                              Background="{TemplateBinding Background}"
+                              BorderBrush="{TemplateBinding BorderBrush}"
+                              BorderThickness="{TemplateBinding BorderThickness}"
+                              CornerRadius="{TemplateBinding CornerRadius}"
+                              Padding="{TemplateBinding Padding}">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource ControlFillColorSecondaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource ControlFillColorTertiaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="Content.Opacity" Value="0.4"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <ContentPresenter x:Name="Content"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Content="{TemplateBinding Content}"
+                                              Foreground="{TemplateBinding Foreground}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <!-- Two rows: the FIXED Timeframe block, then the sections. ⚠️ The VisualStateManager groups live on THIS
@@ -269,6 +324,9 @@
     <!-- ⚠️ Margin right -12 BLEEDS the scroller's gutter into the window's 16 px body margin (see the
          PanelScroller header): the gutter ends 4 px from the window edge. -->
     <prim:PanelScroller Grid.Row="1" Margin="0,0,-12,0">
+    <!-- ⚠️ An OUTER stack holds Sections + the Open Atlas button: Sections must stay the pure layer run
+         (ApplyLayerOrder / LayerOrderOf read its children as the map's z-order), so nothing else goes IN it. -->
+    <StackPanel VerticalAlignment="Top">
     <StackPanel x:Name="Sections" VerticalAlignment="Top" Spacing="8">
 
         <!-- ===================== STORM CELLS ===================== -->
@@ -623,6 +681,25 @@
                            OpacityToolTip="Opacity of the radar layer — turn it down to read what is under it"/>
 
         <!-- (The DOW event section moved to the Anvil Atlas — Composites/DowEventsAtlasTab, 2026-09-27.) -->
+    </StackPanel>
+
+        <!-- ===================== OPEN ATLAS — the door to the past-event list =====================
+             ALWAYS 100 px below the LAST section, open or closed (it rides the run down as sections expand, and
+             scrolls with them). Opens the Anvil Atlas on its PAST EVENTS tab (MapViewModel.OpenAtlasOnEvents —
+             also selects the event PastCast has picked, if any). ⚠️ The mark is the bar's Atlas key glyph (EC05,
+             MainWindow AtlasKey) — the same door, the same mark; change both. -->
+        <Button Style="{StaticResource OpenAtlasButtonStyle}"
+                HorizontalAlignment="Center"
+                Margin="0,100,0,16"
+                Click="OnOpenAtlasClick"
+                ToolTipService.ToolTip="Browse saved severe-weather days in the Anvil Atlas and play one here">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="15" Glyph="&#xEC05;"
+                          VerticalAlignment="Center"
+                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                <TextBlock Text="Open Anvil Atlas to play a past event" FontSize="13" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Button>
     </StackPanel>
     </prim:PanelScroller>
     </Grid>

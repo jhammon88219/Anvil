@@ -170,6 +170,9 @@ namespace Anvil.Controls.Composites
 
 		// The layer ORDER: a drag (or Alt+Arrow) in the layer run is handed to the VM, which saves it for
 		// THIS window and restacks the map. The saved order is applied once, on first load (constructor).
+		// The door under the sections: the Anvil Atlas, on its Past events tab.
+		private void OnOpenAtlasClick(object sender, RoutedEventArgs e) => ViewModel?.OpenAtlasOnEvents();
+
 		private void OnSectionsReordered(object? sender, EventArgs e) =>
 			ViewModel?.SetLayerOrder(TemporalMode.Past, PanelSection.LayerOrderOf(Sections));
 
