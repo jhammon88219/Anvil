@@ -22,10 +22,10 @@
      cursor, shared by every pane — which is why the scrubber does not multiply. Per-pane controls (product,
      ramp, tilt) are the pane NOTCH (Composites/PaneNotchContent), not here.
 
-     ⚠️ THE MODULE IS ONE FIXED WIDTH (752), and that is load-bearing: clock column = the WIDEST time it can
-     show (an invisible ClockSample sizes it; the age trims to it), scan column = a reserved 180, and the
-     scrubber takes the remainder (~420). So both gaps beside the scrubber are the same 16, and nothing
-     ticking over (the age, a VCP change, 9:59 → 10:00) can resize the scrubber, reflow its cells, or move
+     ⚠️ THE MODULE IS ONE FIXED WIDTH (752), and that is load-bearing: clock column = the widest time THIS LOOP
+     shows (an invisible ClockSample sizes it; the age trims to it), scan column = a reserved 180, and the
+     scrubber takes the remainder (~420, a digit less in a 10–12 o'clock loop). So both gaps beside the
+     scrubber are the same 16, and nothing ticking over (the age, a VCP change, scrubbing across 9:59 → 10:00) can resize the scrubber, or move
      the site picker aligned to its right edge.
      ⚠️ WIDTH BUDGET: 752. At 1920 wide the bar's left star column (beside the centred temporal keys) is
      ~770, so there is ~20 px to spare — widen the module and it clips.
@@ -75,7 +75,7 @@
     <!-- The whole assembly is CENTRED vertically in the bar, and each column is centred within it, so the
          clock, the scrubber block and the scan lines share one midline. -->
     <!-- ⚠️ ONE FIXED WIDTH (752 = the WIDTH BUDGET) with the scrubber in the STAR column: the clock column is
-         exactly as wide as the WIDEST time it can show (ClockSample), the scan column is a fixed 180, and the
+         exactly as wide as the widest time in the loop (ClockSample), the scan column is a fixed 180, and the
          scrubber takes the rest — so both gaps beside it are the same 16, and its right edge (which the site
          picker aligns to) never moves. -->
     <Grid Width="752" HorizontalAlignment="Left" VerticalAlignment="Center" ColumnSpacing="16">
@@ -86,29 +86,33 @@
         </Grid.ColumnDefinitions>
 
         <!-- ===== THE CLOCK: the DISPLAYED frame's time (the one scrubbed to), not the newest =====
-             RIGHT-aligned in its column, so it hugs the scrubber at exactly the column gap whatever the time
-             ("1:07" is a digit narrower than "12:59"; that slack goes to the bar edge, not to the gap). -->
+             LEFT-aligned, so its left edge lines up with the tools tier's first site key above it, and the age
+             sits left under it. The column GROWS by a digit when the hour needs two ("10:05"): the scrubber
+             gives that digit up on its left, its right edge (the site picker's alignment) never moves, and the
+             gap stays 16. ⚠️ Sized per LOOP (ViewModel.LoopClockSample), not per frame — so scrubbing across
+             9:59 → 10:00 never reflows the scrubber mid-drag. A loop that straddles the hour shows its 1-digit
+             frames with one digit of extra gap; that is the price of a scrubber that holds still. -->
         <Grid Grid.Column="0" VerticalAlignment="Center" RowSpacing="2"
               ToolTipService.ToolTip="When the frame on screen was scanned">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- 1:07 PM -->
                 <RowDefinition Height="Auto"/> <!-- 2 min ago -->
             </Grid.RowDefinitions>
-            <!-- ClockSample: an INVISIBLE widest-case clock ("00:00" + the culture's longer designator) in the
-                 same styles, sharing the cell. It is what sizes the Auto column, so the column is the widest
-                 real time exactly — a layout ruler, never seen or hit. -->
-            <Grid x:Name="ClockSample" ColumnSpacing="4" HorizontalAlignment="Right"
+            <!-- ClockSample: an INVISIBLE widest-case clock for THIS LOOP ("0:00" or "00:00" + the culture's longer
+                 designator) in the same styles, sharing the cell. It is what sizes the Auto column — a layout
+                 ruler, never seen or hit. -->
+            <Grid x:Name="ClockSample" ColumnSpacing="4" HorizontalAlignment="Left"
                   Opacity="0" IsHitTestVisible="False" SizeChanged="OnClockSampleSizeChanged">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="00:00" FontSize="40" FontWeight="SemiLight"
+                <TextBlock Text="{x:Bind ViewModel.LoopClockSample, Mode=OneWay}" FontSize="40" FontWeight="SemiLight"
                            LineHeight="42" LineStackingStrategy="BlockLineHeight"/>
                 <TextBlock Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5"
                            Text="{x:Bind ClockSampleSuffix}" FontSize="16"/>
             </Grid>
-            <Grid ColumnSpacing="4" HorizontalAlignment="Right">
+            <Grid ColumnSpacing="4" HorizontalAlignment="Left">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
@@ -134,7 +138,7 @@
                  29 day ago") would otherwise widen the Auto column and squeeze the scrubber. It trims instead. -->
             <TextBlock x:Name="AgeText"
                        Grid.Row="1"
-                       HorizontalAlignment="Right"
+                       HorizontalAlignment="Left"
                        Text="{x:Bind ViewModel.RadarAgeText, Mode=OneWay}"
                        FontSize="14"
                        TextTrimming="CharacterEllipsis"
