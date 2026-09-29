@@ -2,16 +2,16 @@
 <!-- RadarControls — the GLOBAL time module, and only that. The "clock face" layout: the displayed frame's
      time is the HERO (the NowCast header's clock, restated), everything else steps down to one quiet line.
 
-       ┌─ clock ────────┐ ┌─ scrubber: FIXED 456 (8 px cells, 16 px hit strip) ────────┐ ┌─ scan ──────────┐
-       │ 1:07 PM        │ │ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬┃                          │ │ VCP 212         │
-       │                │ │                                                            │ │ precip          │
-       │ 2 min ago      │ │ 11 / 11               ⏮  ▶  ⏭                          ⟳  │ │ SAILS/MRLE ×1   │
-       └────────────────┘ └────────────────────────────────────────────────────────────┘ └─────────────────┘
-         ^ digits 40 SemiLight,   ^ frame count LEFT · transport CENTRED under the          ^ THREE lines, one fact
-           AM/PM 16 beside them     scrubber · ⟳ (check for a newer frame, 2 s               each (VCP · regime ·
-         ^ age (14) of the NEWEST   debounce) RIGHT — a [*, Auto, *] grid, so the             the rest); archive
-           frame, ramped fresh→     transport sits on the scrubber's exact midpoint           volumes leave line 3
-           stale (AgeBrush)                                                                   empty. RESERVED 120.
+       ┌─ clock ────────┐ ┌─ scrubber: FIXED 400 (8 px cells, 16 px hit strip) ─┐ ┌─ scan ─────────────────┐
+       │ 1:07 PM        │ │ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬┃                        │ │ VCP:        212        │
+       │                │ │                                                     │ │ Mode:       precip     │
+       │ 2 min ago      │ │ 11 / 11            ⏮  ▶  ⏭                      ⟳  │ │ SAILS/MRLE: ×1         │
+       └────────────────┘ └─────────────────────────────────────────────────────┘ └────────────────────────┘
+         ^ digits 40 SemiLight,   ^ frame count LEFT · transport CENTRED under the          ^ ALWAYS three LABELLED
+           AM/PM 16 beside them     scrubber · ⟳ (check for a newer frame, 2 s               lines; a missing fact is
+         ^ age (14) of the NEWEST   debounce) RIGHT — a [*, Auto, *] grid, so the             a placeholder (—, none,
+           frame, ramped fresh→     transport sits on the scrubber's exact midpoint           n/a), never a gap.
+           stale (AgeBrush)                                                                   RESERVED 180.
 
          The clock LEADS at the bar's left edge and the scan readout closes the module on the right, so the
          two readouts FLANK the scrubber (2026-09-29, when Inspect left for the tools tier).
@@ -22,13 +22,14 @@
      cursor, shared by every pane — which is why the scrubber does not multiply. Per-pane controls (product,
      ramp, tilt) are the pane NOTCH (Composites/PaneNotchContent), not here.
 
-     ⚠️ THE MODULE IS A FIXED WIDTH, and that is load-bearing: the scrubber is a FIXED 456 (it used to take
+     ⚠️ THE MODULE IS A FIXED WIDTH, and that is load-bearing: the scrubber is a FIXED 400 (it used to take
      the width of the control line under it, which lost ~250 px when the site id and scan text left), and
      every variable-length readout (clock, age, frame count, scan) has a RESERVED width, so nothing ticking
      over (the age, a VCP change, 9:59 → 10:00) can resize the scrubber, reflow its cells, or move the site
      picker aligned to it.
-     ⚠️ WIDTH BUDGET: 140 + 16 + 456 + 16 + 120 = 748. At 1920 wide the bar's left star column (beside the
-     centred temporal keys) is ~770, so there is ~20 px to spare — widen a column here and the module clips.
+     ⚠️ WIDTH BUDGET: 140 + 16 + 400 + 16 + 180 = 752 (the scrubber gave up 56 px so the labelled scan block
+     fits). At 1920 wide the bar's left star column (beside the centred temporal keys) is ~770, so there is
+     ~20 px to spare — widen a column here and the module clips.
 
      History: this was a 2x2 readout block (time/age over site/scan) beside plated 30/38/30 transport buttons.
      J replaced it (2026-09-28) to match the tiles/clock language of the redesigned windows. -->
@@ -43,6 +44,18 @@
 
     <UserControl.Resources>
         <x:Double x:Key="ReadoutFontSize">12</x:Double>
+        <!-- The scan block's two text roles: a quiet LABEL ("VCP:") and a primary VALUE ("212"). -->
+        <Style x:Key="ScanLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
+        </Style>
+        <Style x:Key="ScanValueStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+        </Style>
         <!-- Glyph-only transport: no resting plate, the shared hover/pressed look still shows on pointer. -->
         <Style x:Key="GlyphTransportStyle" TargetType="Button" BasedOn="{StaticResource TransportButtonStyle}">
             <Setter Property="Width" Value="28"/>
@@ -59,8 +72,8 @@
     <Grid HorizontalAlignment="Left" VerticalAlignment="Center" ColumnSpacing="16">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="140"/>  <!-- the clock — reserved: "12:59 PM" at 40 px fits -->
-            <ColumnDefinition Width="Auto"/> <!-- scrubber over the control line (the block is a fixed 456) -->
-            <ColumnDefinition Width="120"/>  <!-- the scan readout, three lines — reserved ("SAILS/MRLE ×1" ≈ 80) -->
+            <ColumnDefinition Width="Auto"/> <!-- scrubber over the control line (the block is a fixed 400) -->
+            <ColumnDefinition Width="180"/>  <!-- the scan readout: three LABELLED lines — reserved -->
         </Grid.ColumnDefinitions>
 
         <!-- ===== THE CLOCK: the DISPLAYED frame's time (the one scrubbed to), not the newest ===== -->
@@ -103,8 +116,8 @@
         <!-- ===== SCRUBBER over the CONTROL LINE =====
              ⚠️ THE BLOCK'S Width="456" IS LOAD-BEARING: a star column would measure EqualCellsPanel with the
              width AVAILABLE (half the bar) and the scrubber would stretch toward the centred temporal keys.
-             456 = the old control line (transport + frame + ICAO + scan + ⟳), so nothing moved when those left. -->
-        <Grid Grid.Column="1" Width="456" VerticalAlignment="Center" RowSpacing="6">
+             400 = what the WIDTH BUDGET (header) leaves once the labelled scan block takes its 180. -->
+        <Grid Grid.Column="1" Width="400" VerticalAlignment="Center" RowSpacing="6">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- segmented scrubber -->
                 <RowDefinition Height="Auto"/> <!-- frame count · transport · check now -->
@@ -218,22 +231,37 @@
             </Grid>
         </Grid>
 
-        <!-- ===== SCAN: the volume's scan strategy, THREE lines — VCP · regime · the rest (SAILS/MRLE) =====
-             Split by ScanLine from the ONE cut rule (RadarViewModel.ScanStrategyText, shared with the Atlas), so
-             the lines can't disagree with it. Archive volumes carry no SAILS part and leave line 3 empty; "—" /
-             "loading…" sit on line 1. The whole block carries the glossary tooltip. -->
-        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1"
-                    Background="Transparent"
-                    ToolTipService.ToolTip="{x:Bind ScanTooltip(ViewModel.RadarModeText), Mode=OneWay}">
-            <TextBlock Text="{x:Bind ScanLine(ViewModel.RadarModeText, 0), Mode=OneWay}"
-                       FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
-                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-            <TextBlock Text="{x:Bind ScanLine(ViewModel.RadarModeText, 1), Mode=OneWay}"
-                       FontSize="{StaticResource ReadoutFontSize}" TextTrimming="CharacterEllipsis"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            <TextBlock Text="{x:Bind ScanLine(ViewModel.RadarModeText, 2), Mode=OneWay}"
-                       FontSize="{StaticResource ReadoutFontSize}" TextTrimming="CharacterEllipsis"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-        </StackPanel>
+        <!-- ===== SCAN: the volume's scan strategy, ALWAYS THREE LABELLED LINES =====
+               VCP:         212          ← the number ("?" unparsed; "—" / "loading…" before a frame)
+               Mode:        precip       ← the regime word (clear-air · precip · TDWR monitor/hazardous)
+               SAILS/MRLE:  ×1           ← extra base-tilt cuts; "none" = counted and zero, "n/a" = TDWR,
+                                           "—" = not known (the archive path reads no sweep count)
+             ⚠️ Every line ALWAYS shows — a missing fact is a placeholder, never an empty or collapsed row, so
+             the block's height and the labels' column never move. Values come from ScanValue, which cuts the ONE
+             rule's string (RadarViewModel.ScanStrategyText, shared with the Atlas), so they can't disagree with it.
+             Labels tertiary, values primary; the whole block carries the glossary tooltip. -->
+        <Grid Grid.Column="2" VerticalAlignment="Center" ColumnSpacing="8" RowSpacing="1"
+              Background="Transparent"
+              ToolTipService.ToolTip="{x:Bind ScanTooltip(ViewModel.RadarModeText), Mode=OneWay}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/> <!-- label -->
+                <ColumnDefinition Width="*"/>    <!-- value -->
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="VCP:" Style="{StaticResource ScanLabelStyle}"/>
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind ScanValue(ViewModel.RadarModeText, 0), Mode=OneWay}"
+                       Style="{StaticResource ScanValueStyle}" FontWeight="SemiBold"/>
+            <TextBlock Grid.Row="1" Text="Mode:" Style="{StaticResource ScanLabelStyle}"/>
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ScanValue(ViewModel.RadarModeText, 1), Mode=OneWay}"
+                       Style="{StaticResource ScanValueStyle}"/>
+            <TextBlock Grid.Row="2" Text="SAILS/MRLE:" Style="{StaticResource ScanLabelStyle}"/>
+            <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ScanValue(ViewModel.RadarModeText, 2), Mode=OneWay}"
+                       Style="{StaticResource ScanValueStyle}"/>
+        </Grid>
     </Grid>
 </UserControl>

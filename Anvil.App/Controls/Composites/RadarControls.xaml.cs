@@ -200,17 +200,43 @@ namespace Anvil.Controls.Composites
 		// The cut itself is RadarViewModel.ScanStrategyText — shared with the Radar Atlas's Scan mode line.
 		public string RadarVcpText(string mode) => RadarViewModel.ScanStrategyText(mode);
 
-		// The Scan readout's three lines, cut from RadarVcpText at its " · " separators: 0 = "VCP 212",
-		// 1 = the regime ("precip"), 2 = everything after (SAILS/MRLE ×1, rejoined if a mode ever grows more parts).
-		// A missing part is an empty line, so the block keeps its height.
-		public string ScanLine(string mode, int line)
+		// The Scan block's three VALUES (the labels are XAML), cut from RadarVcpText at its " · " separators.
+		// ⚠️ ALWAYS a value — a missing fact is a placeholder, so all three lines show no matter what:
+		//   0 VCP:        "212" (from "VCP 212"; "?" when unparsed); before a frame, the state itself ("—", "loading…")
+		//   1 Mode:       the regime word, else "—"
+		//   2 SAILS/MRLE: "×1" from the "SAILS/MRLE ×1" part; else "n/a" for TDWR (no such scheme), "none" when the
+		//                 sweep count WAS read (the full mode keeps a "0.5°×N" token) and there are no extra cuts,
+		//                 "—" when it wasn't (the archive path reads the VCP only).
+		private const string SailsPrefix = "SAILS/MRLE ";
+
+		public string ScanValue(string mode, int line)
 		{
 			var parts = RadarVcpText(mode).Split(" · ");
-			if (line < 2)
+			switch (line)
 			{
-				return line < parts.Length ? parts[line] : string.Empty;
+				case 0:
+					return parts[0].StartsWith("VCP ", StringComparison.Ordinal) ? parts[0][4..]
+						: parts[0].Length > 0 ? parts[0] : "—";
+				case 1:
+					return parts.Length > 1 ? parts[1] : "—";
+				default:
+					foreach (var part in parts)
+					{
+						if (part.StartsWith(SailsPrefix, StringComparison.Ordinal))
+						{
+							return part[SailsPrefix.Length..];
+						}
+					}
+					if (parts.Length > 1 && parts[1].StartsWith("TDWR", StringComparison.Ordinal))
+					{
+						return "n/a";
+					}
+					if (parts[0] == "VCP ?")
+					{
+						return "—"; // an unread VCP says nothing trustworthy about its cuts
+					}
+					return mode.Contains("0.5°×", StringComparison.Ordinal) ? "none" : "—";
 			}
-			return parts.Length > 2 ? string.Join(" · ", parts[2..]) : string.Empty;
 		}
 
 		/// <summary>The scrubber's right edge in <paramref name="root"/>'s coordinates — the site picker on the
