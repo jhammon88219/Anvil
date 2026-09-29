@@ -1,6 +1,7 @@
 using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Anvil.Models;
 using Anvil.ViewModels;
 
@@ -137,10 +138,64 @@ namespace Anvil.Controls.Composites
 		// our own Text writes (ProgrammaticChange) must not, or picking a row would re-query as you move.
 		private void OnPlaceSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
 		{
+			PinClearButton();
 			if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
 			{
 				ViewModel?.PlaceSearch.UpdateSuggestions(sender.Text);
 			}
+		}
+
+		// ===== The box's X stays while there is text, focused or not =====
+		// The X is the inner TextBox's own template part "DeleteButton" (declared Visibility="Collapsed"). The
+		// TextBox shows it only while FOCUSED: its ButtonVisible state animates it to Visible, and ButtonCollapsed
+		// has NO storyboard, so in that state the element's own value shows. Setting that value here, from the
+		// text, keeps the X up after focus leaves (clicking the map) — so coming back to clear it is ONE click.
+		// ⚠️ Rests on the WinUI template (AutoSuggestBoxTextBoxStyle, checked against WinAppSDK 2.1 generic.xaml):
+		// if a future template gives ButtonCollapsed a storyboard, this quietly reverts to focus-only.
+		private Button? _clearButton;
+
+		private void OnPlaceSearchLoaded(object sender, RoutedEventArgs e) => PinClearButton();
+
+		// Looks the part up lazily (Loaded, then every text change) in case the inner template lands late.
+		private void PinClearButton()
+		{
+			if (_clearButton is null && FindNamed<Button>(PlaceSearchBox, "DeleteButton") is { } button)
+			{
+				_clearButton = button;
+				// Belt and braces: the TextBox's own handler clears the text too, but an UNFOCUSED click must not
+				// depend on it — clear here and say so to the VM (the empty box is what removes the pin).
+				_clearButton.Click += OnClearSearchClick;
+			}
+			if (_clearButton is not null)
+			{
+				_clearButton.Visibility = string.IsNullOrEmpty(PlaceSearchBox.Text) ? Visibility.Collapsed : Visibility.Visible;
+			}
+		}
+
+		private void OnClearSearchClick(object sender, RoutedEventArgs e)
+		{
+			if (PlaceSearchBox.Text.Length > 0)
+			{
+				PlaceSearchBox.Text = string.Empty;
+			}
+			ViewModel?.PlaceSearch.UpdateSuggestions(string.Empty);
+		}
+
+		private static T? FindNamed<T>(DependencyObject root, string name) where T : FrameworkElement
+		{
+			for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+			{
+				var child = VisualTreeHelper.GetChild(root, i);
+				if (child is T match && match.Name == name)
+				{
+					return match;
+				}
+				if (FindNamed<T>(child, name) is { } found)
+				{
+					return found;
+				}
+			}
+			return null;
 		}
 
 		// Enter or a row click. The box closes its list on submit, so when the online fallback comes back with

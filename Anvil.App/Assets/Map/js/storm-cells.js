@@ -6,9 +6,16 @@
 // shims delegate here; reAddAll calls reAdd(map) after a basemap switch or on a new pane.
 //
 //                   ▼ TVS (red, filled; an ELEVATED TVS is the same triangle hollow)
-//        ·──·──·──(●)──○────○────○────○     ● the cell now, id beneath      ○ forecast +15/30/45/60 min
-//        past track   ◯  ◆ 1.75″            ◯ mesocyclone ring (rank 5+; thicker at 8+)
-//                    H1                     ◆ severe hail (POSH ≥ 50%), max size beside it; bigger at 2″+
+//        - - - - -(●)───┼────┼────┼───▶     ● the cell now, id beneath      ┼ forecast +15/30/45 min (ticks
+//        past track   ◯  ◆ 1.75″              (dashed, faint, no dots)        ACROSS the track); ▶ +60 min, the
+//                    H1                                                     ARROWHEAD = where it is going
+//                                           ◯ mesocyclone ring (rank 5+; thicker at 8+)
+//                                           ◆ severe hail (POSH ≥ 50%), max size beside it; bigger at 2″+
+//
+// ⚠️ DIRECTION IS THE POINT (2026-09-29): with dots on both ends every track read the same both ways, and a
+// field of cells was a tangle. The arrowhead + tick bearings are computed in MERCATOR (mercBearing), so they
+// sit on the drawn line exactly, and ride icon-rotation-alignment 'map' so a rotated map keeps them on it.
+// A new cell with no forecast gets no arrow — correct, it has no motion yet.
 //
 //                    ┌──────────────────────────────────┐
 //         click ─────│ ● Cell H1 · TVS                  │  ← one popup for the cell, whichever mark
@@ -38,14 +45,15 @@ const MESO_YELLOW = '#ffe14d';
 const HAIL_CYAN = '#3fd0ff';
 const TRACK_WHITE = '#ffffff';
 const CASING = 'rgba(20,20,20,0.85)';
+const PAST_OPACITY = 0.45;    // the past track's share of the layer opacity
 
 // Every layer, bottom to top, and which toggle owns it.
 const LAYERS = [
     { id: 'storm-cell-fcst-casing', kind: 'tracks' },
     { id: 'storm-cell-fcst-line', kind: 'tracks' },
     { id: 'storm-cell-past-line', kind: 'tracks' },
-    { id: 'storm-cell-past-dot', kind: 'tracks' },
-    { id: 'storm-cell-fcst-dot', kind: 'tracks' },
+    { id: 'storm-cell-fcst-tick', kind: 'tracks' },
+    { id: 'storm-cell-fcst-arrow', kind: 'tracks' },
     { id: 'storm-cell-dot', kind: 'tracks' },
     { id: 'storm-cell-meso', kind: 'meso' },
     { id: 'storm-cell-hail', kind: 'hail' },
@@ -73,6 +81,19 @@ function currentScan() {
     return null;
 }
 
+// Bearing a→b in degrees clockwise from north, measured on the MERCATOR plane (the one the line is drawn on),
+// so a rotated icon lines up with the segment on screen, not just on the globe.
+function mercBearing(a, b) {
+    function y(lat) { return Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) * 180 / Math.PI; }
+    const dx = b[0] - a[0];
+    const dy = y(b[1]) - y(a[1]);
+    return Math.atan2(dx, dy) * 180 / Math.PI;
+}
+
+function point(k, coords, brg) {
+    return { type: 'Feature', properties: { k: k, brg: brg }, geometry: { type: 'Point', coordinates: coords } };
+}
+
 // One scan → the GeoJSON the layers draw. `k` tags each feature for its layer's filter.
 function scanGeojson(scan) {
     const features = [];
@@ -80,11 +101,16 @@ function scanGeojson(scan) {
         const here = [c.lon, c.lat];
         if (c.past && c.past.length) {
             features.push({ type: 'Feature', properties: { k: 'past' }, geometry: { type: 'LineString', coordinates: c.past.concat([here]) } });
-            c.past.forEach(function (p) { features.push({ type: 'Feature', properties: { k: 'pastpt' }, geometry: { type: 'Point', coordinates: p } }); });
         }
         if (c.fcst && c.fcst.length) {
-            features.push({ type: 'Feature', properties: { k: 'fcst' }, geometry: { type: 'LineString', coordinates: [here].concat(c.fcst) } });
-            c.fcst.forEach(function (p) { features.push({ type: 'Feature', properties: { k: 'fcstpt' }, geometry: { type: 'Point', coordinates: p } }); });
+            const line = [here].concat(c.fcst);
+            features.push({ type: 'Feature', properties: { k: 'fcst' }, geometry: { type: 'LineString', coordinates: line } });
+            // Ticks at the intermediate forecast points, each across the segment arriving there; the LAST point
+            // is the arrowhead instead. line[i] = fcst[i-1], so i runs over the forecast points.
+            for (let i = 1; i < line.length; i++) {
+                const brg = mercBearing(line[i - 1], line[i]);
+                features.push(point(i === line.length - 1 ? 'fcsthead' : 'fcsttick', line[i], brg));
+            }
         }
         const props = Object.assign({ k: 'cell', t: scan.t, site: file.site }, c);
         delete props.past;
@@ -122,7 +148,28 @@ function diamond(g, s) {
     g.lineWidth = 1.5; g.strokeStyle = CASING; g.stroke();
 }
 
+// The track's ARROWHEAD, drawn pointing NORTH (up) and rotated per feature by `brg`. Centred on the +60 min
+// point, so the tip overshoots it by half the icon — the line runs under the head and never pokes past it.
+function arrowHead(g, s) {
+    g.beginPath();
+    g.moveTo(s / 2, 1.5); g.lineTo(s - 2.5, s - 3); g.lineTo(s / 2, s - 5.5); g.lineTo(2.5, s - 3); g.closePath();
+    g.lineJoin = 'round';
+    g.lineWidth = 2.5; g.strokeStyle = CASING; g.stroke();
+    g.fillStyle = TRACK_WHITE; g.fill();
+}
+
+// A forecast TICK: a short bar ACROSS the track (east-west before rotation, so `brg` turns it square to the
+// segment), cased like the line.
+function tick(g, s) {
+    g.lineCap = 'round';
+    g.beginPath(); g.moveTo(2, s / 2); g.lineTo(s - 2, s / 2);
+    g.lineWidth = 3.5; g.strokeStyle = CASING; g.stroke();
+    g.lineWidth = 1.5; g.strokeStyle = TRACK_WHITE; g.stroke();
+}
+
 const ICONS = {
+    'storm-cell-icon-arrow': function () { return icon(14, arrowHead); },
+    'storm-cell-icon-tick': function () { return icon(11, tick); },
     'storm-cell-icon-tvs': function () { return icon(20, function (g, s) { triangleDown(g, s, true); }); },
     'storm-cell-icon-etvs': function () { return icon(20, function (g, s) { triangleDown(g, s, false); }); },
     'storm-cell-icon-hail': function () { return icon(13, diamond); },
@@ -165,23 +212,29 @@ function addLayers(map) {
         layout: { visibility: vis('tracks'), 'line-cap': 'round' },
         paint: { 'line-color': TRACK_WHITE, 'line-width': 1.5, 'line-opacity': opacity }
     }, before);
+    // The past: where it has BEEN — dashed and faint, no dots, so it reads as history behind the arrow.
     map.addLayer({
         id: 'storm-cell-past-line', type: 'line', source: SOURCE, filter: isK('past'),
-        layout: { visibility: vis('tracks'), 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': TRACK_WHITE, 'line-width': 1.25, 'line-opacity': 0.6 * opacity }
+        layout: { visibility: vis('tracks'), 'line-join': 'round' },
+        paint: { 'line-color': TRACK_WHITE, 'line-width': 1, 'line-opacity': PAST_OPACITY * opacity, 'line-dasharray': [2, 2] }
     }, before);
     map.addLayer({
-        id: 'storm-cell-past-dot', type: 'circle', source: SOURCE, filter: isK('pastpt'),
-        layout: { visibility: vis('tracks') },
-        paint: { 'circle-color': TRACK_WHITE, 'circle-radius': 1.75, 'circle-opacity': 0.7 * opacity }
+        id: 'storm-cell-fcst-tick', type: 'symbol', source: SOURCE, filter: isK('fcsttick'),
+        layout: {
+            visibility: vis('tracks'),
+            'icon-image': 'storm-cell-icon-tick', 'icon-rotate': ['get', 'brg'], 'icon-rotation-alignment': 'map',
+            'icon-allow-overlap': true, 'icon-ignore-placement': true
+        },
+        paint: { 'icon-opacity': opacity }
     }, before);
     map.addLayer({
-        id: 'storm-cell-fcst-dot', type: 'circle', source: SOURCE, filter: isK('fcstpt'),
-        layout: { visibility: vis('tracks') },
-        paint: {
-            'circle-color': CASING, 'circle-radius': 2.75, 'circle-opacity': opacity,
-            'circle-stroke-color': TRACK_WHITE, 'circle-stroke-width': 1.25, 'circle-stroke-opacity': opacity
-        }
+        id: 'storm-cell-fcst-arrow', type: 'symbol', source: SOURCE, filter: isK('fcsthead'),
+        layout: {
+            visibility: vis('tracks'),
+            'icon-image': 'storm-cell-icon-arrow', 'icon-rotate': ['get', 'brg'], 'icon-rotation-alignment': 'map',
+            'icon-allow-overlap': true, 'icon-ignore-placement': true
+        },
+        paint: { 'icon-opacity': opacity }
     }, before);
     map.addLayer({
         id: 'storm-cell-dot', type: 'circle', source: SOURCE, filter: isCell,
@@ -374,12 +427,11 @@ export function setOpacity(map, o) {
     function paint(id, prop, v) { if (map.getLayer(id)) map.setPaintProperty(id, prop, v); }
     paint('storm-cell-fcst-casing', 'line-opacity', opacity);
     paint('storm-cell-fcst-line', 'line-opacity', opacity);
-    paint('storm-cell-past-line', 'line-opacity', 0.6 * opacity);
-    paint('storm-cell-past-dot', 'circle-opacity', 0.7 * opacity);
-    ['storm-cell-fcst-dot', 'storm-cell-dot'].forEach(function (id) {
-        paint(id, 'circle-opacity', opacity);
-        paint(id, 'circle-stroke-opacity', opacity);
-    });
+    paint('storm-cell-past-line', 'line-opacity', PAST_OPACITY * opacity);
+    paint('storm-cell-fcst-tick', 'icon-opacity', opacity);
+    paint('storm-cell-fcst-arrow', 'icon-opacity', opacity);
+    paint('storm-cell-dot', 'circle-opacity', opacity);
+    paint('storm-cell-dot', 'circle-stroke-opacity', opacity);
     paint('storm-cell-meso', 'circle-stroke-opacity', opacity);
     paint('storm-cell-hail', 'icon-opacity', opacity);
     paint('storm-cell-hail', 'text-opacity', opacity);

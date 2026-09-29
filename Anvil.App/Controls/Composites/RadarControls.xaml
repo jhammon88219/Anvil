@@ -2,15 +2,17 @@
 <!-- RadarControls — the GLOBAL time module, and only that. The "clock face" layout: the displayed frame's
      time is the HERO (the NowCast header's clock, restated), everything else steps down to one quiet line.
 
-       ┌─ scrubber (8 px cells, 16 px hit strip) ───────────────────┐ ┌─ clock ──────┐
-       │ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬┃                          │ │ 1:07 PM      │
-       │ ⏮  ▶  ⏭   11 / 11   KTLX  VCP 212 · precip          ⟳     │ │ 2 min ago    │
-       └────────────────────────────────────────────────────────────┘ └──────────────┘
-         ^ transport is GLYPH-ONLY (no plates) — the clock carries      ^ digits large + SemiLight,
-           the weight now; ⟳ = check for a newer frame (2 s debounce)     AM/PM small beside them
-                                                                        ^ age of the NEWEST frame, ramped
-         The clock sits on the RIGHT, the side facing the bar's centre:   fresh→stale (AgeBrush); with the
-         transport stays at the console's left edge where the hand goes.  clock it answers "how current?"
+       ┌─ clock ────────┐ ┌─ scrubber (8 px cells, 16 px hit strip) ───────────────────┐
+       │ 1:07 PM        │ │ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬┃                          │
+       │ 2 min ago      │ │ ⏮  ▶  ⏭   11 / 11   KTLX  VCP 212 · precip          ⟳     │
+       └────────────────┘ └────────────────────────────────────────────────────────────┘
+         ^ digits 40 SemiLight,   ^ transport is GLYPH-ONLY (no plates) — the clock carries
+           AM/PM 16 beside them     the weight; ⟳ = check for a newer frame (2 s debounce)
+         ^ age (14) of the NEWEST frame, ramped fresh→stale (AgeBrush); with the clock it
+           answers "how current?"
+
+         The clock LEADS, at the bar's left edge (2026-09-29, when Inspect left for the tools tier): it is
+         read first, and the scrubber now runs toward the bar's centre. Column 0 is a RESERVED 140.
 
      THE ORGANIZING RULE: the bar holds what does NOT repeat per pane. One site, one camera, one time
      cursor, shared by every pane — which is why the scrubber does not multiply. Per-pane controls (product,
@@ -45,16 +47,16 @@
         </Style>
     </UserControl.Resources>
 
-    <!-- The whole assembly is CENTRED on the Inspect key beside it (MainWindow), and each column is centred
-         within it, so the scrubber block and the clock share one midline. -->
+    <!-- The whole assembly is CENTRED vertically in the bar, and each column is centred within it, so the
+         clock and the scrubber block share one midline. -->
     <Grid HorizontalAlignment="Left" VerticalAlignment="Center" ColumnSpacing="18">
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="140"/>  <!-- the clock — reserved: "12:59 PM" at 40 px fits -->
             <ColumnDefinition Width="Auto"/> <!-- scrubber over the control line -->
-            <ColumnDefinition Width="112"/>  <!-- the clock — reserved: "12:59 PM" at 34 px fits -->
         </Grid.ColumnDefinitions>
 
         <!-- ===== THE CLOCK: the DISPLAYED frame's time (the one scrubbed to), not the newest ===== -->
-        <Grid Grid.Column="1" VerticalAlignment="Center" RowSpacing="2"
+        <Grid Grid.Column="0" VerticalAlignment="Center" RowSpacing="2"
               ToolTipService.ToolTip="When the frame on screen was scanned">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- 1:07 PM -->
@@ -67,24 +69,24 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0"
                            Text="{x:Bind ClockDigits(ViewModel.CurrentFrameTimeText), Mode=OneWay}"
-                           FontSize="34"
+                           FontSize="40"
                            FontWeight="SemiLight"
-                           LineHeight="36"
+                           LineHeight="42"
                            LineStackingStrategy="BlockLineHeight"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                 <!-- AM/PM rides the digits' baseline-ish bottom edge, small and secondary. -->
                 <TextBlock Grid.Column="1"
                            VerticalAlignment="Bottom"
-                           Margin="0,0,0,4"
+                           Margin="0,0,0,5"
                            Text="{x:Bind ClockSuffix(ViewModel.CurrentFrameTimeText), Mode=OneWay}"
-                           FontSize="14"
+                           FontSize="16"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Grid>
             <!-- Age of the FRESHEST frame, ramped green → amber (12 min) → red (30 min) by AgeBrush, knees
                  matching RadarSiteStatus so the colour and the status dot agree. -->
             <TextBlock Grid.Row="1"
                        Text="{x:Bind ViewModel.RadarAgeText, Mode=OneWay}"
-                       FontSize="{StaticResource ReadoutFontSize}"
+                       FontSize="14"
                        TextTrimming="CharacterEllipsis"
                        Foreground="{x:Bind AgeBrush(ViewModel.RadarAgeMinutes), Mode=OneWay}"
                        ToolTipService.ToolTip="How long ago the newest available frame was scanned. Green = fresh, red = stale."/>
@@ -94,7 +96,7 @@
              ⚠️ THE Auto COLUMN IS LOAD-BEARING: a star column would measure EqualCellsPanel with the width
              AVAILABLE (half the bar) and the scrubber would stretch toward the centred temporal keys. Under
              Auto it measures with infinity, the panel returns 0, and the fixed-width line sets the width. -->
-        <Grid Grid.Column="0" VerticalAlignment="Center" RowSpacing="6">
+        <Grid Grid.Column="1" VerticalAlignment="Center" RowSpacing="6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>

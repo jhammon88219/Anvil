@@ -28,20 +28,22 @@
                                                                                              │ ☑ Place names    │     style has county lines
                                                                                              │ Dim ──●───── 30% │
                                                                                              └──────────────────┘
-       (◗)(✈)(⚗) [⌂ KTLX  Oklahoma City   ˅] (⌸) (◎)  (▣) [Search places  ⌕] (⊚) status   [▢][▥][▦] (⌘) (⛶) (▥|▴) [Isolate State ▾]   ← THIS
-        ↑ LEFT = RADAR + MAP: show each    ↑ CENTER = where; the box is          ↑ RIGHT = MAP ONLY: pane layout
-          network's sites (NEXRAD /          CENTERED on the tier                  (1/2/4, current one LIT, accent
-          TDWR / research), pick one (over the
-          console, which answers when),    ▣ marker viewer — a PLACEHOLDER         cell = pane 0), reset north,
-          ⌸ the RANGE RULER, then ◎ the    ⊚ Location (lit = your marker is out)   fit to view, MAP key + car, isolation
-          RANGE RINGS on/off (lit = showing)
+       (◗)(✈)(⚗) ─ (⌕) ─ (⌸)(◎) ─ [⌂ KTLX  Oklahoma City ˅]   (▣) [Moore, OK    ✕ ⌕] (⊚) status   [▢][▥][▦] ─ (⌘)(⛶) ─ (▥|▴) [Isolate State ▾]   ← THIS
+        ↑ LEFT = RADAR + MAP: show each network's    ↑ CENTER = where; the box is   ↑ RIGHT = MAP ONLY: pane layout
+          sites (NEXRAD / TDWR / research) ─ ⌕         CENTERED on the tier           (1/2/4, current one LIT, accent
+          INSPECT ─ ⌸ the RANGE RULER + ◎ the        ▣ marker viewer — PLACEHOLDER   cell = pane 0) ─ reset north,
+          RANGE RINGS (lit = showing) ─ then pick    ⊚ Location (lit = marker out)   fit to view ─ MAP key + car, isolation
+          one (over the console, which answers when)  ✕ stays while there is text
+        ─ = Primitives/MapControlsStripSeparator, a short DASH between GROUPS (horizontal by choice; it takes
+            Orientation=Vertical for a rule). Tune its shape/brush on the control, not here.
        ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   ← …and onto the bar: NO rule
        ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
      ═══════════════════════ window bottom ═══════════════════════
 
      ⚠️ THERE IS NO LINE ANYWHERE ON THIS TIER. Its top edge throws a shadow onto the map and the
      bar below draws the band it receives from this one's underside. A hairline under a shadow reads
-     as a seam someone forgot to finish - the two are alternatives, not layers.
+     as a seam someone forgot to finish - the two are alternatives, not layers. (The group SEPARATORS are not
+     seams: they are short dashes between tools, inside the tier, and never span it.)
 
      ⚠️ IT ALIGNS TO THE BAR'S CLUSTERS, not to itself, and the SIDES MEAN SOMETHING. LEFT sits over the
      radar console, so it holds the control that changes WHICH radar you are looking at (the console below
@@ -69,6 +71,8 @@
      autocomplete. Don't wire it to TextChanged. ⚠️ Clearing the box removes the pin; that is the remove.
      ⚠️ Text is ONE-WAY from PlaceSearch.QueryText: picking a PastCast saved event pins the town it is named
      for through the SAME pin and puts the name in this box, so the box's X clears that pin too.
+     ⚠️ The box's ✕ STAYS while there is text, focused or not (stock WinUI hides it on focus loss, so coming back to
+     clear took two clicks) — code-behind pins the template's own DeleteButton; see PinClearButton for why it works.
      ⚠️ An AutoSuggestBox is safe here (the wheel hazard is a CLOSED ComboBox cycling its selection).
      ⚠️ No Ctrl+F: the WebView owns keyboard focus once the map is clicked, so an accelerator here
      would work only sometimes.
@@ -82,7 +86,7 @@
      can FAIL without any property changing, so nothing else would pull the toggle back down. Don't make
      it TwoWay. The tooltip carries "Locating…" / "Location unavailable" — a failure is otherwise silent.
      ⚠️ Its mark is a DRAWN reticle (PathIcon, 18-unit box), the same family as the on-map marker — a key
-     pictures what it drops. That is why the bar's Inspect key is a magnifier; don't give it a reticle.
+     pictures what it drops. That is why the Inspect key (left group) is a magnifier; don't give it a reticle.
      ⚠️ The viewer's mark is a drawn TEARDROP, the search pin's shape. Its button has NO Click on purpose;
      wire it when the marker window exists (open bool + WindowManager registration — CLAUDE.md "Add a window").
 
@@ -369,35 +373,23 @@
                 <PathIcon Data="F1 M6.75,2.25 A0.75,0.75 0 0 0 6.75,3.75 H11.25 A0.75,0.75 0 0 0 11.25,2.25 Z M6.75,3 V6.5625 L3.537,12.6225 A2.175,2.175 0 0 0 5.475,15.75 H12.525 A2.175,2.175 0 0 0 14.463,12.6225 L11.25,6.5625 V3 Z M8.25,3.75 H9.75 V6.9375 L13.137,13.3275 A0.675,0.675 0 0 1 12.525,14.25 H5.475 A0.675,0.675 0 0 1 4.863,13.3275 L8.25,6.9375 Z"/>
             </ToggleButton>
 
-            <!-- SITE PICKER. The wrapper carries the tooltip (a disabled control shows none); Transparent so it
-                 hit-tests. -->
-            <Grid Background="Transparent"
-                  ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
-                <prim:SectionedComboBox x:Name="SitePicker"
-                                        Width="260"
-                                        PlaceholderText="Radar site"
-                                        PinnedItemsSource="{x:Bind ViewModel.SiteFavorites.HomeSites, Mode=OneWay}"
-                                        ItemsSource="{x:Bind ViewModel.SiteFavorites.FavoriteSites, Mode=OneWay}"
-                                        SelectedItem="{x:Bind ViewModel.SiteFavorites.LoadedSite, Mode=OneWay}"
-                                        ItemTemplate="{StaticResource SiteRowTemplate}"
-                                        FaceTemplate="{StaticResource SiteFaceTemplate}"
-                                        IsEnabled="{x:Bind ViewModel.SiteFavorites.CanPickSites, Mode=OneWay}"
-                                        ItemPicked="OnSitePicked">
-                    <prim:SectionedComboBox.FooterContent>
-                        <StackPanel Spacing="4">
-                            <TextBlock Margin="11,2,11,2"
-                                       Text="Set a home site or star favorites in the Atlas to list them here."
-                                       TextWrapping="Wrap" FontSize="12"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                       Visibility="{x:Bind ViewModel.SiteFavorites.IsEmpty, Mode=OneWay}"/>
-                            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                    Background="Transparent" BorderThickness="0" Padding="11,6"
-                                    Content="Open Atlas"
-                                    Click="OnOpenAtlasClick"/>
-                        </StackPanel>
-                    </prim:SectionedComboBox.FooterContent>
-                </prim:SectionedComboBox>
-            </Grid>
+            <prim:MapControlsStripSeparator Margin="2,0"/>
+
+            <!-- INSPECT — the armed cursor mode (moved here from the bar, 2026-09-29): read the active product's
+                 value under the pointer in EVERY pane at once; each value shows on that pane's own ramp. Plain
+                 TwoWay (a click always flips it). ⚠️ DISABLED UNTIL A LOOP IS LOADED (Radar.IsTransportEnabled,
+                 the transport's gate): nothing decoded, nothing to read. Unlike the Ruler it DISARMS when the loop
+                 clears. ⚠️ The mark is a MAGNIFIER (E721), never a reticle — the reticle is Location's (it
+                 pictures the marker it drops). E721 is NOT verified by rendering in the real font. -->
+            <ToggleButton x:Name="InspectToggle"
+                          Style="{StaticResource StripToolToggleStyle}"
+                          IsEnabled="{x:Bind ViewModel.Radar.IsTransportEnabled, Mode=OneWay}"
+                          IsChecked="{x:Bind ViewModel.Radar.IsInspecting, Mode=TwoWay}"
+                          ToolTipService.ToolTip="Inspect - read radar values under the cursor (click again to turn it off)">
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE721;"/>
+            </ToggleButton>
+
+            <prim:MapControlsStripSeparator Margin="2,0"/>
 
             <!-- RANGE RULER - arm the graduated spoke from the loaded site out to the range ring. LEFT,
                  because what it measures against is RADAR (the ring is the data's own outer extent) and it
@@ -432,6 +424,38 @@
                           ToolTipService.ToolTip="{x:Bind RangeRingsTooltip(ViewModel.Radar.RangeRings.RingsVisible), Mode=OneWay}">
                 <PathIcon Data="M9,0.5 A8.5,8.5 0 1 0 9,17.5 A8.5,8.5 0 1 0 9,0.5 Z M9,1.9 A7.1,7.1 0 1 0 9,16.1 A7.1,7.1 0 1 0 9,1.9 Z M9,3.9 A5.1,5.1 0 1 0 9,14.1 A5.1,5.1 0 1 0 9,3.9 Z M9,5.3 A3.7,3.7 0 1 0 9,12.7 A3.7,3.7 0 1 0 9,5.3 Z M9,7.4 A1.6,1.6 0 1 0 9,10.6 A1.6,1.6 0 1 0 9,7.4 Z"/>
             </ToggleButton>
+
+            <prim:MapControlsStripSeparator Margin="2,0"/>
+
+            <!-- SITE PICKER — LAST on the left, the group's edge. The wrapper carries the tooltip (a disabled
+                 control shows none); Transparent so it hit-tests. -->
+            <Grid Background="Transparent"
+                  ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
+                <prim:SectionedComboBox x:Name="SitePicker"
+                                        Width="260"
+                                        PlaceholderText="Radar site"
+                                        PinnedItemsSource="{x:Bind ViewModel.SiteFavorites.HomeSites, Mode=OneWay}"
+                                        ItemsSource="{x:Bind ViewModel.SiteFavorites.FavoriteSites, Mode=OneWay}"
+                                        SelectedItem="{x:Bind ViewModel.SiteFavorites.LoadedSite, Mode=OneWay}"
+                                        ItemTemplate="{StaticResource SiteRowTemplate}"
+                                        FaceTemplate="{StaticResource SiteFaceTemplate}"
+                                        IsEnabled="{x:Bind ViewModel.SiteFavorites.CanPickSites, Mode=OneWay}"
+                                        ItemPicked="OnSitePicked">
+                    <prim:SectionedComboBox.FooterContent>
+                        <StackPanel Spacing="4">
+                            <TextBlock Margin="11,2,11,2"
+                                       Text="Set a home site or star favorites in the Atlas to list them here."
+                                       TextWrapping="Wrap" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                       Visibility="{x:Bind ViewModel.SiteFavorites.IsEmpty, Mode=OneWay}"/>
+                            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                    Background="Transparent" BorderThickness="0" Padding="11,6"
+                                    Content="Open Atlas"
+                                    Click="OnOpenAtlasClick"/>
+                        </StackPanel>
+                    </prim:SectionedComboBox.FooterContent>
+                </prim:SectionedComboBox>
+            </Grid>
         </StackPanel>
 
         <!-- ===== PLACE SEARCH — CENTER =====
@@ -464,6 +488,7 @@
                             Text="{x:Bind ViewModel.PlaceSearch.QueryText, Mode=OneWay}"
                             ItemsSource="{x:Bind ViewModel.PlaceSearch.Suggestions}"
                             ItemTemplate="{StaticResource PlaceRowTemplate}"
+                            Loaded="OnPlaceSearchLoaded"
                             TextChanged="OnPlaceSearchTextChanged"
                             QuerySubmitted="OnPlaceSearchQuerySubmitted"
                             ToolTipService.ToolTip="Find a city or town and fly there. Clear the box to remove the pin."/>
@@ -496,7 +521,7 @@
                     Orientation="Horizontal" Spacing="4"
                     HorizontalAlignment="Right" VerticalAlignment="Center">
             <!-- PANE LAYOUT — three toggles, current one lit (see the header). Tag = the PaneLayout name. -->
-            <StackPanel Orientation="Horizontal" Spacing="2" Margin="0,0,8,0">
+            <StackPanel Orientation="Horizontal" Spacing="2">
                 <ToggleButton x:Name="SinglePaneToggle" Tag="Single"
                               Style="{StaticResource StripToolToggleStyle}"
                               IsChecked="{x:Bind IsSinglePane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
@@ -544,6 +569,8 @@
                 </ToggleButton>
             </StackPanel>
 
+            <prim:MapControlsStripSeparator Margin="6,0"/>
+
             <!-- Reset north — undo a right-drag rotate/tilt. -->
             <Button Style="{StaticResource StripToolButtonStyle}"
                     Click="OnResetNorthClick"
@@ -558,10 +585,12 @@
                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
             </Button>
 
+            <prim:MapControlsStripSeparator Margin="6,0"/>
+
             <!-- ===== MAP — the basemap's key + its layer flyout (see the header) =====
                  A pair touching at a 1 px seam: the KEY hides/shows the whole basemap, the narrow CAR opens the
                  flyout. Plain TwoWay on the key (a click always flips it). -->
-            <StackPanel Orientation="Horizontal" Spacing="1" Margin="8,0,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="1">
                 <ToggleButton x:Name="MapShownToggle"
                               Style="{StaticResource StripToolToggleStyle}"
                               IsChecked="{x:Bind ViewModel.Basemap.IsMapShown, Mode=TwoWay}"

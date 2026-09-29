@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MapControlsStripSeparator — the short rule between tool GROUPS on the tools tier (MapControlsStrip).
+     One rounded bar, centred in its slot; every part of its shape is a DP so it can be re-tuned at the use
+     site (or here, for all of them) without touching the strip.
+
+       (◗)(✈)(⚗)  ─  (⌕)  ─  (⌸)(◎)  ─  [⌂ KTLX ˅]          Orientation=Horizontal (default): a DASH
+                  ↑                                          Length = its width, Thickness = its height
+                  this
+
+       (◗)(✈)(⚗)  │  (⌕)  │  (⌸)(◎)                           Orientation=Vertical: a RULE
+                                                             Length = its height, Thickness = its width
+
+     DPs: Orientation · Length (12) · Thickness (2) · CornerRadius (1 = a pill end at 2 thick) · Brush.
+     ⚠️ Brush null = the THEME default, written here as a {ThemeResource} — never resolved in C# (it would
+     snapshot the OS theme, not the app's). A set Brush paints a second bar over it and the default one
+     collapses, so a translucent Brush never shows the default through it.
+     ⚠️ It is NOT a line across the tier: the tier has no seams (see MapControlsStrip's header); this only
+     groups the tools inside it. -->
+<UserControl x:Class="Anvil.Controls.Primitives.MapControlsStripSeparator"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             IsTabStop="False"
+             IsHitTestVisible="False"
+             VerticalAlignment="Center">
+    <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Border x:Name="DefaultMark"
+                Background="{ThemeResource TextFillColorTertiaryBrush}"/>
+        <Border x:Name="CustomMark"
+                Visibility="Collapsed"/>
+    </Grid>
+</UserControl>
