@@ -156,6 +156,16 @@
     <UserControl.Resources>
         <conv:SiteAvailabilityToBrushConverter x:Key="AvailabilityToBrush"/>
 
+        <!-- ⚠️ EVERY DRAWN MARK GETS ITS FULL 18 × 18 BOX (implicit, so every PathIcon on the tier). A PathIcon is
+             otherwise sized from (0,0) to its geometry's far corner, so a mark drawn in the MIDDLE of the 18-unit
+             design box came out off-centre by however much empty space sat above/left of it — the ruler (drawn
+             y 6–12) sat 3 px low. Fixed to the design box, every mark is centred on (9,9) as drawn. A mark designed
+             in a different box sets its own Width/Height (the map-layers caret). -->
+        <Style TargetType="PathIcon">
+            <Setter Property="Width" Value="18"/>
+            <Setter Property="Height" Value="18"/>
+        </Style>
+
         <!-- A tool button. LOCAL, not in Styles.xaml: this strip is its only consumer, which is that
              file's house rule. Deliberately NOT the bar-key chain — a bar key is a 72px square carrying
              a mark over a NAME, and a row of those would make this a second bar rather than a tier of
@@ -212,6 +222,8 @@
         <!-- The LATCHING tool (Location): StripToolButtonStyle's look plus the bar's lit vocabulary — accent
              BORDER + Elevated face while checked (Elevated is "a control that is ON", never a tier). A separate
              style because a Button style can't target a ToggleButton. -->
+        <!-- ⚠️ OFF IS DIMMER: an unlit toggle's mark is the SECONDARY text colour (it read too bright beside the
+             lit ones); CHECKED — and hovering an unlit one — lifts it to PRIMARY. -->
         <Style x:Key="StripToolToggleStyle" TargetType="ToggleButton">
             <Setter Property="Width" Value="32"/>
             <Setter Property="Height" Value="32"/>
@@ -219,7 +231,7 @@
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="5"/>
-            <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
@@ -235,12 +247,14 @@
                                         <VisualState.Setters>
                                             <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
                                             <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
                                         </VisualState.Setters>
                                     </VisualState>
                                     <VisualState x:Name="Pressed">
                                         <VisualState.Setters>
                                             <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
                                             <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
                                         </VisualState.Setters>
                                     </VisualState>
                                     <VisualState x:Name="Disabled">
@@ -252,18 +266,21 @@
                                         <VisualState.Setters>
                                             <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
                                             <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
                                         </VisualState.Setters>
                                     </VisualState>
                                     <VisualState x:Name="CheckedPointerOver">
                                         <VisualState.Setters>
                                             <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
                                             <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
                                         </VisualState.Setters>
                                     </VisualState>
                                     <VisualState x:Name="CheckedPressed">
                                         <VisualState.Setters>
                                             <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
                                             <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
                                         </VisualState.Setters>
                                     </VisualState>
                                     <VisualState x:Name="CheckedDisabled">
@@ -616,7 +633,8 @@
                         Width="16"
                         Style="{StaticResource StripToolButtonStyle}"
                         ToolTipService.ToolTip="Map layers and dimmer">
-                    <PathIcon Data="M1,7 L5,3 L9,7 Z"/>
+                    <!-- Drawn in its own 10-unit box (centre 5,5), so it overrides the implicit 18 × 18. -->
+                    <PathIcon Data="M1,7 L5,3 L9,7 Z" Width="10" Height="10"/>
                     <Button.Flyout>
                         <!-- ⚠️ Windowed (ShouldConstrainToRootBounds=False), like the tier's pickers — else the owned
                              panel windows paint over it. -->
