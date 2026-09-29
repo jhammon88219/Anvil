@@ -67,6 +67,27 @@ namespace Anvil.Controls.Composites
 			SitePicker.SelectedItem = vm.SiteFavorites.LoadedSite;
 		}
 
+		// Below this the picker would be too narrow to name a site; the alignment gives way instead.
+		private const double SitePickerMinWidth = 160;
+
+		/// <summary>Size the site picker so its RIGHT edge lands on <paramref name="rightEdge"/> (in
+		/// <paramref name="root"/>'s coordinates) — MainWindow passes the bar scrubber's right edge. Its left edge
+		/// is wherever the tools before it end, so only the width moves; a no-op for a sub-pixel change, which is
+		/// what makes calling it from SizeChanged safe (resizing the picker re-fires it with the same answer).</summary>
+		public void AlignSitePickerRightEdge(double rightEdge, UIElement root)
+		{
+			if (double.IsNaN(rightEdge) || SitePicker.ActualWidth <= 0)
+			{
+				return;
+			}
+			var left = SitePicker.TransformToVisual(root).TransformPoint(default).X;
+			var width = Math.Max(SitePickerMinWidth, rightEdge - left);
+			if (Math.Abs(width - SitePicker.Width) > 0.5)
+			{
+				SitePicker.Width = width;
+			}
+		}
+
 		private void OnOpenAtlasClick(object sender, RoutedEventArgs e)
 		{
 			SitePicker.CloseDropDown();

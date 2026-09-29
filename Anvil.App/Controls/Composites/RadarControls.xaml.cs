@@ -12,17 +12,18 @@ using Anvil.Layout;
 // Anvil.Controls.Windows exists, so from inside Anvil.Controls.* a leading "Windows." binds to THAT
 // rather than to WinRT and fails to resolve. A using directive sits outside the namespace, where
 // "Windows" still means the global one.
+using Windows.Foundation;
 using Windows.UI;
 
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The GLOBAL time module of the bottom bar: the segmented scrubber, the transport (prev · play/stop ·
-	/// next), the frame counter and the selected-site readout. All bound to one <see cref="RadarViewModel"/>.
+	/// The GLOBAL time module of the bottom bar: the clock + age, the segmented scrubber, the frame counter,
+	/// the transport (prev · play/stop · next) and the scan readout. All bound to one <see cref="RadarViewModel"/>.
 	///
 	/// <para>Nothing per-pane lives here any more. The product selector and the tilt combo moved into the
-	/// per-pane notch (<c>Composites/PaneNotchContent</c>); site-marker visibility and Inspect are in the
-	/// Settings window's Radar tab. What is left is the state every pane shares — one site, one camera, one
+	/// per-pane notch (<c>Composites/PaneNotchContent</c>); site markers, Inspect and the site itself are on
+	/// the tools tier (MapControlsStrip). What is left is the state every pane shares — one site, one camera, one
 	/// time cursor — which is why none of it multiplies with the pane layout.</para>
 	/// </summary>
 	public sealed partial class RadarControls : UserControl
@@ -198,6 +199,26 @@ namespace Anvil.Controls.Composites
 		//
 		// The cut itself is RadarViewModel.ScanStrategyText — shared with the Radar Atlas's Scan mode line.
 		public string RadarVcpText(string mode) => RadarViewModel.ScanStrategyText(mode);
+
+		// The Scan readout's three lines, cut from RadarVcpText at its " · " separators: 0 = "VCP 212",
+		// 1 = the regime ("precip"), 2 = everything after (SAILS/MRLE ×1, rejoined if a mode ever grows more parts).
+		// A missing part is an empty line, so the block keeps its height.
+		public string ScanLine(string mode, int line)
+		{
+			var parts = RadarVcpText(mode).Split(" · ");
+			if (line < 2)
+			{
+				return line < parts.Length ? parts[line] : string.Empty;
+			}
+			return parts.Length > 2 ? string.Join(" · ", parts[2..]) : string.Empty;
+		}
+
+		/// <summary>The scrubber's right edge in <paramref name="root"/>'s coordinates — the site picker on the
+		/// tools tier aligns its right edge to it (MainWindow.AlignSitePicker). NaN before layout.</summary>
+		public double ScrubberRightEdge(UIElement root) =>
+			ScrubberHost.ActualWidth <= 0
+				? double.NaN
+				: ScrubberHost.TransformToVisual(root).TransformPoint(new Point(ScrubberHost.ActualWidth, 0)).X;
 
 		// Its tooltip explains THIS site's pattern — words from RadarGlossary (VcpCatalog), never XAML.
 		public string ScanTooltip(string mode) => RadarGlossary.ScanPatternTooltip(mode);

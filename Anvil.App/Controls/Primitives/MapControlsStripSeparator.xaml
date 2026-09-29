@@ -3,14 +3,14 @@
      One rounded bar, centred in its slot; every part of its shape is a DP so it can be re-tuned at the use
      site (or here, for all of them) without touching the strip.
 
-       (◗)(✈)(⚗)  ─  (⌕)  ─  (⌸)(◎)  ─  [⌂ KTLX ˅]          Orientation=Horizontal (default): a DASH
-                  ↑                                          Length = its width, Thickness = its height
-                  this
+       (◗)(✈)(⚗)   │   (⌕)   │   (⌸)(◎)   │   [KTLX ˅]      Orientation=Vertical (default): a RULE
+                   ↑                                         Length = its height, Thickness = its width
+                   this — MARGINS are the host's, and GENEROUS on purpose: the gap is what groups the tools
 
-       (◗)(✈)(⚗)  │  (⌕)  │  (⌸)(◎)                           Orientation=Vertical: a RULE
-                                                             Length = its height, Thickness = its width
+       (◗)(✈)(⚗)  ─  (⌕)  ─  (⌸)(◎)                          Orientation=Horizontal: a DASH (the first cut)
+                                                             Length = its width, Thickness = its height
 
-     DPs: Orientation · Length (12) · Thickness (2) · CornerRadius (1 = a pill end at 2 thick) · Brush.
+     DPs: Orientation · Length (20) · Thickness (2) · CornerRadius (1 = a pill end at 2 thick) · Brush.
      ⚠️ Brush null = the THEME default, written here as a {ThemeResource} — never resolved in C# (it would
      snapshot the OS theme, not the app's). A set Brush paints a second bar over it and the default one
      collapses, so a translucent Brush never shows the default through it.

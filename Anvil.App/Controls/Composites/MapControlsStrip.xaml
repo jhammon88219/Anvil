@@ -34,8 +34,9 @@
           INSPECT ─ ⌸ the RANGE RULER + ◎ the        ▣ marker viewer — PLACEHOLDER   cell = pane 0) ─ reset north,
           RANGE RINGS (lit = showing) ─ then pick    ⊚ Location (lit = marker out)   fit to view ─ MAP key + car, isolation
           one (over the console, which answers when)  ✕ stays while there is text
-        ─ = Primitives/MapControlsStripSeparator, a short DASH between GROUPS (horizontal by choice; it takes
-            Orientation=Vertical for a rule). Tune its shape/brush on the control, not here.
+        ─ = Primitives/MapControlsStripSeparator, a short VERTICAL rule between GROUPS (20 tall) with GENEROUS
+            margins (8 + the panel's 8 left, 12 + the panel's 4 right = 16 a side). Tune its shape/brush on the
+            control, not here; Orientation=Horizontal makes it a dash again.
        ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   ← …and onto the bar: NO rule
        ◉  ⌕  ══ scrubber ══   ◀▶▶            ▤  ⊚  📡  ⚙           ← the bar
      ═══════════════════════ window bottom ═══════════════════════
@@ -43,7 +44,7 @@
      ⚠️ THERE IS NO LINE ANYWHERE ON THIS TIER. Its top edge throws a shadow onto the map and the
      bar below draws the band it receives from this one's underside. A hairline under a shadow reads
      as a seam someone forgot to finish - the two are alternatives, not layers. (The group SEPARATORS are not
-     seams: they are short dashes between tools, inside the tier, and never span it.)
+     seams: they are short rules between tools, inside the tier, and never span it.)
 
      ⚠️ IT ALIGNS TO THE BAR'S CLUSTERS, not to itself, and the SIDES MEAN SOMETHING. LEFT sits over the
      radar console, so it holds the control that changes WHICH radar you are looking at (the console below
@@ -102,8 +103,12 @@
 
      SITE PICKER, LEFT — home + favorite radar sites (RadarSiteFavoritesViewModel). It replaced TWO doors to
      one list: the bar's Home key, and the side car on the bar's Atlas key (whose flyout this dropdown absorbed).
-     The FACE is the site on the map now: ⌂ when it is home, ★ when a favorite, bare otherwise (a site loaded
-     from a marker is still named, with no row lit). Home is the PINNED section, so going home is two clicks.
+     It is ALSO the "which radar is selected" readout (the bar's site id left, 2026-09-29): the FACE is the site on
+     the map now (⌂ home, ★ favorite, bare otherwise), and the PINNED top row is that same site (SelectedSites),
+     whatever it is. Below the rule: home first, then the favorites (PinnedSites) — a selected home/favorite stays
+     in its place there too, so the list never reshuffles on a switch. Going home is still two clicks.
+     ⚠️ Its RIGHT EDGE is aligned to the bar scrubber's (MainWindow.AlignSitePicker → AlignSitePickerRightEdge);
+     the Width in XAML is only the pre-layout value.
      ⚠️ A pick ACTS through ItemPicked, NOT SelectedItem: picking the site already loaded must still fly back to
      it, and that changes no property. SelectedItem is ONE-WAY from LoadedSite and re-asserted after the pick
      (a refused pick would otherwise leave the face naming a site that never loaded).
@@ -373,7 +378,7 @@
                 <PathIcon Data="F1 M6.75,2.25 A0.75,0.75 0 0 0 6.75,3.75 H11.25 A0.75,0.75 0 0 0 11.25,2.25 Z M6.75,3 V6.5625 L3.537,12.6225 A2.175,2.175 0 0 0 5.475,15.75 H12.525 A2.175,2.175 0 0 0 14.463,12.6225 L11.25,6.5625 V3 Z M8.25,3.75 H9.75 V6.9375 L13.137,13.3275 A0.675,0.675 0 0 1 12.525,14.25 H5.475 A0.675,0.675 0 0 1 4.863,13.3275 L8.25,6.9375 Z"/>
             </ToggleButton>
 
-            <prim:MapControlsStripSeparator Margin="2,0"/>
+            <prim:MapControlsStripSeparator Margin="8,0"/>
 
             <!-- INSPECT — the armed cursor mode (moved here from the bar, 2026-09-29): read the active product's
                  value under the pointer in EVERY pane at once; each value shows on that pane's own ramp. Plain
@@ -389,7 +394,7 @@
                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE721;"/>
             </ToggleButton>
 
-            <prim:MapControlsStripSeparator Margin="2,0"/>
+            <prim:MapControlsStripSeparator Margin="8,0"/>
 
             <!-- RANGE RULER - arm the graduated spoke from the loaded site out to the range ring. LEFT,
                  because what it measures against is RADAR (the ring is the data's own outer extent) and it
@@ -425,17 +430,19 @@
                 <PathIcon Data="M9,0.5 A8.5,8.5 0 1 0 9,17.5 A8.5,8.5 0 1 0 9,0.5 Z M9,1.9 A7.1,7.1 0 1 0 9,16.1 A7.1,7.1 0 1 0 9,1.9 Z M9,3.9 A5.1,5.1 0 1 0 9,14.1 A5.1,5.1 0 1 0 9,3.9 Z M9,5.3 A3.7,3.7 0 1 0 9,12.7 A3.7,3.7 0 1 0 9,5.3 Z M9,7.4 A1.6,1.6 0 1 0 9,10.6 A1.6,1.6 0 1 0 9,7.4 Z"/>
             </ToggleButton>
 
-            <prim:MapControlsStripSeparator Margin="2,0"/>
+            <prim:MapControlsStripSeparator Margin="8,0"/>
 
             <!-- SITE PICKER — LAST on the left, the group's edge. The wrapper carries the tooltip (a disabled
-                 control shows none); Transparent so it hit-tests. -->
+                 control shows none); Transparent so it hit-tests.
+                 ⚠️ ITS WIDTH IS SET IN CODE (AlignSitePickerRightEdge, called by MainWindow): its RIGHT edge lines
+                 up with the bar's scrubber below. 260 is only the value before the first layout pass. -->
             <Grid Background="Transparent"
                   ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
                 <prim:SectionedComboBox x:Name="SitePicker"
                                         Width="260"
                                         PlaceholderText="Radar site"
-                                        PinnedItemsSource="{x:Bind ViewModel.SiteFavorites.HomeSites, Mode=OneWay}"
-                                        ItemsSource="{x:Bind ViewModel.SiteFavorites.FavoriteSites, Mode=OneWay}"
+                                        PinnedItemsSource="{x:Bind ViewModel.SiteFavorites.SelectedSites, Mode=OneWay}"
+                                        ItemsSource="{x:Bind ViewModel.SiteFavorites.PinnedSites, Mode=OneWay}"
                                         SelectedItem="{x:Bind ViewModel.SiteFavorites.LoadedSite, Mode=OneWay}"
                                         ItemTemplate="{StaticResource SiteRowTemplate}"
                                         FaceTemplate="{StaticResource SiteFaceTemplate}"
@@ -569,7 +576,7 @@
                 </ToggleButton>
             </StackPanel>
 
-            <prim:MapControlsStripSeparator Margin="6,0"/>
+            <prim:MapControlsStripSeparator Margin="12,0"/>
 
             <!-- Reset north — undo a right-drag rotate/tilt. -->
             <Button Style="{StaticResource StripToolButtonStyle}"
@@ -585,7 +592,7 @@
                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
             </Button>
 
-            <prim:MapControlsStripSeparator Margin="6,0"/>
+            <prim:MapControlsStripSeparator Margin="12,0"/>
 
             <!-- ===== MAP — the basemap's key + its layer flyout (see the header) =====
                  A pair touching at a 1 px seam: the KEY hides/shows the whole basemap, the narrow CAR opens the

@@ -16,7 +16,7 @@ namespace Anvil.Controls.Primitives
 			ApplyShape();
 		}
 
-		/// <summary>Horizontal = a dash (Length wide); Vertical = a rule (Length tall).</summary>
+		/// <summary>Vertical (default) = a rule (Length tall); Horizontal = a dash (Length wide).</summary>
 		public Orientation Orientation
 		{
 			get => (Orientation)GetValue(OrientationProperty);
@@ -25,7 +25,7 @@ namespace Anvil.Controls.Primitives
 
 		public static readonly DependencyProperty OrientationProperty =
 			DependencyProperty.Register(nameof(Orientation), typeof(Orientation), typeof(MapControlsStripSeparator),
-				new PropertyMetadata(Orientation.Horizontal, OnShapeChanged));
+				new PropertyMetadata(Orientation.Vertical, OnShapeChanged));
 
 		/// <summary>Along the bar, in DIPs.</summary>
 		public double Length
@@ -36,7 +36,7 @@ namespace Anvil.Controls.Primitives
 
 		public static readonly DependencyProperty LengthProperty =
 			DependencyProperty.Register(nameof(Length), typeof(double), typeof(MapControlsStripSeparator),
-				new PropertyMetadata(12.0, OnShapeChanged));
+				new PropertyMetadata(20.0, OnShapeChanged));
 
 		/// <summary>Across the bar, in DIPs.</summary>
 		public double Thickness

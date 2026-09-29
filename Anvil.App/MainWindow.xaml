@@ -15,11 +15,11 @@
        ├─────────────────────────────┴─────────────────────────────┤
        │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  …thrown UP onto the map
        │                 ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                     │  ONE rail, one tab per tier
-       │ ◗✈⚗ ─ ⌕ ─ ⌸◎ ─ [⌂ KTLX ˅]  ▣ [Search places ✕⌕] ⊚  ▢▥▦ ─ ⌘⛶ ─ ▥▴ [Isolate ▾]│  TOOLS tier — raised surface
-       │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  │  …and DOWN onto the bar
-       │  1:07 PM   ══ scrubber ══                             │  BAR tier — the ground
-       │  2 min ago ◀ ▶ ▶  3/10 KTLX VCP ↺ │⋮  ((•))│⋮   ☁ │⋮    📡   ⚙    –│□  │
-       │                           PastCast  NowCast  ForeCast   Atlas Settings   ✕    │
+       │ ◗✈⚗ │ ⌕ │ ⌸◎ │ [⌂ KTLX Oklahoma City ˅]  ▣ [Search ✕⌕] ⊚  ▢▥▦ │ ⌘⛶ │ ▥▴ [Isolate ▾]│  TOOLS tier
+       │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  │  ┆ = picker's right edge = scrubber's
+       │  1:07 PM   ══════ scrubber ═══════┆ VCP 212          │                                        │  BAR tier — the ground
+       │            3/10     ◀ ▶ ▶       ↺ │ precip           │⋮  ((•))│⋮   ☁ │⋮    📡   ⚙    –│□  │
+       │  2 min ago                       │ SAILS/MRLE ×1    PastCast  NowCast  ForeCast   Atlas Settings  ✕ │
        └──────────────────────────────────┴────────────────────────┘
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
             is drawn by whichever side owns it: the tools tier throws its own up
@@ -311,7 +311,7 @@
                             EdgeStyle="CastShadow"
                             IsOverlayBarVisible="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=OneWay}">
                 <ctl:OverlayBar.BarContent>
-                    <comp:MapControlsStrip ViewModel="{x:Bind ViewModel}"/>
+                    <comp:MapControlsStrip x:Name="ToolsStrip" ViewModel="{x:Bind ViewModel}"/>
                 </ctl:OverlayBar.BarContent>
             </ctl:OverlayBar>
 
@@ -336,7 +336,8 @@
                              markers key (was column 0) and the Home key (was column 3) left earlier — site markers
                              and home/favorites are the tools tier's too (MapControlsStrip). Don't re-add any here.
                              The module's clock now leads, at the bar's left edge (see RadarControls). -->
-                        <comp:RadarControls Grid.Column="0"
+                        <comp:RadarControls x:Name="TimeModule"
+                                            Grid.Column="0"
                                             HorizontalAlignment="Left"
                                             VerticalAlignment="Center"
                                             ViewModel="{x:Bind ViewModel.Radar}"/>

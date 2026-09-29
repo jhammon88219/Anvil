@@ -45,14 +45,15 @@ namespace Anvil.ViewModels
 			HomeSite = _radar.RadarSiteRows.FirstOrDefault(r => r.IsHome);
 
 			PinnedSites = new ObservableCollection<RadarSiteRow>();
-			HomeSites = new ObservableCollection<RadarSiteRow>();
-			FavoriteSites = new ObservableCollection<RadarSiteRow>();
+			SelectedSites = new ObservableCollection<RadarSiteRow>();
 			RebuildPinned();
+			RebuildSelected();
 
 			_radar.PropertyChanged += (_, e) =>
 			{
 				if (e.PropertyName is nameof(RadarViewModel.SelectedRadarOption))
 				{
+					RebuildSelected();
 					OnPropertyChanged(nameof(LoadedSite));
 				}
 				else if (e.PropertyName is nameof(RadarViewModel.IsPastEventMode))
@@ -73,15 +74,14 @@ namespace Anvil.ViewModels
 		/// Atlas) can rebuild.</summary>
 		public event EventHandler? PinnedChanged;
 
-		/// <summary>Home first, then the favorites in the order they were starred (home excluded). The Radar
-		/// Atlas sections off it.</summary>
+		/// <summary>Home first, then the favorites in the order they were starred (home not repeated). The Radar
+		/// Atlas sections off it, and it is the site picker's scrolling section.</summary>
 		public ObservableCollection<RadarSiteRow> PinnedSites { get; }
 
-		/// <summary>The home site alone (0 or 1 rows) — the site picker's PINNED section.</summary>
-		public ObservableCollection<RadarSiteRow> HomeSites { get; }
-
-		/// <summary>The favorites, home excluded, in starred order — the site picker's scrolling section.</summary>
-		public ObservableCollection<RadarSiteRow> FavoriteSites { get; }
+		/// <summary>The site on the map now (0 or 1 rows, = <see cref="LoadedSite"/>) — the site picker's PINNED
+		/// top section, so the picker doubles as "which radar is selected". ⚠️ A selected home/favorite stays in
+		/// its place in <see cref="PinnedSites"/> too: removing it would reshuffle the list on every switch.</summary>
+		public ObservableCollection<RadarSiteRow> SelectedSites { get; }
 
 		/// <summary>True when there is neither a home site nor a favorite (the picker shows a hint instead).</summary>
 		public bool IsEmpty => PinnedSites.Count == 0;
@@ -212,12 +212,9 @@ namespace Anvil.ViewModels
 
 			// A hidden network's sites stay home / starred (and persisted) but aren't listed until it's shown again.
 			PinnedSites.Clear();
-			HomeSites.Clear();
-			FavoriteSites.Clear();
 			if (HomeSite is { } home && _radar.IsInEra(home.Site))
 			{
 				PinnedSites.Add(home);
-				HomeSites.Add(home);
 			}
 			foreach (var id in _settings.Settings.FavoriteSiteIds)
 			{
@@ -226,11 +223,19 @@ namespace Anvil.ViewModels
 					&& !PinnedSites.Contains(row))
 				{
 					PinnedSites.Add(row);
-					FavoriteSites.Add(row);
 				}
 			}
 			OnPropertyChanged(nameof(IsEmpty));
 			OnPropertyChanged(nameof(PickerToolTip));
+		}
+
+		private void RebuildSelected()
+		{
+			SelectedSites.Clear();
+			if (LoadedSite is { } loaded)
+			{
+				SelectedSites.Add(loaded);
+			}
 		}
 
 		private void RaisePickState()
