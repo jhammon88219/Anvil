@@ -16,6 +16,7 @@
        │  └──────────────────────────────────────────┘        │
        │  Day      [Day 1 · Wed Sep 2          ▾]             │  ← self-labeling; cascades Product
        │  Product  [Categorical                ▾]             │
+       │  Cycle    [Latest                     ▾]             │  ← Latest | today's earlier issuances (HELD)
        │  ────────────────────────────────────────────────    │
        │   ■ 2%                                               │  ← the LEGEND (Primitives/OutlookLegend):
        │   ■ 5%                                               │     LAST in the section body, so it goes
@@ -166,6 +167,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/> <!-- Day -->
                         <RowDefinition Height="Auto"/> <!-- Product -->
+                        <RowDefinition Height="Auto"/> <!-- Cycle -->
                     </Grid.RowDefinitions>
 
                     <!-- Day: self-labeling ("Day 1 · Sat Jun 14"); changing it cascades the product list.
@@ -187,6 +189,18 @@
                               DisplayMemberPath="Label"
                               SelectedItem="{x:Bind ViewModel.Outlook.SelectedOption, Mode=TwoWay}"
                               ToolTipService.ToolTip="Outlook product (None clears the overlay)"/>
+
+                    <!-- Cycle: the SAME row as PastCast's (the user's call, 2026-09-30: both outlook sections laid
+                         out exactly alike). Latest = the live feed, following every new issuance; an earlier one of
+                         today's is fetched from IEM and HELD. Not persisted (see OutlookViewModel). Disabled while
+                         None, or when the day has nothing earlier to pick (days 4-8, or before the first issuance). -->
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Cycle" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
+                              IsEnabled="{x:Bind ViewModel.Outlook.CanPickCycle, Mode=OneWay}"
+                              ItemsSource="{x:Bind ViewModel.Outlook.CycleOptions, Mode=OneWay}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{x:Bind ViewModel.Outlook.SelectedCycleOption, Mode=TwoWay}"
+                              ToolTipService.ToolTip="SPC issuance (UTC); Latest follows each new one, an earlier one stays put"/>
                 </Grid>
 
                 <!-- THE LEGEND: last in the body. Hides on HasLegend (None, or the layer off); the section's

@@ -155,7 +155,7 @@ namespace Anvil.ViewModels
 		private void RebuildCycleOptions()
 		{
 			var opts = new List<PastCycleOption> { new("Auto", null) };
-			opts.AddRange(CandidateCycles(SelectedDay).Select(c => new PastCycleOption($"{c:D2}Z", c)));
+			opts.AddRange(SpcIssuanceCycles.For(SelectedDay).Select(c => new PastCycleOption(SpcIssuanceCycles.Label(c), c)));
 			_cycleOptions = opts;
 			OnPropertyChanged(nameof(CycleOptions));
 		}
@@ -316,7 +316,7 @@ namespace Anvil.ViewModels
 		// "Day 1 · May 24, 2011", plus the issuance once it is known.
 		private static string ContextFor(int day, DateOnly date, int? cycle) =>
 			cycle is { } c
-				? $"Day {day} · {c:D2}Z issuance · {date:MMM d, yyyy}"
+				? $"Day {day} · {SpcIssuanceCycles.Label(c)} issuance · {date:MMM d, yyyy}"
 				: $"Day {day} · {date:MMM d, yyyy}";
 
 		// ── Lifecycle / coordination (called by MapViewModel) ──
@@ -402,7 +402,7 @@ namespace Anvil.ViewModels
 				SetCard(_selectedProductOption.Label,
 					ContextFor(day, date, result.Found ? cycleUsed : null),
 					result.Found
-						? $"Not in the {cycleUsed:D2}Z issuance for this date."
+						? $"Not in the {SpcIssuanceCycles.Label(cycleUsed)} issuance for this date."
 						: "No archived outlook for this date.");
 				return;
 			}
@@ -452,44 +452,20 @@ namespace Anvil.ViewModels
 			return (last, order.Length > 0 ? order[0] : 0);
 		}
 
-		// ── Replay-date + issuance-cycle resolution ──
+		// ── Replay-date + issuance-cycle resolution (the cycle TABLE is Models/Spc/SpcIssuanceCycles) ──
 
 		// The SPC "convective day" (12Z→12Z) containing the replay start = the IEM `valid` date.
-		private static DateOnly ConvectiveDay(DateTimeOffset startUtc)
-		{
-			var d = startUtc.UtcDateTime;
-			return DateOnly.FromDateTime(d.Hour >= 12 ? d : d.AddDays(-1));
-		}
+		private static DateOnly ConvectiveDay(DateTimeOffset startUtc) => SpcIssuanceCycles.ConvectiveDay(startUtc);
 
-		// Issuance cycles that exist for a day (UTC hour; 16 = the 1630Z update). Day 1 has the full set;
-		// forecast days have fewer. Used for the override dropdown and the auto fallback order.
-		private static int[] CandidateCycles(int day) => day switch
+		// Auto order: the LATEST issuance out by the replay time first (for Day 1 that is the one in effect;
+		// every Day 2/3 issuance precedes its valid day, so that is simply the last one), then the rest, latest
+		// first, as fallback — historical days vary in which cycles exist.
+		internal static int[] OrderedAutoCycles(int day, DateTimeOffset startUtc)
 		{
-			1 => new[] { 13, 16, 20, 1, 6 },
-			2 => new[] { 17, 6 }, // Day 2 primary issuance is 1730Z (cycle 17); 06Z as fallback
-			_ => new[] { 8 },     // Day 3 issued ~0730Z (cycle 8)
-		};
-
-		// Auto order: for Day 1, the issuance in effect at the replay time first, then the rest as fallback;
-		// for forecast days, the standard order.
-		private static int[] OrderedAutoCycles(int day, DateTimeOffset startUtc)
-		{
-			var all = CandidateCycles(day);
-			if (day != 1) return all;
-
-			var convDay = ConvectiveDay(startUtc).ToDateTime(TimeOnly.MinValue);
-			// Absolute issuance instants across the 12Z→12Z window.
-			var instants = new (int Cycle, DateTime AtUtc)[]
-			{
-				(13, convDay.AddHours(13)),
-				(16, convDay.AddHours(16.5)), // 1630Z
-				(20, convDay.AddHours(20)),
-				(1,  convDay.AddDays(1).AddHours(1)),
-				(6,  convDay.AddDays(1).AddHours(6)),
-			};
-			var inEffect = instants.Where(i => i.AtUtc <= startUtc.UtcDateTime)
-				.OrderByDescending(i => i.AtUtc).Select(i => i.Cycle).FirstOrDefault(13);
-			return new[] { inEffect }.Concat(all.Where(c => c != inEffect)).ToArray();
+			var valid = ConvectiveDay(startUtc);
+			var latestFirst = SpcIssuanceCycles.For(day).Reverse().ToArray();
+			var inEffect = latestFirst.FirstOrDefault(c => SpcIssuanceCycles.IssuedAtUtc(day, c, valid) <= startUtc, latestFirst.LastOrDefault());
+			return latestFirst.Length == 0 ? latestFirst : new[] { inEffect }.Concat(latestFirst.Where(c => c != inEffect)).ToArray();
 		}
 
 		private static string FormatTimes(SpcOutlookTimes? times)

@@ -80,6 +80,7 @@ namespace Anvil.ViewModels
 			_selectedDay = _selectedDayOption?.Day ?? 0;
 			RebuildProductOptions();
 			_selectedOption = DefaultOptionForDay();
+			RebuildCycleOptions();
 		}
 
 		// Cancels this VM's app-lifetime loops when the window closes. See Shutdown().
@@ -157,6 +158,7 @@ namespace Anvil.ViewModels
 				_suppressOutlookUpdate = true;
 				RebuildProductOptions();
 				SelectedOption = DefaultOptionForDay();
+				RebuildCycleOptions();
 				_suppressOutlookUpdate = false;
 
 				ApplyCurrentOutlook();
@@ -209,6 +211,112 @@ namespace Anvil.ViewModels
 					ApplyCurrentOutlook();
 				}
 			}
+		}
+
+		// ── Issuance cycle — the same row as PastCast's (SpcIssuanceCycles is the one table both read) ──
+		// "Latest" (the default) is the live feed exactly as before: it follows every new SPC issuance. An
+		// earlier cycle of TODAY's outlook is fetched from IEM's archive (near-real-time — today's 20Z was there
+		// minutes after issue) and HELD: the 15-min refresh doesn't move it.
+		// ⚠️ NOT PERSISTED, deliberately, unlike PastCast's: a held "13Z" names one issuance of one day, and
+		// restoring it tomorrow would pin a different (or unissued) outlook. Every launch starts on Latest.
+
+		private static readonly PastCycleOption LatestCycle = new("Latest", null);
+		private IReadOnlyList<PastCycleOption> _cycleOptions = new[] { LatestCycle };
+		private PastCycleOption _selectedCycleOption = LatestCycle;
+
+		/// <summary>Latest + the selected day's issuances already out (earliest first). Days 4-8: Latest only.</summary>
+		public IReadOnlyList<PastCycleOption> CycleOptions => _cycleOptions;
+
+		/// <summary>The picked issuance; <see cref="PastCycleOption.Cycle"/> null = Latest (the live feed).</summary>
+		public PastCycleOption SelectedCycleOption
+		{
+			get => _selectedCycleOption;
+			set
+			{
+				if (value is null || _selectedCycleOption == value) { return; }
+				SetProperty(ref _selectedCycleOption, value);
+				ApplyCurrentOutlook();
+			}
+		}
+
+		/// <summary>The Cycle row's gate: a product picked AND an earlier issuance to pick.</summary>
+		public bool CanPickCycle => HasOutlook && _cycleOptions.Count > 1;
+
+		// The HELD issuance's own product (its IEM cache file), once fetched; null while Latest, loading or failed.
+		private SpcOutlookProduct? _heldProduct;
+		// The held issuance's status for the card footer ("Loading…", "Not in the 13Z issuance"); "" once drawn.
+		private string _heldNote = string.Empty;
+		private int _heldToken;
+
+		// Which VALID day (IEM's `valid`) the selected day's outlook is for: the live file's expire is 12Z the day
+		// after. No file yet → today's convective day + (day − 1).
+		private DateOnly ValidDayFor(SpcOutlookProduct? live, int day) =>
+			live is not null && _spcOutlookService.GetTimesForProduct(live)?.Expire is { } expire
+				? DateOnly.FromDateTime(expire.UtcDateTime.AddDays(-1))
+				: SpcIssuanceCycles.ConvectiveDay(DateTimeOffset.UtcNow).AddDays(day - 1);
+
+		// Rebuild the list for the selected day (a day change; each refresh, as new issuances land), keeping the
+		// held cycle if it is still listed, else falling back to Latest.
+		private void RebuildCycleOptions()
+		{
+			var day = _selectedDay;
+			var anchor = _selectedOption?.Product ?? _productOptions.Select(o => o.Product).FirstOrDefault(p => p is not null);
+			var valid = ValidDayFor(anchor, day);
+			var now = DateTimeOffset.UtcNow;
+			var opts = new List<PastCycleOption> { LatestCycle };
+			opts.AddRange(SpcIssuanceCycles.For(day)
+				.Where(c => SpcIssuanceCycles.IssuedAtUtc(day, c, valid) <= now)
+				.Select(c => new PastCycleOption(SpcIssuanceCycles.Label(c), c)));
+			var keep = opts.FirstOrDefault(o => o.Cycle == _selectedCycleOption.Cycle) ?? LatestCycle;
+
+			_cycleOptions = opts;
+			OnPropertyChanged(nameof(CycleOptions));
+			// ⚠️ Re-raised even when unchanged: the ComboBox drops its selection when its list is swapped.
+			_selectedCycleOption = keep;
+			OnPropertyChanged(nameof(SelectedCycleOption));
+			OnPropertyChanged(nameof(CanPickCycle));
+		}
+
+		// Fetch + draw the held issuance of the live product's day/type. Token-guarded: any newer apply wins.
+		private async Task ShowHeldIssuanceAsync(SpcOutlookProduct live, int cycle)
+		{
+			var token = ++_heldToken;
+			var label = SpcIssuanceCycles.Label(cycle);
+			_heldProduct = null;
+			_heldNote = $"Loading the {label} issuance…";
+			await _mapService.ClearOutlookAsync();
+			UpdateOutlookTimes();
+
+			var valid = ValidDayFor(live, live.Day);
+			PastOutlookResult? result = null;
+			try
+			{
+				result = await _spcOutlookService.EnsurePastOutlookAsync(valid, live.Day, cycle);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Outlook issuance {Cycle} fetch failed", cycle);
+			}
+			if (token != _heldToken) { return; }
+
+			if (result is null || result.Error is not null)
+			{
+				_heldNote = $"Couldn't fetch the {label} issuance{(result?.Error is { } e ? $": {e}" : ".")}";
+			}
+			else if (!result.Found || !result.AvailableTypes.Contains(live.Type))
+			{
+				_heldNote = $"Not in the {label} issuance (or not archived yet) — pick Latest.";
+			}
+			else
+			{
+				var file = SpcOutlookService.PastCacheName(valid, live.Day, cycle, live.Type);
+				_heldProduct = new SpcOutlookProduct($"held-{valid:yyyyMMdd}-d{live.Day}-c{cycle:D2}-{live.Type}",
+					live.Day, live.Type, live.DisplayName, file, $"https://{SpcOutlookService.CacheHostName}/{file}");
+				_heldNote = string.Empty;
+				await ShowWithHatchingAsync(_heldProduct);
+				if (token != _heldToken) { return; }
+			}
+			UpdateOutlookTimes();
 		}
 
 		// ── The section header's SHOW/HIDE box — the same contract as PastOutlookViewModel.IsShown. ──
@@ -331,6 +439,12 @@ namespace Anvil.ViewModels
 			get
 			{
 				if (!HasOutlook) { return "Pick a product below"; }
+				// A HELD issuance doesn't refresh, so no countdown: its status, else how to go back to following.
+				if (_selectedCycleOption.Cycle is { } held)
+				{
+					return _heldNote.Length > 0 ? _heldNote
+						: $"Holding the {SpcIssuanceCycles.Label(held)} issuance — pick Latest to follow SPC's updates";
+				}
 				var countdown = OutlookNextUpdateText;
 				return countdown.Length == 0
 					? string.Empty
@@ -421,6 +535,16 @@ namespace Anvil.ViewModels
 			}
 
 			var product = _selectedOption?.Product;
+			if (product is not null && _isOutlookVisible && _isShown && _selectedCycleOption.Cycle is { } cycle)
+			{
+				_ = ShowHeldIssuanceAsync(product, cycle); // bumps _heldToken itself, then updates the card
+				return;
+			}
+
+			// ⚠️ Every OTHER path orphans a held fetch still in flight, so it can't land over this one.
+			++_heldToken;
+			_heldProduct = null;
+			_heldNote = string.Empty;
 			if (product is not null && _isOutlookVisible && _isShown)
 			{
 				_ = ShowWithHatchingAsync(product);
@@ -460,14 +584,17 @@ namespace Anvil.ViewModels
 			// When the layer is toggled off, treat the selection as "none" so the times line, the legend
 			// and the card all reflect what's actually on the map.
 			var product = _isOutlookVisible ? _selectedOption?.Product : null;
-			var times = product is null ? null : _spcOutlookService.GetTimesForProduct(product);
+			// A HELD cycle describes ITS issuance's file (null while loading or when it failed), never the live one.
+			var held = _selectedCycleOption.Cycle;
+			var shown = held is null ? product : product is null ? null : _heldProduct;
+			var times = shown is null ? null : _spcOutlookService.GetTimesForProduct(shown);
 
 			// Legend = the selected product's FULL scale (least→most severe), gated by the same visibility as
 			// the times so it appears only when an outlook is actually shown.
 			// Split at the kind: solid rows stay plain, CIG rows carry "In Outlook" read from the same cache file
 			// (re-read on every refresh, since this runs from OnOutlooksRefreshed too).
 			// ⚠️ The legend keys what is DRAWN, so the header box hides it too; the card and times don't.
-			var drawn = _isShown ? product : null;
+			var drawn = _isShown ? shown : null;
 			var scale = drawn is null
 				? System.Array.Empty<SpcRiskLevel>()
 				: _spcOutlookService.GetLegendForProduct(drawn);
@@ -498,6 +625,10 @@ namespace Anvil.ViewModels
 				{
 					parts.Add($"Valid {valid.ToLocalTime():ddd h:mm tt} → {expire.ToLocalTime():ddd h:mm tt}");
 				}
+				if (held is { } c)
+				{
+					parts.Insert(0, $"{SpcIssuanceCycles.Label(c)} issuance"); // same wording as PastCast's context
+				}
 				OutlookTimesText = string.Join("  ·  ", parts);
 			}
 
@@ -515,6 +646,14 @@ namespace Anvil.ViewModels
 				_narrativeFor = null;
 				OutlookNarrativeText = string.Empty;
 			}
+			else if (_selectedCycleOption.Cycle is not null)
+			{
+				// SPC publishes the prose for its LATEST issuance only; showing that under a held earlier outlook
+				// would pair one issuance's map with another's reasoning.
+				_outlookCardTitle = $"Day {product.Day} · {product.TypeLabel}";
+				_narrativeFor = null;
+				OutlookNarrativeText = "SPC's forecast discussion is published for the latest issuance only — pick Latest to read it.";
+			}
 			else
 			{
 				_outlookCardTitle = $"Day {product.Day} · {product.TypeLabel}";
@@ -527,6 +666,7 @@ namespace Anvil.ViewModels
 			// they formatted are now one line, built in ApplyCurrentOutlook as OutlookTimesText.
 			OnPropertyChanged(nameof(HasOutlook));
 			OnPropertyChanged(nameof(ShownOnMap));
+			OnPropertyChanged(nameof(CanPickCycle));
 			RaiseCard();
 		}
 
@@ -553,9 +693,9 @@ namespace Anvil.ViewModels
 				// Best effort; fall through to the not-available message.
 			}
 
-			if (!ReferenceEquals(_selectedOption?.Product, product))
+			if (!ReferenceEquals(_selectedOption?.Product, product) || _selectedCycleOption.Cycle is not null)
 			{
-				return; // selection changed mid-fetch
+				return; // selection changed mid-fetch (an earlier issuance picked counts — see UpdateOutlookCard)
 			}
 			_narrativeFor = product;
 			OutlookNarrativeText = text ?? "Forecast discussion isn't available for this product yet.";
@@ -566,7 +706,17 @@ namespace Anvil.ViewModels
 		/// selection so a first-run (empty cache) overlay appears and the issued/valid
 		/// readout picks up the freshly-written times.
 		/// </summary>
-		public void OnOutlooksRefreshed() => ApplyCurrentOutlook();
+		/// <remarks>⚠️ A refresh can bring a NEW issuance, so the Cycle list is rebuilt — but a HELD issuance is
+		/// immutable, so it is not re-fetched or redrawn; only Latest follows the refresh.</remarks>
+		public void OnOutlooksRefreshed()
+		{
+			var held = _selectedCycleOption.Cycle;
+			RebuildCycleOptions();
+			if (held is null || _selectedCycleOption.Cycle != held)
+			{
+				ApplyCurrentOutlook();
+			}
+		}
 
 		/// <summary>Called by MapViewModel once the map page is ready: applies the startup outlook state
 		/// and starts the next-update progress tick.</summary>
