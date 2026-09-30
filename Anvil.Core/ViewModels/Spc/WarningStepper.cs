@@ -43,7 +43,7 @@ namespace Anvil.ViewModels
 		/// <summary>‹ is live once › has been used AND something visited is still active.</summary>
 		public bool CanBack => _back.Any(id => IndexOf(id) >= 0);
 
-		/// <summary>Whether a warning of this tile is the one you're on (the tile outlines and says where).</summary>
+		/// <summary>Whether a warning of this tile is the one you're on (the tile's tag line then says where).</summary>
 		public bool IsActive => _currentId is not null && IndexOf(_currentId) >= 0;
 
 		/// <summary>"2 of 3 · Cleveland, OK · PDS" while <see cref="IsActive"/>; empty otherwise.</summary>

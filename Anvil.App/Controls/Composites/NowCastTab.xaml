@@ -13,8 +13,8 @@
        │  │ Tornado     │ │ Severe      │ │ Flash flood │           │    what the Warnings rows show;
        │  │ 2 of 3 · Cle│ │ 4 destruct. │ │ 1 emergency │           │    a zero tile is DIMMED, not hidden
        │  └─────────────┘ └─────────────┘ └─────────────┘           │    (stripe = the data colour)
-       │   ↑ ACCENT OUTLINE while its ‹ › have you on a warning;       │  ‹ › = WarningStepper: › flies to the
-       │     the tag line then reads "2 of 3 · place · PDS"            │    next (worst first, wraps); ‹ = back
+       │   ↑ while its ‹ › have you on a warning the tag line reads   │  ‹ › = WarningStepper: › flies to the
+       │     "2 of 3 · place · PDS" in accent (NO outline — removed)   │    next (worst first, wraps); ‹ = back
        │                                                              │    stack, off until › used; the COUNT
        │                                                              │    resets. Flash even if unticked.
        │                                                              │  ← 24 px gap before the sections
@@ -160,11 +160,12 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- ⚠️ EACH TILE = the tile Border + an ACCENT OUTLINE over it (shown while that tile's arrows have
-                     you on a warning) in one cell. The ‹ › pair rides the tile's top-right, bound straight to its
-                     WarningStepper (Forward / Back); clicking the COUNT resets it (Reset). The tile's own tooltip
-                     stays on the Border, the buttons carry their own. Glyphs E76B / E76C (ChevronLeft / Right) are
-                     NOT verified by rendering in the real font. -->
+                <!-- ⚠️ The ‹ › pair rides each tile's top-right, bound straight to its WarningStepper (Forward /
+                     Back); clicking the COUNT resets it (Reset). While its arrows have you on a warning, the tag line
+                     swaps for the accent "2 of 3 · place" line — the ONLY active marker. ⚠️ NO OUTLINE: an accent
+                     border drawn over the tile covered its coloured top stripe and read as the card changing (the
+                     user's call, 2026-09-30, removed). The tile's own tooltip stays on the Border, the buttons carry
+                     their own. Glyphs E76B / E76C (ChevronLeft / Right) are NOT verified by rendering in the real font. -->
                 <Grid Grid.Column="0" Opacity="{x:Bind TileOpacity(ViewModel.Warnings.TornadoCount), Mode=OneWay}">
                     <Border Style="{StaticResource WarningTileStyle}" BorderBrush="#FF2A2A"
                             ToolTipService.ToolTip="Tornado warnings in effect nationwide — all of them, whatever the Warnings rows below show">
@@ -194,9 +195,6 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-                    <Border CornerRadius="6" BorderThickness="1.5" IsHitTestVisible="False"
-                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
-                            Visibility="{x:Bind Shown(ViewModel.Warnings.TornadoStepper.IsActive), Mode=OneWay}"/>
                 </Grid>
 
                 <Grid Grid.Column="1" Opacity="{x:Bind TileOpacity(ViewModel.Warnings.SevereCount), Mode=OneWay}">
@@ -228,9 +226,6 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-                    <Border CornerRadius="6" BorderThickness="1.5" IsHitTestVisible="False"
-                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
-                            Visibility="{x:Bind Shown(ViewModel.Warnings.SevereStepper.IsActive), Mode=OneWay}"/>
                 </Grid>
 
                 <Grid Grid.Column="2" Opacity="{x:Bind TileOpacity(ViewModel.Warnings.FlashFloodCount), Mode=OneWay}">
@@ -262,9 +257,6 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-                    <Border CornerRadius="6" BorderThickness="1.5" IsHitTestVisible="False"
-                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
-                            Visibility="{x:Bind Shown(ViewModel.Warnings.FlashFloodStepper.IsActive), Mode=OneWay}"/>
                 </Grid>
             </Grid>
         </Grid>
