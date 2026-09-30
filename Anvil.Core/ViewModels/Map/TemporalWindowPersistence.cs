@@ -108,6 +108,7 @@ namespace Anvil.ViewModels
 			}
 			if (s.ForeCastOutlookOpacity is double fo) { outlook.OutlookOpacity = Unit(fo); }
 			if (s.ForeCastShowHatching is bool fh) { outlook.ShowHatching = fh; }
+			if (s.ForeCastOutlookShown is bool fs) { outlook.IsShown = fs; }
 		}
 
 		private static void Track(AppSettings s, RadarViewModel radar, WarningsViewModel warnings, WatchesViewModel watches,
@@ -244,6 +245,7 @@ namespace Anvil.ViewModels
 						break;
 					case nameof(OutlookViewModel.OutlookOpacity): s.ForeCastOutlookOpacity = outlook.OutlookOpacity; break;
 					case nameof(OutlookViewModel.ShowHatching): s.ForeCastShowHatching = outlook.ShowHatching; break;
+					case nameof(OutlookViewModel.IsShown): s.ForeCastOutlookShown = outlook.IsShown; break;
 				}
 			};
 		}

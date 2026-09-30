@@ -22,11 +22,18 @@ namespace Anvil.Controls.Composites
 			{
 				if (_expansionBound || ViewModel is null) { return; }
 				_expansionBound = true;
-				Anvil.Controls.Primitives.PanelSection.PersistExpansion(
-					System.Linq.Enumerable.OfType<Anvil.Controls.Primitives.PanelSection>(Root.Children), "fore",
+				// The layer run (Sections) + the non-layer sections directly under Root (the discussion).
+				var sections = System.Linq.Enumerable.Concat(
+					System.Linq.Enumerable.OfType<Anvil.Controls.Primitives.PanelSection>(Sections.Children),
+					System.Linq.Enumerable.OfType<Anvil.Controls.Primitives.PanelSection>(Root.Children));
+				Anvil.Controls.Primitives.PanelSection.PersistExpansion(sections, "fore",
 					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			};
 		}
+
+		// Header show/hide box: IsChecked is ONE-WAY, so the box has already flipped itself by the time Click
+		// fires and the VM's answer overwrites it — the same contract as PastCast's outlook box.
+		private void OnOutlookHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.Outlook.ToggleShown();
 
 		// x:Bind helper: collapse a card line that has nothing to say, so the card closes up rather than
 		// leaving a gap where the context or footer would be. Same helper as the other two bodies'.

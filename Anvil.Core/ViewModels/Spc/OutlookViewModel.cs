@@ -211,6 +211,35 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		// ── The section header's SHOW/HIDE box — the same contract as PastOutlookViewModel.IsShown. ──
+		// ⚠️ NOT the mode: IsOutlookVisible IS ForeCast (MapViewModel.IsForeCast projects onto it) and a body
+		// never arms or clears its mode. This is a layer toggle UNDER the mode — hiding keeps Day / Product, so
+		// ticking it back redraws the same outlook. The card and discussion keep describing the pick; only
+		// the map and the legend go.
+
+		private bool _isShown = true;
+
+		/// <summary>Whether the picked outlook is drawn while ForeCast runs. Default true; persisted.</summary>
+		public bool IsShown
+		{
+			get => _isShown;
+			set
+			{
+				if (SetProperty(ref _isShown, value))
+				{
+					OnPropertyChanged(nameof(ShownOnMap));
+					ApplyCurrentOutlook();
+				}
+			}
+		}
+
+		/// <summary>A product is picked AND shown — gates the opacity slider; the header BOX binds
+		/// <see cref="IsShown"/> alone.</summary>
+		public bool ShownOnMap => _isShown && HasOutlook;
+
+		/// <summary>The header box's click. Works whatever the product, None included (PastCast's rule).</summary>
+		public void ToggleShown() => IsShown = !_isShown;
+
 		/// <summary>
 		/// Authoritative "Issued … · Valid … → …" line for the loaded outlook, parsed from
 		/// the product's cached GeoJSON (local time). Empty when None is selected or the
@@ -392,7 +421,7 @@ namespace Anvil.ViewModels
 			}
 
 			var product = _selectedOption?.Product;
-			if (product is not null && _isOutlookVisible)
+			if (product is not null && _isOutlookVisible && _isShown)
 			{
 				_ = ShowWithHatchingAsync(product);
 			}
@@ -437,12 +466,14 @@ namespace Anvil.ViewModels
 			// the times so it appears only when an outlook is actually shown.
 			// Split at the kind: solid rows stay plain, CIG rows carry "In Outlook" read from the same cache file
 			// (re-read on every refresh, since this runs from OnOutlooksRefreshed too).
-			var scale = product is null
+			// ⚠️ The legend keys what is DRAWN, so the header box hides it too; the card and times don't.
+			var drawn = _isShown ? product : null;
+			var scale = drawn is null
 				? System.Array.Empty<SpcRiskLevel>()
-				: _spcOutlookService.GetLegendForProduct(product);
-			var present = product is null
+				: _spcOutlookService.GetLegendForProduct(drawn);
+			var present = drawn is null
 				? new HashSet<string>()
-				: _spcOutlookService.GetHatchGroupsInOutlook(product);
+				: _spcOutlookService.GetHatchGroupsInOutlook(drawn);
 			_legendEntries = scale.Where(l => !l.IsConditionalIntensity).ToList();
 			_hatchLegendRows = scale.Where(l => l.IsConditionalIntensity)
 				.Select(l => new OutlookHatchLegendRow(l, present.Contains(l.Code)))
@@ -495,6 +526,7 @@ namespace Anvil.ViewModels
 			// HasOutlookCard properties fed the deleted Outlook Details window; the issued + valid strings
 			// they formatted are now one line, built in ApplyCurrentOutlook as OutlookTimesText.
 			OnPropertyChanged(nameof(HasOutlook));
+			OnPropertyChanged(nameof(ShownOnMap));
 			RaiseCard();
 		}
 
@@ -545,7 +577,7 @@ namespace Anvil.ViewModels
 			// Show the selected outlook only if the visibility toggle is on (it defaults off, so the
 			// app launches with no outlook); sync the fill opacity to the slider's initial value.
 			var startupProduct = _selectedOption?.Product;
-			if (startupProduct is not null && _isOutlookVisible)
+			if (startupProduct is not null && _isOutlookVisible && _isShown)
 			{
 				await ShowWithHatchingAsync(startupProduct);
 			}

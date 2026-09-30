@@ -246,6 +246,61 @@ namespace Anvil.Tests
 			Assert.False(rig.PastOutlook.ShownOnMap);                // shown, but nothing picked to draw
 		}
 
+		// The ForeCast outlook's header box: show/hide UNDER the mode, persisted, and it really clears/redraws.
+		[Fact]
+		public async Task ForeCastOutlookBox_HidesWithoutLosingThePick_AndPersists()
+		{
+			var s = new AppSettings();
+			var rig = new Rig(s);
+			Assert.True(rig.Outlook.IsShown);
+			Assert.Null(s.ForeCastOutlookShown);
+
+			var calls = new List<string>();
+			var map = Null<IMapService>.Create(new()
+			{
+				["ShowOutlookAsync"] = _ => { calls.Add("show"); return Task.CompletedTask; },
+				["ClearOutlookAsync"] = _ => { calls.Add("clear"); return Task.CompletedTask; },
+			});
+			var spc = Null<ISpcOutlookService>.Create(new()
+			{
+				["get_AvailableDays"] = _ => new[] { 1 },
+				["GetProductsForDay"] = _ => new[] { new SpcOutlookProduct("d1c", 1, SpcOutlookType.Categorical, "Categorical", "d1c.geojson", "https://x/d1c.geojson") },
+			});
+			var vm = new OutlookViewModel(map, spc, Null<IDispatcher>.Create(), NullLogger<OutlookViewModel>.Instance);
+			await vm.OnMapsReadyAsync();
+			vm.IsOutlookVisible = true;                     // ForeCast on
+			Assert.Equal("show", calls[^1]);
+
+			vm.ToggleShown();
+			Assert.Equal("clear", calls[^1]);
+			Assert.False(vm.ShownOnMap);
+			Assert.Equal(SpcOutlookType.Categorical, vm.SelectedOption?.Product?.Type); // the pick survives
+			Assert.True(vm.IsOutlookVisible);               // the box never touches the mode
+
+			vm.ToggleShown();
+			Assert.Equal("show", calls[^1]);
+
+			rig.Outlook.ToggleShown();
+			Assert.False(s.ForeCastOutlookShown);
+			Assert.False(new Rig(s).Outlook.IsShown);       // restored next session
+		}
+
+		[Fact]
+		public void FloodWatchTicks_PersistPerWindow()
+		{
+			var s = new AppSettings();
+			var rig = new Rig(s);
+			rig.Watches.ShowFlashFlood = false;
+			Assert.False(s.WatchesShowFlood);
+			Assert.Null(s.PastWatchesShowFlood);            // PastCast's own, untouched
+
+			rig.PastAlerts.Watches.ShowFlashFlood = false;
+			var next = new Rig(s);
+			Assert.False(next.Watches.ShowFlashFlood);
+			Assert.False(next.PastAlerts.Watches.ShowFlashFlood);
+			Assert.True(next.Warnings.ShowFlashFlood);
+		}
+
 		[Fact]
 		public void SavedValues_SurviveANewSession()
 		{

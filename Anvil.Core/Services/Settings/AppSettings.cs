@@ -416,6 +416,8 @@ namespace Anvil.Services
 		public double? ForeCastOutlookOpacity { get => _foreCastOutlookOpacity; set => SetProperty(ref _foreCastOutlookOpacity, value); }
 		private bool? _foreCastShowHatching;
 		public bool? ForeCastShowHatching { get => _foreCastShowHatching; set => SetProperty(ref _foreCastShowHatching, value); }
+		private bool? _foreCastOutlookShown;
+		public bool? ForeCastOutlookShown { get => _foreCastOutlookShown; set => SetProperty(ref _foreCastOutlookShown, value); }
 
 		// ── Temporal SESSION: which modes were on, and each mode's window (MapViewModel "Temporal session") ──
 		// ⚠️ Restored at MAP-READY (a mode drives the map), before the home-site launch. Modes default OFF
