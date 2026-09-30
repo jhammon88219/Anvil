@@ -12,6 +12,10 @@
        [x] ● Tornado                             42     ← one row per type: the toggle, the SPC dot
        [x] ● Wind                               310       colour, the name and that type's count,
        [x] ● Hail                                96       all as ONE object
+       ────────────────────────────────────────────────
+       ● 20:49Z  3 SSW Ash Valley, KS            EF2    ← THE LIST: the TICKED types' reports, newest
+       ● 18:12Z  Wichita, KS                  65 mph      first; click a row → fly there + open the
+       ● 16:00Z  2 SW Rock Harbor, FL                     dot's popup. Capped at 240 px, scrolls.
 
      ⚠️ OPACITY IS NOT HERE — it lives in the host's section header (PanelSection ShowOpacity), so it can be
      set with the section closed.
@@ -44,15 +48,27 @@
 <UserControl x:Class="Anvil.Controls.Composites.StormReportsInput"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:Anvil.Controls.Composites"
+             xmlns:models="using:Anvil.Models"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- A report row: tight (the stock 40 px row would show five reports), full-width, left-aligned. -->
+        <Style x:Key="ReportRowContainerStyle" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        </Style>
+    </UserControl.Resources>
 
     <Grid VerticalAlignment="Top">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- the card -->
             <RowDefinition Height="Auto"/> <!-- rule -->
             <RowDefinition Height="Auto"/> <!-- the three type rows + opacity -->
+            <RowDefinition Height="Auto"/> <!-- the report list -->
         </Grid.RowDefinitions>
 
         <!-- THE CARD, the same shape as the Timeframe and outlook cards in this window. Like the outlook's
@@ -145,5 +161,41 @@
                 </Grid>
             </CheckBox>
         </Grid>
+
+        <!-- THE REPORT LIST: every report of the TICKED types, newest first (VisibleReports). Click a row → the map
+             flies there and opens that dot's popup (ViewModel.FlyTo). Collapses when empty.
+             ⚠️ A ListView with a MaxHeight: bounded, so it virtualizes even inside the window's PanelScroller (an
+             UNBOUNDED list nested in a ScrollViewer un-virtualizes — a 400-report day would build 400 rows).
+             ⚠️ SelectionMode None + ItemClick: a click ACTS (flies), it isn't a selection to keep in step. -->
+        <StackPanel Grid.Row="3" Margin="0,14,0,0"
+                    Visibility="{x:Bind Shown(ViewModel.HasVisibleReports), Mode=OneWay}">
+            <Border Height="1" Margin="0,0,0,8"
+                    Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+            <ListView MaxHeight="240"
+                      SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnReportClick"
+                      ItemsSource="{x:Bind ViewModel.VisibleReports, Mode=OneWay}"
+                      ItemContainerStyle="{StaticResource ReportRowContainerStyle}">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="models:StormReportItem">
+                        <Grid ColumnSpacing="8" ToolTipService.ToolTip="Fly to this report">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>  <!-- the type dot -->
+                                <ColumnDefinition Width="46"/>    <!-- 20:49Z -->
+                                <ColumnDefinition Width="*"/>     <!-- 3 SSW Ash Valley, KS -->
+                                <ColumnDefinition Width="Auto"/>  <!-- EF2 / 65 mph / 1.75 in -->
+                            </Grid.ColumnDefinitions>
+                            <Ellipse Width="9" Height="9" VerticalAlignment="Center"
+                                     Fill="{x:Bind local:StormReportsInput.KindBrush(Kind)}"/>
+                            <TextBlock Grid.Column="1" Text="{x:Bind TimeText}" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock Grid.Column="2" Text="{x:Bind Place}" FontSize="12" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Grid.Column="3" Text="{x:Bind MagText}" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </StackPanel>
     </Grid>
 </UserControl>

@@ -12,10 +12,13 @@ namespace Anvil.Models
 	/// <param name="Wind">Number of wind reports written.</param>
 	/// <param name="Hail">Number of hail reports written.</param>
 	/// <param name="Error">A human-readable failure reason, or null on success.</param>
+	/// <param name="Reports">Every report written, in file order — the Storm reports LIST. The counts above are
+	/// taken from this same list, so the rows and the numbers can't disagree. Empty when not found.</param>
 	public sealed record StormReportResult(
 		bool Found,
 		int Tornado,
 		int Wind,
 		int Hail,
-		string? Error);
+		string? Error,
+		System.Collections.Generic.IReadOnlyList<StormReportItem>? Reports = null);
 }

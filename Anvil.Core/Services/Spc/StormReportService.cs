@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -63,8 +64,7 @@ namespace Anvil.Services
 			// Historical days never change — reuse the cache and just report its counts.
 			if (immutable && File.Exists(cacheFile))
 			{
-				var (t, w, h) = CountKinds(cacheFile);
-				return new StormReportResult(true, t, w, h, null);
+				return Found(ReadItems(cacheFile));
 			}
 
 			var reports = new List<ReportPoint>();
@@ -98,26 +98,23 @@ namespace Anvil.Services
 			// Swap SPC's truncated remarks for the full IEM LSR narratives where we can match them.
 			await EnrichWithIemAsync(convectiveDay, reports, cancellationToken);
 
-			int torn = 0, wind = 0, hail = 0;
-			foreach (var r in reports)
-			{
-				if (r.Kind == "torn") { torn++; }
-				else if (r.Kind == "wind") { wind++; }
-				else { hail++; }
-			}
-
 			await WriteGeoJsonAsync(cacheFile, reports, cancellationToken);
-			return new StormReportResult(true, torn, wind, hail, null);
+			return Found(reports.Select(r => new StormReportItem(r.Kind, r.Lat, r.Lon, r.Time, r.Mag, r.Location, r.County, r.State)).ToList());
 		}
 
-		// When a fetch failed: keep the last-known-good file (returning its counts) rather than blanking the
+		// ⚠️ THE ONE WAY A FOUND RESULT IS BUILT: the counts are taken from the list, so the rows and the numbers
+		// can never disagree (an unknown kind counts nowhere, as before). Internal for tests.
+		internal static StormReportResult Found(IReadOnlyList<StormReportItem> items) =>
+			new(true, items.Count(i => i.Kind == "torn"), items.Count(i => i.Kind == "wind"), items.Count(i => i.Kind == "hail"),
+				null, items);
+
+		// When a fetch failed: keep the last-known-good file (returning its reports) rather than blanking the
 		// overlay; only surface an error if there's nothing cached to fall back on.
 		private static StormReportResult AnyOkOrCache(bool anyOk, List<ReportPoint> reports, string cacheFile, DateOnly day, string error)
 		{
 			if (!anyOk && File.Exists(cacheFile))
 			{
-				var (t, w, h) = CountKinds(cacheFile);
-				return new StormReportResult(true, t, w, h, null);
+				return Found(ReadItems(cacheFile));
 			}
 			return new StormReportResult(false, 0, 0, 0, error);
 		}
@@ -397,35 +394,39 @@ namespace Anvil.Services
 				await writer.FlushAsync(ct);
 			}, ct);
 
-		// Counts features by kind in a cached file (used for the immutable-reuse and fetch-failure paths).
-		private static (int Torn, int Wind, int Hail) CountKinds(string cacheFile)
+		// Reads a cached file back into rows (the immutable-reuse and fetch-failure paths) — the SAME fields the
+		// writer above puts in, read the way storm-reports.js reads them. A malformed feature is skipped; an
+		// unreadable file is an empty day. Internal for tests.
+		internal static List<StormReportItem> ReadItems(string cacheFile)
 		{
+			var items = new List<StormReportItem>();
 			try
 			{
 				using var doc = JsonDocument.Parse(File.ReadAllText(cacheFile));
 				if (!doc.RootElement.TryGetProperty("features", out var features) ||
 					features.ValueKind != JsonValueKind.Array)
 				{
-					return (0, 0, 0);
+					return items;
 				}
-				int t = 0, w = 0, h = 0;
 				foreach (var f in features.EnumerateArray())
 				{
-					if (!f.TryGetProperty("properties", out var props) ||
-						!props.TryGetProperty("kind", out var kind)) { continue; }
-					switch (kind.GetString())
+					if (!f.TryGetProperty("properties", out var p) ||
+						!f.TryGetProperty("geometry", out var g) ||
+						!g.TryGetProperty("coordinates", out var c) || c.ValueKind != JsonValueKind.Array || c.GetArrayLength() < 2)
 					{
-						case "torn": t++; break;
-						case "wind": w++; break;
-						case "hail": h++; break;
+						continue;
 					}
+					static string S(JsonElement props, string name) =>
+						props.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? string.Empty : string.Empty;
+					items.Add(new StormReportItem(S(p, "kind"), c[1].GetDouble(), c[0].GetDouble(),
+						S(p, "time"), S(p, "mag"), S(p, "loc"), S(p, "county"), S(p, "st")));
 				}
-				return (t, w, h);
 			}
 			catch
 			{
-				return (0, 0, 0);
+				// Unreadable cache → an empty day rather than a failure.
 			}
+			return items;
 		}
 
 		private readonly record struct ReportPoint(

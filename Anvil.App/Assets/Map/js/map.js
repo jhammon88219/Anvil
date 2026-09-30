@@ -493,6 +493,8 @@ try {
     window.setStormReportsSource = function (url) { if (StormReports) forEachMap(function (m) { StormReports.setSource(m, url); }); };
     window.setStormReportKinds = function (torn, wind, hail) { if (StormReports) forEachMap(function (m) { StormReports.setKinds(m, torn, wind, hail); }); };
     window.setStormReportsOpacity = function (o) { if (StormReports) forEachMap(function (m) { StormReports.setOpacity(m, o); }); };
+    // The Storm reports list: an animated fly + the dot's popup → PRIMARY only (the camera sync carries the rest).
+    window.focusStormReport = function (kind, time, lon, lat) { if (StormReports && primary()) StormReports.focus(primary(), kind, time, lon, lat); };
     // Empty the overlay outright (leaving a replay, or a day whose reports won't load). Without this the
     // host could only ever re-point the dots at ANOTHER day, so "no day" left the old day's dots drawn.
     window.clearStormReports = function () { if (StormReports) forEachMap(function (m) { StormReports.clear(m); }); };

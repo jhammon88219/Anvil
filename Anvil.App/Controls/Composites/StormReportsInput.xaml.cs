@@ -27,6 +27,28 @@ namespace Anvil.Controls.Composites
 				? Microsoft.UI.Xaml.Visibility.Collapsed
 				: Microsoft.UI.Xaml.Visibility.Visible;
 
+		public Visibility Shown(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
+
+		// The list's type dot. ⚠️ DATA colours — the same literals as the rows above and storm-reports.js
+		// KIND_LAYERS; change all three. A NEW brush per row, not a shared static: this control lives in two OS
+		// windows (Now + Past), and a brush is a UI object.
+		public static Microsoft.UI.Xaml.Media.Brush KindBrush(string kind) =>
+			new Microsoft.UI.Xaml.Media.SolidColorBrush(Anvil.Converters.ColorUtil.FromHex(kind switch
+			{
+				"torn" => "#E51919",
+				"wind" => "#1663D8",
+				_ => "#18A020",
+			}));
+
+		// A row click ACTS — fly there (the list keeps no selection).
+		private void OnReportClick(object sender, ItemClickEventArgs e)
+		{
+			if (e.ClickedItem is Anvil.Models.StormReportItem report)
+			{
+				ViewModel?.FlyTo(report);
+			}
+		}
+
 		/// <summary>The storm-reports view model; bound from the host (MainWindow → ViewModel.StormReports).</summary>
 		public StormReportsViewModel ViewModel
 		{

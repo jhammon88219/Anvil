@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -153,6 +155,42 @@ namespace Anvil.ViewModels
 		public int WindCount { get => _windCount; private set => SetProperty(ref _windCount, value); }
 		public int HailCount { get => _hailCount; private set => SetProperty(ref _hailCount, value); }
 
+		// ── The report LIST (click a row → fly there) ──
+		// ⚠️ IT FOLLOWS THE TICKS, unlike the counts: the counts describe the DAY, the list is what you can fly
+		// to, and a row for an unticked type would land you on a dot that isn't drawn. Newest first over the
+		// convective day (01Z the next morning is newer than 23Z — StormReportItem.DayMinute).
+
+		private IReadOnlyList<StormReportItem> _all = Array.Empty<StormReportItem>();
+		private IReadOnlyList<StormReportItem> _visibleReports = Array.Empty<StormReportItem>();
+
+		/// <summary>The ticked types' reports of the loaded day, newest first — the section's list.</summary>
+		public IReadOnlyList<StormReportItem> VisibleReports => _visibleReports;
+
+		/// <summary>Whether the list has any rows (it collapses otherwise).</summary>
+		public bool HasVisibleReports => _visibleReports.Count > 0;
+
+		private void RebuildList()
+		{
+			_visibleReports = Newest(_all.Where(r =>
+				(r.Kind == "torn" && _showTornado) || (r.Kind == "wind" && _showWind) || (r.Kind == "hail" && _showHail)));
+			OnPropertyChanged(nameof(VisibleReports));
+			OnPropertyChanged(nameof(HasVisibleReports));
+		}
+
+		/// <summary>Newest first over the convective day; place breaks ties so the order is stable. Internal for tests.</summary>
+		internal static IReadOnlyList<StormReportItem> Newest(IEnumerable<StormReportItem> items) =>
+			items.OrderByDescending(r => r.DayMinute).ThenBy(r => r.Place, StringComparer.Ordinal).ToList();
+
+		/// <summary>A row was clicked: fly the primary pane there and open the dot's popup (radar-less, like a
+		/// map click on the dot). Nothing until the map is ready.</summary>
+		public void FlyTo(StormReportItem report)
+		{
+			if (_isMapReady)
+			{
+				_ = _mapService.FocusStormReportAsync(report.Kind, report.Time, report.Lon, report.Lat);
+			}
+		}
+
 		// ── The reports card ──────────────────────────────────────────────────────────────────────
 		// The section shows a CARD above its type rows, the same shape as the Timeframe and outlook cards in
 		// the same window: headline, context, footer. Written only through SetCard so it cannot be left half
@@ -303,6 +341,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(AnyShown));
 			OnPropertyChanged(nameof(AllShown));
 			OnPropertyChanged(nameof(CardFooter));
+			RebuildList();
 			ApplyKinds();
 		}
 
@@ -426,6 +465,9 @@ namespace Anvil.ViewModels
 		private async Task ClearOverlayAsync()
 		{
 			_loadedDay = null;
+			// The list goes with the dots: its rows would fly to reports that are no longer drawn.
+			_all = Array.Empty<StormReportItem>();
+			RebuildList();
 			await _mapService.ClearStormReportsAsync();
 		}
 
@@ -434,6 +476,8 @@ namespace Anvil.ViewModels
 			TornadoCount = result.Tornado;
 			WindCount = result.Wind;
 			HailCount = result.Hail;
+			_all = result.Reports ?? Array.Empty<StormReportItem>();
+			RebuildList();
 		}
 
 		// The card's headline. ⚠️ The TOTAL, not the shown subset: the per-type rows underneath already say

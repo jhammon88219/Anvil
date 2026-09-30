@@ -256,6 +256,12 @@ namespace Anvil.Services
 		Task FocusWarningAsync(string geometryJson, double west, double south, double east, double north);
 
 		/// <summary>
+		/// The Storm reports list: fly the PRIMARY pane to one report and open that dot's popup (found by kind +
+		/// time + position in the page's own data), exactly as clicking the dot would.
+		/// </summary>
+		Task FocusStormReportAsync(string kind, string time, double lon, double lat);
+
+		/// <summary>
 		/// Sets the overall opacity (0-1) of the warning polygons. Scales both the faint fill and the bold
 		/// outline together, so the slider fades the whole overlay (1 = the default look).
 		/// </summary>

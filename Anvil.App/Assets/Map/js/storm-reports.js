@@ -13,6 +13,8 @@
 //                     │ 2013-05-20 20:14 UTC     │    feature's own props (time/mag/loc/county/st/com)
 //                     │ REPORTED BY TRAINED …    │
 //                     └──────────────────────────┘
+//                                                      ↑ the SAME popup opens from the host's report LIST
+//                                                        (focus(): fly there, then openPopup — shared code)
 //
 // Drawn ON TOP of everything on purpose: these are the verification dots you read AGAINST the outlook
 // fill and the radar beneath them, so they must never be tinted by either.
@@ -144,19 +146,22 @@ function popupHtml(p) {
     return html;
 }
 
+// ONE popup across every pane — opening it in another pane moves it there. Detach it from wherever it was
+// first, or the previous pane is left holding an orphaned node. Shared by a dot click and a list row (focus).
+function openPopup(map, f) {
+    ensurePopupStyle();
+    if (!popup) popup = new maplibregl.Popup({ className: 'spc-report-popup', maxWidth: '280px' });
+    popup.remove();
+    popup.setLngLat(f.geometry.coordinates.slice()).setHTML(popupHtml(f.properties)).addTo(map);
+}
+
 function bindInteractions(map) {
     if (interactionsBound.has(map)) return;
     interactionsBound.add(map);
     KIND_LAYERS.forEach(function (l) {
         map.on('click', l.id, function (e) {
             var f = e.features && e.features[0];
-            if (!f) return;
-            ensurePopupStyle();
-            if (!popup) popup = new maplibregl.Popup({ className: 'spc-report-popup', maxWidth: '280px' });
-            // ONE popup across every pane — clicking a dot in another pane moves it there. Detach it
-            // from wherever it was first, or the previous pane is left holding an orphaned node.
-            popup.remove();
-            popup.setLngLat(f.geometry.coordinates.slice()).setHTML(popupHtml(f.properties)).addTo(map);
+            if (f) openPopup(map, f);
         });
         map.on('mouseenter', l.id, function () { map.getCanvas().style.cursor = 'pointer'; });
         map.on('mouseleave', l.id, function () { map.getCanvas().style.cursor = ''; });
@@ -186,6 +191,28 @@ function loadReports(map) {
         if (gj && map.getSource('spc-reports')) map.getSource('spc-reports').setData(gj);
         refreshReportLayers(map);
     }).catch(function (e) { console.error('storm reports load failed: ' + e); });
+}
+
+// The Storm reports LIST (host row click): fly `map` (the PRIMARY — an animated move) to one report and open
+// its popup, as if the dot were clicked. The feature is found in the page's own data by kind + time + position,
+// so the popup is built from exactly what the dot carries. Not loaded / not found = just the flight.
+// Zooms IN to 9 at most, never out: a row clicked while already close keeps your zoom.
+export function focus(map, kind, time, lon, lat) {
+    if (!isFinite(lon) || !isFinite(lat)) return;
+    try {
+        map.stop();
+        map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 9), duration: 900 });
+    } catch (e) { console.error('storm report focus failed: ' + e); }
+    var feats = reportsData && reportsData.features;
+    if (!feats) return;
+    for (var i = 0; i < feats.length; i++) {
+        var f = feats[i], p = f.properties || {}, c = f.geometry && f.geometry.coordinates;
+        if (p.kind === kind && String(p.time) === String(time) && c &&
+            Math.abs(c[0] - lon) < 1e-6 && Math.abs(c[1] - lat) < 1e-6) {
+            openPopup(map, f);
+            return;
+        }
+    }
 }
 
 export function setSource(map, url) {

@@ -88,6 +88,12 @@ namespace Anvil.Services
 		public Task SetWarningKindsAsync(bool tornado, bool severe, bool flashFlood) =>
 			_mapView.RunScriptAsync(Call("setWarningKinds", tornado, severe, flashFlood));
 
+		// ⚠️ kind + time are DATA (SPC's CSV) and Call single-quotes without escaping, so they're cut to what a
+		// real value can hold (letters / digits) before they reach the page.
+		public Task FocusStormReportAsync(string kind, string time, double lon, double lat) =>
+			_mapView.RunScriptAsync(Call("focusStormReport",
+				new string(kind.Where(char.IsLetter).ToArray()), new string(time.Where(char.IsDigit).ToArray()), lon, lat));
+
 		// ⚠️ The geometry goes over as a JSON OBJECT LITERAL, not through Call's single-quoted string (which
 		// doesn't escape). It is our own JsonNode serialization (WarningService.TargetsOf), so it is valid JSON —
 		// and valid JSON is a valid JS expression. Re-parsed here so nothing else can ride in on it.
