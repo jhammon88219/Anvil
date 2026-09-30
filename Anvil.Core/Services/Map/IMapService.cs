@@ -189,10 +189,12 @@ namespace Anvil.Services
 		/// Which range rings the page draws around the loaded site: the reflectivity outline, the velocity
 		/// reach, and fixed-spacing distance rings every <paramref name="distanceSpacing"/> of the distance unit.
 		/// <paramref name="visible"/> is the MASTER switch (the tools tier's rings key) over all of them
-		/// (0 = Auto). The page sizes the first two from the DISPLAYED frame.
+		/// (0 = Auto). The page sizes the first two from the DISPLAYED frame. <paramref name="siteRing"/> is the
+		/// simple SITE RING — OUTSIDE the master: a plain ring at the data's edge that yields to the styled
+		/// reflectivity outline whenever that one is drawn.
 		/// </summary>
-		/// <remarks>⚠️ Replay at map-ready (RangeRingsViewModel.OnMapsReadyAsync): the page defaults to outline + velocity.</remarks>
-		Task SetRangeRingsAsync(bool visible, bool reflectivity, bool velocity, bool distance, int distanceSpacing);
+		/// <remarks>⚠️ Replay at map-ready (RangeRingsViewModel.OnMapsReadyAsync): the page defaults to site ring + outline + velocity.</remarks>
+		Task SetRangeRingsAsync(bool visible, bool reflectivity, bool velocity, bool distance, int distanceSpacing, bool siteRing);
 
 		/// <summary>
 		/// How the range rings LOOK — per-ring opacity/width/pattern, the velocity + distance colours, the

@@ -639,6 +639,16 @@ namespace Anvil.Services
 			set => SetProperty(ref _ringKnobSize, Models.RingKnobSize.Normalize(value));
 		}
 
+		private bool _showSiteRing = true;
+		/// <summary>The simple SITE RING — one plain ring at the data's edge around every loaded site. ⚠️ NOT under
+		/// <see cref="RangeRingsVisible"/>: it is the ring that stays when the range-ring set is keyed off (it
+		/// yields to the styled reflectivity outline whenever that one draws).</summary>
+		public bool ShowSiteRing
+		{
+			get => _showSiteRing;
+			set => SetProperty(ref _showSiteRing, value);
+		}
+
 		private bool _rangeRingsVisible = true;
 		/// <summary>The MASTER show/hide for every range ring, label and the handle — the tools tier's key beside
 		/// the Ruler. Which rings (above) is kept underneath it.</summary>

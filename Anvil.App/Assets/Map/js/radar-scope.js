@@ -8,6 +8,9 @@
 //              ┆│  ┆╲▒▒▒▒ ┆   │┆          level2-range-dist DISTANCE RINGS, faint dotted, every step of
 //               ┆╲  └┄┄┄┄┄┘  ╱┆           (+ -label)        the distance unit out to DIST_EXTENT_M,
 //                  ╲▁▁▁▁▁▁▁╱                                labelled along ONE bearing ("100 km")
+//                                          level2-range-site SITE RING — the plain ring every site shows, on
+//                                                            the outline's circle + colour, FIXED look. OUTSIDE
+//                                                            the rings key; hidden while the outline draws
 //                                          level2-sweep-*    arm + comet tail, one revolution then a
 //                                                            fade, only on a genuinely NEW frame
 //
@@ -22,6 +25,7 @@
 //                                                            the bearing is posted (rangeRingLabelBearing).
 //
 //   ON/OFF: the tools tier's rings key (setRings `all`, the MASTER — a fade, the choice below survives it).
+//   ⚠️ …over refl/vel/dist ONLY. The site ring (setRings `site`, Settings, default on) ignores it.
 //   WHICH RINGS: Settings → Radar Range Ring (setRings; default outline + velocity). HOW THEY LOOK: the same
 //   tab (setStyle — per-ring opacity/width/pattern, velocity/distance/label colours; label font, size, letter
 //   spacing, halo width + colour, placement above/on/below, unit on/off, 1/2/4 label lines, bearing; handle
@@ -61,6 +65,10 @@ import * as Geo from './geo.js';
 import * as Theme from './theme.js';
 
 const RANGE_SRC = 'level2-range', RANGE_LAYER = 'level2-range';                 // reflectivity outline
+const SITE_LAYER = 'level2-range-site';                                          // the simple site ring (RANGE_SRC)
+// ⚠️ The SITE RING's look is FIXED — the plain scope ring every site had before the range-ring set existed
+// (the outline's old defaults), in the outline's colour. It is not styled: styling is what the outline is for.
+const SITE_STYLE = { op: 0.55, w: 1.3, line: 'solid' };
 const VEL_SRC = 'level2-range-vel', VEL_LAYER = 'level2-range-vel';             // velocity reach
 const DIST_SRC = 'level2-range-dist', DIST_LAYER = 'level2-range-dist';         // distance rings
 const DIST_LABEL_SRC = 'level2-range-dist-labels', DIST_LABEL_LAYER = 'level2-range-dist-label';
@@ -82,8 +90,9 @@ const DASHES = { solid: null, dashed: [4, 3], dotted: [1, 3], dashdot: [6, 3, 1,
 // { forEachView(fn), viewCount(), primaryView(), beforeId(map), getSite() -> {lat,lon} } — from radar.js.
 let host = null;
 let reflMeters = 0, velMeters = 0;                          // the DISPLAYED frame's reach (setReach)
-// setRings; spacing 0 = Auto. `all` is the MASTER switch (the tools tier's rings key) over the other three.
-let rings = { all: true, refl: true, vel: true, dist: false, spacing: 0 };
+// setRings; spacing 0 = Auto. `all` is the MASTER switch (the tools tier's rings key) over refl/vel/dist.
+// `site` is NOT under it — see ringTargets.
+let rings = { all: true, refl: true, vel: true, dist: false, spacing: 0, site: true };
 let units = 'km';                                            // setUnits — the distance rings' unit
 // setStyle. ⚠️ These defaults MIRROR RingStyle.*Default / RingLabelStyle.Default: they are what draws before
 // the host's first push (and the host pushes at map-ready, so they rarely show).
@@ -193,9 +202,14 @@ function mergeRing(cur, o) {
 // What each ring layer should look like RIGHT NOW. A ring switched off is not removed — its opacity goes to
 // 0, so on/off fades like every other change (see the note at the top). The velocity ring also waits for a
 // velocity reach.
+// ⚠️ THE SITE RING IS OUTSIDE THE MASTER (`all`): keying the range-ring set off must leave the plain ring every
+// site shows (the regression 439cdaf introduced — the outline went under the master and took it along). It
+// YIELDS to the styled outline — same circle, same source — so the two are never stroked together.
 function ringTargets() {
+    const outlineOn = rings.all && rings.refl;
     return [
-        { id: RANGE_LAYER, s: style.refl, color: reflColor(), on: rings.all && rings.refl },
+        { id: SITE_LAYER, s: SITE_STYLE, color: reflColor(), on: rings.site && !outlineOn },
+        { id: RANGE_LAYER, s: style.refl, color: reflColor(), on: outlineOn },
         { id: VEL_LAYER, s: style.vel, color: velColor(), on: rings.all && rings.vel && velMeters > 0 },
         { id: DIST_LAYER, s: style.dist, color: distColor(), on: rings.all && rings.dist },
     ];
@@ -239,7 +253,7 @@ function drop(map, layerIds, srcIds) {
 // Stacking, bottom to top: distance rings (+ labels), velocity, outline — then everything the host puts above
 // radar. A layer added later is slotted under the next one UP that exists, so the order holds.
 function beforeFor(map, id) {
-    const order = [DIST_LAYER, DIST_LABEL_LAYER, VEL_LAYER, RANGE_LAYER];
+    const order = [DIST_LAYER, DIST_LABEL_LAYER, VEL_LAYER, SITE_LAYER, RANGE_LAYER];
     for (let i = order.indexOf(id) + 1; i < order.length; i++) if (map.getLayer(order[i])) return order[i];
     return host.beforeId(map);
 }
@@ -250,7 +264,7 @@ function addRingLayer(map, id, src) {
         // Born invisible; applyPaint fades it to its target on the next frame.
         paint: {
             'line-opacity': 0, 'line-opacity-transition': FADE, 'line-color-transition': FADE,
-            'line-width-transition': FADE, 'line-blur': id === RANGE_LAYER ? 0.3 : 0,
+            'line-width-transition': FADE, 'line-blur': id === RANGE_LAYER || id === SITE_LAYER ? 0.3 : 0,
         },
     }, beforeFor(map, id));
 }
@@ -287,6 +301,7 @@ function drawRings(v) {
         added = true;
     }
     if (!map.getLayer(VEL_LAYER)) { addRingLayer(map, VEL_LAYER, VEL_SRC); added = true; }
+    if (!map.getLayer(SITE_LAYER)) { addRingLayer(map, SITE_LAYER, RANGE_SRC); added = true; }
     if (!map.getLayer(RANGE_LAYER)) { addRingLayer(map, RANGE_LAYER, RANGE_SRC); added = true; }
 
     // A layer that was just added must see its 0 before the target, or MapLibre has nothing to fade FROM.
@@ -297,7 +312,7 @@ function drawRings(v) {
 function removeRings(v) {
     const map = v && v.map;
     if (!map) return;
-    drop(map, [DIST_LABEL_LAYER, DIST_LAYER, VEL_LAYER, RANGE_LAYER], [DIST_LABEL_SRC, DIST_SRC, VEL_SRC, RANGE_SRC]);
+    drop(map, [DIST_LABEL_LAYER, DIST_LAYER, VEL_LAYER, SITE_LAYER, RANGE_LAYER], [DIST_LABEL_SRC, DIST_SRC, VEL_SRC, RANGE_SRC]);
 }
 
 // ---- Moving labels ----
@@ -409,7 +424,7 @@ function syncHandle() {
 // without a new decode. (Layers exist whether or not a ring is shown; showing is opacity.)
 function allUp() {
     let up = host.viewCount() > 0;
-    host.forEachView(function (v) { if (!v.map.getLayer(RANGE_LAYER) || !v.map.getLayer(DIST_LABEL_LAYER)) up = false; });
+    host.forEachView(function (v) { if (!v.map.getLayer(RANGE_LAYER) || !v.map.getLayer(SITE_LAYER) || !v.map.getLayer(DIST_LABEL_LAYER)) up = false; });
     return up;
 }
 
@@ -478,6 +493,7 @@ export function setRings(o) {
     const next = {
         all: o.all === undefined ? true : !!o.all,
         refl: !!o.refl, vel: !!o.vel, dist: !!o.dist, spacing: Number(o.spacing) > 0 ? Number(o.spacing) : 0,
+        site: o.site === undefined ? true : !!o.site,
     };
     const respaced = next.spacing !== rings.spacing;
     rings = next;

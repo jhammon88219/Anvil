@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Threading.Tasks;
 using Anvil.Models;
 using Anvil.Services;
 using Anvil.ViewModels;
@@ -119,6 +120,31 @@ namespace Anvil.Tests
 			Assert.Equal(RingKnobSize.Max, s.RingKnobSize);
 			s.RingKnobSize = double.NaN;
 			Assert.Equal(RingKnobSize.Default, s.RingKnobSize);
+		}
+
+		// The 439cdaf regression: an existing settings file with the Rings key OFF (and no ShowSiteRing yet) must
+		// still draw the plain site ring — it is pushed ON, outside the master.
+		[Fact]
+		public async Task SiteRing_DefaultsOn_AndIsPushedWithTheRingsKeyOff()
+		{
+			var s = JsonSerializer.Deserialize<AppSettings>("{\"RangeRingsVisible\":false,\"ShowReflectivityRing\":true}")!;
+			Assert.True(s.ShowSiteRing);
+
+			var pushes = new System.Collections.Generic.List<object?[]>();
+			var map = TemporalWindowPersistenceTests.Null<IMapService>.Create(new()
+			{
+				["SetRangeRingsAsync"] = a => { pushes.Add(a!); return Task.CompletedTask; },
+			});
+			var settings = TemporalWindowPersistenceTests.Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => s });
+			var vm = new RangeRingsViewModel(map, settings);
+			await vm.OnMapsReadyAsync();
+
+			Assert.Equal(false, pushes[^1][0]);   // the master: off
+			Assert.Equal(true, pushes[^1][5]);    // the site ring: on regardless
+
+			vm.ShowSiteRing = false;
+			Assert.Equal(false, pushes[^1][5]);
+			Assert.False(s.ShowSiteRing);         // persisted
 		}
 
 		[Fact]

@@ -4,6 +4,7 @@
 
        ┌──────────────────────────────────────────────────────────┐
        │  ⌄  Rings                                                │
+       │    [x] Site ring (shown even with the Rings key off)     │  ← plain, OUTSIDE the Rings key
        │    [x] Reflectivity reach   [x] Velocity reach           │  ← PERSISTED (which rings)
        │    [ ] Distance rings                                    │
        │    Spacing   [ Auto | 25 | 50 | 100 ]                    │  ← Readouts unit; greyed while off
@@ -66,15 +67,24 @@
         <prim:PanelSection Grid.Row="0" Header="Rings" IsExpanded="True">
             <Grid RowSpacing="8" ColumnSpacing="12">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/> <!-- site ring -->
+                    <RowDefinition Height="Auto"/> <!-- the Rings key's three -->
+                    <RowDefinition Height="Auto"/> <!-- spacing -->
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="72"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="4,0,0,0"
+                <!-- ⚠️ The SITE RING is NOT under the tools tier's Rings key — it is the plain ring that stays
+                     when that key is off, and gives way to the styled Reflectivity reach ring while that draws.
+                     Its own line: it is a different kind of switch from the three below. -->
+                <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="4,0,0,0"
+                          Content="Site ring (shown even with the Rings key off)"
+                          IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowSiteRing, Mode=TwoWay}"
+                          ToolTipService.ToolTip="A plain ring at the edge of the radar's data, around every site. The styled Reflectivity reach ring replaces it while that one is on"/>
+
+                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="4,0,0,0"
                             Orientation="Horizontal" Spacing="16">
                     <CheckBox Content="Reflectivity reach"
                               IsChecked="{x:Bind ViewModel.Radar.RangeRings.ShowReflectivityRing, Mode=TwoWay}"
@@ -87,9 +97,9 @@
                               ToolTipService.ToolTip="Evenly spaced rings for judging distance from the radar, in your distance unit"/>
                 </StackPanel>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Margin="4,0,0,0"
+                <TextBlock Grid.Row="2" Grid.Column="0" Margin="4,0,0,0"
                            VerticalAlignment="Center" Text="Spacing"/>
-                <prim:SegmentedPicker Grid.Row="1" Grid.Column="1"
+                <prim:SegmentedPicker Grid.Row="2" Grid.Column="1"
                                       HorizontalAlignment="Left" Width="240"
                                       ItemsSource="{x:Bind ViewModel.Radar.RangeRings.DistanceRingSpacingLabels}"
                                       SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.DistanceRingSpacingIndex, Mode=TwoWay}"

@@ -73,6 +73,21 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		/// <summary>The simple SITE RING (Settings → Radar Range Ring, default ON). PERSISTED. ⚠️ Outside
+		/// <see cref="RingsVisible"/> — the Rings key never hides it; the page swaps it for the styled
+		/// reflectivity outline while that one is drawn (radar-scope.js), so the circle is never stroked twice.</summary>
+		public bool ShowSiteRing
+		{
+			get => _settings.Settings.ShowSiteRing;
+			set
+			{
+				if (_settings.Settings.ShowSiteRing == value) { return; }
+				_settings.Settings.ShowSiteRing = value; // persists (auto-save)
+				OnPropertyChanged();
+				_ = PushRingsAsync();
+			}
+		}
+
 		/// <summary>The reflectivity outline (where the data ends). PERSISTED.</summary>
 		public bool ShowReflectivityRing
 		{
@@ -381,7 +396,7 @@ namespace Anvil.ViewModels
 			if (!_isMapReady) { return Task.CompletedTask; }
 			var s = _settings.Settings;
 			return _mapService.SetRangeRingsAsync(s.RangeRingsVisible, s.ShowReflectivityRing, s.ShowVelocityRing,
-				s.ShowDistanceRings, s.DistanceRingSpacing);
+				s.ShowDistanceRings, s.DistanceRingSpacing, s.ShowSiteRing);
 		}
 
 		private Task PushOutlineColorAsync() =>

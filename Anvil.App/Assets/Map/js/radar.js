@@ -1951,9 +1951,9 @@
             if (Scope) Scope.setUnits(unit);
         },
         // Which range rings to draw (Settings → Radar Range Ring); spacing 0 = Auto. `visible` = the master
-        // switch (the tools tier's rings key) over all of them.
-        setRangeRings: function (visible, refl, vel, dist, spacing) {
-            _ringOpts = { all: visible, refl: refl, vel: vel, dist: dist, spacing: spacing };
+        // switch (the tools tier's rings key) over all of them; `site` (the simple site ring) sits outside it.
+        setRangeRings: function (visible, refl, vel, dist, spacing, site) {
+            _ringOpts = { all: visible, refl: refl, vel: vel, dist: dist, spacing: spacing, site: site };
             if (Scope) Scope.setRings(_ringOpts);
         },
         // How the range rings look (Settings → Radar Range Ring) — radar-scope.js setStyle has the shape.

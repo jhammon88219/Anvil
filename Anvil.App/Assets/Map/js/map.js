@@ -613,9 +613,10 @@ try {
     // RANGE RINGS (Settings → Radar): which of the three rings to draw — the reflectivity outline, the velocity
     // reach, and fixed-spacing distance rings every `spacing` of the distance unit (0 = Auto). radar.js holds
     // the choice until its scope module loads; the radii come from the displayed frame, not from here.
-    // `visible` is the MASTER switch over all three (the tools tier's rings key).
-    window.setRangeRings = function (visible, refl, vel, dist, spacing) {
-        if (window.RadarLayer && window.RadarLayer.setRangeRings) window.RadarLayer.setRangeRings(!!visible, !!refl, !!vel, !!dist, Number(spacing) || 0);
+    // `visible` is the MASTER switch over all three (the tools tier's rings key). `site` is the simple SITE RING,
+    // OUTSIDE the master (radar-scope.js); undefined (an older host) = on.
+    window.setRangeRings = function (visible, refl, vel, dist, spacing, site) {
+        if (window.RadarLayer && window.RadarLayer.setRangeRings) window.RadarLayer.setRangeRings(!!visible, !!refl, !!vel, !!dist, Number(spacing) || 0, site === undefined ? true : !!site);
     };
     // RANGE RING LOOK (Settings → Radar Range Ring): one JSON object (RangeRingsViewModel.BuildStyleJson),
     // single-quoted by the host and parsed here. radar-scope.js validates every field before it reaches a
