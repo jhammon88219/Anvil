@@ -512,8 +512,9 @@
                 <PathIcon Data="M9,0 C5.1,0 2,3.1 2,7 C2,12 9,18 9,18 C9,18 16,12 16,7 C16,3.1 12.9,0 9,0 Z M9,4.5 A2.5,2.5 0 1,0 9,9.5 A2.5,2.5 0 1,0 9,4.5 Z"/>
             </Button>
 
-            <!-- ⚠️ Width is SET IN CODE (MatchPlaceSearchWidth, from MainWindow) to the bar's temporal keys'
-                 width, so the box and the keys share both edges; 402 is only the pre-layout value. -->
+            <!-- ⚠️ Width is SET IN CODE (MatchPlaceSearchWidth, from MainWindow): the bar's temporal keys' width
+                 MINUS both flanks (▣ + 6, 6 + ⊚), so the whole search GROUP and the keys share both outer edges;
+                 402 is only the pre-layout value. The flanks' sizes are READ there — change them freely. -->
             <AutoSuggestBox x:Name="PlaceSearchBox"
                             Grid.Column="1"
                             Width="402" VerticalAlignment="Center"
@@ -528,7 +529,8 @@
                             QuerySubmitted="OnPlaceSearchQuerySubmitted"
                             ToolTipService.ToolTip="Find a city or town and fly there. Clear the box to remove the pin."/>
 
-            <StackPanel Grid.Column="2"
+            <StackPanel x:Name="LocationGroup"
+                        Grid.Column="2"
                         Orientation="Horizontal" Spacing="10" Margin="6,0,0,0"
                         HorizontalAlignment="Left" VerticalAlignment="Center">
                 <!-- LOCATION — drop / remove your marker. ONE-WAY IsChecked, re-asserted in the handler. -->

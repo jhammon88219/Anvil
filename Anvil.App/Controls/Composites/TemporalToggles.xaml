@@ -2,11 +2,13 @@
 <!-- TemporalToggles — the PastCast / NowCast / ForeCast features as three SPLIT keys: a mode toggle with
      that mode's settings-window latch down its right edge.
 
-       ┌──────────┬─┐┌──────────┬─┐┌──────────┬─┐   ┐ the MODE HALF is the bar's shared square
-       │    ↺     │·││   ((•))  │·││    ☁     │·│   │ (BarKeySide), so its glyph and name match the
-       │ PastCast │·││ NowCast  │·││ ForeCast │·│   │ Atlas and Settings keys exactly; the car is
-       │          │·││          │·││          │·│   │ added beside it, not carved out of it
-       └──────────┴─┘└──────────┴─┘└──────────┴─┘   ┘ the SIDE CAR — one window per mode, latched here
+       (▣) [ Search places              ✕ ⌕ ] (⊚)                ← the tools tier's search GROUP, above
+       ┆                                         ┆                  (outer edges = this row's outer edges)
+       ┌──────────┬─┐     ┌──────────┬─┐     ┌──────────┬─┐   ┐ the MODE HALF is the bar's shared square
+       │    ↺     │·│     │   ((•))  │·│     │    ☁     │·│   │ (BarKeySide), so its glyph and name match the
+       │ PastCast │·│ 46  │ NowCast  │·│ 46  │ ForeCast │·│   │ Atlas and Settings keys exactly; the car is
+       │          │·│     │          │·│     │          │·│   │ added beside it, not carved out of it
+       └──────────┴─┘     └──────────┴─┘     └──────────┴─┘   ┘ the SIDE CAR — one window per mode, latched here
             ^              ^              ^
             │              │              └── SPC outlooks
             │              └── live radar / current alerts
@@ -73,9 +75,14 @@
          this row was given, so it had to fill the bar's content row or the squares collapsed. They declare
          their own size now (Styles.xaml, BarKeySide) and the bar's row sizes to THEM, so stretching this
          would only leave the keys floating in a taller row. -->
+    <!-- ⚠️ SPREAD: ColumnSpacing 46 = the old 8 + 38, the tools tier's search FLANK (a 32 tool + its 6 gap) —
+         so the row spans the whole search GROUP above it (marker viewer ▣ … Location ⊚), not just the box. The
+         alignment itself is MEASURED (MapControlsStrip.MatchPlaceSearchWidth takes this row's width and gives the
+         box that minus both flanks), so this number only sets how wide the box ends up — the edges line up for
+         any value. The user's call, 2026-09-30. -->
     <Grid x:Name="PillRow"
           VerticalAlignment="Center"
-          ColumnSpacing="8">
+          ColumnSpacing="46">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>

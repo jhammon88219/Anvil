@@ -544,8 +544,8 @@ namespace Anvil
 			ApplyRailSeating();
 
 			// The tools tier's site picker ends where the bar's longest scan line ends (see AlignSitePicker), and
-			// its search box is exactly as wide as the temporal keys below it — both sit on the window's midline, so
-			// equal widths make their edges line up.
+			// its search GROUP (marker viewer + box + Location) is exactly as wide as the temporal keys below it —
+			// both sit on the window's midline, so equal widths make their outer edges line up.
 			TimeModule.SizeChanged += (_, _) => AlignSitePicker();
 			TimeModule.ScanTextEdgeChanged += (_, _) => AlignSitePicker();
 			ToolsStrip.SizeChanged += (_, _) => AlignSitePicker();
