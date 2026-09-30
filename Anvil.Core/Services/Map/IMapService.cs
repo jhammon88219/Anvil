@@ -218,11 +218,11 @@ namespace Anvil.Services
 		Task SetWatchesVisibleAsync(bool visible);
 
 		/// <summary>
-		/// Restricts the watch boxes to the given phenomena — each flag draws that type (TO / SV) and
-		/// nothing else. Independent of <see cref="SetWatchesVisibleAsync"/>: the host drives visibility
-		/// from "is either type shown", and this decides which of the two are drawn when it is.
+		/// Restricts the watches to the given phenomena — each flag draws that type (TO / SV / flood =
+		/// FA + FL + FF) and nothing else. Independent of <see cref="SetWatchesVisibleAsync"/>: the host drives
+		/// visibility from "is any type shown", and this decides which are drawn when it is.
 		/// </summary>
-		Task SetWatchKindsAsync(bool tornado, bool severe);
+		Task SetWatchKindsAsync(bool tornado, bool severe, bool flood);
 
 		/// <summary>
 		/// Sets the overall opacity (0-1) of the watch polygons. Scales both the faint fill and the bold
@@ -340,7 +340,7 @@ namespace Anvil.Services
 
 		Task SetPastAlertOpacityAsync(string kind, double opacity);
 
-		/// <summary>Which phenomena a PastCast alert overlay draws (watches never send FF).</summary>
+		/// <summary>Which phenomena a PastCast alert overlay draws (the third flag is the flood type: FF warnings, FA/FL/FF watches).</summary>
 		Task SetPastAlertKindsAsync(string kind, bool tornado, bool severe, bool flashFlood);
 
 		/// <summary>The moment both PastCast alert overlays show (Unix ms) — the displayed radar frame's time;

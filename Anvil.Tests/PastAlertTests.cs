@@ -108,6 +108,43 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void FloodWatchZones_AreKept_AndCountOncePerOfficeWatch()
+		{
+			// A flood watch is one row per ZONE and its ETN is per OFFICE: two offices' watch #8 are two
+			// watches, three zones of one of them are still one.
+			static IemShapefile.Record Row(string wfo, string phenom, string ugc) => new(
+				new System.Collections.Generic.Dictionary<string, string>
+				{
+					["WFO"] = wfo, ["PHENOM"] = phenom, ["SIG"] = "A", ["ETN"] = "8", ["VTEC_YR"] = "2026", ["NWS_UGC"] = ugc,
+					["ISSUED"] = "202609291200", ["EXPIRED"] = "202610011800",
+				},
+				new() { new() { new() { new[] { -104.0, 38.0 }, new[] { -104.0, 38.5 }, new[] { -103.5, 38.5 }, new[] { -104.0, 38.0 } } } });
+
+			var rows = new[] { Row("PUB", "FA", "COZ075"), Row("PUB", "FA", "COZ089"), Row("PUB", "FA", "COZ087"), Row("DDC", "FA", "KSZ044"), Row("DDC", "HT", "KSZ045") };
+			var (json, alerts) = PastAlertService.Build(rows, Z(2026, 9, 30, 0, 0), Z(2026, 9, 30, 6, 0), watches: true);
+
+			Assert.Equal(4, alerts.Count);                                  // HT (a heat watch) is not ours
+			Assert.Equal(2, PastAlertsViewModel.InEffect(alerts, Z(2026, 9, 30, 3, 0)).Count);
+			Assert.Contains(alerts, a => a.Key == "PUB.FA.A.8.2026");
+			Assert.Equal(4, JsonDocument.Parse(json).RootElement.GetProperty("features").GetArrayLength());
+		}
+
+		[Fact]
+		public void LiveWatchCounts_FloodIsPerWatch_NotPerZone()
+		{
+			static string F(string phenom, string wfo, string ev) =>
+				$"{{\"type\":\"Feature\",\"properties\":{{\"phenom\":\"{phenom}\",\"wfo\":\"{wfo}\",\"event\":\"{ev}\"}},\"geometry\":null}}";
+			var gj = "{\"type\":\"FeatureCollection\",\"features\":[" + string.Join(",",
+				F("TO", "", "0191"), F("SV", "", "0192"), F("SV", "", "0193"),
+				F("FA", "KPUB", "0008"), F("FA", "KPUB", "0008"), F("FA", "KPUB", "0008"), F("FA", "KDDC", "0008"), F("FL", "KDDC", "0002")) + "]}";
+
+			Assert.True(SpcWatchService.TryGetFeatureCounts(gj, out var features, out var count, out var tornado, out var severe, out var flood));
+			Assert.Equal(8, features);
+			Assert.Equal((1, 2, 3), (tornado, severe, flood));
+			Assert.Equal(6, count);
+		}
+
+		[Fact]
 		public void AWindowNothingOverlaps_IsEmpty()
 		{
 			var rows = IemShapefile.Read(Fixture("iem-watches-OUN-20130520.zip"));

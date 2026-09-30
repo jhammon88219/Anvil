@@ -8,7 +8,7 @@ namespace Anvil.Services
 {
 	/// <summary>
 	/// Default <see cref="ISpcWatchService"/>. Downloads the active Tornado / Severe Thunderstorm
-	/// Watch polygons and caches them on disk as GeoJSON; no WebView2 here — MainWindow maps the
+	/// Watch polygons (plus NWS Flood Watches, zone-filled) and caches them on disk as GeoJSON; no WebView2 here — MainWindow maps the
 	/// cache folder to the "spcwatches" virtual host so the page can fetch
 	/// https://spcwatches/watches.geojson.
 	///
@@ -28,13 +28,16 @@ namespace Anvil.Services
 		public const string CacheHostName = "spcwatches";
 		private const string CacheFileName = "watches.geojson";
 
-		// WWA MapServer, layer 1 = "WatchesWarnings" (county-aggregated polygons), filtered to convective
-		// WATCHES (sig 'A'; phenom TO/SV), WGS84 (outSR=4326). Split into a base + format so we can also
-		// ask for JUST the count to corroborate a suspicious empty GeoJSON — see the RefreshAsync guard.
+		// WWA MapServer, layer 1 = "WatchesWarnings" (county-aggregated polygons), filtered to WATCHES (sig
+		// 'A') of phenom TO/SV + the flood family: FA (Flood Watch, one feature PER ZONE), FL (river Flood
+		// Watch) and FF (the pre-2023 Flash Flood Watch — gone from the live feed, kept so it never needs a
+		// re-add), WGS84 (outSR=4326). `wfo` + `event` (the ETN) are what count flood watches per WATCH
+		// rather than per zone. Split into a base + format so we can also ask for JUST the count to
+		// corroborate a suspicious empty GeoJSON — see the RefreshAsync guard.
 		private const string QueryBase =
 			"https://mapservices.weather.noaa.gov/eventdriven/rest/services/WWA/watch_warn_adv/MapServer/1/query" +
-			"?where=sig%3D%27A%27%20AND%20%28phenom%3D%27TO%27%20OR%20phenom%3D%27SV%27%29" +
-			"&outFields=prod_type%2Cphenom%2Cexpiration&returnGeometry=true&outSR=4326";
+			"?where=sig%3D%27A%27%20AND%20phenom%20IN%20%28%27TO%27%2C%27SV%27%2C%27FA%27%2C%27FL%27%2C%27FF%27%29" +
+			"&outFields=prod_type%2Cphenom%2Cexpiration%2Cwfo%2Cevent&returnGeometry=true&outSR=4326";
 		private const string GeoJsonUrl = QueryBase + "&f=geojson";
 		private const string CountUrl = QueryBase + "&returnCountOnly=true&f=json";
 
@@ -60,7 +63,7 @@ namespace Anvil.Services
 
 				// Only cache a real FeatureCollection. An ArcGIS error object lacks a features array; in
 				// that case keep the last-known-good cache instead of blanking it.
-				if (!TryGetFeatureCounts(json, out var count, out var tornado, out var severe))
+				if (!TryGetFeatureCounts(json, out var features, out var count, out var tornado, out var severe, out var flood))
 				{
 					return Failed(cacheExists, "Response was not a GeoJSON FeatureCollection.");
 				}
@@ -69,7 +72,7 @@ namespace Anvil.Services
 				// emits a spurious empty set while the count endpoint still reports active features.
 				// Corroborate before caching an empty (which would blank the map): only accept it if the
 				// lighter count endpoint AGREES the set is really zero. See WarningService for the story.
-				if (count == 0 && await RemoteCountAsync(cancellationToken) is > 0)
+				if (features == 0 && await RemoteCountAsync(cancellationToken) is > 0)
 				{
 					return Failed(cacheExists, "Empty GeoJSON contradicted by a non-zero count — kept last-known-good.");
 				}
@@ -77,7 +80,7 @@ namespace Anvil.Services
 				// Atomic write (temp then move) so a partial/failed write never blanks the last-known-good cache.
 				await AtomicWriteAsync(cacheFile, json, cancellationToken);
 
-				return new SpcWatchFetchResult(SpcWatchFetchStatus.Updated, count, tornado, severe);
+				return new SpcWatchFetchResult(SpcWatchFetchStatus.Updated, count, tornado, severe, flood);
 			}
 			catch (OperationCanceledException)
 			{
@@ -114,33 +117,37 @@ namespace Anvil.Services
 			new(cacheExists ? SpcWatchFetchStatus.FailedCacheKept : SpcWatchFetchStatus.FailedNoCache,
 				Message: message);
 
-		// Confirms the body is a GeoJSON FeatureCollection and returns its feature count, plus that count
-		// broken out by `phenom` for the per-type NowCast rows. A missing "features" array (e.g. an ArcGIS
-		// {"error":...} object) returns false.
-		// ⚠️ The query already filters to TO/SV, so tornado + severe normally equals count — but they are
-		// counted independently rather than one being derived from the other, so an unexpected third
-		// phenomenon shows up as a total the two rows do not add to instead of being silently folded into
-		// one of them.
-		private static bool TryGetFeatureCounts(string geoJson, out int count, out int tornado, out int severe)
+		// Confirms the body is a GeoJSON FeatureCollection and returns its raw feature count, plus the
+		// WATCH counts by `phenom` for the per-type NowCast rows and the card's total. A missing "features"
+		// array (e.g. an ArcGIS {"error":...} object) returns false.
+		// ⚠️ A FLOOD WATCH IS ONE FEATURE PER ZONE (one watch today = dozens of features), so flood counts
+		// DISTINCT wfo+phenom+event; TO/SV stay one per feature as before. The total is the rows' sum plus any
+		// unexpected phenomenon per feature, so a stray type still shows as a total the rows don't add to.
+		internal static bool TryGetFeatureCounts(string geoJson, out int features, out int count, out int tornado, out int severe, out int flood)
 		{
+			features = 0;
 			count = 0;
 			tornado = 0;
 			severe = 0;
+			flood = 0;
 			try
 			{
-				if (JsonNode.Parse(geoJson)?["features"] is not JsonArray features)
+				if (JsonNode.Parse(geoJson)?["features"] is not JsonArray list)
 				{
 					return false;
 				}
 
-				count = features.Count;
-				foreach (var feature in features)
+				features = list.Count;
+				var other = 0;
+				var floods = new System.Collections.Generic.HashSet<string>();
+				foreach (var feature in list)
 				{
 					// ⚠️ TryGetValue, not GetValue: a feature carrying a non-string phenom would THROW, and
 					// the catch below turns any throw into "not a FeatureCollection" — i.e. one odd
 					// property would discard a perfectly good fetch. An unreadable phenom just goes
 					// uncounted.
-					if (feature?["properties"]?["phenom"] is not JsonValue value ||
+					var props = feature?["properties"];
+					if (props?["phenom"] is not JsonValue value ||
 						!value.TryGetValue<string>(out var phenom))
 					{
 						continue;
@@ -148,7 +155,11 @@ namespace Anvil.Services
 
 					if (phenom == "TO") { tornado++; }
 					else if (phenom == "SV") { severe++; }
+					else if (phenom is "FA" or "FL" or "FF") { floods.Add($"{Str(props, "wfo")}.{phenom}.{Str(props, "event")}"); }
+					else { other++; }
 				}
+				flood = floods.Count;
+				count = tornado + severe + flood + other;
 				return true;
 			}
 			catch
@@ -157,5 +168,8 @@ namespace Anvil.Services
 			}
 			return false;
 		}
+
+		private static string Str(JsonNode? props, string name) =>
+			props?[name] is JsonValue v && v.TryGetValue<string>(out var s) ? s : string.Empty;
 	}
 }

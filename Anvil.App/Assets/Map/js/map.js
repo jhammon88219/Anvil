@@ -446,12 +446,14 @@ try {
     // phenom values to draw. ⚠️ These are the SAME codes the two modules colour by (see their `colors`
     // tables) — the filter and the colour read one property, so they cannot disagree about what a
     // tornado is.
-    // Warnings add a third, FF (flash flood); watches never send it.
-    function phenomKinds(torn, severe, flashFlood) {
+    // Both add a third, FLOOD flag: warnings carry FF (flash flood warning), watches FA (Flood Watch zones),
+    // FL (river Flood Watch) and FF (the pre-2023 Flash Flood Watch). One flag → all three codes: the C#
+    // warning feeds only ever keep FF, so the extra two never match anything there.
+    function phenomKinds(torn, severe, flood) {
         const kinds = [];
         if (torn) kinds.push('TO');
         if (severe) kinds.push('SV');
-        if (flashFlood) kinds.push('FF');
+        if (flood) kinds.push('FF', 'FA', 'FL');
         return kinds;
     }
 
@@ -460,7 +462,7 @@ try {
     import('./watches.js').then(function (m) { Watches = m; }).catch(function (e) { console.error('watches.js load failed: ' + e); });
     window.setWatchSource = function (url) { if (Watches) forEachMap(function (m) { Watches.setSource(m, url); }); };
     window.setWatchesVisible = function (on) { if (Watches) forEachMap(function (m) { Watches.setVisible(m, on); }); };
-    window.setWatchKinds = function (torn, severe) { if (Watches) forEachMap(function (m) { Watches.setKinds(m, phenomKinds(torn, severe)); }); };
+    window.setWatchKinds = function (torn, severe, flood) { if (Watches) forEachMap(function (m) { Watches.setKinds(m, phenomKinds(torn, severe, flood)); }); };
     window.setWatchesOpacity = function (o) { if (Watches) forEachMap(function (m) { Watches.setOpacity(m, o); }); };
 
     // Storm-based warning polygons live in warnings.js — same lazy-load/delegate pattern as watches.

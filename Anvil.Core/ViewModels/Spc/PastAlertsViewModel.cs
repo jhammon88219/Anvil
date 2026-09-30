@@ -45,15 +45,15 @@ namespace Anvil.ViewModels
 			_service = service;
 			_radar = radar;
 			_logger = logger;
-			Warnings = new PastPhenomOverlay(mapService, "warnings", "warning", "warnings", flashFlood: true);
-			Watches = new PastPhenomOverlay(mapService, "watches", "watch", "watches", flashFlood: false);
+			Warnings = new PastPhenomOverlay(mapService, "warnings", "warning", "warnings", isWarnings: true);
+			Watches = new PastPhenomOverlay(mapService, "watches", "watch", "watches", isWarnings: false);
 			_radar.PropertyChanged += OnRadarChanged;
 		}
 
 		/// <summary>The PastCast warning polygons (tornado / severe / flash flood, every follow-up version).</summary>
 		public PastPhenomOverlay Warnings { get; }
 
-		/// <summary>The PastCast watches, county-filled (tornado / severe).</summary>
+		/// <summary>The PastCast watches, county/zone-filled (tornado / severe / flood).</summary>
 		public PastPhenomOverlay Watches { get; }
 
 		private bool _isModeActive;
@@ -201,21 +201,24 @@ namespace Anvil.ViewModels
 		private readonly string _kind;
 		private readonly string _singular;
 		private readonly string _plural;
-		private readonly bool _flashFlood;
+		private readonly bool _isWarnings;
 		private string _url = string.Empty;
 		private string _context = string.Empty;
 		private WarningThreatCounts _threats = WarningThreatCounts.None;
 
-		internal PastPhenomOverlay(IMapService map, string kind, string singular, string plural, bool flashFlood)
+		internal PastPhenomOverlay(IMapService map, string kind, string singular, string plural, bool isWarnings)
 		{
 			_map = map;
 			_kind = kind;
 			_singular = singular;
 			_plural = plural;
-			_flashFlood = flashFlood;
+			_isWarnings = isWarnings;
 		}
 
-		public override bool SupportsFlashFlood => _flashFlood;
+		// Both have a flood row: flash-flood warnings, flood watches.
+		public override bool SupportsFlashFlood => true;
+		public override string FloodLabel => _isWarnings ? base.FloodLabel : WatchFlood.Label;
+		public override string FloodColor => _isWarnings ? base.FloodColor : WatchFlood.Color;
 
 		protected override string SourceUrl => _url;
 		protected override Task SetVisibleAsync(bool visible) => _map.SetPastAlertVisibleAsync(_kind, visible);
@@ -230,7 +233,7 @@ namespace Anvil.ViewModels
 		/// <summary>Which moment the counts describe (a replay has no "Updated…").</summary>
 		public override string CardContext => _context;
 
-		public override string CardThreats => _flashFlood ? _threats.ToCardLine() : string.Empty;
+		public override string CardThreats => _isWarnings ? _threats.ToCardLine() : string.Empty;
 
 		internal void PointAt(string url)
 		{
@@ -256,7 +259,7 @@ namespace Anvil.ViewModels
 			ApplyRefreshed(inEffect.Count,
 				inEffect.Count(a => a.Phenom == "TO"),
 				inEffect.Count(a => a.Phenom == "SV"),
-				inEffect.Count(a => a.Phenom == "FF"));
+				inEffect.Count(a => IsFloodPhenom(a.Phenom)));
 		}
 	}
 }

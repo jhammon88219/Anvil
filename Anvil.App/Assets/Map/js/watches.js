@@ -1,7 +1,8 @@
-// watches.js — SPC watch boxes (Tornado / Severe Thunderstorm Watch areas). Extracted from map.js.
-// Source: the NWS WWA county-aggregated active TO/SV watch polygons (host-filtered; they follow
-// county lines, like RadarScope). A faint fill + bold outline colored by the feature's `phenom`
-// (TO = red, SV = yellow). Loaded LAZILY — only fetched when first shown. map.js's window.setWatchSource
+// watches.js — watch areas: SPC Tornado / Severe Thunderstorm Watches + NWS Flood Watches. Extracted from
+// map.js. Source: the NWS WWA county-aggregated active TO/SV watch polygons (host-filtered; they follow
+// county lines, like RadarScope) and the flood watches' ZONES (one feature per zone, so a flood watch
+// shows its zone lines inside). A faint fill + bold outline colored by the feature's `phenom`
+// (TO = red, SV = yellow, FA/FL/FF = sea green). Loaded LAZILY — only fetched when first shown. map.js's window.setWatchSource
 // / setWatchesVisible shims delegate here; applyStyle calls reAdd(map) after a basemap switch (setStyle
 // drops the layers, but the fetched data is still in memory).
 //
@@ -10,6 +11,8 @@
 //        │  ░░░░░░░░░░░  │          what RadarScope shows and what people compare against
 //        └──┐ ░░░░░░░ ┌──┘
 //           └─────────┘             red = TO (tornado watch) · yellow = SV (severe t-storm watch)
+//                                   sea green = FA/FL/FF (flood watch — NWS's own colour, mirrored in
+//                                   C# WatchFlood.Color for the row swatch)
 //
 // The whole lazy-load / refresh / opacity / re-add lifecycle is the shared fill+line overlay in
 // geojson-overlay.js — this module is just its watch-box configuration. Sits BENEATH the state/country
@@ -26,11 +29,16 @@ export const STYLE = {
     colors: {
         TO: '#ff3b30',   // tornado watch — red
         SV: '#ffd21a',   // severe thunderstorm watch — yellow
+        FA: '#2e8b57',   // flood watch (zones) — NWS SeaGreen
+        FL: '#2e8b57',   // flood watch (river points)
+        FF: '#2e8b57',   // flash flood watch (pre-2023 archive)
     },
     colorDefault: '#cccc40', // other/unknown
     fillBase: 0.08,
     lineBase: 0.9,
     lineWidth: 2,
+    // TO over SV over flood — a flood watch is often a whole CWA of zones and would bury a tornado watch's edge.
+    sortKey: ['match', ['to-string', ['get', 'phenom']], 'TO', 2, 'SV', 1, 0],
 };
 
 const overlay = createGeojsonOverlay(Object.assign({

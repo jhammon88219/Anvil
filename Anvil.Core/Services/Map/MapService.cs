@@ -72,8 +72,8 @@ namespace Anvil.Services
 		public Task SetWatchesVisibleAsync(bool visible) =>
 			_mapView.RunScriptAsync(Call("setWatchesVisible", visible));
 
-		public Task SetWatchKindsAsync(bool tornado, bool severe) =>
-			_mapView.RunScriptAsync(Call("setWatchKinds", tornado, severe));
+		public Task SetWatchKindsAsync(bool tornado, bool severe, bool flood) =>
+			_mapView.RunScriptAsync(Call("setWatchKinds", tornado, severe, flood));
 
 		public Task SetWatchesOpacityAsync(double opacity) =>
 			_mapView.RunScriptAsync(Call("setWatchesOpacity", opacity));

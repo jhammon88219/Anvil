@@ -13,7 +13,8 @@ namespace Anvil.Services
 	/// Default <see cref="IPastAlertService"/>: IEM's VTEC archive export
 	/// (<c>cgi-bin/request/gis/watchwarn.py?accept=shapefile</c>), two requests per window — the storm-based
 	/// warning polygons with every follow-up version (<c>limit1</c> + <c>addsvs</c>), and the watch
-	/// COUNTIES (so PastCast draws watches the way NowCast does, county-filled, not SPC's parallelogram).
+	/// COUNTIES (so PastCast draws watches the way NowCast does, county-filled, not SPC's parallelogram) —
+	/// flood watches (FA/FL/FF) come back as their ZONES the same way.
 	/// </summary>
 	/// <remarks>
 	/// ⚠️ THE QUERY SELECTS BY ISSUE TIME, NOT OVERLAP (checked: Moore's watch 191, issued 18:10Z, is absent
@@ -34,6 +35,9 @@ namespace Anvil.Services
 		/// watch runs up to ~10 h; a flash-flood warning rarely past 6.</summary>
 		internal static readonly TimeSpan Lookback = TimeSpan.FromHours(12);
 
+		/// <summary><see cref="Lookback"/> for the watch request — a flood watch can be issued two days ahead.</summary>
+		internal static readonly TimeSpan WatchLookback = TimeSpan.FromHours(48);
+
 		// A window that ended this long ago has every follow-up statement it will ever get.
 		private static readonly TimeSpan SettledAfter = TimeSpan.FromHours(3);
 
@@ -53,8 +57,10 @@ namespace Anvil.Services
 				warnZip = await GetZipAsync($"warnings-{stem}.zip",
 					$"{Endpoint}?accept=shapefile&sts={from}&ets={to}&limit1=1&addsvs=1&limitps=1&phenomena=TO,SV,FF&significance=W,W,W",
 					end, cancellationToken);
-				watchZip = await GetZipAsync($"watches-{stem}.zip",
-					$"{Endpoint}?accept=shapefile&sts={from}&ets={to}&limitps=1&phenomena=TO,SV&significance=A,A&simple=1",
+				// ⚠️ "-v2": the settled-window cache predates flood watches — the old name would serve a
+				// TO/SV-only export forever. Longer lookback: a flood watch routinely runs 24–48 h.
+				watchZip = await GetZipAsync($"watches-v2-{stem}.zip",
+					$"{Endpoint}?accept=shapefile&sts={Iso(start - WatchLookback)}&ets={to}&limitps=1&phenomena=TO,SV,FA,FL,FF&significance=A,A,A,A,A&simple=1",
 					end, cancellationToken);
 			}
 			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -126,9 +132,12 @@ namespace Anvil.Services
 				string threat = string.Empty;
 				if (watches)
 				{
-					if (sig != "A" || phenom is not ("TO" or "SV")) { continue; }
+					if (sig != "A" || phenom is not ("TO" or "SV" or "FA" or "FL" or "FF")) { continue; }
 					if (!TryTime(Get(f, "ISSUED"), out t0) || !TryTime(Get(f, "EXPIRED"), out t1)) { continue; }
-					key = $"{phenom}.A.{Get(f, "ETN")}.{Get(f, "VTEC_YR")}";
+					// TO/SV ETNs are national (SPC); a flood watch's ETN is per OFFICE, so the WFO joins its key.
+					key = phenom is "TO" or "SV"
+						? $"{phenom}.A.{Get(f, "ETN")}.{Get(f, "VTEC_YR")}"
+						: $"{Get(f, "WFO")}.{phenom}.A.{Get(f, "ETN")}.{Get(f, "VTEC_YR")}";
 				}
 				else
 				{

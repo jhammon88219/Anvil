@@ -12,8 +12,9 @@
        ────────────────────────────────────────────────
        [ ] ■ Tornado                              2     ← one row per phenomenon: the toggle, the
        [x] ■ Severe thunderstorm                  5       map colour, the name, that type's count
-       [x] ■ Flash flood                          2     ← warnings only (SupportsFlashFlood); the
-                                                          watches instance collapses it
+       [x] ■ Flash flood                          2     ← the flood row: "Flash flood" (warnings, FF) or
+                                                          "Flood" (watches, FA/FL/FF, sea green) —
+                                                          FloodLabel/FloodColor from the VM
 
      ⚠️ OPACITY IS NOT HERE — it lives in the host's section header (PanelSection ShowOpacity), so it can be
      set with the section closed.
@@ -31,7 +32,8 @@
      select-all lives in the HOST's section header (NowCastTab), not here.
 
      ⚠️ The swatch colours are the phenom colours the map draws (watches.js / warnings.js, both TO red /
-     SV yellow; warnings.js FF green). They are literals in both places — change one, change the other.
+     SV yellow; warnings.js FF green; watches.js FA sea green = WatchFlood.Color). They are literals in both
+     places — change one, change the other.
 
      ⚠️ THE SECTION HEADING IS NOT HERE — the host draws its own above this control (NowCastTab writes
      "Watches" over one instance and "Warnings" over the other). The window owns its section structure;
@@ -124,11 +126,12 @@
                 </Grid>
             </CheckBox>
 
-            <!-- Warnings only. Collapsed on the watches instance (SPC watches have no FF). -->
+            <!-- The flood row: "Flash flood" on warnings, "Flood" on watches — name + swatch from the VM
+                 (FloodLabel / FloodColor). Collapses on an overlay without the type (SupportsFlashFlood). -->
             <CheckBox MinWidth="0" HorizontalAlignment="Stretch"
                       Visibility="{x:Bind Shown(ViewModel.SupportsFlashFlood), Mode=OneWay}"
                       IsChecked="{x:Bind ViewModel.ShowFlashFlood, Mode=TwoWay}"
-                      ToolTipService.ToolTip="{x:Bind FlashFloodTooltip(AlertNoun), Mode=OneWay}">
+                      ToolTipService.ToolTip="{x:Bind FloodTooltip(ViewModel.FloodLabel, AlertNoun), Mode=OneWay}">
                 <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -136,8 +139,8 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2"
-                            Background="#2EE05A" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="Flash flood" FontSize="13" VerticalAlignment="Center"/>
+                            Background="{x:Bind Swatch(ViewModel.FloodColor), Mode=OneWay}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.FloodLabel, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="2" Text="{x:Bind Fmt(ViewModel.FlashFloodCount), Mode=OneWay}"
                                FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </Grid>

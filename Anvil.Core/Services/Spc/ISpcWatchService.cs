@@ -40,5 +40,6 @@ namespace Anvil.Services
 		int ActiveCount = 0,
 		int TornadoCount = 0,
 		int SevereCount = 0,
+		int FloodCount = 0,
 		string? Message = null);
 }

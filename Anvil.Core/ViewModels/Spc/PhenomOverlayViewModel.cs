@@ -3,6 +3,14 @@ using System.Threading.Tasks;
 
 namespace Anvil.ViewModels
 {
+	/// <summary>The flood row of BOTH watch overlays (NowCast + PastCast). ⚠️ The colour is mirrored in
+	/// watches.js STYLE (FA/FL/FF) — NWS's own Flood Watch SeaGreen; change both.</summary>
+	public static class WatchFlood
+	{
+		public const string Label = "Flood";
+		public const string Color = "#2E8B57";
+	}
+
 	/// <summary>
 	/// Base for a CONVECTIVE ALERT overlay whose features carry a `phenom` of TO (tornado) or SV (severe
 	/// thunderstorm) — the SPC watch boxes and the storm-based warning polygons, the latter plus an
@@ -49,11 +57,23 @@ namespace Anvil.ViewModels
 		private bool _showFlashFlood = true;
 
 		/// <summary>
-		/// Whether this overlay HAS a flash-flood (FF) type. Warnings do; watches don't — SPC watches are
-		/// TO/SV only and a Flash Flood Watch is a zone product with no polygon. ⚠️ When false the FF tick is
-		/// ignored by every aggregate below, so a watch overlay behaves exactly as it did with two types.
+		/// Whether this overlay HAS a third, flood type. Warnings (Flash Flood Warning, FF) and watches (Flood
+		/// Watch — FA zones, FL river points, and pre-2023 Flash Flood Watch FF) both do now. ⚠️ When false
+		/// the tick is ignored by every aggregate below, so an overlay behaves exactly as it did with two types.
 		/// </summary>
 		public virtual bool SupportsFlashFlood => false;
+
+		/// <summary>The flood row's name — "Flash flood" on warnings, "Flood" on watches (the NWS product
+		/// names: a Flood Watch replaced the Flash Flood Watch in 2023).</summary>
+		public virtual string FloodLabel => "Flash flood";
+
+		/// <summary>The flood row's swatch — the literal the map draws (warnings.js FF / watches.js FA). DATA,
+		/// never themed.</summary>
+		public virtual string FloodColor => "#2EE05A";
+
+		/// <summary>Whether a feature's phenom code is this overlay's flood type (FF, FA or FL). Warnings only
+		/// ever carry FF, so one test serves both.</summary>
+		public static bool IsFloodPhenom(string? phenom) => phenom is "FF" or "FA" or "FL";
 
 		/// <summary>Draw flash-flood (FF) features while the mode is on. Ticked by default; meaningful
 		/// only when <see cref="SupportsFlashFlood"/>.</summary>
@@ -251,7 +271,7 @@ namespace Anvil.ViewModels
 			var names = new System.Collections.Generic.List<string>(3);
 			if (_showTornado) { names.Add("tornado"); }
 			if (_showSevere) { names.Add("severe thunderstorm"); }
-			if (FlashFloodOn) { names.Add("flash flood"); }
+			if (FlashFloodOn) { names.Add(FloodLabel.ToLowerInvariant()); }
 			var joined = names.Count switch
 			{
 				1 => names[0],

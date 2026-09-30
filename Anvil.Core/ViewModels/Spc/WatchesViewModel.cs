@@ -7,7 +7,8 @@ using Anvil.Services;
 namespace Anvil.ViewModels
 {
 	/// <summary>
-	/// View model for the SPC watch-box subsystem — active Tornado / Severe Thunderstorm Watches. These
+	/// View model for the watch subsystem — active Tornado / Severe Thunderstorm Watches plus NWS Flood
+	/// Watches (the third, flood row; <see cref="WatchFlood"/>). These
 	/// are current-conditions alerts (not a forecast), so they live in their OWN subsystem VM (surfaced
 	/// under NowCast in the UI) rather than on <see cref="OutlookViewModel"/>. Visibility, opacity, the
 	/// map-ready latch and the source push come from <see cref="MapOverlayViewModel"/>; the per-type
@@ -35,7 +36,11 @@ namespace Anvil.ViewModels
 		protected override Task SetVisibleAsync(bool visible) => _mapService.SetWatchesVisibleAsync(visible);
 		protected override Task SetOpacityAsync(double opacity) => _mapService.SetWatchesOpacityAsync(opacity);
 		protected override Task SetSourceAsync(string url) => _mapService.SetWatchSourceAsync(url);
-		protected override Task SetKindsAsync(bool tornado, bool severe, bool flashFlood) => _mapService.SetWatchKindsAsync(tornado, severe);
+		protected override Task SetKindsAsync(bool tornado, bool severe, bool flashFlood) => _mapService.SetWatchKindsAsync(tornado, severe, flashFlood);
+
+		public override bool SupportsFlashFlood => true;
+		public override string FloodLabel => WatchFlood.Label;
+		public override string FloodColor => WatchFlood.Color;
 
 		protected override string ItemNounSingular => "watch";
 		protected override string ItemNounPlural => "watches";
@@ -68,7 +73,7 @@ namespace Anvil.ViewModels
 				{
 					_dispatcher.Post(() =>
 					{
-						ApplyRefreshed(result.ActiveCount, result.TornadoCount, result.SevereCount);
+						ApplyRefreshed(result.ActiveCount, result.TornadoCount, result.SevereCount, result.FloodCount);
 						RepushSource();
 					});
 				}

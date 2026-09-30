@@ -48,6 +48,7 @@ namespace Anvil.ViewModels
 
 			if (s.WatchesShowTornado is bool at) { watches.ShowTornado = at; }
 			if (s.WatchesShowSevere is bool aS) { watches.ShowSevere = aS; }
+			if (s.WatchesShowFlood is bool af) { watches.ShowFlashFlood = af; }
 			if (s.WatchesOpacity is double ao) { watches.Opacity = Unit(ao); }
 
 			if (s.StormReportsShowTornado is bool rt) { reports.ShowTornado = rt; }
@@ -74,6 +75,7 @@ namespace Anvil.ViewModels
 			var pa = pastAlerts.Watches;
 			if (s.PastWatchesShowTornado is bool pat) { pa.ShowTornado = pat; }
 			if (s.PastWatchesShowSevere is bool pas) { pa.ShowSevere = pas; }
+			if (s.PastWatchesShowFlood is bool paf) { pa.ShowFlashFlood = paf; }
 			if (s.PastWatchesOpacity is double pao) { pa.Opacity = Unit(pao); }
 
 			if (s.DiscussionsHiddenKinds is { } hidden) { discussions.RestoreHidden(hidden); }
@@ -138,6 +140,7 @@ namespace Anvil.ViewModels
 				{
 					case nameof(PhenomOverlayViewModel.ShowTornado): s.WatchesShowTornado = watches.ShowTornado; break;
 					case nameof(PhenomOverlayViewModel.ShowSevere): s.WatchesShowSevere = watches.ShowSevere; break;
+					case nameof(PhenomOverlayViewModel.ShowFlashFlood): s.WatchesShowFlood = watches.ShowFlashFlood; break;
 					case nameof(PhenomOverlayViewModel.Opacity): s.WatchesOpacity = watches.Opacity; break;
 				}
 			};
@@ -203,6 +206,7 @@ namespace Anvil.ViewModels
 				{
 					case nameof(PhenomOverlayViewModel.ShowTornado): s.PastWatchesShowTornado = pastWatches.ShowTornado; break;
 					case nameof(PhenomOverlayViewModel.ShowSevere): s.PastWatchesShowSevere = pastWatches.ShowSevere; break;
+					case nameof(PhenomOverlayViewModel.ShowFlashFlood): s.PastWatchesShowFlood = pastWatches.ShowFlashFlood; break;
 					case nameof(PhenomOverlayViewModel.Opacity): s.PastWatchesOpacity = pastWatches.Opacity; break;
 				}
 			};
