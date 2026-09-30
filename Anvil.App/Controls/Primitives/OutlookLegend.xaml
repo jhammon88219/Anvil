@@ -4,13 +4,13 @@
      the ForeCast and PastCast outlook sections, which each drop it in as the LAST thing in the section body.
 
        ──────────────────────────────────────────────         ← rule
-        ■ 2%
-        ■ 5%
-        ■ 10%
+        ▬▬ 2%                                                  ← swatch 40 × 16 (was 20 × 13; the user's
+        ▬▬ 5%                                                     call, 2026-09-30: twice as wide, a bit
+        ▬▬ 10%                                                    thicker), both templates
         Intensity hatching                     [✓] Show        ← HatchRows.Count > 0 only
-        ╲ CIG1                               In Outlook
-        ╱ CIG2                               In Outlook
-        ╳ CIG3                           Not In Outlook        ← dimmed
+        ╲╲ CIG1                              In Outlook
+        ╱╱ CIG2                              In Outlook
+        ╳╳ CIG3                          Not In Outlook        ← dimmed
 
      ⚠️ IT IS PART OF ITS SECTION, so collapsing the section hides it; the host hides it ITSELF when there
      is nothing to key (None, or the layer hidden) by binding Visibility to the VM's HasLegend.
@@ -19,6 +19,9 @@
      tiles exactly: two Paths, '' and '/', shown by the same back/fwd rule makeHatchImage uses, which makes
      CIG3 (both) fall out for free. Getting a direction wrong here makes the legend disagree with our own
      map AND with spc.noaa.gov.
+     ⚠️ The hatch lines are TRUE 45° lines every 7 units, running past the swatch and CLIPPED to it (Grid.Clip) —
+     never a Stretch, which would skew the angle on a non-square swatch. Resize = new Width/Height, a matching
+     Clip rect, and lines that still span it (x from −Height to Width, step 7).
      ⚠️ "In Outlook" is read from the CACHED file, not the catalog — with hatching hidden, those rows are
      the reminder that it exists.
      Types: Entries = SpcRiskLevel, HatchRows = OutlookHatchLegendRow (Anvil.Models). -->
@@ -42,16 +45,19 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Grid Width="20" Height="13" VerticalAlignment="Center">
+                <Grid Width="40" Height="16" VerticalAlignment="Center">
+                    <Grid.Clip>
+                        <RectangleGeometry Rect="0,0,40,16"/>
+                    </Grid.Clip>
                     <Border Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"
                             BorderBrush="{x:Bind Stroke, Converter={StaticResource HexToBrush}}"
                             BorderThickness="1" CornerRadius="2"/>
                     <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
                           Visibility="{x:Bind local:OutlookLegend.HatchBackward(Hatch)}"
-                          Data="M0,0 L13,13 M7,0 L20,13 M0,6.5 L6.5,13 M13,0 L20,6.5"/>
+                          Data="M-14,0 L2,16 M-7,0 L9,16 M0,0 L16,16 M7,0 L23,16 M14,0 L30,16 M21,0 L37,16 M28,0 L44,16 M35,0 L51,16"/>
                     <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
                           Visibility="{x:Bind local:OutlookLegend.HatchForward(Hatch)}"
-                          Data="M0,13 L13,0 M7,13 L20,0 M0,6.5 L6.5,0 M13,13 L20,6.5"/>
+                          Data="M-14,16 L2,0 M-7,16 L9,0 M0,16 L16,0 M7,16 L23,0 M14,16 L30,0 M21,16 L37,0 M28,16 L44,0 M35,16 L51,0"/>
                 </Grid>
                 <TextBlock Grid.Column="1" Text="{x:Bind OfficialName}"
                            FontSize="13" VerticalAlignment="Center"
@@ -69,16 +75,19 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Grid Width="20" Height="13" VerticalAlignment="Center">
+                <Grid Width="40" Height="16" VerticalAlignment="Center">
+                    <Grid.Clip>
+                        <RectangleGeometry Rect="0,0,40,16"/>
+                    </Grid.Clip>
                     <Border Background="{x:Bind Level.Fill, Converter={StaticResource HexToBrush}}"
                             BorderBrush="{x:Bind Level.Stroke, Converter={StaticResource HexToBrush}}"
                             BorderThickness="1" CornerRadius="2"/>
                     <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
                           Visibility="{x:Bind local:OutlookLegend.HatchBackward(Level.Hatch)}"
-                          Data="M0,0 L13,13 M7,0 L20,13 M0,6.5 L6.5,13 M13,0 L20,6.5"/>
+                          Data="M-14,0 L2,16 M-7,0 L9,16 M0,0 L16,16 M7,0 L23,16 M14,0 L30,16 M21,0 L37,16 M28,0 L44,16 M35,0 L51,16"/>
                     <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
                           Visibility="{x:Bind local:OutlookLegend.HatchForward(Level.Hatch)}"
-                          Data="M0,13 L13,0 M7,13 L20,0 M0,6.5 L6.5,0 M13,13 L20,6.5"/>
+                          Data="M-14,16 L2,0 M-7,16 L9,0 M0,16 L16,0 M7,16 L23,0 M14,16 L30,0 M21,16 L37,0 M28,16 L44,0 M35,16 L51,0"/>
                 </Grid>
                 <TextBlock Grid.Column="1" Text="{x:Bind Level.OfficialName}"
                            FontSize="13" VerticalAlignment="Center"
