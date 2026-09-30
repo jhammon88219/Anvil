@@ -93,6 +93,21 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void StateLines_CountEachWarningOnceInItsFirstCountysState_MostFirst()
+		{
+			var targets = new[]
+			{
+				W("a", 0, 1, place: "Cleveland, OK"), W("b", 0, 1, place: "Tulsa, OK"), W("c", 0, 1, place: "Kay, OK"),
+				W("d", 0, 1, place: "Sumner, KS"), W("e", 0, 1, place: "Pawnee, KS"),
+				W("f", 0, 1, place: ""),                                // CAP named no county → still counted
+				W("sv", 0, 1, phenom: "SV", place: "Dallas, TX"),       // another tile's
+			};
+			var lines = WarningsViewModel.StatesOf(targets, "TO");
+			Assert.Equal(new[] { ("Oklahoma", 3), ("Kansas", 2), ("Unknown", 1) }, lines.Select(l => (l.Name, l.Count)));
+			Assert.Equal(6, lines.Sum(l => l.Count));                  // the lines add up to the tile's count
+		}
+
+		[Fact]
 		public void TargetsOf_ReadsBboxPlaceAndSent_SkipsAFeatureWithNoCoordinates()
 		{
 			var feature = JsonNode.Parse("""

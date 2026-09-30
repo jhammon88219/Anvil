@@ -14,5 +14,16 @@ namespace Anvil.Models
 	/// <param name="GeometryJson">The polygon as GeoJSON — the page flashes it with this, so the flash works
 	/// even while the warning layer isn't drawn.</param>
 	public sealed record WarningTarget(string Id, string Phenom, int Tier, DateTimeOffset Sent, string Place,
-		string GeometryJson, double West, double South, double East, double North);
+		string GeometryJson, double West, double South, double East, double North)
+	{
+		/// <summary>The state of the FIRST-listed county ("Cleveland, OK" → "OK"); "" if CAP named none. ⚠️ A
+		/// warning crossing a state line counts ONCE, here, so the tiles' state lines add up to the tile's count.</summary>
+		public string StateCode => Place.LastIndexOf(',') is var i && i >= 0 ? Place[(i + 1)..].Trim() : string.Empty;
+	}
+
+	/// <summary>One line of a NowCast warning tile: a state and how many of that tile's warnings are in it.</summary>
+	public sealed record WarningStateCount(string Name, int Count)
+	{
+		public string CountText => Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+	}
 }

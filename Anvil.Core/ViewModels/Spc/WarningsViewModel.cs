@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -56,6 +58,32 @@ namespace Anvil.ViewModels
 
 		/// <summary>The Flash flood tile's arrows.</summary>
 		public WarningStepper FlashFloodStepper { get; }
+
+		// ── The NowCast tiles' STATE LINES ("Oklahoma 3 / Kansas 2") ──
+		// ⚠️ NO CAP: every state gets a line and the tiles grow (the user's call, 2026-09-30 — no "+2 more").
+		// ⚠️ A warning counts ONCE, in its first-listed county's state (WarningTarget.StateCode), so the lines
+		// add up to the tile's number; one with no state goes on an "Unknown" line rather than vanishing.
+
+		private IReadOnlyList<Models.WarningStateCount> _tornadoStates = Array.Empty<Models.WarningStateCount>();
+		private IReadOnlyList<Models.WarningStateCount> _severeStates = Array.Empty<Models.WarningStateCount>();
+		private IReadOnlyList<Models.WarningStateCount> _flashFloodStates = Array.Empty<Models.WarningStateCount>();
+
+		/// <summary>The Tornado tile's state lines, most warnings first.</summary>
+		public IReadOnlyList<Models.WarningStateCount> TornadoStates => _tornadoStates;
+
+		/// <summary>The Severe tile's state lines.</summary>
+		public IReadOnlyList<Models.WarningStateCount> SevereStates => _severeStates;
+
+		/// <summary>The Flash flood tile's state lines.</summary>
+		public IReadOnlyList<Models.WarningStateCount> FlashFloodStates => _flashFloodStates;
+
+		/// <summary>One phenom's warnings grouped by state: most first, then by name. Internal for tests.</summary>
+		internal static IReadOnlyList<Models.WarningStateCount> StatesOf(IEnumerable<Models.WarningTarget> targets, string phenom) =>
+			targets.Where(t => t.Phenom == phenom)
+				.GroupBy(t => t.StateCode.Length > 0 ? Models.UsStates.NameOf(t.StateCode) : "Unknown")
+				.Select(g => new Models.WarningStateCount(g.Key, g.Count()))
+				.OrderByDescending(s => s.Count).ThenBy(s => s.Name, StringComparer.Ordinal)
+				.ToList();
 
 		// ⚠️ Flies even when that type's row is UNTICKED (or the layer is hidden): the page flashes the polygon
 		// from the geometry handed here, not from the warning layer — so you never land on an empty map.
@@ -147,6 +175,12 @@ namespace Anvil.ViewModels
 						TornadoStepper.Update(targets);
 						SevereStepper.Update(targets);
 						FlashFloodStepper.Update(targets);
+						_tornadoStates = StatesOf(targets, "TO");
+						_severeStates = StatesOf(targets, "SV");
+						_flashFloodStates = StatesOf(targets, "FF");
+						OnPropertyChanged(nameof(TornadoStates));
+						OnPropertyChanged(nameof(SevereStates));
+						OnPropertyChanged(nameof(FlashFloodStates));
 						RepushSource();
 					});
 				}

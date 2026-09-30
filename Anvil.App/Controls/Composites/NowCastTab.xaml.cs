@@ -73,6 +73,9 @@ namespace Anvil.Controls.Composites
 		public Visibility Shown(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 		public Visibility Hidden(bool on) => on ? Visibility.Collapsed : Visibility.Visible;
 
+		// The rule above a tile's state lines: only when it has warnings (a zero tile keeps its old shape).
+		public Visibility NonZero(int count) => count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
 		private void UpdateClock()
 		{
 			var now = System.DateTimeOffset.Now;

@@ -9,10 +9,15 @@
        │  5:42:07 PM                          Mon Sep 28, 2026        │  ← THE HEADER: FIXED, no section
        │  CDT · 22:42 UTC · updated 14 s ago                          │    header, can't collapse. Clock =
        │  ┌━━━━━━━━━━━━━┐ ┌━━━━━━━━━━━━━┐ ┌━━━━━━━━━━━━━┐           │    the MACHINE's time + zone.
-       │  │ 3      ‹  › │ │ 27     ‹  › │ │ 8      ‹  › │           │  ← every warning IN EFFECT, not
+       │  │ 5      ‹  › │ │ 27     ‹  › │ │ 8      ‹  › │           │  ← every warning IN EFFECT, not
        │  │ Tornado     │ │ Severe      │ │ Flash flood │           │    what the Warnings rows show;
-       │  │ 2 of 3 · Cle│ │ 4 destruct. │ │ 1 emergency │           │    a zero tile is DIMMED, not hidden
-       │  └─────────────┘ └─────────────┘ └─────────────┘           │    (stripe = the data colour)
+       │  │ ─────────── │ │ ─────────── │ │ ─────────── │           │    a zero tile is DIMMED, not hidden
+       │  │ Oklahoma  3 │ │ Texas     9 │ │ Mississip 6 │           │    (stripe = the data colour)
+       │  │ Kansas    2 │ │ Oklahoma  7 │ │ Louisiana 2 │           │  ← STATE LINES (Warnings.*States): most
+       │  │ 2 of 5 · Cle│ │ Kansas    5 │ │ 1 emergency │           │    first; a warning counts ONCE, in its
+       │  │             │ │ …every state│ │             │           │    first county's state, so lines sum to
+       │  │             │ │ 4 destruct. │ │             │           │    the count. NO CAP — tiles grow (all
+       │  └─────────────┘ └─────────────┘ └─────────────┘           │    three share the tallest's height)
        │   ↑ while its ‹ › have you on a warning the tag line reads   │  ‹ › = WarningStepper: › flies to the
        │     "2 of 3 · place · PDS" in accent (NO outline — removed)   │    next (worst first, wraps); ‹ = back
        │                                                              │    stack, off until › used; the COUNT
@@ -79,6 +84,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:comp="using:Anvil.Controls.Composites"
+             xmlns:models="using:Anvil.Models"
              xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -106,6 +112,24 @@
             <Setter Property="Margin" Value="0,6,0,0"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Style>
+        <!-- One STATE LINE of a tile: "Oklahoma          3". Name trims, the count is its own right column. -->
+        <DataTemplate x:Key="WarningStateLineTemplate" x:DataType="models:WarningStateCount">
+            <Grid ColumnSpacing="6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Bind Name}" FontSize="12" TextTrimming="CharacterEllipsis"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind CountText}" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+            </Grid>
+        </DataTemplate>
+        <Style x:Key="WarningTileRuleStyle" TargetType="Border">
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Margin" Value="0,6,0,4"/>
+            <Setter Property="Background" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
         </Style>
         <!-- "2 of 3 · Cleveland, OK · PDS" — the tag line's place while the tile's arrows have you on a warning. -->
         <Style x:Key="WarningTilePositionStyle" TargetType="TextBlock" BasedOn="{StaticResource WarningTileTagStyle}">
@@ -178,6 +202,10 @@
                                 <TextBlock Text="{x:Bind ViewModel.Warnings.TornadoCount, Mode=OneWay}" Style="{StaticResource WarningTileCountStyle}"
                                            Tapped="{x:Bind ViewModel.Warnings.TornadoStepper.Reset}"/>
                                 <TextBlock Text="Tornado" Style="{StaticResource WarningTileLabelStyle}"/>
+                                <Border Style="{StaticResource WarningTileRuleStyle}"
+                                        Visibility="{x:Bind NonZero(ViewModel.Warnings.TornadoCount), Mode=OneWay}"/>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Warnings.TornadoStates, Mode=OneWay}"
+                                              ItemTemplate="{StaticResource WarningStateLineTemplate}"/>
                                 <TextBlock Text="{x:Bind ViewModel.Warnings.TornadoThreats, Mode=OneWay}" Style="{StaticResource WarningTileTagStyle}"
                                            Visibility="{x:Bind Hidden(ViewModel.Warnings.TornadoStepper.IsActive), Mode=OneWay}"/>
                                 <TextBlock Text="{x:Bind ViewModel.Warnings.TornadoStepper.PositionText, Mode=OneWay}" Style="{StaticResource WarningTilePositionStyle}"
@@ -209,6 +237,10 @@
                                 <TextBlock Text="{x:Bind ViewModel.Warnings.SevereCount, Mode=OneWay}" Style="{StaticResource WarningTileCountStyle}"
                                            Tapped="{x:Bind ViewModel.Warnings.SevereStepper.Reset}"/>
                                 <TextBlock Text="Severe" Style="{StaticResource WarningTileLabelStyle}"/>
+                                <Border Style="{StaticResource WarningTileRuleStyle}"
+                                        Visibility="{x:Bind NonZero(ViewModel.Warnings.SevereCount), Mode=OneWay}"/>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Warnings.SevereStates, Mode=OneWay}"
+                                              ItemTemplate="{StaticResource WarningStateLineTemplate}"/>
                                 <TextBlock Text="{x:Bind ViewModel.Warnings.SevereThreats, Mode=OneWay}" Style="{StaticResource WarningTileTagStyle}"
                                            Visibility="{x:Bind Hidden(ViewModel.Warnings.SevereStepper.IsActive), Mode=OneWay}"/>
                                 <TextBlock Text="{x:Bind ViewModel.Warnings.SevereStepper.PositionText, Mode=OneWay}" Style="{StaticResource WarningTilePositionStyle}"
@@ -240,6 +272,10 @@
                                 <TextBlock Text="{x:Bind ViewModel.Warnings.FlashFloodCount, Mode=OneWay}" Style="{StaticResource WarningTileCountStyle}"
                                            Tapped="{x:Bind ViewModel.Warnings.FlashFloodStepper.Reset}"/>
                                 <TextBlock Text="Flash flood" Style="{StaticResource WarningTileLabelStyle}"/>
+                                <Border Style="{StaticResource WarningTileRuleStyle}"
+                                        Visibility="{x:Bind NonZero(ViewModel.Warnings.FlashFloodCount), Mode=OneWay}"/>
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Warnings.FlashFloodStates, Mode=OneWay}"
+                                              ItemTemplate="{StaticResource WarningStateLineTemplate}"/>
                                 <TextBlock Text="{x:Bind ViewModel.Warnings.FlashFloodThreats, Mode=OneWay}" Style="{StaticResource WarningTileTagStyle}"
                                            Visibility="{x:Bind Hidden(ViewModel.Warnings.FlashFloodStepper.IsActive), Mode=OneWay}"/>
                                 <TextBlock Text="{x:Bind ViewModel.Warnings.FlashFloodStepper.PositionText, Mode=OneWay}" Style="{StaticResource WarningTilePositionStyle}"
