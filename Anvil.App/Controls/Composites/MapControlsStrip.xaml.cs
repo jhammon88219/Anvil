@@ -24,6 +24,11 @@ namespace Anvil.Controls.Composites
 		public MapControlsStrip()
 		{
 			InitializeComponent();
+			// Either side re-laying out (the left widens as PickerSeparator slides the site picker; the right
+			// after its own resize) re-runs the right side's fit. It converges: ApplyRightTools ignores sub-pixel
+			// no-ops, so the resize it causes settles on the next pass.
+			LeftTools.SizeChanged += (_, _) => ApplyRightTools();
+			RightTools.SizeChanged += (_, _) => ApplyRightTools();
 		}
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
@@ -89,6 +94,50 @@ namespace Anvil.Controls.Composites
 			if (Math.Abs(width - PickerSeparator.Width) > 0.5)
 			{
 				PickerSeparator.Width = width;
+			}
+		}
+
+		// ===== The right side's fit (the mirror of the site picker's slide) =====
+		// Two measured widths, both set here: the isolation picker's left edge lands on the bar's ATLAS key's left
+		// edge (its right edge is the tier's, fixed — RightTools is right-aligned), and PaneSeparator takes up
+		// whatever makes RightTools exactly as wide as LeftTools. The last Atlas edge is kept so the strip's own
+		// resizes can re-run it without MainWindow.
+
+		// Floors: past these the alignment gives way rather than the controls.
+		private const double IsolationMinWidth = 150;
+		private const int PaneSeparatorMinColumns = 3;
+
+		private double _atlasLeft = double.NaN;
+		private UIElement? _alignRoot;
+
+		/// <summary>Size the right side against the bar: <paramref name="atlasLeft"/> is the Atlas key's left edge in
+		/// <paramref name="root"/>'s coordinates. See <see cref="ApplyRightTools"/>.</summary>
+		public void AlignRightTools(double atlasLeft, UIElement root)
+		{
+			_atlasLeft = atlasLeft;
+			_alignRoot = root;
+			ApplyRightTools();
+		}
+
+		private void ApplyRightTools()
+		{
+			if (_alignRoot is null || double.IsNaN(_atlasLeft) ||
+				IsolationPicker.ActualWidth <= 0 || LeftTools.ActualWidth <= 0 || RightTools.ActualWidth <= 0)
+			{
+				return;
+			}
+			var isoRight = IsolationPicker.TransformToVisual(_alignRoot).TransformPoint(default).X + IsolationPicker.ActualWidth;
+			var iso = Math.Max(IsolationMinWidth, isoRight - _atlasLeft);
+			// Everything in the right group but the two widths being set (margins and spacing included).
+			var fixedPart = RightTools.ActualWidth - PaneSeparator.ActualWidth - IsolationPicker.ActualWidth;
+			var sep = Math.Max(PaneSeparator.WidthFor(PaneSeparatorMinColumns), LeftTools.ActualWidth - fixedPart - iso);
+			if (Math.Abs(iso - IsolationPicker.Width) > 0.5)
+			{
+				IsolationPicker.Width = iso;
+			}
+			if (Math.Abs(sep - PaneSeparator.Width) > 0.5)
+			{
+				PaneSeparator.Width = sep;
 			}
 		}
 

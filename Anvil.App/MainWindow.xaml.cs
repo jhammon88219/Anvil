@@ -75,6 +75,17 @@ namespace Anvil
 			}
 		}
 
+		// ===== Tools tier's right side ↔ the Atlas key =====
+		// The isolation picker's LEFT edge sits on the Atlas key's left edge, and the tier's right group is as wide
+		// as its left (MapControlsStrip.ApplyRightTools). Measured across two tiers, like the site picker's.
+		private void AlignRightTools()
+		{
+			if (Content is UIElement root && AtlasKey.ActualWidth > 0)
+			{
+				ToolsStrip.AlignRightTools(AtlasKey.TransformToVisual(root).TransformPoint(default).X, root);
+			}
+		}
+
 		// NOTE: DevVisibility is gone. It existed to collapse the dev bar key in Release; there is no dev key
 		// any more — the dev tools are a tab of the Settings window, and SettingsWindow omits that tab from
 		// its strip (and never constructs its body) in Release.
@@ -539,6 +550,10 @@ namespace Anvil
 			TimeModule.ScanTextEdgeChanged += (_, _) => AlignSitePicker();
 			ToolsStrip.SizeChanged += (_, _) => AlignSitePicker();
 			TemporalKeys.SizeChanged += (_, e) => ToolsStrip.MatchPlaceSearchWidth(e.NewSize.Width);
+			// …and its RIGHT side hangs off the bar's Atlas key (see AlignRightTools). The window resizing moves the
+			// key (ToolsStrip resizes with it); the cluster resizing moves it too.
+			ToolsStrip.SizeChanged += (_, _) => AlignRightTools();
+			RightCluster.SizeChanged += (_, _) => AlignRightTools();
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs
 			// THE TITLE BAR block above). Hooked straight after InitializeComponent so the very first layout

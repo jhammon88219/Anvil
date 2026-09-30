@@ -15,11 +15,11 @@
        ├─────────────────────────────┴─────────────────────────────┤
        │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  …thrown UP onto the map
        │                 ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                     │  ONE rail, one tab per tier
-       │ ◗✈⚗ │ ⌕ │ ⌸◎ │ [⌂ KTLX Oklahoma City ˅]  ▣ [Search ✕⌕] ⊚  ▢▥▦ │ ⌘⛶ │ ▥▴ [Isolate ▾]│  TOOLS tier
-       │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  │  ┆ = picker's right edge = scrubber's
-       │  1:07 PM   ══════ scrubber ═══════┆ VCP:        212  │                                        │  BAR tier — the ground
-       │            3/10     ◀ ▶ ▶       ↺ │ Mode:       precip│⋮  ((•))│⋮   ☁ │⋮    📡   ⚙    –│□  │
-       │  2 min ago                       │ SAILS/MRLE: ×1   PastCast  NowCast  ForeCast   Atlas Settings  ✕ │
+       │ ◗✈⚗ │ ⌕ │ ⌸◎ ┊┊┊ [⌂ KTLX Oklahoma City ˅]  ▣ [Search ✕⌕] ⊚  ▢▥▦ ┊┊┊ ⌘⛶ │ ▥▴ ┇[Isolate      ▾]│  TOOLS tier
+       │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┇▒▒▒▒▒▒▒▒▒▒▒▒│  ┆ = picker's right edge = scrubber's
+       │  1:07 PM   ══════ scrubber ═══════┆ VCP:        212  │                              ┇          │  ┇ = Isolate's left edge = ATLAS's
+       │            3/10     ◀ ▶ ▶       ↺ │ Mode:       precip│⋮  ((•))│⋮   ☁ │⋮ ┇📡   ⚙       –│□│  ┊┊┊ = the two STRETCHING separators:
+       │  2 min ago                       │ SAILS/MRLE: ×1   PastCast  NowCast  ForeCast┇Atlas Settings ←50→ ✕│  the right group is as wide as the left
        └──────────────────────────────────┴────────────────────────┘
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
             is drawn by whichever side owns it: the tools tier throws its own up
@@ -451,9 +451,13 @@
                                 </ToggleButton>
                                 <!-- THE WINDOW'S OWN CAPTION BUTTONS, moved here: the system min/max/close are hidden
                                      (the right-edge ForeCast window covered them) — see the CAPTION BAND block in
-                                     MainWindow.xaml.cs. Last in the cluster, so it is the bar's far-right key. -->
+                                     MainWindow.xaml.cs. Last in the cluster, so it is the bar's far-right key.
+                                     ⚠️ SET APART: 42 + the grid's 8 = 50 px from Settings, so the window's own buttons
+                                     don't read as a third app key (the user's call, 2026-09-30). The tools tier's
+                                     isolation picker re-measures off Atlas, so changing this gap needs nothing else. -->
                                 <ctl:WindowCaptionKey x:Name="CaptionKey"
                                                       Grid.Column="2"
+                                                      Margin="42,0,0,0"
                                                       MinimizeRequested="OnCaptionMinimize"
                                                       MaximizeRestoreRequested="OnCaptionMaximizeRestore"
                                                       CloseRequested="OnCaptionClose"/>

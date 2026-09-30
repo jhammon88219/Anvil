@@ -28,12 +28,16 @@
                                                                                              │ ☑ Place names    │     style has county lines
                                                                                              │ Dim ──●───── 30% │
                                                                                              └──────────────────┘
-       (◗)(✈)(⚗) ─ (⌕) ─ (⌸)(◎) ─ [⌂ KTLX  Oklahoma City ˅]   (▣) [Moore, OK    ✕ ⌕] (⊚) status   [▢][▥][▦] ─ (⌘)(⛶) ─ (▥|▴) [Isolate State ▾]   ← THIS
+       (◗)(✈)(⚗) ─ (⌕) ─ (⌸)(◎) ─── [⌂ KTLX  Oklahoma City ˅]   (▣) [Moore, OK    ✕ ⌕] (⊚) status   [▢][▥][▦] ─── (⌘)(⛶) ─ (▥|▴) [Isolate State     ▾]   ← THIS
+       |←────────────── W (ends on the bar's scan text) ──────────────→|                            |←──────────────── the SAME W ────────────────────→|
+                                                                                                                                  ↑ left edge = the bar's ATLAS key's left edge
         ↑ LEFT = RADAR + MAP: show each network's    ↑ CENTER = where; the box is   ↑ RIGHT = MAP ONLY: pane layout
           sites (NEXRAD / TDWR / research) ─ ⌕         CENTERED on the tier           (1/2/4, current one LIT, accent
           INSPECT ─ ⌸ the RANGE RULER + ◎ the        ▣ marker viewer — PLACEHOLDER   cell = pane 0) ─ reset north,
           RANGE RINGS (lit = showing) ─ then pick    ⊚ Location (lit = marker out)   fit to view ─ MAP key + car, isolation
           one (over the console, which answers when)  ✕ stays while there is text
+        ─── = a STRETCHING separator (FillWidth): PickerSeparator (left) slides the site picker onto the scan text;
+            PaneSeparator (right) makes the right group as wide as the left (MapControlsStrip.ApplyRightTools).
         ─ = Primitives/MapControlsStripSeparator, a faint 3 × 3 DOT GRID between GROUPS with GENEROUS margins
             (8 + the panel's 8 left, 12 + the panel's 4 right = 16 a side). Tune dot size/gap/brush on the
             control, not here.
@@ -600,7 +604,10 @@
                 </ToggleButton>
             </StackPanel>
 
-            <prim:MapControlsStripSeparator Margin="12,0"/>
+            <!-- PANE SEPARATOR — the right side's STRETCHING separator (FillWidth), the mirror of PickerSeparator on
+                 the left. Its Width is SET IN CODE (ApplyRightTools) so this whole right group is exactly as wide as
+                 the left one, symmetric about the search box. Never below a 3 × 3. -->
+            <prim:MapControlsStripSeparator x:Name="PaneSeparator" Margin="12,0" FillWidth="True" Width="10"/>
 
             <!-- Reset north — undo a right-drag rotate/tilt. -->
             <Button Style="{StaticResource StripToolButtonStyle}"
@@ -691,8 +698,11 @@
                  "No Isolation" included. Seeing it means the lists failed to build.
                  ⚠⚠ IT IS Primitives/SectionedComboBox, NOT A ComboBox, FOR A CORRECTNESS REASON — a closed
                  WinUI ComboBox cycles its selection on the MOUSEWHEEL, and rolling it here froze the map
-                 outright. See that control's header; don't swap it back. -->
-            <prim:SectionedComboBox Width="170"
+                 outright. See that control's header; don't swap it back.
+                 ⚠️ Its WIDTH is SET IN CODE (ApplyRightTools): its left edge sits on the bar's ATLAS key's left edge
+                 (MainWindow measures it); 170 is only the pre-layout value. -->
+            <prim:SectionedComboBox x:Name="IsolationPicker"
+                                    Width="170"
                                     Margin="8,0,0,0"
                                     PlaceholderText="Isolate State"
                                     PinnedItemsSource="{x:Bind ViewModel.StateIso.IsolationModes, Mode=OneWay}"
