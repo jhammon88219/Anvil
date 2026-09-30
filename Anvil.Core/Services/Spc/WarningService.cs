@@ -127,7 +127,43 @@ namespace Anvil.Services
 
 			var (tornado, severe, flashFlood, threats) = CountByPhenom();
 			return new WarningFetchResult(WarningFetchStatus.Updated, _active.Count, tornado, severe,
-				FlashFloodCount: flashFlood, Threats: threats);
+				FlashFloodCount: flashFlood, Threats: threats, Targets: TargetsOf(_active.Values.Select(w => w.Feature)));
+		}
+
+		/// <summary>The active set as fly-to targets (id, phenom, tier, issue time, place, polygon + bbox) for the
+		/// NowCast tiles' arrows. A feature with no readable coordinates is skipped — nothing to frame. Pure +
+		/// internal for tests.</summary>
+		internal static List<Models.WarningTarget> TargetsOf(IEnumerable<JsonNode> features)
+		{
+			var list = new List<Models.WarningTarget>();
+			foreach (var f in features)
+			{
+				var props = f["properties"];
+				var geom = f["geometry"];
+				double w = double.MaxValue, s = double.MaxValue, e = double.MinValue, n = double.MinValue;
+				void Walk(JsonNode? c)
+				{
+					if (c is not JsonArray a || a.Count == 0) { return; }
+					if (a[0] is JsonValue && a.Count >= 2)
+					{
+						// A position: [lng, lat].
+						var x = a[0]!.GetValue<double>();
+						var y = a[1]!.GetValue<double>();
+						w = Math.Min(w, x); e = Math.Max(e, x); s = Math.Min(s, y); n = Math.Max(n, y);
+						return;
+					}
+					foreach (var child in a) { Walk(child); }
+				}
+				try { Walk(geom?["coordinates"]); } catch { continue; }
+				if (w > e || s > n) { continue; }
+
+				var sent = DateTimeOffset.TryParse(Str(props?["sent"]), CultureInfo.InvariantCulture, DateTimeStyles.None, out var t)
+					? t : DateTimeOffset.MinValue;
+				var place = Str(props?["area"]).Split(';')[0].Trim();
+				list.Add(new Models.WarningTarget(FeatureId(f), Str(props?["phenom"]), TierOf(props), sent, place,
+					geom!.ToJsonString(), w, s, e, n));
+			}
+			return list;
 		}
 
 		// Tallies the current active set by phenom (TO / SV / FF) and by damage-threat tier for the UI readout.
@@ -258,6 +294,8 @@ namespace Anvil.Services
 							["expiration"] = Str(props["expires"]),
 							["threat"] = threat,          // the IBW tag verbatim, lowercased ("" = base)
 							["threat_tier"] = ThreatTier(threat), // 0/1/2 — warnings.js widens the outline by this
+							["sent"] = Str(props["sent"]),     // issue time — the NowCast tiles' step order
+							["area"] = Str(props["areaDesc"]), // "Cleveland, OK; McClain, OK" — the tiles' "where"
 						},
 					});
 					ids.Add(id);

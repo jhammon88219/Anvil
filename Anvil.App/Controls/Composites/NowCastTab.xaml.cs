@@ -69,6 +69,10 @@ namespace Anvil.Controls.Composites
 		/// <summary>A tile with nothing in effect is DIMMED, never hidden — the three keep their places.</summary>
 		public double TileOpacity(int count) => count == 0 ? 0.4 : 1.0;
 
+		// A tile's tag line ⇄ its "2 of 3 · place" line, by whether its arrows have you on a warning.
+		public Visibility Shown(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility Hidden(bool on) => on ? Visibility.Collapsed : Visibility.Visible;
+
 		private void UpdateClock()
 		{
 			var now = System.DateTimeOffset.Now;

@@ -249,6 +249,13 @@ namespace Anvil.Services
 		Task SetWarningKindsAsync(bool tornado, bool severe, bool flashFlood);
 
 		/// <summary>
+		/// The NowCast tiles' arrows: ease the PRIMARY pane to frame one warning's box (the others follow the
+		/// camera sync) and flash its polygon for ~2 s in every pane — drawn from <paramref name="geometryJson"/>,
+		/// so it shows even while the warning layer or that type is hidden.
+		/// </summary>
+		Task FocusWarningAsync(string geometryJson, double west, double south, double east, double north);
+
+		/// <summary>
 		/// Sets the overall opacity (0-1) of the warning polygons. Scales both the faint fill and the bold
 		/// outline together, so the slider fades the whole overlay (1 = the default look).
 		/// </summary>

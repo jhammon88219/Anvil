@@ -88,6 +88,24 @@ namespace Anvil.Services
 		public Task SetWarningKindsAsync(bool tornado, bool severe, bool flashFlood) =>
 			_mapView.RunScriptAsync(Call("setWarningKinds", tornado, severe, flashFlood));
 
+		// ⚠️ The geometry goes over as a JSON OBJECT LITERAL, not through Call's single-quoted string (which
+		// doesn't escape). It is our own JsonNode serialization (WarningService.TargetsOf), so it is valid JSON —
+		// and valid JSON is a valid JS expression. Re-parsed here so nothing else can ride in on it.
+		public Task FocusWarningAsync(string geometryJson, double west, double south, double east, double north)
+		{
+			string geometry;
+			try
+			{
+				geometry = System.Text.Json.Nodes.JsonNode.Parse(geometryJson)?.ToJsonString() ?? "null";
+			}
+			catch (System.Text.Json.JsonException)
+			{
+				geometry = "null"; // still frame the box; just no flash
+			}
+			return _mapView.RunScriptAsync(
+				$"window.focusWarning({geometry},{FormatArg(west)},{FormatArg(south)},{FormatArg(east)},{FormatArg(north)});");
+		}
+
 		public Task SetWarningsOpacityAsync(double opacity) =>
 			_mapView.RunScriptAsync(Call("setWarningsOpacity", opacity));
 

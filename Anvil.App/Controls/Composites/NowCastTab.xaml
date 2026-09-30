@@ -9,10 +9,14 @@
        │  5:42:07 PM                          Mon Sep 28, 2026        │  ← THE HEADER: FIXED, no section
        │  CDT · 22:42 UTC · updated 14 s ago                          │    header, can't collapse. Clock =
        │  ┌━━━━━━━━━━━━━┐ ┌━━━━━━━━━━━━━┐ ┌━━━━━━━━━━━━━┐           │    the MACHINE's time + zone.
-       │  │ 3           │ │ 27          │ │ 8           │           │  ← every warning IN EFFECT, not
+       │  │ 3      ‹  › │ │ 27     ‹  › │ │ 8      ‹  › │           │  ← every warning IN EFFECT, not
        │  │ Tornado     │ │ Severe      │ │ Flash flood │           │    what the Warnings rows show;
-       │  │ 1 PDS       │ │ 4 destruct. │ │ 1 emergency │           │    a zero tile is DIMMED, not hidden
+       │  │ 2 of 3 · Cle│ │ 4 destruct. │ │ 1 emergency │           │    a zero tile is DIMMED, not hidden
        │  └─────────────┘ └─────────────┘ └─────────────┘           │    (stripe = the data colour)
+       │   ↑ ACCENT OUTLINE while its ‹ › have you on a warning;       │  ‹ › = WarningStepper: › flies to the
+       │     the tag line then reads "2 of 3 · place · PDS"            │    next (worst first, wraps); ‹ = back
+       │                                                              │    stack, off until › used; the COUNT
+       │                                                              │    resets. Flash even if unticked.
        │                                                              │  ← 24 px gap before the sections
        │ ⠿ › [x] Storm cells     ─────────────────●   100%            │  ← TOP of the list = TOP of the map
        │ ⠿ › [x] Storm reports   ─────────────────●   100%            │
@@ -101,6 +105,22 @@
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Style>
+        <!-- "2 of 3 · Cleveland, OK · PDS" — the tag line's place while the tile's arrows have you on a warning. -->
+        <Style x:Key="WarningTilePositionStyle" TargetType="TextBlock" BasedOn="{StaticResource WarningTileTagStyle}">
+            <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+        </Style>
+        <!-- The ‹ › pair in a tile's top-right. The stock button's template (its hover/pressed/disabled faces),
+             shrunk and made transparent at rest so it sits on the tile rather than on a plate of its own. -->
+        <Style x:Key="WarningTileArrowStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
@@ -140,35 +160,112 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Style="{StaticResource WarningTileStyle}" BorderBrush="#FF2A2A"
-                        Opacity="{x:Bind TileOpacity(ViewModel.Warnings.TornadoCount), Mode=OneWay}"
-                        ToolTipService.ToolTip="Tornado warnings in effect nationwide — all of them, whatever the Warnings rows below show">
-                    <StackPanel>
-                        <TextBlock Text="{x:Bind ViewModel.Warnings.TornadoCount, Mode=OneWay}" Style="{StaticResource WarningTileCountStyle}"/>
-                        <TextBlock Text="Tornado" Style="{StaticResource WarningTileLabelStyle}"/>
-                        <TextBlock Text="{x:Bind ViewModel.Warnings.TornadoThreats, Mode=OneWay}" Style="{StaticResource WarningTileTagStyle}"/>
-                    </StackPanel>
-                </Border>
+                <!-- ⚠️ EACH TILE = the tile Border + an ACCENT OUTLINE over it (shown while that tile's arrows have
+                     you on a warning) in one cell. The ‹ › pair rides the tile's top-right, bound straight to its
+                     WarningStepper (Forward / Back); clicking the COUNT resets it (Reset). The tile's own tooltip
+                     stays on the Border, the buttons carry their own. Glyphs E76B / E76C (ChevronLeft / Right) are
+                     NOT verified by rendering in the real font. -->
+                <Grid Grid.Column="0" Opacity="{x:Bind TileOpacity(ViewModel.Warnings.TornadoCount), Mode=OneWay}">
+                    <Border Style="{StaticResource WarningTileStyle}" BorderBrush="#FF2A2A"
+                            ToolTipService.ToolTip="Tornado warnings in effect nationwide — all of them, whatever the Warnings rows below show">
+                        <Grid>
+                            <StackPanel>
+                                <TextBlock Text="{x:Bind ViewModel.Warnings.TornadoCount, Mode=OneWay}" Style="{StaticResource WarningTileCountStyle}"
+                                           Tapped="{x:Bind ViewModel.Warnings.TornadoStepper.Reset}"/>
+                                <TextBlock Text="Tornado" Style="{StaticResource WarningTileLabelStyle}"/>
+                                <TextBlock Text="{x:Bind ViewModel.Warnings.TornadoThreats, Mode=OneWay}" Style="{StaticResource WarningTileTagStyle}"
+                                           Visibility="{x:Bind Hidden(ViewModel.Warnings.TornadoStepper.IsActive), Mode=OneWay}"/>
+                                <TextBlock Text="{x:Bind ViewModel.Warnings.TornadoStepper.PositionText, Mode=OneWay}" Style="{StaticResource WarningTilePositionStyle}"
+                                           Visibility="{x:Bind Shown(ViewModel.Warnings.TornadoStepper.IsActive), Mode=OneWay}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-4,0">
+                                <Button Style="{StaticResource WarningTileArrowStyle}"
+                                        IsEnabled="{x:Bind ViewModel.Warnings.TornadoStepper.CanBack, Mode=OneWay}"
+                                        Click="{x:Bind ViewModel.Warnings.TornadoStepper.Back}"
+                                        ToolTipService.ToolTip="Back to the last tornado warning you visited">
+                                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12" Glyph="&#xE76B;"/>
+                                </Button>
+                                <Button Style="{StaticResource WarningTileArrowStyle}"
+                                        IsEnabled="{x:Bind ViewModel.Warnings.TornadoStepper.CanForward, Mode=OneWay}"
+                                        Click="{x:Bind ViewModel.Warnings.TornadoStepper.Forward}"
+                                        ToolTipService.ToolTip="Fly to the next tornado warning (worst first)">
+                                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12" Glyph="&#xE76C;"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border CornerRadius="6" BorderThickness="1.5" IsHitTestVisible="False"
+                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                            Visibility="{x:Bind Shown(ViewModel.Warnings.TornadoStepper.IsActive), Mode=OneWay}"/>
+                </Grid>
 
-                <Border Grid.Column="1" Style="{StaticResource WarningTileStyle}" BorderBrush="#FFD21A"
-                        Opacity="{x:Bind TileOpacity(ViewModel.Warnings.SevereCount), Mode=OneWay}"
-                        ToolTipService.ToolTip="Severe thunderstorm warnings in effect nationwide — all of them, whatever the Warnings rows below show">
-                    <StackPanel>
-                        <TextBlock Text="{x:Bind ViewModel.Warnings.SevereCount, Mode=OneWay}" Style="{StaticResource WarningTileCountStyle}"/>
-                        <TextBlock Text="Severe" Style="{StaticResource WarningTileLabelStyle}"/>
-                        <TextBlock Text="{x:Bind ViewModel.Warnings.SevereThreats, Mode=OneWay}" Style="{StaticResource WarningTileTagStyle}"/>
-                    </StackPanel>
-                </Border>
+                <Grid Grid.Column="1" Opacity="{x:Bind TileOpacity(ViewModel.Warnings.SevereCount), Mode=OneWay}">
+                    <Border Style="{StaticResource WarningTileStyle}" BorderBrush="#FFD21A"
+                            ToolTipService.ToolTip="Severe thunderstorm warnings in effect nationwide — all of them, whatever the Warnings rows below show">
+                        <Grid>
+                            <StackPanel>
+                                <TextBlock Text="{x:Bind ViewModel.Warnings.SevereCount, Mode=OneWay}" Style="{StaticResource WarningTileCountStyle}"
+                                           Tapped="{x:Bind ViewModel.Warnings.SevereStepper.Reset}"/>
+                                <TextBlock Text="Severe" Style="{StaticResource WarningTileLabelStyle}"/>
+                                <TextBlock Text="{x:Bind ViewModel.Warnings.SevereThreats, Mode=OneWay}" Style="{StaticResource WarningTileTagStyle}"
+                                           Visibility="{x:Bind Hidden(ViewModel.Warnings.SevereStepper.IsActive), Mode=OneWay}"/>
+                                <TextBlock Text="{x:Bind ViewModel.Warnings.SevereStepper.PositionText, Mode=OneWay}" Style="{StaticResource WarningTilePositionStyle}"
+                                           Visibility="{x:Bind Shown(ViewModel.Warnings.SevereStepper.IsActive), Mode=OneWay}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-4,0">
+                                <Button Style="{StaticResource WarningTileArrowStyle}"
+                                        IsEnabled="{x:Bind ViewModel.Warnings.SevereStepper.CanBack, Mode=OneWay}"
+                                        Click="{x:Bind ViewModel.Warnings.SevereStepper.Back}"
+                                        ToolTipService.ToolTip="Back to the last severe thunderstorm warning you visited">
+                                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12" Glyph="&#xE76B;"/>
+                                </Button>
+                                <Button Style="{StaticResource WarningTileArrowStyle}"
+                                        IsEnabled="{x:Bind ViewModel.Warnings.SevereStepper.CanForward, Mode=OneWay}"
+                                        Click="{x:Bind ViewModel.Warnings.SevereStepper.Forward}"
+                                        ToolTipService.ToolTip="Fly to the next severe thunderstorm warning (worst first)">
+                                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12" Glyph="&#xE76C;"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border CornerRadius="6" BorderThickness="1.5" IsHitTestVisible="False"
+                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                            Visibility="{x:Bind Shown(ViewModel.Warnings.SevereStepper.IsActive), Mode=OneWay}"/>
+                </Grid>
 
-                <Border Grid.Column="2" Style="{StaticResource WarningTileStyle}" BorderBrush="#2EE05A"
-                        Opacity="{x:Bind TileOpacity(ViewModel.Warnings.FlashFloodCount), Mode=OneWay}"
-                        ToolTipService.ToolTip="Flash flood warnings in effect nationwide — all of them, whatever the Warnings rows below show">
-                    <StackPanel>
-                        <TextBlock Text="{x:Bind ViewModel.Warnings.FlashFloodCount, Mode=OneWay}" Style="{StaticResource WarningTileCountStyle}"/>
-                        <TextBlock Text="Flash flood" Style="{StaticResource WarningTileLabelStyle}"/>
-                        <TextBlock Text="{x:Bind ViewModel.Warnings.FlashFloodThreats, Mode=OneWay}" Style="{StaticResource WarningTileTagStyle}"/>
-                    </StackPanel>
-                </Border>
+                <Grid Grid.Column="2" Opacity="{x:Bind TileOpacity(ViewModel.Warnings.FlashFloodCount), Mode=OneWay}">
+                    <Border Style="{StaticResource WarningTileStyle}" BorderBrush="#2EE05A"
+                            ToolTipService.ToolTip="Flash flood warnings in effect nationwide — all of them, whatever the Warnings rows below show">
+                        <Grid>
+                            <StackPanel>
+                                <TextBlock Text="{x:Bind ViewModel.Warnings.FlashFloodCount, Mode=OneWay}" Style="{StaticResource WarningTileCountStyle}"
+                                           Tapped="{x:Bind ViewModel.Warnings.FlashFloodStepper.Reset}"/>
+                                <TextBlock Text="Flash flood" Style="{StaticResource WarningTileLabelStyle}"/>
+                                <TextBlock Text="{x:Bind ViewModel.Warnings.FlashFloodThreats, Mode=OneWay}" Style="{StaticResource WarningTileTagStyle}"
+                                           Visibility="{x:Bind Hidden(ViewModel.Warnings.FlashFloodStepper.IsActive), Mode=OneWay}"/>
+                                <TextBlock Text="{x:Bind ViewModel.Warnings.FlashFloodStepper.PositionText, Mode=OneWay}" Style="{StaticResource WarningTilePositionStyle}"
+                                           Visibility="{x:Bind Shown(ViewModel.Warnings.FlashFloodStepper.IsActive), Mode=OneWay}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-4,0">
+                                <Button Style="{StaticResource WarningTileArrowStyle}"
+                                        IsEnabled="{x:Bind ViewModel.Warnings.FlashFloodStepper.CanBack, Mode=OneWay}"
+                                        Click="{x:Bind ViewModel.Warnings.FlashFloodStepper.Back}"
+                                        ToolTipService.ToolTip="Back to the last flash flood warning you visited">
+                                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12" Glyph="&#xE76B;"/>
+                                </Button>
+                                <Button Style="{StaticResource WarningTileArrowStyle}"
+                                        IsEnabled="{x:Bind ViewModel.Warnings.FlashFloodStepper.CanForward, Mode=OneWay}"
+                                        Click="{x:Bind ViewModel.Warnings.FlashFloodStepper.Forward}"
+                                        ToolTipService.ToolTip="Fly to the next flash flood warning (worst first)">
+                                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12" Glyph="&#xE76C;"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border CornerRadius="6" BorderThickness="1.5" IsHitTestVisible="False"
+                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                            Visibility="{x:Bind Shown(ViewModel.Warnings.FlashFloodStepper.IsActive), Mode=OneWay}"/>
+                </Grid>
             </Grid>
         </Grid>
 

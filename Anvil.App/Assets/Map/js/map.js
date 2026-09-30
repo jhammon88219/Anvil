@@ -472,6 +472,20 @@ try {
     window.setWarningsVisible = function (on) { if (Warnings) forEachMap(function (m) { Warnings.setVisible(m, on); }); };
     window.setWarningKinds = function (torn, severe, flashFlood) { if (Warnings) forEachMap(function (m) { Warnings.setKinds(m, phenomKinds(torn, severe, flashFlood)); }); };
     window.setWarningsOpacity = function (o) { if (Warnings) forEachMap(function (m) { Warnings.setOpacity(m, o); }); };
+    // The NowCast tiles' ‹ › arrows: frame ONE warning's box — an animated move, so PRIMARY only (the camera
+    // sync carries the rest; stop() supersedes a flight still easing from the last press) — and flash its
+    // polygon in EVERY pane. Left padding clears the NowCast window, which sits over the map's left edge.
+    window.focusWarning = function (geometry, w, s, e, n) {
+        const p = primary();
+        if (!p || !(w <= e) || !(s <= n)) return;
+        const width = p.getContainer().clientWidth;
+        const left = Math.min(520, Math.round(width * 0.35));
+        try {
+            p.stop();
+            p.fitBounds([[w, s], [e, n]], { padding: { top: 90, bottom: 90, left: left, right: 90 }, duration: 800, maxZoom: 9 });
+        } catch (err) { console.error('focusWarning fitBounds failed: ' + err); }
+        if (Warnings) forEachMap(function (m) { Warnings.flash(m, geometry); });
+    };
 
     // SPC storm-report dots (Tornado / Wind / Hail verification) live in storm-reports.js — same lazy-load/
     // delegate pattern. They sit on TOP of the stack. applyStyle calls StormReports.reAdd(map).

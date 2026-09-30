@@ -19,6 +19,12 @@
 //     ══   tier 1 (3.75 px)       considerable (PDS tornado, considerable flash flood)
 //     ─    tier 0 (2.5 px)        base; stacking: TO over SV over FF, higher tier on top
 //
+//            ╱▔▔▔▔╲                THE FLASH (flash(), the NowCast tiles' ‹ › arrows): a dashed INK line on
+//          ┊╱ ┄ ┄ ╲┊               a CASING, the ruler's themed pair, over one warning for FLASH_MS, then a
+//          ┊╲ ┄ ┄ ╱┊               fade. Its OWN source (the geometry comes from the host), so it draws even
+//            ╲▁▁▁▁╱                while the warning layer / that type is hidden. Id prefix `nws-warning-` →
+//                                  layers.js files it in the warnings group. Transient: a style switch drops it.
+//
 // The whole lazy-load / refresh / opacity / re-add lifecycle is the shared fill+line overlay in
 // geojson-overlay.js — this module is just its warning-polygon configuration. Warnings are the imminent-
 // threat layer, so they sit ABOVE the watch boxes: both target firstBoundaryLayerId, but map.js re-adds
@@ -26,6 +32,7 @@
 
 import { firstBoundaryLayerId } from './layers.js';
 import { createGeojsonOverlay } from './geojson-overlay.js';
+import * as Theme from './theme.js';
 
 // ⚠️ THE LOOK is exported: past-alerts.js draws PastCast's copy with exactly these values (on layers of its
 // own), so the two modes cannot drift apart. Ids and z-placement stay below, per overlay.
@@ -63,3 +70,41 @@ export const setVisible = overlay.setVisible;
 export const setKinds = overlay.setKinds;
 export const setOpacity = overlay.setOpacity;
 export const reAdd = overlay.reAdd;
+
+// ---- The flash (see the sketch above) ----
+const FLASH_SRC = 'nws-warning-flash';
+const FLASH_CASING = 'nws-warning-flash-casing', FLASH_INK = 'nws-warning-flash-ink';
+const FLASH_MS = 2000, FLASH_FADE_MS = 600;
+const flashTimers = new WeakMap();   // per map: the pending fade / remove, cancelled by the next flash
+
+function dropFlash(map) {
+    [FLASH_INK, FLASH_CASING].forEach(function (id) { if (map.getLayer(id)) map.removeLayer(id); });
+    if (map.getSource(FLASH_SRC)) map.removeSource(FLASH_SRC);
+}
+
+// Outline `geometry` (a GeoJSON geometry) on `map` for FLASH_MS, then fade it out and remove it. A new flash
+// replaces one still showing. Null geometry = nothing to draw (the camera still moved).
+export function flash(map, geometry) {
+    const pending = flashTimers.get(map);
+    if (pending) { pending.forEach(clearTimeout); flashTimers.delete(map); }
+    dropFlash(map);
+    if (!geometry) return;
+    try {
+        map.addSource(FLASH_SRC, { type: 'geojson', data: { type: 'Feature', geometry: geometry, properties: {} } });
+        const fade = { duration: FLASH_FADE_MS, delay: 0 };
+        // Casing then ink, both on TOP (no beforeId) — restack moves them into the warnings group, in this order.
+        map.addLayer({ id: FLASH_CASING, type: 'line', source: FLASH_SRC,
+            paint: { 'line-color': Theme.color('--anvil-ruler-casing', '#000000'), 'line-width': 7, 'line-opacity': 0.55, 'line-opacity-transition': fade } });
+        map.addLayer({ id: FLASH_INK, type: 'line', source: FLASH_SRC,
+            paint: { 'line-color': Theme.color('--anvil-ruler-ink', '#e8edf2'), 'line-width': 3, 'line-dasharray': [2, 1.5], 'line-opacity': 1, 'line-opacity-transition': fade } });
+    } catch (e) {
+        console.error('warning flash failed: ' + e);
+        dropFlash(map);
+        return;
+    }
+    const t1 = setTimeout(function () {
+        [FLASH_CASING, FLASH_INK].forEach(function (id) { if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0); });
+    }, FLASH_MS);
+    const t2 = setTimeout(function () { flashTimers.delete(map); dropFlash(map); }, FLASH_MS + FLASH_FADE_MS + 50);
+    flashTimers.set(map, [t1, t2]);
+}

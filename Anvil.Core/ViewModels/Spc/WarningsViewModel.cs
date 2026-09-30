@@ -30,7 +30,37 @@ namespace Anvil.ViewModels
 			_warningService = warningService;
 			_dispatcher = dispatcher;
 			_logger = logger;
+
+			TornadoStepper = new WarningStepper("TO", FlyToAsync);
+			SevereStepper = new WarningStepper("SV", FlyToAsync);
+			FlashFloodStepper = new WarningStepper("FF", FlyToAsync);
+			// NowCast turning OFF forgets every tile's place and history (its window closes with it).
+			PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(IsModeActive) && !IsModeActive)
+				{
+					TornadoStepper.Reset();
+					SevereStepper.Reset();
+					FlashFloodStepper.Reset();
+				}
+			};
 		}
+
+		// ── The NowCast tiles' ‹ › arrows (WarningStepper has the rules) ──
+
+		/// <summary>The Tornado tile's arrows.</summary>
+		public WarningStepper TornadoStepper { get; }
+
+		/// <summary>The Severe tile's arrows.</summary>
+		public WarningStepper SevereStepper { get; }
+
+		/// <summary>The Flash flood tile's arrows.</summary>
+		public WarningStepper FlashFloodStepper { get; }
+
+		// ⚠️ Flies even when that type's row is UNTICKED (or the layer is hidden): the page flashes the polygon
+		// from the geometry handed here, not from the warning layer — so you never land on an empty map.
+		private Task FlyToAsync(Models.WarningTarget t) =>
+			IsMapReady ? _mapService.FocusWarningAsync(t.GeometryJson, t.West, t.South, t.East, t.North) : Task.CompletedTask;
 
 		protected override string SourceUrl => _warningService.WarningsUrl;
 		protected override Task SetVisibleAsync(bool visible) => _mapService.SetWarningsVisibleAsync(visible);
@@ -113,6 +143,10 @@ namespace Anvil.ViewModels
 							OnPropertyChanged(nameof(SevereThreats));
 							OnPropertyChanged(nameof(FlashFloodThreats));
 						ApplyRefreshed(result.ActiveCount, result.TornadoCount, result.SevereCount, result.FlashFloodCount);
+						var targets = result.Targets ?? Array.Empty<Models.WarningTarget>();
+						TornadoStepper.Update(targets);
+						SevereStepper.Update(targets);
+						FlashFloodStepper.Update(targets);
 						RepushSource();
 					});
 				}
