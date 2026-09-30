@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- PanelScroller — the app's hand-rolled vertical scroller for panel windows. Built in the PastCast window
-     first; the other panel windows get it next. Wrap a body in it: <prim:PanelScroller> …content… </prim:PanelScroller>.
+     first; now in all three temporal windows (Past/Now/Fore) and the Atlas lists. Wrap a body in it:
+     <prim:PanelScroller> …content… </prim:PanelScroller>.
 
        ┌─────────────────────────────────────┬──────┐
        │                                     │  ████│  ← THE THUMB: 12 of 16, 4 px in from the left,
@@ -14,7 +15,7 @@
 
      ⚠️ THE HOST SHOULD BLEED IT INTO ITS OWN RIGHT MARGIN. A panel body sits 16 px in from the window edge
      (TemporalWindow's BodyHost), and a gutter left inside that margin reads as a thin thumb beside a wider
-     empty strip. PastCastTab gives the scroller Margin right -12, so the gutter ends 4 px from the window
+     empty strip. Past/Now/ForeCastTab give the scroller Margin right -12, so the gutter ends 4 px from the window
      edge; the thumb sits flush right in the gutter with 4 px on its left, so it is EQUALLY far (4) from the
      sections and from the window edge. A new host does the same bleed, or the gaps go uneven.
 

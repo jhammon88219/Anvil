@@ -26,7 +26,9 @@
        │   ╱ CIG2                                 In Outlook  │     intensity groups; status from the CACHED
        │   ╳ CIG3                             Not In Outlook  │     GeoJSON, so a hidden hatch can't be forgotten
        └──────────────────────────────────────────────────────┘
-                                                                ← free space (the window is full height)
+                                                             ┃  ← all of the above sits in PanelScroller: a 16 px
+                                                                gutter always claimed, thumb ┃ only on overflow;
+                                                                it fills the height the discussion leaves
        ┌──────────────────────────────────────────────────────┐
        │ ›  Forecast discussion                               │  ← pinned to the BOTTOM; COLLAPSED on
        └──────────────────────────────────────────────────────┘     load, opens into a 240px cap
@@ -46,9 +48,9 @@
      column, then the legend. Forecast discussion is COLLAPSED on load; see its own note below. This was the loosest of the three bodies — no section structure
      at all, a local OutlookLabelStyle that was character-for-character the shared SettingsFieldLabelStyle,
      and a hand-rolled letter-spaced "Legend" label. All three are gone.
-     ⚠️ The window sizes to its content ONCE, at open, so collapsing this section leaves the window at its
-     full height and re-expanding it is fine, but a section that GROWS after open runs past the bottom. A
-     hand-rolled scroller is coming; WinUI's is not wanted.
+     ⚠️ The window opens at a FIXED full height, so the layer run SCROLLS inside Primitives/PanelScroller
+     (2026-09-30, the same scroller as Past/Now) and the discussion stays pinned below it. WinUI's bar is not
+     wanted — see the PanelScroller header.
 
      ⚠️ THE OUTLOOK HEADER'S BOX IS A LAYER SHOW/HIDE (OutlookViewModel.IsShown), NOT the mode. The mode is
      OutlookViewModel.IsOutlookVisible (MapViewModel.IsForeCast projects onto it), and a tab body never arms
@@ -97,21 +99,25 @@
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
-    <!-- ⚠️ NOT top-aligned, unlike the Past/Now roots: TemporalWindow hands this the full window height, and
-         the star row is what keeps the discussion pinned to the bottom. -->
+    <!-- ⚠️ NOT top-aligned, unlike the Past/Now roots: TemporalWindow hands this the full window height. The
+         star row is the SCROLLER (it takes what the discussion leaves), and that keeps the discussion pinned to
+         the bottom — it used to be an empty spacer row doing the same job. -->
     <Grid x:Name="Root" RowSpacing="8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- SPC outlook: the card, the selectors, the legend -->
-            <RowDefinition Height="*"/>    <!-- free space: pushes the discussion to the bottom -->
+            <RowDefinition Height="*"/>    <!-- the layer run in PanelScroller: fills the space, scrolls when it can't -->
             <RowDefinition Height="Auto"/> <!-- Forecast discussion: SPC's prose, bounded, at the bottom -->
         </Grid.RowDefinitions>
 
         <!-- ===================== THE LAYER RUN: one contiguous block of layer sections ===================== -->
-        <!-- ⚠️ A StackPanel of its own (like Past/Now's "Sections") so a SECOND ForeCast layer drops in beside
+        <!-- ⚠️ In Primitives/PanelScroller, like Past/Now's sections — present whether or not the outlook overflows
+             yet (the user's call, 2026-09-30): the gutter is always claimed, the thumb only draws on overflow.
+             Margin right -12 BLEEDS the gutter into the window's 16 px body margin (the PanelScroller header).
+             ⚠️ A StackPanel of its own (like Past/Now's "Sections") so a SECOND ForeCast layer drops in beside
              the outlook and the grip has a run to drag in. Today the run is ONE section, so the grip shows but a
              drag never starts (PanelSection needs a block of 2) — and so there is no Reordered handler yet.
              A second layer = its section here + Reordered → SetLayerOrder + a saved ForeCast order. -->
-        <StackPanel x:Name="Sections" Grid.Row="0" Spacing="8">
+        <prim:PanelScroller Grid.Row="0" Margin="0,0,-12,0">
+        <StackPanel x:Name="Sections" VerticalAlignment="Top" Spacing="8">
 
         <!-- ===================== SPC OUTLOOK: the card, then the selectors ===================== -->
         <!-- LayerId → the grip. The header box is SHOW/HIDE (Outlook.IsShown, persisted) — NOT the mode, which
@@ -213,6 +219,7 @@
             </Grid>
         </prim:PanelSection>
         </StackPanel>
+        </prim:PanelScroller>
 
         <!-- ===================== FORECAST DISCUSSION: SPC's own prose ===================== -->
         <!-- SPC's forecast discussion for the selected day, scraped from their HTML product page and disk
@@ -224,13 +231,15 @@
              This is long prose of a length SPC decides, so opening by default would size the window to a
              stranger's paragraph count and hit TemporalWindow's work-area clamp.
              ⚠️ BOUNDED for the same reason: MaxHeight + an inner scroller, the same treatment the legend
-             above gets. These two are the only scrollers in the temporal windows, and they are NOT the
-             window-body ScrollViewer that TemporalWindow deliberately refuses — they are inner regions whose
-             CONTENT LENGTH IS NOT OURS TO DECIDE. Don't generalise either one into a body scroller.
+             above gets. It is NOT the window-body ScrollViewer that TemporalWindow deliberately refuses — it is
+             an inner region whose CONTENT LENGTH IS NOT OURS TO DECIDE, and it sits OUTSIDE the PanelScroller
+             above (never nest it in). Don't generalise it into a body scroller.
              ⚠️ DISABLED while Product is None, the same off switch the opacity slider uses. Fire-weather
              products have no scraped page (their layout differs); the text says so itself rather than the
              section hiding, so the row never silently vanishes. -->
-        <prim:PanelSection Grid.Row="2" Header="Forecast discussion" IsExpanded="False"
+        <!-- ⚠️ Margin right 4 = the scroller's gutter (16) − its bleed (12), so this header's right edge (its
+             opacity/% column) lines up with the outlook header's above, which sits left of that gutter. -->
+        <prim:PanelSection Grid.Row="1" Margin="0,0,4,0" Header="Forecast discussion" IsExpanded="False"
                            IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="240"
                           HorizontalScrollMode="Disabled">
