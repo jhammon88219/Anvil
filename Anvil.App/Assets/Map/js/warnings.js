@@ -19,11 +19,12 @@
 //     ══   tier 1 (3.75 px)       considerable (PDS tornado, considerable flash flood)
 //     ─    tier 0 (2.5 px)        base; stacking: TO over SV over FF, higher tier on top
 //
-//            ╱▔▔▔▔╲                THE FLASH (flash(), the NowCast tiles' ‹ › arrows): a dashed INK line on
-//          ┊╱ ┄ ┄ ╲┊               a CASING, the ruler's themed pair, over one warning for FLASH_MS, then a
-//          ┊╲ ┄ ┄ ╱┊               fade. Its OWN source (the geometry comes from the host), so it draws even
-//            ╲▁▁▁▁╱                while the warning layer / that type is hidden. Id prefix `nws-warning-` →
-//                                  layers.js files it in the warnings group. Transient: a style switch drops it.
+//            ╱▔▔▔▔╲                THE FLASH (flash(), the NowCast tiles' ‹ › arrows + state lines): a dashed
+//          ┊╱ ┄ ┄ ╲┊               INK line on a CASING, the ruler's themed pair, over one warning (or a state's
+//          ┊╲ ┄ ┄ ╱┊               set, one GeometryCollection) for FLASH_MS, then a fade. Its OWN source (the
+//            ╲▁▁▁▁╱                geometry comes from the host), so it draws even while the warning layer / that
+//                                  type is hidden. Id prefix `nws-warning-` → layers.js files it in the warnings
+//                                  group. Transient: a style switch drops it.
 //
 // The whole lazy-load / refresh / opacity / re-add lifecycle is the shared fill+line overlay in
 // geojson-overlay.js — this module is just its warning-polygon configuration. Warnings are the imminent-

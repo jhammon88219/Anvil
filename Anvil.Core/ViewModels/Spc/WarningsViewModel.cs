@@ -48,7 +48,7 @@ namespace Anvil.ViewModels
 			};
 		}
 
-		// ── The NowCast tiles' ‹ › arrows (WarningStepper has the rules) ──
+		// ── The NowCast tiles' ‹ › arrows + clickable state lines (WarningStepper has the rules) ──
 
 		/// <summary>The Tornado tile's arrows.</summary>
 		public WarningStepper TornadoStepper { get; }
@@ -59,36 +59,21 @@ namespace Anvil.ViewModels
 		/// <summary>The Flash flood tile's arrows.</summary>
 		public WarningStepper FlashFloodStepper { get; }
 
-		// ── The NowCast tiles' STATE LINES ("Oklahoma 3 / Kansas 2") ──
-		// ⚠️ NO CAP: every state gets a line and the tiles grow (the user's call, 2026-09-30 — no "+2 more").
-		// ⚠️ A warning counts ONCE, in its first-listed county's state (WarningTarget.StateCode), so the lines
-		// add up to the tile's number; one with no state goes on an "Unknown" line rather than vanishing.
-
-		private IReadOnlyList<Models.WarningStateCount> _tornadoStates = Array.Empty<Models.WarningStateCount>();
-		private IReadOnlyList<Models.WarningStateCount> _severeStates = Array.Empty<Models.WarningStateCount>();
-		private IReadOnlyList<Models.WarningStateCount> _flashFloodStates = Array.Empty<Models.WarningStateCount>();
-
-		/// <summary>The Tornado tile's state lines, most warnings first.</summary>
-		public IReadOnlyList<Models.WarningStateCount> TornadoStates => _tornadoStates;
-
-		/// <summary>The Severe tile's state lines.</summary>
-		public IReadOnlyList<Models.WarningStateCount> SevereStates => _severeStates;
-
-		/// <summary>The Flash flood tile's state lines.</summary>
-		public IReadOnlyList<Models.WarningStateCount> FlashFloodStates => _flashFloodStates;
-
-		/// <summary>One phenom's warnings grouped by state: most first, then by name. Internal for tests.</summary>
-		internal static IReadOnlyList<Models.WarningStateCount> StatesOf(IEnumerable<Models.WarningTarget> targets, string phenom) =>
-			targets.Where(t => t.Phenom == phenom)
-				.GroupBy(t => t.StateCode.Length > 0 ? Models.UsStates.NameOf(t.StateCode) : "Unknown")
-				.Select(g => new Models.WarningStateCount(g.Key, g.Count()))
-				.OrderByDescending(s => s.Count).ThenBy(s => s.Name, StringComparer.Ordinal)
-				.ToList();
-
-		// ⚠️ Flies even when that type's row is UNTICKED (or the layer is hidden): the page flashes the polygon
+		// ⚠️ Flies even when that type's row is UNTICKED (or the layer is hidden): the page flashes the polygons
 		// from the geometry handed here, not from the warning layer — so you never land on an empty map.
-		private Task FlyToAsync(Models.WarningTarget t) =>
-			IsMapReady ? _mapService.FocusWarningAsync(t.GeometryJson, t.West, t.South, t.East, t.North) : Task.CompletedTask;
+		// One warning (the arrows) or a state's set (a state line): the box is their UNION, and several geometries
+		// go over as one GeometryCollection, so they all flash at once.
+		private Task FlyToAsync(IReadOnlyList<Models.WarningTarget> targets) =>
+			IsMapReady && targets.Count > 0
+				? _mapService.FocusWarningAsync(GeometryOf(targets),
+					targets.Min(t => t.West), targets.Min(t => t.South), targets.Max(t => t.East), targets.Max(t => t.North))
+				: Task.CompletedTask;
+
+		/// <summary>The flash geometry: the one polygon, or a GeometryCollection of all of them. Internal for tests.</summary>
+		internal static string GeometryOf(IReadOnlyList<Models.WarningTarget> targets) =>
+			targets.Count == 1
+				? targets[0].GeometryJson
+				: "{\"type\":\"GeometryCollection\",\"geometries\":[" + string.Join(",", targets.Select(t => t.GeometryJson)) + "]}";
 
 		protected override string SourceUrl => _warningService.WarningsUrl;
 		protected override Task SetVisibleAsync(bool visible) => _mapService.SetWarningsVisibleAsync(visible);
@@ -175,12 +160,6 @@ namespace Anvil.ViewModels
 						TornadoStepper.Update(targets);
 						SevereStepper.Update(targets);
 						FlashFloodStepper.Update(targets);
-						_tornadoStates = StatesOf(targets, "TO");
-						_severeStates = StatesOf(targets, "SV");
-						_flashFloodStates = StatesOf(targets, "FF");
-						OnPropertyChanged(nameof(TornadoStates));
-						OnPropertyChanged(nameof(SevereStates));
-						OnPropertyChanged(nameof(FlashFloodStates));
 						RepushSource();
 					});
 				}

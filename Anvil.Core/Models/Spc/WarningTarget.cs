@@ -19,11 +19,8 @@ namespace Anvil.Models
 		/// <summary>The state of the FIRST-listed county ("Cleveland, OK" → "OK"); "" if CAP named none. ⚠️ A
 		/// warning crossing a state line counts ONCE, here, so the tiles' state lines add up to the tile's count.</summary>
 		public string StateCode => Place.LastIndexOf(',') is var i && i >= 0 ? Place[(i + 1)..].Trim() : string.Empty;
-	}
 
-	/// <summary>One line of a NowCast warning tile: a state and how many of that tile's warnings are in it.</summary>
-	public sealed record WarningStateCount(string Name, int Count)
-	{
-		public string CountText => Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+		/// <summary>The tile's state-line name for this warning: <see cref="StateCode"/> spelled out, "Unknown" if none.</summary>
+		public string StateName => StateCode.Length > 0 ? UsStates.NameOf(StateCode) : "Unknown";
 	}
 }

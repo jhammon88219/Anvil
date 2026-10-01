@@ -25,7 +25,7 @@ namespace Anvil.Tests
 		private static (WarningStepper Stepper, List<string> Flown) Make(params WarningTarget[] targets)
 		{
 			var flown = new List<string>();
-			var s = new WarningStepper("TO", t => { flown.Add(t.Id); return Task.CompletedTask; });
+			var s = new WarningStepper("TO", ts => { flown.Add(string.Join("+", ts.Select(t => t.Id))); return Task.CompletedTask; });
 			s.Update(targets);
 			return (s, flown);
 		}
@@ -102,9 +102,58 @@ namespace Anvil.Tests
 				W("f", 0, 1, place: ""),                                // CAP named no county → still counted
 				W("sv", 0, 1, phenom: "SV", place: "Dallas, TX"),       // another tile's
 			};
-			var lines = WarningsViewModel.StatesOf(targets, "TO");
-			Assert.Equal(new[] { ("Oklahoma", 3), ("Kansas", 2), ("Unknown", 1) }, lines.Select(l => (l.Name, l.Count)));
-			Assert.Equal(6, lines.Sum(l => l.Count));                  // the lines add up to the tile's count
+			var (s, _) = Make(targets);
+			Assert.Equal(new[] { ("Oklahoma", 3), ("Kansas", 2), ("Unknown", 1) }, s.States.Select(l => (l.Name, l.Count)));
+			Assert.Equal(6, s.States.Sum(l => l.Count));               // the lines add up to the tile's count
+			Assert.DoesNotContain(s.States, l => l.IsLit);             // nothing lit until you go somewhere
+		}
+
+		[Fact]
+		public void StateLine_FliesToAllOfThatState_LightsIt_AndLeavesTheArrowsAlone()
+		{
+			var (s, flown) = Make(W("a", 2, 1, place: "Kay, OK"), W("b", 0, 1, place: "Sumner, KS"), W("c", 0, 2, place: "Tulsa, OK"));
+			s.Forward();                                                // a (Oklahoma)
+			Assert.Equal("Oklahoma", s.States.Single(l => l.IsLit).Name);
+
+			s.States.Single(l => l.Name == "Kansas").Fly();
+			Assert.Equal("b", flown[^1]);
+			Assert.Equal("1 in Kansas", s.PositionText);
+			Assert.Equal("Kansas", s.States.Single(l => l.IsLit).Name);
+
+			s.States.Single(l => l.Name == "Oklahoma").Fly();
+			Assert.Equal("a+c", flown[^1]);                             // every Oklahoma one, at once
+			Assert.Equal("All 2 in Oklahoma", s.PositionText);
+
+			s.Forward();                                                // carries on from a, not narrowed to OK
+			Assert.Equal("b", flown[^1]);
+			Assert.Equal("Kansas", s.States.Single(l => l.IsLit).Name);
+			s.Back();                                                   // the clicks never went on the ‹ stack
+			Assert.Equal("a", flown[^1]);
+			Assert.False(s.CanBack);
+
+			s.Reset();
+			Assert.DoesNotContain(s.States, l => l.IsLit);
+		}
+
+		[Fact]
+		public void ClickedState_ThatExpires_UnlightsAndClears()
+		{
+			var (s, _) = Make(W("a", 0, 1, place: "Kay, OK"), W("b", 0, 1, place: "Sumner, KS"));
+			s.States.Single(l => l.Name == "Kansas").Fly();
+			s.Update(new[] { W("a", 0, 1, place: "Kay, OK") });
+			Assert.False(s.IsActive);
+			Assert.DoesNotContain(s.States, l => l.IsLit);
+		}
+
+		[Fact]
+		public void FlashGeometry_IsThePolygon_OrACollectionOfThem()
+		{
+			var one = new WarningTarget("a", "TO", 0, T0, "", "{\"type\":\"Polygon\"}", 0, 0, 1, 1);
+			var two = one with { Id = "b", GeometryJson = "{\"type\":\"MultiPolygon\"}" };
+			Assert.Equal("{\"type\":\"Polygon\"}", WarningsViewModel.GeometryOf(new[] { one }));
+			var both = JsonNode.Parse(WarningsViewModel.GeometryOf(new[] { one, two }))!;
+			Assert.Equal("GeometryCollection", (string?)both["type"]);
+			Assert.Equal(2, both["geometries"]!.AsArray().Count);
 		}
 
 		[Fact]

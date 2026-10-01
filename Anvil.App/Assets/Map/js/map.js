@@ -472,9 +472,10 @@ try {
     window.setWarningsVisible = function (on) { if (Warnings) forEachMap(function (m) { Warnings.setVisible(m, on); }); };
     window.setWarningKinds = function (torn, severe, flashFlood) { if (Warnings) forEachMap(function (m) { Warnings.setKinds(m, phenomKinds(torn, severe, flashFlood)); }); };
     window.setWarningsOpacity = function (o) { if (Warnings) forEachMap(function (m) { Warnings.setOpacity(m, o); }); };
-    // The NowCast tiles' ‹ › arrows: frame ONE warning's box — an animated move, so PRIMARY only (the camera
-    // sync carries the rest; stop() supersedes a flight still easing from the last press) — and flash its
-    // polygon in EVERY pane. Left padding clears the NowCast window, which sits over the map's left edge.
+    // The NowCast tiles' ‹ › arrows (one warning) and state lines (a state's set, as a GeometryCollection, box =
+    // their union): frame the box — an animated move, so PRIMARY only (the camera sync carries the rest; stop()
+    // supersedes a flight still easing from the last press) — and flash the polygon(s) in EVERY pane. Left
+    // padding clears the NowCast window, which sits over the map's left edge.
     window.focusWarning = function (geometry, w, s, e, n) {
         const p = primary();
         if (!p || !(w <= e) || !(s <= n)) return;
