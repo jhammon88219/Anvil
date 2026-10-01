@@ -56,8 +56,13 @@
             to one list. The tools tier's left is radar + map (which site), its right is map only.
             See MapControlsStrip. Don't re-add a Home key here.
           ↑ 📡 = Atlas, a plain window latch again, like Settings.
-          ↑ Not drawn above: the SITE CHECK TOAST, a pill at the top centre of the map band under the notch —
-            "Checking radar sites · n / N" while a launch pass cascades, then "Site check complete" (4 s).
+          ↑ Not drawn above: the ACTIVITY SLOT, in the bar's empty run between the temporal keys and Atlas —
+              tools tier:   ▢▥▦ ┊┊┊ ⌘⛶ │ ▥▴ ┇[Isolate ▾]
+              bar:          ┌┃ Loading the loop · KTLX   22 of 39 ┐┇Atlas
+                            └┃ ████████░░░░░░░░░░░░░░░░░░░░░░░░░░┘
+                            ↑ left = the 1-pane key's left        ↑ right = Atlas less 8 px (AlignActivityBay)
+            Only while Anvil is working (a loop loading without its gate, the site check — which used to be a
+            toast over the map); empty bar otherwise. See Composites/BarActivityReadout.
           ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map (notches and the
             rail's see-through gaps included; the opaque tiers and both tabs paint over it) is frosted behind
             "Loading the loop" + progress bars + Cancel load / Use the map. See Composites/LoopHoldingGate.
@@ -170,16 +175,8 @@
              ⚠️ Four notches, four INDEPENDENT hide toggles, and no view-model state for any of them: the
              show/hide flag is view state on each OverlayBar. Hiding the notch over the storm you are
              watching while the other three keep their legends is the case that actually comes up. -->
-        <!-- SITE CHECK TOAST — top centre of the map band, clear of the pane notch above it. Shows only for
-             ANNOUNCED availability passes (launch, leaving PastCast) while they cascade across the markers, then
-             a summary that fades. Never hit-testable (see Composites/SiteCheckToast). ⚠️ Top margin = notch
-             height + a gap; it doesn't track a hidden notch, and in quad it lands on the groove between the top
-             two notches, which is clear too. -->
-        <comp:SiteCheckToast Grid.Row="0"
-                             HorizontalAlignment="Center"
-                             VerticalAlignment="Top"
-                             Margin="0,84,0,0"
-                             ViewModel="{x:Bind ViewModel.Radar}"/>
+        <!-- ⚠️ THE SITE CHECK TOAST IS GONE from the map band: the announced site check now shows in the bar's
+             ACTIVITY SLOT (BarActivityReadout, fed by BarActivityViewModel.WatchSiteCheck). Don't re-add it here. -->
 
         <Grid x:Name="PaneNotchLayer" Grid.Row="0" Grid.RowSpan="2">
             <Grid.ColumnDefinitions>
@@ -335,7 +332,7 @@
                  the two states whichever one you pick. -->
             <ctl:OverlayBar x:Name="BottomBar" Grid.Row="2" ShowTab="False" EdgeStyle="InsetShadow">
                 <ctl:OverlayBar.BarContent>
-                    <Grid ColumnSpacing="16">
+                    <Grid x:Name="BarGrid" ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>    <!-- radar console, left-aligned  ┐ equal stars: -->
                             <ColumnDefinition Width="Auto"/> <!-- temporal pills, DEAD CENTER  │ the Auto     -->
@@ -478,6 +475,19 @@
                                                       MaximizeRestoreRequested="OnCaptionMaximizeRestore"
                                                       CloseRequested="OnCaptionClose"/>
                         </Grid>
+
+                        <!-- ===== ACTIVITY SLOT — what Anvil is working on (Composites/BarActivityReadout) =====
+                             The empty bar between the temporal keys and Atlas. Its span is MEASURED, not laid out:
+                             spans all three columns, Left-aligned, and AlignActivityBay sets its left margin to the
+                             tools tier's single-pane key and its width to Atlas's left edge less the cluster's 8 px
+                             (with the tier hidden: the temporal keys' right edge + 24). Declared BEFORE the
+                             temporal keys so they stay on top. Nothing active = the plate fades out. -->
+                        <comp:BarActivityReadout x:Name="ActivityBay"
+                                                 Grid.Column="0" Grid.ColumnSpan="3"
+                                                 HorizontalAlignment="Left"
+                                                 VerticalAlignment="Center"
+                                                 Width="0"
+                                                 ViewModel="{x:Bind ViewModel.Activity}"/>
 
                         <!-- ===== TEMPORAL MODE KEYS — THE BAR'S CENTERPIECE =====
                              The Auto column between two equal stars, so this is the bar's exact midpoint

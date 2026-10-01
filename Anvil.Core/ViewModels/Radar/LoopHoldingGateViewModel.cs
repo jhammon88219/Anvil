@@ -21,6 +21,8 @@ namespace Anvil.ViewModels
 	///        "Use the map"│  │"Keep waiting"
 	///                     ▼  │
 	///               ConfirmingEscape ──"Use the map"──▶ Hidden  (+ "Don't hold future loads" → setting off)
+	///                                                    │ still loading: the BAR's readout shows the progress,
+	///                                                    └ and its "Hold the map again" → ReturnToHold → Holding
 	///   Holding ──"Cancel load"──▶ Cancelling ──(loop cut to its lit run)──▶ Cancelled ──"Got it"──▶ Hidden
 	/// </code>
 	/// WHY (2026-10-01): a PastCast load keeps a 4-core machine near 100% CPU, and WinUI 3 hands mouse input to the
@@ -49,6 +51,8 @@ namespace Anvil.ViewModels
 		private readonly Func<Task> _cancelLoad;
 		private LoopGateState _state;
 		private bool _armed;     // the loop has actually begun — counts before this are a previous loop's
+		private bool _loading;   // a load is in flight, whether or not the gate is up
+		private string _siteId = string.Empty;
 		private string _eventLine = string.Empty;
 		private int _total, _downloaded, _built;
 		private string _keptText = string.Empty;
@@ -128,13 +132,31 @@ namespace Anvil.ViewModels
 
 		// ── Engine seams ──────────────────────────────────────────────────────────────────────────────
 
-		/// <summary>A PastCast load with a site is starting. No-op (stays hidden) when holding is turned off.</summary>
-		internal void Begin(string eventLine)
+		// ── The LOAD (tracked whether or not the gate is up) ──────────────────────────────────────────
+		// ⚠️ Tracking is the LOAD's, not the screen's: after "Use the map", or with holding turned off, the counts
+		// keep coming, because the bar's activity readout (BarActivityViewModel) shows the same numbers there.
+
+		/// <summary>A PastCast load is in flight (Begin → Complete / Abandon / Dismiss / Cancel).</summary>
+		public bool IsLoading { get => _loading; private set => SetProperty(ref _loading, value); }
+
+		/// <summary>The loading site's id ("KTLX") — the bar readout's short form of <see cref="EventLine"/>.</summary>
+		public string SiteId { get => _siteId; private set => SetProperty(ref _siteId, value); }
+
+		/// <summary>The load finished with every frame settled; the argument is the loop's frame count.</summary>
+		public event EventHandler<int>? LoadFinished;
+
+		// ── Engine seams ──────────────────────────────────────────────────────────────────────────────
+
+		/// <summary>A PastCast load with a site is starting. The gate stays hidden when holding is turned off, but
+		/// the load is tracked either way.</summary>
+		internal void Begin(string siteId, string eventLine)
 		{
 			_armed = false;
 			NeverHoldAgain = false;
 			SetCounts(0, 0, 0);
+			SiteId = siteId;
 			EventLine = eventLine;
+			IsLoading = true;
 			State = HoldEnabled ? LoopGateState.Holding : LoopGateState.Hidden;
 		}
 
@@ -144,8 +166,8 @@ namespace Anvil.ViewModels
 		/// <summary>The held load's loop has begun (a Cancel has frames to keep).</summary>
 		internal bool IsArmed => _armed;
 
-		/// <summary>Whether the engine should report progress (a load is being held and its loop has begun).</summary>
-		internal bool IsTracking => _armed && _state is LoopGateState.Holding or LoopGateState.ConfirmingEscape;
+		/// <summary>Whether the engine should report progress (a load is in flight and its loop has begun).</summary>
+		internal bool IsTracking => _armed && _loading;
 
 		internal void Report(int total, int downloaded, int built)
 		{
@@ -156,12 +178,18 @@ namespace Anvil.ViewModels
 		/// <summary>Every frame of the loop has settled — release.</summary>
 		internal void Complete()
 		{
-			if (IsTracking) State = LoopGateState.Hidden;
+			if (!IsTracking) return;
+			// ⚠️ Announce FIRST, while IsLoading is still true: the bar's readout decides on this event whether it
+			// was the one carrying the load (and flashes "Loop ready"); the IsLoading flip after would clear it first.
+			LoadFinished?.Invoke(this, _total);
+			IsLoading = false;
+			if (_state is LoopGateState.Holding or LoopGateState.ConfirmingEscape) State = LoopGateState.Hidden;
 		}
 
 		/// <summary>The load failed or was superseded (not via Cancel). Leaves a cancel in progress alone.</summary>
 		internal void Abandon()
 		{
+			IsLoading = false;
 			if (_state is LoopGateState.Holding or LoopGateState.ConfirmingEscape) State = LoopGateState.Hidden;
 		}
 
@@ -169,6 +197,7 @@ namespace Anvil.ViewModels
 		internal void Dismiss()
 		{
 			_armed = false;
+			IsLoading = false;
 			State = LoopGateState.Hidden;
 		}
 
@@ -176,6 +205,7 @@ namespace Anvil.ViewModels
 		internal void ShowCancelled(int kept, int total)
 		{
 			_armed = false;
+			IsLoading = false;
 			KeptText = kept > 0
 				? $"{kept} of {total} frames were complete and are kept. The loop plays what's built. Load again to resume."
 				: "No frames were complete yet, so nothing was kept. Load again to resume.";
@@ -198,13 +228,19 @@ namespace Anvil.ViewModels
 		{
 			if (_state != LoopGateState.ConfirmingEscape) return;
 			if (_neverHoldAgain) HoldEnabled = false;
-			_armed = false;
-			State = LoopGateState.Hidden;
+			State = LoopGateState.Hidden; // the load stays tracked — the bar's readout carries on with it
+		}
+
+		/// <summary>"Hold the map again" (the bar readout's door): back to the gate while the load is still running.</summary>
+		public void ReturnToHold()
+		{
+			if (_loading && _state == LoopGateState.Hidden) State = LoopGateState.Holding;
 		}
 
 		public async Task CancelLoadAsync()
 		{
 			if (_state != LoopGateState.Holding) return;
+			IsLoading = false; // the cancel owns what happens next — a late Complete must not announce "ready"
 			State = LoopGateState.Cancelling;
 			await _cancelLoad();
 		}

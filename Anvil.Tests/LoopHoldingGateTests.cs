@@ -26,12 +26,12 @@ namespace Anvil.Tests
 		public void Begin_raises_the_gate_only_while_holding_is_on()
 		{
 			var (on, _, _) = NewGate(hold: true);
-			on.Begin("KTBW · Sep 28, 2022");
+			on.Begin("KTBW", "KTBW · Sep 28, 2022");
 			Assert.True(on.IsShown);
 			Assert.Equal("Finding volumes…", on.DownloadedText);
 
 			var (off, _, _) = NewGate(hold: false);
-			off.Begin("KTBW · Sep 28, 2022");
+			off.Begin("KTBW", "KTBW · Sep 28, 2022");
 			Assert.False(off.IsShown);
 		}
 
@@ -39,7 +39,7 @@ namespace Anvil.Tests
 		public void Progress_and_release_wait_for_the_loop_to_begin()
 		{
 			var (gate, _, _) = NewGate();
-			gate.Begin("x");
+			gate.Begin("KTBW", "x");
 
 			gate.Report(39, 22, 14); // a previous loop's straggler — before Arm
 			gate.Complete();
@@ -62,7 +62,7 @@ namespace Anvil.Tests
 		public void The_escape_goes_through_a_confirm_and_can_turn_holding_off()
 		{
 			var (gate, settings, _) = NewGate();
-			gate.Begin("x");
+			gate.Begin("KTBW", "x");
 			gate.Arm();
 
 			gate.RequestEscape();
@@ -76,7 +76,7 @@ namespace Anvil.Tests
 			Assert.False(gate.IsShown);
 			Assert.False(settings.HoldPastCastLoads);
 
-			gate.Begin("next load"); // holding is off now: the next load is not held
+			gate.Begin("KTBW", "next load"); // holding is off now: the next load is not held
 			Assert.False(gate.IsShown);
 		}
 
@@ -84,13 +84,13 @@ namespace Anvil.Tests
 		public void A_one_time_escape_leaves_holding_on_and_resets_for_the_next_load()
 		{
 			var (gate, settings, _) = NewGate();
-			gate.Begin("x");
+			gate.Begin("KTBW", "x");
 			gate.RequestEscape();
 			gate.UseMap();
 			Assert.False(gate.IsShown);
 			Assert.True(settings.HoldPastCastLoads);
 
-			gate.Begin("y");
+			gate.Begin("KTBW", "y");
 			Assert.True(gate.IsShown);
 			Assert.False(gate.NeverHoldAgain);
 		}
@@ -99,7 +99,7 @@ namespace Anvil.Tests
 		public async Task Cancel_owns_the_gate_until_its_popup_is_acknowledged()
 		{
 			var (gate, _, cancels) = NewGate();
-			gate.Begin("x");
+			gate.Begin("KTBW", "x");
 			gate.Arm();
 			gate.Report(39, 22, 14);
 
@@ -126,7 +126,7 @@ namespace Anvil.Tests
 		public void Cancelling_with_nothing_kept_says_so()
 		{
 			var (gate, _, _) = NewGate();
-			gate.Begin("x");
+			gate.Begin("KTBW", "x");
 			gate.ShowCancelled(0, 39);
 			Assert.Contains("nothing was kept", gate.KeptText);
 			Assert.Contains("Load again to resume", gate.KeptText);
@@ -136,11 +136,11 @@ namespace Anvil.Tests
 		public void A_failed_load_or_a_site_change_drops_the_gate()
 		{
 			var (gate, _, _) = NewGate();
-			gate.Begin("x");
+			gate.Begin("KTBW", "x");
 			gate.Abandon();
 			Assert.False(gate.IsShown);
 
-			gate.Begin("y");
+			gate.Begin("KTBW", "y");
 			gate.RequestEscape();
 			gate.Dismiss();
 			Assert.False(gate.IsShown);

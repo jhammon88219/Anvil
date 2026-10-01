@@ -141,6 +141,13 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
+		/// <summary>The 1-pane key's LEFT edge in <paramref name="root"/>'s space, or NaN while the tier isn't laid out
+		/// (hidden). MainWindow hangs the bar's activity slot off it (AlignActivityBay).</summary>
+		public double SinglePaneLeft(UIElement root) =>
+			Visibility == Visibility.Visible && SinglePaneToggle.ActualWidth > 0 && IsLoaded
+				? SinglePaneToggle.TransformToVisual(root).TransformPoint(default).X
+				: double.NaN;
+
 		/// <summary>Make the search BOX exactly <paramref name="width"/> wide: MainWindow passes the width of the
 		/// bar's temporal keys. Both are centred on the window's midline, so the box's edges land on the keys'
 		/// outer edges; the two flanks (marker viewer, Location) hang OUTSIDE that line. (It used to be the whole

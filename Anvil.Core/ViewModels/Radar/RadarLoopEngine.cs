@@ -526,7 +526,7 @@ namespace Anvil.ViewModels
 
 			_vm.SetReplayReadout(caption: "Loading…", status: "Loading…");
 			// LOOP HOLDING GATE up from the first moment (it reads "Finding volumes…" until the keys are listed).
-			_vm.LoopGate.Begin($"{site.Id} · {localStart:MMM d, yyyy} · {localStart:h:mm tt}–{endUtc.ToLocalTime():h:mm tt}");
+			_vm.LoopGate.Begin(site.Id, $"{site.Id} ·{localStart:MMM d, yyyy} · {localStart:h:mm tt}–{endUtc.ToLocalTime():h:mm tt}");
 			_vm._loopCts?.Cancel();
 			var cts = new CancellationTokenSource();
 			_vm._loopCts = cts;

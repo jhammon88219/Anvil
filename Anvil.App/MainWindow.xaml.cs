@@ -93,6 +93,40 @@ namespace Anvil
 			}
 		}
 
+		// ===== Bar activity slot ↔ the 1-pane key and Atlas =====
+		// The slot (BarActivityReadout) fills the empty bar between the temporal keys and Atlas: LEFT edge = the
+		// tools tier's 1-pane key's, RIGHT edge = Atlas's less the cluster's 8 px. Measured across two tiers like
+		// the pickers above, on the bar's LayoutUpdated because the 1-pane key MOVES without resizing (the
+		// stretching separators). ⚠️ With the tools tier hidden there is no key to measure: the slot keeps its last
+		// width off Atlas, but never closer than 24 px to the temporal keys.
+		private const double ActivityBayAtlasGap = 8;   // = RightCluster.ColumnSpacing
+		private const double ActivityBayKeysGap = 24;   // floor against the temporal keys
+		private double _activityBayWidth = double.NaN;  // last measured (tier showing)
+
+		private void AlignActivityBay()
+		{
+			if (_isClosed || Content is not UIElement root || AtlasKey.ActualWidth <= 0 || TemporalKeys.ActualWidth <= 0)
+			{
+				return;
+			}
+			var origin = BarGrid.TransformToVisual(root).TransformPoint(default).X;
+			var right = AtlasKey.TransformToVisual(root).TransformPoint(default).X - ActivityBayAtlasGap;
+			var keysRight = TemporalKeys.TransformToVisual(root).TransformPoint(default).X + TemporalKeys.ActualWidth;
+			var singlePane = ViewModel.IsMapControlsStripVisible ? ToolsStrip.SinglePaneLeft(root) : double.NaN;
+			if (!double.IsNaN(singlePane))
+			{
+				_activityBayWidth = right - singlePane;
+			}
+			var left = double.IsNaN(_activityBayWidth) ? keysRight + ActivityBayKeysGap : right - _activityBayWidth;
+			left = Math.Max(left, keysRight + ActivityBayKeysGap);
+			var width = Math.Max(0, right - left);
+			var margin = left - origin;
+			if (Math.Abs(ActivityBay.Width - width) > 0.5) ActivityBay.Width = width;
+			if (Math.Abs(ActivityBay.Margin.Left - margin) > 0.5) ActivityBay.Margin = new Thickness(margin, 0, 0, 0);
+		}
+
+		private void OnBottomBarLayoutUpdated(object? sender, object e) => AlignActivityBay();
+
 		// NOTE: DevVisibility is gone. It existed to collapse the dev bar key in Release; there is no dev key
 		// any more — the dev tools are a tab of the Settings window, and SettingsWindow omits that tab from
 		// its strip (and never constructs its body) in Release.
@@ -569,6 +603,8 @@ namespace Anvil
 			// key (ToolsStrip resizes with it); the cluster resizing moves it too.
 			ToolsStrip.SizeChanged += (_, _) => AlignRightTools();
 			RightCluster.SizeChanged += (_, _) => AlignRightTools();
+			// The activity slot spans 1-pane key → Atlas (see AlignActivityBay).
+			BottomChrome.LayoutUpdated += OnBottomBarLayoutUpdated;
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs
 			// THE TITLE BAR block above). Hooked straight after InitializeComponent so the very first layout
@@ -707,6 +743,7 @@ namespace Anvil
 			{
 				_isClosed = true;
 				PaneNotchLayer.LayoutUpdated -= OnPaneNotchLayerLayoutUpdated;
+				BottomChrome.LayoutUpdated -= OnBottomBarLayoutUpdated;
 
 				// Stop every app-lifetime background loop BEFORE the flush. They resume on this window's
 				// DispatcherQueue and end in property notifications / map pushes, so one still ticking after

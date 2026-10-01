@@ -71,7 +71,10 @@ namespace Anvil.ViewModels
 			// Each subsystem lives in its own view model (progressively split out of this class);
 			// the transport-bar section controls bind slices of them.
 			Radar = new RadarViewModel(mapService, radarSiteProvider, radarService, dowEventProvider, settingsService, stormMotion);
-			Outlook = new OutlookViewModel(mapService, spcOutlookService, dispatcher, loggerFactory.CreateLogger<OutlookViewModel>());
+			Activity = new BarActivityViewModel();
+			Activity.WatchLoop(Radar.LoopGate);
+			Activity.WatchSiteCheck(Radar);
+			Outlook =new OutlookViewModel(mapService, spcOutlookService, dispatcher, loggerFactory.CreateLogger<OutlookViewModel>());
 			PastOutlook = new PastOutlookViewModel(mapService, spcOutlookService, Radar);
 			Watches = new WatchesViewModel(mapService, watchService, dispatcher, loggerFactory.CreateLogger<WatchesViewModel>());
 			Warnings = new WarningsViewModel(mapService, warningService, dispatcher, loggerFactory.CreateLogger<WarningsViewModel>());
@@ -210,6 +213,10 @@ namespace Anvil.ViewModels
 		/// <summary>The radar subsystem view model (sites, loop, live frame, past-event, DOW, card,
 		/// color scale, inspector). The transport-bar section controls bind to this.</summary>
 		public RadarViewModel Radar { get; }
+
+		/// <summary>The bar's activity readout — what Anvil is working on (a loop loading without its gate, the site
+		/// check). Fed by the subsystems; see <see cref="BarActivityViewModel"/>.</summary>
+		public BarActivityViewModel Activity { get; }
 
 		/// <summary>The SPC outlook subsystem view model (day/product selection, info card,
 		/// next-update progress, background refresh).</summary>
