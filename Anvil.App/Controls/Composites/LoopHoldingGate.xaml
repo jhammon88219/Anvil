@@ -47,7 +47,10 @@
             <ScalarTransition Duration="0:0:0.3"/>
         </Grid.OpacityTransition>
 
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="360">
+        <!-- Bottom margin = ContentBottomInset (the bottom chrome's opaque tiers), so the content centres on the
+             VISIBLE map: the gate itself spans the whole window, under the chrome (see MainWindow). -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="360"
+                    Margin="{x:Bind BottomInset(ContentBottomInset), Mode=OneWay}">
 
             <!-- PROGRESS: title, event, the two bars, the counts. -->
             <StackPanel Visibility="{x:Bind ViewModel.IsProgressShown, Mode=OneWay}">

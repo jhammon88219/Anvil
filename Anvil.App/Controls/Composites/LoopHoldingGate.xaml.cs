@@ -44,6 +44,20 @@ namespace Anvil.Controls.Composites
 					gate.Attach(e.NewValue as LoopHoldingGateViewModel);
 				}));
 
+		/// <summary>Height of the opaque chrome the gate runs UNDER at its bottom edge (MainWindow sets it), so the
+		/// content centres on the map you can actually see.</summary>
+		public double ContentBottomInset
+		{
+			get => (double)GetValue(ContentBottomInsetProperty);
+			set => SetValue(ContentBottomInsetProperty, value);
+		}
+
+		public static readonly DependencyProperty ContentBottomInsetProperty =
+			DependencyProperty.Register(nameof(ContentBottomInset), typeof(double), typeof(LoopHoldingGate),
+				new PropertyMetadata(0.0));
+
+		public Thickness BottomInset(double inset) => new(0, 0, 0, System.Math.Max(0, inset));
+
 		public string EscapeWarning => LoopHoldingGateViewModel.EscapeWarning;
 
 		public double BarWidth(double fraction) => System.Math.Round(BarTrackWidth * fraction);

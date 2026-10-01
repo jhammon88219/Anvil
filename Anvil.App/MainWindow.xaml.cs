@@ -61,6 +61,13 @@ namespace Anvil
 			BottomBar.EdgeStyle = onTools ? BarEdgeStyle.InsetShadow : BarEdgeStyle.CastShadow;
 		}
 
+		// ===== Loop holding gate ↔ bottom chrome =====
+		// The gate spans BOTH rows (so the see-through rail strip is dimmed too) and runs under the chrome; its
+		// content must still centre on the VISIBLE map, so it is told the height of the OPAQUE tiers — the chrome
+		// minus its rail row. Re-measured whenever a tier is hidden or shown (the chrome's height changes).
+		private void OnBottomChromeSizeChanged(object sender, SizeChangedEventArgs e) =>
+			LoopGate.ContentBottomInset = BottomChrome.ActualHeight - BottomChrome.RowDefinitions[0].ActualHeight;
+
 		// ===== Site picker ↔ scan text =====
 		// The tools tier's site picker (a fixed 260) keeps its RIGHT edge on the END of the bar's longest scan
 		// line, so it slides a little as the scan text changes; the stretching separator before it takes up the

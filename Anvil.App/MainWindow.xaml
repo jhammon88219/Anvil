@@ -58,9 +58,9 @@
           ↑ 📡 = Atlas, a plain window latch again, like Settings.
           ↑ Not drawn above: the SITE CHECK TOAST, a pill at the top centre of the map band under the notch —
             "Checking radar sites · n / N" while a launch pass cascades, then "Site check complete" (4 s).
-          ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map band (notches
-            included, the bottom chrome NOT) is dimmed behind "Loading the loop" + progress bars + Cancel load /
-            Use the map. See Composites/LoopHoldingGate.
+          ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map (notches and the
+            rail's see-through gaps included; the opaque tiers and both tabs paint over it) is frosted behind
+            "Loading the loop" + progress bars + Cancel load / Use the map. See Composites/LoopHoldingGate.
 
      ⚠️ WHAT REPEATS PER PANE IS NOT IN THE BAR ANY MORE. It used to be: the bar's left cluster carried a
      160px "chip" per pane (a combined product-selector-and-colour-ramp) plus the one tilt combo, which is
@@ -270,10 +270,15 @@
             </ctl:OverlayBar>
         </Grid>
 
-        <!-- LOOP HOLDING GATE — PastCast's loading screen (Composites/LoopHoldingGate). Row 0 ONLY: it dims the
-             map band and the pane notches and swallows their input while a loop loads, but the bottom chrome
-             (row 1, declared after it) stays live above it. Transparent and click-through while hidden. -->
-        <comp:LoopHoldingGate Grid.Row="0" ViewModel="{x:Bind ViewModel.Radar.LoopGate}"/>
+        <!-- LOOP HOLDING GATE — PastCast's loading screen (Composites/LoopHoldingGate). It dims the map band and the
+             pane notches and swallows their input while a loop loads; the bottom chrome (row 1, declared AFTER it)
+             paints over it and stays live. Transparent and click-through while hidden.
+             ⚠️ BOTH ROWS, not row 0: row 1 starts with the shared RAIL, which is see-through apart from its two
+             tabs — a row-0 gate left a full-width undimmed strip there (and still would with both tiers hidden).
+             Spanning both rows dims under the whole chrome; the opaque tiers cover it, the rail's gaps show it.
+             ContentBottomInset (= the opaque tiers' height, MainWindow.UpdateLoopGateInset) keeps the screen's
+             content centred on the visible map instead of the whole window. -->
+        <comp:LoopHoldingGate x:Name="LoopGate" Grid.Row="0" Grid.RowSpan="2" ViewModel="{x:Bind ViewModel.Radar.LoopGate}"/>
 
         <!-- ===== Row 1: the bottom bar. Left = the radar console; CENTER = the temporal mode pills;
              right = the app-wide window buttons. The empty space between them is bar, by design: the
@@ -302,7 +307,7 @@
              the bottom half of both tabs; a Grid lets the rail keep row 0 while being declared last, so it
              paints on top and the shadow passes behind it. ⚠️ Keep the rail last in markup — moving it
              back up to read in stacking order is the one edit that silently re-breaks this. -->
-        <Grid Grid.Row="1" VerticalAlignment="Bottom">
+        <Grid x:Name="BottomChrome" Grid.Row="1" VerticalAlignment="Bottom" SizeChanged="OnBottomChromeSizeChanged">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- the shared rail (declared LAST, see above) -->
                 <RowDefinition Height="Auto"/> <!-- upper tier: the map tools -->
