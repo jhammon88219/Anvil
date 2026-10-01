@@ -100,8 +100,8 @@ namespace Anvil.Controls.Composites
 		// The clock's spot: the loaded window at 30 (console-clock face), the placeholder at 16.
 		public double RangeFontSize(bool loaded) => loaded ? 30 : 16;
 
-		// The pickers LOCK while a window is loaded (Clear unlocks them): disabled, and the whole block dimmed so
-		// the labels go with the controls.
+		// The pickers LOCK while a window is loaded (Clear unlocks them): disabled, and each label + picker dimmed
+		// (not their grid — Set Timeframe and Clear share it and must stay full strength).
 		public bool PickersEnabled(bool loaded) => !loaded;
 		public double PickerOpacity(bool loaded) => loaded ? 0.4 : 1.0;
 
