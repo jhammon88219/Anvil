@@ -512,9 +512,9 @@
                 <PathIcon Data="M9,0 C5.1,0 2,3.1 2,7 C2,12 9,18 9,18 C9,18 16,12 16,7 C16,3.1 12.9,0 9,0 Z M9,4.5 A2.5,2.5 0 1,0 9,9.5 A2.5,2.5 0 1,0 9,4.5 Z"/>
             </Button>
 
-            <!-- ⚠️ Width is SET IN CODE (MatchPlaceSearchWidth, from MainWindow): the bar's temporal keys' width
-                 MINUS both flanks (▣ + 6, 6 + ⊚), so the whole search GROUP and the keys share both outer edges;
-                 402 is only the pre-layout value. The flanks' sizes are READ there — change them freely. -->
+            <!-- ⚠️ Width is SET IN CODE (MatchPlaceSearchWidth, from MainWindow): the bar's temporal keys' width,
+                 so the BOX and the keys share both outer edges and the flanks hang outside them; 402 is only the
+                 pre-layout value. -->
             <AutoSuggestBox x:Name="PlaceSearchBox"
                             Grid.Column="1"
                             Width="402" VerticalAlignment="Center"

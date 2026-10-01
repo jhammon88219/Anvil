@@ -141,18 +141,15 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
-		/// <summary>Make the search GROUP — marker viewer, box, Location — exactly <paramref name="width"/> wide:
-		/// MainWindow passes the width of the bar's temporal keys, and the box takes that minus both FLANKS (each
-		/// tool plus its gap to the box). All of it is centred on the window's midline, so the group's outer edges
-		/// land on the keys' outer edges.</summary>
+		/// <summary>Make the search BOX exactly <paramref name="width"/> wide: MainWindow passes the width of the
+		/// bar's temporal keys. Both are centred on the window's midline, so the box's edges land on the keys'
+		/// outer edges; the two flanks (marker viewer, Location) hang OUTSIDE that line. (It used to be the whole
+		/// group that matched the keys — the user narrowed the keys to the box instead, 2026-10-01.)</summary>
 		public void MatchPlaceSearchWidth(double width)
 		{
-			var flanks = MarkerViewerButton.Width + MarkerViewerButton.Margin.Right
-				+ LocationToggle.Width + LocationGroup.Margin.Left;
-			var box = width - flanks;
-			if (width > 0 && box > 0 && Math.Abs(box - PlaceSearchBox.Width) > 0.5)
+			if (width > 0 && Math.Abs(width - PlaceSearchBox.Width) > 0.5)
 			{
-				PlaceSearchBox.Width = box;
+				PlaceSearchBox.Width = width;
 			}
 		}
 
