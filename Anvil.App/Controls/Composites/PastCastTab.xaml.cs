@@ -85,19 +85,27 @@ namespace Anvil.Controls.Composites
 			VisualStateManager.GoToState(this,
 				ViewModel?.Radar?.IsReplaySelectionDirty == true ? "SelectionDirty" : "SelectionClean", false);
 
-		// ===== The summary card =====
-		// Three states, and the card's whole job is telling them apart:
-		//   nothing loaded  → "Not loaded yet",         Load is the accent action
-		//   loaded, clean   → the load's own status,    Load steps back to a plain button
-		//   loaded, dirty   → "Selection changed…",     Load lights again, and the card's edge with it
-		// The dirty state is the one the old trailing status line could not show: that text was written by
-		// the load and never revisited, so after an edit it described a window that was no longer selected.
+		// ===== The Timeframe block =====
+		// The status line under Set Timeframe | Clear is the engine's own status (loading / loaded N frames /
+		// errors / "pick a site…"), except while DIRTY — a played event re-filled the pickers over a loaded
+		// window — when it says so. (It was the card's footer; the card is only the "or Atlas" row now.)
 
-		/// <summary>The card's footer line.</summary>
-		public string CardFooter(bool loaded, bool dirty, string status) =>
-			!loaded ? "Not loaded yet" :
-			dirty ? "Selection changed — press Load" :
-			status;
+		/// <summary>The status line under the buttons.</summary>
+		public string CardFooter(bool dirty, string status) =>
+			dirty ? "Selection changed — Set Timeframe to load it" : status;
+
+		// The header's placeholders ("No replay date" / "No Timeframe Loaded") dim until a window is loaded.
+		public double PlaceholderOpacity(bool loaded) => loaded ? 1.0 : 0.4;
+
+		// The clock's spot: the loaded window at 30 (console-clock face), the placeholder at 16.
+		public double RangeFontSize(bool loaded) => loaded ? 30 : 16;
+
+		// The pickers LOCK while a window is loaded (Clear unlocks them): disabled, and the whole block dimmed so
+		// the labels go with the controls.
+		public bool PickersEnabled(bool loaded) => !loaded;
+		public double PickerOpacity(bool loaded) => loaded ? 0.4 : 1.0;
+
+		private void OnClearClick(object sender, RoutedEventArgs e) => ViewModel?.Radar.ClearReplay();
 
 		// NOTE: the footer colour and the card's edge USED to be x:Bind functions here (FooterBrush /
 		// CardStroke), resolving brushes from Application.Current.Resources. Both are visual states now — the
@@ -174,10 +182,11 @@ namespace Anvil.Controls.Composites
 		// x:Bind helper for the damage-survey rows' counts.
 		public string Count(int n) => n.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
+		// The Timeframe card's Atlas button: the Anvil Atlas, on its Past events tab.
+		private void OnOpenAtlasClick(object sender, RoutedEventArgs e) => ViewModel?.OpenAtlasOnEvents();
+
 		// The layer ORDER: a drag (or Alt+Arrow) in the layer run is handed to the VM, which saves it for
 		// THIS window and restacks the map. The saved order is applied once, on first load (constructor).
-		// The door under the sections: the Anvil Atlas, on its Past events tab.
-		private void OnOpenAtlasClick(object sender, RoutedEventArgs e) => ViewModel?.OpenAtlasOnEvents();
 
 		private void OnSectionsReordered(object? sender, EventArgs e) =>
 			ViewModel?.SetLayerOrder(TemporalMode.Past, PanelSection.LayerOrderOf(Sections));

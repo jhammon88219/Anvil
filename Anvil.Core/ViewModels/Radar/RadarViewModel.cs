@@ -600,7 +600,7 @@ namespace Anvil.ViewModels
 				// drop the replay loop and go idle). Setting "None" routes through the mode-aware
 				// SelectedRadarOption setter, which clears the loop without starting anything.
 				SelectedRadarOption = RadarOptions[0];
-				PastEventStatus = value ? "Pick a site, set a start time, then Load." : string.Empty;
+				PastEventStatus = value ? NothingLoadedStatus : string.Empty;
 				// Leaving replay: restore the LIVE site availability promptly (the status loop skips its
 				// pushes while in past mode, so it wouldn't refresh the markers for up to ~10 min).
 				// ⚠️ The rows still hold the REPLAY DAY's availability — grey them first so replay-day dots are
@@ -855,6 +855,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(LoadedReplayEndUtc));
 			OnPropertyChanged(nameof(HasLoadedReplayWindow));
 			OnPropertyChanged(nameof(IsReplaySelectionDirty));
+			RaiseLoadedReplayReadouts();
 			RefreshSiteEra();
 		}
 
@@ -869,8 +870,70 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(LoadedReplayEndUtc));
 			OnPropertyChanged(nameof(HasLoadedReplayWindow));
 			OnPropertyChanged(nameof(IsReplaySelectionDirty));
+			RaiseLoadedReplayReadouts();
 			RefreshSiteEra();
 		}
+
+		// ── The PastCast HEADER: what is LOADED, never what the pickers say ─────────────────────────────
+		// The header row mirrors NowCast's (name over a date line │ the clock's spot). Its two readouts describe
+		// the LOADED window (LoadedReplayStartUtc / LoadedReplayEndUtc) — the pickers lock while one is loaded,
+		// and before one is, the header shows dimmed placeholders. The window as a console-clock pair: digits
+		// "5:00–7:00" + suffix "PM"; a window crossing noon/midnight names the start's designator in the digits.
+
+		/// <summary>The loaded window's date ("Tuesday May 24, 2011"), or the placeholder.</summary>
+		public string LoadedReplayDateText =>
+			_loadedWindowStartUtc is { } start ? start.ToLocalTime().ToString("dddd MMM d, yyyy") : "No replay date";
+
+		/// <summary>The loaded window's times, without the final AM/PM ("5:00–7:00"), or the placeholder.</summary>
+		public string LoadedReplayRangeDigits
+		{
+			get
+			{
+				if (_loadedWindowStartUtc is not { } startUtc || LoadedReplayEndUtc is not { } endUtc)
+				{
+					return "No Timeframe Loaded";
+				}
+				var start = startUtc.ToLocalTime();
+				var end = endUtc.ToLocalTime();
+				var startSuffix = start.ToString("tt") == end.ToString("tt") ? "" : " " + start.ToString("tt");
+				return $"{start:h:mm}{startSuffix}–{end:h:mm}";
+			}
+		}
+
+		/// <summary>The loaded window's closing AM/PM ("PM"); empty with nothing loaded.</summary>
+		public string LoadedReplayRangeSuffix =>
+			LoadedReplayEndUtc is { } end ? end.ToLocalTime().ToString("tt") : string.Empty;
+
+		private void RaiseLoadedReplayReadouts()
+		{
+			OnPropertyChanged(nameof(LoadedReplayDateText));
+			OnPropertyChanged(nameof(LoadedReplayRangeDigits));
+			OnPropertyChanged(nameof(LoadedReplayRangeSuffix));
+		}
+
+		/// <summary>
+		/// PastCast's Clear: forget the loaded window (yours or a played saved event), drop its loop — the
+		/// selected site stays highlighted, so the next Set Timeframe loads there — and put the date + start
+		/// pickers on NOW (the user's call, 2026-10-01), unlocked again. The window length is kept.
+		/// </summary>
+		/// <remarks>⚠️ Moving the pickers is also what un-picks a saved event (SavedEventsViewModel watches them).
+		/// The start rounds DOWN to 5 minutes, the TimePicker's increment.</remarks>
+		public void ClearReplay()
+		{
+			if (!_isPastEventMode)
+			{
+				return;
+			}
+			ClearReplayWindowLoaded();
+			_pastSiteSelect = _engine.SelectPastSiteAsync(_selectedRadarOption?.Site);
+			var now = DateTime.Now;
+			ApplyPastEventDate(LocalMidnight(now.Year, now.Month, now.Day));
+			PastEventTime = new TimeSpan(now.Hour, now.Minute - now.Minute % 5, 0);
+			PastEventStatus = NothingLoadedStatus;
+		}
+
+		/// <summary>The status line with nothing loaded (mode entry, Clear).</summary>
+		private const string NothingLoadedStatus = "Pick a site and a timeframe, then Set Timeframe.";
 
 		// ── Saved events: the two seams SavedEventsViewModel drives ──────────────────────────────
 		// A saved event is the pickers' three values plus a site, so applying one is just writing those —

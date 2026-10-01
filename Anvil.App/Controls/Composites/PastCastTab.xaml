@@ -7,20 +7,21 @@
      control, unchanged by the split; renaming all three would be churn. Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────┐
-       │  ┌──────────────────────────────────────────┐        │  ← TIMEFRAME: FIXED at the top, no
-       │  │ Choose a custom timeframe… ⁘⁘ or ⁘⁘ [📡 Atlas]│     │     header, can't collapse (12 px
-       │  │                    ↕ 10 px                │        │     inset = a section body's)
-       │  │ Tue May 24, 2011              │ [ Load  ]│        │  ← the TWO SOURCES: the pickers, or a
-       │  │ 5:00 PM → 7:00 PM             │          │        │     saved event (Atlas → PAST EVENTS);
-       │  │ 28 frames loaded              │          │        │     Atlas + Load share ONE column = one
-       │  │                               │          │        │     width; ⁘ = dot bridges. Then the CARD
-       │  │                               │          │        │     previews what Load
-       │  └──────────────────────────────────────────┘        │  will do; its footer reports
-       │  ──────────────────────────────────────────          │  whether that is on the map
+       │  ┌──┐ PastCast                    │ 5:00–7:00 PM     │  ← THE NAME ROW = NowCast's header: BLUE
+       │  │██│ Tuesday May 24, 2011        │                  │     square (literal, meaning TBD), name over
+       │  └──┘                                                │     the LOADED date │ the LOADED window (30,
+       │       (nothing loaded: "No replay date" │ "No Timeframe │     console-clock face). Placeholders at 40%.
+       │        Loaded", both dimmed)                         │
+       │  ┌──────────────────────────────────────────┐        │  ← THE CARD = only the TWO SOURCES: the
+       │  │ Choose a custom timeframe… ⁘⁘ or ⁘⁘ [📡 Atlas]│     │     pickers, or a saved event (Atlas → PAST
+       │  └──────────────────────────────────────────┘        │     EVENTS, live even while loaded)
+       │  ──────────────────────────────────────────          │
        │  Date    [ May 24, 2011              ▾]              │
-       │  Start   [ 5:00 PM                   ▾]              │  ← the PICKERS (ViewModel.Radar)
-       │  Window  [30m│1h│▓▓2h▓▓│3h│6h│12h]                   │
-       │                                                      │  ← 24 px gap before the sections
+       │  Start   [ 5:00 PM                   ▾]              │  ← the PICKERS (ViewModel.Radar) — LOCKED
+       │  Window  [30m│1h│▓▓2h▓▓│3h│6h│12h]                   │     + dimmed while a window is loaded
+       │  [        Set Timeframe         ] [Clear]            │  ← Set = the old Load (same rules); Clear =
+       │  Loaded 28 frames · May 24, 5:00 PM +2 hours         │     forget it + pickers to NOW; status/errors
+       │                                                      │     LEFT under them. 24 px gap, then sections
        │ ⠿ › [x] Storm cells    ──────────●  100%          ┃  │  ┐ the LAYER RUN: top of the list
        │                                                ┃  │  │ ┃ = PanelScroller's thumb, in a
        │                                                   │  │   16 px gutter that never collapses,
@@ -213,36 +214,69 @@
              all three together. -->
             <Grid Grid.Row="0" Padding="12,12,16,24" MinHeight="{StaticResource TemporalHeaderMinHeight}">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- summary card + Load -->
+                    <RowDefinition Height="Auto"/> <!-- the name row: square · PastCast over date │ the window -->
+                    <RowDefinition Height="Auto"/> <!-- the card: Choose a custom timeframe… ⁘ or ⁘ [Atlas] -->
                     <RowDefinition Height="Auto"/> <!-- rule -->
                     <RowDefinition Height="Auto"/> <!-- the three pickers -->
+                    <RowDefinition Height="Auto"/> <!-- [ Set Timeframe ] [Clear] -->
+                    <RowDefinition Height="Auto"/> <!-- status / errors -->
                 </Grid.RowDefinitions>
 
-                <!-- THE CARD previews what Load WILL do — both readouts derive from the pickers below, not from
-                     the last load — and its footer says whether that is what is actually on the map. Those two
-                     disagree the moment a picker moves, which is the state the old trailing status line could
-                     not express: it was written once, by the load, and then just sat there.
-                     ⚠️ Load is the ACCENT action except in the one state where there is nothing to do (loaded,
-                     and the pickers still agree with it), where it steps back to a plain button. -->
-                <Border x:Name="CardEdge" Grid.Row="0" CornerRadius="8" Padding="13,12"
+                <!-- THE NAME ROW — NowCast's header, matched (the user's call, 2026-10-01; TemporalWindow hides
+                     PastCast's title for it). Both readouts describe the LOADED window (RadarViewModel's HEADER
+                     block), never the pickers; with nothing loaded they are placeholders, dimmed to 40%.
+                     ⚠️ The square is BLUE, a literal, and means nothing yet — recency doesn't apply to a replay
+                     (the user's call: blue "until we decide otherwise"). Same shape as NowCast's feed bar. -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="22"/>   <!-- the square -->
+                        <ColumnDefinition Width="*"/>    <!-- PastCast over the date -->
+                        <ColumnDefinition Width="Auto"/> <!-- hairline · the window -->
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" CornerRadius="5,0,0,5" Background="#FF2F81F7"/>
+                    <StackPanel Grid.Column="1" Margin="12,0,12,0" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="PastCast" FontSize="30" FontWeight="SemiLight"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.Radar.LoadedReplayDateText, Mode=OneWay}" FontSize="13"
+                                   Opacity="{x:Bind PlaceholderOpacity(ViewModel.Radar.HasLoadedReplayWindow), Mode=OneWay}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <!-- The CLOCK's spot: the loaded window in the console clock's face (SemiLight, TABULAR digits,
+                         the AM/PM small on their bottom edge) at 30 rather than 40, so a start–end range fits. The
+                         placeholder rides the same TextBlock at 16 (RangeFontSize). -->
+                    <Border Grid.Column="2" BorderThickness="1,0,0,0" Padding="12,0,0,0"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind ViewModel.Radar.LoadedReplayRangeDigits, Mode=OneWay}"
+                                       FontSize="{x:Bind RangeFontSize(ViewModel.Radar.HasLoadedReplayWindow), Mode=OneWay}"
+                                       FontWeight="SemiLight" Typography.NumeralAlignment="Tabular"
+                                       VerticalAlignment="Center"
+                                       Opacity="{x:Bind PlaceholderOpacity(ViewModel.Radar.HasLoadedReplayWindow), Mode=OneWay}"
+                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="{x:Bind ViewModel.Radar.LoadedReplayRangeSuffix, Mode=OneWay}"
+                                       FontSize="16" VerticalAlignment="Bottom" Margin="0,0,0,5"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- THE CARD: only the TWO SOURCES now (the user's call, 2026-10-01 — the date/range preview that
+                     sat here duplicated the header and the pickers, and Load moved under the pickers). -->
+                <Border x:Name="CardEdge" Grid.Row="1" Margin="0,14,0,0" CornerRadius="8" Padding="13,12"
                         Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
                         BorderThickness="1"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                    <Grid ColumnSpacing="14" RowSpacing="10">
+                    <Grid ColumnSpacing="14">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/> <!-- Atlas over Load: ONE column, so one width -->
+                            <ColumnDefinition Width="Auto"/> <!-- Atlas -->
                         </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/> <!-- Choose a custom timeframe… ⁘ or ⁘ [Atlas] -->
-                            <RowDefinition Height="Auto"/> <!-- the preview + Load -->
-                        </Grid.RowDefinitions>
 
                         <!-- THE TWO SOURCES (the user's design, 2026-10-01): pick your own window with the pickers
                              below, OR play a saved event from the Atlas. Dot bridges (the tools tier's separator,
                              FillWidth) span the gaps either side of "or"; equal stars, so "or" sits between them.
                              The right bridge's −6 cancels most of the card's 14 column gap, matching the left side. -->
-                        <Grid Grid.Row="0" Grid.Column="0">
+                        <Grid Grid.Column="0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
@@ -259,9 +293,10 @@
                         </Grid>
 
                         <!-- OPEN ATLAS, on Past events (MapViewModel.OpenAtlasOnEvents — also selects the event PastCast
-                             has picked). Stretch = Load's width below it. ⚠️ The mark is the bar's Atlas key glyph
-                             (EC05, MainWindow AtlasKey) — the same door, the same mark; change both. -->
-                        <Button Grid.Row="0" Grid.Column="1" Style="{StaticResource OpenAtlasButtonStyle}"
+                             has picked). Live even while a window is loaded (Play asks before replacing it). MinWidth
+                             84 = the width it shared with Load when Load sat under it. ⚠️ The mark is the bar's Atlas
+                             key glyph (EC05, MainWindow AtlasKey) — the same door, the same mark; change both. -->
+                        <Button Grid.Column="1" Style="{StaticResource OpenAtlasButtonStyle}" MinWidth="84"
                                 Padding="10,6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                 Click="OnOpenAtlasClick"
                                 ToolTipService.ToolTip="Browse saved severe-weather days in the Anvil Atlas and play one here">
@@ -272,37 +307,16 @@
                                 <TextBlock Text="Atlas" FontSize="13" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
-
-                        <StackPanel Grid.Row="1" Grid.Column="0" VerticalAlignment="Center">
-                            <TextBlock Text="{x:Bind ViewModel.Radar.PastEventDateText, Mode=OneWay}"
-                                       FontSize="15"
-                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                            <TextBlock Text="{x:Bind ViewModel.Radar.PastEventRangeText, Mode=OneWay}"
-                                       FontSize="13" Margin="0,4,0,0"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <TextBlock x:Name="FooterText"
-                                       Text="{x:Bind CardFooter(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty, ViewModel.Radar.PastEventStatus), Mode=OneWay}"
-                                       FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                        </StackPanel>
-
-                        <!-- ⚠️ DISABLED once a window is loaded and the pickers still agree with it — there is
-                             nothing left to do, and the archive day is immutable so a re-load would fetch the
-                             same frames. Editing any picker makes the selection dirty and brings it back. -->
-                        <Button Grid.Row="1" Grid.Column="1" Content="Load" MinWidth="84"
-                                VerticalAlignment="Center" HorizontalAlignment="Stretch"
-                                IsEnabled="{x:Bind LoadEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
-                                Style="{x:Bind LoadStyle(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
-                                Click="OnLoadClick"/>
                     </Grid>
                 </Border>
 
-                <Border Grid.Row="1" Height="1" Margin="0,14"
+                <Border Grid.Row="2" Height="1" Margin="0,14"
                         Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
-                <!-- THE PICKERS. Everything below the rule is what you change; everything above it is what
-                     happens when you press Load. -->
-                <Grid Grid.Row="2" ColumnSpacing="12" RowSpacing="10">
+                <!-- THE PICKERS. ⚠️ LOCKED (disabled + dimmed) while a window is loaded (the user's call,
+                     2026-10-01): Clear is the way to change it. Everything below the rule is what you change. -->
+                <Grid Grid.Row="3" ColumnSpacing="12" RowSpacing="10"
+                      Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow), Mode=OneWay}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="60"/>
                         <ColumnDefinition Width="*"/>
@@ -331,6 +345,7 @@
                                         MinDate="{x:Bind ViewModel.Radar.PastEventMinDate}"
                                         MaxDate="{x:Bind ViewModel.Radar.PastEventMaxDate}"
                                         Date="{x:Bind ViewModel.Radar.PastEventDate, Mode=TwoWay}"
+                                        IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow), Mode=OneWay}"
                                         ToolTipService.ToolTip="The date to replay (local time)"/>
 
                     <!-- ⚠️ ONE picker, bound STRAIGHT to the view model's TimeSpan. It replaced an editable hour
@@ -343,6 +358,7 @@
                                 ClockIdentifier="12HourClock"
                                 MinuteIncrement="5"
                                 Time="{x:Bind ViewModel.Radar.PastEventTime, Mode=TwoWay}"
+                                IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow), Mode=OneWay}"
                                 ToolTipService.ToolTip="Start of the replay window (local time)"/>
 
                     <!-- ⚠️ Six segments, not a dropdown: the list is short and fixed, so the choice is worth one
@@ -352,8 +368,37 @@
                     <prim:SegmentedPicker Grid.Row="2" Grid.Column="1"
                                           ItemsSource="{x:Bind ViewModel.Radar.PastEventDurationShortLabels}"
                                           SelectedIndex="{x:Bind ViewModel.Radar.PastEventDurationIndex, Mode=TwoWay}"
+                                          IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow), Mode=OneWay}"
                                           ToolTipService.ToolTip="How much of the day to replay, starting at the time above"/>
                 </Grid>
+
+                <!-- SET TIMEFRAME (was the card's Load) + CLEAR. Set spans the width; Clear is only as wide as it
+                     needs. ⚠️ Set keeps Load's rules: accent while pressing it would DO something, greyed once loaded
+                     and still matching (the archive day is immutable). Clear is live only while something is loaded:
+                     it forgets the window (yours or a played event), drops the loop and puts the pickers on NOW
+                     (RadarViewModel.ClearReplay). -->
+                <Grid Grid.Row="4" Margin="0,14,0,0" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Set Timeframe" HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind LoadEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
+                            Style="{x:Bind LoadStyle(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
+                            Click="OnLoadClick"/>
+                    <Button Grid.Column="1" Content="Clear"
+                            IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
+                            Click="OnClearClick"
+                            ToolTipService.ToolTip="Clear the loaded timeframe or event and reset the pickers to now"/>
+                </Grid>
+
+                <!-- STATUS / ERRORS — left-aligned under the buttons (it was the card's footer). Coloured by the
+                     SelectionClean / SelectionDirty states above. -->
+                <TextBlock x:Name="FooterText" Grid.Row="5" Margin="0,8,0,0"
+                           Text="{x:Bind CardFooter(ViewModel.Radar.IsReplaySelectionDirty, ViewModel.Radar.PastEventStatus), Mode=OneWay}"
+                           Visibility="{x:Bind HasText(ViewModel.Radar.PastEventStatus), Mode=OneWay}"
+                           FontSize="11" TextWrapping="Wrap" HorizontalAlignment="Left"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
             </Grid>
 
     <!-- THE SECTIONS SCROLL; Timeframe above them doesn't. Primitives/PanelScroller: its gutter is always

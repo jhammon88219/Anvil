@@ -4,8 +4,8 @@
      the window.
 
        ┌─────────────────────────────────────────[lock][pin]─┐
-       │  PastCast                                            │  ← the mode's name, from Mode — HIDDEN for
-       │                                                      │    NowCast (its header carries the name)
+       │  ForeCast                                            │  ← the mode's name, from Mode — HIDDEN for
+       │                                                      │    NowCast + PastCast (their headers carry it)
        │  (fixed 480 × full height; the BODY scrolls itself)  │
        │  ┌──────────────────────────────────────────────┐    │
        │  │                                              │    │
