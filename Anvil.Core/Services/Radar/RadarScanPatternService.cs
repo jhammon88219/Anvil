@@ -85,7 +85,9 @@ namespace Anvil.Services
 			foreach (var day in days)
 			{
 				cancellationToken.ThrowIfCancellationRequested();
-				var samples = await GetDayAsync(siteId, day, now, cancellationToken);
+				// ConfigureAwait(false) throughout: off the UI thread (see ArchiveVolumeLister). Progress<T> is
+				// created by the VM on the UI thread, so Report still lands there.
+				var samples = await GetDayAsync(siteId, day, now, cancellationToken).ConfigureAwait(false);
 				foreach (var (_, vcp) in samples ?? Array.Empty<(int, int)>())
 				{
 					if (vcp > 0) counts[vcp] = counts.GetValueOrDefault(vcp) + 1;
@@ -106,10 +108,10 @@ namespace Anvil.Services
 
 			IReadOnlyList<(DateTimeOffset Time, string Key)> volumes;
 			var listedAt = _clock();
-			await _budget.WaitAsync(ct);
+			await _budget.WaitAsync(ct).ConfigureAwait(false);
 			try
 			{
-				volumes = await _lister.ListVolumesAsync(siteId, day, ct);
+				volumes = await _lister.ListVolumesAsync(siteId, day, ct).ConfigureAwait(false);
 			}
 			catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
 			catch (Exception ex)
@@ -126,10 +128,10 @@ namespace Anvil.Services
 			var anyFailed = false;
 			var samples = await Task.WhenAll(firstPerHour.Select(async h =>
 			{
-				await _budget.WaitAsync(ct);
+				await _budget.WaitAsync(ct).ConfigureAwait(false);
 				try
 				{
-					return (h.hour, vcp: await _lister.ReadVcpAsync(h.key, ct));
+					return (h.hour, vcp: await _lister.ReadVcpAsync(h.key, ct).ConfigureAwait(false));
 				}
 				catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
 				catch (Exception ex)
@@ -142,7 +144,7 @@ namespace Anvil.Services
 				{
 					_budget.Release();
 				}
-			}));
+			})).ConfigureAwait(false);
 			var good = samples.Where(s => s.vcp >= 0).OrderBy(s => s.hour).ToList();
 
 			var dayEnd = new DateTimeOffset(day.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);

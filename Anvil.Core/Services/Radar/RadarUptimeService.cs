@@ -77,7 +77,8 @@ namespace Anvil.Services
 			var windowStart = WindowStart(now);
 			var days = UtcDaysFor(windowStart, now);
 
-			var results = await Task.WhenAll(days.Select(d => GetDayAsync(siteId, d, now, cancellationToken)));
+			// ConfigureAwait(false) throughout: listing + cache I/O stay off the UI thread (see ArchiveVolumeLister).
+			var results = await Task.WhenAll(days.Select(d => GetDayAsync(siteId, d, now, cancellationToken))).ConfigureAwait(false);
 			var known = new HashSet<DateOnly>();
 			var times = new List<DateTimeOffset>();
 			for (var i = 0; i < days.Count; i++)
@@ -99,7 +100,7 @@ namespace Anvil.Services
 				cancellationToken.ThrowIfCancellationRequested();
 				// Days of one site in parallel (the shared budget still caps it); sites one after another, so a
 				// half-finished backfill leaves whole sites done rather than every site half done.
-				var results = await Task.WhenAll(days.Select(d => GetDayAsync(site, d, now, cancellationToken)));
+				var results = await Task.WhenAll(days.Select(d => GetDayAsync(site, d, now, cancellationToken))).ConfigureAwait(false);
 				failed += results.Count(r => r is null);
 				progress?.Report(site);
 			}
@@ -142,7 +143,7 @@ namespace Anvil.Services
 			var lazy = _inFlight.GetOrAdd(key, _ => new Lazy<Task<IReadOnlyList<DateTimeOffset>?>>(() => ListAsync(siteId, day, key, file, ct)));
 			try
 			{
-				return await lazy.Value;
+				return await lazy.Value.ConfigureAwait(false);
 			}
 			finally
 			{
@@ -152,11 +153,11 @@ namespace Anvil.Services
 
 		private async Task<IReadOnlyList<DateTimeOffset>?> ListAsync(string siteId, DateOnly day, string key, string file, CancellationToken ct)
 		{
-			await _budget.WaitAsync(ct);
+			await _budget.WaitAsync(ct).ConfigureAwait(false);
 			try
 			{
 				var listedAt = _clock();
-				var times = await _lister.ListVolumeTimesAsync(siteId, day, ct);
+				var times = await _lister.ListVolumeTimesAsync(siteId, day, ct).ConfigureAwait(false);
 				var dayEnd = new DateTimeOffset(day.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
 				if (listedAt >= dayEnd + FinalGrace)
 				{

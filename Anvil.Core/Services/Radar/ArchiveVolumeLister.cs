@@ -41,6 +41,10 @@ namespace Anvil.Services
 	/// 2026-09-26: that record is 2.3–3.9 KB compressed (KTLX/KVNX/KLOT), so an 8 KB prefix holds it; a bigger
 	/// one costs a second request sized to the record.
 	/// Its own HttpClient so a background sample never queues behind a loop's downloads.
+	/// ⚠️ EVERY await is <c>ConfigureAwait(false)</c>: the XML parse and the bzip2 decompress after each await
+	/// would otherwise run on the UI thread (the Atlas history calls from the UI), and a new site's first
+	/// history is ~30 listings + ~720 VCP reads. Profiled 2026-10-01: 10% of the app's CPU, ON the UI thread,
+	/// during a PastCast load started from the Atlas — the pan/zoom lag. Nothing here touches UI state.
 	/// </remarks>
 	public sealed class ArchiveVolumeLister : IArchiveVolumeLister
 	{
@@ -56,7 +60,7 @@ namespace Anvil.Services
 		}
 
 		public async Task<IReadOnlyList<DateTimeOffset>> ListVolumeTimesAsync(string siteId, DateOnly utcDay, CancellationToken cancellationToken) =>
-			(await ListVolumesAsync(siteId, utcDay, cancellationToken)).Select(v => v.Time).ToList();
+			(await ListVolumesAsync(siteId, utcDay, cancellationToken).ConfigureAwait(false)).Select(v => v.Time).ToList();
 
 		public async Task<IReadOnlyList<(DateTimeOffset Time, string Key)>> ListVolumesAsync(string siteId, DateOnly utcDay, CancellationToken cancellationToken)
 		{
@@ -70,7 +74,7 @@ namespace Anvil.Services
 				{
 					url += $"&continuation-token={Uri.EscapeDataString(continuation)}";
 				}
-				var doc = XDocument.Parse(await _http.GetStringAsync(url, cancellationToken));
+				var doc = XDocument.Parse(await _http.GetStringAsync(url, cancellationToken).ConfigureAwait(false));
 				var s3 = Level2RadarService.S3;
 				foreach (var contents in doc.Descendants(s3 + "Contents"))
 				{
@@ -92,13 +96,13 @@ namespace Anvil.Services
 		{
 			if (key.EndsWith(".gz", StringComparison.Ordinal)) return 0; // gzip-wrapped: no readable prefix
 
-			var prefix = await GetRangeAsync(key, VcpPrefixBytes, cancellationToken);
+			var prefix = await GetRangeAsync(key, VcpPrefixBytes, cancellationToken).ConfigureAwait(false);
 			if (prefix.Length < 28) return 0;
 			var recordBytes = Math.Abs((prefix[24] << 24) | (prefix[25] << 16) | (prefix[26] << 8) | prefix[27]);
 			if (recordBytes is <= 0 or > MaxMetadataRecordBytes) return 0;
 			if (28 + recordBytes > prefix.Length)
 			{
-				prefix = await GetRangeAsync(key, 28 + recordBytes, cancellationToken);
+				prefix = await GetRangeAsync(key, 28 + recordBytes, cancellationToken).ConfigureAwait(false);
 			}
 			var metadata = Level2RadarService.DecompressChunk(prefix, isS: true);
 			return metadata is null ? 0 : Level2Format.ReadVcpFromMetadata(new List<(byte[] block, int elev)> { (metadata, 0) });
@@ -108,9 +112,9 @@ namespace Anvil.Services
 		{
 			using var request = new HttpRequestMessage(HttpMethod.Get, Level2RadarService.BucketBase + key);
 			request.Headers.Range = new RangeHeaderValue(0, bytes - 1);
-			using var response = await _http.SendAsync(request, ct);
+			using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
 			response.EnsureSuccessStatusCode();
-			return await response.Content.ReadAsByteArrayAsync(ct);
+			return await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
 		}
 	}
 }
