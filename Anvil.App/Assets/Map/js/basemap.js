@@ -2,7 +2,7 @@
 // basemap.js — what of the BASEMAP draws: the Map key (hide it all) and the layer flyout (which groups;
 // ROADS split by kind). It only ever touches the style's own layers; every overlay is someone else's.
 //
-//   ── top ──   place names · borders / counties
+//   ── top ──   cities · POIs · water names · borders / counties
 //               ┌ overlay band (layers.js) ┐   radar, warnings, … — NEVER touched by this module
 //               └──────────────────────────┘
 //               roads · buildings · water · land
@@ -10,8 +10,10 @@
 //
 // GROUPS are the protomaps SOURCE-LAYERS, not layer ids, so one rule covers all five styles:
 //   land (earth, landcover, landuse) · water · buildings (+ addresses) · borders (boundaries) · counties
-//   (boundaries_county — only Data Viz Black has it) · names (every other symbol: places, POIs, water + island
-//   labels) · and FIVE ROAD groups cut from the one `roads` source-layer by each FEATURE's `kind`:
+//   (boundaries_county — only Data Viz Black has it) · THREE LABEL groups by the symbol's source-layer:
+//   cities (places — also state + country names) · water_names (water + earth: rivers, lakes, seas, islands)
+//   · pois (pois + any other label) · and FIVE ROAD groups cut from the one `roads` source-layer by each
+//   FEATURE's `kind` (road names + shields ride with their road, not with the labels):
 //
 //      highways ─ kind highway      major_roads ─ major_road      minor_roads ─ minor_road (+ service)
 //      rail ─ kind rail             paths ─ EVERYTHING ELSE (path, other, pier, runway, ferry, …)
@@ -46,7 +48,7 @@ const ROAD_KINDS = {
 };
 const ROAD_GROUPS = ['highways', 'major_roads', 'minor_roads', 'paths', 'rail'];
 const NAMED_KINDS = [].concat(ROAD_KINDS.highways, ROAD_KINDS.major_roads, ROAD_KINDS.minor_roads, ROAD_KINDS.rail);
-const ALL_GROUPS = ['land', 'water', 'buildings', 'borders', 'counties', 'names'].concat(ROAD_GROUPS);
+const ALL_GROUPS = ['land', 'water', 'buildings', 'borders', 'counties', 'cities', 'pois', 'water_names'].concat(ROAD_GROUPS);
 
 let hidden = false;
 let off = new Set();   // groups the user unticked
@@ -69,8 +71,12 @@ function groupOf(layer) {
     if (!sl) return null; // background, or one of OUR layers (geojson / custom)
     if (sl === 'boundaries') return /county/i.test(layer.id) ? 'counties' : 'borders';
     if (sl === 'roads') return 'roads';
-    if (sl === 'buildings') return 'buildings';
-    if (layer.type === 'symbol') return 'names';
+    if (sl === 'buildings') return 'buildings';   // + address labels
+    if (layer.type === 'symbol') {
+        if (sl === 'places') return 'cities';      // cities, towns, neighbourhoods — and state + country names
+        if (sl === 'water' || sl === 'earth') return 'water_names'; // rivers, lakes, seas + island names
+        return 'pois';                             // pois, and any other label a style grows
+    }
     if (sl === 'water') return 'water';
     return 'land'; // earth / landcover / landuse — and any new fill a style grows lands with them
 }

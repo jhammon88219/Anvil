@@ -9,7 +9,7 @@ namespace Anvil.ViewModels
 {
 	/// <summary>
 	/// What of the BASEMAP draws — the tools tier's Map key (show / hide the whole map) and its flyout (which
-	/// layer groups; roads split by kind). The overlays are never this VM's business: hide the map, then pick
+	/// layer groups, as a tree of categories; roads split by kind, names by source). The overlays are never this VM's business: hide the map, then pick
 	/// what shows with the overlay sections you already have. Rendering lives in <c>Assets/Map/js/basemap.js</c>.
 	/// </summary>
 	/// <remarks>
@@ -30,12 +30,18 @@ namespace Anvil.ViewModels
 			_settings = settings;
 
 			var off = new HashSet<string>(BasemapGroups.Normalize(settings.Settings.HiddenBasemapGroups));
-			Groups = BasemapGroups.All
-				.Select(g => new BasemapGroupOption(g.Id, g.Label, !off.Contains(g.Id), OnGroupsChanged, g.Heading, g.IsSub))
+			Categories = BasemapGroups.Tree
+				.Select(c => new BasemapCategory(c.Label, c.Leaves
+					.Select(g => new BasemapGroupOption(g.Id, g.Label, !off.Contains(g.Id), OnGroupsChanged))
+					.ToList()))
 				.ToList();
+			Groups = Categories.SelectMany(c => c.Leaves).ToList();
 		}
 
-		/// <summary>The flyout's rows, bottom of the map first.</summary>
+		/// <summary>The flyout's TREE: its top-level rows, bottom of the map first (an expander per multi-group category).</summary>
+		public IReadOnlyList<BasemapCategory> Categories { get; }
+
+		/// <summary>Every group (the tree's leaves), flattened in flyout order.</summary>
 		public IReadOnlyList<BasemapGroupOption> Groups { get; }
 
 		private bool _isMapShown = true;

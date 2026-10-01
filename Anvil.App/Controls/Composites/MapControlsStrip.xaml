@@ -18,20 +18,21 @@
        └──────────────────────────────┘          ┌─────────────────────────────┐
                                                   │ Moore, OK          pop 62k  │   ← place suggestions
                                                   └─────────────────────────────┘
-                                                                                             ┌ Map layers ──────┐
-                                                                                             │ ☑ Land           │
-                                                                                             │ ☑ Water          │
-                                                                                             │ Roads            │  ← the CAR's flyout; a
-                                                                                             │   ☑ Highways     │     HEADING, then the road
-                                                                                             │   ☐ Major roads  │     KINDS indented (each
-                                                                                             │   ☐ Minor roads  │     road filtered by its
-                                                                                             │   ☐ Paths and…   │     own kind — ramps, shields
-                                                                                             │   ☑ Rail         │     and labels go with it)
-                                                                                             │ ☑ Buildings      │
-                                                                                             │ ☑ Borders        │
-                                                                                             │ ☐ Counties (grey)│  ← greyed unless the
-                                                                                             │ ☑ Place names    │     style has county lines
-                                                                                             └──────────────────┘
+                                                                                             ┌ Map layers ────────┐
+                                                                                             │   ☑ Land           │  ← the CAR's flyout: a TREE
+                                                                                             │   ☑ Water          │     (BasemapGroups.Tree)
+                                                                                             │ ˅ ■ Roads          │  ← EXPANDER: box = select-all,
+                                                                                             │       ☑ Highways   │     ■ = partial; leaves filter
+                                                                                             │       ☐ Major roads│     each road by its own kind
+                                                                                             │       ☐ Minor roads│     (ramps, shields, labels
+                                                                                             │       ☐ Paths and… │     go with it)
+                                                                                             │       ☐ Rail       │
+                                                                                             │   ☑ Buildings      │
+                                                                                             │   ☑ Borders        │
+                                                                                             │   ☐ Counties (grey)│  ← greyed unless the style
+                                                                                             │ › ☑ Place names    │     has county lines; ›
+                                                                                             └────────────────────┘     = closed (cities, POIs,
+                                                                                                                          water names)
        (◗)(✈)(⚗) ─ (⌕) ─ (⌸)(◎) ─── [⌂ KTLX  Oklahoma City ˅]   (▣) [Moore, OK    ✕ ⌕] (⊚) status   [▢][▥][▦] ─── (⌘)(⛶) ─ (▥|▴) [Isolate State     ▾]   ← THIS
        |←────────────── W (ends on the bar's scan text) ──────────────→|                            |←──────────────── the SAME W ────────────────────→|
                                                                                                                                   ↑ left edge = the bar's ATLAS key's left edge
@@ -142,8 +143,9 @@
      MAP sits RIGHT, beside state isolation — both take parts of the map away (Basemap = BasemapViewModel).
      The KEY hides the whole basemap: a blank, THEME-coloured ground (theme.css anvil-map-blank) under the overlays,
      for screenshots / thumbnails / a clean storm. LIT = THE MAP IS SHOWING (default lit); the tooltip speaks
-     for the click. The CAR opens the layer flyout: which basemap GROUPS draw, ROADS split by kind under a
-     "Roads" heading (so you can keep only highways). The dimmer is GONE (the user's call, 2026-10-01).
+     for the click. The CAR opens the layer flyout: which basemap GROUPS draw, as a TREE of expanders (Roads by
+     kind, Place names by cities / POIs / water — so you can keep only highways). Expanders start closed and
+     aren't persisted; the ticks are. The dimmer is GONE (the user's call, 2026-10-01).
      ⚠️ Hiding OVERRIDES the ticks without changing them — show again and your set returns (the flyout says so
      while hidden). ⚠️ The hide is SESSION-ONLY; the ticks persist.
      ⚠️ A pair, not SplitTemporalToggle: that is a 72 px bar key; this tier's tools are 32 px.
@@ -659,23 +661,53 @@
                                            TextWrapping="Wrap" FontSize="12" Margin="0,0,0,4"
                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                            Visibility="{x:Bind HiddenNoteVisibility(ViewModel.Basemap.IsMapShown), Mode=OneWay}"/>
-                                <ItemsControl ItemsSource="{x:Bind ViewModel.Basemap.Groups}">
+                                <!-- THE TREE: one row per category (BasemapCategory). Every row reserves a 20 px
+                                     chevron column, so plain rows' boxes line up with the expanders'. An expander's
+                                     box is a ONE-WAY select-all (Click → ToggleAll; ■ = partial), PanelSection's
+                                     rule; its leaves indent 48 (the parent's box column 24 + one more step) and bind TWO-WAY. Wrappers carry
+                                     the tooltips: a disabled CheckBox shows none. -->
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Basemap.Categories}">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:BasemapGroupOption">
-                                            <!-- A HEADING ("Roads") rides above its first row; the road kinds are
-                                                 indented under it (IsSub). Wrapper carries the tooltip: a disabled
-                                                 CheckBox shows none. -->
+                                        <DataTemplate x:DataType="vm:BasemapCategory">
                                             <StackPanel>
-                                                <TextBlock Text="{x:Bind Heading}" Margin="0,6,0,2"
-                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                           Visibility="{x:Bind comp:MapControlsStrip.VisibleIfText(Heading)}"/>
-                                                <Grid Background="Transparent"
-                                                      Margin="{x:Bind comp:MapControlsStrip.SubIndent(IsSub)}"
+                                                <Grid ColumnSpacing="4" Background="Transparent"
                                                       ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
-                                                    <CheckBox Content="{x:Bind Label}" MinHeight="32"
-                                                              IsChecked="{x:Bind IsShown, Mode=TwoWay}"
-                                                              IsEnabled="{x:Bind IsAvailable, Mode=OneWay}"/>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="20"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button Width="20" Height="20" MinWidth="0" MinHeight="0" Padding="0"
+                                                            VerticalAlignment="Center"
+                                                            Background="Transparent" BorderThickness="0" CornerRadius="4"
+                                                            Visibility="{x:Bind comp:MapControlsStrip.VisibleIf(HasChildren)}"
+                                                            AutomationProperties.Name="{x:Bind Label}"
+                                                            Click="{x:Bind ToggleExpanded}">
+                                                        <FontIcon Glyph="&#xE76C;" FontSize="10"
+                                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                  RenderTransformOrigin="0.5,0.5">
+                                                            <FontIcon.RenderTransform>
+                                                                <RotateTransform Angle="{x:Bind comp:MapControlsStrip.ChevronAngle(IsExpanded), Mode=OneWay}"/>
+                                                            </FontIcon.RenderTransform>
+                                                        </FontIcon>
+                                                    </Button>
+                                                    <CheckBox Grid.Column="1" Content="{x:Bind Label}" MinHeight="32"
+                                                              IsChecked="{x:Bind IsChecked, Mode=OneWay}"
+                                                              IsEnabled="{x:Bind IsAvailable, Mode=OneWay}"
+                                                              Click="{x:Bind ToggleAll}"/>
                                                 </Grid>
+                                                <ItemsControl ItemsSource="{x:Bind Leaves}" Margin="48,0,0,0"
+                                                              Visibility="{x:Bind comp:MapControlsStrip.VisibleIf(IsExpanded), Mode=OneWay}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:BasemapGroupOption">
+                                                            <Grid Background="Transparent"
+                                                                  ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
+                                                                <CheckBox Content="{x:Bind Label}" MinHeight="32"
+                                                                          IsChecked="{x:Bind IsShown, Mode=TwoWay}"
+                                                                          IsEnabled="{x:Bind IsAvailable, Mode=OneWay}"/>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
                                             </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

@@ -77,13 +77,39 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public void RoadKinds_SitUnderOneRoadsHeading()
+		public void LegacyNames_InSettings_UnticksEveryLabelGroup()
+		{
+			var r = new Rig(new AppSettings { HiddenBasemapGroups = new() { BasemapGroups.LegacyNames } });
+			Assert.Equal(new[] { BasemapGroups.Cities, BasemapGroups.Pois, BasemapGroups.WaterNames }, r.Vm.OffGroups);
+		}
+
+		[Fact]
+		public void Tree_ExpandersAreTheMultiGroupCategories_AndCoverEveryGroupOnce()
 		{
 			var r = new Rig();
-			var roads = r.Vm.Groups.Where(g => g.IsSub).Select(g => g.Id);
-			Assert.Equal(BasemapGroups.Roads, roads);
-			Assert.Equal("Roads", r.Group(BasemapGroups.Highways).Heading);
-			Assert.Single(r.Vm.Groups, g => g.Heading is not null);
+			Assert.Equal(new[] { "Roads", "Place names" }, r.Vm.Categories.Where(c => c.HasChildren).Select(c => c.Label));
+			Assert.Equal(BasemapGroups.Roads, r.Vm.Categories.Single(c => c.Label == "Roads").Leaves.Select(l => l.Id));
+			Assert.Equal(r.Vm.Groups.Select(g => g.Id), r.Vm.Categories.SelectMany(c => c.Leaves).Select(l => l.Id));
+			Assert.All(r.Vm.Categories, c => Assert.False(c.IsExpanded));
+		}
+
+		[Fact]
+		public void CategoryBox_IsPartialWhileMixed_AndSelectAllFollowsPanelSection()
+		{
+			var r = new Rig();
+			var roads = r.Vm.Categories.Single(c => c.Label == "Roads");
+			Assert.True(roads.IsChecked);
+
+			r.Group(BasemapGroups.Rail).IsShown = false;
+			Assert.Null(roads.IsChecked);                                   // partial
+
+			roads.ToggleAll();                                              // partial → all on
+			Assert.True(roads.IsChecked);
+			Assert.All(roads.Leaves, l => Assert.True(l.IsShown));
+
+			roads.ToggleAll();                                              // all on → all off
+			Assert.False(roads.IsChecked);
+			Assert.Equal(BasemapGroups.Roads, r.Vm.OffGroups);
 		}
 
 		[Fact]
@@ -101,10 +127,10 @@ namespace Anvil.Tests
 		[Fact]
 		public void UnknownGroupInSettings_IsIgnored()
 		{
-			var s = new AppSettings { HiddenBasemapGroups = new() { "bogus", BasemapGroups.Names } };
+			var s = new AppSettings { HiddenBasemapGroups = new() { "bogus", BasemapGroups.Pois } };
 			var r = new Rig(s);
-			Assert.False(r.Group(BasemapGroups.Names).IsShown);
-			Assert.Equal(new[] { BasemapGroups.Names }, r.Vm.OffGroups);
+			Assert.False(r.Group(BasemapGroups.Pois).IsShown);
+			Assert.Equal(new[] { BasemapGroups.Pois }, r.Vm.OffGroups);
 		}
 
 		[Fact]
