@@ -484,6 +484,70 @@ namespace Anvil.Services
 			return null;
 		}
 
+		public async Task<string?> GetPastNarrativeAsync(DateOnly validDay, int day, int cycle, CancellationToken cancellationToken = default)
+		{
+			var cacheFile = Path.Combine(CacheDirectory, $"narrative-past-{validDay:yyyyMMdd}-d{day}-c{cycle:D2}.txt");
+			try
+			{
+				if (File.Exists(cacheFile))
+				{
+					return await File.ReadAllTextAsync(cacheFile, cancellationToken);
+				}
+			}
+			catch (OperationCanceledException) { throw; }
+			catch { /* a bad cache file is refetched below */ }
+
+			foreach (var url in PastNarrativeUrls(validDay, day, cycle))
+			{
+				try
+				{
+					var text = ExtractPreText(await Http.GetStringAsync(url, cancellationToken));
+					if (text is null)
+					{
+						continue;
+					}
+					try { await File.WriteAllTextAsync(cacheFile, text, cancellationToken); }
+					catch { /* cache write is best effort */ }
+					return text;
+				}
+				catch (OperationCanceledException) { throw; }
+				catch
+				{
+					// 404 (not this stamp) or a network failure — try the next candidate.
+				}
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// SPC's archive page(s) for one historical issuance, most likely first. The file is named by the
+		/// ISSUANCE's UTC date and an HHmm stamp; the stamp for a cycle has moved over the years (Day 2's
+		/// morning issuance was 0600 before it became 0700, Day 3's 0730 before 0830), so each cycle carries
+		/// its candidates and the first page that exists wins. The date comes from the cycle TABLE
+		/// (<see cref="SpcIssuanceCycles.IssuedAtUtc"/>), so Day 1's 01Z lands on the day after its valid day.
+		/// </summary>
+		internal static IEnumerable<string> PastNarrativeUrls(DateOnly validDay, int day, int cycle)
+		{
+			var issued = DateOnly.FromDateTime(SpcIssuanceCycles.IssuedAtUtc(day, cycle, validDay).UtcDateTime);
+			string[] stamps = (day, cycle) switch
+			{
+				(1, 6) => new[] { "0600" },
+				(1, 13) => new[] { "1300" },
+				(1, 16) => new[] { "1630" },
+				(1, 20) => new[] { "2000" },
+				(1, 1) => new[] { "0100" },
+				(2, 7) => new[] { "0700", "0600" },
+				(2, 17) => new[] { "1730", "1700" },
+				(3, 8) => new[] { "0830", "0730" },
+				(3, 20) => new[] { "1930", "2000" },
+				_ => Array.Empty<string>(),
+			};
+			foreach (var hhmm in stamps)
+			{
+				yield return $"https://www.spc.noaa.gov/products/outlook/archive/{issued:yyyy}/day{day}otlk_{issued:yyyyMMdd}_{hhmm}.html";
+			}
+		}
+
 		// Maps a product to its SPC forecast-discussion HTML page. One page per day group covers
 		// all of that day's hazard sub-products (the Day-1 convective text discusses tornado,
 		// wind, and hail together). Fire-weather pages use a different layout — deferred for now.

@@ -245,6 +245,38 @@ namespace Anvil.ViewModels
 			private set => SetProperty(ref _cardFooter, value);
 		}
 
+		// ── The forecast DISCUSSION of the issuance on the map (the Outlook Discussion window reads it) ──
+		// ⚠️ It follows what ApplyAsync DREW — the same date, day and resolved cycle — never the pickers, and it
+		// is set on every ApplyAsync branch, so it can't describe a previous selection. Fetched from SPC's
+		// per-issuance archive (ISpcOutlookService.GetPastNarrativeAsync), cached on disk forever.
+
+		private string _narrativeText = NoNarrative;
+		/// <summary>The discussion text, or a sentence saying why there is none.</summary>
+		public string NarrativeText
+		{
+			get => _narrativeText;
+			private set => SetProperty(ref _narrativeText, value);
+		}
+
+		private const string NoNarrative = "Load a timeframe and pick an outlook product to read its discussion.";
+
+		private async Task RefreshNarrativeAsync(DateOnly date, int day, int cycle, int token)
+		{
+			NarrativeText = "Loading forecast discussion…";
+			string? text;
+			try
+			{
+				text = await _outlookService.GetPastNarrativeAsync(date, day, cycle);
+			}
+			catch (Exception ex)
+			{
+				text = null;
+				System.Diagnostics.Debug.WriteLine($"past narrative failed: {ex.Message}");
+			}
+			if (token != _applyToken) return; // a newer selection won
+			NarrativeText = text ?? $"SPC's archive has no discussion page for the {SpcIssuanceCycles.Label(cycle)} issuance of this date.";
+		}
+
 		/// <summary>Whether a product is selected at all. False = "None", which is this section's off
 		/// switch — Cycle and Opacity have nothing to act on and are disabled.</summary>
 		public bool HasOutlook => _selectedProductOption.Type is not null;
@@ -358,6 +390,7 @@ namespace Anvil.ViewModels
 			if (!_isMapReady || !_radar.IsPastEventMode) return;
 
 			var token = ++_applyToken;
+			NarrativeText = NoNarrative; // every early return below leaves it here; the success path fetches
 			var type = _selectedProductOption.Type;
 			if (type is null)
 			{
@@ -423,11 +456,13 @@ namespace Anvil.ViewModels
 			SetLegend(product);
 
 			SetCard(_selectedProductOption.Label, ContextFor(day, date, cycleUsed), FormatTimes(result.Times));
+			await RefreshNarrativeAsync(date, day, cycleUsed, token);
 		}
 
 		private async Task ClearAsync()
 		{
 			if (!_isMapReady) return;
+			NarrativeText = NoNarrative;
 			await ClearLayerAsync();
 			SetCard(NoOutlookHeadline, string.Empty, string.Empty);
 		}

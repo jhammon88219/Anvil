@@ -91,7 +91,7 @@
          the past radar; there is no Load, so the card is a RESULT rather than a preview.
          ⚠️ Cycle is DISABLED while Product is None; the header Opacity also while the box hides it.
          Product shares its row with [Discussion.] → the Outlook Discussion WINDOW (shared with ForeCast's;
-         past discussions aren't archived yet, and the window says so).
+         it reads the drawn issuance's discussion from SPC's archive).
          ⚠️ Days 1-3 is a PRODUCT BOUNDARY (SPC has no categorical past day 3), not an arbitrary cap; see
          the note on that row before widening it.
      Storm reports stay a separate control — the NowCast tab shows the same block, so it is content of TWO
@@ -733,8 +733,8 @@
                     <!-- The product list CASCADES with the day (day 1 breaks out tornado/wind/hail; days 2-3
                          carry a single combined probabilistic), so it stays a dropdown — its length changes. -->
                     <!-- …and SHARES its row with "Discussion.", which opens the Outlook Discussion window (no row of
-                         its own — the user's call, 2026-10-01; ForeCast's Product row matches). Past discussions
-                         aren't archived yet; the window says so. -->
+                         its own — the user's call, 2026-10-01; ForeCast's Product row matches). The window reads the
+                         DRAWN issuance's discussion from SPC's archive (PastOutlookViewModel.NarrativeText). -->
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"/>
                     <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="8">
                         <Grid.ColumnDefinitions>

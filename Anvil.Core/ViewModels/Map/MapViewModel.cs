@@ -169,7 +169,10 @@ namespace Anvil.ViewModels
 			};
 			PastOutlook.PropertyChanged += (_, e) =>
 			{
-				if (e.PropertyName == nameof(PastOutlookViewModel.CardHeadline)) { RaiseOutlookDiscussion(); }
+				if (e.PropertyName is nameof(PastOutlookViewModel.CardHeadline) or nameof(PastOutlookViewModel.NarrativeText))
+				{
+					RaiseOutlookDiscussion();
+				}
 			};
 
 			AvailableStyles = _styleProvider.GetStyles();
@@ -969,10 +972,8 @@ namespace Anvil.ViewModels
 		/// <summary>Which outlook the window is reading — the card headline of the running outlook mode.</summary>
 		public string OutlookDiscussionTitle => IsPastCast ? PastOutlook.CardHeadline : Outlook.CardHeadline;
 
-		/// <summary>The discussion text. PastCast has no archived discussion yet, so it says so.</summary>
-		public string OutlookDiscussionText => IsPastCast
-			? "SPC's discussion for past outlooks isn't loaded yet."
-			: Outlook.OutlookNarrativeText;
+		/// <summary>The discussion text: the live outlook's, or in PastCast the drawn issuance's from SPC's archive.</summary>
+		public string OutlookDiscussionText => IsPastCast ? PastOutlook.NarrativeText : Outlook.OutlookNarrativeText;
 
 		private void RaiseOutlookDiscussion()
 		{

@@ -16,7 +16,8 @@
      ⚠️ A FIRST CUT, by the user's call (2026-10-01): it shows the SAME raw text ForeCast's old inline
      "Forecast discussion" section showed (that section is gone). Making SPC's awful layout readable is the
      next job, here — keep it in this window.
-     ⚠️ PastCast has no archived discussion yet; MapViewModel.OutlookDiscussionText says so in words.
+     PastCast reads the DRAWN issuance's discussion from SPC's per-issuance archive (PastOutlookViewModel.NarrativeText,
+     cached forever); MapViewModel.OutlookDiscussionText picks live vs past.
      Closed by MapViewModel when neither outlook mode runs. -->
 <UserControl x:Class="Anvil.Controls.Windows.OutlookDiscussionWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

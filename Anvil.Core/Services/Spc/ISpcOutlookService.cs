@@ -83,5 +83,13 @@ namespace Anvil.Services
 		/// Use <see cref="SpcOutlookService.PastLocalUrl"/> to build the local URL for a cached product.
 		/// </summary>
 		Task<PastOutlookResult> EnsurePastOutlookAsync(DateOnly date, int day, int cycle, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// The forecast discussion of a HISTORICAL issuance (day 1-3, the outlook's VALID convective day
+		/// <paramref name="validDay"/>, IEM <paramref name="cycle"/>), scraped from SPC's own per-issuance
+		/// archive page (<c>products/outlook/archive/{yyyy}/day{N}otlk_{yyyyMMdd}_{HHmm}.html</c>, the same
+		/// &lt;pre&gt; block as the live page). Immutable, so cached on disk forever. Null when no page exists.
+		/// </summary>
+		Task<string?> GetPastNarrativeAsync(DateOnly validDay, int day, int cycle, CancellationToken cancellationToken = default);
 	}
 }
