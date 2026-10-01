@@ -6,9 +6,10 @@
      control, unchanged by the split; renaming all three would be churn. Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────────────┐
-       │  ┌──┐                                    │ 5:42:07 PM        │  ← THE HEADER: FIXED, no section
-       │  │██│  NowCast                          │   Mon Sep 28      │    header, can't collapse. Clock =
-       │  └──┘  ↑ the window's ONLY "NowCast" (TemporalWindow hides its title for Now)   the MACHINE's time
+       │  ┌──┐  NowCast                          │                   │  ← THE HEADER: FIXED, no section
+       │  │██│                                   │  5:42 PM          │    header, can't collapse. Clock =
+       │  └──┘  Monday Sep 28                    │  (console clock)  │    the MACHINE's time, no seconds
+       │         ↑ the window's ONLY "NowCast" (TemporalWindow hides its title for Now); date LEFT under it
        │   ↑ FEED STATUS bar (22 × row height): warnings feed age, green → amber → red; grey = none yet
        │  ┌━━━━━━━━━━━━━┐ ┌━━━━━━━━━━━━━┐ ┌━━━━━━━━━━━━━┐           │
        │  │ 5      ‹  › │ │ 27     ‹  › │ │ 8      ‹  › │           │  ← every warning IN EFFECT, not
@@ -77,8 +78,9 @@
 
      THE HEADER is NowCast's twin of PastCast's Timeframe block: fixed above the sections, same padding, same
      height (Styles.xaml TemporalHeaderMinHeight, on both — the tiles row is STAR and takes the slack).
-       • Name row — the status bar, "NowCast" (the window's title moved here; the user's call, 2026-10-01), then
-         behind a hairline the time over the date. Zone + UTC + age moved into TOOLTIPS (time / bar).
+       • Name row — the status bar, "NowCast" over the date (weekday spelled out), then behind a hairline the
+         clock, styled as a copy of the radar console's (the user's call, 2026-10-01). Zone + UTC + age moved
+         into TOOLTIPS (clock / bar).
        • Clock — the machine's local time, ticked by a DispatcherTimer that runs only while this body is loaded
          (code-behind). The zone label is built from Windows' zone NAME ("Central Daylight Time" → "CDT").
        • FEED STATUS = Warnings.LastUpdated's age, which a FAILED fetch leaves alone — so a stuck feed walks the
@@ -206,13 +208,13 @@
                 <RowDefinition Height="*"/>    <!-- the tiles (take the slack) -->
             </Grid.RowDefinitions>
 
-            <!-- THE NAME ROW. Its height is the time-over-date stack's; the status bar and the name stretch to it,
-                 so the block's top and bottom edges are one line each. -->
+            <!-- THE NAME ROW. Its height is the taller of the name-over-date stack and the clock; the status bar
+                 stretches to it, so the block's top and bottom edges are one line each. -->
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="22"/>   <!-- status bar -->
-                    <ColumnDefinition Width="*"/>    <!-- NowCast -->
-                    <ColumnDefinition Width="Auto"/> <!-- hairline · time over date -->
+                    <ColumnDefinition Width="*"/>    <!-- NowCast over the date -->
+                    <ColumnDefinition Width="Auto"/> <!-- hairline · the clock -->
                 </Grid.ColumnDefinitions>
 
                 <!-- FEED STATUS — the Atlas row's left bar / the map key's square: a full-height block forming the
@@ -220,21 +222,36 @@
                      data colours, never themed. -->
                 <Border x:Name="FeedStatus" Grid.Column="0" CornerRadius="5,0,0,5"/>
 
-                <TextBlock Grid.Column="1" Margin="12,0,12,0" VerticalAlignment="Center"
-                           Text="NowCast" FontSize="30" FontWeight="SemiLight"
-                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <StackPanel Grid.Column="1" Margin="12,0,12,0" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="NowCast" FontSize="30" FontWeight="SemiLight"
+                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                    <TextBlock x:Name="ClockDate" FontSize="13"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
 
+                <!-- THE CLOCK is a COPY of the radar console's (Composites/RadarControls "THE CLOCK"): 40 SemiLight
+                     TABULAR digits on a 42 line, AM/PM 16 secondary on the digits' bottom edge in a slot as wide as
+                     the wider designator — so its width changes only with the digit COUNT (9:59 → 10:00). No
+                     seconds, like the console. Retune both together. Zone + UTC are its tooltip (code). -->
                 <Border Grid.Column="2" BorderThickness="1,0,0,0" Padding="12,0,0,0"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                    <StackPanel Spacing="2" VerticalAlignment="Center">
-                        <!-- Tabular figures so the ticking seconds don't jitter the column. UTC is its tooltip. -->
-                        <TextBlock x:Name="ClockTime" HorizontalAlignment="Right"
-                                   FontSize="15" Typography.NumeralAlignment="Tabular"
+                    <Grid x:Name="ClockTime" ColumnSpacing="4" VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="ClockDigits" Grid.Column="0"
+                                   Typography.NumeralAlignment="Tabular"
+                                   FontSize="40" FontWeight="SemiLight"
+                                   LineHeight="42" LineStackingStrategy="BlockLineHeight"
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                        <TextBlock x:Name="ClockDate" HorizontalAlignment="Right"
-                                   FontSize="13"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    </StackPanel>
+                        <Grid Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5">
+                            <TextBlock x:Name="AmSample" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
+                            <TextBlock x:Name="PmSample" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
+                            <TextBlock x:Name="ClockSuffix" FontSize="16"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </Grid>
+                    </Grid>
                 </Border>
             </Grid>
 

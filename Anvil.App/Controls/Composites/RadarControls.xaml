@@ -93,7 +93,8 @@
              sits left under it. It follows the frame ON SCREEN: stepping or playing from 9:59 to 10:00 widens
              it and slides the run after it. ⚠️ A DRAG across that hour doesn't feed back: the scrubber maps the
              pointer from where it stood at PRESS (_dragOriginX), so the slide can't change which frame is under
-             the pointer. -->
+             the pointer.
+             ⚠️ The NowCast header's clock (Composites/NowCastTab) is a COPY of this one's look — retune both. -->
         <Grid Grid.Column="0" VerticalAlignment="Center" RowSpacing="2"
               ToolTipService.ToolTip="When the frame on screen was scanned">
             <Grid.RowDefinitions>

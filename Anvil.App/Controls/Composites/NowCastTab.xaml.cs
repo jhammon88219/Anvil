@@ -29,6 +29,9 @@ namespace Anvil.Controls.Composites
 		public NowCastTab()
 		{
 			InitializeComponent();
+			// The AM/PM slot's two invisible samples: it is as wide as the wider, so noon doesn't nudge the clock.
+			AmSample.Text = CultureInfo.CurrentCulture.DateTimeFormat.AMDesignator;
+			PmSample.Text = CultureInfo.CurrentCulture.DateTimeFormat.PMDesignator;
 			_clock.Tick += (_, _) => UpdateClock();
 			Loaded += (_, _) => { _shownSecond = -1; UpdateClock(); _clock.Start(); };
 			Unloaded += (_, _) => _clock.Stop();
@@ -85,9 +88,11 @@ namespace Anvil.Controls.Composites
 			if (second == _shownSecond) { return; }
 			_shownSecond = second;
 
+			// Digits and AM/PM are separate cells, as on the radar console's clock (RadarControls).
 			var culture = CultureInfo.CurrentCulture;
-			ClockTime.Text = now.ToString("h:mm:ss tt", culture);
-			ClockDate.Text = now.ToString("ddd MMM d", culture);
+			ClockDigits.Text = now.ToString("h:mm", culture);
+			ClockSuffix.Text = now.ToString("tt", culture);
+			ClockDate.Text = now.ToString("dddd MMM d", culture);
 			ToolTipService.SetToolTip(ClockTime, $"{ZoneLabel(now.DateTime)} · {now.UtcDateTime:HH:mm} UTC");
 
 			var updated = ViewModel?.Warnings.LastUpdated;
