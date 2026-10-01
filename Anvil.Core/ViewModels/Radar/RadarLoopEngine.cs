@@ -36,6 +36,7 @@ namespace Anvil.ViewModels
 		internal async Task StartRadarLoopAsync(RadarSite? site)
 		{
 			Services.RadarDiagnostics.BeginSession(site?.Id);
+			_vm.LoopGate.Dismiss(); // the holding gate is PastCast-only; any held replay load is being replaced
 			_vm._loopCts?.Cancel();
 			_vm._loopCts = null;
 			_vm.IsPlaying = false;      // a freshly (re)loaded loop is stopped
@@ -450,6 +451,7 @@ namespace Anvil.ViewModels
 		// path but keeps the marker on the chosen site so it reads as "armed" and runs no live loop.)
 		internal async Task SelectPastSiteAsync(RadarSite? site)
 		{
+			_vm.LoopGate.Dismiss(); // the held load (if any) is for the site being left
 			_vm._loopCts?.Cancel();
 			_vm._loopCts = null;
 			_vm.IsPlaying = false;
@@ -474,6 +476,15 @@ namespace Anvil.ViewModels
 		/// live path, then starts playback — but with NO live poll and NO auto-refresh.
 		/// </summary>
 		public async Task<bool> LoadSelectedPastEventAsync()
+		{
+			var ok = await LoadSelectedPastEventCoreAsync();
+			// LOOP HOLDING GATE: every path that returns false without a Cancel (no data, archive unreachable,
+			// superseded by another load) must drop the gate it raised. A Cancel owns the gate itself.
+			if (!ok) _vm.LoopGate.Abandon();
+			return ok;
+		}
+
+		private async Task<bool> LoadSelectedPastEventCoreAsync()
 		{
 			if (!_vm._isPastEventMode)
 			{
@@ -514,6 +525,8 @@ namespace Anvil.ViewModels
 			}
 
 			_vm.SetReplayReadout(caption: "Loading…", status: "Loading…");
+			// LOOP HOLDING GATE up from the first moment (it reads "Finding volumes…" until the keys are listed).
+			_vm.LoopGate.Begin($"{site.Id} · {localStart:MMM d, yyyy} · {localStart:h:mm tt}–{endUtc.ToLocalTime():h:mm tt}");
 			_vm._loopCts?.Cancel();
 			var cts = new CancellationTokenSource();
 			_vm._loopCts = cts;
@@ -623,6 +636,9 @@ namespace Anvil.ViewModels
 				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameIndex));
 				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
 				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.RadarLoadingText));
+				// The frame arrays are now THIS load's — the holding gate's counts are truthful from here.
+				_vm.LoopGate.Arm();
+				_vm.UpdateLoopGate();
 
 				if (_vm._isMapReady)
 				{
@@ -660,6 +676,121 @@ namespace Anvil.ViewModels
 
 				await BackfillFramesAsync(site, keys, 1, keys.Count, ct, MaxParallelReplayBackfill);
 				_vm._loadInProgress = false;
+				_vm.UpdateLoopGate(); // every volume is in: the gate may release now if the page is already done
+			}
+			finally
+			{
+				_vm._loopGate.Release();
+			}
+		}
+
+		/// <summary>
+		/// The LOOP HOLDING GATE's Cancel load: stop the replay load and KEEP the contiguous run of frames already
+		/// lit from the left (option (a), the user's call 2026-10-01) — exactly the cells the scrubber shows, so
+		/// the popup's count matches what you see. The window stays marked part-loaded so Load lights up to resume.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ ORDER: cancel the load's token FIRST, then take <c>_loopGate</c> — the load holds it until its
+		/// backfill unwinds, so the truncation can't race a frame still being added. Frames the page is still
+		/// decoding beyond the kept run are dropped by the remap (it bumps the page's loop token).
+		/// ⚠️ A cancel before the new loop began (still listing volumes) touches no frames: whatever was on the
+		/// map stays. The storm motion is not this load's token's — it still lands (Rule 5's one motion).
+		/// </remarks>
+		internal async Task CancelPastLoadAsync()
+		{
+			var site = _vm._selectedRadarOption?.Site;
+			var begun = _vm.LoopGate.IsArmed;
+			var total = _vm._frameCount;
+			_vm._loopCts?.Cancel();
+			_vm._loopCts = null;
+
+			if (!begun || site is null || !_vm._isPastEventMode)
+			{
+				_vm.SetReplayReadout(caption: "Load cancelled", status: "Load cancelled.");
+				_vm.LoopGate.ShowCancelled(0, total);
+				return;
+			}
+
+			await _vm._loopGate.WaitAsync();
+			try
+			{
+				if (!ReferenceEquals(_vm._selectedRadarOption?.Site, site) || !_vm._isPastEventMode)
+				{
+					return; // the user moved on while the load unwound; that path already dismissed the gate
+				}
+
+				var kept = 0;
+				while (kept < _vm.Segments.Count && _vm.Segments[kept].IsReady) kept++;
+				total = _vm._frameCount;
+				Services.RadarDiagnostics.Log("vm", "replay.cancel", ("site", site.Id), ("kept", kept), ("frames", total));
+
+				if (kept == 0)
+				{
+					_vm.IsPlaying = false;
+					_vm.IsLoopReady = false;
+					ResetFrameState();
+					_vm.ClearReplayWindowLoaded();
+					_vm.RaisePropertyChangedFor(nameof(RadarViewModel.MaxFrameIndex));
+					_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
+					_vm.RaiseRadarReadout();
+					if (_vm._isMapReady)
+					{
+						await _vm._mapService.ClearRadarAsync();
+					}
+					_vm.SetReplayReadout(caption: "Load cancelled", status: "Load cancelled before any frame was complete.");
+					_vm.LoopGate.ShowCancelled(0, total);
+					return;
+				}
+
+				// Cut every per-frame array to the kept run. The kept cells are all lit, so all decoded.
+				var decoded = new bool[kept];
+				var noData = new bool[kept];
+				for (var i = 0; i < kept; i++)
+				{
+					decoded[i] = _vm.Segments[i].IsDecoded;
+					noData[i] = _vm.Segments[i].HasNoData;
+				}
+				var keys = _vm._loadedKeys.Take(kept).ToArray();
+				_vm._loadedKeys = keys;
+				_vm._loadedNewestKey = keys[^1];
+				_vm._archiveCount = kept;
+				_vm._frameCount = kept;
+				_vm._frameTimes = _vm._frameTimes.Take(kept).ToArray();
+				_vm._frameModes = _vm._frameModes.Take(kept).ToArray();
+				_vm._readyCount = kept;
+				_vm._loadInProgress = false;
+				_vm._initialLoadDone = true; // a cancelled load records no "all frames" time
+				_vm.RebuildSegments(kept, decoded);
+				for (var i = 0; i < kept; i++) _vm.Segments[i].HasNoData = noData[i];
+				_vm._currentFrameIndex = Math.Min(_vm._currentFrameIndex, kept - 1);
+
+				var mapping = new List<int[]>(kept);
+				for (var i = 0; i < kept; i++) mapping.Add(new[] { i, i });
+				Services.RadarDiagnostics.Reindex(mapping);
+
+				var cts = new CancellationTokenSource();
+				_vm._loopCts = cts;
+				if (_vm._isMapReady)
+				{
+					await _vm._mapService.RemapRadarFramesAsync(kept, System.Text.Json.JsonSerializer.Serialize(mapping));
+					await _vm._mapService.ShowRadarFrameAsync(_vm._currentFrameIndex);
+				}
+				_vm.IsLoopReady = true;
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.MaxFrameIndex));
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameIndex));
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.RadarLoadingText));
+				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.IsTransportEnabled));
+				_vm.RaiseRadarReadout();
+				_ = RunPlaybackAsync(cts.Token);
+				_ = RunDebugTickAsync(cts.Token);
+
+				_vm.SetReplayReadout(count: kept.ToString(System.Globalization.CultureInfo.CurrentCulture),
+					caption: "frames kept", site: site.Id,
+					status: $"Load cancelled · kept {kept} of {total} frames");
+				_vm.MarkReplayWindowLoaded();  // the overlays follow the window on the map…
+				_vm.MarkReplayIncomplete();    // …but only part of it: Load stays lit to resume
+				_vm.LoopGate.ShowCancelled(kept, total);
 			}
 			finally
 			{
@@ -1091,6 +1222,7 @@ namespace Anvil.ViewModels
 
 				_vm._frameTimes[index] = volume.VolumeTime;
 				if (index < _vm._frameModes.Length) _vm._frameModes[index] = volume.ModeText;
+				_vm.UpdateLoopGate(); // the gate's "downloaded" bar counts these slots
 				Services.RadarDiagnostics.RegisterFrameSource(index, "archive", FrameCacheFile(volume), volume.VolumeTime);
 				if (_vm._isMapReady)
 				{
@@ -1242,6 +1374,7 @@ namespace Anvil.ViewModels
 				// dealiased geometry (so a decoded cell may stay "loading" until the build reaches it), AND
 				// Rule 2's left-to-right reveal gate depends on the whole run, not just this index.
 				_vm.Segments[index].IsDecoded = true;
+				_vm.Segments[index].HasNoData = !hasData; // never fills — the holding gate counts it settled
 				_vm.RefreshSegmentReadiness();
 			}
 			Services.RadarDiagnostics.FrameReady(index, hasData, _vm._readyCount, _vm._frameCount);

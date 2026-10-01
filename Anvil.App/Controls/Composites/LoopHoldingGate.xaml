@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LoopHoldingGate — PastCast's loading screen: the map band is dimmed (the first radar frame shows through)
+     and takes no input while a loop loads. Drawn over the map band by MainWindow; state is
+     Radar.LoopGate (LoopHoldingGateViewModel).
+
+       ┌──────────────────────────── map band, dimmed ────────────────────────────┐
+       │                                                                           │
+       │                          Loading the loop                                 │
+       │                KTBW · Sep 28, 2022 · 1:00 PM–4:00 PM                      │
+       │           ───────────────────────────────────  ← downloaded (thin)        │
+       │           ████████████████░░░░░░░░░░░░░░░░░░░  ← built = lit scrubber     │
+       │           Downloaded 22 of 39   14 of 39 frames built                     │
+       │                                                                           │
+       │                              ↕ 100 px                                     │
+       │                                                                           │
+       │                  [ Cancel load ]    Use the map                           │
+       │                    dark red fill     no border; lifts 2 px on hover       │
+       └───────────────────────────────────────────────────────────────────────────┘
+
+       "Use the map" → the buttons swap for a confirm (EscapeWarning, "Don't hold future loads",
+                       Keep waiting · [Use the map]).
+       "Cancel load" → progress + buttons swap for a popup: "Load cancelled" + KeptText + [Got it].
+
+     ⚠️ RequestedTheme="Dark" ON PURPOSE: whatever the app theme, this always sits on a DARKENED map, so its
+     text, checkbox and buttons are the dark theme's. Its colours are literals for the same reason — the
+     backdrop is fixed, not themed. The built bar's blue matches the scrubber's lit cells in spirit only.
+     ⚠️ Fade: hit-testing switches INSTANTLY (the map is gated from the first moment), but the dim only fades
+     in after a short delay (code-behind) so a cached load that finishes at once never flashes the screen.
+     ⚠️ Wording lives in the view model (Title, EscapeWarning, KeptText, the counts) — not here. -->
+<UserControl x:Class="Anvil.Controls.Composites.LoopHoldingGate"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid x:Name="Root" Background="#9E080A0E" RequestedTheme="Dark" Opacity="0" IsHitTestVisible="False">
+        <Grid.OpacityTransition>
+            <ScalarTransition Duration="0:0:0.3"/>
+        </Grid.OpacityTransition>
+
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="360">
+
+            <!-- PROGRESS: title, event, the two bars, the counts. -->
+            <StackPanel Visibility="{x:Bind ViewModel.IsProgressShown, Mode=OneWay}">
+                <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="16" FontWeight="SemiBold"
+                           Foreground="#FFE8EAED" HorizontalAlignment="Center"/>
+                <TextBlock Text="{x:Bind ViewModel.EventLine, Mode=OneWay}" FontSize="12" Margin="0,4,0,18"
+                           Foreground="#A6E8EAED" HorizontalAlignment="Center"/>
+
+                <!-- Downloaded: thin. -->
+                <Grid Height="3" CornerRadius="1.5" Background="#1FE8EAED">
+                    <Border HorizontalAlignment="Left" CornerRadius="1.5" Background="#8CE8EAED"
+                            Width="{x:Bind BarWidth(ViewModel.DownloadedFraction), Mode=OneWay}"/>
+                </Grid>
+                <!-- Built: thick — the scrubber's lit cells. -->
+                <Grid Height="8" CornerRadius="4" Background="#1FE8EAED" Margin="0,5,0,0">
+                    <Border HorizontalAlignment="Left" CornerRadius="4" Background="#FF5B8DEF"
+                            Width="{x:Bind BarWidth(ViewModel.BuiltFraction), Mode=OneWay}"/>
+                </Grid>
+
+                <Grid Margin="0,8,0,0">
+                    <TextBlock Text="{x:Bind ViewModel.DownloadedText, Mode=OneWay}" FontSize="12"
+                               Foreground="#A6E8EAED" HorizontalAlignment="Left"/>
+                    <TextBlock Text="{x:Bind ViewModel.BuiltText, Mode=OneWay}" FontSize="12"
+                               Foreground="#FFE8EAED" HorizontalAlignment="Right"/>
+                </Grid>
+            </StackPanel>
+
+            <!-- The 100 px between the information and the actions (the user's spec). -->
+            <Border Height="100" Visibility="{x:Bind SpacerShown(ViewModel.IsActionsShown, ViewModel.IsConfirmShown), Mode=OneWay}"/>
+
+            <!-- ACTIONS: Cancel (dark red, brighter on hover/press) · Use the map (borderless, lifts). -->
+            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center"
+                        Visibility="{x:Bind ViewModel.IsActionsShown, Mode=OneWay}">
+                <Button Content="Cancel load" MinWidth="132" Padding="18,8" CornerRadius="8"
+                        IsEnabled="{x:Bind ViewModel.AreActionsEnabled, Mode=OneWay}"
+                        Click="OnCancelClick">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackground" Color="#FF7A1F1F"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FFA32D2D"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#FFC43C3C"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#807A1F1F"/>
+                        <SolidColorBrush x:Key="ButtonForeground" Color="#FFF6E9E9"/>
+                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF"/>
+                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFFFF"/>
+                        <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#99F6E9E9"/>
+                        <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent"/>
+                    </Button.Resources>
+                </Button>
+
+                <Button x:Name="UseMapButton" Content="Use the map" MinWidth="132" Padding="18,8" CornerRadius="8"
+                        IsEnabled="{x:Bind ViewModel.AreActionsEnabled, Mode=OneWay}"
+                        Click="OnUseMapClick">
+                    <Button.TranslationTransition>
+                        <Vector3Transition Duration="0:0:0.12"/>
+                    </Button.TranslationTransition>
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackground" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#12E8EAED"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#1FE8EAED"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonForeground" Color="#8CE8EAED"/>
+                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#D9E8EAED"/>
+                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#D9E8EAED"/>
+                        <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#4DE8EAED"/>
+                        <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent"/>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+
+            <!-- CONFIRM the escape: what you get, the permanent opt-out, and Keep waiting beside it. -->
+            <Border Width="310" Padding="14,12" CornerRadius="8" BorderThickness="1"
+                    Background="#F214181E" BorderBrush="#40E8EAED"
+                    Visibility="{x:Bind ViewModel.IsConfirmShown, Mode=OneWay}">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{x:Bind EscapeWarning}" FontSize="12" TextWrapping="Wrap" Foreground="#FFE8EAED"/>
+                    <CheckBox Content="Don't hold future loads" FontSize="12" Foreground="#B3E8EAED" MinHeight="24"
+                              IsChecked="{x:Bind ViewModel.NeverHoldAgain, Mode=TwoWay}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <Button Content="Keep waiting" FontSize="12" Padding="12,5" CornerRadius="8" Click="OnKeepWaitingClick">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackground" Color="Transparent"/>
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#12E8EAED"/>
+                                <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent"/>
+                                <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+                                <SolidColorBrush x:Key="ButtonForeground" Color="#B3E8EAED"/>
+                            </Button.Resources>
+                        </Button>
+                        <Button Content="Use the map" FontSize="12" Padding="12,5" CornerRadius="8" Click="OnConfirmUseMapClick"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- CANCELLED: what was kept. -->
+            <Border Width="310" Padding="16,14" CornerRadius="8" BorderThickness="1"
+                    Background="#F214181E" BorderBrush="#40E8EAED"
+                    Visibility="{x:Bind ViewModel.IsCancelledShown, Mode=OneWay}">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Load cancelled" FontSize="14" FontWeight="SemiBold" Foreground="#FFE8EAED"/>
+                    <TextBlock Text="{x:Bind ViewModel.KeptText, Mode=OneWay}" FontSize="12" TextWrapping="Wrap"
+                               Foreground="#BFE8EAED" Margin="0,0,0,8"/>
+                    <Button Content="Got it" FontSize="12" Padding="14,5" CornerRadius="8" HorizontalAlignment="Right"
+                            Click="OnGotItClick"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

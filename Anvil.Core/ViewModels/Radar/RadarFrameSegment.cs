@@ -38,6 +38,10 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		/// <summary>The page decoded this frame and found NOTHING to draw (or failed it) — it will never fill.
+		/// Plain state, not bound: the loop holding gate counts such a frame as settled so it can't hold forever.</summary>
+		public bool HasNoData { get; set; }
+
 		/// <summary>Cell opacity: solid when the frame is ready for the active product, faint while loading.</summary>
 		public double ReadyOpacity => _isReady ? 1.0 : 0.22;
 	}

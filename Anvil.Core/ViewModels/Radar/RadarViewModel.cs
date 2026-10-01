@@ -188,6 +188,7 @@ namespace Anvil.ViewModels
 					? Segments[i].IsDecoded
 					: IsFrameFillReady(i) && i <= frontier;
 			}
+			UpdateLoopGate(); // the gate's "built" bar is these lit cells
 		}
 
 		private bool IsFrameFillReady(int i) => Segments[i].IsDecoded && IsFrameComplete(i);
@@ -295,6 +296,10 @@ namespace Anvil.ViewModels
 			_radarService = radarService;
 			_settings = settings;
 			_engine = new RadarLoopEngine(this);
+
+			// The loop holding gate: dims the map while a PastCast loop loads. Its Cancel is the engine's.
+			// Built before anything below can reach ClearReplayWindowLoaded (which dismisses it).
+			LoopGate = new LoopHoldingGateViewModel(settings, () => _engine.CancelPastLoadAsync());
 
 			// Reopen PastCast on the timeframe the user last chose, not on the built-in default. Before any
 			// binding exists, so it writes the fields directly and raises nothing.
@@ -518,6 +523,40 @@ namespace Anvil.ViewModels
 
 		/// <summary>The range rings' preferences — which rings, their look, the label bearing.</summary>
 		public RangeRingsViewModel RangeRings { get; }
+
+		/// <summary>The loop holding gate — the map's loading screen during a PastCast load.</summary>
+		public LoopHoldingGateViewModel LoopGate { get; }
+
+		// ── LOOP HOLDING GATE: progress + release ────────────────────────────────────────────────
+		// The gate reads the SAME state the scrubber does: downloaded = frames whose volume arrived (their
+		// _frameTimes slot is set), built = lit scrubber cells (Rule 2's left-to-right run). It releases once
+		// every frame that arrived has SETTLED — built (refl+velocity, the fill gate) or decoded with nothing
+		// to draw — and the backfill is over. A frame whose volume never arrived is skipped, as the loop skips
+		// it, so a bad volume can't hold the gate forever.
+		internal void UpdateLoopGate()
+		{
+			if (!LoopGate.IsTracking) return;
+			var downloaded = 0;
+			for (var i = 0; i < _frameTimes.Length; i++) if (_frameTimes[i] is not null) downloaded++;
+			var built = 0;
+			for (var i = 0; i < Segments.Count; i++) if (Segments[i].IsReady) built++;
+			LoopGate.Report(_frameCount, downloaded, built);
+			if (!_loadInProgress && _frameCount > 0 && AllArrivedFramesSettled())
+			{
+				LoopGate.Complete();
+			}
+		}
+
+		private bool AllArrivedFramesSettled()
+		{
+			for (var i = 0; i < _frameCount && i < _frameTimes.Length; i++)
+			{
+				if (_frameTimes[i] is null) continue;                 // never arrived — the loop skips it too
+				if (i >= Segments.Count || !Segments[i].IsDecoded) return false;
+				if (!Segments[i].HasNoData && !IsFrameComplete(i)) return false;
+			}
+			return true;
+		}
 
 		// ── Past Event Viewer ────────────────────────────────────────────────────────────────────
 		// A second radar "mode": instead of the live loop (recent volumes + a near-real-time frame
@@ -825,9 +864,22 @@ namespace Anvil.ViewModels
 		/// Whether the pickers now describe a DIFFERENT window from the one that was loaded — so the card
 		/// can offer Load again instead of reporting a frame count for a window you have since edited away.
 		/// </summary>
+		/// <remarks>⚠️ Also true for a load CANCELLED from the loop holding gate (<see cref="MarkReplayIncomplete"/>):
+		/// the window on the map is the pickers' window, but only part of it — so Load stays lit ("Load again to
+		/// resume").</remarks>
 		public bool IsReplaySelectionDirty =>
 			_pastWindowLoaded
-			&& (_loadedWindowDurationIndex != _pastEventDurationIndex || _loadedWindowStartUtc != ReplayStartUtc());
+			&& (_replayIncomplete || _loadedWindowDurationIndex != _pastEventDurationIndex || _loadedWindowStartUtc != ReplayStartUtc());
+
+		// The loaded window is only PART-loaded (Cancel load kept the lit run). Cleared by any full load / clear.
+		private bool _replayIncomplete;
+
+		/// <summary>Cancel load kept a partial loop: Load stays enabled to resume it.</summary>
+		internal void MarkReplayIncomplete()
+		{
+			_replayIncomplete = true;
+			OnPropertyChanged(nameof(IsReplaySelectionDirty));
+		}
 
 		/// <summary>
 		/// The UTC start of the window that was actually LOADED, or null if none has been. Distinct from
@@ -856,6 +908,7 @@ namespace Anvil.ViewModels
 		internal void MarkReplayWindowLoaded()
 		{
 			_pastWindowLoaded = true;
+			_replayIncomplete = false;
 			_loadedWindowStartUtc = ReplayStartUtc();
 			_loadedWindowDurationIndex = _pastEventDurationIndex;
 			OnPropertyChanged(nameof(LoadedReplayStartUtc));
@@ -870,7 +923,9 @@ namespace Anvil.ViewModels
 		// be dirty.
 		private void ClearReplayWindowLoaded()
 		{
+			LoopGate.Dismiss(); // mode toggle / Clear / a different site: no load is being held any more
 			_pastWindowLoaded = false;
+			_replayIncomplete = false;
 			_loadedWindowStartUtc = null;
 			_loadedWindowDurationIndex = -1;
 			OnPropertyChanged(nameof(LoadedReplayStartUtc));

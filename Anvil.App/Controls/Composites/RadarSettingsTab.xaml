@@ -7,7 +7,9 @@
        │    [ ] Load home site on launch                      │  ← PERSISTED, default off
        │  ⌄  Readouts                                         │
        │    Distance  [ km | mi | nm ]                        │  ← PERSISTED, app-wide
-       └──────────────────────────────────────────────────────┘
+       │  ⌄  PastCast                                         │
+       │    [✓] Hold the map while a loop loads               │  ← PERSISTED, default on (the gate's
+       └──────────────────────────────────────────────────────┘     "Don't hold future loads" turns it off)
 
      ⚠️ THE "RANGE RINGS & RULER" SECTION MOVED to its own tab, Radar Range Ring (RangeRingSettingsTab), when
      the rings grew a per-part style editor (2026-09-24). The distance UNIT stayed here: it is app-wide.
@@ -59,6 +61,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- home site -->
             <RowDefinition Height="Auto"/> <!-- readouts -->
+            <RowDefinition Height="Auto"/> <!-- pastcast -->
         </Grid.RowDefinitions>
 
         <!-- The home site is PICKED in the Radar Atlas (where you can see what you're choosing); this only
@@ -111,6 +114,16 @@
                            HorizontalAlignment="Left" Opacity="0.75"
                            Text="Ground distances - the range ruler's readout and its range labels. Heights and wind-profile levels stay in kilometres."/>
             </Grid>
+        </prim:PanelSection>
+
+        <!-- PASTCAST — the loop holding gate's switch (Composites/LoopHoldingGate). It is also turned off from
+             the gate itself ("Don't hold future loads"); this is where it comes back on. -->
+        <prim:PanelSection Grid.Row="2" Header="PastCast" IsExpanded="True">
+            <!-- PERSISTED (AppSettings.HoldPastCastLoads), default on. -->
+            <CheckBox Margin="4,0,0,0"
+                      Content="Hold the map while a loop loads"
+                      IsChecked="{x:Bind ViewModel.Radar.LoopGate.HoldEnabled, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Dim the map behind a progress screen until a PastCast loop finishes loading — the map lags while a loop loads"/>
         </prim:PanelSection>
 
     </Grid>

@@ -321,6 +321,17 @@ namespace Anvil.Services
 			set => SetProperty(ref _showNowCastGhostRows, value);
 		}
 
+		// LOOP HOLDING GATE — PastCast dims the map behind a progress screen while a loop loads (the map lags
+		// during a load; LoopHoldingGateViewModel). Default ON; the gate's own "Don't hold future loads" box and
+		// Settings → Radar → PastCast turn it off.
+		private bool _holdPastCastLoads = true;
+		/// <summary>Hold the map behind the loading screen while a PastCast loop loads.</summary>
+		public bool HoldPastCastLoads
+		{
+			get => _holdPastCastLoads;
+			set => SetProperty(ref _holdPastCastLoads, value);
+		}
+
 		// ── Temporal-window choices (ViewModels/Map/TemporalWindowPersistence restores + tracks these) ──────
 		// ⚠️ NULLABLE ON PURPOSE: null = "never changed", and the view model keeps ITS OWN default. The
 		// defaults therefore live in exactly one place (the VM field initialisers), and a settings file from

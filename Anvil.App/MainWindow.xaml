@@ -58,6 +58,9 @@
           ↑ 📡 = Atlas, a plain window latch again, like Settings.
           ↑ Not drawn above: the SITE CHECK TOAST, a pill at the top centre of the map band under the notch —
             "Checking radar sites · n / N" while a launch pass cascades, then "Site check complete" (4 s).
+          ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map band (notches
+            included, the bottom chrome NOT) is dimmed behind "Loading the loop" + progress bars + Cancel load /
+            Use the map. See Composites/LoopHoldingGate.
 
      ⚠️ WHAT REPEATS PER PANE IS NOT IN THE BAR ANY MORE. It used to be: the bar's left cluster carried a
      160px "chip" per pane (a combined product-selector-and-colour-ramp) plus the one tilt combo, which is
@@ -266,6 +269,11 @@
                 </ctl:OverlayBar.BarContent>
             </ctl:OverlayBar>
         </Grid>
+
+        <!-- LOOP HOLDING GATE — PastCast's loading screen (Composites/LoopHoldingGate). Row 0 ONLY: it dims the
+             map band and the pane notches and swallows their input while a loop loads, but the bottom chrome
+             (row 1, declared after it) stays live above it. Transparent and click-through while hidden. -->
+        <comp:LoopHoldingGate Grid.Row="0" ViewModel="{x:Bind ViewModel.Radar.LoopGate}"/>
 
         <!-- ===== Row 1: the bottom bar. Left = the radar console; CENTER = the temporal mode pills;
              right = the app-wide window buttons. The empty space between them is bar, by design: the
