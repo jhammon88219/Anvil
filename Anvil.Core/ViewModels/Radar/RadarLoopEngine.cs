@@ -501,7 +501,7 @@ namespace Anvil.ViewModels
 				// No site yet: just ARM the window (date/time/range) so any site you click next loads it,
 				// and report success so the flyout closes and you can go site-surfing on the map.
 				_vm.MarkReplayWindowLoaded();
-				_vm.SetReplayReadout(caption: "Click a site", status: "Window set — click a radar site on the map to load it.");
+				_vm.SetReplayReadout(caption: RadarViewModel.SelectASite, status: "Window set — click a radar site on the map to load it.");
 				return true;
 			}
 
@@ -570,6 +570,7 @@ namespace Anvil.ViewModels
 
 			_vm.SetReplayReadout(count: keys.Count.ToString(System.Globalization.CultureInfo.CurrentCulture),
 				caption: sampled ? "frames sampled" : "frames loaded",
+				site: site.Id,
 				status: $"Loaded {keys.Count} frames{(sampled ? " (sampled)" : "")} · " +
 					$"{localStart:MMM d, h:mm tt} +{_vm.PastEventDurationOptions[_vm._pastEventDurationIndex]}");
 			_vm.MarkReplayWindowLoaded();

@@ -18,8 +18,9 @@
        │  ──────────────────────────────────────────          │     letters centred on the dots (Tight bounds)
        │  Date    [ May 24, 2011       ▾]     28              │
        │  Start   [ 5:00 PM            ▾]  frames loaded      │  ← the PICKERS (ViewModel.Radar) — LOCKED
-       │  Window  [30m│1h│▓2h▓│3h│6h│12h]                    │     + dimmed while a window is loaded; they
-       │           ↑ above Clear: the load's readout, centred (count+caption / "Loading…" / "Click a site")
+       │  Window  [30m│1h│▓2h▓│3h│6h│12h]      KTLX           │     + dimmed while a window is loaded; they
+       │           ↑ above Clear: the load's readout, centred (count/caption/site · "Loading…" · "Select a
+       │             site" — also when the site is UNPICKED over a set window)
        │  [ No KTLX data for timeframe –      ]  [ Clear ]    │  ← an ERROR rides IN Set Timeframe (red,
        │  [ Click to retry or change timeframe]               │     two lines, clickable = retry; a picker
        │                                                      │     change clears it; it unlocks the pickers)
@@ -369,8 +370,8 @@
                          day per round trip, synchronously through the binding, and STACK-OVERFLOW the app. That
                          is not hypothetical; it happened. Don't hand it a UTC-framed date. -->
                     <!-- THE SPACE ABOVE CLEAR (the user's call, 2026-10-01): the load's readout, centred both ways —
-                         a big number over a small caption ("28" / "frames loaded"), or the caption alone
-                         ("Loading…", "Click a site"); empty with nothing to say. Right margin 14 = Clear's, so it
+                         a big number over a small caption over the site ("28" / "frames loaded" / "KTLX"), or the
+                         caption alone ("Loading…", "Select a site"); empty with nothing to say. Right margin 14 = Clear's, so it
                          centres over Clear. Never dimmed with the pickers. The full sentence is its hover hint. -->
                     <StackPanel Grid.Row="0" Grid.RowSpan="3" Grid.Column="2" Margin="0,0,14,0"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -384,6 +385,12 @@
                                    FontSize="11" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"
                                    Visibility="{x:Bind HasText(ViewModel.Radar.ReplayCaption), Mode=OneWay}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <!-- The LOADED site, third line under the count (the user's call, 2026-10-01). Unpicking the
+                             site clears it with the count, back to "Select a site". -->
+                        <TextBlock Text="{x:Bind ViewModel.Radar.ReplaySite, Mode=OneWay}" HorizontalAlignment="Center"
+                                   FontSize="11" FontWeight="SemiBold" Margin="0,2,0,0"
+                                   Visibility="{x:Bind HasText(ViewModel.Radar.ReplaySite), Mode=OneWay}"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                     </StackPanel>
 
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Date" Style="{StaticResource SettingsFieldLabelStyle}"

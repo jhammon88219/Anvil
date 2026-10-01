@@ -26,6 +26,29 @@ namespace Anvil.Controls.Windows
 				ViewModel?.SetTemporalWindowOnTop(Mode, Pin.IsChecked));
 			Lock.RegisterPropertyChangedCallback(LockToggle.IsCheckedProperty, (_, _) =>
 				ViewModel?.SetTemporalWindowLocked(Mode, Lock.IsChecked));
+
+			// NO FOCUS RING ON OPEN (the user's call, 2026-10-01): a new window hands its first focus to the first
+			// tab stop — PastCast's card Atlas button — as KEYBOARD focus, so it opened wearing the focus ring as if
+			// selected. The first focus inside a moment of loading is re-given as PROGRAMMATIC focus (same element,
+			// no ring); Tab still starts there. Time-boxed so a real first Tab press later keeps its ring.
+			Loaded += (_, _) => _openedAt = Environment.TickCount64;
+			GotFocus += OnFirstFocus;
+		}
+
+		private long _openedAt;
+
+		private void OnFirstFocus(object sender, RoutedEventArgs e)
+		{
+			if (Environment.TickCount64 - _openedAt > 1000)
+			{
+				GotFocus -= OnFirstFocus;
+				return;
+			}
+			if (e.OriginalSource is Control { FocusState: FocusState.Keyboard } control)
+			{
+				GotFocus -= OnFirstFocus;
+				control.Focus(FocusState.Programmatic);
+			}
 		}
 
 		/// <summary>Which mode this window configures. Set once at construction by the registration in

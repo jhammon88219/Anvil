@@ -466,6 +466,13 @@ namespace Anvil.ViewModels
 						// Kept (not discarded) so LoadReplayAtSiteAsync can wait for the clear to finish before
 						// it loads — otherwise its ClearRadarAsync could land on top of the new loop.
 						_pastSiteSelect = _engine.SelectPastSiteAsync(value?.Site);
+						// The site was UNPICKED over a set timeframe: its loop is gone, so its count goes with it
+						// and the prompt comes back (the window stays set — the next site loads it).
+						if (_pastWindowLoaded && value?.Site is null)
+						{
+							SetReplayReadout(caption: SelectASite,
+								status: "Window set — click a radar site on the map to load it.");
+						}
 					}
 				}
 				else
@@ -1102,15 +1109,23 @@ namespace Anvil.ViewModels
 		public string ReplayCount { get => _replayCount; private set => SetProperty(ref _replayCount, value); }
 
 		private string _replayCaption = string.Empty;
-		/// <summary>The space above Clear: the caption ("frames loaded", "Loading…", "Click a site"); empty = none.</summary>
+		/// <summary>The space above Clear: the caption ("frames loaded", "Loading…", "Select a site"); empty = none.</summary>
 		public string ReplayCaption { get => _replayCaption; private set => SetProperty(ref _replayCaption, value); }
 
-		/// <summary>Set the three readouts together (and the status sentence when given).</summary>
-		internal void SetReplayReadout(string error = "", string count = "", string caption = "", string? status = null)
+		private string _replaySite = string.Empty;
+		/// <summary>The space above Clear: the LOADED site under the count ("KTLX"); empty = none.</summary>
+		public string ReplaySite { get => _replaySite; private set => SetProperty(ref _replaySite, value); }
+
+		/// <summary>The space above Clear with a timeframe set and no site.</summary>
+		internal const string SelectASite = "Select a site";
+
+		/// <summary>Set the readouts together (and the status sentence when given).</summary>
+		internal void SetReplayReadout(string error = "", string count = "", string caption = "", string site = "", string? status = null)
 		{
 			ReplayError = error;
 			ReplayCount = count;
 			ReplayCaption = caption;
+			ReplaySite = site;
 			if (status is not null) { PastEventStatus = status; }
 		}
 

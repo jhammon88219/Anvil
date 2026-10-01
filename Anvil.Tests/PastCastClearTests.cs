@@ -67,11 +67,12 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public async Task Armed_WithNoSite_SaysClickASite_AndClearEmptiesTheReadouts()
+		public async Task Armed_WithNoSite_SaysSelectASite_AndClearEmptiesTheReadouts()
 		{
 			var radar = await ArmedAt(new DateTimeOffset(2011, 5, 24, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2011, 5, 24))),
 				new TimeSpan(17, 0, 0));
-			Assert.Equal("Click a site", radar.ReplayCaption);
+			Assert.Equal("Select a site", radar.ReplayCaption);
+			Assert.Equal(string.Empty, radar.ReplaySite);
 			Assert.Equal(string.Empty, radar.ReplayCount);
 			Assert.False(radar.HasReplayError);
 
