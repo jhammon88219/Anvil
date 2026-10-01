@@ -632,6 +632,17 @@ namespace Anvil
 			RegisterTemporalWindow(TemporalMode.Past, "PastCast", WindowAnchor.Left);
 			RegisterTemporalWindow(TemporalMode.Now, "NowCast", WindowAnchor.Left);
 			RegisterTemporalWindow(TemporalMode.Fore, "ForeCast", WindowAnchor.Right);
+			// SPC's forecast discussion, opened from either outlook section's "Discussion." button (one window:
+			// Past excludes Fore, so it reads whichever outlook mode runs). Center, like Settings and the Atlas.
+			_windows.Register(
+				id: "outlookDiscussion",
+				isOpen: () => ViewModel.IsOutlookDiscussionOpen,
+				close: () => ViewModel.IsOutlookDiscussionOpen = false,
+				buildContent: () => new Controls.Windows.OutlookDiscussionWindow { ViewModel = ViewModel },
+				title: "Outlook Discussion", anchor: WindowAnchor.Center,
+				keepAboveOwner: () => ViewModel.IsOutlookDiscussionOnTop,
+				isLocked: () => ViewModel.IsOutlookDiscussionLocked,
+				customChrome: true);
 			_windows.Register(
 				id: "pipeline",
 				isOpen: () => ViewModel.IsPipelineConsoleOpen,

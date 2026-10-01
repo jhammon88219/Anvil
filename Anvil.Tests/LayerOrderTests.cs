@@ -25,5 +25,33 @@ namespace Anvil.Tests
 
 		[Fact]
 		public void NullIsEmpty() => Assert.Empty(LayerOrder.Normalize(null));
+
+		// LayerOrder.Complete — the ghost rows' fill-in, mirroring layers.js effectiveOrder().
+
+		[Fact]
+		public void Complete_PutsAMissingLayerBeneathItsDefaultNeighbourAbove()
+		{
+			// A NowCast save from before ghost rows: no outlook (and never damage, a PastCast layer).
+			var ids = LayerOrder.Complete(new[] { "cells", "warnings", "reports", "watches", "mds", "radar" });
+			Assert.Equal(new[] { "cells", "warnings", "reports", "damage", "watches", "mds", "outlook", "radar" }, ids);
+		}
+
+		[Fact]
+		public void Complete_KeepsWhereTheSaveAlreadyPutsIt()
+		{
+			var saved = new[] { "outlook", "cells", "reports", "damage", "warnings", "watches", "mds", "radar" };
+			Assert.Equal(saved, LayerOrder.Complete(saved));
+		}
+
+		[Fact]
+		public void Complete_MissingTopLayerGoesOnTop()
+		{
+			var ids = LayerOrder.Complete(new[] { "radar", "reports" });
+			Assert.Equal("cells", ids[0]);
+			Assert.Equal(LayerOrder.Default.Count, ids.Count);
+		}
+
+		[Fact]
+		public void Complete_EmptyIsTheDefault() => Assert.Equal(LayerOrder.Default, LayerOrder.Complete(null));
 	}
 }

@@ -162,6 +162,14 @@ namespace Anvil.ViewModels
 					OnPropertyChanged(nameof(IsForeCast));
 					OnTemporalModesChanged();
 				}
+				else if (e.PropertyName is nameof(OutlookViewModel.CardHeadline) or nameof(OutlookViewModel.OutlookNarrativeText))
+				{
+					RaiseOutlookDiscussion();
+				}
+			};
+			PastOutlook.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(PastOutlookViewModel.CardHeadline)) { RaiseOutlookDiscussion(); }
 			};
 
 			AvailableStyles = _styleProvider.GetStyles();
@@ -669,6 +677,12 @@ namespace Anvil.ViewModels
 			if (!IsPastCast) { IsPastWindowOpen = false; }
 			if (!IsNowCast) { IsNowWindowOpen = false; }
 			if (!IsForeCast) { IsForeWindowOpen = false; }
+			// The discussion window reads the outlook of whichever outlook mode runs; with neither, it has none.
+			if (!IsPastCast && !IsForeCast) { IsOutlookDiscussionOpen = false; }
+			RaiseOutlookDiscussion();
+			// A ghost row shows only while its mode runs.
+			OnPropertyChanged(nameof(AreForeCastGhostsShown));
+			OnPropertyChanged(nameof(AreNowCastGhostsShown));
 
 			// ⚠️ THE OVERLAY TICKS MEAN "SHOW WHILE THE MODE RUNS", so the mode is the draw gate. Everything
 			// starts ticked and the map still launches clean, because no mode is on yet. Watches + warnings
@@ -688,22 +702,72 @@ namespace Anvil.ViewModels
 		// The user drags a window's layer sections into any order and the map follows, top of the list on
 		// top. ⚠️ Each window keeps its OWN order (AppSettings.NowCastLayerOrder / PastCastLayerOrder), and
 		// the map draws the one for the mode that owns the overlays: PastCast while it runs, NowCast
-		// otherwise (ForeCast has one layer, which the page slots in beside NowCast's — layers.js
-		// effectiveOrder). No lock on radar, by the user's call: any layer may go anywhere.
+		// otherwise. ⚠️ ForeCast has NO list of its own: its outlook lives in NowCast's (one map), placed by
+		// either window through the GHOST ROWS below. No lock on radar, by the user's call: any layer may go anywhere.
 
-		/// <summary>A window's saved layer order, top first. Empty = that window's XAML default.</summary>
+		/// <summary>A window's saved layer order, top first. Empty = that window's XAML default (Past).
+		/// ⚠️ NOW and FORE share ONE order (one map), and it comes back COMPLETED (<see cref="LayerOrder.Complete"/>):
+		/// a layer the save never named — the outlook, in a save from before ghost rows — appears where the map
+		/// already draws it, not at the bottom of the window.</summary>
 		public IReadOnlyList<string> LayerOrderFor(TemporalMode mode) =>
-			mode == TemporalMode.Past ? _settingsService.Settings.PastCastLayerOrder : _settingsService.Settings.NowCastLayerOrder;
+			mode == TemporalMode.Past
+				? _settingsService.Settings.PastCastLayerOrder
+				: LayerOrder.Complete(_settingsService.Settings.NowCastLayerOrder);
 
 		/// <summary>Called by a window when its layer sections are re-ordered (drag or Alt+Arrow): persists
-		/// the order and, if that window's mode is the one drawing, re-stacks the map.</summary>
+		/// the order and, if that window's mode is the one drawing, re-stacks the map. Now and Fore both write
+		/// the shared Now order; <see cref="LayerOrderChanged"/> tells the other window to follow.</summary>
 		public void SetLayerOrder(TemporalMode mode, IEnumerable<string> topFirst)
 		{
 			var ids = LayerOrder.Normalize(topFirst);
-			if (mode == TemporalMode.Past) { _settingsService.Settings.PastCastLayerOrder = ids; }
+			var shared = mode == TemporalMode.Past ? TemporalMode.Past : TemporalMode.Now;
+			if (shared == TemporalMode.Past) { _settingsService.Settings.PastCastLayerOrder = ids; }
 			else { _settingsService.Settings.NowCastLayerOrder = ids; }
 			PushOverlayOrder();
+			LayerOrderChanged?.Invoke(this, shared);
 		}
+
+		/// <summary>A saved order changed — <see cref="TemporalMode.Past"/>, or <see cref="TemporalMode.Now"/> for the
+		/// shared Now + Fore order. The NowCast and ForeCast bodies re-apply it, so a drag in one moves the other.</summary>
+		public event EventHandler<TemporalMode>? LayerOrderChanged;
+
+		// ===== GHOST ROWS (NowCast ⇄ ForeCast) ===========================================================
+		// Now and Fore coexist on ONE map, so their layers share one stack — but each window only listed its own,
+		// leaving the outlook's place among NowCast's layers unreachable. A window's "Show … ghost rows" box adds
+		// the OTHER mode's layers as dimmed, drag-only rows. Shown only while that other mode RUNS (nothing of it
+		// is on the map otherwise); the boxes persist, default off. (The user's design, 2026-10-01.)
+
+		/// <summary>The NowCast window's "Show ForeCast ghost rows" box. Persisted.</summary>
+		public bool ShowForeCastGhostRows
+		{
+			get => _settingsService.Settings.ShowForeCastGhostRows;
+			set
+			{
+				if (_settingsService.Settings.ShowForeCastGhostRows == value) { return; }
+				_settingsService.Settings.ShowForeCastGhostRows = value;
+				OnPropertyChanged();
+				OnPropertyChanged(nameof(AreForeCastGhostsShown));
+			}
+		}
+
+		/// <summary>The ForeCast window's "Show NowCast ghost rows" box. Persisted.</summary>
+		public bool ShowNowCastGhostRows
+		{
+			get => _settingsService.Settings.ShowNowCastGhostRows;
+			set
+			{
+				if (_settingsService.Settings.ShowNowCastGhostRows == value) { return; }
+				_settingsService.Settings.ShowNowCastGhostRows = value;
+				OnPropertyChanged();
+				OnPropertyChanged(nameof(AreNowCastGhostsShown));
+			}
+		}
+
+		/// <summary>Whether NowCast's ForeCast ghost rows show: its box is on AND ForeCast runs.</summary>
+		public bool AreForeCastGhostsShown => ShowForeCastGhostRows && IsForeCast;
+
+		/// <summary>Whether ForeCast's NowCast ghost rows show: its box is on AND NowCast runs.</summary>
+		public bool AreNowCastGhostsShown => ShowNowCastGhostRows && IsNowCast;
 
 		/// <summary>A temporal-window section's saved open/closed state, keyed "window/section"; null = never
 		/// toggled, so the section keeps its XAML default.</summary>
@@ -869,6 +933,51 @@ namespace Anvil.ViewModels
 					RadarAtlas.History.IsActive = value; // the history sections fetch only while someone can see them
 				}
 			}
+		}
+
+		// ===== The Outlook Discussion window ===========================================================
+		// SPC's forecast discussion for the outlook ON THE MAP, opened by the "Discussion." button on the Product
+		// row of BOTH outlook sections (ForeCast + PastCast). ONE window: Past excludes Fore, so at most one
+		// outlook mode runs, and the window reads that one. It replaced ForeCast's inline "Forecast discussion"
+		// section (2026-10-01); the text is still SPC's raw teletype — a readable layout is the next step.
+		// ⚠️ Closed by OnTemporalModesChanged when neither outlook mode runs (nothing left to read).
+		private bool _isOutlookDiscussionOpen;
+		private bool _isOutlookDiscussionOnTop = true;
+		private bool _isOutlookDiscussionLocked = true;
+
+		/// <summary>Whether the Outlook Discussion window is open.</summary>
+		public bool IsOutlookDiscussionOpen
+		{
+			get => _isOutlookDiscussionOpen;
+			set => SetProperty(ref _isOutlookDiscussionOpen, value);
+		}
+
+		/// <summary>Whether the Outlook Discussion window stays above Anvil (title-bar pin).</summary>
+		public bool IsOutlookDiscussionOnTop
+		{
+			get => _isOutlookDiscussionOnTop;
+			set => SetProperty(ref _isOutlookDiscussionOnTop, value);
+		}
+
+		/// <summary>Whether the Outlook Discussion window is locked in place (title-bar lock).</summary>
+		public bool IsOutlookDiscussionLocked
+		{
+			get => _isOutlookDiscussionLocked;
+			set => SetProperty(ref _isOutlookDiscussionLocked, value);
+		}
+
+		/// <summary>Which outlook the window is reading — the card headline of the running outlook mode.</summary>
+		public string OutlookDiscussionTitle => IsPastCast ? PastOutlook.CardHeadline : Outlook.CardHeadline;
+
+		/// <summary>The discussion text. PastCast has no archived discussion yet, so it says so.</summary>
+		public string OutlookDiscussionText => IsPastCast
+			? "SPC's discussion for past outlooks isn't loaded yet."
+			: Outlook.OutlookNarrativeText;
+
+		private void RaiseOutlookDiscussion()
+		{
+			OnPropertyChanged(nameof(OutlookDiscussionTitle));
+			OnPropertyChanged(nameof(OutlookDiscussionText));
 		}
 
 		// ===== The Anvil Atlas: three tabs (Radar sites | Past events | DOW events) =======================

@@ -287,7 +287,8 @@ namespace Anvil.Services
 		// ⚠️ REPLACE the list, never mutate it — see FavoriteSiteIds.
 
 		private List<string> _nowCastLayerOrder = new();
-		/// <summary>The NowCast window's layer-section order, top first (= top of the map).</summary>
+		/// <summary>The NowCast window's layer-section order, top first (= top of the map). ⚠️ SHARED with
+		/// ForeCast: Now and Fore draw on one map, so ForeCast's ghost rows edit THIS list too (incl. "outlook").</summary>
 		public List<string> NowCastLayerOrder
 		{
 			get => _nowCastLayerOrder;
@@ -300,6 +301,24 @@ namespace Anvil.Services
 		{
 			get => _pastCastLayerOrder;
 			set => SetProperty(ref _pastCastLayerOrder, value ?? new());
+		}
+
+		// GHOST ROWS — each window's "show the other mode's layers" checkbox (MapViewModel's GHOST ROWS block).
+		// Default OFF (the user's call, 2026-10-01).
+		private bool _showForeCastGhostRows;
+		/// <summary>The NowCast window's "Show ForeCast ghost rows" box.</summary>
+		public bool ShowForeCastGhostRows
+		{
+			get => _showForeCastGhostRows;
+			set => SetProperty(ref _showForeCastGhostRows, value);
+		}
+
+		private bool _showNowCastGhostRows;
+		/// <summary>The ForeCast window's "Show NowCast ghost rows" box.</summary>
+		public bool ShowNowCastGhostRows
+		{
+			get => _showNowCastGhostRows;
+			set => SetProperty(ref _showNowCastGhostRows, value);
 		}
 
 		// ── Temporal-window choices (ViewModels/Map/TemporalWindowPersistence restores + tracks these) ──────

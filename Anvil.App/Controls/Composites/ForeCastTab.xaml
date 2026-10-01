@@ -1,21 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ForeCastTab — the body of the ForeCast window: the SPC outlook (card + day / product / opacity) with
-     its legend, then SPC's forecast discussion. One of three mode bodies (see Controls/Windows/TemporalWindow, registered once per mode);
-     the window supplies the surface, the title and the pin, so this is content only.
+     its legend, plus NowCast's GHOST rows around it. One of three mode bodies (see Controls/Windows/TemporalWindow,
+     registered once per mode); the window supplies the surface, the title and the pin, so this is content only.
      ⚠️ The file keeps its "Tab" name from when the three were tabs of one Timeframe window. It is the same
      control, unchanged by the split; renaming all three would be churn. Bound to the coordinator
-     MapViewModel; every control here drives ViewModel.Outlook.
+     MapViewModel; every real control here drives ViewModel.Outlook.
 
+       [x] Show NowCast ghost rows                               ← persisted, default off; fixed (doesn't scroll)
        ┌──────────────────────────────────────────────────────┐
-       │ ⠿ ⌄ [x] SPC outlook  ────────●──────   55%           │  ← the window's one LAYER section: grip,
-       │                                                      │     show/hide box, OPACITY in the header
+       │ ⠿   ░░ ░Storm cells · NowCast░░░░░░░░░░░░░░░░░░░░░░░ │  ← GHOSTS (PanelSection IsGhost): NowCast's
+       │ ⠿   ░░ ░Warnings · NowCast░░░░░░░░░░░░░░░░░░░░░░░░░░ │     layers, 25%, drag-only — only while the
+       │ …                                                    │     box is on AND NowCast runs. ONE shared
+       │ ⠿ ⌄ [x] SPC outlook  ────────●──────   55%           │     Now + Fore order: a drag here moves
+       │                                                      │     NowCast's window too, and vice versa
        │  ┌──────────────────────────────────────────┐        │
        │  │ Day 1 · Categorical                      │        │  the card: which outlook is
        │  │ Issued 12:57 PM · Valid → Wed 7:00 AM    │        │  drawn, when SPC issued it,
        │  │ Next ~9 min                              │        │  and the refresh countdown
        │  └──────────────────────────────────────────┘        │
        │  Day      [Day 1 · Wed Sep 2          ▾]             │  ← self-labeling; cascades Product
-       │  Product  [Categorical                ▾]             │
+       │  Product  [Categorical       ▾] [Discussion.]        │  ← opens the Outlook Discussion WINDOW
        │  Cycle    [Latest                     ▾]             │  ← Latest | today's earlier issuances (HELD)
        │  ────────────────────────────────────────────────    │
        │   ■ 2%                                               │  ← the LEGEND (Primitives/OutlookLegend):
@@ -26,38 +30,29 @@
        │   ╱ CIG2                                 In Outlook  │     intensity groups; status from the CACHED
        │   ╳ CIG3                             Not In Outlook  │     GeoJSON, so a hidden hatch can't be forgotten
        └──────────────────────────────────────────────────────┘
-                                                             ┃  ← all of the above sits in PanelScroller: a 16 px
-                                                                gutter always claimed, thumb ┃ only on overflow;
-                                                                it fills the height the discussion leaves
-       ┌──────────────────────────────────────────────────────┐
-       │ ›  Forecast discussion                               │  ← pinned to the BOTTOM; COLLAPSED on
-       └──────────────────────────────────────────────────────┘     load, opens into a 240px cap
-
-       (expanded)
-       ┌──────────────────────────────────────────────────────┐
-       │ ⌄  Forecast discussion                             ▲ │
-       │  SPC AC 021257                                     █ │  SPC's own teletype prose,
-       │  DAY 1 CONVECTIVE OUTLOOK                          █ │  fixed-pitch so its columns
-       │  ...VALID 021300Z - 031200Z...                     ▼ │  and rules line up
+       │ ⠿   ░░ ░Radar · NowCast░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │  ← ghost (default spot: under the outlook)
        └──────────────────────────────────────────────────────┘
+                                                             ┃  ← all of the above sits in PanelScroller: a 16 px
+                                                                gutter always claimed, thumb ┃ only on overflow
 
-     TWO SECTIONS, two Primitives/PanelSections (the one header every section in the app wears, Settings
-     and the other two temporal windows included). SPC outlook is open on a first run — it is
-     what the window is for. Open/closed is then PERSISTED ("fore/..." in AppSettings.SectionExpanded), and
-     so are Day, Product, opacity and hatching (ViewModels/Map/TemporalWindowPersistence). Inside it: a summary CARD, then [label | control] rows in one aligned 60px
-     column, then the legend. Forecast discussion is COLLAPSED on load; see its own note below. This was the loosest of the three bodies — no section structure
-     at all, a local OutlookLabelStyle that was character-for-character the shared SettingsFieldLabelStyle,
-     and a hand-rolled letter-spaced "Legend" label. All three are gone.
+     ONE REAL SECTION, a Primitives/PanelSection (the one header every section in the app wears). SPC outlook
+     is open on a first run — it is what the window is for. Open/closed is then PERSISTED ("fore/..." in
+     AppSettings.SectionExpanded; ghosts don't persist — they have no body), and so are Day, Product, opacity
+     and hatching (ViewModels/Map/TemporalWindowPersistence). Inside it: a summary CARD, then [label | control]
+     rows in one aligned 60px column, then the legend.
      ⚠️ The window opens at a FIXED full height, so the layer run SCROLLS inside Primitives/PanelScroller
-     (2026-09-30, the same scroller as Past/Now) and the discussion stays pinned below it. WinUI's bar is not
-     wanted — see the PanelScroller header.
+     (2026-09-30, the same scroller as Past/Now). WinUI's bar is not wanted — see the PanelScroller header.
+     ⚠️ THE DISCUSSION IS A WINDOW NOW (Windows/OutlookDiscussionWindow, the Product row's "Discussion."). It
+     was an inline collapsed section pinned at the bottom of this body until 2026-10-01 (the user's call).
 
      ⚠️ THE OUTLOOK HEADER'S BOX IS A LAYER SHOW/HIDE (OutlookViewModel.IsShown), NOT the mode. The mode is
      OutlookViewModel.IsOutlookVisible (MapViewModel.IsForeCast projects onto it), and a tab body never arms
      or clears its own mode — see the last ⚠️ in this header. The box sits UNDER the mode, exactly as
-     PastCast's outlook box does. The outlook also carries a GRIP (LayerId) though it is alone in its run
-     today (the user's call, 2026-09-30: every layer section looks the same). The discussion is prose, not a
-     layer — no box, no grip.
+     PastCast's outlook box does.
+     ⚠️ GHOST ROWS: ForeCast has no layer order of its own — its outlook lives in the SHARED Now + Fore order
+     (MapViewModel's GHOST ROWS block; saved as NowCastLayerOrder). The ghosts are NowCast's layers in the map's
+     default spots (LayerOrder.Default); a drag here saves the Now order and the NowCast window follows
+     (LayerOrderChanged). A ghost's box mirrors the real show/hide, inert.
 
      ⚠️ THE CARD COSTS NO VIEW-MODEL WORK. Its three lines are OutlookViewModel state that was already
      being computed and shown nowhere — the title, the issued/valid line, and the refresh countdown. See
@@ -68,19 +63,13 @@
      (2026-09-28) was one shape for both windows, so collapsing the section now takes the legend with it.
      The Day row is the same ComboBox in both windows too.
 
-     ⚠️ THERE IS DELIBERATELY NO RADAR SECTION HERE, unlike Past and Now. Radar opacity is a GLOBAL value,
-     and those two windows can only get away with sharing a control for it because their modes are
-     mutually exclusive — they can never both be open. ForeCast COEXISTS with NowCast, so a slider here
+     ⚠️ THERE IS DELIBERATELY NO REAL RADAR SECTION HERE, unlike Past and Now (the radar row is a GHOST,
+     inert). Radar opacity is a GLOBAL value, and those two windows can only get away with sharing a control
+     for it because their modes are mutually exclusive. ForeCast COEXISTS with NowCast, so a live slider here
      would be a second control writing the same value with both windows on screen.
 
      ⚠️ Opacity is DISABLED while Product is None or the box hides it (ShownOnMap) — the same rule the
      PastCast outlook and the storm-report dots follow.
-
-     ⚠️ THE FORECAST DISCUSSION IS ITS OWN SECTION, collapsed, bounded. It was deferred for exactly as long
-     as these bodies had no section structure to hang it on ("wants its own bounded section — likely to
-     arrive with per-section Expanders"); the Expanders arrived, so it did. Collapsed because the window
-     sizes to content ONCE at open and this prose runs to a length SPC picks. Don't open it by default and
-     don't unbound it.
 
      ⚠️ This tab does NOT turn ForeCast on or off; that is the ForeCast key in the bottom bar's centre
      cluster. A tab body configures a mode, the key runs it. -->
@@ -99,31 +88,61 @@
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
-    <!-- ⚠️ NOT top-aligned, unlike the Past/Now roots: TemporalWindow hands this the full window height. The
-         star row is the SCROLLER (it takes what the discussion leaves), and that keeps the discussion pinned to
-         the bottom — it used to be an empty spacer row doing the same job. -->
-    <Grid x:Name="Root" RowSpacing="8">
+    <!-- ⚠️ NOT top-aligned, unlike the Past/Now roots: TemporalWindow hands this the full window height, and
+         the star row is the SCROLLER, which fills it. -->
+    <Grid x:Name="Root">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- "Show NowCast ghost rows" -->
             <RowDefinition Height="*"/>    <!-- the layer run in PanelScroller: fills the space, scrolls when it can't -->
-            <RowDefinition Height="Auto"/> <!-- Forecast discussion: SPC's prose, bounded, at the bottom -->
         </Grid.RowDefinitions>
+
+        <!-- GHOST ROWS box: NowCast's layers as dimmed, drag-only rows around the outlook, so you can say where the
+             outlook draws among them (ONE shared Now + Fore order). Persisted, default off; the rows show only
+             while NowCast runs too (MapViewModel's GHOST ROWS block). -->
+        <CheckBox Grid.Row="0" Margin="0,0,0,8" Content="Show NowCast ghost rows"
+                  IsChecked="{x:Bind ViewModel.ShowNowCastGhostRows, Mode=TwoWay}"
+                  ToolTipService.ToolTip="List NowCast's layers here, dimmed, so you can drag the outlook among them (shown while NowCast is on)"/>
 
         <!-- ===================== THE LAYER RUN: one contiguous block of layer sections ===================== -->
         <!-- ⚠️ In Primitives/PanelScroller, like Past/Now's sections — present whether or not the outlook overflows
              yet (the user's call, 2026-09-30): the gutter is always claimed, the thumb only draws on overflow.
              Margin right -12 BLEEDS the gutter into the window's 16 px body margin (the PanelScroller header).
-             ⚠️ A StackPanel of its own (like Past/Now's "Sections") so a SECOND ForeCast layer drops in beside
-             the outlook and the grip has a run to drag in. Today the run is ONE section, so the grip shows but a
-             drag never starts (PanelSection needs a block of 2) — and so there is no Reordered handler yet.
-             A second layer = its section here + Reordered → SetLayerOrder + a saved ForeCast order. -->
-        <prim:PanelScroller Grid.Row="0" Margin="0,0,-12,0">
+             ⚠️ A StackPanel of its own (like Past/Now's "Sections"): the outlook + NowCast's ghost rows are ONE
+             run. With the ghosts hidden the outlook is alone, so its grip shows but a drag never starts
+             (PanelSection needs 2 visible). Reordered → SetLayerOrder(Now): the shared Now + Fore order. -->
+        <prim:PanelScroller Grid.Row="1" Margin="0,0,-12,0">
         <StackPanel x:Name="Sections" VerticalAlignment="Top" Spacing="8">
+
+        <!-- ===================== GHOSTS: NowCast's layers, in the map's default spots ===================== -->
+        <!-- Drag-only (IsGhost); boxes mirror the real show/hides, inert. Collapsed = still in the run, so the
+             saved order keeps their places. The XAML order IS the map default (LayerOrder.Default). -->
+        <prim:PanelSection Header="Storm cells · NowCast" LayerId="cells" Reordered="OnSectionsReordered"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.StormCells.AllShown, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
+        <prim:PanelSection Header="Storm reports · NowCast" LayerId="reports" Reordered="OnSectionsReordered"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.StormReports.AllShown, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
+        <prim:PanelSection Header="Warnings · NowCast" LayerId="warnings" Reordered="OnSectionsReordered"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Warnings.AllShown, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
+        <prim:PanelSection Header="Watches · NowCast" LayerId="watches" Reordered="OnSectionsReordered"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Watches.AllShown, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
+        <prim:PanelSection Header="Mesoscale discussions · NowCast" LayerId="mds" Reordered="OnSectionsReordered"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Discussions.AllShown, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
 
         <!-- ===================== SPC OUTLOOK: the card, then the selectors ===================== -->
         <!-- LayerId → the grip. The header box is SHOW/HIDE (Outlook.IsShown, persisted) — NOT the mode, which
              is the bottom bar's ForeCast key; hiding keeps Day / Product. Works whatever the product, None
              included (PastCast's rule). Opacity greys while hidden or None: nothing drawn to fade. -->
         <prim:PanelSection x:Name="OutlookSection" Header="SPC outlook" LayerId="outlook" IsExpanded="True"
+                           Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Outlook.IsShown, Mode=OneWay}"
                            CheckBoxClick="OnOutlookHeaderClick"
@@ -189,12 +208,24 @@
 
                     <!-- Product: the day's outlook types (+ None). The list CASCADES with the day, so it stays
                          a dropdown — its length changes. -->
+                    <!-- …and SHARES its row with "Discussion.", which opens the Outlook Discussion window (no row
+                         of its own — the user's call, 2026-10-01; PastCast's Product row matches). -->
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
-                              ItemsSource="{x:Bind ViewModel.Outlook.ProductOptions, Mode=OneWay}"
-                              DisplayMemberPath="Label"
-                              SelectedItem="{x:Bind ViewModel.Outlook.SelectedOption, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Outlook product (None clears the overlay)"/>
+                    <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox HorizontalAlignment="Stretch"
+                                  ItemsSource="{x:Bind ViewModel.Outlook.ProductOptions, Mode=OneWay}"
+                                  DisplayMemberPath="Label"
+                                  SelectedItem="{x:Bind ViewModel.Outlook.SelectedOption, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Outlook product (None clears the overlay)"/>
+                        <Button Grid.Column="1" Content="Discussion."
+                                IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}"
+                                Click="OnDiscussionClick"
+                                ToolTipService.ToolTip="Read SPC's forecast discussion for this outlook in its own window"/>
+                    </Grid>
 
                     <!-- Cycle: the SAME row as PastCast's (the user's call, 2026-09-30: both outlook sections laid
                          out exactly alike). Latest = the live feed, following every new issuance; an earlier one of
@@ -218,39 +249,15 @@
                                     ShowHatching="{x:Bind ViewModel.Outlook.ShowHatching, Mode=TwoWay}"/>
             </Grid>
         </prim:PanelSection>
+
+        <prim:PanelSection Header="Radar · NowCast" LayerId="radar" Reordered="OnSectionsReordered"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
         </StackPanel>
         </prim:PanelScroller>
-
-        <!-- ===================== FORECAST DISCUSSION: SPC's own prose ===================== -->
-        <!-- SPC's forecast discussion for the selected day, scraped from their HTML product page and disk
-             cached (OutlookViewModel.OutlookNarrativeText ← SpcOutlookService.GetNarrativeAsync). It was
-             fetched on every selection change and every 15-min refresh cycle for years while being shown
-             NOWHERE; this section is where it finally lands.
-             ⚠️ COLLAPSED ON LOAD, unlike the outlook section — and that is the whole design. The window sizes
-             to its content ONCE, at open, so a section that is open at that moment sets the window height.
-             This is long prose of a length SPC decides, so opening by default would size the window to a
-             stranger's paragraph count and hit TemporalWindow's work-area clamp.
-             ⚠️ BOUNDED for the same reason: MaxHeight + an inner scroller, the same treatment the legend
-             above gets. It is NOT the window-body ScrollViewer that TemporalWindow deliberately refuses — it is
-             an inner region whose CONTENT LENGTH IS NOT OURS TO DECIDE, and it sits OUTSIDE the PanelScroller
-             above (never nest it in). Don't generalise it into a body scroller.
-             ⚠️ DISABLED while Product is None, the same off switch the opacity slider uses. Fire-weather
-             products have no scraped page (their layout differs); the text says so itself rather than the
-             section hiding, so the row never silently vanishes. -->
-        <!-- ⚠️ Margin right 4 = the scroller's gutter (16) − its bleed (12), so this header's right edge (its
-             opacity/% column) lines up with the outlook header's above, which sits left of that gutter. -->
-        <prim:PanelSection Grid.Row="1" Margin="0,0,4,0" Header="Forecast discussion" IsExpanded="False"
-                           IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="240"
-                          HorizontalScrollMode="Disabled">
-                <!-- Monospace: SPC ships the discussion as pre-formatted teletype text (ExtractPreText pulls
-                     it out of a <pre> block), so its columns and hand-drawn separators only line up in a
-                     fixed-pitch face. IsTextSelectionEnabled so a forecaster line can be copied out. -->
-                <TextBlock Text="{x:Bind ViewModel.Outlook.OutlookNarrativeText, Mode=OneWay}"
-                           FontFamily="Consolas" FontSize="12" TextWrapping="Wrap"
-                           IsTextSelectionEnabled="True"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            </ScrollViewer>
-        </prim:PanelSection>
+        <!-- (The inline "Forecast discussion" section that sat pinned below here is GONE — SPC's discussion
+             moved to its own window, the Outlook Discussion window, opened by the Product row's "Discussion."
+             button. The user's call, 2026-10-01.) -->
     </Grid>
 </UserControl>

@@ -35,6 +35,9 @@ namespace Anvil.Controls.Composites
 			_clock.Tick += (_, _) => UpdateClock();
 			Loaded += (_, _) => { _shownSecond = -1; UpdateClock(); _clock.Start(); };
 			Unloaded += (_, _) => _clock.Stop();
+			// The Now + Fore order is SHARED: a drag in the ForeCast window (its ghost rows) moves these too.
+			Loaded += (_, _) => { if (ViewModel is not null) { ViewModel.LayerOrderChanged += OnLayerOrderChanged; } };
+			Unloaded += (_, _) => { if (ViewModel is not null) { ViewModel.LayerOrderChanged -= OnLayerOrderChanged; } };
 			// Once: Loaded fires again every time the window re-shows this body, and by then the sections
 			// already ARE the order (a re-order is saved as it happens).
 			Loaded += (_, _) =>
@@ -50,6 +53,15 @@ namespace Anvil.Controls.Composites
 
 		private void OnSectionsReordered(object? sender, System.EventArgs e) =>
 			ViewModel.SetLayerOrder(TemporalMode.Now, PanelSection.LayerOrderOf(Sections));
+
+		// Re-apply the shared order (a no-op when this window made the change — it is already in that order).
+		private void OnLayerOrderChanged(object? sender, TemporalMode mode)
+		{
+			if (mode == TemporalMode.Now) { PanelSection.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Now)); }
+		}
+
+		// A ghost row shows only while its box is on and its mode runs (MapViewModel.AreForeCastGhostsShown).
+		public Visibility GhostVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
 
 		// Header select-all boxes. IsChecked is bound ONE-WAY: the CheckBox has already flipped itself by the
 		// time Click fires, and the VM's answer (raised through AllShown / ShowRadarLayer) overwrites it.

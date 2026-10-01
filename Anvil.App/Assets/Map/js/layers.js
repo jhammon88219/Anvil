@@ -76,9 +76,10 @@ function groupOf(layerId) {
     return null;
 }
 
-// The host sends ONE window's list, which never names every group (NowCast has no outlook section, but
-// ForeCast's outlook shares the map with it). A missing group keeps its DEFAULT neighbour: it goes
+// The host sends ONE window's list, which may not name every group (an old save, from before the NowCast ⇄
+// ForeCast ghost rows put the outlook in it). A missing group keeps its DEFAULT neighbour: it goes
 // directly beneath the nearest group that sits above it in DEFAULT_ORDER, or on top if none does.
+// ⚠️ MIRRORED in C# as Models/Map/LayerOrder.Complete (+ .Default = this GROUPS order) — change both.
 function effectiveOrder() {
     const out = userOrder.filter(function (id) { return DEFAULT_ORDER.indexOf(id) >= 0; });
     DEFAULT_ORDER.forEach(function (id, di) {

@@ -1,14 +1,15 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Anvil.Controls.Primitives;
 using Anvil.Models;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The ForeCast window body (see the XAML header) — the SPC outlook section (card over day / product /
-	/// opacity, legend) and the forecast discussion. Bound to the coordinator <see cref="MapViewModel"/>; every control
-	/// here drives <c>ViewModel.Outlook</c>.
+	/// The ForeCast window body (see the XAML header) — the SPC outlook section (card over day / product +
+	/// Discussion. / cycle, legend), plus NowCast's GHOST rows around it. Bound to the coordinator
+	/// <see cref="MapViewModel"/>; every real control here drives <c>ViewModel.Outlook</c>.
 	/// </summary>
 	public sealed partial class ForeCastTab : UserControl
 	{
@@ -22,13 +23,34 @@ namespace Anvil.Controls.Composites
 			{
 				if (_expansionBound || ViewModel is null) { return; }
 				_expansionBound = true;
-				// The layer run (Sections) + the non-layer sections directly under Root (the discussion).
-				var sections = System.Linq.Enumerable.Concat(
-					System.Linq.Enumerable.OfType<Anvil.Controls.Primitives.PanelSection>(Sections.Children),
-					System.Linq.Enumerable.OfType<Anvil.Controls.Primitives.PanelSection>(Root.Children));
-				Anvil.Controls.Primitives.PanelSection.PersistExpansion(sections, "fore",
-					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
+				// The SHARED Now + Fore order (ForeCast has none of its own): the outlook among NowCast's ghosts.
+				PanelSection.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Now));
+				// Ghosts have no body to open, so only the real sections persist their open/closed state.
+				PanelSection.PersistExpansion(
+					System.Linq.Enumerable.Where(System.Linq.Enumerable.OfType<PanelSection>(Sections.Children), s => !s.IsGhost),
+					"fore", ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			};
+			// A drag in the NowCast window moves these too (and this window's drags move NowCast's).
+			Loaded += (_, _) => { if (ViewModel is not null) { ViewModel.LayerOrderChanged += OnLayerOrderChanged; } };
+			Unloaded += (_, _) => { if (ViewModel is not null) { ViewModel.LayerOrderChanged -= OnLayerOrderChanged; } };
+		}
+
+		// ⚠️ Saved as the NOW order: Now + Fore share one map, so they share one stack (MapViewModel's GHOST ROWS).
+		private void OnSectionsReordered(object? sender, System.EventArgs e) =>
+			ViewModel.SetLayerOrder(TemporalMode.Now, PanelSection.LayerOrderOf(Sections));
+
+		private void OnLayerOrderChanged(object? sender, TemporalMode mode)
+		{
+			if (mode == TemporalMode.Now) { PanelSection.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Now)); }
+		}
+
+		// A ghost row shows only while its box is on and NowCast runs (MapViewModel.AreNowCastGhostsShown).
+		public Visibility GhostVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
+
+		// "Discussion." on the Product row — SPC's forecast discussion in its own window.
+		private void OnDiscussionClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is not null) { ViewModel.IsOutlookDiscussionOpen = true; }
 		}
 
 		// Header show/hide box: IsChecked is ONE-WAY, so the box has already flipped itself by the time Click

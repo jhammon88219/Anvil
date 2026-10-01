@@ -155,6 +155,19 @@ namespace Anvil.Controls.Primitives
 		public static readonly DependencyProperty OpacityToolTipProperty =
 			DependencyProperty.Register(nameof(OpacityToolTip), typeof(string), typeof(PanelSection), new PropertyMetadata(null));
 
+		/// <summary>
+		/// A GHOST row: another window's layer, shown here only so this window's layers can be ordered around it
+		/// (NowCast ⇄ ForeCast share one map stack). Everything but the GRIP dims heavily and takes no input —
+		/// the drag is the only thing a ghost is for. Give it no Body.
+		/// </summary>
+		public bool IsGhost
+		{
+			get => (bool)GetValue(IsGhostProperty);
+			set => SetValue(IsGhostProperty, value);
+		}
+		public static readonly DependencyProperty IsGhostProperty =
+			DependencyProperty.Register(nameof(IsGhost), typeof(bool), typeof(PanelSection), new PropertyMetadata(false));
+
 		/// <summary>The header box was clicked. The handler decides (VM); see <see cref="IsChecked"/>.</summary>
 		public event RoutedEventHandler? CheckBoxClick;
 
@@ -195,6 +208,12 @@ namespace Anvil.Controls.Primitives
 		// A TextBlock has no disabled state; the readout dims through Opacity (no theme brush in code).
 		public double DimUnless(bool enabled) => enabled ? 1.0 : 0.4;
 
+		// A GHOST row dims everything but its grip this far, and those cells stop taking input.
+		private const double GhostOpacity = 0.25;
+		public double GhostDim(bool ghost) => ghost ? GhostOpacity : 1.0;
+		public double GhostDimUnless(bool enabled, bool ghost) => DimUnless(enabled) * GhostDim(ghost);
+		public bool NotGhost(bool ghost) => !ghost;
+
 		public string ChevronName(string header, bool expanded) => (expanded ? "Collapse " : "Expand ") + header;
 		public string CheckBoxName(string header) => "Show " + header;
 		public string OpacityName(string header) => header + " opacity";
@@ -205,7 +224,7 @@ namespace Anvil.Controls.Primitives
 
 		private void OnHeaderTapped(object sender, TappedRoutedEventArgs e)
 		{
-			if (Body is null) { return; }
+			if (Body is null || IsGhost) { return; }
 			if (e.OriginalSource is DependencyObject src &&
 				(IsWithin(src, Grip) || IsWithin(src, ChevronButton) || IsWithin(src, HeaderBox) || IsWithin(src, OpacitySlider)))
 			{
@@ -376,7 +395,10 @@ namespace Anvil.Controls.Primitives
 			DispatcherQueue.TryEnqueue(() => focused?.Focus(FocusState.Keyboard));
 		}
 
-		// The contiguous run of layer sections in the host that contains this one.
+		// The contiguous run of layer sections in the host that contains this one — its VISIBLE members only.
+		// ⚠️ A collapsed section (a ghost row while its mode is off or the ghosts are hidden) stays in the run
+		// for contiguity but is no drop slot: counted, it would be an invisible place to land. It keeps its
+		// spot in Children, so the saved order still remembers where it goes.
 		private static List<PanelSection> BlockAround(Panel host, PanelSection section)
 		{
 			var kids = host.Children.ToList();
@@ -384,7 +406,8 @@ namespace Anvil.Controls.Primitives
 			int start = at, end = at;
 			while (start > 0 && kids[start - 1] is PanelSection { IsReorderable: true }) { start--; }
 			while (end < kids.Count - 1 && kids[end + 1] is PanelSection { IsReorderable: true }) { end++; }
-			return kids.Skip(start).Take(end - start + 1).Cast<PanelSection>().ToList();
+			return kids.Skip(start).Take(end - start + 1).Cast<PanelSection>()
+				.Where(s => s.Visibility == Visibility.Visible).ToList();
 		}
 
 		// ── Host helpers ─────────────────────────────────────────────────────────────────────────────

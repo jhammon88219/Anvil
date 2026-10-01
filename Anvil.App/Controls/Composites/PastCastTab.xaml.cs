@@ -165,6 +165,12 @@ namespace Anvil.Controls.Composites
 		private void OnOutlookHeaderClick(object sender, RoutedEventArgs e) =>
 			ViewModel?.PastOutlook.ToggleShown();
 
+		// "Discussion." on the outlook's Product row — the Outlook Discussion window (shared with ForeCast's).
+		private void OnDiscussionClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is not null) { ViewModel.IsOutlookDiscussionOpen = true; }
+		}
+
 		// x:Bind helper for the damage-survey rows' counts.
 		public string Count(int n) => n.ToString(System.Globalization.CultureInfo.InvariantCulture);
 

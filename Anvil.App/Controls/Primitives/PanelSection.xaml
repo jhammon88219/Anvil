@@ -32,6 +32,12 @@
      the slider); a whole-header drag would fight all of them. Keyboard: Alt+Up/Down anywhere in a layer
      section. Dragging stays inside the run of layer sections it belongs to — non-layer sections are walls.
      ⚠️ Clicking the header toggles, but NOT when the click lands on the grip, box, slider or chevron.
+
+       GHOST ROW (IsGhost: another window's layer, for ordering this window's around it — NowCast ⇄ ForeCast)
+      ┌──────────────────────────────────────────────────────────────┐
+      │ ⠿     ░░  ░SPC outlook · ForeCast░  ░░░░░░░░░░░░░░░░░░  ░░░  │  ← everything but the GRIP at 25%,
+      └──────────────────────────────────────────────────────────────┘    inert; no Body. Drag is all it does.
+     ⚠️ A COLLAPSED layer section (a hidden ghost) is skipped by the drag block — no invisible drop slot.
      ⚠️ Header brushes are {ThemeResource} in VISUAL STATES (Normal / PointerOver / Lifted), never resolved
      in code — see CLAUDE.md. -->
 <UserControl x:Class="Anvil.Controls.Primitives.PanelSection"
@@ -139,6 +145,8 @@
                           Width="20" Height="20" MinWidth="0" MinHeight="0" Padding="0"
                           HorizontalAlignment="Left" VerticalAlignment="Center"
                           Visibility="{x:Bind BoolVisibility(ShowCheckBox), Mode=OneWay}"
+                          Opacity="{x:Bind GhostDim(IsGhost), Mode=OneWay}"
+                          IsHitTestVisible="{x:Bind NotGhost(IsGhost), Mode=OneWay}"
                           IsChecked="{x:Bind IsChecked, Mode=OneWay}"
                           IsEnabled="{x:Bind IsCheckBoxEnabled, Mode=OneWay}"
                           AutomationProperties.Name="{x:Bind CheckBoxName(Header), Mode=OneWay}"
@@ -150,7 +158,7 @@
                            FontSize="14" FontWeight="SemiBold"
                            VerticalAlignment="Center" Margin="0,0,10,0"
                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                           Opacity="{x:Bind DimUnless(IsEnabled), Mode=OneWay}"
+                           Opacity="{x:Bind GhostDimUnless(IsEnabled, IsGhost), Mode=OneWay}"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
 
                 <!-- ⚠️ The three keys below take the stock Slider from 32 px tall to its 18 px thumb, so it
@@ -162,6 +170,8 @@
                         StepFrequency="0.05" SmallChange="0.05" LargeChange="0.1"
                         IsThumbToolTipEnabled="False"
                         Visibility="{x:Bind BoolVisibility(ShowOpacity), Mode=OneWay}"
+                        Opacity="{x:Bind GhostDim(IsGhost), Mode=OneWay}"
+                        IsHitTestVisible="{x:Bind NotGhost(IsGhost), Mode=OneWay}"
                         IsEnabled="{x:Bind IsOpacityEnabled, Mode=OneWay}"
                         Value="{x:Bind OpacityValue, Mode=TwoWay}"
                         AutomationProperties.Name="{x:Bind OpacityName(Header), Mode=OneWay}"
@@ -176,7 +186,7 @@
                 <!-- The readout formats OpacityValue — the VIEW MODEL's number, the one on the map. -->
                 <TextBlock Grid.Column="5"
                            Text="{x:Bind Percent(OpacityValue), Mode=OneWay}"
-                           Opacity="{x:Bind DimUnless(IsOpacityEnabled), Mode=OneWay}"
+                           Opacity="{x:Bind GhostDimUnless(IsOpacityEnabled, IsGhost), Mode=OneWay}"
                            Visibility="{x:Bind BoolVisibility(ShowOpacity), Mode=OneWay}"
                            FontSize="12" TextAlignment="Right" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>

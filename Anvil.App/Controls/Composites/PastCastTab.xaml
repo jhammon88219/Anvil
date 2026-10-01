@@ -89,6 +89,8 @@
          Selecting a product fetches the archived issuance for the entered replay date and overlays it on
          the past radar; there is no Load, so the card is a RESULT rather than a preview.
          ⚠️ Cycle is DISABLED while Product is None; the header Opacity also while the box hides it.
+         Product shares its row with [Discussion.] → the Outlook Discussion WINDOW (shared with ForeCast's;
+         past discussions aren't archived yet, and the window says so).
          ⚠️ Days 1-3 is a PRODUCT BOUNDARY (SPC has no categorical past day 3), not an arbitrary cap; see
          the note on that row before widening it.
      Storm reports stay a separate control — the NowCast tab shows the same block, so it is content of TWO
@@ -635,13 +637,26 @@
 
                     <!-- The product list CASCADES with the day (day 1 breaks out tornado/wind/hail; days 2-3
                          carry a single combined probabilistic), so it stays a dropdown — its length changes. -->
+                    <!-- …and SHARES its row with "Discussion.", which opens the Outlook Discussion window (no row of
+                         its own — the user's call, 2026-10-01; ForeCast's Product row matches). Past discussions
+                         aren't archived yet; the window says so. -->
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
-                              IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
-                              ItemsSource="{x:Bind ViewModel.PastOutlook.ProductOptions, Mode=OneWay}"
-                              DisplayMemberPath="Label"
-                              SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedProductOption, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Historical outlook product — None clears the overlay"/>
+                    <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox HorizontalAlignment="Stretch"
+                                  IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
+                                  ItemsSource="{x:Bind ViewModel.PastOutlook.ProductOptions, Mode=OneWay}"
+                                  DisplayMemberPath="Label"
+                                  SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedProductOption, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Historical outlook product — None clears the overlay"/>
+                        <Button Grid.Column="1" Content="Discussion."
+                                IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
+                                Click="OnDiscussionClick"
+                                ToolTipService.ToolTip="Read SPC's forecast discussion for this outlook in its own window"/>
+                    </Grid>
 
                     <!-- ⚠️ Cycle and Opacity are DISABLED while the product is None. None is this section's off
                          switch, so neither has anything to act on; they used to stay fully live over an empty

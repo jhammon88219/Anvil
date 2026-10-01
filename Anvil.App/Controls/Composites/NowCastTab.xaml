@@ -27,7 +27,7 @@
        │     warning, or a CLICKED line — which frames + flashes ALL  │    resets. Flash even if unticked.
        │     its warnings ("All 3 in Oklahoma"); not on the ‹ stack,  │
        │     doesn't narrow the arrows                                │
-       │                                                              │  ← 24 px gap before the sections
+       │ [x] Show ForeCast ghost rows                                 │  ← persisted, default off; doesn't scroll
        │ ⠿ › [x] Storm cells     ─────────────────●   100%            │  ← TOP of the list = TOP of the map
        │ ⠿ › [x] Storm reports   ─────────────────●   100%            │
        │ ⠿ ⌄ [x] Warnings        ─────────────────●   100%            │
@@ -39,6 +39,9 @@
        │   [x] ■ Severe thunderstorm                7                 │
        │ ⠿ › [-] Watches         ─────────────────●   100%            │  [-] = some types ticked
        │ ⠿ › [x] Mesoscale discussions ───────────●   100%            │  MDs + MPDs: areas + a reader
+       │ ⠿   ░░ ░SPC outlook · ForeCast░░░░░░░░░░░░░░░░░░░░           │  ← GHOST (IsGhost): ForeCast's layer, 25%,
+       │                                                              │    drag-only; only while the box is on AND
+       │                                                              │    ForeCast runs. Now + Fore = ONE order
        │ ⠿   [x] Radar           ──────────────●──     85%            │  ← no body: nothing to open
        └──────────────────────────────────────────────────────────────┘
          ↑ the sections sit in PanelScroller: a 16 px gutter on the right is ALWAYS claimed; its thumb
@@ -194,15 +197,17 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- the header: clock + warning tiles, always there -->
+            <RowDefinition Height="Auto"/> <!-- "Show ForeCast ghost rows" -->
             <RowDefinition Height="*"/>    <!-- the sections, in the scroller -->
         </Grid.RowDefinitions>
 
         <!-- ===================== HEADER: clock, then the three warning tiles ===================== -->
-        <!-- Padding 12 = PanelSection's body padding; bottom 24 = the gap before the first section header.
+        <!-- Padding 12 = PanelSection's body padding; bottom 12 + the ghost box's row = the gap before the first
+             section header (it was a bare 24 before that row arrived).
              ⚠️ The RIGHT 16 = that 12 + PanelScroller.GutterWidth (16) − the scroller's 12 px bleed, so the tiles
              line up with the section bodies below, which sit left of the always-claimed gutter — PastCast's
              Timeframe rule exactly. Change all three together. -->
-        <Grid Grid.Row="0" Padding="12,12,16,24" MinHeight="{StaticResource TemporalHeaderMinHeight}">
+        <Grid Grid.Row="0" Padding="12,12,16,12" MinHeight="{StaticResource TemporalHeaderMinHeight}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- status bar · NowCast │ time over date -->
                 <RowDefinition Height="*"/>    <!-- the tiles (take the slack) -->
@@ -379,7 +384,14 @@
          the sections overflow yet (the user's call, 2026-09-30): its gutter is always claimed, the thumb only
          draws on overflow. ⚠️ Margin right -12 BLEEDS the gutter into the window's 16 px body margin (see the
          PanelScroller header): the gutter ends 4 px from the window edge, as in PastCast. -->
-    <prim:PanelScroller Grid.Row="1" Margin="0,0,-12,0">
+    <!-- GHOST ROWS box: ForeCast's layers (the outlook) as dimmed, drag-only rows among these, so you can say
+         where the outlook draws. Persisted, default off; the rows show only while ForeCast runs too
+         (MapViewModel's GHOST ROWS block). Above the sections — it isn't one of them, so it doesn't scroll. -->
+    <CheckBox Grid.Row="1" Margin="0,0,0,8" Content="Show ForeCast ghost rows"
+              IsChecked="{x:Bind ViewModel.ShowForeCastGhostRows, Mode=TwoWay}"
+              ToolTipService.ToolTip="List ForeCast's layers here, dimmed, so you can drag NowCast's around them (shown while ForeCast is on)"/>
+
+    <prim:PanelScroller Grid.Row="2" Margin="0,0,-12,0">
     <!-- ⚠️ A StackPanel, not a Grid of rows: the sections' CHILD ORDER is the display order, which is what
          a drag re-arranges. -->
     <StackPanel x:Name="Sections" VerticalAlignment="Top" Spacing="8">
@@ -449,6 +461,15 @@
                            OpacityToolTip="Opacity of the discussion areas and labels">
             <comp:DiscussionsInput ViewModel="{x:Bind ViewModel.Discussions, Mode=OneWay}"/>
         </prim:PanelSection>
+
+        <!-- GHOST: ForeCast's outlook, placed in this shared stack. Drag-only (IsGhost); its box mirrors the real
+             show/hide, inert. Collapsed = still in the run, so the saved order keeps its place. Default spot =
+             the map's (above radar). -->
+        <prim:PanelSection Header="SPC outlook · ForeCast" LayerId="outlook" Reordered="OnSectionsReordered"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Outlook.IsShown, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreForeCastGhostsShown), Mode=OneWay}"
+                           ToolTipService.ToolTip="ForeCast's layer — drag to set where it draws among NowCast's"/>
 
         <!-- Header only: the layer's show/hide and its opacity are all it has. -->
         <prim:PanelSection Header="Radar" LayerId="radar" Reordered="OnSectionsReordered"
