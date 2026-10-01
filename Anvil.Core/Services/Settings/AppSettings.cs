@@ -246,24 +246,17 @@ namespace Anvil.Services
 
 		// ── Basemap layers (BasemapViewModel: the tools tier's Map key + its layer flyout) ─────────────────
 		// ⚠️ The Map key's HIDE is deliberately NOT here: launching into a blank map would read as broken, so it
-		// is session-only. The flyout's choices and the dimmer ARE persisted.
+		// is session-only. The flyout's choices ARE persisted. (BasemapDim went with the dimmer, 2026-10-01; an old
+		// file's key is ignored on load.)
 
 		private List<string> _hiddenBasemapGroups = new();
 		/// <summary>The basemap groups the user unticked (<c>Models.BasemapGroups</c> ids); empty = all drawn.</summary>
 		/// <remarks>⚠️ The UNTICKED set, so a group added later defaults to shown. REPLACE the list, never
-		/// mutate it — see FavoriteSiteIds.</remarks>
+		/// mutate it — see FavoriteSiteIds. A legacy "roads" entry is expanded by BasemapGroups.Normalize.</remarks>
 		public List<string> HiddenBasemapGroups
 		{
 			get => _hiddenBasemapGroups;
 			set => SetProperty(ref _hiddenBasemapGroups, value ?? new());
-		}
-
-		private double _basemapDim;
-		/// <summary>How far the basemap is faded toward the blank ground, 0 (none) to 0.9.</summary>
-		public double BasemapDim
-		{
-			get => _basemapDim;
-			set => SetProperty(ref _basemapDim, value);
 		}
 
 		// ── Home + favorite radar sites (RadarSiteFavoritesViewModel) ─────────────────────────────────

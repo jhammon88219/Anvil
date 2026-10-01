@@ -8,10 +8,12 @@ namespace Anvil.ViewModels
 	{
 		private readonly Action _changed;
 
-		public BasemapGroupOption(string id, string label, bool isShown, Action changed)
+		public BasemapGroupOption(string id, string label, bool isShown, Action changed, string? heading = null, bool isSub = false)
 		{
 			Id = id;
 			Label = label;
+			Heading = heading;
+			IsSub = isSub;
 			_isShown = isShown;
 			_changed = changed;
 		}
@@ -21,6 +23,12 @@ namespace Anvil.ViewModels
 
 		/// <summary>The row's words.</summary>
 		public string Label { get; }
+
+		/// <summary>A caption drawn above this row (the first road row's "Roads"); null = none.</summary>
+		public string? Heading { get; }
+
+		/// <summary>True for a row indented under a heading (the road kinds).</summary>
+		public bool IsSub { get; }
 
 		private bool _isShown;
 

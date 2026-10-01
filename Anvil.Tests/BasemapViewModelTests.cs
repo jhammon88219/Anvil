@@ -12,15 +12,15 @@ namespace Anvil.Tests
 {
 	/// <summary>
 	/// <see cref="BasemapViewModel"/>: the Map key's hide is session-only and OVERRIDES the ticks without
-	/// changing them; ticks + dimmer persist and restore; nothing reaches the page before map-ready, and the
-	/// whole state is replayed there.
+	/// changing them; ticks persist and restore (the legacy "roads" id expands to every road kind); nothing
+	/// reaches the page before map-ready, and the whole state is replayed there.
 	/// </summary>
 	public class BasemapViewModelTests
 	{
 		private sealed class Rig
 		{
 			public readonly AppSettings Settings;
-			public readonly List<(bool Hidden, string[] Off, double Dim)> Pushes = new();
+			public readonly List<(bool Hidden, string[] Off)> Pushes = new();
 			public readonly BasemapViewModel Vm;
 
 			public Rig(AppSettings? settings = null)
@@ -30,7 +30,7 @@ namespace Anvil.Tests
 				{
 					["SetBasemapAsync"] = a =>
 					{
-						Pushes.Add(((bool)a![0]!, ((IReadOnlyList<string>)a[1]!).ToArray(), (double)a[2]!));
+						Pushes.Add(((bool)a![0]!, ((IReadOnlyList<string>)a[1]!).ToArray()));
 						return Task.CompletedTask;
 					},
 				});
@@ -42,12 +42,11 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public void Defaults_ShowEverything_NoDim()
+		public void Defaults_ShowEverything()
 		{
 			var r = new Rig();
 			Assert.True(r.Vm.IsMapShown);
 			Assert.All(r.Vm.Groups, g => Assert.True(g.IsShown));
-			Assert.Equal(0, r.Vm.Dim);
 			Assert.Equal(BasemapGroups.All.Select(g => g.Id), r.Vm.Groups.Select(g => g.Id));
 		}
 
@@ -55,14 +54,48 @@ namespace Anvil.Tests
 		public void Untick_PersistsTheUntickedSet_AndRestores()
 		{
 			var r = new Rig();
-			r.Group(BasemapGroups.Roads).IsShown = false;
+			r.Group(BasemapGroups.MinorRoads).IsShown = false;
 			r.Group(BasemapGroups.Land).IsShown = false;
-			Assert.Equal(new[] { BasemapGroups.Land, BasemapGroups.Roads }, r.Settings.HiddenBasemapGroups);
+			Assert.Equal(new[] { BasemapGroups.Land, BasemapGroups.MinorRoads }, r.Settings.HiddenBasemapGroups);
 
 			var again = new Rig(r.Settings);
-			Assert.False(again.Group(BasemapGroups.Roads).IsShown);
+			Assert.False(again.Group(BasemapGroups.MinorRoads).IsShown);
 			Assert.False(again.Group(BasemapGroups.Land).IsShown);
+			Assert.True(again.Group(BasemapGroups.Highways).IsShown);
 			Assert.True(again.Group(BasemapGroups.Water).IsShown);
+		}
+
+		[Fact]
+		public void LegacyRoads_InSettings_UnticksEveryRoadKind()
+		{
+			var s = new AppSettings { HiddenBasemapGroups = new() { BasemapGroups.LegacyRoads, BasemapGroups.Water } };
+			var r = new Rig(s);
+			Assert.All(BasemapGroups.Roads, id => Assert.False(r.Group(id).IsShown));
+			Assert.False(r.Group(BasemapGroups.Water).IsShown);
+			Assert.True(r.Group(BasemapGroups.Land).IsShown);
+			Assert.DoesNotContain(BasemapGroups.LegacyRoads, r.Vm.OffGroups);
+		}
+
+		[Fact]
+		public void RoadKinds_SitUnderOneRoadsHeading()
+		{
+			var r = new Rig();
+			var roads = r.Vm.Groups.Where(g => g.IsSub).Select(g => g.Id);
+			Assert.Equal(BasemapGroups.Roads, roads);
+			Assert.Equal("Roads", r.Group(BasemapGroups.Highways).Heading);
+			Assert.Single(r.Vm.Groups, g => g.Heading is not null);
+		}
+
+		[Fact]
+		public void KeepOnlyHighways_SendsEveryOtherRoadKind()
+		{
+			var r = new Rig();
+			foreach (var id in BasemapGroups.Roads.Where(id => id != BasemapGroups.Highways))
+			{
+				r.Group(id).IsShown = false;
+			}
+			Assert.Equal(new[] { BasemapGroups.MajorRoads, BasemapGroups.MinorRoads, BasemapGroups.Paths, BasemapGroups.Rail },
+				r.Vm.OffGroups);
 		}
 
 		[Fact]
@@ -86,20 +119,7 @@ namespace Anvil.Tests
 
 			r.Vm.IsMapShown = true;
 			Assert.False(r.Group(BasemapGroups.Buildings).IsShown);
-			Assert.True(r.Group(BasemapGroups.Roads).IsShown);
-		}
-
-		[Fact]
-		public void Dim_ClampsAndPersists()
-		{
-			var r = new Rig();
-			r.Vm.DimPercent = 40;
-			Assert.Equal(0.4, r.Settings.BasemapDim, 6);
-			r.Vm.Dim = 5;
-			Assert.Equal(BasemapViewModel.MaxDim, r.Vm.Dim);
-			r.Vm.Dim = double.NaN;
-			Assert.Equal(0, r.Vm.Dim);
-			Assert.Equal(0.3, new Rig(new AppSettings { BasemapDim = 0.3 }).Vm.Dim, 6);
+			Assert.True(r.Group(BasemapGroups.Highways).IsShown);
 		}
 
 		[Fact]
@@ -108,14 +128,12 @@ namespace Anvil.Tests
 			var r = new Rig();
 			r.Vm.IsMapShown = false;
 			r.Group(BasemapGroups.Water).IsShown = false;
-			r.Vm.DimPercent = 20;
 			Assert.Empty(r.Pushes);
 
 			await r.Vm.OnMapsReadyAsync();
 			var p = Assert.Single(r.Pushes);
 			Assert.True(p.Hidden);
 			Assert.Equal(new[] { BasemapGroups.Water }, p.Off);
-			Assert.Equal(0.2, p.Dim, 6);
 
 			r.Vm.IsMapShown = true;
 			Assert.False(r.Pushes[^1].Hidden);
@@ -137,7 +155,7 @@ namespace Anvil.Tests
 			r.Vm.SetStyle(new MapStyle("dark", "Dark", "style-dark.json", "https://mapassets/style-dark.json"));
 			Assert.False(r.Group(BasemapGroups.Counties).IsAvailable);
 			Assert.NotNull(r.Group(BasemapGroups.Counties).ToolTip);
-			Assert.True(r.Group(BasemapGroups.Roads).IsAvailable);
+			Assert.True(r.Group(BasemapGroups.Highways).IsAvailable);
 
 			r.Vm.SetStyle(new StyleProvider().GetStyles().Single(s => s.Id == "dataVizBlack"));
 			Assert.True(r.Group(BasemapGroups.Counties).IsAvailable);

@@ -37,9 +37,9 @@ namespace Anvil.Services
 
 		// The group ids are ours (BasemapGroups, normalized here), never user text — so the JSON is quote-safe
 		// inside Call's single-quoted string, and the shim JSON.parses it.
-		public Task SetBasemapAsync(bool hidden, IReadOnlyList<string> offGroups, double dim) =>
+		public Task SetBasemapAsync(bool hidden, IReadOnlyList<string> offGroups) =>
 			_mapView.RunScriptAsync(Call("setBasemap", hidden,
-				System.Text.Json.JsonSerializer.Serialize(BasemapGroups.Normalize(offGroups)), dim));
+				System.Text.Json.JsonSerializer.Serialize(BasemapGroups.Normalize(offGroups))));
 
 		// Tile source: the style file is unchanged either way — the page patches its ONE basemap source.
 		// ⚠️ The URL is the only USER-TYPED string that reaches the page, and FormatArg quotes without

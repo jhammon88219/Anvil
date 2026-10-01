@@ -114,7 +114,7 @@ try {
     var PerfProbe = null;   // DEV-ONLY frame-time sampler; null unless ?perf=1 (see the import below)
     var Layers = null;      // layers.js — the user's overlay ORDER (see setOverlayOrder below)
     var pendingOrder = null;
-    var Basemap = null;     // basemap.js — hide the map / which basemap groups / the dimmer (setBasemap below)
+    var Basemap = null;     // basemap.js — hide the map / which basemap groups (setBasemap below)
 
     // Restore every overlay onto one map, in stack order. TWO callers: applyStyle (setStyle drops all
     // custom sources/layers) and a NEWLY CREATED pane (which starts with nothing but the basemap). One
@@ -122,7 +122,7 @@ try {
     // ⚠️ ORDER IS LOAD-BEARING: outlook first so radar's beforeId can target it and slot in beneath;
     // states LAST so the isolation mask lands on top of everything.
     function reAddAll(map) {
-        if (Basemap) Basemap.apply(map);                 // basemap first: hidden groups, dimmer veil (a NEW pane needs it)
+        if (Basemap) Basemap.apply(map);                 // basemap first: hidden groups + road filters (a NEW pane needs it)
         if (Outlook) Outlook.reAdd(map);                // re-add the outlook (reuse clipped data, or re-fetch)
         if (Watches) Watches.reAdd(map);                 // re-add the watch layers (data is still in memory)
         if (Warnings) Warnings.reAdd(map);               // re-add the warning polygons (above the watches)
@@ -413,20 +413,20 @@ try {
         forEachMap(function (map) { try { Layers.restack(map); } catch (e) { /* style not loaded yet */ } });
     };
 
-    // The BASEMAP: the Map key hides it (blank, theme-aware ground), the flyout picks which groups draw,
-    // the dimmer fades it toward blank. Overlays are never touched. After a change, the isolation mask is
+    // The BASEMAP: the Map key hides it (blank, theme-aware ground), the flyout picks which groups draw
+    // (roads split by kind). Overlays are never touched. After a change, the isolation mask is
     // repainted: it wears the basemap's water colour, and the BLANK colour while the map is hidden.
     var pendingBasemap = null;
     import('./basemap.js').then(function (m) {
         Basemap = m;
         if (pendingBasemap) window.setBasemap.apply(null, pendingBasemap);
     }).catch(function (e) { console.error('basemap.js load failed: ' + e); });
-    window.setBasemap = function (hidden, offGroupsJson, dim) {
-        pendingBasemap = [hidden, offGroupsJson, dim];
+    window.setBasemap = function (hidden, offGroupsJson) {
+        pendingBasemap = [hidden, offGroupsJson];
         if (!Basemap) return;
         let off = [];
         try { off = JSON.parse(offGroupsJson || '[]'); } catch (e) { /* bad payload = nothing unticked */ }
-        Basemap.setState(hidden, off, dim);
+        Basemap.setState(hidden, off);
         forEachMap(function (m) {
             Basemap.apply(m);
             if (States) States.reAdd(m);

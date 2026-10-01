@@ -177,7 +177,12 @@ namespace Anvil.Controls.Composites
 
 		public Visibility HiddenNoteVisibility(bool shown) => shown ? Visibility.Collapsed : Visibility.Visible;
 
-		public string PercentText(double percent) => $"{percent:0}%";
+		// The layer flyout's rows (static: called from the row DataTemplate). A heading shows only where a row has
+		// one; a road kind is indented under it.
+		public static Visibility VisibleIfText(string? text) =>
+			string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
+
+		public static Thickness SubIndent(bool isSub) => new(isSub ? 20 : 0, 0, 0, 0);
 
 		// Pane layout (moved here from the bar): which of the three toggles is lit. x:Bind can't compare against
 		// an enum literal, so one typed function per layout.

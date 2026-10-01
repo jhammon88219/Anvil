@@ -21,12 +21,16 @@
                                                                                              ┌ Map layers ──────┐
                                                                                              │ ☑ Land           │
                                                                                              │ ☑ Water          │
-                                                                                             │ ☑ Roads          │  ← the CAR's flyout
+                                                                                             │ Roads            │  ← the CAR's flyout; a
+                                                                                             │   ☑ Highways     │     HEADING, then the road
+                                                                                             │   ☐ Major roads  │     KINDS indented (each
+                                                                                             │   ☐ Minor roads  │     road filtered by its
+                                                                                             │   ☐ Paths and…   │     own kind — ramps, shields
+                                                                                             │   ☑ Rail         │     and labels go with it)
                                                                                              │ ☑ Buildings      │
                                                                                              │ ☑ Borders        │
                                                                                              │ ☐ Counties (grey)│  ← greyed unless the
                                                                                              │ ☑ Place names    │     style has county lines
-                                                                                             │ Dim ──●───── 30% │
                                                                                              └──────────────────┘
        (◗)(✈)(⚗) ─ (⌕) ─ (⌸)(◎) ─── [⌂ KTLX  Oklahoma City ˅]   (▣) [Moore, OK    ✕ ⌕] (⊚) status   [▢][▥][▦] ─── (⌘)(⛶) ─ (▥|▴) [Isolate State     ▾]   ← THIS
        |←────────────── W (ends on the bar's scan text) ──────────────→|                            |←──────────────── the SAME W ────────────────────→|
@@ -138,9 +142,10 @@
      MAP sits RIGHT, beside state isolation — both take parts of the map away (Basemap = BasemapViewModel).
      The KEY hides the whole basemap: a blank, THEME-coloured ground (theme.css anvil-map-blank) under the overlays,
      for screenshots / thumbnails / a clean storm. LIT = THE MAP IS SHOWING (default lit); the tooltip speaks
-     for the click. The CAR opens the layer flyout: which basemap GROUPS draw, and a dimmer (0-90%) that fades
-     the basemap toward blank. ⚠️ Hiding OVERRIDES the ticks without changing them — show again and your set
-     returns (the flyout says so while hidden). ⚠️ The hide is SESSION-ONLY; ticks + dimmer persist.
+     for the click. The CAR opens the layer flyout: which basemap GROUPS draw, ROADS split by kind under a
+     "Roads" heading (so you can keep only highways). The dimmer is GONE (the user's call, 2026-10-01).
+     ⚠️ Hiding OVERRIDES the ticks without changing them — show again and your set returns (the flyout says so
+     while hidden). ⚠️ The hide is SESSION-ONLY; the ticks persist.
      ⚠️ A pair, not SplitTemporalToggle: that is a 72 px bar key; this tier's tools are 32 px.
 
      Host contract: ViewModel (MapViewModel). Add a tool = one Button in the panel of the side it belongs to.
@@ -641,7 +646,7 @@
                 <Button x:Name="MapLayersButton"
                         Width="16"
                         Style="{StaticResource StripToolButtonStyle}"
-                        ToolTipService.ToolTip="Map layers and dimmer">
+                        ToolTipService.ToolTip="Map layers">
                     <!-- Drawn in its own 10-unit box (centre 5,5), so it overrides the implicit 18 × 18. -->
                     <PathIcon Data="M1,7 L5,3 L9,7 Z" Width="10" Height="10"/>
                     <Button.Flyout>
@@ -657,30 +662,24 @@
                                 <ItemsControl ItemsSource="{x:Bind ViewModel.Basemap.Groups}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:BasemapGroupOption">
-                                            <!-- Wrapper carries the tooltip: a disabled CheckBox shows none. -->
-                                            <Grid Background="Transparent" ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
-                                                <CheckBox Content="{x:Bind Label}" MinHeight="32"
-                                                          IsChecked="{x:Bind IsShown, Mode=TwoWay}"
-                                                          IsEnabled="{x:Bind IsAvailable, Mode=OneWay}"/>
-                                            </Grid>
+                                            <!-- A HEADING ("Roads") rides above its first row; the road kinds are
+                                                 indented under it (IsSub). Wrapper carries the tooltip: a disabled
+                                                 CheckBox shows none. -->
+                                            <StackPanel>
+                                                <TextBlock Text="{x:Bind Heading}" Margin="0,6,0,2"
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                           Visibility="{x:Bind comp:MapControlsStrip.VisibleIfText(Heading)}"/>
+                                                <Grid Background="Transparent"
+                                                      Margin="{x:Bind comp:MapControlsStrip.SubIndent(IsSub)}"
+                                                      ToolTipService.ToolTip="{x:Bind ToolTip, Mode=OneWay}">
+                                                    <CheckBox Content="{x:Bind Label}" MinHeight="32"
+                                                              IsChecked="{x:Bind IsShown, Mode=TwoWay}"
+                                                              IsEnabled="{x:Bind IsAvailable, Mode=OneWay}"/>
+                                                </Grid>
+                                            </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <Grid Margin="0,8,0,0" ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="36"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Dim" VerticalAlignment="Center"/>
-                                    <Slider Grid.Column="1" Minimum="0" Maximum="90" StepFrequency="5"
-                                            VerticalAlignment="Center"
-                                            Value="{x:Bind ViewModel.Basemap.DimPercent, Mode=TwoWay}"
-                                            ToolTipService.ToolTip="Fade the basemap toward a blank background"/>
-                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                               Text="{x:Bind PercentText(ViewModel.Basemap.DimPercent), Mode=OneWay}"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                </Grid>
                             </StackPanel>
                         </Flyout>
                     </Button.Flyout>
