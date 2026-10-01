@@ -4,10 +4,10 @@
      bar's button strip) because the right-edge ForeCast window sat on top of them.
 
 
-         ✕       a 30-wide strip, BarKeySide (72) tall, NO FRAME (the user's call, 2026-10-01): THREE
-        ───      SEGMENTS STACKED, close · maximize · minimize, top to bottom, split by hairline seams
-         □       (maximize ⇄ restore: glyph + tooltip follow IsMaximized). Hover paints a segment's own
-        ───      surface, outer corners at the bar keys' radius (8), so it still lines up with them.
+         ✕       a 34-wide strip, BarKeySide (72) tall, NO FRAME AND NO SEAMS (the user's call, 2026-10-01):
+                 THREE SEGMENTS STACKED, close · maximize · minimize, top to bottom
+         □       (maximize ⇄ restore: glyph + tooltip follow IsMaximized). Only hover/press paints a
+                 segment's surface, outer corners at the bar keys' radius (8), so it lines up with them.
          –       CLOSE ON TOP, off the corner: maximized, the bottom-right square is the screen corner
                  (the easiest target there is), so minimize takes it, never close
                  close is NEUTRAL at rest like its neighbours; full Windows red only on hover/press
@@ -18,7 +18,7 @@
      ⚠️ ONE segment template, re-coloured by LIGHTWEIGHT STYLING: the template reads CaptionSegment* by
      ThemeResource, and the Close button redefines its hover/pressed keys in its OWN Resources, which the lookup
      reaches first (its rest keys fall through to the shared ones). Don't fork the template to recolour close.
-     ⚠️ No names under the glyphs: a 30px cell has no room, so each segment carries a tooltip instead. -->
+     ⚠️ No names under the glyphs: a 34px cell has no room, so each segment carries a tooltip instead. -->
 <UserControl x:Class="Anvil.Controls.Primitives.WindowCaptionKey"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -106,7 +106,7 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid Width="30" Height="{StaticResource BarKeySide}">
+    <Grid Width="34" Height="{StaticResource BarKeySide}">
         <!-- No frame: the segments fill the whole key, so their outer corners take the bar keys' own radius
              (8) and the strip's top/bottom edges sit level with theirs. Rows are equal stars — 72 / 3 each. -->
         <Grid>
@@ -150,7 +150,7 @@
                         </ResourceDictionary.ThemeDictionaries>
                     </ResourceDictionary>
                 </Button.Resources>
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12" Glyph="&#xE8BB;"/>
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" Glyph="&#xE8BB;"/>
             </Button>
 
             <Button Grid.Row="1"
@@ -159,7 +159,7 @@
                     ToolTipService.ToolTip="{x:Bind MaximizeLabel(IsMaximized), Mode=OneWay}"
                     AutomationProperties.Name="{x:Bind MaximizeLabel(IsMaximized), Mode=OneWay}"
                     Click="OnMaximizeRestoreClick">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12"
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14"
                           Glyph="{x:Bind MaximizeGlyph(IsMaximized), Mode=OneWay}"/>
             </Button>
 
@@ -169,14 +169,7 @@
                     ToolTipService.ToolTip="Minimize"
                     AutomationProperties.Name="Minimize"
                     Click="OnMinimizeClick">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12" Glyph="&#xE921;"/>
-            </Button>
-
-            <!-- Seams between the segments, drawn over them so close's red never paints across one. -->
-            <Rectangle Grid.Row="1" Height="1" VerticalAlignment="Top" IsHitTestVisible="False"
-                       Fill="{ThemeResource ControlStrokeColorDefaultBrush}"/>
-            <Rectangle Grid.Row="2" Height="1" VerticalAlignment="Top" IsHitTestVisible="False"
-                       Fill="{ThemeResource ControlStrokeColorDefaultBrush}"/>
-        </Grid>
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" Glyph="&#xE921;"/>
+            </Button>        </Grid>
     </Grid>
 </UserControl>
