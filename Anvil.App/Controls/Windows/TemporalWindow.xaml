@@ -3,8 +3,9 @@
      caption is the only chrome), so there is no panel frame: the root is the dark surface, stretched to fill
      the window.
 
-       ┌─ NowCast ───────────────────────────────[lock][pin]─┐
-       │  NowCast                                             │  ← the mode's name, from Mode
+       ┌─────────────────────────────────────────[lock][pin]─┐
+       │  PastCast                                            │  ← the mode's name, from Mode — HIDDEN for
+       │                                                      │    NowCast (its header carries the name)
        │  (fixed 480 × full height; the BODY scrolls itself)  │
        │  ┌──────────────────────────────────────────────┐    │
        │  │                                              │    │

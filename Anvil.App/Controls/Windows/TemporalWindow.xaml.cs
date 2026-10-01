@@ -76,6 +76,9 @@ namespace Anvil.Controls.Windows
 				TemporalMode.Now => "NowCast",
 				_ => "ForeCast",
 			};
+			// NowCast carries its name in its own header (beside the feed status bar), so the title is hidden
+			// there and the name shows once (the user's call, 2026-10-01).
+			TitleText.Visibility = Mode == TemporalMode.Now ? Visibility.Collapsed : Visibility.Visible;
 
 			// The pin shows the flag's CURRENT value — these persist across a window being closed and
 			// reopened, so a panel unpinned earlier in the session comes back unpinned.

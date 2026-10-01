@@ -1,8 +1,10 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Anvil.Controls.Primitives;
 using Anvil.ViewModels;
 
@@ -85,12 +87,33 @@ namespace Anvil.Controls.Composites
 
 			var culture = CultureInfo.CurrentCulture;
 			ClockTime.Text = now.ToString("h:mm:ss tt", culture);
-			ClockDate.Text = now.ToString("ddd MMM d, yyyy", culture);
+			ClockDate.Text = now.ToString("ddd MMM d", culture);
+			ToolTipService.SetToolTip(ClockTime, $"{ZoneLabel(now.DateTime)} · {now.UtcDateTime:HH:mm} UTC");
 
 			var updated = ViewModel?.Warnings.LastUpdated;
-			var age = updated is { } when ? $"updated {Age(now - when)}" : "waiting for the first warnings update";
-			ClockDetail.Text = $"{ZoneLabel(now.DateTime)} · {now.UtcDateTime:HH:mm} UTC · {age}";
+			FeedStatus.Background = FeedBrush(updated is { } when ? now - when : null);
+			ToolTipService.SetToolTip(FeedStatus, updated is { } at
+				? $"Warnings updated {Age(now - at)}"
+				: "Warnings not checked yet");
 		}
+
+		// ── Feed status bar ──
+		// The warnings feed checks every 15 s, so AGING = about four misses in a row, STALE = failing for minutes.
+		// ⚠️ LITERAL data colours — the same green / amber / red / grey as the Atlas's status bar + age tile and
+		// the map key's square (never themed: the colour IS the status). Move the knees with the XAML header's words.
+		private static readonly System.TimeSpan FeedAgingAfter = System.TimeSpan.FromMinutes(1);
+		private static readonly System.TimeSpan FeedStaleAfter = System.TimeSpan.FromMinutes(5);
+
+		private static readonly SolidColorBrush FeedCurrent = new(ColorHelper.FromArgb(0xFF, 0x3F, 0xB9, 0x50));
+		private static readonly SolidColorBrush FeedAging = new(ColorHelper.FromArgb(0xFF, 0xD2, 0x99, 0x22));
+		private static readonly SolidColorBrush FeedStale = new(ColorHelper.FromArgb(0xFF, 0xF8, 0x51, 0x49));
+		private static readonly SolidColorBrush FeedUnknown = new(ColorHelper.FromArgb(0xFF, 0x6E, 0x76, 0x81));
+
+		private static SolidColorBrush FeedBrush(System.TimeSpan? age) =>
+			age is not { } a ? FeedUnknown :
+			a <= FeedAgingAfter ? FeedCurrent :
+			a <= FeedStaleAfter ? FeedAging :
+			FeedStale;
 
 		// "14 s ago" / "3 min ago" / "2 h ago".
 		private static string Age(System.TimeSpan span) =>
