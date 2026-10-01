@@ -989,21 +989,18 @@
     // independently (~a few MB each).
     //
     //   decodeFrame ─┐                       ┌─▶ [worker 0]  ONE job each — the rest wait HERE, not inside
-    //   gridOnly   ──┴─▶ dispatchQueue ─pump─┼─▶ [worker 1]  a worker, so they can be held / reordered
-    //                    (FIFO; urgent first)└─▶ [worker 2]
-    //                    ⏸ while the camera moves: only URGENT jobs leave (Rule 1)
+    //   gridOnly   ──┴─▶ dispatchQueue ─pump─┼─▶ [worker 1]  a worker, so the frame on screen can jump
+    //                    (FIFO; urgent first)└─▶ [worker 2]  ahead of the backfill
     //
     // WHY (measured 2026-10-01, perf.ui + perfPan, Ryzen 5 2400G = 4 physical / 8 logical cores): the pool
     // was sized from LOGICAL cores (4 workers = every physical core) and dispatch was round-robin with no
-    // limit (26 decodes sat queued inside the workers). Through a cold hurricane load the renderer alone
-    // held ~50% of the machine, the whole box sat at 85–98%, and the WinUI thread that delivers mouse input
-    // to this page waited for CPU — 10–18% of pointer moves arrived 100+ ms late while dragging. So:
-    //   (b) the pool leaves a PHYSICAL core free (size below), and
-    //   (a) backfill/upgrade decodes are HELD while a pan/zoom is in progress and resume GESTURE_RESUME_MS
-    //       after it ends. Decodes already running finish — a job is never cancelled mid-flight.
+    // limit (26 decodes sat queued inside the workers, where nothing could reorder them). Through a cold
+    // hurricane load the box sat at 85–98% and map input lagged. The pool now leaves a PHYSICAL core free.
     // ⚠️ Rule 1: the frame on screen (or about to be — pendingFrame, or anything before first paint) is
-    // URGENT and is never held. Everything else is backfill (Rule 2's order is the FIFO order).
-    // ⚠️ One job per worker is ALSO what makes the hold work: a job already posted to a worker can't be held.
+    // URGENT and leaves the queue first. Everything else is backfill (Rule 2's order is the FIFO order).
+    // ⚠️ A pause-the-backfill-while-panning hold was tried here (2026-10-01) and REMOVED at the user's call:
+    // drags improved only slightly (100+ ms input gaps 10% → 6–7%) and a cold load took 51 s instead of 41 —
+    // it hid the cost by deferring it rather than reducing it. Don't re-add it.
     const DECODE_POOL_SIZE = decodePoolSize();
     // hardwareConcurrency is LOGICAL cores; assume SMT (2 per physical — true of the dev box and most desktop
     // CPUs) and leave one physical core for the UI thread / map rendering / C# extraction. 8 logical → 3.
@@ -1014,7 +1011,7 @@
     }
     let workerPool; // undefined = not tried, array = ready, null = Worker API unavailable
     let workerBusy = []; // parallel to workerPool: true while that worker holds a job
-    let dispatchQueue = []; // posted messages waiting for a free worker (and, if not urgent, for the camera to stop)
+    let dispatchQueue = []; // posted messages waiting for a free worker
     function ensureWorkerPool() {
         if (workerPool === undefined) {
             try {
@@ -1055,7 +1052,7 @@
         pumpDispatch();
         return true;
     }
-    // Rule 1: what the user is looking at (or waiting to look at) never waits on a gesture.
+    // Rule 1: what the user is looking at (or waiting to look at) goes before the backfill.
     function isUrgentDecode(msg) {
         return currentFrame < 0 || msg.index === currentFrame || msg.index === pendingFrame;
     }
@@ -1067,14 +1064,11 @@
             // Drop jobs for a loop that has been replaced (beginLoop / remap bumped the token); posting them
             // would only burn a worker on a result applyFrameResult discards.
             dispatchQueue = dispatchQueue.filter(function (m) { return m.token === loopToken; });
-            let pos = -1;
+            if (!dispatchQueue.length) return;
+            let pos = 0;
             for (let i = 0; i < dispatchQueue.length; i++) { if (isUrgentDecode(dispatchQueue[i])) { pos = i; break; } }
-            if (pos < 0) {
-                if (cameraMoving() || !dispatchQueue.length) return; // held until the gesture ends
-                pos = 0;
-            }
             const msg = dispatchQueue.splice(pos, 1)[0];
-            // Read the loop's motion + seed profile NOW, not at queue time: a held job may have waited
+            // Read the loop's motion + seed profile NOW, not at queue time: a queued job may have waited
             // seconds, and the motion can land meanwhile (Rule 4 — SRV is never built at a stale motion).
             msg.stormMotion = resolveStormMotion();
             msg.seedProfile = _loopSeedProfile;
@@ -1082,35 +1076,6 @@
             decPosted();
             workerPool[slot].postMessage(msg);
         }
-    }
-
-    // ---- Camera-gesture hold (see the pool note above) ----
-    // Refcounted across panes (the camera sync moves them together). ⚠️ DEADMAN: a pane destroyed mid-gesture
-    // never sends its moveend — a leaked count would hold the backfill forever, so a gesture older than
-    // GESTURE_DEADMAN_MS no longer counts.
-    const GESTURE_RESUME_MS = 400;     // a drag is often several strokes; don't refill the pool between them
-    const GESTURE_DEADMAN_MS = 30000;
-    let _gestureN = 0, _gestureAt = 0, _gestureResume = 0;
-    const _gestureHooked = new WeakSet();
-    function cameraMoving() {
-        if (_gestureN > 0 && Date.now() - _gestureAt > GESTURE_DEADMAN_MS) _gestureN = 0;
-        return _gestureN > 0 || _gestureResume !== 0;
-    }
-    function onCameraStart() {
-        if (_gestureN++ === 0) _gestureAt = Date.now();
-        if (_gestureResume) { clearTimeout(_gestureResume); _gestureResume = 0; }
-    }
-    function onCameraEnd() {
-        if (_gestureN > 0) _gestureN--;
-        if (_gestureN > 0) return;
-        if (_gestureResume) clearTimeout(_gestureResume);
-        _gestureResume = setTimeout(function () { _gestureResume = 0; pumpDispatch(); }, GESTURE_RESUME_MS);
-    }
-    function hookGestures(map) {
-        if (!map || _gestureHooked.has(map)) return;
-        _gestureHooked.add(map);
-        map.on('movestart', onCameraStart);
-        map.on('moveend', onCameraEnd);
     }
 
     // PERF PROBE (perfPan context): decode jobs running in a worker, + the peak since the probe last read it,
@@ -1653,7 +1618,6 @@
         setViews: function (maps) {
             const next = [];
             for (let i = 0; i < maps.length; i++) {
-                hookGestures(maps[i]); // backfill decodes hold while this pane's camera moves (once per map)
                 const existing = viewFor(maps[i]);
                 const v = existing || makeView(maps[i], i);
                 v.index = i;
@@ -1820,7 +1784,7 @@
                 // we don't blank the layer. applyFrameResult promotes it once it decodes.
                 pendingFrame = index;
                 hostLog('showFrame idx=' + index + ' pending (not decoded; keeping cf=' + currentFrame + ')');
-                pumpDispatch(); // its queued decode is URGENT now (Rule 1) — let it jump a held queue
+                pumpDispatch(); // its queued decode is URGENT now (Rule 1) — let it jump the backfill
             }
         },
         // Incremental loop refresh: reindex the existing decoded frames to a new ordering instead
