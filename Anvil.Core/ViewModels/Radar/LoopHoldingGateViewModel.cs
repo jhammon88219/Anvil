@@ -37,6 +37,14 @@ namespace Anvil.ViewModels
 		/// <summary>The confirm's sentence (wording lives here, not in XAML).</summary>
 		public const string EscapeWarning = "The map and the app will be sluggish until the loop finishes loading.";
 
+		/// <summary>The map's frosting while the gate is up, in CSS px (map.js <c>setMapBlur</c>). TUNE HERE — with
+		/// the dim (LoopHoldingGate.xaml's Root background) it should leave colour washes and no readable shapes.</summary>
+		public const double MapBlurPx = 14;
+
+		/// <summary>The dim AND the blur start this long after the gate goes up, so a load that finishes inside it
+		/// (a cached replay, well under a second) never visibly frosts. Input is gated at once regardless.</summary>
+		public const int FadeInDelayMs = 250;
+
 		private readonly ISettingsService _settings;
 		private readonly Func<Task> _cancelLoad;
 		private LoopGateState _state;

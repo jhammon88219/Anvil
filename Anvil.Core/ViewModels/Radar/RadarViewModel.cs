@@ -300,6 +300,10 @@ namespace Anvil.ViewModels
 			// The loop holding gate: dims the map while a PastCast loop loads. Its Cancel is the engine's.
 			// Built before anything below can reach ClearReplayWindowLoaded (which dismisses it).
 			LoopGate = new LoopHoldingGateViewModel(settings, () => _engine.CancelPastLoadAsync());
+			LoopGate.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(LoopHoldingGateViewModel.IsShown)) _ = ApplyLoopGateBlurAsync();
+			};
 
 			// Reopen PastCast on the timeframe the user last chose, not on the built-in default. Before any
 			// binding exists, so it writes the fields directly and raises nothing.
@@ -544,6 +548,25 @@ namespace Anvil.ViewModels
 			if (!_loadInProgress && _frameCount > 0 && AllArrivedFramesSettled())
 			{
 				LoopGate.Complete();
+			}
+		}
+
+		// The map's frosting follows the gate: on after the same delay as the dim (so a cached load never frosts),
+		// off at once. The version drops a delayed "on" that the gate outlived.
+		private int _loopGateBlurVersion;
+		private async Task ApplyLoopGateBlurAsync()
+		{
+			var version = ++_loopGateBlurVersion;
+			if (!_isMapReady) return;
+			if (!LoopGate.IsShown)
+			{
+				await _mapService.SetMapBlurAsync(0);
+				return;
+			}
+			await Task.Delay(LoopHoldingGateViewModel.FadeInDelayMs);
+			if (version == _loopGateBlurVersion && LoopGate.IsShown)
+			{
+				await _mapService.SetMapBlurAsync(LoopHoldingGateViewModel.MapBlurPx);
 			}
 		}
 

@@ -280,6 +280,9 @@ namespace Anvil.Services
 		public Task SetRadarSweepAsync(double periodSeconds) =>
 			_mapView.RunScriptAsync(Call("setRadarSweep", periodSeconds));
 
+		public Task SetMapBlurAsync(double px) =>
+			_mapView.RunScriptAsync(Call("setMapBlur", px));
+
 		public Task PulseRadarSweepAsync() =>
 			_mapView.RunScriptAsync(Call("pulseRadarSweep"));
 

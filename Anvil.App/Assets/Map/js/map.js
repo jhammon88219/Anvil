@@ -825,6 +825,16 @@ try {
     window.resetMapNorth = function () { primary().resetNorthPitch(); };
     window.__isoTest = function (name) { if (!States) return; States.arm(primary()); if (name) window.stateIsoSelect(name); };
 
+    // LOOP HOLDING GATE frosting: blur every pane (one filter on #panes, so DOM markers blur too) while the
+    // host's loading screen is up — with the gate's dim on top, nothing on the map is readable. px <= 0 = sharp.
+    // The ease matches the gate's 0.3 s fade. ⚠️ The pane notches are WinUI, not page — they only get the dim.
+    window.setMapBlur = function (px) {
+        var host = document.getElementById('panes');
+        if (!host) return;
+        host.style.transition = 'filter 0.3s ease';
+        host.style.filter = px > 0 ? 'blur(' + px + 'px)' : '';
+    };
+
     // Fade out the launch cover (map.html #mapcover) once the initial view is ready. Called after the
     // launch mask is applied (or immediately when none is requested). Idempotent; a hard fallback also
     // fires it so a failed states.js load can never leave the app stuck on a black screen.

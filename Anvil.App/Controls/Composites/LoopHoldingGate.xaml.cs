@@ -16,8 +16,6 @@ namespace Anvil.Controls.Composites
 	{
 		// The bars' track width — the StackPanel the screen is laid out in.
 		private const double BarTrackWidth = 360;
-		// A load that finishes inside this never shows the dim at all (a cached replay is well under a second).
-		private const int FadeInDelayMs = 250;
 
 		private int _version; // bumped per show/hide, so a stale delayed fade-in can't land
 
@@ -90,7 +88,7 @@ namespace Anvil.Controls.Composites
 
 		private async Task FadeInAsync(int version)
 		{
-			await Task.Delay(FadeInDelayMs);
+			await Task.Delay(LoopHoldingGateViewModel.FadeInDelayMs); // the map's blur waits the same (RadarViewModel)
 			if (version == _version && ViewModel?.IsShown == true)
 			{
 				Root.Opacity = 1; // OpacityTransition eases it in

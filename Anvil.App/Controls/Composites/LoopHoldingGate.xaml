@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- LoopHoldingGate — PastCast's loading screen: the map band is dimmed (the first radar frame shows through)
-     and takes no input while a loop loads. Drawn over the map band by MainWindow; state is
-     Radar.LoopGate (LoopHoldingGateViewModel).
+<!-- LoopHoldingGate — PastCast's loading screen: the map band is FROSTED and takes no input while a loop loads.
+     Nothing on the map should be readable (the user's call) — only colour washes. Drawn over the map band by
+     MainWindow; state is Radar.LoopGate (LoopHoldingGateViewModel).
 
-       ┌──────────────────────────── map band, dimmed ────────────────────────────┐
+     FROSTING = two layers, two knobs:
+       • the BLUR is in the PAGE (map.js setMapBlur on #panes, LoopHoldingGateViewModel.MapBlurPx = 14) — WinUI's
+         in-app acrylic doesn't reliably blur a WebView2 behind it, a CSS filter does, every pane at once;
+       • the DIM is here (Root's Background, #C7 = 78% black). The pane notches are WinUI, so they get the dim only.
+     Tune the pair together: more blur buys a lighter dim.
+
+       ┌───────────────────────── map band, blurred + dimmed ─────────────────────┐
        │                                                                           │
        │                          Loading the loop                                 │
        │                KTBW · Sep 28, 2022 · 1:00 PM–4:00 PM                      │
@@ -24,8 +30,9 @@
      ⚠️ RequestedTheme="Dark" ON PURPOSE: whatever the app theme, this always sits on a DARKENED map, so its
      text, checkbox and buttons are the dark theme's. Its colours are literals for the same reason — the
      backdrop is fixed, not themed. The built bar's blue matches the scrubber's lit cells in spirit only.
-     ⚠️ Fade: hit-testing switches INSTANTLY (the map is gated from the first moment), but the dim only fades
-     in after a short delay (code-behind) so a cached load that finishes at once never flashes the screen.
+     ⚠️ Fade: hit-testing switches INSTANTLY (the map is gated from the first moment), but the dim AND the blur
+     only start after LoopHoldingGateViewModel.FadeInDelayMs, so a cached load that finishes at once never
+     flashes the screen.
      ⚠️ Wording lives in the view model (Title, EscapeWarning, KeptText, the counts) — not here. -->
 <UserControl x:Class="Anvil.Controls.Composites.LoopHoldingGate"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -34,7 +41,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <Grid x:Name="Root" Background="#9E080A0E" RequestedTheme="Dark" Opacity="0" IsHitTestVisible="False">
+    <!-- Background = the DIM (78% near-black). Tune with MapBlurPx — see the header. -->
+    <Grid x:Name="Root" Background="#C7080A0E" RequestedTheme="Dark" Opacity="0" IsHitTestVisible="False">
         <Grid.OpacityTransition>
             <ScalarTransition Duration="0:0:0.3"/>
         </Grid.OpacityTransition>

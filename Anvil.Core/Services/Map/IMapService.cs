@@ -395,6 +395,12 @@ namespace Anvil.Services
 		Task SetRadarSweepAsync(double periodSeconds);
 
 		/// <summary>
+		/// Blurs every map pane by <paramref name="px"/> CSS pixels (0 = sharp) — the LOOP HOLDING GATE's frosting,
+		/// so nothing on the map is readable while a PastCast loop loads. Eased in the page.
+		/// </summary>
+		Task SetMapBlurAsync(double px);
+
+		/// <summary>
 		/// Fires ONE radar-sweep pulse (arm + trailing afterglow, one revolution then hides) — called
 		/// when a genuinely-new frame lands, as a "fresh data arrived" cue. The range ring stays up.
 		/// </summary>
