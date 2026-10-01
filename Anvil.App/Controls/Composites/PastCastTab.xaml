@@ -19,7 +19,10 @@
        │  Date    [ May 24, 2011       ▾]  ┆       ┆          │
        │  Start   [ 5:00 PM            ▾]  ┆(empty)┆          │  ← the PICKERS (ViewModel.Radar) — LOCKED
        │  Window  [30m│1h│▓2h▓│3h│6h│12h]  ┆       ┆          │     + dimmed while a window is loaded; they
-       │  [      Set Timeframe         ]  [ Clear ]          │     END where Set ends (ONE grid); Set = the
+       │  [      Set Timeframe         ]  [ Clear ]          │     END where Set ends (ONE grid); [Atlas] and
+       │                                   ↑ same 84 × 32 as  │     [Clear] are one size, right edges aligned
+       │                                     [Atlas] above    │     (Clear 14 in = the card's border+padding).
+       │                                                      │     Set = the
        │                                                      │     old Load (same rules); Clear =
        │  Loaded 28 frames · May 24, 5:00 PM +2 hours         │     forget it + pickers to NOW; status/errors
        │                                                      │     LEFT under them. 24 px gap, then sections
@@ -299,11 +302,14 @@
                         </Grid>
 
                         <!-- OPEN ATLAS, on Past events (MapViewModel.OpenAtlasOnEvents — also selects the event PastCast
-                             has picked). Live even while a window is loaded (Play asks before replacing it). MinWidth
-                             84 = the width it shared with Load when Load sat under it. ⚠️ The mark is the bar's Atlas
-                             key glyph (EC05, MainWindow AtlasKey) — the same door, the same mark; change both. -->
-                        <Button Grid.Column="1" Style="{StaticResource OpenAtlasButtonStyle}" MinWidth="84"
-                                Padding="10,6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                             has picked). Live even while a window is loaded (Play asks before replacing it).
+                             ⚠️ 84 × 32 = CLEAR's size, and its right edge is Clear's (Clear's 14 right margin = this
+                             card's 1 border + 13 padding) — the user's call, 2026-10-01: the two doors line up. Change
+                             both together. ⚠️ The mark is the bar's Atlas key glyph (EC05, MainWindow AtlasKey) — the
+                             same door, the same mark; change both. -->
+                        <Button Grid.Column="1" Style="{StaticResource OpenAtlasButtonStyle}" Width="84" Height="32"
+                                Padding="0" VerticalAlignment="Center" HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
                                 Click="OnOpenAtlasClick"
                                 ToolTipService.ToolTip="Browse saved severe-weather days in the Anvil Atlas and play one here">
                             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -399,7 +405,9 @@
                             IsEnabled="{x:Bind LoadEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
                             Style="{x:Bind LoadStyle(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
                             Click="OnLoadClick"/>
-                    <Button Grid.Row="3" Grid.Column="2" Margin="0,4,0,0" Content="Clear"
+                    <!-- ⚠️ 84 × 32 and 14 in from the right = the card's ATLAS button exactly (its card's 1 border +
+                         13 padding), so the two line up, one above the other. Change both together. -->
+                    <Button Grid.Row="3" Grid.Column="2" Margin="0,4,14,0" Width="84" Height="32" Content="Clear"
                             IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
                             Click="OnClearClick"
                             ToolTipService.ToolTip="Clear the loaded timeframe or event and reset the pickers to now"/>
