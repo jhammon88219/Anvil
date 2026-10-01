@@ -73,26 +73,32 @@ namespace Anvil.Controls.Composites
 
 		private void OnRadarPropertyChanged(object? sender, PropertyChangedEventArgs e)
 		{
-			// The card's edge and footer both light on the DIRTY flag alone; the other card readouts are
-			// x:Bind and need nothing from here.
-			if (e.PropertyName == nameof(RadarViewModel.IsReplaySelectionDirty))
+			// The card's edge lights on the DIRTY flag, Set Timeframe's red on the ERROR; every other readout is
+			// x:Bind and needs nothing from here.
+			if (e.PropertyName is nameof(RadarViewModel.IsReplaySelectionDirty) or nameof(RadarViewModel.HasReplayError))
 			{
 				ApplySelectionState();
 			}
 		}
 
-		private void ApplySelectionState() =>
+		private void ApplySelectionState()
+		{
 			VisualStateManager.GoToState(this,
 				ViewModel?.Radar?.IsReplaySelectionDirty == true ? "SelectionDirty" : "SelectionClean", false);
+			VisualStateManager.GoToState(this,
+				ViewModel?.Radar?.HasReplayError == true ? "ReplayErrorShown" : "NoReplayError", false);
+		}
 
 		// ===== The Timeframe block =====
-		// The status line under Set Timeframe | Clear is the engine's own status (loading / loaded N frames /
-		// errors / "pick a site…"), except while DIRTY — a played event re-filled the pickers over a loaded
-		// window — when it says so. (It was the card's footer; the card is only the "or Atlas" row now.)
+		// The load's readouts: an ERROR rides in Set Timeframe (two lines, red by ReplayErrorStates); the frame
+		// count / Loading… / Click a site sit in the space above Clear. (No status line any more.)
 
-		/// <summary>The status line under the buttons.</summary>
-		public string CardFooter(bool dirty, string status) =>
-			dirty ? "Selection changed — Set Timeframe to load it" : status;
+		// Set Timeframe's two faces: its label, or the error's two lines.
+		public Visibility ShownWhen(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility HiddenWhen(bool on) => on ? Visibility.Collapsed : Visibility.Visible;
+
+		// The error's first line ends in the spaced dash that leads into the retry hint below it.
+		public string ErrorFirstLine(string error) => error + " –";
 
 		// The header's placeholders ("No replay date" / "No Timeframe Loaded") dim until a window is loaded.
 		public double PlaceholderOpacity(bool loaded) => loaded ? 1.0 : 0.4;
@@ -101,9 +107,10 @@ namespace Anvil.Controls.Composites
 		public double RangeFontSize(bool loaded) => loaded ? 30 : 16;
 
 		// The pickers LOCK while a window is loaded (Clear unlocks them): disabled, and each label + picker dimmed
-		// (not their grid — Set Timeframe and Clear share it and must stay full strength).
-		public bool PickersEnabled(bool loaded) => !loaded;
-		public double PickerOpacity(bool loaded) => loaded ? 0.4 : 1.0;
+		// (not their grid — Set Timeframe and Clear share it and must stay full strength). ⚠️ An ERROR unlocks them
+		// even over an armed window, or the button's "…or change timeframe" would be unanswerable.
+		public bool PickersEnabled(bool loaded, bool error) => !loaded || error;
+		public double PickerOpacity(bool loaded, bool error) => PickersEnabled(loaded, error) ? 1.0 : 0.4;
 
 		private void OnClearClick(object sender, RoutedEventArgs e) => ViewModel?.Radar.ClearReplay();
 
@@ -112,10 +119,11 @@ namespace Anvil.Controls.Composites
 		// SelectionClean / SelectionDirty pair in the XAML — because that lookup resolves against the
 		// application's theme rather than this element's. Do not bring them back.
 
-		/// <summary>Load is accent whenever pressing it would DO something — that is, always except when a
-		/// window is loaded and the pickers still agree with it.</summary>
-		public Style? LoadStyle(bool loaded, bool dirty) =>
-			Lookup(loaded && !dirty ? "DefaultButtonStyle" : "AccentButtonStyle") as Style;
+		/// <summary>Set Timeframe is accent whenever pressing it would DO something — always except when a window
+		/// is loaded and the pickers still agree with it. While it carries an ERROR it is the plain style, so the
+		/// error state's critical tint (ReplayErrorStates) isn't fighting the accent fill.</summary>
+		public Style? LoadStyle(bool loaded, bool dirty, bool error) =>
+			Lookup(error || (loaded && !dirty) ? "DefaultButtonStyle" : "AccentButtonStyle") as Style;
 
 		// ⚠️ TryGetValue, never the indexer: a ResourceDictionary's indexer THROWS on a missing key, and
 		// this runs the moment the panel opens — a renamed style would take the window down rather than draw
@@ -126,7 +134,7 @@ namespace Anvil.Controls.Composites
 		/// <summary>Whether pressing Load would DO anything: nothing loaded yet, or the pickers have moved
 		/// since. ⚠️ A loaded-and-clean window has nothing to re-fetch — the archive day is immutable — so the
 		/// button goes dead rather than offering a no-op.</summary>
-		public bool LoadEnabled(bool loaded, bool dirty) => !loaded || dirty;
+		public bool LoadEnabled(bool loaded, bool dirty, bool error) => !loaded || dirty || error; // an error = retry
 
 		/// <summary>The outlook's Cycle and Opacity need BOTH a loaded window (there is no day to fetch for
 		/// otherwise) and a product that is not None (nothing to tune).</summary>

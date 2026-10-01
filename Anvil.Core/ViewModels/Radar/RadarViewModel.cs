@@ -600,7 +600,7 @@ namespace Anvil.ViewModels
 				// drop the replay loop and go idle). Setting "None" routes through the mode-aware
 				// SelectedRadarOption setter, which clears the loop without starting anything.
 				SelectedRadarOption = RadarOptions[0];
-				PastEventStatus = value ? NothingLoadedStatus : string.Empty;
+				SetReplayReadout(status: value ? NothingLoadedStatus : string.Empty);
 				// Leaving replay: restore the LIVE site availability promptly (the status loop skips its
 				// pushes while in past mode, so it wouldn't refresh the markers for up to ~10 min).
 				// ⚠️ The rows still hold the REPLAY DAY's availability — grey them first so replay-day dots are
@@ -929,7 +929,7 @@ namespace Anvil.ViewModels
 			var now = DateTime.Now;
 			ApplyPastEventDate(LocalMidnight(now.Year, now.Month, now.Day));
 			PastEventTime = new TimeSpan(now.Hour, now.Minute - now.Minute % 5, 0);
-			PastEventStatus = NothingLoadedStatus;
+			SetReplayReadout(status: NothingLoadedStatus);
 		}
 
 		/// <summary>The status line with nothing loaded (mode entry, Clear).</summary>
@@ -1004,6 +1004,8 @@ namespace Anvil.ViewModels
 		// added that updates the pickers but not the card.
 		private void OnReplaySelectionChanged()
 		{
+			// Changing the timeframe answers an error ("…or change timeframe"): Set Timeframe reads normally again.
+			if (HasReplayError) { ReplayError = string.Empty; }
 			OnPropertyChanged(nameof(PastEventDate));
 			OnPropertyChanged(nameof(PastEventDateText));
 			OnPropertyChanged(nameof(PastEventRangeText));
@@ -1074,11 +1076,42 @@ namespace Anvil.ViewModels
 			stored.PastCastDurationMinutes = PastEventMinutesByIndex[_pastEventDurationIndex];
 		}
 
-		/// <summary>Status line for the Past Event Viewer (loading / loaded N frames / errors).</summary>
+		/// <summary>The load's full status sentence (loading / loaded N frames / errors) — the readouts below are
+		/// what's SHOWN; this is their hover hint and the diagnostic record.</summary>
 		public string PastEventStatus
 		{
 			get => _pastEventStatus;
 			private set => SetProperty(ref _pastEventStatus, value);
+		}
+
+		// ── The load's READOUTS on PastCast's buttons (the user's design, 2026-10-01) ─────────────────────
+		// An ERROR rides IN the Set Timeframe button (two lines: the error, then the retry hint) and only while
+		// there is one; everything else is the space above Clear: a big NUMBER + a small CAPTION ("28" /
+		// "frames loaded"), or a caption alone ("Loading…", "Click a site"). ⚠️ ONE setter writes all three
+		// (SetReplayReadout), so no path can leave a stale error beside a fresh count.
+
+		private string _replayError = string.Empty;
+		/// <summary>The load's error, short ("No KTLX data for timeframe"); empty = none.</summary>
+		public string ReplayError { get => _replayError; private set { if (SetProperty(ref _replayError, value)) { OnPropertyChanged(nameof(HasReplayError)); } } }
+
+		/// <summary>Whether Set Timeframe is showing an error.</summary>
+		public bool HasReplayError => _replayError.Length > 0;
+
+		private string _replayCount = string.Empty;
+		/// <summary>The space above Clear: the big number ("28"); empty = none.</summary>
+		public string ReplayCount { get => _replayCount; private set => SetProperty(ref _replayCount, value); }
+
+		private string _replayCaption = string.Empty;
+		/// <summary>The space above Clear: the caption ("frames loaded", "Loading…", "Click a site"); empty = none.</summary>
+		public string ReplayCaption { get => _replayCaption; private set => SetProperty(ref _replayCaption, value); }
+
+		/// <summary>Set the three readouts together (and the status sentence when given).</summary>
+		internal void SetReplayReadout(string error = "", string count = "", string caption = "", string? status = null)
+		{
+			ReplayError = error;
+			ReplayCount = count;
+			ReplayCaption = caption;
+			if (status is not null) { PastEventStatus = status; }
 		}
 
 		// ── User-tunable loop settings. ⚠️ The three OPTION LISTS these indices used to point into are
