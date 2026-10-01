@@ -12,28 +12,30 @@ namespace Anvil.Services
 	/// </summary>
 	/// <remarks>
 	/// <code>
-	///   RunCpu(work)      jobs ▲ ─── work on the pool ─── jobs ▼        → "jobs" / "jobsPeak"
+	///   RadarCpuWork job  jobs ▲ ─── work on a radar CPU thread ─── jobs ▼ → "jobs" / "jobsPeak"
 	///   BeginSync … EndSync  (only timed when a SynchronizationContext is
 	///                         present, i.e. the await resumed on the UI)  → "syncMs"
 	/// </code>
 	/// Always on (a pair of Interlocked ops per extraction is free); only <c>UiThreadProbe</c> (App, Debug)
-	/// ever reads it. ⚠️ EXCISABLE: this file, its call sites in <see cref="Level2RadarService"/> (grep
-	/// <c>RadarPerfCounters</c>) and the App's <c>UiThreadProbe</c> are the whole feature. Grep <c>perf.ui</c>.
+	/// ever reads it. ⚠️ EXCISABLE: this file, its call sites in <see cref="Level2RadarService"/> and
+	/// <see cref="RadarCpuWork"/> (grep <c>RadarPerfCounters</c>) and the App's <c>UiThreadProbe</c> are the whole
+	/// feature. Grep <c>perf.ui</c>.
 	/// </remarks>
 	public static class RadarPerfCounters
 	{
 		private static int _jobs, _jobsPeak;
 		private static long _syncTicks;
 
-		/// <summary><c>Task.Run(work, ct)</c>, counted as one in-flight CPU job while it runs.</summary>
-		public static Task<T> RunCpu<T>(Func<T> work, CancellationToken ct) => Task.Run(() =>
+		/// <summary>A <see cref="RadarCpuWork"/> job began running. Returns a token for <see cref="JobEnded"/>.</summary>
+		public static int JobStarted()
 		{
 			var n = Interlocked.Increment(ref _jobs);
 			int peak;
 			while (n > (peak = Volatile.Read(ref _jobsPeak)) && Interlocked.CompareExchange(ref _jobsPeak, n, peak) != peak) { }
-			try { return work(); }
-			finally { Interlocked.Decrement(ref _jobs); }
-		}, ct);
+			return n;
+		}
+
+		public static void JobEnded(int started) => Interlocked.Decrement(ref _jobs);
 
 		/// <summary>Jobs running now, and the peak since the last call (the peak is reset to "now").</summary>
 		public static (int Now, int Peak) TakeJobs()

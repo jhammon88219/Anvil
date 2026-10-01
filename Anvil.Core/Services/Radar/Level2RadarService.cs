@@ -255,9 +255,9 @@ namespace Anvil.Services
 				try
 				{
 					var cachedBytes = await File.ReadAllBytesAsync(cacheFile, cancellationToken);
-					(cachedMode, cachedTilts) = await RadarPerfCounters.RunCpu(
+					(cachedMode, cachedTilts) = await RadarCpuWork.Run(
 						() => (ModeTextFromTilt(cachedBytes), ReadElevationAnglesFromExtractedTilt(cachedBytes)),
-						cancellationToken);
+						cancellationToken, urgent: true); // a cache hit: tiny, and a frame is waiting on it
 				}
 				catch (OperationCanceledException) { throw; }
 				catch { /* both are best-effort; a bad read shows "—" and offers no tilt choice */ }
@@ -283,7 +283,7 @@ namespace Anvil.Services
 					try
 					{
 						var rawBytes = await File.ReadAllBytesAsync(rawFile, cancellationToken);
-						toWrite = await RadarPerfCounters.RunCpu(() => ExtractTilt(rawBytes, site.Id, tiltAngle), cancellationToken);
+						toWrite = await RadarCpuWork.Run(() => ExtractTilt(rawBytes, site.Id, tiltAngle), cancellationToken, urgent: prioritized);
 
 						// The raw IS the whole volume (and it's written atomically, so a file on disk is
 						// complete). If the tilt isn't in it, the tilt does not exist — re-downloading the
@@ -319,7 +319,7 @@ namespace Anvil.Services
 						: await TryGetRangeAsync(key, LowestTiltPrefixBytes, cancellationToken);
 					if (prefix is not null)
 					{
-						toWrite = await RadarPerfCounters.RunCpu(() =>
+						toWrite = await RadarCpuWork.Run(() =>
 						{
 							try
 							{
@@ -330,7 +330,7 @@ namespace Anvil.Services
 							{
 								return null;
 							}
-						}, cancellationToken);
+						}, cancellationToken, urgent: prioritized);
 					}
 				}
 
@@ -366,7 +366,7 @@ namespace Anvil.Services
 						response.EnsureSuccessStatusCode();
 						raw = await response.Content.ReadAsByteArrayAsync(cancellationToken);
 					}
-					var (extracted, volume) = await RadarPerfCounters.RunCpu<(byte[]?, byte[]?)>(() =>
+					var (extracted, volume) = await RadarCpuWork.Run<(byte[]?, byte[]?)>(() =>
 					{
 						try
 						{
@@ -379,7 +379,7 @@ namespace Anvil.Services
 							_logger.LogWarning(ex, "{Site} tilt extract failed, caching raw volume", site.Id);
 							return (tiltAngle is null ? raw : null, null);
 						}
-					}, cancellationToken);
+					}, cancellationToken, urgent: prioritized);
 					toWrite = extracted;
 					fullVolume = volume;
 				}
@@ -641,7 +641,7 @@ namespace Anvil.Services
 					try
 					{
 						var rawBytes = await File.ReadAllBytesAsync(rawFile2, cancellationToken);
-						var extracted = await RadarPerfCounters.RunCpu(
+						var extracted = await RadarCpuWork.Run(
 							() => TryExtractTiltsByAngles(rawBytes, site.Id, targets), cancellationToken);
 						foreach (var angle in targets) // ascending-by-angle
 						{
@@ -1193,7 +1193,7 @@ namespace Anvil.Services
 
 			var ordered = blocks.Values.ToList();
 			var hdr = header;
-			var sel = await RadarPerfCounters.RunCpu(() => SelectLatestSweep(hdr, ordered, icao, tiltAngle), ct);
+			var sel = await RadarCpuWork.Run(() => SelectLatestSweep(hdr, ordered, icao, tiltAngle), ct, urgent: true); // the live frame: visibly waited on
 			if (!sel.complete || sel.data is null || !sel.velComplete)
 			{
 				RadarDiagnostics.Log("svc", "live", ("site", site.Id), ("vol", vol),
@@ -1545,7 +1545,7 @@ namespace Anvil.Services
 					raw = await response.Content.ReadAsByteArrayAsync(ct);
 				}
 
-				var data = await RadarPerfCounters.RunCpu(() => Gunzip(raw), ct); // off the caller's thread: ~43 MB out
+				var data = await RadarCpuWork.Run(() => Gunzip(raw), ct); // off the caller's thread: ~43 MB out
 				var temp = file + ".tmp";
 				await File.WriteAllBytesAsync(temp, data, ct);
 				File.Move(temp, file, overwrite: true);
