@@ -1025,13 +1025,29 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>Open the Atlas on Past events, on the event PastCast has picked (the PastCast section's
-		/// "Open in Atlas" link).</summary>
+		/// <summary>Open the Atlas on Past events, on the event PastCast has picked (PastCast's Timeframe card
+		/// "Atlas" button).</summary>
 		public void OpenAtlasOnEvents()
 		{
 			SavedEvents.SelectInAtlas(SavedEvents.PickedId);
 			AtlasTabIndex = 1;
 			IsRadarAtlasOpen = true;
+		}
+
+		/// <summary>Open the Atlas on Radar sites — the bar's Atlas key and the site picker's "Open Atlas".
+		/// ⚠️ THE DOOR PICKS THE TAB (the user's call, 2026-10-01): the persisted tab is only what an already-open
+		/// Atlas shows; every way IN says where it lands.</summary>
+		public void OpenAtlasOnSites()
+		{
+			AtlasTabIndex = 0;
+			IsRadarAtlasOpen = true;
+		}
+
+		/// <summary>The bar's Atlas key: closes an open Atlas, otherwise opens it on Radar sites.</summary>
+		public void ToggleAtlasFromBar()
+		{
+			if (IsRadarAtlasOpen) { IsRadarAtlasOpen = false; }
+			else { OpenAtlasOnSites(); }
 		}
 
 		/// <summary>

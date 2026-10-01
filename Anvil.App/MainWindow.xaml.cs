@@ -214,6 +214,14 @@ namespace Anvil
 
 		private void OnCaptionClose(object? sender, EventArgs e) => Close();
 
+		// The bar's Atlas key (IsChecked ONE-WAY): closes it, or opens it on Radar sites. The VM's answer flips the
+		// key back if the toggle's own flip disagreed — re-asserted here because a no-change leaves it stale.
+		private void OnAtlasKeyClick(object sender, RoutedEventArgs e)
+		{
+			ViewModel.ToggleAtlasFromBar();
+			AtlasKey.IsChecked = ViewModel.IsRadarAtlasOpen;
+		}
+
 		private void UpdateNotchInputRegions()
 		{
 			if (_isClosed)

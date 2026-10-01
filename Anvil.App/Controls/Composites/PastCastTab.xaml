@@ -8,9 +8,13 @@
 
        ┌──────────────────────────────────────────────────────┐
        │  ┌──────────────────────────────────────────┐        │  ← TIMEFRAME: FIXED at the top, no
-       │  │ Tue May 24, 2011              │  Load    │        │     header, can't collapse (12 px
-       │  │ 5:00 PM → 7:00 PM             │          │        │     inset = a section body's)
-       │  │ 28 frames loaded              │          │        │  the CARD previews what Load
+       │  │ Choose a custom timeframe… ⁘⁘ or ⁘⁘ [📡 Atlas]│     │     header, can't collapse (12 px
+       │  │                    ↕ 10 px                │        │     inset = a section body's)
+       │  │ Tue May 24, 2011              │ [ Load  ]│        │  ← the TWO SOURCES: the pickers, or a
+       │  │ 5:00 PM → 7:00 PM             │          │        │     saved event (Atlas → PAST EVENTS);
+       │  │ 28 frames loaded              │          │        │     Atlas + Load share ONE column = one
+       │  │                               │          │        │     width; ⁘ = dot bridges. Then the CARD
+       │  │                               │          │        │     previews what Load
        │  └──────────────────────────────────────────┘        │  will do; its footer reports
        │  ──────────────────────────────────────────          │  whether that is on the map
        │  Date    [ May 24, 2011              ▾]              │
@@ -36,13 +40,8 @@
        │ ⠿ › [x] Mesoscale discussions ───●  100%             │  │ MDs + MPDs: areas + a reader
        │ ⠿ › [x] SPC outlook    ───────●───   55%             │  │ box = show/hide, any product
        │ ⠿   [x] Radar          ──────────●─   85%            │  ┘ header only
-       │                                                      │
-       │                  (100 px, always)                    │
-       │                                                      │
-       │    ╭────────────────────────────────────────────╮    │  ← OPEN ATLAS: accent hairline, 6 px
-       │    │ 📡 Open Anvil Atlas to play a past event    │    │     corners, the bar's Atlas glyph;
-       │    ╰────────────────────────────────────────────╯    │     opens the Atlas on PAST EVENTS
        └──────────────────────────────────────────────────────┘
+         (the Open Atlas button that sat 100 px below the sections moved INTO the card, 2026-10-01)
 
      ⚠️ THE DOW EVENT SECTION IS GONE (2026-09-27) — it is the Anvil Atlas's DOW events tab now
      (Composites/DowEventsAtlasTab). Its Show still turns PastCast on first. Don't re-add it here.
@@ -116,7 +115,7 @@
     <UserControl.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
 
-        <!-- The OPEN ATLAS button under the sections: transparent face, 1 px ACCENT hairline, 6 px corners (a quiet
+        <!-- The Timeframe card's ATLAS button: transparent face, 1 px ACCENT hairline, 6 px corners (a quiet
              door, not a primary action). Minimal template so it can't pick up the stock button's chrome; hover and
              press only fill the face. LOCAL: this window is its only consumer. -->
         <Style x:Key="OpenAtlasButtonStyle" TargetType="Button">
@@ -229,13 +228,52 @@
                         Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
                         BorderThickness="1"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                    <Grid ColumnSpacing="14">
+                    <Grid ColumnSpacing="14" RowSpacing="10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/> <!-- Atlas over Load: ONE column, so one width -->
                         </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/> <!-- Choose a custom timeframe… ⁘ or ⁘ [Atlas] -->
+                            <RowDefinition Height="Auto"/> <!-- the preview + Load -->
+                        </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <!-- THE TWO SOURCES (the user's design, 2026-10-01): pick your own window with the pickers
+                             below, OR play a saved event from the Atlas. Dot bridges (the tools tier's separator,
+                             FillWidth) span the gaps either side of "or"; equal stars, so "or" sits between them.
+                             The right bridge's −6 cancels most of the card's 14 column gap, matching the left side. -->
+                        <Grid Grid.Row="0" Grid.Column="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Choose a custom timeframe…" FontSize="13"
+                                       VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <prim:MapControlsStripSeparator Grid.Column="1" FillWidth="True" Margin="8,0"/>
+                            <TextBlock Grid.Column="2" Text="or" FontSize="15" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                            <prim:MapControlsStripSeparator Grid.Column="3" FillWidth="True" Margin="8,0,-6,0"/>
+                        </Grid>
+
+                        <!-- OPEN ATLAS, on Past events (MapViewModel.OpenAtlasOnEvents — also selects the event PastCast
+                             has picked). Stretch = Load's width below it. ⚠️ The mark is the bar's Atlas key glyph
+                             (EC05, MainWindow AtlasKey) — the same door, the same mark; change both. -->
+                        <Button Grid.Row="0" Grid.Column="1" Style="{StaticResource OpenAtlasButtonStyle}"
+                                Padding="10,6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Click="OnOpenAtlasClick"
+                                ToolTipService.ToolTip="Browse saved severe-weather days in the Anvil Atlas and play one here">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" Glyph="&#xEC05;"
+                                          VerticalAlignment="Center"
+                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="Atlas" FontSize="13" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <StackPanel Grid.Row="1" Grid.Column="0" VerticalAlignment="Center">
                             <TextBlock Text="{x:Bind ViewModel.Radar.PastEventDateText, Mode=OneWay}"
                                        FontSize="15"
                                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
@@ -251,8 +289,8 @@
                         <!-- ⚠️ DISABLED once a window is loaded and the pickers still agree with it — there is
                              nothing left to do, and the archive day is immutable so a re-load would fetch the
                              same frames. Editing any picker makes the selection dirty and brings it back. -->
-                        <Button Grid.Column="1" Content="Load" MinWidth="84"
-                                VerticalAlignment="Center"
+                        <Button Grid.Row="1" Grid.Column="1" Content="Load" MinWidth="84"
+                                VerticalAlignment="Center" HorizontalAlignment="Stretch"
                                 IsEnabled="{x:Bind LoadEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
                                 Style="{x:Bind LoadStyle(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty), Mode=OneWay}"
                                 Click="OnLoadClick"/>
@@ -326,9 +364,8 @@
     <!-- ⚠️ Margin right -12 BLEEDS the scroller's gutter into the window's 16 px body margin (see the
          PanelScroller header): the gutter ends 4 px from the window edge. -->
     <prim:PanelScroller Grid.Row="1" Margin="0,0,-12,0">
-    <!-- ⚠️ An OUTER stack holds Sections + the Open Atlas button: Sections must stay the pure layer run
-         (ApplyLayerOrder / LayerOrderOf read its children as the map's z-order), so nothing else goes IN it. -->
-    <StackPanel VerticalAlignment="Top">
+    <!-- ⚠️ Sections must stay the pure layer run (ApplyLayerOrder / LayerOrderOf read its children as the map's
+         z-order), so nothing else goes IN it. -->
     <StackPanel x:Name="Sections" VerticalAlignment="Top" Spacing="8">
 
         <!-- ===================== STORM CELLS ===================== -->
@@ -696,25 +733,7 @@
                            OpacityToolTip="Opacity of the radar layer — turn it down to read what is under it"/>
 
         <!-- (The DOW event section moved to the Anvil Atlas — Composites/DowEventsAtlasTab, 2026-09-27.) -->
-    </StackPanel>
-
-        <!-- ===================== OPEN ATLAS — the door to the past-event list =====================
-             ALWAYS 100 px below the LAST section, open or closed (it rides the run down as sections expand, and
-             scrolls with them). Opens the Anvil Atlas on its PAST EVENTS tab (MapViewModel.OpenAtlasOnEvents —
-             also selects the event PastCast has picked, if any). ⚠️ The mark is the bar's Atlas key glyph (EC05,
-             MainWindow AtlasKey) — the same door, the same mark; change both. -->
-        <Button Style="{StaticResource OpenAtlasButtonStyle}"
-                HorizontalAlignment="Center"
-                Margin="0,100,0,16"
-                Click="OnOpenAtlasClick"
-                ToolTipService.ToolTip="Browse saved severe-weather days in the Anvil Atlas and play one here">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="15" Glyph="&#xEC05;"
-                          VerticalAlignment="Center"
-                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                <TextBlock Text="Open Anvil Atlas to play a past event" FontSize="13" VerticalAlignment="Center"/>
-            </StackPanel>
-        </Button>
+        <!-- (The Open Atlas button that sat 100 px below here moved INTO the Timeframe card, 2026-10-01.) -->
     </StackPanel>
     </prim:PanelScroller>
     </Grid>

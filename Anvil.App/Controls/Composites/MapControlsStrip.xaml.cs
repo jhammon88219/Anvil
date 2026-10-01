@@ -156,10 +156,7 @@ namespace Anvil.Controls.Composites
 		private void OnOpenAtlasClick(object sender, RoutedEventArgs e)
 		{
 			SitePicker.CloseDropDown();
-			if (ViewModel is { } vm)
-			{
-				vm.IsRadarAtlasOpen = true;
-			}
+			ViewModel?.OpenAtlasOnSites(); // a site-picker door: lands on Radar sites
 		}
 
 		// Reset north — animate bearing + pitch back to 0. Fire-and-forget through IMapService, the same
