@@ -753,6 +753,7 @@ try {
                     const ps = window.RadarLayer.perfStats();
                     ctx.decBusy = ps.decBusy;
                     ctx.decPeak = ps.decPeak;
+                    ctx.decQueued = ps.decQueued;
                 }
                 return ctx;
             });

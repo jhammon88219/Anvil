@@ -445,8 +445,9 @@
     // Concurrent upgrade decodes. The dealias is CPU-bound, so this must NOT exceed physical cores —
     // navigator.hardwareConcurrency reports LOGICAL (SMT-doubled), and running more heavy dealias tasks than
     // physical cores just thrashes them (measured: bumping this on a 4-core/8-thread box did nothing). Keep
-    // it modest and leave a worker free for the current frame / a new load.
-    var UPGRADE_CONCURRENCY = 3;
+    // it modest and leave a worker free for the current frame / a new load — so one short of the pool
+    // (decodePoolSize: 3 on a 4-core/8-thread box → 2 here).
+    var UPGRADE_CONCURRENCY = Math.max(1, decodePoolSize() - 1);
     function resetUpgrades() { upgradeQueue = []; upgradeInFlight = {}; upgradeInFlightN = 0; upgradeReason = {}; }
     // A frame needs (re)building when it lacks the geometry for any product we currently want (the active
     // product, + velocity while prefetching). built[id] tracks whether the build RAN, so a frame with
@@ -982,31 +983,62 @@
     }
 
     // ---- Off-thread decode via a Web Worker POOL ----
-    // A single worker decodes its message queue serially, so the backfill was decode-bound (one frame
-    // at a time). A pool of N workers decodes N frames in parallel across cores; round-robin dispatch.
-    // Results carry {token,index} and applyFrameResult runs serially on the main thread, so out-of-order
-    // completions across workers are safe. Pool persists for the app lifetime (creating workers is
-    // expensive); each loads radar-decode.js + the vendored decoder independently (~a few MB each).
-    // Pool cap 4 (one more than UPGRADE_CONCURRENCY, so the current frame / a new load grabs a free worker
-    // while upgrades run). Capped low on purpose: the decode is CPU-bound (dealias), so more workers than
-    // physical cores just thrash — the win comes from a FASTER dealias, not more parallelism.
-    const DECODE_POOL_SIZE = Math.max(1, Math.min(4,
-        (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) ? navigator.hardwareConcurrency - 1 : 3));
+    // A pool of N workers decodes N frames in parallel across cores. Results carry {token,index} and
+    // applyFrameResult runs serially on the main thread, so out-of-order completions are safe. Pool persists
+    // for the app lifetime (creating workers is expensive); each loads radar-decode.js + the vendored decoder
+    // independently (~a few MB each).
+    //
+    //   decodeFrame ─┐                       ┌─▶ [worker 0]  ONE job each — the rest wait HERE, not inside
+    //   gridOnly   ──┴─▶ dispatchQueue ─pump─┼─▶ [worker 1]  a worker, so they can be held / reordered
+    //                    (FIFO; urgent first)└─▶ [worker 2]
+    //                    ⏸ while the camera moves: only URGENT jobs leave (Rule 1)
+    //
+    // WHY (measured 2026-10-01, perf.ui + perfPan, Ryzen 5 2400G = 4 physical / 8 logical cores): the pool
+    // was sized from LOGICAL cores (4 workers = every physical core) and dispatch was round-robin with no
+    // limit (26 decodes sat queued inside the workers). Through a cold hurricane load the renderer alone
+    // held ~50% of the machine, the whole box sat at 85–98%, and the WinUI thread that delivers mouse input
+    // to this page waited for CPU — 10–18% of pointer moves arrived 100+ ms late while dragging. So:
+    //   (b) the pool leaves a PHYSICAL core free (size below), and
+    //   (a) backfill/upgrade decodes are HELD while a pan/zoom is in progress and resume GESTURE_RESUME_MS
+    //       after it ends. Decodes already running finish — a job is never cancelled mid-flight.
+    // ⚠️ Rule 1: the frame on screen (or about to be — pendingFrame, or anything before first paint) is
+    // URGENT and is never held. Everything else is backfill (Rule 2's order is the FIFO order).
+    // ⚠️ One job per worker is ALSO what makes the hold work: a job already posted to a worker can't be held.
+    const DECODE_POOL_SIZE = decodePoolSize();
+    // hardwareConcurrency is LOGICAL cores; assume SMT (2 per physical — true of the dev box and most desktop
+    // CPUs) and leave one physical core for the UI thread / map rendering / C# extraction. 8 logical → 3.
+    // A non-SMT CPU just gets a smaller pool than it could run — slower load, never lag.
+    function decodePoolSize() {
+        var hc = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 4;
+        return Math.max(1, Math.min(4, Math.floor(hc / 2) - 1));
+    }
     let workerPool; // undefined = not tried, array = ready, null = Worker API unavailable
-    let workerRR = 0;
-    // PERF PROBE (perfPan context): decode jobs posted to the pool and not yet answered, + the peak since
-    // the probe last read it (RadarLayer.perfStats). Pure counting; nothing reads it but the probe.
-    let _decBusy = 0, _decPeak = 0;
-    function decPosted() { _decBusy++; if (_decBusy > _decPeak) _decPeak = _decBusy; }
-    function getWorker() {
+    let workerBusy = []; // parallel to workerPool: true while that worker holds a job
+    let dispatchQueue = []; // posted messages waiting for a free worker (and, if not urgent, for the camera to stop)
+    function ensureWorkerPool() {
         if (workerPool === undefined) {
             try {
                 workerPool = [];
                 for (let i = 0; i < DECODE_POOL_SIZE; i++) {
                     const w = new Worker(new URL('radar-worker.js', SELF_SCRIPT).href);
-                    w.onmessage = function (e) { if (_decBusy > 0) _decBusy--; const m = e.data; if (m && m.gridsOnly) applyGridResult(m); else applyFrameResult(m); };
-                    w.onerror = function (e) { hostLog('worker error: ' + (e && e.message ? e.message : e)); };
+                    const slot = i;
+                    // The worker replies exactly once per job (result or {error}), so this frees the slot.
+                    w.onmessage = function (e) {
+                        workerBusy[slot] = false;
+                        if (_decBusy > 0) _decBusy--;
+                        const m = e.data; if (m && m.gridsOnly) applyGridResult(m); else applyFrameResult(m);
+                        pumpDispatch();
+                    };
+                    // An uncaught worker error means no reply is coming for its job — free the slot or the
+                    // pool shrinks by one for the rest of the session.
+                    w.onerror = function (e) {
+                        hostLog('worker error: ' + (e && e.message ? e.message : e));
+                        workerBusy[slot] = false;
+                        if (_decBusy > 0) _decBusy--;
+                        pumpDispatch();
+                    };
                     workerPool.push(w);
+                    workerBusy.push(false);
                 }
                 hostLog('decode pool size=' + workerPool.length);
             } catch (e) {
@@ -1014,11 +1046,77 @@
                 hostLog('worker unavailable; main-thread decode: ' + (e && e.message ? e.message : e));
             }
         }
-        if (!workerPool || !workerPool.length) return null;
-        const w = workerPool[workerRR % workerPool.length]; // round-robin next worker
-        workerRR++;
-        return w;
+        return !!(workerPool && workerPool.length);
     }
+    // Queue a decode/grid message for the pool. Returns false when there is no pool (caller falls back).
+    function dispatchDecode(msg) {
+        if (!ensureWorkerPool()) return false;
+        dispatchQueue.push(msg);
+        pumpDispatch();
+        return true;
+    }
+    // Rule 1: what the user is looking at (or waiting to look at) never waits on a gesture.
+    function isUrgentDecode(msg) {
+        return currentFrame < 0 || msg.index === currentFrame || msg.index === pendingFrame;
+    }
+    function pumpDispatch() {
+        if (!workerPool) return;
+        for (;;) {
+            const slot = workerBusy.indexOf(false);
+            if (slot < 0 || !dispatchQueue.length) return;
+            // Drop jobs for a loop that has been replaced (beginLoop / remap bumped the token); posting them
+            // would only burn a worker on a result applyFrameResult discards.
+            dispatchQueue = dispatchQueue.filter(function (m) { return m.token === loopToken; });
+            let pos = -1;
+            for (let i = 0; i < dispatchQueue.length; i++) { if (isUrgentDecode(dispatchQueue[i])) { pos = i; break; } }
+            if (pos < 0) {
+                if (cameraMoving() || !dispatchQueue.length) return; // held until the gesture ends
+                pos = 0;
+            }
+            const msg = dispatchQueue.splice(pos, 1)[0];
+            // Read the loop's motion + seed profile NOW, not at queue time: a held job may have waited
+            // seconds, and the motion can land meanwhile (Rule 4 — SRV is never built at a stale motion).
+            msg.stormMotion = resolveStormMotion();
+            msg.seedProfile = _loopSeedProfile;
+            workerBusy[slot] = true;
+            decPosted();
+            workerPool[slot].postMessage(msg);
+        }
+    }
+
+    // ---- Camera-gesture hold (see the pool note above) ----
+    // Refcounted across panes (the camera sync moves them together). ⚠️ DEADMAN: a pane destroyed mid-gesture
+    // never sends its moveend — a leaked count would hold the backfill forever, so a gesture older than
+    // GESTURE_DEADMAN_MS no longer counts.
+    const GESTURE_RESUME_MS = 400;     // a drag is often several strokes; don't refill the pool between them
+    const GESTURE_DEADMAN_MS = 30000;
+    let _gestureN = 0, _gestureAt = 0, _gestureResume = 0;
+    const _gestureHooked = new WeakSet();
+    function cameraMoving() {
+        if (_gestureN > 0 && Date.now() - _gestureAt > GESTURE_DEADMAN_MS) _gestureN = 0;
+        return _gestureN > 0 || _gestureResume !== 0;
+    }
+    function onCameraStart() {
+        if (_gestureN++ === 0) _gestureAt = Date.now();
+        if (_gestureResume) { clearTimeout(_gestureResume); _gestureResume = 0; }
+    }
+    function onCameraEnd() {
+        if (_gestureN > 0) _gestureN--;
+        if (_gestureN > 0) return;
+        if (_gestureResume) clearTimeout(_gestureResume);
+        _gestureResume = setTimeout(function () { _gestureResume = 0; pumpDispatch(); }, GESTURE_RESUME_MS);
+    }
+    function hookGestures(map) {
+        if (!map || _gestureHooked.has(map)) return;
+        _gestureHooked.add(map);
+        map.on('movestart', onCameraStart);
+        map.on('moveend', onCameraEnd);
+    }
+
+    // PERF PROBE (perfPan context): decode jobs running in a worker, + the peak since the probe last read it,
+    // + jobs waiting in dispatchQueue (RadarLayer.perfStats). Pure counting; nothing reads it but the probe.
+    let _decBusy = 0, _decPeak = 0;
+    function decPosted() { _decBusy++; if (_decBusy > _decPeak) _decPeak = _decBusy; }
 
     // Pre-warm the decode + VWP workers so the FIRST site click doesn't pay their cold start. Creating a
     // worker is expensive and each then imports the vendored decoder (~a few MB, eagerly on startup — see
@@ -1026,7 +1124,7 @@
     // showed the pool being built ~1.4 s INTO the first load). The host calls this at map-ready, before any
     // loop. Idempotent (getWorker/getVwpWorker create their pools once) and best-effort.
     window.prewarmRadarWorkers = function () {
-        try { getWorker(); getVwpWorker(); } catch (e) { hostLog('prewarm failed: ' + (e && e.message ? e.message : e)); }
+        try { ensureWorkerPool(); getVwpWorker(); } catch (e) { hostLog('prewarm failed: ' + (e && e.message ? e.message : e)); }
     };
 
     // ONE DECODE AT A TIME on the main thread too — the no-Worker fallback shares radar-decode.js's
@@ -1458,15 +1556,16 @@
             : !wantedBuiltIn(hit) ? ('unbuilt:' + wantedIds.filter(function (id) { return !(hit.built && hit.built[id]); }).join(','))
                 : ('no-grid:' + (missingGridProduct(hit) || '?'));
         decodeTrace(index, reason, 'decode', buildIds, miss);
-        const w = getWorker();
-        if (w) {
-            // The WORKER fetches the .V06 itself (same-origin radarlevel2 host), so the ~7 MB body read stays
-            // OFF the map's render thread — a backfill of N frames otherwise does N such reads on the main
-            // thread, hitching pan/zoom. A loop that changed while the fetch was in flight is still dropped by
-            // token in applyFrameResult; a fetch/decode failure comes back as {token,index,url,error}, which
-            // applyFrameResult already turns into upgradeDone + radarFrameReady(hasData:false) — same as before.
-            decPosted();
-            w.postMessage({ url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, buildProducts: buildIds, buildGrids: gridIds, stormMotion: resolveStormMotion(), seedProfile: _loopSeedProfile, dispatchAt: Date.now() });
+        // The WORKER fetches the .V06 itself (same-origin radarlevel2 host), so the ~7 MB body read stays
+        // OFF the map's render thread — a backfill of N frames otherwise does N such reads on the main
+        // thread, hitching pan/zoom. A loop that changed while the fetch was in flight is still dropped by
+        // token in applyFrameResult; a fetch/decode failure comes back as {token,index,url,error}, which
+        // applyFrameResult already turns into upgradeDone + radarFrameReady(hasData:false) — same as before.
+        // Queued, not posted: pumpDispatch hands it to a free worker (and holds it during a gesture unless it
+        // is the frame on screen). stormMotion/seedProfile are re-read at dispatch. dispatchAt = queue time,
+        // so the frame's waitMs includes any hold.
+        if (dispatchDecode({ url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, buildProducts: buildIds, buildGrids: gridIds, stormMotion: null, seedProfile: null, dispatchAt: Date.now() })) {
+            return;
         } else {
             // No Worker API — fetch + decode on the main thread (unchanged fallback path).
             fetch(url, { cache: 'no-store' }).then(function (r) {
@@ -1494,12 +1593,10 @@
     // decodeFrame. Runs under the upgrade queue's slot accounting (upgradeDone frees the slot).
     function decodeGridForFrame(url, index, prod) {
         const myToken = loopToken;
-        const w = getWorker();
-        if (w) {
-            // As with decodeFrame: the worker fetches the .V06 so the body read stays off the render thread.
-            // A stale loop / error is handled by applyGridResult (it frees the upgrade slot on both).
-            decPosted();
-            w.postMessage({ gridOnly: true, url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, product: prod, stormMotion: resolveStormMotion(), seedProfile: _loopSeedProfile });
+        // As with decodeFrame: the worker fetches the .V06 so the body read stays off the render thread.
+        // A stale loop / error is handled by applyGridResult (it frees the upgrade slot on both).
+        if (dispatchDecode({ gridOnly: true, url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, product: prod, stormMotion: null, seedProfile: null })) {
+            return;
         } else {
             fetch(url, { cache: 'no-store' }).then(function (r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -1556,6 +1653,7 @@
         setViews: function (maps) {
             const next = [];
             for (let i = 0; i < maps.length; i++) {
+                hookGestures(maps[i]); // backfill decodes hold while this pane's camera moves (once per map)
                 const existing = viewFor(maps[i]);
                 const v = existing || makeView(maps[i], i);
                 v.index = i;
@@ -1607,7 +1705,7 @@
         // PERF PROBE: decode jobs in flight now + peak since the last call (perf-probe.js stamps each
         // perfPan sample with it). Read-only apart from resetting the peak.
         perfStats: function () {
-            const s = { decBusy: _decBusy, decPeak: Math.max(_decPeak, _decBusy) };
+            const s = { decBusy: _decBusy, decPeak: Math.max(_decPeak, _decBusy), decQueued: dispatchQueue.length };
             _decPeak = _decBusy;
             return s;
         },
@@ -1722,6 +1820,7 @@
                 // we don't blank the layer. applyFrameResult promotes it once it decodes.
                 pendingFrame = index;
                 hostLog('showFrame idx=' + index + ' pending (not decoded; keeping cf=' + currentFrame + ')');
+                pumpDispatch(); // its queued decode is URGENT now (Rule 1) — let it jump a held queue
             }
         },
         // Incremental loop refresh: reindex the existing decoded frames to a new ordering instead
