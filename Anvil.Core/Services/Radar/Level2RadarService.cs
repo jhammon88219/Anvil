@@ -255,7 +255,7 @@ namespace Anvil.Services
 				try
 				{
 					var cachedBytes = await File.ReadAllBytesAsync(cacheFile, cancellationToken);
-					(cachedMode, cachedTilts) = await Task.Run(
+					(cachedMode, cachedTilts) = await RadarPerfCounters.RunCpu(
 						() => (ModeTextFromTilt(cachedBytes), ReadElevationAnglesFromExtractedTilt(cachedBytes)),
 						cancellationToken);
 				}
@@ -283,7 +283,7 @@ namespace Anvil.Services
 					try
 					{
 						var rawBytes = await File.ReadAllBytesAsync(rawFile, cancellationToken);
-						toWrite = await Task.Run(() => ExtractTilt(rawBytes, site.Id, tiltAngle), cancellationToken);
+						toWrite = await RadarPerfCounters.RunCpu(() => ExtractTilt(rawBytes, site.Id, tiltAngle), cancellationToken);
 
 						// The raw IS the whole volume (and it's written atomically, so a file on disk is
 						// complete). If the tilt isn't in it, the tilt does not exist — re-downloading the
@@ -319,7 +319,7 @@ namespace Anvil.Services
 						: await TryGetRangeAsync(key, LowestTiltPrefixBytes, cancellationToken);
 					if (prefix is not null)
 					{
-						toWrite = await Task.Run(() =>
+						toWrite = await RadarPerfCounters.RunCpu(() =>
 						{
 							try
 							{
@@ -366,7 +366,7 @@ namespace Anvil.Services
 						response.EnsureSuccessStatusCode();
 						raw = await response.Content.ReadAsByteArrayAsync(cancellationToken);
 					}
-					var (extracted, volume) = await Task.Run<(byte[]?, byte[]?)>(() =>
+					var (extracted, volume) = await RadarPerfCounters.RunCpu<(byte[]?, byte[]?)>(() =>
 					{
 						try
 						{
@@ -395,6 +395,7 @@ namespace Anvil.Services
 
 				var temp = cacheFile + ".tmp";
 				await File.WriteAllBytesAsync(temp, toWrite, cancellationToken);
+				var syncAt = RadarPerfCounters.BeginSync(); // perf.ui: the tail below runs on the caller's context
 				File.Move(temp, cacheFile, overwrite: true);
 				MaybeSweepAfterWrite(); // the folder just grew — see the note over MaybeSweepAfterWrite
 
@@ -404,11 +405,14 @@ namespace Anvil.Services
 				// for .gz (legacy volumes predate dual-pol/tilt interest and often don't extract at all).
 				if (fullVolume is not null && !isGz)
 				{
+					RadarPerfCounters.EndSync(syncAt);
 					await WriteRawAsync(rawFile, fullVolume, cancellationToken);
+					syncAt = RadarPerfCounters.BeginSync();
 				}
 
 				var (mode, vcp) = ModeTextFromTilt(toWrite); // VCP + regime for the archive/replay scan line
 				var tilts = ReadElevationAnglesFromExtractedTilt(toWrite);
+				RadarPerfCounters.EndSync(syncAt);
 				return Noted(new RadarVolume(localUrl, site, time, mode, tilts, tiltAngle), vcp);
 			}
 			catch (OperationCanceledException)
@@ -637,7 +641,7 @@ namespace Anvil.Services
 					try
 					{
 						var rawBytes = await File.ReadAllBytesAsync(rawFile2, cancellationToken);
-						var extracted = await Task.Run(
+						var extracted = await RadarPerfCounters.RunCpu(
 							() => TryExtractTiltsByAngles(rawBytes, site.Id, targets), cancellationToken);
 						foreach (var angle in targets) // ascending-by-angle
 						{
@@ -1189,7 +1193,7 @@ namespace Anvil.Services
 
 			var ordered = blocks.Values.ToList();
 			var hdr = header;
-			var sel = await Task.Run(() => SelectLatestSweep(hdr, ordered, icao, tiltAngle), ct);
+			var sel = await RadarPerfCounters.RunCpu(() => SelectLatestSweep(hdr, ordered, icao, tiltAngle), ct);
 			if (!sel.complete || sel.data is null || !sel.velComplete)
 			{
 				RadarDiagnostics.Log("svc", "live", ("site", site.Id), ("vol", vol),
@@ -1541,7 +1545,7 @@ namespace Anvil.Services
 					raw = await response.Content.ReadAsByteArrayAsync(ct);
 				}
 
-				var data = await Task.Run(() => Gunzip(raw), ct); // off the caller's thread: ~43 MB out
+				var data = await RadarPerfCounters.RunCpu(() => Gunzip(raw), ct); // off the caller's thread: ~43 MB out
 				var temp = file + ".tmp";
 				await File.WriteAllBytesAsync(temp, data, ct);
 				File.Move(temp, file, overwrite: true);

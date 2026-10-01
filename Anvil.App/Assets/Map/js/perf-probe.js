@@ -11,6 +11,7 @@
 //    sampler ON    ▏▏▏▎▏▏█▏▏▏▏▎▏▏▏▏█▏▏▏▎▏▏          emit one perfPan sample
 //                  └─ each bar = one requestAnimationFrame interval, in ms
 //                     █ = a LONG frame (> the threshold derived from `cadence` below)
+//    pointermove   │ │ │ │      ││││ │ │                 + input gaps / in-page latency (see "Input delivery")
 //
 // What lands in the log is p50 / p95 / max / long-frame count for that one gesture — p95 and `long` are
 // the interesting pair, because a drag that is smooth apart from four 90 ms stalls has a fine average
@@ -69,6 +70,41 @@ let last = 0;
 let samples = [];
 let startedAt = 0;
 let context = null;      // () => extra fields describing WHAT was on screen for this gesture
+
+// ── Input delivery (companion to the host's perf.ui heartbeat) ──────────────────────────────────────
+// rAF only says the page DREW on time. The 2026-10-01 logs showed a heavy loop load with a perfect rAF
+// p95 while the drag felt laggy — so this records whether the INPUT arrived on time, during the gesture:
+//
+//   pointermove   │  │  │  │            │││││  │  │      a starved host delivers late, then in a burst
+//   gap (ms)        16 16 16    180     1 1 1 1 16 16    → inGapMax / inGap100 catch the hole
+//   lat = performance.now() − event.timeStamp            → time the event waited inside the page
+//
+// ⚠️ A gap is also what holding the mouse STILL mid-drag looks like — compare a loading drag against an
+// idle one made the same way, never read inGapMax alone. Read with perf.ui lateness from the same second.
+// ⚠️ One push per input event, maths at emit — same no-perturbation rule as the frame sampler.
+let inLast = 0;
+let inGaps = [];
+let inLats = [];
+let inCoalMax = 0;
+let inListening = false;
+
+function onInput(e) {
+    const now = performance.now();
+    if (inLast > 0 && inGaps.length < MAX_SAMPLES) inGaps.push(now - inLast);
+    inLast = now;
+    if (e.timeStamp > 0 && inLats.length < MAX_SAMPLES) inLats.push(now - e.timeStamp);
+    // >1 = Chromium merged several OS moves into one event — the page was behind its input.
+    if (e.getCoalescedEvents) { const c = e.getCoalescedEvents().length; if (c > inCoalMax) inCoalMax = c; }
+}
+
+function inputOn() {
+    inLast = 0; inGaps = []; inLats = []; inCoalMax = 0;
+    if (!inListening) { window.addEventListener('pointermove', onInput, { capture: true, passive: true }); inListening = true; }
+}
+
+function inputOff() {
+    if (inListening) { window.removeEventListener('pointermove', onInput, { capture: true }); inListening = false; }
+}
 
 // One rAF hop: record the interval since the previous frame, then queue the next.
 function tick(now) {
@@ -143,6 +179,7 @@ function begin() {
     last = 0;
     startedAt = performance.now();
     rafHandle = requestAnimationFrame(tick);
+    inputOn();
 }
 
 function end() {
@@ -157,6 +194,7 @@ function finish() {
     if (!rafHandle) return;     // already finished (both an end event and the deadman can land here)
     cancelAnimationFrame(rafHandle);
     rafHandle = 0;
+    inputOff();
 
     const n = samples.length;
     if (n < MIN_SAMPLES) { samples = []; startCalibration(); return; }
@@ -193,6 +231,22 @@ function finish() {
         longMs: round(threshold),
         cal: calibrated ? 1 : 0,
     };
+    // Input delivery for the same gesture (see "Input delivery" above). Absent for a wheel-only zoom.
+    if (inGaps.length) {
+        const gs = inGaps.slice().sort(function (a, b) { return a - b; });
+        let over100 = 0;
+        for (let i = 0; i < gs.length; i++) { if (gs[i] > 100) over100++; }
+        msg.inN = gs.length + 1;
+        msg.inGapP95 = round(quantile(gs, 0.95));
+        msg.inGapMax = round(gs[gs.length - 1]);
+        msg.inGap100 = over100;
+        msg.inCoal = inCoalMax;
+    }
+    if (inLats.length) {
+        const ls = inLats.slice().sort(function (a, b) { return a - b; });
+        msg.inLatP95 = round(quantile(ls, 0.95));
+        msg.inLatMax = round(ls[ls.length - 1]);
+    }
     // Whatever the host can tell us about what was on screen — pane count, marker counts. Without this a
     // sample says "the drag was rough" but not what was drawing, which is exactly the comparison wanted.
     try { if (context) Object.assign(msg, context()); } catch (e) { /* context is best-effort */ }

@@ -123,7 +123,13 @@ namespace Anvil
 				("long", Int(root, "long")), ("longPct", Dbl(root, "longPct")),
 				("cadence", Dbl(root, "cadence")), ("longMs", Dbl(root, "longMs")), ("cal", Int(root, "cal")),
 				("panes", Int(root, "panes")),
-				("mkAttached", Int(root, "mkAttached")), ("mkShown", Int(root, "mkShown")));
+				("mkAttached", Int(root, "mkAttached")), ("mkShown", Int(root, "mkShown")),
+				// Input delivery during the gesture + decode jobs in flight (see perf-probe.js "Input delivery").
+				// Read with the perf.ui lines (UiThreadProbe) from the same seconds.
+				("inN", Int(root, "inN")), ("inGapP95", Dbl(root, "inGapP95")), ("inGapMax", Dbl(root, "inGapMax")),
+				("inGap100", Int(root, "inGap100")), ("inCoal", Int(root, "inCoal")),
+				("inLatP95", Dbl(root, "inLatP95")), ("inLatMax", Dbl(root, "inLatMax")),
+				("decBusy", Int(root, "decBusy")), ("decPeak", Int(root, "decPeak")));
 
 		/// <summary>
 		/// An uncaught JS error / rejected promise / failed script load in the page (map.html registers the
@@ -162,6 +168,9 @@ namespace Anvil
 
 			try
 			{
+#if DEBUG
+				var started = System.Diagnostics.Stopwatch.GetTimestamp(); // perf.ui: parse + handler
+#endif
 				using var doc = JsonDocument.Parse(message);
 				var root = doc.RootElement;
 				if (root.ValueKind != JsonValueKind.Object ||
@@ -198,7 +207,13 @@ namespace Anvil
 
 				if (_handlers.TryGetValue(type, out var handler))
 				{
+#if DEBUG
+					// perf.ui: what each routed message costs the UI thread.
 					handler(root);
+					UiThreadProbe.NoteMessage(type, System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+#else
+					handler(root);
+#endif
 				}
 			}
 			catch (JsonException)

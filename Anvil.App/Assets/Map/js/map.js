@@ -748,6 +748,12 @@ try {
                     ctx.mkAttached = st.attached;
                     ctx.mkShown = st.shown;
                 }
+                // Decode jobs in the worker pool — was the loop's CPU work running during this gesture?
+                if (window.RadarLayer && window.RadarLayer.perfStats) {
+                    const ps = window.RadarLayer.perfStats();
+                    ctx.decBusy = ps.decBusy;
+                    ctx.decPeak = ps.decPeak;
+                }
                 return ctx;
             });
             forEachMap(function (mp) { m.attach(mp); });

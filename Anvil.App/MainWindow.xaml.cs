@@ -861,6 +861,10 @@ namespace Anvil
 #endif
 
 			webView.CoreWebView2.WebMessageReceived += _router.OnWebMessageReceived;
+#if DEBUG
+			// DEV-ONLY UI-thread heartbeat (perf.ui) — is input to the map delayed on THIS thread? Grep perf.ui.
+			UiThreadProbe.Start(webView.CoreWebView2);
+#endif
 			webView.Source = new Uri(url);
 		}
 

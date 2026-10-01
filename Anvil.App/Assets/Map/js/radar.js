@@ -994,13 +994,17 @@
         (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) ? navigator.hardwareConcurrency - 1 : 3));
     let workerPool; // undefined = not tried, array = ready, null = Worker API unavailable
     let workerRR = 0;
+    // PERF PROBE (perfPan context): decode jobs posted to the pool and not yet answered, + the peak since
+    // the probe last read it (RadarLayer.perfStats). Pure counting; nothing reads it but the probe.
+    let _decBusy = 0, _decPeak = 0;
+    function decPosted() { _decBusy++; if (_decBusy > _decPeak) _decPeak = _decBusy; }
     function getWorker() {
         if (workerPool === undefined) {
             try {
                 workerPool = [];
                 for (let i = 0; i < DECODE_POOL_SIZE; i++) {
                     const w = new Worker(new URL('radar-worker.js', SELF_SCRIPT).href);
-                    w.onmessage = function (e) { const m = e.data; if (m && m.gridsOnly) applyGridResult(m); else applyFrameResult(m); };
+                    w.onmessage = function (e) { if (_decBusy > 0) _decBusy--; const m = e.data; if (m && m.gridsOnly) applyGridResult(m); else applyFrameResult(m); };
                     w.onerror = function (e) { hostLog('worker error: ' + (e && e.message ? e.message : e)); };
                     workerPool.push(w);
                 }
@@ -1461,6 +1465,7 @@
             // thread, hitching pan/zoom. A loop that changed while the fetch was in flight is still dropped by
             // token in applyFrameResult; a fetch/decode failure comes back as {token,index,url,error}, which
             // applyFrameResult already turns into upgradeDone + radarFrameReady(hasData:false) — same as before.
+            decPosted();
             w.postMessage({ url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, buildProducts: buildIds, buildGrids: gridIds, stormMotion: resolveStormMotion(), seedProfile: _loopSeedProfile, dispatchAt: Date.now() });
         } else {
             // No Worker API — fetch + decode on the main thread (unchanged fallback path).
@@ -1493,6 +1498,7 @@
         if (w) {
             // As with decodeFrame: the worker fetches the .V06 so the body read stays off the render thread.
             // A stale loop / error is handled by applyGridResult (it frees the upgrade slot on both).
+            decPosted();
             w.postMessage({ gridOnly: true, url: url, siteLat: siteLat, siteLon: siteLon, minDbz: MIN_DBZ, token: myToken, index: index, product: prod, stormMotion: resolveStormMotion(), seedProfile: _loopSeedProfile });
         } else {
             fetch(url, { cache: 'no-store' }).then(function (r) {
@@ -1597,6 +1603,13 @@
             views = views.filter(function (o) { return o !== v; });
             forEachView(function (o, i) { o.index = i; });
             hostLog('detachView -> n=' + views.length);
+        },
+        // PERF PROBE: decode jobs in flight now + peak since the last call (perf-probe.js stamps each
+        // perfPan sample with it). Read-only apart from resetting the peak.
+        perfStats: function () {
+            const s = { decBusy: _decBusy, decPeak: Math.max(_decPeak, _decBusy) };
+            _decPeak = _decBusy;
+            return s;
         },
         // ===== PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit) =====
         // Read-only snapshot of the loop's inner build state for the Pipeline Console card. The host
