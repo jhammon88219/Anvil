@@ -4,13 +4,13 @@
      the ForeCast and PastCast outlook sections, which each drop it in as the LAST thing in the section body.
 
        ──────────────────────────────────────────────         ← rule
-        ▬▬ 2%                                                  ← swatch 40 × 16 (was 20 × 13; the user's
-        ▬▬ 5%                                                     call, 2026-09-30: twice as wide, a bit
-        ▬▬ 10%                                                    thicker), both templates
-        Intensity hatching                     [✓] Show        ← HatchRows.Count > 0 only
-        ╲╲ CIG1                              In Outlook
-        ╱╱ CIG2                              In Outlook
-        ╳╳ CIG3                          Not In Outlook        ← dimmed
+        ▬▬ 2%                  Intensity hatching  [✓] Show    ← two EQUAL halves, both left + top aligned
+        ▬▬ 5%                  ╲╲ CIG1         In Outlook         (the user's call, 2026-10-01; hatching was
+        ▬▬ 10%                 ╱╱ CIG2         In Outlook          stacked UNDER the colours). Right half only
+        ▬▬ 15%                 ╳╳ CIG3     Not In Outlook          when HatchRows.Count > 0, else left EMPTY
+        ▬▬ 30%                    ^ dimmed                         (colours don't jump on a product change).
+        ▬▬ 45%                                                 ← swatch 40 × 16 (the user's call, 2026-09-30),
+        ▬▬ 60%                                                    both templates
 
      ⚠️ IT IS PART OF ITS SECTION, so collapsing the section hides it; the host hides it ITSELF when there
      is nothing to key (None, or the layer hidden) by binding Visibility to the VM's HasLegend.
@@ -104,23 +104,36 @@
         <Border Height="1" Margin="0,14"
                 Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
-        <ItemsControl ItemsSource="{x:Bind Entries, Mode=OneWay}"
-                      ItemTemplate="{StaticResource OutlookLegendItemTemplate}"/>
-
-        <!-- Hatching heading + the Show box. Absent on products with no intensity groups. -->
-        <Grid Margin="0,12,0,2" ColumnSpacing="8"
-              Visibility="{x:Bind HasHatch(HatchRows), Mode=OneWay}">
+        <!-- Two EQUAL halves, both top-aligned: colours left, hatching right. The right half stays empty (not
+             reclaimed) on a product with no intensity groups, so the colours never jump when the product changes. -->
+        <Grid ColumnSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text="Intensity hatching" VerticalAlignment="Center"
-                       Style="{StaticResource SettingsFieldLabelStyle}"/>
-            <CheckBox Grid.Column="1" Content="Show" MinWidth="0"
-                      IsChecked="{x:Bind ShowHatching, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Show or hide the hatched intensity areas (fills stay)"/>
+
+            <ItemsControl VerticalAlignment="Top"
+                          ItemsSource="{x:Bind Entries, Mode=OneWay}"
+                          ItemTemplate="{StaticResource OutlookLegendItemTemplate}"/>
+
+            <!-- Hatching heading + the Show box, then the groups. Absent on products with no intensity groups. -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Top"
+                        Visibility="{x:Bind HasHatch(HatchRows), Mode=OneWay}">
+                <Grid Margin="0,0,0,2" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Intensity hatching" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <CheckBox Grid.Column="1" Content="Show" MinWidth="0"
+                              IsChecked="{x:Bind ShowHatching, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Show or hide the hatched intensity areas (fills stay)"/>
+                </Grid>
+                <ItemsControl ItemsSource="{x:Bind HatchRows, Mode=OneWay}"
+                              ItemTemplate="{StaticResource OutlookHatchRowTemplate}"/>
+            </StackPanel>
         </Grid>
-        <ItemsControl ItemsSource="{x:Bind HatchRows, Mode=OneWay}"
-                      ItemTemplate="{StaticResource OutlookHatchRowTemplate}"/>
     </StackPanel>
 </UserControl>
