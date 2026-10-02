@@ -433,7 +433,8 @@
                          ⚠️ Set keeps Load's rules: accent while pressing it would DO something, greyed once loaded
                          and still matching (the archive day is immutable). Clear is live only while something is
                          loaded: it forgets the window (yours or a played event), drops the loop and puts the
-                         pickers on NOW (RadarViewModel.ClearReplay). -->
+                         pickers on NOW (RadarViewModel.ClearReplay), and takes off a played event's TOWN PIN + its
+                         name in the search box (MapViewModel.ClearPastCastTimeframe; a pin you searched for stays). -->
                     <!-- ⚠️ AN ERROR RIDES IN THIS BUTTON, and only while there is one (the user's call, 2026-10-01):
                          two lines, the error then the retry hint, red via the ReplayErrorStates above (theme brushes
                          in states, never C#). It stays clickable — a click retries — and changing any picker clears

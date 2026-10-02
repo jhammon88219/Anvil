@@ -1042,6 +1042,14 @@ namespace Anvil.ViewModels
 			IsRadarAtlasOpen = true;
 		}
 
+		/// <summary>PastCast's Timeframe Clear: forget the loaded window (Radar.ClearReplay) AND take off the town pin
+		/// a saved-event pick dropped — only that pin; a place the user searched for stays.</summary>
+		public void ClearPastCastTimeframe()
+		{
+			Radar.ClearReplay();
+			PlaceSearch.ClearEventPlace();
+		}
+
 		/// <summary>Open the Atlas on Radar sites — the bar's Atlas key and the site picker's "Open Atlas".
 		/// ⚠️ THE DOOR PICKS THE TAB (the user's call, 2026-10-01): the persisted tab is only what an already-open
 		/// Atlas shows; every way IN says where it lands.</summary>

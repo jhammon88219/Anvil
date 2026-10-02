@@ -71,6 +71,7 @@ namespace Anvil.ViewModels
 			if (string.IsNullOrWhiteSpace(text))
 			{
 				_markers.RemovePlaceMarker();
+				_eventPin = null;
 			}
 		}
 
@@ -149,7 +150,7 @@ namespace Anvil.ViewModels
 			var place = FirstExact(_search.Suggest(town, 1), town);
 			if (place is null)
 			{
-				var cts = _onlineCts = new CancellationTokenSource();
+				var cts = _onlineCts = _eventLookup = new CancellationTokenSource();
 				try
 				{
 					place = FirstExact(await _search.SearchOnlineAsync(town, cts.Token), town);
@@ -165,8 +166,40 @@ namespace Anvil.ViewModels
 			}
 			ReplaceSuggestions(Array.Empty<PlaceResult>());
 			await GoAsync(place, zoom);
+			_eventPin = place.Display;
 			return true;
 		}
+
+		/// <summary>
+		/// PastCast's Clear: takes off the pin a saved-event pick dropped (<see cref="ShowNamedPlaceAsync"/>) and
+		/// empties the box. ⚠️ ONLY that pin — a place the user searched for themselves stays; and the box is left
+		/// alone if they have typed over the event's name since. A town lookup still in flight is cancelled.
+		/// </summary>
+		public void ClearEventPlace()
+		{
+			if (_onlineCts is not null && ReferenceEquals(_onlineCts, _eventLookup))
+			{
+				CancelOnline();
+			}
+			if (_eventPin is not { } name)
+			{
+				return;
+			}
+			_eventPin = null;
+			_markers.RemovePlaceMarker();
+			if (string.Equals(_queryText, name, StringComparison.Ordinal))
+			{
+				_queryText = string.Empty;
+				OnPropertyChanged(nameof(QueryText));
+				ReplaceSuggestions(Array.Empty<PlaceResult>());
+				StatusText = string.Empty;
+			}
+		}
+
+		// The name of the pin a saved event dropped, while that pin is still the one on the map; null once any
+		// other pin replaces it or the box's X removes it. _eventLookup = that pick's online lookup, if any.
+		private string? _eventPin;
+		private CancellationTokenSource? _eventLookup;
 
 		private static PlaceResult? FirstExact(IReadOnlyList<PlaceResult> places, string town)
 		{
@@ -196,6 +229,7 @@ namespace Anvil.ViewModels
 		private async Task GoAsync(PlaceResult place, double? zoom = null)
 		{
 			CancelOnline();
+			_eventPin = null; // any new pin replaces the event's (ShowNamedPlaceAsync re-marks its own after)
 			StatusText = string.Empty;
 			_queryText = place.Display;
 			OnPropertyChanged(nameof(QueryText));

@@ -112,7 +112,7 @@ namespace Anvil.Controls.Composites
 		public bool PickersEnabled(bool loaded, bool error) => !loaded || error;
 		public double PickerOpacity(bool loaded, bool error) => PickersEnabled(loaded, error) ? 1.0 : 0.4;
 
-		private void OnClearClick(object sender, RoutedEventArgs e) => ViewModel?.Radar.ClearReplay();
+		private void OnClearClick(object sender, RoutedEventArgs e) => ViewModel?.ClearPastCastTimeframe();
 
 		// NOTE: the footer colour and the card's edge USED to be x:Bind functions here (FooterBrush /
 		// CardStroke), resolving brushes from Application.Current.Resources. Both are visual states now — the
