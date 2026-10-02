@@ -282,23 +282,24 @@
                               SelectedIndex="{x:Bind ViewModel.AtlasTabIndex, Mode=TwoWay}"/>
 
                 <!-- PAST EVENTS — its own Composite (list | detail), the same frame as the sites body below. -->
-                <comp:PastEventsAtlasTab Grid.Row="2" Margin="16,12,16,14"
+                <comp:PastEventsAtlasTab Grid.Row="2" Margin="16,30,16,14"
                                          ViewModel="{x:Bind ViewModel}"
                                          Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 1), Mode=OneWay}"/>
 
                 <!-- DOW EVENTS — the DOW frame library (moved from PastCast), same frame. Import bubbles up. -->
-                <comp:DowEventsAtlasTab Grid.Row="2" Margin="16,12,16,14"
+                <comp:DowEventsAtlasTab Grid.Row="2" Margin="16,30,16,14"
                                         ViewModel="{x:Bind ViewModel}"
                                         ImportRequested="OnDowImportRequested"
                                         Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 2), Mode=OneWay}"/>
 
-                <!-- RADAR SITES body: list column (left) | detail (right). Side + bottom inset.
+                <!-- RADAR SITES body: list column (left) | detail (right). Side + bottom inset; TOP 30 below the
+                     tabs (the user's call, 2026-10-02 — was 12), the same on all three bodies: change all three.
                      ⚠️ THE 32 IS THE SEPARATION. There is no rule and no outline between the two regions —
                      the gutter alone divides them, which is why it can't be trimmed back toward the 14 it
                      used to be. Space between regions must beat the space inside one (the list's own rows
                      sit 6 apart) or the eye can't tell where the list ends. -->
                 <Grid Grid.Row="2"
-                      Margin="16,12,16,14"
+                      Margin="16,30,16,14"
                       ColumnSpacing="32"
                       Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 0), Mode=OneWay}">
 
