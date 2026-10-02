@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Anvil.Models;
 using Anvil.Services;
 using Anvil.ViewModels;
 using Xunit;
@@ -79,6 +80,19 @@ namespace Anvil.Tests
 			radar.ClearReplay();
 			Assert.Equal(string.Empty, radar.ReplayCaption);
 			Assert.Equal(string.Empty, radar.ReplayCount);
+		}
+
+		// The user's call, 2026-10-02: Clear leaves NO radar site selected (it used to keep the current one).
+		[Fact]
+		public void Clear_UnselectsTheSite()
+		{
+			var radar = NewRadar();
+			radar.IsPastEventMode = true;
+			radar.SelectedRadarOption = new RadarOption("KTLX", new RadarSite("KTLX", "Norman", 35.333, -97.278));
+			Assert.NotNull(radar.SelectedRadarOption);
+
+			radar.ClearReplay();
+			Assert.Null(radar.SelectedRadarOption);
 		}
 
 		[Fact]

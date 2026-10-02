@@ -44,7 +44,9 @@ namespace Anvil.ViewModels
 		private int _selectedLeg;
 		private bool _applying;
 
-		// The picker/site properties whose change means the Timeframe no longer describes the picked event.
+		// The picker properties whose change means the Timeframe no longer describes the picked event.
+		// ⚠️ NOT the site (the user's call, 2026-10-02): switching radars over a played event is still watching that
+		// event, so the "Casting …" line stays. Clear forgets it explicitly (ForgetPick); another event replaces it.
 		private static readonly HashSet<string> SelectionInvalidators = new()
 		{
 			nameof(RadarViewModel.PastEventYearIndex),
@@ -52,7 +54,6 @@ namespace Anvil.ViewModels
 			nameof(RadarViewModel.PastEventDayIndex),
 			nameof(RadarViewModel.PastEventTime),
 			nameof(RadarViewModel.PastEventDurationIndex),
-			nameof(RadarViewModel.SelectedRadarOption),
 			nameof(RadarViewModel.IsPastEventMode),
 		};
 
@@ -440,6 +441,10 @@ namespace Anvil.ViewModels
 		public string PlayingKindLabel => SavedEventKinds.Label(PlayingKind);
 		public bool HasPlayingKind => Playing is { Kind: not SavedEventKind.Other };
 		public bool IsPlayingCustom => Playing is { IsBuiltIn: false };
+
+		/// <summary>PastCast's Clear: no event is picked any more (the pickers going to NOW may not change if the
+		/// event was today, so this doesn't rely on <see cref="SelectionInvalidators"/>).</summary>
+		public void ForgetPick() => Select(null, 0);
 
 		private void RaisePlaying()
 		{

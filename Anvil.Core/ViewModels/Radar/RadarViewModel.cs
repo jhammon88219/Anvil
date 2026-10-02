@@ -1010,7 +1010,16 @@ namespace Anvil.ViewModels
 				return;
 			}
 			ClearReplayWindowLoaded();
-			_pastSiteSelect = _engine.SelectPastSiteAsync(_selectedRadarOption?.Site);
+			// ⚠️ NO SITE after a Clear (the user's call, 2026-10-02): unselect it. With the window already cleared, the
+			// setter's PastCast branch runs SelectPastSiteAsync(null) — loop gone, map marker unselected.
+			if (_selectedRadarOption is null)
+			{
+				_pastSiteSelect = _engine.SelectPastSiteAsync(null);
+			}
+			else
+			{
+				SelectedRadarOption = null;
+			}
 			var now = DateTime.Now;
 			ApplyPastEventDate(LocalMidnight(now.Year, now.Month, now.Day));
 			PastEventTime = new TimeSpan(now.Hour, now.Minute - now.Minute % 5, 0);

@@ -1076,6 +1076,7 @@ namespace Anvil.ViewModels
 		public void ClearPastCastTimeframe()
 		{
 			Radar.ClearReplay();
+			SavedEvents.ForgetPick();
 			PlaceSearch.ClearEventPlace();
 		}
 
