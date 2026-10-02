@@ -16,9 +16,11 @@
        │  │ Choose timeframe… ⁘⁘⁘⁘ Or ⁘⁘⁘⁘ [📡 Atlas] │        │     pickers, or a saved event (Atlas → PAST
        │  └──────────────────────────────────────────┘        │     EVENTS, live even while loaded). "Or" 20,
        │  ──────────────────────────────────────────          │     letters centred on the dots (Tight bounds)
-       │  Date    [ May 24, 2011       ▾]     28              │
-       │  Start   [ 5:00 PM            ▾]  frames loaded      │  ← the PICKERS (ViewModel.Radar) — LOCKED
-       │  Window  [30m│1h│▓2h▓│3h│6h│12h]      KTLX           │     + dimmed while a window is loaded; they
+       │  Date                Start Time                      │  ← LABELS ABOVE, no label column (2026-10-02)
+       │  [📅 05/24/2011  ˅]  [🕓 5:00 PM     ˅]      28      │  ← Primitives/DateButtonPicker | TimeButtonPicker:
+       │  Window                                frames loaded │     buttons → same-size flyouts, commit on Set
+       │  [30m │ 1h │▓2h▓│ 3h │ 6h │ 12h ]          KTLX      │  ← the PICKERS (ViewModel.Radar) — LOCKED
+       │                                                      │     + dimmed while a window is loaded
        │           ↑ above Clear: the load's readout, centred (count/caption/site · "Loading…" · "Select a
        │             site" — also when the site is UNPICKED over a set window)
        │  [ No KTLX data for timeframe –      ]  [ Clear ]    │  ← an ERROR rides IN Set Timeframe (red,
@@ -87,8 +89,8 @@
      / PastEventRangeText), so they describe what Load WILL do; only the footer describes what already
      happened. Do not re-point them at the loaded window — the split between the two is the entire reason
      the card can show a stale selection honestly.
-       • Timeframe (root row 0, ViewModel.Radar) — a CalendarDatePicker on the PastEventDate facade, a TimePicker
-         bound straight to PastEventTime, and a SegmentedPicker on PastEventDurationIndex. No element names
+       • Timeframe (root row 0, ViewModel.Radar) — a DateButtonPicker on the PastEventDate facade, a
+         TimeButtonPicker bound straight to PastEventTime, and a SegmentedPicker on PastEventDurationIndex. No element names
          are load-bearing here any more; there is no widget-sync code left to reach them.
      The layer sections run in the map's Z-ORDER (top of the list on top) and each layer's opacity lives in
      its own section HEADER.
@@ -345,35 +347,34 @@
                      one grid is what makes those two edges the same line.
                      ⚠️ LOCKED (disabled + dimmed) while a window is loaded: Clear is the way to change it. The dim is
                      on each label + picker (PickerOpacity), NOT the grid, so the buttons in it stay full strength. -->
+                <!-- ⚠️ LABELS ABOVE, NO LABEL COLUMN (the user's call, 2026-10-02): Date | Start Time share row 0
+                     half and half, Window spans both below, Set Timeframe spans both under that. Each label is a
+                     StackPanel's first child so it rides with its control. -->
                 <Grid Grid.Row="3" ColumnSpacing="12" RowSpacing="10">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="60"/>   <!-- labels -->
-                        <ColumnDefinition Width="*"/>    <!-- pickers; Set Timeframe spans labels + this -->
-                        <ColumnDefinition Width="Auto"/> <!-- Clear only: empty above it -->
+                        <ColumnDefinition Width="*"/>    <!-- Date; Window + Set Timeframe span this + the next -->
+                        <ColumnDefinition Width="*"/>    <!-- Start Time -->
+                        <ColumnDefinition Width="Auto"/> <!-- Clear only: the readout above it -->
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/> <!-- Date -->
-                        <RowDefinition Height="Auto"/> <!-- Start -->
+                        <RowDefinition Height="Auto"/> <!-- Date | Start Time -->
                         <RowDefinition Height="Auto"/> <!-- Window -->
                         <RowDefinition Height="Auto"/> <!-- [ Set Timeframe ] [Clear] -->
                     </Grid.RowDefinitions>
 
-                    <!-- ⚠️ ONE calendar, not three combos. Its Date is a DateTimeOffset?, which the view model
-                         exposes as a FACADE over the year/month/day indices everything downstream still reads —
-                         see PastEventDate. It also cannot express Feb 30, which three independent combos could,
-                         so the day-clamp in the loop engine is no longer reachable from this form.
-                         ⚠️ Min/MaxDate are REQUIRED, not decoration: the year combo used to bound the choice to
-                         the archive's range, and a bare calendar will happily offer next century.
-                         ⚠️ EVERY date bound here comes from RadarViewModel.LocalMidnight, and it must. This
-                         picker interprets and returns LOCAL time, so a date given at any other offset comes
-                         back as a different calendar day — the getter and this control then walk each other a
-                         day per round trip, synchronously through the binding, and STACK-OVERFLOW the app. That
-                         is not hypothetical; it happened. Don't hand it a UTC-framed date. -->
+                    <!-- ⚠️ ONE date, not three combos (Primitives/DateButtonPicker — a button + calendar flyout that
+                         commits only on its Set). Its Date is a DateTimeOffset?, which the view model exposes as a
+                         FACADE over the year/month/day indices everything downstream still reads — see PastEventDate.
+                         ⚠️ Min/MaxDate are REQUIRED, not decoration: they bound the year grid and the days to the
+                         archive's range.
+                         ⚠️ EVERY date bound here comes from RadarViewModel.LocalMidnight, and Set writes local midnight
+                         from parts too. The facade once STACK-OVERFLOWED against a picker that read another frame
+                         (see PastEventDate); don't hand this a UTC-framed date. -->
                     <!-- THE SPACE ABOVE CLEAR (the user's call, 2026-10-01): the load's readout, centred both ways —
                          a big number over a small caption over the site ("28" / "frames loaded" / "KTLX"), or the
                          caption alone ("Loading…", "Select a site"); empty with nothing to say. Right margin 14 = Clear's, so it
                          centres over Clear. Never dimmed with the pickers. The full sentence is its hover hint. -->
-                    <StackPanel Grid.Row="0" Grid.RowSpan="3" Grid.Column="2" Margin="0,0,14,0"
+                    <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" Margin="0,0,14,0"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Background="Transparent"
                                 ToolTipService.ToolTip="{x:Bind ViewModel.Radar.PastEventStatus, Mode=OneWay}">
@@ -393,44 +394,38 @@
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                     </StackPanel>
 
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Date" Style="{StaticResource SettingsFieldLabelStyle}"
-                               Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"/>
-                    <CalendarDatePicker Grid.Row="0" Grid.Column="1"
-                                        Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
-                                        HorizontalAlignment="Stretch"
-                                        DateFormat="{}{month.abbreviated} {day.integer}, {year.full}"
-                                        MinDate="{x:Bind ViewModel.Radar.PastEventMinDate}"
-                                        MaxDate="{x:Bind ViewModel.Radar.PastEventMaxDate}"
-                                        Date="{x:Bind ViewModel.Radar.PastEventDate, Mode=TwoWay}"
-                                        IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
-                                        ToolTipService.ToolTip="The date to replay (local time)"/>
+                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4"
+                                Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}">
+                        <TextBlock Text="Date" Margin="2,0,0,0" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                        <prim:DateButtonPicker MinDate="{x:Bind ViewModel.Radar.PastEventMinDate}"
+                                               MaxDate="{x:Bind ViewModel.Radar.PastEventMaxDate}"
+                                               Date="{x:Bind ViewModel.Radar.PastEventDate, Mode=TwoWay}"
+                                               IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
+                                               ToolTipService.ToolTip="The date to replay (local time)"/>
+                    </StackPanel>
 
-                    <!-- ⚠️ ONE picker, bound STRAIGHT to the view model's TimeSpan. It replaced an editable hour
-                         combo, an editable minute combo, an AM/PM checkbox pair, and the ~110 lines of
-                         code-behind that converted between them and kept them in step. PastEventTime was always
-                         a TimeSpan; the form simply was not shaped like one. -->
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Start" Style="{StaticResource SettingsFieldLabelStyle}"
-                               Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"/>
-                    <TimePicker Grid.Row="1" Grid.Column="1"
-                                Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
-                                HorizontalAlignment="Stretch"
-                                ClockIdentifier="12HourClock"
-                                MinuteIncrement="5"
-                                Time="{x:Bind ViewModel.Radar.PastEventTime, Mode=TwoWay}"
-                                IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
-                                ToolTipService.ToolTip="Start of the replay window (local time)"/>
+                    <!-- ⚠️ ONE picker, bound STRAIGHT to the view model's TimeSpan (Primitives/TimeButtonPicker — hour
+                         and minute combos + AM|PM in a flyout, committed only by its Set). PastEventTime was always a
+                         TimeSpan; the form is shaped like one. -->
+                    <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4"
+                                Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}">
+                        <TextBlock Text="Start Time" Margin="2,0,0,0" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                        <prim:TimeButtonPicker Time="{x:Bind ViewModel.Radar.PastEventTime, Mode=TwoWay}"
+                                               IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
+                                               ToolTipService.ToolTip="Start of the replay window (local time)"/>
+                    </StackPanel>
 
                     <!-- ⚠️ Six segments, not a dropdown: the list is short and fixed, so the choice is worth one
                          click. The SHORT labels are their own list on the view model, kept beside the long ones
                          and the minutes array because all three are indexed by PastEventDurationIndex. -->
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Window" Style="{StaticResource SettingsFieldLabelStyle}"
-                               Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"/>
-                    <prim:SegmentedPicker Grid.Row="2" Grid.Column="1"
-                                          Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
-                                          ItemsSource="{x:Bind ViewModel.Radar.PastEventDurationShortLabels}"
-                                          SelectedIndex="{x:Bind ViewModel.Radar.PastEventDurationIndex, Mode=TwoWay}"
-                                          IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
-                                          ToolTipService.ToolTip="How much of the day to replay, starting at the time above"/>
+                    <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4"
+                                Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}">
+                        <TextBlock Text="Window" Margin="2,0,0,0" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                        <prim:SegmentedPicker ItemsSource="{x:Bind ViewModel.Radar.PastEventDurationShortLabels}"
+                                              SelectedIndex="{x:Bind ViewModel.Radar.PastEventDurationIndex, Mode=TwoWay}"
+                                              IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
+                                              ToolTipService.ToolTip="How much of the day to replay, starting at the time above"/>
+                    </StackPanel>
 
                     <!-- SET TIMEFRAME (was the card's Load) spans labels + pickers, so its right edge IS the pickers'
                          right edge; CLEAR, only as wide as it needs, alone in the third column. Margin top 4 + the
@@ -443,7 +438,7 @@
                          two lines, the error then the retry hint, red via the ReplayErrorStates above (theme brushes
                          in states, never C#). It stays clickable — a click retries — and changing any picker clears
                          it (RadarViewModel.OnReplaySelectionChanged). The button grows to fit, then shrinks back. -->
-                    <Button x:Name="SetTimeframeButton" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,4,0,0"
+                    <Button x:Name="SetTimeframeButton" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,4,0,0"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                             IsEnabled="{x:Bind LoadEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty, ViewModel.Radar.HasReplayError), Mode=OneWay}"
                             Style="{x:Bind LoadStyle(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty, ViewModel.Radar.HasReplayError), Mode=OneWay}"
@@ -462,7 +457,7 @@
                     </Button>
                     <!-- ⚠️ 84 × 32 and 14 in from the right = the card's ATLAS button exactly (its card's 1 border +
                          13 padding), so the two line up, one above the other. Change both together. -->
-                    <Button Grid.Row="3" Grid.Column="2" Margin="0,4,14,0" Width="84" Height="32" Content="Clear"
+                    <Button Grid.Row="2" Grid.Column="2" Margin="0,4,14,0" Width="84" Height="32" Content="Clear"
                             IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
                             Click="OnClearClick"
                             ToolTipService.ToolTip="Clear the loaded timeframe or event and reset the pickers to now"/>

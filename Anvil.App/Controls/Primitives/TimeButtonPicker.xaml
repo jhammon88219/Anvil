@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TimeButtonPicker — a time of day (h:mm AM/PM) behind ONE button; DateButtonPicker's twin (PastCast's
+     Timeframe: Date | Start Time on one row). Its flyout is the date flyout's EXACT size — the extra room
+     sits empty above Set (the user's call, 2026-10-02: the two pickers are one physical size).
+
+       CLOSED   [ 🕓 5:00 PM                ˅ ]   the COMMITTED Time, invariant h:mm tt
+
+       OPEN     ┌──────────────────────────┐      280 × 392 (256 × 368 + the presenter's 12 padding) —
+                │ Hour          Minute     │      DateButtonPicker's exact size; change both
+                │ [ 5     ˅] : [ 00    ˅]  │      ← two ComboBoxes: 12,1…11 · 00…55 by 5 (+ the committed
+                │ [   AM    |▓▓  PM  ▓▓]   │        minute if it isn't on the 5s — a saved event's 5:12)
+                │                          │      ← SegmentedPicker AM | PM
+                │       (empty room)       │
+                │ [         Set          ] │      ← the ONLY commit: writes Time, closes
+                └──────────────────────────┘
+
+     ⚠️ EVERYTHING IN THE FLYOUT IS A DRAFT, written to Time only by OnSetClick; light-dismiss discards it.
+     That is also why ComboBoxes are acceptable HERE despite the app-wide rule against them (a closed
+     ComboBox cycles on the mousewheel — see SectionedComboBox): a wheel-cycled hour is a draft nobody has
+     committed, and nothing reaches the map until Set. Don't make these combos live.
+     ⚠️ WINDOWED + OPAQUE flyout, same as DateButtonPicker / SectionedComboBox. -->
+<UserControl x:Class="Anvil.Controls.Primitives.TimeButtonPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:Anvil.Controls.Primitives"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Button x:Name="Face" Height="32" Padding="10,0"
+            HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <!-- E823 Recent (a clock face) — NOT verified on screen. -->
+            <FontIcon Glyph="&#xE823;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14"
+                      VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <TextBlock x:Name="FaceText" Grid.Column="1" VerticalAlignment="Center"
+                       Typography.NumeralAlignment="Tabular" TextTrimming="CharacterEllipsis"/>
+            <FontIcon Grid.Column="2" Glyph="&#xE70D;" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="12"
+                      VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Grid>
+
+        <Button.Flyout>
+            <Flyout x:Name="PickerFlyout" ShouldConstrainToRootBounds="False"
+                    Placement="BottomEdgeAlignedLeft" Opening="OnFlyoutOpening">
+                <Flyout.FlyoutPresenterStyle>
+                    <Style TargetType="FlyoutPresenter">
+                        <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
+                        <Setter Property="BorderBrush" Value="{ThemeResource SurfaceStrokeColorFlyoutBrush}"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}"/>
+                        <Setter Property="Padding" Value="12"/>
+                        <Setter Property="MinWidth" Value="0"/>
+                        <Setter Property="ScrollViewer.HorizontalScrollMode" Value="Disabled"/>
+                        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+                        <Setter Property="ScrollViewer.VerticalScrollMode" Value="Disabled"/>
+                        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled"/>
+                    </Style>
+                </Flyout.FlyoutPresenterStyle>
+
+                <!-- ⚠️ 256 × 368 = DateButtonPicker's panel. -->
+                <Grid Width="256" Height="368" ColumnSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/> <!-- the colon -->
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- captions -->
+                        <RowDefinition Height="Auto"/> <!-- hour : minute -->
+                        <RowDefinition Height="Auto"/> <!-- AM | PM -->
+                        <RowDefinition Height="*"/>    <!-- the room the date flyout needs and this one doesn't -->
+                        <RowDefinition Height="Auto"/> <!-- Set -->
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Hour" Margin="2,0,0,4" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <TextBlock Grid.Column="2" Text="Minute" Margin="2,0,0,4" Style="{StaticResource SettingsFieldLabelStyle}"/>
+
+                    <ComboBox x:Name="HourBox" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text=":" FontSize="16" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <ComboBox x:Name="MinuteBox" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch"/>
+
+                    <local:SegmentedPicker x:Name="AmPm" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,10,0,0"/>
+
+                    <Button Grid.Row="4" Grid.ColumnSpan="3" Content="Set" Height="32" HorizontalAlignment="Stretch"
+                            Style="{StaticResource AccentButtonStyle}" Click="OnSetClick"/>
+                </Grid>
+            </Flyout>
+        </Button.Flyout>
+    </Button>
+</UserControl>

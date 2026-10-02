@@ -18,7 +18,7 @@ namespace Anvil.Controls.Composites
 	/// editable hour combo, an editable minute combo and an AM/PM checkbox pair — a `_syncing` re-entry
 	/// guard, a push and a pull, a text parser, four handlers, and a Visibility callback that existed
 	/// because an editable combo will not render a programmatically-set value until it is realized. A
-	/// TimePicker binds to that TimeSpan directly, so all of it went. Everything left below is presentation
+	/// TimeButtonPicker binds to that TimeSpan directly (its draft lives inside it), so all of it went. Everything left below is presentation
 	/// for the summary card, which has no state of its own.
 	/// </summary>
 	public sealed partial class PastCastTab : UserControl
