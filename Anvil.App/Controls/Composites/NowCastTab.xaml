@@ -202,12 +202,12 @@
         </Grid.RowDefinitions>
 
         <!-- ===================== HEADER: clock, then the three warning tiles ===================== -->
-        <!-- Padding 12 = PanelSection's body padding; bottom 12 + the ghost box's row = the gap before the first
-             section header (it was a bare 24 before that row arrived).
-             ⚠️ The RIGHT 16 = that 12 + PanelScroller.GutterWidth (16) − the scroller's 12 px bleed, so the tiles
-             line up with the section bodies below, which sit left of the always-claimed gutter — PastCast's
-             Timeframe rule exactly. Change all three together. -->
-        <Grid Grid.Row="0" Padding="12,12,16,12" MinHeight="{StaticResource TemporalHeaderMinHeight}">
+        <!-- Bottom 12 + the ghost box's row = the gap before the first section header (it was a bare 24 before
+             that row arrived).
+             ⚠️ LEFT 0 / RIGHT 4 = the section STACK's own edges (the user's call, 2026-10-02 — it was inset 12 to the
+             section bodies): PanelScroller.GutterWidth (16) − the scroller's 12 px bleed = 4 short of the right.
+             PastCast's Timeframe rule exactly. Change them together. -->
+        <Grid Grid.Row="0" Padding="0,12,4,12" MinHeight="{StaticResource TemporalHeaderMinHeight}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- status bar · NowCast │ time over date -->
                 <RowDefinition Height="*"/>    <!-- the tiles (take the slack) -->
