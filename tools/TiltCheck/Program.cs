@@ -14,6 +14,63 @@ using System.Text;
 using System.Xml.Linq;
 using Anvil.Services;
 
+// --gzprefix KEY [KEY…]: how much of a LEGACY .gz archive volume the base tilt actually needs. Downloads each key
+// whole, then finds the smallest COMPRESSED prefix whose gunzipped bytes already hold a COMPLETE lowest tilt (the
+// same TryExtractLowestTilt / …Uncompressed the app runs), and checks that tilt is byte-identical to the one cut
+// from the whole file. The measurement behind "stream the .gz and stop early" (2026-10-02 load-time seeding).
+if (args.Length > 0 && args[0] == "--gzprefix")
+{
+    using var gzHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+    foreach (var gzKey in args.Skip(1))
+    {
+        var gzSite = gzKey.Split('/')[3];
+        var gz = await gzHttp.GetByteArrayAsync("https://unidata-nexrad-level2.s3.amazonaws.com/" + gzKey);
+        var full = Gunzip(gz, gz.Length);
+        var (wholeTilt, walker) = Extract(full, gzSite);
+        if (wholeTilt is null) { Console.WriteLine($"{gzKey}: no base tilt from the WHOLE file — skipped"); continue; }
+
+        // Smallest compressed prefix (64 KB steps) whose decompressed bytes give a complete, identical tilt.
+        long need = -1;
+        for (var n = 64 * 1024; n < gz.Length + 64 * 1024; n += 64 * 1024)
+        {
+            var cut = Math.Min(n, gz.Length);
+            var part = Gunzip(gz, cut);
+            var (tilt, _, complete) = ExtractPrefix(part, gzSite, walker);
+            if (complete && tilt is not null && tilt.AsSpan().SequenceEqual(wholeTilt)) { need = cut; break; }
+        }
+        Console.WriteLine($"{gzKey}: gz {gz.Length / 1e6:0.00} MB → {full.Length / 1e6:0.00} MB unzipped ({walker}); " +
+            (need < 0 ? "NO prefix reproduced the tilt" : $"tilt complete + identical after {need / 1e6:0.00} MB = {100.0 * need / gz.Length:0}% of the download"));
+    }
+    return 0;
+
+    // Gunzip the first `count` bytes; a truncated stream yields what it decoded before the cut.
+    static byte[] Gunzip(byte[] gz, int count)
+    {
+        using var input = new MemoryStream(gz, 0, count);
+        using var z = new System.IO.Compression.GZipStream(input, System.IO.Compression.CompressionMode.Decompress);
+        using var output = new MemoryStream();
+        var buf = new byte[81920];
+        try { int r; while ((r = z.Read(buf, 0, buf.Length)) > 0) output.Write(buf, 0, r); }
+        catch (Exception) { /* truncated: keep what decoded */ }
+        return output.ToArray();
+    }
+
+    static (byte[]? Tilt, string Walker) Extract(byte[] data, string site)
+    {
+        var t = Level2Format.TryExtractLowestTilt(data, site, out _);
+        return t is not null ? (t, "ldm") : (Level2Format.TryExtractLowestTiltUncompressed(data, site, out _), "uncompressed");
+    }
+
+    static (byte[]? Tilt, string Walker, bool Complete) ExtractPrefix(byte[] data, string site, string walker)
+    {
+        bool complete;
+        var t = walker == "ldm"
+            ? Level2Format.TryExtractLowestTilt(data, site, out complete)
+            : Level2Format.TryExtractLowestTiltUncompressed(data, site, out complete);
+        return (t, walker, complete);
+    }
+}
+
 // --uptime SITE [SITE…]: the data-uptime report (RadarUptimeService) against the LIVE archive, into a temp
 // cache — listing only, no downloads. The real-data check for UptimeCalculator's gap/down rules.
 if (args.Length > 0 && args[0] == "--uptime")
