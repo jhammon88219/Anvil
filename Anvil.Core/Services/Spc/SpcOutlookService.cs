@@ -521,24 +521,27 @@ namespace Anvil.Services
 
 		/// <summary>
 		/// SPC's archive page(s) for one historical issuance, most likely first. The file is named by the
-		/// ISSUANCE's UTC date and an HHmm stamp; the stamp for a cycle has moved over the years (Day 2's
-		/// morning issuance was 0600 before it became 0700, Day 3's 0730 before 0830), so each cycle carries
-		/// its candidates and the first page that exists wins. The date comes from the cycle TABLE
-		/// (<see cref="SpcIssuanceCycles.IssuedAtUtc"/>), so Day 1's 01Z lands on the day after its valid day.
+		/// ISSUANCE's UTC date and an HHmm stamp, and the first page that exists wins. The date comes from the
+		/// cycle TABLE (<see cref="SpcIssuanceCycles.IssuedAtUtc"/>), so Day 1's 01Z lands on the day after its
+		/// valid day.
+		/// <para>⚠️ THE STAMP IS NOT ALWAYS THE CYCLE'S NAME — probed against the archive, 2005–2026 (2026-10-02):
+		/// Day 1's 06Z page is stamped <c>1200</c> (its valid start) in every year, never 0600, so a 0600-only
+		/// lookup never loaded. Day 2's morning page is <c>0600</c> and Day 3's <c>0730</c> in every year from
+		/// 2012 on; their old first guesses (0700, 0830) never matched and stay only as fallbacks.</para>
 		/// </summary>
 		internal static IEnumerable<string> PastNarrativeUrls(DateOnly validDay, int day, int cycle)
 		{
 			var issued = DateOnly.FromDateTime(SpcIssuanceCycles.IssuedAtUtc(day, cycle, validDay).UtcDateTime);
 			string[] stamps = (day, cycle) switch
 			{
-				(1, 6) => new[] { "0600" },
+				(1, 6) => new[] { "1200", "0600" },
 				(1, 13) => new[] { "1300" },
 				(1, 16) => new[] { "1630" },
 				(1, 20) => new[] { "2000" },
 				(1, 1) => new[] { "0100" },
-				(2, 7) => new[] { "0700", "0600" },
+				(2, 7) => new[] { "0600", "0700" },
 				(2, 17) => new[] { "1730", "1700" },
-				(3, 8) => new[] { "0830", "0730" },
+				(3, 8) => new[] { "0730", "0830" },
 				(3, 20) => new[] { "1930", "2000" },
 				_ => Array.Empty<string>(),
 			};

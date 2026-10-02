@@ -28,8 +28,17 @@ namespace Anvil.Tests
 			Assert.Equal(Archive + "day2otlk_20130519_1730.html", SpcOutlookService.PastNarrativeUrls(Moore, 2, 17).First());
 
 		[Fact]
-		public void Day3_Morning_IsTwoDaysBefore_AndTriesTheOldStamp() =>
-			Assert.Contains(Archive + "day3otlk_20130518_0730.html", SpcOutlookService.PastNarrativeUrls(Moore, 3, 8));
+		public void Day3_Morning_IsTwoDaysBefore_0730First() =>
+			Assert.Equal(Archive + "day3otlk_20130518_0730.html", SpcOutlookService.PastNarrativeUrls(Moore, 3, 8).First());
+
+		// SPC stamps Day 1's 06Z page with its VALID start (1200), never 0600 — probed 2005–2026.
+		[Fact]
+		public void Day1_06Z_IsStamped1200First() =>
+			Assert.Equal(Archive + "day1otlk_20130520_1200.html", SpcOutlookService.PastNarrativeUrls(Moore, 1, 6).First());
+
+		[Fact]
+		public void Day2_Morning_IsTheDayBefore_0600First() =>
+			Assert.Equal(Archive + "day2otlk_20130519_0600.html", SpcOutlookService.PastNarrativeUrls(Moore, 2, 7).First());
 
 		[Fact]
 		public void UnknownCycle_HasNoPage() => Assert.Empty(SpcOutlookService.PastNarrativeUrls(Moore, 1, 99));
