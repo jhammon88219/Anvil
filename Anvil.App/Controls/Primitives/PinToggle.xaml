@@ -17,6 +17,8 @@
      ⚠️ THE INSET TRACKS THE CAPTION BUTTON COUNT. Panel windows have MINIMIZE + CLOSE, and Windows still
      draws the disabled maximize box, so this clears THREE buttons at ~140 — it was 48 while panels were
      close-only. Change the caption buttons again and this number moves with it, or the pin lands on them.
+     LOOK = Styles.xaml WindowCaptionToggleStyle (shared with LockToggle): glyph only, dim off / primary on,
+     no fill, no border, no accent.
      -->
 <UserControl x:Class="Anvil.Controls.Primitives.PinToggle"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -27,8 +29,7 @@
              HorizontalAlignment="Right" VerticalAlignment="Top"
              Margin="0,2,140,0">
     <ToggleButton Width="32" Height="28"
-                  Padding="0" MinWidth="0" MinHeight="0"
-                  CornerRadius="6" Background="Transparent" BorderThickness="0"
+                  Style="{StaticResource WindowCaptionToggleStyle}"
                   IsChecked="{x:Bind IsChecked, Mode=TwoWay}"
                   ToolTipService.ToolTip="Keep above Anvil">
         <FontIcon Glyph="&#xE718;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14"/>

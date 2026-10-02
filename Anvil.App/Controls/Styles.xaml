@@ -599,6 +599,85 @@
         </Setter>
     </Style>
 
+    <!-- A panel window's caption-band toggle — PinToggle + LockToggle. Glyph only: NO fill and NO border in
+         any state but hover. OFF = a dim (tertiary) glyph, ON = the plain primary glyph — no accent, on purpose:
+         both default ON, so the "on" look is the one you see all day and must not shout. Hover lays the faint
+         ground-hover plate and lifts the glyph one step, so it still reads as clickable.
+         ⚠️ Templated for the same reason as SettingsTabKeyStyle — the default ToggleButton's Checked state is an
+         accent-FILLED block that a Setter cannot beat. -->
+    <Style x:Key="WindowCaptionToggleStyle" TargetType="ToggleButton">
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Checked">
+                                    <VisualState.Setters>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedDisabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+
+                        <!-- Transparent (not null) at rest so the whole key hit-tests. -->
+                        <Border x:Name="Surface"
+                                Background="Transparent"
+                                CornerRadius="{TemplateBinding CornerRadius}"/>
+
+                        <ContentPresenter x:Name="Content"
+                                          Padding="{TemplateBinding Padding}"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- The Anvil Atlas's small-caps field label + value (both tabs — shared, which is why they live here). -->
     <Style x:Key="AtlasFieldLabelStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="11"/>
