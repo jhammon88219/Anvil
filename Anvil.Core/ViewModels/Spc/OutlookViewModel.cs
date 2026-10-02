@@ -700,12 +700,16 @@ namespace Anvil.ViewModels
 			_narrativeFor = product;
 			// ⚠️ The source BEFORE the text: MapViewModel re-reads both when OutlookNarrativeText changes.
 			NarrativeSourceUrl = text is null ? null : _spcOutlookService.NarrativePageUrl(product);
+			NarrativeRiskAreas = text is null ? System.Array.Empty<OutlookRiskArea>() : _spcOutlookService.NarrativeRiskAreas(product);
 			OutlookNarrativeText = text ?? "Forecast discussion isn't available for this product yet.";
 		}
 
 		/// <summary>The SPC page <see cref="OutlookNarrativeText"/> was read from (the window's SOURCE link);
 		/// null while the text is a status line.</summary>
 		public string? NarrativeSourceUrl { get; private set; }
+
+		/// <summary>SPC's risk-area table from that same page (the window's risk cards); empty when none.</summary>
+		public IReadOnlyList<OutlookRiskArea> NarrativeRiskAreas { get; private set; } = System.Array.Empty<OutlookRiskArea>();
 
 		/// <summary>
 		/// Called after the launch outlook refresh finishes: re-applies the current

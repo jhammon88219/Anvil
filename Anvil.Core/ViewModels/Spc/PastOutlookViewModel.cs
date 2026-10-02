@@ -276,12 +276,16 @@ namespace Anvil.ViewModels
 			if (token != _applyToken) return; // a newer selection won
 			// ⚠️ The source BEFORE the text: MapViewModel re-reads both when NarrativeText changes.
 			NarrativeSourceUrl = text is null ? null : _outlookService.PastNarrativePageUrl(date, day, cycle);
+			NarrativeRiskAreas = text is null ? Array.Empty<OutlookRiskArea>() : _outlookService.PastNarrativeRiskAreas(date, day, cycle);
 			NarrativeText = text ?? $"SPC's archive has no discussion page for the {SpcIssuanceCycles.Label(cycle)} issuance of this date.";
 		}
 
 		/// <summary>The SPC archive page <see cref="NarrativeText"/> was read from (the window's SOURCE link);
 		/// null while the text is a status line.</summary>
 		public string? NarrativeSourceUrl { get; private set; }
+
+		/// <summary>SPC's risk-area table from that same page (the window's risk cards); empty when none.</summary>
+		public IReadOnlyList<OutlookRiskArea> NarrativeRiskAreas { get; private set; } = Array.Empty<OutlookRiskArea>();
 
 		// ⚠️ HIDDEN STOPS THE MAP LAYER, NOT THE DISCUSSION (fixed 2026-10-02: the Outlook Discussion window sat on
 		// NoNarrative for a played event whose outlook box was unticked, while its Discussion button stayed live).

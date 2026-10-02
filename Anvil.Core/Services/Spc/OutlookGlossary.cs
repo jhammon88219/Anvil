@@ -30,7 +30,7 @@ namespace Anvil.Services
 			"The SPC web page this discussion was read from. Opens in your browser.");
 
 		public static readonly RadarGlossaryCard Risk =Card("Risk", "...THERE IS A … RISK OF SEVERE THUNDERSTORMS...",
-			"The outlook's severe categories and where they are. From least to most: Marginal, Slight, Enhanced, Moderate, High.");
+			"SPC's severe categories, High on the left to Marginal on the right, with the people and area inside each and its largest places (SPC's 2010-census estimates). A dimmed card isn't in this outlook.");
 
 		public static readonly RadarGlossaryCard Alert = Card("Alert", "an extra headline after the risk",
 			"A rare extra headline SPC adds when a major outbreak is expected.");

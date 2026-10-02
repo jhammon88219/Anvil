@@ -459,7 +459,11 @@ namespace Anvil.Services
 				var text = ExtractPreText(html);
 				if (text is not null)
 				{
-					try { await File.WriteAllTextAsync(cacheFile, text, cancellationToken); }
+					try
+					{
+						await File.WriteAllTextAsync(cacheFile, text, cancellationToken);
+						await WriteRiskAreasAsync(RiskFile(cacheFile), html, cancellationToken);
+					}
 					catch { /* cache write is best effort */ }
 					return text;
 				}
@@ -486,6 +490,38 @@ namespace Anvil.Services
 
 		public string? NarrativePageUrl(SpcOutlookProduct product) => NarrativeUrlFor(product);
 
+		// ── SPC's categorical risk-area table, read from the same page as the text (SpcRiskTableParser) ──
+		// Saved as JSON beside the text's cache file ("….risk.json") — ALWAYS written on a fetch, empty when the page
+		// had no table, so a past discussion knows it has been looked at and is never refetched for it again.
+
+		public IReadOnlyList<OutlookRiskArea> NarrativeRiskAreas(SpcOutlookProduct product) =>
+			ReadRiskAreas(RiskFile(NarrativeCacheFileFor(product)));
+
+		public IReadOnlyList<OutlookRiskArea> PastNarrativeRiskAreas(DateOnly validDay, int day, int cycle) =>
+			ReadRiskAreas(RiskFile(PastNarrativeCacheFile(validDay, day, cycle)));
+
+		private static string RiskFile(string textCacheFile) => Path.ChangeExtension(textCacheFile, ".risk.json");
+
+		private string PastNarrativeCacheFile(DateOnly validDay, int day, int cycle) =>
+			Path.Combine(CacheDirectory, $"narrative-past-{validDay:yyyyMMdd}-d{day}-c{cycle:D2}.txt");
+
+		private static async Task WriteRiskAreasAsync(string file, string html, CancellationToken cancellationToken) =>
+			await File.WriteAllTextAsync(file, JsonSerializer.Serialize(SpcRiskTableParser.Parse(html)), cancellationToken);
+
+		private static IReadOnlyList<OutlookRiskArea> ReadRiskAreas(string file)
+		{
+			try
+			{
+				return File.Exists(file)
+					? JsonSerializer.Deserialize<List<OutlookRiskArea>>(File.ReadAllText(file)) ?? new List<OutlookRiskArea>()
+					: Array.Empty<OutlookRiskArea>();
+			}
+			catch
+			{
+				return Array.Empty<OutlookRiskArea>(); // unreadable → no numbers, never a crash
+			}
+		}
+
 		public string? PastNarrativePageUrl(DateOnly validDay, int day, int cycle)
 		{
 			try
@@ -503,10 +539,12 @@ namespace Anvil.Services
 
 		public async Task<string?> GetPastNarrativeAsync(DateOnly validDay, int day, int cycle, CancellationToken cancellationToken = default)
 		{
-			var cacheFile = Path.Combine(CacheDirectory, $"narrative-past-{validDay:yyyyMMdd}-d{day}-c{cycle:D2}.txt");
+			var cacheFile = PastNarrativeCacheFile(validDay, day, cycle);
 			try
 			{
-				if (File.Exists(cacheFile))
+				// ⚠️ A hit needs the RISK TABLE file too: a copy cached before the table was read (2026-10-02) is
+				// fetched once more so its cards get numbers; the write below always leaves the file behind.
+				if (File.Exists(cacheFile) && File.Exists(RiskFile(cacheFile)))
 				{
 					return await File.ReadAllTextAsync(cacheFile, cancellationToken);
 				}
@@ -518,7 +556,8 @@ namespace Anvil.Services
 			{
 				try
 				{
-					var text = ExtractPreText(await Http.GetStringAsync(url, cancellationToken));
+					var html = await Http.GetStringAsync(url, cancellationToken);
+					var text = ExtractPreText(html);
 					if (text is null)
 					{
 						continue;
@@ -527,6 +566,7 @@ namespace Anvil.Services
 					{
 						await File.WriteAllTextAsync(cacheFile, text, cancellationToken);
 						await File.WriteAllTextAsync(PastNarrativeUrlFile(validDay, day, cycle), url, cancellationToken);
+						await WriteRiskAreasAsync(RiskFile(cacheFile), html, cancellationToken);
 					}
 					catch { /* cache write is best effort */ }
 					return text;
@@ -537,6 +577,13 @@ namespace Anvil.Services
 					// 404 (not this stamp) or a network failure — try the next candidate.
 				}
 			}
+			// The refetch for a missing risk table failed (offline?): the text cached earlier is still good.
+			try
+			{
+				if (File.Exists(cacheFile)) return await File.ReadAllTextAsync(cacheFile, cancellationToken);
+			}
+			catch (OperationCanceledException) { throw; }
+			catch { /* nothing usable */ }
 			return null;
 		}
 

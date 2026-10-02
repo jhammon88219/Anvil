@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Anvil.Models;
 using Anvil.Services;
@@ -27,16 +28,20 @@ namespace Anvil.ViewModels
 
 		/// <summary>Takes the current discussion text and the SPC page it came from (<paramref name="isArchive"/> =
 		/// PastCast's per-issuance archive copy). A new text collapses the previous discussion again.</summary>
-		public void Load(string? text, string? sourceUrl = null, bool isArchive = false)
+		public void Load(string? text, string? sourceUrl = null, bool isArchive = false,
+			IReadOnlyList<OutlookRiskArea>? riskAreas = null)
 		{
 			text ??= string.Empty;
-			if (text == _text && sourceUrl == _sourceUrl && isArchive == _isArchive) return;
+			riskAreas ??= Array.Empty<OutlookRiskArea>();
+			if (text == _text && sourceUrl == _sourceUrl && isArchive == _isArchive && ReferenceEquals(riskAreas, _riskAreas)) return;
 			_sourceUrl = sourceUrl;
 			_isArchive = isArchive;
-			if (text == _text) { OnPropertyChanged(string.Empty); return; } // only the source moved
+			_riskAreas = riskAreas;
+			if (text == _text) { BuildCards(); OnPropertyChanged(string.Empty); return; } // only the source/table moved
 			_text = text;
 			_parsed = OutlookDiscussionParser.Parse(text);
 			Headlines = _parsed.Headlines.Select(h => new OutlookHeadlineRow(h)).ToArray();
+			BuildCards();
 			Rows = _parsed.Sections.Select(s => new OutlookSectionRow(s)).ToArray();
 			PreviousRows = _parsed.PreviousSections.Select(s => new OutlookSectionRow(s)).ToArray();
 			_isPreviousExpanded = false;
@@ -60,6 +65,37 @@ namespace Anvil.ViewModels
 
 		public IReadOnlyList<OutlookHeadlineRow> Headlines { get; private set; } = Array.Empty<OutlookHeadlineRow>();
 		public bool HasHeadlines => Headlines.Count > 0;
+
+		// ── RISK CARDS (option B, the user's call 2026-10-02): ALL FIVE severe levels, always, High on the LEFT →
+		// Marginal on the right; a level not in this outlook is dimmed. Numbers come from SPC's risk-area table on
+		// the same page (SpcRiskTableParser); without a table (older archive pages, Day 4-8) presence comes from the
+		// headlines and the cards carry no numbers. General thunder is left out (SPC publishes no figures for it).
+
+		private IReadOnlyList<OutlookRiskArea> _riskAreas = Array.Empty<OutlookRiskArea>();
+		private static readonly string[] CardOrder = { "HIGH", "MDT", "ENH", "SLGT", "MRGL" };
+
+		public OutlookRiskCard HighCard { get; private set; } = OutlookRiskCard.Absent("HIGH");
+		public OutlookRiskCard ModerateCard { get; private set; } = OutlookRiskCard.Absent("MDT");
+		public OutlookRiskCard EnhancedCard { get; private set; } = OutlookRiskCard.Absent("ENH");
+		public OutlookRiskCard SlightCard { get; private set; } = OutlookRiskCard.Absent("SLGT");
+		public OutlookRiskCard MarginalCard { get; private set; } = OutlookRiskCard.Absent("MRGL");
+
+		/// <summary>The cards row shows on every Day 1-3 discussion (headlines or a table); not on Day 4-8.</summary>
+		public bool HasRiskCards => IsDiscussion && (HasHeadlines || _riskAreas.Count > 0);
+
+		private void BuildCards()
+		{
+			var cards = CardOrder.Select(code =>
+			{
+				if (_riskAreas.Count > 0)
+				{
+					var area = _riskAreas.FirstOrDefault(a => a.Code == code);
+					return area is null ? OutlookRiskCard.Absent(code) : OutlookRiskCard.WithFigures(area);
+				}
+				return _parsed.Headlines.Any(h => h.Code == code) ? OutlookRiskCard.NoFigures(code) : OutlookRiskCard.Absent(code);
+			}).ToArray();
+			(HighCard, ModerateCard, EnhancedCard, SlightCard, MarginalCard) = (cards[0], cards[1], cards[2], cards[3], cards[4]);
+		}
 
 		public string Alert => _parsed.Alert ?? string.Empty;
 		public bool HasAlert => _parsed.Alert is not null;
@@ -147,6 +183,51 @@ namespace Anvil.ViewModels
 		public string Text { get; }
 		public bool HasText => Text.Length > 0;
 		public string Fill { get; }
+
+		/// <summary>"HIGH RISK FROM CENTRAL AND NORTHERN OKLAHOMA…" — the one line under the cards.</summary>
+		public string Line => HasText ? $"{Category} {Text}" : Category;
+	}
+
+	/// <summary>
+	/// One risk card: the category's SPC colour strip, its name, and — when SPC's table has the row — the people in
+	/// it ("1.9M people"), its area and its largest places, one per line. Absent = dimmed, "Not in this outlook".
+	/// </summary>
+	public sealed class OutlookRiskCard
+	{
+		private OutlookRiskCard(string code, bool isPresent, OutlookRiskArea? area)
+		{
+			var level = SpcRiskCatalog.Level(SpcOutlookType.Categorical, code);
+			Name = code switch { "MDT" => "MODERATE", "ENH" => "ENHANCED", "SLGT" => "SLIGHT", "MRGL" => "MARGINAL", _ => code };
+			Fill = level?.Fill ?? "#FF8A8A8A"; // ⚠️ DATA colour, never themed
+			IsPresent = isPresent;
+			HasFigures = area is not null;
+			People = area is null ? string.Empty : Compact(area.Population);
+			Area = area is null ? string.Empty : $"{area.AreaSqMi.ToString("N0", CultureInfo.InvariantCulture)} sq mi";
+			Places = area?.Places ?? Array.Empty<string>();
+		}
+
+		public static OutlookRiskCard WithFigures(OutlookRiskArea area) => new(area.Code, true, area);
+		public static OutlookRiskCard NoFigures(string code) => new(code, true, null);
+		public static OutlookRiskCard Absent(string code) => new(code, false, null);
+
+		public string Name { get; }
+		public string Fill { get; }
+		public bool IsPresent { get; }
+		public bool IsAbsent => !IsPresent;
+		public bool HasFigures { get; }
+		/// <summary>In the outlook, but this page had no table (older archive pages).</summary>
+		public bool IsPresentWithoutFigures => IsPresent && !HasFigures;
+		public string People { get; }
+		public string Area { get; }
+		public IReadOnlyList<string> Places { get; }
+
+		// 1,896,303 → "1.9M"; 31,343,171 → "31.3M"; 280,571 → "281K"; under a thousand as is.
+		internal static string Compact(long n) => n switch
+		{
+			>= 1_000_000 => $"{(n / 1_000_000.0).ToString("0.0", CultureInfo.InvariantCulture)}M",
+			>= 1_000 => $"{(n / 1_000.0).ToString("0", CultureInfo.InvariantCulture)}K",
+			_ => n.ToString(CultureInfo.InvariantCulture),
+		};
 	}
 
 	/// <summary>A body section as the window draws it: dimmed label + hint, an optional heading, the paragraphs.</summary>

@@ -99,5 +99,12 @@ namespace Anvil.Services
 		/// <summary>The SPC archive page a HISTORICAL discussion was read from: the stamp that actually answered,
 		/// recorded at fetch time; for a copy cached before that was recorded, the most likely stamp. Null = none.</summary>
 		string? PastNarrativePageUrl(DateOnly validDay, int day, int cycle) => null;
+
+		/// <summary>SPC's categorical risk-area table (area, people, largest places per category) from the same page
+		/// as the LIVE discussion, saved when the text was fetched. Empty when the page had none.</summary>
+		IReadOnlyList<OutlookRiskArea> NarrativeRiskAreas(SpcOutlookProduct product) => Array.Empty<OutlookRiskArea>();
+
+		/// <summary>The same table for a HISTORICAL discussion. Empty when the archive page had none.</summary>
+		IReadOnlyList<OutlookRiskArea> PastNarrativeRiskAreas(DateOnly validDay, int day, int cycle) => Array.Empty<OutlookRiskArea>();
 	}
 }
