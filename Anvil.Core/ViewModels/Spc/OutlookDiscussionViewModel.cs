@@ -66,14 +66,16 @@ namespace Anvil.ViewModels
 		public IReadOnlyList<OutlookSectionRow> PreviousRows { get; private set; } = Array.Empty<OutlookSectionRow>();
 		public bool HasPrevious => PreviousRows.Count > 0;
 
-		/// <summary>"issued 11:30 AM CDT · 3 sections" — the collapsed box's right-hand caption.</summary>
+		/// <summary>"issued 1630Z · 11:30 AM CDT · 3 sections" — the box's right-hand caption.
+		/// ⚠️ The PREVIOUS row is ALWAYS shown (the user's call, 2026-10-02): SPC repeats the earlier discussion only
+		/// under an UPDATE (Day 1's 20Z; some older updates), so a full issuance says so instead of hiding the row.</summary>
 		public string PreviousCaption
 		{
 			get
 			{
-				if (!HasPrevious) return string.Empty;
+				if (!HasPrevious) return "None in this issuance";
 				var n = PreviousRows.Count;
-				var when = _parsed.PreviousIssued is { } p ? $"issued {ShortTime(p)} · " : string.Empty;
+				var when = _parsed.PreviousIssuedTime is { } p ? $"issued {p} · " : string.Empty;
 				return $"{when}{n} section{(n == 1 ? string.Empty : "s")}";
 			}
 		}
@@ -98,13 +100,6 @@ namespace Anvil.ViewModels
 		public RadarGlossaryCard AlertHint => OutlookGlossary.Alert;
 		public RadarGlossaryCard SummaryHint => OutlookGlossary.Summary;
 		public RadarGlossaryCard PreviousHint => OutlookGlossary.Previous;
-
-		// "11:30 AM CDT Fri Mar 14, 2025" → "11:30 AM CDT" (the box only needs the time; the day is the window's).
-		private static string ShortTime(string issued)
-		{
-			var parts = issued.Split(' ');
-			return parts.Length >= 3 ? string.Join(' ', parts.Take(3)) : issued;
-		}
 	}
 
 	/// <summary>A risk headline as the window draws it: a bar in the category's SPC colour, the category, the place.</summary>

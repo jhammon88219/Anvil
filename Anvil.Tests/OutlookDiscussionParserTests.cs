@@ -71,8 +71,8 @@ namespace Anvil.Tests
 		{
 			var d = OutlookDiscussionParser.Parse(Fixture("d1_20250314_2000"));
 			Assert.Equal("Day 1 Convective Outlook", d.Title);
-			Assert.Equal("2:58 PM CDT Fri Mar 14, 2025", d.Issued);
-			Assert.Equal("20Z Fri Mar 14 → 12Z Sat Mar 15", d.Valid);
+			Assert.Equal("1958Z · 2:58 PM CDT Fri Mar 14, 2025", d.Issued);
+			Assert.Equal("20Z (3:00 PM CDT) Fri Mar 14 → 12Z (7:00 AM CDT) Sat Mar 15", d.Valid);
 			var h = Assert.Single(d.Headlines);
 			Assert.Equal("MDT", h.Code);
 			Assert.Equal("MODERATE RISK", h.Category);
@@ -83,11 +83,59 @@ namespace Anvil.Tests
 			Assert.Equal("20Z update", update.Title);
 			Assert.Equal(4, update.Paragraphs.Count);
 			Assert.Equal("Lyons", d.Forecaster);
-			Assert.Equal("11:30 AM CDT Fri Mar 14, 2025", d.PreviousIssued);
+			Assert.Equal("1630Z · 11:30 AM CDT Fri Mar 14, 2025", d.PreviousIssued);
+			Assert.Equal("1630Z · 11:30 AM CDT", d.PreviousIssuedTime);
 			Assert.Equal(new[] { OutlookSectionKind.Synopsis, OutlookSectionKind.Region, OutlookSectionKind.Region },
 				d.PreviousSections.Select(s => s.Kind));
 			Assert.Equal("Lower Mississippi Valley", d.PreviousSections[2].Title);
-			Assert.Equal("by 0100Z", d.NextOutlook);
+			Assert.Equal("by 01Z (8:00 PM CDT)", d.NextOutlook);
+		}
+
+		// 01Z on Mar 15 UTC is 8 PM Mar 14 in Norman: the AM/PM half carries its own weekday.
+		[Fact]
+		public void Valid_LocalTimeOnTheDayBefore_SaysWhichDay()
+		{
+			var d = OutlookDiscussionParser.Parse(Fixture("d1_20250315_0100"));
+			Assert.Equal("0101Z · 8:01 PM CDT Fri Mar 14, 2025", d.Issued);
+			Assert.Equal("01Z (8:00 PM CDT Fri) Sat Mar 15 → 12Z (7:00 AM CDT) Sat Mar 15", d.Valid);
+			Assert.Equal("by 06Z (1:00 AM CDT)", d.NextOutlook);
+		}
+
+		// Winter: SPC's issued line says CST (UTC−6), and every conversion follows it.
+		[Fact]
+		public void Winter_ConvertsInCst()
+		{
+			var d = OutlookDiscussionParser.Parse(Fixture("d1_20240115_1300"));
+			Assert.Equal("1228Z · 6:28 AM CST Mon Jan 15, 2024", d.Issued);
+			Assert.Equal("13Z (7:00 AM CST) Mon Jan 15 → 12Z (6:00 AM CST) Tue Jan 16", d.Valid);
+			Assert.Equal("by 1630Z (10:30 AM CST)", d.NextOutlook);
+		}
+
+		// The window's PREVIOUS row: three rows + a caption on a 20Z update; "None in this issuance" otherwise.
+		[Fact]
+		public void ViewModel_Previous_IsThereOnAnUpdate_AndSaysNoneOtherwise()
+		{
+			var vm = new Anvil.ViewModels.OutlookDiscussionViewModel();
+			vm.Load(Fixture("d1_20250314_2000"));
+			Assert.True(vm.HasPrevious);
+			Assert.Equal(3, vm.PreviousRows.Count);
+			Assert.Equal("issued 1630Z · 11:30 AM CDT · 3 sections", vm.PreviousCaption);
+			Assert.False(vm.IsPreviousExpanded);
+
+			vm.IsPreviousExpanded = true;
+			vm.Load(Fixture("d1_20240506_1630")); // a full issuance: no previous, and the box collapses again
+			Assert.False(vm.HasPrevious);
+			Assert.Equal("None in this issuance", vm.PreviousCaption);
+			Assert.False(vm.IsPreviousExpanded);
+		}
+
+		[Fact]
+		public void ViewModel_StatusText_IsAMessage_NotParts()
+		{
+			var vm = new Anvil.ViewModels.OutlookDiscussionViewModel();
+			vm.Load("Loading forecast discussion…");
+			Assert.True(vm.IsMessage);
+			Assert.Equal("Loading forecast discussion…", vm.Message);
 		}
 
 		[Fact]
@@ -161,7 +209,7 @@ namespace Anvil.Tests
 			var days = Assert.Single(d.Sections);
 			Assert.Equal(OutlookSectionKind.Days, days.Kind);
 			Assert.Equal("Days 4-6/Fri-Sun - Mid/Lower MS Valley to the Southeast and Mid-Atlantic", days.Title);
-			Assert.Equal("12Z Fri Mar 14 → 12Z Wed Mar 19", d.Valid);
+			Assert.Equal("12Z (7:00 AM CDT) Fri Mar 14 → 12Z (7:00 AM CDT) Wed Mar 19", d.Valid);
 		}
 
 		[Fact]

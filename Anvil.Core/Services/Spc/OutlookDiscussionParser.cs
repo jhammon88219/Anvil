@@ -69,8 +69,8 @@ namespace Anvil.Services
 
 			// ── The heading blocks: ID, title, issued, valid (+ Day 4-8's wire routing) ──
 			string title = "Convective Outlook";
-			string? productId = null, issued = null, validRaw = null;
-			DateOnly? issuedDate = null;
+			string? productId = null, validRaw = null;
+			SpcClock? clock = null;
 			var bi = 0;
 			for (; bi < blocks.Count && blocks[bi].All(IsHeadingLine); bi++)
 			{
@@ -79,14 +79,14 @@ namespace Anvil.Services
 					Match m;
 					if ((m = ProductIdRx.Match(line)).Success) productId = line;
 					else if ((m = TitleRx.Match(line)).Success) title = $"Day {m.Groups[1].Value} Convective Outlook";
-					else if (IssuedRx.IsMatch(line)) (issued, issuedDate) = FormatIssued(line);
+					else if (IssuedRx.IsMatch(line)) clock = SpcClock.Read(line);
 					else if (ValidRx.IsMatch(line)) validRaw = line;
 				}
 			}
 
 			// ── The body ──
 			var headlines = new List<OutlookHeadline>();
-			string? alert = null, forecaster = null, previousIssued = null, next = null;
+			string? alert = null, forecaster = null, previousIssued = null, previousIssuedTime = null, next = null;
 			var summary = new List<string>();
 			var sections = new List<SectionBuilder>();
 			var previous = new List<SectionBuilder>();
@@ -160,7 +160,7 @@ namespace Anvil.Services
 				Match m;
 
 				if (first.StartsWith("CLICK TO GET", StringComparison.OrdinalIgnoreCase)) continue;
-				if ((m = NoteRx.Match(first)).Success) { next = $"by {m.Groups[1].Value}"; continue; }
+				if ((m = NoteRx.Match(first)).Success) { next = $"by {FormatZuluOfDay(m.Groups[1].Value, clock)}"; continue; }
 				if (b.Count == 1 && (m = SignatureRx.Match(first)).Success)
 				{
 					if (!inPrevious && forecaster is null) forecaster = m.Groups[1].Value.Replace("/", " / ");
@@ -171,7 +171,15 @@ namespace Anvil.Services
 				{
 					inPrevious = true;
 					var raw1 = m.Groups[1].Value.Trim();
-					previousIssued = IssuedRx.IsMatch(raw1) ? FormatIssued(raw1).Text : raw1;
+					if (SpcClock.Read(raw1) is { } prevClock)
+					{
+						previousIssued = prevClock.Both;
+						previousIssuedTime = prevClock.BothTimeOnly;
+					}
+					else
+					{
+						previousIssued = previousIssuedTime = raw1;
+					}
 					target = null;
 					continue;
 				}
@@ -235,10 +243,10 @@ namespace Anvil.Services
 			}
 
 			return new OutlookDiscussion(
-				title, productId, issued, FormatValid(validRaw, issuedDate),
+				title, productId, clock?.Both, FormatValid(validRaw, clock),
 				headlines, alert, summary,
 				sections.Select(s => s.Build()).ToArray(),
-				forecaster, previousIssued,
+				forecaster, previousIssued, previousIssuedTime,
 				previous.Select(s => s.Build()).ToArray(),
 				next, raw);
 		}
@@ -322,45 +330,93 @@ namespace Anvil.Services
 			_ => ("MRGL", "MARGINAL RISK"),
 		};
 
-		// "0258 PM CDT Fri Mar 14 2025" → "2:58 PM CDT Fri Mar 14, 2025" (+ the date, to anchor the valid days).
-		internal static (string Text, DateOnly? Date) FormatIssued(string line)
+		// ── Times: Zulu first, then AM/PM in SPC's own zone ──
+
+		private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
+
+		// The zones an SPC issued line can carry, as hours from UTC. SPC is in Norman (CDT/CST); the rest are
+		// here so an odd one still converts rather than silently dropping the AM/PM half.
+		private static readonly Dictionary<string, int> ZoneOffsets = new(StringComparer.OrdinalIgnoreCase)
 		{
-			var m = IssuedRx.Match(line);
-			if (!m.Success) return (line, null);
-			var hour = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
-			var mon = Title(m.Groups[6].Value);
-			var day = int.Parse(m.Groups[7].Value, CultureInfo.InvariantCulture);
-			var year = int.Parse(m.Groups[8].Value, CultureInfo.InvariantCulture);
-			var text = $"{hour}:{m.Groups[2].Value} {m.Groups[3].Value.ToUpperInvariant()} {m.Groups[4].Value.ToUpperInvariant()} "
-				+ $"{Title(m.Groups[5].Value)} {mon} {day}, {year}";
-			DateOnly? date = DateTime.TryParseExact($"{mon} {day} {year}", "MMM d yyyy", CultureInfo.InvariantCulture,
-				DateTimeStyles.None, out var d) ? DateOnly.FromDateTime(d) : null;
-			return (text, date);
+			["EDT"] = -4, ["EST"] = -5, ["CDT"] = -5, ["CST"] = -6, ["MDT"] = -6, ["MST"] = -7, ["PDT"] = -7, ["PST"] = -8,
+		};
+
+		/// <summary>
+		/// One issued line ("0258 PM CDT Fri Mar 14 2025") as an instant in SPC's zone. ⚠️ Every converted time in
+		/// a discussion uses the ISSUED line's zone, so the window's AM/PM times agree with SPC's own text.
+		/// </summary>
+		internal sealed record SpcClock(DateTime Local, string Zone, int OffsetHours)
+		{
+			public DateTime Utc => Local.AddHours(-OffsetHours);
+
+			/// <summary>"1958Z · 2:58 PM CDT Fri Mar 14, 2025".</summary>
+			public string Both => $"{Utc.ToString("HHmm", Inv)}Z · {Local.ToString("h:mm tt", Inv)} {Zone} {Local.ToString("ddd MMM d, yyyy", Inv)}";
+
+			/// <summary>"1630Z · 11:30 AM CDT".</summary>
+			public string BothTimeOnly => $"{Utc.ToString("HHmm", Inv)}Z · {Local.ToString("h:mm tt", Inv)} {Zone}";
+
+			/// <summary>A UTC instant as "3:00 PM CDT" in this zone.</summary>
+			public string LocalTimeOf(DateTime utc) => $"{utc.AddHours(OffsetHours).ToString("h:mm tt", Inv)} {Zone}";
+
+			public static SpcClock? Read(string line)
+			{
+				var m = IssuedRx.Match(line.Trim());
+				if (!m.Success || !ZoneOffsets.TryGetValue(m.Groups[4].Value, out var offset)) return null;
+				var hour12 = int.Parse(m.Groups[1].Value, Inv);
+				var minute = int.Parse(m.Groups[2].Value, Inv);
+				var hour = hour12 % 12 + (m.Groups[3].Value.Equals("PM", StringComparison.OrdinalIgnoreCase) ? 12 : 0);
+				if (!DateTime.TryParseExact($"{Title(m.Groups[6].Value)} {m.Groups[7].Value} {m.Groups[8].Value}", "MMM d yyyy",
+						Inv, DateTimeStyles.None, out var day) || hour > 23 || minute > 59)
+				{
+					return null;
+				}
+				return new SpcClock(day.AddHours(hour).AddMinutes(minute), m.Groups[4].Value.ToUpperInvariant(), offset);
+			}
 		}
 
-		// "Valid 142000Z - 151200Z" → "20Z Fri Mar 14 → 12Z Sat Mar 15". The line carries only day-of-month, so
-		// each day is the first date from issued−2 to issued+8 with that day number (UTC vs local, Day 4-8's
-		// reach); without an issued date the days stay bare numbers.
-		internal static string? FormatValid(string? line, DateOnly? issued)
+		// SPC's Zulu label: "20Z" on the hour, "1630Z" otherwise.
+		private static string Zulu(int hh, int mm) => mm == 0 ? $"{hh:00}Z" : $"{hh:00}{mm:00}Z";
+
+		// The NOTE's "0100Z" → "01Z (8:00 PM CDT)". A time of day only — the note names no date.
+		internal static string FormatZuluOfDay(string token, SpcClock? clock)
+		{
+			var m = Regex.Match(token, @"^(\d{2})(\d{2})Z$", RegexOptions.IgnoreCase);
+			if (!m.Success) return token;
+			var hh = int.Parse(m.Groups[1].Value, Inv);
+			var mm = int.Parse(m.Groups[2].Value, Inv);
+			var zulu = Zulu(hh, mm);
+			return clock is null ? zulu : $"{zulu} ({clock.LocalTimeOf(new DateTime(2000, 1, 1, hh, mm, 0))})";
+		}
+
+		// "Valid 142000Z - 151200Z" → "20Z (3:00 PM CDT) Fri Mar 14 → 12Z (7:00 AM CDT) Sat Mar 15". The date shown is
+		// the UTC one; when the AM/PM time falls on the day before, its weekday rides inside the brackets
+		// ("01Z (8:00 PM CDT Fri) Sat Mar 15"). The line carries only day-of-month, so each day is the first date from
+		// issued−2 to issued+8 (UTC) with that number; without an issued line the days stay bare numbers.
+		internal static string? FormatValid(string? line, SpcClock? clock)
 		{
 			if (line is null) return null;
 			var m = ValidRx.Match(line);
 			if (!m.Success) return line;
 			string Part(int g)
 			{
-				var dd = int.Parse(m.Groups[g].Value, CultureInfo.InvariantCulture);
-				var hh = m.Groups[g + 1].Value;
-				var mm = m.Groups[g + 2].Value;
-				var time = mm == "00" ? $"{hh}Z" : $"{hh}{mm}Z";
-				if (issued is { } i)
+				var dd = int.Parse(m.Groups[g].Value, Inv);
+				var hh = int.Parse(m.Groups[g + 1].Value, Inv);
+				var mm = int.Parse(m.Groups[g + 2].Value, Inv);
+				var zulu = Zulu(hh, mm);
+				if (clock is not null)
 				{
+					var anchor = clock.Utc.Date;
 					for (var k = -2; k <= 8; k++)
 					{
-						var d = i.AddDays(k);
-						if (d.Day == dd) return $"{time} {d.ToString("ddd MMM d", CultureInfo.InvariantCulture)}";
+						var d = anchor.AddDays(k);
+						if (d.Day != dd) continue;
+						var utc = d.AddHours(hh).AddMinutes(mm);
+						var local = utc.AddHours(clock.OffsetHours);
+						var otherDay = local.Date != utc.Date ? $" {local.ToString("ddd", Inv)}" : string.Empty;
+						return $"{zulu} ({clock.LocalTimeOf(utc)}{otherDay}) {utc.ToString("ddd MMM d", Inv)}";
 					}
 				}
-				return $"{time} day {dd}";
+				return $"{zulu} day {dd}";
 			}
 			return $"{Part(1)} → {Part(4)}";
 		}

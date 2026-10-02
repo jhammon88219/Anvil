@@ -6,20 +6,23 @@ namespace Anvil.Models
 	/// One SPC convective outlook discussion, split into its parts (Services/Spc/OutlookDiscussionParser). Every
 	/// field is optional except the lists: SPC's layout has drifted since 2004, and a part a given issuance
 	/// doesn't carry is simply absent, never invented. <see cref="Raw"/> keeps the original text.
+	/// ⚠️ Every TIME is shown both ways — SPC's Zulu (UTC) first, then AM/PM in SPC's OWN zone, read from the issued
+	/// line (CDT/CST…) so the window agrees with SPC's text (the user's call, 2026-10-02).
 	/// </summary>
 	public sealed record OutlookDiscussion(
 		string Title,                                     // "Day 1 Convective Outlook"
 		string? ProductId,                                // "SPC AC 141958" (the UTC day+time it was SENT)
-		string? Issued,                                   // "2:58 PM CDT Fri Mar 14, 2025"
-		string? Valid,                                    // "20Z Fri Mar 14 → 12Z Sat Mar 15"
+		string? Issued,                                   // "1958Z · 2:58 PM CDT Fri Mar 14, 2025"
+		string? Valid,                                    // "20Z (3:00 PM CDT) Fri Mar 14 → 12Z (7:00 AM CDT) Sat Mar 15"
 		IReadOnlyList<OutlookHeadline> Headlines,         // risk headlines, as SPC ordered them (highest first)
 		string? Alert,                                    // the rare emphasis headline ("--DANGEROUS TORNADO OUTBREAK…--")
 		IReadOnlyList<string> Summary,                    // ...SUMMARY... paragraphs (2016 on)
 		IReadOnlyList<OutlookSection> Sections,           // this issuance: the update (if any) first, then the rest
 		string? Forecaster,                               // "Smith / Moore" — the issuance's own signature
-		string? PreviousIssued,                           // "11:30 AM CDT Fri Mar 14, 2025" — set only on an update
+		string? PreviousIssued,                           // "1630Z · 11:30 AM CDT Fri Mar 14, 2025" — set only on an update
+		string? PreviousIssuedTime,                       // "1630Z · 11:30 AM CDT" — the same, time only
 		IReadOnlyList<OutlookSection> PreviousSections,   // the earlier discussion an update repeats below itself
-		string? NextOutlook,                              // "by 01Z"
+		string? NextOutlook,                              // "by 01Z (8:00 PM CDT)"
 		string Raw)
 	{
 		public bool HasPrevious => PreviousSections.Count > 0;

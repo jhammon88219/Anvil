@@ -5,21 +5,23 @@
 
        ┌─────────────────────────────────────────────────────[lock][pin]  –  □  ✕ ┐
        │ Day 1 Convective Outlook                                                  │ ← the BAND (raised)
-       │ ISSUED (?)        2:58 PM CDT Fri Mar 14, 2025                            │   every part = a DIMMED
-       │ VALID (?)         20Z Fri Mar 14 → 12Z Sat Mar 15                         │   LABEL + its "?" hint
-       │ FORECASTER (?)    Lyons                                                   │   (OutlookGlossary), then
-       │ NEXT OUTLOOK (?)  by 01Z                                                  │   the value
-       ├───────────────────────────────────────────────────────────────────────────┤
-       │ RISK (?)          ▌MODERATE RISK                                         ┃│ ← bar = the category's SPC
+       │                                          ↕ 28                             │
+       │ (?) ISSUED        1958Z · 2:58 PM CDT Fri Mar 14, 2025                    │   every part = its "?" hint
+       │ (?) VALID         20Z (3:00 PM CDT) Fri Mar 14 → 12Z (7:00 AM CDT) Sat …  │   (OutlookGlossary) LEFT of a
+       │ (?) FORECASTER    Lyons                                                   │   DIMMED LABEL, then the value.
+       │ (?) NEXT OUTLOOK  by 01Z (8:00 PM CDT)                                    │   EVERY time = Zulu, then AM/PM
+       ├───────────────────────────────────────────────────────────────────────────┤   in SPC's own zone (CDT/CST)
+       │ (?) RISK          ▌MODERATE RISK                                         ┃│ ← bar = the category's SPC
        │                   ▌THE LOWER/MID MISSISSIPPI VALLEY INTO …               ┃│   colour (DATA); headlines
-       │ ALERT (?)         (only when SPC issues one)                             ┃│   stacked as SPC ordered them
-       │ SUMMARY (?)       A regional outbreak of severe thunderstorms is …       ┃│ ← the largest, brightest text
+       │ (?) ALERT         (only when SPC issues one)                             ┃│   stacked as SPC ordered them
+       │ (?) SUMMARY       A regional outbreak of severe thunderstorms is …       ┃│ ← the largest, brightest text
        │ ─────────────────────────────────────────────────                        ┃│
-       │ 20Z UPDATE (?)    Widespread significant severe weather remains …        ┃│ ← one row per section:
-       │ REGION (?)        Lower Mississippi Valley   ← heading (SPC's own title)  ┃│   UPDATE/SYNOPSIS/DISCUSSION/
+       │ (?) 20Z UPDATE    Widespread significant severe weather remains …        ┃│ ← one row per section:
+       │ (?) REGION        Lower Mississippi Valley   ← heading (SPC's own title)  ┃│   UPDATE/SYNOPSIS/DISCUSSION/
        │                   Large-scale forcing for ascent appears …               ┃│   DAYS 4-6/REGION
-       │ PREVIOUS (?)      ┌ › Previous discussion   issued 11:30 AM CDT · 3 sections┐ ← COLLAPSED by default;
-       │                   └──────────────────────────────────────────────────────┘│   opens to the same rows
+       │ (?) PREVIOUS      ┌ › Previous discussion  issued 1630Z · 11:30 AM CDT · 3 sections┐ ← ALWAYS there;
+       │                   └──────────────────────────────────────────────────────┘│   collapsed; "None in this
+       │                                                                           │   issuance" on a full issuance
        └───────────────────────────────────────────────────────────────────────────┘
          a STATUS text ("Loading forecast discussion…") shows alone in the body instead of the parts.
 
@@ -80,8 +82,8 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Top">
-                    <TextBlock Text="{x:Bind Label}" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                     <ctl:GlossaryHint Card="{x:Bind Hint}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{x:Bind Label}" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1">
                     <TextBlock Text="{x:Bind Heading}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
@@ -107,7 +109,8 @@
         <Border Grid.Row="0" Padding="16,12,16,12" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}">
             <StackPanel Spacing="8">
                 <!-- ⚠️ Right 220 = the lock + pin + caption corner (the Atlas band's rule). -->
-                <TextBlock Text="{x:Bind ViewModel.OutlookDiscussion.Title, Mode=OneWay}" Margin="0,0,220,0"
+                <!-- Bottom 20 + the panel's Spacing 8 = 28 under the title (the user's call, 2026-10-02). -->
+                <TextBlock Text="{x:Bind ViewModel.OutlookDiscussion.Title, Mode=OneWay}" Margin="0,0,220,20"
                            FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                 <Grid ColumnSpacing="12" RowSpacing="4"
@@ -124,8 +127,8 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="5">
-                        <TextBlock Text="ISSUED" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                         <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.IssuedHint}" VerticalAlignment="Center"/>
+                        <TextBlock Text="ISSUED" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                     </StackPanel>
                     <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" FontSize="13"
                                Typography.NumeralAlignment="Tabular"
@@ -133,8 +136,8 @@
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5">
-                        <TextBlock Text="VALID" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                         <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.ValidHint}" VerticalAlignment="Center"/>
+                        <TextBlock Text="VALID" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                     </StackPanel>
                     <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" FontSize="13"
                                Typography.NumeralAlignment="Tabular"
@@ -143,8 +146,8 @@
 
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="5"
                                 Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasForecaster), Mode=OneWay}">
-                        <TextBlock Text="FORECASTER" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                         <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.ForecasterHint}" VerticalAlignment="Center"/>
+                        <TextBlock Text="FORECASTER" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                     </StackPanel>
                     <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" FontSize="13"
                                Text="{x:Bind ViewModel.OutlookDiscussion.Forecaster, Mode=OneWay}"
@@ -153,8 +156,8 @@
 
                     <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="5"
                                 Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasNextOutlook), Mode=OneWay}">
-                        <TextBlock Text="NEXT OUTLOOK" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                         <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.NextOutlookHint}" VerticalAlignment="Center"/>
+                        <TextBlock Text="NEXT OUTLOOK" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                     </StackPanel>
                     <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" FontSize="13"
                                Text="{x:Bind ViewModel.OutlookDiscussion.NextOutlook, Mode=OneWay}"
@@ -182,8 +185,8 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Top">
-                            <TextBlock Text="RISK" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                             <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.RiskHint}" VerticalAlignment="Center"/>
+                            <TextBlock Text="RISK" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                         </StackPanel>
                         <ItemsControl Grid.Column="1" ItemTemplate="{StaticResource HeadlineTemplate}"
                                       ItemsSource="{x:Bind ViewModel.OutlookDiscussion.Headlines, Mode=OneWay}"/>
@@ -197,8 +200,8 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Top">
-                            <TextBlock Text="ALERT" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                             <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.AlertHint}" VerticalAlignment="Center"/>
+                            <TextBlock Text="ALERT" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                         </StackPanel>
                         <TextBlock Grid.Column="1" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
                                    IsTextSelectionEnabled="True"
@@ -214,8 +217,8 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Top">
-                            <TextBlock Text="SUMMARY" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                             <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.SummaryHint}" VerticalAlignment="Center"/>
+                            <TextBlock Text="SUMMARY" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                         </StackPanel>
                         <TextBlock Grid.Column="1" FontSize="15" LineHeight="23" TextWrapping="Wrap"
                                    IsTextSelectionEnabled="True"
@@ -229,22 +232,24 @@
                     <ItemsControl ItemTemplate="{StaticResource SectionTemplate}"
                                   ItemsSource="{x:Bind ViewModel.OutlookDiscussion.Rows, Mode=OneWay}"/>
 
-                    <!-- PREVIOUS: the earlier issuance an update repeats. COLLAPSED by default; opens to the same rows. -->
-                    <Grid ColumnSpacing="12" Margin="0,4,0,0"
-                          Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasPrevious), Mode=OneWay}">
+                    <!-- PREVIOUS: the earlier issuance an update repeats. COLLAPSED by default; opens to the same rows.
+                         ⚠️ ALWAYS SHOWN (the user's call, 2026-10-02): a full issuance (06Z/13Z/1630Z) has none, and the
+                         box says "None in this issuance" with its toggle disabled rather than the row vanishing. -->
+                    <Grid ColumnSpacing="12" Margin="0,4,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="128"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Top" Margin="0,8,0,0">
-                            <TextBlock Text="PREVIOUS" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                             <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.PreviousHint}" VerticalAlignment="Center"/>
+                            <TextBlock Text="PREVIOUS" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                         </StackPanel>
                         <Border Grid.Column="1" CornerRadius="6" BorderThickness="1"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
                             <StackPanel>
                                 <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                                         Background="Transparent" BorderThickness="0" Padding="10,8"
+                                        IsEnabled="{x:Bind ViewModel.OutlookDiscussion.HasPrevious, Mode=OneWay}"
                                         Click="OnPreviousToggleClick">
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>

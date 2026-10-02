@@ -277,6 +277,28 @@ namespace Anvil.ViewModels
 			NarrativeText = text ?? $"SPC's archive has no discussion page for the {SpcIssuanceCycles.Label(cycle)} issuance of this date.";
 		}
 
+		// ⚠️ HIDDEN STOPS THE MAP LAYER, NOT THE DISCUSSION (fixed 2026-10-02: the Outlook Discussion window sat on
+		// NoNarrative for a played event whose outlook box was unticked, while its Discussion button stayed live).
+		// The discussion is the issuance's text, so it is resolved exactly as a show would — the LOADED window's
+		// convective day + the cycle EnsureWithFallbackAsync settles on — just without drawing anything. ForeCast's
+		// live outlook already fetched its discussion whatever the box said.
+		private async Task RefreshHiddenNarrativeAsync(int day, int token)
+		{
+			if (_radar.LoadedReplayStartUtc is not { } replayStart) return; // NoNarrative stands: nothing is loaded
+			var date = ConvectiveDay(replayStart);
+			NarrativeText = "Loading forecast discussion…";
+			var (result, cycleUsed) = await EnsureWithFallbackAsync(date, day);
+			if (token != _applyToken) return; // a newer selection won
+			if (result is null || result.Error is not null || !result.Found)
+			{
+				NarrativeText = result?.Error is { } err
+					? $"Couldn't read SPC's archive for this date: {err}"
+					: "No archived outlook for this date, so no discussion either.";
+				return;
+			}
+			await RefreshNarrativeAsync(date, day, cycleUsed, token);
+		}
+
 		/// <summary>Whether a product is selected at all. False = "None", which is this section's off
 		/// switch — Cycle and Opacity have nothing to act on and are disabled.</summary>
 		public bool HasOutlook => _selectedProductOption.Type is not null;
@@ -404,6 +426,7 @@ namespace Anvil.ViewModels
 			{
 				await ClearLayerAsync();
 				SetCard(_selectedProductOption.Label, $"Day {day}", "Hidden — tick the box to draw it");
+				await RefreshHiddenNarrativeAsync(day, token);
 				return;
 			}
 			// ⚠️ THE LOADED WINDOW, NOT THE PICKERS. Between editing a date and pressing Load the two describe

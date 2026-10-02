@@ -36,7 +36,7 @@ namespace Anvil.Services
 			"The short, plain-language version: which hazards, where, and when.");
 
 		public static readonly RadarGlossaryCard Previous = Card("Previous", ".PREV DISCUSSION... /ISSUED …/",
-			"The discussion from the earlier issuance, repeated unchanged under this update.");
+			"The earlier issuance's discussion, which SPC repeats unchanged under an update. Full issuances don't have one.");
 
 		private static readonly RadarGlossaryCard Update = Card("Update", "...20z Update... / ...01z Update...",
 			"What the forecaster changed at this update, and why.");
