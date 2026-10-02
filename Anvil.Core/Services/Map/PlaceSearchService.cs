@@ -64,6 +64,22 @@ namespace Anvil.Services
 
 		public bool HasOfflineCatalog => _entries.Value.Length > 0;
 
+		// A straight scan of ~30k rows by squared, longitude-shrunk degrees — called once per location fix.
+		public PlaceResult? NearestPlace(double latitude, double longitude)
+		{
+			var cos = Math.Cos(latitude * Math.PI / 180);
+			PlaceResult? best = null;
+			var bestD = double.MaxValue;
+			foreach (var e in _entries.Value)
+			{
+				var dy = e.Place.Latitude - latitude;
+				var dx = (e.Place.Longitude - longitude) * cos;
+				var d = dx * dx + dy * dy;
+				if (d < bestD) { bestD = d; best = e.Place; }
+			}
+			return best;
+		}
+
 		// ── Offline suggestions ──────────────────────────────────────────────────────────────────────
 
 		public IReadOnlyList<PlaceResult> Suggest(string? query, int max = 8)

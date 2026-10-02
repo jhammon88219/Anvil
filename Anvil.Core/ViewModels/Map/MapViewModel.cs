@@ -41,6 +41,8 @@ namespace Anvil.ViewModels
 		private readonly IStyleProvider _styleProvider;
 		private readonly IRegionProvider _regionProvider;
 		private readonly ISettingsService _settingsService;
+		private readonly ILocationService _locationService;
+		private readonly IPlaceSearchService _placeSearchService;
 
 		// Readiness guard: the map page must have reported 'mapReady' before style /
 		// outlook commands can succeed. The view calls OnMapsReadyAsync() once the map
@@ -60,6 +62,8 @@ namespace Anvil.ViewModels
 			_styleProvider = styleProvider;
 			_regionProvider = regionProvider;
 			_settingsService = settingsService;
+			_locationService = locationService;
+			_placeSearchService = placeSearchService;
 
 			// Built before IsSettingsWindowOpen can fire (its setter refreshes the cache readout on open).
 			Storage = new StorageSettingsViewModel(radarService, settingsService);
@@ -991,7 +995,26 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(OutlookDiscussionText));
 			OutlookDiscussion.Load(OutlookDiscussionText,
 				IsPastCast ? PastOutlook.NarrativeSourceUrl : Outlook.NarrativeSourceUrl, isArchive: IsPastCast,
-				riskAreas: IsPastCast ? PastOutlook.NarrativeRiskAreas : Outlook.NarrativeRiskAreas);
+				riskAreas: IsPastCast ? PastOutlook.NarrativeRiskAreas : Outlook.NarrativeRiskAreas,
+				areasFile: IsPastCast ? PastOutlook.NarrativeAreasFile : Outlook.NarrativeAreasFile,
+				distanceUnit: DistanceUnits);
+		}
+
+		// ⚠️ The LOCATION SERVICE (Windows), never the map's location marker — the user's call, 2026-10-02. Asked once
+		// at app open; a denied or unavailable fix says so in the window rather than falling back to an IP guess.
+		private async Task LocateForOutlookAsync()
+		{
+			OutlookDiscussion.SetLocating();
+			UserLocation? fix = null;
+			try { fix = await _locationService.GetFromOperatingSystemAsync(); }
+			catch { /* treated as off */ }
+			if (fix is null)
+			{
+				OutlookDiscussion.SetLocationOff();
+				return;
+			}
+			OutlookDiscussion.SetPosition(fix.Latitude, fix.Longitude,
+				_placeSearchService.NearestPlace(fix.Latitude, fix.Longitude)?.Display);
 		}
 
 		// ===== The Anvil Atlas: three tabs (Radar sites | Past events | DOW events) =======================
@@ -1513,6 +1536,9 @@ namespace Anvil.ViewModels
 			// The page formats its own distance readouts, and defaults to kilometres — push the persisted
 			// unit before any subsystem can draw one, or a user who chose miles sees km until they touch it.
 			await _mapService.SetDistanceUnitsAsync(DistanceUnits);
+
+			// The Outlook Discussion's "are you in the risk area" line: Windows location, asked ONCE per app run.
+			_ = LocateForOutlookAsync();
 
 			// Before any overlay is added, so the first one lands in the user's order.
 			PushOverlayOrder();

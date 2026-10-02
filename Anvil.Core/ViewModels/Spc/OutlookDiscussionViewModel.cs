@@ -29,20 +29,24 @@ namespace Anvil.ViewModels
 		/// <summary>Takes the current discussion text and the SPC page it came from (<paramref name="isArchive"/> =
 		/// PastCast's per-issuance archive copy). A new text collapses the previous discussion again.</summary>
 		public void Load(string? text, string? sourceUrl = null, bool isArchive = false,
-			IReadOnlyList<OutlookRiskArea>? riskAreas = null)
+			IReadOnlyList<OutlookRiskArea>? riskAreas = null, string? areasFile = null, string? distanceUnit = null)
 		{
 			text ??= string.Empty;
 			riskAreas ??= Array.Empty<OutlookRiskArea>();
-			if (text == _text && sourceUrl == _sourceUrl && isArchive == _isArchive && ReferenceEquals(riskAreas, _riskAreas)) return;
+			_distanceUnit = distanceUnit;
+			if (text == _text && sourceUrl == _sourceUrl && isArchive == _isArchive && ReferenceEquals(riskAreas, _riskAreas)
+				&& areasFile == _areasFile) return;
 			_sourceUrl = sourceUrl;
 			_isArchive = isArchive;
 			_riskAreas = riskAreas;
-			if (text == _text) { BuildCards(); OnPropertyChanged(string.Empty); return; } // only the source/table moved
+			_areasFile = areasFile;
+			if (text == _text) { Locate(); BuildCards(); OnPropertyChanged(string.Empty); return; } // only the source/table moved
 			_text = text;
 			_parsed = OutlookDiscussionParser.Parse(text);
 			Headlines = _parsed.Headlines.Select(h => new OutlookHeadlineRow(h)).ToArray();
+			Locate();
 			BuildCards();
-			Rows = _parsed.Sections.Select(s => new OutlookSectionRow(s)).ToArray();
+			Rows =_parsed.Sections.Select(s => new OutlookSectionRow(s)).ToArray();
 			PreviousRows = _parsed.PreviousSections.Select(s => new OutlookSectionRow(s)).ToArray();
 			_isPreviousExpanded = false;
 			OnPropertyChanged(string.Empty); // every property below derives from the one parse
@@ -66,10 +70,12 @@ namespace Anvil.ViewModels
 		public IReadOnlyList<OutlookHeadlineRow> Headlines { get; private set; } = Array.Empty<OutlookHeadlineRow>();
 		public bool HasHeadlines => Headlines.Count > 0;
 
-		// ── RISK CARDS (option B, the user's call 2026-10-02): ALL FIVE severe levels, always, High on the LEFT →
-		// Marginal on the right; a level not in this outlook is dimmed. Numbers come from SPC's risk-area table on
-		// the same page (SpcRiskTableParser); without a table (older archive pages, Day 4-8) presence comes from the
-		// headlines and the cards carry no numbers. General thunder is left out (SPC publishes no figures for it).
+		// ── RISK CARDS (option B, the user's call 2026-10-02): ALL FIVE severe levels, always, MARGINAL on the LEFT →
+		// High on the right (low → high, the user's call), each with SPC's own 1-5 number; a level not in this outlook
+		// is dimmed, and YOUR level gets a ring. Numbers come from SPC's risk-area table on the same page
+		// (SpcRiskTableParser); without a table (older archive pages) presence comes from the headlines and the cards
+		// carry no figures. General thunder is left out (SPC publishes no figures for it).
+		// ⚠️ The card ORDER on screen is the XAML's column order; CardOrder only maps codes to cards.
 
 		private IReadOnlyList<OutlookRiskArea> _riskAreas = Array.Empty<OutlookRiskArea>();
 		private static readonly string[] CardOrder = { "HIGH", "MDT", "ENH", "SLGT", "MRGL" };
@@ -87,15 +93,96 @@ namespace Anvil.ViewModels
 		{
 			var cards = CardOrder.Select(code =>
 			{
+				var you = _fix?.Code == code;
 				if (_riskAreas.Count > 0)
 				{
 					var area = _riskAreas.FirstOrDefault(a => a.Code == code);
-					return area is null ? OutlookRiskCard.Absent(code) : OutlookRiskCard.WithFigures(area);
+					return area is null ? OutlookRiskCard.Absent(code) : OutlookRiskCard.WithFigures(area, you);
 				}
-				return _parsed.Headlines.Any(h => h.Code == code) ? OutlookRiskCard.NoFigures(code) : OutlookRiskCard.Absent(code);
+				return _parsed.Headlines.Any(h => h.Code == code) ? OutlookRiskCard.NoFigures(code, you) : OutlookRiskCard.Absent(code);
 			}).ToArray();
 			(HighCard, ModerateCard, EnhancedCard, SlightCard, MarginalCard) = (cards[0], cards[1], cards[2], cards[3], cards[4]);
 		}
+
+		// ── "ARE YOU IN THE RISK AREA" — one line under the cards (C + D, the user's call 2026-10-02) ──
+		// ⚠️ The position comes from the LOCATION SERVICE (Windows), asked ONCE at app open (MapViewModel) — never the
+		// map's location marker (the user's call). Every outlook change re-tests that position against the drawn
+		// issuance's categorical areas (RiskAreaLocator over the cached GeoJSON). PastCast shows it too, with a small
+		// "past outlook" reminder so a replayed High Risk isn't read as today's.
+
+		private enum Position { Unasked, Locating, Off, Known }
+		private Position _position = Position.Unasked;
+		private double _lat, _lon;
+		private string? _place;
+		private string? _areasFile;
+		private string? _distanceUnit;
+		private RiskAreaFix? _fix;
+
+		public void SetLocating() { _position = Position.Locating; Refresh(); }
+		public void SetLocationOff() { _position = Position.Off; Refresh(); }
+
+		public void SetPosition(double latitude, double longitude, string? place)
+		{
+			(_position, _lat, _lon, _place) = (Position.Known, latitude, longitude, place);
+			Refresh();
+		}
+
+		private void Refresh()
+		{
+			Locate();
+			BuildCards();
+			OnPropertyChanged(string.Empty);
+		}
+
+		private void Locate()
+		{
+			_fix = null;
+			if (_position != Position.Known || _areasFile is null) return;
+			try { _fix = RiskAreaLocator.Locate(System.IO.File.ReadAllText(_areasFile), _lat, _lon); }
+			catch (System.IO.IOException) { }
+			catch (UnauthorizedAccessException) { }
+		}
+
+		private bool NoSevereToday => _parsed.Headlines.Count > 0 && _parsed.Headlines.All(h => h.IsNone);
+
+		/// <summary>The line shows wherever the cards do.</summary>
+		public bool HasYouLine => HasRiskCards;
+
+		/// <summary>The sentence: "You're in the High Risk (5/5)", "You're outside the risk areas", "Finding your location…".</summary>
+		public string YouText => _position switch
+		{
+			Position.Off => "Location is off for Anvil, so it can't check.",
+			Position.Known when NoSevereToday => "No risk areas in this outlook, so nothing to check.",
+			Position.Known when _fix is { IsInside: true } f =>
+				$"{(_isArchive ? "You'd have been" : "You're")} in the {OutlookRiskCard.Words(f.Code!)} ({OutlookRiskCard.NumeralFor(f.Code!)})",
+			Position.Known when _fix is not null => _isArchive ? "You'd have been outside the risk areas" : "You're outside the risk areas",
+			Position.Known => "Can't check: this outlook's areas aren't on disk.",
+			_ => "Finding your location…",
+		};
+
+		/// <summary>The dimmed tail: the place, the distance to the nearest edge when outside, the past-outlook reminder.</summary>
+		public string YouDetail
+		{
+			get
+			{
+				if (_position != Position.Known || NoSevereToday || _fix is null) return string.Empty;
+				var parts = new List<string>();
+				if (_fix.NearestEdgeMeters is { } m)
+				{
+					parts.Add($"the nearest edge is {Anvil.Models.DistanceUnits.Format(m, _distanceUnit)} {_fix.Bearing} of you");
+				}
+				if (_place is not null) parts.Add(_place);
+				if (_isArchive) parts.Add("on this past outlook, not today's");
+				return parts.Count == 0 ? string.Empty : "· " + string.Join(" · ", parts);
+			}
+		}
+
+		/// <summary>The dot before the sentence: your category's SPC colour, grey otherwise (DATA colour).</summary>
+		public string YouDotFill =>
+			_fix is { IsInside: true } f ? SpcRiskCatalog.Level(SpcOutlookType.Categorical, f.Code)?.Fill ?? "#FF6E6E6E" : "#FF6E6E6E";
+
+		public bool HasYouDot => _position == Position.Known && _fix is not null && !NoSevereToday;
+		public bool IsLocationOff => _position == Position.Off;
 
 		public string Alert => _parsed.Alert ?? string.Empty;
 		public bool HasAlert => _parsed.Alert is not null;
@@ -194,23 +281,41 @@ namespace Anvil.ViewModels
 	/// </summary>
 	public sealed class OutlookRiskCard
 	{
-		private OutlookRiskCard(string code, bool isPresent, OutlookRiskArea? area)
+		private OutlookRiskCard(string code, bool isPresent, OutlookRiskArea? area, bool isYou = false)
 		{
 			var level = SpcRiskCatalog.Level(SpcOutlookType.Categorical, code);
 			Name = code switch { "MDT" => "MODERATE", "ENH" => "ENHANCED", "SLGT" => "SLIGHT", "MRGL" => "MARGINAL", _ => code };
+			Numeral = NumeralFor(code);
 			Fill = level?.Fill ?? "#FF8A8A8A"; // ⚠️ DATA colour, never themed
 			IsPresent = isPresent;
+			IsYou = isYou && isPresent;
 			HasFigures = area is not null;
 			People = area is null ? string.Empty : Compact(area.Population);
 			Area = area is null ? string.Empty : $"{area.AreaSqMi.ToString("N0", CultureInfo.InvariantCulture)} sq mi";
 			Places = area?.Places ?? Array.Empty<string>();
 		}
 
-		public static OutlookRiskCard WithFigures(OutlookRiskArea area) => new(area.Code, true, area);
-		public static OutlookRiskCard NoFigures(string code) => new(code, true, null);
+		public static OutlookRiskCard WithFigures(OutlookRiskArea area, bool isYou = false) => new(area.Code, true, area, isYou);
+		public static OutlookRiskCard NoFigures(string code, bool isYou = false) => new(code, true, null, isYou);
 		public static OutlookRiskCard Absent(string code) => new(code, false, null);
 
+		/// <summary>SPC's own 1-5 number for a category: Marginal 1/5 … High 5/5.</summary>
+		public static string NumeralFor(string code) => code switch
+		{
+			"MRGL" => "1/5", "SLGT" => "2/5", "ENH" => "3/5", "MDT" => "4/5", "HIGH" => "5/5", _ => string.Empty,
+		};
+
+		/// <summary>"High Risk", "Moderate Risk"… — the category in the "are you in the risk area" sentence.</summary>
+		public static string Words(string code) => code switch
+		{
+			"MRGL" => "Marginal Risk", "SLGT" => "Slight Risk", "ENH" => "Enhanced Risk", "MDT" => "Moderate Risk",
+			"HIGH" => "High Risk", _ => code,
+		};
+
 		public string Name { get; }
+		public string Numeral { get; }
+		/// <summary>Your location is in this category (the card gets a ring).</summary>
+		public bool IsYou { get; }
 		public string Fill { get; }
 		public bool IsPresent { get; }
 		public bool IsAbsent => !IsPresent;

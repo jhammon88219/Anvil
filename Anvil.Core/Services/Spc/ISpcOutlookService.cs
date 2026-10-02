@@ -104,6 +104,13 @@ namespace Anvil.Services
 		/// as the LIVE discussion, saved when the text was fetched. Empty when the page had none.</summary>
 		IReadOnlyList<OutlookRiskArea> NarrativeRiskAreas(SpcOutlookProduct product) => Array.Empty<OutlookRiskArea>();
 
+		/// <summary>The cached CATEGORICAL GeoJSON for a live Day 1-3 outlook (the window's "are you in the risk area"
+		/// check), or null when there is none on disk.</summary>
+		string? CategoricalFile(int day) => null;
+
+		/// <summary>The same for a HISTORICAL issuance (date, day, cycle), or null when not cached.</summary>
+		string? PastCategoricalFile(DateOnly date, int day, int cycle) => null;
+
 		/// <summary>The same table for a HISTORICAL discussion. Empty when the archive page had none.</summary>
 		IReadOnlyList<OutlookRiskArea> PastNarrativeRiskAreas(DateOnly validDay, int day, int cycle) => Array.Empty<OutlookRiskArea>();
 	}

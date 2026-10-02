@@ -502,6 +502,15 @@ namespace Anvil.Services
 
 		private static string RiskFile(string textCacheFile) => Path.ChangeExtension(textCacheFile, ".risk.json");
 
+		// The categorical areas the map draws — the live refresh caches "day{N}-categorical.geojson", a past issuance
+		// PastCacheName(…, Categorical).
+		public string? CategoricalFile(int day) => Existing(Path.Combine(CacheDirectory, $"day{day}-categorical.geojson"));
+
+		public string? PastCategoricalFile(DateOnly date, int day, int cycle) =>
+			Existing(Path.Combine(CacheDirectory, PastCacheName(date, day, cycle, SpcOutlookType.Categorical)));
+
+		private static string? Existing(string path) => File.Exists(path) ? path : null;
+
 		private string PastNarrativeCacheFile(DateOnly validDay, int day, int cycle) =>
 			Path.Combine(CacheDirectory, $"narrative-past-{validDay:yyyyMMdd}-d{day}-c{cycle:D2}.txt");
 

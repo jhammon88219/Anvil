@@ -12,14 +12,14 @@
        │ (?) NEXT OUTLOOK  by 01Z (8:00 PM CDT)                                    │   EVERY time = Zulu, then AM/PM
        │ (?) SOURCE        Read on SPC's website ↗  · spc.noaa.gov · archive copy  │ ← the page it was read from
        ├───────────────────────────────────────────────────────────────────────────┤   in SPC's own zone (CDT/CST)
-       │ (?) RISK          ┌▀HIGH▀▀▀┐┌▀MODERATE┐┌▀ENHANCED┐┌▀SLIGHT▀┐┌▀MARGINAL┐ ┃│ ← FIVE CARDS, always, High
-       │                   │1.9M ppl││2.3M ppl ││5.7M ppl ││8.4M ppl││31.3M ppl│ ┃│   LEFT → Marginal RIGHT; strip
-       │                   │23,101mi││39,861 mi││101,927  ││179,572 ││335,965  │ ┃│   = SPC colour (DATA). People
-       │                   │OKC, OK ││Tulsa, OK││KC, MO   ││Omaha   ││Dallas   │ ┃│   + area + places (one per
-       │                   │Norman… ││Wichita… ││Lincoln… ││…       ││…        │ ┃│   line) from SPC's risk-area
-       │                   └────────┘└─────────┘└─────────┘└────────┘└─────────┘ ┃│   TABLE (SpcRiskTableParser);
-       │                   HIGH RISK FROM CENTRAL AND NORTHERN OKLAHOMA INTO …   ┃│   absent = 35%. Headlines as
-       │                                                                          ┃│   lines under the cards.
+       │ (?) RISK          ┌▀MARGINAL 1/5┐┌▀SLIGHT 2/5┐…┌▀MODERATE 4/5┐╔▀HIGH  5/5╗  ┃│ ← FIVE 150 px CARDS, always,
+       │                   │31.3M people ││8.4M people│ │2.3M people  │║1.9M people║  ┃│   Marginal LEFT → High RIGHT,
+       │                   │335,965 sq mi││179,572 …  │ │39,861 sq mi │║23,101 …   ║  ┃│   SPC's 1-5 number; strip =
+       │                   │Dallas, TX   ││Omaha, NE  │ │Tulsa, OK    │║Okla. City ║  ┃│   SPC colour (DATA); places
+       │                   └─────────────┘└───────────┘ └─────────────┘╚═══════════╝  ┃│   one per line; absent = 35%;
+       │                   ● You're in the High Risk (5/5) · Edmond, OK               ┃│   ╔╗ = YOUR category's ring.
+       │                   HIGH RISK FROM CENTRAL AND NORTHERN OKLAHOMA INTO …        ┃│ ← Windows location, asked at
+       │                                                                              ┃│   app open; headlines last.
        │ (?) ALERT         (only when SPC issues one)                             ┃│
        │ (?) SUMMARY       A regional outbreak of severe thunderstorms is …       ┃│ ← the largest, brightest text
        │ ─────────────────────────────────────────────────                        ┃│
@@ -67,6 +67,11 @@
              area under it and the largest places ONE PER LINE (the card grows; the row's cards share the tallest
              height). Absent = the whole card at 35%, "Not in this outlook". -->
         <DataTemplate x:Key="RiskCardTemplate" x:DataType="vm:OutlookRiskCard">
+            <Grid VerticalAlignment="Stretch">
+            <!-- YOUR category: a 2 px primary ring just outside the card (theme brush, so it lives in XAML). -->
+            <Border CornerRadius="8" BorderThickness="2" Margin="-3"
+                    BorderBrush="{ThemeResource TextFillColorPrimaryBrush}"
+                    Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(IsYou)}"/>
             <Border CornerRadius="6" BorderThickness="1" VerticalAlignment="Stretch"
                     Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
@@ -78,8 +83,19 @@
                     </Grid.RowDefinitions>
                     <Border CornerRadius="5,5,0,0" Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
                     <StackPanel Grid.Row="1" Padding="9,8,9,9">
-                        <TextBlock Text="{x:Bind Name}" FontSize="11" FontWeight="SemiBold" CharacterSpacing="40"
-                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <!-- Name 14 + SPC's 1-5 number, right-aligned and dimmer, at least 12 px apart (the user's call). -->
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" CharacterSpacing="20"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{x:Bind Numeral}" FontSize="12" VerticalAlignment="Bottom"
+                                       Margin="0,0,0,1" Typography.NumeralAlignment="Tabular"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        </Grid>
                         <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,4,0,0"
                                     Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(HasFigures)}">
                             <TextBlock Text="{x:Bind People}" FontSize="18" Typography.NumeralAlignment="Tabular"
@@ -108,6 +124,7 @@
                     </StackPanel>
                 </Grid>
             </Border>
+            </Grid>
         </DataTemplate>
 
         <!-- A risk headline as one line under the cards ("HIGH RISK FROM CENTRAL AND NORTHERN OKLAHOMA…"), as written. -->
@@ -245,8 +262,8 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                 <StackPanel Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.IsDiscussion), Mode=OneWay}">
-                    <!-- RISK: five cards, High LEFT → Marginal RIGHT (the user's call, 2026-10-02), then the headlines as
-                         lines. Equal star columns; Auto row + Stretch, so every card is as tall as the tallest. -->
+                    <!-- RISK: five cards, Marginal LEFT → High RIGHT (the user's call, 2026-10-02), the "are you in the
+                         risk area" line, then the headlines as lines. -->
                     <Grid ColumnSpacing="12" Margin="0,0,0,14"
                           Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasRiskCards), Mode=OneWay}">
                         <Grid.ColumnDefinitions>
@@ -258,35 +275,50 @@
                             <TextBlock Text="RISK" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="10">
-                            <Grid ColumnSpacing="8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <ContentControl Grid.Column="0" ContentTemplate="{StaticResource RiskCardTemplate}"
+                            <!-- ⚠️ Fixed 150 px cards, LEFT-aligned, Marginal → High (the user's calls, 2026-10-02): 150 =
+                                 the widest name (ENHANCED/MODERATE at 14) + the 12 px gap + "4/5" + padding. A horizontal
+                                 StackPanel stretches every card to the tallest one. Spacing 10 leaves room for the ring. -->
+                            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left" Margin="3,3,0,0">
+                                <ContentControl Width="150" ContentTemplate="{StaticResource RiskCardTemplate}"
                                                 HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsTabStop="False"
-                                                Content="{x:Bind ViewModel.OutlookDiscussion.HighCard, Mode=OneWay}"/>
-                                <ContentControl Grid.Column="1" ContentTemplate="{StaticResource RiskCardTemplate}"
-                                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsTabStop="False"
-                                                Content="{x:Bind ViewModel.OutlookDiscussion.ModerateCard, Mode=OneWay}"/>
-                                <ContentControl Grid.Column="2" ContentTemplate="{StaticResource RiskCardTemplate}"
-                                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsTabStop="False"
-                                                Content="{x:Bind ViewModel.OutlookDiscussion.EnhancedCard, Mode=OneWay}"/>
-                                <ContentControl Grid.Column="3" ContentTemplate="{StaticResource RiskCardTemplate}"
-                                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsTabStop="False"
-                                                Content="{x:Bind ViewModel.OutlookDiscussion.SlightCard, Mode=OneWay}"/>
-                                <ContentControl Grid.Column="4" ContentTemplate="{StaticResource RiskCardTemplate}"
-                                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsTabStop="False"
+                                                VerticalAlignment="Stretch" IsTabStop="False"
                                                 Content="{x:Bind ViewModel.OutlookDiscussion.MarginalCard, Mode=OneWay}"/>
-                            </Grid>
+                                <ContentControl Width="150" ContentTemplate="{StaticResource RiskCardTemplate}"
+                                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                                VerticalAlignment="Stretch" IsTabStop="False"
+                                                Content="{x:Bind ViewModel.OutlookDiscussion.SlightCard, Mode=OneWay}"/>
+                                <ContentControl Width="150" ContentTemplate="{StaticResource RiskCardTemplate}"
+                                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                                VerticalAlignment="Stretch" IsTabStop="False"
+                                                Content="{x:Bind ViewModel.OutlookDiscussion.EnhancedCard, Mode=OneWay}"/>
+                                <ContentControl Width="150" ContentTemplate="{StaticResource RiskCardTemplate}"
+                                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                                VerticalAlignment="Stretch" IsTabStop="False"
+                                                Content="{x:Bind ViewModel.OutlookDiscussion.ModerateCard, Mode=OneWay}"/>
+                                <ContentControl Width="150" ContentTemplate="{StaticResource RiskCardTemplate}"
+                                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                                VerticalAlignment="Stretch" IsTabStop="False"
+                                                Content="{x:Bind ViewModel.OutlookDiscussion.HighCard, Mode=OneWay}"/>
+                            </StackPanel>
+
+                            <!-- ARE YOU IN THE RISK AREA (C + D): category-colour dot · sentence · dimmed tail (place,
+                                 distance to the nearest edge when outside, the PastCast "past outlook" reminder). With
+                                 location off, a link to Windows' location privacy page. -->
+                            <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,2,0,0"
+                                        Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasYouLine), Mode=OneWay}">
+                                <Ellipse Width="9" Height="9" VerticalAlignment="Center"
+                                         Fill="{x:Bind ViewModel.OutlookDiscussion.YouDotFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
+                                         Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasYouDot), Mode=OneWay}"/>
+                                <TextBlock VerticalAlignment="Center" FontSize="13"
+                                           Text="{x:Bind ViewModel.OutlookDiscussion.YouText, Mode=OneWay}"
+                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                <TextBlock VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"
+                                           Text="{x:Bind ViewModel.OutlookDiscussion.YouDetail, Mode=OneWay}"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                <HyperlinkButton Padding="0" MinHeight="0" FontSize="12" Content="Location settings"
+                                                 NavigateUri="ms-settings:privacy-location"
+                                                 Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.IsLocationOff), Mode=OneWay}"/>
+                            </StackPanel>
                             <ItemsControl ItemTemplate="{StaticResource HeadlineLineTemplate}"
                                           ItemsSource="{x:Bind ViewModel.OutlookDiscussion.Headlines, Mode=OneWay}"/>
                         </StackPanel>

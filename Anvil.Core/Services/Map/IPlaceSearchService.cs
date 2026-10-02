@@ -25,5 +25,9 @@ namespace Anvil.Services
 		/// <remarks>⚠️ SUBMIT ONLY, never per keystroke: Nominatim's usage policy forbids autocomplete and caps
 		/// clients at one request a second. The service enforces the rate; the caller must keep it on Enter.</remarks>
 		Task<IReadOnlyList<PlaceResult>> SearchOnlineAsync(string? query, CancellationToken ct = default);
+
+		/// <summary>The bundled gazetteer's place nearest a point — offline, never the network. Null without a
+		/// catalog. (Default null keeps test fakes compiling.)</summary>
+		PlaceResult? NearestPlace(double latitude, double longitude) => null;
 	}
 }
