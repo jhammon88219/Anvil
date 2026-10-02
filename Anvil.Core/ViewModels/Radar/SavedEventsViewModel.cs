@@ -168,6 +168,7 @@ namespace Anvil.ViewModels
 			{
 				_rebuilding = false;
 			}
+			RaisePlaying();
 
 			// The detail keeps its event through a search that hides it (like the site tab keeps the loaded
 			// site) — on a FRESH row, so an edit made meanwhile shows. A deleted event clears it.
@@ -327,6 +328,7 @@ namespace Anvil.ViewModels
 				}
 				row.IsSelected = on;
 			}
+			RaisePlaying();
 		}
 
 		private void OnRadarPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -418,6 +420,36 @@ namespace Anvil.ViewModels
 
 		/// <summary>The picked event's id, if any — what "Open in Atlas" should land on.</summary>
 		public string? PickedId => _selectedId;
+
+		// ── What PastCast is casting (the PastCast card's "Casting …" line, the user's call 2026-10-02) ──
+		// ⚠️ It follows the PICK (_selectedId), which already drops the moment the pickers or site move away from the
+		// event (SelectionInvalidators) — so Clear, or a hand-set timeframe, hides the line. Your own timeframe shows
+		// no line (only a chosen event does). Raised from Select + Rebuild (a kind edit or a delete rebuilds).
+
+		private SavedEvent? Playing => _selectedId is null ? null : _library.GetEvents().FirstOrDefault(e => e.Id == _selectedId);
+
+		public bool HasPlaying => Playing is not null;
+
+		/// <summary>"May 3, 1999 Bridge Creek-Moore, OK" — the picked LEG's local date, then the event's name.</summary>
+		public string PlayingTitle => Playing is { } ev
+			? $"{ev.Legs[Math.Clamp(_selectedLeg, 0, ev.Legs.Count - 1)].StartUtc.ToLocalTime():MMM d, yyyy} {ev.Name}"
+			: string.Empty;
+
+		public SavedEventKind PlayingKind => Playing?.Kind ?? SavedEventKind.Other;
+		/// <summary>The type pill ("Tornado"); none for an untyped (legacy Other) event.</summary>
+		public string PlayingKindLabel => SavedEventKinds.Label(PlayingKind);
+		public bool HasPlayingKind => Playing is { Kind: not SavedEventKind.Other };
+		public bool IsPlayingCustom => Playing is { IsBuiltIn: false };
+
+		private void RaisePlaying()
+		{
+			OnPropertyChanged(nameof(HasPlaying));
+			OnPropertyChanged(nameof(PlayingTitle));
+			OnPropertyChanged(nameof(PlayingKind));
+			OnPropertyChanged(nameof(PlayingKindLabel));
+			OnPropertyChanged(nameof(HasPlayingKind));
+			OnPropertyChanged(nameof(IsPlayingCustom));
+		}
 
 		// ── The Atlas: Play in PastCast, and its replace question ───────────────────────────────────
 		// ⚠️ PLAY ASKS FIRST only when PastCast already holds a DIFFERENT replay (another window or site). The

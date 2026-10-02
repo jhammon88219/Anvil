@@ -51,6 +51,25 @@ namespace Anvil.Controls.Composites
 			_ => Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x6E, 0x76, 0x81),
 		});
 
+		/// <summary>The type PILL's pair (PastCast's "Casting …" line): the type colour brightened for the words, on a deep
+		/// shade of it — the outlook risk pill's scheme. ⚠️ DATA colours, literal, kept beside <see cref="KindBrush"/>;
+		/// change all three together.</summary>
+		public static Brush KindInkBrush(SavedEventKind kind) => new SolidColorBrush(kind switch
+		{
+			SavedEventKind.Tornado => Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xF0, 0x70, 0x70),
+			SavedEventKind.Hurricane => Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x7A, 0xAB, 0xFA),
+			SavedEventKind.Derecho => Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xF0, 0xB8, 0x50),
+			_ => Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xB0, 0xB6, 0xBE),
+		});
+
+		public static Brush KindBandBrush(SavedEventKind kind) => new SolidColorBrush(kind switch
+		{
+			SavedEventKind.Tornado => Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x57, 0x18, 0x1A),
+			SavedEventKind.Hurricane => Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x17, 0x31, 0x5E),
+			SavedEventKind.Derecho => Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x55, 0x39, 0x0B),
+			_ => Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x33, 0x36, 0x3A),
+		});
+
 		public Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 		public Visibility CollapsedWhen(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
 		public Visibility VisibleWhenText(string value) => string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
