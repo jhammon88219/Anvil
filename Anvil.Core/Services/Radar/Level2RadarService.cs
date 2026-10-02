@@ -473,10 +473,8 @@ namespace Anvil.Services
 					return null;
 				}
 
-				var temp = cacheFile + ".tmp";
-				await File.WriteAllBytesAsync(temp, toWrite, cancellationToken);
+				await WriteCacheFileAsync(cacheFile, toWrite, cancellationToken);
 				var syncAt = RadarPerfCounters.BeginSync(); // perf.ui: the tail below runs on the caller's context
-				File.Move(temp, cacheFile, overwrite: true);
 				MaybeSweepAfterWrite(); // the folder just grew — see the note over MaybeSweepAfterWrite
 
 				// Having paid for the whole volume, keep it: every OTHER tilt is now a local extract. This
@@ -503,6 +501,10 @@ namespace Anvil.Services
 			catch (Exception ex)
 			{
 				_logger.LogWarning(ex, "{Site} fetch {Key} failed", site.Id, key);
+				// Into the radar diagnostics too: a frame that never lands is otherwise silent there (the caller just
+				// skips it), and that is where a dropped-frame hunt starts.
+				RadarDiagnostics.Log("svc", "fetch.fail", ("site", site.Id), ("lvl", "warn"), ("key", key),
+					("msg", $"{ex.GetType().Name}: {ex.Message}"));
 				return null;
 			}
 		}
@@ -730,9 +732,7 @@ namespace Anvil.Services
 							var cacheFile = CacheFileFor(site.Id, volTime!.Value, angle);
 							if (!File.Exists(cacheFile))
 							{
-								var tmp = cacheFile + ".tmp";
-								await File.WriteAllBytesAsync(tmp, tiltBytes, cancellationToken);
-								File.Move(tmp, cacheFile, overwrite: true);
+								await WriteCacheFileAsync(cacheFile, tiltBytes, cancellationToken);
 							}
 							urls.Add(LocalUrlFor(site.Id, volTime.Value, angle));
 						}
@@ -797,9 +797,7 @@ namespace Anvil.Services
 		{
 			try
 			{
-				var temp = rawFile + ".tmp";
-				await File.WriteAllBytesAsync(temp, volume, ct);
-				File.Move(temp, rawFile, overwrite: true);
+				await WriteCacheFileAsync(rawFile, volume, ct);
 			}
 			catch (OperationCanceledException) { throw; }
 			catch { /* the raw cache is an optimization; failing to write it costs only a re-download */ }
@@ -1293,9 +1291,7 @@ namespace Anvil.Services
 			var cacheFile = LiveCacheFileFor(site.Id, ts, tiltAngle);
 			if (!File.Exists(cacheFile))
 			{
-				var temp = cacheFile + ".tmp";
-				await File.WriteAllBytesAsync(temp, sel.data, ct);
-				File.Move(temp, cacheFile, overwrite: true);
+				await WriteCacheFileAsync(cacheFile, sel.data, ct);
 			}
 			PruneLiveCache(site.Id, cacheFile);
 
@@ -1627,9 +1623,7 @@ namespace Anvil.Services
 				}
 
 				var data = await RadarCpuWork.Run(() => Gunzip(raw), ct); // off the caller's thread: ~43 MB out
-				var temp = file + ".tmp";
-				await File.WriteAllBytesAsync(temp, data, ct);
-				File.Move(temp, file, overwrite: true);
+				await WriteCacheFileAsync(file, data, ct);
 
 				RadarDiagnostics.Log("svc", "vwp.provision", ("site", site.Id), ("path", "legacy-whole"),
 					("bytes", data.LongLength), ("msg", "gunzipped whole volume cached for the VAD"));
@@ -2177,6 +2171,35 @@ namespace Anvil.Services
 				}
 			}
 			return true;
+		}
+
+		/// <summary>
+		/// Writes a cache file atomically: a UNIQUE temp beside it, then a rename over it. ⚠️ Two fetches of the SAME file
+		/// at once are normal — a replay's newest volume is both a loop frame and the storm motion's reference — and a
+		/// shared "{file}.tmp" let one rename the other's temp away ("Could not find file …tmp") or hit the finished file
+		/// in use ("being used by another process"); that fetch then failed silently and the frame was dropped (seen on
+		/// 2011 + 1999 seeding loads, 2026-10-02). If the rename loses to a file the other writer just landed, theirs is
+		/// kept — same volume, same bytes. The temp is always cleaned up. (CachingHttpService.AtomicWriteAsync, same rule.)
+		/// </summary>
+		internal static async Task WriteCacheFileAsync(string path, byte[] data, CancellationToken ct)
+		{
+			var temp = $"{path}.{Guid.NewGuid():N}.tmp";
+			try
+			{
+				await File.WriteAllBytesAsync(temp, data, ct);
+				try
+				{
+					File.Move(temp, path, overwrite: true);
+				}
+				catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && File.Exists(path))
+				{
+					// Another writer landed this file first and it's open (the page reading it) — keep theirs.
+				}
+			}
+			finally
+			{
+				try { if (File.Exists(temp)) File.Delete(temp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+			}
 		}
 
 		/// <summary>When the streamed .gz path first tries a cut, then how often after (compressed bytes).</summary>
