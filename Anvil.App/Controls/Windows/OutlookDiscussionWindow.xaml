@@ -10,16 +10,18 @@
        │ (?) VALID         20Z (3:00 PM CDT) Fri Mar 14 → 12Z (7:00 AM CDT) Sat …  │   (OutlookGlossary) LEFT of a
        │ (?) FORECASTER    Lyons                                                   │   DIMMED LABEL, then the value.
        │ (?) NEXT OUTLOOK  by 01Z (8:00 PM CDT)                                    │   EVERY time = Zulu, then AM/PM
+       │                                          ↕ 25                             │   in SPC's own zone (CDT/CST)
        │ (?) SOURCE        Read on SPC's website ↗  · spc.noaa.gov · archive copy  │ ← the page it was read from
-       ├───────────────────────────────────────────────────────────────────────────┤   in SPC's own zone (CDT/CST)
-       │ (?) RISK          ┌▀MARGINAL 1/5┐┌▀SLIGHT 2/5┐…┌▀MODERATE 4/5┐╔▀HIGH  5/5╗  ┃│ ← FIVE 150 px CARDS, always,
-       │                   │31.3M people ││8.4M people│ │2.3M people  │║1.9M people║  ┃│   Marginal LEFT → High RIGHT,
-       │                   │335,965 sq mi││179,572 …  │ │39,861 sq mi │║23,101 …   ║  ┃│   SPC's 1-5 number; strip =
-       │                   │Dallas, TX   ││Omaha, NE  │ │Tulsa, OK    │║Okla. City ║  ┃│   SPC colour (DATA); places
-       │                   └─────────────┘└───────────┘ └─────────────┘╚═══════════╝  ┃│   one per line; absent = 35%;
-       │                   ● You're in the High Risk (5/5) · Edmond, OK               ┃│   ╔╗ = YOUR category's ring.
-       │                   HIGH RISK FROM CENTRAL AND NORTHERN OKLAHOMA INTO …        ┃│ ← Windows location, asked at
-       │                                                                              ┃│   app open; headlines last.
+       ├───────────────────────────────────────────────────────────────────────────┤
+       │ (?) RISK          ┌▓MARGINAL▓1/5┐┌▓SLIGHT▓2/5┐…┌▓MODERATE▓4/5┐╔▓HIGH▓▓▓5/5╗  ┃│ ← FIVE 150 px CARDS, always,
+       │                   │31.3M people ││8.4M people│ │2.3M people  │║1.9M people║  ┃│   Marginal LEFT → High RIGHT.
+       │                   │335,965 sq mi││179,572 …  │ │39,861 sq mi │║23,101 …   ║  ┃│   ▓ 28 px BAND = deep shade of
+       │                   │Dallas, TX   ││Omaha, NE  │ │Tulsa, OK    │║Okla. City ║  ┃│   SPC's colour, name IN SPC's
+       │                   └─────────────┘└───────────┘ └─────────────┘╚═══════════╝  ┃│   colour, 1-5 WHITE (DATA);
+       │                   You are in the ▓High risk area · 5 of 5▓ for this outlook. ┃│   absent = BODY at 35%, band
+       │                     · Edmond, OK                                             ┃│   full; ╔╗ = YOUR category.
+       │                   HIGH RISK FROM CENTRAL AND NORTHERN OKLAHOMA INTO …        ┃│ ← pill = the band's pair;
+       │                                                                              ┃│   Windows location at app open.
        │ (?) ALERT         (only when SPC issues one)                             ┃│
        │ (?) SUMMARY       A regional outbreak of severe thunderstorms is …       ┃│ ← the largest, brightest text
        │ ─────────────────────────────────────────────────                        ┃│
@@ -63,9 +65,9 @@
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </DataTemplate>
 
-        <!-- One RISK CARD: the category's SPC colour strip (DATA, never themed), its name, then "1.9M people" with the
-             area under it and the largest places ONE PER LINE (the card grows; the row's cards share the tallest
-             height). Absent = the whole card at 35%, "Not in this outlook". -->
+        <!-- One RISK CARD: the category's title band (DATA colours, never themed), then "1.9M people" with the area
+             under it and the largest places ONE PER LINE (the card grows; the row's cards share the tallest height).
+             Absent = the body at 35% (the band stays full), "Not in this outlook". -->
         <DataTemplate x:Key="RiskCardTemplate" x:DataType="vm:OutlookRiskCard">
             <Grid VerticalAlignment="Stretch">
             <!-- YOUR category: a 2 px primary ring just outside the card (theme brush, so it lives in XAML). -->
@@ -74,29 +76,31 @@
                     Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(IsYou)}"/>
             <Border CornerRadius="6" BorderThickness="1" VerticalAlignment="Stretch"
                     Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                    Opacity="{x:Bind local:OutlookDiscussionWindow.CardOpacity(IsPresent)}">
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="5"/>
+                        <RowDefinition Height="28"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <Border CornerRadius="5,5,0,0" Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
-                    <StackPanel Grid.Row="1" Padding="9,8,9,9">
-                        <!-- Name 14 + SPC's 1-5 number, right-aligned and dimmer, at least 12 px apart (the user's call). -->
-                        <Grid ColumnSpacing="12">
+                    <!-- THE TITLE BAND (option X, the user's call 2026-10-02): a deep shade of SPC's colour (BandFill), the
+                         name IN SPC's colour, SPC's 1-5 number in pure white, at least 12 px apart. All DATA colours —
+                         never themed. ⚠️ Never dimmed: an absent category dims only the body below. -->
+                    <Border CornerRadius="5,5,0,0" Padding="9,0,9,0" Background="{x:Bind BandFill, Converter={StaticResource HexToBrush}}">
+                        <Grid ColumnSpacing="12" VerticalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" CharacterSpacing="20"
                                        TextTrimming="CharacterEllipsis"
-                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                       Foreground="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
                             <TextBlock Grid.Column="1" Text="{x:Bind Numeral}" FontSize="12" VerticalAlignment="Bottom"
-                                       Margin="0,0,0,1" Typography.NumeralAlignment="Tabular"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                       Margin="0,0,0,1" Typography.NumeralAlignment="Tabular" Foreground="White"/>
                         </Grid>
-                        <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,4,0,0"
+                    </Border>
+                    <StackPanel Grid.Row="1" Padding="9,6,9,9"
+                                Opacity="{x:Bind local:OutlookDiscussionWindow.CardOpacity(IsPresent)}">
+                        <StackPanel Orientation="Horizontal" Spacing="4"
                                     Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(HasFigures)}">
                             <TextBlock Text="{x:Bind People}" FontSize="18" Typography.NumeralAlignment="Tabular"
                                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
@@ -115,10 +119,10 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <TextBlock Text="In this outlook" FontSize="11" Margin="0,6,0,0"
+                        <TextBlock Text="In this outlook" FontSize="11"
                                    Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(IsPresentWithoutFigures)}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        <TextBlock Text="Not in this outlook" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                        <TextBlock Text="Not in this outlook" FontSize="11" TextWrapping="Wrap"
                                    Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(IsAbsent)}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
@@ -227,12 +231,14 @@
                     <!-- SOURCE (the band's LAST row; option B, the user's call 2026-10-02): a short link to the SPC page
                          the text was read from — the full address is its tooltip — then the site + live/archive, dimmed.
                          HyperlinkButton's NavigateUri opens the default browser. -->
-                    <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="5"
+                    <!-- ⚠️ Top 21 + the grid's RowSpacing 4 = 25 above SOURCE (the user's call, 2026-10-02), on BOTH cells. -->
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="5" Margin="0,21,0,0"
                                 Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasSource), Mode=OneWay}">
                         <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.SourceHint}" VerticalAlignment="Center"/>
                         <TextBlock Text="SOURCE" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
                     </StackPanel>
                     <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                Margin="0,21,0,0"
                                 Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasSource), Mode=OneWay}">
                         <HyperlinkButton Padding="0" MinHeight="0" FontSize="13"
                                          NavigateUri="{x:Bind local:OutlookDiscussionWindow.ToUri(ViewModel.OutlookDiscussion.SourceUrl), Mode=OneWay}"
@@ -301,16 +307,28 @@
                                                 Content="{x:Bind ViewModel.OutlookDiscussion.HighCard, Mode=OneWay}"/>
                             </StackPanel>
 
-                            <!-- ARE YOU IN THE RISK AREA (C + D): category-colour dot · sentence · dimmed tail (place,
-                                 distance to the nearest edge when outside, the PastCast "past outlook" reminder). With
-                                 location off, a link to Windows' location privacy page. -->
-                            <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,2,0,0"
+                            <!-- ARE YOU IN THE RISK AREA: sentence · (inside) the category PILL in the card band's pair —
+                                 deep shade behind, SPC colour words, white "5 of 5" (option C, the user's call 2026-10-02) ·
+                                 "for this outlook." · dimmed tail (distance to the nearest edge when outside, the place).
+                                 With location off, a link to Windows' location privacy page. -->
+                            <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2,0,0"
                                         Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasYouLine), Mode=OneWay}">
-                                <Ellipse Width="9" Height="9" VerticalAlignment="Center"
-                                         Fill="{x:Bind ViewModel.OutlookDiscussion.YouDotFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
-                                         Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasYouDot), Mode=OneWay}"/>
                                 <TextBlock VerticalAlignment="Center" FontSize="13"
                                            Text="{x:Bind ViewModel.OutlookDiscussion.YouText, Mode=OneWay}"
+                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                <Border CornerRadius="4" Padding="6,1,6,2" VerticalAlignment="Center"
+                                        Background="{x:Bind ViewModel.OutlookDiscussion.YouPillFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
+                                        Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasYouPill), Mode=OneWay}">
+                                    <!-- The line break between the Runs IS the space after "·" (XAML collapses it to one). -->
+                                    <TextBlock FontSize="13" FontWeight="SemiBold">
+                                        <Run Text="{x:Bind ViewModel.OutlookDiscussion.YouPillWords, Mode=OneWay}"
+                                             Foreground="{x:Bind ViewModel.OutlookDiscussion.YouPillInk, Mode=OneWay, Converter={StaticResource HexToBrush}}"/>
+                                        <Run Text="{x:Bind ViewModel.OutlookDiscussion.YouPillNumber, Mode=OneWay}" Foreground="White"/>
+                                    </TextBlock>
+                                </Border>
+                                <TextBlock VerticalAlignment="Center" FontSize="13"
+                                           Text="{x:Bind ViewModel.OutlookDiscussion.YouTrail, Mode=OneWay}"
+                                           Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasYouPill), Mode=OneWay}"
                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                                 <TextBlock VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"
                                            Text="{x:Bind ViewModel.OutlookDiscussion.YouDetail, Mode=OneWay}"

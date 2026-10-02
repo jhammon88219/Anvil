@@ -107,8 +107,7 @@ namespace Anvil.ViewModels
 		// ── "ARE YOU IN THE RISK AREA" — one line under the cards (C + D, the user's call 2026-10-02) ──
 		// ⚠️ The position comes from the LOCATION SERVICE (Windows), asked ONCE at app open (MapViewModel) — never the
 		// map's location marker (the user's call). Every outlook change re-tests that position against the drawn
-		// issuance's categorical areas (RiskAreaLocator over the cached GeoJSON). PastCast shows it too, with a small
-		// "past outlook" reminder so a replayed High Risk isn't read as today's.
+		// issuance's categorical areas (RiskAreaLocator over the cached GeoJSON). PastCast shows it too.
 
 		private enum Position { Unasked, Locating, Off, Known }
 		private Position _position = Position.Unasked;
@@ -148,19 +147,40 @@ namespace Anvil.ViewModels
 		/// <summary>The line shows wherever the cards do.</summary>
 		public bool HasYouLine => HasRiskCards;
 
-		/// <summary>The sentence: "You're in the High Risk (5/5)", "You're outside the risk areas", "Finding your location…".</summary>
+		// ⚠️ ONE wording for live AND PastCast (the user's call, 2026-10-02): "for this outlook" is the reminder that a
+		// replayed outlook isn't today's. Inside, the category is a PILL in the card's own band colours (option C):
+		// "You are in the [High risk area · 5 of 5] for this outlook." — band shade behind, SPC colour words, white number.
+
+		private bool IsInside => _position == Position.Known && !NoSevereToday && _fix is { IsInside: true };
+
+		/// <summary>The sentence, or (inside) the part BEFORE the pill: "You are in the ".</summary>
 		public string YouText => _position switch
 		{
 			Position.Off => "Location is off for Anvil, so it can't check.",
 			Position.Known when NoSevereToday => "No risk areas in this outlook, so nothing to check.",
-			Position.Known when _fix is { IsInside: true } f =>
-				$"{(_isArchive ? "You'd have been" : "You're")} in the {OutlookRiskCard.Words(f.Code!)} ({OutlookRiskCard.NumeralFor(f.Code!)})",
-			Position.Known when _fix is not null => _isArchive ? "You'd have been outside the risk areas" : "You're outside the risk areas",
-			Position.Known => "Can't check: this outlook's areas aren't on disk.",
+			Position.Known when _fix is { IsInside: true } => "You are in the",
+			Position.Known when _fix is not null => "You are outside the risk areas for this outlook.",
+			Position.Known => "Can't check: this outlook's areas couldn't be read.",
 			_ => "Finding your location…",
 		};
 
-		/// <summary>The dimmed tail: the place, the distance to the nearest edge when outside, the past-outlook reminder.</summary>
+		public bool HasYouPill => IsInside;
+		/// <summary>The pill's words, in SPC's colour: "High risk area ·" (the XAML puts the space before the number).</summary>
+		public string YouPillWords => IsInside ? $"{OutlookRiskCard.Short(_fix!.Code!)} risk area ·" : string.Empty;
+		/// <summary>The pill's number, in white: "5 of 5".</summary>
+		public string YouPillNumber => IsInside ? OutlookRiskCard.NumeralFor(_fix!.Code!).Replace("/", " of ") : string.Empty;
+		/// <summary>SPC's colour (the pill's words) and its deep shade (the pill) — the card band's pair. DATA colours.</summary>
+		public string YouPillInk => IsInside ? Card(_fix!.Code!).Fill : "#FF8A8A8A";
+		public string YouPillFill => IsInside ? Card(_fix!.Code!).BandFill : "#FF3A3A3A";
+		/// <summary>After the pill: "for this outlook.".</summary>
+		public string YouTrail => IsInside ? "for this outlook." : string.Empty;
+
+		private OutlookRiskCard Card(string code) => code switch
+		{
+			"HIGH" => HighCard, "MDT" => ModerateCard, "ENH" => EnhancedCard, "SLGT" => SlightCard, _ => MarginalCard,
+		};
+
+		/// <summary>The dimmed tail: the distance to the nearest edge when outside, then the place.</summary>
 		public string YouDetail
 		{
 			get
@@ -172,16 +192,10 @@ namespace Anvil.ViewModels
 					parts.Add($"the nearest edge is {Anvil.Models.DistanceUnits.Format(m, _distanceUnit)} {_fix.Bearing} of you");
 				}
 				if (_place is not null) parts.Add(_place);
-				if (_isArchive) parts.Add("on this past outlook, not today's");
 				return parts.Count == 0 ? string.Empty : "· " + string.Join(" · ", parts);
 			}
 		}
 
-		/// <summary>The dot before the sentence: your category's SPC colour, grey otherwise (DATA colour).</summary>
-		public string YouDotFill =>
-			_fix is { IsInside: true } f ? SpcRiskCatalog.Level(SpcOutlookType.Categorical, f.Code)?.Fill ?? "#FF6E6E6E" : "#FF6E6E6E";
-
-		public bool HasYouDot => _position == Position.Known && _fix is not null && !NoSevereToday;
 		public bool IsLocationOff => _position == Position.Off;
 
 		public string Alert => _parsed.Alert ?? string.Empty;
@@ -287,6 +301,7 @@ namespace Anvil.ViewModels
 			Name = code switch { "MDT" => "MODERATE", "ENH" => "ENHANCED", "SLGT" => "SLIGHT", "MRGL" => "MARGINAL", _ => code };
 			Numeral = NumeralFor(code);
 			Fill = level?.Fill ?? "#FF8A8A8A"; // ⚠️ DATA colour, never themed
+			BandFill = Deep(Fill);
 			IsPresent = isPresent;
 			IsYou = isYou && isPresent;
 			HasFigures = area is not null;
@@ -305,20 +320,32 @@ namespace Anvil.ViewModels
 			"MRGL" => "1/5", "SLGT" => "2/5", "ENH" => "3/5", "MDT" => "4/5", "HIGH" => "5/5", _ => string.Empty,
 		};
 
-		/// <summary>"High Risk", "Moderate Risk"… — the category in the "are you in the risk area" sentence.</summary>
-		public static string Words(string code) => code switch
+		/// <summary>"High", "Moderate"… — the category in the "are you in the risk area" pill.</summary>
+		public static string Short(string code) => code switch
 		{
-			"MRGL" => "Marginal Risk", "SLGT" => "Slight Risk", "ENH" => "Enhanced Risk", "MDT" => "Moderate Risk",
-			"HIGH" => "High Risk", _ => code,
+			"MRGL" => "Marginal", "SLGT" => "Slight", "ENH" => "Enhanced", "MDT" => "Moderate", "HIGH" => "High", _ => code,
 		};
 
 		public string Name { get; }
 		public string Numeral { get; }
 		/// <summary>Your location is in this category (the card gets a ring).</summary>
 		public bool IsYou { get; }
+		/// <summary>SPC's colour: the card's NAME (and the you-line pill's words) are written in it.</summary>
 		public string Fill { get; }
+		/// <summary>The title band behind the name: a deep shade of <see cref="Fill"/> (option X, the user's call 2026-10-02).</summary>
+		public string BandFill { get; }
 		public bool IsPresent { get; }
 		public bool IsAbsent => !IsPresent;
+
+		// "#66A366" / "#FF66A366" → the same hue at 38% brightness, so SPC's colour reads ON it (≈3.5-5:1 for all five).
+		internal static string Deep(string hex)
+		{
+			var h = hex.TrimStart('#');
+			if (h.Length == 8) h = h[2..];
+			if (h.Length != 6 || !int.TryParse(h, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb)) return "#FF3A3A3A";
+			static int Dim(int c) => (int)Math.Round(c * 0.38);
+			return $"#FF{Dim(rgb >> 16 & 0xFF):X2}{Dim(rgb >> 8 & 0xFF):X2}{Dim(rgb & 0xFF):X2}";
+		}
 		public bool HasFigures { get; }
 		/// <summary>In the outlook, but this page had no table (older archive pages).</summary>
 		public bool IsPresentWithoutFigures => IsPresent && !HasFigures;

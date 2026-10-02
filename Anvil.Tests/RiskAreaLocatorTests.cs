@@ -90,7 +90,13 @@ namespace Anvil.Tests
 			var vm = new OutlookDiscussionViewModel();
 			vm.SetPosition(35, -96.5, "Edmond, OK");
 			vm.Load(Disc("d1_20250315_1200"), areasFile: AreasFile(), distanceUnit: "mi"); // a High Risk day
-			Assert.Equal("You're in the High Risk (5/5)", vm.YouText);
+			Assert.Equal("You are in the", vm.YouText);
+			Assert.True(vm.HasYouPill);
+			Assert.Equal("High risk area ·", vm.YouPillWords);
+			Assert.Equal("5 of 5", vm.YouPillNumber);
+			Assert.Equal("for this outlook.", vm.YouTrail);
+			Assert.Equal(vm.HighCard.Fill, vm.YouPillInk);        // the pill wears the card band's pair
+			Assert.Equal(vm.HighCard.BandFill, vm.YouPillFill);
 			Assert.Equal("· Edmond, OK", vm.YouDetail);
 			Assert.True(vm.HighCard.IsPresent);
 			Assert.True(vm.HighCard.IsYou);
@@ -103,21 +109,31 @@ namespace Anvil.Tests
 			var vm = new OutlookDiscussionViewModel();
 			vm.SetPosition(38, -97, "Salina, KS");
 			vm.Load(Disc(), areasFile: AreasFile(), distanceUnit: "mi");
-			Assert.Equal("You're outside the risk areas", vm.YouText);
+			Assert.Equal("You are outside the risk areas for this outlook.", vm.YouText);
+			Assert.False(vm.HasYouPill);
 			Assert.StartsWith("· the nearest edge is 69", vm.YouDetail); // ~111 km
 			Assert.Contains("mi south of you · Salina, KS", vm.YouDetail);
 		}
 
-		// PastCast: still shown, with a reminder so a replayed High Risk isn't read as today's.
+		// PastCast: the SAME sentence ("for this outlook" is the reminder), no extra tail.
 		[Fact]
-		public void Line_PastCast_SaysWouldHaveBeen_AndReminds()
+		public void Line_PastCast_SameWording()
 		{
 			var vm = new OutlookDiscussionViewModel();
 			vm.SetPosition(36.5, -97, null);
 			vm.Load(Disc(), isArchive: true, areasFile: AreasFile());
-			Assert.Equal("You'd have been in the Marginal Risk (1/5)", vm.YouText);
-			Assert.Equal("· on this past outlook, not today's", vm.YouDetail);
+			Assert.Equal("You are in the", vm.YouText);
+			Assert.Equal("Marginal risk area ·", vm.YouPillWords);
+			Assert.Equal("1 of 5", vm.YouPillNumber);
+			Assert.Equal(string.Empty, vm.YouDetail);
 		}
+
+		// The card's title band: SPC's colour at 38% brightness, so the name (in SPC's colour) reads on it.
+		[Theory]
+		[InlineData("#66A366", "#FF273E27")]
+		[InlineData("#FFEE99EE", "#FF5A3A5A")]
+		[InlineData("not a colour", "#FF3A3A3A")]
+		public void Band_IsADeepShadeOfTheFill(string fill, string expected) => Assert.Equal(expected, OutlookRiskCard.Deep(fill));
 
 		[Fact]
 		public void Line_States_LocatingAndOff()
