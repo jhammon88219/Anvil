@@ -492,9 +492,17 @@
         return needsBuild(f);
     }
     function upgradePriority(idx) {
-        if (currentFrame < 0) return idx;
-        if (idx >= currentFrame) return idx - currentFrame;       // current (0) + ahead, in play order
-        return (currentFrame - idx) + frames.length;              // behind the playhead: lowest priority
+        var pri;
+        if (currentFrame < 0) pri = idx;
+        else if (idx >= currentFrame) pri = idx - currentFrame;   // current (0) + ahead, in play order
+        else pri = (currentFrame - idx) + frames.length;          // behind the playhead: lowest priority
+        // FILL FIRST ("Duo fills, Trio completes", docs/radar-loop-flow.md): a frame still missing what lights its
+        // cell (fillComplete) jumps every frame that only wants the trio's SRV or the dual-pol wave. Measured
+        // 2026-10-02 on a 2024 KTLX replay: the first-paint frame (refl only, Rule 1) sat BEHIND the playing
+        // playhead while the motion's srvfill rebuilt every other frame, so its velocity — the one thing holding
+        // the loop holding gate — started 11 s in and the gate released 8 s after the scrubber read full.
+        if (!fillComplete(frames[idx])) pri -= 2 * frames.length;
+        return pri;
     }
     function queueUpgrade(idx, reason) {
         if (!needsUpgrade(idx) || upgradeInFlight[idx]) return;
@@ -536,6 +544,27 @@
     // readout and playback can hold at the built frontier instead of stuttering into a frame whose active
     // product isn't built yet. Every product except reflectivity is now built ON DEMAND, so for any of them a
     // frame reads ready only once its geometry is built; reflectivity is always built, so it reads all-ready.
+    // The visible dual-pol products that join the duo in the FILL gate (multi-pane; see postBuildProgress).
+    function fillExtraProducts() {
+        var extra = [], shown = viewProducts();
+        for (var i = 0; i < shown.length; i++) {
+            var p = shown[i];
+            if (p !== 'reflectivity' && p !== 'velocity' && p !== 'srv' && extra.indexOf(p) < 0) extra.push(p);
+        }
+        return extra;
+    }
+    // A frame's SCRUBBER-FILL readiness — the `complete[]` postBuildProgress reports, and the upgrade queue's
+    // "fill first" key: not stale, reflectivity + velocity built, plus every visible non-trio product. SRV is
+    // never part of it (see postBuildProgress). ONE definition, so the queue and the scrubber can't disagree.
+    function fillComplete(f, extra) {
+        if (!f || f.stale || !f.built) return false;
+        var b = f.built;
+        if (!b.reflectivity || !b.velocity) return false;
+        var x = extra || fillExtraProducts();
+        for (var i = 0; i < x.length; i++) if (!b[x[i]]) return false;
+        return true;
+    }
+
     function postBuildProgress() {
         var total = frames.length;
         var label = activeProduct(); // the message's product label — the primary pane's, for the readout
@@ -557,11 +586,7 @@
         // duo plus every other visible product — EXCEPT SRV, which stays out of it for the same reason it
         // always has (see below). fillExtra is the visible dual-pol set: those DO build per frame during the
         // backfill, so including them keeps the fill incremental rather than batched.
-        var fillExtra = [];
-        for (var fi = 0; fi < shownNow.length; fi++) {
-            var fp = shownNow[fi];
-            if (fp !== 'reflectivity' && fp !== 'velocity' && fp !== 'srv' && fillExtra.indexOf(fp) < 0) fillExtra.push(fp);
-        }
+        var fillExtra = fillExtraProducts();
         // `complete` = per-frame SCRUBBER-fill readiness (docs/radar-loop-flow.md Rule 2: the scrubber fills
         // left-to-right as frames complete). A frame is fill-ready once its reflectivity AND velocity are built
         // — the two products that build PER FRAME during the backfill, so cells light one-by-one as the backfill
@@ -582,11 +607,7 @@
             for (var ri = 0; r && ri < gates.length; ri++) r = !!(b && b[gates[ri]]);
             ready[i] = r;
             if (r) built++;
-            var reflOk = !!(b && b.reflectivity); // always built by any decode
-            var velOk = !!(b && b.velocity);
-            var extraOk = true;
-            for (var ei = 0; extraOk && ei < fillExtra.length; ei++) extraOk = !!(b && b[fillExtra[ei]]);
-            complete[i] = reflOk && velOk && extraOk;
+            complete[i] = fillComplete(frames[i], fillExtra);
         }
         post({ type: 'radarBuildProgress', product: label, built: built, total: total, ready: ready, complete: complete });
     }

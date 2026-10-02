@@ -542,8 +542,14 @@ namespace Anvil.ViewModels
 			if (!LoopGate.IsTracking) return;
 			var downloaded = 0;
 			for (var i = 0; i < _frameTimes.Length; i++) if (_frameTimes[i] is not null) downloaded++;
+			// ⚠️ A lit cell counts only once it is FILLED (duo built, or decoded with nothing to draw). The first-paint
+			// frame's cell lights on reflectivity alone (Rule 1), so counting lit cells read "10 of 10" for 8 s on a
+			// 2024 replay while the gate still waited on that frame's velocity (2026-10-02).
 			var built = 0;
-			for (var i = 0; i < Segments.Count; i++) if (Segments[i].IsReady) built++;
+			for (var i = 0; i < Segments.Count; i++)
+			{
+				if (Segments[i].IsReady && (IsFrameFillReady(i) || Segments[i].HasNoData)) built++;
+			}
 			LoopGate.Report(_frameCount, downloaded, built);
 			if (!_loadInProgress && _frameCount > 0 && AllArrivedFramesSettled())
 			{
