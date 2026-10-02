@@ -91,5 +91,13 @@ namespace Anvil.Services
 		/// &lt;pre&gt; block as the live page). Immutable, so cached on disk forever. Null when no page exists.
 		/// </summary>
 		Task<string?> GetPastNarrativeAsync(DateOnly validDay, int day, int cycle, CancellationToken cancellationToken = default);
+
+		/// <summary>The SPC web page a LIVE product's discussion is read from — the Outlook Discussion window's
+		/// SOURCE link. Null when there is none. (Default null keeps test fakes compiling.)</summary>
+		string? NarrativePageUrl(SpcOutlookProduct product) => null;
+
+		/// <summary>The SPC archive page a HISTORICAL discussion was read from: the stamp that actually answered,
+		/// recorded at fetch time; for a copy cached before that was recorded, the most likely stamp. Null = none.</summary>
+		string? PastNarrativePageUrl(DateOnly validDay, int day, int cycle) => null;
 	}
 }

@@ -22,11 +22,18 @@ namespace Anvil.ViewModels
 		private OutlookDiscussion _parsed = OutlookDiscussionParser.Parse(string.Empty);
 		private bool _isPreviousExpanded;
 
-		/// <summary>Takes the current discussion text. A new text collapses the previous discussion again.</summary>
-		public void Load(string? text)
+		private string? _sourceUrl;
+		private bool _isArchive;
+
+		/// <summary>Takes the current discussion text and the SPC page it came from (<paramref name="isArchive"/> =
+		/// PastCast's per-issuance archive copy). A new text collapses the previous discussion again.</summary>
+		public void Load(string? text, string? sourceUrl = null, bool isArchive = false)
 		{
 			text ??= string.Empty;
-			if (text == _text) return;
+			if (text == _text && sourceUrl == _sourceUrl && isArchive == _isArchive) return;
+			_sourceUrl = sourceUrl;
+			_isArchive = isArchive;
+			if (text == _text) { OnPropertyChanged(string.Empty); return; } // only the source moved
 			_text = text;
 			_parsed = OutlookDiscussionParser.Parse(text);
 			Headlines = _parsed.Headlines.Select(h => new OutlookHeadlineRow(h)).ToArray();
@@ -86,6 +93,25 @@ namespace Anvil.ViewModels
 			get => _isPreviousExpanded;
 			set => SetProperty(ref _isPreviousExpanded, value);
 		}
+
+		// ── SOURCE: the SPC page this text came from (the band's last row; option B, the user's call 2026-10-02) ──
+
+		/// <summary>The page's full address — the link target and its tooltip.</summary>
+		public string SourceUrl => _sourceUrl ?? string.Empty;
+		public bool HasSource => IsDiscussion && !string.IsNullOrEmpty(_sourceUrl);
+
+		/// <summary>"· spc.noaa.gov · archive copy" / "· spc.noaa.gov · latest issuance" — dimmed after the link.</summary>
+		public string SourceNote
+		{
+			get
+			{
+				if (!HasSource) return string.Empty;
+				var host = Uri.TryCreate(_sourceUrl, UriKind.Absolute, out var u) ? u.Host.Replace("www.", string.Empty) : "spc.noaa.gov";
+				return $"· {host} · {(_isArchive ? "archive copy" : "latest issuance")}";
+			}
+		}
+
+		public RadarGlossaryCard SourceHint => OutlookGlossary.Source;
 
 		/// <summary>SPC's original text. ⚠️ Kept but NOT shown (the user's call, 2026-10-02: "keep but hide").</summary>
 		public string Raw => _text;

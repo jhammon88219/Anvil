@@ -698,8 +698,14 @@ namespace Anvil.ViewModels
 				return; // selection changed mid-fetch (an earlier issuance picked counts — see UpdateOutlookCard)
 			}
 			_narrativeFor = product;
+			// ⚠️ The source BEFORE the text: MapViewModel re-reads both when OutlookNarrativeText changes.
+			NarrativeSourceUrl = text is null ? null : _spcOutlookService.NarrativePageUrl(product);
 			OutlookNarrativeText = text ?? "Forecast discussion isn't available for this product yet.";
 		}
+
+		/// <summary>The SPC page <see cref="OutlookNarrativeText"/> was read from (the window's SOURCE link);
+		/// null while the text is a status line.</summary>
+		public string? NarrativeSourceUrl { get; private set; }
 
 		/// <summary>
 		/// Called after the launch outlook refresh finishes: re-applies the current

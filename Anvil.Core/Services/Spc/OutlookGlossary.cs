@@ -26,7 +26,10 @@ namespace Anvil.Services
 		public static readonly RadarGlossaryCard NextOutlook = Card("Next outlook", "NOTE: THE NEXT … OUTLOOK IS SCHEDULED BY",
 			"When SPC is scheduled to issue the next version of this outlook.");
 
-		public static readonly RadarGlossaryCard Risk = Card("Risk", "...THERE IS A … RISK OF SEVERE THUNDERSTORMS...",
+		public static readonly RadarGlossaryCard Source = Card("Source", "spc.noaa.gov",
+			"The SPC web page this discussion was read from. Opens in your browser.");
+
+		public static readonly RadarGlossaryCard Risk =Card("Risk", "...THERE IS A … RISK OF SEVERE THUNDERSTORMS...",
 			"The outlook's severe categories and where they are. From least to most: Marginal, Slight, Enhanced, Moderate, High.");
 
 		public static readonly RadarGlossaryCard Alert = Card("Alert", "an extra headline after the risk",

@@ -989,7 +989,8 @@ namespace Anvil.ViewModels
 		{
 			OnPropertyChanged(nameof(OutlookDiscussionTitle));
 			OnPropertyChanged(nameof(OutlookDiscussionText));
-			OutlookDiscussion.Load(OutlookDiscussionText);
+			OutlookDiscussion.Load(OutlookDiscussionText,
+				IsPastCast ? PastOutlook.NarrativeSourceUrl : Outlook.NarrativeSourceUrl, isArchive: IsPastCast);
 		}
 
 		// ===== The Anvil Atlas: three tabs (Radar sites | Past events | DOW events) =======================

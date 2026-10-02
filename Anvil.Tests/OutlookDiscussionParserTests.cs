@@ -156,6 +156,24 @@ namespace Anvil.Tests
 			Assert.False(vm.IsPreviousExpanded);
 		}
 
+		// SOURCE: the page the text came from, and whether it is PastCast's archive copy or the live page.
+		[Fact]
+		public void ViewModel_Source_SaysWhereTheTextCameFrom()
+		{
+			const string archive = "https://www.spc.noaa.gov/products/outlook/archive/2011/day1otlk_20110524_2000.html";
+			var vm = new Anvil.ViewModels.OutlookDiscussionViewModel();
+			vm.Load(Fixture("d1_20110524_2000_amend1"), archive, isArchive: true);
+			Assert.True(vm.HasSource);
+			Assert.Equal(archive, vm.SourceUrl);
+			Assert.Equal("· spc.noaa.gov · archive copy", vm.SourceNote);
+
+			vm.Load(Fixture("d1_20110524_2000_amend1"), "https://www.spc.noaa.gov/products/outlook/day1otlk.html", isArchive: false);
+			Assert.Equal("· spc.noaa.gov · latest issuance", vm.SourceNote); // same text, new source: still updates
+
+			vm.Load("Loading forecast discussion…", archive, isArchive: true);
+			Assert.False(vm.HasSource); // a status line never shows a link
+		}
+
 		[Fact]
 		public void ViewModel_StatusText_IsAMessage_NotParts()
 		{

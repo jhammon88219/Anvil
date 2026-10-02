@@ -484,6 +484,23 @@ namespace Anvil.Services
 			return null;
 		}
 
+		public string? NarrativePageUrl(SpcOutlookProduct product) => NarrativeUrlFor(product);
+
+		public string? PastNarrativePageUrl(DateOnly validDay, int day, int cycle)
+		{
+			try
+			{
+				var sidecar = PastNarrativeUrlFile(validDay, day, cycle);
+				if (File.Exists(sidecar) && File.ReadAllText(sidecar).Trim() is { Length: > 0 } recorded) return recorded;
+			}
+			catch { /* fall back to the likeliest stamp */ }
+			return PastNarrativeUrls(validDay, day, cycle).FirstOrDefault();
+		}
+
+		// Beside each cached past discussion: the archive page it came from (a cycle can try several stamps).
+		private string PastNarrativeUrlFile(DateOnly validDay, int day, int cycle) =>
+			Path.Combine(CacheDirectory, $"narrative-past-{validDay:yyyyMMdd}-d{day}-c{cycle:D2}.url");
+
 		public async Task<string?> GetPastNarrativeAsync(DateOnly validDay, int day, int cycle, CancellationToken cancellationToken = default)
 		{
 			var cacheFile = Path.Combine(CacheDirectory, $"narrative-past-{validDay:yyyyMMdd}-d{day}-c{cycle:D2}.txt");
@@ -506,7 +523,11 @@ namespace Anvil.Services
 					{
 						continue;
 					}
-					try { await File.WriteAllTextAsync(cacheFile, text, cancellationToken); }
+					try
+					{
+						await File.WriteAllTextAsync(cacheFile, text, cancellationToken);
+						await File.WriteAllTextAsync(PastNarrativeUrlFile(validDay, day, cycle), url, cancellationToken);
+					}
 					catch { /* cache write is best effort */ }
 					return text;
 				}

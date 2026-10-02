@@ -29,6 +29,10 @@ namespace Anvil.Controls.Windows
 		// Statics so the DataTemplates can call them too (x:Bind in a template resolves against the ITEM).
 		public static Visibility Vis(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 
+		// The SOURCE link's target; null (no navigation) for anything that isn't an absolute address.
+		public static System.Uri? ToUri(string url) =>
+			System.Uri.TryCreate(url, System.UriKind.Absolute, out var uri) ? uri : null;
+
 		// Chevron right (collapsed) / down (open).
 		public static string Chevron(bool open) => open ? "" : "";
 

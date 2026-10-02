@@ -10,6 +10,7 @@
        │ (?) VALID         20Z (3:00 PM CDT) Fri Mar 14 → 12Z (7:00 AM CDT) Sat …  │   (OutlookGlossary) LEFT of a
        │ (?) FORECASTER    Lyons                                                   │   DIMMED LABEL, then the value.
        │ (?) NEXT OUTLOOK  by 01Z (8:00 PM CDT)                                    │   EVERY time = Zulu, then AM/PM
+       │ (?) SOURCE        Read on SPC's website ↗  · spc.noaa.gov · archive copy  │ ← the page it was read from
        ├───────────────────────────────────────────────────────────────────────────┤   in SPC's own zone (CDT/CST)
        │ (?) RISK          ▌MODERATE RISK                                         ┃│ ← bar = the category's SPC
        │                   ▌THE LOWER/MID MISSISSIPPI VALLEY INTO …               ┃│   colour (DATA); headlines
@@ -124,6 +125,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/> <!-- SOURCE -->
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="5">
@@ -163,6 +165,31 @@
                                Text="{x:Bind ViewModel.OutlookDiscussion.NextOutlook, Mode=OneWay}"
                                Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasNextOutlook), Mode=OneWay}"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                    <!-- SOURCE (the band's LAST row; option B, the user's call 2026-10-02): a short link to the SPC page
+                         the text was read from — the full address is its tooltip — then the site + live/archive, dimmed.
+                         HyperlinkButton's NavigateUri opens the default browser. -->
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="5"
+                                Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasSource), Mode=OneWay}">
+                        <ctl:GlossaryHint Card="{x:Bind ViewModel.OutlookDiscussion.SourceHint}" VerticalAlignment="Center"/>
+                        <TextBlock Text="SOURCE" VerticalAlignment="Center" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                Visibility="{x:Bind local:OutlookDiscussionWindow.Vis(ViewModel.OutlookDiscussion.HasSource), Mode=OneWay}">
+                        <HyperlinkButton Padding="0" MinHeight="0" FontSize="13"
+                                         NavigateUri="{x:Bind local:OutlookDiscussionWindow.ToUri(ViewModel.OutlookDiscussion.SourceUrl), Mode=OneWay}"
+                                         ToolTipService.ToolTip="{x:Bind ViewModel.OutlookDiscussion.SourceUrl, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <TextBlock Text="Read on SPC's website" VerticalAlignment="Center"/>
+                                <!-- E8A7 OpenInNewWindow — NOT verified on screen. -->
+                                <FontIcon Glyph="&#xE8A7;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="12"
+                                          VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </HyperlinkButton>
+                        <TextBlock VerticalAlignment="Center" FontSize="13"
+                                   Text="{x:Bind ViewModel.OutlookDiscussion.SourceNote, Mode=OneWay}"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    </StackPanel>
                 </Grid>
             </StackPanel>
         </Border>
