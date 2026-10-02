@@ -1,0 +1,30 @@
+ZCZC SPCSWOD48 ALL
+   ACUS48 KWNS 020817
+   SPC AC 020817
+
+   Day 4-8 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   0317 AM CDT Fri Oct 02 2026
+
+   Valid 051200Z - 101200Z
+
+   ...DISCUSSION...
+   Severe storm potential from Monday/D4 to Friday/D8 is forecast to be
+   minimal.
+
+   A deep upper trough will move across eastern Canada and the
+   northeastern USA Mon/D4 into Tue/D5, with a cold front already
+   offshore and high pressure building in from the west. Behind the
+   ejecting upper trough, moderate northwest flow aloft will persist
+   across the northern tier of states, with some trough amplification
+   possible over the Great Lakes Wed/D6 into Fri/D8. That said, a
+   minimally unstable air mass will exist over most of the CONUS, with
+   little severe thunderstorm potential. A few stronger storms cannot
+   be ruled out around Thu/D7 over the upper Midwest beneath the
+   northwest flow regime, but this low-predictability scenario will
+   depend heavily on enough moisture returning to the region. As such,
+   no areas are currently forecast.
+
+   ..Jewell.. 10/02/2026
+
+   CLICK TO GET WUUS48 PTSD48 PRODUCT

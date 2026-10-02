@@ -1,0 +1,58 @@
+ZCZC SPCSWOD48 ALL
+   ACUS48 KWNS 110849
+   SPC AC 110849
+
+   Day 4-8 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   0349 AM CDT Tue Mar 11 2025
+
+   Valid 141200Z - 191200Z
+
+   ...DISCUSSION...
+   ...Days 4-6/Fri-Sun - Mid/Lower MS Valley to the Southeast and
+   Mid-Atlantic...
+
+   An intense spring storm system will deliver a multi-day severe
+   weather episode to portions of the central and eastern U.S.
+   beginning Friday and continuing through the weekend. All severe
+   thunderstorm hazards are expected, including widespread damaging
+   winds, tornadoes (some strong), and large hail.
+
+   On Friday, an anomalously intense upper cyclone is forecast to
+   deepen as it tracks northeast across the southern/central Plains to
+   the Upper Midwest. An intense jet streak (greater than 100 kt at 500
+   mb) will overspread the Ozarks and Mid-MS Valley during the
+   afternoon into the overnight hours. Likewise, a low-level jet will
+   intensify Friday night to 65+ kt. As intense surface cyclogenesis
+   occurs, southerly low-level flow will transport modest moisture as
+   far north as eastern IA, southeast MN and southern WI. Deeper
+   boundary-layer moisture will remain focused southward from the
+   Mid-South toward the Lower MS Valley/central Gulf coast.
+   Nevertheless, strongly forced convection within intense deep-layer
+   flow will pose a widespread risk for severe (potentially significant
+   severe) thunderstorm winds and tornadoes from late afternoon into
+   the overnight hours across a large area centered on the Mid/Lower MS
+   Valley vicinity.
+
+   On Saturday, the upper cyclone over the Upper Midwest will lift
+   northeast into Ontario, but a larger-scale upper trough will remain
+   over the Plains. The Plains trough will intensify and spread east
+   toward the MS/OH Valleys. This will maintain the eastward
+   progression of a strongly forced line of convection from the Ohio
+   Valley south/southwest into the Deep South/central Gulf coast
+   vicinity through Saturday night. Portions of the Deep South into GA
+   may see multiple rounds of severe convection with a mix of both
+   supercell and QLCS storm modes potentially moving across the region,
+   posing a concern for damaging tornadoes and swaths of severe winds.
+
+   On Sunday, the system will continue to shift east, with a moist
+   airmass and strong deep-layer flow continuing to support a line of
+   convection producing damaging winds into the Carolinas and
+   Mid-Atlantic vicinity.
+
+   Outlook areas will continue to be refined over the coming days as
+   key features become better resolved.
+
+   ..Leitman.. 03/11/2025
+
+   CLICK TO GET WUUS48 PTSD48 PRODUCT

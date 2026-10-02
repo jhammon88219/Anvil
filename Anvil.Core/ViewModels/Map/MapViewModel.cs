@@ -982,10 +982,14 @@ namespace Anvil.ViewModels
 		/// <summary>The discussion text: the live outlook's, or in PastCast the drawn issuance's from SPC's archive.</summary>
 		public string OutlookDiscussionText => IsPastCast ? PastOutlook.NarrativeText : Outlook.OutlookNarrativeText;
 
+		/// <summary>The same text, PARSED into labelled parts — what the Outlook Discussion window draws.</summary>
+		public OutlookDiscussionViewModel OutlookDiscussion { get; } = new();
+
 		private void RaiseOutlookDiscussion()
 		{
 			OnPropertyChanged(nameof(OutlookDiscussionTitle));
 			OnPropertyChanged(nameof(OutlookDiscussionText));
+			OutlookDiscussion.Load(OutlookDiscussionText);
 		}
 
 		// ===== The Anvil Atlas: three tabs (Radar sites | Past events | DOW events) =======================

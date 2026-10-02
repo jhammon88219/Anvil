@@ -1,0 +1,41 @@
+SPC AC 151617
+
+   Day 1 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   1117 AM CDT Tue Sep 15 2026
+
+   Valid 151630Z - 161200Z
+
+   ...THERE IS A MARGINAL RISK OF SEVERE THUNDERSTORMS THIS AFTERNOON
+   AND EVENING ACROSS PARTS OF THE CENTRAL PLAINS AND MIDWEST....
+
+   ...SUMMARY...
+   Strong to locally severe thunderstorms may occur from the
+   south-central Plains into parts of the Midwest this afternoon and
+   evening, with at least isolated damaging wind gusts possible.
+
+   ...Central Plains into Midwest...
+   Moderately fast zonal flow remains across the northern US today,
+   with the primary surface boundary extending from the TX Panhandle
+   east-northeastward into parts of KS/MO/IL.  This boundary will be
+   enhanced by daytime differential heating, and will provide the focus
+   for scattered thunderstorms along its length.  Most of this activity
+   will be relatively disorganized, but in an environment of moderate
+   CAPE and steep low-level lapse rates favorable for occasional
+   strong/severe downdrafts.
+
+   One area of greater concern extends across northern MO into
+   west-central IL.  Morning CAM solutions suggest higher confidence in
+   storm coverage in this area, and forecast soundings show sufficient
+   deep-layer shear for organized multicell or occasional supercell
+   structures.  However, much of this activity may occur on the north
+   side of the baroclinic zone with slightly weaker support for intense
+   downburst winds.  Warm temperatures aloft should limit hail concern.
+   Therefore, have opted to maintain the MRGL risk category and
+   re-evaluate at the 20z update.
+
+   ..Hart/Chalmers.. 09/15/2026
+
+   CLICK TO GET WUUS01 PTSDY1 PRODUCT
+
+   NOTE: THE NEXT DAY 1 OUTLOOK IS SCHEDULED BY 2000Z

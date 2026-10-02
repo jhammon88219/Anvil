@@ -5,8 +5,9 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Windows
 {
 	/// <summary>
-	/// The Outlook Discussion window (see the XAML header): SPC's forecast discussion for the outlook on the map.
-	/// Bound to the coordinator <see cref="MapViewModel"/>; everything it shows is a MapViewModel property.
+	/// The Outlook Discussion window (see the XAML header): SPC's forecast discussion for the outlook on the map,
+	/// parsed into labelled parts. Bound to the coordinator <see cref="MapViewModel"/>; what it shows is
+	/// <see cref="MapViewModel.OutlookDiscussion"/>.
 	/// </summary>
 	public sealed partial class OutlookDiscussionWindow : UserControl
 	{
@@ -24,5 +25,17 @@ namespace Anvil.Controls.Windows
 
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(OutlookDiscussionWindow), new PropertyMetadata(null));
+
+		// Statics so the DataTemplates can call them too (x:Bind in a template resolves against the ITEM).
+		public static Visibility Vis(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
+
+		// Chevron right (collapsed) / down (open).
+		public static string Chevron(bool open) => open ? "" : "";
+
+		private void OnPreviousToggleClick(object sender, RoutedEventArgs e)
+		{
+			var d = ViewModel?.OutlookDiscussion;
+			if (d is not null) d.IsPreviousExpanded = !d.IsPreviousExpanded;
+		}
 	}
 }

@@ -1,0 +1,49 @@
+SPC AC 150101
+
+   Day 1 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   0801 PM CDT Fri Mar 14 2025
+
+   Valid 150100Z - 151200Z
+
+   ...THERE IS A MODERATE RISK OF SEVERE THUNDERSTORMS FROM THE
+   MID-MISSISSIPPI VALLEY INTO THE LOWER MISSISSIPPI VALLEY...
+
+   ...SUMMARY...
+   A regional outbreak of severe thunderstorms will continue tonight
+   across parts of the Lower/Mid Mississippi Valley and portions of the
+   Lower Ohio Valley and Mid-South. Numerous tornadoes, several of
+   which could be strong to intense, widespread severe gusts ranging
+   from 60 to 100 mph, and scattered large hail up to baseball size all
+   appear likely.
+
+   ...01z Update...
+
+   Intense mid-level jet is translating across northeast OK/southwest
+   MO early this evening. This feature will advance toward southern
+   Lake MI later tonight as the upper low lifts into northern IA.
+   Impressive 12hr height falls, and shear are noted ahead of this
+   cyclone. With 0-3 ESRH in excess of 400 m2/s2, thermodynamics may be
+   the primary modulator in convective mode this evening/over night.
+   Over the last few hours, richer boundary-layer moisture is beginning
+   to surge into the southeastern influence of this ejecting trough.
+   Lower 60s surface dew points have advanced to near the MO/AR border,
+   and this is boosting instability within the aforementioned
+   environment that strongly favors supercells. Several supercells are
+   in the process of maturing along a corridor from central MO into
+   northwest AR. Latest thinking is this activity will continue to
+   evolve and grow upscale. Multiple long-lived supercells are expected
+   within an environment very favorable for strong-intense tornadoes,
+   especially from eastern MO, south into MS.
+
+   Farther north, damaging winds remain likely with strongly-forced
+   convection as it surges northeast across the mid-MS Valley into
+   southeast MN/southern WI. Overall, convective complex will steadily
+   shift downstream overnight as LLJ strengthens across eastern IL/IN
+   into southwest lower MI.
+
+   ..Darrow.. 03/15/2025
+
+   CLICK TO GET WUUS01 PTSDY1 PRODUCT
+
+   NOTE: THE NEXT DAY 1 OUTLOOK IS SCHEDULED BY 0600Z

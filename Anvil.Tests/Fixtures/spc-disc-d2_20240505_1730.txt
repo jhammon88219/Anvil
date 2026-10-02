@@ -1,0 +1,110 @@
+SPC AC 051737
+
+   Day 2 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   1237 PM CDT Sun May 05 2024
+
+   Valid 061200Z - 071200Z
+
+   ...THERE IS A MODERATE RISK OF SEVERE THUNDERSTORMS ACROSS
+   WEST-CENTRAL/CENTRAL OKLAHOMA AND SOUTH-CENTRAL KANSAS...
+
+   ...SUMMARY...
+   Numerous severe thunderstorms are expected to develop and move
+   eastward Monday afternoon through Monday night across parts of the
+   southern/central Plains. Multiple strong/potentially long-track
+   tornadoes, very large to giant hail, and severe/damaging winds all
+   appear likely.
+
+   ...Synopsis...
+   Upper cyclone apparent in Sunday morning satellite imagery over
+   northern/central CA and the western Great Basin is expected to
+   devolve into an open wave as it progresses eastward. This wave is
+   forecast to continue eastward through the central Rockies and into
+   the central Plains on Monday, becoming increasingly negatively
+   tilted as it does. Strong mid-level flow will accompany this system,
+   spreading eastward/northeastward into the central Plains early
+   Monday and into the southern High Plains by Monday afternoon.
+   Additional maturing into a closed mid-latitude cyclone is possible
+   across the northern High Plains late Monday evening/early Tuesday
+   morning. 
+
+   Progression of this shortwave trough will contribute to significant
+   mass response across the Plains, with strong low-level moisture
+   advection resulting in mid 60s dewpoints to the OK/KS border by the
+   early afternoon. Low 60s dewpoints will likely reach into eastern NE
+   by the late afternoon. This increasing low-level moisture beneath
+   steep mid-level lapse rates/cold mid-level temperatures will result
+   in a moderate to strongly unstable airmass ahead of the approaching
+   shortwave across much of OK, KS, and NE. Numerous severe
+   thunderstorms are expected to develop as this wave interacts with
+   this airmass, beginning during the late morning/early afternoon
+   across SD/NE and then expanding southward across KS into OK
+   throughout the remainder of the afternoon into the evening.
+   Significant-severe weather is possible, including the potential for
+   giant hail from 3" to 4" in diameter, gusts around 80 mph, and
+   strong/potentially long-track tornadoes.
+
+   ...Much of central/eastern NE and south-central/southeast SD into 
+   western/northern/eastern KS and western MO...
+   Strong height falls associated with this system will likely begin
+   early Monday across NE and western/northern KS, interacting with the
+   moderately moist and buoyant air mass expected to be in place. The
+   cold front associated with this system will likely be moving through
+   western NE and KS during this period as well. This initial
+   development may not be overly strong, with the primary strengthening
+   likely delayed until the afternoon over central NE and north-central
+   KS where better low-level moisture and stronger buoyancy will be in
+   place. Given the boundary-parallel orientation of the deep-layer
+   shear vector and linear forcing along the front, relatively quick
+   upscale growth into an organized convective line appears likely.
+   This line would then track quickly eastward/southeastward through
+   the evening and overnight.
+
+   Large to very large hail around 2" to 2.5" in diameter is possible
+   with the initial more cellular development. Primary threat will
+   transition to severe gusts around 80 mph once the convective line
+   organizes and consolidates, which appears likely during the
+   afternoon. Additionally, despite the transition to a more linear
+   mode, the tornado threat is expected to increase with eastern
+   extent, supported by both an increase in low-level moisture/buoyancy
+   and strengthening low-level kinematic fields. The greater damaging
+   gust threat will likely extend into more far eastern KS and western
+   MO, and the higher wind probabilities were expanded eastward to
+   account for this potential. Some minor southeastward expansion of
+   the 10% tornado probabilities was made as well.  
+
+   ...Much of OK and adjacent portions of central/southern KS and far
+   northwest/north-central TX...
+   Height falls are expected to arrive later, and be more modest,
+   across OK and adjacent central/south KS than areas farther north.
+   Some capping appears likely through around 18Z as well. However,
+   continued low-level moisture advection coupled with daytime heating
+   is expected to result in air mass destabilization just as the height
+   falls/large-scale ascent move into the region. This scenario appears
+   to favor a discrete storm mode from south-central KS into southwest
+   OK. Overall coverage may be limited, particularly until 00Z, but any
+   storms that develop should quickly become supercellular and capable
+   of all severe hazards, including giant hail from 3" to 4" in
+   diameter, severe gusts to 80 mph, and strong tornadoes.
+   Additionally, forecast hodographs are quite long, with little
+   mid-level weakness. Mean storm motion is around 50 kt from 21 to
+   00Z, with Bunkers right motion around 30 kt. This should be more
+   than sufficient for storms to remain discrete and maintain supercell
+   characteristics. This also contributes to a greater potential for
+   long-track tornadoes. The tornado threat will persist pass sunset
+   and into the evening, supported by the persistence of ample
+   low-level moisture/buoyancy and a strengthening low-level jet. Most
+   current guidance maximizes the STP at 8-10 around 03Z over
+   south-central OK. 
+
+   A threat for damaging winds and tornadoes should continue Monday
+   night into early Tuesday with eastward extent into eastern OK and
+   western AR given a sufficiently unstable and strongly sheared
+   environment.
+
+   ..Mosier.. 05/05/2024
+
+   CLICK TO GET WUUS02 PTSDY2 PRODUCT
+
+   NOTE: THE NEXT DAY 2 OUTLOOK IS SCHEDULED BY 0600Z

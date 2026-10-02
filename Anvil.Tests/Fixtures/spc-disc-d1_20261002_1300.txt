@@ -1,0 +1,37 @@
+SPC AC 021236
+
+   Day 1 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   0736 AM CDT Fri Oct 02 2026
+
+   Valid 021300Z - 031200Z
+
+   ...NO SEVERE THUNDERSTORM AREAS FORECAST...
+
+   ...SUMMARY...
+   Severe thunderstorm potential is low today and tonight.
+
+   ...Mid-Atlantic States/Cumberland Plateau...
+   A progressive stream of westerlies will continue to reside over the
+   northern third of the CONUS through tonight. An extensive
+   northeast/southwest-oriented cold front will continue
+   east-southeastward, reaching the coastal Northeast/Mid-Atlantic by
+   this evening, while otherwise crossing the Tennessee Valley and
+   lower Mississippi Valley. Scattered showers/thunderstorms will
+   accompany the front, while also being common across coastal areas of
+   the Gulf Coast and Southeast. 
+
+   As the cold front approaches the coastal Mid-Atlantic/Delmarva later
+   this evening, semi-strong wind profiles (35+ kt effective shear)
+   will exist regionally, and to a lesser extent southwestward toward
+   the Appalachians and Cumberland Plateau. A couple of stronger storms
+   with gusty winds could materialize this afternoon near/ahead of the
+   front in these regions provided sufficient insolation/modest
+   destabilization. However, moist-profile/subsidence-related poor
+   lapse rates aloft should preclude organized severe storms.
+
+   ..Guyer/Dean.. 10/02/2026
+
+   CLICK TO GET WUUS01 PTSDY1 PRODUCT
+
+   NOTE: THE NEXT DAY 1 OUTLOOK IS SCHEDULED BY 1630Z

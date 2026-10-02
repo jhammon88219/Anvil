@@ -1,0 +1,69 @@
+SPC AC 151634
+
+   Day 1 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   1134 AM CDT Sat Mar 15 2025
+
+   Valid 151630Z - 161200Z
+
+   ...THERE IS A HIGH RISK OF SEVERE THUNDERSTORMS ACROSS PARTS OF
+   MISSISSIPPI AND ALABAMA...
+
+   ...SUMMARY...
+   A tornado outbreak is expected today across the central Gulf Coast
+   States and Deep South into the Tennessee Valley. Numerous
+   significant tornadoes, some of which should be long-track and
+   potentially violent, are expected this afternoon and evening. The
+   most dangerous tornado threat will begin across eastern Louisiana
+   and Mississippi through this afternoon, spread across Alabama this
+   afternoon into the evening, and reach western parts of the Florida
+   Panhandle and Georgia tonight.
+
+   ...Southeast into the Tennessee Valley...
+   No changes have been made to the High Risk area across the
+   Southeast. Multiple supercells are ongoing late this morning across
+   southeast LA into MS, along and east of a convectively reinforced
+   baroclinic zone. A very favorable parameter space exists across the
+   Southeast for severe thunderstorms, which will likely help maintain
+   ongoing supercells and small line segments. Current expectations are
+   for the most favorable strong to intense tornado environment to
+   continue across MS this afternoon and evening, with moderate
+   instability and ample low-level and deep-layer shear already in
+   place. The tornado threat will spread eastward into AL and southern
+   TN this afternoon and evening, and eventually into parts of the FL
+   Panhandle, western/central GA, and eastern TN overnight in tandem
+   with an ejecting southern-stream shortwave trough and related
+   intense low-level jet. Both large hail and severe/damaging winds
+   will also be a threat with these supercells. Upscale growth into one
+   or more bowing line segments will be possible, especially with
+   northward extent into the TN Valley and eastward into GA, where
+   potentially numerous to widespread severe/damaging winds may occur.
+   Reference Mesoscale Discussions 199, 200, and 201 for more
+   information on the near-term severe threat across the Southeast.
+
+   ...Southern Appalachians...
+   As an upper trough pivots east into the region late tonight, strong
+   low-level warm/moist advection will contribute to a gradually
+   destabilizing airmass. Despite weaker buoyancy with eastward extent
+   over northeast GA into the western Carolinas, very intense low to
+   mid-level flow will aid in maintaining a risk for a few supercells
+   and line segments into a more limited thermodynamic environment.
+   This will potentially yield a risk for damaging gusts and an
+   isolated tornado threat through early Sunday morning.
+
+   ...Ohio Valley into Southern Great Lakes...
+   Guidance maintains a belt of strong 850 mb flow through midday,
+   before an intensification of the northern periphery of a low-level
+   jet extending from the central Gulf Coast into the Mid South
+   overspreads the region. Uncertainty remains regarding the magnitude
+   of destabilization behind earlier convective activity, and its
+   resultant effects on severe potential. Most guidance generally shows
+   only weak buoyancy (at or below 500 J/kg of MUCAPE), but some
+   airmass recovery in the wake of earlier thunderstorms may occur over
+   IN into OH and vicinity.
+
+   ..Gleason/Squitieri.. 03/15/2025
+
+   CLICK TO GET WUUS01 PTSDY1 PRODUCT
+
+   NOTE: THE NEXT DAY 1 OUTLOOK IS SCHEDULED BY 2000Z

@@ -1,0 +1,53 @@
+ZCZC SPCSWOD48 ALL
+   ACUS48 KWNS 020816
+   SPC AC 020816
+
+   Day 4-8 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   0316 AM CDT Thu May 02 2024
+
+   Valid 051200Z - 101200Z
+
+   ...DISCUSSION...
+   A large upper trough with a strong embedded shortwave will develop
+   across the western CONUS on Sunday/D4, with an 80 kt 500 mb speed
+   max forecast over CO and NM by 12Z Monday. This trough will
+   progressively become negatively tilted, moving quickly across the
+   central and northern Plains during the day on Monday/D5. Even with
+   the leading wave moving northeast, height falls will persist as far
+   south as northern TX as a secondary speed max noses into CO/NM
+   through Tuesday/D6 morning.
+
+   Although model differences exist regarding the timing of the strong
+   lead wave, the combination of a deepening surface low, strong
+   large-scale ascent and moderate to strong instability will support
+   scattered to perhaps widespread severe storms on Monday. Low-level
+   moisture return will increase Sunday/D4 night as a southerly
+   low-level jet develops. During the day on Monday/D5, models show low
+   to mid 60s F dewpoints as far north as I-80 in NE/IA, with upper 60s
+   to lower 70s F from OK into TX.  The end result will be 2000 to
+   perhaps 3000 J/kg MUCAPE across the warm sector, with strengthening
+   shear. The strong wind fields and progressive nature of trough will
+   lead to an eastward expansion of steep low-level lapse rates across
+   most of NE, KS, and into central OK by late afternoon, aiding
+   surface-based storms including supercells, tornadoes, particularly
+   damaging winds and very large hail. If slower solutions such as the
+   ECMWF verify, the severe risk could last well into the evening
+   across eastern KS, OK, and western MO. 
+
+   Given the aforementioned timing and positioning differences with the
+   parent trough and cold front/dryline, will maintain a broad 15% risk
+   area, with upgrades in later outlooks as predictability increases.
+
+   For the Tuesday/D6 through Thursday/D8 period, significant severe
+   weather potential is likely primarily from parts of TX, OK, and AR,
+   and eventually LA and MS as strengthening zonal flow will be
+   possible across the region. A moist and unstable air mass beneath
+   such a flow regime (moderate west/southwest flow with subtle
+   disturbances) would lead to an eastward expansion of the EML, with
+   not only a tornado risk but very large hail. Additional severe
+   outlooks are likely as these details become more predictable.
+
+   ..Jewell.. 05/02/2024
+
+   CLICK TO GET WUUS48 PTSD48 PRODUCT

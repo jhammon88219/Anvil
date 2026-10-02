@@ -1,0 +1,145 @@
+SPC AC 141958
+
+   Day 1 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   0258 PM CDT Fri Mar 14 2025
+
+   Valid 142000Z - 151200Z
+
+   ...THERE IS A MODERATE RISK OF SEVERE THUNDERSTORMS THE LOWER/MID
+   MISSISSIPPI VALLEY INTO THE LOWER OHIO VALLEY...
+
+   ...SUMMARY...
+   A regional outbreak of severe thunderstorms is likely this afternoon
+   through tonight across parts of the Lower/Mid Mississippi Valley and
+   portions of the Lower Ohio Valley and Mid-South. Numerous tornadoes,
+   several of which could be strong to intense, widespread severe gusts
+   ranging from 60 to 100 mph, and scattered large hail up to baseball
+   size all appear likely.
+
+   ...20z Update...
+   Widespread significant severe weather remains likely this afternoon
+   through tonight over much of the MS Valley and parts of the
+   Southeast. 
+
+   An intense, negative-tilt upper trough and 120 kt mid-level jet will
+   rapidly eject northeastward over the central Plains through the day.
+   An associated deep surface low over western KS will continue to
+   intensify as it lifts east/northeast tonight. Initial updrafts along
+   a bent back dryline from northeastern KS, far eastern OK, and
+   western MO will spread northeastward into a warm and rapidly
+   moistening air mass over the MO Valley. While initial dewpoints are
+   quite limited, (40s F) very steep low and mid-level lapse rates and
+   a rapid surge of low-level moisture is likely later this
+   afternoon/evening. A broken line of initially high-based storms will
+   quickly spread eastward within very strong tropospheric flow.
+   Efficient downward momentum transport will support widespread
+   damaging gusts, potentially as high as 80-100 mph.
+
+   Ahead of these storms, low-level dewpoints should rapidly surge into
+   the 50s and low 60s F. Lowering cloud bases, and very strong mid and
+   low-level shear will allow for a few semi-discrete/embedded
+   supercells to form/mature over eastern MO, southern IA, western IL
+   and northern AR. A tornado threat (some strong to intense), is
+   likely to develop with these storms through the late afternoon and
+   evening hours, along with a continued risk for damaging winds and
+   large hail.
+
+   Farther south over parts of the ArkLaMiss and southwest TN,
+   scattered storms are expected to evolve within a strong low-level
+   warm air advection regime and ahead of the Pacific front. Dewpoints
+   in the mid 60s F will quickly lift northward over northern LA,
+   southern AR, into central MS. While forcing for ascent is likely to
+   be more nebulous, strong low-level flow within a 45-60 kt low-level
+   jet will support significant hodograph enlargement and sufficient
+   moisture/buoyancy for strong supercells. Recent CAM guidance has
+   come into better agreement on the positioning/timing of a cluster of
+   likely supercells evolving across northern LA and west-central MS
+   later this evening. Given the intensifying wind fields, and STP
+   environment of 3-4, strong tornadoes appear more likely through the
+   evening and into the overnight hours. Given increased confidence in
+   the development of intense supercells, have adjusted the Moderate
+   area farther south and west over MS/LA/AR.
+
+   ..Lyons.. 03/14/2025
+
+   .PREV DISCUSSION... /ISSUED 1130 AM CDT Fri Mar 14 2025/
+
+   ...Synopsis...
+   Water-vapor imagery late this morning indicates a powerful and
+   negatively tilted mid/upper-level shortwave trough over the southern
+   High Plains. An intense mid-level jet (with winds of 100-115+ kt at
+   500 mb) will continue to round the base of the trough, and quickly
+   eject northeastward across OK and eastern KS this afternoon. This
+   mid-level jet will move over parts of the mid MS Valley and Midwest
+   this evening and tonight in tandem with the northeastward-advancing
+   shortwave trough. Strong ascent aloft associated with both of these
+   features will overspread portions of the central CONUS as a deep
+   surface cyclone develops northeastward from the central High Plains
+   into the Upper Midwest this afternoon through tonight. In the low
+   levels, a dryline will surge eastward across the southern/central
+   Plains through the day, eventually arcing from the low southeastward
+   into the Ozarks. A large area of significant severe potential
+   remains evident across parts of the lower/mid MS Valley into the
+   Midwest and Mid-South.
+
+   ...Mid Mississippi Valley into the Midwest and Mid-South...
+   Ample diurnal heating is expected through this afternoon ahead of
+   the cyclone, with elevated convection already occurring across parts
+   of eastern OK into southeast KS and southwest MO. More robust,
+   surface-based thunderstorms will likely develop by early/mid
+   afternoon (18-21z) along/east of the dryline from parts of eastern
+   NE southward into eastern KS/western MO, as a southerly low-level
+   jet attempts to bring shallow boundary-layer moisture northward into
+   the mid MS Valley and vicinity. The northern portion of this
+   convection will be oriented more orthogonal to the ejecting
+   mid-level jet, and current expectations are for quick upscale growth
+   into a fast northeastward-moving band, posing a risk for widespread
+   severe/damaging winds as this activity moves into IA and towards the
+   MO/IA/IL border region. Given the strength of the low/mid-level flow
+   and presence of steep lapse rates aloft, along with a well-mixed
+   boundary layer, intense thunderstorm straight-line gusts peaking
+   locally in the 80-100 mph range are possible with the stronger
+   cores/inflections in the band as it matures and moves across parts
+   of the mid MS Valley, and eventually into the southwestern Great
+   Lakes this evening through tonight. 
+
+   Additional, potentially more discrete, severe thunderstorms will
+   develop this afternoon farther southeast along the wind shift into
+   central/eastern MO, generally on the northern periphery of somewhat
+   better low-level moisture from southeast MO southward into the
+   Mid-South. Stronger high-level flow and ample deep-layer shear over
+   these will likely promote at least semi-discrete supercells. Latest
+   model guidance, including various convection-allowing HREF members,
+   suggest scattered supercells developing late this afternoon and
+   evening as far south as the MS/AR/TN border region. Have nudged
+   severe probabilities and the corresponding SLGT/ENH/MDT westward a
+   little in western/central MO to account for a slightly earlier
+   initiation. Various NAM/RAP forecast soundings strongly favor
+   intense supercells capable of large to very large hail (up to 2-3
+   inches in diameter), and potentially multiple strong to intense
+   tornadoes this evening as effective SRH rapidly increases in tandem
+   with a southerly low-level jet strengthening to 50-65+ kt. This
+   substantial severe threat is expected to continue eastward overnight
+   into parts of the lower OH Valley/Midwest, before convection
+   eventually outpaces the low-level moisture return and weakens.
+
+   ...Lower Mississippi Valley...
+   Large-scale forcing for ascent appears a bit more nebulous/weak
+   farther south into the lower MS Valley. Still, the 12Z suite of
+   guidance shows some potential for surface-based thunderstorms
+   developing by late this afternoon across the ArkLaMiss region. While
+   the stronger low/mid-level flow and forcing are expected to remain
+   to the north of this region, greater low-level moisture and related
+   instability will be present. This favorable thermodynamic and
+   kinematic environment will support supercells, with associated
+   threat for large to very large hail, damaging winds, and tornadoes.
+   Some of tornadoes could be strong this evening with any sustained
+   supercells, especially across central MS and vicinity. Have expanded
+   the ENH to account for this potential, and consideration was given
+   to expanding the MDT southward into central MS as well. But, there
+   is still some uncertainty with overall thunderstorm coverage.
+
+   CLICK TO GET WUUS01 PTSDY1 PRODUCT
+
+   NOTE: THE NEXT DAY 1 OUTLOOK IS SCHEDULED BY 0100Z

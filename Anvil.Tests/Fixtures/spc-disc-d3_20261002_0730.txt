@@ -1,0 +1,34 @@
+SPC AC 020551
+
+   Day 3 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   1251 AM CDT Fri Oct 02 2026
+
+   Valid 041200Z - 051200Z
+
+   ...NO SEVERE THUNDERSTORM AREAS FORECAST...
+
+   ...SUMMARY...
+   Severe storms are not forecast for Sunday.
+
+   ...Synopsis...
+   A large-scale upper trough will continue to deepen Sunday as the
+   parent low moves out of Ontario and into western Quebec. A leading
+   shortwave trough will quickly move from the Great Lakes into the
+   Northeast, with an attendant cold front. However, little if any
+   instability will be present to support thunderstorms.
+
+   Behind the leading wave, a secondary and stronger backside speed max
+   will nose into the Upper Great Lakes late in the day, with another
+   surface high building across much of the Midwest.
+
+   Scattered thunderstorms will remain possible from the TX Coast to
+   FL, where low-level moisture and instability (500-1000 J/kg MLCAPE)
+   will exist. Weak shear and warm temperatures aloft will not favor
+   severe storms.
+
+   ..Jewell.. 10/02/2026
+
+   CLICK TO GET WUUS03 PTSDY3 PRODUCT
+
+   NOTE: THE NEXT DAY 3 OUTLOOK IS SCHEDULED BY 1930Z

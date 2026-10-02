@@ -1,0 +1,139 @@
+SPC AC 201255
+
+   Day 1 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   0755 AM CDT Mon May 20 2019
+
+   Valid 201300Z - 211200Z
+
+   ...THERE IS A HIGH RISK OF SEVERE THUNDERSTORMS FROM PARTS OF
+   NORTHWEST TEXAS AND THE EASTERN TEXAS PANHANDLE TO WESTERN AND
+   CENTRAL OKLAHOMA...
+
+   ...THERE IS A SLIGHT RISK OF SEVERE THUNDERSTORMS OVER PARTS OF
+   EASTERN NEW YORK AND NEW ENGLAND...
+
+   ...SUMMARY...
+   An outbreak of tornadoes, some potentially long-track and violent,
+   is expected today into this evening over portions of northwest Texas
+   into western and central Oklahoma.  More-isolated but still
+   potentially dangerous severe weather, including tornadoes and
+   destructive winds and hail, is possible in surrounding parts of
+   Texas, Oklahoma, Kansas, and Arkansas.
+
+   --- Technical Discussion ---
+
+   ...Synopsis...
+   Two primary features will serve as the main mid/upper-level
+   influences on convective potential through the period:
+   1.  A synoptic cyclone -- centered initially over NV and embedded
+   within a persistent western CONUS longwave trough. The associated
+   500-mb low is forecast to pivot southeastward across the Grand
+   Canyon region today and the southern Rockies overnight, while the
+   associated trough at that level evolves from positively to
+   negatively tilted.  This will occur as an upstream, northeastern
+   Pacific low moves southeastward to western OR.  The Southwestern
+   synoptic wave will yield kinematic fields rarely seen in mid/late
+   May at their latitudes, for example (by 12Z):  120-130-kt 250-mb jet
+   max over the TX South Plains/Panhandle region, 90-100-kt 500-mb flow
+   over northwest TX and western OK, 70-80-kt 700-mb winds over or near
+   eastern OK, and an evening LLJ potentially exceeding 75 kt across
+   parts of north TX and OK.
+   2.  A shortwave trough -- now apparent in moisture-channel imagery
+   over portions of Lower MI and Lake Huron.  This feature -- embedded
+   within the southern belt of cyclonic flow around a more-substantial
+   perturbation over the James Bay region -- will eject east-
+   northeastward toward the lower St. Lawrence Valley and Maine through
+   00Z.
+
+   At the surface, 11Z analysis showed a diffuse low over southeast NM
+   near ROW, with warm front eastward across the DFW Metroplex to
+   northern LA.  A dryline was drawn from southeastern NM into the Big
+   Bend region of southwest TX.  The dryline will mix/advect eastward
+   across the southern High Plains through the day, reaching the
+   eastern TX Panhandle and Permian Basin regions by late afternoon. 
+   Thereafter, where not muddled by outflow, the dryline should retreat
+   northwestward overnight.  The warm front is forecast to move/develop
+   northward across AR, OK and portions of the TX Panhandle through the
+   day, reaching the Ozarks this evening and overnight.  Warm-frontal
+   progress will be tempered somewhat by the presence of abundant
+   precip to its north; however, extreme mass response forecast in
+   advance of the mid/upper-level trough should contribute to enough
+   warm-sector thetae advection and maintenance to keep the warm-
+   frontal baroclinic gradient sharp, and the dryline well-defined.
+
+   ...Southern Plains and vicinity...
+   For details regarding ongoing hail/wind threats from mainly elevated
+   storms over the Panhandles/northwest OK area, refer to SPC watches
+   195/196 and related mesoscale discussions.
+
+   A serious outbreak of destructive, tornadic supercells is likely
+   over parts of this region this afternoon into evening, especially in
+   the high- and moderate-risk areas.  Given the expected fast storm
+   motions, especially mid-afternoon into evening, a few of the
+   best-organized supercells may reach an equilibrium with their
+   already very favorable mesoscale environments long enough to sustain
+   wide, long-track tornadoes.  Very large and damaging hail also is
+   possible from some of the supercells, along with sporadic severe
+   downdraft gusts.  The hail threat will extend farther north of the
+   warm front than the wind and tornado potential.  The wind-damage
+   threat may increase this evening as convection aggregates into
+   clusters or lines, though tornadoes and hail still will be likely
+   from any relatively discrete storms.  QLCS/line-embedded tornadoes
+   also are possible.  Collectively, the multi-episode threat justifies
+   maintaining a high risk for this outlook cycle.
+
+   Scattered to numerous thunderstorms are expected to develop, in
+   aggregate, across a substantial portion of the southern Plains from
+   the dryline eastward across OK, perhaps into western/central AR,
+   southward to the Red River region and northwest TX.  Isolated to
+   widely scattered convection also may develop farther south in north
+   TX and west-central/southwest TX along/ahead of the dryline this
+   afternoon and evening.  The first episode should involve moist-
+   sector convection building gradually into potentially tornadic
+   supercells by early-mid afternoon, between north TX and
+   central/western OK, perhaps even over eastern OK/western AR, in
+   subtle confluence/convergence zones.  Without a strong EML, MLCINH
+   will be modest, with only subtle diabatic heating and ambient
+   theta-e advection necessary to support them.  
+
+   Thereafter, several supercells should form near the dryline in a
+   regime of strengthening deep-layer flow and shear.  This activity
+   will move rapidly northeastward into the warm sector, which will be
+   characterized by large low-level hodographs and buoyancy.  With 
+   steep midlevel lapse rates, upper 60s to 70s F surface dew points
+   and deep moist layers being common, MLCAPE ranging from 2000-5000
+   J/kg should develop in the moist sector, amidst 55-70-kt effective-
+   shear magnitudes.  Effective SRH 300-500 J/kg should develop --
+   locally higher, especially near the warm front.  Some areas will
+   experience a rare combination of 3000+ MLCAPE and 400+ J/kg
+   effective SRH.  The parameter space over much of the region today
+   will support a threat of violent tornadoes, and the likelihood of
+   multiple significant (EF2+ events).
+
+   ...Northeast...
+   Widely scattered to scattered thunderstorms are forecast to develop
+   this afternoon along/ahead of a surface cold front forecast to cross
+   the region from west to east.  Occasional severe hail and damaging
+   gusts will be the main concerns, though some supercell potential
+   exists over the northern parts of the risk area, and a tornado
+   cannot be ruled out.
+
+   Destabilization of the boundary layer is expected throughout the day
+   and into afternoon, following the passage of a belt of precip now
+   crossing parts of southern New York and New England in the warm-
+   advection zone.  Both diabatic surface heating and boundary-layer
+   theta-e advection will contribute to airmass recovery from south to
+   north ahead of the front.  Surface dewpoints 60s F and steep low-
+   level lapse rates will support 1000-2000 J/kg MLCAPE.  Deep shear
+   will increase northward, supported mainly by speed strengthening
+   with height, with 35-45-kt effective-shear vectors possible over
+   parts of New England.  The threat should diminish with time this
+   evening as the remaining inland warm sector shrinks and stabilizes
+   diabatically near the surface.
+
+   ..Edwards/Jewell.. 05/20/2019
+
+   CLICK TO GET WUUS01 PTSDY1 PRODUCT
+
+   NOTE: THE NEXT DAY 1 OUTLOOK IS SCHEDULED BY 1630Z

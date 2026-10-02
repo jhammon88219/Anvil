@@ -1,0 +1,56 @@
+SPC AC 200057
+
+   Day 1 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   0757 PM CDT Sat Sep 19 2026
+
+   Valid 200100Z - 201200Z
+
+   ...THERE IS A SLIGHT RISK OF SEVERE THUNDERSTORMS FROM SOUTH-CENTRAL
+   KANSAS TO NORTHWEST MISSOURI...AND IN FAR WESTERN KANSAS...
+
+   ...SUMMARY...
+   Thunderstorms with scattered severe wind gusts and large hail are
+   possible this evening across parts of the central Plains and Lower
+   Missouri Valley.
+
+   ...Southern and Central Plains/Lower Missouri Valley...
+   The latest water vapor imagery shows a mid-level trough over the
+   Intermountain West, with southwesterly flow aloft from the southern
+   and central Rockies eastward into much of the Great Plains. A
+   shortwave trough appears to be located in central Kansas, close to
+   the position of a front oriented from southwest to northeast across
+   the central Plains. Near and to the southeast of the boundary,
+   surface dewpoints are in the 60s and lower 70s F, which is
+   contributing to moderate instability. The RAP shows an axis of
+   MLCAPE in the 1500 to 2500 J/kg range from central Kansas
+   northeastward into northwest Missouri and southern Iowa...see MCD
+   2312. Scattered strong to severe storms are ongoing along the
+   southwestern part of this corridor of moderate instability...see MCD
+   2311.
+
+   The 00Z sounding at Topeka has MLCAPE near 2000 J/kg with 0-6 km
+   shear around 20 knots, and a 0-3 km lapse rate just above 7.5 C/km.
+   RAP analysis suggests that deep-layer shear is stronger near the
+   front. The environment will support a continued severe threat this
+   evening. Severe wind gusts and isolated large hail will be the
+   primary threats. The line that is currently developing in northeast
+   Kansas may continue to have a severe threat later this evening as it
+   tracks northeastward into northwest Missouri and far southern Iowa.
+   A marginal wind-damage threat will extend southwestward along a
+   surface trough into parts of west Texas.
+
+   In the central High Plains, the western edge of moderate instability
+   extends westward into far western Kansas. Scattered strong storms
+   are ongoing near the Colorado-Kansas state line where the RAP has
+   MLCAPE around 1500 J/kg. The Goodland WSR-88D VWP has 0-6 km shear
+   around 50 knots, and the RAP has 700-500 mb lapse rates in western
+   Kansas near 7.5 C/km. This will support a supercell threat this
+   evening with a potential for isolated large hail. Severe wind gusts
+   will also be possible...see MCD 2313.
+
+   ..Broyles.. 09/20/2026
+
+   CLICK TO GET WUUS01 PTSDY1 PRODUCT
+
+   NOTE: THE NEXT DAY 1 OUTLOOK IS SCHEDULED BY 0600Z

@@ -1,0 +1,50 @@
+SPC AC 151228
+
+   Day 1 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   0628 AM CST Mon Jan 15 2024
+
+   Valid 151300Z - 161200Z
+
+   ...NO SEVERE THUNDERSTORM AREAS FORECAST...
+
+   ...SUMMARY...
+   Organized severe thunderstorms are not forecast through tonight.
+
+   ...Synopsis/Discussion...
+   In mid/upper levels, broadly cyclonic flow will continue to cover
+   most of the CONUS, anchored by a large cyclone over the southern
+   Hudson Bay region.  A series of shortwaves will pass through this
+   flow -- predominantly across the central/northern Plains, mid/upper
+   Mississippi Valley, and Upper Great Lakes.  Farther south, a broad
+   fetch of west-southwesterly flow aloft will persist across the Gulf
+   and FL, with an embedded, weak shortwave trough initially evident in
+   moisture-channel imagery over the west-central Gulf.  This
+   perturbation is expected to cross the FL Peninsula around 00Z. 
+   Meanwhile, a warm front -- analyzed at 11Z from near Cape Canaveral
+   across coastal south FL then west-northwestward to a frontal-wave
+   low over the northwestern Gulf -- will shift/redevelop northward up
+   the peninsula through midday, stalling across central FL this
+   afternoon.
+
+   Though near-surface flow will be modest on both sides of the front,
+   enough lift should occur in the frontal zone, with diurnal heating
+   on the warm side and weak midlevel lift preceding the Gulf shortwave
+   trough, to support scattered showers and isolated to widely
+   scattered thunderstorms today into this evening.  Rich warm-sector
+   moisture -- with surface dewpoints commonly upper 60s to low 70s F
+   -- will offset modest midlevel lapse rates enough for around 1000-
+   1500 J/kg MLCAPE south of the front.  Elevated MUCAPE of 500-1000
+   J/kg is possible within about 50-75 nm north of the boundary.  Weak
+   low-level flow (in the absence of stronger large-scale forcing) will
+   keep hodographs rather small, but amidst effective-shear vectors
+   commonly in the 35-45-kt range.  As such, one or two of the cells in
+   the precip area may exhibit supercell characteristics briefly. 
+   However, weakness of both lapse rates and low-level shear preclude
+   enough severe potential for an unconditional outlook at this time.
+
+   ..Edwards/Dean.. 01/15/2024
+
+   CLICK TO GET WUUS01 PTSDY1 PRODUCT
+
+   NOTE: THE NEXT DAY 1 OUTLOOK IS SCHEDULED BY 1630Z

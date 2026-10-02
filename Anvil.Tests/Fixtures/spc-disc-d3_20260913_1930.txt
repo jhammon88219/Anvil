@@ -1,0 +1,42 @@
+SPC AC 131925
+
+   Day 3 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   0225 PM CDT Sun Sep 13 2026
+
+   Valid 151200Z - 161200Z
+
+   ...THERE IS A MARGINAL RISK OF SEVERE THUNDERSTORMS FROM THE CENTRAL
+   PLAINS TO THE GREAT LAKES...
+
+   ...SUMMARY...
+   Scattered strong thunderstorms may impact a corridor south to
+   southwest of the Great Lakes through the lower Missouri Valley
+   Tuesday afternoon and evening, accompanied by at least some risk for
+   locally damaging wind gusts.
+
+   ...Discussion...
+   A mid-level trough will move into Ontario on Tuesday with the
+   mid-level ridge building in its wake across the Midwest and into the
+   Upper Midwest. Beneath this ridge, a cold front will move slowly
+   southeastward from southern Iowa and northern Kansas at the
+   beginning of the period, to northern Oklahoma to central Missouri by
+   the end of the period. Dewpoints will increase into the low to mid
+   70s south of the front with weak to moderate instability
+   anticipated. Forcing will be somewhat nebulous given the rising
+   heights aloft and weak convergence along the slow-moving, decaying
+   front. 
+
+   Nonetheless, moderate to potentially strong instability and an
+   uncapped airmass should support some thunderstorms capable of severe
+   wind gusts. Some lingering 30 to 40 knot mid-level flow is forecast
+   to remain across portions of the warm sector Friday afternoon
+   (particularly across northern Illinois/Indiana) which may aid in
+   storm organization, but warm air aloft and a lack of clear supercell
+   mode should limit the overall hail threat.
+
+   ..Bentley.. 09/13/2026
+
+   CLICK TO GET WUUS03 PTSDY3 PRODUCT
+
+   NOTE: THE NEXT DAY 3 OUTLOOK IS SCHEDULED BY 0730Z

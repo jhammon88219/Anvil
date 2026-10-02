@@ -1,0 +1,202 @@
+SPC AC 061943
+
+   Day 1 Convective Outlook  
+   NWS Storm Prediction Center Norman OK
+   0243 PM CDT Mon May 06 2024
+
+   Valid 062000Z - 071200Z
+
+   ...THERE IS A HIGH RISK OF SEVERE THUNDERSTORMS FROM CENTRAL AND
+   NORTHERN OKLAHOMA INTO SOUTH-CENTRAL KANSAS...
+
+   ...SUMMARY...
+   A regional outbreak of severe weather with multiple intense (EF3+),
+   long-tracked tornadoes, as well as very large hail and severe
+   thunderstorm gusts, is expected over parts of the south-central
+   Plains from this afternoon through evening.
+
+   ...20Z Update...
+
+   Recent surface analysis places a low over far southeast MT, with an
+   occluded front arcing southeastward to the triple point near far
+   southwest SD/far north-central NE Panhandle. A cold front extends
+   southward from this triple point across far eastern CO and then back
+   south-southwestward across eastern NM. A dry line also extends
+   southeastward from this triple point into south-central NE before
+   arcing back more southward/south-southwestward across western KS,
+   the eastern TX/OK Panhandles, and into TX Trans-Pecos. 
+
+   Thunderstorms developed quickly along the dryline from south-central
+   NE into north-central KS, as well as ahead of the occluded front in
+   southwest SD. General expectation outlined in the previous
+   discussion (appended below) remains, with thunderstorm coverage and
+   intensity expected to increase as the shortwave trough continue to
+   progress northeastward into the central High Plains. Eventual
+   organization into more of an eastward-progressing convective line is
+   anticipated, with the resulting line moving across southern NE and
+   northern KS. Primary threat with this line will be severe wind gusts
+   up to 80 mph. Some line-embedded QLCS tornadoes are also possible,
+   particularly as the line enters southeast NE and northeast KS later
+   this evening amid a strengthening low-level jet. STP values from 3
+   to 5 appear likely across southeast KS ahead of the line this
+   evening. 
+
+   Farther south (from south-central/southeast KS into most of OK), the
+   airmass continues to destabilize ahead of the dryline. Upper 60s
+   dewpoints are now approaching the KS/OK border, with low 70s
+   dewpoints now moving into central OK. Visible satellite imagery
+   continues to show relatively limited vertical development across OK,
+   with some stable undulations noted as well, both of which are
+   indicative of a capped airmass. This is verified by the 18Z OUN
+   sounding, which showed that notable capping remains in place. This
+   capping is a few degrees higher than estimated by the 12Z guidance.
+   Even so, deepening cumulus has been noted along the dryline across
+   the eastern TX/OK Panhandle, and recent initiation has occurred in
+   southwest KS, both of which suggest initiation of additional storms
+   farther south is probable around 20 to 22Z. 
+
+   Overall scenario for a potentially volatile afternoon and evening
+   remains for south-central KS into western and central OK. An
+   isolated storm could also develop in far northwest TX. Supercells
+   capable of all severe hazards are still expected, with the
+   environment becoming more favorable with time and eastern extent.
+   All guidance continues to indicate STP values around 10 are likely
+   in the 00 to 06Z timeframe across western and central OK. Giant hail
+   up to 4" in diameter, severe gusts up to 80 mph, and long-track,
+   intense tornadoes are all possible. Particularly Dangerous Situation
+   (PDS) Tornado Watch #189 was recently issued to cover this threat.
+
+   ..Mosier.. 05/06/2024
+
+   .PREV DISCUSSION... /ISSUED 1102 AM CDT Mon May 06 2024/
+
+   ...NE/KS/OK to north TX...
+   Water-vapor imagery late this morning shows a potent mid- to
+   upper-level trough/low over the central Rockies with a speed max
+   moving through the base of the trough and into the southern and
+   central High Plains.  This negatively tilted mid level trough will
+   continue northeast to near the Black Hills by this evening while its
+   southern portion overspreads the KS/OK corridor.  The 12z Amarillo,
+   TX raob showed the leading edge of stronger 700-600 mb southwesterly
+   flow nosing eastward into the High Plains.  A cyclone near the NE
+   Panhandle this morning will deepen as it moves north-northeast to
+   the SD/ND border early Tuesday morning.  An associated Pacific front
+   will push east into the High Plains and overtake the northern
+   portion of the dryline across parts of the central High Plains this
+   afternoon into this evening.  Farther south, a dryline will mix east
+   into western OK by late this afternoon with a broad moist/unstable
+   warm sector across the southern Great Plains and becoming
+   increasingly pinched in spatial width farther north into the
+   north-central Great Plains.  An attendant warm front will advance
+   northward from OK into the lower MO Valley by early evening and
+   later into the mid MS Valley.  
+
+   Visible satellite imagery shows considerable low stratus and
+   stratocumulus from north TX into the central Great Plains.  The 12z
+   Fort Worth, TX raob sampled the richer low-level moisture (15 g/kg
+   lowest 100mb mean mixing ratio) compared to areas farther north. 
+   Surface analysis late this morning shows rapid northward transport
+   of moisture into OK with 65-70 deg F dewpoints advecting northward
+   through OK to the KS border.  This plume of richer moisture will
+   continue northward today beneath an EML and lead to moderate
+   destabilization over NE with a very to extremely unstable airmass
+   forecast to develop farther south over the southern half of KS into
+   OK and adjacent north TX.  
+
+   Initial thunderstorm development is likely as the upper forcing
+   impinges on the northwestern periphery of the moist/unstable sector
+   across the central High Plains (western KS/NE) and northward into SD
+   with time.  Steep 700-500 mb lapse rates and strengthening flow
+   becoming more meridional with time will favor organized storms,
+   including supercells and bands of storms with an associated isolated
+   to scattered risk for hail/wind and perhaps a few tornadoes. 
+   Farther south, the erosion of the cap is expected initially over the
+   KS portion of the dryline and perhaps into northwest OK by the mid
+   afternoon.  Strengthening flow through the column combined with
+   strong to extreme buoyancy (2500-4500 J/kg MLCAPE) --from I-70 in
+   central KS to I-40 in central OK-- will strongly favor supercell
+   development.  Strong upper-level diffluence across the central Great
+   Plains and intensifying southwesterly to westerly 250-mb flow, which
+   will result in very long hodographs, will strongly favor discrete
+   storm modes, at least initially.  Large to giant hail (3-4 inches in
+   diameter) is possible with the more robust supercells.  The LLJ is
+   forecast to be strongest over KS northward into the north-central
+   Plains through 21z.  During the 21-00z timeframe, the flow
+   associated with the LLJ will strengthen over OK acting to enlarge
+   hodographs.  Climatologically large combinations of deep-layer
+   shear, buoyancy, and SRH will result in extreme values of composite
+   indices (STP 6-12) during the 22z-06z timeframe across the Moderate
+   to High Risks.  Several discrete supercells are expected to traverse
+   across a large portion of the Moderate and High-Risk equivalent
+   tornado probabilities.  Tornadoes, some of which can be intense
+   (EF3+), are forecast late this afternoon and well into the evening. 
+   Some model guidance shows regenerative supercell development across
+   central OK this evening.  Have extended the High Risk slightly
+   farther south to account for this possibility.  
+
+   ...Lower MO Valley/Ozarks/mid MS Valley late...
+   As greater storm coverage and merging occurs this evening across KS
+   into northern OK, large-scale ascent will further promote upscale
+   growth into a severe squall line across eastern KS and moving into
+   the lower MO Valley and western part of the Ozarks.  Have upgraded
+   severe-wind probabilities and this resulted in a slight spatial
+   extension of the Moderate Risk to the east across southeast
+   KS/northeast OK.  A severe risk will probably continue east to the
+   MS River overnight with an attendant wind risk and perhaps an
+   isolated risk for a tornado.  
+
+   ...Northern Plains...
+   No appreciable change from previous forecast thinking for severe
+   potential across the northern Plains.  A prefrontal corridor of
+   favorable moisture and diurnal destabilization will become quite
+   narrow with north and northwestward extent.  Nonetheless, it should
+   support scattered thunderstorms in northward-shifting plume, curving
+   from the western Dakotas (and perhaps parts of extreme northeastern
+   WY and southeastern MT) southeastward to central NE, and connecting
+   to the northern part of the central Plains severe threat.  With
+   strong large-scale lift, cooling aloft, rapidly weakening MLCINH,
+   and robust low-level mass response/shear expected ahead of the
+   ejecting shortwave trough, confidence is growing that an arc of
+   strong-severe thunderstorms will develop, offering large hail,
+   severe gusts and at least marginal tornado potential.  Even with 50s
+   to low 60s F surface dewpoints and limited time for substantial
+   diabatic heating, the net steepening of low/middle level lapse rates
+   should support peak MLCAPE near or slightly above 1000 J/kg.  Deep
+   shear may not be particularly intense in a regime of strongly
+   difluent flow aloft, but still should be adequate for supercell
+   potential given large lowest-km hodographs possible, and effective
+   SRH in the 150-300 J/kg range.  Severe potential should diminish
+   after about 00Z.
+
+   ...West-central/southwest TX...
+   Model guidance continues to indicate isolated thunderstorms are
+   possible in mid/late afternoon along/ ahead of the dryline over
+   northwest to southwest TX.  Although large-scale/mid-upper forcing
+   will be negligible (displaced to the north), any pockets of
+   relatively persistent/maximized low-level lift may aid in local
+   erosion of the cap and convective initiation.  Mid/upper 60s to low
+   70s F surface dewpoints and steep low/middle-level lapse rates will
+   contribute to 3000-4000 J/kg MLCAPE amidst enough deep shear for
+   supercells.  A conditional significant-hail and marginal tornado
+   threat exists with sustained supercell(s) -- if any can form. 
+   Coverage concerns preclude more than marginal categorical outlook at
+   this time.
+
+   ...Mid South/TN Valley into the southern Appalachians...
+   A mid-level shortwave trough over TN this morning will continue to
+   move east into the southern Appalachians today.  An enhanced belt of
+   westerly mid-level flow accompanying this impulse will overspread
+   this general region.  In wake of decaying morning convection over
+   the southern Appalachians, ample heating of a moist boundary layer
+   will result in moderate destabilization by early-mid afternoon. 
+   Storm redevelopment is forecast this afternoon along and north of a
+   trailing/diffuse convective boundary over the TN Valley.  Scattered
+   thunderstorms will probably develop by early to mid afternoon. 
+   Effective shear magnitudes 25-30 kt will support  some organization
+   in the form of clusters and perhaps transient supercells.  Marginal
+   Risk equivalent severe probabilities have been added to highlight
+   this isolated severe threat.
+
+   CLICK TO GET WUUS01 PTSDY1 PRODUCT
+
+   NOTE: THE NEXT DAY 1 OUTLOOK IS SCHEDULED BY 0100Z
