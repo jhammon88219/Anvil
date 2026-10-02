@@ -48,14 +48,79 @@ namespace Anvil.Tests
 
 			gate.Arm();
 			gate.Report(39, 22, 14);
-			Assert.Equal("Downloaded 22 of 39", gate.DownloadedText);
-			Assert.Equal("14 of 39 frames built", gate.BuiltText);
+			Assert.Equal("22 of 39", gate.DownloadedText);
+			Assert.Equal("Downloading", gate.DownloadedLabel);
+			Assert.Equal("14 of 39", gate.BuiltText);
 			Assert.Equal(14.0 / 39, gate.BuiltFraction, 6);
 
 			gate.Report(39, 39, 39);
-			Assert.Equal("All downloaded", gate.DownloadedText);
+			Assert.Equal("Downloaded", gate.DownloadedLabel);
 			gate.Complete();
 			Assert.False(gate.IsShown);
+		}
+
+		// The user's call, 2026-10-02: a loop that finishes while the screen is SEEN waits for "View event", so someone
+		// reading the why line isn't yanked onto the map. One that finishes before the fade-in just releases.
+		[Fact]
+		public void A_seen_screen_waits_for_View_event_and_an_instant_load_just_releases()
+		{
+			var (gate, _, _) = NewGate();
+			long now = 1_000;
+			gate.NowMs = () => now;
+
+			gate.Begin("KTLX", "x");
+			gate.Arm();
+			now += LoopHoldingGateViewModel.FadeInDelayMs; // the dim has faded in
+			gate.Report(28, 28, 28);
+			gate.Complete();
+			Assert.Equal(LoopGateState.Ready, gate.State);
+			Assert.True(gate.IsShown);
+			Assert.True(gate.IsReadyShown);
+			Assert.True(gate.IsProgressShown);
+			Assert.False(gate.IsActionsShown);
+			Assert.Equal("Frames built", gate.BuiltLabel);
+			gate.ViewReady();
+			Assert.False(gate.IsShown);
+
+			gate.Begin("KTLX", "cached");
+			gate.Arm();
+			now += LoopHoldingGateViewModel.FadeInDelayMs - 1; // done before the dim showed
+			gate.Complete();
+			Assert.False(gate.IsShown);
+		}
+
+		[Fact]
+		public void After_Use_the_map_a_finished_load_has_nothing_to_wait_on()
+		{
+			var (gate, _, _) = NewGate();
+			long now = 0;
+			gate.NowMs = () => now;
+			gate.Begin("KTLX", "x");
+			gate.Arm();
+			now += 5_000;
+			gate.RequestEscape();
+			gate.UseMap();
+			gate.Complete();
+			Assert.False(gate.IsShown);
+		}
+
+		[Fact]
+		public void The_title_names_a_chosen_event_and_the_button_follows()
+		{
+			var (gate, _, _) = NewGate();
+			long now = 0;
+			gate.NowMs = () => now;
+			gate.Begin("KTLX", "x");
+			Assert.Equal("Loading the loop", gate.Title);
+			Assert.Equal("View loop", gate.ReadyButtonText);
+
+			gate.EventName = "May 3, 1999 Bridge Creek-Moore, OK";
+			Assert.Equal("Loading May 3, 1999 Bridge Creek-Moore, OK", gate.Title);
+			gate.Arm();
+			now += 1_000;
+			gate.Complete();
+			Assert.Equal("Ready: May 3, 1999 Bridge Creek-Moore, OK", gate.Title);
+			Assert.Equal("View event", gate.ReadyButtonText);
 		}
 
 		[Fact]

@@ -62,8 +62,8 @@ namespace Anvil.Controls.Composites
 
 		public double BarWidth(double fraction) => System.Math.Round(BarTrackWidth * fraction);
 
-		public Visibility SpacerShown(bool actions, bool confirm) =>
-			actions || confirm ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility SpacerShown(bool actions, bool confirm, bool ready) =>
+			actions || confirm || ready ? Visibility.Visible : Visibility.Collapsed;
 
 		private void Attach(LoopHoldingGateViewModel? vm)
 		{
@@ -121,5 +121,7 @@ namespace Anvil.Controls.Composites
 		private void OnConfirmUseMapClick(object sender, RoutedEventArgs e) => ViewModel?.UseMap();
 
 		private void OnGotItClick(object sender, RoutedEventArgs e) => ViewModel?.AcknowledgeCancelled();
+
+		private void OnViewReadyClick(object sender, RoutedEventArgs e) => ViewModel?.ViewReady();
 	}
 }

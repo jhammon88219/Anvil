@@ -6,8 +6,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace Anvil.ViewModels
 {
 	/// <summary>The gate's screens. <see cref="Cancelling"/> covers the moment between the click and the
-	/// loop being truncated, so a load that bails in that window can't hide the gate under the popup.</summary>
-	public enum LoopGateState { Hidden, Holding, ConfirmingEscape, Cancelling, Cancelled }
+	/// loop being truncated, so a load that bails in that window can't hide the gate under the popup.
+	/// <see cref="Ready"/> = the loop finished while the screen was SEEN; it waits for "View event".</summary>
+	public enum LoopGateState { Hidden, Holding, ConfirmingEscape, Cancelling, Cancelled, Ready }
 
 	/// <summary>
 	/// The LOOP HOLDING GATE: while a PastCast loop loads, the map is dimmed behind a progress screen and takes
@@ -16,8 +17,9 @@ namespace Anvil.ViewModels
 	/// </summary>
 	/// <remarks>
 	/// <code>
-	///   Load ─▶ Begin ─▶ Holding ──(every frame settled)──▶ Hidden
-	///                     │  ▲
+	///   Load ─▶ Begin ─▶ Holding ──(every frame settled)──▶ Ready ──"View event"──▶ Hidden
+	///                     │  ▲                   (or Hidden at once if the screen never faded in)
+	///                     │  │
 	///        "Use the map"│  │"Keep waiting"
 	///                     ▼  │
 	///               ConfirmingEscape ──"Use the map"──▶ Hidden  (+ "Don't hold future loads" → setting off)
@@ -33,6 +35,9 @@ namespace Anvil.ViewModels
 	/// timer or an estimate. The engine pushes them through <see cref="Report"/>.
 	/// ⚠️ The escape is deliberately the quiet path: a borderless button, then a confirm that says what you
 	/// get. The permanent opt-out lives INSIDE that confirm and in Settings → Radar → PastCast.
+	/// ⚠️ READY WAITS FOR THE PRESS (the user's call, 2026-10-02): someone reading <see cref="WhyText"/> isn't yanked
+	/// onto the map. But only a screen that was SEEN waits: a load finishing inside <see cref="FadeInDelayMs"/> (a
+	/// cached replay) never showed the gate, so it just releases — and after "Use the map" there is nothing to wait on.
 	/// </remarks>
 	public sealed class LoopHoldingGateViewModel : ObservableObject
 	{
@@ -46,6 +51,17 @@ namespace Anvil.ViewModels
 		/// <summary>The dim AND the blur start this long after the gate goes up, so a load that finishes inside it
 		/// (a cached replay, well under a second) never visibly frosts. Input is gated at once regardless.</summary>
 		public const int FadeInDelayMs = 250;
+
+		/// <summary>Why a loop takes time — the line above everything (three drafts combined, the user's call 2026-10-02).</summary>
+		public const string WhyText =
+			"This is raw radar data, not a video. A radar sends a new scan every 4–6 minutes, so two hours is about 25 scans. "
+			+ "Each one is a few megabytes, downloaded from NOAA's archive and drawn here on your computer, one frame at a time. "
+			+ "Longer timeframes mean more frames.";
+
+		/// <summary>The clock the "was the screen seen" test reads (ms). Swappable for tests.</summary>
+		internal Func<long> NowMs { get; set; } = () => Environment.TickCount64;
+		private long _heldSinceMs;
+		private string? _eventName;
 
 		private readonly ISettingsService _settings;
 		private readonly Func<Task> _cancelLoad;
@@ -69,9 +85,16 @@ namespace Anvil.ViewModels
 			get => _state;
 			private set
 			{
+				var was = _state;
 				if (SetProperty(ref _state, value))
 				{
+					// The screen's clock starts when the gate comes UP (Begin, ReturnToHold), not on Keep waiting.
+					if (was == LoopGateState.Hidden) _heldSinceMs = NowMs();
 					OnPropertyChanged(nameof(IsShown));
+					OnPropertyChanged(nameof(IsReadyShown));
+					OnPropertyChanged(nameof(Title));
+					OnPropertyChanged(nameof(DownloadedLabel));
+					OnPropertyChanged(nameof(BuiltLabel));
 					OnPropertyChanged(nameof(IsProgressShown));
 					OnPropertyChanged(nameof(IsActionsShown));
 					OnPropertyChanged(nameof(IsConfirmShown));
@@ -83,15 +106,46 @@ namespace Anvil.ViewModels
 
 		/// <summary>The gate is up (dimming the map and swallowing its input).</summary>
 		public bool IsShown => _state != LoopGateState.Hidden;
-		/// <summary>Title, event line and bars — every screen but the cancelled popup.</summary>
-		public bool IsProgressShown => _state is LoopGateState.Holding or LoopGateState.ConfirmingEscape or LoopGateState.Cancelling;
+		/// <summary>Why line, title, event line and bars — every screen but the cancelled popup.</summary>
+		public bool IsProgressShown => _state is LoopGateState.Holding or LoopGateState.ConfirmingEscape or LoopGateState.Cancelling
+			or LoopGateState.Ready;
 		public bool IsActionsShown => _state is LoopGateState.Holding or LoopGateState.Cancelling;
 		public bool IsConfirmShown => _state == LoopGateState.ConfirmingEscape;
 		public bool IsCancelledShown => _state == LoopGateState.Cancelled;
+		/// <summary>The loop is built and the screen waits for "View event".</summary>
+		public bool IsReadyShown => _state == LoopGateState.Ready;
 		/// <summary>False while a cancel is being carried out (one click is enough).</summary>
 		public bool AreActionsEnabled => _state == LoopGateState.Holding;
 
-		public string Title => "Loading the loop";
+		/// <summary>The chosen saved event's "May 3, 1999 Bridge Creek-Moore, OK", or null for your own timeframe.
+		/// Pushed by SavedEventsViewModel (its pick); the engine knows nothing of events.</summary>
+		public string? EventName
+		{
+			get => _eventName;
+			set
+			{
+				if (SetProperty(ref _eventName, string.IsNullOrWhiteSpace(value) ? null : value))
+				{
+					OnPropertyChanged(nameof(Title));
+					OnPropertyChanged(nameof(ReadyButtonText));
+				}
+			}
+		}
+
+		/// <summary>"Loading May 3, 1999 Bridge Creek-Moore, OK" / "Loading the loop"; once built, "Ready: …" / "Loop ready".</summary>
+		public string Title => (_state == LoopGateState.Ready, _eventName) switch
+		{
+			(true, null) => "Loop ready",
+			(true, { } name) => $"Ready: {name}",
+			(false, null) => "Loading the loop",
+			(false, { } name) => $"Loading {name}",
+		};
+
+		/// <summary>The Ready screen's one button.</summary>
+		public string ReadyButtonText => _eventName is null ? "View loop" : "View event";
+
+		/// <summary>The why line (bound by the gate; wording lives here).</summary>
+		public string Why => WhyText;
 
 		/// <summary>"KTBW · Sep 28, 2022 · 1:00 PM–4:00 PM" (local time, like the rest of PastCast).</summary>
 		public string EventLine { get => _eventLine; private set => SetProperty(ref _eventLine, value); }
@@ -105,12 +159,15 @@ namespace Anvil.ViewModels
 		/// <summary>0–1, the thick bar — the scrubber's lit cells.</summary>
 		public double BuiltFraction => _total > 0 ? Math.Clamp((double)_built / _total, 0, 1) : 0;
 
-		public string DownloadedText =>
-			_total == 0 ? "Finding volumes…"
-			: _downloaded >= _total ? "All downloaded"
-			: $"Downloaded {_downloaded} of {_total}";
+		// The bars' labels (layout A, the user's call 2026-10-02): a name over each bar's left end, "22 of 28" over its right.
+		/// <summary>"Downloading" while it runs, "Downloaded" once every volume is in (or the loop is ready).</summary>
+		public string DownloadedLabel => _state == LoopGateState.Ready || (_total > 0 && _downloaded >= _total) ? "Downloaded" : "Downloading";
+		public string BuiltLabel => _state == LoopGateState.Ready ? "Frames built" : "Building frames";
 
-		public string BuiltText => _total == 0 ? string.Empty : $"{_built} of {_total} frames built";
+		/// <summary>"22 of 28", or "Finding volumes…" before the list is in.</summary>
+		public string DownloadedText => _total == 0 ? "Finding volumes…" : $"{_downloaded} of {_total}";
+
+		public string BuiltText => _total == 0 ? string.Empty : $"{_built} of {_total}";
 
 		/// <summary>The cancelled popup's sentence.</summary>
 		public string KeptText { get => _keptText; private set => SetProperty(ref _keptText, value); }
@@ -183,7 +240,20 @@ namespace Anvil.ViewModels
 			// was the one carrying the load (and flashes "Loop ready"); the IsLoading flip after would clear it first.
 			LoadFinished?.Invoke(this, _total);
 			IsLoading = false;
-			if (_state is LoopGateState.Holding or LoopGateState.ConfirmingEscape) State = LoopGateState.Hidden;
+			if (_state is LoopGateState.Holding or LoopGateState.ConfirmingEscape)
+			{
+				// A screen that was SEEN waits for "View event"; one that never faded in just releases.
+				State = WasSeen ? LoopGateState.Ready : LoopGateState.Hidden;
+			}
+		}
+
+		// Up at least as long as the fade-in delay = the dim actually showed (LoopHoldingGate fades in after it).
+		private bool WasSeen => NowMs() - _heldSinceMs >= FadeInDelayMs;
+
+		/// <summary>"View event" / "View loop": leave the Ready screen for the map.</summary>
+		public void ViewReady()
+		{
+			if (_state == LoopGateState.Ready) State = LoopGateState.Hidden;
 		}
 
 		/// <summary>The load failed or was superseded (not via Cancel). Leaves a cancel in progress alone.</summary>
@@ -261,6 +331,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(BuiltFraction));
 			OnPropertyChanged(nameof(DownloadedText));
 			OnPropertyChanged(nameof(BuiltText));
+			OnPropertyChanged(nameof(DownloadedLabel));
 		}
 	}
 }

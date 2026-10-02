@@ -11,17 +11,21 @@
 
        ┌───────────────────────── map band, blurred + dimmed ─────────────────────┐
        │                                                                           │
-       │                          Loading the loop                                 │
-       │                KTBW · Sep 28, 2022 · 1:00 PM–4:00 PM                      │
-       │           ───────────────────────────────────  ← downloaded (thin)        │
-       │           ████████████████░░░░░░░░░░░░░░░░░░░  ← built = lit scrubber     │
-       │           Downloaded 22 of 39   14 of 39 frames built                     │
-       │                                                                           │
+       │        This is raw radar data, not a video. A radar sends a new scan …    │ ← WHY (WhyText), above
+       │                              ↕ 24                                         │   everything
+       │              Loading May 3, 1999 Bridge Creek-Moore, OK                   │ ← "Loading the loop" for
+       │                KTLX · Mon May 3, 1999 · 6:00 PM–8:00 PM                   │   your own timeframe
+       │           Downloading                              22 of 28               │
+       │           ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░  ← 6 px, grey               │ ← BARS, layout A: labelled,
+       │           Building frames                          14 of 28               │   count on the right
+       │           ████████████████░░░░░░░░░░░░░░░░░░░  ← 10 px, blue = lit cells │
        │                              ↕ 100 px                                     │
-       │                                                                           │
        │                  [ Cancel load ]    Use the map                           │
        │                    dark red fill     no border; lifts 2 px on hover       │
        └───────────────────────────────────────────────────────────────────────────┘
+       READY (built while the screen was SEEN): "Ready: …" / "Loop ready", bars full, and ONE accent button
+       [ View event ] / [ View loop ] in place of the actions — the screen waits for it. A load finishing inside
+       FadeInDelayMs never showed the gate, so it just releases.
 
        "Use the map" → the buttons swap for a confirm (EscapeWarning, "Don't hold future loads",
                        Keep waiting · [Use the map]).
@@ -54,32 +58,49 @@
 
             <!-- PROGRESS: title, event, the two bars, the counts. -->
             <StackPanel Visibility="{x:Bind ViewModel.IsProgressShown, Mode=OneWay}">
+                <!-- THE WHY LINE, above everything (the user's call, 2026-10-02): why a loop takes time. -->
+                <TextBlock Text="{x:Bind ViewModel.Why}" FontSize="13" LineHeight="19" TextWrapping="Wrap"
+                           TextAlignment="Center" Margin="0,0,0,24" Foreground="#C7E8EAED"/>
+
                 <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="16" FontWeight="SemiBold"
+                           TextWrapping="Wrap" TextAlignment="Center"
                            Foreground="#FFE8EAED" HorizontalAlignment="Center"/>
                 <TextBlock Text="{x:Bind ViewModel.EventLine, Mode=OneWay}" FontSize="12" Margin="0,4,0,18"
                            Foreground="#A6E8EAED" HorizontalAlignment="Center"/>
 
-                <!-- Downloaded: thin. -->
-                <Grid Height="3" CornerRadius="1.5" Background="#1FE8EAED">
-                    <Border HorizontalAlignment="Left" CornerRadius="1.5" Background="#8CE8EAED"
+                <!-- THE BARS (layout A, the user's call 2026-10-02): each one LABELLED — name on the left, "22 of 28"
+                     on the right — the download thin and grey, the build thicker and blue (the scrubber's lit cells). -->
+                <Grid Margin="0,0,0,5">
+                    <TextBlock Text="{x:Bind ViewModel.DownloadedLabel, Mode=OneWay}" FontSize="12" Foreground="#A6E8EAED"/>
+                    <TextBlock Text="{x:Bind ViewModel.DownloadedText, Mode=OneWay}" FontSize="12" Foreground="#FFE8EAED"
+                               HorizontalAlignment="Right" Typography.NumeralAlignment="Tabular"/>
+                </Grid>
+                <Grid Height="6" CornerRadius="3" Background="#1AE8EAED">
+                    <Border HorizontalAlignment="Left" CornerRadius="3" Background="#FF9AA4B2"
                             Width="{x:Bind BarWidth(ViewModel.DownloadedFraction), Mode=OneWay}"/>
                 </Grid>
-                <!-- Built: thick — the scrubber's lit cells. -->
-                <Grid Height="8" CornerRadius="4" Background="#1FE8EAED" Margin="0,5,0,0">
-                    <Border HorizontalAlignment="Left" CornerRadius="4" Background="#FF5B8DEF"
-                            Width="{x:Bind BarWidth(ViewModel.BuiltFraction), Mode=OneWay}"/>
-                </Grid>
 
-                <Grid Margin="0,8,0,0">
-                    <TextBlock Text="{x:Bind ViewModel.DownloadedText, Mode=OneWay}" FontSize="12"
-                               Foreground="#A6E8EAED" HorizontalAlignment="Left"/>
-                    <TextBlock Text="{x:Bind ViewModel.BuiltText, Mode=OneWay}" FontSize="12"
-                               Foreground="#FFE8EAED" HorizontalAlignment="Right"/>
+                <Grid Margin="0,12,0,5">
+                    <TextBlock Text="{x:Bind ViewModel.BuiltLabel, Mode=OneWay}" FontSize="12" Foreground="#A6E8EAED"/>
+                    <TextBlock Text="{x:Bind ViewModel.BuiltText, Mode=OneWay}" FontSize="12" Foreground="#FFE8EAED"
+                               HorizontalAlignment="Right" Typography.NumeralAlignment="Tabular"/>
+                </Grid>
+                <Grid Height="10" CornerRadius="5" Background="#1AE8EAED">
+                    <Border HorizontalAlignment="Left" CornerRadius="5" Background="#FF5B8DEF"
+                            Width="{x:Bind BarWidth(ViewModel.BuiltFraction), Mode=OneWay}"/>
                 </Grid>
             </StackPanel>
 
             <!-- The 100 px between the information and the actions (the user's spec). -->
-            <Border Height="100" Visibility="{x:Bind SpacerShown(ViewModel.IsActionsShown, ViewModel.IsConfirmShown), Mode=OneWay}"/>
+            <Border Height="100" Visibility="{x:Bind SpacerShown(ViewModel.IsActionsShown, ViewModel.IsConfirmShown, ViewModel.IsReadyShown), Mode=OneWay}"/>
+
+            <!-- READY: the loop is built; the screen WAITS for this press (the user's call, 2026-10-02 — someone reading
+                 the why line isn't yanked onto the map). "View event" for a chosen event, "View loop" otherwise. -->
+            <Button HorizontalAlignment="Center" MinWidth="132" Padding="22,8" CornerRadius="8"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Content="{x:Bind ViewModel.ReadyButtonText, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.IsReadyShown, Mode=OneWay}"
+                    Click="OnViewReadyClick"/>
 
             <!-- ACTIONS: Cancel (dark red, brighter on hover/press) · Use the map (borderless, lifts). -->
             <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center"
