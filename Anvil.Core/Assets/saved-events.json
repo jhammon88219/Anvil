@@ -208,6 +208,18 @@
         { "site": "KDVN", "startUtc": "2020-08-10T16:30:00Z", "minutes": 180,
           "key": { "startUtc": "2020-08-10T17:30:00Z", "endUtc": "2020-08-10T17:55:00Z", "place": "Cedar Rapids" } }
       ]
+    },
+    {
+      "id": "outlook-test-2024-05-06",
+      "type": "tornado",
+      "name": "Outlook Test (pop centers by risk)",
+      "notes": "A test case for the outlook discussion's risk cards: SPC's population table is at its fullest here - all five categories, Marginal through High - on every Day 1 issuance that day (1630Z, 20Z, 01Z; High Risk over central OK). The window falls under the 01Z outlook, which PastCast's Auto cycle draws; the key is a tornado through south Oklahoma City that night.",
+      "source": "SPC Day 1 Convective Outlook archive (May 6 2024, 1630Z/20Z/01Z tables). Key: SPC filtered storm reports, tornado 4 WNW Moore 0437Z to 1 NNE Valley Brook 0444Z (OUN)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KTLX", "startUtc": "2024-05-07T03:30:00Z", "minutes": 120,
+          "key": { "startUtc": "2024-05-07T04:37:00Z", "endUtc": "2024-05-07T04:44:00Z", "place": "Moore, OK" } }
+      ]
     }
   ]
 }
