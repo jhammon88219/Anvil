@@ -40,6 +40,15 @@ if (args.Length > 0 && args[0] == "--gzprefix")
         }
         Console.WriteLine($"{gzKey}: gz {gz.Length / 1e6:0.00} MB → {full.Length / 1e6:0.00} MB unzipped ({walker}); " +
             (need < 0 ? "NO prefix reproduced the tilt" : $"tilt complete + identical after {need / 1e6:0.00} MB = {100.0 * need / gz.Length:0}% of the download"));
+
+        // The SHIPPING path (Level2RadarService.StreamGzBaseTiltAsync) over the same bytes: what it stops at and
+        // whether its tilt is the whole file's.
+        long streamed = 0;
+        var (st, back) = await Level2RadarService.StreamGzBaseTiltAsync(new MemoryStream(gz), gzSite,
+            (n, _) => { streamed += n; return Task.CompletedTask; }, false, CancellationToken.None);
+        Console.WriteLine(st is not null
+            ? $"   streamed: stopped after {streamed / 1e6:0.00} MB ({100.0 * streamed / gz.Length:0}%), tilt {(st.AsSpan().SequenceEqual(wholeTilt) ? "IDENTICAL" : "DIFFERENT ⚠️")}"
+            : $"   streamed: no complete tilt — handed back the whole file ({back?.Length / 1e6:0.00} MB)");
     }
     return 0;
 

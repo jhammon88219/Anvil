@@ -151,6 +151,77 @@ namespace Anvil.Tests
 			Assert.Null(outp);
 		}
 
+		// ── The STREAMED .gz path (Level2RadarService.StreamGzBaseTiltAsync) ─────────────────────────────────────
+
+		// A legacy volume as the archive serves it: gzip-wrapped (stored, so its size is honest), base cut + its Doppler
+		// companion first, then ~3 MB of higher tilts the base tilt never needs.
+		private static byte[] Gz(byte[] raw)
+		{
+			using var ms = new MemoryStream();
+			using (var z = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionLevel.NoCompression, leaveOpen: true))
+			{
+				z.Write(raw);
+			}
+			return ms.ToArray();
+		}
+
+		private static byte[] BigLegacyVolume(bool withCompanion = true)
+		{
+			// Sized against the checks (512 KB, then every 256 KB): the surveillance cut runs to ~620 KB and its Doppler
+			// companion to ~1030 KB, so the 768 KB check lands MID-companion — where the walker hands back a tilt that
+			// is NOT complete. Accepting it there would return a truncated tilt (no velocity for most of the sweep).
+			var messages = new List<(int, int, float, int)> { Meta(), Meta() };
+			for (var i = 0; i < 600; i++) messages.Add(Radial(1, 0.48f, 1000));
+			if (withCompanion) for (var i = 0; i < 400; i++) messages.Add(Radial(2, 0.48f, 1000));
+			for (var i = 0; i < 3000; i++) messages.Add(Radial(3 + i / 400, 1.3f + i / 400, 1000));
+			return BuildVolume(messages);
+		}
+
+		// Hands the gzip over in small pieces, like a network body, and counts what was read.
+		private sealed class TrickleStream(byte[] data) : MemoryStream(data)
+		{
+			// Counted HERE only (the stream path reads through ReadAsync; MemoryStream's own reads may route through each
+			// other, so counting in more than one override double-counts).
+			public long Served { get; private set; }
+			public override System.Threading.Tasks.ValueTask<int> ReadAsync(Memory<byte> buffer, System.Threading.CancellationToken ct = default)
+			{
+				var n = base.Read(buffer.Span[..Math.Min(buffer.Length, 16 * 1024)]);
+				Served += n;
+				return new(n);
+			}
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task Streamed_gz_stops_early_with_the_whole_files_tilt()
+		{
+			var raw = BigLegacyVolume();
+			var gz = Gz(raw);
+			var body = new TrickleStream(gz);
+			long charged = 0;
+
+			var (tilt, whole) = await Level2RadarService.StreamGzBaseTiltAsync(body, "KTLX",
+				(n, _) => { charged += n; return System.Threading.Tasks.Task.CompletedTask; }, urgent: false, default);
+
+			var expected = Level2Format.TryExtractLowestTiltUncompressed(raw, "KTLX", out _);
+			Assert.NotNull(tilt);
+			Assert.Null(whole);
+			Assert.Equal(expected, tilt);                                       // byte-identical to the whole file's
+			Assert.True(body.Served < gz.Length / 3, $"read {body.Served} of {gz.Length} — it didn't stop early");
+			Assert.Equal(body.Served, charged);                                 // every byte read went through the meter
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task Streamed_gz_with_no_complete_tilt_hands_back_the_whole_file()
+		{
+			// No Doppler companion: the walker never yields a tilt (see RejectsAVolumeWhoseBaseCutHasNoDopplerCompanion),
+			// so the stream runs to the end and the bytes go to the unchanged full-download path — fetched once.
+			var gz = Gz(BigLegacyVolume(withCompanion: false));
+			var (tilt, whole) = await Level2RadarService.StreamGzBaseTiltAsync(new TrickleStream(gz), "KTLX",
+				(_, _) => System.Threading.Tasks.Task.CompletedTask, urgent: false, default);
+			Assert.Null(tilt);
+			Assert.Equal(gz, whole);
+		}
+
 		// Counts Message 31 records at a given elevation number by re-walking the output the same way.
 		private static int CountRadialsAtElev(byte[] data, int elev)
 		{

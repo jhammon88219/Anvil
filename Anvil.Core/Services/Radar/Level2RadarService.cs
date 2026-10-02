@@ -252,10 +252,16 @@ namespace Anvil.Services
 		private static async Task<byte[]> ReadBodyAsync(HttpContent content, CancellationToken ct)
 		{
 			var bytes = await content.ReadAsByteArrayAsync(ct);
-			if (Meter.Value is { } meter) Interlocked.Add(ref meter.Bytes, bytes.Length);
-			Interlocked.Add(ref _totalBytesDownloaded, bytes.Length);
-			await DevBandwidthLimit.ChargeAsync(bytes.Length, ct); // DEV-ONLY: a no-op unless the Dev tab set a cap
+			await ChargeChunkAsync(bytes.Length, ct);
 			return bytes;
+		}
+
+		// Every downloaded byte, whole body or streamed chunk: the frame's meter, the process total, the Dev cap.
+		private static Task ChargeChunkAsync(int bytes, CancellationToken ct)
+		{
+			if (Meter.Value is { } meter) Interlocked.Add(ref meter.Bytes, bytes);
+			Interlocked.Add(ref _totalBytesDownloaded, bytes);
+			return DevBandwidthLimit.ChargeAsync(bytes, ct); // DEV-ONLY: a no-op unless the Dev tab set a cap
 		}
 
 		public int ForgetCachedRange(string siteId, DateTimeOffset startUtc, DateTimeOffset endUtc)
@@ -393,6 +399,21 @@ namespace Anvil.Services
 					}
 				}
 
+				// STREAMED .gz (base tilt): a gzip stream DOES decode front to back — only its trailing CRC needs the
+				// whole file — and the base tilt sits at the start. So stream it, gunzip what has arrived every few
+				// hundred KB, and stop the download the moment a COMPLETE base tilt comes out. Measured 2026-10-02
+				// (TiltCheck --gzprefix, real 2011/2013 KTLX/KHTX/KSGF volumes): 18-25% of the download, the tilt
+				// byte-identical to the whole file's. No complete tilt by end of file (pre-2008 volumes cut no tilt)
+				// → the bytes already downloaded go to the FULL DOWNLOAD path below, unchanged: nothing fetches twice.
+				byte[]? streamedGz = null;
+				if (toWrite is null && tiltAngle is null && isGz)
+				{
+					using var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+					response.EnsureSuccessStatusCode();
+					await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);
+					(toWrite, streamedGz) = await StreamGzBaseTiltAsync(body, site.Id, ChargeChunkAsync, prioritized, cancellationToken);
+				}
+
 				// FULL DOWNLOAD: a higher tilt with no prefetched raw, a .gz file, a prefix too short to
 				// hold the whole tilt, or a failed range request. Extract on a worker thread.
 				//
@@ -411,14 +432,14 @@ namespace Anvil.Services
 					// runs up to 12 frames at once, so splitting each into 4 would open ~48 S3 connections and
 					// over-subscribe the link without adding bandwidth. Only the frame nothing else is waiting
 					// behind gets its own streams.
-					// ⚠️ This is the path a LEGACY .gz always takes — it cannot range-prefix (a partial gzip
-					// stream is not decompressible), so before this it paid ~43 MB on ONE stream. Measured
-					// 2026-09-08: a cold site sat 13 s before its first extract event, which was the whole of
-					// a 16 s first paint. Fetch is now the dominant cost in a replay (fetch p50 1444 ms vs
-					// decode p50 316 ms), which is what makes this the next lever rather than decode.
-					byte[]? raw = prioritized
+					// ⚠️ A LEGACY .gz reaches this only when the STREAMED path above found no complete base tilt in
+					// the whole file (streamedGz = those bytes, reused) or wants a higher tilt. (This comment used to
+					// say a partial gzip stream isn't decompressible — it is, front to back; it can't be RANGE-read
+					// from the middle, which is a different thing.) Measured 2026-09-08: a cold site sat 13 s before
+					// its first extract event, the whole of a 16 s first paint — fetch dominates a replay.
+					byte[]? raw = streamedGz ?? (prioritized
 						? await GetFullParallelAsync(key, cancellationToken)
-						: null;
+						: null);
 					if (raw is null)
 					{
 						using var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -2156,6 +2177,63 @@ namespace Anvil.Services
 				}
 			}
 			return true;
+		}
+
+		/// <summary>When the streamed .gz path first tries a cut, then how often after (compressed bytes).</summary>
+		internal const int GzFirstCheckBytes = 512 * 1024;
+		internal const int GzCheckEveryBytes = 256 * 1024;
+
+		/// <summary>
+		/// Reads a gzip-wrapped archive volume from <paramref name="body"/> and returns its base tilt as soon as the
+		/// bytes so far gunzip to a COMPLETE one — the caller then drops the rest of the download. At end of stream
+		/// with no complete tilt it returns the whole compressed file instead, for the unchanged full-download path.
+		/// Each chunk goes through <paramref name="charge"/> (the byte meter and the Dev speed cap).
+		/// </summary>
+		internal static async Task<(byte[]? Tilt, byte[]? WholeGz)> StreamGzBaseTiltAsync(Stream body, string siteId,
+			Func<int, CancellationToken, Task> charge, bool urgent, CancellationToken ct)
+		{
+			var compressed = new MemoryStream();
+			var buffer = new byte[81920];
+			long nextCheck = GzFirstCheckBytes;
+			int n;
+			while ((n = await body.ReadAsync(buffer, ct)) > 0)
+			{
+				compressed.Write(buffer, 0, n);
+				await charge(n, ct);
+				if (compressed.Length < nextCheck) continue;
+				nextCheck = compressed.Length + GzCheckEveryBytes;
+				var soFar = compressed.ToArray();
+				var tilt = await RadarCpuWork.Run(() => CompleteBaseTilt(GunzipPrefix(soFar), siteId), ct, urgent);
+				if (tilt is not null) return (tilt, null);
+			}
+			return (null, compressed.ToArray());
+		}
+
+		// The base tilt from a (possibly truncated) unzipped prefix, only when it is COMPLETE. The LDM walker first,
+		// ALWAYS, then the uncompressed one — ExtractTilt's order (see its ⚠️ TWO WALKERS note).
+		private static byte[]? CompleteBaseTilt(byte[] data, string siteId)
+		{
+			var ldm = TryExtractLowestTilt(data, siteId, out var ldmComplete);
+			if (ldm is not null) return ldmComplete ? ldm : null;
+			var legacy = TryExtractLowestTiltUncompressed(data, siteId, out var legacyComplete);
+			return legacy is not null && legacyComplete ? legacy : null;
+		}
+
+		// Gunzips whatever a truncated gzip prefix decodes to (the stream throws at the cut; the bytes before it stand).
+		private static byte[] GunzipPrefix(byte[] gz)
+		{
+			using var input = new MemoryStream(gz);
+			using var gzip = new System.IO.Compression.GZipStream(input, System.IO.Compression.CompressionMode.Decompress);
+			using var output = new MemoryStream(gz.Length * 5);
+			var buffer = new byte[81920];
+			try
+			{
+				int n;
+				while ((n = gzip.Read(buffer, 0, buffer.Length)) > 0) output.Write(buffer, 0, n);
+			}
+			catch (InvalidDataException) { }
+			catch (EndOfStreamException) { }
+			return output.ToArray();
 		}
 
 		// Decompresses a gzip-wrapped archive volume (older dates are stored as ..._V0x.gz). The
