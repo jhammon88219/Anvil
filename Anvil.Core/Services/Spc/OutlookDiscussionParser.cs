@@ -36,7 +36,9 @@ namespace Anvil.Services
 
 		private static readonly Regex ProductIdRx = new(@"^SPC AC (\d{6})$", Ci);
 		private static readonly Regex WireRx = new(@"^(ZCZC\b.*|[A-Z]{4}\d{2} [A-Z]{4} \d{6})$", Ci);
-		private static readonly Regex TitleRx = new(@"^DAY (\d(?:-\d)?) CONVECTIVE OUTLOOK$", Ci);
+		// ⚠️ The title can carry an AMENDMENT or CORRECTION after it ("DAY 1 CONVECTIVE OUTLOOK AMEND 1", 2011-05-24
+		// 2040Z). A bare-title-only rule misfiled the whole heading into the body — so anything after "OUTLOOK" is kept.
+		private static readonly Regex TitleRx = new(@"^DAY (\d(?:-\d)?) CONVECTIVE OUTLOOK\b[\s.]*(.*)$", Ci);
 		private static readonly Regex IssuerRx = new(@"^NWS STORM PREDICTION CENTER\b", Ci);
 		private static readonly Regex IssuedRx = new(@"^(\d{1,2}?)(\d{2}) (AM|PM) ([A-Z]{3}) ([A-Z]{3}) ([A-Z]{3}) (\d{1,2}) (\d{4})$", Ci);
 		private static readonly Regex ValidRx = new(@"^VALID (\d{2})(\d{2})(\d{2})Z - (\d{2})(\d{2})(\d{2})Z$", Ci);
@@ -69,16 +71,25 @@ namespace Anvil.Services
 
 			// ── The heading blocks: ID, title, issued, valid (+ Day 4-8's wire routing) ──
 			string title = "Convective Outlook";
-			string? productId = null, validRaw = null;
+			string? productId = null, validRaw = null, amendment = null;
 			SpcClock? clock = null;
+			// ⚠️ The heading is every block up to and INCLUDING the one holding the VALID line (always within the
+			// first few) — so a heading line no rule knows can't push the rest of the heading into the body. Only
+			// without a VALID line does it fall back to "leading blocks of known heading lines".
+			var validBlock = blocks.Take(6).ToList().FindIndex(b => b.Any(l => ValidRx.IsMatch(l)));
 			var bi = 0;
-			for (; bi < blocks.Count && blocks[bi].All(IsHeadingLine); bi++)
+			for (; bi < blocks.Count && (bi <= validBlock || (validBlock < 0 && blocks[bi].All(IsHeadingLine))); bi++)
 			{
 				foreach (var line in blocks[bi])
 				{
 					Match m;
 					if ((m = ProductIdRx.Match(line)).Success) productId = line;
-					else if ((m = TitleRx.Match(line)).Success) title = $"Day {m.Groups[1].Value} Convective Outlook";
+					else if ((m = TitleRx.Match(line)).Success)
+					{
+						title = $"Day {m.Groups[1].Value} Convective Outlook";
+						amendment = Amendment(m.Groups[2].Value);
+						if (amendment is not null) title = $"{title} · {amendment}";
+					}
 					else if (IssuedRx.IsMatch(line)) clock = SpcClock.Read(line);
 					else if (ValidRx.IsMatch(line)) validRaw = line;
 				}
@@ -238,7 +249,11 @@ namespace Anvil.Services
 					body.RemoveAt(0);
 					if (body.Count == 0) continue;
 				}
-				target ??= Open(OutlookSectionKind.Discussion, string.Empty);
+				// Headerless text with nowhere to go. On an AMENDED issuance, the first such text before any section is
+				// the amendment's own note ("AMENDED FOR INCREASED TORNADO PROBS…"), so it is that update's section.
+				target ??= amendment is not null && !inPrevious && sections.Count == 0
+					? Open(OutlookSectionKind.Update, amendment)
+					: Open(OutlookSectionKind.Discussion, string.Empty);
 				target.AddRange(Paragraphs(body));
 			}
 
@@ -320,6 +335,18 @@ namespace Anvil.Services
 		}
 
 		private static string Clean(string s) => Spaces.Replace(s, " ").Trim();
+
+		// What follows "CONVECTIVE OUTLOOK" on the title line: "AMEND 1" → "Amendment 1", "CORRECTED" → "Correction";
+		// anything else is kept as SPC wrote it; nothing → null.
+		internal static string? Amendment(string suffix)
+		{
+			var s = Clean(suffix.Trim('.', ' '));
+			if (s.Length == 0) return null;
+			var m = Regex.Match(s, @"^(AMEND(?:ED|MENT)?|CORR(?:ECTED|ECTION)?)\s*(\d+)?$", Ci);
+			if (!m.Success) return s;
+			var word = m.Groups[1].Value.StartsWith("AMEND", StringComparison.OrdinalIgnoreCase) ? "Amendment" : "Correction";
+			return m.Groups[2].Success ? $"{word} {m.Groups[2].Value}" : word;
+		}
 
 		private static (string Code, string Words) Category(string word) => word.ToUpperInvariant() switch
 		{

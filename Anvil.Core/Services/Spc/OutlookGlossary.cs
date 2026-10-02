@@ -69,6 +69,8 @@ namespace Anvil.Services
 		{
 			OutlookSectionKind.Update when section.Title.EndsWith("update", System.StringComparison.OrdinalIgnoreCase)
 				=> section.Title.ToUpperInvariant(),
+			OutlookSectionKind.Update when section.Title.StartsWith("Amendment", System.StringComparison.Ordinal) => "AMENDMENT",
+			OutlookSectionKind.Update when section.Title.StartsWith("Correction", System.StringComparison.Ordinal) => "CORRECTION",
 			OutlookSectionKind.Update => "CHANGES",
 			OutlookSectionKind.Synopsis => "SYNOPSIS",
 			OutlookSectionKind.Discussion => "DISCUSSION",

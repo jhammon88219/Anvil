@@ -48,7 +48,7 @@ namespace Anvil.Tests
 		public void Corpus_HasHeadingParts(string name)
 		{
 			var d = OutlookDiscussionParser.Parse(Fixture(name));
-			Assert.Matches(@"^Day \d(-\d)? Convective Outlook$", d.Title);
+			Assert.Matches(@"^Day \d(-\d)? Convective Outlook( · .+)?$", d.Title);
 			Assert.NotNull(d.ProductId);
 			Assert.NotNull(d.Issued);
 			Assert.Contains(" → ", d.Valid);
@@ -90,6 +90,33 @@ namespace Anvil.Tests
 			Assert.Equal("Lower Mississippi Valley", d.PreviousSections[2].Title);
 			Assert.Equal("by 01Z (8:00 PM CDT)", d.NextOutlook);
 		}
+
+		// An AMENDED issuance ("DAY 1 CONVECTIVE OUTLOOK AMEND 1"): the heading must still be the heading — this
+		// once dumped title/issued/valid into the body — and the amendment's own note is its section.
+		[Fact]
+		public void Amended_KeepsItsHeading_AndTheNoteIsTheAmendmentSection()
+		{
+			var d = OutlookDiscussionParser.Parse(Fixture("d1_20110524_2000_amend1"));
+			Assert.Equal("Day 1 Convective Outlook · Amendment 1", d.Title);
+			Assert.Equal("2043Z · 3:43 PM CDT Tue May 24, 2011", d.Issued);
+			Assert.Equal("2040Z (3:40 PM CDT) Tue May 24 → 12Z (7:00 AM CDT) Wed May 25", d.Valid);
+			Assert.Equal(new[] { "HIGH", "MDT", "SLGT" }, d.Headlines.Select(h => h.Code));
+			var amendment = d.Sections[0];
+			Assert.Equal(OutlookSectionKind.Update, amendment.Kind);
+			Assert.Equal("Amendment 1", amendment.Title);
+			Assert.Equal("AMENDED FOR INCREASED TORNADO PROBS OVER NC AND SRN VA", amendment.Paragraphs[0]);
+			Assert.Equal("AMENDMENT", OutlookGlossary.LabelFor(amendment));
+			Assert.DoesNotContain(Everything(d), t => t.Contains("NWS STORM PREDICTION CENTER", StringComparison.OrdinalIgnoreCase));
+		}
+
+		[Theory]
+		[InlineData("AMEND 1", "Amendment 1")]
+		[InlineData("...AMENDED", "Amendment")]
+		[InlineData("CORRECTED", "Correction")]
+		[InlineData("", null)]
+		[InlineData("RESENT", "RESENT")]
+		public void Amendment_Words(string suffix, string? expected) =>
+			Assert.Equal(expected, OutlookDiscussionParser.Amendment(suffix));
 
 		// 01Z on Mar 15 UTC is 8 PM Mar 14 in Norman: the AM/PM half carries its own weekday.
 		[Fact]
@@ -262,7 +289,7 @@ namespace Anvil.Tests
 			line.StartsWith("...", StringComparison.Ordinal) && line.EndsWith("...", StringComparison.Ordinal) // a one-line header (its title is checked by the structure tests)
 			|| line.StartsWith("---", StringComparison.Ordinal)
 			|| Regex.IsMatch(line, @"^(ZCZC|ACUS48|SPC AC |CLICK TO GET|NOTE: |NWS STORM PREDICTION CENTER|VALID |\.PREV)", RegexOptions.IgnoreCase)
-			|| Regex.IsMatch(line, @"CONVECTIVE OUTLOOK$", RegexOptions.IgnoreCase)
+			|| Regex.IsMatch(line, @"^DAY \S+ CONVECTIVE OUTLOOK\b", RegexOptions.IgnoreCase)
 			|| Regex.IsMatch(line, @"^\d{3,4} (AM|PM) ", RegexOptions.IgnoreCase)
 			|| Regex.IsMatch(line, @"^\.\.[^.].*\.\. \d{2}/\d{2}/\d{4}$");
 	}
