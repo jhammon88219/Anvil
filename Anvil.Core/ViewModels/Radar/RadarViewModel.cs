@@ -1171,8 +1171,8 @@ namespace Anvil.ViewModels
 
 		// ── The load's READOUTS on PastCast's buttons (the user's design, 2026-10-01) ─────────────────────
 		// An ERROR rides IN the Set Timeframe button (two lines: the error, then the retry hint) and only while
-		// there is one; everything else is the space above Clear: a big NUMBER + a small CAPTION ("28" /
-		// "frames loaded"), or a caption alone ("Loading…", "Click a site"). ⚠️ ONE setter writes all three
+		// there is one; otherwise, once a window is loaded, the button carries the readout (2026-10-02): a NUMBER +
+		// CAPTION + site ("28 frames loaded · KTLX"), or a caption alone ("Loading…", "Select a site"). ⚠️ ONE setter writes all three
 		// (SetReplayReadout), so no path can leave a stale error beside a fresh count.
 
 		private string _replayError = string.Empty;

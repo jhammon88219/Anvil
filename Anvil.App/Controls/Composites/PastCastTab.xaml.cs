@@ -97,6 +97,16 @@ namespace Anvil.Controls.Composites
 		public Visibility ShownWhen(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 		public Visibility HiddenWhen(bool on) => on ? Visibility.Collapsed : Visibility.Visible;
 
+		// The card's type pill: only with a picked event that has a type (HasPlayingKind already implies a pick).
+		public Visibility PillShown(bool playing, bool hasKind) => playing && hasKind ? Visibility.Visible : Visibility.Collapsed;
+
+		// Set Timeframe's THIRD face (the user's call, 2026-10-02): once a window is loaded the button is dead anyway, so it carries
+		// the load readout ("28 frames loaded · KTLX", "Loading…", "Select a site") instead of its label. An error wins.
+		public Visibility ReadoutFace(bool loaded, bool error, string count, string caption) =>
+			loaded && !error && (count.Length > 0 || caption.Length > 0) ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility LabelFace(bool loaded, bool error, string count, string caption) =>
+			error || ReadoutFace(loaded, error, count, caption) == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+
 		// The error's first line ends in the spaced dash that leads into the retry hint below it.
 		public string ErrorFirstLine(string error) => error + " –";
 
