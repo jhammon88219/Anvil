@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Anvil.Services;
 using Anvil.ViewModels;
@@ -13,6 +14,10 @@ namespace Anvil.Tests
 	/// </summary>
 	public class LoopHoldingGateTests
 	{
+		private static Anvil.Models.RadarVolume Vol(Anvil.Models.RadarVolumeSource source, long bytes, long fetchMs = 0) =>
+			new("u", new Anvil.Models.RadarSite("KTLX", "Norman", 35.3, -97.3), DateTimeOffset.UnixEpoch, Source: source)
+			{ NetworkBytes = bytes, FetchMs = fetchMs };
+
 		private static (LoopHoldingGateViewModel Gate, AppSettings Settings, int[] Cancels) NewGate(bool hold = true)
 		{
 			var settings = new AppSettings { HoldPastCastLoads = hold };
@@ -139,14 +144,19 @@ namespace Anvil.Tests
 			var (gate, _, _) = NewGate();
 			var measured = new System.Collections.Generic.List<Anvil.Models.LoopLoadTiming>();
 			gate.LoadMeasured += (_, t) => measured.Add(t);
+			long now = 0, bytes = 0;
+			gate.NowMs = () => now;
+			gate.TotalBytes = () => bytes;
 			gate.Begin("KTLX", "x");
-			gate.NoteSource(0, Anvil.Models.RadarVolumeSource.Network); // before Arm: a previous loop's
+			gate.NoteFrame(0, Vol(Anvil.Models.RadarVolumeSource.Network, 5_000_000)); // before Arm: a previous loop's
 			gate.Arm();
-			gate.NoteSource(0, Anvil.Models.RadarVolumeSource.CachedTilt);
-			gate.NoteSource(1, Anvil.Models.RadarVolumeSource.CachedTilt);
-			gate.NoteSource(2, Anvil.Models.RadarVolumeSource.LocalRaw);
-			gate.NoteSource(3, Anvil.Models.RadarVolumeSource.Network);
-			gate.NoteSource(3, Anvil.Models.RadarVolumeSource.Network); // re-landed
+			now = 1_000; bytes = 0;
+			gate.NoteFrame(0, Vol(Anvil.Models.RadarVolumeSource.CachedTilt, 0));
+			gate.NoteFrame(1, Vol(Anvil.Models.RadarVolumeSource.CachedTilt, 0));
+			gate.NoteFrame(2, Vol(Anvil.Models.RadarVolumeSource.LocalRaw, 0));
+			now = 2_500; bytes = 9_000_000; // 4 MB of background raw prefetch rides along
+			gate.NoteFrame(3, Vol(Anvil.Models.RadarVolumeSource.Network, 5_000_000, fetchMs: 1_400));
+			gate.NoteFrame(3, Vol(Anvil.Models.RadarVolumeSource.Network, 5_000_000, fetchMs: 1_400)); // re-landed
 			gate.Report(4, 4, 4);
 			gate.Complete();
 
@@ -154,6 +164,11 @@ namespace Anvil.Tests
 			Assert.Equal(2, t.CachedFrames);
 			Assert.Equal(1, t.LocalRawFrames);
 			Assert.Equal(1, t.NetworkFrames);
+			Assert.Equal(5_000_000, t.FrameBytes);
+			Assert.Equal(9_000_000, t.AllBytes);
+			Assert.Equal(4, t.FrameDetail.Length);
+			Assert.Equal(new long[] { 3, 0, 5_000_000, 1_400, 2_500 }, t.FrameDetail[3]); // index, network, bytes, fetch, landed
+			Assert.Equal(new long[] { 2_500, 4, 4, 9_000_000 }, t.Progress[^1]);          // ms, downloaded, built, bytes
 
 			gate.Begin("KTLX", "next"); // a new load starts from zero
 			gate.Arm();

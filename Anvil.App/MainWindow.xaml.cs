@@ -34,6 +34,9 @@ namespace Anvil
 		/// only in Debug builds. Handed to the Settings window's Debug-only Dev tab.</summary>
 		public RadarValidationViewModel? ValidationVm { get; }
 
+		/// <summary>DEV-ONLY load-time seeding run. Non-null only in Debug builds; handed to the Dev tab.</summary>
+		public LoadTimeSeedingViewModel? SeedVm { get; }
+
 		// NOTE: ApplyStripOverlap is gone. The map-controls strip used to be an island hung over the bar's
 		// pull-tab by a negative margin, so the tab could rise through a notch cut in its underside; it is a
 		// full-width tier now and the tabs sit on a rail above both tiers. docs/ui-bottom-bar.md.
@@ -518,7 +521,8 @@ namespace Anvil
 			ILevel2RadarService radarService,
 			ISettingsService settingsService,
 			WindowManager windows,
-			ILogger<MainWindow> logger)
+			ILogger<MainWindow> logger,
+			ISavedEventLibrary savedEventLibrary)
 		{
 			// The DI container (App.ConfigureServices) built the whole graph and injected it here; this
 			// window is just the composition ROOT that wires the WebView-coupled bits the container can't.
@@ -560,6 +564,9 @@ namespace Anvil
 			// DEV-ONLY velocity-dealias regression harness (fixed-corpus scorer). Same Debug-only lifetime
 			// as the sweep: driven through the map service (window.radarValidate) against the bundled corpus.
 			ValidationVm = new RadarValidationViewModel(_mapService, new RadarCorpusProvider());
+
+			// DEV-ONLY load-time seeding run: every built-in event × window × cold/warm into the (Debug-only) load-time log.
+			SeedVm = new LoadTimeSeedingViewModel(ViewModel.Radar, savedEventLibrary, _radarService, _mapService, ViewModel.LoadTimes);
 #endif
 
 			// Push the OS theme accent to the radar-site status halo once the page is ready, and re-push
@@ -645,6 +652,7 @@ namespace Anvil
 						ViewModel = ViewModel,
 						SweepVm = SweepVm,
 						ValidationVm = ValidationVm,
+						SeedVm = SeedVm,
 					};
 					// Wired per-instance (the window's content is rebuilt each time it opens) so a finished
 					// dev run still pops its results dialog.

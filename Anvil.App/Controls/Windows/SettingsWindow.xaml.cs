@@ -82,6 +82,16 @@ namespace Anvil.Controls.Windows
 		public static readonly DependencyProperty ValidationVmProperty =
 			DependencyProperty.Register(nameof(ValidationVm), typeof(RadarValidationViewModel), typeof(SettingsWindow), new PropertyMetadata(null));
 
+		/// <summary>DEV-ONLY load-time seeding run; null in Release (the Dev tab is never loaded there).</summary>
+		public LoadTimeSeedingViewModel? SeedVm
+		{
+			get => (LoadTimeSeedingViewModel?)GetValue(SeedVmProperty);
+			set => SetValue(SeedVmProperty, value);
+		}
+
+		public static readonly DependencyProperty SeedVmProperty =
+			DependencyProperty.Register(nameof(SeedVm), typeof(LoadTimeSeedingViewModel), typeof(SettingsWindow), new PropertyMetadata(null));
+
 		/// <summary>Raised when the dev tab asks to show a finished site-sweep report.</summary>
 		public event EventHandler<SweepReport>? SweepReportRequested;
 

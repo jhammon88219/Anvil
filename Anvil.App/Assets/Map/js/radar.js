@@ -1877,6 +1877,13 @@
             postBuildProgress(); // frames=[] -> 0/0 clears the "building" readout
             hostLog('clear token=' + loopToken);
         },
+        // DEV-ONLY (the load-time seeding run's COLD pass): forget every decoded frame, so a reload of the same window
+        // decodes from scratch instead of serving the URL-keyed cache. Frames already on screen keep their arrays.
+        forgetDecoded: function () {
+            const n = decodedCache.size;
+            decodedCache.clear();
+            hostLog('decodeCache forget n=' + n);
+        },
         // DOW Event Viewer: show a single curated mobile-radar frame (the "dow-frame/1" JSON from
         // tools/dow_import.py, served from the dowevents host). It takes over the radar layer as a
         // one-frame loop centred on the TRUCK's position — reusing the whole render path (WebGL fill,

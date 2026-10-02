@@ -27,7 +27,14 @@ namespace Anvil.Models
 		string? ModeText = null,
 		IReadOnlyList<float>? Tilts = null,
 		float? TiltAngle = null,
-		RadarVolumeSource Source = RadarVolumeSource.Network);
+		RadarVolumeSource Source = RadarVolumeSource.Network)
+	{
+		/// <summary>Bytes downloaded to produce this volume (0 for a cache hit or a local raw). Load-time log only.</summary>
+		public long NetworkBytes { get; init; }
+
+		/// <summary>Wall time <c>EnsureCachedAsync</c> took for it — download + extract. Load-time log only.</summary>
+		public long FetchMs { get; init; }
+	}
 
 	/// <summary>Where <c>EnsureCachedAsync</c> got a volume's bytes — the load-time log's "already on disk" counts
 	/// (the biggest predictor of how long a loop takes). Live frames are always <see cref="Network"/>.</summary>

@@ -72,7 +72,7 @@ namespace Anvil.ViewModels
 		private bool _escaped;
 		private string _elapsedText = string.Empty;
 		// Where each landed frame's bytes came from, by loop index (a frame re-landing — a tilt re-cut — overwrites).
-		private readonly System.Collections.Generic.Dictionary<int, RadarVolumeSource> _sources = new();
+		private readonly System.Collections.Generic.Dictionary<int, FrameNote> _sources = new();
 
 		private readonly ISettingsService _settings;
 		private readonly Func<Task> _cancelLoad;
@@ -192,10 +192,28 @@ namespace Anvil.ViewModels
 				TotalMs: now - _beganMs,
 				FirstFrameMs: Since(_firstBuiltMs), AllDownloadedMs: Since(_allDownloadedMs), AllBuiltMs: Since(_allBuiltMs),
 				Escaped: _escaped, GateShown: HoldEnabled,
-				CachedFrames: _sources.Values.Count(s => s == RadarVolumeSource.CachedTilt),
-				LocalRawFrames: _sources.Values.Count(s => s == RadarVolumeSource.LocalRaw),
-				NetworkFrames: _sources.Values.Count(s => s == RadarVolumeSource.Network)));
+				CachedFrames: _sources.Values.Count(f => f.Source == RadarVolumeSource.CachedTilt),
+				LocalRawFrames: _sources.Values.Count(f => f.Source == RadarVolumeSource.LocalRaw),
+				NetworkFrames: _sources.Values.Count(f => f.Source == RadarVolumeSource.Network))
+			{
+				FrameBytes = _sources.Values.Sum(f => f.Bytes),
+				AllBytes = TotalBytes() - _bytesAtBegin,
+				FrameDetail = _sources.OrderBy(p => p.Key)
+					.Select(p => new[] { p.Key, (long)p.Value.Source, p.Value.Bytes, p.Value.FetchMs, p.Value.LandedMs }).ToArray(),
+				Progress = _progress.ToArray(),
+			});
 		}
+
+		/// <summary>Bytes downloaded by the whole process so far (the log takes the difference across a load). Swappable for tests.</summary>
+		internal Func<long> TotalBytes { get; set; } = () => Level2RadarService.TotalBytesDownloaded;
+		private long _bytesAtBegin;
+
+		// One landed frame, for the log: where its bytes came from, how many, how long the fetch took, when it landed.
+		private readonly record struct FrameNote(RadarVolumeSource Source, long Bytes, long FetchMs, long LandedMs);
+
+		// The PROGRESS CURVE: [ms since Begin, downloaded, built, bytes since Begin] at every count change — enough to
+		// replay "what would a live estimate have said at second N" against the real finish.
+		private readonly System.Collections.Generic.List<long[]> _progress = new();
 
 		/// <summary>"KTBW · Sep 28, 2022 · 1:00 PM–4:00 PM" (local time, like the rest of PastCast).</summary>
 		public string EventLine { get => _eventLine; private set => SetProperty(ref _eventLine, value); }
@@ -266,6 +284,8 @@ namespace Anvil.ViewModels
 			_firstBuiltMs = _allDownloadedMs = _allBuiltMs = null;
 			_escaped = false;
 			_sources.Clear();
+			_progress.Clear();
+			_bytesAtBegin = TotalBytes();
 			ElapsedText = string.Empty;
 			SiteId = siteId;
 			EventLine = eventLine;
@@ -282,10 +302,11 @@ namespace Anvil.ViewModels
 		/// <summary>Whether the engine should report progress (a load is in flight and its loop has begun).</summary>
 		internal bool IsTracking => _armed && _loading;
 
-		/// <summary>A frame landed: where its bytes came from (cached tilt / local raw / network). Only this load's.</summary>
-		internal void NoteSource(int index, RadarVolumeSource source)
+		/// <summary>A frame landed: where its bytes came from (cached tilt / local raw / network), how many were
+		/// downloaded and how long the fetch took. Only this load's; a frame re-landing (a tilt re-cut) overwrites.</summary>
+		internal void NoteFrame(int index, RadarVolume volume)
 		{
-			if (IsTracking) _sources[index] = source;
+			if (IsTracking) _sources[index] = new FrameNote(volume.Source, volume.NetworkBytes, volume.FetchMs, NowMs() - _beganMs);
 		}
 
 		internal void Report(int total, int downloaded, int built)
@@ -399,6 +420,7 @@ namespace Anvil.ViewModels
 				if (built > 0) _firstBuiltMs ??= NowMs();
 				if (downloaded >= total) _allDownloadedMs ??= NowMs();
 				if (built >= total) _allBuiltMs ??= NowMs();
+				if (_armed) _progress.Add(new[] { NowMs() - _beganMs, downloaded, built, TotalBytes() - _bytesAtBegin });
 			}
 			OnPropertyChanged(nameof(Total));
 			OnPropertyChanged(nameof(Downloaded));

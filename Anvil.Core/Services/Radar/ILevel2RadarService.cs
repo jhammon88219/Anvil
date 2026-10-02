@@ -74,6 +74,11 @@ namespace Anvil.Services
 		/// overlaps many frames, so it has multi-stream parallelism across frames).</param>
 		Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, float? tiltAngle = null, bool prioritized = false, CancellationToken cancellationToken = default);
 
+		/// <summary>DEV-ONLY (the load-time seeding run's COLD pass): delete every cached file of <paramref name="siteId"/>
+		/// whose volume time falls in the window (± a margin) — tilts, raws, VWP volumes — so the next load downloads
+		/// them again. Returns how many files went.</summary>
+		int ForgetCachedRange(string siteId, DateTimeOffset startUtc, DateTimeOffset endUtc) => 0;
+
 		/// <summary>
 		/// Ensures the bottom several VELOCITY tilts of the volume for <paramref name="key"/> are cached and
 		/// returns their local (radarlevel2-host) URLs, base first — the input to the WebView's full-volume

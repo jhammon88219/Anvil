@@ -124,6 +124,7 @@
                                         ViewModel="{x:Bind ViewModel}"
                                         SweepVm="{x:Bind SweepVm}"
                                         ValidationVm="{x:Bind ValidationVm}"
+                                        SeedVm="{x:Bind SeedVm}"
                                         Loaded="OnDevTabLoaded"/>
                 </Grid>
             </ScrollViewer>

@@ -28,7 +28,17 @@ namespace Anvil.Models
 		int Frames, int Downloaded, int Built, int Kept,
 		long TotalMs, long? FirstFrameMs, long? AllDownloadedMs, long? AllBuiltMs,
 		bool Escaped, bool GateShown,
-		int CachedFrames = 0, int LocalRawFrames = 0, int NetworkFrames = 0);
+		int CachedFrames = 0, int LocalRawFrames = 0, int NetworkFrames = 0)
+	{
+		/// <summary>Bytes downloaded for the landed frames.</summary>
+		public long FrameBytes { get; init; }
+		/// <summary>Every Level II byte the process downloaded during the load (frames + the background raw prefetch).</summary>
+		public long AllBytes { get; init; }
+		/// <summary>Per landed frame: [index, source (0 network · 1 cached tilt · 2 local raw), bytes, fetch ms, landed ms].</summary>
+		public long[][] FrameDetail { get; init; } = Array.Empty<long[]>();
+		/// <summary>The progress curve: [ms, downloaded, built, bytes] at every count change.</summary>
+		public long[][] Progress { get; init; } = Array.Empty<long[]>();
+	}
 
 	/// <summary>
 	/// One line of the load-time log (<c>%LocalAppData%\Anvil\Usage\loop-load-times.jsonl</c>, <see
@@ -39,7 +49,10 @@ namespace Anvil.Models
 	/// ⚠️ APPEND-ONLY and read by future code: ADD fields, never rename or re-type one. <see cref="Version"/> bumps when a
 	/// field's MEANING changes. Version 2 (2026-10-02) added the frame SOURCES — <see cref="CachedFrames"/>,
 	/// <see cref="LocalRawFrames"/>, <see cref="NetworkFrames"/> (from <c>RadarVolume.Source</c>); a v1 line reads them as 0,
-	/// which means UNKNOWN there, not "none cached".
+	/// which means UNKNOWN there, not "none cached". Version 3 (same day) added the NETWORK vs COMPUTER split: bytes
+	/// (<see cref="FrameBytes"/>, <see cref="AllBytes"/>), the Dev speed cap in effect (<see cref="DevMbps"/>, 0 = none),
+	/// the seeding run's tag (<see cref="Run"/>), per-frame <see cref="FrameDetail"/> and the <see cref="Progress"/> curve.
+	/// ⚠️ DEBUG-ONLY: the log is registered only in Debug builds — it designs the estimate, it doesn't ship.
 	/// </remarks>
 	public sealed record LoopLoadRecord(
 		int Version,
@@ -65,5 +78,11 @@ namespace Anvil.Models
 		bool GateShown,
 		int CachedFrames = 0,
 		int LocalRawFrames = 0,
-		int NetworkFrames = 0);
+		int NetworkFrames = 0,
+		long FrameBytes = 0,
+		long AllBytes = 0,
+		double DevMbps = 0,
+		string? Run = null,
+		long[][]? FrameDetail = null,
+		long[][]? Progress = null);
 }

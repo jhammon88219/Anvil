@@ -120,7 +120,11 @@ namespace Anvil
 			services.AddSingleton<ISavedEventLibrary, SavedEventLibrary>();
 			// Per-site usage (the Atlas's "Your use" strip): %LocalAppData%\Anvil\Usage\site-usage.json.
 			services.AddSingleton<SiteUsageStore>();
+#if DEBUG
+			// DEV-ONLY: the PastCast load-time log (designs the "ready in" estimate; not shipped). Without it MapViewModel
+			// builds no LoopLoadRecorder, so a Release build writes nothing.
 			services.AddSingleton<LoopLoadLog>();
+#endif
 			// Scan patterns VcpCatalog doesn't list, per site: %LocalAppData%\Anvil\Network\nonstandard-vcps.json.
 			services.AddSingleton<NonStandardVcpLog>();
 			// Data uptime from archive gaps: listing only, final days cached in %LocalAppData%\Anvil\Network\Archive.

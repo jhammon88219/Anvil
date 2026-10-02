@@ -238,7 +238,64 @@ namespace Anvil.Services
 			return TryExtractLowestTiltUncompressed(data, siteId, out _);
 		}
 
+		// ── EVERY download body comes through here (the load-time log's bytes; the Dev speed cap) ──────────────────
+		// The current frame's meter rides an AsyncLocal BOX set by EnsureCachedAsync: the parallel sub-range tasks it
+		// starts inherit the same box and add to it, so a frame's bytes are counted whichever path fetched them.
+		private sealed class FetchMeter { public long Bytes; }
+		private static readonly AsyncLocal<FetchMeter?> Meter = new();
+		private static long _totalBytesDownloaded;
+
+		/// <summary>Every Level II byte this process has downloaded — frames, the background raw prefetch, live chunks.
+		/// The load-time log takes the difference across a load (it catches the prefetch, which no frame owns).</summary>
+		public static long TotalBytesDownloaded => Interlocked.Read(ref _totalBytesDownloaded);
+
+		private static async Task<byte[]> ReadBodyAsync(HttpContent content, CancellationToken ct)
+		{
+			var bytes = await content.ReadAsByteArrayAsync(ct);
+			if (Meter.Value is { } meter) Interlocked.Add(ref meter.Bytes, bytes.Length);
+			Interlocked.Add(ref _totalBytesDownloaded, bytes.Length);
+			await DevBandwidthLimit.ChargeAsync(bytes.Length, ct); // DEV-ONLY: a no-op unless the Dev tab set a cap
+			return bytes;
+		}
+
+		public int ForgetCachedRange(string siteId, DateTimeOffset startUtc, DateTimeOffset endUtc)
+		{
+			// ± 15 min: a window's listing can reach a volume just outside it, and deleting a neighbour only costs a refetch.
+			var from = startUtc.AddMinutes(-15);
+			var to = endUtc.AddMinutes(15);
+			var removed = 0;
+			foreach (var file in Directory.EnumerateFiles(CacheDirectory, siteId + "_*"))
+			{
+				if (!IsCachedInRange(Path.GetFileName(file), siteId, from, to)) continue;
+				try { File.Delete(file); removed++; }
+				catch (IOException) { } // in use by a decode right now — the run's cold pass reports the count
+				catch (UnauthorizedAccessException) { }
+			}
+			return removed;
+		}
+
+		// "KTLX_19990503_233012_e024.V06" / ".raw" / "_vwp.V06" → its volume time is inside [from, to]. Another site's file
+		// ("KTLXX_…" can't happen — ids are 4 letters — but the "_" after the id is checked anyway) or no stamp → false.
+		internal static bool IsCachedInRange(string fileName, string siteId, DateTimeOffset from, DateTimeOffset to)
+		{
+			if (fileName.Length < siteId.Length + 16 || !fileName.StartsWith(siteId + "_", StringComparison.OrdinalIgnoreCase))
+			{
+				return false;
+			}
+			return DateTimeOffset.TryParseExact(fileName.Substring(siteId.Length + 1, 15), "yyyyMMdd_HHmmss",
+					CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var t)
+				&& t >= from && t <= to;
+		}
+
 		public async Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, float? tiltAngle = null, bool prioritized = false, CancellationToken cancellationToken = default)
+		{
+			var meter = Meter.Value = new FetchMeter();
+			var clock = System.Diagnostics.Stopwatch.StartNew();
+			var volume = await EnsureCachedCoreAsync(site, key, tiltAngle, prioritized, cancellationToken);
+			return volume is null ? null : volume with { NetworkBytes = Interlocked.Read(ref meter.Bytes), FetchMs = clock.ElapsedMilliseconds };
+		}
+
+		private async Task<RadarVolume?> EnsureCachedCoreAsync(RadarSite site, string key, float? tiltAngle, bool prioritized, CancellationToken cancellationToken)
 		{
 			var time = ParseVolumeTime(key) ?? DateTimeOffset.UtcNow;
 			var cacheFile = CacheFileFor(site.Id, time, tiltAngle);
@@ -366,7 +423,7 @@ namespace Anvil.Services
 					{
 						using var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 						response.EnsureSuccessStatusCode();
-						raw = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+						raw = await ReadBodyAsync(response.Content, cancellationToken);
 					}
 					var (extracted, volume) = await RadarCpuWork.Run<(byte[]?, byte[]?)>(() =>
 					{
@@ -765,7 +822,7 @@ namespace Anvil.Services
 					using (var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
 					{
 						response.EnsureSuccessStatusCode();
-						raw = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+						raw = await ReadBodyAsync(response.Content, cancellationToken);
 					}
 					await WriteRawAsync(rawFile, raw, cancellationToken);
 					Interlocked.Increment(ref fetched);
@@ -858,14 +915,14 @@ namespace Anvil.Services
 				using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
 				if (resp.StatusCode == System.Net.HttpStatusCode.OK)
 				{
-					return await resp.Content.ReadAsByteArrayAsync(ct); // range ignored → this IS the whole object
+					return await ReadBodyAsync(resp.Content, ct); // range ignored → this IS the whole object
 				}
 				if (resp.StatusCode != System.Net.HttpStatusCode.PartialContent)
 				{
 					return null; // ranges not honored → let the caller fall back
 				}
 				total = resp.Content.Headers.ContentRange?.Length ?? 0;
-				head = await resp.Content.ReadAsByteArrayAsync(ct);
+				head = await ReadBodyAsync(resp.Content, ct);
 			}
 			if (total <= 0 || head.LongLength >= total)
 			{
@@ -909,7 +966,7 @@ namespace Anvil.Services
 				req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(from, to);
 				using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
 				return resp.StatusCode == System.Net.HttpStatusCode.PartialContent
-					? await resp.Content.ReadAsByteArrayAsync(ct)
+					? await ReadBodyAsync(resp.Content, ct)
 					: null;
 			}
 			catch (OperationCanceledException)
@@ -938,7 +995,7 @@ namespace Anvil.Services
 				{
 					return null;
 				}
-				return await resp.Content.ReadAsByteArrayAsync(ct);
+				return await ReadBodyAsync(resp.Content, ct);
 			}
 			catch (OperationCanceledException)
 			{
@@ -1138,7 +1195,7 @@ namespace Anvil.Services
 							if (c.kind == 'S') headerVanished = true; // header chunk gone -> bail after the batch
 							return; // a later chunk expired; use what we have
 						}
-						bytes = await resp.Content.ReadAsByteArrayAsync(token);
+						bytes = await ReadBodyAsync(resp.Content, token);
 					}
 
 					var isS = c.kind == 'S';
@@ -1545,7 +1602,7 @@ namespace Anvil.Services
 				{
 					using var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, ct);
 					response.EnsureSuccessStatusCode();
-					raw = await response.Content.ReadAsByteArrayAsync(ct);
+					raw = await ReadBodyAsync(response.Content, ct);
 				}
 
 				var data = await RadarCpuWork.Run(() => Gunzip(raw), ct); // off the caller's thread: ~43 MB out

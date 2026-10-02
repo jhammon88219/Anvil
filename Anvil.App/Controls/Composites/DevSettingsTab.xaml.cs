@@ -46,6 +46,38 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ValidationVmProperty =
 			DependencyProperty.Register(nameof(ValidationVm), typeof(RadarValidationViewModel), typeof(DevSettingsTab), new PropertyMetadata(null));
 
+		/// <summary>The load-time seeding run; bound from the host.</summary>
+		public LoadTimeSeedingViewModel? SeedVm
+		{
+			get => (LoadTimeSeedingViewModel?)GetValue(SeedVmProperty);
+			set => SetValue(SeedVmProperty, value);
+		}
+
+		public static readonly DependencyProperty SeedVmProperty =
+			DependencyProperty.Register(nameof(SeedVm), typeof(LoadTimeSeedingViewModel), typeof(DevSettingsTab), new PropertyMetadata(null));
+
+		private async void OnSeedStartClick(object sender, RoutedEventArgs e)
+		{
+			if (SeedVm is not null) await SeedVm.StartAsync();
+		}
+
+		private void OnSeedStopClick(object sender, RoutedEventArgs e) => SeedVm?.Stop();
+
+		private void OnSeedSpeedChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+		{
+			if (SeedVm is not null) SeedVm.SpeedCapMbps = double.IsNaN(args.NewValue) ? 0 : args.NewValue;
+		}
+
+		private void OnSeedPauseChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+		{
+			if (SeedVm is not null && !double.IsNaN(args.NewValue)) SeedVm.PauseSeconds = (int)args.NewValue;
+		}
+
+		private void OnSeedTimeoutChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+		{
+			if (SeedVm is not null && !double.IsNaN(args.NewValue)) SeedVm.TimeoutMinutes = (int)args.NewValue;
+		}
+
 		/// <summary>The coordinator view model; bound from the host. Only the console toggle uses it.</summary>
 		public MapViewModel ViewModel
 		{
@@ -78,6 +110,13 @@ namespace Anvil.Controls.Composites
 			if (ValidationVm is not null)
 			{
 				ValidationVm.PropertyChanged += OnValidationPropertyChanged;
+			}
+
+			if (SeedVm is not null)
+			{
+				SeedSpeedBox.Value = SeedVm.SpeedCapMbps;
+				SeedPauseBox.Value = SeedVm.PauseSeconds;
+				SeedTimeoutBox.Value = SeedVm.TimeoutMinutes;
 			}
 		}
 

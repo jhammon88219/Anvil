@@ -114,6 +114,9 @@ namespace Anvil.Services
 		/// <summary>Removes the radar layer and clears the loop.</summary>
 		Task ClearRadarAsync();
 
+		/// <summary>DEV-ONLY: empties the page's decoded-frame cache (the load-time seeding run's cold pass).</summary>
+		Task ForgetRadarDecodesAsync() => Task.CompletedTask;
+
 		/// <summary>Sets the radar layer opacity (0-1).</summary>
 		Task SetRadarOpacityAsync(double opacity);
 

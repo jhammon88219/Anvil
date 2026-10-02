@@ -222,6 +222,9 @@ namespace Anvil.Services
 		public Task ClearRadarAsync() =>
 			_mapView.RunScriptAsync(Call("clearLevel2Radar"));
 
+		public Task ForgetRadarDecodesAsync() =>
+			_mapView.RunScriptAsync(Call("forgetRadarDecodes"));
+
 		public Task SetRadarOpacityAsync(double opacity) =>
 			_mapView.RunScriptAsync(Call("setRadarOpacity", opacity));
 

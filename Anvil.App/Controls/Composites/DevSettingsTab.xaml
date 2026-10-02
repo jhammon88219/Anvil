@@ -22,6 +22,17 @@
        │  ⌄  Pipeline console                                 │
        │   what it does…                                      │
        │   [ Hidden ●───]                                     │  ← opens the console's own window
+       │  ────────────────────────────────────────────────    │
+       │  ⌄  Load-time seeding                                │
+       │   ┌────────────────────────────────────────────┐     │
+       │   │ 7/168 · Joplin, MO · KSGF · 2 hr · cold ·… │     │  ← live status (wraps)
+       │   └────────────────────────────────────────────┘     │
+       │   what it does…                                      │
+       │   Windows [ ]30 min [x]1 hr [x]2 hr [x]3 hr [ ]6 hr …│
+       │   [x]Cold [x]Warm │ [x]Tornado [x]Hurricane [x]Derecho│
+       │   Speed cap Mbps [0]  Pause s [10]  Timeout min [20] │  ← cap = DevBandwidthLimit (all radar downloads)
+       │   28 events × 3 windows × 2 passes = 168 loads       │
+       │   ( Start ) ( Stop )                                 │
        └──────────────────────────────────────────────────────┘
 
      The first two are the two halves of one loop: the sweep is DISCOVERY over live data (it harvests
@@ -42,6 +53,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:vm="using:Anvil.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -51,8 +63,9 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Site sweep section -->
             <RowDefinition Height="Auto"/> <!-- Dealias validation section -->
-            <RowDefinition Height="Auto"/> <!-- Map style tuner section -->
             <RowDefinition Height="Auto"/> <!-- Pipeline console section -->
+            <RowDefinition Height="Auto"/> <!-- Load-time seeding section -->
+            <!-- (row 3 was the removed map style tuner's; the seeding section took it) -->
         </Grid.RowDefinitions>
 
         <!-- ===== Section 1: automated site sweep (SiteSweepViewModel). ===== -->
@@ -185,6 +198,92 @@
                 <ToggleSwitch Grid.Row="1"
                               OffContent="Hidden" OnContent="Shown"
                               IsOn="{x:Bind ViewModel.IsPipelineConsoleOpen, Mode=TwoWay}"/>
+            </Grid>
+        </prim:PanelSection>
+
+        <!-- ===== Load-time seeding (LoadTimeSeedingViewModel): every built-in event × window × cold/warm, into the
+             Debug-only load-time log (Usage\loop-load-times.jsonl). You watch it; it presses "View event" itself. ===== -->
+        <prim:PanelSection Grid.Row="3" Header="Load-time seeding" IsExpanded="True">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- status -->
+                    <RowDefinition Height="Auto"/> <!-- what it does -->
+                    <RowDefinition Height="Auto"/> <!-- windows -->
+                    <RowDefinition Height="Auto"/> <!-- passes + types -->
+                    <RowDefinition Height="Auto"/> <!-- speed cap · pause · timeout -->
+                    <RowDefinition Height="Auto"/> <!-- the plan -->
+                    <RowDefinition Height="Auto"/> <!-- start / stop -->
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" CornerRadius="6" Padding="10,7"
+                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                    <TextBlock TextWrapping="Wrap" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                               Text="{x:Bind SeedVm.StatusText, Mode=OneWay}"/>
+                </Border>
+
+                <TextBlock Grid.Row="1" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="Plays every built-in event at each ticked window: COLD (that window's cached files and decoded frames forgotten first), then WARM. Shortest window first, so every cold pass is truly cold. PastCast must be on. Each load is logged with its timings, bytes and the speed cap."/>
+
+                <StackPanel Grid.Row="2" Spacing="4">
+                    <TextBlock Text="Windows" FontSize="12"/>
+                    <ItemsControl ItemsSource="{x:Bind SeedVm.Windows}" IsEnabled="{x:Bind SeedVm.IsIdle, Mode=OneWay}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="12"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SeedWindowOption">
+                                <CheckBox Content="{x:Bind Label}" MinWidth="0" IsChecked="{x:Bind IsChecked, Mode=TwoWay}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
+                    <CheckBox Content="Cold" MinWidth="0" IsChecked="{x:Bind SeedVm.Cold, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Forget the window's cached files and decoded frames, then load"/>
+                    <CheckBox Content="Warm" MinWidth="0" IsChecked="{x:Bind SeedVm.Warm, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Load the same window again with everything cached"/>
+                    <Border Width="1" Margin="4,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                    <CheckBox Content="Tornado" MinWidth="0" IsChecked="{x:Bind SeedVm.Tornado, Mode=TwoWay}"/>
+                    <CheckBox Content="Hurricane" MinWidth="0" IsChecked="{x:Bind SeedVm.Hurricane, Mode=TwoWay}"/>
+                    <CheckBox Content="Derecho" MinWidth="0" IsChecked="{x:Bind SeedVm.Derecho, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <Grid Grid.Row="4" ColumnSpacing="8"> <!-- (read once at Start: a change mid-run waits for the next run) -->
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Speed cap Mbps (0 = off)" VerticalAlignment="Center" FontSize="12"/>
+                    <NumberBox x:Name="SeedSpeedBox" Grid.Column="1" SpinButtonPlacementMode="Compact"
+                               SmallChange="5" LargeChange="25" Minimum="0" Maximum="10000"
+                               ValueChanged="OnSeedSpeedChanged"
+                               ToolTipService.ToolTip="Simulated connection speed for ALL radar downloads while set (stays on after the run until 0)"/>
+                    <TextBlock Grid.Column="2" Text="Pause s" VerticalAlignment="Center" FontSize="12"/>
+                    <NumberBox x:Name="SeedPauseBox" Grid.Column="3" SpinButtonPlacementMode="Compact"
+                               SmallChange="5" LargeChange="30" Minimum="0" Maximum="600"
+                               ValueChanged="OnSeedPauseChanged"/>
+                    <TextBlock Grid.Column="4" Text="Timeout min" VerticalAlignment="Center" FontSize="12"/>
+                    <NumberBox x:Name="SeedTimeoutBox" Grid.Column="5" SpinButtonPlacementMode="Compact"
+                               SmallChange="5" LargeChange="15" Minimum="1" Maximum="240"
+                               ValueChanged="OnSeedTimeoutChanged"/>
+                </Grid>
+
+                <TextBlock Grid.Row="5" FontSize="12" Text="{x:Bind SeedVm.PlanText, Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="8">
+                    <Button Content="Start" Click="OnSeedStartClick" IsEnabled="{x:Bind SeedVm.IsIdle, Mode=OneWay}"/>
+                    <Button Content="Stop" Click="OnSeedStopClick" IsEnabled="{x:Bind SeedVm.IsRunning, Mode=OneWay}"/>
+                </StackPanel>
             </Grid>
         </prim:PanelSection>
     </Grid>

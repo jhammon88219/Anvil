@@ -572,6 +572,10 @@ try {
     window.clearLevel2Radar = function () {
         if (window.RadarLayer) window.RadarLayer.clear();
     };
+    // DEV-ONLY: the load-time seeding run's cold pass empties the decoded-frame cache (radar.js forgetDecoded).
+    window.forgetRadarDecodes = function () {
+        if (window.RadarLayer && window.RadarLayer.forgetDecoded) window.RadarLayer.forgetDecoded();
+    };
     window.setRadarOpacity = function (opacity) {
         if (window.RadarLayer) window.RadarLayer.setOpacity(opacity);
     };
