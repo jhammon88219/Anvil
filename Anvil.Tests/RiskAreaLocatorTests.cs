@@ -55,6 +55,16 @@ namespace Anvil.Tests
 			Assert.Null(RiskAreaLocator.Locate("not json", 35, -97));
 		}
 
+		// A REAL past (IEM) file — the Atlas "Outlook Test" event's 01Z issuance, May 6 2024. Its LABEL is blank and the
+		// category is "threshold" (the live feed uses LABEL); reading LABEL alone found no areas ("Can't check").
+		[Fact]
+		public void PastFile_ReadsTheCategoryFromThreshold()
+		{
+			var past = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "spc-cat-past-20240506-d1-c01.geojson"));
+			Assert.Equal("HIGH", RiskAreaLocator.Locate(past, 35.339, -97.487)!.Code); // Moore, OK
+			Assert.False(RiskAreaLocator.Locate(past, 39.74, -104.99)!.IsInside);   // Denver
+		}
+
 		[Theory]
 		[InlineData(0, "north")]
 		[InlineData(130, "southeast")]

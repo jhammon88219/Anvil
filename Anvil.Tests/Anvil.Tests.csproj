@@ -28,7 +28,7 @@
          format. 3 KB, fetched once from s3://unidata-nexrad-level3/. -->
     <None Include="Fixtures\*.bin" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\*.zip" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Fixtures\*.txt;Fixtures\*.json;Fixtures\*.html" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\*.txt;Fixtures\*.json;Fixtures\*.html;Fixtures\*.geojson" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

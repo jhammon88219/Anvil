@@ -15,8 +15,9 @@ namespace Anvil.Services
 	}
 
 	/// <summary>
-	/// Tests a point against a CATEGORICAL outlook GeoJSON (our cache files: features carry <c>LABEL</c> = TSTM / MRGL /
-	/// SLGT / ENH / MDT / HIGH; Polygon or MultiPolygon, first ring outer, the rest holes). Pure — text + point in.
+	/// Tests a point against a CATEGORICAL outlook GeoJSON (our cache files: features carry TSTM / MRGL / SLGT / ENH / MDT /
+	/// HIGH in <c>LABEL</c> (live) or <c>threshold</c> (past); Polygon or MultiPolygon, first ring outer, the rest holes).
+	/// Pure — text + point in.
 	/// </summary>
 	/// <remarks>
 	/// ⚠️ General thunder (TSTM) is NOT a risk area here, same as the cards. Distances use a local equirectangular
@@ -107,9 +108,9 @@ namespace Anvil.Services
 				if (!doc.RootElement.TryGetProperty("features", out var features)) return areas;
 				foreach (var f in features.EnumerateArray())
 				{
-					if (!f.TryGetProperty("properties", out var props) || !props.TryGetProperty("LABEL", out var label)) continue;
-					var code = label.GetString()?.ToUpperInvariant();
-					if (code is null || Array.IndexOf(Rank, code) < 0) continue;
+					if (!f.TryGetProperty("properties", out var props)) continue;
+					var code = CodeOf(props, "LABEL") ?? CodeOf(props, "threshold");
+					if (code is null) continue;
 					if (!f.TryGetProperty("geometry", out var g) || g.ValueKind != JsonValueKind.Object) continue;
 					var type = g.GetProperty("type").GetString();
 					var coords = g.GetProperty("coordinates");
@@ -123,6 +124,16 @@ namespace Anvil.Services
 			catch (InvalidOperationException) { }
 			catch (KeyNotFoundException) { }
 			return areas;
+		}
+
+		// A severe code from one property, or null. ⚠️ Live and past files name the category in DIFFERENT places: the live
+		// feed's LABEL is the category, a past (IEM) file's LABEL is blank (it carries hatching codes only) and the
+		// category is "threshold" (SpcOutlookColors.TryBuildProduct).
+		private static string? CodeOf(JsonElement props, string name)
+		{
+			if (!props.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.String) return null;
+			var code = v.GetString()!.ToUpperInvariant();
+			return Array.IndexOf(Rank, code) >= 0 ? code : null;
 		}
 
 		private static List<List<double[]>> Rings(JsonElement polygon) =>
