@@ -10,11 +10,12 @@
      docs/anvil-atlas.md.
 
        ┌──────────────────────────────────────────────────────────────────────────────────────┐
-       │ [logo] Anvil Atlas ←35→  204      │  160    45    3        ░░░ lock pin ─ □ ✕ ░░ │ ← THE BAND (raised) holds
-       │ (slot)                RADAR SITES │ NEXRAD TDWR RES.       ░ reserved 220 px ░░ │   title row + tabs row;
-       │ ┌──────────────┐                                                                     │   counts FOLLOW THE TAB,
-       │ │ 📡 Radar sites│  ⟲ Past events   ◉ DOW events                                      │   TOTAL first; TabStrip
-       ├─┘              └─────────────────────────────────────────────────────────────────────┤   IsSeated: selected tab =
+       │ [logo] Anvil Atlas ←35→ RADAR SITES │ NEXRAD TDWR RES.     ░░░ lock pin ─ □ ✕ ░░ │ ← THE BAND (raised) holds
+       │ (slot)                  204         │ 160    45   3         ░ reserved 220 px ░░ │   title row + tabs row;
+       │                         ↕ 25 px of air (title row's bottom padding 33)              │   label OVER count, left;
+       │ ┌────────────────┐                                                                   │   counts FOLLOW THE TAB,
+       │ │ 📡 Radar sites │ ⟲ Past events  ◉ DOW events   ← mark BESIDE name                │   TOTAL first; TabStrip
+       ├─┘                └───────────────────────────────────────────────────────────────────┤   IsSeated: selected tab =
                                                                                                   the GROUND, opens into body
        ┌── list column (360, NO outline) ──┐←32→ detail (scrolls, capped 760 wide, CENTRED)
        │ [ Search ICAO or name…          ] │   KTLX · Norman, OK  (● Online ⑦) (NEXRAD ⑦) [★] [⌂ Home site] [On map]
@@ -176,8 +177,10 @@
                      caption buttons sit over that corner, so the counts end before it.
                      ⚠️ The counts FOLLOW THE TAB (networks on Radar sites, types on Past events) and describe the
                      WHOLE Atlas, never the filtered list — the result count under the filters answers the search.
-                     The TOTAL leads, then a rule, then its parts. -->
-                <Grid Grid.Row="0" Padding="16,12,0,8" ColumnSpacing="14">
+                     The TOTAL leads, then a rule, then its parts. Each is its LABEL over its number, both left-aligned
+                     (the user's call, 2026-10-02).
+                     ⚠️ Bottom padding 33 = the old 8 + 25 of air between the title row and the tabs (the user's call). -->
+                <Grid Grid.Row="0" Padding="16,12,0,33" ColumnSpacing="14">
                     <!-- The counts sit LEFT, right after the name: 35 px from it = the counts' Margin 21 + this
                          Grid's ColumnSpacing 14 (change both together). The * column is the empty middle. -->
                     <Grid.ColumnDefinitions>
@@ -204,25 +207,25 @@
                                 Margin="21,0,0,0"
                                 Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 0), Mode=OneWay}">
                         <StackPanel>
+                            <TextBlock Text="RADAR SITES" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.ShownSiteCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                            <TextBlock Text="RADAR SITES" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <Border Width="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                         <StackPanel>
+                            <TextBlock Text="NEXRAD" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.NexradCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                            <TextBlock Text="NEXRAD" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <StackPanel>
+                            <TextBlock Text="TDWR" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.TdwrCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                            <TextBlock Text="TDWR" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <StackPanel>
+                            <TextBlock Text="RESEARCH" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.RadarAtlas.ResearchCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                            <TextBlock Text="RESEARCH" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </StackPanel>
 
@@ -231,30 +234,30 @@
                                 Margin="21,0,0,0"
                                 Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 1), Mode=OneWay}">
                         <StackPanel>
+                            <TextBlock Text="PAST EVENTS" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.TotalCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                            <TextBlock Text="PAST EVENTS" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <Border Width="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
                         <StackPanel>
+                            <TextBlock Text="TORNADO" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.TornadoCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                            <TextBlock Text="TORNADO" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <StackPanel>
+                            <TextBlock Text="HURRICANE" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.HurricaneCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                            <TextBlock Text="HURRICANE" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <StackPanel>
+                            <TextBlock Text="DERECHO" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.DerechoCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                            <TextBlock Text="DERECHO" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <StackPanel>
+                            <TextBlock Text="CUSTOM" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.SavedEvents.CustomCount), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                            <TextBlock Text="CUSTOM" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </StackPanel>
 
@@ -263,9 +266,9 @@
                                 Margin="21,0,0,0"
                                 Visibility="{x:Bind TabVisibility(ViewModel.AtlasTabIndex, 2), Mode=OneWay}">
                         <StackPanel>
+                            <TextBlock Text="DOW FRAMES" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Left"/>
                             <TextBlock Text="{x:Bind Count(ViewModel.Radar.Dow.DowEvents.Count), Mode=OneWay}"
-                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                            <TextBlock Text="DOW FRAMES" Style="{StaticResource AtlasFieldLabelStyle}" HorizontalAlignment="Right"/>
+                                       FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </StackPanel>
                 </Grid>

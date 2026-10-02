@@ -87,6 +87,14 @@ namespace Anvil.Controls.Primitives
 		/// reach).</summary>
 		public static Visibility Show(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 
+		/// <summary>A SEATED tab (the Atlas) lays its mark BESIDE its name — a shorter tab; every other strip
+		/// keeps the mark over the name. Statics for the item template, like <see cref="Show"/>.</summary>
+		public static Orientation MarkOrientation(bool seated) => seated ? Orientation.Horizontal : Orientation.Vertical;
+
+		public static double MarkSpacing(bool seated) => seated ? 8 : 3;
+
+		public static Thickness MarkMargin(bool seated) => seated ? new Thickness(14, 7, 14, 7) : new Thickness(14, 8, 14, 8);
+
 		private IEnumerable<TabEntry> Entries =>
 			ItemsSource?.OfType<TabEntry>() ?? Enumerable.Empty<TabEntry>();
 

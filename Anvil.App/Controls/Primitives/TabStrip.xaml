@@ -14,9 +14,9 @@
      IsSeated (Top only — the Anvil Atlas): the strip is the bottom row of a RAISED band, and the selected tab
      is filled with the GROUND and squared at the bottom, so it opens into the body below. No underline.
        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ← raised band (title + counts above)
-       ░┌────────┐░ ◷ Past  ░ ▭ DOW  ░░░░░░░░░
-       ░│ 📡 Radar│░░░░░░░░░░░░░░░░░░░░░░░░░░░
-       ─┘        └──────────────────────────────  ← the band ends; ground below
+       ░┌──────────┐░░░░░░░░░░░░░░░░░░░░░░░░░░
+       ░│ 📡 Radar │ ◷ Past  ▭ DOW  ░░░░░░░░░░   ← SEATED tabs put the mark BESIDE the name (shorter)
+       ─┘          └────────────────────────────  ← the band ends; ground below
        (body, ground)
 
      A tab is a MARK OVER A NAME, the same language as the keys in the bottom bar — but deliberately NOT
@@ -69,22 +69,22 @@
                           IsChecked="{x:Bind IsSelected, Mode=OneWay}"
                           Click="OnTabClick">
                 <Grid>
-                    <!-- Mark over a name, centred. Padding is on this grid rather than the button so the
+                    <!-- Mark over a name, centred — or, SEATED, mark beside the name (the user's call,
+                         2026-10-02: a shorter Atlas tab). Padding is on this panel rather than the button so the
                          indicators below can still reach the tab's true edges. -->
-                    <Grid Margin="14,8,14,8" RowSpacing="3">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <FontIcon Grid.Row="0"
-                                  FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                    <StackPanel Margin="{x:Bind prim:TabStrip.MarkMargin(IsSeated), Mode=OneWay}"
+                                Orientation="{x:Bind prim:TabStrip.MarkOrientation(IsSeated), Mode=OneWay}"
+                                Spacing="{x:Bind prim:TabStrip.MarkSpacing(IsSeated), Mode=OneWay}"
+                                HorizontalAlignment="Center">
+                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                                   FontSize="16"
+                                  VerticalAlignment="Center"
                                   Glyph="{x:Bind Glyph}"/>
-                        <TextBlock Grid.Row="1"
-                                   Text="{x:Bind Label}"
+                        <TextBlock Text="{x:Bind Label}"
                                    FontSize="12"
+                                   VerticalAlignment="Center"
                                    HorizontalAlignment="Center"/>
-                    </Grid>
+                    </StackPanel>
 
                     <!-- TOP rail: underline on the bottom edge. -->
                     <Rectangle Height="2" VerticalAlignment="Bottom" Margin="6,0,6,0"
