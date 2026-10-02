@@ -120,6 +120,7 @@ namespace Anvil
 			services.AddSingleton<ISavedEventLibrary, SavedEventLibrary>();
 			// Per-site usage (the Atlas's "Your use" strip): %LocalAppData%\Anvil\Usage\site-usage.json.
 			services.AddSingleton<SiteUsageStore>();
+			services.AddSingleton<LoopLoadLog>();
 			// Scan patterns VcpCatalog doesn't list, per site: %LocalAppData%\Anvil\Network\nonstandard-vcps.json.
 			services.AddSingleton<NonStandardVcpLog>();
 			// Data uptime from archive gaps: listing only, final days cached in %LocalAppData%\Anvil\Network\Archive.

@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Anvil.Models;
 using Anvil.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -62,6 +63,13 @@ namespace Anvil.ViewModels
 		internal Func<long> NowMs { get; set; } = () => Environment.TickCount64;
 		private long _heldSinceMs;
 		private string? _eventName;
+
+		// THE LOAD'S CLOCK (the user's call, 2026-10-02): Begin → the last frame built, on NowMs. The milestones feed the
+		// load-time log (LoopLoadRecorder → LoopLoadLog) so a "ready in about X" line can be built from real loads.
+		private long _beganMs;
+		private long? _firstBuiltMs, _allDownloadedMs, _allBuiltMs;
+		private bool _escaped;
+		private string _elapsedText = string.Empty;
 
 		private readonly ISettingsService _settings;
 		private readonly Func<Task> _cancelLoad;
@@ -147,6 +155,42 @@ namespace Anvil.ViewModels
 		/// <summary>The why line (bound by the gate; wording lives here).</summary>
 		public string Why => WhyText;
 
+		/// <summary>The chosen saved event's id (the log's), pushed with <see cref="EventName"/>; null for your own timeframe.</summary>
+		public string? EventId { get; set; }
+
+		/// <summary>"That took 2 minutes and 14 seconds to load." — set when the load completes; shown on Ready.</summary>
+		public string ElapsedText { get => _elapsedText; private set => SetProperty(ref _elapsedText, value); }
+
+		/// <summary>A load ended — finished, cancelled or abandoned — with its timings. The load-time log listens.</summary>
+		public event EventHandler<LoopLoadTiming>? LoadMeasured;
+
+		/// <summary>"2 minutes and 14 seconds", "1 minute", "45 seconds", "0 seconds" (whole seconds, rounded).</summary>
+		internal static string Duration(long ms)
+		{
+			var total = (long)Math.Round(Math.Max(0, ms) / 1000.0);
+			long m = total / 60, s = total % 60;
+			static string Unit(long n, string one) => $"{n} {one}{(n == 1 ? string.Empty : "s")}";
+			return (m, s) switch
+			{
+				(0, _) => Unit(s, "second"),
+				(_, 0) => Unit(m, "minute"),
+				_ => $"{Unit(m, "minute")} and {Unit(s, "second")}",
+			};
+		}
+
+		// ⚠️ ONE record per load, and _loading is what guarantees it: every path that measures ends the load (Complete
+		// and the Abandoned paths only while _loading; a Cancel clears _loading before the load unwinds into Abandon).
+		private void Measure(LoopLoadOutcome outcome, int kept = 0)
+		{
+			var now = NowMs();
+			long? Since(long? t) => t is { } v ? v - _beganMs : null;
+			LoadMeasured?.Invoke(this, new LoopLoadTiming(
+				_siteId, EventId, outcome, _total, _downloaded, _built, kept,
+				TotalMs: now - _beganMs,
+				FirstFrameMs: Since(_firstBuiltMs), AllDownloadedMs: Since(_allDownloadedMs), AllBuiltMs: Since(_allBuiltMs),
+				Escaped: _escaped, GateShown: HoldEnabled));
+		}
+
 		/// <summary>"KTBW · Sep 28, 2022 · 1:00 PM–4:00 PM" (local time, like the rest of PastCast).</summary>
 		public string EventLine { get => _eventLine; private set => SetProperty(ref _eventLine, value); }
 
@@ -208,9 +252,14 @@ namespace Anvil.ViewModels
 		/// the load is tracked either way.</summary>
 		internal void Begin(string siteId, string eventLine)
 		{
+			if (_loading) Measure(LoopLoadOutcome.Abandoned); // superseded by this load
 			_armed = false;
 			NeverHoldAgain = false;
 			SetCounts(0, 0, 0);
+			_beganMs = NowMs();
+			_firstBuiltMs = _allDownloadedMs = _allBuiltMs = null;
+			_escaped = false;
+			ElapsedText = string.Empty;
 			SiteId = siteId;
 			EventLine = eventLine;
 			IsLoading = true;
@@ -240,6 +289,9 @@ namespace Anvil.ViewModels
 			// was the one carrying the load (and flashes "Loop ready"); the IsLoading flip after would clear it first.
 			LoadFinished?.Invoke(this, _total);
 			IsLoading = false;
+			_allBuiltMs ??= NowMs();
+			ElapsedText = $"That took {Duration(_allBuiltMs.Value - _beganMs)} to load.";
+			Measure(LoopLoadOutcome.Finished);
 			if (_state is LoopGateState.Holding or LoopGateState.ConfirmingEscape)
 			{
 				// A screen that was SEEN waits for "View event"; one that never faded in just releases.
@@ -259,6 +311,7 @@ namespace Anvil.ViewModels
 		/// <summary>The load failed or was superseded (not via Cancel). Leaves a cancel in progress alone.</summary>
 		internal void Abandon()
 		{
+			if (_loading) Measure(LoopLoadOutcome.Abandoned); // a cancel already cleared _loading and logs itself
 			IsLoading = false;
 			if (_state is LoopGateState.Holding or LoopGateState.ConfirmingEscape) State = LoopGateState.Hidden;
 		}
@@ -266,6 +319,7 @@ namespace Anvil.ViewModels
 		/// <summary>Site change, Clear, leaving PastCast, a NowCast load — whatever the gate was showing is moot.</summary>
 		internal void Dismiss()
 		{
+			if (_loading) Measure(LoopLoadOutcome.Abandoned); // left mid-load (site change, Clear, mode off)
 			_armed = false;
 			IsLoading = false;
 			State = LoopGateState.Hidden;
@@ -274,6 +328,7 @@ namespace Anvil.ViewModels
 		/// <summary>The cancel has been carried out: say what was kept.</summary>
 		internal void ShowCancelled(int kept, int total)
 		{
+			Measure(LoopLoadOutcome.Cancelled, kept);
 			_armed = false;
 			IsLoading = false;
 			KeptText = kept > 0
@@ -298,6 +353,7 @@ namespace Anvil.ViewModels
 		{
 			if (_state != LoopGateState.ConfirmingEscape) return;
 			if (_neverHoldAgain) HoldEnabled = false;
+			if (_loading) _escaped = true; // the log notes it: the user used the map while it loaded
 			State = LoopGateState.Hidden; // the load stays tracked — the bar's readout carries on with it
 		}
 
@@ -324,6 +380,13 @@ namespace Anvil.ViewModels
 		{
 			if (total == _total && downloaded == _downloaded && built == _built) return;
 			_total = total; _downloaded = downloaded; _built = built;
+			// The log's milestones — the first time each line is crossed (a Begin's zeroing never crosses one).
+			if (total > 0)
+			{
+				if (built > 0) _firstBuiltMs ??= NowMs();
+				if (downloaded >= total) _allDownloadedMs ??= NowMs();
+				if (built >= total) _allBuiltMs ??= NowMs();
+			}
 			OnPropertyChanged(nameof(Total));
 			OnPropertyChanged(nameof(Downloaded));
 			OnPropertyChanged(nameof(Built));

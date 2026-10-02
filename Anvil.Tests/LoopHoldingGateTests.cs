@@ -89,6 +89,82 @@ namespace Anvil.Tests
 			Assert.False(gate.IsShown);
 		}
 
+		[Theory]
+		[InlineData(134_000, "2 minutes and 14 seconds")]
+		[InlineData(61_000, "1 minute and 1 second")]
+		[InlineData(120_000, "2 minutes")]
+		[InlineData(45_400, "45 seconds")]
+		[InlineData(1_000, "1 second")]
+		[InlineData(200, "0 seconds")]
+		public void Duration_reads_in_words(long ms, string expected) =>
+			Assert.Equal(expected, LoopHoldingGateViewModel.Duration(ms));
+
+		// The Ready screen's line and the log share ONE clock: Begin → the last frame built.
+		[Fact]
+		public void Complete_says_how_long_it_took_and_measures_the_load_once()
+		{
+			var (gate, _, _) = NewGate();
+			long now = 10_000;
+			gate.NowMs = () => now;
+			var measured = new System.Collections.Generic.List<Anvil.Models.LoopLoadTiming>();
+			gate.LoadMeasured += (_, t) => measured.Add(t);
+
+			gate.EventId = "moore-1999";
+			gate.Begin("KTLX", "x");
+			gate.Arm();
+			now += 3_000; gate.Report(28, 4, 1);    // first frame on screen at 3 s
+			now += 60_000; gate.Report(28, 28, 20); // all downloaded at 63 s
+			now += 71_000; gate.Report(28, 28, 28); // all built at 134 s
+			now += 500; gate.Complete();
+
+			Assert.Equal("That took 2 minutes and 14 seconds to load.", gate.ElapsedText);
+			var t = Assert.Single(measured);
+			Assert.Equal(Anvil.Models.LoopLoadOutcome.Finished, t.Outcome);
+			Assert.Equal("KTLX", t.SiteId);
+			Assert.Equal("moore-1999", t.EventId);
+			Assert.Equal(28, t.Frames);
+			Assert.Equal(3_000, t.FirstFrameMs);
+			Assert.Equal(63_000, t.AllDownloadedMs);
+			Assert.Equal(134_000, t.AllBuiltMs);
+
+			gate.Dismiss(); // nothing in flight any more — no second record
+			Assert.Single(measured);
+		}
+
+		[Fact]
+		public async Task A_cancel_is_one_record_even_as_the_load_unwinds()
+		{
+			var (gate, _, _) = NewGate();
+			var measured = new System.Collections.Generic.List<Anvil.Models.LoopLoadTiming>();
+			gate.LoadMeasured += (_, t) => measured.Add(t);
+			gate.Begin("KTLX", "x");
+			gate.Arm();
+			gate.Report(28, 10, 6);
+			await gate.CancelLoadAsync();
+			gate.ShowCancelled(6, 28);
+			gate.Abandon();
+			var t = Assert.Single(measured);
+			Assert.Equal(Anvil.Models.LoopLoadOutcome.Cancelled, t.Outcome);
+			Assert.Equal(6, t.Kept);
+		}
+
+		[Fact]
+		public void Leaving_mid_load_and_a_superseding_load_record_it_as_abandoned()
+		{
+			var (gate, _, _) = NewGate();
+			var measured = new System.Collections.Generic.List<Anvil.Models.LoopLoadTiming>();
+			gate.LoadMeasured += (_, t) => measured.Add(t);
+			gate.Begin("KTLX", "x");
+			gate.Begin("KINX", "y"); // superseded
+			gate.RequestEscape();
+			gate.UseMap();
+			gate.Dismiss();           // a Clear mid-load
+			Assert.Equal(2, measured.Count);
+			Assert.All(measured, t => Assert.Equal(Anvil.Models.LoopLoadOutcome.Abandoned, t.Outcome));
+			Assert.Equal("KTLX", measured[0].SiteId);
+			Assert.True(measured[1].Escaped);
+		}
+
 		[Fact]
 		public void After_Use_the_map_a_finished_load_has_nothing_to_wait_on()
 		{

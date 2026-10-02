@@ -451,6 +451,7 @@ namespace Anvil.ViewModels
 			// The loading screen names the event too ("Loading May 3, 1999 …"). ⚠️ Apply SELECTS before it loads, so
 			// the name is in place when the gate's Begin runs.
 			_radar.LoopGate.EventName = HasPlaying ? PlayingTitle : null;
+			_radar.LoopGate.EventId = HasPlaying ? _selectedId : null; // the load-time log's
 			OnPropertyChanged(nameof(HasPlaying));
 			OnPropertyChanged(nameof(PlayingTitle));
 			OnPropertyChanged(nameof(PlayingKind));

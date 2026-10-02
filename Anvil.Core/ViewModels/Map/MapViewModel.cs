@@ -56,7 +56,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion, LoopLoadLog? loopLoadLog = null)
 		{
 			_mapService = mapService;
 			_styleProvider = styleProvider;
@@ -91,6 +91,8 @@ namespace Anvil.ViewModels
 			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
 			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
 			SiteUsage = new SiteUsageTracker(Radar, siteUsageStore);
+			// The PastCast load-time log (one line per load). Optional so tests that don't care can omit it.
+			if (loopLoadLog is not null) LoadTimes = new LoopLoadRecorder(Radar, loopLoadLog);
 			RadarNws = new RadarNwsStatusViewModel(radarNwsStatusService,
 				() => Radar.RadarSiteRows.Select(r => (r.Id, r.Site.Class == RadarSiteClass.Tdwr)));
 			var siteHistory = new RadarSiteHistoryViewModel(uptimeService, messageHistoryService, scanPatternService,
@@ -274,6 +276,9 @@ namespace Anvil.ViewModels
 		/// <summary>Per-site usage (loads + the site-hours clock) behind the Atlas's "Your use" strip. MainWindow
 		/// pushes minimize/restore into it (<see cref="SiteUsageTracker.SetMinimized"/>).</summary>
 		public SiteUsageTracker SiteUsage { get; }
+
+		/// <summary>Writes each PastCast load's timings to the load-time log; null when no log was injected (tests).</summary>
+		public LoopLoadRecorder? LoadTimes { get; }
 
 		/// <summary>The NWS's own account of every radar (state, alarms, outage messages) behind the Atlas's NWS
 		/// STATUS section. Checked once at map-ready, then on the section's Re-check (5-min cooldown).</summary>

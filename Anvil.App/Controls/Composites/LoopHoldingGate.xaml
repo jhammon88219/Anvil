@@ -23,7 +23,8 @@
        │                  [ Cancel load ]    Use the map                           │
        │                    dark red fill     no border; lifts 2 px on hover       │
        └───────────────────────────────────────────────────────────────────────────┘
-       READY (built while the screen was SEEN): "Ready: …" / "Loop ready", bars full, and ONE accent button
+       READY (built while the screen was SEEN): "Ready: …" / "Loop ready", bars full, "That took 2 minutes and 14
+       seconds to load." under the frames bar (ElapsedText — the same clock the load-time log records), and ONE accent button
        [ View event ] / [ View loop ] in place of the actions — the screen waits for it. A load finishing inside
        FadeInDelayMs never showed the gate, so it just releases.
 
@@ -59,13 +60,15 @@
             <!-- PROGRESS: title, event, the two bars, the counts. -->
             <StackPanel Visibility="{x:Bind ViewModel.IsProgressShown, Mode=OneWay}">
                 <!-- THE WHY LINE, above everything (the user's call, 2026-10-02): why a loop takes time. -->
-                <TextBlock Text="{x:Bind ViewModel.Why}" FontSize="13" LineHeight="19" TextWrapping="Wrap"
-                           TextAlignment="Center" Margin="0,0,0,24" Foreground="#C7E8EAED"/>
+                <!-- ⚠️ TYPE SCALE (the user's call, 2026-10-02): the TITLE is the largest text here (24), the why line
+                     next (14), everything else 12–13. -->
+                <TextBlock Text="{x:Bind ViewModel.Why}" FontSize="14" LineHeight="21" TextWrapping="Wrap"
+                           TextAlignment="Center" Margin="0,0,0,26" Foreground="#C7E8EAED"/>
 
-                <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="16" FontWeight="SemiBold"
+                <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="24" LineHeight="30" FontWeight="SemiBold"
                            TextWrapping="Wrap" TextAlignment="Center"
                            Foreground="#FFE8EAED" HorizontalAlignment="Center"/>
-                <TextBlock Text="{x:Bind ViewModel.EventLine, Mode=OneWay}" FontSize="12" Margin="0,4,0,18"
+                <TextBlock Text="{x:Bind ViewModel.EventLine, Mode=OneWay}" FontSize="12" Margin="0,6,0,20"
                            Foreground="#A6E8EAED" HorizontalAlignment="Center"/>
 
                 <!-- THE BARS (layout A, the user's call 2026-10-02): each one LABELLED — name on the left, "22 of 28"
@@ -89,6 +92,12 @@
                     <Border HorizontalAlignment="Left" CornerRadius="5" Background="#FF5B8DEF"
                             Width="{x:Bind BarWidth(ViewModel.BuiltFraction), Mode=OneWay}"/>
                 </Grid>
+
+                <!-- THE LOAD'S TIME, Ready only: "That took 2 minutes and 14 seconds to load." — Begin → last frame built
+                     (the same clock the load-time log records). -->
+                <TextBlock Text="{x:Bind ViewModel.ElapsedText, Mode=OneWay}" FontSize="13" Margin="0,12,0,0"
+                           TextAlignment="Center" HorizontalAlignment="Center" Foreground="#FFE8EAED"
+                           Visibility="{x:Bind ViewModel.IsReadyShown, Mode=OneWay}"/>
             </StackPanel>
 
             <!-- The 100 px between the information and the actions (the user's spec). -->
