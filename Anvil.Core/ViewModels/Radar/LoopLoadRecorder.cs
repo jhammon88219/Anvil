@@ -14,7 +14,7 @@ namespace Anvil.ViewModels
 	public sealed class LoopLoadRecorder
 	{
 		/// <summary>Bump when a field's MEANING changes (see LoopLoadRecord).</summary>
-		internal const int RecordVersion = 1;
+		internal const int RecordVersion = 2; // 2: + the frame sources (cached / local raw / network)
 
 		private readonly RadarViewModel _radar;
 		private readonly LoopLoadLog _log;
@@ -38,7 +38,8 @@ namespace Anvil.ViewModels
 				t.Outcome.ToString().ToLowerInvariant(),
 				t.Frames, t.Downloaded, t.Built, t.Kept,
 				t.TotalMs, t.FirstFrameMs, t.AllDownloadedMs, t.AllBuiltMs,
-				t.Escaped, t.GateShown);
+				t.Escaped, t.GateShown,
+				t.CachedFrames, t.LocalRawFrames, t.NetworkFrames);
 		}
 	}
 }

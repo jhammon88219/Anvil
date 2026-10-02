@@ -261,7 +261,7 @@ namespace Anvil.Services
 				}
 				catch (OperationCanceledException) { throw; }
 				catch { /* both are best-effort; a bad read shows "—" and offers no tilt choice */ }
-				return Noted(new RadarVolume(localUrl, site, time, cachedMode.mode, cachedTilts, tiltAngle), cachedMode.vcp);
+				return Noted(new RadarVolume(localUrl, site, time, cachedMode.mode, cachedTilts, tiltAngle, RadarVolumeSource.CachedTilt), cachedMode.vcp);
 			}
 
 			try
@@ -273,6 +273,7 @@ namespace Anvil.Services
 
 				byte[]? toWrite = null;
 				byte[]? fullVolume = null; // set only when we downloaded the whole thing (-> retain as .raw)
+				var fromLocalRaw = false;  // the tilt came out of a prefetched raw on disk (the load-time log's source)
 
 				// PREFETCHED RAW: one volume download holds EVERY tilt, so if the background prefetch has
 				// already pulled this volume, any tilt is a local decompress — no network at all. This is
@@ -284,6 +285,7 @@ namespace Anvil.Services
 					{
 						var rawBytes = await File.ReadAllBytesAsync(rawFile, cancellationToken);
 						toWrite = await RadarCpuWork.Run(() => ExtractTilt(rawBytes, site.Id, tiltAngle), cancellationToken, urgent: prioritized);
+						fromLocalRaw = toWrite is not null;
 
 						// The raw IS the whole volume (and it's written atomically, so a file on disk is
 						// complete). If the tilt isn't in it, the tilt does not exist — re-downloading the
@@ -413,7 +415,8 @@ namespace Anvil.Services
 				var (mode, vcp) = ModeTextFromTilt(toWrite); // VCP + regime for the archive/replay scan line
 				var tilts = ReadElevationAnglesFromExtractedTilt(toWrite);
 				RadarPerfCounters.EndSync(syncAt);
-				return Noted(new RadarVolume(localUrl, site, time, mode, tilts, tiltAngle), vcp);
+				return Noted(new RadarVolume(localUrl, site, time, mode, tilts, tiltAngle,
+					fromLocalRaw ? RadarVolumeSource.LocalRaw : RadarVolumeSource.Network), vcp);
 			}
 			catch (OperationCanceledException)
 			{

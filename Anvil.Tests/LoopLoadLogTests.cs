@@ -52,6 +52,28 @@ namespace Anvil.Tests
 			Assert.Equal(2, log.ReadAll().Count);
 		}
 
+		// A version-1 line (before the frame sources) still reads; its counts come back 0 = unknown.
+		[Fact]
+		public void A_v1_line_without_the_sources_still_reads()
+		{
+			var log = new LoopLoadLog(NullLogger<LoopLoadLog>.Instance, TempDir());
+			var v1 = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "loop-load-v1.json")).Trim();
+			File.WriteAllText(log.FilePath, v1 + "\n");
+			var r = Assert.Single(log.ReadAll());
+			Assert.Equal(1, r.Version);
+			Assert.Equal("KTLX", r.Site);
+			Assert.Equal(0, r.CachedFrames);
+		}
+
+		[Fact]
+		public void The_sources_round_trip()
+		{
+			var log = new LoopLoadLog(NullLogger<LoopLoadLog>.Instance, TempDir());
+			log.Append(Record("KTLX", 134_000) with { Version = 2, CachedFrames = 20, LocalRawFrames = 2, NetworkFrames = 6 });
+			var r = Assert.Single(log.ReadAll());
+			Assert.Equal((20, 2, 6), (r.CachedFrames, r.LocalRawFrames, r.NetworkFrames));
+		}
+
 		[Fact]
 		public void No_file_yet_reads_empty() =>
 			Assert.Empty(new LoopLoadLog(NullLogger<LoopLoadLog>.Instance, TempDir()).ReadAll());

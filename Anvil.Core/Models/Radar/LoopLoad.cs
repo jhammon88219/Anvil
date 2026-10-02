@@ -20,11 +20,15 @@ namespace Anvil.Models
 	/// </summary>
 	/// <param name="Escaped">The user took "Use the map" while it loaded (the map then competes for the CPU).</param>
 	/// <param name="GateShown">Holding was on (AppSettings.HoldPastCastLoads), so the map was gated.</param>
+	/// <param name="CachedFrames">Frames whose tilt file was already cached (no download, no extract).</param>
+	/// <param name="LocalRawFrames">Frames extracted from a whole volume already on disk (no download).</param>
+	/// <param name="NetworkFrames">Frames downloaded during this load. The three sum to the frames that LANDED.</param>
 	public sealed record LoopLoadTiming(
 		string SiteId, string? EventId, LoopLoadOutcome Outcome,
 		int Frames, int Downloaded, int Built, int Kept,
 		long TotalMs, long? FirstFrameMs, long? AllDownloadedMs, long? AllBuiltMs,
-		bool Escaped, bool GateShown);
+		bool Escaped, bool GateShown,
+		int CachedFrames = 0, int LocalRawFrames = 0, int NetworkFrames = 0);
 
 	/// <summary>
 	/// One line of the load-time log (<c>%LocalAppData%\Anvil\Usage\loop-load-times.jsonl</c>, <see
@@ -33,8 +37,9 @@ namespace Anvil.Models
 	/// </summary>
 	/// <remarks>
 	/// ⚠️ APPEND-ONLY and read by future code: ADD fields, never rename or re-type one. <see cref="Version"/> bumps when a
-	/// field's MEANING changes. Not yet recorded (a separate step): how many frames were already on disk — the biggest
-	/// predictor; the fetch path knows it but doesn't report it.
+	/// field's MEANING changes. Version 2 (2026-10-02) added the frame SOURCES — <see cref="CachedFrames"/>,
+	/// <see cref="LocalRawFrames"/>, <see cref="NetworkFrames"/> (from <c>RadarVolume.Source</c>); a v1 line reads them as 0,
+	/// which means UNKNOWN there, not "none cached".
 	/// </remarks>
 	public sealed record LoopLoadRecord(
 		int Version,
@@ -57,5 +62,8 @@ namespace Anvil.Models
 		long? AllDownloadedMs,
 		long? AllBuiltMs,
 		bool Escaped,
-		bool GateShown);
+		bool GateShown,
+		int CachedFrames = 0,
+		int LocalRawFrames = 0,
+		int NetworkFrames = 0);
 }

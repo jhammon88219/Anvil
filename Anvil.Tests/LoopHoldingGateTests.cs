@@ -131,6 +131,37 @@ namespace Anvil.Tests
 			Assert.Single(measured);
 		}
 
+		// Where each frame's bytes came from — the log's biggest predictor. A frame re-landing (a tilt re-cut) counts once,
+		// and a previous loop's straggler before Arm counts not at all.
+		[Fact]
+		public void The_record_counts_where_each_frame_came_from()
+		{
+			var (gate, _, _) = NewGate();
+			var measured = new System.Collections.Generic.List<Anvil.Models.LoopLoadTiming>();
+			gate.LoadMeasured += (_, t) => measured.Add(t);
+			gate.Begin("KTLX", "x");
+			gate.NoteSource(0, Anvil.Models.RadarVolumeSource.Network); // before Arm: a previous loop's
+			gate.Arm();
+			gate.NoteSource(0, Anvil.Models.RadarVolumeSource.CachedTilt);
+			gate.NoteSource(1, Anvil.Models.RadarVolumeSource.CachedTilt);
+			gate.NoteSource(2, Anvil.Models.RadarVolumeSource.LocalRaw);
+			gate.NoteSource(3, Anvil.Models.RadarVolumeSource.Network);
+			gate.NoteSource(3, Anvil.Models.RadarVolumeSource.Network); // re-landed
+			gate.Report(4, 4, 4);
+			gate.Complete();
+
+			var t = Assert.Single(measured);
+			Assert.Equal(2, t.CachedFrames);
+			Assert.Equal(1, t.LocalRawFrames);
+			Assert.Equal(1, t.NetworkFrames);
+
+			gate.Begin("KTLX", "next"); // a new load starts from zero
+			gate.Arm();
+			gate.Report(1, 1, 1);
+			gate.Complete();
+			Assert.Equal(0, measured[1].CachedFrames + measured[1].LocalRawFrames + measured[1].NetworkFrames);
+		}
+
 		[Fact]
 		public async Task A_cancel_is_one_record_even_as_the_load_unwinds()
 		{

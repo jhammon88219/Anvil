@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Anvil.Models;
 using Anvil.Services;
@@ -70,6 +71,8 @@ namespace Anvil.ViewModels
 		private long? _firstBuiltMs, _allDownloadedMs, _allBuiltMs;
 		private bool _escaped;
 		private string _elapsedText = string.Empty;
+		// Where each landed frame's bytes came from, by loop index (a frame re-landing — a tilt re-cut — overwrites).
+		private readonly System.Collections.Generic.Dictionary<int, RadarVolumeSource> _sources = new();
 
 		private readonly ISettingsService _settings;
 		private readonly Func<Task> _cancelLoad;
@@ -188,7 +191,10 @@ namespace Anvil.ViewModels
 				_siteId, EventId, outcome, _total, _downloaded, _built, kept,
 				TotalMs: now - _beganMs,
 				FirstFrameMs: Since(_firstBuiltMs), AllDownloadedMs: Since(_allDownloadedMs), AllBuiltMs: Since(_allBuiltMs),
-				Escaped: _escaped, GateShown: HoldEnabled));
+				Escaped: _escaped, GateShown: HoldEnabled,
+				CachedFrames: _sources.Values.Count(s => s == RadarVolumeSource.CachedTilt),
+				LocalRawFrames: _sources.Values.Count(s => s == RadarVolumeSource.LocalRaw),
+				NetworkFrames: _sources.Values.Count(s => s == RadarVolumeSource.Network)));
 		}
 
 		/// <summary>"KTBW · Sep 28, 2022 · 1:00 PM–4:00 PM" (local time, like the rest of PastCast).</summary>
@@ -259,6 +265,7 @@ namespace Anvil.ViewModels
 			_beganMs = NowMs();
 			_firstBuiltMs = _allDownloadedMs = _allBuiltMs = null;
 			_escaped = false;
+			_sources.Clear();
 			ElapsedText = string.Empty;
 			SiteId = siteId;
 			EventLine = eventLine;
@@ -274,6 +281,12 @@ namespace Anvil.ViewModels
 
 		/// <summary>Whether the engine should report progress (a load is in flight and its loop has begun).</summary>
 		internal bool IsTracking => _armed && _loading;
+
+		/// <summary>A frame landed: where its bytes came from (cached tilt / local raw / network). Only this load's.</summary>
+		internal void NoteSource(int index, RadarVolumeSource source)
+		{
+			if (IsTracking) _sources[index] = source;
+		}
 
 		internal void Report(int total, int downloaded, int built)
 		{

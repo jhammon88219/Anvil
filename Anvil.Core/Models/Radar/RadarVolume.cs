@@ -26,5 +26,18 @@ namespace Anvil.Models
 		DateTimeOffset VolumeTime,
 		string? ModeText = null,
 		IReadOnlyList<float>? Tilts = null,
-		float? TiltAngle = null);
+		float? TiltAngle = null,
+		RadarVolumeSource Source = RadarVolumeSource.Network);
+
+	/// <summary>Where <c>EnsureCachedAsync</c> got a volume's bytes — the load-time log's "already on disk" counts
+	/// (the biggest predictor of how long a loop takes). Live frames are always <see cref="Network"/>.</summary>
+	public enum RadarVolumeSource
+	{
+		/// <summary>Downloaded now (range prefix or whole object).</summary>
+		Network,
+		/// <summary>This tilt's extracted file was already cached — no download, no extract.</summary>
+		CachedTilt,
+		/// <summary>Extracted from a whole volume already on disk (the raw prefetch) — no download.</summary>
+		LocalRaw,
+	}
 }

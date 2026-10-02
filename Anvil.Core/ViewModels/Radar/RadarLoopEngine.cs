@@ -1222,6 +1222,7 @@ namespace Anvil.ViewModels
 
 				_vm._frameTimes[index] = volume.VolumeTime;
 				if (index < _vm._frameModes.Length) _vm._frameModes[index] = volume.ModeText;
+				_vm.LoopGate.NoteSource(index, volume.Source); // the load-time log's "already on disk" counts
 				_vm.UpdateLoopGate(); // the gate's "downloaded" bar counts these slots
 				Services.RadarDiagnostics.RegisterFrameSource(index, "archive", FrameCacheFile(volume), volume.VolumeTime);
 				if (_vm._isMapReady)
