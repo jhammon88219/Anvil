@@ -53,7 +53,7 @@ namespace Anvil.Controls.Composites
 
 		/// <summary>The type PILL's pair (PastCast's "Casting …" line): the type colour brightened for the words, on a deep
 		/// shade of it — the outlook risk pill's scheme. ⚠️ DATA colours, literal, kept beside <see cref="KindBrush"/>;
-		/// change all three together.</summary>
+		/// change all three together. The ink also colours the loading screen's event picture (LoopHoldingGate).</summary>
 		public static Brush KindInkBrush(SavedEventKind kind) => new SolidColorBrush(kind switch
 		{
 			SavedEventKind.Tornado => Microsoft.UI.ColorHelper.FromArgb(0xFF, 0xF0, 0x70, 0x70),

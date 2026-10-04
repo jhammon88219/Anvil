@@ -23,7 +23,8 @@ namespace Anvil.Tests
 			"2024/05/07/KTLX/KTLX20240507_033512_V06", "2024/05/07/KTLX/KTLX20240507_034018_V06" };
 
 		private static RadarVolume Volume(string key) =>
-			new("https://radarlevel2/x.V06", Ktlx, Level2RadarService.ParseVolumeTime(key)!.Value);
+			new("https://radarlevel2/x.V06", Ktlx, Level2RadarService.ParseVolumeTime(key)!.Value,
+				"VCP 212", new[] { 0.5f, 0.9f, 1.3f });
 
 		// A replay over the three keys, armed but not loaded. fetch = the archive's EnsureCachedAsync (instant by default);
 		// progress = its TryGetDownloadProgress (key → bytes, expected), for frames still downloading.
@@ -60,6 +61,58 @@ namespace Anvil.Tests
 			beforeLoad?.Invoke(radar.LoopGate);
 			Assert.True(await radar.LoadSelectedPastEventAsync());
 			return radar;
+		}
+
+		// ── The CONTROLS LOCK while the loading screen is up (app note, done 2026-10-04) ──────────────────────────
+
+		private static async Task WaitFor(Func<bool> condition)
+		{
+			var deadline = DateTime.UtcNow.AddSeconds(5);
+			while (!condition() && DateTime.UtcNow < deadline) await Task.Delay(20);
+		}
+
+		[Fact]
+		public async Task The_controls_lock_with_the_dim_and_free_on_View_event()
+		{
+			var last = new TaskCompletionSource<RadarVolume?>();
+			var radar = NewReplay(key => key == Keys[2] ? last.Task : Task.FromResult<RadarVolume?>(Volume(key)));
+			var load = radar.LoadSelectedPastEventAsync();
+			Assert.False(radar.AreControlsLocked); // not before the dim: a cached load never flickers the controls
+
+			await WaitFor(() => radar.AreControlsLocked);
+			Assert.True(radar.AreControlsLocked);
+			Assert.False(radar.IsTransportEnabled);
+			Assert.False(radar.CanPickTilt);
+
+			last.SetResult(Volume(Keys[2]));
+			Assert.True(await load);
+			for (var i = 0; i < 3; i++) radar.OnRadarFrameReady(i, hasData: true);
+			radar.SetBuildProgress(3, 3, new[] { true, true, true }, new[] { true, true, true });
+			Assert.True(radar.LoopGate.IsReadyShown);
+			Assert.True(radar.AreControlsLocked);   // Ready still waits on "View event" over a frosted map
+			Assert.False(radar.IsTransportEnabled); // the loop is built: only the lock holds these off now
+			Assert.True(radar.CanSelectTilt);
+			Assert.False(radar.CanPickTilt);
+
+			radar.LoopGate.ViewReady();
+			Assert.False(radar.AreControlsLocked);
+			Assert.True(radar.IsTransportEnabled);
+			Assert.True(radar.CanPickTilt);
+		}
+
+		[Fact]
+		public async Task Turning_PastCast_off_mid_load_frees_the_controls_and_stops_the_load()
+		{
+			var last = new TaskCompletionSource<RadarVolume?>();
+			var radar = NewReplay(key => key == Keys[2] ? last.Task : Task.FromResult<RadarVolume?>(Volume(key)));
+			var load = radar.LoadSelectedPastEventAsync();
+			await WaitFor(() => radar.AreControlsLocked);
+
+			radar.IsPastEventMode = false; // the temporal key stays live: it is an exit
+			Assert.False(radar.LoopGate.IsShown);
+			Assert.False(radar.AreControlsLocked);
+			last.SetResult(Volume(Keys[2]));
+			Assert.False(await load); // cancelled, not finished
 		}
 
 		// ── The loading screen's CELLS (LoopLoadProgressBar): each frame's real state, never a guess ──────────────

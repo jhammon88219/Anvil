@@ -636,22 +636,49 @@ namespace Anvil.ViewModels
 
 		// The map's frosting follows the gate: on after the same delay as the dim (so a cached load never frosts),
 		// off at once. The version drops a delayed "on" that the gate outlived.
+		// ⚠️ The CONTROLS LOCK rides the same clock (AreControlsLocked): on with the dim, off at once.
 		private int _loopGateBlurVersion;
 		private async Task ApplyLoopGateBlurAsync()
 		{
 			var version = ++_loopGateBlurVersion;
-			if (!_isMapReady) return;
 			if (!LoopGate.IsShown)
 			{
-				await _mapService.SetMapBlurAsync(0);
+				AreControlsLocked = false;
+				if (_isMapReady) await _mapService.SetMapBlurAsync(0);
 				return;
 			}
 			await Task.Delay(LoopHoldingGateViewModel.FadeInDelayMs);
 			if (version == _loopGateBlurVersion && LoopGate.IsShown)
 			{
-				await _mapService.SetMapBlurAsync(LoopHoldingGateViewModel.MapBlurPx);
+				AreControlsLocked = true;
+				if (_isMapReady) await _mapService.SetMapBlurAsync(LoopHoldingGateViewModel.MapBlurPx);
 			}
 		}
+
+		private bool _areControlsLocked;
+		/// <summary>
+		/// The loading screen is up (holding, confirming, Ready waiting on "View event", or the cancelled popup), so the
+		/// controls that act on the map or the loop are greyed (app note, done 2026-10-04): the transport, scrubber and each
+		/// pane's product (all via <see cref="IsTransportEnabled"/>), each pane's tilt, and the map strip's tools except
+		/// Location. Settings, the Atlas, the temporal keys, the caption key and the bar's activity slot stay live — they
+		/// are exits or harmless. Turns on with the dim (after FadeInDelayMs, so a cached load never flickers the controls)
+		/// and off at once; never on while holding is turned off (the gate stays hidden then).
+		/// </summary>
+		public bool AreControlsLocked
+		{
+			get => _areControlsLocked;
+			private set
+			{
+				if (SetProperty(ref _areControlsLocked, value))
+				{
+					OnPropertyChanged(nameof(IsTransportEnabled));
+					OnPropertyChanged(nameof(CanPickTilt));
+				}
+			}
+		}
+
+		/// <summary>The panes' tilt choosers: more than one tilt to pick, and the loading screen isn't up.</summary>
+		public bool CanPickTilt => CanSelectTilt && !_areControlsLocked;
 
 		private bool AllArrivedFramesSettled()
 		{
@@ -1375,10 +1402,11 @@ namespace Anvil.ViewModels
 		/// short; PastCast enables EARLY — once the first few refl frames decode — because replay loops can be
 		/// long. Both gate on REFLECTIVITY readiness only (velocity/SRV/dual-pol build later and are handled
 		/// per-frame by <see cref="MaxReachableFrame"/>).</summary>
+		/// ⚠️ False while the loading screen is up (<see cref="AreControlsLocked"/>).
 		public bool IsTransportEnabled =>
-			_isPastEventMode
+			!_areControlsLocked && (_isPastEventMode
 				? _frameCount > 0 && _readyCount >= System.Math.Min(PastCastEarlyReadyFrames, _frameCount)
-				: _isLoopReady;
+				: _isLoopReady);
 
 		/// <summary>The furthest frame the scrubber / step may reach: the contiguous-from-left frontier of
 		/// frames that are decoded AND whose ACTIVE product is displayable (<see cref="IsFrameDisplayReady"/>),
@@ -2030,6 +2058,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(RadarTiltIndex));
 			OnPropertyChanged(nameof(SelectedTiltLabel));
 			OnPropertyChanged(nameof(CanSelectTilt));
+			OnPropertyChanged(nameof(CanPickTilt));
 		}
 
 		// ===== SITE MARKERS — three toggles, one per network (MapControlsStrip, left of the site picker) =====

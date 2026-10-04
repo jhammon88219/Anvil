@@ -150,6 +150,11 @@
      while hidden). ⚠️ The hide is SESSION-ONLY; the ticks persist.
      ⚠️ A pair, not SplitTemporalToggle: that is a 72 px bar key; this tier's tools are 32 px.
 
+     ⚠️ GREYED WHILE THE PASTCAST LOADING SCREEN IS UP (Radar.AreControlsLocked, 2026-10-04): every tool here except
+     LOCATION (an exit-ish "where am I", harmless) — the map is frosted and gated, so a live tool would only look broken,
+     and pane layout mid-load is a real memory risk. Inspect follows it through IsTransportEnabled; the site picker is
+     already off in PastCast. A new tool that acts on the map binds IsEnabled to Free(...) / FreeAnd(...) too.
+
      Host contract: ViewModel (MapViewModel). Add a tool = one Button in the panel of the side it belongs to.
      ============================================================================ -->
 <UserControl x:Class="Anvil.Controls.Composites.MapControlsStrip"
@@ -390,18 +395,21 @@
                  2-unit bands with round caps; F1 = nonzero fill, so the flask's neck bar and body don't cancel. -->
             <ToggleButton x:Name="NexradSitesToggle"
                           Style="{StaticResource StripToolToggleStyle}"
+                          IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                           IsChecked="{x:Bind ViewModel.Radar.ShowNexradSites, Mode=TwoWay}"
                           ToolTipService.ToolTip="{x:Bind SitesTooltip(ViewModel.Radar.ShowNexradSites, 'NEXRAD radar sites'), Mode=OneWay}">
                 <PathIcon Data="M2.9,13.5 A1.6,1.6 0 1 1 6.1,13.5 A1.6,1.6 0 1 1 2.9,13.5 Z M4.5,8 A5.5,5.5 0 0 1 10,13.5 A1,1 0 0 1 8,13.5 A3.5,3.5 0 0 0 4.5,10 A1,1 0 0 1 4.5,8 Z M4.5,3 A10.5,10.5 0 0 1 15,13.5 A1,1 0 0 1 13,13.5 A8.5,8.5 0 0 0 4.5,5 A1,1 0 0 1 4.5,3 Z"/>
             </ToggleButton>
             <ToggleButton x:Name="TdwrSitesToggle"
                           Style="{StaticResource StripToolToggleStyle}"
+                          IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                           IsChecked="{x:Bind ViewModel.Radar.ShowTdwrs, Mode=TwoWay}"
                           ToolTipService.ToolTip="{x:Bind SitesTooltip(ViewModel.Radar.ShowTdwrs, 'TDWR airport radars'), Mode=OneWay}">
                 <PathIcon Data="M9,0.9 C9.54,0.9 9.9,1.71 9.9,2.7 V7.38 L16.2,10.98 V12.69 L9.9,10.89 V14.4 L11.7,15.75 V17.1 L9,16.2 L6.3,17.1 V15.75 L8.1,14.4 V10.89 L1.8,12.69 V10.98 L8.1,7.38 V2.7 C8.1,1.71 8.46,0.9 9,0.9 Z"/>
             </ToggleButton>
             <ToggleButton x:Name="ResearchSitesToggle"
                           Style="{StaticResource StripToolToggleStyle}"
+                          IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                           IsChecked="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"
                           ToolTipService.ToolTip="{x:Bind SitesTooltip(ViewModel.Radar.ShowResearchRadars, 'research radars'), Mode=OneWay}">
                 <PathIcon Data="F1 M6.75,2.25 A0.75,0.75 0 0 0 6.75,3.75 H11.25 A0.75,0.75 0 0 0 11.25,2.25 Z M6.75,3 V6.5625 L3.537,12.6225 A2.175,2.175 0 0 0 5.475,15.75 H12.525 A2.175,2.175 0 0 0 14.463,12.6225 L11.25,6.5625 V3 Z M8.25,3.75 H9.75 V6.9375 L13.137,13.3275 A0.675,0.675 0 0 1 12.525,14.25 H5.475 A0.675,0.675 0 0 1 4.863,13.3275 L8.25,6.9375 Z"/>
@@ -437,7 +445,7 @@
                  and it does not bet the control on an unverified Segoe glyph. -->
             <ToggleButton x:Name="RangeRulerToggle"
                           Style="{StaticResource StripToolToggleStyle}"
-                          IsEnabled="{x:Bind ViewModel.Radar.HasRadarDisplay, Mode=OneWay}"
+                          IsEnabled="{x:Bind FreeAnd(ViewModel.Radar.HasRadarDisplay, ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                           IsChecked="{x:Bind ViewModel.Radar.IsRangeRulerOn, Mode=TwoWay}"
                           ToolTipService.ToolTip="Range ruler - drag the bead to measure from the site (click again to turn it off)">
                 <!-- A graduated bar: outer rect, hollowed, with four ticks hanging off its top edge
@@ -454,6 +462,7 @@
                  the same no-unverified-glyph choice as the Ruler's. -->
             <ToggleButton x:Name="RangeRingsToggle"
                           Style="{StaticResource StripToolToggleStyle}"
+                          IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                           IsChecked="{x:Bind ViewModel.Radar.RangeRings.RingsVisible, Mode=TwoWay}"
                           ToolTipService.ToolTip="{x:Bind RangeRingsTooltip(ViewModel.Radar.RangeRings.RingsVisible), Mode=OneWay}">
                 <PathIcon Data="M9,0.5 A8.5,8.5 0 1 0 9,17.5 A8.5,8.5 0 1 0 9,0.5 Z M9,1.9 A7.1,7.1 0 1 0 9,16.1 A7.1,7.1 0 1 0 9,1.9 Z M9,3.9 A5.1,5.1 0 1 0 9,14.1 A5.1,5.1 0 1 0 9,3.9 Z M9,5.3 A3.7,3.7 0 1 0 9,12.7 A3.7,3.7 0 1 0 9,5.3 Z M9,7.4 A1.6,1.6 0 1 0 9,10.6 A1.6,1.6 0 1 0 9,7.4 Z"/>
@@ -526,6 +535,7 @@
                             Grid.Column="1"
                             Width="402" VerticalAlignment="Center"
                             PlaceholderText="Search places"
+                            IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                             QueryIcon="Find"
                             TextMemberPath="Display"
                             Text="{x:Bind ViewModel.PlaceSearch.QueryText, Mode=OneWay}"
@@ -570,6 +580,7 @@
                               Style="{StaticResource StripToolToggleStyle}"
                               IsChecked="{x:Bind IsSinglePane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
                               Click="OnPaneLayoutClick"
+                              IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                               ToolTipService.ToolTip="Activate 1-pane mode">
                     <Grid Width="18" Height="18">
                         <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
@@ -580,6 +591,7 @@
                               Style="{StaticResource StripToolToggleStyle}"
                               IsChecked="{x:Bind IsTwoPane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
                               Click="OnPaneLayoutClick"
+                              IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                               ToolTipService.ToolTip="Activate 2-pane mode">
                     <Grid Width="18" Height="18" ColumnSpacing="2">
                         <Grid.ColumnDefinitions>
@@ -595,6 +607,7 @@
                               Style="{StaticResource StripToolToggleStyle}"
                               IsChecked="{x:Bind IsQuadPane(ViewModel.Radar.PaneLayout), Mode=OneWay}"
                               Click="OnPaneLayoutClick"
+                              IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                               ToolTipService.ToolTip="Activate 4-pane mode">
                     <Grid Width="18" Height="18" ColumnSpacing="2" RowSpacing="2">
                         <Grid.ColumnDefinitions>
@@ -621,6 +634,7 @@
             <!-- Reset north — undo a right-drag rotate/tilt. -->
             <Button Style="{StaticResource StripToolButtonStyle}"
                     Click="OnResetNorthClick"
+                    IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                     ToolTipService.ToolTip="Reset North/Flat">
                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE72C;"/>
             </Button>
@@ -628,6 +642,7 @@
             <!-- Fit to view — frame the effective region (isolated state, else CONUS). -->
             <Button Style="{StaticResource StripToolButtonStyle}"
                     Click="OnFitToViewClick"
+                    IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                     ToolTipService.ToolTip="Fit To View">
                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
             </Button>
@@ -640,6 +655,7 @@
             <StackPanel Orientation="Horizontal" Spacing="1">
                 <ToggleButton x:Name="MapShownToggle"
                               Style="{StaticResource StripToolToggleStyle}"
+                              IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                               IsChecked="{x:Bind ViewModel.Basemap.IsMapShown, Mode=TwoWay}"
                               ToolTipService.ToolTip="{x:Bind MapShownTooltip(ViewModel.Basemap.IsMapShown), Mode=OneWay}">
                     <!-- A folded map: three panels, the middle one set back. Drawn, not an unverified glyph. -->
@@ -647,6 +663,7 @@
                 </ToggleButton>
                 <Button x:Name="MapLayersButton"
                         Width="16"
+                        IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                         Style="{StaticResource StripToolButtonStyle}"
                         ToolTipService.ToolTip="Map layers">
                     <!-- Drawn in its own 10-unit box (centre 5,5), so it overrides the implicit 18 × 18. -->
@@ -738,6 +755,7 @@
                                     Width="170"
                                     Margin="8,0,0,0"
                                     PlaceholderText="Isolate State"
+                                    IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                                     PinnedItemsSource="{x:Bind ViewModel.StateIso.IsolationModes, Mode=OneWay}"
                                     ItemsSource="{x:Bind ViewModel.StateIso.IsolationPlaces, Mode=OneWay}"
                                     SelectedItem="{x:Bind ViewModel.StateIso.SelectedIsolationOption, Mode=TwoWay}"

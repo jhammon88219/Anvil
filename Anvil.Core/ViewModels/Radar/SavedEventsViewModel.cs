@@ -452,6 +452,7 @@ namespace Anvil.ViewModels
 			// the name is in place when the gate's Begin runs.
 			_radar.LoopGate.EventName = HasPlaying ? PlayingTitle : null;
 			_radar.LoopGate.EventId = HasPlaying ? _selectedId : null; // the load-time log's
+			_radar.LoopGate.EventKind = PlayingKind;                    // the loading screen's picture
 			OnPropertyChanged(nameof(HasPlaying));
 			OnPropertyChanged(nameof(PlayingTitle));
 			OnPropertyChanged(nameof(PlayingKind));

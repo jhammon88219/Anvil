@@ -161,6 +161,11 @@ namespace Anvil.ViewModels
 		/// <summary>The chosen saved event's id (the log's), pushed with <see cref="EventName"/>; null for your own timeframe.</summary>
 		public string? EventId { get; set; }
 
+		private SavedEventKind _eventKind;
+		/// <summary>The chosen event's type, pushed with <see cref="EventName"/> — the picture above the why line (option A,
+		/// the user's call 2026-10-04). Other = your own timeframe or an untyped event: the radar-rings picture.</summary>
+		public SavedEventKind EventKind { get => _eventKind; set => SetProperty(ref _eventKind, value); }
+
 		/// <summary>"That took 2 minutes and 14 seconds to load." — set when the load completes; shown on Ready.</summary>
 		public string ElapsedText { get => _elapsedText; private set => SetProperty(ref _elapsedText, value); }
 

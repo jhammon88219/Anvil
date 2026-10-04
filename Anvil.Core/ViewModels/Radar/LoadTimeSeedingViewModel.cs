@@ -201,6 +201,7 @@ namespace Anvil.ViewModels
 			// After the window write (it drops the saved-event pick, which clears these) — the gate's title and the log.
 			_radar.LoopGate.EventName = $"{start.ToLocalTime():MMM d, yyyy} {ev.Name}";
 			_radar.LoopGate.EventId = ev.Id;
+			_radar.LoopGate.EventKind = ev.Kind;
 			if (_recorder is not null) _recorder.RunTag = tag;
 
 			StatusText = $"{label} · loading…";

@@ -51,7 +51,8 @@
     <!-- ⚠️ DORMANT until a site is picked. The notch is up from launch, so with no loop its controls are
          disabled by their own IsEnabled gates and the whole row is dimmed here — one cue for the pair,
          rather than each control inventing its own disabled look. Same treatment, same reason, as the
-         scrubber's ScrubberOpacity in RadarControls. -->
+         scrubber's ScrubberOpacity in RadarControls. The PastCast loading screen greys it the same way: product
+         through IsTransportEnabled, tilt through CanPickTilt (RadarViewModel.AreControlsLocked). -->
     <Grid VerticalAlignment="Center" ColumnSpacing="10"
           Opacity="{x:Bind DormantOpacity(Radar.IsTransportEnabled), Mode=OneWay}">
         <Grid.ColumnDefinitions>
@@ -93,7 +94,7 @@
                           VerticalAlignment="Center"
                           ItemsSource="{x:Bind Radar.RadarTiltOptions, Mode=OneWay}"
                           SelectedIndex="{x:Bind Radar.RadarTiltIndex, Mode=TwoWay}"
-                          IsEnabled="{x:Bind Radar.CanSelectTilt, Mode=OneWay}"
+                          IsEnabled="{x:Bind Radar.CanPickTilt, Mode=OneWay}"
                           ToolTipService.ToolTip="{x:Bind TiltTooltip(Radar.TiltUnavailableNotice), Mode=OneWay}"/>
     </Grid>
 </UserControl>

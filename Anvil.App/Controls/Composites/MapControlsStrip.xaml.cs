@@ -47,6 +47,11 @@ namespace Anvil.Controls.Composites
 		public string SitesTooltip(bool visible, string network) =>
 			visible ? $"Hide {network} on the map" : $"Show {network} on the map";
 
+		// ===== The PastCast loading screen's lock (RadarViewModel.AreControlsLocked) =====
+		// Every tool that acts on the map greys while it is up; Location stays live, the site picker is already off in PastCast.
+		public bool Free(bool locked) => !locked;
+		public bool FreeAnd(bool enabled, bool locked) => enabled && !locked;
+
 		// ===== Range rings (master show/hide, beside the Ruler) =====
 		// The tooltip speaks for the CLICK, like the site-markers toggle.
 		public string RangeRingsTooltip(bool visible) => visible ? "Hide range rings" : "Show range rings";
