@@ -1569,6 +1569,9 @@ namespace Anvil.ViewModels
 			// The modes that were on last run, and their windows. BEFORE the home-site launch: a restored
 			// PastCast means "replay", and SiteFavorites skips starting a live loop in that case.
 			RestoreTemporalSession();
+			// ⚠️ AFTER the restore: a restored PastCast runs no site check, and started before it, the live pass showed in
+			// the bar for a moment before PastCast came back (RadarViewModel.StartSiteChecks).
+			Radar.StartSiteChecks();
 			// LAST: load-home-on-launch flies the camera, and an isolation replay above would override it.
 			await SiteFavorites.OnMapsReadyAsync();
 		}

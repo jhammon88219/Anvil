@@ -2235,12 +2235,19 @@ namespace Anvil.ViewModels
 			// first site click doesn't pay their cold start on the first-paint critical path.
 			await _mapService.PrewarmRadarAsync();
 
-			// Flag sites with no recent data ("offline") and keep that refreshed.
-			_ = RunSiteStatusLoopAsync();
+			// (The site checks start LATER — StartSiteChecks, after the session's modes are restored.)
 
 			// Drive the next-update progress bar (radar live frame).
 			_ = RunProgressTickAsync();
 		}
+
+		/// <summary>
+		/// Flag sites with no recent data ("offline") and keep that refreshed. MapViewModel calls this at map-ready AFTER
+		/// RestoreTemporalSession: started from OnMapsReadyAsync, a launch that restores PastCast ran (and announced,
+		/// "Checking radar sites 1 / …") a live pass for the moment before PastCast came back and cut it off (2026-10-04).
+		/// Started after, a restored PastCast's first pass simply doesn't run (PastCast checks only the sites you load).
+		/// </summary>
+		internal void StartSiteChecks() => _ = RunSiteStatusLoopAsync();
 
 		private async Task RunSiteStatusLoopAsync()
 		{

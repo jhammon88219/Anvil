@@ -89,6 +89,32 @@ namespace Anvil.Tests
 			Assert.Equal(SiteAvailability.Unknown, Row(radar, "KINX").Availability); // that answer was for the old window
 		}
 
+		// A launch that restores PastCast: map-ready, THEN the session's modes, THEN the site checks (MapViewModel order).
+		// Started from map-ready, the live pass ran — and showed "Checking radar sites 1 / …" in the bar — for the moment
+		// before PastCast came back (2026-10-04).
+		[Fact]
+		public async Task A_launch_that_restores_PastCast_never_starts_a_site_check()
+		{
+			var radar = NewRadar();
+			await radar.OnMapsReadyAsync();
+			Assert.False(radar.IsSiteCheckRunning); // map-ready alone starts nothing
+
+			radar.IsPastEventMode = true;           // RestoreTemporalSession
+			radar.StartSiteChecks();
+			Assert.False(radar.IsSiteCheckRunning);
+			Assert.All(radar.RadarSiteRows, r => Assert.Equal("Not checked", r.StatusLabel));
+		}
+
+		[Fact]
+		public async Task A_NowCast_launch_starts_its_announced_site_check()
+		{
+			var radar = NewRadar();
+			await radar.OnMapsReadyAsync();
+			radar.StartSiteChecks();
+			Assert.True(radar.IsSiteCheckRunning);
+			Assert.True(radar.IsSiteCheckAnnounced);
+		}
+
 		[Fact]
 		public async Task Entering_PastCast_mid_check_ends_the_check_and_drops_its_result()
 		{
