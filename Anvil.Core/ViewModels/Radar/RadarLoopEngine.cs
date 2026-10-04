@@ -1162,7 +1162,8 @@ namespace Anvil.ViewModels
 		// eager poll path stops the sweep animating over the old image (and the timestamp leading the picture)
 		// during the ~3-6 s the worker spends fetching + decoding the ~7 MB volume. The display is already on
 		// this slot (it's the newest), so unlike CompleteLiveAppend there's no grow/promote — just the
-		// swap-time readout + one pulse. Also called directly when there's no WebView to decode.
+		// swap-time readout + one pulse (only if that slot is the frame on screen). Also called directly when
+		// there's no WebView to decode.
 		private void CompleteLiveUpdate(Models.RadarVolume live)
 		{
 			_vm._pendingLiveUpdate = null;
@@ -1175,11 +1176,16 @@ namespace Anvil.ViewModels
 				_vm._frameModes[_vm._archiveCount] = live.ModeText;
 			}
 			Services.RadarDiagnostics.RegisterFrameSource(_vm._archiveCount, "live", FrameCacheFile(live), live.VolumeTime);
-			if (_vm._isMapReady)
+			// The sweep means "the radar just GOT the new frame you're looking at" (the user's design), so it plays
+			// only when the live slot is ON SCREEN. Scrubbed back, or a playing loop on an older frame, it used to
+			// turn over a frame that wasn't the new one (2026-10-04). (CompleteLiveAppend promotes the display to
+			// the new frame, so its pulse is always on screen.)
+			var liveOnScreen = _vm._currentFrameIndex == _vm._archiveCount;
+			if (_vm._isMapReady && liveOnScreen)
 			{
 				_ = _vm._mapService.PulseRadarSweepAsync(); // geometry landed -> one sweep pulse, in sync with the new returns
 			}
-			if (_vm._currentFrameIndex == _vm._archiveCount)
+			if (liveOnScreen)
 			{
 				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
 			}
