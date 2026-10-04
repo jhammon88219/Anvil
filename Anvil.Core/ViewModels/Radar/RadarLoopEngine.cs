@@ -503,9 +503,9 @@ namespace Anvil.ViewModels
 			var startUtc = localStart.ToUniversalTime();
 			var endUtc = startUtc.AddMinutes(RadarViewModel.PastEventMinutesByIndex[_vm._pastEventDurationIndex]);
 
-			// Window is now set — gray out sites with no data for this date (proactive availability).
-			// Best-effort + non-blocking so it never delays the actual load.
-			_ = _vm.ApplyPastAvailabilityAsync(startUtc, endUtc);
+			// Window is now set. PastCast checks only the sites you LOAD for it: a new window greys every site's dot,
+			// and this load's own listing below marks its site (RadarViewModel "PASTCAST availability").
+			_vm.BeginReplayWindowStatus(startUtc, endUtc);
 
 			if (_vm._selectedRadarOption?.Site is not { } site)
 			{
@@ -551,6 +551,7 @@ namespace Anvil.ViewModels
 			{
 				return false;
 			}
+			_vm.MarkReplaySite(site, hasData: keys.Count > 0); // the site check IS this listing — no extra request
 			if (keys.Count == 0)
 			{
 				_vm.SetReplayReadout(error: $"No {site.Id} data for timeframe",

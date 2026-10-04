@@ -782,11 +782,16 @@ namespace Anvil.ViewModels
 				SetReplayReadout(status: value ? NothingLoadedStatus : string.Empty);
 				// Leaving replay: restore the LIVE site availability promptly (the status loop skips its
 				// pushes while in past mode, so it wouldn't refresh the markers for up to ~10 min).
-				// ⚠️ The rows still hold the REPLAY DAY's availability — grey them first so replay-day dots are
+				// ⚠️ The rows still hold the TIMEFRAME's availability — grey them first so PastCast dots are
 				// never read as live ones, even if the live pass fails.
+				// Entering: no site check at all — every site "Not checked" until you load it (PASTCAST availability).
 				if (!value)
 				{
 					_ = ResetThenRefreshLiveSiteStatusAsync();
+				}
+				else
+				{
+					EnterPastCastSiteStatus();
 				}
 			}
 		}
@@ -2265,8 +2270,8 @@ namespace Anvil.ViewModels
 		public event EventHandler? SiteAvailabilityChanged;
 
 		// The running pass. ⚠️ _sitePassId drops a result from a pass that has been superseded (a PastCast exit
-		// starts a new one mid-loop; a replay load's day availability replaces it) — and Progress<T> POSTS, so a
-		// report can land after its pass returned.
+		// starts a new one mid-loop; entering PastCast ends it) — and Progress<T> POSTS, so a report can land after its
+		// pass returned.
 		private int _sitePassId;
 		private bool _isSiteCheckRunning;
 		private int _sitesChecked;
@@ -2307,7 +2312,7 @@ namespace Anvil.ViewModels
 		/// failed or was cut short (a PastCast replay's availability replaced it).</summary>
 		public event EventHandler<bool>? SiteCheckFinished;
 
-		// One live pass. Skipped in PastCast, where availability is the REPLAY DAY's (ApplyPastAvailabilityAsync).
+		// One live pass. Skipped in PastCast, which checks only the sites you load (see PASTCAST availability below).
 		// Each site lands the moment its probe does (OnSiteChecked → one marker), then the whole set reconciles.
 		// ⚠️ A failed pass keeps what we already knew — the service throws on a total listing failure rather
 		// than returning "nothing is live" and turning every site red.
@@ -2329,9 +2334,9 @@ namespace Anvil.ViewModels
 				// Constructed HERE, on the UI thread, so every report is posted back to it.
 				var progress = new Progress<SiteCheckResult>(result => OnSiteChecked(pass, result));
 				var live = await _radarService.GetLiveSiteIdsAsync(progress);
-				// ⚠️ NOT gated on _isPastEventMode: a launch that restores PastCast flips the mode mid-pass, and
-				// dropping the result then left every site grey until a replay loaded. Only a replay-day
-				// availability supersedes a live pass (ApplyPastAvailabilityAsync → SupersedeLivePass).
+				// A launch that restores PastCast flips the mode mid-pass: EnterPastCastSiteStatus supersedes the pass
+				// (bumps _sitePassId), so its result is dropped and the sites stay "Not checked" — PastCast's state,
+				// not a bug (this used to keep the live result on purpose; the user's call 2026-10-04 reversed that).
 				if (pass == _sitePassId)
 				{
 					await ApplySiteAvailabilityAsync(live, replayDay: false);
@@ -2381,8 +2386,8 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		// A replay's availability is about to own the rows: drop any live pass still in flight (its results and
-		// its end), and end its "running" state here since its own finally no longer will.
+		// PastCast is about to own the rows: drop any live pass still in flight (its results and its end), and end its
+		// "running" state here since its own finally no longer will — the bar's "checking sites" goes with it.
 		private void SupersedeLivePass()
 		{
 			_sitePassId++;
@@ -2476,24 +2481,51 @@ namespace Anvil.ViewModels
 			return _mapService.SetRadarSitesStatusAsync(System.Text.Json.JsonSerializer.Serialize(payload));
 		}
 
-		// Past Event Viewer: gray out sites that had no data on the window's UTC date(s), so you can see
-		// availability before clicking. Guarded so a late response can't clobber a live view if the user
-		// left past mode meanwhile. Best-effort (a failed listing just leaves sites shown as available).
-		private async Task ApplyPastAvailabilityAsync(DateTimeOffset startUtc, DateTimeOffset endUtc)
+		// ── PASTCAST availability (the user's call, 2026-10-04) ─────────────────────────────────────────────────
+		// PastCast runs NO site check: the live feed says nothing about a past window, and a day-wide listing answered
+		// "any data that UTC day", not "data in THIS window". So every site is "Not checked" (Unknown, replay scope) and
+		// a site gets a status only when it's LOADED for the window — from the load's own listing of its scans (no
+		// extra request). The dots describe one window: a load for a different window greys them all first.
+		private (DateTimeOffset Start, DateTimeOffset End)? _replayStatusWindow;
+
+		// Entering PastCast (or a launch that restores it): drop any live pass in flight — its announcement included —
+		// and grey every site.
+		private void EnterPastCastSiteStatus()
 		{
 			SupersedeLivePass();
-			try
+			_replayStatusWindow = null;
+			ResetReplayAvailability();
+		}
+
+		private void ResetReplayAvailability()
+		{
+			foreach (var row in RadarSiteRows)
 			{
-				var available = await _radarService.GetSiteIdsForDateAsync(startUtc, endUtc);
-				if (_isPastEventMode)
-				{
-					await ApplySiteAvailabilityAsync(available, replayDay: true);
-				}
+				row.SetAvailability(SiteAvailability.Unknown, isReplayDay: true);
 			}
-			catch
-			{
-				// ignore
-			}
+			_ = PushSiteStatusAsync();
+			SiteAvailabilityChanged?.Invoke(this, EventArgs.Empty);
+		}
+
+		/// <summary>A PastCast load (or arm) for this window: a different window from the one the dots describe greys
+		/// them all.</summary>
+		internal void BeginReplayWindowStatus(DateTimeOffset startUtc, DateTimeOffset endUtc)
+		{
+			if (!_isPastEventMode || _replayStatusWindow == (startUtc, endUtc)) return;
+			_replayStatusWindow = (startUtc, endUtc);
+			ResetReplayAvailability();
+		}
+
+		/// <summary>A PastCast load listed <paramref name="site"/>'s scans for the window: some = data, none = no data.</summary>
+		internal void MarkReplaySite(RadarSite site, bool hasData)
+		{
+			if (!_isPastEventMode) return;
+			var row = RadarSiteRows.FirstOrDefault(r => r.Site == site);
+			if (row is null) return;
+			row.SetAvailability(hasData ? SiteAvailability.Online : SiteAvailability.Offline, isReplayDay: true);
+			_ = PushSiteStatusAsync();
+			SiteAvailabilityChanged?.Invoke(this, EventArgs.Empty);
+			Services.RadarDiagnostics.Log("vm", "site.status.replay", ("site", site.Id), ("data", hasData));
 		}
 	}
 }

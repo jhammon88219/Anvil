@@ -234,7 +234,7 @@ namespace Anvil.ViewModels
 			}
 			else if (r.IsPastEventMode)
 			{
-				Clear(BarActivityKind.SiteCheck); // a replay's availability cut the pass short on purpose — nothing failed
+				Clear(BarActivityKind.SiteCheck); // entering PastCast cut the pass short on purpose (it checks no sites) — nothing failed
 			}
 			else
 			{

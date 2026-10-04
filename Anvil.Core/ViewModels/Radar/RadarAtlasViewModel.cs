@@ -221,8 +221,8 @@ namespace Anvil.ViewModels
 
 		// ⚠️ The status words name what the state MEANS right now — the live feed, or the PastCast replay
 		// day. Same rule the row's StatusLabel follows; the two must never disagree.
-		public string StatusOnlineLabel => _radar.IsPastEventMode ? "Data on replay day" : "Online";
-		public string StatusOfflineLabel => _radar.IsPastEventMode ? "No data on replay day" : "Offline";
+		public string StatusOnlineLabel => _radar.IsPastEventMode ? "Data for this timeframe" : "Online";
+		public string StatusOfflineLabel => _radar.IsPastEventMode ? "No data for this timeframe" : "Offline";
 		public string StatusUncheckedLabel => "Not yet checked";
 
 		// ── Place ────────────────────────────────────────────────────────────────────────────────

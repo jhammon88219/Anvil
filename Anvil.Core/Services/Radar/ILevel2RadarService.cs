@@ -144,11 +144,7 @@ namespace Anvil.Services
 		/// </summary>
 		Task<IReadOnlyCollection<string>> GetLiveSiteIdsAsync(IProgress<SiteCheckResult>? progress = null, CancellationToken cancellationToken = default);
 
-		/// <summary>
-		/// Returns the site IDs that have any Level II data in the archive bucket over the UTC date(s)
-		/// the given window spans — used by the Past Event Viewer to gray out sites that were down or
-		/// didn't exist yet on that date. One date-prefix listing per day (the window spans ≤2 UTC days).
-		/// </summary>
-		Task<IReadOnlyCollection<string>> GetSiteIdsForDateAsync(DateTimeOffset startUtc, DateTimeOffset endUtc, CancellationToken cancellationToken = default);
+		// (GetSiteIdsForDateAsync — a day-wide "which sites had data that UTC day" listing for PastCast — was removed
+		// 2026-10-04: PastCast now checks only the sites you load, from the load's own listing. See git history.)
 	}
 }

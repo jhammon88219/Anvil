@@ -55,15 +55,16 @@ namespace Anvil.ViewModels
 		/// sites rather than hiding the whole network before the first pass.</summary>
 		public bool IsOffline => _availability == SiteAvailability.Offline;
 
-		/// <summary>True while <see cref="Availability"/> describes the PastCast REPLAY DAY (had data that day)
-		/// rather than the live feed — the two must never share a label.</summary>
+		/// <summary>True while <see cref="Availability"/> describes the loaded PastCast TIMEFRAME (the site had scans in
+		/// that window — known only for sites you've loaded there) rather than the live feed — the two must never share
+		/// a label. (The name predates 2026-10-04, when it meant the whole replay DAY.)</summary>
 		public bool IsReplayDay => _isReplayDay;
 
 		public string StatusLabel => _availability switch
 		{
-			SiteAvailability.Unknown => "Checking…",
-			SiteAvailability.Online => _isReplayDay ? "Data on replay day" : "Online",
-			_ => _isReplayDay ? "No data on replay day" : "Offline",
+			SiteAvailability.Unknown => _isReplayDay ? "Not checked" : "Checking…", // PastCast runs no pass: nothing is "checking"
+			SiteAvailability.Online => _isReplayDay ? "Data for this timeframe" : "Online",
+			_ => _isReplayDay ? "No data for this timeframe" : "Offline",
 		};
 
 		/// <summary>The one write path — see the remarks for who may call it.</summary>

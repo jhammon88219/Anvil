@@ -76,7 +76,7 @@ let tdwrIds = new Set();          // ids flagged tdwr (site.tdwr) in the current
 let outOfEraIds = new Set();      // retired ids (KLIX, TPBI) outside the era being viewed — C# decides, pushes the set
 let radarSiteOffline = new Set(); // site ids KNOWN to have no recent data (red availability square)
 let radarSiteUnknown = null;      // site ids not checked yet; null = no status push yet, so EVERY site is unknown (grey)
-let radarStatusReplayDay = false; // true while the status describes the PastCast replay day, not the live feed
+let radarStatusReplayDay = false; // true while the status describes the PastCast TIMEFRAME, not the live feed
 let siteCoords = {};              // id -> [lng, lat] (kept so the isolation filter can measure coverage)
 
 // Collision fan-out: when the opt-in TDWR/research keys would pile onto a neighbor at low zoom (the OKC
@@ -231,8 +231,9 @@ function applySiteStatus(el, id) {
     el.classList.toggle('unknown', unknown);
     el.classList.toggle('offline', off);
     const name = el.dataset.siteName || '';
-    el.title = name + (unknown ? ' · checking availability'
-        : off ? (radarStatusReplayDay ? ' · no data on the replay day' : ' · offline (no recent data)')
+    // PastCast (radarStatusReplayDay): only the sites you've loaded are checked, for the loaded timeframe.
+    el.title = name + (unknown ? (radarStatusReplayDay ? ' · not checked for this timeframe' : ' · checking availability')
+        : off ? (radarStatusReplayDay ? ' · no data for this timeframe' : ' · offline (no recent data)')
         : '');
 }
 

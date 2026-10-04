@@ -40,8 +40,9 @@ namespace Anvil.Tests
 		[Theory]
 		[InlineData(SiteAvailability.Online, false, "Online")]
 		[InlineData(SiteAvailability.Offline, false, "Offline")]
-		[InlineData(SiteAvailability.Online, true, "Data on replay day")]
-		[InlineData(SiteAvailability.Offline, true, "No data on replay day")]
+		[InlineData(SiteAvailability.Online, true, "Data for this timeframe")]
+		[InlineData(SiteAvailability.Offline, true, "No data for this timeframe")]
+		[InlineData(SiteAvailability.Unknown, true, "Not checked")]
 		public void Row_StatusLabel_NamesItsScope(SiteAvailability availability, bool replayDay, string expected)
 		{
 			var row = new RadarSiteRow(new RadarSite("KDFX", "Laughlin AFB", 29.273, -100.28));

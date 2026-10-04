@@ -79,9 +79,13 @@ namespace Anvil.Tests
 		public void Status_ReplayDayNeverBorrowsLiveWords()
 		{
 			var replay = RadarGlossary.Status(SiteAvailability.Offline, replayDay: true).Now;
-			Assert.Contains("replay day", replay);
+			Assert.Contains("timeframe you loaded", replay);
 			Assert.DoesNotContain("maintenance", replay);
 		}
+
+		[Fact]
+		public void Status_UncheckedInPastCastSaysLoadingChecksIt() =>
+			Assert.Contains("checked when you load it", RadarGlossary.Status(SiteAvailability.Unknown, replayDay: true).Now);
 
 		[Fact]
 		public void Status_UncheckedIsNotOffline() =>

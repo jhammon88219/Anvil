@@ -169,12 +169,14 @@ namespace Anvil.Services
 		private static string StatusNow(SiteAvailability availability, bool replayDay) => availability switch
 		{
 			SiteAvailability.Online => replayDay
-				? "This site has data for the replay day you're viewing."
+				? "This site has scans in the timeframe you loaded."
 				: "Fresh data is arriving from this site now.",
 			SiteAvailability.Offline => replayDay
-				? "Nothing was archived from this site on the replay day you're viewing."
+				? "Nothing was archived from this site in the timeframe you loaded."
 				: "Nothing recent has arrived from this site — it may be down for maintenance.",
-			_ => "Not checked yet. The app checks every site shortly after it starts.",
+			_ => replayDay
+				? "Not checked for this timeframe. In PastCast a site is checked when you load it."
+				: "Not checked yet. The app checks every site shortly after it starts.",
 		};
 
 		// ── Network ──────────────────────────────────────────────────────────────────────────────

@@ -108,8 +108,9 @@
      ⚠️ NETWORK ≠ STATUS. The row's right-hand bar (NEXRAD / TDWR / Research, named in its tooltip) and the
      network filter are the radar's NETWORK; the square + STATUS pill are whether data is flowing (green Online · red Offline · grey
      "Checking…" before the first pass). The network read "Operational" once, which looked like a status
-     beside a red dot. In PastCast the status is the REPLAY DAY's ("Data on replay day") and the checkbox
-     relabels to match. Status comes from RadarSiteRow.Availability, bound DIRECTLY (not through a VM
+     beside a red dot. In PastCast the status is the loaded TIMEFRAME's, and only for sites you've loaded there
+     ("Data for this timeframe" / "No data for this timeframe" / grey "Not checked" — PastCast runs no site check);
+     the checkbox relabels to match. Status comes from RadarSiteRow.Availability, bound DIRECTLY (not through a VM
      snapshot), so a pass that lands while a site is selected updates the pill and dot in place.
 
      The header owns the action: the button reads "On map" (disabled) while the selected site IS the

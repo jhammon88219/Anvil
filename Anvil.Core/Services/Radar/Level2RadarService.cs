@@ -2179,28 +2179,6 @@ namespace Anvil.Services
 			}
 		}
 
-		public async Task<IReadOnlyCollection<string>> GetSiteIdsForDateAsync(DateTimeOffset startUtc, DateTimeOffset endUtc, CancellationToken cancellationToken = default)
-		{
-			var sites = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-			// The window spans at most a couple of UTC days; list each day's site folders.
-			for (var day = startUtc.UtcDateTime.Date; day <= endUtc.UtcDateTime.Date; day = day.AddDays(1))
-			{
-				try
-				{
-					await AddSitesForDayAsync(new DateTimeOffset(day, TimeSpan.Zero), sites, cancellationToken);
-				}
-				catch (OperationCanceledException)
-				{
-					throw;
-				}
-				catch
-				{
-					// Best effort: a failed listing just leaves those sites unflagged (shown available).
-				}
-			}
-			return sites;
-		}
-
 		// Adds every site that has any data under <y>/<m>/<d>/ to the set, via a single
 		// delimited listing whose CommonPrefixes are <y>/<m>/<d>/<SITE>/ (one request/day).
 		private async Task AddSitesForDayAsync(DateTimeOffset day, HashSet<string> into, CancellationToken ct)
