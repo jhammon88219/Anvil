@@ -150,10 +150,11 @@
      while hidden). ⚠️ The hide is SESSION-ONLY; the ticks persist.
      ⚠️ A pair, not SplitTemporalToggle: that is a 72 px bar key; this tier's tools are 32 px.
 
-     ⚠️ GREYED WHILE THE PASTCAST LOADING SCREEN IS UP (Radar.AreControlsLocked, 2026-10-04): every tool here except
-     LOCATION (an exit-ish "where am I", harmless) — the map is frosted and gated, so a live tool would only look broken,
-     and pane layout mid-load is a real memory risk. Inspect follows it through IsTransportEnabled; the site picker is
-     already off in PastCast. A new tool that acts on the map binds IsEnabled to Free(...) / FreeAnd(...) too.
+     ⚠️ GREYED WHILE THE PASTCAST LOADING SCREEN IS UP (Radar.AreControlsLocked, 2026-10-04): EVERY tool here, Location
+     and the marker viewer included — the map is frosted and gated, so a live tool would only look broken, and pane
+     layout mid-load is a real memory risk. Inspect follows it through IsTransportEnabled; the site picker is already
+     off in PastCast. A new tool binds IsEnabled to Free(...) / FreeAnd(...) too. ⚠️ A mark drawn with fixed brushes
+     (the pane-layout Rectangles) doesn't grey with the Disabled state — it dims itself through LockedOpacity.
 
      Host contract: ViewModel (MapViewModel). Add a tool = one Button in the panel of the side it belongs to.
      ============================================================================ -->
@@ -524,6 +525,7 @@
                     Grid.Column="0"
                     HorizontalAlignment="Right" Margin="0,0,6,0"
                     Style="{StaticResource StripToolButtonStyle}"
+                    IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                     ToolTipService.ToolTip="Markers (coming soon)">
                 <PathIcon Data="M9,0 C5.1,0 2,3.1 2,7 C2,12 9,18 9,18 C9,18 16,12 16,7 C16,3.1 12.9,0 9,0 Z M9,4.5 A2.5,2.5 0 1,0 9,9.5 A2.5,2.5 0 1,0 9,4.5 Z"/>
             </Button>
@@ -553,7 +555,7 @@
                 <!-- LOCATION — drop / remove your marker. ONE-WAY IsChecked, re-asserted in the handler. -->
                 <ToggleButton x:Name="LocationToggle"
                               Style="{StaticResource StripToolToggleStyle}"
-                              IsEnabled="{x:Bind ViewModel.Markers.CanLocate, Mode=OneWay}"
+                              IsEnabled="{x:Bind FreeAnd(ViewModel.Markers.CanLocate, ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                               IsChecked="{x:Bind ViewModel.Markers.HasUserLocationMarker, Mode=OneWay}"
                               ToolTipService.ToolTip="{x:Bind LocationTooltip(ViewModel.Markers.HasUserLocationMarker, ViewModel.Markers.LocateStatusText), Mode=OneWay}"
                               Click="OnToggleUserLocation">
@@ -582,7 +584,7 @@
                               Click="OnPaneLayoutClick"
                               IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                               ToolTipService.ToolTip="Activate 1-pane mode">
-                    <Grid Width="18" Height="18">
+                    <Grid Width="18" Height="18" Opacity="{x:Bind LockedOpacity(ViewModel.Radar.AreControlsLocked), Mode=OneWay}">
                         <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
                     </Grid>
                 </ToggleButton>
@@ -593,7 +595,7 @@
                               Click="OnPaneLayoutClick"
                               IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                               ToolTipService.ToolTip="Activate 2-pane mode">
-                    <Grid Width="18" Height="18" ColumnSpacing="2">
+                    <Grid Width="18" Height="18" ColumnSpacing="2" Opacity="{x:Bind LockedOpacity(ViewModel.Radar.AreControlsLocked), Mode=OneWay}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition/>
                             <ColumnDefinition/>
@@ -609,7 +611,7 @@
                               Click="OnPaneLayoutClick"
                               IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                               ToolTipService.ToolTip="Activate 4-pane mode">
-                    <Grid Width="18" Height="18" ColumnSpacing="2" RowSpacing="2">
+                    <Grid Width="18" Height="18" ColumnSpacing="2" RowSpacing="2" Opacity="{x:Bind LockedOpacity(ViewModel.Radar.AreControlsLocked), Mode=OneWay}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition/>
                             <ColumnDefinition/>

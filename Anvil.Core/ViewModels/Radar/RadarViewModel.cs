@@ -659,8 +659,8 @@ namespace Anvil.ViewModels
 		/// <summary>
 		/// The loading screen is up (holding, confirming, Ready waiting on "View event", or the cancelled popup), so the
 		/// controls that act on the map or the loop are greyed (app note, done 2026-10-04): the transport, scrubber and each
-		/// pane's product (all via <see cref="IsTransportEnabled"/>), each pane's tilt, and the map strip's tools except
-		/// Location. Settings, the Atlas, the temporal keys, the caption key and the bar's activity slot stay live — they
+		/// pane's product (all via <see cref="IsTransportEnabled"/>), each pane's tilt, and every tool on the map strip
+		/// (Location included). Settings, the Atlas, the temporal keys, the caption key and the bar's activity slot stay live — they
 		/// are exits or harmless. Turns on with the dim (after FadeInDelayMs, so a cached load never flickers the controls)
 		/// and off at once; never on while holding is turned off (the gate stays hidden then).
 		/// </summary>

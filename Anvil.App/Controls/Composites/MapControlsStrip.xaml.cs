@@ -48,9 +48,14 @@ namespace Anvil.Controls.Composites
 			visible ? $"Hide {network} on the map" : $"Show {network} on the map";
 
 		// ===== The PastCast loading screen's lock (RadarViewModel.AreControlsLocked) =====
-		// Every tool that acts on the map greys while it is up; Location stays live, the site picker is already off in PastCast.
+		// EVERY tool on this tier greys while it is up (Location and the marker viewer too — the user's call 2026-10-04);
+		// the site picker is already off in PastCast.
 		public bool Free(bool locked) => !locked;
 		public bool FreeAnd(bool enabled, bool locked) => enabled && !locked;
+
+		// The pane-layout marks are drawn Rectangles with fixed theme brushes: the template's Disabled state only greys
+		// the Foreground, which Shapes don't read, so they dim themselves (the bar's disabled-text strength, roughly).
+		public double LockedOpacity(bool locked) => locked ? 0.35 : 1.0;
 
 		// ===== Range rings (master show/hide, beside the Ruler) =====
 		// The tooltip speaks for the CLICK, like the site-markers toggle.
