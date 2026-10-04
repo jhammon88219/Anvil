@@ -55,6 +55,70 @@ namespace Anvil.Tests
 			Assert.Empty(Directory.GetFiles(dir, "*.tmp"));
 		}
 
+		// ── Streamed bodies (Level2RadarService.ReadBodyAsync) ─────────────────────────────────────────────────────
+		// The loading screen's per-download fill needs bytes counted AS THEY LAND; reading the body in one gulp
+		// counted it all at the end, so the fill could only jump from empty to full (2026-10-04).
+
+		// Hands out its first half at once, then waits for Release() before the rest.
+		private sealed class HalfThenWaitStream : Stream
+		{
+			private readonly byte[] _data;
+			private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+			private int _pos;
+			public HalfThenWaitStream(byte[] data) => _data = data;
+			public void Release() => _gate.TrySetResult();
+			public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+			{
+				if (_pos >= _data.Length / 2) await _gate.Task.WaitAsync(ct);
+				var limit = _pos < _data.Length / 2 ? _data.Length / 2 : _data.Length;
+				var n = Math.Min(buffer.Length, limit - _pos);
+				_data.AsSpan(_pos, n).CopyTo(buffer.Span);
+				_pos += n;
+				return n;
+			}
+			public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+			public override bool CanRead => true;
+			public override bool CanSeek => false;
+			public override bool CanWrite => false;
+			public override long Length => _data.Length;
+			public override long Position { get => _pos; set => throw new NotSupportedException(); }
+			public override void Flush() { }
+			public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+			public override void SetLength(long value) => throw new NotSupportedException();
+			public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+		}
+
+		[Fact]
+		public async Task A_body_is_counted_as_it_streams_in_and_comes_back_whole()
+		{
+			var data = Enumerable.Range(0, 1_000_000).Select(i => (byte)(i * 7)).ToArray();
+			var stream = new HalfThenWaitStream(data);
+			var content = new StreamContent(stream);
+			content.Headers.ContentLength = data.Length;
+
+			var before = Level2RadarService.TotalBytesDownloaded;
+			var read = Level2RadarService.ReadBodyAsync(content, default);
+			var deadline = DateTime.UtcNow.AddSeconds(5);
+			while (Level2RadarService.TotalBytesDownloaded - before < data.Length / 2 && DateTime.UtcNow < deadline)
+			{
+				await Task.Delay(10);
+			}
+			Assert.False(read.IsCompleted);                                                // still waiting on the rest …
+			Assert.True(Level2RadarService.TotalBytesDownloaded - before >= data.Length / 2); // … the first half already counted
+
+			stream.Release();
+			Assert.Equal(data, await read);
+		}
+
+		[Fact]
+		public async Task A_body_of_unknown_length_comes_back_whole()
+		{
+			var data = Enumerable.Range(0, 300_000).Select(i => (byte)i).ToArray();
+			var content = new StreamContent(new MemoryStream(data)); // no Content-Length
+			content.Headers.ContentLength = null;
+			Assert.Equal(data, await Level2RadarService.ReadBodyAsync(content, default));
+		}
+
 		// ── Transient fetch failures (Level2RadarService.RetryTransientAsync) ─────────────────────────────────────
 		// One connection reset by S3 lost a frame for good (Rainsville 3 h cold seeding load, 2026-10-02: 38 of 39).
 

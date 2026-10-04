@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Anvil.Models;
@@ -104,8 +106,6 @@ namespace Anvil.ViewModels
 					OnPropertyChanged(nameof(IsShown));
 					OnPropertyChanged(nameof(IsReadyShown));
 					OnPropertyChanged(nameof(Title));
-					OnPropertyChanged(nameof(DownloadedLabel));
-					OnPropertyChanged(nameof(BuiltLabel));
 					OnPropertyChanged(nameof(IsProgressShown));
 					OnPropertyChanged(nameof(IsActionsShown));
 					OnPropertyChanged(nameof(IsConfirmShown));
@@ -230,15 +230,10 @@ namespace Anvil.ViewModels
 		public int Downloaded => _downloaded;
 		public int Built => _built;
 
-		/// <summary>0–1, the thin top bar.</summary>
+		/// <summary>0–1 — the bar's activity readout (BarActivityViewModel), not the loading screen (that has cells).</summary>
 		public double DownloadedFraction => _total > 0 ? Math.Clamp((double)_downloaded / _total, 0, 1) : 0;
-		/// <summary>0–1, the thick bar — the scrubber's lit cells.</summary>
+		/// <summary>0–1 of frames built — the bar's activity readout.</summary>
 		public double BuiltFraction => _total > 0 ? Math.Clamp((double)_built / _total, 0, 1) : 0;
-
-		// The bars' labels (layout A, the user's call 2026-10-02): a name over each bar's left end, "22 of 28" over its right.
-		/// <summary>"Downloading" while it runs, "Downloaded" once every volume is in (or the loop is ready).</summary>
-		public string DownloadedLabel => _state == LoopGateState.Ready || (_total > 0 && _downloaded >= _total) ? "Downloaded" : "Downloading";
-		public string BuiltLabel => _state == LoopGateState.Ready ? "Frames built" : "Building frames";
 
 		/// <summary>"22 of 28", or "Finding volumes…" before the list is in.</summary>
 		public string DownloadedText => _total == 0 ? "Finding volumes…" : $"{_downloaded} of {_total}";
@@ -290,6 +285,7 @@ namespace Anvil.ViewModels
 			_armed = false;
 			NeverHoldAgain = false;
 			SetCounts(0, 0, 0);
+			ClearCells();
 			_beganMs = NowMs();
 			_firstBuiltMs = _allDownloadedMs = _allBuiltMs = null;
 			_escaped = false;
@@ -323,6 +319,65 @@ namespace Anvil.ViewModels
 		{
 			if (!IsTracking) return;
 			SetCounts(total, downloaded, built);
+		}
+
+		// ── The CELLS (LoopLoadProgressBar, layout C+E — the user's call 2026-10-04) ───────────────────────────────
+		// One cell per frame on each bar, filled by RadarViewModel.RefreshLoopGateCells from what is TRUE right now;
+		// under each bar the oldest frame still in progress ("6:35 PM scan · 2.1 of 4.3 MB") and how many run at once.
+
+		/// <summary>Per frame, 0–1: arrived = 1, being fetched = its bytes so far, not started = 0.</summary>
+		public IReadOnlyList<double> DownloadCells { get; private set; } = Array.Empty<double>();
+		/// <summary>Per frame, 0–1, in real steps: decoding ⅓, reflectivity built ⅔, built 1.</summary>
+		public IReadOnlyList<double> BuildCells { get; private set; } = Array.Empty<double>();
+		public string DownloadCaption { get; private set; } = string.Empty;
+		public string DownloadDetail { get; private set; } = string.Empty;
+		public string BuildCaption { get; private set; } = string.Empty;
+		public string BuildDetail { get; private set; } = string.Empty;
+
+		internal void ReportCells(double[] download, double[] build, int downloading, int decoding, string? downloadItem, string? buildItem)
+		{
+			if (!IsTracking) return;
+			if (!download.AsSpan().SequenceEqual(DownloadCells is double[] d ? d : Array.Empty<double>()))
+			{
+				DownloadCells = download;
+				OnPropertyChanged(nameof(DownloadCells));
+			}
+			if (!build.AsSpan().SequenceEqual(BuildCells is double[] b ? b : Array.Empty<double>()))
+			{
+				BuildCells = build;
+				OnPropertyChanged(nameof(BuildCells));
+			}
+			var mb = (TotalBytes() - _bytesAtBegin) / 1_000_000.0;
+			var mbText = mb.ToString(mb < 10 ? "0.0" : "0", CultureInfo.CurrentCulture) + " MB";
+			SetText(downloadItem ?? (_total > 0 && _downloaded >= _total ? "All volumes in" : string.Empty), DownloadCaption,
+				v => DownloadCaption = v, nameof(DownloadCaption));
+			SetText(downloading > 0 ? $"{downloading} at once · {mbText}" : mbText, DownloadDetail,
+				v => DownloadDetail = v, nameof(DownloadDetail));
+			var share = build.Length > 0 ? build.Average() : 0;
+			SetText(buildItem ?? (_total > 0 && _built >= _total ? "All frames built" : string.Empty), BuildCaption,
+				v => BuildCaption = v, nameof(BuildCaption));
+			SetText(decoding > 0 ? $"{decoding} at once · {share:0%}" : $"{share:0%}", BuildDetail,
+				v => BuildDetail = v, nameof(BuildDetail));
+		}
+
+		private void SetText(string value, string current, Action<string> set, string name)
+		{
+			if (value == current) return;
+			set(value);
+			OnPropertyChanged(name);
+		}
+
+		// A new load starts with empty cells and no captions.
+		private void ClearCells()
+		{
+			DownloadCells = BuildCells = Array.Empty<double>();
+			DownloadCaption = DownloadDetail = BuildCaption = BuildDetail = string.Empty;
+			OnPropertyChanged(nameof(DownloadCells));
+			OnPropertyChanged(nameof(BuildCells));
+			OnPropertyChanged(nameof(DownloadCaption));
+			OnPropertyChanged(nameof(DownloadDetail));
+			OnPropertyChanged(nameof(BuildCaption));
+			OnPropertyChanged(nameof(BuildDetail));
 		}
 
 		/// <summary>Every frame of the loop has settled — release.</summary>
@@ -439,7 +494,6 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(BuiltFraction));
 			OnPropertyChanged(nameof(DownloadedText));
 			OnPropertyChanged(nameof(BuiltText));
-			OnPropertyChanged(nameof(DownloadedLabel));
 		}
 	}
 }

@@ -141,12 +141,16 @@ namespace Anvil.ViewModels
 		/// per-frame build state (gates playback); <paramref name="complete"/> is per-frame fill readiness
 		/// (reflectivity + velocity built — gates the scrubber fill). Both may be null. Refreshes the scrubber
 		/// cells so frames light as their velocity builds.</summary>
-		public void SetBuildProgress(int built, int total, bool[]? ready, bool[]? complete = null)
+		public void SetBuildProgress(int built, int total, bool[]? ready, bool[]? complete = null, bool[]? decoding = null)
 		{
 			_velReady = ready ?? Array.Empty<bool>();
 			_complete = complete ?? Array.Empty<bool>();
-			RefreshSegmentReadiness();
+			_decoding = decoding ?? Array.Empty<bool>();
+			RefreshSegmentReadiness(); // → UpdateLoopGate → the loading screen's cells
 		}
+
+		// Frames a page worker is decoding right now (radar.js workerJob) — only the loading screen's build cells read it.
+		private bool[] _decoding = Array.Empty<bool>();
 
 		// Whether frame idx is fill-ready (reflectivity + velocity built) — the scrubber-fill gate. A frame the
 		// readiness array hasn't reported yet reads as NOT ready: radar.js posts radarBuildProgress right after

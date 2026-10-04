@@ -542,19 +542,96 @@ namespace Anvil.ViewModels
 			if (!LoopGate.IsTracking) return;
 			var downloaded = 0;
 			for (var i = 0; i < _frameTimes.Length; i++) if (_frameTimes[i] is not null) downloaded++;
-			// ⚠️ A lit cell counts only once it is FILLED (duo built, or decoded with nothing to draw). The first-paint
-			// frame's cell lights on reflectivity alone (Rule 1), so counting lit cells read "10 of 10" for 8 s on a
-			// 2024 replay while the gate still waited on that frame's velocity (2026-10-02).
 			var built = 0;
 			for (var i = 0; i < Segments.Count; i++)
 			{
-				if (Segments[i].IsReady && (IsFrameFillReady(i) || Segments[i].HasNoData)) built++;
+				if (IsFrameBuiltForGate(i)) built++;
 			}
 			LoopGate.Report(_frameCount, downloaded, built);
+			RefreshLoopGateCells();
 			if (!_loadInProgress && _frameCount > 0 && AllArrivedFramesSettled())
 			{
 				LoopGate.Complete();
 			}
+		}
+
+		// ── The loading screen's CELLS: one per frame, each filled by what is TRUE about that frame right now ──────
+		// Download cell: arrived = full; being fetched = bytes so far ÷ the bodies it has started (the service's meter,
+		// streamed per 64 KB); not started = empty. Build cell, in real steps only (the page can't report a decode's
+		// middle): a worker decoding it = ⅓, reflectivity drawn (velocity still to come) = ⅔, built
+		// (IsFrameBuiltForGate) = full — the same "built" the count above uses.
+		internal const double DecodingStep = 1.0 / 3, LitStep = 2.0 / 3;
+
+		// BUILT, for the loading screen's count and cells: filled (duo built) or decoded with nothing to draw.
+		// ⚠️ Not "lit": the first-paint cell lights on reflectivity alone (Rule 1) — counting lit cells read "10 of 10"
+		// for 8 s on a 2024 replay while the gate still waited on that frame's velocity (2026-10-02). And not gated by
+		// the scrubber's left-to-right reveal either: a finished frame behind a slower one IS built, and the loading
+		// screen shows what is true, not the scrubber's tidy order (2026-10-04).
+		private bool IsFrameBuiltForGate(int i) =>
+			i < Segments.Count && Segments[i].IsDecoded && (IsFrameComplete(i) || Segments[i].HasNoData);
+
+		internal void RefreshLoopGateCells()
+		{
+			if (!LoopGate.IsTracking) return;
+			var n = _frameCount;
+			var download = new double[n];
+			var build = new double[n];
+			int downloading = 0, decoding = 0;
+			string? downloadItem = null, buildItem = null;
+			for (var i = 0; i < n; i++)
+			{
+				var key = i < _loadedKeys.Length ? _loadedKeys[i] : null;
+				if (i < _frameTimes.Length && _frameTimes[i] is not null)
+				{
+					download[i] = 1;
+				}
+				else if (key is not null && _radarService.TryGetDownloadProgress(key, out var bytes, out var expected))
+				{
+					downloading++;
+					download[i] = expected > 0 ? Math.Min(0.99, (double)bytes / expected) : 0;
+					downloadItem ??= $"{ScanName(key)} · {Mb(bytes)} of {(expected > 0 ? Mb(expected) : "?")} MB";
+				}
+
+				var isDecoding = i < _decoding.Length && _decoding[i];
+				if (isDecoding) decoding++;
+				if (IsFrameBuiltForGate(i))
+				{
+					build[i] = 1;
+				}
+				else if (i < Segments.Count && Segments[i].IsDecoded) // reflectivity is drawn; velocity is not yet
+				{
+					build[i] = LitStep;
+					if (key is not null) buildItem ??= $"{ScanName(key)} · {(isDecoding ? "Building velocity" : "Velocity next")}";
+				}
+				else if (isDecoding)
+				{
+					build[i] = DecodingStep;
+					if (key is not null) buildItem ??= $"{ScanName(key)} · Decoding";
+				}
+			}
+			LoopGate.ReportCells(download, build, downloading, decoding, downloadItem, buildItem);
+
+			// "6:35 PM scan" — local time, like the rest of PastCast.
+			static string ScanName(string key) =>
+				Level2RadarService.ParseVolumeTime(key) is { } t ? $"{t.ToLocalTime():h:mm tt} scan" : "Scan";
+			static string Mb(long b) => (b / 1_000_000.0).ToString("0.0", System.Globalization.CultureInfo.CurrentCulture);
+		}
+
+		// The download cells move between arrivals (bytes stream in), which nothing else announces — so while a load is
+		// tracked, re-read them a few times a second. Only with a live page: without one nothing downloads for real.
+		internal const int LoopGateCellsTickMs = 150;
+
+		internal async Task RunLoopGateCellsAsync(CancellationToken ct)
+		{
+			try
+			{
+				while (LoopGate.IsLoading && !ct.IsCancellationRequested)
+				{
+					RefreshLoopGateCells();
+					await Task.Delay(LoopGateCellsTickMs, ct);
+				}
+			}
+			catch (OperationCanceledException) { }
 		}
 
 		// The map's frosting follows the gate: on after the same delay as the dim (so a cached load never frosts),

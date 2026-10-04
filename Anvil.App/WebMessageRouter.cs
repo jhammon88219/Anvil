@@ -248,7 +248,8 @@ namespace Anvil
 		// plus the per-frame trio (refl+vel+SRV) completeness that drives the scrubber fill.
 		private void HandleBuildProgress(JsonElement root) =>
 			_viewModel.Radar.SetBuildProgress(
-				Int(root, "built"), Int(root, "total"), BoolArray(root, "ready"), BoolArray(root, "complete"));
+				Int(root, "built"), Int(root, "total"), BoolArray(root, "ready"), BoolArray(root, "complete"),
+				BoolArray(root, "decoding"));
 
 		// The FULL ramp table keyed by product id, pushed ONCE when radar-ramps.js loads. ⚠️ This is the only
 		// ramp feed: each RadarProductOption keeps its own ramp, and a pane's notch resolves the legend it

@@ -241,20 +241,64 @@ namespace Anvil.Services
 		// ── EVERY download body comes through here (the load-time log's bytes; the Dev speed cap) ──────────────────
 		// The current frame's meter rides an AsyncLocal BOX set by EnsureCachedAsync: the parallel sub-range tasks it
 		// starts inherit the same box and add to it, so a frame's bytes are counted whichever path fetched them.
-		private sealed class FetchMeter { public long Bytes; }
+		// Expected = the sizes of every body this frame's fetch has started (a response's Content-Length is added when its
+		// read begins), so Bytes / Expected is how far through what it has asked for so far — the loading screen's
+		// per-download fill. A fallback (prefix → whole file) asks for more, so the fill can step back: that is true.
+		private sealed class FetchMeter { public long Bytes; public long Expected; }
 		private static readonly AsyncLocal<FetchMeter?> Meter = new();
 		private static long _totalBytesDownloaded;
+
+		// The frames being fetched right now, by archive key — read by the loading screen (TryGetDownloadProgress).
+		private readonly ConcurrentDictionary<string, FetchMeter> _inFlight = new();
 
 		/// <summary>Every Level II byte this process has downloaded — frames, the background raw prefetch, live chunks.
 		/// The load-time log takes the difference across a load (it catches the prefetch, which no frame owns).</summary>
 		public static long TotalBytesDownloaded => Interlocked.Read(ref _totalBytesDownloaded);
 
-		private static async Task<byte[]> ReadBodyAsync(HttpContent content, CancellationToken ct)
+		public bool TryGetDownloadProgress(string key, out long bytes, out long expectedBytes)
 		{
-			var bytes = await content.ReadAsByteArrayAsync(ct);
-			await ChargeChunkAsync(bytes.Length, ct);
-			return bytes;
+			if (_inFlight.TryGetValue(key, out var meter))
+			{
+				bytes = Interlocked.Read(ref meter.Bytes);
+				expectedBytes = Interlocked.Read(ref meter.Expected);
+				return true;
+			}
+			bytes = expectedBytes = 0;
+			return false;
 		}
+
+		// A body of this many bytes is about to be read for the current frame (null = the server didn't say).
+		private static void ExpectBytes(long? length)
+		{
+			if (Meter.Value is { } meter && length is > 0 and { } n) Interlocked.Add(ref meter.Expected, n);
+		}
+
+		// ⚠️ STREAMED in chunks, each charged as it lands — not ReadAsByteArrayAsync, which charged the whole body at the
+		// end: the loading screen's per-download fill would only ever jump from empty to full (2026-10-04).
+		internal static async Task<byte[]> ReadBodyAsync(HttpContent content, CancellationToken ct)
+		{
+			var length = content.Headers.ContentLength;
+			ExpectBytes(length);
+			await using var stream = await content.ReadAsStreamAsync(ct);
+			using var body = length is > 0 and <= int.MaxValue ? new MemoryStream((int)length.Value) : new MemoryStream();
+			var chunk = System.Buffers.ArrayPool<byte>.Shared.Rent(BodyChunkBytes);
+			try
+			{
+				int read;
+				while ((read = await stream.ReadAsync(chunk.AsMemory(0, BodyChunkBytes), ct)) > 0)
+				{
+					body.Write(chunk, 0, read);
+					await ChargeChunkAsync(read, ct);
+				}
+			}
+			finally
+			{
+				System.Buffers.ArrayPool<byte>.Shared.Return(chunk);
+			}
+			return body.Length == body.Capacity ? body.GetBuffer() : body.ToArray();
+		}
+
+		private const int BodyChunkBytes = 64 * 1024;
 
 		// Every downloaded byte, whole body or streamed chunk: the frame's meter, the process total, the Dev cap.
 		private static Task ChargeChunkAsync(int bytes, CancellationToken ct)
@@ -297,8 +341,18 @@ namespace Anvil.Services
 		{
 			var meter = Meter.Value = new FetchMeter();
 			var clock = System.Diagnostics.Stopwatch.StartNew();
-			var volume = await EnsureCachedCoreAsync(site, key, tiltAngle, prioritized, cancellationToken);
-			return volume is null ? null : volume with { NetworkBytes = Interlocked.Read(ref meter.Bytes), FetchMs = clock.ElapsedMilliseconds };
+			// Base tilts only: those are the loop's frames (a tilt switch or the storm-motion volume isn't on the screen).
+			var tracked = tiltAngle is null;
+			if (tracked) _inFlight[key] = meter; // a second fetch of the same key (the motion reference) takes over the readout
+			try
+			{
+				var volume = await EnsureCachedCoreAsync(site, key, tiltAngle, prioritized, cancellationToken);
+				return volume is null ? null : volume with { NetworkBytes = Interlocked.Read(ref meter.Bytes), FetchMs = clock.ElapsedMilliseconds };
+			}
+			finally
+			{
+				if (tracked) _inFlight.TryRemove(new KeyValuePair<string, FetchMeter>(key, meter));
+			}
 		}
 
 		private async Task<RadarVolume?> EnsureCachedCoreAsync(RadarSite site, string key, float? tiltAngle, bool prioritized, CancellationToken cancellationToken)
@@ -442,6 +496,7 @@ namespace Anvil.Services
 			{
 				using var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 				response.EnsureSuccessStatusCode();
+				ExpectBytes(response.Content.Headers.ContentLength); // the whole file: the fill stops early when the tilt is in
 				await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);
 				(toWrite, streamedGz) = await StreamGzBaseTiltAsync(body, site.Id, ChargeChunkAsync, prioritized, cancellationToken);
 			}

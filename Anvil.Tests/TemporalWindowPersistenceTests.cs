@@ -39,6 +39,15 @@ namespace Anvil.Tests
 			protected override object? Invoke(MethodInfo? method, object?[]? args)
 			{
 				if (method is null) { return null; }
+				// An out value-type parameter must come back set (the proxy unboxes it on the way out).
+				var ps = method.GetParameters();
+				for (var i = 0; args is not null && i < ps.Length; i++)
+				{
+					if (ps[i].IsOut && args[i] is null && ps[i].ParameterType.GetElementType() is { IsValueType: true } et)
+					{
+						args[i] = Activator.CreateInstance(et);
+					}
+				}
 				if (_overrides.TryGetValue(method.Name, out var fn)) { return fn(args); }
 				return DefaultFor(method.ReturnType);
 			}

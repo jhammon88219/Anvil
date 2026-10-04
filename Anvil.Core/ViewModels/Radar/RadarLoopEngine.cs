@@ -640,6 +640,7 @@ namespace Anvil.ViewModels
 				// The frame arrays are now THIS load's — the holding gate's counts are truthful from here.
 				_vm.LoopGate.Arm();
 				_vm.UpdateLoopGate();
+				if (_vm._isMapReady) _ = _vm.RunLoopGateCellsAsync(ct); // the download cells fill between arrivals
 
 				if (_vm._isMapReady)
 				{

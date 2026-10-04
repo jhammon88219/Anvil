@@ -14,8 +14,6 @@ namespace Anvil.Controls.Composites
 	/// </summary>
 	public sealed partial class LoopHoldingGate : UserControl
 	{
-		// The bars' track width — the StackPanel the screen is laid out in.
-		private const double BarTrackWidth = 360;
 
 		private int _version; // bumped per show/hide, so a stale delayed fade-in can't land
 
@@ -59,8 +57,6 @@ namespace Anvil.Controls.Composites
 		public Thickness BottomInset(double inset) => new(0, 0, 0, System.Math.Max(0, inset));
 
 		public string EscapeWarning => LoopHoldingGateViewModel.EscapeWarning;
-
-		public double BarWidth(double fraction) => System.Math.Round(BarTrackWidth * fraction);
 
 		public Visibility SpacerShown(bool actions, bool confirm, bool ready) =>
 			actions || confirm || ready ? Visibility.Visible : Visibility.Collapsed;

@@ -79,6 +79,15 @@ namespace Anvil.Services
 		/// them again. Returns how many files went.</summary>
 		int ForgetCachedRange(string siteId, DateTimeOffset startUtc, DateTimeOffset endUtc) => 0;
 
+		/// <summary>The loading screen's per-download fill: while <paramref name="key"/>'s base tilt is being fetched, the
+		/// bytes downloaded so far and the sizes of the bodies it has started (<paramref name="expectedBytes"/>, 0 until the
+		/// first response arrives). False when that key isn't being fetched.</summary>
+		bool TryGetDownloadProgress(string key, out long bytes, out long expectedBytes)
+		{
+			bytes = expectedBytes = 0;
+			return false;
+		}
+
 		/// <summary>
 		/// Ensures the bottom several VELOCITY tilts of the volume for <paramref name="key"/> are cached and
 		/// returns their local (radarlevel2-host) URLs, base first — the input to the WebView's full-volume

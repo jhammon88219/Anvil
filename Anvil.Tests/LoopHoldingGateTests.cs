@@ -54,12 +54,10 @@ namespace Anvil.Tests
 			gate.Arm();
 			gate.Report(39, 22, 14);
 			Assert.Equal("22 of 39", gate.DownloadedText);
-			Assert.Equal("Downloading", gate.DownloadedLabel);
 			Assert.Equal("14 of 39", gate.BuiltText);
 			Assert.Equal(14.0 / 39, gate.BuiltFraction, 6);
 
 			gate.Report(39, 39, 39);
-			Assert.Equal("Downloaded", gate.DownloadedLabel);
 			gate.Complete();
 			Assert.False(gate.IsShown);
 		}
@@ -83,7 +81,6 @@ namespace Anvil.Tests
 			Assert.True(gate.IsReadyShown);
 			Assert.True(gate.IsProgressShown);
 			Assert.False(gate.IsActionsShown);
-			Assert.Equal("Frames built", gate.BuiltLabel);
 			gate.ViewReady();
 			Assert.False(gate.IsShown);
 

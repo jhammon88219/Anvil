@@ -11,14 +11,16 @@
 
        ┌───────────────────────── map band, blurred + dimmed ─────────────────────┐
        │                                                                           │
-       │        This is raw radar data, not a video. A radar sends a new scan …    │ ← WHY (WhyText), above
-       │                              ↕ 24                                         │   everything
+       │        This is raw radar data, not a video. A radar sends a new scan …    │ ← WHY (WhyText), 400 wide,
+       │                              ↕ 26                                         │   above everything
        │              Loading May 3, 1999 Bridge Creek-Moore, OK                   │ ← "Loading the loop" for
        │                KTLX · Mon May 3, 1999 · 6:00 PM–8:00 PM                   │   your own timeframe
-       │           Downloading                              22 of 28               │
-       │           ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░  ← 6 px, grey               │ ← BARS, layout A: labelled,
-       │           Building frames                          14 of 28               │   count on the right
-       │           ████████████████░░░░░░░░░░░░░░░░░░░  ← 10 px, blue = lit cells │
+       │                              ↕ 28                                         │
+       │    22 / 28   ▐█▌▐█▌▐█▌▐█▌▐▄▌▐▃▌▐ ▌▐▂▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌      │ ← BARS, layout C+E: two
+       │    downloaded 6:35 PM scan · 2.1 of 4.3 MB           12 at once · 61 MB   │   Primitives/LoopLoadProgressBar,
+       │                              ↕ 22                                         │   560 wide, a cell per frame
+       │    14 / 28   ▐█▌▐█▌▐█▌▐█▌▐█▌▐█▌▐▄▌▐█▌▐▃▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌      │   (grey = download bytes,
+       │    built     6:30 PM scan · Decoding                  3 at once · 45%     │   blue = build steps)
        │                              ↕ 100 px                                     │
        │                  [ Cancel load ]    Use the map                           │
        │                    dark red fill     no border; lifts 2 px on hover       │
@@ -44,6 +46,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              mc:Ignorable="d">
 
     <!-- Background = the DIM (78% near-black). Tune with MapBlurPx — see the header. -->
@@ -54,7 +57,8 @@
 
         <!-- Bottom margin = ContentBottomInset (the bottom chrome's opaque tiers), so the content centres on the
              VISIBLE map: the gate itself spans the whole window, under the chrome (see MainWindow). -->
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="360"
+        <!-- 560 wide for the cells (40 frames ≈ 7.6 px each); the why line and the title keep the old 360-400 measure. -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="560"
                     Margin="{x:Bind BottomInset(ContentBottomInset), Mode=OneWay}">
 
             <!-- PROGRESS: title, event, the two bars, the counts. -->
@@ -62,40 +66,35 @@
                 <!-- THE WHY LINE, above everything (the user's call, 2026-10-02): why a loop takes time. -->
                 <!-- ⚠️ TYPE SCALE (the user's call, 2026-10-02): the TITLE is the largest text here (24), the why line
                      next (14), everything else 12–13. -->
-                <TextBlock Text="{x:Bind ViewModel.Why}" FontSize="14" LineHeight="21" TextWrapping="Wrap"
-                           TextAlignment="Center" Margin="0,0,0,26" Foreground="#C7E8EAED"/>
+                <TextBlock Text="{x:Bind ViewModel.Why}" FontSize="14" LineHeight="21" TextWrapping="Wrap" Width="400"
+                           TextAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,26" Foreground="#C7E8EAED"/>
 
                 <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="24" LineHeight="30" FontWeight="SemiBold"
-                           TextWrapping="Wrap" TextAlignment="Center"
+                           TextWrapping="Wrap" TextAlignment="Center" MaxWidth="480"
                            Foreground="#FFE8EAED" HorizontalAlignment="Center"/>
-                <TextBlock Text="{x:Bind ViewModel.EventLine, Mode=OneWay}" FontSize="12" Margin="0,6,0,20"
+                <TextBlock Text="{x:Bind ViewModel.EventLine, Mode=OneWay}" FontSize="12" Margin="0,6,0,28"
                            Foreground="#A6E8EAED" HorizontalAlignment="Center"/>
 
-                <!-- THE BARS (layout A, the user's call 2026-10-02): each one LABELLED — name on the left, "22 of 28"
-                     on the right — the download thin and grey, the build thicker and blue (the scrubber's lit cells). -->
-                <Grid Margin="0,0,0,5">
-                    <TextBlock Text="{x:Bind ViewModel.DownloadedLabel, Mode=OneWay}" FontSize="12" Foreground="#A6E8EAED"/>
-                    <TextBlock Text="{x:Bind ViewModel.DownloadedText, Mode=OneWay}" FontSize="12" Foreground="#FFE8EAED"
-                               HorizontalAlignment="Right" Typography.NumeralAlignment="Tabular"/>
-                </Grid>
-                <Grid Height="6" CornerRadius="3" Background="#1AE8EAED">
-                    <Border HorizontalAlignment="Left" CornerRadius="3" Background="#FF9AA4B2"
-                            Width="{x:Bind BarWidth(ViewModel.DownloadedFraction), Mode=OneWay}"/>
-                </Grid>
-
-                <Grid Margin="0,12,0,5">
-                    <TextBlock Text="{x:Bind ViewModel.BuiltLabel, Mode=OneWay}" FontSize="12" Foreground="#A6E8EAED"/>
-                    <TextBlock Text="{x:Bind ViewModel.BuiltText, Mode=OneWay}" FontSize="12" Foreground="#FFE8EAED"
-                               HorizontalAlignment="Right" Typography.NumeralAlignment="Tabular"/>
-                </Grid>
-                <Grid Height="10" CornerRadius="5" Background="#1AE8EAED">
-                    <Border HorizontalAlignment="Left" CornerRadius="5" Background="#FF5B8DEF"
-                            Width="{x:Bind BarWidth(ViewModel.BuiltFraction), Mode=OneWay}"/>
-                </Grid>
+                <!-- THE BARS (layout C+E, the user's call 2026-10-04): Primitives/LoopLoadProgressBar — a big count
+                     beside one cell per frame, each filled by how far THAT frame has got (RadarViewModel
+                     .RefreshLoopGateCells), the oldest frame in progress named under the cells. Grey = downloads, the
+                     scrubber's blue = builds. -->
+                <prim:LoopLoadProgressBar Label="downloaded" Fill="#FF9AA4B2"
+                                          Count="{x:Bind ViewModel.Downloaded, Mode=OneWay}"
+                                          Total="{x:Bind ViewModel.Total, Mode=OneWay}"
+                                          Cells="{x:Bind ViewModel.DownloadCells, Mode=OneWay}"
+                                          Caption="{x:Bind ViewModel.DownloadCaption, Mode=OneWay}"
+                                          Detail="{x:Bind ViewModel.DownloadDetail, Mode=OneWay}"/>
+                <prim:LoopLoadProgressBar Label="built" Fill="#FF5B8DEF" Margin="0,22,0,0"
+                                          Count="{x:Bind ViewModel.Built, Mode=OneWay}"
+                                          Total="{x:Bind ViewModel.Total, Mode=OneWay}"
+                                          Cells="{x:Bind ViewModel.BuildCells, Mode=OneWay}"
+                                          Caption="{x:Bind ViewModel.BuildCaption, Mode=OneWay}"
+                                          Detail="{x:Bind ViewModel.BuildDetail, Mode=OneWay}"/>
 
                 <!-- THE LOAD'S TIME, Ready only: "That took 2 minutes and 14 seconds to load." — Begin → last frame built
                      (the same clock the load-time log records). -->
-                <TextBlock Text="{x:Bind ViewModel.ElapsedText, Mode=OneWay}" FontSize="13" Margin="0,12,0,0"
+                <TextBlock Text="{x:Bind ViewModel.ElapsedText, Mode=OneWay}" FontSize="13" Margin="0,18,0,0"
                            TextAlignment="Center" HorizontalAlignment="Center" Foreground="#FFE8EAED"
                            Visibility="{x:Bind ViewModel.IsReadyShown, Mode=OneWay}"/>
             </StackPanel>

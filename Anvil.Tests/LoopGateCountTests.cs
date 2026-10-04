@@ -19,17 +19,30 @@ namespace Anvil.Tests
 	{
 		private static readonly RadarSite Ktlx = new("KTLX", "Norman", 35.333, -97.278);
 
-		private static async Task<RadarViewModel> LoadedThreeFrames(Action<LoopHoldingGateViewModel>? beforeLoad = null)
+		private static readonly string[] Keys = { "2024/05/07/KTLX/KTLX20240507_033006_V06",
+			"2024/05/07/KTLX/KTLX20240507_033512_V06", "2024/05/07/KTLX/KTLX20240507_034018_V06" };
+
+		private static RadarVolume Volume(string key) =>
+			new("https://radarlevel2/x.V06", Ktlx, Level2RadarService.ParseVolumeTime(key)!.Value);
+
+		// A replay over the three keys, armed but not loaded. fetch = the archive's EnsureCachedAsync (instant by default);
+		// progress = its TryGetDownloadProgress (key → bytes, expected), for frames still downloading.
+		private static RadarViewModel NewReplay(Func<string, Task<RadarVolume?>>? fetch = null,
+			Func<string, (long Bytes, long Expected)?>? progress = null)
 		{
 			var settings = new AppSettings { HoldPastCastLoads = true };
 			var svc = Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
-			var keys = new[] { "2024/05/07/KTLX/KTLX20240507_033006_V06", "2024/05/07/KTLX/KTLX20240507_033512_V06",
-				"2024/05/07/KTLX/KTLX20240507_034018_V06" };
 			var archive = Null<ILevel2RadarService>.Create(new()
 			{
-				["GetKeysForWindowAsync"] = _ => Task.FromResult<IReadOnlyList<string>>(keys),
-				["EnsureCachedAsync"] = a => Task.FromResult<RadarVolume?>(new RadarVolume("https://radarlevel2/x.V06", Ktlx,
-					Level2RadarService.ParseVolumeTime((string)a![1]!)!.Value)),
+				["GetKeysForWindowAsync"] = _ => Task.FromResult<IReadOnlyList<string>>(Keys),
+				["EnsureCachedAsync"] = a => fetch is null ? Task.FromResult<RadarVolume?>(Volume((string)a![1]!)) : fetch((string)a![1]!),
+				["TryGetDownloadProgress"] = a =>
+				{
+					if (progress?.Invoke((string)a![0]!) is not { } p) return false;
+					a[1] = p.Bytes;
+					a[2] = p.Expected;
+					return true;
+				},
 			});
 			var radar = new RadarViewModel(Null<IMapService>.Create(), Null<IRadarSiteProvider>.Create(), archive,
 				Null<IDowEventProvider>.Create(), svc, null);
@@ -38,9 +51,62 @@ namespace Anvil.Tests
 			radar.PastEventDate = new DateTimeOffset(2024, 5, 6, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2024, 5, 6)));
 			radar.PastEventTime = new TimeSpan(22, 30, 0);
 			radar.PastEventDurationIndex = 0; // 30 min
+			return radar;
+		}
+
+		private static async Task<RadarViewModel> LoadedThreeFrames(Action<LoopHoldingGateViewModel>? beforeLoad = null)
+		{
+			var radar = NewReplay();
 			beforeLoad?.Invoke(radar.LoopGate);
 			Assert.True(await radar.LoadSelectedPastEventAsync());
 			return radar;
+		}
+
+		// ── The loading screen's CELLS (LoopLoadProgressBar): each frame's real state, never a guess ──────────────
+
+		[Fact]
+		public async Task A_download_cell_fills_with_its_bytes_while_the_volume_streams_in()
+		{
+			var last = new TaskCompletionSource<RadarVolume?>();
+			var radar = NewReplay(
+				key => key == Keys[2] ? last.Task : Task.FromResult<RadarVolume?>(Volume(key)),
+				key => key == Keys[2] ? (2_000_000, 4_000_000) : null);
+			var load = radar.LoadSelectedPastEventAsync(); // frames 0 and 1 land at once; frame 2 is still downloading
+
+			radar.RefreshLoopGateCells();
+			Assert.Equal(new[] { 1.0, 1.0, 0.5 }, radar.LoopGate.DownloadCells);
+			Assert.EndsWith("· 2.0 of 4.0 MB", radar.LoopGate.DownloadCaption);
+			Assert.StartsWith("1 at once", radar.LoopGate.DownloadDetail);
+
+			last.SetResult(Volume(Keys[2]));
+			Assert.True(await load);
+			Assert.Equal(new[] { 1.0, 1.0, 1.0 }, radar.LoopGate.DownloadCells);
+			Assert.Equal("All volumes in", radar.LoopGate.DownloadCaption);
+		}
+
+		[Fact]
+		public async Task A_build_cell_steps_through_decoding_reflectivity_and_built()
+		{
+			var radar = await LoadedThreeFrames();
+			radar.OnRadarFrameReady(0, hasData: true); // frame 0: reflectivity drawn, velocity to come
+			radar.OnRadarFrameReady(2, hasData: true); // frame 2: fully built
+			radar.SetBuildProgress(1, 3, new[] { true, true, true }, new[] { false, false, true }, new[] { false, true, false });
+
+			Assert.Equal(new[] { RadarViewModel.LitStep, RadarViewModel.DecodingStep, 1.0 }, radar.LoopGate.BuildCells);
+			Assert.EndsWith("· Velocity next", radar.LoopGate.BuildCaption); // the OLDEST frame in progress
+			Assert.StartsWith("1 at once", radar.LoopGate.BuildDetail);
+		}
+
+		[Fact]
+		public async Task A_built_frame_behind_a_slower_one_counts_although_the_scrubber_hides_it()
+		{
+			var radar = await LoadedThreeFrames();
+			for (var i = 0; i < 3; i++) radar.OnRadarFrameReady(i, hasData: true);
+			radar.SetBuildProgress(1, 3, new[] { true, true, true }, new[] { true, false, true });
+
+			Assert.False(radar.Segments[2].IsReady);   // the scrubber reveals left to right …
+			Assert.Equal(2, radar.LoopGate.Built);      // … the loading screen counts what IS built
+			Assert.Equal(1.0, radar.LoopGate.BuildCells[2]);
 		}
 
 		[Fact]

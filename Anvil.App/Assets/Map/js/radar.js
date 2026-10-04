@@ -568,7 +568,7 @@
     function postBuildProgress() {
         var total = frames.length;
         var label = activeProduct(); // the message's product label — the primary pane's, for the readout
-        if (!total) { post({ type: 'radarBuildProgress', product: label, built: 0, total: 0, ready: [], complete: [] }); return; }
+        if (!total) { post({ type: 'radarBuildProgress', product: label, built: 0, total: 0, ready: [], complete: [], decoding: [] }); return; }
         // `ready` = ACTIVE-product readiness — drives playback's built-frontier hold (don't advance onto a
         // frame whose on-screen product isn't built). While SRV is active but its motion isn't ready we render
         // the VELOCITY stand-in, so report readiness by VELOCITY (what's actually on screen) — otherwise the
@@ -609,7 +609,14 @@
             if (r) built++;
             complete[i] = fillComplete(frames[i], fillExtra);
         }
-        post({ type: 'radarBuildProgress', product: label, built: built, total: total, ready: ready, complete: complete });
+        // `decoding` = frames a worker is decoding RIGHT NOW (one job per worker, so posted = running) — the
+        // loading screen's build cells show it as a real step, not a guess. This loop's jobs only.
+        var decoding = new Array(total).fill(false);
+        for (var wi = 0; wi < workerJob.length; wi++) {
+            var job = workerJob[wi];
+            if (job && job.token === loopToken && job.index >= 0 && job.index < total) decoding[job.index] = true;
+        }
+        post({ type: 'radarBuildProgress', product: label, built: built, total: total, ready: ready, complete: complete, decoding: decoding });
     }
 
     // (The rendered moment is PER VIEW now — see makeView/viewProducts above. There is no single
@@ -1032,6 +1039,7 @@
     }
     let workerPool; // undefined = not tried, array = ready, null = Worker API unavailable
     let workerBusy = []; // parallel to workerPool: true while that worker holds a job
+    let workerJob = [];  // parallel too: the frame job it holds ({token, index}), or null — postBuildProgress `decoding`
     let dispatchQueue = []; // posted messages waiting for a free worker
     function ensureWorkerPool() {
         if (workerPool === undefined) {
@@ -1043,6 +1051,7 @@
                     // The worker replies exactly once per job (result or {error}), so this frees the slot.
                     w.onmessage = function (e) {
                         workerBusy[slot] = false;
+                        workerJob[slot] = null;
                         if (_decBusy > 0) _decBusy--;
                         const m = e.data; if (m && m.gridsOnly) applyGridResult(m); else applyFrameResult(m);
                         pumpDispatch();
@@ -1052,11 +1061,13 @@
                     w.onerror = function (e) {
                         hostLog('worker error: ' + (e && e.message ? e.message : e));
                         workerBusy[slot] = false;
+                        workerJob[slot] = null;
                         if (_decBusy > 0) _decBusy--;
                         pumpDispatch();
                     };
                     workerPool.push(w);
                     workerBusy.push(false);
+                    workerJob.push(null);
                 }
                 hostLog('decode pool size=' + workerPool.length);
             } catch (e) {
@@ -1079,13 +1090,14 @@
     }
     function pumpDispatch() {
         if (!workerPool) return;
+        var posted = false;
         for (;;) {
             const slot = workerBusy.indexOf(false);
-            if (slot < 0 || !dispatchQueue.length) return;
+            if (slot < 0 || !dispatchQueue.length) break;
             // Drop jobs for a loop that has been replaced (beginLoop / remap bumped the token); posting them
             // would only burn a worker on a result applyFrameResult discards.
             dispatchQueue = dispatchQueue.filter(function (m) { return m.token === loopToken; });
-            if (!dispatchQueue.length) return;
+            if (!dispatchQueue.length) break;
             let pos = 0;
             for (let i = 0; i < dispatchQueue.length; i++) { if (isUrgentDecode(dispatchQueue[i])) { pos = i; break; } }
             const msg = dispatchQueue.splice(pos, 1)[0];
@@ -1094,9 +1106,14 @@
             msg.stormMotion = resolveStormMotion();
             msg.seedProfile = _loopSeedProfile;
             workerBusy[slot] = true;
+            // The loading screen's "decoding" cells (postBuildProgress `decoding`): a worker runs ONE job at a time,
+            // so a posted frame job is being worked on now, not waiting. Grid-only jobs aren't a frame build.
+            workerJob[slot] = msg.gridOnly ? null : { token: msg.token, index: msg.index };
+            if (!msg.gridOnly) posted = true;
             decPosted();
             workerPool[slot].postMessage(msg);
         }
+        if (posted && frames.length) postBuildProgress(); // the newly decoding frames, for the loading screen
     }
 
     // PERF PROBE (perfPan context): decode jobs running in a worker, + the peak since the probe last read it,
