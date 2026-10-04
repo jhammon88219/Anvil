@@ -149,9 +149,25 @@ function onInspectMove(v, e) {
     if (!inspecting) return;
     hoveredView = v;
     inspectLngLat = e.lngLat;
+    readAt(v, e.lngLat, e.point);
+}
+
+// Re-read the point the cursor is RESTING on. Reads otherwise only happen on mousemove, so a cursor held still
+// while the value grids were still building (arming Inspect queues them) never showed a value until it was
+// nudged (2026-10-04) — and a playing loop's tooltip kept the frame it was read on. radar.js calls this when the
+// frame on screen changes or the shown frame's grids land.
+export function refresh() {
+    if (!inspecting || !inspectLngLat || !hoveredView) return;
+    let pt;
+    try { pt = hoveredView.map.project(inspectLngLat); } catch (e) { return; }
+    readAt(hoveredView, inspectLngLat, pt);
+}
+
+// One read at a geographic point: every pane's chip, the crosses, and the tooltip in pane v at canvas point pt.
+function readAt(v, lngLat, pt) {
     let r = null;
     host.forEachView(function (o) {
-        const hit = lookupValue(inspectGrid(o), e.lngLat.lat, e.lngLat.lng);
+        const hit = lookupValue(inspectGrid(o), lngLat.lat, lngLat.lng);
         if (o === v) r = hit;                       // reuse the hovered pane's own read for the tooltip
         pushInspect(o.index, !!hit, hit ? hit.value : 0);
         positionCross(o);                           // no-op for the hovered pane (hides its cross)
@@ -175,11 +191,11 @@ function onInspectMove(v, e) {
         } else {
             el.textContent = main;
         }
-        // e.point is relative to THIS pane's canvas; the tooltip is a document-level element, so
+        // pt is relative to THIS pane's canvas; the tooltip is a document-level element, so
         // offset it by where that pane sits in the page.
         const box = v.map.getContainer().getBoundingClientRect();
-        el.style.left = (box.left + e.point.x + 14) + 'px';
-        el.style.top = (box.top + e.point.y + 14) + 'px';
+        el.style.left = (box.left + pt.x + 14) + 'px';
+        el.style.top = (box.top + pt.y + 14) + 'px';
         el.style.display = 'block';
     } else {
         el.style.display = 'none';

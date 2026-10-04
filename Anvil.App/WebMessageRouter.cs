@@ -243,12 +243,12 @@ namespace Anvil
 				Dbl(root, "speedMs"), Dbl(root, "dirDeg"), Str(root, "source"), Flag(root, "insufficient"),
 				Str(root, "why"), Str(root, "tier"));
 
-		// Velocity build progress: how many loaded frames have their (lazily-built, dealiased) velocity
-		// geometry ready (drives the "Building velocity N/M" readout + holds playback at the built frontier),
-		// plus the per-frame trio (refl+vel+SRV) completeness that drives the scrubber fill.
+		// Build progress: per frame, the visible panes' products built (activeReady — holds playback at the built
+		// frontier), refl+velocity built (fillBuilt — the scrubber fill; SRV deliberately out), and which frames a
+		// worker is decoding right now (the loading screen's build cells). The kinds of "ready": RadarViewModel.
 		private void HandleBuildProgress(JsonElement root) =>
 			_viewModel.Radar.SetBuildProgress(
-				Int(root, "built"), Int(root, "total"), BoolArray(root, "ready"), BoolArray(root, "complete"),
+				Int(root, "built"), Int(root, "total"), BoolArray(root, "activeReady"), BoolArray(root, "fillBuilt"),
 				BoolArray(root, "decoding"));
 
 		// The FULL ramp table keyed by product id, pushed ONCE when radar-ramps.js loads. ⚠️ This is the only

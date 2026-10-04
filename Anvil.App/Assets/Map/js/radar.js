@@ -134,6 +134,8 @@
     // Inspect armed? Safe before the module lands (false), and true implies `Inspect` is non-null,
     // so the call sites can go straight to it.
     function inspectOn() { return !!(Inspect && Inspect.isOn()); }
+    // Re-read under a RESTING cursor: the frame on screen changed, or its value grids just landed.
+    function inspectRefresh() { if (inspectOn()) Inspect.refresh(); }
 
     // The RANGE RULER (radar-ruler.js): the graduated spoke from the site out to the range ring. Same
     // dynamic-import-and-cache pattern as radar-scope.js, and it is a BOLT-ON — it owns its own mode,
@@ -497,11 +499,11 @@
         else if (idx >= currentFrame) pri = idx - currentFrame;   // current (0) + ahead, in play order
         else pri = (currentFrame - idx) + frames.length;          // behind the playhead: lowest priority
         // FILL FIRST ("Duo fills, Trio completes", docs/radar-loop-flow.md): a frame still missing what lights its
-        // cell (fillComplete) jumps every frame that only wants the trio's SRV or the dual-pol wave. Measured
+        // cell (isFillBuilt) jumps every frame that only wants the trio's SRV or the dual-pol wave. Measured
         // 2026-10-02 on a 2024 KTLX replay: the first-paint frame (refl only, Rule 1) sat BEHIND the playing
         // playhead while the motion's srvfill rebuilt every other frame, so its velocity — the one thing holding
         // the loop holding gate — started 11 s in and the gate released 8 s after the scrubber read full.
-        if (!fillComplete(frames[idx])) pri -= 2 * frames.length;
+        if (!isFillBuilt(frames[idx])) pri -= 2 * frames.length;
         return pri;
     }
     function queueUpgrade(idx, reason) {
@@ -553,10 +555,10 @@
         }
         return extra;
     }
-    // A frame's SCRUBBER-FILL readiness — the `complete[]` postBuildProgress reports, and the upgrade queue's
+    // A frame's SCRUBBER-FILL readiness — the `fillBuilt[]` postBuildProgress reports, and the upgrade queue's
     // "fill first" key: not stale, reflectivity + velocity built, plus every visible non-trio product. SRV is
     // never part of it (see postBuildProgress). ONE definition, so the queue and the scrubber can't disagree.
-    function fillComplete(f, extra) {
+    function isFillBuilt(f, extra) {
         if (!f || f.stale || !f.built) return false;
         var b = f.built;
         if (!b.reflectivity || !b.velocity) return false;
@@ -568,8 +570,8 @@
     function postBuildProgress() {
         var total = frames.length;
         var label = activeProduct(); // the message's product label — the primary pane's, for the readout
-        if (!total) { post({ type: 'radarBuildProgress', product: label, built: 0, total: 0, ready: [], complete: [], decoding: [] }); return; }
-        // `ready` = ACTIVE-product readiness — drives playback's built-frontier hold (don't advance onto a
+        if (!total) { post({ type: 'radarBuildProgress', product: label, built: 0, total: 0, activeReady: [], fillBuilt: [], decoding: [] }); return; }
+        // `activeReady` = ACTIVE-product readiness — drives playback's built-frontier hold (don't advance onto a
         // frame whose on-screen product isn't built). While SRV is active but its motion isn't ready we render
         // the VELOCITY stand-in, so report readiness by VELOCITY (what's actually on screen) — otherwise the
         // frontier reads all-not-ready and playback stalls.
@@ -587,7 +589,7 @@
         // always has (see below). fillExtra is the visible dual-pol set: those DO build per frame during the
         // backfill, so including them keeps the fill incremental rather than batched.
         var fillExtra = fillExtraProducts();
-        // `complete` = per-frame SCRUBBER-fill readiness (docs/radar-loop-flow.md Rule 2: the scrubber fills
+        // `fillBuilt` = per-frame SCRUBBER-fill readiness (docs/radar-loop-flow.md Rule 2: the scrubber fills
         // left-to-right as frames complete). A frame is fill-ready once its reflectivity AND velocity are built
         // — the two products that build PER FRAME during the backfill, so cells light one-by-one as the backfill
         // progresses. SRV is deliberately NOT gated here: it depends on the loop's ONE storm motion (Rule 4/5),
@@ -595,7 +597,7 @@
         // flip the whole scrubber true at once (batch fill, not incremental). SRV trails loop-wide per Rule 4 —
         // a filled cell shows the velocity stand-in for SRV until the motion lands, then SRV upgrades in place
         // with no scrubber change. (Regardless of the active product, so browsing reflectivity fills the same.)
-        var built = 0, ready = new Array(total), complete = new Array(total);
+        var built = 0, activeReady = new Array(total), fillBuilt = new Array(total);
         for (var i = 0; i < total; i++) {
             // A STALE frame (tilt switch — see retile) still renders its old elevation so the map never blanks,
             // but it is NOT this loop's data: report it unbuilt so the scrubber re-fills left-to-right (Rule 2)
@@ -605,9 +607,9 @@
             var b = !stale && frames[i] && frames[i].built;
             var r = !stale;
             for (var ri = 0; r && ri < gates.length; ri++) r = !!(b && b[gates[ri]]);
-            ready[i] = r;
+            activeReady[i] = r;
             if (r) built++;
-            complete[i] = fillComplete(frames[i], fillExtra);
+            fillBuilt[i] = isFillBuilt(frames[i], fillExtra);
         }
         // `decoding` = frames a worker is decoding RIGHT NOW (one job per worker, so posted = running) — the
         // loading screen's build cells show it as a real step, not a guess. This loop's jobs only.
@@ -616,7 +618,7 @@
             var job = workerJob[wi];
             if (job && job.token === loopToken && job.index >= 0 && job.index < total) decoding[job.index] = true;
         }
-        post({ type: 'radarBuildProgress', product: label, built: built, total: total, ready: ready, complete: complete, decoding: decoding });
+        post({ type: 'radarBuildProgress', product: label, built: built, total: total, activeReady: activeReady, fillBuilt: fillBuilt, decoding: decoding });
     }
 
     // (The rendered moment is PER VIEW now — see makeView/viewProducts above. There is no single
@@ -1252,6 +1254,7 @@
             // demand — see setProduct / setInspect).
             url: res.url || null, gridsBuilt: !!res.gridsBuilt,
         };
+        if (res.index === currentFrame) inspectRefresh(); // its grids may be what a resting cursor waits on
         // Post the per-frame decode metrics as a STRUCTURED message (the C# RadarDiagnostics
         // service records them, evaluates the suspect heuristics, and quarantines a bad frame's
         // .V06). The metrics are already computed by the decoder; we just forward them losslessly.
@@ -1475,7 +1478,7 @@
             addLayer(v);
         }
     }
-    function showCurrentAll(reason) { forEachView(function (v) { showCurrent(v, reason); }); syncScope(); }
+    function showCurrentAll(reason) { forEachView(function (v) { showCurrent(v, reason); }); syncScope(); inspectRefresh(); }
 
     // The range rings follow the frame ON SCREEN — never the last one to decode (a prefetch landing for another
     // frame must not resize them). Every change of currentFrame goes through showCurrentAll, which ends here;
@@ -1500,7 +1503,11 @@
     function decodeTrace(index, reason, path, wantedIds, miss) {
         hostLog('decode idx=' + index + ' why=' + (reason || '?') + ' path=' + path
             + ' prod=' + viewProducts().join('|') + ' want=' + (wantedIds && wantedIds.length ? wantedIds.join('+') : '-')
-            + (miss ? ' miss=' + miss : '') + ' dt=' + Math.round(performance.now()));
+            + (miss ? ' miss=' + miss : '')
+            // An insufficient motion means SRV IS the velocity stand-in, so `want=velocity` on an srvfill is correct —
+            // the tag says so in the line itself (it read like a bug in the JSONL).
+            + (_autoMotion && _autoMotion.insufficient ? ' (srv:insufficient)' : '')
+            + ' dt=' + Math.round(performance.now()));
     }
 
     function decodeFrame(url, index, reason) {

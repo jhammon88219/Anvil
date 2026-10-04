@@ -123,28 +123,24 @@ namespace Anvil.ViewModels
 			(_currentFrameIndex >= 0 && _currentFrameIndex < _frameModes.Length)
 				? _frameModes[_currentFrameIndex] : null;
 
-		// Velocity build progress, pushed from radar.js (radarBuildProgress). Velocity geometry is built
-		// lazily (it's the one product that must dealias — ~1.5 s/frame on big super-res volumes), so on a
-		// switch to Velocity the loop fills in over a few seconds. _velReady[i] = frame i's velocity is
-		// built; only meaningful while Velocity is selected (refl/CC are always ready). It drives BOTH the
-		// scrubber's per-cell fill (via RefreshSegmentReadiness) and playback's built-frontier hold, so the
-		// build shows the same way as any other product's load — no separate textual readout.
-		private bool[] _velReady = Array.Empty<bool>();
-		// Per-frame SCRUBBER-fill readiness (reflectivity + velocity built), pushed alongside _velReady by
-		// radar.js. Drives the scrubber fill (docs/radar-loop-flow.md Rule 2), independent of the active product
-		// — distinct from _velReady, which is the active product's build state and gates PLAYBACK (so browsing
-		// reflectivity never stalls on velocity you're not watching). SRV is NOT included: it rides the loop's
-		// one storm motion (loop-wide, lands last) and trails per Rule 4, so it doesn't hold the per-frame fill.
-		private bool[] _complete = Array.Empty<bool>();
+		// ACTIVE-ready, pushed from radar.js (radarBuildProgress activeReady[]): frame i has every visible pane's
+		// product built (SRV read as velocity while its motion is pending — what's on screen). Gates PLAYBACK's
+		// built-frontier hold (IsFrameDisplayReady), so playback never advances onto a frame a pane can't draw.
+		private bool[] _activeReady = Array.Empty<bool>();
+		// FILL-BUILT, pushed alongside (fillBuilt[]): reflectivity + velocity (+ any visible dual-pol) built — the
+		// scrubber-fill gate (docs/radar-loop-flow.md Rule 2), independent of the active product, so browsing
+		// reflectivity never stalls on velocity you're not watching. SRV is NOT included: it rides the loop's one
+		// storm motion (loop-wide, lands last) and trails per Rule 4, so it doesn't hold the per-frame fill.
+		private bool[] _fillBuilt = Array.Empty<bool>();
 
-		/// <summary>Receives the build state from the WebView. <paramref name="ready"/> is the ACTIVE product's
-		/// per-frame build state (gates playback); <paramref name="complete"/> is per-frame fill readiness
-		/// (reflectivity + velocity built — gates the scrubber fill). Both may be null. Refreshes the scrubber
-		/// cells so frames light as their velocity builds.</summary>
-		public void SetBuildProgress(int built, int total, bool[]? ready, bool[]? complete = null, bool[]? decoding = null)
+		/// <summary>Receives the build state from the WebView. <paramref name="activeReady"/> is the visible panes'
+		/// per-frame build state (gates playback); <paramref name="fillBuilt"/> is refl+velocity built per frame
+		/// (gates the scrubber fill); <paramref name="decoding"/> is what a worker is decoding now. All may be null.
+		/// Refreshes the scrubber cells so frames light as they build.</summary>
+		public void SetBuildProgress(int built, int total, bool[]? activeReady, bool[]? fillBuilt = null, bool[]? decoding = null)
 		{
-			_velReady = ready ?? Array.Empty<bool>();
-			_complete = complete ?? Array.Empty<bool>();
+			_activeReady = activeReady ?? Array.Empty<bool>();
+			_fillBuilt = fillBuilt ?? Array.Empty<bool>();
 			_decoding = decoding ?? Array.Empty<bool>();
 			RefreshSegmentReadiness(); // → UpdateLoopGate → the loading screen's cells
 		}
@@ -152,22 +148,21 @@ namespace Anvil.ViewModels
 		// Frames a page worker is decoding right now (radar.js workerJob) — only the loading screen's build cells read it.
 		private bool[] _decoding = Array.Empty<bool>();
 
-		// Whether frame idx is fill-ready (reflectivity + velocity built) — the scrubber-fill gate. A frame the
-		// readiness array hasn't reported yet reads as NOT ready: radar.js posts radarBuildProgress right after
-		// every successful decode (the pair at applyFrameResult), so the cell lights the moment its velocity is
-		// built — never fills-then-empties by falling back to a looser signal, and never counts a live-appended
-		// frame the array doesn't cover yet.
-		private bool IsFrameComplete(int idx)
+		// Whether frame idx is fill-built (reflectivity + velocity built, per the page). A frame the array hasn't
+		// reported yet reads as NOT built: radar.js posts radarBuildProgress right after every successful decode
+		// (the pair at applyFrameResult), so the cell lights the moment its velocity is built — never
+		// fills-then-empties by falling back to a looser signal, and never counts a live-appended frame the array
+		// doesn't cover yet.
+		private bool IsFrameFillBuilt(int idx)
 		{
-			if (idx < 0 || idx >= _complete.Length) return false;
-			return _complete[idx];
+			if (idx < 0 || idx >= _fillBuilt.Length) return false;
+			return _fillBuilt[idx];
 		}
 
-		// Whether frame idx is ready to display. Every product EXCEPT reflectivity is built on demand (the
-		// decode builds only what's on screen), so any of them can be not-yet-built for a frame;
+		// Whether frame idx is ACTIVE-ready (ready to display). Every product EXCEPT reflectivity is built on
+		// demand (the decode builds only what's on screen), so any of them can be not-yet-built for a frame;
 		// reflectivity is always built. Missing/out-of-range progress info returns true so playback never
-		// stalls on absent data. (_velReady carries the per-frame build state pushed by radar.js
-		// postBuildProgress — the field name is historical.)
+		// stalls on absent data.
 		// ⚠️ MULTI-PANE: radar.js computes that array against EVERY visible pane's product, so advancing
 		// onto a frame that is blank in any pane is already excluded. The only shortcut left is the
 		// all-reflectivity case, where nothing can be unbuilt — checked across the visible panes, not just
@@ -175,9 +170,9 @@ namespace Anvil.ViewModels
 		private bool IsFrameDisplayReady(int idx)
 		{
 			if (AllVisiblePanesAreReflectivity()) return true; // reflectivity is always built
-			if (_velReady.Length == 0) return true;        // no progress pushed yet — don't stall
-			if (idx < 0 || idx >= _velReady.Length) return true;
-			return _velReady[idx];
+			if (_activeReady.Length == 0) return true;        // no progress pushed yet — don't stall
+			if (idx < 0 || idx >= _activeReady.Length) return true;
+			return _activeReady[idx];
 		}
 
 		/// <summary>How old the freshest available frame is, e.g. "2 min ago" / "1 hr 6 min ago".

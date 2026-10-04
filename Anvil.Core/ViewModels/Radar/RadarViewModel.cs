@@ -120,6 +120,14 @@ namespace Anvil.ViewModels
 		// frame (archive via EnsureCachedAsync, live via the poll) but only SHOWN in replay, where
 		// there's no live poll to drive the single _liveModeText. null = unknown for that frame.
 		private string?[] _frameModes = Array.Empty<string?>();
+		// ── The kinds of "ready" (one frame, four questions; docs/radar-loop-flow.md) ──
+		//   DECODED      Segments[i].IsDecoded — reflectivity landed in the page (counted by _readyCount; all of them
+		//                = IsLoopReady, the DECODE count, nothing about velocity).
+		//   FILL-READY   IsFrameFillReady — decoded AND fill-built (refl + velocity, + visible dual-pol; never SRV,
+		//                "Duo fills, Trio completes"). Lights the scrubber cell, left to right (Rule 2).
+		//   ACTIVE-READY IsFrameDisplayReady — every visible pane's product built. Playback's frontier: it won't
+		//                advance onto a frame a pane would draw blank.
+		//   BUILT        IsFrameBuiltForGate — fill-built or no data, NOT left-to-right. The loading screen's count.
 		private int _frameCount;
 		private int _readyCount;
 		private int _currentFrameIndex;
@@ -148,7 +156,7 @@ namespace Anvil.ViewModels
 
 		// Recomputes every scrubber cell's DISPLAYED readiness (RadarFrameSegment.IsReady).
 		//
-		// A cell is fill-ready once its reflectivity + velocity are built (IsFrameComplete), regardless of the
+		// A cell is fill-ready once its reflectivity + velocity are built (IsFrameFillReady), regardless of the
 		// product on screen — the two products that build PER FRAME during the backfill, so cells light one-by-
 		// one as it progresses. SRV is NOT part of this: it rides the loop's ONE storm motion (a single loop-wide
 		// event that lands last), so gating on it would flip the whole scrubber at once instead of incrementally;
@@ -191,7 +199,7 @@ namespace Anvil.ViewModels
 			UpdateLoopGate(); // the gate's "built" bar is these lit cells
 		}
 
-		private bool IsFrameFillReady(int i) => Segments[i].IsDecoded && IsFrameComplete(i);
+		private bool IsFrameFillReady(int i) => Segments[i].IsDecoded && IsFrameFillBuilt(i);
 		private bool IsImmediateFrame(int i) => i == _firstPaintIndex || (_hasLiveFrame && i >= _archiveCount);
 		private bool _isPlaying;
 		private bool _isLoopReady;
@@ -568,7 +576,7 @@ namespace Anvil.ViewModels
 		// the scrubber's left-to-right reveal either: a finished frame behind a slower one IS built, and the loading
 		// screen shows what is true, not the scrubber's tidy order (2026-10-04).
 		private bool IsFrameBuiltForGate(int i) =>
-			i < Segments.Count && Segments[i].IsDecoded && (IsFrameComplete(i) || Segments[i].HasNoData);
+			i < Segments.Count && Segments[i].IsDecoded && (IsFrameFillBuilt(i) || Segments[i].HasNoData);
 
 		internal void RefreshLoopGateCells()
 		{
@@ -686,7 +694,7 @@ namespace Anvil.ViewModels
 			{
 				if (_frameTimes[i] is null) continue;                 // never arrived — the loop skips it too
 				if (i >= Segments.Count || !Segments[i].IsDecoded) return false;
-				if (!Segments[i].HasNoData && !IsFrameComplete(i)) return false;
+				if (!Segments[i].HasNoData && !IsFrameFillBuilt(i)) return false;
 			}
 			return true;
 		}
