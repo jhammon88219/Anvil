@@ -76,11 +76,14 @@ namespace Anvil.Tests
 			var run = NewRun(
 				Event("moore", SavedEventKind.Tornado), Event("joplin", SavedEventKind.Tornado),
 				Event("katrina", SavedEventKind.Hurricane), Event("mine", SavedEventKind.Tornado, builtIn: false));
-			Assert.Equal("3 events × 3 windows × 2 passes = 18 loads", run.PlanText); // default 1, 2, 3 hr; user event out
+			Assert.Equal("3 events × 3 windows × 3 passes = 27 loads", run.PlanText); // default 1, 2, 3 hr; cold, warm, revisit; user event out
 
 			run.Hurricane = false;
 			run.Warm = false;
 			run.Windows[0].IsChecked = true; // 30 min too
+			Assert.Equal("2 events × 4 windows × 2 passes = 16 loads", run.PlanText);
+
+			run.Revisit = false;
 			Assert.Equal("2 events × 4 windows × 1 pass = 8 loads", run.PlanText);
 		}
 

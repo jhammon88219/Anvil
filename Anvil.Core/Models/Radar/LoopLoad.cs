@@ -34,6 +34,9 @@ namespace Anvil.Models
 		public long FrameBytes { get; init; }
 		/// <summary>Every Level II byte the process downloaded during the load (frames + the background raw prefetch).</summary>
 		public long AllBytes { get; init; }
+		/// <summary>The window this load asked for (UTC start, length) — null/0 when the engine didn't say.</summary>
+		public DateTimeOffset? WindowStartUtc { get; init; }
+		public int WindowMinutes { get; init; }
 		/// <summary>Per landed frame: [index, source (0 network · 1 cached tilt · 2 local raw), bytes, fetch ms, landed ms].</summary>
 		public long[][] FrameDetail { get; init; } = Array.Empty<long[]>();
 		/// <summary>The progress curve: [ms, downloaded, built, bytes] at every count change.</summary>

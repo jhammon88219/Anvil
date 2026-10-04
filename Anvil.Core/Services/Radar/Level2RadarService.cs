@@ -329,170 +329,17 @@ namespace Anvil.Services
 
 			try
 			{
-				// Archived volumes (older dates) are gzip-wrapped (key ends ".gz"); the underlying
-				// bytes are the same AR2V format the extractor expects, so gunzip first. Recent volumes
-				// are stored raw, so the gunzip only runs for the historical Past Event Viewer fetches.
-				var isGz = key.EndsWith(".gz", StringComparison.Ordinal);
-
-				byte[]? toWrite = null;
-				byte[]? fullVolume = null; // set only when we downloaded the whole thing (-> retain as .raw)
-				var fromLocalRaw = false;  // the tilt came out of a prefetched raw on disk (the load-time log's source)
-
-				// PREFETCHED RAW: one volume download holds EVERY tilt, so if the background prefetch has
-				// already pulled this volume, any tilt is a local decompress — no network at all. This is
-				// what makes switching tilts feel like switching products (see PrefetchRawVolumesAsync).
-				var rawFile = RawCacheFileFor(site.Id, time);
-				if (File.Exists(rawFile))
-				{
-					try
+				// A dropped connection is retried (RetryTransientAsync): one reset from S3 used to lose the frame for good
+				// (Rainsville 3 h cold seeding load, 2026-10-02: 38 of 39 frames).
+				return await RetryTransientAsync(
+					() => FetchAndCacheAsync(site, key, tiltAngle, prioritized, time, cacheFile, localUrl, cancellationToken),
+					(ex, attempt) =>
 					{
-						var rawBytes = await File.ReadAllBytesAsync(rawFile, cancellationToken);
-						toWrite = await RadarCpuWork.Run(() => ExtractTilt(rawBytes, site.Id, tiltAngle), cancellationToken, urgent: prioritized);
-						fromLocalRaw = toWrite is not null;
-
-						// The raw IS the whole volume (and it's written atomically, so a file on disk is
-						// complete). If the tilt isn't in it, the tilt does not exist — re-downloading the
-						// same bytes to rediscover that would be pure waste. Say so now.
-						if (toWrite is null && tiltAngle is not null)
-						{
-							RadarDiagnostics.Log("svc", "extract", ("site", site.Id), ("lvl", "warn"),
-								("msg", $"tilt {tiltAngle:0.00}° not in cached volume {key}"));
-							return null;
-						}
-					}
-					catch (OperationCanceledException) { throw; }
-					catch { /* a corrupt/unreadable raw just falls through to the network paths below */ }
-				}
-
-				// FAST PATH (base tilt, raw/modern volumes): the lowest tilt lives at the START of the
-				// file, so range-GET just a leading prefix and extract from that — a few MB instead of the
-				// whole ~10-30 MB volume, cutting download time for both first paint and every backfill
-				// frame. Only when that prefix doesn't already hold a COMPLETE tilt (completedTilt) do we
-				// fall back to the full download below. (.gz historical/legacy files aren't range-friendly
-				// — a partial gzip stream can't be relied on — so they always take the full path.)
-				//
-				// A HIGHER tilt can't use this: it isn't at the file start, so the prefix wouldn't contain
-				// it. Higher tilts go straight to the full download (or, above, the prefetched raw).
-				if (toWrite is null && tiltAngle is null && !isGz)
-				{
-					// The newest frame (prioritized) parallelizes the prefix download — a single S3 stream is
-					// throughput-limited/variable, so the newest-alone fetch (the first-paint gate) was hitting
-					// ~3.7 s for 5 MB; parallel sub-ranges make it a reliable ~0.8 s. Backfill stays single (it
-					// already runs many frames concurrently = multi-stream across frames).
-					var prefix = prioritized
-						? await TryGetRangePrefixParallelAsync(key, LowestTiltPrefixBytes, cancellationToken)
-						: await TryGetRangeAsync(key, LowestTiltPrefixBytes, cancellationToken);
-					if (prefix is not null)
-					{
-						toWrite = await RadarCpuWork.Run(() =>
-						{
-							try
-							{
-								var tilt = TryExtractLowestTilt(prefix, site.Id, out var completedTilt);
-								return completedTilt ? tilt : null; // truncated prefix -> trigger a full download
-							}
-							catch
-							{
-								return null;
-							}
-						}, cancellationToken, urgent: prioritized);
-					}
-				}
-
-				// STREAMED .gz (base tilt): a gzip stream DOES decode front to back — only its trailing CRC needs the
-				// whole file — and the base tilt sits at the start. So stream it, gunzip what has arrived every few
-				// hundred KB, and stop the download the moment a COMPLETE base tilt comes out. Measured 2026-10-02
-				// (TiltCheck --gzprefix, real 2011/2013 KTLX/KHTX/KSGF volumes): 18-25% of the download, the tilt
-				// byte-identical to the whole file's. No complete tilt by end of file (pre-2008 volumes cut no tilt)
-				// → the bytes already downloaded go to the FULL DOWNLOAD path below, unchanged: nothing fetches twice.
-				byte[]? streamedGz = null;
-				if (toWrite is null && tiltAngle is null && isGz)
-				{
-					using var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-					response.EnsureSuccessStatusCode();
-					await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);
-					(toWrite, streamedGz) = await StreamGzBaseTiltAsync(body, site.Id, ChargeChunkAsync, prioritized, cancellationToken);
-				}
-
-				// FULL DOWNLOAD: a higher tilt with no prefetched raw, a .gz file, a prefix too short to
-				// hold the whole tilt, or a failed range request. Extract on a worker thread.
-				//
-				// On extraction failure the BASE tilt falls back to caching the whole volume — the JS
-				// decoder reads that fine and its Math.min(elevations) still lands on the base tilt, so the
-				// result is correct, just slower. That fallback is WRONG for a higher tilt and must not be
-				// taken: the whole volume would decode to Math.min = the BASE tilt, silently painting 0.5°
-				// while the combo reads 2.4°. Returning null instead lets the caller fall back to the base
-				// tilt honestly (see LoadLoopCoreAsync). This is the path legacy .gz volumes take — they
-				// gunzip to a fully-uncompressed AR2V with no bzip2 LDM records, which no tilt extraction
-				// can walk, so they have no tilt selection at all.
-				if (toWrite is null)
-				{
-					// ⚠️ The first-paint frame splits this whole-object download across parallel sub-ranges;
-					// the backfill deliberately does NOT. Same rule as the prefix path above: a replay backfill
-					// runs up to 12 frames at once, so splitting each into 4 would open ~48 S3 connections and
-					// over-subscribe the link without adding bandwidth. Only the frame nothing else is waiting
-					// behind gets its own streams.
-					// ⚠️ A LEGACY .gz reaches this only when the STREAMED path above found no complete base tilt in
-					// the whole file (streamedGz = those bytes, reused) or wants a higher tilt. (This comment used to
-					// say a partial gzip stream isn't decompressible — it is, front to back; it can't be RANGE-read
-					// from the middle, which is a different thing.) Measured 2026-09-08: a cold site sat 13 s before
-					// its first extract event, the whole of a 16 s first paint — fetch dominates a replay.
-					byte[]? raw = streamedGz ?? (prioritized
-						? await GetFullParallelAsync(key, cancellationToken)
-						: null);
-					if (raw is null)
-					{
-						using var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-						response.EnsureSuccessStatusCode();
-						raw = await ReadBodyAsync(response.Content, cancellationToken);
-					}
-					var (extracted, volume) = await RadarCpuWork.Run<(byte[]?, byte[]?)>(() =>
-					{
-						try
-						{
-							var data = isGz ? Gunzip(raw) : raw;
-							var tilt = ExtractTilt(data, site.Id, tiltAngle);
-							return (tilt ?? (tiltAngle is null ? data : null), data);
-						}
-						catch (Exception ex)
-						{
-							_logger.LogWarning(ex, "{Site} tilt extract failed, caching raw volume", site.Id);
-							return (tiltAngle is null ? raw : null, null);
-						}
-					}, cancellationToken, urgent: prioritized);
-					toWrite = extracted;
-					fullVolume = volume;
-				}
-
-				if (toWrite is null)
-				{
-					// The volume genuinely has no cut at this angle (a VCP whose table and radials
-					// disagree). Report it rather than caching a bogus file.
-					RadarDiagnostics.Log("svc", "extract", ("site", site.Id), ("lvl", "warn"),
-						("msg", $"no tilt {tiltAngle:0.00}° in {key}"));
-					return null;
-				}
-
-				await WriteCacheFileAsync(cacheFile, toWrite, cancellationToken);
-				var syncAt = RadarPerfCounters.BeginSync(); // perf.ui: the tail below runs on the caller's context
-				MaybeSweepAfterWrite(); // the folder just grew — see the note over MaybeSweepAfterWrite
-
-				// Having paid for the whole volume, keep it: every OTHER tilt is now a local extract. This
-				// is the same bytes the prefetch would fetch, so retaining costs disk we'd have spent
-				// anyway, and it means a tilt switch that outran the prefetch doesn't re-download. Skipped
-				// for .gz (legacy volumes predate dual-pol/tilt interest and often don't extract at all).
-				if (fullVolume is not null && !isGz)
-				{
-					RadarPerfCounters.EndSync(syncAt);
-					await WriteRawAsync(rawFile, fullVolume, cancellationToken);
-					syncAt = RadarPerfCounters.BeginSync();
-				}
-
-				var (mode, vcp) = ModeTextFromTilt(toWrite); // VCP + regime for the archive/replay scan line
-				var tilts = ReadElevationAnglesFromExtractedTilt(toWrite);
-				RadarPerfCounters.EndSync(syncAt);
-				return Noted(new RadarVolume(localUrl, site, time, mode, tilts, tiltAngle,
-					fromLocalRaw ? RadarVolumeSource.LocalRaw : RadarVolumeSource.Network), vcp);
+						_logger.LogInformation("{Site} fetch {Key} attempt {Attempt} failed, retrying: {Error}", site.Id, key, attempt, ex.Message);
+						RadarDiagnostics.Log("svc", "fetch.retry", ("site", site.Id), ("key", key), ("attempt", attempt),
+							("msg", $"{ex.GetType().Name}: {ex.Message}"));
+					},
+					cancellationToken);
 			}
 			catch (OperationCanceledException)
 			{
@@ -507,6 +354,213 @@ namespace Anvil.Services
 					("msg", $"{ex.GetType().Name}: {ex.Message}"));
 				return null;
 			}
+		}
+
+		// One attempt at fetching an uncached volume, extracting its tilt and caching it. Throws on any failure —
+		// EnsureCachedCoreAsync retries the transient ones and turns the rest into a logged null.
+		private async Task<RadarVolume?> FetchAndCacheAsync(RadarSite site, string key, float? tiltAngle, bool prioritized,
+			DateTimeOffset time, string cacheFile, string localUrl, CancellationToken cancellationToken)
+		{
+			// Archived volumes (older dates) are gzip-wrapped (key ends ".gz"); the underlying
+			// bytes are the same AR2V format the extractor expects, so gunzip first. Recent volumes
+			// are stored raw, so the gunzip only runs for the historical Past Event Viewer fetches.
+			var isGz = key.EndsWith(".gz", StringComparison.Ordinal);
+
+			byte[]? toWrite = null;
+			byte[]? fullVolume = null; // set only when we downloaded the whole thing (-> retain as .raw)
+			var fromLocalRaw = false;  // the tilt came out of a prefetched raw on disk (the load-time log's source)
+
+			// PREFETCHED RAW: one volume download holds EVERY tilt, so if the background prefetch has
+			// already pulled this volume, any tilt is a local decompress — no network at all. This is
+			// what makes switching tilts feel like switching products (see PrefetchRawVolumesAsync).
+			var rawFile = RawCacheFileFor(site.Id, time);
+			if (File.Exists(rawFile))
+			{
+				try
+				{
+					var rawBytes = await File.ReadAllBytesAsync(rawFile, cancellationToken);
+					toWrite = await RadarCpuWork.Run(() => ExtractTilt(rawBytes, site.Id, tiltAngle), cancellationToken, urgent: prioritized);
+					fromLocalRaw = toWrite is not null;
+
+					// The raw IS the whole volume (and it's written atomically, so a file on disk is
+					// complete). If the tilt isn't in it, the tilt does not exist — re-downloading the
+					// same bytes to rediscover that would be pure waste. Say so now.
+					if (toWrite is null && tiltAngle is not null)
+					{
+						RadarDiagnostics.Log("svc", "extract", ("site", site.Id), ("lvl", "warn"),
+							("msg", $"tilt {tiltAngle:0.00}° not in cached volume {key}"));
+						return null;
+					}
+				}
+				catch (OperationCanceledException) { throw; }
+				catch { /* a corrupt/unreadable raw just falls through to the network paths below */ }
+			}
+
+			// FAST PATH (base tilt, raw/modern volumes): the lowest tilt lives at the START of the
+			// file, so range-GET just a leading prefix and extract from that — a few MB instead of the
+			// whole ~10-30 MB volume, cutting download time for both first paint and every backfill
+			// frame. Only when that prefix doesn't already hold a COMPLETE tilt (completedTilt) do we
+			// fall back to the full download below. (.gz historical/legacy files aren't range-friendly
+			// — a partial gzip stream can't be relied on — so they always take the full path.)
+			//
+			// A HIGHER tilt can't use this: it isn't at the file start, so the prefix wouldn't contain
+			// it. Higher tilts go straight to the full download (or, above, the prefetched raw).
+			if (toWrite is null && tiltAngle is null && !isGz)
+			{
+				// The newest frame (prioritized) parallelizes the prefix download — a single S3 stream is
+				// throughput-limited/variable, so the newest-alone fetch (the first-paint gate) was hitting
+				// ~3.7 s for 5 MB; parallel sub-ranges make it a reliable ~0.8 s. Backfill stays single (it
+				// already runs many frames concurrently = multi-stream across frames).
+				var prefix = prioritized
+					? await TryGetRangePrefixParallelAsync(key, LowestTiltPrefixBytes, cancellationToken)
+					: await TryGetRangeAsync(key, LowestTiltPrefixBytes, cancellationToken);
+				if (prefix is not null)
+				{
+					toWrite = await RadarCpuWork.Run(() =>
+					{
+						try
+						{
+							var tilt = TryExtractLowestTilt(prefix, site.Id, out var completedTilt);
+							return completedTilt ? tilt : null; // truncated prefix -> trigger a full download
+						}
+						catch
+						{
+							return null;
+						}
+					}, cancellationToken, urgent: prioritized);
+				}
+			}
+
+			// STREAMED .gz (base tilt): a gzip stream DOES decode front to back — only its trailing CRC needs the
+			// whole file — and the base tilt sits at the start. So stream it, gunzip what has arrived every few
+			// hundred KB, and stop the download the moment a COMPLETE base tilt comes out. Measured 2026-10-02
+			// (TiltCheck --gzprefix, real 2011/2013 KTLX/KHTX/KSGF volumes): 18-25% of the download, the tilt
+			// byte-identical to the whole file's. No complete tilt by end of file (pre-2008 volumes cut no tilt)
+			// → the bytes already downloaded go to the FULL DOWNLOAD path below, unchanged: nothing fetches twice.
+			byte[]? streamedGz = null;
+			if (toWrite is null && tiltAngle is null && isGz)
+			{
+				using var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+				response.EnsureSuccessStatusCode();
+				await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);
+				(toWrite, streamedGz) = await StreamGzBaseTiltAsync(body, site.Id, ChargeChunkAsync, prioritized, cancellationToken);
+			}
+
+			// FULL DOWNLOAD: a higher tilt with no prefetched raw, a .gz file, a prefix too short to
+			// hold the whole tilt, or a failed range request. Extract on a worker thread.
+			//
+			// On extraction failure the BASE tilt falls back to caching the whole volume — the JS
+			// decoder reads that fine and its Math.min(elevations) still lands on the base tilt, so the
+			// result is correct, just slower. That fallback is WRONG for a higher tilt and must not be
+			// taken: the whole volume would decode to Math.min = the BASE tilt, silently painting 0.5°
+			// while the combo reads 2.4°. Returning null instead lets the caller fall back to the base
+			// tilt honestly (see LoadLoopCoreAsync). This is the path legacy .gz volumes take — they
+			// gunzip to a fully-uncompressed AR2V with no bzip2 LDM records, which no tilt extraction
+			// can walk, so they have no tilt selection at all.
+			if (toWrite is null)
+			{
+				// ⚠️ The first-paint frame splits this whole-object download across parallel sub-ranges;
+				// the backfill deliberately does NOT. Same rule as the prefix path above: a replay backfill
+				// runs up to 12 frames at once, so splitting each into 4 would open ~48 S3 connections and
+				// over-subscribe the link without adding bandwidth. Only the frame nothing else is waiting
+				// behind gets its own streams.
+				// ⚠️ A LEGACY .gz reaches this only when the STREAMED path above found no complete base tilt in
+				// the whole file (streamedGz = those bytes, reused) or wants a higher tilt. (This comment used to
+				// say a partial gzip stream isn't decompressible — it is, front to back; it can't be RANGE-read
+				// from the middle, which is a different thing.) Measured 2026-09-08: a cold site sat 13 s before
+				// its first extract event, the whole of a 16 s first paint — fetch dominates a replay.
+				byte[]? raw = streamedGz ?? (prioritized
+					? await GetFullParallelAsync(key, cancellationToken)
+					: null);
+				if (raw is null)
+				{
+					using var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+					response.EnsureSuccessStatusCode();
+					raw = await ReadBodyAsync(response.Content, cancellationToken);
+				}
+				var (extracted, volume) = await RadarCpuWork.Run<(byte[]?, byte[]?)>(() =>
+				{
+					try
+					{
+						var data = isGz ? Gunzip(raw) : raw;
+						var tilt = ExtractTilt(data, site.Id, tiltAngle);
+						return (tilt ?? (tiltAngle is null ? data : null), data);
+					}
+					catch (Exception ex)
+					{
+						_logger.LogWarning(ex, "{Site} tilt extract failed, caching raw volume", site.Id);
+						return (tiltAngle is null ? raw : null, null);
+					}
+				}, cancellationToken, urgent: prioritized);
+				toWrite = extracted;
+				fullVolume = volume;
+			}
+
+			if (toWrite is null)
+			{
+				// The volume genuinely has no cut at this angle (a VCP whose table and radials
+				// disagree). Report it rather than caching a bogus file.
+				RadarDiagnostics.Log("svc", "extract", ("site", site.Id), ("lvl", "warn"),
+					("msg", $"no tilt {tiltAngle:0.00}° in {key}"));
+				return null;
+			}
+
+			await WriteCacheFileAsync(cacheFile, toWrite, cancellationToken);
+			var syncAt = RadarPerfCounters.BeginSync(); // perf.ui: the tail below runs on the caller's context
+			MaybeSweepAfterWrite(); // the folder just grew — see the note over MaybeSweepAfterWrite
+
+			// Having paid for the whole volume, keep it: every OTHER tilt is now a local extract. This
+			// is the same bytes the prefetch would fetch, so retaining costs disk we'd have spent
+			// anyway, and it means a tilt switch that outran the prefetch doesn't re-download. Skipped
+			// for .gz (legacy volumes predate dual-pol/tilt interest and often don't extract at all).
+			if (fullVolume is not null && !isGz)
+			{
+				RadarPerfCounters.EndSync(syncAt);
+				await WriteRawAsync(rawFile, fullVolume, cancellationToken);
+				syncAt = RadarPerfCounters.BeginSync();
+			}
+
+			var (mode, vcp) = ModeTextFromTilt(toWrite); // VCP + regime for the archive/replay scan line
+			var tilts = ReadElevationAnglesFromExtractedTilt(toWrite);
+			RadarPerfCounters.EndSync(syncAt);
+			return Noted(new RadarVolume(localUrl, site, time, mode, tilts, tiltAngle,
+				fromLocalRaw ? RadarVolumeSource.LocalRaw : RadarVolumeSource.Network), vcp);
+		}
+
+		// ── Transient fetch failures ──────────────────────────────────────────────────────────────────────────────
+		// A replay pulls dozens of volumes at once; on a long run one connection WILL drop now and then. Retrying is safe:
+		// every attempt starts from scratch and the cache write is atomic. A file that isn't there (404/403) is not retried.
+		internal const int FetchAttempts = 3;
+
+		internal static async Task<T> RetryTransientAsync<T>(Func<Task<T>> fetch, Action<Exception, int> onRetry,
+			CancellationToken ct, Func<int, TimeSpan>? delay = null)
+		{
+			for (var attempt = 1; ; attempt++)
+			{
+				try
+				{
+					return await fetch();
+				}
+				catch (Exception ex) when (attempt < FetchAttempts && IsTransientFetchFailure(ex, ct))
+				{
+					onRetry(ex, attempt);
+					await Task.Delay(delay?.Invoke(attempt) ?? TimeSpan.FromMilliseconds(500 * attempt), ct);
+				}
+			}
+		}
+
+		internal static bool IsTransientFetchFailure(Exception ex, CancellationToken ct)
+		{
+			if (ct.IsCancellationRequested) return false; // the load was cancelled — never fight it
+			return ex switch
+			{
+				HttpRequestException { StatusCode: null } => true, // reset, refused, TLS or DNS: no response at all
+				HttpRequestException { StatusCode: { } status } => (int)status >= 500
+					|| status is System.Net.HttpStatusCode.RequestTimeout or System.Net.HttpStatusCode.TooManyRequests,
+				TaskCanceledException { InnerException: TimeoutException } => true, // HttpClient's own timeout, not ours
+				IOException => true, // the body stream dropped mid-read
+				_ => false,
+			};
 		}
 
 		// How many velocity tilts (base + higher) to feed the full-volume storm-motion VAD, and the angle

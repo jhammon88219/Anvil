@@ -10,14 +10,15 @@ namespace Anvil.ViewModels
 {
 	/// <summary>
 	/// DEV-ONLY automated LOAD-TIME SEEDING RUN (Settings → Dev). Plays every built-in saved event through the real
-	/// PastCast load path at each ticked window length, once COLD (that window's cached files and the page's decoded
-	/// frames forgotten first) and once WARM (straight after, everything cached), so the load-time log
-	/// (<see cref="LoopLoadLog"/>, Debug-only) fills with comparable pairs. You watch it run; it waits for each loop to
-	/// finish, presses "View event" itself, pauses, and moves on.
+	/// PastCast load path at each ticked window length, in up to three passes (<see cref="SeedPass"/>): COLD (that window's
+	/// cached files and the page's decoded frames forgotten first), WARM (straight after, everything cached — a reload in
+	/// the same session) and REVISIT (files kept, decoded frames forgotten — coming back to an event another day), so the
+	/// load-time log (<see cref="LoopLoadLog"/>, Debug-only) fills with comparable sets. You watch it run; it waits for
+	/// each loop to finish, presses "View event" itself, pauses, and moves on.
 	/// </summary>
 	/// <remarks>
-	/// ⚠️ Order per event: windows SHORTEST first, each cold then warm — a longer window's cold pass forgets the shorter
-	/// one's files too, so every cold pass really is cold. The window starts at the event's default leg start.
+	/// ⚠️ Order per event: windows SHORTEST first, each cold → warm → revisit — a longer window's cold pass forgets the
+	/// shorter one's files too, so every cold pass really is cold. The window starts at the event's default leg start.
 	/// ⚠️ The speed cap (<see cref="DevBandwidthLimit"/>) is process-wide and stays on after the run until set back to 0.
 	/// ⚠️ Same Debug-only lifetime as SiteSweepViewModel: MainWindow builds it under #if DEBUG; the Dev tab is its only door.
 	/// Threading: driven from the UI thread, never ConfigureAwait(false) — it writes the pickers and the site.
@@ -50,9 +51,12 @@ namespace Anvil.ViewModels
 		/// <summary>One box per window length (default 1, 2 and 3 hours).</summary>
 		public IReadOnlyList<SeedWindowOption> Windows { get; }
 
-		private bool _cold = true, _warm = true, _tornado = true, _hurricane = true, _derecho = true;
+		private bool _cold = true, _warm = true, _revisit = true, _tornado = true, _hurricane = true, _derecho = true;
 		public bool Cold { get => _cold; set { if (SetProperty(ref _cold, value)) OnChoiceChanged(); } }
 		public bool Warm { get => _warm; set { if (SetProperty(ref _warm, value)) OnChoiceChanged(); } }
+		/// <summary>Files on disk, nothing decoded: the WARM pass keeps the page's decoded frames, so it measured a reload
+		/// in the same session (most frames already drawn), not the usual return to an event (2026-10-02 run).</summary>
+		public bool Revisit { get => _revisit; set { if (SetProperty(ref _revisit, value)) OnChoiceChanged(); } }
 		public bool Tornado { get => _tornado; set { if (SetProperty(ref _tornado, value)) OnChoiceChanged(); } }
 		public bool Hurricane { get => _hurricane; set { if (SetProperty(ref _hurricane, value)) OnChoiceChanged(); } }
 		public bool Derecho { get => _derecho; set { if (SetProperty(ref _derecho, value)) OnChoiceChanged(); } }
@@ -86,12 +90,22 @@ namespace Anvil.ViewModels
 			{
 				var events = Events().Count;
 				var windows = Windows.Count(w => w.IsChecked);
-				var passes = (_cold ? 1 : 0) + (_warm ? 1 : 0);
+				var passes = Passes().Count;
 				return $"{events} events × {windows} windows × {passes} pass{(passes == 1 ? "" : "es")} = {events * windows * passes} loads";
 			}
 		}
 
 		private void OnChoiceChanged() => OnPropertyChanged(nameof(PlanText));
+
+		// The ticked passes in run order: cold first (it empties the cache the other two then use).
+		private List<SeedPass> Passes()
+		{
+			var passes = new List<SeedPass>();
+			if (_cold) passes.Add(SeedPass.Cold);
+			if (_warm) passes.Add(SeedPass.Warm);
+			if (_revisit) passes.Add(SeedPass.Revisit);
+			return passes;
+		}
 
 		private List<SavedEvent> Events() => _library.GetEvents()
 			.Where(e => e.IsBuiltIn && e.Kind switch
@@ -121,9 +135,7 @@ namespace Anvil.ViewModels
 			}
 			var events = Events();
 			var windows = Windows.Where(w => w.IsChecked).Select(w => w.Minutes).OrderBy(m => m).ToList();
-			var passes = new List<bool>(); // true = cold
-			if (_cold) passes.Add(true);
-			if (_warm) passes.Add(false);
+			var passes = Passes();
 			var total = events.Count * windows.Count * passes.Count;
 			if (total == 0)
 			{
@@ -150,12 +162,13 @@ namespace Anvil.ViewModels
 					}
 					foreach (var minutes in windows)
 					{
-						foreach (var cold in passes)
+						foreach (var pass in passes)
 						{
 							if (_stop) return;
 							done++;
-							var label = $"{done}/{total} · {ev.Name} · {option.Site.Id} · {Hours(minutes)} · {(cold ? "cold" : "warm")}";
-							await LoadOneAsync(ev, leg, option, minutes, cold, $"{runId}|{(cold ? "cold" : "warm")}|{minutes}m", label);
+							var name = pass.ToString().ToLowerInvariant(); // the log's run tag: "cold" / "warm" / "revisit"
+							var label = $"{done}/{total} · {ev.Name} · {option.Site.Id} · {Hours(minutes)} · {name}";
+							await LoadOneAsync(ev, leg, option, minutes, pass, $"{runId}|{name}|{minutes}m", label);
 							if (_stop) return;
 							await Pause(label);
 						}
@@ -171,14 +184,17 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		private async Task LoadOneAsync(SavedEvent ev, SavedEventLeg leg, RadarOption option, int minutes, bool cold, string tag, string label)
+		private async Task LoadOneAsync(SavedEvent ev, SavedEventLeg leg, RadarOption option, int minutes, SeedPass pass, string tag, string label)
 		{
 			var start = leg.StartUtc;
-			if (cold)
+			if (pass == SeedPass.Cold)
 			{
 				var forgotten = _radarService.ForgetCachedRange(option.Site!.Id, start, start.AddMinutes(minutes));
-				await _mapService.ForgetRadarDecodesAsync();
 				StatusText = $"{label} · forgot {forgotten} cached files";
+			}
+			if (pass != SeedPass.Warm)
+			{
+				await _mapService.ForgetRadarDecodesAsync(); // cold + revisit: nothing already drawn
 			}
 
 			_radar.ApplyReplayWindow(start, minutes);
@@ -217,6 +233,17 @@ namespace Anvil.ViewModels
 		}
 
 		private static string Hours(int minutes) => minutes < 60 ? $"{minutes} min" : $"{minutes / 60} hr";
+	}
+
+	/// <summary>A seeding pass — what is already on hand when the load starts.</summary>
+	public enum SeedPass
+	{
+		/// <summary>Nothing: the window's files and the page's decoded frames are forgotten first.</summary>
+		Cold,
+		/// <summary>Everything: files on disk AND frames still decoded in the page (a reload in the same session).</summary>
+		Warm,
+		/// <summary>Files on disk, decoded frames forgotten (coming back to an event another day).</summary>
+		Revisit,
 	}
 
 	/// <summary>One window-length box on the seeding card.</summary>

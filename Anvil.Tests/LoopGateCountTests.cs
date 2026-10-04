@@ -19,7 +19,7 @@ namespace Anvil.Tests
 	{
 		private static readonly RadarSite Ktlx = new("KTLX", "Norman", 35.333, -97.278);
 
-		private static async Task<RadarViewModel> LoadedThreeFrames()
+		private static async Task<RadarViewModel> LoadedThreeFrames(Action<LoopHoldingGateViewModel>? beforeLoad = null)
 		{
 			var settings = new AppSettings { HoldPastCastLoads = true };
 			var svc = Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
@@ -38,6 +38,7 @@ namespace Anvil.Tests
 			radar.PastEventDate = new DateTimeOffset(2024, 5, 6, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2024, 5, 6)));
 			radar.PastEventTime = new TimeSpan(22, 30, 0);
 			radar.PastEventDurationIndex = 0; // 30 min
+			beforeLoad?.Invoke(radar.LoopGate);
 			Assert.True(await radar.LoadSelectedPastEventAsync());
 			return radar;
 		}
@@ -59,6 +60,41 @@ namespace Anvil.Tests
 			radar.SetBuildProgress(3, 3, new[] { true, true, true }, new[] { true, true, true });
 			Assert.Equal(3, radar.LoopGate.Built);
 			Assert.False(radar.LoopGate.IsLoading);       // released
+		}
+
+		// The load-time log's window is the one the load ASKED for. The loaded-window readouts are set only after the load
+		// returns, and a load whose frames settle as its backfill ends measured before that — logging the previous load's
+		// window (Rainsville 3 h seeding load logged as 2 h, 2026-10-02).
+		[Fact]
+		public async Task A_load_measures_the_window_it_asked_for()
+		{
+			var measured = new List<LoopLoadTiming>();
+			var radar = await LoadedThreeFrames(gate => gate.LoadMeasured += (_, t) => measured.Add(t));
+			for (var i = 0; i < 3; i++) radar.OnRadarFrameReady(i, hasData: true);
+			radar.SetBuildProgress(3, 3, new[] { true, true, true }, new[] { true, true, true });
+
+			var timing = Assert.Single(measured);
+			Assert.Equal(30, timing.WindowMinutes);
+			Assert.Equal(radar.LoadedReplayStartUtc, timing.WindowStartUtc);
+			Assert.NotNull(timing.WindowStartUtc);
+		}
+
+		[Fact]
+		public void The_record_takes_the_measured_window_over_the_loaded_one()
+		{
+			var settings = new AppSettings();
+			var svc = Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
+			var radar = new RadarViewModel(Null<IMapService>.Create(), Null<IRadarSiteProvider>.Create(),
+				Null<ILevel2RadarService>.Create(), Null<IDowEventProvider>.Create(), svc, null); // nothing loaded yet
+			var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"anvil-loadlog-{Guid.NewGuid():N}");
+			var recorder = new LoopLoadRecorder(radar, new LoopLoadLog(Microsoft.Extensions.Logging.Abstractions.NullLogger<LoopLoadLog>.Instance, dir));
+			var start = new DateTimeOffset(2011, 4, 27, 22, 45, 0, TimeSpan.Zero);
+
+			var record = recorder.Build(new LoopLoadTiming("KFFC", "rainsville-2011", LoopLoadOutcome.Finished, 39, 38, 35, 0,
+				25_719, 700, null, null, false, true) { WindowStartUtc = start, WindowMinutes = 180 }, DateTimeOffset.UtcNow);
+
+			Assert.Equal(start, record.WindowStartUtc);
+			Assert.Equal(180, record.WindowMinutes);
 		}
 	}
 }

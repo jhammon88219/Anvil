@@ -34,8 +34,10 @@ namespace Anvil.ViewModels
 
 		internal LoopLoadRecord Build(LoopLoadTiming t, DateTimeOffset now)
 		{
-			var start = _radar.LoadedReplayStartUtc;
-			var minutes = start is { } s && _radar.LoadedReplayEndUtc is { } e ? (int)Math.Round((e - s).TotalMinutes) : 0;
+			// The window the load ASKED for (see LoopHoldingGateViewModel._windowStartUtc); the loaded window only as a fallback.
+			var start = t.WindowStartUtc ?? _radar.LoadedReplayStartUtc;
+			var minutes = t.WindowStartUtc is not null ? t.WindowMinutes
+				: start is { } s && _radar.LoadedReplayEndUtc is { } e ? (int)Math.Round((e - s).TotalMinutes) : 0;
 			var panes = Math.Max(1, _radar.VisiblePaneCount);
 			var products = _radar.Panes.Take(panes).Select(p => p.ProductId).Distinct().ToArray();
 			return new LoopLoadRecord(

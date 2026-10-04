@@ -201,8 +201,16 @@ namespace Anvil.ViewModels
 				FrameDetail = _sources.OrderBy(p => p.Key)
 					.Select(p => new[] { p.Key, (long)p.Value.Source, p.Value.Bytes, p.Value.FetchMs, p.Value.LandedMs }).ToArray(),
 				Progress = _progress.ToArray(),
+				WindowStartUtc = _windowStartUtc,
+				WindowMinutes = _windowMinutes,
 			});
 		}
+
+		// The window THIS load asked for. ⚠️ The loaded-window readouts (RadarViewModel.LoadedReplay*) are set only after
+		// the load returns, and a load whose last frame settles as its backfill ends measures BEFORE that — it logged the
+		// previous load's window (Rainsville 3 h seeding load logged as 2 h, 2026-10-02).
+		private DateTimeOffset? _windowStartUtc;
+		private int _windowMinutes;
 
 		/// <summary>Bytes downloaded by the whole process so far (the log takes the difference across a load). Swappable for tests.</summary>
 		internal Func<long> TotalBytes { get; set; } = () => Level2RadarService.TotalBytesDownloaded;
@@ -274,9 +282,11 @@ namespace Anvil.ViewModels
 
 		/// <summary>A PastCast load with a site is starting. The gate stays hidden when holding is turned off, but
 		/// the load is tracked either way.</summary>
-		internal void Begin(string siteId, string eventLine)
+		internal void Begin(string siteId, string eventLine, DateTimeOffset? windowStartUtc = null, int windowMinutes = 0)
 		{
 			if (_loading) Measure(LoopLoadOutcome.Abandoned); // superseded by this load
+			_windowStartUtc = windowStartUtc;
+			_windowMinutes = windowMinutes;
 			_armed = false;
 			NeverHoldAgain = false;
 			SetCounts(0, 0, 0);

@@ -29,9 +29,10 @@
        │   └────────────────────────────────────────────┘     │
        │   what it does…                                      │
        │   Windows [ ]30 min [x]1 hr [x]2 hr [x]3 hr [ ]6 hr …│
-       │   [x]Cold [x]Warm │ [x]Tornado [x]Hurricane [x]Derecho│
+       │   [x]Cold [x]Warm [x]Revisit                         │  ← revisit = files kept, decoded frames forgotten
+       │   [x]Tornado [x]Hurricane [x]Derecho                 │
        │   Speed cap Mbps [0]  Pause s [10]  Timeout min [20] │  ← cap = DevBandwidthLimit (all radar downloads)
-       │   28 events × 3 windows × 2 passes = 168 loads       │
+       │   17 events × 3 windows × 3 passes = 153 loads       │
        │   ( Start ) ( Stop )                                 │
        └──────────────────────────────────────────────────────┘
 
@@ -242,15 +243,20 @@
                     </ItemsControl>
                 </StackPanel>
 
-                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
-                    <CheckBox Content="Cold" MinWidth="0" IsChecked="{x:Bind SeedVm.Cold, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Forget the window's cached files and decoded frames, then load"/>
-                    <CheckBox Content="Warm" MinWidth="0" IsChecked="{x:Bind SeedVm.Warm, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Load the same window again with everything cached"/>
-                    <Border Width="1" Margin="4,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                    <CheckBox Content="Tornado" MinWidth="0" IsChecked="{x:Bind SeedVm.Tornado, Mode=TwoWay}"/>
-                    <CheckBox Content="Hurricane" MinWidth="0" IsChecked="{x:Bind SeedVm.Hurricane, Mode=TwoWay}"/>
-                    <CheckBox Content="Derecho" MinWidth="0" IsChecked="{x:Bind SeedVm.Derecho, Mode=TwoWay}"/>
+                <StackPanel Grid.Row="3" Spacing="4">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <CheckBox Content="Cold" MinWidth="0" IsChecked="{x:Bind SeedVm.Cold, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Forget the window's cached files and decoded frames, then load"/>
+                        <CheckBox Content="Warm" MinWidth="0" IsChecked="{x:Bind SeedVm.Warm, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Load the same window again with everything cached, decoded frames included (a reload in the same session)"/>
+                        <CheckBox Content="Revisit" MinWidth="0" IsChecked="{x:Bind SeedVm.Revisit, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Keep the cached files but forget the decoded frames, then load (coming back to an event another day)"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <CheckBox Content="Tornado" MinWidth="0" IsChecked="{x:Bind SeedVm.Tornado, Mode=TwoWay}"/>
+                        <CheckBox Content="Hurricane" MinWidth="0" IsChecked="{x:Bind SeedVm.Hurricane, Mode=TwoWay}"/>
+                        <CheckBox Content="Derecho" MinWidth="0" IsChecked="{x:Bind SeedVm.Derecho, Mode=TwoWay}"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <Grid Grid.Row="4" ColumnSpacing="8"> <!-- (read once at Start: a change mid-run waits for the next run) -->
