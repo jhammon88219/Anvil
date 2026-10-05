@@ -116,6 +116,32 @@
       ]
     },
     {
+      "id": "sulphur-2024",
+      "type": "tornado",
+      "name": "Sulphur, OK",
+      "notes": "EF3, 165 mph through downtown Sulphur at night - 1 killed, 30 injured.",
+      "source": "NWS Norman event summary (Apr 27 2024): tornado 10:25-10:37 PM CDT (03:25-03:37Z Apr 28)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KTLX", "startUtc": "2024-04-28T02:30:00Z", "minutes": 120,
+          "key": { "startUtc": "2024-04-28T03:25:00Z", "endUtc": "2024-04-28T03:37:00Z" } }
+      ]
+    },
+    {
+      "id": "hollister-2024",
+      "type": "tornado",
+      "name": "Hollister, OK",
+      "notes": "High-end EF1, rain-wrapped in rural Tillman County - one of the strongest velocity couplets ever sampled, ~10 miles from KFDR.",
+      "source": "NWS Norman event summary (Apr 30 2024): tornado 8:32-9:12 PM CST (02:32-03:12Z May 1)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KFDR", "startUtc": "2024-05-01T02:00:00Z", "minutes": 120,
+          "key": { "startUtc": "2024-05-01T02:32:00Z", "endUtc": "2024-05-01T03:12:00Z" } },
+        { "site": "KTLX", "startUtc": "2024-05-01T02:00:00Z", "minutes": 120,
+          "key": { "startUtc": "2024-05-01T02:32:00Z", "endUtc": "2024-05-01T03:12:00Z" } }
+      ]
+    },
+    {
       "id": "katrina-2005",
       "type": "hurricane",
       "name": "Hurricane Katrina",
