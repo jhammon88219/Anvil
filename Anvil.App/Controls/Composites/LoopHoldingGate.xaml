@@ -12,12 +12,13 @@
        ┌───────────────────────── map band, blurred + dimmed ─────────────────────┐
        │                                                                           │
        │   ╭─────────────────────────────────────────────────────────────────╮     │ ← EVENT BAND, AT LEAST 560 (the
-       │   │ ≋   Loading May 3, 1999 Bridge Creek-Moore, OK                  │     │   bars' width): the type pill's
-       │   │     KTLX · Mon May 3, 1999 · 6:00 PM–8:00 PM                    │     │   INK on its deep shade; 40 px
-       │   ╰─────────────────────────────────────────────────────────────────╯     │   picture LEFT. The title is ONE
-       │                              ↕ 22                                         │   line — a long one grows the band
-       │        This is raw radar data, not a video. A radar sends a new scan …    │   sideways, the bars never move.
-       │                              ↕ 28                                         │ ← WHY (WhyText), 17 pt, 400 wide
+       │   │        ≋   Loading May 3, 1999 Bridge Creek-Moore, OK           │     │   bars' width): the type pill's
+       │   │              KTLX · Mon May 3, 1999 · 6:00 PM–8:00 PM           │     │   INK on its deep shade; 40 px
+       │   ╰─────────────────────────────────────────────────────────────────╯     │   picture + words CENTRED as one
+       │                              ↕ 22                                         │   group. Title ONE line (a long one
+       │        This is raw radar data, not a video. A radar sends a new scan …    │   grows the band, the bars never
+       │                              ↕ 28                                         │   move); site line WHITE, centred.
+       │                                                                           │ ← WHY (WhyText), 17 pt, WHITE, 400
        │    22 / 28   ▐█▌▐█▌▐█▌▐█▌▐▄▌▐▃▌▐ ▌▐▂▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌      │ ← BARS, layout C+E: two
        │    downloaded 6:35 PM scan · 2.1 of 4.3 MB           12 at once · 61 MB   │   Primitives/LoopLoadProgressBar,
        │                              ↕ 22                                         │   560 wide, a cell per frame
@@ -73,10 +74,11 @@
                      sideways (the title is one line, never wrapped) — the bars never resize. -->
                 <Border Background="{x:Bind KindBand(ViewModel.EventKind), Mode=OneWay}" CornerRadius="8"
                         MinWidth="560" HorizontalAlignment="Center" Padding="16,14" Margin="0,0,0,22">
-                    <Grid ColumnSpacing="16">
+                    <!-- Picture + words are ONE group, CENTRED in the band at every title length. -->
+                    <Grid ColumnSpacing="16" HorizontalAlignment="Center">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <!-- The picture: one single-colour drawing per type, drawn on a 64-unit square, scaled to 40 px;
                              strokes only, round caps. -->
@@ -106,15 +108,16 @@
                             <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="24" LineHeight="30"
                                        FontWeight="SemiBold" TextWrapping="NoWrap"
                                        Foreground="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}"/>
+                            <!-- The site + time line: WHITE, centred under the title. -->
                             <TextBlock Text="{x:Bind ViewModel.EventLine, Mode=OneWay}" FontSize="12" Margin="0,4,0,0"
-                                       Opacity="0.8" Foreground="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}"/>
+                                       HorizontalAlignment="Center" Foreground="#FFFFFFFF"/>
                         </StackPanel>
                     </Grid>
                 </Border>
 
                 <!-- THE WHY LINE (the user's call, 2026-10-02): why a loop takes time. Under the band since 2026-10-04. -->
                 <TextBlock Text="{x:Bind ViewModel.Why}" FontSize="17" LineHeight="25" TextWrapping="Wrap" Width="400"
-                           TextAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,28" Foreground="#C7E8EAED"/>
+                           TextAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,28" Foreground="#FFFFFFFF"/>
 
                 <!-- THE BARS (layout C+E, the user's call 2026-10-04): Primitives/LoopLoadProgressBar — a big count
                      beside one cell per frame, each filled by how far THAT frame has got (RadarViewModel
