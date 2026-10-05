@@ -112,6 +112,12 @@ namespace Anvil.ViewModels
 			RestoreWindowChrome();
 			PropertyChanged += (_, e) => SaveTemporalSession(e.PropertyName);
 
+			// The loading screen hides the temporal windows while it's up — see "Loading screen" below.
+			Radar.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(RadarViewModel.AreControlsLocked)) OnLoadingScreenChanged(Radar.AreControlsLocked);
+			};
+
 			// The range ruler can measure FROM the user-location marker, which Markers owns and Radar does not
 			// know about — so the coordinator hands the point across. Placed, dragged, re-located or removed:
 			// all of them end here. (HasUserLocationMarker covers add/remove/relocate; UserLocationMarker a drag.)
@@ -879,6 +885,8 @@ namespace Anvil.ViewModels
 				case nameof(IsForeWindowLocked): s.ForeWindowLocked = IsForeWindowLocked; return;
 			}
 			if (!_sessionRestored) { return; } // the launch state (all off) isn't a choice
+			// Windows the loading screen put away aren't the user closing them — keep the saved state.
+			if (_windowsHeldForLoad && property is nameof(IsPastWindowOpen) or nameof(IsNowWindowOpen) or nameof(IsForeWindowOpen)) { return; }
 			switch (property)
 			{
 				case nameof(IsPastCast): s.PastCastOn = IsPastCast; break;
@@ -888,6 +896,37 @@ namespace Anvil.ViewModels
 				case nameof(IsNowWindowOpen): s.NowWindowOpen = IsNowWindowOpen; break;
 				case nameof(IsForeWindowOpen): s.ForeWindowOpen = IsForeWindowOpen; break;
 			}
+		}
+
+		// ===== Loading screen: the temporal windows step aside =========================================
+		// An open Past/Now/Fore window is a real OS window, so it sat UNBLURRED over the frosted map while a PastCast
+		// loop loaded (the user's call, 2026-10-04: it looked odd). The screen's FROST clock decides
+		// (Radar.AreControlsLocked: on with the dim after FadeInDelayMs, so a cached load that never shows the screen
+		// never flickers a window; off at once). Up → close the open ones and remember them; down — "View event",
+		// "Use the map", "Got it" after a cancel, a dismiss — → reopen those whose mode is still on.
+		// ⚠️ Neither move is SAVED (SaveTemporalSession skips while held): quitting mid-load keeps the windows.
+		private bool _windowsHeldForLoad;
+		private bool _pastHeldForLoad, _nowHeldForLoad, _foreHeldForLoad;
+
+		internal void OnLoadingScreenChanged(bool up) // internal: TemporalSessionTests drive it without a real load
+		{
+			if (up)
+			{
+				if (_windowsHeldForLoad || !(IsPastWindowOpen || IsNowWindowOpen || IsForeWindowOpen)) return;
+				_pastHeldForLoad = IsPastWindowOpen;
+				_nowHeldForLoad = IsNowWindowOpen;
+				_foreHeldForLoad = IsForeWindowOpen;
+				_windowsHeldForLoad = true;
+				IsPastWindowOpen = IsNowWindowOpen = IsForeWindowOpen = false;
+				return;
+			}
+
+			if (!_windowsHeldForLoad) return;
+			_windowsHeldForLoad = false;
+			// A window can't outlive its mode (OnTemporalModesChanged), so only a still-running mode gets its back.
+			if (_pastHeldForLoad && IsPastCast) IsPastWindowOpen = true;
+			if (_nowHeldForLoad && IsNowCast) IsNowWindowOpen = true;
+			if (_foreHeldForLoad && IsForeCast) IsForeWindowOpen = true;
 		}
 
 		// ===== App-wide windows (Settings / Radar Atlas) ================================================

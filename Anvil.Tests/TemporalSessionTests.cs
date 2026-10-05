@@ -119,5 +119,32 @@ namespace Anvil.Tests
 			vm.IsNowWindowLocked = false;
 			Assert.False(s.NowWindowLocked);
 		}
+
+		[Fact]
+		public void LoadingScreen_PutsTheOpenWindowsAway_AndBringsThemBack_WithoutSavingIt()
+		{
+			var s = new AppSettings { PastCastOn = true, PastWindowOpen = true };
+			var vm = New(s);
+			vm.RestoreTemporalSession();
+
+			vm.OnLoadingScreenChanged(true);
+			Assert.False(vm.IsPastWindowOpen);
+			Assert.True(s.PastWindowOpen);                  // put away by the screen, not closed by the user
+
+			vm.OnLoadingScreenChanged(false);
+			Assert.True(vm.IsPastWindowOpen);
+		}
+
+		[Fact]
+		public void LoadingScreen_LeavesAClosedWindowClosed()
+		{
+			var s = new AppSettings { PastCastOn = true, PastWindowOpen = false };
+			var vm = New(s);
+			vm.RestoreTemporalSession();
+
+			vm.OnLoadingScreenChanged(true);
+			vm.OnLoadingScreenChanged(false);
+			Assert.False(vm.IsPastWindowOpen);
+		}
 	}
 }

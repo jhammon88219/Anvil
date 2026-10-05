@@ -11,13 +11,13 @@
 
        ┌───────────────────────── map band, blurred + dimmed ─────────────────────┐
        │                                                                           │
-       │   ╭─────────────────────────────────────────────────────────────────╮     │ ← EVENT BAND, 560 = the bars'
-       │   │ ≋   Loading May 3, 1999 Bridge Creek-Moore, OK                  │     │   width: the type pill's INK on
-       │   │     KTLX · Mon May 3, 1999 · 6:00 PM–8:00 PM                    │     │   its deep shade; 40 px picture
-       │   ╰─────────────────────────────────────────────────────────────────╯     │   LEFT, words left-aligned.
-       │                              ↕ 22                                         │   "Loading the loop" + grey for
-       │        This is raw radar data, not a video. A radar sends a new scan …    │   your own timeframe
-       │                              ↕ 28                                         │ ← WHY (WhyText), 400 wide
+       │   ╭─────────────────────────────────────────────────────────────────╮     │ ← EVENT BAND, AT LEAST 560 (the
+       │   │ ≋   Loading May 3, 1999 Bridge Creek-Moore, OK                  │     │   bars' width): the type pill's
+       │   │     KTLX · Mon May 3, 1999 · 6:00 PM–8:00 PM                    │     │   INK on its deep shade; 40 px
+       │   ╰─────────────────────────────────────────────────────────────────╯     │   picture LEFT. The title is ONE
+       │                              ↕ 22                                         │   line — a long one grows the band
+       │        This is raw radar data, not a video. A radar sends a new scan …    │   sideways, the bars never move.
+       │                              ↕ 28                                         │ ← WHY (WhyText), 17 pt, 400 wide
        │    22 / 28   ▐█▌▐█▌▐█▌▐█▌▐▄▌▐▃▌▐ ▌▐▂▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌      │ ← BARS, layout C+E: two
        │    downloaded 6:35 PM scan · 2.1 of 4.3 MB           12 at once · 61 MB   │   Primitives/LoopLoadProgressBar,
        │                              ↕ 22                                         │   560 wide, a cell per frame
@@ -59,8 +59,9 @@
 
         <!-- Bottom margin = ContentBottomInset (the bottom chrome's opaque tiers), so the content centres on the
              VISIBLE map: the gate itself spans the whole window, under the chrome (see MainWindow). -->
-        <!-- 560 wide for the cells (40 frames ≈ 7.6 px each); the why line and the title keep the old 360-400 measure. -->
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="560"
+        <!-- NO width here: the event band may grow past the bars (its title never wraps). The BARS hold 560 themselves
+             (40 frames ≈ 7.6 px a cell); the why line keeps its 400 measure. -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
                     Margin="{x:Bind BottomInset(ContentBottomInset), Mode=OneWay}">
 
             <!-- PROGRESS: title, event, the two bars, the counts. -->
@@ -68,8 +69,10 @@
                 <!-- THE EVENT BAND, above everything (the user's call 2026-10-04): what's loading, in the PastCast type
                      pill's scheme — the type's INK (KindInk) on its deep shade (KindBand), full width so it lines up with
                      the bars (big counts included). Other = your own timeframe or an untyped event → grey + radar rings. -->
+                <!-- ⚠️ MinWidth = the bars' 560, centred: a short title leaves room, a long one GROWS the band
+                     sideways (the title is one line, never wrapped) — the bars never resize. -->
                 <Border Background="{x:Bind KindBand(ViewModel.EventKind), Mode=OneWay}" CornerRadius="8"
-                        Padding="16,14" Margin="0,0,0,22">
+                        MinWidth="560" HorizontalAlignment="Center" Padding="16,14" Margin="0,0,0,22">
                     <Grid ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -97,11 +100,11 @@
                                       Data="M10,32 A22,22 0 1 1 54,32 A22,22 0 1 1 10,32 M20,32 A12,12 0 1 1 44,32 A12,12 0 1 1 20,32 M32,32 L48,16"/>
                             </Grid>
                         </Viewbox>
-                        <!-- ⚠️ TYPE SCALE (the user's call, 2026-10-02): the TITLE is the largest text here (24), the why
-                             line next (14), everything else 12–13. -->
+                        <!-- ⚠️ TYPE SCALE (the user's call, 2026-10-02; why line 14 → 17 on 2026-10-04): the TITLE is
+                             the largest text here (24), the why line next (17), everything else 12–13. -->
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="24" LineHeight="30"
-                                       FontWeight="SemiBold" TextWrapping="Wrap"
+                                       FontWeight="SemiBold" TextWrapping="NoWrap"
                                        Foreground="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}"/>
                             <TextBlock Text="{x:Bind ViewModel.EventLine, Mode=OneWay}" FontSize="12" Margin="0,4,0,0"
                                        Opacity="0.8" Foreground="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}"/>
@@ -110,20 +113,20 @@
                 </Border>
 
                 <!-- THE WHY LINE (the user's call, 2026-10-02): why a loop takes time. Under the band since 2026-10-04. -->
-                <TextBlock Text="{x:Bind ViewModel.Why}" FontSize="14" LineHeight="21" TextWrapping="Wrap" Width="400"
+                <TextBlock Text="{x:Bind ViewModel.Why}" FontSize="17" LineHeight="25" TextWrapping="Wrap" Width="400"
                            TextAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,28" Foreground="#C7E8EAED"/>
 
                 <!-- THE BARS (layout C+E, the user's call 2026-10-04): Primitives/LoopLoadProgressBar — a big count
                      beside one cell per frame, each filled by how far THAT frame has got (RadarViewModel
                      .RefreshLoopGateCells), the oldest frame in progress named under the cells. Grey = downloads, the
                      scrubber's blue = builds. -->
-                <prim:LoopLoadProgressBar Label="downloaded" Fill="#FF9AA4B2"
+                <prim:LoopLoadProgressBar Label="downloaded" Fill="#FF9AA4B2" Width="560"
                                           Count="{x:Bind ViewModel.Downloaded, Mode=OneWay}"
                                           Total="{x:Bind ViewModel.Total, Mode=OneWay}"
                                           Cells="{x:Bind ViewModel.DownloadCells, Mode=OneWay}"
                                           Caption="{x:Bind ViewModel.DownloadCaption, Mode=OneWay}"
                                           Detail="{x:Bind ViewModel.DownloadDetail, Mode=OneWay}"/>
-                <prim:LoopLoadProgressBar Label="built" Fill="#FF5B8DEF" Margin="0,22,0,0"
+                <prim:LoopLoadProgressBar Label="built" Fill="#FF5B8DEF" Width="560" Margin="0,22,0,0"
                                           Count="{x:Bind ViewModel.Built, Mode=OneWay}"
                                           Total="{x:Bind ViewModel.Total, Mode=OneWay}"
                                           Cells="{x:Bind ViewModel.BuildCells, Mode=OneWay}"
