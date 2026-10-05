@@ -73,6 +73,9 @@ namespace Anvil
 		[DllImport("user32.dll")]
 		public static extern bool IsIconic(IntPtr hWnd);
 
+		[DllImport("user32.dll")]
+		public static extern IntPtr GetForegroundWindow();
+
 		// Where Windows parks a minimized top-level window.
 		public const int MinimizedParkingCoordinate = -32000;
 

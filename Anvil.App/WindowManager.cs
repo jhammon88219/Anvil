@@ -132,6 +132,7 @@ namespace Anvil
 		private readonly HashSet<string> _closingProgrammatically = new();
 
 		private Window? _owner;
+		private bool _ownerClosed; // the app is closing — never hand focus back to the main window then
 		private DispatcherQueue? _dispatcher;
 		private Func<double> _availableBottom = () => double.PositiveInfinity;
 		private Func<MonitorMode> _monitorMode = () => MonitorMode.Single;
@@ -151,7 +152,7 @@ namespace Anvil
 			_availableBottom = availableBottom;
 			_monitorMode = monitorMode;
 			coordinator.PropertyChanged += (_, _) => RequestReconcile();
-			owner.Closed += (_, _) => CloseAll(); // don't leak panel windows when the app closes
+			owner.Closed += (_, _) => { _ownerClosed = true; CloseAll(); }; // don't leak panel windows when the app closes
 		}
 
 		/// <summary>
@@ -474,6 +475,14 @@ namespace Anvil
 		{
 			if (!_windows.TryGetValue(id, out var window)) return;
 			if (programmatic) _closingProgrammatically.Add(id);
+			// ⚠️ Closing the FOREGROUND panel hands activation to whatever Windows picks next — which can be ANOTHER
+			// APP (the loading screen closing the PastCast window you just pressed Load in sent Anvil behind Visual
+			// Studio, 2026-10-04). Give the focus back to the main window first, so it stays in front.
+			if (_owner is not null && !_ownerClosed
+				&& NativeWindowInterop.GetForegroundWindow() == WinRT.Interop.WindowNative.GetWindowHandle(window))
+			{
+				_owner.Activate();
+			}
 			window.Close(); // fires Closed → OnWindowClosed does the cleanup
 		}
 
