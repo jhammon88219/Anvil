@@ -104,6 +104,30 @@
       ]
     },
     {
+      "id": "chickasha-newcastle-2011",
+      "type": "tornado",
+      "name": "Chickasha-Blanchard-Newcastle, OK",
+      "notes": "EF4, May 24 2011 outbreak - 32 miles from south of Chickasha to far southwest Oklahoma City.",
+      "source": "NWS Norman event summary: tornado 5:06-6:01 PM CDT (22:06-23:01Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KTLX", "startUtc": "2011-05-24T21:30:00Z", "minutes": 120,
+          "key": { "startUtc": "2011-05-24T22:06:00Z", "endUtc": "2011-05-24T23:01:00Z" } }
+      ]
+    },
+    {
+      "id": "washington-goldsby-2011",
+      "type": "tornado",
+      "name": "Washington-Goldsby, OK",
+      "notes": "EF4, May 24 2011 outbreak - 23 miles from west of Bradley to Goldsby, alongside the Chickasha storm.",
+      "source": "NWS Norman event summary: tornado 5:26-6:05 PM CDT (22:26-23:05Z)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KTLX", "startUtc": "2011-05-24T21:30:00Z", "minutes": 120,
+          "key": { "startUtc": "2011-05-24T22:26:00Z", "endUtc": "2011-05-24T23:05:00Z" } }
+      ]
+    },
+    {
       "id": "bridge-creek-moore-1999",
       "type": "tornado",
       "name": "Bridge Creek-Moore, OK",
