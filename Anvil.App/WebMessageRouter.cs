@@ -41,6 +41,13 @@ namespace Anvil
 		/// </summary>
 		public event Func<Task>? MapReady;
 
+		/// <summary>
+		/// A map site key's menu chevron was clicked: (site id, x, y), the point under the key in the page's
+		/// client pixels — WebView DIPs at the default zoom. A VIEW concern (it opens a WinUI flyout), so it is
+		/// raised for the host rather than routed to a view model.
+		/// </summary>
+		public event Action<string, double, double>? RadarSiteMenuRequested;
+
 		public WebMessageRouter(MapViewModel viewModel, ILogger<WebMessageRouter> logger)
 		{
 			_viewModel = viewModel;
@@ -55,6 +62,14 @@ namespace Anvil
 				["radarRamps"] = HandleRadarRamps,
 				["radarInspect"] = HandleRadarInspect,
 				["radarSiteClick"] = HandleRadarSiteClick,
+				// A site key's CHEVRON was clicked (radar-sites.js) — the menu is WinUI, so the host shows it.
+				["radarSiteMenu"] = root =>
+				{
+					if (Str(root, "id") is { Length: > 0 } id)
+					{
+						RadarSiteMenuRequested?.Invoke(id, Dbl(root, "x"), Dbl(root, "y"));
+					}
+				},
 				["stateIsolated"] = HandleStateIsolated,
 				// The distance labels' drag handle was let go (radar-scope.js) — persist its bearing, no echo.
 				["rangeRingLabelBearing"] = root => _viewModel.Radar.RangeRings.OnLabelBearingDragged(Dbl(root, "deg")),

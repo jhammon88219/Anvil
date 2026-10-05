@@ -160,6 +160,7 @@ namespace Anvil
 			// ── View models + the JS→C# router + the window (the composition root). ──
 			services.AddSingleton<MapViewModel>();
 			services.AddSingleton<WebMessageRouter>();
+			services.AddSingleton<RadarSiteMenu>(); // a map site key's WinUI menu (MainWindow shows it)
 			services.AddSingleton<MainWindow>();
 
 			return services.BuildServiceProvider();

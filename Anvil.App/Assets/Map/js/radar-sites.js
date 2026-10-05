@@ -1,25 +1,39 @@
 // radar-sites.js — the on-map radar-site marker "key" buttons (extracted from map.js). Owns the
 // marker DOM/state and the pushable-key CSS; map.js's window.showRadarSites / setSelectedRadarSite /
-// setRadarSitesStatus / setNexradSitesVisible (+ TDWR / research) shims delegate here, passing the map. Posts radarSiteClick
-// to the host on a key press. `maplibregl` is the global from the vendored classic script.
+// setRadarSitesStatus / setNexradSitesVisible (+ TDWR / research) shims delegate here, passing the map. Posts
+// radarSiteClick (the NAME) and radarSiteMenu (the CHEVRON) to the host. `maplibregl` is the global from the
+// vendored classic script.
 //
-// ANATOMY OF ONE KEY — a pushable graphite button with three zones:
+// ANATOMY OF ONE KEY — ONE colour, three seamless zones (no dividers), outline = the ink colour:
 //
-//        ┌─┬────────┬─┐        LEFT square  .radar-site-swatch  = AVAILABILITY
-//        │█│  KTLX  │◗│                     green = data flowing · red (.offline) = nothing recent
-//                                                 grey (.unknown) = not checked yet (launch, just left PastCast)
-//                                                 a pass CASCADES: each key eases grey → colour as ITS check lands
-//        └─┴────────┴─┘        CENTRE       .radar-site-label    = the ICAO
-//         ▲     ▲    ▲         RIGHT bar    .radar-site-class    = NETWORK, and it MIRRORS the left
-//         │     │    └── nexrad ◗ (graphite) · tdwr ✈ (blue) · research ⚗ (violet)
-//         │     └── selected inverts the FACE to a light key; both end zones still read
-//         └── availability, independent of selection
+//        ╭──────────────╮      LEFT   .radar-site-glyph  = the NETWORK glyph: nexrad ◗ · tdwr ✈ · research ⚗
+//        │ ◗  KTLX   ⌄  │      CENTRE .radar-site-label  = the ICAO — click LOADS (toggles, like before)
+//        ╰──────────────╯      RIGHT  .radar-site-chev   = click OPENS the host's WinUI site menu
+//                                                          (Load radar · Open in Atlas · home · favorite)
 //
-//   SIZES: the key is 22px tall inside its border (12px text + 5px top/bottom padding); both end squares
-//   are 22px wide; the label has 5px side padding; the class glyph is 18px in its square.
+//   THE COLOUR IS THE STATE (DATA — literal, never themed): a deep shade + a bright ink of ONE hue, the
+//   PastCast event-type pill's scheme.
 //
-//   The class bar keeps its color through offline AND selection, on purpose: the two opt-in networks
-//   are otherwise indistinguishable from the ~160 operational keys at a glance.
+//                   online                 offline                 not checked yet
+//      NEXRAD       green                  red                     grey
+//      TDWR         blue                   red                     grey
+//      research     violet                 red                     grey
+//
+//   · online = the NETWORK's colour; offline / not checked override it (the glyph still names the network).
+//   · OFFLINE is inert: no hover, no hand, the name does nothing — EXCEPT the chevron, which stays live
+//     (near-white, hovers alone) so the menu can still open the Atlas, where the outage is explained.
+//     The menu greys "Load radar" for it.
+//   · NOT CHECKED: dark-grey glyph/name/outline, light-grey chevron; loads like an online key.
+//   · HOVER lifts the WHOLE key's background one step. SELECTED inverts: dark ink on the bright colour.
+//   · a pass CASCADES: each key eases grey → its colour as ITS check lands (the background transition).
+//
+//   SIZES: 22px tall inside the 1px outline (12px text + 5px top/bottom padding); glyph + chevron zones
+//   22px wide; label 7px side padding.
+//
+//   ⚠️ HIT TESTING: only the KEY takes the pointer. The MapLibre wrapper and the fan's offset wrapper are
+//   pointer-events:none — a fanned key used to leave its wrapper's empty box at the TRUE site, above the
+//   NEXRAD key there, eating that key's clicks. And nothing MOVES on press (the old 2px "push" slid the key
+//   out from under a click near its top edge, so the release landed off it and the click never fired).
 //
 // COLLISION FAN-OUT — keeps the opt-in keys findable where they pile up (the OKC KTLX+TOKC+KCRI stack):
 //
@@ -28,35 +42,30 @@
 //           ○  ← true site          once zoom separates them. Operational NEXRAD keys NEVER move —
 //        [KTLX] [KCRI]              they are the fixed obstacles the specials route around.
 //
-//   ⚠️ A special is de-overlapped only against its OWN pile (markers truly overlapping its spot, plus
-//   specials already fanned from that pile) — never "avoid everything on screen". That bound is
-//   load-bearing: avoid-everything let a key climb the dense national column and land ~380px away
-//   (KCRI ended up in North Dakota at CONUS zoom). Pile-local means it rises about one key-height and
-//   stops. The recompute is a cheap no-op while neither opt-in network is shown, which is the default.
+//   A key MOVES only when its true spot is covered (an operational key, or a special already placed). It
+//   then takes the NEAREST clear spot from a short fixed list (up, down, sides, diagonals, two/three rows
+//   up), checked against EVERY nearby key — the old rule checked only its own pile, so a lifted key could
+//   land on a neighbour and needed a zoom to separate. ⚠️ The list is BOUNDED (≤ 3 rows) on purpose: an
+//   "avoid everything, keep climbing" rule once sent KCRI ~380px up into North Dakota at CONUS zoom. When
+//   no spot is clear it takes the one with the fewest collisions. A cheap no-op while neither opt-in
+//   network is shown, which is the default.
 //
 // These are DOM-overlay markers (maplibregl.Marker), so they auto-reposition on pan/zoom and survive
-// basemap switches (no style-layer re-add needed). Structure: a `.radar-site-marker` WRAPPER (which
-// MapLibre positions via an inline transform) holds an inner `.radar-site-btn` (free to use its own
-// transform for the press/sink effect) with THREE zones: a full-height availability SQUARE
-// `.radar-site-swatch` on the LEFT + the ID text `.radar-site-label` + a full-height class bar
-// `.radar-site-class` on the RIGHT. The SQUARE shows availability — green = available, red (.offline) =
-// no recent data — always, independent of selection. The CLASS BAR mirrors it on the right, showing the
-// radar's network: nexrad (neutral graphite, radar glyph) / tdwr (blue, plane) / research (violet, flask);
-// its color survives offline + selection so class always reads. SELECTION is the inverted "light" key
-// (dark text on near-white), and both end zones still show on the light face.
-// (History: this was a small round dot before; the accent status halo + orange-selected + dead-key
-// offline styling were removed in an earlier rework. The class bar was added when TDWR/research markers
-// became visually indistinguishable from operational sites.)
+// basemap switches (no style-layer re-add needed). Structure: a `.radar-site-marker` WRAPPER (MapLibre
+// positions it via an inline transform) > `.radar-site-offset` (the fan's translate target) > the
+// `.radar-site-btn` key with its three zones.
+// (History: a round dot → a graphite key with a left availability square + a right network bar → this
+// one-colour key with a menu chevron, 2026-10-04.)
 
 import { coverageDistanceMeters } from './geo.js';
 // The leader lines are SVG presentation attributes, which can't read a CSS variable — so this one
 // color comes through theme.js. Everything else the keys draw is CSS and uses var() directly.
 import * as Theme from './theme.js';
 
-// Class glyphs for the RIGHT-side class bar (the mirror of the left availability square): a radar sweep
-// for operational NEXRAD (neutral bar — stays quiet since it's the majority), a plane for TDWR (blue),
-// a flask for research (violet). Inline SVG so they're self-contained in the WebView (no icon-font or
-// emoji dependency); fill/stroke inherit `currentColor` from the bar's per-class color.
+// Network glyphs for the key's LEFT zone: a radar sweep for operational NEXRAD, a plane for TDWR, a flask
+// for research. Inline SVG so they're self-contained in the WebView (no icon-font or emoji dependency);
+// fill/stroke inherit `currentColor` — the key's ink. The SHAPE is what names the network on an offline or
+// unchecked key, where the colour says status instead.
 // The nexrad viewBox is CROPPED to its drawing (which sits in the lower-left of a 24 box) so it centres in
 // the square and reads the same size as the plane and flask.
 const CLASS_GLYPH = {
@@ -64,6 +73,9 @@ const CLASS_GLYPH = {
     tdwr: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 0 1 .9 1 2v5.2l7 4v1.9l-7 -2v3.9l2 1.5v1.5l-3 -1l-3 1v-1.5l2 -1.5v-3.9l-7 2v-1.9l7 -4v-5.2c0 -1.1 .4 -2 1 -2z"/></svg>',
     research: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v5l-4.4 8.3a1.9 1.9 0 0 0 1.7 2.7h9.4a1.9 1.9 0 0 0 1.7 -2.7l-4.4 -8.3v-5"/></svg>'
 };
+
+// The menu chevron (the key's RIGHT zone).
+const CHEVRON_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6l6 -6"/></svg>';
 
 let radarMarkers = {};        // id -> inner button element (state ops target the button)
 let radarMarkerObjs = [];     // every Marker object (for show/hide + teardown)
@@ -133,92 +145,81 @@ function ensureStyle() {
     const siteStyle = document.createElement('style');
     siteStyle.id = 'radar-site-style';
     siteStyle.textContent = `
-        .radar-site-marker { line-height: 0; }
+        /* ⚠️ Only the KEY takes the pointer — see "HIT TESTING" in the header. */
+        .radar-site-marker { line-height: 0; pointer-events: none; }
 
-        /* Pushable graphite "key": a full-height status SQUARE on the left + the ID on the face. */
+        /* ⚠️ DATA, NOT CHROME — every colour here is literal and never themed: the colour IS the site's
+           status (and, online, its network). A theme that could restyle it would be able to lie. Each
+           state sets the same six variables; the rules below only read them.
+             --k-bg   resting face (a deep shade)      --k-hv    hover face (one step up)
+             --k-ink  glyph, name, outline, chevron    --k-chev  chevron ink, where it differs
+             --k-sbg  selected face (the bright ink)   --k-shv   selected hover   --k-sink selected ink
+           Online = the NETWORK's hue (the PastCast type pill's pairs); offline + unknown come LATER in the
+           sheet so they win over the network at equal specificity. */
+        .radar-site-btn.nexrad   { --k-bg: #163f1e; --k-hv: #22582b; --k-ink: #6fdb7f; --k-sbg: #6fdb7f; --k-shv: #8ae698; --k-sink: #0f2c15; }
+        .radar-site-btn.tdwr     { --k-bg: #17315e; --k-hv: #22457f; --k-ink: #7aabfa; --k-sbg: #7aabfa; --k-shv: #97befc; --k-sink: #0e2142; }
+        .radar-site-btn.research { --k-bg: #2a1e5a; --k-hv: #3a2a7a; --k-ink: #a893f5; --k-sbg: #a893f5; --k-shv: #bdadf8; --k-sink: #1f1545; }
+        /* Offline: red throughout, the chevron near-white — it is the one live part. */
+        .radar-site-btn.offline  { --k-bg: #57181a; --k-hv: #732226; --k-ink: #f07070; --k-chev: #f2f2f2; --k-sbg: #f07070; --k-shv: #f48b8b; --k-sink: #3d0f10; }
+        /* Not checked yet: grey, so a site is never green merely because nobody has looked; light chevron. */
+        .radar-site-btn.unknown  { --k-bg: #33363a; --k-hv: #44484d; --k-ink: #7a7f86; --k-chev: #b0b6be; --k-sbg: #b0b6be; --k-shv: #c4c9d0; --k-sink: #26292c; }
+
         .radar-site-btn {
             display: inline-flex;
-            align-items: stretch;              /* the status square fills the full key height */
+            align-items: stretch;
             font: 700 12px/1 "Segoe UI", sans-serif;
             letter-spacing: .3px;
-            color: var(--anvil-key-text);
-            background: linear-gradient(var(--anvil-key-face-top), var(--anvil-key-face-bottom));
-            border: 1px solid var(--anvil-key-border);
+            color: var(--k-ink);
+            background: var(--k-bg);
+            border: 1px solid var(--k-ink);
             border-radius: 6px;
-            overflow: hidden;                  /* clip the square's corners to the key radius */
+            overflow: hidden;
             cursor: pointer;
             white-space: nowrap;
             user-select: none;
-            box-shadow: 0 3px 0 var(--anvil-key-edge), 0 4px 6px rgba(0, 0, 0, .45);
-            transition: transform .05s ease, box-shadow .05s ease, filter .1s ease;
+            pointer-events: auto;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, .45);
+            /* Eases a key grey → its colour as its site's check lands (the cascade). Short, because the
+               same transition carries the hover. */
+            transition: background-color .15s ease, color .15s ease, border-color .15s ease;
         }
-        .radar-site-btn:hover { filter: brightness(1.18); }
-        .radar-site-btn:active {
-            transform: translateY(2px);
-            box-shadow: 0 1px 0 var(--anvil-key-edge), 0 1px 2px rgba(0, 0, 0, .4);
-        }
+        .radar-site-btn:not(.offline):hover { background: var(--k-hv); }
 
-        /* Status square: green = available, red = offline (the staleness-ramp endpoint colors, so the
-           palette matches the freshness readout). A full-height block filling the LEFT of the key; always
-           shows availability, independent of selection (still reads on the light selected face).
-           ⚠️ DATA, NOT CHROME — these two stay literal while the key face around them is themed. The
-           color IS the status; a theme that could restyle it would be able to lie. (theme.css) */
-        .radar-site-swatch {
-            flex: 0 0 auto;
-            align-self: stretch;
-            width: 22px;
-            background: #3fb950;
-            /* Eases a key grey → green / red as its site's check lands, so a pass reads as a cascade. */
-            transition: background-color .35s ease;
-        }
-        .radar-site-btn.offline .radar-site-swatch { background: #f85149; }
-        /* Not checked yet: grey, so a site is never green merely because nobody has looked. Same literal as
-           the host's SiteAvailabilityToBrushConverter (DATA, like the other two). */
-        .radar-site-btn.unknown .radar-site-swatch { background: #6e7681; }
+        /* LEFT: the network glyph. */
+        .radar-site-glyph { flex: 0 0 22px; display: flex; align-items: center; justify-content: center; }
+        .radar-site-glyph svg { width: 15px; height: 15px; display: block; }
 
-        /* The ID text sits on the key face to the right of the square. The VERTICAL padding sets the key's
-           height (12px text + 5+5 = the 22px the two end squares fill) — tighten only the sides. */
-        .radar-site-label { padding: 5px 5px; }
+        /* CENTRE: the ICAO. The VERTICAL padding sets the key's height (12px text + 5+5 = 22px). */
+        .radar-site-label { padding: 5px 7px 5px 3px; }
 
-        /* Selected = inverted "light" key (dark text on a near-white face). Distinct from BOTH the dark
-           unselected keys and the red/green square (orange sat too close to the offline red). Latches down
-           onto its edge like a pressed key; the status square still shows availability on the light face.
-           The active site's "radar" is also the big geographic range ring + sweep drawn on the MAP (radar.js). */
-        .radar-site-btn.selected {
-            color: var(--anvil-key-sel-text);
-            background: linear-gradient(var(--anvil-key-sel-face-top), var(--anvil-key-sel-face-bottom));
-            border-color: var(--anvil-key-sel-border);
-            transform: translateY(2px);
-            box-shadow: 0 1px 0 var(--anvil-key-sel-edge), 0 1px 3px rgba(0, 0, 0, .4);
-        }
-        .radar-site-btn.selected:hover { filter: brightness(1.03); }
-
-        /* Class bar: the RIGHT-side mirror of the availability square, showing the radar's CLASS. Operational
-           NEXRAD = a neutral graphite bar with a radar glyph (stays quiet — it's the majority); TDWR = blue
-           (plane); research = violet (flask). COLOR flags the special networks; the bar keeps its color
-           through offline (left square turns red) and selection (face turns white), so class identity always
-           reads. Full-height + clipped to the key radius by the button's overflow:hidden, like the square. */
-        .radar-site-class {
-            flex: 0 0 auto;
-            align-self: stretch;
-            width: 22px;
+        /* RIGHT: the menu chevron. */
+        .radar-site-chev {
+            flex: 0 0 22px;
             display: flex;
             align-items: center;
             justify-content: center;
+            color: var(--k-chev, var(--k-ink));
+            transition: background-color .15s ease;
         }
-        /* 18px glyph in the 22px square: as big as it gets without growing the key (2px breathing room). */
-        .radar-site-class svg { width: 18px; height: 18px; display: block; }
-        /* ⚠️ nexrad is CHROME (a deliberately quiet neutral — the absence of an identity color, since
-           it is the majority of the network); tdwr + research are DATA and stay literal. */
-        .radar-site-class.nexrad { background: var(--anvil-key-class-neutral); color: var(--anvil-key-class-neutral-text); border-left: 1px solid var(--anvil-key-border); }
-        .radar-site-class.tdwr { background: #2f6fb0; color: #ffffff; }
-        .radar-site-class.research { background: #6b4bd6; color: #ffffff; }
+        .radar-site-chev svg { width: 13px; height: 13px; display: block; }
+
+        /* OFFLINE is inert except its chevron: no hand on the body, and the chevron hovers ALONE. */
+        .radar-site-btn.offline { cursor: default; }
+        .radar-site-btn.offline .radar-site-chev { cursor: pointer; }
+        .radar-site-btn.offline .radar-site-chev:hover { background: var(--k-hv); }
+
+        /* Selected = INVERTED: dark ink on the bright colour. The active site's "radar" is also the big
+           geographic range ring + sweep drawn on the MAP (radar.js). */
+        .radar-site-btn.selected { background: var(--k-sbg); color: var(--k-sink); border-color: var(--k-sbg); }
+        .radar-site-btn.selected .radar-site-chev { color: var(--k-sink); }
+        .radar-site-btn.selected:not(.offline):hover { background: var(--k-shv); border-color: var(--k-shv); }
+        .radar-site-btn.selected.offline .radar-site-chev:hover { background: var(--k-shv); }
 
         /* Fan-out offset wrapper: MapLibre positions the OUTER .radar-site-marker at the true lng/lat, so
            the collision fan translates this inner wrapper instead — keeping the marker's true anchor (and
            the leader-line origin) put while the visible key slides off the pile. Inline-flex so it hugs the
-           key and doesn't change the marker's measured size. */
-        .radar-site-offset { display: inline-flex; }`;
+           key and doesn't change the marker's measured size. Takes no pointer (see HIT TESTING). */
+        .radar-site-offset { display: inline-flex; pointer-events: none; }`;
     document.head.appendChild(siteStyle);
 }
 
@@ -269,8 +270,8 @@ function attachFanListeners(map) {
 }
 
 // Re-evaluate the fan. NEXRAD keys stay at their true screen position (fixed obstacles); each visible
-// TDWR/research key that would overlap a neighbor is pushed UP off the pile until clear, and gets a
-// dashed leader line + ring back to its true site. Cheap no-op when neither opt-in network is shown (the
+// TDWR/research key whose true spot is covered moves to the nearest clear slot (see the header's
+// COLLISION FAN-OUT) and gets a dashed leader line + ring back to its true site. Cheap no-op when neither opt-in network is shown (the
 // default), and when zoomed in far enough that nothing overlaps (keys snap back to true positions).
 function updateFan() {
     if (!fanMap) return;
@@ -299,32 +300,48 @@ function updateFan() {
         if (r && r.width) { keyW = r.width; keyH = r.height; }
     }
     const W = keyW || 92, H = keyH || 26, GAP = 6;
-    const overlaps = function (ax, ay, bx, by) { return Math.abs(ax - bx) < W && Math.abs(ay - by) < H + GAP; };
+    // A step to the next slot: one key plus a gap, on each axis.
+    const SX = W + GAP, SY = H + GAP;
+    // TRIGGER: does a key at (ax,ay) cover (bx,by)? (Vertical gap included — a key sitting flush on another
+    // still reads as one pile.)
+    const covers = function (ax, ay, bx, by) { return Math.abs(ax - bx) < W && Math.abs(ay - by) < H + GAP; };
+    // LANDING: a candidate spot must clear its neighbours by a gap on BOTH axes.
+    const crowds = function (ax, ay, bx, by) { return Math.abs(ax - bx) < SX && Math.abs(ay - by) < SY; };
+    // The candidate spots, NEAREST first, in steps of (SX, SY). ⚠️ Bounded at three rows — see the header.
+    const SLOTS = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [1, -1], [-1, 1], [1, 1],
+        [0, -2], [0, 2], [-1, -2], [1, -2], [0, -3]];
 
     // Deterministic fan order: TDWR before research, then by screen y.
     const operational = vis.filter(function (v) { return !v.special; });
     specials.sort(function (a, b) { return a.cls !== b.cls ? (a.cls === 'tdwr' ? -1 : 1) : a.y - b.y; });
 
-    // ⚠️ Each special is fanned ONLY off the markers that TRULY overlap its own spot (its immediate PILE),
-    // plus any special already fanned from that same pile. The obstacle set is FIXED by true position, so a
-    // key rises just clear of its pile and STOPS — it never climbs the map's dense national field (an
-    // "avoid everything on screen" rule sent KCRI ~380px up into North Dakota). Net effect: just enough to
-    // reveal the whole button, no more.
-    const placedSpecials = []; // { tx, ty, x, y } — each fanned special's TRUE + FINAL screen position
+    // What a key must avoid: every operational key (fixed, at its true spot) + every special ALREADY placed
+    // (at its final spot). Specials not placed yet are skipped — they avoid this one when their turn comes.
+    const placed = []; // { x, y } — each placed special's FINAL screen position
+    const nearby = function (v) {
+        const out = [];
+        const rx = 3 * SX, ry = 5 * SY; // a slot is ≤ 1 col / 3 rows out; a placed special ≤ 3 rows from ITS spot
+        operational.forEach(function (o) { if (Math.abs(o.x - v.x) < rx && Math.abs(o.y - v.y) < ry) out.push(o); });
+        placed.forEach(function (p) { if (Math.abs(p.x - v.x) < rx && Math.abs(p.y - v.y) < ry) out.push(p); });
+        return out;
+    };
+
     let lines = '';
     specials.forEach(function (v) {
-        const obstacles = [];
-        operational.forEach(function (o) { if (overlaps(v.x, v.y, o.x, o.y)) obstacles.push({ x: o.x, y: o.y }); });
-        placedSpecials.forEach(function (p) { if (overlaps(v.x, v.y, p.tx, p.ty)) obstacles.push({ x: p.x, y: p.y }); });
-
-        let x = v.x, y = v.y, bumped = true, guard = 0;
-        while (bumped && guard < 8) {
-            bumped = false; guard++;
-            for (let i = 0; i < obstacles.length; i++) {
-                if (overlaps(x, y, obstacles[i].x, obstacles[i].y)) { y = obstacles[i].y - (H + GAP); bumped = true; }
+        const around = nearby(v);
+        let x = v.x, y = v.y;
+        if (around.some(function (o) { return covers(v.x, v.y, o.x, o.y); })) {
+            // Covered — take the nearest slot that clears every neighbour, else the least-crowded one.
+            let best = null, bestHits = Infinity;
+            for (let i = 0; i < SLOTS.length && bestHits > 0; i++) {
+                const cx = v.x + SLOTS[i][0] * SX, cy = v.y + SLOTS[i][1] * SY;
+                let hits = 0;
+                around.forEach(function (o) { if (crowds(cx, cy, o.x, o.y)) hits++; });
+                if (hits < bestHits) { bestHits = hits; best = [cx, cy]; }
             }
+            x = best[0]; y = best[1];
         }
-        placedSpecials.push({ tx: v.x, ty: v.y, x: x, y: y });
+        placed.push({ x: x, y: y });
 
         const dx = x - v.x, dy = y - v.y;
         if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
@@ -340,7 +357,7 @@ function updateFan() {
 }
 
 // Provide the site list (as buttons). Each wrapper is the marker MapLibre positions; the inner
-// button is the styled key. A press posts radarSiteClick to the host.
+// button is the styled key. The name posts radarSiteClick, the chevron radarSiteMenu.
 export function show(map, json) {
     ensureStyle();
     const sites = (typeof json === 'string') ? JSON.parse(json) : json;
@@ -359,23 +376,24 @@ export function show(map, json) {
         const el = document.createElement('div');
         el.className = 'radar-site-marker';
         el.dataset.siteId = s.id; // used by applyVisibility to re-evaluate the per-marker rule
+        // The network is a class on the key (it picks the ONLINE colour); .offline / .unknown override it.
+        const klass = s.tdwr ? 'tdwr' : (s.research ? 'research' : 'nexrad');
         const btn = document.createElement('div');
-        btn.className = 'radar-site-btn';
-        const swatch = document.createElement('span');
-        swatch.className = 'radar-site-swatch'; // availability: green (available) / red (.offline)
+        btn.className = 'radar-site-btn ' + klass;
+        const glyph = document.createElement('span');
+        glyph.className = 'radar-site-glyph';
+        glyph.innerHTML = CLASS_GLYPH[klass];
         const label = document.createElement('span');
         label.className = 'radar-site-label';
         label.textContent = s.id;
-        // Right-side class bar: nexrad (neutral) / tdwr (blue) / research (violet), each with its glyph.
-        const klass = s.tdwr ? 'tdwr' : (s.research ? 'research' : 'nexrad');
-        const clsBar = document.createElement('span');
-        clsBar.className = 'radar-site-class ' + klass;
-        clsBar.innerHTML = CLASS_GLYPH[klass];
-        btn.appendChild(swatch);
+        const chev = document.createElement('span');
+        chev.className = 'radar-site-chev';
+        chev.innerHTML = CHEVRON_GLYPH;
+        btn.appendChild(glyph);
         btn.appendChild(label);
-        btn.appendChild(clsBar);
+        btn.appendChild(chev);
         btn.dataset.siteName = s.name || '';
-        el.dataset.siteClass = klass; // for the collision fan-out + any future per-class styling
+        el.dataset.siteClass = klass; // for the collision fan-out
         // The offset wrapper is the fan's translate target — see .radar-site-offset / updateFan.
         const offset = document.createElement('div');
         offset.className = 'radar-site-offset';
@@ -383,12 +401,20 @@ export function show(map, json) {
         el.appendChild(offset);
         if (!markerVisible(s.id)) el.style.display = 'none';
         if (selectedSiteId === s.id) btn.classList.add('selected');
-        applySiteStatus(btn, s.id); // sets .down class + tooltip from the current offline set
+        applySiteStatus(btn, s.id); // sets .offline / .unknown + the tooltip from the current status
+        // ONE listener for the key; the zone under the click picks the action. The CHEVRON asks the host for
+        // its WinUI site menu, anchored under the key (client px = WebView DIPs at zoom 1). The NAME/glyph
+        // loads — except on an OFFLINE key, whose body is inert (the menu says why).
         btn.addEventListener('click', function (ev) {
             ev.stopPropagation();
-            if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage(JSON.stringify({ type: 'radarSiteClick', id: s.id }));
+            if (!(window.chrome && window.chrome.webview)) return;
+            if (ev.target.closest('.radar-site-chev')) {
+                const r = btn.getBoundingClientRect();
+                window.chrome.webview.postMessage(JSON.stringify({ type: 'radarSiteMenu', id: s.id, x: r.left, y: r.bottom + 4 }));
+                return;
             }
+            if (btn.classList.contains('offline')) return;
+            window.chrome.webview.postMessage(JSON.stringify({ type: 'radarSiteClick', id: s.id }));
         });
         const marker = new maplibregl.Marker({ element: el }).setLngLat([s.lng, s.lat]).addTo(map);
         radarMarkerObjs.push(marker);
@@ -436,7 +462,7 @@ export function setStatus(json) {
 }
 
 // ONE site's live result, the moment its check lands — a pass CASCADES across the map (grey keys easing to
-// green / red one by one; the swatch's colour transition does the easing). The pass's closing setStatus
+// green / red one by one; the key's colour transition does the easing). The pass's closing setStatus
 // reconciles everything, including sites the pass never probed individually.
 export function setOneStatus(id, state) {
     if (radarSiteUnknown === null) radarSiteUnknown = new Set(Object.keys(radarMarkers)); // first result of a fresh page
@@ -448,7 +474,7 @@ export function setOneStatus(id, state) {
 }
 
 // No-op: the on-map markers no longer use the OS accent (the halo was removed — availability is a fixed
-// green/red DOT and selection is the inverted-light key). Kept so the host's setRadarSitesAccent shim
+// data colour and selection inverts the key). Kept so the host's setRadarSitesAccent shim
 // (MapService.SetRadarSiteAccentAsync → map.js) stays valid; the OverlayBar still uses the accent itself.
 export function setAccent(border, glow) { /* markers no longer use an accent halo */ }
 

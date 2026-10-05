@@ -7,7 +7,7 @@
 
        :root                        the values, today's look ("anvilDark")
          --anvil-ground             page + pane + gutter + cover ground
-         --anvil-key-*              the on-map radar-site keys
+         --anvil-leader             the radar-site keys' fan-out leader line (the keys are DATA-coloured)
          --anvil-scope-*            the range ring + sweep pulse
          --anvil-state-*            state isolation: hover, mask outline, water fallback
          --anvil-map-blank          the ground a HIDDEN basemap leaves (+ what the dimmer fades toward)
@@ -64,27 +64,9 @@
     --anvil-groove-edge: rgba(255, 255, 255, .14);
 
     /* ── RADAR SITE KEYS (radar-sites.js) ──────────────────────────────────────────────────────
-       The pushable graphite key. Face is a top→bottom gradient over a hard bottom EDGE, which is
-       what makes it read as a physical key rather than a chip. */
-    --anvil-key-face-top: #3b3b3e;
-    --anvil-key-face-bottom: #2c2c2f;
-    --anvil-key-border: #5a5a5e;
-    --anvil-key-edge: #161618;
-    --anvil-key-text: #f3f3f3;
-
-    /* The operational-NEXRAD class bar. Deliberately NEUTRAL — it is the majority of the network and
-       has to stay quiet, so unlike the TDWR/research bars beside it, it carries no identity color
-       and IS chrome. */
-    --anvil-key-class-neutral: #44444a;
-    --anvil-key-class-neutral-text: #cfcfd3;
-
-    /* Selected = the key INVERTED. In a light theme this inverts the other way — which is exactly
-       why it is a role ("the selected face") and not "the white face". */
-    --anvil-key-sel-face-top: #ffffff;
-    --anvil-key-sel-face-bottom: #e8e8e8;
-    --anvil-key-sel-border: #b9b9b9;
-    --anvil-key-sel-edge: #9a9a9a;
-    --anvil-key-sel-text: #1a1a1a;
+       The keys themselves carry NO chrome colour any more (2026-10-04): every key is painted by its
+       STATUS + NETWORK, which is data, so those literals live in radar-sites.js. Only the leader
+       line is chrome. */
 
     /* The collision fan's leader line + origin ring, back to a key's true site. */
     --anvil-leader: #8a8f98;
@@ -198,24 +180,7 @@
     --anvil-ground: #d8d8d8;
     --anvil-groove-edge: rgba(0, 0, 0, .14);
 
-    /* ── RADAR SITE KEYS ────────────────────────────────────────────────────────────────────── */
-    /* The resting key is now the LIGHT one and the selected key is the dark one — the two groups
-       trade places with the dark theme's. */
-    --anvil-key-face-top: #fdfdfd;
-    --anvil-key-face-bottom: #ebebeb;
-    --anvil-key-border: #b9b9b9;
-    --anvil-key-edge: #a8a8ac;
-    --anvil-key-text: #1a1a1a;
-
-    --anvil-key-class-neutral: #d2d2d8;
-    --anvil-key-class-neutral-text: #3a3a40;
-
-    --anvil-key-sel-face-top: #3b3b3e;
-    --anvil-key-sel-face-bottom: #2c2c2f;
-    --anvil-key-sel-border: #5a5a5e;
-    --anvil-key-sel-edge: #161618;
-    --anvil-key-sel-text: #f3f3f3;
-
+    /* ── RADAR SITE KEYS ── data-coloured (radar-sites.js); only the leader line is chrome. */
     --anvil-leader: #5c6068;
 
     /* ── RANGE RING + SWEEP ─────────────────────────────────────────────────────────────────── */

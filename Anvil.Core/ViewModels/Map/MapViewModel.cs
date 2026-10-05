@@ -1067,6 +1067,15 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		/// <summary>Open the Atlas on Radar sites, on one site (a map key's menu → "Open in Atlas"). ⚠️ It selects
+		/// the row WITHOUT loading it — the map's radar is left alone, which is the point for an offline site.</summary>
+		public void OpenAtlasOnSite(RadarSiteRow row)
+		{
+			RadarAtlas.SelectedSite = row;
+			AtlasTabIndex = 0;
+			IsRadarAtlasOpen = true;
+		}
+
 		/// <summary>Open the Atlas on Past events, on the event PastCast has picked (PastCast's Timeframe card
 		/// "Atlas" button).</summary>
 		public void OpenAtlasOnEvents()

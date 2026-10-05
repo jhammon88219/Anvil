@@ -522,7 +522,8 @@ namespace Anvil
 			ISettingsService settingsService,
 			WindowManager windows,
 			ILogger<MainWindow> logger,
-			ISavedEventLibrary savedEventLibrary)
+			ISavedEventLibrary savedEventLibrary,
+			RadarSiteMenu siteMenu)
 		{
 			// The DI container (App.ConfigureServices) built the whole graph and injected it here; this
 			// window is just the composition ROOT that wires the WebView-coupled bits the container can't.
@@ -573,6 +574,10 @@ namespace Anvil
 			// whenever the OS accent/theme changes — mirrors the OverlayBar's live-tinted accent shadow.
 			_router.MapReady += OnMapReadyAsync;
 			_uiSettings.ColorValuesChanged += OnColorValuesChanged;
+
+			// A map site key's chevron → its WinUI menu, under the key. The page's client px are the WebView's
+			// DIPs (default zoom), so the point needs no conversion.
+			_router.RadarSiteMenuRequested += (id, x, y) => siteMenu.Show(MainMapWebView, id, new Windows.Foundation.Point(x, y));
 
 			ExtendsContentIntoTitleBar = true;
 			InitializeComponent();
