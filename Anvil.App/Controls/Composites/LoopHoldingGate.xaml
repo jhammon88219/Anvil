@@ -11,13 +11,13 @@
 
        ┌───────────────────────── map band, blurred + dimmed ─────────────────────┐
        │                                                                           │
-       │                                  ≋                                        │ ← EVENT PICTURE, 56 px, the
-       │                              ↕ 18                                         │   type's ink (option A)
-       │        This is raw radar data, not a video. A radar sends a new scan …    │ ← WHY (WhyText), 400 wide,
-       │                              ↕ 26                                         │   above everything
-       │              Loading May 3, 1999 Bridge Creek-Moore, OK                   │ ← "Loading the loop" for
-       │                KTLX · Mon May 3, 1999 · 6:00 PM–8:00 PM                   │   your own timeframe
-       │                              ↕ 28                                         │
+       │   ╭─────────────────────────────────────────────────────────────────╮     │ ← EVENT BAND, 560 = the bars'
+       │   │ ≋   Loading May 3, 1999 Bridge Creek-Moore, OK                  │     │   width: the type pill's INK on
+       │   │     KTLX · Mon May 3, 1999 · 6:00 PM–8:00 PM                    │     │   its deep shade; 40 px picture
+       │   ╰─────────────────────────────────────────────────────────────────╯     │   LEFT, words left-aligned.
+       │                              ↕ 22                                         │   "Loading the loop" + grey for
+       │        This is raw radar data, not a video. A radar sends a new scan …    │   your own timeframe
+       │                              ↕ 28                                         │ ← WHY (WhyText), 400 wide
        │    22 / 28   ▐█▌▐█▌▐█▌▐█▌▐▄▌▐▃▌▐ ▌▐▂▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌      │ ← BARS, layout C+E: two
        │    downloaded 6:35 PM scan · 2.1 of 4.3 MB           12 at once · 61 MB   │   Primitives/LoopLoadProgressBar,
        │                              ↕ 22                                         │   560 wide, a cell per frame
@@ -65,41 +65,53 @@
 
             <!-- PROGRESS: title, event, the two bars, the counts. -->
             <StackPanel Visibility="{x:Bind ViewModel.IsProgressShown, Mode=OneWay}">
-                <!-- THE EVENT PICTURE, above everything (option A, the user's call 2026-10-04): one single-colour drawing
-                     per type, in the type pill's ink (KindInk). Other = your own timeframe or an untyped event → radar
-                     rings. Drawn on a 64-unit square, scaled to 56 px; strokes only, round caps. -->
-                <Viewbox Width="56" Height="56" HorizontalAlignment="Center" Margin="0,0,0,18">
-                    <Grid Width="64" Height="64">
-                        <Path Visibility="{x:Bind KindShown(ViewModel.EventKind, 'Tornado'), Mode=OneWay}"
-                              Stroke="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}" StrokeThickness="4.5"
-                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                              Data="M8,12 H56 M13,21 H51 M19,30 H47 M24,39 H43 M28,48 H39 M31,56 H35"/>
-                        <Path Visibility="{x:Bind KindShown(ViewModel.EventKind, 'Hurricane'), Mode=OneWay}"
-                              Stroke="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}" StrokeThickness="5"
-                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                              Data="M24.5,32 A7.5,7.5 0 1 1 39.5,32 A7.5,7.5 0 1 1 24.5,32 M32,24.5 C30,13 38,7 52,7 M32,39.5 C34,51 26,57 12,57"/>
-                        <Path Visibility="{x:Bind KindShown(ViewModel.EventKind, 'Derecho'), Mode=OneWay}"
-                              Stroke="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}" StrokeThickness="4.5"
-                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                              Data="M14,8 Q44,32 14,56 M30,32 H56 M49,25 L56,32 L49,39 M25,18 H44 M25,46 H44"/>
-                        <Path Visibility="{x:Bind KindShown(ViewModel.EventKind, 'Other'), Mode=OneWay}"
-                              Stroke="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}" StrokeThickness="4"
-                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                              Data="M10,32 A22,22 0 1 1 54,32 A22,22 0 1 1 10,32 M20,32 A12,12 0 1 1 44,32 A12,12 0 1 1 20,32 M32,32 L48,16"/>
+                <!-- THE EVENT BAND, above everything (the user's call 2026-10-04): what's loading, in the PastCast type
+                     pill's scheme — the type's INK (KindInk) on its deep shade (KindBand), full width so it lines up with
+                     the bars (big counts included). Other = your own timeframe or an untyped event → grey + radar rings. -->
+                <Border Background="{x:Bind KindBand(ViewModel.EventKind), Mode=OneWay}" CornerRadius="8"
+                        Padding="16,14" Margin="0,0,0,22">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <!-- The picture: one single-colour drawing per type, drawn on a 64-unit square, scaled to 40 px;
+                             strokes only, round caps. -->
+                        <Viewbox Width="40" Height="40" VerticalAlignment="Center">
+                            <Grid Width="64" Height="64">
+                                <Path Visibility="{x:Bind KindShown(ViewModel.EventKind, 'Tornado'), Mode=OneWay}"
+                                      Stroke="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}" StrokeThickness="4.5"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Data="M8,12 H56 M13,21 H51 M19,30 H47 M24,39 H43 M28,48 H39 M31,56 H35"/>
+                                <Path Visibility="{x:Bind KindShown(ViewModel.EventKind, 'Hurricane'), Mode=OneWay}"
+                                      Stroke="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}" StrokeThickness="5"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Data="M24.5,32 A7.5,7.5 0 1 1 39.5,32 A7.5,7.5 0 1 1 24.5,32 M32,24.5 C30,13 38,7 52,7 M32,39.5 C34,51 26,57 12,57"/>
+                                <Path Visibility="{x:Bind KindShown(ViewModel.EventKind, 'Derecho'), Mode=OneWay}"
+                                      Stroke="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}" StrokeThickness="4.5"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Data="M14,8 Q44,32 14,56 M30,32 H56 M49,25 L56,32 L49,39 M25,18 H44 M25,46 H44"/>
+                                <Path Visibility="{x:Bind KindShown(ViewModel.EventKind, 'Other'), Mode=OneWay}"
+                                      Stroke="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}" StrokeThickness="4"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Data="M10,32 A22,22 0 1 1 54,32 A22,22 0 1 1 10,32 M20,32 A12,12 0 1 1 44,32 A12,12 0 1 1 20,32 M32,32 L48,16"/>
+                            </Grid>
+                        </Viewbox>
+                        <!-- ⚠️ TYPE SCALE (the user's call, 2026-10-02): the TITLE is the largest text here (24), the why
+                             line next (14), everything else 12–13. -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="24" LineHeight="30"
+                                       FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}"/>
+                            <TextBlock Text="{x:Bind ViewModel.EventLine, Mode=OneWay}" FontSize="12" Margin="0,4,0,0"
+                                       Opacity="0.8" Foreground="{x:Bind KindInk(ViewModel.EventKind), Mode=OneWay}"/>
+                        </StackPanel>
                     </Grid>
-                </Viewbox>
+                </Border>
 
-                <!-- THE WHY LINE, above everything (the user's call, 2026-10-02): why a loop takes time. -->
-                <!-- ⚠️ TYPE SCALE (the user's call, 2026-10-02): the TITLE is the largest text here (24), the why line
-                     next (14), everything else 12–13. -->
+                <!-- THE WHY LINE (the user's call, 2026-10-02): why a loop takes time. Under the band since 2026-10-04. -->
                 <TextBlock Text="{x:Bind ViewModel.Why}" FontSize="14" LineHeight="21" TextWrapping="Wrap" Width="400"
-                           TextAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,26" Foreground="#C7E8EAED"/>
-
-                <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="24" LineHeight="30" FontWeight="SemiBold"
-                           TextWrapping="Wrap" TextAlignment="Center" MaxWidth="480"
-                           Foreground="#FFE8EAED" HorizontalAlignment="Center"/>
-                <TextBlock Text="{x:Bind ViewModel.EventLine, Mode=OneWay}" FontSize="12" Margin="0,6,0,28"
-                           Foreground="#A6E8EAED" HorizontalAlignment="Center"/>
+                           TextAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,28" Foreground="#C7E8EAED"/>
 
                 <!-- THE BARS (layout C+E, the user's call 2026-10-04): Primitives/LoopLoadProgressBar — a big count
                      beside one cell per frame, each filled by how far THAT frame has got (RadarViewModel

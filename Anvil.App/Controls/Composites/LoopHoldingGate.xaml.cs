@@ -58,8 +58,11 @@ namespace Anvil.Controls.Composites
 
 		public string EscapeWarning => LoopHoldingGateViewModel.EscapeWarning;
 
-		// The event picture: the type pill's ink (a DATA colour — PastEventsAtlasTab.KindInkBrush), and which drawing.
+		// The event band: the type pill's PAIR (DATA colours — PastEventsAtlasTab.KindInkBrush / KindBandBrush) — the
+		// picture + words in the ink, on the deep shade — and which drawing.
 		public Microsoft.UI.Xaml.Media.Brush KindInk(Anvil.Models.SavedEventKind kind) => PastEventsAtlasTab.KindInkBrush(kind);
+
+		public Microsoft.UI.Xaml.Media.Brush KindBand(Anvil.Models.SavedEventKind kind) => PastEventsAtlasTab.KindBandBrush(kind);
 
 		public Visibility KindShown(Anvil.Models.SavedEventKind kind, string which) =>
 			kind.ToString() == which ? Visibility.Visible : Visibility.Collapsed;
