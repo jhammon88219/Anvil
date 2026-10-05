@@ -155,7 +155,8 @@ function ensureStyle() {
              --k-ink  glyph, name, outline, chevron    --k-chev  chevron ink, where it differs
              --k-sbg  selected face (the bright ink)   --k-shv   selected hover   --k-sink selected ink
            Online = the NETWORK's hue (the PastCast type pill's pairs); offline + unknown come LATER in the
-           sheet so they win over the network at equal specificity. */
+           sheet so they win over the network at equal specificity.
+           The three --k-ink hues are MIRRORED as the lit glyphs of MapControlsStrip.xaml's site toggles — change both. */
         .radar-site-btn.nexrad   { --k-bg: #163f1e; --k-hv: #22582b; --k-ink: #6fdb7f; --k-sbg: #6fdb7f; --k-shv: #8ae698; --k-sink: #0f2c15; }
         .radar-site-btn.tdwr     { --k-bg: #17315e; --k-hv: #22457f; --k-ink: #7aabfa; --k-sbg: #7aabfa; --k-shv: #97befc; --k-sink: #0e2142; }
         .radar-site-btn.research { --k-bg: #2a1e5a; --k-hv: #3a2a7a; --k-ink: #a893f5; --k-sbg: #a893f5; --k-shv: #bdadf8; --k-sink: #1f1545; }

@@ -105,6 +105,14 @@
      sites and picking one are the same question (WHICH radar).
      ⚠️ LIT = THAT NETWORK'S KEYS ARE SHOWING. The mark is fixed (it names the network, the on-map key's own
      glyph); the TOOLTIP speaks for the click ("Hide TDWR airport radars on the map").
+     ⚠️ A LIT mark wears its NETWORK HUE (green / blue / violet), an unlit one the plain grey — the on-map keys'
+     look on the tier. The hues are DATA, so the same in both themes, and MIRROR radar-sites.js's k-ink
+     values (.radar-site-btn.nexrad / .tdwr / .research) — change both. They override StripToolCheckedGlyph in
+     each toggle's own Resources.
+          off           lit
+          ┌──┐         ┏━━┓
+          │◗ │ grey    ┃◗ ┃ green / ✈ blue / ⚗ violet, accent border as every lit key
+          └──┘         ┗━━┛
      ⚠️ MAP MARKERS ONLY: they never remove a site from the Atlas or the site picker, and never unload a loop.
      ⚠️ NO MASTER: the old "hide all sites" eye is gone (2026-09-26) — all three off = no keys. The TDWR and
      research toggles moved here from Settings → Radar, where they used to switch those networks off app-wide.
@@ -171,214 +179,231 @@
              mc:Ignorable="d">
 
     <UserControl.Resources>
-        <conv:SiteAvailabilityToBrushConverter x:Key="AvailabilityToBrush"/>
+        <ResourceDictionary>
+            <!-- A LIT toggle's mark colour (StripToolToggleStyle's Checked states read it). Primary text by default;
+                 a toggle overrides it in its OWN Resources — the three site toggles do, with their network hue. -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Default">
+                    <StaticResource x:Key="StripToolCheckedGlyph" ResourceKey="TextFillColorPrimaryBrush"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <StaticResource x:Key="StripToolCheckedGlyph" ResourceKey="TextFillColorPrimaryBrush"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <StaticResource x:Key="StripToolCheckedGlyph" ResourceKey="TextFillColorPrimaryBrush"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
 
-        <!-- ⚠️ EVERY DRAWN MARK GETS ITS FULL 18 × 18 BOX (implicit, so every PathIcon on the tier). A PathIcon is
-             otherwise sized from (0,0) to its geometry's far corner, so a mark drawn in the MIDDLE of the 18-unit
-             design box came out off-centre by however much empty space sat above/left of it — the ruler (drawn
-             y 6–12) sat 3 px low. Fixed to the design box, every mark is centred on (9,9) as drawn. A mark designed
-             in a different box sets its own Width/Height (the map-layers caret). -->
-        <Style TargetType="PathIcon">
-            <Setter Property="Width" Value="18"/>
-            <Setter Property="Height" Value="18"/>
-        </Style>
+            <conv:SiteAvailabilityToBrushConverter x:Key="AvailabilityToBrush"/>
 
-        <!-- A tool button. LOCAL, not in Styles.xaml: this strip is its only consumer, which is that
-             file's house rule. Deliberately NOT the bar-key chain — a bar key is a 72px square carrying
-             a mark over a NAME, and a row of those would make this a second bar rather than a tier of
-             tools. Minimal template so it stays opaque in every state and cannot pick up the stock
-             button's chrome. -->
-        <Style x:Key="StripToolButtonStyle" TargetType="Button">
-            <Setter Property="Width" Value="32"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="5"/>
-            <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Grid x:Name="Root"
-                              Background="{TemplateBinding Background}"
-                              BorderBrush="{TemplateBinding BorderBrush}"
-                              BorderThickness="{TemplateBinding BorderThickness}"
-                              CornerRadius="{TemplateBinding CornerRadius}">
-                            <VisualStateManager.VisualStateGroups>
-                                <VisualStateGroup x:Name="CommonStates">
-                                    <VisualState x:Name="Normal"/>
-                                    <VisualState x:Name="PointerOver">
-                                        <VisualState.Setters>
-                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
-                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Pressed">
-                                        <VisualState.Setters>
-                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
-                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Disabled">
-                                        <VisualState.Setters>
-                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
-                            <ContentPresenter x:Name="Glyph"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Content="{TemplateBinding Content}"
-                                              Foreground="{TemplateBinding Foreground}"/>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+            <!-- ⚠️ EVERY DRAWN MARK GETS ITS FULL 18 × 18 BOX (implicit, so every PathIcon on the tier). A PathIcon is
+                 otherwise sized from (0,0) to its geometry's far corner, so a mark drawn in the MIDDLE of the 18-unit
+                 design box came out off-centre by however much empty space sat above/left of it — the ruler (drawn
+                 y 6–12) sat 3 px low. Fixed to the design box, every mark is centred on (9,9) as drawn. A mark designed
+                 in a different box sets its own Width/Height (the map-layers caret). -->
+            <Style TargetType="PathIcon">
+                <Setter Property="Width" Value="18"/>
+                <Setter Property="Height" Value="18"/>
+            </Style>
 
-        <!-- The LATCHING tool (Location): StripToolButtonStyle's look plus the bar's lit vocabulary — accent
-             BORDER + Elevated face while checked (Elevated is "a control that is ON", never a tier). A separate
-             style because a Button style can't target a ToggleButton. -->
-        <!-- ⚠️ OFF IS DIMMER: an unlit toggle's mark is the SECONDARY text colour (it read too bright beside the
-             lit ones); CHECKED — and hovering an unlit one — lifts it to PRIMARY. -->
-        <Style x:Key="StripToolToggleStyle" TargetType="ToggleButton">
-            <Setter Property="Width" Value="32"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="5"/>
-            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Grid x:Name="Root"
-                              Background="{TemplateBinding Background}"
-                              BorderBrush="{TemplateBinding BorderBrush}"
-                              BorderThickness="{TemplateBinding BorderThickness}"
-                              CornerRadius="{TemplateBinding CornerRadius}">
-                            <VisualStateManager.VisualStateGroups>
-                                <VisualStateGroup x:Name="CommonStates">
-                                    <VisualState x:Name="Normal"/>
-                                    <VisualState x:Name="PointerOver">
-                                        <VisualState.Setters>
-                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
-                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Pressed">
-                                        <VisualState.Setters>
-                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
-                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Disabled">
-                                        <VisualState.Setters>
-                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Checked">
-                                        <VisualState.Setters>
-                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
-                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
-                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="CheckedPointerOver">
-                                        <VisualState.Setters>
-                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
-                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
-                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="CheckedPressed">
-                                        <VisualState.Setters>
-                                            <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
-                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
-                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="CheckedDisabled">
-                                        <VisualState.Setters>
-                                            <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
-                                            <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
-                            <ContentPresenter x:Name="Glyph"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Content="{TemplateBinding Content}"
-                                              Foreground="{TemplateBinding Foreground}"/>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+            <!-- A tool button. LOCAL, not in Styles.xaml: this strip is its only consumer, which is that
+                 file's house rule. Deliberately NOT the bar-key chain — a bar key is a 72px square carrying
+                 a mark over a NAME, and a row of those would make this a second bar rather than a tier of
+                 tools. Minimal template so it stays opaque in every state and cannot pick up the stock
+                 button's chrome. -->
+            <Style x:Key="StripToolButtonStyle" TargetType="Button">
+                <Setter Property="Width" Value="32"/>
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="5"/>
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid x:Name="Root"
+                                  Background="{TemplateBinding Background}"
+                                  BorderBrush="{TemplateBinding BorderBrush}"
+                                  BorderThickness="{TemplateBinding BorderThickness}"
+                                  CornerRadius="{TemplateBinding CornerRadius}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter x:Name="Glyph"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Content="{TemplateBinding Content}"
+                                                  Foreground="{TemplateBinding Foreground}"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
 
-        <!-- One isolation row, for BOTH sections of the picker. The modes carry hover text; the places
-             have a null Tooltip, which shows nothing rather than an empty box. -->
-        <DataTemplate x:Key="IsolationRowTemplate" x:DataType="vm:StateIsolationOption">
-            <Grid Background="Transparent" ToolTipService.ToolTip="{x:Bind Tooltip}">
-                <TextBlock Text="{x:Bind Label}" VerticalAlignment="Center"/>
-            </Grid>
-        </DataTemplate>
+            <!-- The LATCHING tool (Location): StripToolButtonStyle's look plus the bar's lit vocabulary — accent
+                 BORDER + Elevated face while checked (Elevated is "a control that is ON", never a tier). A separate
+                 style because a Button style can't target a ToggleButton. -->
+            <!-- ⚠️ OFF IS DIMMER: an unlit toggle's mark is the SECONDARY text colour (it read too bright beside the
+                 lit ones); CHECKED — and hovering an unlit one — lifts it to PRIMARY. CHECKED reads the
+                 StripToolCheckedGlyph key (top of these resources), so one toggle can light in its own colour. -->
+            <Style x:Key="StripToolToggleStyle" TargetType="ToggleButton">
+                <Setter Property="Width" Value="32"/>
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="5"/>
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Grid x:Name="Root"
+                                  Background="{TemplateBinding Background}"
+                                  BorderBrush="{TemplateBinding BorderBrush}"
+                                  BorderThickness="{TemplateBinding BorderThickness}"
+                                  CornerRadius="{TemplateBinding CornerRadius}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Checked">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource StripToolCheckedGlyph}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="CheckedPointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource StripToolCheckedGlyph}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="CheckedPressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource StripToolCheckedGlyph}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="CheckedDisabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter x:Name="Glyph"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Content="{TemplateBinding Content}"
+                                                  Foreground="{TemplateBinding Foreground}"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
 
-        <!-- One site-picker ROW (both sections): pin mark, id, name, availability dot. -->
-        <DataTemplate x:Key="SiteRowTemplate" x:DataType="vm:RadarSiteRow">
-            <Grid ColumnSpacing="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="16"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
-                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                          Glyph="{x:Bind comp:MapControlsStrip.PinGlyph(IsHome, IsFavorite), Mode=OneWay}"/>
-                <TextBlock Grid.Column="1" Text="{x:Bind Id}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text="{x:Bind Name}" FontSize="12" VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                <Ellipse Grid.Column="3" Width="8" Height="8" VerticalAlignment="Center"
-                         Fill="{x:Bind Availability, Converter={StaticResource AvailabilityToBrush}, Mode=OneWay}"/>
-            </Grid>
-        </DataTemplate>
+            <!-- One isolation row, for BOTH sections of the picker. The modes carry hover text; the places
+                 have a null Tooltip, which shows nothing rather than an empty box. -->
+            <DataTemplate x:Key="IsolationRowTemplate" x:DataType="vm:StateIsolationOption">
+                <Grid Background="Transparent" ToolTipService.ToolTip="{x:Bind Tooltip}">
+                    <TextBlock Text="{x:Bind Label}" VerticalAlignment="Center"/>
+                </Grid>
+            </DataTemplate>
 
-        <!-- The site picker's FACE: the pin mark (collapsed for a site that is neither), id and name — no dot.
-             No foregrounds set: the text inherits the picker's, so it greys with it in PastCast. -->
-        <DataTemplate x:Key="SiteFaceTemplate" x:DataType="vm:RadarSiteRow">
-            <!-- A Grid, not a horizontal StackPanel: only a * column gives the name a width to trim to.
-                 Gaps are MARGINS, not ColumnSpacing, so a collapsed mark leaves no gap behind. -->
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <FontIcon Margin="0,0,8,0"
-                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
-                          Glyph="{x:Bind comp:MapControlsStrip.PinGlyph(IsHome, IsFavorite), Mode=OneWay}"
-                          Visibility="{x:Bind comp:MapControlsStrip.PinVisibility(IsHome, IsFavorite), Mode=OneWay}"/>
-                <TextBlock Grid.Column="1" Margin="0,0,8,0" Text="{x:Bind Id}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text="{x:Bind Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-            </Grid>
-        </DataTemplate>
+            <!-- One site-picker ROW (both sections): pin mark, id, name, availability dot. -->
+            <DataTemplate x:Key="SiteRowTemplate" x:DataType="vm:RadarSiteRow">
+                <Grid ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
+                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                              Glyph="{x:Bind comp:MapControlsStrip.PinGlyph(IsHome, IsFavorite), Mode=OneWay}"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind Id}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind Name}" FontSize="12" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    <Ellipse Grid.Column="3" Width="8" Height="8" VerticalAlignment="Center"
+                             Fill="{x:Bind Availability, Converter={StaticResource AvailabilityToBrush}, Mode=OneWay}"/>
+                </Grid>
+            </DataTemplate>
 
-        <!-- One place-search row: the name left, population (or the OpenStreetMap credit) right. -->
-        <DataTemplate x:Key="PlaceRowTemplate" x:DataType="models:PlaceResult">
-            <Grid ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{x:Bind Display}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="{x:Bind Detail}" FontSize="12" VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            </Grid>
-        </DataTemplate>
+            <!-- The site picker's FACE: the pin mark (collapsed for a site that is neither), id and name — no dot.
+                 No foregrounds set: the text inherits the picker's, so it greys with it in PastCast. -->
+            <DataTemplate x:Key="SiteFaceTemplate" x:DataType="vm:RadarSiteRow">
+                <!-- A Grid, not a horizontal StackPanel: only a * column gives the name a width to trim to.
+                     Gaps are MARGINS, not ColumnSpacing, so a collapsed mark leaves no gap behind. -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Margin="0,0,8,0"
+                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
+                              Glyph="{x:Bind comp:MapControlsStrip.PinGlyph(IsHome, IsFavorite), Mode=OneWay}"
+                              Visibility="{x:Bind comp:MapControlsStrip.PinVisibility(IsHome, IsFavorite), Mode=OneWay}"/>
+                    <TextBlock Grid.Column="1" Margin="0,0,8,0" Text="{x:Bind Id}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                </Grid>
+            </DataTemplate>
+
+            <!-- One place-search row: the name left, population (or the OpenStreetMap credit) right. -->
+            <DataTemplate x:Key="PlaceRowTemplate" x:DataType="models:PlaceResult">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Bind Display}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind Detail}" FontSize="12" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </Grid>
+            </DataTemplate>
+        </ResourceDictionary>
     </UserControl.Resources>
 
     <!-- ⚠️ NO Background here: the OverlayBar hosting this tier paints the raised surface, and a second
@@ -399,6 +424,21 @@
                           IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                           IsChecked="{x:Bind ViewModel.Radar.ShowNexradSites, Mode=TwoWay}"
                           ToolTipService.ToolTip="{x:Bind SitesTooltip(ViewModel.Radar.ShowNexradSites, 'NEXRAD radar sites'), Mode=OneWay}">
+                <ToggleButton.Resources>
+                    <ResourceDictionary>
+                        <ResourceDictionary.ThemeDictionaries>
+                            <ResourceDictionary x:Key="Default">
+                                <SolidColorBrush x:Key="StripToolCheckedGlyph" Color="#FF6FDB7F"/>
+                            </ResourceDictionary>
+                            <ResourceDictionary x:Key="Light">
+                                <SolidColorBrush x:Key="StripToolCheckedGlyph" Color="#FF6FDB7F"/>
+                            </ResourceDictionary>
+                            <ResourceDictionary x:Key="HighContrast">
+                                <StaticResource x:Key="StripToolCheckedGlyph" ResourceKey="TextFillColorPrimaryBrush"/>
+                            </ResourceDictionary>
+                        </ResourceDictionary.ThemeDictionaries>
+                    </ResourceDictionary>
+                </ToggleButton.Resources>
                 <PathIcon Data="M2.9,13.5 A1.6,1.6 0 1 1 6.1,13.5 A1.6,1.6 0 1 1 2.9,13.5 Z M4.5,8 A5.5,5.5 0 0 1 10,13.5 A1,1 0 0 1 8,13.5 A3.5,3.5 0 0 0 4.5,10 A1,1 0 0 1 4.5,8 Z M4.5,3 A10.5,10.5 0 0 1 15,13.5 A1,1 0 0 1 13,13.5 A8.5,8.5 0 0 0 4.5,5 A1,1 0 0 1 4.5,3 Z"/>
             </ToggleButton>
             <ToggleButton x:Name="TdwrSitesToggle"
@@ -406,6 +446,21 @@
                           IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                           IsChecked="{x:Bind ViewModel.Radar.ShowTdwrs, Mode=TwoWay}"
                           ToolTipService.ToolTip="{x:Bind SitesTooltip(ViewModel.Radar.ShowTdwrs, 'TDWR airport radars'), Mode=OneWay}">
+                <ToggleButton.Resources>
+                    <ResourceDictionary>
+                        <ResourceDictionary.ThemeDictionaries>
+                            <ResourceDictionary x:Key="Default">
+                                <SolidColorBrush x:Key="StripToolCheckedGlyph" Color="#FF7AABFA"/>
+                            </ResourceDictionary>
+                            <ResourceDictionary x:Key="Light">
+                                <SolidColorBrush x:Key="StripToolCheckedGlyph" Color="#FF7AABFA"/>
+                            </ResourceDictionary>
+                            <ResourceDictionary x:Key="HighContrast">
+                                <StaticResource x:Key="StripToolCheckedGlyph" ResourceKey="TextFillColorPrimaryBrush"/>
+                            </ResourceDictionary>
+                        </ResourceDictionary.ThemeDictionaries>
+                    </ResourceDictionary>
+                </ToggleButton.Resources>
                 <PathIcon Data="M9,0.9 C9.54,0.9 9.9,1.71 9.9,2.7 V7.38 L16.2,10.98 V12.69 L9.9,10.89 V14.4 L11.7,15.75 V17.1 L9,16.2 L6.3,17.1 V15.75 L8.1,14.4 V10.89 L1.8,12.69 V10.98 L8.1,7.38 V2.7 C8.1,1.71 8.46,0.9 9,0.9 Z"/>
             </ToggleButton>
             <ToggleButton x:Name="ResearchSitesToggle"
@@ -413,6 +468,21 @@
                           IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                           IsChecked="{x:Bind ViewModel.Radar.ShowResearchRadars, Mode=TwoWay}"
                           ToolTipService.ToolTip="{x:Bind SitesTooltip(ViewModel.Radar.ShowResearchRadars, 'research radars'), Mode=OneWay}">
+                <ToggleButton.Resources>
+                    <ResourceDictionary>
+                        <ResourceDictionary.ThemeDictionaries>
+                            <ResourceDictionary x:Key="Default">
+                                <SolidColorBrush x:Key="StripToolCheckedGlyph" Color="#FFA893F5"/>
+                            </ResourceDictionary>
+                            <ResourceDictionary x:Key="Light">
+                                <SolidColorBrush x:Key="StripToolCheckedGlyph" Color="#FFA893F5"/>
+                            </ResourceDictionary>
+                            <ResourceDictionary x:Key="HighContrast">
+                                <StaticResource x:Key="StripToolCheckedGlyph" ResourceKey="TextFillColorPrimaryBrush"/>
+                            </ResourceDictionary>
+                        </ResourceDictionary.ThemeDictionaries>
+                    </ResourceDictionary>
+                </ToggleButton.Resources>
                 <PathIcon Data="F1 M6.75,2.25 A0.75,0.75 0 0 0 6.75,3.75 H11.25 A0.75,0.75 0 0 0 11.25,2.25 Z M6.75,3 V6.5625 L3.537,12.6225 A2.175,2.175 0 0 0 5.475,15.75 H12.525 A2.175,2.175 0 0 0 14.463,12.6225 L11.25,6.5625 V3 Z M8.25,3.75 H9.75 V6.9375 L13.137,13.3275 A0.675,0.675 0 0 1 12.525,14.25 H5.475 A0.675,0.675 0 0 1 4.863,13.3275 L8.25,6.9375 Z"/>
             </ToggleButton>
 
