@@ -25,10 +25,8 @@ namespace Anvil.Controls.Composites
 		public MapControlsStrip()
 		{
 			InitializeComponent();
-			// Either group re-laying out (the console tools widen as PickerSeparator slides the site picker; the
-			// right after its own resize) re-runs the right side's fit. It converges: ApplyRightTools ignores
-			// sub-pixel no-ops, so the resize it causes settles on the next pass.
-			ConsoleTools.SizeChanged += (_, _) => ApplyRightTools();
+			// The right group re-laying out re-runs its fit. It converges: ApplyRightTools ignores sub-pixel
+			// no-ops, so the resize it causes settles on the next pass.
 			RightTools.SizeChanged += (_, _) => ApplyRightTools();
 		}
 
@@ -83,65 +81,41 @@ namespace Anvil.Controls.Composites
 			SitePicker.SelectedItem = vm.SiteFavorites.LoadedSite;
 		}
 
-		// The picker separator never drops below a 3 × 3's width — past that, the alignment gives way.
-		private const int PickerSeparatorMinColumns = 3;
-
-		/// <summary>Slide the (fixed-width) site picker so its RIGHT edge lands on <paramref name="rightEdge"/> (in
-		/// <paramref name="root"/>'s coordinates) — MainWindow passes the end of the bar's longest scan line. It does
-		/// so by setting PickerSeparator's Width: that separator's LEFT edge is fixed by the tools before it, and the
-		/// picker follows its right edge after the separator's margin and the panel spacing. A no-op for a sub-pixel
-		/// change, which is what makes calling it from SizeChanged safe (the resize re-fires it with the same answer).</summary>
-		public void AlignSitePickerRightEdge(double rightEdge, UIElement root)
-		{
-			if (double.IsNaN(rightEdge) || PickerSeparator.ActualHeight <= 0)
-			{
-				return;
-			}
-			var separatorLeft = PickerSeparator.TransformToVisual(root).TransformPoint(default).X;
-			// separator | its right margin | the panel's spacing | picker
-			var afterSeparator = PickerSeparator.Margin.Right + ConsoleTools.Spacing;
-			var width = rightEdge - SitePicker.Width - afterSeparator - separatorLeft;
-			width = Math.Max(PickerSeparator.WidthFor(PickerSeparatorMinColumns), width);
-			if (Math.Abs(width - PickerSeparator.Width) > 0.5)
-			{
-				PickerSeparator.Width = width;
-			}
-		}
-
-		// ===== The console tools ride the console =====
-		// The bar's console is CENTRED (the console ⇄ temporal swap, 2026-10-06), so this group's left edge is
-		// measured, not laid out: its left margin puts it on the console's left edge. Floor: never closer than
-		// ConsoleToolsGap to the search group, so a narrow window overlaps nothing — the alignment gives way.
+		// ===== The site picker sits on the bar's centre =====
+		// The site picker's CENTRE is the bar's play button's (the bar's midpoint, 2026-10-06), and the rest of the
+		// console tools hang off its LEFT — so the group's left margin is measured, not laid out. The tools before the
+		// picker are wider than the clock, so the group starts a little left of the console; that is the trade for a
+		// centred picker. Floor: never closer than ConsoleToolsGap to the search group, so a narrow window overlaps
+		// nothing — the alignment gives way.
 		private const double ConsoleToolsGap = 16;
 
-		/// <summary>Start the console tools at <paramref name="consoleLeft"/> (the bar's console's left edge, in
-		/// <paramref name="root"/>'s coordinates). A no-op for a sub-pixel change.</summary>
-		public void AlignConsoleToolsLeft(double consoleLeft, UIElement root)
+		/// <summary>Slide the console tools so the site picker's centre lands on <paramref name="centre"/> (in
+		/// <paramref name="root"/>'s coordinates) — MainWindow passes the bar's play button's centre. Corrects the
+		/// CURRENT offset, so it converges; a no-op for a sub-pixel change, which makes calling it from layout safe.</summary>
+		public void AlignSitePickerCentre(double centre, UIElement root)
 		{
-			if (double.IsNaN(consoleLeft) || SearchGroup.ActualWidth <= 0)
+			if (double.IsNaN(centre) || SearchGroup.ActualWidth <= 0 || SitePicker.ActualWidth <= 0)
 			{
 				return;
 			}
-			var origin = TransformToVisual(root).TransformPoint(default).X;
+			var pickerCentre = SitePicker.TransformToVisual(root).TransformPoint(default).X + SitePicker.ActualWidth / 2;
 			var floor = SearchGroup.ActualWidth + ConsoleToolsGap;
-			var margin = Math.Max(floor, consoleLeft - origin);
+			var margin = Math.Max(floor, ConsoleTools.Margin.Left + centre - pickerCentre);
 			if (Math.Abs(margin - ConsoleTools.Margin.Left) > 0.5)
 			{
 				ConsoleTools.Margin = new Thickness(margin, 0, 0, 0);
 			}
 		}
 
-		// ===== The right side's fit (the mirror of the site picker's slide) =====
-		// Two measured widths, both set here: the isolation picker's left edge lands on the bar's ATLAS key's left
-		// edge (its right edge is the tier's, fixed — RightTools is right-aligned), and PaneSeparator takes up
-		// whatever makes RightTools START just after the console tools (RightToolsGap) — as the bar's activity slot
-		// starts just after the console. (Until the swap it made RightTools as wide as the then-left tools.) The
-		// last Atlas edge is kept so the strip's own resizes can re-run it without MainWindow.
+		// ===== The right side's fit =====
+		// One measured width: the isolation picker's left edge lands on the bar's ATLAS key's left edge (its right
+		// edge is the tier's, fixed — RightTools is right-aligned). The group is otherwise its natural width, so the
+		// pane-layout toggles LEAD it and the open run sits between the site picker and them (2026-10-06: next to the
+		// console tools they read as part of the centre cluster). The last Atlas edge is kept so the strip's own
+		// resizes can re-run it without MainWindow.
 
-		// Floors: past these the alignment gives way rather than the controls.
+		// Floor: past this the alignment gives way rather than the control.
 		private const double IsolationMinWidth = 150;
-		private const int PaneSeparatorMinColumns = 3;
-		private const double RightToolsGap = 16;
 
 		private double _atlasLeft = double.NaN;
 		private UIElement? _alignRoot;
@@ -157,35 +131,17 @@ namespace Anvil.Controls.Composites
 
 		private void ApplyRightTools()
 		{
-			if (_alignRoot is null || double.IsNaN(_atlasLeft) ||
-				IsolationPicker.ActualWidth <= 0 || ConsoleTools.ActualWidth <= 0 || RightTools.ActualWidth <= 0)
+			if (_alignRoot is null || double.IsNaN(_atlasLeft) || IsolationPicker.ActualWidth <= 0)
 			{
 				return;
 			}
 			var isoRight = IsolationPicker.TransformToVisual(_alignRoot).TransformPoint(default).X + IsolationPicker.ActualWidth;
 			var iso = Math.Max(IsolationMinWidth, isoRight - _atlasLeft);
-			// Everything in the right group but the two widths being set (margins and spacing included).
-			var fixedPart = RightTools.ActualWidth - PaneSeparator.ActualWidth - IsolationPicker.ActualWidth;
-			// The group runs from just after the console tools to the tier's right edge (= isoRight).
-			var consoleRight = ConsoleTools.TransformToVisual(_alignRoot).TransformPoint(default).X + ConsoleTools.ActualWidth;
-			var wanted = isoRight - (consoleRight + RightToolsGap);
-			var sep = Math.Max(PaneSeparator.WidthFor(PaneSeparatorMinColumns), wanted - fixedPart - iso);
 			if (Math.Abs(iso - IsolationPicker.Width) > 0.5)
 			{
 				IsolationPicker.Width = iso;
 			}
-			if (Math.Abs(sep - PaneSeparator.Width) > 0.5)
-			{
-				PaneSeparator.Width = sep;
-			}
 		}
-
-		/// <summary>The 1-pane key's LEFT edge in <paramref name="root"/>'s space, or NaN while the tier isn't laid out
-		/// (hidden). MainWindow hangs the bar's activity slot off it (AlignActivityBay).</summary>
-		public double SinglePaneLeft(UIElement root) =>
-			Visibility == Visibility.Visible && SinglePaneToggle.ActualWidth > 0 && IsLoaded
-				? SinglePaneToggle.TransformToVisual(root).TransformPoint(default).X
-				: double.NaN;
 
 		/// <summary>Make the search BOX exactly <paramref name="width"/> wide: MainWindow passes the width of the
 		/// bar's temporal keys. Both start on the bar's left edge, so the box spans exactly the keys below it; the

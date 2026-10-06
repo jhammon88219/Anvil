@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- BarActivityReadout — the bar's ACTIVITY slot: what Anvil is working on right now (MapViewModel.Activity =
-     BarActivityViewModel). Sits in the bar between the temporal keys and Atlas; MainWindow MEASURES its span
-     (left = the tools tier's single-pane key, right = Atlas less the cluster's 8 px) — see AlignActivityBay.
+     BarActivityViewModel). Sits in the bar between the console and Atlas; MainWindow MEASURES its span
+     (left = the console's right edge + 24, right = Atlas less the cluster's 8 px) — see AlignActivityBay.
 
        ┌──────────────────────────────────────────────────────────┐   ← plate: hairline, BarKeySide tall, so it
        │ ┃ Loading the loop · KTLX  [+1]          22 of 39 built  │     lines up with Atlas top and bottom

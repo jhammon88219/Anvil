@@ -16,7 +16,11 @@
          The clock LEADS at the bar's left edge and the scan readout closes the module on the right, so the
          two readouts FLANK the scrubber (2026-09-29, when Inspect left for the tools tier).
          ⚠️ NO SITE ID HERE any more: the tools tier's site picker, directly above, names the loaded site — and
-         its RIGHT EDGE sits on the END OF THE LONGEST SCAN LINE here (MainWindow.AlignSitePicker measures ScanTextRightEdge).
+         it is CENTRED ON THE PLAY BUTTON here (MainWindow.AlignSitePicker measures PlayCentre).
+
+                    ┊ ← the bar's midpoint = ▶'s centre
+       [pad][ clock │ scrubber ▶ │ scan ]      ← CentreOnPlay pads the SHORT side (the clock's, normally) so
+                    ┊                              the control's centre is play's; the bar then centres the control.
 
      THE ORGANIZING RULE: the bar holds what does NOT repeat per pane. One site, one camera, one time
      cursor, shared by every pane — which is why the scrubber does not multiply. Per-pane controls (product,
@@ -25,9 +29,9 @@
      ⚠️ NOTHING HERE CHANGES WIDTH — the module is CENTRED on the bar (the console ⇄ temporal swap, 2026-10-06),
      so any width change would re-centre it and slide the scrubber. The clock column reserves a TWO-DIGIT hour
      (an invisible twin), the scrubber block is a FIXED 420 (control line included) and the scan block a
-     reserved 180. (Before the swap the clock sat at its real width and the run behind it slid.) The site picker
-     above tracks the scan text's END, so a longer VCP line slides IT a little — the module doesn't move.
-     ⚠️ WIDTH: ~754. The tools tier's console tools ride its left edge (MainWindow.AlignConsoleTools).
+     reserved 180. (Before the swap the clock sat at its real width and the run behind it slid.)
+     ⚠️ WIDTH: ~754 + the centring pad (~23, CentreOnPlay). The ANCHOR is the play button, not the module's middle
+     (the user's call, 2026-10-06): the tools tier centres its site picker on it (MainWindow.AlignSitePicker).
 
      History: this was a 2x2 readout block (time/age over site/scan) beside plated 30/38/30 transport buttons.
      J replaced it (2026-09-28) to match the tiles/clock language of the redesigned windows. -->
@@ -51,7 +55,6 @@
         <Style x:Key="ScanValueStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <!-- LEFT, so ActualWidth is the TEXT: ScanTextRightEdge reads it to place the site picker. -->
             <Setter Property="HorizontalAlignment" Value="Left"/>
             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
@@ -77,7 +80,9 @@
          clock, the scrubber block and the scan lines share one midline. -->
     <!-- ⚠️ A FIXED WIDTH, because the bar CENTRES it (see the header): column 0 reserves a two-digit hour, the
          scrubber block is a FIXED 420 and the scan block a reserved 180, the gaps the column spacing, 16. -->
-    <Grid HorizontalAlignment="Left" VerticalAlignment="Center" ColumnSpacing="16">
+    <!-- ⚠️ Its MARGIN is SET IN CODE (CentreOnPlay): one side padded so this control's centre is the PLAY button's. -->
+    <Grid x:Name="Assembly" HorizontalAlignment="Left" VerticalAlignment="Center" ColumnSpacing="16"
+          SizeChanged="OnAssemblySizeChanged">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/> <!-- the clock: a two-digit hour's width, reserved -->
             <ColumnDefinition Width="Auto"/> <!-- scrubber over the control line: a fixed 420 -->
@@ -238,7 +243,8 @@
                         <FontIcon Glyph="&#xE892;" FontSize="13"/>
                     </Button>
                     <!-- Play is the one transport glyph at full strength: it's the one you reach for. -->
-                    <Button Style="{StaticResource GlyphTransportStyle}"
+                    <Button x:Name="PlayStopButton"
+                            Style="{StaticResource GlyphTransportStyle}"
                             Width="32"
                             Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                             Click="OnPlayStopClick"

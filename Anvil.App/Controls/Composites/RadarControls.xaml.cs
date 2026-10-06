@@ -31,7 +31,6 @@ namespace Anvil.Controls.Composites
 		public RadarControls()
 		{
 			InitializeComponent();
-			HookScanTextSizes();
 		}
 
 		/// <summary>The radar view model driving these controls; bound from the host.</summary>
@@ -274,39 +273,42 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
-		/// <summary>Raised when any scan line's text changes width — the site picker on the tools tier tracks the
-		/// end of the longest one (MainWindow.AlignSitePicker).</summary>
-		public event EventHandler? ScanTextEdgeChanged;
+		// ===== The PLAY BUTTON is the bar's centre, not the module =====
+		// The bar centres this control, but the clock (left) is narrower than the scan block (right), so the module's
+		// own midpoint is left of play. A one-sided margin on the assembly evens the two halves out: the control's
+		// centre then IS play's centre. The assembly is fixed-width (see the header), so this settles in one pass —
+		// changing a margin doesn't resize the assembly, and a sub-pixel no-op stops the re-fire.
+		private void OnAssemblySizeChanged(object sender, SizeChangedEventArgs e) => CentreOnPlay();
 
-		// Every TextBlock in the scan block (labels + fact/stand-in values) reports its size changes; labels never
-		// change, so in practice only a value's new text fires it.
-		private void HookScanTextSizes()
+		private void CentreOnPlay()
 		{
-			foreach (var child in ScanBlock.Children)
+			if (Assembly.ActualWidth <= 0 || PlayStopButton.ActualWidth <= 0)
 			{
-				if (child is FrameworkElement text)
-				{
-					text.SizeChanged += (_, _) => ScanTextEdgeChanged?.Invoke(this, EventArgs.Empty);
-				}
+				return;
+			}
+			var play = PlayStopButton.TransformToVisual(Assembly).TransformPoint(default).X + PlayStopButton.ActualWidth / 2;
+			// Left of play vs right of play: pad the short side up to the long one.
+			var skew = Assembly.ActualWidth - 2 * play;
+			var margin = new Thickness(Math.Max(0, skew), 0, Math.Max(0, -skew), 0);
+			if (Math.Abs(margin.Left - Assembly.Margin.Left) > 0.5 || Math.Abs(margin.Right - Assembly.Margin.Right) > 0.5)
+			{
+				Assembly.Margin = margin;
 			}
 		}
 
-		/// <summary>The right end of the LONGEST scan line's text, in <paramref name="root"/>'s coordinates — where the
-		/// tools tier's site picker puts its right edge. The values are LEFT-aligned (ScanValueStyle), so a value's
-		/// ActualWidth is its text, not its column; empty ones measure 0 and never win. NaN before layout.</summary>
-		public double ScanTextRightEdge(UIElement root)
-		{
-			double edge = double.NaN;
-			foreach (var child in ScanBlock.Children)
-			{
-				if (child is FrameworkElement text && text.ActualWidth > 0)
-				{
-					var right = text.TransformToVisual(root).TransformPoint(new Point(text.ActualWidth, 0)).X;
-					edge = double.IsNaN(edge) ? right : Math.Max(edge, right);
-				}
-			}
-			return edge;
-		}
+		/// <summary>The play button's centre in <paramref name="root"/>'s coordinates — the bar's midpoint, and where the
+		/// tools tier centres its site picker (MainWindow.AlignSitePicker). NaN before layout.</summary>
+		public double PlayCentre(UIElement root) =>
+			PlayStopButton.ActualWidth > 0
+				? PlayStopButton.TransformToVisual(root).TransformPoint(default).X + PlayStopButton.ActualWidth / 2
+				: double.NaN;
+
+		/// <summary>The VISIBLE module's right edge (the scan block's column end) in <paramref name="root"/>'s
+		/// coordinates — excludes the centring margin. NaN before layout.</summary>
+		public double ConsoleRight(UIElement root) =>
+			Assembly.ActualWidth > 0
+				? Assembly.TransformToVisual(root).TransformPoint(new Point(Assembly.ActualWidth, 0)).X
+				: double.NaN;
 
 		// Its tooltip explains THIS site's pattern — words from RadarGlossary (VcpCatalog), never XAML.
 		public string ScanTooltip(string mode) => RadarGlossary.ScanPatternTooltip(mode);

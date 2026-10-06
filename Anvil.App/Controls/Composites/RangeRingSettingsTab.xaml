@@ -3,7 +3,8 @@
      the loaded site, how each one LOOKS, where the distance labels sit, and the range ruler's anchor.
 
        ┌──────────────────────────────────────────────────────────┐
-       │  ⌄  Rings                                                │
+       │                                   [ Restore default look ]│  ← look only; which rings is kept. ABOVE
+       │  ⌄  Rings                                                │     the sections (every reset button is)
        │    [x] Site ring (shown even with the Rings key off)     │  ← plain, OUTSIDE the Rings key
        │    [x] Reflectivity reach   [x] Velocity reach           │  ← PERSISTED (which rings)
        │    [ ] Distance rings                                    │
@@ -32,7 +33,6 @@
        │    Size      ━━━━●━━━━━━━━  32 px                        │  ← SHARED: label knob + ruler knob
        │  ⌄  Range ruler                                          │
        │    Ruler from [ Radar site | My location ]               │
-       │                                   [ Restore default look ]│  ← look only; which rings is kept
        └──────────────────────────────────────────────────────────┘
 
      WHY ITS OWN TAB: the rings grew from three checkboxes into a per-part style editor — too much to sit in
@@ -54,6 +54,7 @@
 
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- restore -->
             <RowDefinition Height="Auto"/> <!-- rings -->
             <RowDefinition Height="Auto"/> <!-- reflectivity -->
             <RowDefinition Height="Auto"/> <!-- velocity -->
@@ -61,11 +62,17 @@
             <RowDefinition Height="Auto"/> <!-- labels -->
             <RowDefinition Height="Auto"/> <!-- knobs -->
             <RowDefinition Height="Auto"/> <!-- ruler -->
-            <RowDefinition Height="Auto"/> <!-- restore -->
         </Grid.RowDefinitions>
 
+        <!-- RESTORE - ABOVE the sections, so it is found without scrolling past every expander (the user's rule for
+             every options tab with a reset button, 2026-10-06). -->
+        <Button Grid.Row="0" HorizontalAlignment="Right"
+                Content="Restore default look"
+                Click="{x:Bind ViewModel.Radar.RangeRings.ResetLook}"
+                ToolTipService.ToolTip="Put every ring's colour, opacity, thickness and line, and the labels, back to how they started. Which rings are shown is kept"/>
+
         <!-- WHICH RINGS. The page SIZES the first two from the frame on screen; these only choose. -->
-        <prim:PanelSection Grid.Row="0" Header="Rings" IsExpanded="True">
+        <prim:PanelSection Grid.Row="1" Header="Rings" IsExpanded="True">
             <Grid RowSpacing="8" ColumnSpacing="12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- site ring -->
@@ -110,7 +117,7 @@
         </prim:PanelSection>
 
         <!-- ⚠️ This ring's colour is AppSettings.ScopeColor — the range ruler wears it too. -->
-        <prim:PanelSection Grid.Row="1" Header="Reflectivity reach" IsExpanded="True">
+        <prim:PanelSection Grid.Row="2" Header="Reflectivity reach" IsExpanded="True">
             <StackPanel Spacing="6">
                 <cmp:RingStyleEditor ViewModel="{x:Bind ViewModel.Radar.RangeRings.Outline}"/>
                 <TextBlock Margin="4,0,0,0" Opacity="0.75" TextWrapping="Wrap" MaxWidth="420" HorizontalAlignment="Left"
@@ -118,18 +125,18 @@
             </StackPanel>
         </prim:PanelSection>
 
-        <prim:PanelSection Grid.Row="2" Header="Velocity reach" IsExpanded="True">
+        <prim:PanelSection Grid.Row="3" Header="Velocity reach" IsExpanded="True">
             <cmp:RingStyleEditor ViewModel="{x:Bind ViewModel.Radar.RangeRings.Velocity}"/>
         </prim:PanelSection>
 
-        <prim:PanelSection Grid.Row="3" Header="Distance rings" IsExpanded="True">
+        <prim:PanelSection Grid.Row="4" Header="Distance rings" IsExpanded="True">
             <cmp:RingStyleEditor ViewModel="{x:Bind ViewModel.Radar.RangeRings.Distance}"
                                  IsEnabled="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}"/>
         </prim:PanelSection>
 
         <!-- DISTANCE LABELS - their own rows, not a RingStyleEditor: text has a font, size and halo, not a pattern.
              Grouped: how the text LOOKS, then what it SAYS and where it SITS. -->
-        <prim:PanelSection Grid.Row="4" Header="Distance labels" IsExpanded="True">
+        <prim:PanelSection Grid.Row="5" Header="Distance labels" IsExpanded="True">
             <!-- ⚠️ A ContentControl only to carry IsEnabled: a Panel has none, and it greys every row at once. -->
             <ContentControl HorizontalContentAlignment="Stretch" IsTabStop="False"
                             IsEnabled="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}">
@@ -254,7 +261,7 @@
 
         <!-- KNOBS - their own section, NOT under the labels: the size is SHARED with the range ruler's knob (the two
              are drawn identically), so it must stay live while the distance rings are off. -->
-        <prim:PanelSection Grid.Row="5" Header="Knobs" IsExpanded="True">
+        <prim:PanelSection Grid.Row="6" Header="Knobs" IsExpanded="True">
             <Grid RowSpacing="6" ColumnSpacing="12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -281,7 +288,7 @@
         <!-- RANGE RULER - the anchor preference behind the tools tier's Ruler key (arming it is a gesture and
              stays on the tier). ⚠️ "My location" is kept even with no location marker placed - the ruler
              measures from the site meanwhile and its chip says so. Don't grey the segment. -->
-        <prim:PanelSection Grid.Row="6" Header="Range ruler" IsExpanded="True">
+        <prim:PanelSection Grid.Row="7" Header="Range ruler" IsExpanded="True">
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="72"/>
@@ -295,10 +302,5 @@
                                       ToolTipService.ToolTip="Where the range ruler starts: the radar site, or your location marker (the site until one is placed)"/>
             </Grid>
         </prim:PanelSection>
-
-        <Button Grid.Row="7" HorizontalAlignment="Right" Margin="0,4,0,0"
-                Content="Restore default look"
-                Click="{x:Bind ViewModel.Radar.RangeRings.ResetLook}"
-                ToolTipService.ToolTip="Put every ring's colour, opacity, thickness and line, and the labels, back to how they started. Which rings are shown is kept"/>
     </Grid>
 </UserControl>

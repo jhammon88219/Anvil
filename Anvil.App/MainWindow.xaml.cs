@@ -71,35 +71,22 @@ namespace Anvil
 		private void OnBottomChromeSizeChanged(object sender, SizeChangedEventArgs e) =>
 			LoopGate.ContentBottomInset = BottomChrome.ActualHeight - BottomChrome.RowDefinitions[0].ActualHeight;
 
-		// ===== Site picker ↔ scan text =====
-		// The tools tier's site picker (a fixed 260) keeps its RIGHT edge on the END of the bar's longest scan
-		// line, so it slides a little as the scan text changes; the stretching separator before it takes up the
-		// slack. They live in two controls on two tiers, so the edge is MEASURED, not derived from widths. Re-run
-		// whenever either side re-lays out or a scan line changes width (incl. the tier coming back from hidden);
-		// the strip ignores sub-pixel no-ops, so the re-fire its own resize causes settles at once.
+		// ===== Site picker ↔ the play button =====
+		// The tools tier's site picker (a fixed 260) is CENTRED on the bar's play button — the bar's midpoint, since
+		// the console centres itself on play (RadarControls.CentreOnPlay). The console tools ride the picker. They
+		// live in two controls on two tiers, so the centre is MEASURED. The console MOVES without resizing (the window
+		// resizing re-centres it), so this runs on LayoutUpdated; the strip ignores sub-pixel no-ops.
 		private void AlignSitePicker()
 		{
 			if (Content is UIElement root)
 			{
-				ToolsStrip.AlignSitePickerRightEdge(TimeModule.ScanTextRightEdge(root), root);
-			}
-		}
-
-		// ===== Console tools ↔ the console =====
-		// The tools tier's CONSOLE TOOLS (site toggles, Inspect, Ruler, Rings, site picker) start on the console's
-		// left edge, so the group rides the console on the bar's midpoint (2026-10-06, the console ⇄ temporal swap).
-		// The console MOVES without resizing (the window resizing re-centres it), so this runs on LayoutUpdated.
-		private void AlignConsoleTools()
-		{
-			if (Content is UIElement root && TimeModule.ActualWidth > 0)
-			{
-				ToolsStrip.AlignConsoleToolsLeft(TimeModule.TransformToVisual(root).TransformPoint(default).X, root);
+				ToolsStrip.AlignSitePickerCentre(TimeModule.PlayCentre(root), root);
 			}
 		}
 
 		// ===== Tools tier's right side ↔ the Atlas key =====
-		// The isolation picker's LEFT edge sits on the Atlas key's left edge, and the tier's right group starts just
-		// after the console tools (MapControlsStrip.ApplyRightTools). Measured across two tiers, like the site picker's.
+		// The isolation picker's LEFT edge sits on the Atlas key's left edge (MapControlsStrip.ApplyRightTools).
+		// Measured across two tiers, like the site picker's.
 		private void AlignRightTools()
 		{
 			if (Content is UIElement root && AtlasKey.ActualWidth > 0)
@@ -108,44 +95,34 @@ namespace Anvil
 			}
 		}
 
-		// ===== Bar activity slot ↔ the 1-pane key and Atlas =====
-		// The slot (BarActivityReadout) fills the empty bar between the CONSOLE and Atlas: LEFT edge = the tools
-		// tier's 1-pane key's, RIGHT edge = Atlas's less the cluster's 8 px. Measured across two tiers like the
-		// pickers above, on the bar's LayoutUpdated because the 1-pane key MOVES without resizing (the stretching
-		// separators). ⚠️ With the tools tier hidden there is no key to measure: the slot keeps its last width off
-		// Atlas, but never closer than 24 px to the console.
+		// ===== Bar activity slot ↔ the console and Atlas =====
+		// The slot (BarActivityReadout) fills the empty bar between the CONSOLE and Atlas: LEFT edge = 24 px after the
+		// console's visible right edge, RIGHT edge = Atlas's less the cluster's 8 px. On the bar's LayoutUpdated because
+		// the console MOVES without resizing. (It hung off the tools tier's 1-pane key until that key moved to the far
+		// right group, 2026-10-06.)
 		private const double ActivityBayAtlasGap = 8;     // = RightCluster.ColumnSpacing
-		private const double ActivityBayConsoleGap = 24;  // floor against the console
-		private double _activityBayWidth = double.NaN;    // last measured (tier showing)
+		private const double ActivityBayConsoleGap = 24;  // gap after the console
 
 		private void AlignActivityBay()
 		{
-			if (_isClosed || Content is not UIElement root || AtlasKey.ActualWidth <= 0 || TimeModule.ActualWidth <= 0)
+			if (_isClosed || Content is not UIElement root || AtlasKey.ActualWidth <= 0 || double.IsNaN(TimeModule.ConsoleRight(root)))
 			{
 				return;
 			}
 			var origin = BarGrid.TransformToVisual(root).TransformPoint(default).X;
 			var right = AtlasKey.TransformToVisual(root).TransformPoint(default).X - ActivityBayAtlasGap;
-			var consoleRight = TimeModule.TransformToVisual(root).TransformPoint(default).X + TimeModule.ActualWidth;
-			var singlePane = ViewModel.IsMapControlsStripVisible ? ToolsStrip.SinglePaneLeft(root) : double.NaN;
-			if (!double.IsNaN(singlePane))
-			{
-				_activityBayWidth = right - singlePane;
-			}
-			var left = double.IsNaN(_activityBayWidth) ? consoleRight + ActivityBayConsoleGap : right - _activityBayWidth;
-			left = Math.Max(left, consoleRight + ActivityBayConsoleGap);
+			var left = TimeModule.ConsoleRight(root) + ActivityBayConsoleGap;
 			var width = Math.Max(0, right - left);
 			var margin = left - origin;
 			if (Math.Abs(ActivityBay.Width - width) > 0.5) ActivityBay.Width = width;
 			if (Math.Abs(ActivityBay.Margin.Left - margin) > 0.5) ActivityBay.Margin = new Thickness(margin, 0, 0, 0);
 		}
 
-		// Every cross-tier alignment, in dependency order: the console tools follow the console, the site picker's
-		// slide depends on where they start, the right group starts after them, the activity slot after that. Each
-		// is a no-op below half a pixel, so the passes they cause settle at once.
+		// Every cross-tier alignment: the site picker (and the console tools with it) on the play button, the right
+		// group's isolation picker on Atlas, the activity slot after the console. Each is a no-op below half a pixel,
+		// so the passes they cause settle at once.
 		private void OnBottomBarLayoutUpdated(object? sender, object e)
 		{
-			AlignConsoleTools();
 			AlignSitePicker();
 			AlignRightTools();
 			AlignActivityBay();
@@ -625,18 +602,17 @@ namespace Anvil
 
 			ApplyRailSeating();
 
-			// The tools tier's site picker ends where the bar's longest scan line ends (see AlignSitePicker), and
+			// The tools tier's site picker is centred on the bar's play button (see AlignSitePicker), and
 			// its search BOX is exactly as wide as the temporal keys below it — both start on the bar's left edge,
 			// so equal widths make both their edges line up (the two buttons hang after it).
 			TimeModule.SizeChanged += (_, _) => AlignSitePicker();
-			TimeModule.ScanTextEdgeChanged += (_, _) => AlignSitePicker();
 			ToolsStrip.SizeChanged += (_, _) => AlignSitePicker();
 			TemporalKeys.SizeChanged += (_, e) => ToolsStrip.MatchPlaceSearchWidth(e.NewSize.Width);
 			// …and its RIGHT side hangs off the bar's Atlas key (see AlignRightTools). The window resizing moves the
 			// key (ToolsStrip resizes with it); the cluster resizing moves it too.
 			ToolsStrip.SizeChanged += (_, _) => AlignRightTools();
 			RightCluster.SizeChanged += (_, _) => AlignRightTools();
-			// The console tools ride the centred console, and the activity slot spans 1-pane key → Atlas — both MOVE
+			// The site picker rides the centred console, and the activity slot spans console → Atlas — both MOVE
 			// without resizing, so every alignment also re-runs on layout (see OnBottomBarLayoutUpdated).
 			BottomChrome.LayoutUpdated += OnBottomBarLayoutUpdated;
 

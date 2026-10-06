@@ -40,8 +40,8 @@
             seam between the two. Both tiers run ShowTab=False.
           ↑ THE CONSOLE ⇄ TEMPORAL SWAP (2026-10-06, mock-up A): the time module holds the bar's MIDPOINT and
             the temporal keys sit at the LEFT edge, so the bar reads mode → time → windows. The tools tier
-            follows: its console tools ride the console (left edge measured, AlignConsoleTools) and the place
-            search + ▣ ⊚ moved to the left, over the temporal keys.
+            follows: its site picker is centred on the console's ▶ — the bar's midpoint (AlignSitePicker) — and
+            the place search + ▣ ⊚ moved to the left, over the temporal keys.
           ↑ Site markers AND ⌕ Inspect are on the TOOLS tier (both left this bar; see MapControlsStrip).
           ↑ ⋮ = each mode's SIDE CAR: a full-height settings latch on its own key, lit only while that mode
             runs. One window per mode. (Same three-dot mark the retired shared panel key used.)
@@ -56,10 +56,10 @@
             See MapControlsStrip. Don't re-add a Home key here.
           ↑ 📡 = Atlas, a plain window latch again, like Settings.
           ↑ The ACTIVITY SLOT, in the bar's empty run between the console and Atlas —
-              tools tier:   ▢▥▦ ┊┊┊ ⌘⛶ │ ▥▴ ┇[Isolate ▾]
-              bar:          ┌┃ Loading the loop · KTLX   22 of 39 ┐┇Atlas
-                            └┃ ████████░░░░░░░░░░░░░░░░░░░░░░░░░░┘
-                            ↑ left = the 1-pane key's left        ↑ right = Atlas less 8 px (AlignActivityBay)
+              tools tier:                  ▢▥▦ ┊ ⌘⛶ │ ▥▴ ┇[Isolate ▾]
+              bar:   console ┃  ┌┃ Loading the loop · KTLX   22 of 39 ┐┇Atlas
+                             ┃  └┃ ████████░░░░░░░░░░░░░░░░░░░░░░░░░░┘
+                                ↑ left = the console's right + 24   ↑ right = Atlas less 8 px (AlignActivityBay)
             Only while Anvil is working (a loop loading without its gate, the site check — which used to be a
             toast over the map); empty bar otherwise. See Composites/BarActivityReadout.
           ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map (notches and the
@@ -341,8 +341,10 @@
                              Everything here is about READING the radar that is loaded, in time.
                              ⚠️ SWAPPED WITH THE TEMPORAL KEYS (2026-10-06, the user's mock-up A): the console was the
                              LEFT cluster and the keys held the midpoint. Now the bar reads mode → time → windows. The
-                             tools tier's console tools ride it (MainWindow.AlignConsoleTools), and the activity slot
-                             runs from its right edge to Atlas.
+                             tools tier's site picker is centred on its play button (MainWindow.AlignSitePicker), and
+                             the activity slot runs from its right edge to Atlas.
+                             ⚠️ THE PLAY BUTTON IS THE BAR'S MIDPOINT, not the module's middle: RadarControls pads its
+                             short side (CentreOnPlay) so its centre IS play's.
                              ⚠️ CENTRED ONLY BECAUSE IT IS A FIXED WIDTH: the clock reserves a two-digit hour
                              (RadarControls), so 9:59 → 10:00 can't re-centre the module and slide the scrubber.
                              ⚠️ INSPECT, the markers key and the Home key all left for the tools tier earlier
@@ -480,8 +482,8 @@
                         <!-- ===== ACTIVITY SLOT — what Anvil is working on (Composites/BarActivityReadout) =====
                              The empty bar between the console and Atlas. Its span is MEASURED, not laid out:
                              spans all three columns, Left-aligned, and AlignActivityBay sets its left margin to the
-                             tools tier's single-pane key and its width to Atlas's left edge less the cluster's 8 px
-                             (with the tier hidden: the console's right edge + 24). Declared BEFORE the
+                             console's right edge + 24 and its width to Atlas's left edge less the cluster's 8 px.
+                             Declared BEFORE the
                              temporal keys so they stay on top. Nothing active = the plate fades out. -->
                         <comp:BarActivityReadout x:Name="ActivityBay"
                                                  Grid.Column="0" Grid.ColumnSpan="3"
