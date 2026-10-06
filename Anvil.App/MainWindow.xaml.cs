@@ -85,9 +85,21 @@ namespace Anvil
 			}
 		}
 
+		// ===== Console tools ↔ the console =====
+		// The tools tier's CONSOLE TOOLS (site toggles, Inspect, Ruler, Rings, site picker) start on the console's
+		// left edge, so the group rides the console on the bar's midpoint (2026-10-06, the console ⇄ temporal swap).
+		// The console MOVES without resizing (the window resizing re-centres it), so this runs on LayoutUpdated.
+		private void AlignConsoleTools()
+		{
+			if (Content is UIElement root && TimeModule.ActualWidth > 0)
+			{
+				ToolsStrip.AlignConsoleToolsLeft(TimeModule.TransformToVisual(root).TransformPoint(default).X, root);
+			}
+		}
+
 		// ===== Tools tier's right side ↔ the Atlas key =====
-		// The isolation picker's LEFT edge sits on the Atlas key's left edge, and the tier's right group is as wide
-		// as its left (MapControlsStrip.ApplyRightTools). Measured across two tiers, like the site picker's.
+		// The isolation picker's LEFT edge sits on the Atlas key's left edge, and the tier's right group starts just
+		// after the console tools (MapControlsStrip.ApplyRightTools). Measured across two tiers, like the site picker's.
 		private void AlignRightTools()
 		{
 			if (Content is UIElement root && AtlasKey.ActualWidth > 0)
@@ -97,38 +109,47 @@ namespace Anvil
 		}
 
 		// ===== Bar activity slot ↔ the 1-pane key and Atlas =====
-		// The slot (BarActivityReadout) fills the empty bar between the temporal keys and Atlas: LEFT edge = the
-		// tools tier's 1-pane key's, RIGHT edge = Atlas's less the cluster's 8 px. Measured across two tiers like
-		// the pickers above, on the bar's LayoutUpdated because the 1-pane key MOVES without resizing (the
-		// stretching separators). ⚠️ With the tools tier hidden there is no key to measure: the slot keeps its last
-		// width off Atlas, but never closer than 24 px to the temporal keys.
-		private const double ActivityBayAtlasGap = 8;   // = RightCluster.ColumnSpacing
-		private const double ActivityBayKeysGap = 24;   // floor against the temporal keys
-		private double _activityBayWidth = double.NaN;  // last measured (tier showing)
+		// The slot (BarActivityReadout) fills the empty bar between the CONSOLE and Atlas: LEFT edge = the tools
+		// tier's 1-pane key's, RIGHT edge = Atlas's less the cluster's 8 px. Measured across two tiers like the
+		// pickers above, on the bar's LayoutUpdated because the 1-pane key MOVES without resizing (the stretching
+		// separators). ⚠️ With the tools tier hidden there is no key to measure: the slot keeps its last width off
+		// Atlas, but never closer than 24 px to the console.
+		private const double ActivityBayAtlasGap = 8;     // = RightCluster.ColumnSpacing
+		private const double ActivityBayConsoleGap = 24;  // floor against the console
+		private double _activityBayWidth = double.NaN;    // last measured (tier showing)
 
 		private void AlignActivityBay()
 		{
-			if (_isClosed || Content is not UIElement root || AtlasKey.ActualWidth <= 0 || TemporalKeys.ActualWidth <= 0)
+			if (_isClosed || Content is not UIElement root || AtlasKey.ActualWidth <= 0 || TimeModule.ActualWidth <= 0)
 			{
 				return;
 			}
 			var origin = BarGrid.TransformToVisual(root).TransformPoint(default).X;
 			var right = AtlasKey.TransformToVisual(root).TransformPoint(default).X - ActivityBayAtlasGap;
-			var keysRight = TemporalKeys.TransformToVisual(root).TransformPoint(default).X + TemporalKeys.ActualWidth;
+			var consoleRight = TimeModule.TransformToVisual(root).TransformPoint(default).X + TimeModule.ActualWidth;
 			var singlePane = ViewModel.IsMapControlsStripVisible ? ToolsStrip.SinglePaneLeft(root) : double.NaN;
 			if (!double.IsNaN(singlePane))
 			{
 				_activityBayWidth = right - singlePane;
 			}
-			var left = double.IsNaN(_activityBayWidth) ? keysRight + ActivityBayKeysGap : right - _activityBayWidth;
-			left = Math.Max(left, keysRight + ActivityBayKeysGap);
+			var left = double.IsNaN(_activityBayWidth) ? consoleRight + ActivityBayConsoleGap : right - _activityBayWidth;
+			left = Math.Max(left, consoleRight + ActivityBayConsoleGap);
 			var width = Math.Max(0, right - left);
 			var margin = left - origin;
 			if (Math.Abs(ActivityBay.Width - width) > 0.5) ActivityBay.Width = width;
 			if (Math.Abs(ActivityBay.Margin.Left - margin) > 0.5) ActivityBay.Margin = new Thickness(margin, 0, 0, 0);
 		}
 
-		private void OnBottomBarLayoutUpdated(object? sender, object e) => AlignActivityBay();
+		// Every cross-tier alignment, in dependency order: the console tools follow the console, the site picker's
+		// slide depends on where they start, the right group starts after them, the activity slot after that. Each
+		// is a no-op below half a pixel, so the passes they cause settle at once.
+		private void OnBottomBarLayoutUpdated(object? sender, object e)
+		{
+			AlignConsoleTools();
+			AlignSitePicker();
+			AlignRightTools();
+			AlignActivityBay();
+		}
 
 		// NOTE: DevVisibility is gone. It existed to collapse the dev bar key in Release; there is no dev key
 		// any more — the dev tools are a tab of the Settings window, and SettingsWindow omits that tab from
@@ -605,8 +626,8 @@ namespace Anvil
 			ApplyRailSeating();
 
 			// The tools tier's site picker ends where the bar's longest scan line ends (see AlignSitePicker), and
-			// its search BOX is exactly as wide as the temporal keys below it (the flanks hang outside) — both sit
-			// on the window's midline, so equal widths make their outer edges line up.
+			// its search BOX is exactly as wide as the temporal keys below it — both start on the bar's left edge,
+			// so equal widths make both their edges line up (the two buttons hang after it).
 			TimeModule.SizeChanged += (_, _) => AlignSitePicker();
 			TimeModule.ScanTextEdgeChanged += (_, _) => AlignSitePicker();
 			ToolsStrip.SizeChanged += (_, _) => AlignSitePicker();
@@ -615,7 +636,8 @@ namespace Anvil
 			// key (ToolsStrip resizes with it); the cluster resizing moves it too.
 			ToolsStrip.SizeChanged += (_, _) => AlignRightTools();
 			RightCluster.SizeChanged += (_, _) => AlignRightTools();
-			// The activity slot spans 1-pane key → Atlas (see AlignActivityBay).
+			// The console tools ride the centred console, and the activity slot spans 1-pane key → Atlas — both MOVE
+			// without resizing, so every alignment also re-runs on layout (see OnBottomBarLayoutUpdated).
 			BottomChrome.LayoutUpdated += OnBottomBarLayoutUpdated;
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs

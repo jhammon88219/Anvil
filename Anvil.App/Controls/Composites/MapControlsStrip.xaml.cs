@@ -8,8 +8,9 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The map-tools tier of the bottom chrome: the radar-site picker left, place search center, map-only
-	/// tools right (see the XAML header for the shape and the rules). It is pure content - the <c>OverlayBar</c> that hosts it owns
+	/// The map-tools tier of the bottom chrome: place search left, the console tools (sites, Inspect, Ruler,
+	/// Rings, site picker) over the centred console, map-only tools right (see the XAML header for the shape and
+	/// the rules). It is pure content - the <c>OverlayBar</c> that hosts it owns
 	/// the surface, the hairline and the padding, and MainWindow's rail owns the tab that hides it.
 	/// </summary>
 	/// <remarks>
@@ -24,10 +25,10 @@ namespace Anvil.Controls.Composites
 		public MapControlsStrip()
 		{
 			InitializeComponent();
-			// Either side re-laying out (the left widens as PickerSeparator slides the site picker; the right
-			// after its own resize) re-runs the right side's fit. It converges: ApplyRightTools ignores sub-pixel
-			// no-ops, so the resize it causes settles on the next pass.
-			LeftTools.SizeChanged += (_, _) => ApplyRightTools();
+			// Either group re-laying out (the console tools widen as PickerSeparator slides the site picker; the
+			// right after its own resize) re-runs the right side's fit. It converges: ApplyRightTools ignores
+			// sub-pixel no-ops, so the resize it causes settles on the next pass.
+			ConsoleTools.SizeChanged += (_, _) => ApplyRightTools();
 			RightTools.SizeChanged += (_, _) => ApplyRightTools();
 		}
 
@@ -98,7 +99,7 @@ namespace Anvil.Controls.Composites
 			}
 			var separatorLeft = PickerSeparator.TransformToVisual(root).TransformPoint(default).X;
 			// separator | its right margin | the panel's spacing | picker
-			var afterSeparator = PickerSeparator.Margin.Right + LeftTools.Spacing;
+			var afterSeparator = PickerSeparator.Margin.Right + ConsoleTools.Spacing;
 			var width = rightEdge - SitePicker.Width - afterSeparator - separatorLeft;
 			width = Math.Max(PickerSeparator.WidthFor(PickerSeparatorMinColumns), width);
 			if (Math.Abs(width - PickerSeparator.Width) > 0.5)
@@ -107,15 +108,40 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
+		// ===== The console tools ride the console =====
+		// The bar's console is CENTRED (the console ⇄ temporal swap, 2026-10-06), so this group's left edge is
+		// measured, not laid out: its left margin puts it on the console's left edge. Floor: never closer than
+		// ConsoleToolsGap to the search group, so a narrow window overlaps nothing — the alignment gives way.
+		private const double ConsoleToolsGap = 16;
+
+		/// <summary>Start the console tools at <paramref name="consoleLeft"/> (the bar's console's left edge, in
+		/// <paramref name="root"/>'s coordinates). A no-op for a sub-pixel change.</summary>
+		public void AlignConsoleToolsLeft(double consoleLeft, UIElement root)
+		{
+			if (double.IsNaN(consoleLeft) || SearchGroup.ActualWidth <= 0)
+			{
+				return;
+			}
+			var origin = TransformToVisual(root).TransformPoint(default).X;
+			var floor = SearchGroup.ActualWidth + ConsoleToolsGap;
+			var margin = Math.Max(floor, consoleLeft - origin);
+			if (Math.Abs(margin - ConsoleTools.Margin.Left) > 0.5)
+			{
+				ConsoleTools.Margin = new Thickness(margin, 0, 0, 0);
+			}
+		}
+
 		// ===== The right side's fit (the mirror of the site picker's slide) =====
 		// Two measured widths, both set here: the isolation picker's left edge lands on the bar's ATLAS key's left
 		// edge (its right edge is the tier's, fixed — RightTools is right-aligned), and PaneSeparator takes up
-		// whatever makes RightTools exactly as wide as LeftTools. The last Atlas edge is kept so the strip's own
-		// resizes can re-run it without MainWindow.
+		// whatever makes RightTools START just after the console tools (RightToolsGap) — as the bar's activity slot
+		// starts just after the console. (Until the swap it made RightTools as wide as the then-left tools.) The
+		// last Atlas edge is kept so the strip's own resizes can re-run it without MainWindow.
 
 		// Floors: past these the alignment gives way rather than the controls.
 		private const double IsolationMinWidth = 150;
 		private const int PaneSeparatorMinColumns = 3;
+		private const double RightToolsGap = 16;
 
 		private double _atlasLeft = double.NaN;
 		private UIElement? _alignRoot;
@@ -132,7 +158,7 @@ namespace Anvil.Controls.Composites
 		private void ApplyRightTools()
 		{
 			if (_alignRoot is null || double.IsNaN(_atlasLeft) ||
-				IsolationPicker.ActualWidth <= 0 || LeftTools.ActualWidth <= 0 || RightTools.ActualWidth <= 0)
+				IsolationPicker.ActualWidth <= 0 || ConsoleTools.ActualWidth <= 0 || RightTools.ActualWidth <= 0)
 			{
 				return;
 			}
@@ -140,7 +166,10 @@ namespace Anvil.Controls.Composites
 			var iso = Math.Max(IsolationMinWidth, isoRight - _atlasLeft);
 			// Everything in the right group but the two widths being set (margins and spacing included).
 			var fixedPart = RightTools.ActualWidth - PaneSeparator.ActualWidth - IsolationPicker.ActualWidth;
-			var sep = Math.Max(PaneSeparator.WidthFor(PaneSeparatorMinColumns), LeftTools.ActualWidth - fixedPart - iso);
+			// The group runs from just after the console tools to the tier's right edge (= isoRight).
+			var consoleRight = ConsoleTools.TransformToVisual(_alignRoot).TransformPoint(default).X + ConsoleTools.ActualWidth;
+			var wanted = isoRight - (consoleRight + RightToolsGap);
+			var sep = Math.Max(PaneSeparator.WidthFor(PaneSeparatorMinColumns), wanted - fixedPart - iso);
 			if (Math.Abs(iso - IsolationPicker.Width) > 0.5)
 			{
 				IsolationPicker.Width = iso;
@@ -159,9 +188,8 @@ namespace Anvil.Controls.Composites
 				: double.NaN;
 
 		/// <summary>Make the search BOX exactly <paramref name="width"/> wide: MainWindow passes the width of the
-		/// bar's temporal keys. Both are centred on the window's midline, so the box's edges land on the keys'
-		/// outer edges; the two flanks (marker viewer, Location) hang OUTSIDE that line. (It used to be the whole
-		/// group that matched the keys — the user narrowed the keys to the box instead, 2026-10-01.)</summary>
+		/// bar's temporal keys. Both start on the bar's left edge, so the box spans exactly the keys below it; the
+		/// marker viewer and Location hang after it.</summary>
 		public void MatchPlaceSearchWidth(double width)
 		{
 			if (width > 0 && Math.Abs(width - PlaceSearchBox.Width) > 0.5)

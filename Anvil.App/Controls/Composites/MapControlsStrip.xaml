@@ -33,16 +33,18 @@
                                                                                              │ › ☑ Place names    │     has county lines; ›
                                                                                              └────────────────────┘     = closed (cities, POIs,
                                                                                                                           water names)
-       (◗)(✈)(⚗) ─ (⌕) ─ (⌸)(◎) ─── [⌂ KTLX  Oklahoma City ˅]   (▣) [Moore, OK    ✕ ⌕] (⊚) status   [▢][▥][▦] ─── (⌘)(⛶) ─ (▥|▴) [Isolate State     ▾]   ← THIS
-       |←────────────── W (ends on the bar's scan text) ──────────────→|                            |←──────────────── the SAME W ────────────────────→|
-                                                                                                                                  ↑ left edge = the bar's ATLAS key's left edge
-        ↑ LEFT = RADAR + MAP: show each network's    ↑ CENTER = where; the box is   ↑ RIGHT = MAP ONLY: pane layout
-          sites (NEXRAD / TDWR / research) ─ ⌕         CENTERED on the tier           (1/2/4, current one LIT, accent
-          INSPECT ─ ⌸ the RANGE RULER + ◎ the        ▣ marker viewer — PLACEHOLDER   cell = pane 0) ─ reset north,
-          RANGE RINGS (lit = showing) ─ then pick    ⊚ Location (lit = marker out)   fit to view ─ MAP key + car, isolation
-          one (over the console, which answers when)  ✕ stays while there is text
-        ─── = a STRETCHING separator (FillWidth): PickerSeparator (left) slides the site picker onto the scan text;
-            PaneSeparator (right) makes the right group as wide as the left (MapControlsStrip.ApplyRightTools).
+       [Moore, OK    ✕ ⌕] (▣)(⊚) status      (◗)(✈)(⚗) ─ (⌕) ─ (⌸)(◎) ─── [⌂ KTLX  Oklahoma City ˅]   [▢][▥][▦] ── (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
+       |← = the temporal keys →|                 |←─ starts on the CONSOLE's left · ends on its scan text ─→|←16→|                              ↑ left = ATLAS key's left
+        ↑ LEFT = where: the box spans exactly     ↑ CENTRE = RADAR + MAP, riding the bar's centred      ↑ RIGHT = MAP ONLY: pane layout
+          the temporal keys below it; ▣ marker      console: show each network's sites (NEXRAD / TDWR      (1/2/4, current one LIT, accent
+          viewer — PLACEHOLDER; ⊚ Location          / research) ─ ⌕ INSPECT ─ ⌸ the RANGE RULER + ◎ the     cell = pane 0) ─ reset north, fit to
+          (lit = marker out); ✕ stays while         RANGE RINGS (lit = showing) ─ then pick one (the        view ─ MAP key + car, isolation; it
+          there is text                             console below answers WHEN)                            starts 16 after the console tools
+        ─── = a STRETCHING separator (FillWidth): PickerSeparator slides the site picker onto the scan text;
+            PaneSeparator makes the right group START 16 after the console tools (MapControlsStrip.ApplyRightTools).
+        ⚠️ THE CONSOLE ⇄ TEMPORAL SWAP (2026-10-06, the user's mock-up A): the bar's console moved to the MIDPOINT and
+            the temporal keys to the left edge, so this tier's console tools moved with the console (their left
+            margin is measured — AlignConsoleToolsLeft) and place search left the tier's centre for the left edge.
         ─ = Primitives/MapControlsStripSeparator, a faint 3 × 3 DOT GRID between GROUPS with GENEROUS margins
             (8 + the panel's 8 left, 12 + the panel's 4 right = 16 a side). Tune dot size/gap/brush on the
             control, not here.
@@ -55,8 +57,8 @@
      as a seam someone forgot to finish - the two are alternatives, not layers. (The group SEPARATORS are not
      seams: they are small dot grids between tools, inside the tier, and never span it.)
 
-     ⚠️ IT ALIGNS TO THE BAR'S CLUSTERS, not to itself, and the SIDES MEAN SOMETHING. LEFT sits over the
-     radar console, so it holds the control that changes WHICH radar you are looking at (the console below
+     ⚠️ IT ALIGNS TO THE BAR'S CLUSTERS, not to itself, and the PLACES MEAN SOMETHING. The console tools sit over
+     the radar console, so they hold the control that changes WHICH radar you are looking at (the console below
      answers WHEN). RIGHT sits over the window keys and holds the tools that touch ONLY the map — pane
      layout, reset north, fit to view, isolation — none of which loads or changes radar data. A new tool
      goes on the side whose question it answers. Both tiers carry the same 16px side padding so the two
@@ -73,9 +75,8 @@
      already past it (#1A1A1A), so the hover would be invisible; in light it would go the wrong way.
      Each tier hovers one step further from its OWN ground.
 
-     PLACE SEARCH sits in the CENTER, on the tier's exact midpoint (a [*, Auto, *] grid, the same trick as the
-     bar's temporal pills below it); its status text hangs off the box's right in the third column so a
-     message never pushes the box off-center. Typing shows
+     PLACE SEARCH sits at the LEFT edge, over the temporal keys (it held the tier's midpoint until the swap); its
+     status text hangs after the two buttons, capped so a long message trims. Typing shows
      GAZETTEER rows (offline); Enter/a row flies there and drops the search pin (MarkersViewModel).
      ⚠️ ONLINE (Nominatim) runs ONLY on Enter when the gazetteer found nothing — its policy forbids
      autocomplete. Don't wire it to TextChanged. ⚠️ Clearing the box removes the pin; that is the remove.
@@ -87,9 +88,9 @@
      ⚠️ No Ctrl+F: the WebView owns keyboard focus once the map is clicked, so an accelerator here
      would work only sometimes.
 
-     THE SEARCH IS FLANKED: marker viewer LEFT (a placeholder), LOCATION RIGHT. Both sit in the star
-     columns hugging the box, so neither shifts it off the midpoint. Location moved here from the bar's
-     right cluster — it is a "where on the map" move like search, and an occasional one.
+     THE SEARCH IS FOLLOWED by the marker viewer (a placeholder) and LOCATION, in that order (they flanked it
+     while it was centred). Location moved here from the bar's right cluster — it is a "where on the map" move
+     like search, and an occasional one.
      ⚠️ LOCATION LATCHES: as a plain button it would be a one-way door (nothing else in the shipped UI
      removes the marker — the Selected Marker window is pending re-add). Lit = your marker is out; clicking
      it lit removes it. ⚠️ IsChecked is ONE-WAY and re-asserted after the await in the handler: the locate
@@ -100,7 +101,7 @@
      ⚠️ The viewer's mark is a drawn TEARDROP, the search pin's shape. Its button has NO Click on purpose;
      wire it when the marker window exists (open bool + WindowManager registration — CLAUDE.md "Add a window").
 
-     SITE MARKERS, LEFT EDGE — THREE toggles, one per network: ◗ NEXRAD (Radar.ShowNexradSites) · ✈ TDWR
+     SITE MARKERS, first of the console tools — THREE toggles, one per network: ◗ NEXRAD (Radar.ShowNexradSites) · ✈ TDWR
      (ShowTdwrs) · ⚗ research (ShowResearchRadars), all TwoWay and PERSISTED. They sit here because showing the
      sites and picking one are the same question (WHICH radar).
      ⚠️ LIT = THAT NETWORK'S KEYS ARE SHOWING. The mark is fixed (it names the network, the on-map key's own
@@ -118,7 +119,7 @@
      research toggles moved here from Settings → Radar, where they used to switch those networks off app-wide.
      ⚠️ The words say "radar sites", NEVER "markers": ▣ below is the MARKER viewer (search pins, your location).
 
-     SITE PICKER, LEFT — home + favorite radar sites (RadarSiteFavoritesViewModel). It replaced TWO doors to
+     SITE PICKER, last of the console tools — home + favorite radar sites (RadarSiteFavoritesViewModel). It replaced TWO doors to
      one list: the bar's Home key, and the side car on the bar's Atlas key (whose flyout this dropdown absorbed).
      It is ALSO the "which radar is selected" readout (the bar's site id left, 2026-09-29): the FACE is the site on
      the map now (⌂ home, ★ favorite, bare otherwise), and the PINNED top row is that same site (SelectedSites),
@@ -407,11 +408,14 @@
     </UserControl.Resources>
 
     <!-- ⚠️ NO Background here: the OverlayBar hosting this tier paints the raised surface, and a second
-         opaque fill would be one more place the tier's colour is written. One cell, three children — the
-         tools hug the window edges the bar's own clusters hug, and place search holds the center. -->
+         opaque fill would be one more place the tier's colour is written. One cell, three children — place
+         search at the left edge (over the temporal keys), the console tools over the centred console, the
+         map tools at the right edge (over the window keys). -->
     <Grid>
-        <!-- ===== RADAR SITES — LEFT, over the radar console (see the header): show them, pick one ===== -->
-        <StackPanel x:Name="LeftTools"
+        <!-- ===== CONSOLE TOOLS — over the radar console (see the header): show sites, read, measure, pick one =====
+             ⚠️ Its LEFT MARGIN is SET IN CODE (AlignConsoleToolsLeft, from MainWindow): the bar's console is centred,
+             and this group starts on the console's left edge. Never closer than 16 to the search group. -->
+        <StackPanel x:Name="ConsoleTools"
                     Orientation="Horizontal" Spacing="8"
                     HorizontalAlignment="Left" VerticalAlignment="Center">
             <!-- SITE MARKERS — one plain TwoWay toggle per network (a click always changes the flag, so no
@@ -578,33 +582,16 @@
             </Grid>
         </StackPanel>
 
-        <!-- ===== PLACE SEARCH — CENTER =====
-             A [*, Auto, *] grid spanning the tier puts the box on the exact midpoint. ⚠️ No Background on this
-             Grid: a background-less Grid isn't hit-testable, so its empty star columns don't swallow clicks
-             meant for the site picker or the map tools beneath them. -->
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- MARKER VIEWER — PLACEHOLDER. No Click until the marker window exists (see the header).
-                 A teardrop with an eye, the search pin's own shape. -->
-            <Button x:Name="MarkerViewerButton"
-                    Grid.Column="0"
-                    HorizontalAlignment="Right" Margin="0,0,6,0"
-                    Style="{StaticResource StripToolButtonStyle}"
-                    IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                    ToolTipService.ToolTip="Markers (coming soon)">
-                <PathIcon Data="M9,0 C5.1,0 2,3.1 2,7 C2,12 9,18 9,18 C9,18 16,12 16,7 C16,3.1 12.9,0 9,0 Z M9,4.5 A2.5,2.5 0 1,0 9,9.5 A2.5,2.5 0 1,0 9,4.5 Z"/>
-            </Button>
-
-            <!-- ⚠️ Width is SET IN CODE (MatchPlaceSearchWidth, from MainWindow): the bar's temporal keys' width,
-                 so the BOX and the keys share both outer edges and the flanks hang outside them; 402 is only the
+        <!-- ===== PLACE SEARCH — LEFT, over the temporal keys =====
+             Search, then ▣ the marker viewer, then ⊚ Location, then the search status — one row from the tier's
+             left edge (it held the tier's midpoint until the console ⇄ temporal swap, 2026-10-06). -->
+        <StackPanel x:Name="SearchGroup"
+                    Orientation="Horizontal" Spacing="8"
+                    HorizontalAlignment="Left" VerticalAlignment="Center">
+            <!-- ⚠️ Width is SET IN CODE (MatchPlaceSearchWidth, from MainWindow): the bar's temporal keys' width, so
+                 the BOX spans exactly the keys below it and the two buttons hang after; 402 is only the
                  pre-layout value. -->
             <AutoSuggestBox x:Name="PlaceSearchBox"
-                            Grid.Column="1"
                             Width="402" VerticalAlignment="Center"
                             PlaceholderText="Search places"
                             IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
@@ -618,10 +605,18 @@
                             QuerySubmitted="OnPlaceSearchQuerySubmitted"
                             ToolTipService.ToolTip="Find a city or town and fly there. Clear the box to remove the pin."/>
 
+            <!-- MARKER VIEWER — PLACEHOLDER. No Click until the marker window exists (see the header).
+                 A teardrop with an eye, the search pin's own shape. -->
+            <Button x:Name="MarkerViewerButton"
+                    Style="{StaticResource StripToolButtonStyle}"
+                    IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
+                    ToolTipService.ToolTip="Markers (coming soon)">
+                <PathIcon Data="M9,0 C5.1,0 2,3.1 2,7 C2,12 9,18 9,18 C9,18 16,12 16,7 C16,3.1 12.9,0 9,0 Z M9,4.5 A2.5,2.5 0 1,0 9,9.5 A2.5,2.5 0 1,0 9,4.5 Z"/>
+            </Button>
+
             <StackPanel x:Name="LocationGroup"
-                        Grid.Column="2"
-                        Orientation="Horizontal" Spacing="10" Margin="6,0,0,0"
-                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                        Orientation="Horizontal" Spacing="10"
+                        VerticalAlignment="Center">
                 <!-- LOCATION — drop / remove your marker. ONE-WAY IsChecked, re-asserted in the handler. -->
                 <ToggleButton x:Name="LocationToggle"
                               Style="{StaticResource StripToolToggleStyle}"
@@ -633,14 +628,17 @@
                     <PathIcon Data="M3.8,9 A5.2,5.2 0 1,0 14.2,9 A5.2,5.2 0 1,0 3.8,9 Z M5.4,9 A3.6,3.6 0 1,0 12.6,9 A3.6,3.6 0 1,0 5.4,9 Z M6.8,9 A2.2,2.2 0 1,0 11.2,9 A2.2,2.2 0 1,0 6.8,9 Z M8.2,0 H9.8 V3 H8.2 Z M8.2,15 H9.8 V18 H8.2 Z M0,8.2 H3 V9.8 H0 Z M15,8.2 H18 V9.8 H15 Z"/>
                 </ToggleButton>
 
-                <!-- Place search status ("Searching online…", "No places match …"); collapsed when empty. -->
-                <TextBlock Text="{x:Bind ViewModel.PlaceSearch.StatusText, Mode=OneWay}"
+                <!-- Place search status ("Searching online…", "No places match …"); collapsed when empty.
+                     ⚠️ MaxWidth: a horizontal panel gives it infinite room, so without a cap it never trims and a
+                     long message would run under the console tools. -->
+                <TextBlock MaxWidth="200"
+                           Text="{x:Bind ViewModel.PlaceSearch.StatusText, Mode=OneWay}"
                            Visibility="{x:Bind ViewModel.PlaceSearch.HasStatus, Mode=OneWay}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"/>
             </StackPanel>
-        </Grid>
+        </StackPanel>
 
         <!-- ===== MAP TOOLS — RIGHT, over the window keys: pane layout, reset north, fit, isolation ===== -->
         <StackPanel x:Name="RightTools"

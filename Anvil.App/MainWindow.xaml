@@ -15,12 +15,12 @@
        ├─────────────────────────────┴─────────────────────────────┤
        │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  …thrown UP onto the map
        │                 ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                     │  ONE rail, one tab per tier
-       │ ◗✈⚗ │ ⌕ │ ⌸◎ ┊┊┊ [⌂ KTLX Oklahoma City ˅]  ▣ [Search ✕⌕] ⊚  ▢▥▦ ┊┊┊ ⌘⛶ │ ▥▴ ┇[Isolate      ▾]│  TOOLS tier
-       │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┇▒▒▒▒▒▒▒▒▒▒▒▒│  ┆ = picker's right edge = scrubber's
-       │  1:07 PM   ══════ scrubber ═══════┆ VCP:        212  │                              ┇          │  ┇ = Isolate's left edge = ATLAS's
-       │            3/10     ◀ ▶ ▶       ↺ │ Mode:       precip│⋮  ((•))│⋮   ☁ │⋮ ┇📡   ⚙       –│□│  ┊┊┊ = the two STRETCHING separators:
-       │  2 min ago                       │ SAILS/MRLE: ×1   PastCast  NowCast  ForeCast┇Atlas Settings ←50→ ✕│  the right group is as wide as the left
-       └──────────────────────────────────┴────────────────────────┘
+       │ [Search          ✕⌕] ▣ ⊚    ╎◗✈⚗ │ ⌕ │ ⌸◎ ┊┊┊ [⌂ KTLX Oklahoma City ˅]  ▢▥▦ ┊┊ ⌘⛶ │ ▥▴ ┇[Isolate ▾]│  TOOLS tier
+       │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒╎▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒▒▒▒▒▒▒▒▒▒▒┇▒▒▒▒▒▒▒▒▒▒▒▒│  ╎ = console tools' left = console's
+       │                              ╎1:07 PM ═══ scrubber ═══ VCP:     212┆              ┇          │  ┆ = picker's right edge = scan text's
+       │ ⋮ ((•))│⋮   ☁ │⋮             ╎        3/10  ◀ ▶ ▶  ↺  Mode:  precip │              ┇📡   ⚙  –│□│  ┇ = Isolate's left edge = ATLAS's
+       │ PastCast NowCast ForeCast    ╎2 min ago                SAILS/MRLE:×1│  (activity)  ┇Atlas Settings ✕│  ┊┊┊/┊┊ = the STRETCHING separators
+       └──────────────────────────────┴───────────── ↑ bar midpoint ─────────┴──────────────┴──────────┘
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
             is drawn by whichever side owns it: the tools tier throws its own up
             onto the map, and the BAR draws the band it receives from the tier
@@ -38,25 +38,24 @@
             The rail is shared because it must be: an OverlayBar draws its tab
             in row 0 of its own grid, so the lower tier's tab would land in the
             seam between the two. Both tiers run ShowTab=False.
+          ↑ THE CONSOLE ⇄ TEMPORAL SWAP (2026-10-06, mock-up A): the time module holds the bar's MIDPOINT and
+            the temporal keys sit at the LEFT edge, so the bar reads mode → time → windows. The tools tier
+            follows: its console tools ride the console (left edge measured, AlignConsoleTools) and the place
+            search + ▣ ⊚ moved to the left, over the temporal keys.
           ↑ Site markers AND ⌕ Inspect are on the TOOLS tier (both left this bar; see MapControlsStrip).
-            The bar's left cluster is the time module alone, its clock at the far left.
-                                          ↑ bar midpoint — NowCast sits on it
-                                            ↑ ⋮ = each mode's SIDE CAR: a full-height
-                                              settings latch on its own key, lit only
-                                              while that mode runs. One window per mode.
-                                              (Same three-dot mark the retired shared
-                                              panel key used, now inside its own mode.)
+          ↑ ⋮ = each mode's SIDE CAR: a full-height settings latch on its own key, lit only while that mode
+            runs. One window per mode. (Same three-dot mark the retired shared panel key used.)
           ↑ ▢▥▦ = pane layout, three toggles (1 / 2 / 4) on the TOOLS tier; it left this bar's right
             cluster, which is now window latches only. See MapControlsStrip.
-          ↑ ⊚ = Location, and ▣ = the (future) marker viewer, flank the place search on the TOOLS
+          ↑ ▣ = the (future) marker viewer and ⊚ = Location follow the place search on the TOOLS
             tier. Location left this bar: it is a "where on the map" move like search, and an
             occasional one, so it fails the bar's constant-gesture test. See MapControlsStrip.
-          ↑ [⌂ KTLX ˅] = the SITE PICKER (home + favorites), LEFT on the tools tier over the time module.
+          ↑ [⌂ KTLX ˅] = the SITE PICKER (home + favorites), on the tools tier over the time module.
             It replaced this bar's Home key AND the side car that used to hang off the Atlas key — two doors
             to one list. The tools tier's left is radar + map (which site), its right is map only.
             See MapControlsStrip. Don't re-add a Home key here.
           ↑ 📡 = Atlas, a plain window latch again, like Settings.
-          ↑ Not drawn above: the ACTIVITY SLOT, in the bar's empty run between the temporal keys and Atlas —
+          ↑ The ACTIVITY SLOT, in the bar's empty run between the console and Atlas —
               tools tier:   ▢▥▦ ┊┊┊ ⌘⛶ │ ▥▴ ┇[Isolate ▾]
               bar:          ┌┃ Loading the loop · KTLX   22 of 39 ┐┇Atlas
                             └┃ ████████░░░░░░░░░░░░░░░░░░░░░░░░░░┘
@@ -82,10 +81,9 @@
      tall). (The wide, nameless pane-layout key was the other; it moved to the tools tier.) See
      Controls/Styles.xaml, section 2.
 
-     Left of the bar is RadarControls (the global time module; Inspect moved to the tools tier); the CENTER is the three
-     temporal split keys, held on the bar's midpoint by a [*, Auto, *] grid so no amount of growth on either
-     side can shift them; right is the app-wide window buttons, all
-     on one spacing.
+     Left of the bar is the three temporal split keys; the CENTER is RadarControls (the global time module), held
+     on the bar's midpoint by a [*, Auto, *] grid so no amount of growth on either side can shift it; right is the
+     app-wide window buttons, all on one spacing. (Until 2026-10-06 the console was left and the keys centred.)
      The gaps between the three clusters are empty bar, by design.
 
      ⚠️ THE KEYS IN THIS CLUSTER take their LOOK from ONE style chain in Controls/Styles.xaml
@@ -334,21 +332,24 @@
                 <ctl:OverlayBar.BarContent>
                     <Grid x:Name="BarGrid" ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>    <!-- radar console, left-aligned  ┐ equal stars: -->
-                            <ColumnDefinition Width="Auto"/> <!-- temporal pills, DEAD CENTER  │ the Auto     -->
+                            <ColumnDefinition Width="*"/>    <!-- temporal keys, left-aligned  ┐ equal stars: -->
+                            <ColumnDefinition Width="Auto"/> <!-- radar console, DEAD CENTER   │ the Auto     -->
                             <ColumnDefinition Width="*"/>    <!-- window buttons, right edge   ┘ sits centered-->
                         </Grid.ColumnDefinitions>
 
-                        <!-- ===== LEFT CLUSTER: the time module, alone =====
+                        <!-- ===== CENTERPIECE: the time module, alone =====
                              Everything here is about READING the radar that is loaded, in time.
-                             ⚠️ INSPECT MOVED OUT (2026-09-29) to the tools tier, between the site markers and the
-                             Ruler: it is a map-cursor tool, and the tier above is where the radar tools live. The
-                             markers key (was column 0) and the Home key (was column 3) left earlier — site markers
-                             and home/favorites are the tools tier's too (MapControlsStrip). Don't re-add any here.
-                             The module's clock now leads, at the bar's left edge (see RadarControls). -->
+                             ⚠️ SWAPPED WITH THE TEMPORAL KEYS (2026-10-06, the user's mock-up A): the console was the
+                             LEFT cluster and the keys held the midpoint. Now the bar reads mode → time → windows. The
+                             tools tier's console tools ride it (MainWindow.AlignConsoleTools), and the activity slot
+                             runs from its right edge to Atlas.
+                             ⚠️ CENTRED ONLY BECAUSE IT IS A FIXED WIDTH: the clock reserves a two-digit hour
+                             (RadarControls), so 9:59 → 10:00 can't re-centre the module and slide the scrubber.
+                             ⚠️ INSPECT, the markers key and the Home key all left for the tools tier earlier
+                             (MapControlsStrip). Don't re-add any here. -->
                         <comp:RadarControls x:Name="TimeModule"
-                                            Grid.Column="0"
-                                            HorizontalAlignment="Left"
+                                            Grid.Column="1"
+                                            HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
                                             ViewModel="{x:Bind ViewModel.Radar}"/>
 
@@ -477,10 +478,10 @@
                         </Grid>
 
                         <!-- ===== ACTIVITY SLOT — what Anvil is working on (Composites/BarActivityReadout) =====
-                             The empty bar between the temporal keys and Atlas. Its span is MEASURED, not laid out:
+                             The empty bar between the console and Atlas. Its span is MEASURED, not laid out:
                              spans all three columns, Left-aligned, and AlignActivityBay sets its left margin to the
                              tools tier's single-pane key and its width to Atlas's left edge less the cluster's 8 px
-                             (with the tier hidden: the temporal keys' right edge + 24). Declared BEFORE the
+                             (with the tier hidden: the console's right edge + 24). Declared BEFORE the
                              temporal keys so they stay on top. Nothing active = the plate fades out. -->
                         <comp:BarActivityReadout x:Name="ActivityBay"
                                                  Grid.Column="0" Grid.ColumnSpan="3"
@@ -489,18 +490,16 @@
                                                  Width="0"
                                                  ViewModel="{x:Bind ViewModel.Activity}"/>
 
-                        <!-- ===== TEMPORAL MODE KEYS — THE BAR'S CENTERPIECE =====
-                             The Auto column between two equal stars, so this is the bar's exact midpoint
-                             (see the ⚠️ above). LAST in markup on purpose: if the console on the left ever
-                             outgrows its half it slides UNDER these rather than over them, so the keys stay
-                             clickable. Past excludes Now/Fore; Now and Fore coexist.
-                             ⚠️ Center, and this is a REVERSAL: Stretch used to be REQUIRED here, because the
-                             keys were squares measured off the height they were given and centring collapsed
-                             them. They are a fixed size now (Styles.xaml, BarKeySide) and this row is what
-                             makes the BAR that tall, so stretching would only pad around them. -->
+                        <!-- ===== TEMPORAL MODE KEYS — the bar's LEFT edge =====
+                             They held the midpoint until 2026-10-06 (the console took it). LAST in markup on
+                             purpose: in a window narrow enough that the centred console reaches into this column,
+                             the console slides UNDER these rather than over them, so the mode keys stay clickable.
+                             Past excludes Now/Fore; Now and Fore coexist.
+                             ⚠️ VerticalAlignment Center, not Stretch: the keys are a fixed size (Styles.xaml,
+                             BarKeySide) and this row is what makes the BAR that tall. -->
                         <comp:TemporalToggles x:Name="TemporalKeys"
-                                              Grid.Column="1"
-                                              HorizontalAlignment="Center"
+                                              Grid.Column="0"
+                                              HorizontalAlignment="Left"
                                               VerticalAlignment="Center"
                                               ViewModel="{x:Bind ViewModel}"/>
                     </Grid>
