@@ -168,14 +168,17 @@ namespace Anvil.Controls.Composites
 				? RightTools.TransformToVisual(root).TransformPoint(default).X
 				: double.NaN;
 
-		/// <summary>Make the search BOX exactly <paramref name="width"/> wide: MainWindow passes the width of the
-		/// bar's temporal keys. Both start on the bar's left edge, so the box spans exactly the keys below it; the
-		/// marker viewer and Location hang after it.</summary>
+		/// <summary>Make the whole search ROW (box + marker viewer + Location) exactly <paramref name="width"/> wide:
+		/// MainWindow passes the width of the bar's temporal keys. Both start on the bar's left edge, so the row ends on
+		/// the keys' right edge (the section rules). The BOX takes what the two buttons leave — a stopgap until the
+		/// custom short search box.</summary>
 		public void MatchPlaceSearchWidth(double width)
 		{
-			if (width > 0 && Math.Abs(width - PlaceSearchBox.Width) > 0.5)
+			var buttons = MarkerViewerButton.Width + LocationToggle.Width + 2 * SearchGroup.Spacing;
+			var box = width - buttons;
+			if (width > 0 && box > 0 && Math.Abs(box - PlaceSearchBox.Width) > 0.5)
 			{
-				PlaceSearchBox.Width = width;
+				PlaceSearchBox.Width = box;
 			}
 		}
 

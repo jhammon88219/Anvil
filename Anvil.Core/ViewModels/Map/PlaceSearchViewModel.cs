@@ -37,7 +37,9 @@ namespace Anvil.ViewModels
 
 		private string _statusText = string.Empty;
 
-		/// <summary>"Searching online…" / "No places match …" beside the box; empty when there's nothing to say.</summary>
+		/// <summary>"Searching online…" / "No places match …" / "Pick a place"; empty when there's nothing to say. Shown
+		/// in the bar's ACTIVITY SLOT (BarActivityViewModel.WatchPlaceSearch), not beside the box — the box's row must
+		/// end on the temporal keys' right edge (the section rules), and a variable-width line can't.</summary>
 		public string StatusText
 		{
 			get => _statusText;
@@ -46,11 +48,20 @@ namespace Anvil.ViewModels
 				if (SetProperty(ref _statusText, value))
 				{
 					OnPropertyChanged(nameof(HasStatus));
+					OnPropertyChanged(nameof(IsSearchingOnline));
 				}
 			}
 		}
 
 		public bool HasStatus => _statusText.Length > 0;
+
+		private const string SearchingOnlineText = "Searching online…";
+
+		/// <summary>The online geocoder is running (the only status that is work in PROGRESS; the others are results).</summary>
+		public bool IsSearchingOnline => _statusText == SearchingOnlineText;
+
+		/// <summary>The online search came back with nothing.</summary>
+		public bool FoundNothing { get; private set; }
 
 		private string _queryText = string.Empty;
 
@@ -101,7 +112,8 @@ namespace Anvil.ViewModels
 
 			CancelOnline();
 			var cts = _onlineCts = new CancellationTokenSource();
-			StatusText = "Searching online…";
+			FoundNothing = false;
+			StatusText = SearchingOnlineText;
 			try
 			{
 				var online = await _search.SearchOnlineAsync(text, cts.Token);
@@ -113,6 +125,7 @@ namespace Anvil.ViewModels
 				{
 					case 0:
 						ReplaceSuggestions(Array.Empty<PlaceResult>());
+						FoundNothing = true;
 						StatusText = $"No places match \"{text.Trim()}\"";
 						return null;
 					case 1:

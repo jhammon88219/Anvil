@@ -89,6 +89,7 @@ namespace Anvil.ViewModels
 			Discussions = new MesoDiscussionsViewModel(mapService, discussionService, Radar, dispatcher, loggerFactory.CreateLogger<MesoDiscussionsViewModel>());
 			Markers = new MarkersViewModel(mapService, locationService);
 			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
+			Activity.WatchPlaceSearch(PlaceSearch);
 			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
 			SiteUsage = new SiteUsageTracker(Radar, siteUsageStore);
 			// The PastCast load-time log (one line per load). Optional so tests that don't care can omit it.

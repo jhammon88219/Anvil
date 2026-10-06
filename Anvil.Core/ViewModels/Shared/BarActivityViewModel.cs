@@ -7,8 +7,9 @@ namespace Anvil.ViewModels
 {
 	/// <summary>What the bar's activity readout can be showing. ⚠️ DECLARATION ORDER IS PRIORITY — when several
 	/// run at once the first one listed takes the slot and the rest wait behind a "+n" tag. A new activity is a
-	/// member here (in its rank) plus a source that calls <see cref="BarActivityViewModel.Set"/>/<c>Clear</c>/<c>Flash</c>.</summary>
-	public enum BarActivityKind { Loop, SiteCheck }
+	/// member here (in its rank) plus a source that calls <see cref="BarActivityViewModel.Set"/>/<c>Clear</c>/<c>Flash</c>.
+	/// Search ranks FIRST: it answers a gesture the user just made, so it must never wait behind a "+n".</summary>
+	public enum BarActivityKind { Search, Loop, SiteCheck }
 
 	/// <summary>The readout's colour: the mark and the bar. Radar = loop work (the gate's built-bar blue),
 	/// Housekeeping = app chores, Done = the finish flash, Failed = a flash that says something didn't work.</summary>
@@ -25,8 +26,10 @@ namespace Anvil.ViewModels
 	/// flicker). When an activity finishes it may <see cref="Flash"/> a result for <see cref="FlashMs"/>, then yields.</para>
 	/// <para>⚠️ TRUTH ONLY, like the gate: every count is a source's own (the loop's are the gate's — one feed,
 	/// <c>RadarViewModel.UpdateLoopGate</c>). No bar is drawn for work that has no real fraction.</para>
-	/// <para>The sources today: the PastCast LOOP while the gate is NOT up (after "Use the map", or holding turned
-	/// off) — clicking it is "Hold the map again"; and the announced SITE CHECK (moved here from the map's toast).</para>
+	/// <para>The sources today: the PLACE SEARCH's status (moved here from beside the search box, 2026-10-06 — a
+	/// variable-width line there broke the left section's edge); the PastCast LOOP while the gate is NOT up (after
+	/// "Use the map", or holding turned off) — clicking it is "Hold the map again"; and the announced SITE CHECK
+	/// (moved here from the map's toast).</para>
 	/// </remarks>
 	public sealed class BarActivityViewModel : ObservableObject
 	{
@@ -187,6 +190,32 @@ namespace Anvil.ViewModels
 			{
 				Clear(BarActivityKind.Loop);
 			}
+		}
+
+		// ── Source: the PLACE SEARCH's status (was a line beside the search box) ───────────────────────
+
+		/// <summary>Follow the place search: the online geocoder RUNS in the slot (no bar — it has no real fraction), and
+		/// its results FLASH ("No places match …" as a failure, "Pick a place" as a prompt). An emptied status (typing,
+		/// a pin landing) clears whatever is still up.</summary>
+		internal void WatchPlaceSearch(PlaceSearchViewModel search)
+		{
+			search.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName != nameof(PlaceSearchViewModel.StatusText)) return;
+				if (search.IsSearchingOnline)
+				{
+					Set(BarActivityKind.Search, "Searching places online", string.Empty, tone: BarActivityTone.Housekeeping);
+				}
+				else if (search.HasStatus)
+				{
+					Flash(BarActivityKind.Search, search.StatusText, string.Empty,
+						search.FoundNothing ? BarActivityTone.Failed : BarActivityTone.Housekeeping, fullBar: false);
+				}
+				else
+				{
+					Clear(BarActivityKind.Search);
+				}
+			};
 		}
 
 		// ── Source: the announced SITE CHECK (was the map's SiteCheckToast) ───────────────────────────

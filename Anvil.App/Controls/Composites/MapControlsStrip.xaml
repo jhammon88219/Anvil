@@ -33,10 +33,10 @@
                                                                                              │ › ☑ Place names    │     has county lines; ›
                                                                                              └────────────────────┘     = closed (cities, POIs,
                                                                                                                           water names)
-       [Moore, OK    ✕ ⌕] (▣)(⊚) status     (◗)(✈)(⚗) ⁙⁙⁙ [⌂ KTLX  Oklahoma City ˅] ⁙⁙⁙⁙⁙ (⌕)(⌸)(◎)     [▢][▥][▦] ─ (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
-       |← = the temporal keys →|            ├ console's left edge         ┊ ▶          console's right edge ┤             ↑ left = ATLAS key's left
+       [Moore, OK  ✕ ⌕](▣)(⊚)               (◗)(✈)(⚗) ⁙⁙⁙ [⌂ KTLX  Oklahoma City ˅] ⁙⁙⁙⁙⁙ (⌕)(⌸)(◎)     [▢][▥][▦] ─ (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
+       |← the keys →|                       ├ console's left edge         ┊ ▶          console's right edge ┤             ↑ left = ATLAS key's left
                                                                           ┊ ← the bar's midpoint
-        ↑ LEFT = where: the box spans exactly     ↑ CENTRE = RADAR + MAP, EDGE-ALIGNED to the     ↑ RIGHT = MAP ONLY, its natural width, right-
+        ↑ LEFT = where: the ROW spans exactly     ↑ CENTRE = RADAR + MAP, EDGE-ALIGNED to the     ↑ RIGHT = MAP ONLY, its natural width, right-
           the temporal keys below it; ▣ marker      console: show each network's sites (NEXRAD /   aligned: pane layout FIRST (1/2/4, current one
           viewer — PLACEHOLDER; ⊚ Location          TDWR / research) ⁙ pick one (the console below LIT, accent cell = pane 0) ─ reset north, fit to
           (lit = marker out); ✕ stays while         answers WHEN) ⁙ ⌕ INSPECT, ⌸ the RANGE RULER,  view ─ MAP key + car, isolation. The open run
@@ -79,8 +79,10 @@
      already past it (#1A1A1A), so the hover would be invisible; in light it would go the wrong way.
      Each tier hovers one step further from its OWN ground.
 
-     PLACE SEARCH sits at the LEFT edge, over the temporal keys (it held the tier's midpoint until the swap); its
-     status text hangs after the two buttons, capped so a long message trims. Typing shows
+     PLACE SEARCH sits at the LEFT edge, over the temporal keys (it held the tier's midpoint until the swap); box +
+     ▣ + ⊚ end on the keys' right edge, so the BOX is what shrinks (a stopgap: a custom short search box is planned).
+     Its STATUS ("Searching online…", "No places match …", "Pick a place") runs in the bar's ACTIVITY SLOT, not
+     here (BarActivityViewModel.WatchPlaceSearch). Typing shows
      GAZETTEER rows (offline); Enter/a row flies there and drops the search pin (MarkersViewModel).
      ⚠️ ONLINE (Nominatim) runs ONLY on Enter when the gazetteer found nothing — its policy forbids
      autocomplete. Don't wire it to TextChanged. ⚠️ Clearing the box removes the pin; that is the remove.
@@ -591,14 +593,14 @@
         </StackPanel>
 
         <!-- ===== PLACE SEARCH — LEFT, over the temporal keys =====
-             Search, then ▣ the marker viewer, then ⊚ Location, then the search status — one row from the tier's
-             left edge (it held the tier's midpoint until the console ⇄ temporal swap, 2026-10-06). -->
+             Search, then ▣ the marker viewer, then ⊚ Location — one row from the tier's left edge to the temporal
+             keys' RIGHT edge (the section rules; it held the tier's midpoint until the console ⇄ temporal swap). -->
         <StackPanel x:Name="SearchGroup"
                     Orientation="Horizontal" Spacing="8"
                     HorizontalAlignment="Left" VerticalAlignment="Center">
-            <!-- ⚠️ Width is SET IN CODE (MatchPlaceSearchWidth, from MainWindow): the bar's temporal keys' width, so
-                 the BOX spans exactly the keys below it and the two buttons hang after; 402 is only the
-                 pre-layout value. -->
+            <!-- ⚠️ Width is SET IN CODE (MatchPlaceSearchWidth, from MainWindow): the bar's temporal keys' width LESS
+                 the two buttons and their spacing, so the WHOLE ROW spans exactly the keys below it. A STOPGAP — the
+                 user plans a custom short search box (2026-10-06); 402 is only the pre-layout value. -->
             <AutoSuggestBox x:Name="PlaceSearchBox"
                             Width="402" VerticalAlignment="Center"
                             PlaceholderText="Search places"
@@ -622,30 +624,19 @@
                 <PathIcon Data="M9,0 C5.1,0 2,3.1 2,7 C2,12 9,18 9,18 C9,18 16,12 16,7 C16,3.1 12.9,0 9,0 Z M9,4.5 A2.5,2.5 0 1,0 9,9.5 A2.5,2.5 0 1,0 9,4.5 Z"/>
             </Button>
 
-            <StackPanel x:Name="LocationGroup"
-                        Orientation="Horizontal" Spacing="10"
-                        VerticalAlignment="Center">
-                <!-- LOCATION — drop / remove your marker. ONE-WAY IsChecked, re-asserted in the handler. -->
-                <ToggleButton x:Name="LocationToggle"
-                              Style="{StaticResource StripToolToggleStyle}"
-                              IsEnabled="{x:Bind FreeAnd(ViewModel.Markers.CanLocate, ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                              IsChecked="{x:Bind ViewModel.Markers.HasUserLocationMarker, Mode=OneWay}"
-                              ToolTipService.ToolTip="{x:Bind LocationTooltip(ViewModel.Markers.HasUserLocationMarker, ViewModel.Markers.LocateStatusText), Mode=OneWay}"
-                              Click="OnToggleUserLocation">
-                    <!-- Ring (donut 3.6-5.2), SOLID core (r 2.2), four ticks standing off it. -->
-                    <PathIcon Data="M3.8,9 A5.2,5.2 0 1,0 14.2,9 A5.2,5.2 0 1,0 3.8,9 Z M5.4,9 A3.6,3.6 0 1,0 12.6,9 A3.6,3.6 0 1,0 5.4,9 Z M6.8,9 A2.2,2.2 0 1,0 11.2,9 A2.2,2.2 0 1,0 6.8,9 Z M8.2,0 H9.8 V3 H8.2 Z M8.2,15 H9.8 V18 H8.2 Z M0,8.2 H3 V9.8 H0 Z M15,8.2 H18 V9.8 H15 Z"/>
-                </ToggleButton>
-
-                <!-- Place search status ("Searching online…", "No places match …"); collapsed when empty.
-                     ⚠️ MaxWidth: a horizontal panel gives it infinite room, so without a cap it never trims and a
-                     long message would run under the console tools. -->
-                <TextBlock MaxWidth="200"
-                           Text="{x:Bind ViewModel.PlaceSearch.StatusText, Mode=OneWay}"
-                           Visibility="{x:Bind ViewModel.PlaceSearch.HasStatus, Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"/>
-            </StackPanel>
+            <!-- LOCATION — drop / remove your marker. ONE-WAY IsChecked, re-asserted in the handler. LAST of the left
+                 section: its right edge is the temporal keys' right edge (MatchPlaceSearchWidth).
+                 ⚠️ NO STATUS LINE after it any more: "Searching online…" / "No places match …" run in the bar's
+                 ACTIVITY SLOT (BarActivityViewModel.WatchPlaceSearch) — a variable-width line here broke the edge. -->
+            <ToggleButton x:Name="LocationToggle"
+                          Style="{StaticResource StripToolToggleStyle}"
+                          IsEnabled="{x:Bind FreeAnd(ViewModel.Markers.CanLocate, ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
+                          IsChecked="{x:Bind ViewModel.Markers.HasUserLocationMarker, Mode=OneWay}"
+                          ToolTipService.ToolTip="{x:Bind LocationTooltip(ViewModel.Markers.HasUserLocationMarker, ViewModel.Markers.LocateStatusText), Mode=OneWay}"
+                          Click="OnToggleUserLocation">
+                <!-- Ring (donut 3.6-5.2), SOLID core (r 2.2), four ticks standing off it. -->
+                <PathIcon Data="M3.8,9 A5.2,5.2 0 1,0 14.2,9 A5.2,5.2 0 1,0 3.8,9 Z M5.4,9 A3.6,3.6 0 1,0 12.6,9 A3.6,3.6 0 1,0 5.4,9 Z M6.8,9 A2.2,2.2 0 1,0 11.2,9 A2.2,2.2 0 1,0 6.8,9 Z M8.2,0 H9.8 V3 H8.2 Z M8.2,15 H9.8 V18 H8.2 Z M0,8.2 H3 V9.8 H0 Z M15,8.2 H18 V9.8 H15 Z"/>
+            </ToggleButton>
         </StackPanel>
 
         <!-- ===== MAP TOOLS — RIGHT, over the window keys: pane layout, reset north, fit, isolation ===== -->
