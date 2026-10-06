@@ -57,10 +57,11 @@
             See MapControlsStrip. Don't re-add a Home key here.
           ↑ 📡 = Atlas, a plain window latch again, like Settings.
           ↑ The ACTIVITY SLOT, in the bar's empty run between the console and Atlas —
-              tools tier:                  ▢▥▦ ┊ ⌘⛶ │ ▥▴ ┇[Isolate ▾]
-              bar:   console ┃  ┌┃ Loading the loop · KTLX   22 of 39 ┐┇Atlas
-                             ┃  └┃ ████████░░░░░░░░░░░░░░░░░░░░░░░░░░┘
-                                ↑ left = the console's right + 24   ↑ right = Atlas less 8 px (AlignActivityBay)
+              tools tier:   ▢▥▦ ┊ ⌘⛶ │ ▥▴ ┇[Isolate ▾]
+              bar:          ┌┃ Loading · KTLX 22 of 39 ┐┇Atlas
+                            └┃ ███████░░░░░░░░░░░░░░░░░┘
+                            ↑ left = the 1-pane key's left (the RIGHT section's one left edge)
+                                                       ↑ right = Atlas less 8 px (AlignActivityBay)
             Only while Anvil is working (a loop loading without its gate, the site check — which used to be a
             toast over the map); empty bar otherwise. See Composites/BarActivityReadout.
           ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map (notches and the
@@ -483,7 +484,8 @@
                         <!-- ===== ACTIVITY SLOT — what Anvil is working on (Composites/BarActivityReadout) =====
                              The empty bar between the console and Atlas. Its span is MEASURED, not laid out:
                              spans all three columns, Left-aligned, and AlignActivityBay sets its left margin to the
-                             console's right edge + 24 and its width to Atlas's left edge less the cluster's 8 px.
+                             tools tier's RIGHT SECTION left edge (the 1-pane key's) and its width to Atlas's left edge
+                             less the cluster's 8 px (tier hidden: its last width; never closer than 24 to the console).
                              Declared BEFORE the
                              temporal keys so they stay on top. Nothing active = the plate fades out. -->
                         <comp:BarActivityReadout x:Name="ActivityBay"

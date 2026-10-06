@@ -160,6 +160,14 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
+		/// <summary>The RIGHT section's left edge on this tier — its first key's (the 1-pane toggle's) left — in
+		/// <paramref name="root"/>'s coordinates, or NaN while the tier isn't laid out (hidden). MainWindow starts the
+		/// bar's activity slot there (AlignActivityBay), so the right section shares one left edge on both tiers.</summary>
+		public double RightSectionLeft(UIElement root) =>
+			Visibility == Visibility.Visible && IsLoaded && RightTools.ActualWidth > 0
+				? RightTools.TransformToVisual(root).TransformPoint(default).X
+				: double.NaN;
+
 		/// <summary>Make the search BOX exactly <paramref name="width"/> wide: MainWindow passes the width of the
 		/// bar's temporal keys. Both start on the bar's left edge, so the box spans exactly the keys below it; the
 		/// marker viewer and Location hang after it.</summary>

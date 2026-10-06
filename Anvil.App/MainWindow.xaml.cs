@@ -97,13 +97,16 @@ namespace Anvil
 			}
 		}
 
-		// ===== Bar activity slot ↔ the console and Atlas =====
-		// The slot (BarActivityReadout) fills the empty bar between the CONSOLE and Atlas: LEFT edge = 24 px after the
-		// console's visible right edge, RIGHT edge = Atlas's less the cluster's 8 px. On the bar's LayoutUpdated because
-		// the console MOVES without resizing. (It hung off the tools tier's 1-pane key until that key moved to the far
-		// right group, 2026-10-06.)
+		// ===== Bar activity slot ↔ the right section's left edge =====
+		// The section rules (docs/ui-bottom-bar.md): the RIGHT section shares ONE left edge on both tiers. The slot
+		// (BarActivityReadout) is the bar's first item of that section, so its LEFT edge = the tools tier's right group's
+		// (the 1-pane key's), its RIGHT edge = Atlas's less the cluster's 8 px. Measured every layout pass — the tier's
+		// right group moves with the window — so it is aligned whether or not an activity is showing.
+		// With the tier HIDDEN there is no key to measure: the slot keeps its last distance from Atlas (nothing on top
+		// to misalign with); before the tier was ever laid out, it starts 24 px after the console.
 		private const double ActivityBayAtlasGap = 8;     // = RightCluster.ColumnSpacing
-		private const double ActivityBayConsoleGap = 24;  // gap after the console
+		private const double ActivityBayConsoleGap = 24;  // floor against the console: the centre never yields
+		private double _activityBayWidth = double.NaN;    // last measured off the tier (tier showing)
 
 		private void AlignActivityBay()
 		{
@@ -113,7 +116,13 @@ namespace Anvil
 			}
 			var origin = BarGrid.TransformToVisual(root).TransformPoint(default).X;
 			var right = AtlasKey.TransformToVisual(root).TransformPoint(default).X - ActivityBayAtlasGap;
-			var left = TimeModule.ConsoleRight(root) + ActivityBayConsoleGap;
+			var consoleFloor = TimeModule.ConsoleRight(root) + ActivityBayConsoleGap;
+			var sectionLeft = ViewModel.IsMapControlsStripVisible ? ToolsStrip.RightSectionLeft(root) : double.NaN;
+			if (!double.IsNaN(sectionLeft))
+			{
+				_activityBayWidth = right - sectionLeft;
+			}
+			var left = double.IsNaN(_activityBayWidth) ? consoleFloor : Math.Max(consoleFloor, right - _activityBayWidth);
 			var width = Math.Max(0, right - left);
 			var margin = left - origin;
 			if (Math.Abs(ActivityBay.Width - width) > 0.5) ActivityBay.Width = width;
