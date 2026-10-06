@@ -43,7 +43,8 @@
           there is text                             ◎ the RANGE RINGS (lit = showing)              before it keeps pane layout off the centre group.
         ⚠️ THE CENTRE SECTION RULES (the user's, 2026-10-06 — docs/ui-bottom-bar.md "THE SECTION RULES"): the network
             toggles start on the console's LEFT visible edge, the site picker is CENTRED on play, the radar tools END on
-            the console's RIGHT visible edge, and nothing passes either edge. ⁙⁙ = LeftSpacer / RightSpacer, the TWO
+            the end of the LONGEST SCAN LINE's text (so RightSpacer re-sizes as the VCP text changes), and nothing passes
+            either edge. ⁙⁙ = LeftSpacer / RightSpacer, the TWO
             stretching dot grids (FillWidth) — the only separators in the centre; widths and the group's left margin are
             MEASURED (AlignToConsole). The right one is longer: play sits left of the console's middle.
         ⚠️ THE CONSOLE ⇄ TEMPORAL SWAP (2026-10-06, the user's mock-up A): the bar's console moved to the MIDPOINT and

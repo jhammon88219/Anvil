@@ -72,8 +72,9 @@ namespace Anvil
 			LoopGate.ContentBottomInset = BottomChrome.ActualHeight - BottomChrome.RowDefinitions[0].ActualHeight;
 
 		// ===== The tools tier's centre ↔ the console =====
-		// The section rules (docs/ui-bottom-bar.md): the tier's centre section spans exactly the console's VISIBLE
-		// edges, with the site picker CENTRED on play — the bar's midpoint, since the console centres itself on play
+		// The section rules (docs/ui-bottom-bar.md): the tier's centre section spans the console from the clock's left
+		// edge to the end of the LONGEST SCAN LINE's text (it follows the VCP text as it changes — the user's call,
+		// 2026-10-06; the reserved scan column is wider than its text), with the site picker CENTRED on play — the bar's midpoint, since the console centres itself on play
 		// (RadarControls.CentreOnPlay). Two controls on two tiers, so it is MEASURED. The console MOVES without
 		// resizing (the window resizing re-centres it), so this runs on LayoutUpdated; the strip ignores sub-pixel
 		// no-ops. A console width change re-measures it too.
@@ -81,7 +82,7 @@ namespace Anvil
 		{
 			if (Content is UIElement root)
 			{
-				ToolsStrip.AlignToConsole(TimeModule.ConsoleLeft(root), TimeModule.PlayCentre(root), TimeModule.ConsoleRight(root), root);
+				ToolsStrip.AlignToConsole(TimeModule.ConsoleLeft(root), TimeModule.PlayCentre(root), TimeModule.ScanTextRight(root), root);
 			}
 		}
 

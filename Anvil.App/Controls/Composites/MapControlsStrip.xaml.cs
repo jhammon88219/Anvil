@@ -90,8 +90,8 @@ namespace Anvil.Controls.Composites
 		// (small-window handling is the user's undecided call). A spacer never drops below a 3 × 3.
 		private const int SpacerMinColumns = 3;
 
-		/// <summary>Fit the centre section between <paramref name="consoleLeft"/> and <paramref name="consoleRight"/>
-		/// (the console's VISIBLE edges) with the site picker centred on <paramref name="play"/>, all in
+		/// <summary>Fit the centre section between <paramref name="consoleLeft"/> (the clock's left edge) and
+		/// <paramref name="consoleRight"/> (the end of the longest scan line's text — it moves as that text changes) with the site picker centred on <paramref name="play"/>, all in
 		/// <paramref name="root"/>'s coordinates. Each value is a no-op for a sub-pixel change, so calling it from
 		/// layout settles at once.</summary>
 		public void AlignToConsole(double consoleLeft, double play, double consoleRight, UIElement root)

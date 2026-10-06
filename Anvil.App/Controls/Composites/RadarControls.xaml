@@ -16,8 +16,9 @@
          The clock LEADS at the bar's left edge and the scan readout closes the module on the right, so the
          two readouts FLANK the scrubber (2026-09-29, when Inspect left for the tools tier).
          ⚠️ NO SITE ID HERE any more: the tools tier's site picker, directly above, names the loaded site — and
-         it is CENTRED ON THE PLAY BUTTON here, and that tier's centre section spans exactly this module's visible
-         edges (MainWindow.AlignCentreSection measures ConsoleLeft / PlayCentre / ConsoleRight).
+         it is CENTRED ON THE PLAY BUTTON here, and that tier's centre section spans this module from the clock's LEFT
+         edge to the END OF THE LONGEST SCAN LINE's text (MainWindow.AlignCentreSection measures ConsoleLeft / PlayCentre /
+         ScanTextRight) — so its right end follows the VCP text as it changes; the module itself never moves.
 
                     ┊ ← the bar's midpoint = ▶'s centre
        [pad][ clock │ scrubber ▶ │ scan ]      ← CentreOnPlay pads the SHORT side (the clock's, normally) so
@@ -56,6 +57,7 @@
         <Style x:Key="ScanValueStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
+            <!-- LEFT, so ActualWidth is the TEXT: ScanTextRight reads it to end the tools tier's centre section. -->
             <Setter Property="HorizontalAlignment" Value="Left"/>
             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>

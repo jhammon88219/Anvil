@@ -303,6 +303,24 @@ namespace Anvil.Controls.Composites
 				? PlayStopButton.TransformToVisual(root).TransformPoint(default).X + PlayStopButton.ActualWidth / 2
 				: double.NaN;
 
+		/// <summary>The right end of the LONGEST scan line's TEXT in <paramref name="root"/>'s coordinates — where the
+		/// tools tier's centre section ENDS (MainWindow.AlignCentreSection), so it moves as the VCP / mode text changes.
+		/// The values are LEFT-aligned (ScanValueStyle), so a TextBlock's ActualWidth is its text, not its column; empty
+		/// ones measure 0 and never win. NaN before layout.</summary>
+		public double ScanTextRight(UIElement root)
+		{
+			double edge = double.NaN;
+			foreach (var child in ScanBlock.Children)
+			{
+				if (child is FrameworkElement text && text.Visibility == Visibility.Visible && text.ActualWidth > 0)
+				{
+					var right = text.TransformToVisual(root).TransformPoint(new Point(text.ActualWidth, 0)).X;
+					edge = double.IsNaN(edge) ? right : Math.Max(edge, right);
+				}
+			}
+			return edge;
+		}
+
 		/// <summary>The VISIBLE module's left edge (the clock's) in <paramref name="root"/>'s coordinates — excludes the
 		/// centring margin. NaN before layout.</summary>
 		public double ConsoleLeft(UIElement root) =>
