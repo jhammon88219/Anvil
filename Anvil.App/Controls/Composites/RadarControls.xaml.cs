@@ -297,11 +297,16 @@ namespace Anvil.Controls.Composites
 		}
 
 		/// <summary>The play button's centre in <paramref name="root"/>'s coordinates — the bar's midpoint, and where the
-		/// tools tier centres its site picker (MainWindow.AlignSitePicker). NaN before layout.</summary>
+		/// tools tier centres its site picker (MainWindow.AlignCentreSection). NaN before layout.</summary>
 		public double PlayCentre(UIElement root) =>
 			PlayStopButton.ActualWidth > 0
 				? PlayStopButton.TransformToVisual(root).TransformPoint(default).X + PlayStopButton.ActualWidth / 2
 				: double.NaN;
+
+		/// <summary>The VISIBLE module's left edge (the clock's) in <paramref name="root"/>'s coordinates — excludes the
+		/// centring margin. NaN before layout.</summary>
+		public double ConsoleLeft(UIElement root) =>
+			Assembly.ActualWidth > 0 ? Assembly.TransformToVisual(root).TransformPoint(default).X : double.NaN;
 
 		/// <summary>The VISIBLE module's right edge (the scan block's column end) in <paramref name="root"/>'s
 		/// coordinates — excludes the centring margin. NaN before layout.</summary>

@@ -16,7 +16,8 @@
          The clock LEADS at the bar's left edge and the scan readout closes the module on the right, so the
          two readouts FLANK the scrubber (2026-09-29, when Inspect left for the tools tier).
          ⚠️ NO SITE ID HERE any more: the tools tier's site picker, directly above, names the loaded site — and
-         it is CENTRED ON THE PLAY BUTTON here (MainWindow.AlignSitePicker measures PlayCentre).
+         it is CENTRED ON THE PLAY BUTTON here, and that tier's centre section spans exactly this module's visible
+         edges (MainWindow.AlignCentreSection measures ConsoleLeft / PlayCentre / ConsoleRight).
 
                     ┊ ← the bar's midpoint = ▶'s centre
        [pad][ clock │ scrubber ▶ │ scan ]      ← CentreOnPlay pads the SHORT side (the clock's, normally) so
@@ -31,7 +32,7 @@
      (an invisible twin), the scrubber block is a FIXED 420 (control line included) and the scan block a
      reserved 180. (Before the swap the clock sat at its real width and the run behind it slid.)
      ⚠️ WIDTH: ~754 + the centring pad (~23, CentreOnPlay). The ANCHOR is the play button, not the module's middle
-     (the user's call, 2026-10-06): the tools tier centres its site picker on it (MainWindow.AlignSitePicker).
+     (the user's call, 2026-10-06): the tools tier centres its site picker on it (MainWindow.AlignCentreSection).
 
      History: this was a 2x2 readout block (time/age over site/scan) beside plated 30/38/30 transport buttons.
      J replaced it (2026-09-28) to match the tiles/clock language of the redesigned windows. -->

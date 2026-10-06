@@ -71,16 +71,17 @@ namespace Anvil
 		private void OnBottomChromeSizeChanged(object sender, SizeChangedEventArgs e) =>
 			LoopGate.ContentBottomInset = BottomChrome.ActualHeight - BottomChrome.RowDefinitions[0].ActualHeight;
 
-		// ===== Site picker ↔ the play button =====
-		// The tools tier's site picker (a fixed 260) is CENTRED on the bar's play button — the bar's midpoint, since
-		// the console centres itself on play (RadarControls.CentreOnPlay). The console tools ride the picker. They
-		// live in two controls on two tiers, so the centre is MEASURED. The console MOVES without resizing (the window
-		// resizing re-centres it), so this runs on LayoutUpdated; the strip ignores sub-pixel no-ops.
-		private void AlignSitePicker()
+		// ===== The tools tier's centre ↔ the console =====
+		// The section rules (docs/ui-bottom-bar.md): the tier's centre section spans exactly the console's VISIBLE
+		// edges, with the site picker CENTRED on play — the bar's midpoint, since the console centres itself on play
+		// (RadarControls.CentreOnPlay). Two controls on two tiers, so it is MEASURED. The console MOVES without
+		// resizing (the window resizing re-centres it), so this runs on LayoutUpdated; the strip ignores sub-pixel
+		// no-ops. A console width change re-measures it too.
+		private void AlignCentreSection()
 		{
 			if (Content is UIElement root)
 			{
-				ToolsStrip.AlignSitePickerCentre(TimeModule.PlayCentre(root), root);
+				ToolsStrip.AlignToConsole(TimeModule.ConsoleLeft(root), TimeModule.PlayCentre(root), TimeModule.ConsoleRight(root), root);
 			}
 		}
 
@@ -123,7 +124,7 @@ namespace Anvil
 		// so the passes they cause settle at once.
 		private void OnBottomBarLayoutUpdated(object? sender, object e)
 		{
-			AlignSitePicker();
+			AlignCentreSection();
 			AlignRightTools();
 			AlignActivityBay();
 		}
@@ -602,11 +603,11 @@ namespace Anvil
 
 			ApplyRailSeating();
 
-			// The tools tier's site picker is centred on the bar's play button (see AlignSitePicker), and
+			// The tools tier's centre section is edge-aligned to the console (see AlignCentreSection), and
 			// its search BOX is exactly as wide as the temporal keys below it — both start on the bar's left edge,
 			// so equal widths make both their edges line up (the two buttons hang after it).
-			TimeModule.SizeChanged += (_, _) => AlignSitePicker();
-			ToolsStrip.SizeChanged += (_, _) => AlignSitePicker();
+			TimeModule.SizeChanged += (_, _) => AlignCentreSection();
+			ToolsStrip.SizeChanged += (_, _) => AlignCentreSection();
 			TemporalKeys.SizeChanged += (_, e) => ToolsStrip.MatchPlaceSearchWidth(e.NewSize.Width);
 			// …and its RIGHT side hangs off the bar's Atlas key (see AlignRightTools). The window resizing moves the
 			// key (ToolsStrip resizes with it); the cluster resizing moves it too.

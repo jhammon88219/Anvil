@@ -40,7 +40,8 @@
             seam between the two. Both tiers run ShowTab=False.
           ↑ THE CONSOLE ⇄ TEMPORAL SWAP (2026-10-06, mock-up A): the time module holds the bar's MIDPOINT and
             the temporal keys sit at the LEFT edge, so the bar reads mode → time → windows. The tools tier
-            follows: its site picker is centred on the console's ▶ — the bar's midpoint (AlignSitePicker) — and
+            follows: its centre section spans the console's edges with the site picker on ▶ — the bar's
+            midpoint (AlignCentreSection) — and
             the place search + ▣ ⊚ moved to the left, over the temporal keys.
           ↑ Site markers AND ⌕ Inspect are on the TOOLS tier (both left this bar; see MapControlsStrip).
           ↑ ⋮ = each mode's SIDE CAR: a full-height settings latch on its own key, lit only while that mode
@@ -341,7 +342,7 @@
                              Everything here is about READING the radar that is loaded, in time.
                              ⚠️ SWAPPED WITH THE TEMPORAL KEYS (2026-10-06, the user's mock-up A): the console was the
                              LEFT cluster and the keys held the midpoint. Now the bar reads mode → time → windows. The
-                             tools tier's site picker is centred on its play button (MainWindow.AlignSitePicker), and
+                             tools tier's centre section spans its edges, picker on play (MainWindow.AlignCentreSection), and
                              the activity slot runs from its right edge to Atlas.
                              ⚠️ THE PLAY BUTTON IS THE BAR'S MIDPOINT, not the module's middle: RadarControls pads its
                              short side (CentreOnPlay) so its centre IS play's.

@@ -81,29 +81,46 @@ namespace Anvil.Controls.Composites
 			SitePicker.SelectedItem = vm.SiteFavorites.LoadedSite;
 		}
 
-		// ===== The site picker sits on the bar's centre =====
-		// The site picker's CENTRE is the bar's play button's (the bar's midpoint, 2026-10-06), and the rest of the
-		// console tools hang off its LEFT — so the group's left margin is measured, not laid out. The tools before the
-		// picker are wider than the clock, so the group starts a little left of the console; that is the trade for a
-		// centred picker. Floor: never closer than ConsoleToolsGap to the search group, so a narrow window overlaps
-		// nothing — the alignment gives way.
-		private const double ConsoleToolsGap = 16;
+		// ===== The centre section is EDGE-ALIGNED to the console (the section rules, docs/ui-bottom-bar.md) =====
+		// network toggles ⁙⁙ [site picker] ⁙⁙⁙ Inspect Ruler Rings
+		// ├ console left               ▶                console right ┤
+		// Three measured values: the group's left margin (toggles on the console's left edge) and the two spacers'
+		// widths (picker centred on play; tools ending on the console's right edge). The spacers are unequal because
+		// play sits left of the console's middle. ⚠️ No floor against the side sections: the centre never gives way
+		// (small-window handling is the user's undecided call). A spacer never drops below a 3 × 3.
+		private const int SpacerMinColumns = 3;
 
-		/// <summary>Slide the console tools so the site picker's centre lands on <paramref name="centre"/> (in
-		/// <paramref name="root"/>'s coordinates) — MainWindow passes the bar's play button's centre. Corrects the
-		/// CURRENT offset, so it converges; a no-op for a sub-pixel change, which makes calling it from layout safe.</summary>
-		public void AlignSitePickerCentre(double centre, UIElement root)
+		/// <summary>Fit the centre section between <paramref name="consoleLeft"/> and <paramref name="consoleRight"/>
+		/// (the console's VISIBLE edges) with the site picker centred on <paramref name="play"/>, all in
+		/// <paramref name="root"/>'s coordinates. Each value is a no-op for a sub-pixel change, so calling it from
+		/// layout settles at once.</summary>
+		public void AlignToConsole(double consoleLeft, double play, double consoleRight, UIElement root)
 		{
-			if (double.IsNaN(centre) || SearchGroup.ActualWidth <= 0 || SitePicker.ActualWidth <= 0)
+			if (double.IsNaN(consoleLeft) || double.IsNaN(play) || double.IsNaN(consoleRight) ||
+				NetworkToggles.ActualWidth <= 0 || RadarTools.ActualWidth <= 0)
 			{
 				return;
 			}
-			var pickerCentre = SitePicker.TransformToVisual(root).TransformPoint(default).X + SitePicker.ActualWidth / 2;
-			var floor = SearchGroup.ActualWidth + ConsoleToolsGap;
-			var margin = Math.Max(floor, ConsoleTools.Margin.Left + centre - pickerCentre);
+			var origin = TransformToVisual(root).TransformPoint(default).X;
+			// spacer | its margins | the panel's spacing on both sides
+			var spacerChrome = LeftSpacer.Margin.Left + LeftSpacer.Margin.Right + 2 * ConsoleTools.Spacing;
+			var pickerHalf = SitePicker.Width / 2;
+			var left = (play - pickerHalf) - (consoleLeft + NetworkToggles.ActualWidth) - spacerChrome;
+			var right = (consoleRight - RadarTools.ActualWidth) - (play + pickerHalf) - spacerChrome;
+			SetIfMoved(LeftSpacer, Math.Max(LeftSpacer.WidthFor(SpacerMinColumns), left));
+			SetIfMoved(RightSpacer, Math.Max(RightSpacer.WidthFor(SpacerMinColumns), right));
+			var margin = consoleLeft - origin;
 			if (Math.Abs(margin - ConsoleTools.Margin.Left) > 0.5)
 			{
 				ConsoleTools.Margin = new Thickness(margin, 0, 0, 0);
+			}
+		}
+
+		private static void SetIfMoved(FrameworkElement e, double width)
+		{
+			if (Math.Abs(width - e.Width) > 0.5)
+			{
+				e.Width = width;
 			}
 		}
 

@@ -33,17 +33,19 @@
                                                                                              │ › ☑ Place names    │     has county lines; ›
                                                                                              └────────────────────┘     = closed (cities, POIs,
                                                                                                                           water names)
-       [Moore, OK    ✕ ⌕] (▣)(⊚) status   (◗)(✈)(⚗) ─ (⌕) ─ (⌸)(◎) ─ [⌂ KTLX  Oklahoma City ˅]          [▢][▥][▦] ─ (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
-       |← = the temporal keys →|                                         |←──── 260 ────→|                                                    ↑ left = ATLAS key's left
-                                                                                  ┊ ← centre = the bar's ▶ (the bar's midpoint)
-        ↑ LEFT = where: the box spans exactly     ↑ CENTRE = RADAR + MAP: show each network's    ↑ RIGHT = MAP ONLY, its natural width, right-
-          the temporal keys below it; ▣ marker      sites (NEXRAD / TDWR / research) ─ ⌕ INSPECT    aligned: pane layout FIRST (1/2/4, current one
-          viewer — PLACEHOLDER; ⊚ Location          ─ ⌸ the RANGE RULER + ◎ the RANGE RINGS (lit =  LIT, accent cell = pane 0) ─ reset north, fit to
-          (lit = marker out); ✕ stays while         showing) ─ then pick one (the console below      view ─ MAP key + car, isolation. The open run
-          there is text                             answers WHEN)                                    before it keeps pane layout off the centre group.
-        ⚠️ THE SITE PICKER IS CENTRED ON THE BAR'S PLAY BUTTON (2026-10-06): the console tools' left margin is MEASURED so
-            the picker lands there (AlignSitePickerCentre), and the tools before it hang off its left — they are wider
-            than the bar's clock, so the group starts a little left of the console. No stretching separator any more.
+       [Moore, OK    ✕ ⌕] (▣)(⊚) status     (◗)(✈)(⚗) ⁙⁙⁙ [⌂ KTLX  Oklahoma City ˅] ⁙⁙⁙⁙⁙ (⌕)(⌸)(◎)     [▢][▥][▦] ─ (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
+       |← = the temporal keys →|            ├ console's left edge         ┊ ▶          console's right edge ┤             ↑ left = ATLAS key's left
+                                                                          ┊ ← the bar's midpoint
+        ↑ LEFT = where: the box spans exactly     ↑ CENTRE = RADAR + MAP, EDGE-ALIGNED to the     ↑ RIGHT = MAP ONLY, its natural width, right-
+          the temporal keys below it; ▣ marker      console: show each network's sites (NEXRAD /   aligned: pane layout FIRST (1/2/4, current one
+          viewer — PLACEHOLDER; ⊚ Location          TDWR / research) ⁙ pick one (the console below LIT, accent cell = pane 0) ─ reset north, fit to
+          (lit = marker out); ✕ stays while         answers WHEN) ⁙ ⌕ INSPECT, ⌸ the RANGE RULER,  view ─ MAP key + car, isolation. The open run
+          there is text                             ◎ the RANGE RINGS (lit = showing)              before it keeps pane layout off the centre group.
+        ⚠️ THE CENTRE SECTION RULES (the user's, 2026-10-06 — docs/ui-bottom-bar.md "THE SECTION RULES"): the network
+            toggles start on the console's LEFT visible edge, the site picker is CENTRED on play, the radar tools END on
+            the console's RIGHT visible edge, and nothing passes either edge. ⁙⁙ = LeftSpacer / RightSpacer, the TWO
+            stretching dot grids (FillWidth) — the only separators in the centre; widths and the group's left margin are
+            MEASURED (AlignToConsole). The right one is longer: play sits left of the console's middle.
         ⚠️ THE CONSOLE ⇄ TEMPORAL SWAP (2026-10-06, the user's mock-up A): the bar's console moved to the MIDPOINT and
             the temporal keys to the left edge, so place search left the tier's centre for the left edge.
         ─ = Primitives/MapControlsStripSeparator, a faint 3 × 3 DOT GRID between GROUPS with GENEROUS margins
@@ -120,14 +122,14 @@
      research toggles moved here from Settings → Radar, where they used to switch those networks off app-wide.
      ⚠️ The words say "radar sites", NEVER "markers": ▣ below is the MARKER viewer (search pins, your location).
 
-     SITE PICKER, last of the console tools — home + favorite radar sites (RadarSiteFavoritesViewModel). It replaced TWO doors to
+     SITE PICKER, the middle of the console tools — home + favorite radar sites (RadarSiteFavoritesViewModel). It replaced TWO doors to
      one list: the bar's Home key, and the side car on the bar's Atlas key (whose flyout this dropdown absorbed).
      It is ALSO the "which radar is selected" readout (the bar's site id left, 2026-09-29): the FACE is the site on
      the map now (⌂ home, ★ favorite, bare otherwise), and the PINNED top row is that same site (SelectedSites),
      whatever it is. Below the rule: home first, then the favorites (PinnedSites) — a selected home/favorite stays
      in its place there too, so the list never reshuffles on a switch. Going home is still two clicks.
-     ⚠️ A FIXED 260 CENTRED on the bar's play button (MainWindow.AlignSitePicker → AlignSitePickerCentre), which is
-     the bar's midpoint; the console tools ride it.
+     ⚠️ A FIXED 260 CENTRED on the bar's play button (MainWindow.AlignCentreSection → AlignToConsole), which is
+     the bar's midpoint.
      ⚠️ A pick ACTS through ItemPicked, NOT SelectedItem: picking the site already loaded must still fly back to
      it, and that changes no property. SelectedItem is ONE-WAY from LoadedSite and re-asserted after the pick
      (a refused pick would otherwise leave the face naming a site that never loaded).
@@ -414,12 +416,14 @@
          search at the left edge (over the temporal keys), the console tools over the centred console, the
          map tools at the right edge (over the window keys). -->
     <Grid>
-        <!-- ===== CONSOLE TOOLS — over the radar console (see the header): show sites, read, measure, pick one =====
-             ⚠️ Its LEFT MARGIN is SET IN CODE (AlignSitePickerCentre, from MainWindow): it puts the site picker's
-             centre on the bar's play button. Never closer than 16 to the search group. -->
+        <!-- ===== CONSOLE TOOLS — over the radar console (see the header): show sites, pick one, read, measure =====
+             ⚠️ EDGE-ALIGNED TO THE CONSOLE (AlignToConsole, from MainWindow): its LEFT MARGIN puts the network toggles
+             on the console's left edge, and the two spacers' Widths put the site picker's centre on play and the
+             radar tools' right edge on the console's right edge. Nothing here passes either console edge. -->
         <StackPanel x:Name="ConsoleTools"
                     Orientation="Horizontal" Spacing="8"
                     HorizontalAlignment="Left" VerticalAlignment="Center">
+            <StackPanel x:Name="NetworkToggles" Orientation="Horizontal" Spacing="8">
             <!-- SITE MARKERS — one plain TwoWay toggle per network (a click always changes the flag, so no
                  re-assert). The marks are the on-map keys' own network glyphs (radar-sites.js CLASS_GLYPH),
                  redrawn as FILLED geometry in the 18-unit box: a PathIcon only fills, and only a PathIcon takes the
@@ -491,9 +495,49 @@
                 </ToggleButton.Resources>
                 <PathIcon Data="F1 M6.75,2.25 A0.75,0.75 0 0 0 6.75,3.75 H11.25 A0.75,0.75 0 0 0 11.25,2.25 Z M6.75,3 V6.5625 L3.537,12.6225 A2.175,2.175 0 0 0 5.475,15.75 H12.525 A2.175,2.175 0 0 0 14.463,12.6225 L11.25,6.5625 V3 Z M8.25,3.75 H9.75 V6.9375 L13.137,13.3275 A0.675,0.675 0 0 1 12.525,14.25 H5.475 A0.675,0.675 0 0 1 4.863,13.3275 L8.25,6.9375 Z"/>
             </ToggleButton>
+            </StackPanel>
 
-            <prim:MapControlsStripSeparator Margin="8,0"/>
+            <!-- LEFT SPACER — stretches (FillWidth) so the site picker's centre lands on play. Width SET IN CODE
+                 (AlignToConsole). Margins as every separator (8 + the panel's 8 = 16 a side). -->
+            <prim:MapControlsStripSeparator x:Name="LeftSpacer" Margin="8,0" FillWidth="True" Width="10"/>
 
+            <!-- SITE PICKER — the centre of the centre. The wrapper carries the tooltip (a disabled control shows
+                 none); Transparent so it hit-tests. ⚠️ A FIXED 260 CENTRED ON THE BAR'S PLAY BUTTON (AlignToConsole). -->
+            <Grid Background="Transparent"
+                  ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
+                <prim:SectionedComboBox x:Name="SitePicker"
+                                        Width="260"
+                                        PlaceholderText="Radar site"
+                                        PinnedItemsSource="{x:Bind ViewModel.SiteFavorites.SelectedSites, Mode=OneWay}"
+                                        ItemsSource="{x:Bind ViewModel.SiteFavorites.PinnedSites, Mode=OneWay}"
+                                        SelectedItem="{x:Bind ViewModel.SiteFavorites.LoadedSite, Mode=OneWay}"
+                                        ItemTemplate="{StaticResource SiteRowTemplate}"
+                                        FaceTemplate="{StaticResource SiteFaceTemplate}"
+                                        IsEnabled="{x:Bind ViewModel.SiteFavorites.CanPickSites, Mode=OneWay}"
+                                        ItemPicked="OnSitePicked">
+                    <prim:SectionedComboBox.FooterContent>
+                        <StackPanel Spacing="4">
+                            <TextBlock Margin="11,2,11,2"
+                                       Text="Set a home site or star favorites in the Atlas to list them here."
+                                       TextWrapping="Wrap" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                       Visibility="{x:Bind ViewModel.SiteFavorites.IsEmpty, Mode=OneWay}"/>
+                            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                    Background="Transparent" BorderThickness="0" Padding="11,6"
+                                    Content="Open Atlas"
+                                    Click="OnOpenAtlasClick"/>
+                        </StackPanel>
+                    </prim:SectionedComboBox.FooterContent>
+                </prim:SectionedComboBox>
+            </Grid>
+
+            <!-- RIGHT SPACER — stretches (FillWidth) so the radar tools END on the console's right edge. Width SET IN
+                 CODE (AlignToConsole). Longer than the left one: play sits left of the console's middle. -->
+            <prim:MapControlsStripSeparator x:Name="RightSpacer" Margin="8,0" FillWidth="True" Width="10"/>
+
+            <!-- RADAR TOOLS — Inspect, Ruler, Rings as ONE run like the network toggles (no separator inside;
+                 the user's call, 2026-10-06). The last one's right edge is the console's right edge. -->
+            <StackPanel x:Name="RadarTools" Orientation="Horizontal" Spacing="8">
             <!-- INSPECT — the armed cursor mode (moved here from the bar, 2026-09-29): read the active product's
                  value under the pointer in EVERY pane at once; each value shows on that pane's own ramp. Plain
                  TwoWay (a click always flips it). ⚠️ DISABLED UNTIL A LOOP IS LOADED (Radar.IsTransportEnabled,
@@ -508,9 +552,7 @@
                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE721;"/>
             </ToggleButton>
 
-            <prim:MapControlsStripSeparator Margin="8,0"/>
-
-            <!-- RANGE RULER - arm the graduated spoke from the loaded site out to the range ring. LEFT,
+            <!-- RANGE RULER - arm the graduated spoke from the loaded site out to the range ring. In the CENTRE,
                  because what it measures against is RADAR (the ring is the data's own outer extent) and it
                  dies with the loop; the right cluster's tools touch only the map. Plain TwoWay: a click
                  always changes the mode, so there is nothing to re-assert.
@@ -544,40 +586,7 @@
                           ToolTipService.ToolTip="{x:Bind RangeRingsTooltip(ViewModel.Radar.RangeRings.RingsVisible), Mode=OneWay}">
                 <PathIcon Data="M9,0.5 A8.5,8.5 0 1 0 9,17.5 A8.5,8.5 0 1 0 9,0.5 Z M9,1.9 A7.1,7.1 0 1 0 9,16.1 A7.1,7.1 0 1 0 9,1.9 Z M9,3.9 A5.1,5.1 0 1 0 9,14.1 A5.1,5.1 0 1 0 9,3.9 Z M9,5.3 A3.7,3.7 0 1 0 9,12.7 A3.7,3.7 0 1 0 9,5.3 Z M9,7.4 A1.6,1.6 0 1 0 9,10.6 A1.6,1.6 0 1 0 9,7.4 Z"/>
             </ToggleButton>
-
-            <prim:MapControlsStripSeparator Margin="8,0"/>
-
-            <!-- SITE PICKER — LAST of the console tools, the group's edge. The wrapper carries the tooltip (a disabled
-                 control shows none); Transparent so it hit-tests.
-                 ⚠️ A FIXED 260 CENTRED ON THE BAR'S PLAY BUTTON: the whole group's left margin is measured so this
-                 lands there (AlignSitePickerCentre, from MainWindow). -->
-            <Grid Background="Transparent"
-                  ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
-                <prim:SectionedComboBox x:Name="SitePicker"
-                                        Width="260"
-                                        PlaceholderText="Radar site"
-                                        PinnedItemsSource="{x:Bind ViewModel.SiteFavorites.SelectedSites, Mode=OneWay}"
-                                        ItemsSource="{x:Bind ViewModel.SiteFavorites.PinnedSites, Mode=OneWay}"
-                                        SelectedItem="{x:Bind ViewModel.SiteFavorites.LoadedSite, Mode=OneWay}"
-                                        ItemTemplate="{StaticResource SiteRowTemplate}"
-                                        FaceTemplate="{StaticResource SiteFaceTemplate}"
-                                        IsEnabled="{x:Bind ViewModel.SiteFavorites.CanPickSites, Mode=OneWay}"
-                                        ItemPicked="OnSitePicked">
-                    <prim:SectionedComboBox.FooterContent>
-                        <StackPanel Spacing="4">
-                            <TextBlock Margin="11,2,11,2"
-                                       Text="Set a home site or star favorites in the Atlas to list them here."
-                                       TextWrapping="Wrap" FontSize="12"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                       Visibility="{x:Bind ViewModel.SiteFavorites.IsEmpty, Mode=OneWay}"/>
-                            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                    Background="Transparent" BorderThickness="0" Padding="11,6"
-                                    Content="Open Atlas"
-                                    Click="OnOpenAtlasClick"/>
-                        </StackPanel>
-                    </prim:SectionedComboBox.FooterContent>
-                </prim:SectionedComboBox>
-            </Grid>
+            </StackPanel>
         </StackPanel>
 
         <!-- ===== PLACE SEARCH — LEFT, over the temporal keys =====
