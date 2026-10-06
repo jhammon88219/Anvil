@@ -534,5 +534,33 @@ namespace Anvil.Services
 		/// per-product build codes + VWP/storm-motion state) as JSON, or the literal <c>null</c> when no
 		/// loop is loaded. Polled by <c>PipelineConsoleViewModel</c> only while the console card is open.</summary>
 		Task<string> GetPipelineSnapshotAsync();
+
+		// ---- PREVIEW MIRROR (the Settings window's map preview, Composites/MapPreview) ----
+
+		/// <summary>
+		/// Adds a second page that receives a COPY of every LOOK command — theme, style, tile source, basemap,
+		/// distance unit, scope colour, which range rings, ring style — as the main map gets it. Nothing else
+		/// reaches it (no radar, no overlays).
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ Same script, same formatter: the preview page exposes the same <c>window.*</c> shim names
+		/// (<c>Assets/Map/js/preview.js</c>), so a mirrored command can never be formatted two ways.
+		/// A command sent before the mirror's page is up is lost — <see cref="ReplayToMirrorAsync"/> covers it.
+		/// </remarks>
+		void AddMirror(IMapView view);
+
+		/// <summary>Stops mirroring to <paramref name="view"/> (the preview's window closed).</summary>
+		void RemoveMirror(IMapView view);
+
+		/// <summary>Sends <paramref name="view"/> the LATEST of each mirrored command, in the order they were
+		/// last sent, so a page that just came up looks like the main map does now.</summary>
+		Task ReplayToMirrorAsync(IMapView view);
+
+		/// <summary>
+		/// <see cref="SetRangeRingStyleAsync"/> for the MIRRORS ONLY — the main page already drew this look (its
+		/// label handle was dragged; RangeRingsViewModel never echoes that back). Still recorded as the latest,
+		/// so a preview opened later replays the dragged bearing, not the one before it.
+		/// </summary>
+		Task MirrorRangeRingStyleAsync(string styleJson);
 	}
 }

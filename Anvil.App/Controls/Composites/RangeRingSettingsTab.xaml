@@ -39,7 +39,8 @@
      the Radar tab's scroll. Everything here was "Range rings & ruler" on the Radar tab; the RULER's anchor
      came along because the ruler ends ON the reflectivity ring and wears its colour (one object).
      ⚠️ The DISTANCE UNIT stays on the Radar tab (Readouts): it is app-wide, not a ring setting.
-     ⚠️ Everything applies LIVE and persists by itself — the map beside this window is the preview.
+     ⚠️ Everything applies LIVE and persists by itself — to the main map AND the Settings window's own map
+        preview beside this tab (Composites/MapPreview, the real radar-scope.js at a NEXRAD's base reach).
      ⚠️ The label handle (radar-scope.js) is on the PRIMARY pane only, like the ruler's handles; it writes
         the same bearing the Position slider does (RangeRingsViewModel.OnLabelBearingDragged, no echo). -->
 <UserControl x:Class="Anvil.Controls.Composites.RangeRingSettingsTab"

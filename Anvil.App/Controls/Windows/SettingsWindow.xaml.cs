@@ -180,9 +180,9 @@ namespace Anvil.Controls.Windows
 				StripDivider.VerticalAlignment = VerticalAlignment.Stretch;
 				StripDivider.Margin = new Thickness(0, 10, 0, 10);
 
-				Grid.SetRow(Body, 0); Grid.SetColumn(Body, 1);
-				Grid.SetRowSpan(Body, 2); Grid.SetColumnSpan(Body, 1);
-				Body.Margin = new Thickness(16, 14, 16, 14);
+				Grid.SetRow(BodyHost, 0); Grid.SetColumn(BodyHost, 1);
+				Grid.SetRowSpan(BodyHost, 2); Grid.SetColumnSpan(BodyHost, 1);
+				BodyHost.Margin = new Thickness(16, 14, 16, 14);
 			}
 			else
 			{
@@ -197,9 +197,9 @@ namespace Anvil.Controls.Windows
 				StripDivider.VerticalAlignment = VerticalAlignment.Bottom;
 				StripDivider.Margin = new Thickness(12, 0, 12, 0);
 
-				Grid.SetRow(Body, 1); Grid.SetColumn(Body, 0);
-				Grid.SetRowSpan(Body, 1); Grid.SetColumnSpan(Body, 2);
-				Body.Margin = new Thickness(16, 14, 16, 14);
+				Grid.SetRow(BodyHost, 1); Grid.SetColumn(BodyHost, 0);
+				Grid.SetRowSpan(BodyHost, 1); Grid.SetColumnSpan(BodyHost, 2);
+				BodyHost.Margin = new Thickness(16, 14, 16, 14);
 			}
 		}
 

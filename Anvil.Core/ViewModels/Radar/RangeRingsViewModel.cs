@@ -319,13 +319,14 @@ namespace Anvil.ViewModels
 		public void ResetLabelBearing() => LabelBearing = 0;
 
 		/// <summary>The page reports a finished drag of the label handle. Persist it, re-read the slider, and do
-		/// NOT push it back — see the class remarks.</summary>
+		/// NOT push it back — see the class remarks. Only the Settings preview (a mirror) is told.</summary>
 		public void OnLabelBearingDragged(double degrees)
 		{
 			var deg = RingLabelBearing.Normalize(degrees);
 			if (deg == _settings.Settings.DistanceLabelBearing) { return; }
 			_settings.Settings.DistanceLabelBearing = deg;
 			OnPropertyChanged(nameof(LabelBearing));
+			if (_isMapReady) { _ = _mapService.MirrorRangeRingStyleAsync(BuildStyleJson(_settings.Settings)); }
 		}
 
 		/// <summary>Put every ring's LOOK back to the defaults: strokes, colours (the outline's too, so the ruler

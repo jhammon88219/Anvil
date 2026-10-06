@@ -1278,6 +1278,7 @@ namespace Anvil.ViewModels
 				if (SetProperty(ref _settingsTabIndex, clamped))
 				{
 					_settingsService.Settings.SettingsTabIndex = clamped;
+					OnPropertyChanged(nameof(HasSettingsPreview));
 					RefreshForSettingsTab();
 				}
 			}
@@ -1307,6 +1308,30 @@ namespace Anvil.ViewModels
 			SettingsTabIndex = (int)tab;
 			IsSettingsWindowOpen = true;
 		}
+
+		// ----- The Settings MAP PREVIEW (Composites/MapPreview) -----
+		// A second, small map page beside the tabs whose effect you can SEE (Map: theme + basemap; Radar Range
+		// Ring: the rings). It is the REAL page code (radar-scope.js, the same styles), fed by IMapService's
+		// mirror — a copy of every look command the main map gets — so it can never draw a look the map wouldn't.
+
+		/// <summary>Whether the current tab shows the preview pane (Map, Radar Range Ring).</summary>
+		public bool HasSettingsPreview =>
+			_settingsTabIndex is (int)SettingsTab.Map or (int)SettingsTab.RangeRing;
+
+		/// <summary>The site the preview draws its rings around: the loaded site, else home, else null (the
+		/// page falls back to KTLX).</summary>
+		public RadarSite? PreviewSite => SiteFavorites.LoadedSite?.Site ?? SiteFavorites.HomeSite?.Site;
+
+		public void AttachMapPreview(IMapView view) => _mapService.AddMirror(view);
+
+		public void DetachMapPreview(IMapView view) => _mapService.RemoveMirror(view);
+
+		/// <summary>The preview page is up: bring it to the main map's current look.</summary>
+		public Task ReplayToMapPreviewAsync(IMapView view) => _mapService.ReplayToMirrorAsync(view);
+
+		/// <summary>The preview's label handle was dragged. Unlike the main map's own handle this DOES push —
+		/// the main map has not drawn it yet (the preview hears its own bearing back as a no-op).</summary>
+		public void OnPreviewLabelBearingDragged(double degrees) => Radar.RangeRings.LabelBearing = degrees;
 
 		/// <summary>Refresh whatever the current tab shows live. Called when the window opens AND when the tab
 		/// changes, because either one can be the moment a live readout first becomes visible. ⚠️ Keep this

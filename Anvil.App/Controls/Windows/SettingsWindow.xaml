@@ -10,13 +10,18 @@
        │  │Map │Radar │ Radar Range Ring │ Storage │ Window Mode │ Dev │
        │  │▀▀▀▀│      │                  │         │             │     │
        │  └────┴──────┴──────────────────┴─────────┴─────────────┴─────┘
-       │  ┌──────────────────────────────────────────────┐    │
-       │  │                                              │    │
-       │  │   the selected tab's body (one UserControl   │    │
-       │  │   per tab, in Controls/Composites)           │    │
-       │  │                                              │    │
-       │  └──────────────────────────────────────────────┘    │
+       │  ┌────────────────────┐ ┌──────────────────────────┐    │
+       │  │ the selected tab's │ │  LIVE MAP PREVIEW   [⛶] │    │  ← Composites/MapPreview, only
+       │  │ body — ONE fixed   │ │      ┌┄┄┄┄┄┄┐          │    │     on Map + Radar Range Ring
+       │  │ 400 px column (one │ │     ┆   ╳   ┆    ◉     │    │     (MapViewModel.HasSettingsPreview);
+       │  │ UserControl per    │ │      └┄┄┄┄┄┄┘          │    │     other tabs: the column alone,
+       │  │ tab, Composites)   │ │                          │    │     same left edge, same width
+       │  └────────────────────┘ └──────────────────────────┘    │
        └──────────────────────────────────────────────────────┘
+
+     THE PREVIEW (2026-10-06): the sections used to stretch the full window width; now they keep one column
+     and the space left over shows the EFFECT of the settings — the real map page code, fed the same look
+     commands as the main map (IMapService mirror), so it cannot show a look the map wouldn't.
 
      WHAT THIS REPLACED: three separate windows and three bar keys — App Settings, Map Controls and Dev
      Tools. They are now tabs, which is why the bar's right cluster is down to Panes / Atlas / Settings. A
@@ -96,8 +101,17 @@
             <Border x:Name="StripDivider"
                     Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
+            <!-- The body: a FIXED-width sections column, and the live map preview in the rest. BodyHost (not the
+                 ScrollViewer) is what ApplyPlacement positions. Tabs without a preview keep the same narrow
+                 column — the left edge and the column width never move as you switch tabs. -->
+            <Grid x:Name="BodyHost">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="400"/> <!-- ⚠️ THE sections column; the header sketch's width -->
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
             <!-- Bodies. Exactly one is visible; the rest keep their state because they stay loaded. -->
-            <ScrollViewer x:Name="Body"
+            <ScrollViewer x:Name="Body" Grid.Column="0"
                           VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
                 <Grid>
                     <!-- x:Name'd so the code-behind can relay its Browse request: the folder picker needs
@@ -128,6 +142,15 @@
                                         Loaded="OnDevTabLoaded"/>
                 </Grid>
             </ScrollViewer>
+
+                <!-- The live preview (Map + Radar Range Ring tabs). Collapsed, not unloaded, on other tabs:
+                     its page stays up while the window is open, so switching back is instant. -->
+                <Border Grid.Column="1" Margin="16,0,0,0"
+                        BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                        Visibility="{x:Bind ViewModel.HasSettingsPreview, Mode=OneWay}">
+                    <cmp:MapPreview ViewModel="{x:Bind ViewModel}"/>
+                </Border>
+            </Grid>
         </Grid>
 
         <!-- Lock (no move/resize) + pin (keep on top). -->

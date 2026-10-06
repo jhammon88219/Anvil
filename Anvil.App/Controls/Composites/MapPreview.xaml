@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MapPreview — the Settings window's live MAP PREVIEW: a second, small WebView2 running
+     Assets/Map/preview.html, beside the tabs whose effect you can SEE (Map, Radar Range Ring).
+
+       ┌──────────────────────────────────────────┐
+       │                                     [⛶]  │  ← Fit: re-frame on the rings after a pan/zoom
+       │        ┌┄┄┄┄┄┄┄┄┄┐                       │
+       │      ┆   100 mi    ┆        ◉            │  ← the label handle (drag = the main map's too)
+       │     ┆      ╳        ┆                    │
+       │      ┆             ┆                     │
+       │        └┄┄┄┄┄┄┄┄┄┘                       │  basemap + rings = the main map's look, exactly
+       └──────────────────────────────────────────┘
+
+     ⚠️ A TRUE PREVIEW, NOT A DRAWING: the page runs radar-scope.js itself, and every look command reaches it as
+     the SAME script the main map gets (IMapService's mirror — MapViewModel.AttachMapPreview). Don't draw a
+     ring here in XAML; a second drawing is a second thing to keep in step.
+     ⚠️ ITS OWN RENDERER, so it lives only while the Settings window is open: created on Loaded, CLOSED on
+     Unloaded (the window rebuilds its content on every open). Collapsing it (a tab without a preview) keeps
+     the page, so a tab switch back is instant.
+     ⚠️ This and MainWindow are the only two WebView2 hosts. Both use WebViewEnvironment (same options). -->
+<UserControl x:Class="Anvil.Controls.Composites.MapPreview"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid>
+        <WebView2 x:Name="PreviewWebView"/>
+
+        <Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0"
+                Padding="6" Click="OnFitClick"
+                ToolTipService.ToolTip="Frame the rings">
+            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" Glyph="&#xE740;"/>
+        </Button>
+    </Grid>
+</UserControl>
