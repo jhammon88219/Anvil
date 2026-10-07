@@ -267,47 +267,102 @@ namespace Anvil.ViewModels
 		// OnRadarFrameReady completes it via CompleteLiveUpdate.
 		private Models.RadarVolume? _pendingLiveUpdate;
 
-		// ── NEW LIVE FRAME announcements (the bar's activity slot; replaced the sweep pulse 2026-10-07) ──
-		// ⚠️ TRUTH ONLY: announced from the moment a poll brings a NEWER scan (ApplyLiveFrameAsync — the chunks are
-		// already on disk by then; the ~0.5 s chunk download runs on EVERY 30 s poll and can't know beforehand
-		// whether a new scan will come out of it) to the moment it is in the loop (CompleteLiveAppend/Update). Not
-		// during a loop's first load (that frame is part of "loading the loop"), never in PastCast (no live path).
+		// ── LIVE POLL announcements (the bar's activity slot; replaced the sweep pulse 2026-10-07) ──
+		// EVERY NowCast poll is shown (the user's call: "I like to see what's going on"): Checking (the chunk download,
+		// done of total) → Unchanged / Failed, or → Found → Decoding → Painting → Shown. ⚠️ Shown = the page DREW the
+		// new frame (radarPainted, armed by WatchRadarPaintAsync before its decode starts) — not merely decoded; when the
+		// new frame is not the one on screen there is nothing to draw, so built = shown. A loop's FIRST load is not
+		// announced (that is "loading the loop"), and PastCast has no live path.
 
-		/// <summary>A new live frame's progress toward the screen (NowCast). Raised on the UI thread.</summary>
+		/// <summary>A NowCast live poll's progress, and a new frame's toward the screen. Raised on the UI thread.</summary>
 		public event EventHandler<LiveFrameActivity>? LiveFrameActivity;
 
-		private Models.RadarVolume? _announcedLive;
-		private bool _announcedDecoding;
+		private string? _liveCheckSite;              // a poll is checking (its chunk download), not yet resolved
+		private Models.RadarVolume? _announcedLive;  // the new frame the slot is following, Found → Shown
+		private bool _announcedDecoding, _announcedPainting, _announcedPaintedEarly;
+
+		private void RaiseLive(LiveFrameStage stage, string site, DateTimeOffset? time, int done = 0, int total = 0) =>
+			LiveFrameActivity?.Invoke(this, new LiveFrameActivity(stage, site, time, done, total));
+
+		internal void BeginLiveCheck(string siteId)
+		{
+			if (_announcedLive is not null) return; // a new frame is still on its way — it keeps the slot
+			_liveCheckSite = siteId;
+			RaiseLive(LiveFrameStage.Checking, siteId, null);
+		}
+
+		// From the chunk download (Progress<T> → the UI thread). Late reports after the poll ended are ignored.
+		internal void ReportLiveCheck(int done, int total)
+		{
+			if (_liveCheckSite is { } site) RaiseLive(LiveFrameStage.Checking, site, null, done, total);
+		}
+
+		internal void EndLiveCheck(bool failed)
+		{
+			if (_liveCheckSite is not { } site) return; // Found took over (or nothing was announced)
+			_liveCheckSite = null;
+			RaiseLive(failed ? LiveFrameStage.Failed : LiveFrameStage.Unchanged, site, NewestFrameTime());
+		}
 
 		internal void AnnounceLiveFound(Models.RadarVolume live)
 		{
+			_liveCheckSite = null;
 			_announcedLive = live;
-			_announcedDecoding = false;
-			LiveFrameActivity?.Invoke(this, new LiveFrameActivity(LiveFrameStage.Found, live.Site.Id, live.VolumeTime));
+			_announcedDecoding = _announcedPainting = _announcedPaintedEarly = false;
+			RaiseLive(LiveFrameStage.Found, live.Site.Id, live.VolumeTime);
 		}
 
 		// From SetBuildProgress: a worker picked up the live slot.
 		private void AnnounceLiveDecoding()
 		{
-			if (_announcedLive is not { } live || _announcedDecoding) return;
+			if (_announcedLive is not { } live || _announcedDecoding || _announcedPainting) return;
 			if (_archiveCount >= _decoding.Length || !_decoding[_archiveCount]) return;
 			_announcedDecoding = true;
-			LiveFrameActivity?.Invoke(this, new LiveFrameActivity(LiveFrameStage.Decoding, live.Site.Id, live.VolumeTime));
+			RaiseLive(LiveFrameStage.Decoding, live.Site.Id, live.VolumeTime);
 		}
 
-		internal void AnnounceLiveShown(Models.RadarVolume live)
+		// From CompleteLiveAppend/Update: the frame is decoded and in the loop. On screen → wait for the page to draw it.
+		internal void AnnounceLiveBuilt(Models.RadarVolume live, bool onScreen)
 		{
 			if (!ReferenceEquals(_announcedLive, live)) return; // a first-load frame: never announced
+			if (!onScreen || !_isMapReady || _announcedPaintedEarly)
+			{
+				AnnounceLiveShown();
+				return;
+			}
+			_announcedPainting = true;
+			RaiseLive(LiveFrameStage.Painting, live.Site.Id, live.VolumeTime);
+		}
+
+		/// <summary>The page drew frame <paramref name="index"/>'s newest geometry (radarPainted).</summary>
+		public void OnRadarPainted(int index)
+		{
+			if (_announcedLive is null || index != _archiveCount) return;
+			if (_announcedPainting) AnnounceLiveShown();
+			else _announcedPaintedEarly = true; // drawn before frame-ready reached us — complete at Built
+		}
+
+		private void AnnounceLiveShown()
+		{
+			if (_announcedLive is not { } live) return;
 			_announcedLive = null;
-			LiveFrameActivity?.Invoke(this, new LiveFrameActivity(LiveFrameStage.Shown, live.Site.Id, live.VolumeTime));
+			RaiseLive(LiveFrameStage.Shown, live.Site.Id, live.VolumeTime);
 		}
 
 		internal void AnnounceLiveDropped()
 		{
-			if (_announcedLive is not { } live) return;
-			_announcedLive = null;
-			LiveFrameActivity?.Invoke(this, new LiveFrameActivity(LiveFrameStage.Dropped, live.Site.Id, live.VolumeTime));
+			if (_announcedLive is { } live)
+			{
+				_announcedLive = null;
+				RaiseLive(LiveFrameStage.Dropped, live.Site.Id, live.VolumeTime);
+			}
+			if (_liveCheckSite is { } site)
+			{
+				_liveCheckSite = null;
+				RaiseLive(LiveFrameStage.Dropped, site, null);
+			}
 		}
+
 		// Mode text (VCP/precip/SAILS) from the most recent successful live poll. Tracked
 		// SEPARATELY from _liveFrame because the mode is known from any decoded live volume even
 		// when we don't append it as a new frame — e.g. an offline/stale site (KVNX) whose newest

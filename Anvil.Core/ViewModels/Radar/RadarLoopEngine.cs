@@ -104,7 +104,7 @@ namespace Anvil.ViewModels
 			_vm._liveFrame = null;
 			_vm._pendingLiveAppend = null;
 			_vm._pendingLiveUpdate = null;
-			_vm.AnnounceLiveDropped(); // a new frame the slot was announcing will never land
+			_vm.AnnounceLiveDropped(); // a poll or new frame the slot is announcing will never finish
 			_vm._liveModeText = null;
 			_vm._frameTimes = Array.Empty<DateTimeOffset?>();
 			_vm._frameModes = Array.Empty<string?>();
@@ -276,7 +276,7 @@ namespace Anvil.ViewModels
 			// bump below, so its completion callback would never fire. Drop it; the next poll re-fetches.
 			_vm._pendingLiveAppend = null;
 			_vm._pendingLiveUpdate = null;
-			_vm.AnnounceLiveDropped(); // a new frame the slot was announcing will never land
+			_vm.AnnounceLiveDropped(); // a poll or new frame the slot is announcing will never finish
 
 			// Empty the scrubber: every cell is about to be re-decoded, and reporting the old cut as ready
 			// would leave the loop looking finished while it re-cuts (and let playback run a mix of
@@ -624,7 +624,7 @@ namespace Anvil.ViewModels
 				_vm._hasLiveFrame = false;
 				_vm._pendingLiveAppend = null;
 				_vm._pendingLiveUpdate = null;
-				_vm.AnnounceLiveDropped(); // a new frame the slot was announcing will never land
+				_vm.AnnounceLiveDropped(); // a poll or new frame the slot is announcing will never finish
 				_vm._liveModeText = null;
 				_vm._frameTimes = new DateTimeOffset?[_vm._frameCount];
 				_vm._frameModes = new string?[_vm._frameCount];
@@ -877,7 +877,7 @@ namespace Anvil.ViewModels
 			_vm._hasLiveFrame = false;
 			_vm._pendingLiveAppend = null;
 			_vm._pendingLiveUpdate = null;
-			_vm.AnnounceLiveDropped(); // a new frame the slot was announcing will never land
+			_vm.AnnounceLiveDropped(); // a poll or new frame the slot is announcing will never finish
 			_vm._frameCount = _vm._archiveCount;
 			_vm._frameTimes = new DateTimeOffset?[_vm._frameCount];
 			_vm._frameModes = new string?[_vm._frameCount];
@@ -961,8 +961,32 @@ namespace Anvil.ViewModels
 		// Fetches the live (chunks) frame and, when it's newer than what's shown, applies it —
 		// appending a new trailing frame or updating the existing live slot in place. Records the
 		// outcome for the debug card. Best-effort: a null result just leaves the archive newest.
-		private Task RefreshLiveFrameAsync(RadarSite site, CancellationToken ct) =>
-			ApplyLivePollAsync(site, FetchLiveFrameAsync(site, ct), ct);
+		// ⚠️ The bar's activity slot shows EVERY one of these polls (Checking → Unchanged/Failed, or → Found …); the
+		// initial load's own live fetch is not one of them — it is part of "loading the loop".
+		private async Task RefreshLiveFrameAsync(RadarSite site, CancellationToken ct)
+		{
+			_vm.BeginLiveCheck(site.Id);
+			var progress = new Progress<(int Done, int Total)>(p => _vm.ReportLiveCheck(p.Done, p.Total));
+			try
+			{
+				await ApplyLivePollAsync(site, FetchLiveFrameAsync(site, ct, progress), ct);
+			}
+			catch
+			{
+				_vm.AnnounceLiveDropped(); // cancelled (site change, app closing) or failed mid-apply
+				throw;
+			}
+			_vm.EndLiveCheck(failed: _vm._lastLiveError is not null); // a no-op when it Found a newer scan
+		}
+
+		// A newer scan the slot announces. The page's paint report is armed BEFORE its decode starts, so the draw
+		// that completes it can't slip past unreported. A loop's FIRST load is "loading the loop", not news.
+		private async Task AnnounceFoundAsync(Models.RadarVolume live)
+		{
+			if (_vm._loadInProgress) return;
+			_vm.AnnounceLiveFound(live);
+			if (_vm._isMapReady) await _vm._mapService.WatchRadarPaintAsync(_vm._archiveCount);
+		}
 
 		// The bar's "check now" button: ONE live poll immediately instead of waiting out the timer. Same path
 		// and same _loopGate as the periodic poll, so it can't interleave with a reload or retile. No timer
@@ -1013,12 +1037,13 @@ namespace Anvil.ViewModels
 		// Split out from the apply so the INITIAL load can OVERLAP it with the archive backfill (both are
 		// independent network work) rather than running it strictly afterwards. Best-effort: records the
 		// error and returns null so the archive newest simply stays shown.
-		private async Task<Models.RadarVolume?> FetchLiveFrameAsync(RadarSite site, CancellationToken ct)
+		private async Task<Models.RadarVolume?> FetchLiveFrameAsync(RadarSite site, CancellationToken ct,
+			IProgress<(int Done, int Total)>? progress = null)
 		{
 			try
 			{
 				_vm._lastLiveError = null;
-				return await _vm._radarService.GetLiveFrameAsync(site, _vm._selectedTiltAngle, ct);
+				return await _vm._radarService.GetLiveFrameAsync(site, _vm._selectedTiltAngle, ct, progress);
 			}
 			catch (OperationCanceledException)
 			{
@@ -1069,7 +1094,7 @@ namespace Anvil.ViewModels
 				// the swap. Mirrors the deferred append below.
 				_vm._liveFrame = live;
 				_vm._pendingLiveUpdate = live;
-				if (!_vm._loadInProgress) _vm.AnnounceLiveFound(live); // the bar's activity slot lights
+				await AnnounceFoundAsync(live);
 				Services.RadarDiagnostics.Log("vm", "live.apply", ("action", "update"),
 					("idx", _vm._archiveCount), ("volZ", live.VolumeTime.ToUniversalTime().ToString("HH:mm:ss")));
 				if (_vm._isMapReady)
@@ -1101,7 +1126,7 @@ namespace Anvil.ViewModels
 			// already full. Registering the frame source + starting the decode is all that happens now; the
 			// scrubber/display change atomically the instant the geometry lands.
 			_vm._pendingLiveAppend = live;
-			if (!_vm._loadInProgress) _vm.AnnounceLiveFound(live); // a loop's first load is "loading the loop", not news
+			await AnnounceFoundAsync(live);
 			Services.RadarDiagnostics.RegisterFrameSource(_vm._archiveCount, "live", FrameCacheFile(live), live.VolumeTime);
 			if (_vm._isMapReady)
 			{
@@ -1164,7 +1189,7 @@ namespace Anvil.ViewModels
 			{
 				_ = _vm._mapService.ShowRadarFrameAsync(_vm._archiveCount);   // promote display to the now-decoded live frame
 			}
-			_vm.AnnounceLiveShown(live); // the bar's activity slot: complete
+			_vm.AnnounceLiveBuilt(live, onScreen: true); // the slot: painting (the display was just promoted to it)
 		}
 
 		// Completes a DEFERRED in-place live UPDATE (see ApplyLiveFrameAsync): the freshest live volume we
@@ -1189,7 +1214,7 @@ namespace Anvil.ViewModels
 				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
 			}
 			_vm.RaiseRadarReadout();
-			_vm.AnnounceLiveShown(live); // the bar's activity slot: complete (it's in the loop, scrubbed back or not)
+			_vm.AnnounceLiveBuilt(live, onScreen: _vm._currentFrameIndex == _vm._archiveCount); // the slot: painting, or complete
 		}
 
 		// Records the latest live-frame poll outcome for the debug card.
@@ -1632,7 +1657,7 @@ namespace Anvil.ViewModels
 					_vm._hasLiveFrame = false;
 					_vm._liveFrame = null;
 					_vm._pendingLiveUpdate = null;
-					_vm.AnnounceLiveDropped(); // a new frame the slot was announcing will never land
+					_vm.AnnounceLiveDropped(); // a poll or new frame the slot is announcing will never finish
 				}
 				_vm._frameTimes = newTimes;
 				_vm._frameModes = newModes;

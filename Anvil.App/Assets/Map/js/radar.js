@@ -7,6 +7,7 @@
 // fetches each volume to the "radarlevel2" virtual host and drives the loop:
 //   radarBeginLoop(lat,lon) -> radarAddFrame(url,index) xN -> radarShowFrame(index)
 // Each built frame posts {type:'radarFrameReady', index, hasData} back to the host.
+// A watched frame (watchPaint, armed for a new live frame) posts {type:'radarPainted', index} once DRAWN.
 //
 // THE SHAPE OF THE STATE — one store, one clock, N views:
 //
@@ -942,6 +943,12 @@
         }
     }
     // ===== END PIPELINE CONSOLE =====
+    // PAINT REPORT (watchPaint → radarPainted): every decode result stamps its index with a rising version; a
+    // watch remembers the version it was armed over and posts ONCE when render() draws a newer one at that index.
+    // ⚠️ A version, not just the index: an in-place live update re-decodes the slot already on screen, and the OLD
+    // geometry drawn before the new lands must not count.
+    const frameVer = [];
+    let verSeq = 0, paintWatch = -1, paintWatchVer = 0;
     let pendingFrame = -1;  // a frame requested via showFrame before it finished decoding; the
                             // decode that satisfies it promotes it to currentFrame (so showFrame
                             // never pins currentFrame to an undecoded index and blanks the layer).
@@ -1286,6 +1293,7 @@
             decoded: frames.filter(Boolean).length, total: frames.length, cf: currentFrame,
         });
         try { console.log('[radar] decoded idx=' + res.index + (res.empty ? ' EMPTY' : ' tris=' + reflCount + ' velTris=' + velCount)); } catch (e) { /* ignore */ }
+        frameVer[res.index] = ++verSeq; // the paint report's version (see PAINT REPORT)
 
         // Decide what to show now that this frame is available. Crucially, ANY of these paths
         // re-adds the layer if it's missing (e.g. after a reload removed it) — so the radar can
@@ -1403,6 +1411,11 @@
                         glc.bufferData(glc.ARRAY_BUFFER, col, glc.STATIC_DRAW);
                         v.uploadedFrame = currentFrame;
                         v.uploadedProduct = effProduct;
+                    }
+                    // The watched frame's newer geometry is on screen now (an empty frame counts: nothing to draw).
+                    if (currentFrame === paintWatch && (frameVer[currentFrame] || 0) > paintWatchVer) {
+                        paintWatch = -1;
+                        post({ type: 'radarPainted', index: currentFrame });
                     }
                     if (!cnt) return; // this product has nothing to draw on this frame
 
@@ -1805,6 +1818,11 @@
             removeLayerAll();
             hostLog('beginLoop token=' + loopToken + ' @ ' + lat.toFixed(3) + ',' + lon.toFixed(3)
                 + ' panes=' + views.length);
+        },
+        // Post radarPainted once a NEWER version of frame `index` than the one held now is drawn (PAINT REPORT).
+        watchPaint: function (index) {
+            paintWatch = index;
+            paintWatchVer = frameVer[index] || 0;
         },
         addFrame: function (url, index) {
             hostLog('addFrame idx=' + index);

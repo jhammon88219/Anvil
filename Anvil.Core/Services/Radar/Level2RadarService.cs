@@ -1174,7 +1174,8 @@ namespace Anvil.Services
 		private string? _fallbackKey;
 		private RadarVolume? _fallbackVolume;
 
-		public async Task<RadarVolume?> GetLiveFrameAsync(RadarSite site, float? tiltAngle = null, CancellationToken cancellationToken = default)
+		public async Task<RadarVolume?> GetLiveFrameAsync(RadarSite site, float? tiltAngle = null, CancellationToken cancellationToken = default,
+			IProgress<(int Done, int Total)>? progress = null)
 		{
 			try
 			{
@@ -1192,7 +1193,7 @@ namespace Anvil.Services
 
 				// Build from the newest volume, accumulating its chunks across polls (it's the
 				// growing in-progress one).
-				var frame = await BuildLiveFrameAsync(site, vol, start, useCache: true, tiltAngle, cancellationToken);
+				var frame = await BuildLiveFrameAsync(site, vol, start, useCache: true, tiltAngle, cancellationToken, progress);
 				if (frame is not null)
 				{
 					return frame;
@@ -1221,7 +1222,7 @@ namespace Anvil.Services
 						}
 						RadarDiagnostics.Log("svc", "live", ("site", site.Id), ("vol", vol),
 							("msg", $"newest not ready -> fall back to finished vol={prevVol}"));
-						var fb = await BuildLiveFrameAsync(site, prevVol, ps, useCache: false, tiltAngle, cancellationToken);
+						var fb = await BuildLiveFrameAsync(site, prevVol, ps, useCache: false, tiltAngle, cancellationToken, progress);
 						if (fb is not null)
 						{
 							_fallbackKey = fbKey;
@@ -1253,7 +1254,8 @@ namespace Anvil.Services
 		// A higher tilt costs no extra network: the chunks for the whole in-progress volume are already
 		// downloaded and decoded into _liveBlocks (that's the ~8-12 s build), so tilts 2-4 are extracted
 		// from bytes we already hold.
-		private async Task<RadarVolume?> BuildLiveFrameAsync(RadarSite site, string vol, DateTimeOffset start, bool useCache, float? tiltAngle, CancellationToken ct)
+		private async Task<RadarVolume?> BuildLiveFrameAsync(RadarSite site, string vol, DateTimeOffset start, bool useCache, float? tiltAngle, CancellationToken ct,
+			IProgress<(int Done, int Total)>? progress = null)
 		{
 			// The folder can hold chunks from several volumes (it's reused as the number cycles), so
 			// keep only the chunks of the target volume (matching start stamp).
@@ -1314,6 +1316,9 @@ namespace Anvil.Services
 			var results = new ConcurrentBag<(int seq, byte[] block, int elev)>();
 			byte[]? parsedHeader = null;
 			var headerVanished = false;
+			// Chunks done of this pass's chunks — the bar's activity slot draws it as the poll's download line.
+			var fetched = 0;
+			progress?.Report((0, toFetch.Count));
 			await Parallel.ForEachAsync(toFetch,
 				new ParallelOptions { MaxDegreeOfParallelism = LiveDownloadConcurrency, CancellationToken = ct },
 				async (c, token) =>
@@ -1332,6 +1337,7 @@ namespace Anvil.Services
 					var isS = c.kind == 'S';
 					if (isS && bytes.Length >= 24) parsedHeader = bytes[..24]; // single S chunk -> no race
 
+					progress?.Report((Interlocked.Increment(ref fetched), toFetch.Count));
 					var block = DecompressChunk(bytes, isS);
 					if (block is null) return;
 					results.Add((c.seq, block, ElevationOf(block, icao)));

@@ -295,6 +295,9 @@ namespace Anvil.Services
 		public Task SetSelectedRadarSiteAsync(string? siteId) =>
 			_mapView.RunScriptAsync(Call("setSelectedRadarSite", siteId ?? string.Empty));
 
+		public Task WatchRadarPaintAsync(int index) =>
+			_mapView.RunScriptAsync(Call("watchRadarPaint", index));
+
 		public Task SetMapBlurAsync(double px) =>
 			_mapView.RunScriptAsync(Call("setMapBlur", px));
 

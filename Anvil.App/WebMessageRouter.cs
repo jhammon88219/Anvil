@@ -84,6 +84,7 @@ namespace Anvil
 				},
 				["markerMoved"] = HandleMarkerMoved,
 				["radarFrameReady"] = HandleRadarFrameReady,
+				["radarPainted"] = root => { if (root.TryGetProperty("index", out var i)) _viewModel.Radar.OnRadarPainted(i.GetInt32()); },
 				["pageError"] = HandlePageError,
 				["radarMemory"] = HandleRadarMemory,
 				["perfPan"] = HandlePerfPan,

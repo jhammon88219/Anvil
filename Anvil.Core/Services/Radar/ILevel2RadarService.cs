@@ -132,7 +132,10 @@ namespace Anvil.Services
 		/// re-scans only the BASE tilt, so a higher tilt refreshes once per ~4.5-min volume rather than
 		/// every ~1-2 min.</para>
 		/// </summary>
-		Task<RadarVolume?> GetLiveFrameAsync(RadarSite site, float? tiltAngle = null, CancellationToken cancellationToken = default);
+		/// <remarks><paramref name="progress"/> gets (chunks downloaded, chunks this pass needs) — the bar's activity
+		/// slot's download line while a NowCast poll runs. Reported from worker threads.</remarks>
+		Task<RadarVolume?> GetLiveFrameAsync(RadarSite site, float? tiltAngle = null, CancellationToken cancellationToken = default,
+			IProgress<(int Done, int Total)>? progress = null);
 
 		/// <summary>
 		/// Returns the set of site IDs whose NEWEST archive volume is fresh (<see cref="RadarSiteStatus.IsFresh"/>)

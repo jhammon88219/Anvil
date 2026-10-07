@@ -195,27 +195,43 @@ namespace Anvil.ViewModels
 
 		// ── Source: NowCast's NEW LIVE FRAME (replaced the map's sweep pulse, 2026-10-07) ─────────────────
 
-		/// <summary>Follow each new live frame from the poll that brought it to the moment it is in the loop, the
-		/// loop's look (variant A, the user's pick): the thin line is the download — already whole, since the poll
-		/// only knows a scan is new once its chunks are on disk — and the main bar is the build, the gate's steps
-		/// (⅓ a worker decoding it). Shown → "complete" holds for <see cref="FlashMs"/>, like "Loop ready".</summary>
+		/// <summary>Follow EVERY NowCast live poll (the user's call: "I like to see what's going on"), in the loop's look
+		/// (variant A): the thin line is the poll's chunk download, the main bar the new frame's build in the gate's
+		/// steps (⅓ a worker decoding it, ⅔ built and waiting to be drawn). A poll with nothing newer ends on a quiet
+		/// "No new scan"; a new frame ends on "Complete" only once the page has DRAWN it — both hold for
+		/// <see cref="FlashMs"/>, like "Loop ready".</summary>
 		internal void WatchLiveFrame(RadarViewModel radar)
 		{
 			radar.LiveFrameActivity += (_, a) =>
 			{
-				var scan = $"{a.VolumeTime.ToLocalTime():h:mm tt} scan";
+				var at = a.VolumeTime is { } t ? t.ToLocalTime().ToString("h:mm tt", System.Globalization.CultureInfo.CurrentCulture) : null;
+				var scan = $"{at} scan";
 				switch (a.Stage)
 				{
+					case LiveFrameStage.Checking:
+						Set(BarActivityKind.LiveFrame, $"Checking {a.SiteId} for a new scan",
+							a.Total > 0 ? $"{a.Done} of {a.Total} chunks" : "Listing chunks",
+							0, a.Total > 0 ? (double)a.Done / a.Total : 0);
+						break;
+					case LiveFrameStage.Unchanged:
+						Flash(BarActivityKind.LiveFrame, $"No new scan · {a.SiteId}",
+							at is null ? string.Empty : $"{scan} is the newest", BarActivityTone.Housekeeping, fullBar: false);
+						break;
+					case LiveFrameStage.Failed:
+						Flash(BarActivityKind.LiveFrame, $"Couldn't check {a.SiteId} for a new scan", "the next poll tries again",
+							BarActivityTone.Failed, fullBar: false);
+						break;
 					case LiveFrameStage.Found:
 						Set(BarActivityKind.LiveFrame, $"New scan · {a.SiteId}", $"{scan} · downloaded", 0, 1);
 						break;
 					case LiveFrameStage.Decoding:
-						Set(BarActivityKind.LiveFrame, $"New scan · {a.SiteId}", $"{scan} · building",
-							RadarViewModel.DecodingStep, 1);
+						Set(BarActivityKind.LiveFrame, $"New scan · {a.SiteId}", $"{scan} · building", RadarViewModel.DecodingStep, 1);
+						break;
+					case LiveFrameStage.Painting:
+						Set(BarActivityKind.LiveFrame, $"New scan · {a.SiteId}", $"{scan} · painting", RadarViewModel.LitStep, 1);
 						break;
 					case LiveFrameStage.Shown:
-						Flash(BarActivityKind.LiveFrame, $"New frame · {a.SiteId} {a.VolumeTime.ToLocalTime():h:mm tt}",
-							"Complete", BarActivityTone.Done, fullBar: true);
+						Flash(BarActivityKind.LiveFrame, $"New frame · {a.SiteId} {at}", "Complete", BarActivityTone.Done, fullBar: true);
 						break;
 					default:
 						if (!IsFlashing(BarActivityKind.LiveFrame)) Clear(BarActivityKind.LiveFrame);

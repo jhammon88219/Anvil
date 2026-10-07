@@ -407,6 +407,13 @@ namespace Anvil.Services
 		Task SetSelectedRadarSiteAsync(string? siteId);
 
 		/// <summary>
+		/// Asks the page to post ONE <c>radarPainted</c> the first time it DRAWS a newer version of frame
+		/// <paramref name="index"/> than it holds now — armed before a new live frame's decode starts, so the bar's
+		/// activity slot says "complete" only once the frame is on screen. A later call replaces the watch.
+		/// </summary>
+		Task WatchRadarPaintAsync(int index);
+
+		/// <summary>
 		/// Blurs every map pane by <paramref name="px"/> CSS pixels (0 = sharp) — the LOOP HOLDING GATE's frosting,
 		/// so nothing on the map is readable while a PastCast loop loads. Eased in the page.
 		/// </summary>

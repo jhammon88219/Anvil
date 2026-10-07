@@ -11,11 +11,15 @@
        └──────────────────────────────────────────────────────────┘
          ┃ = the tone mark:  blue = radar loop work · grey = housekeeping · green = done flash · red = failed
 
-       NowCast's NEW LIVE FRAME (lowest rank) wears the loop's look:
-       │ ┃ New scan · KTLX                 1:42 PM scan · building │   ← main bar = the build (⅓ decoding)
-       │ ┃ ██████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │   ← thin line WHOLE: the poll only knows a
-       │ ┃ ─────────────────────────────────────────────────────── │     scan is new once its chunks are on disk
-       then  ┃ New frame · KTLX 1:42 PM                 Complete     ← green flash, holds like "Loop ready"
+       NowCast's LIVE POLL (lowest rank, EVERY poll) wears the loop's look:
+       │ ┃ Checking KTLX for a new scan           3 of 5 chunks │   ← thin line = the poll's chunk download
+       then, nothing newer:   ┃ No new scan · KTLX    1:42 PM scan is the newest   (grey flash)
+       or a newer scan:
+       │ ┃ New scan · KTLX                 1:47 PM scan · painting │   ← main bar = the build: ⅓ decoding,
+       │ ┃ ████████████████████████████████████░░░░░░░░░░░░░░░░░░░ │     ⅔ built and waiting to be DRAWN
+       │ ┃ ─────────────────────────────────────────────────────── │
+       then  ┃ New frame · KTLX 1:47 PM                 Complete     ← green flash ONLY once the page drew it
+                                                                        (radarPainted); holds like "Loop ready"
 
        hover (loop only) → the title reads "Hold the map again ↗"; click → back to the gate (ReturnToHold).
        nothing active   → the whole plate fades out: empty bar, as before.

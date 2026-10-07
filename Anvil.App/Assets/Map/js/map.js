@@ -590,6 +590,11 @@ try {
     window.setRadarOpacity = function (opacity) {
         if (window.RadarLayer) window.RadarLayer.setOpacity(opacity);
     };
+    // A new live frame is coming: post radarPainted once a newer version of that slot is DRAWN (the bar's
+    // activity slot says "complete" then, not at decode).
+    window.watchRadarPaint = function (index) {
+        if (window.RadarLayer) window.RadarLayer.watchPaint(index);
+    };
     window.setRadarProduct = function (pane, product) {
         if (window.RadarLayer) window.RadarLayer.setProduct(pane, product);
     };
