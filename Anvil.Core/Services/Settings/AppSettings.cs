@@ -346,6 +346,15 @@ namespace Anvil.Services
 			set => SetProperty(ref _regimeAwarePolling, value);
 		}
 
+		// The fixed-time side's interval, seconds (20/30/45/60; anything else reads as 20). Default 30.
+		private int _livePollSeconds = 30;
+		/// <summary>NowCast's fixed live-poll interval, seconds.</summary>
+		public int LivePollSeconds
+		{
+			get => _livePollSeconds;
+			set => SetProperty(ref _livePollSeconds, value);
+		}
+
 		// While a site is loaded, hide every other site key (radar-sites.js `focus` rule); click it again to unload.
 		// Settings → Radar → Radar site keys. Default ON.
 		private bool _hideOtherSitesWhileLoaded = true;

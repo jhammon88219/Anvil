@@ -44,7 +44,10 @@ namespace Anvil.Controls.Composites
 					readout.Attach(e.NewValue as BarActivityViewModel);
 				}));
 
-		public double Shown(bool shown) => shown ? 1 : 0;
+		// Active = full strength; idle = dimmed, NEVER gone (the idle line and the empty plate stay readable).
+		public double PlateOpacity(bool active) => active ? 1 : IdleOpacity;
+
+		private const double IdleOpacity = 0.45;
 
 		public Visibility HasText(string text) => string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -54,7 +57,7 @@ namespace Anvil.Controls.Composites
 
 		public Brush ToneBrush(BarActivityTone tone) => tone switch
 		{
-			BarActivityTone.Housekeeping => HousekeepingBrush,
+			BarActivityTone.Housekeeping or BarActivityTone.Idle => HousekeepingBrush,
 			BarActivityTone.Done => DoneBrush,
 			BarActivityTone.Failed => FailedBrush,
 			_ => RadarBrush,

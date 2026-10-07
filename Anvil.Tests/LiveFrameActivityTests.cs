@@ -125,7 +125,7 @@ namespace Anvil.Tests
 			var rig = await LoadedLiveLoop();
 			await Poll(rig, () => rig.Stages.Contains(LiveFrameStage.Unchanged));
 			Assert.Equal(new[] { LiveFrameStage.Checking, LiveFrameStage.Unchanged }, Distinct(rig));
-			Assert.Equal("No new scan · KTLX", rig.Bar.Title);
+			Assert.Equal("No new scan", rig.Bar.Title);
 			Assert.EndsWith("scan is the newest", rig.Bar.Detail);
 			Assert.Equal(BarActivityTone.Housekeeping, rig.Bar.Tone);
 			rig.Delay.Fire();
@@ -138,7 +138,7 @@ namespace Anvil.Tests
 			var rig = await LoadedLiveLoop();
 			rig.HoldFetch = new TaskCompletionSource();
 			await Poll(rig, () => rig.FetchProgress is not null);
-			Assert.Equal("Checking KTLX for a new scan", rig.Bar.Title);
+			Assert.Equal("Checking for a new scan", rig.Bar.Title);
 
 			rig.FetchProgress!.Report((2, 4));
 			await WaitFor(() => rig.Bar.Detail == "2 of 4 chunks");
@@ -154,7 +154,7 @@ namespace Anvil.Tests
 			rig.Live = LiveAt(47);
 			await Poll(rig, () => rig.LiveSlotRequests >= 2);
 			Assert.Equal(new[] { Keys.Length }, rig.PaintWatches);          // armed before the decode
-			Assert.Equal("New scan · KTLX", rig.Bar.Title);
+			Assert.Equal("New scan", rig.Bar.Title);
 			Assert.EndsWith("· downloaded", rig.Bar.Detail);
 			Assert.Equal(1, rig.Bar.Secondary);
 
@@ -174,7 +174,8 @@ namespace Anvil.Tests
 				LiveFrameStage.Painting, LiveFrameStage.Shown }, Distinct(rig));
 			Assert.Equal(BarActivityTone.Done, rig.Bar.Tone);
 			Assert.Equal("Complete", rig.Bar.Detail);
-			Assert.StartsWith("New frame · KTLX ", rig.Bar.Title);
+			Assert.StartsWith("New frame · ", rig.Bar.Title);
+			Assert.DoesNotContain("KTLX", rig.Bar.Title);
 
 			rig.Delay.Fire();
 			await WaitFor(() => !rig.Bar.IsShown);
@@ -212,6 +213,38 @@ namespace Anvil.Tests
 			rig.Radar.SelectedRadarOption = null;
 			await WaitFor(() => rig.Stages.Contains(LiveFrameStage.Dropped));
 			Assert.False(rig.Bar.IsShown);
+		}
+
+		// ── IDLE: the slot never disappears; NowCast idle = the next check + the expected scan (or the interval) ──
+
+		[Fact]
+		public async Task Idle_while_polling_shows_the_countdown_and_what_is_due_without_a_site_id()
+		{
+			var rig = await LoadedLiveLoop();
+			await WaitFor(() => rig.Radar.IsLivePolling);                  // the poll loop has scheduled its next check
+			await WaitFor(() => rig.Bar.Title.StartsWith("Next check in", StringComparison.Ordinal)); // the 1 s tick
+			Assert.False(rig.Bar.IsShown);                                  // dimmed, not gone
+			Assert.Equal(BarActivityTone.Idle, rig.Bar.Tone);
+			Assert.Matches(@"^Next check in \d+:\d\d$", rig.Bar.Title);
+			Assert.True(rig.Bar.HasSecondary);
+			Assert.DoesNotContain("KTLX", rig.Bar.Title + rig.Bar.Detail);
+
+			rig.Radar.LivePollingModeIndex = 1;                             // fixed time
+			Assert.Equal("every 30 s", rig.Bar.Detail);
+			rig.Radar.RefreshIntervalIndex = 3;
+			await WaitFor(() => rig.Bar.Detail == "every 60 s");           // the next tick re-reads it
+		}
+
+		[Fact]
+		public async Task Idle_with_no_live_poll_is_an_empty_plate()
+		{
+			var rig = await LoadedLiveLoop();
+			rig.Radar.SelectedRadarOption = null;
+			await WaitFor(() => !rig.Radar.IsLivePolling);
+			await WaitFor(() => rig.Bar.Title.Length == 0);                // the next tick
+			Assert.False(rig.Bar.IsShown);
+			Assert.Equal(string.Empty, rig.Bar.Title);
+			Assert.False(rig.Bar.HasSecondary);
 		}
 	}
 }

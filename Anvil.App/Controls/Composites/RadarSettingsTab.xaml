@@ -7,6 +7,11 @@
        │                                                      │     (load-on-launch → the Startup tab)
        │  ⌄  Readouts                                         │
        │    Distance  [ km | mi | nm ]                        │  ← PERSISTED, app-wide
+       │  ⌄  NowCast live polling                             │
+       │    [ Regime-aware | Fixed time ]                     │  ← PERSISTED (RegimeAwarePolling), default
+       │    Checks for a new scan when the radar's own …     │     regime-aware; the explainer follows the mode
+       │    Check every [ 20 s | 30 s | 45 s | 60 s ]         │  ← PERSISTED (LivePollSeconds); GREYED (still
+       │                                                      │     visible) in regime-aware mode
        │  ⌄  PastCast                                         │
        │    [✓] Hold the map while a loop loads               │  ← PERSISTED, default on (the gate's
        │  ⌄  Radar site keys                                  │     "Don't hold future loads" turns it off)
@@ -67,6 +72,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- home site -->
             <RowDefinition Height="Auto"/> <!-- readouts -->
+            <RowDefinition Height="Auto"/> <!-- nowcast live polling -->
             <RowDefinition Height="Auto"/> <!-- pastcast -->
             <RowDefinition Height="Auto"/> <!-- radar site keys -->
         </Grid.RowDefinitions>
@@ -112,9 +118,36 @@
             </Grid>
         </prim:PanelSection>
 
+        <!-- NOWCAST LIVE POLLING — when the live poll checks for a new scan (docs/regime-aware-polling.md). REGIME-AWARE
+             (default) times each check from the volume's own scan plan (LivePollPlanner); FIXED TIME uses the interval
+             row, which stays VISIBLE but greyed in regime-aware mode so you see what switching gives. Both PERSISTED
+             (AppSettings.RegimeAwarePolling / LivePollSeconds); a change applies from the next check. -->
+        <prim:PanelSection Grid.Row="2" Header="NowCast live polling" IsExpanded="True">
+            <StackPanel Spacing="6">
+                <prim:SegmentedPicker Margin="4,0,0,0" HorizontalAlignment="Left" Width="280"
+                                      ItemsSource="{x:Bind ViewModel.Radar.LivePollingModeLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.Radar.LivePollingModeIndex, Mode=TwoWay}"/>
+                <TextBlock Margin="4,0,0,0" TextWrapping="Wrap" MaxWidth="420"
+                           HorizontalAlignment="Left" Opacity="0.75"
+                           Text="{x:Bind PollingExplainer(ViewModel.Radar.IsFixedTimePolling), Mode=OneWay}"/>
+                <Grid ColumnSpacing="12" Margin="4,2,0,0"
+                      IsHitTestVisible="{x:Bind ViewModel.Radar.IsFixedTimePolling, Mode=OneWay}"
+                      Opacity="{x:Bind FixedRowOpacity(ViewModel.Radar.IsFixedTimePolling), Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock VerticalAlignment="Center" Text="Check every"/>
+                    <prim:SegmentedPicker Grid.Column="1" Width="280"
+                                          ItemsSource="{x:Bind ViewModel.Radar.LivePollIntervalLabels}"
+                                          SelectedIndex="{x:Bind ViewModel.Radar.RefreshIntervalIndex, Mode=TwoWay}"/>
+                </Grid>
+            </StackPanel>
+        </prim:PanelSection>
+
         <!-- PASTCAST — the loop holding gate's switch (Composites/LoopHoldingGate). It is also turned off from
              the gate itself ("Don't hold future loads"); this is where it comes back on. -->
-        <prim:PanelSection Grid.Row="2" Header="PastCast" IsExpanded="True">
+        <prim:PanelSection Grid.Row="3" Header="PastCast" IsExpanded="True">
             <!-- PERSISTED (AppSettings.HoldPastCastLoads), default on. -->
             <CheckBox Margin="4,0,0,0"
                       Content="Hold the map while a loop loads"
@@ -125,7 +158,7 @@
         <!-- RADAR SITE KEYS — set-once PREFERENCES about how the keys on the map behave, so they pass the placement test for
              Settings (the network toggles are gestures and live on the tools tier — see the ⚠️ above). Each switch is ONE
              rule in radar-sites.js's VISIBILITY RULES table; a new way to hide keys = a rule there + a row here. -->
-        <prim:PanelSection Grid.Row="3" Header="Radar site keys" IsExpanded="True">
+        <prim:PanelSection Grid.Row="4" Header="Radar site keys" IsExpanded="True">
             <StackPanel Spacing="4">
                 <!-- PERSISTED (AppSettings.HideOtherSitesWhileLoaded), default ON — the `focus` rule. -->
                 <CheckBox Margin="4,0,0,0"

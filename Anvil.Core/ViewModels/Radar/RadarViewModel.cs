@@ -240,12 +240,36 @@ namespace Anvil.ViewModels
 		// A faster poll (RunLiveFrameRefreshAsync) keeps it fresh between archive reloads; 30s
 		// catches each new SAILS 0.5° re-scan (~every 1.5-3 min) soon after it finishes without
 		// much wasted traffic (clear-air VCPs only scan ~every 10 min, the real floor there).
-		// Live-frame poll cadence — user-selectable in the Radar Loop tool window. RunLiveFrameRefreshAsync
-		// reads it each cycle, so a change takes effect on the next poll with no reload. (The faster
-		// retry-until-first-frame cadence below is unaffected.)
+		// Live-frame poll cadence for the FIXED-TIME side of Settings → Radar → NowCast live polling (PERSISTED,
+		// AppSettings.LivePollSeconds). RunLiveFrameRefreshAsync reads it each cycle, so a change takes effect on the next
+		// poll with no reload. (The faster retry-until-first-frame cadence below is unaffected.)
 		private static readonly double[] RefreshSecondsByIndex = { 20, 30, 45, 60 };
-		private int _refreshIntervalIndex = 1; // default 30 s
-		private double RefreshIntervalSeconds => RefreshSecondsByIndex[Math.Clamp(_refreshIntervalIndex, 0, RefreshSecondsByIndex.Length - 1)];
+		private int CurrentIntervalIndex => Math.Max(0, Array.IndexOf(RefreshSecondsByIndex, (double)_settings.Settings.LivePollSeconds));
+		internal double RefreshIntervalSeconds => RefreshSecondsByIndex[Math.Clamp(CurrentIntervalIndex, 0, RefreshSecondsByIndex.Length - 1)];
+
+		/// <summary>Settings → Radar → NowCast live polling: the mode picker's segments.</summary>
+		public IReadOnlyList<string> LivePollingModeLabels { get; } = new[] { "Regime-aware", "Fixed time" };
+
+		/// <summary>0 = regime-aware, 1 = fixed time (AppSettings.RegimeAwarePolling).</summary>
+		public int LivePollingModeIndex
+		{
+			get => IsRegimeAwarePolling ? 0 : 1;
+			set
+			{
+				var regime = value == 0;
+				if (regime == IsRegimeAwarePolling) return;
+				_settings.Settings.RegimeAwarePolling = regime;
+				if (!regime) ExpectedNextScanAt = null;
+				OnPropertyChanged();
+				OnPropertyChanged(nameof(IsFixedTimePolling));
+			}
+		}
+
+		/// <summary>The fixed interval row works only in fixed-time mode (it stays visible, greyed, otherwise).</summary>
+		public bool IsFixedTimePolling => !IsRegimeAwarePolling;
+
+		/// <summary>The fixed interval's segments.</summary>
+		public IReadOnlyList<string> LivePollIntervalLabels { get; } = new[] { "20 s", "30 s", "45 s", "60 s" };
 		// Playback animation speed — user-selectable. RunPlaybackAsync reads ms-per-frame each tick,
 		// so a change applies immediately (no restart).
 		private static readonly int[] PlaybackMsByIndex = { 1000, 500, 333, 250 }; // 0.5x / 1x / 1.5x / 2x
@@ -396,6 +420,13 @@ namespace Anvil.ViewModels
 		}
 
 		internal bool IsRegimeAwarePolling => _settings.Settings.RegimeAwarePolling;
+
+		/// <summary>A NowCast live loop is polling (a site, not PastCast, a next check scheduled) — the bar's activity
+		/// slot shows its idle countdown only then.</summary>
+		public bool IsLivePolling => !IsPastEventMode && _selectedRadarOption?.Site is not null && _nextLivePollAt is not null;
+
+		/// <summary>When the live poll checks next (local clock), or null.</summary>
+		public DateTimeOffset? NextLivePollAt => _nextLivePollAt;
 
 		// After a poll: take the service's schedule for THIS site, learn the volume period at a volume change, and
 		// re-predict. Returns the wait before the next check (null = use the fixed interval).
@@ -1549,11 +1580,13 @@ namespace Anvil.ViewModels
 		/// <summary>Selected update-interval index; applied on the next live poll (no reload).</summary>
 		public int RefreshIntervalIndex
 		{
-			get => _refreshIntervalIndex;
+			get => CurrentIntervalIndex;
 			set
 			{
 				var clamped = Math.Clamp(value, 0, RefreshSecondsByIndex.Length - 1);
-				SetProperty(ref _refreshIntervalIndex, clamped);
+				if (clamped == CurrentIntervalIndex) return;
+				_settings.Settings.LivePollSeconds = (int)RefreshSecondsByIndex[clamped];
+				OnPropertyChanged();
 			}
 		}
 

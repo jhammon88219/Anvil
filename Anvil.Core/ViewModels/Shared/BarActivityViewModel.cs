@@ -13,8 +13,9 @@ namespace Anvil.ViewModels
 	public enum BarActivityKind { Search, Loop, SiteCheck, LiveFrame }
 
 	/// <summary>The readout's colour: the mark and the bar. Radar = loop work (the gate's built-bar blue),
-	/// Housekeeping = app chores, Done = the finish flash, Failed = a flash that says something didn't work.</summary>
-	public enum BarActivityTone { Radar, Housekeeping, Done, Failed }
+	/// Housekeeping = app chores, Done = the finish flash, Failed = a flash that says something didn't work,
+	/// Idle = the dimmed resting line (nothing active).</summary>
+	public enum BarActivityTone { Radar, Housekeeping, Done, Failed, Idle }
 
 	/// <summary>
 	/// The BAR'S ACTIVITY READOUT (<c>MapViewModel.Activity</c> → <c>Controls/Composites/BarActivityReadout</c>, in the
@@ -147,7 +148,8 @@ namespace Anvil.ViewModels
 			if (top < 0)
 			{
 				CanReopen = false;
-				IsShown = false; // the last line's fields stay put, so the fade-out still has words in it
+				IsShown = false; // the plate DIMS (it never disappears) and shows the idle line
+				ApplyIdle();
 				return;
 			}
 			var e = _entries[top];
@@ -184,7 +186,7 @@ namespace Anvil.ViewModels
 			if (g.IsLoading && !g.IsShown)
 			{
 				var detail = g.Total == 0 ? "Finding volumes…" : $"{g.Built} of {g.Total} built";
-				Set(BarActivityKind.Loop, $"Loading the loop · {g.SiteId}", detail,
+				Set(BarActivityKind.Loop, "Loading the loop", detail,
 					g.BuiltFraction, g.DownloadedFraction, BarActivityTone.Radar, canReopen: true);
 			}
 			else if (!IsFlashing(BarActivityKind.Loop))
@@ -202,6 +204,19 @@ namespace Anvil.ViewModels
 		/// <see cref="FlashMs"/>, like "Loop ready".</summary>
 		internal void WatchLiveFrame(RadarViewModel radar)
 		{
+			_liveRadar = radar;
+			// The idle line follows the radar's 1 s countdown tick, and any change of mode / site / schedule.
+			radar.PropertyChanged += (_, e) =>
+			{
+				if (_isShown) return;
+				if (e.PropertyName is nameof(RadarViewModel.RadarNextFrameText) or nameof(RadarViewModel.ExpectedNextScanAt)
+					or nameof(RadarViewModel.IsPastEventMode) or nameof(RadarViewModel.SelectedRadarOption)
+					or nameof(RadarViewModel.LivePollingModeIndex))
+				{
+					ApplyIdle();
+				}
+			};
+			ApplyIdle();
 			radar.LiveFrameActivity += (_, a) =>
 			{
 				var at = a.VolumeTime is { } t ? t.ToLocalTime().ToString("h:mm tt", System.Globalization.CultureInfo.CurrentCulture) : null;
@@ -209,29 +224,29 @@ namespace Anvil.ViewModels
 				switch (a.Stage)
 				{
 					case LiveFrameStage.Checking:
-						Set(BarActivityKind.LiveFrame, $"Checking {a.SiteId} for a new scan",
+						Set(BarActivityKind.LiveFrame, "Checking for a new scan",
 							a.Total > 0 ? $"{a.Done} of {a.Total} chunks" : "Listing chunks",
 							0, a.Total > 0 ? (double)a.Done / a.Total : 0);
 						break;
 					case LiveFrameStage.Unchanged:
-						Flash(BarActivityKind.LiveFrame, $"No new scan · {a.SiteId}",
+						Flash(BarActivityKind.LiveFrame, "No new scan",
 							at is null ? string.Empty : $"{scan} is the newest", BarActivityTone.Housekeeping, fullBar: false);
 						break;
 					case LiveFrameStage.Failed:
-						Flash(BarActivityKind.LiveFrame, $"Couldn't check {a.SiteId} for a new scan", "the next poll tries again",
+						Flash(BarActivityKind.LiveFrame, "Couldn't check for a new scan", "the next poll tries again",
 							BarActivityTone.Failed, fullBar: false);
 						break;
 					case LiveFrameStage.Found:
-						Set(BarActivityKind.LiveFrame, $"New scan · {a.SiteId}", $"{scan} · downloaded", 0, 1);
+						Set(BarActivityKind.LiveFrame, "New scan", $"{scan} · downloaded", 0, 1);
 						break;
 					case LiveFrameStage.Decoding:
-						Set(BarActivityKind.LiveFrame, $"New scan · {a.SiteId}", $"{scan} · building", RadarViewModel.DecodingStep, 1);
+						Set(BarActivityKind.LiveFrame, "New scan", $"{scan} · building", RadarViewModel.DecodingStep, 1);
 						break;
 					case LiveFrameStage.Painting:
-						Set(BarActivityKind.LiveFrame, $"New scan · {a.SiteId}", $"{scan} · painting", RadarViewModel.LitStep, 1);
+						Set(BarActivityKind.LiveFrame, "New scan", $"{scan} · painting", RadarViewModel.LitStep, 1);
 						break;
 					case LiveFrameStage.Shown:
-						Flash(BarActivityKind.LiveFrame, $"New frame · {a.SiteId} {at}", "Complete", BarActivityTone.Done, fullBar: true);
+						Flash(BarActivityKind.LiveFrame, $"New frame · {at}", "Complete", BarActivityTone.Done, fullBar: true);
 						break;
 					default:
 						if (!IsFlashing(BarActivityKind.LiveFrame)) Clear(BarActivityKind.LiveFrame);
@@ -239,6 +254,38 @@ namespace Anvil.ViewModels
 				}
 			};
 		}
+
+		// ── IDLE: the slot never disappears (the user's call, 2026-10-07: "so the user always knows to look there") ──
+		// Nothing active → the plate DIMS (the readout draws IsShown=false at 45%) and shows, while NowCast polls, the
+		// countdown to the next check + the expected scan (regime-aware) or the interval (fixed time); otherwise empty.
+		// No site id (the slot is narrow, and the site picker sits beside it).
+
+		private RadarViewModel? _liveRadar;
+
+		private void ApplyIdle()
+		{
+			Kind = BarActivityKind.LiveFrame;
+			Tone = BarActivityTone.Idle;
+			HasProgress = false;
+			if (_liveRadar is { IsLivePolling: true, NextLivePollAt: { } next } r)
+			{
+				var rem = (int)Math.Ceiling(Math.Max(0, (next - DateTimeOffset.Now).TotalSeconds));
+				Title = $"Next check in {rem / 60}:{rem % 60:00}";
+				Detail = r.IsRegimeAwarePolling ? ScanDue(r.ExpectedNextScanAt) : $"every {r.RefreshIntervalSeconds:0} s";
+				HasSecondary = true;
+				Secondary = Math.Clamp(r.RadarNextFrameProgress / 100, 0, 1);
+			}
+			else
+			{
+				Title = Detail = string.Empty;
+				HasSecondary = false;
+			}
+		}
+
+		private static string ScanDue(DateTimeOffset? at) =>
+			at is not { } t ? "No scan prediction yet"
+			: t <= DateTimeOffset.Now ? "Scan due now"
+			: $"Scan due ~{t.ToLocalTime().ToString("h:mm tt", System.Globalization.CultureInfo.CurrentCulture)}";
 
 		// ── Source: the PLACE SEARCH's status (was a line beside the search box) ───────────────────────
 

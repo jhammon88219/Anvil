@@ -5,24 +5,28 @@
      cluster's 8 px) — see AlignActivityBay.
 
        ┌──────────────────────────────────────────────────────────┐   ← plate: hairline, BarKeySide tall, so it
-       │ ┃ Loading the loop · KTLX  [+1]          22 of 39 built  │     lines up with Atlas top and bottom
+       │ ┃ Loading the loop  [+1]                 22 of 39 built  │     lines up with Atlas top and bottom
        │ ┃ ████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │   ← main bar  (the gate's BUILT)
        │ ┃ ─────────────────────────────────────────░░░░░░░░░░░░  │   ← thin line (the gate's DOWNLOADED), loop only
        └──────────────────────────────────────────────────────────┘
          ┃ = the tone mark:  blue = radar loop work · grey = housekeeping · green = done flash · red = failed
 
        NowCast's LIVE POLL (lowest rank, EVERY poll) wears the loop's look:
-       │ ┃ Checking KTLX for a new scan           3 of 5 chunks │   ← thin line = the poll's chunk download
-       then, nothing newer:   ┃ No new scan · KTLX    1:42 PM scan is the newest   (grey flash)
+       │ ┃ Checking for a new scan                3 of 5 chunks │   ← thin line = the poll's chunk download
+       then, nothing newer:   ┃ No new scan    1:42 PM scan is the newest   (grey flash)
        or a newer scan:
-       │ ┃ New scan · KTLX                 1:47 PM scan · painting │   ← main bar = the build: ⅓ decoding,
+       │ ┃ New scan                        1:47 PM scan · painting │   ← main bar = the build: ⅓ decoding,
        │ ┃ ████████████████████████████████████░░░░░░░░░░░░░░░░░░░ │     ⅔ built and waiting to be DRAWN
        │ ┃ ─────────────────────────────────────────────────────── │
-       then  ┃ New frame · KTLX 1:47 PM                 Complete     ← green flash ONLY once the page drew it
+       then  ┃ New frame · 1:47 PM                      Complete     ← green flash ONLY once the page drew it
                                                                         (radarPainted); holds like "Loop ready"
 
        hover (loop only) → the title reads "Hold the map again ↗"; click → back to the gate (ReturnToHold).
-       nothing active   → the whole plate fades out: empty bar, as before.
+       NOTHING ACTIVE → the plate DIMS to 45% (IsShown false; it never disappears — "so the user always knows to
+       look there") and shows the IDLE line (tone Idle, grey):
+       │ ┃ Next check in 0:18                    Scan due ~1:47 PM │   ← regime-aware; fixed time: "every 30 s"
+       │ ┃ ──────────────────────────────░░░░░░░░░░░░░░░░░░░░░░░░ │   ← thin line fills toward the check
+       PastCast / no site: an EMPTY dimmed plate (no mark). No site id anywhere in the slot.
 
      ⚠️ The tone colours are LITERALS (BarActivityReadout.xaml.cs ToneBrush), like the gate's: never resolve a
      theme brush in C#. The blue matches the gate's built bar; green/red are the old site-check toast's.
@@ -39,7 +43,7 @@
           CornerRadius="8" BorderThickness="1"
           BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
           Background="Transparent"
-          Opacity="{x:Bind Shown(ViewModel.IsShown), Mode=OneWay}"
+          Opacity="{x:Bind PlateOpacity(ViewModel.IsShown), Mode=OneWay}"
           IsHitTestVisible="{x:Bind ViewModel.IsShown, Mode=OneWay}"
           PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" Tapped="OnTapped">
         <Grid.OpacityTransition>
@@ -55,6 +59,7 @@
                 Background="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
 
         <Rectangle Grid.Column="0" Width="3" Margin="10,16,10,16"
+                   Visibility="{x:Bind HasText(ViewModel.Title), Mode=OneWay}"
                    Fill="{x:Bind ToneBrush(ViewModel.Tone), Mode=OneWay}"/>
 
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">

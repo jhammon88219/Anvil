@@ -87,7 +87,7 @@ namespace Anvil.Tests
 			gate.RequestEscape();
 			gate.UseMap();                       // the escape: the load carries on in the bar
 			Assert.True(bar.IsShown);
-			Assert.Equal("Loading the loop · KTLX", bar.Title);
+			Assert.Equal("Loading the loop", bar.Title);
 			Assert.Equal("22 of 39 built", bar.Detail);
 			Assert.True(bar.CanReopen);
 
