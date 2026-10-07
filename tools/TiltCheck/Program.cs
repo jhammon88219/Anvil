@@ -101,6 +101,15 @@ if (args.Length > 0 && args[0] == "--uptime")
     return 0;
 }
 
+// --regime SITE [VOLUMES]: regime-aware polling, step 1 — the planned scan (Message 5) vs the real radial times and
+// the chunks' arrival, over the last few complete live volumes. See RegimeCheck.cs.
+if (args.Length > 0 && args[0] == "--regime")
+{
+    await RegimeCheck.RunAsync((args.Length > 1 ? args[1] : "KTLX").ToUpperInvariant(),
+        args.Length > 2 && int.TryParse(args[2], out var regimeVolumes) ? regimeVolumes : 3);
+    return 0;
+}
+
 // --vcp SITE: the hourly scan-pattern sample (RadarScanPatternService) against the live archive — ~720
 // 8 KB range reads the first time; the real-data check for ReadVcpAsync's prefix parse.
 if (args.Length > 0 && args[0] == "--vcp")
