@@ -20,6 +20,9 @@ namespace Anvil.Models
 	/// known from the first poll — without it, a site's first volume had no next-volume prediction (KTLX clear air,
 	/// 2026-10-07: ~6 min of blind 15 s checks).
 	/// </summary>
+	/// <param name="CutLanded">Per elevation number, when that cut's LAST chunk landed in the bucket (S3 LastModified) —
+	/// the live-poll timing log's ground truth (LivePollTimingLog).</param>
 	public sealed record LiveScanSchedule(string SiteId, DateTimeOffset VolumeStart, int Vcp, IReadOnlyList<PlannedCut> Plan,
-		int HighestCutSeen, bool VolumeEnded, DateTimeOffset? PreviousVolumeStart = null);
+		int HighestCutSeen, bool VolumeEnded, DateTimeOffset? PreviousVolumeStart = null,
+		IReadOnlyDictionary<int, DateTimeOffset>? CutLanded = null);
 }

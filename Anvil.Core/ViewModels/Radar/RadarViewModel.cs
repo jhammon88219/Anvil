@@ -428,6 +428,11 @@ namespace Anvil.ViewModels
 		/// <summary>When the live poll checks next (local clock), or null.</summary>
 		public DateTimeOffset? NextLivePollAt => _nextLivePollAt;
 
+		// For the live-poll timing log (LivePollTimingRecorder): the service's schedule AS OF the poll that just ran (the
+		// planner's own copy lags one poll), and the watched tilt.
+		internal LiveScanSchedule? LatestLiveSchedule => _radarService.LiveSchedule;
+		internal float? WatchedTiltAngle => _selectedTiltAngle;
+
 		// After a poll: take the service's schedule for THIS site, learn the volume period at a volume change, and
 		// re-predict. Returns the wait before the next check (null = use the fixed interval).
 		internal double? PlanNextLiveCheck(string siteId, DateTimeOffset now)

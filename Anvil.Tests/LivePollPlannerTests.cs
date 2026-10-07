@@ -26,10 +26,10 @@ namespace Anvil.Tests
 			(12.48, 3, 28.74, false), (15.60, 3, 28.74, false), (19.51, 3, 28.74, false),
 		};
 
-		private static List<PlannedCut> Plan() =>
+		internal static List<PlannedCut> Plan() =>
 			Ktbw212.Select((c, i) => new PlannedCut(i + 1, c.a, c.w, c.r, c.sails, c.sails ? 1 : 0, false)).ToList();
 
-		private static readonly DateTimeOffset Start = new(2026, 10, 7, 19, 46, 42, TimeSpan.Zero);
+		internal static readonly DateTimeOffset Start = new(2026, 10, 7, 19, 46, 42, TimeSpan.Zero);
 
 		private static LiveScanSchedule At(int highestCut, bool ended = false) =>
 			new("KTBW", Start, 212, Plan(), highestCut, ended);

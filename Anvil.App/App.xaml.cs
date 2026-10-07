@@ -126,6 +126,8 @@ namespace Anvil
 			// builds no LoopLoadRecorder, so a Release build writes nothing.
 			services.AddSingleton<LoopLoadLog>();
 #endif
+			// The live-poll timing log, EVERY build: %LocalAppData%\Anvil\Usage\live-poll-timing.jsonl (tools/live_poll_report.py).
+			services.AddSingleton<LivePollTimingLog>();
 			// Scan patterns VcpCatalog doesn't list, per site: %LocalAppData%\Anvil\Network\nonstandard-vcps.json.
 			services.AddSingleton<NonStandardVcpLog>();
 			// Data uptime from archive gaps: listing only, final days cached in %LocalAppData%\Anvil\Network\Archive.

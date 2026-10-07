@@ -1266,7 +1266,8 @@ namespace Anvil.Services
 		{
 			// The folder can hold chunks from several volumes (it's reused as the number cycles), so
 			// keep only the chunks of the target volume (matching start stamp).
-			var chunks = (await ListChunkObjectsAsync(site.Id, vol, ct))
+			var landedByKey = useCache ? new Dictionary<string, DateTimeOffset>() : null;
+			var chunks = (await ListChunkObjectsAsync(site.Id, vol, ct, landedByKey))
 				.Where(c => ParseChunkStart(c.key) == start)
 				.ToList();
 			if (chunks.Count == 0 || !chunks.Any(c => c.kind == 'S'))
@@ -1417,8 +1418,19 @@ namespace Anvil.Services
 				}
 				if (_livePlan is { } p)
 				{
+					// When each cut's LAST chunk landed in the bucket (S3 LastModified, keyed by the cut's elevation number) —
+					// the timing log's ground truth for "when was this frame really there to fetch".
+					var landed = new Dictionary<int, DateTimeOffset>();
+					foreach (var c in chunks)
+					{
+						if (blocks.TryGetValue(c.seq, out var b) && b.elev > 0 && landedByKey!.TryGetValue(c.key, out var at)
+							&& (!landed.TryGetValue(b.elev, out var seen) || at > seen))
+						{
+							landed[b.elev] = at;
+						}
+					}
 					LiveSchedule = new LiveScanSchedule(site.Id, start, p.vcp, p.cuts,
-						ordered.Count == 0 ? 0 : ordered.Max(b => b.elev), chunks.Any(c => c.kind == 'E'), _livePrevStart);
+						ordered.Count == 0 ? 0 : ordered.Max(b => b.elev), chunks.Any(c => c.kind == 'E'), _livePrevStart, landed);
 				}
 			}
 			var hdr = header;
@@ -1638,8 +1650,10 @@ namespace Anvil.Services
 			return max;
 		}
 
-		// Lists all chunks in a volume folder as (key, seq, kind), e.g. (..., 2, 'I').
-		private async Task<List<(string key, int seq, char kind)>> ListChunkObjectsAsync(string siteId, string vol, CancellationToken ct)
+		// Lists all chunks in a volume folder as (key, seq, kind), e.g. (..., 2, 'I'). `modifiedByKey` (optional) also gets
+		// each chunk's S3 LastModified = when it LANDED in the bucket — the live-poll timing log's ground truth.
+		private async Task<List<(string key, int seq, char kind)>> ListChunkObjectsAsync(string siteId, string vol, CancellationToken ct,
+			Dictionary<string, DateTimeOffset>? modifiedByKey = null)
 		{
 			var prefix = $"{siteId}/{vol}/";
 			var list = new List<(string, int, char)>();
@@ -1660,6 +1674,11 @@ namespace Anvil.Services
 					if (ParseChunkSeqKind(keyEl.Value) is { } pk)
 					{
 						list.Add((keyEl.Value, pk.seq, pk.kind));
+						if (modifiedByKey is not null && keyEl.Parent?.Element(S3 + "LastModified")?.Value is { } lm
+							&& DateTimeOffset.TryParse(lm, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var landed))
+						{
+							modifiedByKey[keyEl.Value] = landed;
+						}
 					}
 				}
 
