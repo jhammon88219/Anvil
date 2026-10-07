@@ -1169,6 +1169,9 @@ namespace Anvil.Services
 		private readonly SortedDictionary<int, (byte[] block, int elev)> _liveBlocks = new();
 		// The live volume's PLAN (Message 5, read once per volume) — regime-aware polling (docs/regime-aware-polling.md).
 		private (int vcp, List<PlannedCut> cuts)? _livePlan;
+		// The previous volume's start (one folder listing, once per live volume) — the volume length from the first poll.
+		private DateTimeOffset? _livePrevStart;
+		private bool _livePrevLooked;
 
 		public LiveScanSchedule? LiveSchedule { get; private set; }
 
@@ -1289,6 +1292,8 @@ namespace Anvil.Services
 					_liveIcao = null;
 					_liveBlocks.Clear();
 					_livePlan = null;
+					_livePrevStart = null;
+					_livePrevLooked = false;
 				}
 				blocks = _liveBlocks;
 				header = _liveHeader;
@@ -1400,10 +1405,20 @@ namespace Anvil.Services
 				// highest cut its chunks reach + whether its end chunk is in. Published even when no sweep is complete
 				// yet — that's exactly when the poll needs to know how long to wait.
 				if (_livePlan is null && ScanPlan.TryRead(ordered, out var planVcp, out var planCuts)) _livePlan = (planVcp, planCuts);
+				if (!_livePrevLooked && int.TryParse(vol, out var volNum) && volNum > 1)
+				{
+					_livePrevLooked = true; // once per volume, success or not — best effort, never fails the build
+					try
+					{
+						if (await NewestVolumeStartAsync(site.Id, volNum - 1, ct) is { } prev && prev < start) _livePrevStart = prev;
+					}
+					catch (OperationCanceledException) { throw; }
+					catch { /* no length this volume: the planner learns it at the next volume change */ }
+				}
 				if (_livePlan is { } p)
 				{
 					LiveSchedule = new LiveScanSchedule(site.Id, start, p.vcp, p.cuts,
-						ordered.Count == 0 ? 0 : ordered.Max(b => b.elev), chunks.Any(c => c.kind == 'E'));
+						ordered.Count == 0 ? 0 : ordered.Max(b => b.elev), chunks.Any(c => c.kind == 'E'), _livePrevStart);
 				}
 			}
 			var hdr = header;

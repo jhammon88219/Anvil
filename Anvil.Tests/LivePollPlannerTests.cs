@@ -118,6 +118,19 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void PlanNextLiveCheck_KnowsTheVolumeLength_FromTheFirstPoll_ViaThePreviousVolume()
+		{
+			// KTLX clear air, 2026-10-07: the first volume's only frame was in; with no length known it polled blind every
+			// 15 s for ~6 min. The previous volume's start (in the bucket) gives the length on the first poll.
+			var (radar, _, _, set) = Radar();
+			set(At(15) with { PreviousVolumeStart = Start.AddSeconds(-304) });
+			var wait = radar.PlanNextLiveCheck("KTBW", Start.AddSeconds(240));
+			Assert.Equal(Start.AddSeconds(304 + LivePollPlanner.FrameEnds(Plan(), null)[0].EndSeconds + LivePollPlanner.UploadSlack),
+				radar.ExpectedNextScanAt);
+			Assert.NotEqual(LivePollPlanner.TailSeconds, wait);
+		}
+
+		[Fact]
 		public void PlanNextLiveCheck_LearnsTheVolumePeriod_AtAVolumeChange()
 		{
 			var (radar, _, _, set) = Radar();

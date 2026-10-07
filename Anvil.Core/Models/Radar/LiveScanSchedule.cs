@@ -15,8 +15,11 @@ namespace Anvil.Models
 	/// <summary>
 	/// What the NEWEST live volume has done so far, from the last poll — the input to regime-aware polling
 	/// (<c>LivePollPlanner</c>). <paramref name="HighestCutSeen"/> = the highest elevation number among its chunks (that
-	/// cut may still be scanning); <paramref name="VolumeEnded"/> = its end chunk ('E') has arrived.
+	/// cut may still be scanning); <paramref name="VolumeEnded"/> = its end chunk ('E') has arrived;
+	/// <paramref name="PreviousVolumeStart"/> = the volume before it (its folder's newest start), so the volume LENGTH is
+	/// known from the first poll — without it, a site's first volume had no next-volume prediction (KTLX clear air,
+	/// 2026-10-07: ~6 min of blind 15 s checks).
 	/// </summary>
 	public sealed record LiveScanSchedule(string SiteId, DateTimeOffset VolumeStart, int Vcp, IReadOnlyList<PlannedCut> Plan,
-		int HighestCutSeen, bool VolumeEnded);
+		int HighestCutSeen, bool VolumeEnded, DateTimeOffset? PreviousVolumeStart = null);
 }

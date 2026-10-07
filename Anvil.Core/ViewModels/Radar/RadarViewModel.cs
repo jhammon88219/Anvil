@@ -446,7 +446,10 @@ namespace Anvil.ViewModels
 				ExpectedNextScanAt = null;
 				return null;
 			}
-			ExpectedNextScanAt = LivePollPlanner.ExpectedNext(sched, _selectedTiltAngle, _liveVolumePeriod, _liveFrame?.VolumeTime);
+			// The volume length: the one SEEN here (a volume change) wins; until then, the previous volume in the bucket.
+			var length = _liveVolumePeriod
+				?? (sched.PreviousVolumeStart is { } prevStart ? LivePollPlanner.Period(prevStart, sched.VolumeStart) : null);
+			ExpectedNextScanAt = LivePollPlanner.ExpectedNext(sched, _selectedTiltAngle, length, _liveFrame?.VolumeTime);
 			return LivePollPlanner.NextWait(now, ExpectedNextScanAt);
 		}
 
