@@ -34,7 +34,6 @@ namespace Anvil.Controls.Composites
 			{
 				if (_orderApplied || ViewModel is null) { return; }
 				_orderApplied = true;
-				ViewModel.Discussions.SelectionRequested += OnDiscussionSelectionRequested;
 				PanelSection.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Past));
 				PanelSection.PersistExpansion(System.Linq.Enumerable.OfType<PanelSection>(Sections.Children), "past",
 					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
@@ -175,9 +174,6 @@ namespace Anvil.Controls.Composites
 
 		private void OnDiscussionsHeaderClick(object sender, RoutedEventArgs e) =>
 			ViewModel?.Discussions.ToggleAll();
-
-		// A discussion clicked ON THE MAP opens its reader here — the section may be collapsed.
-		private void OnDiscussionSelectionRequested(object? sender, EventArgs e) => DiscussionsSection.IsExpanded = true;
 
 		private void OnPastWarningsHeaderClick(object sender, RoutedEventArgs e) =>
 			ViewModel?.PastAlerts.Warnings.ToggleAll();

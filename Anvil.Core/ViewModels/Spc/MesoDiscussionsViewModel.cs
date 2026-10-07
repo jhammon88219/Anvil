@@ -143,7 +143,10 @@ namespace Anvil.ViewModels
 				// A live refresh rebuilds the rows; re-selecting the SAME discussion must not reload (and flash)
 				// the text being read.
 				var sameDiscussion = _selected?.Discussion.Key == value?.Discussion.Key;
+				var previous = _selected;
 				if (!SetProperty(ref _selected, value)) { return; }
+				if (previous is not null) { previous.IsSelected = false; }
+				if (value is not null) { value.IsSelected = true; }
 				OnPropertyChanged(nameof(HasSelection));
 				OnPropertyChanged(nameof(CanStepPrevious));
 				OnPropertyChanged(nameof(CanStepNext));
@@ -167,13 +170,22 @@ namespace Anvil.ViewModels
 			Selected = Discussions[j];
 		}
 
-		/// <summary>A click on the map (discussions.js → WebMessageRouter): select the discussion by key.</summary>
+		/// <summary>A click on the map (discussions.js → WebMessageRouter): read the discussion under it.</summary>
 		public void SelectByKey(string key)
 		{
 			var row = Discussions.FirstOrDefault(d => d.Discussion.Key == key);
 			if (row is null) { return; }
-			Selected = row;
-			SelectionRequested?.Invoke(this, EventArgs.Empty);
+			OpenReader(row);
+		}
+
+		/// <summary>
+		/// Open the reader (the Mesoscale Discussions WINDOW) on <paramref name="row"/>; with none, keep what is
+		/// selected, else start on the first discussion in effect, else the first listed.
+		/// </summary>
+		public void OpenReader(DiscussionRow? row = null)
+		{
+			Selected = row ?? _selected ?? InEffect.FirstOrDefault() ?? Discussions.FirstOrDefault();
+			ReaderRequested?.Invoke(this, EventArgs.Empty);
 		}
 
 		/// <summary>Frame the selected discussion's area on the map.</summary>
@@ -182,8 +194,60 @@ namespace Anvil.ViewModels
 			if (_selected is not null && _isMapReady) { _ = _mapService.FocusDiscussionAsync(_selected.Discussion.Key); }
 		}
 
-		/// <summary>Raised when a selection arrives from the MAP, so the host can open its section.</summary>
-		public event EventHandler? SelectionRequested;
+		/// <summary>Raised to OPEN the reader window — a map click, a section row, or the section's button.
+		/// MapViewModel opens <c>IsMesoDiscussionOpen</c> on it.</summary>
+		public event EventHandler? ReaderRequested;
+
+		// ── The groups (the window's list): relative to the moment the map shows ──
+		// ⚠️ Re-filled only when their MEMBERSHIP changes: a live refresh re-runs ApplyMoment every two minutes,
+		// and a reset list would flicker under the pointer.
+
+		/// <summary>In effect at the moment the map shows (also the section's short list).</summary>
+		public ObservableCollection<DiscussionRow> InEffect { get; } = new();
+
+		/// <summary>Expired before that moment (newest first).</summary>
+		public ObservableCollection<DiscussionRow> Earlier { get; } = new();
+
+		/// <summary>Issued after that moment — PastCast only (live, "now" has no later).</summary>
+		public ObservableCollection<DiscussionRow> Later { get; } = new();
+
+		public bool HasInEffect => InEffect.Count > 0;
+		public bool HasEarlier => Earlier.Count > 0;
+		public bool HasLater => Later.Count > 0;
+
+		/// <summary>The section's list heading: "In effect now" (NowCast) or "In effect at 4:51 PM" (PastCast).</summary>
+		public string InEffectHeading => _loadedKey is { Live: true } || _moment is null
+			? "In effect now"
+			: $"In effect at {_moment.Value.ToLocalTime():h:mm tt}";
+
+		/// <summary>The section's one button.</summary>
+		public string OpenReaderText => Discussions.Count switch
+		{
+			0 => "Open reader",
+			1 => "1 discussion · Open reader",
+			var n => $"All {n} discussions · Open reader",
+		};
+
+		private void RefillGroups()
+		{
+			var t = _moment;
+			Refill(InEffect, Discussions.Where(r => r.IsInEffect));
+			Refill(Earlier, t is { } at ? Discussions.Where(r => r.Discussion.Expires <= at).Reverse() : Enumerable.Empty<DiscussionRow>());
+			Refill(Later, t is { } at2 ? Discussions.Where(r => r.Discussion.Issued > at2) : Enumerable.Empty<DiscussionRow>());
+			OnPropertyChanged(nameof(HasInEffect));
+			OnPropertyChanged(nameof(HasEarlier));
+			OnPropertyChanged(nameof(HasLater));
+			OnPropertyChanged(nameof(InEffectHeading));
+			OnPropertyChanged(nameof(OpenReaderText));
+		}
+
+		private static void Refill(ObservableCollection<DiscussionRow> target, IEnumerable<DiscussionRow> rows)
+		{
+			var list = rows.ToList();
+			if (target.SequenceEqual(list)) { return; }
+			target.Clear();
+			foreach (var r in list) { target.Add(r); }
+		}
 
 		// ── The reader: the selected discussion's text, by section ──
 
@@ -194,7 +258,10 @@ namespace Anvil.ViewModels
 		public string ReaderValid => _selected is { } s ? $"{s.Discussion.Issued.ToLocalTime():ddd MMM d · h:mm tt} → {s.Discussion.Expires.ToLocalTime():h:mm tt}" : string.Empty;
 		public string ReaderAreas => _text?.AreasAffected ?? string.Empty;
 		public string ReaderConcerning => _text is { Concerning.Length: > 0 } t ? t.Concerning : _selected?.Discussion.Concerning ?? string.Empty;
-		public string ReaderWatch => _selected?.Discussion.WatchProbability is int p ? $"Probability of watch issuance · {p}%" : string.Empty;
+		public string ReaderWatch => _selected?.Discussion.WatchProbability is int p ? $"{p}%" : string.Empty;
+		/// <summary>The watch probability as 0–100 for the reader's meter (0 when the discussion carries none).</summary>
+		public double ReaderWatchPercent => _selected?.Discussion.WatchProbability ?? 0;
+		public bool HasReaderWatch => _selected?.Discussion.WatchProbability is not null;
 		public string ReaderSummary => _text?.Summary ?? string.Empty;
 		public string ReaderDiscussion => _text?.Discussion ?? string.Empty;
 		public string ReaderSignature =>
@@ -227,7 +294,8 @@ namespace Anvil.ViewModels
 		private void RaiseReader()
 		{
 			foreach (var name in new[] { nameof(ReaderTitle), nameof(ReaderValid), nameof(ReaderAreas), nameof(ReaderConcerning),
-				nameof(ReaderWatch), nameof(ReaderSummary), nameof(ReaderDiscussion), nameof(ReaderSignature),
+				nameof(ReaderWatch), nameof(ReaderWatchPercent), nameof(HasReaderWatch),
+				nameof(ReaderSummary), nameof(ReaderDiscussion), nameof(ReaderSignature),
 				nameof(ReaderStatus), nameof(ReaderUrl) })
 			{
 				OnPropertyChanged(name);
@@ -395,6 +463,7 @@ namespace Anvil.ViewModels
 			CardContext = _loadedKey is { Live: true }
 				? $"Now · {listed} from the last 24 hours"
 				: t is { } at2 ? $"At {at2.ToLocalTime():h:mm tt} · {listed} for this window" : listed;
+			RefillGroups();
 		}
 
 		private async Task ClearAsync()
@@ -405,6 +474,7 @@ namespace Anvil.ViewModels
 			Discussions.Clear();
 			OnPropertyChanged(nameof(HasDiscussions));
 			foreach (var k in Kinds) { k.Count = 0; }
+			RefillGroups();
 			await _mapService.ClearDiscussionsAsync();
 		}
 	}
@@ -462,5 +532,10 @@ namespace Anvil.ViewModels
 
 		/// <summary>In effect at the moment the map shows — the list dims the rest.</summary>
 		public bool IsInEffect { get => _isInEffect; internal set => SetProperty(ref _isInEffect, value); }
+
+		private bool _isSelected;
+
+		/// <summary>The one the reader shows — the window's list highlights it (set by the VM's Selected).</summary>
+		public bool IsSelected { get => _isSelected; internal set => SetProperty(ref _isSelected, value); }
 	}
 }

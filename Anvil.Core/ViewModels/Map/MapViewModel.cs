@@ -87,6 +87,8 @@ namespace Anvil.ViewModels
 			StormCells = new StormCellsViewModel(mapService, stormCellService, Radar, dispatcher, loggerFactory.CreateLogger<StormCellsViewModel>());
 			PastAlerts = new PastAlertsViewModel(mapService, pastAlertService, Radar, loggerFactory.CreateLogger<PastAlertsViewModel>());
 			Discussions = new MesoDiscussionsViewModel(mapService, discussionService, Radar, dispatcher, loggerFactory.CreateLogger<MesoDiscussionsViewModel>());
+			// A map click, a section row or the section's button → the Mesoscale Discussions window.
+			Discussions.ReaderRequested += (_, _) => IsMesoDiscussionOpen = true;
 			Markers = new MarkersViewModel(mapService, locationService);
 			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
 			Activity.WatchPlaceSearch(PlaceSearch);
@@ -705,6 +707,8 @@ namespace Anvil.ViewModels
 			if (!IsForeCast) { IsForeWindowOpen = false; }
 			// The discussion window reads the outlook of whichever outlook mode runs; with neither, it has none.
 			if (!IsPastCast && !IsForeCast) { IsOutlookDiscussionOpen = false; }
+			// The MD window reads the discussions of Now or Past; with neither, the list is cleared.
+			if (!IsPastCast && !IsNowCast) { IsMesoDiscussionOpen = false; }
 			RaiseOutlookDiscussion();
 			// A ghost row shows only while its mode runs.
 			OnPropertyChanged(nameof(AreForeCastGhostsShown));
@@ -1023,6 +1027,36 @@ namespace Anvil.ViewModels
 		{
 			get => _isOutlookDiscussionLocked;
 			set => SetProperty(ref _isOutlookDiscussionLocked, value);
+		}
+
+		// ===== The Mesoscale Discussions window =======================================================
+		// SPC MDs + WPC MPDs to READ, out of the Now/Past windows' section (which keeps only the card, the kinds
+		// and what's in effect — the reader there was cramped into a 480 px column, 2026-10-07). Opened by
+		// Discussions.ReaderRequested: a click on an area on the map, a section row, or the section's button.
+		// ⚠️ Closed by OnTemporalModesChanged when neither Now nor Past runs (the list is cleared then).
+		private bool _isMesoDiscussionOpen;
+		private bool _isMesoDiscussionOnTop = true;
+		private bool _isMesoDiscussionLocked = true;
+
+		/// <summary>Whether the Mesoscale Discussions window is open.</summary>
+		public bool IsMesoDiscussionOpen
+		{
+			get => _isMesoDiscussionOpen;
+			set => SetProperty(ref _isMesoDiscussionOpen, value);
+		}
+
+		/// <summary>Whether the Mesoscale Discussions window stays above Anvil (title-bar pin).</summary>
+		public bool IsMesoDiscussionOnTop
+		{
+			get => _isMesoDiscussionOnTop;
+			set => SetProperty(ref _isMesoDiscussionOnTop, value);
+		}
+
+		/// <summary>Whether the Mesoscale Discussions window is locked in place (title-bar lock).</summary>
+		public bool IsMesoDiscussionLocked
+		{
+			get => _isMesoDiscussionLocked;
+			set => SetProperty(ref _isMesoDiscussionLocked, value);
 		}
 
 		/// <summary>Which outlook the window is reading — the card headline of the running outlook mode.</summary>

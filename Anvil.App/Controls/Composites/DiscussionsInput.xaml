@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- DiscussionsInput — mesoscale discussions (MesoDiscussionsViewModel): SPC MDs and WPC MPDs as map areas
-     AND as something to read. Shown in BOTH temporal windows: live in Now (the last 24 h listed, the ones in
-     effect drawn), the loaded window in Past (drawn as in effect at the displayed frame).
+<!-- DiscussionsInput — mesoscale discussions (MesoDiscussionsViewModel): SPC MDs and WPC MPDs as map areas, and
+     a GLANCE at them. Shown in BOTH temporal windows: live in Now (the last 24 h, the ones in effect drawn), the
+     loaded window in Past (drawn as in effect at the displayed frame). READING happens in the Mesoscale
+     Discussions WINDOW (Windows/MesoDiscussionWindow).
 
        ┌────────────────────────────────────────────┐
        │ 2 discussions in effect                    │   the card: how many are drawn right now, which
@@ -11,23 +12,14 @@
        [x] ■ SPC mesoscale                         2     ← one row PER KIND, generated from DiscussionKinds
        [x] ■ WPC precipitation                     0       (a new kind needs no XAML); count = in effect
        ────────────────────────────────────────────────
-       ▌ MD 0647   Severe potential...Tornado…   95%    ← the WINDOW's discussions, oldest first; ones not
-       ▌ MD 0648   Severe potential...watch po…  40%      in effect at the moment are dimmed. Pick one to
-       ▌ MPD 0230  Heavy rainfall...Flash flo…          read it — or click its area on the map.
-       ────────────────────────────────────────────────
-        ‹  MD 0647 · Storm Prediction Center  ›  Map ↗   ← the READER: step through the list, frame it on the
-        Mon May 6 · 10:57 AM → 1:00 PM                     map, or open the issuer's own page
-        Probability of watch issuance · 95%
-        AREAS AFFECTED  northwest/north-central KS…
-        CONCERNING      Severe potential...Tornado Watch likely
-       ┌────────────────────────────────────────────▲┐
-       │ SUMMARY  An arc of severe thunderstorms…    █│  summary + discussion in ONE bounded scroller:
-       │ DISCUSSION  15Z surface analysis placed…    ▼│  their length is the forecaster's, not ours
-       └─────────────────────────────────────────────┘
-        Grams/Smith · ATTN TOP · ICT · GID · LBF             signature + the offices it was sent to
+       IN EFFECT AT 4:51 PM                               ← only what's in effect at the map's moment;
+       ▌ MD 0647   Tornado Watch likely          95%       a row opens the window ON it
+       ▌ MD 0648   Severe potential…             40%
+       [        All 9 discussions · Open reader        ] ← the window, on the selection (else the first in
+                                                           effect); a click on an area on the map opens it too
 
-     ⚠️ BOUNDED, like the ForeCast window's discussion: the list and the prose each scroll INSIDE a MaxHeight.
-     The temporal windows refuse a body scroller, and this section's length is set by how busy the day was.
+     ⚠️ THE READER LEFT THIS SECTION (2026-10-07, the user's version B): the list + a long reader in a 480 px
+     column, each bounded in its own scroller, was what made it hard to use. Don't put a reader back here.
      ⚠️ Swatches are the kinds' own colours (DiscussionKinds.Fill ⇄ discussions.js KIND_COLORS). Data colours.
      ⚠️ Opacity and the heading are the HOST's PanelSection, as for every overlay control. -->
 <UserControl x:Class="Anvil.Controls.Composites.DiscussionsInput"
@@ -63,27 +55,28 @@
             </CheckBox>
         </DataTemplate>
 
-        <!-- One discussion in the list. Dimmed when not in effect at the moment the map shows. -->
-        <DataTemplate x:Key="DiscussionRowTemplate" x:DataType="vm:DiscussionRow">
-            <Grid ColumnSpacing="9" Padding="0,4" Opacity="{x:Bind local:DiscussionsInput.RowOpacity(IsInEffect), Mode=OneWay}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="3"/>
-                    <ColumnDefinition Width="62"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Border Grid.Column="0" CornerRadius="1.5"
-                        Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
-                <TextBlock Grid.Column="1" Text="{x:Bind Label}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind Headline}" FontSize="12" TextTrimming="CharacterEllipsis"
-                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                    <TextBlock Text="{x:Bind TimeText}" FontSize="11"
-                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                </StackPanel>
-                <TextBlock Grid.Column="3" Text="{x:Bind WatchText}" FontSize="12" FontWeight="SemiBold"
-                           VerticalAlignment="Center" ToolTipService.ToolTip="Probability of watch issuance"/>
-            </Grid>
+        <!-- One discussion in effect: a flat button that opens the window on it. -->
+        <DataTemplate x:Key="InEffectRowTemplate" x:DataType="vm:DiscussionRow">
+            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                    Background="Transparent" BorderThickness="0" Padding="0,4"
+                    Click="OnRowClick" Tag="{x:Bind}"
+                    ToolTipService.ToolTip="Read it in the Mesoscale Discussions window">
+                <Grid ColumnSpacing="9">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3"/>
+                        <ColumnDefinition Width="62"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Height="18" CornerRadius="1.5"
+                            Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind Label}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind Headline}" FontSize="12" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="3" Text="{x:Bind WatchText}" FontSize="12" FontWeight="SemiBold"
+                               VerticalAlignment="Center" ToolTipService.ToolTip="Probability of watch issuance"/>
+                </Grid>
+            </Button>
         </DataTemplate>
     </UserControl.Resources>
 
@@ -114,93 +107,15 @@
 
         <Border Height="1" Margin="0,5,0,8" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
-        <!-- THE LIST: every discussion of the window. Selection is ONE-WAY in (x:Bind can't two-way an
-             object SelectedItem onto a typed property); SelectionChanged writes it back to the VM. -->
-        <TextBlock Text="No discussions in this window" FontSize="12" Margin="0,2,0,4"
-                   Visibility="{x:Bind Hidden(ViewModel.HasDiscussions), Mode=OneWay}"
-                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-        <ListView x:Name="DiscussionList" MaxHeight="180" SelectionMode="Single" Padding="0"
-                  Visibility="{x:Bind Shown(ViewModel.HasDiscussions), Mode=OneWay}"
-                  ItemsSource="{x:Bind ViewModel.Discussions}"
-                  SelectedItem="{x:Bind ViewModel.Selected, Mode=OneWay}"
-                  ItemTemplate="{StaticResource DiscussionRowTemplate}"
-                  SelectionChanged="OnDiscussionSelectionChanged"/>
+        <!-- IN EFFECT: only the ones in effect at the map's moment; the rest are in the window. -->
+        <TextBlock Text="{x:Bind ViewModel.InEffectHeading, Mode=OneWay}" Style="{StaticResource AtlasFieldLabelStyle}"
+                   Margin="0,0,0,4" Visibility="{x:Bind Shown(ViewModel.HasInEffect), Mode=OneWay}"/>
+        <ItemsControl ItemsSource="{x:Bind ViewModel.InEffect}" ItemTemplate="{StaticResource InEffectRowTemplate}"/>
 
-        <!-- THE READER -->
-        <StackPanel Visibility="{x:Bind Shown(ViewModel.HasSelection), Mode=OneWay}" Spacing="6">
-            <Border Height="1" Margin="0,8,0,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-            <Grid ColumnSpacing="6">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Content="‹" Padding="10,2" MinWidth="0"
-                        IsEnabled="{x:Bind ViewModel.CanStepPrevious, Mode=OneWay}"
-                        Click="OnPreviousClick" ToolTipService.ToolTip="Read the previous discussion"/>
-                <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.ReaderTitle, Mode=OneWay}" FontSize="14"
-                           FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                <Button Grid.Column="2" Content="›" Padding="10,2" MinWidth="0"
-                        IsEnabled="{x:Bind ViewModel.CanStepNext, Mode=OneWay}"
-                        Click="OnNextClick" ToolTipService.ToolTip="Read the next discussion"/>
-                <Button Grid.Column="3" Content="Map" Padding="10,2" MinWidth="0"
-                        Click="OnShowOnMapClick" ToolTipService.ToolTip="Frame this discussion's area on the map"/>
-                <HyperlinkButton Grid.Column="4" Content="↗" Padding="8,2" MinWidth="0"
-                                 NavigateUri="{x:Bind ViewModel.ReaderUrl, Mode=OneWay}"
-                                 ToolTipService.ToolTip="Open it on the issuer's site"/>
-            </Grid>
-
-            <TextBlock Text="{x:Bind ViewModel.ReaderValid, Mode=OneWay}" FontSize="12"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            <TextBlock Text="{x:Bind ViewModel.ReaderWatch, Mode=OneWay}" FontSize="13" FontWeight="SemiBold"
-                       Visibility="{x:Bind HasText(ViewModel.ReaderWatch), Mode=OneWay}"/>
-
-            <Grid ColumnSpacing="10" RowSpacing="4">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="92"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Text="Areas affected" Style="{StaticResource SettingsFieldLabelStyle}"
-                           Visibility="{x:Bind HasText(ViewModel.ReaderAreas), Mode=OneWay}"/>
-                <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind ViewModel.ReaderAreas, Mode=OneWay}"
-                           FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                <TextBlock Grid.Row="1" Text="Concerning" Style="{StaticResource SettingsFieldLabelStyle}"
-                           Visibility="{x:Bind HasText(ViewModel.ReaderConcerning), Mode=OneWay}"/>
-                <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.ReaderConcerning, Mode=OneWay}"
-                           FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-            </Grid>
-
-            <TextBlock Text="{x:Bind ViewModel.ReaderStatus, Mode=OneWay}" FontSize="12" TextWrapping="Wrap"
-                       Visibility="{x:Bind HasText(ViewModel.ReaderStatus), Mode=OneWay}"
-                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-
-            <!-- Summary + discussion: ONE bounded scroller (the forecaster decides the length). -->
-            <ScrollViewer MaxHeight="280" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
-                          Visibility="{x:Bind HasText(ViewModel.ReaderDiscussion), Mode=OneWay}">
-                <StackPanel Spacing="4" Padding="0,0,12,0">
-                    <TextBlock Text="Summary" Style="{StaticResource SettingsFieldLabelStyle}"
-                               Visibility="{x:Bind HasText(ViewModel.ReaderSummary), Mode=OneWay}"/>
-                    <TextBlock Text="{x:Bind ViewModel.ReaderSummary, Mode=OneWay}" FontSize="13" TextWrapping="Wrap"
-                               IsTextSelectionEnabled="True"
-                               Visibility="{x:Bind HasText(ViewModel.ReaderSummary), Mode=OneWay}"
-                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                    <TextBlock Text="Discussion" Style="{StaticResource SettingsFieldLabelStyle}" Margin="0,8,0,0"/>
-                    <TextBlock Text="{x:Bind ViewModel.ReaderDiscussion, Mode=OneWay}" FontSize="13" TextWrapping="Wrap"
-                               IsTextSelectionEnabled="True"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                </StackPanel>
-            </ScrollViewer>
-
-            <TextBlock Text="{x:Bind ViewModel.ReaderSignature, Mode=OneWay}" FontSize="11" TextWrapping="Wrap"
-                       Visibility="{x:Bind HasText(ViewModel.ReaderSignature), Mode=OneWay}"
-                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-        </StackPanel>
+        <Button Margin="0,8,0,0" HorizontalAlignment="Stretch"
+                Content="{x:Bind ViewModel.OpenReaderText, Mode=OneWay}"
+                IsEnabled="{x:Bind ViewModel.HasDiscussions, Mode=OneWay}"
+                Click="OnOpenReaderClick"
+                ToolTipService.ToolTip="Read every discussion of this window in the Mesoscale Discussions window"/>
     </StackPanel>
 </UserControl>

@@ -48,7 +48,7 @@
        │     [EFU][EF0][EF1][EF2][EF3][EF4][EF5]              │  │ ← DAT's own EF colours
        │ ⠿ › [x] Warnings       ──────────●  100%             │  │ as in effect at the FRAME on
        │ ⠿ › [x] Watches        ──────────●  100%             │  │ screen (IEM VTEC archive)
-       │ ⠿ › [x] Mesoscale discussions ───●  100%             │  │ MDs + MPDs: areas + a reader
+       │ ⠿ › [x] Mesoscale discussions ───●  100%             │  │ MDs + MPDs: areas + what's in effect (reader = MD window)
        │ ⠿ › [x] SPC outlook    ───────●───   55%             │  │ box = show/hide, any product
        │ ⠿   [x] Radar          ──────────●─   85%            │  ┘ header only
        └──────────────────────────────────────────────────────┘

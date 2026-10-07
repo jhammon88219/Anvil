@@ -38,7 +38,7 @@
        │   [x] ■ Tornado                            0                 │
        │   [x] ■ Severe thunderstorm                7                 │
        │ ⠿ › [-] Watches         ─────────────────●   100%            │  [-] = some types ticked
-       │ ⠿ › [x] Mesoscale discussions ───────────●   100%            │  MDs + MPDs: areas + a reader
+       │ ⠿ › [x] Mesoscale discussions ───────────●   100%            │  MDs + MPDs: areas + what's in effect (reader = MD window)
        │ ⠿   ░░ ░SPC outlook · ForeCast░░░░░░░░░░░░░░░░░░░░           │  ← GHOST (IsGhost): ForeCast's layer, 25%,
        │                                                              │    drag-only; only while the box is on AND
        │                                                              │    ForeCast runs. Now + Fore = ONE order

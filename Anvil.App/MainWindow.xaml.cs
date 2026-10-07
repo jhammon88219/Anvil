@@ -718,6 +718,17 @@ namespace Anvil
 				keepAboveOwner: () => ViewModel.IsOutlookDiscussionOnTop,
 				isLocked: () => ViewModel.IsOutlookDiscussionLocked,
 				customChrome: true);
+			// SPC MDs + WPC MPDs to read, opened from the Now/Past "Mesoscale discussions" section or a click on a
+			// discussion's area on the map (Discussions.ReaderRequested). Center, like the Outlook Discussion.
+			_windows.Register(
+				id: "mesoDiscussion",
+				isOpen: () => ViewModel.IsMesoDiscussionOpen,
+				close: () => ViewModel.IsMesoDiscussionOpen = false,
+				buildContent: () => new Controls.Windows.MesoDiscussionWindow { ViewModel = ViewModel },
+				title: "Mesoscale Discussions", anchor: WindowAnchor.Center,
+				keepAboveOwner: () => ViewModel.IsMesoDiscussionOnTop,
+				isLocked: () => ViewModel.IsMesoDiscussionLocked,
+				customChrome: true);
 			_windows.Register(
 				id: "pipeline",
 				isOpen: () => ViewModel.IsPipelineConsoleOpen,

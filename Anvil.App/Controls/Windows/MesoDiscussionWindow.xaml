@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MesoDiscussionWindow — SPC mesoscale discussions + WPC precipitation discussions to READ, in their own OS window
+     (WindowManager, Center anchor). Opened from the Now/Past windows' "Mesoscale discussions" section (a row, or
+     "All N discussions · Open reader") and by clicking a discussion's AREA on the map. Bound to MapViewModel;
+     everything it shows is MapViewModel.Discussions (MesoDiscussionsViewModel).
+
+       ┌──────────────────────────────────────────────────────────[lock][pin]  –  □  ✕ ┐
+       │ Mesoscale Discussions                                                          │ ← the BAND (raised)
+       │ At 4:51 PM · 9 listed for this window                                          │   = the section card's context
+       ├──────────────────────┬─────────────────────────────────────────────────────────┤
+       │ IN EFFECT            │ ‹  MD 0647 · Storm Prediction Center  ›   Show on map ↗ │ ← step in time order,
+       │▐▌MD 0647 Tornado… 95%│                                                         │   frame it, open the issuer's page
+       │ ▌MD 0648 Severe…  40%│ VALID        Mon May 6 · 2:57 PM → 5:00 PM              │ ← one label column, 128
+       │ EARLIER              │ WATCH        ███████████████████░  95%                  │   (the Outlook Discussion
+       │ ▌MD 0645 Severe…  60%│ AREAS        Northwest and north-central Kansas          │   window's rule)
+       │ LATER                │ CONCERNING   Severe potential…Tornado Watch likely      │
+       │ ▌MPD 0230 Heavy…     │ SUMMARY      An arc of severe thunderstorms …            │ ← the brightest text
+       │                      │ DISCUSSION   15Z surface analysis placed …               │
+       │                      │ SENT TO      Grams/Smith · ATTN TOP · ICT · GID · LBF    │
+       └──────────────────────┴─────────────────────────────────────────────────────────┘
+         ▐ = the selected row (a subtle fill). Groups are relative to the MAP's moment — the displayed frame in
+         PastCast, now in NowCast (Later is PastCast-only); Earlier/Later rows are dimmed.
+
+     ⚠️ SCRUBBING MOVES THE GROUPS, NEVER THE READER (the user's call, 2026-10-07): what you are reading never
+     changes under you. ⚠️ No timeline band in this first version (mocked, left out on purpose).
+     ⚠️ Each column scrolls itself (PanelScroller), the window has none. Closed by MapViewModel when neither Now nor
+     Past runs. -->
+<UserControl x:Class="Anvil.Controls.Windows.MesoDiscussionWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:Anvil.Controls.Primitives"
+             xmlns:conv="using:Anvil.Converters"
+             xmlns:local="using:Anvil.Controls.Windows"
+             xmlns:vm="using:Anvil.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <conv:HexToBrushConverter x:Key="HexToBrush"/>
+
+        <!-- One discussion in the list: kind bar · label · headline + times · watch %. A flat button; the selected
+             one shows a subtle fill (a THEME brush, so it lives here, shown by opacity). -->
+        <DataTemplate x:Key="RowTemplate" x:DataType="vm:DiscussionRow">
+            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                    Background="Transparent" BorderThickness="0" Padding="0" CornerRadius="5"
+                    Click="OnRowClick" Tag="{x:Bind}">
+                <Grid>
+                    <Border CornerRadius="5" Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                            Opacity="{x:Bind local:MesoDiscussionWindow.SelectedOpacity(IsSelected), Mode=OneWay}"/>
+                    <Grid ColumnSpacing="9" Padding="6,5" Opacity="{x:Bind local:MesoDiscussionWindow.RowOpacity(IsInEffect), Mode=OneWay}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="3"/>
+                            <ColumnDefinition Width="62"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" CornerRadius="1.5"
+                                Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
+                        <TextBlock Grid.Column="1" Text="{x:Bind Label}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind Headline}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="{x:Bind TimeText}" FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="3" Text="{x:Bind WatchText}" FontSize="12" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" ToolTipService.ToolTip="Probability of watch issuance"/>
+                    </Grid>
+                </Grid>
+            </Button>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <!-- ⚠️ ONE label column width, 128, in every reader row — the Outlook Discussion window's rule. -->
+    <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- the band -->
+            <RowDefinition Height="*"/>    <!-- list | reader -->
+        </Grid.RowDefinitions>
+
+        <!-- THE BAND (raised). ⚠️ Right 220 = the lock + pin + caption corner (the Atlas band's rule). -->
+        <Border Grid.Row="0" Padding="16,12,16,12" Background="{ThemeResource OverlayBarSurfaceRaisedBrush}">
+            <StackPanel Spacing="4" Margin="0,0,220,0">
+                <TextBlock Text="Mesoscale Discussions" FontSize="18" FontWeight="SemiBold"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <TextBlock Text="{x:Bind ViewModel.Discussions.CardContext, Mode=OneWay}" FontSize="13"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="1"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- THE LIST, grouped. Margin right 4 = 16 − the scroller's 12 px gutter bleed (the PanelScroller rule). -->
+            <ctl:PanelScroller Grid.Column="0" Margin="10,12,4,12">
+                <StackPanel>
+                    <TextBlock Text="No discussions in this window" FontSize="13" Margin="6,2,0,0"
+                               Visibility="{x:Bind local:MesoDiscussionWindow.Hidden(ViewModel.Discussions.HasDiscussions), Mode=OneWay}"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+
+                    <TextBlock Text="IN EFFECT" Style="{StaticResource AtlasFieldLabelStyle}" Margin="6,0,0,4"
+                               Visibility="{x:Bind local:MesoDiscussionWindow.Vis(ViewModel.Discussions.HasInEffect), Mode=OneWay}"/>
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Discussions.InEffect}" ItemTemplate="{StaticResource RowTemplate}"/>
+
+                    <TextBlock Text="EARLIER" Style="{StaticResource AtlasFieldLabelStyle}" Margin="6,12,0,4"
+                               Visibility="{x:Bind local:MesoDiscussionWindow.Vis(ViewModel.Discussions.HasEarlier), Mode=OneWay}"/>
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Discussions.Earlier}" ItemTemplate="{StaticResource RowTemplate}"/>
+
+                    <TextBlock Text="LATER" Style="{StaticResource AtlasFieldLabelStyle}" Margin="6,12,0,4"
+                               Visibility="{x:Bind local:MesoDiscussionWindow.Vis(ViewModel.Discussions.HasLater), Mode=OneWay}"/>
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Discussions.Later}" ItemTemplate="{StaticResource RowTemplate}"/>
+                </StackPanel>
+            </ctl:PanelScroller>
+
+            <Border Grid.Column="1" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+            <!-- THE READER -->
+            <ctl:PanelScroller Grid.Column="2" Margin="16,12,4,14">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Pick a discussion on the left, or click one on the map." FontSize="13"
+                               Visibility="{x:Bind local:MesoDiscussionWindow.Hidden(ViewModel.Discussions.HasSelection), Mode=OneWay}"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+
+                    <StackPanel Spacing="12" Visibility="{x:Bind local:MesoDiscussionWindow.Vis(ViewModel.Discussions.HasSelection), Mode=OneWay}">
+                        <!-- Step · title · step · frame on the map · the issuer's page. -->
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="‹" Padding="10,2" MinWidth="0"
+                                    IsEnabled="{x:Bind ViewModel.Discussions.CanStepPrevious, Mode=OneWay}"
+                                    Click="OnPreviousClick" ToolTipService.ToolTip="Read the previous discussion"/>
+                            <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.Discussions.ReaderTitle, Mode=OneWay}"
+                                       FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <Button Grid.Column="2" Content="›" Padding="10,2" MinWidth="0"
+                                    IsEnabled="{x:Bind ViewModel.Discussions.CanStepNext, Mode=OneWay}"
+                                    Click="OnNextClick" ToolTipService.ToolTip="Read the next discussion"/>
+                            <Button Grid.Column="4" Content="Show on map" Padding="10,2" MinWidth="0"
+                                    Click="OnShowOnMapClick" ToolTipService.ToolTip="Frame this discussion's area on the map"/>
+                            <HyperlinkButton Grid.Column="5" Padding="8,2" MinWidth="0"
+                                             NavigateUri="{x:Bind ViewModel.Discussions.ReaderUrl, Mode=OneWay}"
+                                             ToolTipService.ToolTip="Open it on the issuer's site">
+                                <!-- E8A7 OpenInNewWindow — NOT verified on screen (the Outlook window uses it too). -->
+                                <FontIcon Glyph="&#xE8A7;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="13"/>
+                            </HyperlinkButton>
+                        </Grid>
+
+                        <Grid ColumnSpacing="12" RowSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="128"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/> <!-- valid -->
+                                <RowDefinition Height="Auto"/> <!-- watch -->
+                                <RowDefinition Height="Auto"/> <!-- areas -->
+                                <RowDefinition Height="Auto"/> <!-- concerning -->
+                                <RowDefinition Height="Auto"/> <!-- status -->
+                                <RowDefinition Height="Auto"/> <!-- summary -->
+                                <RowDefinition Height="Auto"/> <!-- discussion -->
+                                <RowDefinition Height="Auto"/> <!-- sent to -->
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="VALID" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" FontSize="13" Typography.NumeralAlignment="Tabular"
+                                       Text="{x:Bind ViewModel.Discussions.ReaderValid, Mode=OneWay}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                            <TextBlock Grid.Row="1" Text="WATCH" Style="{StaticResource AtlasFieldLabelStyle}"
+                                       Visibility="{x:Bind local:MesoDiscussionWindow.Vis(ViewModel.Discussions.HasReaderWatch), Mode=OneWay}"/>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                                        Visibility="{x:Bind local:MesoDiscussionWindow.Vis(ViewModel.Discussions.HasReaderWatch), Mode=OneWay}"
+                                        ToolTipService.ToolTip="Probability of watch issuance">
+                                <ProgressBar Width="180" VerticalAlignment="Center" Maximum="100"
+                                             Value="{x:Bind ViewModel.Discussions.ReaderWatchPercent, Mode=OneWay}"/>
+                                <TextBlock FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                                           Text="{x:Bind ViewModel.Discussions.ReaderWatch, Mode=OneWay}"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Row="2" Text="AREAS" Style="{StaticResource AtlasFieldLabelStyle}"
+                                       Visibility="{x:Bind local:MesoDiscussionWindow.HasText(ViewModel.Discussions.ReaderAreas), Mode=OneWay}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" FontSize="13" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                       Text="{x:Bind ViewModel.Discussions.ReaderAreas, Mode=OneWay}"/>
+
+                            <TextBlock Grid.Row="3" Text="CONCERNING" Style="{StaticResource AtlasFieldLabelStyle}"
+                                       Visibility="{x:Bind local:MesoDiscussionWindow.HasText(ViewModel.Discussions.ReaderConcerning), Mode=OneWay}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" FontSize="13" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                       Text="{x:Bind ViewModel.Discussions.ReaderConcerning, Mode=OneWay}"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="1" FontSize="13" TextWrapping="Wrap"
+                                       Text="{x:Bind ViewModel.Discussions.ReaderStatus, Mode=OneWay}"
+                                       Visibility="{x:Bind local:MesoDiscussionWindow.HasText(ViewModel.Discussions.ReaderStatus), Mode=OneWay}"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+
+                            <TextBlock Grid.Row="5" Text="SUMMARY" Style="{StaticResource AtlasFieldLabelStyle}"
+                                       Visibility="{x:Bind local:MesoDiscussionWindow.HasText(ViewModel.Discussions.ReaderSummary), Mode=OneWay}"/>
+                            <TextBlock Grid.Row="5" Grid.Column="1" FontSize="14" LineHeight="21" TextWrapping="Wrap"
+                                       IsTextSelectionEnabled="True"
+                                       Text="{x:Bind ViewModel.Discussions.ReaderSummary, Mode=OneWay}"
+                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+
+                            <TextBlock Grid.Row="6" Text="DISCUSSION" Style="{StaticResource AtlasFieldLabelStyle}"
+                                       Visibility="{x:Bind local:MesoDiscussionWindow.HasText(ViewModel.Discussions.ReaderDiscussion), Mode=OneWay}"/>
+                            <TextBlock Grid.Row="6" Grid.Column="1" FontSize="13" LineHeight="20" TextWrapping="Wrap"
+                                       IsTextSelectionEnabled="True"
+                                       Text="{x:Bind ViewModel.Discussions.ReaderDiscussion, Mode=OneWay}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                            <TextBlock Grid.Row="7" Text="SENT TO" Style="{StaticResource AtlasFieldLabelStyle}"
+                                       Visibility="{x:Bind local:MesoDiscussionWindow.HasText(ViewModel.Discussions.ReaderSignature), Mode=OneWay}"/>
+                            <TextBlock Grid.Row="7" Grid.Column="1" FontSize="12" TextWrapping="Wrap"
+                                       Text="{x:Bind ViewModel.Discussions.ReaderSignature, Mode=OneWay}"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </ctl:PanelScroller>
+        </Grid>
+
+        <!-- Lock + pin; both self-position top-right, clearing the caption. -->
+        <ctl:LockToggle Grid.RowSpan="2" IsChecked="{x:Bind ViewModel.IsMesoDiscussionLocked, Mode=TwoWay}"/>
+        <ctl:PinToggle Grid.RowSpan="2" IsChecked="{x:Bind ViewModel.IsMesoDiscussionOnTop, Mode=TwoWay}"/>
+    </Grid>
+</UserControl>
