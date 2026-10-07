@@ -58,13 +58,49 @@ namespace Anvil.Tests
 			Assert.Equal(expected, Level2Format.SailsExisted(build, new DateTimeOffset(year, month, 15, 0, 0, 0, TimeSpan.Zero)));
 
 		[Theory]
-		[InlineData(212, 1, false, "VCP 212 · precip · pre-SAILS · 0.5°×1")]
-		[InlineData(212, 1, true, "VCP 212 · precip · SAILS off · 0.5°×1")]
-		[InlineData(212, 1, null, "VCP 212 · precip · 0.5°×1")]
-		[InlineData(212, 3, true, "VCP 212 · precip · SAILS/MRLE ×2 · 0.5°×3")]
-		[InlineData(80, 1, false, "VCP 80 · TDWR hazardous · 0.5°×1")] // TDWR never gets SAILS words
-		public void DescribeModeSaysWhyThereAreNoExtraSweeps(int vcp, int sweeps, bool? existed, string expected) =>
-			Assert.Equal(expected, Level2Format.DescribeMode(vcp, sweeps, existed));
+		[InlineData(212, 1, false, 0, "VCP 212 · precip · pre-SAILS · 0.5°×1")]
+		[InlineData(212, 1, true, 0, "VCP 212 · precip · rescans off · 0.5°×1")]
+		[InlineData(212, 1, null, 0, "VCP 212 · precip · 0.5°×1")]
+		[InlineData(212, 2, true, 0, "VCP 212 · precip · SAILS ×1 · 0.5°×2")]
+		[InlineData(212, 3, true, 0, "VCP 212 · precip · MESO-SAILS ×2 · 0.5°×3")]
+		[InlineData(212, 4, true, 0, "VCP 212 · precip · MESO-SAILS ×3 · 0.5°×4")]
+		[InlineData(35, 2, true, 0, "VCP 35 · clear-air · SAILS ×1 · 0.5°×2")]      // clear-air runs SAILS ×1 too
+		[InlineData(212, 2, true, 3, "VCP 212 · precip · MRLE ×3 · 0.5°×2")]        // MRLE repeats 0.5° once — NOT SAILS ×1
+		[InlineData(212, 2, true, 4, "VCP 212 · precip · MRLE ×4 · 0.5°×2")]
+		[InlineData(80, 1, false, 0, "VCP 80 · TDWR hazardous · 0.5°×1")]          // TDWR never gets rescan words
+		public void DescribeModeNamesTheRescanScheme(int vcp, int sweeps, bool? existed, int mrle, string expected) =>
+			Assert.Equal(expected, Level2Format.DescribeMode(vcp, sweeps, existed, mrle));
+
+		// A metadata block holding one Message 5 for `vcp` whose VCP SUPPLEMENTAL word (header halfword 10) is `word`.
+		private static byte[] Message5Block(int vcp, int word)
+		{
+			var block = new byte[Level2Format.RadarDataSize];
+			block[Level2Format.CtmHeaderSize + 3] = 5;
+			var body = Level2Format.CtmHeaderSize + Level2Format.MessageHeaderSize;
+			block[body + 4] = (byte)(vcp >> 8);
+			block[body + 5] = (byte)vcp;
+			block[body + 18] = (byte)(word >> 8);
+			block[body + 19] = (byte)word;
+			return block;
+		}
+
+		// Words seen in real volumes (TiltCheck --supp, 2026-10-07): KLIX 2022-03-22 0090, KLSX/KILX/KMKX 0070,
+		// KIWX/KOHX 0050, SAILS 0003/0005/0007, KSHV base tilt 5000/5003, KHGX VCP 112 0803, builds 16-17 0000.
+		[Theory]
+		[InlineData(0x0090, 4)]
+		[InlineData(0x0070, 3)]
+		[InlineData(0x0050, 2)]
+		[InlineData(0x0003, 0)]
+		[InlineData(0x0007, 0)]
+		[InlineData(0x5000, 0)]
+		[InlineData(0x5003, 0)]
+		[InlineData(0x0803, 0)]
+		[InlineData(0x0000, 0)]
+		[InlineData(0x0071, 0)] // MRLE + SAILS together can't happen — a misread, not a scheme
+		[InlineData(0x0010, 0)] // MRLE with no tilt count
+		public void ReadsMrleTiltsFromTheSupplementalWord(int word, int expected) =>
+			Assert.Equal(expected, Level2Format.ReadMrleTiltsFromMetadata(
+				new List<(byte[] block, int elev)> { (Message5Block(212, word), 0) }));
 
 		[Fact]
 		public void TheScanCutKeepsTheReason() =>
@@ -75,7 +111,12 @@ namespace Anvil.Tests
 		public void TheTooltipExplainsEachCase()
 		{
 			Assert.Contains("Pre-SAILS:", RadarGlossary.ScanPatternTooltip(Level2Format.DescribeMode(212, 1, false)));
-			Assert.Contains("SAILS off:", RadarGlossary.ScanPatternTooltip(Level2Format.DescribeMode(212, 1, true)));
+			Assert.Contains("Rescans off:", RadarGlossary.ScanPatternTooltip(Level2Format.DescribeMode(212, 1, true)));
+			Assert.Contains("SAILS ×1:", RadarGlossary.ScanPatternTooltip(Level2Format.DescribeMode(212, 2, true)));
+			Assert.Contains("MESO-SAILS ×3:", RadarGlossary.ScanPatternTooltip(Level2Format.DescribeMode(212, 4, true)));
+			var mrle = RadarGlossary.ScanPatternTooltip(Level2Format.DescribeMode(212, 2, true, 4));
+			Assert.Contains("MRLE ×4: the lowest 4 tilts", mrle);
+			Assert.DoesNotContain("SAILS ×", mrle);
 			Assert.DoesNotContain("SAILS", RadarGlossary.ScanPatternTooltip(Level2Format.DescribeMode(212, 1, null)));
 		}
 	}

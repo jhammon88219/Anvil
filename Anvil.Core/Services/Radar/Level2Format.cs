@@ -563,37 +563,90 @@ namespace Anvil.Services
 		internal const string UnlistedLabel = "unlisted";
 		private static string RegimeLabel(int vcp) => VcpCatalog.Find(vcp)?.RegimeLabel ?? UnlistedLabel;
 
-		// Maps the VCP number to a human label. Clear-air VCPs scan ~every 10 min and never use
-		// SAILS; precip VCPs (12/212/215/…) run ~4-6 min and may insert extra 0.5° sweeps; TDWR VCPs
-		// (80/90) are the terminal network's monitor/hazardous modes. A plausible number the catalog
-		// doesn't list reads "VCP 301 · unlisted"; 0 means the parse failed -> "VCP ?".
+		// Maps the VCP number to a human label. Clear-air VCPs scan ~every 10 min, precip VCPs
+		// (12/212/215/…) ~4-6 min; either may add RESCANS (below — VCP 35 runs SAILS ×1 too, seen at
+		// KTLX/KDVN/KHGX); TDWR VCPs (80/90) are the terminal network's monitor/hazardous modes. A plausible
+		// number the catalog doesn't list reads "VCP 301 · unlisted"; 0 means the parse failed -> "VCP ?".
 		//
 		// Field ORDER matters: the readout splits this string at the "0.5°" sweep token, putting
-		// everything BEFORE it on the Scan row (the volume's scan strategy) — so the SAILS suffix comes
-		// first, ahead of the sweep token. SAILS describes how often the BASE tilt is re-scanned, which
-		// is a property of the volume and stays true whichever tilt is being rendered; it used to trail
-		// the sweep token and so landed on the Tilt row, where it could only be true for the base tilt
-		// and vanished the moment you selected 0.9°.
+		// everything BEFORE it on the Scan row (the volume's scan strategy) — so the rescan part comes
+		// first, ahead of the sweep token. Rescans are a property of the volume and stay true whichever
+		// tilt is being rendered; SAILS used to trail the sweep token and so landed on the Tilt row, where
+		// it vanished the moment you selected 0.9°.
 		//
-		// One base sweep says WHY when it can (<paramref name="sailsExisted"/>, from SailsExisted): "pre-SAILS" =
-		// the radar's software predates SAILS; "SAILS off" = it had SAILS and the office ran without it. Null =
-		// unknown, no suffix (the bar reads "none"). ⚠️ RadarControls.ScanValue and RadarGlossary read these words.
-		internal static string DescribeMode(int vcp, int sweeps, bool? sailsExisted = null)
+		// THE RESCAN PART — the ROC's own names (VCP Info Sheet; ICD 2620002Y Table XI), SAILS and MRLE never both:
+		//   "SAILS ×1"             one extra sweep of the lowest tilt   (sweeps = 2)
+		//   "MESO-SAILS ×2" / "×3" two / three extra sweeps of it      (sweeps = 3 / 4)
+		//   "MRLE ×2" … "×4"       the lowest N TILTS rescanned ONCE mid-volume (<paramref name="mrleTilts"/>, from
+		//                          Message 5's supplemental word — an MRLE volume also repeats the lowest tilt, so
+		//                          the sweep count alone would misread it as SAILS ×1)
+		// No rescans says WHY when it can (<paramref name="sailsExisted"/>, from SailsExisted): "pre-SAILS" = the
+		// radar's software predates SAILS; "rescans off" = it had them and the office ran without. Null = unknown,
+		// no part (the bar reads "none"). ⚠️ RadarControls.ScanValue and RadarGlossary read these words.
+		internal static string DescribeMode(int vcp, int sweeps, bool? sailsExisted = null, int mrleTilts = 0)
 		{
 			if (!IsUsableVcp(vcp))
 			{
 				return $"VCP ? · 0.5°×{sweeps}";
 			}
-			// SAILS/MRLE is WSR-88D-only terminology; TDWR re-scans its low tilt differently, so omit
-			// the suffix for TDWR VCPs even when the metadata reports extra low-tilt sweeps.
-			var sails = VcpCatalog.Find(vcp)?.Network == VcpNetwork.Tdwr ? ""
-				: sweeps > 1 ? $" · SAILS/MRLE ×{sweeps - 1}"
-				: sailsExisted switch { true => " · " + SailsOffLabel, false => " · " + PreSailsLabel, null => "" };
-			return $"VCP {vcp} · {RegimeLabel(vcp)}{sails} · 0.5°×{sweeps}";
+			// SAILS/MRLE are WSR-88D-only; TDWR re-scans its low tilt differently, so no rescan part for TDWR
+			// VCPs even when the metadata reports extra low-tilt sweeps.
+			var rescans = VcpCatalog.Find(vcp)?.Network == VcpNetwork.Tdwr ? ""
+				: mrleTilts > 0 ? $" · {MrleName} ×{mrleTilts}"
+				: sweeps > 2 ? $" · {MesoSailsName} ×{sweeps - 1}"
+				: sweeps == 2 ? $" · {SailsName} ×1"
+				: sailsExisted switch { true => " · " + RescansOffLabel, false => " · " + PreSailsLabel, null => "" };
+			return $"VCP {vcp} · {RegimeLabel(vcp)}{rescans} · 0.5°×{sweeps}";
 		}
 
-		internal const string SailsOffLabel = "SAILS off";
+		internal const string SailsName = "SAILS";
+		internal const string MesoSailsName = "MESO-SAILS";
+		internal const string MrleName = "MRLE";
+		internal const string RescansOffLabel = "rescans off";
 		internal const string PreSailsLabel = "pre-SAILS";
+
+		// MRLE's tilt count from Message 5's VCP SUPPLEMENTAL word (header halfword 10, ICD 2620002Y Table XI): bit 4
+		// = MRLE VCP, bits 5-7 = its cut count (max 4), bit 0 = SAILS (never with MRLE). 0 = not MRLE, or a build
+		// that leaves the word empty (16-17 do, even running SAILS; MRLE arrived in 18 so nothing is lost). Big-
+		// endian in archive volumes despite the ICD's byte-swap note — checked against the repeated tilts of
+		// ~5,000 volumes / 25 site-days (TiltCheck --supp, 2026-10-07). Same walk + VCP gate as ReadVcpFromMetadata.
+		internal static int ReadMrleTiltsFromMetadata(List<(byte[] block, int elev)> blocks)
+		{
+			foreach (var (block, _) in blocks)
+			{
+				for (var pos = 0; pos + CtmHeaderSize + MessageHeaderSize + 20 <= block.Length; pos += RadarDataSize)
+				{
+					var msgType = block[pos + CtmHeaderSize + 3];
+					if (msgType == 31)
+					{
+						return 0;
+					}
+					if (msgType is not (5 or 7))
+					{
+						continue;
+					}
+					var body = pos + CtmHeaderSize + MessageHeaderSize;
+					var vcp = (block[body + 4] << 8) | block[body + 5];
+					if (!IsKnownVcp(vcp) && !IsPlausibleUnlisted(vcp, ReadCuts(block, body)))
+					{
+						continue;
+					}
+					var word = (block[body + 18] << 8) | block[body + 19];
+					var tilts = (word >> 5) & 7;
+					return (word & 0x10) != 0 && (word & 1) == 0 && tilts is >= 1 and <= 4 ? tilts : 0;
+				}
+			}
+			return 0;
+		}
+
+		// ReadMrleTiltsFromMetadata over an already-extracted single tilt (see ReadModeFromExtractedTilt).
+		internal static int ReadMrleTiltsFromExtractedTilt(byte[] tilt)
+		{
+			const int headerSize = 24;
+			return tilt is null || tilt.Length <= headerSize
+				? 0
+				: ReadMrleTiltsFromMetadata(new List<(byte[] block, int elev)> { (tilt[headerSize..], 0) });
+		}
 
 		// SAILS shipped in RDA Build 14 (fielded site by site through 2014 — KTLX was still on 13.3 in March 2014,
 		// on 14 by June; TiltCheck 2026-10-07). The volume's own build decides; with no readable build, only a

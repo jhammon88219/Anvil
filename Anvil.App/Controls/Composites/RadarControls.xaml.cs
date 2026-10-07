@@ -146,18 +146,18 @@ namespace Anvil.Controls.Composites
 		public string FrameCountText(double current, int max) =>
 			max <= 0 ? string.Empty : $"{(int)Math.Round(current) + 1} / {max + 1}";
 
-		// The Scan readout: the VOLUME's scan strategy — "VCP 215 · precip · SAILS/MRLE ×2".
+		// The Scan readout: the VOLUME's scan strategy — "VCP 215 · precip · MESO-SAILS ×2".
 		//
-		// RadarViewModel.RadarModeText is one formatted string, "VCP 215 · precip · SAILS/MRLE ×2 ·
+		// RadarViewModel.RadarModeText is one formatted string, "VCP 215 · precip · MESO-SAILS ×2 ·
 		// 0.5°×3" (or "VCP ? · 0.5°×3" when the VCP couldn't be read, or "VCP 212 · precip" with no
 		// sweep segment at all on the archive path). Everything before the "0.5°" sweep token describes
 		// the volume, so that's this row; the token itself is dropped, because "0.5°×3" and
-		// "SAILS/MRLE ×2" state the same fact twice (3 sweeps = 1 + 2 extra) and the Tilt row now shows
+		// "MESO-SAILS ×2" state the same fact twice (3 sweeps = 1 + 2 extra) and the Tilt row now shows
 		// the rendered elevation instead.
 		//
-		// SAILS belongs HERE, not on the Tilt row: it counts re-scans of the BASE tilt, a property of
-		// the volume that holds whichever tilt is on screen. On the Tilt row it could only ever be true
-		// for 0.5° and disappeared as soon as a higher tilt was selected.
+		// Rescans belong HERE, not on the Tilt row: a property of the volume that holds whichever tilt is
+		// on screen. On the Tilt row SAILS could only ever be true for 0.5° and disappeared as soon as a
+		// higher tilt was selected.
 		//
 		// The cut itself is RadarViewModel.ScanStrategyText — shared with the Radar Atlas's Scan mode line.
 		public string RadarVcpText(string mode) => RadarViewModel.ScanStrategyText(mode);
@@ -166,12 +166,14 @@ namespace Anvil.Controls.Composites
 		// ⚠️ ALWAYS a value — a missing fact is a placeholder, so all three lines show no matter what:
 		//   0 VCP:        "212" (from "VCP 212"; "?" when unparsed); before a frame, the state itself ("—", "loading…")
 		//   1 Mode:       the regime word, else "—"
-		//   2 SAILS/MRLE: "×1" from the "SAILS/MRLE ×1" part; "off" / "pre-SAILS" from the "SAILS off" / "pre-SAILS"
-		//                 part (one base sweep, and the radar's build says why — Level2Format.DescribeMode); else
-		//                 "n/a" for TDWR (no such scheme), "none" when the sweep count WAS read but the reason
+		//   2 Rescans:    the scheme part WHOLE — "SAILS ×1", "MESO-SAILS ×3", "MRLE ×4" (the ROC's names; ×N counts
+		//                 extra sweeps for SAILS, TILTS for MRLE); "off" / "pre-SAILS" from the "rescans off" /
+		//                 "pre-SAILS" part (no rescans, and the radar's build says why — Level2Format.DescribeMode);
+		//                 else "n/a" for TDWR (no such scheme), "none" when the sweep count WAS read but the reason
 		//                 wasn't, "—" when the count wasn't read either (the archive path reads the VCP only).
-		private const string SailsPrefix = "SAILS/MRLE ";
-		private const string SailsOffPart = "SAILS off"; // ⚠️ mirrors Level2Format.SailsOffLabel / PreSailsLabel
+		// ⚠️ These words mirror Level2Format's SailsName / MesoSailsName / MrleName / RescansOffLabel / PreSailsLabel.
+		private static readonly string[] SchemePrefixes = { "SAILS ×", "MESO-SAILS ×", "MRLE ×" };
+		private const string RescansOffPart = "rescans off";
 		private const string PreSailsPart = "pre-SAILS";
 
 		// The values that mean "no fact here" — drawn DIMMED by the XAML's stand-in TextBlock. "off" and
@@ -215,11 +217,11 @@ namespace Anvil.Controls.Composites
 				default:
 					foreach (var part in parts)
 					{
-						if (part.StartsWith(SailsPrefix, StringComparison.Ordinal))
+						if (Array.Exists(SchemePrefixes, p => part.StartsWith(p, StringComparison.Ordinal)))
 						{
-							return part[SailsPrefix.Length..];
+							return part;
 						}
-						if (part == SailsOffPart)
+						if (part == RescansOffPart)
 						{
 							return "off";
 						}

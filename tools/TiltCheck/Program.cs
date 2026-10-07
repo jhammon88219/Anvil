@@ -315,6 +315,10 @@ var (vcpNum, sweepsNum) = Level2Format.ReadModeFromExtractedTilt(baseTilt);
 Console.WriteLine($"VCP (ReadModeFromExtractedTilt): {vcpNum}  sweeps={sweepsNum}  known={Level2Format.IsKnownVcp(vcpNum)}");
 Console.WriteLine($"RDA build (Message 2): {Level2Format.ReadRdaBuildFromExtractedTilt(baseTilt)}");
 DumpMessage5Supplemental(baseTilt);
+var appMode = Level2Format.DescribeMode(vcpNum, sweepsNum,
+    Level2Format.SailsExisted(Level2Format.ReadRdaBuildFromExtractedTilt(baseTilt), DateTimeOffset.UtcNow),
+    Level2Format.ReadMrleTiltsFromExtractedTilt(baseTilt));
+Console.WriteLine($"app mode line: \"{appMode}\"  -> scan row \"{Anvil.ViewModels.RadarViewModel.ScanStrategyText(appMode)}\"");
 
 // Message 5's RPG-use words (ICD 2620002Y Table XI): header halfword 9 = VCP sequencing, 10 = VCP supplemental
 // (SAILS bit 0 + count bits 1-3, MRLE bit 4 + count bits 5-7, MPDA bit 11, base tilt bit 12 + count 13-15), and

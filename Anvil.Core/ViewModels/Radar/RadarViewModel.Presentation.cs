@@ -104,7 +104,7 @@ namespace Anvil.ViewModels
 
 		/// <summary>
 		/// The VOLUME's scan strategy out of a mode string: everything before the "0.5°" sweep token —
-		/// "VCP 212 · precip · SAILS/MRLE ×1 · 0.5°×2" → "VCP 212 · precip · SAILS/MRLE ×1". The token is
+		/// "VCP 212 · precip · SAILS ×1 · 0.5°×2" → "VCP 212 · precip · SAILS ×1". The token is
 		/// dropped because it restates the SAILS count (2 sweeps = the base + 1 extra) and read as a
 		/// contradiction ("×1" vs "×2") beside it. ⚠️ The ONE cut rule: the bar's Scan readout and the Radar
 		/// Atlas's Scan mode both call it, so they can't disagree. No token (archive "VCP 212 · precip", "—",

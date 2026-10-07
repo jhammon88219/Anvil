@@ -185,8 +185,8 @@ namespace Anvil.Services
 		// Scan-mode line for an archive/replay frame, parsed from its cached single-tilt buffer's leading
 		// metadata — the live SelectLatestSweep path doesn't run for archive frames, so this is how a
 		// past-event loop gets its scan readout. Emits the SAME format as live ("VCP 212 · precip ·
-		// 0.5°×3 · SAILS/MRLE ×2"), including the designed SAILS sweep count from the Message 5 elevation
-		// table; falls back to VCP + regime alone if that count didn't parse. Null (rendered as "—") when
+		// MESO-SAILS ×2 · 0.5°×3"), including the designed sweep count from the Message 5 elevation table and
+		// MRLE from its supplemental word; falls back to VCP + regime alone if that count didn't parse. Null (rendered as "—") when
 		// the VCP itself can't be read (a raw-fallback or legacy volume). (A 2011-era VCP 12 correctly
 		// reads 0.5°×1 — no SAILS existed pre-2014 — and the RDA build in Message 2 says so: "pre-SAILS".)
 		private static (string? mode, int vcp) ModeTextFromTilt(byte[] tilt, DateTimeOffset volumeTime)
@@ -199,7 +199,8 @@ namespace Anvil.Services
 			// Clamp mirrors the live path (SAILS tops out at ×3 = 4 base scans); an out-of-range count
 			// means a misparse, so drop to VCP + regime rather than show a bogus "0.5°×9".
 			return (sweeps is >= 1 and <= 6
-				? DescribeMode(vcp, sweeps, SailsExisted(ReadRdaBuildFromExtractedTilt(tilt), volumeTime))
+				? DescribeMode(vcp, sweeps, SailsExisted(ReadRdaBuildFromExtractedTilt(tilt), volumeTime),
+					ReadMrleTiltsFromExtractedTilt(tilt))
 				: DescribeVcp(vcp), vcp);
 		}
 
@@ -1406,7 +1407,8 @@ namespace Anvil.Services
 			}
 			PruneLiveCache(site.Id, cacheFile);
 
-			var mode = DescribeMode(sel.vcp, sel.sweeps, SailsExisted(ReadRdaBuildFromExtractedTilt(sel.data), ts));
+			var mode = DescribeMode(sel.vcp, sel.sweeps, SailsExisted(ReadRdaBuildFromExtractedTilt(sel.data), ts),
+				ReadMrleTiltsFromExtractedTilt(sel.data));
 			var tilts = ReadElevationAnglesFromExtractedTilt(sel.data);
 			RadarDiagnostics.Log("svc", "live", ("site", site.Id), ("vol", vol),
 				("builtZ", ts.ToUniversalTime().ToString("HH:mm:ss")),

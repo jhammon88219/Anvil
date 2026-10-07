@@ -22,7 +22,7 @@ namespace Anvil.Models
 	/// <param name="Tilts">Distinct elevation angles designed into the pattern (the tilt-picker count before
 	/// AVSET trims it). 0 = site-specific (TDWR).</param>
 	/// <param name="VolumeMinutes">Nominal full-volume time, in words ("~4.5"). A sanity band, never a
-	/// schedule — AVSET shortens precip volumes and SAILS/MRLE lengthen them.</param>
+	/// schedule — AVSET shortens precip volumes and rescans (SAILS / MRLE) lengthen them.</param>
 	/// <param name="SailsMax">Most supplemental low-tilt scans an operator can add (0 = none).</param>
 	/// <param name="Summary">Plain-language explanation — no jargon, for the glossary's Now line.</param>
 	public sealed record VcpInfo(

@@ -5,7 +5,7 @@
        ┌─ clock ────────┐ ┌─ scrubber: FIXED 420 × 20 (classic | dot matrix) ┐ ┌─ scan ─────────────────┐
        │ 1:07 PM        │ │ ⁙⁙ ⁙⁙ ⁙⁙ ⁙⁙ ◆◆ ⁙⁙ ⁚⁚ ··  ·· ··  (Settings → Radar Console) │ │ VCP:        212        │
        │                │ │                                                     │ │ Mode:       precip     │
-       │ 2 min ago      │ │ 11 / 11            ⏮  ▶  ⏭                      ⟳  │ │ SAILS/MRLE: ×1         │
+       │ 2 min ago      │ │ 11 / 11            ⏮  ▶  ⏭                      ⟳  │ │ Rescans:    MRLE ×4    │
        └────────────────┘ └─────────────────────────────────────────────────────┘ └────────────────────────┘
          ^ digits 40 SemiLight,   ^ frame count LEFT · transport CENTRED under the          ^ ALWAYS three LABELLED
            AM/PM 16 beside them     scrubber · ⟳ (check for a newer frame, 2 s               lines; a missing fact is
@@ -255,10 +255,12 @@
         <!-- ===== SCAN: the volume's scan strategy, ALWAYS THREE LABELLED LINES =====
                VCP:         212          ← the number ("?" unparsed; "—" / "loading…" before a frame)
                Mode:        precip       ← the regime word (clear-air · precip · TDWR monitor/hazardous)
-               SAILS/MRLE:  ×1           ← extra base-tilt cuts; "off" = the radar had SAILS, the office ran
-                                           without it; "pre-SAILS" = its build predates SAILS (both DIMMED);
-                                           "none" = counted and zero, reason unknown; "n/a" = TDWR;
-                                           "—" = not known (the archive path reads no sweep count)
+               Rescans:     MRLE ×4      ← the ROC's scheme names: SAILS ×1 · MESO-SAILS ×2/×3 (extra sweeps of
+                                           the lowest tilt) · MRLE ×2/×3/×4 (that many low TILTS rescanned once);
+                                           "off" = the radar had rescans, the office ran without them;
+                                           "pre-SAILS" = its build predates SAILS (both DIMMED); "none" =
+                                           counted and zero, reason unknown; "n/a" = TDWR; "—" = not known
+                                           (the archive path reads no sweep count)
              ⚠️ Every line ALWAYS shows — a missing fact is a placeholder, never an empty or collapsed row, so
              the block's height and the labels' column never move. Values come from ScanValue, which cuts the ONE
              rule's string (RadarViewModel.ScanStrategyText, shared with the Atlas), so they can't disagree with it.
@@ -288,7 +290,7 @@
                        Style="{StaticResource ScanValueStyle}"/>
             <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ScanStandIn(ViewModel.RadarModeText, 1), Mode=OneWay}"
                        Style="{StaticResource ScanStandInStyle}"/>
-            <TextBlock Grid.Row="2" Text="SAILS/MRLE:" Style="{StaticResource ScanLabelStyle}"/>
+            <TextBlock Grid.Row="2" Text="Rescans:" Style="{StaticResource ScanLabelStyle}"/>
             <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ScanFact(ViewModel.RadarModeText, 2), Mode=OneWay}"
                        Style="{StaticResource ScanValueStyle}"/>
             <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ScanStandIn(ViewModel.RadarModeText, 2), Mode=OneWay}"

@@ -58,7 +58,7 @@ namespace Anvil.Services
 
 		/// <summary>
 		/// The bottom bar's Scan-readout tooltip: the same card as the Atlas "?", flattened to plain text
-		/// (tooltips take a string), plus the SAILS sentence when the readout shows SAILS/MRLE.
+		/// (tooltips take a string), plus one sentence on the Rescans value (SAILS / MESO-SAILS / MRLE / off / pre-SAILS).
 		/// </summary>
 		public static string ScanPatternTooltip(string? modeText)
 		{
@@ -66,15 +66,36 @@ namespace Anvil.Services
 			var sails = modeText is null ? string.Empty
 				: modeText.Contains(Level2Format.PreSailsLabel, StringComparison.Ordinal)
 					? "\n\nPre-SAILS: this radar's software predates SAILS (2014), so it swept its lowest tilt " +
-					  "once per volume. Extra low sweeps didn't exist yet."
-				: modeText.Contains(Level2Format.SailsOffLabel, StringComparison.Ordinal)
-					? "\n\nSAILS off: this radar could add extra sweeps of its lowest tilt, but the forecast office " +
+					  "once per volume. Rescans didn't exist yet."
+				: modeText.Contains(Level2Format.RescansOffLabel, StringComparison.Ordinal)
+					? "\n\nRescans off: this radar could rescan its lowest tilts mid-volume, but the forecast office " +
 					  "ran this volume without them."
-				: modeText.Contains("SAILS", StringComparison.Ordinal)
-					? "\n\nSAILS/MRLE ×N: the radar squeezes N extra sweeps of its lowest tilt into each volume, so " +
-					  "the view nearest the ground refreshes more often while weather is changing fast."
+				: RescanCount(modeText, Level2Format.MrleName) is { } mrle
+					? $"\n\nMRLE ×{mrle}: the lowest {mrle} tilts are each scanned a second time midway through the " +
+					  "volume, so the layer near the ground refreshes faster — aimed at quick spin-ups in squall lines."
+				: RescanCount(modeText, Level2Format.MesoSailsName) is { } meso
+					? $"\n\nMESO-SAILS ×{meso}: the radar adds {meso} extra sweeps of its lowest tilt, spaced through " +
+					  "the volume, so the view nearest the ground refreshes more often while weather is changing fast."
+				: RescanCount(modeText, Level2Format.SailsName) is { }
+					? "\n\nSAILS ×1: the radar adds one extra sweep of its lowest tilt midway through the volume, so the " +
+					  "view nearest the ground refreshes twice as often."
 				: string.Empty;
 			return $"{card.Technical}\n\n{card.Definition}\n\n{card.Now}{sails}\n\n{card.Context}";
+		}
+
+		// N from the mode line's "{scheme} ×N" part (Level2Format.DescribeMode), matched part-wise so "SAILS ×" never
+		// matches inside "MESO-SAILS ×"; null when the line has no such part.
+		private static int? RescanCount(string modeText, string scheme)
+		{
+			foreach (var part in modeText.Split(" · "))
+			{
+				if (part.StartsWith(scheme + " ×", StringComparison.Ordinal)
+					&& int.TryParse(part[(scheme.Length + 2)..], out var n))
+				{
+					return n;
+				}
+			}
+			return null;
 		}
 
 		// The scale sentence is BUILT from VcpCatalog so it can never list a pattern the app doesn't know
