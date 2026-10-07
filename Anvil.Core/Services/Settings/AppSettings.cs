@@ -336,6 +336,16 @@ namespace Anvil.Services
 		// LOOP HOLDING GATE — PastCast dims the map behind a progress screen while a loop loads (the map lags
 		// during a load; LoopHoldingGateViewModel). Default ON; the gate's own "Don't hold future loads" box and
 		// Settings → Radar → PastCast turn it off.
+		// While a site is loaded, hide every other site key (radar-sites.js `focus` rule); click it again to unload.
+		// Settings → Radar → Radar site keys. Default ON.
+		private bool _hideOtherSitesWhileLoaded = true;
+		/// <summary>Hide the other radar-site keys while a site is loaded.</summary>
+		public bool HideOtherSitesWhileLoaded
+		{
+			get => _hideOtherSitesWhileLoaded;
+			set => SetProperty(ref _hideOtherSitesWhileLoaded, value);
+		}
+
 		// SITE-REVEAL (experimental bolt-on): only the radar sites within a ring round the cursor show on the map.
 		// Settings → Radar → Site reveal. Default off.
 		private bool _revealSitesNearCursor;

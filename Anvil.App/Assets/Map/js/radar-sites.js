@@ -50,6 +50,11 @@
 //   no spot is clear it takes the one with the fewest collisions. A cheap no-op while neither opt-in
 //   network is shown, which is the default.
 //
+// WHICH KEYS SHOW — THE VISIBILITY RULES table below (network · era | declutter: isolation · reveal · focus).
+//
+//        rules:  network ✓  era ✓  isolation ✓  reveal ✗   → hidden        a key shows only when EVERY rule passes;
+//        loaded: network ✓  era ✓  (declutter skipped)      → shown         the LOADED site skips the declutter ones
+//
 // These are DOM-overlay markers (maplibregl.Marker), so they auto-reposition on pan/zoom and survive
 // basemap switches (no style-layer re-add needed). Structure: a `.radar-site-marker` WRAPPER (MapLibre
 // positions it via an inline transform) > `.radar-site-offset` (the fan's translate target) > the
@@ -119,23 +124,50 @@ function recomputeCoverage() {
     });
 }
 
-// A marker shows only when ITS NETWORK's toggle is on (NEXRAD / TDWR / research — three independent
-// toggles on the tools tier, no master: all three off = no keys) AND (when a state is isolated) the site's
-// range covers that state. The currently-selected site is exempt from the coverage gate so it can't get
-// stranded (its loop keeps rendering; you can still deselect it).
-// A RETIRED id (moved/renamed radar) shows only in the era it existed: RadarViewModel.IsInEra, pushed here.
+// ── THE VISIBILITY RULES ─────────────────────────────────────────────────────────────────────────
+// ONE table decides whether a key shows: it shows only when EVERY rule passes. Each feature owns exactly ONE
+// rule (its state + the setter below that changes it); markerVisible reads the table and applyVisibility is
+// the one pass that writes display. Two kinds of rule:
+//
+//   WHAT EXISTS — binds the loaded site too:      network   its network's toggle is on (NEXRAD / TDWR /
+//                                                           research, the tools tier — all off = no keys)
+//                                                 era       the radar existed then (RadarViewModel.IsInEra)
+//   DECLUTTER — NEVER hides the LOADED site       isolation its range reaches the isolated state
+//   (it must not strand its own loop; you can     reveal    inside the cursor's ring (SITE-REVEAL)
+//   still unload it by clicking it again):        focus     while a site is LOADED, only it shows
+//
+// Rules COMPOSE BY AND, so they cannot fight: with focus on and a site loaded, only that site shows whatever
+// the others say; with nothing loaded, focus passes everything and the rest decide.
+// ⚠️ A NEW WAY TO HIDE KEYS = ONE entry here (+ its state and setter). Never another && in markerVisible, and
+//    never a display write anywhere but applyVisibility — that is how the features used to stack up.
+let revealedIds = null;  // SITE-REVEAL: ids inside the cursor's ring; null = the reveal is off
+let focusOn = false;     // setFocus: hide the other sites while one is loaded (Settings → Radar)
+const RULES = [
+    { name: 'network',   declutter: false, test: function (id) { return researchIds.has(id) ? researchVisible : tdwrIds.has(id) ? tdwrVisible : nexradVisible; } },
+    { name: 'era',       declutter: false, test: function (id) { return !outOfEraIds.has(id); } },
+    { name: 'isolation', declutter: true,  test: function (id) { return coveredIds === null || coveredIds.has(id); } },
+    { name: 'reveal',    declutter: true,  test: function (id) { return revealedIds === null || revealedIds.has(id); } }, // SITE-REVEAL
+    { name: 'focus',     declutter: true,  test: function () { return !focusOn || selectedSiteId === null; } },
+];
+
 function markerVisible(id) {
-    const networkOn = researchIds.has(id) ? researchVisible : tdwrIds.has(id) ? tdwrVisible : nexradVisible;
-    return networkOn
-        && !outOfEraIds.has(id)
-        && (coveredIds === null || coveredIds.has(id) || id === selectedSiteId)
-        && (revealedIds === null || revealedIds.has(id) || id === selectedSiteId); // SITE-REVEAL
+    for (let i = 0; i < RULES.length; i++) {
+        const r = RULES[i];
+        if (r.declutter && id === selectedSiteId) continue;
+        if (!r.test(id)) return false;
+    }
+    return true;
+}
+
+// FOCUS: while a site is loaded, only it shows; clicking it again unloads it (RadarLoopEngine.OnRadarSiteClicked)
+// and the rest come back. Its trigger is setSelected, which already re-applies the rules.
+export function setFocus(on) {
+    focusOn = !!on;
+    applyVisibility();
 }
 
 // ── SITE-REVEAL (experimental bolt-on, site-reveal.js; grep SITE-REVEAL to excise) ───────────────
-// While the reveal is on, only the sites inside the cursor's ring show (plus the loaded site, exempt like
-// it is from isolation). null = the gate is off. site-reveal.js reads the coordinates and pushes the set.
-let revealedIds = null;
+// site-reveal.js reads the coordinates and pushes the set inside its ring (null = the reveal is off).
 export function setRevealed(ids) {
     revealedIds = ids ? new Set(ids) : null;
     applyVisibility();
@@ -143,7 +175,7 @@ export function setRevealed(ids) {
 export function siteCoordinates() { return siteCoords; }
 // ── end SITE-REVEAL ──────────────────────────────────────────────────────────────────────────────
 
-// Re-apply the visibility rule to every marker (after any toggle changes).
+// Re-apply THE VISIBILITY RULES to every marker — the ONE place a key's display is written.
 function applyVisibility() {
     radarMarkerObjs.forEach(function (m) {
         const id = m.getElement().dataset.siteId;
@@ -412,7 +444,6 @@ export function show(map, json) {
         offset.className = 'radar-site-offset';
         offset.appendChild(btn);
         el.appendChild(offset);
-        if (!markerVisible(s.id)) el.style.display = 'none';
         if (selectedSiteId === s.id) btn.classList.add('selected');
         applySiteStatus(btn, s.id); // sets .offline / .unknown + the tooltip from the current status
         // ONE listener for the key; the zone under the click picks the action. The CHEVRON asks the host for

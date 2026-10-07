@@ -298,6 +298,9 @@ namespace Anvil.Services
 		public Task SetTdwrsVisibleAsync(bool visible) =>
 			_mapView.RunScriptAsync(Call("setTdwrsVisible", visible));
 
+		public Task SetSiteFocusAsync(bool on) =>
+			_mapView.RunScriptAsync(Call("setSiteFocus", on));
+
 		// SITE-REVEAL (experimental bolt-on).
 		public Task SetSiteRevealAsync(bool on) =>
 			_mapView.RunScriptAsync(Call("setSiteReveal", on));

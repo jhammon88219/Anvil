@@ -2215,6 +2215,23 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		/// <summary>
+		/// While a site is loaded, hide every other radar-site key; clicking the loaded site unloads it
+		/// (<see cref="OnRadarSiteClicked"/>) and the rest come back. PERSISTED via
+		/// <see cref="AppSettings.HideOtherSitesWhileLoaded"/>, default on; Settings → Radar.
+		/// </summary>
+		public bool HideOtherSitesWhileLoaded
+		{
+			get => _settings.Settings.HideOtherSitesWhileLoaded;
+			set
+			{
+				if (_settings.Settings.HideOtherSitesWhileLoaded == value) { return; }
+				_settings.Settings.HideOtherSitesWhileLoaded = value; // persists (auto-save)
+				OnPropertyChanged();
+				if (_isMapReady) { _ = _mapService.SetSiteFocusAsync(value); }
+			}
+		}
+
 		// ── SITE-REVEAL (experimental bolt-on; grep SITE-REVEAL to excise) ──
 		/// <summary>
 		/// Show only the radar sites inside a ring round the cursor (plus the loaded site) — a less busy map.
@@ -2290,6 +2307,7 @@ namespace Anvil.ViewModels
 			await _mapService.SetNexradSitesVisibleAsync(ShowNexradSites);
 			await _mapService.SetResearchRadarsVisibleAsync(ShowResearchRadars);
 			await _mapService.SetTdwrsVisibleAsync(ShowTdwrs);
+			await _mapService.SetSiteFocusAsync(HideOtherSitesWhileLoaded);
 			if (RevealSitesNearCursor) { await _mapService.SetSiteRevealAsync(true); } // SITE-REVEAL
 			await _mapService.SetRadarSitesOutOfEraAsync(System.Text.Json.JsonSerializer.Serialize(OutOfEraIds()));
 

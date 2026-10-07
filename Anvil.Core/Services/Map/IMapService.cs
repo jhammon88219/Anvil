@@ -428,6 +428,12 @@ namespace Anvil.Services
 		Task SetTdwrsVisibleAsync(bool visible);
 
 		/// <summary>
+		/// While a site is loaded, hide every other site key (radar-sites.js's <c>focus</c> rule — a DECLUTTER rule, so
+		/// the loaded site itself always shows). Clicking the loaded site unloads it and the rest come back.
+		/// </summary>
+		Task SetSiteFocusAsync(bool on);
+
+		/// <summary>
 		/// SITE-REVEAL (experimental bolt-on): while on, only the radar sites inside a 230 km ring round the cursor
 		/// show (plus the loaded site). Layered on the network toggles, not instead of them. site-reveal.js.
 		/// </summary>

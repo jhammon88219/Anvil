@@ -720,6 +720,8 @@ try {
     window.setNexradSitesVisible = function (visible) { if (RadarSites) RadarSites.setNexradVisible(visible); };
     window.setResearchRadarsVisible = function (visible) { if (RadarSites) RadarSites.setResearchVisible(visible); };
     window.setTdwrsVisible = function (visible) { if (RadarSites) RadarSites.setTdwrVisible(visible); };
+    // FOCUS (Settings → Radar): while a site is loaded, hide every other key — radar-sites.js's `focus` rule.
+    window.setSiteFocus = function (on) { if (RadarSites) RadarSites.setFocus(on); };
     // ── SITE-REVEAL (experimental bolt-on, site-reveal.js; grep SITE-REVEAL to excise) ─────────────
     // Only the sites inside a ring round the cursor show (Settings → Radar). Imported on first use; the
     // choice is held until radar-sites.js has landed (the map-ready replay can beat that import).

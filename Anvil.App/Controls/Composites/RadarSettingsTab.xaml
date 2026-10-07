@@ -9,9 +9,12 @@
        │    Distance  [ km | mi | nm ]                        │  ← PERSISTED, app-wide
        │  ⌄  PastCast                                         │
        │    [✓] Hold the map while a loop loads               │  ← PERSISTED, default on (the gate's
-       │  ⌄  Site reveal (experimental)                       │     "Don't hold future loads" turns it off)
-       │    [ ] Show only the radar sites near the cursor     │  ← PERSISTED, default off (site-reveal.js,
-       │    A 230 km ring follows the cursor; …               │     a SITE-REVEAL bolt-on)
+       │  ⌄  Radar site keys                                  │     "Don't hold future loads" turns it off)
+       │    [✓] Hide the other sites while one is loaded      │  ← PERSISTED, default ON (the `focus` rule)
+       │        Click the loaded site again to unload it…     │
+       │    [ ] Show only the sites near the cursor (exp.)    │  ← PERSISTED, default off (the `reveal` rule,
+       │        A 230 km ring follows the cursor; …           │     a SITE-REVEAL bolt-on)
+       │    The NEXRAD / TDWR / research toggles … still apply│  ← each row = ONE rule in radar-sites.js
        └──────────────────────────────────────────────────────┘
 
      ⚠️ THE "RANGE RINGS & RULER" SECTION MOVED to its own tab, Radar Range Ring (RangeRingSettingsTab), when
@@ -65,7 +68,7 @@
             <RowDefinition Height="Auto"/> <!-- home site -->
             <RowDefinition Height="Auto"/> <!-- readouts -->
             <RowDefinition Height="Auto"/> <!-- pastcast -->
-            <RowDefinition Height="Auto"/> <!-- site reveal (experimental) -->
+            <RowDefinition Height="Auto"/> <!-- radar site keys -->
         </Grid.RowDefinitions>
 
         <!-- The home site is PICKED in the Radar Atlas (where you can see what you're choosing); this only
@@ -119,22 +122,33 @@
                       ToolTipService.ToolTip="Dim the map behind a progress screen until a PastCast loop finishes loading — the map lags while a loop loads"/>
         </prim:PanelSection>
 
-        <!-- SITE-REVEAL (experimental bolt-on; grep SITE-REVEAL to excise). A set-once PREFERENCE about how the
-             site keys behave, so it passes the placement test for Settings — unlike the network toggles, which
-             are gestures and live on the tools tier (see the ⚠️ above). PERSISTED (AppSettings.RevealSitesNearCursor). -->
-        <prim:PanelSection Grid.Row="3" Header="Site reveal (experimental)" IsExpanded="True">
-            <Grid RowSpacing="4">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <CheckBox Grid.Row="0" Margin="4,0,0,0"
-                          Content="Show only the radar sites near the cursor"
-                          IsChecked="{x:Bind ViewModel.Radar.RevealSitesNearCursor, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="1" Margin="4,2,0,0" TextWrapping="Wrap" MaxWidth="420"
+        <!-- RADAR SITE KEYS — set-once PREFERENCES about how the keys on the map behave, so they pass the placement test for
+             Settings (the network toggles are gestures and live on the tools tier — see the ⚠️ above). Each switch is ONE
+             rule in radar-sites.js's VISIBILITY RULES table; a new way to hide keys = a rule there + a row here. -->
+        <prim:PanelSection Grid.Row="3" Header="Radar site keys" IsExpanded="True">
+            <StackPanel Spacing="4">
+                <!-- PERSISTED (AppSettings.HideOtherSitesWhileLoaded), default ON — the `focus` rule. -->
+                <CheckBox Margin="4,0,0,0"
+                          Content="Hide the other sites while one is loaded"
+                          IsChecked="{x:Bind ViewModel.Radar.HideOtherSitesWhileLoaded, Mode=TwoWay}"/>
+                <TextBlock Margin="32,0,0,8" TextWrapping="Wrap" MaxWidth="400"
                            HorizontalAlignment="Left" Opacity="0.75"
-                           Text="A 230 km ring follows the cursor; only the sites inside it show, plus the loaded site. The network toggles on the tools tier still apply."/>
-            </Grid>
+                           Text="Click the loaded site again to unload it and bring the others back."/>
+
+                <!-- SITE-REVEAL (experimental bolt-on; grep SITE-REVEAL to excise). PERSISTED
+                     (AppSettings.RevealSitesNearCursor) — the `reveal` rule. -->
+                <CheckBox Margin="4,0,0,0"
+                          Content="Show only the sites near the cursor (experimental)"
+                          IsChecked="{x:Bind ViewModel.Radar.RevealSitesNearCursor, Mode=TwoWay}"/>
+                <TextBlock Margin="32,0,0,0" TextWrapping="Wrap" MaxWidth="400"
+                           HorizontalAlignment="Left" Opacity="0.75"
+                           Text="A 230 km ring follows the cursor; only the sites inside it show, plus the loaded site."/>
+                <!-- end SITE-REVEAL -->
+
+                <TextBlock Margin="4,8,0,0" TextWrapping="Wrap" MaxWidth="420"
+                           HorizontalAlignment="Left" Opacity="0.75"
+                           Text="The NEXRAD / TDWR / research toggles on the tools tier still apply."/>
+            </StackPanel>
         </prim:PanelSection>
 
     </Grid>
