@@ -437,6 +437,12 @@ namespace Anvil.Services
 		private double? _discussionsOpacity;
 		public double? DiscussionsOpacity { get => _discussionsOpacity; set => SetProperty(ref _discussionsOpacity, value); }
 
+		// Tropical (TropicalViewModel): the products UNTICKED (ids "HU.A"…; null = all shown) + the layer's opacity.
+		private List<string>? _tropicalHiddenKinds;
+		public List<string>? TropicalHiddenKinds { get => _tropicalHiddenKinds; set => SetProperty(ref _tropicalHiddenKinds, value); }
+		private double? _tropicalOpacity;
+		public double? TropicalOpacity { get => _tropicalOpacity; set => SetProperty(ref _tropicalOpacity, value); }
+
 		private double? _pastWatchesOpacity;
 		public double? PastWatchesOpacity { get => _pastWatchesOpacity; set => SetProperty(ref _pastWatchesOpacity, value); }
 

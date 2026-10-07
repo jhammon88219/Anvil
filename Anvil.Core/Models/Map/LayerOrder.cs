@@ -23,13 +23,14 @@ namespace Anvil.Models
 		public const string Damage = "damage";
 		public const string Cells = "cells";
 		public const string Discussions = "mds";
+		public const string Tropical = "tropical";
 
 		private static readonly HashSet<string> Known =
-			new(StringComparer.Ordinal) { Radar, Outlook, Watches, Warnings, Reports, Damage, Cells, Discussions };
+			new(StringComparer.Ordinal) { Radar, Outlook, Watches, Warnings, Reports, Damage, Cells, Discussions, Tropical };
 
 		/// <summary>The map's DEFAULT stack, top first. ⚠️ MIRRORS <c>layers.js</c> GROUPS order (DEFAULT_ORDER).</summary>
 		public static IReadOnlyList<string> Default { get; } =
-			new[] { Cells, Reports, Damage, Warnings, Watches, Discussions, Outlook, Radar };
+			new[] { Cells, Reports, Damage, Warnings, Watches, Tropical, Discussions, Outlook, Radar };
 
 		/// <summary>Drops unknown and repeated ids, so a hand-edited or older settings file can't send the
 		/// page a group it doesn't have.</summary>

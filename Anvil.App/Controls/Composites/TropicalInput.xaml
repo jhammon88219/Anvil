@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TropicalInput — the "Tropical" section body (TropicalViewModel): hurricane, tropical storm, storm surge and
+     extreme wind watches + warnings as forecast zones. Shown in BOTH temporal windows: live in Now, the loaded window
+     in Past (counts as in effect at the displayed frame — they follow the scrubber).
+
+       ┌────────────────────────────────────────────┐
+       │ Tropical Storm Isaias                      │   the card: the storm(s) in effect (NHC's ATCF names),
+       │ 3 products · 76 zones                      │   how much is out, the moment in PastCast ("At 4:51 PM ·")
+       └────────────────────────────────────────────┘   + loading / failures below
+       WARNINGS
+       [x] ■ Extreme wind                          0     ← one row PER PRODUCT, generated from TropicalProducts
+       [x] ■ Storm surge                           0       (NWS priority order); swatch = the NWS colour; count =
+       [x] ■ Hurricane                             0       ZONES in effect; a zero row is DIMMED, never hidden;
+       [x] ■ Tropical storm                        0       the tooltip is the NWS name + what it means
+       WATCHES
+       [x] ■ Storm surge                          21
+       [x] ■ Hurricane                            40
+       [x] ■ Tropical storm                       15
+
+     ⚠️ Swatches are the NWS hazard-map colours (TropicalProducts.Fill — DATA, never themed; the page reads the same
+     colour from the file). ⚠️ Opacity and the heading are the HOST's PanelSection, as for every overlay control. -->
+<UserControl x:Class="Anvil.Controls.Composites.TropicalInput"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Anvil.Converters"
+             xmlns:vm="using:Anvil.ViewModels"
+             xmlns:local="using:Anvil.Controls.Composites"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <conv:HexToBrushConverter x:Key="HexToBrush"/>
+
+        <!-- One product: toggle, colour, name, zones in effect. Item type: TropicalKindRow. -->
+        <DataTemplate x:Key="KindRowTemplate" x:DataType="vm:TropicalKindRow">
+            <CheckBox MinWidth="0" HorizontalAlignment="Stretch" Margin="0,0,0,6"
+                      IsChecked="{x:Bind IsShown, Mode=TwoWay}"
+                      Opacity="{x:Bind RowOpacity, Mode=OneWay}"
+                      ToolTipService.ToolTip="{x:Bind ToolTip}">
+                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2" VerticalAlignment="Center"
+                            Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind Label}" FontSize="13" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind local:TropicalInput.Fmt(Count), Mode=OneWay}"
+                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </Grid>
+            </CheckBox>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <StackPanel VerticalAlignment="Top">
+        <!-- THE CARD -->
+        <Border CornerRadius="8" Padding="13,12"
+                Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                BorderThickness="1"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+            <StackPanel>
+                <TextBlock Text="{x:Bind ViewModel.CardHeadline, Mode=OneWay}" FontSize="15" TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <TextBlock Text="{x:Bind ViewModel.CardContext, Mode=OneWay}"
+                           FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
+                           Visibility="{x:Bind HasText(ViewModel.CardContext), Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Text="{x:Bind ViewModel.CardFooter, Mode=OneWay}"
+                           FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                           Visibility="{x:Bind HasText(ViewModel.CardFooter), Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+            </StackPanel>
+        </Border>
+
+        <TextBlock Text="WARNINGS" Style="{StaticResource AtlasFieldLabelStyle}" Margin="0,14,0,6"/>
+        <ItemsControl ItemsSource="{x:Bind ViewModel.Warnings}" ItemTemplate="{StaticResource KindRowTemplate}"/>
+
+        <TextBlock Text="WATCHES" Style="{StaticResource AtlasFieldLabelStyle}" Margin="0,8,0,6"/>
+        <ItemsControl ItemsSource="{x:Bind ViewModel.Watches}" ItemTemplate="{StaticResource KindRowTemplate}"/>
+    </StackPanel>
+</UserControl>

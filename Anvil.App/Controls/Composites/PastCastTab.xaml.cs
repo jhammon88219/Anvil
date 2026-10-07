@@ -175,6 +175,9 @@ namespace Anvil.Controls.Composites
 		private void OnDiscussionsHeaderClick(object sender, RoutedEventArgs e) =>
 			ViewModel?.Discussions.ToggleAll();
 
+		private void OnTropicalHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.Tropical.ToggleAll();
+
 		private void OnPastWarningsHeaderClick(object sender, RoutedEventArgs e) =>
 			ViewModel?.PastAlerts.Warnings.ToggleAll();
 

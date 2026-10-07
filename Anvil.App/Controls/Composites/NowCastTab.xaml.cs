@@ -77,6 +77,8 @@ namespace Anvil.Controls.Composites
 
 		private void OnDiscussionsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.Discussions.ToggleAll();
 
+		private void OnTropicalHeaderClick(object sender, RoutedEventArgs e) => ViewModel.Tropical.ToggleAll();
+
 		// ── Header ──
 
 		/// <summary>A tile with nothing in effect is DIMMED, never hidden — the three keep their places.</summary>

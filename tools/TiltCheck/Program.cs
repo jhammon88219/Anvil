@@ -147,6 +147,32 @@ if (args.Length > 0 && args[0] == "--messages")
     return 0;
 }
 
+// --tropical [yyyy-MM-ddTHH:mmZ hours]: the tropical watches/warnings (TropicalService) LIVE, then a PAST window
+// (default: Helene's Florida landfall, 2024-09-26 18Z + 12 h) — zones per product, per storm, and the file size.
+// The real-data check for the WWA rewrite, the IEM build and the ATCF storm names.
+if (args.Length > 0 && args[0] == "--tropical")
+{
+    var svc = new TropicalService();
+    void Print(string what, TropicalFetch f)
+    {
+        Console.WriteLine($"== {what}: found={f.Found} zones={f.Zones.Count} {f.Error}");
+        foreach (var g in f.Zones.GroupBy(z => z.ProductId).OrderBy(g => Anvil.Models.TropicalProducts.ById(g.Key)?.Priority))
+            Console.WriteLine($"   {Anvil.Models.TropicalProducts.ById(g.Key)?.Name,-24} {g.Count(),4}");
+        foreach (var s in f.Storms) Console.WriteLine($"   storm {s.Key} = {s.Value} ({f.Zones.Count(z => z.StormKey == s.Key)} zones)");
+        Console.WriteLine($"   unnamed zones: {f.Zones.Count(z => z.StormKey.Length == 0)}");
+        var file = Path.Combine(svc.CacheDirectory, Path.GetFileName(new Uri(f.Url.Length > 0 ? f.Url : "https://x/none").AbsolutePath));
+        if (File.Exists(file)) Console.WriteLine($"   file {Path.GetFileName(file)} {new FileInfo(file).Length / 1024} KB");
+    }
+    Print("live", await svc.FetchLiveAsync());
+    var from = args.Length > 1 ? DateTimeOffset.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture) : new DateTimeOffset(2024, 9, 26, 18, 0, 0, TimeSpan.Zero);
+    var hours = args.Length > 2 ? double.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture) : 12;
+    var past = await svc.FetchPastAsync(from, from.AddHours(hours));
+    Print($"past {from:yyyy-MM-dd HH:mm}Z +{hours} h", past);
+    var mid = from.AddHours(hours / 2);
+    Console.WriteLine($"   in effect at {mid:HH:mm}Z: {past.Zones.Count(z => z.IsInEffectAt(mid))}");
+    return 0;
+}
+
 // --supp SITE yyyy/MM/dd [SITE yyyy/MM/dd …]: every volume of each site-day, metadata record ONLY (8 KB range read,
 // raw keys — .gz has no readable prefix), tallied by what Message 5 says about SAILS / MRLE / MPDA / base tilt and
 // by which tilts its table actually repeats. The research behind the "Extra sweeps" row (2026-10-07): does the

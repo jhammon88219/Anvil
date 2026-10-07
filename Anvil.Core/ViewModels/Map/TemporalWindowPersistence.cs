@@ -255,5 +255,21 @@ namespace Anvil.ViewModels
 
 		// A hand-edited file can hold anything; an opacity outside 0-1 would push a nonsense value to the page.
 		private static double Unit(double v) => double.IsFinite(v) ? Math.Clamp(v, 0, 1) : 1;
+
+		/// <summary>
+		/// The Tropical section's choices (shared by NowCast and PastCast, like the discussions): restore, then save as
+		/// they change. Its own entry point so the long Attach signatures above don't grow for one subsystem.
+		/// </summary>
+		public static void AttachTropical(AppSettings s, TropicalViewModel tropical)
+		{
+			if (s.TropicalHiddenKinds is { } hidden) { tropical.RestoreHidden(hidden); }
+			if (s.TropicalOpacity is double o) { tropical.Opacity = Unit(o); }
+
+			tropical.KindsChanged += (_, _) => s.TropicalHiddenKinds = tropical.HiddenKindIds;
+			tropical.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(TropicalViewModel.Opacity)) { s.TropicalOpacity = tropical.Opacity; }
+			};
+		}
 	}
 }

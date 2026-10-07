@@ -38,6 +38,7 @@
        │   [x] ■ Tornado                            0                 │
        │   [x] ■ Severe thunderstorm                7                 │
        │ ⠿ › [-] Watches         ─────────────────●   100%            │  [-] = some types ticked
+       │ ⠿ › [x] Tropical        ─────────────────●   100%            │  hurricane / TS / surge / extreme-wind ZONES, NWS colours (TropicalInput)
        │ ⠿ › [x] Mesoscale discussions ───────────●   100%            │  MDs + MPDs: areas + what's in effect (reader = MD window)
        │ ⠿   ░░ ░SPC outlook · ForeCast░░░░░░░░░░░░░░░░░░░░           │  ← GHOST (IsGhost): ForeCast's layer, 25%,
        │                                                              │    drag-only; only while the box is on AND
@@ -485,6 +486,20 @@
                            OpacityToolTip="Opacity of the watch boxes (fill and outline together)">
             <comp:PhenomOverlayInput AlertNoun="watches"
                                      ViewModel="{x:Bind ViewModel.Watches, Mode=OneWay}"/>
+        </prim:PanelSection>
+
+        <!-- Tropical: hurricane / tropical storm / storm surge / extreme wind watches + warnings as ZONES in the NWS
+             colours, live. Shared control with the Past window (TropicalViewModel). -->
+        <prim:PanelSection x:Name="TropicalSection" Header="Tropical" LayerId="tropical" Reordered="OnSectionsReordered"
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Tropical.AllShown, Mode=OneWay}"
+                           CheckBoxClick="OnTropicalHeaderClick"
+                           CheckBoxToolTip="Show or hide every tropical watch and warning"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.Tropical.Opacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.Tropical.AnyShown, Mode=OneWay}"
+                           OpacityToolTip="Opacity of the tropical zones">
+            <comp:TropicalInput ViewModel="{x:Bind ViewModel.Tropical, Mode=OneWay}"/>
         </prim:PanelSection>
 
         <!-- Mesoscale discussions: SPC MDs + WPC MPDs, drawn as in effect now, the last 24 h listed to read.

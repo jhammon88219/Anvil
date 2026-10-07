@@ -196,6 +196,10 @@
     <Content Update="Assets\Map\js\radar-scope.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- Tropical watches + warnings (hurricane / TS / surge / extreme wind zones). -->
+    <Content Update="Assets\Map\js\tropical.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <!-- SITE-REVEAL (experimental bolt-on): only the radar sites near the cursor show. -->
     <Content Update="Assets\Map\js\site-reveal.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

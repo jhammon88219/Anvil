@@ -48,6 +48,7 @@
        │     [EFU][EF0][EF1][EF2][EF3][EF4][EF5]              │  │ ← DAT's own EF colours
        │ ⠿ › [x] Warnings       ──────────●  100%             │  │ as in effect at the FRAME on
        │ ⠿ › [x] Watches        ──────────●  100%             │  │ screen (IEM VTEC archive)
+       │ ⠿ › [x] Tropical       ──────────●  100%             │  │ hurricane / TS / surge zones at the frame (IEM)
        │ ⠿ › [x] Mesoscale discussions ───●  100%             │  │ MDs + MPDs: areas + what's in effect (reader = MD window)
        │ ⠿ › [x] SPC outlook    ───────●───   55%             │  │ box = show/hide, any product
        │ ⠿   [x] Radar          ──────────●─   85%            │  ┘ header only
@@ -719,6 +720,21 @@
                            OpacityToolTip="Opacity of the watch counties (fill and outline together)">
             <comp:PhenomOverlayInput AlertNoun="watches"
                                      ViewModel="{x:Bind ViewModel.PastAlerts.Watches, Mode=OneWay}"/>
+        </prim:PanelSection>
+
+        <!-- ===================== TROPICAL ===================== -->
+        <!-- Hurricane / tropical storm / storm surge / extreme wind zones for the LOADED window (IEM's archive), drawn
+             as in effect at the displayed frame. Shared control with the Now window (TropicalViewModel). -->
+        <prim:PanelSection x:Name="TropicalSection" Header="Tropical" LayerId="tropical" Reordered="OnSectionsReordered"
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Tropical.AllShown, Mode=OneWay}"
+                           CheckBoxClick="OnTropicalHeaderClick"
+                           CheckBoxToolTip="Show or hide every tropical watch and warning"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.Tropical.Opacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.Tropical.AnyShown, Mode=OneWay}"
+                           OpacityToolTip="Opacity of the tropical zones">
+            <comp:TropicalInput ViewModel="{x:Bind ViewModel.Tropical, Mode=OneWay}"/>
         </prim:PanelSection>
 
         <!-- ===================== MESOSCALE DISCUSSIONS ===================== -->

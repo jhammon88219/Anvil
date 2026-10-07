@@ -387,6 +387,22 @@ namespace Anvil.Services
 		/// <summary>Tears the discussion overlay down (source, layers, selection).</summary>
 		Task ClearDiscussionsAsync();
 
+		// ---- Tropical watches + warnings (tropical.js) ----
+
+		/// <summary>The tropical zones file (TropicalService). A live refresh re-sends the SAME url.</summary>
+		Task SetTropicalSourceAsync(string url);
+
+		/// <summary>Which products draw, as comma-separated <c>TropicalProducts</c> ids ("HU.W,HU.A"); empty = none.</summary>
+		Task SetTropicalKindsAsync(string productIds);
+
+		/// <summary>The moment to draw (PastCast's displayed frame, epoch ms); null = live, every zone is in effect.</summary>
+		Task SetTropicalTimeAsync(long? timeMs);
+
+		Task SetTropicalOpacityAsync(double opacity);
+
+		/// <summary>Tears the tropical overlay down.</summary>
+		Task ClearTropicalAsync();
+
 		/// <summary>Highlights the selected site marker (empty clears the highlight).</summary>
 		Task SetSelectedRadarSiteAsync(string? siteId);
 

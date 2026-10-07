@@ -108,6 +108,7 @@ try {
     var StormCells = null;
     var PastAlerts = null;
     var Discussions = null;
+    var Tropical = null;
     var Markers = null;
     var RadarSites = null;
     var States = null;
@@ -127,6 +128,7 @@ try {
         if (Watches) Watches.reAdd(map);                 // re-add the watch layers (data is still in memory)
         if (Warnings) Warnings.reAdd(map);               // re-add the warning polygons (above the watches)
         if (PastAlerts) PastAlerts.reAdd(map);           // PastCast's own watches + warnings (same groups as the live pair)
+        if (Tropical) Tropical.reAdd(map);               // tropical watches + warnings (hurricane / TS / surge zones)
         if (Discussions) Discussions.reAdd(map);         // mesoscale discussions (SPC MD + WPC MPD areas)
         if (DamageSurveys) DamageSurveys.reAdd(map);     // NWS damage surveys (under labels, so under the report dots)
         if (StormReports) StormReports.reAdd(map);       // re-add the storm-report dots (top of the stack)
@@ -544,6 +546,15 @@ try {
     window.setDiscussionSelected = function (key) { if (Discussions) forEachMap(function (m) { Discussions.setSelected(m, key); }); };
     window.focusDiscussion = function (key) { if (Discussions && primary()) Discussions.focus(primary(), key); };
     window.clearDiscussions = function () { if (Discussions) forEachMap(function (m) { Discussions.clear(m); }); };
+
+    // Tropical watches + warnings (tropical.js): hurricane / tropical storm / storm surge / extreme wind ZONES in the
+    // NWS colours, live (time null) or as in effect at PastCast's displayed frame.
+    import('./tropical.js').then(function (m) { Tropical = m; }).catch(function (e) { console.error('tropical.js load failed: ' + e); });
+    window.setTropicalSource = function (url) { if (Tropical) forEachMap(function (m) { Tropical.setSource(m, url); }); };
+    window.setTropicalKinds = function (csv) { if (Tropical) forEachMap(function (m) { Tropical.setKinds(m, csv); }); };
+    window.setTropicalTime = function (ms) { if (Tropical) forEachMap(function (m) { Tropical.setTime(m, ms); }); };
+    window.setTropicalOpacity = function (o) { if (Tropical) forEachMap(function (m) { Tropical.setOpacity(m, o); }); };
+    window.clearTropical = function () { if (Tropical) forEachMap(function (m) { Tropical.clear(m); }); };
 
     // Animated camera moves go to the PRIMARY only; onPaneMove mirrors them to the other panes as they
     // play, so the panes stay locked without four animations fighting each other.

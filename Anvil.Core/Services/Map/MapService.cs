@@ -197,6 +197,21 @@ namespace Anvil.Services
 		public Task ClearDiscussionsAsync() =>
 			_mapView.RunScriptAsync(Call("clearDiscussions"));
 
+		public Task SetTropicalSourceAsync(string url) =>
+			_mapView.RunScriptAsync(Call("setTropicalSource", url));
+
+		public Task SetTropicalKindsAsync(string productIds) =>
+			_mapView.RunScriptAsync(Call("setTropicalKinds", productIds));
+
+		public Task SetTropicalTimeAsync(long? timeMs) =>
+			_mapView.RunScriptAsync($"window.setTropicalTime({timeMs?.ToString(CultureInfo.InvariantCulture) ?? "null"});");
+
+		public Task SetTropicalOpacityAsync(double opacity) =>
+			_mapView.RunScriptAsync(Call("setTropicalOpacity", opacity));
+
+		public Task ClearTropicalAsync() =>
+			_mapView.RunScriptAsync(Call("clearTropical"));
+
 		public Task SetPastAlertTimeAsync(long? timeMs) =>
 			_mapView.RunScriptAsync($"window.setPastAlertTime({timeMs?.ToString(CultureInfo.InvariantCulture) ?? "null"});");
 
