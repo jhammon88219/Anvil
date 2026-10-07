@@ -89,7 +89,7 @@ static class RegimeCheck
         var t0 = byElev.TryGetValue(1, out var first) ? first[0].Time : radials.Min(r => r.Time);
 
         Console.WriteLine($"   VCP {vcp}, {plan.Count} planned cuts, start {t0:HH:mm:ss.f}Z");
-        Console.WriteLine("   cut  angle  w flags      rate°/s  plan s | real s  gap s | end+s  arrive s");
+        Console.WriteLine("   cut  angle  w flags      rate°/s  plan s | real s  gap s | end+s  arrive s  last-status");
 
         var rows = new List<(PlannedCut cut, double? end, double? sweep)>();
         DateTimeOffset? prevEnd = null;
@@ -110,7 +110,7 @@ static class RegimeCheck
             allLatency.Add(arrive);
             Console.WriteLine($"   {cut.Number,3}  {cut.Angle,5:0.00}  {cut.Waveform} {Flags(cut),-9}  {cut.AzimuthRate,6:0.00}  {cut.SweepSeconds,6:0.0} | " +
                               $"{real,6:0.0} {(gap is { } gg ? gg.ToString("0.0", CultureInfo.InvariantCulture) : "  -"),6} | " +
-                              $"{(endR.Time - t0).TotalSeconds,5:0} {arrive,8:0}");
+                              $"{(endR.Time - t0).TotalSeconds,5:0} {arrive,8:0}  {endR.Status} ({StatusName(endR.Status)})");
             rows.Add((cut, (endR.Time - t0).TotalSeconds, real));
             prevEnd = endR.Time;
         }
@@ -170,6 +170,10 @@ static class RegimeCheck
             p += 24;
         }
     }
+
+    // Message 31 radial status: 0 start of elevation, 1 intermediate, 2 END OF ELEVATION, 3 start of volume, 4 end of
+    // volume, 5 start of the last elevation in the volume.
+    static string StatusName(int s) => s switch { 0 => "start", 1 => "mid", 2 => "END-ELEV", 3 => "vol-start", 4 => "END-VOL", 5 => "last-elev", _ => "?" };
 
     static string Flags(PlannedCut c) =>
         (c.IsSails ? $"SAILS{c.SailsSequence} " : "") + (c.IsMrle ? "MRLE" : "");
