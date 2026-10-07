@@ -171,8 +171,8 @@
             <!-- One cell per frame (ViewModel.Segments), each lighting as its frame builds — the load
                  indicator for the whole loop (Rule 2). TWO looks, picked in Settings → Radar Console
                  (ViewModel.IsDotMatrixScrubber): Primitives/ClassicScrubber (8 px cells + playhead) or
-                 Primitives/DotMatrixScrubber (5 rows of dots, 17.5 tall). Both are drawing only; THIS host is the
-                 20 px hit strip and maps the pointer (equal slots — both draw on the same division). -->
+                 Primitives/DotMatrixScrubber (one even run of dots, 5 rows, 17.5 tall). Both are drawing only; THIS
+                 host is the 20 px hit strip and maps the pointer (classic: equal slots; dots: DotScrubber.IndexAt). -->
             <Grid x:Name="ScrubberHost"
                   Grid.Row="0"
                   Height="20"
@@ -188,7 +188,8 @@
                                       CurrentIndex="{x:Bind ViewModel.CurrentFrameIndex, Mode=OneWay}"
                                       Visibility="{x:Bind ClassicVisibility(ViewModel.IsDotMatrixScrubber), Mode=OneWay}"/>
                 <!-- FillOrder="BottomToTop" is the other look to try (DotFillOrder). -->
-                <prim:DotMatrixScrubber Segments="{x:Bind ViewModel.Segments, Mode=OneWay}"
+                <prim:DotMatrixScrubber x:Name="DotScrubber"
+                                        Segments="{x:Bind ViewModel.Segments, Mode=OneWay}"
                                         CurrentIndex="{x:Bind ViewModel.CurrentFrameIndex, Mode=OneWay}"
                                         FillOrder="LeftToRight"
                                         Visibility="{x:Bind ViewModel.IsDotMatrixScrubber, Mode=OneWay}"/>

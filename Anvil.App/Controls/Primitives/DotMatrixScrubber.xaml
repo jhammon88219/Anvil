@@ -1,20 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- DotMatrixScrubber — the loop scrubber drawn in the tools tier's DOT language (MapControlsStripSeparator's dot
-     size and pitch): one BLOCK of dots per frame, each block filling as its frame loads, the frame on screen lit whole.
+     size and pitch): ONE UNBROKEN RUN of dots, like a separator — each frame owns an equal run of its columns, with NO
+     gap between frames; a frame shows only by its colour (filling as it loads, the frame on screen lit whole).
 
-       ┌─ host width (the console's 420) split into EQUAL SLOTS, one per frame ─────────────────────────────────┐
-       │  ● ● ● ●   ● ● ● ●   ● ● ○ ○   ◌ ◌ ◌ ◌   ◌ ◌ ◌ ◌                                                    │
-       │  ● ● ● ●   ● ● ● ●   ● ● ○ ○   ◌ ◌ ◌ ◌   ◌ ◌ ◌ ◌     ● READY  (built + revealed, Rule 2)              │
-       │  ● ● ● ●   ◆ ◆ ◆ ◆   ● ● ● ○   ◌ ◌ ◌ ◌   ◌ ◌ ◌ ◌     ◆ CURRENT (the frame on screen: the whole block)  │
-       │  ● ● ● ●   ◆ ◆ ◆ ◆   ● ● ● ○   ◌ ◌ ◌ ◌   ◌ ◌ ◌ ◌     ○ FILLING (Segment.Fill: half bytes, half build)  │
-       │  ● ● ● ●   ◆ ◆ ◆ ◆   ● ● ● ●   ◌ ◌ ◌ ◌   ◌ ◌ ◌ ◌     ◌ EMPTY  (a touch brighter than the separators)   │
+       ┌─ host width (the console's 420); the run CENTRED in it ──────────────────────────────────────────────┐
+       │ ● ● ● ● ● ● ● ● ● ● ● ● ● ● ○ ○ ○ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌                                         │
+       │ ● ● ● ● ● ● ● ● ● ● ● ● ● ● ○ ○ ○ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌   ● READY  (built + revealed, Rule 2)    │
+       │ ● ● ● ● ● ◆ ◆ ◆ ◆ ◆ ● ● ● ● ● ○ ○ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌   ◆ CURRENT (the frame on screen, whole) │
+       │ ● ● ● ● ● ◆ ◆ ◆ ◆ ◆ ● ● ● ● ● ○ ○ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌   ○ FILLING (Segment.Fill: bytes + build) │
+       │ ● ● ● ● ● ◆ ◆ ◆ ◆ ◆ ● ● ● ● ● ○ ○ ○ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌   ◌ EMPTY  (a touch above the separators) │
        └──────────────────────────────────────────────────────────────────────────────────────────────────────┘
-          ↑ Rows (5) × as many columns as the slot holds, DotSize 1.5 · DotGap 2.5 (pitch 4, the separators'),
-            at least one pitch of gutter between blocks; squeezes to 1 column × Rows when frames are many.
+          └ frame 0 ┘└ frame 1 ┘└ frame 2 ┘ … every frame the SAME column count: (width ÷ pitch) ÷ frames, at least 1
+          ↑ Rows (5), DotSize 1.5 · DotGap 2.5 (pitch 4, the separators') — the pitch never breaks between frames.
           ↑ FillOrder: LeftToRight (column by column, each from the bottom — the default) | BottomToTop (row by row).
 
-     ⚠️ SLOTS ARE EQUAL (width ÷ count), the same division the host's seek maps a pointer with — so a click lands on
-     the block under it. Blocks are centred in their slot and rounded to whole pixels.
+     ⚠️ The run is CENTRED, so its frames are NOT the strip's equal slots: the host's seek asks IndexAt(x), which
+     maps against the drawn run — a click lands on the columns under it. Left-over pixels split between the ends.
+     It does NOT align to anything above it.
      ⚠️ Dot looks are STYLES (EmptyDot / FillingDot / ReadyDot / CurrentDot), set from code — never a theme brush
      resolved in C#. A dot's style is re-set only when its STATE changes (a load ticks every 150 ms).
      ⚠️ Not hit-testable: the host (RadarControls.ScrubberHost) owns the pointer. -->

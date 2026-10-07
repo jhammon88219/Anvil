@@ -73,8 +73,8 @@ namespace Anvil.Controls.Composites
 
 		// ---- Segmented scrubber interaction ----
 		// The scrubber is drawn (Primitives/ClassicScrubber or DotMatrixScrubber), not a Slider, so seeking is
-		// handled here: press/drag on the strip maps the pointer x to a frame index over EQUAL slots — the division
-		// both scrubbers draw on. Playback pauses on grab so the drag isn't fought by the advancing loop; the drawn
+		// handled here: press/drag on the strip maps the pointer x to a frame index — EQUAL slots for the classic cells,
+		// DotMatrixScrubber.IndexAt for the dot run (centred, so it isn't the strip's slots). Playback pauses on grab so the drag isn't fought by the advancing loop; the drawn
 		// scrubber follows CurrentFrameIndex on its own.
 		private bool _scrubbing;
 
@@ -114,7 +114,10 @@ namespace Anvil.Controls.Composites
 			var width = ScrubberHost.ActualWidth;
 			if (count <= 0 || width <= 0) return;
 			var x = e.GetCurrentPoint(null).Position.X - _dragOriginX; // against the PRESS origin — see _dragOriginX
-			var idx = Math.Clamp((int)Math.Floor(x / (width / count)), 0, count - 1);
+			// The dot matrix is one centred run (its columns, not equal slots of the strip) — ask it; classic = slots.
+			var idx = ViewModel.IsDotMatrixScrubber && DotScrubber.IndexAt(x) is var dot and >= 0
+				? dot
+				: Math.Clamp((int)Math.Floor(x / (width / count)), 0, count - 1);
 			// Can't scrub past the built frontier onto a blank slower-product / undecoded frame (the reachable
 			// range grows as the active product builds; reflectivity is the full decoded range).
 			idx = Math.Min(idx, ViewModel.MaxReachableFrame);

@@ -193,7 +193,18 @@ namespace Anvil.Controls.Primitives
 		private int LitIndex() =>
 			_blocks.Count == 0 ? -1 : Math.Clamp((int)Math.Round(CurrentIndex), 0, _blocks.Count - 1);
 
-		// ---- Layout: equal slots, one block of dots centred in each ----
+		/// <summary>The frame under <paramref name="x"/> (DIPs from this control's left edge), clamped to the loop —
+		/// the host's seek reads this so a click lands on the run of columns drawn under it. -1 with no loop.</summary>
+		public int IndexAt(double x)
+		{
+			if (_blocks.Count == 0 || _frameStride <= 0) return -1;
+			return Math.Clamp((int)Math.Floor((x - _runLeft) / _frameStride), 0, _blocks.Count - 1);
+		}
+
+		// ---- Layout: ONE even run of dots, each frame an equal run of its columns, no gap between frames ----
+		// Where the run starts and how wide a frame's columns are, for IndexAt.
+		private double _runLeft;
+		private double _frameStride;
 
 		private void Layout()
 		{
@@ -207,19 +218,22 @@ namespace Anvil.Controls.Primitives
 			if (count == 0 || width <= 0)
 			{
 				_litIndex = -1;
+				_frameStride = 0;
 				return;
 			}
 
 			var rows = Math.Max(1, Rows);
 			var pitch = DotSize + DotGap;
-			var slot = width / count;
-			// As many columns as leave at least one PITCH of gutter to the next block; never fewer than one.
-			var columns = Math.Max(1, (int)Math.Floor((slot - DotSize) / pitch));
-			var blockWidth = columns * DotSize + (columns - 1) * DotGap;
+			// The SAME number of columns for every frame: as many as the width holds at the pitch, never fewer than one.
+			var fit = Math.Max(1, (int)Math.Floor((width + DotGap) / pitch));
+			var columns = Math.Max(1, fit / count);
+			var runWidth = count * columns * pitch - DotGap;
+			_runLeft = Math.Round((width - runWidth) / 2); // centred; the few left-over pixels split between the ends
+			_frameStride = columns * pitch;
 
 			for (var s = 0; s < count; s++)
 			{
-				var left = Math.Round(s * slot + (slot - blockWidth) / 2);
+				var left = _runLeft + s * _frameStride;
 				var dots = new Ellipse[columns * rows];
 				for (var i = 0; i < dots.Length; i++)
 				{
