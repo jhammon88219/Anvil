@@ -53,8 +53,10 @@ namespace Anvil
 	//   │═══════════════════ map tools tier (or the bar, if hidden) ══════════════│  …the bottom chrome
 	//   └──────────────────────────────────────────────────────────────────────────┘
 	//
-	// ⚠️ MEASURED ONCE, AT OPEN, and always to the designated spot — a window reopened after being dragged
-	// comes back home, and nothing reflows when other panels open or chrome hides. Overlap is allowed.
+	// ⚠️ MEASURED AT OPEN, and always to the designated spot — a window reopened after being dragged comes back
+	// home, and nothing reflows when other panels open or chrome hides. Overlap is allowed.
+	// ⚠️ …AND RE-MEASURED when the MAIN WINDOW resizes, maximizes, restores or moves — for LOCKED panels only (an
+	// unlocked one is the user's to place). See FOLLOW below (2026-10-07).
 	// ⚠️ The centre window has a FLOOR (CenterMinWidth × CenterMinHeight): below it, it stops honouring the
 	// strips and overlaps them, still centred. An edge window never shrinks below 480 except to fit the
 	// main window itself.
@@ -127,6 +129,9 @@ namespace Anvil
 		// Keyed by INSTANCE, not id: a panel closed and reopened quickly can have its new window's lock attached
 		// before the old HWND's WM_NCDESTROY runs, and removing by id would drop the new window's delegate.
 		private readonly HashSet<FrameLock> _locks = new();
+		// Each OPEN panel's HWND + its lock state, by id — what the FOLLOW pass re-places (see FollowOwner).
+		private readonly Dictionary<string, (IntPtr Hwnd, FrameLock Lock)> _frames = new();
+		private bool _followQueued;
 		// Ids we are closing ourselves (the flag went false elsewhere), so the Closed handler doesn't mistake
 		// it for the user clicking the OS caption's Close and re-fire the Close action.
 		private readonly HashSet<string> _closingProgrammatically = new();
@@ -153,6 +158,43 @@ namespace Anvil
 			_monitorMode = monitorMode;
 			coordinator.PropertyChanged += (_, _) => RequestReconcile();
 			owner.Closed += (_, _) => { _ownerClosed = true; CloseAll(); }; // don't leak panel windows when the app closes
+			// The main window resized, maximized, restored or moved → the locked panels follow (see FOLLOW).
+			owner.AppWindow.Changed += (_, e) => { if (e.DidSizeChange || e.DidPositionChange) RequestFollow(); };
+			// …and again once XAML has laid the new size out: the panels' bottom bound (_availableBottom, the tools
+			// tier's top) is a LAYOUT measurement, and Changed can fire before layout catches up.
+			if (owner.Content is FrameworkElement root) root.SizeChanged += (_, _) => RequestFollow();
+		}
+
+		// ===== FOLLOW — the locked panels go where their anchor says, after the main window changes =====
+		// Restoring the main window from maximized (the bar's caption key) left every panel at its MAXIMIZED spot,
+		// laid over the smaller main window (app note, 2026-10-06). Now a LOCKED panel is re-placed to its anchor,
+		// measured off the main window as it is now. ⚠️ UNLOCKED panels are left alone: unlocking is how you say
+		// "I'll place this one" — and panels are locked by default, so the common case follows.
+		// ⚠️ Size/position changes of the MAIN WINDOW only: panels still don't reflow when another panel opens or the
+		// chrome hides (the PLACEMENT block). A minimized panel, or a minimized main window, is skipped.
+		// Coalesced to one pass per dispatcher turn: a live drag-resize fires Changed many times a second.
+		private void RequestFollow()
+		{
+			if (_dispatcher is null || _followQueued || _frames.Count == 0) return;
+			_followQueued = true;
+			_dispatcher.TryEnqueue(FollowOwner);
+		}
+
+		private void FollowOwner()
+		{
+			_followQueued = false;
+			if (_owner is null || _ownerClosed) return;
+			if (IsIconic(WinRT.Interop.WindowNative.GetWindowHandle(_owner))) return;
+			double scale = (_owner.Content as FrameworkElement)?.XamlRoot?.RasterizationScale ?? 1.0;
+
+			foreach (var (id, frame) in _frames)
+			{
+				if (!_regs.TryGetValue(id, out var reg) || !reg.IsLocked() || IsIconic(frame.Hwnd)) continue;
+				if (ComputePlacement(reg.Anchor, scale) is not { } target) continue;
+				frame.Lock.Placing = true; // our own move — the lock lets it through
+				PlaceVisibleFrame(frame.Hwnd, target.X, target.Y, target.W, target.H);
+				frame.Lock.Placing = false;
+			}
 		}
 
 		/// <summary>
@@ -299,6 +341,7 @@ namespace Anvil
 
 			window.Closed += (_, _) => OnWindowClosed(reg);
 			_windows[reg.Id] = window;
+			_frames[reg.Id] = (hwnd, frameLock);
 			window.Activate();
 
 			if (target is { } after) PlaceVisibleFrame(hwnd, after.X, after.Y, after.W, after.H);
@@ -462,6 +505,7 @@ namespace Anvil
 		private void OnWindowClosed(Registration reg)
 		{
 			_windows.Remove(reg.Id);
+			_frames.Remove(reg.Id);
 			if (_closingProgrammatically.Remove(reg.Id))
 			{
 				// We closed it (the flag was turned off elsewhere) — the VM is already correct.
