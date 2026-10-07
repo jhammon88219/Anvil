@@ -56,6 +56,10 @@ namespace Anvil.Services
 		/// </summary>
 		IReadOnlySet<string> GetHatchGroupsInOutlook(SpcOutlookProduct product);
 
+		/// <summary>The highest solid category the product's CACHED outlook contains, with its colour (the feed's
+		/// own fill, else the catalog's); null when it has no areas or isn't cached.</summary>
+		OutlookPeak? GetHighestLevelInOutlook(SpcOutlookProduct product);
+
 		/// <summary>
 		/// Fetches every product and writes each to the cache (one GeoJSON per product).
 		/// Conditional GETs skip unchanged outlooks; the last-known-good file is kept on

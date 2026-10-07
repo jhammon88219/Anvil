@@ -47,6 +47,9 @@ namespace Anvil.Controls.Composites
 		// A ghost row shows only while its box is on and NowCast runs (MapViewModel.AreNowCastGhostsShown).
 		public Visibility GhostVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
 
+		/// <summary>The header readout: "No areas" / "No outlook" dims to 40% (PastCast's placeholder rule).</summary>
+		public double PeakOpacity(bool hasPeak) => hasPeak ? 1.0 : 0.4;
+
 		// "Discussion." on the Product row — SPC's forecast discussion in its own window.
 		private void OnDiscussionClick(object sender, RoutedEventArgs e)
 		{

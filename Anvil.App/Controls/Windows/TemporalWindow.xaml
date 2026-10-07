@@ -4,8 +4,8 @@
      the window.
 
        ┌─────────────────────────────────────────[lock][pin]─┐
-       │  ForeCast                                            │  ← the mode's name, from Mode — HIDDEN for
-       │                                                      │    NowCast + PastCast (their headers carry it)
+       │  ┌──┐ ForeCast                    │ MDT 4/5          │  ← NO window title: each BODY opens with its
+       │  └──┘ Day 1 · Wed Sep 2           │ next ~9 min      │    own NAME ROW (all three, 2026-10-07)
        │  (fixed 480 × full height; the BODY scrolls itself)  │
        │  ┌──────────────────────────────────────────────┐    │
        │  │                                              │    │
@@ -55,17 +55,9 @@
              mc:Ignorable="d">
 
     <!-- Dark surface fills the whole window. -->
+    <!-- ⚠️ NO TITLE ROW any more: every body opens with its own NAME ROW (status square · name over a date line ·
+         a readout), so the mode's name shows once, in the body (ForeCast was the last, 2026-10-07). -->
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- title -->
-            <!-- Star so the body fills the full-height window WindowManager opens it at. -->
-            <RowDefinition Height="*"/>    <!-- body -->
-        </Grid.RowDefinitions>
-
-        <!-- The mode's own name, in the same vocabulary as its bar key. Filled by ApplyMode. -->
-        <TextBlock x:Name="TitleText" Grid.Row="0" Margin="16,14,16,0"
-                   FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
         <!-- ⚠️ NO ScrollViewer HERE. The window opens at the FULL height above the bottom chrome (WindowManager's
              edge anchors), so a body shorter than that just shows surface below it. A body scrolls ITSELF with
@@ -74,7 +66,7 @@
              discussion stays pinned below its scrolling outlook.
              VerticalContentAlignment Stretch hands the body the full row height: Past/Now top-align their own
              roots and are unaffected, ForeCast stretches so its legend can fill what is left. -->
-        <ContentPresenter x:Name="BodyHost" Grid.Row="1" Margin="16,14,16,14"
+        <ContentPresenter x:Name="BodyHost" Margin="16,14,16,14"
                           HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
 
         <!-- Lock + pin. Bound in code-behind — the flags they drive depend on Mode. -->

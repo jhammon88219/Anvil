@@ -240,8 +240,8 @@
                     <RowDefinition Height="Auto"/> <!-- the three pickers + [ Set Timeframe ] [Clear], one grid -->
                 </Grid.RowDefinitions>
 
-                <!-- THE NAME ROW — NowCast's header, matched (the user's call, 2026-10-01; TemporalWindow hides
-                     PastCast's title for it). Both readouts describe the LOADED window (RadarViewModel's HEADER
+                <!-- THE NAME ROW — NowCast's header, matched (the user's call, 2026-10-01; TemporalWindow has no title
+                     row since ForeCast got one too, 2026-10-07). Both readouts describe the LOADED window (RadarViewModel's HEADER
                      block), never the pickers; with nothing loaded they are placeholders, dimmed to 40%.
                      ⚠️ The square is BLUE, a literal, and means nothing yet — recency doesn't apply to a replay
                      (the user's call: blue "until we decide otherwise"). Same shape as NowCast's feed bar. -->

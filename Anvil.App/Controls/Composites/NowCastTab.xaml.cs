@@ -82,6 +82,10 @@ namespace Anvil.Controls.Composites
 		/// <summary>A tile with nothing in effect is DIMMED, never hidden — the three keep their places.</summary>
 		public double TileOpacity(int count) => count == 0 ? 0.4 : 1.0;
 
+		/// <summary>A band arrow's glyph wears the BRIGHT data colour, which the button's disabled grey can't reach —
+		/// so a disabled arrow dims itself.</summary>
+		public double ArrowOpacity(bool enabled) => enabled ? 1.0 : 0.35;
+
 		// A tile's tag line ⇄ its "2 of 3 · place" line, by whether its arrows have you on a warning.
 		public Visibility Shown(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 		public Visibility Hidden(bool on) => on ? Visibility.Collapsed : Visibility.Visible;

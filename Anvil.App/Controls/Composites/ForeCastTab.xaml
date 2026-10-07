@@ -6,6 +6,10 @@
      control, unchanged by the split; renaming all three would be churn. Bound to the coordinator
      MapViewModel; every real control here drives ViewModel.Outlook.
 
+       ┌──┐ ForeCast                    │ MDT 4/5                  ← THE NAME ROW (Past/Now's, matched): square =
+       │██│ Day 1 · Wed Sep 2           │ next ~9 min                the HIGHEST category in the shown outlook, in
+       └──┘                                                          its SPC colour (blue = no areas); readout =
+                                                                     that category + the refresh countdown
        [x] Show NowCast ghost rows                               ← persisted, default off; fixed (doesn't scroll)
        ┌──────────────────────────────────────────────────────┐
        │ ⠿   ░░ ░Storm cells · NowCast░░░░░░░░░░░░░░░░░░░░░░░ │  ← GHOSTS (PanelSection IsGhost): NowCast's
@@ -86,20 +90,59 @@
 
     <UserControl.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:HexToBrushConverter x:Key="HexToBrush"/>
     </UserControl.Resources>
 
     <!-- ⚠️ NOT top-aligned, unlike the Past/Now roots: TemporalWindow hands this the full window height, and
          the star row is the SCROLLER, which fills it. -->
     <Grid x:Name="Root">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- THE NAME ROW: square · ForeCast over the day │ highest risk -->
             <RowDefinition Height="Auto"/> <!-- "Show NowCast ghost rows" -->
             <RowDefinition Height="*"/>    <!-- the layer run in PanelScroller: fills the space, scrolls when it can't -->
         </Grid.RowDefinitions>
 
+        <!-- ===================== THE NAME ROW — NowCast's / PastCast's header, matched (2026-10-07) =====================
+             The window's chrome carries no title any more (TemporalWindow); the name shows once, here.
+             ⚠️ THE SQUARE = the HIGHEST category the shown outlook contains, in its SPC colour (DATA, never themed —
+             the feed's own fill, else the catalog's), as NowCast's square is the warnings feed's staleness. No areas
+             / nothing shown = PastCast's blue (OutlookViewModel.NoAreasFill). Its tooltip names the category.
+             ⚠️ Padding LEFT 0 / RIGHT 4 = the section stack's edges — PastCast's + NowCast's rule; change together.
+             No TemporalHeaderMinHeight: there are no tiles or card under it to line up. -->
+        <Grid Grid.Row="0" Padding="0,12,4,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="22"/>   <!-- the square -->
+                <ColumnDefinition Width="*"/>    <!-- ForeCast over the day -->
+                <ColumnDefinition Width="Auto"/> <!-- hairline · highest risk over the countdown -->
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" CornerRadius="5,0,0,5"
+                    Background="{x:Bind ViewModel.Outlook.HeaderSquareFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
+                    ToolTipService.ToolTip="{x:Bind ViewModel.Outlook.HeaderSquareTip, Mode=OneWay}"/>
+            <StackPanel Grid.Column="1" Margin="12,0,12,0" Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="ForeCast" FontSize="30" FontWeight="SemiLight"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <TextBlock Text="{x:Bind ViewModel.Outlook.HeaderDayText, Mode=OneWay}" FontSize="13"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+            <!-- The CLOCK's spot: the highest risk at 30 SemiLight (the PastCast window range's size), the countdown
+                 under it. "No areas" / "No outlook" dims to 40%, PastCast's placeholder rule. -->
+            <Border Grid.Column="2" BorderThickness="1,0,0,0" Padding="12,0,0,0"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="{x:Bind ViewModel.Outlook.HeaderRiskText, Mode=OneWay}"
+                               FontSize="30" FontWeight="SemiLight"
+                               Opacity="{x:Bind PeakOpacity(ViewModel.Outlook.HasPeak), Mode=OneWay}"
+                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                    <TextBlock Text="{x:Bind ViewModel.Outlook.OutlookNextUpdateText, Mode=OneWay}" FontSize="13"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
         <!-- GHOST ROWS box: NowCast's layers as dimmed, drag-only rows around the outlook, so you can say where the
              outlook draws among them (ONE shared Now + Fore order). Persisted, default off; the rows show only
              while NowCast runs too (MapViewModel's GHOST ROWS block). -->
-        <CheckBox Grid.Row="0" Margin="0,0,0,8" Content="Show NowCast ghost rows"
+        <CheckBox Grid.Row="1" Margin="0,0,0,8" Content="Show NowCast ghost rows"
                   IsChecked="{x:Bind ViewModel.ShowNowCastGhostRows, Mode=TwoWay}"
                   ToolTipService.ToolTip="List NowCast's layers here, dimmed, so you can drag the outlook among them (shown while NowCast is on)"/>
 
@@ -110,7 +153,7 @@
              ⚠️ A StackPanel of its own (like Past/Now's "Sections"): the outlook + NowCast's ghost rows are ONE
              run. With the ghosts hidden the outlook is alone, so its grip shows but a drag never starts
              (PanelSection needs 2 visible). Reordered → SetLayerOrder(Now): the shared Now + Fore order. -->
-        <prim:PanelScroller Grid.Row="1" Margin="0,0,-12,0">
+        <prim:PanelScroller Grid.Row="2" Margin="0,0,-12,0">
         <StackPanel x:Name="Sections" VerticalAlignment="Top" Spacing="8">
 
         <!-- ===================== GHOSTS: NowCast's layers, in the map's default spots ===================== -->

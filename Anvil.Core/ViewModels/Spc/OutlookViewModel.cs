@@ -151,6 +151,7 @@ namespace Anvil.ViewModels
 
 				_selectedDay = value.Day;
 				SetProperty(ref _selectedDayOption, value);
+				OnPropertyChanged(nameof(HeaderDayText));
 
 				// Rebuild the option list, then re-select an option for the new day.
 				// Suppress overlay updates during the swap (the product combobox briefly
@@ -408,6 +409,39 @@ namespace Anvil.ViewModels
 		/// <summary>Countdown label to the next SPC outlook refresh (e.g. "next ~9 min").</summary>
 		public string OutlookNextUpdateText => NextUpdate.CountdownOf(_nextOutlookRefreshAt);
 
+		// ── The ForeCast window's HEADER (ForeCastTab's name row — NowCast's/PastCast's, matched) ──
+		// The square is the HIGHEST category the shown outlook contains, in its SPC colour (DATA, never themed) — as
+		// NowCast's square is the warnings feed's staleness. No areas (or nothing shown) = PastCast's blue.
+		private OutlookPeak? _peak;
+
+		/// <summary>The "no areas" square: PastCast's header blue (a literal there too).</summary>
+		public const string NoAreasFill = "#2F81F7";
+
+		public string HeaderSquareFill => _peak?.Fill ?? NoAreasFill;
+
+		public bool HasPeak => _peak is not null;
+
+		/// <summary>"MDT 4/5", "15%", "TSTM" — or "No areas" / "No outlook".</summary>
+		public string HeaderRiskText => _peak is { } p ? PeakLabel(p.Level) : HasOutlook ? "No areas" : "No outlook";
+
+		public string HeaderSquareTip => _peak is { } p
+			? $"Highest category in this outlook: {p.Level.OfficialName}"
+			: "No outlook areas drawn";
+
+		/// <summary>The date line under "ForeCast": the selected day ("Day 1 · Wed Sep 2").</summary>
+		public string HeaderDayText => SelectedDayOption?.Label ?? string.Empty;
+
+		// Categorical = SPC's code + its 1-5 ("MDT 4/5"); a probability = a percent ("0.15" → "15%"); else the code.
+		internal static string PeakLabel(SpcRiskLevel level)
+		{
+			var numeral = OutlookRiskCard.NumeralFor(level.Code);
+			if (numeral.Length > 0) { return $"{level.Code} {numeral}"; }
+			return double.TryParse(level.Code, System.Globalization.NumberStyles.Float,
+				System.Globalization.CultureInfo.InvariantCulture, out var p)
+				? $"{p * 100:0}%"
+				: level.Code;
+		}
+
 		// ── The ForeCast window's section card ──
 		// Three lines in the shape every card in the two temporal windows uses (headline / context /
 		// footer), composed from state this VM already kept — the title, the issued/valid line and the
@@ -601,6 +635,13 @@ namespace Anvil.ViewModels
 			var present = drawn is null
 				? new HashSet<string>()
 				: _spcOutlookService.GetHatchGroupsInOutlook(drawn);
+			// The ForeCast header's square + readout describe the outlook SHOWN (like the card), not the legend's
+			// drawn-only gate: the highest category it actually contains.
+			_peak = shown is null ? null : _spcOutlookService.GetHighestLevelInOutlook(shown);
+			OnPropertyChanged(nameof(HeaderSquareFill));
+			OnPropertyChanged(nameof(HeaderSquareTip));
+			OnPropertyChanged(nameof(HeaderRiskText));
+			OnPropertyChanged(nameof(HasPeak));
 			_legendEntries = scale.Where(l => !l.IsConditionalIntensity).ToList();
 			_hatchLegendRows = scale.Where(l => l.IsConditionalIntensity)
 				.Select(l => new OutlookHatchLegendRow(l, present.Contains(l.Code)))

@@ -92,16 +92,7 @@ namespace Anvil.Controls.Windows
 				return;
 			}
 
-			// The same three names the bar keys carry, so the panel and the key that opened it agree.
-			TitleText.Text = Mode switch
-			{
-				TemporalMode.Past => "PastCast",
-				TemporalMode.Now => "NowCast",
-				_ => "ForeCast",
-			};
-			// NowCast and PastCast carry their names in their own header rows (beside the status square), so
-			// the title is hidden there and the name shows once (the user's calls, 2026-10-01).
-			TitleText.Visibility = Mode is TemporalMode.Now or TemporalMode.Past ? Visibility.Collapsed : Visibility.Visible;
+			// (No title here: every body opens with its own NAME ROW carrying the mode's name — see the XAML.)
 
 			// The pin shows the flag's CURRENT value — these persist across a window being closed and
 			// reopened, so a panel unpinned earlier in the session comes back unpinned.

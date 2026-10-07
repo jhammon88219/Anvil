@@ -152,6 +152,57 @@ namespace Anvil.Services
 			return groups;
 		}
 
+		public OutlookPeak? GetHighestLevelInOutlook(SpcOutlookProduct product)
+		{
+			var cacheFile = Path.Combine(CacheDirectory, product.CacheFileName);
+			try
+			{
+				return File.Exists(cacheFile) ? ReadHighest(File.ReadAllText(cacheFile), product.Type) : null;
+			}
+			catch
+			{
+				return null; // unreadable cache -> the header says "No areas"
+			}
+		}
+
+		// The highest SOLID level among the features (by the catalog's Dn, within the solid kind — the same scoping
+		// SpcRiskCatalog.Level(type, dn) explains). Skipped: hatching (CIG), and anything the catalog doesn't know —
+		// which includes the DN 0 "no areas" feature. Null = no areas. The feature's own `fill` wins over the catalog's.
+		internal static OutlookPeak? ReadHighest(string geojson, SpcOutlookType type)
+		{
+			OutlookPeak? best = null;
+			try
+			{
+				using var doc = JsonDocument.Parse(geojson);
+				if (!doc.RootElement.TryGetProperty("features", out var features) ||
+					features.ValueKind != JsonValueKind.Array)
+				{
+					return null;
+				}
+
+				foreach (var feature in features.EnumerateArray())
+				{
+					if (!feature.TryGetProperty("properties", out var props) || props.ValueKind != JsonValueKind.Object ||
+						!props.TryGetProperty("LABEL", out var label) || label.ValueKind != JsonValueKind.String)
+					{
+						continue;
+					}
+					var level = SpcRiskCatalog.Level(type, label.GetString());
+					if (level is null || level.Kind != SpcLevelKind.Solid) { continue; }
+					if (best is not null && level.Dn <= best.Level.Dn) { continue; }
+
+					var fill = props.TryGetProperty("fill", out var f) && f.ValueKind == JsonValueKind.String &&
+						!string.IsNullOrWhiteSpace(f.GetString()) ? f.GetString()! : level.Fill;
+					best = new OutlookPeak(level, fill);
+				}
+			}
+			catch (JsonException)
+			{
+				// malformed -> whatever was found (normally nothing)
+			}
+			return best;
+		}
+
 		private static DateTimeOffset? ReadIso(JsonElement props, string name) =>
 			props.TryGetProperty(name, out var el) &&
 			el.ValueKind == JsonValueKind.String &&
