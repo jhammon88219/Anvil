@@ -74,7 +74,7 @@ namespace Anvil.Controls.Composites
 		// ---- Segmented scrubber interaction ----
 		// The scrubber is drawn (Primitives/ClassicScrubber or DotMatrixScrubber), not a Slider, so seeking is
 		// handled here: press/drag on the strip maps the pointer x to a frame index — EQUAL slots for the classic cells,
-		// DotMatrixScrubber.IndexAt for the dot run (centred, so it isn't the strip's slots). Playback pauses on grab so the drag isn't fought by the advancing loop; the drawn
+		// DotMatrixScrubber.IndexAt for the dot field (its column→frame table, shares ±1 column). Playback pauses on grab so the drag isn't fought by the advancing loop; the drawn
 		// scrubber follows CurrentFrameIndex on its own.
 		private bool _scrubbing;
 

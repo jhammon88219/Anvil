@@ -194,17 +194,25 @@ namespace Anvil.Controls.Primitives
 			_blocks.Count == 0 ? -1 : Math.Clamp((int)Math.Round(CurrentIndex), 0, _blocks.Count - 1);
 
 		/// <summary>The frame under <paramref name="x"/> (DIPs from this control's left edge), clamped to the loop —
-		/// the host's seek reads this so a click lands on the run of columns drawn under it. -1 with no loop.</summary>
+		/// the host's seek reads this so a click lands on the columns drawn under it (the SAME owner table). -1 with no
+		/// loop.</summary>
 		public int IndexAt(double x)
 		{
-			if (_blocks.Count == 0 || _frameStride <= 0) return -1;
-			return Math.Clamp((int)Math.Floor((x - _runLeft) / _frameStride), 0, _blocks.Count - 1);
+			if (_owner.Length == 0 || _blocks.Count == 0) return -1;
+			var pitch = DotSize + DotGap;
+			// Nearest column, the half-gap either side of a dot counting as that dot's.
+			var column = Math.Clamp((int)Math.Floor((x - _fieldLeft + DotGap / 2) / pitch), 0, _owner.Length - 1);
+			return Math.Clamp(_owner[column], 0, _blocks.Count - 1);
 		}
 
-		// ---- Layout: ONE even run of dots, each frame an equal run of its columns, no gap between frames ----
-		// Where the run starts and how wide a frame's columns are, for IndexAt.
-		private double _runLeft;
-		private double _frameStride;
+		// ---- Layout: a FIXED field, frames own runs of its columns ----
+		// The field is every column the width holds at the pitch, centred — it depends on the WIDTH alone, so the
+		// scrubber's two edges never move whatever the frame count (and an empty field shows with no loop). Column c
+		// belongs to frame floor(c × count ÷ columns): shares differ by at most ONE column, the spares spread evenly
+		// through the loop rather than piled at an end, and no dot is ever blank. PastCast caps a loop at 40 frames
+		// (RadarViewModel.PastEventMaxFrames) — 2–3 columns each; past one frame per column, frames share (some own none).
+		private double _fieldLeft;
+		private int[] _owner = Array.Empty<int>();
 
 		private void Layout()
 		{
@@ -212,32 +220,49 @@ namespace Anvil.Controls.Primitives
 			Dots.Children.Clear();
 			_blocks.Clear();
 			_states.Clear();
+			_owner = Array.Empty<int>();
 
-			var count = _attached?.Count ?? 0;
 			var width = ActualWidth;
-			if (count == 0 || width <= 0)
+			if (width <= 0)
 			{
 				_litIndex = -1;
-				_frameStride = 0;
 				return;
 			}
 
+			var count = _attached?.Count ?? 0;
 			var rows = Math.Max(1, Rows);
 			var pitch = DotSize + DotGap;
-			// The SAME number of columns for every frame: as many as the width holds at the pitch, never fewer than one.
-			var fit = Math.Max(1, (int)Math.Floor((width + DotGap) / pitch));
-			var columns = Math.Max(1, fit / count);
-			var runWidth = count * columns * pitch - DotGap;
-			_runLeft = Math.Round((width - runWidth) / 2); // centred; the few left-over pixels split between the ends
-			_frameStride = columns * pitch;
+			var fieldColumns = Math.Max(1, (int)Math.Floor((width + DotGap) / pitch));
+			_fieldLeft = Math.Round((width - (fieldColumns * pitch - DotGap)) / 2);
+
+			if (count == 0)
+			{
+				// No loop: the bare field, every dot empty.
+				for (var c = 0; c < fieldColumns; c++)
+				{
+					for (var r = 0; r < rows; r++) Dots.Children.Add(MakeDot(c, r, pitch));
+				}
+				_litIndex = -1;
+				return;
+			}
+
+			_owner = new int[fieldColumns];
+			var firstColumn = new int[count];
+			var columnCount = new int[count];
+			for (var c = 0; c < fieldColumns; c++)
+			{
+				var s = (int)((long)c * count / fieldColumns);
+				if (columnCount[s]++ == 0) firstColumn[s] = c;
+				_owner[c] = s;
+			}
 
 			for (var s = 0; s < count; s++)
 			{
-				var left = _runLeft + s * _frameStride;
+				var columns = columnCount[s];
 				var dots = new Ellipse[columns * rows];
 				for (var i = 0; i < dots.Length; i++)
 				{
-					// i in FILL ORDER → (column, row-from-bottom).
+					// i in FILL ORDER → (column within the frame, row-from-bottom).
 					int column, fromBottom;
 					if (FillOrder == DotFillOrder.BottomToTop)
 					{
@@ -249,9 +274,7 @@ namespace Anvil.Controls.Primitives
 						column = i / rows;
 						fromBottom = i % rows;
 					}
-					var dot = new Ellipse { Width = DotSize, Height = DotSize, Style = _empty };
-					Canvas.SetLeft(dot, left + column * pitch);
-					Canvas.SetTop(dot, (rows - 1 - fromBottom) * pitch);
+					var dot = MakeDot(firstColumn[s] + column, rows - 1 - fromBottom, pitch);
 					Dots.Children.Add(dot);
 					dots[i] = dot;
 				}
@@ -261,6 +284,15 @@ namespace Anvil.Controls.Primitives
 
 			_litIndex = LitIndex();
 			for (var s = 0; s < count; s++) Paint(s);
+		}
+
+		// One empty dot at field column c, row r (0 = top).
+		private Ellipse MakeDot(int column, int row, double pitch)
+		{
+			var dot = new Ellipse { Width = DotSize, Height = DotSize, Style = _empty };
+			Canvas.SetLeft(dot, _fieldLeft + column * pitch);
+			Canvas.SetTop(dot, row * pitch);
+			return dot;
 		}
 
 		// One block's dots from its segment: the current frame whole, a ready frame whole, else the first

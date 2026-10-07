@@ -3,19 +3,21 @@
      size and pitch): ONE UNBROKEN RUN of dots, like a separator — each frame owns an equal run of its columns, with NO
      gap between frames; a frame shows only by its colour (filling as it loads, the frame on screen lit whole).
 
-       ┌─ host width (the console's 420); the run CENTRED in it ──────────────────────────────────────────────┐
+       ┌─ a FIXED field: every column the width holds (420 → 105 × 5), centred — the frame count NEVER moves it ┐
        │ ● ● ● ● ● ● ● ● ● ● ● ● ● ● ○ ○ ○ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌                                         │
        │ ● ● ● ● ● ● ● ● ● ● ● ● ● ● ○ ○ ○ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌   ● READY  (built + revealed, Rule 2)    │
        │ ● ● ● ● ● ◆ ◆ ◆ ◆ ◆ ● ● ● ● ● ○ ○ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌   ◆ CURRENT (the frame on screen, whole) │
        │ ● ● ● ● ● ◆ ◆ ◆ ◆ ◆ ● ● ● ● ● ○ ○ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌   ○ FILLING (Segment.Fill: bytes + build) │
        │ ● ● ● ● ● ◆ ◆ ◆ ◆ ◆ ● ● ● ● ● ○ ○ ○ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌   ◌ EMPTY  (a touch above the separators) │
        └──────────────────────────────────────────────────────────────────────────────────────────────────────┘
-          └ frame 0 ┘└ frame 1 ┘└ frame 2 ┘ … every frame the SAME column count: (width ÷ pitch) ÷ frames, at least 1
+          └ frame 0 ┘└ frame 1 ┘└ frame 2 ┘ … column c belongs to frame floor(c × frames ÷ columns): shares differ
+            by at most ONE column, the spares spread evenly through the loop, NO blank dots. No loop = the bare field.
           ↑ Rows (5), DotSize 1.5 · DotGap 2.5 (pitch 4, the separators') — the pitch never breaks between frames.
           ↑ FillOrder: LeftToRight (column by column, each from the bottom — the default) | BottomToTop (row by row).
 
-     ⚠️ The run is CENTRED, so its frames are NOT the strip's equal slots: the host's seek asks IndexAt(x), which
-     maps against the drawn run — a click lands on the columns under it. Left-over pixels split between the ends.
+     ⚠️ THE EDGES NEVER MOVE: the field depends on the WIDTH alone; the frame count only re-assigns columns. PastCast
+     caps a loop at 40 frames (2–3 columns each); past one frame per column, frames share columns.
+     ⚠️ The host's seek asks IndexAt(x) — the SAME column→frame table — so a click lands on the frame drawn under it.
      It does NOT align to anything above it.
      ⚠️ Dot looks are STYLES (EmptyDot / FillingDot / ReadyDot / CurrentDot), set from code — never a theme brush
      resolved in C#. A dot's style is re-set only when its STATE changes (a load ticks every 150 ms).
