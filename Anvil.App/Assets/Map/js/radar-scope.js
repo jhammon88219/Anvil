@@ -1,5 +1,4 @@
-// The radar SCOPE furniture: the range rings around the site, and the one-shot sweep pulse that rotates
-// out to the reflectivity edge.
+// The radar SCOPE furniture: the range rings around the site.
 //
 //                  ╱▔▔▔▔▔▔▔╲              level2-range      REFLECTIVITY OUTLINE — where the DISPLAYED
 //               ┆╱  ┌┄┄┄┄┄┐  ╲┆                             frame's reflectivity stops (reach.refl)
@@ -11,8 +10,9 @@
 //                                          level2-range-site SITE RING — the plain ring every site shows, on
 //                                                            the outline's circle + colour, FIXED look. OUTSIDE
 //                                                            the rings key; hidden while the outline draws
-//                                          level2-sweep-*    arm + comet tail, one revolution then a
-//                                                            fade, only on a genuinely NEW frame
+//
+//   ⚠️ NO SWEEP. The one-shot rotating arm that marked a new live frame was REMOVED (2026-10-07, the user's
+//   call): the bar's activity slot announces a new frame now (BarActivityKind.LiveFrame).
 //
 //   THE LABEL HANDLE (primary pane only, DOM, like the ruler's knob):
 //
@@ -41,16 +41,7 @@
 //   NOTHING until its tiles rebuild — so rings blinked out under an opacity slider and flashed on toggles.
 //   ⚠️ Moving LABELS is the other trap (a symbol re-placed by setData fades in from 0) — see "Moving labels".
 //
-//   ⚠️ fill-antialias MUST stay off — it outlines every triangle and the tail becomes a fan of spokes.
-//   Faint seams between triangles can still show; that is known and cosmetic (a canvas conic-gradient
-//   texture is the real fix, if it ever matters enough).
-//
-// ONE module because they are one thing. The sweep's wedge is defined BY the ring's radius, both are
-// geographic MapLibre GeoJSON layers (unlike the WebGL fill in radar.js, or the DOM site markers in
-// radar-sites.js), and both are anchored to the same site. Splitting them would mean handing the
-// radius across a module boundary every animation frame.
-//
-// STATE OWNED HERE: the drawn radius and the animation handle — nothing else in radar.js reads them.
+// STATE OWNED HERE: the drawn radius — radar.js never keeps a copy (the ruler reads it via getRange).
 // radar.js still owns the view list and the site; this module reads those through the `host` context
 // it is given at init, so there is no copy to keep in sync.
 //
@@ -76,13 +67,6 @@ const FADE_MS = 220;          // every look change (colour, opacity, width, on/o
 const LIVE_SETTLE_MS = 400;   // labels keep "live" placement this long after they stop moving
 const DIST_EXTENT_M = 460000; // distance rings run to a NEXRAD's full reach whatever is on screen
 const DIST_MAX_RINGS = 40;    // a cap, not a design value: 25 nm to 460 km is 10 rings
-const SWEEP_SRC = 'level2-sweep', SWEEP_FILL_LAYER = 'level2-sweep-fill', SWEEP_ARM_LAYER = 'level2-sweep-arm';
-const SWEEP_MS = 1300;        // duration of one revolution
-const SWEEP_FADE_MS = 400;    // brief fade-out of the trail once the revolution completes
-const SWEEP_TRAIL_DEG = 75;   // angular length of the trailing afterglow behind the leading arm
-const SWEEP_TRAIL_N = 64;     // wedge triangles across the trail — high so the taper reads smooth (no spokes)
-const SWEEP_PEAK = 0.42;      // peak fill opacity right behind the arm (the wedge is a translucent glow)
-const SWEEP_GAMMA = 1.6;      // trailing-fade shape (>1 = fades to nothing faster → a comet-tail falloff)
 
 // Line patterns, in LINE WIDTHS (MapLibre's unit). ⚠️ The keys MIRROR Models/Radar/RingStyle.cs RingLines.
 const DASHES = { solid: null, dashed: [4, 3], dotted: [1, 3], dashdot: [6, 3, 1, 3] };
@@ -112,7 +96,6 @@ const FONTS = { regular: 'Noto Sans Regular', medium: 'Noto Sans Medium', italic
 const PLACE_EM = { above: -0.7, on: 0, below: 0.7 };
 const OUTER_LIFT_EM = 2.3;    // a label at the outer ring clears the knob by this much (knob-size scaled)
 let labelHandle = null, handleMap = null;                    // the DOM handle + the map it lives on
-let sweepAnimStart = 0, sweepRaf = 0;
 
 export function init(h) { host = h; }
 
@@ -516,132 +499,25 @@ export function getRange() { return reflMeters; }
 // Re-read the theme/override colours into every pane's live layers — after Settings changes the outline's
 // (map.js setScopeColor writes --anvil-scope-ring inline on :root) or the theme switches. A paint property
 // holds the colour it was given, so the CSS change alone would not reach a ring already on screen.
-// The sweep is deliberately untouched: its warm afterglow is not the ring's colour (see theme.css).
 export function refreshColors() {
     if (!host) return;
     applyPaintAll();
     if (labelHandle) labelHandle.getElement().innerHTML = handleSvg();
 }
 
-// ---- Sweep pulse ----
-// The trailing afterglow as a FILLED WEDGE: a fan of SWEEP_TRAIL_N abutting triangles from the site out
-// to the range-ring edge, spanning SWEEP_TRAIL_DEG BEHIND the leading bearing (0 = due north). Because
-// the triangles TILE (share edges, no gaps), it reads as a continuous glow that fades leading→tail —
-// unlike the old radial spokes, which diverged with range and looked ragged. Each triangle carries an
-// `o` fill-opacity; a separate LineString (the crisp leading arm) is appended and rendered by the line
-// layer. `fade` scales everything for the end fade-out. Same metres-per-degree projection as the ring.
-function sweepWedgeGeoJSON(leadRad, fade) {
-    const feats = [];
-    const s = host.getSite();
-    const center = [s.lon, s.lat];
-    const step = (SWEEP_TRAIL_DEG * Math.PI / 180) / SWEEP_TRAIL_N;
-    const tipAt = function (a) { return Geo.siteToLngLat(s.lat, s.lon, reflMeters, a); };
-    let prevTip = tipAt(leadRad);
-    for (let i = 1; i <= SWEEP_TRAIL_N; i++) {
-        const ang = leadRad - i * step;
-        if (ang < 0) break; // don't draw behind the sweep's start (north) on the first revolution
-        const tip = tipAt(ang);
-        // Opacity for the slice between the previous (brighter) and this (dimmer) edge — use its midpoint
-        // fraction down the trail, with a gamma falloff so the tail fades to nothing like phosphor decay.
-        const o = fade * SWEEP_PEAK * Math.pow(1 - (i - 0.5) / SWEEP_TRAIL_N, SWEEP_GAMMA);
-        if (o > 0.004) {
-            feats.push({ type: 'Feature', properties: { o: o },
-                geometry: { type: 'Polygon', coordinates: [[center, prevTip, tip, center]] } });
-        }
-        prevTip = tip;
-    }
-    // Crisp bright leading arm (a LineString → the line layer draws it; the fill layer ignores it).
-    feats.push({ type: 'Feature', properties: { o: fade },
-        geometry: { type: 'LineString', coordinates: [center, tipAt(leadRad)] } });
-    return { type: 'FeatureCollection', features: feats };
-}
-// One animation drives every pane's sweep: a sweep in only one pane of four would read as broken.
-// The per-frame cost is a setData of ~64 small polygons per pane, which is nothing next to the
-// basemap they are drawn over.
-function ensureSweepLayer(v) {
-    const map = v && v.map;
-    if (!map || !(reflMeters > 0)) return;
-    if (!map.getSource(SWEEP_SRC)) map.addSource(SWEEP_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-    const before = host.beforeId(map);
-    // Fill = the fading wedge (renders only the Polygon features); line = the crisp arm (only the
-    // LineString). Both on top of the ring + radar fill. Per-feature `o` opacity for the animated fade.
-    if (!map.getLayer(SWEEP_FILL_LAYER)) {
-        map.addLayer({
-            id: SWEEP_FILL_LAYER, type: 'fill', source: SWEEP_SRC,
-            // ⚠️ antialias MUST be off: it outlines every polygon, so the 64 abutting triangles' shared
-            // radial edges would each draw a 1px seam — reading as a fan of faint lines, exactly the
-            // raggedness we're removing. Off, the triangles blend seamlessly (opacity steps are ~1%).
-            paint: { 'fill-color': Theme.color('--anvil-scope-sweep-fill', '#ffe6a0'), 'fill-opacity': ['get', 'o'], 'fill-antialias': false },
-        }, before);
-    }
-    if (!map.getLayer(SWEEP_ARM_LAYER)) {
-        map.addLayer({
-            id: SWEEP_ARM_LAYER, type: 'line', source: SWEEP_SRC,
-            paint: { 'line-color': Theme.color('--anvil-scope-sweep-arm', '#fff4c8'), 'line-width': 2, 'line-blur': 1.2, 'line-opacity': ['get', 'o'] },
-        }, before);
-    }
-}
-function clearSweepData() {
-    host.forEachView(function (v) {
-        const src = v.map.getSource(SWEEP_SRC);
-        if (src) src.setData({ type: 'FeatureCollection', features: [] });
-    });
-}
-function sweepPulseFrame() {
-    sweepRaf = 0;
-    if (!host.viewCount() || !(reflMeters > 0)) return; // nothing to draw (e.g. layer dropped)
-    const el = performance.now() - sweepAnimStart;
-    if (el >= SWEEP_MS + SWEEP_FADE_MS) { clearSweepData(); return; }            // revolution done → hide arm
-    let lead, fade;
-    if (el < SWEEP_MS) { lead = (el / SWEEP_MS) * 2 * Math.PI; fade = 1; }       // sweeping 0→360°
-    else { lead = 2 * Math.PI; fade = 1 - (el - SWEEP_MS) / SWEEP_FADE_MS; }     // hold at north, fade the trail out
-    // Build the wedge ONCE and hand the same GeoJSON to every pane — the geometry is geographic, so
-    // it is identical in all of them.
-    const data = sweepWedgeGeoJSON(lead, fade);
-    host.forEachView(function (v) {
-        const src = v.map.getSource(SWEEP_SRC);
-        if (src) src.setData(data);
-    });
-    sweepRaf = requestAnimationFrame(sweepPulseFrame);
-}
-
-// Fire ONE sweep pulse (the app calls this when a genuinely-new frame lands). Restarts if one is
-// already mid-flight. No-op until a frame has decoded (no radius to sweep yet).
-export function pulse() {
-    if (!host || !(reflMeters > 0)) return;
-    host.forEachView(ensureSweepLayer);
-    sweepAnimStart = performance.now();
-    if (!sweepRaf) sweepRaf = requestAnimationFrame(sweepPulseFrame);
-}
-
-// Stop any in-flight pulse and drop its layers in every pane (site change / clear / DOW / turn-off).
-export function stop() {
-    if (!host) return;
-    if (sweepRaf) { cancelAnimationFrame(sweepRaf); sweepRaf = 0; }
-    host.forEachView(function (v) {
-        const map = v.map;
-        if (map.getLayer(SWEEP_ARM_LAYER)) map.removeLayer(SWEEP_ARM_LAYER);
-        if (map.getLayer(SWEEP_FILL_LAYER)) map.removeLayer(SWEEP_FILL_LAYER);
-        if (map.getSource(SWEEP_SRC)) map.removeSource(SWEEP_SRC);
-    });
-}
-
-// Give ONE pane its scope furniture: the ring (if a radius is known) and, when a pulse is mid-flight,
-// the sweep layer so the in-progress revolution keeps drawing there too. Used both when a pane is
-// created (setViews) and when a basemap switch drops its layers (reAdd).
+// Give ONE pane its scope furniture (the rings, if a radius is known). Used both when a pane is created
+// (setViews) and when a basemap switch drops its layers (reAdd).
 export function attachView(v) {
     if (!host) return;
     drawRings(v);
-    if (sweepRaf) ensureSweepLayer(v);
 }
 
-// Drop the rings + sweep everywhere and forget the radii — a new site, a clear, or a DOW frame. The next
-// displayed frame redraws them at its reach. The ring CHOICE (setRings) and unit survive: they're settings.
+// Drop the rings everywhere and forget the radii — a new site, a clear, or a DOW frame. The next displayed
+// frame redraws them at its reach. The ring CHOICE (setRings) and unit survive: they're settings.
 export function reset() {
     if (!host) return;
     host.forEachView(removeRings);
     dropHandle();
-    stop();
     reflMeters = 0;
     velMeters = 0;
 }

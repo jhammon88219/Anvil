@@ -58,7 +58,6 @@ namespace Anvil.ViewModels
 				if (_vm._isMapReady)
 				{
 					await _vm._mapService.ClearRadarAsync();
-					await _vm._mapService.SetRadarSweepAsync(0); // back to the free-running sweep
 				}
 				return;
 			}
@@ -105,6 +104,7 @@ namespace Anvil.ViewModels
 			_vm._liveFrame = null;
 			_vm._pendingLiveAppend = null;
 			_vm._pendingLiveUpdate = null;
+			_vm.AnnounceLiveDropped(); // a new frame the slot was announcing will never land
 			_vm._liveModeText = null;
 			_vm._frameTimes = Array.Empty<DateTimeOffset?>();
 			_vm._frameModes = Array.Empty<string?>();
@@ -276,6 +276,7 @@ namespace Anvil.ViewModels
 			// bump below, so its completion callback would never fire. Drop it; the next poll re-fetches.
 			_vm._pendingLiveAppend = null;
 			_vm._pendingLiveUpdate = null;
+			_vm.AnnounceLiveDropped(); // a new frame the slot was announcing will never land
 
 			// Empty the scrubber: every cell is about to be re-decoded, and reporting the old cut as ready
 			// would leave the loop looking finished while it re-cuts (and let playback run a mix of
@@ -438,7 +439,7 @@ namespace Anvil.ViewModels
 			Services.RadarDiagnostics.Log("vm", "live.apply", ("action", "retile"),
 				("idx", index), ("volZ", live.VolumeTime.ToUniversalTime().ToString("HH:mm:ss")));
 
-			// No sweep pulse and no deferred swap: this is the same scan re-cut, not a new one arriving.
+			// No announcement and no deferred swap: this is the same scan re-cut, not a new one arriving.
 			if (_vm._isMapReady)
 			{
 				await _vm._mapService.AddRadarFrameAsync(live.LocalUrl, index);
@@ -466,7 +467,6 @@ namespace Anvil.ViewModels
 			{
 				await _vm._mapService.SetSelectedRadarSiteAsync(site?.Id);
 				await _vm._mapService.ClearRadarAsync();
-				await _vm._mapService.SetRadarSweepAsync(0); // no live sweep in replay
 			}
 		}
 
@@ -624,6 +624,7 @@ namespace Anvil.ViewModels
 				_vm._hasLiveFrame = false;
 				_vm._pendingLiveAppend = null;
 				_vm._pendingLiveUpdate = null;
+				_vm.AnnounceLiveDropped(); // a new frame the slot was announcing will never land
 				_vm._liveModeText = null;
 				_vm._frameTimes = new DateTimeOffset?[_vm._frameCount];
 				_vm._frameModes = new string?[_vm._frameCount];
@@ -876,6 +877,7 @@ namespace Anvil.ViewModels
 			_vm._hasLiveFrame = false;
 			_vm._pendingLiveAppend = null;
 			_vm._pendingLiveUpdate = null;
+			_vm.AnnounceLiveDropped(); // a new frame the slot was announcing will never land
 			_vm._frameCount = _vm._archiveCount;
 			_vm._frameTimes = new DateTimeOffset?[_vm._frameCount];
 			_vm._frameModes = new string?[_vm._frameCount];
@@ -1059,15 +1061,15 @@ namespace Anvil.ViewModels
 				}
 
 				// DEFERRED update: _liveFrame is set eagerly so a poll during the decode window still skips
-				// (dedup gate above), but the VISIBLE swap — frame time/mode, the readout, and the sweep
-				// pulse — is held until the geometry actually lands (CompleteLiveUpdate, from OnRadarFrameReady).
-				// Firing them here flipped the timestamp and animated a full sweep ~3-6 s BEFORE the new
-				// returns decoded (the worker fetches the ~7 MB .V06 then decodes), so the sweep swept over the
-				// OLD image and the time led the picture — the "swept but nothing changed" report. All the
-				// readout fields read _frameTimes/_frameModes (not _liveFrame), so holding those writes keeps
-				// the readout consistent with what's on screen until the swap. Mirrors the deferred append below.
+				// (dedup gate above), but the VISIBLE swap — frame time/mode and the readout — is held until the
+				// geometry actually lands (CompleteLiveUpdate, from OnRadarFrameReady). Swapping here flipped the
+				// timestamp ~3-6 s BEFORE the new returns decoded (the worker fetches the ~7 MB .V06 then
+				// decodes), so the time led the picture. All the readout fields read _frameTimes/_frameModes (not
+				// _liveFrame), so holding those writes keeps the readout consistent with what's on screen until
+				// the swap. Mirrors the deferred append below.
 				_vm._liveFrame = live;
 				_vm._pendingLiveUpdate = live;
+				if (!_vm._loadInProgress) _vm.AnnounceLiveFound(live); // the bar's activity slot lights
 				Services.RadarDiagnostics.Log("vm", "live.apply", ("action", "update"),
 					("idx", _vm._archiveCount), ("volZ", live.VolumeTime.ToUniversalTime().ToString("HH:mm:ss")));
 				if (_vm._isMapReady)
@@ -1099,6 +1101,7 @@ namespace Anvil.ViewModels
 			// already full. Registering the frame source + starting the decode is all that happens now; the
 			// scrubber/display change atomically the instant the geometry lands.
 			_vm._pendingLiveAppend = live;
+			if (!_vm._loadInProgress) _vm.AnnounceLiveFound(live); // a loop's first load is "loading the loop", not news
 			Services.RadarDiagnostics.RegisterFrameSource(_vm._archiveCount, "live", FrameCacheFile(live), live.VolumeTime);
 			if (_vm._isMapReady)
 			{
@@ -1160,18 +1163,15 @@ namespace Anvil.ViewModels
 			if (_vm._isMapReady)
 			{
 				_ = _vm._mapService.ShowRadarFrameAsync(_vm._archiveCount);   // promote display to the now-decoded live frame
-				_ = _vm._mapService.PulseRadarSweepAsync();               // first live frame landed → one sweep pulse
 			}
+			_vm.AnnounceLiveShown(live); // the bar's activity slot: complete
 		}
 
 		// Completes a DEFERRED in-place live UPDATE (see ApplyLiveFrameAsync): the freshest live volume we
 		// re-decoded into the existing live slot has now landed, so publish the visible state — frame
-		// time/mode, the readout, and the sweep pulse — atomically WITH the geometry. Deferring these off the
-		// eager poll path stops the sweep animating over the old image (and the timestamp leading the picture)
-		// during the ~3-6 s the worker spends fetching + decoding the ~7 MB volume. The display is already on
-		// this slot (it's the newest), so unlike CompleteLiveAppend there's no grow/promote — just the
-		// swap-time readout + one pulse (only if that slot is the frame on screen). Also called directly when
-		// there's no WebView to decode.
+		// time/mode and the readout — atomically WITH the geometry, never during the ~3 s the worker spends
+		// fetching + decoding the volume. The display is already on this slot (it's the newest), so unlike
+		// CompleteLiveAppend there's no grow/promote. Also called directly when there's no WebView to decode.
 		private void CompleteLiveUpdate(Models.RadarVolume live)
 		{
 			_vm._pendingLiveUpdate = null;
@@ -1184,20 +1184,12 @@ namespace Anvil.ViewModels
 				_vm._frameModes[_vm._archiveCount] = live.ModeText;
 			}
 			Services.RadarDiagnostics.RegisterFrameSource(_vm._archiveCount, "live", FrameCacheFile(live), live.VolumeTime);
-			// The sweep means "the radar just GOT the new frame you're looking at" (the user's design), so it plays
-			// only when the live slot is ON SCREEN. Scrubbed back, or a playing loop on an older frame, it used to
-			// turn over a frame that wasn't the new one (2026-10-04). (CompleteLiveAppend promotes the display to
-			// the new frame, so its pulse is always on screen.)
-			var liveOnScreen = _vm._currentFrameIndex == _vm._archiveCount;
-			if (_vm._isMapReady && liveOnScreen)
-			{
-				_ = _vm._mapService.PulseRadarSweepAsync(); // geometry landed -> one sweep pulse, in sync with the new returns
-			}
-			if (liveOnScreen)
+			if (_vm._currentFrameIndex == _vm._archiveCount)
 			{
 				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
 			}
 			_vm.RaiseRadarReadout();
+			_vm.AnnounceLiveShown(live); // the bar's activity slot: complete (it's in the loop, scrubbed back or not)
 		}
 
 		// Records the latest live-frame poll outcome for the debug card.
@@ -1640,6 +1632,7 @@ namespace Anvil.ViewModels
 					_vm._hasLiveFrame = false;
 					_vm._liveFrame = null;
 					_vm._pendingLiveUpdate = null;
+					_vm.AnnounceLiveDropped(); // a new frame the slot was announcing will never land
 				}
 				_vm._frameTimes = newTimes;
 				_vm._frameModes = newModes;

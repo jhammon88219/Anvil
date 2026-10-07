@@ -24,7 +24,7 @@
 //               warning polygons       │ the overlay BAND, contiguous, in the user's order
 //               watch boxes            │ (layers.js GROUPS; the list's top = the band's top)
 //               outlook fills + hatch  │
-//               RADAR (WebGL layer)    ┘ + its range rings / sweep / ruler, drawn over it
+//               RADAR (WebGL layer)    ┘ + its range rings / ruler, drawn over it
 //               dimmer veil            ← basemap.js: fades the fills below it toward the blank ground
 //   ── base ──  basemap (bundled PMTiles, or online tiles — same styles either way, see tileSourceFor)
 //               (the Map key hides every basemap layer and paints the background blank — basemap.js)
@@ -379,7 +379,7 @@ try {
     //
     // ⚠️ ORDER IS THE WHOLE POINT OF THIS BEING ONE FUNCTION. The attribute must land BEFORE the style
     // re-add, because reAddAll rebuilds the layers whose colors are READ rather than cascaded (the
-    // isolation mask + hover, the range ring, the sweep) — flip the order and those come back in the old
+    // isolation mask + hover, the range ring) — flip the order and those come back in the old
     // theme until something else happens to re-add them. Two separate host calls could interleave; this
     // cannot.
     //
@@ -788,16 +788,6 @@ try {
             forEachMap(function (mp) { m.attach(mp); });
         }).catch(function (e) { console.error('perf-probe.js load failed: ' + e); });
     }
-
-    // Radar sweep pulse. The host (C#) calls pulseRadarSweep() when a genuinely-new frame lands; we
-    // delegate to the radar layer, which runs ONE sweep revolution (arm + trailing afterglow) then
-    // hides the arm, leaving the range ring. setRadarSweep(period<=0) stops/removes it (clear/replay).
-    window.pulseRadarSweep = function () {
-        if (window.RadarLayer) window.RadarLayer.pulseSweep();
-    };
-    window.setRadarSweep = function (periodSeconds) {
-        if (window.RadarLayer) window.RadarLayer.setSweep(periodSeconds);
-    };
 
     // State Isolation lives in states.js — arm hover mode, then click a state to cover everything else with
     // the map's water color. Driven by StateIsolationViewModel via IMapService (the "Isolate" top-bar

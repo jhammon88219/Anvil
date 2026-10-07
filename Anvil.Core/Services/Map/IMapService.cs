@@ -21,7 +21,7 @@ namespace Anvil.Services
 		/// ⚠️ It takes the style too, and does NOT compose out of <see cref="ApplyStyleAsync"/>, because the
 		/// ORDER is load-bearing: the palette attribute has to land before the style re-add, or the layers
 		/// whose colors are READ at build time rather than cascaded (the isolation mask and hover, the range
-		/// ring, the sweep) come back wearing the previous theme. Two separate calls could interleave; one
+		/// ring) come back wearing the previous theme. Two separate calls could interleave; one
 		/// cannot. So a theme change is this call ALONE — don't also push the style.
 		/// </remarks>
 		Task ApplyThemeAsync(AppTheme theme, MapStyle style);
@@ -407,23 +407,10 @@ namespace Anvil.Services
 		Task SetSelectedRadarSiteAsync(string? siteId);
 
 		/// <summary>
-		/// Stops/removes the selected site's radar sweep (call with <paramref name="periodSeconds"/>
-		/// &lt;= 0 on clear / entering replay). The sweep is a one-shot pulse now — see
-		/// <see cref="PulseRadarSweepAsync"/> to fire one on a new frame.
-		/// </summary>
-		Task SetRadarSweepAsync(double periodSeconds);
-
-		/// <summary>
 		/// Blurs every map pane by <paramref name="px"/> CSS pixels (0 = sharp) — the LOOP HOLDING GATE's frosting,
 		/// so nothing on the map is readable while a PastCast loop loads. Eased in the page.
 		/// </summary>
 		Task SetMapBlurAsync(double px);
-
-		/// <summary>
-		/// Fires ONE radar-sweep pulse (arm + trailing afterglow, one revolution then hides) — called
-		/// when a genuinely-new frame lands, as a "fresh data arrived" cue. The range ring stays up.
-		/// </summary>
-		Task PulseRadarSweepAsync();
 
 		/// <summary>
 		/// Shows or hides the operational NEXRAD site markers (TDWR / research have their own). Independent of

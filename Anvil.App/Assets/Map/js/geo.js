@@ -2,7 +2,7 @@
 // the decoder (radar-decode.js, static ES-module import) and the renderer (radar.js, async dynamic
 // import + cache, since it's a classic-script IIFE). Equirectangular ("flat-earth") approximation
 // around the radar site: at these ranges (≤ ~460 km) it matches the painted gate geometry exactly, and
-// it's what every overlay MUST agree with — the range ring, the sweep arm, and the inspector all
+// it's what every overlay MUST agree with — the range ring and the inspector both
 // project through here so they line up with the gates. Pure + stateless; callers pass the site position.
 //
 // THE FRAME EVERY RADAR OVERLAY SHARES:
@@ -20,7 +20,7 @@
 //
 // PERF NOTE: buildGates (radar-decode) projects MILLIONS of gates per sweep in a hot loop, so it only
 // borrows metersPerDeg() (computed once per sweep) and keeps its per-gate formula inline. The non-hot
-// callers (ring = 128 pts, sweep = 1 line/frame, inspector = 1/mousemove) use the helpers below.
+// callers (ring = 128 pts, inspector = 1/mousemove) use the helpers below.
 
 export const D2R = Math.PI / 180;
 

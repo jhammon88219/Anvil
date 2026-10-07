@@ -62,7 +62,7 @@ const GROUPS = [
     ['tropical', ['tropical-']],                 // tropical.js: hurricane / TS / surge / extreme wind zones
     ['mds',      ['md-']],                       // discussions.js: SPC MD + WPC MPD areas
     ['outlook',  ['spc-outlook-']],
-    ['radar',    ['level2-', 'radar-ruler-']],   // the WebGL layer + its range rings, sweep and ruler
+    ['radar',    ['level2-', 'radar-ruler-']],   // the WebGL layer + its range rings and ruler
 ];
 const DEFAULT_ORDER = GROUPS.map(function (g) { return g[0]; });
 const RADAR_LAYER = 'level2-radar';              // bottom of its own group: rings + ruler draw over it

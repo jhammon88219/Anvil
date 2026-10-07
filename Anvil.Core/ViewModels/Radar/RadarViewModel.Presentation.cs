@@ -142,6 +142,7 @@ namespace Anvil.ViewModels
 			_activeReady = activeReady ?? Array.Empty<bool>();
 			_fillBuilt = fillBuilt ?? Array.Empty<bool>();
 			_decoding = decoding ?? Array.Empty<bool>();
+			AnnounceLiveDecoding();
 			RefreshSegmentReadiness(); // → UpdateLoopGate → the loading screen's cells
 		}
 

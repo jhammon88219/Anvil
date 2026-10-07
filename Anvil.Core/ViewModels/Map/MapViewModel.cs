@@ -78,6 +78,7 @@ namespace Anvil.ViewModels
 			Activity = new BarActivityViewModel();
 			Activity.WatchLoop(Radar.LoopGate);
 			Activity.WatchSiteCheck(Radar);
+			Activity.WatchLiveFrame(Radar);
 			Outlook =new OutlookViewModel(mapService, spcOutlookService, dispatcher, loggerFactory.CreateLogger<OutlookViewModel>());
 			PastOutlook = new PastOutlookViewModel(mapService, spcOutlookService, Radar);
 			Watches = new WatchesViewModel(mapService, watchService, dispatcher, loggerFactory.CreateLogger<WatchesViewModel>());

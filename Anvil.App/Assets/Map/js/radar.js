@@ -90,14 +90,14 @@
     // Shared site projection (geo.js — the SAME math radar-decode's buildGates uses, so overlays line
     // up with the painted gates). radar.js is a classic-script IIFE so it can't statically import; load
     // the module once at startup and cache it in `Geo`. Until it resolves, the geo-dependent overlays
-    // (range ring, sweep, inspector) skip drawing and re-draw on the next frame/tick/mousemove — geo.js
+    // (range ring, inspector) skip drawing and re-draw on the next frame/tick/mousemove — geo.js
     // is a tiny same-origin file, loaded long before any radar frame can decode.
     let Geo = null;
     import('./geo.js').then(function (m) { Geo = m; }).catch(function (e) { hostLog('geo.js load failed: ' + (e && e.message ? e.message : e)); });
 
-    // Range ring + sweep pulse (radar-scope.js). Same dynamic-import-and-cache pattern as geo.js: the
+    // Range rings (radar-scope.js). Same dynamic-import-and-cache pattern as geo.js: the
     // draw calls below are guarded on `Scope`, which is loaded long before any site click can decode a
-    // frame. It owns the drawn radius + the animation handle; it reads our views/site through `init`.
+    // frame. It owns the drawn radius; it reads our views/site through `init`.
     let Scope = null;
     // Which rings + the distance unit, held HERE until the module lands: the host replays both at map-ready,
     // which can beat this import, and a dropped push would draw the default rings in kilometres.
@@ -950,10 +950,8 @@
     let siteLat = 0, siteLon = 0;   // shared: every pane draws the same site
     let opacity = 0.80;             // shared: one radar opacity across the panes. The host pushes its own at map-ready (RadarViewModel owns it).
     let loopToken = 0;      // bumped per loop so stale async frames are dropped
-    // Range ring + sweep pulse live in radar-scope.js: a thin circle at the radar's REAL outer data
-    // extent (rangeMeters from the decode) plus the one-shot rotating arm + fading wedge that sweeps
-    // out to that same edge, both RadarScope-style GeoJSON layers rather than DOM decoration. That
-    // module owns the drawn radius and the animation handle; we reach it through `Scope` above.
+    // The range rings live in radar-scope.js: GeoJSON circles at the radar's REAL outer data extent
+    // (rangeMeters from the decode). That module owns the drawn radius; we reach it through `Scope` above.
     // Render-path diagnostics: render() runs every frame, so rate-limit its logging. We track
     // the running error/blank counts and only emit on the first occurrence + periodically, plus
     // a one-shot "recovered" line, so the debug log shows WHEN tiles blanked without flooding.
@@ -1772,7 +1770,7 @@
         // ===== END PIPELINE CONSOLE =====
         beginLoop: function (lat, lon, expectedFrames) {
             forEachView(attachContextListeners);
-            // New site → drop the old range ring + sweep (the first decoded frame redraws them at
+            // New site → drop the old range ring (the first decoded frame redraws them at
             // the new site's range); same site (a reload) → keep them up, no flicker.
             if (lat !== siteLat || lon !== siteLon) {
                 if (Scope) Scope.reset();
@@ -1896,7 +1894,7 @@
         //     switch (Rule 8 exempts it), so we don't drop back to reflectivity-only.
         //   • _loopSeedProfile — a wind profile is (u,v) vs HEIGHT; seedExpectedVr re-projects it through the
         //     decoding cut's own elevation, so it's a valid dealias first guess at any tilt.
-        //   • the range ring + sweep — same site, same range.
+        //   • the range ring — same site, same range.
         retile: function (count) {
             loopToken++;        // drop any in-flight decode still carrying the OLD tilt
             resetUpgrades();    // and its pending upgrades; the host's addFrame sweep re-drives the fill
@@ -1944,7 +1942,7 @@
             invalidateUploads();
             renderErrCount = blankCount = 0; lastRenderErrAt = lastBlankAt = 0;
             removeLayerAll();
-            if (Scope) Scope.reset(); // a DOW frame is a single sweep — no rotating arm
+            if (Scope) Scope.reset(); // a DOW frame draws its own ring at the truck
             hostLog('showDow ' + url);
             fetch(url, { cache: 'no-store' }).then(function (r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -1973,18 +1971,6 @@
         setOpacity: function (op) {
             opacity = op; // shared: one radar opacity across every pane
             repaintAll();
-        },
-        // Fire ONE sweep pulse (arm + trailing afterglow, one revolution then hides). The host calls
-        // this when a genuinely-new frame lands. No-op until a frame has decoded (no radius yet).
-        pulseSweep: function () {
-            if (Scope) Scope.pulse();
-        },
-        // Stop + remove the sweep (host calls with period <= 0 on clear / entering replay). Kept the
-        // name for the existing host shim; the arm is one-shot now, so a positive period just re-pulses.
-        setSweep: function (periodSeconds) {
-            if (!Scope) return;
-            if (Number(periodSeconds) > 0) Scope.pulse();
-            else Scope.stop();
         },
         // Switch rendered moment ('reflectivity' | 'velocity' | 'cc'). Reflectivity + CC geometry is
         // always built, so those switch instantly. Velocity is built lazily (it's the one product that
@@ -2037,8 +2023,7 @@
             if (Array.isArray(urls)) computeStormMotionForVolume(urls);
         },
         // Re-add after a basemap switch (setStyle drops custom layers + sources); frames + the range
-        // ring are retained, so restore them. If a sweep pulse is mid-flight, restore its layer too so
-        // the in-progress revolution keeps drawing.
+        // ring are retained, so restore them.
         reAdd: function (map) {
             const v = viewFor(map);
             if (!v) return;

@@ -262,10 +262,52 @@ namespace Anvil.ViewModels
 		// blinking through empty. OnRadarFrameReady completes it via CompleteLiveAppend; cleared on a new load.
 		private Models.RadarVolume? _pendingLiveAppend;
 		// The same deferral for an in-place live-frame UPDATE (the slot already exists): we've kicked off the
-		// re-decode but hold the visible swap — frame time/mode, the readout, and the sweep pulse — until the
-		// geometry lands, so the sweep animates WITH the new returns instead of ~3-6 s before them (the worker
-		// fetches the ~7 MB volume then decodes). OnRadarFrameReady completes it via CompleteLiveUpdate.
+		// re-decode but hold the visible swap — frame time/mode and the readout — until the geometry lands, so the
+		// time never leads the picture by the ~3 s the worker spends fetching + decoding the volume.
+		// OnRadarFrameReady completes it via CompleteLiveUpdate.
 		private Models.RadarVolume? _pendingLiveUpdate;
+
+		// ── NEW LIVE FRAME announcements (the bar's activity slot; replaced the sweep pulse 2026-10-07) ──
+		// ⚠️ TRUTH ONLY: announced from the moment a poll brings a NEWER scan (ApplyLiveFrameAsync — the chunks are
+		// already on disk by then; the ~0.5 s chunk download runs on EVERY 30 s poll and can't know beforehand
+		// whether a new scan will come out of it) to the moment it is in the loop (CompleteLiveAppend/Update). Not
+		// during a loop's first load (that frame is part of "loading the loop"), never in PastCast (no live path).
+
+		/// <summary>A new live frame's progress toward the screen (NowCast). Raised on the UI thread.</summary>
+		public event EventHandler<LiveFrameActivity>? LiveFrameActivity;
+
+		private Models.RadarVolume? _announcedLive;
+		private bool _announcedDecoding;
+
+		internal void AnnounceLiveFound(Models.RadarVolume live)
+		{
+			_announcedLive = live;
+			_announcedDecoding = false;
+			LiveFrameActivity?.Invoke(this, new LiveFrameActivity(LiveFrameStage.Found, live.Site.Id, live.VolumeTime));
+		}
+
+		// From SetBuildProgress: a worker picked up the live slot.
+		private void AnnounceLiveDecoding()
+		{
+			if (_announcedLive is not { } live || _announcedDecoding) return;
+			if (_archiveCount >= _decoding.Length || !_decoding[_archiveCount]) return;
+			_announcedDecoding = true;
+			LiveFrameActivity?.Invoke(this, new LiveFrameActivity(LiveFrameStage.Decoding, live.Site.Id, live.VolumeTime));
+		}
+
+		internal void AnnounceLiveShown(Models.RadarVolume live)
+		{
+			if (!ReferenceEquals(_announcedLive, live)) return; // a first-load frame: never announced
+			_announcedLive = null;
+			LiveFrameActivity?.Invoke(this, new LiveFrameActivity(LiveFrameStage.Shown, live.Site.Id, live.VolumeTime));
+		}
+
+		internal void AnnounceLiveDropped()
+		{
+			if (_announcedLive is not { } live) return;
+			_announcedLive = null;
+			LiveFrameActivity?.Invoke(this, new LiveFrameActivity(LiveFrameStage.Dropped, live.Site.Id, live.VolumeTime));
+		}
 		// Mode text (VCP/precip/SAILS) from the most recent successful live poll. Tracked
 		// SEPARATELY from _liveFrame because the mode is known from any decoded live volume even
 		// when we don't append it as a new frame — e.g. an offline/stale site (KVNX) whose newest

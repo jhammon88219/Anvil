@@ -582,7 +582,7 @@ namespace Anvil.Services
 		/// theme's own. Set in Settings -> Radar -> Range ring &amp; ruler.
 		/// </summary>
 		/// <remarks>⚠️ Written into the page as a CSS custom-property override, so it only ever holds what
-		/// <c>ScopeColors.Normalize</c> lets through. It overrides BOTH themes; the sweep pulse keeps its own.</remarks>
+		/// <c>ScopeColors.Normalize</c> lets through. It overrides BOTH themes.</remarks>
 		public string ScopeColor
 		{
 			get => _scopeColor;

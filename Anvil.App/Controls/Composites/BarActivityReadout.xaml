@@ -11,6 +11,12 @@
        └──────────────────────────────────────────────────────────┘
          ┃ = the tone mark:  blue = radar loop work · grey = housekeeping · green = done flash · red = failed
 
+       NowCast's NEW LIVE FRAME (lowest rank) wears the loop's look:
+       │ ┃ New scan · KTLX                 1:42 PM scan · building │   ← main bar = the build (⅓ decoding)
+       │ ┃ ██████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │   ← thin line WHOLE: the poll only knows a
+       │ ┃ ─────────────────────────────────────────────────────── │     scan is new once its chunks are on disk
+       then  ┃ New frame · KTLX 1:42 PM                 Complete     ← green flash, holds like "Loop ready"
+
        hover (loop only) → the title reads "Hold the map again ↗"; click → back to the gate (ReturnToHold).
        nothing active   → the whole plate fades out: empty bar, as before.
 

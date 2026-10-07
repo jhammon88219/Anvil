@@ -254,7 +254,7 @@ function ensureStyle() {
         .radar-site-btn.offline .radar-site-chev:hover { background: var(--k-hv); }
 
         /* Selected = INVERTED: dark ink on the bright colour. The active site's "radar" is also the big
-           geographic range ring + sweep drawn on the MAP (radar.js). */
+           geographic range ring drawn on the MAP (radar.js). */
         .radar-site-btn.selected { background: var(--k-sbg); color: var(--k-sink); border-color: var(--k-sbg); }
         .radar-site-btn.selected .radar-site-chev { color: var(--k-sink); }
         .radar-site-btn.selected:not(.offline):hover { background: var(--k-shv); border-color: var(--k-shv); }

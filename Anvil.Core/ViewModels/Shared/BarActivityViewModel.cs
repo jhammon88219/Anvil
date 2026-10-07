@@ -8,8 +8,9 @@ namespace Anvil.ViewModels
 	/// <summary>What the bar's activity readout can be showing. ⚠️ DECLARATION ORDER IS PRIORITY — when several
 	/// run at once the first one listed takes the slot and the rest wait behind a "+n" tag. A new activity is a
 	/// member here (in its rank) plus a source that calls <see cref="BarActivityViewModel.Set"/>/<c>Clear</c>/<c>Flash</c>.
-	/// Search ranks FIRST: it answers a gesture the user just made, so it must never wait behind a "+n".</summary>
-	public enum BarActivityKind { Search, Loop, SiteCheck }
+	/// Search ranks FIRST: it answers a gesture the user just made, so it must never wait behind a "+n". LiveFrame
+	/// ranks LAST: it is news every few minutes, never a reason to hide anything else.</summary>
+	public enum BarActivityKind { Search, Loop, SiteCheck, LiveFrame }
 
 	/// <summary>The readout's colour: the mark and the bar. Radar = loop work (the gate's built-bar blue),
 	/// Housekeeping = app chores, Done = the finish flash, Failed = a flash that says something didn't work.</summary>
@@ -28,8 +29,8 @@ namespace Anvil.ViewModels
 	/// <c>RadarViewModel.UpdateLoopGate</c>). No bar is drawn for work that has no real fraction.</para>
 	/// <para>The sources today: the PLACE SEARCH's status (moved here from beside the search box, 2026-10-06 — a
 	/// variable-width line there broke the left section's edge); the PastCast LOOP while the gate is NOT up (after
-	/// "Use the map", or holding turned off) — clicking it is "Hold the map again"; and the announced SITE CHECK
-	/// (moved here from the map's toast).</para>
+	/// "Use the map", or holding turned off) — clicking it is "Hold the map again"; the announced SITE CHECK
+	/// (moved here from the map's toast); and NowCast's NEW LIVE FRAME (replaced the map's sweep pulse, 2026-10-07).</para>
 	/// </remarks>
 	public sealed class BarActivityViewModel : ObservableObject
 	{
@@ -190,6 +191,37 @@ namespace Anvil.ViewModels
 			{
 				Clear(BarActivityKind.Loop);
 			}
+		}
+
+		// ── Source: NowCast's NEW LIVE FRAME (replaced the map's sweep pulse, 2026-10-07) ─────────────────
+
+		/// <summary>Follow each new live frame from the poll that brought it to the moment it is in the loop, the
+		/// loop's look (variant A, the user's pick): the thin line is the download — already whole, since the poll
+		/// only knows a scan is new once its chunks are on disk — and the main bar is the build, the gate's steps
+		/// (⅓ a worker decoding it). Shown → "complete" holds for <see cref="FlashMs"/>, like "Loop ready".</summary>
+		internal void WatchLiveFrame(RadarViewModel radar)
+		{
+			radar.LiveFrameActivity += (_, a) =>
+			{
+				var scan = $"{a.VolumeTime.ToLocalTime():h:mm tt} scan";
+				switch (a.Stage)
+				{
+					case LiveFrameStage.Found:
+						Set(BarActivityKind.LiveFrame, $"New scan · {a.SiteId}", $"{scan} · downloaded", 0, 1);
+						break;
+					case LiveFrameStage.Decoding:
+						Set(BarActivityKind.LiveFrame, $"New scan · {a.SiteId}", $"{scan} · building",
+							RadarViewModel.DecodingStep, 1);
+						break;
+					case LiveFrameStage.Shown:
+						Flash(BarActivityKind.LiveFrame, $"New frame · {a.SiteId} {a.VolumeTime.ToLocalTime():h:mm tt}",
+							"Complete", BarActivityTone.Done, fullBar: true);
+						break;
+					default:
+						if (!IsFlashing(BarActivityKind.LiveFrame)) Clear(BarActivityKind.LiveFrame);
+						break;
+				}
+			};
 		}
 
 		// ── Source: the PLACE SEARCH's status (was a line beside the search box) ───────────────────────

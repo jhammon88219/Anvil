@@ -12,20 +12,30 @@ using static Anvil.Tests.TemporalWindowPersistenceTests;
 namespace Anvil.Tests
 {
 	/// <summary>
-	/// The sweep pulse (the user's design): it plays when a new LATEST frame is drawn, so you watch the radar "get" the
-	/// frame. An in-place live update used to pulse even while you were scrubbed back to an older frame (2026-10-04).
-	/// A real NowCast loop over a fake archive + map; frame-ready events are fed by hand, as the page would.
+	/// NowCast's NEW LIVE FRAME in the bar's activity slot (replaced the map's sweep pulse, 2026-10-07): it lights when a
+	/// poll brings a newer scan, steps to "building" when a worker takes it, and says "Complete" once the frame is in the
+	/// loop — then holds like "Loop ready". A loop's FIRST load is not news. A real NowCast loop over a fake archive +
+	/// map; frame-ready and build-progress events are fed by hand, as the page would.
 	/// </summary>
-	public class LiveSweepTests
+	public class LiveFrameActivityTests
 	{
 		private static readonly RadarSite Ktlx = new("KTLX", "Norman", 35.333, -97.278);
 		private static readonly string[] Keys = { "2024/05/07/KTLX/KTLX20240507_033006_V06",
 			"2024/05/07/KTLX/KTLX20240507_033512_V06", "2024/05/07/KTLX/KTLX20240507_034018_V06" };
 
+		private sealed class ManualDelay
+		{
+			private TaskCompletionSource _tcs = new();
+			public Task Wait(int _) => _tcs.Task;
+			public void Fire() { var t = _tcs; _tcs = new(); t.SetResult(); }
+		}
+
 		private sealed class Rig
 		{
 			public RadarViewModel Radar = null!;
-			public int Pulses;
+			public BarActivityViewModel Bar = null!;
+			public readonly ManualDelay Delay = new();
+			public readonly List<LiveFrameStage> Stages = new();
 			public int LiveSlotRequests; // AddRadarFrameAsync into the live slot (index 3)
 			public RadarVolume Live = LiveAt(45);
 		}
@@ -40,7 +50,7 @@ namespace Anvil.Tests
 			Assert.True(condition());
 		}
 
-		// A loaded NowCast loop: 3 archive frames + the live frame appended (its pulse already counted).
+		// A loaded NowCast loop: 3 archive frames + the live frame appended by the FIRST load.
 		private static async Task<Rig> LoadedLiveLoop()
 		{
 			var rig = new Rig();
@@ -55,7 +65,6 @@ namespace Anvil.Tests
 			});
 			var map = Null<IMapService>.Create(new()
 			{
-				["PulseRadarSweepAsync"] = _ => { Interlocked.Increment(ref rig.Pulses); return Task.CompletedTask; },
 				["AddRadarFrameAsync"] = a =>
 				{
 					if ((int)a![1]! == Keys.Length) Interlocked.Increment(ref rig.LiveSlotRequests);
@@ -63,6 +72,9 @@ namespace Anvil.Tests
 				},
 			});
 			rig.Radar = new RadarViewModel(map, Null<IRadarSiteProvider>.Create(), archive, Null<IDowEventProvider>.Create(), svc, null);
+			rig.Bar = new BarActivityViewModel(rig.Delay.Wait);
+			rig.Bar.WatchLiveFrame(rig.Radar);
+			rig.Radar.LiveFrameActivity += (_, a) => rig.Stages.Add(a.Stage);
 			await rig.Radar.OnMapsReadyAsync();
 			rig.Radar.SelectedRadarOption = new RadarOption("KTLX", Ktlx);
 
@@ -70,12 +82,11 @@ namespace Anvil.Tests
 			for (var i = 0; i < Keys.Length; i++) rig.Radar.OnRadarFrameReady(i, true);
 			rig.Radar.OnRadarFrameReady(Keys.Length, true);             // live frame decoded → appended + shown
 			Assert.Equal(Keys.Length, (int)rig.Radar.CurrentFrameIndex);
-			Assert.Equal(1, rig.Pulses);
 			return rig;
 		}
 
-		// A newer live volume, re-decoded into the live slot (the poll's in-place update), then landing.
-		private static async Task LiveUpdateLands(Rig rig)
+		// A newer live volume, re-decoded into the live slot by the poll's in-place update (not yet landed).
+		private static async Task LiveUpdateFound(Rig rig)
 		{
 			rig.Live = LiveAt(47);
 			await WaitFor(() =>
@@ -83,24 +94,64 @@ namespace Anvil.Tests
 				if (rig.LiveSlotRequests < 2) _ = rig.Radar.ForceLiveFrameCheckAsync(); // skipped until the load finishes
 				return rig.LiveSlotRequests >= 2;
 			});
-			rig.Radar.OnRadarFrameReady(Keys.Length, true);
 		}
 
 		[Fact]
-		public async Task A_live_update_on_screen_sweeps()
+		public async Task The_first_loads_live_frame_is_not_announced()
 		{
 			var rig = await LoadedLiveLoop();
-			await LiveUpdateLands(rig);
-			Assert.Equal(2, rig.Pulses);
+			Assert.Empty(rig.Stages);
+			Assert.False(rig.Bar.IsShown);
 		}
 
 		[Fact]
-		public async Task A_live_update_while_scrubbed_back_does_not_sweep()
+		public async Task A_new_scan_lights_builds_then_says_complete_and_holds()
+		{
+			var rig = await LoadedLiveLoop();
+			await LiveUpdateFound(rig);
+			Assert.True(rig.Bar.IsShown);
+			Assert.Equal(BarActivityKind.LiveFrame, rig.Bar.Kind);
+			Assert.Equal("New scan · KTLX", rig.Bar.Title);
+			Assert.EndsWith("· downloaded", rig.Bar.Detail);
+			Assert.Equal(0, rig.Bar.Progress);
+			Assert.Equal(1, rig.Bar.Secondary);                          // its chunks are on disk before it's known to be new
+
+			var decoding = new bool[Keys.Length + 1];
+			decoding[Keys.Length] = true;
+			rig.Radar.SetBuildProgress(Keys.Length, Keys.Length + 1, null, null, decoding);
+			Assert.EndsWith("· building", rig.Bar.Detail);
+			Assert.Equal(1.0 / 3, rig.Bar.Progress, 3);
+
+			rig.Radar.OnRadarFrameReady(Keys.Length, true);             // the new returns landed
+			Assert.Equal(new[] { LiveFrameStage.Found, LiveFrameStage.Decoding, LiveFrameStage.Shown }, rig.Stages);
+			Assert.Equal(BarActivityTone.Done, rig.Bar.Tone);
+			Assert.Equal("Complete", rig.Bar.Detail);
+			Assert.StartsWith("New frame · KTLX ", rig.Bar.Title);
+			Assert.Equal(1, rig.Bar.Progress);
+
+			rig.Delay.Fire();                                            // the hold runs out
+			await WaitFor(() => !rig.Bar.IsShown);
+		}
+
+		[Fact]
+		public async Task A_new_scan_while_scrubbed_back_still_completes()
 		{
 			var rig = await LoadedLiveLoop();
 			rig.Radar.CurrentFrameIndex = 0;
-			await LiveUpdateLands(rig);
-			Assert.Equal(1, rig.Pulses);
+			await LiveUpdateFound(rig);
+			rig.Radar.OnRadarFrameReady(Keys.Length, true);
+			Assert.Equal(new[] { LiveFrameStage.Found, LiveFrameStage.Shown }, rig.Stages);
+			Assert.Equal("Complete", rig.Bar.Detail);
+		}
+
+		[Fact]
+		public async Task Leaving_the_site_before_it_lands_clears_the_slot()
+		{
+			var rig = await LoadedLiveLoop();
+			await LiveUpdateFound(rig);
+			rig.Radar.SelectedRadarOption = null;
+			await WaitFor(() => rig.Stages.Contains(LiveFrameStage.Dropped));
+			Assert.False(rig.Bar.IsShown);
 		}
 	}
 }
