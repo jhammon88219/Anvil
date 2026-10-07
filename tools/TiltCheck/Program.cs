@@ -147,6 +147,98 @@ if (args.Length > 0 && args[0] == "--messages")
     return 0;
 }
 
+// --supp SITE yyyy/MM/dd [SITE yyyy/MM/dd …]: every volume of each site-day, metadata record ONLY (8 KB range read,
+// raw keys — .gz has no readable prefix), tallied by what Message 5 says about SAILS / MRLE / MPDA / base tilt and
+// by which tilts its table actually repeats. The research behind the "Extra sweeps" row (2026-10-07): does the
+// supplemental word match the table, and what does an MRLE volume look like?
+if (args.Length > 0 && args[0] == "--supp")
+{
+    using var suppHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+    XNamespace ns = "http://s3.amazonaws.com/doc/2006-03-01/";
+    for (var a = 1; a + 1 < args.Length; a += 2)
+    {
+        var sSite = args[a].ToUpperInvariant();
+        var sDay = args[a + 1];
+        var listXml = XDocument.Parse(await suppHttp.GetStringAsync(
+            $"{Level2RadarService.BucketBase}?list-type=2&prefix={Uri.EscapeDataString($"{sDay}/{sSite}/")}&max-keys=1000"));
+        var sKeys = listXml.Descendants(ns + "Key").Select(k => k.Value)
+            .Where(k => k.EndsWith("_V06", StringComparison.Ordinal)).OrderBy(k => k, StringComparer.Ordinal).ToList();
+        var tally = new SortedDictionary<string, (int n, string first, string last)>(StringComparer.Ordinal);
+        await Parallel.ForEachAsync(sKeys, new ParallelOptions { MaxDegreeOfParallelism = 8 }, async (k, ct) =>
+        {
+            string sig;
+            try { sig = await SuppSignatureAsync(suppHttp, k, ct); }
+            catch (Exception e) { sig = "ERR " + e.GetType().Name; }
+            var hhmm = k[(k.LastIndexOf('_') - 6)..(k.LastIndexOf('_') - 2)];
+            lock (tally)
+            {
+                tally[sig] = tally.TryGetValue(sig, out var t)
+                    ? (t.n + 1, string.CompareOrdinal(hhmm, t.first) < 0 ? hhmm : t.first, string.CompareOrdinal(hhmm, t.last) > 0 ? hhmm : t.last)
+                    : (1, hhmm, hhmm);
+            }
+        });
+        Console.WriteLine($"== {sSite} {sDay}: {sKeys.Count} raw volumes");
+        foreach (var (sig, t) in tally) Console.WriteLine($"   {t.n,4}× {t.first}-{t.last}Z  {sig}");
+    }
+    return 0;
+
+    static async Task<string> SuppSignatureAsync(HttpClient http, string key, CancellationToken ct)
+    {
+        async Task<byte[]> Range(int bytes)
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, Level2RadarService.BucketBase + key);
+            req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(0, bytes - 1);
+            using var resp = await http.SendAsync(req, ct);
+            resp.EnsureSuccessStatusCode();
+            return await resp.Content.ReadAsByteArrayAsync(ct);
+        }
+        var prefix = await Range(8 * 1024);
+        var recordBytes = Math.Abs((prefix[24] << 24) | (prefix[25] << 16) | (prefix[26] << 8) | prefix[27]);
+        if (recordBytes is <= 0 or > 512 * 1024) return "no metadata record";
+        if (28 + recordBytes > prefix.Length) prefix = await Range(28 + recordBytes);
+        var meta = Level2RadarService.DecompressChunk(prefix, isS: true);
+        if (meta is null) return "metadata didn't decompress";
+        var blocks = new List<(byte[] block, int elev)> { (meta, 0) };
+        var build = Level2Format.ReadRdaBuildFromMetadata(blocks);
+        for (var pos = 0; pos + 12 + 16 + 22 <= meta.Length; pos += 2432)
+        {
+            var type = meta[pos + 12 + 3];
+            if (type == 31) break;
+            if (type is not (5 or 7)) continue;
+            var body = pos + 12 + 16;
+            int Hw(int off) => (meta[off] << 8) | meta[off + 1];
+            var vcp = Hw(body + 4);
+            var supp = Hw(body + 18);
+            var n = Hw(body + 6);
+            // Per-cut: angle, waveform, E14 word. Repeats = a CS (w1) or batch/contiguous angle seen more than once.
+            var cuts = new List<(double angle, int wf, int e14)>();
+            for (var k = 0; k < n && body + 22 + k * 46 + 30 <= meta.Length; k++)
+            {
+                var c = body + 22 + k * 46;
+                cuts.Add(((short)Hw(c) / 8.0 * 0.043945, meta[c + 3], Hw(c + 28))); // E15 = halfword 15 of the cut
+            }
+            // A tilt's "passes" = its non-Doppler cuts (w1 CS, w3 CDWO used alone, w4 batch); CD (w2) pairs with a CS.
+            var repeats = cuts.Where(c => c.wf != 2)
+                .GroupBy(c => Math.Round(c.angle * 10) / 10)
+                .Where(g => g.Count() > 1)
+                .Select(g => $"{g.Key:0.0}°×{g.Count()}");
+            var flagged = cuts.Where(c => c.e14 != 0).Select(c => $"{c.angle:0.0}w{c.wf}:{c.e14:X}");
+            return $"b{build:0.0} VCP {vcp} supp={supp:X4} [{DecodeSupp(supp)}]  repeats: {string.Join(",", repeats.DefaultIfEmpty("none"))}" +
+                   $"  E15: {string.Join(" ", flagged.DefaultIfEmpty("all 0"))}";
+        }
+        return $"b{build:0.0} no Message 5";
+    }
+
+    static string DecodeSupp(int w) => w == 0 ? "0" : string.Join(" ", new[]
+    {
+        (w & 1) != 0 ? $"SAILS n={(w >> 1) & 7}" : null,
+        (w & 0x10) != 0 ? $"MRLE n={(w >> 5) & 7}" : null,
+        (w & 0x400) != 0 ? "MPDAcutsAdded" : null,
+        (w & 0x800) != 0 ? "MPDA" : null,
+        (w & 0x1000) != 0 ? $"BASETILT n={(w >> 13) & 7}" : null,
+    }.Where(s => s is not null));
+}
+
 var positional = args.TakeWhile(a => !a.StartsWith("--")).ToArray();
 var site = positional.Length > 0 ? positional[0].ToUpperInvariant() : "KTLX";
 var day = positional.Length > 1 ? positional[1] : DateTime.UtcNow.ToString("yyyy/MM/dd");
@@ -222,6 +314,37 @@ var failuresEarly = 0;
 var (vcpNum, sweepsNum) = Level2Format.ReadModeFromExtractedTilt(baseTilt);
 Console.WriteLine($"VCP (ReadModeFromExtractedTilt): {vcpNum}  sweeps={sweepsNum}  known={Level2Format.IsKnownVcp(vcpNum)}");
 Console.WriteLine($"RDA build (Message 2): {Level2Format.ReadRdaBuildFromExtractedTilt(baseTilt)}");
+DumpMessage5Supplemental(baseTilt);
+
+// Message 5's RPG-use words (ICD 2620002Y Table XI): header halfword 9 = VCP sequencing, 10 = VCP supplemental
+// (SAILS bit 0 + count bits 1-3, MRLE bit 4 + count bits 5-7, MPDA bit 11, base tilt bit 12 + count 13-15), and
+// each cut's E15 supplemental word (SAILS cut bit 0 + seq 1-3, MRLE cut bit 4 + seq 5-7, MPDA cut 9, base tilt 10).
+// The ICD notes these are byte-swapped by the RDA; archive volumes read correctly big-endian (--supp, 2026-10-07),
+// the swapped order is printed only as a cross-check.
+static void DumpMessage5Supplemental(byte[] tilt)
+{
+    var block = tilt[24..];
+    for (var pos = 0; pos + 12 + 16 + 22 <= block.Length; pos += 2432)
+    {
+        var type = block[pos + 12 + 3];
+        if (type == 31) break;
+        if (type is not (5 or 7)) continue;
+        var body = pos + 12 + 16;
+        int Hw(int off) => (block[off] << 8) | block[off + 1];
+        int Sw(int off) => (block[off + 1] << 8) | block[off];
+        Console.WriteLine($"Msg5 hw9 seq={Hw(body + 16):X4} (swapped {Sw(body + 16):X4})  hw10 supp={Hw(body + 18):X4} (swapped {Sw(body + 18):X4})");
+        var n = (block[body + 6] << 8) | block[body + 7];
+        var cuts = new List<string>();
+        for (var k = 0; k < n && body + 22 + k * 46 + 30 <= block.Length; k++)
+        {
+            var c = body + 22 + k * 46;
+            var angle = (short)Hw(c) / 8.0 * 0.043945;
+            cuts.Add($"{angle:0.00}/w{block[c + 3]}:{Hw(c + 28):X4}|{Sw(c + 28):X4}");
+        }
+        Console.WriteLine("Msg5 cut E15 (be|swapped): " + string.Join(" ", cuts));
+        return;
+    }
+}
 
 // Raw Message 5 header fields, straight from the table parse, to see whether the designed table we
 // read actually belongs to the VCP the volume reports.
