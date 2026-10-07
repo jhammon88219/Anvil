@@ -720,6 +720,17 @@ try {
     window.setNexradSitesVisible = function (visible) { if (RadarSites) RadarSites.setNexradVisible(visible); };
     window.setResearchRadarsVisible = function (visible) { if (RadarSites) RadarSites.setResearchVisible(visible); };
     window.setTdwrsVisible = function (visible) { if (RadarSites) RadarSites.setTdwrVisible(visible); };
+    // ── SITE-REVEAL (experimental bolt-on, site-reveal.js; grep SITE-REVEAL to excise) ─────────────
+    // Only the sites inside a ring round the cursor show (Settings → Radar). Imported on first use; the
+    // choice is held until radar-sites.js has landed (the map-ready replay can beat that import).
+    var siteRevealOn = false;
+    function applySiteReveal() {
+        if (!RadarSites || !primary()) { setTimeout(applySiteReveal, 200); return; }
+        import('./site-reveal.js').then(function (m) { m.setEnabled(primary(), siteRevealOn, RadarSites); })
+            .catch(function (e) { console.error('site-reveal.js load failed: ' + e); });
+    }
+    window.setSiteReveal = function (on) { siteRevealOn = !!on; applySiteReveal(); };
+    // ── end SITE-REVEAL ──────────────────────────────────────────────────────────────────────────
     // Retired ids (moved/renamed radars) outside the era being viewed — hidden live, dated in PastCast.
     window.setRadarSitesOutOfEra = function (json) {
         if (RadarSites) RadarSites.setOutOfEra(json);

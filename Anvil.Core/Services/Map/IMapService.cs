@@ -428,6 +428,12 @@ namespace Anvil.Services
 		Task SetTdwrsVisibleAsync(bool visible);
 
 		/// <summary>
+		/// SITE-REVEAL (experimental bolt-on): while on, only the radar sites inside a 230 km ring round the cursor
+		/// show (plus the loaded site). Layered on the network toggles, not instead of them. site-reveal.js.
+		/// </summary>
+		Task SetSiteRevealAsync(bool on);
+
+		/// <summary>
 		/// Hides the given RETIRED site ids (a JSON array) — moved/renamed radars outside the era being viewed
 		/// (RadarViewModel's SITE ERA block). Replaces the previous set; an empty array hides none.
 		/// </summary>

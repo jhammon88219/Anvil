@@ -2170,6 +2170,23 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		// ── SITE-REVEAL (experimental bolt-on; grep SITE-REVEAL to excise) ──
+		/// <summary>
+		/// Show only the radar sites inside a ring round the cursor (plus the loaded site) — a less busy map.
+		/// Layered ON the network toggles. PERSISTED via <see cref="AppSettings.RevealSitesNearCursor"/>; Settings → Radar.
+		/// </summary>
+		public bool RevealSitesNearCursor
+		{
+			get => _settings.Settings.RevealSitesNearCursor;
+			set
+			{
+				if (_settings.Settings.RevealSitesNearCursor == value) { return; }
+				_settings.Settings.RevealSitesNearCursor = value; // persists (auto-save)
+				OnPropertyChanged();
+				if (_isMapReady) { _ = _mapService.SetSiteRevealAsync(value); }
+			}
+		}
+
 		// Cancels the two APP-LIFETIME loops below when the window closes. Separate from _loopCts, which is
 		// per-radar-loop and is re-created on every site click; this one is created once and never reset.
 		private readonly CancellationTokenSource _shutdown = new();
@@ -2228,6 +2245,7 @@ namespace Anvil.ViewModels
 			await _mapService.SetNexradSitesVisibleAsync(ShowNexradSites);
 			await _mapService.SetResearchRadarsVisibleAsync(ShowResearchRadars);
 			await _mapService.SetTdwrsVisibleAsync(ShowTdwrs);
+			if (RevealSitesNearCursor) { await _mapService.SetSiteRevealAsync(true); } // SITE-REVEAL
 			await _mapService.SetRadarSitesOutOfEraAsync(System.Text.Json.JsonSerializer.Serialize(OutOfEraIds()));
 
 			// The PERSISTED range-ring colour and ruler anchor (every command this VM holds is replayed here).

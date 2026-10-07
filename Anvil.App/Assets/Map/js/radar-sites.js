@@ -128,8 +128,20 @@ function markerVisible(id) {
     const networkOn = researchIds.has(id) ? researchVisible : tdwrIds.has(id) ? tdwrVisible : nexradVisible;
     return networkOn
         && !outOfEraIds.has(id)
-        && (coveredIds === null || coveredIds.has(id) || id === selectedSiteId);
+        && (coveredIds === null || coveredIds.has(id) || id === selectedSiteId)
+        && (revealedIds === null || revealedIds.has(id) || id === selectedSiteId); // SITE-REVEAL
 }
+
+// ── SITE-REVEAL (experimental bolt-on, site-reveal.js; grep SITE-REVEAL to excise) ───────────────
+// While the reveal is on, only the sites inside the cursor's ring show (plus the loaded site, exempt like
+// it is from isolation). null = the gate is off. site-reveal.js reads the coordinates and pushes the set.
+let revealedIds = null;
+export function setRevealed(ids) {
+    revealedIds = ids ? new Set(ids) : null;
+    applyVisibility();
+}
+export function siteCoordinates() { return siteCoords; }
+// ── end SITE-REVEAL ──────────────────────────────────────────────────────────────────────────────
 
 // Re-apply the visibility rule to every marker (after any toggle changes).
 function applyVisibility() {
