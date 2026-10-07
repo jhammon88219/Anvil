@@ -196,6 +196,7 @@ namespace Anvil.ViewModels
 					? Segments[i].IsDecoded
 					: IsFrameFillReady(i) && i <= frontier;
 			}
+			RefreshSegmentFill();
 			UpdateLoopGate(); // the gate's "built" bar is these lit cells
 		}
 
@@ -589,32 +590,23 @@ namespace Anvil.ViewModels
 			for (var i = 0; i < n; i++)
 			{
 				var key = i < _loadedKeys.Length ? _loadedKeys[i] : null;
-				if (i < _frameTimes.Length && _frameTimes[i] is not null)
-				{
-					download[i] = 1;
-				}
-				else if (key is not null && _radarService.TryGetDownloadProgress(key, out var bytes, out var expected))
+				var progress = FrameProgressOf(i);
+				download[i] = progress.Download;
+				if (progress.Downloading)
 				{
 					downloading++;
-					download[i] = expected > 0 ? Math.Min(0.99, (double)bytes / expected) : 0;
-					downloadItem ??= $"{ScanName(key)} · {Mb(bytes)} of {(expected > 0 ? Mb(expected) : "?")} MB";
+					downloadItem ??= $"{ScanName(key!)} · {Mb(progress.Bytes)} of {(progress.ExpectedBytes > 0 ? Mb(progress.ExpectedBytes) : "?")} MB";
 				}
 
-				var isDecoding = i < _decoding.Length && _decoding[i];
-				if (isDecoding) decoding++;
-				if (IsFrameBuiltForGate(i))
+				if (progress.Decoding) decoding++;
+				build[i] = progress.Build;
+				if (key is not null && progress.Build == LitStep) // reflectivity is drawn; velocity is not yet
 				{
-					build[i] = 1;
+					buildItem ??= $"{ScanName(key)} · {(progress.Decoding ? "Building velocity" : "Velocity next")}";
 				}
-				else if (i < Segments.Count && Segments[i].IsDecoded) // reflectivity is drawn; velocity is not yet
+				else if (key is not null && progress.Build == DecodingStep)
 				{
-					build[i] = LitStep;
-					if (key is not null) buildItem ??= $"{ScanName(key)} · {(isDecoding ? "Building velocity" : "Velocity next")}";
-				}
-				else if (isDecoding)
-				{
-					build[i] = DecodingStep;
-					if (key is not null) buildItem ??= $"{ScanName(key)} · Decoding";
+					buildItem ??= $"{ScanName(key)} · Decoding";
 				}
 			}
 			LoopGate.ReportCells(download, build, downloading, decoding, downloadItem, buildItem);
@@ -623,6 +615,58 @@ namespace Anvil.ViewModels
 			static string ScanName(string key) =>
 				Level2RadarService.ParseVolumeTime(key) is { } t ? $"{t.ToLocalTime():h:mm tt} scan" : "Scan";
 			static string Mb(long b) => (b / 1_000_000.0).ToString("0.0", System.Globalization.CultureInfo.CurrentCulture);
+		}
+
+		// ONE frame's progress, the ONE rule both the loading screen's cells (above) and the dot-matrix scrubber's fill
+		// (RefreshSegmentFill) read. Download: arrived 1 · being fetched bytes ÷ expected (< 1) · not started 0. Build:
+		// built (IsFrameBuiltForGate) 1 · reflectivity drawn ⅔ · a worker decoding it ⅓ · else 0.
+		private readonly record struct FrameProgress(double Download, double Build, bool Downloading, bool Decoding,
+			long Bytes, long ExpectedBytes);
+
+		private FrameProgress FrameProgressOf(int i)
+		{
+			var key = i < _loadedKeys.Length ? _loadedKeys[i] : null;
+			double download = 0;
+			bool downloading = false;
+			long bytes = 0, expected = 0;
+			if (i < _frameTimes.Length && _frameTimes[i] is not null)
+			{
+				download = 1;
+			}
+			else if (key is not null && _radarService.TryGetDownloadProgress(key, out bytes, out expected))
+			{
+				downloading = true;
+				download = expected > 0 ? Math.Min(0.99, (double)bytes / expected) : 0;
+			}
+
+			var isDecoding = i < _decoding.Length && _decoding[i];
+			var build = IsFrameBuiltForGate(i) ? 1
+				: i < Segments.Count && Segments[i].IsDecoded ? LitStep
+				: isDecoding ? DecodingStep
+				: 0;
+			return new FrameProgress(download, build, downloading, isDecoding, bytes, expected);
+		}
+
+		// ── DOT-MATRIX SCRUBBER FILL (Primitives/DotMatrixScrubber) ─────────────────────────────────────────────
+		// Each cell's dots fill with its frame's progress: half download, half build, from FrameProgressOf. A LIT cell
+		// (IsReady — Rule 2's left-to-right reveal) is exactly 1; anything else is capped just below, so a frame that
+		// is built but not yet revealed never reads as lit. Runs after every readiness pass and on the loading
+		// screen's byte tick (RunLoopGateCellsAsync); outside a PastCast load it steps on arrivals and decodes only.
+		internal const double MaxUnlitFill = 0.9;
+
+		private void RefreshSegmentFill()
+		{
+			for (var i = 0; i < Segments.Count; i++)
+			{
+				var segment = Segments[i];
+				if (segment.IsReady)
+				{
+					segment.Fill = 1;
+					continue;
+				}
+				var progress = FrameProgressOf(i);
+				segment.Fill = Math.Min(MaxUnlitFill, 0.5 * progress.Download + 0.5 * progress.Build);
+			}
 		}
 
 		// The download cells move between arrivals (bytes stream in), which nothing else announces — so while a load is
@@ -636,6 +680,7 @@ namespace Anvil.ViewModels
 				while (LoopGate.IsLoading && !ct.IsCancellationRequested)
 				{
 					RefreshLoopGateCells();
+					RefreshSegmentFill(); // the dot-matrix scrubber's dots fill with the same bytes
 					await Task.Delay(LoopGateCellsTickMs, ct);
 				}
 			}

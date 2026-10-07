@@ -5,11 +5,11 @@
 
        ┌─ Settings ──────────────────────────────[lock][pin]─┐
        │  Settings                                            │
-       │  ┌────┬──────┬──────────────────┬─────────┬─────────────┬─────┐
-       │  │ ⛰  │  ◎   │        ⊙         │    ▤    │      ▭      │  ⚒  │  ← Controls/Primitives/TabStrip
-       │  │Map │Radar │ Radar Range Ring │ Storage │ Window Mode │ Dev │
-       │  │▀▀▀▀│      │                  │         │             │     │
-       │  └────┴──────┴──────────────────┴─────────┴─────────────┴─────┘
+       │  ┌────┬──────┬──────────────────┬─────────┬─────────────┬───────────────┬─────┐
+       │  │ ⛰  │  ◎   │        ⊙         │    ▤    │      ▭      │       ▶       │  ⚒  │  ← Primitives/TabStrip
+       │  │Map │Radar │ Radar Range Ring │ Storage │ Window Mode │ Radar Console │ Dev │
+       │  │▀▀▀▀│      │                  │         │             │               │     │
+       │  └────┴──────┴──────────────────┴─────────┴─────────────┴───────────────┴─────┘
        │  ┌────────────────────┐ ┌──────────────────────────┐    │
        │  │ the selected tab's │ │  LIVE MAP PREVIEW   [⛶] │    │  ← Composites/MapPreview, only
        │  │ body — ONE fixed   │ │      ┌┄┄┄┄┄┄┐          │    │     on Map + Radar Range Ring
@@ -130,6 +130,9 @@
 
                     <cmp:WindowModeSettingsTab ViewModel="{x:Bind ViewModel}"
                                                Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 4), Mode=OneWay}"/>
+
+                    <cmp:RadarConsoleSettingsTab ViewModel="{x:Bind ViewModel}"
+                                                 Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 5), Mode=OneWay}"/>
 
                     <!-- ⚠️ x:Load, not Visibility — see the header. LoadDevTab is hard-false in Release, so
                          this body is never constructed there and its null engine VMs are never bound. -->

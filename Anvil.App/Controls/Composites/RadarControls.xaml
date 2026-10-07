@@ -2,8 +2,8 @@
 <!-- RadarControls — the GLOBAL time module, and only that. The "clock face" layout: the displayed frame's
      time is the HERO (the NowCast header's clock, restated), everything else steps down to one quiet line.
 
-       ┌─ clock ────────┐ ┌─ scrubber: FIXED 420 (8 px cells, 16 px) ───────┐ ┌─ scan ─────────────────┐
-       │ 1:07 PM        │ │ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬▬ ▬┃                        │ │ VCP:        212        │
+       ┌─ clock ────────┐ ┌─ scrubber: FIXED 420 × 20 (classic | dot matrix) ┐ ┌─ scan ─────────────────┐
+       │ 1:07 PM        │ │ ⁙⁙ ⁙⁙ ⁙⁙ ⁙⁙ ◆◆ ⁙⁙ ⁚⁚ ··  ·· ··  (Settings → Radar Console) │ │ VCP:        212        │
        │                │ │                                                     │ │ Mode:       precip     │
        │ 2 min ago      │ │ 11 / 11            ⏮  ▶  ⏭                      ⟳  │ │ SAILS/MRLE: ×1         │
        └────────────────┘ └─────────────────────────────────────────────────────┘ └────────────────────────┘
@@ -42,8 +42,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="using:Anvil.ViewModels"
-             xmlns:layout="using:Anvil.Layout"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              mc:Ignorable="d">
 
     <UserControl.Resources>
@@ -170,55 +169,29 @@
             </Grid.RowDefinitions>
 
             <!-- One cell per frame (ViewModel.Segments), each lighting as its frame builds — the load
-                 indicator for the whole loop (Rule 2). Cells 8 px inside a 16 px hit strip, so the grab
-                 area is bigger than what you see. Playhead positioned in code-behind. -->
+                 indicator for the whole loop (Rule 2). TWO looks, picked in Settings → Radar Console
+                 (ViewModel.IsDotMatrixScrubber): Primitives/ClassicScrubber (8 px cells + playhead) or
+                 Primitives/DotMatrixScrubber (5 rows of dots, 17.5 tall). Both are drawing only; THIS host is the
+                 20 px hit strip and maps the pointer (equal slots — both draw on the same division). -->
             <Grid x:Name="ScrubberHost"
                   Grid.Row="0"
-                  Height="16"
+                  Height="20"
                   Background="Transparent"
                   IsHitTestVisible="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
                   Opacity="{x:Bind ScrubberOpacity(ViewModel.IsTransportEnabled), Mode=OneWay}"
-                  SizeChanged="OnScrubberSizeChanged"
                   PointerPressed="OnScrubberPointerPressed"
                   PointerMoved="OnScrubberPointerMoved"
                   PointerReleased="OnScrubberPointerReleased"
                   PointerCaptureLost="OnScrubberPointerReleased"
                   PointerCanceled="OnScrubberPointerReleased">
-                <!-- Always-present track: same footprint whether or not a loop is loaded. -->
-                <Border Height="8"
-                        VerticalAlignment="Center"
-                        CornerRadius="4"
-                        Background="{ThemeResource ControlFillColorSecondaryBrush}"/>
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Segments, Mode=OneWay}"
-                              IsHitTestVisible="False"
-                              VerticalAlignment="Center"
-                              Height="8">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <layout:EqualCellsPanel/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:RadarFrameSegment">
-                            <Border Margin="1,0"
-                                    CornerRadius="2"
-                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
-                                    Opacity="{x:Bind ReadyOpacity, Mode=OneWay}"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <Border x:Name="Playhead"
-                        Width="3"
-                        Height="16"
-                        CornerRadius="1.5"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Center"
-                        Background="{ThemeResource TextFillColorPrimaryBrush}"
-                        IsHitTestVisible="False">
-                    <Border.RenderTransform>
-                        <TranslateTransform x:Name="PlayheadTransform"/>
-                    </Border.RenderTransform>
-                </Border>
+                <prim:ClassicScrubber Segments="{x:Bind ViewModel.Segments, Mode=OneWay}"
+                                      CurrentIndex="{x:Bind ViewModel.CurrentFrameIndex, Mode=OneWay}"
+                                      Visibility="{x:Bind ClassicVisibility(ViewModel.IsDotMatrixScrubber), Mode=OneWay}"/>
+                <!-- FillOrder="BottomToTop" is the other look to try (DotFillOrder). -->
+                <prim:DotMatrixScrubber Segments="{x:Bind ViewModel.Segments, Mode=OneWay}"
+                                        CurrentIndex="{x:Bind ViewModel.CurrentFrameIndex, Mode=OneWay}"
+                                        FillOrder="LeftToRight"
+                                        Visibility="{x:Bind ViewModel.IsDotMatrixScrubber, Mode=OneWay}"/>
             </Grid>
 
             <!-- Control line: frame count LEFT · transport CENTRED · check-now RIGHT. [*, Auto, *] puts the

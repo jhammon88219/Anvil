@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- RadarConsoleSettingsTab — the Radar Console tab of the Settings window: how the bar's radar console (the
+     GLOBAL time module, Composites/RadarControls) looks. Today: which loop scrubber it draws.
+
+       ┌──────────────────────────────────────────────────────┐
+       │  ⌄  Scrubber                                         │
+       │    ┌────────────────────────────────────────────┐    │
+       │    │ ◯ Classic cells                            │    │
+       │    │   One solid cell per frame                 │    │
+       │    │   ▬▬ ▬▬ ▬▬┃▬ ▬▬ ░░ ░░ ░░                   │    │  ← Primitives/ClassicScrubber, LIVE
+       │    └────────────────────────────────────────────┘    │
+       │    ┌────────────────────────────────────────────┐    │
+       │    │ ◉ Dot matrix                               │    │
+       │    │   Each frame a block of dots that fill …   │    │
+       │    │   ⁙⁙ ⁙⁙ ◆◆ ⁙⁙ ⁚⁚ ·· ··                      │    │  ← Primitives/DotMatrixScrubber, LIVE
+       │    └────────────────────────────────────────────┘    │
+       │    Previews show the loaded loop; a sample until one loads.
+       └──────────────────────────────────────────────────────┘
+
+     ⚠️ REAL PREVIEWS: the two scrubbers are the console's own controls fed the console's own Segments and frame
+     index (set from code — the source flips to a fixed SAMPLE while no loop is loaded, so a preview is never blank).
+     ⚠️ Picking is a RadioButton CLICK writing RadarViewModel.ScrubberStyleIndex; IsChecked is ONE-WAY from it. -->
+
+<UserControl x:Class="Anvil.Controls.Composites.RadarConsoleSettingsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- An option card: the radio's content is title · description · preview, the whole card the hit target. -->
+        <Style x:Key="ScrubberOptionStyle" TargetType="RadioButton">
+            <Setter Property="GroupName" Value="ScrubberStyle"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="8,8,12,10"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid RowSpacing="8" VerticalAlignment="Top">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- scrubber -->
+        </Grid.RowDefinitions>
+
+        <prim:PanelSection Grid.Row="0" Header="Scrubber" IsExpanded="True">
+            <StackPanel Spacing="8" Margin="4,0,0,0">
+                <RadioButton Style="{StaticResource ScrubberOptionStyle}"
+                             IsChecked="{x:Bind IsStyle(ViewModel.Radar.ScrubberStyleIndex, 0), Mode=OneWay}"
+                             Click="OnClassicClick">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Classic cells"/>
+                        <TextBlock Text="One solid cell per frame, a playhead over the frame on screen."
+                                   TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <Grid Height="20" Margin="0,8,0,0">
+                            <prim:ClassicScrubber x:Name="ClassicPreview"/>
+                        </Grid>
+                    </StackPanel>
+                </RadioButton>
+
+                <RadioButton Style="{StaticResource ScrubberOptionStyle}"
+                             IsChecked="{x:Bind IsStyle(ViewModel.Radar.ScrubberStyleIndex, 1), Mode=OneWay}"
+                             Click="OnDotMatrixClick">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Dot matrix"/>
+                        <TextBlock Text="Each frame a block of dots that fill as it loads; the frame on screen lights whole."
+                                   TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <Grid Height="20" Margin="0,8,0,0">
+                            <prim:DotMatrixScrubber x:Name="DotMatrixPreview" FillOrder="LeftToRight"/>
+                        </Grid>
+                    </StackPanel>
+                </RadioButton>
+
+                <TextBlock x:Name="PreviewNote"
+                           TextWrapping="Wrap" FontSize="12"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+            </StackPanel>
+        </prim:PanelSection>
+    </Grid>
+</UserControl>

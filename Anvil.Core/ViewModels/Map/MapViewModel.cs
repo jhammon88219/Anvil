@@ -27,7 +27,7 @@ namespace Anvil.ViewModels
 	/// ⚠️ ONE deliberate exception: <c>RangeRing</c> was inserted after <c>Radar</c> (2026-09-24) because the user
 	/// asked for it to sit there. The cost was a one-time shift — a Settings window last closed on Storage or
 	/// Window Mode reopened one tab to the left, once. Don't take that as licence to reorder.</summary>
-	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, Dev }
+	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Dev }
 
 	/// <summary>
 	/// View model for the NON-radar map concerns: selectable basemap styles + current selection,
@@ -1255,12 +1255,12 @@ namespace Anvil.ViewModels
 		// targeted from anywhere via OpenSettings().
 
 		/// <summary>How many tabs the strip actually offers. Debug builds add the dev tab; Release stops at
-		/// Window Mode. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
+		/// Radar Console. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
 		/// selecting a tab that does not exist in a shipped build.</summary>
 #if DEBUG
-		public const int SettingsTabCount = 6;
+		public const int SettingsTabCount = 7;
 #else
-		public const int SettingsTabCount = 5;
+		public const int SettingsTabCount = 6;
 #endif
 
 		private int _settingsTabIndex;

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DotMatrixScrubber — the loop scrubber drawn in the tools tier's DOT language (MapControlsStripSeparator's dot
+     size and pitch): one BLOCK of dots per frame, each block filling as its frame loads, the frame on screen lit whole.
+
+       ┌─ host width (the console's 420) split into EQUAL SLOTS, one per frame ─────────────────────────────────┐
+       │  ● ● ● ●   ● ● ● ●   ● ● ○ ○   ◌ ◌ ◌ ◌   ◌ ◌ ◌ ◌                                                    │
+       │  ● ● ● ●   ● ● ● ●   ● ● ○ ○   ◌ ◌ ◌ ◌   ◌ ◌ ◌ ◌     ● READY  (built + revealed, Rule 2)              │
+       │  ● ● ● ●   ◆ ◆ ◆ ◆   ● ● ● ○   ◌ ◌ ◌ ◌   ◌ ◌ ◌ ◌     ◆ CURRENT (the frame on screen: the whole block)  │
+       │  ● ● ● ●   ◆ ◆ ◆ ◆   ● ● ● ○   ◌ ◌ ◌ ◌   ◌ ◌ ◌ ◌     ○ FILLING (Segment.Fill: half bytes, half build)  │
+       │  ● ● ● ●   ◆ ◆ ◆ ◆   ● ● ● ●   ◌ ◌ ◌ ◌   ◌ ◌ ◌ ◌     ◌ EMPTY  (a touch brighter than the separators)   │
+       └──────────────────────────────────────────────────────────────────────────────────────────────────────┘
+          ↑ Rows (5) × as many columns as the slot holds, DotSize 1.5 · DotGap 2.5 (pitch 4, the separators'),
+            at least one pitch of gutter between blocks; squeezes to 1 column × Rows when frames are many.
+          ↑ FillOrder: LeftToRight (column by column, each from the bottom — the default) | BottomToTop (row by row).
+
+     ⚠️ SLOTS ARE EQUAL (width ÷ count), the same division the host's seek maps a pointer with — so a click lands on
+     the block under it. Blocks are centred in their slot and rounded to whole pixels.
+     ⚠️ Dot looks are STYLES (EmptyDot / FillingDot / ReadyDot / CurrentDot), set from code — never a theme brush
+     resolved in C#. A dot's style is re-set only when its STATE changes (a load ticks every 150 ms).
+     ⚠️ Not hit-testable: the host (RadarControls.ScrubberHost) owns the pointer. -->
+<UserControl x:Class="Anvil.Controls.Primitives.DotMatrixScrubber"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             IsTabStop="False"
+             IsHitTestVisible="False"
+             VerticalAlignment="Center">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Default">
+                    <SolidColorBrush x:Key="DotMatrixEmptyBrush" Color="#42FFFFFF"/>   <!-- ~26% white: the separators' 16%, a touch up -->
+                    <SolidColorBrush x:Key="DotMatrixFillingBrush" Color="#80FFFFFF"/> <!-- 50% -->
+                    <SolidColorBrush x:Key="DotMatrixReadyBrush" Color="#D1FFFFFF"/>   <!-- ~82% -->
+                    <SolidColorBrush x:Key="DotMatrixCurrentBrush" Color="#FFF2B544"/> <!-- amber -->
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="DotMatrixEmptyBrush" Color="#42000000"/>
+                    <SolidColorBrush x:Key="DotMatrixFillingBrush" Color="#80000000"/>
+                    <SolidColorBrush x:Key="DotMatrixReadyBrush" Color="#D1000000"/>
+                    <SolidColorBrush x:Key="DotMatrixCurrentBrush" Color="#FFB7791F"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <Style x:Key="EmptyDot" TargetType="Ellipse">
+                <Setter Property="Fill" Value="{ThemeResource DotMatrixEmptyBrush}"/>
+            </Style>
+            <Style x:Key="FillingDot" TargetType="Ellipse">
+                <Setter Property="Fill" Value="{ThemeResource DotMatrixFillingBrush}"/>
+            </Style>
+            <Style x:Key="ReadyDot" TargetType="Ellipse">
+                <Setter Property="Fill" Value="{ThemeResource DotMatrixReadyBrush}"/>
+            </Style>
+            <Style x:Key="CurrentDot" TargetType="Ellipse">
+                <Setter Property="Fill" Value="{ThemeResource DotMatrixCurrentBrush}"/>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- The dots, placed in code (Layout): one block per frame. Height = Rows at the dot pitch. -->
+    <Canvas x:Name="Dots"/>
+</UserControl>

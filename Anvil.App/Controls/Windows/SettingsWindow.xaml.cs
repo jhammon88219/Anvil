@@ -106,6 +106,7 @@ namespace Anvil.Controls.Windows
 		//                  rendering it in Segoe Fluent Icons (2026-09-24).
 		//   EDA2 drive   — the only one NOT inherited from a shipped key. Eyeball it on first run.
 		//   E7F4 monitor — Window Mode. NOT inherited from a shipped key and NOT verified. Eyeball it on first run.
+		//   E768 play    — Radar Console: the console's play button. NOT verified. Eyeball it on first run.
 		//   E912 toolbox — was the Dev bar key's glyph (a second GEAR until that collided with Settings).
 		// ⚠️ Order = the SettingsTab enum. New tabs go BEFORE the #if DEBUG block — Dev must stay last.
 		private static ObservableCollection<TabEntry> BuildTabs()
@@ -117,6 +118,7 @@ namespace Anvil.Controls.Windows
 				new() { Glyph = "", Label = "Radar Range Ring", Tooltip = "Which range rings are drawn, how each looks, the distance labels and the ruler's anchor" },
 				new() { Glyph = "", Label = "Storage", Tooltip = "The on-disk radar cache: size, clearing and its limit" },
 				new() { Glyph = "", Label = "Window Mode", Tooltip = "Single- or multi-monitor window layout" },
+				new() { Glyph = "", Label = "Radar Console", Tooltip = "How the bar's radar console looks: the loop scrubber" },
 			};
 
 #if DEBUG

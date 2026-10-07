@@ -44,5 +44,16 @@ namespace Anvil.ViewModels
 
 		/// <summary>Cell opacity: solid when the frame is ready for the active product, faint while loading.</summary>
 		public double ReadyOpacity => _isReady ? 1.0 : 0.22;
+
+		private double _fill;
+
+		/// <summary>How far along this frame is, 0–1, for the dot-matrix scrubber's per-cell fill (set by the VM,
+		/// RadarViewModel.RefreshSegmentFill): 1 exactly when <see cref="IsReady"/>; otherwise half download (bytes),
+		/// half build (decoding ⅓ · reflectivity drawn ⅔ · built), capped BELOW 1 so only a lit cell reads full.</summary>
+		public double Fill
+		{
+			get => _fill;
+			set => SetProperty(ref _fill, value);
+		}
 	}
 }

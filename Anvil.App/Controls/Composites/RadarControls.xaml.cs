@@ -7,7 +7,6 @@ using Microsoft.UI.Xaml.Media;
 using Anvil.Models;
 using Anvil.Services;
 using Anvil.ViewModels;
-using Anvil.Layout;
 // ⚠️ Color is IMPORTED, never written inline as a Windows.UI.-qualified name: the sibling namespace
 // Anvil.Controls.Windows exists, so from inside Anvil.Controls.* a leading "Windows." binds to THAT
 // rather than to WinRT and fails to resolve. A using directive sits outside the namespace, where
@@ -42,36 +41,10 @@ namespace Anvil.Controls.Composites
 
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(RadarViewModel), typeof(RadarControls),
-				new PropertyMetadata(null, OnViewModelChanged));
+				new PropertyMetadata(null));
 
-		// Track the VM's frame index / count so the scrubber playhead can follow (there's no thumb control
-		// to two-way-bind now — the segmented scrubber is drawn, and the playhead is positioned by code).
-		private static void OnViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-		{
-			var self = (RadarControls)d;
-			if (e.OldValue is RadarViewModel oldVm)
-			{
-				oldVm.PropertyChanged -= self.OnViewModelPropertyChanged;
-				oldVm.Segments.CollectionChanged -= self.OnSegmentsChanged;
-			}
-			if (e.NewValue is RadarViewModel newVm)
-			{
-				newVm.PropertyChanged += self.OnViewModelPropertyChanged;
-				newVm.Segments.CollectionChanged += self.OnSegmentsChanged; // count changes -> reposition playhead
-			}
-			self.UpdatePlayhead();
-		}
-
-		private void OnSegmentsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
-			UpdatePlayhead();
-
-		private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
-		{
-			if (e.PropertyName is nameof(RadarViewModel.CurrentFrameIndex) or nameof(RadarViewModel.MaxFrameIndex))
-			{
-				UpdatePlayhead();
-			}
-		}
+		// The classic scrubber shows when the dot matrix doesn't (Settings → Radar Console).
+		public Visibility ClassicVisibility(bool isDotMatrix) => isDotMatrix ? Visibility.Collapsed : Visibility.Visible;
 
 		// Play/stop button: while playing, Stop (halt + return to newest); otherwise Play/resume. Mirrors
 		// the old dial's center button so the single-button "play + stop in one" behavior is unchanged.
@@ -99,9 +72,10 @@ namespace Anvil.Controls.Composites
 		private void OnForceLiveCheckClick(object sender, RoutedEventArgs e) => _ = ViewModel?.ForceLiveFrameCheckAsync();
 
 		// ---- Segmented scrubber interaction ----
-		// The scrubber is drawn (cells + playhead), not a Slider, so seeking is handled here: press/drag on
-		// the strip maps the pointer x to a frame index. Playback pauses on grab so the drag isn't fought by
-		// the advancing loop, and the playhead follows via UpdatePlayhead (VM PropertyChanged / SizeChanged).
+		// The scrubber is drawn (Primitives/ClassicScrubber or DotMatrixScrubber), not a Slider, so seeking is
+		// handled here: press/drag on the strip maps the pointer x to a frame index over EQUAL slots — the division
+		// both scrubbers draw on. Playback pauses on grab so the drag isn't fought by the advancing loop; the drawn
+		// scrubber follows CurrentFrameIndex on its own.
 		private bool _scrubbing;
 
 		// ⚠️ Where the scrubber's left edge stood at PRESS, in window coordinates. A drag maps the pointer against
@@ -132,8 +106,6 @@ namespace Anvil.Controls.Composites
 			ScrubberHost.ReleasePointerCapture(e.Pointer);
 		}
 
-		private void OnScrubberSizeChanged(object sender, SizeChangedEventArgs e) => UpdatePlayhead();
-
 		private void SeekToPointer(PointerRoutedEventArgs e)
 		{
 			if (ViewModel is null) return;
@@ -147,26 +119,6 @@ namespace Anvil.Controls.Composites
 			// range grows as the active product builds; reflectivity is the full decoded range).
 			idx = Math.Min(idx, ViewModel.MaxReachableFrame);
 			if (idx != ViewModel.CurrentFrameIndex) ViewModel.CurrentFrameIndex = idx;
-		}
-
-		// Positions the playhead over the current segment's centre. Counts from Segments.Count and asks
-		// EqualCellsPanel itself where that cell sits, so the playhead lands exactly on the midpoint the
-		// panel arranged (no cumulative drift, and no second copy of its rounding rule to drift from).
-		// Called when the frame index / count changes (VM) or the strip resizes.
-		private void UpdatePlayhead()
-		{
-			if (ViewModel is null || ScrubberHost is null || Playhead is null || PlayheadTransform is null) return;
-			var count = ViewModel.Segments.Count;
-			var width = ScrubberHost.ActualWidth;
-			if (count <= 0 || width <= 0)
-			{
-				Playhead.Visibility = Visibility.Collapsed;
-				return;
-			}
-			Playhead.Visibility = Visibility.Visible;
-			var idx = Math.Clamp(ViewModel.CurrentFrameIndex, 0, count - 1);
-			var centre = EqualCellsPanel.CellCenter(width, count, idx);
-			PlayheadTransform.X = Math.Clamp(centre - Playhead.Width / 2, 0, width - Playhead.Width);
 		}
 
 		// Segoe Fluent glyph for the center button: Stop while playing, Play otherwise.

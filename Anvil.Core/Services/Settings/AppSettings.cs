@@ -143,6 +143,18 @@ namespace Anvil.Services
 			set => SetProperty(ref _monitorMode, value);
 		}
 
+		private string _scrubberStyle = "Dots";
+		/// <summary>
+		/// The bar's loop scrubber (Settings → Radar Console): <c>"Classic"</c> (one solid cell per frame) or
+		/// <c>"Dots"</c> (each frame a block of dots that fill as it loads). A STRING, read through
+		/// <see cref="Models.ScrubberStyles"/>, so an unknown value falls back instead of failing the load.
+		/// </summary>
+		public string ScrubberStyle
+		{
+			get => _scrubberStyle;
+			set => SetProperty(ref _scrubberStyle, value);
+		}
+
 		// ── PastCast timeframe (the replay window's pickers) ─────────────────────────────────────────
 		// The last timeframe the user chose, so reopening PastCast offers the event they were last
 		// watching instead of the built-in default. These three ARE the defaults now — RadarViewModel
