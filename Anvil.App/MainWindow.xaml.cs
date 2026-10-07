@@ -82,7 +82,9 @@ namespace Anvil
 		{
 			if (Content is UIElement root)
 			{
-				ToolsStrip.AlignToConsole(TimeModule.ConsoleLeft(root), TimeModule.PlayCentre(root), TimeModule.ScanTextRight(root), root);
+				// The picker is as wide as the rail's two tabs (Tools + Bar, gap included) — the user's call, 2026-10-06.
+				ToolsStrip.AlignToConsole(TimeModule.ConsoleLeft(root), TimeModule.PlayCentre(root), TimeModule.ScanTextRight(root),
+					RailTabs.ActualWidth, root);
 			}
 		}
 

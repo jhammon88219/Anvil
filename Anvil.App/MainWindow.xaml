@@ -523,8 +523,10 @@
                  colours told them apart; that made the Bar tab a darker notch in a raised edge, a tab on a
                  surface it did not match. The LABELS disambiguate — which is why they are NOUNS, since two
                  lozenges both reading "Hide" name no difference between themselves.
-                 ⚠️ ORDER MATCHES THE STACK: Tools (the upper tier) left, Bar (the lower) right. -->
-            <StackPanel Grid.Row="0"
+                 ⚠️ ORDER MATCHES THE STACK: Tools (the upper tier) left, Bar (the lower) right.
+                 ⚠️ The tools tier's SITE PICKER is exactly as wide as this pair (MainWindow.AlignCentreSection measures
+                 RailTabs) — both sit on the window's midpoint, so the picker reads as the tabs' column. -->
+            <StackPanel x:Name="RailTabs" Grid.Row="0"
                         Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
                 <ctl:OverlayBarTab x:Name="ToolsTab" Target="Tools"
                                    IsShown="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=TwoWay}"/>

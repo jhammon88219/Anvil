@@ -92,14 +92,19 @@ namespace Anvil.Controls.Composites
 
 		/// <summary>Fit the centre section between <paramref name="consoleLeft"/> (the clock's left edge) and
 		/// <paramref name="consoleRight"/> (the end of the longest scan line's text — it moves as that text changes) with the site picker centred on <paramref name="play"/>, all in
-		/// <paramref name="root"/>'s coordinates. Each value is a no-op for a sub-pixel change, so calling it from
+		/// <paramref name="root"/>'s coordinates. The picker is <paramref name="pickerWidth"/> wide (the rail's two tabs;
+		/// ignored while 0, before the rail lays out). Each value is a no-op for a sub-pixel change, so calling it from
 		/// layout settles at once.</summary>
-		public void AlignToConsole(double consoleLeft, double play, double consoleRight, UIElement root)
+		public void AlignToConsole(double consoleLeft, double play, double consoleRight, double pickerWidth, UIElement root)
 		{
 			if (double.IsNaN(consoleLeft) || double.IsNaN(play) || double.IsNaN(consoleRight) ||
 				NetworkToggles.ActualWidth <= 0 || RadarTools.ActualWidth <= 0)
 			{
 				return;
+			}
+			if (pickerWidth > 0)
+			{
+				SetIfMoved(SitePicker, pickerWidth);
 			}
 			var origin = TransformToVisual(root).TransformPoint(default).X;
 			// spacer | its margins | the panel's spacing on both sides

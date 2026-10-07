@@ -33,9 +33,10 @@
                                                                                              │ › ☑ Place names    │     has county lines; ›
                                                                                              └────────────────────┘     = closed (cities, POIs,
                                                                                                                           water names)
-       [Moore, OK  ✕ ⌕](▣)(⊚)               (◗)(✈)(⚗) ⁙⁙⁙ [⌂ KTLX  Oklahoma City ˅] ⁙⁙⁙⁙⁙ (⌕)(⌸)(◎)     [▢][▥][▦] ─ (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
-       |← the keys →|                       ├ console's left edge         ┊ ▶          console's right edge ┤             ↑ left = ATLAS key's left
-                                                                          ┊ ← the bar's midpoint
+                                                            ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                ← the rail: the picker is as wide as this pair
+       [Moore, OK  ✕ ⌕](▣)(⊚)               (◗)(✈)(⚗) ⁙⁙⁙⁙ [⌂ KTLX  Oklahoma ˅] ⁙⁙⁙⁙⁙⁙ (⌕)(⌸)(◎)     [▢][▥][▦] ─ (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
+       |← the keys →|                       ├ console's left edge      ┊ ▶          console's right edge ┤             ↑ left = ATLAS key's left
+                                                                       ┊ ← the bar's midpoint
         ↑ LEFT = where: the ROW spans exactly     ↑ CENTRE = RADAR + MAP, EDGE-ALIGNED to the     ↑ RIGHT = MAP ONLY, its natural width, right-
           the temporal keys below it; ▣ marker      console: show each network's sites (NEXRAD /   aligned: pane layout FIRST (1/2/4, current one
           viewer — PLACEHOLDER; ⊚ Location          TDWR / research) ⁙ pick one (the console below LIT, accent cell = pane 0) ─ reset north, fit to
@@ -131,8 +132,9 @@
      the map now (⌂ home, ★ favorite, bare otherwise), and the PINNED top row is that same site (SelectedSites),
      whatever it is. Below the rule: home first, then the favorites (PinnedSites) — a selected home/favorite stays
      in its place there too, so the list never reshuffles on a switch. Going home is still two clicks.
-     ⚠️ A FIXED 260 CENTRED on the bar's play button (MainWindow.AlignCentreSection → AlignToConsole), which is
-     the bar's midpoint.
+     ⚠️ CENTRED on the bar's play button (MainWindow.AlignCentreSection → AlignToConsole), which is the bar's
+     midpoint, and EXACTLY AS WIDE AS THE RAIL'S TWO TABS (Tools + Bar) just above it — measured, so the picker
+     reads as the tabs' column (2026-10-06). The dot-grid spacers take up the rest.
      ⚠️ A pick ACTS through ItemPicked, NOT SelectedItem: picking the site already loaded must still fly back to
      it, and that changes no property. SelectedItem is ONE-WAY from LoadedSite and re-asserted after the pick
      (a refused pick would otherwise leave the face naming a site that never loaded).
@@ -505,7 +507,8 @@
             <prim:MapControlsStripSeparator x:Name="LeftSpacer" Margin="8,0" FillWidth="True" Width="10"/>
 
             <!-- SITE PICKER — the centre of the centre. The wrapper carries the tooltip (a disabled control shows
-                 none); Transparent so it hit-tests. ⚠️ A FIXED 260 CENTRED ON THE BAR'S PLAY BUTTON (AlignToConsole). -->
+                 none); Transparent so it hit-tests. ⚠️ CENTRED ON THE BAR'S PLAY BUTTON and as wide as the rail's two
+                 tabs (AlignToConsole sets Width; 260 is only the pre-layout value). -->
             <Grid Background="Transparent"
                   ToolTipService.ToolTip="{x:Bind ViewModel.SiteFavorites.PickerToolTip, Mode=OneWay}">
                 <prim:SectionedComboBox x:Name="SitePicker"
