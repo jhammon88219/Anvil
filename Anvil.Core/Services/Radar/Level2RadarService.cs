@@ -188,8 +188,8 @@ namespace Anvil.Services
 		// 0.5°×3 · SAILS/MRLE ×2"), including the designed SAILS sweep count from the Message 5 elevation
 		// table; falls back to VCP + regime alone if that count didn't parse. Null (rendered as "—") when
 		// the VCP itself can't be read (a raw-fallback or legacy volume). (A 2011-era VCP 12 correctly
-		// reads 0.5°×1 — no SAILS existed pre-2014 — which the UI shows as just "0.5°".)
-		private static (string? mode, int vcp) ModeTextFromTilt(byte[] tilt)
+		// reads 0.5°×1 — no SAILS existed pre-2014 — and the RDA build in Message 2 says so: "pre-SAILS".)
+		private static (string? mode, int vcp) ModeTextFromTilt(byte[] tilt, DateTimeOffset volumeTime)
 		{
 			var (vcp, sweeps) = ReadModeFromExtractedTilt(tilt);
 			if (!IsUsableVcp(vcp))
@@ -198,7 +198,9 @@ namespace Anvil.Services
 			}
 			// Clamp mirrors the live path (SAILS tops out at ×3 = 4 base scans); an out-of-range count
 			// means a misparse, so drop to VCP + regime rather than show a bogus "0.5°×9".
-			return (sweeps is >= 1 and <= 6 ? DescribeMode(vcp, sweeps) : DescribeVcp(vcp), vcp);
+			return (sweeps is >= 1 and <= 6
+				? DescribeMode(vcp, sweeps, SailsExisted(ReadRdaBuildFromExtractedTilt(tilt), volumeTime))
+				: DescribeVcp(vcp), vcp);
 		}
 
 		// Every frame leaving this service passes here: a pattern VcpCatalog doesn't list is written to the
@@ -373,7 +375,7 @@ namespace Anvil.Services
 				{
 					var cachedBytes = await File.ReadAllBytesAsync(cacheFile, cancellationToken);
 					(cachedMode, cachedTilts) = await RadarCpuWork.Run(
-						() => (ModeTextFromTilt(cachedBytes), ReadElevationAnglesFromExtractedTilt(cachedBytes)),
+						() => (ModeTextFromTilt(cachedBytes, time), ReadElevationAnglesFromExtractedTilt(cachedBytes)),
 						cancellationToken, urgent: true); // a cache hit: tiny, and a frame is waiting on it
 				}
 				catch (OperationCanceledException) { throw; }
@@ -575,7 +577,7 @@ namespace Anvil.Services
 				syncAt = RadarPerfCounters.BeginSync();
 			}
 
-			var (mode, vcp) = ModeTextFromTilt(toWrite); // VCP + regime for the archive/replay scan line
+			var (mode, vcp) = ModeTextFromTilt(toWrite, time); // VCP + regime for the archive/replay scan line
 			var tilts = ReadElevationAnglesFromExtractedTilt(toWrite);
 			RadarPerfCounters.EndSync(syncAt);
 			return Noted(new RadarVolume(localUrl, site, time, mode, tilts, tiltAngle,
@@ -1404,7 +1406,7 @@ namespace Anvil.Services
 			}
 			PruneLiveCache(site.Id, cacheFile);
 
-			var mode = DescribeMode(sel.vcp, sel.sweeps);
+			var mode = DescribeMode(sel.vcp, sel.sweeps, SailsExisted(ReadRdaBuildFromExtractedTilt(sel.data), ts));
 			var tilts = ReadElevationAnglesFromExtractedTilt(sel.data);
 			RadarDiagnostics.Log("svc", "live", ("site", site.Id), ("vol", vol),
 				("builtZ", ts.ToUniversalTime().ToString("HH:mm:ss")),

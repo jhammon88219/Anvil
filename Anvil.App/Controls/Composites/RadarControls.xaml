@@ -254,7 +254,9 @@
         <!-- ===== SCAN: the volume's scan strategy, ALWAYS THREE LABELLED LINES =====
                VCP:         212          ← the number ("?" unparsed; "—" / "loading…" before a frame)
                Mode:        precip       ← the regime word (clear-air · precip · TDWR monitor/hazardous)
-               SAILS/MRLE:  ×1           ← extra base-tilt cuts; "none" = counted and zero, "n/a" = TDWR,
+               SAILS/MRLE:  ×1           ← extra base-tilt cuts; "off" = the radar had SAILS, the office ran
+                                           without it; "pre-SAILS" = its build predates SAILS (both DIMMED);
+                                           "none" = counted and zero, reason unknown; "n/a" = TDWR;
                                            "—" = not known (the archive path reads no sweep count)
              ⚠️ Every line ALWAYS shows — a missing fact is a placeholder, never an empty or collapsed row, so
              the block's height and the labels' column never move. Values come from ScanValue, which cuts the ONE

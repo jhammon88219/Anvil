@@ -574,7 +574,11 @@ namespace Anvil.Services
 		// is a property of the volume and stays true whichever tilt is being rendered; it used to trail
 		// the sweep token and so landed on the Tilt row, where it could only be true for the base tilt
 		// and vanished the moment you selected 0.9°.
-		internal static string DescribeMode(int vcp, int sweeps)
+		//
+		// One base sweep says WHY when it can (<paramref name="sailsExisted"/>, from SailsExisted): "pre-SAILS" =
+		// the radar's software predates SAILS; "SAILS off" = it had SAILS and the office ran without it. Null =
+		// unknown, no suffix (the bar reads "none"). ⚠️ RadarControls.ScanValue and RadarGlossary read these words.
+		internal static string DescribeMode(int vcp, int sweeps, bool? sailsExisted = null)
 		{
 			if (!IsUsableVcp(vcp))
 			{
@@ -582,9 +586,25 @@ namespace Anvil.Services
 			}
 			// SAILS/MRLE is WSR-88D-only terminology; TDWR re-scans its low tilt differently, so omit
 			// the suffix for TDWR VCPs even when the metadata reports extra low-tilt sweeps.
-			var sails = (VcpCatalog.Find(vcp)?.Network != VcpNetwork.Tdwr && sweeps > 1) ? $" · SAILS/MRLE ×{sweeps - 1}" : "";
+			var sails = VcpCatalog.Find(vcp)?.Network == VcpNetwork.Tdwr ? ""
+				: sweeps > 1 ? $" · SAILS/MRLE ×{sweeps - 1}"
+				: sailsExisted switch { true => " · " + SailsOffLabel, false => " · " + PreSailsLabel, null => "" };
 			return $"VCP {vcp} · {RegimeLabel(vcp)}{sails} · 0.5°×{sweeps}";
 		}
+
+		internal const string SailsOffLabel = "SAILS off";
+		internal const string PreSailsLabel = "pre-SAILS";
+
+		// SAILS shipped in RDA Build 14 (fielded site by site through 2014 — KTLX was still on 13.3 in March 2014,
+		// on 14 by June; TiltCheck 2026-10-07). The volume's own build decides; with no readable build, only a
+		// volume from before 2014 is certain (nothing had it yet), anything later is unknown (null).
+		internal const double SailsFirstBuild = 14;
+		private static readonly DateTimeOffset SailsFirstYear = new(2014, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+		internal static bool? SailsExisted(double rdaBuild, DateTimeOffset volumeTime) =>
+			rdaBuild > 0 ? rdaBuild >= SailsFirstBuild
+			: volumeTime < SailsFirstYear ? false
+			: null;
 
 		// VCP + regime only (no sweep count) — the archive/replay mode line, where per-frame we read
 		// the VCP from the cached tilt's metadata but not (yet) the sweep count. Empty when the VCP
@@ -618,6 +638,47 @@ namespace Anvil.Services
 			var vcp = ReadVcpFromMetadata(one);
 			var sweeps = ReadSailsSweepsFromMetadata(one, float.NaN);
 			return (vcp, sweeps);
+		}
+
+		// The RDA software BUILD the radar was running, from Message 2 (RDA status) in the leading metadata —
+		// the 10th halfword of the body (rda_build_number, signed). Old builds encode it ×10 (130 = 13.0), newer
+		// ones ×100 (1400 = 14.0); the vendored decoder's rule tells them apart (value/100 > 2 → ×100). 0 when
+		// no Message 2 precedes the radials or the value isn't a plausible build. Same metadata walk as
+		// ReadVcpFromMetadata. Tells "SAILS didn't exist yet" (< 14) from "the office didn't run it".
+		internal static double ReadRdaBuildFromMetadata(List<(byte[] block, int elev)> blocks)
+		{
+			foreach (var (block, _) in blocks)
+			{
+				for (var pos = 0; pos + CtmHeaderSize + MessageHeaderSize + 20 <= block.Length; pos += RadarDataSize)
+				{
+					var msgType = block[pos + CtmHeaderSize + 3];
+					if (msgType == 31)
+					{
+						return 0;
+					}
+					if (msgType != 2)
+					{
+						continue;
+					}
+					var body = pos + CtmHeaderSize + MessageHeaderSize;
+					var raw = (short)((block[body + 18] << 8) | block[body + 19]);
+					var build = raw / 100.0 > 2 ? raw / 100.0 : raw / 10.0;
+					if (build is >= 5 and <= 40)
+					{
+						return build;
+					}
+				}
+			}
+			return 0;
+		}
+
+		// ReadRdaBuildFromMetadata over an already-extracted single tilt (see ReadModeFromExtractedTilt).
+		internal static double ReadRdaBuildFromExtractedTilt(byte[] tilt)
+		{
+			const int headerSize = 24;
+			return tilt is null || tilt.Length <= headerSize
+				? 0
+				: ReadRdaBuildFromMetadata(new List<(byte[] block, int elev)> { (tilt[headerSize..], 0) });
 		}
 
 		// Builds a minimal uncompressed volume containing ONLY the lowest elevation's records.

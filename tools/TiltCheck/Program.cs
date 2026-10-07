@@ -203,7 +203,8 @@ if (key.EndsWith(".gz", StringComparison.Ordinal))
 }
 
 // ---- the base tilt: the path that already shipped, as a control ------------------------------
-var baseTilt = Level2Format.TryExtractLowestTilt(raw, site, out var baseComplete);
+var baseTilt = Level2Format.TryExtractLowestTilt(raw, site, out var baseComplete)
+    ?? Level2Format.TryExtractLowestTiltUncompressed(raw, site, out baseComplete); // legacy .gz, as the app does
 if (baseTilt is null)
 {
     Console.WriteLine("FAIL: base-tilt extraction returned null");
@@ -220,6 +221,7 @@ if (outPath is not null)
 var failuresEarly = 0;
 var (vcpNum, sweepsNum) = Level2Format.ReadModeFromExtractedTilt(baseTilt);
 Console.WriteLine($"VCP (ReadModeFromExtractedTilt): {vcpNum}  sweeps={sweepsNum}  known={Level2Format.IsKnownVcp(vcpNum)}");
+Console.WriteLine($"RDA build (Message 2): {Level2Format.ReadRdaBuildFromExtractedTilt(baseTilt)}");
 
 // Raw Message 5 header fields, straight from the table parse, to see whether the designed table we
 // read actually belongs to the VCP the volume reports.

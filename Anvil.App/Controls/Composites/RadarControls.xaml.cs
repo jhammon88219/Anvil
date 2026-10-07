@@ -163,13 +163,17 @@ namespace Anvil.Controls.Composites
 		// ⚠️ ALWAYS a value — a missing fact is a placeholder, so all three lines show no matter what:
 		//   0 VCP:        "212" (from "VCP 212"; "?" when unparsed); before a frame, the state itself ("—", "loading…")
 		//   1 Mode:       the regime word, else "—"
-		//   2 SAILS/MRLE: "×1" from the "SAILS/MRLE ×1" part; else "n/a" for TDWR (no such scheme), "none" when the
-		//                 sweep count WAS read (the full mode keeps a "0.5°×N" token) and there are no extra cuts,
-		//                 "—" when it wasn't (the archive path reads the VCP only).
+		//   2 SAILS/MRLE: "×1" from the "SAILS/MRLE ×1" part; "off" / "pre-SAILS" from the "SAILS off" / "pre-SAILS"
+		//                 part (one base sweep, and the radar's build says why — Level2Format.DescribeMode); else
+		//                 "n/a" for TDWR (no such scheme), "none" when the sweep count WAS read but the reason
+		//                 wasn't, "—" when the count wasn't read either (the archive path reads the VCP only).
 		private const string SailsPrefix = "SAILS/MRLE ";
+		private const string SailsOffPart = "SAILS off"; // ⚠️ mirrors Level2Format.SailsOffLabel / PreSailsLabel
+		private const string PreSailsPart = "pre-SAILS";
 
-		// The values that mean "no fact here" — drawn DIMMED by the XAML's stand-in TextBlock.
-		private static readonly string[] StandIns = { "—", "?", "none", "n/a", "loading…" };
+		// The values that mean "no fact here" — drawn DIMMED by the XAML's stand-in TextBlock. "off" and
+		// "pre-SAILS" are facts, but dimmed too (the user's call): no extra sweeps reads as quiet, not as data.
+		private static readonly string[] StandIns = { "—", "?", "none", "n/a", "loading…", "off", PreSailsPart };
 
 		private static bool IsStandIn(string value) => Array.IndexOf(StandIns, value) >= 0;
 
@@ -211,6 +215,14 @@ namespace Anvil.Controls.Composites
 						if (part.StartsWith(SailsPrefix, StringComparison.Ordinal))
 						{
 							return part[SailsPrefix.Length..];
+						}
+						if (part == SailsOffPart)
+						{
+							return "off";
+						}
+						if (part == PreSailsPart)
+						{
+							return PreSailsPart;
 						}
 					}
 					if (parts.Length > 1 && parts[1].StartsWith("TDWR", StringComparison.Ordinal))

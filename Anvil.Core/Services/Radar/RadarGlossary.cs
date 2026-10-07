@@ -63,9 +63,16 @@ namespace Anvil.Services
 		public static string ScanPatternTooltip(string? modeText)
 		{
 			var card = ScanPattern(modeText);
-			var sails = modeText?.Contains("SAILS", StringComparison.Ordinal) == true
-				? "\n\nSAILS/MRLE ×N: the radar squeezes N extra sweeps of its lowest tilt into each volume, so " +
-				  "the view nearest the ground refreshes more often while weather is changing fast."
+			var sails = modeText is null ? string.Empty
+				: modeText.Contains(Level2Format.PreSailsLabel, StringComparison.Ordinal)
+					? "\n\nPre-SAILS: this radar's software predates SAILS (2014), so it swept its lowest tilt " +
+					  "once per volume. Extra low sweeps didn't exist yet."
+				: modeText.Contains(Level2Format.SailsOffLabel, StringComparison.Ordinal)
+					? "\n\nSAILS off: this radar could add extra sweeps of its lowest tilt, but the forecast office " +
+					  "ran this volume without them."
+				: modeText.Contains("SAILS", StringComparison.Ordinal)
+					? "\n\nSAILS/MRLE ×N: the radar squeezes N extra sweeps of its lowest tilt into each volume, so " +
+					  "the view nearest the ground refreshes more often while weather is changing fast."
 				: string.Empty;
 			return $"{card.Technical}\n\n{card.Definition}\n\n{card.Now}{sails}\n\n{card.Context}";
 		}
