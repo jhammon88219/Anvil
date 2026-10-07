@@ -4,7 +4,7 @@
        ┌──────────────────────────────────────────────────────┐
        │  ⌄  Home site                                        │
        │    Home site: KTLX · Norman                          │  ← set in the Radar Atlas, not here
-       │    [ ] Load home site on launch                      │  ← PERSISTED, default off
+       │                                                      │     (load-on-launch → the Startup tab)
        │  ⌄  Readouts                                         │
        │    Distance  [ km | mi | nm ]                        │  ← PERSISTED, app-wide
        │  ⌄  PastCast                                         │
@@ -71,22 +71,11 @@
         <!-- The home site is PICKED in the Radar Atlas (where you can see what you're choosing); this only
              shows it and holds the one launch preference. -->
         <prim:PanelSection Grid.Row="0" Header="Home site" IsExpanded="True">
-            <Grid RowSpacing="8">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- current home -->
-                    <RowDefinition Height="Auto"/> <!-- load on launch -->
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0" Margin="4,0,0,0"
-                           Text="{x:Bind ViewModel.SiteFavorites.HomeSiteSummary, Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-
-                <!-- PERSISTED (AppSettings.LoadHomeOnLaunch), default off. -->
-                <CheckBox Grid.Row="1" Margin="4,0,0,0"
-                          Content="Load home site on launch"
-                          IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
-            </Grid>
+            <!-- ⚠️ "Load home site on launch" MOVED to the Startup tab (2026-10-07) — every launch preference
+                 lives there. Don't re-add it here. -->
+            <TextBlock Margin="4,0,0,0"
+                       Text="{x:Bind ViewModel.SiteFavorites.HomeSiteSummary, Mode=OneWay}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </prim:PanelSection>
 
         <!-- READOUTS - how a measurement is SPOKEN, not what is drawn. One setting so far; it is a section

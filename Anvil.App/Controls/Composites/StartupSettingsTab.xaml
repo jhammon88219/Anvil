@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StartupSettingsTab — the Startup tab of the Settings window: what Anvil opens ON.
+
+       ┌──────────────────────────────────────────────────────┐
+       │  ⌄  When Anvil opens                                 │
+       │    (•) Pick up where I left off                      │  ← PERSISTED, DEFAULT (the last session's
+       │        The modes and windows that were on when you   │     modes + windows; PastCast comes back
+       │        closed Anvil. PastCast comes back ready to…   │     armed, not loaded)
+       │    ( ) Start in…                                     │
+       │        [ Map only | NowCast | NowCast + ForeCast | PastCast ]   ← greyed while resuming;
+       │        [✓] Open its window too                       │     kept as a token, never an index
+       │  ⌄  Home site                                        │
+       │    Home site: KTLX · Norman                          │  ← set in the Radar Atlas, not here
+       │    [ ] Load home site on launch                      │  ← PERSISTED, default off (moved here
+       └──────────────────────────────────────────────────────┘     from the Radar tab, 2026-10-07)
+
+     ⚠️ READ ONCE, at map-ready (MapViewModel.RestoreTemporalSession). A change applies NEXT launch — and a fixed
+     start is never saved over the last session, so switching back to "Pick up where I left off" resumes what you
+     actually last did.
+     ⚠️ Every launch preference lives here. A new one is a row in one of these sections, not a new tab. -->
+<UserControl x:Class="Anvil.Controls.Composites.StartupSettingsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             mc:Ignorable="d">
+
+    <Grid RowSpacing="8" VerticalAlignment="Top">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- when Anvil opens -->
+            <RowDefinition Height="Auto"/> <!-- home site -->
+        </Grid.RowDefinitions>
+
+        <prim:PanelSection Grid.Row="0" Header="When Anvil opens" IsExpanded="True">
+            <StackPanel Spacing="4">
+                <RadioButton GroupName="StartupChoice" Margin="4,0,0,0"
+                             Content="Pick up where I left off"
+                             IsChecked="{x:Bind ViewModel.StartupResume, Mode=TwoWay}"/>
+                <TextBlock Margin="32,0,0,6" TextWrapping="Wrap" Opacity="0.75"
+                           Text="The modes and windows that were on when you closed Anvil. PastCast comes back ready to load, not loaded."/>
+
+                <RadioButton GroupName="StartupChoice" Margin="4,0,0,0"
+                             Content="Start in…"
+                             IsChecked="{x:Bind ViewModel.StartupFixed, Mode=TwoWay}"/>
+                <!-- A SegmentedPicker: four fixed options, worth seeing at once. -->
+                <prim:SegmentedPicker Margin="32,2,0,0" HorizontalAlignment="Left"
+                                      ItemsSource="{x:Bind ViewModel.StartupModeLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.StartupModeIndex, Mode=TwoWay}"
+                                      IsEnabled="{x:Bind ViewModel.StartupFixed, Mode=OneWay}"/>
+                <CheckBox Margin="32,4,0,0"
+                          Content="Open its window too"
+                          IsChecked="{x:Bind ViewModel.StartupOpenWindow, Mode=TwoWay}"
+                          IsEnabled="{x:Bind ViewModel.StartupFixed, Mode=OneWay}"
+                          ToolTipService.ToolTip="Open the NowCast / ForeCast / PastCast window along with its mode"/>
+                <TextBlock Margin="32,2,0,0" TextWrapping="Wrap" Opacity="0.75"
+                           Text="PastCast starts ready to load, not loaded. Takes effect next time Anvil opens."/>
+            </StackPanel>
+        </prim:PanelSection>
+
+        <!-- The home site is PICKED in the Radar Atlas; this shows it and holds the launch preference. -->
+        <prim:PanelSection Grid.Row="1" Header="Home site" IsExpanded="True">
+            <StackPanel Spacing="8">
+                <TextBlock Margin="4,0,0,0"
+                           Text="{x:Bind ViewModel.SiteFavorites.HomeSiteSummary, Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <!-- PERSISTED (AppSettings.LoadHomeOnLaunch), default off. Skipped when Anvil starts in PastCast. -->
+                <CheckBox Margin="4,0,0,0"
+                          Content="Load home site on launch"
+                          IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
+                          ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
+            </StackPanel>
+        </prim:PanelSection>
+    </Grid>
+</UserControl>

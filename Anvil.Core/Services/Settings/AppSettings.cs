@@ -506,8 +506,33 @@ namespace Anvil.Services
 			set => SetProperty(ref _sectionExpanded, value ?? new());
 		}
 
+		// ── Startup (Settings → Startup) ──
+		private bool _startupResume = true;
+		/// <summary>Open Anvil on the LAST session's modes + windows (default) — else on <see cref="StartupMode"/>.</summary>
+		public bool StartupResume
+		{
+			get => _startupResume;
+			set => SetProperty(ref _startupResume, value);
+		}
+
+		private string _startupMode = Models.StartupModes.Now;
+		/// <summary>The fixed start ("Start in…"), a <c>Models.StartupModes</c> token. Kept while resume is chosen.</summary>
+		public string StartupMode
+		{
+			get => _startupMode;
+			set => SetProperty(ref _startupMode, value);
+		}
+
+		private bool _startupOpenWindow = true;
+		/// <summary>With a fixed start, also open that mode's window(s).</summary>
+		public bool StartupOpenWindow
+		{
+			get => _startupOpenWindow;
+			set => SetProperty(ref _startupOpenWindow, value);
+		}
+
 		private bool _loadHomeOnLaunch;
-		/// <summary>Start the home site's live loop when the app opens (Settings → Radar). Default OFF — the
+		/// <summary>Start the home site's live loop when the app opens (Settings → Startup). Default OFF — the
 		/// app has always launched with no radar, and that stays the first-run behaviour.</summary>
 		public bool LoadHomeOnLaunch
 		{

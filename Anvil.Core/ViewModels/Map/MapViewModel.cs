@@ -27,7 +27,7 @@ namespace Anvil.ViewModels
 	/// ⚠️ ONE deliberate exception: <c>RangeRing</c> was inserted after <c>Radar</c> (2026-09-24) because the user
 	/// asked for it to sit there. The cost was a one-time shift — a Settings window last closed on Storage or
 	/// Window Mode reopened one tab to the left, once. Don't take that as licence to reorder.</summary>
-	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Dev }
+	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, Dev }
 
 	/// <summary>
 	/// View model for the NON-radar map concerns: selectable basemap styles + current selection,
@@ -856,23 +856,42 @@ namespace Anvil.ViewModels
 		{
 			if (_sessionRestored) { return; }
 			var s = _settingsService.Settings;
+
+			// WHAT TO START ON (Settings → Startup): the last session (default), or one fixed start. ⚠️ A fixed start
+			// is NOT saved over the last session — nothing set here is saved (_sessionRestored is still false), so
+			// switching back to "Pick up where I left off" resumes what you actually last did.
+			bool past, now, fore, pastWin, nowWin, foreWin;
+			if (s.StartupResume)
+			{
+				past = s.PastCastOn; now = s.NowCastOn; fore = s.ForeCastOn;
+				pastWin = s.PastWindowOpen; nowWin = s.NowWindowOpen; foreWin = s.ForeWindowOpen;
+			}
+			else
+			{
+				var mode = StartupModes.Normalize(s.StartupMode);
+				past = mode == StartupModes.Past;
+				now = mode is StartupModes.Now or StartupModes.NowFore;
+				fore = mode == StartupModes.NowFore;
+				pastWin = nowWin = foreWin = s.StartupOpenWindow;
+			}
+
 			_restoringSession = true;
 			try
 			{
 				// Past excludes Now + Fore, so a file can't honestly hold both; Past wins if it somehow does.
-				if (s.PastCastOn) { IsPastCast = true; }
+				if (past) { IsPastCast = true; }
 				else
 				{
-					if (s.NowCastOn) { IsNowCast = true; }
-					if (s.ForeCastOn) { IsForeCast = true; }
+					if (now) { IsNowCast = true; }
+					if (fore) { IsForeCast = true; }
 				}
 			}
 			finally { _restoringSession = false; }
 
 			// A window only comes back with its mode (a window can't outlive its mode).
-			IsPastWindowOpen = IsPastCast && s.PastWindowOpen;
-			IsNowWindowOpen = IsNowCast && s.NowWindowOpen;
-			IsForeWindowOpen = IsForeCast && s.ForeWindowOpen;
+			IsPastWindowOpen = IsPastCast && pastWin;
+			IsNowWindowOpen = IsNowCast && nowWin;
+			IsForeWindowOpen = IsForeCast && foreWin;
 			_sessionRestored = true;
 		}
 
@@ -1289,12 +1308,12 @@ namespace Anvil.ViewModels
 		// targeted from anywhere via OpenSettings().
 
 		/// <summary>How many tabs the strip actually offers. Debug builds add the dev tab; Release stops at
-		/// Radar Console. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
+		/// Startup. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
 		/// selecting a tab that does not exist in a shipped build.</summary>
 #if DEBUG
-		public const int SettingsTabCount = 7;
+		public const int SettingsTabCount = 8;
 #else
-		public const int SettingsTabCount = 6;
+		public const int SettingsTabCount = 7;
 #endif
 
 		private int _settingsTabIndex;
@@ -1367,6 +1386,56 @@ namespace Anvil.ViewModels
 		/// <summary>The preview's label handle was dragged. Unlike the main map's own handle this DOES push —
 		/// the main map has not drawn it yet (the preview hears its own bearing back as a no-op).</summary>
 		public void OnPreviewLabelBearingDragged(double degrees) => Radar.RangeRings.LabelBearing = degrees;
+
+		// ----- Settings → Startup: what Anvil opens on (read once, by RestoreTemporalSession at map-ready) -----
+
+		/// <summary>"Pick up where I left off" — the last session's modes + windows. PERSISTED, default on.</summary>
+		public bool StartupResume
+		{
+			get => _settingsService.Settings.StartupResume;
+			set
+			{
+				if (_settingsService.Settings.StartupResume == value) { return; }
+				_settingsService.Settings.StartupResume = value;
+				OnPropertyChanged();
+				OnPropertyChanged(nameof(StartupFixed));
+			}
+		}
+
+		/// <summary>"Start in…" — the inverse of <see cref="StartupResume"/>, for the second radio button.</summary>
+		public bool StartupFixed
+		{
+			get => !StartupResume;
+			set { if (value) { StartupResume = false; } }
+		}
+
+		/// <summary>The fixed starts' words (<see cref="StartupModes.Labels"/>).</summary>
+		public IReadOnlyList<string> StartupModeLabels => StartupModes.Labels;
+
+		/// <summary>Which fixed start, as the picker's index. PERSISTED as a token (<c>AppSettings.StartupMode</c>).</summary>
+		public int StartupModeIndex
+		{
+			get => StartupModes.IndexOf(_settingsService.Settings.StartupMode);
+			set
+			{
+				var token = StartupModes.At(value);
+				if (_settingsService.Settings.StartupMode == token) { return; }
+				_settingsService.Settings.StartupMode = token;
+				OnPropertyChanged();
+			}
+		}
+
+		/// <summary>With a fixed start, also open that mode's window(s). PERSISTED, default on.</summary>
+		public bool StartupOpenWindow
+		{
+			get => _settingsService.Settings.StartupOpenWindow;
+			set
+			{
+				if (_settingsService.Settings.StartupOpenWindow == value) { return; }
+				_settingsService.Settings.StartupOpenWindow = value;
+				OnPropertyChanged();
+			}
+		}
 
 		/// <summary>Refresh whatever the current tab shows live. Called when the window opens AND when the tab
 		/// changes, because either one can be the moment a live readout first becomes visible. ⚠️ Keep this

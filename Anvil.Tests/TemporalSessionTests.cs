@@ -73,6 +73,59 @@ namespace Anvil.Tests
 			Assert.True(vm.IsPastWindowOpen);
 		}
 
+		// ── Settings → Startup: a FIXED start instead of the last session ──
+
+		[Fact]
+		public void FixedStart_NowCast_IgnoresTheLastSession_AndNeverOverwritesIt()
+		{
+			var s = new AppSettings
+			{
+				StartupResume = false, StartupMode = Anvil.Models.StartupModes.Now, StartupOpenWindow = true,
+				PastCastOn = true, PastWindowOpen = true,   // the last session: PastCast
+			};
+			var vm = New(s);
+			vm.RestoreTemporalSession();
+
+			Assert.True(vm.IsNowCast);
+			Assert.False(vm.IsPastCast);
+			Assert.False(vm.IsForeCast);
+			Assert.True(vm.IsNowWindowOpen);
+			Assert.True(s.PastCastOn);                       // switching back to resume still finds PastCast
+			Assert.False(s.NowCastOn);
+		}
+
+		[Fact]
+		public void FixedStart_NowAndFore_WithoutWindows()
+		{
+			var s = new AppSettings { StartupResume = false, StartupMode = Anvil.Models.StartupModes.NowFore, StartupOpenWindow = false };
+			var vm = New(s);
+			vm.RestoreTemporalSession();
+
+			Assert.True(vm.IsNowCast && vm.IsForeCast);
+			Assert.False(vm.IsNowWindowOpen || vm.IsForeWindowOpen);
+		}
+
+		[Fact]
+		public void FixedStart_PastCast_AndMapOnly()
+		{
+			var past = New(new AppSettings { StartupResume = false, StartupMode = Anvil.Models.StartupModes.Past, StartupOpenWindow = true });
+			past.RestoreTemporalSession();
+			Assert.True(past.IsPastCast);
+			Assert.True(past.IsPastWindowOpen);
+
+			var map = New(new AppSettings { StartupResume = false, StartupMode = Anvil.Models.StartupModes.MapOnly, NowCastOn = true });
+			map.RestoreTemporalSession();
+			Assert.False(map.IsPastCast || map.IsNowCast || map.IsForeCast);
+		}
+
+		[Fact]
+		public void FixedStart_AnUnknownToken_StartsInNowCast()
+		{
+			var vm = New(new AppSettings { StartupResume = false, StartupMode = "bogus" });
+			vm.RestoreTemporalSession();
+			Assert.True(vm.IsNowCast);
+		}
+
 		[Fact]
 		public void AWindow_NeverComesBack_WithoutItsMode()
 		{
