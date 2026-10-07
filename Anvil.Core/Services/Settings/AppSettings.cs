@@ -336,6 +336,16 @@ namespace Anvil.Services
 		// LOOP HOLDING GATE — PastCast dims the map behind a progress screen while a loop loads (the map lags
 		// during a load; LoopHoldingGateViewModel). Default ON; the gate's own "Don't hold future loads" box and
 		// Settings → Radar → PastCast turn it off.
+		// NowCast's live poll times itself from the volume's own scan plan (LivePollPlanner, docs/regime-aware-polling.md)
+		// instead of a fixed interval. Default ON; off = the fixed interval.
+		private bool _regimeAwarePolling = true;
+		/// <summary>Time live polls from the scan regime (on) or a fixed interval (off).</summary>
+		public bool RegimeAwarePolling
+		{
+			get => _regimeAwarePolling;
+			set => SetProperty(ref _regimeAwarePolling, value);
+		}
+
 		// While a site is loaded, hide every other site key (radar-sites.js `focus` rule); click it again to unload.
 		// Settings → Radar → Radar site keys. Default ON.
 		private bool _hideOtherSitesWhileLoaded = true;

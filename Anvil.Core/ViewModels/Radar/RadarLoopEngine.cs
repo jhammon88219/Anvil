@@ -75,6 +75,7 @@ namespace Anvil.ViewModels
 			// or the ready count of the new session.
 			_vm._loopRenderBegun = false;
 			_vm._liveModeText = null; // forget the previous site's mode; the new site's poll re-sets it
+			_vm.ForgetLiveSchedule(); // regime-aware polling learns each site's volume period afresh
 
 			// Note: no flyTo — load the radar at the user's current view; they pan/zoom freely.
 			var cts = new CancellationTokenSource();
@@ -1765,18 +1766,27 @@ namespace Anvil.ViewModels
 			{
 				while (true)
 				{
-					var interval = _vm._hasLiveFrame ? _vm.RefreshIntervalSeconds : RadarViewModel.LiveFrameRetrySeconds;
-					// Schedule relative to the LAST poll, whoever ran it — an archive reload runs its
-					// own inline live poll (LoadLoopCoreAsync → RefreshLiveFrameAsync), so anchoring on
-					// _lastLivePollAt pushes this timer out instead of double-fetching ~3s later.
-					var sinceLast = _vm._lastLivePollAt is { } last ? (DateTimeOffset.Now - last).TotalSeconds : interval;
-					var wait = Math.Max(1.0, interval - sinceLast);
+					double wait;
+					// REGIME-AWARE (AppSettings.RegimeAwarePolling, docs/regime-aware-polling.md): wait until the next
+					// frame of the watched tilt should be in the bucket, per the live volume's own plan. It re-plans from
+					// NOW after every poll, so its wait is already relative to the last poll.
+					if (_vm._hasLiveFrame && _vm.PlanNextLiveCheck(site.Id, DateTimeOffset.UtcNow) is { } planned)
+					{
+						wait = planned;
+					}
+					else
+					{
+						var interval = _vm._hasLiveFrame ? _vm.RefreshIntervalSeconds : RadarViewModel.LiveFrameRetrySeconds;
+						// Schedule relative to the LAST poll, whoever ran it — an archive reload runs its
+						// own inline live poll (LoadLoopCoreAsync → RefreshLiveFrameAsync), so anchoring on
+						// _lastLivePollAt pushes this timer out instead of double-fetching ~3s later.
+						var sinceLast = _vm._lastLivePollAt is { } last ? (DateTimeOffset.Now - last).TotalSeconds : interval;
+						wait = Math.Max(1.0, interval - sinceLast);
+					}
 					_vm._livePollCycleStart = DateTimeOffset.Now;
 					_vm._nextLivePollAt = _vm._livePollCycleStart.Value.AddSeconds(wait);
 					_vm.RaisePropertyChangedFor(nameof(RadarViewModel.RadarNextFrameProgress)); // reset the bar at the cycle start
-					// The on-map sweep is no longer a continuous phase-locked rotation — it pulses once
-					// when a genuinely-new frame actually lands (see ApplyLiveFrameAsync), so nothing to
-					// start here.
+					var pollBeforeWait = _vm._lastLivePollAt;
 					await Task.Delay(TimeSpan.FromSeconds(wait), ct);
 
 					if (!ReferenceEquals(_vm._selectedRadarOption?.Site, site))
@@ -1786,7 +1796,7 @@ namespace Anvil.ViewModels
 
 					// If a poll snuck in during our wait (e.g. a reload's inline poll), don't double
 					// up — loop to recompute the next deadline from that poll instead.
-					if (_vm._lastLivePollAt is { } recent && (DateTimeOffset.Now - recent).TotalSeconds < interval - 1)
+					if (_vm._lastLivePollAt != pollBeforeWait)
 					{
 						continue;
 					}

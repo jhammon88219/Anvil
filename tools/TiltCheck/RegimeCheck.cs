@@ -12,6 +12,7 @@ using System.Buffers.Binary;
 using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
+using Anvil.Models;
 using Anvil.Services;
 
 static class RegimeCheck
@@ -35,6 +36,7 @@ static class RegimeCheck
         var allGaps = new List<double>();
         var allLatency = new List<double>();
         var allErr = new List<double>();
+        var allLead = new List<double>();
         for (var back = 1; back <= volumes; back++)
         {
             var folder = ((newest - back - 1) % 999 + 999) % 999 + 1; // 1..999, wrapping
@@ -42,17 +44,18 @@ static class RegimeCheck
             if (objs.Count == 0) { Console.WriteLine($"\n-- folder {folder}: empty"); continue; }
             var start = objs.Max(o => o.Start);
             var vol = objs.Where(o => o.Start == start).OrderBy(o => o.Seq).ToList();
-            await MeasureVolumeAsync(http, site, folder, vol, allGaps, allLatency, allErr);
+            await MeasureVolumeAsync(http, site, folder, vol, allGaps, allLatency, allErr, allLead);
         }
 
         Console.WriteLine("\n== SUMMARY over all volumes");
         Console.WriteLine($"   overhead per cut    : {Stats(allGaps)} s");
         Console.WriteLine($"   upload latency      : {Stats(allLatency)} s   (cut's last radial → its chunk in the bucket)");
         Console.WriteLine($"   model error (ends)  : {Stats(allErr)} s   (planned sweeps + the volume's median overhead per cut)");
+        Console.WriteLine($"   PLANNER check − landed: {Stats(allLead)} s   (+ = checks after the frame landed: the wait; − = early, a 5 s retry)");
     }
 
     static async Task MeasureVolumeAsync(HttpClient http, string site, int folder, List<Obj> vol,
-        List<double> allGaps, List<double> allLatency, List<double> allErr)
+        List<double> allGaps, List<double> allLatency, List<double> allErr, List<double> allLead)
     {
         Console.WriteLine($"\n-- folder {folder}: volume {vol[0].Start:yyyy-MM-dd HH:mm:ss}Z, {vol.Count} chunks " +
                           $"({vol.Count(o => o.Kind == 'E')} E)");
@@ -88,7 +91,7 @@ static class RegimeCheck
         Console.WriteLine($"   VCP {vcp}, {plan.Count} planned cuts, start {t0:HH:mm:ss.f}Z");
         Console.WriteLine("   cut  angle  w flags      rate°/s  plan s | real s  gap s | end+s  arrive s");
 
-        var rows = new List<(ScanPlan.Cut cut, double? end, double? sweep)>();
+        var rows = new List<(PlannedCut cut, double? end, double? sweep)>();
         DateTimeOffset? prevEnd = null;
         foreach (var cut in plan)
         {
@@ -132,6 +135,19 @@ static class RegimeCheck
         var total = byElev.Values.Max(l => l[^1].Time) - t0;
         Console.WriteLine($"   volume took {total.TotalSeconds:0} s; Σ planned sweeps {plan.Sum(c => c.SweepSeconds):0} s; overhead/cut {overhead:0.00} s; " +
                           $"model end error {Stats(errs)} s");
+
+        // THE PLANNER as the app runs it (LivePollPlanner): for every base-tilt frame, when it would check (key start +
+        // planned end + upload slack) vs when that frame's last chunk actually landed in the bucket.
+        foreach (var (lastCut, _, end) in LivePollPlanner.FrameEnds(plan, null))
+        {
+            if (!byElev.TryGetValue(lastCut, out var rs)) continue;
+            var landed = modified[rs[^1].Seq];
+            var check = vol[0].Start.AddSeconds(end + LivePollPlanner.UploadSlack);
+            var lead = (check - landed).TotalSeconds;
+            allLead.Add(lead);
+            Console.WriteLine($"   planner: base frame ending cut {lastCut,2}: checks +{(check - vol[0].Start).TotalSeconds:0} s, " +
+                              $"landed +{(landed - vol[0].Start).TotalSeconds:0} s → {(lead >= 0 ? $"{lead:0.0} s after" : $"{-lead:0.0} s EARLY")}");
+        }
     }
 
     // Message 31 headers in a decompressed chunk: ICAO, ms-of-day (+4), Julian date (+8), azimuth (+12, float),
@@ -155,7 +171,7 @@ static class RegimeCheck
         }
     }
 
-    static string Flags(ScanPlan.Cut c) =>
+    static string Flags(PlannedCut c) =>
         (c.IsSails ? $"SAILS{c.SailsSequence} " : "") + (c.IsMrle ? "MRLE" : "");
 
     static string Stats(List<double> v)

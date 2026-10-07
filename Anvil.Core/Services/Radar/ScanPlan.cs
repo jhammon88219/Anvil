@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Anvil.Models;
 
 namespace Anvil.Services
 {
@@ -18,19 +19,13 @@ namespace Anvil.Services
 	/// </remarks>
 	internal static class ScanPlan
 	{
-		internal sealed record Cut(int Number, double Angle, int Waveform, double AzimuthRate, bool IsSails, int SailsSequence, bool IsMrle)
-		{
-			/// <summary>One full rotation at the planned speed, seconds (0 when the rate is unreadable).</summary>
-			public double SweepSeconds => AzimuthRate > 0 ? 360.0 / AzimuthRate : 0;
-		}
-
 		private const int CutsStart = 22, CutStride = 46;
 
 		/// <summary>The planned cuts of the first Message 5 in <paramref name="blocks"/> (stops at the first radial).</summary>
-		internal static bool TryRead(List<(byte[] block, int elev)> blocks, out int vcp, out List<Cut> cuts)
+		internal static bool TryRead(List<(byte[] block, int elev)> blocks, out int vcp, out List<PlannedCut> cuts)
 		{
 			vcp = 0;
-			cuts = new List<Cut>();
+			cuts = new List<PlannedCut>();
 			foreach (var (block, _) in blocks)
 			{
 				for (var pos = 0; pos + Level2Format.CtmHeaderSize + Level2Format.MessageHeaderSize + 8 <= block.Length;
@@ -50,7 +45,7 @@ namespace Anvil.Services
 						if (c + 30 > block.Length) return false; // truncated table: not a plan to trust
 						var angle = (short)Hw(block, c) / 8.0 * 0.043945;
 						var supp = Hw(block, c + 28);
-						cuts.Add(new Cut(k + 1, angle, block[c + 3], AzimuthRate(Hw(block, c + 8)),
+						cuts.Add(new PlannedCut(k + 1, angle, block[c + 3], AzimuthRate(Hw(block, c + 8)),
 							(supp & 1) != 0, (supp >> 1) & 0b111, (supp & 0b1_0000) != 0));
 					}
 					vcp = number;

@@ -132,6 +132,11 @@ namespace Anvil.Services
 		/// re-scans only the BASE tilt, so a higher tilt refreshes once per ~4.5-min volume rather than
 		/// every ~1-2 min.</para>
 		/// </summary>
+		/// <summary>What the newest live volume has done so far, as of the last <see cref="GetLiveFrameAsync"/> — its plan
+		/// (Message 5), the highest cut seen and whether it ended. The input to regime-aware polling; null until a
+		/// readable plan has been seen.</summary>
+		LiveScanSchedule? LiveSchedule => null;
+
 		/// <remarks><paramref name="progress"/> gets (chunks downloaded, chunks this pass needs) — the bar's activity
 		/// slot's download line while a NowCast poll runs. Reported from worker threads.</remarks>
 		Task<RadarVolume?> GetLiveFrameAsync(RadarSite site, float? tiltAngle = null, CancellationToken cancellationToken = default,

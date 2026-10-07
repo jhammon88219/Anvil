@@ -380,6 +380,52 @@ namespace Anvil.ViewModels
 		private DateTimeOffset? _nextLivePollAt;
 		private DateTimeOffset? _livePollCycleStart;
 
+		// ── REGIME-AWARE POLLING (docs/regime-aware-polling.md; AppSettings.RegimeAwarePolling) ──
+		// The live volume's schedule after each poll, this site's learned volume period (start → next start; AVSET makes
+		// it shorter than the plan), and the resulting expected landing of the next frame. Reset per site.
+		private LiveScanSchedule? _liveSchedule;
+		private TimeSpan? _liveVolumePeriod;
+		private DateTimeOffset? _expectedNextScanAt;
+
+		/// <summary>When the next live frame of the watched tilt should be in the bucket (regime-aware polling); null when
+		/// unknown or polling is on the fixed interval. The bar's activity slot's idle line reads it.</summary>
+		public DateTimeOffset? ExpectedNextScanAt
+		{
+			get => _expectedNextScanAt;
+			private set => SetProperty(ref _expectedNextScanAt, value);
+		}
+
+		internal bool IsRegimeAwarePolling => _settings.Settings.RegimeAwarePolling;
+
+		// After a poll: take the service's schedule for THIS site, learn the volume period at a volume change, and
+		// re-predict. Returns the wait before the next check (null = use the fixed interval).
+		internal double? PlanNextLiveCheck(string siteId, DateTimeOffset now)
+		{
+			if (_radarService.LiveSchedule is { } s && s.SiteId == siteId)
+			{
+				if (_liveSchedule is { } prev && prev.SiteId == siteId && s.VolumeStart > prev.VolumeStart
+					&& LivePollPlanner.Period(prev.VolumeStart, s.VolumeStart) is { } period)
+				{
+					_liveVolumePeriod = period;
+				}
+				_liveSchedule = s;
+			}
+			if (!IsRegimeAwarePolling || _liveSchedule is not { } sched || sched.SiteId != siteId)
+			{
+				ExpectedNextScanAt = null;
+				return null;
+			}
+			ExpectedNextScanAt = LivePollPlanner.ExpectedNext(sched, _selectedTiltAngle, _liveVolumePeriod, _liveFrame?.VolumeTime);
+			return LivePollPlanner.NextWait(now, ExpectedNextScanAt);
+		}
+
+		internal void ForgetLiveSchedule()
+		{
+			_liveSchedule = null;
+			_liveVolumePeriod = null;
+			ExpectedNextScanAt = null;
+		}
+
 
 		// Load timing for the current selection: from the site click to the first frame ready,
 		// and to ALL frames (final count, incl. the live frame) ready+rendered. Captured once per

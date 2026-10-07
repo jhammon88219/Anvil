@@ -1167,6 +1167,10 @@ namespace Anvil.Services
 		// with the volume; lets later polls tag chunk elevations with the right id from the start.
 		private byte[]? _liveIcao;
 		private readonly SortedDictionary<int, (byte[] block, int elev)> _liveBlocks = new();
+		// The live volume's PLAN (Message 5, read once per volume) — regime-aware polling (docs/regime-aware-polling.md).
+		private (int vcp, List<PlannedCut> cuts)? _livePlan;
+
+		public LiveScanSchedule? LiveSchedule { get; private set; }
 
 		// One-shot cache of the previous-volume fallback frame (used while the newest volume is
 		// still mid-scan). That volume is finished and immutable, so we build it once and reuse it
@@ -1284,6 +1288,7 @@ namespace Anvil.Services
 					_liveHeader = null;
 					_liveIcao = null;
 					_liveBlocks.Clear();
+					_livePlan = null;
 				}
 				blocks = _liveBlocks;
 				header = _liveHeader;
@@ -1389,6 +1394,18 @@ namespace Anvil.Services
 			}
 
 			var ordered = blocks.Values.ToList();
+			if (useCache)
+			{
+				// The newest volume's progress, for regime-aware polling: its plan (Message 5 rides the S chunk) + the
+				// highest cut its chunks reach + whether its end chunk is in. Published even when no sweep is complete
+				// yet — that's exactly when the poll needs to know how long to wait.
+				if (_livePlan is null && ScanPlan.TryRead(ordered, out var planVcp, out var planCuts)) _livePlan = (planVcp, planCuts);
+				if (_livePlan is { } p)
+				{
+					LiveSchedule = new LiveScanSchedule(site.Id, start, p.vcp, p.cuts,
+						ordered.Count == 0 ? 0 : ordered.Max(b => b.elev), chunks.Any(c => c.kind == 'E'));
+				}
+			}
 			var hdr = header;
 			var sel = await RadarCpuWork.Run(() => SelectLatestSweep(hdr, ordered, icao, tiltAngle), ct, urgent: true); // the live frame: visibly waited on
 			if (!sel.complete || sel.data is null || !sel.velComplete)
