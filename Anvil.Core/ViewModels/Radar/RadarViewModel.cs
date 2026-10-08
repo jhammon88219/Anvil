@@ -474,7 +474,10 @@ namespace Anvil.ViewModels
 			// The volume length: the one SEEN here (a volume change) wins; until then, the previous volume in the bucket.
 			var length = _liveVolumePeriod
 				?? (sched.PreviousVolumeStart is { } prevStart ? LivePollPlanner.Period(prevStart, sched.VolumeStart) : null);
-			ExpectedNextScanAt = LivePollPlanner.ExpectedNext(sched, _selectedTiltAngle, length, _liveFrame?.VolumeTime);
+			// Held scan: the live slot's, or — once an archive reload has retired the slot — the loop's newest frame (the
+			// same scan, now from the archive), so the planner never waits for a frame already on screen.
+			ExpectedNextScanAt = LivePollPlanner.ExpectedNext(sched, _selectedTiltAngle, length,
+				_liveFrame?.VolumeTime ?? NewestLoadedFrameTime);
 			return LivePollPlanner.NextWait(now, ExpectedNextScanAt);
 		}
 

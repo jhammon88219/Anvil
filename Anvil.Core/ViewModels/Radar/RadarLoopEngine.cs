@@ -1880,7 +1880,10 @@ namespace Anvil.ViewModels
 					// REGIME-AWARE (AppSettings.RegimeAwarePolling, docs/regime-aware-polling.md): wait until the next
 					// frame of the watched tilt should be in the bucket, per the live volume's own plan. It re-plans from
 					// NOW after every poll, so its wait is already relative to the last poll.
-					if (_vm._hasLiveFrame && _vm.PlanNextLiveCheck(site.Id, DateTimeOffset.UtcNow) is { } planned)
+					// ⚠️ NOT gated on _hasLiveFrame: an archive reload that catches up to the live frame RETIRES the slot
+					// (liveRetired), and gating here dropped the next frame onto the blind 20 s retry — ~10 s late on about
+					// one frame in five (live-poll-timing.jsonl, 2026-10-08). The plan is still valid without a live slot.
+					if (_vm.PlanNextLiveCheck(site.Id, DateTimeOffset.UtcNow) is { } planned)
 					{
 						wait = planned;
 					}
