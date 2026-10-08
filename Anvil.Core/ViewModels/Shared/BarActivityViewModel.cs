@@ -1,6 +1,8 @@
 using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
+using Anvil.Models;
+using Anvil.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Anvil.ViewModels
@@ -86,6 +88,30 @@ namespace Anvil.ViewModels
 		/// <summary>"+1" while other activities wait behind the one shown; empty otherwise.</summary>
 		public string QueuedText { get => _queuedText; private set => SetProperty(ref _queuedText, value); }
 
+		private string _lastFrameLine = string.Empty;
+		/// <summary>The IDLE line's second row: how the last live frame did against its due time ("Last frame: on screen
+		/// 3.0 s after due"); empty while an activity shows, on fixed-time polling, and before the first timed frame.</summary>
+		public string LastFrameLine { get => _lastFrameLine; private set => SetProperty(ref _lastFrameLine, value); }
+
+		private string _lastFrameText = string.Empty; // the newest timed frame's words, kept between idle repaints
+
+		/// <summary>A live frame was timed (LivePollTimingRecorder): due = the planner's predicted end + its upload slack —
+		/// the SAME moment the idle line's "Scan due ~" showed — against when the page drew it. Regime-aware frames only.</summary>
+		internal void NoteLastFrame(LivePollTimingRecord r)
+		{
+			_lastFrameText = LastFrameWords(r);
+			if (!_isShown) ApplyIdle();
+		}
+
+		internal static string LastFrameWords(LivePollTimingRecord r)
+		{
+			if (r.Mode != "regime" || r.Drawn != true || r.PaintedUtc is not { } painted || r.PredictedEndUtc is not { } end)
+				return string.Empty;
+			var delta = (painted - end.AddSeconds(LivePollPlanner.UploadSlack)).TotalSeconds;
+			var s = Math.Abs(delta).ToString("0.0", System.Globalization.CultureInfo.CurrentCulture);
+			return delta >= 0 ? $"Last frame: on screen {s} s after due" : $"Last frame: on screen {s} s before due";
+		}
+
 		/// <summary>The readout was clicked: the loop goes back to its gate ("Hold the map again").</summary>
 		public void Reopen()
 		{
@@ -155,6 +181,7 @@ namespace Anvil.ViewModels
 			var e = _entries[top];
 			Kind = (BarActivityKind)top;
 			Title = e.Title; Detail = e.Detail; Tone = e.Tone; CanReopen = e.CanReopen;
+			LastFrameLine = string.Empty; // the idle line's; an activity's bars take its row
 			HasProgress = e.Progress >= 0; Progress = Math.Clamp(e.Progress, 0, 1);
 			HasSecondary = e.Secondary >= 0; Secondary = Math.Clamp(e.Secondary, 0, 1);
 			IsShown = true;
@@ -208,6 +235,8 @@ namespace Anvil.ViewModels
 			// The idle line follows the radar's 1 s countdown tick, and any change of mode / site / schedule.
 			radar.PropertyChanged += (_, e) =>
 			{
+				// A new site: the last frame's timing was another radar's.
+				if (e.PropertyName == nameof(RadarViewModel.SelectedRadarOption)) _lastFrameText = string.Empty;
 				if (_isShown) return;
 				if (e.PropertyName is nameof(RadarViewModel.RadarNextFrameText) or nameof(RadarViewModel.ExpectedNextScanAt)
 					or nameof(RadarViewModel.IsPastEventMode) or nameof(RadarViewModel.SelectedRadarOption)
@@ -219,7 +248,7 @@ namespace Anvil.ViewModels
 			ApplyIdle();
 			radar.LiveFrameActivity += (_, a) =>
 			{
-				var at = a.VolumeTime is { } t ? t.ToLocalTime().ToString("h:mm tt", System.Globalization.CultureInfo.CurrentCulture) : null;
+				var at = a.VolumeTime is { } t ? ClockTime(t) : null;
 				var scan = $"{at} scan";
 				switch (a.Stage)
 				{
@@ -275,18 +304,25 @@ namespace Anvil.ViewModels
 				Detail = r.IsRegimeAwarePolling ? ScanDue(r.ExpectedNextScanAt) : $"every {r.RefreshIntervalSeconds:0} s";
 				HasSecondary = true;
 				Secondary = Math.Clamp(r.RadarNextFrameProgress / 100, 0, 1);
+				LastFrameLine = r.IsRegimeAwarePolling ? _lastFrameText : string.Empty;
 			}
 			else
 			{
 				Title = Detail = string.Empty;
 				HasSecondary = false;
+				LastFrameLine = string.Empty;
 			}
 		}
 
 		private static string ScanDue(DateTimeOffset? at) =>
 			at is not { } t ? "No scan prediction yet"
 			: t <= DateTimeOffset.Now ? "Scan due now"
-			: $"Scan due ~{t.ToLocalTime().ToString("h:mm tt", System.Globalization.CultureInfo.CurrentCulture)}";
+			: $"Scan due ~{ClockTime(t)}";
+
+		// Live-poll times carry SECONDS (the user's call, 2026-10-08): "due ~4:42" read as late from 4:42:00 while the
+		// scan was due 4:42:42, and SAILS / MESO-SAILS scans ~75 s apart can share a minute.
+		private static string ClockTime(DateTimeOffset t) =>
+			t.ToLocalTime().ToString("h:mm:ss tt", System.Globalization.CultureInfo.CurrentCulture);
 
 		// ── Source: the PLACE SEARCH's status (was a line beside the search box) ───────────────────────
 

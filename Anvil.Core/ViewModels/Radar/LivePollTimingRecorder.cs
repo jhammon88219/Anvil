@@ -32,6 +32,9 @@ namespace Anvil.ViewModels
 			radar.LiveFrameActivity += (_, a) => OnStage(a);
 		}
 
+		/// <summary>A live frame's timing is complete (found, then shown or not) — the bar's idle "Last frame" line reads it.</summary>
+		public event EventHandler<LivePollTimingRecord>? FrameTimed;
+
 		private void OnStage(LiveFrameActivity a)
 		{
 			switch (a.Stage)
@@ -55,6 +58,7 @@ namespace Anvil.ViewModels
 					}
 					_log.Append(r);
 					_pending = null;
+					FrameTimed?.Invoke(this, r);
 					break;
 				case LiveFrameStage.Dropped:
 					_pending = null;

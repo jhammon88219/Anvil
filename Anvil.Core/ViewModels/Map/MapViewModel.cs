@@ -99,7 +99,11 @@ namespace Anvil.ViewModels
 			// The PastCast load-time log (one line per load). Optional so tests that don't care can omit it.
 			if (loopLoadLog is not null) LoadTimes = new LoopLoadRecorder(Radar, loopLoadLog);
 			// The live-poll timing log (one line per new live frame / volume change): proof regime-aware polling holds. Every build.
-			if (livePollTimingLog is not null) LivePollTiming = new LivePollTimingRecorder(Radar, livePollTimingLog);
+			if (livePollTimingLog is not null)
+			{
+				LivePollTiming = new LivePollTimingRecorder(Radar, livePollTimingLog);
+				LivePollTiming.FrameTimed += (_, r) => Activity.NoteLastFrame(r); // the idle "Last frame: …" line
+			}
 			RadarNws = new RadarNwsStatusViewModel(radarNwsStatusService,
 				() => Radar.RadarSiteRows.Select(r => (r.Id, r.Site.Class == RadarSiteClass.Tdwr)));
 			var siteHistory = new RadarSiteHistoryViewModel(uptimeService, messageHistoryService, scanPatternService,

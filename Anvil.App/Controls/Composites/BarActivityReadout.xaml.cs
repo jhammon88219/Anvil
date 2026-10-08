@@ -66,6 +66,7 @@ namespace Anvil.Controls.Composites
 		private void Attach(BarActivityViewModel? vm)
 		{
 			if (vm is not null) vm.PropertyChanged += OnViewModelPropertyChanged;
+			ApplyTone();
 		}
 
 		private void Detach(BarActivityViewModel? vm)
@@ -80,6 +81,20 @@ namespace Anvil.Controls.Composites
 			{
 				ApplyHover();
 			}
+			if (e.PropertyName is nameof(BarActivityViewModel.Tone) or nameof(BarActivityViewModel.IsShown))
+			{
+				ApplyTone();
+			}
+		}
+
+		// THE TONE BORDER (see the XAML): a loud tone (radar work / done / failed) while the slot is active colours the ring;
+		// otherwise it fades out keeping its last brush, so a flash fades in its own colour.
+		private void ApplyTone()
+		{
+			var vm = ViewModel;
+			var loud = vm is { IsShown: true } && vm.Tone is not (BarActivityTone.Idle or BarActivityTone.Housekeeping);
+			if (loud) ToneBorder.BorderBrush = ToneBrush(vm!.Tone);
+			ToneBorder.Opacity = loud ? 1 : 0;
 		}
 
 		private void OnPointerEntered(object sender, PointerRoutedEventArgs e)

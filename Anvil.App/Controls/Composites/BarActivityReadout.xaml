@@ -4,34 +4,39 @@
      (left = the tools tier's 1-pane key's left, the right section's one left edge; right = Atlas less the
      cluster's 8 px) — see AlignActivityBay.
 
-       ┌──────────────────────────────────────────────────────────┐   ← plate: hairline, BarKeySide tall, so it
-       │ ┃ Loading the loop  [+1]                 22 of 39 built  │     lines up with Atlas top and bottom
-       │ ┃ ████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │   ← main bar  (the gate's BUILT)
-       │ ┃ ─────────────────────────────────────────░░░░░░░░░░░░  │   ← thin line (the gate's DOWNLOADED), loop only
-       └──────────────────────────────────────────────────────────┘
-         ┃ = the tone mark:  blue = radar loop work · grey = housekeeping · green = done flash · red = failed
+       ╔══════════════════════════════════════════════════════════╗   ← plate: BarKeySide tall, so it lines up with
+       ║  Loading the loop  [+1]                   22 of 39 built  ║     Atlas top and bottom. Its BORDER is the tone:
+       ║  ████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ║   ← main bar  (the gate's BUILT)
+       ║  ─────────────────────────────────────────░░░░░░░░░░░░░  ║   ← thin line (the gate's DOWNLOADED), loop only
+       ╚══════════════════════════════════════════════════════════╝
+         border = the tone: blue = radar loop work · green = done flash · red = failed · grey/idle = the plain
+         hairline (the coloured ring fades out in its own colour). ⚠️ The 3 px tone MARK at the left is GONE
+         (2026-10-08, the user's call) — the border replaced it; text starts at the plate's 14 px inset.
 
        NowCast's LIVE POLL (lowest rank, EVERY poll) wears the loop's look:
-       │ ┃ Checking for a new scan                3 of 5 chunks │   ← thin line = the poll's chunk download
-       then, nothing newer:   ┃ No new scan    1:42 PM scan is the newest   (grey flash)
+       ║  Checking for a new scan                  3 of 5 chunks  ║   ← thin line = the poll's chunk download
+       then, nothing newer:    No new scan    1:42:10 PM scan is the newest   (grey: hairline only)
        or a newer scan:
-       │ ┃ New scan                        1:47 PM scan · painting │   ← main bar = the build: ⅓ decoding,
-       │ ┃ ████████████████████████████████████░░░░░░░░░░░░░░░░░░░ │     ⅔ built and waiting to be DRAWN
-       │ ┃ ─────────────────────────────────────────────────────── │
-       then  ┃ New frame · 1:47 PM                      Complete     ← green flash ONLY once the page drew it
-                                                                        (radarPainted); holds like "Loop ready".
-                                                                        Not drawn ("Ready" instead): scrubbed back, or
-                                                                        no paint in 10 s (a minimized window draws nothing)
+       ║  New scan                     1:47:12 PM scan · painting  ║   ← main bar = the build: ⅓ decoding,
+       ║  ████████████████████████████████████░░░░░░░░░░░░░░░░░░░  ║     ⅔ built and waiting to be DRAWN
+       ║  ───────────────────────────────────────────────────────  ║
+       then   New frame · 1:47:12 PM                    Complete     ← green flash ONLY once the page drew it
+                                                                       (radarPainted); holds like "Loop ready".
+                                                                       Not drawn ("Ready" instead): scrubbed back, or
+                                                                       no paint in 10 s (a minimized window draws nothing)
 
        hover (loop only) → the title reads "Hold the map again ↗"; click → back to the gate (ReturnToHold).
        NOTHING ACTIVE → the plate DIMS to 45% (IsShown false; it never disappears — "so the user always knows to
-       look there") and shows the IDLE line (tone Idle, grey):
-       │ ┃ Next check in 0:18                    Scan due ~1:47 PM │   ← regime-aware; fixed time: "every 30 s"
-       │ ┃ ──────────────────────────────░░░░░░░░░░░░░░░░░░░░░░░░ │   ← thin line fills toward the check
-       PastCast / no site: an EMPTY dimmed plate (no mark). No site id anywhere in the slot.
+       look there") and shows the IDLE line (tone Idle, plain hairline):
+       ┌──────────────────────────────────────────────────────────┐
+       │  Next check in 0:18                 Scan due ~1:47:12 PM  │   ← regime-aware; fixed time: "every 30 s"
+       │  Last frame: on screen 3.0 s after due                   │   ← LastFrameLine: the last live frame's paint vs
+       │  ──────────────────────────────░░░░░░░░░░░░░░░░░░░░░░░░  │     the due time shown above (regime-aware only;
+       └──────────────────────────────────────────────────────────┘     hidden before the first timed frame / new site)
+       PastCast / no site: an EMPTY dimmed plate. No site id anywhere in the slot.
 
      ⚠️ The tone colours are LITERALS (BarActivityReadout.xaml.cs ToneBrush), like the gate's: never resolve a
-     theme brush in C#. The blue matches the gate's built bar; green/red are the old site-check toast's.
+     theme brush in C#. The blue matches the gate's built bar; green/red are the old site-check toast's. They colour the TONE BORDER and the main bar.
      ⚠️ Wording and priority live in the view model, not here. -->
 <UserControl x:Class="Anvil.Controls.Composites.BarActivityReadout"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -51,20 +56,22 @@
         <Grid.OpacityTransition>
             <ScalarTransition Duration="0:0:0.25"/>
         </Grid.OpacityTransition>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-
         <!-- The hover wash (loop only — the door back to the gate). -->
-        <Border x:Name="HoverWash" Grid.ColumnSpan="2" Opacity="0"
+        <Border x:Name="HoverWash" Opacity="0"
                 Background="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
 
-        <Rectangle Grid.Column="0" Width="3" Margin="10,16,10,16"
-                   Visibility="{x:Bind HasText(ViewModel.Title), Mode=OneWay}"
-                   Fill="{x:Bind ToneBrush(ViewModel.Tone), Mode=OneWay}"/>
+        <!-- THE TONE BORDER (replaced the 3 px tone mark, 2026-10-08): a 1 px coloured ring drawn just INSIDE the plate's
+             themed hairline (a child can't paint over its parent's own border, and a negative margin would be clipped by
+             the rounded plate; the hairline beside it reads as part of the ring). Code-behind sets its literal brush + fades its opacity (ApplyTone) — a quiet tone
+             (idle / housekeeping) fades it out WITHOUT changing the brush, so a green flash fades green, never grey. -->
+        <Border x:Name="ToneBorder" CornerRadius="7" BorderThickness="1" Opacity="0"
+                IsHitTestVisible="False">
+            <Border.OpacityTransition>
+                <ScalarTransition Duration="0:0:0.3"/>
+            </Border.OpacityTransition>
+        </Border>
 
-        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+        <StackPanel VerticalAlignment="Center" Margin="14,0,14,0">
             <Grid ColumnSpacing="8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -86,6 +93,12 @@
                            VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Grid>
+
+            <!-- IDLE ONLY: how the last live frame did against its due time (LastFrameLine; empty = collapsed). -->
+            <TextBlock Text="{x:Bind ViewModel.LastFrameLine, Mode=OneWay}" FontSize="11.5" Margin="0,3,0,0"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Visibility="{x:Bind HasText(ViewModel.LastFrameLine), Mode=OneWay}"/>
 
             <!-- Main bar: star columns split by the fraction, so it needs no measured width. -->
             <Grid Height="5" CornerRadius="2.5" Margin="0,7,0,0"
