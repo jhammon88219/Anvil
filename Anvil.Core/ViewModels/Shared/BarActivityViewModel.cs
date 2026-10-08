@@ -246,7 +246,8 @@ namespace Anvil.ViewModels
 						Set(BarActivityKind.LiveFrame, "New scan", $"{scan} · painting", RadarViewModel.LitStep, 1);
 						break;
 					case LiveFrameStage.Shown:
-						Flash(BarActivityKind.LiveFrame, $"New frame · {at}", "Complete", BarActivityTone.Done, fullBar: true);
+						// "Complete" only once DRAWN (the user's rule); built but not drawn (scrubbed back, a hidden window) = "Ready".
+						Flash(BarActivityKind.LiveFrame, $"New frame · {at}", a.Drawn ? "Complete" : "Ready", BarActivityTone.Done, fullBar: true);
 						break;
 					default:
 						if (!IsFlashing(BarActivityKind.LiveFrame)) Clear(BarActivityKind.LiveFrame);

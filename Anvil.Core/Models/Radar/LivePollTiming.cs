@@ -19,6 +19,8 @@ namespace Anvil.Models
 	/// <param name="PollLagSec">Found − landed: what the poll's timing costs (regime-aware aims at ~3 s; fixed 30 s ≈ 15 avg).</param>
 	/// <param name="ScreenLagSec">Painted − landed: what the user waits, end to end. Null when the frame wasn't drawn (scrubbed back).</param>
 	/// <param name="Polls">Checks spent since the previous frame (including the one that found it).</param>
+	/// <param name="Drawn">Frame lines from 2026-10-08 on: false = in the loop but never drawn (scrubbed back, or a
+	/// minimized/hidden window that drew nothing within the paint timeout) — no paint time, no screen lag.</param>
 	public sealed record LivePollTimingRecord(
 		string Kind,
 		DateTimeOffset At,
@@ -40,5 +42,6 @@ namespace Anvil.Models
 		DateTimeOffset? StartUtc = null,
 		double? PredictedLengthSec = null,
 		double? ActualLengthSec = null,
-		int Version = 1);
+		int Version = 1,
+		bool? Drawn = null);
 }

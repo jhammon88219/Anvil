@@ -193,7 +193,7 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public async Task A_new_scan_while_scrubbed_back_completes_when_built_there_is_nothing_to_paint()
+		public async Task A_new_scan_while_scrubbed_back_is_ready_when_built_there_is_nothing_to_paint()
 		{
 			var rig = await LoadedLiveLoop();
 			rig.Radar.CurrentFrameIndex = 0;
@@ -201,7 +201,7 @@ namespace Anvil.Tests
 			await Poll(rig, () => rig.LiveSlotRequests >= 2);
 			rig.Radar.OnRadarFrameReady(Keys.Length, true);
 			Assert.DoesNotContain(LiveFrameStage.Painting, rig.Stages);
-			Assert.Equal("Complete", rig.Bar.Detail);
+			Assert.Equal("Ready", rig.Bar.Detail);                      // in the loop, but not drawn: not "Complete"
 		}
 
 		[Fact]

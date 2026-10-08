@@ -89,6 +89,9 @@ def main(argv):
         print(f"   poll lag      {stats([r.get('pollLagSec') for r in rs])} s")
         print(f"   screen lag    {stats([r.get('screenLagSec') for r in rs])} s")
         print(f"   polls/frame   {stats([r.get('polls') for r in rs])}")
+        undrawn = sum(1 for r in rs if r.get("drawn") is False)
+        if undrawn:
+            print(f"   ({undrawn} frames never drawn — scrubbed back, or the window was minimized/hidden)")
         unmatched = sum(1 for r in rs if r.get("landedUtc") is None)
         if unmatched:
             print(f"   ({unmatched} frames had no landing time — not matched to the plan, or from the previous volume)")

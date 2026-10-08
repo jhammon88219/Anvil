@@ -22,7 +22,7 @@ namespace Anvil.ViewModels
 		private LiveScanSchedule? _lastSchedule; // the schedule at the previous poll's end (volume changes)
 		private Pending? _pending;              // a found frame waiting for its paint
 
-		private sealed record Pending(LivePollTimingRecord Record, bool Painting);
+		private sealed record Pending(LivePollTimingRecord Record);
 
 		public LivePollTimingRecorder(RadarViewModel radar, LivePollTimingLog log, Func<DateTimeOffset>? now = null)
 		{
@@ -43,16 +43,13 @@ namespace Anvil.ViewModels
 				case LiveFrameStage.Found:
 					_polls++;
 					NoteVolume();
-					_pending = new Pending(FrameRecord(a), false);
+					_pending = new Pending(FrameRecord(a));
 					_polls = 0;
-					break;
-				case LiveFrameStage.Painting when _pending is { } p:
-					_pending = p with { Painting = true };
 					break;
 				case LiveFrameStage.Shown when _pending is { } p:
 					var now = _now();
-					var r = p.Record;
-					if (p.Painting)
+					var r = p.Record with { Drawn = a.Drawn };
+					if (a.Drawn)
 					{
 						r = r with { PaintedUtc = now, ScreenLagSec = r.LandedUtc is { } l ? Round((now - l).TotalSeconds) : null };
 					}

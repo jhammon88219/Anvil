@@ -19,7 +19,9 @@
        │ ┃ ████████████████████████████████████░░░░░░░░░░░░░░░░░░░ │     ⅔ built and waiting to be DRAWN
        │ ┃ ─────────────────────────────────────────────────────── │
        then  ┃ New frame · 1:47 PM                      Complete     ← green flash ONLY once the page drew it
-                                                                        (radarPainted); holds like "Loop ready"
+                                                                        (radarPainted); holds like "Loop ready".
+                                                                        Not drawn ("Ready" instead): scrubbed back, or
+                                                                        no paint in 10 s (a minimized window draws nothing)
 
        hover (loop only) → the title reads "Hold the map again ↗"; click → back to the gate (ReturnToHold).
        NOTHING ACTIVE → the plate DIMS to 45% (IsShown false; it never disappears — "so the user always knows to

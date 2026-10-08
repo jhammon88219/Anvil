@@ -19,5 +19,9 @@ namespace Anvil.ViewModels
 	/// <summary>One step of a live poll (<see cref="RadarViewModel.LiveFrameActivity"/>) — the bar's activity slot follows
 	/// it (<see cref="BarActivityKind.LiveFrame"/>). <c>VolumeTime</c> = the new scan's (Found onward) or the newest scan
 	/// already shown (Unchanged); null when unknown. <c>Done</c>/<c>Total</c> = chunks, while Checking.</summary>
-	public sealed record LiveFrameActivity(LiveFrameStage Stage, string SiteId, DateTimeOffset? VolumeTime, int Done = 0, int Total = 0);
+	/// <param name="Drawn">Shown only: the page DREW it (radarPainted). False = in the loop but not drawn — not the frame on
+	/// screen, or no paint within <c>RadarViewModel.PaintTimeoutMs</c> (a minimized/hidden window draws nothing; found
+	/// overnight 2026-10-08, when every frame stalled at "painting" and none reached the timing log).</param>
+	public sealed record LiveFrameActivity(LiveFrameStage Stage, string SiteId, DateTimeOffset? VolumeTime, int Done = 0, int Total = 0,
+		bool Drawn = false);
 }

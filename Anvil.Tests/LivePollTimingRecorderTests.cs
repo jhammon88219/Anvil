@@ -79,6 +79,30 @@ namespace Anvil.Tests
 			Assert.Equal(2, r.GetProperty("pollLagSec").GetDouble());                            // found − landed
 			Assert.Equal(5, r.GetProperty("screenLagSec").GetDouble());                          // painted − landed
 			Assert.Equal(2, r.GetProperty("polls").GetInt32());
+			Assert.True(r.GetProperty("drawn").GetBoolean());
+		}
+
+		[Fact]
+		public async Task A_frame_the_page_never_draws_still_completes_and_is_logged_as_not_drawn()
+		{
+			// Overnight 2026-10-08: the window was minimized, the page drew nothing, every frame stalled at "painting"
+			// and none reached the log (70 found, 0 logged). Now the paint wait times out.
+			using var rig = await NewRig();
+			rig.Radar.PaintTimeoutMs = 50;
+			var bar = new BarActivityViewModel(_ => System.Threading.Tasks.Task.Delay(System.Threading.Timeout.Infinite));
+			bar.WatchLiveFrame(rig.Radar);
+			rig.Schedule = Schedule(Start, 3, Start.AddSeconds(-304), new() { [2] = Start.AddSeconds(38) });
+			rig.Radar.BeginLiveCheck("KTBW");
+			var live = new RadarVolume("https://radarlevel2/live.V06", Ktbw, Start.AddSeconds(0.8), "VCP 212", new[] { 0.5f });
+			rig.Radar.AnnounceLiveFound(live);
+			rig.Radar.AnnounceLiveBuilt(live, onScreen: true);    // waiting for a paint that never comes
+
+			var deadline = DateTime.UtcNow.AddSeconds(5);
+			while (rig.Lines().Count == 0 && DateTime.UtcNow < deadline) await Task.Delay(20);
+			var r = Assert.Single(rig.Lines());
+			Assert.False(r.GetProperty("drawn").GetBoolean());
+			Assert.False(r.TryGetProperty("paintedUtc", out _));
+			Assert.Equal("Ready", bar.Detail);                     // not "Complete": it was never drawn
 		}
 
 		[Fact]

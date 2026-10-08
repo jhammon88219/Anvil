@@ -349,28 +349,48 @@ namespace Anvil.ViewModels
 		internal void AnnounceLiveBuilt(Models.RadarVolume live, bool onScreen)
 		{
 			if (!ReferenceEquals(_announcedLive, live)) return; // a first-load frame: never announced
-			if (!onScreen || !_isMapReady || _announcedPaintedEarly)
+			if (_announcedPaintedEarly)
 			{
-				AnnounceLiveShown();
+				AnnounceLiveShown(drawn: true);
+				return;
+			}
+			if (!onScreen || !_isMapReady)
+			{
+				AnnounceLiveShown(drawn: false); // not the frame on screen: nothing to draw
 				return;
 			}
 			_announcedPainting = true;
 			RaiseLive(LiveFrameStage.Painting, live.Site.Id, live.VolumeTime);
+			_ = PaintTimeoutAsync(live, ++_paintWatchToken);
+		}
+
+		/// <summary>How long a built frame waits for the page's paint report before it completes as NOT DRAWN. ⚠️ A
+		/// minimized or hidden window draws nothing at all — before this, every overnight frame (2026-10-08) stalled at
+		/// "painting": the slot froze and none reached the timing log. Normal paints land ~3 s after the decode.</summary>
+		internal int PaintTimeoutMs { get; set; } = 10_000;
+
+		private int _paintWatchToken;
+
+		private async Task PaintTimeoutAsync(Models.RadarVolume live, int token)
+		{
+			try { await Task.Delay(PaintTimeoutMs, _shutdown.Token); }
+			catch (OperationCanceledException) { return; }
+			if (token == _paintWatchToken && ReferenceEquals(_announcedLive, live)) AnnounceLiveShown(drawn: false);
 		}
 
 		/// <summary>The page drew frame <paramref name="index"/>'s newest geometry (radarPainted).</summary>
 		public void OnRadarPainted(int index)
 		{
 			if (_announcedLive is null || index != _archiveCount) return;
-			if (_announcedPainting) AnnounceLiveShown();
+			if (_announcedPainting) AnnounceLiveShown(drawn: true);
 			else _announcedPaintedEarly = true; // drawn before frame-ready reached us — complete at Built
 		}
 
-		private void AnnounceLiveShown()
+		private void AnnounceLiveShown(bool drawn)
 		{
 			if (_announcedLive is not { } live) return;
 			_announcedLive = null;
-			RaiseLive(LiveFrameStage.Shown, live.Site.Id, live.VolumeTime);
+			LiveFrameActivity?.Invoke(this, new LiveFrameActivity(LiveFrameStage.Shown, live.Site.Id, live.VolumeTime, Drawn: drawn));
 		}
 
 		internal void AnnounceLiveDropped()
