@@ -511,6 +511,7 @@ namespace Anvil.ViewModels
 			// The loop holding gate: dims the map while a PastCast loop loads. Its Cancel is the engine's.
 			// Built before anything below can reach ClearReplayWindowLoaded (which dismisses it).
 			LoopGate = new LoopHoldingGateViewModel(settings, () => _engine.CancelPastLoadAsync());
+			Memory = new RadarMemoryViewModel(settings);
 			LoopGate.PropertyChanged += (_, e) =>
 			{
 				if (e.PropertyName == nameof(LoopHoldingGateViewModel.IsShown)) _ = ApplyLoopGateBlurAsync();
@@ -597,6 +598,7 @@ namespace Anvil.ViewModels
 			// synchronously from setProduct, so SetBuildProgress corrects it a moment later. With the trio
 			// prefetched (Rule 3) it is usually already built, so the scrubber stays lit.
 			RefreshSegmentReadiness();
+			NoteLoopMemory("product");
 
 			if (!_isMapReady)
 			{
@@ -741,6 +743,9 @@ namespace Anvil.ViewModels
 
 		/// <summary>The loop holding gate — the map's loading screen during a PastCast load.</summary>
 		public LoopHoldingGateViewModel LoopGate { get; }
+
+		/// <summary>Settings → Radar → Radar memory: the PastCast loop's RAM budget (sizes the frame cap).</summary>
+		public RadarMemoryViewModel Memory { get; }
 
 		// ── LOOP HOLDING GATE: progress + release ────────────────────────────────────────────────
 		// The gate reads the SAME state the scrubber does: downloaded = frames whose volume arrived (their
@@ -964,10 +969,28 @@ namespace Anvil.ViewModels
 			new[] { "30 min", "1 hour", "2 hours", "3 hours", "6 hours", "12 hours" };
 		// ⚠️ Mirrored by SavedEventLeg.AllowedDurationMinutes (internal so the test can hold the two in step).
 		internal static readonly int[] PastEventMinutesByIndex = { 30, 60, 120, 180, 360, 720 };
-		// Cap on frames loaded. Short windows load every volume (~5 min apart, smooth); longer windows
-		// are evenly SUBSAMPLED to this many frames (so a 12 h window is an overview, ~18 min apart,
-		// rather than 140+ frames melting memory).
-		private const int PastEventMaxFrames = 40;
+		// The cap on frames loaded is NOT a constant any more: it is the user's Radar memory budget (Memory.FrameCap,
+		// RadarMemoryBudget) at the panes' products — the old fixed 40 rested on a 4 GB heap wall that was measured not
+		// to bind (2026-10-08). Event windows keep every pass up to it; longer windows are thinned to it (ReplayFramePlan).
+
+		/// <summary>The PastCast frame cap for what the visible panes show now (Radar memory budget).</summary>
+		internal int PastEventFrameCap() => Memory.FrameCap(VisibleLoopProducts());
+
+		/// <summary>Products every loaded frame builds for the visible panes (trio + each distinct dual-pol product).</summary>
+		internal int VisibleLoopProducts() =>
+			RadarMemoryBudget.ProductsFor(Panes.Take(VisiblePaneCount).Select(p => p.ProductId));
+
+		// "Pane change after a big load": the user's call is LOG ONLY (no prompt, no reload) — the next Load re-plans.
+		// One line when the visible panes now cost more than the budget holds for the loaded PastCast loop.
+		private void NoteLoopMemory(string why)
+		{
+			if (!IsPastEventMode || Segments.Count == 0) { return; }
+			var products = VisibleLoopProducts();
+			var mb = RadarMemoryBudget.EstimatedMb(Segments.Count, products);
+			if (mb <= Memory.BudgetGb * 1024) { return; }
+			RadarDiagnostics.Log("vm", "memory", ("event", "loop.overBudget"), ("why", why), ("frames", Segments.Count),
+				("products", products), ("estMb", (int)mb), ("budgetMb", (int)(Memory.BudgetGb * 1024)));
+		}
 
 		/// <summary>Year choices for the date picker (1991 = start of the decodable WSR-88D archive).</summary>
 		public IReadOnlyList<int> PastEventYearOptions { get; } =
@@ -2038,6 +2061,7 @@ namespace Anvil.ViewModels
 				OnPropertyChanged(nameof(IsSinglePane));
 				OnPropertyChanged(nameof(VisiblePaneCount));
 				ApplyPaneLayout();
+				NoteLoopMemory("layout");
 			}
 		}
 

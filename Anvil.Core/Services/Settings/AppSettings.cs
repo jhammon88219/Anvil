@@ -97,6 +97,18 @@ namespace Anvil.Services
 			set => SetProperty(ref _radarCacheMaxGb, value);
 		}
 
+		private double? _radarMemoryGb;
+		/// <summary>
+		/// "Radar memory" (Settings → Radar): GB a PastCast loop's decoded geometry may hold, which sizes the loop's frame
+		/// cap (<see cref="Models.RadarMemoryBudget"/>). NULL = the recommended default (a quarter of RAM), so a RAM
+		/// upgrade moves it; clamped to this PC on read.
+		/// </summary>
+		public double? RadarMemoryGb
+		{
+			get => _radarMemoryGb;
+			set => SetProperty(ref _radarMemoryGb, value);
+		}
+
 		private int _settingsTabIndex;
 		/// <summary>
 		/// Which tab the Settings window reopens on. ⚠️ Persisted as a raw INDEX, so it can outlive the tab

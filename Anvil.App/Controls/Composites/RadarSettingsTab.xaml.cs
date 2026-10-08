@@ -26,6 +26,13 @@ namespace Anvil.Controls.Composites
 
 		public double FixedRowOpacity(bool fixedTime) => fixedTime ? 1.0 : 0.4;
 
+		// Radar memory: the note line shows in the caution brush only while the budget is High/Low (see the XAML).
+		public bool Not(bool value) => !value;
+		public Visibility Shown(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility Collapsed(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
+
+		private void OnUseRecommendedMemoryClick(object sender, RoutedEventArgs e) => ViewModel?.Radar.Memory.UseRecommended();
+
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel
 		{

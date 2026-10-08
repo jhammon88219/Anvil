@@ -16,7 +16,8 @@
           ↑ FillOrder: LeftToRight (column by column, each from the bottom — the default) | BottomToTop (row by row).
 
      ⚠️ THE EDGES NEVER MOVE: the field depends on the WIDTH alone; the frame count only re-assigns columns. PastCast
-     caps a loop at 40 frames (2–3 columns each); past one frame per column, frames share columns.
+     caps a loop by the Radar memory budget (~40–100 frames typical, a few columns each); past one frame per column,
+     frames share columns.
      ⚠️ The host's seek asks IndexAt(x) — the SAME column→frame table — so a click lands on the frame drawn under it.
      It does NOT align to anything above it.
      ⚠️ Dot looks are STYLES (EmptyDot / FillingDot / ReadyDot / CurrentDot), set from code — never a theme brush

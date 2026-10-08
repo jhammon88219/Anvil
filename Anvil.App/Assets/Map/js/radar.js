@@ -252,7 +252,8 @@
     // This used to be `DECODE_CACHE_MAX = 96` and nothing else — a cap on the NUMBER of frames, for
     // entries whose size varies by two orders of magnitude. Measured on a real 3-site PastCast session
     // (radar-diag-20260908-122438), a 26-frame trio-only loop retains ~1065 MB, i.e. ~41 MB per frame,
-    // so 96 frames authorises ~3.9 GB against a measured jsHeapSizeLimit of 4192 MB. The same log shows
+    // so 96 frames authorises ~3.9 GB against a measured jsHeapSizeLimit of 4192 MB (a limit later measured NOT to bind
+    // geometry — see MEMORY CEILING below; the bytes are still real RAM on top of the loop). The same log shows
     // the accumulation directly: at every site switch `frames` drops to 0 while `cached` and
     // `retainedMb` do not, because this cache deliberately survives beginLoop.
     //     KTLX  frames 26  cached 26  retained 1065 MB
@@ -845,7 +846,11 @@
     // once armed. queueAllUpgrades only touches frames actually missing a dual-pol product (needsUpgrade),
     // so it's self-limiting.
     // ⚠️ MEMORY CEILING — the second wave is SKIPPED on a long loop, and this is why.
-    // The renderer's JS heap is capped at ~4192 MB (measured off performance.memory.jsHeapSizeLimit; it is a
+    // ⚠️ CORRECTED 2026-10-08: the "~4192 MB cap" below (performance.memory.jsHeapSizeLimit) does NOT hold typed-array
+    // geometry — a 60-frame 4-pane loop held 4,235 MB with heapMb over the limit and nothing failed. The real ceiling
+    // is the machine's RAM, shared out by the user's Radar memory budget (C# RadarMemoryBudget sizes PastCast loops).
+    // The OutOfMemory below was real, on a machine with less free RAM; the 12 stays until re-measured.
+    // Original note: the renderer's JS heap is capped at ~4192 MB (measured off performance.memory.jsHeapSizeLimit; it is a
     // per-renderer V8 limit, NOT related to how much RAM the machine has). Gate geometry is ~72 B/gate held
     // per product per frame, so a fully-built 26-frame PastCast loop retains ~2.2 GB — over half the cap —
     // and roughly HALF of that is these four dual-pol products, sitting there unviewed. A 39-frame loop
@@ -1533,7 +1538,8 @@
         // ⚠️ WHICH grids, not just whether. A value grid is a dense Int16 (radials x gates) — ~2.6 MB a frame
         // for reflectivity, ~15 MB across all seven — and Inspect can only ever READ the product a pane is
         // showing. Building the rest was ~600 MB of unreachable data on a 39-frame replay, inside the ~765 MB
-        // of headroom such a loop had left under the renderer's ~4192 MB cap. So ask for exactly the VISIBLE
+        // of headroom such a loop had left under the renderer's ~4192 MB cap (not a real wall — see MEMORY CEILING — but
+        // still RAM the Radar memory budget doesn't count). So ask for exactly the VISIBLE
         // panes' products (the same set activeGridReady / missingGridProduct judge readiness against, so the
         // upgrade queue can't chase a grid this will never build). Switching a pane's product while inspecting
         // builds that product's grid on demand through the grids-only path above.

@@ -617,14 +617,17 @@ namespace Anvil.ViewModels
 					return false;
 				}
 			}
-			// DEV-ONLY: the frame-cap experiment replaces the memory cap and keeps every pass in any window (DevFrameCap).
+			// The cap = the user's Radar memory budget at what the visible panes show (RadarMemoryBudget). DEV-ONLY: the
+			// frame-cap experiment overrides it and keeps every pass in any window (DevFrameCap).
+			var memoryCap = _vm.PastEventFrameCap();
 			var (frameKeys, choice) = Services.DevFrameCap.IsOn
 				? ReplayFramePlan.Choose(keys, passes, windowMinutes, _vm.ReplayFocusFor(startUtc, windowMinutes),
 					Services.DevFrameCap.Frames, eventWindowMaxMinutes: int.MaxValue)
 				: ReplayFramePlan.Choose(keys, passes, windowMinutes, _vm.ReplayFocusFor(startUtc, windowMinutes),
-					RadarViewModel.PastEventMaxFrames);
+					memoryCap);
 			Services.RadarDiagnostics.Log("vm", "replay.frames", ("site", site.Id), ("volumes", keys.Count),
-				("frames", frameKeys.Count), ("choice", choice.ToString()), ("devCap", Services.DevFrameCap.Frames));
+				("frames", frameKeys.Count), ("choice", choice.ToString()), ("memoryCap", memoryCap),
+				("budgetGb", _vm.Memory.BudgetGb), ("products", _vm.VisibleLoopProducts()), ("devCap", Services.DevFrameCap.Frames));
 			keys = frameKeys;
 
 			await LoadPastLoopAsync(site, keys, startUtc, cts.Token);

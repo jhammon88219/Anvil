@@ -209,8 +209,9 @@ namespace Anvil.Controls.Primitives
 		// The field is every column the width holds at the pitch, centred — it depends on the WIDTH alone, so the
 		// scrubber's two edges never move whatever the frame count (and an empty field shows with no loop). Column c
 		// belongs to frame floor(c × count ÷ columns): shares differ by at most ONE column, the spares spread evenly
-		// through the loop rather than piled at an end, and no dot is ever blank. PastCast caps a loop at 40 frames
-		// (RadarViewModel.PastEventMaxFrames) — 2–3 columns each; past one frame per column, frames share (some own none).
+		// through the loop rather than piled at an end, and no dot is ever blank. PastCast's cap follows the user's Radar memory
+		// budget (RadarMemoryBudget; ~40–100 frames typical) — a few columns each; past one frame per column, frames share
+		// (some own none).
 		private double _fieldLeft;
 		private int[] _owner = Array.Empty<int>();
 

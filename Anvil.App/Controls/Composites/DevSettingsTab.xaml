@@ -309,7 +309,7 @@
 
                 <TextBlock Grid.Row="0" TextWrapping="Wrap" FontSize="12"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           Text="Replaces PastCast's 40-frame memory cap and keeps every 0.5° rescan in ANY window length, so a long SAILS window loads far more frames. Read at each Load. For measuring the map's real memory ceiling (memory samples in the radar diagnostics) — it can black out the map. 0 = off. Not saved."/>
+                           Text="Replaces PastCast's Radar memory cap (Settings → Radar) and keeps every 0.5° rescan in ANY window length, so a long SAILS window loads far more frames. Read at each Load. For measuring the map's real memory ceiling (memory samples in the radar diagnostics) — it can black out the map. 0 = off. Not saved."/>
 
                 <Grid Grid.Row="1" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>

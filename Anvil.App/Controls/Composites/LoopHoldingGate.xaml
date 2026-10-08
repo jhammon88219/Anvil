@@ -61,7 +61,8 @@
         <!-- Bottom margin = ContentBottomInset (the bottom chrome's opaque tiers), so the content centres on the
              VISIBLE map: the gate itself spans the whole window, under the chrome (see MainWindow). -->
         <!-- NO width here: the event band may grow past the bars (its title never wraps). The BARS hold 560 themselves
-             (40 frames ≈ 7.6 px a cell); the why line keeps its 400 measure. -->
+             (40 frames ≈ 7.6 px a cell; the Radar memory budget can ask for more, cells just narrow); the why line keeps
+             its 400 measure. -->
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
                     Margin="{x:Bind BottomInset(ContentBottomInset), Mode=OneWay}">
 
