@@ -5,13 +5,14 @@
        ┌─ clock ────────┐ ┌─ scrubber: FIXED 420 × 20 (classic | dot matrix) ┐ ┌─ scan ─────────────────┐
        │ 1:07 PM        │ │ ⁙⁙ ⁙⁙ ⁙⁙ ⁙⁙ ◆◆ ⁙⁙ ⁚⁚ ··  ·· ··  (Settings → Radar Console) │ │ VCP:        212        │
        │                │ │                                                     │ │ Mode:       precip     │
-       │ 2 min ago      │ │ 11 / 11            ⏮  ▶  ⏭                      ⟳  │ │ Rescans:    MRLE ×4    │
+       │ 1 min 40 s ago │ │ 11 / 11           ⏮  ▶  ⏭                      ⟳  │ │ Rescans:    MRLE ×4    │
        └────────────────┘ └─────────────────────────────────────────────────────┘ └────────────────────────┘
          ^ digits 40 SemiLight,   ^ frame count LEFT · transport CENTRED under the          ^ ALWAYS three LABELLED
            AM/PM 16 beside them     scrubber · ⟳ (check for a newer frame, 2 s               lines; a missing fact is
-         ^ age (14) of the NEWEST   debounce) RIGHT — a [*, Auto, *] grid, so the             a placeholder (—, none,
-           frame, ramped fresh→     transport sits on the scrubber's exact midpoint           n/a), never a gap.
-           stale (AgeBrush)                                                                   RESERVED 180.
+         ^ age (14) of the frame    debounce) RIGHT — a [*, Auto, *] grid, so the             a placeholder (—, none,
+           ON SCREEN (matches the   transport sits on the scrubber's exact midpoint           n/a), never a gap.
+           time above), from its                                                              RESERVED 180.
+           scan START; seconds under 10 min; ramped fresh→stale (AgeBrush)
 
          The clock LEADS at the bar's left edge and the scan readout closes the module on the right, so the
          two readouts FLANK the scrubber (2026-09-29, when Inspect left for the tools tier).
@@ -145,8 +146,10 @@
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </Grid>
             </Grid>
-            <!-- Age of the FRESHEST frame, ramped green → amber (12 min) → red (30 min) by AgeBrush, knees
-                 matching RadarSiteStatus so the colour and the status dot agree. -->
+            <!-- Age of the frame ON SCREEN (the one whose time is above it), from its scan START: "45 s ago",
+                 "1 min 40 s ago" under 10 min, then "12 min ago" (RadarViewModel.AgeWords — the user's calls, 2026-10-08).
+                 Ramped green → amber (12 min) → red (30 min) by AgeBrush, knees matching RadarSiteStatus; the colour
+                 follows the same frame as the words. -->
             <!-- ⚠️ Capped to the TIME's width in code (OnClockTimeSizeChanged): only the time may size this column —
                  a long replay age ("11 mo 29 day ago") trims instead of pushing the run right. -->
             <TextBlock x:Name="AgeText"
@@ -156,7 +159,7 @@
                        FontSize="14"
                        TextTrimming="CharacterEllipsis"
                        Foreground="{x:Bind AgeBrush(ViewModel.RadarAgeMinutes), Mode=OneWay}"
-                       ToolTipService.ToolTip="How long ago the newest available frame was scanned. Green = fresh, red = stale."/>
+                       ToolTipService.ToolTip="How long ago the radar started scanning the frame you're looking at. Storms it passed later in that sweep are a little fresher. Green = fresh, red = stale."/>
         </Grid>
 
         <!-- ===== SCRUBBER over the CONTROL LINE =====

@@ -176,17 +176,30 @@ namespace Anvil.ViewModels
 			return _activeReady[idx];
 		}
 
-		/// <summary>How old the freshest available frame is, e.g. "2 min ago" / "1 hr 6 min ago".
-		/// Uses the two largest non-zero units so a historical replay frame reads "13 yr 2 mo ago"
-		/// instead of an unreadable ~7,000,000-minute count.</summary>
-		public string RadarAgeText
+		/// <summary>How old the frame ON SCREEN is — its scan START to now, e.g. "45 s ago", "1 min 40 s ago", "12 min ago",
+		/// "13 yr 2 mo ago" (a replay). The user's calls (2026-10-08): SECONDS while they matter (under 10 min); counted from
+		/// the scan's START (the oldest part of the picture — never reads fresher than the data); and the frame being SHOWN,
+		/// so it always matches the time above it (scrubbed back to 1:30, it says how old 1:30 is). Re-raised every second
+		/// by the readout tick.</summary>
+		public string RadarAgeText => AgeReferenceTime is { } t ? $"{AgeWords(DateTimeOffset.Now - t)} ago" : "—";
+
+		/// <summary>The scan the age counts from: the DISPLAYED frame's (its scan start), else the newest loaded one.</summary>
+		internal DateTimeOffset? AgeReferenceTime =>
+			(_currentFrameIndex >= 0 && _currentFrameIndex < _frameTimes.Length ? _frameTimes[_currentFrameIndex] : null)
+			?? NewestFrameTime();
+
+		/// <summary>"45 s" under a minute, "1 min 40 s" (or "2 min") under 10 minutes, then the two largest units as
+		/// before ("12 min", "1 hr 6 min", "13 yr 2 mo"). A future stamp (clock skew) reads "0 s".</summary>
+		internal static string AgeWords(TimeSpan span)
 		{
-			get
+			if (span < TimeSpan.Zero) span = TimeSpan.Zero;
+			if (span.TotalSeconds < 60) return $"{(int)span.TotalSeconds} s";
+			if (span.TotalMinutes < 10)
 			{
-				if (NewestFrameTime() is not { } t) return "—";
-				var span = DateTimeOffset.Now - t;
-				return span.TotalMinutes < 1 ? "just now" : $"{FormatAge(span)} ago";
+				var s = span.Seconds;
+				return s == 0 ? $"{(int)span.TotalMinutes} min" : $"{(int)span.TotalMinutes} min {s} s";
 			}
+			return FormatAge(span);
 		}
 
 		// Renders a TimeSpan as its two largest non-zero units (yr/mo/day/hr/min). Month/year
@@ -217,10 +230,11 @@ namespace Anvil.ViewModels
 		/// </summary>
 		public DateTimeOffset? NewestLoadedFrameTime => NewestFrameTime();
 
-		/// <summary>Raw age of the freshest frame in minutes (null when no frame yet). Drives the
-		/// smooth fresh→stale color ramp applied to the age readout — see RadarControls.AgeBrush.</summary>
+		/// <summary>Raw age, in minutes, of the SAME frame <see cref="RadarAgeText"/> describes (the one on screen; null when
+		/// no frame yet). Drives the smooth fresh→stale color ramp applied to the age readout — see RadarControls.AgeBrush —
+		/// so the colour always agrees with the words under it.</summary>
 		public double? RadarAgeMinutes =>
-			NewestFrameTime() is { } t ? (DateTimeOffset.Now - t).TotalMinutes : null;
+			AgeReferenceTime is { } t ? (DateTimeOffset.Now - t).TotalMinutes : null;
 
 		/// <summary>Loop coverage, e.g. "12:36 – 1:12 PM · 10 frames".</summary>
 		public string RadarLoopSpanText

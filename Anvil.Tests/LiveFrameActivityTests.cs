@@ -215,6 +215,16 @@ namespace Anvil.Tests
 			Assert.False(rig.Bar.IsShown);
 		}
 
+		[Fact]
+		public async Task The_console_age_describes_the_frame_on_screen_not_the_newest()
+		{
+			var rig = await LoadedLiveLoop();
+			Assert.Equal(LiveAt(45).VolumeTime, rig.Radar.AgeReferenceTime);       // on the newest (the live frame)
+			rig.Radar.CurrentFrameIndex = 0;                                      // scrubbed back to the oldest
+			Assert.Equal(Level2RadarService.ParseVolumeTime(Keys[0]), rig.Radar.AgeReferenceTime);
+			Assert.EndsWith(" ago", rig.Radar.RadarAgeText);
+		}
+
 		// ── IDLE: the slot never disappears; NowCast idle = the next check + the expected scan (or the interval) ──
 
 		[Fact]
