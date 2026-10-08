@@ -1660,6 +1660,13 @@
             c.gridsExtra = c.gridsExtra || {}; c.gridsExtra[res.gridProduct] = true;
         }
         upgradeDone(res.index); // free the slot + pump the next queued frame
+        // ⚠️ This pass built ONE product's grid; with several panes the frame still lacks the others. Re-queue
+        // it (upgradeDone first, as in applyFrameResult) so missingGridProduct hands out the next one — without
+        // this every frame stopped at its first grid (reflectivity), and the other panes' Inspect boxes never
+        // had a value to show (radar-diag 2026-10-08: 18 × grid-only:reflectivity, no other product).
+        // needsUpgrade is false once every visible pane's grid is in, so this ends.
+        queueUpgrade(res.index, 'inspect');
+        if (res.index === currentFrame) inspectRefresh(); // a resting cursor reads the grid that just landed
     }
 
 

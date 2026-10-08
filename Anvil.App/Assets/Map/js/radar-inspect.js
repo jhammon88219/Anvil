@@ -118,7 +118,7 @@ function projectPoint(v) {
 
 // Re-place one pane's cross + box at point pt (null hides both). The hovered pane never gets a cross —
 // the real cursor is already there, and it is already a crosshair. The box is placed only if a read
-// left it shown (readAt decides WHETHER it shows; this decides WHERE).
+// left it shown (readAll decides WHETHER it shows; this decides WHERE).
 function placeMarks(v, pt) {
     if (!pt) { hideMarks(v); return; }
     if (v === hoveredView) hideCross(v);
