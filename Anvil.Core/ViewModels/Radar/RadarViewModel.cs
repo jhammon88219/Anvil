@@ -797,25 +797,32 @@ namespace Anvil.ViewModels
 				if (progress.Downloading)
 				{
 					downloading++;
-					downloadItem ??= $"{ScanName(key!)} · {Mb(progress.Bytes)} of {(progress.ExpectedBytes > 0 ? Mb(progress.ExpectedBytes) : "?")} MB";
+					downloadItem ??= $"{ScanName(key!, i)} · {Mb(progress.Bytes)} of {(progress.ExpectedBytes > 0 ? Mb(progress.ExpectedBytes) : "?")} MB";
 				}
 
 				if (progress.Decoding) decoding++;
 				build[i] = progress.Build;
 				if (key is not null && progress.Build == LitStep) // reflectivity is drawn; velocity is not yet
 				{
-					buildItem ??= $"{ScanName(key)} · {(progress.Decoding ? "Building velocity" : "Velocity next")}";
+					buildItem ??= $"{ScanName(key, i)} · {(progress.Decoding ? "Building velocity" : "Velocity next")}";
 				}
 				else if (key is not null && progress.Build == DecodingStep)
 				{
-					buildItem ??= $"{ScanName(key)} · Decoding";
+					buildItem ??= $"{ScanName(key, i)} · Decoding";
 				}
 			}
 			LoopGate.ReportCells(download, build, downloading, decoding, downloadItem, buildItem);
 
-			// "6:35 PM scan" — local time, like the rest of PastCast.
-			static string ScanName(string key) =>
-				Level2RadarService.ParseVolumeTime(key) is { } t ? $"{t.ToLocalTime():h:mm tt} scan" : "Scan";
+			// "6:35 PM scan" — local time, like the rest of PastCast: the frame's REAL time once it has arrived; before
+			// that its volume's start, and a SAILS / MRLE rescan says which one ("6:35 PM rescan 2").
+			string ScanName(string key, int index)
+			{
+				if (index < _frameTimes.Length && _frameTimes[index] is { } real) return $"{real.ToLocalTime():h:mm tt} scan";
+				var pass = RadarFrameKey.Pass(key);
+				return Level2RadarService.ParseVolumeTime(key) is { } t
+					? $"{t.ToLocalTime():h:mm tt} {(pass > 1 ? $"rescan {pass - 1}" : "scan")}"
+					: "Scan";
+			}
 			static string Mb(long b) => (b / 1_000_000.0).ToString("0.0", System.Globalization.CultureInfo.CurrentCulture);
 		}
 
@@ -1414,8 +1421,10 @@ namespace Anvil.ViewModels
 		/// ⚠️ A duration the picker doesn't offer leaves the window length ALONE rather than snapping to the
 		/// nearest one; the library refuses such a leg, so this is only a guard.
 		/// </remarks>
-		internal void ApplyReplayWindow(DateTimeOffset startUtc, int durationMinutes)
+		internal void ApplyReplayWindow(DateTimeOffset startUtc, int durationMinutes, DateTimeOffset? focusUtc = null)
 		{
+			// The moment the window is FOR (a saved event's key), tied to THIS window: a load of any other window ignores it.
+			_replayFocus = focusUtc is { } f ? (startUtc, durationMinutes, f) : null;
 			var local = startUtc.ToLocalTime();
 			ApplyPastEventDate(LocalMidnight(local.Year, local.Month, local.Day));
 			PastEventTime = new TimeSpan(local.Hour, local.Minute, 0);
@@ -1425,6 +1434,14 @@ namespace Anvil.ViewModels
 				PastEventDurationIndex = index;
 			}
 		}
+
+		// A saved event's key moment and the window it came with (ApplyReplayWindow). When a replay window has more 0.5°
+		// passes than the frame cap, the loop keeps every pass and trims the span around this (ReplayFramePlan).
+		private (DateTimeOffset StartUtc, int Minutes, DateTimeOffset FocusUtc)? _replayFocus;
+
+		// The focus for a load of [startUtc, +minutes): the saved event's key if that is the window it came with, else null.
+		internal DateTimeOffset? ReplayFocusFor(DateTimeOffset startUtc, int minutes) =>
+			_replayFocus is { } f && f.StartUtc == startUtc && f.Minutes == minutes ? f.FocusUtc : null;
 
 		// The not-armed site pick's clear (SelectPastSiteAsync), so a follow-up load can wait for it.
 		private Task _pastSiteSelect = Task.CompletedTask;

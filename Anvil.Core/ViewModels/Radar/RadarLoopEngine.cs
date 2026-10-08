@@ -196,7 +196,7 @@ namespace Anvil.ViewModels
 			if (site is not null && _vm._frameCount > 0 && _vm._loadedKeys.Length > 0)
 			{
 				_retileGen++; // supersede any retile still running (a fast double tilt switch)
-				_ = RetileLoopAsync(site, _retileGen);
+				_ = RetileOrReloadAsync(site, _retileGen);
 				return;
 			}
 
@@ -209,6 +209,48 @@ namespace Anvil.ViewModels
 
 			Diag($"tilt -> {(_vm._selectedTiltAngle is { } a ? a.ToString("0.0") + "°" : "base")}");
 			_ = StartRadarLoopAsync(site);
+		}
+
+		// ⚠️ RESCANS CHANGE THE FRAME LIST, so they can't be re-cut in place: SAILS / MRLE rescans exist only at the BASE
+		// tilt, so leaving it drops every rescan frame (a higher tilt has one cut per volume) and returning to it adds them
+		// back. Either way the loop RELOADS (PastCast: the same window; NowCast: the site) — a re-cut would paint one
+		// volume's higher cut under each of its rescan times. A loop with no rescans on either side re-cuts as before.
+		private async Task RetileOrReloadAsync(RadarSite site, int gen)
+		{
+			var hasRescans = _vm._loadedKeys.Any(k => RadarFrameKey.Pass(k) > 1);
+			var gainsRescans = false;
+			if (!hasRescans && _vm._selectedTiltAngle is null)
+			{
+				var volumes = _vm._loadedKeys.Take(Math.Min(_vm._archiveCount, _vm._loadedKeys.Length)).ToList();
+				try
+				{
+					var passes = await _vm._radarService.GetBasePassCountsAsync(site, volumes, _vm._loopCts?.Token ?? CancellationToken.None);
+					gainsRescans = passes?.Values.Any(n => n > 1) == true;
+				}
+				catch (OperationCanceledException)
+				{
+					return;
+				}
+			}
+			if (gen != _retileGen || !ReferenceEquals(_vm._selectedRadarOption?.Site, site))
+			{
+				return; // a newer tilt switch, or another site, took over
+			}
+			if (!hasRescans && !gainsRescans)
+			{
+				await RetileLoopAsync(site, gen);
+				return;
+			}
+
+			Diag($"tilt -> {(_vm._selectedTiltAngle is { } a ? a.ToString("0.0") + "°" : "base")} (reload: rescans {(hasRescans ? "leave" : "join")} the loop)");
+			if (_vm.IsPastEventMode)
+			{
+				await LoadSelectedPastEventAsync();
+			}
+			else
+			{
+				await StartRadarLoopAsync(site);
+			}
 		}
 
 		// Bumped on every tilt change so a retile that's been superseded by a newer one bails instead of
@@ -559,20 +601,27 @@ namespace Anvil.ViewModels
 					status: $"No {site.Id} data found for {localStart:MMM d, h:mm tt}.");
 				return false;
 			}
-			// More volumes than the cap → evenly subsample across the whole window (first + last kept),
-			// so a long duration becomes an overview rather than only the first chunk.
-			var sampled = false;
-			if (keys.Count > RadarViewModel.PastEventMaxFrames)
+			// EVERY 0.5° PASS IS A FRAME: a SAILS / MRLE volume's rescans join its volume-start scan (ReplayFramePlan has
+			// the rule — every pass, trimmed around the event when over the cap; overview windows one per volume). Rescans
+			// are base-tilt only, so a higher tilt keeps one frame per volume. The pass counts are an 8 KB read per volume.
+			var windowMinutes = RadarViewModel.PastEventMinutesByIndex[_vm._pastEventDurationIndex];
+			IReadOnlyDictionary<string, int> passes = new Dictionary<string, int>();
+			if (_vm._selectedTiltAngle is null)
 			{
-				var pick = new List<string>(RadarViewModel.PastEventMaxFrames);
-				for (var i = 0; i < RadarViewModel.PastEventMaxFrames; i++)
+				try
 				{
-					var idx = (int)Math.Round((double)i * (keys.Count - 1) / (RadarViewModel.PastEventMaxFrames - 1));
-					pick.Add(keys[idx]);
+					passes = await _vm._radarService.GetBasePassCountsAsync(site, keys, cts.Token) ?? passes; // null (a fake service) = no rescans
 				}
-				keys = pick.Distinct().ToList();
-				sampled = true;
+				catch (OperationCanceledException)
+				{
+					return false;
+				}
 			}
+			var (frameKeys, choice) = ReplayFramePlan.Choose(keys, passes, windowMinutes,
+				_vm.ReplayFocusFor(startUtc, windowMinutes), RadarViewModel.PastEventMaxFrames);
+			Services.RadarDiagnostics.Log("vm", "replay.frames", ("site", site.Id), ("volumes", keys.Count),
+				("frames", frameKeys.Count), ("choice", choice.ToString()));
+			keys = frameKeys;
 
 			await LoadPastLoopAsync(site, keys, startUtc, cts.Token);
 			if (cts.Token.IsCancellationRequested)
@@ -584,10 +633,22 @@ namespace Anvil.ViewModels
 			_ = RunPlaybackAsync(cts.Token);
 			_ = RunDebugTickAsync(cts.Token);
 
+			var choiceNote = choice switch
+			{
+				ReplayFrameChoice.TrimmedAroundEvent => " (span shortened to keep every low-level scan)",
+				ReplayFrameChoice.SampledVolumes => " (sampled)",
+				ReplayFrameChoice.VolumeStarts => " (one per volume)",
+				_ => "",
+			};
 			_vm.SetReplayReadout(count: keys.Count.ToString(System.Globalization.CultureInfo.CurrentCulture),
-				caption: sampled ? "frames sampled" : "frames loaded",
+				caption: choice switch
+				{
+					ReplayFrameChoice.SampledVolumes => "frames sampled",
+					ReplayFrameChoice.TrimmedAroundEvent => "frames, span shortened",
+					_ => "frames loaded",
+				},
 				site: site.Id,
-				status: $"Loaded {keys.Count} frames{(sampled ? " (sampled)" : "")} · " +
+				status: $"Loaded {keys.Count} frames{choiceNote} · " +
 					$"{localStart:MMM d, h:mm tt} +{_vm.PastEventDurationOptions[_vm._pastEventDurationIndex]}");
 			_vm.MarkReplayWindowLoaded();
 			_vm.RaiseSiteLoaded(site, replay: true);
@@ -671,7 +732,7 @@ namespace Anvil.ViewModels
 				// ⚠️ Known residual: a window that ENDS after the storms depart now picks clear air, where the
 				// oldest would have worked. The real fix is to retry other volumes when the motion comes back
 				// insufficient — see docs/radar/storm-motion.md §4. Newest is the better DEFAULT, not a cure.
-				_vm._motionRefKey = keys[^1];
+				_vm._motionRefKey = RadarFrameKey.VolumeKey(keys[^1]);
 				_vm._lastVwpKey = null;
 				if (_vm._isMapReady)
 				{
@@ -869,6 +930,14 @@ namespace Anvil.ViewModels
 			}
 
 			Services.RadarDiagnostics.Log("vm", "loop.keys", ("count", keys.Count), ("newest", keys[^1]));
+			try
+			{
+				keys = await LiveFrameKeysAsync(site, keys, ct); // every 0.5° pass a frame; the loop length counts FRAMES
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
 
 			// Size the loop for the archive frames only; the live frame (if it turns out to be
 			// fresher) is appended afterwards by RefreshLiveFrameAsync. Loading archive first
@@ -884,7 +953,7 @@ namespace Anvil.ViewModels
 			_vm._frameModes = new string?[_vm._frameCount];
 			_vm.RebuildSegments(_vm._frameCount); // empty scrubber cells; they light as frames decode
 			_vm._readyCount = 0;
-			_vm._loadedNewestKey = keys[_vm._archiveCount - 1]; // archive newest drives the 5-min reload
+			_vm._loadedNewestKey = RadarFrameKey.VolumeKey(keys[_vm._archiveCount - 1]); // archive newest VOLUME drives the 5-min reload
 			_vm._loadedKeys = keys.ToArray();               // baseline for the next incremental refresh
 			_vm.IsLoopReady = false;
 			_vm._currentFrameIndex = _vm._frameCount - 1; // newest archive frame
@@ -932,7 +1001,7 @@ namespace Anvil.ViewModels
 			//   Rule 3 — velocity+SRV build on every backfill decode (one pass per frame), not a second sweep.
 			//   Rules 4/5 — the loop's ONE storm motion, from this newest first-paint volume; SRV rides the
 			//   same pass once it lands (velocity stand-in until then).
-			_vm._motionRefKey = keys[^1];
+			_vm._motionRefKey = RadarFrameKey.VolumeKey(keys[^1]);
 			_vm._lastVwpKey = null;
 			if (_vm._isMapReady)
 			{
@@ -1529,11 +1598,21 @@ namespace Anvil.ViewModels
 						// part) happens while the loop stays fully live, and the incremental fold-in below
 						// is decode-only (its EnsureCachedAsync becomes an instant disk hit). Without this,
 						// the fold ran the download while HOLDING _loopGate, stalling the live-frame poll.
-						await PrefetchArchiveFramesAsync(site, keys, ct);
+						IReadOnlyList<string> frames;
+						try
+						{
+							frames = await LiveFrameKeysAsync(site, keys, ct); // the new volume's rescans are frames too
+						}
+						catch (OperationCanceledException)
+						{
+							return;
+						}
+						var fetched = await PrefetchArchiveFramesAsync(site, frames, ct);
 						// Incrementally fold in the new volume (reuse the unchanged decoded frames, no
 						// layer teardown) instead of a full rebuild — that rebuild blanked the radar for
 						// ~1.5-6 s and flashed a stale archive frame every 5 min.
-						await ReloadLoopIncrementalAsync(site, keys, ct);
+						await ReloadLoopIncrementalAsync(site, frames, ct,
+							fetched.TryGetValue(frames[^1], out var newestTime) ? newestTime : null);
 					}
 				}
 			}
@@ -1549,7 +1628,10 @@ namespace Anvil.ViewModels
 		// frame is carried over too. Because the layer is never removed and the on-screen frame stays
 		// up, the periodic reload no longer blanks the radar or flashes a stale archive frame.
 		// Serialized under _loopGate against the live poll, like the full load.
-		private async Task ReloadLoopIncrementalAsync(RadarSite site, IReadOnlyList<string> newKeys, CancellationToken ct)
+		// `newestFrameTime` = the newest frame's REAL scan time when the prefetch learned it: a rescan frame's key only
+		// names its volume start, and the live-slot retirement below must compare scans, not volumes.
+		private async Task ReloadLoopIncrementalAsync(RadarSite site, IReadOnlyList<string> newKeys, CancellationToken ct,
+			DateTimeOffset? newestFrameTime = null)
 		{
 			try
 			{
@@ -1593,7 +1675,7 @@ namespace Anvil.ViewModels
 				// clear-air VCP, 2026-10-07). A SAILS re-scan is later than its volume's start, so it stays.
 				var oldLiveTime = _vm._liveFrame?.VolumeTime
 					?? (hadLive && oldArchiveCount < oldFrameTimes.Length ? oldFrameTimes[oldArchiveCount] : null);
-				var newestArchiveTime = Services.Level2RadarService.ParseVolumeTime(newKeys[^1]);
+				var newestArchiveTime = newestFrameTime ?? Services.Level2RadarService.ParseVolumeTime(newKeys[^1]);
 				var carryLive = hadLive && !(oldLiveTime is { } lt && newestArchiveTime is { } at && !LiveIsNewer(lt, at));
 				var newFrameCount = newArchiveCount + (carryLive ? 1 : 0);
 				var newTimes = new DateTimeOffset?[newFrameCount];
@@ -1649,7 +1731,7 @@ namespace Anvil.ViewModels
 				// loop stays "ready" (scrubber/playback uninterrupted). _readyCount = reused count;
 				// the new frames bring it back up to newFrameCount as they decode.
 				_vm._loadedKeys = newKeys.ToArray();
-				_vm._loadedNewestKey = newKeys[^1];
+				_vm._loadedNewestKey = RadarFrameKey.VolumeKey(newKeys[^1]);
 				_vm._archiveCount = newArchiveCount;
 				_vm._frameCount = newFrameCount;
 				if (hadLive && !carryLive)
@@ -1688,7 +1770,7 @@ namespace Anvil.ViewModels
 					// just following "now"). gateToDoppler: on the periodic reload, only RECOMPUTE while SRV/
 					// velocity is actually in view — browsing reflectivity keeps the pre-warmed motion and skips
 					// the per-reload whole-loop SRV re-warm (the churn). First paint already computed it eagerly.
-					_vm._motionRefKey = newKeys[^1];
+					_vm._motionRefKey = RadarFrameKey.VolumeKey(newKeys[^1]);
 					_vm.RequestAutoStormMotion(gateToDoppler: true);
 				}
 
@@ -1715,13 +1797,15 @@ namespace Anvil.ViewModels
 		// the already-cached file instantly). Bounded parallelism like the backfill; already-cached keys
 		// are a cheap File.Exists no-op inside EnsureCachedAsync, and every failure is per-frame + non-fatal
 		// (the fold-in will just download that one itself, as before).
-		private async Task PrefetchArchiveFramesAsync(RadarSite site, IReadOnlyList<string> newKeys, CancellationToken ct)
+		// Returns each fetched frame's real scan time (a rescan's is later than its volume key says).
+		private async Task<Dictionary<string, DateTimeOffset>> PrefetchArchiveFramesAsync(RadarSite site, IReadOnlyList<string> newKeys, CancellationToken ct)
 		{
+			var times = new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal);
 			var loaded = new HashSet<string>(_vm._loadedKeys, StringComparer.Ordinal);
 			var toPrefetch = newKeys.Where(k => !loaded.Contains(k)).ToList();
 			if (toPrefetch.Count == 0)
 			{
-				return;
+				return times;
 			}
 
 			using var gate = new SemaphoreSlim(MaxParallelBackfill);
@@ -1737,7 +1821,10 @@ namespace Anvil.ViewModels
 				}
 				try
 				{
-					await _vm._radarService.EnsureCachedAsync(site, key, _vm._selectedTiltAngle, cancellationToken: ct);
+					if (await _vm._radarService.EnsureCachedAsync(site, key, _vm._selectedTiltAngle, cancellationToken: ct) is { } v)
+					{
+						lock (times) times[key] = v.VolumeTime;
+					}
 				}
 				catch (OperationCanceledException)
 				{
@@ -1754,6 +1841,22 @@ namespace Anvil.ViewModels
 			});
 			await Task.WhenAll(tasks);
 			Services.RadarDiagnostics.Log("vm", "prefetch", ("count", toPrefetch.Count), ("newest", newKeys[^1]));
+			return times;
+		}
+
+		// NowCast's frame list: every 0.5° pass of the recent volumes (SAILS / MRLE rescans are frames), and the loop length
+		// is a FRAME count — the newest N scans, the span shrinking as the radar scans faster (AWIPS's frame count). A
+		// higher tilt has one cut per volume, so it keeps the volume keys. The counts are an 8 KB read per new volume.
+		private async Task<IReadOnlyList<string>> LiveFrameKeysAsync(RadarSite site, IReadOnlyList<string> volumeKeys, CancellationToken ct)
+		{
+			if (_vm._selectedTiltAngle is not null || volumeKeys.Count == 0)
+			{
+				return volumeKeys;
+			}
+			var passes = await _vm._radarService.GetBasePassCountsAsync(site, volumeKeys, ct) ?? new Dictionary<string, int>();
+			var frames = RadarFrameKey.Expand(volumeKeys, passes);
+			var length = Math.Max(volumeKeys.Count, _vm.LoopLength);
+			return frames.Count > length ? frames.GetRange(frames.Count - length, length) : frames;
 		}
 
 		// Pulls the freshest chunks-bucket frame and (when newer) updates the trailing live slot

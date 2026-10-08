@@ -273,7 +273,9 @@ namespace Anvil.ViewModels
 
 				// ⚠️ ORDER: window FIRST, then site + load. The load reads the pickers, so they must already
 				// hold this leg's window when it starts.
-				_radar.ApplyReplayWindow(leg.StartUtc, leg.DurationMinutes);
+				// The key (the tornado on the ground…) is what a trimmed rescan loop centres on.
+				_radar.ApplyReplayWindow(leg.StartUtc, leg.DurationMinutes,
+					leg.Key is { } key ? key.StartUtc + ((key.EndUtc ?? key.StartUtc) - key.StartUtc) / 2 : null);
 
 				if (leg.SiteId is { } siteId)
 				{

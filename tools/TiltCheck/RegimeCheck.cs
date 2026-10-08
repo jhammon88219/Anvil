@@ -21,7 +21,7 @@ static class RegimeCheck
     static readonly XNamespace S3 = "http://s3.amazonaws.com/doc/2006-03-01/";
 
     sealed record Obj(string Key, int Seq, char Kind, DateTimeOffset Start, DateTimeOffset Modified);
-    sealed record Radial(DateTimeOffset Time, int Elev, int Status, int Seq);
+    internal sealed record Radial(DateTimeOffset Time, int Elev, int Status, int Seq);
 
     public static async Task RunAsync(string site, int volumes)
     {
@@ -180,7 +180,7 @@ static class RegimeCheck
 
     // Message 31 headers in a decompressed chunk: ICAO, ms-of-day (+4), Julian date (+8), azimuth (+12, float),
     // radial status (+21), elevation number (+22), elevation angle (+24, float).
-    static IEnumerable<Radial> ScanRadials(byte[] buf, byte[] icao, int seq)
+    internal static IEnumerable<Radial> ScanRadials(byte[] buf, byte[] icao, int seq)
     {
 
         for (var p = 0; p + 28 <= buf.Length; p++)

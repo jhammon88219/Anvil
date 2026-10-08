@@ -71,37 +71,11 @@ namespace Anvil.Services
 				}
 			}
 
-			// Group consecutive same-elevation-NUMBER records into cuts, capturing each cut's
-			// elevation ANGLE (median over its records — ignores the few settling radials at a
-			// cut's start) and which moments it carries (reflectivity / velocity).
-			var cuts = new List<(int start, int end, float angle, bool hasRef, bool hasVel)>();
-			var i = firstRadial;
-			while (i < blocks.Count)
-			{
-				var start = i;
-				var num = blocks[i].elev;
-				var angles = new List<float>();
-				var hasRef = false;
-				var hasVel = false;
-				while (i < blocks.Count && blocks[i].elev == num)
-				{
-					var a = ElevationAngleOf(blocks[i].block, icao);
-					if (!float.IsNaN(a))
-					{
-						angles.Add(a);
-					}
-					hasRef |= HasMoment(blocks[i].block, Dref);
-					hasVel |= HasMoment(blocks[i].block, Dvel);
-					i++;
-				}
-				angles.Sort();
-				var angle = angles.Count > 0 ? angles[angles.Count / 2] : float.NaN;
-				cuts.Add((start, i, angle, hasRef, hasVel));
-			}
+			var cuts = GroupCuts(blocks, icao, firstRadial);
 
 			// Lowest tilt = the minimum angle among reflectivity cuts (the 0.5° base; a SAILS
 			// re-scan shares that exact angle). A cut at that tilt is the same physical 0.5° scan.
-			const float tiltTol = 0.12f; // SAILS re-scan reads the base angle within antenna jitter
+			const float tiltTol = SailsTiltTol;
 			var refCuts = cuts.Where(c => c.hasRef && !float.IsNaN(c.angle)).ToList();
 			if (refCuts.Count == 0)
 			{
@@ -204,26 +178,8 @@ namespace Anvil.Services
 			// Stop at the first cut with a REAL angle: if it's the same-angle velocity cut it's the
 			// companion; otherwise the antenna has moved to another tilt and there's no companion.
 			// `requireComplete` additionally demands a FINISHED, full sweep (its end status, or a later cut follows it).
-			(int start, int end)? DopplerCompanion(int surveillanceStart, bool requireComplete)
-			{
-				var si = cuts.FindIndex(c => c.start == surveillanceStart);
-				if (si < 0) return null;
-				for (var ni = si + 1; ni < cuts.Count; ni++)
-				{
-					var next = cuts[ni];
-					if (float.IsNaN(next.angle))
-					{
-						continue; // orphan filler (stray transition radial) — skip to the real next cut
-					}
-					var sameAngle = Math.Abs(next.angle - refAngle) <= tiltTol;
-					if (!(sameAngle && next.hasVel) || (requireComplete && !Finished(next.end)))
-					{
-						return null; // a different tilt (no companion), or (when required) still mid-scan
-					}
-					return (next.start, next.end);
-				}
-				return null;
-			}
+			(int start, int end)? DopplerCompanion(int surveillanceStart, bool requireComplete) =>
+				FindDopplerCompanion(cuts, surveillanceStart, refAngle, Finished, requireComplete);
 
 			if (surveillance.Count > 0)
 			{
@@ -247,24 +203,7 @@ namespace Anvil.Services
 			}
 
 			var dataTime = ReadCollectionTime(blocks[selected.start].block, icao);
-
-			using var output = new MemoryStream(8 * 1024 * 1024);
-			output.Write(header, 0, header.Length);
-			for (var m = 0; m < firstRadial; m++) // leading metadata (Msg 5/13/15/18/…) the decoder needs
-			{
-				output.Write(blocks[m].block, 0, blocks[m].block.Length);
-			}
-			for (var k = selected.start; k < selected.end; k++) // surveillance (reflectivity) cut
-			{
-				output.Write(blocks[k].block, 0, blocks[k].block.Length);
-			}
-			if (velCut is { } vc) // paired Doppler (velocity) cut, written after -> higher elevation
-			{
-				for (var k = vc.start; k < vc.end; k++)
-				{
-					output.Write(blocks[k].block, 0, blocks[k].block.Length);
-				}
-			}
+			var data = BuildSingleTilt(header, blocks, firstRadial, (selected.start, selected.end), velCut);
 
 			// Velocity is "complete" when its full sweep is present: a split-cut's paired Doppler is a
 			// FINISHED (not still-scanning) cut — its end status, or a later cut — OR, for clear-air, the selected
@@ -284,8 +223,230 @@ namespace Anvil.Services
 					$"vel={(velCut is { } vlog ? $"[{vlog.start}..{vlog.end}]({vlog.end - vlog.start}blk,{(velComplete ? "complete" : "PARTIAL")})" : "NONE")} " +
 					$"blocks={blocks.Count} t={(dataTime is { } d3 ? d3.ToString("HH:mm:ss") : "?")}"));
 
-			return (output.ToArray(), true, velComplete, dataTime, sweeps, vcp);
+			return (data, true, velComplete, dataTime, sweeps, vcp);
 		}
+
+		// A SAILS / MRLE re-scan reads the base angle within antenna jitter — the tolerance that makes a cut "the same
+		// physical 0.5° tilt" (SelectLatestSweep, ListBasePasses).
+		internal const float SailsTiltTol = 0.12f;
+
+		// Group consecutive same-elevation-NUMBER records into cuts, capturing each cut's elevation ANGLE (median over
+		// its records — ignores the few settling radials at a cut's start) and which moments it carries.
+		internal static List<(int start, int end, float angle, bool hasRef, bool hasVel)> GroupCuts(
+			List<(byte[] block, int elev)> blocks, byte[] icao, int firstRadial)
+		{
+			var cuts = new List<(int start, int end, float angle, bool hasRef, bool hasVel)>();
+			var i = firstRadial;
+			while (i < blocks.Count)
+			{
+				var start = i;
+				var num = blocks[i].elev;
+				var angles = new List<float>();
+				var hasRef = false;
+				var hasVel = false;
+				while (i < blocks.Count && blocks[i].elev == num)
+				{
+					var a = ElevationAngleOf(blocks[i].block, icao);
+					if (!float.IsNaN(a))
+					{
+						angles.Add(a);
+					}
+					hasRef |= HasMoment(blocks[i].block, Dref);
+					hasVel |= HasMoment(blocks[i].block, Dvel);
+					i++;
+				}
+				angles.Sort();
+				var angle = angles.Count > 0 ? angles[angles.Count / 2] : float.NaN;
+				cuts.Add((start, i, angle, hasRef, hasVel));
+			}
+			return cuts;
+		}
+
+		// The Doppler companion of a surveillance cut (see SelectLatestSweep's DopplerCompanion note): the next REAL-angle
+		// cut, walking past NaN-angle orphans, if it carries velocity at the same angle — and, when `requireComplete`, is
+		// finished. A different tilt first means there is no companion.
+		internal static (int start, int end)? FindDopplerCompanion(
+			List<(int start, int end, float angle, bool hasRef, bool hasVel)> cuts, int surveillanceStart, float refAngle,
+			Func<int, bool> finished, bool requireComplete)
+		{
+			var si = cuts.FindIndex(c => c.start == surveillanceStart);
+			if (si < 0) return null;
+			for (var ni = si + 1; ni < cuts.Count; ni++)
+			{
+				var next = cuts[ni];
+				if (float.IsNaN(next.angle))
+				{
+					continue; // orphan filler (stray transition radial) — skip to the real next cut
+				}
+				var sameAngle = Math.Abs(next.angle - refAngle) <= SailsTiltTol;
+				if (!(sameAngle && next.hasVel) || (requireComplete && !finished(next.end)))
+				{
+					return null; // a different tilt (no companion), or (when required) still mid-scan
+				}
+				return (next.start, next.end);
+			}
+			return null;
+		}
+
+		// The single-tilt buffer every frame is: 24-byte header + the leading metadata the decoder needs + the
+		// surveillance cut + its Doppler companion, written AFTER (higher elevation number → the JS reflectivity pick,
+		// Math.min, stays on the surveillance while the Doppler supplies velocity).
+		private static byte[] BuildSingleTilt(byte[] header, List<(byte[] block, int elev)> blocks, int firstRadial,
+			(int start, int end) surveillance, (int start, int end)? doppler)
+		{
+			using var output = new MemoryStream(8 * 1024 * 1024);
+			output.Write(header, 0, header.Length);
+			for (var m = 0; m < firstRadial; m++) // leading metadata (Msg 5/13/15/18/…) the decoder needs
+			{
+				output.Write(blocks[m].block, 0, blocks[m].block.Length);
+			}
+			for (var k = surveillance.start; k < surveillance.end; k++) // surveillance (reflectivity) cut
+			{
+				output.Write(blocks[k].block, 0, blocks[k].block.Length);
+			}
+			if (doppler is { } vc) // paired Doppler (velocity) cut, written after -> higher elevation
+			{
+				for (var k = vc.start; k < vc.end; k++)
+				{
+					output.Write(blocks[k].block, 0, blocks[k].block.Length);
+				}
+			}
+			return output.ToArray();
+		}
+
+		// ── EVERY 0.5° PASS OF A VOLUME (SAILS / MRLE rescans) ────────────────────────────────────────────────────────
+		// A SAILS / MESO-SAILS / MRLE volume scans the base tilt 2-4 times: the volume-start pass, then 1-3 RESCANS at
+		// the same angle under higher elevation numbers. The loop used to show only the first (TryExtractLowestTilt keeps
+		// the volume-start pair), so under MESO-SAILS ×3 three of every four low-level scans never became frames —
+		// measured 2026-10-08 (TiltCheck -- --sails): Enid 2026 / Sulphur 2024 hold 4 complete pairs ~99 s apart per
+		// volume, Enderlin 2025 (MRLE) 2, clear air 1. Each pass is a frame of its own now (RadarFrameKey).
+
+		/// <summary>One 0.5° pass: its surveillance cut, its Doppler companion (null for a clear-air combined cut, or a
+		/// surveillance pass whose companion is missing), and its real collection time (the first VALID radial header —
+		/// not ReadCollectionTime, which reads the metadata block's stray ICAO on a volume's first cut and gets null).</summary>
+		internal sealed record BasePass((int Start, int End) Surveillance, (int Start, int End)? Doppler, DateTimeOffset? Time);
+
+		/// <summary>Every FINISHED base-tilt pass in <paramref name="blocks"/>, in scan order — SelectLatestSweep's own cut
+		/// grouping, base angle and companion pairing (requireComplete), so a pass here is exactly a frame the live
+		/// selector would serve.</summary>
+		internal static List<BasePass> ListBasePasses(List<(byte[] block, int elev)> blocks, byte[] icao)
+		{
+			var passes = new List<BasePass>();
+			var firstRadial = blocks.FindIndex(b => b.elev >= 1);
+			if (firstRadial < 0) return passes;
+			var cuts = GroupCuts(blocks, icao, firstRadial);
+			var refCuts = cuts.Where(c => c.hasRef && !float.IsNaN(c.angle)).ToList();
+			if (refCuts.Count == 0) return passes;
+			var baseAngle = refCuts.Min(c => c.angle);
+			bool LowTilt((int start, int end, float angle, bool hasRef, bool hasVel) c)
+				=> c.hasRef && !float.IsNaN(c.angle) && Math.Abs(c.angle - baseAngle) <= SailsTiltTol;
+			bool Finished(int end) =>
+				end < blocks.Count || (end > 0 && EndsItsCut(blocks[end - 1].block, icao, blocks[end - 1].elev));
+
+			var surveillance = cuts.Where(c => LowTilt(c) && !c.hasVel).ToList();
+			var combined = surveillance.Count == 0; // clear-air: one combined (reflectivity + velocity) cut per pass
+			foreach (var s in combined ? cuts.Where(LowTilt).ToList() : surveillance)
+			{
+				if (!Finished(s.end)) continue;
+				var doppler = combined ? null : FindDopplerCompanion(cuts, s.start, baseAngle, Finished, requireComplete: true);
+				passes.Add(new BasePass((s.start, s.end), doppler, FirstRadialTime(blocks, s.start, s.end, icao)));
+			}
+			return passes;
+		}
+
+		/// <summary>The collection time of the first radial in records [start, end) whose header validates (ms-of-day,
+		/// date, azimuth, angle, and the cut's own elevation number) — skips the metadata block a volume's first cut can
+		/// begin on.</summary>
+		internal static DateTimeOffset? FirstRadialTime(List<(byte[] block, int elev)> blocks, int start, int end, byte[] icao)
+		{
+			for (var k = start; k < end; k++)
+			{
+				var b = blocks[k].block;
+				for (var p = 0; p + 28 <= b.Length; p++)
+				{
+					if (b[p] != icao[0] || b[p + 1] != icao[1] || b[p + 2] != icao[2] || b[p + 3] != icao[3]) continue;
+					var ms = ((uint)b[p + 4] << 24) | ((uint)b[p + 5] << 16) | ((uint)b[p + 6] << 8) | b[p + 7];
+					var julian = (b[p + 8] << 8) | b[p + 9];
+					if (ms > 86_400_000 || julian <= 0 || b[p + 22] != blocks[k].elev) continue;
+					var az = System.Buffers.Binary.BinaryPrimitives.ReadSingleBigEndian(b.AsSpan(p + 12, 4));
+					var angle = System.Buffers.Binary.BinaryPrimitives.ReadSingleBigEndian(b.AsSpan(p + 24, 4));
+					if (!(az >= 0f && az < 360f) || !(angle >= -2f && angle <= 75f)) continue;
+					return new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero).AddDays(julian - 1).AddMilliseconds(ms);
+				}
+			}
+			return null;
+		}
+
+		/// <summary>Every 0.5° pass of a WHOLE modern (bzip2 LDM) archive volume as its own single-tilt buffer, in scan
+		/// order — pass 1 is the volume start (what TryExtractLowestTilt also cuts), 2.. the rescans. Empty when the volume
+		/// isn't LDM (a legacy .gz volume gunzips to an uncompressed AR2V: it stays one frame per volume).</summary>
+		internal static List<(byte[] Data, DateTimeOffset? Time)> TryExtractBasePasses(byte[] raw, string siteId)
+		{
+			var result = new List<(byte[] Data, DateTimeOffset? Time)>();
+			if (raw.Length < 28) return result;
+			var blocks = DecompressRecords(raw, siteId, out var icao);
+			var firstRadial = blocks.FindIndex(b => b.elev >= 1);
+			if (firstRadial < 0) return result;
+			var header = raw[..24];
+			foreach (var p in ListBasePasses(blocks, icao))
+			{
+				result.Add((BuildSingleTilt(header, blocks, firstRadial, p.Surveillance, p.Doppler), p.Time));
+			}
+			RadarDiagnostics.Log("svc", "extract.passes", ("site", siteId), ("passes", result.Count),
+				("msg", string.Join(" ", result.Select(r => r.Time is { } t ? t.ToString("HH:mm:ss") : "?"))));
+			return result;
+		}
+
+		/// <summary>A whole LDM volume's records, each decompressed, with its elevation number — TryExtractLowestTilt's
+		/// walk (same data-ICAO detection) without stopping at the base tilt. Stops at a malformed record.</summary>
+		internal static List<(byte[] block, int elev)> DecompressRecords(byte[] raw, string siteId, out byte[] icao)
+		{
+			icao = Encoding.ASCII.GetBytes(siteId);
+			var blocks = new List<(byte[] block, int elev)>();
+			var resolved = false;
+			var pos = 24;
+			while (pos + 4 <= raw.Length)
+			{
+				var size = Math.Abs((raw[pos] << 24) | (raw[pos + 1] << 16) | (raw[pos + 2] << 8) | raw[pos + 3]);
+				pos += 4;
+				if (size <= 0 || pos + size > raw.Length) break;
+				byte[] block;
+				try
+				{
+					using var blockIn = new MemoryStream(raw, pos, size, writable: false);
+					using var bz = new BZip2Stream(blockIn, CompressionMode.Decompress, false);
+					using var blockOut = new MemoryStream(1024 * 1024);
+					bz.CopyTo(blockOut);
+					block = blockOut.ToArray();
+				}
+				catch
+				{
+					break;
+				}
+				pos += size;
+				if (!resolved && HasMoment(block, Dref))
+				{
+					if (IndexOf(block, icao) < 0 && TryDetectIcao(block, out var real)) icao = real;
+					resolved = true;
+				}
+				blocks.Add((block, ElevationOf(block, icao)));
+			}
+			return blocks;
+		}
+
+		/// <summary>How many 0.5° passes the volume's Message 5 PLANS: its non-Doppler cuts at the lowest planned angle
+		/// (a split cut's CD half is waveform 2). 1 when the table can't be read — the volume is then one frame, as before.
+		/// Read from the leading metadata record alone, so an 8 KB range read (or any cached tilt) answers it.</summary>
+		internal static int PlannedBasePasses(List<(byte[] block, int elev)> metadataBlocks)
+		{
+			if (!ScanPlan.TryRead(metadataBlocks, out _, out var plan) || plan.Count == 0) return 1;
+			var lowest = plan.Min(c => c.Angle);
+			var n = plan.Count(c => c.Waveform != 2 && Math.Abs(c.Angle - lowest) <= 0.25);
+			return Math.Clamp(n, 1, MaxBasePasses);
+		}
+
+		// SAILS ×3 = 4 passes; MRLE and TDWR-style repeats stay within this. A larger count is a misparse.
+		internal const int MaxBasePasses = 6;
 
 		// THE RADAR'S OWN "THIS CUT IS FINISHED": the Message 31 radial STATUS byte (ICAO+21) on a cut's LAST radial is
 		// 2 = END OF ELEVATION or 4 = END OF VOLUME (0 start, 1 intermediate, 3 start of volume, 5 start of the last

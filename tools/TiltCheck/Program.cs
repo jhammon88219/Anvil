@@ -110,6 +110,23 @@ if (args.Length > 0 && args[0] == "--regime")
     return 0;
 }
 
+// --sails SITE yyyy/MM/dd HH:mm [VOLUMES]: every 0.5° sweep pair (SAILS rescans included) in whole archive volumes —
+// where each sits in the file, whether it pairs, and whether SelectLatestSweep can cut it out. See SailsCheck.cs.
+if (args.Length > 0 && args[0] == "--sails")
+{
+    if (args.Length < 4) { Console.WriteLine("usage: --sails SITE yyyy/MM/dd HH:mm [VOLUMES]"); return 1; }
+    return await SailsCheck.RunAsync(args[1].ToUpperInvariant(), args[2], args[3],
+        args.Length > 4 && int.TryParse(args[4], out var sailsVolumes) ? sailsVolumes : 3);
+}
+
+// --sailsload SITE yyyy-MM-ddTHH:mmZ MINUTES [FOCUS]: a PastCast load of every 0.5° pass through the app's own service.
+if (args.Length > 0 && args[0] == "--sailsload")
+{
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    return await SailsCheck.LoadAsync(args[1].ToUpperInvariant(), DateTimeOffset.Parse(args[2], inv), int.Parse(args[3], inv),
+        args.Length > 4 ? DateTimeOffset.Parse(args[4], inv) : null);
+}
+
 // --vcp SITE: the hourly scan-pattern sample (RadarScanPatternService) against the live archive — ~720
 // 8 KB range reads the first time; the real-data check for ReadVcpAsync's prefix parse.
 if (args.Length > 0 && args[0] == "--vcp")

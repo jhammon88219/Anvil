@@ -360,6 +360,22 @@ namespace Anvil.Services
 
 		private async Task<RadarVolume?> EnsureCachedCoreAsync(RadarSite site, string key, float? tiltAngle, bool prioritized, CancellationToken cancellationToken)
 		{
+			// A SAILS / MRLE RESCAN frame (RadarFrameKey pass ≥ 2) has its own path; everything below is pass 1 — the
+			// volume start, exactly as before. Rescans are a BASE-tilt thing (a higher tilt has one cut per volume), so a
+			// tilt request reads the volume key alone.
+			if (RadarFrameKey.Pass(key) is > 1 and var pass && tiltAngle is null)
+			{
+				return await EnsurePassCachedAsync(site, RadarFrameKey.VolumeKey(key), pass, prioritized, cancellationToken);
+			}
+			key = RadarFrameKey.VolumeKey(key);
+			// Pass 1 of a volume KNOWN to have rescans joins that volume's one whole download (its rescans need it anyway —
+			// the 5 MB prefix would be a second fetch of the same bytes: 216 → ~165 MB cold on the Enid window). Not the
+			// first-paint frame (prioritized): it keeps the fast prefix, since nothing is on screen until it lands.
+			if (tiltAngle is null && !prioritized && _passCounts.TryGetValue(key, out var planned) && planned > 1
+				&& !File.Exists(CacheFileFor(site.Id, ParseVolumeTime(key) ?? DateTimeOffset.UtcNow)))
+			{
+				return await EnsurePassCachedAsync(site, key, 1, prioritized, cancellationToken);
+			}
 			var time = ParseVolumeTime(key) ?? DateTimeOffset.UtcNow;
 			var cacheFile = CacheFileFor(site.Id, time, tiltAngle);
 			var localUrl = LocalUrlFor(site.Id, time, tiltAngle);
@@ -585,6 +601,192 @@ namespace Anvil.Services
 				fromLocalRaw ? RadarVolumeSource.LocalRaw : RadarVolumeSource.Network), vcp);
 		}
 
+		// ── SAILS / MRLE RESCANS: every 0.5° pass of a volume is a frame ─────────────────────────────────────────────
+		// A rescan sits deep in the file (measured: the last of 4 pairs ends ~94% in), so it costs the WHOLE volume —
+		// fetched once per volume however many of its passes ask (_passWork), every pass extracted and cached in one go,
+		// the raw retained (any tilt is then a local extract, as after any full download). Pass 1 keeps its own prefix
+		// fast path above; the files share the volume stamp, so PruneCache keeps or drops a volume's passes together.
+
+		// In-flight whole-volume pass extractions, by volume key: passes 2-4 of one volume asked at once share one download,
+		// and its meter (the frames that joined it show that download filling on the loading screen).
+		private readonly ConcurrentDictionary<string, (Lazy<Task> Work, FetchMeter Meter)> _passWork = new(StringComparer.Ordinal);
+
+		// Planned pass counts already read (a volume's Message 5 never changes), by volume key.
+		private readonly ConcurrentDictionary<string, int> _passCounts = new(StringComparer.Ordinal);
+
+		public async Task<IReadOnlyDictionary<string, int>> GetBasePassCountsAsync(RadarSite site, IReadOnlyList<string> volumeKeys,
+			CancellationToken cancellationToken = default)
+		{
+			using var gate = new SemaphoreSlim(PassProbeConcurrency);
+			await Task.WhenAll(volumeKeys.Distinct(StringComparer.Ordinal).Select(async key =>
+			{
+				if (_passCounts.ContainsKey(key)) return;
+				await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+				try
+				{
+					_passCounts[key] = await ReadPlannedPassesAsync(site, key, cancellationToken).ConfigureAwait(false);
+				}
+				catch (OperationCanceledException) { throw; }
+				catch (Exception ex)
+				{
+					// One frame per volume for this one — the loop still loads, it just doesn't gain this volume's rescans.
+					RadarDiagnostics.Log("svc", "passes.probe", ("site", site.Id), ("lvl", "warn"), ("key", key), ("msg", ex.Message));
+				}
+				finally
+				{
+					gate.Release();
+				}
+			})).ConfigureAwait(false);
+			return volumeKeys.ToDictionary(k => k, k => _passCounts.TryGetValue(k, out var n) ? n : 1, StringComparer.Ordinal);
+		}
+
+		// A volume's PLANNED 0.5° passes (Level2Format.PlannedBasePasses): from its cached base tilt when there is one (every
+		// tilt carries the leading metadata), else an 8 KB range read of the metadata record (ArchiveVolumeLister.ReadVcpAsync's
+		// read). A legacy .gz can't be range-read and stays one frame per volume.
+		private async Task<int> ReadPlannedPassesAsync(RadarSite site, string key, CancellationToken ct)
+		{
+			if (key.EndsWith(".gz", StringComparison.Ordinal)) return 1;
+			if (ParseVolumeTime(key) is { } time && File.Exists(CacheFileFor(site.Id, time)))
+			{
+				var tilt = await File.ReadAllBytesAsync(CacheFileFor(site.Id, time), ct).ConfigureAwait(false);
+				if (tilt.Length > 24) return PlannedBasePasses(new List<(byte[] block, int elev)> { (tilt[24..], 0) });
+			}
+			var prefix = await TryGetRangeAsync(key, PassProbeBytes, ct).ConfigureAwait(false);
+			if (prefix is null || prefix.Length < 28) return 1;
+			var recordBytes = Math.Abs((prefix[24] << 24) | (prefix[25] << 16) | (prefix[26] << 8) | prefix[27]);
+			if (recordBytes is <= 0 or > 512 * 1024) return 1;
+			if (28 + recordBytes > prefix.Length)
+			{
+				prefix = await TryGetRangeAsync(key, 28 + recordBytes, ct).ConfigureAwait(false);
+				if (prefix is null) return 1;
+			}
+			var metadata = DecompressChunk(prefix, isS: true);
+			return metadata is null ? 1 : PlannedBasePasses(new List<(byte[] block, int elev)> { (metadata, 0) });
+		}
+
+		private const int PassProbeBytes = 8 * 1024;   // the metadata record is 2.3–3.9 KB compressed (ArchiveVolumeLister)
+		private const int PassProbeConcurrency = 12;   // tiny reads; the replay backfill's parallelism
+
+		private async Task<RadarVolume?> EnsurePassCachedAsync(RadarSite site, string volumeKey, int pass, bool prioritized, CancellationToken ct)
+		{
+			var volumeTime = ParseVolumeTime(volumeKey) ?? DateTimeOffset.UtcNow;
+			var source = RadarVolumeSource.CachedTilt;
+			if (FindPassFile(site.Id, volumeTime, pass) is null)
+			{
+				var mine = Meter.Value ?? new FetchMeter();
+				var entry = _passWork.GetOrAdd(volumeKey, _ => (new Lazy<Task>(() =>
+				{
+					Meter.Value = mine; // the download charges the meter of the frame that started it
+					return CachePassesWithRetryAsync(site, volumeKey, volumeTime, prioritized, ct);
+				}), mine));
+				var frameKey = RadarFrameKey.Of(volumeKey, pass);
+				var joined = !ReferenceEquals(entry.Meter, mine);
+				if (joined) _inFlight[frameKey] = entry.Meter; // this frame fills with the volume's one download
+				try
+				{
+					await entry.Work.Value.ConfigureAwait(false);
+				}
+				catch (OperationCanceledException) { throw; }
+				catch (Exception ex)
+				{
+					_logger.LogWarning(ex, "{Site} rescan fetch {Key} failed", site.Id, volumeKey);
+					RadarDiagnostics.Log("svc", "fetch.fail", ("site", site.Id), ("lvl", "warn"), ("key", RadarFrameKey.Of(volumeKey, pass)),
+						("msg", $"{ex.GetType().Name}: {ex.Message}"));
+					return null;
+				}
+				finally
+				{
+					if (joined) _inFlight.TryRemove(new KeyValuePair<string, FetchMeter>(frameKey, entry.Meter));
+					_passWork.TryRemove(new KeyValuePair<string, (Lazy<Task>, FetchMeter)>(volumeKey, entry));
+				}
+				source = RadarVolumeSource.Network;
+			}
+
+			if (FindPassFile(site.Id, volumeTime, pass) is not { } file)
+			{
+				// Message 5 planned it, the volume didn't scan it (a VCP change or a restart mid-volume): no frame here.
+				RadarDiagnostics.Log("svc", "extract", ("site", site.Id), ("lvl", "warn"),
+					("msg", $"pass {pass} planned but not in {volumeKey}"));
+				return null;
+			}
+			var bytes = await File.ReadAllBytesAsync(file.Path, ct);
+			var ((mode, vcp), tilts) = await RadarCpuWork.Run(
+				() => (ModeTextFromTilt(bytes, file.Time), ReadElevationAnglesFromExtractedTilt(bytes)), ct, urgent: true);
+			return Noted(new RadarVolume($"https://{CacheHostName}/{Path.GetFileName(file.Path)}", site, file.Time, mode, tilts, null, source), vcp);
+		}
+
+		private Task CachePassesWithRetryAsync(RadarSite site, string volumeKey, DateTimeOffset volumeTime, bool prioritized, CancellationToken ct) =>
+			RetryTransientAsync<bool>(
+				async () => { await CachePassesAsync(site, volumeKey, volumeTime, prioritized, ct); return true; },
+				(ex, attempt) => RadarDiagnostics.Log("svc", "fetch.retry", ("site", site.Id), ("key", volumeKey), ("attempt", attempt),
+					("msg", $"{ex.GetType().Name}: {ex.Message}")),
+				ct);
+
+		// One whole volume → every pass's file (pass 1 under the base name, byte-identical to its prefix extraction), and
+		// the raw kept.
+		private async Task CachePassesAsync(RadarSite site, string volumeKey, DateTimeOffset volumeTime, bool prioritized, CancellationToken ct)
+		{
+			var rawFile = RawCacheFileFor(site.Id, volumeTime);
+			var haveRaw = File.Exists(rawFile);
+			byte[] raw;
+			if (haveRaw)
+			{
+				raw = await File.ReadAllBytesAsync(rawFile, ct);
+			}
+			else
+			{
+				var parallel = prioritized ? await GetFullParallelAsync(volumeKey, ct) : null;
+				if (parallel is not null)
+				{
+					raw = parallel;
+				}
+				else
+				{
+					using var response = await _http.GetAsync(BucketBase + volumeKey, HttpCompletionOption.ResponseHeadersRead, ct);
+					response.EnsureSuccessStatusCode();
+					raw = await ReadBodyAsync(response.Content, ct);
+				}
+			}
+
+			var passes = await RadarCpuWork.Run(() => TryExtractBasePasses(raw, site.Id), ct, urgent: prioritized);
+			for (var i = 0; i < passes.Count; i++)
+			{
+				var file = i == 0
+					? CacheFileFor(site.Id, volumeTime)
+					: PassCacheFileFor(site.Id, volumeTime, i + 1, passes[i].Time ?? volumeTime);
+				if (!File.Exists(file)) await WriteCacheFileAsync(file, passes[i].Data, ct);
+			}
+			MaybeSweepAfterWrite();
+			if (!haveRaw && passes.Count > 0) await WriteRawAsync(rawFile, raw, ct);
+		}
+
+		// "KVNX_20260424_011707_p2_012455.V06" = pass 2 of the 01:17:07 volume, scanned at 01:24:55. The pass's own time
+		// rides in the name, so a cache hit knows it without parsing the bytes; the volume stamp leads, so StampOf /
+		// IsCachedInRange / PruneCache treat it as that volume's file.
+		private string PassCacheFileFor(string siteId, DateTimeOffset volumeTime, int pass, DateTimeOffset passTime) =>
+			Path.Combine(CacheDirectory, $"{siteId}_{volumeTime:yyyyMMdd_HHmmss}_p{pass}_{passTime.ToUniversalTime():HHmmss}.V06");
+
+		private (string Path, DateTimeOffset Time)? FindPassFile(string siteId, DateTimeOffset volumeTime, int pass)
+		{
+			if (pass <= 1)
+			{
+				var baseFile = CacheFileFor(siteId, volumeTime); // pass 1 IS the volume's base tilt file
+				return File.Exists(baseFile) ? (baseFile, volumeTime) : null;
+			}
+			var stamp = volumeTime.ToUniversalTime().ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
+			string? path;
+			try
+			{
+				path = Directory.EnumerateFiles(CacheDirectory, $"{siteId}_{stamp}_p{pass}_*.V06").FirstOrDefault();
+			}
+			catch (IOException) { return null; }
+			if (path is null) return null;
+			var name = Path.GetFileNameWithoutExtension(path);
+			if (!TimeSpan.TryParseExact(name[^6..], "hhmmss", CultureInfo.InvariantCulture, out var tod)) return (path, volumeTime);
+			var t = new DateTimeOffset(volumeTime.UtcDateTime.Date, TimeSpan.Zero) + tod;
+			return (path, t < volumeTime ? t.AddDays(1) : t); // a volume that crosses midnight
+		}
+
 		// ── Transient fetch failures ──────────────────────────────────────────────────────────────────────────────
 		// A replay pulls dozens of volumes at once; on a long run one connection WILL drop now and then. Retrying is safe:
 		// every attempt starts from scratch and the cache write is atomic. A file that isn't there (404/403) is not retried.
@@ -749,6 +951,7 @@ namespace Anvil.Services
 
 		public async Task<IReadOnlyList<string>> EnsureVwpTiltsAsync(RadarSite site, string key, CancellationToken cancellationToken = default)
 		{
+			key = RadarFrameKey.VolumeKey(key); // the motion reference may be a rescan frame; the VAD wants its whole volume
 			// One raw download up front (idempotent; skips .gz + already-present) so each tilt then extracts
 			// LOCALLY — otherwise a higher tilt (not in the cheap base prefix) would force a full download each.
 			// This raw is SRV's long pole, so pull it over parallel sub-range streams (GetFullParallelAsync)
@@ -922,7 +1125,8 @@ namespace Anvil.Services
 		/// </summary>
 		public async Task PrefetchRawVolumesAsync(RadarSite site, IReadOnlyList<string> keys, CancellationToken cancellationToken = default)
 		{
-			var pending = keys.Where(k => !k.EndsWith(".gz", StringComparison.Ordinal)).ToList();
+			var pending = keys.Select(RadarFrameKey.VolumeKey).Distinct(StringComparer.Ordinal) // frame keys → one fetch per volume
+				.Where(k => !k.EndsWith(".gz", StringComparison.Ordinal)).ToList();
 			if (pending.Count == 0)
 			{
 				return;

@@ -74,7 +74,17 @@ namespace Anvil.Services
 		/// overlaps many frames, so it has multi-stream parallelism across frames).</param>
 		Task<RadarVolume?> EnsureCachedAsync(RadarSite site, string key, float? tiltAngle = null, bool prioritized = false, CancellationToken cancellationToken = default);
 
-		/// <summary>DEV-ONLY (the load-time seeding run's COLD pass): delete every cached file of <paramref name="siteId"/>
+		/// <summary>
+		/// How many 0.5° PASSES each volume plans (its Message 5: the volume start + any SAILS / MESO-SAILS / MRLE rescans),
+		/// by volume key — what turns a key list into a frame list (<see cref="RadarFrameKey.Expand"/>), every pass a frame.
+		/// Cheap: an 8 KB range read per uncached volume (parallel), remembered for the session. A volume that can't be read
+		/// (legacy .gz, a failed read) counts 1 — one frame per volume, as before.
+		/// </summary>
+		Task<IReadOnlyDictionary<string, int>> GetBasePassCountsAsync(RadarSite site, IReadOnlyList<string> volumeKeys,
+			CancellationToken cancellationToken = default) =>
+			Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
+
+		/// <summary>DEV-ONLY (the load-time seeding run's COLD pass)</summary>: delete every cached file of <paramref name="siteId"/>
 		/// whose volume time falls in the window (± a margin) — tilts, raws, VWP volumes — so the next load downloads
 		/// them again. Returns how many files went.</summary>
 		int ForgetCachedRange(string siteId, DateTimeOffset startUtc, DateTimeOffset endUtc) => 0;
