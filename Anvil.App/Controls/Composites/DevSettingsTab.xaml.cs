@@ -118,7 +118,12 @@ namespace Anvil.Controls.Composites
 				SeedPauseBox.Value = SeedVm.PauseSeconds;
 				SeedTimeoutBox.Value = SeedVm.TimeoutMinutes;
 			}
+
+			FrameCapBox.Value = Anvil.Services.DevFrameCap.Frames;
 		}
+
+		private void OnFrameCapChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) =>
+			Anvil.Services.DevFrameCap.Frames = double.IsNaN(args.NewValue) ? 0 : (int)args.NewValue;
 
 		// Auto-open the sweep report the moment a run produces one.
 		private void OnSweepPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

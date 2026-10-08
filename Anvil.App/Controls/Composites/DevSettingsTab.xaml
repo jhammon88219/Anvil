@@ -34,6 +34,10 @@
        │   Speed cap Mbps [0]  Pause s [10]  Timeout min [20] │  ← cap = DevBandwidthLimit (all radar downloads)
        │   17 events × 3 windows × 3 passes = 153 loads       │
        │   ( Start ) ( Stop )                                 │
+       │  ────────────────────────────────────────────────    │
+       │  ⌄  Frame cap experiment                             │
+       │   what it does…                                      │
+       │   PastCast frame cap (0 = app's 40) [0]              │  ← DevFrameCap; read at each Load
        └──────────────────────────────────────────────────────┘
 
      The first two are the two halves of one loop: the sweep is DISCOVERY over live data (it harvests
@@ -67,6 +71,7 @@
             <RowDefinition Height="Auto"/> <!-- Pipeline console section -->
             <RowDefinition Height="Auto"/> <!-- Load-time seeding section -->
             <!-- (row 3 was the removed map style tuner's; the seeding section took it) -->
+            <RowDefinition Height="Auto"/> <!-- Frame cap experiment section -->
         </Grid.RowDefinitions>
 
         <!-- ===== Section 1: automated site sweep (SiteSweepViewModel). ===== -->
@@ -290,6 +295,32 @@
                     <Button Content="Start" Click="OnSeedStartClick" IsEnabled="{x:Bind SeedVm.IsIdle, Mode=OneWay}"/>
                     <Button Content="Stop" Click="OnSeedStopClick" IsEnabled="{x:Bind SeedVm.IsRunning, Mode=OneWay}"/>
                 </StackPanel>
+            </Grid>
+        </prim:PanelSection>
+
+        <!-- ===== Frame cap experiment (DevFrameCap): measure the map's real memory ceiling. Not persisted —
+             back to 0 every launch. ===== -->
+        <prim:PanelSection Grid.Row="4" Header="Frame cap experiment" IsExpanded="True">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- what it does -->
+                    <RowDefinition Height="Auto"/> <!-- the cap -->
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="Replaces PastCast's 40-frame memory cap and keeps every 0.5° rescan in ANY window length, so a long SAILS window loads far more frames. Read at each Load. For measuring the map's real memory ceiling (memory samples in the radar diagnostics) — it can black out the map. 0 = off. Not saved."/>
+
+                <Grid Grid.Row="1" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="PastCast frame cap (0 = app's 40)" VerticalAlignment="Center" FontSize="12"/>
+                    <NumberBox x:Name="FrameCapBox" Grid.Column="1" SpinButtonPlacementMode="Compact"
+                               SmallChange="20" LargeChange="40" Minimum="0" Maximum="1000"
+                               ValueChanged="OnFrameCapChanged"/>
+                </Grid>
             </Grid>
         </prim:PanelSection>
     </Grid>

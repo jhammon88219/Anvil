@@ -33,8 +33,11 @@ namespace Anvil.ViewModels
 		/// <summary>The longest window treated as one EVENT (every pass, span trimmed to fit); longer is an overview.</summary>
 		internal const int EventWindowMaxMinutes = 120;
 
+		/// <param name="eventWindowMaxMinutes">The longest event window; the Dev frame-cap experiment (DevFrameCap) passes
+		/// int.MaxValue so every window keeps every pass.</param>
 		internal static (List<string> Frames, ReplayFrameChoice Choice) Choose(IReadOnlyList<string> volumeKeys,
-			IReadOnlyDictionary<string, int> passes, int windowMinutes, DateTimeOffset? focusUtc, int cap)
+			IReadOnlyDictionary<string, int> passes, int windowMinutes, DateTimeOffset? focusUtc, int cap,
+			int eventWindowMaxMinutes = EventWindowMaxMinutes)
 		{
 			var frames = RadarFrameKey.Expand(volumeKeys, passes);
 			if (frames.Count <= cap)
@@ -42,7 +45,7 @@ namespace Anvil.ViewModels
 				return (frames, ReplayFrameChoice.EveryPass);
 			}
 
-			if (windowMinutes <= EventWindowMaxMinutes)
+			if (windowMinutes <= eventWindowMaxMinutes)
 			{
 				var times = EstimatedTimes(volumeKeys, passes);
 				var focus = focusUtc ?? Midpoint(times);

@@ -617,10 +617,14 @@ namespace Anvil.ViewModels
 					return false;
 				}
 			}
-			var (frameKeys, choice) = ReplayFramePlan.Choose(keys, passes, windowMinutes,
-				_vm.ReplayFocusFor(startUtc, windowMinutes), RadarViewModel.PastEventMaxFrames);
+			// DEV-ONLY: the frame-cap experiment replaces the memory cap and keeps every pass in any window (DevFrameCap).
+			var (frameKeys, choice) = Services.DevFrameCap.IsOn
+				? ReplayFramePlan.Choose(keys, passes, windowMinutes, _vm.ReplayFocusFor(startUtc, windowMinutes),
+					Services.DevFrameCap.Frames, eventWindowMaxMinutes: int.MaxValue)
+				: ReplayFramePlan.Choose(keys, passes, windowMinutes, _vm.ReplayFocusFor(startUtc, windowMinutes),
+					RadarViewModel.PastEventMaxFrames);
 			Services.RadarDiagnostics.Log("vm", "replay.frames", ("site", site.Id), ("volumes", keys.Count),
-				("frames", frameKeys.Count), ("choice", choice.ToString()));
+				("frames", frameKeys.Count), ("choice", choice.ToString()), ("devCap", Services.DevFrameCap.Frames));
 			keys = frameKeys;
 
 			await LoadPastLoopAsync(site, keys, startUtc, cts.Token);
