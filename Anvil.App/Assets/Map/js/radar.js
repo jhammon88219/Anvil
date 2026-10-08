@@ -83,6 +83,7 @@
             detached: false,           // detachView ran: a ctxlost after this is OUR teardown, not a fault
             inspectMove: null, inspectOut: null, inspectCamera: null, // bound inspect handlers (to off() them)
             crossEl: null,             // this pane's mirrored inspect crosshair (created on first use)
+            tipEl: null,               // this pane's inspect readout box (created on first use)
         };
     }
     // Force every view to re-upload on its next render (a frame or product change invalidates buffers).
