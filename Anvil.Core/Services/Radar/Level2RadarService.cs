@@ -758,6 +758,10 @@ namespace Anvil.Services
 			}
 			MaybeSweepAfterWrite();
 			if (!haveRaw && passes.Count > 0) await WriteRawAsync(rawFile, raw, ct);
+			// The volume's REAL pass count beats Message 5's plan (a plan the volume didn't scan — a VCP change, a restart, a
+			// counting miss — would otherwise keep phantom frames that never arrive): the next frame list (NowCast's archive
+			// refresh, the next PastCast load) uses it.
+			if (passes.Count > 0) _passCounts[volumeKey] = passes.Count;
 		}
 
 		// "KVNX_20260424_011707_p2_012455.V06" = pass 2 of the 01:17:07 volume, scanned at 01:24:55. The pass's own time

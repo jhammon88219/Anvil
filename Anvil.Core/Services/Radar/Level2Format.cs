@@ -440,8 +440,11 @@ namespace Anvil.Services
 		internal static int PlannedBasePasses(List<(byte[] block, int elev)> metadataBlocks)
 		{
 			if (!ScanPlan.TryRead(metadataBlocks, out _, out var plan) || plan.Count == 0) return 1;
+			// ⚠️ The extractor's own tolerance (SailsTiltTol), never a looser one: KEVX's VCP 112 (2026-10-08) plans a 0.44°
+			// tilt beside its 0.31° base, and a 0.25° window counted it as a third pass the volume never scanned — four
+			// phantom frames that never arrived, so the loop never filled and scrubbing never unlocked.
 			var lowest = plan.Min(c => c.Angle);
-			var n = plan.Count(c => c.Waveform != 2 && Math.Abs(c.Angle - lowest) <= 0.25);
+			var n = plan.Count(c => c.Waveform != 2 && Math.Abs(c.Angle - lowest) <= SailsTiltTol);
 			return Math.Clamp(n, 1, MaxBasePasses);
 		}
 
@@ -582,7 +585,7 @@ namespace Anvil.Services
 				return 0;
 			}
 
-			const double tol = 0.25;
+			const double tol = SailsTiltTol; // the extractor's window (was 0.25 — counted KEVX's 0.44° tilt as a SAILS pass)
 			var minAngle = angles.Min(a => a.angle);
 			// Reality check: the designed lowest tilt must match the observed one, or the parse
 			// is misaligned — bail so the caller keeps the observed count.

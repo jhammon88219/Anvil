@@ -110,6 +110,16 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void PlannedBasePasses_DoesNotCountANearbyHigherTiltAsARescan()
+		{
+			// KEVX VCP 112 (2026-10-08): base 0.31°, a 0.44° tilt next, SAILS rescan back at the base. The 0.44° tilt is
+			// within the old 0.25° window — it planned 3 passes for a volume that scans 2, and the phantom frames never
+			// arrived, so the loop never filled. The extractor's 0.12° window is the rule.
+			var meta = Message5((0.31, 1), (0.31, 2), (0.44, 1), (0.44, 2), (0.88, 1), (0.88, 2), (0.31, 1), (0.31, 2));
+			Assert.Equal(2, Level2Format.PlannedBasePasses(new List<(byte[], int)> { (meta, 0) }));
+		}
+
+		[Fact]
 		public void FrameKey_RoundTripsAndPassOneIsThePlainVolumeKey()
 		{
 			const string key = "2026/04/24/KVNX/KVNX20260424_011707_V06";
