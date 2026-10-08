@@ -166,6 +166,32 @@
       ]
     },
     {
+      "id": "enderlin-2025",
+      "type": "tornado",
+      "name": "Enderlin, ND",
+      "notes": "EF5 at night - upgraded from EF3 in Oct 2025 for tipped loaded grain hopper cars; the first EF5 since Moore 2013. 3 killed.",
+      "source": "Wikipedia (NWS Grand Forks survey): tornado 11:04-11:20 PM CDT Jun 20 2025 (04:04-04:20Z Jun 21)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KMVX", "startUtc": "2025-06-21T03:30:00Z", "minutes": 120,
+          "key": { "startUtc": "2025-06-21T04:04:00Z", "endUtc": "2025-06-21T04:20:00Z" } }
+      ]
+    },
+    {
+      "id": "enid-2026",
+      "type": "tornado",
+      "name": "Enid, OK",
+      "notes": "EF4, 175-180 mph through south Enid (Gray Ridge Estates) at night.",
+      "source": "NWS Norman damage survey (PNS update #1, May 15 2026): tornado 8:11-8:48 PM CDT Apr 23 2026 (01:11-01:48Z Apr 24)",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KVNX", "startUtc": "2026-04-24T00:30:00Z", "minutes": 120,
+          "key": { "startUtc": "2026-04-24T01:11:00Z", "endUtc": "2026-04-24T01:48:00Z" } },
+        { "site": "KTLX", "startUtc": "2026-04-24T00:30:00Z", "minutes": 120,
+          "key": { "startUtc": "2026-04-24T01:11:00Z", "endUtc": "2026-04-24T01:48:00Z" } }
+      ]
+    },
+    {
       "id": "katrina-2005",
       "type": "hurricane",
       "name": "Hurricane Katrina",
