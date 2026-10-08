@@ -156,9 +156,16 @@ namespace Anvil.Services
 				? designedSweeps
 				: Math.Max(basePool.Count, 1);
 
-			// Complete = terminated by a later cut (the antenna moved on); the trailing in-progress
-			// cut of a live volume is excluded, so we never serve a half-scanned sweep.
-			var ready = pool.Where(c => c.end < blocks.Count).ToList();
+			// FINISHED = the radar marked the cut's last radial END OF ELEVATION / END OF VOLUME (EndsItsCut), or a later
+			// cut follows it (the antenna moved on — the fallback for anything without the status). The trailing
+			// in-progress cut of a live volume is still excluded, so we never serve a half-scanned sweep.
+			// ⚠️ The status check is the ~12-15 s win (2026-10-08): waiting for a LATER cut held every live frame until
+			// the next cut's first chunk landed — in clear air a 72 s sweep's first chunk, ~12-15 s after the frame
+			// was really there (the live-poll timing log, tools/live_poll_report.py, measured it at a median 15.5 s).
+			bool Finished(int end) =>
+				end < blocks.Count || (end > 0 && EndsItsCut(blocks[end - 1].block, icao, blocks[end - 1].elev));
+
+			var ready = pool.Where(c => Finished(c.end)).ToList();
 			if (ready.Count == 0)
 			{
 				return (null, false, false, null, sweeps, vcp);
@@ -196,7 +203,7 @@ namespace Anvil.Services
 			// orphan) ever paired, freezing the displayed frame on the oldest scan for the whole volume.
 			// Stop at the first cut with a REAL angle: if it's the same-angle velocity cut it's the
 			// companion; otherwise the antenna has moved to another tilt and there's no companion.
-			// `requireComplete` additionally demands a terminated, full sweep (a later cut follows it).
+			// `requireComplete` additionally demands a FINISHED, full sweep (its end status, or a later cut follows it).
 			(int start, int end)? DopplerCompanion(int surveillanceStart, bool requireComplete)
 			{
 				var si = cuts.FindIndex(c => c.start == surveillanceStart);
@@ -209,7 +216,7 @@ namespace Anvil.Services
 						continue; // orphan filler (stray transition radial) — skip to the real next cut
 					}
 					var sameAngle = Math.Abs(next.angle - refAngle) <= tiltTol;
-					if (!(sameAngle && next.hasVel) || (requireComplete && next.end >= blocks.Count))
+					if (!(sameAngle && next.hasVel) || (requireComplete && !Finished(next.end)))
 					{
 						return null; // a different tilt (no companion), or (when required) still mid-scan
 					}
@@ -260,13 +267,13 @@ namespace Anvil.Services
 			}
 
 			// Velocity is "complete" when its full sweep is present: a split-cut's paired Doppler is a
-			// terminated (not still-scanning) cut, OR — for clear-air — the selected combined cut itself
-			// carries velocity. A partial Doppler (a still-scanning wedge, e.g. 120 of 720 radials) is
+			// FINISHED (not still-scanning) cut — its end status, or a later cut — OR, for clear-air, the selected
+			// combined cut itself carries velocity. A partial Doppler (a still-scanning wedge, e.g. 120 of 720 radials) is
 			// NOT complete; the live builder uses this to fall back to the previous (finished) volume
 			// rather than serve a mostly-empty velocity frame.
 			var velComplete = surveillance.Count == 0
 				? selected.hasVel
-				: velCut is { } vchk && vchk.end < blocks.Count;
+				: velCut is { } vchk && Finished(vchk.end);
 			RadarDiagnostics.Log("svc", "sweep",
 				("icao", System.Text.Encoding.ASCII.GetString(icao)), ("vcp", vcp),
 				("velComplete", velComplete),
@@ -279,6 +286,30 @@ namespace Anvil.Services
 
 			return (output.ToArray(), true, velComplete, dataTime, sweeps, vcp);
 		}
+
+		// THE RADAR'S OWN "THIS CUT IS FINISHED": the Message 31 radial STATUS byte (ICAO+21) on a cut's LAST radial is
+		// 2 = END OF ELEVATION or 4 = END OF VOLUME (0 start, 1 intermediate, 3 start of volume, 5 start of the last
+		// elevation). Verified on EVERY cut of real live volumes (TiltCheck -- --regime, 2026-10-08: KTLX VCP 35, KTBW +
+		// KAMX VCP 212, an AVSET-shortened volume included). Walks the block BACKWARDS to the last radial of THIS cut's
+		// elevation number, so a chunk that also holds the next cut's first radials still answers for the right cut.
+		// A header is trusted only when it looks real (ms-of-day, azimuth, angle in range, the cut's number).
+		internal static bool EndsItsCut(byte[] block, byte[] icao, int elevationNumber)
+		{
+			if (elevationNumber < 1 || icao.Length < 4) return false;
+			for (var p = block.Length - 28; p >= 0; p--)
+			{
+				if (block[p] != icao[0] || block[p + 1] != icao[1] || block[p + 2] != icao[2] || block[p + 3] != icao[3]) continue;
+				var ms = ((uint)block[p + 4] << 24) | ((uint)block[p + 5] << 16) | ((uint)block[p + 6] << 8) | block[p + 7];
+				if (ms > 86_400_000 || block[p + 22] != elevationNumber) continue;
+				var az = System.Buffers.Binary.BinaryPrimitives.ReadSingleBigEndian(block.AsSpan(p + 12, 4));
+				var angle = System.Buffers.Binary.BinaryPrimitives.ReadSingleBigEndian(block.AsSpan(p + 24, 4));
+				if (!(az >= 0f && az < 360f) || !(angle >= -2f && angle <= 75f)) continue;
+				return block[p + 21] is RadialEndOfElevation or RadialEndOfVolume; // the cut's LAST radial in this block
+			}
+			return false;
+		}
+
+		internal const byte RadialEndOfElevation = 2, RadialEndOfVolume = 4;
 
 		// Level II message framing within a decompressed record (per the format ICD, matching
 		// the vendored decoder's constants): every non-Message-31 record is a fixed 2432-byte

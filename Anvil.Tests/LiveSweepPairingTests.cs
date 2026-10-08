@@ -85,5 +85,64 @@ namespace Anvil.Tests
 			Assert.True(SyntheticVolume.CountMarker(data!, "sv01") >= 1, "must fall back to the older paired scan");
 			Assert.Equal(0, SyntheticVolume.CountMarker(data!, "sv02")); // newer scan had no companion -> not served
 		}
+
+		// ── END OF ELEVATION (2026-10-08): the radar's own "this cut is finished" on its last radial ──
+		// Waiting for a LATER cut held every live frame until the next cut's first chunk landed (~12-15 s in clear air,
+		// the live-poll timing log's median 15.5 s lag). The trailing cut's own status now finishes it.
+
+		private static List<(byte[] block, int elev)> NewestPairIsTrailing(byte dopplerLastStatus) => new()
+		{
+			Meta("lead"),
+			Radial(1, 0.44f, "sv01", refl: true, vel: false),     // the previous base pair (finished: cuts follow)
+			Radial(2, 0.44f, "dv01", refl: true, vel: true),
+			Radial(3, 0.88f, "hgh3", refl: true, vel: false),
+			(SyntheticVolume.Radial(7, 0.44f, "sv02", reflectivity: true, velocity: false, radialStatus: 2), 7), // SAILS surveillance, ENDED
+			(SyntheticVolume.Radial(8, 0.44f, "dv02", reflectivity: true, velocity: true, radialStatus: dopplerLastStatus), 8), // its Doppler: the LAST block
+		};
+
+		[Fact]
+		public void A_trailing_Doppler_marked_end_of_elevation_is_complete_without_waiting_for_a_later_cut()
+		{
+			var (data, complete, velComplete, _, _, _) = Level2Format.SelectLatestSweep(Header, NewestPairIsTrailing(2), Icao);
+
+			Assert.True(complete);
+			Assert.True(velComplete);
+			Assert.True(SyntheticVolume.CountMarker(data!, "sv02") >= 1, "the NEWEST pair is served the moment its Doppler ends");
+			Assert.True(SyntheticVolume.CountMarker(data!, "dv02") >= 1);
+			Assert.Equal(0, SyntheticVolume.CountMarker(data!, "sv01"));
+		}
+
+		[Fact]
+		public void A_trailing_Doppler_still_scanning_is_not_complete()
+		{
+			// Intermediate status (1) on its last radial = the antenna is still going round: the older finished pair is served.
+			var (data, complete, velComplete, _, _, _) = Level2Format.SelectLatestSweep(Header, NewestPairIsTrailing(1), Icao);
+
+			Assert.True(complete);
+			Assert.True(velComplete);
+			Assert.True(SyntheticVolume.CountMarker(data!, "sv01") >= 1, "must stay on the older, finished pair");
+			Assert.Equal(0, SyntheticVolume.CountMarker(data!, "dv02"));
+		}
+
+		[Fact]
+		public void End_of_volume_also_finishes_the_cut()
+		{
+			var (data, _, velComplete, _, _, _) = Level2Format.SelectLatestSweep(Header, NewestPairIsTrailing(4), Icao);
+			Assert.True(velComplete);
+			Assert.True(SyntheticVolume.CountMarker(data!, "dv02") >= 1);
+		}
+
+		[Fact]
+		public void EndsItsCut_reads_the_last_radial_of_THAT_cut_in_a_block()
+		{
+			// One block holding the end of cut 2 and the start of cut 3: it answers "ended" for 2, not for 3.
+			var end2 = SyntheticVolume.Radial(2, 0.44f, "dv02", velocity: true, radialStatus: 2);
+			var start3 = SyntheticVolume.Radial(3, 0.88f, "hgh3", radialStatus: 0);
+			var both = new byte[end2.Length + start3.Length];
+			end2.CopyTo(both, 0);
+			start3.CopyTo(both, end2.Length);
+			Assert.True(Level2Format.EndsItsCut(both, Icao, 2));
+			Assert.False(Level2Format.EndsItsCut(both, Icao, 3));
+		}
 	}
 }

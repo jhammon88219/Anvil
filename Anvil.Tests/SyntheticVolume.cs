@@ -46,7 +46,8 @@ namespace Anvil.Tests
 			bool reflectivity = true,
 			bool velocity = false,
 			string icao = DefaultIcao,
-			float azimuth = 12.5f)
+			float azimuth = 12.5f,
+			byte radialStatus = 0)
 		{
 			if (marker.Length != 4) throw new ArgumentException("marker must be 4 chars", nameof(marker));
 
@@ -54,6 +55,7 @@ namespace Anvil.Tests
 			Write(block, 0, icao);
 			BinaryPrimitives.WriteUInt32BigEndian(block.AsSpan(4, 4), 43_200_000);   // noon, a valid ms-of-day
 			BinaryPrimitives.WriteSingleBigEndian(block.AsSpan(12, 4), azimuth);
+			block[21] = radialStatus;          // Message 31 radial status: 2 = END OF ELEVATION, 4 = END OF VOLUME
 			block[22] = (byte)elevationNumber;
 			BinaryPrimitives.WriteSingleBigEndian(block.AsSpan(24, 4), elevationAngle);
 

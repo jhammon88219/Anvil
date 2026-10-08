@@ -60,10 +60,12 @@ static class RegimeCheck
         Console.WriteLine($"\n-- folder {folder}: volume {vol[0].Start:yyyy-MM-dd HH:mm:ss}Z, {vol.Count} chunks " +
                           $"({vol.Count(o => o.Kind == 'E')} E)");
         var blocks = new (Obj obj, byte[]? block)[vol.Count];
+        byte[]? sHeader = null; // the S chunk's 24-byte volume header — SelectLatestSweep writes it first
         await Parallel.ForEachAsync(Enumerable.Range(0, vol.Count), new ParallelOptions { MaxDegreeOfParallelism = 8 },
             async (i, ct) =>
             {
                 var bytes = await http.GetByteArrayAsync(Chunks + vol[i].Key, ct);
+                if (vol[i].Kind == 'S' && bytes.Length >= 24) sHeader = bytes[..24]; // one S chunk: no race
                 blocks[i] = (vol[i], Level2RadarService.DecompressChunk(bytes, vol[i].Kind == 'S'));
             });
 
@@ -147,6 +149,32 @@ static class RegimeCheck
             allLead.Add(lead);
             Console.WriteLine($"   planner: base frame ending cut {lastCut,2}: checks +{(check - vol[0].Start).TotalSeconds:0} s, " +
                               $"landed +{(landed - vol[0].Start).TotalSeconds:0} s → {(lead >= 0 ? $"{lead:0.0} s after" : $"{-lead:0.0} s EARLY")}");
+        }
+
+        // THE LIVE BUILD, REPLAYED (Level2Format.SelectLatestSweep — the app's own live selection): feed the volume's
+        // chunks one at a time in sequence order, as successive polls see them, and report each chunk at which a NEW
+        // base frame (reflectivity + complete velocity) becomes servable — vs the old rule, which waited for the NEXT
+        // cut's first chunk ("a later cut follows it") before calling the cut finished.
+        if (sHeader is not null)
+        {
+            var ordered = blocks.Where(b => b.block is not null).OrderBy(b => b.obj.Seq)
+                .Select(b => (b.obj, block: b.block!, elev: Level2Format.ElevationOf(b.block!, icao))).ToList();
+            long? served = null; // the served frame: its scan time, or (no readable time — KTLX reads "t=?") its size
+            for (var n = 1; n <= ordered.Count; n++)
+            {
+                var sel = Level2Format.SelectLatestSweep(sHeader, ordered.Take(n).Select(x => (x.block, x.elev)).ToList(), icao);
+                if (!sel.complete || !sel.velComplete || sel.data is null) continue;
+                var key = sel.dataTime?.UtcTicks ?? -sel.data.Length;
+                if (key == served) continue;
+                served = key;
+                var at = ordered[n - 1];
+                var oldRule = ordered.Skip(n).FirstOrDefault(x => x.elev > 0 && x.elev != at.elev);
+                var soonerBy = oldRule.block is not null ? (oldRule.obj.Modified - at.obj.Modified).TotalSeconds : double.NaN;
+                Console.WriteLine($"   live build: new base frame ({sel.dataTime:HH:mm:ss}Z scan) servable at chunk {at.obj.Seq} " +
+                                  $"(+{(at.obj.Modified - vol[0].Start).TotalSeconds:0} s) — old rule +" +
+                                  $"{(oldRule.block is not null ? (oldRule.obj.Modified - vol[0].Start).TotalSeconds.ToString("0", CultureInfo.InvariantCulture) : "?")} s " +
+                                  $"→ {soonerBy:0} s sooner");
+            }
         }
     }
 
