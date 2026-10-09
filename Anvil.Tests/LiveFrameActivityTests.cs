@@ -24,6 +24,9 @@ namespace Anvil.Tests
 		private static readonly string[] Keys = { "2024/05/07/KTLX/KTLX20240507_033006_V06",
 			"2024/05/07/KTLX/KTLX20240507_033512_V06", "2024/05/07/KTLX/KTLX20240507_034018_V06" };
 
+		// Where a NEWER scan lands: the first load's live frame (index 3) is HELD as its own frame, the new scan appends.
+		private static int NewSlot => Keys.Length + 1;
+
 		private sealed class ManualDelay
 		{
 			private TaskCompletionSource _tcs = new();
@@ -38,7 +41,7 @@ namespace Anvil.Tests
 			public readonly ManualDelay Delay = new();
 			public readonly List<LiveFrameStage> Stages = new();
 			public readonly List<int> PaintWatches = new();
-			public int LiveSlotRequests; // AddRadarFrameAsync into the live slot (index 3)
+			public int LiveSlotRequests; // AddRadarFrameAsync into a live slot (index 3, then 4 after a HOLD)
 			public RadarVolume Live = LiveAt(45);
 			// Set → the next live fetch reports its chunks through it and waits for the test to release it.
 			public TaskCompletionSource? HoldFetch;
@@ -46,7 +49,7 @@ namespace Anvil.Tests
 		}
 
 		private static RadarVolume LiveAt(int minute) =>
-			new("https://radarlevel2/live.V06", Ktlx, new DateTimeOffset(2024, 5, 7, 3, minute, 0, TimeSpan.Zero), "VCP 212", new[] { 0.5f });
+			new("https://radarlevel2/live.V06", Ktlx, new DateTimeOffset(2024, 5, 7, 3, 0, 0, TimeSpan.Zero).AddMinutes(minute), "VCP 212", new[] { 0.5f });
 
 		private static async Task WaitFor(Func<bool> condition)
 		{
@@ -77,7 +80,7 @@ namespace Anvil.Tests
 			{
 				["AddRadarFrameAsync"] = a =>
 				{
-					if ((int)a![1]! == Keys.Length) Interlocked.Increment(ref rig.LiveSlotRequests);
+					if ((int)a![1]! >= Keys.Length) Interlocked.Increment(ref rig.LiveSlotRequests);
 					return Task.CompletedTask;
 				},
 				["WatchRadarPaintAsync"] = a => { lock (rig.PaintWatches) rig.PaintWatches.Add((int)a![0]!); return Task.CompletedTask; },
@@ -153,23 +156,23 @@ namespace Anvil.Tests
 			var rig = await LoadedLiveLoop();
 			rig.Live = LiveAt(47);
 			await Poll(rig, () => rig.LiveSlotRequests >= 2);
-			Assert.Equal(new[] { Keys.Length }, rig.PaintWatches);          // armed before the decode
+			Assert.Equal(new[] { NewSlot }, rig.PaintWatches);          // armed before the decode
 			Assert.Equal("New scan", rig.Bar.Title);
 			Assert.EndsWith("· downloaded", rig.Bar.Detail);
 			Assert.Equal(1, rig.Bar.Secondary);
 
-			var decoding = new bool[Keys.Length + 1];
-			decoding[Keys.Length] = true;
-			rig.Radar.SetBuildProgress(Keys.Length, Keys.Length + 1, null, null, decoding);
+			var decoding = new bool[NewSlot + 1];
+			decoding[NewSlot] = true;
+			rig.Radar.SetBuildProgress(NewSlot, NewSlot + 1, null, null, decoding);
 			Assert.EndsWith("· building", rig.Bar.Detail);
 			Assert.Equal(1.0 / 3, rig.Bar.Progress, 3);
 
-			rig.Radar.OnRadarFrameReady(Keys.Length, true);                 // decoded — NOT yet drawn
+			rig.Radar.OnRadarFrameReady(NewSlot, true);                 // decoded — NOT yet drawn
 			Assert.EndsWith("· painting", rig.Bar.Detail);
 			Assert.Equal(2.0 / 3, rig.Bar.Progress, 3);
 			Assert.NotEqual(BarActivityTone.Done, rig.Bar.Tone);
 
-			rig.Radar.OnRadarPainted(Keys.Length);                          // the page drew it
+			rig.Radar.OnRadarPainted(NewSlot);                          // the page drew it
 			Assert.Equal(new[] { LiveFrameStage.Checking, LiveFrameStage.Found, LiveFrameStage.Decoding,
 				LiveFrameStage.Painting, LiveFrameStage.Shown }, Distinct(rig));
 			Assert.Equal(BarActivityTone.Done, rig.Bar.Tone);
@@ -187,8 +190,8 @@ namespace Anvil.Tests
 			var rig = await LoadedLiveLoop();
 			rig.Live = LiveAt(47);
 			await Poll(rig, () => rig.LiveSlotRequests >= 2);
-			rig.Radar.OnRadarPainted(Keys.Length);
-			rig.Radar.OnRadarFrameReady(Keys.Length, true);
+			rig.Radar.OnRadarPainted(NewSlot);
+			rig.Radar.OnRadarFrameReady(NewSlot, true);
 			Assert.Equal("Complete", rig.Bar.Detail);
 		}
 
@@ -199,9 +202,58 @@ namespace Anvil.Tests
 			rig.Radar.CurrentFrameIndex = 0;
 			rig.Live = LiveAt(47);
 			await Poll(rig, () => rig.LiveSlotRequests >= 2);
-			rig.Radar.OnRadarFrameReady(Keys.Length, true);
+			rig.Radar.OnRadarFrameReady(NewSlot, true);
 			Assert.DoesNotContain(LiveFrameStage.Painting, rig.Stages);
 			Assert.Equal("Ready", rig.Bar.Detail);                      // in the loop, but not drawn: not "Complete"
+		}
+
+		// ── HELD LIVE FRAMES: a newer scan no longer overwrites the live slot (the SAILS cells rebuilding between polls) ──
+
+		[Fact]
+		public async Task A_newer_scan_keeps_the_previous_one_as_its_own_frame()
+		{
+			var rig = await LoadedLiveLoop();
+			rig.Live = LiveAt(47);
+			await Poll(rig, () => rig.LiveSlotRequests >= 2);
+			rig.Radar.OnRadarFrameReady(NewSlot, true);
+
+			Assert.Equal(NewSlot, rig.Radar.MaxFrameIndex);                     // one more frame, not the same count
+			Assert.Equal(NewSlot, (int)rig.Radar.CurrentFrameIndex);            // following the newest
+			Assert.Equal(LiveAt(47).VolumeTime, rig.Radar.AgeReferenceTime);
+			Assert.EndsWith("· live", rig.Radar.RadarFrameDetail);
+			rig.Radar.CurrentFrameIndex = Keys.Length;                          // the held scan is still there, untouched
+			Assert.Equal(LiveAt(45).VolumeTime, rig.Radar.AgeReferenceTime);
+			Assert.EndsWith("· live", rig.Radar.RadarFrameDetail);              // a chunks scan, not an archive one
+		}
+
+		[Fact]
+		public async Task A_newer_scan_does_not_move_a_playhead_scrubbed_back()
+		{
+			var rig = await LoadedLiveLoop();
+			rig.Radar.CurrentFrameIndex = 1;
+			rig.Live = LiveAt(47);
+			await Poll(rig, () => rig.LiveSlotRequests >= 2);
+			rig.Radar.OnRadarFrameReady(NewSlot, true);
+			Assert.Equal(1, (int)rig.Radar.CurrentFrameIndex);
+			Assert.Equal(NewSlot, rig.Radar.MaxFrameIndex);
+		}
+
+		[Fact]
+		public async Task Past_the_held_cap_a_newer_scan_updates_the_slot_in_place()
+		{
+			var rig = await LoadedLiveLoop();
+			const int cap = 8; // RadarLoopEngine.MaxHeldLiveFrames
+			for (var k = 1; k <= cap + 1; k++)
+			{
+				rig.Live = LiveAt(45 + 2 * k);
+				var requests = k + 1;
+				await Poll(rig, () => rig.LiveSlotRequests >= requests);
+				// Held → the new scan appends one past the old slot; at the cap it re-decodes INTO the slot.
+				var slot = Keys.Length + Math.Min(k, cap);
+				rig.Radar.OnRadarFrameReady(slot, true);
+				Assert.Equal(slot, rig.Radar.MaxFrameIndex);
+			}
+			Assert.Equal(LiveAt(45 + 2 * (cap + 1)).VolumeTime, rig.Radar.AgeReferenceTime);
 		}
 
 		[Fact]

@@ -69,7 +69,8 @@ namespace Anvil.ViewModels
 				if (_selectedRadarOption?.Site is null) return string.Empty;
 				var hasTime = _currentFrameIndex >= 0 && _currentFrameIndex < _frameTimes.Length && _frameTimes[_currentFrameIndex] is not null;
 				if (!hasTime) return string.Empty;
-				var src = (_hasLiveFrame && _currentFrameIndex == _archiveCount) ? "live" : "archive";
+				var held = _currentFrameIndex < _loadedKeys.Length && RadarFrameKey.IsHeld(_loadedKeys[_currentFrameIndex]);
+				var src = (_hasLiveFrame && _currentFrameIndex == _archiveCount) || held ? "live" : "archive";
 				return $"frame {_currentFrameIndex + 1}/{_frameCount} · {src}";
 			}
 		}

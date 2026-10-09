@@ -158,7 +158,7 @@ namespace Anvil.ViewModels
 				return;
 			}
 
-			var keys = _vm._loadedKeys;
+			var keys = _vm._loadedKeys.Where(k => !RadarFrameKey.IsHeld(k)).ToArray(); // a held frame names no S3 object
 			var ct = _vm._loopCts?.Token ?? CancellationToken.None;
 			_ = Task.Run(async () =>
 			{
@@ -215,11 +215,13 @@ namespace Anvil.ViewModels
 		// tilt, so leaving it drops every rescan frame (a higher tilt has one cut per volume) and returning to it adds them
 		// back. Either way the loop RELOADS (PastCast: the same window; NowCast: the site) — a re-cut would paint one
 		// volume's higher cut under each of its rescan times. A loop with no rescans on either side re-cuts as before.
+		// ⚠️ HELD live frames (TryHoldLiveSlot) name no archive object yet, so they can't be re-cut either — the loop reloads.
 		private async Task RetileOrReloadAsync(RadarSite site, int gen)
 		{
+			var hasHeld = _vm._loadedKeys.Any(RadarFrameKey.IsHeld);
 			var hasRescans = _vm._loadedKeys.Any(k => RadarFrameKey.Pass(k) > 1);
 			var gainsRescans = false;
-			if (!hasRescans && _vm._selectedTiltAngle is null)
+			if (!hasHeld && !hasRescans && _vm._selectedTiltAngle is null)
 			{
 				var volumes = _vm._loadedKeys.Take(Math.Min(_vm._archiveCount, _vm._loadedKeys.Length)).ToList();
 				try
@@ -236,13 +238,14 @@ namespace Anvil.ViewModels
 			{
 				return; // a newer tilt switch, or another site, took over
 			}
-			if (!hasRescans && !gainsRescans)
+			if (!hasHeld && !hasRescans && !gainsRescans)
 			{
 				await RetileLoopAsync(site, gen);
 				return;
 			}
 
-			Diag($"tilt -> {(_vm._selectedTiltAngle is { } a ? a.ToString("0.0") + "°" : "base")} (reload: rescans {(hasRescans ? "leave" : "join")} the loop)");
+			Diag($"tilt -> {(_vm._selectedTiltAngle is { } a ? a.ToString("0.0") + "°" : "base")} (reload: " +
+				$"{(hasHeld ? "held live frames" : $"rescans {(hasRescans ? "leave" : "join")} the loop")})");
 			if (_vm.IsPastEventMode)
 			{
 				await LoadSelectedPastEventAsync();
@@ -1162,6 +1165,15 @@ namespace Anvil.ViewModels
 					return;
 				}
 
+				// A NEWER scan: keep the one on the slot as its own frame and APPEND the new one (below) — the loop keeps
+				// every scan, and the fold-in reuses held scans instead of re-fetching them. Falls through to the in-place
+				// update only when the slot can't be held (see TryHoldLiveSlot).
+				if (TryHoldLiveSlot(live))
+				{
+					await AppendLiveFrameAsync(live);
+					return;
+				}
+
 				// DEFERRED update: _liveFrame is set eagerly so a poll during the decode window still skips
 				// (dedup gate above), but the VISIBLE swap — frame time/mode and the readout — is held until the
 				// geometry actually lands (CompleteLiveUpdate, from OnRadarFrameReady). Swapping here flipped the
@@ -1185,7 +1197,13 @@ namespace Anvil.ViewModels
 				return;
 			}
 
-			// No live slot yet: only append if the chunks volume is newer than the archive newest.
+			await AppendLiveFrameAsync(live);
+		}
+
+		// No live slot (or the old one was just HELD): append the scan as the new live slot, deferred to its decode.
+		private async Task AppendLiveFrameAsync(Models.RadarVolume live)
+		{
+			// Only append if the chunks volume is newer than the archive newest (a held scan counts — it is the newest).
 			var archiveNewest = _vm._archiveCount > 0 && _vm._archiveCount - 1 < _vm._frameTimes.Length
 				? _vm._frameTimes[_vm._archiveCount - 1]
 				: null;
@@ -1193,6 +1211,13 @@ namespace Anvil.ViewModels
 			{
 				Services.RadarDiagnostics.Log("vm", "live.apply", ("action", "skip"),
 					("reason", $"not newer than archive ({live.VolumeTime:HH:mm:ss}Z <= {an:HH:mm:ss}Z)"));
+				return;
+			}
+			// A poll during the append's decode window found the same scan again — it's already on its way.
+			if (_vm._pendingLiveAppend is { } pending && live.VolumeTime <= pending.VolumeTime)
+			{
+				Services.RadarDiagnostics.Log("vm", "live.apply", ("action", "skip"),
+					("reason", $"append already pending ({pending.VolumeTime:HH:mm:ss}Z)"));
 				return;
 			}
 
@@ -1223,6 +1248,43 @@ namespace Anvil.ViewModels
 		// The ONE "does the live frame earn its own slot" rule — the append guard and the archive fold-in both ask it.
 		private static bool LiveIsNewer(DateTimeOffset live, DateTimeOffset archiveNewest) => live > archiveNewest + SameScanSlack;
 
+		// HELD LIVE FRAMES (2026-10-09). The live slot used to be overwritten by each newer scan, so the in-progress
+		// volume's earlier scans left the loop and came back ~5-10 min later as NEW archive frames — downloaded + built
+		// again (the SAILS cells rebuilding between polls, and a hole in the newest minutes of the loop). Instead the
+		// slot's scan is HELD: it joins the archive range (index _archiveCount, key RadarFrameKey.Held) and the new scan
+		// appends after it, so "the live slot is index _archiveCount" stays true everywhere. Its JS frame is untouched —
+		// same index, same geometry. The fold-in (ReloadLoopIncrementalAsync) swaps each held frame for its archive twin
+		// WITHOUT a decode. Bounded: past MaxHeldLiveFrames (an archive outage) the slot updates in place, as before.
+		private const int MaxHeldLiveFrames = 8;
+
+		private bool TryHoldLiveSlot(Models.RadarVolume newer)
+		{
+			var index = _vm._archiveCount;
+			var reason =
+				_vm._pendingLiveUpdate is not null || _vm._pendingLiveAppend is not null ? "slot still decoding"
+				: index >= _vm.Segments.Count || !_vm.Segments[index].IsDecoded ? "slot not decoded"
+				: index >= _vm._frameTimes.Length || _vm._frameTimes[index] is null ? "slot has no time"
+				: _vm._loadedKeys.Length != index ? "key list out of step"
+				: !LiveIsNewer(newer.VolumeTime, _vm._frameTimes[index]!.Value) ? "same scan"
+				: _vm._loadedKeys.Count(RadarFrameKey.IsHeld) >= MaxHeldLiveFrames ? "held cap"
+				: null;
+			if (reason is not null)
+			{
+				Services.RadarDiagnostics.Log("vm", "live.hold", ("action", "skip"), ("reason", reason));
+				return false;
+			}
+
+			var time = _vm._frameTimes[index]!.Value;
+			_vm._loadedKeys = _vm._loadedKeys.Append(RadarFrameKey.Held(time)).ToArray();
+			_vm._archiveCount = index + 1; // _frameCount unchanged: the slot's cell IS the held frame's cell
+			_vm._hasLiveFrame = false;
+			_vm._liveFrame = null;
+			Services.RadarDiagnostics.Log("vm", "live.hold", ("action", "hold"), ("idx", index),
+				("volZ", time.ToUniversalTime().ToString("HH:mm:ss")),
+				("held", _vm._loadedKeys.Count(RadarFrameKey.IsHeld)));
+			return true;
+		}
+
 		// Completes a deferred live append (see ApplyLiveFrameAsync): grows the loop by the freshest frame and
 		// promotes the display to it, in one motion — called from OnRadarFrameReady once that frame's geometry
 		// has decoded, so the new scrubber cell appears already-filled instead of blinking through an empty
@@ -1248,8 +1310,11 @@ namespace Anvil.ViewModels
 			}
 			_vm._liveFrame = live;
 			_vm._hasLiveFrame = true;
+			// Follow the newest only if you were ON the newest (the frame now held, or the archive newest on a first
+			// load) — an append after a HOLD must not yank a playhead you scrubbed back, as the in-place update never did.
+			var follow = _vm._currentFrameIndex >= _vm._archiveCount - 1;
 			_vm._frameCount = _vm._archiveCount + 1;
-			_vm._currentFrameIndex = _vm._frameCount - 1; // show the live frame as the new newest
+			if (follow) _vm._currentFrameIndex = _vm._frameCount - 1; // show the live frame as the new newest
 			Services.RadarDiagnostics.Log("vm", "live.apply", ("action", "append"),
 				("idx", _vm._archiveCount), ("volZ", live.VolumeTime.ToUniversalTime().ToString("HH:mm:ss")),
 				("frames", _vm._frameCount));
@@ -1262,11 +1327,11 @@ namespace Anvil.ViewModels
 			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
 			_vm.RaiseRadarReadout();
 
-			if (_vm._isMapReady)
+			if (_vm._isMapReady && follow)
 			{
 				_ = _vm._mapService.ShowRadarFrameAsync(_vm._archiveCount);   // promote display to the now-decoded live frame
 			}
-			_vm.AnnounceLiveBuilt(live, onScreen: true); // the slot: painting (the display was just promoted to it)
+			_vm.AnnounceLiveBuilt(live, onScreen: follow); // the slot: painting (the display was just promoted to it), or ready
 		}
 
 		// Completes a DEFERRED in-place live UPDATE (see ApplyLiveFrameAsync): the freshest live volume we
@@ -1618,8 +1683,7 @@ namespace Anvil.ViewModels
 						// Incrementally fold in the new volume (reuse the unchanged decoded frames, no
 						// layer teardown) instead of a full rebuild — that rebuild blanked the radar for
 						// ~1.5-6 s and flashed a stale archive frame every 5 min.
-						await ReloadLoopIncrementalAsync(site, frames, ct,
-							fetched.TryGetValue(frames[^1], out var newestTime) ? newestTime : null);
+						await ReloadLoopIncrementalAsync(site, frames, ct, fetched);
 					}
 				}
 			}
@@ -1635,11 +1699,12 @@ namespace Anvil.ViewModels
 		// frame is carried over too. Because the layer is never removed and the on-screen frame stays
 		// up, the periodic reload no longer blanks the radar or flashes a stale archive frame.
 		// Serialized under _loopGate against the live poll, like the full load.
-		// `newestFrameTime` = the newest frame's REAL scan time when the prefetch learned it: a rescan frame's key only
-		// names its volume start, and the live-slot retirement below must compare scans, not volumes.
+		// `fetched` = the prefetch's volume per new frame key: its REAL scan time (a rescan frame's key only names its
+		// volume start, and the live-slot retirement below must compare scans, not volumes) and its archive URL.
 		private async Task ReloadLoopIncrementalAsync(RadarSite site, IReadOnlyList<string> newKeys, CancellationToken ct,
-			DateTimeOffset? newestFrameTime = null)
+			IReadOnlyDictionary<string, Models.RadarVolume>? fetched = null)
 		{
+			fetched ??= new Dictionary<string, Models.RadarVolume>();
 			try
 			{
 				await _vm._loopGate.WaitAsync(ct);
@@ -1656,6 +1721,7 @@ namespace Anvil.ViewModels
 					return;
 				}
 
+				var oldKeys = _vm._loadedKeys;
 				var oldFrameTimes = _vm._frameTimes;
 				var oldFrameModes = _vm._frameModes;
 				var oldReady = new bool[_vm.Segments.Count]; // reused frames keep their DECODE state (relit per product)
@@ -1682,23 +1748,42 @@ namespace Anvil.ViewModels
 				// clear-air VCP, 2026-10-07). A SAILS re-scan is later than its volume's start, so it stays.
 				var oldLiveTime = _vm._liveFrame?.VolumeTime
 					?? (hadLive && oldArchiveCount < oldFrameTimes.Length ? oldFrameTimes[oldArchiveCount] : null);
-				var newestArchiveTime = newestFrameTime ?? Services.Level2RadarService.ParseVolumeTime(newKeys[^1]);
+				var newestArchiveTime = (fetched.TryGetValue(newKeys[^1], out var newestVolume) ? newestVolume.VolumeTime : (DateTimeOffset?)null)
+					?? Services.Level2RadarService.ParseVolumeTime(newKeys[^1]);
 				var carryLive = hadLive && !(oldLiveTime is { } lt && newestArchiveTime is { } at && !LiveIsNewer(lt, at));
-				var newFrameCount = newArchiveCount + (carryLive ? 1 : 0);
+
+				// HELD live frames (TryHoldLiveSlot): chunks scans in the old archive range. One still newer than the archive
+				// newest is CARRIED after it (the live slot's own rule); the rest are matched to their archive twin below
+				// or dropped (the archive now covers that time).
+				var held = new List<(int Index, DateTimeOffset Time)>();
+				for (var i = 0; i < oldKeys.Length && i < oldArchiveCount && i < oldFrameTimes.Length; i++)
+				{
+					if (RadarFrameKey.IsHeld(oldKeys[i]) && oldFrameTimes[i] is { } heldTime) held.Add((i, heldTime));
+				}
+				var carriedHeld = held.Where(h => newestArchiveTime is { } na && LiveIsNewer(h.Time, na)).ToList();
+				var archiveTotal = newArchiveCount + carriedHeld.Count; // the live slot's new index
+
+				var newFrameCount = archiveTotal + (carryLive ? 1 : 0);
 				var newTimes = new DateTimeOffset?[newFrameCount];
 				var newModes = new string?[newFrameCount];       // scan mode, reused in lockstep with times
 				var newReady = new bool[newFrameCount];           // lit scrubber cells, reused in lockstep
 				var mapping = new List<int[]>(newFrameCount);     // [fromIndex, toIndex] reuses
 				var newIndices = new List<int>();                  // new archive slots needing decode
+				var rebind = new Dictionary<int, Models.RadarVolume>(); // new index → the archive volume a reused chunks scan IS
+
+				void Reuse(int from, int to)
+				{
+					mapping.Add(new[] { from, to });
+					newTimes[to] = oldFrameTimes[from];
+					if (from < oldFrameModes.Length) newModes[to] = oldFrameModes[from];
+					if (from < oldReady.Length) newReady[to] = oldReady[from];
+				}
 
 				for (var j = 0; j < newArchiveCount; j++)
 				{
 					if (oldIndexByKey.TryGetValue(newKeys[j], out var oi) && oi < oldFrameTimes.Length)
 					{
-						mapping.Add(new[] { oi, j });
-						newTimes[j] = oldFrameTimes[oi];
-						if (oi < oldFrameModes.Length) newModes[j] = oldFrameModes[oi];
-						if (oi < oldReady.Length) newReady[j] = oldReady[oi];
+						Reuse(oi, j);
 					}
 					else
 					{
@@ -1706,25 +1791,48 @@ namespace Anvil.ViewModels
 					}
 				}
 
+				// The new archive frames that ARE scans already on screen — the held frames, and a live slot this fold-in
+				// retires — take that picture with NO download and NO decode (matched by real scan time; only decoded
+				// pictures qualify). The page re-points each at its archive file (rebind), so a later upgrade (dual-pol,
+				// a product switch) reads a file that stays, not the pruned live one. Unmatched frames decode as before.
+				var candidates = held.Where(h => !carriedHeld.Contains(h) && h.Index < oldReady.Length && oldReady[h.Index]).ToList();
+				if (hadLive && !carryLive && oldArchiveCount < oldFrameTimes.Length && oldFrameTimes[oldArchiveCount] is { } retiring
+					&& oldArchiveCount < oldReady.Length && oldReady[oldArchiveCount])
+				{
+					candidates.Add((oldArchiveCount, retiring));
+				}
+				var arrivals = newIndices
+					.Select(j => (j, fetched.TryGetValue(newKeys[j], out var v) ? v.VolumeTime : (DateTimeOffset?)null))
+					.ToList();
+				var matched = HeldFrameMatch.Match(candidates, arrivals, SameScanSlack);
+				foreach (var (from, to) in matched)
+				{
+					Reuse(from, to);
+					rebind[to] = fetched[newKeys[to]];
+					newIndices.Remove(to);
+				}
+				var liveMatched = hadLive && matched.Any(m => m.Old == oldArchiveCount);
+
+				// Held scans still newer than the archive keep their place after it, oldest first.
+				for (var k = 0; k < carriedHeld.Count; k++)
+				{
+					Reuse(carriedHeld[k].Index, newArchiveCount + k);
+				}
+
 				// The live (chunks) frame persists across an archive reload — carry it to the new top.
 				if (carryLive && oldArchiveCount < oldFrameTimes.Length)
 				{
-					mapping.Add(new[] { oldArchiveCount, newArchiveCount });
-					newTimes[newArchiveCount] = oldFrameTimes[oldArchiveCount];
-					if (oldArchiveCount < oldFrameModes.Length) newModes[newArchiveCount] = oldFrameModes[oldArchiveCount];
-					if (oldArchiveCount < oldReady.Length) newReady[newArchiveCount] = oldReady[oldArchiveCount];
+					Reuse(oldArchiveCount, archiveTotal);
 				}
-				else if (hadLive && newIndices.Count > 0 && newIndices[^1] == newArchiveCount - 1
+				else if (hadLive && !liveMatched && newIndices.Count > 0 && newIndices[^1] == newArchiveCount - 1
 					&& oldArchiveCount < oldFrameTimes.Length && oldFrameTimes[oldArchiveCount] is { } retired
 					&& newestArchiveTime is { } newest && (retired - newest).Duration() <= SameScanSlack)
 				{
-					// Retired live slot = the same scan as the new archive newest: lend its decoded picture to that
-					// slot as a PLACEHOLDER (still decoded below, which replaces it in place, as a live update does).
-					// Without it the display fell back one frame and the newest cell blinked empty for the decode.
-					mapping.Add(new[] { oldArchiveCount, newArchiveCount - 1 });
-					newTimes[newArchiveCount - 1] = oldFrameTimes[oldArchiveCount];
-					if (oldArchiveCount < oldFrameModes.Length) newModes[newArchiveCount - 1] = oldFrameModes[oldArchiveCount];
-					if (oldArchiveCount < oldReady.Length) newReady[newArchiveCount - 1] = oldReady[oldArchiveCount];
+					// Retired live slot = the same scan as the new archive newest, but the match above couldn't prove it
+					// (no prefetched time): lend its decoded picture to that slot as a PLACEHOLDER (still decoded below,
+					// which replaces it in place, as a live update does). Without it the display fell back one frame and
+					// the newest cell blinked empty for the decode.
+					Reuse(oldArchiveCount, newArchiveCount - 1);
 				}
 
 				// Where the displayed frame lands after the reindex (so we can keep it on screen).
@@ -1737,10 +1845,17 @@ namespace Anvil.ViewModels
 				// Commit VM state. Don't touch IsLoopReady: most frames are already decoded, so the
 				// loop stays "ready" (scrubber/playback uninterrupted). _readyCount = reused count;
 				// the new frames bring it back up to newFrameCount as they decode.
-				_vm._loadedKeys = newKeys.ToArray();
-				_vm._loadedNewestKey = RadarFrameKey.VolumeKey(newKeys[^1]);
-				_vm._archiveCount = newArchiveCount;
+				_vm._loadedKeys = newKeys.Concat(carriedHeld.Select(h => oldKeys[h.Index])).ToArray();
+				_vm._loadedNewestKey = RadarFrameKey.VolumeKey(newKeys[^1]); // the archive's newest — never a held key
+				_vm._archiveCount = archiveTotal;
 				_vm._frameCount = newFrameCount;
+				if (_vm._pendingLiveAppend is not null)
+				{
+					// The remap below bumps the page's loop token, which DROPS that append's decode — its frame-ready will
+					// never come. Forget it so the next poll re-appends the scan (AppendLiveFrameAsync skips a pending one).
+					_vm._pendingLiveAppend = null;
+					_vm.AnnounceLiveDropped();
+				}
 				if (hadLive && !carryLive)
 				{
 					// Back to "no live slot": the next poll re-appends once a sweep is newer than the archive.
@@ -1760,15 +1875,22 @@ namespace Anvil.ViewModels
 
 				Services.RadarDiagnostics.Log("vm", "refresh.incremental",
 					("reused", mapping.Count), ("new", newIndices.Count),
-					("frames", newFrameCount), ("newest", newKeys[^1]), ("liveRetired", hadLive && !carryLive));
+					("frames", newFrameCount), ("newest", newKeys[^1]), ("liveRetired", hadLive && !carryLive),
+					("held", held.Count), ("heldReused", matched.Count), ("heldCarried", carriedHeld.Count));
 				// Reused frames were reindexed in place (no re-decode), so RegisterFrameSource never fired
 				// for them — re-map the diagnostics records in lockstep so the report's per-frame table and
 				// whole-loop-age stat track the slid window instead of showing the load-time frames forever.
 				Services.RadarDiagnostics.Reindex(mapping);
+				foreach (var (index, volume) in rebind)
+				{
+					Services.RadarDiagnostics.RegisterFrameSource(index, "archive", FrameCacheFile(volume), volume.VolumeTime);
+				}
 
 				if (_vm._isMapReady)
 				{
-					var mappingJson = System.Text.Json.JsonSerializer.Serialize(mapping);
+					// [from, to] or [from, to, url]: a url re-points a reused chunks scan at its archive file (see rebind).
+					var mappingJson = System.Text.Json.JsonSerializer.Serialize(mapping.Select(m =>
+						rebind.TryGetValue(m[1], out var v) ? new object[] { m[0], m[1], v.LocalUrl } : new object[] { m[0], m[1] }));
 					await _vm._mapService.RemapRadarFramesAsync(newFrameCount, mappingJson);
 					// Target the desired frame: if undecoded (a just-arrived newest), JS records it as
 					// pending and keeps the current frame on screen until it decodes (no blank).
@@ -1804,10 +1926,10 @@ namespace Anvil.ViewModels
 		// the already-cached file instantly). Bounded parallelism like the backfill; already-cached keys
 		// are a cheap File.Exists no-op inside EnsureCachedAsync, and every failure is per-frame + non-fatal
 		// (the fold-in will just download that one itself, as before).
-		// Returns each fetched frame's real scan time (a rescan's is later than its volume key says).
-		private async Task<Dictionary<string, DateTimeOffset>> PrefetchArchiveFramesAsync(RadarSite site, IReadOnlyList<string> newKeys, CancellationToken ct)
+		// Returns each fetched frame's volume: its real scan time (a rescan's is later than its volume key says) and URL.
+		private async Task<Dictionary<string, Models.RadarVolume>> PrefetchArchiveFramesAsync(RadarSite site, IReadOnlyList<string> newKeys, CancellationToken ct)
 		{
-			var times = new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal);
+			var times = new Dictionary<string, Models.RadarVolume>(StringComparer.Ordinal);
 			var loaded = new HashSet<string>(_vm._loadedKeys, StringComparer.Ordinal);
 			var toPrefetch = newKeys.Where(k => !loaded.Contains(k)).ToList();
 			if (toPrefetch.Count == 0)
@@ -1830,7 +1952,7 @@ namespace Anvil.ViewModels
 				{
 					if (await _vm._radarService.EnsureCachedAsync(site, key, _vm._selectedTiltAngle, cancellationToken: ct) is { } v)
 					{
-						lock (times) times[key] = v.VolumeTime;
+						lock (times) times[key] = v;
 					}
 				}
 				catch (OperationCanceledException)
@@ -1889,7 +2011,7 @@ namespace Anvil.ViewModels
 					}
 					else
 					{
-						var interval = _vm._hasLiveFrame ? _vm.RefreshIntervalSeconds : RadarViewModel.LiveFrameRetrySeconds;
+						var interval = _vm._hasLiveFrame || _vm._pendingLiveAppend is not null ? _vm.RefreshIntervalSeconds : RadarViewModel.LiveFrameRetrySeconds;
 						// Schedule relative to the LAST poll, whoever ran it — an archive reload runs its
 						// own inline live poll (LoadLoopCoreAsync → RefreshLiveFrameAsync), so anchoring on
 						// _lastLivePollAt pushes this timer out instead of double-fetching ~3s later.

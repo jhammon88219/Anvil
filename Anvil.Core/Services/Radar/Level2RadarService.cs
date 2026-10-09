@@ -2122,12 +2122,21 @@ namespace Anvil.Services
 			}
 		}
 
-		// Keeps only the newest live frame for a site (best effort).
+		// How many live files a site keeps. ⚠️ Not just the newest: NowCast HOLDS earlier live scans as frames (RadarLoopEngine
+		// TryHoldLiveSlot, at most 8) until the archive fold-in re-points them at archive files, and a held frame's page
+		// re-reads its file for any later build (dual-pol, a product switch). Newest + 8 held + slack.
+		internal const int LiveFilesKept = 12;
+
+		// Keeps the newest LiveFilesKept live frames for a site, and always `keepFile` (best effort). The names share the
+		// `{site}_live_` prefix and then the scan stamp, so name order is time order.
 		private void PruneLiveCache(string siteId, string keepFile)
 		{
 			try
 			{
-				foreach (var file in Directory.EnumerateFiles(CacheDirectory, $"{siteId}_live_*.V06"))
+				var stale = Directory.EnumerateFiles(CacheDirectory, $"{siteId}_live_*.V06")
+					.OrderByDescending(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
+					.Skip(LiveFilesKept);
+				foreach (var file in stale.ToList())
 				{
 					if (!string.Equals(file, keepFile, StringComparison.OrdinalIgnoreCase))
 					{

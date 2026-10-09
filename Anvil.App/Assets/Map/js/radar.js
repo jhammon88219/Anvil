@@ -1897,8 +1897,13 @@
             var nf = new Array(newCount);
             var newCurrent = -1;
             for (var k = 0; k < mapping.length; k++) {
-                var from = mapping[k][0], to = mapping[k][1];
-                if (to >= 0 && to < newCount && frames[from]) nf[to] = frames[from];
+                var from = mapping[k][0], to = mapping[k][1], url = mapping[k][2];
+                if (to >= 0 && to < newCount && frames[from]) {
+                    nf[to] = frames[from];
+                    // [from, to, url]: a HELD live scan the archive now has (RadarLoopEngine fold-in) keeps its geometry
+                    // but now NAMES the archive file — its live file gets pruned, and later builds re-read the url.
+                    if (url) nf[to].url = url;
+                }
                 if (from === oldCurrent && to >= 0) newCurrent = to;
             }
             frames = nf;

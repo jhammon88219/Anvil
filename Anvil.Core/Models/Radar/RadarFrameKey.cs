@@ -35,6 +35,17 @@ namespace Anvil.Models
 				System.Globalization.CultureInfo.InvariantCulture, out var p) && p >= 1 ? p : 1;
 		}
 
+		private const string HeldPrefix = "live@";
+
+		/// <summary>The key of a HELD live frame (NowCast): a chunks-bucket scan kept as its own frame when a newer one
+		/// arrived, until its volume reaches the archive and the fold-in swaps it for that archive frame. ⚠️ It names
+		/// no S3 object — anything that fetches by key skips it (<see cref="IsHeld"/>); a tilt switch reloads.</summary>
+		public static string Held(DateTimeOffset scanTime) =>
+			HeldPrefix + scanTime.ToUniversalTime().ToString("yyyyMMdd_HHmmss", System.Globalization.CultureInfo.InvariantCulture);
+
+		/// <summary>Whether <paramref name="frameKey"/> is a held live frame (see <see cref="Held"/>), not an archive frame.</summary>
+		public static bool IsHeld(string frameKey) => frameKey.StartsWith(HeldPrefix, StringComparison.Ordinal);
+
 		/// <summary>Volume keys → frame keys, every volume's passes in scan order (oldest first), given each volume's
 		/// planned pass count (a missing count = 1).</summary>
 		public static List<string> Expand(IReadOnlyList<string> volumeKeys, IReadOnlyDictionary<string, int> passes)
