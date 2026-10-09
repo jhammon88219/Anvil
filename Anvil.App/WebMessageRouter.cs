@@ -145,7 +145,9 @@ namespace Anvil
 				("inN", Int(root, "inN")), ("inGapP95", Dbl(root, "inGapP95")), ("inGapMax", Dbl(root, "inGapMax")),
 				("inGap100", Int(root, "inGap100")), ("inCoal", Int(root, "inCoal")),
 				("inLatP95", Dbl(root, "inLatP95")), ("inLatMax", Dbl(root, "inLatMax")),
-				("decBusy", Int(root, "decBusy")), ("decPeak", Int(root, "decPeak")), ("decQueued", Int(root, "decQueued")));
+				("decBusy", Int(root, "decBusy")), ("decPeak", Int(root, "decPeak")), ("decQueued", Int(root, "decQueued")),
+				// Radar GL re-uploads during the gesture (radar.js noteUpload): count, summed ms, worst ms.
+				("upN", Int(root, "upN")), ("upMs", Int(root, "upMs")), ("upMax", Int(root, "upMax")));
 
 		/// <summary>
 		/// An uncaught JS error / rejected promise / failed script load in the page (map.html registers the

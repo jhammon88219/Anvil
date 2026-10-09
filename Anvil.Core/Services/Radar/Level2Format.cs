@@ -384,15 +384,24 @@ namespace Anvil.Services
 		{
 			var result = new List<(byte[] Data, DateTimeOffset? Time)>();
 			if (raw.Length < 28) return result;
+			// Timing (read-only): decompressMs = every bzip2 record, one after another; cutMs = finding + building the passes.
+			// lastPassRecord vs records says how much of that decompress the passes actually needed.
+			var clock = System.Diagnostics.Stopwatch.StartNew();
 			var blocks = DecompressRecords(raw, siteId, out var icao);
+			var decompressMs = clock.ElapsedMilliseconds;
 			var firstRadial = blocks.FindIndex(b => b.elev >= 1);
 			if (firstRadial < 0) return result;
 			var header = raw[..24];
+			var lastPassRecord = 0;
 			foreach (var p in ListBasePasses(blocks, icao))
 			{
 				result.Add((BuildSingleTilt(header, blocks, firstRadial, p.Surveillance, p.Doppler), p.Time));
+				lastPassRecord = Math.Max(lastPassRecord, Math.Max(p.Surveillance.End, p.Doppler?.End ?? 0));
 			}
 			RadarDiagnostics.Log("svc", "extract.passes", ("site", siteId), ("passes", result.Count),
+				("records", blocks.Count), ("lastPassRecord", lastPassRecord),
+				("outMb", Math.Round(blocks.Sum(b => (long)b.block.Length) / 1048576.0, 1)),
+				("decompressMs", decompressMs), ("cutMs", clock.ElapsedMilliseconds - decompressMs),
 				("msg", string.Join(" ", result.Select(r => r.Time is { } t ? t.ToString("HH:mm:ss") : "?"))));
 			return result;
 		}

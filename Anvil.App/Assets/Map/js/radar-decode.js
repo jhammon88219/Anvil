@@ -88,8 +88,13 @@ function momentRadials(radar, moment) {
 // behaves exactly as before, and only the Doppler products opt in. The flag rides on the radial as a
 // lazily-allocated Uint8Array (null when the sweep has no folding at all, which is the common case), so
 // reading it costs nothing on a clear sweep.
+// BUILD TIMING (read-only): buildGates' two halves, summed per decode and read per product by decodeAndBuild
+// (→ the frame's `build` field). loop = the per-gate colour + projection + push; pack = the plain arrays copied
+// into the typed arrays the GPU takes.
+const _gatesMs = { loop: 0, pack: 0 };
 function buildGates(radials, getAzimuth, siteLat, siteLon, colorFn) {
     if (!radials || !radials.length) return null;
+    const tLoop = performance.now();
     const { mPerDegLat, mPerDegLon } = metersPerDeg(siteLat); // canonical projection — see geo.js (per-gate formula stays inline below for perf)
     const positions = [];
     const colors = [];
@@ -142,12 +147,16 @@ function buildGates(radials, getAzimuth, siteLat, siteLon, colorFn) {
         }
     }
 
+    const tPack = performance.now();
+    _gatesMs.loop += tPack - tLoop;
     if (!positions.length) return null;
-    return {
+    const out = {
         positions: new Float32Array(positions),
         colors: new Uint8Array(colors),
         count: positions.length / 2,
     };
+    _gatesMs.pack += performance.now() - tPack;
+    return out;
 }
 
 // Builds the INSPECTOR value grid for a sweep: a compact polar lookup the host (radar.js) indexes
@@ -1774,11 +1783,20 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
                 (Array.isArray(buildGrids) && buildGrids.indexOf(id) >= 0);
         };
         const results = {}, moments = {}, grids = {}, built = {}, gridsExtra = {};
+        // BUILD TIMING (read-only) → the frame's `build`: per product { ms = the whole builder (velocity/SRV include
+        // their share of the dealias), gates/pack = buildGates' halves (see _gatesMs), verts }.
+        const buildTiming = {};
         for (let pi = 0; pi < PRODUCT_IDS.length; pi++) {
             const id = PRODUCT_IDS[pi];
             if (!wantBuild(id)) { moments[id] = null; grids[id] = null; built[id] = false; continue; }
             const wantGrid = wantGridFor(id);
+            const tb = performance.now(), loop0 = _gatesMs.loop, pack0 = _gatesMs.pack;
             const r = BUILDERS[id](radar, siteLat, siteLon, minDbz, wantGrid);
+            buildTiming[id] = {
+                ms: Math.round(performance.now() - tb),
+                gates: Math.round(_gatesMs.loop - loop0), pack: Math.round(_gatesMs.pack - pack0),
+                verts: (r.geom && r.geom.count) || 0,
+            };
             results[id] = r;
             moments[id] = r.geom || null;
             grids[id] = wantGrid ? (r.grid || null) : null;
@@ -1851,7 +1869,7 @@ export function decodeAndBuild(ab, siteLat, siteLon, minDbz, buildProducts, buil
             // sweeps themselves, so it holds whichever products were built (velocity's reach is known even on a
             // refl-only decode). A TDWR's 0.48° is refl 417 km / vel 89 km; its upper tilts are 89 / 89.
             reach: { refl: reflReach || rangeMeters, vel: velReach },
-            decodeMs: Math.round(t1 - t0), buildMs: Math.round(t2 - t1),
+            decodeMs: Math.round(t1 - t0), buildMs: Math.round(t2 - t1), build: buildTiming,
             radials: radials, gates: gates, bytes: bytes,
             elevList: elevList, velElev: velElevNum, reflStats: reflStats, velStats: velStats, velNyq: velNyq,
             velNyqSrc: velNyqSrc, velNyqRad: velNyqRad, velNyqVol: velNyqVol,

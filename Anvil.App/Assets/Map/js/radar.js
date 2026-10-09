@@ -1134,6 +1134,21 @@
     let _decBusy = 0, _decPeak = 0;
     function decPosted() { _decBusy++; if (_decBusy > _decPeak) _decPeak = _decBusy; }
 
+    // UPLOAD TIMING (read-only): the two bufferData calls a frame/product change costs on the MAIN thread. A
+    // NEWLY ARRIVED geometry (its frameVer not yet uploaded by this view — first paint, a live frame, an upgrade)
+    // is logged one line each; animation re-uploads only sum into perfStats (upN/upMs/upMax).
+    let _upN = 0, _upMs = 0, _upMax = 0;
+    function noteUpload(v, idx, product, verts, ms) {
+        _upN++; _upMs += ms; if (ms > _upMax) _upMax = ms;
+        const ver = frameVer[idx] || 0;
+        if (!v.uploadedVers) v.uploadedVers = {};
+        const k = idx + ':' + product;
+        if (v.uploadedVers[k] === ver) return;
+        v.uploadedVers[k] = ver;
+        hostLog('upload pane=' + v.index + ' idx=' + idx + ' prod=' + product + ' verts=' + verts +
+            ' mb=' + (verts * 12 / 1048576).toFixed(1) + ' ms=' + ms.toFixed(1));
+    }
+
     // Pre-warm the decode + VWP workers so the FIRST site click doesn't pay their cold start. Creating a
     // worker is expensive and each then imports the vendored decoder (~a few MB, eagerly on startup — see
     // radar-worker.js); doing that ahead of time moves it off the first-paint critical path (the diagnostics
@@ -1287,7 +1302,7 @@
         post({
             type: 'radarFrame', index: res.index, empty: !!res.empty, cached: !!res.cached,
             tris: reflCount, velTris: velCount,
-            decodeMs: res.decodeMs, buildMs: res.buildMs, bytes: res.bytes,
+            decodeMs: res.decodeMs, buildMs: res.buildMs, build: res.build, bytes: res.bytes,
             // Where the frame's WALL-CLOCK time went (see radar-worker.js). decodeMs alone hid this:
             // fetchMs = the volume read, waitMs = queued behind another decode in the same worker,
             // roundMs = dispatch→arrival here, so roundMs − fetch − wait − decode is scheduling slack.
@@ -1411,10 +1426,12 @@
                     // companion hadn't finished scanning) must NOT mark uploadedFrame, or the buffers
                     // stay stale-but-marked and a later frame that DOES carry the geometry is skipped.
                     if ((v.uploadedFrame !== currentFrame || v.uploadedProduct !== effProduct) && pos && col) {
+                        const tUp = performance.now();
                         glc.bindBuffer(glc.ARRAY_BUFFER, v.posBuf);
                         glc.bufferData(glc.ARRAY_BUFFER, pos, glc.STATIC_DRAW);
                         glc.bindBuffer(glc.ARRAY_BUFFER, v.colorBuf);
                         glc.bufferData(glc.ARRAY_BUFFER, col, glc.STATIC_DRAW);
+                        noteUpload(v, currentFrame, effProduct, cnt, performance.now() - tUp);
                         v.uploadedFrame = currentFrame;
                         v.uploadedProduct = effProduct;
                     }
@@ -1739,8 +1756,10 @@
         // PERF PROBE: decode jobs in flight now + peak since the last call (perf-probe.js stamps each
         // perfPan sample with it). Read-only apart from resetting the peak.
         perfStats: function () {
-            const s = { decBusy: _decBusy, decPeak: Math.max(_decPeak, _decBusy), decQueued: dispatchQueue.length };
+            const s = { decBusy: _decBusy, decPeak: Math.max(_decPeak, _decBusy), decQueued: dispatchQueue.length,
+                upN: _upN, upMs: Math.round(_upMs), upMax: Math.round(_upMax) };
             _decPeak = _decBusy;
+            _upN = 0; _upMs = 0; _upMax = 0;
             return s;
         },
         // ===== PIPELINE CONSOLE (dev/diagnostic — safe to remove as a unit) =====

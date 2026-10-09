@@ -787,6 +787,9 @@ try {
                     ctx.decBusy = ps.decBusy;
                     ctx.decPeak = ps.decPeak;
                     ctx.decQueued = ps.decQueued;
+                    ctx.upN = ps.upN;     // GL re-uploads during the gesture (radar.js noteUpload)
+                    ctx.upMs = ps.upMs;
+                    ctx.upMax = ps.upMax;
                 }
                 return ctx;
             });

@@ -442,6 +442,11 @@ namespace Anvil.Services
 			byte[]? toWrite = null;
 			byte[]? fullVolume = null; // set only when we downloaded the whole thing (-> retain as .raw)
 			var fromLocalRaw = false;  // the tilt came out of a prefetched raw on disk (the load-time log's source)
+			// FIRST-PAINT TIMING (read-only) → fetch.tilt: which path produced the tilt, and its network vs CPU split
+			// (cpu INCLUDES the wait for a RadarCpuWork slot). The pass-1 twin of fetch.passes.
+			var clock = System.Diagnostics.Stopwatch.StartNew();
+			var path = "";
+			long netMs = 0, cpuMs = 0, netBytes = 0;
 
 			// PREFETCHED RAW: one volume download holds EVERY tilt, so if the background prefetch has
 			// already pulled this volume, any tilt is a local decompress — no network at all. This is
@@ -451,8 +456,11 @@ namespace Anvil.Services
 			{
 				try
 				{
+					path = "raw";
 					var rawBytes = await File.ReadAllBytesAsync(rawFile, cancellationToken);
+					var cpuAt = clock.ElapsedMilliseconds;
 					toWrite = await RadarCpuWork.Run(() => ExtractTilt(rawBytes, site.Id, tiltAngle), cancellationToken, urgent: prioritized);
+					cpuMs += clock.ElapsedMilliseconds - cpuAt;
 					fromLocalRaw = toWrite is not null;
 
 					// The raw IS the whole volume (and it's written atomically, so a file on disk is
@@ -484,11 +492,16 @@ namespace Anvil.Services
 				// throughput-limited/variable, so the newest-alone fetch (the first-paint gate) was hitting
 				// ~3.7 s for 5 MB; parallel sub-ranges make it a reliable ~0.8 s. Backfill stays single (it
 				// already runs many frames concurrently = multi-stream across frames).
+				path = prioritized ? "prefix-parallel" : "prefix";
+				var netAt = clock.ElapsedMilliseconds;
 				var prefix = prioritized
 					? await TryGetRangePrefixParallelAsync(key, LowestTiltPrefixBytes, cancellationToken)
 					: await TryGetRangeAsync(key, LowestTiltPrefixBytes, cancellationToken);
+				netMs += clock.ElapsedMilliseconds - netAt;
+				netBytes += prefix?.Length ?? 0;
 				if (prefix is not null)
 				{
+					var cpuAt = clock.ElapsedMilliseconds;
 					toWrite = await RadarCpuWork.Run(() =>
 					{
 						try
@@ -501,6 +514,7 @@ namespace Anvil.Services
 							return null;
 						}
 					}, cancellationToken, urgent: prioritized);
+					cpuMs += clock.ElapsedMilliseconds - cpuAt;
 				}
 			}
 
@@ -513,11 +527,14 @@ namespace Anvil.Services
 			byte[]? streamedGz = null;
 			if (toWrite is null && tiltAngle is null && isGz)
 			{
+				path = "gz-stream"; // download + gunzip interleave here: all of it lands in netMs
+				var netAt = clock.ElapsedMilliseconds;
 				using var response = await _http.GetAsync(BucketBase + key, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 				response.EnsureSuccessStatusCode();
 				ExpectBytes(response.Content.Headers.ContentLength); // the whole file: the fill stops early when the tilt is in
 				await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);
 				(toWrite, streamedGz) = await StreamGzBaseTiltAsync(body, site.Id, ChargeChunkAsync, prioritized, cancellationToken);
+				netMs += clock.ElapsedMilliseconds - netAt;
 			}
 
 			// FULL DOWNLOAD: a higher tilt with no prefetched raw, a .gz file, a prefix too short to
@@ -543,6 +560,8 @@ namespace Anvil.Services
 				// say a partial gzip stream isn't decompressible — it is, front to back; it can't be RANGE-read
 				// from the middle, which is a different thing.) Measured 2026-09-08: a cold site sat 13 s before
 				// its first extract event, the whole of a 16 s first paint — fetch dominates a replay.
+				path = path.Length == 0 ? "full" : path + "+full"; // "prefix+full" = the prefix didn't hold a whole tilt
+				var netAt = clock.ElapsedMilliseconds;
 				byte[]? raw = streamedGz ?? (prioritized
 					? await GetFullParallelAsync(key, cancellationToken)
 					: null);
@@ -552,6 +571,8 @@ namespace Anvil.Services
 					response.EnsureSuccessStatusCode();
 					raw = await ReadBodyAsync(response.Content, cancellationToken);
 				}
+				if (streamedGz is null) { netMs += clock.ElapsedMilliseconds - netAt; netBytes += raw.Length; }
+				var cpuAt = clock.ElapsedMilliseconds;
 				var (extracted, volume) = await RadarCpuWork.Run<(byte[]?, byte[]?)>(() =>
 				{
 					try
@@ -566,6 +587,7 @@ namespace Anvil.Services
 						return (tiltAngle is null ? raw : null, null);
 					}
 				}, cancellationToken, urgent: prioritized);
+				cpuMs += clock.ElapsedMilliseconds - cpuAt;
 				toWrite = extracted;
 				fullVolume = volume;
 			}
@@ -597,6 +619,9 @@ namespace Anvil.Services
 			var (mode, vcp) = ModeTextFromTilt(toWrite, time); // VCP + regime for the archive/replay scan line
 			var tilts = ReadElevationAnglesFromExtractedTilt(toWrite);
 			RadarPerfCounters.EndSync(syncAt);
+			RadarDiagnostics.Log("svc", "fetch.tilt", ("site", site.Id), ("key", key), ("urgent", prioritized),
+				("tilt", tiltAngle), ("path", path), ("mb", Math.Round(netBytes / 1048576.0, 1)), ("netMs", netMs), ("cpuMs", cpuMs),
+				("totalMs", clock.ElapsedMilliseconds));
 			return Noted(new RadarVolume(localUrl, site, time, mode, tilts, tiltAngle,
 				fromLocalRaw ? RadarVolumeSource.LocalRaw : RadarVolumeSource.Network), vcp);
 		}
@@ -726,8 +751,13 @@ namespace Anvil.Services
 		// the raw kept.
 		private async Task CachePassesAsync(RadarSite site, string volumeKey, DateTimeOffset volumeTime, bool prioritized, CancellationToken ct)
 		{
+			// FIRST-PAINT TIMING (read-only): a SAILS newest frame waits on this whole method — KEVX 2026-10-09 sat 5.5 s
+			// here before its first decode — so split it: fetch (network or cached raw) · cpuWait (queued for a RadarCpuWork
+			// slot) · cpu (decompress + cut, split further in extract.passes) · write. Logged as fetch.passes.
+			var clock = System.Diagnostics.Stopwatch.StartNew();
 			var rawFile = RawCacheFileFor(site.Id, volumeTime);
 			var haveRaw = File.Exists(rawFile);
+			var how = haveRaw ? "raw" : "single";
 			byte[] raw;
 			if (haveRaw)
 			{
@@ -739,6 +769,7 @@ namespace Anvil.Services
 				if (parallel is not null)
 				{
 					raw = parallel;
+					how = "parallel";
 				}
 				else
 				{
@@ -747,8 +778,19 @@ namespace Anvil.Services
 					raw = await ReadBodyAsync(response.Content, ct);
 				}
 			}
+			var fetchMs = clock.ElapsedMilliseconds;
 
-			var passes = await RadarCpuWork.Run(() => TryExtractBasePasses(raw, site.Id), ct, urgent: prioritized);
+			long cpuMs = 0;
+			var queuedAt = clock.ElapsedMilliseconds;
+			var passes = await RadarCpuWork.Run(() =>
+			{
+				var work = System.Diagnostics.Stopwatch.StartNew();
+				var result = TryExtractBasePasses(raw, site.Id);
+				cpuMs = work.ElapsedMilliseconds;
+				return result;
+			}, ct, urgent: prioritized);
+			var cpuWaitMs = clock.ElapsedMilliseconds - queuedAt - cpuMs;
+			var writeAt = clock.ElapsedMilliseconds;
 			for (var i = 0; i < passes.Count; i++)
 			{
 				var file = i == 0
@@ -758,6 +800,9 @@ namespace Anvil.Services
 			}
 			MaybeSweepAfterWrite();
 			if (!haveRaw && passes.Count > 0) await WriteRawAsync(rawFile, raw, ct);
+			RadarDiagnostics.Log("svc", "fetch.passes", ("site", site.Id), ("key", volumeKey), ("urgent", prioritized),
+				("how", how), ("mb", Math.Round(raw.Length / 1048576.0, 1)), ("fetchMs", fetchMs), ("cpuWaitMs", cpuWaitMs),
+				("cpuMs", cpuMs), ("writeMs", clock.ElapsedMilliseconds - writeAt), ("totalMs", clock.ElapsedMilliseconds));
 			// The volume's REAL pass count beats Message 5's plan (a plan the volume didn't scan — a VCP change, a restart, a
 			// counting miss — would otherwise keep phantom frames that never arrive): the next frame list (NowCast's archive
 			// refresh, the next PastCast load) uses it.

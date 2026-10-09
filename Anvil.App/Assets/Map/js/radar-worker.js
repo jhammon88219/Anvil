@@ -137,7 +137,7 @@ self.onmessage = function (e) {
         // as maps, transferring each product's typed arrays zero-copy. Adding a product needs no change here.
         const msg = {
             token: d.token, index: d.index, url: d.url, built: res.built, gridsBuilt: res.gridsBuilt,
-            decodeMs: res.decodeMs, buildMs: res.buildMs,
+            decodeMs: res.decodeMs, buildMs: res.buildMs, build: res.build,
             fetchMs: Math.round(tFetched - tRecv), waitMs: Math.round(tStarted - tFetched),
             dispatchAt: d.dispatchAt, // echoed so the host can measure the full round trip (shared epoch)
             radials: res.radials, gates: res.gates, bytes: res.bytes, rangeMeters: res.rangeMeters, reach: res.reach,

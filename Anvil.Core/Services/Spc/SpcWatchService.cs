@@ -41,6 +41,11 @@ namespace Anvil.Services
 		private const string GeoJsonUrl = QueryBase + "&f=geojson";
 		private const string CountUrl = QueryBase + "&returnCountOnly=true&f=json";
 
+		// How long a run of (count-corroborated) empty fetches must last before "no watches" is believed —
+		// see the hold in RefreshAsync. Longest spurious run seen was 3 cycles (~6 min).
+		private static readonly TimeSpan EmptyHold = TimeSpan.FromMinutes(15);
+		private DateTimeOffset? _emptySince;
+
 		public SpcWatchService() : base("SpcWatches")
 		{
 			// ⚠️ MUST send an Accept header — this NOAA endpoint (Akamai-fronted) caches keyed on Accept
@@ -75,6 +80,28 @@ namespace Anvil.Services
 				if (features == 0 && await RemoteCountAsync(cancellationToken) is > 0)
 				{
 					return Failed(cacheExists, "Empty GeoJSON contradicted by a non-zero count — kept last-known-good.");
+				}
+
+				// ⚠️ …and an empty the count AGREES with is still not trusted at once: the origin flaps to a
+				// whole-service empty (GeoJSON AND count both 0) for 1–3 cycles at a time, every 10–20 min on a
+				// busy day (measured 2026-10-09: 64 → 0 → 64, runs up to 6 min) — every watch on the map blinked.
+				// Hold the last-known-good set until the empty has lasted EmptyHold, pruning watches whose own
+				// `expiration` has passed so a real expiry still clears on time; only an early cancellation of
+				// the LAST watches lingers, by at most EmptyHold.
+				var now = DateTimeOffset.UtcNow;
+				if (features > 0)
+				{
+					_emptySince = null;
+				}
+				else if (cacheExists && now - (_emptySince ??= now) < EmptyHold)
+				{
+					var held = PruneExpired(await File.ReadAllTextAsync(cacheFile, cancellationToken), now);
+					if (held is not null && TryGetFeatureCounts(held, out var heldFeatures, out var hc, out var ht, out var hs, out var hf) && heldFeatures > 0)
+					{
+						await AtomicWriteAsync(cacheFile, held, cancellationToken);
+						return new SpcWatchFetchResult(SpcWatchFetchStatus.Updated, hc, ht, hs, hf,
+							Message: $"Feed empty since {_emptySince:HH:mm:ss}Z — held last-known-good.");
+					}
 				}
 
 				// Atomic write (temp then move) so a partial/failed write never blanks the last-known-good cache.
@@ -167,6 +194,42 @@ namespace Anvil.Services
 				// Malformed JSON — treat as a failed fetch (keep last-known-good).
 			}
 			return false;
+		}
+
+		// The cached FeatureCollection minus every feature whose `expiration` (ISO-8601 with offset, or epoch
+		// ms) is at or before `now`; a feature with no readable expiration is kept. Null if unparseable.
+		internal static string? PruneExpired(string geoJson, DateTimeOffset now)
+		{
+			try
+			{
+				if (JsonNode.Parse(geoJson) is not JsonObject root || root["features"] is not JsonArray list)
+				{
+					return null;
+				}
+
+				for (var i = list.Count - 1; i >= 0; i--)
+				{
+					if (list[i]?["properties"]?["expiration"] is JsonValue v && ExpiresAt(v) is { } exp && exp <= now)
+					{
+						list.RemoveAt(i);
+					}
+				}
+				return root.ToJsonString();
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
+		private static DateTimeOffset? ExpiresAt(JsonValue v)
+		{
+			if (v.TryGetValue<string>(out var s))
+			{
+				return DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
+					System.Globalization.DateTimeStyles.AssumeUniversal, out var d) ? d : null;
+			}
+			return v.TryGetValue<long>(out var ms) ? DateTimeOffset.FromUnixTimeMilliseconds(ms) : null;
 		}
 
 		private static string Str(JsonNode? props, string name) =>
