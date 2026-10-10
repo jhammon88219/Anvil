@@ -322,13 +322,21 @@ namespace Anvil.Services
 		// volume, Enderlin 2025 (MRLE) 2, clear air 1. Each pass is a frame of its own now (RadarFrameKey).
 
 		/// <summary>One 0.5° pass: its surveillance cut, its Doppler companion (null for a clear-air combined cut, or a
-		/// surveillance pass whose companion is missing), and its real collection time (the first VALID radial header —
-		/// not ReadCollectionTime, which reads the metadata block's stray ICAO on a volume's first cut and gets null).</summary>
-		internal sealed record BasePass((int Start, int End) Surveillance, (int Start, int End)? Doppler, DateTimeOffset? Time);
+		/// surveillance pass whose companion is missing), its real collection time (the first VALID radial header — not
+		/// ReadCollectionTime, which reads the metadata block's stray ICAO on a volume's first cut and gets null), and WHICH
+		/// pass it is (1-based, the frame key's <c>#N</c>): its place in the volume's PLAN — so a pass the volume lacks
+		/// leaves its own number empty instead of sliding every later pass down one.</summary>
+		internal sealed record BasePass((int Start, int End) Surveillance, (int Start, int End)? Doppler, DateTimeOffset? Time, int Pass);
 
-		/// <summary>Every FINISHED base-tilt pass in <paramref name="blocks"/>, in scan order — SelectLatestSweep's own cut
-		/// grouping, base angle and companion pairing (requireComplete), so a pass here is exactly a frame the live
-		/// selector would serve.</summary>
+		/// <summary>Every FINISHED base-tilt pass in <paramref name="blocks"/>, in scan order — SelectLatestSweep's cut
+		/// grouping and companion pairing (requireComplete), so a pass here is a frame the live selector would serve.</summary>
+		/// <remarks>⚠️ WHICH cuts are base passes comes from the PLAN's elevation NUMBERS (Message 5, the same rule as
+		/// <see cref="PlannedBasePasses"/>) whenever it reads — never from measured angles alone. Measured angles jitter
+		/// ~0.1°: KTLH 2026-10-10 05:38:38 read its volume-start pass at 0.57° and SAILS 1 at 0.44°, so "within SailsTiltTol
+		/// of the lowest measured angle" dropped pass 1, every later pass took the number before it (#2 showed SAILS 2's
+		/// scan), the planned #4 came back empty and its scrubber cell never filled. The window can't simply widen: KEVX's
+		/// VCP 112 plans a separate 0.44° tilt only 0.13° above its 0.31° base. The angle rule stays the fallback for a
+		/// volume with no readable plan, numbering its passes in scan order as before.</remarks>
 		internal static List<BasePass> ListBasePasses(List<(byte[] block, int elev)> blocks, byte[] icao)
 		{
 			var passes = new List<BasePass>();
@@ -343,13 +351,27 @@ namespace Anvil.Services
 			bool Finished(int end) =>
 				end < blocks.Count || (end > 0 && EndsItsCut(blocks[end - 1].block, icao, blocks[end - 1].elev));
 
-			var surveillance = cuts.Where(c => LowTilt(c) && !c.hasVel).ToList();
+			// The plan's base-pass elevation numbers, if the plan reads AND the volume scanned at least one of them.
+			var planned = PlannedBasePassNumbers(blocks);
+			var byPlan = planned.Count > 0 && cuts.Any(c => c.hasRef && planned.Contains(blocks[c.start].elev));
+			var candidates = byPlan
+				? cuts.Where(c => c.hasRef && planned.Contains(blocks[c.start].elev)).ToList()
+				: cuts.Where(LowTilt).ToList();
+
+			var surveillance = candidates.Where(c => !c.hasVel).ToList();
 			var combined = surveillance.Count == 0; // clear-air: one combined (reflectivity + velocity) cut per pass
-			foreach (var s in combined ? cuts.Where(LowTilt).ToList() : surveillance)
+			var inScanOrder = 0;
+			foreach (var s in combined ? candidates : surveillance)
 			{
+				inScanOrder++;
 				if (!Finished(s.end)) continue;
-				var doppler = combined ? null : FindDopplerCompanion(cuts, s.start, baseAngle, Finished, requireComplete: true);
-				passes.Add(new BasePass((s.start, s.end), doppler, FirstRadialTime(blocks, s.start, s.end, icao)));
+				// The companion is judged against the pass's OWN measured angle when the plan picked it (back-to-back cuts of
+				// one tilt agree to a few hundredths), not the lowest angle in the volume, which may be another pass's jitter.
+				var pairAngle = byPlan && !float.IsNaN(s.angle) ? s.angle : baseAngle;
+				var doppler = combined ? null : FindDopplerCompanion(cuts, s.start, pairAngle, Finished, requireComplete: true);
+				var pass = byPlan ? planned.IndexOf(blocks[s.start].elev) + 1 : inScanOrder;
+				if (passes.Any(p => p.Pass == pass)) continue; // one cut split in two (a stray orphan mid-sweep): keep the first
+				passes.Add(new BasePass((s.start, s.end), doppler, FirstRadialTime(blocks, s.start, s.end, icao), pass));
 			}
 			return passes;
 		}
@@ -380,9 +402,11 @@ namespace Anvil.Services
 		/// <summary>Every 0.5° pass of a WHOLE modern (bzip2 LDM) archive volume as its own single-tilt buffer, in scan
 		/// order — pass 1 is the volume start (what TryExtractLowestTilt also cuts), 2.. the rescans. Empty when the volume
 		/// isn't LDM (a legacy .gz volume gunzips to an uncompressed AR2V: it stays one frame per volume).</summary>
-		internal static List<(byte[] Data, DateTimeOffset? Time)> TryExtractBasePasses(byte[] raw, string siteId)
+		/// <remarks>Each entry carries its <c>Pass</c> number (see <see cref="BasePass"/>): write and look it up by THAT, never
+		/// by its position in this list — a pass the volume lacks leaves a gap in the numbers, not a shift.</remarks>
+		internal static List<(byte[] Data, DateTimeOffset? Time, int Pass)> TryExtractBasePasses(byte[] raw, string siteId)
 		{
-			var result = new List<(byte[] Data, DateTimeOffset? Time)>();
+			var result = new List<(byte[] Data, DateTimeOffset? Time, int Pass)>();
 			if (raw.Length < 28) return result;
 			// Timing (read-only): decompressMs = every bzip2 record, one after another; cutMs = finding + building the passes.
 			// lastPassRecord vs records says how much of that decompress the passes actually needed.
@@ -395,14 +419,14 @@ namespace Anvil.Services
 			var lastPassRecord = 0;
 			foreach (var p in ListBasePasses(blocks, icao))
 			{
-				result.Add((BuildSingleTilt(header, blocks, firstRadial, p.Surveillance, p.Doppler), p.Time));
+				result.Add((BuildSingleTilt(header, blocks, firstRadial, p.Surveillance, p.Doppler), p.Time, p.Pass));
 				lastPassRecord = Math.Max(lastPassRecord, Math.Max(p.Surveillance.End, p.Doppler?.End ?? 0));
 			}
 			RadarDiagnostics.Log("svc", "extract.passes", ("site", siteId), ("passes", result.Count),
 				("records", blocks.Count), ("lastPassRecord", lastPassRecord),
 				("outMb", Math.Round(blocks.Sum(b => (long)b.block.Length) / 1048576.0, 1)),
 				("decompressMs", decompressMs), ("cutMs", clock.ElapsedMilliseconds - decompressMs),
-				("msg", string.Join(" ", result.Select(r => r.Time is { } t ? t.ToString("HH:mm:ss") : "?"))));
+				("msg", string.Join(" ", result.Select(r => $"#{r.Pass} " + (r.Time is { } t ? t.ToString("HH:mm:ss") : "?")))));
 			return result;
 		}
 
@@ -448,13 +472,24 @@ namespace Anvil.Services
 		/// Read from the leading metadata record alone, so an 8 KB range read (or any cached tilt) answers it.</summary>
 		internal static int PlannedBasePasses(List<(byte[] block, int elev)> metadataBlocks)
 		{
-			if (!ScanPlan.TryRead(metadataBlocks, out _, out var plan) || plan.Count == 0) return 1;
+			var numbers = PlannedBasePassNumbers(metadataBlocks);
+			return numbers.Count == 0 ? 1 : Math.Clamp(numbers.Count, 1, MaxBasePasses);
+		}
+
+		/// <summary>The elevation NUMBERS of the 0.5° passes Message 5 plans, in scan order (pass 1 first) — the ONE rule both
+		/// <see cref="PlannedBasePasses"/> (the frame count) and <see cref="ListBasePasses"/> (which cuts those frames are)
+		/// read, so a frame's <c>#N</c> and the cut extracted for it can't disagree. Empty when the table can't be read or
+		/// plans more than <see cref="MaxBasePasses"/> (a misparse).</summary>
+		internal static List<int> PlannedBasePassNumbers(List<(byte[] block, int elev)> blocks)
+		{
+			if (!ScanPlan.TryRead(blocks, out _, out var plan) || plan.Count == 0) return new List<int>();
 			// ⚠️ The extractor's own tolerance (SailsTiltTol), never a looser one: KEVX's VCP 112 (2026-10-08) plans a 0.44°
 			// tilt beside its 0.31° base, and a 0.25° window counted it as a third pass the volume never scanned — four
-			// phantom frames that never arrived, so the loop never filled and scrubbing never unlocked.
+			// phantom frames that never arrived, so the loop never filled and scrubbing never unlocked. PLANNED angles are
+			// exact (no antenna jitter), so this window is safe here in a way it is not on measured angles.
 			var lowest = plan.Min(c => c.Angle);
-			var n = plan.Count(c => c.Waveform != 2 && Math.Abs(c.Angle - lowest) <= SailsTiltTol);
-			return Math.Clamp(n, 1, MaxBasePasses);
+			var numbers = plan.Where(c => c.Waveform != 2 && Math.Abs(c.Angle - lowest) <= SailsTiltTol).Select(c => c.Number).ToList();
+			return numbers.Count <= MaxBasePasses ? numbers : new List<int>();
 		}
 
 		// SAILS ×3 = 4 passes; MRLE and TDWR-style repeats stay within this. A larger count is a misparse.

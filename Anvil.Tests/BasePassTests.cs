@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Anvil.Models;
 using Anvil.Services;
 using Xunit;
@@ -92,6 +93,60 @@ namespace Anvil.Tests
 			var passes = Level2Format.TryExtractBasePasses(volume, SyntheticVolume.DefaultIcao);
 
 			Assert.Single(passes);
+		}
+
+		[Fact]
+		public void A_jittered_volume_start_pass_is_still_pass_one_by_the_plan()
+		{
+			// KTLH 2026-10-10 05:38:38 (TiltCheck -- --sails KTLH 2026/10/10 05:38 1): the volume-start pass MEASURED 0.57°
+			// and SAILS 1 0.44°, so "within 0.12° of the lowest measured angle" dropped pass 1 and SAILS 1 became #1 — every
+			// later frame showed the next scan and the planned last pass never filled. The plan's numbers (#1, #5) decide.
+			var volume = SyntheticVolume.Volume(
+				Message5((0.5, 1), (0.5, 2), (0.9, 1), (0.9, 2), (0.5, 1), (0.5, 2), (1.3, 2)),
+				SyntheticVolume.Radial(1, 0.57f, "sv01"),
+				SyntheticVolume.Radial(2, 0.53f, "dv02", velocity: true),
+				SyntheticVolume.Radial(3, 0.92f, "hg03"),
+				SyntheticVolume.Radial(4, 0.92f, "hg04", velocity: true),
+				SyntheticVolume.Radial(5, 0.44f, "sv05"),
+				SyntheticVolume.Radial(6, 0.53f, "dv06", velocity: true),
+				SyntheticVolume.Radial(7, 1.32f, "hg07", velocity: true));
+
+			var passes = Level2Format.TryExtractBasePasses(volume, SyntheticVolume.DefaultIcao);
+
+			Assert.Equal(new[] { 1, 2 }, passes.Select(p => p.Pass));
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[0].Data, "sv01"));
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[0].Data, "dv02"));
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[1].Data, "sv05"));
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[1].Data, "dv06"));
+		}
+
+		[Fact]
+		public void A_planned_pass_the_volume_lacks_leaves_its_number_empty()
+		{
+			// Planned passes at #1, #4, #7; the volume never scanned #4/#5. The rescan at #7 is PASS 3 — it must not slide
+			// into #2's frame (that frame comes back empty, honestly, instead of showing the wrong scan).
+			var volume = SyntheticVolume.Volume(
+				Message5((0.5, 1), (0.5, 2), (0.9, 1), (0.5, 1), (0.5, 2), (1.3, 1), (0.5, 1), (0.5, 2), (1.8, 2)),
+				SyntheticVolume.Radial(1, 0.48f, "sv01"),
+				SyntheticVolume.Radial(2, 0.48f, "dv02", velocity: true),
+				SyntheticVolume.Radial(3, 0.88f, "hg03"),
+				SyntheticVolume.Radial(6, 1.32f, "hg06"),
+				SyntheticVolume.Radial(7, 0.48f, "sv07"),
+				SyntheticVolume.Radial(8, 0.48f, "dv08", velocity: true),
+				SyntheticVolume.Radial(9, 1.76f, "hg09", velocity: true));
+
+			var passes = Level2Format.TryExtractBasePasses(volume, SyntheticVolume.DefaultIcao);
+
+			Assert.Equal(new[] { 1, 3 }, passes.Select(p => p.Pass));
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[1].Data, "sv07"));
+		}
+
+		[Fact]
+		public void PlannedBasePassNumbers_AreThePlansCutNumbers()
+		{
+			var meta = Message5((0.5, 1), (0.5, 2), (0.9, 1), (0.5, 1), (0.5, 2), (1.3, 1), (0.5, 1), (0.5, 2));
+			Assert.Equal(new[] { 1, 4, 7 }, Level2Format.PlannedBasePassNumbers(new List<(byte[], int)> { (meta, 0) }));
+			Assert.Empty(Level2Format.PlannedBasePassNumbers(new List<(byte[], int)> { (new byte[64], 0) }));
 		}
 
 		[Fact]

@@ -217,16 +217,23 @@ static class SailsCheck
         // must be the measured first radial. And the PLANNED count (Message 5, what the frame list is built from).
         var plannedPasses = Level2Format.PlannedBasePasses(new List<(byte[], int)> { (recs[0].Block, 0) });
         var passes = Level2Format.TryExtractBasePasses(raw, site);
-        Console.WriteLine($"   extractor: {passes.Count} pass(es), planned {plannedPasses}{(plannedPasses == passes.Count ? "" : "  ⚠️ PLAN ≠ VOLUME")}");
+        // Each pass is checked against the cut its PLAN number names (the extractor picks by plan, 2026-10-10 — KTLH's
+        // jittered 0.57° pass 1 sits outside the angle window the pairs above use); no plan → the pairs, in order.
+        var planNumbers = Level2Format.PlannedBasePassNumbers(new List<(byte[], int)> { (recs[0].Block, 0) });
+        Console.WriteLine($"   extractor: {passes.Count} pass(es), planned {plannedPasses}{(plannedPasses == passes.Count ? "" : "  ⚠️ PLAN ≠ VOLUME")}" +
+                          (planNumbers.Count > 0 ? $" (plan cuts #{string.Join(", #", planNumbers)})" : " (no plan: angle rule)"));
         for (var p = 0; p < passes.Count; p++)
         {
             var radials = RegimeCheck.ScanRadials(passes[p].Data, icao, 0).ToList();
             var byNum = string.Join(" ", radials.GroupBy(r => r.Elev).OrderBy(g => g.Key).Select(g => $"#{g.Key}:{g.Count()}"));
-            var want = p < surv.Count ? surv[p].T0 : null;
+            var n = passes[p].Pass;
+            var wantCut = planNumbers.Count >= n ? cuts.FirstOrDefault(c => c.Number == planNumbers[n - 1])
+                : n - 1 < surv.Count ? surv[n - 1] : null;
+            var want = wantCut?.T0;
             var timeOk = passes[p].Time is { } pt && want is { } wt && Math.Abs((pt - wt).TotalSeconds) < 1;
-            var same = p == 0 && legacy is not null ? (passes[p].Data.AsSpan().SequenceEqual(legacy) ? ", bytes = legacy" : ", bytes ≠ legacy")
+            var same = n == 1 && legacy is not null ? (passes[p].Data.AsSpan().SequenceEqual(legacy) ? ", bytes = legacy" : ", bytes ≠ legacy")
                 : "";
-            Console.WriteLine($"     pass {p + 1}: {T(passes[p].Time)} {(timeOk ? "time OK" : "TIME ⚠️")}, {passes[p].Data.Length / 1e6:0.00} MB, radials {byNum}{same}");
+            Console.WriteLine($"     pass {n}: {T(passes[p].Time)} {(timeOk ? "time OK" : "TIME ⚠️")}, {passes[p].Data.Length / 1e6:0.00} MB, radials {byNum}{same}");
         }
 
         for (var p = 1; p < pairTimes.Count; p++)

@@ -791,12 +791,15 @@ namespace Anvil.Services
 			}, ct, urgent: prioritized);
 			var cpuWaitMs = clock.ElapsedMilliseconds - queuedAt - cpuMs;
 			var writeAt = clock.ElapsedMilliseconds;
-			for (var i = 0; i < passes.Count; i++)
+			// ⚠️ Written by the pass's OWN number (its place in the plan), not its position in the list: a pass the volume lacks
+			// must leave its number empty, not hand it to the next pass (KTLH 2026-10-10: #2 showed SAILS 2's scan).
+			foreach (var p in passes)
 			{
-				var file = i == 0
+				var file = p.Pass == 1
 					? CacheFileFor(site.Id, volumeTime)
-					: PassCacheFileFor(site.Id, volumeTime, i + 1, passes[i].Time ?? volumeTime);
-				if (!File.Exists(file)) await WriteCacheFileAsync(file, passes[i].Data, ct);
+					: PassCacheFileFor(site.Id, volumeTime, p.Pass, p.Time ?? volumeTime);
+				if (!File.Exists(file)) await WriteCacheFileAsync(file, p.Data, ct);
+				if (p.Pass > 1) RemoveStalePassFiles(site.Id, volumeTime, p.Pass, file);
 			}
 			MaybeSweepAfterWrite();
 			if (!haveRaw && passes.Count > 0) await WriteRawAsync(rawFile, raw, ct);
@@ -806,7 +809,9 @@ namespace Anvil.Services
 			// The volume's REAL pass count beats Message 5's plan (a plan the volume didn't scan — a VCP change, a restart, a
 			// counting miss — would otherwise keep phantom frames that never arrive): the next frame list (NowCast's archive
 			// refresh, the next PastCast load) uses it.
-			if (passes.Count > 0) _passCounts[volumeKey] = passes.Count;
+			// The highest pass it really has: frame keys run #1..#N, so a missing MIDDLE pass stays a (null) frame between the
+			// real ones rather than the last real pass falling off the end.
+			if (passes.Count > 0) _passCounts[volumeKey] = passes.Max(p => p.Pass);
 		}
 
 		// "KVNX_20260424_011707_p2_012455.V06" = pass 2 of the 01:17:07 volume, scanned at 01:24:55. The pass's own time
@@ -814,6 +819,24 @@ namespace Anvil.Services
 		// IsCachedInRange / PruneCache treat it as that volume's file.
 		private string PassCacheFileFor(string siteId, DateTimeOffset volumeTime, int pass, DateTimeOffset passTime) =>
 			Path.Combine(CacheDirectory, $"{siteId}_{volumeTime:yyyyMMdd_HHmmss}_p{pass}_{passTime.ToUniversalTime():HHmmss}.V06");
+
+		// Another file for this volume's pass N (a different scan time in the name) was cut by the pre-2026-10-10 extractor,
+		// which numbered passes by position — after a missed pass 1, "p2" held SAILS 2's scan. FindPassFile takes the first
+		// match, so the stale one must go once the right one is written. Best effort.
+		private void RemoveStalePassFiles(string siteId, DateTimeOffset volumeTime, int pass, string keep)
+		{
+			var stamp = volumeTime.ToUniversalTime().ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
+			try
+			{
+				foreach (var stale in Directory.EnumerateFiles(CacheDirectory, $"{siteId}_{stamp}_p{pass}_*.V06").ToList())
+				{
+					if (string.Equals(stale, keep, StringComparison.OrdinalIgnoreCase)) continue;
+					try { File.Delete(stale); } catch { /* best effort */ }
+					RadarDiagnostics.Log("svc", "extract", ("site", siteId), ("msg", $"removed mis-numbered {Path.GetFileName(stale)}"));
+				}
+			}
+			catch (IOException) { }
+		}
 
 		private (string Path, DateTimeOffset Time)? FindPassFile(string siteId, DateTimeOffset volumeTime, int pass)
 		{
