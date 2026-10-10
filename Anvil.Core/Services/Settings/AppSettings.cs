@@ -305,6 +305,16 @@ namespace Anvil.Services
 			set => SetProperty(ref _favoriteSiteIds, value ?? new());
 		}
 
+		// Only home + favorites show on the map (radar-sites.js `favorites` rule). ONE setting behind TWO switches:
+		// Settings → Radar → Radar site keys and the site picker's footer. Default off.
+		private bool _showOnlyFavoriteSites;
+		/// <summary>Show only the home and favorite radar-site keys on the map (the loaded site always shows).</summary>
+		public bool ShowOnlyFavoriteSites
+		{
+			get => _showOnlyFavoriteSites;
+			set => SetProperty(ref _showOnlyFavoriteSites, value);
+		}
+
 		// ── Overlay order (the temporal windows' draggable layer sections) ─────────────────────────────
 		// ⚠️ ONE LIST PER WINDOW, by the user's call: Past and Now never run together, so each keeps its own
 		// stack. Top-first Models.LayerOrder ids; EMPTY = the window's own default (its XAML order).

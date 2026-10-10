@@ -724,10 +724,12 @@ try {
     // picking wants ONE unambiguous surface. Clicking a marker in pane 1 re-sites every pane.
     var pendingSiteAccent = null; // accent pushed before the module loaded (map-ready can beat the import)
     var pendingOutOfEra = null;   // same, for the retired-site list — dropped, KLIX would show live
+    var pendingFavorites = null;  // same, for favorites-only — dropped, every site would show
     import('./radar-sites.js').then(function (m) {
         RadarSites = m;
         if (pendingSiteAccent) { m.setAccent(pendingSiteAccent[0], pendingSiteAccent[1]); pendingSiteAccent = null; }
         if (pendingOutOfEra) { m.setOutOfEra(pendingOutOfEra); pendingOutOfEra = null; }
+        if (pendingFavorites) { m.setFavoritesOnly(pendingFavorites[0], pendingFavorites[1]); pendingFavorites = null; }
     }).catch(function (e) { console.error('radar-sites.js load failed: ' + e); });
     window.showRadarSites = function (json) { if (RadarSites) RadarSites.show(primary(), json); };
     window.setSelectedRadarSite = function (id) { if (RadarSites) RadarSites.setSelected(id); };
@@ -738,6 +740,11 @@ try {
     window.setTdwrsVisible = function (visible) { if (RadarSites) RadarSites.setTdwrVisible(visible); };
     // FOCUS (Settings → Radar): while a site is loaded, hide every other key — radar-sites.js's `focus` rule.
     window.setSiteFocus = function (on) { if (RadarSites) RadarSites.setFocus(on); };
+    // FAVORITES ONLY (Settings → Radar, or the site picker's footer): only home + favorites — the `favorites` rule.
+    window.setFavoriteSitesOnly = function (on, json) {
+        if (RadarSites) RadarSites.setFavoritesOnly(on, json);
+        else pendingFavorites = [on, json];
+    };
     // ── SITE-REVEAL (experimental bolt-on, site-reveal.js; grep SITE-REVEAL to excise) ─────────────
     // Only the sites inside a ring round the cursor show (Settings → Radar). Imported on first use; the
     // choice is held until radar-sites.js has landed (the map-ready replay can beat that import).

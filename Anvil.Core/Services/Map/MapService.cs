@@ -313,6 +313,9 @@ namespace Anvil.Services
 		public Task SetSiteFocusAsync(bool on) =>
 			_mapView.RunScriptAsync(Call("setSiteFocus", on));
 
+		public Task SetFavoriteSitesOnlyAsync(bool on, string idsJson) =>
+			_mapView.RunScriptAsync(Call("setFavoriteSitesOnly", on, idsJson));
+
 		// SITE-REVEAL (experimental bolt-on).
 		public Task SetSiteRevealAsync(bool on) =>
 			_mapView.RunScriptAsync(Call("setSiteReveal", on));

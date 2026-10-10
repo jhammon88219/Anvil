@@ -444,6 +444,13 @@ namespace Anvil.Services
 		Task SetSiteFocusAsync(bool on);
 
 		/// <summary>
+		/// Show only these site keys (home + favorites) — radar-sites.js's <c>favorites</c> rule, a DECLUTTER rule, so
+		/// the loaded site always shows. <paramref name="on"/> false turns it off whatever the list says. The flag and
+		/// the list travel together so the page can never hold one without the other.
+		/// </summary>
+		Task SetFavoriteSitesOnlyAsync(bool on, string idsJson);
+
+		/// <summary>
 		/// SITE-REVEAL (experimental bolt-on): while on, only the radar sites inside a 230 km ring round the cursor
 		/// show (plus the loaded site). Layered on the network toggles, not instead of them. site-reveal.js.
 		/// </summary>

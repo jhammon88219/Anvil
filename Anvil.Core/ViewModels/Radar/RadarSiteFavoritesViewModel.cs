@@ -21,7 +21,8 @@ namespace Anvil.ViewModels
 	/// it first and leaves it out of the favorites that follow, whether or not it is also starred.
 	/// ⚠️ PastCast: site-picker picks are OFF (<see cref="CanPickSites"/>) — a pick there would re-target the
 	/// replay window at another site, which is not what "go home" means.
-	/// ⚠️ The map markers show NONE of this, by decision: the keys are too small to carry another badge.
+	/// ⚠️ The map markers carry no favorite BADGE, by decision: the keys are too small. They can be FILTERED to home +
+	/// favorites, though (<see cref="ShowOnlyFavoritesOnMap"/>).
 	/// </remarks>
 	public sealed class RadarSiteFavoritesViewModel : ObservableObject
 	{
@@ -29,6 +30,7 @@ namespace Anvil.ViewModels
 		private readonly ISettingsService _settings;
 		private readonly IMapService _mapService;
 		private bool _launchHandled;
+		private bool _isMapReady;
 
 		public RadarSiteFavoritesViewModel(RadarViewModel radar, ISettingsService settings, IMapService mapService)
 		{
@@ -127,6 +129,39 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		/// <summary>
+		/// Show only home + the favorites on the map (radar-sites.js's <c>favorites</c> rule; the loaded site always
+		/// shows). PERSISTED via <see cref="AppSettings.ShowOnlyFavoriteSites"/>, default off.
+		/// </summary>
+		/// <remarks>⚠️ TWO SWITCHES, ONE VALUE: Settings → Radar → Radar site keys AND the site picker's footer both
+		/// bind TwoWay to THIS property, so they can never disagree — don't give either its own copy.</remarks>
+		public bool ShowOnlyFavoritesOnMap
+		{
+			get => _settings.Settings.ShowOnlyFavoriteSites;
+			set
+			{
+				if (_settings.Settings.ShowOnlyFavoriteSites == value) return;
+				_settings.Settings.ShowOnlyFavoriteSites = value; // persists (auto-save)
+				OnPropertyChanged();
+				OnPropertyChanged(nameof(FavoritesOnlyNote));
+				_ = PushFavoritesOnlyAsync();
+			}
+		}
+
+		/// <summary>The line under the Settings switch — says so when there is nothing to show.</summary>
+		public string FavoritesOnlyNote => IsEmpty
+			? "You have no home site or favorites yet, so only a loaded site would show. Star sites in the Atlas."
+			: "Star sites in the Atlas. The loaded site always shows, and the site picker has the same switch.";
+
+		// The ids the page keeps: home + every favorite, era or not (the page's own era rule hides a retired one).
+		private Task PushFavoritesOnlyAsync()
+		{
+			if (!_isMapReady) return Task.CompletedTask;
+			var ids = _settings.Settings.FavoriteSiteIds.ToList();
+			if (_settings.Settings.HomeSiteId is { Length: > 0 } home) ids.Add(home);
+			return _mapService.SetFavoriteSitesOnlyAsync(ShowOnlyFavoritesOnMap, System.Text.Json.JsonSerializer.Serialize(ids));
+		}
+
 		/// <summary>Star or un-star a site.</summary>
 		public void ToggleFavorite(RadarSiteRow row)
 		{
@@ -144,6 +179,7 @@ namespace Anvil.ViewModels
 
 			RebuildPinned();
 			PinnedChanged?.Invoke(this, EventArgs.Empty);
+			_ = PushFavoritesOnlyAsync();
 		}
 
 		/// <summary>Make a site home, or clear home when it already is. Only one home: the old one is released.</summary>
@@ -163,6 +199,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(HomeSiteSummary));
 			RebuildPinned();
 			PinnedChanged?.Invoke(this, EventArgs.Empty);
+			_ = PushFavoritesOnlyAsync();
 		}
 
 		/// <summary>The site picker: load a home/favorite site and fly to it. ⚠️ Picking the site that is ALREADY
@@ -188,9 +225,13 @@ namespace Anvil.ViewModels
 
 		/// <summary>Launch behaviour. Once per app run — called last in <c>MapViewModel.OnMapsReadyAsync</c>, so
 		/// the markers exist and an isolation camera replay can't override the fly-to.</summary>
-		public Task OnMapsReadyAsync()
+		public async Task OnMapsReadyAsync()
 		{
-			if (_launchHandled) return Task.CompletedTask;
+			// Every map-ready, not once: a held command is replayed whenever the page is (re)built.
+			_isMapReady = true;
+			await PushFavoritesOnlyAsync();
+
+			if (_launchHandled) return;
 			_launchHandled = true;
 
 			// Not when PastCast came back from the last session: a live loop means nothing in replay, and
@@ -199,7 +240,6 @@ namespace Anvil.ViewModels
 			{
 				LoadOnMap(HomeSite!);
 			}
-			return Task.CompletedTask;
 		}
 
 		private void RebuildPinned()
@@ -227,6 +267,7 @@ namespace Anvil.ViewModels
 			}
 			OnPropertyChanged(nameof(IsEmpty));
 			OnPropertyChanged(nameof(PickerToolTip));
+			OnPropertyChanged(nameof(FavoritesOnlyNote));
 		}
 
 		private void RebuildSelected()

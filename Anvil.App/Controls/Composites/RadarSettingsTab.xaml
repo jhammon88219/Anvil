@@ -24,8 +24,12 @@
        │  ⌄  Radar site keys                                  │
        │    [✓] Hide the other sites while one is loaded      │  ← PERSISTED, default ON (the `focus` rule)
        │        Click the loaded site again to unload it…     │
+       │    [ ] Show only my home and favorite sites          │  ← PERSISTED, default off (the `favorites` rule);
+       │        Star sites in the Atlas. The loaded site …    │     the SITE PICKER's footer is the SAME switch;
+       │                                                      │     the line says so when there are none
        │    [ ] Show only the sites near the cursor (exp.)    │  ← PERSISTED, default off (the `reveal` rule,
-       │        A 230 km ring follows the cursor; …           │     a SITE-REVEAL bolt-on)
+       │        A 230 km ring follows the cursor; …           │     a SITE-REVEAL bolt-on); with favorites on too,
+       │                                                      │     favorites always show + the ring adds the rest
        │    The NEXRAD / TDWR / research toggles … still apply│  ← each row = ONE rule in radar-sites.js
        └──────────────────────────────────────────────────────┘
 
@@ -231,6 +235,15 @@
                 <TextBlock Margin="32,0,0,8" TextWrapping="Wrap" MaxWidth="400"
                            HorizontalAlignment="Left" Opacity="0.75"
                            Text="Click the loaded site again to unload it and bring the others back."/>
+
+                <!-- PERSISTED (AppSettings.ShowOnlyFavoriteSites), default off — the `favorites` rule. ⚠️ The SITE PICKER's
+                     footer (MapControlsStrip) binds the SAME property: two switches, one value, never a copy. -->
+                <CheckBox Margin="4,0,0,0"
+                          Content="Show only my home and favorite sites"
+                          IsChecked="{x:Bind ViewModel.SiteFavorites.ShowOnlyFavoritesOnMap, Mode=TwoWay}"/>
+                <TextBlock Margin="32,0,0,8" TextWrapping="Wrap" MaxWidth="400"
+                           HorizontalAlignment="Left" Opacity="0.75"
+                           Text="{x:Bind ViewModel.SiteFavorites.FavoritesOnlyNote, Mode=OneWay}"/>
 
                 <!-- SITE-REVEAL (experimental bolt-on; grep SITE-REVEAL to excise). PERSISTED
                      (AppSettings.RevealSitesNearCursor) — the `reveal` rule. -->

@@ -50,7 +50,7 @@
 //   no spot is clear it takes the one with the fewest collisions. A cheap no-op while neither opt-in
 //   network is shown, which is the default.
 //
-// WHICH KEYS SHOW — THE VISIBILITY RULES table below (network · era | declutter: isolation · reveal · focus).
+// WHICH KEYS SHOW — THE VISIBILITY RULES table below (network · era | declutter: isolation · reveal · favorites · focus).
 //
 //        rules:  network ✓  era ✓  isolation ✓  reveal ✗   → hidden        a key shows only when EVERY rule passes;
 //        loaded: network ✓  era ✓  (declutter skipped)      → shown         the LOADED site skips the declutter ones
@@ -135,6 +135,11 @@ function recomputeCoverage() {
 //   DECLUTTER — NEVER hides the LOADED site       isolation its range reaches the isolated state
 //   (it must not strand its own loop; you can     reveal    inside the cursor's ring (SITE-REVEAL)
 //   still unload it by clicking it again):        focus     while a site is LOADED, only it shows
+//                                                 favorites only home + favorites (Settings → Radar, or the
+//                                                           site picker's footer — one setting)
+//
+// ⚠️ ONE PAIRING, on purpose: favorites + reveal together mean "favorites always, the ring reveals the rest" —
+//    each lets the other's sites through. Plain AND would show only favorites INSIDE the ring, which is useless.
 //
 // Rules COMPOSE BY AND, so they cannot fight: with focus on and a site loaded, only that site shows whatever
 // the others say; with nothing loaded, focus passes everything and the rest decide.
@@ -142,11 +147,15 @@ function recomputeCoverage() {
 //    never a display write anywhere but applyVisibility — that is how the features used to stack up.
 let revealedIds = null;  // SITE-REVEAL: ids inside the cursor's ring; null = the reveal is off
 let focusOn = false;     // setFocus: hide the other sites while one is loaded (Settings → Radar)
+let favoriteIds = null;  // setFavoritesOnly: home + favorite ids; null = the filter is off
+function isRevealed(id) { return revealedIds !== null && revealedIds.has(id); }
+function isFavorite(id) { return favoriteIds !== null && favoriteIds.has(id); }
 const RULES = [
     { name: 'network',   declutter: false, test: function (id) { return researchIds.has(id) ? researchVisible : tdwrIds.has(id) ? tdwrVisible : nexradVisible; } },
     { name: 'era',       declutter: false, test: function (id) { return !outOfEraIds.has(id); } },
     { name: 'isolation', declutter: true,  test: function (id) { return coveredIds === null || coveredIds.has(id); } },
-    { name: 'reveal',    declutter: true,  test: function (id) { return revealedIds === null || revealedIds.has(id); } }, // SITE-REVEAL
+    { name: 'reveal',    declutter: true,  test: function (id) { return revealedIds === null || revealedIds.has(id) || isFavorite(id); } }, // SITE-REVEAL
+    { name: 'favorites', declutter: true,  test: function (id) { return favoriteIds === null || favoriteIds.has(id) || isRevealed(id); } },
     { name: 'focus',     declutter: true,  test: function () { return !focusOn || selectedSiteId === null; } },
 ];
 
@@ -163,6 +172,15 @@ function markerVisible(id) {
 // and the rest come back. Its trigger is setSelected, which already re-applies the rules.
 export function setFocus(on) {
     focusOn = !!on;
+    applyVisibility();
+}
+
+// FAVORITES: only home + favorites show (RadarSiteFavoritesViewModel.ShowOnlyFavoritesOnMap). The flag and the
+// list arrive TOGETHER, re-pushed on every star / home change; off = null whatever the list holds.
+export function setFavoritesOnly(on, json) {
+    let ids = [];
+    try { ids = JSON.parse(json || '[]'); } catch (e) { console.error('setFavoritesOnly: bad id list'); }
+    favoriteIds = on ? new Set(ids) : null;
     applyVisibility();
 }
 

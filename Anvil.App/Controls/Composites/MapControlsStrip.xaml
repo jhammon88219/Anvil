@@ -14,6 +14,7 @@
        │ ★ KINX  Tulsa              ● │  ← favorites, starred order, scrolls
        │ ★ KFWS  Dallas/Ft Worth    ● │     ● = online / offline / grey not-checked
        │──────────────────────────────│
+       │ [ ] Show only these on the map│  ← = Settings → Radar → Radar site keys (ONE value, two switches)
        │ Open Atlas                   │  ← footer (+ a hint line above it when there are no sites)
        └──────────────────────────────┘          ┌─────────────────────────────┐
                                                   │ Moore, OK          pop 62k  │   ← place suggestions
@@ -528,6 +529,12 @@
                                        TextWrapping="Wrap" FontSize="12"
                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                        Visibility="{x:Bind ViewModel.SiteFavorites.IsEmpty, Mode=OneWay}"/>
+                            <!-- FAVORITES ONLY — the SAME property as Settings → Radar → Radar site keys (two switches,
+                                 one value). Here because this list IS home + favorites: "these" needs no explaining. -->
+                            <CheckBox Margin="11,0,11,0"
+                                      Content="Show only these on the map"
+                                      IsChecked="{x:Bind ViewModel.SiteFavorites.ShowOnlyFavoritesOnMap, Mode=TwoWay}"
+                                      ToolTipService.ToolTip="Hide every other radar site on the map. The loaded site always shows."/>
                             <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                                     Background="Transparent" BorderThickness="0" Padding="11,6"
                                     Content="Open Atlas"
