@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -135,6 +136,10 @@ namespace Anvil
 		// Ids we are closing ourselves (the flag went false elsewhere), so the Closed handler doesn't mistake
 		// it for the user clicking the OS caption's Close and re-fire the Close action.
 		private readonly HashSet<string> _closingProgrammatically = new();
+
+		private readonly Microsoft.Extensions.Logging.ILogger<WindowManager> _logger;
+
+		public WindowManager(Microsoft.Extensions.Logging.ILogger<WindowManager> logger) => _logger = logger;
 
 		private Window? _owner;
 		private bool _ownerClosed; // the app is closing — never hand focus back to the main window then
@@ -294,9 +299,17 @@ namespace Anvil
 		{
 			if (_owner is null) return;
 
+			// OPEN TIMING (2026-10-10): building the launch's Now + Fore windows was 804 ms of the map-ready chain, and the
+			// UI thread froze 0.9-2.6 s right after. Every open logs its phases, all from the start of this method: build
+			// (the section's XAML) · create (Window + chrome + placement + Activate) · loaded / first layout / first
+			// rendered frame (the content's own, on later UI ticks) — and whether a debugger is attached, whose XAML
+			// tooling hooks every element (compare an F5 launch with a Start-menu one).
+			var clock = System.Diagnostics.Stopwatch.StartNew();
+
 			// The section content IS the window content: its dark surface fills the whole window (no panel
 			// frame, no backdrop), so growing the window just reveals more of that surface.
 			var content = reg.BuildContent();
+			var buildMs = clock.ElapsedMilliseconds;
 
 			// Take the DPI scale from the OWNER window (already loaded, so its XamlRoot is available) rather
 			// than the new window's — the new window has no XamlRoot until its content loads, which is AFTER
@@ -346,6 +359,36 @@ namespace Anvil
 
 			if (target is { } after) PlaceVisibleFrame(hwnd, after.X, after.Y, after.W, after.H);
 			frameLock.Placing = false;
+			TraceOpen(reg.Id, content, clock, buildMs, createMs: clock.ElapsedMilliseconds - buildMs);
+		}
+
+		// The rest of OPEN TIMING (see OpenWindow): waits for the content's Loaded, then its first LayoutUpdated, then the
+		// next rendered frame, and logs one line. Handlers unhook themselves; nothing here changes the window.
+		private void TraceOpen(string id, FrameworkElement content, System.Diagnostics.Stopwatch clock, long buildMs, long createMs)
+		{
+			long loadedMs = -1, layoutMs = -1;
+			void OnLoaded(object s, RoutedEventArgs e)
+			{
+				content.Loaded -= OnLoaded;
+				loadedMs = clock.ElapsedMilliseconds;
+				content.LayoutUpdated += OnLayout;
+			}
+			void OnLayout(object? s, object e)
+			{
+				content.LayoutUpdated -= OnLayout;
+				layoutMs = clock.ElapsedMilliseconds;
+				Microsoft.UI.Xaml.Media.CompositionTarget.Rendering += OnFrame;
+			}
+			void OnFrame(object? s, object e)
+			{
+				Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= OnFrame;
+				_logger.LogInformation(
+					"Window {Id} opened in {Total} ms: build {Build} · create+activate {Create} · loaded at {Loaded} · " +
+					"first layout at {Layout} · first frame at {Frame} (debugger {Debugger})",
+					id, clock.ElapsedMilliseconds, buildMs, createMs, loadedMs, layoutMs, clock.ElapsedMilliseconds,
+					System.Diagnostics.Debugger.IsAttached ? "attached" : "not attached");
+			}
+			content.Loaded += OnLoaded;
 		}
 
 		// The single-monitor CHROME POLICY (see the header): taskbar button, minimize + close, never topmost.

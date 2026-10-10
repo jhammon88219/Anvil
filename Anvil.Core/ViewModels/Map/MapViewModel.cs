@@ -1781,8 +1781,9 @@ namespace Anvil.ViewModels
 			// ⚠️ AFTER the restore: a restored PastCast runs no site check, and started before it, the live pass showed in
 			// the bar for a moment before PastCast came back (RadarViewModel.StartSiteChecks).
 			Radar.StartSiteChecks();
-			_startupLog.LogInformation("Map-ready startup: {Ms} ms to the home site{Slow}", clock.ElapsedMilliseconds,
-				slow.Count == 0 ? "" : " — slow: " + string.Join(", ", slow));
+			_startupLog.LogInformation("Map-ready startup: {Ms} ms to the home site{Slow} (debugger {Debugger})", clock.ElapsedMilliseconds,
+				slow.Count == 0 ? "" : " — slow: " + string.Join(", ", slow),
+				System.Diagnostics.Debugger.IsAttached ? "attached" : "not attached");
 			// LAST: load-home-on-launch flies the camera, and an isolation replay above would override it.
 			await SiteFavorites.OnMapsReadyAsync();
 		}
