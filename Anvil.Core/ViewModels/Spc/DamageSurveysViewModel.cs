@@ -194,7 +194,8 @@ namespace Anvil.ViewModels
 		{
 			_isMapReady = true;
 			await _mapService.SetDamageSurveysOpacityAsync(_opacity);
-			await EnsureAndShowAsync();
+			// NOT AWAITED — a network fetch (NWS DAT + NCEI) must not hold the launch chain; see StormReportsViewModel.
+			_ = EnsureAndShowAsync();
 		}
 
 		// ── Reactions ──

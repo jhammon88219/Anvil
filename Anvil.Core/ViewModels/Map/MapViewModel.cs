@@ -38,6 +38,7 @@ namespace Anvil.ViewModels
 	public sealed class MapViewModel : ObservableObject
 	{
 		private readonly IMapService _mapService;
+		private readonly ILogger<MapViewModel> _startupLog; // the "Map-ready startup" timing line
 		private readonly IStyleProvider _styleProvider;
 		private readonly IRegionProvider _regionProvider;
 		private readonly ISettingsService _settingsService;
@@ -59,6 +60,7 @@ namespace Anvil.ViewModels
 		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, ITropicalService tropicalService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion, LoopLoadLog? loopLoadLog = null, LivePollTimingLog? livePollTimingLog = null)
 		{
 			_mapService = mapService;
+			_startupLog = loggerFactory.CreateLogger<MapViewModel>();
 			_styleProvider = styleProvider;
 			_regionProvider = regionProvider;
 			_settingsService = settingsService;
@@ -1746,30 +1748,47 @@ namespace Anvil.ViewModels
 			// Hand off subsystem startup: outlook (startup overlay + progress), watches (source + toggle),
 			// and radar (site markers, offline-status loop, radar progress bar). Markers has no startup
 			// work — just flip its readiness so user-driven locate/marker pushes are allowed.
+			// ⚠️ Every step is AWAITED IN ORDER, and the temporal windows + the home radar come only after the last — so a
+			// step must never wait on the NETWORK (fire its fetch detached). A storm-report fetch here held launches for up to
+			// 22.8 s (2026-10-10). Each step is TIMED, and the slow ones are named in the log ("Map-ready startup").
 			Markers.SetMapReady();
-			await Outlook.OnMapsReadyAsync();
-			await Watches.OnMapsReadyAsync();
-			await Warnings.OnMapsReadyAsync();
-			await Radar.OnMapsReadyAsync();
-			await PastOutlook.OnMapsReadyAsync();
-			await StormReports.OnMapsReadyAsync();
-			await DamageSurveys.OnMapsReadyAsync(); // no Shutdown: it has no loop
-			await StormCells.OnMapsReadyAsync();
-			await PastAlerts.OnMapsReadyAsync(); // no Shutdown: it has no loop
-			await Discussions.OnMapsReadyAsync();
-			await Tropical.OnMapsReadyAsync();
-			await StateIso.OnMapsReadyAsync();
-			await Basemap.OnMapsReadyAsync(); // after isolation, so a hidden map repaints the mask blank
+			var clock = System.Diagnostics.Stopwatch.StartNew();
+			var slow = new List<string>();
+			async Task Step(string name, Func<Task> run)
+			{
+				var at = clock.ElapsedMilliseconds;
+				await run();
+				var ms = clock.ElapsedMilliseconds - at;
+				if (ms >= SlowStartupStepMs) slow.Add($"{name} {ms} ms");
+			}
+			await Step("outlook", Outlook.OnMapsReadyAsync);
+			await Step("watches", Watches.OnMapsReadyAsync);
+			await Step("warnings", Warnings.OnMapsReadyAsync);
+			await Step("radar", Radar.OnMapsReadyAsync);
+			await Step("past outlook", PastOutlook.OnMapsReadyAsync);
+			await Step("storm reports", StormReports.OnMapsReadyAsync);
+			await Step("damage surveys", DamageSurveys.OnMapsReadyAsync); // no Shutdown: it has no loop
+			await Step("storm cells", StormCells.OnMapsReadyAsync);
+			await Step("past alerts", PastAlerts.OnMapsReadyAsync); // no Shutdown: it has no loop
+			await Step("discussions", Discussions.OnMapsReadyAsync);
+			await Step("tropical", Tropical.OnMapsReadyAsync);
+			await Step("isolation", StateIso.OnMapsReadyAsync);
+			await Step("basemap", Basemap.OnMapsReadyAsync); // after isolation, so a hidden map repaints the mask blank
 			RadarNws.Start(); // the launch NWS status check — fire-and-forget, it touches no map
 			// The modes that were on last run, and their windows. BEFORE the home-site launch: a restored
 			// PastCast means "replay", and SiteFavorites skips starting a live loop in that case.
-			RestoreTemporalSession();
+			await Step("temporal session", () => { RestoreTemporalSession(); return Task.CompletedTask; });
 			// ⚠️ AFTER the restore: a restored PastCast runs no site check, and started before it, the live pass showed in
 			// the bar for a moment before PastCast came back (RadarViewModel.StartSiteChecks).
 			Radar.StartSiteChecks();
+			_startupLog.LogInformation("Map-ready startup: {Ms} ms to the home site{Slow}", clock.ElapsedMilliseconds,
+				slow.Count == 0 ? "" : " — slow: " + string.Join(", ", slow));
 			// LAST: load-home-on-launch flies the camera, and an isolation replay above would override it.
 			await SiteFavorites.OnMapsReadyAsync();
 		}
+
+		/// <summary>A map-ready step at least this slow is named in the startup log line.</summary>
+		private const int SlowStartupStepMs = 250;
 
 		/// <summary>
 		/// Called by the view from the main window's Closed: stops every app-lifetime background loop the

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Anvil.Models;
 using Anvil.Services;
 using Anvil.ViewModels;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -19,18 +20,35 @@ namespace Anvil.Tests
 	{
 		private static T N<T>() where T : class => TemporalWindowPersistenceTests.Null<T>.Create();
 
-		private static MapViewModel New(AppSettings settings)
+		private static MapViewModel New(AppSettings settings, IStormReportService? stormReports = null)
 		{
 			var settingsService = TemporalWindowPersistenceTests.Null<ISettingsService>.Create(
 				new() { ["get_Settings"] = _ => settings });
 			var usageDir = Path.Combine(Path.GetTempPath(), "AnvilSessionTests", System.Guid.NewGuid().ToString("N"));
 			return new MapViewModel(N<IMapService>(), N<IStyleProvider>(), N<IThemeProvider>(), N<IRegionProvider>(),
-				N<ISpcOutlookService>(), N<ISpcWatchService>(), N<IWarningService>(), N<IStormReportService>(),
+				N<ISpcOutlookService>(), N<ISpcWatchService>(), N<IWarningService>(), stormReports ?? N<IStormReportService>(),
 				N<IDamageSurveyService>(), N<IStormCellService>(), N<IPastAlertService>(), N<IMesoDiscussionService>(), N<ITropicalService>(), N<IRadarSiteProvider>(), N<ILevel2RadarService>(), N<ILocationService>(),
 				N<IPlaceSearchService>(), N<IDowEventProvider>(), N<ISavedEventLibrary>(), N<IDispatcher>(),
 				settingsService, NullLoggerFactory.Instance, new SiteUsageStore(NullLogger<SiteUsageStore>.Instance, usageDir),
 				N<IRadarNwsStatusService>(), N<IRadarUptimeService>(), N<IRadarMessageHistoryService>(),
 				N<IRadarScanPatternService>(), new NonStandardVcpLog(NullLogger<NonStandardVcpLog>.Instance, usageDir), null);
+		}
+
+		[Fact]
+		public async Task MapReady_does_not_wait_on_the_storm_report_fetch()
+		{
+			// 2026-10-10: map-ready AWAITED the launch storm-report fetch (SPC + IEM), so a slow server held the temporal
+			// windows and the home radar for up to 22.8 s. A fetch that never answers must not hold the launch.
+			var never = new TaskCompletionSource<StormReportResult>();
+			var reports = TemporalWindowPersistenceTests.Null<IStormReportService>.Create(
+				new() { ["EnsureReportsAsync"] = _ => never.Task });
+			var vm = New(new AppSettings { NowCastOn = true, NowWindowOpen = true }, reports);
+
+			var ready = vm.OnMapsReadyAsync();
+			Assert.Same(ready, await Task.WhenAny(ready, Task.Delay(5000)));
+			await ready;
+			Assert.True(vm.IsNowCast);           // the session came back…
+			Assert.True(vm.IsNowWindowOpen);     // …with its window, while the reports are still loading
 		}
 
 		[Fact]

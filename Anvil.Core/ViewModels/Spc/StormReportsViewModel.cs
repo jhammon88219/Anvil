@@ -265,7 +265,12 @@ namespace Anvil.ViewModels
 			// ⚠️ Unconditional. The counts are this section's READOUT, not a by-product of drawing dots, so
 			// they have to be right before any type is switched on. Cost: one report fetch at launch that
 			// used to happen only when a box was ticked.
-			await EnsureAndShowAsync();
+			// ⚠️ NOT AWAITED: it is a network fetch (3 SPC CSVs + the IEM narratives, 30 s timeout each), and
+			// MapViewModel.OnMapsReadyAsync awaits every subsystem IN ORDER before it restores the temporal windows
+			// and loads the home radar — a slow SPC/IEM held the whole launch (2026-10-10: 22.8 s from radar setup to
+			// the home site, 1.0–1.5 s on every launch before). It runs detached everywhere else already; it owns its
+			// card ("Loading…") and catches its own fetch failures.
+			_ = EnsureAndShowAsync();
 		}
 
 		/// <summary>Kicks off the storm-report background refresh loop (called once at launch). Only does work
