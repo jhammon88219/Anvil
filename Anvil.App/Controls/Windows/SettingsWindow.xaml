@@ -119,22 +119,23 @@
                     <cmp:MapSettingsTab x:Name="MapTab" ViewModel="{x:Bind ViewModel}"
                                         Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 0), Mode=OneWay}"/>
 
-                    <cmp:RadarSettingsTab ViewModel="{x:Bind ViewModel}"
+                    <!-- x:Name'd (all of them) so PersistSectionExpansion can key each tab's sections by tab. -->
+                    <cmp:RadarSettingsTab x:Name="RadarTab" ViewModel="{x:Bind ViewModel}"
                                           Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 1), Mode=OneWay}"/>
 
-                    <cmp:RangeRingSettingsTab ViewModel="{x:Bind ViewModel}"
+                    <cmp:RangeRingSettingsTab x:Name="RangeRingTab" ViewModel="{x:Bind ViewModel}"
                                               Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 2), Mode=OneWay}"/>
 
-                    <cmp:StorageSettingsTab ViewModel="{x:Bind ViewModel}"
+                    <cmp:StorageSettingsTab x:Name="StorageTab" ViewModel="{x:Bind ViewModel}"
                                             Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 3), Mode=OneWay}"/>
 
-                    <cmp:WindowModeSettingsTab ViewModel="{x:Bind ViewModel}"
+                    <cmp:WindowModeSettingsTab x:Name="WindowModeTab" ViewModel="{x:Bind ViewModel}"
                                                Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 4), Mode=OneWay}"/>
 
-                    <cmp:RadarConsoleSettingsTab ViewModel="{x:Bind ViewModel}"
+                    <cmp:RadarConsoleSettingsTab x:Name="ConsoleTab" ViewModel="{x:Bind ViewModel}"
                                                  Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 5), Mode=OneWay}"/>
 
-                    <cmp:StartupSettingsTab ViewModel="{x:Bind ViewModel}"
+                    <cmp:StartupSettingsTab x:Name="StartupTab" ViewModel="{x:Bind ViewModel}"
                                             Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 6), Mode=OneWay}"/>
 
                     <!-- ⚠️ x:Load, not Visibility — see the header. LoadDevTab is hard-false in Release, so

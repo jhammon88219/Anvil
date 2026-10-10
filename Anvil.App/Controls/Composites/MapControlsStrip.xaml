@@ -217,6 +217,18 @@
                 <Setter Property="Height" Value="18"/>
             </Style>
 
+            <!-- ⭐ GLYPH SIZE — TUNE HERE (the user's note, 2026-10-10: bigger marks, SAME bar height). The keys stay 32 × 32,
+                 so the tier never grows; only the mark inside does. Drawn marks are designed in the 18-unit box above and
+                 a PathIcon can't stretch, so each sits in a Viewbox (StripGlyphBox) that scales it to StripGlyphSize. The
+                 pane-layout marks are plain Grids sized to it; font glyphs take StripFontGlyphSize (a font's glyph is a
+                 bit smaller than its em, hence 20 beside 22). Keep both under the key's 30 inner px. -->
+            <x:Double x:Key="StripGlyphSize">22</x:Double>
+            <x:Double x:Key="StripFontGlyphSize">20</x:Double>
+            <Style x:Key="StripGlyphBox" TargetType="Viewbox">
+                <Setter Property="Width" Value="{StaticResource StripGlyphSize}"/>
+                <Setter Property="Height" Value="{StaticResource StripGlyphSize}"/>
+            </Style>
+
             <!-- A tool button. LOCAL, not in Styles.xaml: this strip is its only consumer, which is that
                  file's house rule. Deliberately NOT the bar-key chain — a bar key is a 72px square carrying
                  a mark over a NAME, and a row of those would make this a second bar rather than a tier of
@@ -455,7 +467,7 @@
                         </ResourceDictionary.ThemeDictionaries>
                     </ResourceDictionary>
                 </ToggleButton.Resources>
-                <PathIcon Data="M2.9,13.5 A1.6,1.6 0 1 1 6.1,13.5 A1.6,1.6 0 1 1 2.9,13.5 Z M4.5,8 A5.5,5.5 0 0 1 10,13.5 A1,1 0 0 1 8,13.5 A3.5,3.5 0 0 0 4.5,10 A1,1 0 0 1 4.5,8 Z M4.5,3 A10.5,10.5 0 0 1 15,13.5 A1,1 0 0 1 13,13.5 A8.5,8.5 0 0 0 4.5,5 A1,1 0 0 1 4.5,3 Z"/>
+                <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M2.9,13.5 A1.6,1.6 0 1 1 6.1,13.5 A1.6,1.6 0 1 1 2.9,13.5 Z M4.5,8 A5.5,5.5 0 0 1 10,13.5 A1,1 0 0 1 8,13.5 A3.5,3.5 0 0 0 4.5,10 A1,1 0 0 1 4.5,8 Z M4.5,3 A10.5,10.5 0 0 1 15,13.5 A1,1 0 0 1 13,13.5 A8.5,8.5 0 0 0 4.5,5 A1,1 0 0 1 4.5,3 Z"/></Viewbox>
             </ToggleButton>
             <ToggleButton x:Name="TdwrSitesToggle"
                           Style="{StaticResource StripToolToggleStyle}"
@@ -477,7 +489,7 @@
                         </ResourceDictionary.ThemeDictionaries>
                     </ResourceDictionary>
                 </ToggleButton.Resources>
-                <PathIcon Data="M9,0.9 C9.54,0.9 9.9,1.71 9.9,2.7 V7.38 L16.2,10.98 V12.69 L9.9,10.89 V14.4 L11.7,15.75 V17.1 L9,16.2 L6.3,17.1 V15.75 L8.1,14.4 V10.89 L1.8,12.69 V10.98 L8.1,7.38 V2.7 C8.1,1.71 8.46,0.9 9,0.9 Z"/>
+                <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M9,0.9 C9.54,0.9 9.9,1.71 9.9,2.7 V7.38 L16.2,10.98 V12.69 L9.9,10.89 V14.4 L11.7,15.75 V17.1 L9,16.2 L6.3,17.1 V15.75 L8.1,14.4 V10.89 L1.8,12.69 V10.98 L8.1,7.38 V2.7 C8.1,1.71 8.46,0.9 9,0.9 Z"/></Viewbox>
             </ToggleButton>
             <ToggleButton x:Name="ResearchSitesToggle"
                           Style="{StaticResource StripToolToggleStyle}"
@@ -499,7 +511,7 @@
                         </ResourceDictionary.ThemeDictionaries>
                     </ResourceDictionary>
                 </ToggleButton.Resources>
-                <PathIcon Data="F1 M6.75,2.25 A0.75,0.75 0 0 0 6.75,3.75 H11.25 A0.75,0.75 0 0 0 11.25,2.25 Z M6.75,3 V6.5625 L3.537,12.6225 A2.175,2.175 0 0 0 5.475,15.75 H12.525 A2.175,2.175 0 0 0 14.463,12.6225 L11.25,6.5625 V3 Z M8.25,3.75 H9.75 V6.9375 L13.137,13.3275 A0.675,0.675 0 0 1 12.525,14.25 H5.475 A0.675,0.675 0 0 1 4.863,13.3275 L8.25,6.9375 Z"/>
+                <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="F1 M6.75,2.25 A0.75,0.75 0 0 0 6.75,3.75 H11.25 A0.75,0.75 0 0 0 11.25,2.25 Z M6.75,3 V6.5625 L3.537,12.6225 A2.175,2.175 0 0 0 5.475,15.75 H12.525 A2.175,2.175 0 0 0 14.463,12.6225 L11.25,6.5625 V3 Z M8.25,3.75 H9.75 V6.9375 L13.137,13.3275 A0.675,0.675 0 0 1 12.525,14.25 H5.475 A0.675,0.675 0 0 1 4.863,13.3275 L8.25,6.9375 Z"/></Viewbox>
             </ToggleButton>
             </StackPanel>
 
@@ -562,7 +574,7 @@
                           IsEnabled="{x:Bind ViewModel.Radar.IsTransportEnabled, Mode=OneWay}"
                           IsChecked="{x:Bind ViewModel.Radar.IsInspecting, Mode=TwoWay}"
                           ToolTipService.ToolTip="Inspect - read radar values under the cursor (click again to turn it off)">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE721;"/>
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="{StaticResource StripFontGlyphSize}" Glyph="&#xE721;"/>
             </ToggleButton>
 
             <!-- RANGE RULER - arm the graduated spoke from the loaded site out to the range ring. In the CENTRE,
@@ -582,7 +594,7 @@
                           ToolTipService.ToolTip="Range ruler - drag the bead to measure from the site (click again to turn it off)">
                 <!-- A graduated bar: outer rect, hollowed, with four ticks hanging off its top edge
                      (EvenOdd puts the ticks back inside the hole). -->
-                <PathIcon Data="M1,6 H17 V12 H1 Z M2.4,7.4 H15.6 V10.6 H2.4 Z M4.2,7.4 H5.0 V10.2 H4.2 Z M7.0,7.4 H7.8 V9.2 H7.0 Z M9.8,7.4 H10.6 V10.2 H9.8 Z M12.6,7.4 H13.4 V9.2 H12.6 Z"/>
+                <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M1,6 H17 V12 H1 Z M2.4,7.4 H15.6 V10.6 H2.4 Z M4.2,7.4 H5.0 V10.2 H4.2 Z M7.0,7.4 H7.8 V9.2 H7.0 Z M9.8,7.4 H10.6 V10.2 H9.8 Z M12.6,7.4 H13.4 V9.2 H12.6 Z"/></Viewbox>
             </ToggleButton>
 
             <!-- RANGE RINGS - the MASTER show/hide for every range ring, its labels and the label handle
@@ -597,7 +609,7 @@
                           IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                           IsChecked="{x:Bind ViewModel.Radar.RangeRings.RingsVisible, Mode=TwoWay}"
                           ToolTipService.ToolTip="{x:Bind RangeRingsTooltip(ViewModel.Radar.RangeRings.RingsVisible), Mode=OneWay}">
-                <PathIcon Data="M9,0.5 A8.5,8.5 0 1 0 9,17.5 A8.5,8.5 0 1 0 9,0.5 Z M9,1.9 A7.1,7.1 0 1 0 9,16.1 A7.1,7.1 0 1 0 9,1.9 Z M9,3.9 A5.1,5.1 0 1 0 9,14.1 A5.1,5.1 0 1 0 9,3.9 Z M9,5.3 A3.7,3.7 0 1 0 9,12.7 A3.7,3.7 0 1 0 9,5.3 Z M9,7.4 A1.6,1.6 0 1 0 9,10.6 A1.6,1.6 0 1 0 9,7.4 Z"/>
+                <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M9,0.5 A8.5,8.5 0 1 0 9,17.5 A8.5,8.5 0 1 0 9,0.5 Z M9,1.9 A7.1,7.1 0 1 0 9,16.1 A7.1,7.1 0 1 0 9,1.9 Z M9,3.9 A5.1,5.1 0 1 0 9,14.1 A5.1,5.1 0 1 0 9,3.9 Z M9,5.3 A3.7,3.7 0 1 0 9,12.7 A3.7,3.7 0 1 0 9,5.3 Z M9,7.4 A1.6,1.6 0 1 0 9,10.6 A1.6,1.6 0 1 0 9,7.4 Z"/></Viewbox>
             </ToggleButton>
             </StackPanel>
         </StackPanel>
@@ -631,7 +643,7 @@
                     Style="{StaticResource StripToolButtonStyle}"
                     IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                     ToolTipService.ToolTip="Markers (coming soon)">
-                <PathIcon Data="M9,0 C5.1,0 2,3.1 2,7 C2,12 9,18 9,18 C9,18 16,12 16,7 C16,3.1 12.9,0 9,0 Z M9,4.5 A2.5,2.5 0 1,0 9,9.5 A2.5,2.5 0 1,0 9,4.5 Z"/>
+                <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M9,0 C5.1,0 2,3.1 2,7 C2,12 9,18 9,18 C9,18 16,12 16,7 C16,3.1 12.9,0 9,0 Z M9,4.5 A2.5,2.5 0 1,0 9,9.5 A2.5,2.5 0 1,0 9,4.5 Z"/></Viewbox>
             </Button>
 
             <!-- LOCATION — drop / remove your marker. ONE-WAY IsChecked, re-asserted in the handler. LAST of the left
@@ -645,7 +657,7 @@
                           ToolTipService.ToolTip="{x:Bind LocationTooltip(ViewModel.Markers.HasUserLocationMarker, ViewModel.Markers.LocateStatusText), Mode=OneWay}"
                           Click="OnToggleUserLocation">
                 <!-- Ring (donut 3.6-5.2), SOLID core (r 2.2), four ticks standing off it. -->
-                <PathIcon Data="M3.8,9 A5.2,5.2 0 1,0 14.2,9 A5.2,5.2 0 1,0 3.8,9 Z M5.4,9 A3.6,3.6 0 1,0 12.6,9 A3.6,3.6 0 1,0 5.4,9 Z M6.8,9 A2.2,2.2 0 1,0 11.2,9 A2.2,2.2 0 1,0 6.8,9 Z M8.2,0 H9.8 V3 H8.2 Z M8.2,15 H9.8 V18 H8.2 Z M0,8.2 H3 V9.8 H0 Z M15,8.2 H18 V9.8 H15 Z"/>
+                <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M3.8,9 A5.2,5.2 0 1,0 14.2,9 A5.2,5.2 0 1,0 3.8,9 Z M5.4,9 A3.6,3.6 0 1,0 12.6,9 A3.6,3.6 0 1,0 5.4,9 Z M6.8,9 A2.2,2.2 0 1,0 11.2,9 A2.2,2.2 0 1,0 6.8,9 Z M8.2,0 H9.8 V3 H8.2 Z M8.2,15 H9.8 V18 H8.2 Z M0,8.2 H3 V9.8 H0 Z M15,8.2 H18 V9.8 H15 Z"/></Viewbox>
             </ToggleButton>
         </StackPanel>
 
@@ -662,7 +674,7 @@
                               Click="OnPaneLayoutClick"
                               IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                               ToolTipService.ToolTip="Activate 1-pane mode">
-                    <Grid Width="18" Height="18" Opacity="{x:Bind LockedOpacity(ViewModel.Radar.AreControlsLocked), Mode=OneWay}">
+                    <Grid Width="{StaticResource StripGlyphSize}" Height="{StaticResource StripGlyphSize}" Opacity="{x:Bind LockedOpacity(ViewModel.Radar.AreControlsLocked), Mode=OneWay}">
                         <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
                     </Grid>
                 </ToggleButton>
@@ -673,7 +685,7 @@
                               Click="OnPaneLayoutClick"
                               IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                               ToolTipService.ToolTip="Activate 2-pane mode">
-                    <Grid Width="18" Height="18" ColumnSpacing="2" Opacity="{x:Bind LockedOpacity(ViewModel.Radar.AreControlsLocked), Mode=OneWay}">
+                    <Grid Width="{StaticResource StripGlyphSize}" Height="{StaticResource StripGlyphSize}" ColumnSpacing="2" Opacity="{x:Bind LockedOpacity(ViewModel.Radar.AreControlsLocked), Mode=OneWay}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition/>
                             <ColumnDefinition/>
@@ -689,7 +701,7 @@
                               Click="OnPaneLayoutClick"
                               IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                               ToolTipService.ToolTip="Activate 4-pane mode">
-                    <Grid Width="18" Height="18" ColumnSpacing="2" RowSpacing="2" Opacity="{x:Bind LockedOpacity(ViewModel.Radar.AreControlsLocked), Mode=OneWay}">
+                    <Grid Width="{StaticResource StripGlyphSize}" Height="{StaticResource StripGlyphSize}" ColumnSpacing="2" RowSpacing="2" Opacity="{x:Bind LockedOpacity(ViewModel.Radar.AreControlsLocked), Mode=OneWay}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition/>
                             <ColumnDefinition/>
@@ -713,7 +725,7 @@
                     Click="OnResetNorthClick"
                     IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                     ToolTipService.ToolTip="Reset North/Flat">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE72C;"/>
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="{StaticResource StripFontGlyphSize}" Glyph="&#xE72C;"/>
             </Button>
 
             <!-- Fit to view — frame the effective region (isolated state, else CONUS). -->
@@ -721,7 +733,7 @@
                     Click="OnFitToViewClick"
                     IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
                     ToolTipService.ToolTip="Fit To View">
-                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="16" Glyph="&#xE740;"/>
+                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="{StaticResource StripFontGlyphSize}" Glyph="&#xE740;"/>
             </Button>
 
             <prim:MapControlsStripSeparator Margin="12,0"/>
@@ -736,7 +748,7 @@
                               IsChecked="{x:Bind ViewModel.Basemap.IsMapShown, Mode=TwoWay}"
                               ToolTipService.ToolTip="{x:Bind MapShownTooltip(ViewModel.Basemap.IsMapShown), Mode=OneWay}">
                     <!-- A folded map: three panels, the middle one set back. Drawn, not an unverified glyph. -->
-                    <PathIcon Data="M1,3.6 L5.4,1.8 L5.4,14.6 L1,16.4 Z M6.6,1.8 L11.4,3.6 L11.4,16.4 L6.6,14.6 Z M12.6,3.6 L17,1.8 L17,14.6 L12.6,16.4 Z"/>
+                    <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M1,3.6 L5.4,1.8 L5.4,14.6 L1,16.4 Z M6.6,1.8 L11.4,3.6 L11.4,16.4 L6.6,14.6 Z M12.6,3.6 L17,1.8 L17,14.6 L12.6,16.4 Z"/></Viewbox>
                 </ToggleButton>
                 <Button x:Name="MapLayersButton"
                         Width="16"

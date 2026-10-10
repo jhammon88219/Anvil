@@ -26,7 +26,7 @@ namespace Anvil.ViewModels
 	///                     │  │
 	///        "Use the map"│  │"Keep waiting"
 	///                     ▼  │
-	///               ConfirmingEscape ──"Use the map"──▶ Hidden  (+ "Don't hold future loads" → setting off)
+	///               ConfirmingEscape ──"Use the map"──▶ Hidden  (this load only — there is NO permanent opt-out)
 	///                                                    │ still loading: the BAR's readout shows the progress,
 	///                                                    └ and its "Hold the map again" → ReturnToHold → Holding
 	///   Holding ──"Cancel load"──▶ Cancelling ──(loop cut to its lit run)──▶ Cancelled ──"Got it"──▶ Hidden
@@ -38,7 +38,8 @@ namespace Anvil.ViewModels
 	/// ⚠️ TRUTH ONLY: the counts are the engine's (frames whose volume arrived; scrubber cells lit), never a
 	/// timer or an estimate. The engine pushes them through <see cref="Report"/>.
 	/// ⚠️ The escape is deliberately the quiet path: a borderless button, then a confirm that says what you
-	/// get. The permanent opt-out lives INSIDE that confirm and in Settings → Radar → PastCast.
+	/// get. ⚠️ There is NO permanent opt-out: the "Don't hold future loads" box and Settings → Radar → PastCast's
+	/// switch (AppSettings.HoldPastCastLoads) were REMOVED 2026-10-10, the user's call. Don't re-add one.
 	/// ⚠️ READY WAITS FOR THE PRESS (the user's call, 2026-10-02): someone reading <see cref="WhyText"/> isn't yanked
 	/// onto the map. But only a screen that was SEEN waits: a load finishing inside <see cref="FadeInDelayMs"/> (a
 	/// cached replay) never showed the gate, so it just releases — and after "Use the map" there is nothing to wait on.
@@ -76,7 +77,6 @@ namespace Anvil.ViewModels
 		// Where each landed frame's bytes came from, by loop index (a frame re-landing — a tilt re-cut — overwrites).
 		private readonly System.Collections.Generic.Dictionary<int, FrameNote> _sources = new();
 
-		private readonly ISettingsService _settings;
 		private readonly Func<Task> _cancelLoad;
 		private LoopGateState _state;
 		private bool _armed;     // the loop has actually begun — counts before this are a previous loop's
@@ -85,11 +85,9 @@ namespace Anvil.ViewModels
 		private string _eventLine = string.Empty;
 		private int _total, _downloaded, _built;
 		private string _keptText = string.Empty;
-		private bool _neverHoldAgain;
 
-		public LoopHoldingGateViewModel(ISettingsService settings, Func<Task> cancelLoad)
+		public LoopHoldingGateViewModel(Func<Task> cancelLoad)
 		{
-			_settings = settings;
 			_cancelLoad = cancelLoad;
 		}
 
@@ -196,7 +194,7 @@ namespace Anvil.ViewModels
 				_siteId, EventId, outcome, _total, _downloaded, _built, kept,
 				TotalMs: now - _beganMs,
 				FirstFrameMs: Since(_firstBuiltMs), AllDownloadedMs: Since(_allDownloadedMs), AllBuiltMs: Since(_allBuiltMs),
-				Escaped: _escaped, GateShown: HoldEnabled,
+				Escaped: _escaped, GateShown: true, // always held since the opt-out went (2026-10-10); the field stays (append-only log)
 				CachedFrames: _sources.Values.Count(f => f.Source == RadarVolumeSource.CachedTilt),
 				LocalRawFrames: _sources.Values.Count(f => f.Source == RadarVolumeSource.LocalRaw),
 				NetworkFrames: _sources.Values.Count(f => f.Source == RadarVolumeSource.Network))
@@ -248,25 +246,10 @@ namespace Anvil.ViewModels
 		/// <summary>The cancelled popup's sentence.</summary>
 		public string KeptText { get => _keptText; private set => SetProperty(ref _keptText, value); }
 
-		/// <summary>The confirm's "Don't hold future loads" box; applied only if the escape is taken.</summary>
-		public bool NeverHoldAgain { get => _neverHoldAgain; set => SetProperty(ref _neverHoldAgain, value); }
-
-		/// <summary>PERSISTED (AppSettings.HoldPastCastLoads), default on. Off = loads never raise the gate.</summary>
-		public bool HoldEnabled
-		{
-			get => _settings.Settings.HoldPastCastLoads;
-			set
-			{
-				if (_settings.Settings.HoldPastCastLoads == value) return;
-				_settings.Settings.HoldPastCastLoads = value; // persists (auto-save)
-				OnPropertyChanged();
-			}
-		}
-
 		// ── Engine seams ──────────────────────────────────────────────────────────────────────────────
 
 		// ── The LOAD (tracked whether or not the gate is up) ──────────────────────────────────────────
-		// ⚠️ Tracking is the LOAD's, not the screen's: after "Use the map", or with holding turned off, the counts
+		// ⚠️ Tracking is the LOAD's, not the screen's: after "Use the map" the counts
 		// keep coming, because the bar's activity readout (BarActivityViewModel) shows the same numbers there.
 
 		/// <summary>A PastCast load is in flight (Begin → Complete / Abandon / Dismiss / Cancel).</summary>
@@ -288,7 +271,6 @@ namespace Anvil.ViewModels
 			_windowStartUtc = windowStartUtc;
 			_windowMinutes = windowMinutes;
 			_armed = false;
-			NeverHoldAgain = false;
 			SetCounts(0, 0, 0);
 			ClearCells();
 			_beganMs = NowMs();
@@ -301,7 +283,7 @@ namespace Anvil.ViewModels
 			SiteId = siteId;
 			EventLine = eventLine;
 			IsLoading = true;
-			State = HoldEnabled ? LoopGateState.Holding : LoopGateState.Hidden;
+			State = LoopGateState.Holding; // EVERY load is held — there is no opt-out (removed 2026-10-10, the user's call)
 		}
 
 		/// <summary>The new loop has begun (its frame arrays are this load's), so counts are now truthful.</summary>
@@ -456,7 +438,6 @@ namespace Anvil.ViewModels
 		public void UseMap()
 		{
 			if (_state != LoopGateState.ConfirmingEscape) return;
-			if (_neverHoldAgain) HoldEnabled = false;
 			if (_loading) _escaped = true; // the log notes it: the user used the map while it loaded
 			State = LoopGateState.Hidden; // the load stays tracked — the bar's readout carries on with it
 		}

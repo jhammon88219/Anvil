@@ -24,7 +24,7 @@ namespace Anvil.Tests
 		// Two sites: KTLX has scans in any window, KINX has none. live = the live pass's answer (pending until set).
 		private static RadarViewModel NewRadar(TaskCompletionSource<IReadOnlyCollection<string>>? live = null)
 		{
-			var settings = new AppSettings { HoldPastCastLoads = false };
+			var settings = new AppSettings();
 			var svc = Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
 			var archive = Null<ILevel2RadarService>.Create(new()
 			{

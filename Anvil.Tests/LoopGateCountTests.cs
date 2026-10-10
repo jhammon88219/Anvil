@@ -31,7 +31,7 @@ namespace Anvil.Tests
 		private static RadarViewModel NewReplay(Func<string, Task<RadarVolume?>>? fetch = null,
 			Func<string, (long Bytes, long Expected)?>? progress = null)
 		{
-			var settings = new AppSettings { HoldPastCastLoads = true };
+			var settings = new AppSettings();
 			var svc = Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
 			var archive = Null<ILevel2RadarService>.Create(new()
 			{

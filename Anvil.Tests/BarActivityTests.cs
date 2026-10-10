@@ -21,11 +21,13 @@ namespace Anvil.Tests
 			public void Fire() { var t = _tcs; _tcs = new(); t.SetResult(); }
 		}
 
-		private static LoopHoldingGateViewModel NewGate(bool hold = true)
+		private static LoopHoldingGateViewModel NewGate() => new(() => Task.CompletedTask);
+
+		// Every load is held (no opt-out since 2026-10-10), so a load reaches the bar through the one-time escape.
+		private static void Escape(LoopHoldingGateViewModel gate)
 		{
-			var settings = new AppSettings { HoldPastCastLoads = hold };
-			var svc = Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
-			return new LoopHoldingGateViewModel(svc, () => Task.CompletedTask);
+			gate.RequestEscape();
+			gate.UseMap();
 		}
 
 		[Fact]
@@ -103,11 +105,12 @@ namespace Anvil.Tests
 		public void A_load_finished_in_the_bar_flashes_ready_and_one_finished_under_the_gate_does_not()
 		{
 			var delay = new ManualDelay();
-			var gate = NewGate(hold: false);     // holding off: every load is the bar's
+			var gate = NewGate();
 			var bar = new BarActivityViewModel(delay.Wait);
 			bar.WatchLoop(gate);
 
 			gate.Begin("KTLX", "x");
+			Escape(gate);                        // the load is now the bar's
 			Assert.Equal("Finding volumes…", bar.Detail);
 			gate.Arm();
 			gate.Report(39, 39, 39);
@@ -117,7 +120,7 @@ namespace Anvil.Tests
 			delay.Fire();
 			Assert.False(bar.IsShown);
 
-			var held = NewGate(hold: true);
+			var held = NewGate();
 			var bar2 = new BarActivityViewModel(delay.Wait);
 			bar2.WatchLoop(held);
 			held.Begin("KTLX", "x");
@@ -130,10 +133,11 @@ namespace Anvil.Tests
 		[Fact]
 		public void A_failed_load_clears_the_bar()
 		{
-			var gate = NewGate(hold: false);
+			var gate = NewGate();
 			var bar = new BarActivityViewModel(new ManualDelay().Wait);
 			bar.WatchLoop(gate);
 			gate.Begin("KTLX", "x");
+			Escape(gate);
 			Assert.True(bar.IsShown);
 			gate.Abandon();
 			Assert.False(bar.IsShown);

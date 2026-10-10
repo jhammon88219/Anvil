@@ -32,7 +32,7 @@ namespace Anvil.ViewModels
 	/// <c>RadarViewModel.UpdateLoopGate</c>). No bar is drawn for work that has no real fraction.</para>
 	/// <para>The sources today: the PLACE SEARCH's status (moved here from beside the search box, 2026-10-06 — a
 	/// variable-width line there broke the left section's edge); the PastCast LOOP while the gate is NOT up (after
-	/// "Use the map", or holding turned off) — clicking it is "Hold the map again"; the announced SITE CHECK
+	/// "Use the map") — clicking it is "Hold the map again"; the announced SITE CHECK
 	/// (moved here from the map's toast); and NowCast's NEW LIVE FRAME (replaced the map's sweep pulse, 2026-10-07).</para>
 	/// </remarks>
 	public sealed class BarActivityViewModel : ObservableObject

@@ -355,9 +355,9 @@ namespace Anvil.Services
 			set => SetProperty(ref _showNowCastGhostRows, value);
 		}
 
-		// LOOP HOLDING GATE — PastCast dims the map behind a progress screen while a loop loads (the map lags
-		// during a load; LoopHoldingGateViewModel). Default ON; the gate's own "Don't hold future loads" box and
-		// Settings → Radar → PastCast turn it off.
+		// (HoldPastCastLoads is GONE, 2026-10-10: every PastCast load is held behind the gate, no opt-out. An old
+		// settings file's key is simply ignored on load.)
+
 		// NowCast's live poll times itself from the volume's own scan plan (LivePollPlanner, docs/regime-aware-polling.md)
 		// instead of a fixed interval. Default ON; off = the fixed interval.
 		private bool _regimeAwarePolling = true;
@@ -395,14 +395,6 @@ namespace Anvil.Services
 		{
 			get => _revealSitesNearCursor;
 			set => SetProperty(ref _revealSitesNearCursor, value);
-		}
-
-		private bool _holdPastCastLoads = true;
-		/// <summary>Hold the map behind the loading screen while a PastCast loop loads.</summary>
-		public bool HoldPastCastLoads
-		{
-			get => _holdPastCastLoads;
-			set => SetProperty(ref _holdPastCastLoads, value);
 		}
 
 		// ── Temporal-window choices (ViewModels/Map/TemporalWindowPersistence restores + tracks these) ──────

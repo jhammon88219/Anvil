@@ -514,7 +514,7 @@ namespace Anvil.ViewModels
 
 			// The loop holding gate: dims the map while a PastCast loop loads. Its Cancel is the engine's.
 			// Built before anything below can reach ClearReplayWindowLoaded (which dismisses it).
-			LoopGate = new LoopHoldingGateViewModel(settings, () => _engine.CancelPastLoadAsync());
+			LoopGate = new LoopHoldingGateViewModel(() =>_engine.CancelPastLoadAsync());
 			Memory = new RadarMemoryViewModel(settings);
 			LoopGate.PropertyChanged += (_, e) =>
 			{

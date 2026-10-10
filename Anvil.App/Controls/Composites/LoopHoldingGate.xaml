@@ -33,8 +33,8 @@
        [ View event ] / [ View loop ] in place of the actions — the screen waits for it. A load finishing inside
        FadeInDelayMs never showed the gate, so it just releases.
 
-       "Use the map" → the buttons swap for a confirm (EscapeWarning, "Don't hold future loads",
-                       Keep waiting · [Use the map]).
+       "Use the map" → the buttons swap for a confirm (EscapeWarning, Keep waiting · [Use the map]) — THIS load
+                       only; there is no "don't hold future loads" (removed 2026-10-10).
        "Cancel load" → progress + buttons swap for a popup: "Load cancelled" + KeptText + [Got it].
 
      ⚠️ RequestedTheme="Dark" ON PURPOSE: whatever the app theme, this always sits on a DARKENED map, so its
@@ -200,14 +200,13 @@
                 </Button>
             </StackPanel>
 
-            <!-- CONFIRM the escape: what you get, the permanent opt-out, and Keep waiting beside it. -->
+            <!-- CONFIRM the escape: what you get, and Keep waiting beside it. ⚠️ No permanent opt-out ("Don't hold
+                 future loads" was REMOVED 2026-10-10 with its setting — every PastCast load is held). -->
             <Border Width="310" Padding="14,12" CornerRadius="8" BorderThickness="1"
                     Background="#F214181E" BorderBrush="#40E8EAED"
                     Visibility="{x:Bind ViewModel.IsConfirmShown, Mode=OneWay}">
                 <StackPanel Spacing="10">
                     <TextBlock Text="{x:Bind EscapeWarning}" FontSize="12" TextWrapping="Wrap" Foreground="#FFE8EAED"/>
-                    <CheckBox Content="Don't hold future loads" FontSize="12" Foreground="#B3E8EAED" MinHeight="24"
-                              IsChecked="{x:Bind ViewModel.NeverHoldAgain, Mode=TwoWay}"/>
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                         <Button Content="Keep waiting" FontSize="12" Padding="12,5" CornerRadius="8" Click="OnKeepWaitingClick">
                             <Button.Resources>

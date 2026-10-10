@@ -55,6 +55,36 @@ namespace Anvil.Controls.Windows
 			if (e.NewValue is MapViewModel current) current.PropertyChanged += window.OnViewModelPropertyChanged;
 
 			window.ApplyPlacement();
+			window.PersistSectionExpansion();
+		}
+
+		// ── Section open/closed, PERSISTED (AppSettings.SectionExpanded, keys "settings/<tab>/<header>") ──
+		// The temporal windows' seam (PanelSection.PersistExpansion), one window prefix PER TAB: "Home site" is a
+		// section in both Radar and Startup. ⚠️ The tab names below are part of the saved keys — don't rename them.
+		private bool _sectionsPersisted;
+		private Composites.DevSettingsTab? _persistedDevTab;
+
+		private void PersistSectionExpansion()
+		{
+			if (_sectionsPersisted || ViewModel is null) return;
+			_sectionsPersisted = true;
+			Persist(MapTab, "map");
+			Persist(RadarTab, "radar");
+			Persist(RangeRingTab, "rangering");
+			Persist(StorageTab, "storage");
+			Persist(WindowModeTab, "windowmode");
+			Persist(ConsoleTab, "console");
+			Persist(StartupTab, "startup");
+		}
+
+		// A tab body is a UserControl whose root panel holds its sections.
+		private void Persist(UserControl tab, string name)
+		{
+			if (tab.Content is Panel root)
+			{
+				PanelSection.PersistExpansion(System.Linq.Enumerable.OfType<PanelSection>(root.Children), "settings/" + name,
+					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
+			}
 		}
 
 		private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -213,6 +243,12 @@ namespace Anvil.Controls.Windows
 		private void OnDevTabLoaded(object sender, RoutedEventArgs e)
 		{
 			if (sender is not Composites.DevSettingsTab tab) return;
+			// x:Load'd, so it can arrive after the others — and a re-load is a NEW instance. Loaded can repeat per instance.
+			if (!ReferenceEquals(_persistedDevTab, tab) && ViewModel is not null)
+			{
+				_persistedDevTab = tab;
+				Persist(tab, "dev");
+			}
 			tab.SweepReportRequested += (_, report) => SweepReportRequested?.Invoke(this, report);
 			tab.ValidationReportRequested += (_, report) => ValidationReportRequested?.Invoke(this, report);
 		}

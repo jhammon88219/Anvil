@@ -18,32 +18,27 @@ namespace Anvil.Tests
 			new("u", new Anvil.Models.RadarSite("KTLX", "Norman", 35.3, -97.3), DateTimeOffset.UnixEpoch, Source: source)
 			{ NetworkBytes = bytes, FetchMs = fetchMs };
 
-		private static (LoopHoldingGateViewModel Gate, AppSettings Settings, int[] Cancels) NewGate(bool hold = true)
+		private static (LoopHoldingGateViewModel Gate, int[] Cancels) NewGate()
 		{
-			var settings = new AppSettings { HoldPastCastLoads = hold };
-			var svc = Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
 			var cancels = new int[1];
-			var gate = new LoopHoldingGateViewModel(svc, () => { cancels[0]++; return Task.CompletedTask; });
-			return (gate, settings, cancels);
+			var gate = new LoopHoldingGateViewModel(() => { cancels[0]++; return Task.CompletedTask; });
+			return (gate, cancels);
 		}
 
 		[Fact]
-		public void Begin_raises_the_gate_only_while_holding_is_on()
+		public void Begin_always_raises_the_gate()
 		{
-			var (on, _, _) = NewGate(hold: true);
+			// No opt-out since 2026-10-10: every PastCast load is held.
+			var (on, _) = NewGate();
 			on.Begin("KTBW", "KTBW · Sep 28, 2022");
 			Assert.True(on.IsShown);
 			Assert.Equal("Finding volumes…", on.DownloadedText);
-
-			var (off, _, _) = NewGate(hold: false);
-			off.Begin("KTBW", "KTBW · Sep 28, 2022");
-			Assert.False(off.IsShown);
 		}
 
 		[Fact]
 		public void Progress_and_release_wait_for_the_loop_to_begin()
 		{
-			var (gate, _, _) = NewGate();
+			var (gate, _) = NewGate();
 			gate.Begin("KTBW", "x");
 
 			gate.Report(39, 22, 14); // a previous loop's straggler — before Arm
@@ -67,7 +62,7 @@ namespace Anvil.Tests
 		[Fact]
 		public void A_seen_screen_waits_for_View_event_and_an_instant_load_just_releases()
 		{
-			var (gate, _, _) = NewGate();
+			var (gate, _) = NewGate();
 			long now = 1_000;
 			gate.NowMs = () => now;
 
@@ -105,7 +100,7 @@ namespace Anvil.Tests
 		[Fact]
 		public void Complete_says_how_long_it_took_and_measures_the_load_once()
 		{
-			var (gate, _, _) = NewGate();
+			var (gate, _) = NewGate();
 			long now = 10_000;
 			gate.NowMs = () => now;
 			var measured = new System.Collections.Generic.List<Anvil.Models.LoopLoadTiming>();
@@ -138,7 +133,7 @@ namespace Anvil.Tests
 		[Fact]
 		public void The_record_counts_where_each_frame_came_from()
 		{
-			var (gate, _, _) = NewGate();
+			var (gate, _) = NewGate();
 			var measured = new System.Collections.Generic.List<Anvil.Models.LoopLoadTiming>();
 			gate.LoadMeasured += (_, t) => measured.Add(t);
 			long now = 0, bytes = 0;
@@ -177,7 +172,7 @@ namespace Anvil.Tests
 		[Fact]
 		public async Task A_cancel_is_one_record_even_as_the_load_unwinds()
 		{
-			var (gate, _, _) = NewGate();
+			var (gate, _) = NewGate();
 			var measured = new System.Collections.Generic.List<Anvil.Models.LoopLoadTiming>();
 			gate.LoadMeasured += (_, t) => measured.Add(t);
 			gate.Begin("KTLX", "x");
@@ -194,7 +189,7 @@ namespace Anvil.Tests
 		[Fact]
 		public void Leaving_mid_load_and_a_superseding_load_record_it_as_abandoned()
 		{
-			var (gate, _, _) = NewGate();
+			var (gate, _) = NewGate();
 			var measured = new System.Collections.Generic.List<Anvil.Models.LoopLoadTiming>();
 			gate.LoadMeasured += (_, t) => measured.Add(t);
 			gate.Begin("KTLX", "x");
@@ -211,7 +206,7 @@ namespace Anvil.Tests
 		[Fact]
 		public void After_Use_the_map_a_finished_load_has_nothing_to_wait_on()
 		{
-			var (gate, _, _) = NewGate();
+			var (gate, _) = NewGate();
 			long now = 0;
 			gate.NowMs = () => now;
 			gate.Begin("KTLX", "x");
@@ -226,7 +221,7 @@ namespace Anvil.Tests
 		[Fact]
 		public void The_title_names_a_chosen_event_and_the_button_follows()
 		{
-			var (gate, _, _) = NewGate();
+			var (gate, _) = NewGate();
 			long now = 0;
 			gate.NowMs = () => now;
 			gate.Begin("KTLX", "x");
@@ -243,9 +238,9 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public void The_escape_goes_through_a_confirm_and_can_turn_holding_off()
+		public void The_escape_goes_through_a_confirm()
 		{
-			var (gate, settings, _) = NewGate();
+			var (gate, _) = NewGate();
 			gate.Begin("KTBW", "x");
 			gate.Arm();
 
@@ -255,34 +250,27 @@ namespace Anvil.Tests
 			Assert.Equal(LoopGateState.Holding, gate.State);
 
 			gate.RequestEscape();
-			gate.NeverHoldAgain = true;
 			gate.UseMap();
-			Assert.False(gate.IsShown);
-			Assert.False(settings.HoldPastCastLoads);
-
-			gate.Begin("KTBW", "next load"); // holding is off now: the next load is not held
 			Assert.False(gate.IsShown);
 		}
 
 		[Fact]
-		public void A_one_time_escape_leaves_holding_on_and_resets_for_the_next_load()
+		public void An_escape_is_for_that_load_only_and_the_next_load_is_held()
 		{
-			var (gate, settings, _) = NewGate();
+			var (gate, _) = NewGate();
 			gate.Begin("KTBW", "x");
 			gate.RequestEscape();
 			gate.UseMap();
 			Assert.False(gate.IsShown);
-			Assert.True(settings.HoldPastCastLoads);
 
 			gate.Begin("KTBW", "y");
 			Assert.True(gate.IsShown);
-			Assert.False(gate.NeverHoldAgain);
 		}
 
 		[Fact]
 		public async Task Cancel_owns_the_gate_until_its_popup_is_acknowledged()
 		{
-			var (gate, _, cancels) = NewGate();
+			var (gate, cancels) = NewGate();
 			gate.Begin("KTBW", "x");
 			gate.Arm();
 			gate.Report(39, 22, 14);
@@ -309,7 +297,7 @@ namespace Anvil.Tests
 		[Fact]
 		public void Cancelling_with_nothing_kept_says_so()
 		{
-			var (gate, _, _) = NewGate();
+			var (gate, _) = NewGate();
 			gate.Begin("KTBW", "x");
 			gate.ShowCancelled(0, 39);
 			Assert.Contains("nothing was kept", gate.KeptText);
@@ -319,7 +307,7 @@ namespace Anvil.Tests
 		[Fact]
 		public void A_failed_load_or_a_site_change_drops_the_gate()
 		{
-			var (gate, _, _) = NewGate();
+			var (gate, _) = NewGate();
 			gate.Begin("KTBW", "x");
 			gate.Abandon();
 			Assert.False(gate.IsShown);
