@@ -13,6 +13,27 @@ namespace Anvil.ViewModels
 	/// </summary>
 	internal static class HeldFrameMatch
 	{
+		/// <summary>Whether a chunks scan (the live slot, a held frame) is BEYOND what the archive now holds — carried after
+		/// it — rather than covered by it. Against the archive newest's real time when known (<paramref name="isNewer"/> =
+		/// the engine's LiveIsNewer). ⚠️ When it is UNKNOWN (a rescan whose fetch failed, or a planned pass the volume lacks)
+		/// it could be any time up to the next volume's start, and its volume-start stamp is NOT its time — using that
+		/// carried scans the archive also had: the same scan twice, time running backwards (KTLH 2026-10-10 00:50). Then
+		/// only a scan from a LATER volume (<paramref name="liveVolumeStarts"/>, the live schedule's) counts as beyond.</summary>
+		public static Func<DateTimeOffset, bool> BeyondArchive(DateTimeOffset? newestKnown, DateTimeOffset? newestVolumeStart,
+			IEnumerable<DateTimeOffset?> liveVolumeStarts, TimeSpan slack, Func<DateTimeOffset, DateTimeOffset, bool> isNewer)
+		{
+			if (newestKnown is { } known) return t => isNewer(t, known);
+			DateTimeOffset? later = null;
+			if (newestVolumeStart is { } start)
+			{
+				foreach (var s in liveVolumeStarts)
+				{
+					if (s is { } v && v > start + slack && (later is null || v < later)) later = v;
+				}
+			}
+			return t => later is { } l && t >= l - slack;
+		}
+
 		/// <summary>Pairs each new archive frame (index, real scan time if known) with at most one candidate (old index,
 		/// scan time) within <paramref name="slack"/>, nearest first; each candidate is used once. Returns (old, new).</summary>
 		public static List<(int Old, int New)> Match(

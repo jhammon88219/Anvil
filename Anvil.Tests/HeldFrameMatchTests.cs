@@ -37,6 +37,39 @@ namespace Anvil.Tests
 			Assert.Empty(HeldFrameMatch.Match(held, arrivals, Slack));
 		}
 
+		// ── BEYOND THE ARCHIVE: which held scans are carried after the archive frames (the rest match or drop) ──
+
+		private static bool Newer(DateTimeOffset live, DateTimeOffset archive) => live > archive + Slack; // = LiveIsNewer
+
+		[Fact]
+		public void With_the_newest_scan_time_known_only_later_scans_are_beyond()
+		{
+			var beyond = HeldFrameMatch.BeyondArchive(Z(22, 36, 23), Z(22, 29, 48), new DateTimeOffset?[] { null, null }, Slack, Newer);
+			Assert.False(beyond(Z(22, 36, 23)));
+			Assert.True(beyond(Z(22, 38, 30)));
+		}
+
+		[Fact]
+		public void An_unknown_newest_rescan_does_not_carry_its_own_volumes_scans()
+		{
+			// KTLH 2026-10-10 00:50Z: archive volume 05:38:38 lands with pass #4 unknown ("planned but not in"). Its held scans
+			// 05:40:19-05:44:20 used to be judged against the 05:38:38 STAMP, carried, and decoded again from the archive —
+			// three scans twice, time running backwards. Only the next volume's (05:46:34, from the live schedule) is beyond.
+			var beyond = HeldFrameMatch.BeyondArchive(null, Z(5, 38, 38), new DateTimeOffset?[] { Z(5, 38, 38), Z(5, 46, 34) }, Slack, Newer);
+			Assert.False(beyond(Z(5, 40, 19)));
+			Assert.False(beyond(Z(5, 42, 26)));
+			Assert.False(beyond(Z(5, 44, 20)));
+			Assert.True(beyond(Z(5, 46, 34)));
+			Assert.True(beyond(Z(5, 48, 14)));
+		}
+
+		[Fact]
+		public void An_unknown_newest_with_no_later_volume_carries_nothing()
+		{
+			var beyond = HeldFrameMatch.BeyondArchive(null, Z(5, 38, 38), new DateTimeOffset?[] { Z(5, 30, 56), Z(5, 38, 38) }, Slack, Newer);
+			Assert.False(beyond(Z(5, 46, 34)));
+		}
+
 		[Fact]
 		public void A_held_scan_is_never_given_out_twice()
 		{

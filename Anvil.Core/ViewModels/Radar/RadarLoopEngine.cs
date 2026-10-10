@@ -1748,19 +1748,31 @@ namespace Anvil.ViewModels
 				// clear-air VCP, 2026-10-07). A SAILS re-scan is later than its volume's start, so it stays.
 				var oldLiveTime = _vm._liveFrame?.VolumeTime
 					?? (hadLive && oldArchiveCount < oldFrameTimes.Length ? oldFrameTimes[oldArchiveCount] : null);
-				var newestArchiveTime = (fetched.TryGetValue(newKeys[^1], out var newestVolume) ? newestVolume.VolumeTime : (DateTimeOffset?)null)
-					?? Services.Level2RadarService.ParseVolumeTime(newKeys[^1]);
-				var carryLive = hadLive && !(oldLiveTime is { } lt && newestArchiveTime is { } at && !LiveIsNewer(lt, at));
+				// Is a chunks scan (the live slot, a held frame) BEYOND what the archive now holds — carried after it — or
+				// covered by it (HeldFrameMatch.BeyondArchive has the rule and the KTLH duplicate it prevents)? The archive
+				// newest's REAL time: the prefetch's, the reused frame's, or a pass-1 key's own stamp (which IS its scan);
+				// a rescan with none is unknown — then the live schedule's volume starts decide.
+				var newestKnown = fetched.TryGetValue(newKeys[^1], out var newestVolume) ? newestVolume.VolumeTime
+					: oldIndexByKey.TryGetValue(newKeys[^1], out var newestOld) && newestOld < oldFrameTimes.Length ? oldFrameTimes[newestOld]
+					: RadarFrameKey.Pass(newKeys[^1]) == 1 ? Services.Level2RadarService.ParseVolumeTime(newKeys[^1])
+					: null;
+				var schedule = _vm._radarService.LiveSchedule is { } s && s.SiteId == site.Id ? s : null;
+				var beyondArchive = HeldFrameMatch.BeyondArchive(newestKnown,
+					Services.Level2RadarService.ParseVolumeTime(RadarFrameKey.VolumeKey(newKeys[^1])),
+					new[] { schedule?.PreviousVolumeStart, schedule?.VolumeStart }, SameScanSlack, LiveIsNewer);
+				// The retired slot's placeholder (below) only needs a best guess.
+				var newestArchiveTime = newestKnown ?? Services.Level2RadarService.ParseVolumeTime(newKeys[^1]);
+				var carryLive = hadLive && (oldLiveTime is not { } lt || beyondArchive(lt));
 
-				// HELD live frames (TryHoldLiveSlot): chunks scans in the old archive range. One still newer than the archive
-				// newest is CARRIED after it (the live slot's own rule); the rest are matched to their archive twin below
-				// or dropped (the archive now covers that time).
+				// HELD live frames (TryHoldLiveSlot): chunks scans in the old archive range. One BEYOND the archive is
+				// CARRIED after it (the live slot's own rule); the rest are matched to their archive twin below or dropped
+				// (the archive now covers that time).
 				var held = new List<(int Index, DateTimeOffset Time)>();
 				for (var i = 0; i < oldKeys.Length && i < oldArchiveCount && i < oldFrameTimes.Length; i++)
 				{
 					if (RadarFrameKey.IsHeld(oldKeys[i]) && oldFrameTimes[i] is { } heldTime) held.Add((i, heldTime));
 				}
-				var carriedHeld = held.Where(h => newestArchiveTime is { } na && LiveIsNewer(h.Time, na)).ToList();
+				var carriedHeld = held.Where(h => beyondArchive(h.Time)).ToList();
 				var archiveTotal = newArchiveCount + carriedHeld.Count; // the live slot's new index
 
 				var newFrameCount = archiveTotal + (carryLive ? 1 : 0);
