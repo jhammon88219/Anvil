@@ -121,8 +121,9 @@
     }).catch(function (e) { hostLog('radar-scope.js load failed: ' + (e && e.message ? e.message : e)); });
 
     // The Inspector (radar-inspect.js): the cursor-readout mode. Same dynamic-import-and-cache pattern
-    // as radar-scope.js. It owns the mode flag and all the DOM/lookup work; we ask isOn() in the two
-    // places the LOOP's behaviour depends on the mode (grid upgrades, and whether a decode builds grids).
+    // as radar-scope.js. It owns the mode flag and all the DOM/lookup work; we ask isOn() where the LOOP's
+    // behaviour depends on the mode: the grid UPGRADES (back-filling frames that lack a grid) and whether a cache
+    // hit must carry grids. A decode builds the visible products' grids ALWAYS (decodeFrame, 2026-10-10).
     let Inspect = null;
     import('./radar-inspect.js').then(function (m) {
         Inspect = m;
@@ -1276,8 +1277,8 @@
             velNyq: res.velNyq || prevVelNyq || 0, // Nyquist (m/s) — lets the inspector show the raw fold of a dealiased gate
             reach: res.reach || (mergeable ? prev.reach : null) || null, // { refl, vel } metres — the range rings (syncScope)
             // url = this frame's stable volume URL (so a product/inspect switch can re-decode it),
-            // gridsBuilt = whether the inspector value grids were built (skipped by default; built on
-            // demand — see setProduct / setInspect).
+            // gridsBuilt = whether EVERY product's inspector value grid was built (only the `true` form; the
+            // normal decode builds the visible products' grids → gridsExtra, see decodeFrame / setInspect).
             url: res.url || null, gridsBuilt: !!res.gridsBuilt,
         };
         if (res.index === currentFrame) inspectRefresh(); // its grids may be what a resting cursor waits on
@@ -1551,16 +1552,22 @@
         // reflectivity loop has rendered, so a later switch to Velocity is instant/near-instant). On
         // reflectivity/CC with prefetch off we skip it and re-decode on demand (setProduct).
         const wantedIds = wantedProducts(); // extra products to build this decode (active + velocity prefetch)
-        const wantGrids = inspectOn(); // inspector value grids are only needed while Inspect is on
+        // ⭐ EVERY DECODE BUILDS THE VISIBLE PRODUCTS' VALUE GRIDS, Inspect on or off (the user's call, 2026-10-10:
+        // "the Inspector is slow to show its first value"). Before, grids were skipped and arming Inspect re-decoded
+        // EVERY frame through the grids-only path — ~1.3 s before the frame on screen read a value, ~7 s for a
+        // 12-frame loop (radar-diag 2026-10-10 16:41, KCAE), each pass repeating the decode AND the velocity dealias
+        // just to keep an array the first decode had already filled and thrown away. Kept, they cost ~1.7–2.6 MB a
+        // frame per pane (measured: 12 velocity grids = 20 MB beside 2,055 MB of geometry), so Inspect is instant.
+        // `wantGrids` (= Inspect on) still gates the LAZY paths: a cache hit decoded without grids is accepted while
+        // Inspect is off, and the upgrade queue only back-fills missing grids while it is on (setInspect re-queues).
+        const wantGrids = inspectOn();
         // ⚠️ WHICH grids, not just whether. A value grid is a dense Int16 (radials x gates) — ~2.6 MB a frame
         // for reflectivity, ~15 MB across all seven — and Inspect can only ever READ the product a pane is
-        // showing. Building the rest was ~600 MB of unreachable data on a 39-frame replay, inside the ~765 MB
-        // of headroom such a loop had left under the renderer's ~4192 MB cap (not a real wall — see MEMORY CEILING — but
-        // still RAM the Radar memory budget doesn't count). So ask for exactly the VISIBLE
-        // panes' products (the same set activeGridReady / missingGridProduct judge readiness against, so the
-        // upgrade queue can't chase a grid this will never build). Switching a pane's product while inspecting
-        // builds that product's grid on demand through the grids-only path above.
-        const gridIds = wantGrids ? viewProducts() : false;
+        // showing. Building the rest was ~600 MB of unreachable data on a 39-frame replay. So ask for exactly the
+        // VISIBLE panes' products (the same set activeGridReady / missingGridProduct judge readiness against, so the
+        // upgrade queue can't chase a grid this will never build). Switching a pane's product builds that product's
+        // geometry AND grid in the decode it needs anyway.
+        const gridIds = viewProducts();
         // Grids-only fast path (turning Inspect on): the frame already has the active product's GEOMETRY
         // (and nothing lazy is pending for it) and only its inspector VALUE GRID is missing — so build just
         // that one grid and merge it, instead of a full re-decode of every product's geometry + a redundant
@@ -2095,9 +2102,10 @@
             if (!Inspect) return;
             Inspect.setEnabled(on);
             if (Inspect.isOn()) {
-                // Value grids are skipped by default (memory). Turning Inspect ON now builds them on
-                // demand for the loaded frames via the bounded, current-frame-first upgrade queue — so
-                // lookups become available around the frame on screen first, without flooding the pool.
+                // Decodes build the visible products' value grids already (decodeFrame), so this is a
+                // BACK-FILL: only frames that lack one (a cache hit decoded before grids were kept, a frame
+                // whose product changed through a cache hit) go through the bounded, current-frame-first
+                // upgrade queue. Usually it queues nothing.
                 // This is LOOP work, not inspector work, which is why it stays on this side of the seam.
                 queueAllUpgrades('inspect');
             }
