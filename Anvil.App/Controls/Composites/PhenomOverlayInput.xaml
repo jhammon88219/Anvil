@@ -7,8 +7,8 @@
        │ 9 active warnings                          │   the card: the total in effect, the ELEVATED
        │ 1 tornado emergency · 1 PDS tornado        │   tags (CardThreats, warnings only, collapses
        │ Updated 12:04 PM · checking every 15s      │   when none), when it was last confirmed, and
-       │ Severe thunderstorm and flash flood only   │   — in the footer — what the rows are drawing
-       └────────────────────────────────────────────┘
+       └────────────────────────────────────────────┘   a footer ONLY on a failure — ⚠️ never a line about
+                                                          the ticked rows (it moved the section's height)
        ────────────────────────────────────────────────
        [ ] ■ Tornado                              2     ← one row per phenomenon: the toggle, the
        [x] ■ Severe thunderstorm                  5       map colour, the name, that type's count

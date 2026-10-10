@@ -232,10 +232,9 @@ namespace Anvil.ViewModels
 		/// second clause that reads as a bug. A real message always wins — an error is more urgent than a
 		/// filter being empty.
 		/// </remarks>
-		public string CardFooter =>
-			_cardFooterMessage.Length > 0 ? _cardFooterMessage :
-			AnyShown ? string.Empty :
-			"None shown — pick a type below";
+		// No tick-driven line ("None shown…") — a section's height must not change with what you tick
+		// (PhenomOverlayViewModel.CardFooter).
+		public string CardFooter => _cardFooterMessage;
 
 		private const string NoReportsHeadline = "No reports";
 

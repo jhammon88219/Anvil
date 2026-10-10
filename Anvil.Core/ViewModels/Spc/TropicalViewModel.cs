@@ -140,10 +140,9 @@ namespace Anvil.ViewModels
 		/// <summary>"3 products · 76 zones" (+ the moment in PastCast).</summary>
 		public string CardContext { get => _cardContext; private set => SetProperty(ref _cardContext, value); }
 
-		public string CardFooter =>
-			_cardMessage.Length > 0 ? _cardMessage :
-			!AnyShown ? "None shown — pick a product below" :
-			string.Empty;
+		// No tick-driven line ("None shown…") — a section's height must not change with what you tick
+		// (PhenomOverlayViewModel.CardFooter).
+		public string CardFooter => _cardMessage;
 
 		private void SetMessage(string message)
 		{

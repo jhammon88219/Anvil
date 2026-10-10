@@ -137,10 +137,9 @@ namespace Anvil.ViewModels
 		public string CardContext { get => _cardContext; private set => SetProperty(ref _cardContext, value); }
 
 		/// <summary>A real message (loading, failure, no scan near this frame) wins; else what the ticks leave out.</summary>
-		public string CardFooter =>
-			_cardMessage.Length > 0 ? _cardMessage :
-			!AnyShown ? "None shown — pick a layer below" :
-			string.Empty;
+		// No tick-driven line ("None shown…") — a section's height must not change with what you tick
+		// (PhenomOverlayViewModel.CardFooter).
+		public string CardFooter => _cardMessage;
 
 		private void SetMessage(string message)
 		{

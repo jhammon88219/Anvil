@@ -311,10 +311,9 @@ namespace Anvil.ViewModels
 		public string CardHeadline { get => _cardHeadline; private set => SetProperty(ref _cardHeadline, value); }
 		public string CardContext { get => _cardContext; private set => SetProperty(ref _cardContext, value); }
 
-		public string CardFooter =>
-			_cardMessage.Length > 0 ? _cardMessage :
-			!AnyShown ? "None shown — pick a kind below" :
-			string.Empty;
+		// No tick-driven line ("None shown…") — a section's height must not change with what you tick
+		// (PhenomOverlayViewModel.CardFooter).
+		public string CardFooter => _cardMessage;
 
 		private void SetMessage(string message)
 		{

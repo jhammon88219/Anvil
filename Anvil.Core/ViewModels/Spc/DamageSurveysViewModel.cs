@@ -151,12 +151,9 @@ namespace Anvil.ViewModels
 		/// default ticks a window can hold several surveyed tornadoes and draw nothing. Without this line
 		/// that reads as missing data; with it, the fix (tick Tracks) is one glance away.
 		/// </remarks>
-		public string CardFooter =>
-			_cardFooterMessage.Length > 0 ? _cardFooterMessage :
-			!AnyShown ? "None shown — pick a layer below" :
-			_showAreas && !_showTracks && _areaCount == 0 && _trackCount > 0
-				? "No damage polygons for these tornadoes — only some offices draw them. Tick Tracks to see every path."
-				: string.Empty;
+		// No tick-driven line ("None shown…", the Areas-only "tick Tracks" tip) — a section's height must not
+		// change with what you tick (PhenomOverlayViewModel.CardFooter).
+		public string CardFooter => _cardFooterMessage;
 
 		private void SetCard(string headline, string context, string footer)
 		{

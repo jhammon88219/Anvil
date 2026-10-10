@@ -249,37 +249,13 @@ namespace Anvil.ViewModels
 				? $"Updated {when.LocalDateTime:h:mm tt}{CadenceSuffix}"
 				: "Waiting for the first update…";
 
-		/// <summary>
-		/// The card's footer: failures first, then — when the rows filter what the counts describe — what
-		/// is actually on the map.
-		/// </summary>
+		/// <summary>The card's footer: a failure, else nothing.</summary>
 		/// <remarks>
-		/// ⚠️ THE PARTIAL LINE IS NOT DECORATION. The headline counts every active alert while the rows
-		/// decide which are drawn, so during an outbreak "12 active warnings" can sit over a map showing
-		/// three. Naming the filter is what keeps the headline honest; "None shown" is the same problem at
-		/// its limit, and the same fix the storm-report card uses.
+		/// ⚠️ NO LINE ABOUT THE TICKED ROWS ("None shown — pick a type below", "Tornado only"), by the user's call
+		/// (2026-10-10): it came and went as boxes were ticked, so the whole window jumped. A section's height must
+		/// not change with what you tick — don't re-add a tick-driven card line.
 		/// </remarks>
-		public string CardFooter =>
-			_errorMessage.Length > 0 ? _errorMessage :
-			!AnyShown ? "None shown — pick a type below" :
-			AllShown == true ? string.Empty :
-			ShownPhrase();
-
-		// "Tornado only" / "Tornado and flash flood only" — the ticked types, named in row order.
-		private string ShownPhrase()
-		{
-			var names = new System.Collections.Generic.List<string>(3);
-			if (_showTornado) { names.Add("tornado"); }
-			if (_showSevere) { names.Add("severe thunderstorm"); }
-			if (FlashFloodOn) { names.Add(FloodLabel.ToLowerInvariant()); }
-			var joined = names.Count switch
-			{
-				1 => names[0],
-				2 => $"{names[0]} and {names[1]}",
-				_ => string.Join(", ", names),
-			};
-			return char.ToUpperInvariant(joined[0]) + joined[1..] + " only";
-		}
+		public string CardFooter => _errorMessage;
 
 		/// <summary>
 		/// A card line naming the ELEVATED alerts in effect (a tornado emergency, a PDS…) — the overlay that

@@ -53,7 +53,7 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public async Task FlashFloodOnly_KeepsLayerDrawn_AndFooterNamesIt()
+		public async Task FlashFloodOnly_KeepsLayerDrawn_AndTheFooterStaysEmpty()
 		{
 			var vm = new FakeFloodOverlay { IsModeActive = true };
 			await vm.OnMapsReadyAsync();
@@ -65,10 +65,15 @@ namespace Anvil.Tests
 			Assert.Null(vm.AllShown);
 			Assert.True(vm.IsVisible);
 			Assert.True(vm.FlashFloodPushes[^1]);
-			Assert.Equal("Flash flood only", vm.CardFooter);
+			// No tick-driven card line: the section's height must not change with what you tick (2026-10-10).
+			Assert.Equal(string.Empty, vm.CardFooter);
 
 			vm.ShowTornado = true;
-			Assert.Equal("Tornado and flash flood only", vm.CardFooter);
+			Assert.Equal(string.Empty, vm.CardFooter);
+
+			vm.ShowFlashFlood = false;
+			vm.ShowTornado = false; // none ticked
+			Assert.Equal(string.Empty, vm.CardFooter);
 		}
 
 		[Fact]

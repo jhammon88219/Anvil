@@ -36,8 +36,8 @@
      ⚠️ THE COUNTS POPULATE WITH EVERY BOX UNCHECKED, which is the whole reason the card is worth having.
      The fetch used to be gated on something being shown, so the numbers sat at zero until you ticked a box
      — they read as broken data rather than as an empty filter. They describe the DAY now; the checkboxes
-     only decide what is drawn, and the card's footer says "None shown" so a full count over an empty map
-     cannot be mistaken for one.
+     only decide what is drawn. (The card's "None shown" footer was REMOVED 2026-10-10, the user's call: a
+     section's height must not change with what you tick — the unticked boxes say it instead.)
 
      ⚠️ IN PASTCAST THEY POPULATE AFTER *LOAD*, NOT ON A DATE CHANGE. The VM keys off the LOADED replay
      window, not the pickers — between editing a date and pressing Load the two describe different days, and
