@@ -9,8 +9,8 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.Composites
 {
 	/// <summary>
-	/// The bar's activity slot (see the XAML header). Every state is <see cref="BarActivityViewModel"/>'s; this
-	/// draws it and carries the one door — hover + click on a loading loop = "Hold the map again".
+	/// The bar's activity slot (see the XAML header). Every state is <see cref="BarActivityViewModel"/>'s; this only
+	/// draws it (no click door since the gate's escape went, 2026-10-10).
 	/// </summary>
 	public sealed partial class BarActivityReadout : UserControl
 	{
@@ -20,8 +20,6 @@ namespace Anvil.Controls.Composites
 		private static readonly SolidColorBrush HousekeepingBrush = new(ColorHelper.FromArgb(0xFF, 0x8A, 0x8F, 0x98));
 		private static readonly SolidColorBrush DoneBrush = new(ColorHelper.FromArgb(0xFF, 0x3F, 0xB9, 0x50));
 		private static readonly SolidColorBrush FailedBrush = new(ColorHelper.FromArgb(0xFF, 0xF8, 0x51, 0x49));
-
-		private bool _hovering;
 
 		public BarActivityReadout()
 		{
@@ -74,13 +72,8 @@ namespace Anvil.Controls.Composites
 			if (vm is not null) vm.PropertyChanged -= OnViewModelPropertyChanged;
 		}
 
-		// The door can close under the pointer (the load finishes while you hover) — re-apply the hover look.
 		private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
 		{
-			if (e.PropertyName is nameof(BarActivityViewModel.CanReopen) or nameof(BarActivityViewModel.IsShown))
-			{
-				ApplyHover();
-			}
 			if (e.PropertyName is nameof(BarActivityViewModel.Tone) or nameof(BarActivityViewModel.IsShown))
 			{
 				ApplyTone();
@@ -96,27 +89,5 @@ namespace Anvil.Controls.Composites
 			if (loud) ToneBorder.BorderBrush = ToneBrush(vm!.Tone);
 			ToneBorder.Opacity = loud ? 1 : 0;
 		}
-
-		private void OnPointerEntered(object sender, PointerRoutedEventArgs e)
-		{
-			_hovering = true;
-			ApplyHover();
-		}
-
-		private void OnPointerExited(object sender, PointerRoutedEventArgs e)
-		{
-			_hovering = false;
-			ApplyHover();
-		}
-
-		private void ApplyHover()
-		{
-			var door = _hovering && ViewModel is { IsShown: true, CanReopen: true };
-			HoverWash.Opacity = door ? 1 : 0;
-			TitleText.Visibility = door ? Visibility.Collapsed : Visibility.Visible;
-			ReopenText.Visibility = door ? Visibility.Visible : Visibility.Collapsed;
-		}
-
-		private void OnTapped(object sender, TappedRoutedEventArgs e) => ViewModel?.Reopen();
 	}
 }

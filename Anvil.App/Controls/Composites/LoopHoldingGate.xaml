@@ -25,16 +25,16 @@
        │    14 / 28   ▐█▌▐█▌▐█▌▐█▌▐█▌▐█▌▐▄▌▐█▌▐▃▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌▐ ▌      │   (grey = download bytes,
        │    built     6:30 PM scan · Decoding                  3 at once · 45%     │   blue = build steps)
        │                              ↕ 100 px                                     │
-       │                  [ Cancel load ]    Use the map                           │
-       │                    dark red fill     no border; lifts 2 px on hover       │
+       │                             [ Cancel load ]                               │
+       │                              dark red fill                                │
        └───────────────────────────────────────────────────────────────────────────┘
        READY (built while the screen was SEEN): "Ready: …" / "Loop ready", bars full, "That took 2 minutes and 14
        seconds to load." under the frames bar (ElapsedText — the same clock the load-time log records), and ONE accent button
        [ View event ] / [ View loop ] in place of the actions — the screen waits for it. A load finishing inside
        FadeInDelayMs never showed the gate, so it just releases.
 
-       "Use the map" → the buttons swap for a confirm (EscapeWarning, Keep waiting · [Use the map]) — THIS load
-                       only; there is no "don't hold future loads" (removed 2026-10-10).
+       ⚠️ NO "Use the map" (removed 2026-10-10, the user's call, with its confirm, the bar's "Loading the loop" line and
+          the "don't hold future loads" opt-out): Cancel is the only way off the gate mid-load.
        "Cancel load" → progress + buttons swap for a popup: "Load cancelled" + KeptText + [Got it].
 
      ⚠️ RequestedTheme="Dark" ON PURPOSE: whatever the app theme, this always sits on a DARKENED map, so its
@@ -43,7 +43,7 @@
      ⚠️ Fade: hit-testing switches INSTANTLY (the map is gated from the first moment), but the dim AND the blur
      only start after LoopHoldingGateViewModel.FadeInDelayMs, so a cached load that finishes at once never
      flashes the screen.
-     ⚠️ Wording lives in the view model (Title, EscapeWarning, KeptText, the counts) — not here. -->
+     ⚠️ Wording lives in the view model (Title, KeptText, the counts) — not here. -->
 <UserControl x:Class="Anvil.Controls.Composites.LoopHoldingGate"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -145,7 +145,7 @@
             </StackPanel>
 
             <!-- The 100 px between the information and the actions (the user's spec). -->
-            <Border Height="100" Visibility="{x:Bind SpacerShown(ViewModel.IsActionsShown, ViewModel.IsConfirmShown, ViewModel.IsReadyShown), Mode=OneWay}"/>
+            <Border Height="100" Visibility="{x:Bind SpacerShown(ViewModel.IsActionsShown, ViewModel.IsReadyShown), Mode=OneWay}"/>
 
             <!-- READY: the loop is built; the screen WAITS for this press (the user's call, 2026-10-02 — someone reading
                  the why line isn't yanked onto the map). "View event" for a chosen event, "View loop" otherwise. -->
@@ -155,7 +155,8 @@
                     Visibility="{x:Bind ViewModel.IsReadyShown, Mode=OneWay}"
                     Click="OnViewReadyClick"/>
 
-            <!-- ACTIONS: Cancel (dark red, brighter on hover/press) · Use the map (borderless, lifts). -->
+            <!-- ACTIONS: Cancel (dark red, brighter on hover/press) — the ONLY way off the gate mid-load. ⚠️ "Use the map"
+                 (and its confirm) was REMOVED 2026-10-10, the user's call — don't re-add an escape. -->
             <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center"
                         Visibility="{x:Bind ViewModel.IsActionsShown, Mode=OneWay}">
                 <Button Content="Cancel load" MinWidth="132" Padding="18,8" CornerRadius="8"
@@ -176,51 +177,7 @@
                         <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent"/>
                     </Button.Resources>
                 </Button>
-
-                <Button x:Name="UseMapButton" Content="Use the map" MinWidth="132" Padding="18,8" CornerRadius="8"
-                        IsEnabled="{x:Bind ViewModel.AreActionsEnabled, Mode=OneWay}"
-                        Click="OnUseMapClick">
-                    <Button.TranslationTransition>
-                        <Vector3Transition Duration="0:0:0.12"/>
-                    </Button.TranslationTransition>
-                    <Button.Resources>
-                        <SolidColorBrush x:Key="ButtonBackground" Color="Transparent"/>
-                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#12E8EAED"/>
-                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#1FE8EAED"/>
-                        <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/>
-                        <SolidColorBrush x:Key="ButtonForeground" Color="#8CE8EAED"/>
-                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#D9E8EAED"/>
-                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#D9E8EAED"/>
-                        <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#4DE8EAED"/>
-                        <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent"/>
-                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
-                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
-                        <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent"/>
-                    </Button.Resources>
-                </Button>
             </StackPanel>
-
-            <!-- CONFIRM the escape: what you get, and Keep waiting beside it. ⚠️ No permanent opt-out ("Don't hold
-                 future loads" was REMOVED 2026-10-10 with its setting — every PastCast load is held). -->
-            <Border Width="310" Padding="14,12" CornerRadius="8" BorderThickness="1"
-                    Background="#F214181E" BorderBrush="#40E8EAED"
-                    Visibility="{x:Bind ViewModel.IsConfirmShown, Mode=OneWay}">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="{x:Bind EscapeWarning}" FontSize="12" TextWrapping="Wrap" Foreground="#FFE8EAED"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                        <Button Content="Keep waiting" FontSize="12" Padding="12,5" CornerRadius="8" Click="OnKeepWaitingClick">
-                            <Button.Resources>
-                                <SolidColorBrush x:Key="ButtonBackground" Color="Transparent"/>
-                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#12E8EAED"/>
-                                <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent"/>
-                                <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
-                                <SolidColorBrush x:Key="ButtonForeground" Color="#B3E8EAED"/>
-                            </Button.Resources>
-                        </Button>
-                        <Button Content="Use the map" FontSize="12" Padding="12,5" CornerRadius="8" Click="OnConfirmUseMapClick"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
 
             <!-- CANCELLED: what was kept. -->
             <Border Width="310" Padding="16,14" CornerRadius="8" BorderThickness="1"

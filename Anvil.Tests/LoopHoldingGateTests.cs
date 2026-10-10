@@ -194,28 +194,11 @@ namespace Anvil.Tests
 			gate.LoadMeasured += (_, t) => measured.Add(t);
 			gate.Begin("KTLX", "x");
 			gate.Begin("KINX", "y"); // superseded
-			gate.RequestEscape();
-			gate.UseMap();
 			gate.Dismiss();           // a Clear mid-load
 			Assert.Equal(2, measured.Count);
 			Assert.All(measured, t => Assert.Equal(Anvil.Models.LoopLoadOutcome.Abandoned, t.Outcome));
 			Assert.Equal("KTLX", measured[0].SiteId);
-			Assert.True(measured[1].Escaped);
-		}
-
-		[Fact]
-		public void After_Use_the_map_a_finished_load_has_nothing_to_wait_on()
-		{
-			var (gate, _) = NewGate();
-			long now = 0;
-			gate.NowMs = () => now;
-			gate.Begin("KTLX", "x");
-			gate.Arm();
-			now += 5_000;
-			gate.RequestEscape();
-			gate.UseMap();
-			gate.Complete();
-			Assert.False(gate.IsShown);
+			Assert.All(measured, t => Assert.False(t.Escaped)); // no escape since 2026-10-10
 		}
 
 		[Fact]
@@ -238,33 +221,12 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public void The_escape_goes_through_a_confirm()
+		public void The_gate_has_no_escape_state()
 		{
-			var (gate, _) = NewGate();
-			gate.Begin("KTBW", "x");
-			gate.Arm();
-
-			gate.RequestEscape();
-			Assert.Equal(LoopGateState.ConfirmingEscape, gate.State);
-			gate.KeepWaiting();
-			Assert.Equal(LoopGateState.Holding, gate.State);
-
-			gate.RequestEscape();
-			gate.UseMap();
-			Assert.False(gate.IsShown);
-		}
-
-		[Fact]
-		public void An_escape_is_for_that_load_only_and_the_next_load_is_held()
-		{
-			var (gate, _) = NewGate();
-			gate.Begin("KTBW", "x");
-			gate.RequestEscape();
-			gate.UseMap();
-			Assert.False(gate.IsShown);
-
-			gate.Begin("KTBW", "y");
-			Assert.True(gate.IsShown);
+			// "Use the map" and its confirm were removed (2026-10-10): Cancel is the only way off mid-load.
+			Assert.DoesNotContain("ConfirmingEscape", Enum.GetNames<LoopGateState>());
+			Assert.Null(typeof(LoopHoldingGateViewModel).GetMethod("UseMap"));
+			Assert.Null(typeof(LoopHoldingGateViewModel).GetMethod("RequestEscape"));
 		}
 
 		[Fact]
@@ -313,7 +275,6 @@ namespace Anvil.Tests
 			Assert.False(gate.IsShown);
 
 			gate.Begin("KTBW", "y");
-			gate.RequestEscape();
 			gate.Dismiss();
 			Assert.False(gate.IsShown);
 		}

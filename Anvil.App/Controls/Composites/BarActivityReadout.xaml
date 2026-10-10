@@ -5,15 +5,15 @@
      cluster's 8 px) — see AlignActivityBay.
 
        ╔══════════════════════════════════════════════════════════╗   ← plate: BarKeySide tall, so it lines up with
-       ║  Loading the loop  [+1]                   22 of 39 built  ║     Atlas top and bottom. Its BORDER is the tone:
-       ║  ████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ║   ← main bar  (the gate's BUILT)
-       ║  ─────────────────────────────────────────░░░░░░░░░░░░░  ║   ← thin line (the gate's DOWNLOADED), loop only
+       ║  Checking radar sites  [+1]                    84 / 159  ║     Atlas top and bottom. Its BORDER is the tone:
+       ║  ████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ║   ← main bar (a source's own fraction)
        ╚══════════════════════════════════════════════════════════╝
-         border = the tone: blue = radar loop work · green = done flash · red = failed · grey/idle = the plain
+         border = the tone: blue = radar work · green = done flash · red = failed · grey/idle = the plain
          hairline (the coloured ring fades out in its own colour). ⚠️ The 3 px tone MARK at the left is GONE
          (2026-10-08, the user's call) — the border replaced it; text starts at the plate's 14 px inset.
+         ⚠️ NO PASTCAST LOOP LINE (removed 2026-10-10): a PastCast load shows only on the gate, which can't be escaped.
 
-       NowCast's LIVE POLL (lowest rank, EVERY poll) wears the loop's look:
+       NowCast's LIVE POLL (lowest rank, EVERY poll):
        ║  Checking for a new scan                  3 of 5 chunks  ║   ← thin line = the poll's chunk download
        then, nothing newer:    No new scan    1:42:10 PM scan is the newest   (grey: hairline only)
        or a newer scan:
@@ -21,11 +21,10 @@
        ║  ████████████████████████████████████░░░░░░░░░░░░░░░░░░░  ║     ⅔ built and waiting to be DRAWN
        ║  ───────────────────────────────────────────────────────  ║
        then   New frame · 1:47:12 PM                    Complete     ← green flash ONLY once the page drew it
-                                                                       (radarPainted); holds like "Loop ready".
+                                                                       (radarPainted); holds FlashMs.
                                                                        Not drawn ("Ready" instead): scrubbed back, or
                                                                        no paint in 10 s (a minimized window draws nothing)
 
-       hover (loop only) → the title reads "Hold the map again ↗"; click → back to the gate (ReturnToHold).
        NOTHING ACTIVE → the plate DIMS to 45% (IsShown false; it never disappears — "so the user always knows to
        look there") and shows the IDLE line (tone Idle, plain hairline):
        ┌──────────────────────────────────────────────────────────┐
@@ -51,14 +50,11 @@
           BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
           Background="Transparent"
           Opacity="{x:Bind PlateOpacity(ViewModel.IsShown), Mode=OneWay}"
-          IsHitTestVisible="{x:Bind ViewModel.IsShown, Mode=OneWay}"
-          PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" Tapped="OnTapped">
+          IsHitTestVisible="{x:Bind ViewModel.IsShown, Mode=OneWay}">
         <Grid.OpacityTransition>
             <ScalarTransition Duration="0:0:0.25"/>
         </Grid.OpacityTransition>
-        <!-- The hover wash (loop only — the door back to the gate). -->
-        <Border x:Name="HoverWash" Opacity="0"
-                Background="{ThemeResource OverlayBarSurfaceHoverBrush}"/>
+        <!-- ⚠️ NO HOVER DOOR (removed 2026-10-10 with the gate's escape): the slot is a readout, nothing to click. -->
 
         <!-- THE TONE BORDER (replaced the 3 px tone mark, 2026-10-08): a 1 px coloured ring drawn just INSIDE the plate's
              themed hairline (a child can't paint over its parent's own border, and a negative margin would be clipped by
@@ -80,8 +76,6 @@
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock x:Name="TitleText" Text="{x:Bind ViewModel.Title, Mode=OneWay}"
                                FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock x:Name="ReopenText" Text="Hold the map again ↗" Visibility="Collapsed"
-                               FontSize="13" FontWeight="SemiBold"/>
                     <Border Padding="5,0" CornerRadius="4" VerticalAlignment="Center"
                             Background="{ThemeResource AccentFillColorDefaultBrush}"
                             Visibility="{x:Bind HasText(ViewModel.QueuedText), Mode=OneWay}">

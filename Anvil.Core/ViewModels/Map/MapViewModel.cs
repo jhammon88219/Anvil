@@ -78,7 +78,6 @@ namespace Anvil.ViewModels
 			// the transport-bar section controls bind slices of them.
 			Radar = new RadarViewModel(mapService, radarSiteProvider, radarService, dowEventProvider, settingsService, stormMotion);
 			Activity = new BarActivityViewModel();
-			Activity.WatchLoop(Radar.LoopGate);
 			Activity.WatchSiteCheck(Radar);
 			Activity.WatchLiveFrame(Radar);
 			Outlook =new OutlookViewModel(mapService, spcOutlookService, dispatcher, loggerFactory.CreateLogger<OutlookViewModel>());
@@ -1023,7 +1022,7 @@ namespace Anvil.ViewModels
 		// loop loaded (the user's call, 2026-10-04: it looked odd). The screen's FROST clock decides
 		// (Radar.AreControlsLocked: on with the dim after FadeInDelayMs, so a cached load that never shows the screen
 		// never flickers a window; off at once). Up → close the open ones and remember them; down — "View event",
-		// "Use the map", "Got it" after a cancel, a dismiss — → reopen those whose mode is still on.
+		// "Got it" after a cancel, a dismiss — → reopen those whose mode is still on.
 		// ⚠️ Neither move is SAVED (SaveTemporalSession skips while held): quitting mid-load keeps the windows.
 		private bool _windowsHeldForLoad;
 		private bool _pastHeldForLoad, _nowHeldForLoad, _foreHeldForLoad;

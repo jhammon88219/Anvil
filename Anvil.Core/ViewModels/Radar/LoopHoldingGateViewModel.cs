@@ -12,7 +12,7 @@ namespace Anvil.ViewModels
 	/// <summary>The gate's screens. <see cref="Cancelling"/> covers the moment between the click and the
 	/// loop being truncated, so a load that bails in that window can't hide the gate under the popup.
 	/// <see cref="Ready"/> = the loop finished while the screen was SEEN; it waits for "View event".</summary>
-	public enum LoopGateState { Hidden, Holding, ConfirmingEscape, Cancelling, Cancelled, Ready }
+	public enum LoopGateState { Hidden, Holding, Cancelling, Cancelled, Ready }
 
 	/// <summary>
 	/// The LOOP HOLDING GATE: while a PastCast loop loads, the map is dimmed behind a progress screen and takes
@@ -22,33 +22,24 @@ namespace Anvil.ViewModels
 	/// <remarks>
 	/// <code>
 	///   Load ─▶ Begin ─▶ Holding ──(every frame settled)──▶ Ready ──"View event"──▶ Hidden
-	///                     │  ▲                   (or Hidden at once if the screen never faded in)
-	///                     │  │
-	///        "Use the map"│  │"Keep waiting"
-	///                     ▼  │
-	///               ConfirmingEscape ──"Use the map"──▶ Hidden  (this load only — there is NO permanent opt-out)
-	///                                                    │ still loading: the BAR's readout shows the progress,
-	///                                                    └ and its "Hold the map again" → ReturnToHold → Holding
-	///   Holding ──"Cancel load"──▶ Cancelling ──(loop cut to its lit run)──▶ Cancelled ──"Got it"──▶ Hidden
+	///                     │                      (or Hidden at once if the screen never faded in)
+	///                     └──"Cancel load"──▶ Cancelling ──(loop cut to its lit run)──▶ Cancelled ──"Got it"──▶ Hidden
 	/// </code>
 	/// WHY (2026-10-01): a PastCast load keeps a 4-core machine near 100% CPU, and WinUI 3 hands mouse input to the
 	/// WebView2 THROUGH the UI thread, so the map lags until the loop is built — measured, chased, and parked
-	/// (docs/performance-measurement.md). The gate turns that into an honest wait: real counts, an exit, and a
-	/// way to accept the lag. The user's call: EVERY PastCast load is held, even light ones.
+	/// (docs/performance-measurement.md). The gate turns that into an honest wait: real counts and a Cancel.
+	/// The user's call: EVERY PastCast load is held, even light ones.
 	/// ⚠️ TRUTH ONLY: the counts are the engine's (frames whose volume arrived; scrubber cells lit), never a
 	/// timer or an estimate. The engine pushes them through <see cref="Report"/>.
-	/// ⚠️ The escape is deliberately the quiet path: a borderless button, then a confirm that says what you
-	/// get. ⚠️ There is NO permanent opt-out: the "Don't hold future loads" box and Settings → Radar → PastCast's
-	/// switch (AppSettings.HoldPastCastLoads) were REMOVED 2026-10-10, the user's call. Don't re-add one.
+	/// ⚠️ NO WAY PAST THE GATE BUT CANCEL (the user's call, 2026-10-10): the "Use the map" escape + its confirm, the
+	/// bar's "Loading the loop" readout that carried an escaped load ("Hold the map again"), the "Don't hold future
+	/// loads" box and AppSettings.HoldPastCastLoads were all REMOVED. Don't re-add any of them.
 	/// ⚠️ READY WAITS FOR THE PRESS (the user's call, 2026-10-02): someone reading <see cref="WhyText"/> isn't yanked
 	/// onto the map. But only a screen that was SEEN waits: a load finishing inside <see cref="FadeInDelayMs"/> (a
-	/// cached replay) never showed the gate, so it just releases — and after "Use the map" there is nothing to wait on.
+	/// cached replay) never showed the gate, so it just releases.
 	/// </remarks>
 	public sealed class LoopHoldingGateViewModel : ObservableObject
 	{
-		/// <summary>The confirm's sentence (wording lives here, not in XAML).</summary>
-		public const string EscapeWarning = "The map and the app will be sluggish until the loop finishes loading.";
-
 		/// <summary>The map's frosting while the gate is up, in CSS px (map.js <c>setMapBlur</c>). TUNE HERE — with
 		/// the dim (LoopHoldingGate.xaml's Root background) it should leave colour washes and no readable shapes.</summary>
 		public const double MapBlurPx = 14;
@@ -72,7 +63,6 @@ namespace Anvil.ViewModels
 		// load-time log (LoopLoadRecorder → LoopLoadLog) so a "ready in about X" line can be built from real loads.
 		private long _beganMs;
 		private long? _firstBuiltMs, _allDownloadedMs, _allBuiltMs;
-		private bool _escaped;
 		private string _elapsedText = string.Empty;
 		// Where each landed frame's bytes came from, by loop index (a frame re-landing — a tilt re-cut — overwrites).
 		private readonly System.Collections.Generic.Dictionary<int, FrameNote> _sources = new();
@@ -99,14 +89,13 @@ namespace Anvil.ViewModels
 				var was = _state;
 				if (SetProperty(ref _state, value))
 				{
-					// The screen's clock starts when the gate comes UP (Begin, ReturnToHold), not on Keep waiting.
+					// The screen's clock starts when the gate comes UP (Begin).
 					if (was == LoopGateState.Hidden) _heldSinceMs = NowMs();
 					OnPropertyChanged(nameof(IsShown));
 					OnPropertyChanged(nameof(IsReadyShown));
 					OnPropertyChanged(nameof(Title));
 					OnPropertyChanged(nameof(IsProgressShown));
 					OnPropertyChanged(nameof(IsActionsShown));
-					OnPropertyChanged(nameof(IsConfirmShown));
 					OnPropertyChanged(nameof(IsCancelledShown));
 					OnPropertyChanged(nameof(AreActionsEnabled));
 				}
@@ -116,10 +105,8 @@ namespace Anvil.ViewModels
 		/// <summary>The gate is up (dimming the map and swallowing its input).</summary>
 		public bool IsShown => _state != LoopGateState.Hidden;
 		/// <summary>Why line, title, event line and bars — every screen but the cancelled popup.</summary>
-		public bool IsProgressShown => _state is LoopGateState.Holding or LoopGateState.ConfirmingEscape or LoopGateState.Cancelling
-			or LoopGateState.Ready;
+		public bool IsProgressShown => _state is LoopGateState.Holding or LoopGateState.Cancelling or LoopGateState.Ready;
 		public bool IsActionsShown => _state is LoopGateState.Holding or LoopGateState.Cancelling;
-		public bool IsConfirmShown => _state == LoopGateState.ConfirmingEscape;
 		public bool IsCancelledShown => _state == LoopGateState.Cancelled;
 		/// <summary>The loop is built and the screen waits for "View event".</summary>
 		public bool IsReadyShown => _state == LoopGateState.Ready;
@@ -194,7 +181,7 @@ namespace Anvil.ViewModels
 				_siteId, EventId, outcome, _total, _downloaded, _built, kept,
 				TotalMs: now - _beganMs,
 				FirstFrameMs: Since(_firstBuiltMs), AllDownloadedMs: Since(_allDownloadedMs), AllBuiltMs: Since(_allBuiltMs),
-				Escaped: _escaped, GateShown: true, // always held since the opt-out went (2026-10-10); the field stays (append-only log)
+				Escaped: false, GateShown: true, // no escape since 2026-10-10; // always held since the opt-out went (2026-10-10); the field stays (append-only log)
 				CachedFrames: _sources.Values.Count(f => f.Source == RadarVolumeSource.CachedTilt),
 				LocalRawFrames: _sources.Values.Count(f => f.Source == RadarVolumeSource.LocalRaw),
 				NetworkFrames: _sources.Values.Count(f => f.Source == RadarVolumeSource.Network))
@@ -233,9 +220,9 @@ namespace Anvil.ViewModels
 		public int Downloaded => _downloaded;
 		public int Built => _built;
 
-		/// <summary>0–1 — the bar's activity readout (BarActivityViewModel), not the loading screen (that has cells).</summary>
+		/// <summary>0–1 of frames downloaded (the screen draws cells; these are the plain fractions).</summary>
 		public double DownloadedFraction => _total > 0 ? Math.Clamp((double)_downloaded / _total, 0, 1) : 0;
-		/// <summary>0–1 of frames built — the bar's activity readout.</summary>
+		/// <summary>0–1 of frames built.</summary>
 		public double BuiltFraction => _total > 0 ? Math.Clamp((double)_built / _total, 0, 1) : 0;
 
 		/// <summary>"22 of 28", or "Finding volumes…" before the list is in.</summary>
@@ -248,18 +235,14 @@ namespace Anvil.ViewModels
 
 		// ── Engine seams ──────────────────────────────────────────────────────────────────────────────
 
-		// ── The LOAD (tracked whether or not the gate is up) ──────────────────────────────────────────
-		// ⚠️ Tracking is the LOAD's, not the screen's: after "Use the map" the counts
-		// keep coming, because the bar's activity readout (BarActivityViewModel) shows the same numbers there.
+		// ── The LOAD ──────────────────────────────────────────────────────────────────────────────────
+		// Tracking is the LOAD's, not the screen's: the load-time log measures it from Begin to its end.
 
 		/// <summary>A PastCast load is in flight (Begin → Complete / Abandon / Dismiss / Cancel).</summary>
 		public bool IsLoading { get => _loading; private set => SetProperty(ref _loading, value); }
 
-		/// <summary>The loading site's id ("KTLX") — the bar readout's short form of <see cref="EventLine"/>.</summary>
+		/// <summary>The loading site's id ("KTLX").</summary>
 		public string SiteId { get => _siteId; private set => SetProperty(ref _siteId, value); }
-
-		/// <summary>The load finished with every frame settled; the argument is the loop's frame count.</summary>
-		public event EventHandler<int>? LoadFinished;
 
 		// ── Engine seams ──────────────────────────────────────────────────────────────────────────────
 
@@ -275,7 +258,6 @@ namespace Anvil.ViewModels
 			ClearCells();
 			_beganMs = NowMs();
 			_firstBuiltMs = _allDownloadedMs = _allBuiltMs = null;
-			_escaped = false;
 			_sources.Clear();
 			_progress.Clear();
 			_bytesAtBegin = TotalBytes();
@@ -371,14 +353,11 @@ namespace Anvil.ViewModels
 		internal void Complete()
 		{
 			if (!IsTracking) return;
-			// ⚠️ Announce FIRST, while IsLoading is still true: the bar's readout decides on this event whether it
-			// was the one carrying the load (and flashes "Loop ready"); the IsLoading flip after would clear it first.
-			LoadFinished?.Invoke(this, _total);
 			IsLoading = false;
 			_allBuiltMs ??= NowMs();
 			ElapsedText = $"That took {Duration(_allBuiltMs.Value - _beganMs)} to load.";
 			Measure(LoopLoadOutcome.Finished);
-			if (_state is LoopGateState.Holding or LoopGateState.ConfirmingEscape)
+			if (_state == LoopGateState.Holding)
 			{
 				// A screen that was SEEN waits for "View event"; one that never faded in just releases.
 				State = WasSeen ? LoopGateState.Ready : LoopGateState.Hidden;
@@ -399,7 +378,7 @@ namespace Anvil.ViewModels
 		{
 			if (_loading) Measure(LoopLoadOutcome.Abandoned); // a cancel already cleared _loading and logs itself
 			IsLoading = false;
-			if (_state is LoopGateState.Holding or LoopGateState.ConfirmingEscape) State = LoopGateState.Hidden;
+			if (_state == LoopGateState.Holding) State = LoopGateState.Hidden;
 		}
 
 		/// <summary>Site change, Clear, leaving PastCast, a NowCast load — whatever the gate was showing is moot.</summary>
@@ -424,29 +403,6 @@ namespace Anvil.ViewModels
 		}
 
 		// ── The screen's actions ──────────────────────────────────────────────────────────────────────
-
-		public void RequestEscape()
-		{
-			if (_state == LoopGateState.Holding) State = LoopGateState.ConfirmingEscape;
-		}
-
-		public void KeepWaiting()
-		{
-			if (_state == LoopGateState.ConfirmingEscape) State = LoopGateState.Holding;
-		}
-
-		public void UseMap()
-		{
-			if (_state != LoopGateState.ConfirmingEscape) return;
-			if (_loading) _escaped = true; // the log notes it: the user used the map while it loaded
-			State = LoopGateState.Hidden; // the load stays tracked — the bar's readout carries on with it
-		}
-
-		/// <summary>"Hold the map again" (the bar readout's door): back to the gate while the load is still running.</summary>
-		public void ReturnToHold()
-		{
-			if (_loading && _state == LoopGateState.Hidden) State = LoopGateState.Holding;
-		}
 
 		public async Task CancelLoadAsync()
 		{

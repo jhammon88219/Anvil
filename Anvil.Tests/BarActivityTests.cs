@@ -1,15 +1,14 @@
+using System;
 using System.Threading.Tasks;
-using Anvil.Services;
 using Anvil.ViewModels;
 using Xunit;
-using static Anvil.Tests.TemporalWindowPersistenceTests;
 
 namespace Anvil.Tests
 {
 	/// <summary>
 	/// The bar's activity readout (<see cref="BarActivityViewModel"/>): one slot, the highest-ranked activity
-	/// shows and the rest wait as "+n"; a finish flash yields after its timer; and the PastCast loop appears
-	/// there only while its load runs WITHOUT the gate on screen.
+	/// shows and the rest wait as "+n"; a finish flash yields after its timer. (The PastCast loop's line is gone —
+	/// a PastCast load shows only on its gate, which has no escape since 2026-10-10.)
 	/// </summary>
 	public class BarActivityTests
 	{
@@ -19,15 +18,6 @@ namespace Anvil.Tests
 			private TaskCompletionSource _tcs = new();
 			public Task Wait(int _) => _tcs.Task;
 			public void Fire() { var t = _tcs; _tcs = new(); t.SetResult(); }
-		}
-
-		private static LoopHoldingGateViewModel NewGate() => new(() => Task.CompletedTask);
-
-		// Every load is held (no opt-out since 2026-10-10), so a load reaches the bar through the one-time escape.
-		private static void Escape(LoopHoldingGateViewModel gate)
-		{
-			gate.RequestEscape();
-			gate.UseMap();
 		}
 
 		[Fact]
@@ -42,12 +32,12 @@ namespace Anvil.Tests
 			Assert.Equal("", bar.QueuedText);
 			Assert.False(bar.HasSecondary);
 
-			bar.Set(BarActivityKind.Loop, "Loading the loop · KTLX", "5 of 39 built", 0.13, 0.31);
-			Assert.Equal(BarActivityKind.Loop, bar.Kind);
+			bar.Set(BarActivityKind.Search, "Searching places", "", 0.13, 0.31); // ranks above the site check
+			Assert.Equal(BarActivityKind.Search, bar.Kind);
 			Assert.Equal("+1", bar.QueuedText);
 			Assert.True(bar.HasSecondary);
 
-			bar.Clear(BarActivityKind.Loop);
+			bar.Clear(BarActivityKind.Search);
 			Assert.Equal("Checking radar sites", bar.Title);
 			Assert.Equal("", bar.QueuedText);
 
@@ -75,72 +65,10 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public void The_loop_shows_in_the_bar_only_while_its_gate_is_not_up()
+		public void There_is_no_loop_activity_any_more()
 		{
-			var gate = NewGate();
-			var bar = new BarActivityViewModel(new ManualDelay().Wait);
-			bar.WatchLoop(gate);
-
-			gate.Begin("KTLX", "x");
-			Assert.False(bar.IsShown); // the gate is carrying it
-
-			gate.Arm();
-			gate.Report(39, 31, 22);
-			gate.RequestEscape();
-			gate.UseMap();                       // the escape: the load carries on in the bar
-			Assert.True(bar.IsShown);
-			Assert.Equal("Loading the loop", bar.Title);
-			Assert.Equal("22 of 39 built", bar.Detail);
-			Assert.True(bar.CanReopen);
-
-			gate.Report(39, 39, 30);             // counts keep flowing after the escape
-			Assert.Equal("30 of 39 built", bar.Detail);
-
-			bar.Reopen();                        // "Hold the map again"
-			Assert.True(gate.IsShown);
-			Assert.False(bar.IsShown);
-		}
-
-		[Fact]
-		public void A_load_finished_in_the_bar_flashes_ready_and_one_finished_under_the_gate_does_not()
-		{
-			var delay = new ManualDelay();
-			var gate = NewGate();
-			var bar = new BarActivityViewModel(delay.Wait);
-			bar.WatchLoop(gate);
-
-			gate.Begin("KTLX", "x");
-			Escape(gate);                        // the load is now the bar's
-			Assert.Equal("Finding volumes…", bar.Detail);
-			gate.Arm();
-			gate.Report(39, 39, 39);
-			gate.Complete();
-			Assert.Equal("Loop ready", bar.Title);
-			Assert.Equal("39 frames", bar.Detail);
-			delay.Fire();
-			Assert.False(bar.IsShown);
-
-			var held = NewGate();
-			var bar2 = new BarActivityViewModel(delay.Wait);
-			bar2.WatchLoop(held);
-			held.Begin("KTLX", "x");
-			held.Arm();
-			held.Report(39, 39, 39);
-			held.Complete();
-			Assert.False(bar2.IsShown);
-		}
-
-		[Fact]
-		public void A_failed_load_clears_the_bar()
-		{
-			var gate = NewGate();
-			var bar = new BarActivityViewModel(new ManualDelay().Wait);
-			bar.WatchLoop(gate);
-			gate.Begin("KTLX", "x");
-			Escape(gate);
-			Assert.True(bar.IsShown);
-			gate.Abandon();
-			Assert.False(bar.IsShown);
+			// The PastCast loop's bar line went with the gate's escape (2026-10-10) — don't bring it back.
+			Assert.DoesNotContain("Loop", Enum.GetNames<BarActivityKind>());
 		}
 	}
 }

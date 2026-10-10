@@ -18,7 +18,8 @@ namespace Anvil.Models
 	/// What the loop holding gate measured for one load (<c>LoopHoldingGateViewModel.LoadMeasured</c>). Times are ms since
 	/// the load began (Begin: before the archive listing); null = that line was never crossed.
 	/// </summary>
-	/// <param name="Escaped">The user took "Use the map" while it loaded (the map then competes for the CPU).</param>
+	/// <param name="Escaped">The user took "Use the map" while it loaded. Always false since that escape was removed
+	/// (2026-10-10); older log lines can be true. Kept: append-only.</param>
 	/// <param name="GateShown">The map was gated. Always true since the opt-out was removed (2026-10-10); older log
 	/// lines can be false. Kept: the log's fields are append-only.</param>
 	/// <param name="CachedFrames">Frames whose tilt file was already cached (no download, no extract).</param>
