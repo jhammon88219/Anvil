@@ -2382,7 +2382,7 @@ namespace Anvil.Services
 					url += $"&continuation-token={Uri.EscapeDataString(continuation)}";
 				}
 
-				var xml = await _http.GetStringAsync(url, ct);
+				var xml = await _http.GetStringAsync(url, ct).ConfigureAwait(false); // the parse below stays OFF the UI thread (see GetLiveSiteIdsAsync)
 				var doc = XDocument.Parse(xml);
 
 				// Iterate <Contents> (not bare <Key>) so we can read each object's <Size> and drop degenerate
@@ -2415,6 +2415,10 @@ namespace Anvil.Services
 
 		// The staleness threshold (and why it is 30 min) lives in RadarSiteStatus — the ONE freshness rule,
 		// shared with the Atlas's scan fetch and the loaded loop so they can't grade a site differently.
+		// ⚠️ ConfigureAwait(false) through this whole chain (KeysForDayAsync / AddSitesForDayAsync / the probes): the caller
+		// starts it on the UI THREAD, and without it ~200 S3 listings (60-95 KB of XML each) were parsed THERE — 0.7 s of UI
+		// work per pass (TiltCheck -- --sitecheck, 2026-10-10). The progress reports still land on the UI thread: a
+		// Progress<T> posts to the context it was BUILT on. Shared state here is the local `live` set (locked).
 		public async Task<IReadOnlyCollection<string>> GetLiveSiteIdsAsync(IProgress<SiteCheckResult>? progress = null, CancellationToken cancellationToken = default)
 		{
 			var now = DateTimeOffset.UtcNow;
@@ -2432,7 +2436,7 @@ namespace Anvil.Services
 			{
 				try
 				{
-					await AddSitesForDayAsync(day, candidates, cancellationToken);
+					await AddSitesForDayAsync(day, candidates, cancellationToken).ConfigureAwait(false);
 				}
 				catch (OperationCanceledException)
 				{
@@ -2460,11 +2464,11 @@ namespace Anvil.Services
 			using var gate = new SemaphoreSlim(10);
 			var probes = candidates.Select(async id =>
 			{
-				await gate.WaitAsync(cancellationToken);
+				await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
 				bool fresh;
 				try
 				{
-					var newest = await NewestArchiveVolumeTimeAsync(id, now, cancellationToken);
+					var newest = await NewestArchiveVolumeTimeAsync(id, now, cancellationToken).ConfigureAwait(false);
 					fresh = newest is { } t && RadarSiteStatus.IsFresh(t, now);
 				}
 				catch (OperationCanceledException)
@@ -2493,7 +2497,7 @@ namespace Anvil.Services
 				// Report THIS site now, not when the slowest probe finishes — the map cascades grey → colour.
 				progress?.Report(new SiteCheckResult(id, fresh));
 			});
-			await Task.WhenAll(probes);
+			await Task.WhenAll(probes).ConfigureAwait(false);
 			return live;
 		}
 
@@ -2503,10 +2507,10 @@ namespace Anvil.Services
 		// in the name), so the max parsed time wins. One listing per site in the common case.
 		private async Task<DateTimeOffset?> NewestArchiveVolumeTimeAsync(string siteId, DateTimeOffset now, CancellationToken ct)
 		{
-			var newest = NewestOf(await KeysForDayAsync(siteId, now, ct));
+			var newest = NewestOf(await KeysForDayAsync(siteId, now, ct).ConfigureAwait(false));
 			if (newest is null)
 			{
-				newest = NewestOf(await KeysForDayAsync(siteId, now.AddDays(-1), ct));
+				newest = NewestOf(await KeysForDayAsync(siteId, now.AddDays(-1), ct).ConfigureAwait(false));
 			}
 			return newest;
 
@@ -2540,7 +2544,7 @@ namespace Anvil.Services
 					url += $"&continuation-token={Uri.EscapeDataString(continuation)}";
 				}
 
-				var xml = await _http.GetStringAsync(url, ct);
+				var xml = await _http.GetStringAsync(url, ct).ConfigureAwait(false);
 				var doc = XDocument.Parse(xml);
 				foreach (var cp in doc.Descendants(S3 + "CommonPrefixes"))
 				{

@@ -28,9 +28,15 @@ namespace Anvil.Controls.Primitives
 	{
 		private enum DotState : byte { Empty, Filling, Ready, Current }
 
-		// Per segment, its dots IN FILL ORDER, and each dot's last-applied state (a style is re-set only on change).
-		private readonly List<Ellipse[]> _blocks = new();
-		private readonly List<DotState[]> _states = new();
+		// THE FIELD: every dot, flat (index = column × rows + row), and each dot's last-applied state (a style is re-set
+		// only on change). ⚠️ Built ONCE per shape (width, rows, dot size + gap) and REUSED across loops: a new loop only
+		// re-deals which frame owns which columns. It used to be torn down and rebuilt (~525 Ellipses) on every re-lay,
+		// and a re-lay ran per collection event — measured 2026-10-10 as 1-1.7 s UI-thread freezes on every site load.
+		private Ellipse[] _dots = Array.Empty<Ellipse>();
+		private DotState[] _dotStates = Array.Empty<DotState>();
+		private (int Columns, int Rows, double Pitch, double Left, double Size) _fieldShape;
+		// Per segment, its dots' FIELD indices IN FILL ORDER.
+		private readonly List<int[]> _blocks = new();
 		private ObservableCollection<RadarFrameSegment>? _attached;
 		private readonly List<RadarFrameSegment> _watched = new();
 		private int _litIndex = -1;
@@ -164,8 +170,22 @@ namespace Anvil.Controls.Primitives
 		}
 
 		// A new loop / a remap / a live append: re-lay every block (the slot width changes with the count).
+		// ⚠️ ONCE PER BURST, queued: RadarViewModel.RebuildSegments is a Clear + one Add per frame — N + 1 events for one
+		// new loop — and re-laying (and re-watching every segment) on each was the bulk of the site-load freeze. A Paint
+		// in between may land on the old blocks for a tick; the queued re-lay repaints every block.
+		private bool _relayQueued;
+
 		private void OnSegmentsChanged(object? sender, NotifyCollectionChangedEventArgs e)
 		{
+			if (_relayQueued) return;
+			_relayQueued = true;
+			if (DispatcherQueue?.TryEnqueue(Relay) != true) Relay(); // no queue (shutting down): re-lay now
+		}
+
+		private void Relay()
+		{
+			_relayQueued = false;
+			if (_attached is null) return; // detached while queued — Attach re-lays itself
 			Unwatch();
 			Watch();
 			Layout();
@@ -218,9 +238,7 @@ namespace Anvil.Controls.Primitives
 		private void Layout()
 		{
 			if (Dots is null) return; // a DP set before InitializeComponent
-			Dots.Children.Clear();
 			_blocks.Clear();
-			_states.Clear();
 			_owner = Array.Empty<int>();
 
 			var width = ActualWidth;
@@ -235,14 +253,12 @@ namespace Anvil.Controls.Primitives
 			var pitch = DotSize + DotGap;
 			var fieldColumns = Math.Max(1, (int)Math.Floor((width + DotGap) / pitch));
 			_fieldLeft = Math.Round((width - (fieldColumns * pitch - DotGap)) / 2);
+			EnsureField(fieldColumns, rows, pitch);
 
 			if (count == 0)
 			{
 				// No loop: the bare field, every dot empty.
-				for (var c = 0; c < fieldColumns; c++)
-				{
-					for (var r = 0; r < rows; r++) Dots.Children.Add(MakeDot(c, r, pitch));
-				}
+				for (var d = 0; d < _dots.Length; d++) SetDot(d, DotState.Empty);
 				_litIndex = -1;
 				return;
 			}
@@ -260,8 +276,8 @@ namespace Anvil.Controls.Primitives
 			for (var s = 0; s < count; s++)
 			{
 				var columns = columnCount[s];
-				var dots = new Ellipse[columns * rows];
-				for (var i = 0; i < dots.Length; i++)
+				var block = new int[columns * rows];
+				for (var i = 0; i < block.Length; i++)
 				{
 					// i in FILL ORDER → (column within the frame, row-from-bottom).
 					int column, fromBottom;
@@ -275,25 +291,48 @@ namespace Anvil.Controls.Primitives
 						column = i / rows;
 						fromBottom = i % rows;
 					}
-					var dot = MakeDot(firstColumn[s] + column, rows - 1 - fromBottom, pitch);
-					Dots.Children.Add(dot);
-					dots[i] = dot;
+					block[i] = (firstColumn[s] + column) * rows + (rows - 1 - fromBottom);
 				}
-				_blocks.Add(dots);
-				_states.Add(new DotState[dots.Length]); // all Empty, as built
+				_blocks.Add(block);
 			}
 
 			_litIndex = LitIndex();
-			for (var s = 0; s < count; s++) Paint(s);
+			for (var s = 0; s < count; s++) Paint(s); // every dot is in exactly one block, so every dot is repainted
 		}
 
-		// One empty dot at field column c, row r (0 = top).
-		private Ellipse MakeDot(int column, int row, double pitch)
+		// (Re)builds the field only when its SHAPE changed — see _dots. Fresh dots start empty.
+		private void EnsureField(int columns, int rows, double pitch)
 		{
-			var dot = new Ellipse { Width = DotSize, Height = DotSize, Style = _empty };
-			Canvas.SetLeft(dot, _fieldLeft + column * pitch);
-			Canvas.SetTop(dot, row * pitch);
-			return dot;
+			var shape = (columns, rows, pitch, _fieldLeft, DotSize);
+			if (_dots.Length == columns * rows && _fieldShape == shape) return;
+			_fieldShape = shape;
+			Dots.Children.Clear();
+			_dots = new Ellipse[columns * rows];
+			_dotStates = new DotState[_dots.Length]; // all Empty, as built
+			for (var c = 0; c < columns; c++)
+			{
+				for (var r = 0; r < rows; r++)
+				{
+					var dot = new Ellipse { Width = DotSize, Height = DotSize, Style = _empty };
+					Canvas.SetLeft(dot, _fieldLeft + c * pitch);
+					Canvas.SetTop(dot, r * pitch);
+					Dots.Children.Add(dot);
+					_dots[c * rows + r] = dot;
+				}
+			}
+		}
+
+		private void SetDot(int d, DotState state)
+		{
+			if (_dotStates[d] == state) return;
+			_dotStates[d] = state;
+			_dots[d].Style = state switch
+			{
+				DotState.Current => _current,
+				DotState.Ready => _ready,
+				DotState.Filling => _filling,
+				_ => _empty,
+			};
 		}
 
 		// One block's dots from its segment: the current frame whole, a ready frame whole, else the first
@@ -302,24 +341,14 @@ namespace Anvil.Controls.Primitives
 		{
 			if (_attached is null || s < 0 || s >= _blocks.Count || s >= _attached.Count) return;
 			var segment = _attached[s];
-			var dots = _blocks[s];
-			var states = _states[s];
-			var lit = (int)Math.Round(Math.Clamp(segment.Fill, 0, 1) * dots.Length);
-			for (var i = 0; i < dots.Length; i++)
+			var block = _blocks[s];
+			var lit = (int)Math.Round(Math.Clamp(segment.Fill, 0, 1) * block.Length);
+			for (var i = 0; i < block.Length; i++)
 			{
-				var state = s == _litIndex ? DotState.Current
+				SetDot(block[i], s == _litIndex ? DotState.Current
 					: segment.IsReady ? DotState.Ready
 					: i < lit ? DotState.Filling
-					: DotState.Empty;
-				if (state == states[i]) continue;
-				states[i] = state;
-				dots[i].Style = state switch
-				{
-					DotState.Current => _current,
-					DotState.Ready => _ready,
-					DotState.Filling => _filling,
-					_ => _empty,
-				};
+					: DotState.Empty);
 			}
 		}
 	}

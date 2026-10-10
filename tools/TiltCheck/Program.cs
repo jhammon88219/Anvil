@@ -112,6 +112,12 @@ if (args.Length > 0 && args[0] == "--regime")
 
 // --sails SITE yyyy/MM/dd HH:mm [VOLUMES]: every 0.5° sweep pair (SAILS rescans included) in whole archive volumes —
 // where each sits in the file, whether it pairs, and whether SelectLatestSweep can cut it out. See SailsCheck.cs.
+// --sitecheck: how long the live site check (~200 S3 listings) keeps the UI thread busy. See SiteCheckTiming.cs.
+if (args.Length > 0 && args[0] == "--sitecheck")
+{
+    return await SiteCheckTiming.RunAsync();
+}
+
 if (args.Length > 0 && args[0] == "--sails")
 {
     if (args.Length < 4) { Console.WriteLine("usage: --sails SITE yyyy/MM/dd HH:mm [VOLUMES]"); return 1; }
