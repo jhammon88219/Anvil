@@ -39,7 +39,10 @@
       └──────────────────────────────────────────────────────────────┘    inert; no Body. Drag is all it does.
      ⚠️ A COLLAPSED layer section (a hidden ghost) is skipped by the drag block — no invisible drop slot.
      ⚠️ Header brushes are {ThemeResource} in VISUAL STATES (Normal / PointerOver / Lifted), never resolved
-     in code — see CLAUDE.md. -->
+     in code — see CLAUDE.md.
+     ⚠️ LAZY BODY: a never-opened section's body is NOT in the live tree (it attaches on the first expand and
+     stays). Code that needs a body's elements loaded must expand the section first. -->
+
 <UserControl x:Class="Anvil.Controls.Primitives.PanelSection"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -198,8 +201,11 @@
                     Padding="12"
                     Visibility="{x:Bind BodyVisibility(IsExpanded, Body), Mode=OneWay}">
                 <!-- ⚠️ Stretch: ContentPresenter's default style is Left/Top, which would shrink every card,
-                     slider and combo in the body to its own width. -->
-                <ContentPresenter Content="{x:Bind Body, Mode=OneWay}"
+                     slider and combo in the body to its own width.
+                     ⚠️ LAZY BODY: the body joins the live tree on the FIRST expand and stays (PresentedBody) — a
+                     never-opened section's controls don't load or set up (the launch-window freeze, 2026-10-10). -->
+
+                <ContentPresenter Content="{x:Bind PresentedBody(IsExpanded, Body), Mode=OneWay}"
                                   HorizontalAlignment="Stretch" VerticalAlignment="Top"
                                   HorizontalContentAlignment="Stretch"/>
             </Border>

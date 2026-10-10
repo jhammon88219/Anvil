@@ -200,6 +200,36 @@ namespace Anvil.Controls.Primitives
 		public Visibility GripVisibility(string layerId) => BoolVisibility(!string.IsNullOrEmpty(layerId));
 		public Visibility ChevronVisibility(object? body) => BoolVisibility(body is not null);
 		public Visibility BodyVisibility(bool expanded, object? body) => BoolVisibility(expanded && body is not null);
+
+		// LAZY BODY (2026-10-10): the body is handed to the presenter only once the section has been EXPANDED, and then
+		// kept (collapsing again just hides it, so its state and scroll survive and a re-open costs nothing). Building the
+		// launch's Now window — every section collapsed — still froze the UI ~1 s, because each collapsed body was in the
+		// live tree, loading and setting up controls nobody could see. The body is still CONSTRUCTED by its host's XAML
+		// (its x:Bind bindings live there); it just isn't attached until it's wanted.
+		private bool _bodyAttached;
+
+		public object? PresentedBody(bool expanded, object? body)
+		{
+			if (expanded) _bodyAttached = true;
+			return _bodyAttached ? body : null;
+		}
+
+		// FIRST LAYOUT per section, logged (radar diag "section.measure", ≥ 5 ms) — what each costs when its window opens.
+		private bool _measured;
+
+		protected override Size MeasureOverride(Size availableSize)
+		{
+			if (_measured) return base.MeasureOverride(availableSize);
+			_measured = true;
+			var clock = System.Diagnostics.Stopwatch.StartNew();
+			var size = base.MeasureOverride(availableSize);
+			if (clock.ElapsedMilliseconds >= 5)
+			{
+				Anvil.Services.RadarDiagnostics.Log("ui", "section.measure", ("section", Header),
+					("ms", clock.ElapsedMilliseconds), ("expanded", IsExpanded), ("bodyAttached", _bodyAttached));
+			}
+			return size;
+		}
 		public Visibility BoolVisibility(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 		public double ChevronAngle(bool expanded) => expanded ? 90 : 0;
 

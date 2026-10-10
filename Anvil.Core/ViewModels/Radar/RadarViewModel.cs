@@ -2614,6 +2614,12 @@ namespace Anvil.ViewModels
 		/// lists can re-filter.</summary>
 		public event EventHandler? SiteAvailabilityChanged;
 
+		/// <summary>A loop's FIRST frame (of a site pick / reload) is decoded and on the map. MapViewModel holds the launch's
+		/// restored temporal windows until the home radar's is (their first layout froze the UI ~1-2 s — see LAUNCH WINDOWS).</summary>
+		public event EventHandler? FirstFrameShown;
+
+		internal void RaiseFirstFrameShown() => FirstFrameShown?.Invoke(this, EventArgs.Empty);
+
 		// The running pass. ⚠️ _sitePassId drops a result from a pass that has been superseded (a PastCast exit
 		// starts a new one mid-loop; entering PastCast ends it) — and Progress<T> POSTS, so a report can land after its
 		// pass returned.

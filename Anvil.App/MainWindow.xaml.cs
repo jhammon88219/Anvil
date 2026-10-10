@@ -654,6 +654,7 @@ namespace Anvil
 				availableBottom: () =>
 					MapControlsTier.TransformToVisual(Content).TransformPoint(new Windows.Foundation.Point(0, 0)).Y,
 				monitorMode: () => ViewModel.MonitorMode);
+			_windows.WindowShown += (_, _) => ViewModel.OnPanelWindowShown(); // the launch windows open one at a time on it
 			// ONE settings window with a tab strip — it absorbed the former App Settings, Map Controls and Dev
 			// Tools windows, which is why the bar's right cluster is down to Panes / Atlas / Settings.
 			// ⚠️ Every panel's size AND spot come from its anchor (WindowManager's PLACEMENT block) — there

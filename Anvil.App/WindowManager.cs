@@ -141,6 +141,9 @@ namespace Anvil
 
 		public WindowManager(Microsoft.Extensions.Logging.ILogger<WindowManager> logger) => _logger = logger;
 
+		/// <summary>A panel window drew its first frame after opening (its id). See OPEN TIMING.</summary>
+		public event EventHandler<string>? WindowShown;
+
 		private Window? _owner;
 		private bool _ownerClosed; // the app is closing — never hand focus back to the main window then
 		private DispatcherQueue? _dispatcher;
@@ -382,6 +385,7 @@ namespace Anvil
 			void OnFrame(object? s, object e)
 			{
 				Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= OnFrame;
+				WindowShown?.Invoke(this, id); // MapViewModel's LAUNCH WINDOWS opens the next restored window on this
 				_logger.LogInformation(
 					"Window {Id} opened in {Total} ms: build {Build} · create+activate {Create} · loaded at {Loaded} · " +
 					"first layout at {Layout} · first frame at {Frame} (debugger {Debugger})",

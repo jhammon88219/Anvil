@@ -871,7 +871,76 @@ namespace Anvil.ViewModels
 			if (s.ForeWindowLocked is bool fl) { IsForeWindowLocked = fl; }
 		}
 
-		internal void RestoreTemporalSession() // internal: TemporalSessionTests call it without a full map-ready
+		// ===== LAUNCH WINDOWS (2026-10-10): the restored windows open AFTER the home radar's first frame, ONE AT A TIME =====
+		// Building + first-laying-out the Now and Fore windows froze the UI ~1-2 s at launch (Start-menu runs; ~2× under the
+		// debugger), while the home loop started and the map sat behind them. Map-ready now restores the MODES at once but
+		// holds their windows (deferWindows): OpenLaunchWindowsAsync waits for the home radar's first frame (only when a
+		// live loop is starting; LaunchWindowFallbackMs if it never comes), then opens each window and waits for it to draw
+		// (OnPanelWindowShown, from WindowManager; WindowShownTimeoutMs) before the next, so two layouts never stack.
+		// A window whose mode went off meanwhile stays shut; one the loading screen holds is handed to it.
+		private (bool Past, bool Now, bool Fore) _launchWindows;
+		private TaskCompletionSource? _windowShown;
+
+		/// <summary>No first radar frame by then → the launch windows open anyway.</summary>
+		internal int LaunchWindowFallbackMs { get; set; } = 5000;
+
+		/// <summary>A window that never reports drawing (no page) doesn't hold the next past this.</summary>
+		internal int WindowShownTimeoutMs { get; set; } = 1500;
+
+		/// <summary>True when the launch is starting a live radar loop worth waiting for (test seam).</summary>
+		internal Func<bool>? LaunchLoopStarting { get; set; }
+
+		/// <summary>WindowManager → MainWindow: a panel window drew its first frame.</summary>
+		public void OnPanelWindowShown() => _windowShown?.TrySetResult();
+
+		internal async Task OpenLaunchWindowsAsync()
+		{
+			var want = _launchWindows;
+			_launchWindows = default;
+			if (!(want.Past || want.Now || want.Fore)) return;
+
+			var loopStarting = LaunchLoopStarting?.Invoke() ?? (!IsPastCast && Radar.SelectedRadarOption?.Site is not null);
+			if (loopStarting)
+			{
+				var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+				void OnFirst(object? sender, EventArgs e) => first.TrySetResult();
+				Radar.FirstFrameShown += OnFirst;
+				try { await Task.WhenAny(first.Task, Task.Delay(LaunchWindowFallbackMs)); }
+				finally { Radar.FirstFrameShown -= OnFirst; }
+			}
+
+			var opened = false;
+			foreach (var (mode, on) in new[] { (TemporalMode.Past, want.Past), (TemporalMode.Now, want.Now), (TemporalMode.Fore, want.Fore) })
+			{
+				if (!on || _shuttingDown || !IsModeOn(mode)) continue;
+				if (opened)
+				{
+					var shown = _windowShown?.Task ?? Task.CompletedTask;
+					await Task.WhenAny(shown, Task.Delay(WindowShownTimeoutMs));
+					if (_shuttingDown || !IsModeOn(mode)) continue;
+				}
+				_windowShown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+				if (_windowsHeldForLoad)
+				{
+					// The loading screen is up: it reopens what it holds when it goes.
+					if (mode == TemporalMode.Past) _pastHeldForLoad = true;
+					else if (mode == TemporalMode.Now) _nowHeldForLoad = true;
+					else _foreHeldForLoad = true;
+					continue;
+				}
+				SetTemporalWindowOpen(mode, true);
+				opened = true;
+			}
+
+			bool IsModeOn(TemporalMode m) => m switch
+			{
+				TemporalMode.Past => IsPastCast,
+				TemporalMode.Now => IsNowCast,
+				_ => IsForeCast,
+			};
+		}
+
+		internal void RestoreTemporalSession(bool deferWindows = false) // internal: TemporalSessionTests call it without a full map-ready
 		{
 			if (_sessionRestored) { return; }
 			var s = _settingsService.Settings;
@@ -907,10 +976,18 @@ namespace Anvil.ViewModels
 			}
 			finally { _restoringSession = false; }
 
-			// A window only comes back with its mode (a window can't outlive its mode).
-			IsPastWindowOpen = IsPastCast && pastWin;
-			IsNowWindowOpen = IsNowCast && nowWin;
-			IsForeWindowOpen = IsForeCast && foreWin;
+			// A window only comes back with its mode (a window can't outlive its mode). At launch they're HELD for
+			// OpenLaunchWindowsAsync (LAUNCH WINDOWS above).
+			if (deferWindows)
+			{
+				_launchWindows = (IsPastCast && pastWin, IsNowCast && nowWin, IsForeCast && foreWin);
+			}
+			else
+			{
+				IsPastWindowOpen = IsPastCast && pastWin;
+				IsNowWindowOpen = IsNowCast && nowWin;
+				IsForeWindowOpen = IsForeCast && foreWin;
+			}
 			_sessionRestored = true;
 		}
 
@@ -1777,7 +1854,8 @@ namespace Anvil.ViewModels
 			RadarNws.Start(); // the launch NWS status check — fire-and-forget, it touches no map
 			// The modes that were on last run, and their windows. BEFORE the home-site launch: a restored
 			// PastCast means "replay", and SiteFavorites skips starting a live loop in that case.
-			await Step("temporal session", () => { RestoreTemporalSession(); return Task.CompletedTask; });
+			// The WINDOWS are held — OpenLaunchWindowsAsync, below (LAUNCH WINDOWS).
+			await Step("temporal session", () => { RestoreTemporalSession(deferWindows: true); return Task.CompletedTask; });
 			// ⚠️ AFTER the restore: a restored PastCast runs no site check, and started before it, the live pass showed in
 			// the bar for a moment before PastCast came back (RadarViewModel.StartSiteChecks).
 			Radar.StartSiteChecks();
@@ -1786,6 +1864,8 @@ namespace Anvil.ViewModels
 				System.Diagnostics.Debugger.IsAttached ? "attached" : "not attached");
 			// LAST: load-home-on-launch flies the camera, and an isolation replay above would override it.
 			await SiteFavorites.OnMapsReadyAsync();
+			// After the home site is picked, so it can wait for that loop's first frame. Not awaited: map-ready is done.
+			_ = OpenLaunchWindowsAsync();
 		}
 
 		/// <summary>A map-ready step at least this slow is named in the startup log line.</summary>

@@ -51,6 +51,74 @@ namespace Anvil.Tests
 			Assert.True(vm.IsNowWindowOpen);     // …with its window, while the reports are still loading
 		}
 
+		// ── LAUNCH WINDOWS: after the home radar's first frame, one at a time (MapViewModel.OpenLaunchWindowsAsync) ──
+
+		private static AppSettings NowAndForeWithWindows() =>
+			new() { StartupResume = false, StartupMode = "nowfore", StartupOpenWindow = true };
+
+		[Fact]
+		public async Task Launch_windows_wait_for_the_home_radars_first_frame()
+		{
+			var vm = New(NowAndForeWithWindows());
+			vm.LaunchLoopStarting = () => true;
+			vm.WindowShownTimeoutMs = 10;
+			vm.RestoreTemporalSession(deferWindows: true);
+			Assert.True(vm.IsNowCast);                    // the MODES come back at once
+			Assert.False(vm.IsNowWindowOpen);             // the windows are held
+
+			var opening = vm.OpenLaunchWindowsAsync();
+			await Task.Delay(50);
+			Assert.False(vm.IsNowWindowOpen);             // still waiting on the radar
+			vm.Radar.RaiseFirstFrameShown();
+			await opening;
+			Assert.True(vm.IsNowWindowOpen);
+			Assert.True(vm.IsForeWindowOpen);
+		}
+
+		[Fact]
+		public async Task Launch_windows_open_anyway_when_no_first_frame_comes()
+		{
+			var vm = New(NowAndForeWithWindows());
+			vm.LaunchLoopStarting = () => true;
+			vm.LaunchWindowFallbackMs = 30;
+			vm.WindowShownTimeoutMs = 10;
+			vm.RestoreTemporalSession(deferWindows: true);
+			await vm.OpenLaunchWindowsAsync();
+			Assert.True(vm.IsNowWindowOpen);
+			Assert.True(vm.IsForeWindowOpen);
+		}
+
+		[Fact]
+		public async Task Launch_windows_open_one_at_a_time()
+		{
+			var vm = New(NowAndForeWithWindows());
+			vm.LaunchLoopStarting = () => false;           // nothing to wait for: the first opens at once
+			vm.WindowShownTimeoutMs = 10_000;
+			vm.RestoreTemporalSession(deferWindows: true);
+
+			var opening = vm.OpenLaunchWindowsAsync();
+			Assert.True(vm.IsNowWindowOpen);
+			Assert.False(vm.IsForeWindowOpen);            // not until Now has drawn
+			vm.OnPanelWindowShown();
+			await opening;
+			Assert.True(vm.IsForeWindowOpen);
+		}
+
+		[Fact]
+		public async Task A_launch_window_whose_mode_went_off_meanwhile_stays_shut()
+		{
+			var vm = New(NowAndForeWithWindows());
+			vm.LaunchLoopStarting = () => true;
+			vm.WindowShownTimeoutMs = 10;
+			vm.RestoreTemporalSession(deferWindows: true);
+			var opening = vm.OpenLaunchWindowsAsync();
+			vm.IsForeCast = false;                        // switched off before the radar came up
+			vm.Radar.RaiseFirstFrameShown();
+			await opening;
+			Assert.True(vm.IsNowWindowOpen);
+			Assert.False(vm.IsForeWindowOpen);
+		}
+
 		[Fact]
 		public void FirstRun_EverythingOff_AndNothingSaved()
 		{

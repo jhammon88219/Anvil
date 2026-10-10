@@ -1563,6 +1563,7 @@ namespace Anvil.ViewModels
 				_vm._firstFrameElapsed = DateTimeOffset.UtcNow - click;
 				Services.RadarDiagnostics.Timing("first", _vm._firstFrameElapsed.Value.TotalSeconds);
 				_vm.RaiseRadarReadout();
+				_vm.RaiseFirstFrameShown();
 			}
 
 			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
