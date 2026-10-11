@@ -557,9 +557,11 @@ function dealiasSweepCore(radials, radar, seedProfile) {
     // shared boundary (kept symmetric: g[b].get(a) mirrors it with negated sumdiff). ---
     const g = new Array(numReg);
     for (let i = 0; i < numReg; i++) g[i] = new Map();
+    // Every edge (and its mate) carries `seq` = its creation order — the merge's TIE-BREAK (step 3).
+    let edgeSeq = 0;
     function addEdge(a, b, dv) { // dv = v_a - v_b (raw m/s)
         let e = g[a].get(b);
-        if (!e) { e = [0, 0]; g[a].set(b, e); const f = [0, 0]; g[b].set(a, f); e.mate = f; f.mate = e; }
+        if (!e) { e = [0, 0]; g[a].set(b, e); const f = [0, 0]; g[b].set(a, f); e.mate = f; f.mate = e; e.seq = f.seq = edgeSeq++; }
         e[0]++; e[1] += dv / nyq2;
         const f = e.mate; f[0]++; f[1] -= dv / nyq2;
     }
@@ -589,23 +591,37 @@ function dealiasSweepCore(radials, radar, seedProfile) {
 
     // --- 3. dynamic network reduction: merge the heaviest boundary first, combining parallel edges. A
     // binary max-heap orders merges by (current) weight; entries are lazily validated on pop (an entry
-    // is stale if either node died or the live edge weight no longer matches). ---
-    const heap = []; // array of [weight, a, b]
-    function heapPush(w, a, b) {
-        heap.push([w, a, b]); let i = heap.length - 1;
-        while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] >= heap[i][0]) break; const t = heap[p]; heap[p] = heap[i]; heap[i] = t; i = p; }
+    // is stale if either node died, or the live edge's weight or seq no longer matches). ---
+    // ⚠️⚠️ TIES ARE BROKEN EXACTLY LIKE PY-ART / tools/dealias_check.py: among equal weights, the edge whose LOWER
+    // region id is smallest, then the OLDEST edge (`seq`) — i.e. the first maximum a scan over regions in id order,
+    // neighbours in insertion order, would find. Weight-only ordering left ties to the heap's internal layout, and
+    // the merge is NOT order-insensitive: weak 1–3-gate links (far-range regions bridged across gaps by EDGE_SKIP)
+    // merged in a different order can land a whole sector a fold off. Measured 2026-10-11 on KCYS 2026-10-10 (a quiet
+    // 7–12 m/s day): byte-identical input and labels, and this heap put 42% of the 21:26 scan at +1 fold (a fake
+    // "-150 mph couplet") where the mirror and Py-ART keep 99% at 0; 6 of 11 frames that session over-unfolded. With the
+    // tie-break the heap reproduces the mirror region for region (verified in Python on the JS's own exported input).
+    const heap = []; // array of [weight, a, b, lowId, seq] with a = lowId < b
+    function heapBetter(x, y) { // x merges before y?
+        if (x[0] !== y[0]) return x[0] > y[0];
+        if (x[3] !== y[3]) return x[3] < y[3];
+        return x[4] < y[4];
+    }
+    function heapPush(a, b) {
+        const e = g[a].get(b), lo = a < b ? a : b, hi = a < b ? b : a;
+        heap.push([e[0], lo, hi, lo, e.seq]); let i = heap.length - 1;
+        while (i > 0) { const p = (i - 1) >> 1; if (!heapBetter(heap[i], heap[p])) break; const t = heap[p]; heap[p] = heap[i]; heap[i] = t; i = p; }
     }
     function heapPop() {
         if (!heap.length) return null;
         const top = heap[0], last = heap.pop();
         if (heap.length) { heap[0] = last; let i = 0; const n = heap.length;
             for (;;) { let l = 2 * i + 1, rr = l + 1, m = i;
-                if (l < n && heap[l][0] > heap[m][0]) m = l;
-                if (rr < n && heap[rr][0] > heap[m][0]) m = rr;
+                if (l < n && heapBetter(heap[l], heap[m])) m = l;
+                if (rr < n && heapBetter(heap[rr], heap[m])) m = rr;
                 if (m === i) break; const t = heap[m]; heap[m] = heap[i]; heap[i] = t; i = m; } }
         return top;
     }
-    for (let a = 0; a < numReg; a++) g[a].forEach(function (e, b) { if (b > a) heapPush(e[0], a, b); });
+    for (let a = 0; a < numReg; a++) g[a].forEach(function (e, b) { if (b > a) heapPush(a, b); });
 
     const alive = new Uint8Array(numReg).fill(1);
     const size = Int32Array.from(regionCnt);
@@ -625,7 +641,7 @@ function dealiasSweepCore(radials, radar, seedProfile) {
         const w = top[0], a = top[1], b = top[2];
         if (!alive[a] || !alive[b]) continue;
         const e = g[a].get(b);
-        if (!e || e[0] !== w) continue; // stale heap entry (weight changed by a combine)
+        if (!e || e[0] !== w || e.seq !== top[4]) continue; // stale entry (weight changed by a combine, or edge re-made)
         const rdiff = Math.round(e[1] / e[0]);
         let base, mrg, nw;
         if (size[a] >= size[b]) { base = a; mrg = b; nw = rdiff; }
@@ -636,10 +652,10 @@ function dealiasSweepCore(radials, radar, seedProfile) {
         g[mrg].forEach(function (e2, nb) {
             g[nb].delete(mrg);
             const be = g[base].get(nb);
-            if (be) { be[0] += e2[0]; be[1] += e2[1]; be.mate[0] += e2[0]; be.mate[1] -= e2[1]; heapPush(be[0], base, nb); }
+            if (be) { be[0] += e2[0]; be[1] += e2[1]; be.mate[0] += e2[0]; be.mate[1] -= e2[1]; heapPush(base, nb); } // keeps its seq
             else {
                 const f = [e2[0], -e2[1]]; const ne = [e2[0], e2[1]];
-                ne.mate = f; f.mate = ne; g[base].set(nb, ne); g[nb].set(base, f); heapPush(ne[0], base, nb);
+                ne.mate = f; f.mate = ne; ne.seq = f.seq = edgeSeq++; g[base].set(nb, ne); g[nb].set(base, f); heapPush(base, nb);
             }
         });
         g[mrg] = new Map();

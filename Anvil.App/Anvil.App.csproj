@@ -86,6 +86,18 @@
     <Content Include="Assets\RadarCorpus\KILX_20260812_010848.V06">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- Was listed in radar-corpus.json but never packaged, so the Validate card could not fetch it (2026-10-11). -->
+    <Content Include="Assets\RadarCorpus\KMLB_20260905_200222.V06">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- The merge TIE-BREAK guards (2026-10-11): a quiet KCYS day the old weight-only heap over-unfolded — base scan
+         36% → 0.5%, SAILS rescan 85% → 0.4% with the Py-ART tie order. See docs/velocity-dealias.md. -->
+    <Content Include="Assets\RadarCorpus\KCYS_20261010_212604.V06">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\RadarCorpus\KCYS_20261010_213103_p2_213328.V06">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

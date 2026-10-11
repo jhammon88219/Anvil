@@ -169,6 +169,10 @@ def dealias_v2(raw, nyq, splits=3, seed_vr=None):
             e[1] += e[0] * nw
             g[nb][node][1] -= e[0] * nw
 
+    # ⚠️ THIS SCAN ORDER IS THE REFERENCE TIE-BREAK: the first maximum over regions in id order, neighbours in
+    # insertion order (= Py-ART). The JS heap reproduces it with (weight desc, lower id asc, edge seq asc); with
+    # weight-only ordering it over-unfolded KCYS 2026-10-10 by whole sectors (docs/velocity-dealias.md).
+    # `alive` must iterate in ascending id for that — a Python set of small ints does, but don't change its type.
     while True:
         bestw = 0; bpair = None
         for node in alive:
