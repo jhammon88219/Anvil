@@ -4,7 +4,7 @@
 replayed from the archive — and GPU-renders it over local, fully style-controlled vector basemaps, with
 SPC outlooks, watches, warnings, and storm reports layered on top.
 
-<img width="3840" height="2088" alt="The 31 May 2013 El Reno supercell replayed from the archive on KTLX at 0.5° reflectivity, with the PastCast panel showing the loaded two-hour window and the frame scrubber part-way through 26 frames" src="media/hero-el-reno-replay.png" />
+<img width="3840" height="2088" alt="The 31 May 2013 El Reno supercell replayed from the archive on KTLX at 0.5° reflectivity, with the PastCast panel showing the loaded 5:30–7:30 PM window and the scrubber on frame 9 of 26" src="media/hero-el-reno-replay.png" />
 
 ## What it does
 
@@ -24,7 +24,7 @@ stitches in a near-real-time frame from the chunks bucket, cutting the usual ~10
 to a minute or two. The Past Event Viewer plays any site and date back through the 1990s through the
 exact same pipeline — scrub it, loop it, and read the decoded value under the cursor off the Inspector.
 
-<img width="3840" height="2088" alt="A live loop over the Carolinas with ten severe-thunderstorm warning polygons from the NWS CAP feed, the NowCast panel showing the per-type counts and the fifteen-second refresh cadence" src="media/nowcast-warnings.png" />
+<img width="3840" height="2088" alt="A live KRAX loop over eastern North Carolina and southeast Virginia with a severe-thunderstorm warning near Roanoke Rapids and a tornado warning near Washington from the NWS CAP feed, the NowCast panel showing the tornado, severe and flash-flood counts and the 81 active watches" src="media/nowcast-warnings.png" />
 
 **It overlays the severe-weather picture on top.** SPC convective and fire outlooks (Days 1–8, with
 significant-area hatching), tornado and severe-thunderstorm watches, storm-based warning polygons from
@@ -32,7 +32,7 @@ the authoritative NWS CAP feed, and SPC storm reports as verification dots — a
 forecast window, so a replayed event lines up with the outlook that was in effect and the reports that
 verified it.
 
-<img width="3840" height="2088" alt="The SPC Day 1 categorical outlook issued at 20Z on 31 May 2013 with the 263 storm reports that verified it — 31 tornado, 153 wind and 79 hail — plotted across the same 12Z-to-12Z convective day" src="media/pastcast-outlook-reports.png" />
+<img width="3840" height="2088" alt="The SPC Day 1 categorical outlook for 24 May 2011, replayed in PastCast with the El Reno–Piedmont event loaded: a High risk over Oklahoma and southern Kansas inside a Moderate, Slight and general-thunder ring across the central US" src="media/pastcast-outlook-reports.png" />
 
 **The basemap is local and fully yours.** Instead of a tile service, Anvil reads one offline PMTiles
 archive with style JSON you control, so a cartography change is a file edit and panning costs nothing.
@@ -43,7 +43,7 @@ and the map looks identical either way; offline stays the default. It's a Window
 packaged MSIX) in active development, with the UI mid-rebuild — several capabilities live in the view
 models ahead of the controls that expose them.
 
-<img width="3840" height="2088" alt="Oklahoma isolated from the CONUS view: everything outside the state is masked away while the El Reno line still renders inside it, and radar sites in neighbouring states stay visible where their coverage reaches in" src="media/state-isolation.png" />
+<img width="3840" height="2088" alt="Oklahoma isolated from the CONUS view: everything outside the state is masked away and only the part of the 24 May 2011 SPC outlook inside it is drawn, the High, Moderate, Slight and general-thunder lines running down the western half" src="media/state-isolation.png" />
 
 **Not for operational use;** rely on official NWS products for any safety-of-life decision.
 
