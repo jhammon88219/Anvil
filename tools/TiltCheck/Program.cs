@@ -205,6 +205,15 @@ if (args.Length > 0 && args[0] == "--tropical")
     return 0;
 }
 
+// --spec SITE yyyy/MM/dd [FULL]: the decode audit's open items (A7, B7-B10 in docs/RadarEngineSpecs/digests/decode.md)
+// measured on real data — every volume's Message 5, FULL whole volumes' radial statuses (default 4), the chunk kinds.
+if (args.Length > 0 && args[0] == "--spec")
+{
+    if (args.Length < 3) { Console.WriteLine("usage: --spec SITE yyyy/MM/dd [FULL]"); return 1; }
+    return await SpecCheck.RunAsync(args[1].ToUpperInvariant(), args[2],
+        args.Length > 3 && int.TryParse(args[3], out var specFull) ? specFull : 4);
+}
+
 // --supp SITE yyyy/MM/dd [SITE yyyy/MM/dd …]: every volume of each site-day, metadata record ONLY (8 KB range read,
 // raw keys — .gz has no readable prefix), tallied by what Message 5 says about SAILS / MRLE / MPDA / base tilt and
 // by which tilts its table actually repeats. The research behind the "Extra sweeps" row (2026-10-07): does the
