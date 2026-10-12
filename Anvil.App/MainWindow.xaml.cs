@@ -64,6 +64,57 @@ namespace Anvil
 			BottomBar.EdgeStyle = onTools ? BarEdgeStyle.InsetShadow : BarEdgeStyle.CastShadow;
 		}
 
+		// ── SITE MENU ── the menu a map site key's chevron opens. Its items are DECLARED in MainWindow.xaml
+		// (SiteMenu); RadarSiteMenu describes one open (labels, icons, enabled) and does what the items do.
+		private readonly RadarSiteMenu _siteMenu;
+		private RadarSiteMenuState? _siteMenuState; // the site the open menu is about
+
+		// The page's client px are the WebView's DIPs (default zoom), so the point needs no conversion.
+		private void OnRadarSiteMenuRequested(string id, double x, double y)
+		{
+			var state = _siteMenu.Describe(id);
+			if (state is null)
+			{
+				return; // an unknown id does nothing
+			}
+
+			_siteMenuState = state;
+			SiteMenuHeader.Text = state.Title;
+			SiteMenuHeader.KeyboardAcceleratorTextOverride = state.Status;
+			SiteMenuLoad.Text = state.LoadText;
+			SiteMenuLoadIcon.Symbol = state.LoadSymbol;
+			SiteMenuLoad.IsEnabled = state.CanLoad;
+			SiteMenuLoad.KeyboardAcceleratorTextOverride = state.LoadReason;
+			SiteMenuHome.Text = state.HomeText;
+			SiteMenuFavorite.Text = state.FavoriteText;
+			SiteMenuFavoriteIcon.Symbol = state.FavoriteSymbol;
+			SiteMenu.ShowAt(MainMapWebView, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+			{
+				Position = new Windows.Foundation.Point(x, y),
+				Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft,
+			});
+		}
+
+		private void OnSiteMenuLoad(object sender, RoutedEventArgs e)
+		{
+			if (_siteMenuState is { } s) _siteMenu.Load(s.Row);
+		}
+
+		private void OnSiteMenuAtlas(object sender, RoutedEventArgs e)
+		{
+			if (_siteMenuState is { } s) _siteMenu.OpenInAtlas(s.Row);
+		}
+
+		private void OnSiteMenuHome(object sender, RoutedEventArgs e)
+		{
+			if (_siteMenuState is { } s) _siteMenu.ToggleHome(s.Row);
+		}
+
+		private void OnSiteMenuFavorite(object sender, RoutedEventArgs e)
+		{
+			if (_siteMenuState is { } s) _siteMenu.ToggleFavorite(s.Row);
+		}
+
 		// ===== Loop holding gate ↔ bottom chrome =====
 		// The gate spans BOTH rows (so the see-through rail strip is dimmed too) and runs under the chrome; its
 		// content must still centre on the VISIBLE map, so it is told the height of the OPAQUE tiers — the chrome
@@ -589,9 +640,9 @@ namespace Anvil
 			_router.MapReady += OnMapReadyAsync;
 			_uiSettings.ColorValuesChanged += OnColorValuesChanged;
 
-			// A map site key's chevron → its WinUI menu, under the key. The page's client px are the WebView's
-			// DIPs (default zoom), so the point needs no conversion.
-			_router.RadarSiteMenuRequested += (id, x, y) => siteMenu.Show(MainMapWebView, id, new Windows.Foundation.Point(x, y));
+			// A map site key's chevron → its WinUI menu (SiteMenu, declared in MainWindow.xaml), under the key.
+			_siteMenu = siteMenu;
+			_router.RadarSiteMenuRequested += OnRadarSiteMenuRequested;
 
 			ExtendsContentIntoTitleBar = true;
 			InitializeComponent();

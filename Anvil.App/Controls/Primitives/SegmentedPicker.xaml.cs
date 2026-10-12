@@ -1,8 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 
 namespace Anvil.Controls.Primitives
 {
@@ -10,6 +11,8 @@ namespace Anvil.Controls.Primitives
 	/// A row of mutually-exclusive segments over a short fixed list (see the XAML header). Host contract:
 	/// <see cref="ItemsSource"/> for the labels and <see cref="SelectedIndex"/> two-way for the choice — the
 	/// INDEX is the value, and this control never interprets what a label says.
+	/// The segments are DECLARED in the XAML (four positional templates); this only turns the labels into
+	/// <see cref="SegmentedPickerItem"/>s and keeps their selected state in step with <see cref="SelectedIndex"/>.
 	/// </summary>
 	public sealed partial class SegmentedPicker : UserControl
 	{
@@ -18,7 +21,7 @@ namespace Anvil.Controls.Primitives
 			InitializeComponent();
 		}
 
-		/// <summary>The segment labels, in order. Rebuilds the row when it changes.</summary>
+		/// <summary>The segment labels, in order. Re-lists the row when it changes.</summary>
 		public IEnumerable? ItemsSource
 		{
 			get => (IEnumerable?)GetValue(ItemsSourceProperty);
@@ -27,7 +30,7 @@ namespace Anvil.Controls.Primitives
 
 		public static readonly DependencyProperty ItemsSourceProperty =
 			DependencyProperty.Register(nameof(ItemsSource), typeof(IEnumerable), typeof(SegmentedPicker),
-				new PropertyMetadata(null, (d, _) => ((SegmentedPicker)d).Rebuild()));
+				new PropertyMetadata(null, (d, _) => ((SegmentedPicker)d).Relist()));
 
 		/// <summary>The selected segment. Two-way: a click writes it, and a write from the view model
 		/// re-lights the row.</summary>
@@ -51,77 +54,108 @@ namespace Anvil.Controls.Primitives
 
 		public static readonly DependencyProperty DisabledIndexProperty =
 			DependencyProperty.Register(nameof(DisabledIndex), typeof(int), typeof(SegmentedPicker),
-				new PropertyMetadata(-1, (d, _) => ((SegmentedPicker)d).Rebuild()));
+				new PropertyMetadata(-1, (d, _) => ((SegmentedPicker)d).Relist()));
 
-		// Build one column and one segment per label.
-		//
-		// ⚠️ The corner radius and border are POSITIONAL, which is the whole reason this is code and not an
-		// ItemsControl: the ends round outward, and every segment draws the full border EXCEPT its left edge
-		// so that each internal seam is drawn exactly once. The first segment adds its left edge back. Give
-		// them all four edges and every seam doubles in weight.
-		private void Rebuild()
+		// One item per label, carrying its POSITION (which template it gets) and its state.
+		private void Relist()
 		{
-			Segments.Children.Clear();
-			Segments.ColumnDefinitions.Clear();
-			_buttons.Clear();
-
-			if (ItemsSource is null)
+			var items = new List<SegmentedPickerItem>();
+			if (ItemsSource is not null)
 			{
-				return;
-			}
-
-			var labels = new List<object>();
-			foreach (var item in ItemsSource)
-			{
-				labels.Add(item);
-			}
-
-			for (var i = 0; i < labels.Count; i++)
-			{
-				var first = i == 0;
-				var last = i == labels.Count - 1;
-
-				Segments.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-				var segment = new ToggleButton
+				var labels = new List<object>();
+				foreach (var label in ItemsSource)
 				{
-					Content = labels[i],
-					Style = Resources.TryGetValue("SegmentStyle", out var style) ? style as Style : null,
-					// left, top, right, bottom — the left edge only on the first, so seams don't double.
-					BorderThickness = new Thickness(first ? 1 : 0, 1, 1, 1),
-					CornerRadius = new CornerRadius(first ? 4 : 0, last ? 4 : 0, last ? 4 : 0, first ? 4 : 0),
-					IsEnabled = i != DisabledIndex,
-				};
+					labels.Add(label);
+				}
 
-				var index = i;
-				// Clicking the SELECTED segment must leave it selected: a ToggleButton has already unchecked
-				// itself by now, and one of these is always on. ApplySelection puts it back.
-				segment.Click += (_, _) =>
+				for (var i = 0; i < labels.Count; i++)
 				{
-					SelectedIndex = index;
-					ApplySelection();
-				};
-
-				Grid.SetColumn(segment, i);
-				Segments.Children.Add(segment);
-				_buttons.Add(segment);
+					items.Add(new SegmentedPickerItem(this, i, labels[i], first: i == 0, last: i == labels.Count - 1,
+						enabled: i != DisabledIndex));
+				}
 			}
 
+			_items = items;
+			Segments.ItemsSource = items;
+			ApplySelection();
+		}
+
+		// A segment was clicked. Clicking the SELECTED one must leave it selected: the ToggleButton has already
+		// unchecked itself by now, and one of these is always on. ApplySelection puts it back.
+		internal void Pick(int index)
+		{
+			SelectedIndex = index;
 			ApplySelection();
 		}
 
 		private void ApplySelection()
 		{
-			for (var i = 0; i < _buttons.Count; i++)
+			for (var i = 0; i < _items.Count; i++)
 			{
-				var on = i == SelectedIndex;
-				if ((_buttons[i].IsChecked == true) != on)
-				{
-					_buttons[i].IsChecked = on;
-				}
+				_items[i].IsSelected = i == SelectedIndex;
 			}
 		}
 
-		private readonly List<ToggleButton> _buttons = new();
+		private List<SegmentedPickerItem> _items = new();
+	}
+
+	/// <summary>One segment of a <see cref="SegmentedPicker"/>: its label, its position in the row (which of the
+	/// four declared templates it wears) and whether it is on.</summary>
+	public sealed class SegmentedPickerItem : INotifyPropertyChanged
+	{
+		private readonly SegmentedPicker _owner;
+		private bool _isSelected;
+
+		internal SegmentedPickerItem(SegmentedPicker owner, int index, object label, bool first, bool last, bool enabled)
+		{
+			_owner = owner;
+			Index = index;
+			Label = label;
+			IsFirst = first;
+			IsLast = last;
+			IsEnabled = enabled;
+		}
+
+		public int Index { get; }
+		public object Label { get; }
+		public bool IsFirst { get; }
+		public bool IsLast { get; }
+		public bool IsEnabled { get; }
+
+		/// <summary>Two-way with the segment's IsChecked — see the XAML templates for why two-way.</summary>
+		public bool IsSelected
+		{
+			get => _isSelected;
+			set
+			{
+				if (_isSelected == value) return;
+				_isSelected = value;
+				OnPropertyChanged();
+			}
+		}
+
+		/// <summary>The segment's Click (bound with x:Bind).</summary>
+		public void Pick() => _owner.Pick(Index);
+
+		public event PropertyChangedEventHandler? PropertyChanged;
+		private void OnPropertyChanged([CallerMemberName] string? name = null) =>
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+	}
+
+	/// <summary>Picks a segment's template by its POSITION — the one thing a DataTemplate can't see. The four
+	/// templates themselves are declared in SegmentedPicker.xaml.</summary>
+	public sealed class SegmentTemplateSelector : DataTemplateSelector
+	{
+		public DataTemplate? First { get; set; }
+		public DataTemplate? Middle { get; set; }
+		public DataTemplate? Last { get; set; }
+		public DataTemplate? Only { get; set; }
+
+		protected override DataTemplate? SelectTemplateCore(object item) => Pick(item);
+		protected override DataTemplate? SelectTemplateCore(object item, DependencyObject container) => Pick(item);
+
+		private DataTemplate? Pick(object item) => item is SegmentedPickerItem s
+			? s.IsFirst && s.IsLast ? Only : s.IsFirst ? First : s.IsLast ? Last : Middle
+			: Middle;
 	}
 }

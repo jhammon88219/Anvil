@@ -135,7 +135,41 @@
         </Grid.RowDefinitions>
 
         <!-- Full-window map (bottom layer; the bar floats on top of it). -->
-        <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="2"/>
+        <controls:WebView2 x:Name="MainMapWebView" Grid.Row="0" Grid.RowSpan="2">
+            <!-- The SITE MENU — what a site key's chevron opens (RadarSiteMenu.cs describes it per open; the
+                 code-behind's OnRadarSiteMenuRequested fills these items' labels and shows it under the key).
+                 ⚠️ ShouldConstrainToRootBounds="False" (windowed), like every flyout here — else the owned
+                 panel windows paint over it. -->
+            <FlyoutBase.AttachedFlyout>
+                <MenuFlyout x:Name="SiteMenu" ShouldConstrainToRootBounds="False">
+                    <!-- Header: the site's name, its status words on the right. Disabled — it is a title. -->
+                    <MenuFlyoutItem x:Name="SiteMenuHeader" IsEnabled="False"/>
+                    <MenuFlyoutSeparator/>
+                    <!-- "Unload radar" on the loaded site; greyed (reason on the right) when offline. -->
+                    <MenuFlyoutItem x:Name="SiteMenuLoad" Click="OnSiteMenuLoad">
+                        <MenuFlyoutItem.Icon>
+                            <SymbolIcon x:Name="SiteMenuLoadIcon" Symbol="Play"/>
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Text="Open in Atlas" Click="OnSiteMenuAtlas">
+                        <MenuFlyoutItem.Icon>
+                            <SymbolIcon Symbol="Map"/>
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem x:Name="SiteMenuHome" Click="OnSiteMenuHome">
+                        <MenuFlyoutItem.Icon>
+                            <SymbolIcon Symbol="Home"/>
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem x:Name="SiteMenuFavorite" Click="OnSiteMenuFavorite">
+                        <MenuFlyoutItem.Icon>
+                            <SymbolIcon x:Name="SiteMenuFavoriteIcon" Symbol="Favorite"/>
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                </MenuFlyout>
+            </FlyoutBase.AttachedFlyout>
+        </controls:WebView2>
 
         <!-- ===== PANE NOTCHES =====
              One per pane: a small hideable island of chrome at the TOP of that pane, holding everything

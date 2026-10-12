@@ -13,9 +13,7 @@ namespace Anvil.Controls.Primitives
 	/// </summary>
 	public sealed partial class MapControlsStripSeparator : UserControl
 	{
-		private Ellipse[] _dots = Array.Empty<Ellipse>();
-		private int _builtColumns = -1;
-		private int _builtRows = -1;
+		private (int Columns, int Rows, double Size, double Gap) _builtShape = (-1, -1, 0, 0);
 
 		public MapControlsStripSeparator()
 		{
@@ -112,7 +110,7 @@ namespace Anvil.Controls.Primitives
 			return pitch <= 0 ? 1 : Math.Max(1, (int)Math.Floor((width + DotGap) / pitch));
 		}
 
-		// Rebuild the grid only when the COUNT changes (a fill separator re-lays out often); size/gap/brush are
+		// Re-compute the path's circles only when the SHAPE changes (a fill separator re-lays out often); the brush is
 		// re-applied every time. ONE place every DP lands (the OverlayBar rule).
 		private void ApplyShape()
 		{
@@ -120,55 +118,41 @@ namespace Anvil.Controls.Primitives
 			{
 				return; // a DP set before InitializeComponent
 			}
-			int columns = EffectiveColumns();
-			int rows = Math.Max(1, Rows);
-			if (columns != _builtColumns || rows != _builtRows)
+			var shape = (EffectiveColumns(), Math.Max(1, Rows), DotSize, DotGap);
+			if (shape != _builtShape)
 			{
-				BuildDots(columns, rows);
+				Dots.Data = DotGeometry(shape.Item1, shape.Item2, DotSize, DotGap);
+				_builtShape = shape;
 			}
-			Dots.RowSpacing = DotGap;
-			Dots.ColumnSpacing = DotGap;
-			foreach (var dot in _dots)
+			if (Brush is { } brush)
 			{
-				dot.Width = DotSize;
-				dot.Height = DotSize;
-				if (Brush is { } brush)
-				{
-					dot.Fill = brush;
-				}
-				else
-				{
-					dot.ClearValue(Shape.FillProperty); // back to DotStyle's theme brush
-				}
+				Dots.Fill = brush;
+			}
+			else
+			{
+				Dots.ClearValue(Shape.FillProperty); // back to DotStyle's theme brush
 			}
 		}
 
-		// columns × rows Ellipses, each wearing DotStyle (a STYLE is theme-safe; a brush read in C# isn't).
-		private void BuildDots(int columns, int rows)
+		// columns × rows circles at the pitch, from (0,0) — the path's own size is the grid's.
+		private static GeometryGroup DotGeometry(int columns, int rows, double size, double gap)
 		{
-			var style = (Style)Resources["DotStyle"];
-			Dots.Children.Clear();
-			Dots.RowDefinitions.Clear();
-			Dots.ColumnDefinitions.Clear();
-			for (int r = 0; r < rows; r++)
+			var group = new GeometryGroup();
+			var r = size / 2;
+			var pitch = size + gap;
+			for (int row = 0; row < rows; row++)
 			{
-				Dots.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+				for (int c = 0; c < columns; c++)
+				{
+					group.Children.Add(new EllipseGeometry
+					{
+						Center = new Windows.Foundation.Point(c * pitch + r, row * pitch + r),
+						RadiusX = r,
+						RadiusY = r,
+					});
+				}
 			}
-			for (int c = 0; c < columns; c++)
-			{
-				Dots.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-			}
-			_dots = new Ellipse[columns * rows];
-			for (int i = 0; i < _dots.Length; i++)
-			{
-				var dot = new Ellipse { Style = style };
-				Grid.SetRow(dot, i / columns);
-				Grid.SetColumn(dot, i % columns);
-				Dots.Children.Add(dot);
-				_dots[i] = dot;
-			}
-			_builtColumns = columns;
-			_builtRows = rows;
+			return group;
 		}
 	}
 }

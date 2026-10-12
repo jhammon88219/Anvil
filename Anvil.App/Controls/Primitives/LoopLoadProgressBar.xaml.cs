@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -9,16 +11,12 @@ namespace Anvil.Controls.Primitives
 {
 	/// <summary>
 	/// One row of the loading screen (see the XAML header): a big "22 / 28" count beside one cell per frame, each filled
-	/// from the bottom by its fraction in <see cref="Cells"/>, and a caption line under the cells.
+	/// from the bottom by its fraction in <see cref="Cells"/>, and a caption line under the cells. The cell is declared in
+	/// the XAML (CellTemplate); this keeps one <see cref="LoopLoadCell"/> per frame and updates their fractions in place.
 	/// </summary>
 	public sealed partial class LoopLoadProgressBar : UserControl
 	{
-		private const double CellHeight = 30;
-		private const double InProgressOpacity = 0.6;
-		private static readonly Color Track = Color.FromArgb(0x1A, 0xE8, 0xEA, 0xED);
-
-		private readonly List<Border> _fills = new();
-		private SolidColorBrush _fillBrush = new(Color.FromArgb(0xFF, 0x9A, 0xA4, 0xB2));
+		private List<LoopLoadCell> _cells = new();
 
 		public LoopLoadProgressBar()
 		{
@@ -49,7 +47,7 @@ namespace Anvil.Controls.Primitives
 		public static readonly DependencyProperty DetailProperty =
 			DependencyProperty.Register(nameof(Detail), typeof(string), typeof(LoopLoadProgressBar), new PropertyMetadata(string.Empty));
 
-		/// <summary>Per frame, 0–1. A new list re-fills the cells; a different length rebuilds them.</summary>
+		/// <summary>Per frame, 0–1. A new list re-fills the cells; a different length re-lists them.</summary>
 		public IReadOnlyList<double>? Cells { get => (IReadOnlyList<double>?)GetValue(CellsProperty); set => SetValue(CellsProperty, value); }
 		public static readonly DependencyProperty CellsProperty =
 			DependencyProperty.Register(nameof(Cells), typeof(IReadOnlyList<double>), typeof(LoopLoadProgressBar),
@@ -65,41 +63,55 @@ namespace Anvil.Controls.Primitives
 		// No leading space: the XAML's two Runs sit on separate lines, and that line break already renders as one.
 		public string TotalText(int total) => total > 0 ? $"/ {total}" : "/ …";
 
-		private void OnFillChanged(Color color)
-		{
-			_fillBrush = new SolidColorBrush(color);
-			foreach (var fill in _fills) fill.Background = _fillBrush;
-		}
+		// The one shared brush is declared in the XAML; only its colour follows the DP.
+		private void OnFillChanged(Color color) => ((SolidColorBrush)Resources["CellFillBrush"]).Color = color;
 
 		private void UpdateCells()
 		{
 			var cells = Cells ?? Array.Empty<double>();
 			var n = Math.Max(1, cells.Count); // no cells yet → one empty track across the row
-			if (_fills.Count != n) Rebuild(n);
+			if (_cells.Count != n)
+			{
+				_cells = new List<LoopLoadCell>(n);
+				for (var i = 0; i < n; i++) _cells.Add(new LoopLoadCell());
+				CellsHost.ItemsSource = _cells;
+			}
 			for (var i = 0; i < n; i++)
 			{
-				var v = i < cells.Count ? Math.Clamp(cells[i], 0, 1) : 0;
-				var fill = _fills[i];
-				fill.Height = v * CellHeight;
-				fill.Opacity = v >= 1 ? 1 : InProgressOpacity;
+				_cells[i].Fraction = i < cells.Count ? cells[i] : 0;
+			}
+		}
+	}
+}
+
+namespace Anvil.Controls.Primitives
+{
+	/// <summary>One frame's cell in a <see cref="LoopLoadProgressBar"/>: how far that frame has got (0–1), as the
+	/// height and brightness its declared template draws.</summary>
+	public sealed class LoopLoadCell : INotifyPropertyChanged
+	{
+		private const double CellHeight = 30;          // the cells' row height (LoopLoadProgressBar.xaml)
+		private const double InProgressOpacity = 0.6;  // a part-done frame reads dimmer than a done one
+		private double _fraction;
+
+		public double Fraction
+		{
+			get => _fraction;
+			set
+			{
+				var v = Math.Clamp(value, 0, 1);
+				if (v == _fraction) return; // only a changed cell re-lays out
+				_fraction = v;
+				OnPropertyChanged(nameof(FillHeight));
+				OnPropertyChanged(nameof(FillOpacity));
 			}
 		}
 
-		private void Rebuild(int n)
-		{
-			CellsGrid.Children.Clear();
-			CellsGrid.ColumnDefinitions.Clear();
-			_fills.Clear();
-			for (var i = 0; i < n; i++)
-			{
-				CellsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-				var fill = new Border { VerticalAlignment = VerticalAlignment.Bottom, Background = _fillBrush, Height = 0 };
-				var cell = new Grid { Background = new SolidColorBrush(Track), CornerRadius = new CornerRadius(2) };
-				cell.Children.Add(fill);
-				Grid.SetColumn(cell, i);
-				CellsGrid.Children.Add(cell);
-				_fills.Add(fill);
-			}
-		}
+		public double FillHeight => _fraction * CellHeight;
+		public double FillOpacity => _fraction >= 1 ? 1 : InProgressOpacity;
+
+		public event PropertyChangedEventHandler? PropertyChanged;
+		private void OnPropertyChanged([CallerMemberName] string? name = null) =>
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 	}
 }

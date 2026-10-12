@@ -17,14 +17,35 @@
 
      ⚠️ Colours are LITERALS on purpose, like the whole gate: it always sits on a darkened map, never themed. The fill
      colour is a DP (Fill) so the two rows differ — grey for downloads, the scrubber's blue for builds.
-     ⚠️ Cells are built in code-behind (UpdateCells), not an ItemsControl: they re-fill several times a second during a
-     load, and only the changed heights are touched. -->
+     THE CELL IS DECLARED HERE (CellTemplate), never built in code (UI is defined before runtime). The cells re-fill
+     several times a second during a load, so the code-behind keeps ONE LoopLoadCell per frame and only updates the
+     changed fractions in place — the bindings touch just those cells' heights. The list is replaced only when the
+     frame COUNT changes. -->
 <UserControl x:Class="Anvil.Controls.Primitives.LoopLoadProgressBar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="using:Anvil.Controls.Primitives"
              mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- The cells' fill. Its COLOUR follows the Fill DP (a data literal — grey for downloads, the scrubber's
+             blue for builds); the brush itself is declared once here and shared by every cell. -->
+        <SolidColorBrush x:Key="CellFillBrush" Color="#FF9AA4B2"/>
+
+        <!-- ONE FRAME: an empty track, filled from the bottom by the frame's fraction (FillHeight of 30) — full
+             colour when done, 60% while in progress (FillOpacity). -->
+        <DataTemplate x:Key="CellTemplate" x:DataType="local:LoopLoadCell">
+            <Grid Background="#1AE8EAED" CornerRadius="2">
+                <Border VerticalAlignment="Bottom"
+                        Background="{StaticResource CellFillBrush}"
+                        Height="{x:Bind FillHeight, Mode=OneWay}"
+                        Opacity="{x:Bind FillOpacity, Mode=OneWay}"/>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
     <Grid ColumnSpacing="18">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="120"/>
@@ -45,8 +66,15 @@
             <TextBlock Text="{x:Bind Label, Mode=OneWay}" FontSize="12" Margin="0,5,0,0" Foreground="#FFA6AEB8"/>
         </StackPanel>
 
-        <!-- THE CELLS, one per frame (UpdateCells). -->
-        <Grid x:Name="CellsGrid" Grid.Column="1" Height="30" VerticalAlignment="Center" ColumnSpacing="3"/>
+        <!-- THE CELLS, one per frame (CellTemplate; UpdateCells keeps their fractions current). -->
+        <ItemsControl x:Name="CellsHost" Grid.Column="1" Height="30" VerticalAlignment="Center" IsTabStop="False"
+                      ItemTemplate="{StaticResource CellTemplate}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <local:EqualColumnsPanel Spacing="3"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+        </ItemsControl>
 
         <!-- Caption · Detail, under the cells only. -->
         <Grid Grid.Column="1" Grid.Row="1" Margin="0,6,0,0" ColumnSpacing="12">

@@ -12,13 +12,14 @@
                    · · ·
 
      DPs: Columns (3) · Rows (3) · FillWidth · DotSize (1.5) · DotGap (2.5) · Brush.
-     ⚠️ The grid is REBUILT only when the dot COUNT changes; a FillWidth separator re-lays out on every width
-     change its host makes, and most of those don't change the count.
+     THE DOTS ARE ONE DECLARED PATH (Dots, below) — never elements built in code. The code-behind only computes
+     its geometry (one circle per dot at the pitch), and only when the SHAPE changes; a FillWidth separator re-lays
+     out on every width change its host makes, and most of those don't change the count.
      ⚠️ DELIBERATELY FAINT (~16% of the text colour — MapControlsStripSeparatorDotBrush below): it must read as
      structure, never as one more tool. The two stock steps were both wrong — Tertiary sat too close to the
      glyphs, Disabled (36%) still did. Picked from a mockup (2026-09-29), 2 px lines → dots.
      ⚠️ Brush null = that THEME brush, applied through DotStyle — never resolved in C# (it would snapshot the OS
-     theme, not the app's). A set Brush is a LOCAL Fill on each dot; clearing it hands the style back.
+     theme, not the app's). A set Brush is a LOCAL Fill on the path; clearing it hands the style back.
      ⚠️ It is NOT a line across the tier: the tier has no seams (see MapControlsStrip's header). -->
 <UserControl x:Class="Anvil.Controls.Primitives.MapControlsStripSeparator"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -39,12 +40,12 @@
                     <SolidColorBrush x:Key="MapControlsStripSeparatorDotBrush" Color="#29000000"/> <!-- ~16% black -->
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
-            <Style x:Key="DotStyle" TargetType="Ellipse">
+            <Style x:Key="DotStyle" TargetType="Path">
                 <Setter Property="Fill" Value="{ThemeResource MapControlsStripSeparatorDotBrush}"/>
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- The dots are built in code (BuildDots): Columns × Rows, or FillWidth's count. Centred in the slot. -->
-    <Grid x:Name="Dots" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    <!-- Every dot: Columns × Rows, or FillWidth's count, as one path (ApplyShape sets its circles). Centred. -->
+    <Path x:Name="Dots" Style="{StaticResource DotStyle}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 </UserControl>

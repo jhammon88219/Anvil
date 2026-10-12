@@ -15,10 +15,11 @@
      item count times the longest label — a combo box is the right answer the moment either can grow. Today
      the one consumer is the PastCast window's replay duration, which is six fixed labels.
 
-     ⚠️ THE SEGMENTS ARE BUILT IN CODE, not by an ItemsControl. Each one needs a corner radius and a border
-     that depend on its POSITION in the row (the ends round outward, and every segment but the first draws
-     the divider on its left), and a DataTemplate cannot see its own index. Building them is shorter than
-     the converters and attached properties that would take.
+     THE SEGMENTS ARE DECLARED HERE, never built in code (UI is defined before runtime). Each one needs a
+     corner radius and a border that depend on its POSITION in the row (the ends round outward, and every
+     segment but the first draws the divider on its left), and a DataTemplate cannot see its own index —
+     so there are FOUR segment templates below (first / middle / last / only), and SegmentTemplateSelector
+     picks one by the item's position. The code-behind only turns the labels into SegmentedPickerItems.
 
      ⚠️ ONE DIVIDER PER SEAM. Every segment carries the full outer border EXCEPT its left edge, and the
      first segment adds that left edge back. Give them all four edges and every internal seam draws twice,
@@ -33,6 +34,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="using:Anvil.Controls.Primitives"
              mc:Ignorable="d">
 
     <UserControl.Resources>
@@ -41,8 +43,7 @@
              reserved for "this one is on" — without deriving from that chain, which draws a bordered square
              and would fight the shared row border here.
              ⚠️ The CornerRadius and BorderThickness are deliberately NOT set here: they are per-segment and
-             positional, so the code-behind owns them. Setting them in the style would silently win on
-             whichever segment the code forgot. -->
+             positional, so each of the four templates below sets its own. -->
         <Style x:Key="SegmentStyle" TargetType="ToggleButton">
             <Setter Property="MinWidth" Value="0"/>
             <Setter Property="MinHeight" Value="0"/>
@@ -132,9 +133,47 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- THE FOUR SEGMENTS — identical but for the positional edge and corners.
+             ⚠️ ONE DIVIDER PER SEAM: every segment draws the full border EXCEPT its left edge (left, top,
+             right, bottom = 0,1,1,1); the first (and an only) segment adds that left edge back.
+             IsChecked is TwoWay so the binding survives the ToggleButton unchecking itself on a click of
+             the SELECTED segment; Pick then puts the selection back (one of these is always on). -->
+        <DataTemplate x:Key="FirstSegmentTemplate" x:DataType="local:SegmentedPickerItem">
+            <ToggleButton Style="{StaticResource SegmentStyle}" Content="{x:Bind Label}"
+                          BorderThickness="1,1,1,1" CornerRadius="4,0,0,4"
+                          IsEnabled="{x:Bind IsEnabled}" IsChecked="{x:Bind IsSelected, Mode=TwoWay}" Click="{x:Bind Pick}"/>
+        </DataTemplate>
+        <DataTemplate x:Key="MiddleSegmentTemplate" x:DataType="local:SegmentedPickerItem">
+            <ToggleButton Style="{StaticResource SegmentStyle}" Content="{x:Bind Label}"
+                          BorderThickness="0,1,1,1" CornerRadius="0"
+                          IsEnabled="{x:Bind IsEnabled}" IsChecked="{x:Bind IsSelected, Mode=TwoWay}" Click="{x:Bind Pick}"/>
+        </DataTemplate>
+        <DataTemplate x:Key="LastSegmentTemplate" x:DataType="local:SegmentedPickerItem">
+            <ToggleButton Style="{StaticResource SegmentStyle}" Content="{x:Bind Label}"
+                          BorderThickness="0,1,1,1" CornerRadius="0,4,4,0"
+                          IsEnabled="{x:Bind IsEnabled}" IsChecked="{x:Bind IsSelected, Mode=TwoWay}" Click="{x:Bind Pick}"/>
+        </DataTemplate>
+        <DataTemplate x:Key="OnlySegmentTemplate" x:DataType="local:SegmentedPickerItem">
+            <ToggleButton Style="{StaticResource SegmentStyle}" Content="{x:Bind Label}"
+                          BorderThickness="1" CornerRadius="4"
+                          IsEnabled="{x:Bind IsEnabled}" IsChecked="{x:Bind IsSelected, Mode=TwoWay}" Click="{x:Bind Pick}"/>
+        </DataTemplate>
+        <local:SegmentTemplateSelector x:Key="SegmentSelector"
+                                       First="{StaticResource FirstSegmentTemplate}"
+                                       Middle="{StaticResource MiddleSegmentTemplate}"
+                                       Last="{StaticResource LastSegmentTemplate}"
+                                       Only="{StaticResource OnlySegmentTemplate}"/>
     </UserControl.Resources>
 
-    <!-- Equal star columns, added in code alongside the segments — the row divides its width evenly however
-         many options it is given, so a label never decides how wide its neighbour is. -->
-    <Grid x:Name="Segments"/>
+    <!-- Equal widths: EqualColumnsPanel does what N star columns did — the row divides its width evenly however
+         many options it is given, so a label never decides how wide its neighbour is. No spacing: the seams
+         are the segments' own left-less borders (see the templates). -->
+    <ItemsControl x:Name="Segments" ItemTemplateSelector="{StaticResource SegmentSelector}" IsTabStop="False">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <local:EqualColumnsPanel/>
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+    </ItemsControl>
 </UserControl>

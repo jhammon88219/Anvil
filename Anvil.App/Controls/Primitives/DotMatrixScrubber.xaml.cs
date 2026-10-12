@@ -5,6 +5,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using Anvil.ViewModels;
 
@@ -28,27 +29,27 @@ namespace Anvil.Controls.Primitives
 	{
 		private enum DotState : byte { Empty, Filling, Ready, Current }
 
-		// THE FIELD: every dot, flat (index = column × rows + row), and each dot's last-applied state (a style is re-set
-		// only on change). ⚠️ Built ONCE per shape (width, rows, dot size + gap) and REUSED across loops: a new loop only
-		// re-deals which frame owns which columns. It used to be torn down and rebuilt (~525 Ellipses) on every re-lay,
-		// and a re-lay ran per collection event — measured 2026-10-10 as 1-1.7 s UI-thread freezes on every site load.
-		private Ellipse[] _dots = Array.Empty<Ellipse>();
+		// THE FIELD: every dot's CIRCLE, flat (index = column × rows + row), and each dot's last-applied state. The dots
+		// are drawn by the FOUR PATHS declared in the XAML, one per state; a dot's circle lives in the geometry of the path
+		// for its state, and a state change MOVES it (only on change). ⚠️ Computed ONCE per shape (width, rows, dot size +
+		// gap) and REUSED across loops: a new loop only re-deals which frame owns which columns. It used to be torn down
+		// and rebuilt (~525 Ellipses) on every re-lay, and a re-lay ran per collection event — measured 2026-10-10 as
+		// 1-1.7 s UI-thread freezes on every site load.
+		private EllipseGeometry[] _dots = Array.Empty<EllipseGeometry>();
 		private DotState[] _dotStates = Array.Empty<DotState>();
+		// Per state, the circles its path draws (index = (int)DotState).
+		private readonly GeometryGroup[] _groups = new GeometryGroup[4];
+		private readonly bool[] _dirty = new bool[4]; // a group whose circles moved since its path last took it
 		private (int Columns, int Rows, double Pitch, double Left, double Size) _fieldShape;
 		// Per segment, its dots' FIELD indices IN FILL ORDER.
 		private readonly List<int[]> _blocks = new();
 		private ObservableCollection<RadarFrameSegment>? _attached;
 		private readonly List<RadarFrameSegment> _watched = new();
 		private int _litIndex = -1;
-		private Style? _empty, _filling, _ready, _current;
 
 		public DotMatrixScrubber()
 		{
 			InitializeComponent();
-			_empty = (Style)Resources["EmptyDot"];
-			_filling = (Style)Resources["FillingDot"];
-			_ready = (Style)Resources["ReadyDot"];
-			_current = (Style)Resources["CurrentDot"];
 			SizeChanged += (_, e) => { if (Math.Abs(e.NewSize.Width - e.PreviousSize.Width) > 0.5) Layout(); };
 			Loaded += (_, _) => Attach();
 			Unloaded += (_, _) => Detach(); // the VM's collection outlives a Settings window — never leak into it
@@ -259,6 +260,7 @@ namespace Anvil.Controls.Primitives
 			{
 				// No loop: the bare field, every dot empty.
 				for (var d = 0; d < _dots.Length; d++) SetDot(d, DotState.Empty);
+				Flush();
 				_litIndex = -1;
 				return;
 			}
@@ -300,39 +302,59 @@ namespace Anvil.Controls.Primitives
 			for (var s = 0; s < count; s++) Paint(s); // every dot is in exactly one block, so every dot is repainted
 		}
 
-		// (Re)builds the field only when its SHAPE changed — see _dots. Fresh dots start empty.
+		// (Re)computes the field only when its SHAPE changed — see _dots. Fresh dots start empty (all in EmptyDots).
 		private void EnsureField(int columns, int rows, double pitch)
 		{
 			var shape = (columns, rows, pitch, _fieldLeft, DotSize);
 			if (_dots.Length == columns * rows && _fieldShape == shape) return;
 			_fieldShape = shape;
-			Dots.Children.Clear();
-			_dots = new Ellipse[columns * rows];
-			_dotStates = new DotState[_dots.Length]; // all Empty, as built
+			for (var g = 0; g < _groups.Length; g++) _groups[g] = new GeometryGroup();
+			_dots = new EllipseGeometry[columns * rows];
+			_dotStates = new DotState[_dots.Length]; // all Empty, as computed
+			var radius = DotSize / 2;
 			for (var c = 0; c < columns; c++)
 			{
 				for (var r = 0; r < rows; r++)
 				{
-					var dot = new Ellipse { Width = DotSize, Height = DotSize, Style = _empty };
-					Canvas.SetLeft(dot, _fieldLeft + c * pitch);
-					Canvas.SetTop(dot, r * pitch);
-					Dots.Children.Add(dot);
+					var dot = new EllipseGeometry
+					{
+						Center = new Windows.Foundation.Point(_fieldLeft + c * pitch + radius, r * pitch + radius),
+						RadiusX = radius,
+						RadiusY = radius,
+					};
+					_groups[(int)DotState.Empty].Children.Add(dot);
 					_dots[c * rows + r] = dot;
 				}
 			}
+			EmptyDots.Data = _groups[(int)DotState.Empty];
+			FillingDots.Data = _groups[(int)DotState.Filling];
+			ReadyDots.Data = _groups[(int)DotState.Ready];
+			CurrentDots.Data = _groups[(int)DotState.Current];
 		}
 
+		// Move dot d's circle to the path for its new state.
 		private void SetDot(int d, DotState state)
 		{
-			if (_dotStates[d] == state) return;
+			var was = _dotStates[d];
+			if (was == state) return;
 			_dotStates[d] = state;
-			_dots[d].Style = state switch
+			_groups[(int)was].Children.Remove(_dots[d]);
+			_groups[(int)state].Children.Add(_dots[d]);
+			_dirty[(int)was] = _dirty[(int)state] = true;
+		}
+
+		// Hand each path whose circles moved its group again, so it re-draws from the new set. Called once after each
+		// batch of SetDots (a paint or a re-lay), never per dot.
+		private void Flush()
+		{
+			Path[] paths = { EmptyDots, FillingDots, ReadyDots, CurrentDots };
+			for (var g = 0; g < _groups.Length; g++)
 			{
-				DotState.Current => _current,
-				DotState.Ready => _ready,
-				DotState.Filling => _filling,
-				_ => _empty,
-			};
+				if (!_dirty[g]) continue;
+				_dirty[g] = false;
+				paths[g].Data = null;
+				paths[g].Data = _groups[g];
+			}
 		}
 
 		// One block's dots from its segment: the current frame whole, a ready frame whole, else the first
@@ -350,6 +372,7 @@ namespace Anvil.Controls.Primitives
 					: i < lit ? DotState.Filling
 					: DotState.Empty);
 			}
+			Flush();
 		}
 	}
 }

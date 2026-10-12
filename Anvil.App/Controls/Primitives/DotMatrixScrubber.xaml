@@ -20,8 +20,9 @@
      frames share columns.
      ⚠️ The host's seek asks IndexAt(x) — the SAME column→frame table — so a click lands on the frame drawn under it.
      It does NOT align to anything above it.
-     ⚠️ Dot looks are STYLES (EmptyDot / FillingDot / ReadyDot / CurrentDot), set from code — never a theme brush
-     resolved in C#. A dot's style is re-set only when its STATE changes (a load ticks every 150 ms).
+     ⚠️ THE DOTS ARE FOUR DECLARED PATHS (below), one per state, each wearing its STYLE (EmptyDot / FillingDot /
+     ReadyDot / CurrentDot) — never elements built in code, never a theme brush resolved in C#. The code-behind only
+     computes the circles and moves a dot's circle to another path when its STATE changes (a load ticks every 150 ms).
      ⚠️ Not hit-testable: the host (RadarControls.ScrubberHost) owns the pointer. -->
 <UserControl x:Class="Anvil.Controls.Primitives.DotMatrixScrubber"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -48,21 +49,27 @@
                     <SolidColorBrush x:Key="DotMatrixCurrentBrush" Color="#FFB7791F"/>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
-            <Style x:Key="EmptyDot" TargetType="Ellipse">
+            <Style x:Key="EmptyDot" TargetType="Path">
                 <Setter Property="Fill" Value="{ThemeResource DotMatrixEmptyBrush}"/>
             </Style>
-            <Style x:Key="FillingDot" TargetType="Ellipse">
+            <Style x:Key="FillingDot" TargetType="Path">
                 <Setter Property="Fill" Value="{ThemeResource DotMatrixFillingBrush}"/>
             </Style>
-            <Style x:Key="ReadyDot" TargetType="Ellipse">
+            <Style x:Key="ReadyDot" TargetType="Path">
                 <Setter Property="Fill" Value="{ThemeResource DotMatrixReadyBrush}"/>
             </Style>
-            <Style x:Key="CurrentDot" TargetType="Ellipse">
+            <Style x:Key="CurrentDot" TargetType="Path">
                 <Setter Property="Fill" Value="{ThemeResource DotMatrixCurrentBrush}"/>
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- The dots, placed in code (Layout): one block per frame. Height = Rows at the dot pitch. -->
-    <Canvas x:Name="Dots"/>
+    <!-- The dots: one path per state, stacked (each dot's circle is in exactly one). Layout computes the circles and
+         deals them to the paths; the current frame's path is on top. Height = Rows at the dot pitch. -->
+    <Canvas x:Name="Dots">
+        <Path x:Name="EmptyDots" Style="{StaticResource EmptyDot}"/>
+        <Path x:Name="FillingDots" Style="{StaticResource FillingDot}"/>
+        <Path x:Name="ReadyDots" Style="{StaticResource ReadyDot}"/>
+        <Path x:Name="CurrentDots" Style="{StaticResource CurrentDot}"/>
+    </Canvas>
 </UserControl>
