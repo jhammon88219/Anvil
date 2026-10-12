@@ -146,7 +146,7 @@ namespace Anvil.Controls.Primitives
 				{
 					group.Children.Add(new EllipseGeometry
 					{
-						Center = new Windows.Foundation.Point(c * pitch + r, row * pitch + r),
+						Center = new global::Windows.Foundation.Point(c * pitch + r, row * pitch + r),
 						RadiusX = r,
 						RadiusY = r,
 					});

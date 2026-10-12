@@ -160,7 +160,7 @@
      Tooltips read "Activate N-pane mode". No "two stacked": weather reads left-to-right across a storm.
 
      MAP sits RIGHT, beside state isolation — both take parts of the map away (Basemap = BasemapViewModel).
-     The KEY hides the whole basemap: a blank, THEME-coloured ground (styles/themes/ --anvil-map-blank) under the overlays,
+     The KEY hides the whole basemap: a blank, THEME-coloured ground (styles/themes/ anvil-map-blank) under the overlays,
      for screenshots / thumbnails / a clean storm. LIT = THE MAP IS SHOWING (default lit); the tooltip speaks
      for the click. The CAR opens the layer flyout: which basemap GROUPS draw, as a TREE of expanders (Roads by
      kind, Place names by cities / POIs / water — so you can keep only highways). Expanders start closed and

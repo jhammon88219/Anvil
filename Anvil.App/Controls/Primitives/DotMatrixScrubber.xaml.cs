@@ -318,7 +318,7 @@ namespace Anvil.Controls.Primitives
 				{
 					var dot = new EllipseGeometry
 					{
-						Center = new Windows.Foundation.Point(_fieldLeft + c * pitch + radius, r * pitch + radius),
+						Center = new global::Windows.Foundation.Point(_fieldLeft + c * pitch + radius, r * pitch + radius),
 						RadiusX = radius,
 						RadiusY = radius,
 					};
