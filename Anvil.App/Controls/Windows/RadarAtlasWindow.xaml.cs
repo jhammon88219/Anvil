@@ -20,6 +20,8 @@ namespace Anvil.Controls.Windows
 		public RadarAtlasWindow()
 		{
 			InitializeComponent();
+			Loaded += OnLoaded;
+			Unloaded += OnUnloaded;
 		}
 
 		// The strip's content, in AtlasTabIndex order. ⚠️ E81C (History) is an UNVERIFIED codepoint — check it
@@ -139,8 +141,23 @@ namespace Anvil.Controls.Windows
 		{
 			if (_history is not null) _history.PropertyChanged -= OnHistoryChanged;
 			_history = history;
-			if (_history is not null) _history.PropertyChanged += OnHistoryChanged;
+			if (_history is not null && IsLoaded) _history.PropertyChanged += OnHistoryChanged;
 			RebuildScanBar();
+		}
+
+		// ⚠️ LIFETIME: WindowManager builds a NEW Atlas per open, and History is an app singleton — a subscription
+		// held past Unloaded keeps every closed Atlas's whole tree alive. Listen only while loaded.
+		private void OnLoaded(object sender, RoutedEventArgs e)
+		{
+			if (_history is null) return;
+			_history.PropertyChanged -= OnHistoryChanged; // never twice
+			_history.PropertyChanged += OnHistoryChanged;
+			RebuildScanBar(); // catch a change made while unloaded
+		}
+
+		private void OnUnloaded(object sender, RoutedEventArgs e)
+		{
+			if (_history is not null) _history.PropertyChanged -= OnHistoryChanged;
 		}
 
 		private void OnHistoryChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

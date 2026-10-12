@@ -21,6 +21,16 @@ namespace Anvil.Controls.Windows
 			// The Map tab is a plain child (not x:Load'd like the dev tab), so it exists now.
 			MapTab.BrowseMapDataFolderRequested += (_, _) => BrowseMapDataFolderRequested?.Invoke(this, EventArgs.Empty);
 			ApplyPlacement(); // establish the default arrangement even if a host never sets ViewModel
+			// ⚠️ LIFETIME: WindowManager builds a NEW SettingsWindow per open, and the VM is an app singleton — a
+			// subscription held past Unloaded keeps every closed window's whole tree alive. Listen only while loaded.
+			Loaded += (_, _) =>
+			{
+				if (ViewModel is null) return;
+				ViewModel.PropertyChanged -= OnViewModelPropertyChanged; // never twice
+				ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+				ApplyPlacement(); // catch a change made while unloaded
+			};
+			Unloaded += (_, _) => { if (ViewModel is not null) ViewModel.PropertyChanged -= OnViewModelPropertyChanged; };
 		}
 
 		/// <summary>
@@ -52,7 +62,7 @@ namespace Anvil.Controls.Windows
 			var window = (SettingsWindow)d;
 
 			if (e.OldValue is MapViewModel previous) previous.PropertyChanged -= window.OnViewModelPropertyChanged;
-			if (e.NewValue is MapViewModel current) current.PropertyChanged += window.OnViewModelPropertyChanged;
+			if (e.NewValue is MapViewModel current && window.IsLoaded) current.PropertyChanged += window.OnViewModelPropertyChanged;
 
 			window.ApplyPlacement();
 			window.PersistSectionExpansion();

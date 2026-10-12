@@ -19,6 +19,16 @@ namespace Anvil.Controls.Windows
 		public PipelineConsoleWindow()
 		{
 			InitializeComponent();
+			// ⚠️ LIFETIME: WindowManager builds a NEW console per open, and the VM is an app singleton — listen only
+			// while loaded, or every closed console's tree stays alive.
+			Loaded += (_, _) =>
+			{
+				if (ViewModel is null) return;
+				ViewModel.PipelineConsole.PropertyChanged -= OnConsolePropertyChanged; // never twice
+				ViewModel.PipelineConsole.PropertyChanged += OnConsolePropertyChanged;
+				UpdatePlayhead();
+			};
+			Unloaded += (_, _) => { if (ViewModel is not null) ViewModel.PipelineConsole.PropertyChanged -= OnConsolePropertyChanged; };
 		}
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
@@ -40,7 +50,7 @@ namespace Anvil.Controls.Windows
 			{
 				oldVm.PipelineConsole.PropertyChanged -= self.OnConsolePropertyChanged;
 			}
-			if (e.NewValue is MapViewModel newVm)
+			if (e.NewValue is MapViewModel newVm && self.IsLoaded)
 			{
 				newVm.PipelineConsole.PropertyChanged += self.OnConsolePropertyChanged;
 			}

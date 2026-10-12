@@ -24,6 +24,13 @@ namespace Anvil.Controls.Composites
 		{
 			InitializeComponent();
 			Loaded += OnLoaded;
+			// ⚠️ LIFETIME: a new Settings window (and this tab) is built per open; both VMs are app singletons. A
+			// subscription held past Unloaded leaked every closed window AND re-raised each report once per leak.
+			Unloaded += (_, _) =>
+			{
+				if (SweepVm is not null) SweepVm.PropertyChanged -= OnSweepPropertyChanged;
+				if (ValidationVm is not null) ValidationVm.PropertyChanged -= OnValidationPropertyChanged;
+			};
 		}
 
 		/// <summary>The site-sweep engine; bound from the host.</summary>
@@ -104,11 +111,13 @@ namespace Anvil.Controls.Composites
 				DwellBox.Value = SweepVm.DwellSeconds;
 				TimeoutBox.Value = SweepVm.PerSiteTimeoutSeconds;
 				FramesBox.Value = SweepVm.FramesPerSite;
+				SweepVm.PropertyChanged -= OnSweepPropertyChanged; // never twice — Loaded re-fires on every re-show
 				SweepVm.PropertyChanged += OnSweepPropertyChanged;
 			}
 
 			if (ValidationVm is not null)
 			{
+				ValidationVm.PropertyChanged -= OnValidationPropertyChanged;
 				ValidationVm.PropertyChanged += OnValidationPropertyChanged;
 			}
 

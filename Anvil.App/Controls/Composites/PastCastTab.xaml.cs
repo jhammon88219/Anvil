@@ -38,6 +38,16 @@ namespace Anvil.Controls.Composites
 				PanelSection.PersistExpansion(System.Linq.Enumerable.OfType<PanelSection>(Sections.Children), "past",
 					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			};
+			// ⚠️ LIFETIME: the PastCast window builds a new body per open, and Radar is an app singleton (its
+			// PropertyChanged fires on every playback tick) — listen only while loaded, or each closed window leaks.
+			Loaded += (_, _) =>
+			{
+				if (ViewModel?.Radar is not RadarViewModel radar) return;
+				radar.PropertyChanged -= OnRadarPropertyChanged; // never twice
+				radar.PropertyChanged += OnRadarPropertyChanged;
+				ApplySelectionState(); // catch a change made while unloaded
+			};
+			Unloaded += (_, _) => { if (ViewModel?.Radar is RadarViewModel radar) radar.PropertyChanged -= OnRadarPropertyChanged; };
 		}
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
@@ -62,7 +72,7 @@ namespace Anvil.Controls.Composites
 				oldRadar.PropertyChanged -= OnRadarPropertyChanged;
 			}
 
-			if (e.NewValue is MapViewModel now && now.Radar is RadarViewModel radar)
+			if (e.NewValue is MapViewModel now && now.Radar is RadarViewModel radar && IsLoaded)
 			{
 				radar.PropertyChanged += OnRadarPropertyChanged;
 			}

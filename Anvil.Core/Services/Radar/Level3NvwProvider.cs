@@ -59,6 +59,7 @@ namespace Anvil.Services
 				Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
 				"Anvil", "Level3Nvw");
 			Directory.CreateDirectory(_cacheDirectory);
+			PruneOnStartup(_cacheDirectory);
 
 			_http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 			if (_http.DefaultRequestHeaders.UserAgent.Count == 0)
@@ -206,6 +207,25 @@ namespace Anvil.Services
 				stamp, "yyyy_MM_dd_HH_mm_ss", CultureInfo.InvariantCulture,
 				DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out whenUtc);
 		}
+
+		// NVW is REAL-TIME only (PastCast uses the local VAD), so a product is never asked for again once the live
+		// loop has moved past it — the cache only saves re-downloads within a session. Without this it grew forever.
+		private static readonly TimeSpan CacheMaxAge = TimeSpan.FromDays(2);
+
+		// Best-effort and off the startup path: a failure to tidy must never be visible.
+		private static void PruneOnStartup(string dir) => _ = Task.Run(() =>
+		{
+			try
+			{
+				var now = DateTime.UtcNow;
+				foreach (var file in Directory.EnumerateFiles(dir))
+				{
+					try { if (now - File.GetLastWriteTimeUtc(file) > CacheMaxAge) File.Delete(file); }
+					catch { /* best effort */ }
+				}
+			}
+			catch { /* best effort */ }
+		});
 
 		/// <summary>Products are immutable once written, so a cached file is always good.</summary>
 		private async Task<byte[]?> ReadOrDownloadAsync(string key, CancellationToken cancellationToken)

@@ -95,7 +95,29 @@ namespace Anvil.Services
 				done++;
 				progress?.Report(Snapshot());
 			}
+			PruneOldDays(now);
 			return Snapshot();
+		}
+
+		// Days older than the window (+ a week of slack) are never read again — the uptime cache's own rule.
+		private void PruneOldDays(DateTimeOffset now)
+		{
+			var cutoff = DateOnly.FromDateTime(now.UtcDateTime).AddDays(-(RadarUptimeService.HistoryDays + 7));
+			try
+			{
+				foreach (var f in Directory.EnumerateFiles(_root, "*.txt", SearchOption.AllDirectories))
+				{
+					if (DateOnly.TryParseExact(Path.GetFileNameWithoutExtension(f), "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
+						&& d < cutoff)
+					{
+						File.Delete(f);
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.LogDebug(ex, "Scan-pattern cache prune failed");
+			}
 		}
 
 		// One day's hourly samples: disk (final) → memory (today) → list + read. Null = the listing failed.
