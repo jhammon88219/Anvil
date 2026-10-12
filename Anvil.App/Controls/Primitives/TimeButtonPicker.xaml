@@ -80,12 +80,31 @@
                     <TextBlock Text="Hour" Margin="2,0,0,4" Style="{StaticResource SettingsFieldLabelStyle}"/>
                     <TextBlock Grid.Column="2" Text="Minute" Margin="2,0,0,4" Style="{StaticResource SettingsFieldLabelStyle}"/>
 
-                    <ComboBox x:Name="HourBox" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch"/>
+                    <!-- ⚠️ Index 0 is 12 (the clock face's order). The code-behind's Hours MIRRORS this list —
+                         OnSetClick turns the picked INDEX back into an hour through it; change both. -->
+                    <ComboBox x:Name="HourBox" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch">
+                        <x:String>12</x:String>
+                        <x:String>1</x:String>
+                        <x:String>2</x:String>
+                        <x:String>3</x:String>
+                        <x:String>4</x:String>
+                        <x:String>5</x:String>
+                        <x:String>6</x:String>
+                        <x:String>7</x:String>
+                        <x:String>8</x:String>
+                        <x:String>9</x:String>
+                        <x:String>10</x:String>
+                        <x:String>11</x:String>
+                    </ComboBox>
                     <TextBlock Grid.Row="1" Grid.Column="1" Text=":" FontSize="16" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <ComboBox x:Name="MinuteBox" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch"/>
+                    <!-- Minutes are the one list that can't be fixed here: 00…55 by 5 PLUS the committed minute when
+                         it is off the 5s, refilled on every open (OnFlyoutOpening). -->
+                    <ComboBox x:Name="MinuteBox" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch"
+                              ItemsSource="{x:Bind MinuteLabels}"/>
 
-                    <local:SegmentedPicker x:Name="AmPm" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,10,0,0"/>
+                    <local:SegmentedPicker x:Name="AmPm" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,10,0,0"
+                                           ItemsSource="{x:Bind AmPmLabels}"/>
 
                     <Button Grid.Row="4" Grid.ColumnSpan="3" Content="Set" Height="32" HorizontalAlignment="Stretch"
                             Style="{StaticResource AccentButtonStyle}" Click="OnSetClick"/>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -14,16 +15,19 @@ namespace Anvil.Controls.Primitives
 	{
 		private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
-		// Index 0 is 12 — the clock face's order, and how a 12-hour list reads.
+		// ⚠️ MIRRORS HourBox's items in the XAML (index 0 is 12) — maps the picked index back to an hour.
 		private static readonly int[] Hours = { 12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
 
+		// AmPm's segments, bound in the XAML.
+		public string[] AmPmLabels { get; } = { "AM", "PM" };
+
+		// MinuteBox's items, bound in the XAML; _minutes is the same list as numbers, for OnSetClick.
+		public ObservableCollection<string> MinuteLabels { get; } = new();
 		private readonly List<int> _minutes = new();
 
 		public TimeButtonPicker()
 		{
 			InitializeComponent();
-			foreach (var h in Hours) { HourBox.Items.Add(h.ToString(Inv)); }
-			AmPm.ItemsSource = new[] { "AM", "PM" };
 			UpdateFace();
 		}
 
@@ -51,8 +55,8 @@ namespace Anvil.Controls.Primitives
 			_minutes.Clear();
 			for (var m = 0; m < 60; m += 5) { _minutes.Add(m); }
 			if (minute % 5 != 0) { _minutes.Add(minute); _minutes.Sort(); }
-			MinuteBox.Items.Clear();
-			foreach (var m in _minutes) { MinuteBox.Items.Add(m.ToString("00", Inv)); }
+			MinuteLabels.Clear();
+			foreach (var m in _minutes) { MinuteLabels.Add(m.ToString("00", Inv)); }
 
 			HourBox.SelectedIndex = hour % 12;          // 0 and 12 → index 0 ("12")
 			MinuteBox.SelectedIndex = _minutes.IndexOf(minute);

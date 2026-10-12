@@ -429,12 +429,7 @@ namespace Anvil
 				id: "temporal." + mode,
 				isOpen: () => ViewModel.IsTemporalWindowOpen(mode),
 				close: () => ViewModel.SetTemporalWindowOpen(mode, false),
-				// ⚠️ Mode FIRST: the window builds its body when both properties have landed, and setting Mode
-				// last would have it build the default (Past) body and then throw it away.
-				buildContent: () =>
-				{
-					return new Controls.Windows.TemporalWindow { Mode = mode, ViewModel = ViewModel };
-				},
+				buildContent: () => new Controls.Windows.TemporalWindow(mode, ViewModel),
 				title: title, anchor: anchor,
 				keepAboveOwner: () => ViewModel.IsTemporalWindowOnTop(mode),
 				isLocked: () => ViewModel.IsTemporalWindowLocked(mode),

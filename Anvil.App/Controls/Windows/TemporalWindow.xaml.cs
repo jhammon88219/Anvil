@@ -1,7 +1,6 @@
 using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Anvil.Controls.Composites;
 using Anvil.Controls.Primitives;
 using Anvil.ViewModels;
 
@@ -15,13 +14,22 @@ namespace Anvil.Controls.Windows
 	/// </summary>
 	public sealed partial class TemporalWindow : UserControl
 	{
-		public TemporalWindow()
+		/// <param name="mode">Which mode this window configures: picks the body (x:Load in the XAML) and which
+		/// flags the pin and lock drive. Fixed for the window's life — a window is a fresh instance per open.</param>
+		/// <param name="viewModel">The coordinator view model.</param>
+		public TemporalWindow(TemporalMode mode, MapViewModel viewModel)
 		{
+			// ⚠️ Both BEFORE InitializeComponent: the bodies' x:Load and ViewModel binds are OneTime.
+			Mode = mode;
+			ViewModel = viewModel;
 			InitializeComponent();
 
-			// The pin writes straight back to the mode's on-top flag. Registered once, here, rather than in
-			// ApplyMode — which runs again whenever either dependency property lands, and would otherwise stack
-			// up a callback per assignment.
+			// The pin and lock show the flags' CURRENT values — these persist across a window being closed and
+			// reopened, so a panel unpinned earlier in the session comes back unpinned.
+			Pin.IsChecked = ViewModel.IsTemporalWindowOnTop(Mode);
+			Lock.IsChecked = ViewModel.IsTemporalWindowLocked(Mode);
+
+			// The pin writes straight back to the mode's on-top flag (and the lock to its locked flag).
 			Pin.RegisterPropertyChangedCallback(PinToggle.IsCheckedProperty, (_, _) =>
 				ViewModel?.SetTemporalWindowOnTop(Mode, Pin.IsChecked));
 			Lock.RegisterPropertyChangedCallback(LockToggle.IsCheckedProperty, (_, _) =>
@@ -51,70 +59,15 @@ namespace Anvil.Controls.Windows
 			}
 		}
 
-		/// <summary>Which mode this window configures. Set once at construction by the registration in
-		/// MainWindow; it picks the title, the body and which on-top flag the pin drives.</summary>
-		public TemporalMode Mode
-		{
-			get => (TemporalMode)GetValue(ModeProperty);
-			set => SetValue(ModeProperty, value);
-		}
+		/// <summary>Which mode this window configures. Read-only — see the XAML header's x:Load note.</summary>
+		public TemporalMode Mode { get; }
 
-		public static readonly DependencyProperty ModeProperty =
-			DependencyProperty.Register(nameof(Mode), typeof(TemporalMode), typeof(TemporalWindow),
-				new PropertyMetadata(TemporalMode.Past, (d, _) => ((TemporalWindow)d).ApplyMode()));
+		/// <summary>The coordinator view model, handed to whichever body loads.</summary>
+		public MapViewModel ViewModel { get; }
 
-		/// <summary>The coordinator view model; bound from the host.</summary>
-		public MapViewModel ViewModel
-		{
-			get => (MapViewModel)GetValue(ViewModelProperty);
-			set => SetValue(ViewModelProperty, value);
-		}
-
-		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalWindow),
-				new PropertyMetadata(null, (d, _) => ((TemporalWindow)d).ApplyMode()));
-
-		// Fill in everything that depends on WHICH mode this window is. Runs on either dependency property
-		// landing, because the registration sets them in whatever order the object initializer happens to use
-		// and both are needed before a body can be built.
-		//
-		// ⚠️ The body is built ONCE per window instance and never swapped: Mode does not change after the
-		// registration sets it, and a window is a fresh instance every time it opens. The guard below is what
-		// keeps a second property assignment from throwing the body (and the live widget state inside
-		// PastCastTab) away and rebuilding it.
-		// (The DOW Import relay that lived here went with the DOW section to the Atlas's DOW events tab.)
-		private PastCastTab BuildPastBody() => new() { ViewModel = ViewModel };
-
-		private void ApplyMode()
-		{
-			if (ViewModel is null)
-			{
-				return;
-			}
-
-			// (No title here: every body opens with its own NAME ROW carrying the mode's name — see the XAML.)
-
-			// The pin shows the flag's CURRENT value — these persist across a window being closed and
-			// reopened, so a panel unpinned earlier in the session comes back unpinned.
-			Pin.IsChecked = ViewModel.IsTemporalWindowOnTop(Mode);
-			Lock.IsChecked = ViewModel.IsTemporalWindowLocked(Mode);
-
-			if (_builtFor == Mode && BodyHost.Content is not null)
-			{
-				return;
-			}
-
-			BodyHost.Content = Mode switch
-			{
-				TemporalMode.Past => BuildPastBody(),
-				TemporalMode.Now => new NowCastTab { ViewModel = ViewModel },
-				_ => (FrameworkElement)new ForeCastTab { ViewModel = ViewModel },
-			};
-
-			_builtFor = Mode;
-		}
-
-		// Which mode's body is currently in BodyHost; null until the first build.
-		private TemporalMode? _builtFor;
+		// The XAML's x:Load switches — exactly one is true.
+		public bool IsPast => Mode == TemporalMode.Past;
+		public bool IsNow => Mode == TemporalMode.Now;
+		public bool IsFore => Mode == TemporalMode.Fore;
 	}
 }

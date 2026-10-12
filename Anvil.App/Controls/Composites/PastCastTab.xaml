@@ -180,7 +180,7 @@
     <!-- Two rows: the FIXED Timeframe block, then the sections. ⚠️ The VisualStateManager groups live on THIS
          root (the first element of the UserControl's content) — GoToState looks for them here. -->
     <!-- ⚠️ STRETCH, and the sections row is STAR: the scroller needs a BOUNDED height to scroll within —
-         TemporalWindow's BodyHost hands this control the full window row. -->
+         TemporalWindow hands this control the full window row. -->
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Timeframe: always there, no header, can't be collapsed -->
