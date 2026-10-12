@@ -18,6 +18,7 @@ namespace Anvil.Services
 	///   NoteHop              (a download chunk resumed on the UI)        → "svcHops"
 	///   Begin/EndReadout     (RaiseRadarReadout + the bindings it runs)  → "readouts" / "readoutMs"
 	///   Begin/EndFeed, TimeFeed (a feed's parse/merge ON the UI thread) → "feeds" / "feedMs" / "feedBy"
+	///   Begin/EndScrub       (a dot-matrix scrubber paint)               → "scrubs" / "scrubMs"
 	/// </code>
 	/// Always on (a pair of Interlocked ops per extraction is free); only <c>UiThreadProbe</c> (App, Debug)
 	/// ever reads it. ⚠️ EXCISABLE: this file, its call sites in <see cref="Level2RadarService"/> and
@@ -87,6 +88,22 @@ namespace Anvil.Services
 		/// <summary>Readout refreshes and their total milliseconds since the last call.</summary>
 		public static (int Count, double Ms) TakeReadouts() =>
 			(Interlocked.Exchange(ref _readouts, 0), Interlocked.Exchange(ref _readoutTicks, 0) * 1000.0 / Stopwatch.Frequency);
+
+		private static int _scrubs;
+		private static long _scrubTicks;
+
+		/// <summary>Start timing one scrubber paint (DotMatrixScrubber: a segment's repaint, a lit move, a re-lay) — UI thread.</summary>
+		public static long BeginScrub() => Stopwatch.GetTimestamp();
+
+		public static void EndScrub(long started)
+		{
+			Interlocked.Increment(ref _scrubs);
+			Interlocked.Add(ref _scrubTicks, Stopwatch.GetTimestamp() - started);
+		}
+
+		/// <summary>Scrubber paints and their total milliseconds since the last call.</summary>
+		public static (int Count, double Ms) TakeScrubs() =>
+			(Interlocked.Exchange(ref _scrubs, 0), Interlocked.Exchange(ref _scrubTicks, 0) * 1000.0 / Stopwatch.Frequency);
 
 		// Overlay feeds (warnings, watches, outlook, …), PER FEED so a total can be traced to its source. Rare calls
 		// (a few per refresh), so a plain lock.

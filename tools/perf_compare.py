@@ -86,6 +86,12 @@ METRICS = [
     ("ui_feeds",         "Feed refreshes",         "",    0),
     ("ui_feed_avg",      "UI feed time per refresh", "ms", -1),
     ("ui_feed_max",      "UI feed time worst second", "ms", -1),
+    # Dot-matrix scrubber paints (RadarPerfCounters Begin/EndScrub, 2026-10-12): every segment repaint, lit move and
+    # re-lay, timed on the UI thread. Totals per run - the workload (one event load) is fixed.
+    ("ui_scrubs",        "Scrubber paints",        "",    0),
+    ("ui_scrub_ms",      "Scrubber paint time",    "ms", -1),
+    ("ui_scrub_avg",     "Scrubber cost per paint", "ms", -1),
+    ("ui_scrub_max",     "Scrubber worst second",  "ms", -1),
 ]
 
 
@@ -116,6 +122,7 @@ def load_run(path):
     ui_ro_windows, ui_ro_count, ui_ro_ms = 0, 0, 0.0
     ui_feeds, ui_feed_ms, ui_feed_max = 0, 0.0, 0.0
     feed_by = defaultdict(lambda: [0, 0.0])  # feed -> [refreshes, UI ms]
+    ui_scrubs, ui_scrub_ms, ui_scrub_max = 0, 0.0, 0.0
     sites, sessions, stamp = set(), 0, None
     first_ts = last_ts = None
     skipped = 0
@@ -209,6 +216,12 @@ def load_run(path):
                 # readout fix. Logs without the field keep the old meaning.
                 hops = e.get("svcHops") or 0
                 readouts = e.get("readouts") or 0
+                scrubs = e.get("scrubs") or 0  # absent before 2026-10-12
+                if scrubs > 0:
+                    sm = e.get("scrubMs") or 0
+                    ui_scrubs += scrubs
+                    ui_scrub_ms += sm
+                    ui_scrub_max = max(ui_scrub_max, sm)
                 feeds = e.get("feeds") or 0  # absent before 2026-10-12
                 # Per feed ("warnings:2/14.1 outlook:1/3.0" = refreshes/ms; absent before the per-feed split).
                 for part in (e.get("feedBy") or "").split():
@@ -301,6 +314,10 @@ def load_run(path):
         "ui_feeds": ui_feeds if ui_feeds else None,
         "ui_feed_avg": round(ui_feed_ms / ui_feeds, 2) if ui_feeds else None,
         "ui_feed_max": round(ui_feed_max, 1) if ui_feeds else None,
+        "ui_scrubs": ui_scrubs if ui_scrubs else None,
+        "ui_scrub_ms": round(ui_scrub_ms, 1) if ui_scrubs else None,
+        "ui_scrub_avg": round(ui_scrub_ms / ui_scrubs, 3) if ui_scrubs else None,
+        "ui_scrub_max": round(ui_scrub_max, 1) if ui_scrubs else None,
     }
 
 

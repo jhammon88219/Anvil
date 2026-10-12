@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
+using Anvil.Services;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.Primitives
@@ -198,13 +199,16 @@ namespace Anvil.Controls.Primitives
 			if (DispatcherQueue?.TryEnqueue(Relay) != true) Relay(); // no queue (shutting down): re-lay now
 		}
 
+		// PERF PROBE (perf.ui "scrubs"/"scrubMs"): the three paint entry points below are timed. Grep RadarPerfCounters.
 		private void Relay()
 		{
 			_relayQueued = false;
 			if (_attached is null) return; // detached while queued — Attach re-lays itself
+			var t = RadarPerfCounters.BeginScrub();
 			Unwatch();
 			Watch();
 			Layout();
+			RadarPerfCounters.EndScrub(t);
 		}
 
 		private void OnSegmentChanged(object? sender, PropertyChangedEventArgs e)
@@ -212,8 +216,10 @@ namespace Anvil.Controls.Primitives
 			if (e.PropertyName is not (nameof(RadarFrameSegment.Fill) or nameof(RadarFrameSegment.IsReady))) return;
 			if (sender is RadarFrameSegment segment && _attached is not null)
 			{
+				var t = RadarPerfCounters.BeginScrub();
 				var i = _attached.IndexOf(segment);
 				if (i >= 0) Paint(i);
+				RadarPerfCounters.EndScrub(t);
 			}
 		}
 
@@ -222,9 +228,11 @@ namespace Anvil.Controls.Primitives
 			var was = _litIndex;
 			_litIndex = LitIndex();
 			if (was == _litIndex) return;
+			var t = RadarPerfCounters.BeginScrub();
 			if (was >= 0) PaintBlock(was);
 			if (_litIndex >= 0) PaintBlock(_litIndex);
 			Flush();
+			RadarPerfCounters.EndScrub(t);
 		}
 
 		private int LitIndex() =>
