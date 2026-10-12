@@ -51,10 +51,18 @@ namespace Anvil.Services
 		public SpcOutlookProduct? Resolve(int day, SpcOutlookType type) =>
 			_products.FirstOrDefault(p => p.Day == day && p.Type == type);
 
-		// PERF PROBE (perf.ui "feedBy" outlookRead): the three cache readers below parse a whole product file and are
-		// called by the outlook VMs on the UI thread, so each is timed there. Grep RadarPerfCounters.
+		// ⚠️ PARSED ONCE PER FILE VERSION: the three cache readers below each parse a whole product file and are called
+		// SYNCHRONOUSLY by the outlook VMs on the UI thread, on every legend/header refresh — so each answer is remembered
+		// per file version (FileVersionMemo; perf audit issue 5, 2026-10-12). Every write here (download, fire colourize)
+		// is a temp + move, which stamps a new time; a 304 leaves the file alone and the answer stands.
+		// PERF PROBE (perf.ui "feedBy" outlookRead): still timed, so a remembered answer reads ~0. Grep RadarPerfCounters.
+		private readonly FileVersionMemo _reads = new();
+
+		private T Remembered<T>(string kind, SpcOutlookProduct product, Func<T> read) =>
+			_reads.Get(kind, Path.Combine(CacheDirectory, product.CacheFileName), read);
+
 		public SpcOutlookTimes? GetTimesForProduct(SpcOutlookProduct product) =>
-			RadarPerfCounters.TimeFeed("outlookRead", () => ReadTimes(product));
+			RadarPerfCounters.TimeFeed("outlookRead", () => Remembered("times", product, () => ReadTimes(product)));
 
 		private SpcOutlookTimes? ReadTimes(SpcOutlookProduct product)
 		{
@@ -103,7 +111,7 @@ namespace Anvil.Services
 			SpcRiskCatalog.ScaleFor(product.Type).Levels;
 
 		public IReadOnlySet<string> GetHatchGroupsInOutlook(SpcOutlookProduct product) =>
-			RadarPerfCounters.TimeFeed("outlookRead", () => ReadHatchGroupsOf(product));
+			RadarPerfCounters.TimeFeed("outlookRead", () => Remembered("hatch", product, () => ReadHatchGroupsOf(product)));
 
 		private IReadOnlySet<string> ReadHatchGroupsOf(SpcOutlookProduct product)
 		{
@@ -161,7 +169,7 @@ namespace Anvil.Services
 		}
 
 		public OutlookPeak? GetHighestLevelInOutlook(SpcOutlookProduct product) =>
-			RadarPerfCounters.TimeFeed("outlookRead", () => ReadHighestOf(product));
+			RadarPerfCounters.TimeFeed("outlookRead", () => Remembered("peak", product, () => ReadHighestOf(product)));
 
 		private OutlookPeak? ReadHighestOf(SpcOutlookProduct product)
 		{
@@ -266,7 +274,7 @@ namespace Anvil.Services
 			try
 			{
 				// Convective: one call yields every category; split + color each into its own cache file.
-				var convective = await FetchIemAsync(day, date, cycle, "C", cancellationToken);
+				var convective = await FetchIemAsync(day, date, cycle, "C", cancellationToken).ConfigureAwait(false);
 				// PERF PROBE (perf.ui "feedBy" pastOutlook): the parse + per-category builds are timed when they run on the UI
 				// thread (the cache writes between them are not). Grep RadarPerfCounters.
 				RadarPerfCounters.NoteFeedRefresh("pastOutlook");
@@ -285,14 +293,14 @@ namespace Anvil.Services
 					RadarPerfCounters.EndFeed(feedT, "pastOutlook");
 					foreach (var (type, gj, t) in built)
 					{
-						await WriteCacheAsync(PastCacheName(date, day, cycle, type), gj, cancellationToken);
+						await WriteCacheAsync(PastCacheName(date, day, cycle, type), gj, cancellationToken).ConfigureAwait(false);
 						available.Add(type);
 						times ??= t;
 					}
 				}
 
 				// Fire is a separate outlook_type.
-				var fire = await FetchIemAsync(day, date, cycle, "F", cancellationToken);
+				var fire = await FetchIemAsync(day, date, cycle, "F", cancellationToken).ConfigureAwait(false);
 				if (fire is not null)
 				{
 					var feedT = RadarPerfCounters.BeginFeed();
@@ -301,7 +309,7 @@ namespace Anvil.Services
 					RadarPerfCounters.EndFeed(feedT, "pastOutlook");
 					if (ok)
 					{
-						await WriteCacheAsync(PastCacheName(date, day, cycle, SpcOutlookType.FireWeather), gj, cancellationToken);
+						await WriteCacheAsync(PastCacheName(date, day, cycle, SpcOutlookType.FireWeather), gj, cancellationToken).ConfigureAwait(false);
 						available.Add(SpcOutlookType.FireWeather);
 						times ??= t;
 					}
@@ -324,8 +332,8 @@ namespace Anvil.Services
 		private async Task<string?> FetchIemAsync(int day, DateOnly date, int cycle, string outlookType, CancellationToken ct)
 		{
 			var url = $"{IemOutlookBase}?day={day}&valid={date:yyyy-MM-dd}&cycle={cycle}&outlook_type={outlookType}";
-			using var response = await Http.GetAsync(url, ct);
-			return response.IsSuccessStatusCode ? await response.Content.ReadAsStringAsync(ct) : null;
+			using var response = await Http.GetAsync(url, ct).ConfigureAwait(false);
+			return response.IsSuccessStatusCode ? await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false) : null;
 		}
 
 		// Atomic write into the shared cache dir (temp + move), so a failed write never corrupts a cache file.
@@ -354,7 +362,7 @@ namespace Anvil.Services
 			foreach (var endpoint in SpcOutlookCatalog.All)
 			{
 				cancellationToken.ThrowIfCancellationRequested();
-				results.Add(await RefreshOneAsync(endpoint, cancellationToken));
+				results.Add(await RefreshOneAsync(endpoint, cancellationToken).ConfigureAwait(false));
 			}
 			return results;
 		}
@@ -367,10 +375,10 @@ namespace Anvil.Services
 			try
 			{
 				// Try primary, then fallback (if any). 304 short-circuits to NotModified.
-				var outcome = await TryFetchAsync(endpoint.PrimaryUrl, cacheFile, ct);
+				var outcome = await TryFetchAsync(endpoint.PrimaryUrl, cacheFile, ct).ConfigureAwait(false);
 				if (outcome is null && endpoint.FallbackUrl is not null)
 				{
-					outcome = await TryFetchAsync(endpoint.FallbackUrl, cacheFile, ct);
+					outcome = await TryFetchAsync(endpoint.FallbackUrl, cacheFile, ct).ConfigureAwait(false);
 				}
 
 				// ⚠️ Runs on 304 TOO, not just Updated. Whether a cache needs colouring is a property of
@@ -469,7 +477,7 @@ namespace Anvil.Services
 				request.Headers.IfModifiedSince = lm;
 			}
 
-			using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+			using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
 
 			if (response.StatusCode == HttpStatusCode.NotModified)
 			{
@@ -485,7 +493,7 @@ namespace Anvil.Services
 			{
 				await using var src = await response.Content.ReadAsStreamAsync(ct);
 				await src.CopyToAsync(dst, ct);
-			}, ct);
+			}, ct).ConfigureAwait(false);
 
 			feedT = RadarPerfCounters.BeginFeed();
 			WriteValidators(cacheFile, new Validators(
@@ -539,14 +547,14 @@ namespace Anvil.Services
 			var cacheFile = NarrativeCacheFileFor(product);
 			try
 			{
-				var html = await Http.GetStringAsync(url, cancellationToken);
+				var html = await Http.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
 				var text = ExtractPreText(html);
 				if (text is not null)
 				{
 					try
 					{
-						await File.WriteAllTextAsync(cacheFile, text, cancellationToken);
-						await WriteRiskAreasAsync(RiskFile(cacheFile), html, cancellationToken);
+						await File.WriteAllTextAsync(cacheFile, text, cancellationToken).ConfigureAwait(false);
+						await WriteRiskAreasAsync(RiskFile(cacheFile), html, cancellationToken).ConfigureAwait(false);
 					}
 					catch { /* cache write is best effort */ }
 					return text;
@@ -565,7 +573,7 @@ namespace Anvil.Services
 			{
 				if (File.Exists(cacheFile))
 				{
-					return await File.ReadAllTextAsync(cacheFile, cancellationToken);
+					return await File.ReadAllTextAsync(cacheFile, cancellationToken).ConfigureAwait(false);
 				}
 			}
 			catch { /* non-fatal */ }
@@ -599,7 +607,7 @@ namespace Anvil.Services
 			Path.Combine(CacheDirectory, $"narrative-past-{validDay:yyyyMMdd}-d{day}-c{cycle:D2}.txt");
 
 		private static async Task WriteRiskAreasAsync(string file, string html, CancellationToken cancellationToken) =>
-			await File.WriteAllTextAsync(file, JsonSerializer.Serialize(SpcRiskTableParser.Parse(html)), cancellationToken);
+			await File.WriteAllTextAsync(file, JsonSerializer.Serialize(SpcRiskTableParser.Parse(html)), cancellationToken).ConfigureAwait(false);
 
 		private static IReadOnlyList<OutlookRiskArea> ReadRiskAreas(string file)
 		{
@@ -639,7 +647,7 @@ namespace Anvil.Services
 				// fetched once more so its cards get numbers; the write below always leaves the file behind.
 				if (File.Exists(cacheFile) && File.Exists(RiskFile(cacheFile)))
 				{
-					return await File.ReadAllTextAsync(cacheFile, cancellationToken);
+					return await File.ReadAllTextAsync(cacheFile, cancellationToken).ConfigureAwait(false);
 				}
 			}
 			catch (OperationCanceledException) { throw; }
@@ -649,7 +657,7 @@ namespace Anvil.Services
 			{
 				try
 				{
-					var html = await Http.GetStringAsync(url, cancellationToken);
+					var html = await Http.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
 					var text = ExtractPreText(html);
 					if (text is null)
 					{
@@ -657,9 +665,9 @@ namespace Anvil.Services
 					}
 					try
 					{
-						await File.WriteAllTextAsync(cacheFile, text, cancellationToken);
-						await File.WriteAllTextAsync(PastNarrativeUrlFile(validDay, day, cycle), url, cancellationToken);
-						await WriteRiskAreasAsync(RiskFile(cacheFile), html, cancellationToken);
+						await File.WriteAllTextAsync(cacheFile, text, cancellationToken).ConfigureAwait(false);
+						await File.WriteAllTextAsync(PastNarrativeUrlFile(validDay, day, cycle), url, cancellationToken).ConfigureAwait(false);
+						await WriteRiskAreasAsync(RiskFile(cacheFile), html, cancellationToken).ConfigureAwait(false);
 					}
 					catch { /* cache write is best effort */ }
 					return text;
@@ -673,7 +681,7 @@ namespace Anvil.Services
 			// The refetch for a missing risk table failed (offline?): the text cached earlier is still good.
 			try
 			{
-				if (File.Exists(cacheFile)) return await File.ReadAllTextAsync(cacheFile, cancellationToken);
+				if (File.Exists(cacheFile)) return await File.ReadAllTextAsync(cacheFile, cancellationToken).ConfigureAwait(false);
 			}
 			catch (OperationCanceledException) { throw; }
 			catch { /* nothing usable */ }

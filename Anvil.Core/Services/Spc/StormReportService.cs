@@ -77,7 +77,7 @@ namespace Anvil.Services
 				foreach (var (slug, kind) in Kinds)
 				{
 					cancellationToken.ThrowIfCancellationRequested();
-					var csv = await FetchCsvAsync(convectiveDay, slug, cancellationToken);
+					var csv = await FetchCsvAsync(convectiveDay, slug, cancellationToken).ConfigureAwait(false);
 					if (csv is null) { continue; } // this type's file was missing — others may still exist
 					anyOk = true;
 					var feedT = RadarPerfCounters.BeginFeed();
@@ -101,9 +101,9 @@ namespace Anvil.Services
 			}
 
 			// Swap SPC's truncated remarks for the full IEM LSR narratives where we can match them.
-			await EnrichWithIemAsync(convectiveDay, reports, cancellationToken);
+			await EnrichWithIemAsync(convectiveDay, reports, cancellationToken).ConfigureAwait(false);
 
-			await WriteGeoJsonAsync(cacheFile, reports, cancellationToken);
+			await WriteGeoJsonAsync(cacheFile, reports, cancellationToken).ConfigureAwait(false);
 			return Found(reports.Select(r => new StormReportItem(r.Kind, r.Lat, r.Lon, r.Time, r.Mag, r.Location, r.County, r.State)).ToList());
 		}
 
@@ -132,14 +132,14 @@ namespace Anvil.Services
 		// with no reports, or a date SPC doesn't archive).
 		private async Task<string?> FetchCsvAsync(DateOnly day, string slug, CancellationToken ct)
 		{
-			return await TryGetAsync($"{ReportsBase}/{day:yyMMdd}_rpts_filtered_{slug}.csv", ct)
-				?? await TryGetAsync($"{ReportsBase}/{day:yyMMdd}_rpts_{slug}.csv", ct);
+			return await TryGetAsync($"{ReportsBase}/{day:yyMMdd}_rpts_filtered_{slug}.csv", ct).ConfigureAwait(false)
+				?? await TryGetAsync($"{ReportsBase}/{day:yyMMdd}_rpts_{slug}.csv", ct).ConfigureAwait(false);
 		}
 
 		private async Task<string?> TryGetAsync(string url, CancellationToken ct)
 		{
-			using var response = await Http.GetAsync(url, ct);
-			return response.IsSuccessStatusCode ? await response.Content.ReadAsStringAsync(ct) : null;
+			using var response = await Http.GetAsync(url, ct).ConfigureAwait(false);
+			return response.IsSuccessStatusCode ? await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false) : null;
 		}
 
 		// ── Full-remark enrichment from the IEM LSR feed ──
@@ -166,7 +166,7 @@ namespace Anvil.Services
 			List<Lsr> lsrs;
 			try
 			{
-				lsrs = await FetchIemLsrsAsync(startUtc, endUtc, ct);
+				lsrs = await FetchIemLsrsAsync(startUtc, endUtc, ct).ConfigureAwait(false);
 			}
 			catch (OperationCanceledException)
 			{
@@ -249,11 +249,11 @@ namespace Anvil.Services
 			var url = $"{IemLsrBase}?sts={startUtc:yyyy-MM-ddTHH:mm}Z&ets={endUtc:yyyy-MM-ddTHH:mm}Z";
 			var list = new List<Lsr>();
 
-			using var response = await Http.GetAsync(url, ct);
+			using var response = await Http.GetAsync(url, ct).ConfigureAwait(false);
 			if (!response.IsSuccessStatusCode) { return list; }
 
-			await using var stream = await response.Content.ReadAsStreamAsync(ct);
-			using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+			await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+			using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
 			if (!doc.RootElement.TryGetProperty("features", out var features) || features.ValueKind != JsonValueKind.Array)
 			{
 				return list;
@@ -408,7 +408,7 @@ namespace Anvil.Services
 				}
 				writer.WriteEndArray();
 				writer.WriteEndObject();
-				await writer.FlushAsync(ct);
+				await writer.FlushAsync(ct).ConfigureAwait(false);
 			}, ct);
 
 		// Reads a cached file back into rows (the immutable-reuse and fetch-failure paths) — the SAME fields the

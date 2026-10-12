@@ -64,7 +64,7 @@ namespace Anvil.Services
 
 			try
 			{
-				var json = await Http.GetStringAsync(GeoJsonUrl, cancellationToken);
+				var json = await Http.GetStringAsync(GeoJsonUrl, cancellationToken).ConfigureAwait(false);
 
 				// Only cache a real FeatureCollection. An ArcGIS error object lacks a features array; in
 				// that case keep the last-known-good cache instead of blanking it.
@@ -82,7 +82,7 @@ namespace Anvil.Services
 				// emits a spurious empty set while the count endpoint still reports active features.
 				// Corroborate before caching an empty (which would blank the map): only accept it if the
 				// lighter count endpoint AGREES the set is really zero. See WarningService for the story.
-				if (features == 0 && await RemoteCountAsync(cancellationToken) is > 0)
+				if (features == 0 && await RemoteCountAsync(cancellationToken).ConfigureAwait(false) is > 0)
 				{
 					return Failed(cacheExists, "Empty GeoJSON contradicted by a non-zero count — kept last-known-good.");
 				}
@@ -100,7 +100,7 @@ namespace Anvil.Services
 				}
 				else if (cacheExists && now - (_emptySince ??= now) < EmptyHold)
 				{
-					var cached = await File.ReadAllTextAsync(cacheFile, cancellationToken);
+					var cached = await File.ReadAllTextAsync(cacheFile, cancellationToken).ConfigureAwait(false);
 					feedT = RadarPerfCounters.BeginFeed();
 					var held = PruneExpired(cached, now);
 					int heldFeatures = 0, hc = 0, ht = 0, hs = 0, hf = 0;
@@ -108,14 +108,14 @@ namespace Anvil.Services
 					RadarPerfCounters.EndFeed(feedT, "watches");
 					if (held is not null && heldOk && heldFeatures > 0)
 					{
-						await AtomicWriteAsync(cacheFile, held, cancellationToken);
+						await AtomicWriteAsync(cacheFile, held, cancellationToken).ConfigureAwait(false);
 						return new SpcWatchFetchResult(SpcWatchFetchStatus.Updated, hc, ht, hs, hf,
 							Message: $"Feed empty since {_emptySince:HH:mm:ss}Z — held last-known-good.");
 					}
 				}
 
 				// Atomic write (temp then move) so a partial/failed write never blanks the last-known-good cache.
-				await AtomicWriteAsync(cacheFile, json, cancellationToken);
+				await AtomicWriteAsync(cacheFile, json, cancellationToken).ConfigureAwait(false);
 
 				return new SpcWatchFetchResult(SpcWatchFetchStatus.Updated, count, tornado, severe, flood);
 			}
@@ -137,7 +137,7 @@ namespace Anvil.Services
 		{
 			try
 			{
-				var json = await Http.GetStringAsync(CountUrl, cancellationToken);
+				var json = await Http.GetStringAsync(CountUrl, cancellationToken).ConfigureAwait(false);
 				if (JsonNode.Parse(json)?["count"] is JsonValue v && v.TryGetValue<int>(out var n))
 				{
 					return n;

@@ -56,12 +56,12 @@ namespace Anvil.Services
 			{
 				warnZip = await GetZipAsync($"warnings-{stem}.zip",
 					$"{Endpoint}?accept=shapefile&sts={from}&ets={to}&limit1=1&addsvs=1&limitps=1&phenomena=TO,SV,FF&significance=W,W,W",
-					end, cancellationToken);
+					end, cancellationToken).ConfigureAwait(false);
 				// ⚠️ "-v2": the settled-window cache predates flood watches — the old name would serve a
 				// TO/SV-only export forever. Longer lookback: a flood watch routinely runs 24–48 h.
 				watchZip = await GetZipAsync($"watches-v2-{stem}.zip",
 					$"{Endpoint}?accept=shapefile&sts={Iso(start - WatchLookback)}&ets={to}&limitps=1&phenomena=TO,SV,FA,FL,FF&significance=A,A,A,A,A&simple=1",
-					end, cancellationToken);
+					end, cancellationToken).ConfigureAwait(false);
 			}
 			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 			{
@@ -90,8 +90,8 @@ namespace Anvil.Services
 			var (warnJson, warnings) = Build(warnRows, start, end, watches: false);
 			var (watchJson, watches) = Build(watchRows, start, end, watches: true);
 			RadarPerfCounters.EndFeed(feedT, "pastAlerts");
-			await AtomicWriteAsync(Path.Combine(CacheDirectory, $"warnings-{stem}.geojson"), warnJson, cancellationToken);
-			await AtomicWriteAsync(Path.Combine(CacheDirectory, $"watches-{stem}.geojson"), watchJson, cancellationToken);
+			await AtomicWriteAsync(Path.Combine(CacheDirectory, $"warnings-{stem}.geojson"), warnJson, cancellationToken).ConfigureAwait(false);
+			await AtomicWriteAsync(Path.Combine(CacheDirectory, $"watches-{stem}.geojson"), watchJson, cancellationToken).ConfigureAwait(false);
 			return new PastAlertFetch(true, warnings, watches,
 				$"https://{CacheHostName}/warnings-{stem}.geojson", $"https://{CacheHostName}/watches-{stem}.geojson");
 		}
@@ -102,15 +102,15 @@ namespace Anvil.Services
 			var path = Path.Combine(CacheDirectory, name);
 			if (DateTimeOffset.UtcNow - end > SettledAfter && File.Exists(path))
 			{
-				return await File.ReadAllBytesAsync(path, ct);
+				return await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false);
 			}
-			var bytes = await Http.GetByteArrayAsync(url, ct);
+			var bytes = await Http.GetByteArrayAsync(url, ct).ConfigureAwait(false);
 			// ⚠️ A bad query answers with an HTML page, not an HTTP error. A zip starts "PK".
 			if (bytes.Length < 4 || bytes[0] != (byte)'P' || bytes[1] != (byte)'K')
 			{
 				throw new InvalidDataException("not a shapefile export");
 			}
-			await AtomicWriteAsync(path, async s => await s.WriteAsync(bytes, ct), ct);
+			await AtomicWriteAsync(path, async s => await s.WriteAsync(bytes, ct), ct).ConfigureAwait(false);
 			return bytes;
 		}
 

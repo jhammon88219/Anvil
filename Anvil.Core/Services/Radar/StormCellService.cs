@@ -51,14 +51,14 @@ namespace Anvil.Services
 			var settled = !live && DateTimeOffset.UtcNow - to > SettledAfter;
 			if (settled && File.Exists(csvPath))
 			{
-				csv = await File.ReadAllTextAsync(csvPath, cancellationToken);
+				csv = await File.ReadAllTextAsync(csvPath, cancellationToken).ConfigureAwait(false);
 			}
 			else
 			{
 				try
 				{
 					var url = $"{Endpoint}?fmt=csv&radar={site3}&sts={Iso(from)}&ets={Iso(to)}";
-					csv = await Http.GetStringAsync(url, cancellationToken);
+					csv = await Http.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
 				}
 				catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 				{
@@ -74,7 +74,7 @@ namespace Anvil.Services
 				{
 					return StormCellFetch.Failed("IEM storm attributes unavailable for this site.");
 				}
-				await AtomicWriteAsync(csvPath, csv, cancellationToken);
+				await AtomicWriteAsync(csvPath, csv, cancellationToken).ConfigureAwait(false);
 			}
 
 			// PERF PROBE (perf.ui "feedBy"): parse + page build timed when on the UI thread. Grep RadarPerfCounters.
@@ -85,7 +85,7 @@ namespace Anvil.Services
 				return (parsed, StormCellTracks.ToPageJson(site3, parsed));
 			});
 			var jsonName = name + ".json";
-			await AtomicWriteAsync(Path.Combine(CacheDirectory, jsonName), page, cancellationToken);
+			await AtomicWriteAsync(Path.Combine(CacheDirectory, jsonName), page, cancellationToken).ConfigureAwait(false);
 			return new StormCellFetch(true, scans, $"https://{CacheHostName}/{jsonName}");
 		}
 

@@ -58,15 +58,15 @@ namespace Anvil.Services
 					string json;
 					if (settled && File.Exists(path))
 					{
-						json = await File.ReadAllTextAsync(path, cancellationToken);
+						json = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
 					}
 					else
 					{
 						json = await Http.GetStringAsync(
-							$"{ApiRoot}{kind.ApiPath}?valid={Iso(end)}&hours={hours}", cancellationToken);
+							$"{ApiRoot}{kind.ApiPath}?valid={Iso(end)}&hours={hours}", cancellationToken).ConfigureAwait(false);
 						var body = json;
 						if (!RadarPerfCounters.TimeFeed("mds", () => JsonNode.Parse(body)?["features"] is JsonArray)) { throw new InvalidDataException("not a FeatureCollection"); }
-						await AtomicWriteAsync(path, json, cancellationToken);
+						await AtomicWriteAsync(path, json, cancellationToken).ConfigureAwait(false);
 					}
 					bodies.Add((kind, json));
 				}
@@ -86,7 +86,7 @@ namespace Anvil.Services
 			RadarPerfCounters.NoteFeedRefresh("mds");
 			var (page, list) = RadarPerfCounters.TimeFeed("mds", () => Build(bodies, start, end));
 			var file = $"discussions-{stem}.geojson";
-			await AtomicWriteAsync(Path.Combine(CacheDirectory, file), page, cancellationToken);
+			await AtomicWriteAsync(Path.Combine(CacheDirectory, file), page, cancellationToken).ConfigureAwait(false);
 			return new MesoDiscussionFetch(true, list, $"https://{CacheHostName}/{file}",
 				errors.Count > 0 ? string.Join(" ", errors) : null);
 		}
@@ -99,16 +99,16 @@ namespace Anvil.Services
 				string text;
 				if (File.Exists(path))
 				{
-					text = await File.ReadAllTextAsync(path, cancellationToken);
+					text = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
 				}
 				else
 				{
-					text = await Http.GetStringAsync($"{ApiRoot}nwstext/{Uri.EscapeDataString(discussion.ProductId)}", cancellationToken);
+					text = await Http.GetStringAsync($"{ApiRoot}nwstext/{Uri.EscapeDataString(discussion.ProductId)}", cancellationToken).ConfigureAwait(false);
 					if (string.IsNullOrWhiteSpace(text) || text.TrimStart().StartsWith("<", StringComparison.Ordinal) || text.TrimStart().StartsWith("{", StringComparison.Ordinal))
 					{
 						return null; // an error page / JSON error, not a product
 					}
-					await AtomicWriteAsync(path, text, cancellationToken);
+					await AtomicWriteAsync(path, text, cancellationToken).ConfigureAwait(false);
 				}
 				return MesoDiscussionTextParser.Parse(text);
 			}

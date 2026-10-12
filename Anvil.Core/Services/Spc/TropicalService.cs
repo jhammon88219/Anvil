@@ -60,11 +60,11 @@ namespace Anvil.Services
 		public async Task<TropicalFetch> FetchLiveAsync(CancellationToken cancellationToken = default)
 		{
 			string json;
-			try { json = await Http.GetStringAsync(LiveUrl, cancellationToken); }
+			try { json = await Http.GetStringAsync(LiveUrl, cancellationToken).ConfigureAwait(false); }
 			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
 			catch (Exception ex) { return TropicalFetch.Failed($"NWS tropical alerts unavailable ({ex.Message})"); }
 
-			var storms = await GetStormNamesAsync(cancellationToken);
+			var storms = await GetStormNamesAsync(cancellationToken).ConfigureAwait(false);
 			// PERF PROBE (perf.ui "feedBy"): parse + rewrite timed when on the UI thread. Grep RadarPerfCounters.
 			RadarPerfCounters.NoteFeedRefresh("tropical");
 			var feedT = RadarPerfCounters.BeginFeed();
@@ -75,11 +75,11 @@ namespace Anvil.Services
 				return TropicalFetch.Failed("NWS tropical alerts: the response was not a feature collection.");
 			}
 			// ⚠️ An EMPTY set is suspect on this origin (SpcWatchService) — keep the last file unless the count agrees.
-			if (zones.Count == 0 && await RemoteCountAsync(cancellationToken) is > 0)
+			if (zones.Count == 0 && await RemoteCountAsync(cancellationToken).ConfigureAwait(false) is > 0)
 			{
 				return TropicalFetch.Failed("NWS tropical alerts came back empty while the count says otherwise — kept the last ones.");
 			}
-			await AtomicWriteAsync(Path.Combine(CacheDirectory, LiveFileName), page, cancellationToken);
+			await AtomicWriteAsync(Path.Combine(CacheDirectory, LiveFileName), page, cancellationToken).ConfigureAwait(false);
 			return new TropicalFetch(true, zones, NamesUsed(zones, storms), $"https://{CacheHostName}/{LiveFileName}");
 		}
 
@@ -95,17 +95,17 @@ namespace Anvil.Services
 			List<IemShapefile.Record> rows;
 			try
 			{
-				var zip = await GetZipAsync($"tropical-{stem}.zip", url, end, cancellationToken);
+				var zip = await GetZipAsync($"tropical-{stem}.zip", url, end, cancellationToken).ConfigureAwait(false);
 				RadarPerfCounters.NoteFeedRefresh("pastTropical");
 				rows = RadarPerfCounters.TimeFeed("pastTropical", () => IemShapefile.Read(zip));
 			}
 			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
 			catch (Exception ex) { return TropicalFetch.Failed($"IEM tropical archive unavailable ({ex.Message})"); }
 
-			var storms = await GetStormNamesAsync(cancellationToken);
+			var storms = await GetStormNamesAsync(cancellationToken).ConfigureAwait(false);
 			var (page, zones) = RadarPerfCounters.TimeFeed("pastTropical", () => BuildPast(rows, start, end, storms));
 			var name = $"tropical-{stem}.geojson";
-			await AtomicWriteAsync(Path.Combine(CacheDirectory, name), page, cancellationToken);
+			await AtomicWriteAsync(Path.Combine(CacheDirectory, name), page, cancellationToken).ConfigureAwait(false);
 			return new TropicalFetch(true, zones, NamesUsed(zones, storms), $"https://{CacheHostName}/{name}");
 		}
 
@@ -209,13 +209,13 @@ namespace Anvil.Services
 			{
 				try
 				{
-					var text = await Http.GetStringAsync(StormListUrl, ct);
-					if (text.Contains(',')) { await AtomicWriteAsync(path, text, ct); }
+					var text = await Http.GetStringAsync(StormListUrl, ct).ConfigureAwait(false);
+					if (text.Contains(',')) { await AtomicWriteAsync(path, text, ct).ConfigureAwait(false); }
 				}
 				catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
 				catch { /* keep the old list (or none): an unnamed storm is still drawn */ }
 			}
-			try { return File.Exists(path) ? ParseStormList(await File.ReadAllTextAsync(path, ct)) : new Dictionary<string, string>(); }
+			try { return File.Exists(path) ? ParseStormList(await File.ReadAllTextAsync(path, ct).ConfigureAwait(false)) : new Dictionary<string, string>(); }
 			catch { return new Dictionary<string, string>(); }
 		}
 
@@ -256,7 +256,7 @@ namespace Anvil.Services
 		{
 			try
 			{
-				var json = await Http.GetStringAsync(LiveCountUrl, ct);
+				var json = await Http.GetStringAsync(LiveCountUrl, ct).ConfigureAwait(false);
 				if (JsonNode.Parse(json)?["count"] is JsonValue v && v.TryGetValue<int>(out var n)) { return n; }
 			}
 			catch { /* unknown — don't block */ }
@@ -267,11 +267,11 @@ namespace Anvil.Services
 		private async Task<byte[]> GetZipAsync(string name, string url, DateTimeOffset end, CancellationToken ct)
 		{
 			var path = Path.Combine(CacheDirectory, name);
-			if (DateTimeOffset.UtcNow - end > SettledAfter && File.Exists(path)) { return await File.ReadAllBytesAsync(path, ct); }
-			var bytes = await Http.GetByteArrayAsync(url, ct);
+			if (DateTimeOffset.UtcNow - end > SettledAfter && File.Exists(path)) { return await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false); }
+			var bytes = await Http.GetByteArrayAsync(url, ct).ConfigureAwait(false);
 			// ⚠️ A bad query answers with an HTML page, not an HTTP error. A zip starts "PK".
 			if (bytes.Length < 4 || bytes[0] != (byte)'P' || bytes[1] != (byte)'K') { throw new InvalidDataException("not a shapefile export"); }
-			await AtomicWriteAsync(path, async s => await s.WriteAsync(bytes, ct), ct);
+			await AtomicWriteAsync(path, async s => await s.WriteAsync(bytes, ct), ct).ConfigureAwait(false);
 			return bytes;
 		}
 
