@@ -140,6 +140,8 @@ namespace Anvil
 				("cadence", Dbl(root, "cadence")), ("longMs", Dbl(root, "longMs")), ("cal", Int(root, "cal")),
 				("panes", Int(root, "panes")),
 				("mkAttached", Int(root, "mkAttached")), ("mkShown", Int(root, "mkShown")),
+				// Radar-site marker repositioning during the gesture (radar-sites.js takeUpdateStats): calls, summed ms.
+				("mkUpd", Int(root, "mkUpd")), ("mkUpdMs", Dbl(root, "mkUpdMs")),
 				// Input delivery during the gesture + decode jobs in flight (see perf-probe.js "Input delivery").
 				// Read with the perf.ui lines (UiThreadProbe) from the same seconds.
 				("inN", Int(root, "inN")), ("inGapP95", Dbl(root, "inGapP95")), ("inGapMax", Dbl(root, "inGapMax")),

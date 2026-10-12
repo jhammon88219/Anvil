@@ -62,6 +62,11 @@ METRICS = [
     ("pan_samples",      "Pan gestures sampled",   "",    0),
     ("mk_attached",      "Markers attached",       "",    0),
     ("mk_shown",         "Markers shown",          "",    0),
+    # Radar-site marker repositioning during gestures (radar-sites.js takeUpdateStats, 2026-10-12), pooled over every
+    # sampled gesture: total ms / total frames, so long and short drags weigh by their frames.
+    ("mk_upd_per_frame", "Marker updates per pan frame", "",  -1),
+    ("mk_upd_ms_frame",  "Marker update ms per pan frame", "ms", -1),
+    ("mk_upd_us_each",   "Marker update cost each", "us", -1),
     # perf.ui (UiThreadProbe, DEBUG builds): the UI thread's heartbeat, read ONLY over the seconds radar work
     # was running (a load), so idle time after the load can't dilute it. See load_run's perf.ui branch.
     ("ui_windows",       "UI busy seconds",        "s",   0),
@@ -101,6 +106,7 @@ def load_run(path):
     frames_decoded = suspects = render_errors = render_blanks = 0
     pan_p50, pan_p95, pan_long, mk_attached, mk_shown = [], [], [], [], []
     pan_cadence, pan_long_ms = [], []
+    mk_frames, mk_upd, mk_upd_ms = 0, 0, 0.0
     ui_late, ui_ticks, ui_late50, ui_msg, ui_sync, ui_hops = [], 0, 0, 0.0, 0.0, 0
     ui_ro_windows, ui_ro_count, ui_ro_ms = 0, 0, 0.0
     sites, sessions, stamp = set(), 0, None
@@ -183,6 +189,11 @@ def load_run(path):
                     mk_attached.append(e["mkAttached"])
                 if e.get("mkShown") is not None:
                     mk_shown.append(e["mkShown"])
+                # Absent before 2026-10-12 (and 0 when no site list was up) - only gestures that carry it count.
+                if e.get("mkUpd") is not None and e.get("n"):
+                    mk_frames += e["n"]
+                    mk_upd += e["mkUpd"]
+                    mk_upd_ms += e.get("mkUpdMs") or 0
             elif cat == "perf.ui":
                 # Only the seconds radar work was RUNNING (a CPU job, a UI-thread download hop, or service work
                 # timed on the UI thread). The probe also writes idle baseline windows; counting those would
@@ -248,6 +259,9 @@ def load_run(path):
         "pan_samples": len(pan_p50),
         "mk_attached": statistics.median(mk_attached) if mk_attached else None,
         "mk_shown": statistics.median(mk_shown) if mk_shown else None,
+        "mk_upd_per_frame": round(mk_upd / mk_frames, 1) if mk_frames else None,
+        "mk_upd_ms_frame": round(mk_upd_ms / mk_frames, 3) if mk_frames else None,
+        "mk_upd_us_each": round(1000.0 * mk_upd_ms / mk_upd, 2) if mk_upd else None,
         "ui_windows": len(ul) if ul else None,
         "ui_late_p95": pct(ul, 0.95),
         "ui_late_max": ul[-1] if ul else None,

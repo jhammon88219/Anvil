@@ -70,6 +70,7 @@ let last = 0;
 let samples = [];
 let startedAt = 0;
 let context = null;      // () => extra fields describing WHAT was on screen for this gesture
+let onBegin = null;      // () => void — zero any per-gesture counters the context reads (marker update time)
 
 // ── Input delivery (companion to the host's perf.ui heartbeat) ──────────────────────────────────────
 // rAF only says the page DREW on time. The 2026-10-01 logs showed a heavy loop load with a perfect rAF
@@ -178,6 +179,7 @@ function begin() {
     samples = [];
     last = 0;
     startedAt = performance.now();
+    try { if (onBegin) onBegin(); } catch (e) { /* best-effort, like context */ }
     rafHandle = requestAnimationFrame(tick);
     inputOn();
 }
@@ -265,9 +267,11 @@ export function attach(map) {
 }
 
 /// Supply a function returning extra fields to stamp onto each sample (pane count, marker counts).
-/// Called at emit time, so it always reports the state the gesture actually ran under.
-export function setContext(fn) {
+/// Called at emit time, so it always reports the state the gesture actually ran under. `begin` (optional)
+/// runs at each gesture's start, so a counter the context reads covers exactly that gesture.
+export function setContext(fn, begin) {
     context = fn;
+    onBegin = begin || null;
 }
 
 // Take the idle baseline as soon as this module lands. It may well run while the map is still building

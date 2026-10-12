@@ -377,7 +377,9 @@ export function show(map, json) {
             if (btn.classList.contains('offline')) return;
             window.chrome.webview.postMessage(JSON.stringify({ type: 'radarSiteClick', id: s.id }));
         });
-        const marker = new maplibregl.Marker({ element: el }).setLngLat([s.lng, s.lat]).addTo(map);
+        const marker = new maplibregl.Marker({ element: el }).setLngLat([s.lng, s.lat]);
+        timeMarkerUpdates(marker); // DEV (?perf=1 only) — see the measurement seam at the bottom
+        marker.addTo(map);
         radarMarkerObjs.push(marker);
         radarMarkers[s.id] = btn; // state ops (selected/down/tooltip) target the inner button
     });
@@ -488,4 +490,31 @@ export function stats() {
         if (m.getElement().style.display !== 'none') shown++;
     });
     return { attached: radarMarkerObjs.length, shown: shown };
+}
+
+// What those attached markers COST during a gesture: every attached marker runs MapLibre's `_update` on every
+// map `move` (project + transform write), shown or not. Counted here, read + reset per gesture by the probe.
+// ⚠️ `_update` is an instance arrow field that addTo() subscribes to `move` (and remove() unsubscribes), so it
+// is replaced on the instance BEFORE addTo — patching the prototype would time nothing. Off unless the page URL
+// has ?perf=1 (DEBUG builds only), so Release markers are untouched. Excisable with the rest of `perfPan`.
+const PERF_TIMED = new URLSearchParams(location.search).get('perf') === '1';
+let mkUpd = 0;
+let mkUpdMs = 0;
+
+function timeMarkerUpdates(marker) {
+    if (!PERF_TIMED || typeof marker._update !== 'function') return;
+    const inner = marker._update;
+    marker._update = function (e) {
+        const t = performance.now();
+        try { return inner(e); } finally { mkUpd++; mkUpdMs += performance.now() - t; }
+    };
+}
+
+/// Marker-update calls and summed ms since the last call (the probe resets it at each gesture's start and
+/// reads it at the end).
+export function takeUpdateStats() {
+    const r = { n: mkUpd, ms: mkUpdMs };
+    mkUpd = 0;
+    mkUpdMs = 0;
+    return r;
 }

@@ -788,6 +788,13 @@ try {
                     ctx.mkAttached = st.attached;
                     ctx.mkShown = st.shown;
                 }
+                // What MapLibre spent repositioning those markers during the gesture (perf audit: hidden
+                // keys stay attached and still move). mkUpdMs ÷ n = marker cost per frame.
+                if (RadarSites && RadarSites.takeUpdateStats) {
+                    const up = RadarSites.takeUpdateStats();
+                    ctx.mkUpd = up.n;
+                    ctx.mkUpdMs = Math.round(up.ms * 10) / 10;
+                }
                 // Decode jobs in the worker pool — was the loop's CPU work running during this gesture?
                 if (window.RadarLayer && window.RadarLayer.perfStats) {
                     const ps = window.RadarLayer.perfStats();
@@ -799,6 +806,8 @@ try {
                     ctx.upMax = ps.upMax;
                 }
                 return ctx;
+            }, function () {
+                if (RadarSites && RadarSites.takeUpdateStats) RadarSites.takeUpdateStats(); // zero for this gesture
             });
             forEachMap(function (mp) { m.attach(mp); });
         }).catch(function (e) { console.error('perf-probe.js load failed: ' + e); });
