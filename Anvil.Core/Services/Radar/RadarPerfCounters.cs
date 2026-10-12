@@ -16,6 +16,7 @@ namespace Anvil.Services
 	///   BeginSync … EndSync  (only timed when a SynchronizationContext is
 	///                         present, i.e. the await resumed on the UI)  → "syncMs"
 	///   NoteHop              (a download chunk resumed on the UI)        → "svcHops"
+	///   Begin/EndReadout     (RaiseRadarReadout + the bindings it runs)  → "readouts" / "readoutMs"
 	/// </code>
 	/// Always on (a pair of Interlocked ops per extraction is free); only <c>UiThreadProbe</c> (App, Debug)
 	/// ever reads it. ⚠️ EXCISABLE: this file, its call sites in <see cref="Level2RadarService"/> and
@@ -68,5 +69,22 @@ namespace Anvil.Services
 
 		/// <summary>UI-thread download continuations since the last call.</summary>
 		public static int TakeHops() => Interlocked.Exchange(ref _hops, 0);
+
+		private static int _readouts;
+		private static long _readoutTicks;
+
+		/// <summary>Start timing one radar readout refresh (RadarViewModel.RaiseRadarReadout). x:Bind updates its targets
+		/// INSIDE PropertyChanged, so the span covers the bindings and every VM listening to it, not just the raise.</summary>
+		public static long BeginReadout() => Stopwatch.GetTimestamp();
+
+		public static void EndReadout(long started)
+		{
+			Interlocked.Increment(ref _readouts);
+			Interlocked.Add(ref _readoutTicks, Stopwatch.GetTimestamp() - started);
+		}
+
+		/// <summary>Readout refreshes and their total milliseconds since the last call.</summary>
+		public static (int Count, double Ms) TakeReadouts() =>
+			(Interlocked.Exchange(ref _readouts, 0), Interlocked.Exchange(ref _readoutTicks, 0) * 1000.0 / Stopwatch.Frequency);
 	}
 }

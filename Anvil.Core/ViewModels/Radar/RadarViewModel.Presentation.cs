@@ -289,6 +289,7 @@ namespace Anvil.ViewModels
 		// the 1s tick, selection changes). One call so notifications can't drift out of sync.
 		private void RaiseRadarReadout()
 		{
+			var perfAt = Services.RadarPerfCounters.BeginReadout(); // perf.ui readouts/readoutMs (the bindings run inside)
 			OnPropertyChanged(nameof(RadarCardTitle));
 			OnPropertyChanged(nameof(RadarSiteId));
 			OnPropertyChanged(nameof(RadarSiteName));
@@ -304,6 +305,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(RadarLoopSpanText));
 			OnPropertyChanged(nameof(RadarStatus));
 			OnPropertyChanged(nameof(RadarLoadingText));
+			Services.RadarPerfCounters.EndReadout(perfAt);
 		}
 
 		/// <summary>Whether the loop is currently playing. ⚠️ The play/stop button's glyph is picked by the

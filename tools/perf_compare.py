@@ -71,6 +71,11 @@ METRICS = [
     ("ui_msg_ms",        "UI page-message cost",   "ms", -1),
     ("ui_sync_ms",       "UI radar-service sync",  "ms", -1),
     ("ui_svc_hops",      "UI download hops",       "",   -1),
+    # Radar readout refreshes (RaiseRadarReadout, bindings included) — per second the loop was up, so a longer
+    # run doesn't read as worse.
+    ("ui_readouts_ps",   "Readout refreshes /s",   "",   -1),
+    ("ui_readout_ms_ps", "Readout cost /s",        "ms", -1),
+    ("ui_readout_avg",   "Readout cost each",      "ms", -1),
 ]
 
 
@@ -97,6 +102,7 @@ def load_run(path):
     pan_p50, pan_p95, pan_long, mk_attached, mk_shown = [], [], [], [], []
     pan_cadence, pan_long_ms = [], []
     ui_late, ui_ticks, ui_late50, ui_msg, ui_sync, ui_hops = [], 0, 0, 0.0, 0.0, 0
+    ui_ro_windows, ui_ro_count, ui_ro_ms = 0, 0, 0.0
     sites, sessions, stamp = set(), 0, None
     first_ts = last_ts = None
     skipped = 0
@@ -181,9 +187,16 @@ def load_run(path):
                 # Only the seconds radar work was RUNNING (a CPU job, a UI-thread download hop, or service work
                 # timed on the UI thread). The probe also writes idle baseline windows; counting those would
                 # make a run with a longer idle tail look healthier. svcHops is absent before 2026-10-12.
+                # readouts (2026-10-12) widens "busy" to every second a loop is UP — playback is the workload for the
+                # readout fix. Logs without the field keep the old meaning.
                 hops = e.get("svcHops") or 0
-                if not ((e.get("jobsPeak") or 0) > 0 or hops > 0 or (e.get("syncMs") or 0) > 0):
+                readouts = e.get("readouts") or 0
+                if not ((e.get("jobsPeak") or 0) > 0 or hops > 0 or (e.get("syncMs") or 0) > 0 or readouts > 0):
                     continue
+                if readouts > 0:
+                    ui_ro_windows += 1
+                    ui_ro_count += readouts
+                    ui_ro_ms += e.get("readoutMs") or 0
                 ui_late.append(e.get("lateMax") or 0)
                 ui_ticks += e.get("ticks") or 0
                 ui_late50 += e.get("late50") or 0
@@ -242,6 +255,9 @@ def load_run(path):
         "ui_msg_ms": round(ui_msg, 1) if ul else None,
         "ui_sync_ms": round(ui_sync, 1) if ul else None,
         "ui_svc_hops": ui_hops if ul else None,
+        "ui_readouts_ps": round(ui_ro_count / ui_ro_windows, 2) if ui_ro_windows else None,
+        "ui_readout_ms_ps": round(ui_ro_ms / ui_ro_windows, 2) if ui_ro_windows else None,
+        "ui_readout_avg": round(ui_ro_ms / ui_ro_count, 3) if ui_ro_count else None,
     }
 
 
