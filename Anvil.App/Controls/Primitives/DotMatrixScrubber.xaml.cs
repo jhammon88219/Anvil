@@ -40,6 +40,8 @@ namespace Anvil.Controls.Primitives
 		// Per state, the circles its path draws (index = (int)DotState).
 		private readonly GeometryGroup[] _groups = new GeometryGroup[4];
 		private readonly bool[] _dirty = new bool[4]; // a group whose circles moved since its path last took it
+		// The XAML's four paths, index = (int)DotState — set once after InitializeComponent.
+		private readonly Path[] _paths;
 		private (int Columns, int Rows, double Pitch, double Left, double Size) _fieldShape;
 		// Per segment, its dots' FIELD indices IN FILL ORDER.
 		private readonly List<int[]> _blocks = new();
@@ -50,6 +52,7 @@ namespace Anvil.Controls.Primitives
 		public DotMatrixScrubber()
 		{
 			InitializeComponent();
+			_paths = new[] { EmptyDots, FillingDots, ReadyDots, CurrentDots };
 			SizeChanged += (_, e) => { if (Math.Abs(e.NewSize.Width - e.PreviousSize.Width) > 0.5) Layout(); };
 			Loaded += (_, _) => Attach();
 			Unloaded += (_, _) => Detach(); // the VM's collection outlives a Settings window — never leak into it
@@ -131,6 +134,18 @@ namespace Anvil.Controls.Primitives
 
 		private double BlockHeight() => Math.Max(1, Rows) * DotSize + Math.Max(0, Rows - 1) * DotGap;
 
+		/// <summary>The frame under <paramref name="x"/> (DIPs from this control's left edge), clamped to the loop —
+		/// the host's seek reads this so a click lands on the columns drawn under it (the SAME owner table as Layout).
+		/// -1 with no loop.</summary>
+		public int IndexAt(double x)
+		{
+			if (_owner.Length == 0 || _blocks.Count == 0) return -1;
+			var pitch = DotSize + DotGap;
+			// Nearest column, the half-gap either side of a dot counting as that dot's.
+			var column = Math.Clamp((int)Math.Floor((x - _fieldLeft + DotGap / 2) / pitch), 0, _owner.Length - 1);
+			return Math.Clamp(_owner[column], 0, _blocks.Count - 1);
+		}
+
 		// ---- Segment tracking ----
 
 		private void Attach()
@@ -207,24 +222,13 @@ namespace Anvil.Controls.Primitives
 			var was = _litIndex;
 			_litIndex = LitIndex();
 			if (was == _litIndex) return;
-			if (was >= 0) Paint(was);
-			if (_litIndex >= 0) Paint(_litIndex);
+			if (was >= 0) PaintBlock(was);
+			if (_litIndex >= 0) PaintBlock(_litIndex);
+			Flush();
 		}
 
 		private int LitIndex() =>
 			_blocks.Count == 0 ? -1 : Math.Clamp((int)Math.Round(CurrentIndex), 0, _blocks.Count - 1);
-
-		/// <summary>The frame under <paramref name="x"/> (DIPs from this control's left edge), clamped to the loop —
-		/// the host's seek reads this so a click lands on the columns drawn under it (the SAME owner table). -1 with no
-		/// loop.</summary>
-		public int IndexAt(double x)
-		{
-			if (_owner.Length == 0 || _blocks.Count == 0) return -1;
-			var pitch = DotSize + DotGap;
-			// Nearest column, the half-gap either side of a dot counting as that dot's.
-			var column = Math.Clamp((int)Math.Floor((x - _fieldLeft + DotGap / 2) / pitch), 0, _owner.Length - 1);
-			return Math.Clamp(_owner[column], 0, _blocks.Count - 1);
-		}
 
 		// ---- Layout: a FIXED field, frames own runs of its columns ----
 		// The field is every column the width holds at the pitch, centred — it depends on the WIDTH alone, so the
@@ -299,7 +303,8 @@ namespace Anvil.Controls.Primitives
 			}
 
 			_litIndex = LitIndex();
-			for (var s = 0; s < count; s++) Paint(s); // every dot is in exactly one block, so every dot is repainted
+			for (var s = 0; s < count; s++) PaintBlock(s); // every dot is in exactly one block, so every dot is repainted
+			Flush(); // ONCE for the whole re-lay, not per block
 		}
 
 		// (Re)computes the field only when its SHAPE changed — see _dots. Fresh dots start empty (all in EmptyDots).
@@ -326,10 +331,7 @@ namespace Anvil.Controls.Primitives
 					_dots[c * rows + r] = dot;
 				}
 			}
-			EmptyDots.Data = _groups[(int)DotState.Empty];
-			FillingDots.Data = _groups[(int)DotState.Filling];
-			ReadyDots.Data = _groups[(int)DotState.Ready];
-			CurrentDots.Data = _groups[(int)DotState.Current];
+			for (var g = 0; g < _paths.Length; g++) _paths[g].Data = _groups[g];
 		}
 
 		// Move dot d's circle to the path for its new state.
@@ -344,22 +346,28 @@ namespace Anvil.Controls.Primitives
 		}
 
 		// Hand each path whose circles moved its group again, so it re-draws from the new set. Called once after each
-		// batch of SetDots (a paint or a re-lay), never per dot.
+		// batch of SetDots (a paint, a lit move or a re-lay), never per dot or per block.
 		private void Flush()
 		{
-			Path[] paths = { EmptyDots, FillingDots, ReadyDots, CurrentDots };
 			for (var g = 0; g < _groups.Length; g++)
 			{
 				if (!_dirty[g]) continue;
 				_dirty[g] = false;
-				paths[g].Data = null;
-				paths[g].Data = _groups[g];
+				_paths[g].Data = null;
+				_paths[g].Data = _groups[g];
 			}
 		}
 
-		// One block's dots from its segment: the current frame whole, a ready frame whole, else the first
-		// round(Fill × dots) as filling, the rest empty.
+		// One frame's block repainted and shown — a segment's own Fill/IsReady change.
 		private void Paint(int s)
+		{
+			PaintBlock(s);
+			Flush();
+		}
+
+		// One block's dots from its segment: the current frame whole, a ready frame whole, else the first
+		// round(Fill × dots) as filling, the rest empty. Moves circles only — the CALLER flushes, once per batch.
+		private void PaintBlock(int s)
 		{
 			if (_attached is null || s < 0 || s >= _blocks.Count || s >= _attached.Count) return;
 			var segment = _attached[s];
@@ -372,7 +380,6 @@ namespace Anvil.Controls.Primitives
 					: i < lit ? DotState.Filling
 					: DotState.Empty);
 			}
-			Flush();
 		}
 	}
 }
