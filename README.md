@@ -77,6 +77,13 @@ live, how to build, and the gotchas — and `docs/` holds one deep-reference fil
 velocity dealiasing, the live frame path, product history, decode validation, the replay and DOW
 viewers).
 
+**UI is defined before runtime, never during.** Every component's structure and look is declared ahead of
+time — in XAML (templates, styles, visual states) on the WinUI side, and as `<template>`s in `map.html`
+plus stylesheets in `Anvil.App/Assets/Map/styles/` on the web side. Code only instantiates what is
+declared, fills in data, sets per-instance geometry and picks states; it never builds elements, injects
+styles or sets a static look. Data colours (radar ramps, site status inks, report types) are the one
+thing code may hand over as values. See `Anvil.App/Assets/Map/README.md` for the web layer's version.
+
 ## Data sources
 
 | Data | Source |
