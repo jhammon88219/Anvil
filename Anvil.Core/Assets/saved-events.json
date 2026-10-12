@@ -296,6 +296,18 @@
         { "site": "KTLX", "startUtc": "2024-05-07T03:30:00Z", "minutes": 120,
           "key": { "startUtc": "2024-05-07T04:37:00Z", "endUtc": "2024-05-07T04:44:00Z", "place": "Moore, OK" } }
       ]
+    },
+    {
+      "id": "perf-test-derecho-2020",
+      "type": "derecho",
+      "name": "Perf Test (Iowa derecho, 1 hour)",
+      "notes": "A fixed workload for before/after performance runs (tools/perf_compare.py): the Iowa derecho's Cedar Rapids leg cut to ONE hour, the exact window the Dev tab's 1-hour Derecho seeding pass loads, so its volumes are usually already cached and a run measures playback, not downloading. Load it, View event, Play, hands off for 2 minutes. The perf- id keeps it out of the seeding passes.",
+      "source": "Same leg as the Iowa derecho built-in (NWS Quad Cities summary: Cedar Rapids 12:30-12:55 PM CDT, 1730-1755Z), window shortened to 60 minutes.",
+      "defaultLeg": 0,
+      "legs": [
+        { "site": "KDVN", "startUtc": "2020-08-10T16:30:00Z", "minutes": 60,
+          "key": { "startUtc": "2020-08-10T17:30:00Z", "endUtc": "2020-08-10T17:55:00Z", "place": "Cedar Rapids" } }
+      ]
     }
   ]
 }

@@ -107,8 +107,10 @@ namespace Anvil.ViewModels
 			return passes;
 		}
 
+		// ⚠️ "perf-" built-ins are fixed workloads for perf_compare runs (playback, not loading) and repeat a window a
+		// seeding pass already loads — seeding them would add a load and change every seeding run's numbers.
 		private List<SavedEvent> Events() => _library.GetEvents()
-			.Where(e => e.IsBuiltIn && e.Kind switch
+			.Where(e => e.IsBuiltIn && !e.Id.StartsWith("perf-", StringComparison.Ordinal) && e.Kind switch
 			{
 				SavedEventKind.Tornado => _tornado,
 				SavedEventKind.Hurricane => _hurricane,
