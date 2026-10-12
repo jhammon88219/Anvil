@@ -10,20 +10,21 @@
                                                 flyout that writes CustomHex (two-way). Once a non-preset
                                                 colour is chosen the chip wears it and is the lit one.
 
-     ⚠️ THE CHIP COLOURS ARE DATA, not chrome: each is a literal SolidColorBrush built from the hex the
-     host hands over, which is why building them in C# is safe here. The RINGS (hover, chosen) are theme
-     brushes and so live in VisualState setters, per the app's rule — never resolve those in code.
+     ⚠️ THE CHIP COLOURS ARE DATA, not chrome: each is a literal SolidColorBrush made from the hex the
+     host hands over (ColorSwatchItem.Fill). The RINGS (hover, chosen) are theme brushes and so live in
+     VisualState setters, per the app's rule — never resolve those in code.
 
-     ⚠️ BUILT IN CODE, like SegmentedPicker, and for the same kind of reason: each swatch's fill comes from
-     its own item and the empty item needs a different face, which a DataTemplate over strings can't do
-     without converters. Host contract: ItemsSource (hex strings; "" = the default swatch) + SelectedIndex
-     (TwoWay) + optional ToolTips (names, parallel to ItemsSource). The INDEX is the value.
+     THE SWATCH AND THE CUSTOM CHIP ARE DECLARED HERE (SwatchTemplate, CustomChip + its flyout), never built
+     in code; the code-behind only turns the hex strings into ColorSwatchItems and keeps the lit one in step.
+     Host contract: ItemsSource (hex strings; "" = the default swatch) + SelectedIndex (TwoWay) + optional
+     ToolTips (names, parallel to ItemsSource). The INDEX is the value.
      SelectedIndex -1 lights nothing (a hand-set colour that is not a preset) — clicking still works. -->
 <UserControl x:Class="Anvil.Controls.Primitives.ColorSwatchPicker"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="using:Anvil.Controls.Primitives"
              mc:Ignorable="d">
 
     <UserControl.Resources>
@@ -97,7 +98,50 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- ONE SWATCH: its data colour (Fill; null = the empty default chip, which shows "A"), its name as the
+             tooltip + accessible name. IsChecked is TwoWay so the binding survives the ToggleButton unchecking
+             itself when the CHOSEN swatch is clicked; Pick puts it back. -->
+        <DataTemplate x:Key="SwatchTemplate" x:DataType="local:ColorSwatchItem">
+            <ToggleButton Style="{StaticResource SwatchStyle}"
+                          Background="{x:Bind Fill}"
+                          Content="{x:Bind Face}"
+                          ToolTipService.ToolTip="{x:Bind ToolTip}"
+                          AutomationProperties.Name="{x:Bind Name}"
+                          IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
+                          Click="{x:Bind Pick}"/>
+        </DataTemplate>
     </UserControl.Resources>
 
-    <StackPanel x:Name="Swatches" Orientation="Horizontal" Spacing="4"/>
+    <StackPanel Orientation="Horizontal" Spacing="4">
+        <ItemsControl x:Name="Swatches" IsTabStop="False" ItemTemplate="{StaticResource SwatchTemplate}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="4"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+        </ItemsControl>
+
+        <!-- The CUSTOM chip (AllowCustom only): "+" until a non-preset colour is chosen, then that colour (lit).
+             Clicking opens the ColorPicker; every change writes CustomHex, so the map follows the picker live.
+             ⚠️ Windowed flyout (ShouldConstrainToRootBounds false): the Settings window can be narrower than the
+             picker, and a constrained flyout would be clipped. -->
+        <ToggleButton x:Name="CustomChip" Style="{StaticResource SwatchStyle}" Content="+" Visibility="Collapsed"
+                      ToolTipService.ToolTip="Custom colour…" AutomationProperties.Name="Custom colour"
+                      Click="OnCustomChipClick">
+            <FlyoutBase.AttachedFlyout>
+                <Flyout x:Name="CustomFlyout" ShouldConstrainToRootBounds="False" Placement="Bottom"
+                        Opening="OnCustomFlyoutOpening">
+                    <ColorPicker x:Name="CustomPicker"
+                                 IsAlphaEnabled="False"
+                                 IsMoreButtonVisible="False"
+                                 IsColorChannelTextInputVisible="False"
+                                 IsHexInputVisible="True"
+                                 IsColorPreviewVisible="True"
+                                 ColorSpectrumShape="Ring"
+                                 ColorChanged="OnCustomColorChanged"/>
+                </Flyout>
+            </FlyoutBase.AttachedFlyout>
+        </ToggleButton>
+    </StackPanel>
 </UserControl>

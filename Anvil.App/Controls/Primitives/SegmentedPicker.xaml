@@ -35,6 +35,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="using:Anvil.Controls.Primitives"
+             xmlns:layout="using:Anvil.Layout"
              mc:Ignorable="d">
 
     <UserControl.Resources>
@@ -166,13 +167,13 @@
                                        Only="{StaticResource OnlySegmentTemplate}"/>
     </UserControl.Resources>
 
-    <!-- Equal widths: EqualColumnsPanel does what N star columns did — the row divides its width evenly however
+    <!-- Equal widths: Layout/EqualCellsPanel does what N star columns did — the row divides its width evenly however
          many options it is given, so a label never decides how wide its neighbour is. No spacing: the seams
          are the segments' own left-less borders (see the templates). -->
     <ItemsControl x:Name="Segments" ItemTemplateSelector="{StaticResource SegmentSelector}" IsTabStop="False">
         <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-                <local:EqualColumnsPanel/>
+                <layout:EqualCellsPanel/>
             </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
     </ItemsControl>

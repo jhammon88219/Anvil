@@ -22,17 +22,21 @@
      date facade reads the value's own Y/M/D, and a DateTime-based constructor can throw.
      ⚠️ The flyout is WINDOWED (ShouldConstrainToRootBounds="False") and OPAQUE, as on SectionedComboBox: the
      host is an owned panel window and the default flyout brush is acrylic.
-     The calendar body is built in CODE (Render) — three grid shapes swapped in one cell. -->
+     The calendar body is THREE DECLARED PAGES (days / months / years) in one cell, one shown at a time; Render only
+     lists each page's cells (CalendarCells) and picks the page. A cell's look is one of three templates (a plain
+     cell, the selected one, or another month's inert day) — UI is defined here, never built in code. -->
 <UserControl x:Class="Anvil.Controls.Primitives.DateButtonPicker"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="using:Anvil.Controls.Primitives"
+             xmlns:layout="using:Anvil.Layout"
              mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- ⚠️ The weekday letters + other months' days get their colour from a STYLE, never a brush looked up
-             in C# (that returns the OS theme's brush, not the app's pinned theme). -->
+        <!-- ⚠️ The weekday letters + other months' days get their colour from a STYLE (ThemeResource), never a
+             brush looked up in C# (that returns the OS theme's brush, not the app's pinned theme). -->
         <Style x:Key="WeekdayTextStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -70,6 +74,27 @@
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="VerticalAlignment" Value="Stretch"/>
         </Style>
+
+        <!-- THE THREE CELLS. Plain and Selected are buttons (Pick on click; disabled outside MinDate..MaxDate);
+             Inert is a neighbouring month's day — shown for the calendar's shape, never clickable. -->
+        <DataTemplate x:Key="PlainCellTemplate" x:DataType="local:CalendarCell">
+            <Button Style="{StaticResource CellStyle}" Content="{x:Bind Text}" IsEnabled="{x:Bind IsEnabled}"
+                    Click="{x:Bind Pick}"/>
+        </DataTemplate>
+        <DataTemplate x:Key="SelectedCellTemplate" x:DataType="local:CalendarCell">
+            <Button Style="{StaticResource SelectedCellStyle}" Content="{x:Bind Text}" IsEnabled="{x:Bind IsEnabled}"
+                    Click="{x:Bind Pick}"/>
+        </DataTemplate>
+        <DataTemplate x:Key="InertCellTemplate" x:DataType="local:CalendarCell">
+            <TextBlock Style="{StaticResource OtherMonthTextStyle}" Text="{x:Bind Text}"/>
+        </DataTemplate>
+        <local:CalendarCellTemplateSelector x:Key="CellSelector"
+                                            Plain="{StaticResource PlainCellTemplate}"
+                                            Selected="{StaticResource SelectedCellTemplate}"
+                                            Inert="{StaticResource InertCellTemplate}"/>
+        <DataTemplate x:Key="WeekdayTemplate" x:DataType="x:String">
+            <TextBlock Style="{StaticResource WeekdayTextStyle}" Text="{x:Bind}"/>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Button x:Name="Face" Height="32" Padding="10,0"
@@ -142,7 +167,49 @@
                         </Button>
                     </Grid>
 
-                    <Grid x:Name="Body" Grid.Row="1"/>
+                    <!-- THE BODY: one page shown at a time (Render). -->
+                    <Grid x:Name="Body" Grid.Row="1">
+                        <!-- DAYS: the weekday letters (22 tall), then six weeks. -->
+                        <Grid x:Name="DaysPage">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="22"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <ItemsControl x:Name="WeekdayCells" IsTabStop="False" ItemTemplate="{StaticResource WeekdayTemplate}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <layout:UniformCellsPanel Columns="7"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                            <ItemsControl x:Name="DayCells" Grid.Row="1" IsTabStop="False"
+                                          ItemTemplateSelector="{StaticResource CellSelector}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <layout:UniformCellsPanel Columns="7"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </Grid>
+                        <!-- MONTHS: 4 × 3. -->
+                        <ItemsControl x:Name="MonthCells" IsTabStop="False" Visibility="Collapsed"
+                                      ItemTemplateSelector="{StaticResource CellSelector}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <layout:UniformCellsPanel Columns="3"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                        <!-- YEARS: MinDate..MaxDate, 4 across. -->
+                        <ItemsControl x:Name="YearCells" IsTabStop="False" Visibility="Collapsed"
+                                      ItemTemplateSelector="{StaticResource CellSelector}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <layout:UniformCellsPanel Columns="4"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </Grid>
 
                     <Grid Grid.Row="2" ColumnSpacing="8">
                         <Grid.ColumnDefinitions>

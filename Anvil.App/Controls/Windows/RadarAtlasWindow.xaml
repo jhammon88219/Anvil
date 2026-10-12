@@ -1071,8 +1071,9 @@
 
                             <!-- SCAN PATTERNS — the site's VCP mix from an HOURLY sample (IRadarScanPatternService, ~8 KB
                                  range reads; ~30 s the first time, cached after). ⚠️ Share of sampled HOURS — the caption
-                                 says "share of time", never "of volumes". The bar is a star-column Grid rebuilt in
-                                 code-behind (RebuildScanBar); it fills day by day while "sampling… n of 30 days" shows.
+                                 says "share of time", never "of volumes". The bar is DECLARED here — an ItemsControl over
+                                 ScanShares on Layout/WeightedCellsPanel, one segment per pattern sized by its Share — and
+                                 fills day by day while "sampling… n of 30 days" shows.
                                  NON-STANDARD VCPS (NonStandardVcpLog) sits inside, and only appears when this site has
                                  run a pattern VcpCatalog doesn't list. -->
                             <StackPanel Grid.Row="6" Spacing="8" Margin="0,8,0,0">
@@ -1092,7 +1093,21 @@
                                 <StackPanel Spacing="8"
                                             Visibility="{x:Bind VisibleWhen(ViewModel.RadarAtlas.History.HasScanShares), Mode=OneWay}">
                                     <Border CornerRadius="4" Height="20">
-                                        <Grid x:Name="ScanBar" ColumnSpacing="2"/>
+                                        <ItemsControl IsTabStop="False"
+                                                      ItemsSource="{x:Bind ViewModel.RadarAtlas.History.ScanShares, Mode=OneWay}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <layout:WeightedCellsPanel Spacing="2"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:ScanShareRow">
+                                                    <Border layout:WeightedCellsPanel.Weight="{x:Bind Share}"
+                                                            Background="{x:Bind win:RadarAtlasWindow.ShareBrush(Index)}"
+                                                            ToolTipService.ToolTip="{x:Bind Label}"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </Border>
                                     <ItemsControl ItemsSource="{x:Bind ViewModel.RadarAtlas.History.ScanShares, Mode=OneWay}">
                                         <ItemsControl.ItemsPanel>

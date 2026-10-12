@@ -20,8 +20,6 @@ namespace Anvil.Controls.Windows
 		public RadarAtlasWindow()
 		{
 			InitializeComponent();
-			Loaded += OnLoaded;
-			Unloaded += OnUnloaded;
 		}
 
 		// The strip's content, in AtlasTabIndex order. ⚠️ E81C (History) is an UNVERIFIED codepoint — check it
@@ -65,7 +63,6 @@ namespace Anvil.Controls.Windows
 			var window = (RadarAtlasWindow)d;
 			((CollectionViewSource)window.Resources["SiteGroupsSource"]).Source =
 				(e.NewValue as MapViewModel)?.RadarAtlas.SiteGroups;
-			window.AttachHistory((e.NewValue as MapViewModel)?.RadarAtlas.History);
 		}
 
 		// Favorite / home presentation. STATIC so the row template (x:DataType RadarSiteRow) can call them too.
@@ -132,53 +129,6 @@ namespace Anvil.Controls.Windows
 
 		private void OnHistoryMessagesMoreClick(object sender, RoutedEventArgs e) =>
 			ViewModel?.RadarAtlas.History.ToggleMessages();
-
-		// The scan-pattern bar: one star column per pattern, sized by its share. Rebuilt in code because a
-		// proportional row has no WinUI panel (EqualCellsPanel is EQUAL cells) and it's one bar.
-		private RadarSiteHistoryViewModel? _history;
-
-		private void AttachHistory(RadarSiteHistoryViewModel? history)
-		{
-			if (_history is not null) _history.PropertyChanged -= OnHistoryChanged;
-			_history = history;
-			if (_history is not null && IsLoaded) _history.PropertyChanged += OnHistoryChanged;
-			RebuildScanBar();
-		}
-
-		// ⚠️ LIFETIME: WindowManager builds a NEW Atlas per open, and History is an app singleton — a subscription
-		// held past Unloaded keeps every closed Atlas's whole tree alive. Listen only while loaded.
-		private void OnLoaded(object sender, RoutedEventArgs e)
-		{
-			if (_history is null) return;
-			_history.PropertyChanged -= OnHistoryChanged; // never twice
-			_history.PropertyChanged += OnHistoryChanged;
-			RebuildScanBar(); // catch a change made while unloaded
-		}
-
-		private void OnUnloaded(object sender, RoutedEventArgs e)
-		{
-			if (_history is not null) _history.PropertyChanged -= OnHistoryChanged;
-		}
-
-		private void OnHistoryChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-		{
-			if (e.PropertyName == nameof(RadarSiteHistoryViewModel.ScanShares)) RebuildScanBar();
-		}
-
-		private void RebuildScanBar()
-		{
-			ScanBar.Children.Clear();
-			ScanBar.ColumnDefinitions.Clear();
-			if (_history is null) return;
-			foreach (var s in _history.ScanShares)
-			{
-				ScanBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(s.Share, GridUnitType.Star) });
-				var segment = new Border { Background = ShareBrush(s.Index) };
-				ToolTipService.SetToolTip(segment, s.Label);
-				Grid.SetColumn(segment, ScanBar.ColumnDefinitions.Count - 1);
-				ScanBar.Children.Add(segment);
-			}
-		}
 
 		// The detail pane's status-dot brush. Bound to SelectedSite.Availability, so it tracks a status change
 		// on the selected row, not just a change of selection.

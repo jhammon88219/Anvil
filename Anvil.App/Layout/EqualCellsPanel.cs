@@ -14,6 +14,11 @@ namespace Anvil.Layout
 	/// ⚠️ Domain-free on purpose: it knows nothing about frames, products or readiness — only "divide this
 	/// width into N cells". WHICH cells are lit is entirely view-model state (see
 	/// <c>RadarViewModel.RefreshSegmentReadiness</c> and <c>docs/radar-loop-flow.md</c>).
+	///
+	/// Also the panel behind every ItemsControl that used to be a Grid of N star columns built in code (UI is
+	/// defined before runtime, never during): SegmentedPicker's segments and LoopLoadProgressBar's cells. For
+	/// those it does what the star Grid did — <see cref="Spacing"/> between cells, and, given an INFINITE width
+	/// (a Left-aligned host), every cell as wide as the widest child.
 	/// </summary>
 	public sealed partial class EqualCellsPanel : Panel
 	{
@@ -38,17 +43,33 @@ namespace Anvil.Layout
 		public static double CellCenter(double totalWidth, int count, double index) =>
 			(CellEdge(totalWidth, count, index) + CellEdge(totalWidth, count, index + 1)) / 2;
 
+		/// <summary>Gap between neighbouring cells, px. 0 (the default) = cells tile edge-to-edge on the
+		/// <see cref="CellEdge"/> boundaries the playheads line up with.</summary>
+		public double Spacing
+		{
+			get => (double)GetValue(SpacingProperty);
+			set => SetValue(SpacingProperty, value);
+		}
+
+		public static readonly DependencyProperty SpacingProperty =
+			DependencyProperty.Register(nameof(Spacing), typeof(double), typeof(EqualCellsPanel),
+				new PropertyMetadata(0d, (d, _) => ((EqualCellsPanel)d).InvalidateMeasure()));
+
 		protected override Size MeasureOverride(Size availableSize)
 		{
 			var n = Children.Count;
-			var cellWidth = (n > 0 && !double.IsInfinity(availableSize.Width)) ? availableSize.Width / n : 0;
-			double height = 0;
+			var gaps = n > 1 ? Spacing * (n - 1) : 0;
+			var infinite = double.IsInfinity(availableSize.Width);
+			var cellWidth = n == 0 ? 0 : infinite ? double.PositiveInfinity : System.Math.Max(0, (availableSize.Width - gaps) / n);
+			double height = 0, widest = 0;
 			foreach (var child in Children)
 			{
 				child.Measure(new Size(cellWidth, availableSize.Height));
 				if (child.DesiredSize.Height > height) height = child.DesiredSize.Height;
+				if (child.DesiredSize.Width > widest) widest = child.DesiredSize.Width;
 			}
-			var width = double.IsInfinity(availableSize.Width) ? cellWidth * n : availableSize.Width;
+			// Infinite width (a Left-aligned host): every cell as wide as the widest child, as star columns size.
+			var width = infinite ? widest * n + gaps : availableSize.Width;
 			return new Size(width, height);
 		}
 
@@ -56,11 +77,20 @@ namespace Anvil.Layout
 		{
 			var n = Children.Count;
 			if (n == 0) return finalSize;
+			if (Spacing <= 0)
+			{
+				for (var i = 0; i < n; i++)
+				{
+					var x0 = CellEdge(finalSize.Width, n, i);
+					var x1 = CellEdge(finalSize.Width, n, i + 1);
+					Children[i].Arrange(new Rect(x0, 0, x1 - x0, finalSize.Height));
+				}
+				return finalSize;
+			}
+			var slot = System.Math.Max(0, (finalSize.Width - Spacing * (n - 1)) / n);
 			for (var i = 0; i < n; i++)
 			{
-				var x0 = CellEdge(finalSize.Width, n, i);
-				var x1 = CellEdge(finalSize.Width, n, i + 1);
-				Children[i].Arrange(new Rect(x0, 0, x1 - x0, finalSize.Height));
+				Children[i].Arrange(new Rect(i * (slot + Spacing), 0, slot, finalSize.Height));
 			}
 			return finalSize;
 		}

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -125,15 +126,15 @@ namespace Anvil.Controls.Primitives
 
 		private DateOnly Clamp(DateOnly d) => d < Min ? Min : d > Max ? Max : d;
 
-		// ── The body: one of three grid shapes, rebuilt whole on every change ──
+		// ── The body: three declared pages; Render lists the shown page's cells and picks the page ──
 
 		private void Render()
 		{
 			MonthLabel.Text = Inv.DateTimeFormat.GetMonthName(_viewMonth);
 			YearLabel.Text = _viewYear.ToString(Inv);
-			Body.Children.Clear();
-			Body.RowDefinitions.Clear();
-			Body.ColumnDefinitions.Clear();
+			DaysPage.Visibility = _view == View.Days ? Visibility.Visible : Visibility.Collapsed;
+			MonthCells.Visibility = _view == View.Months ? Visibility.Visible : Visibility.Collapsed;
+			YearCells.Visibility = _view == View.Years ? Visibility.Visible : Visibility.Collapsed;
 			switch (_view)
 			{
 				case View.Days: RenderDays(); break;
@@ -144,57 +145,47 @@ namespace Anvil.Controls.Primitives
 
 		private void RenderDays()
 		{
-			Shape(7, 7, headerRow: true);
-			var names = Inv.DateTimeFormat.ShortestDayNames; // Su Mo Tu …
-			for (var c = 0; c < 7; c++)
-			{
-				Place(new TextBlock { Text = names[c], Style = (Style)Resources["WeekdayTextStyle"] }, 0, c);
-			}
+			WeekdayCells.ItemsSource ??= Inv.DateTimeFormat.ShortestDayNames; // Su Mo Tu …
 
 			var first = new DateOnly(_viewYear, _viewMonth, 1);
 			var lead = (int)first.DayOfWeek;
 			var start = first.AddDays(-lead);
+			var cells = new List<CalendarCell>(42);
 			for (var i = 0; i < 42; i++)
 			{
 				var day = start.AddDays(i);
-				var r = 1 + i / 7;
-				var c = i % 7;
-				if (day.Month != _viewMonth)
-				{
+				cells.Add(day.Month != _viewMonth
 					// Neighbouring months' days: shown for the calendar's shape, never clickable.
-					Place(new TextBlock { Text = day.Day.ToString(Inv), Style = (Style)Resources["OtherMonthTextStyle"] }, r, c);
-					continue;
-				}
-				var cell = Cell(day.Day.ToString(Inv), day == _draft, day >= Min && day <= Max);
-				cell.Click += (_, _) => { _draft = day; WriteTyped(); Render(); };
-				Place(cell, r, c);
+					? CalendarCell.Inert(day.Day.ToString(Inv))
+					: new CalendarCell(day.Day.ToString(Inv), day == _draft, day >= Min && day <= Max,
+						() => { _draft = day; WriteTyped(); Render(); }));
 			}
+			DayCells.ItemsSource = cells;
 		}
 
 		private void RenderMonths()
 		{
-			Shape(4, 3, headerRow: false);
+			var cells = new List<CalendarCell>(12);
 			for (var m = 1; m <= 12; m++)
 			{
 				var month = m;
 				var inRange = new DateOnly(_viewYear, m, DateTime.DaysInMonth(_viewYear, m)) >= Min
 					&& new DateOnly(_viewYear, m, 1) <= Max;
-				var cell = Cell(Inv.DateTimeFormat.GetAbbreviatedMonthName(m), m == _viewMonth, inRange);
-				cell.Click += (_, _) => { _viewMonth = month; _view = View.Days; Render(); };
-				Place(cell, (m - 1) / 3, (m - 1) % 3);
+				cells.Add(new CalendarCell(Inv.DateTimeFormat.GetAbbreviatedMonthName(m), m == _viewMonth, inRange,
+					() => { _viewMonth = month; _view = View.Days; Render(); }));
 			}
+			MonthCells.ItemsSource = cells;
 		}
 
 		private void RenderYears()
 		{
 			var first = Min.Year;
 			var count = Max.Year - first + 1;
-			Shape((count + 3) / 4, 4, headerRow: false);
+			var cells = new List<CalendarCell>(Math.Max(0, count));
 			for (var i = 0; i < count; i++)
 			{
 				var year = first + i;
-				var cell = Cell(year.ToString(Inv), year == _viewYear, true);
-				cell.Click += (_, _) =>
+				cells.Add(new CalendarCell(year.ToString(Inv), year == _viewYear, true, () =>
 				{
 					_viewYear = year;
 					// A month outside the range in the new year would show a page of disabled days — pull it in.
@@ -202,38 +193,59 @@ namespace Anvil.Controls.Primitives
 					if (new DateOnly(year, _viewMonth, DateTime.DaysInMonth(year, _viewMonth)) < Min) _viewMonth = Min.Month;
 					_view = View.Days;
 					Render();
-				};
-				Place(cell, i / 4, i % 4);
+				}));
 			}
+			YearCells.ItemsSource = cells;
+		}
+	}
+}
+
+namespace Anvil.Controls.Primitives
+{
+	/// <summary>One cell of a <see cref="DateButtonPicker"/> page (a day, a month, a year): its text, its state —
+	/// which of the three declared cell templates it wears — and what a click on it does.</summary>
+	public sealed class CalendarCell
+	{
+		private readonly Action? _pick;
+
+		public CalendarCell(string text, bool isSelected, bool isEnabled, Action pick)
+		{
+			Text = text;
+			IsSelected = isSelected;
+			IsEnabled = isEnabled;
+			_pick = pick;
 		}
 
-		private void Shape(int rows, int cols, bool headerRow)
+		private CalendarCell(string text)
 		{
-			for (var r = 0; r < rows; r++)
-			{
-				Body.RowDefinitions.Add(new RowDefinition
-				{
-					Height = headerRow && r == 0 ? new GridLength(22) : new GridLength(1, GridUnitType.Star),
-				});
-			}
-			for (var c = 0; c < cols; c++)
-			{
-				Body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-			}
+			Text = text;
+			IsInert = true;
 		}
 
-		private Button Cell(string text, bool selected, bool enabled) => new()
-		{
-			Content = text,
-			IsEnabled = enabled,
-			Style = (Style)Resources[selected ? "SelectedCellStyle" : "CellStyle"],
-		};
+		/// <summary>A neighbouring month's day: shown, never clickable.</summary>
+		public static CalendarCell Inert(string text) => new(text);
 
-		private void Place(FrameworkElement e, int row, int col)
-		{
-			Grid.SetRow(e, row);
-			Grid.SetColumn(e, col);
-			Body.Children.Add(e);
-		}
+		public string Text { get; }
+		public bool IsSelected { get; }
+		public bool IsEnabled { get; }
+		public bool IsInert { get; }
+
+		/// <summary>The cell's Click (bound with x:Bind).</summary>
+		public void Pick() => _pick?.Invoke();
+	}
+
+	/// <summary>Picks a calendar cell's template by its state; the templates are declared in DateButtonPicker.xaml.</summary>
+	public sealed class CalendarCellTemplateSelector : DataTemplateSelector
+	{
+		public DataTemplate? Plain { get; set; }
+		public DataTemplate? Selected { get; set; }
+		public DataTemplate? Inert { get; set; }
+
+		protected override DataTemplate? SelectTemplateCore(object item) => Pick(item);
+		protected override DataTemplate? SelectTemplateCore(object item, DependencyObject container) => Pick(item);
+
+		private DataTemplate? Pick(object item) => item is CalendarCell c
+			? c.IsInert ? Inert : c.IsSelected ? Selected : Plain
+			: Plain;
 	}
 }

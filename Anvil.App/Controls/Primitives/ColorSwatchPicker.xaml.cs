@@ -6,7 +6,8 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using ToggleButton = Microsoft.UI.Xaml.Controls.Primitives.ToggleButton;
+using System.ComponentModel;
+using FlyoutBase = Microsoft.UI.Xaml.Controls.Primitives.FlyoutBase;
 
 namespace Anvil.Controls.Primitives
 {
@@ -79,139 +80,85 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(CustomHex), typeof(string), typeof(ColorSwatchPicker),
 				new PropertyMetadata(string.Empty, (d, _) => ((ColorSwatchPicker)d).ApplySelection()));
 
+		// One item per hex string: its data colour, its name, its selected state. The swatch itself is the XAML's.
 		private void Rebuild()
 		{
-			Swatches.Children.Clear();
-			_buttons.Clear();
-			if (ItemsSource is null)
+			var items = new List<ColorSwatchItem>();
+			if (ItemsSource is not null)
 			{
-				return;
-			}
-
-			var names = new List<string>();
-			if (ToolTips is not null)
-			{
-				foreach (var n in ToolTips)
+				var names = new List<string>();
+				if (ToolTips is not null)
 				{
-					names.Add(n?.ToString() ?? string.Empty);
+					foreach (var n in ToolTips)
+					{
+						names.Add(n?.ToString() ?? string.Empty);
+					}
+				}
+
+				var i = 0;
+				foreach (var item in ItemsSource)
+				{
+					items.Add(new ColorSwatchItem(this, i, TryParse(item?.ToString() ?? string.Empty),
+						i < names.Count ? names[i] : string.Empty));
+					i++;
 				}
 			}
 
-			var i = 0;
-			foreach (var item in ItemsSource)
-			{
-				var brush = TryParse(item?.ToString() ?? string.Empty);
-				var swatch = new ToggleButton
-				{
-					Style = Resources.TryGetValue("SwatchStyle", out var style) ? style as Style : null,
-					// ⚠️ A literal DATA colour, not a theme brush — see the header. Null = the empty default chip.
-					Background = brush,
-					Content = brush is null ? "A" : string.Empty,
-				};
-				if (i < names.Count && names[i].Length > 0)
-				{
-					ToolTipService.SetToolTip(swatch, names[i]);
-					Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(swatch, names[i]);
-				}
-
-				var index = i;
-				// Clicking the CHOSEN swatch must leave it chosen: the ToggleButton has already unchecked itself.
-				swatch.Click += (_, _) =>
-				{
-					SelectedIndex = index;
-					ApplySelection();
-				};
-
-				Swatches.Children.Add(swatch);
-				_buttons.Add(swatch);
-				i++;
-			}
-
-			_custom = AllowCustom ? BuildCustomChip() : null;
-			if (_custom is not null)
-			{
-				Swatches.Children.Add(_custom);
-			}
-
+			_items = items;
+			Swatches.ItemsSource = items;
+			CustomChip.Visibility = AllowCustom ? Visibility.Visible : Visibility.Collapsed;
 			ApplySelection();
 		}
 
-		// The CUSTOM chip: "+" until a non-preset colour is chosen, then that colour (lit). Clicking opens a
-		// ColorPicker in a flyout; every change writes CustomHex, so the map follows the picker live.
-		// ⚠️ Windowed flyout (ShouldConstrainToRootBounds false): the Settings window can be narrower than the
-		// picker, and a constrained flyout would be clipped.
-		private ToggleButton BuildCustomChip()
+		// A swatch was clicked. Clicking the CHOSEN swatch must leave it chosen: the ToggleButton has already
+		// unchecked itself. ApplySelection puts it back.
+		internal void Pick(int index)
 		{
-			var chip = new ToggleButton
-			{
-				Style = Resources.TryGetValue("SwatchStyle", out var style) ? style as Style : null,
-				Content = "+",
-			};
-			ToolTipService.SetToolTip(chip, "Custom colour…");
-			Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(chip, "Custom colour");
+			SelectedIndex = index;
+			ApplySelection();
+		}
 
-			var picker = new ColorPicker
-			{
-				IsAlphaEnabled = false,
-				IsMoreButtonVisible = false,
-				IsColorChannelTextInputVisible = false,
-				IsHexInputVisible = true,
-				IsColorPreviewVisible = true,
-				ColorSpectrumShape = ColorSpectrumShape.Ring,
-			};
-			picker.ColorChanged += (_, e) =>
-			{
-				if (_syncingPicker)
-				{
-					return; // our own seeding on open — not a choice
-				}
-				var c = e.NewColor;
-				CustomHex = string.Create(CultureInfo.InvariantCulture, $"#{c.R:X2}{c.G:X2}{c.B:X2}");
-			};
+		// A ToggleButton flips itself on click; the state is ours to set (ApplySelection), not the click's.
+		private void OnCustomChipClick(object sender, RoutedEventArgs e)
+		{
+			ApplySelection();
+			FlyoutBase.ShowAttachedFlyout(CustomChip);
+		}
 
-			var flyout = new Flyout
-			{
-				Content = picker,
-				ShouldConstrainToRootBounds = false,
-				Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Bottom,
-			};
-			flyout.Opening += (_, _) =>
-			{
-				// Seed the picker with the colour in force (or white) WITHOUT that counting as a pick.
-				_syncingPicker = true;
-				picker.Color = TryParse(CustomHex ?? string.Empty)?.Color ?? Colors.White;
-				_syncingPicker = false;
-			};
+		// Seed the picker with the colour in force (or white) WITHOUT that counting as a pick.
+		private void OnCustomFlyoutOpening(object? sender, object e)
+		{
+			_syncingPicker = true;
+			CustomPicker.Color = TryParse(CustomHex ?? string.Empty)?.Color ?? Colors.White;
+			_syncingPicker = false;
+		}
 
-			// A ToggleButton flips itself on click; the state is ours to set (ApplySelection), not the click's.
-			chip.Click += (_, _) =>
+		private void OnCustomColorChanged(ColorPicker sender, ColorChangedEventArgs e)
+		{
+			if (_syncingPicker)
 			{
-				ApplySelection();
-				flyout.ShowAt(chip);
-			};
-			return chip;
+				return; // our own seeding on open — not a choice
+			}
+			var c = e.NewColor;
+			CustomHex = string.Create(CultureInfo.InvariantCulture, $"#{c.R:X2}{c.G:X2}{c.B:X2}");
 		}
 
 		private void ApplySelection()
 		{
-			for (var i = 0; i < _buttons.Count; i++)
+			for (var i = 0; i < _items.Count; i++)
 			{
-				var on = i == SelectedIndex;
-				if ((_buttons[i].IsChecked == true) != on)
-				{
-					_buttons[i].IsChecked = on;
-				}
+				_items[i].IsSelected = i == SelectedIndex;
 			}
 
-			if (_custom is not null)
+			if (CustomChip is not null && AllowCustom)
 			{
 				// Lit only for a colour no preset matches; then it WEARS that colour (a data brush).
 				var brush = SelectedIndex < 0 ? TryParse(CustomHex ?? string.Empty) : null;
-				_custom.Background = brush;
-				_custom.Content = brush is null ? "+" : string.Empty;
-				if ((_custom.IsChecked == true) != (brush is not null))
+				CustomChip.Background = brush;
+				CustomChip.Content = brush is null ? "+" : string.Empty;
+				if ((CustomChip.IsChecked == true) != (brush is not null))
 				{
-					_custom.IsChecked = brush is not null;
+					CustomChip.IsChecked = brush is not null;
 				}
 			}
 		}
@@ -227,8 +174,52 @@ namespace Anvil.Controls.Primitives
 			return new SolidColorBrush(ColorHelper.FromArgb(255, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb));
 		}
 
-		private readonly List<ToggleButton> _buttons = new();
-		private ToggleButton? _custom;
+		private List<ColorSwatchItem> _items = new();
 		private bool _syncingPicker;
+	}
+}
+
+namespace Anvil.Controls.Primitives
+{
+	/// <summary>One swatch of a <see cref="ColorSwatchPicker"/>: its DATA colour (null = the empty default chip),
+	/// its name, and whether it is the chosen one. Drawn by the declared SwatchTemplate.</summary>
+	public sealed class ColorSwatchItem : INotifyPropertyChanged
+	{
+		private readonly ColorSwatchPicker _owner;
+		private readonly int _index;
+		private bool _isSelected;
+
+		internal ColorSwatchItem(ColorSwatchPicker owner, int index, SolidColorBrush? fill, string name)
+		{
+			_owner = owner;
+			_index = index;
+			Fill = fill;
+			Name = name;
+		}
+
+		/// <summary>The chip's colour — a literal data brush, never a theme one. Null = the default chip.</summary>
+		public SolidColorBrush? Fill { get; }
+		/// <summary>"A" on the default chip, nothing on a coloured one.</summary>
+		public string Face => Fill is null ? "A" : string.Empty;
+		public string Name { get; }
+		/// <summary>The tooltip: the name, or none at all when there is no name.</summary>
+		public object? ToolTip => Name.Length > 0 ? Name : null;
+
+		/// <summary>Two-way with the swatch's IsChecked — see the XAML template for why two-way.</summary>
+		public bool IsSelected
+		{
+			get => _isSelected;
+			set
+			{
+				if (_isSelected == value) return;
+				_isSelected = value;
+				PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+			}
+		}
+
+		/// <summary>The swatch's Click (bound with x:Bind).</summary>
+		public void Pick() => _owner.Pick(_index);
+
+		public event PropertyChangedEventHandler? PropertyChanged;
 	}
 }
