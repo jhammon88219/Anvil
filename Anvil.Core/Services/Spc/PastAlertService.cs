@@ -72,6 +72,9 @@ namespace Anvil.Services
 				return PastAlertFetch.Failed($"IEM warning archive unavailable ({ex.Message})");
 			}
 
+			// PERF PROBE (perf.ui "feedBy"): unzip + parse + build timed when on the UI thread. Grep RadarPerfCounters.
+			RadarPerfCounters.NoteFeedRefresh("pastAlerts");
+			var feedT = RadarPerfCounters.BeginFeed();
 			List<IemShapefile.Record> warnRows, watchRows;
 			try
 			{
@@ -80,11 +83,13 @@ namespace Anvil.Services
 			}
 			catch (Exception ex)
 			{
+				RadarPerfCounters.EndFeed(feedT, "pastAlerts");
 				return PastAlertFetch.Failed($"IEM warning archive returned an unreadable file ({ex.Message})");
 			}
 
 			var (warnJson, warnings) = Build(warnRows, start, end, watches: false);
 			var (watchJson, watches) = Build(watchRows, start, end, watches: true);
+			RadarPerfCounters.EndFeed(feedT, "pastAlerts");
 			await AtomicWriteAsync(Path.Combine(CacheDirectory, $"warnings-{stem}.geojson"), warnJson, cancellationToken);
 			await AtomicWriteAsync(Path.Combine(CacheDirectory, $"watches-{stem}.geojson"), watchJson, cancellationToken);
 			return new PastAlertFetch(true, warnings, watches,

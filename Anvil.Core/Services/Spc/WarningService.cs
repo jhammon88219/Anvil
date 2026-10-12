@@ -116,11 +116,11 @@ namespace Anvil.Services
 
 			// PERF PROBE (perf.ui "feedMs"): each Begin/EndFeed pair times a parse/merge/serialize stretch, counted only
 			// when it ran on the UI thread. Grep RadarPerfCounters.
-			RadarPerfCounters.NoteFeedRefresh();
+			RadarPerfCounters.NoteFeedRefresh("warnings");
 			var feedT = RadarPerfCounters.BeginFeed();
 			if (!TryTransformCap(capJson, out var features, out var primaryIds))
 			{
-				RadarPerfCounters.EndFeed(feedT);
+				RadarPerfCounters.EndFeed(feedT, "warnings");
 				WriteFailedHealth("CAP response was not a GeoJSON FeatureCollection.");
 				return Failed(cacheExists, "CAP response was not a GeoJSON FeatureCollection.");
 			}
@@ -128,7 +128,7 @@ namespace Anvil.Services
 			// CAP's active feed is the COMPLETE authoritative set (one page comfortably holds every active
 			// warning nationwide), so its own feature count is the authoritative count for the merge.
 			ApplyFetch(features, features.Count, DateTimeOffset.UtcNow);
-			RadarPerfCounters.EndFeed(feedT);
+			RadarPerfCounters.EndFeed(feedT, "warnings");
 
 			// Write the merged set atomically (temp then move) so a partial write never blanks the cache.
 			await WriteCollectionAsync(cacheFile, cancellationToken).ConfigureAwait(false);
@@ -142,7 +142,7 @@ namespace Anvil.Services
 			var (tornado, severe, flashFlood, threats) = CountByPhenom();
 			var result = new WarningFetchResult(WarningFetchStatus.Updated, _active.Count, tornado, severe,
 				FlashFloodCount: flashFlood, Threats: threats, Targets: TargetsOf(_active.Values.Select(w => w.Feature)));
-			RadarPerfCounters.EndFeed(feedT);
+			RadarPerfCounters.EndFeed(feedT, "warnings");
 			return result;
 		}
 
@@ -376,7 +376,7 @@ namespace Anvil.Services
 			}
 			var collection = new JsonObject { ["type"] = "FeatureCollection", ["features"] = features };
 			var text = collection.ToJsonString();
-			RadarPerfCounters.EndFeed(feedT);
+			RadarPerfCounters.EndFeed(feedT, "warnings");
 
 			await AtomicWriteAsync(cacheFile, text, cancellationToken).ConfigureAwait(false);
 		}
@@ -404,7 +404,7 @@ namespace Anvil.Services
 						return set;
 					}
 				}
-				finally { RadarPerfCounters.EndFeed(feedT); }
+				finally { RadarPerfCounters.EndFeed(feedT, "warnings"); }
 			}
 			catch
 			{

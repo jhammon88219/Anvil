@@ -17,7 +17,7 @@ namespace Anvil.Services
 	///                         present, i.e. the await resumed on the UI)  → "syncMs"
 	///   NoteHop              (a download chunk resumed on the UI)        → "svcHops"
 	///   Begin/EndReadout     (RaiseRadarReadout + the bindings it runs)  → "readouts" / "readoutMs"
-	///   Begin/EndFeed        (a feed's parse/merge ON the UI thread)     → "feeds" / "feedMs"
+	///   Begin/EndFeed, TimeFeed (a feed's parse/merge ON the UI thread) → "feeds" / "feedMs" / "feedBy"
 	/// </code>
 	/// Always on (a pair of Interlocked ops per extraction is free); only <c>UiThreadProbe</c> (App, Debug)
 	/// ever reads it. ⚠️ EXCISABLE: this file, its call sites in <see cref="Level2RadarService"/> and
@@ -88,23 +88,64 @@ namespace Anvil.Services
 		public static (int Count, double Ms) TakeReadouts() =>
 			(Interlocked.Exchange(ref _readouts, 0), Interlocked.Exchange(ref _readoutTicks, 0) * 1000.0 / Stopwatch.Frequency);
 
-		private static int _feeds;
-		private static long _feedTicks;
+		// Overlay feeds (warnings, watches, outlook, …), PER FEED so a total can be traced to its source. Rare calls
+		// (a few per refresh), so a plain lock.
+		private static readonly object _feedGate = new();
+		private static readonly System.Collections.Generic.Dictionary<string, (int N, long Ticks)> _feedBy = new(StringComparer.Ordinal);
 
-		/// <summary>One overlay-feed refresh (warnings, …) completed a fetch — the denominator for "feed ms per refresh".</summary>
-		public static void NoteFeedRefresh() => Interlocked.Increment(ref _feeds);
+		/// <summary>One refresh of <paramref name="feed"/> got its data — the denominator for "feed ms per refresh".</summary>
+		public static void NoteFeedRefresh(string feed)
+		{
+			lock (_feedGate)
+			{
+				_feedBy.TryGetValue(feed, out var c);
+				_feedBy[feed] = (c.N + 1, c.Ticks);
+			}
+		}
 
 		/// <summary>Start timing a feed's parse/merge/serialize stretch. Like <see cref="BeginSync"/>: 0 (= not timed) off
 		/// a sync context, so only the part that ran ON the UI thread counts — after the off-thread fix it reads ~0.</summary>
 		public static long BeginFeed() => SynchronizationContext.Current is null ? 0 : Stopwatch.GetTimestamp();
 
-		public static void EndFeed(long started)
+		public static void EndFeed(long started, string feed)
 		{
-			if (started != 0) Interlocked.Add(ref _feedTicks, Stopwatch.GetTimestamp() - started);
+			if (started == 0) return;
+			var ticks = Stopwatch.GetTimestamp() - started;
+			lock (_feedGate)
+			{
+				_feedBy.TryGetValue(feed, out var c);
+				_feedBy[feed] = (c.N, c.Ticks + ticks);
+			}
 		}
 
-		/// <summary>Feed refreshes and their UI-thread milliseconds since the last call.</summary>
-		public static (int Count, double Ms) TakeFeeds() =>
-			(Interlocked.Exchange(ref _feeds, 0), Interlocked.Exchange(ref _feedTicks, 0) * 1000.0 / Stopwatch.Frequency);
+		/// <summary>Runs <paramref name="work"/> (a synchronous parse/build) timed as <paramref name="feed"/>'s.</summary>
+		public static T TimeFeed<T>(string feed, Func<T> work)
+		{
+			var t = BeginFeed();
+			try { return work(); }
+			finally { EndFeed(t, feed); }
+		}
+
+		/// <summary>Feed refreshes, their UI-thread ms, and the per-feed split ("warnings:2/14.1 outlook:1/3.0", refreshes/ms,
+		/// costliest first) since the last call.</summary>
+		public static (int Count, double Ms, string? By) TakeFeeds()
+		{
+			lock (_feedGate)
+			{
+				if (_feedBy.Count == 0) return (0, 0, null);
+				int n = 0; long ticks = 0;
+				var parts = new System.Collections.Generic.List<(string Name, int N, double Ms)>();
+				foreach (var (name, c) in _feedBy)
+				{
+					n += c.N; ticks += c.Ticks;
+					parts.Add((name, c.N, c.Ticks * 1000.0 / Stopwatch.Frequency));
+				}
+				_feedBy.Clear();
+				parts.Sort((a, b) => b.Ms.CompareTo(a.Ms));
+				var by = string.Join(" ", parts.ConvertAll(p =>
+					string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{p.Name}:{p.N}/{p.Ms:0.0}")));
+				return (n, ticks * 1000.0 / Stopwatch.Frequency, by);
+			}
+		}
 	}
 }

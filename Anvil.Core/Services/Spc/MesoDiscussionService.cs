@@ -64,7 +64,8 @@ namespace Anvil.Services
 					{
 						json = await Http.GetStringAsync(
 							$"{ApiRoot}{kind.ApiPath}?valid={Iso(end)}&hours={hours}", cancellationToken);
-						if (JsonNode.Parse(json)?["features"] is not JsonArray) { throw new InvalidDataException("not a FeatureCollection"); }
+						var body = json;
+						if (!RadarPerfCounters.TimeFeed("mds", () => JsonNode.Parse(body)?["features"] is JsonArray)) { throw new InvalidDataException("not a FeatureCollection"); }
 						await AtomicWriteAsync(path, json, cancellationToken);
 					}
 					bodies.Add((kind, json));
@@ -81,7 +82,9 @@ namespace Anvil.Services
 
 			if (bodies.Count == 0) { return MesoDiscussionFetch.Failed(string.Join(" ", errors)); }
 
-			var (page, list) = Build(bodies, start, end);
+			// PERF PROBE (perf.ui "feedBy"): the parses + page build are timed when on the UI thread. Grep RadarPerfCounters.
+			RadarPerfCounters.NoteFeedRefresh("mds");
+			var (page, list) = RadarPerfCounters.TimeFeed("mds", () => Build(bodies, start, end));
 			var file = $"discussions-{stem}.geojson";
 			await AtomicWriteAsync(Path.Combine(CacheDirectory, file), page, cancellationToken);
 			return new MesoDiscussionFetch(true, list, $"https://{CacheHostName}/{file}",

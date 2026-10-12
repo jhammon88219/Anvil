@@ -62,9 +62,12 @@ namespace Anvil.Services
 			var cacheFile = Path.Combine(CacheDirectory, CacheName(convectiveDay));
 
 			// Historical days never change — reuse the cache and just report its counts.
+			// PERF PROBE (perf.ui "feedBy"): the CSV / LSR parses, the remark matching and a cached read are timed when
+			// they run on the UI thread. Grep RadarPerfCounters.
+			RadarPerfCounters.NoteFeedRefresh("reports");
 			if (immutable && File.Exists(cacheFile))
 			{
-				return Found(ReadItems(cacheFile));
+				return RadarPerfCounters.TimeFeed("reports", () => Found(ReadItems(cacheFile)));
 			}
 
 			var reports = new List<ReportPoint>();
@@ -77,7 +80,9 @@ namespace Anvil.Services
 					var csv = await FetchCsvAsync(convectiveDay, slug, cancellationToken);
 					if (csv is null) { continue; } // this type's file was missing — others may still exist
 					anyOk = true;
+					var feedT = RadarPerfCounters.BeginFeed();
 					ParseInto(csv, kind, reports);
+					RadarPerfCounters.EndFeed(feedT, "reports");
 				}
 			}
 			catch (OperationCanceledException)
@@ -174,6 +179,7 @@ namespace Anvil.Services
 			}
 			if (lsrs.Count == 0) { return; }
 
+			var feedT = RadarPerfCounters.BeginFeed();
 			for (var i = 0; i < reports.Count; i++)
 			{
 				var r = reports[i];
@@ -186,6 +192,7 @@ namespace Anvil.Services
 					reports[i] = r with { Comments = remark.Trim() };
 				}
 			}
+			RadarPerfCounters.EndFeed(feedT, "reports");
 		}
 
 		// Finds the fullest matching LSR remark for a report: same type group, within tolerance in BOTH time
@@ -252,6 +259,17 @@ namespace Anvil.Services
 				return list;
 			}
 
+			var feedT = RadarPerfCounters.BeginFeed(); // the national LSR walk (PERF PROBE, see EnsureReportsAsync)
+			try
+			{
+				ReadLsrs(features, list);
+			}
+			finally { RadarPerfCounters.EndFeed(feedT, "reports"); }
+			return list;
+		}
+
+		private static void ReadLsrs(JsonElement features, List<Lsr> list)
+		{
 			foreach (var f in features.EnumerateArray())
 			{
 				if (!f.TryGetProperty("properties", out var p)) { continue; }
@@ -270,7 +288,6 @@ namespace Anvil.Services
 
 				list.Add(new Lsr(type, lat, lon, vt.UtcDateTime, remark));
 			}
-			return list;
 		}
 
 		private static string? GetString(JsonElement obj, string name) =>

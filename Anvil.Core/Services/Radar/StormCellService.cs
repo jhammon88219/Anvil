@@ -77,9 +77,15 @@ namespace Anvil.Services
 				await AtomicWriteAsync(csvPath, csv, cancellationToken);
 			}
 
-			var scans = StormCellTracks.ParseCsv(csv);
+			// PERF PROBE (perf.ui "feedBy"): parse + page build timed when on the UI thread. Grep RadarPerfCounters.
+			RadarPerfCounters.NoteFeedRefresh("cells");
+			var (scans, page) = RadarPerfCounters.TimeFeed("cells", () =>
+			{
+				var parsed = StormCellTracks.ParseCsv(csv);
+				return (parsed, StormCellTracks.ToPageJson(site3, parsed));
+			});
 			var jsonName = name + ".json";
-			await AtomicWriteAsync(Path.Combine(CacheDirectory, jsonName), StormCellTracks.ToPageJson(site3, scans), cancellationToken);
+			await AtomicWriteAsync(Path.Combine(CacheDirectory, jsonName), page, cancellationToken);
 			return new StormCellFetch(true, scans, $"https://{CacheHostName}/{jsonName}");
 		}
 

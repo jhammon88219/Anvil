@@ -51,7 +51,12 @@ namespace Anvil.Services
 		public SpcOutlookProduct? Resolve(int day, SpcOutlookType type) =>
 			_products.FirstOrDefault(p => p.Day == day && p.Type == type);
 
-		public SpcOutlookTimes? GetTimesForProduct(SpcOutlookProduct product)
+		// PERF PROBE (perf.ui "feedBy" outlookRead): the three cache readers below parse a whole product file and are
+		// called by the outlook VMs on the UI thread, so each is timed there. Grep RadarPerfCounters.
+		public SpcOutlookTimes? GetTimesForProduct(SpcOutlookProduct product) =>
+			RadarPerfCounters.TimeFeed("outlookRead", () => ReadTimes(product));
+
+		private SpcOutlookTimes? ReadTimes(SpcOutlookProduct product)
 		{
 			var cacheFile = Path.Combine(CacheDirectory, product.CacheFileName);
 			if (!File.Exists(cacheFile))
@@ -97,7 +102,10 @@ namespace Anvil.Services
 		public IReadOnlyList<SpcRiskLevel> GetLegendForProduct(SpcOutlookProduct product) =>
 			SpcRiskCatalog.ScaleFor(product.Type).Levels;
 
-		public IReadOnlySet<string> GetHatchGroupsInOutlook(SpcOutlookProduct product)
+		public IReadOnlySet<string> GetHatchGroupsInOutlook(SpcOutlookProduct product) =>
+			RadarPerfCounters.TimeFeed("outlookRead", () => ReadHatchGroupsOf(product));
+
+		private IReadOnlySet<string> ReadHatchGroupsOf(SpcOutlookProduct product)
 		{
 			var cacheFile = Path.Combine(CacheDirectory, product.CacheFileName);
 			try
@@ -152,7 +160,10 @@ namespace Anvil.Services
 			return groups;
 		}
 
-		public OutlookPeak? GetHighestLevelInOutlook(SpcOutlookProduct product)
+		public OutlookPeak? GetHighestLevelInOutlook(SpcOutlookProduct product) =>
+			RadarPerfCounters.TimeFeed("outlookRead", () => ReadHighestOf(product));
+
+		private OutlookPeak? ReadHighestOf(SpcOutlookProduct product)
 		{
 			var cacheFile = Path.Combine(CacheDirectory, product.CacheFileName);
 			try
@@ -256,17 +267,27 @@ namespace Anvil.Services
 			{
 				// Convective: one call yields every category; split + color each into its own cache file.
 				var convective = await FetchIemAsync(day, date, cycle, "C", cancellationToken);
+				// PERF PROBE (perf.ui "feedBy" pastOutlook): the parse + per-category builds are timed when they run on the UI
+				// thread (the cache writes between them are not). Grep RadarPerfCounters.
+				RadarPerfCounters.NoteFeedRefresh("pastOutlook");
 				if (convective is not null)
 				{
+					var feedT = RadarPerfCounters.BeginFeed();
 					using var doc = JsonDocument.Parse(convective);
+					var built = new List<(SpcOutlookType Type, string Gj, SpcOutlookTimes? T)>();
 					foreach (var type in ConvectiveTypes)
 					{
 						if (SpcOutlookColors.TryBuildProduct(doc.RootElement, type, out var gj, out var t))
 						{
-							await WriteCacheAsync(PastCacheName(date, day, cycle, type), gj, cancellationToken);
-							available.Add(type);
-							times ??= t;
+							built.Add((type, gj, t));
 						}
+					}
+					RadarPerfCounters.EndFeed(feedT, "pastOutlook");
+					foreach (var (type, gj, t) in built)
+					{
+						await WriteCacheAsync(PastCacheName(date, day, cycle, type), gj, cancellationToken);
+						available.Add(type);
+						times ??= t;
 					}
 				}
 
@@ -274,8 +295,11 @@ namespace Anvil.Services
 				var fire = await FetchIemAsync(day, date, cycle, "F", cancellationToken);
 				if (fire is not null)
 				{
+					var feedT = RadarPerfCounters.BeginFeed();
 					using var doc = JsonDocument.Parse(fire);
-					if (SpcOutlookColors.TryBuildProduct(doc.RootElement, SpcOutlookType.FireWeather, out var gj, out var t))
+					var ok = SpcOutlookColors.TryBuildProduct(doc.RootElement, SpcOutlookType.FireWeather, out var gj, out var t);
+					RadarPerfCounters.EndFeed(feedT, "pastOutlook");
+					if (ok)
 					{
 						await WriteCacheAsync(PastCacheName(date, day, cycle, SpcOutlookType.FireWeather), gj, cancellationToken);
 						available.Add(SpcOutlookType.FireWeather);
@@ -324,6 +348,9 @@ namespace Anvil.Services
 			// scheduled refresh (timer/background task) would call this same method —
 			// hook the scheduler in at the call site, not here.
 			var results = new List<SpcOutlookFetchResult>(SpcOutlookCatalog.All.Count);
+			// PERF PROBE (perf.ui "feedBy" outlook): validators + the fire-colour rewrite are timed when on the UI thread
+			// (the bodies stream straight to disk, unparsed). Grep RadarPerfCounters.
+			RadarPerfCounters.NoteFeedRefresh("outlook");
 			foreach (var endpoint in SpcOutlookCatalog.All)
 			{
 				cancellationToken.ThrowIfCancellationRequested();
@@ -353,7 +380,9 @@ namespace Anvil.Services
 				// TryColorizeByDn) makes running it every cycle free and idempotent.
 				if (outcome is not null)
 				{
+					var feedT = RadarPerfCounters.BeginFeed();
 					ColorizeIfUnstyled(endpoint, cacheFile);
+					RadarPerfCounters.EndFeed(feedT, "outlook");
 				}
 
 				return outcome switch
@@ -426,8 +455,10 @@ namespace Anvil.Services
 
 			// Conditional GET from persisted ETag / Last-Modified, but only if we still
 			// have the cache file they describe.
+			var feedT = RadarPerfCounters.BeginFeed();
 			var haveCache = File.Exists(cacheFile);
 			var validators = haveCache ? ReadValidators(cacheFile) : default;
+			RadarPerfCounters.EndFeed(feedT, "outlook");
 			if (validators.ETag is not null)
 			{
 				request.Headers.IfNoneMatch.ParseAdd(validators.ETag);
@@ -456,9 +487,11 @@ namespace Anvil.Services
 				await src.CopyToAsync(dst, ct);
 			}, ct);
 
+			feedT = RadarPerfCounters.BeginFeed();
 			WriteValidators(cacheFile, new Validators(
 				ETag: response.Headers.ETag?.Tag,
 				LastModified: response.Content.Headers.LastModified?.ToString("O")));
+			RadarPerfCounters.EndFeed(feedT, "outlook");
 
 			return FetchOutcome.Updated;
 		}

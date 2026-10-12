@@ -65,7 +65,12 @@ namespace Anvil.Services
 			catch (Exception ex) { return TropicalFetch.Failed($"NWS tropical alerts unavailable ({ex.Message})"); }
 
 			var storms = await GetStormNamesAsync(cancellationToken);
-			if (!TryRewriteLive(json, storms, DateTimeOffset.UtcNow.Year, out var page, out var zones))
+			// PERF PROBE (perf.ui "feedBy"): parse + rewrite timed when on the UI thread. Grep RadarPerfCounters.
+			RadarPerfCounters.NoteFeedRefresh("tropical");
+			var feedT = RadarPerfCounters.BeginFeed();
+			var rewritten = TryRewriteLive(json, storms, DateTimeOffset.UtcNow.Year, out var page, out var zones);
+			RadarPerfCounters.EndFeed(feedT, "tropical");
+			if (!rewritten)
 			{
 				return TropicalFetch.Failed("NWS tropical alerts: the response was not a feature collection.");
 			}
@@ -91,13 +96,14 @@ namespace Anvil.Services
 			try
 			{
 				var zip = await GetZipAsync($"tropical-{stem}.zip", url, end, cancellationToken);
-				rows = IemShapefile.Read(zip);
+				RadarPerfCounters.NoteFeedRefresh("pastTropical");
+				rows = RadarPerfCounters.TimeFeed("pastTropical", () => IemShapefile.Read(zip));
 			}
 			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
 			catch (Exception ex) { return TropicalFetch.Failed($"IEM tropical archive unavailable ({ex.Message})"); }
 
 			var storms = await GetStormNamesAsync(cancellationToken);
-			var (page, zones) = BuildPast(rows, start, end, storms);
+			var (page, zones) = RadarPerfCounters.TimeFeed("pastTropical", () => BuildPast(rows, start, end, storms));
 			var name = $"tropical-{stem}.geojson";
 			await AtomicWriteAsync(Path.Combine(CacheDirectory, name), page, cancellationToken);
 			return new TropicalFetch(true, zones, NamesUsed(zones, storms), $"https://{CacheHostName}/{name}");

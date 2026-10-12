@@ -68,7 +68,12 @@ namespace Anvil.Services
 
 				// Only cache a real FeatureCollection. An ArcGIS error object lacks a features array; in
 				// that case keep the last-known-good cache instead of blanking it.
-				if (!TryGetFeatureCounts(json, out var features, out var count, out var tornado, out var severe, out var flood))
+				// PERF PROBE (perf.ui "feedBy"): the parse is timed when it runs on the UI thread. Grep RadarPerfCounters.
+				RadarPerfCounters.NoteFeedRefresh("watches");
+				var feedT = RadarPerfCounters.BeginFeed();
+				var parsed = TryGetFeatureCounts(json, out var features, out var count, out var tornado, out var severe, out var flood);
+				RadarPerfCounters.EndFeed(feedT, "watches");
+				if (!parsed)
 				{
 					return Failed(cacheExists, "Response was not a GeoJSON FeatureCollection.");
 				}
@@ -95,8 +100,13 @@ namespace Anvil.Services
 				}
 				else if (cacheExists && now - (_emptySince ??= now) < EmptyHold)
 				{
-					var held = PruneExpired(await File.ReadAllTextAsync(cacheFile, cancellationToken), now);
-					if (held is not null && TryGetFeatureCounts(held, out var heldFeatures, out var hc, out var ht, out var hs, out var hf) && heldFeatures > 0)
+					var cached = await File.ReadAllTextAsync(cacheFile, cancellationToken);
+					feedT = RadarPerfCounters.BeginFeed();
+					var held = PruneExpired(cached, now);
+					int heldFeatures = 0, hc = 0, ht = 0, hs = 0, hf = 0;
+					var heldOk = held is not null && TryGetFeatureCounts(held, out heldFeatures, out hc, out ht, out hs, out hf);
+					RadarPerfCounters.EndFeed(feedT, "watches");
+					if (held is not null && heldOk && heldFeatures > 0)
 					{
 						await AtomicWriteAsync(cacheFile, held, cancellationToken);
 						return new SpcWatchFetchResult(SpcWatchFetchStatus.Updated, hc, ht, hs, hf,
