@@ -278,21 +278,26 @@ namespace Anvil.Services
 
 		// ⚠️ STREAMED in chunks, each charged as it lands — not ReadAsByteArrayAsync, which charged the whole body at the
 		// end: the loading screen's per-download fill would only ever jump from empty to full (2026-10-04).
+		// ⚠️ ConfigureAwait(false) on EVERY await in the download helpers (this one, the sub-range / prefix / whole-object
+		// readers below, StreamGzBaseTiltAsync): the loop engine calls in from the UI thread, and without it each 64 KB
+		// chunk resumed there — ~9,300 UI-thread wakeups per cold Derecho seeding pass (perf.ui svcHops, 2026-10-12).
+		// Safe: they touch only locals, the AsyncLocal Meter (flows across threads), Interlocked counters and the locked
+		// Dev cap. Their CALLERS still await without it, so anything touching VM state resumes on the UI thread as before.
 		internal static async Task<byte[]> ReadBodyAsync(HttpContent content, CancellationToken ct)
 		{
 			var length = content.Headers.ContentLength;
 			ExpectBytes(length);
-			await using var stream = await content.ReadAsStreamAsync(ct);
+			await using var stream = await content.ReadAsStreamAsync(ct).ConfigureAwait(false);
 			using var body = length is > 0 and <= int.MaxValue ? new MemoryStream((int)length.Value) : new MemoryStream();
 			var chunk = System.Buffers.ArrayPool<byte>.Shared.Rent(BodyChunkBytes);
 			try
 			{
 				int read;
-				while ((read = await stream.ReadAsync(chunk.AsMemory(0, BodyChunkBytes), ct)) > 0)
+				while ((read = await stream.ReadAsync(chunk.AsMemory(0, BodyChunkBytes), ct).ConfigureAwait(false)) > 0)
 				{
 					RadarPerfCounters.NoteHop(); // perf.ui: a chunk that woke the UI thread
 					body.Write(chunk, 0, read);
-					await ChargeChunkAsync(read, ct);
+					await ChargeChunkAsync(read, ct).ConfigureAwait(false);
 				}
 			}
 			finally
@@ -1274,14 +1279,14 @@ namespace Anvil.Services
 				long from = (long)i * per;
 				long to = Math.Min(from + per, count) - 1;
 				if (from > to) { parts[i] = Array.Empty<byte>(); return; }
-				var bytes = await GetSubRangeAsync(key, from, to, ct);
+				var bytes = await GetSubRangeAsync(key, from, to, ct).ConfigureAwait(false);
 				if (bytes is null) { ok = false; }
 				else { parts[i] = bytes; }
-			}));
+			})).ConfigureAwait(false); // the 5 MB assembly below runs off the UI thread (see ReadBodyAsync's ⚠️)
 
 			if (!ok)
 			{
-				return await TryGetRangeAsync(key, count, ct); // single-stream handles the small-object / error case
+				return await TryGetRangeAsync(key, count, ct).ConfigureAwait(false); // single-stream handles the small-object / error case
 			}
 
 			var syncAt = RadarPerfCounters.BeginSync(); // perf.ui: the assembly copy, when it lands on the UI thread
@@ -1322,17 +1327,17 @@ namespace Anvil.Services
 			using (var req = new HttpRequestMessage(HttpMethod.Get, BucketBase + key))
 			{
 				req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(0, probeBytes - 1);
-				using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+				using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
 				if (resp.StatusCode == System.Net.HttpStatusCode.OK)
 				{
-					return await ReadBodyAsync(resp.Content, ct); // range ignored → this IS the whole object
+					return await ReadBodyAsync(resp.Content, ct).ConfigureAwait(false); // range ignored → this IS the whole object
 				}
 				if (resp.StatusCode != System.Net.HttpStatusCode.PartialContent)
 				{
 					return null; // ranges not honored → let the caller fall back
 				}
 				total = resp.Content.Headers.ContentRange?.Length ?? 0;
-				head = await ReadBodyAsync(resp.Content, ct);
+				head = await ReadBodyAsync(resp.Content, ct).ConfigureAwait(false);
 			}
 			if (total <= 0 || head.LongLength >= total)
 			{
@@ -1349,9 +1354,9 @@ namespace Anvil.Services
 				var from = start + (long)i * per;
 				var to = Math.Min(from + per, total) - 1;
 				if (from > to) { parts[i] = Array.Empty<byte>(); return; }
-				var bytes = await GetSubRangeAsync(key, from, to, ct);
+				var bytes = await GetSubRangeAsync(key, from, to, ct).ConfigureAwait(false);
 				if (bytes is null) { ok = false; } else { parts[i] = bytes; }
-			}));
+			})).ConfigureAwait(false); // the whole-object assembly below runs off the UI thread (see ReadBodyAsync's ⚠️)
 			if (!ok)
 			{
 				return null; // a sub-range failed → single-stream fallback in the caller
@@ -1376,9 +1381,9 @@ namespace Anvil.Services
 			{
 				using var req = new HttpRequestMessage(HttpMethod.Get, BucketBase + key);
 				req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(from, to);
-				using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+				using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
 				return resp.StatusCode == System.Net.HttpStatusCode.PartialContent
-					? await ReadBodyAsync(resp.Content, ct)
+					? await ReadBodyAsync(resp.Content, ct).ConfigureAwait(false)
 					: null;
 			}
 			catch (OperationCanceledException)
@@ -1401,13 +1406,13 @@ namespace Anvil.Services
 			{
 				using var req = new HttpRequestMessage(HttpMethod.Get, BucketBase + key);
 				req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(0, count - 1);
-				using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+				using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
 				if (resp.StatusCode != System.Net.HttpStatusCode.PartialContent &&
 					resp.StatusCode != System.Net.HttpStatusCode.OK)
 				{
 					return null;
 				}
-				return await ReadBodyAsync(resp.Content, ct);
+				return await ReadBodyAsync(resp.Content, ct).ConfigureAwait(false);
 			}
 			catch (OperationCanceledException)
 			{
@@ -2661,17 +2666,18 @@ namespace Anvil.Services
 			var buffer = new byte[81920];
 			long nextCheck = GzFirstCheckBytes;
 			int n;
-			while ((n = await body.ReadAsync(buffer, ct)) > 0)
+			// ConfigureAwait(false) throughout — see ReadBodyAsync's ⚠️ (the prefix copy below then runs off the UI thread too).
+			while ((n = await body.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
 			{
 				RadarPerfCounters.NoteHop(); // perf.ui: a chunk that woke the UI thread
 				compressed.Write(buffer, 0, n);
-				await charge(n, ct);
+				await charge(n, ct).ConfigureAwait(false);
 				if (compressed.Length < nextCheck) continue;
 				nextCheck = compressed.Length + GzCheckEveryBytes;
 				var syncAt = RadarPerfCounters.BeginSync(); // perf.ui: the prefix copy, when it lands on the UI thread
 				var soFar = compressed.ToArray();
 				RadarPerfCounters.EndSync(syncAt);
-				var tilt = await RadarCpuWork.Run(() => CompleteBaseTilt(GunzipPrefix(soFar), siteId), ct, urgent);
+				var tilt = await RadarCpuWork.Run(() => CompleteBaseTilt(GunzipPrefix(soFar), siteId), ct, urgent).ConfigureAwait(false);
 				if (tilt is not null) return (tilt, null);
 			}
 			return (null, compressed.ToArray());
