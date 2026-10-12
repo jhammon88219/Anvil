@@ -15,6 +15,7 @@ namespace Anvil.Services
 	///   RadarCpuWork job  jobs ▲ ─── work on a radar CPU thread ─── jobs ▼ → "jobs" / "jobsPeak"
 	///   BeginSync … EndSync  (only timed when a SynchronizationContext is
 	///                         present, i.e. the await resumed on the UI)  → "syncMs"
+	///   NoteHop              (a download chunk resumed on the UI)        → "svcHops"
 	/// </code>
 	/// Always on (a pair of Interlocked ops per extraction is free); only <c>UiThreadProbe</c> (App, Debug)
 	/// ever reads it. ⚠️ EXCISABLE: this file, its call sites in <see cref="Level2RadarService"/> and
@@ -55,5 +56,17 @@ namespace Anvil.Services
 
 		/// <summary>Milliseconds of timed synchronous work since the last call.</summary>
 		public static double TakeSyncMs() => Interlocked.Exchange(ref _syncTicks, 0) * 1000.0 / Stopwatch.Frequency;
+
+		private static int _hops;
+
+		/// <summary>A download continuation just resumed — counted only when it landed on a sync context (the UI
+		/// thread). Called once per body chunk, so the count is how many times a download woke the UI thread.</summary>
+		public static void NoteHop()
+		{
+			if (SynchronizationContext.Current is not null) Interlocked.Increment(ref _hops);
+		}
+
+		/// <summary>UI-thread download continuations since the last call.</summary>
+		public static int TakeHops() => Interlocked.Exchange(ref _hops, 0);
 	}
 }

@@ -290,6 +290,7 @@ namespace Anvil.Services
 				int read;
 				while ((read = await stream.ReadAsync(chunk.AsMemory(0, BodyChunkBytes), ct)) > 0)
 				{
+					RadarPerfCounters.NoteHop(); // perf.ui: a chunk that woke the UI thread
 					body.Write(chunk, 0, read);
 					await ChargeChunkAsync(read, ct);
 				}
@@ -1283,11 +1284,13 @@ namespace Anvil.Services
 				return await TryGetRangeAsync(key, count, ct); // single-stream handles the small-object / error case
 			}
 
+			var syncAt = RadarPerfCounters.BeginSync(); // perf.ui: the assembly copy, when it lands on the UI thread
 			var total = 0;
 			foreach (var p in parts) { total += p.Length; }
 			var result = new byte[total];
 			var offset = 0;
 			foreach (var p in parts) { Buffer.BlockCopy(p, 0, result, offset, p.Length); offset += p.Length; }
+			RadarPerfCounters.EndSync(syncAt);
 			return result;
 		}
 
@@ -1354,12 +1357,14 @@ namespace Anvil.Services
 				return null; // a sub-range failed → single-stream fallback in the caller
 			}
 
+			var syncAt = RadarPerfCounters.BeginSync(); // perf.ui: the assembly copy, when it lands on the UI thread
 			long size = head.LongLength;
 			foreach (var p in parts) { size += p.Length; }
 			var result = new byte[size];
 			Buffer.BlockCopy(head, 0, result, 0, head.Length);
 			var offset = head.Length;
 			foreach (var p in parts) { Buffer.BlockCopy(p, 0, result, offset, p.Length); offset += p.Length; }
+			RadarPerfCounters.EndSync(syncAt);
 			return result;
 		}
 
@@ -2658,11 +2663,14 @@ namespace Anvil.Services
 			int n;
 			while ((n = await body.ReadAsync(buffer, ct)) > 0)
 			{
+				RadarPerfCounters.NoteHop(); // perf.ui: a chunk that woke the UI thread
 				compressed.Write(buffer, 0, n);
 				await charge(n, ct);
 				if (compressed.Length < nextCheck) continue;
 				nextCheck = compressed.Length + GzCheckEveryBytes;
+				var syncAt = RadarPerfCounters.BeginSync(); // perf.ui: the prefix copy, when it lands on the UI thread
 				var soFar = compressed.ToArray();
+				RadarPerfCounters.EndSync(syncAt);
 				var tilt = await RadarCpuWork.Run(() => CompleteBaseTilt(GunzipPrefix(soFar), siteId), ct, urgent);
 				if (tilt is not null) return (tilt, null);
 			}

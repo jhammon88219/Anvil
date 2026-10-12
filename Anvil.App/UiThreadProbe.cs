@@ -23,6 +23,7 @@ namespace Anvil
 	///   lateness HIGH + msgMs/syncMs HIGH  → our own UI-thread work (cause 2)
 	///   lateness HIGH + both LOW, cpu HIGH → CPU starvation (cause 1)
 	///   lateness LOW                       → input is not delayed here; look in the renderer
+	///   svcHops = download chunks that resumed ON this thread (Level2RadarService.ReadBodyAsync)
 	/// </code>
 	/// ⚠️ IT MUST NOT PERTURB WHAT IT MEASURES: the UI thread does one timestamp per tick and one per
 	/// routed message; process CPU and the JSONL write happen on the pool timer. The WebView2 process LIST
@@ -146,16 +147,17 @@ namespace Anvil
 				}
 				var (jobs, jobsPeak) = RadarPerfCounters.TakeJobs();
 				var syncMs = RadarPerfCounters.TakeSyncMs();
+				var svcHops = RadarPerfCounters.TakeHops();
 				var cpu = SampleCpu(now);
 
-				var busy = lateMax >= 40 || msgMs >= 20 || syncMs >= 5 || jobsPeak > 0;
+				var busy = lateMax >= 40 || msgMs >= 20 || syncMs >= 5 || jobsPeak > 0 || svcHops > 0;
 				if (!busy && ++_windowNo % BaselineEvery != 0) return;
 
 				static double R(double v) => Math.Round(v, 1);
 				RadarDiagnostics.Log("ui", "perf.ui",
 					("ticks", ticks), ("lateMax", R(lateMax)), ("late50", late50), ("late100", late100),
 					("msgs", msgs), ("msgMs", R(msgMs)), ("msgMax", R(msgMax)), ("msgMaxType", msgMaxType),
-					("syncMs", R(syncMs)), ("jobs", jobs), ("jobsPeak", jobsPeak),
+					("syncMs", R(syncMs)), ("svcHops", svcHops), ("jobs", jobs), ("jobsPeak", jobsPeak),
 					("cpuApp", R(cpu.App)), ("cpuRend", R(cpu.Renderer)), ("cpuGpu", R(cpu.Gpu)),
 					("cpuWebOther", R(cpu.WebOther)), ("cpuSys", R(cpu.System)), ("cores", _cores));
 			}

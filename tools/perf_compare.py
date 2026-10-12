@@ -62,6 +62,15 @@ METRICS = [
     ("pan_samples",      "Pan gestures sampled",   "",    0),
     ("mk_attached",      "Markers attached",       "",    0),
     ("mk_shown",         "Markers shown",          "",    0),
+    # perf.ui (UiThreadProbe, DEBUG builds): the UI thread's heartbeat, read ONLY over the seconds radar work
+    # was running (a load), so idle time after the load can't dilute it. See load_run's perf.ui branch.
+    ("ui_windows",       "UI busy seconds",        "s",   0),
+    ("ui_late_p95",      "UI tick lateness p95",   "ms", -1),
+    ("ui_late_max",      "UI tick lateness max",   "ms", -1),
+    ("ui_late50_pct",    "UI ticks >50ms late",    "%",  -1),
+    ("ui_msg_ms",        "UI page-message cost",   "ms", -1),
+    ("ui_sync_ms",       "UI radar-service sync",  "ms", -1),
+    ("ui_svc_hops",      "UI download hops",       "",   -1),
 ]
 
 
@@ -86,6 +95,7 @@ def load_run(path):
     frames_decoded = suspects = render_errors = render_blanks = 0
     pan_p50, pan_p95, pan_long, mk_attached, mk_shown = [], [], [], [], []
     pan_cadence, pan_long_ms = [], []
+    ui_late, ui_ticks, ui_late50, ui_msg, ui_sync, ui_hops = [], 0, 0, 0.0, 0.0, 0
     sites, sessions, stamp = set(), 0, None
     first_ts = last_ts = None
     skipped = 0
@@ -160,8 +170,22 @@ def load_run(path):
                     mk_attached.append(e["mkAttached"])
                 if e.get("mkShown") is not None:
                     mk_shown.append(e["mkShown"])
+            elif cat == "perf.ui":
+                # Only the seconds radar work was RUNNING (a CPU job, a UI-thread download hop, or service work
+                # timed on the UI thread). The probe also writes idle baseline windows; counting those would
+                # make a run with a longer idle tail look healthier. svcHops is absent before 2026-10-12.
+                hops = e.get("svcHops") or 0
+                if not ((e.get("jobsPeak") or 0) > 0 or hops > 0 or (e.get("syncMs") or 0) > 0):
+                    continue
+                ui_late.append(e.get("lateMax") or 0)
+                ui_ticks += e.get("ticks") or 0
+                ui_late50 += e.get("late50") or 0
+                ui_msg += e.get("msgMs") or 0
+                ui_sync += e.get("syncMs") or 0
+                ui_hops += hops
 
     dm = sorted(decode_ms)
+    ul = sorted(ui_late)
     return {
         "_path": path,
         "_stamp": stamp,
@@ -201,6 +225,13 @@ def load_run(path):
         "pan_samples": len(pan_p50),
         "mk_attached": statistics.median(mk_attached) if mk_attached else None,
         "mk_shown": statistics.median(mk_shown) if mk_shown else None,
+        "ui_windows": len(ul) if ul else None,
+        "ui_late_p95": pct(ul, 0.95),
+        "ui_late_max": ul[-1] if ul else None,
+        "ui_late50_pct": (100.0 * ui_late50 / ui_ticks) if ui_ticks else None,
+        "ui_msg_ms": round(ui_msg, 1) if ul else None,
+        "ui_sync_ms": round(ui_sync, 1) if ul else None,
+        "ui_svc_hops": ui_hops if ul else None,
     }
 
 
