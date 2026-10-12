@@ -66,9 +66,7 @@
              shadow is the absence of light in any theme (the same rule the map theme sheets state for the map
              page's drop shadows). Only their STRENGTH is themed, through OverlayBarShadowOpacity on
              each element — one number per theme instead of eight gradients.
-             ⚠️ Because they carry no theme, ApplyChrome is allowed to pick between them in C#. That is
-             NOT a hole in the never-resolve-a-theme-brush-in-code rule: these four live in this
-             control's own Resources and resolve the same in every theme.
+             The EdgeStates below pick between them by edge (and the side bands use theirs directly).
              Three stops, not two: a linear ramp reads as a grey band with an edge on it, and the whole
              point is that this edge has none. -->
         <LinearGradientBrush x:Key="ShadowFadeUp" StartPoint="0,0" EndPoint="0,1">
@@ -111,6 +109,121 @@
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
+
+            <!-- THE CHROME — every look ApplyChrome used to set in code, as states it now only PICKS. Five
+                 groups because the knobs are not independent (the corners depend on edge AND island, the rule on
+                 edge AND island AND edge style); each group owns a disjoint set of properties, so they cannot
+                 disagree. The markup defaults are the Bottom + full-width + hairline + ground states. -->
+
+            <!-- EDGE: which row is which (Bottom = tab(0) over bar(1); Top = bar(0) over tab(1)), and which way
+                 each shadow band faces. ⚠️ NEITHER BAND RESERVES LAYOUT: the cast band hangs outside the
+                 surface's cell on a negative margin of its own height (14); the received one overlays it. -->
+            <VisualStateGroup x:Name="EdgeStates">
+                <VisualState x:Name="BottomEdge"/>
+                <VisualState x:Name="TopEdge">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.(Grid.Row)" Value="0"/>
+                        <Setter Target="Tab.(Grid.Row)" Value="1"/>
+                        <Setter Target="CastShadow.(Grid.Row)" Value="0"/>
+                        <Setter Target="CastShadow.VerticalAlignment" Value="Bottom"/>
+                        <Setter Target="CastShadow.Margin" Value="0,0,0,-14"/>
+                        <Setter Target="CastShadow.Background" Value="{StaticResource ShadowFadeDown}"/>
+                        <Setter Target="InsetShadow.(Grid.Row)" Value="0"/>
+                        <Setter Target="InsetShadow.VerticalAlignment" Value="Bottom"/>
+                        <Setter Target="InsetShadow.Background" Value="{StaticResource ShadowFadeUp}"/>
+                        <Setter Target="SideShadowLeft.(Grid.Row)" Value="0"/>
+                        <Setter Target="SideShadowRight.(Grid.Row)" Value="0"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+
+            <!-- CORNERS: only an island rounds anything, and only its two INNER corners — the ones away from the
+                 edge it is attached to. A full-width bar's corners are off-screen. -->
+            <VisualStateGroup x:Name="CornerStates">
+                <VisualState x:Name="SquareCorners"/>
+                <VisualState x:Name="IslandBottomCorners">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.CornerRadius" Value="8,8,0,0"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="IslandTopCorners">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.CornerRadius" Value="0,0,8,8"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+
+            <!-- THE RULE: the hairline always runs along the edge FACING THE TAB (still the right edge with no
+                 tab — the next tier or the rail sits against it); an island closes its two sides as well.
+                 ⚠️ A shadowed edge draws NO line at all: the two are alternatives, not layers. A hairline under
+                 a shadow reads as a seam someone forgot to finish. -->
+            <VisualStateGroup x:Name="RuleStates">
+                <VisualState x:Name="RuleBottomFull"/>
+                <VisualState x:Name="RuleBottomIsland">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.BorderThickness" Value="1,1,1,0"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="RuleTopFull">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.BorderThickness" Value="0,0,0,1"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="RuleTopIsland">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.BorderThickness" Value="1,0,1,1"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="NoRule">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.BorderThickness" Value="0"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+
+            <!-- PADDING: three, and each answers a different question. An island sits over the map with a pane's
+                 worth of room, not a window's (the bar's 16,10 would make a notch noticeably taller over a quad
+                 pane). A RAISED tier is tighter than the bar it rests on because it is SUBORDINATE to it — at
+                 equal weight the two stop reading as a bar with a shelf on it and start reading as a bar that
+                 doubled in height. -->
+            <VisualStateGroup x:Name="PaddingStates">
+                <VisualState x:Name="GroundPadding"/>
+                <VisualState x:Name="RaisedPadding">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.Padding" Value="16,7,16,7"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="IslandPadding">
+                    <VisualState.Setters>
+                        <Setter Target="BarBorder.Padding" Value="12,6,12,6"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+
+            <!-- SHADOWS: which bands show. ⚠️ A COLLAPSED BAR CASTS NOTHING — the shadow is thrown by the surface,
+                 so when the surface is hidden every band goes with it (otherwise hiding a tier leaves its shadow
+                 hanging over the map with no plate above it to explain the darkening). An island casts on three
+                 sides; a full-width bar's sides run off the window. -->
+            <VisualStateGroup x:Name="ShadowStates">
+                <VisualState x:Name="NoShadow"/>
+                <VisualState x:Name="CastShadowEdge">
+                    <VisualState.Setters>
+                        <Setter Target="CastShadow.Visibility" Value="Visible"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="CastShadowIsland">
+                    <VisualState.Setters>
+                        <Setter Target="CastShadow.Visibility" Value="Visible"/>
+                        <Setter Target="SideShadowLeft.Visibility" Value="Visible"/>
+                        <Setter Target="SideShadowRight.Visibility" Value="Visible"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="InsetShadowEdge">
+                    <VisualState.Setters>
+                        <Setter Target="InsetShadow.Visibility" Value="Visible"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
 
         <Grid.RowDefinitions>
@@ -130,9 +243,15 @@
              occupies space holds things apart that are supposed to be glued.
              ⚠️ Hanging it means it paints over whatever is beyond that edge, so the HOST must draw
              anything that sits there AFTER this control. MainWindow's bottom Grid declares its rail last
-             for exactly that reason. Depth, row, alignment and margin are all ApplyChrome's. -->
+             for exactly that reason. Its DEPTH (14) is both its Height and the negative margin that hangs it
+             outside — keep the two equal, here and in the TopEdge state. Row, alignment, margin and fade are the
+             EdgeStates'; these defaults are the Bottom edge's. -->
         <Border x:Name="CastShadow"
-                Grid.Row="0"
+                Grid.Row="1"
+                Height="14"
+                VerticalAlignment="Top"
+                Margin="0,-14,0,0"
+                Background="{StaticResource ShadowFadeUp}"
                 Opacity="{ThemeResource OverlayBarShadowOpacity}"
                 IsHitTestVisible="False"
                 Visibility="Collapsed"/>
@@ -144,7 +263,7 @@
                 BorderThickness="0,1,0,0"
                 Visibility="{x:Bind VisibleWhen(IsOverlayBarVisible), Mode=OneWay}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
-                Padding="16,10">   <!-- overwritten by ApplyChrome; an island is tighter -->
+                Padding="16,10">   <!-- the ground bar's; the PaddingStates tighten it (an island, a raised tier) -->
             <ContentPresenter HorizontalAlignment="Stretch"
                               Content="{x:Bind BarContent, Mode=OneWay}"/>
         </Border>
@@ -157,6 +276,7 @@
                 Grid.Row="1"
                 Height="10"
                 VerticalAlignment="Top"
+                Background="{StaticResource ShadowFadeDown}"
                 Opacity="{ThemeResource OverlayBarShadowOpacity}"
                 IsHitTestVisible="False"
                 Visibility="Collapsed"/>
@@ -169,6 +289,7 @@
                 Width="12"
                 Margin="-12,0,0,0"
                 HorizontalAlignment="Left"
+                Background="{StaticResource ShadowFadeRight}"
                 Opacity="{ThemeResource OverlayBarShadowOpacity}"
                 IsHitTestVisible="False"
                 Visibility="Collapsed"/>
@@ -177,6 +298,7 @@
                 Width="12"
                 Margin="0,0,-12,0"
                 HorizontalAlignment="Right"
+                Background="{StaticResource ShadowFadeLeft}"
                 Opacity="{ThemeResource OverlayBarShadowOpacity}"
                 IsHitTestVisible="False"
                 Visibility="Collapsed"/>

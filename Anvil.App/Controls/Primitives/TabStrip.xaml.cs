@@ -17,8 +17,7 @@ namespace Anvil.Controls.Primitives
 		public TabStrip()
 		{
 			InitializeComponent();
-			// ItemsPanelRoot does not exist until the panel is realized, so the first placement pass has to
-			// wait for load; every later one runs straight from the DP callback.
+			// Re-assert once loaded (a placement set by a host before load is already applied; this is cheap).
 			Loaded += (_, _) => ApplyPlacement();
 		}
 
@@ -87,13 +86,9 @@ namespace Anvil.Controls.Primitives
 		/// reach).</summary>
 		public static Visibility Show(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 
-		/// <summary>A SEATED tab (the Atlas) lays its mark BESIDE its name — a shorter tab; every other strip
-		/// keeps the mark over the name. Statics for the item template, like <see cref="Show"/>.</summary>
-		public static Orientation MarkOrientation(bool seated) => seated ? Orientation.Horizontal : Orientation.Vertical;
-
-		public static double MarkSpacing(bool seated) => seated ? 8 : 3;
-
-		public static Thickness MarkMargin(bool seated) => seated ? new Thickness(20, 10, 20, 10) : new Thickness(14, 8, 14, 8);
+		/// <summary>The inverse of <see cref="Show"/>: a SEATED tab (the Atlas) shows its mark-beside-name
+		/// arrangement and hides the mark-over-name one; both are declared in the item template.</summary>
+		public static Visibility Hide(bool on) => on ? Visibility.Collapsed : Visibility.Visible;
 
 		private IEnumerable<TabEntry> Entries =>
 			ItemsSource?.OfType<TabEntry>() ?? Enumerable.Empty<TabEntry>();
@@ -121,30 +116,12 @@ namespace Anvil.Controls.Primitives
 				entry.IsSeated = IsSeated && !vertical;
 			}
 
-			// ⚠️ ItemsPanelRoot is null until the panel is REALIZED, and the order in which x:Bind pushes
-			// ItemsSource vs Placement is not ours to choose — so a side-rail restore can land here before
-			// there is a panel to turn. Retry once on the dispatcher rather than leaving the strip
-			// horizontal. (The Top case would survive this, since Horizontal is the template's default;
-			// that is exactly why the bug would only ever show up as "my side rail came back on top".)
-			if (Host.ItemsPanelRoot is StackPanel panel)
-			{
-				panel.Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal;
-			}
-			else if (!_placementRetryQueued)
-			{
-				_placementRetryQueued = true;
-				DispatcherQueue.TryEnqueue(() =>
-				{
-					_placementRetryQueued = false;
-					if (Host.ItemsPanelRoot is StackPanel late)
-					{
-						late.Orientation = Placement == TabPlacement.Left ? Orientation.Vertical : Orientation.Horizontal;
-					}
-				});
-			}
+			// Pick the declared panel for this direction. (Swapping the TEMPLATE rather than turning the realized
+			// panel also retires the old race: ItemsPanelRoot was null until the panel realized, and a side-rail
+			// restore could land before it and come back on top.)
+			var panel = (ItemsPanelTemplate)Resources[vertical ? "SideRailPanel" : "TopRailPanel"];
+			if (!ReferenceEquals(Host.ItemsPanel, panel)) Host.ItemsPanel = panel;
 		}
-
-		private bool _placementRetryQueued;
 
 		private void OnTabClick(object sender, RoutedEventArgs e)
 		{

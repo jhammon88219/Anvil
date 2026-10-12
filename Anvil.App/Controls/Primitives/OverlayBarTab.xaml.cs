@@ -131,44 +131,17 @@ namespace Anvil.Controls.Primitives
 		private void ApplySurface() =>
 			VisualStateManager.GoToState(TabButton, Raised ? "RaisedSurface" : "GroundSurface", false);
 
-		// Shape the tab for its edge. ONE method, because the four values disagree with each other if they
-		// are set apart: the open border side, the corner radius and the lap margin all flip together with
-		// Edge, and the padding is the one that answers to ShowLabel instead.
+		// Shape the tab for its edge and label: pick the EdgeStates / LabelStates declared on this control's root (the
+		// open border side, the lap margin and the corners flip together with Edge; the padding and size answer to
+		// ShowLabel). ONE method, so the two picks never drift apart.
 		private void ApplyChrome()
 		{
-			bool top = Edge == BarEdge.Top;
-
-			// The tab's inner edge is left BORDERLESS and lapped over the host surface's hairline, so the
-			// two merge into one line that wraps around the tab instead of running across its foot.
-			TabButton.BorderThickness = top ? new Thickness(1, 0, 1, 1) : new Thickness(1, 1, 1, 0);
-			TabButton.Margin = top ? new Thickness(0, -2, 0, 0) : new Thickness(0, 0, 0, -2);
-
-			// A tab with no word in it only has to hold a chevron, so it loses the label's side padding -
-			// otherwise an unlabelled tab is a wide empty lozenge.
-			TabButton.Padding = ShowLabel ? new Thickness(16, 3, 16, 3) : new Thickness(9, 2, 9, 2);
-
-			// ⚠️ A LABELLED TAB IS A FIXED SIZE, and every tab in the app is labelled. Two reasons, both
-			// in Controls/Styles.xaml beside the numbers: the verb-mode label flips "Hide"/"Show", which
-			// would resize a content-sized tab on every click; and a content-sized tab takes its size from
-			// its glyph's font metrics, which is nobody's decision - it is what made the pane notch's tab a
-			// third the width of the bar's. The NaN branch is content-sizing for a wordless tab, of which
-			// there are none today; it is not a second designed shape.
-			TabButton.Width = ShowLabel ? SharedSize("OverlayBarTabWidth") : double.NaN;
-			TabButton.Height = ShowLabel ? SharedSize("OverlayBarTabHeight") : double.NaN;
-			TabButton.CornerRadius = top
-				? new CornerRadius(0, 0, SharedSize("OverlayBarTabRadius"), SharedSize("OverlayBarTabRadius"))
-				: new CornerRadius(SharedSize("OverlayBarTabRadius"), SharedSize("OverlayBarTabRadius"), 0, 0);
+			VisualStateManager.GoToState(this, Edge == BarEdge.Top ? "TopEdge" : "BottomEdge", false);
+			VisualStateManager.GoToState(this, ShowLabel ? "Labelled" : "Wordless", false);
 
 			// Re-evaluate the glyph (it depends on Edge), the word and the tooltip.
 			Bindings?.Update();
 		}
-
-		/// <summary>Reads one of the app-wide tab sizes from Controls/Styles.xaml. A mis-keyed lookup falls
-		/// back to the value baked in here, so it degrades to a correct-looking tab rather than a zero-sized
-		/// one. ⚠️ Safe as a C# lookup where a BRUSH would not be: a size has no theme.</summary>
-		private static double SharedSize(string key) =>
-			Application.Current.Resources.TryGetValue(key, out var v) && v is double d ? d
-				: key == "OverlayBarTabRadius" ? 7 : key == "OverlayBarTabHeight" ? 28 : 96;
 
 		// x:Bind function mapping a bool to Visibility (no value-converter lookup needed).
 		public Visibility VisibleWhen(bool value) =>

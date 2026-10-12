@@ -365,14 +365,17 @@
          ⚠️ These used to apply ONLY to the bottom bar, the four notches being chevron-only islands left at
          their content's size — which made the notch tab about a THIRD the bar tab's width and a few px
          shorter, at the same 7px radius, so it read as a different tab. The notches are labelled now and
-         take these three numbers with everything else. ApplyChrome is still the only place they are read.
+         take these numbers with everything else. OverlayBarTab's EdgeStates / LabelStates are the only place
+         they are read.
          ⚠️ So a change here now moves FIVE tabs and the strip's notch together — which is the point, but
          check the quad layout: at 96 the tab is wider than a narrow notch island would be, and a tab wider
          than its island overhangs it. Change the tab's PADDING without changing these and the glyph
          crops. -->
     <x:Double x:Key="OverlayBarTabWidth">96</x:Double>
     <x:Double x:Key="OverlayBarTabHeight">28</x:Double>
-    <x:Double x:Key="OverlayBarTabRadius">7</x:Double>
+    <!-- The tab's 7 px radius, as the two corner sets it wears: rounded AWAY from the edge it hangs off. -->
+    <CornerRadius x:Key="OverlayBarTabCornersBottomEdge">7,7,0,0</CornerRadius>
+    <CornerRadius x:Key="OverlayBarTabCornersTopEdge">0,0,7,7</CornerRadius>
 
     <!-- ───────────────────────────── A panel SECTION ─────────────────────────────
          Every section in every temporal window and every Settings tab is a Controls/Primitives/PanelSection

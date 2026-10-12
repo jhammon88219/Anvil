@@ -70,12 +70,22 @@
                           Click="OnTabClick">
                 <Grid>
                     <!-- Mark over a name, centred — or, SEATED, mark beside the name (the user's call,
-                         2026-10-02: a shorter Atlas tab). Padding is on this panel rather than the button so the
-                         indicators below can still reach the tab's true edges. -->
-                    <StackPanel Margin="{x:Bind prim:TabStrip.MarkMargin(IsSeated), Mode=OneWay}"
-                                Orientation="{x:Bind prim:TabStrip.MarkOrientation(IsSeated), Mode=OneWay}"
-                                Spacing="{x:Bind prim:TabStrip.MarkSpacing(IsSeated), Mode=OneWay}"
-                                HorizontalAlignment="Center">
+                         2026-10-02: a shorter Atlas tab). BOTH arrangements are declared; IsSeated shows one.
+                         Padding is on these panels rather than the button so the indicators below can still
+                         reach the tab's true edges. -->
+                    <StackPanel Margin="14,8,14,8" Orientation="Vertical" Spacing="3" HorizontalAlignment="Center"
+                                Visibility="{x:Bind prim:TabStrip.Hide(IsSeated), Mode=OneWay}">
+                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  FontSize="16"
+                                  VerticalAlignment="Center"
+                                  Glyph="{x:Bind Glyph}"/>
+                        <TextBlock Text="{x:Bind Label}"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Margin="20,10,20,10" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center"
+                                Visibility="{x:Bind prim:TabStrip.Show(IsSeated), Mode=OneWay}">
                         <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                                   FontSize="16"
                                   VerticalAlignment="Center"
@@ -101,16 +111,19 @@
             </ToggleButton>
             </Grid>
         </DataTemplate>
+
+        <!-- The two stack directions: a TOP rail runs left-to-right, a SIDE rail top-to-bottom. ApplyPlacement
+             picks one by Placement (an ItemsPanelTemplate has no binding path back to this control). -->
+        <ItemsPanelTemplate x:Key="TopRailPanel">
+            <StackPanel Orientation="Horizontal"/>
+        </ItemsPanelTemplate>
+        <ItemsPanelTemplate x:Key="SideRailPanel">
+            <StackPanel Orientation="Vertical"/>
+        </ItemsPanelTemplate>
     </UserControl.Resources>
 
-    <!-- ⚠️ The panel's Orientation is set from code-behind (ApplyPlacement), not here: an ItemsPanelTemplate
-         has no binding path back to this control's Placement DP. ItemsPanelRoot is the seam. -->
+    <!-- The panel is one of the two declared above (TopRailPanel here; ApplyPlacement swaps in SideRailPanel). -->
     <ItemsControl x:Name="Host"
-                  ItemTemplate="{StaticResource TabItemTemplate}">
-        <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-                <StackPanel Orientation="Horizontal"/>
-            </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-    </ItemsControl>
+                  ItemTemplate="{StaticResource TabItemTemplate}"
+                  ItemsPanel="{StaticResource TopRailPanel}"/>
 </UserControl>

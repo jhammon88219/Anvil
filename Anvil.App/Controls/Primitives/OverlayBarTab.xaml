@@ -60,8 +60,8 @@
             <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
-            <!-- No Padding / BorderThickness / CornerRadius / Margin setters: ApplyChrome owns all
-                 four, because every one of them depends on Edge or ShowLabel. -->
+            <!-- No Padding / BorderThickness / CornerRadius / Margin setters: the EdgeStates and LabelStates on
+                 this control's root own all four, because every one of them depends on Edge or ShowLabel. -->
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -117,18 +117,57 @@
         </Style>
     </UserControl.Resources>
 
-    <Button x:Name="TabButton"
-            Style="{StaticResource TabShellStyle}"
-            Click="OnTabClick"
-            ToolTipService.ToolTip="{x:Bind Tooltip(IsShown, Target), Mode=OneWay}">
-        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-            <FontIcon Glyph="{x:Bind Chevron(IsShown, Edge), Mode=OneWay}"
-                      FontSize="14"
-                      VerticalAlignment="Center"/>
-            <TextBlock Text="{x:Bind Word(IsShown, Target), Mode=OneWay}"
-                       Visibility="{x:Bind VisibleWhen(ShowLabel), Mode=OneWay}"
-                       FontSize="15"
-                       VerticalAlignment="Center"/>
-        </StackPanel>
-    </Button>
+    <!-- The root carries the tab's SHAPE states; the code-behind only picks them (ApplyChrome). Markup defaults
+         are the Bottom edge, labelled. -->
+    <Grid>
+        <VisualStateManager.VisualStateGroups>
+            <!-- EDGE: the tab's inner edge is left BORDERLESS and lapped 2 px over the host surface's hairline, so
+                 the two merge into one line that wraps around the tab instead of running across its foot; the
+                 corners round away from the edge it hangs off. Open side, lap and corners flip together. -->
+            <VisualStateGroup x:Name="EdgeStates">
+                <VisualState x:Name="BottomEdge"/>
+                <VisualState x:Name="TopEdge">
+                    <VisualState.Setters>
+                        <Setter Target="TabButton.BorderThickness" Value="1,0,1,1"/>
+                        <Setter Target="TabButton.Margin" Value="0,-2,0,0"/>
+                        <Setter Target="TabButton.CornerRadius" Value="{StaticResource OverlayBarTabCornersTopEdge}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <!-- LABEL: ⚠️ A LABELLED TAB IS A FIXED SIZE (Controls/Styles.xaml beside the numbers says why), and
+                 every tab in the app is labelled. A tab with no word only holds a chevron, so it loses the
+                 label's side padding and sizes to content — not a second designed shape; there are none today. -->
+            <VisualStateGroup x:Name="LabelStates">
+                <VisualState x:Name="Labelled"/>
+                <VisualState x:Name="Wordless">
+                    <VisualState.Setters>
+                        <Setter Target="TabButton.Padding" Value="9,2,9,2"/>
+                        <Setter Target="TabButton.Width" Value="Auto"/>
+                        <Setter Target="TabButton.Height" Value="Auto"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Button x:Name="TabButton"
+                Style="{StaticResource TabShellStyle}"
+                BorderThickness="1,1,1,0"
+                Margin="0,0,0,-2"
+                CornerRadius="{StaticResource OverlayBarTabCornersBottomEdge}"
+                Padding="16,3,16,3"
+                Width="{StaticResource OverlayBarTabWidth}"
+                Height="{StaticResource OverlayBarTabHeight}"
+                Click="OnTabClick"
+                ToolTipService.ToolTip="{x:Bind Tooltip(IsShown, Target), Mode=OneWay}">
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <FontIcon Glyph="{x:Bind Chevron(IsShown, Edge), Mode=OneWay}"
+                          FontSize="14"
+                          VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Bind Word(IsShown, Target), Mode=OneWay}"
+                           Visibility="{x:Bind VisibleWhen(ShowLabel), Mode=OneWay}"
+                           FontSize="15"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Button>
+    </Grid>
 </UserControl>

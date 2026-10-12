@@ -196,55 +196,16 @@ namespace Anvil.Controls.Windows
 
 		/// <summary>
 		/// Arrange the strip, its hairline and the body for the current placement — [strip OVER body] for a
-		/// top rail, [strip BESIDE body] for a side rail — and hand the placement to the strip itself.
+		/// top rail, [strip BESIDE body] for a side rail — and hand the placement to the strip itself. The two
+		/// arrangements are VISUAL STATES declared in the XAML (PlacementStates); this only picks one.
 		/// </summary>
-		/// <remarks>
-		/// ⚠️ This is the ONLY place the three elements' Grid.Row/Column/Span are set; the XAML deliberately
-		/// pins none of them. Every value below is set on BOTH branches rather than only on the one that
-		/// needs it — these are attached properties on long-lived elements, so anything left unset would
-		/// keep whatever the other branch last wrote and the rail would come back half-rotated.
-		/// </remarks>
 		private void ApplyPlacement()
 		{
 			if (Strip is null) return; // called from the DP callback, which can precede InitializeComponent
 
 			var placement = PlacementOf(ViewModel?.SettingsTabPlacement);
 			Strip.Placement = placement;
-
-			if (placement == TabPlacement.Left)
-			{
-				Grid.SetRow(Strip, 0); Grid.SetColumn(Strip, 0);
-				Grid.SetRowSpan(Strip, 2); Grid.SetColumnSpan(Strip, 1);
-				Strip.Margin = new Thickness(10, 10, 0, 10);
-
-				Grid.SetRow(StripDivider, 0); Grid.SetColumn(StripDivider, 0);
-				Grid.SetRowSpan(StripDivider, 2); Grid.SetColumnSpan(StripDivider, 1);
-				StripDivider.Width = 1; StripDivider.Height = double.NaN;
-				StripDivider.HorizontalAlignment = HorizontalAlignment.Right;
-				StripDivider.VerticalAlignment = VerticalAlignment.Stretch;
-				StripDivider.Margin = new Thickness(0, 10, 0, 10);
-
-				Grid.SetRow(BodyHost, 0); Grid.SetColumn(BodyHost, 1);
-				Grid.SetRowSpan(BodyHost, 2); Grid.SetColumnSpan(BodyHost, 1);
-				BodyHost.Margin = new Thickness(16, 14, 16, 14);
-			}
-			else
-			{
-				Grid.SetRow(Strip, 0); Grid.SetColumn(Strip, 0);
-				Grid.SetRowSpan(Strip, 1); Grid.SetColumnSpan(Strip, 2);
-				Strip.Margin = new Thickness(12, 10, 12, 0);
-
-				Grid.SetRow(StripDivider, 0); Grid.SetColumn(StripDivider, 0);
-				Grid.SetRowSpan(StripDivider, 1); Grid.SetColumnSpan(StripDivider, 2);
-				StripDivider.Width = double.NaN; StripDivider.Height = 1;
-				StripDivider.HorizontalAlignment = HorizontalAlignment.Stretch;
-				StripDivider.VerticalAlignment = VerticalAlignment.Bottom;
-				StripDivider.Margin = new Thickness(12, 0, 12, 0);
-
-				Grid.SetRow(BodyHost, 1); Grid.SetColumn(BodyHost, 0);
-				Grid.SetRowSpan(BodyHost, 1); Grid.SetColumnSpan(BodyHost, 2);
-				BodyHost.Margin = new Thickness(16, 14, 16, 14);
-			}
+			VisualStateManager.GoToState(this, placement == TabPlacement.Left ? "TabsLeft" : "TabsTop", false);
 		}
 
 		// The dev tab is x:Load'd, so it does not exist when this window is constructed — its report events

@@ -68,13 +68,6 @@ namespace Anvil.Controls.Primitives
 	/// </summary>
 	public sealed partial class OverlayBar : UserControl
 	{
-		/// <summary>
-		/// How far a cast shadow reaches past the surface. It is BOTH the band's height and the negative
-		/// margin that hangs it outside, so it lives here rather than in the XAML - split across two files
-		/// the two halves drift, and the band starts reserving part of its own depth again.
-		/// </summary>
-		private const double CastShadowDepth = 14;
-
 		public OverlayBar()
 		{
 			InitializeComponent();
@@ -207,80 +200,30 @@ namespace Anvil.Controls.Primitives
 		private void ApplySurface() =>
 			VisualStateManager.GoToState(this, IsRaised ? "RaisedSurface" : "GroundSurface", false);
 
-		// Reposition the bar + tab for the current edge and shape. For a BOTTOM full-width labelled bar with
-		// a tab (the defaults) every value here equals the XAML default, so this is a no-op; the other
-		// combinations flip the geometry vertically and/or close the island's sides.
+		// Pick the chrome's states for the current edge and shape (the looks themselves are the XAML's — EdgeStates,
+		// CornerStates, RuleStates, PaddingStates, ShadowStates) and hand the tab its part. For a BOTTOM full-width
+		// hairline bar on the ground (the defaults) every state is the markup's own, so this is a no-op.
 		//
-		// WARNING: it is all ONE method on purpose. The knobs are not independent - the corner radius
-		// depends on edge AND island - so splitting them into separate handlers is how the states start
-		// disagreeing. Every branch sets every value.
+		// WARNING: it is all ONE method on purpose. The knobs are not independent - the corner radius depends on
+		// edge AND island - so picking them in separate handlers is how the states start disagreeing. Every call
+		// picks a state in every group.
 		private void ApplyChrome()
 		{
 			bool top = Edge == BarEdge.Top;
 			bool island = IsIsland;
-
-			// Row order: the Grid has row 0 above row 1. Bottom = tab(0) over bar(1); Top = bar(0) over tab(1).
-			Grid.SetRow(BarBorder, top ? 0 : 1);
-			Grid.SetRow(Tab, top ? 1 : 0);
-
-			// The bar's hairline always runs along the edge FACING THE TAB - which is still the right edge
-			// when there is no tab, because that is the edge the next tier (or the rail) sits against.
-			// ⚠️ A shadowed edge draws NO line at all: the two are alternatives, not layers. A hairline
-			// under a shadow reads as a seam someone forgot to finish.
 			bool shadowed = EdgeStyle != BarEdgeStyle.Hairline;
-			BarBorder.BorderThickness = shadowed
-				? new Thickness(0)
-				: top
-					? new Thickness(island ? 1 : 0, 0, island ? 1 : 0, 1)
-					: new Thickness(island ? 1 : 0, 1, island ? 1 : 0, 0);
-
-			// Only an island rounds anything, and only its two INNER corners - the ones away from the edge it
-			// is attached to. A full-width bar's corners are off-screen.
-			BarBorder.CornerRadius = island
-				? (top ? new CornerRadius(0, 0, 8, 8) : new CornerRadius(8, 8, 0, 0))
-				: new CornerRadius(0);
-
-			// Three paddings, and each answers a different question. An island sits over the map with a
-			// pane's worth of room, not a window's (the bar's 16,10 would make a notch noticeably taller
-			// over a quad pane). A RAISED tier is tighter than the bar it rests on because it is
-			// SUBORDINATE to it - at equal weight the two stop reading as a bar with a shelf on it and
-			// start reading as a bar that doubled in height.
-			BarBorder.Padding = island
-				? new Thickness(12, 6, 12, 6)
-				: IsRaised ? new Thickness(16, 7, 16, 7) : new Thickness(16, 10, 16, 10);
-
-			// ── The edge ────────────────────────────────────────────────────────────────────────────
-			// ⚠️ NEITHER BAND RESERVES LAYOUT. A CAST shadow shares the SURFACE's cell and hangs outside
-			// it on a negative margin; a RECEIVED one shares that cell and overlays the surface's own
-			// outward edge. A band that took space would hold apart two things meant to touch - which is
-			// exactly what the cast band did while it lived in the tab's row (see the ⚠⚠ in the XAML).
-			Grid.SetRow(CastShadow, top ? 0 : 1);
-			CastShadow.Height = CastShadowDepth;
-			CastShadow.VerticalAlignment = top ? VerticalAlignment.Bottom : VerticalAlignment.Top;
-			CastShadow.Margin = top
-				? new Thickness(0, 0, 0, -CastShadowDepth)
-				: new Thickness(0, -CastShadowDepth, 0, 0);
-			CastShadow.Background = Fade(top ? "ShadowFadeDown" : "ShadowFadeUp");
-
-			Grid.SetRow(InsetShadow, top ? 0 : 1);
-			InsetShadow.VerticalAlignment = top ? VerticalAlignment.Bottom : VerticalAlignment.Top;
-			InsetShadow.Background = Fade(top ? "ShadowFadeUp" : "ShadowFadeDown");
-
-			// The sides follow the surface, and only an island has any: a full-width bar's run off-window.
-			Grid.SetRow(SideShadowLeft, top ? 0 : 1);
-			Grid.SetRow(SideShadowRight, top ? 0 : 1);
-			SideShadowLeft.Background = Fade("ShadowFadeRight");   // darkest where it meets the island
-			SideShadowRight.Background = Fade("ShadowFadeLeft");
-
-			// ⚠️ A COLLAPSED BAR CASTS NOTHING. The shadow is thrown by the surface, so when the surface
-			// is hidden every band goes with it - otherwise hiding a tier leaves its shadow hanging over
-			// the map with no plate above it to explain the darkening.
 			bool lit = IsOverlayBarVisible;
-			bool casts = lit && EdgeStyle == BarEdgeStyle.CastShadow;
-			CastShadow.Visibility = casts ? Visibility.Visible : Visibility.Collapsed;
-			InsetShadow.Visibility = lit && EdgeStyle == BarEdgeStyle.InsetShadow ? Visibility.Visible : Visibility.Collapsed;
-			SideShadowLeft.Visibility = SideShadowRight.Visibility =
-				casts && island ? Visibility.Visible : Visibility.Collapsed;
+
+			VisualStateManager.GoToState(this, top ? "TopEdge" : "BottomEdge", false);
+			VisualStateManager.GoToState(this, !island ? "SquareCorners" : top ? "IslandTopCorners" : "IslandBottomCorners", false);
+			VisualStateManager.GoToState(this, shadowed ? "NoRule"
+				: top ? (island ? "RuleTopIsland" : "RuleTopFull")
+				: (island ? "RuleBottomIsland" : "RuleBottomFull"), false);
+			VisualStateManager.GoToState(this, island ? "IslandPadding" : IsRaised ? "RaisedPadding" : "GroundPadding", false);
+			VisualStateManager.GoToState(this, !lit ? "NoShadow"
+				: EdgeStyle == BarEdgeStyle.CastShadow ? (island ? "CastShadowIsland" : "CastShadowEdge")
+				: EdgeStyle == BarEdgeStyle.InsetShadow ? "InsetShadowEdge"
+				: "NoShadow", false);
 
 			// The tab: this bar's own, or none at all when the host draws it (see ShowTab).
 			// ⚠️ A tab wears the plate it STANDS ON, so a bar that draws its own hands it its own face.
@@ -291,17 +234,6 @@ namespace Anvil.Controls.Primitives
 			Tab.ShowLabel = ShowTabLabel;
 			Tab.Visibility = ShowTab ? Visibility.Visible : Visibility.Collapsed;
 		}
-
-		/// <summary>
-		/// One of the four shadow gradients from this control's own Resources.
-		/// </summary>
-		/// <remarks>
-		/// ⚠️ A C# resource lookup, and a SAFE one: these four are literal black and live in this
-		/// control's Resources, not in a ThemeDictionary, so unlike a theme brush they cannot come back
-		/// in the wrong theme. A shadow is the absence of light in either theme - only its STRENGTH is
-		/// themed, and that rides on each element's Opacity as a themed double.
-		/// </remarks>
-		private Brush? Fade(string key) => Resources[key] as Brush;
 
 		// x:Bind function mapping a bool to Visibility (no value-converter lookup needed).
 		public Visibility VisibleWhen(bool value) =>

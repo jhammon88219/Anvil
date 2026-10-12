@@ -58,6 +58,61 @@
 
     <!-- Dark surface fills the whole window. -->
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
+        <!-- THE TWO PLACEMENTS of the rail — [strip OVER body] for a top rail, [strip BESIDE body] for a side rail.
+             Each state sets the strip's, the hairline's and the body's Grid.Row/Column/Span and margins; the code-behind
+             only picks the state (ApplyPlacement). ⚠️ Every value is set in BOTH states: these are long-lived
+             elements, so anything one state left unset would keep whatever the other last wrote and the rail would
+             come back half-rotated. The markup below carries the TabsTop values, so the first paint is right too. -->
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="PlacementStates">
+                <VisualState x:Name="TabsTop">
+                    <VisualState.Setters>
+                        <Setter Target="Strip.(Grid.Row)" Value="0"/>
+                        <Setter Target="Strip.(Grid.Column)" Value="0"/>
+                        <Setter Target="Strip.(Grid.RowSpan)" Value="1"/>
+                        <Setter Target="Strip.(Grid.ColumnSpan)" Value="2"/>
+                        <Setter Target="Strip.Margin" Value="12,10,12,0"/>
+                        <Setter Target="StripDivider.(Grid.Row)" Value="0"/>
+                        <Setter Target="StripDivider.(Grid.Column)" Value="0"/>
+                        <Setter Target="StripDivider.(Grid.RowSpan)" Value="1"/>
+                        <Setter Target="StripDivider.(Grid.ColumnSpan)" Value="2"/>
+                        <Setter Target="StripDivider.Width" Value="Auto"/>
+                        <Setter Target="StripDivider.Height" Value="1"/>
+                        <Setter Target="StripDivider.HorizontalAlignment" Value="Stretch"/>
+                        <Setter Target="StripDivider.VerticalAlignment" Value="Bottom"/>
+                        <Setter Target="StripDivider.Margin" Value="12,0,12,0"/>
+                        <Setter Target="BodyHost.(Grid.Row)" Value="1"/>
+                        <Setter Target="BodyHost.(Grid.Column)" Value="0"/>
+                        <Setter Target="BodyHost.(Grid.RowSpan)" Value="1"/>
+                        <Setter Target="BodyHost.(Grid.ColumnSpan)" Value="2"/>
+                        <Setter Target="BodyHost.Margin" Value="16,14,16,14"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="TabsLeft">
+                    <VisualState.Setters>
+                        <Setter Target="Strip.(Grid.Row)" Value="0"/>
+                        <Setter Target="Strip.(Grid.Column)" Value="0"/>
+                        <Setter Target="Strip.(Grid.RowSpan)" Value="2"/>
+                        <Setter Target="Strip.(Grid.ColumnSpan)" Value="1"/>
+                        <Setter Target="Strip.Margin" Value="10,10,0,10"/>
+                        <Setter Target="StripDivider.(Grid.Row)" Value="0"/>
+                        <Setter Target="StripDivider.(Grid.Column)" Value="0"/>
+                        <Setter Target="StripDivider.(Grid.RowSpan)" Value="2"/>
+                        <Setter Target="StripDivider.(Grid.ColumnSpan)" Value="1"/>
+                        <Setter Target="StripDivider.Width" Value="1"/>
+                        <Setter Target="StripDivider.Height" Value="Auto"/>
+                        <Setter Target="StripDivider.HorizontalAlignment" Value="Right"/>
+                        <Setter Target="StripDivider.VerticalAlignment" Value="Stretch"/>
+                        <Setter Target="StripDivider.Margin" Value="0,10,0,10"/>
+                        <Setter Target="BodyHost.(Grid.Row)" Value="0"/>
+                        <Setter Target="BodyHost.(Grid.Column)" Value="1"/>
+                        <Setter Target="BodyHost.(Grid.RowSpan)" Value="2"/>
+                        <Setter Target="BodyHost.(Grid.ColumnSpan)" Value="1"/>
+                        <Setter Target="BodyHost.Margin" Value="16,14,16,14"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- title -->
             <RowDefinition Height="*"/>    <!-- strip + body -->
@@ -67,11 +122,10 @@
                    FontSize="15" FontWeight="SemiBold" CharacterSpacing="40"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
-        <!-- ⚠️ The strip, its hairline and the body are placed FROM CODE-BEHIND (ApplyPlacement), not here:
-             a top rail wants [strip over body] and a side rail wants [strip beside body], which is a
-             different Grid.Row/Column/Span for all three. That grid has BOTH an Auto row and an Auto column
-             so either arrangement fits without re-templating; the code-behind is the one place that knows
-             which is which. Do not pin Grid.Row/Column on these three in markup — it will be overwritten. -->
+        <!-- ⚠️ The strip, its hairline and the body are placed by the PlacementStates above: a top rail wants
+             [strip over body] and a side rail wants [strip beside body], which is a different Grid.Row/Column/Span
+             for all three. That grid has BOTH an Auto row and an Auto column so either arrangement fits without
+             re-templating. The values in markup here are TabsTop's (the first paint before a state is applied). -->
         <Grid x:Name="ContentHost" Grid.Row="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -82,9 +136,10 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- The rail. Placement is pushed by ApplyPlacement from the persisted setting; the right-click
+            <!-- The rail. Its placement state is picked by ApplyPlacement from the persisted setting; the right-click
                  flyout is what writes it. -->
             <ctl:TabStrip x:Name="Strip"
+                          Grid.ColumnSpan="2" Margin="12,10,12,0"
                           HorizontalAlignment="Left" VerticalAlignment="Top"
                           ItemsSource="{x:Bind Tabs}"
                           SelectedIndex="{x:Bind ViewModel.SettingsTabIndex, Mode=TwoWay}">
@@ -97,14 +152,15 @@
             </ctl:TabStrip>
 
             <!-- Hairline along the rail's inner edge, so the tabs read as a rail rather than as floating
-                 keys. Which edge is ApplyPlacement's call. -->
-            <Border x:Name="StripDivider"
+                 keys. Which edge is the placement state's call. -->
+            <Border x:Name="StripDivider" Grid.ColumnSpan="2" Height="1" Margin="12,0,12,0"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Bottom"
                     Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
             <!-- The body: a FIXED-width sections column, and the live map preview in the rest. BodyHost (not the
-                 ScrollViewer) is what ApplyPlacement positions. Tabs without a preview keep the same narrow
+                 ScrollViewer) is what the placement states position. Tabs without a preview keep the same narrow
                  column — the left edge and the column width never move as you switch tabs. -->
-            <Grid x:Name="BodyHost">
+            <Grid x:Name="BodyHost" Grid.Row="1" Grid.ColumnSpan="2" Margin="16,14,16,14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="400"/> <!-- ⚠️ THE sections column; the header sketch's width -->
                     <ColumnDefinition Width="*"/>
