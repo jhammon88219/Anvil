@@ -91,6 +91,7 @@ def load_run(path):
     """
     mem_retained, mem_heap, mem_frames, mem_cached, heap_limits = [], [], [], [], []
     decode_ms, timings = [], defaultdict(list)
+    timing_seen, site_timings = set(), defaultdict(list)
     fetch_ms, wait_ms, round_ms, vol_bytes = [], [], [], []
     frames_decoded = suspects = render_errors = render_blanks = 0
     pan_p50, pan_p95, pan_long, mk_attached, mk_shown = [], [], [], [], []
@@ -134,8 +135,14 @@ def load_run(path):
                     heap_limits.append(e["heapLimitMb"])
             elif cat == "timing":
                 which, sec = e.get("which"), e.get("sec")
-                if which and isinstance(sec, (int, float)):
+                # ⚠️ FIRST per session only. The app logs the milestone again on later events (a routine live
+                # update re-logs "live" minutes later), and a run left idle once read "first live frame 239 s".
+                key = (e.get("sid"), which)
+                if which and isinstance(sec, (int, float)) and key not in timing_seen:
+                    timing_seen.add(key)
                     timings[which].append(sec)
+                    if e.get("site"):
+                        site_timings[(e["site"], which)].append(sec)
             elif cat == "frame":
                 frames_decoded += 1
                 if e.get("suspect"):
@@ -194,6 +201,9 @@ def load_run(path):
         "_first_ts": first_ts,
         "_last_ts": last_ts,
         "_skipped": skipped,
+        # Per-SITE load timings ({"KDVN first": s, ...}). The pooled t_first/t_all medians mix every load in the run
+        # (the home site's live load beside the replays), so one missing load swings them; these compare like with like.
+        "_site_timings": {"{} {}".format(s, w): statistics.median(v) for (s, w), v in site_timings.items()},
         "peak_retained_mb": max(mem_retained) if mem_retained else None,
         "peak_heap_mb": max(mem_heap) if mem_heap else None,
         "heap_limit_mb": statistics.median(heap_limits) if heap_limits else None,
@@ -321,6 +331,21 @@ def print_compare(before_runs, after_runs):
             bcell += " +/-{:,.0f}".format((bhi - blo) / 2)
         arrow, v = verdict(bmed, amed, blo, bhi, direction, bn)
         print("  {:<26} {:>16} {:>16} {:>18}  {}".format(label, bcell, fmt(amed, unit), arrow, v))
+    # Per-site load timings: the like-for-like read of the load rows above (only sites loaded on BOTH sides).
+    keys = sorted(set().union(*(r["_site_timings"] for r in before_runs)) &
+                  set().union(*(r["_site_timings"] for r in after_runs)))
+    if keys:
+        print()
+        print("  {:<26} {:>16} {:>16} {:>18}  Verdict".format("Load, per site", "Before", "After", "Delta"))
+        print("  {} {} {} {}  {}".format("-" * 26, "-" * 16, "-" * 16, "-" * 18, "-" * 7))
+        for k in keys:
+            bvals = [r["_site_timings"][k] for r in before_runs if k in r["_site_timings"]]
+            avals = [r["_site_timings"][k] for r in after_runs if k in r["_site_timings"]]
+            bmed, blo, bhi = statistics.median(bvals), min(bvals), max(bvals)
+            amed = statistics.median(avals)
+            bcell = fmt(bmed, "s") + (" +/-{:,.1f}".format((bhi - blo) / 2) if len(bvals) >= 2 and blo != bhi else "")
+            arrow, v = verdict(bmed, amed, blo, bhi, -1, len(bvals))
+            print("  {:<26} {:>16} {:>16} {:>18}  {}".format(k, bcell, fmt(amed, "s"), arrow, v))
     print()
     print("  Verdicts: BETTER/WORSE = moved more than 2% AND outside the before-spread.")
     print("            noise = the after value sits inside the range the before runs already covered.")
