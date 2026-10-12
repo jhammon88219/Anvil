@@ -260,8 +260,15 @@ namespace Anvil.Controls.Primitives
 			{
 				return; // those have gestures of their own
 			}
+			// ⚠️ A DISABLED box is not hit-testable, so its tap lands on the header grid itself and the source
+			// test above misses it — the box's footprint is tested by POSITION instead, so clicking a greyed box
+			// never opens the section.
+			if (ShowCheckBox && IsOver(e.GetPosition(HeaderBox), HeaderBox)) { return; }
 			IsExpanded = !IsExpanded;
 		}
+
+		private static bool IsOver(Point p, FrameworkElement element) =>
+			p.X >= 0 && p.Y >= 0 && p.X <= element.ActualWidth && p.Y <= element.ActualHeight;
 
 		private static bool IsWithin(DependencyObject src, DependencyObject container)
 		{

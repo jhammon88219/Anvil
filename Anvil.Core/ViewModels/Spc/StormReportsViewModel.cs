@@ -78,17 +78,9 @@ namespace Anvil.ViewModels
 			set { if (SetProperty(ref _showHail, value)) { OnKindToggled(); } }
 		}
 
-		/// <summary>
-		/// Whether this section has a day to act on at all — always true in NowCast (today is always a day),
-		/// and in PastCast only once a replay window has been LOADED.
-		/// </summary>
-		/// <remarks>
-		/// ⚠️ It gates the controls, not just the readout: before a window is loaded there is no convective
-		/// day, so a type toggle would have nothing to fetch and nothing to draw.
-		/// ⚠️ It has to be a VM property rather than a host binding because this control is shared by BOTH
-		/// temporal windows, and the answer differs between them.
-		/// </remarks>
-		public bool IsReady => !_radar.IsPastEventMode || _radar.HasLoadedReplayWindow;
+		// ⚠️ NO READINESS GATE on the ticks (removed 2026-10-12, the user's call): they are a PREFERENCE, so they
+		// stay clickable in PastCast before a window is loaded. With no day, ApplyKinds → EnsureAndShowAsync just
+		// keeps the overlay empty; the next Load draws whatever is ticked.
 
 		/// <summary>Whether ANY type is switched on. False = nothing is drawn, so Opacity has nothing to act
 		/// on and the section's controls below the types are disabled — the same off-switch rule the
@@ -100,12 +92,10 @@ namespace Anvil.ViewModels
 
 		/// <summary>
 		/// The section header checkbox: ticks every type, unless all are already ticked, in which case it
-		/// clears them. A partial section goes to ALL on. No-op while <see cref="IsReady"/> is false, the
-		/// same gate the type rows carry.
+		/// clears them. A partial section goes to ALL on.
 		/// </summary>
 		public void ToggleAll()
 		{
-			if (!IsReady) { return; }
 			var on = AllShown != true;
 			// Fields, then ONE OnKindToggled — three setters would run three fetch/filter passes.
 			_showTornado = on;
@@ -327,7 +317,6 @@ namespace Anvil.ViewModels
 			if (e.PropertyName is nameof(RadarViewModel.IsPastEventMode)
 				or nameof(RadarViewModel.HasLoadedReplayWindow))
 			{
-				OnPropertyChanged(nameof(IsReady)); // both names change the answer
 				// Still deduped on the DAY: re-loading the same window, or a load whose window sits inside the
 				// convective day already showing, has nothing new to fetch.
 				if (_isMapReady && ActiveDay() != _loadedDay) { _ = EnsureAndShowAsync(); }

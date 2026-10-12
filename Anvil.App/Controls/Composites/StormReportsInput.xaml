@@ -108,7 +108,6 @@
                  ⚠️ The dot colours are the SPC report colours the map draws (storm-reports.js): tornado red,
                  wind blue, hail green. They are literals in both places — change one, change the other. -->
             <CheckBox Grid.Row="0" MinWidth="0" HorizontalAlignment="Stretch"
-                      IsEnabled="{x:Bind ViewModel.IsReady, Mode=OneWay}"
                       IsChecked="{x:Bind ViewModel.ShowTornado, Mode=TwoWay}"
                       ToolTipService.ToolTip="Show tornado reports">
                 <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
@@ -126,7 +125,6 @@
             </CheckBox>
 
             <CheckBox Grid.Row="1" MinWidth="0" HorizontalAlignment="Stretch"
-                      IsEnabled="{x:Bind ViewModel.IsReady, Mode=OneWay}"
                       IsChecked="{x:Bind ViewModel.ShowWind, Mode=TwoWay}"
                       ToolTipService.ToolTip="Show wind reports">
                 <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
@@ -144,7 +142,6 @@
             </CheckBox>
 
             <CheckBox Grid.Row="2" MinWidth="0" HorizontalAlignment="Stretch"
-                      IsEnabled="{x:Bind ViewModel.IsReady, Mode=OneWay}"
                       IsChecked="{x:Bind ViewModel.ShowHail, Mode=TwoWay}"
                       ToolTipService.ToolTip="Show hail reports">
                 <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">

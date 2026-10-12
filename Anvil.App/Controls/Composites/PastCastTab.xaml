@@ -529,7 +529,6 @@
              sections might not have one. -->
         <prim:PanelSection Header="Storm reports" LayerId="reports" Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
-                           IsCheckBoxEnabled="{x:Bind ViewModel.StormReports.IsReady, Mode=OneWay}"
                            IsChecked="{x:Bind ViewModel.StormReports.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnStormReportsHeaderClick"
                            CheckBoxToolTip="Show or hide every report type"
