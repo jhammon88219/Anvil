@@ -91,6 +91,7 @@ let siteCoords = {};              // id -> [lng, lat] (kept so the isolation fil
 // true site — so they stay findable/clickable at ALL zooms (never hidden). Operational NEXRAD keys never
 // move: they're the fixed obstacles the special keys route around. See docs/app-notes.md (Radar).
 let fanMap = null;                // the MapLibre map (project() + move/zoom events)
+let markerMap = null;             // the map the keys attach to (show's map) — applyVisibility re-adds to it
 let fanListeners = false;         // guard: attach the move/zoom/resize handlers exactly once
 let fanQueued = false;            // rAF debounce for the move handler
 let fanLast = [];                 // offset wrappers displaced last pass (reset before recomputing)
@@ -184,10 +185,18 @@ export function siteCoordinates() { return siteCoords; }
 // ── end SITE-REVEAL ──────────────────────────────────────────────────────────────────────────────
 
 // Re-apply THE VISIBILITY RULES to every marker — the ONE place a key's display is written.
+// ⚠️ A hidden key is DETACHED from the map, not just display:none: MapLibre repositions every ATTACHED marker
+// on every move frame, shown or not (perf audit 2026-10-12: ~190 updates and ~1.7 ms per pan frame with 49 of
+// 208 keys hidden). display stays written too — updateFan and stats() read it. Only a key whose visibility
+// CHANGED is attached/detached (addTo re-appends + positions it at once; remove keeps its element + listeners).
 function applyVisibility() {
     radarMarkerObjs.forEach(function (m) {
-        const id = m.getElement().dataset.siteId;
-        m.getElement().style.display = markerVisible(id) ? '' : 'none';
+        const el = m.getElement();
+        const visible = markerVisible(el.dataset.siteId);
+        el.style.display = visible ? '' : 'none';
+        const attached = !!el.parentNode;
+        if (visible && !attached && markerMap) m.addTo(markerMap);
+        else if (!visible && attached) m.remove();
     });
     updateFan(); // visibility changed which keys are on-screen — re-evaluate the collision fan
 }
@@ -260,9 +269,10 @@ function updateFan() {
     const specials = vis.filter(function (v) { return v.special; });
     if (specials.length === 0) { clearLines(); return; }
 
-    // Key box is uniform (4-char ICAOs); measure one live key once, then cache.
+    // Key box is uniform (4-char ICAOs); measure one live key once, then cache. ⚠️ A SHOWN one — hidden keys are
+    // detached (applyVisibility) and measure 0.
     if (!keyW) {
-        const sample = radarMarkerObjs.length ? radarMarkerObjs[0].getElement().querySelector('.radar-site-btn') : null;
+        const sample = vis[0].el.querySelector('.radar-site-btn');
         const r = sample ? sample.getBoundingClientRect() : null;
         if (r && r.width) { keyW = r.width; keyH = r.height; }
     }
@@ -337,6 +347,7 @@ function clearLines() { if (lineSvg) lineSvg.replaceChildren(); }
 // button is the styled key. The name posts radarSiteClick, the chevron radarSiteMenu.
 export function show(map, json) {
     const sites = (typeof json === 'string') ? JSON.parse(json) : json;
+    markerMap = map;
     radarMarkerObjs.forEach(function (m) { m.remove(); });
     radarMarkerObjs = [];
     radarMarkers = {};
@@ -379,7 +390,7 @@ export function show(map, json) {
         });
         const marker = new maplibregl.Marker({ element: el }).setLngLat([s.lng, s.lat]);
         timeMarkerUpdates(marker); // DEV (?perf=1 only) — see the measurement seam at the bottom
-        marker.addTo(map);
+        // NOT added here: applyVisibility (below) attaches only the keys that show.
         radarMarkerObjs.push(marker);
         radarMarkers[s.id] = btn; // state ops (selected/down/tooltip) target the inner button
     });
@@ -480,16 +491,17 @@ export function setOutOfEra(json) {
 // How many marker objects this module is holding, and how many of those are actually shown. Read only
 // by the dev pan probe, to stamp each frame-time sample with what was drawing during the gesture.
 //
-// ⚠️ `attached` vs `shown` is THE number the marker work is about: today every site is attached to the
-// map whether or not it is visible (hiding is a CSS display flip), so MapLibre reprojects all of them on
-// every move — attached == total, always, and turning markers off buys nothing. If hidden markers are
-// ever detached instead, `attached` starts tracking `shown`, and that gap closing IS the fix landing.
+// ⚠️ `attached` vs `shown` is THE number the marker work is about: MapLibre reprojects every ATTACHED marker
+// on every move. Hidden keys used to stay attached (a CSS display flip), so attached == total always; since
+// 2026-10-12 applyVisibility detaches them, so `attached` should equal `shown` — a gap means a leak.
 export function stats() {
-    let shown = 0;
+    let shown = 0, attached = 0;
     radarMarkerObjs.forEach(function (m) {
-        if (m.getElement().style.display !== 'none') shown++;
+        const el = m.getElement();
+        if (el.style.display !== 'none') shown++;
+        if (el.parentNode) attached++;
     });
-    return { attached: radarMarkerObjs.length, shown: shown };
+    return { attached: attached, shown: shown };
 }
 
 // What those attached markers COST during a gesture: every attached marker runs MapLibre's `_update` on every
