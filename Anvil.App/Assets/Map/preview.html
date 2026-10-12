@@ -23,28 +23,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Map preview</title>
     <link href="vendor/maplibre-gl.css" rel="stylesheet" />
-    <link href="theme.css" rel="stylesheet" />
+    <!-- The same theme sheets as map.html (see its STYLES note), this page's own shell, and the one
+         component it draws (the range rings' label handle — the knob). -->
+    <link href="styles/themes/anvil-dark.css" rel="stylesheet" />
+    <link href="styles/themes/anvil-light.css" rel="stylesheet" />
+    <link href="styles/pages/preview.css" rel="stylesheet" />
+    <link href="styles/components/radar-tools.css" rel="stylesheet" />
     <script>
         (function () {
             var t = new URLSearchParams(location.search).get('theme');
             if (t) document.documentElement.dataset.theme = t;
         })();
     </script>
-    <style>
-        html, body {
-            margin: 0;
-            height: 100%;
-            background: var(--anvil-ground);
-            overflow: hidden;
-        }
-        #map {
-            position: absolute;
-            inset: 0;
-        }
-    </style>
 </head>
 <body>
     <div id="map"></div>
+
+    <!-- ⚠️ A COPY of map.html's tpl-ring-knob: radar-scope.js clones it for the label handle, on both
+         pages. Change both. -->
+    <template id="tpl-ring-knob">
+        <div>
+            <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true">
+                <circle class="ring-knob-disc" cx="12" cy="12" r="7.5"/>
+                <circle class="ring-knob-dot" cx="12" cy="12" r="2.5"/>
+            </svg>
+        </div>
+    </template>
     <script src="vendor/maplibre-gl.js"></script>
     <script src="vendor/pmtiles.js"></script>
     <script type="module" src="js/preview.js"></script>

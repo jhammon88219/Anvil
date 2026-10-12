@@ -1,0 +1,91 @@
+/* ============================================================================================
+   styles/components/radar-tools.css — the radar's on-map TOOLS: the range ruler's knob, bead and
+   chip (js/radar-ruler.js), the range rings' distance-label handle (js/radar-scope.js), the Inspect
+   readout + mirrored crosshair (js/radar-inspect.js), and the site-reveal ring (js/site-reveal.js).
+   Markup: the tpl-ring-knob / tpl-ruler-bead / tpl-ruler-chip / tpl-inspect-* / tpl-reveal-ring
+   templates in map.html (preview.html carries its own copy of tpl-ring-knob).
+
+   ⚠️ --anvil-ruler-ink and --anvil-scope-ring can be OVERRIDDEN by the user (Settings → Radar → Range
+   ring & ruler): map.js setScopeColor writes them inline on :root. Everything here reads them through
+   var(), so the override reaches these elements with no rebuild.
+   ============================================================================================ */
+
+/* ── DRAG HANDLES — the ruler's knob, its bead, and the distance-label handle ──────────────────────
+   ⚠️ The ELEMENT gets the cursor and nothing else. MapLibre positions a marker by writing
+   `transform: translate(...)` on that element, so a transform transition (or a hover scale) there
+   animates/overrides its POSITION — the handle lagged and wobbled on every pan. */
+.radar-ruler-handle,
+.radar-ring-handle { cursor: grab; }
+.radar-ruler-handle:active,
+.radar-ring-handle:active { cursor: grabbing; }
+.radar-ruler-handle svg,
+.radar-ring-handle svg { display: block; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55)); }
+
+/* The knob (both "swing me round the ring" handles): an ink disc on a dark casing, casing-coloured dot.
+   Its SIZE is the svg's width/height, set from Settings → Knob size (setKnobSize / style.knob). */
+.ring-knob-disc { fill: var(--anvil-ruler-ink); stroke: var(--anvil-ruler-casing); stroke-width: 1.5; }
+.ring-knob-dot  { fill: var(--anvil-ruler-casing); }
+
+/* The bead: the point being measured — the one accent, so it never reads as another tick. */
+.ruler-bead-casing { fill: none; stroke: var(--anvil-ruler-casing); stroke-width: 4.5; }
+.ruler-bead-ink    { fill: none; stroke: var(--anvil-ruler-ink); stroke-width: 2; }
+.ruler-bead-core   { fill: var(--anvil-ruler-bead); }
+
+/* ── READOUT CHIPS — the ruler's chip (page-positioned) and Inspect's per-pane value box ─────────── */
+.radar-ruler-chip,
+.radar-inspect-tip {
+    position: absolute;
+    z-index: 20;
+    pointer-events: none;
+    display: none; /* JS shows it (display:block) once it has text and a spot */
+    font-family: "Segoe UI", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--anvil-readout-text);
+    background: var(--anvil-readout-bg);
+    border: 1px solid var(--anvil-readout-border);
+    border-radius: 4px;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .55);
+}
+.radar-ruler-chip  { line-height: 1.35; padding: 4px 8px; }
+.radar-inspect-tip { line-height: 1.3; padding: 3px 7px; }
+
+.radar-ruler-chip-sub   { font-weight: 400; opacity: .8; }
+.radar-ruler-chip-faint,
+.radar-ruler-chip-note  { font-weight: 400; opacity: .6; }
+/* Velocity's dealiasing breakdown under the value. */
+.radar-inspect-raw { font-size: 10px; font-weight: 400; opacity: .75; }
+
+/* ── INSPECT CROSSHAIR — mirrored into every pane the cursor is NOT in ───────────────────────────── */
+.radar-inspect-cross {
+    position: absolute;
+    z-index: 19;
+    pointer-events: none;
+    display: none; /* JS shows it at the mirrored point */
+    width: 17px;
+    height: 17px;
+    margin-left: -8.5px;
+    margin-top: -8.5px;
+}
+.radar-inspect-cross-bar {
+    position: absolute;
+    background: var(--anvil-readout-crosshair);
+    box-shadow: 0 0 2px rgba(0, 0, 0, .9);
+}
+.radar-inspect-cross-bar.h { left: 0; top: 8px; width: 17px; height: 1.5px; }
+.radar-inspect-cross-bar.v { left: 8px; top: 0; width: 1.5px; height: 17px; }
+
+/* ── SITE-REVEAL RING — dashed in the scope colour so it never reads as a radar's own range ring ──
+   JS sets only its size and translate (it follows the cursor) and shows/hides it. */
+.site-reveal-ring {
+    position: absolute;
+    left: 0;
+    top: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    display: none;
+    z-index: 2;
+    border: 1.5px dashed var(--anvil-scope-ring);
+    box-sizing: border-box;
+}

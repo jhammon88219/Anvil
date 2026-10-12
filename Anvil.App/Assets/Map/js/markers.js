@@ -40,49 +40,15 @@
 // the reticle's two colors (same casing trick) so the app's own marks share one palette.
 // ⚠️ NOT DRAGGABLE — a named place doesn't move. It is removed by clearing the search box (host side).
 
-import * as Theme from './theme.js';
+// The reticle and the pin are <template>s in map.html (tpl-user-loc, tpl-place-pin); their look — the
+// casing and ink strokes included — is styles/components/markers.css. CSS `stroke`/`fill` read the theme
+// variables directly, so a theme switch restyles both marks with no rebuild.
+import * as Templates from './templates.js';
 
 let userLocationMarker = null;
 let placeMarker = null;
 const USER_MARKER_ID = 'user'; // singleton; the host correlates drag/click by this fixed id
 const PLACE_MARKER_ID = 'place'; // singleton search pin; MarkersViewModel.PlaceMarkerId
-
-// ⚠️ The reticle is built from SVG presentation attributes, which can't read a CSS variable — so the
-// two colors come through theme.js. READ PER BUILD, not once into a module const: a const would latch
-// the palette that happened to be loaded at import time and never follow a theme change.
-
-function ensureUserLocationStyle() {
-    if (document.getElementById('user-location-style')) return;
-    const s = document.createElement('style');
-    s.id = 'user-location-style';
-    // The wrapper only sizes the hit area and centres the art; every stroke lives in the SVG below, so
-    // the whole look is one geometry rather than a stack of positioned divs.
-    // ⚠️ position:ABSOLUTE, never relative: this rule outranks MapLibre's .maplibregl-marker (same
-    // specificity, injected later). A relative marker sits in normal flow, so with a SECOND marker on the
-    // map one is pushed down by the other's height before MapLibre's transform — a fixed pixel offset that
-    // reads as the marker drifting geographically on every zoom.
-    s.textContent =
-        '.user-loc{position:absolute;width:36px;height:36px;cursor:grab;}' +
-        '.user-loc:active{cursor:grabbing;}' +
-        '.user-loc svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));}';
-    document.head.appendChild(s);
-}
-
-// The reticle, as one SVG string. Ring r=9 and ticks spanning radius 11 → 14.5 (a deliberate gap, so the
-// ticks read as standing OFF the ring rather than piercing it). Drawn twice: the white casing first at a
-// fat stroke, the blue over it — the same trick map labels use to stay legible on any ground.
-function reticleSvg() {
-    const ring = '<circle cx="18" cy="18" r="9"/>';
-    const ticks = '<path d="M18,7 V3.5 M18,29 V32.5 M7,18 H3.5 M29,18 H32.5"/>';
-    const casing = Theme.color('--anvil-marker-ring', '#ffffff');
-    const ink = Theme.color('--anvil-marker-reticle', '#2f8fff');
-    return '<svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">' +
-        '<g fill="none" stroke="' + casing + '" stroke-width="5.5" stroke-linecap="round">' + ring + ticks + '</g>' +
-        '<g fill="none" stroke="' + ink + '" stroke-width="2.5" stroke-linecap="round">' + ring + ticks + '</g>' +
-        '<circle cx="18" cy="18" r="4.5" fill="' + casing + '"/>' +
-        '<circle cx="18" cy="18" r="3" fill="' + ink + '"/>' +
-        '</svg>';
-}
 
 function postMarker(type, id, extra) {
     if (!(window.chrome && window.chrome.webview)) return;
@@ -94,12 +60,9 @@ function postMarker(type, id, extra) {
 // Place (or replace) the user-location marker at [lng, lat]. Draggable to refine: a dragend reports the new
 // position (host flags it "manual"); a click selects it (re-opens its editor if deselected).
 export function show(map, lng, lat, label) {
-    ensureUserLocationStyle();
     if (userLocationMarker) { userLocationMarker.remove(); userLocationMarker = null; }
-    const el = document.createElement('div');
-    el.className = 'user-loc';
+    const el = Templates.clone('tpl-user-loc');
     el.title = label || 'Your location';
-    el.innerHTML = reticleSvg();
     userLocationMarker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat([lng, lat]).addTo(map);
     userLocationMarker.on('dragend', function () {
         const p = userLocationMarker.getLngLat();
@@ -115,69 +78,20 @@ export function clear() {
     if (userLocationMarker) { userLocationMarker.remove(); userLocationMarker = null; }
 }
 
-// Redraw the reticle in place after a theme change, keeping the marker's position, draggability and
-// handlers. ⚠️ Needed because the two colors are BAKED INTO THE SVG MARKUP at build time — an SVG
-// presentation attribute can't read a CSS variable, so unlike everything styled by a rule, this one
-// does not re-cascade on its own. No-op when no marker is placed.
-export function refresh() {
-    if (userLocationMarker) {
-        const el = userLocationMarker.getElement();
-        if (el) el.innerHTML = reticleSvg();
-    }
-    if (placeMarker) {
-        const svgHost = placeMarker.getElement().querySelector('.place-pin-art');
-        if (svgHost) svgHost.innerHTML = pinSvg();
-    }
-}
+// Theme change. Nothing to redraw any more: both marks take their colours from CSS (markers.css), which
+// re-cascades on its own. Kept so map.js's theme pass (Markers.refresh) stays valid.
+export function refresh() { }
 
 // ── Search pin ──────────────────────────────────────────────────────────────────────────────────────
 
-function ensurePlaceStyle() {
-    if (document.getElementById('place-pin-style')) return;
-    const s = document.createElement('style');
-    s.id = 'place-pin-style';
-    // The chip is CSS, so it reads the theme variables directly and re-cascades on a theme switch; only the
-    // SVG art needs the refresh() rebuild. pointer-events:none on the chip keeps it from eating map drags.
-    // position:ABSOLUTE for the same reason as .user-loc (and it still anchors the absolute chip).
-    s.textContent =
-        '.place-pin{position:absolute;width:28px;height:38px;cursor:pointer;}' +
-        '.place-pin-art svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));}' +
-        '.place-pin-label{position:absolute;left:30px;top:5px;white-space:nowrap;pointer-events:none;' +
-        'font:500 12px/1.3 "Segoe UI",system-ui,sans-serif;padding:2px 7px;border-radius:4px;' +
-        'color:var(--anvil-place-label-text);background:var(--anvil-place-label-bg);' +
-        'border:1px solid var(--anvil-place-label-border);box-shadow:0 1px 3px rgba(0,0,0,.35);}';
-    document.head.appendChild(s);
-}
-
-// A teardrop whose tip sits on the coordinate (the marker is bottom-anchored): ink body in a casing
-// stroke, casing-colored eye. Stroke joins are round so the tip stays inside the 38px box.
-function pinSvg() {
-    const casing = Theme.color('--anvil-marker-ring', '#ffffff');
-    const ink = Theme.color('--anvil-marker-reticle', '#2f8fff');
-    return '<svg width="28" height="38" viewBox="0 0 28 38" aria-hidden="true">' +
-        '<path d="M14,36 C14,36 3,22.5 3,13.5 A11,11 0 1 1 25,13.5 C25,22.5 14,36 14,36 Z" fill="' + ink +
-        '" stroke="' + casing + '" stroke-width="2.5" stroke-linejoin="round"/>' +
-        '<circle cx="14" cy="13.5" r="4" fill="' + casing + '"/>' +
-        '</svg>';
-}
-
 // Place (or replace) the search pin at [lng, lat] with its name chip. A click selects it host-side.
 export function showPlace(map, lng, lat, label) {
-    ensurePlaceStyle();
     clearPlace();
-    const el = document.createElement('div');
-    el.className = 'place-pin';
+    const el = Templates.clone('tpl-place-pin');
     el.title = label || '';
-    const art = document.createElement('div');
-    art.className = 'place-pin-art';
-    art.innerHTML = pinSvg();
-    el.appendChild(art);
-    if (label) {
-        const chip = document.createElement('div');
-        chip.className = 'place-pin-label';
-        chip.textContent = label; // textContent, never innerHTML: the label is a place name from a geocoder
-        el.appendChild(chip);
-    }
+    const chip = el.querySelector('.place-pin-label');
+    // textContent, never innerHTML: the label is a place name from a geocoder. No label = no chip.
+    if (label) chip.textContent = label; else chip.remove();
     placeMarker = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([lng, lat]).addTo(map);
     el.addEventListener('click', function (ev) {
         ev.stopPropagation();

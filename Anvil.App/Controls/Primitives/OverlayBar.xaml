@@ -63,7 +63,7 @@
 
     <UserControl.Resources>
         <!-- ⚠️ THE SHADOW GRADIENTS ARE LITERAL BLACK, NOT THEME BRUSHES, and that is deliberate: a
-             shadow is the absence of light in any theme (the same rule theme.css states for the map
+             shadow is the absence of light in any theme (the same rule the map theme sheets state for the map
              page's drop shadows). Only their STRENGTH is themed, through OverlayBarShadowOpacity on
              each element — one number per theme instead of eight gradients.
              ⚠️ Because they carry no theme, ApplyChrome is allowed to pick between them in C#. That is

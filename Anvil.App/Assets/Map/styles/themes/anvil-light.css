@@ -1,0 +1,99 @@
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   styles/themes/anvil-light.css — overrides anvil-dark.css (the base :root) for theme=anvilLight.
+   Variables only, like every theme file; linked right after anvil-dark.css.
+
+   anvilLight — the light identity, over the Data Viz Light basemap (earth #e0e0e0, water #c1c1c1).
+
+   ⚠️ THE BASEMAP WAS DIMMED, NOT SWAPPED (2026-09-06). Its earth was #ffffff and the app read as blinding;
+   the map is most of the pixels, so no amount of chrome tuning fixes a white one. The style file itself was
+   scaled to a #e0e0e0 white point — see docs/theming.md for the transform and why a uniform scale was the
+   only safe one. ⚠️ Re-pointing this theme at Data Viz Grayscale was tried first and REVERTED: a theme and
+   its basemap are a named pair, and grayscale belongs to the AnvilGray identity that does not exist yet.
+   ⚠️ THREE VALUES BELOW ARE TIED TO THE BASEMAP, not to the word "light", and move whenever it does:
+   --anvil-ground, --anvil-state-water-fallback and --anvil-state-mask-outline.
+
+   ⚠️ THIS IS NOT "THE DARK VALUES, LIGHTENED". Several roles INVERT rather than lighten, because
+   what they encode is a relationship to the ground, not a brightness:
+     · the user-location reticle's casing is the fat outer stroke that separates the mark from the
+       map, the trick map labels use for legibility. White over a dark map; DARK over a light one.
+     · the Inspect readout and the storm-report popup are surfaces that must sit ON TOP of the map,
+       so they stay near-opaque and flip which end of the scale they sit at.
+   Roles that only ever needed more contrast against a bright ground (the ring, the state
+   hover) are DEEPER and more saturated here, not paler — a pale wash vanishes on white.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="anvilLight"] {
+    /* ── GROUND ─────────────────────────────────────────────────────────────────────────────── */
+    /* Just off the basemap's own earth (#e0e0e0) — a step DARKER, where the dark theme's ground is a step
+       lighter than its black earth. Either way it is a contrast step away from the map, so the gutters
+       between panes read as channels rather than as glare.
+       ⚠️ Must match AppTheme.GroundColor for "anvilLight". */
+    --anvil-ground: #d8d8d8;
+    --anvil-groove-edge: rgba(0, 0, 0, .14);
+
+    /* ── RADAR SITE KEYS ── the gray face/edge (--anvil-key-*) is NOT tuned for light yet (2026-10-12):
+       it inherits the dark values, a dark key on the light map. Only the leader line is set here. */
+    --anvil-leader: #5c6068;
+
+    /* ── RANGE RING ────────────────────────────────────────────────────────────────────────── */
+    /* Deeper and more saturated, not paler: the ring draws at 0.55 opacity, so the dark theme's
+       pale cyan would be invisible over white earth. */
+    --anvil-scope-ring: #0f7fb8;
+    --anvil-scope-vel: #c2410c;
+    --anvil-scope-dist: #4b5563;
+
+    /* ── RANGE RULER ────────────────────────────────────────────────────────────────────────── */
+    /* ⚠️ INVERTED, exactly as the location reticle's casing is: the casing exists to separate the
+       spoke from whatever is under it, so over pale earth it is the LIGHT half and the ink is dark. */
+    --anvil-ruler-ink: #12161a;
+    --anvil-ruler-casing: #ffffff;
+    --anvil-ruler-bead: #1668c9;
+
+    /* ── STATE ISOLATION ────────────────────────────────────────────────────────────────────── */
+    --anvil-state-hover: #1668c9;
+    /* ⚠️ MUST CONTRAST WITH THE MASK, WHICH IS THE WATER COLOUR — this line traces the isolated state's
+       border ON TOP of that fill, so it is read against the water and never against the land. Fine here
+       (#6a6a6a on #c1c1c1 water), and the dark theme has the same relationship inverted (a light #8a8a8a
+       line on its #1c1c1c mask). ⚠️ A FUTURE AnvilGray WILL NEED THIS DARKER: grayscale's water is #707070,
+       which this value all but disappears against. */
+    --anvil-state-mask-outline: #6a6a6a;
+    /* The style's own water, so the mask matches when the live read can't find the water layer.
+       ⚠️ Data Viz Light's water AFTER the dimming pass (#dcdcdc -> #c1c1c1). */
+    --anvil-state-water-fallback: #c1c1c1;
+
+    /* ── HIDDEN MAP ─────────────────────────────────────────────────────────────────────────── */
+    /* The basemap's own earth rather than the (darker) ground: blank here should read as paper. */
+    --anvil-map-blank: #e0e0e0;
+
+    /* ── USER LOCATION ──────────────────────────────────────────────────────────────────────── */
+    /* ⚠️ The casing INVERTS — it exists to separate the reticle from the map, so it is dark here. */
+    --anvil-marker-reticle: #1668c9;
+    --anvil-marker-ring: #1a1a1a;
+
+    /* ── SEARCH PIN LABEL ───────────────────────────────────────────────────────────────────── */
+    --anvil-place-label-text: #101010;
+    --anvil-place-label-bg: rgba(250, 250, 250, .92);
+    --anvil-place-label-border: rgba(0, 0, 0, .18);
+
+    /* ── INSPECT READOUT ────────────────────────────────────────────────────────────────────── */
+    --anvil-readout-text: #101010;
+    --anvil-readout-bg: rgba(250, 250, 250, .92);
+    --anvil-readout-border: rgba(0, 0, 0, .25);
+    --anvil-readout-crosshair: rgba(20, 20, 20, .9);
+
+    /* ── STORM REPORT POPUP ─────────────────────────────────────────────────────────────────── */
+    --anvil-popup-bg: rgba(252, 252, 253, 0.97);
+    --anvil-popup-text: #1a1a1a;
+    --anvil-popup-meta: #5a5a5a;
+    --anvil-popup-body: #333333;
+    --anvil-popup-close: #666666;
+
+    /* ── OUTLOOK CIG HATCHING ───────────────────────────────────────────────────────────────── */
+    /* Dark ink over the SPC fills, which are the same colors in both themes. */
+    --anvil-hatch-ink: rgba(30, 30, 30, 0.85);
+
+    /* ── OUTLOOK "NO RISK AREAS" SENTENCE ───────────────────────────────────────────────────── */
+    /* ⚠️ INVERTED like the ruler: dark words, light casing over pale earth. */
+    --anvil-outlook-note-text: #1a1a1a;
+    --anvil-outlook-note-halo: #ffffff;
+}

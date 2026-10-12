@@ -1,0 +1,17 @@
+/* ============================================================================================
+   styles/pages/preview.css — the preview.html page shell (the Settings window's map preview): one
+   full-bleed map on the theme's ground. Layout only; colours via var() from styles/themes/.
+   (Moved out of preview.html's inline <style>, 2026-10-12.)
+   ============================================================================================ */
+
+html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--anvil-ground);
+    overflow: hidden;
+}
+
+#map {
+    position: absolute;
+    inset: 0;
+}

@@ -63,11 +63,11 @@ let styleUrl = params.get('style') || 'https://mapassets/style.json';
 let tileMode = params.get('tiles') === 'online' ? 'online' : 'offline';
 let tileUrl = params.get('tilesUrl') || '';
 // ---- THEME ------------------------------------------------------------------------------------------
-// The app's visual identity, as an id matching a :root[data-theme="…"] block in theme.css (and an
+// The app's visual identity, as an id matching a :root[data-theme="…"] block in styles/themes/ (and an
 // AppTheme in the host's ThemeProvider). Applied IMMEDIATELY, at parse time — before MapLibre exists and
 // before the body paints — because --anvil-ground is the page's own background, and picking it up after
 // load would flash the other theme's ground. Same reason `conus` and `tiles` are params rather than a
-// post-ready push. A page with no param keeps theme.css's bare :root block.
+// post-ready push. A page with no param keeps anvil-dark.css's bare :root block.
 if (params.get('theme')) document.documentElement.dataset.theme = params.get('theme');
 // The RESOLVED style handed to new maps: the style OBJECT once patched (online), or just the style URL
 // (offline, where nothing needs patching). A pane created later reads this, so it matches its siblings.
@@ -374,7 +374,7 @@ try {
         window.applyStyle(styleUrl);
     };
     // Host command: switch the app's visual identity. `themeId` names a :root[data-theme="…"] block in
-    // theme.css; `url` is the basemap that identity owns (a theme owns its style, so the two move
+    // styles/themes/; `url` is the basemap that identity owns (a theme owns its style, so the two move
     // together and the host sends them as one command).
     //
     // ⚠️ ORDER IS THE WHOLE POINT OF THIS BEING ONE FUNCTION. The attribute must land BEFORE the style
@@ -860,11 +860,11 @@ try {
 
     // LOOP HOLDING GATE frosting: blur every pane (one filter on #panes, so DOM markers blur too) while the
     // host's loading screen is up — with the gate's dim on top, nothing on the map is readable. px <= 0 = sharp.
-    // The ease matches the gate's 0.3 s fade. ⚠️ The pane notches are WinUI, not page — they only get the dim.
+    // The ease is CSS (styles/pages/map.css, #panes) and matches the gate's 0.3 s fade. ⚠️ The pane notches are
+    // WinUI, not page — they only get the dim.
     window.setMapBlur = function (px) {
         var host = document.getElementById('panes');
         if (!host) return;
-        host.style.transition = 'filter 0.3s ease';
         host.style.filter = px > 0 ? 'blur(' + px + 'px)' : '';
     };
 
@@ -929,8 +929,10 @@ try {
         revealMap();
     });
 } catch (err) {
-    document.body.insertAdjacentHTML('beforeend',
-        '<div style="position:absolute;top:8px;left:8px;z-index:10;' +
-        'font:12px Segoe UI;background:#c00;color:#fff;padding:4px 8px;border-radius:4px;">' +
-        'JS error: ' + err.message + '</div>');
+    // <template id="tpl-boot-error"> (styles/pages/map.css). Built by hand from the template rather than through
+    // templates.js: this runs when the boot itself threw, so no module can be assumed to have loaded.
+    var tpl = document.getElementById('tpl-boot-error');
+    var banner = tpl ? tpl.content.firstElementChild.cloneNode(true) : document.createElement('div');
+    banner.textContent = 'JS error: ' + err.message;
+    document.body.appendChild(banner);
 }

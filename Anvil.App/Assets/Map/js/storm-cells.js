@@ -34,6 +34,8 @@
 // addLayers re-registers them every time (ensureImages).
 
 import { firstSymbolLayerId } from './layers.js';
+// The popup is a <template> in map.html; its look is styles/components/map-popups.css.
+import * as Templates from './templates.js';
 
 const SOURCE = 'storm-cell-src';
 const MESO_RANK = 5;          // ⚠️ mirrors StormCellThresholds.MesoRank
@@ -296,16 +298,10 @@ function addLayers(map) {
 
 // --- Popup ------------------------------------------------------------------------------------------
 
-function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
-}
-
 function pad2(n) { return (n < 10 ? '0' : '') + n; }
 function utcClock(ms) { const d = new Date(ms); return pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()); }
 
-function popupHtml(p) {
+function popupContent(p) {
     const tvs = p.tvs ? (p.tvs === 'ETVS' ? 'Elevated TVS' : 'TVS') : '';
     const chip = p.tvs ? TVS_RED : p.meso >= MESO_RANK ? MESO_YELLOW : p.posh >= SEVERE_POSH ? HAIL_CYAN : TRACK_WHITE;
     const lines = [];
@@ -317,32 +313,13 @@ function popupHtml(p) {
     if (core.length) lines.push(core.join(' · '));
     const motion = p.kt > 0 ? 'from ' + p.dir + '° at ' + p.kt + ' kt' : 'new cell, no motion yet';
     lines.push((p.top ? 'Top ' + p.top + ' kft · ' : '') + motion);
-    let html = '<div class="cell-popup-title"><span class="cell-popup-chip" style="background:' + chip + '"></span>'
-        + esc('Cell ' + p.id + (tvs ? ' · ' + tvs : '')) + '</div>';
-    html += '<div class="cell-popup-meta">' + lines.map(esc).join('<br>') + '</div>';
-    html += '<div class="cell-popup-src">Scan ' + esc(utcClock(p.t)) + ' UTC · ' + esc(p.site) + ' · NWS storm algorithms via IEM</div>';
-    return html;
-}
-
-function ensurePopupStyle() {
-    if (document.getElementById('cell-popup-style')) return;
-    // The popup SURFACE is chrome (theme.css vars, like the report and survey popups); the chip is data.
-    const css = [
-        '.cell-popup .maplibregl-popup-content{background:var(--anvil-popup-bg);color:var(--anvil-popup-text);',
-        'font:12px/1.45 "Segoe UI",system-ui,sans-serif;border-radius:8px;padding:9px 12px;',
-        'box-shadow:0 4px 16px rgba(0,0,0,0.5);max-width:300px;}',
-        '.cell-popup .maplibregl-popup-tip{border-top-color:var(--anvil-popup-bg);border-bottom-color:var(--anvil-popup-bg);}',
-        '.cell-popup .maplibregl-popup-close-button{color:var(--anvil-popup-close);font-size:15px;padding:0 4px;}',
-        '.cell-popup-title{font-weight:600;margin-bottom:3px;}',
-        '.cell-popup-chip{display:inline-block;width:10px;height:10px;border-radius:5px;margin-right:6px;',
-        'vertical-align:-1px;box-shadow:0 0 0 1px rgba(20,20,20,0.85);}',
-        '.cell-popup-meta{color:var(--anvil-popup-meta);}',
-        '.cell-popup-src{color:var(--anvil-popup-meta);font-size:10px;margin-top:5px;}'
-    ].join('');
-    const st = document.createElement('style');
-    st.id = 'cell-popup-style';
-    st.textContent = css;
-    document.head.appendChild(st);
+    // <template id="tpl-cell-popup">; the chip's colour is DATA (the cell's worst signal), the one inline value.
+    const el = Templates.clone('tpl-cell-popup');
+    el.querySelector('.map-popup-chip').style.background = chip;
+    Templates.text(el, '.map-popup-title-text', 'Cell ' + p.id + (tvs ? ' · ' + tvs : ''));
+    Templates.text(el, '.map-popup-meta', lines.join('\n')); // pre-line: one fact per line
+    Templates.text(el, '.map-popup-src', 'Scan ' + utcClock(p.t) + ' UTC · ' + p.site + ' · NWS storm algorithms via IEM');
+    return el;
 }
 
 function presentVisible(map, ids) {
@@ -358,10 +335,9 @@ function onClick(e) {
     if (!ids.length) return;
     const hits = map.queryRenderedFeatures(e.point, { layers: ids });
     if (!hits.length) return;
-    ensurePopupStyle();
-    if (!popup) popup = new maplibregl.Popup({ className: 'cell-popup', maxWidth: '300px' });
+    if (!popup) popup = new maplibregl.Popup({ className: 'map-popup map-popup-round-chip', maxWidth: '300px' });
     popup.remove(); // one popup across every pane
-    popup.setLngLat(hits[0].geometry.coordinates).setHTML(popupHtml(hits[0].properties)).addTo(map);
+    popup.setLngLat(hits[0].geometry.coordinates).setDOMContent(popupContent(hits[0].properties)).addTo(map);
 }
 
 function bindInteractions(map) {

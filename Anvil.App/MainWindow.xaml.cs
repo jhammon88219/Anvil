@@ -839,7 +839,7 @@ namespace Anvil
 			}
 		}
 
-		// "#RRGGBB" (the form theme.css uses, so the two halves of the ground color read alike) → a Color.
+		// "#RRGGBB" (the form the map theme sheets use, so the two halves of the ground color read alike) → a Color.
 		// ⚠️ Falls back to BLACK rather than throwing: this runs on the WebView bootstrap, and a malformed
 		// value should cost a slightly-wrong flash frame, never the map.
 		private static Windows.UI.Color ParseGroundColor(string hex)
@@ -885,7 +885,7 @@ namespace Anvil
 		{
 			// The theme's ground, so there's no flash before the page (and MapLibre) paint.
 			// ⚠️ This is ALSO what a DEAD renderer paints — see OnWebViewProcessFailed.
-			// ⚠️ The page paints the same color from --anvil-ground in theme.css. C# can't read the page's
+			// ⚠️ The page paints the same color from --anvil-ground in styles/themes/. C# can't read the page's
 			// CSS, so the value is written in both places and AppTheme.GroundColor is the C# half.
 			webView.DefaultBackgroundColor = ParseGroundColor(ViewModel.SelectedTheme.GroundColor);
 

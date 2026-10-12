@@ -135,8 +135,14 @@
     <Content Update="Assets\Map\map.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <!-- The chrome palette map.html links FIRST. Every color the page draws that isn't data. -->
-    <Content Include="Assets\Map\theme.css">
+    <!-- Every stylesheet the map pages link: themes/ (the palettes), pages/ (each page's shell),
+         components/ (one per on-map component). ONE glob, so a new sheet ships without touching this file.
+         (The old theme.css needed an explicit Include too; a sheet left out of Content is silently missing.) -->
+    <Content Include="Assets\Map\styles\**\*.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- Clones the pages' <template>s — every module that draws a UI component imports it. -->
+    <Content Update="Assets\Map\js\templates.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Update="Assets\Map\js\theme.js">

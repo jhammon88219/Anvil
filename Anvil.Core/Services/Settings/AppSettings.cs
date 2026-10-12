@@ -702,7 +702,7 @@ namespace Anvil.Services
 		}
 
 		private string _velocityRingColor = Models.ScopeColors.ThemeDefault;
-		/// <summary>The velocity ring's colour; empty = theme.css <c>--anvil-scope-vel</c>.</summary>
+		/// <summary>The velocity ring's colour; empty = the map theme's <c>--anvil-scope-vel</c>.</summary>
 		public string VelocityRingColor
 		{
 			get => _velocityRingColor;
@@ -710,7 +710,7 @@ namespace Anvil.Services
 		}
 
 		private string _distanceRingColor = Models.ScopeColors.ThemeDefault;
-		/// <summary>The distance rings' colour; empty = theme.css <c>--anvil-scope-dist</c>.</summary>
+		/// <summary>The distance rings' colour; empty = the map theme's <c>--anvil-scope-dist</c>.</summary>
 		public string DistanceRingColor
 		{
 			get => _distanceRingColor;

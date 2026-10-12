@@ -1,0 +1,45 @@
+/* ============================================================================================
+   styles/components/markers.css — the user-location RETICLE and the search PIN (js/markers.js).
+   Markup: <template id="tpl-user-loc"> and <template id="tpl-place-pin"> in map.html.
+
+   Both marks are drawn twice — a fat CASING stroke underneath, the INK on top — the trick map labels
+   use to stay legible on any ground. The colours are CSS here (stroke/fill read var()), so a theme
+   switch restyles them with no rebuild; the SVG markup carries geometry only.
+   ============================================================================================ */
+
+/* ⚠️ position:ABSOLUTE, never relative: this rule outranks MapLibre's .maplibregl-marker (same
+   specificity, linked later). A relative marker sits in normal flow, so with a SECOND marker on the
+   map one is pushed down by the other's height before MapLibre's transform — a fixed pixel offset that
+   reads as the marker drifting geographically on every zoom. */
+.user-loc { position: absolute; width: 36px; height: 36px; cursor: grab; }
+.user-loc:active { cursor: grabbing; }
+.user-loc svg { display: block; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55)); }
+
+/* The reticle: ring r=9 + four ticks standing off it, a collared core. */
+.user-loc-casing { fill: none; stroke: var(--anvil-marker-ring); stroke-width: 5.5; stroke-linecap: round; }
+.user-loc-ink    { fill: none; stroke: var(--anvil-marker-reticle); stroke-width: 2.5; stroke-linecap: round; }
+.user-loc-collar { fill: var(--anvil-marker-ring); }
+.user-loc-core   { fill: var(--anvil-marker-reticle); }
+
+/* ── The search pin ── a teardrop whose tip sits on the coordinate (the marker is bottom-anchored). */
+.place-pin { position: absolute; width: 28px; height: 38px; cursor: pointer; }
+.place-pin-art svg { display: block; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55)); }
+/* Stroke joins are round so the tip stays inside the 38px box. */
+.place-pin-body { fill: var(--anvil-marker-reticle); stroke: var(--anvil-marker-ring); stroke-width: 2.5; stroke-linejoin: round; }
+.place-pin-eye  { fill: var(--anvil-marker-ring); }
+
+/* The name chip. pointer-events:none keeps it from eating map drags. */
+.place-pin-label {
+    position: absolute;
+    left: 30px;
+    top: 5px;
+    white-space: nowrap;
+    pointer-events: none;
+    font: 500 12px/1.3 "Segoe UI", system-ui, sans-serif;
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: var(--anvil-place-label-text);
+    background: var(--anvil-place-label-bg);
+    border: 1px solid var(--anvil-place-label-border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+}

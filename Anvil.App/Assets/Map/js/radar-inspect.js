@@ -37,6 +37,8 @@
 // that replaces the `!Geo` guard lookupValue used to carry.
 
 import * as Geo from './geo.js';
+// The readout box and the crosshair are <template>s in map.html (tpl-inspect-tip, tpl-inspect-cross).
+import * as Templates from './templates.js';
 
 const GRID_NODATA = -32768; // matches radar-decode.js buildGrid sentinel
 
@@ -60,19 +62,14 @@ export function isOn() { return inspecting; }
 // coordinates, the same space as map.project, and it clips at the pane's edge like the cross does).
 function ensureTipEl(v) {
     if (v.tipEl && v.tipEl.isConnected) return v.tipEl;
-    const el = document.createElement('div');
-    el.className = 'radar-inspect-tip';
-    el.style.cssText = 'position:absolute;z-index:20;pointer-events:none;display:none;' +
-        'font:600 12px/1.3 "Segoe UI",sans-serif;color:var(--anvil-readout-text);' +
-        'background:var(--anvil-readout-bg);' +
-        'border:1px solid var(--anvil-readout-border);border-radius:4px;padding:3px 7px;white-space:nowrap;' +
-        'box-shadow:0 1px 4px rgba(0,0,0,.55);';
+    const el = Templates.clone('tpl-inspect-tip');
     v.map.getContainer().appendChild(el);
     v.tipEl = el;
     return el;
 }
 function hideTip(v) { if (v.tipEl) v.tipEl.style.display = 'none'; }
-function tipShown(v) { return !!(v.tipEl && v.tipEl.style.display !== 'none'); }
+// Shown = display:block set by fillTip (the template starts hidden by its CSS, with no inline display).
+function tipShown(v) { return !!(v.tipEl && v.tipEl.style.display === 'block'); }
 
 const TIP_OFFSET = 14;          // px from the point to the box's near corner (the old tooltip's offset)
 
@@ -88,21 +85,11 @@ function placeTip(v, pt) {
     el.style.top = y + 'px';
 }
 
-// The mirrored crosshair drawn in every pane the cursor is NOT in. Built from two child bars rather
-// than a stylesheet rule, so the whole thing is inline and this module still injects no CSS (the one
-// place that does — radar-sites.js — is a template-literal minefield we don't need to join).
+// The mirrored crosshair drawn in every pane the cursor is NOT in: <template id="tpl-inspect-cross">, two
+// bars (styles/components/radar-tools.css).
 function ensureCrossEl(v) {
     if (v.crossEl && v.crossEl.isConnected) return v.crossEl;
-    const el = document.createElement('div');
-    el.className = 'radar-inspect-cross';
-    el.style.cssText = 'position:absolute;z-index:19;pointer-events:none;display:none;' +
-        'width:17px;height:17px;margin-left:-8.5px;margin-top:-8.5px;';
-    const bar = 'position:absolute;background:var(--anvil-readout-crosshair);box-shadow:0 0 2px rgba(0,0,0,.9);';
-    const h = document.createElement('div');
-    h.style.cssText = bar + 'left:0;top:8px;width:17px;height:1.5px;';
-    const w = document.createElement('div');
-    w.style.cssText = bar + 'left:8px;top:0;width:1.5px;height:17px;';
-    el.appendChild(h); el.appendChild(w);
+    const el = Templates.clone('tpl-inspect-cross');
     v.map.getContainer().appendChild(el);
     v.crossEl = el;
     return el;
@@ -214,13 +201,10 @@ function fillTip(v, r) {
     // value is what the radar measured (within ±Nyquist), recovered by removing the whole
     // 2×Nyquist folds the dealiaser added. Lets the user confirm high velocities at a glance.
     const vel = velocityFold(r.value, v.product);
-    if (vel) {
-        el.innerHTML = '<div>' + main + '</div>' +
-            '<div style="font-size:10px;opacity:.75;font-weight:400">raw ' + vel.raw.toFixed(0) +
-            ' · Nyq ' + vel.nyq.toFixed(0) + ' · ' + vel.foldLabel + '</div>';
-    } else {
-        el.textContent = main;
-    }
+    el.querySelector('.radar-inspect-main').textContent = main;
+    const raw = el.querySelector('.radar-inspect-raw');
+    raw.textContent = vel ? 'raw ' + vel.raw.toFixed(0) + ' · Nyq ' + vel.nyq.toFixed(0) + ' · ' + vel.foldLabel : '';
+    raw.hidden = !vel;
     el.style.display = 'block';
 }
 

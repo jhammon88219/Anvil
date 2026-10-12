@@ -1,0 +1,110 @@
+/* ============================================================================================
+   styles/pages/map.css — the map.html page shell: the pane grid, the groove, the launch cover.
+   LAYOUT ONLY — every colour is a var() from styles/themes/. Keep a literal color out of here.
+   (Moved out of map.html's inline <style>, 2026-10-12.)
+   ============================================================================================ */
+
+html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--anvil-ground);
+    overflow: hidden;
+}
+
+/* ===== PANE GRID =====
+   The page hosts ONE MapLibre map per pane (map.js owns them). The pane divs are STATIC so a
+   map's container always exists before the map is constructed; map.js positions and shows the
+   ones the current layout uses and hides the rest. Layouts: 1x1, 2x1 (side by side), 2x2.
+   Two-pane is side-by-side only — there is deliberately no stacked variant. */
+#panes {
+    position: absolute;
+    inset: 0;
+}
+
+.pane {
+    position: absolute;
+    background: var(--anvil-ground);
+    display: none; /* map.js shows the panes the layout uses */
+}
+
+/* Single-pane is the launch layout, so pane 0 starts full-bleed and visible — the map paints
+   without waiting for a layout round-trip. */
+#pane0 {
+    inset: 0;
+    display: block;
+}
+
+/* ===== THE GROOVE =====
+   Panes are separated by a dark channel with a hairline on EACH side, not a single drawn line.
+   Two reasons it is a groove: a lone hairline gets lost over bright radar returns, and a lone
+   dark gap disappears between two dark panes — the pair reads over both. The hairline is the
+   app's CardStrokeColorDefaultSolidBrush, the same edge the OverlayBar draws; a ThemeResource
+   can't reach in here, so the theme file carries the value (--anvil-groove-edge).
+   ⚠️ It used to be a literal, justified as "the map band is always dark regardless of app
+   theme" — which stopped being true the moment the basemap became the theme's choice.
+   Non-interactive: the panes are positioned with the gap already subtracted, so these divs are
+   pure decoration over ground no map occupies. */
+.gutter {
+    position: absolute;
+    background: var(--anvil-ground);
+    pointer-events: none;
+    box-sizing: border-box;
+    display: none; /* map.js shows the ones the layout needs */
+}
+
+.gutter.v {
+    border-left: 1px solid var(--anvil-groove-edge);
+    border-right: 1px solid var(--anvil-groove-edge);
+}
+
+.gutter.h {
+    border-top: 1px solid var(--anvil-groove-edge);
+    border-bottom: 1px solid var(--anvil-groove-edge);
+}
+
+/* NB: a pane's NOTCH (product selector + colour ramp + tilt) is not styled here — it is a XAML
+   control overlaid on the WebView (see the header comment), so it can be edited under XAML Hot
+   Reload and picks up the app's theme brushes. */
+
+/* Opaque dark cover over the map until the launch mask (CONUS) is applied. Without it the world
+   basemap (Canada/Mexico/oceans) paints on first 'load' and shows for ~½s before the mask lands
+   via the host round-trip — the flash. map.js fades this out once the initial mask is on screen
+   (or immediately when no isolation is requested). Consistent with the dark, no-flash launch. */
+#mapcover {
+    position: absolute;
+    inset: 0;
+    background: var(--anvil-ground);
+    z-index: 5;
+    transition: opacity 0.25s ease-out;
+}
+
+#mapcover.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* The LOOP HOLDING GATE frosting: map.js setMapBlur sets the blur amount on #panes; the ease is here and
+   matches the gate's 0.3 s fade. */
+#panes {
+    transition: filter 0.3s ease;
+}
+
+/* ⚠️ `hidden` must win over a component's own display rule: templates.js text() hides a line with nothing
+   to say by setting the attribute, and a class with `display:` would otherwise outrank the UA rule. */
+[hidden] {
+    display: none !important;
+}
+
+/* The boot failure banner (<template id="tpl-boot-error">): shown only when map.js's boot throws.
+   Literal colours on purpose — it must read even when the theme sheets are what failed. */
+.boot-error {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 10;
+    font: 12px "Segoe UI", sans-serif;
+    background: #c00;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+}

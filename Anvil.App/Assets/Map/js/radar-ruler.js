@@ -99,6 +99,8 @@ import * as Geo from './geo.js';
 // ⚠️ Every Theme.color() passes a fallback: an empty colour string throws inside a MapLibre paint
 // property, which aborts the frame and blanks every layer above it.
 import * as Theme from './theme.js';
+// The handles and the chip are <template>s in map.html — see "Handles + chip" below.
+import * as Templates from './templates.js';
 
 const SRC = 'radar-ruler';
 const CASING_LAYER = 'radar-ruler-casing', LINE_LAYER = 'radar-ruler-line', LABEL_LAYER = 'radar-ruler-labels';
@@ -311,43 +313,26 @@ function removeLayers(v) {
 }
 
 // ---- Handles + chip (primary pane only) ------------------------------------------------------------
-// Both handles bake their colours into SVG markup, so a theme or colour change can't re-cascade them —
-// refresh() re-renders both, the way markers.js does for the reticle.
-// ⚠️ radar-scope.js handleSvg() (the distance-label handle) is a deliberate COPY of this — change both. The
+// Both handles and the chip are <template>s in map.html (tpl-ring-knob, tpl-ruler-bead, tpl-ruler-chip);
+// their look is styles/components/radar-tools.css, whose fill/stroke read the theme variables — so a theme
+// switch or a Settings colour change (setScopeColor writes --anvil-ruler-ink inline on :root) restyles
+// them on its own. Only the MapLibre LAYERS need refresh() (paint properties can't read var()).
+// ⚠️ The knob template is SHARED with radar-scope.js's distance-label handle — one control, one look. The
 // SIZE is shared too (Settings → Radar Range Ring → Knob size → setKnobSize); the 24-unit viewBox scales.
 let knobPx = 32;
-function knobSvg() {
-    const casing = casingColor(), ink = inkColor();
-    return '<svg width="' + knobPx + '" height="' + knobPx + '" viewBox="0 0 24 24" aria-hidden="true">' +
-        '<circle cx="12" cy="12" r="7.5" fill="' + ink + '" stroke="' + casing + '" stroke-width="1.5"/>' +
-        '<circle cx="12" cy="12" r="2.5" fill="' + casing + '"/></svg>';
+function knobEl() {
+    const el = Templates.clone('tpl-ring-knob');
+    el.classList.add('radar-ruler-handle');
+    sizeKnob(el);
+    return el;
+}
+function sizeKnob(el) {
+    const svg = el.querySelector('svg');
+    svg.setAttribute('width', knobPx);
+    svg.setAttribute('height', knobPx);
 }
 
-function beadSvg() {
-    const casing = casingColor(), ink = inkColor();
-    const core = Theme.color('--anvil-ruler-bead', '#4aa8ff');
-    return '<svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">' +
-        '<circle cx="13" cy="13" r="8" fill="none" stroke="' + casing + '" stroke-width="4.5"/>' +
-        '<circle cx="13" cy="13" r="8" fill="none" stroke="' + ink + '" stroke-width="2"/>' +
-        '<circle cx="13" cy="13" r="4" fill="' + core + '"/></svg>';
-}
-
-function ensureHandleStyle() {
-    if (document.getElementById('radar-ruler-style')) return;
-    const s = document.createElement('style');
-    s.id = 'radar-ruler-style';
-    s.textContent =
-        '.radar-ruler-handle{cursor:grab;}' +
-        '.radar-ruler-handle:active{cursor:grabbing;}' +
-        '.radar-ruler-handle svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));}';
-    document.head.appendChild(s);
-}
-
-function makeHandle(map, lngLat, svg, onDrag) {
-    ensureHandleStyle();
-    const el = document.createElement('div');
-    el.className = 'radar-ruler-handle';
-    el.innerHTML = svg;
+function makeHandle(map, lngLat, el, onDrag) {
     const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(lngLat).addTo(map);
     // 'drag' rather than 'dragend': the spoke and the numbers follow the finger. Each handler ends in a
     // rebuild, which snaps the marker back onto its constraint (the ring, or the axis) — that is what
@@ -358,15 +343,9 @@ function makeHandle(map, lngLat, svg, onDrag) {
 
 function ensureChip() {
     if (chip && chip.isConnected) return chip;
-    const el = document.createElement('div');
-    el.id = 'radar-ruler-chip';
-    el.style.cssText = 'position:absolute;z-index:20;pointer-events:none;display:none;' +
-        'font:600 12px/1.35 "Segoe UI",sans-serif;color:var(--anvil-readout-text);' +
-        'background:var(--anvil-readout-bg);border:1px solid var(--anvil-readout-border);' +
-        'border-radius:4px;padding:4px 8px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.55);';
-    document.body.appendChild(el);
-    chip = el;
-    return el;
+    chip = Templates.clone('tpl-ruler-chip');
+    document.body.appendChild(chip);
+    return chip;
 }
 
 function drawChip(v, f, sp) {
@@ -375,23 +354,20 @@ function drawChip(v, f, sp) {
     const el = ensureChip();
     const p = map.project(along(f, sp, beadMeters));
     const rect = map.getContainer().getBoundingClientRect();
-    const sub = function (t) { return '<div style="font-weight:400;opacity:.8">' + t + '</div>'; };
-    const faint = function (t) { return '<div style="font-weight:400;opacity:.6">' + t + '</div>'; };
-
-    let html = '<div>' + fmtChipDistance(beadMeters) + ' · ' + fmtAz(azRad) +
-        (fromLocation() ? ' from you' : '') + '</div>';
-    html += sp.hits
-        ? sub(fmtChipDistance(Math.max(0, sp.len - beadMeters)) + ' to the ring')
-        : sub('this bearing misses the coverage');
+    Templates.text(el, '.radar-ruler-chip-main', fmtChipDistance(beadMeters) + ' · ' + fmtAz(azRad) +
+        (fromLocation() ? ' from you' : ''));
+    Templates.text(el, '.radar-ruler-chip-sub', sp.hits
+        ? fmtChipDistance(Math.max(0, sp.len - beadMeters)) + ' to the ring'
+        : 'this bearing misses the coverage');
     if (fromLocation()) {
         // Where the radar is, from you: the site is the frame's origin, so it is simply −o.
         const d = Math.sqrt(sp.o[0] * sp.o[0] + sp.o[1] * sp.o[1]);
-        html += faint('site ' + fmtChipDistance(d) + ' · ' + fmtAz(Math.atan2(-sp.o[0], -sp.o[1])) + ' from you');
+        Templates.text(el, '.radar-ruler-chip-faint', 'site ' + fmtChipDistance(d) + ' · ' + fmtAz(Math.atan2(-sp.o[0], -sp.o[1])) + ' from you');
+        Templates.text(el, '.radar-ruler-chip-note', '');
     } else {
-        html += faint('ring ' + fmtChipDistance(radius()));
-        if (anchor.wanted) html += faint('no location set — measuring from the site');
+        Templates.text(el, '.radar-ruler-chip-faint', 'ring ' + fmtChipDistance(radius()));
+        Templates.text(el, '.radar-ruler-chip-note', anchor.wanted ? 'no location set — measuring from the site' : '');
     }
-    el.innerHTML = html;
     el.style.display = 'block';
     el.style.left = (rect.left + p.x + 18) + 'px';
     el.style.top = (rect.top + p.y + 14) + 'px';
@@ -404,14 +380,14 @@ function positionHandles(f, sp) {
     if (!v || !v.map) return;
     const knobAt = along(f, sp, sp.len), beadAt = along(f, sp, beadMeters);
     if (!knob) {
-        knob = makeHandle(v.map, knobAt, knobSvg(), function (ll) {
+        knob = makeHandle(v.map, knobAt, knobEl(), function (ll) {
             // KNOB: azimuth only. The range it was dragged to is discarded — rebuild puts it back on the ring.
             azRad = polarFromOrigin(ll).az;
             rebuild();
         });
     } else knob.setLngLat(knobAt);
     if (!bead) {
-        bead = makeHandle(v.map, beadAt, beadSvg(), function (ll) {
+        bead = makeHandle(v.map, beadAt, Templates.clone('tpl-ruler-bead'), function (ll) {
             // BEAD: takes BOTH; rebuild clamps it to the spoke — you cannot measure past where the data stops.
             const polar = polarFromOrigin(ll);
             azRad = polar.az;
@@ -486,11 +462,11 @@ export function setEnabled(enabled) {
 // re-extends to it; a bead now beyond the data is pulled back onto it by rebuild().
 export function rangeChanged() { if (on) rebuild(); }
 
-// The knob's size in px (shared with the distance-label handle — see knobSvg). Clamped like the host's.
+// The knob's size in px (shared with the distance-label handle — see knobEl). Clamped like the host's.
 export function setKnobSize(px) {
     const n = Number(px);
     knobPx = isFinite(n) ? Math.min(48, Math.max(20, Math.round(n))) : 32;
-    if (knob) knob.getElement().innerHTML = knobSvg();
+    if (knob) sizeKnob(knob.getElement());
 }
 
 // Host changed the distance unit. Labels and the chip are rebuilt; nothing about the geometry moves.
@@ -529,11 +505,9 @@ export function detachView(v) {
     if (v && boundMap === v.map) { unbindMap(); clearHandles(); }
 }
 
-// Re-read the colours after a theme switch or a Settings colour change: the handles bake theirs into SVG
-// markup, and the live layers hold theirs as paint properties — neither re-cascades from the CSS on its own.
+// Re-read the colours after a theme switch or a Settings colour change: the live layers hold theirs as paint
+// properties, which don't re-cascade from the CSS on their own. (The handles and chip are CSS — they do.)
 export function refresh() {
-    if (knob) knob.getElement().innerHTML = knobSvg();
-    if (bead) bead.getElement().innerHTML = beadSvg();
     if (!host) return;
     const ink = inkColor(), casing = casingColor();
     host.forEachView(function (v) {

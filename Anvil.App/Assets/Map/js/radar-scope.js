@@ -54,6 +54,8 @@ import * as Geo from './geo.js';
 // ⚠️ Each read passes a fallback: an empty color string throws inside render, which aborts the frame
 // and blanks every layer above the radar.
 import * as Theme from './theme.js';
+// The label handle is a <template> (tpl-ring-knob) — see "The label handle" below.
+import * as Templates from './templates.js';
 
 const RANGE_SRC = 'level2-range', RANGE_LAYER = 'level2-range';                 // reflectivity outline
 const SITE_LAYER = 'level2-range-site';                                          // the simple site ring (RANGE_SRC)
@@ -339,27 +341,14 @@ function handleLngLat() {
     const s = host.getSite();
     return Geo.siteToLngLat(s.lat, s.lon, reflMeters, style.bearing * Geo.D2R);
 }
-// ⚠️ A COPY of radar-ruler.js knobSvg() — same ink disc on a dark casing with a casing-coloured centre dot,
-// same colour variables, and the SAME SIZE (style.knob; radar.js hands it to the ruler too) — so the two
-// "swing me round the ring" handles read as one kind of control. Change both or neither.
-function handleSvg() {
-    const casing = casingColor(), ink = Theme.color('--anvil-ruler-ink', '#e8edf2'), px = style.knob;
-    return '<svg width="' + px + '" height="' + px + '" viewBox="0 0 24 24" aria-hidden="true">' +
-        '<circle cx="12" cy="12" r="7.5" fill="' + ink + '" stroke="' + casing + '" stroke-width="1.5"/>' +
-        '<circle cx="12" cy="12" r="2.5" fill="' + casing + '"/></svg>';
-}
-function ensureHandleStyle() {
-    if (document.getElementById('radar-ring-handle-style')) return;
-    const s = document.createElement('style');
-    s.id = 'radar-ring-handle-style';
-    // ⚠️ Same shape as radar-ruler.js's handle CSS: the ELEMENT gets the cursor and nothing else. MapLibre
-    // positions a marker by writing `transform: translate(...)` on that element, so a transform transition
-    // (or a hover scale) there animates/overrides its POSITION — the handle lagged and wobbled on every pan.
-    s.textContent =
-        '.radar-ring-handle{cursor:grab;}' +
-        '.radar-ring-handle:active{cursor:grabbing;}' +
-        '.radar-ring-handle svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));}';
-    document.head.appendChild(s);
+// The handle is the SAME <template> as the ruler's knob (tpl-ring-knob, in map.html AND preview.html) and the
+// same CSS (styles/components/radar-tools.css) — so the two "swing me round the ring" handles read as one kind
+// of control — at the SAME SIZE (style.knob; radar.js hands it to the ruler too). Its colours are CSS fill/
+// stroke on the theme variables, so a theme or Settings colour change restyles it with no rebuild.
+function sizeHandle(el) {
+    const svg = el.querySelector('svg');
+    svg.setAttribute('width', style.knob);
+    svg.setAttribute('height', style.knob);
 }
 // A dragged point → bearing from the site, whole degrees. In the site's own frame (geo.js metres per degree),
 // with the lng unwrapped first — a drag near an Alaskan site can come back on the far side of ±180.
@@ -380,11 +369,10 @@ function syncHandle() {
     if (handleMap && handleMap !== v.map) dropHandle();
     if (labelHandle) { labelHandle.setLngLat(handleLngLat()); return; }
 
-    ensureHandleStyle();
-    const el = document.createElement('div');
-    el.className = 'radar-ring-handle';
+    const el = Templates.clone('tpl-ring-knob');
+    el.classList.add('radar-ring-handle');
     el.title = 'Drag to move the distance labels';
-    el.innerHTML = handleSvg();
+    sizeHandle(el);
     labelHandle = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(handleLngLat()).addTo(v.map);
     handleMap = v.map;
     labelHandle.on('dragstart', function () { setLabelsLive(true); });
@@ -461,7 +449,7 @@ export function setStyle(o) {
     if (redata) moveLabels();
     if (relaid || redata) settleLabelsSoon();
     syncHandle();
-    if (labelHandle) labelHandle.getElement().innerHTML = handleSvg(); // its colours are baked in
+    if (labelHandle) sizeHandle(labelHandle.getElement()); // the knob size may have changed
 }
 
 // A pane is going away (radar.js detachView, before map.remove()). Only the handle is ours to clean up:
@@ -501,8 +489,7 @@ export function getRange() { return reflMeters; }
 // holds the colour it was given, so the CSS change alone would not reach a ring already on screen.
 export function refreshColors() {
     if (!host) return;
-    applyPaintAll();
-    if (labelHandle) labelHandle.getElement().innerHTML = handleSvg();
+    applyPaintAll(); // the handle is CSS — it re-cascades on its own
 }
 
 // Give ONE pane its scope furniture (the rings, if a radius is known). Used both when a pane is created

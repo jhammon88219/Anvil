@@ -12,13 +12,48 @@ design, the project's irreducible non-C# surface. Everything that *can* be C# is
 
 | Path | What | Language-stats |
 |------|------|----------------|
-| `map.html` | Page shell loaded by the WebView (`mapassets/map.html`); stays at the root. | counted |
+| `map.html` | Page shell loaded by the WebView (`mapassets/map.html`); stays at the root. Holds every UI component's `<template>`. | counted |
+| `styles/` | **Every stylesheet**: `themes/` (palettes, variables only), `pages/` (each page's shell), `components/` (one per on-map component). | counted |
 | `js/` | **Our authored JS** — the orchestrator + 4 feature modules + the radar pipeline (see below). | counted |
 | `vendor/` | **Third-party libraries**, vendored verbatim (not our code). ~1.2 MB. | `linguist-vendored` (excluded) |
 | `style*.json` (basemaps, at root), `fonts/`, `sprites/` | **Data/config**, not code. | n/a |
 
 `vendor/` is marked `linguist-vendored` in the repo-root `.gitattributes`, so the GitHub
 language bar reflects the JS we actually wrote (in `js/`), not the ~1.2 MB of libraries.
+
+## Where the UI is defined — before runtime, never during
+
+Every UI component the page draws is **defined before runtime**: its markup is a `<template>` in
+`map.html` (or `preview.html`), and its look is a sheet in `styles/`. A module only **instantiates**
+it — `Templates.clone('tpl-…')` from `js/templates.js` — then fills in text, data attributes and
+per-instance geometry, and toggles classes. The app's XAML/C# side follows the same rule: a
+control's elements and looks are declared in XAML, not built in code-behind.
+
+| May happen at runtime (JS) | Must be defined before runtime |
+|---|---|
+| clone a template; set `textContent` (feed text is never HTML) | the component's markup → a `<template>` |
+| per-instance geometry: `left/top/width/height/transform`, an SVG's coordinates, a knob's size | every static look → a sheet in `styles/` |
+| show/hide (`display`, `hidden`), toggle a class | colours → theme variables (chrome) or the component sheet (data) |
+| a DATA colour that comes from the feed/product (a report's dot colour, a tropical band) | — |
+
+**Never:** inject a `<style>`, build markup in a string (`innerHTML`, `setHTML`, `insertAdjacentHTML`),
+or set a static look inline (`style.cssText`).
+
+```
+styles/
+  themes/      anvil-dark.css (the base :root), anvil-light.css — VARIABLES ONLY, no selectors on elements
+  pages/       map.css, preview.css — each page's own shell (layout; colours via var())
+  components/  radar-site-keys.css, markers.css, radar-tools.css, map-popups.css, outlook.css
+```
+
+- **A new theme** is one file in `themes/` (one `:root[data-theme="<id>"]` block overriding values),
+  linked from both pages after `anvil-dark.css`. No component sheet changes.
+- **A new component** is a `<template>` in the page + a sheet in `components/` linked from the page.
+  The csproj ships `styles/**/*.css` by glob, so a new sheet needs no project edit.
+- **Chrome vs data:** chrome colours (surfaces, edges, the site key's gray face) are theme variables;
+  data colours (status inks, product ramps, report types) are literal in the component sheet or the
+  module, and never themed. See the header of `styles/themes/anvil-dark.css`.
+- ⚠️ `preview.html` carries a copy of `tpl-ring-knob` (the only component it draws) — change both.
 
 ## Our authored JS (`js/`) — why each file must be JS
 
@@ -35,7 +70,7 @@ Map root). `map.html` loads `js/map.js` + `js/radar.js` as classic `<script>`s; 
 **Feature modules** — each owns one overlay's state + logic; `map.js` delegates to it:
 - **`outlook.js`** — SPC outlook fills + per-CIG hatching + nested-polygon clipping.
 - **`watches.js`** — Tornado / Severe-T-storm watch boxes.
-- **`radar-sites.js`** — the on-map site-marker "key" buttons + their CSS.
+- **`radar-sites.js`** — the on-map site-marker "key" buttons (markup: `tpl-site-key`; look: `styles/components/radar-site-keys.css`).
 - **`markers.js`** — the user-location marker.
 
 **Radar pipeline** — file → colored gates on the GPU:

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <!-- map.html — the page shell the WebView loads: the pane DIVs, the groove between them, the launch
-     cover, and the script tags. All behavior is in js/map.js; this file is the DOM + the CSS.
+     cover, every UI component's <template>, and the script tags. All behavior is in js/; every look is
+     in styles/ (linked below).
 
        #panes  (position:absolute, inset:0)
        ┌───────────────┬─┬───────────────┐
@@ -33,92 +34,22 @@
 
     <link href="vendor/maplibre-gl.css" rel="stylesheet" />
 
-    <!-- The chrome palette, and the ONE home for every color the page draws that isn't data. A
-         render-blocking stylesheet, linked FIRST, so --anvil-ground is resolved before the body
-         paints (no flash) and the CSS radar-sites.js injects at runtime can use the variables too.
-         ⚠️ The rules below own LAYOUT; theme.css owns COLOR. Keep a literal color out of here. -->
-    <link href="theme.css" rel="stylesheet" />
-
-    <style>
-        html, body {
-            margin: 0;
-            height: 100%;
-            background: var(--anvil-ground);
-            overflow: hidden;
-        }
-
-        /* ===== PANE GRID =====
-           The page hosts ONE MapLibre map per pane (map.js owns them). The pane divs are STATIC so a
-           map's container always exists before the map is constructed; map.js positions and shows the
-           ones the current layout uses and hides the rest. Layouts: 1x1, 2x1 (side by side), 2x2.
-           Two-pane is side-by-side only — there is deliberately no stacked variant. */
-        #panes {
-            position: absolute;
-            inset: 0;
-        }
-
-        .pane {
-            position: absolute;
-            background: var(--anvil-ground);
-            display: none; /* map.js shows the panes the layout uses */
-        }
-
-        /* Single-pane is the launch layout, so pane 0 starts full-bleed and visible — the map paints
-           without waiting for a layout round-trip. */
-        #pane0 {
-            inset: 0;
-            display: block;
-        }
-
-        /* ===== THE GROOVE =====
-           Panes are separated by a dark channel with a hairline on EACH side, not a single drawn line.
-           Two reasons it is a groove: a lone hairline gets lost over bright radar returns, and a lone
-           dark gap disappears between two dark panes — the pair reads over both. The hairline is the
-           app's CardStrokeColorDefaultSolidBrush, the same edge the OverlayBar draws; a ThemeResource
-           can't reach in here, so theme.css carries the value (--anvil-groove-edge).
-           ⚠️ It used to be a literal, justified as "the map band is always dark regardless of app
-           theme" — which stopped being true the moment the basemap became the theme's choice.
-           Non-interactive: the panes are positioned with the gap already subtracted, so these divs are
-           pure decoration over ground no map occupies. */
-        .gutter {
-            position: absolute;
-            background: var(--anvil-ground);
-            pointer-events: none;
-            box-sizing: border-box;
-            display: none; /* map.js shows the ones the layout needs */
-        }
-
-        .gutter.v {
-            border-left: 1px solid var(--anvil-groove-edge);
-            border-right: 1px solid var(--anvil-groove-edge);
-        }
-
-        .gutter.h {
-            border-top: 1px solid var(--anvil-groove-edge);
-            border-bottom: 1px solid var(--anvil-groove-edge);
-        }
-
-        /* NB: a pane's NOTCH (product selector + colour ramp + tilt) is not styled here — it is a XAML
-           control overlaid on the WebView (see the header comment), so it can be edited under XAML Hot
-           Reload and picks up the app's theme brushes. */
-
-        /* Opaque dark cover over the map until the launch mask (CONUS) is applied. Without it the world
-           basemap (Canada/Mexico/oceans) paints on first 'load' and shows for ~½s before the mask lands
-           via the host round-trip — the flash. map.js fades this out once the initial mask is on screen
-           (or immediately when no isolation is requested). Consistent with the dark, no-flash launch. */
-        #mapcover {
-            position: absolute;
-            inset: 0;
-            background: var(--anvil-ground);
-            z-index: 5;
-            transition: opacity 0.25s ease-out;
-        }
-
-        #mapcover.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-    </style>
+    <!-- THE STYLES — every sheet is in styles/ (see Assets/Map/README.md, "Where the UI is defined").
+         ORDER MATTERS, and every one is a render-blocking <link> so the first paint is already right:
+           themes/      the palettes, VARIABLES ONLY. anvil-dark.css is the base :root (so --anvil-ground
+                        resolves before the body paints — no flash); each further theme overrides it.
+           pages/       this page's own shell (panes, groove, launch cover): layout, colours via var().
+           components/  one sheet per on-map component; each pairs with a <template> below. After
+                        maplibre-gl.css on purpose: .user-loc etc. must outrank .maplibregl-marker.
+         ⚠️ Keep a literal chrome colour out of pages/ and components/ — it belongs in a theme file. -->
+    <link href="styles/themes/anvil-dark.css" rel="stylesheet" />
+    <link href="styles/themes/anvil-light.css" rel="stylesheet" />
+    <link href="styles/pages/map.css" rel="stylesheet" />
+    <link href="styles/components/radar-site-keys.css" rel="stylesheet" />
+    <link href="styles/components/markers.css" rel="stylesheet" />
+    <link href="styles/components/radar-tools.css" rel="stylesheet" />
+    <link href="styles/components/map-popups.css" rel="stylesheet" />
+    <link href="styles/components/outlook.css" rel="stylesheet" />
 </head>
 <body>
     <div id="panes">
@@ -131,6 +62,155 @@
         <div class="gutter h" id="gutterH"></div>
     </div>
     <div id="mapcover"></div>
+
+    <!-- ══ UI COMPONENTS ═════════════════════════════════════════════════════════════════════════
+         Every component the page draws is DEFINED HERE, before runtime: its markup is a <template>
+         below and its look is a sheet in styles/components/. A module only clones a template
+         (js/templates.js), fills in text / data / per-instance geometry, and toggles classes — it never
+         builds markup in a string, sets a static look inline, or injects a <style>.
+         ⚠️ An id here is named by a module (grep the id). A template a module asks for and this page
+         lacks THROWS, by name, into the pageError report — rename both or neither.
+         ⚠️ preview.html carries COPIES of the templates its modules use (tpl-ring-knob) — change both. -->
+
+    <!-- ── RADAR SITE KEY (radar-sites.js · components/radar-site-keys.css) ──
+         marker (MapLibre positions it) > offset (the fan's translate target) > the key's three zones.
+         The glyph zone is filled from one of the three tpl-glyph-* templates by network. -->
+    <template id="tpl-site-key">
+        <div class="radar-site-marker">
+            <div class="radar-site-offset">
+                <div class="radar-site-btn">
+                    <span class="radar-site-glyph"></span>
+                    <span class="radar-site-label"></span>
+                    <span class="radar-site-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg></span>
+                </div>
+            </div>
+        </div>
+    </template>
+    <!-- The network glyphs; fill/stroke are currentColor = the key's status ink. The nexrad viewBox is
+         CROPPED to its drawing (which sits in the lower-left of a 24 box) so it centres in the square
+         and reads the same size as the plane and flask. -->
+    <template id="tpl-glyph-nexrad"><svg viewBox="2.5 3.5 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="17" r="1.4" fill="currentColor" stroke="none"/><path d="M7 12.5a4.5 4.5 0 0 1 4.5 4.5"/><path d="M7 7.5a9.5 9.5 0 0 1 9.5 9.5"/></svg></template>
+    <template id="tpl-glyph-tdwr"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c.6 0 1 .9 1 2v5.2l7 4v1.9l-7 -2v3.9l2 1.5v1.5l-3 -1l-3 1v-1.5l2 -1.5v-3.9l-7 2v-1.9l7 -4v-5.2c0 -1.1 .4 -2 1 -2z"/></svg></template>
+    <template id="tpl-glyph-research"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v5l-4.4 8.3a1.9 1.9 0 0 0 1.7 2.7h9.4a1.9 1.9 0 0 0 1.7 -2.7l-4.4 -8.3v-5"/></svg></template>
+    <!-- The collision fan's overlay (one per map) and the two parts of one leader: a ring at the true
+         site + a dashed line to the moved key. JS sets the coordinates only. -->
+    <template id="tpl-site-lines"><svg class="radar-site-lines" id="radar-site-lines" aria-hidden="true"></svg></template>
+    <template id="tpl-site-leader"><svg><circle class="radar-site-leader-origin" r="3"/><line class="radar-site-leader-line"/></svg></template>
+
+    <!-- ── USER LOCATION RETICLE (markers.js · components/markers.css) ──
+         Ring r=9 and ticks spanning radius 11 → 14.5 (a deliberate gap, so the ticks read as standing OFF
+         the ring rather than piercing it). Casing first at a fat stroke, the ink over it. -->
+    <template id="tpl-user-loc">
+        <div class="user-loc">
+            <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">
+                <g class="user-loc-casing"><circle cx="18" cy="18" r="9"/><path d="M18,7 V3.5 M18,29 V32.5 M7,18 H3.5 M29,18 H32.5"/></g>
+                <g class="user-loc-ink"><circle cx="18" cy="18" r="9"/><path d="M18,7 V3.5 M18,29 V32.5 M7,18 H3.5 M29,18 H32.5"/></g>
+                <circle class="user-loc-collar" cx="18" cy="18" r="4.5"/>
+                <circle class="user-loc-core" cx="18" cy="18" r="3"/>
+            </svg>
+        </div>
+    </template>
+    <!-- ── SEARCH PIN (markers.js · components/markers.css) — a teardrop, tip on the coordinate. -->
+    <template id="tpl-place-pin">
+        <div class="place-pin">
+            <div class="place-pin-art">
+                <svg width="28" height="38" viewBox="0 0 28 38" aria-hidden="true">
+                    <path class="place-pin-body" d="M14,36 C14,36 3,22.5 3,13.5 A11,11 0 1 1 25,13.5 C25,22.5 14,36 14,36 Z"/>
+                    <circle class="place-pin-eye" cx="14" cy="13.5" r="4"/>
+                </svg>
+            </div>
+            <div class="place-pin-label"></div>
+        </div>
+    </template>
+
+    <!-- ── RADAR TOOLS (radar-ruler.js · radar-scope.js · radar-inspect.js · site-reveal.js ·
+         components/radar-tools.css) ──
+         The KNOB is shared: the ruler's knob and the range rings' distance-label handle are one control
+         (JS adds .radar-ruler-handle or .radar-ring-handle and sets the svg's size from Knob size).
+         ⚠️ preview.html carries a copy of tpl-ring-knob — change both. -->
+    <template id="tpl-ring-knob">
+        <div>
+            <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true">
+                <circle class="ring-knob-disc" cx="12" cy="12" r="7.5"/>
+                <circle class="ring-knob-dot" cx="12" cy="12" r="2.5"/>
+            </svg>
+        </div>
+    </template>
+    <template id="tpl-ruler-bead">
+        <div class="radar-ruler-handle">
+            <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+                <circle class="ruler-bead-casing" cx="13" cy="13" r="8"/>
+                <circle class="ruler-bead-ink" cx="13" cy="13" r="8"/>
+                <circle class="ruler-bead-core" cx="13" cy="13" r="4"/>
+            </svg>
+        </div>
+    </template>
+    <!-- The ruler's chip: the reading, how far to the ring, then up to two faint lines. JS fills each
+         line's text and hides the ones with nothing to say. -->
+    <template id="tpl-ruler-chip">
+        <div class="radar-ruler-chip" id="radar-ruler-chip">
+            <div class="radar-ruler-chip-main"></div>
+            <div class="radar-ruler-chip-sub"></div>
+            <div class="radar-ruler-chip-faint"></div>
+            <div class="radar-ruler-chip-note"></div>
+        </div>
+    </template>
+    <!-- Inspect's value box (one per pane) and its mirrored crosshair. -->
+    <template id="tpl-inspect-tip">
+        <div class="radar-inspect-tip">
+            <div class="radar-inspect-main"></div>
+            <div class="radar-inspect-raw" hidden></div>
+        </div>
+    </template>
+    <template id="tpl-inspect-cross">
+        <div class="radar-inspect-cross">
+            <div class="radar-inspect-cross-bar h"></div>
+            <div class="radar-inspect-cross-bar v"></div>
+        </div>
+    </template>
+    <template id="tpl-reveal-ring"><div class="site-reveal-ring"></div></template>
+
+    <!-- ── MAP POPUPS (storm-reports.js · damage-surveys.js · storm-cells.js · tropical.js ·
+         components/map-popups.css) ──
+         Each is a popup's CONTENT; MapLibre supplies the surface (className map-popup). JS sets every
+         line as TEXT (feed data is never HTML) and hides the lines it has nothing for. -->
+    <template id="tpl-report-popup">
+        <div>
+            <div class="map-popup-title"></div>
+            <div class="map-popup-meta"></div>
+            <div class="map-popup-body"></div>
+        </div>
+    </template>
+    <template id="tpl-survey-popup">
+        <div>
+            <div class="map-popup-title"><span class="map-popup-chip"></span><span class="map-popup-title-text"></span></div>
+            <div class="map-popup-meta"></div>
+            <div class="map-popup-body"></div>
+            <div class="map-popup-src"></div>
+        </div>
+    </template>
+    <template id="tpl-cell-popup">
+        <div>
+            <div class="map-popup-title"><span class="map-popup-chip"></span><span class="map-popup-title-text"></span></div>
+            <div class="map-popup-meta"></div>
+            <div class="map-popup-src"></div>
+        </div>
+    </template>
+    <template id="tpl-tropical-popup">
+        <div>
+            <div class="tropical-band"></div>
+            <div class="tropical-storm"></div>
+            <div class="tropical-more-list"></div>
+            <div class="map-popup-meta"></div>
+        </div>
+    </template>
+    <template id="tpl-tropical-more"><div class="tropical-more"><span class="map-popup-chip"></span><span class="tropical-more-name"></span></div></template>
+
+    <!-- ── OUTLOOK NOTE (outlook.js · components/outlook.css) — SPC's own "no risk areas" words. -->
+    <template id="tpl-outlook-note"><div class="outlook-note"></div></template>
+
+    <!-- ── BOOT ERROR (map.js · pages/map.css) — shown only when the boot itself throws. -->
+    <template id="tpl-boot-error"><div class="boot-error"></div></template>
 
     <!-- ⚠️ THE PAGE'S DEATH REPORT, AND IT MUST STAY THE FIRST SCRIPT ON THE PAGE. Nothing in here caught
          an uncaught error before this existed: a throw outside a try/catch (or a rejected promise nobody

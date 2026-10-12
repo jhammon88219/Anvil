@@ -22,6 +22,8 @@
 // zone is big and would swallow every click inside it.
 
 import { firstBoundaryLayerId } from './layers.js';
+// The popup is a <template> in map.html; its look is styles/components/map-popups.css.
+import * as Templates from './templates.js';
 
 const SOURCE = 'tropical-src';
 const LAYERS = ['tropical-fill', 'tropical-line'];
@@ -84,40 +86,13 @@ function deep(hex) {
     return '#' + c(n >> 16 & 255) + c(n >> 8 & 255) + c(n & 255);
 }
 
-function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"]/g, function (ch) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch];
-    });
-}
-
-function ensurePopupStyle() {
-    if (document.getElementById('tropical-popup-style')) return;
-    // The popup SURFACE is chrome (theme.css vars); the band is DATA (the product's colour).
-    const css = [
-        '.tropical-popup .maplibregl-popup-content{background:var(--anvil-popup-bg);color:var(--anvil-popup-text);',
-        'font:12px/1.45 "Segoe UI",system-ui,sans-serif;border-radius:8px;padding:0 0 9px;overflow:hidden;',
-        'box-shadow:0 4px 16px rgba(0,0,0,0.5);min-width:200px;}',
-        '.tropical-popup .maplibregl-popup-tip{border-top-color:var(--anvil-popup-bg);border-bottom-color:var(--anvil-popup-bg);}',
-        '.tropical-popup .maplibregl-popup-close-button{color:var(--anvil-popup-close);font-size:15px;padding:0 4px;}',
-        '.tropical-band{font-weight:600;font-size:13px;padding:5px 26px 5px 12px;}',
-        '.tropical-storm{padding:7px 12px 0;}',
-        '.tropical-more{padding:3px 12px 0;color:var(--anvil-popup-body);}',
-        '.tropical-chip{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:-1px;}',
-        '.tropical-meta{padding:4px 12px 0;color:var(--anvil-popup-meta);}'
-    ].join('');
-    const st = document.createElement('style');
-    st.id = 'tropical-popup-style';
-    st.textContent = css;
-    document.head.appendChild(st);
-}
-
 const OFFICES = { KLIX: 'New Orleans', KMOB: 'Mobile', KTAE: 'Tallahassee', KTBW: 'Tampa Bay', KMFL: 'Miami',
     KKEY: 'Key West', KMLB: 'Melbourne', KJAX: 'Jacksonville', KCHS: 'Charleston', KILM: 'Wilmington',
     KMHX: 'Newport/Morehead City', KAKQ: 'Wakefield', KLWX: 'Baltimore/Washington', KPHI: 'Mount Holly',
     KOKX: 'New York', KBOX: 'Boston', KGYX: 'Gray', KCAR: 'Caribou', KLCH: 'Lake Charles', KHGX: 'Houston',
     KCRP: 'Corpus Christi', KBRO: 'Brownsville', TJSJ: 'San Juan', PHFO: 'Honolulu', PGUM: 'Guam' };
 
-function popupHtml(hits) {
+function popupContent(hits) {
     // One line per PRODUCT at this point (several zones of one product can stack), most important first.
     const seen = {};
     const products = [];
@@ -127,16 +102,23 @@ function popupHtml(hits) {
     });
     products.sort(function (a, b) { return (+a.prio) - (+b.prio); });
     const top = products[0];
-    let html = '<div class="tropical-band" style="background:' + deep(top.fill) + ';color:' + esc(top.fill) + '">' +
-        esc(top.name) + '</div>';
-    if (top.storm) html += '<div class="tropical-storm">' + esc(top.storm) + '</div>';
+    // <template id="tpl-tropical-popup"> + one tpl-tropical-more row per further product. The band's and the
+    // chips' colours are DATA (the product's own colour), so they are the inline values.
+    const el = Templates.clone('tpl-tropical-popup');
+    const band = Templates.text(el, '.tropical-band', top.name);
+    band.style.background = deep(top.fill);
+    band.style.color = top.fill;
+    Templates.text(el, '.tropical-storm', top.storm);
+    const more = el.querySelector('.tropical-more-list');
     products.slice(1).forEach(function (p) {
-        html += '<div class="tropical-more"><span class="tropical-chip" style="background:' + esc(p.fill) + '"></span>' +
-            esc(p.name) + '</div>';
+        const row = Templates.clone('tpl-tropical-more');
+        row.querySelector('.map-popup-chip').style.background = p.fill;
+        row.querySelector('.tropical-more-name').textContent = p.name;
+        more.appendChild(row);
     });
     const office = top.wfo ? (OFFICES[top.wfo] ? 'NWS ' + OFFICES[top.wfo] : top.wfo) : 'National Hurricane Center';
-    html += '<div class="tropical-meta">' + esc(office) + '</div>';
-    return html;
+    Templates.text(el, '.map-popup-meta', office);
+    return el;
 }
 
 function onClick(e) {
@@ -146,10 +128,9 @@ function onClick(e) {
     if (theirs.length && map.queryRenderedFeatures(e.point, { layers: theirs }).length) return;
     const hits = map.queryRenderedFeatures(e.point, { layers: ['tropical-fill'] });
     if (!hits.length) return;
-    ensurePopupStyle();
-    if (!popup) popup = new maplibregl.Popup({ className: 'tropical-popup', maxWidth: '300px' });
+    if (!popup) popup = new maplibregl.Popup({ className: 'map-popup map-popup-banded', maxWidth: '300px' });
     popup.remove(); // one popup across every pane
-    popup.setLngLat(e.lngLat).setHTML(popupHtml(hits)).addTo(map);
+    popup.setLngLat(e.lngLat).setDOMContent(popupContent(hits)).addTo(map);
 }
 
 function bind(map) {

@@ -40,6 +40,8 @@
 import { firstSymbolLayerId } from './layers.js';
 // The hatch tiles are drawn on a 2D canvas, which can't read a CSS variable — hence theme.js.
 import * as Theme from './theme.js';
+// The "no risk areas" sentence is a <template> in map.html (tpl-outlook-note).
+import * as Templates from './templates.js';
 
 let currentOutlookUrl = null;    // GeoJSON URL currently shown (re-add after a basemap switch)
 let outlookData = null;          // fetched + CLIPPED GeoJSON (reused on re-add — no re-fetch/re-clip)
@@ -92,7 +94,7 @@ function sigRank(label) {
 function makeHatchImage(tile, width, opts) {
     opts = opts || {};
     // ⚠️ The INK is chrome and themed; the PATTERN (dashes / lines / cross-hatch) encodes which CIG
-    // group an area is and is data — see the membership rule in theme.css.
+    // group an area is and is data — see the membership rule in styles/themes/anvil-dark.css.
     const COLOR = Theme.color('--anvil-hatch-ink', 'rgba(235,235,235,0.9)');
     const c = document.createElement('canvas');
     c.width = c.height = tile;
@@ -195,7 +197,7 @@ function removeOutlookLayers(map) {
 // the whole canvas, so no map layer can ever draw above them; this has to be a marker too, with a
 // z-index over theirs (they set none). Consequences: it sits OUTSIDE the user's layer order (it isn't
 // a layer), and it must never take a click — pointer-events:none, so the keys under it stay live.
-// Colours are the theme.css tokens read as CSS vars, so a theme switch restyles it with no rebuild.
+// Colours are the theme's tokens read as CSS vars, so a theme switch restyles it with no rebuild.
 const notes = new WeakMap(); // map -> maplibregl.Marker
 function removeNote(map) {
     const m = notes.get(map);
@@ -205,15 +207,9 @@ function addNote(map) {
     removeNote(map);
     const text = outlookData && noteText(outlookData);
     if (!text) return;
-    const el = document.createElement('div');
+    // <template id="tpl-outlook-note"> in map.html; its look (and halo) is styles/components/outlook.css.
+    const el = Templates.clone('tpl-outlook-note');
     el.textContent = text;
-    el.style.cssText =
-        'font:600 40px/1.1 "Segoe UI",system-ui,sans-serif;white-space:nowrap;pointer-events:none;' +
-        'color:var(--anvil-outlook-note-text);z-index:5;' +
-        // The halo: a tight ring of shadows, the DOM stand-in for a map label's text-halo.
-        'text-shadow:-2px 0 var(--anvil-outlook-note-halo),2px 0 var(--anvil-outlook-note-halo),' +
-        '0 -2px var(--anvil-outlook-note-halo),0 2px var(--anvil-outlook-note-halo),' +
-        '0 0 8px var(--anvil-outlook-note-halo);';
     notes.set(map, new maplibregl.Marker({ element: el }).setLngLat(NOTE_ANCHOR).addTo(map));
 }
 

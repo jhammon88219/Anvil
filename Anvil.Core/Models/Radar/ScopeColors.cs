@@ -6,7 +6,7 @@ namespace Anvil.Models
 	/// <summary>
 	/// The colour choices for the radar SCOPE furniture the user draws with — the range ring and the range
 	/// ruler, which share one colour so the ruler reads as belonging to the ring it ends on. An empty token
-	/// means "the theme's own colour" (theme.css <c>--anvil-scope-ring</c> / <c>--anvil-ruler-ink</c>).
+	/// means "the theme's own colour" (the map theme sheets' <c>--anvil-scope-ring</c> / <c>--anvil-ruler-ink</c>).
 	/// </summary>
 	/// <remarks>
 	/// PRESETS FIRST. The ring draws at ~0.55 opacity over returns and the ruler over a dark casing: a free

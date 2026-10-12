@@ -41,7 +41,7 @@ namespace Anvil.Models
 	/// has to paint it BEFORE any palette exists: it is the WebView2 <c>DefaultBackgroundColor</c>, shown
 	/// in the gap before the page's first paint (the no-white-flash launch) and again if the renderer ever
 	/// dies. C# cannot read the page's CSS, so this value is written TWICE — here and as
-	/// <c>--anvil-ground</c> in <c>Assets/Map/theme.css</c> — and the two must agree. Same deal as the pane
+	/// <c>--anvil-ground</c> in <c>Assets/Map/styles/themes/</c> — and the two must agree. Same deal as the pane
 	/// arrangement living in both MainWindow.xaml and map.js <c>paneRects</c>: change both.
 	/// ⚠️ It is not a precedent for a second color. Everything else has a consumer that can resolve its own
 	/// palette; if a value looks like it wants to live here, check that first.

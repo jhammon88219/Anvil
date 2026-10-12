@@ -1,16 +1,17 @@
 // ============================================================================================
-// theme.js — reads a chrome color out of theme.css for the consumers that CAN'T use var().
+// theme.js — reads a chrome color out of styles/themes/ for the consumers that CAN'T use var().
 //
-//     theme.css  :root { --anvil-scope-ring: #9fe0ff; }
+//     anvil-dark.css  :root { --anvil-scope-ring: #9fe0ff; }
 //                          │
 //        CSS ──────────────┤  uses var(--anvil-scope-ring) directly. Not this module's business.
 //                          │
 //        JS  ──────────────┴─►  color('--anvil-scope-ring', '#9fe0ff')
-//                                 └─► MapLibre paint props, canvas strokeStyle, SVG attributes
+//                                 └─► MapLibre paint props, canvas strokeStyle
 //
-// Three things in the page cannot read a CSS variable and so come through here: a MapLibre paint
-// property (states.js, radar-scope.js), a canvas 2D stroke (outlook.js's hatch tiles), and an SVG
-// presentation attribute (markers.js, radar-sites.js's leader lines).
+// Two things in the page cannot read a CSS variable and so come through here: a MapLibre paint
+// property (states.js, radar-scope.js, radar-ruler.js) and a canvas 2D stroke (outlook.js's hatch
+// tiles). SVG used to be a third; the markers, handles and leader lines are now <template>s whose
+// fill/stroke are CSS (styles/components/), which reads var() directly.
 //
 // ⚠️ EVERY CALLER PASSES A FALLBACK, and it is not defensive noise. CSS degrades quietly — a missing
 // variable just leaves an element unstyled — but an empty string handed to MapLibre as a color

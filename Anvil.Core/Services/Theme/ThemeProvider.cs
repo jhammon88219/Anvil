@@ -40,7 +40,7 @@ namespace Anvil.Services
 		private static readonly AppTheme[] Themes =
 		{
 			// ⚠️ Each GroundColor must match --anvil-ground in that theme's block in
-			// Assets/Map/theme.css — the value is written in both places. See AppTheme.
+			// Assets/Map/styles/themes/ — the value is written in both places. See AppTheme.
 			// ⚠️ MapStyleId is matched against IStyleProvider EXACTLY, and a miss falls back to the first
 			// style in that list without a word. Note "dataVizlight" — lowercase L, which is genuinely how
 			// StyleProvider spells it. Tidying that casing there without changing it here would silently

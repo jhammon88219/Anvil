@@ -1,0 +1,163 @@
+/* ============================================================================================
+   styles/themes/anvil-dark.css — the "anvilDark" identity: every CHROME colour the map page draws.
+
+   A theme file is VARIABLES ONLY. It never styles an element; the component sheets in
+   ../components/ do that, reading these through var(). So a new theme is one new file that
+   overrides values, and no component CSS is ever copied per theme.
+
+       styles/
+         themes/      the palettes  (this file = the base; anvil-light.css overrides it)
+         pages/       one sheet per page shell (map.html, preview.html): layout only
+         components/  one sheet per on-map component (site keys, markers, popups, …)
+
+   Loaded by map.html (and preview.html) BEFORE every other sheet but MapLibre's, as a
+   render-blocking <link>, so the ground is right on the very first paint (no flash) and every
+   component sheet can use these variables.
+
+       :root                        the values, today's look ("anvilDark")
+         --anvil-ground             page + pane + gutter + cover ground
+         --anvil-key-*              the radar-site keys' gray face, hover and edge (chrome) +
+         --anvil-leader             their fan-out leader line
+         --anvil-scope-*            the range rings
+         --anvil-ruler-*            the range ruler's spoke, casing and bead (+ every drag handle)
+         --anvil-state-*            state isolation: hover, mask outline, water fallback
+         --anvil-map-blank          the ground a HIDDEN basemap leaves (+ what the dimmer fades toward)
+         --anvil-marker-*           the user-location reticle (+ the search pin's ink/casing)
+         --anvil-place-label-*      the search pin's name chip
+         --anvil-readout-*          the Inspect value chip + its crosshair (+ the ruler's chip)
+         --anvil-popup-*            the map popups' surface (reports, surveys, cells, tropical)
+         --anvil-hatch-ink          the outlook CIG hatch lines
+         --anvil-outlook-note-*     the outlook "no risk areas" sentence
+
+   ⚠️ THE MEMBERSHIP RULE — CHROME LIVES HERE, DATA NEVER DOES. If a color tells you what something
+   IS, it is not the theme's and it does not belong in a theme file: every product ramp
+   (radar-ramps.js), the watch/warning TO=red / SV=yellow pair, the storm-report dot colors, the
+   site key's status inks (green / blue / violet online, red offline, gray unchecked). Theming those
+   doesn't restyle the legend, it breaks it. The site key is the case worth studying — its gray
+   FACE and EDGE are in here, and its glyph / name / chevron inks are deliberately not (they live
+   in components/radar-site-keys.css, marked DATA).
+
+   ⚠️ DROP SHADOWS ARE NOT VARIABLES, on purpose. Every rgba(0,0,0,…) shadow in the component
+   sheets stays black in any theme — a shadow is an absence of light, not a palette choice.
+
+   ⚠️ TWO KINDS OF CONSUMER, and they fail differently:
+     CSS   — uses var(--anvil-x) directly, and NO fallback value. A missing variable makes the
+             declaration invalid and the element renders unstyled: loud, obvious, harmless.
+     JS    — MapLibre paint properties and canvas strokes cannot read var(), so theme.js reads the
+             computed value. Those calls DO pass a fallback, because an empty string handed to
+             MapLibre as a color THROWS, and a throw inside render aborts the frame and blanks every
+             layer above it. Same principle as safeBbox in states.js: a wrong color beats a dead map.
+             (SVG is NOT in this list any more: the marker/handle SVGs are <template>s in map.html
+             whose shapes take their colours from CSS `fill`/`stroke`, which DO read var().)
+
+   ADDING A THEME: a new file in this folder holding one  :root[data-theme="<id>"]  block that
+   overrides only what differs, linked from map.html + preview.html right after this one. The host
+   sets that attribute — a `theme` URL param at launch (so the first paint is right, the same reason
+   `conus` and `tiles` are params) and window.applyTheme for a live switch.
+
+   ⚠️ "anvilDark" HAS NO ATTRIBUTE BLOCK OF ITS OWN, and that is not an omission — it IS the bare
+   :root below. The host still sends theme=anvilDark, which matches no attribute selector, so these
+   defaults apply. That also means a page opened with no param at all, or with an id from a newer
+   build, lands on the dark identity rather than on nothing.
+
+   ⚠️ Two cross-file invariants, and NOTHING CHECKS EITHER at build time: a block's id must match an
+   AppTheme id in Services/Theme/ThemeProvider.cs, and its --anvil-ground must match that theme's
+   GroundColor (which C# paints on the WebView before this file has loaded).
+   ============================================================================================ */
+
+:root {
+    /* ── GROUND ────────────────────────────────────────────────────────────────────────────────
+       The page's own surface, behind and between the maps. ⚠️ Must match AppTheme.GroundColor on
+       the C# side, which paints the WebView before this file has loaded — see that property. */
+    --anvil-ground: #0a0a0a;
+
+    /* The groove between panes: a hairline on EACH side of the dark channel. This is the dark-theme
+       value of the app's CardStrokeColorDefaultSolidBrush, the same edge the OverlayBar draws.
+       (It used to be a fixed literal on the grounds that "the map band is always dark regardless of
+       app theme" — which stops being true the moment a light theme exists.) */
+    --anvil-groove-edge: rgba(255, 255, 255, .14);
+
+    /* ── RADAR SITE KEYS (components/radar-site-keys.css) ──────────────────────────────────────
+       Since 2026-10-12 every key wears ONE gray face and edge whatever its status; the glyph, the
+       ICAO and the chevron carry the status in their INK, which is data and lives in the component
+       sheet. The face is chrome, so it is here. The edge sits a shade or two above the face. */
+    --anvil-key-face: #2b2d31;
+    --anvil-key-hover: #36393e;
+    --anvil-key-edge: #4a4e55;
+
+    /* The collision fan's leader line + origin ring, back to a key's true site. */
+    --anvil-leader: #8a8f98;
+
+    /* ── RANGE RING (radar-scope.js) ──────────────────────────────────────────────────────────
+       The selected site's scope furniture: the outline ring is cool. */
+    --anvil-scope-ring: #9fe0ff;
+    /* The two other range rings (radar-scope.js): the dashed VELOCITY reach is warm so it never reads as
+       the cool outline; the dotted DISTANCE rings are a quiet neutral — a ruler, not a boundary. The
+       user's ring colour overrides the outline ONLY. */
+    --anvil-scope-vel: #ffa07a;
+    --anvil-scope-dist: #c7cdd4;
+
+    /* ── RANGE RULER (radar-ruler.js) ──────────────────────────────────────────────────────────
+       The spoke is read over RETURNS, not over the basemap, so it is a light ink over a dark casing
+       — the trick map labels use. ⚠️ The pair INVERTS between themes (see the light block); they are
+       a figure/ground pair, not two independent colours. The bead is the one accent: it is the point
+       being measured, and it must not read as another tick. */
+    --anvil-ruler-ink: #e8edf2;
+    --anvil-ruler-casing: #000000;
+    --anvil-ruler-bead: #4aa8ff;
+    /* ⚠️ --anvil-scope-ring and --anvil-ruler-ink can be OVERRIDDEN by the user (Settings → Radar → Range
+       ring & ruler): map.js setScopeColor writes both INLINE on :root, which outranks this block and the
+       light one. Editing these values changes the "Theme default" swatch only. */
+
+    /* ── STATE ISOLATION (states.js) ───────────────────────────────────────────────────────────
+       Hover tint + outline for the pick-a-state mode, and the mask's own outline. */
+    --anvil-state-hover: #4aa3ff;
+    --anvil-state-mask-outline: #8a8a8a;
+
+    /* The isolation mask fills with the BASEMAP's live water color, read off the style so it tracks
+       whatever is loaded. This is only the fallback for a style whose water layer is atypical, so it
+       tracks the theme's own basemap (dataVizBlack water is #1c1c1c). */
+    --anvil-state-water-fallback: #1c1c1c;
+
+    /* ── HIDDEN MAP (basemap.js) ───────────────────────────────────────────────────────────────
+       The flat ground the Map key leaves when it hides the basemap, and the colour the dimmer fades
+       toward. The GROUND itself, so a hidden map runs seamlessly into the pane gutters. */
+    --anvil-map-blank: #0a0a0a;
+
+    /* ── USER LOCATION (markers.js) ────────────────────────────────────────────────────────────*/
+    --anvil-marker-reticle: #2f8fff;
+    --anvil-marker-ring: #ffffff;
+
+    /* ── SEARCH PIN LABEL (markers.js) ─────────────────────────────────────────────────────────
+       The pin itself reuses the two marker colors above; this is only the name chip beside it. */
+    --anvil-place-label-text: #ffffff;
+    --anvil-place-label-bg: rgba(10, 12, 16, .85);
+    --anvil-place-label-border: rgba(255, 255, 255, .25);
+
+    /* ── INSPECT READOUT (radar-inspect.js) ────────────────────────────────────────────────────
+       The value chip under the cursor, and the mirrored crosshair drawn in the other panes. */
+    --anvil-readout-text: #ffffff;
+    --anvil-readout-bg: rgba(10, 12, 16, .85);
+    --anvil-readout-border: rgba(255, 255, 255, .25);
+    --anvil-readout-crosshair: rgba(255, 255, 255, .9);
+
+    /* ── STORM REPORT POPUP (storm-reports.js) ─────────────────────────────────────────────────
+       The popup SURFACE only. The three dot colors it opens from are data — see the rule above. */
+    --anvil-popup-bg: rgba(22, 24, 28, 0.96);
+    --anvil-popup-text: #eaeaea;
+    --anvil-popup-meta: #b6b6b6;
+    --anvil-popup-body: #d2d2d2;
+    --anvil-popup-close: #aaaaaa;
+
+    /* ── OUTLOOK CIG HATCHING (outlook.js) ─────────────────────────────────────────────────────
+       The INK the hatch tiles are drawn with. The PATTERN (dashes / lines / cross-hatch) encodes
+       which CIG group an area is and is data; the ink is chrome — it exists to read over the SPC
+       fills underneath, so it flips with the theme while the pattern never does. */
+    --anvil-hatch-ink: rgba(235, 235, 235, 0.9);
+
+    /* ── OUTLOOK "NO RISK AREAS" SENTENCE (outlook.js) ─────────────────────────────────────────
+       SPC's own wording ("Predictability Too Low"…) drawn across CONUS on a day with no areas. The
+       WORDS are data (verbatim from the feed); the ink is chrome. Halo = the separating casing. */
+    --anvil-outlook-note-text: #f2f2f2;
+    --anvil-outlook-note-halo: #000000;
+}

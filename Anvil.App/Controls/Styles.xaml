@@ -67,7 +67,7 @@
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="#FF2B2B2B"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="#FF383838"/>
 
-            <!-- ⚠️ SHADOWS ARE LITERAL BLACK IN EVERY THEME (the same rule theme.css states for the
+            <!-- ⚠️ SHADOWS ARE LITERAL BLACK IN EVERY THEME (the same rule the map theme sheets state for the
                  map page's drop shadows), so the gradients live inline in OverlayBar.xaml and only
                  their STRENGTH is themed. A light ground needs far less of it before the shadow reads
                  as grime rather than as depth. 0 would disable shadows entirely. -->

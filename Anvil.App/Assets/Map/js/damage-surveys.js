@@ -28,6 +28,8 @@
 // the watch/warning fills, and below the storm-report dots (which sit above everything).
 
 import { firstSymbolLayerId } from './layers.js';
+// The popup is a <template> in map.html; its look is styles/components/map-popups.css.
+import * as Templates from './templates.js';
 
 const SOURCE = 'dat-surveys';
 
@@ -157,12 +159,6 @@ function addLayers(map) {
 
 // --- Popup ------------------------------------------------------------------------------------------
 
-function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
-}
-
 function pad2(n) { return (n < 10 ? '0' : '') + n; }
 function utcDate(ms) { const d = new Date(ms); return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate()); }
 function utcClock(ms) { const d = new Date(ms); return pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()); }
@@ -197,62 +193,42 @@ function efLabel(ef) { return ef === 'N/A' ? 'Unrated' : ef; }
 function ratingOf(p) { return p.lbl || efLabel(p.ef); }
 function trackRatingOf(p) { return p.tlbl || efLabel(p.tef); }
 
-function popupHtml(p) {
+function popupContent(p) {
     const color = EF_COLORS[p.ef] || EF_COLORS['N/A'];
     let title;
     const meta = [];
     const where = [p.name, p.wfo].filter(Boolean).join(' · ');
     if (p.layer === 'point') {
         title = ratingOf(p) + ' damage' + (p.wind ? ' · ' + p.wind + ' mph' : '');
-        if (p.dmg) meta.push(esc(p.dmg));
-        if (p.dod) meta.push(esc(p.dod));
-        if (where) meta.push(esc(where));
-        meta.push(esc(spanText(p.t0, p.t1)));
+        if (p.dmg) meta.push(p.dmg);
+        if (p.dod) meta.push(p.dod);
+        if (where) meta.push(where);
+        meta.push(spanText(p.t0, p.t1));
     } else if (p.layer === 'track') {
         title = ratingOf(p) + ' tornado' + (p.wind ? ' · ' + p.wind + ' mph' : '');
-        if (where) meta.push(esc(where));
-        meta.push(esc(spanText(p.t0, p.t1)));
-        if (sizeText(p)) meta.push(esc(sizeText(p)));
-        if (casualtyText(p)) meta.push(esc(casualtyText(p)));
+        if (where) meta.push(where);
+        meta.push(spanText(p.t0, p.t1));
+        if (sizeText(p)) meta.push(sizeText(p));
+        if (casualtyText(p)) meta.push(casualtyText(p));
     } else {
         title = ratingOf(p) + ' damage area';
         // A polygon linked to its track carries the tornado's rating and numbers — say whose they are.
-        if (p.tef) meta.push(esc('Part of ' + trackRatingOf(p) + ' tornado' + (p.wind ? ' · ' + p.wind + ' mph peak' : '')));
-        if (where) meta.push(esc(where));
-        meta.push(esc(spanText(p.t0, p.t1)));
-        if (p.tef && sizeText(p)) meta.push(esc(sizeText(p)));
-        if (p.tef && casualtyText(p)) meta.push(esc(casualtyText(p)));
+        if (p.tef) meta.push('Part of ' + trackRatingOf(p) + ' tornado' + (p.wind ? ' · ' + p.wind + ' mph peak' : ''));
+        if (where) meta.push(where);
+        meta.push(spanText(p.t0, p.t1));
+        if (p.tef && sizeText(p)) meta.push(sizeText(p));
+        if (p.tef && casualtyText(p)) meta.push(casualtyText(p));
     }
-    let html = '<div class="dat-popup-title"><span class="dat-popup-chip" style="background:' + color + '"></span>' + esc(title) + '</div>';
-    const lines = meta.filter(Boolean);
-    if (lines.length) html += '<div class="dat-popup-meta">' + lines.join('<br>') + '</div>';
-    if (p.com) html += '<div class="dat-popup-com">' + esc(p.com) + '</div>';
-    html += '<div class="dat-popup-src">' + (p.src === 'se'
+    // <template id="tpl-survey-popup">; the chip's colour is DATA (the EF rating), so it is the one inline value.
+    const el = Templates.clone('tpl-survey-popup');
+    el.querySelector('.map-popup-chip').style.background = color;
+    Templates.text(el, '.map-popup-title-text', title);
+    Templates.text(el, '.map-popup-meta', meta.filter(Boolean).join('\n')); // pre-line: one fact per line
+    Templates.text(el, '.map-popup-body', p.com);
+    Templates.text(el, '.map-popup-src', p.src === 'se'
         ? 'NCEI Storm Events · path is straight within each county'
-        : 'NWS Damage Assessment Toolkit') + '</div>';
-    return html;
-}
-
-function ensurePopupStyle() {
-    if (document.getElementById('dat-popup-style')) return;
-    // The popup SURFACE is chrome (theme.css vars, like the report popup); the EF chip is data.
-    const css = [
-        '.dat-popup .maplibregl-popup-content{background:var(--anvil-popup-bg);color:var(--anvil-popup-text);',
-        'font:12px/1.45 "Segoe UI",system-ui,sans-serif;border-radius:8px;padding:9px 12px;',
-        'box-shadow:0 4px 16px rgba(0,0,0,0.5);max-width:300px;}',
-        '.dat-popup .maplibregl-popup-tip{border-top-color:var(--anvil-popup-bg);border-bottom-color:var(--anvil-popup-bg);}',
-        '.dat-popup .maplibregl-popup-close-button{color:var(--anvil-popup-close);font-size:15px;padding:0 4px;}',
-        '.dat-popup-title{font-weight:600;margin-bottom:3px;}',
-        '.dat-popup-chip{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;',
-        'vertical-align:-1px;box-shadow:0 0 0 1px rgba(20,20,20,0.85);}',
-        '.dat-popup-meta{color:var(--anvil-popup-meta);margin-bottom:4px;}',
-        '.dat-popup-com{color:var(--anvil-popup-body);max-height:160px;overflow:auto;}',
-        '.dat-popup-src{color:var(--anvil-popup-meta);font-size:10px;margin-top:5px;}'
-    ].join('');
-    const st = document.createElement('style');
-    st.id = 'dat-popup-style';
-    st.textContent = css;
-    document.head.appendChild(st);
+        : 'NWS Damage Assessment Toolkit');
+    return el;
 }
 
 function presentVisible(map, ids) {
@@ -273,10 +249,9 @@ function onClick(e) {
         const d = CLICK_ORDER.indexOf(a.layer.id) - CLICK_ORDER.indexOf(b.layer.id);
         return d !== 0 ? d : (b.properties.efn || 0) - (a.properties.efn || 0);
     });
-    ensurePopupStyle();
-    if (!popup) popup = new maplibregl.Popup({ className: 'dat-popup', maxWidth: '300px' });
+    if (!popup) popup = new maplibregl.Popup({ className: 'map-popup', maxWidth: '300px' });
     popup.remove(); // one popup across every pane — detach it from wherever it was
-    popup.setLngLat(e.lngLat).setHTML(popupHtml(hits[0].properties)).addTo(map);
+    popup.setLngLat(e.lngLat).setDOMContent(popupContent(hits[0].properties)).addTo(map);
 }
 
 function bindInteractions(map) {

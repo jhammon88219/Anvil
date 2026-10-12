@@ -19,6 +19,9 @@
 // Drawn ON TOP of everything on purpose: these are the verification dots you read AGAINST the outlook
 // fill and the radar beneath them, so they must never be tinted by either.
 
+// The popup is a <template> in map.html; its look is styles/components/map-popups.css.
+import * as Templates from './templates.js';
+
 let reportsUrl = null;
 let reportsData = null;
 // Per-type visibility, driven by the card's Tornado / Wind / Hail checkboxes.
@@ -86,12 +89,6 @@ function addReportLayers(map) {
 // ONCE per layer id and survive removeLayer/addLayer (MapLibre resolves them against the live layers each
 // event), so re-adding after a basemap switch doesn't double-bind.
 
-function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
-}
-
 // SPC magnitude column → readable text (empty when unknown). Hail size is hundredths of an inch; wind is
 // mph; tornado is the (E)F rating number.
 function magText(kind, mag) {
@@ -110,49 +107,28 @@ function timeText(t) {
     return t;
 }
 
-function ensurePopupStyle() {
-    if (document.getElementById('spc-report-popup-style')) return;
-    // The popup SURFACE is chrome (theme.css); the three dot colors it opens from are data and stay
-    // in META above. ⚠️ The tip is a BORDER-COLOR trick — MapLibre draws the little arrow as a CSS
-    // triangle — so it has to repeat the background var rather than inherit it.
-    var css = [
-        '.spc-report-popup .maplibregl-popup-content{background:var(--anvil-popup-bg);color:var(--anvil-popup-text);',
-        'font:12px/1.45 "Segoe UI",system-ui,sans-serif;border-radius:8px;padding:9px 12px;',
-        'box-shadow:0 4px 16px rgba(0,0,0,0.5);max-width:280px;}',
-        '.spc-report-popup .maplibregl-popup-tip{border-top-color:var(--anvil-popup-bg);',
-        'border-bottom-color:var(--anvil-popup-bg);}',
-        '.spc-report-popup .maplibregl-popup-close-button{color:var(--anvil-popup-close);font-size:15px;padding:0 4px;}',
-        '.spc-report-title{font-weight:600;margin-bottom:3px;}',
-        '.spc-report-meta{color:var(--anvil-popup-meta);margin-bottom:4px;}',
-        '.spc-report-com{color:var(--anvil-popup-body);}'
-    ].join('');
-    var st = document.createElement('style');
-    st.id = 'spc-report-popup-style';
-    st.textContent = css;
-    document.head.appendChild(st);
-}
-
-function popupHtml(p) {
+function popupContent(p) {
     var meta = META[p.kind] || { label: p.kind || 'Report', color: '#888' };
     var mag = magText(p.kind, p.mag);
     var title = meta.label + (mag ? ' · ' + mag : '');
     var place = [p.loc, p.county ? p.county + ' Co.' : '', p.st].filter(Boolean).join(', ');
     var mea = [];
-    if (place) mea.push(esc(place));
-    if (p.time) mea.push(esc(timeText(p.time)));
-    var html = '<div class="spc-report-title" style="color:' + meta.color + '">' + esc(title) + '</div>';
-    if (mea.length) html += '<div class="spc-report-meta">' + mea.join(' · ') + '</div>';
-    if (p.com) html += '<div class="spc-report-com">' + esc(p.com) + '</div>';
-    return html;
+    if (place) mea.push(place);
+    if (p.time) mea.push(timeText(p.time));
+    // <template id="tpl-report-popup">; the title's colour is DATA (the report type's dot), the one inline value.
+    var el = Templates.clone('tpl-report-popup');
+    Templates.text(el, '.map-popup-title', title).style.color = meta.color;
+    Templates.text(el, '.map-popup-meta', mea.join(' · '));
+    Templates.text(el, '.map-popup-body', p.com);
+    return el;
 }
 
 // ONE popup across every pane — opening it in another pane moves it there. Detach it from wherever it was
 // first, or the previous pane is left holding an orphaned node. Shared by a dot click and a list row (focus).
 function openPopup(map, f) {
-    ensurePopupStyle();
-    if (!popup) popup = new maplibregl.Popup({ className: 'spc-report-popup', maxWidth: '280px' });
+    if (!popup) popup = new maplibregl.Popup({ className: 'map-popup', maxWidth: '280px' });
     popup.remove();
-    popup.setLngLat(f.geometry.coordinates.slice()).setHTML(popupHtml(f.properties)).addTo(map);
+    popup.setLngLat(f.geometry.coordinates.slice()).setDOMContent(popupContent(f.properties)).addTo(map);
 }
 
 function bindInteractions(map) {

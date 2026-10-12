@@ -18,6 +18,7 @@
 // ⚠️ Visibility is pushed only when the SET changes, not per mousemove: applyVisibility touches every key.
 
 import * as Geo from './geo.js';
+import * as Templates from './templates.js';
 
 const REVEAL_KM = 230;
 const EARTH_CIRC_M = 40075016.686; // MapLibre's 512-px tiles: m/px = this × cos(lat) / (512 × 2^zoom)
@@ -27,12 +28,10 @@ let lastKey = '', lastPoint = null, raf = 0;
 
 function ensureRing() {
     if (ring) return;
-    ring = document.createElement('div');
+    // <template id="tpl-reveal-ring"> in map.html; its look is styles/components/radar-tools.css.
     // ⚠️ The ring wears the scope colour (the range rings' outline, user-pickable), dashed so it never reads
     // as a radar's own range ring.
-    ring.setAttribute('style',
-        'position:absolute;left:0;top:0;border-radius:50%;pointer-events:none;display:none;z-index:2;' +
-        'border:1.5px dashed var(--anvil-scope-ring);box-sizing:border-box;');
+    ring = Templates.clone('tpl-reveal-ring');
     map.getContainer().appendChild(ring);
 }
 
@@ -58,7 +57,7 @@ function update() {
     ring.style.width = d + 'px';
     ring.style.height = d + 'px';
     ring.style.transform = 'translate(' + (lastPoint.x - d / 2) + 'px,' + (lastPoint.y - d / 2) + 'px)';
-    ring.style.display = '';
+    ring.style.display = 'block'; // the template starts hidden by its CSS
 
     const ids = idsNear(ll.lng, ll.lat).sort();
     const key = ids.join(',');

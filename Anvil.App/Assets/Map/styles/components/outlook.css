@@ -1,0 +1,20 @@
+/* ============================================================================================
+   styles/components/outlook.css — the SPC outlook's "no risk areas" sentence (js/outlook.js), drawn
+   across CONUS on a day with no areas. Markup: <template id="tpl-outlook-note"> in map.html.
+   The WORDS are data (verbatim from the feed); the ink and halo are chrome (theme variables).
+   ============================================================================================ */
+
+.outlook-note {
+    font: 600 40px/1.1 "Segoe UI", system-ui, sans-serif;
+    white-space: nowrap;
+    pointer-events: none;
+    color: var(--anvil-outlook-note-text);
+    z-index: 5;
+    /* The halo: a tight ring of shadows, the DOM stand-in for a map label's text-halo. */
+    text-shadow:
+        -2px 0 var(--anvil-outlook-note-halo),
+        2px 0 var(--anvil-outlook-note-halo),
+        0 -2px var(--anvil-outlook-note-halo),
+        0 2px var(--anvil-outlook-note-halo),
+        0 0 8px var(--anvil-outlook-note-halo);
+}

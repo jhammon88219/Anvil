@@ -1,0 +1,53 @@
+/* ============================================================================================
+   styles/components/map-popups.css — the click popups: storm reports (js/storm-reports.js),
+   damage surveys (js/damage-surveys.js), storm cells (js/storm-cells.js), tropical
+   (js/tropical.js). ONE surface for all four (.map-popup, MapLibre's Popup className); each kind's
+   content is its own <template> in map.html (tpl-report-popup, tpl-survey-popup, tpl-cell-popup,
+   tpl-tropical-popup + tpl-tropical-more).
+
+   The SURFACE is chrome (the --anvil-popup-* theme variables). The coloured bits — a report title,
+   an EF / cell chip, a tropical band — are DATA and are the only values JS sets inline.
+   ============================================================================================ */
+
+.map-popup .maplibregl-popup-content {
+    background: var(--anvil-popup-bg);
+    color: var(--anvil-popup-text);
+    font: 12px/1.45 "Segoe UI", system-ui, sans-serif;
+    border-radius: 8px;
+    padding: 9px 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .5);
+}
+/* ⚠️ The tip is a BORDER-COLOR trick — MapLibre draws the little arrow as a CSS triangle — so it has
+   to repeat the background var rather than inherit it. */
+.map-popup .maplibregl-popup-tip {
+    border-top-color: var(--anvil-popup-bg);
+    border-bottom-color: var(--anvil-popup-bg);
+}
+.map-popup .maplibregl-popup-close-button { color: var(--anvil-popup-close); font-size: 15px; padding: 0 4px; }
+
+.map-popup-title { font-weight: 600; margin-bottom: 3px; }
+/* The data chip before a title: square for an EF rating, ROUND for a storm cell (a cell is a dot on
+   the map). The ring keeps a pale chip readable on the light popup. */
+.map-popup-chip {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: -1px;
+    box-shadow: 0 0 0 1px rgba(20, 20, 20, .85);
+}
+.map-popup-round-chip .map-popup-chip { border-radius: 5px; }
+/* One fact per line: JS joins them with \n, never <br> (the text is feed data, set as text). */
+.map-popup-meta { color: var(--anvil-popup-meta); margin-bottom: 4px; white-space: pre-line; }
+.map-popup-meta:last-child { margin-bottom: 0; }
+.map-popup-body { color: var(--anvil-popup-body); max-height: 160px; overflow: auto; }
+.map-popup-src { color: var(--anvil-popup-meta); font-size: 10px; margin-top: 5px; }
+
+/* ── TROPICAL — a coloured BAND across the top (the product's own colour), then its lines ───────── */
+.map-popup-banded .maplibregl-popup-content { padding: 0 0 9px; overflow: hidden; min-width: 200px; }
+.tropical-band { font-weight: 600; font-size: 13px; padding: 5px 26px 5px 12px; }
+.tropical-storm { padding: 7px 12px 0; }
+.tropical-more { padding: 3px 12px 0; color: var(--anvil-popup-body); }
+.tropical-more .map-popup-chip { width: 9px; height: 9px; box-shadow: none; }
+.map-popup-banded .map-popup-meta { padding: 4px 12px 0; margin-bottom: 0; }

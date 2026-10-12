@@ -1,0 +1,115 @@
+/* ============================================================================================
+   styles/components/radar-site-keys.css — the on-map radar-site KEYS (js/radar-sites.js) and the
+   collision fan's leader lines. The markup is <template id="tpl-site-key"> (+ the three glyph
+   templates and tpl-site-lines / tpl-site-leader) in map.html; JS only clones it and toggles classes.
+
+        ╭──────────────╮      LEFT   .radar-site-glyph  = the NETWORK glyph: nexrad ◗ · tdwr ✈ · research ⚗
+        │ ◗  KTLX   ⌄  │      CENTRE .radar-site-label  = the ICAO
+        ╰──────────────╯      RIGHT  .radar-site-chev   = the menu chevron
+
+   TWO KINDS OF COLOUR, kept apart on purpose (2026-10-12, the gray key):
+     CHROME — the FACE, the HOVER face and the EDGE are one gray for every key. They are the
+              theme's (--anvil-key-face / -hover / -edge in styles/themes/).
+     DATA   — the INK of the glyph, the ICAO and the chevron IS the site's status (and, online, its
+              network). Literal, never themed: a theme that could restyle it would be able to lie.
+
+                   online                 offline                 not checked yet
+      NEXRAD       green                  red                     grey
+      TDWR         blue                   red                     grey
+      research     violet                 red                     grey
+
+   · HOVER lifts the face one step. SELECTED keeps the inks and outlines the key in its own ink on
+     the lifted face, so the status colour still reads on the loaded site.
+   · OFFLINE is inert except its chevron (near-white, hovers alone) — the menu can still open the Atlas.
+   · A status pass CASCADES: each key's ink eases grey → its colour as its check lands (the transition).
+
+   SIZES: 22px tall inside the 1px edge (12px text + 5px top/bottom padding); glyph + chevron zones
+   22px wide; label 7px side padding.
+
+   ⚠️ HIT TESTING: only the KEY takes the pointer. The MapLibre wrapper and the fan's offset wrapper are
+   pointer-events:none (see "HIT TESTING" in radar-sites.js). Nothing MOVES on press.
+   ============================================================================================ */
+
+.radar-site-marker { line-height: 0; pointer-events: none; }
+
+/* ── DATA — the status inks. Never themed. ───────────────────────────────────────────────────────
+     --k-ink   glyph, name, chevron, and the SELECTED edge
+     --k-chev  the chevron, where it differs from the ink
+   Online = the NETWORK's hue; offline + unknown come LATER so they win at equal specificity.
+   ⚠️ The three online hues are MIRRORED as the lit glyphs of MapControlsStrip.xaml's site toggles. */
+.radar-site-btn.nexrad   { --k-ink: #6fdb7f; }
+.radar-site-btn.tdwr     { --k-ink: #7aabfa; }
+.radar-site-btn.research { --k-ink: #a893f5; }
+.radar-site-btn.offline  { --k-ink: #f07070; --k-chev: #f2f2f2; }
+.radar-site-btn.unknown  { --k-ink: #7a7f86; --k-chev: #b0b6be; }
+
+/* ── The key ────────────────────────────────────────────────────────────────────────────────── */
+.radar-site-btn {
+    display: inline-flex;
+    align-items: stretch;
+    font: 700 12px/1 "Segoe UI", sans-serif;
+    letter-spacing: .3px;
+    color: var(--k-ink);
+    background: var(--anvil-key-face);
+    border: 1px solid var(--anvil-key-edge);
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: auto;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, .45);
+    /* Eases the ink grey → its colour as the site's check lands (the cascade). Short, because the
+       same transition carries the hover. */
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.radar-site-btn:not(.offline):hover { background: var(--anvil-key-hover); }
+
+/* LEFT: the network glyph. */
+.radar-site-glyph { flex: 0 0 22px; display: flex; align-items: center; justify-content: center; }
+.radar-site-glyph svg { width: 15px; height: 15px; display: block; }
+
+/* CENTRE: the ICAO. The VERTICAL padding sets the key's height (12px text + 5+5 = 22px). */
+.radar-site-label { padding: 5px 7px 5px 3px; }
+
+/* RIGHT: the menu chevron. */
+.radar-site-chev {
+    flex: 0 0 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--k-chev, var(--k-ink));
+    transition: background-color .15s ease, color .15s ease;
+}
+.radar-site-chev svg { width: 13px; height: 13px; display: block; }
+
+/* OFFLINE is inert except its chevron: no hand on the body, and the chevron hovers ALONE. */
+.radar-site-btn.offline { cursor: default; }
+.radar-site-btn.offline .radar-site-chev { cursor: pointer; }
+.radar-site-btn.offline .radar-site-chev:hover { background: var(--anvil-key-hover); }
+
+/* SELECTED: the lifted face, edged in the key's own status ink. The inks themselves don't change.
+   The active site's "radar" is also the big geographic range ring drawn on the MAP (radar.js). */
+.radar-site-btn.selected { background: var(--anvil-key-hover); border-color: var(--k-ink); }
+
+/* Fan-out offset wrapper: MapLibre positions the OUTER .radar-site-marker at the true lng/lat, so the
+   collision fan translates this inner wrapper instead — keeping the marker's true anchor (and the
+   leader-line origin) put while the visible key slides off the pile. Inline-flex so it hugs the key
+   and doesn't change the marker's measured size. Takes no pointer (see HIT TESTING). */
+.radar-site-offset { display: inline-flex; pointer-events: none; }
+
+/* ── Leader lines (the collision fan) ────────────────────────────────────────────────────────────
+   One overlay <svg> per map, right after the canvas container: above the basemap, below the keys. */
+.radar-site-lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+}
+.radar-site-leader-origin { fill: none; stroke: var(--anvil-leader); stroke-width: 1.5; }
+.radar-site-leader-line { stroke: var(--anvil-leader); stroke-width: 1; stroke-dasharray: 2 2; }
+
+/* A key the fan has moved off its pile rides above the leader-line overlay and the operational keys. */
+.radar-site-marker.fanned { z-index: 4; }
