@@ -66,7 +66,8 @@ namespace Anvil.Services
 
 		private readonly WarningsHealthLog _health;
 
-		// The current active warning set, keyed by cap_id. Mutated only from the (serial) refresh loop.
+		// The current active warning set, keyed by cap_id. Mutated only from the (serial) refresh loop — one refresh at a
+		// time, so no lock, though since 2026-10-12 a refresh runs on POOL threads (see RefreshAsync's ⚠️).
 		private readonly Dictionary<string, ActiveWarning> _active = new();
 		private int _consecutiveEmpty;
 		private string _lastClassification = "init";
@@ -86,6 +87,12 @@ namespace Anvil.Services
 
 		public string WarningsUrl => $"https://{CacheHostName}/{CacheFileName}";
 
+		// ⚠️ OFF THE UI THREAD: every await here (and in the helpers below) is ConfigureAwait(false), so the CAP parse +
+		// merge, the cache re-serialize, the WWA cross-check parse, the health log and the fly-to targets all run on pool
+		// threads — every 15 s on a storm day they used to land on the UI thread mid-pan (perf audit issue 4, 2026-10-12;
+		// fixed WITHOUT a measured before — no warnings were out; perf.ui "feedMs" should read ~0 on the next storm day).
+		// Safe because the ONE caller (WarningsViewModel's serial refresh loop) never overlaps two refreshes and hands
+		// the result to the UI with _dispatcher.Post; nothing here touches a UI object.
 		public async Task<WarningFetchResult> RefreshAsync(CancellationToken cancellationToken = default)
 		{
 			var cacheFile = Path.Combine(CacheDirectory, CacheFileName);
@@ -94,7 +101,7 @@ namespace Anvil.Services
 			string capJson;
 			try
 			{
-				capJson = await GetAsync(CapUrl, "application/geo+json", cancellationToken);
+				capJson = await GetAsync(CapUrl, "application/geo+json", cancellationToken).ConfigureAwait(false);
 			}
 			catch (OperationCanceledException)
 			{
@@ -107,8 +114,13 @@ namespace Anvil.Services
 				return Failed(cacheExists, ex.Message);
 			}
 
+			// PERF PROBE (perf.ui "feedMs"): each Begin/EndFeed pair times a parse/merge/serialize stretch, counted only
+			// when it ran on the UI thread. Grep RadarPerfCounters.
+			RadarPerfCounters.NoteFeedRefresh();
+			var feedT = RadarPerfCounters.BeginFeed();
 			if (!TryTransformCap(capJson, out var features, out var primaryIds))
 			{
+				RadarPerfCounters.EndFeed(feedT);
 				WriteFailedHealth("CAP response was not a GeoJSON FeatureCollection.");
 				return Failed(cacheExists, "CAP response was not a GeoJSON FeatureCollection.");
 			}
@@ -116,18 +128,22 @@ namespace Anvil.Services
 			// CAP's active feed is the COMPLETE authoritative set (one page comfortably holds every active
 			// warning nationwide), so its own feature count is the authoritative count for the merge.
 			ApplyFetch(features, features.Count, DateTimeOffset.UtcNow);
+			RadarPerfCounters.EndFeed(feedT);
 
 			// Write the merged set atomically (temp then move) so a partial write never blanks the cache.
-			await WriteCollectionAsync(cacheFile, cancellationToken);
+			await WriteCollectionAsync(cacheFile, cancellationToken).ConfigureAwait(false);
 
 			// NORTH-STAR CHECK: independent WWA cross-check (best-effort), then reconcile + persist.
-			var crossIds = await WwaCrossCheckIdsAsync(cancellationToken);
+			var crossIds = await WwaCrossCheckIdsAsync(cancellationToken).ConfigureAwait(false);
+			feedT = RadarPerfCounters.BeginFeed();
 			_health.Write(WarningsHealthLog.Reconcile(
 				DateTimeOffset.Now, _active.Keys, primaryIds, crossIds, _lastClassification));
 
 			var (tornado, severe, flashFlood, threats) = CountByPhenom();
-			return new WarningFetchResult(WarningFetchStatus.Updated, _active.Count, tornado, severe,
+			var result = new WarningFetchResult(WarningFetchStatus.Updated, _active.Count, tornado, severe,
 				FlashFloodCount: flashFlood, Threats: threats, Targets: TargetsOf(_active.Values.Select(w => w.Feature)));
+			RadarPerfCounters.EndFeed(feedT);
+			return result;
 		}
 
 		/// <summary>The active set as fly-to targets (id, phenom, tier, issue time, place, polygon + bbox) for the
@@ -352,14 +368,17 @@ namespace Anvil.Services
 		// can only be attached to one parent) and reusable next cycle.
 		private async Task WriteCollectionAsync(string cacheFile, CancellationToken cancellationToken)
 		{
+			var feedT = RadarPerfCounters.BeginFeed();
 			var features = new JsonArray();
 			foreach (var w in _active.Values)
 			{
 				features.Add(w.Feature.DeepClone());
 			}
 			var collection = new JsonObject { ["type"] = "FeatureCollection", ["features"] = features };
+			var text = collection.ToJsonString();
+			RadarPerfCounters.EndFeed(feedT);
 
-			await AtomicWriteAsync(cacheFile, collection.ToJsonString(), cancellationToken);
+			await AtomicWriteAsync(cacheFile, text, cancellationToken).ConfigureAwait(false);
 		}
 
 		// Fetches the WWA mapservice's active-warning cap_id set for the north-star cross-check. Best-effort:
@@ -370,17 +389,22 @@ namespace Anvil.Services
 			{
 				// */* + cache-bust: the WWA endpoint is Akamai-fronted (caches keyed on Accept; a stale edge
 				// copy otherwise). ArcGIS ignores the unknown cache-buster.
-				var json = await GetAsync(Bust(WwaCrossCheckUrl), "*/*", cancellationToken);
-				if (JsonNode.Parse(json)?["features"] is JsonArray arr)
+				var json = await GetAsync(Bust(WwaCrossCheckUrl), "*/*", cancellationToken).ConfigureAwait(false);
+				var feedT = RadarPerfCounters.BeginFeed();
+				try
 				{
-					var set = new HashSet<string>();
-					foreach (var f in arr)
+					if (JsonNode.Parse(json)?["features"] is JsonArray arr)
 					{
-						var id = Str(f?["properties"]?["cap_id"]);
-						if (!string.IsNullOrEmpty(id)) { set.Add(id); }
+						var set = new HashSet<string>();
+						foreach (var f in arr)
+						{
+							var id = Str(f?["properties"]?["cap_id"]);
+							if (!string.IsNullOrEmpty(id)) { set.Add(id); }
+						}
+						return set;
 					}
-					return set;
 				}
+				finally { RadarPerfCounters.EndFeed(feedT); }
 			}
 			catch
 			{
@@ -394,9 +418,9 @@ namespace Anvil.Services
 		{
 			using var req = new HttpRequestMessage(HttpMethod.Get, url);
 			req.Headers.Accept.ParseAdd(accept);
-			using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseContentRead, cancellationToken);
+			using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseContentRead, cancellationToken).ConfigureAwait(false);
 			resp.EnsureSuccessStatusCode();
-			return await resp.Content.ReadAsStringAsync(cancellationToken);
+			return await resp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 		}
 
 		private void WriteFailedHealth(string note) =>

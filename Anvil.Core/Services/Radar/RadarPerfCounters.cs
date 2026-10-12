@@ -17,6 +17,7 @@ namespace Anvil.Services
 	///                         present, i.e. the await resumed on the UI)  → "syncMs"
 	///   NoteHop              (a download chunk resumed on the UI)        → "svcHops"
 	///   Begin/EndReadout     (RaiseRadarReadout + the bindings it runs)  → "readouts" / "readoutMs"
+	///   Begin/EndFeed        (a feed's parse/merge ON the UI thread)     → "feeds" / "feedMs"
 	/// </code>
 	/// Always on (a pair of Interlocked ops per extraction is free); only <c>UiThreadProbe</c> (App, Debug)
 	/// ever reads it. ⚠️ EXCISABLE: this file, its call sites in <see cref="Level2RadarService"/> and
@@ -86,5 +87,24 @@ namespace Anvil.Services
 		/// <summary>Readout refreshes and their total milliseconds since the last call.</summary>
 		public static (int Count, double Ms) TakeReadouts() =>
 			(Interlocked.Exchange(ref _readouts, 0), Interlocked.Exchange(ref _readoutTicks, 0) * 1000.0 / Stopwatch.Frequency);
+
+		private static int _feeds;
+		private static long _feedTicks;
+
+		/// <summary>One overlay-feed refresh (warnings, …) completed a fetch — the denominator for "feed ms per refresh".</summary>
+		public static void NoteFeedRefresh() => Interlocked.Increment(ref _feeds);
+
+		/// <summary>Start timing a feed's parse/merge/serialize stretch. Like <see cref="BeginSync"/>: 0 (= not timed) off
+		/// a sync context, so only the part that ran ON the UI thread counts — after the off-thread fix it reads ~0.</summary>
+		public static long BeginFeed() => SynchronizationContext.Current is null ? 0 : Stopwatch.GetTimestamp();
+
+		public static void EndFeed(long started)
+		{
+			if (started != 0) Interlocked.Add(ref _feedTicks, Stopwatch.GetTimestamp() - started);
+		}
+
+		/// <summary>Feed refreshes and their UI-thread milliseconds since the last call.</summary>
+		public static (int Count, double Ms) TakeFeeds() =>
+			(Interlocked.Exchange(ref _feeds, 0), Interlocked.Exchange(ref _feedTicks, 0) * 1000.0 / Stopwatch.Frequency);
 	}
 }

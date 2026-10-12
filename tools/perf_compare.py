@@ -81,6 +81,11 @@ METRICS = [
     ("ui_readouts_ps",   "Readout refreshes /s",   "",   -1),
     ("ui_readout_ms_ps", "Readout cost /s",        "ms", -1),
     ("ui_readout_avg",   "Readout cost each",      "ms", -1),
+    # Overlay-feed refreshes (warnings, ...; RadarPerfCounters Begin/EndFeed, 2026-10-12): parse/merge time that ran ON
+    # the UI thread, per refresh and the worst single second.
+    ("ui_feeds",         "Feed refreshes",         "",    0),
+    ("ui_feed_avg",      "UI feed time per refresh", "ms", -1),
+    ("ui_feed_max",      "UI feed time worst second", "ms", -1),
 ]
 
 
@@ -109,6 +114,7 @@ def load_run(path):
     mk_frames, mk_upd, mk_upd_ms = 0, 0, 0.0
     ui_late, ui_ticks, ui_late50, ui_msg, ui_sync, ui_hops = [], 0, 0, 0.0, 0.0, 0
     ui_ro_windows, ui_ro_count, ui_ro_ms = 0, 0, 0.0
+    ui_feeds, ui_feed_ms, ui_feed_max = 0, 0.0, 0.0
     sites, sessions, stamp = set(), 0, None
     first_ts = last_ts = None
     skipped = 0
@@ -202,6 +208,12 @@ def load_run(path):
                 # readout fix. Logs without the field keep the old meaning.
                 hops = e.get("svcHops") or 0
                 readouts = e.get("readouts") or 0
+                feeds = e.get("feeds") or 0  # absent before 2026-10-12
+                if feeds > 0:
+                    fm = e.get("feedMs") or 0
+                    ui_feeds += feeds
+                    ui_feed_ms += fm
+                    ui_feed_max = max(ui_feed_max, fm)
                 if not ((e.get("jobsPeak") or 0) > 0 or hops > 0 or (e.get("syncMs") or 0) > 0 or readouts > 0):
                     continue
                 if readouts > 0:
@@ -272,6 +284,9 @@ def load_run(path):
         "ui_readouts_ps": round(ui_ro_count / ui_ro_windows, 2) if ui_ro_windows else None,
         "ui_readout_ms_ps": round(ui_ro_ms / ui_ro_windows, 2) if ui_ro_windows else None,
         "ui_readout_avg": round(ui_ro_ms / ui_ro_count, 3) if ui_ro_count else None,
+        "ui_feeds": ui_feeds if ui_feeds else None,
+        "ui_feed_avg": round(ui_feed_ms / ui_feeds, 2) if ui_feeds else None,
+        "ui_feed_max": round(ui_feed_max, 1) if ui_feeds else None,
     }
 
 

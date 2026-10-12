@@ -25,6 +25,7 @@ namespace Anvil
 	///   lateness LOW                       → input is not delayed here; look in the renderer
 	///   svcHops = download chunks that resumed ON this thread (Level2RadarService.ReadBodyAsync)
 	///   readouts / readoutMs = radar readout refreshes and their cost, bindings included (RaiseRadarReadout)
+	///   feeds / feedMs = overlay-feed refreshes (warnings, …) and their parse/merge time ON this thread
 	/// </code>
 	/// ⚠️ IT MUST NOT PERTURB WHAT IT MEASURES: the UI thread does one timestamp per tick and one per
 	/// routed message; process CPU and the JSONL write happen on the pool timer. The WebView2 process LIST
@@ -150,10 +151,12 @@ namespace Anvil
 				var syncMs = RadarPerfCounters.TakeSyncMs();
 				var svcHops = RadarPerfCounters.TakeHops();
 				var (readouts, readoutMs) = RadarPerfCounters.TakeReadouts();
+				var (feeds, feedMs) = RadarPerfCounters.TakeFeeds();
 				var cpu = SampleCpu(now);
 
 				// A loop that is up refreshes its readout every second, so every such second is logged (playback included).
-				var busy = lateMax >= 40 || msgMs >= 20 || syncMs >= 5 || jobsPeak > 0 || svcHops > 0 || readouts > 0;
+				// A feed refresh is logged too, so a fix that takes its cost to ~0 still shows the refresh it measured.
+				var busy = lateMax >= 40 || msgMs >= 20 || syncMs >= 5 || jobsPeak > 0 || svcHops > 0 || readouts > 0 || feeds > 0;
 				if (!busy && ++_windowNo % BaselineEvery != 0) return;
 
 				static double R(double v) => Math.Round(v, 1);
@@ -161,6 +164,7 @@ namespace Anvil
 					("ticks", ticks), ("lateMax", R(lateMax)), ("late50", late50), ("late100", late100),
 					("msgs", msgs), ("msgMs", R(msgMs)), ("msgMax", R(msgMax)), ("msgMaxType", msgMaxType),
 					("syncMs", R(syncMs)), ("svcHops", svcHops), ("readouts", readouts), ("readoutMs", R(readoutMs)),
+					("feeds", feeds), ("feedMs", R(feedMs)),
 					("jobs", jobs), ("jobsPeak", jobsPeak),
 					("cpuApp", R(cpu.App)), ("cpuRend", R(cpu.Renderer)), ("cpuGpu", R(cpu.Gpu)),
 					("cpuWebOther", R(cpu.WebOther)), ("cpuSys", R(cpu.System)), ("cores", _cores));
