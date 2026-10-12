@@ -285,27 +285,65 @@ namespace Anvil.ViewModels
 		/// <summary>Countdown label to the next live-frame poll (e.g. "next ~12s").</summary>
 		public string RadarNextFrameText => _selectedRadarOption?.Site is null ? "" : NextUpdate.CountdownOf(_nextLivePollAt);
 
-		// Raises the polished card properties + the diagnostics text together (frame changes,
-		// the 1s tick, selection changes). One call so notifications can't drift out of sync.
-		private void RaiseRadarReadout()
+		// Refreshes the card properties + the diagnostics text together (frame changes, the 1 s tick, selection
+		// changes, live polls). One call so notifications can't drift out of sync.
+		//
+		// ⚠️ RAISES ONLY WHAT CHANGED. It runs every second AND on every frame step, and re-raising all fifteen made every
+		// binding re-run and the Atlas re-raise ~22 properties twice — ~1.7 ms of UI thread per call (perf.ui readoutMs,
+		// 2026-10-12) for values that mostly hadn't moved. It still compares EVERY property every pass, so it keeps its
+		// other job: state that changes without a raise of its own (a frame's time arriving) shows within a second.
+		// ⚠️ A raise of one of these from ANYWHERE ELSE forgets its last value (OnPropertyChanged below), so the next pass
+		// re-raises it — another path can never leave a binding showing a value this cache thinks it already sent.
+		// Listeners that move with the CLOCK rather than with a value (the Atlas's age tiles, the usage checkpoint) use
+		// ReadoutTicked, raised after every pass.
+		internal void RaiseRadarReadout() // internal for RadarReadoutTests
 		{
 			var perfAt = Services.RadarPerfCounters.BeginReadout(); // perf.ui readouts/readoutMs (the bindings run inside)
-			OnPropertyChanged(nameof(RadarCardTitle));
-			OnPropertyChanged(nameof(RadarSiteId));
-			OnPropertyChanged(nameof(RadarSiteName));
-			OnPropertyChanged(nameof(RadarCardCoords));
-			OnPropertyChanged(nameof(RadarCardTime));
-			OnPropertyChanged(nameof(DisplayedFrameTimeUtc));
-			OnPropertyChanged(nameof(RadarFrameDetail));
-			OnPropertyChanged(nameof(RadarModeText));
-			OnPropertyChanged(nameof(RadarAgeText));
-			OnPropertyChanged(nameof(RadarAgeMinutes));
-			OnPropertyChanged(nameof(CanForceLiveCheck));
-			OnPropertyChanged(nameof(NewestLoadedFrameTime));
-			OnPropertyChanged(nameof(RadarLoopSpanText));
-			OnPropertyChanged(nameof(RadarStatus));
-			OnPropertyChanged(nameof(RadarLoadingText));
+			_readoutProps ??= new (string, Func<object?>)[]
+			{
+				(nameof(RadarCardTitle), () => RadarCardTitle),
+				(nameof(RadarSiteId), () => RadarSiteId),
+				(nameof(RadarSiteName), () => RadarSiteName),
+				(nameof(RadarCardCoords), () => RadarCardCoords),
+				(nameof(RadarCardTime), () => RadarCardTime),
+				(nameof(DisplayedFrameTimeUtc), () => DisplayedFrameTimeUtc),
+				(nameof(RadarFrameDetail), () => RadarFrameDetail),
+				(nameof(RadarModeText), () => RadarModeText),
+				(nameof(RadarAgeText), () => RadarAgeText),
+				(nameof(RadarAgeMinutes), () => RadarAgeMinutes),
+				(nameof(CanForceLiveCheck), () => CanForceLiveCheck),
+				(nameof(NewestLoadedFrameTime), () => NewestLoadedFrameTime),
+				(nameof(RadarLoopSpanText), () => RadarLoopSpanText),
+				(nameof(RadarStatus), () => RadarStatus),
+				(nameof(RadarLoadingText), () => RadarLoadingText),
+			};
+			foreach (var (name, read) in _readoutProps)
+			{
+				var value = read();
+				if (_readoutRaised.TryGetValue(name, out var sent) && Equals(sent, value)) continue;
+				_readoutRaised[name] = value;
+				_raisingReadout = name;
+				try { OnPropertyChanged(name); }
+				finally { _raisingReadout = null; }
+			}
+			ReadoutTicked?.Invoke(this, EventArgs.Empty);
 			Services.RadarPerfCounters.EndReadout(perfAt);
+		}
+
+		private (string Name, Func<object?> Read)[]? _readoutProps;
+		private readonly Dictionary<string, object?> _readoutRaised = new(StringComparer.Ordinal); // last value raised
+		private string? _raisingReadout; // the readout property being raised right now (not "from elsewhere")
+
+		/// <summary>After EVERY readout pass — each second while a loop is up, each frame step, each selection or live
+		/// poll — whether or not a value changed. For listeners that move with the clock: an age that should tick on.</summary>
+		public event EventHandler? ReadoutTicked;
+
+		// Any raise of a readout property that isn't the readout's own forgets the value it last sent (see above).
+		protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
+		{
+			if (string.IsNullOrEmpty(e.PropertyName)) _readoutRaised.Clear(); // "every property changed"
+			else if (!string.Equals(e.PropertyName, _raisingReadout, StringComparison.Ordinal)) _readoutRaised.Remove(e.PropertyName);
+			base.OnPropertyChanged(e);
 		}
 
 		/// <summary>Whether the loop is currently playing. ⚠️ The play/stop button's glyph is picked by the

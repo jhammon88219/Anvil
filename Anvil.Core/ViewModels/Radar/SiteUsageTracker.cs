@@ -26,7 +26,8 @@ namespace Anvil.ViewModels
 	/// </remarks>
 	public sealed class SiteUsageTracker
 	{
-		/// <summary>How long a running stretch may go unbanked. Checked when the loop lands a frame.</summary>
+		/// <summary>How long a running stretch may go unbanked. Checked when the loop lands a frame and on the readout's
+		/// per-second beat (RadarViewModel.ReadoutTicked).</summary>
 		internal static readonly TimeSpan CheckpointEvery = TimeSpan.FromMinutes(5);
 
 		private readonly SiteUsageStore _store;
@@ -51,6 +52,9 @@ namespace Anvil.ViewModels
 					OnFrameLanded();
 				}
 			};
+			// The readout's per-second beat keeps the checkpoint on time between frames (a PastCast loop lands none after
+			// its load) — it used to ride a NewestLoadedFrameTime re-raised every second, which the readout no longer sends.
+			radar.ReadoutTicked += (_, _) => OnFrameLanded();
 		}
 
 		/// <summary>TESTS ONLY (plus the public ctor) — the clock logic without a radar VM; drive it through

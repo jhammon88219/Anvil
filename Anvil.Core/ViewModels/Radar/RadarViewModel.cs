@@ -43,7 +43,7 @@ namespace Anvil.ViewModels
 		private readonly RadarLoopEngine _engine;
 
 		// Bridges the nested engine to the base ObservableObject's protected OnPropertyChanged.
-		private void RaisePropertyChangedFor(string propertyName) => OnPropertyChanged(propertyName);
+		internal void RaisePropertyChangedFor(string propertyName) => OnPropertyChanged(propertyName);
 
 		// Appends one free-form radar diagnostic note (incidental lines; high-value events use the typed
 		// RadarDiagnostics methods). Mirrors the engine's own Diag helper for the VM-side callers.

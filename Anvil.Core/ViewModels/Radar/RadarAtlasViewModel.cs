@@ -85,6 +85,12 @@ namespace Anvil.ViewModels
 				}
 			};
 
+			// The AGES (the scan's age, the running site-load clock) move with the clock, not with a value — they
+			// re-word on the radar readout's per-second beat. Only those: the rest of the scan read-out follows the
+			// values below. (They used to ride NewestLoadedFrameTime + RadarModeText re-raised every second, which
+			// re-raised this whole read-out twice a second; the readout now sends only what changed.)
+			_radar.ReadoutTicked += (_, _) => RaiseClock();
+
 			// For the site the loop is showing, our scan read-out IS the loop's — so re-raise it whenever the
 			// loop's frame time / mode / selection changes, and the two stay in lock-step (a new live frame
 			// updates both at once) instead of the Atlas freezing at whatever it fetched on selection.
@@ -775,6 +781,17 @@ namespace Anvil.ViewModels
 			RadarGlossary.Network(_selectedSite?.Site.Class ?? RadarSiteClass.Operational);
 
 		// Re-raise the scan read-out (the fields, the tiles they feed, and the hints that read them back).
+		// Only what the CLOCK moves: the scan's age (field, tile, hint) and the usage tiles (the running site-load time,
+		// "last used", the rank it can move). Once a second while a loop is up — RadarViewModel.ReadoutTicked.
+		private void RaiseClock()
+		{
+			OnPropertyChanged(nameof(LatestScanText));
+			OnPropertyChanged(nameof(DetailAgeValue));
+			OnPropertyChanged(nameof(DetailAgeMinutes));
+			OnPropertyChanged(nameof(AgeHint));
+			RaiseUsage();
+		}
+
 		private void RaiseScan()
 		{
 			OnPropertyChanged(nameof(LatestScanText));
