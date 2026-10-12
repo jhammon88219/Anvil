@@ -52,6 +52,7 @@ namespace Anvil.Controls.Composites
 			try
 			{
 				await PreviewWebView.EnsureCoreWebView2Async(await WebViewEnvironment.GetAsync());
+				await WebViewEnvironment.EnsureFreshMapAssetsAsync(PreviewWebView.CoreWebView2); // once per launch, shared
 			}
 			catch (Exception ex)
 			{

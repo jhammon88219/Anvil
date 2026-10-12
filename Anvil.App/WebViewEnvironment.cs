@@ -1,4 +1,7 @@
 using System;
+using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Web.WebView2.Core;
 
@@ -31,5 +34,55 @@ namespace Anvil
 		/// current value, or it would show a basemap the map isn't drawing.
 		/// </summary>
 		public static string? LaunchMapDataFolder { get; set; }
+
+		private static Task? _freshAssets;
+
+		/// <summary>
+		/// Make sure the page runs the map files THIS build shipped, not a copy from an earlier build. Call after
+		/// EnsureCoreWebView2Async and before the first navigation; runs once per launch (both pages share it).
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ WHY: the environment keeps a persistent HTTP DISK CACHE, and the <c>mapassets</c> folder mapping serves
+		/// files with no cache headers — so Chromium may keep reusing a cached map.js / radar-sites.js / stylesheet
+		/// after the file on disk changed. A stale module is worse than a stale style: an old radar-sites.js still
+		/// injects its old key CSS over the new stylesheet, and the change looks like it never happened.
+		/// So: stamp the page's own files (the newest write time under map.html, preview.html, js/ and styles/), and
+		/// when the stamp differs from the last launch's, clear the disk cache once before anything loads. Basemap
+		/// tiles, fonts and the data caches are local folders too, so clearing costs a re-read, never a download
+		/// (online tiles excepted, once per changed build).
+		/// </remarks>
+		public static Task EnsureFreshMapAssetsAsync(CoreWebView2 core) => _freshAssets ??= ClearIfChangedAsync(core);
+
+		private static async Task ClearIfChangedAsync(CoreWebView2 core)
+		{
+			try
+			{
+				var root = Path.Combine(AppContext.BaseDirectory, "Assets", "Map");
+				var files = new[] { Path.Combine(root, "map.html"), Path.Combine(root, "preview.html") }
+					.Where(File.Exists)
+					.Concat(new[] { "js", "styles" }
+						.Select(d => Path.Combine(root, d))
+						.Where(Directory.Exists)
+						.SelectMany(d => Directory.EnumerateFiles(d, "*", SearchOption.AllDirectories)));
+				var stamp = files.Select(f => File.GetLastWriteTimeUtc(f).Ticks).DefaultIfEmpty(0).Max()
+					.ToString(CultureInfo.InvariantCulture);
+
+				var stampFile = Path.Combine(
+					Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Anvil", "WebView", "map-assets.stamp");
+				var last = File.Exists(stampFile) ? File.ReadAllText(stampFile).Trim() : string.Empty;
+				if (last == stamp)
+				{
+					return;
+				}
+
+				await core.Profile.ClearBrowsingDataAsync(CoreWebView2BrowsingDataKinds.DiskCache);
+				Directory.CreateDirectory(Path.GetDirectoryName(stampFile)!);
+				File.WriteAllText(stampFile, stamp);
+			}
+			catch
+			{
+				// A failed check must never stop the map loading — worst case is the old behaviour (a stale cache).
+			}
+		}
 	}
 }

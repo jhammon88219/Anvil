@@ -944,6 +944,9 @@ namespace Anvil
 			// and a second WebView2 with different options fails to create.
 			await webView.EnsureCoreWebView2Async(await WebViewEnvironment.GetAsync());
 
+			// Drop a cached copy of the page's files from an earlier build before anything loads (see the remarks).
+			await WebViewEnvironment.EnsureFreshMapAssetsAsync(webView.CoreWebView2);
+
 			// The WebView2 death report. Subscribed FIRST, before any host mapping or navigation, so a
 			// failure during startup is caught too.
 			webView.CoreWebView2.ProcessFailed += OnWebViewProcessFailed;
