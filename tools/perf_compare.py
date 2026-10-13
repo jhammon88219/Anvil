@@ -138,8 +138,9 @@ METRICS = [
     ("gc_pause_ms",      "GC pause total",         "ms", -1),
     ("gc_pause_max",     "GC pause worst second",  "ms", -1),
     ("gc_heap_max",      "Managed heap peak",      "MB", -1),
-    ("gc_stall_late",    "Stall seconds: lateness", "ms", -1),
-    ("gc_stall_pause",   "Stall seconds: GC pause", "ms", -1),
+    ("gc_stalls",        "Stalls (>= 500 ms runs)", "",  -1),
+    ("gc_stall_late",    "Stalls: total length",   "ms", -1),
+    ("gc_stall_pause",   "Stalls: GC pause inside", "ms", -1),
 ]
 
 
@@ -176,6 +177,7 @@ def load_run(path):
     gz = defaultdict(float)  # gzVols / gzChecks / gzInflateMs / gzWalkMs / gzWaitMs summed over the run
     diag = defaultdict(float)  # perf.ui diag*: counts + ms summed, *Max maxed, diagLists = latest
     gc = defaultdict(float)  # perf.ui gc*: per-gen counts + pause summed, worst second, blocking gen2s, stall split
+    gc_ep_max, gc_ep_pause, gc_ep_open = 0, 0.0, False  # the stall episode being read (see "A stall = ...")
     book = defaultdict(float)  # perf.book: pumpN / pumpMs / progN / progMs summed, pumpMax / progMax maxed
     msg_by = defaultdict(lambda: [0, 0.0])  # perf.ui msgBy: type -> [count, ms]
     sites, sessions, stamp = set(), 0, None
@@ -302,9 +304,19 @@ def load_run(path):
                 gc["heapMax"] = max(gc["heapMax"], e.get("gcHeapMb") or 0)
                 if e.get("gcLastGen") == 2 and e.get("gcLastConc") is False:
                     gc["blocking2"] += 1
-                if (e.get("lateMax") or 0) >= 500 and "gcPauseMs" in e:
-                    gc["stallLate"] += e["lateMax"]
-                    gc["stallPause"] += e.get("gcPauseMs") or 0
+                # A stall = a RUN of consecutive >= 500 ms seconds. lateMax counts a still-overdue tick, so one 2.6 s stall
+                # reads 1.6 s then 2.6 s in two lines: the episode's length is its MAX, not the sum. Pause = the run's sum
+                # plus the next second's (a GC that ends after the stall is counted when it completes).
+                if "gcPauseMs" in e:
+                    if (e.get("lateMax") or 0) >= 500:
+                        gc_ep_max = max(gc_ep_max, e["lateMax"])
+                        gc_ep_pause += e.get("gcPauseMs") or 0
+                        gc_ep_open = True
+                    elif gc_ep_open:
+                        gc["stallLate"] += gc_ep_max
+                        gc["stallPause"] += gc_ep_pause + (e.get("gcPauseMs") or 0)
+                        gc["stalls"] += 1
+                        gc_ep_max, gc_ep_pause, gc_ep_open = 0, 0.0, False
                 for k in ("diagLogs", "diagEchoMs", "diagWaitMs", "diagHeldMs", "diagReports", "diagRenderMs",
                           "diagWriteMs"):  # absent before 2026-10-13 (issue 12)
                     diag[k] += e.get(k) or 0
@@ -439,6 +451,7 @@ def load_run(path):
         "gc_pause_ms": round(gc["gcPauseMs"], 1) if "gc0" in gc else None,
         "gc_pause_max": round(gc["pauseMax"], 1) if "gc0" in gc else None,
         "gc_heap_max": round(gc["heapMax"]) if "gc0" in gc else None,
+        "gc_stalls": int(gc["stalls"]) if "gc0" in gc else None,
         "gc_stall_late": round(gc["stallLate"]) if "gc0" in gc else None,
         "gc_stall_pause": round(gc["stallPause"]) if "gc0" in gc else None,
         "diag_logs": int(diag["diagLogs"]) if diag["diagLogs"] else None,
