@@ -51,6 +51,12 @@ METRICS = [
     ("wait_p50",         "Queued behind decode p50", "ms", -1),
     ("round_p50",        "Frame dispatch->arrival p50", "ms", -1),
     ("frames_decoded",   "Frames decoded",         "",    0),
+    # Geometry build (radar-decode.js buildGates, logged per frame per product as js.build.{product}.gates / .pack /
+    # .verts): the gate loop's ms per frame, its packing ms, and the loop's cost per million vertices (so a loop with
+    # more echo on screen doesn't read as slower).
+    ("gates_ms_frame",   "Gate loop ms per frame", "ms", -1),
+    ("pack_ms_frame",    "Gate pack ms per frame", "ms", -1),
+    ("gates_ms_per_mv",  "Gate loop ms per M verts", "ms", -1),
     ("suspects",         "Suspect frames",         "",   -1),
     ("render_errors",    "Render errors",          "",   -1),
     ("render_blanks",    "Render blanks",          "",   -1),
@@ -121,6 +127,7 @@ def load_run(path):
     decode_ms, timings = [], defaultdict(list)
     timing_seen, site_timings = set(), defaultdict(list)
     fetch_ms, wait_ms, round_ms, vol_bytes = [], [], [], []
+    gate_frames = []  # (gate loop ms, pack ms, verts) per decoded frame, summed over its products
     frames_decoded = suspects = render_errors = render_blanks = 0
     pan_p50, pan_p95, pan_long, mk_attached, mk_shown = [], [], [], [], []
     pan_cadence, pan_long_ms = [], []
@@ -193,6 +200,13 @@ def load_run(path):
                         sink.append(js[key])
                 if isinstance(js.get("bytes"), (int, float)) and js["bytes"] > 0:
                     vol_bytes.append(js["bytes"])
+                # Per-product geometry build (absent on cached frames and in older logs).
+                build = js.get("build") or {}
+                if build:
+                    g = sum((b.get("gates") or 0) for b in build.values() if isinstance(b, dict))
+                    p = sum((b.get("pack") or 0) for b in build.values() if isinstance(b, dict))
+                    v = sum((b.get("verts") or 0) for b in build.values() if isinstance(b, dict))
+                    gate_frames.append((g, p, v))
             elif cat == "render":
                 js = e.get("js") or {}
                 # radar.js rate-limits these and carries running TOTALS, so take the max, never a count.
@@ -306,6 +320,10 @@ def load_run(path):
         "wait_p50": statistics.median(wait_ms) if wait_ms else None,
         "round_p50": statistics.median(round_ms) if round_ms else None,
         "frames_decoded": frames_decoded,
+        "gates_ms_frame": statistics.median(g for g, _, _ in gate_frames) if gate_frames else None,
+        "pack_ms_frame": statistics.median(p for _, p, _ in gate_frames) if gate_frames else None,
+        "gates_ms_per_mv": (round(1e6 * sum(g for g, _, _ in gate_frames) / sum(v for _, _, v in gate_frames), 1)
+                            if gate_frames and sum(v for _, _, v in gate_frames) else None),
         "suspects": suspects,
         "render_errors": render_errors,
         "render_blanks": render_blanks,
