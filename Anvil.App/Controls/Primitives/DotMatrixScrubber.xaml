@@ -20,9 +20,13 @@
      frames share columns.
      ⚠️ The host's seek asks IndexAt(x) — the SAME column→frame table — so a click lands on the frame drawn under it.
      It does NOT align to anything above it.
-     ⚠️ THE DOTS ARE FOUR DECLARED PATHS (below), one per state, each wearing its STYLE (EmptyDot / FillingDot /
-     ReadyDot / CurrentDot) — never elements built in code, never a theme brush resolved in C#. The code-behind only
-     computes the circles and moves a dot's circle to another path when its STATE changes (a load ticks every 150 ms).
+     ⚠️ THE DOTS ARE FOUR DECLARED PATHS (below), each wearing its STYLE (EmptyDot / FillingDot / ReadyDot /
+     CurrentDot) — never elements built in code, never a theme brush resolved in C#. The code-behind only computes the
+     circles and moves a dot's circle to another path when its STATE changes (a load ticks every 150 ms).
+     ⚠️ CURRENT IS AN OVERLAY: the three state paths hold EVERY dot (the lit frame's too, in its own state); the
+     CurrentDot path, on top, draws a copy of the lit frame's circles over them. Moving the playhead swaps that path's
+     circles in one step instead of moving ~35 dots between paths (perf audit issue 6). Its brush MUST stay OPAQUE
+     (#FF…) — a translucent one would show the dots beneath.
      ⚠️ Not hit-testable: the host (RadarControls.ScrubberHost) owns the pointer. -->
 <UserControl x:Class="Anvil.Controls.Primitives.DotMatrixScrubber"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -64,8 +68,8 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- The dots: one path per state, stacked (each dot's circle is in exactly one). Layout computes the circles and
-         deals them to the paths; the current frame's path is on top. Height = Rows at the dot pitch. -->
+    <!-- The dots: one path per state, stacked (each dot's circle is in exactly one of the first three). Layout computes
+         the circles and deals them to the paths; CurrentDots, on top, is the lit frame's overlay. Height = Rows at the dot pitch. -->
     <Canvas x:Name="Dots">
         <Path x:Name="EmptyDots" Style="{StaticResource EmptyDot}"/>
         <Path x:Name="FillingDots" Style="{StaticResource FillingDot}"/>

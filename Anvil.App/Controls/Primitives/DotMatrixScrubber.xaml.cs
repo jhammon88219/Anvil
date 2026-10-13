@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -28,10 +29,11 @@ namespace Anvil.Controls.Primitives
 	/// </summary>
 	public sealed partial class DotMatrixScrubber : UserControl
 	{
-		private enum DotState : byte { Empty, Filling, Ready, Current }
+		// A field dot's state. The CURRENT frame is not one of them — it is the CurrentDots overlay (ShowLit).
+		private enum DotState : byte { Empty, Filling, Ready }
 
 		// THE FIELD: every dot's CIRCLE, flat (index = column × rows + row), and each dot's last-applied state. The dots
-		// are drawn by the FOUR PATHS declared in the XAML, one per state; a dot's circle lives in the geometry of the path
+		// are drawn by the THREE state PATHS declared in the XAML; a dot's circle lives in the geometry of the path
 		// for its state, and a state change MOVES it (only on change). ⚠️ Computed ONCE per shape (width, rows, dot size +
 		// gap) and REUSED across loops: a new loop only re-deals which frame owns which columns. It used to be torn down
 		// and rebuilt (~525 Ellipses) on every re-lay, and a re-lay ran per collection event — measured 2026-10-10 as
@@ -39,9 +41,10 @@ namespace Anvil.Controls.Primitives
 		private EllipseGeometry[] _dots = Array.Empty<EllipseGeometry>();
 		private DotState[] _dotStates = Array.Empty<DotState>();
 		// Per state, the circles its path draws (index = (int)DotState).
-		private readonly GeometryGroup[] _groups = new GeometryGroup[4];
-		private readonly bool[] _dirty = new bool[4]; // a group whose circles moved since its path last took it
-		// The XAML's four paths, index = (int)DotState — set once after InitializeComponent.
+		private readonly GeometryGroup[] _groups = new GeometryGroup[3];
+		private readonly bool[] _dirty = new bool[3]; // a group whose circles moved since its path last took it
+		// The XAML's three state paths, index = (int)DotState — set once after InitializeComponent. (CurrentDots is the
+		// overlay, never one of these: Flush / Apply must never hand it a state group.)
 		private readonly Path[] _paths;
 		private (int Columns, int Rows, double Pitch, double Left, double Size) _fieldShape;
 		// Per segment, its dots' FIELD indices IN FILL ORDER.
@@ -56,7 +59,7 @@ namespace Anvil.Controls.Primitives
 		public DotMatrixScrubber()
 		{
 			InitializeComponent();
-			_paths = new[] { EmptyDots, FillingDots, ReadyDots, CurrentDots };
+			_paths = new[] { EmptyDots, FillingDots, ReadyDots };
 			SizeChanged += (_, e) => { if (Math.Abs(e.NewSize.Width - e.PreviousSize.Width) > 0.5) Layout(); };
 			Loaded += (_, _) => Attach();
 			Unloaded += (_, _) => Detach(); // the VM's collection outlives a Settings window — never leak into it
@@ -240,22 +243,45 @@ namespace Anvil.Controls.Primitives
 			// A queued re-lay repaints every block anyway (and these indices may be the OLD loop's).
 			if (_relayQueued || _attached is null) { _pendingPaints.Clear(); return; }
 			var t = RadarPerfCounters.BeginScrub();
-			foreach (var s in _pendingPaints) PaintBlock(s);
+			Repaint(_pendingPaints);
 			_pendingPaints.Clear();
 			Flush();
 			RadarPerfCounters.EndScrub(t, RadarPerfCounters.ScrubPaint);
 		}
 
+		// The playhead moved: swap the CurrentDots overlay to the new frame's circles — no field dot moves (see ShowLit).
 		private void MoveLit()
 		{
 			var was = _litIndex;
 			_litIndex = LitIndex();
 			if (was == _litIndex) return;
 			var t = RadarPerfCounters.BeginScrub();
-			if (was >= 0) PaintBlock(was);
-			if (_litIndex >= 0) PaintBlock(_litIndex);
-			Flush();
+			ShowLit();
 			RadarPerfCounters.EndScrub(t, RadarPerfCounters.ScrubLit);
+		}
+
+		// ---- The lit frame: an OVERLAY (see the XAML header) ----
+		// ⚠️ The field's three state paths keep EVERY dot, the lit frame's included (in its own state); CurrentDots draws a
+		// COPY of the lit block's circles on top. Moving the lit block's dots into the Current path and back cost ~3 ms per
+		// playhead step in playback — 75% of the scrubber's UI time (perf audit issue 6, measured 2026-10-13); a swap of the
+		// path's Data is one step. Each block's copy is built the first time it is lit and kept until the next re-lay.
+		private GeometryGroup?[] _litGroups = Array.Empty<GeometryGroup?>();
+
+		private void ShowLit()
+		{
+			if (_litIndex < 0 || _litIndex >= _blocks.Count) { CurrentDots.Data = null; return; }
+			if (_litGroups.Length != _blocks.Count) _litGroups = new GeometryGroup?[_blocks.Count];
+			if (_litGroups[_litIndex] is not { } group)
+			{
+				group = new GeometryGroup();
+				foreach (var d in _blocks[_litIndex])
+				{
+					var dot = _dots[d];
+					group.Children.Add(new EllipseGeometry { Center = dot.Center, RadiusX = dot.RadiusX, RadiusY = dot.RadiusY });
+				}
+				_litGroups[_litIndex] = group;
+			}
+			CurrentDots.Data = group;
 		}
 
 		private int LitIndex() =>
@@ -276,11 +302,13 @@ namespace Anvil.Controls.Primitives
 			if (Dots is null) return; // a DP set before InitializeComponent
 			_blocks.Clear();
 			_owner = Array.Empty<int>();
+			_litGroups = Array.Empty<GeometryGroup?>(); // the blocks are re-dealt: every overlay copy is stale
 
 			var width = ActualWidth;
 			if (width <= 0)
 			{
 				_litIndex = -1;
+				CurrentDots.Data = null;
 				return;
 			}
 
@@ -294,9 +322,11 @@ namespace Anvil.Controls.Primitives
 			if (count == 0)
 			{
 				// No loop: the bare field, every dot empty.
-				for (var d = 0; d < _dots.Length; d++) SetDot(d, DotState.Empty);
+				_pendingPaints.Clear();
+				Apply(new DotState[_dots.Length]);
 				Flush();
 				_litIndex = -1;
+				CurrentDots.Data = null;
 				return;
 			}
 
@@ -335,30 +365,38 @@ namespace Anvil.Controls.Primitives
 
 			_litIndex = LitIndex();
 			_pendingPaints.Clear(); // every block is repainted below
-			RepaintAll(count);
+			Repaint(Enumerable.Range(0, count)); // every dot is in exactly one block, so every dot is repainted
 			Flush(); // ONCE for the whole re-lay, not per block
+			ShowLit();
 		}
 
-		// Every block repainted at once (a re-lay). Every dot is in exactly one block, so this is every dot's state.
-		// ⚠️ When MANY dots change (a new loop: most of the field), the four circle lists are REBUILT in one pass —
-		// 4 Clears + one Add per dot — instead of moving dots one by one, each move a Remove that SEARCHES its group's
-		// list (O(n²) over ~525 dots; perf audit issue 6, 2026-10-13). A few changes still move just those dots.
-		private void RepaintAll(int count)
+		// Repaint the given blocks: each dot's new state from its segment (StateOf), then applied in one go.
+		private void Repaint(IEnumerable<int> blocks)
 		{
 			if (_attached is null) return;
-			var target = new DotState[_dots.Length];
-			for (var s = 0; s < count && s < _blocks.Count && s < _attached.Count; s++)
+			var target = (DotState[])_dotStates.Clone();
+			foreach (var s in blocks)
 			{
+				if (s < 0 || s >= _blocks.Count || s >= _attached.Count) continue; // an old loop's index (see OnSegmentsChanged)
 				var segment = _attached[s];
 				var block = _blocks[s];
 				var lit = FilledDots(segment, block.Length);
-				for (var i = 0; i < block.Length; i++) target[block[i]] = StateOf(segment, s, i, lit);
+				for (var i = 0; i < block.Length; i++) target[block[i]] = StateOf(segment, i, lit);
 			}
+			Apply(target);
+		}
 
+		// Bring every dot to its target state. ⚠️ MOVING a dot costs ~85 µs (its circle's Remove SEARCHES the old path's
+		// list), while REBUILDING all three lists — 3 Clears + one Add per dot — cost ~5 ms for the whole ~525-dot field
+		// (both measured 2026-10-13, perf audit issue 6). So past ~1/8 of the field changing, rebuild; below it, move just
+		// the changed dots. A new loop, or many frames turning ready at once, takes the rebuild — that batch was a single
+		// 36–210 ms paint, once per load.
+		private void Apply(DotState[] target)
+		{
 			var changed = 0;
 			for (var d = 0; d < target.Length; d++) { if (target[d] != _dotStates[d]) changed++; }
 			if (changed == 0) return;
-			if (changed * 4 < target.Length)
+			if (changed * 8 < target.Length)
 			{
 				for (var d = 0; d < target.Length; d++) SetDot(d, target[d]);
 				return;
@@ -375,11 +413,10 @@ namespace Anvil.Controls.Primitives
 		private static int FilledDots(RadarFrameSegment segment, int dots) =>
 			(int)Math.Round(Math.Clamp(segment.Fill, 0, 1) * dots);
 
-		// THE paint rule for dot i (fill order) of segment s's block: the current frame whole, a ready frame whole, else the
-		// first `lit` dots filling and the rest empty. PaintBlock and RepaintAll both read it.
-		private DotState StateOf(RadarFrameSegment segment, int s, int i, int lit) =>
-			s == _litIndex ? DotState.Current
-			: segment.IsReady ? DotState.Ready
+		// THE paint rule for dot i (fill order) of a block: a ready frame whole, else the first `lit` dots filling and the
+		// rest empty. (The lit frame is the CurrentDots overlay, drawn over whatever this says — see ShowLit.)
+		private static DotState StateOf(RadarFrameSegment segment, int i, int lit) =>
+			segment.IsReady ? DotState.Ready
 			: i < lit ? DotState.Filling
 			: DotState.Empty;
 
@@ -422,7 +459,7 @@ namespace Anvil.Controls.Primitives
 		}
 
 		// Hand each path whose circles moved its group again, so it re-draws from the new set. Called once after each
-		// batch of SetDots (a paint, a lit move or a re-lay), never per dot or per block.
+		// batch (a paint or a re-lay), never per dot or per block.
 		private void Flush()
 		{
 			for (var g = 0; g < _groups.Length; g++)
@@ -432,16 +469,6 @@ namespace Anvil.Controls.Primitives
 				_paths[g].Data = null;
 				_paths[g].Data = _groups[g];
 			}
-		}
-
-		// One block's dots from its segment (StateOf). Moves circles only — the CALLER flushes, once per batch.
-		private void PaintBlock(int s)
-		{
-			if (_attached is null || s < 0 || s >= _blocks.Count || s >= _attached.Count) return;
-			var segment = _attached[s];
-			var block = _blocks[s];
-			var lit = FilledDots(segment, block.Length);
-			for (var i = 0; i < block.Length; i++) SetDot(block[i], StateOf(segment, s, i, lit));
 		}
 	}
 }
