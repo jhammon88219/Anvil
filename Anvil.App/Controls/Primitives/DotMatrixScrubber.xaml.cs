@@ -386,16 +386,22 @@ namespace Anvil.Controls.Primitives
 			Apply(target);
 		}
 
-		// Bring every dot to its target state. ⚠️ MOVING a dot costs ~85 µs (its circle's Remove SEARCHES the old path's
-		// list), while REBUILDING all three lists — 3 Clears + one Add per dot — cost ~5 ms for the whole ~525-dot field
-		// (both measured 2026-10-13, perf audit issue 6). So past ~1/8 of the field changing, rebuild; below it, move just
-		// the changed dots. A new loop, or many frames turning ready at once, takes the rebuild — that batch was a single
-		// 36–210 ms paint, once per load.
+		// Bring every dot to its target state: past ~1/8 of the field changing, rebuild the three lists (3 Clears + one Add
+		// per dot); below it, move just the changed dots. The CALLER's Flush re-attaches the lists.
+		// ⚠️ THE PATHS ARE DETACHED FIRST (Data = null). Changing a circle list while a live Path draws it is what was slow:
+		// ~85 µs per moved dot, and a whole-field rebuild on the live lists hit 316–835 ms in one paint (perf audit issue 6,
+		// measured 2026-10-13 — the batch where many frames turn ready at once). Detached, it is plain list work; Flush hands
+		// each path its list back ONCE. Every path is re-handed anyway after a batch, so detaching all three costs nothing.
 		private void Apply(DotState[] target)
 		{
 			var changed = 0;
 			for (var d = 0; d < target.Length; d++) { if (target[d] != _dotStates[d]) changed++; }
 			if (changed == 0) return;
+			for (var g = 0; g < _paths.Length; g++)
+			{
+				_paths[g].Data = null;
+				_dirty[g] = true; // Flush re-attaches every path
+			}
 			if (changed * 8 < target.Length)
 			{
 				for (var d = 0; d < target.Length; d++) SetDot(d, target[d]);
@@ -407,7 +413,6 @@ namespace Anvil.Controls.Primitives
 				_groups[(int)target[d]].Children.Add(_dots[d]);
 				_dotStates[d] = target[d];
 			}
-			for (var g = 0; g < _dirty.Length; g++) _dirty[g] = true;
 		}
 
 		private static int FilledDots(RadarFrameSegment segment, int dots) =>
