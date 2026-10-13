@@ -97,9 +97,11 @@ namespace Anvil.Services
 
 		public static void NoteGzVolume() => Interlocked.Increment(ref _gzVolumes);
 
-		public static void NoteGzCheck(long inflateTicks, long walkTicks)
+		/// <summary>A completeness check's CPU; <paramref name="countsAsCheck"/> false = inflate time from the streaming
+		/// inflater, which is not a check of its own.</summary>
+		public static void NoteGzCheck(long inflateTicks, long walkTicks, bool countsAsCheck = true)
 		{
-			Interlocked.Increment(ref _gzChecks);
+			if (countsAsCheck) Interlocked.Increment(ref _gzChecks);
 			Interlocked.Add(ref _gzInflateTicks, inflateTicks);
 			Interlocked.Add(ref _gzWalkTicks, walkTicks);
 		}

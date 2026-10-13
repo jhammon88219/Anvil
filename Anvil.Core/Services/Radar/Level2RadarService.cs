@@ -2659,6 +2659,13 @@ namespace Anvil.Services
 		/// with no complete tilt it returns the whole compressed file instead, for the unchanged full-download path.
 		/// Each chunk goes through <paramref name="charge"/> (the byte meter and the Dev speed cap).
 		/// </summary>
+		/// <remarks>
+		/// ⚠️ ONE INFLATER PER VOLUME, fed as the bytes arrive (<see cref="GzFeed"/> → <see cref="InflateAsync"/>): each
+		/// check only WALKS what is already unzipped. It used to re-gunzip the whole prefix from byte 0 at every check — ~2.3×
+		/// the needed inflate, and the download stood still 0.4–0.7 s per volume waiting on it (perf audit issue 7, measured
+		/// 2026-10-13). A check first waits for the inflater to drain what was fed (<see cref="GzFeed.WhenStarvedAsync"/>), so
+		/// it sees exactly the bytes so far — the same prefix the old re-gunzip saw.
+		/// </remarks>
 		internal static async Task<(byte[]? Tilt, byte[]? WholeGz)> StreamGzBaseTiltAsync(Stream body, string siteId,
 			Func<int, CancellationToken, Task> charge, bool urgent, CancellationToken ct)
 		{
@@ -2667,31 +2674,175 @@ namespace Anvil.Services
 			long nextCheck = GzFirstCheckBytes;
 			int n;
 			RadarPerfCounters.NoteGzVolume(); // PERF PROBE (perf.ui "gz*"): checks, their CPU, and the download's wait on them
-			// ConfigureAwait(false) throughout — see ReadBodyAsync's ⚠️ (the prefix copy below then runs off the UI thread too).
-			while ((n = await body.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+			var feed = new GzFeed();
+			var unzipped = new MemoryStream();
+			_ = InflateAsync(feed, unzipped); // never faults (see InflateAsync); Complete() below always ends it
+			try
 			{
-				RadarPerfCounters.NoteHop(); // perf.ui: a chunk that woke the UI thread
-				compressed.Write(buffer, 0, n);
-				await charge(n, ct).ConfigureAwait(false);
-				if (compressed.Length < nextCheck) continue;
-				nextCheck = compressed.Length + GzCheckEveryBytes;
-				var syncAt = RadarPerfCounters.BeginSync(); // perf.ui: the prefix copy, when it lands on the UI thread
-				var soFar = compressed.ToArray();
-				RadarPerfCounters.EndSync(syncAt);
-				var waitAt = System.Diagnostics.Stopwatch.GetTimestamp();
-				var tilt = await RadarCpuWork.Run(() =>
+				// ConfigureAwait(false) throughout — see ReadBodyAsync's ⚠️ (the copy below then runs off the UI thread too).
+				while ((n = await body.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+				{
+					RadarPerfCounters.NoteHop(); // perf.ui: a chunk that woke the UI thread
+					compressed.Write(buffer, 0, n);
+					feed.Feed(buffer.AsSpan(0, n));
+					await charge(n, ct).ConfigureAwait(false);
+					if (compressed.Length < nextCheck) continue;
+					nextCheck = compressed.Length + GzCheckEveryBytes;
+					var waitAt = System.Diagnostics.Stopwatch.GetTimestamp();
+					await feed.WhenStarvedAsync().ConfigureAwait(false); // everything fed so far is unzipped
+					var syncAt = RadarPerfCounters.BeginSync(); // perf.ui: the copy, when it lands on the UI thread
+					byte[] soFar;
+					lock (unzipped) soFar = unzipped.ToArray();
+					RadarPerfCounters.EndSync(syncAt);
+					var tilt = await RadarCpuWork.Run(() =>
+					{
+						var t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+						var found = CompleteBaseTilt(soFar, siteId);
+						RadarPerfCounters.NoteGzCheck(0, System.Diagnostics.Stopwatch.GetTimestamp() - t0);
+						return found;
+					}, ct, urgent).ConfigureAwait(false);
+					RadarPerfCounters.NoteGzWait(System.Diagnostics.Stopwatch.GetTimestamp() - waitAt);
+					if (tilt is not null) return (tilt, null);
+				}
+				return (null, compressed.ToArray());
+			}
+			finally
+			{
+				feed.Complete(); // the inflater sees end of input and stops (a cut-off gzip is caught there)
+			}
+		}
+
+		// Unzips the feed as it arrives into `output` (locked while written). A cut-off or bad gzip simply ends it — the bytes
+		// before stand (as the old whole-prefix re-gunzip's did). ⚠️ Never faults: it is fire-and-forget, and an unobserved fault would reach the
+		// app's crash hooks. Its CPU (~60 ms a volume, in small steps as chunks land) runs on pool threads, not RadarCpuWork.
+		private static async Task InflateAsync(GzFeed feed, MemoryStream output)
+		{
+			long busy = 0;
+			try
+			{
+				using var gzip = new System.IO.Compression.GZipStream(feed, System.IO.Compression.CompressionMode.Decompress);
+				var buffer = new byte[81920];
+				while (true)
 				{
 					var t0 = System.Diagnostics.Stopwatch.GetTimestamp();
-					var data = GunzipPrefix(soFar);
-					var t1 = System.Diagnostics.Stopwatch.GetTimestamp();
-					var found = CompleteBaseTilt(data, siteId);
-					RadarPerfCounters.NoteGzCheck(t1 - t0, System.Diagnostics.Stopwatch.GetTimestamp() - t1);
-					return found;
-				}, ct, urgent).ConfigureAwait(false);
-				RadarPerfCounters.NoteGzWait(System.Diagnostics.Stopwatch.GetTimestamp() - waitAt);
-				if (tilt is not null) return (tilt, null);
+					var waited = feed.WaitTicks;
+					var n = await gzip.ReadAsync(buffer).ConfigureAwait(false);
+					busy += System.Diagnostics.Stopwatch.GetTimestamp() - t0 - (feed.WaitTicks - waited);
+					if (n <= 0) break;
+					lock (output) output.Write(buffer, 0, n);
+				}
 			}
-			return (null, compressed.ToArray());
+			catch (Exception)
+			{
+				// InvalidDataException / EndOfStreamException at a cut (the caller stopped early) or a damaged file.
+			}
+			finally
+			{
+				feed.ReaderDone();
+				RadarPerfCounters.NoteGzCheck(Math.Max(0, busy), 0, countsAsCheck: false); // perf.ui gzInflateMs
+			}
+		}
+
+		/// <summary>
+		/// The compressed bytes of ONE streamed .gz volume, handed from the download loop to its inflater as they arrive. A
+		/// read-only stream for <see cref="System.IO.Compression.GZipStream"/>: <c>ReadAsync</c> returns what is buffered,
+		/// waits (asynchronously — no blocked thread) when nothing is, and returns 0 once <see cref="Complete"/> was called.
+		/// </summary>
+		private sealed class GzFeed : Stream
+		{
+			private readonly object _gate = new();
+			private readonly Queue<byte[]> _chunks = new();
+			private byte[]? _current;
+			private int _offset;
+			private bool _complete, _readerDone;
+			private TaskCompletionSource? _dataReady;
+			// Completed while the reader sits waiting with nothing buffered — i.e. it has unzipped everything fed so far.
+			private TaskCompletionSource _starved = new(TaskCreationOptions.RunContinuationsAsynchronously);
+			private long _waitTicks;
+
+			/// <summary>Time the reader spent waiting for bytes (so the inflater can report its CPU, not its idle).</summary>
+			public long WaitTicks => Interlocked.Read(ref _waitTicks);
+
+			public void Feed(ReadOnlySpan<byte> bytes)
+			{
+				lock (_gate)
+				{
+					if (_readerDone || _complete) return;
+					_chunks.Enqueue(bytes.ToArray());
+					if (_starved.Task.IsCompleted) _starved = new(TaskCreationOptions.RunContinuationsAsynchronously);
+					_dataReady?.TrySetResult();
+					_dataReady = null;
+				}
+			}
+
+			public void Complete()
+			{
+				lock (_gate)
+				{
+					_complete = true;
+					_dataReady?.TrySetResult();
+					_dataReady = null;
+				}
+			}
+
+			/// <summary>The reader stopped (end of input or a bad gzip): nothing will ever wait on input again.</summary>
+			public void ReaderDone()
+			{
+				lock (_gate)
+				{
+					_readerDone = true;
+					_chunks.Clear();
+					_starved.TrySetResult();
+				}
+			}
+
+			/// <summary>Completes once the reader has consumed every byte fed so far and is waiting for more (or is done).</summary>
+			public Task WhenStarvedAsync()
+			{
+				lock (_gate) return _readerDone ? Task.CompletedTask : _starved.Task;
+			}
+
+			public override async ValueTask<int> ReadAsync(Memory<byte> destination, CancellationToken cancellationToken = default)
+			{
+				while (true)
+				{
+					Task wait;
+					lock (_gate)
+					{
+						if (_current is null && _chunks.Count > 0) { _current = _chunks.Dequeue(); _offset = 0; }
+						if (_current is not null)
+						{
+							var n = Math.Min(destination.Length, _current.Length - _offset);
+							_current.AsSpan(_offset, n).CopyTo(destination.Span);
+							_offset += n;
+							if (_offset == _current.Length) _current = null;
+							return n;
+						}
+						_starved.TrySetResult();
+						if (_complete) return 0;
+						_dataReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+						wait = _dataReady.Task;
+					}
+					var t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+					await wait.ConfigureAwait(false);
+					Interlocked.Add(ref _waitTicks, System.Diagnostics.Stopwatch.GetTimestamp() - t0);
+				}
+			}
+
+			public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+				ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+			// Synchronous reads would block a thread on the download — GZipStream.ReadAsync never makes them.
+			public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+			public override bool CanRead => true;
+			public override bool CanSeek => false;
+			public override bool CanWrite => false;
+			public override long Length => throw new NotSupportedException();
+			public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+			public override void Flush() { }
+			public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+			public override void SetLength(long value) => throw new NotSupportedException();
+			public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 		}
 
 		// The base tilt from a (possibly truncated) unzipped prefix, only when it is COMPLETE. The LDM walker first,
@@ -2702,23 +2853,6 @@ namespace Anvil.Services
 			if (ldm is not null) return ldmComplete ? ldm : null;
 			var legacy = TryExtractLowestTiltUncompressed(data, siteId, out var legacyComplete);
 			return legacy is not null && legacyComplete ? legacy : null;
-		}
-
-		// Gunzips whatever a truncated gzip prefix decodes to (the stream throws at the cut; the bytes before it stand).
-		private static byte[] GunzipPrefix(byte[] gz)
-		{
-			using var input = new MemoryStream(gz);
-			using var gzip = new System.IO.Compression.GZipStream(input, System.IO.Compression.CompressionMode.Decompress);
-			using var output = new MemoryStream(gz.Length * 5);
-			var buffer = new byte[81920];
-			try
-			{
-				int n;
-				while ((n = gzip.Read(buffer, 0, buffer.Length)) > 0) output.Write(buffer, 0, n);
-			}
-			catch (InvalidDataException) { }
-			catch (EndOfStreamException) { }
-			return output.ToArray();
 		}
 
 		// Decompresses a gzip-wrapped archive volume (older dates are stored as ..._V0x.gz). The
