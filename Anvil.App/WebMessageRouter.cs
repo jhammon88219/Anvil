@@ -256,16 +256,41 @@ namespace Anvil
 
 		// ── Handlers (one per message type) ─────────────────────────────────────────────────────────────
 
-		// Free-form diagnostics line from radar.js (also echoed to the VS Output window).
+		// Free-form diagnostics line from radar.js (also echoed to the VS Output window, off this thread — RadarEcho).
 		private static void HandleRadarLog(JsonElement root)
 		{
 			if (root.TryGetProperty("msg", out var msgEl))
 			{
 				var msg = msgEl.GetString();
 				var t0 = System.Diagnostics.Stopwatch.GetTimestamp(); // perf audit issue 12: the echo's cost (perf.ui diagEchoMs)
-				System.Diagnostics.Debug.WriteLine($"[radar-js] {msg}");
+				EchoRadarLog(msg);
 				Services.RadarPerfCounters.NoteDiagEcho(System.Diagnostics.Stopwatch.GetTimestamp() - t0);
 				if (msg is not null) Services.RadarDiagnostics.JsLog(msg);
+			}
+		}
+
+		// Debug-only like the Debug.WriteLine it wraps: in Release the call (and RadarEcho's queue + reader) never exist.
+		[System.Diagnostics.Conditional("DEBUG")]
+		private static void EchoRadarLog(string? msg) => RadarEcho.Lines.Writer.TryWrite($"[radar-js] {msg}");
+
+		/// <summary>
+		/// ⚠️ The <c>[radar-js]</c> Output-window echo is written by ONE background reader, never on the UI thread.
+		/// Under the VS debugger a Debug.WriteLine cost ~7 ms of UI time per line (up to ~44 ms when a load's burst
+		/// flooded the Output window) — ~1.25 s per run, measured (perf audit issue 12, 2026-10-13). A single reader
+		/// keeps the lines in order.
+		/// </summary>
+		private static class RadarEcho
+		{
+			public static readonly System.Threading.Channels.Channel<string> Lines =
+				System.Threading.Channels.Channel.CreateUnbounded<string>(new() { SingleReader = true });
+
+			static RadarEcho()
+			{
+				_ = Task.Run(async () =>
+				{
+					await foreach (var line in Lines.Reader.ReadAllAsync().ConfigureAwait(false))
+						System.Diagnostics.Debug.WriteLine(line);
+				});
 			}
 		}
 
