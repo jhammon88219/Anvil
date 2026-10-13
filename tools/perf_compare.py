@@ -129,6 +129,17 @@ METRICS = [
     ("diag_render_max",  "Report render worst",    "ms", -1),
     ("diag_write_avg",   "Report write ms each",   "ms", -1),
     ("diag_lists",       "Report list length (end)", "", 0),
+    # .NET GC in the app process (perf.ui gc*, 2026-10-13) - lead for the 1-3 s stall at a load's end: a blocking GC
+    # stops EVERY thread. "stall" = the seconds whose lateMax >= 500 ms; compare the two stall rows.
+    ("gc_n0",            "GC gen0 collections",    "",   -1),
+    ("gc_n1",            "GC gen1 collections",    "",   -1),
+    ("gc_n2",            "GC gen2 collections",    "",   -1),
+    ("gc_blocking2",     "GC blocking gen2s seen", "",   -1),
+    ("gc_pause_ms",      "GC pause total",         "ms", -1),
+    ("gc_pause_max",     "GC pause worst second",  "ms", -1),
+    ("gc_heap_max",      "Managed heap peak",      "MB", -1),
+    ("gc_stall_late",    "Stall seconds: lateness", "ms", -1),
+    ("gc_stall_pause",   "Stall seconds: GC pause", "ms", -1),
 ]
 
 
@@ -164,6 +175,7 @@ def load_run(path):
     scrub_by = defaultdict(float)  # kind -> total ms in the run
     gz = defaultdict(float)  # gzVols / gzChecks / gzInflateMs / gzWalkMs / gzWaitMs summed over the run
     diag = defaultdict(float)  # perf.ui diag*: counts + ms summed, *Max maxed, diagLists = latest
+    gc = defaultdict(float)  # perf.ui gc*: per-gen counts + pause summed, worst second, blocking gen2s, stall split
     book = defaultdict(float)  # perf.book: pumpN / pumpMs / progN / progMs summed, pumpMax / progMax maxed
     msg_by = defaultdict(lambda: [0, 0.0])  # perf.ui msgBy: type -> [count, ms]
     sites, sessions, stamp = set(), 0, None
@@ -281,6 +293,18 @@ def load_run(path):
                         pass
                 for k in ("gzVols", "gzChecks", "gzInflateMs", "gzWalkMs", "gzWaitMs"):  # absent before 2026-10-13
                     gz[k] += e.get(k) or 0
+                # .NET GC in the app process (absent before 2026-10-13): totals, the worst second, blocking gen2s, and how
+                # much of the STALL seconds (lateMax >= 500) the GC pause explains.
+                for k in ("gc0", "gc1", "gc2", "gcPauseMs"):
+                    if k in e:  # keyed only once a log carries it, so older runs read "-" not 0
+                        gc[k] += e[k] or 0
+                gc["pauseMax"] = max(gc["pauseMax"], e.get("gcPauseMs") or 0)
+                gc["heapMax"] = max(gc["heapMax"], e.get("gcHeapMb") or 0)
+                if e.get("gcLastGen") == 2 and e.get("gcLastConc") is False:
+                    gc["blocking2"] += 1
+                if (e.get("lateMax") or 0) >= 500 and "gcPauseMs" in e:
+                    gc["stallLate"] += e["lateMax"]
+                    gc["stallPause"] += e.get("gcPauseMs") or 0
                 for k in ("diagLogs", "diagEchoMs", "diagWaitMs", "diagHeldMs", "diagReports", "diagRenderMs",
                           "diagWriteMs"):  # absent before 2026-10-13 (issue 12)
                     diag[k] += e.get(k) or 0
@@ -408,6 +432,15 @@ def load_run(path):
         "ui_prog_avg": (round(msg_by["radarBuildProgress"][1] / msg_by["radarBuildProgress"][0], 3)
                         if msg_by.get("radarBuildProgress", [0])[0] else None),
         "_msg_ms": {"{} ms".format(k): v[1] for k, v in msg_by.items()},
+        "gc_n0": int(gc["gc0"]) if "gc0" in gc else None,
+        "gc_n1": int(gc["gc1"]) if "gc0" in gc else None,
+        "gc_n2": int(gc["gc2"]) if "gc0" in gc else None,
+        "gc_blocking2": int(gc["blocking2"]) if "gc0" in gc else None,
+        "gc_pause_ms": round(gc["gcPauseMs"], 1) if "gc0" in gc else None,
+        "gc_pause_max": round(gc["pauseMax"], 1) if "gc0" in gc else None,
+        "gc_heap_max": round(gc["heapMax"]) if "gc0" in gc else None,
+        "gc_stall_late": round(gc["stallLate"]) if "gc0" in gc else None,
+        "gc_stall_pause": round(gc["stallPause"]) if "gc0" in gc else None,
         "diag_logs": int(diag["diagLogs"]) if diag["diagLogs"] else None,
         "diag_log_avg": (round((diag["diagEchoMs"] + diag["diagWaitMs"] + diag["diagHeldMs"]) / diag["diagLogs"], 3)
                          if diag["diagLogs"] else None),

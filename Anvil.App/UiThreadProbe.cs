@@ -33,6 +33,8 @@ namespace Anvil
 	///         thread — logged here only because this is the one per-second line) and the download's wait on them
 	///   diag* = RadarDiagnostics cost: radarLog lines, their debugger echo, Gate wait (+ worst) and hold; report rebuilds,
 	///         render ms under the Gate (+ worst), .md write ms, and the run-wide sample lists' length
+	///   gc* = .NET GC (THIS process, not the page's JS): collections per gen, total pause ms (a blocking GC stops the UI
+	///         thread too), the latest GC's gen / pause / concurrent / compacted, managed heap MB
 	/// </code>
 	/// ⚠️ IT MUST NOT PERTURB WHAT IT MEASURES: the UI thread does one timestamp per tick and one per
 	/// routed message; process CPU and the JSONL write happen on the pool timer. The WebView2 process LIST
@@ -75,6 +77,10 @@ namespace Anvil
 		private long _lastSysIdle, _lastSysTotal;
 		private int _windowNo;
 		private int _pidRefreshTicks;
+		// .NET GC baselines as of the last WRITTEN window (pool timer only) — a quiet window's collections carry forward.
+		private int _gc0 = GC.CollectionCount(0), _gc1 = GC.CollectionCount(1), _gc2 = GC.CollectionCount(2);
+		private TimeSpan _gcPause = GC.GetTotalPauseDuration();
+		private long _gcLastIndex = GC.GetGCMemoryInfo(GCKind.Any).Index;
 
 		private UiThreadProbe(CoreWebView2 web)
 		{
@@ -177,10 +183,23 @@ namespace Anvil
 				var gz = RadarPerfCounters.TakeGz();
 				var cpu = SampleCpu(now);
 
+				// .NET GC since the last written window: collections per generation, total pause (EVERY thread stops in a
+				// blocking GC — the UI thread included), and the latest GC's shape. Lead: the 1–3 s stall at a load's end.
+				int gc0 = GC.CollectionCount(0), gc1 = GC.CollectionCount(1), gc2 = GC.CollectionCount(2);
+				var gcPause = GC.GetTotalPauseDuration();
+				var gcPauseMs = (gcPause - _gcPause).TotalMilliseconds;
+				var lastGc = GC.GetGCMemoryInfo(GCKind.Any);
+				var gcNew = lastGc.Index != _gcLastIndex;
+
 				// A loop that is up refreshes its readout every second, so every such second is logged (playback included).
 				// A feed refresh is logged too, so a fix that takes its cost to ~0 still shows the refresh it measured.
-				var busy = lateMax >= 40 || msgMs >= 20 || syncMs >= 5 || jobsPeak > 0 || svcHops > 0 || readouts > 0 || feedBy is not null || scrubs > 0 || gz.Volumes > 0 || gz.Checks > 0;
+				var busy = lateMax >= 40 || msgMs >= 20 || syncMs >= 5 || jobsPeak > 0 || svcHops > 0 || readouts > 0 || feedBy is not null || scrubs > 0 || gz.Volumes > 0 || gz.Checks > 0
+					|| gc2 > _gc2 || gcPauseMs >= 20;
 				if (!busy && ++_windowNo % BaselineEvery != 0) return;
+				int dGc0 = gc0 - _gc0, dGc1 = gc1 - _gc1, dGc2 = gc2 - _gc2;
+				_gc0 = gc0; _gc1 = gc1; _gc2 = gc2; _gcPause = gcPause; _gcLastIndex = lastGc.Index;
+				double lastPauseMs = 0;
+				if (gcNew) foreach (var p in lastGc.PauseDurations) lastPauseMs += p.TotalMilliseconds;
 				// Taken only for a window that is WRITTEN, so a quiet window's report rebuild carries into the next line. Not part
 				// of `busy`: this line's own write dirties the report, so a rebuild would keep every window busy forever.
 				var diag = RadarPerfCounters.TakeDiag();
@@ -198,6 +217,10 @@ namespace Anvil
 					("diagWaitMax", R(diag.WaitMax)), ("diagHeldMs", R(diag.HeldMs)), ("diagReports", diag.Reports),
 					("diagRenderMs", R(diag.RenderMs)), ("diagRenderMax", R(diag.RenderMax)), ("diagWriteMs", R(diag.WriteMs)),
 					("diagLists", diag.Lists),
+					("gc0", dGc0), ("gc1", dGc1), ("gc2", dGc2), ("gcPauseMs", R(gcPauseMs)),
+					("gcLastGen", gcNew ? lastGc.Generation : null), ("gcLastPauseMs", gcNew ? R(lastPauseMs) : null),
+					("gcLastConc", gcNew ? lastGc.Concurrent : null), ("gcLastCompact", gcNew ? lastGc.Compacted : null),
+					("gcHeapMb", R(lastGc.HeapSizeBytes / 1048576.0)),
 					("jobs", jobs), ("jobsPeak", jobsPeak),
 					("cpuApp", R(cpu.App)), ("cpuRend", R(cpu.Renderer)), ("cpuGpu", R(cpu.Gpu)),
 					("cpuWebOther", R(cpu.WebOther)), ("cpuSys", R(cpu.System)), ("cores", _cores));
