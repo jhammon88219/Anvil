@@ -89,21 +89,39 @@ namespace Anvil.Services
 		public static (int Count, double Ms) TakeReadouts() =>
 			(Interlocked.Exchange(ref _readouts, 0), Interlocked.Exchange(ref _readoutTicks, 0) * 1000.0 / Stopwatch.Frequency);
 
-		private static int _scrubs;
-		private static long _scrubTicks;
+		// Scrubber paints, per KIND (index = ScrubKind): a segment repaint, a lit move, a re-lay.
+		public const int ScrubPaint = 0, ScrubLit = 1, ScrubRelay = 2;
+		private static readonly string[] ScrubNames = { "paint", "lit", "relay" };
+		private static readonly int[] _scrubs = new int[3];
+		private static readonly long[] _scrubTicks = new long[3];
 
-		/// <summary>Start timing one scrubber paint (DotMatrixScrubber: a segment's repaint, a lit move, a re-lay) — UI thread.</summary>
+		/// <summary>Start timing one scrubber paint (DotMatrixScrubber) — UI thread.</summary>
 		public static long BeginScrub() => Stopwatch.GetTimestamp();
 
-		public static void EndScrub(long started)
+		/// <summary><paramref name="kind"/> = <see cref="ScrubPaint"/> / <see cref="ScrubLit"/> / <see cref="ScrubRelay"/>.</summary>
+		public static void EndScrub(long started, int kind)
 		{
-			Interlocked.Increment(ref _scrubs);
-			Interlocked.Add(ref _scrubTicks, Stopwatch.GetTimestamp() - started);
+			Interlocked.Increment(ref _scrubs[kind]);
+			Interlocked.Add(ref _scrubTicks[kind], Stopwatch.GetTimestamp() - started);
 		}
 
-		/// <summary>Scrubber paints and their total milliseconds since the last call.</summary>
-		public static (int Count, double Ms) TakeScrubs() =>
-			(Interlocked.Exchange(ref _scrubs, 0), Interlocked.Exchange(ref _scrubTicks, 0) * 1000.0 / Stopwatch.Frequency);
+		/// <summary>Scrubber paints, their total milliseconds, and the per-kind split ("paint:30/12.0 lit:9/1.1 relay:1/40.2",
+		/// count/ms) since the last call.</summary>
+		public static (int Count, double Ms, string? By) TakeScrubs()
+		{
+			int n = 0; long ticks = 0;
+			var parts = new System.Collections.Generic.List<string>(3);
+			for (var k = 0; k < 3; k++)
+			{
+				var c = Interlocked.Exchange(ref _scrubs[k], 0);
+				var t = Interlocked.Exchange(ref _scrubTicks[k], 0);
+				if (c == 0) continue;
+				n += c; ticks += t;
+				parts.Add(string.Create(System.Globalization.CultureInfo.InvariantCulture,
+					$"{ScrubNames[k]}:{c}/{t * 1000.0 / Stopwatch.Frequency:0.0}"));
+			}
+			return (n, ticks * 1000.0 / Stopwatch.Frequency, parts.Count == 0 ? null : string.Join(" ", parts));
+		}
 
 		// Overlay feeds (warnings, watches, outlook, …), PER FEED so a total can be traced to its source. Rare calls
 		// (a few per refresh), so a plain lock.

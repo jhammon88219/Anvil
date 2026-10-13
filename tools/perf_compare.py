@@ -123,6 +123,7 @@ def load_run(path):
     ui_feeds, ui_feed_ms, ui_feed_max = 0, 0.0, 0.0
     feed_by = defaultdict(lambda: [0, 0.0])  # feed -> [refreshes, UI ms]
     ui_scrubs, ui_scrub_ms, ui_scrub_max = 0, 0.0, 0.0
+    scrub_by = defaultdict(float)  # kind -> total ms in the run
     sites, sessions, stamp = set(), 0, None
     first_ts = last_ts = None
     skipped = 0
@@ -222,6 +223,13 @@ def load_run(path):
                     ui_scrubs += scrubs
                     ui_scrub_ms += sm
                     ui_scrub_max = max(ui_scrub_max, sm)
+                # Per kind ("paint:30/12.0 lit:9/1.1 relay:1/40.2" = count/ms; absent in the first issue-6 runs).
+                for part in (e.get("scrubBy") or "").split():
+                    name, _, rest = part.partition(":")
+                    try:
+                        scrub_by[name] += float(rest.partition("/")[2])
+                    except ValueError:
+                        pass
                 feeds = e.get("feeds") or 0  # absent before 2026-10-12
                 # Per feed ("warnings:2/14.1 outlook:1/3.0" = refreshes/ms; absent before the per-feed split).
                 for part in (e.get("feedBy") or "").split():
@@ -267,6 +275,7 @@ def load_run(path):
         # with no refresh of its own, e.g. outlookRead = the outlook VMs' cache reads).
         "_feed_ms": {("{} ms/refresh".format(k) if n else "{} ms total".format(k)): (ms / n if n else ms)
                      for k, (n, ms) in feed_by.items()},
+        "_scrub_ms": {"{} ms total".format(k): v for k, v in scrub_by.items()},
         "peak_retained_mb": max(mem_retained) if mem_retained else None,
         "peak_heap_mb": max(mem_heap) if mem_heap else None,
         "heap_limit_mb": statistics.median(heap_limits) if heap_limits else None,
@@ -392,6 +401,25 @@ def print_single(run):
         print("  No pan samples. The probe needs a DEBUG build (?perf=1) and an actual drag or zoom.")
 
 
+def print_keyed(before_runs, after_runs, field, title):
+    """A before/after table over a run's {name: ms} dict (lower is better), keys seen on EITHER side."""
+    keys = sorted(set().union(*(r[field] for r in before_runs)) | set().union(*(r[field] for r in after_runs)))
+    if not keys:
+        return
+    print()
+    print("  {:<26} {:>16} {:>16} {:>18}  Verdict".format(title, "Before", "After", "Delta"))
+    print("  {} {} {} {}  {}".format("-" * 26, "-" * 16, "-" * 16, "-" * 18, "-" * 7))
+    for k in keys:
+        bvals = [r[field][k] for r in before_runs if k in r[field]]
+        avals = [r[field][k] for r in after_runs if k in r[field]]
+        bmed = statistics.median(bvals) if bvals else None
+        amed = statistics.median(avals) if avals else None
+        blo, bhi = (min(bvals), max(bvals)) if bvals else (None, None)
+        bcell = fmt(bmed, "ms") + (" +/-{:,.1f}".format((bhi - blo) / 2) if len(bvals) >= 2 and blo != bhi else "")
+        arrow, v = verdict(bmed, amed, blo, bhi, -1, len(bvals))
+        print("  {:<26} {:>16} {:>16} {:>18}  {}".format(k, bcell, fmt(amed, "ms"), arrow, v))
+
+
 def print_compare(before_runs, after_runs):
     describe(before_runs, "BEFORE")
     print()
@@ -424,21 +452,9 @@ def print_compare(before_runs, after_runs):
             print("  {:<26} {:>16} {:>16} {:>18}  {}".format(k, bcell, fmt(amed, "s"), arrow, v))
     # Per-feed UI-thread time (perf.ui feedBy): which feed a "UI feed time" change came from. Feeds seen on EITHER side
     # — a feed whose time went to zero after an off-thread fix still logs its refreshes, so it stays in the table.
-    keys = sorted(set().union(*(r["_feed_ms"] for r in before_runs)) |
-                  set().union(*(r["_feed_ms"] for r in after_runs)))
-    if keys:
-        print()
-        print("  {:<26} {:>16} {:>16} {:>18}  Verdict".format("UI feed time, per feed", "Before", "After", "Delta"))
-        print("  {} {} {} {}  {}".format("-" * 26, "-" * 16, "-" * 16, "-" * 18, "-" * 7))
-        for k in keys:
-            bvals = [r["_feed_ms"][k] for r in before_runs if k in r["_feed_ms"]]
-            avals = [r["_feed_ms"][k] for r in after_runs if k in r["_feed_ms"]]
-            bmed = statistics.median(bvals) if bvals else None
-            amed = statistics.median(avals) if avals else None
-            blo, bhi = (min(bvals), max(bvals)) if bvals else (None, None)
-            bcell = fmt(bmed, "ms") + (" +/-{:,.1f}".format((bhi - blo) / 2) if len(bvals) >= 2 and blo != bhi else "")
-            arrow, v = verdict(bmed, amed, blo, bhi, -1, len(bvals))
-            print("  {:<26} {:>16} {:>16} {:>18}  {}".format(k, bcell, fmt(amed, "ms"), arrow, v))
+    print_keyed(before_runs, after_runs, "_feed_ms", "UI feed time, per feed")
+    # Per-kind scrubber paint time (perf.ui scrubBy): which entry point a "Scrubber paint time" change came from.
+    print_keyed(before_runs, after_runs, "_scrub_ms", "Scrubber ms, per kind")
     print()
     print("  Verdicts: BETTER/WORSE = moved more than 2% AND outside the before-spread.")
     print("            noise = the after value sits inside the range the before runs already covered.")

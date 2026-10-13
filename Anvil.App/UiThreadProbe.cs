@@ -27,7 +27,7 @@ namespace Anvil
 	///   readouts / readoutMs = radar readout refreshes and their cost, bindings included (RaiseRadarReadout)
 	///   feeds / feedMs = overlay-feed refreshes (warnings, …) and their parse/merge time ON this thread;
 	///   feedBy = the same per feed, "name:refreshes/ms" costliest first (outlookRead = the outlook VMs' cache reads)
-	///   scrubs / scrubMs = dot-matrix scrubber paints (segment repaint, lit move, re-lay) and their cost
+	///   scrubs / scrubMs = dot-matrix scrubber paints and their cost; scrubBy = per kind "paint|lit|relay:count/ms"
 	/// </code>
 	/// ⚠️ IT MUST NOT PERTURB WHAT IT MEASURES: the UI thread does one timestamp per tick and one per
 	/// routed message; process CPU and the JSONL write happen on the pool timer. The WebView2 process LIST
@@ -154,7 +154,7 @@ namespace Anvil
 				var svcHops = RadarPerfCounters.TakeHops();
 				var (readouts, readoutMs) = RadarPerfCounters.TakeReadouts();
 				var (feeds, feedMs, feedBy) = RadarPerfCounters.TakeFeeds();
-				var (scrubs, scrubMs) = RadarPerfCounters.TakeScrubs();
+				var (scrubs, scrubMs, scrubBy) = RadarPerfCounters.TakeScrubs();
 				var cpu = SampleCpu(now);
 
 				// A loop that is up refreshes its readout every second, so every such second is logged (playback included).
@@ -168,7 +168,7 @@ namespace Anvil
 					("msgs", msgs), ("msgMs", R(msgMs)), ("msgMax", R(msgMax)), ("msgMaxType", msgMaxType),
 					("syncMs", R(syncMs)), ("svcHops", svcHops), ("readouts", readouts), ("readoutMs", R(readoutMs)),
 					("feeds", feeds), ("feedMs", R(feedMs)), ("feedBy", feedBy),
-					("scrubs", scrubs), ("scrubMs", R(scrubMs)),
+					("scrubs", scrubs), ("scrubMs", R(scrubMs)), ("scrubBy", scrubBy),
 					("jobs", jobs), ("jobsPeak", jobsPeak),
 					("cpuApp", R(cpu.App)), ("cpuRend", R(cpu.Renderer)), ("cpuGpu", R(cpu.Gpu)),
 					("cpuWebOther", R(cpu.WebOther)), ("cpuSys", R(cpu.System)), ("cores", _cores));

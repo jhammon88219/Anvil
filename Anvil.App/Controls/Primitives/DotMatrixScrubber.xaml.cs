@@ -48,6 +48,9 @@ namespace Anvil.Controls.Primitives
 		private readonly List<int[]> _blocks = new();
 		private ObservableCollection<RadarFrameSegment>? _attached;
 		private readonly List<RadarFrameSegment> _watched = new();
+		// Each watched segment's index, so a segment's change finds its block without searching the loop (by reference —
+		// a segment is one frame's object, never compared by value). Rebuilt with the watch list on every re-lay.
+		private readonly Dictionary<RadarFrameSegment, int> _indexOf = new(ReferenceEqualityComparer.Instance);
 		private int _litIndex = -1;
 
 		public DotMatrixScrubber()
@@ -173,10 +176,12 @@ namespace Anvil.Controls.Primitives
 		private void Watch()
 		{
 			if (_attached is null) return;
-			foreach (var segment in _attached)
+			for (var i = 0; i < _attached.Count; i++)
 			{
+				var segment = _attached[i];
 				segment.PropertyChanged += OnSegmentChanged;
 				_watched.Add(segment);
+				_indexOf[segment] = i;
 			}
 		}
 
@@ -184,6 +189,7 @@ namespace Anvil.Controls.Primitives
 		{
 			foreach (var segment in _watched) segment.PropertyChanged -= OnSegmentChanged;
 			_watched.Clear();
+			_indexOf.Clear();
 		}
 
 		// A new loop / a remap / a live append: re-lay every block (the slot width changes with the count).
@@ -208,19 +214,36 @@ namespace Anvil.Controls.Primitives
 			Unwatch();
 			Watch();
 			Layout();
-			RadarPerfCounters.EndScrub(t);
+			RadarPerfCounters.EndScrub(t, RadarPerfCounters.ScrubRelay);
 		}
+
+		// A segment's Fill / IsReady changed: repaint its block — ⚠️ BATCHED, one paint per dispatcher turn. A loading loop
+		// moves many segments at once (RefreshSegmentFill walks them all, several times a second), and painting + flushing
+		// each on its own re-handed the paths their whole group once PER SEGMENT (perf audit issue 6, 2026-10-13).
+		private readonly HashSet<int> _pendingPaints = new();
+		private bool _paintQueued;
 
 		private void OnSegmentChanged(object? sender, PropertyChangedEventArgs e)
 		{
 			if (e.PropertyName is not (nameof(RadarFrameSegment.Fill) or nameof(RadarFrameSegment.IsReady))) return;
-			if (sender is RadarFrameSegment segment && _attached is not null)
-			{
-				var t = RadarPerfCounters.BeginScrub();
-				var i = _attached.IndexOf(segment);
-				if (i >= 0) Paint(i);
-				RadarPerfCounters.EndScrub(t);
-			}
+			if (sender is not RadarFrameSegment segment || !_indexOf.TryGetValue(segment, out var i)) return;
+			_pendingPaints.Add(i);
+			if (_paintQueued) return;
+			_paintQueued = true;
+			if (DispatcherQueue?.TryEnqueue(PaintPending) != true) PaintPending(); // no queue (shutting down): paint now
+		}
+
+		private void PaintPending()
+		{
+			_paintQueued = false;
+			if (_pendingPaints.Count == 0) return;
+			// A queued re-lay repaints every block anyway (and these indices may be the OLD loop's).
+			if (_relayQueued || _attached is null) { _pendingPaints.Clear(); return; }
+			var t = RadarPerfCounters.BeginScrub();
+			foreach (var s in _pendingPaints) PaintBlock(s);
+			_pendingPaints.Clear();
+			Flush();
+			RadarPerfCounters.EndScrub(t, RadarPerfCounters.ScrubPaint);
 		}
 
 		private void MoveLit()
@@ -232,7 +255,7 @@ namespace Anvil.Controls.Primitives
 			if (was >= 0) PaintBlock(was);
 			if (_litIndex >= 0) PaintBlock(_litIndex);
 			Flush();
-			RadarPerfCounters.EndScrub(t);
+			RadarPerfCounters.EndScrub(t, RadarPerfCounters.ScrubLit);
 		}
 
 		private int LitIndex() =>
@@ -311,9 +334,54 @@ namespace Anvil.Controls.Primitives
 			}
 
 			_litIndex = LitIndex();
-			for (var s = 0; s < count; s++) PaintBlock(s); // every dot is in exactly one block, so every dot is repainted
+			_pendingPaints.Clear(); // every block is repainted below
+			RepaintAll(count);
 			Flush(); // ONCE for the whole re-lay, not per block
 		}
+
+		// Every block repainted at once (a re-lay). Every dot is in exactly one block, so this is every dot's state.
+		// ⚠️ When MANY dots change (a new loop: most of the field), the four circle lists are REBUILT in one pass —
+		// 4 Clears + one Add per dot — instead of moving dots one by one, each move a Remove that SEARCHES its group's
+		// list (O(n²) over ~525 dots; perf audit issue 6, 2026-10-13). A few changes still move just those dots.
+		private void RepaintAll(int count)
+		{
+			if (_attached is null) return;
+			var target = new DotState[_dots.Length];
+			for (var s = 0; s < count && s < _blocks.Count && s < _attached.Count; s++)
+			{
+				var segment = _attached[s];
+				var block = _blocks[s];
+				var lit = FilledDots(segment, block.Length);
+				for (var i = 0; i < block.Length; i++) target[block[i]] = StateOf(segment, s, i, lit);
+			}
+
+			var changed = 0;
+			for (var d = 0; d < target.Length; d++) { if (target[d] != _dotStates[d]) changed++; }
+			if (changed == 0) return;
+			if (changed * 4 < target.Length)
+			{
+				for (var d = 0; d < target.Length; d++) SetDot(d, target[d]);
+				return;
+			}
+			foreach (var group in _groups) group.Children.Clear();
+			for (var d = 0; d < target.Length; d++)
+			{
+				_groups[(int)target[d]].Children.Add(_dots[d]);
+				_dotStates[d] = target[d];
+			}
+			for (var g = 0; g < _dirty.Length; g++) _dirty[g] = true;
+		}
+
+		private static int FilledDots(RadarFrameSegment segment, int dots) =>
+			(int)Math.Round(Math.Clamp(segment.Fill, 0, 1) * dots);
+
+		// THE paint rule for dot i (fill order) of segment s's block: the current frame whole, a ready frame whole, else the
+		// first `lit` dots filling and the rest empty. PaintBlock and RepaintAll both read it.
+		private DotState StateOf(RadarFrameSegment segment, int s, int i, int lit) =>
+			s == _litIndex ? DotState.Current
+			: segment.IsReady ? DotState.Ready
+			: i < lit ? DotState.Filling
+			: DotState.Empty;
 
 		// (Re)computes the field only when its SHAPE changed — see _dots. Fresh dots start empty (all in EmptyDots).
 		private void EnsureField(int columns, int rows, double pitch)
@@ -366,28 +434,14 @@ namespace Anvil.Controls.Primitives
 			}
 		}
 
-		// One frame's block repainted and shown — a segment's own Fill/IsReady change.
-		private void Paint(int s)
-		{
-			PaintBlock(s);
-			Flush();
-		}
-
-		// One block's dots from its segment: the current frame whole, a ready frame whole, else the first
-		// round(Fill × dots) as filling, the rest empty. Moves circles only — the CALLER flushes, once per batch.
+		// One block's dots from its segment (StateOf). Moves circles only — the CALLER flushes, once per batch.
 		private void PaintBlock(int s)
 		{
 			if (_attached is null || s < 0 || s >= _blocks.Count || s >= _attached.Count) return;
 			var segment = _attached[s];
 			var block = _blocks[s];
-			var lit = (int)Math.Round(Math.Clamp(segment.Fill, 0, 1) * block.Length);
-			for (var i = 0; i < block.Length; i++)
-			{
-				SetDot(block[i], s == _litIndex ? DotState.Current
-					: segment.IsReady ? DotState.Ready
-					: i < lit ? DotState.Filling
-					: DotState.Empty);
-			}
+			var lit = FilledDots(segment, block.Length);
+			for (var i = 0; i < block.Length; i++) SetDot(block[i], StateOf(segment, s, i, lit));
 		}
 	}
 }
