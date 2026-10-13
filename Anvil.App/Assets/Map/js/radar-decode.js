@@ -89,15 +89,23 @@ function momentRadials(radar, moment) {
 // lazily-allocated Uint8Array (null when the sweep has no folding at all, which is the common case), so
 // reading it costs nothing on a clear sweep.
 // BUILD TIMING (read-only): buildGates' two halves, summed per decode and read per product by decodeAndBuild
-// (→ the frame's `build` field). loop = the per-gate colour + projection + push; pack = the plain arrays copied
-// into the typed arrays the GPU takes.
+// (→ the frame's `build` field). loop = the per-gate colour + projection + write; pack = the filled typed arrays
+// trimmed to their final length (the arrays the GPU takes).
+// ⚠️ PERF (perf audit issue 8, 2026-10-13 — the gate loop cost ~750 ms a frame, MORE than the decode, ~250 ms per
+// million vertices): (1) a gate's NEAR edge is the previous gate's FAR edge, so it is reused rather than re-projected —
+// half the my() calls (a log + tan each). Reused values come from rFar(j-1) = rNear(j-1) + gateSize rather than
+// firstGate + j·gateSize — a last-bit double difference that the Float32 store absorbs: the old and new functions,
+// sliced from the file and run on six 720×1832 sweeps in Chromium, gave IDENTICAL positions + colours and 740 → 302 ms
+// (2026-10-13). (2) Vertices go STRAIGHT into typed arrays grown by doubling (no plain-array push + copy).
 const _gatesMs = { loop: 0, pack: 0 };
+const GATE_BUF_START = 1 << 18; // gates' worth ÷ 6 to start (×2 floats, ×4 colour bytes); grows ×2 — a heavy frame is ~10M floats
 function buildGates(radials, getAzimuth, siteLat, siteLon, colorFn) {
     if (!radials || !radials.length) return null;
     const tLoop = performance.now();
     const { mPerDegLat, mPerDegLon } = metersPerDeg(siteLat); // canonical projection — see geo.js (per-gate formula stays inline below for perf)
-    const positions = [];
-    const colors = [];
+    let positions = new Float32Array(GATE_BUF_START * 2); // 12 floats per gate
+    let colors = new Uint8Array(GATE_BUF_START * 4);      // 24 bytes per gate
+    let np = 0, nc = 0;
     const PI = Math.PI;
     function my(lat) {
         return (180 - (180 / PI) * Math.log(Math.tan(PI / 4 + lat * PI / 360))) / 360;
@@ -123,6 +131,9 @@ function buildGates(radials, getAzimuth, siteLat, siteLon, colorFn) {
         const sinL = Math.sin(azL), cosL = Math.cos(azL);
         const sinR = Math.sin(azR), cosR = Math.cos(azR);
 
+        // The previous DRAWN gate's far edge (left + right corners), reused as this gate's near edge when it is
+        // gate j-1 (a skipped gate breaks the chain — its far edge was never projected).
+        let farJ = -2, pxL = 0, pyL = 0, pxR = 0, pyR = 0;
         for (let j = 0; j < data.length; j++) {
             const col = colorFn(data[j], rfFlags ? rfFlags[j] : 0);
             if (!col) continue;
@@ -131,29 +142,47 @@ function buildGates(radials, getAzimuth, siteLat, siteLon, colorFn) {
             const rFar = rNear + gateSizeM;
 
             // Four corners (near-left, far-left, far-right, near-right) -> mercator x,y.
-            const xnL = (180 + siteLon + (rNear * sinL) / mPerDegLon) / 360;
-            const ynL = my(siteLat + (rNear * cosL) / mPerDegLat);
+            let xnL, ynL, xnR, ynR;
+            if (farJ === j - 1) {
+                xnL = pxL; ynL = pyL; xnR = pxR; ynR = pyR;
+            } else {
+                xnL = (180 + siteLon + (rNear * sinL) / mPerDegLon) / 360;
+                ynL = my(siteLat + (rNear * cosL) / mPerDegLat);
+                xnR = (180 + siteLon + (rNear * sinR) / mPerDegLon) / 360;
+                ynR = my(siteLat + (rNear * cosR) / mPerDegLat);
+            }
             const xfL = (180 + siteLon + (rFar * sinL) / mPerDegLon) / 360;
             const yfL = my(siteLat + (rFar * cosL) / mPerDegLat);
             const xfR = (180 + siteLon + (rFar * sinR) / mPerDegLon) / 360;
             const yfR = my(siteLat + (rFar * cosR) / mPerDegLat);
-            const xnR = (180 + siteLon + (rNear * sinR) / mPerDegLon) / 360;
-            const ynR = my(siteLat + (rNear * cosR) / mPerDegLat);
+            farJ = j; pxL = xfL; pyL = yfL; pxR = xfR; pyR = yfR;
 
-            const r = col[0], g = col[1], b = col[2];
+            if (np + 12 > positions.length) {
+                const p2 = new Float32Array(positions.length * 2); p2.set(positions); positions = p2;
+                const c2 = new Uint8Array(colors.length * 2); c2.set(colors); colors = c2;
+            }
             // Two triangles: nL,fL,fR and nL,fR,nR
-            positions.push(xnL, ynL, xfL, yfL, xfR, yfR, xnL, ynL, xfR, yfR, xnR, ynR);
-            colors.push(r, g, b, 255, r, g, b, 255, r, g, b, 255, r, g, b, 255, r, g, b, 255, r, g, b, 255);
+            positions[np] = xnL; positions[np + 1] = ynL; positions[np + 2] = xfL; positions[np + 3] = yfL;
+            positions[np + 4] = xfR; positions[np + 5] = yfR; positions[np + 6] = xnL; positions[np + 7] = ynL;
+            positions[np + 8] = xfR; positions[np + 9] = yfR; positions[np + 10] = xnR; positions[np + 11] = ynR;
+            np += 12;
+            const r = col[0], g = col[1], b = col[2];
+            for (let k = 0; k < 6; k++) {
+                colors[nc] = r; colors[nc + 1] = g; colors[nc + 2] = b; colors[nc + 3] = 255;
+                nc += 4;
+            }
         }
     }
 
     const tPack = performance.now();
     _gatesMs.loop += tPack - tLoop;
-    if (!positions.length) return null;
+    if (!np) return null;
+    // slice (a COPY at the final length), never subarray: the result is transferred to the main thread and kept, and a
+    // view would carry the whole doubled buffer with it.
     const out = {
-        positions: new Float32Array(positions),
-        colors: new Uint8Array(colors),
-        count: positions.length / 2,
+        positions: positions.slice(0, np),
+        colors: colors.slice(0, nc),
+        count: np / 2,
     };
     _gatesMs.pack += performance.now() - tPack;
     return out;
