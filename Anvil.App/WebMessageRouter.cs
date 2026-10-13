@@ -87,6 +87,7 @@ namespace Anvil
 				["radarPainted"] = root => { if (root.TryGetProperty("index", out var i)) _viewModel.Radar.OnRadarPainted(i.GetInt32()); },
 				["pageError"] = HandlePageError,
 				["radarMemory"] = HandleRadarMemory,
+				["radarBookkeeping"] = HandleRadarBookkeeping,
 				["perfPan"] = HandlePerfPan,
 			};
 		}
@@ -109,6 +110,17 @@ namespace Anvil
 				("retainedMb", Int(root, "retainedMb")),
 				("heapMb", Int(root, "heapMb")), ("heapTotalMb", Int(root, "heapTotalMb")),
 				("heapLimitMb", Int(root, "heapLimitMb")));
+
+		/// <summary>
+		/// DEV-ONLY (radar.js, <c>?perf=1</c>): one second of the loop's main-thread BOOKKEEPING — the upgrade queue's
+		/// scans (pump*) and building the readiness report (prog*) — for perf audit issues 9 + 10. Diagnostics stream
+		/// only, as <c>perf.book</c>; the host's handling of each report is in perf.ui's <c>msgBy</c>. Grep <c>perf.book</c>.
+		/// </summary>
+		private static void HandleRadarBookkeeping(JsonElement root) =>
+			Services.RadarDiagnostics.Log("js", "perf.book",
+				("pumpN", Int(root, "pumpN")), ("pumpMs", Dbl(root, "pumpMs")), ("pumpMax", Dbl(root, "pumpMax")),
+				("progN", Int(root, "progN")), ("progMs", Dbl(root, "progMs")), ("progMax", Dbl(root, "progMax")),
+				("frames", Int(root, "frames")));
 
 		/// <summary>
 		/// DEV-ONLY frame-time sample for one camera gesture, from <c>perf-probe.js</c>. READ-ONLY

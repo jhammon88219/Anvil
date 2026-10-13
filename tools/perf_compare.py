@@ -98,6 +98,17 @@ METRICS = [
     ("ui_scrub_ms",      "Scrubber paint time",    "ms", -1),
     ("ui_scrub_avg",     "Scrubber cost per paint", "ms", -1),
     ("ui_scrub_max",     "Scrubber worst second",  "ms", -1),
+    # Loop bookkeeping on the page's main thread (perf.book, radar.js ?perf=1, 2026-10-13): the upgrade queue's scans
+    # (issue 9) and building the readiness report (issue 10), totals per run; plus the HOST's handling of that report
+    # (perf.ui msgBy radarBuildProgress, UI thread).
+    ("book_pump_n",      "Upgrade-queue scans",    "",    0),
+    ("book_pump_ms",     "Upgrade-queue scan ms",  "ms", -1),
+    ("book_pump_max",    "Upgrade-queue scan worst", "ms", -1),
+    ("book_prog_n",      "Progress reports built", "",   -1),
+    ("book_prog_ms",     "Progress report JS ms",  "ms", -1),
+    ("ui_prog_n",        "Progress msgs handled (UI)", "", -1),
+    ("ui_prog_ms",       "Progress msg UI ms",     "ms", -1),
+    ("ui_prog_avg",      "Progress msg UI ms each", "ms", -1),
     # Legacy .gz streaming (perf.ui gz*, 2026-10-13): per .gz volume streamed - its completeness checks, their gunzip and
     # tilt-walk CPU (pool threads), and how long the DOWNLOAD sat waiting on them.
     ("gz_vols",          ".gz volumes streamed",   "",    0),
@@ -139,6 +150,8 @@ def load_run(path):
     ui_scrubs, ui_scrub_ms, ui_scrub_max = 0, 0.0, 0.0
     scrub_by = defaultdict(float)  # kind -> total ms in the run
     gz = defaultdict(float)  # gzVols / gzChecks / gzInflateMs / gzWalkMs / gzWaitMs summed over the run
+    book = defaultdict(float)  # perf.book: pumpN / pumpMs / progN / progMs summed, pumpMax / progMax maxed
+    msg_by = defaultdict(lambda: [0, 0.0])  # perf.ui msgBy: type -> [count, ms]
     sites, sessions, stamp = set(), 0, None
     first_ts = last_ts = None
     skipped = 0
@@ -231,6 +244,11 @@ def load_run(path):
                     mk_frames += e["n"]
                     mk_upd += e["mkUpd"]
                     mk_upd_ms += e.get("mkUpdMs") or 0
+            elif cat == "perf.book":
+                for k in ("pumpN", "pumpMs", "progN", "progMs"):
+                    book[k] += e.get(k) or 0
+                for k in ("pumpMax", "progMax"):
+                    book[k] = max(book[k], e.get(k) or 0)
             elif cat == "perf.ui":
                 # Only the seconds radar work was RUNNING (a CPU job, a UI-thread download hop, or service work
                 # timed on the UI thread). The probe also writes idle baseline windows; counting those would
@@ -239,6 +257,14 @@ def load_run(path):
                 # readout fix. Logs without the field keep the old meaning.
                 hops = e.get("svcHops") or 0
                 readouts = e.get("readouts") or 0
+                for part in (e.get("msgBy") or "").split():  # absent before 2026-10-13
+                    name, _, rest = part.rpartition(":")
+                    n_s, _, ms_s = rest.partition("/")
+                    try:
+                        msg_by[name][0] += int(n_s)
+                        msg_by[name][1] += float(ms_s)
+                    except ValueError:
+                        pass
                 for k in ("gzVols", "gzChecks", "gzInflateMs", "gzWalkMs", "gzWaitMs"):  # absent before 2026-10-13
                     gz[k] += e.get(k) or 0
                 scrubs = e.get("scrubs") or 0  # absent before 2026-10-12
@@ -351,6 +377,16 @@ def load_run(path):
         "ui_feeds": ui_feeds if ui_feeds else None,
         "ui_feed_avg": round(ui_feed_ms / ui_feeds, 2) if ui_feeds else None,
         "ui_feed_max": round(ui_feed_max, 1) if ui_feeds else None,
+        "book_pump_n": int(book["pumpN"]) if book else None,
+        "book_pump_ms": round(book["pumpMs"], 1) if book else None,
+        "book_pump_max": round(book["pumpMax"], 2) if book else None,
+        "book_prog_n": int(book["progN"]) if book else None,
+        "book_prog_ms": round(book["progMs"], 1) if book else None,
+        "ui_prog_n": msg_by["radarBuildProgress"][0] if "radarBuildProgress" in msg_by else None,
+        "ui_prog_ms": round(msg_by["radarBuildProgress"][1], 1) if "radarBuildProgress" in msg_by else None,
+        "ui_prog_avg": (round(msg_by["radarBuildProgress"][1] / msg_by["radarBuildProgress"][0], 3)
+                        if msg_by.get("radarBuildProgress", [0])[0] else None),
+        "_msg_ms": {"{} ms".format(k): v[1] for k, v in msg_by.items()},
         "gz_vols": int(gz["gzVols"]) if gz["gzVols"] else None,
         "gz_checks_pv": round(gz["gzChecks"] / gz["gzVols"], 1) if gz["gzVols"] else None,
         "gz_inflate_pv": round(gz["gzInflateMs"] / gz["gzVols"], 1) if gz["gzVols"] else None,
@@ -488,6 +524,8 @@ def print_compare(before_runs, after_runs):
     print_keyed(before_runs, after_runs, "_feed_ms", "UI feed time, per feed")
     # Per-kind scrubber paint time (perf.ui scrubBy): which entry point a "Scrubber paint time" change came from.
     print_keyed(before_runs, after_runs, "_scrub_ms", "Scrubber ms, per kind")
+    # Per page-message type UI handling ms (perf.ui msgBy): which message a "UI page-message cost" change came from.
+    print_keyed(before_runs, after_runs, "_msg_ms", "UI message ms, per type")
     print()
     print("  Verdicts: BETTER/WORSE = moved more than 2% AND outside the before-spread.")
     print("            noise = the after value sits inside the range the before runs already covered.")

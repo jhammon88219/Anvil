@@ -27,6 +27,7 @@ namespace Anvil
 	///   readouts / readoutMs = radar readout refreshes and their cost, bindings included (RaiseRadarReadout)
 	///   feeds / feedMs = overlay-feed refreshes (warnings, …) and their parse/merge time ON this thread;
 	///   feedBy = the same per feed, "name:refreshes/ms" costliest first (outlookRead = the outlook VMs' cache reads)
+	///   msgBy = page-message handling per TYPE, "type:count/ms" costliest first
 	///   scrubs / scrubMs = dot-matrix scrubber paints and their cost; scrubBy = per kind "paint|lit|relay:count/ms"
 	///   gz* = legacy .gz volumes streamed, completeness checks, their gunzip / tilt-walk CPU (pool threads, NOT this
 	///         thread — logged here only because this is the one per-second line) and the download's wait on them
@@ -61,6 +62,8 @@ namespace Anvil
 		private int _msgs;
 		private double _msgMs, _msgMax;
 		private string? _msgMaxType;
+		// Per message TYPE: count + ms (→ "msgBy", costliest first) — which page message the UI time went to.
+		private readonly Dictionary<string, (int N, double Ms)> _msgBy = new(StringComparer.Ordinal);
 
 		// WebView2 processes: pid → kind, refreshed on the UI thread; Process handles kept by pid.
 		private Dictionary<int, CoreWebView2ProcessKind> _webPids = new();
@@ -101,6 +104,8 @@ namespace Anvil
 				p._msgs++;
 				p._msgMs += ms;
 				if (ms > p._msgMax) { p._msgMax = ms; p._msgMaxType = type; }
+				p._msgBy.TryGetValue(type, out var c);
+				p._msgBy[type] = (c.N + 1, c.Ms + ms);
 			}
 		}
 
@@ -141,8 +146,18 @@ namespace Anvil
 				int ticks, late50, late100, msgs;
 				double lateMax, msgMs, msgMax;
 				string? msgMaxType;
+				string? msgBy = null;
 				lock (_gate)
 				{
+					if (_msgBy.Count > 0)
+					{
+						var parts = new List<(string Type, int N, double Ms)>();
+						foreach (var (t, c) in _msgBy) parts.Add((t, c.N, c.Ms));
+						parts.Sort((a, b) => b.Ms.CompareTo(a.Ms));
+						msgBy = string.Join(" ", parts.ConvertAll(x =>
+							string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{x.Type}:{x.N}/{x.Ms:0.0}")));
+						_msgBy.Clear();
+					}
 					// A tick that is overdue RIGHT NOW (the UI thread is stuck) has not reported yet — count it.
 					var pending = Math.Max(0, now - _lastTickMs - TickMs);
 					ticks = _ticks; late50 = _late50; late100 = _late100; msgs = _msgs;
@@ -168,7 +183,7 @@ namespace Anvil
 				static double R(double v) => Math.Round(v, 1);
 				RadarDiagnostics.Log("ui", "perf.ui",
 					("ticks", ticks), ("lateMax", R(lateMax)), ("late50", late50), ("late100", late100),
-					("msgs", msgs), ("msgMs", R(msgMs)), ("msgMax", R(msgMax)), ("msgMaxType", msgMaxType),
+					("msgs", msgs), ("msgMs", R(msgMs)), ("msgMax", R(msgMax)), ("msgMaxType", msgMaxType), ("msgBy", msgBy),
 					("syncMs", R(syncMs)), ("svcHops", svcHops), ("readouts", readouts), ("readoutMs", R(readoutMs)),
 					("feeds", feeds), ("feedMs", R(feedMs)), ("feedBy", feedBy),
 					("scrubs", scrubs), ("scrubMs", R(scrubMs)), ("scrubBy", scrubBy),

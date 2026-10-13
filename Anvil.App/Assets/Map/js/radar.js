@@ -434,6 +434,29 @@
     // AFTER a loop finishes loading (the dual-pol second wave), and the dedupe above keeps an idle app quiet.
     setInterval(sampleMemory, MEM_SAMPLE_MS);
 
+    // ── PERF PROBE: loop BOOKKEEPING on this (main) thread (perf audit issues 9 + 10, 2026-10-13) ──────────────────
+    // pump = pumpUpgrades' queue SCAN (picking the next upgrade — every queued frame re-checked per pick); prog =
+    // postBuildProgress (building + posting the readiness arrays; the host's handling of it is timed separately,
+    // perf.ui msgBy). One 'radarBookkeeping' line per second while either ran → perf.book. ⚠️ ?perf=1 only (DEBUG
+    // builds): Release pays one boolean test per call. Excisable — grep `perf.book`.
+    const PERF_BOOK = /[?&]perf=1(&|$)/.test(location.search);
+    const book = { pumpN: 0, pumpMs: 0, pumpMax: 0, progN: 0, progMs: 0, progMax: 0 };
+    function noteBook(kind, t0) {
+        const ms = performance.now() - t0;
+        book[kind + 'N']++;
+        book[kind + 'Ms'] += ms;
+        if (ms > book[kind + 'Max']) book[kind + 'Max'] = ms;
+    }
+    function sampleBook() {
+        if (!book.pumpN && !book.progN) return;
+        const r = function (v) { return Math.round(v * 100) / 100; };
+        post({ type: 'radarBookkeeping', pumpN: book.pumpN, pumpMs: r(book.pumpMs), pumpMax: r(book.pumpMax),
+            progN: book.progN, progMs: r(book.progMs), progMax: r(book.progMax), frames: frames.length });
+        book.pumpN = book.progN = 0;
+        book.pumpMs = book.pumpMax = book.progMs = book.progMax = 0;
+    }
+    if (PERF_BOOK) setInterval(sampleBook, 1000);
+
     // ---- Lazy-upgrade queue (bounded, current-frame-first) ----
     // Switching to Velocity (or turning Inspect on) needs the loaded frames re-decoded to add the
     // geometry they were built without (velocity/dealias, or the inspector grids). Firing all of them
@@ -522,6 +545,7 @@
         pumpingUpgrades = true;
         try {
             while (upgradeInFlightN < UPGRADE_CONCURRENCY && upgradeQueue.length) {
+                var bookT = PERF_BOOK ? performance.now() : 0; // perf.book: the scan only, not the decode it starts
                 var bestPos = -1, bestPri = Infinity;
                 for (var p = 0; p < upgradeQueue.length; p++) {
                     var idx = upgradeQueue[p];
@@ -529,7 +553,8 @@
                     var pri = upgradePriority(idx);
                     if (pri < bestPri) { bestPri = pri; bestPos = p; }
                 }
-                if (bestPos < 0) { upgradeQueue = upgradeQueue.filter(needsUpgrade); break; }
+                if (bestPos < 0) { upgradeQueue = upgradeQueue.filter(needsUpgrade); if (PERF_BOOK) noteBook('pump', bookT); break; }
+                if (PERF_BOOK) noteBook('pump', bookT);
                 var chosen = upgradeQueue.splice(bestPos, 1)[0];
                 upgradeInFlight[chosen] = true;
                 upgradeInFlightN++;
@@ -572,6 +597,10 @@
     }
 
     function postBuildProgress() {
+        var bookT = PERF_BOOK ? performance.now() : 0;
+        try { postBuildProgressNow(); } finally { if (PERF_BOOK) noteBook('prog', bookT); }
+    }
+    function postBuildProgressNow() {
         var total = frames.length;
         var label = activeProduct(); // the message's product label — the primary pane's, for the readout
         if (!total) { post({ type: 'radarBuildProgress', product: label, built: 0, total: 0, activeReady: [], fillBuilt: [], decoding: [] }); return; }
