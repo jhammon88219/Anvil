@@ -92,6 +92,13 @@ METRICS = [
     ("ui_scrub_ms",      "Scrubber paint time",    "ms", -1),
     ("ui_scrub_avg",     "Scrubber cost per paint", "ms", -1),
     ("ui_scrub_max",     "Scrubber worst second",  "ms", -1),
+    # Legacy .gz streaming (perf.ui gz*, 2026-10-13): per .gz volume streamed - its completeness checks, their gunzip and
+    # tilt-walk CPU (pool threads), and how long the DOWNLOAD sat waiting on them.
+    ("gz_vols",          ".gz volumes streamed",   "",    0),
+    ("gz_checks_pv",     ".gz checks per volume",  "",   -1),
+    ("gz_inflate_pv",    ".gz gunzip ms per volume", "ms", -1),
+    ("gz_walk_pv",       ".gz walk ms per volume", "ms", -1),
+    ("gz_wait_pv",       ".gz download wait per vol", "ms", -1),
 ]
 
 
@@ -124,6 +131,7 @@ def load_run(path):
     feed_by = defaultdict(lambda: [0, 0.0])  # feed -> [refreshes, UI ms]
     ui_scrubs, ui_scrub_ms, ui_scrub_max = 0, 0.0, 0.0
     scrub_by = defaultdict(float)  # kind -> total ms in the run
+    gz = defaultdict(float)  # gzVols / gzChecks / gzInflateMs / gzWalkMs / gzWaitMs summed over the run
     sites, sessions, stamp = set(), 0, None
     first_ts = last_ts = None
     skipped = 0
@@ -217,6 +225,8 @@ def load_run(path):
                 # readout fix. Logs without the field keep the old meaning.
                 hops = e.get("svcHops") or 0
                 readouts = e.get("readouts") or 0
+                for k in ("gzVols", "gzChecks", "gzInflateMs", "gzWalkMs", "gzWaitMs"):  # absent before 2026-10-13
+                    gz[k] += e.get(k) or 0
                 scrubs = e.get("scrubs") or 0  # absent before 2026-10-12
                 if scrubs > 0:
                     sm = e.get("scrubMs") or 0
@@ -323,6 +333,11 @@ def load_run(path):
         "ui_feeds": ui_feeds if ui_feeds else None,
         "ui_feed_avg": round(ui_feed_ms / ui_feeds, 2) if ui_feeds else None,
         "ui_feed_max": round(ui_feed_max, 1) if ui_feeds else None,
+        "gz_vols": int(gz["gzVols"]) if gz["gzVols"] else None,
+        "gz_checks_pv": round(gz["gzChecks"] / gz["gzVols"], 1) if gz["gzVols"] else None,
+        "gz_inflate_pv": round(gz["gzInflateMs"] / gz["gzVols"], 1) if gz["gzVols"] else None,
+        "gz_walk_pv": round(gz["gzWalkMs"] / gz["gzVols"], 1) if gz["gzVols"] else None,
+        "gz_wait_pv": round(gz["gzWaitMs"] / gz["gzVols"], 1) if gz["gzVols"] else None,
         "ui_scrubs": ui_scrubs if ui_scrubs else None,
         "ui_scrub_ms": round(ui_scrub_ms, 1) if ui_scrubs else None,
         "ui_scrub_avg": round(ui_scrub_ms / ui_scrubs, 3) if ui_scrubs else None,

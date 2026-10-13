@@ -19,6 +19,7 @@ namespace Anvil.Services
 	///   Begin/EndReadout     (RaiseRadarReadout + the bindings it runs)  → "readouts" / "readoutMs"
 	///   Begin/EndFeed, TimeFeed (a feed's parse/merge ON the UI thread) → "feeds" / "feedMs" / "feedBy"
 	///   Begin/EndScrub       (a dot-matrix scrubber paint)               → "scrubs" / "scrubMs"
+	///   NoteGz*              (legacy .gz streaming: checks + their cost) → "gzVols" / "gzChecks" / "gzInflateMs" / "gzWalkMs" / "gzWaitMs"
 	/// </code>
 	/// Always on (a pair of Interlocked ops per extraction is free); only <c>UiThreadProbe</c> (App, Debug)
 	/// ever reads it. ⚠️ EXCISABLE: this file, its call sites in <see cref="Level2RadarService"/> and
@@ -88,6 +89,31 @@ namespace Anvil.Services
 		/// <summary>Readout refreshes and their total milliseconds since the last call.</summary>
 		public static (int Count, double Ms) TakeReadouts() =>
 			(Interlocked.Exchange(ref _readouts, 0), Interlocked.Exchange(ref _readoutTicks, 0) * 1000.0 / Stopwatch.Frequency);
+
+		// Legacy .gz streaming (Level2RadarService.StreamGzBaseTiltAsync): volumes streamed, completeness checks, the CPU
+		// each check spent gunzipping the prefix vs walking it for a tilt, and the wall time the DOWNLOAD sat waiting on them.
+		private static int _gzVolumes, _gzChecks;
+		private static long _gzInflateTicks, _gzWalkTicks, _gzWaitTicks;
+
+		public static void NoteGzVolume() => Interlocked.Increment(ref _gzVolumes);
+
+		public static void NoteGzCheck(long inflateTicks, long walkTicks)
+		{
+			Interlocked.Increment(ref _gzChecks);
+			Interlocked.Add(ref _gzInflateTicks, inflateTicks);
+			Interlocked.Add(ref _gzWalkTicks, walkTicks);
+		}
+
+		public static void NoteGzWait(long ticks) => Interlocked.Add(ref _gzWaitTicks, ticks);
+
+		/// <summary>.gz volumes, checks, inflate ms, walk ms and download-wait ms since the last call.</summary>
+		public static (int Volumes, int Checks, double InflateMs, double WalkMs, double WaitMs) TakeGz()
+		{
+			static double Ms(long t) => t * 1000.0 / Stopwatch.Frequency;
+			return (Interlocked.Exchange(ref _gzVolumes, 0), Interlocked.Exchange(ref _gzChecks, 0),
+				Ms(Interlocked.Exchange(ref _gzInflateTicks, 0)), Ms(Interlocked.Exchange(ref _gzWalkTicks, 0)),
+				Ms(Interlocked.Exchange(ref _gzWaitTicks, 0)));
+		}
 
 		// Scrubber paints, per KIND (index = ScrubKind): a segment repaint, a lit move, a re-lay.
 		public const int ScrubPaint = 0, ScrubLit = 1, ScrubRelay = 2;

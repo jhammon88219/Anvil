@@ -28,6 +28,8 @@ namespace Anvil
 	///   feeds / feedMs = overlay-feed refreshes (warnings, …) and their parse/merge time ON this thread;
 	///   feedBy = the same per feed, "name:refreshes/ms" costliest first (outlookRead = the outlook VMs' cache reads)
 	///   scrubs / scrubMs = dot-matrix scrubber paints and their cost; scrubBy = per kind "paint|lit|relay:count/ms"
+	///   gz* = legacy .gz volumes streamed, completeness checks, their gunzip / tilt-walk CPU (pool threads, NOT this
+	///         thread — logged here only because this is the one per-second line) and the download's wait on them
 	/// </code>
 	/// ⚠️ IT MUST NOT PERTURB WHAT IT MEASURES: the UI thread does one timestamp per tick and one per
 	/// routed message; process CPU and the JSONL write happen on the pool timer. The WebView2 process LIST
@@ -155,11 +157,12 @@ namespace Anvil
 				var (readouts, readoutMs) = RadarPerfCounters.TakeReadouts();
 				var (feeds, feedMs, feedBy) = RadarPerfCounters.TakeFeeds();
 				var (scrubs, scrubMs, scrubBy) = RadarPerfCounters.TakeScrubs();
+				var gz = RadarPerfCounters.TakeGz();
 				var cpu = SampleCpu(now);
 
 				// A loop that is up refreshes its readout every second, so every such second is logged (playback included).
 				// A feed refresh is logged too, so a fix that takes its cost to ~0 still shows the refresh it measured.
-				var busy = lateMax >= 40 || msgMs >= 20 || syncMs >= 5 || jobsPeak > 0 || svcHops > 0 || readouts > 0 || feedBy is not null || scrubs > 0;
+				var busy = lateMax >= 40 || msgMs >= 20 || syncMs >= 5 || jobsPeak > 0 || svcHops > 0 || readouts > 0 || feedBy is not null || scrubs > 0 || gz.Volumes > 0 || gz.Checks > 0;
 				if (!busy && ++_windowNo % BaselineEvery != 0) return;
 
 				static double R(double v) => Math.Round(v, 1);
@@ -169,6 +172,8 @@ namespace Anvil
 					("syncMs", R(syncMs)), ("svcHops", svcHops), ("readouts", readouts), ("readoutMs", R(readoutMs)),
 					("feeds", feeds), ("feedMs", R(feedMs)), ("feedBy", feedBy),
 					("scrubs", scrubs), ("scrubMs", R(scrubMs)), ("scrubBy", scrubBy),
+					("gzVols", gz.Volumes), ("gzChecks", gz.Checks), ("gzInflateMs", R(gz.InflateMs)), ("gzWalkMs", R(gz.WalkMs)),
+					("gzWaitMs", R(gz.WaitMs)),
 					("jobs", jobs), ("jobsPeak", jobsPeak),
 					("cpuApp", R(cpu.App)), ("cpuRend", R(cpu.Renderer)), ("cpuGpu", R(cpu.Gpu)),
 					("cpuWebOther", R(cpu.WebOther)), ("cpuSys", R(cpu.System)), ("cores", _cores));

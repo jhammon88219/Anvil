@@ -2666,6 +2666,7 @@ namespace Anvil.Services
 			var buffer = new byte[81920];
 			long nextCheck = GzFirstCheckBytes;
 			int n;
+			RadarPerfCounters.NoteGzVolume(); // PERF PROBE (perf.ui "gz*"): checks, their CPU, and the download's wait on them
 			// ConfigureAwait(false) throughout — see ReadBodyAsync's ⚠️ (the prefix copy below then runs off the UI thread too).
 			while ((n = await body.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
 			{
@@ -2677,7 +2678,17 @@ namespace Anvil.Services
 				var syncAt = RadarPerfCounters.BeginSync(); // perf.ui: the prefix copy, when it lands on the UI thread
 				var soFar = compressed.ToArray();
 				RadarPerfCounters.EndSync(syncAt);
-				var tilt = await RadarCpuWork.Run(() => CompleteBaseTilt(GunzipPrefix(soFar), siteId), ct, urgent).ConfigureAwait(false);
+				var waitAt = System.Diagnostics.Stopwatch.GetTimestamp();
+				var tilt = await RadarCpuWork.Run(() =>
+				{
+					var t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+					var data = GunzipPrefix(soFar);
+					var t1 = System.Diagnostics.Stopwatch.GetTimestamp();
+					var found = CompleteBaseTilt(data, siteId);
+					RadarPerfCounters.NoteGzCheck(t1 - t0, System.Diagnostics.Stopwatch.GetTimestamp() - t1);
+					return found;
+				}, ct, urgent).ConfigureAwait(false);
+				RadarPerfCounters.NoteGzWait(System.Diagnostics.Stopwatch.GetTimestamp() - waitAt);
 				if (tilt is not null) return (tilt, null);
 			}
 			return (null, compressed.ToArray());
