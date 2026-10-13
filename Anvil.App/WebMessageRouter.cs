@@ -262,7 +262,9 @@ namespace Anvil
 			if (root.TryGetProperty("msg", out var msgEl))
 			{
 				var msg = msgEl.GetString();
+				var t0 = System.Diagnostics.Stopwatch.GetTimestamp(); // perf audit issue 12: the echo's cost (perf.ui diagEchoMs)
 				System.Diagnostics.Debug.WriteLine($"[radar-js] {msg}");
+				Services.RadarPerfCounters.NoteDiagEcho(System.Diagnostics.Stopwatch.GetTimestamp() - t0);
 				if (msg is not null) Services.RadarDiagnostics.JsLog(msg);
 			}
 		}

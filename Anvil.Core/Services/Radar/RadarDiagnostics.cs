@@ -365,7 +365,14 @@ namespace Anvil.Services
 		/// and the WebGL context edges) — kept as a string event for forensic context.</summary>
 		public static void JsLog(string msg)
 		{
-			lock (Gate) WriteEnvelope("js", "log", ("msg", msg));
+			// perf audit issue 12: wait for the Gate vs time holding it (RadarPerfCounters → perf.ui diag*).
+			var t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+			lock (Gate)
+			{
+				var t1 = System.Diagnostics.Stopwatch.GetTimestamp();
+				WriteEnvelope("js", "log", ("msg", msg));
+				RadarPerfCounters.NoteDiagLog(t1 - t0, System.Diagnostics.Stopwatch.GetTimestamp() - t1);
+			}
 		}
 
 		// ── Quarantine ──
@@ -455,15 +462,22 @@ namespace Anvil.Services
 		public static void WriteReport()
 		{
 			string path; string text;
+			long t0, renderTicks; int lists;
 			lock (Gate)
 			{
 				if (_reportPath is null || !_reportDirty) return;
 				path = _reportPath;
+				t0 = System.Diagnostics.Stopwatch.GetTimestamp();
 				text = RenderReport();
+				renderTicks = System.Diagnostics.Stopwatch.GetTimestamp() - t0;
+				lists = Stats.DecodeMs.Count + Stats.Latency.Count + Stats.NewestLatency.Count + Stats.PollIntervals.Count;
 				_reportDirty = false;
 			}
+			t0 = System.Diagnostics.Stopwatch.GetTimestamp();
 			try { File.WriteAllText(path, text); }
 			catch { /* transient lock; next regen retries */ }
+			// perf audit issue 12: render (under the Gate) vs write (outside it), and how long the sorted lists have grown.
+			RadarPerfCounters.NoteDiagReport(renderTicks, System.Diagnostics.Stopwatch.GetTimestamp() - t0, lists);
 		}
 
 		/// <summary>Flush + report regeneration for shutdown.</summary>

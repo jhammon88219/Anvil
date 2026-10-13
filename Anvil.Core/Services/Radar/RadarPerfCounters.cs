@@ -20,6 +20,7 @@ namespace Anvil.Services
 	///   Begin/EndFeed, TimeFeed (a feed's parse/merge ON the UI thread) → "feeds" / "feedMs" / "feedBy"
 	///   Begin/EndScrub       (a dot-matrix scrubber paint)               → "scrubs" / "scrubMs"
 	///   NoteGz*              (legacy .gz streaming: checks + their cost) → "gzVols" / "gzChecks" / "gzInflateMs" / "gzWalkMs" / "gzWaitMs"
+	///   NoteDiag*            (radarLog echo + Gate wait/hold, report render) → "diagLogs" / "diagEchoMs" / "diagWaitMs" / …
 	/// </code>
 	/// Always on (a pair of Interlocked ops per extraction is free); only <c>UiThreadProbe</c> (App, Debug)
 	/// ever reads it. ⚠️ EXCISABLE: this file, its call sites in <see cref="Level2RadarService"/> and
@@ -149,6 +150,55 @@ namespace Anvil.Services
 					$"{ScrubNames[k]}:{c}/{t * 1000.0 / Stopwatch.Frequency:0.0}"));
 			}
 			return (n, ticks * 1000.0 / Stopwatch.Frequency, parts.Count == 0 ? null : string.Join(" ", parts));
+		}
+
+		// RadarDiagnostics cost (perf audit issue 12): a page `radarLog` line = the debugger echo (Debug.WriteLine) + the
+		// diagnostics write, which WAITS for RadarDiagnostics' Gate then HOLDS it; and the 2 s report rebuild, which renders
+		// under that same Gate (the render is what a log line can wait behind), then writes the .md outside it.
+		private static int _diagLogs, _diagReports, _diagLists;
+		private static long _diagEchoTicks, _diagWaitTicks, _diagWaitMax, _diagHeldTicks;
+		private static long _diagRenderTicks, _diagRenderMax, _diagWriteTicks;
+
+		private static void Max(ref long slot, long v)
+		{
+			long cur;
+			while (v > (cur = Volatile.Read(ref slot)) && Interlocked.CompareExchange(ref slot, v, cur) != cur) { }
+		}
+
+		/// <summary>One page log line's debugger echo (WebMessageRouter.HandleRadarLog).</summary>
+		public static void NoteDiagEcho(long ticks) => Interlocked.Add(ref _diagEchoTicks, ticks);
+
+		/// <summary>One page log line's diagnostics write: ticks spent waiting for the Gate, then holding it.</summary>
+		public static void NoteDiagLog(long waitTicks, long heldTicks)
+		{
+			Interlocked.Increment(ref _diagLogs);
+			Interlocked.Add(ref _diagWaitTicks, waitTicks);
+			Max(ref _diagWaitMax, waitTicks);
+			Interlocked.Add(ref _diagHeldTicks, heldTicks);
+		}
+
+		/// <summary>One report rebuild: render ticks (under the Gate), .md write ticks (outside it), and the summed length
+		/// of the run-wide sample lists it sorted.</summary>
+		public static void NoteDiagReport(long renderTicks, long writeTicks, int listLength)
+		{
+			Interlocked.Increment(ref _diagReports);
+			Interlocked.Add(ref _diagRenderTicks, renderTicks);
+			Max(ref _diagRenderMax, renderTicks);
+			Interlocked.Add(ref _diagWriteTicks, writeTicks);
+			Volatile.Write(ref _diagLists, listLength);
+		}
+
+		/// <summary>Diagnostics cost since the last call; <c>Lists</c> = the latest report's list length (not reset).</summary>
+		public static (int Logs, double EchoMs, double WaitMs, double WaitMax, double HeldMs,
+			int Reports, double RenderMs, double RenderMax, double WriteMs, int Lists) TakeDiag()
+		{
+			static double Ms(long t) => t * 1000.0 / Stopwatch.Frequency;
+			return (Interlocked.Exchange(ref _diagLogs, 0), Ms(Interlocked.Exchange(ref _diagEchoTicks, 0)),
+				Ms(Interlocked.Exchange(ref _diagWaitTicks, 0)), Ms(Interlocked.Exchange(ref _diagWaitMax, 0)),
+				Ms(Interlocked.Exchange(ref _diagHeldTicks, 0)),
+				Interlocked.Exchange(ref _diagReports, 0), Ms(Interlocked.Exchange(ref _diagRenderTicks, 0)),
+				Ms(Interlocked.Exchange(ref _diagRenderMax, 0)), Ms(Interlocked.Exchange(ref _diagWriteTicks, 0)),
+				Volatile.Read(ref _diagLists));
 		}
 
 		// Overlay feeds (warnings, watches, outlook, …), PER FEED so a total can be traced to its source. Rare calls

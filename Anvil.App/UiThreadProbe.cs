@@ -31,6 +31,8 @@ namespace Anvil
 	///   scrubs / scrubMs = dot-matrix scrubber paints and their cost; scrubBy = per kind "paint|lit|relay:count/ms"
 	///   gz* = legacy .gz volumes streamed, completeness checks, their gunzip / tilt-walk CPU (pool threads, NOT this
 	///         thread — logged here only because this is the one per-second line) and the download's wait on them
+	///   diag* = RadarDiagnostics cost: radarLog lines, their debugger echo, Gate wait (+ worst) and hold; report rebuilds,
+	///         render ms under the Gate (+ worst), .md write ms, and the run-wide sample lists' length
 	/// </code>
 	/// ⚠️ IT MUST NOT PERTURB WHAT IT MEASURES: the UI thread does one timestamp per tick and one per
 	/// routed message; process CPU and the JSONL write happen on the pool timer. The WebView2 process LIST
@@ -179,6 +181,9 @@ namespace Anvil
 				// A feed refresh is logged too, so a fix that takes its cost to ~0 still shows the refresh it measured.
 				var busy = lateMax >= 40 || msgMs >= 20 || syncMs >= 5 || jobsPeak > 0 || svcHops > 0 || readouts > 0 || feedBy is not null || scrubs > 0 || gz.Volumes > 0 || gz.Checks > 0;
 				if (!busy && ++_windowNo % BaselineEvery != 0) return;
+				// Taken only for a window that is WRITTEN, so a quiet window's report rebuild carries into the next line. Not part
+				// of `busy`: this line's own write dirties the report, so a rebuild would keep every window busy forever.
+				var diag = RadarPerfCounters.TakeDiag();
 
 				static double R(double v) => Math.Round(v, 1);
 				RadarDiagnostics.Log("ui", "perf.ui",
@@ -189,6 +194,10 @@ namespace Anvil
 					("scrubs", scrubs), ("scrubMs", R(scrubMs)), ("scrubBy", scrubBy),
 					("gzVols", gz.Volumes), ("gzChecks", gz.Checks), ("gzInflateMs", R(gz.InflateMs)), ("gzWalkMs", R(gz.WalkMs)),
 					("gzWaitMs", R(gz.WaitMs)),
+					("diagLogs", diag.Logs), ("diagEchoMs", R(diag.EchoMs)), ("diagWaitMs", R(diag.WaitMs)),
+					("diagWaitMax", R(diag.WaitMax)), ("diagHeldMs", R(diag.HeldMs)), ("diagReports", diag.Reports),
+					("diagRenderMs", R(diag.RenderMs)), ("diagRenderMax", R(diag.RenderMax)), ("diagWriteMs", R(diag.WriteMs)),
+					("diagLists", diag.Lists),
 					("jobs", jobs), ("jobsPeak", jobsPeak),
 					("cpuApp", R(cpu.App)), ("cpuRend", R(cpu.Renderer)), ("cpuGpu", R(cpu.Gpu)),
 					("cpuWebOther", R(cpu.WebOther)), ("cpuSys", R(cpu.System)), ("cores", _cores));

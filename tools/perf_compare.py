@@ -116,6 +116,19 @@ METRICS = [
     ("gz_inflate_pv",    ".gz gunzip ms per volume", "ms", -1),
     ("gz_walk_pv",       ".gz walk ms per volume", "ms", -1),
     ("gz_wait_pv",       ".gz download wait per vol", "ms", -1),
+    # RadarDiagnostics cost (perf.ui diag*, 2026-10-13, issue 12): a page radarLog line = debugger echo + Gate wait + Gate
+    # hold (UI thread); the 2 s report rebuild renders UNDER that Gate (pool thread) - what a log line waits behind.
+    ("diag_logs",        "radarLog lines",         "",    0),
+    ("diag_log_avg",     "radarLog UI ms each",    "ms", -1),
+    ("diag_echo_avg",    "  debugger echo ms each", "ms", -1),
+    ("diag_wait_avg",    "  Gate wait ms each",    "ms", -1),
+    ("diag_wait_max",    "  Gate wait worst",      "ms", -1),
+    ("diag_held_avg",    "  Gate held ms each",    "ms", -1),
+    ("diag_reports",     "Report rebuilds",        "",    0),
+    ("diag_render_avg",  "Report render ms each", "ms", -1),
+    ("diag_render_max",  "Report render worst",    "ms", -1),
+    ("diag_write_avg",   "Report write ms each",   "ms", -1),
+    ("diag_lists",       "Report list length (end)", "", 0),
 ]
 
 
@@ -150,6 +163,7 @@ def load_run(path):
     ui_scrubs, ui_scrub_ms, ui_scrub_max = 0, 0.0, 0.0
     scrub_by = defaultdict(float)  # kind -> total ms in the run
     gz = defaultdict(float)  # gzVols / gzChecks / gzInflateMs / gzWalkMs / gzWaitMs summed over the run
+    diag = defaultdict(float)  # perf.ui diag*: counts + ms summed, *Max maxed, diagLists = latest
     book = defaultdict(float)  # perf.book: pumpN / pumpMs / progN / progMs summed, pumpMax / progMax maxed
     msg_by = defaultdict(lambda: [0, 0.0])  # perf.ui msgBy: type -> [count, ms]
     sites, sessions, stamp = set(), 0, None
@@ -267,6 +281,13 @@ def load_run(path):
                         pass
                 for k in ("gzVols", "gzChecks", "gzInflateMs", "gzWalkMs", "gzWaitMs"):  # absent before 2026-10-13
                     gz[k] += e.get(k) or 0
+                for k in ("diagLogs", "diagEchoMs", "diagWaitMs", "diagHeldMs", "diagReports", "diagRenderMs",
+                          "diagWriteMs"):  # absent before 2026-10-13 (issue 12)
+                    diag[k] += e.get(k) or 0
+                for k in ("diagWaitMax", "diagRenderMax"):
+                    diag[k] = max(diag[k], e.get(k) or 0)
+                if e.get("diagLists"):
+                    diag["diagLists"] = e["diagLists"]
                 scrubs = e.get("scrubs") or 0  # absent before 2026-10-12
                 if scrubs > 0:
                     sm = e.get("scrubMs") or 0
@@ -387,6 +408,18 @@ def load_run(path):
         "ui_prog_avg": (round(msg_by["radarBuildProgress"][1] / msg_by["radarBuildProgress"][0], 3)
                         if msg_by.get("radarBuildProgress", [0])[0] else None),
         "_msg_ms": {"{} ms".format(k): v[1] for k, v in msg_by.items()},
+        "diag_logs": int(diag["diagLogs"]) if diag["diagLogs"] else None,
+        "diag_log_avg": (round((diag["diagEchoMs"] + diag["diagWaitMs"] + diag["diagHeldMs"]) / diag["diagLogs"], 3)
+                         if diag["diagLogs"] else None),
+        "diag_echo_avg": round(diag["diagEchoMs"] / diag["diagLogs"], 3) if diag["diagLogs"] else None,
+        "diag_wait_avg": round(diag["diagWaitMs"] / diag["diagLogs"], 3) if diag["diagLogs"] else None,
+        "diag_wait_max": round(diag["diagWaitMax"], 1) if diag["diagLogs"] else None,
+        "diag_held_avg": round(diag["diagHeldMs"] / diag["diagLogs"], 3) if diag["diagLogs"] else None,
+        "diag_reports": int(diag["diagReports"]) if diag["diagReports"] else None,
+        "diag_render_avg": round(diag["diagRenderMs"] / diag["diagReports"], 2) if diag["diagReports"] else None,
+        "diag_render_max": round(diag["diagRenderMax"], 1) if diag["diagReports"] else None,
+        "diag_write_avg": round(diag["diagWriteMs"] / diag["diagReports"], 2) if diag["diagReports"] else None,
+        "diag_lists": int(diag["diagLists"]) if diag["diagLists"] else None,
         "gz_vols": int(gz["gzVols"]) if gz["gzVols"] else None,
         "gz_checks_pv": round(gz["gzChecks"] / gz["gzVols"], 1) if gz["gzVols"] else None,
         "gz_inflate_pv": round(gz["gzInflateMs"] / gz["gzVols"], 1) if gz["gzVols"] else None,
