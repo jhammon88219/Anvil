@@ -1483,6 +1483,27 @@ function kdpFromPhi(phi, refl, rho, minDbz) {
             // keep `prev`/`accum` across isolated dropouts so the unwrap stays continuous
         }
     }
+    // 5-gate MEDIAN of the unwrapped ΦDP (valid gates within ±2; fewer than 3 keeps the gate's own value)
+    // before the moving average below. A mean spreads a single-gate phase spike across its whole window
+    // and the slope fit then reads it as a ramp; the median removes the spike first. Measured against
+    // Level III N0K on 7 storm volumes (2026-10-14): r, MAE, core MAE and spread better on every one.
+    // Keep in sync with tools/dualpol_check.py kdp_mirror.
+    {
+        const src = ph.slice(), win = new Float64Array(5);
+        for (let j = 0; j < n; j++) {
+            if (!valid[j]) continue;
+            let c = 0;
+            for (let k = Math.max(0, j - 2), e = Math.min(n - 1, j + 2); k <= e; k++) {
+                if (!valid[k]) continue;
+                const v = src[k];
+                let p = c++;
+                while (p > 0 && win[p - 1] > v) { win[p] = win[p - 1]; p--; } // insertion sort, ≤ 5 items
+                win[p] = v;
+            }
+            if (c >= 3) ph[j] = (c & 1) ? win[c >> 1] : 0.5 * (win[(c >> 1) - 1] + win[c >> 1]);
+        }
+    }
+
     const wLong = Math.max(1, Math.round(KDP_WINDOW_KM / gateKm));
     const wShort = Math.max(1, Math.round(KDP_WINDOW_SHORT_KM / gateKm));
 

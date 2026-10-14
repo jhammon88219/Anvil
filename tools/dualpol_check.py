@@ -114,6 +114,15 @@ def kdp_mirror(phi, refl, rho, gate_km):
                 ph[j] = v + accum
                 valid[j] = True
             # else: keep prev/accum across isolated dropouts (unwrap stays continuous)
+        # 5-gate median of the unwrapped phase before smooth() (mirrors radar-decode.js kdpFromPhi): a mean
+        # spreads a one-gate spike over its window and the fit reads it as a ramp. np.median averages the
+        # middle pair for an even count, as the JS does.
+        src = ph.copy()
+        for j in np.nonzero(valid)[0]:
+            lo, hi = max(0, j - 2), min(G, j + 3)
+            w5 = src[lo:hi][valid[lo:hi]]
+            if w5.size >= 3:
+                ph[j] = np.median(w5)
         vf = valid.astype(float)
         y = np.where(valid, ph, 0.0)
         xv = np.where(valid, x, 0.0)
