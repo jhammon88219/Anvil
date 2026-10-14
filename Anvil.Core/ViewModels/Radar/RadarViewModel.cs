@@ -506,10 +506,11 @@ namespace Anvil.ViewModels
 		// token bumps) can't pollute this session's first-frame timing / ready count.
 		private bool _loopRenderBegun;
 
-		public RadarViewModel(IMapService mapService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, IDowEventProvider dowEventProvider, ISettingsService settings, StormMotionService? stormMotion)
+		public RadarViewModel(IMapService mapService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, IDowEventProvider dowEventProvider, ISettingsService settings, StormMotionService? stormMotion, IStormCellService? stormCells = null)
 		{
 			_mapService = mapService;
 			_stormMotion = stormMotion;
+			_stormCells = stormCells;
 			_radarSiteProvider = radarSiteProvider;
 			_radarService = radarService;
 			_settings = settings;
@@ -1888,9 +1889,11 @@ namespace Anvil.ViewModels
 
 		// ===== Storm-Relative Velocity (SRV) storm motion ===============================================
 		// SRV = base velocity − the storm motion's component along each beam, so a storm's own translation is
-		// removed and rotation (mesocyclones) reads near zero. The motion is ALWAYS derived automatically from
-		// each volume's own FULL-VOLUME VAD wind profile (Bunkers right-mover; RadarScope-style), fully offline
-		// in the decoder — there is no manual override. ⚠️ A single low tilt is too shallow for a correct
+		// removed and rotation (mesocyclones) reads near zero. The motion is automatic — there is no manual
+		// override. FIRST choice: the mean motion of the storm cells the radar tracked over the loop's span
+		// (TrackedCellMotion — how the storms on screen actually moved). FALLBACK, when the span has too few
+		// tracked cells (no storms, no IEM data, non-WSR-88D sites): the Bunkers right-mover from a wind
+		// profile — Level III NVW, else our own FULL-VOLUME VAD in the decoder. ⚠️ A single low tilt is too shallow for a correct
 		// 0–6 km profile, so the VM hands the WebView a volume's bottom velocity tilts (EnsureVwpTiltsAsync)
 		// whenever a Doppler product is in view; the WebView merges their VAD profiles → Bunkers (per volume,
 		// cached) and reports the result back via SetAutoStormMotion for the readout.
@@ -1898,6 +1901,9 @@ namespace Anvil.ViewModels
 		/// <summary>The wind-profile provider chain (doc 01 §5). Null = no chain configured, in which case the
 		/// local Level II VAD is used directly, exactly as before this existed.</summary>
 		private readonly StormMotionService? _stormMotion;
+		/// <summary>The radar's tracked storm cells (the motion's first choice). Null = skip straight to the
+		/// wind-profile chain.</summary>
+		private readonly IStormCellService? _stormCells;
 		private string? _motionRefKey; // the FIRST-PAINT volume the loop's one storm motion is computed from
 		private string? _lastVwpKey;   // the ref key we last asked the WebView to compute an auto motion for
 
@@ -2023,6 +2029,11 @@ namespace Anvil.ViewModels
 		{
 			try
 			{
+				if (await TryTrackedCellMotionAsync(site, key))
+				{
+					return;
+				}
+
 				if (_stormMotion is not null)
 				{
 					// ⚠️ Ask about the REFERENCE VOLUME's time, not whatever is loaded right now. In replay this
@@ -2060,6 +2071,75 @@ namespace Anvil.ViewModels
 				Diag($"vwp storm-motion {key} failed: {ex.Message}");
 			}
 		}
+
+		/// <summary>
+		/// The motion's first choice: the mean of the storm cells tracked over the LOOP'S OWN SPAN (oldest to
+		/// newest frame), pushed as an external motion. False = no answer, so the caller runs the
+		/// wind-profile chain exactly as before.
+		/// </summary>
+		/// <remarks>
+		/// ⚠️ The span comes from the loop's keys, not <see cref="LoadedReplayStartUtc"/>: this runs at first
+		/// paint, before a replay window is recorded as loaded, and the same rule then serves NowCast.
+		/// <para>⚠️ Fetched as a HISTORICAL window (<c>live: false</c>) even in NowCast: the live fetch rewrites
+		/// the ONE rolling file the storm-cell overlay serves to the page, over its own (longer) window.</para>
+		/// <para>Only WSR-88D sites have cell attributes; TDWR and research radars go straight to the chain.</para>
+		/// </remarks>
+		private async Task<bool> TryTrackedCellMotionAsync(RadarSite site, string key)
+		{
+			if (_stormCells is null || site.Class != RadarSiteClass.Operational)
+			{
+				return false;
+			}
+
+			// Min/max over every key that names a volume: NowCast appends HELD slots (no volume) after the
+			// fetched keys, so the ends of the array are not the ends of the span.
+			if (Services.Level2RadarService.ParseVolumeTime(key) is not { } refTime)
+			{
+				return false;
+			}
+			DateTimeOffset start = refTime, end = refTime;
+			foreach (var k in _loadedKeys)
+			{
+				if (Services.Level2RadarService.ParseVolumeTime(RadarFrameKey.VolumeKey(k)) is not { } t) { continue; }
+				if (t < start) { start = t; }
+				if (t > end) { end = t; }
+			}
+			// A one-frame loop still averages the scans just before it.
+			if (end - start < MinCellMotionSpan)
+			{
+				start = end - MinCellMotionSpan;
+			}
+
+			var fetch = await _stormCells.FetchAsync(site.Id, start, end, live: false);
+			if (_motionRefKey != key)
+			{
+				return true; // a newer loop took over while this fetched; its own request decides
+			}
+			if (!fetch.Found)
+			{
+				Diag($"storm-motion {key}: tracked cells unavailable ({fetch.Error}) — using the wind profile");
+				return false;
+			}
+
+			if (TrackedCellMotion.Mean(fetch.Scans, start, end) is not { } m)
+			{
+				Diag($"storm-motion {key}: fewer than {TrackedCellMotion.MinSightings} moving cell sightings "
+					+ $"{start:HH:mm}–{end:HH:mm}Z — using the wind profile");
+				return false;
+			}
+
+			Diag($"storm-motion {key} from tracked cells: {m.HeadingDeg:F0} deg @ {m.SpeedMs / 0.514444:F0} kt "
+				+ $"({m.Cells} cells, {m.Sightings} sightings, {start:HH:mm}–{end:HH:mm}Z)");
+			await _mapService.SetStormMotionAsync(
+				m.SpeedMs, m.HeadingDeg, TrackedCellsSource, m.Cells, 0, "Mean");
+			return true;
+		}
+
+		/// <summary>The motion source name the readouts show for a tracked-cell mean (the console reads it to
+		/// count CELLS rather than profile levels).</summary>
+		public const string TrackedCellsSource = "Tracked cells";
+
+		private static readonly TimeSpan MinCellMotionSpan = TimeSpan.FromMinutes(30);
 
 		// ===== Pane layout ==============================================================================
 		// A pane is a PRODUCT VIEW of one site: panes share the site, the camera and the time cursor, and

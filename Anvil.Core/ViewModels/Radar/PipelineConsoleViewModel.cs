@@ -311,9 +311,14 @@ namespace Anvil.ViewModels
 				// ⚠️ "cuts" counts VAD elevation cuts and only means something for our own Level II retrieval.
 				// A profile from an external provider (Level III NVW) has LEVELS instead, so the unit is
 				// chosen by which one the result actually carries rather than printed blindly.
+				// A tracked-cell mean has neither: its count is CELLS, and it has no profile top.
+				var cellMean = string.Equals(v.Source, RadarViewModel.TrackedCellsSource, StringComparison.Ordinal);
 				var basis = v.Cuts > 0
 					? string.Format(CultureInfo.InvariantCulture, "{0} cuts", v.Cuts)
-					: string.Format(CultureInfo.InvariantCulture, "{0} levels", v.Layers);
+					: string.Format(CultureInfo.InvariantCulture, cellMean ? "{0} cells" : "{0} levels", v.Layers);
+				var top = v.TopM > 0
+					? string.Format(CultureInfo.InvariantCulture, " · top {0:F1} km", v.TopM / 1000.0)
+					: string.Empty;
 
 				// ⚠️ PROVIDER and TIER are different claims and both belong here. On our own VAD path the
 				// source IS the tier ("Bunkers R" / "Mean wind"); on the external path it is the provider
@@ -327,8 +332,8 @@ namespace Anvil.ViewModels
 
 				StormMotionText = string.Format(
 					CultureInfo.InvariantCulture,
-					"{0:F0}° @ {1:F0} kt ({2:F0} mph) · {3} · {4} · top {5:F1} km",
-					v.DirDeg, kt, mph, origin, basis, v.TopM / 1000.0);
+					"{0:F0}° @ {1:F0} kt ({2:F0} mph) · {3} · {4}{5}",
+					v.DirDeg, kt, mph, origin, basis, top);
 			}
 			else if (v.Insufficient)
 			{

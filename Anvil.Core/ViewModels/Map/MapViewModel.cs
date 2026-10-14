@@ -76,7 +76,7 @@ namespace Anvil.ViewModels
 
 			// Each subsystem lives in its own view model (progressively split out of this class);
 			// the transport-bar section controls bind slices of them.
-			Radar = new RadarViewModel(mapService, radarSiteProvider, radarService, dowEventProvider, settingsService, stormMotion);
+			Radar = new RadarViewModel(mapService, radarSiteProvider, radarService, dowEventProvider, settingsService, stormMotion, stormCellService);
 			Activity = new BarActivityViewModel();
 			Activity.WatchSiteCheck(Radar);
 			Activity.WatchLiveFrame(Radar);
