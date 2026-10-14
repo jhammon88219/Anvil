@@ -109,9 +109,11 @@ namespace Anvil.Services
 			bool LowTilt((int start, int end, float angle, bool hasRef, bool hasVel) c)
 				=> c.hasRef && !float.IsNaN(c.angle) && Math.Abs(c.angle - refAngle) <= tiltTol;
 
-			// Prefer surveillance cuts (reflectivity, no velocity); clear-air has one combined cut.
-			var surveillance = cuts.Where(c => LowTilt(c) && !c.hasVel).ToList();
-			var pool = surveillance.Count > 0 ? surveillance : cuts.Where(LowTilt).ToList();
+			// Prefer surveillance cuts (reflectivity, no velocity); clear-air has one combined cut. TDWR serves its Doppler
+			// cuts alone and never its low-PRF surveillance cut (IsTdwrVcp) — the 1-minute surface scans become live frames.
+			var tdwr = IsTdwrVcp(vcp);
+			var surveillance = cuts.Where(c => !tdwr && LowTilt(c) && !c.hasVel).ToList();
+			var pool = surveillance.Count > 0 ? surveillance : cuts.Where(c => LowTilt(c) && (!tdwr || c.hasVel)).ToList();
 
 			// Designed 0.5° base-scan count from the VCP's elevation table (Message 5) — the PLANNED
 			// SAILS count, which the observed completed-cut count under-reports mid-volume because the
@@ -361,14 +363,18 @@ namespace Anvil.Services
 			var surveillance = candidates.Where(c => !c.hasVel).ToList();
 			var combined = surveillance.Count == 0; // clear-air: one combined (reflectivity + velocity) cut per pass
 			var inScanOrder = 0;
-			foreach (var s in combined ? candidates : surveillance)
+			// By PLAN every candidate is a pass: one that carries velocity itself stands alone (clear air; TDWR's surface
+			// scans), one without pairs with its Doppler companion. Skipping the velocity-carrying ones here is what kept
+			// TDWR's 1-minute scans out of the loop. Without a plan, the scan-order rule stays as it was.
+			foreach (var s in byPlan || combined ? candidates : surveillance)
 			{
 				inScanOrder++;
 				if (!Finished(s.end)) continue;
 				// The companion is judged against the pass's OWN measured angle when the plan picked it (back-to-back cuts of
 				// one tilt agree to a few hundredths), not the lowest angle in the volume, which may be another pass's jitter.
 				var pairAngle = byPlan && !float.IsNaN(s.angle) ? s.angle : baseAngle;
-				var doppler = combined ? null : FindDopplerCompanion(cuts, s.start, pairAngle, Finished, requireComplete: true);
+				var standsAlone = byPlan ? s.hasVel : combined;
+				var doppler = standsAlone ? null : FindDopplerCompanion(cuts, s.start, pairAngle, Finished, requireComplete: true);
 				var pass = byPlan ? planned.IndexOf(blocks[s.start].elev) + 1 : inScanOrder;
 				if (passes.Any(p => p.Pass == pass)) continue; // one cut split in two (a stray orphan mid-sweep): keep the first
 				passes.Add(new BasePass((s.start, s.end), doppler, FirstRadialTime(blocks, s.start, s.end, icao), pass));
@@ -482,18 +488,33 @@ namespace Anvil.Services
 		/// plans more than <see cref="MaxBasePasses"/> (a misparse).</summary>
 		internal static List<int> PlannedBasePassNumbers(List<(byte[] block, int elev)> blocks)
 		{
-			if (!ScanPlan.TryRead(blocks, out _, out var plan) || plan.Count == 0) return new List<int>();
+			if (!ScanPlan.TryRead(blocks, out var vcp, out var plan) || plan.Count == 0) return new List<int>();
 			// ⚠️ The extractor's own tolerance (SailsTiltTol), never a looser one: KEVX's VCP 112 (2026-10-08) plans a 0.44°
 			// tilt beside its 0.31° base, and a 0.25° window counted it as a third pass the volume never scanned — four
 			// phantom frames that never arrived, so the loop never filled and scrubbing never unlocked. PLANNED angles are
 			// exact (no antenna jitter), so this window is safe here in a way it is not on measured angles.
 			var lowest = plan.Min(c => c.Angle);
-			var numbers = plan.Where(c => c.Waveform != 2 && Math.Abs(c.Angle - lowest) <= SailsTiltTol).Select(c => c.Number).ToList();
+			// A pass is a base-angle cut that is not the other half of a pair: NEXRAD's split cut drops its Doppler half
+			// (waveform 2); TDWR drops its low-PRF surveillance cut (waveform 1) instead — see IsTdwrVcp.
+			var tdwr = IsTdwrVcp(vcp);
+			var numbers = plan.Where(c => (tdwr ? c.Waveform != 1 : c.Waveform != 2) && Math.Abs(c.Angle - lowest) <= SailsTiltTol)
+				.Select(c => c.Number).ToList();
 			return numbers.Count <= MaxBasePasses ? numbers : new List<int>();
 		}
 
-		// SAILS ×3 = 4 passes; MRLE and TDWR-style repeats stay within this. A larger count is a misparse.
+		// SAILS ×3 = 4 passes; TDWR's hazardous mode (VCP 80) = 6 surface scans. A larger count is a misparse.
 		internal const int MaxBasePasses = 6;
+
+		// ⚠️ TDWR'S BASE TILT IS A DIFFERENT SHAPE FROM NEXRAD'S. It opens with a low-PRF surveillance cut (waveform 1,
+		// reflectivity only, 300 m gates to ~417 km), then scans the same angle as a Doppler cut (waveform 3, reflectivity +
+		// velocity, 150 m gates to ~89 km) — once per volume in monitor mode (VCP 90), and every ~60 s in hazardous mode
+		// (VCP 80, cuts 2/6/10/14/18/22). Measured TOKC 2026-04-24 (TiltCheck -- --passes). The NEXRAD rule (surveillance cut
+		// + its Doppler companion = one pass) made VCP 80 one frame per 6 minutes and VCP 90 plan a second frame it never
+		// cut. So for TDWR every base-angle Doppler cut is a pass on its own and the low-PRF cut is not used: every frame
+		// reaches the same 89 km, so the loop and its range ring don't change size each minute, and velocity only exists
+		// out there anyway. That is also how the product set splits TDWR reflectivity: 0-48 nmi at fine resolution from the
+		// surface scans, 0-225 nmi as a separate long-range product (icd/2620070C §1.2.2) — never blended in one loop.
+		internal static bool IsTdwrVcp(int vcp) => VcpCatalog.Find(vcp)?.Network == VcpNetwork.Tdwr;
 
 		// THE RADAR'S OWN "THIS CUT IS FINISHED": the Message 31 radial STATUS byte (ICAO+21) on a cut's LAST radial is
 		// 2 = END OF ELEVATION or 4 = END OF VOLUME (0 start, 1 intermediate, 3 start of volume, 5 start of the last
@@ -1016,6 +1037,9 @@ namespace Anvil.Services
 			var baseTiltNum = 0;       // the base tilt's elevation NUMBER (its split-cut pair shares it)
 			var baseElev = 0;          // the highest elevation NUMBER accepted as still the base tilt
 			var keptDoppler = false;   // did we keep a higher-numbered same-angle (Doppler) cut?
+			var vcpRead = false;       // Message 5 sits in the leading metadata record, read once
+			var tdwr = false;          // TDWR: skip the low-PRF surveillance cut, the base tilt is its Doppler cut (IsTdwrVcp)
+			var skipElev = -1;         // the skipped low-PRF cut's elevation number
 			while (pos + 4 <= raw.Length)
 			{
 				var controlWord = (raw[pos] << 24) | (raw[pos + 1] << 16) | (raw[pos + 2] << 8) | raw[pos + 3];
@@ -1059,8 +1083,23 @@ namespace Anvil.Services
 				var elev = ElevationOf(block, icao);
 				var angle = ElevationAngleOf(block, icao);
 
+				if (!vcpRead && ReadVcpFromMetadata(new List<(byte[] block, int elev)> { (block, 0) }) is var vcpHere and not 0)
+				{
+					tdwr = IsTdwrVcp(vcpHere);
+					vcpRead = true;
+				}
+
 				if (!inTilt1)
 				{
+					// TDWR's low-PRF surveillance cut (reflectivity, no velocity) is not part of the frame: drop all of its
+					// records, and the Doppler cut after it anchors the base tilt instead. Same frame ListBasePasses cuts.
+					if (tdwr && elev >= 1 && (elev == skipElev
+						|| (skipElev < 0 && !float.IsNaN(angle) && HasMoment(block, Dref) && !HasMoment(block, Dvel))))
+					{
+						skipElev = elev;
+						continue;
+					}
+
 					// Leading metadata (Msg 5/13/15/…) the decoder needs, plus any settling radials,
 					// up to the first real reflectivity radial. We anchor on a block that actually
 					// carries a DREF moment (metadata never does), so a false ICAO match in metadata —
@@ -1169,7 +1208,9 @@ namespace Anvil.Services
 		/// elevation-NUMBER increase confirmed by angle, and keep at most ONE same-angle Doppler companion.
 		/// Only the WALKER differs. Do not "improve" one path's rules without the other: the split-cut and
 		/// settling-radial traps behind those rules cost real bugs (see the comments over there), and two
-		/// extractors that disagree about what the base tilt is would be worse than one that is simply wrong.</para>
+		/// extractors that disagree about what the base tilt is would be worse than one that is simply wrong.
+		/// The ONE rule not mirrored here is TDWR's skipped low-PRF cut (<see cref="IsTdwrVcp"/>): TDWR archives are bzip2
+		/// LDM (<c>_V08</c>) only, so no TDWR volume ever reaches this walker.</para>
 		/// <para>⚠️ Record layout, validated by walking 105 cached legacy volumes to exactly 100% of their
 		/// length (<c>tools/legacy_volume_scan.py</c>): 12-byte legacy CTM header, 16-byte message header,
 		/// body. Size is a big-endian u16 at messageHeader+0 in HALFWORDS covering header+body; type is at

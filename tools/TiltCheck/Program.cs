@@ -125,6 +125,14 @@ if (args.Length > 0 && args[0] == "--sails")
         args.Length > 4 && int.TryParse(args[4], out var sailsVolumes) ? sailsVolumes : 3);
 }
 
+// --passes SITE yyyy/MM/dd HH:mm [VOLUMES]: the 0.5° passes the app plans vs cuts per volume (NEXRAD or TDWR).
+if (args.Length > 0 && args[0] == "--passes")
+{
+    if (args.Length < 4) { Console.WriteLine("usage: --passes SITE yyyy/MM/dd HH:mm [VOLUMES]"); return 1; }
+    return await PassCheck.RunAsync(args[1].ToUpperInvariant(), args[2], args[3],
+        args.Length > 4 && int.TryParse(args[4], out var passVolumes) ? passVolumes : 3);
+}
+
 // --sailsload SITE yyyy-MM-ddTHH:mmZ MINUTES [FOCUS]: a PastCast load of every 0.5° pass through the app's own service.
 if (args.Length > 0 && args[0] == "--sailsload")
 {

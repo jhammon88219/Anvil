@@ -188,13 +188,84 @@ namespace Anvil.Tests
 			Assert.Equal(new[] { "a", "a#2", "b", "c" }, frames); // "c" has no count → one frame
 		}
 
+		// TDWR hazardous mode (VCP 80), shortened: the low-PRF surveillance cut (waveform 1, reflectivity only), then the
+		// surface scan repeated as reflectivity+velocity Doppler cuts between the aloft tilts — TOKC 2026-04-24 has six
+		// (TiltCheck -- --passes TOKC 2026/04/24 00:02 2). A closing aloft tilt finishes the last surface scan.
+		private static byte[] TdwrHazardousVolume() => SyntheticVolume.Volume(
+			Message5Vcp(80, (0.48, 1), (0.48, 3), (1.0, 3), (0.48, 3), (2.0, 3), (0.48, 3), (3.0, 3)),
+			SyntheticVolume.Radial(1, 0.48f, "lp01"),
+			SyntheticVolume.Radial(2, 0.48f, "sf02", velocity: true),
+			SyntheticVolume.Radial(3, 1.00f, "hg03", velocity: true),
+			SyntheticVolume.Radial(4, 0.48f, "sf04", velocity: true),
+			SyntheticVolume.Radial(5, 2.00f, "hg05", velocity: true),
+			SyntheticVolume.Radial(6, 0.48f, "sf06", velocity: true),
+			SyntheticVolume.Radial(7, 3.00f, "hg07", velocity: true));
+
+		[Fact]
+		public void Tdwr_every_surface_scan_is_a_frame_and_the_low_prf_cut_is_none()
+		{
+			// The NEXRAD rule (surveillance + Doppler companion = a pass) cut ONE frame per 6-minute TDWR volume and dropped
+			// the 1-minute surface scans, because they carry velocity themselves.
+			var volume = TdwrHazardousVolume();
+			var passes = Level2Format.TryExtractBasePasses(volume, SyntheticVolume.DefaultIcao);
+
+			Assert.Equal(new[] { 1, 2, 3 }, passes.Select(p => p.Pass));
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[0].Data, "sf02"));
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[1].Data, "sf04"));
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[2].Data, "sf06"));
+			// Every frame is ONE surface scan: no low-PRF reflectivity (a different reach) and no neighbour scan.
+			Assert.All(passes, p => Assert.Equal(0, SyntheticVolume.CountMarker(p.Data, "lp01")));
+			Assert.Equal(0, SyntheticVolume.CountMarker(passes[1].Data, "sf02"));
+			Assert.Equal(0, SyntheticVolume.CountMarker(passes[1].Data, "hg03"));
+		}
+
+		[Fact]
+		public void Tdwr_pass_one_is_the_prefix_extraction_without_the_low_prf_cut()
+		{
+			// Pass 1 is cached under the volume's base name by EITHER path, so both must cut the same frame.
+			var volume = TdwrHazardousVolume();
+			var prefix = Level2Format.TryExtractLowestTilt(volume, SyntheticVolume.DefaultIcao)!;
+			var pass1 = Level2Format.TryExtractBasePasses(volume, SyntheticVolume.DefaultIcao)[0].Data;
+
+			Assert.Equal(0, SyntheticVolume.CountMarker(prefix, "lp01"));
+			Assert.Equal(1, SyntheticVolume.CountMarker(prefix, "sf02"));
+			Assert.Equal(pass1, prefix);
+		}
+
+		[Fact]
+		public void Tdwr_live_selector_serves_the_newest_surface_scan()
+		{
+			var volume = TdwrHazardousVolume();
+			var blocks = Level2Format.DecompressRecords(volume, SyntheticVolume.DefaultIcao, out var icao);
+
+			var live = Level2Format.SelectLatestSweep(volume[..24], blocks, icao);
+
+			Assert.NotNull(live.data);
+			Assert.Equal(1, SyntheticVolume.CountMarker(live.data!, "sf06"));
+			Assert.Equal(0, SyntheticVolume.CountMarker(live.data!, "lp01"));
+			Assert.True(live.velComplete);
+		}
+
+		[Fact]
+		public void Tdwr_monitor_mode_plans_one_pass_not_a_phantom_second()
+		{
+			// VCP 90: low-PRF cut + one Doppler cut at the base angle. Counting both planned a second frame that was never
+			// cut — the loop waited for it forever (the KEVX phantom-frame shape).
+			var meta = Message5Vcp(90, (0.48, 1), (0.48, 3), (1.0, 3), (2.0, 3));
+			Assert.Equal(new[] { 2 }, Level2Format.PlannedBasePassNumbers(new List<(byte[], int)> { (meta, 0) }));
+			Assert.Equal(1, Level2Format.PlannedBasePasses(new List<(byte[], int)> { (meta, 0) }));
+		}
+
 		// A metadata record holding a Message 5 with the given (angle, waveform) cuts.
-		private static byte[] Message5(params (double angle, int waveform)[] cuts)
+		private static byte[] Message5(params (double angle, int waveform)[] cuts) => Message5Vcp(212, cuts);
+
+		private static byte[] Message5Vcp(int vcp, params (double angle, int waveform)[] cuts)
 		{
 			var block = new byte[Level2Format.RadarDataSize];
 			block[Level2Format.CtmHeaderSize + 3] = 5;
 			var body = Level2Format.CtmHeaderSize + Level2Format.MessageHeaderSize;
-			block[body + 5] = 212;
+			block[body + 4] = (byte)(vcp >> 8);
+			block[body + 5] = (byte)vcp;
 			block[body + 7] = (byte)cuts.Length;
 			for (var k = 0; k < cuts.Length; k++)
 			{
