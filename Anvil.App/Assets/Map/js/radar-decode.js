@@ -1573,6 +1573,28 @@ function kdpFromPhi(phi, refl, rho, minDbz) {
         if (kdp === null) { out[i] = null; continue; }
         out[i] = (kdp > KDP_ABS_MAX || kdp < -KDP_ABS_MAX) ? null : kdp; // drop unphysical unwrap/window spikes
     }
+
+    // Blank the OUTPUT where the 5-gate mean ρHV is below KDP_RHO_MIN. A gate can pass the per-gate ρHV
+    // test while its neighbours are mixed-phase or clutter; its fit window then straddles that edge and
+    // the slope is not trustworthy. This only removes results, it never changes which gates the fit sees
+    // (measured: letting low-ρHV gates INTO the fit made KDP much worse — the fit mask stays as it is).
+    // Measured against Level III N0K on 7 storm volumes (2026-10-14): r and MAE better or equal on all 7,
+    // and the gates we paint where the NWS paints none fell from 6.9% to 4.2%.
+    // Keep in sync with tools/dualpol_check.py kdp_mirror.
+    if (rho && rho.moment_data) {
+        const rd = rho.moment_data, rn = rd.length;
+        for (let i = 0; i < n; i++) {
+            if (out[i] === null) continue;
+            const rj = rangeIndexOf(phi, rho, i);
+            let s = 0, c = 0;
+            for (let k = Math.max(0, rj - 2), e = Math.min(rn - 1, rj + 2); k <= e; k++) {
+                const v = rd[k];
+                if (v === null || v === undefined) continue;
+                s += v; c++;
+            }
+            if (c === 0 || s / c < KDP_RHO_MIN) out[i] = null;
+        }
+    }
     return out;
 }
 

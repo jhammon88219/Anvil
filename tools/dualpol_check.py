@@ -171,6 +171,13 @@ def kdp_mirror(phi, refl, rho, gate_km):
         use_short = np.isfinite(zh) & (zh >= KDP_SHORT_DBZ)
         slope = np.where(use_short & np.isfinite(s_short), s_short, s_long)
         slope = np.where(np.abs(slope) > KDP_ABS_MAX, np.nan, slope)  # drop unphysical unwrap/window spikes
+        # blank the OUTPUT where the 5-gate mean rhoHV < KDP_RHO_MIN (mirrors radar-decode.js kdpFromPhi);
+        # the fit mask above is unchanged
+        fr = np.isfinite(rh)
+        rs = np.convolve(np.where(fr, rh, 0.0), np.ones(5), "same")
+        rc = np.convolve(fr.astype(float), np.ones(5), "same")
+        rm = np.where(rc > 0, rs / np.where(rc > 0, rc, 1.0), 0.0)
+        slope = np.where(rm < KDP_RHO_MIN, np.nan, slope)
         out[r] = slope
     return out
 
