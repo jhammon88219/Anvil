@@ -10,14 +10,13 @@ through our vendored JS decoder, so comparing values here would score Py-ART aga
 nothing about Anvil.
 
 What IS ours, and what this therefore scores, is the DISPLAY MASK: which gates we choose to draw.
-`maskByQuality` keeps a gate where reflectivity >= minDbz OR rhoHV >= MET_RHO_MIN, and that union was
-chosen from first principles plus a corpus measurement - never checked against what a forecaster's own
-product actually draws. This is that check, and the mask is currently the least-verified of the
-2026-09-10/11 changes.
+Since 2026-10-14 there is none - every gate with a CC value is drawn, as the NWS does. This check is what
+decided it: the retired union (reflectivity >= minDbz OR rhoHV >= MET_RHO_MIN, `--old-mask`) agreed 72.4%
+with N0C and hid 19.1% of what N0C draws; unmasked agrees 88.1% and hides 0.0%.
 
 HOW TO READ IT
 --------------
-  drawn     share of signal-bearing gates our union mask would draw
+  drawn     share of signal-bearing gates we draw (100% unmasked; less with --old-mask)
   L3        share the operational product actually carries (its own masking, applied before quantization)
   agree     share of gates where we and the product AGREE on draw-or-not - the headline
   we-only   we draw, the product does not  -> our mask is looser than operational
@@ -49,7 +48,7 @@ import pyart  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kdp_scorecard as ks  # noqa: E402  shared Level III fetch + resampling
 
-# Anvil's mask constants - keep in sync with radar-decode.js (MET_RHO_MIN) and radar.js (MIN_DBZ).
+# The RETIRED mask's constants (--old-mask only); the app no longer has MET_RHO_MIN.
 MIN_DBZ = 10.0
 MET_RHO_MIN = 0.80
 
@@ -59,20 +58,21 @@ PRODUCTS = {
 }
 
 
-def our_mask(radar):
-    """Anvil's maskByQuality union over sweep 0: Z >= MIN_DBZ OR rhoHV >= MET_RHO_MIN.
+def our_mask(radar, old_union=False):
+    """Which sweep-0 gates Anvil draws for CC/ZDR. Since 2026-10-14: EVERY gate with a CC value (no display
+    mask, as the NWS draws). `old_union=True` scores the retired rule (Z >= MIN_DBZ OR rhoHV >= MET_RHO_MIN)
+    over the same gates, so the two can be compared.
 
     ⚠️ Py-ART puts every moment on the sweep's common range gates, so the app's range-index alignment is
-    the identity here - the UNION RULE is what is under test, not the alignment (that has its own unit
-    test). Returns (drawn, has_signal) boolean grids.
+    the identity here. Returns (drawn, has_signal) boolean grids.
     """
     s0 = radar.get_slice(0)
     z = np.ma.filled(radar.fields["reflectivity"]["data"][s0], np.nan)
     r = np.ma.filled(radar.fields["cross_correlation_ratio"]["data"][s0], np.nan)
     g = min(z.shape[1], r.shape[1])
     z, r = z[:, :g], r[:, :g]
-    has_signal = np.isfinite(z) & np.isfinite(r)
-    drawn = has_signal & ((z >= MIN_DBZ) | (r >= MET_RHO_MIN))
+    has_signal = np.isfinite(r)
+    drawn = has_signal & ((z >= MIN_DBZ) | (r >= MET_RHO_MIN)) if old_union else has_signal
     return drawn, has_signal, radar.azimuth["data"][s0], radar.range["data"][:g]
 
 
@@ -81,6 +81,7 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--volume", help="one corpus file by name (default: all)")
     ap.add_argument("--product", choices=sorted(PRODUCTS), help="default: both")
+    ap.add_argument("--old-mask", action="store_true", help="score the retired Z-or-rhoHV union instead (comparison)")
     args = ap.parse_args()
 
     files = sorted(glob.glob(os.path.join(ks.CORPUS, "*.V06")))
@@ -127,7 +128,7 @@ def main():
                 continue
             ref = r3.fields[next(iter(r3.fields))]["data"]
 
-            drawn, signal, az, rng = our_mask(radar)
+            drawn, signal, az, rng = our_mask(radar, args.old_mask)
             # Resample our BOOLEAN decision through the same path the KDP tool uses, then threshold at a
             # half: a 1-degree L3 bin covers two of our rays, so "drawn" means the majority of them were.
             d = ks.resample_to_l3(np.where(signal, drawn.astype(float), np.nan),
