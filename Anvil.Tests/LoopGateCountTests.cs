@@ -137,6 +137,24 @@ namespace Anvil.Tests
 			Assert.Equal("All volumes in", radar.LoopGate.DownloadCaption);
 		}
 
+		// TTUL 2026-04-24 (a TDWR VCP switch): two archive volumes were cut short, so 6 planned scans don't exist. Each
+		// stopped the scrubber's left-to-right reveal, the reachable range and playback at the first gap, for good.
+		[Fact]
+		public async Task A_frame_the_archive_lacks_is_stepped_over_not_waited_for()
+		{
+			var radar = NewReplay(key => Task.FromResult(key == Keys[1] ? null : Volume(key)));
+			Assert.True(await radar.LoadSelectedPastEventAsync());
+			radar.OnRadarFrameReady(0, hasData: true);
+			radar.OnRadarFrameReady(2, hasData: true);
+			radar.SetBuildProgress(2, 3, new[] { true, false, true }, new[] { true, false, true });
+
+			Assert.True(radar.Segments[1].IsMissing);
+			Assert.False(radar.Segments[1].IsReady);   // the gap stays a dim cell …
+			Assert.True(radar.Segments[2].IsReady);    // … and the frame after it lights
+			Assert.True(radar.IsLoopReady);            // the loop is as complete as it will get
+			Assert.Equal(2, radar.MaxReachableFrame);  // and reachable past the gap
+		}
+
 		[Fact]
 		public async Task A_build_cell_steps_through_decoding_reflectivity_and_built()
 		{

@@ -42,6 +42,14 @@ namespace Anvil.ViewModels
 		/// Plain state, not bound: the loop holding gate counts such a frame as settled so it can't hold forever.</summary>
 		public bool HasNoData { get; set; }
 
+		/// <summary>The archive doesn't hold this frame's scan — the plan promised a pass the volume never scanned (a
+		/// volume cut short by a VCP switch or restart; TTUL 2026-04-24 00:04 kept 1 of 6). It will never fill, so it
+		/// must not stop the scrubber's left-to-right reveal (RadarViewModel.RefreshSegmentReadiness). Plain state.</summary>
+		public bool IsMissing { get; set; }
+
+		/// <summary>This frame will never light: its scan doesn't exist, or it decoded with nothing to draw.</summary>
+		public bool NeverFills => IsMissing || (IsDecoded && HasNoData);
+
 		/// <summary>Cell opacity: solid when the frame is ready for the active product, faint while loading.</summary>
 		public double ReadyOpacity => _isReady ? 1.0 : 0.22;
 

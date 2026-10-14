@@ -470,7 +470,7 @@ namespace Anvil.ViewModels
 				// The archive frames may have already finished reporting, in which case nothing else will
 				// re-evaluate loop readiness (it's only raised from OnRadarFrameReady) and the transport would
 				// stay disabled until the next poll.
-				if (_vm._readyCount >= _vm._frameCount && _vm._frameCount > 0)
+				if (_vm.AllFramesSettled())
 				{
 					_vm.IsLoopReady = true;
 				}
@@ -1391,6 +1391,22 @@ namespace Anvil.ViewModels
 				var volume = await _vm._radarService.EnsureCachedAsync(site, keys[index], _vm._selectedTiltAngle, prioritized, ct);
 				if (volume is null || ct.IsCancellationRequested || !ReferenceEquals(_vm._selectedRadarOption?.Site, site))
 				{
+					// No volume, still the same load: this scan isn't in the archive (a planned pass the volume never scanned,
+					// or a failed fetch). Mark it so the scrubber's fill can pass it instead of stopping there for good.
+					if (volume is null && !ct.IsCancellationRequested && ReferenceEquals(_vm._selectedRadarOption?.Site, site)
+						&& index < _vm.Segments.Count)
+					{
+						_vm.Segments[index].IsMissing = true;
+						Services.RadarDiagnostics.Log("vm", "frame.missing", ("idx", index), ("key", keys[index]));
+						_vm.RefreshSegmentReadiness();
+						// It may have been the last frame the loop was waiting on.
+						if (_vm.AllFramesSettled())
+						{
+							_vm.IsLoopReady = true;
+							_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
+						}
+						MaybeRecordAllFramesLoaded();
+					}
 					return false;
 				}
 
@@ -1399,6 +1415,7 @@ namespace Anvil.ViewModels
 				// a radar can change VCP mid-loop (precip <-> clear-air scan different tilts).
 				_vm.UpdateTiltOptions(volume.Tilts);
 
+				if (index < _vm.Segments.Count) _vm.Segments[index].IsMissing = false; // a retry that found it after all
 				_vm._frameTimes[index] = volume.VolumeTime;
 				if (index < _vm._frameModes.Length) _vm._frameModes[index] = volume.ModeText;
 				_vm.LoopGate.NoteFrame(index, volume); // the load-time log: source, bytes, fetch time
@@ -1570,7 +1587,7 @@ namespace Anvil.ViewModels
 			}
 
 			_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
-			if (_vm._readyCount >= _vm._frameCount && _vm._frameCount > 0)
+			if (_vm.AllFramesSettled())
 			{
 				_vm.IsLoopReady = true;
 				_vm.RaisePropertyChangedFor(nameof(RadarViewModel.CurrentFrameTimeText));
@@ -1584,7 +1601,7 @@ namespace Anvil.ViewModels
 		// reported ready. Frozen by _initialLoadDone so later live refreshes don't overwrite it.
 		private void MaybeRecordAllFramesLoaded()
 		{
-			if (_vm._initialLoadDone || _vm._loadInProgress || _vm._frameCount == 0 || _vm._readyCount < _vm._frameCount)
+			if (_vm._initialLoadDone || _vm._loadInProgress || _vm._frameCount == 0 || !_vm.AllFramesSettled())
 			{
 				return;
 			}
@@ -1624,6 +1641,8 @@ namespace Anvil.ViewModels
 					// upgrade queue builds forward from the playhead, so playback resumes on its own as each
 					// next frame becomes ready. Reflectivity/CC are always ready, so this never holds there.
 					var next = (_vm._currentFrameIndex + 1) % _vm._frameCount;
+					// A scan the archive lacks is passed over, never held at (it would hold forever).
+					for (var hop = 0; hop < _vm._frameCount && _vm.IsMissingFrame(next); hop++) next = (next + 1) % _vm._frameCount;
 					if (!_vm.IsFrameDisplayReady(next))
 					{
 						continue;

@@ -181,10 +181,13 @@ namespace Anvil.ViewModels
 			// instead of left-to-right (Rule 2) — making a slow load look stuck/broken. Skipping immediate frames
 			// lets the frames after them reveal as they complete. (Live avoids this only because its refl-only
 			// first-paint frame is the RIGHTMOST cell, so it never blocked the left-growing frontier.)
+			// ⚠️ A frame that will NEVER fill (its scan isn't in the archive, or it decoded empty) doesn't block it either:
+			// it stays a dim cell, an honest gap, and the frames after it reveal. Without this, TTUL 2026-04-24 (two volumes
+			// cut short at a VCP switch, 6 planned scans missing) left every cell after the first gap dark for good.
 			var frontier = -1;
 			for (var i = 0; i < n; i++)
 			{
-				if (IsFrameFillReady(i) || IsImmediateFrame(i)) frontier = i;
+				if (IsFrameFillReady(i) || IsImmediateFrame(i) || Segments[i].NeverFills) frontier = i;
 				else break;
 			}
 			for (var i = 0; i < n; i++)
@@ -1711,7 +1714,7 @@ namespace Anvil.ViewModels
 		/// ⚠️ False while the loading screen is up (<see cref="AreControlsLocked"/>).
 		public bool IsTransportEnabled =>
 			!_areControlsLocked && (_isPastEventMode
-				? _frameCount > 0 && _readyCount >= System.Math.Min(PastCastEarlyReadyFrames, _frameCount)
+				? _frameCount > 0 && (_readyCount >= System.Math.Min(PastCastEarlyReadyFrames, _frameCount) || _isLoopReady)
 				: _isLoopReady);
 
 		/// <summary>The furthest frame the scrubber / step may reach: the contiguous-from-left frontier of
@@ -1727,6 +1730,7 @@ namespace Anvil.ViewModels
 				var frontier = -1;
 				for (var i = 0; i < _frameCount; i++)
 				{
+					if (i < Segments.Count && Segments[i].IsMissing) continue; // a scan the archive lacks: step over it
 					if (i < Segments.Count && Segments[i].IsDecoded && IsFrameDisplayReady(i)) frontier = i;
 					else break;
 				}
@@ -1823,8 +1827,22 @@ namespace Anvil.ViewModels
 			// Stepping FORWARD can't pass the built frontier (onto a blank slower-product / undecoded frame);
 			// stepping back is always allowed. The setter clamps to [0, MaxFrameIndex].
 			var target = _currentFrameIndex + delta;
+			while (target > 0 && target < MaxFrameIndex && IsMissingFrame(target)) target += delta; // step over a gap
 			if (delta > 0) target = System.Math.Min(target, MaxReachableFrame);
 			CurrentFrameIndex = target;
+		}
+
+		/// <summary>The archive doesn't hold this frame's scan (<see cref="RadarFrameSegment.IsMissing"/>): playback and
+		/// stepping pass over it, and it counts as settled for <see cref="IsLoopReady"/>.</summary>
+		internal bool IsMissingFrame(int i) => i >= 0 && i < Segments.Count && Segments[i].IsMissing;
+
+		/// <summary>Every frame has decoded, or is known not to exist — the loop is as complete as it will get.</summary>
+		internal bool AllFramesSettled()
+		{
+			if (_frameCount <= 0) return false;
+			var missing = 0;
+			for (var i = 0; i < Segments.Count && i < _frameCount; i++) if (Segments[i].IsMissing) missing++;
+			return _readyCount + missing >= _frameCount;
 		}
 
 		/// <summary>Opacity (0-1) of the radar layer — the temporal windows' Radar slider. Kept while the
