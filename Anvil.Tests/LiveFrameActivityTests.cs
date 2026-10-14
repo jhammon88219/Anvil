@@ -46,6 +46,8 @@ namespace Anvil.Tests
 			// Set → the next live fetch reports its chunks through it and waits for the test to release it.
 			public TaskCompletionSource? HoldFetch;
 			public IProgress<(int Done, int Total)>? FetchProgress;
+			// Set → the next live fetch throws it (as the service would let it out).
+			public Exception? FetchThrows;
 		}
 
 		private static RadarVolume LiveAt(int minute) =>
@@ -71,6 +73,7 @@ namespace Anvil.Tests
 					Level2RadarService.ParseVolumeTime((string)a![1]!)!.Value, "VCP 212", new[] { 0.5f })),
 				["GetLiveFrameAsync"] = a =>
 				{
+					if (rig.FetchThrows is { } ex) return Task.FromException<RadarVolume?>(ex);
 					if (rig.HoldFetch is not { } hold) return Task.FromResult<RadarVolume?>(rig.Live);
 					rig.FetchProgress = (IProgress<(int, int)>?)a![3];
 					return hold.Task.ContinueWith(_ => (RadarVolume?)rig.Live);
@@ -133,6 +136,23 @@ namespace Anvil.Tests
 			Assert.Equal(BarActivityTone.Housekeeping, rig.Bar.Tone);
 			rig.Delay.Fire();
 			await WaitFor(() => !rig.Bar.IsShown);
+		}
+
+		// HttpClient's own Timeout throws TaskCanceledException. Mistaken for "site changed", it ENDED the poll loop for
+		// good (overnight run 2026-10-13: no live poll for 10 h, the bar on "Next check in 0:00"). It is a failed poll.
+		[Fact]
+		public async Task An_http_timeout_is_a_failed_poll_not_a_cancel()
+		{
+			var rig = await LoadedLiveLoop();
+			rig.FetchThrows = new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout",
+				new TimeoutException());
+			await Poll(rig, () => rig.Stages.Contains(LiveFrameStage.Failed));
+			Assert.DoesNotContain(LiveFrameStage.Dropped, rig.Stages);
+			Assert.Equal("Couldn't check for a new scan", rig.Bar.Title);
+
+			rig.FetchThrows = null;                                       // the next poll works again
+			lock (rig.Stages) rig.Stages.Clear();
+			await Poll(rig, () => rig.Stages.Contains(LiveFrameStage.Unchanged));
 		}
 
 		[Fact]

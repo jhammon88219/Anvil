@@ -1125,7 +1125,10 @@ namespace Anvil.ViewModels
 				_vm._lastLiveError = null;
 				return await _vm._radarService.GetLiveFrameAsync(site, _vm._selectedTiltAngle, ct, progress);
 			}
-			catch (OperationCanceledException)
+			// ⚠️ ONLY OUR token's cancel is a cancel. HttpClient's own Timeout throws TaskCanceledException too — let through,
+			// it read as "site changed" and ENDED the poll loop for good (overnight run 2026-10-13: one stalled chunk list
+			// at 22:07, no live poll for 10 h). A timeout is a failed poll; the next one tries again.
+			catch (OperationCanceledException) when (ct.IsCancellationRequested)
 			{
 				throw;
 			}
@@ -1649,42 +1652,30 @@ namespace Anvil.ViewModels
 						return;
 					}
 
-					IReadOnlyList<string> keys;
+					// ⚠️ Same rule as the live poll: an HttpClient timeout is a TaskCanceledException, and a tick that fails
+					// any way must not end the loop — only our own token's cancel does. The next tick tries again.
 					try
 					{
-						keys = await _vm._radarService.GetRecentKeysAsync(site, _vm.LoopLength, ct);
-					}
-					catch (OperationCanceledException)
-					{
-						return;
-					}
-					catch
-					{
-						continue;
-					}
-
-					if (keys.Count > 0 && keys[keys.Count - 1] != _vm._loadedNewestKey)
-					{
-						Services.RadarDiagnostics.Log("vm", "refresh.archive", ("newKey", keys[^1]), ("oldKey", _vm._loadedNewestKey));
-						// Predictive prefetch: pull the new volume's .V06 to disk FIRST, OFF the loop's
-						// critical path (no _loopGate, no loop-state changes) — so the download (the slow
-						// part) happens while the loop stays fully live, and the incremental fold-in below
-						// is decode-only (its EnsureCachedAsync becomes an instant disk hit). Without this,
-						// the fold ran the download while HOLDING _loopGate, stalling the live-frame poll.
-						IReadOnlyList<string> frames;
-						try
+						var keys = await _vm._radarService.GetRecentKeysAsync(site, _vm.LoopLength, ct);
+						if (keys.Count > 0 && keys[keys.Count - 1] != _vm._loadedNewestKey)
 						{
-							frames = await LiveFrameKeysAsync(site, keys, ct); // the new volume's rescans are frames too
+							Services.RadarDiagnostics.Log("vm", "refresh.archive", ("newKey", keys[^1]), ("oldKey", _vm._loadedNewestKey));
+							// Predictive prefetch: pull the new volume's .V06 to disk FIRST, OFF the loop's
+							// critical path (no _loopGate, no loop-state changes) — so the download (the slow
+							// part) happens while the loop stays fully live, and the incremental fold-in below
+							// is decode-only (its EnsureCachedAsync becomes an instant disk hit). Without this,
+							// the fold ran the download while HOLDING _loopGate, stalling the live-frame poll.
+							var frames = await LiveFrameKeysAsync(site, keys, ct); // the new volume's rescans are frames too
+							var fetched = await PrefetchArchiveFramesAsync(site, frames, ct);
+							// Incrementally fold in the new volume (reuse the unchanged decoded frames, no
+							// layer teardown) instead of a full rebuild — that rebuild blanked the radar for
+							// ~1.5-6 s and flashed a stale archive frame every 5 min.
+							await ReloadLoopIncrementalAsync(site, frames, ct, fetched);
 						}
-						catch (OperationCanceledException)
-						{
-							return;
-						}
-						var fetched = await PrefetchArchiveFramesAsync(site, frames, ct);
-						// Incrementally fold in the new volume (reuse the unchanged decoded frames, no
-						// layer teardown) instead of a full rebuild — that rebuild blanked the radar for
-						// ~1.5-6 s and flashed a stale archive frame every 5 min.
-						await ReloadLoopIncrementalAsync(site, frames, ct, fetched);
+					}
+					catch (Exception ex) when (!ct.IsCancellationRequested)
+					{
+						Services.RadarDiagnostics.Log("vm", "refresh.fail", ("lvl", "warn"), ("error", ex.Message));
 					}
 				}
 			}
@@ -2057,6 +2048,12 @@ namespace Anvil.ViewModels
 						{
 							await RefreshLiveFrameAsync(site, ct);
 						}
+					}
+					// ⚠️ A poll that FAILS must never end the loop — nothing restarts it (the bar sat on "Next check in 0:00"
+					// all night). Only our own token's cancel leaves; anything else is logged and the next poll runs.
+					catch (Exception ex) when (!ct.IsCancellationRequested)
+					{
+						Services.RadarDiagnostics.Log("vm", "live.poll.fail", ("lvl", "warn"), ("error", ex.Message));
 					}
 					finally
 					{

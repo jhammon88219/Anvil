@@ -1526,7 +1526,8 @@ namespace Anvil.Services
 				}
 				return null;
 			}
-			catch (OperationCanceledException)
+			// Only the CALLER's cancel rethrows — HttpClient's Timeout is a TaskCanceledException too, and it is a failure.
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 			{
 				throw;
 			}
