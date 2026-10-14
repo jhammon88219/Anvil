@@ -2219,13 +2219,50 @@ namespace Anvil.Services
 
 		private void SweepCacheOnStartup()
 		{
+			var launched = DateTime.UtcNow;
 			_ = Task.Run(() =>
 			{
+				try { DropSingleDopplerDualPrfFrames(launched); }
+				catch (Exception ex) { _logger.LogWarning(ex, "Dual-PRF frame migration failed"); }
 				try { SweepVolumeCache(SizeCapBytes); }
 				catch (Exception ex) { _logger.LogWarning(ex, "Cache volume sweep failed"); }
 				try { TrimDiagnostics(); }
 				catch (Exception ex) { _logger.LogWarning(ex, "Diagnostics trim failed"); }
 			});
+		}
+
+		// ONE-TIME MIGRATION (2026-10-14): base/pass frames of dual-PRF volumes (VCP 112) used to be cut with only the FIRST
+		// Doppler cut; they now carry both, and the decoder combines them. A cached frame is otherwise reused forever, so
+		// the old ones are deleted once and re-cut on next view. Only files older than this launch (never one a load just
+		// wrote), only frame files (not _vwp / raw / higher tilts, whose shape didn't change). The marker makes it run once.
+		private const string DualPrfMigrationMarker = "dual-prf-frames.v1";
+
+		private void DropSingleDopplerDualPrfFrames(DateTime launchedUtc)
+		{
+			var marker = Path.Combine(CacheDirectory, DualPrfMigrationMarker);
+			if (File.Exists(marker)) return;
+			var dropped = 0;
+			var buffer = new byte[64 * 1024]; // Message 5 sits in the leading metadata, well inside this
+			foreach (var file in Directory.EnumerateFiles(CacheDirectory, "*.V06"))
+			{
+				var name = Path.GetFileName(file);
+				if (name.EndsWith("_vwp.V06", StringComparison.OrdinalIgnoreCase) || name.Contains("_e")) continue;
+				try
+				{
+					if (File.GetLastWriteTimeUtc(file) >= launchedUtc) continue;
+					int read;
+					using (var fs = File.OpenRead(file)) read = fs.Read(buffer, 0, buffer.Length);
+					if (Level2Format.PlansDualPrfBasePass(buffer[..read]))
+					{
+						File.Delete(file);
+						dropped++;
+					}
+				}
+				catch (IOException) { }
+				catch (UnauthorizedAccessException) { }
+			}
+			File.WriteAllText(marker, $"dropped {dropped} single-Doppler dual-PRF frames {DateTime.UtcNow:O}");
+			RadarDiagnostics.Log("svc", "cache.migrate", ("msg", $"dual-PRF frames re-cut on next view: dropped {dropped}"));
 		}
 
 		// Two caps over the cached volume files (.V06 archive + live, and .raw prefetches), applied in order:

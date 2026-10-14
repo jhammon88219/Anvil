@@ -168,6 +168,8 @@ namespace Anvil.Services
 			// its higher elevation number leaves the JS reflectivity pick (Math.min) on the surveillance.
 			var selected = ready[^1];
 			(int start, int end)? velCut = null;
+			(int start, int end)? velCut2 = null; // a dual-PRF pass's second Doppler cut (FindSecondDoppler)
+			bool PairPlanned(int surveillanceStart) => PlannedDopplerCuts(blocks, blocks[surveillanceStart].elev) >= 2;
 
 			// The Doppler companion of a surveillance cut, if any — identified by VELOCITY at the SAME
 			// angle (NOT reflectivity: a short-PRT Doppler's range-folded reflectivity can fail the
@@ -191,8 +193,15 @@ namespace Anvil.Services
 					{
 						if (DopplerCompanion(ready[s].start, requireComplete) is { } comp)
 						{
+							// A dual-PRF pass WAITS for its second Doppler cut (~20 s after the first): a complete pass means both.
+							var second = FindSecondDoppler(cuts, comp, refAngle, Finished, requireComplete: true);
+							if (requireComplete && second is null && PairPlanned(ready[s].start))
+							{
+								continue;
+							}
 							selected = ready[s];
 							velCut = comp;
+							velCut2 = second;
 							break;
 						}
 					}
@@ -205,16 +214,18 @@ namespace Anvil.Services
 			}
 
 			var dataTime = ReadCollectionTime(blocks[selected.start].block, icao);
-			var data = BuildSingleTilt(header, blocks, firstRadial, (selected.start, selected.end), velCut);
+			var data = BuildSingleTilt(header, blocks, firstRadial, (selected.start, selected.end), velCut, velCut2);
 
 			// Velocity is "complete" when its full sweep is present: a split-cut's paired Doppler is a
 			// FINISHED (not still-scanning) cut — its end status, or a later cut — OR, for clear-air, the selected
 			// combined cut itself carries velocity. A partial Doppler (a still-scanning wedge, e.g. 120 of 720 radials) is
 			// NOT complete; the live builder uses this to fall back to the previous (finished) volume
 			// rather than serve a mostly-empty velocity frame.
+			// A dual-PRF pass is complete only with BOTH Doppler cuts finished: waiting ~20 s for the pair beats serving a
+			// frame that never gets it.
 			var velComplete = surveillance.Count == 0
 				? selected.hasVel
-				: velCut is { } vchk && Finished(vchk.end);
+				: velCut is { } vchk && Finished(vchk.end) && (velCut2 is not null || !PairPlanned(selected.start));
 			RadarDiagnostics.Log("svc", "sweep",
 				("icao", System.Text.Encoding.ASCII.GetString(icao)), ("vcp", vcp),
 				("velComplete", velComplete),
@@ -223,6 +234,7 @@ namespace Anvil.Services
 					$"{(targetAngle is { } tlog ? $"(target {tlog:0.00}°, base {baseAngle:0.00}°) " : "")}" +
 					$"sel=[{selected.start}..{selected.end}]({selected.end - selected.start}blk,{selected.angle:0.00}°) " +
 					$"vel={(velCut is { } vlog ? $"[{vlog.start}..{vlog.end}]({vlog.end - vlog.start}blk,{(velComplete ? "complete" : "PARTIAL")})" : "NONE")} " +
+					(velCut2 is { } v2log ? $"vel2=[{v2log.start}..{v2log.end}] " : "") +
 					$"blocks={blocks.Count} t={(dataTime is { } d3 ? d3.ToString("HH:mm:ss") : "?")}"));
 
 			return (data, true, velComplete, dataTime, sweeps, vcp);
@@ -290,11 +302,58 @@ namespace Anvil.Services
 			return null;
 		}
 
+		// ── THE SECOND DOPPLER CUT (dual-PRF passes, VCP 112) ──────────────────────────────────────────────────────────
+		// A dual-PRF pattern scans each low tilt as a surveillance cut + TWO Doppler cuts at different PRFs. One cut alone
+		// either folds strong winds (low Nyquist) or blanks a ring of range-folded gates (short unambiguous range); the
+		// decoder combines the two gate by gate, so a pass's frame carries both. The second cut is the next REAL-angle cut
+		// after the companion, at the same angle, carrying velocity — the same test as the companion, one step further.
+		internal static (int start, int end)? FindSecondDoppler(
+			List<(int start, int end, float angle, bool hasRef, bool hasVel)> cuts, (int start, int end) companion, float refAngle,
+			Func<int, bool> finished, bool requireComplete)
+		{
+			var ci = cuts.FindIndex(c => c.start == companion.start);
+			if (ci < 0) return null;
+			for (var ni = ci + 1; ni < cuts.Count; ni++)
+			{
+				var next = cuts[ni];
+				if (float.IsNaN(next.angle)) continue; // orphan filler, as in FindDopplerCompanion
+				var sameAngle = Math.Abs(next.angle - refAngle) <= SailsTiltTol;
+				if (!(sameAngle && next.hasVel) || (requireComplete && !finished(next.end))) return null;
+				return (next.start, next.end);
+			}
+			return null;
+		}
+
+		/// <summary>Whether a cached frame's leading metadata (the bytes after its 24-byte header) plans a dual-PRF base pass —
+		/// two Doppler cuts after the first base surveillance cut. Frames cut before those were kept hold only the first.</summary>
+		internal static bool PlansDualPrfBasePass(byte[] cachedFramePrefix)
+		{
+			if (cachedFramePrefix.Length <= 24) return false;
+			var blocks = new List<(byte[] block, int elev)> { (cachedFramePrefix[24..], 0) };
+			var passes = PlannedBasePassNumbers(blocks);
+			return passes.Count > 0 && PlannedDopplerCuts(blocks, passes[0]) >= 2;
+		}
+
+		/// <summary>The plan's Doppler cut count after the pass whose surveillance cut has elevation number
+		/// <paramref name="passNumber"/>: the consecutive same-angle waveform-2 cuts that follow it (2 = a dual-PRF pair,
+		/// VCP 112). 0 when the plan doesn't read or the number isn't in it — the caller then takes what the volume scanned.</summary>
+		internal static int PlannedDopplerCuts(List<(byte[] block, int elev)> blocks, int passNumber)
+		{
+			if (!ScanPlan.TryRead(blocks, out _, out var plan) || plan.Count == 0) return 0;
+			var i = plan.FindIndex(c => c.Number == passNumber);
+			if (i < 0) return 0;
+			var n = 0;
+			for (var j = i + 1; j < plan.Count && plan[j].Waveform == 2 && Math.Abs(plan[j].Angle - plan[i].Angle) <= SailsTiltTol; j++) n++;
+			return n;
+		}
+
 		// The single-tilt buffer every frame is: 24-byte header + the leading metadata the decoder needs + the
 		// surveillance cut + its Doppler companion, written AFTER (higher elevation number → the JS reflectivity pick,
 		// Math.min, stays on the surveillance while the Doppler supplies velocity).
+		// A dual-PRF pass's SECOND Doppler cut follows the first (higher elevation number again), so findVelocityElevation's
+		// "first cut with velocity" still lands on the companion and a decoder that knows nothing of pairs is unaffected.
 		private static byte[] BuildSingleTilt(byte[] header, List<(byte[] block, int elev)> blocks, int firstRadial,
-			(int start, int end) surveillance, (int start, int end)? doppler)
+			(int start, int end) surveillance, (int start, int end)? doppler, (int start, int end)? doppler2 = null)
 		{
 			using var output = new MemoryStream(8 * 1024 * 1024);
 			output.Write(header, 0, header.Length);
@@ -312,6 +371,13 @@ namespace Anvil.Services
 				{
 					output.Write(blocks[k].block, 0, blocks[k].block.Length);
 				}
+				if (doppler2 is { } v2)
+				{
+					for (var k = v2.start; k < v2.end; k++)
+					{
+						output.Write(blocks[k].block, 0, blocks[k].block.Length);
+					}
+				}
 			}
 			return output.ToArray();
 		}
@@ -328,7 +394,8 @@ namespace Anvil.Services
 		/// ReadCollectionTime, which reads the metadata block's stray ICAO on a volume's first cut and gets null), and WHICH
 		/// pass it is (1-based, the frame key's <c>#N</c>): its place in the volume's PLAN — so a pass the volume lacks
 		/// leaves its own number empty instead of sliding every later pass down one.</summary>
-		internal sealed record BasePass((int Start, int End) Surveillance, (int Start, int End)? Doppler, DateTimeOffset? Time, int Pass);
+		internal sealed record BasePass((int Start, int End) Surveillance, (int Start, int End)? Doppler, DateTimeOffset? Time, int Pass,
+			(int Start, int End)? Doppler2 = null);
 
 		/// <summary>Every FINISHED base-tilt pass in <paramref name="blocks"/>, in scan order — SelectLatestSweep's cut
 		/// grouping and companion pairing (requireComplete), so a pass here is a frame the live selector would serve.</summary>
@@ -375,9 +442,23 @@ namespace Anvil.Services
 				var pairAngle = byPlan && !float.IsNaN(s.angle) ? s.angle : baseAngle;
 				var standsAlone = byPlan ? s.hasVel : combined;
 				var doppler = standsAlone ? null : FindDopplerCompanion(cuts, s.start, pairAngle, Finished, requireComplete: true);
+				// A dual-PRF pass is FINISHED only with its second Doppler cut while that cut is still COMING (begun, or nothing
+				// after the companion yet): a frame served before it would draw without the pair (a blank range-folded ring, more
+				// folds) and never be re-cut. A volume that simply lacks it keeps the pass on one cut — never loses the frame.
+				(int start, int end)? doppler2 = null;
+				if (doppler is { } d1)
+				{
+					doppler2 = FindSecondDoppler(cuts, d1, pairAngle, Finished, requireComplete: true);
+					if (doppler2 is null && byPlan && PlannedDopplerCuts(blocks, blocks[s.start].elev) >= 2
+						&& (FindSecondDoppler(cuts, d1, pairAngle, Finished, requireComplete: false) is not null || d1.end >= blocks.Count))
+					{
+						continue;
+					}
+				}
 				var pass = byPlan ? planned.IndexOf(blocks[s.start].elev) + 1 : inScanOrder;
 				if (passes.Any(p => p.Pass == pass)) continue; // one cut split in two (a stray orphan mid-sweep): keep the first
-				passes.Add(new BasePass((s.start, s.end), doppler, FirstRadialTime(blocks, s.start, s.end, icao), pass));
+				passes.Add(new BasePass((s.start, s.end), doppler, FirstRadialTime(blocks, s.start, s.end, icao), pass,
+					doppler2 is { } d2 ? (d2.start, d2.end) : null));
 			}
 			return passes;
 		}
@@ -425,8 +506,9 @@ namespace Anvil.Services
 			var lastPassRecord = 0;
 			foreach (var p in ListBasePasses(blocks, icao))
 			{
-				result.Add((BuildSingleTilt(header, blocks, firstRadial, p.Surveillance, p.Doppler), p.Time, p.Pass));
-				lastPassRecord = Math.Max(lastPassRecord, Math.Max(p.Surveillance.End, p.Doppler?.End ?? 0));
+				result.Add((BuildSingleTilt(header, blocks, firstRadial, p.Surveillance, p.Doppler,
+					p.Doppler2 is { } d2 ? (d2.Start, d2.End) : null), p.Time, p.Pass));
+				lastPassRecord = Math.Max(lastPassRecord, Math.Max(p.Surveillance.End, p.Doppler2?.End ?? p.Doppler?.End ?? 0));
 			}
 			RadarDiagnostics.Log("svc", "extract.passes", ("site", siteId), ("passes", result.Count),
 				("records", blocks.Count), ("lastPassRecord", lastPassRecord),
@@ -1037,6 +1119,7 @@ namespace Anvil.Services
 			var baseTiltNum = 0;       // the base tilt's elevation NUMBER (its split-cut pair shares it)
 			var baseElev = 0;          // the highest elevation NUMBER accepted as still the base tilt
 			var keptDoppler = false;   // did we keep a higher-numbered same-angle (Doppler) cut?
+			var keptSecondDoppler = false; // and a dual-PRF pass's second one (FindSecondDoppler)?
 			var vcpRead = false;       // Message 5 sits in the leading metadata record, read once
 			var tdwr = false;          // TDWR: skip the low-PRF surveillance cut, the base tilt is its Doppler cut (IsTdwrVcp)
 			var skipElev = -1;         // the skipped low-PRF cut's elevation number
@@ -1146,8 +1229,18 @@ namespace Anvil.Services
 						// tilt" up to elev 4-5 and bloated the cache to 20-27 MB (slow to fetch + extract +
 						// JS-decode, and too big for the range prefix, forcing a full re-download). The lowest
 						// tilt is already complete here (both halves captured).
+						// ONE exception, bounded: a dual-PRF pass's SECOND Doppler cut (FindSecondDoppler) — kept only when its
+						// angle READS (never on NaN, the bloat case above) at the base angle and it carries velocity.
 						if (keptDoppler)
 						{
+							if (!keptSecondDoppler && !float.IsNaN(angle) && angle <= baseAngle + tiltTol && HasMoment(block, Dvel))
+							{
+								baseElev = elev;
+								keptSecondDoppler = true;
+								output.Write(block, 0, block.Length);
+								records++;
+								continue;
+							}
 							completedTilt = true;
 							break;
 						}
@@ -1161,7 +1254,7 @@ namespace Anvil.Services
 
 			RadarDiagnostics.Log("svc", "extract", ("site", siteId),
 				("records", records), ("baseElev", baseElev),
-				("keptDoppler", keptDoppler), ("completedTilt", completedTilt),
+				("keptDoppler", keptDoppler), ("keptSecondDoppler", keptSecondDoppler), ("completedTilt", completedTilt),
 				("bytes", records > 0 ? output.Length : 0),
 				("msg", $"baseAngle={(float.IsNaN(baseAngle) ? "?" : baseAngle.ToString("0.00"))}°"));
 
@@ -1205,7 +1298,7 @@ namespace Anvil.Services
 		/// ~357 ms — on every frame of every replay.
 		/// <para>⚠️ <b>THE DECISION LOGIC IS DELIBERATELY IDENTICAL to TryExtractLowestTilt</b> — anchor on
 		/// the first real radial, track the cut's settled angle as the MAX over its own radials, close at an
-		/// elevation-NUMBER increase confirmed by angle, and keep at most ONE same-angle Doppler companion.
+		/// elevation-NUMBER increase confirmed by angle, and keep at most ONE same-angle Doppler companion (plus, bounded, a dual-PRF pass's second).
 		/// Only the WALKER differs. Do not "improve" one path's rules without the other: the split-cut and
 		/// settling-radial traps behind those rules cost real bugs (see the comments over there), and two
 		/// extractors that disagree about what the base tilt is would be worse than one that is simply wrong.
@@ -1253,6 +1346,7 @@ namespace Anvil.Services
 			var baseTiltNum = 0;       // the base tilt's elevation NUMBER
 			var baseElev = 0;          // highest elevation NUMBER still accepted as the base tilt
 			var keptDoppler = false;   // did we keep a higher-numbered same-angle (Doppler) cut?
+			var keptSecondDoppler = false; // and a dual-PRF pass's second one?
 
 			while (pos + CtmHeaderSize + MessageHeaderSize <= raw.Length)
 			{
@@ -1326,11 +1420,23 @@ namespace Anvil.Services
 					}
 					if (keptDoppler)
 					{
-						completedTilt = true; // a split cut is only ever TWO cuts; we already have both
-						break;
+						// Mirror of the LDM walker: a dual-PRF pass's second Doppler cut is the one bounded exception.
+						if (!keptSecondDoppler && !float.IsNaN(angle) && angle <= baseAngle + tiltTol && HasMoment(raw[pos..(pos + rec)], Dvel))
+						{
+							baseElev = elev;
+							keptSecondDoppler = true;
+						}
+						else
+						{
+							completedTilt = true; // otherwise a split cut is only TWO cuts; we already have both
+							break;
+						}
 					}
-					baseElev = elev;
-					keptDoppler = true;
+					else
+					{
+						baseElev = elev;
+						keptDoppler = true;
+					}
 				}
 
 				output.Write(raw, pos, rec);
@@ -1340,7 +1446,7 @@ namespace Anvil.Services
 
 			RadarDiagnostics.Log("svc", "extract", ("site", siteId), ("path", "uncompressed"),
 				("records", records), ("radials", radials), ("baseElev", baseElev),
-				("keptDoppler", keptDoppler), ("completedTilt", completedTilt),
+				("keptDoppler", keptDoppler), ("keptSecondDoppler", keptSecondDoppler), ("completedTilt", completedTilt),
 				("bytes", records > 0 ? output.Length : 0), ("srcBytes", raw.Length),
 				("msg", $"baseAngle={(float.IsNaN(baseAngle) ? "?" : baseAngle.ToString("0.00"))}°"));
 

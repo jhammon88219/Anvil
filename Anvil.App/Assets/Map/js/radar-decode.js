@@ -16,6 +16,8 @@
 //              │╲│╱│    fanned out        calling geo.js per gate.
 //                                         Velocity's spokes are DEALIASED first (dealiasSweep) —
 //                                         see docs/velocity-dealias.md before touching that.
+//                                         A dual-PRF frame (VCP 112) carries TWO Doppler cuts:
+//                                         pairUnfold combines them gate by gate on top of it.
 //
 //   A decode builds reflectivity ALWAYS plus only the products the host ASKED for (buildProducts) —
 //   not all seven — and can also emit an inspector value GRID per product (the Int16 lookup the
@@ -333,7 +335,14 @@ function velocityDealiased(radar) {
     if (elev === null) { _sharedDealiased = { radials: null, elev: null }; return _sharedDealiased; }
     radar.setElevation(elev);
     const t0 = performance.now();
-    const dz = dealiasSweep(momentRadials(radar, 'velocity'), radar, _decodeSeedProfile);
+    let dz = dealiasSweep(momentRadials(radar, 'velocity'), radar, _decodeSeedProfile);
+    // A dual-PRF frame (VCP 112) also carries the pass's SECOND Doppler cut: combine the two (pairUnfold), with the
+    // region-dealiased cut above as its backbone. Any failure keeps the single-cut answer.
+    try {
+        const pair = findPairCut(radar, elev);
+        if (pair) dz = pairUnfold(radar, elev, pair, dz);
+    } catch (e) { _dealiasInfo += ' pair error: ' + (e && e.message ? e.message : e); }
+    radar.setElevation(elev);
     _dealiasInfo += ' ms=' + Math.round(performance.now() - t0); // ISOLATED dealias time → frame `dealias` field
     _sharedDealiased = { radials: dz, elev: elev };
     // Produce THIS cut's wind profile (radar is at the velocity elevation here) to seed the NEXT decode.
@@ -343,6 +352,254 @@ function velocityDealiased(radar) {
         catch (e) { _decodeVadProfile = null; }
     }
     return _sharedDealiased;
+}
+
+// ── DUAL-PRF PAIR UNFOLD (VCP 112) ───────────────────────────────────────────────────────────────────────────────
+// A dual-PRF pass scans the tilt twice for velocity at two PRFs: cut A (higher Nyquist N1, shorter unambiguous range —
+// a ring of range-folded gates near ~117 km) and cut B (lower N2, longer range). Alone, A folds winds past N1 and
+// blanks that ring. Together they pin each gate's fold WITHOUT spatial continuity: the true v aliases to vA in A AND to
+// vB in B, so of the candidates vA + 2k·N1 (k = −1, 0, 1 → |v| to 3·N1) the right one aliases onto vB; with N1/N2 ≈
+// 33/24 m/s neighbouring candidates land ~18 m/s apart, far more than the gate noise. Per gate, in order:
+//   1. a pair answer that agrees (PAIR_REF_TOL) with the PAIR REFERENCE — the nan-median of CONFIDENT pairs (residual
+//      < PAIR_TOL, runner-up ≥ PAIR_MARGIN worse) over PAIR_REF_WIN — wins;
+//   2. else, where that reference exists, the reading's own fold nearest it (A, else B; B only inside its own range);
+//   3. else the region-dealiased A (the backbone — the single-cut answer, which is best where pairs are sparse);
+//   then a 3×5 despeckle (> PAIR_SPECKLE_TOL from the local median → dropped) and a WIDE 5×9 pass that re-folds a small
+//   wrong cluster (> 0.75·N2 off) to the wide median, or drops it.
+// Measured vs the NWS's own dealiased velocity (Level III N0U/N0G) on Ida KLIX 2021 + Beryl KHGX 2024: coverage +4–9
+// points (the ring and eyewall filled), wrong folds lower on all four volumes (e.g. 0.34 → 0.24%, 0.14 → 0.04%).
+// Windows wrap in azimuth and CLAMP at the first/last gate (the mirror's edge rule). ⚠️ Mirror:
+// tools/pair_unfold_check.py — keep the two in step, and judge with it against N0U/N0G, never by eye.
+const PAIR_TOL = 4.0;          // m/s: a pair's residual (alias of the candidate onto B minus vB)
+const PAIR_MARGIN = 5.0;       // m/s: a CONFIDENT pair's runner-up must be this much worse
+const PAIR_REF_TOL = 8.0;      // m/s: a pair answer this far from the pair reference loses to it
+const PAIR_SPECKLE_TOL = 10.0; // m/s: despeckle — this far from the 3×5 median → dropped
+const PAIR_REF_WIN = [2, 5];   // reference half-window (rays, gates) → 5 × 11
+const PAIR_MIN_NYQ_GAP = 1.0;  // m/s: two cuts closer than this in Nyquist are not a dual-PRF pair
+
+// The pass's second Doppler cut, if the frame carries one: the next elevation after `elev` with velocity, at the same
+// angle, at a DIFFERENT Nyquist. Returns { elev, nyq, ra } (ra = its unambiguous range, km) or null.
+function findPairCut(radar, elev) {
+    const elevs = radar.listElevations() || [];
+    const k = elevs.indexOf(elev);
+    if (k < 0 || k + 1 >= elevs.length) return null;
+    radar.setElevation(elev);
+    const a = momentRadials(radar, 'velocity');
+    const nyqA = sweepNyquist(radar, a.length);
+    const angA = sweepAngle(radar);
+    const e2 = elevs[k + 1];
+    radar.setElevation(e2);
+    const b = momentRadials(radar, 'velocity');
+    if (!b.some(function (r) { return r && r.moment_data; })) return null;
+    const nyqB = sweepNyquist(radar, b.length);
+    const angB = sweepAngle(radar);
+    if (!isFinite(nyqA) || !isFinite(nyqB) || Math.abs(nyqA - nyqB) < PAIR_MIN_NYQ_GAP) return null;
+    if (isFinite(angA) && isFinite(angB) && Math.abs(angA - angB) > 0.25) return null; // a higher tilt slipped in
+    let ra = NaN;
+    for (let i = 0; i < b.length && !isFinite(ra); i++) {
+        const rec = radar.data[radar.elevation][i] && radar.data[radar.elevation][i].record;
+        if (rec && rec.radial && typeof rec.radial.unambiguous_range === 'number') ra = rec.radial.unambiguous_range;
+    }
+    return { elev: e2, nyq: nyqB, nyqA: nyqA, ra: ra };
+}
+
+// Median elevation angle of the current cut (deg), NaN when the records don't carry it.
+function sweepAngle(radar) {
+    const scans = radar.data && radar.data[radar.elevation];
+    if (!scans) return NaN;
+    const v = [];
+    for (let i = 0; i < scans.length; i += 8) {
+        const rec = scans[i] && scans[i].record;
+        if (rec && typeof rec.elevation_angle === 'number') v.push(rec.elevation_angle);
+    }
+    if (!v.length) return NaN;
+    v.sort(function (x, y) { return x - y; });
+    return v[v.length >> 1];
+}
+
+// Python-style modulo (result has the divisor's sign) — the alias arithmetic needs it. ⚠️ Written as numpy's np.mod
+// (one fmod, +m only when the sign is wrong), NOT ((x % m) + m) % m: that second fmod moves the last bit, and with
+// 0.5 m/s velocity steps a pair residual lands EXACTLY on PAIR_TOL often enough to flip thousands of gates vs the mirror.
+function pmod(x, m) { const r = x % m; return r < 0 ? r + m : r; }
+function aliasInto(v, n) { return pmod(v + n, 2 * n) - n; }
+function nearestFold(v, n, ref) { return v + 2 * n * Math.floor((ref - v) / (2 * n) + 0.5); }
+
+// k-th smallest (0-based) of a[0..n) in place (quickselect).
+function selectKth(a, n, k) {
+    let lo = 0, hi = n - 1;
+    while (lo < hi) {
+        const pivot = a[(lo + hi) >> 1];
+        let i = lo, j = hi;
+        while (i <= j) {
+            while (a[i] < pivot) i++;
+            while (a[j] > pivot) j--;
+            if (i <= j) { const t = a[i]; a[i] = a[j]; a[j] = t; i++; j--; }
+        }
+        if (k <= j) hi = j; else if (k >= i) lo = i; else return a[k];
+    }
+    return a[k];
+}
+
+// nan-median of `grid` (N×G) over rows r±hr (wrapping) × gates g±hg (clamped), at gate (r, g). NaN if the window is empty.
+function windowMedian(grid, N, G, r, g, hr, hg, scratch) {
+    let n = 0;
+    for (let dr = -hr; dr <= hr; dr++) {
+        const base = (((r + dr) % N) + N) % N * G;
+        for (let dg = -hg; dg <= hg; dg++) {
+            let gg = g + dg; if (gg < 0) gg = 0; else if (gg >= G) gg = G - 1;
+            const v = grid[base + gg];
+            if (v === v) scratch[n++] = v;
+        }
+    }
+    if (!n) return NaN;
+    const h = n >> 1;
+    const hiV = selectKth(scratch, n, h);
+    if (n & 1) return hiV;
+    let loV = -Infinity; // the (h−1)-th = the max of the partition left of h
+    for (let i = 0; i < h; i++) if (scratch[i] > loV) loV = scratch[i];
+    return (loV + hiV) / 2;
+}
+
+// Combine the frame's two Doppler cuts into one unfolded velocity field on cut A's radials (see the block note above).
+// `backbone` = cut A region-dealiased. Returns radials shaped like dealiasSweep's (moment_data / gates / range_folded).
+function pairUnfold(radar, elevA, pair, backbone) {
+    const t0 = performance.now();
+    radar.setElevation(elevA);
+    const A = momentRadials(radar, 'velocity');
+    const azA = A.map(function (_, i) { return radar.getAzimuth(i); });
+    radar.setElevation(pair.elev);
+    const Bc = momentRadials(radar, 'velocity');
+    const azB = Bc.map(function (_, i) { return radar.getAzimuth(i); });
+    radar.setElevation(elevA);
+    const N1 = pair.nyqA, N2 = pair.nyq;
+    if (!(N1 > N2)) return backbone; // the pair's first cut is the high-Nyquist one in every pattern seen; don't guess
+
+    const N = A.length;
+    let G = 0;
+    for (let i = 0; i < N; i++) { const md = A[i] && A[i].moment_data; if (md && md.length > G) G = md.length; }
+    if (!N || !G) return backbone;
+    // B radial nearest each A radial by azimuth (sorted B azimuths + binary search).
+    const bIdx = [];
+    for (let i = 0; i < Bc.length; i++) if (Bc[i] && Bc[i].moment_data && typeof azB[i] === 'number') bIdx.push(i);
+    bIdx.sort(function (x, y) { return azB[x] - azB[y]; });
+    function nearestB(az) {
+        let lo = 0, hi = bIdx.length - 1;
+        while (lo < hi) { const m = (lo + hi) >> 1; if (azB[bIdx[m]] < az) lo = m + 1; else hi = m; }
+        let best = -1, bd = Infinity;
+        for (const c of [lo - 1, lo, 0, bIdx.length - 1]) {
+            if (c < 0 || c >= bIdx.length) continue;
+            const d = Math.abs(((azB[bIdx[c]] - az + 540) % 360) - 180);
+            if (d < bd) { bd = d; best = bIdx[c]; }
+        }
+        return best;
+    }
+
+    const V1 = new Float64Array(N * G).fill(NaN), V2 = new Float64Array(N * G).fill(NaN);
+    const Bk = new Float64Array(N * G).fill(NaN), rngKm = new Float64Array(G);
+    let fg = NaN, gs = NaN;
+    for (let i = 0; i < N; i++) {
+        const a = A[i]; if (!a || !a.moment_data) continue;
+        if (!isFinite(fg)) { fg = a.first_gate; gs = a.gate_size; }
+        const base = i * G, md = a.moment_data, bd = backbone[i] && backbone[i].moment_data;
+        for (let j = 0; j < md.length; j++) {
+            const v = md[j]; if (v !== null && v !== undefined && isFinite(v)) V1[base + j] = v;
+            const w = bd ? bd[j] : null; if (w !== null && w !== undefined && isFinite(w)) Bk[base + j] = w;
+        }
+        const bi = typeof azA[i] === 'number' && bIdx.length ? nearestB(azA[i]) : -1;
+        const b = bi >= 0 ? Bc[bi] : null;
+        if (b && b.moment_data) {
+            const bm = b.moment_data;
+            for (let j = 0; j < G; j++) {
+                const range = a.first_gate + j * a.gate_size;
+                const jb = Math.round((range - b.first_gate) / b.gate_size);
+                if (jb < 0 || jb >= bm.length) continue;
+                const v = bm[jb]; if (v !== null && v !== undefined && isFinite(v)) V2[base + j] = v;
+            }
+        }
+    }
+    for (let j = 0; j < G; j++) rngKm[j] = fg + j * gs;
+
+    // 1. pair candidates
+    const P = new Float64Array(N * G).fill(NaN), Ref = new Float64Array(N * G).fill(NaN);
+    const pairOK = new Uint8Array(N * G);
+    let nBoth = 0, nOk = 0, nConf = 0;
+    for (let p = 0; p < N * G; p++) {
+        const v1 = V1[p], v2 = V2[p];
+        if (!(v1 === v1 && v2 === v2)) continue;
+        let r0 = Infinity, r1 = Infinity, c0 = NaN;
+        for (let k = -1; k <= 1; k++) {
+            const c = v1 + 2 * N1 * k;
+            const res = Math.abs(aliasInto(c - v2, N2));
+            if (res < r0) { r1 = r0; r0 = res; c0 = c; } else if (res < r1) r1 = res;
+        }
+        P[p] = c0;
+        nBoth++;
+        if (r0 < PAIR_TOL) { pairOK[p] = 1; nOk++; if (r1 - r0 > PAIR_MARGIN) { Ref[p] = c0; nConf++; } }
+    }
+
+    // 2. combine, in precedence order
+    const scratch = new Float64Array(128);
+    const out = new Float64Array(N * G).fill(NaN);
+    const src = new Uint8Array(N * G); // 1 pair, 2 A→ref, 3 B→ref, 4 backbone
+    let nPair = 0, nA = 0, nB = 0, nBk = 0;
+    for (let r = 0; r < N; r++) {
+        for (let g = 0; g < G; g++) {
+            const p = r * G + g, v1 = V1[p], v2 = V2[p];
+            if (!(v1 === v1 || v2 === v2)) { const w = Bk[p]; if (w === w) { out[p] = w; src[p] = 4; nBk++; } continue; }
+            const rf = windowMedian(Ref, N, G, r, g, PAIR_REF_WIN[0], PAIR_REF_WIN[1], scratch);
+            if (rf === rf) {
+                if (pairOK[p] && Math.abs(P[p] - rf) <= PAIR_REF_TOL) { out[p] = P[p]; src[p] = 1; nPair++; continue; }
+                if (v1 === v1) { out[p] = nearestFold(v1, N1, rf); src[p] = 2; nA++; continue; }
+                if (!(rngKm[g] > pair.ra)) { out[p] = nearestFold(v2, N2, rf); src[p] = 3; nB++; continue; }
+                continue; // B beyond its own unambiguous range: a second-trip guess, not used
+            }
+            const w = Bk[p]; if (w === w) { out[p] = w; src[p] = 4; nBk++; }
+        }
+    }
+
+    // 3. despeckle what the pair step produced (3×5), then the wide re-fold pass (5×9)
+    let nDrop = 0;
+    const spk = [];
+    for (let r = 0; r < N; r++) for (let g = 0; g < G; g++) {
+        const p = r * G + g;
+        if (src[p] === 4 || !(out[p] === out[p])) continue;
+        const m = windowMedian(out, N, G, r, g, 1, 2, scratch);
+        if (m === m && Math.abs(out[p] - m) > PAIR_SPECKLE_TOL) spk.push(p);
+    }
+    for (const p of spk) { out[p] = NaN; nDrop++; }
+    const refoldTol = 0.75 * N2;
+    const odd = [], oddVal = [];
+    for (let r = 0; r < N; r++) for (let g = 0; g < G; g++) {
+        const p = r * G + g;
+        if (src[p] === 4 || !(out[p] === out[p])) continue;
+        const m = windowMedian(out, N, G, r, g, 2, 4, scratch);
+        if (m === m && Math.abs(out[p] - m) > refoldTol) {
+            const useA = V1[p] === V1[p];
+            const f = nearestFold(useA ? V1[p] : V2[p], useA ? N1 : N2, m);
+            odd.push(p); oddVal.push(Math.abs(f - m) <= refoldTol ? f : NaN);
+        }
+    }
+    let nRefold = 0;
+    for (let i = 0; i < odd.length; i++) { out[odd[i]] = oddVal[i]; if (oddVal[i] === oddVal[i]) nRefold++; else nDrop++; }
+
+    // 4. back to radials on cut A's geometry; a gate the pair FILLED is no longer range-folded
+    const res = new Array(N);
+    let filled = 0;
+    for (let r = 0; r < N; r++) {
+        const a = A[r];
+        if (!a || !a.moment_data) { res[r] = backbone[r]; continue; }
+        const len = a.moment_data.length, md = new Array(len);
+        let rfo = a.range_folded ? new Uint8Array(a.range_folded) : null;
+        for (let j = 0; j < len; j++) {
+            const v = out[r * G + j];
+            md[j] = v === v ? v : null;
+            if (rfo && rfo[j] && v === v) { rfo[j] = 0; filled++; }
+        }
+        res[r] = { moment_data: md, first_gate: a.first_gate, gate_size: a.gate_size, range_folded: rfo };
+    }
+    _dealiasInfo += ' pair N' + N1.toFixed(1) + '/' + N2.toFixed(1) + ' both' + nBoth + ' ok' + nOk + ' conf' + nConf + ' p' + nPair + ' a' + nA + ' b' + nB + ' bk' + nBk +
+        ' fill' + filled + ' refold' + nRefold + ' drop' + nDrop + ' pms=' + Math.round(performance.now() - t0);
+    return res;
 }
 
 // Per-radial Nyquist velocity (m/s) from the decoded RAD block; NaN if unavailable. The unfold

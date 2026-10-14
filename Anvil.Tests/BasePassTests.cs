@@ -256,6 +256,105 @@ namespace Anvil.Tests
 			Assert.Equal(1, Level2Format.PlannedBasePasses(new List<(byte[], int)> { (meta, 0) }));
 		}
 
+		// VCP 112 (dual-PRF), shortened: each base pass = surveillance + TWO Doppler cuts at different PRFs (KLIX 2021-08-29
+		// 18:59Z: cuts 1/2/3 and the SAILS rescan 11/12/13 — TiltCheck -- --passes KLIX 2021/08/29 18:59 1).
+		private static byte[] DualPrfVolume(bool truncateLast = false)
+		{
+			var radials = new List<byte[]>
+			{
+				Message5Vcp(112, (0.48, 1), (0.48, 2), (0.48, 2), (0.88, 1), (0.88, 2), (0.48, 1), (0.48, 2), (0.48, 2), (1.32, 2)),
+				SyntheticVolume.Radial(1, 0.48f, "sv01"),
+				SyntheticVolume.Radial(2, 0.48f, "da02", velocity: true),
+				SyntheticVolume.Radial(3, 0.48f, "db03", velocity: true),
+				SyntheticVolume.Radial(4, 0.88f, "hg04"),
+				SyntheticVolume.Radial(5, 0.88f, "hg05", velocity: true),
+				SyntheticVolume.Radial(6, 0.48f, "sv06"),
+				SyntheticVolume.Radial(7, 0.48f, "da07", velocity: true),
+				SyntheticVolume.Radial(8, 0.48f, "db08", velocity: true),
+			};
+			if (!truncateLast) radials.Add(SyntheticVolume.Radial(9, 1.32f, "hg09", velocity: true));
+			return SyntheticVolume.Volume(radials.ToArray());
+		}
+
+		[Fact]
+		public void DualPrf_every_pass_carries_both_doppler_cuts()
+		{
+			// The decoder combines the two PRFs gate by gate; a frame with only the first loses the range-folded ring the
+			// second fills and the wind range the pair resolves.
+			var passes = Level2Format.TryExtractBasePasses(DualPrfVolume(), SyntheticVolume.DefaultIcao);
+
+			Assert.Equal(new[] { 1, 2 }, passes.Select(p => p.Pass));
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[0].Data, "da02"));
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[0].Data, "db03"));
+			Assert.Equal(0, SyntheticVolume.CountMarker(passes[0].Data, "hg04"));
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[1].Data, "da07"));
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[1].Data, "db08"));
+			Assert.Equal(0, SyntheticVolume.CountMarker(passes[1].Data, "db03"));
+		}
+
+		[Fact]
+		public void DualPrf_pass_one_is_the_prefix_extraction_with_both_doppler_cuts()
+		{
+			var volume = DualPrfVolume();
+			var prefix = Level2Format.TryExtractLowestTilt(volume, SyntheticVolume.DefaultIcao)!;
+			var pass1 = Level2Format.TryExtractBasePasses(volume, SyntheticVolume.DefaultIcao)[0].Data;
+
+			Assert.Equal(1, SyntheticVolume.CountMarker(prefix, "db03"));
+			Assert.Equal(0, SyntheticVolume.CountMarker(prefix, "hg04"));
+			Assert.Equal(pass1, prefix);
+		}
+
+		[Fact]
+		public void DualPrf_live_waits_for_the_second_doppler_cut()
+		{
+			// The rescan's second Doppler cut is still scanning (the volume's last cut, no end status): the newest pass is not
+			// complete yet, so live serves the previous whole pass — with BOTH its Doppler cuts — rather than a frame that
+			// would never get its pair.
+			var volume = DualPrfVolume(truncateLast: true);
+			var blocks = Level2Format.DecompressRecords(volume, SyntheticVolume.DefaultIcao, out var icao);
+
+			var live = Level2Format.SelectLatestSweep(volume[..24], blocks, icao);
+
+			Assert.NotNull(live.data);
+			Assert.Equal(1, SyntheticVolume.CountMarker(live.data!, "sv01"));
+			Assert.Equal(1, SyntheticVolume.CountMarker(live.data!, "db03"));
+			Assert.Equal(0, SyntheticVolume.CountMarker(live.data!, "sv06"));
+			Assert.True(live.velComplete);
+			Assert.Equal(new[] { 1 }, Level2Format.TryExtractBasePasses(volume, SyntheticVolume.DefaultIcao).Select(p => p.Pass));
+		}
+
+		[Fact]
+		public void DualPrf_a_volume_lacking_the_second_cut_keeps_its_frame()
+		{
+			// Planned as a pair, scanned with one Doppler cut and then a higher tilt: the frame stays (one cut), never lost.
+			var volume = SyntheticVolume.Volume(
+				Message5Vcp(112, (0.48, 1), (0.48, 2), (0.48, 2), (0.88, 1), (0.88, 2)),
+				SyntheticVolume.Radial(1, 0.48f, "sv01"),
+				SyntheticVolume.Radial(2, 0.48f, "da02", velocity: true),
+				SyntheticVolume.Radial(4, 0.88f, "hg04"),
+				SyntheticVolume.Radial(5, 0.88f, "hg05", velocity: true));
+
+			var passes = Level2Format.TryExtractBasePasses(volume, SyntheticVolume.DefaultIcao);
+
+			Assert.Single(passes);
+			Assert.Equal(1, SyntheticVolume.CountMarker(passes[0].Data, "da02"));
+			Assert.Equal(0, SyntheticVolume.CountMarker(passes[0].Data, "hg04"));
+		}
+
+		[Fact]
+		public void DualPrf_cached_frames_are_recognised_for_the_one_time_recut()
+		{
+			// The startup migration reads a cached frame's leading metadata: only dual-PRF frames are dropped.
+			Assert.True(Level2Format.PlansDualPrfBasePass(Level2Format.TryExtractLowestTilt(DualPrfVolume(), SyntheticVolume.DefaultIcao)!));
+			Assert.False(Level2Format.PlansDualPrfBasePass(Level2Format.TryExtractLowestTilt(TdwrHazardousVolume(), SyntheticVolume.DefaultIcao)!));
+			var splitCut = SyntheticVolume.Volume(
+				Message5Vcp(212, (0.48, 1), (0.48, 2), (0.88, 1), (0.88, 2)),
+				SyntheticVolume.Radial(1, 0.48f, "sv01"),
+				SyntheticVolume.Radial(2, 0.48f, "dv02", velocity: true),
+				SyntheticVolume.Radial(3, 0.88f, "hg03"));
+			Assert.False(Level2Format.PlansDualPrfBasePass(Level2Format.TryExtractLowestTilt(splitCut, SyntheticVolume.DefaultIcao)!));
+		}
+
 		// A metadata record holding a Message 5 with the given (angle, waveform) cuts.
 		private static byte[] Message5(params (double angle, int waveform)[] cuts) => Message5Vcp(212, cuts);
 

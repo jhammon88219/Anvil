@@ -66,6 +66,12 @@ static class PassCheck
             Console.WriteLine($"   plan's pass numbers [{string.Join(",", numbers)}] → frames PLANNED {count}");
             Console.WriteLine($"   frames CUT {passes.Count}: " +
                               string.Join("  ", passes.Select(p => $"#{p.Pass}@{(p.Time is { } t ? t.ToString("HH:mm:ss") : "?")}")));
+            // Which cuts each frame holds: a dual-PRF pass (VCP 112) must carry BOTH Doppler cuts.
+            Console.WriteLine("   frame cuts (surveillance + Doppler [+ 2nd Doppler]): " + string.Join("  ",
+                Level2Format.ListBasePasses(blocks, icao).Select(p =>
+                    $"#{p.Pass}={blocks[p.Surveillance.Start].elev}" +
+                    (p.Doppler is { } d ? $"+{blocks[d.Start].elev}" : "") +
+                    (p.Doppler2 is { } d2 ? $"+{blocks[d2.Start].elev}" : ""))));
             if (passes.Count != count)
             {
                 Console.WriteLine("   ⚠️ planned ≠ cut: the loop waits for frames that never arrive (or never plans ones it has)");
