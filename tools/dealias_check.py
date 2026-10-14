@@ -2,11 +2,13 @@
 """
 dealias_check.py - regression-check the app's velocity DEALIASING against Py-ART, no JS runtime needed.
 
-The app's dealiaser (`radar-decode.js` `dealiasSweep`, "v2") is a port of Py-ART's region-based
-algorithm. This script re-implements that SAME algorithm in Python (a faithful mirror of the JS, with
+The app's dealiaser (`radar-decode.js` `dealiasSweep`, "v2") uses Py-ART's region-based labelling and
+edges, then (since 2026-10-14) ONE weighted least-squares solve for the region folds instead of Py-ART's
+greedy merge. This script re-implements that SAME algorithm in Python (a faithful mirror of the JS, with
 no scipy/Cython) and, on the same AWS volume the app uses, diffs it against Py-ART's own
-`dealias_region_based` -- the scientific-standard answer key. Use it to confirm a change to the JS
-dealiaser still matches Py-ART BEFORE shipping (this machine has no Node/deno/bun to run the JS).
+`dealias_region_based`. Agreement is no longer exact by design: the greedy merge's answer depends on
+merge order, and the solve differs from it exactly where that order mattered (see docs/velocity-dealias.md).
+Use it to confirm a change to the JS dealiaser BEFORE shipping (this machine has no Node/deno/bun).
 
 It reports, for the lowest velocity tilt:
   * the dealiased value range (m/s) from the mirror vs Py-ART,
@@ -139,8 +141,90 @@ def _edges_of(label, raw, nyq2):
     return adj
 
 
+# Step 3 solve constants — mirror radar-decode.js DEALIAS_WMIN / DEALIAS_UNC / DEALIAS_CG_TOL / DEALIAS_CG_MAXIT.
+DEALIAS_WMIN = 0.1
+DEALIAS_UNC = 0.25
+DEALIAS_CG_TOL = 1e-6
+DEALIAS_CG_MAXIT = 5000
+
+
+def _pcg(nreg, a, b, w, t, deg, fixed, x0):
+    """Jacobi-preconditioned CG on the weighted Laplacian min sum w (x_b - x_a - t)^2; `fixed` regions held at x0."""
+    rhs = np.bincount(b, w * t, nreg) - np.bincount(a, w * t, nreg)
+    xf = np.where(fixed, x0, 0.0)
+    rhs += np.bincount(a, w * xf[b], nreg) + np.bincount(b, w * xf[a], nreg)
+    rhs[fixed] = 0.0
+
+    def lap(p):
+        y = deg * p - np.bincount(a, w * p[b], nreg) - np.bincount(b, w * p[a], nreg)
+        y[fixed] = 0.0
+        return y
+
+    dinv = np.where(~fixed & (deg > 0), 1.0 / np.where(deg > 0, deg, 1.0), 0.0)
+    x = np.where(fixed, 0.0, x0)
+    r = rhs - lap(x)
+    z = dinv * r
+    p = z.copy()
+    rz = float(r @ z)
+    stop = DEALIAS_CG_TOL * (np.sqrt(rhs @ rhs) or 1.0)
+    it = 0
+    while it < DEALIAS_CG_MAXIT and np.sqrt(r @ r) > stop:
+        Ap = lap(p)
+        alpha = rz / float(p @ Ap)
+        x += alpha * p
+        r -= alpha * Ap
+        z = dinv * r
+        rz2 = float(r @ z)
+        p = z + (rz2 / rz) * p
+        rz = rz2
+        it += 1
+    return np.where(fixed, x0, x)
+
+
+def solve_folds(nreg, cnt, adj):
+    """Mirror of the JS step 3: ONE weighted least-squares solve for every region's fold count (no merge order).
+
+    Edge (a<b): target x_b - x_a = round(d), d = mean diff in folds; weight = gate count tapered from 1 at a whole
+    fold to DEALIAS_WMIN at a half fold. Largest region per connected component held at 0 (lowest id on a tie);
+    regions solved more than DEALIAS_UNC from a whole number are re-solved once against the settled rest.
+    Replaced the greedy heaviest-first merge 2026-10-14 (its answer depended on the merge order)."""
+    cnt = np.asarray(cnt, float)
+    if not adj:
+        return np.zeros(nreg, np.int64)
+    k_ = np.array(list(adj.keys()), np.int64)
+    v_ = np.array(list(adj.values()), float)
+    a, b = k_[:, 0], k_[:, 1]
+    d = v_[:, 1] / v_[:, 0]
+    t = np.floor(d + 0.5)                    # JS Math.round (half up), not numpy's half-to-even
+    w = v_[:, 0] * (1.0 - (1.0 - DEALIAS_WMIN) * np.minimum(1.0, 2.0 * np.abs(d - t)))
+    deg = np.bincount(a, w, nreg) + np.bincount(b, w, nreg)
+    parent = list(range(nreg))
+
+    def root(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]; x = parent[x]
+        return x
+    for p, q in zip(a.tolist(), b.tolist()):
+        rp, rq = root(p), root(q)
+        if rp != rq:
+            parent[max(rp, rq)] = min(rp, rq)
+    pin_of = {}
+    for i in range(nreg):
+        c = root(i)
+        if c not in pin_of or cnt[i] > cnt[pin_of[c]]:
+            pin_of[c] = i
+    pinned = np.zeros(nreg, bool)
+    pinned[list(pin_of.values())] = True
+    x1 = _pcg(nreg, a, b, w, t, deg, pinned, np.zeros(nreg))
+    k = np.floor(x1 + 0.5)
+    settled = np.abs(x1 - k) <= DEALIAS_UNC
+    if not settled.all():
+        k = np.floor(_pcg(nreg, a, b, w, t, deg, settled, k) + 0.5)
+    return k.astype(np.int64)
+
+
 def dealias_v2(raw, nyq, splits=3, seed_vr=None):
-    """Mirror of the JS dealiasSweep: segment -> edges -> heaviest-first merge (combine parallels) -> center.
+    """Mirror of the JS dealiasSweep: segment -> edges -> one weighted least-squares fold solve -> center.
 
     seed_vr: optional (N,G) grid of EXPECTED radial velocity (a temporal wind-profile first guess). When
     given, step 4 anchors to it (integer global fold shift minimizing L1 mismatch) instead of the "mean
@@ -152,54 +236,7 @@ def dealias_v2(raw, nyq, splits=3, seed_vr=None):
     if nreg < 2:
         return raw.copy(), nreg
     adj = _edges_of(label, raw, nyq2)
-    g = {i: {} for i in range(nreg)}
-    for (a, b), (w, s) in adj.items():
-        g[a][b] = [w, s]; g[b][a] = [w, -s]
-    size = list(cnt)
-    regions_in = {i: [i] for i in range(nreg)}
-    unwrap = np.zeros(nreg, np.int64)
-    alive = set(range(nreg))
-
-    def do_unwrap(node, nw):
-        if nw == 0:
-            return
-        for reg in regions_in[node]:
-            unwrap[reg] += nw
-        for nb, e in g[node].items():
-            e[1] += e[0] * nw
-            g[nb][node][1] -= e[0] * nw
-
-    # ⚠️ THIS SCAN ORDER IS THE REFERENCE TIE-BREAK: the first maximum over regions in id order, neighbours in
-    # insertion order (= Py-ART). The JS heap reproduces it with (weight desc, lower id asc, edge seq asc); with
-    # weight-only ordering it over-unfolded KCYS 2026-10-10 by whole sectors (docs/velocity-dealias.md).
-    # `alive` must iterate in ascending id for that — a Python set of small ints does, but don't change its type.
-    while True:
-        bestw = 0; bpair = None
-        for node in alive:
-            for nb, e in g[node].items():
-                if e[0] > bestw:
-                    bestw = e[0]; bpair = (node, nb)
-        if bpair is None:
-            break
-        n1, n2 = bpair
-        rdiff = int(round(g[n1][n2][1] / g[n1][n2][0]))
-        if size[n1] >= size[n2]:
-            base, merge, nw = n1, n2, rdiff
-        else:
-            base, merge, nw = n2, n1, -rdiff
-        do_unwrap(merge, nw)
-        g[base].pop(merge, None); g[merge].pop(base, None)
-        for nb, e in list(g[merge].items()):
-            g[nb].pop(merge, None)
-            if nb in g[base]:
-                g[base][nb][0] += e[0]; g[base][nb][1] += e[1]
-                g[nb][base][0] += e[0]; g[nb][base][1] += -e[1]
-            else:
-                g[base][nb] = [e[0], e[1]]; g[nb][base] = [e[0], -e[1]]
-        g[merge] = {}
-        regions_in[base].extend(regions_in[merge]); regions_in[merge] = []
-        size[base] += size[merge]
-        alive.discard(merge)
+    unwrap = solve_folds(nreg, cnt, adj)
 
     total = sum(cnt)
     if seed_vr is not None:

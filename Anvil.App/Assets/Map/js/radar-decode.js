@@ -435,15 +435,21 @@ function sweepNyquistDetail(radar, count) {
 //      in a different band than the ambient wind, so it forms its OWN region instead of merging in.
 //   2. EDGES: between adjacent regions accumulate weight (# adjacent gate pairs) + summed velocity
 //      difference (in 2·Nyquist units).
-//   3. REDUCE: repeatedly merge the two regions joined by the HEAVIEST boundary, unfolding the smaller
-//      by the whole number of 2·Nyquist that best fits their shared boundary. Parallel edges to shared
-//      neighbours COMBINE as regions merge, so evidence accumulates and one weak/noisy boundary can't
-//      mis-fold a subtree — which is why v2 needs NONE of v1's fold cap / foldTol / min-region guards.
+//   3. SOLVE: every region gets a whole number of 2·Nyquist folds from ONE weighted least-squares solve over
+//      all boundaries at once (each asks for the fold difference that best fits it, weighted by its length
+//      and how clearly it reads as a whole fold). Until 2026-10-14 this was Py-ART's greedy heaviest-first
+//      merge, whose answer depended on the merge ORDER at tied/half-fold boundaries — see step 3 below.
 //   4. CENTER: shift all fold counts so the gate-weighted mean fold is ~0 (the sweep's absolute anchor).
 // Input unchanged if no Nyquist is available.
 const INTERVAL_SPLITS = 3; // Py-ART default; splitting the Nyquist interval finer separates folds better
 const EDGE_SKIP = 100;     // Py-ART default skip_along_ray/skip_between_rays: bridge gaps of up to this
                            // many masked gates when finding region edges (see the edge loop below)
+// Step 3 solve. Measured insensitive on the 20-sweep set (2026-10-14): WMIN 0.05–0.2 and UNC 0.15–1.0 all moved
+// the summed seam count < 1%. Keep in sync with tools/dealias_check.py.
+const DEALIAS_WMIN = 0.1;      // edge weight factor at a half-fold mean difference (1 at a whole fold)
+const DEALIAS_UNC = 0.25;      // a solved fold this far from a whole number is re-solved against settled neighbours
+const DEALIAS_CG_TOL = 1e-6;   // conjugate-gradient stop: residual ≤ this × |rhs| (70–160 iterations measured)
+const DEALIAS_CG_MAXIT = 5000;
 
 // Wrapper: on any unexpected error, fall back to the raw (folded) radials rather than blanking the
 // whole velocity frame — same graceful degradation as "no Nyquist available".
@@ -452,8 +458,8 @@ const EDGE_SKIP = 100;     // Py-ART default skip_along_ray/skip_between_rays: b
 // wind or a mis-folded fragment (the over-unfold case). A SEED — a wind profile [{h,u,v}] from the loop's
 // previous velocity cut (already dealiased a scan ago, so clean; winds barely change in ~5 min) — lets us
 // instead anchor to the EXPECTED radial velocity, the NWS environmental-first-guess technique sourced
-// temporally to stay offline. It only moves the ABSOLUTE anchor; the Py-ART-validated relative folds from
-// steps 1-3 are untouched. seedProfile omitted/empty → byte-identical to the pre-seed behavior.
+// temporally to stay offline. It only moves the ABSOLUTE anchor; the relative folds from steps 1-3 are
+// untouched. seedProfile omitted/empty → byte-identical to the pre-seed behavior.
 // Integer global fold shifts searched when anchoring to the seed (±3·2·Nyq ≫ any real ambiguity),
 // ordered so S=0 wins ties (conservative — prefer no shift). Mirror of tools/dealias_check.py.
 const SEED_SHIFT_ORDER = [0, -1, 1, -2, 2, -3, 3];
@@ -582,17 +588,15 @@ function dealiasSweepCore(radials, radar, seedProfile) {
     const numReg = regionCnt.length;
     if (numReg < 2) return radials;
 
-    // --- 2. edges: g[a] = Map(b -> [weight, sumdiff]) where sumdiff = Σ (v_a - v_b)/nyq2 over the
-    // shared boundary (kept symmetric: g[b].get(a) mirrors it with negated sumdiff). ---
+    // --- 2. edges: g[lo] = Map(hi -> [weight, sumdiff]) for each touching region pair lo < hi, where
+    // weight = # adjacent gate pairs and sumdiff = Σ (v_lo - v_hi)/nyq2 over the shared boundary. ---
     const g = new Array(numReg);
     for (let i = 0; i < numReg; i++) g[i] = new Map();
-    // Every edge (and its mate) carries `seq` = its creation order — the merge's TIE-BREAK (step 3).
-    let edgeSeq = 0;
     function addEdge(a, b, dv) { // dv = v_a - v_b (raw m/s)
+        if (a > b) { const t = a; a = b; b = t; dv = -dv; }
         let e = g[a].get(b);
-        if (!e) { e = [0, 0]; g[a].set(b, e); const f = [0, 0]; g[b].set(a, f); e.mate = f; f.mate = e; e.seq = f.seq = edgeSeq++; }
+        if (!e) { e = [0, 0]; g[a].set(b, e); }
         e[0]++; e[1] += dv / nyq2;
-        const f = e.mate; f[0]++; f[1] -= dv / nyq2;
     }
     // ⚠️ GAP-SKIPPING (Py-ART skip_along_ray/skip_between_rays, default 100): when the next gate is
     // masked, look PAST up to EDGE_SKIP masked gates to the next labelled region and connect to it. Without
@@ -618,81 +622,102 @@ function dealiasSweepCore(radials, radar, seedProfile) {
         }
     }
 
-    // --- 3. dynamic network reduction: merge the heaviest boundary first, combining parallel edges. A
-    // binary max-heap orders merges by (current) weight; entries are lazily validated on pop (an entry
-    // is stale if either node died, or the live edge's weight or seq no longer matches). ---
-    // ⚠️⚠️ TIES ARE BROKEN EXACTLY LIKE PY-ART / tools/dealias_check.py: among equal weights, the edge whose LOWER
-    // region id is smallest, then the OLDEST edge (`seq`) — i.e. the first maximum a scan over regions in id order,
-    // neighbours in insertion order, would find. Weight-only ordering left ties to the heap's internal layout, and
-    // the merge is NOT order-insensitive: weak 1–3-gate links (far-range regions bridged across gaps by EDGE_SKIP)
-    // merged in a different order can land a whole sector a fold off. Measured 2026-10-11 on KCYS 2026-10-10 (a quiet
-    // 7–12 m/s day): byte-identical input and labels, and this heap put 42% of the 21:26 scan at +1 fold (a fake
-    // "-150 mph couplet") where the mirror and Py-ART keep 99% at 0; 6 of 11 frames that session over-unfolded. With the
-    // tie-break the heap reproduces the mirror region for region (verified in Python on the JS's own exported input).
-    const heap = []; // array of [weight, a, b, lowId, seq] with a = lowId < b
-    function heapBetter(x, y) { // x merges before y?
-        if (x[0] !== y[0]) return x[0] > y[0];
-        if (x[3] !== y[3]) return x[3] < y[3];
-        return x[4] < y[4];
-    }
-    function heapPush(a, b) {
-        const e = g[a].get(b), lo = a < b ? a : b, hi = a < b ? b : a;
-        heap.push([e[0], lo, hi, lo, e.seq]); let i = heap.length - 1;
-        while (i > 0) { const p = (i - 1) >> 1; if (!heapBetter(heap[i], heap[p])) break; const t = heap[p]; heap[p] = heap[i]; heap[i] = t; i = p; }
-    }
-    function heapPop() {
-        if (!heap.length) return null;
-        const top = heap[0], last = heap.pop();
-        if (heap.length) { heap[0] = last; let i = 0; const n = heap.length;
-            for (;;) { let l = 2 * i + 1, rr = l + 1, m = i;
-                if (l < n && heapBetter(heap[l], heap[m])) m = l;
-                if (rr < n && heapBetter(heap[rr], heap[m])) m = rr;
-                if (m === i) break; const t = heap[m]; heap[m] = heap[i]; heap[i] = t; i = m; } }
-        return top;
-    }
-    for (let a = 0; a < numReg; a++) g[a].forEach(function (e, b) { if (b > a) heapPush(a, b); });
+    // --- 3. relative folds: ONE weighted least-squares solve over the region graph (Jing & Wiener 1993) ---
+    // Each edge (lo, hi) asks x_hi − x_lo = round(d), d = its mean difference in folds, weighted by its gate
+    // count tapered by how far d sits from a whole fold (1 at a whole fold, DEALIAS_WMIN at a half fold). The
+    // region fold counts x minimise Σ w·(x_hi − x_lo − t)² — the weighted graph Laplacian, solved by Jacobi-
+    // preconditioned conjugate gradient with the largest region of each connected component held at 0.
+    // ⚠️ WHY NOT A GREEDY MERGE: merging the heaviest boundary first commits a fold per merge and never revisits it,
+    // so the ORDER decides the answer wherever weights tie (weak 1–3-gate links) or a half-fold boundary is merged
+    // early. Two tie orders put different whole sectors a fold off (KILX 2026-08-12 5.8% over 55 m/s in one, KCBX
+    // 2026-07-20 2.2% in the other), and on KCYS 2026-10-10 21:11 BOTH put ~7% of the sweep over 55 m/s. One solve
+    // has no order: every boundary votes at once, by its weight. Measured 2026-10-14 on 20 sweeps (corpus + 12
+    // sites, 4.35 M gates): those three come out clean, and every sweep has fewer gate-to-gate jumps over Nyquist
+    // than the greedy merge had (summed 27.3 vs 28.7 per mille). docs/velocity-dealias.md.
+    // Regions whose solved x sits more than DEALIAS_UNC from a whole number are re-solved once with every other
+    // region held at its rounded fold, so a borderline region follows its now-settled neighbours.
+    const ea = [], eb = [], ew = [], et = [];
+    for (let a = 0; a < numReg; a++) g[a].forEach(function (e, b) {
+        const d = e[1] / e[0], t = Math.round(d);
+        ea.push(a); eb.push(b); et.push(t);
+        ew.push(e[0] * (1 - (1 - DEALIAS_WMIN) * Math.min(1, 2 * Math.abs(d - t))));
+    });
+    const E = ea.length;
+    const deg = new Float64Array(numReg);
+    for (let i = 0; i < E; i++) { deg[ea[i]] += ew[i]; deg[eb[i]] += ew[i]; }
 
-    const alive = new Uint8Array(numReg).fill(1);
-    const size = Int32Array.from(regionCnt);
-    const unwrap = new Int32Array(numReg);            // fold count applied to each ORIGINAL region
-    const regionsIn = new Array(numReg);              // original regions currently inside each node
-    for (let i = 0; i < numReg; i++) regionsIn[i] = [i];
+    // Connected components (union-find), then hold each component's largest region (lowest id on a tie) at 0.
+    const parent = new Int32Array(numReg);
+    for (let i = 0; i < numReg; i++) parent[i] = i;
+    function root(x) { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
+    for (let i = 0; i < E; i++) {
+        const ra = root(ea[i]), rb = root(eb[i]);
+        if (ra !== rb) { if (ra < rb) parent[rb] = ra; else parent[ra] = rb; }
+    }
+    const pinOf = new Int32Array(numReg).fill(-1);
+    for (let i = 0; i < numReg; i++) {
+        const c = root(i), p = pinOf[c];
+        if (p < 0 || regionCnt[i] > regionCnt[p]) pinOf[c] = i;
+    }
+    const pinned = new Uint8Array(numReg);
+    for (let i = 0; i < numReg; i++) if (pinOf[i] >= 0) pinned[pinOf[i]] = 1;
 
-    function doUnwrap(node, nw) {
-        if (!nw) return;
-        const mem = regionsIn[node];
-        for (let i = 0; i < mem.length; i++) unwrap[mem[i]] += nw;
-        g[node].forEach(function (e, nb) { e[1] += e[0] * nw; e.mate[1] -= e[0] * nw; });
+    // Solve for the free regions with the `fixed` ones held at x0. Returns the full x.
+    let cgIters = '';
+    function solveFolds(fixed, x0) {
+        const rhs = new Float64Array(numReg);
+        for (let i = 0; i < E; i++) {
+            const a = ea[i], b = eb[i], w = ew[i], wt = w * et[i];
+            rhs[a] -= wt; rhs[b] += wt;
+            if (fixed[b]) rhs[a] += w * x0[b];
+            if (fixed[a]) rhs[b] += w * x0[a];
+        }
+        const x = new Float64Array(numReg), dinv = new Float64Array(numReg);
+        for (let i = 0; i < numReg; i++) {
+            if (fixed[i]) { rhs[i] = 0; continue; }
+            x[i] = x0[i];
+            if (deg[i] > 0) dinv[i] = 1 / deg[i];
+        }
+        function lap(p, y) { // y = L·p on the free regions (p is 0 on fixed ones)
+            for (let i = 0; i < numReg; i++) y[i] = deg[i] * p[i];
+            for (let i = 0; i < E; i++) { const a = ea[i], b = eb[i], w = ew[i]; y[a] -= w * p[b]; y[b] -= w * p[a]; }
+            for (let i = 0; i < numReg; i++) if (fixed[i]) y[i] = 0;
+        }
+        const r = new Float64Array(numReg), z = new Float64Array(numReg), p = new Float64Array(numReg), Ap = new Float64Array(numReg);
+        lap(x, Ap);
+        let rz = 0, rr = 0, bb = 0;
+        for (let i = 0; i < numReg; i++) { r[i] = rhs[i] - Ap[i]; z[i] = dinv[i] * r[i]; p[i] = z[i]; rz += r[i] * z[i]; rr += r[i] * r[i]; bb += rhs[i] * rhs[i]; }
+        const stop = DEALIAS_CG_TOL * (Math.sqrt(bb) || 1);
+        let it = 0;
+        while (it < DEALIAS_CG_MAXIT && Math.sqrt(rr) > stop) {
+            lap(p, Ap);
+            let pAp = 0;
+            for (let i = 0; i < numReg; i++) pAp += p[i] * Ap[i];
+            const alpha = rz / pAp;
+            let rz2 = 0; rr = 0;
+            for (let i = 0; i < numReg; i++) { x[i] += alpha * p[i]; r[i] -= alpha * Ap[i]; z[i] = dinv[i] * r[i]; rz2 += r[i] * z[i]; rr += r[i] * r[i]; }
+            const beta = rz2 / rz; rz = rz2;
+            for (let i = 0; i < numReg; i++) p[i] = z[i] + beta * p[i];
+            it++;
+        }
+        cgIters += (cgIters ? '+' : '') + it;
+        for (let i = 0; i < numReg; i++) if (fixed[i]) x[i] = x0[i];
+        return x;
     }
 
-    while (heap.length) {
-        const top = heapPop();
-        const w = top[0], a = top[1], b = top[2];
-        if (!alive[a] || !alive[b]) continue;
-        const e = g[a].get(b);
-        if (!e || e[0] !== w || e.seq !== top[4]) continue; // stale entry (weight changed by a combine, or edge re-made)
-        const rdiff = Math.round(e[1] / e[0]);
-        let base, mrg, nw;
-        if (size[a] >= size[b]) { base = a; mrg = b; nw = rdiff; }
-        else { base = b; mrg = a; nw = -rdiff; }
-        doUnwrap(mrg, nw);
-        // detach the base<->mrg edge, then fold mrg's other edges into base (combining parallels)
-        g[base].delete(mrg); g[mrg].delete(base);
-        g[mrg].forEach(function (e2, nb) {
-            g[nb].delete(mrg);
-            const be = g[base].get(nb);
-            if (be) { be[0] += e2[0]; be[1] += e2[1]; be.mate[0] += e2[0]; be.mate[1] -= e2[1]; heapPush(base, nb); } // keeps its seq
-            else {
-                const f = [e2[0], -e2[1]]; const ne = [e2[0], e2[1]];
-                ne.mate = f; f.mate = ne; ne.seq = f.seq = edgeSeq++; g[base].set(nb, ne); g[nb].set(base, f); heapPush(base, nb);
-            }
-        });
-        g[mrg] = new Map();
-        const bm = regionsIn[base], mm = regionsIn[mrg];
-        for (let i = 0; i < mm.length; i++) bm.push(mm[i]);
-        regionsIn[mrg] = null;
-        size[base] += size[mrg]; alive[mrg] = 0;
+    const unwrap = new Int32Array(numReg);            // fold count applied to each region
+    const x1 = solveFolds(pinned, new Float64Array(numReg));
+    const k = new Float64Array(numReg), settled = new Uint8Array(numReg);
+    let anyUnsettled = false;
+    for (let i = 0; i < numReg; i++) {
+        k[i] = Math.round(x1[i]);
+        if (Math.abs(x1[i] - k[i]) > DEALIAS_UNC) anyUnsettled = true; else settled[i] = 1;
     }
+    if (anyUnsettled) {
+        const x2 = solveFolds(settled, k);
+        for (let i = 0; i < numReg; i++) k[i] = Math.round(x2[i]);
+    }
+    for (let i = 0; i < numReg; i++) unwrap[i] = k[i];
 
     // --- 4. center: choose the ABSOLUTE fold anchor (steps 1-3's relative folds are untouched) ---
     // ⚠️ Mirror any change here in tools/dealias_check.py (dealias_v2), then re-run --selftest + the
@@ -758,7 +783,7 @@ function dealiasSweepCore(radials, radar, seedProfile) {
     _dealiasInfo = numReg + 'reg splits' + INTERVAL_SPLITS +
         ' v[' + (isFinite(vmin) ? Math.round(vmin) : '?') + ',' +
         (isFinite(vmax) ? Math.round(vmax) : '?') + '] hi=' + hi + '/' + tot +
-        (seedShift !== null ? ' seed=' + seedShift : '');
+        (seedShift !== null ? ' seed=' + seedShift : '') + ' cg=' + cgIters;
     return out;
 }
 
