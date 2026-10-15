@@ -82,8 +82,11 @@ namespace Anvil
 					path: logPath,
 					outputTemplate: template,
 					rollingInterval: RollingInterval.Day,
-					retainedFileCountLimit: 7,
-					fileSizeLimitBytes: 10 * 1024 * 1024))
+					// ~90 days (a day runs 0.2-1 MB): crash and renderer-death lines stay readable over a long stretch.
+					// rollOnFileSizeLimit: past 10 MB a day continues in a new file instead of silently stopping.
+					retainedFileCountLimit: 90,
+					fileSizeLimitBytes: 10 * 1024 * 1024,
+					rollOnFileSizeLimit: true))
 				.CreateLogger();
 		}
 

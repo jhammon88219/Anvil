@@ -18,9 +18,11 @@ namespace Anvil.Services
 	/// (vm / svc / js) and correlated by a per-click load-session id.
 	///
 	/// Two artifacts per app run, written to a package-local <c>Diagnostics/</c> folder and named by
-	/// launch time (NEVER auto-deleted or truncated — the developer prunes them):
+	/// launch time (kept ~6 months under a size cap — <c>Level2RadarService.TrimDiagnostics</c>):
 	///   • <c>radar-diag-&lt;stamp&gt;.jsonl</c> — append-only, one JSON object per event. The
-	///     machine-readable source of truth; crash-safe (a torn last line loses only that line).
+	///     machine-readable source of truth; crash-safe (a torn last line loses only that line). A run
+	///     that crosses local midnight continues in <c>radar-diag-&lt;stamp&gt;-d&lt;yyyyMMdd&gt;.jsonl</c>
+	///     (first line <c>run.day</c>), so a session left up for weeks can still age out a day at a time.
 	///   • <c>radar-report-&lt;stamp&gt;.md</c> — a derived rolling summary (load timings, frame
 	///     quality table, poll cadence, data-latency + decode aggregates, the anomaly list),
 	///     regenerated on a timer and at shutdown for a human glance.
@@ -39,6 +41,8 @@ namespace Anvil.Services
 		private static bool _started;
 		private static string? _jsonlPath;
 		private static string? _reportPath;
+		private static string? _diagDir;
+		private static DateTime _jsonlDay;   // local date the current JSONL file covers (daily roll)
 		// Set by WriteLine whenever an event is recorded, cleared by WriteReport once the .md is rebuilt.
 		// Guarded by Gate like everything else here. Starts true so the first render always happens.
 		private static bool _reportDirty = true;
@@ -72,6 +76,8 @@ namespace Anvil.Services
 					_jsonlPath = Path.Combine(diagDir, $"radar-diag-{_stamp}.jsonl");
 					_reportPath = Path.Combine(diagDir, $"radar-report-{_stamp}.md");
 					_suspectDir = Path.Combine(diagDir, "_suspect", _stamp);
+					_diagDir = diagDir;
+					_jsonlDay = LaunchTime.LocalDateTime.Date;
 					File.WriteAllText(_jsonlPath,
 						$"{{\"ts\":\"{LaunchTime:O}\",\"seq\":0,\"sub\":\"app\",\"cat\":\"run.start\",\"stamp\":\"{_stamp}\"}}\n");
 				}
@@ -431,6 +437,18 @@ namespace Anvil.Services
 			}
 		}
 
+		/// <summary>This run's launch stamp (names its report and <c>_suspect/</c> folder); empty before Init.</summary>
+		public static string CurrentStamp
+		{
+			get { lock (Gate) { return _stamp; } }
+		}
+
+		/// <summary>File name of the JSONL being written now (null when the sink is off) — the trim keeps it.</summary>
+		public static string? CurrentJsonlName
+		{
+			get { lock (Gate) { return _jsonlPath is null ? null : Path.GetFileName(_jsonlPath); } }
+		}
+
 		/// <summary>Writes any queued JSONL lines to disk (no-op when the sink is off).</summary>
 		public static void Flush()
 		{
@@ -438,6 +456,17 @@ namespace Anvil.Services
 			lock (Gate)
 			{
 				if (_jsonlPath is null || Pending.Length == 0) return;
+				// Daily roll: the first flush after local midnight starts the next day's file. The few lines
+				// queued just before midnight land in the new file too; their ts says which day they belong to.
+				var today = DateTime.Now.Date;
+				if (today != _jsonlDay && _diagDir is not null)
+				{
+					_jsonlDay = today;
+					_jsonlPath = Path.Combine(_diagDir,
+						$"radar-diag-{_stamp}-d{today.ToString("yyyyMMdd", CultureInfo.InvariantCulture)}.jsonl");
+					Pending.Insert(0,
+						$"{{\"ts\":\"{DateTimeOffset.Now:O}\",\"seq\":{Interlocked.Increment(ref _seq)},\"sub\":\"app\",\"cat\":\"run.day\",\"stamp\":\"{_stamp}\"}}\n");
+				}
 				path = _jsonlPath;
 				text = Pending.ToString();
 				Pending.Clear();

@@ -611,8 +611,8 @@ namespace Anvil
 			mapService.Attach(this);
 
 			// Start the dedicated radar diagnostics for this run: a per-launch JSONL event stream +
-			// a derived markdown report under a package-local Diagnostics/ folder (never auto-deleted;
-			// see RadarDiagnostics). This is the primary tool for chasing intermittent radar issues.
+			// a derived markdown report under a package-local Diagnostics/ folder (kept ~6 months under a
+			// size cap; see RadarDiagnostics). This is the primary tool for chasing intermittent radar issues.
 			Services.RadarDiagnostics.Init(
 				System.IO.Path.Combine(_radarService.CacheDirectory, "Diagnostics"));
 

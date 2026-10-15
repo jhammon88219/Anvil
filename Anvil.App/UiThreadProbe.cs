@@ -191,9 +191,10 @@ namespace Anvil
 				var lastGc = GC.GetGCMemoryInfo(GCKind.Any);
 				var gcNew = lastGc.Index != _gcLastIndex;
 
-				// A loop that is up refreshes its readout every second, so every such second is logged (playback included).
+				// A loop that is up refreshes its readout every second; only a readout second that COST something counts
+				// as busy (logging every one wrote ~50,000 lines over an idle overnight loop — 77% of a 38 MB file).
 				// A feed refresh is logged too, so a fix that takes its cost to ~0 still shows the refresh it measured.
-				var busy = lateMax >= 40 || msgMs >= 20 || syncMs >= 5 || jobsPeak > 0 || svcHops > 0 || readouts > 0 || feedBy is not null || scrubs > 0 || gz.Volumes > 0 || gz.Checks > 0
+				var busy = lateMax >= 40 || msgMs >= 20 || syncMs >= 5 || jobsPeak > 0 || svcHops > 0 || readoutMs >= 5 || feedBy is not null || scrubs > 0 || gz.Volumes > 0 || gz.Checks > 0
 					|| gc2 > _gc2 || gcPauseMs >= 20;
 				if (!busy && ++_windowNo % BaselineEvery != 0) return;
 				int dGc0 = gc0 - _gc0, dGc1 = gc1 - _gc1, dGc2 = gc2 - _gc2;

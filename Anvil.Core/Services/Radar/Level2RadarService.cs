@@ -48,10 +48,11 @@ namespace Anvil.Services
 		// before any loop loads so the sweep can never delete a volume an active loop still needs.
 		// NOTE: the SIZE cap is now the user-facing persisted setting AppSettings.RadarCacheMaxGb (App
 		// Settings → Storage), read via SizeCapBytes below; DefaultCacheMaxGb is only the fallback when
-		// that value is unset/invalid. Age + diagnostics-keep stay code-level knobs.
+		// that value is unset/invalid. Age + diagnostics retention stay code-level knobs.
 		private static readonly TimeSpan CacheMaxAge = TimeSpan.FromDays(5);   // delete volumes older than this
 		private const int DefaultCacheMaxGb = 5;                              // size-cap fallback (see RadarCacheMaxGb)
-		private const int DiagnosticsKeepRuns = 15;                            // keep this many newest diagnostics runs
+		private static readonly TimeSpan DiagnosticsMaxAge = TimeSpan.FromDays(180); // diagnostics files kept this long ...
+		private const long DiagnosticsMaxBytes = 2L * 1024 * 1024 * 1024;            // ... unless the folder passes this
 
 		// The active size cap in bytes = the persisted setting, or the fallback when it's unset/nonsensical.
 		private long SizeCapBytes
@@ -2187,7 +2188,7 @@ namespace Anvil.Services
 		// Bounds the ENTIRE cache folder at startup, independent of which site is loaded — the counterpart
 		// to the per-site PruneCache, which only trims the active site (so idle sites' volumes otherwise
 		// accumulate forever). Best-effort + off the ctor thread: a failure here must never affect startup
-		// or radar loading. Tune via CacheMaxAge / DiagnosticsKeepRuns (top of class) + the user-facing size
+		// or radar loading. Tune via CacheMaxAge / DiagnosticsMaxAge / DiagnosticsMaxBytes (top of class) + the user-facing size
 		// cap AppSettings.RadarCacheMaxGb (read through SizeCapBytes).
 		// ⚠️ THE SIZE CAP USED TO BE ENFORCED ONLY AT LAUNCH, so a long session blew straight past the user's
 		// RadarCacheMaxGb and stayed there until the next restart (measured 2026-09-08: 6.3 GB against a 5 GB
@@ -2214,6 +2215,9 @@ namespace Anvil.Services
 			{
 				try { SweepVolumeCache(SizeCapBytes, SweepProtectWindow); }
 				catch (Exception ex) { _logger.LogWarning(ex, "Periodic cache sweep failed"); }
+				// A session left up for weeks writes a diagnostics file per day; trim those here too, not only at launch.
+				try { TrimDiagnostics(); }
+				catch (Exception ex) { _logger.LogWarning(ex, "Diagnostics trim failed"); }
 			});
 		}
 
@@ -2361,50 +2365,72 @@ namespace Anvil.Services
 			catch (Exception ex) { _logger.LogWarning(ex, "Clear cache failed"); }
 		}, cancellationToken);
 
-		// Keeps only the newest DiagnosticsKeepRuns diagnostics "runs". A run is identified by its launch
-		// stamp (yyyyMMdd-HHmmss, lexically chronological) shared across radar-diag-<stamp>.jsonl,
-		// radar-report-<stamp>.md and _suspect/<stamp>/ (see RadarDiagnostics). The current run is always the
-		// newest stamp, so it's never touched. _suspect/ subdirs are the bulk of the diagnostics footprint.
+		// Keeps the diagnostics folder to DiagnosticsMaxAge, and under DiagnosticsMaxBytes, oldest first. Items are the
+		// radar-diag-*.jsonl files (one per run, plus one per extra day a run stays up), radar-report-*.md and the
+		// _suspect/<stamp>/ folders (quarantined .V06 copies — the bulk of the bytes). Age = last write, so a run's
+		// files age out together. A count limit used to live here (newest 15 runs): a development day launches more
+		// than that, so it kept about one day — too little to read months of engine behaviour from.
+		// Never touched: the JSONL being written now, this run's report and its _suspect folder.
 		private void TrimDiagnostics()
 		{
-			var diagDir = Path.Combine(CacheDirectory, "Diagnostics");
-			if (!Directory.Exists(diagDir)) return;
+			var (removed, total) = TrimDiagnosticsFolder(Path.Combine(CacheDirectory, "Diagnostics"),
+				RadarDiagnostics.CurrentStamp, RadarDiagnostics.CurrentJsonlName,
+				DiagnosticsMaxAge, DiagnosticsMaxBytes, DateTime.UtcNow);
+			if (removed > 0)
+				_logger.LogInformation("Diagnostics trim: removed {Removed} old item(s); folder now {Mb} MB", removed, total / 1048576);
+		}
 
-			// Union of stamps across both the diag files and any _suspect subdirs (a suspect dir can outlive a
-			// manually-deleted diag file, so gather from both to sweep orphans too).
-			var stamps = new HashSet<string>(StringComparer.Ordinal);
-			foreach (var f in Directory.EnumerateFiles(diagDir, "radar-diag-*.jsonl"))
+		/// <summary>The trim itself, on any folder (tests run it on a temp one). Returns items removed and the bytes left.</summary>
+		internal static (int Removed, long Bytes) TrimDiagnosticsFolder(
+			string diagDir, string stamp, string? liveLog, TimeSpan maxAge, long maxBytes, DateTime nowUtc)
+		{
+			if (!Directory.Exists(diagDir)) return (0, 0);
+			var items = new List<(string Path, bool IsDir, DateTime WrittenUtc, long Bytes)>();
+			long total = 0;
+			foreach (var f in Directory.EnumerateFiles(diagDir))
 			{
-				var name = Path.GetFileNameWithoutExtension(f); // radar-diag-<stamp>
-				stamps.Add(name.Substring("radar-diag-".Length));
+				var name = Path.GetFileName(f);
+				if (!name.StartsWith("radar-diag-", StringComparison.Ordinal)
+					&& !name.StartsWith("radar-report-", StringComparison.Ordinal)) continue;
+				var fi = new FileInfo(f);
+				total += fi.Length;
+				if (name == liveLog || (stamp.Length > 0 && name == $"radar-report-{stamp}.md")) continue;
+				items.Add((f, false, fi.LastWriteTimeUtc, fi.Length));
 			}
 			var suspectRoot = Path.Combine(diagDir, "_suspect");
 			if (Directory.Exists(suspectRoot))
 			{
 				foreach (var d in Directory.EnumerateDirectories(suspectRoot))
-					stamps.Add(Path.GetFileName(d));
+				{
+					long bytes = 0;
+					var written = Directory.GetLastWriteTimeUtc(d);
+					foreach (var f in Directory.EnumerateFiles(d, "*", SearchOption.AllDirectories))
+					{
+						var fi = new FileInfo(f);
+						bytes += fi.Length;
+						if (fi.LastWriteTimeUtc > written) written = fi.LastWriteTimeUtc;
+					}
+					total += bytes;
+					if (stamp.Length > 0 && Path.GetFileName(d) == stamp) continue;
+					items.Add((d, true, written, bytes));
+				}
 			}
 
-			if (stamps.Count <= DiagnosticsKeepRuns) return;
-
+			var cutoff = nowUtc - maxAge;
 			int removed = 0;
-			foreach (var stamp in stamps.OrderByDescending(s => s, StringComparer.Ordinal).Skip(DiagnosticsKeepRuns))
+			foreach (var it in items.OrderBy(i => i.WrittenUtc))
 			{
-				TryDeleteFile(Path.Combine(diagDir, $"radar-diag-{stamp}.jsonl"));
-				TryDeleteFile(Path.Combine(diagDir, $"radar-report-{stamp}.md"));
-				var suspectDir = Path.Combine(suspectRoot, stamp);
-				try { if (Directory.Exists(suspectDir)) Directory.Delete(suspectDir, recursive: true); }
-				catch { /* best effort */ }
-				removed++;
+				if (it.WrittenUtc >= cutoff && total <= maxBytes) break;
+				try
+				{
+					if (it.IsDir) Directory.Delete(it.Path, recursive: true);
+					else File.Delete(it.Path);
+					total -= it.Bytes;
+					removed++;
+				}
+				catch { /* best effort; a locked file is retried next trim */ }
 			}
-			if (removed > 0)
-				_logger.LogInformation("Diagnostics trim: removed {Removed} old run(s), kept newest {Keep}", removed, DiagnosticsKeepRuns);
-		}
-
-		private static void TryDeleteFile(string path)
-		{
-			try { if (File.Exists(path)) File.Delete(path); }
-			catch { /* best effort */ }
+			return (removed, total);
 		}
 
 		// A real Level II volume is several MB (even a small clear-air one is ~1 MB+). A "_V06" far below this
