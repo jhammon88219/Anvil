@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TemporalWindowForeCastContent — the CONTENT of the ForeCast window: the SPC outlook (card + day / product / opacity) with
+     its legend, plus NowCast's GHOST rows around it. One of three mode Contents (see Controls/TemporalWindows/TemporalWindow,
+     registered once per mode); the window supplies the surface, the title and the pin, so this is content only.
+     Named as the tree reads (TemporalWindow → TemporalWindowForeCastContent). Bound to the coordinator
+     MapViewModel; every real control here drives ViewModel.Outlook.
+
+       ┌──┐ ForeCast                    │ MDT 4/5                  ← THE NAME ROW (Past/Now's, matched): square =
+       │██│ Day 1 · Wed Sep 2           │ next ~9 min                the HIGHEST category in the shown outlook, in
+       └──┘                                                          its SPC colour (blue = no areas); readout =
+                                                                     that category + the refresh countdown
+       [x] Show NowCast ghost rows                               ← persisted, default off; fixed (doesn't scroll)
+       ┌──────────────────────────────────────────────────────┐
+       │ ⠿   ░░ ░Storm cells · NowCast░░░░░░░░░░░░░░░░░░░░░░░ │  ← GHOSTS (DragMoveLayerExpander IsGhost): NowCast's
+       │ ⠿   ░░ ░Warnings · NowCast░░░░░░░░░░░░░░░░░░░░░░░░░░ │     layers, 25%, drag-only — only while the
+       │ …                                                    │     box is on AND NowCast runs. ONE shared
+       │ ⠿ ⌄ [x] SPC outlook  ────────●──────   55%           │     Now + Fore order: a drag here moves
+       │                                                      │     NowCast's window too, and vice versa
+       │  ┌──────────────────────────────────────────┐        │
+       │  │ Day 1 · Categorical                      │        │  the card: which outlook is
+       │  │ Issued 12:57 PM · Valid → Wed 7:00 AM    │        │  drawn, when SPC issued it,
+       │  │ Next ~9 min                              │        │  and the refresh countdown
+       │  └──────────────────────────────────────────┘        │
+       │  Day      [Day 1 · Wed Sep 2          ▾]             │  ← self-labeling; cascades Product
+       │  Product  [Categorical       ▾] [Discussion.]        │  ← opens the Outlook Discussion WINDOW
+       │  Cycle    [Latest                     ▾]             │  ← Latest | today's earlier issuances (HELD)
+       │  ────────────────────────────────────────────────    │
+       │   ■ 2%              Intensity hatching   [✓] Show    │  ← the LEGEND (Primitives/OutlookLegend):
+       │   ■ 5%              ╲ CIG1             In Outlook    │     LAST in the section body, so it goes
+       │   ■ 10%             ╱ CIG2             In Outlook    │     with the section when collapsed; also
+       │   ■ 15%             ╳ CIG3         Not In Outlook    │     hidden when HasLegend is false (None).
+       │                                                      │  ← colours | hatching, two equal halves; the
+       │                                                      │     hatching half only when the product has
+       │                                                      │     intensity groups (status from the CACHED GeoJSON)
+       └──────────────────────────────────────────────────────┘
+       │ ⠿   ░░ ░Radar · NowCast░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │  ← ghost (default spot: under the outlook)
+       └──────────────────────────────────────────────────────┘
+                                                             ┃  ← all of the above sits in PanelScroller: a 16 px
+                                                                gutter always claimed, thumb ┃ only on overflow
+
+     ONE REAL SECTION, a TemporalWindows/DragMoveLayerExpander (every temporal window's map-layer section). SPC outlook
+     is open on a first run — it is what the window is for. Open/closed is then PERSISTED ("fore/..." in
+     AppSettings.SectionExpanded; ghosts don't persist — they have no body), and so are Day, Product, opacity
+     and hatching (ViewModels/Map/TemporalWindowPersistence). Inside it: a summary CARD, then [label | control]
+     rows in one aligned 60px column, then the legend.
+     ⚠️ The window opens at a FIXED full height, so the layer run SCROLLS inside Primitives/PanelScroller
+     (2026-09-30, the same scroller as Past/Now). WinUI's bar is not wanted — see the PanelScroller header.
+     ⚠️ THE DISCUSSION IS A WINDOW NOW (Windows/OutlookDiscussionWindow, the Product row's "Discussion."). It
+     was an inline collapsed section pinned at the bottom of this body until 2026-10-01 (the user's call).
+
+     ⚠️ THE OUTLOOK HEADER'S BOX IS A LAYER SHOW/HIDE (OutlookViewModel.IsShown), NOT the mode. The mode is
+     OutlookViewModel.IsOutlookVisible (MapViewModel.IsForeCast projects onto it), and a tab body never arms
+     or clears its own mode — see the last ⚠️ in this header. The box sits UNDER the mode, exactly as
+     PastCast's outlook box does.
+     ⚠️ GHOST ROWS: ForeCast has no layer order of its own — its outlook lives in the SHARED Now + Fore order
+     (MapViewModel's GHOST ROWS block; saved as NowCastLayerOrder). The ghosts are NowCast's layers in the map's
+     default spots (LayerOrder.Default); a drag here saves the Now order and the NowCast window follows
+     (LayerOrderChanged). A ghost's box mirrors the real show/hide, inert.
+
+     ⚠️ THE CARD COSTS NO VIEW-MODEL WORK. Its three lines are OutlookViewModel state that was already
+     being computed and shown nowhere — the title, the issued/valid line, and the refresh countdown. See
+     the card region in that class.
+
+     ⚠️ THE LEGEND LIVES INSIDE THE OUTLOOK SECTION, last, exactly as in PastCast (both host the shared
+     Primitives/OutlookLegend). It used to be its own star row outside the section; the user's call
+     (2026-09-28) was one shape for both windows, so collapsing the section now takes the legend with it.
+     The Day row is the same ComboBox in both windows too.
+
+     ⚠️ THERE IS DELIBERATELY NO REAL RADAR SECTION HERE, unlike Past and Now (the radar row is a GHOST,
+     inert). Radar opacity is a GLOBAL value, and those two windows can only get away with sharing a control
+     for it because their modes are mutually exclusive. ForeCast COEXISTS with NowCast, so a live slider here
+     would be a second control writing the same value with both windows on screen.
+
+     ⚠️ Opacity is DISABLED while Product is None or the box hides it (ShownOnMap) — the same rule the
+     PastCast outlook and the storm-report dots follow.
+
+     ⚠️ This tab does NOT turn ForeCast on or off; that is the ForeCast key in the bottom bar's centre
+     cluster. A tab body configures a mode, the key runs it. -->
+<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowForeCastContent"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:conv="using:Anvil.Converters"
+             xmlns:local="using:Anvil.Controls.Composites"
+             xmlns:models="using:Anvil.Models"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:layout="using:Anvil.Layout"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:HexToBrushConverter x:Key="HexToBrush"/>
+    </UserControl.Resources>
+
+    <!-- ⚠️ NOT top-aligned, unlike the Past/Now roots: TemporalWindow hands this the full window height, and
+         the star row is the SCROLLER, which fills it. -->
+    <Grid x:Name="Root">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- THE NAME ROW: square · ForeCast over the day │ highest risk -->
+            <RowDefinition Height="Auto"/> <!-- "Show NowCast ghost rows" -->
+            <RowDefinition Height="*"/>    <!-- the layer run in PanelScroller: fills the space, scrolls when it can't -->
+        </Grid.RowDefinitions>
+
+        <!-- ===================== THE NAME ROW: TemporalWindows/TemporalWindowHeader (one control, all three windows) =====================
+             The window's chrome carries no title any more (TemporalWindow); the name shows once, here. The header
+             owns its height.
+             ⚠️ THE SQUARE = the HIGHEST category the shown outlook contains, in its SPC colour (DATA, never themed —
+             the feed's own fill, else the catalog's), as NowCast's square is the warnings feed's staleness. No areas
+             / nothing shown = PastCast's blue (OutlookViewModel.NoAreasFill). Its tooltip names the category.
+             ⚠️ Margin LEFT 0 / RIGHT 4 = the section stack's edges — PastCast's + NowCast's rule; change together.
+             No TemporalHeaderMinHeight: there are no tiles or card under it to line up. -->
+        <tw:TemporalWindowHeader x:Name="TemporalWindowHeader" Grid.Row="0" Margin="0,12,4,12"
+                                   Title="ForeCast"
+                                   StatusFill="{x:Bind ViewModel.Outlook.HeaderSquareFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
+                                   StatusToolTip="{x:Bind ViewModel.Outlook.HeaderSquareTip, Mode=OneWay}"
+                                   Subtitle="{x:Bind ViewModel.Outlook.HeaderDayText, Mode=OneWay}">
+            <tw:TemporalWindowHeaderForeCastReadout x:Name="TemporalWindowHeaderForeCastReadout"
+                                                       ViewModel="{x:Bind ViewModel.Outlook, Mode=OneWay}"/>
+        </tw:TemporalWindowHeader>
+
+        <!-- GHOST ROWS box: NowCast's layers as dimmed, drag-only rows around the outlook, so you can say where the
+             outlook draws among them (ONE shared Now + Fore order). Persisted, default off; the rows show only
+             while NowCast runs too (MapViewModel's GHOST ROWS block). -->
+        <CheckBox x:Name="ShowNowCastGhostRowsCheckBox" Grid.Row="1" Margin="0,0,0,8" Content="Show NowCast ghost rows"
+                  IsChecked="{x:Bind ViewModel.ShowNowCastGhostRows, Mode=TwoWay}"
+                  ToolTipService.ToolTip="List NowCast's layers here, dimmed, so you can drag the outlook among them (shown while NowCast is on)"/>
+
+        <!-- ===================== THE LAYER RUN: one contiguous block of layer sections ===================== -->
+        <!-- ⚠️ In Primitives/PanelScroller, like Past/Now's sections — present whether or not the outlook overflows
+             yet (the user's call, 2026-09-30): the gutter is always claimed, the thumb only draws on overflow.
+             Margin right -12 BLEEDS the gutter into the window's 16 px body margin (the PanelScroller header).
+             ⚠️ A TemporalWindows/DragMoveLayerExpanderHost of its own (like Past/Now's): the outlook + NowCast's ghost
+             rows. With the ghosts hidden the outlook is alone, so its grip shows but a drag never starts
+             (the host needs 2 visible). Reordered → SetLayerOrder(Now): the shared Now + Fore order. -->
+        <prim:PanelScroller Grid.Row="2" Margin="0,0,-12,0">
+        <tw:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" VerticalAlignment="Top" Spacing="8" Reordered="OnLayersReordered">
+
+        <!-- ===================== GHOSTS: NowCast's layers, in the map's default spots ===================== -->
+        <!-- Drag-only (IsGhost); boxes mirror the real show/hides, inert. Collapsed = still in the run, so the
+             saved order keeps their places. The XAML order IS the map default (LayerOrder.Default). -->
+        <tw:DragMoveLayerExpander Header="Storm cells · NowCast" LayerId="cells"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.StormCells.AllShown, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
+        <tw:DragMoveLayerExpander Header="Storm reports · NowCast" LayerId="reports"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.StormReports.AllShown, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
+        <tw:DragMoveLayerExpander Header="Warnings · NowCast" LayerId="warnings"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Warnings.AllShown, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
+        <tw:DragMoveLayerExpander Header="Watches · NowCast" LayerId="watches"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Watches.AllShown, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
+        <tw:DragMoveLayerExpander Header="Mesoscale discussions · NowCast" LayerId="mds"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Discussions.AllShown, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
+
+        <!-- ===================== SPC OUTLOOK: the card, then the selectors ===================== -->
+        <!-- LayerId → the grip. The header box is SHOW/HIDE (Outlook.IsShown, persisted) — NOT the mode, which
+             is the bottom bar's ForeCast key; hiding keeps Day / Product. Works whatever the product, None
+             included (PastCast's rule). Opacity greys while hidden or None: nothing drawn to fade. -->
+        <tw:DragMoveLayerExpander x:Name="OutlookSection" Header="SPC outlook" LayerId="outlook" IsExpanded="True"
+                          
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Outlook.IsShown, Mode=OneWay}"
+                           CheckBoxClick="OnOutlookHeaderClick"
+                           CheckBoxToolTip="Show or hide the outlook (keeps the day and product you picked)"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.Outlook.OutlookOpacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.Outlook.ShownOnMap, Mode=OneWay}"
+                           OpacityToolTip="Outlook fill opacity (outlines stay solid)">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- the card -->
+                    <RowDefinition Height="Auto"/> <!-- rule -->
+                    <RowDefinition Height="Auto"/> <!-- the selectors -->
+                    <RowDefinition Height="Auto"/> <!-- the legend: last, so a collapsed section takes it along -->
+                </Grid.RowDefinitions>
+
+                <!-- THE CARD, the same shape as the PastCast outlook's and for the same reason: it is a
+                     RESULT, not a preview — there is no Load here, the outlook applies the moment you pick it,
+                     so it describes what is on the map right now. That is also why it carries no button. -->
+                <Border Grid.Row="0" CornerRadius="8" Padding="13,12"
+                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                        BorderThickness="1"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+                    <StackPanel>
+                        <TextBlock Text="{x:Bind ViewModel.Outlook.CardHeadline, Mode=OneWay}"
+                                   FontSize="15"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.Outlook.CardContext, Mode=OneWay}"
+                                   FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Visibility="{x:Bind HasText(ViewModel.Outlook.CardContext), Mode=OneWay}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.Outlook.CardFooter, Mode=OneWay}"
+                                   FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Visibility="{x:Bind HasText(ViewModel.Outlook.CardFooter), Mode=OneWay}"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="1" Height="1" Margin="0,14"
+                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+                <Grid Grid.Row="2" ColumnSpacing="12" RowSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Day -->
+                        <RowDefinition Height="Auto"/> <!-- Product -->
+                        <RowDefinition Height="Auto"/> <!-- Cycle -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Day: self-labeling ("Day 1 · Sat Jun 14"); changing it cascades the product list.
+                         ⚠️ A ComboBox in BOTH windows (PastCast's Day row matches): the live outlook runs to
+                         EIGHT days (d4-8 are the extended probabilistic), well past what a SegmentedPicker
+                         suits, and one control keeps the two sections identical. -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Day" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                              ItemsSource="{x:Bind ViewModel.Outlook.Days}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{x:Bind ViewModel.Outlook.SelectedDayOption, Mode=TwoWay}"
+                              ToolTipService.ToolTip="SPC outlook day"/>
+
+                    <!-- Product: the day's outlook types (+ None). The list CASCADES with the day, so it stays
+                         a dropdown — its length changes. -->
+                    <!-- …and SHARES its row with "Discussion.", which opens the Outlook Discussion window (no row
+                         of its own — the user's call, 2026-10-01; PastCast's Product row matches). -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox HorizontalAlignment="Stretch"
+                                  ItemsSource="{x:Bind ViewModel.Outlook.ProductOptions, Mode=OneWay}"
+                                  DisplayMemberPath="Label"
+                                  SelectedItem="{x:Bind ViewModel.Outlook.SelectedOption, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Outlook product (None clears the overlay)"/>
+                        <Button Grid.Column="1" Content="Discussion."
+                                IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}"
+                                Click="OnDiscussionClick"
+                                ToolTipService.ToolTip="Read SPC's forecast discussion for this outlook in its own window"/>
+                    </Grid>
+
+                    <!-- Cycle: the SAME row as PastCast's (the user's call, 2026-09-30: both outlook sections laid
+                         out exactly alike). Latest = the live feed, following every new issuance; an earlier one of
+                         today's is fetched from IEM and HELD. Not persisted (see OutlookViewModel). Disabled while
+                         None, or when the day has nothing earlier to pick (days 4-8, or before the first issuance). -->
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Cycle" Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
+                              IsEnabled="{x:Bind ViewModel.Outlook.CanPickCycle, Mode=OneWay}"
+                              ItemsSource="{x:Bind ViewModel.Outlook.CycleOptions, Mode=OneWay}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{x:Bind ViewModel.Outlook.SelectedCycleOption, Mode=TwoWay}"
+                              ToolTipService.ToolTip="SPC issuance (UTC); Latest follows each new one, an earlier one stays put"/>
+                </Grid>
+
+                <!-- THE LEGEND: last in the body. Hides on HasLegend (None, or the layer off); the section's
+                     own collapse hides it with everything else. -->
+                <prim:OutlookLegend Grid.Row="3"
+                                    Visibility="{x:Bind ViewModel.Outlook.HasLegend, Converter={StaticResource BoolToVis}, Mode=OneWay}"
+                                    Entries="{x:Bind ViewModel.Outlook.LegendEntries, Mode=OneWay}"
+                                    HatchRows="{x:Bind ViewModel.Outlook.HatchLegendRows, Mode=OneWay}"
+                                    ShowHatching="{x:Bind ViewModel.Outlook.ShowHatching, Mode=TwoWay}"/>
+            </Grid>
+        </tw:DragMoveLayerExpander>
+
+        <tw:DragMoveLayerExpander Header="Radar · NowCast" LayerId="radar"
+                           IsGhost="True" ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
+        </tw:DragMoveLayerExpanderHost>
+        </prim:PanelScroller>
+        <!-- (The inline "Forecast discussion" section that sat pinned below here is GONE — SPC's discussion
+             moved to its own window, the Outlook Discussion window, opened by the Product row's "Discussion."
+             button. The user's call, 2026-10-01.) -->
+    </Grid>
+</UserControl>

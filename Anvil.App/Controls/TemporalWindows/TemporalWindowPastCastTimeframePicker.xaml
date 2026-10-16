@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TemporalWindowPastCastTimeframePicker — the PastCast pickers + their two buttons, ONE GRID (the user's call,
+     2026-10-01): the pickers end where Set Timeframe ends, and CLEAR has its own column with nothing above it.
+     Bound to the coordinator MapViewModel (the pickers drive ViewModel.Radar).
+
+       Date            Start Time        Window
+       [ Tue May 24 ]  [ 5:00 PM    ]    [ 2 h ▾ ]
+       [        Set Timeframe         ]  [ Clear ]
+         ↑ once loaded: "28 frames loaded · KTLX" in the button (its THIRD face); an ERROR rides in it red
+
+     ⚠️ LABELS ABOVE, NO LABEL COLUMN (2026-10-02): Date | Start Time | Window in ONE row — Window in CLEAR's column,
+     so its right edge is Clear's (and the decision card's Atlas door's): 84 wide, right margin 14. Change together.
+     ⚠️ LOCKED (disabled + dimmed) while a window is loaded: Clear is the way to change it. The dim is on each label +
+     picker (PickerOpacity), NOT the grid, so the buttons in it stay full strength. An ERROR unlocks them.
+     ⚠️ ONE date (Primitives/DateButtonPicker — commits only on its Set). Its Date is a FACADE over the year/month/day
+     indices (see PastEventDate). Min/MaxDate are REQUIRED: they bound the year grid to the archive's range. EVERY
+     date bound here comes from RadarViewModel.LocalMidnight — the facade once STACK-OVERFLOWED against a picker that
+     read another frame; don't hand this a UTC-framed date.
+     ⚠️ Start Time = Primitives/TimeButtonPicker, bound STRAIGHT to the TimeSpan PastEventTime.
+     ⚠️ Window = a ComboBox "for now" (2026-10-02). A ComboBox steps on the mouse wheel; here a step only marks the
+     selection dirty — nothing loads until Set Timeframe.
+     ⚠️ Set Timeframe keeps Load's rules: accent while pressing it would DO something, greyed once loaded and still
+     matching (the archive day is immutable). Clear is live only while something is loaded
+     (MapViewModel.ClearPastCastTimeframe).
+     ⚠️ AN ERROR RIDES IN SET TIMEFRAME (2026-10-01): two lines, red via ReplayErrorStates (theme brushes in STATES,
+     never C# — Application resources resolve the OS theme, not the pinned app theme). It stays clickable — a click
+     retries — and changing any picker clears it. The listener in code-behind exists ONLY to drive that state. -->
+
+<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowPastCastTimeframePicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             IsTabStop="False">
+
+    <!-- ⚠️ The VisualStateManager groups live on THIS root (the first element of the UserControl's content) —
+         GoToState looks for them here. -->
+    <Grid ColumnSpacing="12" RowSpacing="10">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="ReplayErrorStates">
+                <VisualState x:Name="NoReplayError"/>
+                <VisualState x:Name="ReplayErrorShown">
+                    <VisualState.Setters>
+                        <Setter Target="SetTimeframeButton.Background" Value="{ThemeResource SystemFillColorCriticalBackgroundBrush}"/>
+                        <Setter Target="SetTimeframeButton.BorderBrush" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+                        <Setter Target="ErrorLine.Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+                        <Setter Target="ErrorHint.Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>    <!-- Date; Set Timeframe spans this + the next -->
+            <ColumnDefinition Width="*"/>    <!-- Start Time -->
+            <ColumnDefinition Width="Auto"/> <!-- Window over Clear -->
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Date | Start Time | Window -->
+            <RowDefinition Height="Auto"/> <!-- [ Set Timeframe | 28 frames loaded · KTLX ] [Clear] -->
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4"
+                    Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}">
+            <TextBlock Text="Date" Margin="2,0,0,0" Style="{StaticResource SettingsFieldLabelStyle}"/>
+            <prim:DateButtonPicker MinDate="{x:Bind ViewModel.Radar.PastEventMinDate}"
+                                   MaxDate="{x:Bind ViewModel.Radar.PastEventMaxDate}"
+                                   Date="{x:Bind ViewModel.Radar.PastEventDate, Mode=TwoWay}"
+                                   IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
+                                   ToolTipService.ToolTip="The date to replay (local time)"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4"
+                    Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}">
+            <TextBlock Text="Start Time" Margin="2,0,0,0" Style="{StaticResource SettingsFieldLabelStyle}"/>
+            <prim:TimeButtonPicker Time="{x:Bind ViewModel.Radar.PastEventTime, Mode=TwoWay}"
+                                   IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
+                                   ToolTipService.ToolTip="Start of the replay window (local time)"/>
+        </StackPanel>
+
+        <!-- The SHORT labels are their own list on the view model, kept beside the long ones and the minutes array
+             because all three are indexed by PastEventDurationIndex. -->
+        <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4" Margin="0,0,14,0"
+                    Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}">
+            <TextBlock Text="Window" Margin="2,0,0,0" Style="{StaticResource SettingsFieldLabelStyle}"/>
+            <ComboBox Width="84" Height="32"
+                      ItemsSource="{x:Bind ViewModel.Radar.PastEventDurationShortLabels}"
+                      SelectedIndex="{x:Bind ViewModel.Radar.PastEventDurationIndex, Mode=TwoWay}"
+                      IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
+                      ToolTipService.ToolTip="How much of the day to replay, starting at the start time"/>
+        </StackPanel>
+
+        <!-- SET TIMEFRAME spans labels + pickers, so its right edge IS the pickers' right edge. Margin top 4 + the row
+             gap 10 = the 14 that sat above the old button row. -->
+        <Button x:Name="SetTimeframeButton" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,4,0,0"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                IsEnabled="{x:Bind LoadEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty, ViewModel.Radar.HasReplayError), Mode=OneWay}"
+                Style="{x:Bind LoadStyle(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty, ViewModel.Radar.HasReplayError), Mode=OneWay}"
+                ToolTipService.ToolTip="{x:Bind ViewModel.Radar.PastEventStatus, Mode=OneWay}"
+                Click="OnLoadClick">
+            <Grid>
+                <TextBlock Text="Set Timeframe"
+                           Visibility="{x:Bind LabelFace(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError, ViewModel.Radar.ReplayCount, ViewModel.Radar.ReplayCaption), Mode=OneWay}"/>
+                <!-- THE LOAD READOUT (2026-10-02): one line, in the button's own (disabled) foreground; the count
+                     and site semibold. -->
+                <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center"
+                            Visibility="{x:Bind ReadoutFace(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError, ViewModel.Radar.ReplayCount, ViewModel.Radar.ReplayCaption), Mode=OneWay}">
+                    <TextBlock Text="{x:Bind ViewModel.Radar.ReplayCount, Mode=OneWay}" FontWeight="SemiBold"
+                               Typography.NumeralAlignment="Tabular"
+                               Visibility="{x:Bind HasText(ViewModel.Radar.ReplayCount), Mode=OneWay}"/>
+                    <TextBlock Text="{x:Bind ViewModel.Radar.ReplayCaption, Mode=OneWay}"
+                               Visibility="{x:Bind HasText(ViewModel.Radar.ReplayCaption), Mode=OneWay}"/>
+                    <TextBlock Text="·" Visibility="{x:Bind HasText(ViewModel.Radar.ReplaySite), Mode=OneWay}"/>
+                    <TextBlock Text="{x:Bind ViewModel.Radar.ReplaySite, Mode=OneWay}" FontWeight="SemiBold"
+                               Visibility="{x:Bind HasText(ViewModel.Radar.ReplaySite), Mode=OneWay}"/>
+                </StackPanel>
+                <StackPanel Visibility="{x:Bind ShownWhen(ViewModel.Radar.HasReplayError), Mode=OneWay}">
+                    <TextBlock x:Name="ErrorLine" FontSize="12" HorizontalAlignment="Center"
+                               Text="{x:Bind ErrorFirstLine(ViewModel.Radar.ReplayError), Mode=OneWay}"/>
+                    <TextBlock x:Name="ErrorHint" FontSize="12" HorizontalAlignment="Center"
+                               Text="Click to retry or change timeframe"/>
+                </StackPanel>
+            </Grid>
+        </Button>
+        <!-- ⚠️ 84 × 32 and 14 in from the right = the decision card's ATLAS door exactly, so the two line up. -->
+        <Button Grid.Row="1" Grid.Column="2" Margin="0,4,14,0" Width="84" Height="32" Content="Clear"
+                IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
+                Click="OnClearClick"
+                ToolTipService.ToolTip="Clear the loaded timeframe or event and reset the pickers to now"/>
+    </Grid>
+</UserControl>

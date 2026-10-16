@@ -429,7 +429,7 @@ namespace Anvil
 				id: "temporal." + mode,
 				isOpen: () => ViewModel.IsTemporalWindowOpen(mode),
 				close: () => ViewModel.SetTemporalWindowOpen(mode, false),
-				buildContent: () => new Controls.Windows.TemporalWindow(mode, ViewModel),
+				buildContent: () => new Controls.TemporalWindows.TemporalWindow(mode, ViewModel),
 				title: title, anchor: anchor,
 				keepAboveOwner: () => ViewModel.IsTemporalWindowOnTop(mode),
 				isLocked: () => ViewModel.IsTemporalWindowLocked(mode),

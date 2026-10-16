@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DiscussionsInput — mesoscale discussions (MesoDiscussionsViewModel): SPC MDs and WPC MPDs as map areas, and
+     a GLANCE at them. Shown in BOTH temporal windows: live in Now (the last 24 h, the ones in effect drawn), the
+     loaded window in Past (drawn as in effect at the displayed frame). READING happens in the Mesoscale
+     Discussions WINDOW (Windows/MesoDiscussionWindow).
+
+       ┌────────────────────────────────────────────┐
+       │ 2 discussions in effect                    │   the card: how many are drawn right now, which
+       │ At 4:51 PM · 9 listed for this window      │   moment that is, and loading / failures below
+       └────────────────────────────────────────────┘
+       ────────────────────────────────────────────────
+       [x] ■ SPC mesoscale                         2     ← one row PER KIND, generated from DiscussionKinds
+       [x] ■ WPC precipitation                     0       (a new kind needs no XAML); count = in effect
+       ────────────────────────────────────────────────
+       IN EFFECT AT 4:51 PM                               ← only what's in effect at the map's moment;
+       ▌ MD 0647   Tornado Watch likely          95%       a row opens the window ON it
+       ▌ MD 0648   Severe potential…             40%
+       [        All 9 discussions · Open reader        ] ← the window, on the selection (else the first in
+                                                           effect); a click on an area on the map opens it too
+
+     ⚠️ THE READER LEFT THIS SECTION (2026-10-07, the user's version B): the list + a long reader in a 480 px
+     column, each bounded in its own scroller, was what made it hard to use. Don't put a reader back here.
+     ⚠️ Swatches are the kinds' own colours (DiscussionKinds.Fill ⇄ discussions.js KIND_COLORS). Data colours.
+     ⚠️ Opacity and the heading are the HOST's DragMoveLayerExpander, as for every overlay control. -->
+<UserControl x:Class="Anvil.Controls.TemporalWindows.DiscussionsInput"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:conv="using:Anvil.Converters"
+             xmlns:vm="using:Anvil.ViewModels"
+             xmlns:local="using:Anvil.Controls.Composites"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <conv:HexToBrushConverter x:Key="HexToBrush"/>
+
+        <!-- One kind: toggle, colour, name, how many are in effect. Item type: DiscussionKindRow. -->
+        <DataTemplate x:Key="KindRowTemplate" x:DataType="vm:DiscussionKindRow">
+            <CheckBox MinWidth="0" HorizontalAlignment="Stretch" Margin="0,0,0,9"
+                      IsChecked="{x:Bind IsShown, Mode=TwoWay}"
+                      ToolTipService.ToolTip="{x:Bind ToolTip}">
+                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2" VerticalAlignment="Center"
+                            Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind Label}" FontSize="13" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind tw:DiscussionsInput.Fmt(Count), Mode=OneWay}"
+                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </Grid>
+            </CheckBox>
+        </DataTemplate>
+
+        <!-- One discussion in effect: a flat button that opens the window on it. -->
+        <DataTemplate x:Key="InEffectRowTemplate" x:DataType="vm:DiscussionRow">
+            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                    Background="Transparent" BorderThickness="0" Padding="0,4"
+                    Click="OnRowClick" Tag="{x:Bind}"
+                    ToolTipService.ToolTip="Read it in the Mesoscale Discussions window">
+                <Grid ColumnSpacing="9">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3"/>
+                        <ColumnDefinition Width="62"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Height="18" CornerRadius="1.5"
+                            Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind Label}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{x:Bind Headline}" FontSize="12" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="3" Text="{x:Bind WatchText}" FontSize="12" FontWeight="SemiBold"
+                               VerticalAlignment="Center" ToolTipService.ToolTip="Probability of watch issuance"/>
+                </Grid>
+            </Button>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <StackPanel VerticalAlignment="Top">
+        <!-- THE CARD -->
+        <Border CornerRadius="8" Padding="13,12"
+                Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
+                BorderThickness="1"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+            <StackPanel>
+                <TextBlock Text="{x:Bind ViewModel.CardHeadline, Mode=OneWay}" FontSize="15"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <TextBlock Text="{x:Bind ViewModel.CardContext, Mode=OneWay}"
+                           FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
+                           Visibility="{x:Bind HasText(ViewModel.CardContext), Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Text="{x:Bind ViewModel.CardFooter, Mode=OneWay}"
+                           FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                           Visibility="{x:Bind HasText(ViewModel.CardFooter), Mode=OneWay}"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+            </StackPanel>
+        </Border>
+
+        <Border Height="1" Margin="0,14" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+        <!-- THE KINDS: generated, one row each. -->
+        <ItemsControl ItemsSource="{x:Bind ViewModel.Kinds}" ItemTemplate="{StaticResource KindRowTemplate}"/>
+
+        <Border Height="1" Margin="0,5,0,8" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+
+        <!-- IN EFFECT: only the ones in effect at the map's moment; the rest are in the window. -->
+        <TextBlock Text="{x:Bind ViewModel.InEffectHeading, Mode=OneWay}" Style="{StaticResource AtlasFieldLabelStyle}"
+                   Margin="0,0,0,4" Visibility="{x:Bind Shown(ViewModel.HasInEffect), Mode=OneWay}"/>
+        <ItemsControl ItemsSource="{x:Bind ViewModel.InEffect}" ItemTemplate="{StaticResource InEffectRowTemplate}"/>
+
+        <Button Margin="0,8,0,0" HorizontalAlignment="Stretch"
+                Content="{x:Bind ViewModel.OpenReaderText, Mode=OneWay}"
+                IsEnabled="{x:Bind ViewModel.HasDiscussions, Mode=OneWay}"
+                Click="OnOpenReaderClick"
+                ToolTipService.ToolTip="Read every discussion of this window in the Mesoscale Discussions window"/>
+    </StackPanel>
+</UserControl>
