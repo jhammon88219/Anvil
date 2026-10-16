@@ -44,19 +44,18 @@ namespace Anvil.Controls.Composites
 			{
 				if (_orderApplied || ViewModel is null) { return; }
 				_orderApplied = true;
-				DragMoveLayerExpander.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Now));
-				DragMoveLayerExpander.PersistExpansion(Sections.Children.OfType<DragMoveLayerExpander>(), "now",
-					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
+				LayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now));
+				LayerExpanderHost.PersistExpansion("now", ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			};
 		}
 
-		private void OnSectionsReordered(object? sender, System.EventArgs e) =>
-			ViewModel.SetLayerOrder(TemporalMode.Now, DragMoveLayerExpander.LayerOrderOf(Sections));
+		private void OnLayersReordered(object? sender, System.EventArgs e) =>
+			ViewModel.SetLayerOrder(TemporalMode.Now, LayerExpanderHost.LayerOrder);
 
 		// Re-apply the shared order (a no-op when this window made the change — it is already in that order).
 		private void OnLayerOrderChanged(object? sender, TemporalMode mode)
 		{
-			if (mode == TemporalMode.Now) { DragMoveLayerExpander.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Now)); }
+			if (mode == TemporalMode.Now) { LayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now)); }
 		}
 
 		// A ghost row shows only while its box is on and its mode runs (MapViewModel.AreForeCastGhostsShown).

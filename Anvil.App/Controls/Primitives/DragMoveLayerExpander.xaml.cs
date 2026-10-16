@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Numerics;
+using Anvil.Layout;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -17,9 +15,9 @@ namespace Anvil.Controls.Primitives
 {
 	/// <summary>
 	/// One MAP LAYER in a temporal window — a fixed-height header over a collapsible <see cref="Body"/>, dragged
-	/// by its grip to re-order (see DragMoveLayerExpander.xaml). Its position among its sibling expanders is the
-	/// layer's place in the map stack; the host reads the new order back with <see cref="LayerOrderOf"/> when
-	/// <see cref="Reordered"/> fires. Non-layer sections (Settings) are <see cref="SettingsExpander"/>.
+	/// by its grip to re-order (see DragMoveLayerExpander.xaml). ⚠️ Lives ONLY in a
+	/// <see cref="DragMoveLayerExpanderHost"/>, which owns the order, the drag and the persistence; outside one the
+	/// grip does nothing. Non-layer sections (Settings) are <see cref="SettingsExpander"/>.
 	/// </summary>
 	[ContentProperty(Name = nameof(Body))]
 	public sealed partial class DragMoveLayerExpander : UserControl
@@ -162,9 +160,6 @@ namespace Anvil.Controls.Primitives
 		/// <summary>The header box was clicked. The handler decides (VM); see <see cref="IsChecked"/>.</summary>
 		public event RoutedEventHandler? CheckBoxClick;
 
-		/// <summary>This expander was moved to a new place among its siblings (drag or Alt+Arrow).</summary>
-		public event EventHandler? Reordered;
-
 		// ── x:Bind functions (layout) ────────────────────────────────────────────────────────────────
 
 		private const double BoxColumn = 28, TitleColumn = 118, PercentColumn = 44;
@@ -279,17 +274,13 @@ namespace Anvil.Controls.Primitives
 			HeaderBox.IsChecked = IsChecked;
 		}
 
-		// ── Re-ordering ──────────────────────────────────────────────────────────────────────────────
-		// ⚠️ NOTHING MOVES IN THE VISUAL TREE DURING A DRAG. Removing an element cancels its pointer capture,
-		// so the dragged expander and the siblings it passes only TRANSLATE; the real Children.Move happens
-		// once, on release. The run it can move within is the contiguous block of expanders around it.
+		// ── Grip: reports to the host ────────────────────────────────────────────────────────────────
+		// The drag itself — bounds, slots, siblings stepping aside, the final move, Reordered — is the HOST's
+		// (Layout/DragMoveLayerExpanderHost). This side only owns the pointer: cursor, capture, the Lifted look.
+
+		private DragMoveLayerExpanderHost? Host => Parent as DragMoveLayerExpanderHost;
 
 		private bool _dragging;
-		private Panel? _host;
-		private List<DragMoveLayerExpander> _block = new();
-		private List<double> _tops = new();
-		private int _from, _to;
-		private double _startY, _spacing;
 
 		private void OnGripPointerEntered(object sender, PointerRoutedEventArgs e) =>
 			ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeNorthSouth);
@@ -301,24 +292,10 @@ namespace Anvil.Controls.Primitives
 
 		private void OnGripPressed(object sender, PointerRoutedEventArgs e)
 		{
-			if (Parent is not Panel host) { return; }
+			if (Host is not { } host) { return; }
 			if (!e.GetCurrentPoint(Grip).Properties.IsLeftButtonPressed) { return; }
-			var block = BlockAround(host, this);
-			if (block.Count < 2) { return; }
-
-			_host = host;
-			_block = block;
-			_from = _to = block.IndexOf(this);
-			_spacing = host is StackPanel sp ? sp.Spacing : 0;
-			_tops = block.Select(s => s.TransformToVisual(host).TransformPoint(new Point(0, 0)).Y).ToList();
-			_startY = e.GetCurrentPoint(host).Position.Y;
+			if (!host.BeginDrag(this, e.GetCurrentPoint(host).Position.Y)) { return; }
 			_dragging = true;
-
-			foreach (var s in block)
-			{
-				s.TranslationTransition = ReferenceEquals(s, this) ? null : new Vector3Transition { Duration = TimeSpan.FromMilliseconds(140) };
-			}
-			Canvas.SetZIndex(this, 1);
 			VisualStateManager.GoToState(this, "Lifted", false);
 			Grip.CapturePointer(e.Pointer);
 			e.Handled = true;
@@ -326,38 +303,7 @@ namespace Anvil.Controls.Primitives
 
 		private void OnGripMoved(object sender, PointerRoutedEventArgs e)
 		{
-			if (!_dragging || _host is null) { return; }
-			double h = ActualHeight;
-			double dy = e.GetCurrentPoint(_host).Position.Y - _startY;
-			// Stay inside the block: no further up than its first slot, no further down than its last.
-			var last = _block[^1];
-			dy = Math.Clamp(dy, _tops[0] - _tops[_from], _tops[^1] + last.ActualHeight - (_tops[_from] + h));
-			Translation = new Vector3(0, (float)dy, 0);
-
-			// The dragged expander's LEADING EDGE decides its slot: a sibling steps aside once that edge
-			// crosses the sibling's middle, and every sibling passed slides one expander-height the other way.
-			// ⚠️ NOT the dragged expander's middle: the clamp above stops it at the block's end, so one
-			// as tall as (or taller than) the last one could never get its middle past the last one's — the
-			// end sibling would never move out of the way.
-			double top = _tops[_from] + dy, bottom = top + h;
-			int to = _from;
-			for (int i = 0; i < _from; i++)
-			{
-				if (top < _tops[i] + _block[i].ActualHeight / 2) { to = i; break; }
-			}
-			for (int i = _block.Count - 1; i > _from; i--)
-			{
-				if (bottom > _tops[i] + _block[i].ActualHeight / 2) { to = i; break; }
-			}
-			_to = to;
-
-			float step = (float)(h + _spacing);
-			for (int i = 0; i < _block.Count; i++)
-			{
-				if (i == _from) { continue; }
-				float y = i >= to && i < _from ? step : i <= to && i > _from ? -step : 0;
-				_block[i].Translation = new Vector3(0, y, 0);
-			}
+			if (_dragging && Host is { } host) { host.DragTo(e.GetCurrentPoint(host).Position.Y); }
 		}
 
 		private void OnGripReleased(object sender, PointerRoutedEventArgs e)
@@ -370,120 +316,26 @@ namespace Anvil.Controls.Primitives
 
 		private void EndDrag()
 		{
-			if (!_dragging || _host is null) { return; }
+			if (!_dragging) { return; }
+			// Cleared FIRST: the host's Children.Move can cost the grip its capture, which re-enters here.
 			_dragging = false;
-			var host = _host;
-			_host = null;
-
-			// Snap everything home with no transition, then move for real in the same tick, so the layout
-			// lands exactly where the translations were showing it.
-			foreach (var s in _block)
-			{
-				s.TranslationTransition = null;
-				s.Translation = Vector3.Zero;
-			}
-			Canvas.SetZIndex(this, 0);
 			ProtectedCursor = null;
 			VisualStateManager.GoToState(this, "Normal", false);
-
-			if (_to != _from)
-			{
-				var target = _block[_to];
-				host.Children.Move((uint)host.Children.IndexOf(this), (uint)host.Children.IndexOf(target));
-				Reordered?.Invoke(this, EventArgs.Empty);
-			}
-			_block = new();
+			Host?.EndDrag();
 		}
 
 		private void OnExpanderKeyDown(object sender, KeyRoutedEventArgs e)
 		{
 			if (_dragging || (e.Key != VirtualKey.Up && e.Key != VirtualKey.Down)) { return; }
 			if (!InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down)) { return; }
-			if (Parent is not Panel host) { return; }
-
-			var block = BlockAround(host, this);
-			int at = block.IndexOf(this);
-			int to = e.Key == VirtualKey.Up ? at - 1 : at + 1;
+			if (Host is not { } host) { return; }
 			e.Handled = true;
-			if (to < 0 || to >= block.Count) { return; }
 
 			var focused = FocusManager.GetFocusedElement(XamlRoot) as Control;
-			host.Children.Move((uint)host.Children.IndexOf(this), (uint)host.Children.IndexOf(block[to]));
-			Reordered?.Invoke(this, EventArgs.Empty);
+			if (!host.Step(this, e.Key == VirtualKey.Up ? -1 : 1)) { return; }
 			// A move can drop keyboard focus; give it back once the expander is laid out again.
 			DispatcherQueue.TryEnqueue(() => focused?.Focus(FocusState.Keyboard));
 		}
-
-		// The contiguous run of expanders in the host that contains this one — its VISIBLE members only.
-		// ⚠️ A collapsed expander (a ghost row while its mode is off or the ghosts are hidden) stays in the run
-		// for contiguity but is no drop slot: counted, it would be an invisible place to land. It keeps its
-		// spot in Children, so the saved order still remembers where it goes.
-		private static List<DragMoveLayerExpander> BlockAround(Panel host, DragMoveLayerExpander expander)
-		{
-			var kids = host.Children.ToList();
-			int at = kids.IndexOf(expander);
-			int start = at, end = at;
-			while (start > 0 && kids[start - 1] is DragMoveLayerExpander) { start--; }
-			while (end < kids.Count - 1 && kids[end + 1] is DragMoveLayerExpander) { end++; }
-			return kids.Skip(start).Take(end - start + 1).Cast<DragMoveLayerExpander>()
-				.Where(s => s.Visibility == Visibility.Visible).ToList();
-		}
-
-		// ── Host helpers ─────────────────────────────────────────────────────────────────────────────
-
-		/// <summary>The layer ids of the host's expanders, top first — the map's order.</summary>
-		public static List<string> LayerOrderOf(Panel host) =>
-			host.Children.OfType<DragMoveLayerExpander>().Select(s => s.LayerId).ToList();
-
-		/// <summary>
-		/// Re-arranges the host's expanders into a saved order (top first). Ids the list doesn't name keep their
-		/// XAML order, after the named ones. Empty = leave the XAML order alone.
-		/// ⚠️ Assumes the expanders form ONE contiguous run, as they do in every temporal window.
-		/// </summary>
-		public static void ApplyLayerOrder(Panel host, IReadOnlyList<string> topFirst)
-		{
-			if (topFirst.Count == 0) { return; }
-			var slots = new List<int>();
-			for (int i = 0; i < host.Children.Count; i++)
-			{
-				if (host.Children[i] is DragMoveLayerExpander) { slots.Add(i); }
-			}
-			var sorted = slots
-				.Select((slot, k) => (Expander: (DragMoveLayerExpander)host.Children[slot], k))
-				.OrderBy(t => { int r = IndexOf(topFirst, t.Expander.LayerId); return r < 0 ? int.MaxValue : r; })
-				.ThenBy(t => t.k)
-				.Select(t => t.Expander)
-				.ToList();
-			for (int j = 0; j < sorted.Count; j++)
-			{
-				int cur = host.Children.IndexOf(sorted[j]);
-				if (cur != slots[j]) { host.Children.Move((uint)cur, (uint)slots[j]); }
-			}
-		}
-
-		/// <summary>
-		/// Restores each expander's saved open/closed state, then saves every later toggle. Call ONCE per host.
-		/// The key is "window/LayerId", so it survives a re-order.
-		/// </summary>
-		public static void PersistExpansion(IEnumerable<DragMoveLayerExpander> expanders, string window,
-			Func<string, bool?> get, Action<string, bool> set)
-		{
-			foreach (var expander in expanders)
-			{
-				var key = window + "/" + expander.LayerId;
-				if (get(key) is bool open) { expander.IsExpanded = open; }
-				expander.RegisterPropertyChangedCallback(IsExpandedProperty,
-					(d, _) => set(key, ((DragMoveLayerExpander)d).IsExpanded));
-			}
-		}
-
-		private static int IndexOf(IReadOnlyList<string> list, string id)
-		{
-			for (int i = 0; i < list.Count; i++)
-			{
-				if (string.Equals(list[i], id, StringComparison.Ordinal)) { return i; }
-			}
-			return -1;
-		}
 	}
 }
+

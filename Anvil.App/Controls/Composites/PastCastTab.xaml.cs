@@ -34,9 +34,8 @@ namespace Anvil.Controls.Composites
 			{
 				if (_orderApplied || ViewModel is null) { return; }
 				_orderApplied = true;
-				DragMoveLayerExpander.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Past));
-				DragMoveLayerExpander.PersistExpansion(System.Linq.Enumerable.OfType<DragMoveLayerExpander>(Sections.Children), "past",
-					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
+				LayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Past));
+				LayerExpanderHost.PersistExpansion("past", ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			};
 			// ⚠️ LIFETIME: the PastCast window builds a new body per open, and Radar is an app singleton (its
 			// PropertyChanged fires on every playback tick) — listen only while loaded, or each closed window leaks.
@@ -215,8 +214,8 @@ namespace Anvil.Controls.Composites
 		// The layer ORDER: a drag (or Alt+Arrow) in the layer run is handed to the VM, which saves it for
 		// THIS window and restacks the map. The saved order is applied once, on first load (constructor).
 
-		private void OnSectionsReordered(object? sender, EventArgs e) =>
-			ViewModel?.SetLayerOrder(TemporalMode.Past, DragMoveLayerExpander.LayerOrderOf(Sections));
+		private void OnLayersReordered(object? sender, EventArgs e) =>
+			ViewModel?.SetLayerOrder(TemporalMode.Past, LayerExpanderHost.LayerOrder);
 
 		private async void OnLoadClick(object sender, RoutedEventArgs e)
 		{

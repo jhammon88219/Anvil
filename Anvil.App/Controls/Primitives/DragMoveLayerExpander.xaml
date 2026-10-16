@@ -25,11 +25,12 @@
      ⚠️ ONE GRID, EVERY CELL VerticalAlignment=Center. No cell may carry a vertical margin or a minimum height
      (the stock CheckBox's 32 and Slider's 32 are both overridden below). Height = Styles.xaml
      SectionHeaderHeight, app-wide — SettingsExpander reads the same key.
+     ⚠️ LIVES ONLY IN A Layout/DragMoveLayerExpanderHost — the host owns the drag (bounds, slots, the final
+     move), Reordered, the saved order and the open/closed persistence; the grip only reports press / move /
+     release to it. Outside a host the grip does nothing.
      ⚠️ THE GRIP IS THE ONLY DRAG HANDLE. The header already takes three gestures (click = expand, the box,
      the slider); a whole-header drag would fight all of them. Keyboard: Alt+Up/Down anywhere in the expander.
-     A drag stays inside the contiguous run of DragMoveLayerExpanders around it — anything else is a wall.
      ⚠️ Clicking the header toggles, but NOT when the click lands on the grip, box, slider or chevron.
-     ⚠️ A COLLAPSED expander (a hidden ghost) is skipped by the drag block — no invisible drop slot.
      ⚠️ Header brushes are {ThemeResource} in VISUAL STATES (Normal / PointerOver / Lifted), never resolved
      in code — see CLAUDE.md.
      ⚠️ LAZY BODY: a never-opened expander's body is NOT in the live tree (it attaches on the first expand and
