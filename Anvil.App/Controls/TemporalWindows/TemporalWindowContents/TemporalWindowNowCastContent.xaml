@@ -93,10 +93,12 @@
        • Tiles — TemporalWindows/TemporalWindowNowCastWarningTile ×3. Warnings.TornadoCount/SevereCount/FlashFloodCount count EVERY active warning in the
          fetch, never the ticked rows (user's call). Tag lines = WarningThreatCounts, split per type. Stripe
          colours are DATA (the same literals as DragMoveLayerExpanderAlertsBody's swatches) — never themed. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowNowCastContent"
+<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowContents.TemporalWindowNowCastContent"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:temporalWindowHeaderReadouts="using:Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts"
+             xmlns:temporalWindowContents="using:Anvil.Controls.TemporalWindows.TemporalWindowContents"
              xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
              xmlns:comp="using:Anvil.Controls.Composites"
              xmlns:vm="using:Anvil.ViewModels"
@@ -129,7 +131,7 @@
                  height). The feed colour + tooltip and the date are written by the
                  clock tick (code-behind); the clock itself is TemporalWindowHeaderNowCastReadout. -->
             <tw:TemporalWindowHeader x:Name="TemporalWindowHeader" Grid.Row="0" Title="NowCast">
-                <tw:TemporalWindowHeaderNowCastReadout x:Name="TemporalWindowHeaderNowCastReadout"/>
+                <temporalWindowHeaderReadouts:TemporalWindowHeaderNowCastReadout x:Name="TemporalWindowHeaderNowCastReadout"/>
             </tw:TemporalWindowHeader>
 
             <Grid Grid.Row="1" Margin="0,14,0,0" ColumnSpacing="8">

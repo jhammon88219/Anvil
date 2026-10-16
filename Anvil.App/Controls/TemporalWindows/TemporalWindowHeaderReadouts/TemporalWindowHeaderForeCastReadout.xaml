@@ -5,10 +5,11 @@
        MDT 4/5          ← 30 SemiLight (the PastCast range's size); "No areas" / "No outlook" dims to 40%
        next ~9 min      ← 13 secondary -->
 
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowHeaderForeCastReadout"
+<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts.TemporalWindowHeaderForeCastReadout"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:temporalWindowHeaderReadouts="using:Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"

@@ -4,7 +4,7 @@ using Anvil.Controls.Primitives;
 using Anvil.Models;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 {
 	/// <summary>
 	/// The ForeCast window body (see the XAML header) — the SPC outlook section (card over day / product +

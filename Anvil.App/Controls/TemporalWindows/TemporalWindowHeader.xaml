@@ -12,9 +12,9 @@
        └ status block, 22 wide, outer corners rounded; StatusFill is DATA (literal colours), never themed
 
      Readouts (the right slot) — one per mode, each its own control:
-       Now  → TemporalWindows/TemporalWindowHeaderNowCastReadout   (the clock)
-       Past → TemporalWindows/TemporalWindowHeaderPastCastReadout  (the loaded window's time range)
-       Fore → TemporalWindows/TemporalWindowHeaderForeCastReadout  (highest risk over the countdown)
+       Now  → TemporalWindows/TemporalWindowHeaderReadouts/TemporalWindowHeaderNowCastReadout   (the clock)
+       Past → TemporalWindows/TemporalWindowHeaderReadouts/TemporalWindowHeaderPastCastReadout  (the loaded window's time range)
+       Fore → TemporalWindows/TemporalWindowHeaderReadouts/TemporalWindowHeaderForeCastReadout  (highest risk over the countdown)
 
      ⚠️ THE HEIGHT IS THIS CONTROL'S (60, set on the root below) — never on a use, never a shared constant, so
      all three headers match by construction (the user's call, 2026-10-16). Not to be confused with

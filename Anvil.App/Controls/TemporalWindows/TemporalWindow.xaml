@@ -53,6 +53,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:temporalWindowContents="using:Anvil.Controls.TemporalWindows.TemporalWindowContents"
              xmlns:ctl="using:Anvil.Controls.Primitives"
              xmlns:comp="using:Anvil.Controls.Composites"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -71,11 +72,11 @@
              discussion stays pinned below its scrolling outlook.
              Each Content stretches to the full row height: Past/Now top-align their own roots and are
              unaffected, ForeCast stretches so its legend can fill what is left. -->
-        <tw:TemporalWindowPastCastContent x:Name="TemporalWindowPastCastContent" x:Load="{x:Bind IsPast}" Margin="16,14,16,14"
+        <temporalWindowContents:TemporalWindowPastCastContent x:Name="TemporalWindowPastCastContent" x:Load="{x:Bind IsPast}" Margin="16,14,16,14"
                           ViewModel="{x:Bind ViewModel}"/>
-        <tw:TemporalWindowNowCastContent x:Name="TemporalWindowNowCastContent" x:Load="{x:Bind IsNow}" Margin="16,14,16,14"
+        <temporalWindowContents:TemporalWindowNowCastContent x:Name="TemporalWindowNowCastContent" x:Load="{x:Bind IsNow}" Margin="16,14,16,14"
                          ViewModel="{x:Bind ViewModel}"/>
-        <tw:TemporalWindowForeCastContent x:Name="TemporalWindowForeCastContent" x:Load="{x:Bind IsFore}" Margin="16,14,16,14"
+        <temporalWindowContents:TemporalWindowForeCastContent x:Name="TemporalWindowForeCastContent" x:Load="{x:Bind IsFore}" Margin="16,14,16,14"
                           ViewModel="{x:Bind ViewModel}"/>
 
         <!-- Lock + pin. Bound in code-behind — the flags they drive depend on Mode. -->

@@ -4,7 +4,7 @@ using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts
 {
 	/// <summary>
 	/// The NowCast header's Readout — the clock (see the XAML header). Formats <see cref="Time"/>; the host's

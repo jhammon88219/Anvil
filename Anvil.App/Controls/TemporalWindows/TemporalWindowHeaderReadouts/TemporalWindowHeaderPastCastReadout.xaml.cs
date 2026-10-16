@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts
 {
 	/// <summary>The PastCast header's Readout — the loaded replay window's time range (see the XAML header).</summary>
 	public sealed partial class TemporalWindowHeaderPastCastReadout : UserControl

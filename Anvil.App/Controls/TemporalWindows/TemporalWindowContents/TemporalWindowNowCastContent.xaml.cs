@@ -8,7 +8,7 @@ using Microsoft.UI.Xaml.Media;
 using Anvil.Controls.Primitives;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 {
 	/// <summary>
 	/// The NowCast window body (see the XAML header) — watch boxes, storm-based warnings and today's storm

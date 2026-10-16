@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts
 {
 	/// <summary>The ForeCast header's Readout — highest risk over the refresh countdown (see the XAML header).</summary>
 	public sealed partial class TemporalWindowHeaderForeCastReadout : UserControl

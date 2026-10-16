@@ -4,7 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Anvil.Controls.Primitives;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 {
 	/// <summary>
 	/// The PastCast window's Content (see the XAML header) — the header, the decision card and the timeframe picker
