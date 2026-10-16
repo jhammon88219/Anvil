@@ -259,7 +259,14 @@
                         Context="{x:Bind ViewModel.DamageSurveys.CardContext, Mode=OneWay}"
                         Footer="{x:Bind ViewModel.DamageSurveys.CardFooter, Mode=OneWay}"/>
 
-                <Grid Grid.Row="1" RowSpacing="9">
+                <Grid Grid.Row="1" ColumnSpacing="9" RowSpacing="9">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="19"/>   <!-- the CheckBox's own box -->
+                        <ColumnDefinition Width="Auto"/> <!-- mark -->
+                        <ColumnDefinition Width="Auto"/> <!-- name: as wide as the longest -->
+                        <ColumnDefinition Width="Auto"/> <!-- count, right-aligned against the names -->
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/> <!-- Damage polygons -->
                         <RowDefinition Height="Auto"/> <!-- Tracks -->
@@ -268,66 +275,62 @@
                     </Grid.RowDefinitions>
 
                     <!-- One row per layer; the mark in front says what it draws (a filled square, a line, a
-                         dot), in a neutral EF2 so it reads as "a rating colour", not as one rating. -->
-                    <CheckBox Grid.Row="0" MinWidth="0" HorizontalAlignment="Stretch"
+                         dot), in a neutral EF2 so it reads as "a rating colour", not as one rating.
+                         ONE grid so the NAME column is as wide as the LONGEST name and every count sits right-aligned
+                         just past it (DragMoveLayerExpanderAlertsBody's rows, same rules): each CheckBox SPANS the row
+                         with no content; mark, name and count sit OVER it, IsHitTestVisible False, so a click anywhere
+                         on the row toggles. Column 0 + ColumnSpacing = 28, the stock CheckBox's box + content padding.
+                         ⚠️ They were the CheckBox's content, so it greyed them while not ready — ReadyDim does it now. -->
+                    <CheckBox Grid.Row="0" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch"
                               IsEnabled="{x:Bind ViewModel.DamageSurveys.IsReady, Mode=OneWay}"
                               IsChecked="{x:Bind ViewModel.DamageSurveys.ShowAreas, Mode=TwoWay}"
-                              ToolTipService.ToolTip="EF-rated damage polygons (drawn by some NWS offices)">
-                        <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2"
-                                    Background="#FFFF00" BorderBrush="#6E6E6E" BorderThickness="1"
-                                    VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" Text="Damage polygons" FontSize="13" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Text="{x:Bind Count(ViewModel.DamageSurveys.AreaCount), Mode=OneWay}"
-                                       FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        </Grid>
-                    </CheckBox>
+                              ToolTipService.ToolTip="EF-rated damage polygons (drawn by some NWS offices)"/>
+                    <Border Grid.Row="0" Grid.Column="1" Width="11" Height="11" CornerRadius="2" IsHitTestVisible="False"
+                            Opacity="{x:Bind ReadyDim(ViewModel.DamageSurveys.IsReady), Mode=OneWay}"
+                            Background="#FFFF00" BorderBrush="#6E6E6E" BorderThickness="1"
+                            VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Damage polygons" FontSize="13" IsHitTestVisible="False"
+                               Opacity="{x:Bind ReadyDim(ViewModel.DamageSurveys.IsReady), Mode=OneWay}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="3" Text="{x:Bind Count(ViewModel.DamageSurveys.AreaCount), Mode=OneWay}"
+                               Opacity="{x:Bind ReadyDim(ViewModel.DamageSurveys.IsReady), Mode=OneWay}"
+                               FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
+                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
-                    <CheckBox Grid.Row="1" MinWidth="0" HorizontalAlignment="Stretch"
+                    <CheckBox Grid.Row="1" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch"
                               IsEnabled="{x:Bind ViewModel.DamageSurveys.IsReady, Mode=OneWay}"
                               IsChecked="{x:Bind ViewModel.DamageSurveys.ShowTracks, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Tornado paths — surveyed tracks (NWS DAT), else NCEI Storm Events (straight within each county)">
-                        <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" Width="11" Height="4" CornerRadius="2"
-                                    Background="#FFFF00" BorderBrush="#141414" BorderThickness="1"
-                                    VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" Text="Tracks" FontSize="13" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Text="{x:Bind Count(ViewModel.DamageSurveys.TrackCount), Mode=OneWay}"
-                                       FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        </Grid>
-                    </CheckBox>
+                              ToolTipService.ToolTip="Tornado paths — surveyed tracks (NWS DAT), else NCEI Storm Events (straight within each county)"/>
+                    <Border Grid.Row="1" Grid.Column="1" Width="11" Height="4" CornerRadius="2" IsHitTestVisible="False"
+                            Opacity="{x:Bind ReadyDim(ViewModel.DamageSurveys.IsReady), Mode=OneWay}"
+                            Background="#FFFF00" BorderBrush="#141414" BorderThickness="1"
+                            VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Tracks" FontSize="13" IsHitTestVisible="False"
+                               Opacity="{x:Bind ReadyDim(ViewModel.DamageSurveys.IsReady), Mode=OneWay}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="3" Text="{x:Bind Count(ViewModel.DamageSurveys.TrackCount), Mode=OneWay}"
+                               Opacity="{x:Bind ReadyDim(ViewModel.DamageSurveys.IsReady), Mode=OneWay}"
+                               FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
+                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
-                    <CheckBox Grid.Row="2" MinWidth="0" HorizontalAlignment="Stretch"
+                    <CheckBox Grid.Row="2" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch"
                               IsEnabled="{x:Bind ViewModel.DamageSurveys.IsReady, Mode=OneWay}"
                               IsChecked="{x:Bind ViewModel.DamageSurveys.ShowPoints, Mode=TwoWay}"
-                              ToolTipService.ToolTip="Individual survey damage points">
-                        <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" Width="11" Height="11" CornerRadius="6"
-                                    Background="#FFFF00" BorderBrush="#141414" BorderThickness="1"
-                                    VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" Text="Survey points" FontSize="13" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Text="{x:Bind Count(ViewModel.DamageSurveys.PointCount), Mode=OneWay}"
-                                       FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        </Grid>
-                    </CheckBox>
+                              ToolTipService.ToolTip="Individual survey damage points"/>
+                    <Border Grid.Row="2" Grid.Column="1" Width="11" Height="11" CornerRadius="6" IsHitTestVisible="False"
+                            Opacity="{x:Bind ReadyDim(ViewModel.DamageSurveys.IsReady), Mode=OneWay}"
+                            Background="#FFFF00" BorderBrush="#141414" BorderThickness="1"
+                            VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Grid.Column="2" Text="Survey points" FontSize="13" IsHitTestVisible="False"
+                               Opacity="{x:Bind ReadyDim(ViewModel.DamageSurveys.IsReady), Mode=OneWay}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Grid.Column="3" Text="{x:Bind Count(ViewModel.DamageSurveys.PointCount), Mode=OneWay}"
+                               Opacity="{x:Bind ReadyDim(ViewModel.DamageSurveys.IsReady), Mode=OneWay}"
+                               FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
+                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
-                    <!-- The EF key: the DAT palette every layer is coloured by. -->
-                    <Grid Grid.Row="3" ColumnSpacing="3" Margin="0,2,0,0">
+                    <!-- The EF key: the DAT palette every layer is coloured by. Spans the full width, under the rows. -->
+                    <Grid Grid.Row="3" Grid.ColumnSpan="5" ColumnSpacing="3" Margin="0,2,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>

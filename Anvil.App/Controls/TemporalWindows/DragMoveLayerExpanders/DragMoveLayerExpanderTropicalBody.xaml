@@ -4,8 +4,8 @@
      in Past (counts as in effect at the displayed frame — they follow the scrubber).
 
      ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH under
-     ▓        Tropical Storm Isaias                     ▓   the header): the storm(s) in effect (NHC's ATCF names),
-     ▓        3 products · 76 zones                     ▓   how much is out, the moment in PastCast ("At 4:51 PM ·")
+     ▓  Tropical Storm Isaias                           ▓   the header): the storm(s) in effect (NHC's ATCF names),
+     ▓  3 products · 76 zones                           ▓   how much is out, the moment in PastCast ("At 4:51 PM ·")
      ──────────────────────────────────────────────────────  + loading / failures below
        WARNINGS
        [x] ■ Extreme wind                          0     ← one row PER PRODUCT, generated from TropicalProducts

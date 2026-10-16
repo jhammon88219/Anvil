@@ -4,14 +4,14 @@
      watch boxes, once for the storm-based warnings — bound to a PhenomOverlayViewModel each time.
 
      ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH
-     ▓        9 active warnings                         ▓   under the header, same grey): the total in effect,
-     ▓        1 tornado emergency · 1 PDS tornado       ▓   the ELEVATED tags (CardThreats, warnings only,
-     ▓        Updated 12:04 PM · checking every 15s     ▓   collapses when none), when it was last confirmed,
-     ──────────────────────────────────────────────────────  and a footer ONLY on a failure — ⚠️ never a line
-                                                             about the ticked rows (it moved the section's height)
-       [ ] ■ Tornado                             2     ← one row per phenomenon: the toggle, the
-       [x] ■ Severe thunderstorm                  5       map colour, the name, that type's count
-       [x] ■ Flash flood                          2     ← the flood row: "Flash flood" (warnings, FF) or
+     ▓  9 active warnings                               ▓   under the header, same grey, text on the body's
+     ▓  1 tornado emergency · 1 PDS tornado             ▓   left edge): the total in effect, the ELEVATED tags
+     ▓  Updated 12:04 PM · checking every 15s           ▓   (CardThreats, warnings only, collapses when none),
+     ──────────────────────────────────────────────────────  when it was last confirmed, and a footer ONLY on a
+                                                             failure — ⚠️ never a line about the ticked rows
+       [ ] ■ Tornado               2                    ← one row per phenomenon: the toggle, the
+       [x] ■ Severe thunderstorm   5                      map colour, the name, that type's count — counts
+       [x] ■ Flash flood           2                    ← right-aligned against the LONGEST name; the flood row: "Flash flood" (warnings, FF) or
                                                           "Flood" (watches, FA/FL/FF, sea green) —
                                                           FloodLabel/FloodColor from the VM
 
@@ -66,66 +66,68 @@
                 Context="{x:Bind ViewModel.CardContext, Mode=OneWay}"
                 Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 
-        <!-- A StackPanel, not a Grid: Grid.RowSpacing still spaces a COLLAPSED row, which would leave a
-             gap under the watches instance where its (absent) flash-flood row would be. -->
-        <StackPanel Grid.Row="1" Spacing="9">
+        <!-- THE TYPE ROWS: ONE grid, so the NAME column is as wide as the LONGEST name and every count sits
+             right-aligned just past it (a count used to sit at the far right edge, a long way from its name).
+             ⚠️ Each CheckBox SPANS the whole row with no content of its own; the swatch, name and count sit OVER
+             it in the shared columns, IsHitTestVisible False — so a click anywhere on the row still toggles,
+             exactly as when they were the CheckBox's content. (WinUI has no SharedSizeGroup — one grid is the
+             only way separate rows share a column width.)
+             ⚠️ Column 0 + ColumnSpacing = 28, the stock CheckBox's box + content padding, so the swatch lands
+             where the CheckBox's own content used to start.
+             ⚠️ Rows are spaced by a top Margin, NOT RowSpacing: RowSpacing still spaces a COLLAPSED row, which
+             would leave a gap under the watches instance where its (absent) flood row would be. -->
+        <Grid Grid.Row="1" ColumnSpacing="9">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="19"/>   <!-- the CheckBox's own box -->
+                <ColumnDefinition Width="Auto"/> <!-- swatch -->
+                <ColumnDefinition Width="Auto"/> <!-- name: as wide as the longest -->
+                <ColumnDefinition Width="Auto"/> <!-- count, right-aligned against the names -->
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Tornado -->
+                <RowDefinition Height="Auto"/> <!-- Severe thunderstorm -->
+                <RowDefinition Height="Auto"/> <!-- the flood row -->
+            </Grid.RowDefinitions>
 
-            <!-- One row per phenomenon. The count is right-aligned in its own column so the numbers form a
-                 column of their own however long the names get — the same three-column row as the
-                 storm-report types. -->
-            <CheckBox MinWidth="0" HorizontalAlignment="Stretch"
+            <CheckBox Grid.Row="0" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch"
                       IsChecked="{x:Bind ViewModel.ShowTornado, Mode=TwoWay}"
-                      ToolTipService.ToolTip="{x:Bind TornadoTooltip(AlertNoun), Mode=OneWay}">
-                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2"
-                            Background="#FF2A2A" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="Tornado" FontSize="13" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{x:Bind Fmt(ViewModel.TornadoCount), Mode=OneWay}"
-                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                </Grid>
-            </CheckBox>
+                      ToolTipService.ToolTip="{x:Bind TornadoTooltip(AlertNoun), Mode=OneWay}"/>
+            <Border Grid.Row="0" Grid.Column="1" Width="11" Height="11" CornerRadius="2" IsHitTestVisible="False"
+                    Background="#FF2A2A" VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="0" Grid.Column="2" Text="Tornado" FontSize="13" IsHitTestVisible="False"
+                       VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="0" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.TornadoCount), Mode=OneWay}"
+                       FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
+                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
-            <CheckBox MinWidth="0" HorizontalAlignment="Stretch"
+            <CheckBox Grid.Row="1" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch" Margin="0,9,0,0"
                       IsChecked="{x:Bind ViewModel.ShowSevere, Mode=TwoWay}"
-                      ToolTipService.ToolTip="{x:Bind SevereTooltip(AlertNoun), Mode=OneWay}">
-                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2"
-                            Background="#FFD21A" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="Severe thunderstorm" FontSize="13" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{x:Bind Fmt(ViewModel.SevereCount), Mode=OneWay}"
-                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                </Grid>
-            </CheckBox>
+                      ToolTipService.ToolTip="{x:Bind SevereTooltip(AlertNoun), Mode=OneWay}"/>
+            <Border Grid.Row="1" Grid.Column="1" Width="11" Height="11" CornerRadius="2" IsHitTestVisible="False"
+                    Background="#FFD21A" VerticalAlignment="Center" Margin="0,9,0,0"/>
+            <TextBlock Grid.Row="1" Grid.Column="2" Text="Severe thunderstorm" FontSize="13" IsHitTestVisible="False"
+                       VerticalAlignment="Center" Margin="0,9,0,0"/>
+            <TextBlock Grid.Row="1" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.SevereCount), Mode=OneWay}"
+                       FontSize="13" FontWeight="SemiBold" Margin="12,9,0,0" IsHitTestVisible="False"
+                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
             <!-- The flood row: "Flash flood" on warnings, "Flood" on watches — name + swatch from the VM
-                 (FloodLabel / FloodColor). Collapses on an overlay without the type (SupportsFlashFlood). -->
-            <CheckBox MinWidth="0" HorizontalAlignment="Stretch"
+                 (FloodLabel / FloodColor). All four parts collapse on an overlay without the type (SupportsFlashFlood). -->
+            <CheckBox Grid.Row="2" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch" Margin="0,9,0,0"
                       Visibility="{x:Bind Shown(ViewModel.SupportsFlashFlood), Mode=OneWay}"
                       IsChecked="{x:Bind ViewModel.ShowFlashFlood, Mode=TwoWay}"
-                      ToolTipService.ToolTip="{x:Bind FloodTooltip(ViewModel.FloodLabel, AlertNoun), Mode=OneWay}">
-                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2"
-                            Background="{x:Bind Swatch(ViewModel.FloodColor), Mode=OneWay}" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.FloodLabel, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{x:Bind Fmt(ViewModel.FlashFloodCount), Mode=OneWay}"
-                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                </Grid>
-            </CheckBox>
-        </StackPanel>
+                      ToolTipService.ToolTip="{x:Bind FloodTooltip(ViewModel.FloodLabel, AlertNoun), Mode=OneWay}"/>
+            <Border Grid.Row="2" Grid.Column="1" Width="11" Height="11" CornerRadius="2" IsHitTestVisible="False"
+                    Visibility="{x:Bind Shown(ViewModel.SupportsFlashFlood), Mode=OneWay}"
+                    Background="{x:Bind Swatch(ViewModel.FloodColor), Mode=OneWay}" VerticalAlignment="Center" Margin="0,9,0,0"/>
+            <TextBlock Grid.Row="2" Grid.Column="2" Text="{x:Bind ViewModel.FloodLabel, Mode=OneWay}" FontSize="13"
+                       Visibility="{x:Bind Shown(ViewModel.SupportsFlashFlood), Mode=OneWay}"
+                       IsHitTestVisible="False" VerticalAlignment="Center" Margin="0,9,0,0"/>
+            <TextBlock Grid.Row="2" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.FlashFloodCount), Mode=OneWay}"
+                       Visibility="{x:Bind Shown(ViewModel.SupportsFlashFlood), Mode=OneWay}"
+                       FontSize="13" FontWeight="SemiBold" Margin="12,9,0,0" IsHitTestVisible="False"
+                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
     </Grid>
 </UserControl>

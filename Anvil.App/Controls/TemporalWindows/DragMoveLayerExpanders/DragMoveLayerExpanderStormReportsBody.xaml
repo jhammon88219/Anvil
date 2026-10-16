@@ -5,12 +5,12 @@
      serve both.
 
      ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH
-     ▓        448 reports                               ▓   under the header, same grey): total, which
-     ▓        May 20, 2013 · 12Z-12Z                    ▓   convective day, loading/failure in the footer
+     ▓  448 reports                                     ▓   under the header, same grey): total, which
+     ▓  May 20, 2013 · 12Z-12Z                          ▓   convective day, loading/failure in the footer
      ──────────────────────────────────────────────────────
-       [x] ● Tornado                             42     ← one row per type: the toggle, the SPC dot
-       [x] ● Wind                               310       colour, the name and that type's count,
-       [x] ● Hail                                96       all as ONE object
+       [x] ● Tornado    42                              ← one row per type: the toggle, the SPC dot
+       [x] ● Wind      310                                colour, the name and that type's count, the
+       [x] ● Hail       96                                counts right-aligned against the LONGEST name
        ────────────────────────────────────────────────
        ● 20:49Z  3 SSW Ash Valley, KS            EF2    ← THE LIST: the TICKED types' reports, newest
        ● 18:12Z  Wichita, KS                  65 mph      first; click a row → fly there + open the
@@ -80,67 +80,58 @@
                 Context="{x:Bind ViewModel.CardContext, Mode=OneWay}"
                 Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 
-        <Grid Grid.Row="1" RowSpacing="9">
+        <!-- One row per type, in ONE grid so the NAME column is as wide as the LONGEST name and every count sits
+             right-aligned just past it (DragMoveLayerExpanderAlertsBody's rows, same rules): each CheckBox SPANS
+             the row with no content; dot, name and count sit OVER it, IsHitTestVisible False, so a click anywhere
+             on the row toggles. Column 0 + ColumnSpacing = 28, the stock CheckBox's box + content padding.
+             ⚠️ The dot colours are the SPC report colours the map draws (storm-reports.js): tornado red,
+             wind blue, hail green. They are literals in both places — change one, change the other. -->
+        <Grid Grid.Row="1" ColumnSpacing="9" RowSpacing="9">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="19"/>   <!-- the CheckBox's own box -->
+                <ColumnDefinition Width="Auto"/> <!-- dot -->
+                <ColumnDefinition Width="Auto"/> <!-- name: as wide as the longest -->
+                <ColumnDefinition Width="Auto"/> <!-- count, right-aligned against the names -->
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- Tornado -->
                 <RowDefinition Height="Auto"/> <!-- Wind -->
                 <RowDefinition Height="Auto"/> <!-- Hail -->
             </Grid.RowDefinitions>
 
-            <!-- One row per type. The count is right-aligned in its own column so the three numbers form a
-                 column of their own however long the names get.
-                 ⚠️ The dot colours are the SPC report colours the map draws (storm-reports.js): tornado red,
-                 wind blue, hail green. They are literals in both places — change one, change the other. -->
-            <CheckBox Grid.Row="0" MinWidth="0" HorizontalAlignment="Stretch"
+            <CheckBox Grid.Row="0" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch"
                       IsChecked="{x:Bind ViewModel.ShowTornado, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Show tornado reports">
-                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Width="11" Height="11" CornerRadius="6"
-                            Background="#E51919" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="Tornado" FontSize="13" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{x:Bind Fmt(ViewModel.TornadoCount), Mode=OneWay}"
-                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                </Grid>
-            </CheckBox>
+                      ToolTipService.ToolTip="Show tornado reports"/>
+            <Border Grid.Row="0" Grid.Column="1" Width="11" Height="11" CornerRadius="6" IsHitTestVisible="False"
+                    Background="#E51919" VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="0" Grid.Column="2" Text="Tornado" FontSize="13" IsHitTestVisible="False"
+                       VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="0" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.TornadoCount), Mode=OneWay}"
+                       FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
+                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
-            <CheckBox Grid.Row="1" MinWidth="0" HorizontalAlignment="Stretch"
+            <CheckBox Grid.Row="1" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch"
                       IsChecked="{x:Bind ViewModel.ShowWind, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Show wind reports">
-                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Width="11" Height="11" CornerRadius="6"
-                            Background="#1663D8" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="Wind" FontSize="13" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{x:Bind Fmt(ViewModel.WindCount), Mode=OneWay}"
-                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                </Grid>
-            </CheckBox>
+                      ToolTipService.ToolTip="Show wind reports"/>
+            <Border Grid.Row="1" Grid.Column="1" Width="11" Height="11" CornerRadius="6" IsHitTestVisible="False"
+                    Background="#1663D8" VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="1" Grid.Column="2" Text="Wind" FontSize="13" IsHitTestVisible="False"
+                       VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="1" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.WindCount), Mode=OneWay}"
+                       FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
+                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
-            <CheckBox Grid.Row="2" MinWidth="0" HorizontalAlignment="Stretch"
+            <CheckBox Grid.Row="2" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch"
                       IsChecked="{x:Bind ViewModel.ShowHail, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Show hail reports">
-                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Width="11" Height="11" CornerRadius="6"
-                            Background="#18A020" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="Hail" FontSize="13" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{x:Bind Fmt(ViewModel.HailCount), Mode=OneWay}"
-                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                </Grid>
-            </CheckBox>
+                      ToolTipService.ToolTip="Show hail reports"/>
+            <Border Grid.Row="2" Grid.Column="1" Width="11" Height="11" CornerRadius="6" IsHitTestVisible="False"
+                    Background="#18A020" VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="2" Grid.Column="2" Text="Hail" FontSize="13" IsHitTestVisible="False"
+                       VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="2" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.HailCount), Mode=OneWay}"
+                       FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
+                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
         </Grid>
 
         <!-- THE REPORT LIST: every report of the TICKED types, newest first (VisibleReports). Click a row → the map

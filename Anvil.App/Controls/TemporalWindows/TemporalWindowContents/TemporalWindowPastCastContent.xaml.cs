@@ -94,6 +94,10 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 		// x:Bind helper for the damage-survey rows' counts.
 		public string Count(int n) => n.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
+		// x:Bind helper: the damage-survey rows' mark / name / count sit OVER their CheckBox (not inside it), so
+		// they dim themselves while the CheckBox is disabled (not ready), as its content used to.
+		public double ReadyDim(bool ready) => ready ? 1.0 : 0.4;
+
 		// The layer ORDER: a drag (or Alt+Arrow) in the layer run is handed to the VM, which saves it for
 		// THIS window and restacks the map. The saved order is applied once, on first load (constructor).
 		private void OnLayersReordered(object? sender, EventArgs e) =>

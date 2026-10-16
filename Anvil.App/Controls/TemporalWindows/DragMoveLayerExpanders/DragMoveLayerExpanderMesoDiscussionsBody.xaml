@@ -5,8 +5,8 @@
      Discussions WINDOW (Windows/MesoDiscussionWindow).
 
      ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH
-     ▓        2 discussions in effect                   ▓   under the header): how many are drawn right now,
-     ▓        At 4:51 PM · 9 listed for this window     ▓   which moment that is, loading / failures below
+     ▓  2 discussions in effect                         ▓   under the header): how many are drawn right now,
+     ▓  At 4:51 PM · 9 listed for this window           ▓   which moment that is, loading / failures below
      ──────────────────────────────────────────────────────
        [x] ■ SPC mesoscale                         2     ← one row PER KIND, generated from DiscussionKinds
        [x] ■ WPC precipitation                     0       (a new kind needs no XAML); count = in effect

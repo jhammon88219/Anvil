@@ -4,13 +4,13 @@
 
       ┌──────────────────────────────────────────────────────────────┐
       │ ⠿  ›  [x]  Warnings        ────────────●──────────   100%    │  ← the expander's header (#1A1A1A)
-      │           2 active warnings                                  │  ← THIS card: same grey, no top / left /
-      │           1 tornado emergency · 1 PDS tornado                │    right margin, square corners
-      │           Updated 12:04 PM · checking every 15s              │
+      │   2 active warnings                                          │  ← THIS card: same grey, no top / left /
+      │   1 tornado emergency · 1 PDS tornado                        │    right margin, square corners
+      │   Updated 12:04 PM · checking every 15s                      │
       ├──────────────────────────────────────────────────────────────┤  ← its bottom hairline = the body's rule
-      │   [x] ■ Tornado                                       2      │  ← the rest of the body, 14 px below,
+      │   [x] ■ Tornado                 2                            │  ← the rest of the body, 14 px below,
       └──────────────────────────────────────────────────────────────┘    on the window's ground
-      |←44→| text starts under the header's checkbox column (2 pad + 18 grip + 24 chevron)
+      |←12→| text starts on the BODY's left edge (its Padding) — the same edge as the content below
 
      Lines, each collapsing when empty: Headline (15, primary, wraps) · Threats (13 semibold, primary) · Context
      (13, secondary) · Footer (11, tertiary — loading / failures).
@@ -32,7 +32,7 @@
              IsTabStop="False">
 
     <Border x:Name="CardFace"
-            Padding="44,6,13,12"
+            Padding="12,6,12,12"
             Background="{ThemeResource SectionHeaderBackground}"
             BorderThickness="0,0,0,1"
             BorderBrush="{ThemeResource SectionBorderBrush}">
