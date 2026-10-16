@@ -325,7 +325,7 @@ namespace Anvil
 		private void OnAtlasKeyClick(object sender, RoutedEventArgs e)
 		{
 			ViewModel.ToggleAtlasFromBar();
-			AtlasKey.IsChecked = ViewModel.IsRadarAtlasOpen;
+			AtlasKey.IsChecked = ViewModel.IsAtlasOpen;
 		}
 
 		private void UpdateNotchInputRegions()
@@ -733,17 +733,17 @@ namespace Anvil
 				customChrome: true);
 			_windows.Register(
 				id: "sites",
-				isOpen: () => ViewModel.IsRadarAtlasOpen,
-				close: () => ViewModel.IsRadarAtlasOpen = false,
+				isOpen: () => ViewModel.IsAtlasOpen,
+				close: () => ViewModel.IsAtlasOpen = false,
 				buildContent: () =>
 				{
-					var atlas = new Controls.Windows.RadarAtlasWindow { ViewModel = ViewModel };
+					var atlas = new Controls.Windows.AtlasWindow { ViewModel = ViewModel };
 					atlas.ImportDowEventRequested += OnImportDowEventRequested; // the DOW events tab
 					return atlas;
 				},
 				title: "Anvil Atlas", anchor: WindowAnchor.Center,
-				keepAboveOwner: () => ViewModel.IsRadarAtlasOnTop,
-				isLocked: () => ViewModel.IsRadarAtlasLocked,
+				keepAboveOwner: () => ViewModel.IsAtlasOnTop,
+				isLocked: () => ViewModel.IsAtlasLocked,
 				customChrome: true);
 			// THREE windows, one per timeframe — one TemporalWindow class registered three times, differing
 			// only in Mode, title, size and which flags it reads. They are opened by the SETTINGS RAIL at the

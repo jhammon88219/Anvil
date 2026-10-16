@@ -458,7 +458,7 @@
                                               Grid.Column="0"
                                               Style="{StaticResource BarKeyToggleStyle}"
                                               ToolTipService.ToolTip="Anvil Atlas — radar sites and past events"
-                                              IsChecked="{x:Bind ViewModel.IsRadarAtlasOpen, Mode=OneWay}"
+                                              IsChecked="{x:Bind ViewModel.IsAtlasOpen, Mode=OneWay}"
                                               Click="OnAtlasKeyClick">
                                     <Grid Margin="3,0" RowSpacing="2">
                                         <Grid.RowDefinitions>

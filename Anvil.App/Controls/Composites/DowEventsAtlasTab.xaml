@@ -23,7 +23,7 @@
      WebView FETCHES the frame, so it has to be same-origin under the mapped dowevents host. The app ships an
      empty library — frames are ~20 MB and are no longer packaged.
      ⚠️ Import… raises an event rather than opening the picker here: a FileOpenPicker needs a window HWND and this
-     is a UserControl (RadarAtlasWindow forwards it to MainWindow — the Map tab's folder-browse chain). -->
+     is a UserControl (AtlasWindow forwards it to MainWindow — the Map tab's folder-browse chain). -->
 <UserControl x:Class="Anvil.Controls.Composites.DowEventsAtlasTab"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

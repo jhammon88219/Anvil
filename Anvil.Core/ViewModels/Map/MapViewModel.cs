@@ -361,7 +361,7 @@ namespace Anvil.ViewModels
 		// reopen it this session. Don't "fix" that by re-arming in the open path — a toggle that silently
 		// resets itself is worse than one that remembers.
 		private bool _isSettingsWindowOnTop = true;
-		private bool _isRadarAtlasOnTop = true;
+		private bool _isAtlasOnTop = true;
 
 		/// <summary>Whether the Settings window stays on top (title-bar pin).</summary>
 		public bool IsSettingsWindowOnTop
@@ -371,10 +371,10 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>Whether the Radar Atlas window stays on top (title-bar pin).</summary>
-		public bool IsRadarAtlasOnTop
+		public bool IsAtlasOnTop
 		{
-			get => _isRadarAtlasOnTop;
-			set => SetProperty(ref _isRadarAtlasOnTop, value);
+			get => _isAtlasOnTop;
+			set => SetProperty(ref _isAtlasOnTop, value);
 		}
 
 		// Per-window LOCK flags, each driven by that window's title-bar lock (LockToggle) and enforced by
@@ -383,7 +383,7 @@ namespace Anvil.ViewModels
 		// stays there until the user deliberately unlocks it. FIELD defaults, like the pins: an unlocked panel
 		// stays unlocked when reopened this session (it still reopens in its designated spot).
 		private bool _isSettingsWindowLocked = true;
-		private bool _isRadarAtlasLocked = true;
+		private bool _isAtlasLocked = true;
 		private bool _isPipelineConsoleLocked = true;
 
 		/// <summary>Whether the Settings window is locked in place (title-bar lock).</summary>
@@ -394,10 +394,10 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>Whether the Radar Atlas window is locked in place (title-bar lock).</summary>
-		public bool IsRadarAtlasLocked
+		public bool IsAtlasLocked
 		{
-			get => _isRadarAtlasLocked;
-			set => SetProperty(ref _isRadarAtlasLocked, value);
+			get => _isAtlasLocked;
+			set => SetProperty(ref _isAtlasLocked, value);
 		}
 
 		/// <summary>Whether the Pipeline Console window is locked in place (title-bar lock).</summary>
@@ -1056,7 +1056,7 @@ namespace Anvil.ViewModels
 		// — they are TABS of the Settings window (see SettingsTabIndex below), which is why the bar's right
 		// cluster is down to Panes / Atlas / Settings. A new group of settings is a tab, not a window.
 		private bool _isSettingsWindowOpen;
-		private bool _isRadarAtlasOpen;
+		private bool _isAtlasOpen;
 
 		/// <summary>Whether the Settings window is open. Opening it freshens whatever the landing tab shows
 		/// live (today: the Storage tab's radar-cache size).</summary>
@@ -1100,12 +1100,12 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>Whether the Anvil Atlas window is open (toggled by the "Atlas" key).</summary>
-		public bool IsRadarAtlasOpen
+		public bool IsAtlasOpen
 		{
-			get => _isRadarAtlasOpen;
+			get => _isAtlasOpen;
 			set
 			{
-				if (SetProperty(ref _isRadarAtlasOpen, value))
+				if (SetProperty(ref _isAtlasOpen, value))
 				{
 					RadarAtlas.History.IsActive = value; // the history sections fetch only while someone can see them
 				}
@@ -1238,7 +1238,7 @@ namespace Anvil.ViewModels
 			await Radar.Dow.LoadDowEventAsync();
 			if (Radar.Dow.IsShowing)
 			{
-				IsRadarAtlasOpen = false;
+				IsAtlasOpen = false;
 			}
 		}
 
@@ -1261,7 +1261,7 @@ namespace Anvil.ViewModels
 		{
 			RadarAtlas.SelectedSite = row;
 			AtlasTabIndex = 0;
-			IsRadarAtlasOpen = true;
+			IsAtlasOpen = true;
 		}
 
 		/// <summary>Open the Atlas on Past events, on the event PastCast has picked (PastCast's Timeframe card
@@ -1270,7 +1270,7 @@ namespace Anvil.ViewModels
 		{
 			SavedEvents.SelectInAtlas(SavedEvents.PickedId);
 			AtlasTabIndex = 1;
-			IsRadarAtlasOpen = true;
+			IsAtlasOpen = true;
 		}
 
 		/// <summary>PastCast's Timeframe Clear: forget the loaded window (Radar.ClearReplay) AND take off the town pin
@@ -1288,13 +1288,13 @@ namespace Anvil.ViewModels
 		public void OpenAtlasOnSites()
 		{
 			AtlasTabIndex = 0;
-			IsRadarAtlasOpen = true;
+			IsAtlasOpen = true;
 		}
 
 		/// <summary>The bar's Atlas key: closes an open Atlas, otherwise opens it on Radar sites.</summary>
 		public void ToggleAtlasFromBar()
 		{
-			if (IsRadarAtlasOpen) { IsRadarAtlasOpen = false; }
+			if (IsAtlasOpen) { IsAtlasOpen = false; }
 			else { OpenAtlasOnSites(); }
 		}
 
@@ -1320,7 +1320,7 @@ namespace Anvil.ViewModels
 				IsPastCast = true; // synchronous: replay mode is armed before the load below reads it
 			}
 			SavedEvents.PlayAtlasSelection();
-			IsRadarAtlasOpen = false;
+			IsAtlasOpen = false;
 		}
 
 		// ===== Monitor mode (Single now, Multi later) =====================================================

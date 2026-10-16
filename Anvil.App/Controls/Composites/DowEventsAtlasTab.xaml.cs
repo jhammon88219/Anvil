@@ -29,7 +29,7 @@ namespace Anvil.Controls.Composites
 
 		// ⚠️ Import raises an event instead of showing the picker: a WinRT FileOpenPicker must be initialized
 		// with a window HWND, and this is a UserControl inside the Atlas window's UserControl. The request
-		// bubbles RadarAtlasWindow → MainWindow, the same chain the Map settings tab uses for the basemap folder.
+		// bubbles AtlasWindow → MainWindow, the same chain the Map settings tab uses for the basemap folder.
 		public event EventHandler? ImportRequested;
 
 		// ── Presentation ──

@@ -11,13 +11,13 @@ namespace Anvil.Controls.Windows
 	/// The Anvil Atlas — everything you can point the radar at: a title band, then two tabs, Radar sites (a
 	/// searchable master–detail browser over the radar network, this file) and Past events
 	/// (<see cref="Composites.PastEventsAtlasTab"/>). Bound to the coordinator <see cref="MapViewModel"/> (like
-	/// <see cref="SettingsWindow"/>): its visibility follows <see cref="MapViewModel.IsRadarAtlasOpen"/>, its tab
+	/// <see cref="SettingsWindow"/>): its visibility follows <see cref="MapViewModel.IsAtlasOpen"/>, its tab
 	/// <see cref="MapViewModel.AtlasTabIndex"/>, and it reaches into <see cref="MapViewModel.RadarAtlas"/> for the
 	/// sites list/detail. The Load button is handled here in code-behind.
 	/// </summary>
-	public sealed partial class RadarAtlasWindow : UserControl
+	public sealed partial class AtlasWindow : UserControl
 	{
-		public RadarAtlasWindow()
+		public AtlasWindow()
 		{
 			InitializeComponent();
 		}
@@ -53,14 +53,14 @@ namespace Anvil.Controls.Windows
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(RadarAtlasWindow), new PropertyMetadata(null, OnViewModelChanged));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(AtlasWindow), new PropertyMetadata(null, OnViewModelChanged));
 
 		// The grouped list's CollectionViewSource can't x:Bind, so its Source is handed over here. ⚠️ This
 		// metadata callback runs before x:Bind's own DP listener, so the sections exist by the time the
 		// SelectedItem binding pushes the map-synced site — otherwise the ListView would null it out.
 		private static void OnViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
 		{
-			var window = (RadarAtlasWindow)d;
+			var window = (AtlasWindow)d;
 			((CollectionViewSource)window.Resources["SiteGroupsSource"]).Source =
 				(e.NewValue as MapViewModel)?.RadarAtlas.SiteGroups;
 		}
@@ -243,7 +243,7 @@ namespace Anvil.Controls.Windows
 			}
 
 			ViewModel.RadarAtlas.LoadOnMap();
-			ViewModel.IsRadarAtlasOpen = false;
+			ViewModel.IsAtlasOpen = false;
 		}
 	}
 }
