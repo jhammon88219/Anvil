@@ -56,7 +56,7 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty AlertNounProperty =
 			DependencyProperty.Register(nameof(AlertNoun), typeof(string), typeof(PhenomOverlayInput), new PropertyMetadata("alerts"));
 
-		/// <summary>The overlay's view model; bound from the host (NowCastTab → ViewModel.Watches / .Warnings).</summary>
+		/// <summary>The overlay's view model; bound from the host (TemporalWindowNowCastContent → ViewModel.Watches / .Warnings).</summary>
 		public PhenomOverlayViewModel ViewModel
 		{
 			get => (PhenomOverlayViewModel)GetValue(ViewModelProperty);

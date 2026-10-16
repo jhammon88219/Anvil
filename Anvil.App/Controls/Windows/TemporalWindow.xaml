@@ -4,24 +4,25 @@
      the window.
 
        ┌─────────────────────────────────────────[lock][pin]─┐
-       │  ┌──┐ ForeCast                    │ MDT 4/5          │  ← NO window title: each BODY opens with its
-       │  └──┘ Day 1 · Wed Sep 2           │ next ~9 min      │    own NAME ROW (all three, 2026-10-07)
-       │  (fixed 480 × full height; the BODY scrolls itself)  │
+       │  ┌──┐ ForeCast                    │ MDT 4/5          │  ← NO window title: each CONTENT opens with
+       │  └──┘ Day 1 · Wed Sep 2           │ next ~9 min      │    a Primitives/TemporalWindowHeader
+       │  (fixed 480 × full height; the CONTENT scrolls itself)│
        │  ┌──────────────────────────────────────────────┐    │
        │  │                                              │    │
-       │  │   that mode's body — ONE UserControl from     │    │
-       │  │   Controls/Composites, all three declared     │    │
-       │  │   below, only Mode's one x:Load'ed            │    │
-       │  │   (PastCastTab / NowCastTab / ForeCastTab)    │    │
-       │  │                                              │    │
+       │  │   that mode's CONTENT — ONE UserControl from │    │
+       │  │   Controls/Composites, all three declared    │    │
+       │  │   below, only Mode's one x:Load'ed           │    │
+       │  │   TemporalWindowNowCastContent               │    │
+       │  │   TemporalWindowPastCastContent              │    │
+       │  │   TemporalWindowForeCastContent              │    │
        │  └──────────────────────────────────────────────┘    │
        └──────────────────────────────────────────────────────┘
 
      ⚠️ ONE CLASS, THREE WINDOWS. This is registered three times (MainWindow), once per TemporalMode, each
      with its own id, title, size and open flag. The alternative — three near-identical window classes — is
      three copies of one layout waiting to drift apart, which is the thing this repo keeps deleting.
-     The BODIES keep their old file names (PastCastTab / NowCastTab / ForeCastTab) even though there are no
-     tabs any more: they are the same three controls, unchanged, and renaming them would be churn.
+     NAMES READ AS THE TREE (2026-10-16): TemporalWindow → TemporalWindow<Mode>Content → TemporalWindowHeader
+     → TemporalWindowHeader<Mode>Readout; each x:Name equals its type name.
 
      WHAT THIS REPLACED, and why: ONE window with the three modes as TABS, opened by a shared three-dot key.
      That existed because the three mode keys each owned a window and so meant two things at once — "turn the
@@ -35,12 +36,12 @@
      ⚠️ THIS WINDOW CANNOT OUTLIVE ITS MODE. Its rail can only be clicked while the mode runs, and
      MapViewModel.OnTemporalModesChanged closes the window when the mode stops — so there is no "every tab
      greyed" state to design for and no empty state to show. The panel is only ever up when it has something
-     to act on, which is why nothing in these bodies needs to check whether its mode is running.
-     ⚠️ A BODY NEVER STARTS ITS MODE — that is the key's job, and it always was. The date/start/window fields
+     to act on, which is why nothing in these Contents needs to check whether its mode is running.
+     ⚠️ A CONTENT NEVER STARTS ITS MODE — that is the key's job, and it always was. The date/start/window fields
      drive a replay that is already armed, the watch/warning toggles overlay a live loop, the day/product
      selectors pick which outlook is drawn.
 
-     ⚠️ ALL THREE BODIES ARE DECLARED BELOW, each behind x:Load; only Mode's one is ever built (the others
+     ⚠️ ALL THREE CONTENTS ARE DECLARED BELOW, each behind x:Load; only Mode's one is ever built (the others
      stay unrealized — no cost). Mode and ViewModel are CONSTRUCTOR arguments, set before InitializeComponent,
      so the OneTime x:Load binds see the final Mode on their one evaluation. x:Load's real hazard — bound
      OneWay to a bool it UNLOADS again when that bool goes false, throwing away live widget state — cannot
@@ -58,22 +59,22 @@
              mc:Ignorable="d">
 
     <!-- Dark surface fills the whole window. -->
-    <!-- ⚠️ NO TITLE ROW any more: every body opens with its own NAME ROW (status square · name over a date line ·
-         a readout), so the mode's name shows once, in the body (ForeCast was the last, 2026-10-07). -->
+    <!-- ⚠️ NO TITLE ROW any more: every Content opens with its own TemporalWindowHeader (status square · name over a date line ·
+         a readout), so the mode's name shows once, in the Content (ForeCast was the last, 2026-10-07). -->
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
 
         <!-- ⚠️ NO ScrollViewer HERE. The window opens at the FULL height above the bottom chrome (WindowManager's
-             edge anchors), so a body shorter than that just shows surface below it. A body scrolls ITSELF with
-             Primitives/PanelScroller (all three bodies have it), because only the body knows what stays fixed —
+             edge anchors), so a Content shorter than that just shows surface below it. A Content scrolls ITSELF with
+             Primitives/PanelScroller (all three Contents have it), because only the Content knows what stays fixed —
              PastCast's Timeframe and NowCast's clock + tiles don't scroll, their sections do; ForeCast's
              discussion stays pinned below its scrolling outlook.
-             Each body stretches to the full row height: Past/Now top-align their own roots and are
+             Each Content stretches to the full row height: Past/Now top-align their own roots and are
              unaffected, ForeCast stretches so its legend can fill what is left. -->
-        <comp:PastCastTab x:Name="PastBody" x:Load="{x:Bind IsPast}" Margin="16,14,16,14"
+        <comp:TemporalWindowPastCastContent x:Name="TemporalWindowPastCastContent" x:Load="{x:Bind IsPast}" Margin="16,14,16,14"
                           ViewModel="{x:Bind ViewModel}"/>
-        <comp:NowCastTab x:Name="NowBody" x:Load="{x:Bind IsNow}" Margin="16,14,16,14"
+        <comp:TemporalWindowNowCastContent x:Name="TemporalWindowNowCastContent" x:Load="{x:Bind IsNow}" Margin="16,14,16,14"
                          ViewModel="{x:Bind ViewModel}"/>
-        <comp:ForeCastTab x:Name="ForeBody" x:Load="{x:Bind IsFore}" Margin="16,14,16,14"
+        <comp:TemporalWindowForeCastContent x:Name="TemporalWindowForeCastContent" x:Load="{x:Bind IsFore}" Margin="16,14,16,14"
                           ViewModel="{x:Bind ViewModel}"/>
 
         <!-- Lock + pin. Bound in code-behind — the flags they drive depend on Mode. -->

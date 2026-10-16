@@ -21,7 +21,7 @@ namespace Anvil.Controls.Composites
 		public string Fmt(int count) => count.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
 		// x:Bind helper: collapse a card line that has nothing to say, so the card closes up rather than
-		// leaving a gap where the context or footer would be. Same helper as PastCastTab's.
+		// leaving a gap where the context or footer would be. Same helper as TemporalWindowPastCastContent's.
 		public Microsoft.UI.Xaml.Visibility HasText(string? value) =>
 			string.IsNullOrEmpty(value)
 				? Microsoft.UI.Xaml.Visibility.Collapsed

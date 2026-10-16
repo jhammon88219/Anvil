@@ -30,7 +30,7 @@ namespace Anvil.Controls.Composites
 
 		public Visibility Shown(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
-		/// <summary>The view model; bound from the host (NowCastTab / PastCastTab → ViewModel.Discussions).</summary>
+		/// <summary>The view model; bound from the host (TemporalWindowNowCastContent / TemporalWindowPastCastContent → ViewModel.Discussions).</summary>
 		public MesoDiscussionsViewModel ViewModel
 		{
 			get => (MesoDiscussionsViewModel)GetValue(ViewModelProperty);

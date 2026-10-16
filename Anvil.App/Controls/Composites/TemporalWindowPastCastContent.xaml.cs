@@ -21,11 +21,11 @@ namespace Anvil.Controls.Composites
 	/// TimeButtonPicker binds to that TimeSpan directly (its draft lives inside it), so all of it went. Everything left below is presentation
 	/// for the summary card, which has no state of its own.
 	/// </summary>
-	public sealed partial class PastCastTab : UserControl
+	public sealed partial class TemporalWindowPastCastContent : UserControl
 	{
 		private bool _orderApplied;
 
-		public PastCastTab()
+		public TemporalWindowPastCastContent()
 		{
 			InitializeComponent();
 			// Once: Loaded fires again every time the window re-shows this body, and by then the sections
@@ -34,8 +34,8 @@ namespace Anvil.Controls.Composites
 			{
 				if (_orderApplied || ViewModel is null) { return; }
 				_orderApplied = true;
-				LayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Past));
-				LayerExpanderHost.PersistExpansion("past", ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
+				DragMoveLayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Past));
+				DragMoveLayerExpanderHost.PersistExpansion("past", ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			};
 			// ⚠️ LIFETIME: the PastCast window builds a new body per open, and Radar is an app singleton (its
 			// PropertyChanged fires on every playback tick) — listen only while loaded, or each closed window leaks.
@@ -57,8 +57,8 @@ namespace Anvil.Controls.Composites
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(PastCastTab),
-				new PropertyMetadata(null, (d, e) => ((PastCastTab)d).OnViewModelChanged(e)));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalWindowPastCastContent),
+				new PropertyMetadata(null, (d, e) => ((TemporalWindowPastCastContent)d).OnViewModelChanged(e)));
 
 		// ===== The card's accent state =====
 		// ⚠️ THIS LISTENER EXISTS ONLY BECAUSE THE CARD'S TWO ACCENT BRUSHES ARE VISUAL STATES — see the ⚠️
@@ -118,11 +118,8 @@ namespace Anvil.Controls.Composites
 		// The error's first line ends in the spaced dash that leads into the retry hint below it.
 		public string ErrorFirstLine(string error) => error + " –";
 
-		// The header's placeholders ("No replay date" / "No Timeframe Loaded") dim until a window is loaded.
+		// The header's date placeholder ("No replay date") dims until a window is loaded (the Readout dims its own).
 		public double PlaceholderOpacity(bool loaded) => loaded ? 1.0 : 0.4;
-
-		// The clock's spot: the loaded window at 30 (console-clock face), the placeholder at 16.
-		public double RangeFontSize(bool loaded) => loaded ? 30 : 16;
 
 		// The pickers LOCK while a window is loaded (Clear unlocks them): disabled, and each label + picker dimmed
 		// (not their grid — Set Timeframe and Clear share it and must stay full strength). ⚠️ An ERROR unlocks them
@@ -164,7 +161,7 @@ namespace Anvil.Controls.Composites
 		private static object? Lookup(string key) =>
 			Application.Current.Resources.TryGetValue(key, out var value) ? value : null;
 
-		// Header select-all boxes, same contract as NowCastTab's: IsChecked is bound ONE-WAY, so the box has
+		// Header select-all boxes, same contract as TemporalWindowNowCastContent's: IsChecked is bound ONE-WAY, so the box has
 		// already flipped itself by the time Click fires and the VM's answer overwrites it. Every layer
 		// section has one (the outlook's is show/hide, disabled while Product is None).
 		private void OnRadarHeaderClick(object sender, RoutedEventArgs e)
@@ -215,7 +212,7 @@ namespace Anvil.Controls.Composites
 		// THIS window and restacks the map. The saved order is applied once, on first load (constructor).
 
 		private void OnLayersReordered(object? sender, EventArgs e) =>
-			ViewModel?.SetLayerOrder(TemporalMode.Past, LayerExpanderHost.LayerOrder);
+			ViewModel?.SetLayerOrder(TemporalMode.Past, DragMoveLayerExpanderHost.LayerOrder);
 
 		private async void OnLoadClick(object sender, RoutedEventArgs e)
 		{

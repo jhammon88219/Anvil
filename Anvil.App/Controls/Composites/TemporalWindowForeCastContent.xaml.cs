@@ -11,11 +11,11 @@ namespace Anvil.Controls.Composites
 	/// Discussion. / cycle, legend), plus NowCast's GHOST rows around it. Bound to the coordinator
 	/// <see cref="MapViewModel"/>; every real control here drives <c>ViewModel.Outlook</c>.
 	/// </summary>
-	public sealed partial class ForeCastTab : UserControl
+	public sealed partial class TemporalWindowForeCastContent : UserControl
 	{
 		private bool _expansionBound;
 
-		public ForeCastTab()
+		public TemporalWindowForeCastContent()
 		{
 			InitializeComponent();
 			// Once: Loaded fires again every time the window re-shows this body.
@@ -24,9 +24,9 @@ namespace Anvil.Controls.Composites
 				if (_expansionBound || ViewModel is null) { return; }
 				_expansionBound = true;
 				// The SHARED Now + Fore order (ForeCast has none of its own): the outlook among NowCast's ghosts.
-				LayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now));
+				DragMoveLayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now));
 				// The host skips ghosts (no body to open): only the real layers persist their open/closed state.
-				LayerExpanderHost.PersistExpansion("fore", ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
+				DragMoveLayerExpanderHost.PersistExpansion("fore", ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			};
 			// A drag in the NowCast window moves these too (and this window's drags move NowCast's).
 			Loaded += (_, _) => { if (ViewModel is not null) { ViewModel.LayerOrderChanged += OnLayerOrderChanged; } };
@@ -35,18 +35,15 @@ namespace Anvil.Controls.Composites
 
 		// ⚠️ Saved as the NOW order: Now + Fore share one map, so they share one stack (MapViewModel's GHOST ROWS).
 		private void OnLayersReordered(object? sender, System.EventArgs e) =>
-			ViewModel.SetLayerOrder(TemporalMode.Now, LayerExpanderHost.LayerOrder);
+			ViewModel.SetLayerOrder(TemporalMode.Now, DragMoveLayerExpanderHost.LayerOrder);
 
 		private void OnLayerOrderChanged(object? sender, TemporalMode mode)
 		{
-			if (mode == TemporalMode.Now) { LayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now)); }
+			if (mode == TemporalMode.Now) { DragMoveLayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now)); }
 		}
 
 		// A ghost row shows only while its box is on and NowCast runs (MapViewModel.AreNowCastGhostsShown).
 		public Visibility GhostVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
-
-		/// <summary>The header readout: "No areas" / "No outlook" dims to 40% (PastCast's placeholder rule).</summary>
-		public double PeakOpacity(bool hasPeak) => hasPeak ? 1.0 : 0.4;
 
 		// "Discussion." on the Product row — SPC's forecast discussion in its own window.
 		private void OnDiscussionClick(object sender, RoutedEventArgs e)
@@ -71,6 +68,6 @@ namespace Anvil.Controls.Composites
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(ForeCastTab), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalWindowForeCastContent), new PropertyMetadata(null));
 	}
 }

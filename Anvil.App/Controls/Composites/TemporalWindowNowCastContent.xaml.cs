@@ -17,7 +17,7 @@ namespace Anvil.Controls.Composites
 	/// the four header select-all clicks, which hand the decision to the VM, and the layer ORDER: the saved
 	/// one applied on first load, and a re-order handed back to the VM.</para>
 	/// </summary>
-	public sealed partial class NowCastTab : UserControl
+	public sealed partial class TemporalWindowNowCastContent : UserControl
 	{
 		private bool _orderApplied;
 
@@ -26,12 +26,9 @@ namespace Anvil.Controls.Composites
 		private readonly DispatcherTimer _clock = new() { Interval = System.TimeSpan.FromMilliseconds(250) };
 		private long _shownSecond = -1;
 
-		public NowCastTab()
+		public TemporalWindowNowCastContent()
 		{
 			InitializeComponent();
-			// The AM/PM slot's two invisible samples: it is as wide as the wider, so noon doesn't nudge the clock.
-			AmSample.Text = CultureInfo.CurrentCulture.DateTimeFormat.AMDesignator;
-			PmSample.Text = CultureInfo.CurrentCulture.DateTimeFormat.PMDesignator;
 			_clock.Tick += (_, _) => UpdateClock();
 			Loaded += (_, _) => { _shownSecond = -1; UpdateClock(); _clock.Start(); };
 			Unloaded += (_, _) => _clock.Stop();
@@ -44,18 +41,18 @@ namespace Anvil.Controls.Composites
 			{
 				if (_orderApplied || ViewModel is null) { return; }
 				_orderApplied = true;
-				LayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now));
-				LayerExpanderHost.PersistExpansion("now", ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
+				DragMoveLayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now));
+				DragMoveLayerExpanderHost.PersistExpansion("now", ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			};
 		}
 
 		private void OnLayersReordered(object? sender, System.EventArgs e) =>
-			ViewModel.SetLayerOrder(TemporalMode.Now, LayerExpanderHost.LayerOrder);
+			ViewModel.SetLayerOrder(TemporalMode.Now, DragMoveLayerExpanderHost.LayerOrder);
 
 		// Re-apply the shared order (a no-op when this window made the change — it is already in that order).
 		private void OnLayerOrderChanged(object? sender, TemporalMode mode)
 		{
-			if (mode == TemporalMode.Now) { LayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now)); }
+			if (mode == TemporalMode.Now) { DragMoveLayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now)); }
 		}
 
 		// A ghost row shows only while its box is on and its mode runs (MapViewModel.AreForeCastGhostsShown).
@@ -101,18 +98,15 @@ namespace Anvil.Controls.Composites
 			if (second == _shownSecond) { return; }
 			_shownSecond = second;
 
-			// Digits and AM/PM are separate cells, as on the radar console's clock (RadarControls).
-			var culture = CultureInfo.CurrentCulture;
-			ClockDigits.Text = now.ToString("h:mm", culture);
-			ClockSuffix.Text = now.ToString("tt", culture);
-			ClockDate.Text = now.ToString("dddd MMM d", culture);
-			ToolTipService.SetToolTip(ClockTime, $"{ZoneLabel(now.DateTime)} · {now.UtcDateTime:HH:mm} UTC");
+			// The clock is the header's Readout control; the date and the feed status are the header's own.
+			TemporalWindowHeaderNowCastReadout.Time = now;
+			TemporalWindowHeader.Subtitle = now.ToString("dddd MMM d", CultureInfo.CurrentCulture);
 
 			var updated = ViewModel?.Warnings.LastUpdated;
-			FeedStatus.Background = FeedBrush(updated is { } when ? now - when : null);
-			ToolTipService.SetToolTip(FeedStatus, updated is { } at
+			TemporalWindowHeader.StatusFill = FeedBrush(updated is { } when ? now - when : null);
+			TemporalWindowHeader.StatusToolTip = updated is { } at
 				? $"Warnings updated {Age(now - at)}"
-				: "Warnings not checked yet");
+				: "Warnings not checked yet";
 		}
 
 		// ── Feed status bar ──
@@ -139,21 +133,6 @@ namespace Anvil.Controls.Composites
 			span.TotalMinutes < 60 ? $"{(int)span.TotalMinutes} min ago" :
 			$"{(int)span.TotalHours} h ago";
 
-		// Windows has no zone ABBREVIATION, only names: "Central Daylight Time" → "CDT" by initials. A name that
-		// doesn't abbreviate cleanly (non-US, localized) falls back to the UTC offset.
-		private static string ZoneLabel(System.DateTime local)
-		{
-			var zone = TimeZoneInfo.Local;
-			var name = zone.IsDaylightSavingTime(local) ? zone.DaylightName : zone.StandardName;
-			var words = name.Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
-			if (words.Length is >= 2 and <= 4 && words.All(w => char.IsUpper(w[0])))
-			{
-				return new string(words.Select(w => w[0]).ToArray());
-			}
-			var offset = zone.GetUtcOffset(local);
-			return $"UTC{(offset < System.TimeSpan.Zero ? "−" : "+")}{offset:hh\\:mm}";
-		}
-
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel
 		{
@@ -162,6 +141,6 @@ namespace Anvil.Controls.Composites
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(NowCastTab), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalWindowNowCastContent), new PropertyMetadata(null));
 	}
 }

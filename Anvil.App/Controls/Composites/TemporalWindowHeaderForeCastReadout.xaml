@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TemporalWindowHeaderForeCastReadout — the ForeCast header's Readout: the shown outlook's HIGHEST risk over
+     the refresh countdown.
+
+       MDT 4/5          ← 30 SemiLight (the PastCast range's size); "No areas" / "No outlook" dims to 40%
+       next ~9 min      ← 13 secondary -->
+
+<UserControl x:Class="Anvil.Controls.Composites.TemporalWindowHeaderForeCastReadout"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             IsTabStop="False">
+
+    <StackPanel VerticalAlignment="Center" Spacing="2">
+        <TextBlock Text="{x:Bind ViewModel.HeaderRiskText, Mode=OneWay}"
+                   FontSize="30" FontWeight="SemiLight"
+                   Opacity="{x:Bind PeakOpacity(ViewModel.HasPeak), Mode=OneWay}"
+                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+        <TextBlock Text="{x:Bind ViewModel.OutlookNextUpdateText, Mode=OneWay}" FontSize="13"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+    </StackPanel>
+</UserControl>

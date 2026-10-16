@@ -450,7 +450,7 @@
                                 <!-- ⚠️ ATLAS WAS A SPLIT KEY (a SplitTemporalToggle whose car opened a home/favorites
                                      flyout). That flyout became the tools tier's SITE PICKER (MapControlsStrip), so this
                                      is a plain window latch again, exactly like Settings. Don't re-split it.
-                                     ⚠️ Its glyph (EC05) is MIRRORED on PastCastTab's Timeframe-card "Atlas" button — same
+                                     ⚠️ Its glyph (EC05) is MIRRORED on TemporalWindowPastCastContent's Timeframe-card "Atlas" button — same
                                      door, same mark; change both.
                                      ⚠️ ONE-WAY + Click → ToggleAtlasFromBar: this key always opens on RADAR SITES (the
                                      user's call, 2026-10-01; PastCast's button opens on Past events). -->

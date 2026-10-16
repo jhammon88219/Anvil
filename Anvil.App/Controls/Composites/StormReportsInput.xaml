@@ -29,7 +29,7 @@
      chosen anyway — see the ⚠️ on the card region in StormReportsViewModel. If it ever reads as noise the
      honest fix is to drop the card, not to invent a different number for it.
 
-     ⚠️ THE SECTION HEADING IS NOT HERE — each host window draws its own (PastCastTab / NowCastTab) above
+     ⚠️ THE SECTION HEADING IS NOT HERE — each host window draws its own (TemporalWindowPastCastContent / TemporalWindowNowCastContent) above
      this control. The window owns its section structure; this is content. That is also why there is no
      divider in here.
 

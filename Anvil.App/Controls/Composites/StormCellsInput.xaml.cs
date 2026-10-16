@@ -22,7 +22,7 @@ namespace Anvil.Controls.Composites
 		public Visibility HasText(string? value) =>
 			string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
 
-		/// <summary>The view model; bound from the host (NowCastTab / PastCastTab → ViewModel.StormCells).</summary>
+		/// <summary>The view model; bound from the host (TemporalWindowNowCastContent / TemporalWindowPastCastContent → ViewModel.StormCells).</summary>
 		public StormCellsViewModel ViewModel
 		{
 			get => (StormCellsViewModel)GetValue(ViewModelProperty);

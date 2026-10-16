@@ -23,7 +23,7 @@
 //
 // ⚠️ COLOURS ARE DATA, NOT THEME: the EF palette is the DAT viewer's own polygon renderer (read from the
 // FeatureServer's drawingInfo, 2026-09-24). Tracks and points reuse it, so one rating is one colour here.
-// It is written twice — here and the swatches in PastCastTab.xaml. Change both.
+// It is written twice — here and the swatches in TemporalWindowPastCastContent.xaml. Change both.
 // ⚠️ Z-ORDER: beneath the place labels (firstSymbolLayerId), so it lands above the outlook, the radar and
 // the watch/warning fills, and below the storm-report dots (which sit above everything).
 

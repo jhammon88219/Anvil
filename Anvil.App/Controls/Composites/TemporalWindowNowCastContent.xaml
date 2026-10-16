@@ -1,9 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<!-- NowCastTab — the body of the NowCast window: storm cells, storm reports, warnings, watches and the radar layer, one
-     LAYER SECTION each. One of three mode bodies (see Controls/Windows/TemporalWindow, registered once per
+<!-- TemporalWindowNowCastContent — the CONTENT of the NowCast window: storm cells, storm reports, warnings, watches and the radar layer, one
+     LAYER SECTION each. One of three mode Contents (see Controls/Windows/TemporalWindow, registered once per
      mode); the window supplies the surface, the title and the pin, so this is content only.
-     ⚠️ The file keeps its "Tab" name from when the three were tabs of one Timeframe window. It is the same
-     control, unchanged by the split; renaming all three would be churn. Bound to the coordinator MapViewModel.
+     Named as the tree reads (TemporalWindow → TemporalWindowNowCastContent). Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────────────┐
        │  ┌──┐  NowCast                          │                   │  ← THE HEADER: FIXED, no section
@@ -94,7 +93,7 @@
        • Tiles — Warnings.TornadoCount/SevereCount/FlashFloodCount, which count EVERY active warning in the
          fetch, never the ticked rows (user's call). Tag lines = WarningThreatCounts, split per type. Stripe
          colours are DATA (the same literals as PhenomOverlayInput's swatches) — never themed. -->
-<UserControl x:Class="Anvil.Controls.Composites.NowCastTab"
+<UserControl x:Class="Anvil.Controls.Composites.TemporalWindowNowCastContent"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:comp="using:Anvil.Controls.Composites"
@@ -221,52 +220,12 @@
                 <RowDefinition Height="*"/>    <!-- the tiles (take the slack) -->
             </Grid.RowDefinitions>
 
-            <!-- THE NAME ROW. Its height is the taller of the name-over-date stack and the clock; the status bar
-                 stretches to it, so the block's top and bottom edges are one line each. -->
-            <Grid Grid.Row="0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="22"/>   <!-- status bar -->
-                    <ColumnDefinition Width="*"/>    <!-- NowCast over the date -->
-                    <ColumnDefinition Width="Auto"/> <!-- hairline · the clock -->
-                </Grid.ColumnDefinitions>
-
-                <!-- FEED STATUS — the Atlas row's left bar / the map key's square: a full-height block forming the
-                     row's left edge, outer corners rounded only. Fill + tooltip set in code (UpdateClock): LITERAL
-                     data colours, never themed. -->
-                <Border x:Name="FeedStatus" Grid.Column="0" CornerRadius="5,0,0,5"/>
-
-                <StackPanel Grid.Column="1" Margin="12,0,12,0" Spacing="2" VerticalAlignment="Center">
-                    <TextBlock Text="NowCast" FontSize="30" FontWeight="SemiLight"
-                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                    <TextBlock x:Name="ClockDate" FontSize="13"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                </StackPanel>
-
-                <!-- THE CLOCK is a COPY of the radar console's (Composites/RadarControls "THE CLOCK"): 40 SemiLight
-                     TABULAR digits on a 42 line, AM/PM 16 secondary on the digits' bottom edge in a slot as wide as
-                     the wider designator — so its width changes only with the digit COUNT (9:59 → 10:00). No
-                     seconds, like the console. Retune both together. Zone + UTC are its tooltip (code). -->
-                <Border Grid.Column="2" BorderThickness="1,0,0,0" Padding="12,0,0,0"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                    <Grid x:Name="ClockTime" ColumnSpacing="4" VerticalAlignment="Center">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="ClockDigits" Grid.Column="0"
-                                   Typography.NumeralAlignment="Tabular"
-                                   FontSize="40" FontWeight="SemiLight"
-                                   LineHeight="42" LineStackingStrategy="BlockLineHeight"
-                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                        <Grid Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5">
-                            <TextBlock x:Name="AmSample" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
-                            <TextBlock x:Name="PmSample" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
-                            <TextBlock x:Name="ClockSuffix" FontSize="16"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        </Grid>
-                    </Grid>
-                </Border>
-            </Grid>
+            <!-- THE NAME ROW: Primitives/TemporalWindowHeader (one control, all three windows), Height set HERE and
+                 kept equal to Past's and Fore's BY HAND. The feed colour + tooltip and the date are written by the
+                 clock tick (code-behind); the clock itself is TemporalWindowHeaderNowCastReadout. -->
+            <prim:TemporalWindowHeader x:Name="TemporalWindowHeader" Grid.Row="0" Height="60" Title="NowCast">
+                <prim:TemporalWindowHeaderNowCastReadout x:Name="TemporalWindowHeaderNowCastReadout"/>
+            </prim:TemporalWindowHeader>
 
             <Grid Grid.Row="1" Margin="0,14,0,0" ColumnSpacing="8">
                 <Grid.ColumnDefinitions>
@@ -435,7 +394,7 @@
     <prim:PanelScroller Grid.Row="2" Margin="0,0,-12,0">
     <!-- ⚠️ Layout/DragMoveLayerExpanderHost: its CHILD ORDER is the display order AND the map's z-order; it
          owns the drag, the saved order and the open/closed state. It holds ONLY DragMoveLayerExpanders. -->
-    <layout:DragMoveLayerExpanderHost x:Name="LayerExpanderHost" VerticalAlignment="Top" Spacing="8" Reordered="OnLayersReordered">
+    <layout:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" VerticalAlignment="Top" Spacing="8" Reordered="OnLayersReordered">
 
         <prim:DragMoveLayerExpander Header="Storm cells" LayerId="cells"
                            ShowCheckBox="True"

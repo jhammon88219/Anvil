@@ -29,13 +29,13 @@
      Thunderstorm" with the counts stranded on a separate "Active" line below it; splitting the checkbox
      in two put the count on the line that switches it and left nothing for a master to do. The layer is
      on when either type is on AND its mode runs (PhenomOverlayViewModel.AnyShown + IsModeActive). The
-     select-all lives in the HOST's section header (NowCastTab), not here.
+     select-all lives in the HOST's section header (TemporalWindowNowCastContent), not here.
 
      ⚠️ The swatch colours are the phenom colours the map draws (watches.js / warnings.js, both TO red /
      SV yellow; warnings.js FF green; watches.js FA sea green = WatchFlood.Color). They are literals in both
      places — change one, change the other.
 
-     ⚠️ THE SECTION HEADING IS NOT HERE — the host draws its own above this control (NowCastTab writes
+     ⚠️ THE SECTION HEADING IS NOT HERE — the host draws its own above this control (TemporalWindowNowCastContent writes
      "Watches" over one instance and "Warnings" over the other). The window owns its section structure;
      this is content. Same rule as StormReportsInput, and the reason there is no divider in here either.
 
