@@ -34,8 +34,8 @@ namespace Anvil.Controls.Composites
 			{
 				if (_orderApplied || ViewModel is null) { return; }
 				_orderApplied = true;
-				PanelSection.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Past));
-				PanelSection.PersistExpansion(System.Linq.Enumerable.OfType<PanelSection>(Sections.Children), "past",
+				DragMoveLayerExpander.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Past));
+				DragMoveLayerExpander.PersistExpansion(System.Linq.Enumerable.OfType<DragMoveLayerExpander>(Sections.Children), "past",
 					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			};
 			// ⚠️ LIFETIME: the PastCast window builds a new body per open, and Radar is an app singleton (its
@@ -216,7 +216,7 @@ namespace Anvil.Controls.Composites
 		// THIS window and restacks the map. The saved order is applied once, on first load (constructor).
 
 		private void OnSectionsReordered(object? sender, EventArgs e) =>
-			ViewModel?.SetLayerOrder(TemporalMode.Past, PanelSection.LayerOrderOf(Sections));
+			ViewModel?.SetLayerOrder(TemporalMode.Past, DragMoveLayerExpander.LayerOrderOf(Sections));
 
 		private async void OnLoadClick(object sender, RoutedEventArgs e)
 		{

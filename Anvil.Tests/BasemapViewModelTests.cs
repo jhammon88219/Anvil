@@ -94,7 +94,7 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public void CategoryBox_IsPartialWhileMixed_AndSelectAllFollowsPanelSection()
+		public void CategoryBox_IsPartialWhileMixed_AndSelectAllFollowsDragMoveLayerExpander()
 		{
 			var r = new Rig();
 			var roads = r.Vm.Categories.Single(c => c.Label == "Roads");

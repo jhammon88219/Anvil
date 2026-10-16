@@ -209,7 +209,7 @@ namespace Anvil.Controls.Composites
 		public Visibility HiddenNoteVisibility(bool shown) => shown ? Visibility.Collapsed : Visibility.Visible;
 
 		// The layer flyout's TREE rows (static: called from the row DataTemplates). The chevron shows only on an
-		// expander and turns like PanelSection's (E76C right → down); the leaves show while it is open.
+		// expander and turns like DragMoveLayerExpander's (E76C right → down); the leaves show while it is open.
 		public static Visibility VisibleIf(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 
 		public static double ChevronAngle(bool expanded) => expanded ? 90 : 0;

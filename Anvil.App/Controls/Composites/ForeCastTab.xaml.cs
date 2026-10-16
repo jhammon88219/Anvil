@@ -24,10 +24,10 @@ namespace Anvil.Controls.Composites
 				if (_expansionBound || ViewModel is null) { return; }
 				_expansionBound = true;
 				// The SHARED Now + Fore order (ForeCast has none of its own): the outlook among NowCast's ghosts.
-				PanelSection.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Now));
+				DragMoveLayerExpander.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Now));
 				// Ghosts have no body to open, so only the real sections persist their open/closed state.
-				PanelSection.PersistExpansion(
-					System.Linq.Enumerable.Where(System.Linq.Enumerable.OfType<PanelSection>(Sections.Children), s => !s.IsGhost),
+				DragMoveLayerExpander.PersistExpansion(
+					System.Linq.Enumerable.Where(System.Linq.Enumerable.OfType<DragMoveLayerExpander>(Sections.Children), s => !s.IsGhost),
 					"fore", ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			};
 			// A drag in the NowCast window moves these too (and this window's drags move NowCast's).
@@ -37,11 +37,11 @@ namespace Anvil.Controls.Composites
 
 		// ⚠️ Saved as the NOW order: Now + Fore share one map, so they share one stack (MapViewModel's GHOST ROWS).
 		private void OnSectionsReordered(object? sender, System.EventArgs e) =>
-			ViewModel.SetLayerOrder(TemporalMode.Now, PanelSection.LayerOrderOf(Sections));
+			ViewModel.SetLayerOrder(TemporalMode.Now, DragMoveLayerExpander.LayerOrderOf(Sections));
 
 		private void OnLayerOrderChanged(object? sender, TemporalMode mode)
 		{
-			if (mode == TemporalMode.Now) { PanelSection.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Now)); }
+			if (mode == TemporalMode.Now) { DragMoveLayerExpander.ApplyLayerOrder(Sections, ViewModel.LayerOrderFor(TemporalMode.Now)); }
 		}
 
 		// A ghost row shows only while its box is on and NowCast runs (MapViewModel.AreNowCastGhostsShown).

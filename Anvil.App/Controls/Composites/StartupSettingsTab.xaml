@@ -32,7 +32,7 @@
             <RowDefinition Height="Auto"/> <!-- home site -->
         </Grid.RowDefinitions>
 
-        <prim:PanelSection Grid.Row="0" Header="When Anvil opens" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="0" Header="When Anvil opens" IsExpanded="True">
             <StackPanel Spacing="4">
                 <RadioButton GroupName="StartupChoice" Margin="4,0,0,0"
                              Content="Pick up where I left off"
@@ -56,10 +56,10 @@
                 <TextBlock Margin="32,2,0,0" TextWrapping="Wrap" Opacity="0.75"
                            Text="PastCast starts ready to load, not loaded. Takes effect next time Anvil opens."/>
             </StackPanel>
-        </prim:PanelSection>
+        </prim:SettingsExpander>
 
         <!-- The home site is PICKED in the Radar Atlas; this shows it and holds the launch preference. -->
-        <prim:PanelSection Grid.Row="1" Header="Home site" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="1" Header="Home site" IsExpanded="True">
             <StackPanel Spacing="8">
                 <TextBlock Margin="4,0,0,0"
                            Text="{x:Bind ViewModel.SiteFavorites.HomeSiteSummary, Mode=OneWay}"
@@ -70,6 +70,6 @@
                           IsChecked="{x:Bind ViewModel.SiteFavorites.LoadHomeOnLaunch, Mode=TwoWay}"
                           ToolTipService.ToolTip="Start the live radar loop for your home site when Anvil opens"/>
             </StackPanel>
-        </prim:PanelSection>
+        </prim:SettingsExpander>
     </Grid>
 </UserControl>

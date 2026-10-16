@@ -10,7 +10,7 @@ namespace Anvil.ViewModels
 	/// leaf it is a plain row; with several it is an EXPANDER whose box is a select-all over its leaves.
 	/// </summary>
 	/// <remarks>
-	/// ⚠️ THE BOX IS ONE-WAY + <see cref="ToggleAll"/>, PanelSection's select-all rule: all shown → clear them,
+	/// ⚠️ THE BOX IS ONE-WAY + <see cref="ToggleAll"/>, DragMoveLayerExpander's select-all rule: all shown → clear them,
 	/// otherwise (none, or the partial ■) show them all. <see cref="IsChecked"/> is null while partial.
 	/// The leaves (<see cref="BasemapGroupOption"/>) are what persist; this row holds no state of its own except
 	/// <see cref="IsExpanded"/>, which is session-only (every expander starts closed).

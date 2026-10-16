@@ -12,7 +12,7 @@
                                                                      that category + the refresh countdown
        [x] Show NowCast ghost rows                               ← persisted, default off; fixed (doesn't scroll)
        ┌──────────────────────────────────────────────────────┐
-       │ ⠿   ░░ ░Storm cells · NowCast░░░░░░░░░░░░░░░░░░░░░░░ │  ← GHOSTS (PanelSection IsGhost): NowCast's
+       │ ⠿   ░░ ░Storm cells · NowCast░░░░░░░░░░░░░░░░░░░░░░░ │  ← GHOSTS (DragMoveLayerExpander IsGhost): NowCast's
        │ ⠿   ░░ ░Warnings · NowCast░░░░░░░░░░░░░░░░░░░░░░░░░░ │     layers, 25%, drag-only — only while the
        │ …                                                    │     box is on AND NowCast runs. ONE shared
        │ ⠿ ⌄ [x] SPC outlook  ────────●──────   55%           │     Now + Fore order: a drag here moves
@@ -39,7 +39,7 @@
                                                              ┃  ← all of the above sits in PanelScroller: a 16 px
                                                                 gutter always claimed, thumb ┃ only on overflow
 
-     ONE REAL SECTION, a Primitives/PanelSection (the one header every section in the app wears). SPC outlook
+     ONE REAL SECTION, a Primitives/DragMoveLayerExpander (every temporal window's map-layer section). SPC outlook
      is open on a first run — it is what the window is for. Open/closed is then PERSISTED ("fore/..." in
      AppSettings.SectionExpanded; ghosts don't persist — they have no body), and so are Day, Product, opacity
      and hatching (ViewModels/Map/TemporalWindowPersistence). Inside it: a summary CARD, then [label | control]
@@ -152,30 +152,30 @@
              Margin right -12 BLEEDS the gutter into the window's 16 px body margin (the PanelScroller header).
              ⚠️ A StackPanel of its own (like Past/Now's "Sections"): the outlook + NowCast's ghost rows are ONE
              run. With the ghosts hidden the outlook is alone, so its grip shows but a drag never starts
-             (PanelSection needs 2 visible). Reordered → SetLayerOrder(Now): the shared Now + Fore order. -->
+             (DragMoveLayerExpander needs 2 visible). Reordered → SetLayerOrder(Now): the shared Now + Fore order. -->
         <prim:PanelScroller Grid.Row="2" Margin="0,0,-12,0">
         <StackPanel x:Name="Sections" VerticalAlignment="Top" Spacing="8">
 
         <!-- ===================== GHOSTS: NowCast's layers, in the map's default spots ===================== -->
         <!-- Drag-only (IsGhost); boxes mirror the real show/hides, inert. Collapsed = still in the run, so the
              saved order keeps their places. The XAML order IS the map default (LayerOrder.Default). -->
-        <prim:PanelSection Header="Storm cells · NowCast" LayerId="cells" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="Storm cells · NowCast" LayerId="cells" Reordered="OnSectionsReordered"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormCells.AllShown, Mode=OneWay}"
                            Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
-        <prim:PanelSection Header="Storm reports · NowCast" LayerId="reports" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="Storm reports · NowCast" LayerId="reports" Reordered="OnSectionsReordered"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormReports.AllShown, Mode=OneWay}"
                            Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
-        <prim:PanelSection Header="Warnings · NowCast" LayerId="warnings" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="Warnings · NowCast" LayerId="warnings" Reordered="OnSectionsReordered"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Warnings.AllShown, Mode=OneWay}"
                            Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
-        <prim:PanelSection Header="Watches · NowCast" LayerId="watches" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="Watches · NowCast" LayerId="watches" Reordered="OnSectionsReordered"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Watches.AllShown, Mode=OneWay}"
                            Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
-        <prim:PanelSection Header="Mesoscale discussions · NowCast" LayerId="mds" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="Mesoscale discussions · NowCast" LayerId="mds" Reordered="OnSectionsReordered"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Discussions.AllShown, Mode=OneWay}"
                            Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
@@ -184,7 +184,7 @@
         <!-- LayerId → the grip. The header box is SHOW/HIDE (Outlook.IsShown, persisted) — NOT the mode, which
              is the bottom bar's ForeCast key; hiding keeps Day / Product. Works whatever the product, None
              included (PastCast's rule). Opacity greys while hidden or None: nothing drawn to fade. -->
-        <prim:PanelSection x:Name="OutlookSection" Header="SPC outlook" LayerId="outlook" IsExpanded="True"
+        <prim:DragMoveLayerExpander x:Name="OutlookSection" Header="SPC outlook" LayerId="outlook" IsExpanded="True"
                            Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Outlook.IsShown, Mode=OneWay}"
@@ -291,9 +291,9 @@
                                     HatchRows="{x:Bind ViewModel.Outlook.HatchLegendRows, Mode=OneWay}"
                                     ShowHatching="{x:Bind ViewModel.Outlook.ShowHatching, Mode=TwoWay}"/>
             </Grid>
-        </prim:PanelSection>
+        </prim:DragMoveLayerExpander>
 
-        <prim:PanelSection Header="Radar · NowCast" LayerId="radar" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="Radar · NowCast" LayerId="radar" Reordered="OnSectionsReordered"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
                            Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>

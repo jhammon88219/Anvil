@@ -17,7 +17,7 @@
        ● 18:12Z  Wichita, KS                  65 mph      first; click a row → fly there + open the
        ● 16:00Z  2 SW Rock Harbor, FL                     dot's popup. Capped at 240 px, scrolls.
 
-     ⚠️ OPACITY IS NOT HERE — it lives in the host's section header (PanelSection ShowOpacity), so it can be
+     ⚠️ OPACITY IS NOT HERE — it lives in the host's section header (DragMoveLayerExpander ShowOpacity), so it can be
      set with the section closed.
 
      ⚠️ THE SWATCHES USED TO BE DRAWN TWICE. There was a toggle row (three checkboxes, each with a coloured

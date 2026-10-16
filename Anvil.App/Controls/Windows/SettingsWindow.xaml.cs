@@ -69,7 +69,7 @@ namespace Anvil.Controls.Windows
 		}
 
 		// ── Section open/closed, PERSISTED (AppSettings.SectionExpanded, keys "settings/<tab>/<header>") ──
-		// The temporal windows' seam (PanelSection.PersistExpansion), one window prefix PER TAB: "Home site" is a
+		// The temporal windows' seam (DragMoveLayerExpander.PersistExpansion, here SettingsExpander's twin), one window prefix PER TAB: "Home site" is a
 		// section in both Radar and Startup. ⚠️ The tab names below are part of the saved keys — don't rename them.
 		private bool _sectionsPersisted;
 		private Composites.DevSettingsTab? _persistedDevTab;
@@ -92,7 +92,7 @@ namespace Anvil.Controls.Windows
 		{
 			if (tab.Content is Panel root)
 			{
-				PanelSection.PersistExpansion(System.Linq.Enumerable.OfType<PanelSection>(root.Children), "settings/" + name,
+				SettingsExpander.PersistExpansion(System.Linq.Enumerable.OfType<SettingsExpander>(root.Children), "settings/" + name,
 					ViewModel.IsSectionExpanded, ViewModel.SetSectionExpanded);
 			}
 		}

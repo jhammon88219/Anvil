@@ -75,7 +75,7 @@
         </Grid.RowDefinitions>
 
         <!-- ===== Section 1: automated site sweep (SiteSweepViewModel). ===== -->
-        <prim:PanelSection Grid.Row="0" Header="Site sweep" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="0" Header="Site sweep" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- status / live countdown -->
@@ -140,12 +140,12 @@
                             IsEnabled="{x:Bind SweepVm.HasReport, Mode=OneWay}"/>
                 </StackPanel>
             </Grid>
-        </prim:PanelSection>
+        </prim:SettingsExpander>
 
         <!-- Divider between the two tools. -->
 
         <!-- ===== Section 2: dealias validation (RadarValidationViewModel). ===== -->
-        <prim:PanelSection Grid.Row="1" Header="Dealias validation" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="1" Header="Dealias validation" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- status / live progress -->
@@ -175,7 +175,7 @@
                             IsEnabled="{x:Bind ValidationVm.HasReport, Mode=OneWay}"/>
                 </StackPanel>
             </Grid>
-        </prim:PanelSection>
+        </prim:SettingsExpander>
 
         <!-- Divider before the console. -->
 
@@ -190,7 +190,7 @@
              ⚠️ Export writes a COPY of the pristine style with the colours substituted, so the file keeps its
              formatting; drop it into Assets/Map and it is a real style. The click bubbles to MainWindow for
              the save picker (a UserControl has no HWND) — same chain as the report dialogs. -->
-        <prim:PanelSection Grid.Row="2" Header="Pipeline console" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="2" Header="Pipeline console" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- what it does -->
@@ -205,11 +205,11 @@
                               OffContent="Hidden" OnContent="Shown"
                               IsOn="{x:Bind ViewModel.IsPipelineConsoleOpen, Mode=TwoWay}"/>
             </Grid>
-        </prim:PanelSection>
+        </prim:SettingsExpander>
 
         <!-- ===== Load-time seeding (LoadTimeSeedingViewModel): every built-in event × window × cold/warm, into the
              Debug-only load-time log (Usage\loop-load-times.jsonl). You watch it; it presses "View event" itself. ===== -->
-        <prim:PanelSection Grid.Row="3" Header="Load-time seeding" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="3" Header="Load-time seeding" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- status -->
@@ -296,11 +296,11 @@
                     <Button Content="Stop" Click="OnSeedStopClick" IsEnabled="{x:Bind SeedVm.IsRunning, Mode=OneWay}"/>
                 </StackPanel>
             </Grid>
-        </prim:PanelSection>
+        </prim:SettingsExpander>
 
         <!-- ===== Frame cap experiment (DevFrameCap): measure the map's real memory ceiling. Not persisted —
              back to 0 every launch. ===== -->
-        <prim:PanelSection Grid.Row="4" Header="Frame cap experiment" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="4" Header="Frame cap experiment" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- what it does -->
@@ -322,6 +322,6 @@
                                ValueChanged="OnFrameCapChanged"/>
                 </Grid>
             </Grid>
-        </prim:PanelSection>
+        </prim:SettingsExpander>
     </Grid>
 </UserControl>

@@ -16,7 +16,7 @@
                                                           "Flood" (watches, FA/FL/FF, sea green) —
                                                           FloodLabel/FloodColor from the VM
 
-     ⚠️ OPACITY IS NOT HERE — it lives in the host's section header (PanelSection ShowOpacity), so it can be
+     ⚠️ OPACITY IS NOT HERE — it lives in the host's section header (DragMoveLayerExpander ShowOpacity), so it can be
      set with the section closed.
 
      ⚠️ IT IS THE STORM-REPORT ROWS, DELIBERATELY. StormReportsInput draws the same card over the same

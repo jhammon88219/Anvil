@@ -51,7 +51,7 @@ export function firstBoundaryLayerId(map) {
 // ⚠️ A GROUP IS A SET OF LAYER-ID PREFIXES, not a module. Each module still adds its layers with its
 // own beforeId; restack() runs after EVERY addLayer (watchStack wraps it) and moves them into place, so
 // no module has to know the order and a late add (a refresh, a site click, a new pane) can't break it.
-// ⚠️ GROUP IDS ARE THE HOST'S — PanelSection.LayerId in the NowCast/PastCast XAML. Change both.
+// ⚠️ GROUP IDS ARE THE HOST'S — DragMoveLayerExpander.LayerId in the NowCast/PastCast XAML. Change both.
 // Top-first; this is also the default order (the stack before the order was the user's).
 const GROUPS = [
     ['cells',    ['storm-cell-']],               // storm-cells.js: tracks, TVS, meso, hail — small marks, on top

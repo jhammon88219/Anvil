@@ -73,8 +73,8 @@
                  as grime rather than as depth. 0 would disable shadows entirely. -->
             <x:Double x:Key="OverlayBarShadowOpacity">1</x:Double>
 
-            <!-- Primitives/PanelSection (every panel section). Header on the raised face, body on the ground;
-                 LIFTED = the section being dragged. -->
+            <!-- Primitives/DragMoveLayerExpander + SettingsExpander (every panel section). Header on the raised face, body on the ground;
+                 LIFTED = the layer expander being dragged. -->
             <SolidColorBrush x:Key="SectionHeaderBackground" Color="#FF1A1A1A"/>
             <SolidColorBrush x:Key="SectionHeaderPointerOverBackground" Color="#FF2B2B2B"/>
             <SolidColorBrush x:Key="SectionHeaderLiftedBackground" Color="#FF383838"/>
@@ -91,7 +91,7 @@
 
             <x:Double x:Key="OverlayBarShadowOpacity">0.4</x:Double>
 
-            <!-- Primitives/PanelSection — see the Default dictionary. -->
+            <!-- DragMoveLayerExpander + SettingsExpander — see the Default dictionary. -->
             <SolidColorBrush x:Key="SectionHeaderBackground" Color="#FFE4E4E4"/>
             <SolidColorBrush x:Key="SectionHeaderPointerOverBackground" Color="#FFDCDCDC"/>
             <SolidColorBrush x:Key="SectionHeaderLiftedBackground" Color="#FFD0D0D0"/>
@@ -109,7 +109,7 @@
             <!-- No shadows in high contrast: depth cues are exactly what that mode removes. -->
             <x:Double x:Key="OverlayBarShadowOpacity">0</x:Double>
 
-            <!-- Primitives/PanelSection. ⚠️ Must exist here too: the control reads them by key, and a key
+            <!-- DragMoveLayerExpander + SettingsExpander. ⚠️ Must exist here too: the controls read them by key, and a key
                  missing from the active theme dictionary is a XAML parse failure, not a fallback. -->
             <SolidColorBrush x:Key="SectionHeaderBackground" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="SectionHeaderPointerOverBackground" Color="{ThemeResource SystemColorHighlightColor}"/>
@@ -378,8 +378,8 @@
     <CornerRadius x:Key="OverlayBarTabCornersTopEdge">0,0,7,7</CornerRadius>
 
     <!-- ───────────────────────────── A panel SECTION ─────────────────────────────
-         Every section in every temporal window and every Settings tab is a Controls/Primitives/PanelSection
-         (it REPLACED the WinUI Expander and its four-sided height pinning — see that control's header).
+         A temporal-window section is a Primitives/DragMoveLayerExpander, a Settings-tab section a SettingsExpander
+         (together they REPLACED the WinUI Expander and its four-sided height pinning — see their headers).
          ⚠️ ONE HEADER HEIGHT FOR THE WHOLE APP, and this is the only place it is set. 28, not the old 24:
          a layer section's header carries an opacity slider, whose 18 px thumb needs the room. -->
     <x:Double x:Key="SectionHeaderHeight">28</x:Double>
@@ -397,7 +397,7 @@
 
          ⚠️ THE SECTION HEADING RANK IS NOT A STYLE, AND IS NOT A CONTROL ANY MORE EITHER. It was
          SettingsSectionLabelStyle here, then Controls/Primitives/SectionHeading (a title + a hairline to
-         the panel's edge); both are DELETED. A section title is the Header of a PanelSection now — see
+         the panel's edge); both are DELETED. A section title is the Header of one of those two expanders now — see
          SectionHeaderHeight above. -->
     <Style x:Key="SettingsFieldLabelStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="12"/>

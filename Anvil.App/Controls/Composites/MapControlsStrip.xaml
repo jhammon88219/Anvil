@@ -769,7 +769,7 @@
                                            Visibility="{x:Bind HiddenNoteVisibility(ViewModel.Basemap.IsMapShown), Mode=OneWay}"/>
                                 <!-- THE TREE: one row per category (BasemapCategory). Every row reserves a 20 px
                                      chevron column, so plain rows' boxes line up with the expanders'. An expander's
-                                     box is a ONE-WAY select-all (Click → ToggleAll; ■ = partial), PanelSection's
+                                     box is a ONE-WAY select-all (Click → ToggleAll; ■ = partial), DragMoveLayerExpander's
                                      rule; its leaves indent 48 (the parent's box column 24 + one more step) and bind TWO-WAY. Wrappers carry
                                      the tooltips: a disabled CheckBox shows none. -->
                                 <ItemsControl ItemsSource="{x:Bind ViewModel.Basemap.Categories}">

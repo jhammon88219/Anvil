@@ -47,7 +47,7 @@
             <RowDefinition Height="Auto"/> <!-- scrubber -->
         </Grid.RowDefinitions>
 
-        <prim:PanelSection Grid.Row="0" Header="Scrubber" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="0" Header="Scrubber" IsExpanded="True">
             <StackPanel Spacing="8" Margin="4,0,0,0">
                 <RadioButton Style="{StaticResource ScrubberOptionStyle}"
                              IsChecked="{x:Bind IsStyle(ViewModel.Radar.ScrubberStyleIndex, 0), Mode=OneWay}"
@@ -81,6 +81,6 @@
                            TextWrapping="Wrap" FontSize="12"
                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
             </StackPanel>
-        </prim:PanelSection>
+        </prim:SettingsExpander>
     </Grid>
 </UserControl>

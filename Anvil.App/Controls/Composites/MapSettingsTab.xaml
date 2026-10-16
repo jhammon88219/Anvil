@@ -57,7 +57,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <!-- Body: one Primitives/PanelSection per section, grid rows inside each. -->
+    <!-- Body: one Primitives/SettingsExpander per section, grid rows inside each. -->
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- theme -->
@@ -69,7 +69,7 @@
              so the Basemap combo stays as an override for the other three — see the note on it. When the
              theme list either grows to cover every style or the extra styles are dropped, that combo goes
              and this one is the only picker. Don't "tidy" the pair by deleting this one. -->
-        <prim:PanelSection Grid.Row="0" Header="Theme" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="0" Header="Theme" IsExpanded="True">
             <Grid RowSpacing="4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- Theme combo -->
@@ -87,9 +87,9 @@
                            HorizontalAlignment="Left" Opacity="0.75"
                            Text="Sets the app's chrome, the map page's colours and the basemap. Applies immediately."/>
             </Grid>
-        </prim:PanelSection>
+        </prim:SettingsExpander>
 
-        <prim:PanelSection Grid.Row="1" Header="Basemap" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="1" Header="Basemap" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- Basemap combo -->
@@ -165,7 +165,7 @@
                            Text="{x:Bind ViewModel.TileSourceStatus, Mode=OneWay}"
                            Style="{StaticResource SettingsFieldLabelStyle}"/>
             </Grid>
-        </prim:PanelSection>
+        </prim:SettingsExpander>
 
 
     </Grid>

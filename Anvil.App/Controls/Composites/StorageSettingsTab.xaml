@@ -27,13 +27,13 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <!-- Body: one Primitives/PanelSection per section, grid rows inside each. -->
+    <!-- Body: one Primitives/SettingsExpander per section, grid rows inside each. -->
     <Grid RowSpacing="8" VerticalAlignment="Top">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- radar cache -->
         </Grid.RowDefinitions>
 
-        <prim:PanelSection Grid.Row="0" Header="Radar cache" IsExpanded="True">
+        <prim:SettingsExpander Grid.Row="0" Header="Radar cache" IsExpanded="True">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- size + clear -->
@@ -73,6 +73,6 @@
                     <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="GB"/>
                 </Grid>
             </Grid>
-        </prim:PanelSection>
+        </prim:SettingsExpander>
     </Grid>
 </UserControl>

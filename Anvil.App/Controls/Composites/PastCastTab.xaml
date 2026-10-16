@@ -61,10 +61,10 @@
      Laid out ENTIRELY with grids (rows/columns, no StackPanels) so rows are easy to add/rearrange: a fixed
      [label | control] outer grid, one row per field.
 
-     EVERY SECTION IS A Primitives/PanelSection — header = grip + chevron + a select-all box + the title +
+     EVERY SECTION IS A Primitives/DragMoveLayerExpander — header = grip + chevron + a select-all box + the title +
      the OPACITY slider; body = its controls, SettingsFieldLabelStyle rows in one aligned label column.
      Timeframe is NOT a section: it is what every section acts on, so it sits fixed above them. Sections start
-     closed; open/closed is PERSISTED per section (PanelSection.PersistExpansion → AppSettings.SectionExpanded,
+     closed; open/closed is PERSISTED per section (DragMoveLayerExpander.PersistExpansion → AppSettings.SectionExpanded,
      "past/..."), as is every tick, opacity and outlook pick here (ViewModels/Map/TemporalWindowPersistence).
      ⚠️ THE LAYER RUN'S ORDER IS THE MAP'S Z-ORDER, and the user owns it: drag a layer section by its grip
      (or Alt+Up/Down) and OnSectionsReordered hands the order to MapViewModel.SetLayerOrder, which saves it
@@ -499,7 +499,7 @@
          claimed, so opening a section never shifts the layout sideways.
          ⚠️ A StackPanel, not a Grid of rows: the sections' CHILD ORDER is the display order, which is what
          a drag re-arranges. Every section here is a layer now (Timeframe moved out above, DOW to the Atlas), so
-         the whole panel is the ONE contiguous run PanelSection.ApplyLayerOrder assumes. -->
+         the whole panel is the ONE contiguous run DragMoveLayerExpander.ApplyLayerOrder assumes. -->
     <!-- ⚠️ Margin right -12 BLEEDS the scroller's gutter into the window's 16 px body margin (see the
          PanelScroller header): the gutter ends 4 px from the window edge. -->
     <prim:PanelScroller Grid.Row="1" Margin="0,0,-12,0">
@@ -510,7 +510,7 @@
         <!-- ===================== STORM CELLS ===================== -->
         <!-- The radar's storm-cell attributes for the LOADED window and site, following the scrubber. Shared
              control (Composites/StormCellsInput) with the Now window, like the storm reports below. -->
-        <prim:PanelSection Header="Storm cells" LayerId="cells" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="Storm cells" LayerId="cells" Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormCells.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnStormCellsHeaderClick"
@@ -520,14 +520,14 @@
                            IsOpacityEnabled="{x:Bind ViewModel.StormCells.AnyShown, Mode=OneWay}"
                            OpacityToolTip="Opacity of the storm-cell marks and tracks">
             <comp:StormCellsInput ViewModel="{x:Bind ViewModel.StormCells, Mode=OneWay}"/>
-        </prim:PanelSection>
+        </prim:DragMoveLayerExpander>
 
         <!-- ===================== STORM REPORTS ===================== -->
         <!-- ⚠️ The heading is HERE, not inside StormReportsInput: that control is shared by BOTH
              temporal windows, and a window owns its own section structure while the control is just
              content. Putting it inside would give this section a heading in a window whose other
              sections might not have one. -->
-        <prim:PanelSection Header="Storm reports" LayerId="reports" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="Storm reports" LayerId="reports" Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormReports.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnStormReportsHeaderClick"
@@ -537,7 +537,7 @@
                            IsOpacityEnabled="{x:Bind ViewModel.StormReports.AnyShown, Mode=OneWay}"
                            OpacityToolTip="Opacity of the storm-report dots">
             <comp:StormReportsInput ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
-        </prim:PanelSection>
+        </prim:DragMoveLayerExpander>
 
         <!-- ===================== NWS DAMAGE SURVEYS ===================== -->
         <!-- Tornado damage surveys for the LOADED window (ViewModel.DamageSurveys): NWS Damage Assessment
@@ -547,7 +547,7 @@
              under the radar loop, and only some offices draw polygons.
              ⚠️ The EF chips are the DAT's own polygon colours, literals mirrored from damage-surveys.js
              EF_COLORS — change both. Data colours, never themed. -->
-        <prim:PanelSection Header="Damage surveys" LayerId="damage" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="Damage surveys" LayerId="damage" Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
                            IsCheckBoxEnabled="{x:Bind ViewModel.DamageSurveys.IsReady, Mode=OneWay}"
                            IsChecked="{x:Bind ViewModel.DamageSurveys.AllShown, Mode=OneWay}"
@@ -688,14 +688,14 @@
                     </Grid>
                 </Grid>
             </Grid>
-        </prim:PanelSection>
+        </prim:DragMoveLayerExpander>
 
         <!-- ===================== WARNINGS + WATCHES (as in effect at the displayed frame) ===================== -->
         <!-- ViewModel.PastAlerts: IEM's VTEC archive for the LOADED window, drawn with the NowCast looks on
              layers of their own and filtered to the frame on screen — a warning reshapes at each follow-up and
              watch counties drop out as they were cancelled. The SAME control as NowCast's two sections, bound to
              PastCast's own view models (their ticks + opacity are saved separately from NowCast's). -->
-        <prim:PanelSection Header="Warnings" LayerId="warnings" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="Warnings" LayerId="warnings" Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.PastAlerts.Warnings.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnPastWarningsHeaderClick"
@@ -706,9 +706,9 @@
                            OpacityToolTip="Opacity of the warning polygons (fill and outline together)">
             <comp:PhenomOverlayInput AlertNoun="warnings"
                                      ViewModel="{x:Bind ViewModel.PastAlerts.Warnings, Mode=OneWay}"/>
-        </prim:PanelSection>
+        </prim:DragMoveLayerExpander>
 
-        <prim:PanelSection Header="Watches" LayerId="watches" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="Watches" LayerId="watches" Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.PastAlerts.Watches.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnPastWatchesHeaderClick"
@@ -719,12 +719,12 @@
                            OpacityToolTip="Opacity of the watch counties (fill and outline together)">
             <comp:PhenomOverlayInput AlertNoun="watches"
                                      ViewModel="{x:Bind ViewModel.PastAlerts.Watches, Mode=OneWay}"/>
-        </prim:PanelSection>
+        </prim:DragMoveLayerExpander>
 
         <!-- ===================== TROPICAL ===================== -->
         <!-- Hurricane / tropical storm / storm surge / extreme wind zones for the LOADED window (IEM's archive), drawn
              as in effect at the displayed frame. Shared control with the Now window (TropicalViewModel). -->
-        <prim:PanelSection x:Name="TropicalSection" Header="Tropical" LayerId="tropical" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander x:Name="TropicalSection" Header="Tropical" LayerId="tropical" Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Tropical.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnTropicalHeaderClick"
@@ -734,12 +734,12 @@
                            IsOpacityEnabled="{x:Bind ViewModel.Tropical.AnyShown, Mode=OneWay}"
                            OpacityToolTip="Opacity of the tropical zones">
             <comp:TropicalInput ViewModel="{x:Bind ViewModel.Tropical, Mode=OneWay}"/>
-        </prim:PanelSection>
+        </prim:DragMoveLayerExpander>
 
         <!-- ===================== MESOSCALE DISCUSSIONS ===================== -->
         <!-- SPC MDs + WPC MPDs for the LOADED window: drawn as in effect at the displayed frame, all of them
              listed to read. Shared control with the Now window. A click on an MD's area opens THIS section. -->
-        <prim:PanelSection x:Name="DiscussionsSection" Header="Mesoscale discussions" LayerId="mds" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander x:Name="DiscussionsSection" Header="Mesoscale discussions" LayerId="mds" Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Discussions.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnDiscussionsHeaderClick"
@@ -749,14 +749,14 @@
                            IsOpacityEnabled="{x:Bind ViewModel.Discussions.AnyShown, Mode=OneWay}"
                            OpacityToolTip="Opacity of the discussion areas and labels">
             <comp:DiscussionsInput ViewModel="{x:Bind ViewModel.Discussions, Mode=OneWay}"/>
-        </prim:PanelSection>
+        </prim:DragMoveLayerExpander>
 
         <!-- ===================== SPC OUTLOOK: the card, then the pickers ===================== -->
         <!-- The header box is SHOW/HIDE (PastOutlook.IsShown, persisted), separate from the product pick:
              hiding keeps Day / Product / Cycle, so ticking it back redraws the same outlook from cache.
              ⚠️ The box works whatever the product, None included — it never greys. The opacity greys while
              hidden or None (nothing drawn to fade). -->
-        <prim:PanelSection Header="SPC outlook" LayerId="outlook" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="SPC outlook" LayerId="outlook" Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.PastOutlook.IsShown, Mode=OneWay}"
                            CheckBoxClick="OnOutlookHeaderClick"
@@ -870,12 +870,12 @@
                                     HatchRows="{x:Bind ViewModel.PastOutlook.HatchLegendRows, Mode=OneWay}"
                                     ShowHatching="{x:Bind ViewModel.PastOutlook.ShowHatching, Mode=TwoWay}"/>
             </Grid>
-        </prim:PanelSection>
+        </prim:DragMoveLayerExpander>
 
         <!-- ===================== RADAR: header only — the layer's show/hide and its opacity ============ -->
         <!-- ⚠️ The opacity is GLOBAL (one radar layer, live and replay); NowCast shows the same slider, which
              is safe only because Past and Now can't both run. -->
-        <prim:PanelSection Header="Radar" LayerId="radar" Reordered="OnSectionsReordered"
+        <prim:DragMoveLayerExpander Header="Radar" LayerId="radar" Reordered="OnSectionsReordered"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
                            CheckBoxClick="OnRadarHeaderClick"
