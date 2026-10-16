@@ -2,11 +2,10 @@
 <!-- DragMoveLayerExpanderStormCellsBody — the radar's storm-cell attributes (StormCellsViewModel): a card, one row per mark. Shown
      in BOTH temporal windows — live cells in Now, the loaded window's in Past — for the LOADED radar site.
 
-       ┌────────────────────────────────────────────┐
-       │ 14 storm cells                             │   the card: cells in the scan ON SCREEN, which
-       │ Scan 4:14 PM · TLX                         │   scan and site, and loading / failure / "no
-       └────────────────────────────────────────────┘   scan near this frame" in the footer
-       ────────────────────────────────────────────────
+     ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH
+     ▓        14 storm cells                            ▓   under the header): cells in the scan ON SCREEN,
+     ▓        Scan 4:14 PM · TLX                        ▓   which scan and site, and loading / failure /
+     ──────────────────────────────────────────────────────  "no scan near this frame" in the footer
        [x] ● Cell tracks                         14     ← one row per mark: the toggle, the map mark,
        [x] ▼ Tornado vortex (TVS)                 1       the name, and how many the DISPLAYED scan has
        [x] ◯ Mesocyclone                          2
@@ -28,34 +27,17 @@
 
     <Grid VerticalAlignment="Top">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- the card -->
-            <RowDefinition Height="Auto"/> <!-- rule -->
+            <RowDefinition Height="Auto"/> <!-- the card (its bottom edge is the rule) -->
             <RowDefinition Height="Auto"/> <!-- the four mark rows -->
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" CornerRadius="8" Padding="13,12"
-                Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                BorderThickness="1"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-            <StackPanel>
-                <TextBlock Text="{x:Bind ViewModel.CardHeadline, Mode=OneWay}"
-                           FontSize="15"
-                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                <TextBlock Text="{x:Bind ViewModel.CardContext, Mode=OneWay}"
-                           FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
-                           Visibility="{x:Bind HasText(ViewModel.CardContext), Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBlock Text="{x:Bind ViewModel.CardFooter, Mode=OneWay}"
-                           FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                           Visibility="{x:Bind HasText(ViewModel.CardFooter), Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-            </StackPanel>
-        </Border>
+        <!-- THE CARD, flush under the section header (DragMoveLayerExpanderHeaderCard; its bottom edge is the rule). -->
+        <dragMoveLayerExpanders:DragMoveLayerExpanderHeaderCard Grid.Row="0"
+                Headline="{x:Bind ViewModel.CardHeadline, Mode=OneWay}"
+                Context="{x:Bind ViewModel.CardContext, Mode=OneWay}"
+                Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 
-        <Border Grid.Row="1" Height="1" Margin="0,14"
-                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-        <StackPanel Grid.Row="2" Spacing="9">
+        <StackPanel Grid.Row="1" Spacing="9">
             <CheckBox MinWidth="0" HorizontalAlignment="Stretch"
                       IsChecked="{x:Bind ViewModel.ShowTracks, Mode=TwoWay}"
                       ToolTipService.ToolTip="Show each cell, its id, where it has been and its 15–60 minute forecast track">

@@ -4,11 +4,10 @@
      loaded window in Past (drawn as in effect at the displayed frame). READING happens in the Mesoscale
      Discussions WINDOW (Windows/MesoDiscussionWindow).
 
-       ┌────────────────────────────────────────────┐
-       │ 2 discussions in effect                    │   the card: how many are drawn right now, which
-       │ At 4:51 PM · 9 listed for this window      │   moment that is, and loading / failures below
-       └────────────────────────────────────────────┘
-       ────────────────────────────────────────────────
+     ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH
+     ▓        2 discussions in effect                   ▓   under the header): how many are drawn right now,
+     ▓        At 4:51 PM · 9 listed for this window     ▓   which moment that is, loading / failures below
+     ──────────────────────────────────────────────────────
        [x] ■ SPC mesoscale                         2     ← one row PER KIND, generated from DiscussionKinds
        [x] ■ WPC precipitation                     0       (a new kind needs no XAML); count = in effect
        ────────────────────────────────────────────────
@@ -83,26 +82,11 @@
     </UserControl.Resources>
 
     <StackPanel VerticalAlignment="Top">
-        <!-- THE CARD -->
-        <Border CornerRadius="8" Padding="13,12"
-                Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                BorderThickness="1"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-            <StackPanel>
-                <TextBlock Text="{x:Bind ViewModel.CardHeadline, Mode=OneWay}" FontSize="15"
-                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                <TextBlock Text="{x:Bind ViewModel.CardContext, Mode=OneWay}"
-                           FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
-                           Visibility="{x:Bind HasText(ViewModel.CardContext), Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBlock Text="{x:Bind ViewModel.CardFooter, Mode=OneWay}"
-                           FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                           Visibility="{x:Bind HasText(ViewModel.CardFooter), Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-            </StackPanel>
-        </Border>
-
-        <Border Height="1" Margin="0,14" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+        <!-- THE CARD, flush under the section header (DragMoveLayerExpanderHeaderCard; its bottom edge is the rule). -->
+        <dragMoveLayerExpanders:DragMoveLayerExpanderHeaderCard
+                Headline="{x:Bind ViewModel.CardHeadline, Mode=OneWay}"
+                Context="{x:Bind ViewModel.CardContext, Mode=OneWay}"
+                Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 
         <!-- THE KINDS: generated, one row each. -->
         <ItemsControl ItemsSource="{x:Bind ViewModel.Kinds}" ItemTemplate="{StaticResource KindRowTemplate}"/>

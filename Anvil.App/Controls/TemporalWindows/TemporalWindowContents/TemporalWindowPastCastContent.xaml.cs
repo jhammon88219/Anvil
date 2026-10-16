@@ -99,11 +99,6 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 		private void OnLayersReordered(object? sender, EventArgs e) =>
 			ViewModel?.SetLayerOrder(TemporalMode.Past, DragMoveLayerExpanderHost.LayerOrder);
 
-		// x:Bind helper: collapse a card line that has nothing to say, so the card closes up rather than
-		// leaving a gap where the context or footer would be.
-		public Visibility HasText(string? value) =>
-			string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
-
 		// (The DOW event section moved to the Atlas's DOW events tab — Composites/DowEventsAtlasTab.)
 	}
 }

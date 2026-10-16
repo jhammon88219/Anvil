@@ -249,34 +249,17 @@
                            OpacityToolTip="Polygon fill and point opacity (tracks and outlines stay stronger)">
             <Grid VerticalAlignment="Top">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- the card -->
-                    <RowDefinition Height="Auto"/> <!-- rule -->
+                    <RowDefinition Height="Auto"/> <!-- the card (its bottom edge is the rule) -->
                     <RowDefinition Height="Auto"/> <!-- three layer rows + EF key -->
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" CornerRadius="8" Padding="13,12"
-                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                        BorderThickness="1"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                    <StackPanel>
-                        <TextBlock Text="{x:Bind ViewModel.DamageSurveys.CardHeadline, Mode=OneWay}"
-                                   FontSize="15"
-                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                        <TextBlock Text="{x:Bind ViewModel.DamageSurveys.CardContext, Mode=OneWay}"
-                                   FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
-                                   Visibility="{x:Bind HasText(ViewModel.DamageSurveys.CardContext), Mode=OneWay}"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        <TextBlock Text="{x:Bind ViewModel.DamageSurveys.CardFooter, Mode=OneWay}"
-                                   FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                                   Visibility="{x:Bind HasText(ViewModel.DamageSurveys.CardFooter), Mode=OneWay}"
-                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                    </StackPanel>
-                </Border>
+                <!-- THE CARD, flush under the section header (DragMoveLayerExpanderHeaderCard). -->
+                <dragMoveLayerExpanders:DragMoveLayerExpanderHeaderCard Grid.Row="0"
+                        Headline="{x:Bind ViewModel.DamageSurveys.CardHeadline, Mode=OneWay}"
+                        Context="{x:Bind ViewModel.DamageSurveys.CardContext, Mode=OneWay}"
+                        Footer="{x:Bind ViewModel.DamageSurveys.CardFooter, Mode=OneWay}"/>
 
-                <Border Grid.Row="1" Height="1" Margin="0,14"
-                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-                <Grid Grid.Row="2" RowSpacing="9">
+                <Grid Grid.Row="1" RowSpacing="9">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/> <!-- Damage polygons -->
                         <RowDefinition Height="Auto"/> <!-- Tracks -->
@@ -457,8 +440,7 @@
                            OpacityToolTip="Outlook fill opacity (outlines stay solid)">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- the card -->
-                    <RowDefinition Height="Auto"/> <!-- rule -->
+                    <RowDefinition Height="Auto"/> <!-- the card (its bottom edge is the rule) -->
                     <RowDefinition Height="Auto"/> <!-- the pickers -->
                     <RowDefinition Height="Auto"/> <!-- the legend: last, so a collapsed section takes it along -->
                 </Grid.RowDefinitions>
@@ -470,29 +452,12 @@
                      the map right now. That is also why it carries no button.
                      ⚠️ The FOOTER is the error channel as well as the times slot — see the ⚠️ on SetCard in
                      PastOutlookViewModel for why a two-tier card needs that to survive a failed fetch. -->
-                <Border Grid.Row="0" CornerRadius="8" Padding="13,12"
-                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                        BorderThickness="1"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                    <StackPanel>
-                        <TextBlock Text="{x:Bind ViewModel.PastOutlook.CardHeadline, Mode=OneWay}"
-                                   FontSize="15"
-                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                        <TextBlock Text="{x:Bind ViewModel.PastOutlook.CardContext, Mode=OneWay}"
-                                   FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
-                                   Visibility="{x:Bind HasText(ViewModel.PastOutlook.CardContext), Mode=OneWay}"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        <TextBlock Text="{x:Bind ViewModel.PastOutlook.CardFooter, Mode=OneWay}"
-                                   FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                                   Visibility="{x:Bind HasText(ViewModel.PastOutlook.CardFooter), Mode=OneWay}"
-                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                    </StackPanel>
-                </Border>
+                <dragMoveLayerExpanders:DragMoveLayerExpanderHeaderCard Grid.Row="0"
+                        Headline="{x:Bind ViewModel.PastOutlook.CardHeadline, Mode=OneWay}"
+                        Context="{x:Bind ViewModel.PastOutlook.CardContext, Mode=OneWay}"
+                        Footer="{x:Bind ViewModel.PastOutlook.CardFooter, Mode=OneWay}"/>
 
-                <Border Grid.Row="1" Height="1" Margin="0,14"
-                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-                <Grid Grid.Row="2" ColumnSpacing="12" RowSpacing="10">
+                <Grid Grid.Row="1" ColumnSpacing="12" RowSpacing="10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="60"/>
                         <ColumnDefinition Width="*"/>
@@ -554,7 +519,7 @@
 
                 <!-- THE LEGEND (shared Primitives/OutlookLegend), last in the body like ForeCast's. Hides on
                      HasLegend — nothing drawn (None, hidden, no archive) means nothing to key. -->
-                <prim:OutlookLegend Grid.Row="3"
+                <prim:OutlookLegend Grid.Row="2"
                                     Visibility="{x:Bind ViewModel.PastOutlook.HasLegend, Converter={StaticResource BoolToVis}, Mode=OneWay}"
                                     Entries="{x:Bind ViewModel.PastOutlook.LegendEntries, Mode=OneWay}"
                                     HatchRows="{x:Bind ViewModel.PastOutlook.HatchLegendRows, Mode=OneWay}"

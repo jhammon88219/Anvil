@@ -3,10 +3,10 @@
      extreme wind watches + warnings as forecast zones. Shown in BOTH temporal windows: live in Now, the loaded window
      in Past (counts as in effect at the displayed frame — they follow the scrubber).
 
-       ┌────────────────────────────────────────────┐
-       │ Tropical Storm Isaias                      │   the card: the storm(s) in effect (NHC's ATCF names),
-       │ 3 products · 76 zones                      │   how much is out, the moment in PastCast ("At 4:51 PM ·")
-       └────────────────────────────────────────────┘   + loading / failures below
+     ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH under
+     ▓        Tropical Storm Isaias                     ▓   the header): the storm(s) in effect (NHC's ATCF names),
+     ▓        3 products · 76 zones                     ▓   how much is out, the moment in PastCast ("At 4:51 PM ·")
+     ──────────────────────────────────────────────────────  + loading / failures below
        WARNINGS
        [x] ■ Extreme wind                          0     ← one row PER PRODUCT, generated from TropicalProducts
        [x] ■ Storm surge                           0       (NWS priority order); swatch = the NWS colour; count =
@@ -57,26 +57,13 @@
     </UserControl.Resources>
 
     <StackPanel VerticalAlignment="Top">
-        <!-- THE CARD -->
-        <Border CornerRadius="8" Padding="13,12"
-                Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                BorderThickness="1"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-            <StackPanel>
-                <TextBlock Text="{x:Bind ViewModel.CardHeadline, Mode=OneWay}" FontSize="15" TextWrapping="Wrap"
-                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                <TextBlock Text="{x:Bind ViewModel.CardContext, Mode=OneWay}"
-                           FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
-                           Visibility="{x:Bind HasText(ViewModel.CardContext), Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBlock Text="{x:Bind ViewModel.CardFooter, Mode=OneWay}"
-                           FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                           Visibility="{x:Bind HasText(ViewModel.CardFooter), Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-            </StackPanel>
-        </Border>
+        <!-- THE CARD, flush under the section header (DragMoveLayerExpanderHeaderCard; it brings its own 14 below). -->
+        <dragMoveLayerExpanders:DragMoveLayerExpanderHeaderCard
+                Headline="{x:Bind ViewModel.CardHeadline, Mode=OneWay}"
+                Context="{x:Bind ViewModel.CardContext, Mode=OneWay}"
+                Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 
-        <TextBlock Text="WARNINGS" Style="{StaticResource AtlasFieldLabelStyle}" Margin="0,14,0,6"/>
+        <TextBlock Text="WARNINGS" Style="{StaticResource AtlasFieldLabelStyle}" Margin="0,0,0,6"/>
         <ItemsControl ItemsSource="{x:Bind ViewModel.Warnings}" ItemTemplate="{StaticResource KindRowTemplate}"/>
 
         <TextBlock Text="WATCHES" Style="{StaticResource AtlasFieldLabelStyle}" Margin="0,8,0,6"/>

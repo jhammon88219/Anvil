@@ -20,13 +20,6 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 		/// the bound count property raises PropertyChanged.</summary>
 		public string Fmt(int count) => count.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-		// x:Bind helper: collapse a card line that has nothing to say, so the card closes up rather than
-		// leaving a gap where the context or footer would be. Same helper as TemporalWindowPastCastContent's.
-		public Microsoft.UI.Xaml.Visibility HasText(string? value) =>
-			string.IsNullOrEmpty(value)
-				? Microsoft.UI.Xaml.Visibility.Collapsed
-				: Microsoft.UI.Xaml.Visibility.Visible;
-
 		public Visibility Shown(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 
 		// The list's type dot. ⚠️ DATA colours — the same literals as the rows above and storm-reports.js

@@ -3,14 +3,13 @@
      (Tornado / Severe thunderstorm), and overlay opacity. Used TWICE in the NowCast window — once for the
      watch boxes, once for the storm-based warnings — bound to a PhenomOverlayViewModel each time.
 
-       ┌────────────────────────────────────────────┐
-       │ 9 active warnings                          │   the card: the total in effect, the ELEVATED
-       │ 1 tornado emergency · 1 PDS tornado        │   tags (CardThreats, warnings only, collapses
-       │ Updated 12:04 PM · checking every 15s      │   when none), when it was last confirmed, and
-       └────────────────────────────────────────────┘   a footer ONLY on a failure — ⚠️ never a line about
-                                                          the ticked rows (it moved the section's height)
-       ────────────────────────────────────────────────
-       [ ] ■ Tornado                              2     ← one row per phenomenon: the toggle, the
+     ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH
+     ▓        9 active warnings                         ▓   under the header, same grey): the total in effect,
+     ▓        1 tornado emergency · 1 PDS tornado       ▓   the ELEVATED tags (CardThreats, warnings only,
+     ▓        Updated 12:04 PM · checking every 15s     ▓   collapses when none), when it was last confirmed,
+     ──────────────────────────────────────────────────────  and a footer ONLY on a failure — ⚠️ never a line
+                                                             about the ticked rows (it moved the section's height)
+       [ ] ■ Tornado                             2     ← one row per phenomenon: the toggle, the
        [x] ■ Severe thunderstorm                  5       map colour, the name, that type's count
        [x] ■ Flash flood                          2     ← the flood row: "Flash flood" (warnings, FF) or
                                                           "Flood" (watches, FA/FL/FF, sea green) —
@@ -53,43 +52,23 @@
 
     <Grid VerticalAlignment="Top">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- the card -->
-            <RowDefinition Height="Auto"/> <!-- rule -->
-            <RowDefinition Height="Auto"/> <!-- the two type rows + opacity -->
+            <RowDefinition Height="Auto"/> <!-- the card (its bottom edge is the rule) -->
+            <RowDefinition Height="Auto"/> <!-- the type rows -->
         </Grid.RowDefinitions>
 
-        <!-- THE CARD, the same shape as every other card in the two temporal windows. Like the storm
+        <!-- THE CARD, flush under the section header (DragMoveLayerExpanderHeaderCard — every expander's top
+             card; its bottom edge is the rule). Like the storm
              reports' and the outlook's it is a RESULT — the polygons appear as you switch types on — so
              it carries no button. -->
-        <Border Grid.Row="0" CornerRadius="8" Padding="13,12"
-                Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                BorderThickness="1"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-            <StackPanel>
-                <TextBlock Text="{x:Bind ViewModel.CardHeadline, Mode=OneWay}"
-                           FontSize="15"
-                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                <TextBlock Text="{x:Bind ViewModel.CardThreats, Mode=OneWay}"
-                           FontSize="13" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap"
-                           Visibility="{x:Bind HasText(ViewModel.CardThreats), Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                <TextBlock Text="{x:Bind ViewModel.CardContext, Mode=OneWay}"
-                           FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
-                           Visibility="{x:Bind HasText(ViewModel.CardContext), Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBlock Text="{x:Bind ViewModel.CardFooter, Mode=OneWay}"
-                           FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                           Visibility="{x:Bind HasText(ViewModel.CardFooter), Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-            </StackPanel>
-        </Border>
-
-        <Border Grid.Row="1" Height="1" Margin="0,14"
-                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+        <dragMoveLayerExpanders:DragMoveLayerExpanderHeaderCard Grid.Row="0"
+                Headline="{x:Bind ViewModel.CardHeadline, Mode=OneWay}"
+                Threats="{x:Bind ViewModel.CardThreats, Mode=OneWay}"
+                Context="{x:Bind ViewModel.CardContext, Mode=OneWay}"
+                Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 
         <!-- A StackPanel, not a Grid: Grid.RowSpacing still spaces a COLLAPSED row, which would leave a
              gap under the watches instance where its (absent) flash-flood row would be. -->
-        <StackPanel Grid.Row="2" Spacing="9">
+        <StackPanel Grid.Row="1" Spacing="9">
 
             <!-- One row per phenomenon. The count is right-aligned in its own column so the numbers form a
                  column of their own however long the names get — the same three-column row as the

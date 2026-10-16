@@ -55,11 +55,6 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 		// fires and the VM's answer overwrites it — the same contract as PastCast's outlook box.
 		private void OnOutlookHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.Outlook.ToggleShown();
 
-		// x:Bind helper: collapse a card line that has nothing to say, so the card closes up rather than
-		// leaving a gap where the context or footer would be. Same helper as the other two bodies'.
-		public Visibility HasText(string? value) =>
-			string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
-
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel
 		{

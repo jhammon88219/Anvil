@@ -4,11 +4,10 @@
      the Now window today's — the VM keys the overlay to the active convective day, so the same controls
      serve both.
 
-       ┌────────────────────────────────────────────┐
-       │ 448 reports                                │   the card: total, which convective day,
-       │ May 20, 2013 · 12Z-12Z                     │   and loading/failure in the footer
-       └────────────────────────────────────────────┘
-       ────────────────────────────────────────────────
+     ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH
+     ▓        448 reports                               ▓   under the header, same grey): total, which
+     ▓        May 20, 2013 · 12Z-12Z                    ▓   convective day, loading/failure in the footer
+     ──────────────────────────────────────────────────────
        [x] ● Tornado                             42     ← one row per type: the toggle, the SPC dot
        [x] ● Wind                               310       colour, the name and that type's count,
        [x] ● Hail                                96       all as ONE object
@@ -67,38 +66,21 @@
 
     <Grid VerticalAlignment="Top">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- the card -->
-            <RowDefinition Height="Auto"/> <!-- rule -->
-            <RowDefinition Height="Auto"/> <!-- the three type rows + opacity -->
+            <RowDefinition Height="Auto"/> <!-- the card (its bottom edge is the rule) -->
+            <RowDefinition Height="Auto"/> <!-- the three type rows -->
             <RowDefinition Height="Auto"/> <!-- the report list -->
         </Grid.RowDefinitions>
 
-        <!-- THE CARD, the same shape as the Timeframe and outlook cards in this window. Like the outlook's
+        <!-- THE CARD, flush under the section header (DragMoveLayerExpanderHeaderCard — every expander's top
+             card; its bottom edge is the rule). Like the outlook's
              it is a RESULT — there is no action here, the dots appear as you switch types on — so it
              carries no button. -->
-        <Border Grid.Row="0" CornerRadius="8" Padding="13,12"
-                Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                BorderThickness="1"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-            <StackPanel>
-                <TextBlock Text="{x:Bind ViewModel.CardHeadline, Mode=OneWay}"
-                           FontSize="15"
-                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                <TextBlock Text="{x:Bind ViewModel.CardContext, Mode=OneWay}"
-                           FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
-                           Visibility="{x:Bind HasText(ViewModel.CardContext), Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBlock Text="{x:Bind ViewModel.CardFooter, Mode=OneWay}"
-                           FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                           Visibility="{x:Bind HasText(ViewModel.CardFooter), Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-            </StackPanel>
-        </Border>
+        <dragMoveLayerExpanders:DragMoveLayerExpanderHeaderCard Grid.Row="0"
+                Headline="{x:Bind ViewModel.CardHeadline, Mode=OneWay}"
+                Context="{x:Bind ViewModel.CardContext, Mode=OneWay}"
+                Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 
-        <Border Grid.Row="1" Height="1" Margin="0,14"
-                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-
-        <Grid Grid.Row="2" RowSpacing="9">
+        <Grid Grid.Row="1" RowSpacing="9">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- Tornado -->
                 <RowDefinition Height="Auto"/> <!-- Wind -->
@@ -166,7 +148,7 @@
              ⚠️ A ListView with a MaxHeight: bounded, so it virtualizes even inside the window's PanelScroller (an
              UNBOUNDED list nested in a ScrollViewer un-virtualizes — a 400-report day would build 400 rows).
              ⚠️ SelectionMode None + ItemClick: a click ACTS (flies), it isn't a selection to keep in step. -->
-        <StackPanel Grid.Row="3" Margin="0,14,0,0"
+        <StackPanel Grid.Row="2" Margin="0,14,0,0"
                     Visibility="{x:Bind Shown(ViewModel.HasVisibleReports), Mode=OneWay}">
             <Border Height="1" Margin="0,0,0,8"
                     Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>

@@ -26,8 +26,6 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 		/// <summary>x:Bind formatter for the counts.</summary>
 		public static string Fmt(int count) => count.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-		public Visibility HasText(string? value) => string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
-
 		public Visibility Shown(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
 		/// <summary>The view model; bound from the host (TemporalWindowNowCastContent / TemporalWindowPastCastContent → ViewModel.Discussions).</summary>

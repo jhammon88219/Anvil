@@ -21,11 +21,6 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 		/// bound count property raises PropertyChanged.</summary>
 		public string Fmt(int count) => count.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-		// x:Bind helper: collapse a card line that has nothing to say, so the card closes up rather than
-		// leaving a gap where the context or footer would be. Same helper as DragMoveLayerExpanderStormReportsBody's.
-		public Visibility HasText(string? value) =>
-			string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
-
 		/// <summary>Tooltip for the tornado row, e.g. "Show tornado warnings".</summary>
 		public string TornadoTooltip(string noun) => $"Show tornado {noun}";
 

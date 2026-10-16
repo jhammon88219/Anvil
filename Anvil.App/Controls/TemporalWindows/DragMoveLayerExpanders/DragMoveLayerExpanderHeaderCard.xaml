@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DragMoveLayerExpanderHeaderCard — the grey summary card at the TOP of a DragMoveLayerExpander's body, drawn
+     FLUSH under the header so the header and card read as ONE grey block (same brush, no gap, no line).
+
+      ┌──────────────────────────────────────────────────────────────┐
+      │ ⠿  ›  [x]  Warnings        ────────────●──────────   100%    │  ← the expander's header (#1A1A1A)
+      │           2 active warnings                                  │  ← THIS card: same grey, no top / left /
+      │           1 tornado emergency · 1 PDS tornado                │    right margin, square corners
+      │           Updated 12:04 PM · checking every 15s              │
+      ├──────────────────────────────────────────────────────────────┤  ← its bottom hairline = the body's rule
+      │   [x] ■ Tornado                                       2      │  ← the rest of the body, 14 px below,
+      └──────────────────────────────────────────────────────────────┘    on the window's ground
+      |←44→| text starts under the header's checkbox column (2 pad + 18 grip + 24 chevron)
+
+     Lines, each collapsing when empty: Headline (15, primary, wraps) · Threats (13 semibold, primary) · Context
+     (13, secondary) · Footer (11, tertiary — loading / failures).
+
+     ⭐ EVERY expander's top card is this control (the user's rule, 2026-10-16) — never a hand-drawn Border.
+     ⚠️ It MUST be the body's FIRST element: the negative margin (-12 sides = DragMoveLayerExpander's body Padding;
+     -13 top = that Padding + the body's 1 px top border, which the card paints over) assumes it starts at the
+     body's top-left. Change the expander's body Padding → change this Margin.
+     ⚠️ The bottom margin (14) replaces the separate rule + "Margin 0,14" the cards used to sit over — don't add a
+     rule under it. -->
+<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderHeaderCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             Margin="-12,-13,-12,14"
+             HorizontalAlignment="Stretch"
+             IsTabStop="False">
+
+    <Border x:Name="CardFace"
+            Padding="44,6,13,12"
+            Background="{ThemeResource SectionHeaderBackground}"
+            BorderThickness="0,0,0,1"
+            BorderBrush="{ThemeResource SectionBorderBrush}">
+        <StackPanel>
+            <TextBlock Text="{x:Bind Headline, Mode=OneWay}"
+                       FontSize="15" TextWrapping="Wrap"
+                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+            <TextBlock Text="{x:Bind Threats, Mode=OneWay}"
+                       FontSize="13" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap"
+                       Visibility="{x:Bind HasText(Threats), Mode=OneWay}"
+                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+            <TextBlock Text="{x:Bind Context, Mode=OneWay}"
+                       FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
+                       Visibility="{x:Bind HasText(Context), Mode=OneWay}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <TextBlock Text="{x:Bind Footer, Mode=OneWay}"
+                       FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                       Visibility="{x:Bind HasText(Footer), Mode=OneWay}"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+        </StackPanel>
+    </Border>
+</UserControl>
