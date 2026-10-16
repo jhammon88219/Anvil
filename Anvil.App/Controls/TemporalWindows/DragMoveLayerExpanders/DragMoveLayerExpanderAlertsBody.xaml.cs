@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// The controls for one convective-alert overlay (see the XAML header): a summary card, a Tornado and a
@@ -10,9 +10,9 @@ namespace Anvil.Controls.TemporalWindows
 	/// <see cref="PhenomOverlayViewModel"/> — the NowCast window shows one instance for the watch boxes and
 	/// one for the storm-based warnings.
 	/// </summary>
-	public sealed partial class PhenomOverlayInput : UserControl
+	public sealed partial class DragMoveLayerExpanderAlertsBody : UserControl
 	{
-		public PhenomOverlayInput()
+		public DragMoveLayerExpanderAlertsBody()
 		{
 			InitializeComponent();
 		}
@@ -22,7 +22,7 @@ namespace Anvil.Controls.TemporalWindows
 		public string Fmt(int count) => count.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
 		// x:Bind helper: collapse a card line that has nothing to say, so the card closes up rather than
-		// leaving a gap where the context or footer would be. Same helper as StormReportsInput's.
+		// leaving a gap where the context or footer would be. Same helper as DragMoveLayerExpanderStormReportsBody's.
 		public Visibility HasText(string? value) =>
 			string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -54,7 +54,7 @@ namespace Anvil.Controls.TemporalWindows
 		}
 
 		public static readonly DependencyProperty AlertNounProperty =
-			DependencyProperty.Register(nameof(AlertNoun), typeof(string), typeof(PhenomOverlayInput), new PropertyMetadata("alerts"));
+			DependencyProperty.Register(nameof(AlertNoun), typeof(string), typeof(DragMoveLayerExpanderAlertsBody), new PropertyMetadata("alerts"));
 
 		/// <summary>The overlay's view model; bound from the host (TemporalWindowNowCastContent → ViewModel.Watches / .Warnings).</summary>
 		public PhenomOverlayViewModel ViewModel
@@ -64,6 +64,6 @@ namespace Anvil.Controls.TemporalWindows
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(PhenomOverlayViewModel), typeof(PhenomOverlayInput), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(PhenomOverlayViewModel), typeof(DragMoveLayerExpanderAlertsBody), new PropertyMetadata(null));
 	}
 }

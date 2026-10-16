@@ -2,16 +2,16 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// Mesoscale discussions (see the XAML header): card, one row per kind, what's in effect, and the door to the
 	/// Mesoscale Discussions window. Bound to <see cref="MesoDiscussionsViewModel"/>; hosted by both the Now and
 	/// Past windows. Every decision is the VM's — both clicks go through <see cref="MesoDiscussionsViewModel.OpenReader"/>.
 	/// </summary>
-	public sealed partial class DiscussionsInput : UserControl
+	public sealed partial class DragMoveLayerExpanderMesoDiscussionsBody : UserControl
 	{
-		public DiscussionsInput()
+		public DragMoveLayerExpanderMesoDiscussionsBody()
 		{
 			InitializeComponent();
 		}
@@ -38,6 +38,6 @@ namespace Anvil.Controls.TemporalWindows
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MesoDiscussionsViewModel), typeof(DiscussionsInput), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MesoDiscussionsViewModel), typeof(DragMoveLayerExpanderMesoDiscussionsBody), new PropertyMetadata(null));
 	}
 }

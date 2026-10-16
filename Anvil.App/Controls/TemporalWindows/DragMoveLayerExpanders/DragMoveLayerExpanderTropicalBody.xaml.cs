@@ -2,15 +2,15 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// The Tropical section body (see the XAML header): the storm card and one row per product. Bound to
 	/// <see cref="TropicalViewModel"/>; hosted by both the Now and Past windows. Every decision is the VM's.
 	/// </summary>
-	public sealed partial class TropicalInput : UserControl
+	public sealed partial class DragMoveLayerExpanderTropicalBody : UserControl
 	{
-		public TropicalInput()
+		public DragMoveLayerExpanderTropicalBody()
 		{
 			InitializeComponent();
 		}
@@ -28,6 +28,6 @@ namespace Anvil.Controls.TemporalWindows
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(TropicalViewModel), typeof(TropicalInput), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(TropicalViewModel), typeof(DragMoveLayerExpanderTropicalBody), new PropertyMetadata(null));
 	}
 }

@@ -2,16 +2,16 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// The SPC storm-reports verification controls (per-type Tornado / Wind / Hail toggles, a count readout,
 	/// and fill opacity), shown in both the Past and Now windows. Bound to the <see cref="StormReportsViewModel"/>,
 	/// which keys the overlay to the active convective day (replay day in PastCast, today in NowCast).
 	/// </summary>
-	public sealed partial class StormReportsInput : UserControl
+	public sealed partial class DragMoveLayerExpanderStormReportsBody : UserControl
 	{
-		public StormReportsInput()
+		public DragMoveLayerExpanderStormReportsBody()
 		{
 			InitializeComponent();
 		}
@@ -57,6 +57,6 @@ namespace Anvil.Controls.TemporalWindows
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(StormReportsViewModel), typeof(StormReportsInput), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(StormReportsViewModel), typeof(DragMoveLayerExpanderStormReportsBody), new PropertyMetadata(null));
 	}
 }

@@ -25,7 +25,7 @@
      ⚠️ ONE GRID, EVERY CELL VerticalAlignment=Center. No cell may carry a vertical margin or a minimum height
      (the stock CheckBox's 32 and Slider's 32 are both overridden below). Height = Styles.xaml
      SectionHeaderHeight, app-wide — SettingsExpander reads the same key.
-     ⚠️ LIVES ONLY IN A TemporalWindows/DragMoveLayerExpanderHost — the host owns the drag (bounds, slots, the final
+     ⚠️ LIVES ONLY IN A TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpanderHost — the host owns the drag (bounds, slots, the final
      move), Reordered, the saved order and the open/closed persistence; the grip only reports press / move /
      release to it. Outside a host the grip does nothing.
      ⚠️ THE GRIP IS THE ONLY DRAG HANDLE. The header already takes three gestures (click = expand, the box,
@@ -36,10 +36,11 @@
      ⚠️ LAZY BODY: a never-opened expander's body is NOT in the live tree (it attaches on the first expand and
      stays). Code that needs a body's elements loaded must expand it first. -->
 
-<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpander"
+<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpander"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"

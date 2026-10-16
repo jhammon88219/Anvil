@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- PhenomOverlayInput — the controls for ONE convective-alert overlay: a card, one row per phenomenon
+<!-- DragMoveLayerExpanderAlertsBody — the controls for ONE convective-alert overlay: a card, one row per phenomenon
      (Tornado / Severe thunderstorm), and overlay opacity. Used TWICE in the NowCast window — once for the
      watch boxes, once for the storm-based warnings — bound to a PhenomOverlayViewModel each time.
 
@@ -19,7 +19,7 @@
      ⚠️ OPACITY IS NOT HERE — it lives in the host's section header (DragMoveLayerExpander ShowOpacity), so it can be
      set with the section closed.
 
-     ⚠️ IT IS THE STORM-REPORT ROWS, DELIBERATELY. StormReportsInput draws the same card over the same
+     ⚠️ IT IS THE STORM-REPORT ROWS, DELIBERATELY. DragMoveLayerExpanderStormReportsBody draws the same card over the same
      kind of type rows one section below, so the two read as one control used three times rather than as
      three separate forms. The one visual difference is the SWATCH SHAPE: alerts are SQUARE (they are
      areas on the map), reports are ROUND (they are dots). That is the only thing keeping five near
@@ -37,15 +37,16 @@
 
      ⚠️ THE SECTION HEADING IS NOT HERE — the host draws its own above this control (TemporalWindowNowCastContent writes
      "Watches" over one instance and "Warnings" over the other). The window owns its section structure;
-     this is content. Same rule as StormReportsInput, and the reason there is no divider in here either.
+     this is content. Same rule as DragMoveLayerExpanderStormReportsBody, and the reason there is no divider in here either.
 
      ⚠️ The two instances are IDENTICAL on screen — same two names, same two colours, one section apart —
      so the headings carry the whole distinction between them. That is exactly why the old shared
      "Watches and warnings" heading had to become two. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.PhenomOverlayInput"
+<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderAlertsBody"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">

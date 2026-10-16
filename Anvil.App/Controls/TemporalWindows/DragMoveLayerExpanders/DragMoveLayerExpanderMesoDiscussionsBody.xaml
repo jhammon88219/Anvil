@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- DiscussionsInput — mesoscale discussions (MesoDiscussionsViewModel): SPC MDs and WPC MPDs as map areas, and
+<!-- DragMoveLayerExpanderMesoDiscussionsBody — mesoscale discussions (MesoDiscussionsViewModel): SPC MDs and WPC MPDs as map areas, and
      a GLANCE at them. Shown in BOTH temporal windows: live in Now (the last 24 h, the ones in effect drawn), the
      loaded window in Past (drawn as in effect at the displayed frame). READING happens in the Mesoscale
      Discussions WINDOW (Windows/MesoDiscussionWindow).
@@ -22,10 +22,11 @@
      column, each bounded in its own scroller, was what made it hard to use. Don't put a reader back here.
      ⚠️ Swatches are the kinds' own colours (DiscussionKinds.Fill ⇄ discussions.js KIND_COLORS). Data colours.
      ⚠️ Opacity and the heading are the HOST's DragMoveLayerExpander, as for every overlay control. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.DiscussionsInput"
+<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderMesoDiscussionsBody"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
              xmlns:conv="using:Anvil.Converters"
              xmlns:vm="using:Anvil.ViewModels"
              xmlns:local="using:Anvil.Controls.Composites"
@@ -50,7 +51,7 @@
                     <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2" VerticalAlignment="Center"
                             Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
                     <TextBlock Grid.Column="1" Text="{x:Bind Label}" FontSize="13" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{x:Bind tw:DiscussionsInput.Fmt(Count), Mode=OneWay}"
+                    <TextBlock Grid.Column="2" Text="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderMesoDiscussionsBody.Fmt(Count), Mode=OneWay}"
                                FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </Grid>
             </CheckBox>

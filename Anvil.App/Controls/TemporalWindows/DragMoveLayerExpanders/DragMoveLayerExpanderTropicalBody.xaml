@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TropicalInput — the "Tropical" section body (TropicalViewModel): hurricane, tropical storm, storm surge and
+<!-- DragMoveLayerExpanderTropicalBody — the "Tropical" section body (TropicalViewModel): hurricane, tropical storm, storm surge and
      extreme wind watches + warnings as forecast zones. Shown in BOTH temporal windows: live in Now, the loaded window
      in Past (counts as in effect at the displayed frame — they follow the scrubber).
 
@@ -19,10 +19,11 @@
 
      ⚠️ Swatches are the NWS hazard-map colours (TropicalProducts.Fill — DATA, never themed; the page reads the same
      colour from the file). ⚠️ Opacity and the heading are the HOST's DragMoveLayerExpander, as for every overlay control. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TropicalInput"
+<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderTropicalBody"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
              xmlns:conv="using:Anvil.Converters"
              xmlns:vm="using:Anvil.ViewModels"
              xmlns:local="using:Anvil.Controls.Composites"
@@ -48,7 +49,7 @@
                     <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2" VerticalAlignment="Center"
                             Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
                     <TextBlock Grid.Column="1" Text="{x:Bind Label}" FontSize="13" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{x:Bind tw:TropicalInput.Fmt(Count), Mode=OneWay}"
+                    <TextBlock Grid.Column="2" Text="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderTropicalBody.Fmt(Count), Mode=OneWay}"
                                FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </Grid>
             </CheckBox>

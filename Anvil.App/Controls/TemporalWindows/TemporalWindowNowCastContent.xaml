@@ -37,7 +37,7 @@
        │   [x] ■ Tornado                            0                 │
        │   [x] ■ Severe thunderstorm                7                 │
        │ ⠿ › [-] Watches         ─────────────────●   100%            │  [-] = some types ticked
-       │ ⠿ › [x] Tropical        ─────────────────●   100%            │  hurricane / TS / surge / extreme-wind ZONES, NWS colours (TropicalInput)
+       │ ⠿ › [x] Tropical        ─────────────────●   100%            │  hurricane / TS / surge / extreme-wind ZONES, NWS colours (DragMoveLayerExpanderTropicalBody)
        │ ⠿ › [x] Mesoscale discussions ───────────●   100%            │  MDs + MPDs: areas + what's in effect (reader = MD window)
        │ ⠿   ░░ ░SPC outlook · ForeCast░░░░░░░░░░░░░░░░░░░░           │  ← GHOST (IsGhost): ForeCast's layer, 25%,
        │                                                              │    drag-only; only while the box is on AND
@@ -71,7 +71,7 @@
      ⚠️ The window opens at a FIXED full height (WindowManager's Left anchor), not sized to this body, so the
      SECTIONS scroll inside Primitives/PanelScroller (the header stays put) — PastCast's arrangement.
 
-     Both alert sections are the SAME control (TemporalWindows/PhenomOverlayInput) bound to a different view
+     Both alert sections are the SAME control (TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpanderAlertsBody) bound to a different view
      model, exactly as watches.js and warnings.js are the same JS factory with a different config. Storm
      reports stay their own control — the PastCast window shows that same block, so it is content of TWO
      hosts.
@@ -92,11 +92,12 @@
          reset the age on failure — that is the honest readout.
        • Tiles — TemporalWindows/TemporalWindowNowCastWarningTile ×3. Warnings.TornadoCount/SevereCount/FlashFloodCount count EVERY active warning in the
          fetch, never the ticked rows (user's call). Tag lines = WarningThreatCounts, split per type. Stripe
-         colours are DATA (the same literals as PhenomOverlayInput's swatches) — never themed. -->
+         colours are DATA (the same literals as DragMoveLayerExpanderAlertsBody's swatches) — never themed. -->
 <UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowNowCastContent"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
              xmlns:comp="using:Anvil.Controls.Composites"
              xmlns:vm="using:Anvil.ViewModels"
              xmlns:prim="using:Anvil.Controls.Primitives"
@@ -139,7 +140,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- THE THREE TILES: TemporalWindows/TemporalWindowNowCastWarningTile, one control used three times
-                     (x:Name = type name + hazard). Band colours are DATA literals (PhenomOverlayInput's swatches'
+                     (x:Name = type name + hazard). Band colours are DATA literals (DragMoveLayerExpanderAlertsBody's swatches'
                      hues), never themed: DEEP band + BRIGHT ink per hazard. -->
                 <tw:TemporalWindowNowCastWarningTile x:Name="TemporalWindowNowCastWarningTileTornado" Grid.Column="0"
                                                        Label="Tornado" Hazard="tornado"
@@ -174,11 +175,11 @@
               ToolTipService.ToolTip="List ForeCast's layers here, dimmed, so you can drag NowCast's around them (shown while ForeCast is on)"/>
 
     <prim:PanelScroller Grid.Row="2" Margin="0,0,-12,0">
-    <!-- ⚠️ TemporalWindows/DragMoveLayerExpanderHost: its CHILD ORDER is the display order AND the map's z-order; it
+    <!-- ⚠️ TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpanderHost: its CHILD ORDER is the display order AND the map's z-order; it
          owns the drag, the saved order and the open/closed state. It holds ONLY DragMoveLayerExpanders. -->
-    <tw:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" VerticalAlignment="Top" Spacing="8" Reordered="OnLayersReordered">
+    <dragMoveLayerExpanders:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" VerticalAlignment="Top" Spacing="8" Reordered="OnLayersReordered">
 
-        <tw:DragMoveLayerExpander Header="Storm cells" LayerId="cells"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm cells" LayerId="cells"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormCells.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnStormCellsHeaderClick"
@@ -187,10 +188,10 @@
                            OpacityValue="{x:Bind ViewModel.StormCells.Opacity, Mode=TwoWay}"
                            IsOpacityEnabled="{x:Bind ViewModel.StormCells.AnyShown, Mode=OneWay}"
                            OpacityToolTip="Opacity of the storm-cell marks and tracks">
-            <tw:StormCellsInput ViewModel="{x:Bind ViewModel.StormCells, Mode=OneWay}"/>
-        </tw:DragMoveLayerExpander>
+            <dragMoveLayerExpanders:DragMoveLayerExpanderStormCellsBody x:Name="DragMoveLayerExpanderStormCellsBody" ViewModel="{x:Bind ViewModel.StormCells, Mode=OneWay}"/>
+        </dragMoveLayerExpanders:DragMoveLayerExpander>
 
-        <tw:DragMoveLayerExpander Header="Storm reports" LayerId="reports"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm reports" LayerId="reports"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormReports.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnStormReportsHeaderClick"
@@ -199,10 +200,10 @@
                            OpacityValue="{x:Bind ViewModel.StormReports.Opacity, Mode=TwoWay}"
                            IsOpacityEnabled="{x:Bind ViewModel.StormReports.AnyShown, Mode=OneWay}"
                            OpacityToolTip="Opacity of the storm-report dots">
-            <tw:StormReportsInput ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
-        </tw:DragMoveLayerExpander>
+            <dragMoveLayerExpanders:DragMoveLayerExpanderStormReportsBody x:Name="DragMoveLayerExpanderStormReportsBody" ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
+        </dragMoveLayerExpanders:DragMoveLayerExpander>
 
-        <tw:DragMoveLayerExpander Header="Warnings" LayerId="warnings"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Warnings" LayerId="warnings"
                            IsExpanded="True"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Warnings.AllShown, Mode=OneWay}"
@@ -212,11 +213,11 @@
                            OpacityValue="{x:Bind ViewModel.Warnings.Opacity, Mode=TwoWay}"
                            IsOpacityEnabled="{x:Bind ViewModel.Warnings.AnyShown, Mode=OneWay}"
                            OpacityToolTip="Opacity of the warning polygons (fill and outline together)">
-            <tw:PhenomOverlayInput AlertNoun="warnings"
+            <dragMoveLayerExpanders:DragMoveLayerExpanderAlertsBody x:Name="DragMoveLayerExpanderAlertsBodyWarnings" AlertNoun="warnings"
                                      ViewModel="{x:Bind ViewModel.Warnings, Mode=OneWay}"/>
-        </tw:DragMoveLayerExpander>
+        </dragMoveLayerExpanders:DragMoveLayerExpander>
 
-        <tw:DragMoveLayerExpander Header="Watches" LayerId="watches"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Watches" LayerId="watches"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Watches.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnWatchesHeaderClick"
@@ -225,13 +226,13 @@
                            OpacityValue="{x:Bind ViewModel.Watches.Opacity, Mode=TwoWay}"
                            IsOpacityEnabled="{x:Bind ViewModel.Watches.AnyShown, Mode=OneWay}"
                            OpacityToolTip="Opacity of the watch boxes (fill and outline together)">
-            <tw:PhenomOverlayInput AlertNoun="watches"
+            <dragMoveLayerExpanders:DragMoveLayerExpanderAlertsBody x:Name="DragMoveLayerExpanderAlertsBodyWatches" AlertNoun="watches"
                                      ViewModel="{x:Bind ViewModel.Watches, Mode=OneWay}"/>
-        </tw:DragMoveLayerExpander>
+        </dragMoveLayerExpanders:DragMoveLayerExpander>
 
         <!-- Tropical: hurricane / tropical storm / storm surge / extreme wind watches + warnings as ZONES in the NWS
              colours, live. Shared control with the Past window (TropicalViewModel). -->
-        <tw:DragMoveLayerExpander x:Name="TropicalSection" Header="Tropical" LayerId="tropical"
+        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="TropicalSection" Header="Tropical" LayerId="tropical"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Tropical.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnTropicalHeaderClick"
@@ -240,12 +241,12 @@
                            OpacityValue="{x:Bind ViewModel.Tropical.Opacity, Mode=TwoWay}"
                            IsOpacityEnabled="{x:Bind ViewModel.Tropical.AnyShown, Mode=OneWay}"
                            OpacityToolTip="Opacity of the tropical zones">
-            <tw:TropicalInput ViewModel="{x:Bind ViewModel.Tropical, Mode=OneWay}"/>
-        </tw:DragMoveLayerExpander>
+            <dragMoveLayerExpanders:DragMoveLayerExpanderTropicalBody x:Name="DragMoveLayerExpanderTropicalBody" ViewModel="{x:Bind ViewModel.Tropical, Mode=OneWay}"/>
+        </dragMoveLayerExpanders:DragMoveLayerExpander>
 
         <!-- Mesoscale discussions: SPC MDs + WPC MPDs, drawn as in effect now, the last 24 h listed to read.
              Shared control with the Past window. A click on an MD's area opens THIS section (code-behind). -->
-        <tw:DragMoveLayerExpander x:Name="DiscussionsSection" Header="Mesoscale discussions" LayerId="mds"
+        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="DiscussionsSection" Header="Mesoscale discussions" LayerId="mds"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Discussions.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnDiscussionsHeaderClick"
@@ -254,20 +255,20 @@
                            OpacityValue="{x:Bind ViewModel.Discussions.Opacity, Mode=TwoWay}"
                            IsOpacityEnabled="{x:Bind ViewModel.Discussions.AnyShown, Mode=OneWay}"
                            OpacityToolTip="Opacity of the discussion areas and labels">
-            <tw:DiscussionsInput ViewModel="{x:Bind ViewModel.Discussions, Mode=OneWay}"/>
-        </tw:DragMoveLayerExpander>
+            <dragMoveLayerExpanders:DragMoveLayerExpanderMesoDiscussionsBody x:Name="DragMoveLayerExpanderMesoDiscussionsBody" ViewModel="{x:Bind ViewModel.Discussions, Mode=OneWay}"/>
+        </dragMoveLayerExpanders:DragMoveLayerExpander>
 
         <!-- GHOST: ForeCast's outlook, placed in this shared stack. Drag-only (IsGhost); its box mirrors the real
              show/hide, inert. Collapsed = still in the run, so the saved order keeps its place. Default spot =
              the map's (above radar). -->
-        <tw:DragMoveLayerExpander Header="SPC outlook · ForeCast" LayerId="outlook"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="SPC outlook · ForeCast" LayerId="outlook"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Outlook.IsShown, Mode=OneWay}"
                            Visibility="{x:Bind GhostVisibility(ViewModel.AreForeCastGhostsShown), Mode=OneWay}"
                            ToolTipService.ToolTip="ForeCast's layer — drag to set where it draws among NowCast's"/>
 
         <!-- Header only: the layer's show/hide and its opacity are all it has. -->
-        <tw:DragMoveLayerExpander Header="Radar" LayerId="radar"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Radar" LayerId="radar"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
                            CheckBoxClick="OnRadarHeaderClick"
@@ -276,7 +277,7 @@
                            OpacityValue="{x:Bind ViewModel.Radar.RadarOpacity, Mode=TwoWay}"
                            IsOpacityEnabled="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
                            OpacityToolTip="Opacity of the radar layer — turn it down to read what is under it"/>
-    </tw:DragMoveLayerExpanderHost>
+    </dragMoveLayerExpanders:DragMoveLayerExpanderHost>
     </prim:PanelScroller>
     </Grid>
 </UserControl>

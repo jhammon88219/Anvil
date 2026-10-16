@@ -29,7 +29,7 @@
 // ⚠️ THRESHOLDS ARE MIRRORED from C# StormCellThresholds (MESO_RANK, SEVERE_POSH) — the rows' counts are
 // computed there and must describe what is drawn here. Change both.
 // ⚠️ COLOURS ARE DATA, NOT THEME (TVS red = the warning red; meso yellow; hail cyan; tracks white on a dark
-// casing, which reads on both basemaps). Written twice — here and the row swatches in StormCellsInput.xaml.
+// casing, which reads on both basemaps). Written twice — here and the row swatches in DragMoveLayerExpanderStormCellsBody.xaml.
 // ⚠️ THE ICONS ARE CANVAS-DRAWN IMAGES, and setStyle drops a map's images along with its layers, so
 // addLayers re-registers them every time (ensureImages).
 

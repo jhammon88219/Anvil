@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SettingsExpander — ONE section of a Settings tab: a 28 px header over a collapsible body. It never
      re-orders and carries no layer controls — the temporal windows' draggable map layers are
-     TemporalWindows/DragMoveLayerExpander. Both read Styles.xaml SectionHeaderHeight and the Section* brushes,
+     TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpander. Both read Styles.xaml SectionHeaderHeight and the Section* brushes,
      so the two headers stay the same height and face.
 
       ┌──────────────────────────────────────────────────────────────┐

@@ -73,7 +73,7 @@
                  as grime rather than as depth. 0 would disable shadows entirely. -->
             <x:Double x:Key="OverlayBarShadowOpacity">1</x:Double>
 
-            <!-- TemporalWindows/DragMoveLayerExpander + SettingsExpander (every panel section). Header on the raised face, body on the ground;
+            <!-- TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpander + SettingsExpander (every panel section). Header on the raised face, body on the ground;
                  LIFTED = the layer expander being dragged. -->
             <SolidColorBrush x:Key="SectionHeaderBackground" Color="#FF1A1A1A"/>
             <SolidColorBrush x:Key="SectionHeaderPointerOverBackground" Color="#FF2B2B2B"/>
@@ -378,7 +378,7 @@
     <CornerRadius x:Key="OverlayBarTabCornersTopEdge">0,0,7,7</CornerRadius>
 
     <!-- ───────────────────────────── A panel SECTION ─────────────────────────────
-         A temporal-window section is a TemporalWindows/DragMoveLayerExpander, a Settings-tab section a SettingsExpander
+         A temporal-window section is a TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpander, a Settings-tab section a SettingsExpander
          (together they REPLACED the WinUI Expander and its four-sided height pinning — see their headers).
          ⚠️ ONE HEADER HEIGHT FOR THE WHOLE APP, and this is the only place it is set. 28, not the old 24:
          a layer section's header carries an opacity slider, whose 18 px thumb needs the room. -->
