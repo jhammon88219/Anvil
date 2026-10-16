@@ -103,14 +103,14 @@
         </Grid.RowDefinitions>
 
         <!-- ===================== THE NAME ROW: Primitives/TemporalWindowHeader (one control, all three windows) =====================
-             The window's chrome carries no title any more (TemporalWindow); the name shows once, here. Height kept
-             equal to Now's and Past's BY HAND.
+             The window's chrome carries no title any more (TemporalWindow); the name shows once, here. The header
+             owns its height.
              ⚠️ THE SQUARE = the HIGHEST category the shown outlook contains, in its SPC colour (DATA, never themed —
              the feed's own fill, else the catalog's), as NowCast's square is the warnings feed's staleness. No areas
              / nothing shown = PastCast's blue (OutlookViewModel.NoAreasFill). Its tooltip names the category.
              ⚠️ Margin LEFT 0 / RIGHT 4 = the section stack's edges — PastCast's + NowCast's rule; change together.
              No TemporalHeaderMinHeight: there are no tiles or card under it to line up. -->
-        <prim:TemporalWindowHeader x:Name="TemporalWindowHeader" Grid.Row="0" Height="60" Margin="0,12,4,12"
+        <prim:TemporalWindowHeader x:Name="TemporalWindowHeader" Grid.Row="0" Margin="0,12,4,12"
                                    Title="ForeCast"
                                    StatusFill="{x:Bind ViewModel.Outlook.HeaderSquareFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
                                    StatusToolTip="{x:Bind ViewModel.Outlook.HeaderSquareTip, Mode=OneWay}"
@@ -122,7 +122,7 @@
         <!-- GHOST ROWS box: NowCast's layers as dimmed, drag-only rows around the outlook, so you can say where the
              outlook draws among them (ONE shared Now + Fore order). Persisted, default off; the rows show only
              while NowCast runs too (MapViewModel's GHOST ROWS block). -->
-        <CheckBox Grid.Row="1" Margin="0,0,0,8" Content="Show NowCast ghost rows"
+        <CheckBox x:Name="ShowNowCastGhostRowsCheckBox" Grid.Row="1" Margin="0,0,0,8" Content="Show NowCast ghost rows"
                   IsChecked="{x:Bind ViewModel.ShowNowCastGhostRows, Mode=TwoWay}"
                   ToolTipService.ToolTip="List NowCast's layers here, dimmed, so you can drag the outlook among them (shown while NowCast is on)"/>
 

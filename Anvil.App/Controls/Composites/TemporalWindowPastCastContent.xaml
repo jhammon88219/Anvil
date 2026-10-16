@@ -126,59 +126,10 @@
 
     <UserControl.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
-
-        <!-- The Timeframe card's ATLAS button: transparent face, 1 px ACCENT hairline, 6 px corners (a quiet
-             door, not a primary action). Minimal template so it can't pick up the stock button's chrome; hover and
-             press only fill the face. LOCAL: this window is its only consumer. -->
-        <Style x:Key="OpenAtlasButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Grid x:Name="Root"
-                              Background="{TemplateBinding Background}"
-                              BorderBrush="{TemplateBinding BorderBrush}"
-                              BorderThickness="{TemplateBinding BorderThickness}"
-                              CornerRadius="{TemplateBinding CornerRadius}"
-                              Padding="{TemplateBinding Padding}">
-                            <VisualStateManager.VisualStateGroups>
-                                <VisualStateGroup x:Name="CommonStates">
-                                    <VisualState x:Name="Normal"/>
-                                    <VisualState x:Name="PointerOver">
-                                        <VisualState.Setters>
-                                            <Setter Target="Root.Background" Value="{ThemeResource ControlFillColorSecondaryBrush}"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Pressed">
-                                        <VisualState.Setters>
-                                            <Setter Target="Root.Background" Value="{ThemeResource ControlFillColorTertiaryBrush}"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Disabled">
-                                        <VisualState.Setters>
-                                            <Setter Target="Content.Opacity" Value="0.4"/>
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
-                            <ContentPresenter x:Name="Content"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Content="{TemplateBinding Content}"
-                                              Foreground="{TemplateBinding Foreground}"/>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </UserControl.Resources>
 
-    <!-- Two rows: the FIXED Timeframe block, then the sections. ⚠️ The VisualStateManager groups live on THIS
-         root (the first element of the UserControl's content) — GoToState looks for them here. -->
+    <!-- Two rows: the FIXED Timeframe block, then the sections. (The card's and the picker's visual states live in
+         TemporalWindowPastCastUserDecisionCard / TemporalWindowPastCastTimeframePicker now.) -->
     <!-- ⚠️ STRETCH, and the sections row is STAR: the scroller needs a BOUNDED height to scroll within —
          TemporalWindow hands this control the full window row. -->
     <Grid>
@@ -186,46 +137,6 @@
             <RowDefinition Height="Auto"/> <!-- Timeframe: always there, no header, can't be collapsed -->
             <RowDefinition Height="*"/>    <!-- the sections, in the scroller -->
         </Grid.RowDefinitions>
-
-        <!-- ⚠️ THE CARD'S TWO ACCENT BRUSHES ARE STATES, NOT x:Bind FUNCTIONS — a correctness fix, not a
-             tidy-up. They used to come from code, through Application.Current.Resources.TryGetValue, which
-             resolves against Application.RequestedTheme — the OS theme, and settable only before content
-             loads. The app pins its palette on the ROOT ELEMENT's RequestedTheme instead
-             (MainWindow.ApplyAppTheme), so those lookups quietly returned the OTHER theme's brush: on a
-             dark-mode machine, the light theme drew its dirty-state accent in the dark theme's colours.
-             {ThemeResource} in a state setter resolves against THIS element and re-resolves on a live
-             switch, which an x:Bind function cannot — it only re-runs when its bound inputs change, and the
-             theme is not one of them.
-             ⚠️ LoadStyle() is deliberately still an x:Bind function: DefaultButtonStyle / AccentButtonStyle
-             are keyed STYLES, defined once rather than per theme, and the brushes inside them are their own
-             ThemeResources. A Style has no theme to get wrong. -->
-        <VisualStateManager.VisualStateGroups>
-            <VisualStateGroup x:Name="SelectionStates">
-                <VisualState x:Name="SelectionClean">
-                    <VisualState.Setters>
-                        <Setter Target="CardEdge.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                    </VisualState.Setters>
-                </VisualState>
-                <VisualState x:Name="SelectionDirty">
-                    <VisualState.Setters>
-                        <Setter Target="CardEdge.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
-                    </VisualState.Setters>
-                </VisualState>
-            </VisualStateGroup>
-            <!-- Set Timeframe while it carries an ERROR: the critical tint + red lines. States, not C# — a theme
-                 brush resolved in code would be the OS theme's (see the ⚠️ above). -->
-            <VisualStateGroup x:Name="ReplayErrorStates">
-                <VisualState x:Name="NoReplayError"/>
-                <VisualState x:Name="ReplayErrorShown">
-                    <VisualState.Setters>
-                        <Setter Target="SetTimeframeButton.Background" Value="{ThemeResource SystemFillColorCriticalBackgroundBrush}"/>
-                        <Setter Target="SetTimeframeButton.BorderBrush" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
-                        <Setter Target="ErrorLine.Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
-                        <Setter Target="ErrorHint.Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
-                    </VisualState.Setters>
-                </VisualState>
-            </VisualStateGroup>
-        </VisualStateManager.VisualStateGroups>
 
         <!-- ===================== TIMEFRAME: the card, then the pickers ===================== -->
         <!-- ⚠️ NOT A SECTION ANY MORE (2026-09-27): it is what the whole window acts on, so it can't be
@@ -241,12 +152,12 @@
                     <RowDefinition Height="Auto"/> <!-- the three pickers + [ Set Timeframe ] [Clear], one grid -->
                 </Grid.RowDefinitions>
 
-                <!-- THE NAME ROW: Primitives/TemporalWindowHeader (one control, all three windows), Height kept equal
-                     to Now's and Fore's BY HAND. The date and the Readout describe the LOADED window (RadarViewModel's
+                <!-- THE NAME ROW: Primitives/TemporalWindowHeader (one control, all three windows; it owns its
+                     height). The date and the Readout describe the LOADED window (RadarViewModel's
                      HEADER block), never the pickers; with nothing loaded they are placeholders, dimmed to 40%.
                      ⚠️ The square is BLUE, a literal, and means nothing yet — recency doesn't apply to a replay
                      (the user's call: blue "until we decide otherwise"). -->
-                <prim:TemporalWindowHeader x:Name="TemporalWindowHeader" Grid.Row="0" Height="60" Title="PastCast"
+                <prim:TemporalWindowHeader x:Name="TemporalWindowHeader" Grid.Row="0" Title="PastCast"
                                            StatusFill="#FF2F81F7"
                                            Subtitle="{x:Bind ViewModel.Radar.LoadedReplayDateText, Mode=OneWay}"
                                            SubtitleOpacity="{x:Bind PlaceholderOpacity(ViewModel.Radar.HasLoadedReplayWindow), Mode=OneWay}">
@@ -254,217 +165,19 @@
                                                               ViewModel="{x:Bind ViewModel.Radar, Mode=OneWay}"/>
                 </prim:TemporalWindowHeader>
 
-                <!-- THE CARD: only the TWO SOURCES now (the user's call, 2026-10-01 — the date/range preview that
-                     sat here duplicated the header and the pickers, and Load moved under the pickers). -->
-                <Border x:Name="CardEdge" Grid.Row="1" Margin="0,14,0,0" CornerRadius="8" Padding="13,12"
-                        Background="{ThemeResource OverlayBarSurfaceHoverBrush}"
-                        BorderThickness="1"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
-                    <Grid ColumnSpacing="14">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/> <!-- Atlas -->
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/> <!-- Choose timeframe… ⁘ Or ⁘ [Atlas] -->
-                            <RowDefinition Height="Auto"/> <!-- Casting <event> [Tornado] [Custom] — a chosen event only -->
-                        </Grid.RowDefinitions>
+                <!-- THE USER'S DECISION: the two sources — the picker below, OR a saved event from the Atlas.
+                     Composites/TemporalWindowPastCastUserDecisionCard (its edge lights while the selection is dirty). -->
+                <comp:TemporalWindowPastCastUserDecisionCard x:Name="TemporalWindowPastCastUserDecisionCard" Grid.Row="1"
+                                                             Margin="0,14,0,0" ViewModel="{x:Bind ViewModel}"/>
 
-                        <!-- WHAT'S CASTING (the user's call, 2026-10-02 — nothing else said WHAT was playing): shown only
-                             while a saved event is the pick (SavedEvents.HasPlaying; a picker change or Clear drops it).
-                             LEFT: "Casting" + the name + the Custom tag (the Atlas's accent tag). RIGHT, in the ATLAS column:
-                             the TYPE PILL, 84 wide = the Atlas door's width, centred under it (the user's call) — the
-                             Atlas's type colour on a deep shade of it, the outlook risk pill's scheme. Both halves are
-                             vertically centred on each other. -->
-                        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="6" Margin="0,10,0,0"
-                                    VerticalAlignment="Center"
-                                    Visibility="{x:Bind ViewModel.SavedEvents.HasPlaying, Mode=OneWay}">
-                            <TextBlock Text="Casting" FontSize="13" VerticalAlignment="Center"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                            <TextBlock Text="{x:Bind ViewModel.SavedEvents.PlayingTitle, Mode=OneWay}" FontSize="13"
-                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                            <Border CornerRadius="8" Padding="6,0" VerticalAlignment="Center"
-                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
-                                    Visibility="{x:Bind ViewModel.SavedEvents.IsPlayingCustom, Mode=OneWay}">
-                                <TextBlock Text="Custom" FontSize="11"
-                                           Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
-                            </Border>
-                        </StackPanel>
-                        <Border Grid.Row="1" Grid.Column="1" Width="84" Margin="0,10,0,0" CornerRadius="4" Padding="0,1,0,2"
-                                VerticalAlignment="Center" HorizontalAlignment="Center"
-                                Background="{x:Bind comp:PastEventsAtlasTab.KindBandBrush(ViewModel.SavedEvents.PlayingKind), Mode=OneWay}"
-                                Visibility="{x:Bind PillShown(ViewModel.SavedEvents.HasPlaying, ViewModel.SavedEvents.HasPlayingKind), Mode=OneWay}">
-                            <TextBlock Text="{x:Bind ViewModel.SavedEvents.PlayingKindLabel, Mode=OneWay}" FontSize="12"
-                                       FontWeight="SemiBold" HorizontalAlignment="Center"
-                                       Foreground="{x:Bind comp:PastEventsAtlasTab.KindInkBrush(ViewModel.SavedEvents.PlayingKind), Mode=OneWay}"/>
-                        </Border>
-
-                        <!-- THE TWO SOURCES (the user's design, 2026-10-01): pick your own window with the pickers
-                             below, OR play a saved event from the Atlas. Dot bridges (the tools tier's separator,
-                             FillWidth) span the gaps either side of "or"; equal stars, so "or" sits between them.
-                             The right bridge's −6 cancels most of the card's 14 column gap, matching the left side. -->
-                        <Grid Grid.Column="0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Choose timeframe…" FontSize="13"
-                                       VerticalAlignment="Center"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <prim:MapControlsStripSeparator Grid.Column="1" FillWidth="True" Margin="8,0"/>
-                            <!-- "Or": capital, 20 px — its letters (~14 px) stand a little proud of the 9.5 px dot
-                                 bridges, the user's call. ⚠️ TextLineBounds="Tight" trims the layout box to the
-                                 letters (cap line → baseline), so VerticalAlignment Center centres the LETTERS on the
-                                 bridges' middle row, not the line box (which sat them low). It only trims LAYOUT —
-                                 the O's round overshoot still draws; nothing here clips. -->
-                            <TextBlock Grid.Column="2" Text="Or" FontSize="20" VerticalAlignment="Center"
-                                       TextLineBounds="Tight"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                            <prim:MapControlsStripSeparator Grid.Column="3" FillWidth="True" Margin="8,0,-6,0"/>
-                        </Grid>
-
-                        <!-- OPEN ATLAS, on Past events (MapViewModel.OpenAtlasOnEvents — also selects the event PastCast
-                             has picked). Live even while a window is loaded (Play asks before replacing it).
-                             ⚠️ 84 × 32 = CLEAR's size, and its right edge is Clear's (Clear's 14 right margin = this
-                             card's 1 border + 13 padding) — the user's call, 2026-10-01: the two doors line up. Change
-                             both together. ⚠️ The mark is the bar's Atlas key glyph (EC05, MainWindow AtlasKey) — the
-                             same door, the same mark; change both. -->
-                        <Button Grid.Column="1" Style="{StaticResource OpenAtlasButtonStyle}" Width="84" Height="32"
-                                Padding="0" VerticalAlignment="Center" HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Click="OnOpenAtlasClick"
-                                ToolTipService.ToolTip="Browse saved severe-weather days in the Anvil Atlas and play one here">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="14" Glyph="&#xEC05;"
-                                          VerticalAlignment="Center"
-                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                <TextBlock Text="Atlas" FontSize="13" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                    </Grid>
-                </Border>
-
-                <Border Grid.Row="2" Height="1" Margin="0,14"
+                <!-- The thin rule between the decision card and the picker. Pure layout. -->
+                <Border x:Name="UserDecisionPickerRule" Grid.Row="2" Height="1" Margin="0,14"
                         Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
-                <!-- THE PICKERS + THE BUTTONS, ONE GRID (the user's call, 2026-10-01): the pickers end where Set
-                     Timeframe ends, and CLEAR has its own column with nothing above it for the three picker rows —
-                     one grid is what makes those two edges the same line.
-                     ⚠️ LOCKED (disabled + dimmed) while a window is loaded: Clear is the way to change it. The dim is
-                     on each label + picker (PickerOpacity), NOT the grid, so the buttons in it stay full strength. -->
-                <!-- ⚠️ LABELS ABOVE, NO LABEL COLUMN (the user's call, 2026-10-02): Date | Start Time | Window in ONE
-                     row (layout A, 2026-10-02) — Window in CLEAR's column, so its right edge is Clear's (and Atlas's);
-                     Set Timeframe spans Date + Start Time under them and carries the load readout once loaded. Each label is a
-                     StackPanel's first child so it rides with its control. -->
-                <Grid Grid.Row="3" ColumnSpacing="12" RowSpacing="10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>    <!-- Date; Set Timeframe spans this + the next -->
-                        <ColumnDefinition Width="*"/>    <!-- Start Time -->
-                        <ColumnDefinition Width="Auto"/> <!-- Window over Clear -->
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/> <!-- Date | Start Time | Window -->
-                        <RowDefinition Height="Auto"/> <!-- [ Set Timeframe | 28 frames loaded · KTLX ] [Clear] -->
-                    </Grid.RowDefinitions>
-
-                    <!-- ⚠️ ONE date, not three combos (Primitives/DateButtonPicker — a button + calendar flyout that
-                         commits only on its Set). Its Date is a DateTimeOffset?, which the view model exposes as a
-                         FACADE over the year/month/day indices everything downstream still reads — see PastEventDate.
-                         ⚠️ Min/MaxDate are REQUIRED, not decoration: they bound the year grid and the days to the
-                         archive's range.
-                         ⚠️ EVERY date bound here comes from RadarViewModel.LocalMidnight, and Set writes local midnight
-                         from parts too. The facade once STACK-OVERFLOWED against a picker that read another frame
-                         (see PastEventDate); don't hand this a UTC-framed date. -->
-                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4"
-                                Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}">
-                        <TextBlock Text="Date" Margin="2,0,0,0" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                        <prim:DateButtonPicker MinDate="{x:Bind ViewModel.Radar.PastEventMinDate}"
-                                               MaxDate="{x:Bind ViewModel.Radar.PastEventMaxDate}"
-                                               Date="{x:Bind ViewModel.Radar.PastEventDate, Mode=TwoWay}"
-                                               IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
-                                               ToolTipService.ToolTip="The date to replay (local time)"/>
-                    </StackPanel>
-
-                    <!-- ⚠️ ONE picker, bound STRAIGHT to the view model's TimeSpan (Primitives/TimeButtonPicker — hour
-                         and minute combos + AM|PM in a flyout, committed only by its Set). PastEventTime was always a
-                         TimeSpan; the form is shaped like one. -->
-                    <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4"
-                                Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}">
-                        <TextBlock Text="Start Time" Margin="2,0,0,0" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                        <prim:TimeButtonPicker Time="{x:Bind ViewModel.Radar.PastEventTime, Mode=TwoWay}"
-                                               IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
-                                               ToolTipService.ToolTip="Start of the replay window (local time)"/>
-                    </StackPanel>
-
-                    <!-- WINDOW: a ComboBox "for now" (the user's call, 2026-10-02 — it was a six-segment picker), in
-                         Clear's column: 84 wide, right margin 14 = Clear's, so Window, Clear and Atlas share one right
-                         edge. The SHORT labels are their own list on the view model, kept beside the long ones and
-                         the minutes array because all three are indexed by PastEventDurationIndex.
-                         ⚠️ A ComboBox steps on the mouse wheel (why the map-tier pickers aren't ones); here a step only
-                         marks the selection dirty — nothing loads until Set Timeframe. -->
-                    <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4" Margin="0,0,14,0"
-                                Opacity="{x:Bind PickerOpacity(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}">
-                        <TextBlock Text="Window" Margin="2,0,0,0" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                        <ComboBox Width="84" Height="32"
-                                  ItemsSource="{x:Bind ViewModel.Radar.PastEventDurationShortLabels}"
-                                  SelectedIndex="{x:Bind ViewModel.Radar.PastEventDurationIndex, Mode=TwoWay}"
-                                  IsEnabled="{x:Bind PickersEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError), Mode=OneWay}"
-                                  ToolTipService.ToolTip="How much of the day to replay, starting at the start time"/>
-                    </StackPanel>
-
-                    <!-- SET TIMEFRAME (was the card's Load) spans labels + pickers, so its right edge IS the pickers'
-                         right edge; CLEAR, only as wide as it needs, alone in the third column. Margin top 4 + the
-                         row gap 10 = the 14 that sat above the old button row.
-                         ⚠️ Set keeps Load's rules: accent while pressing it would DO something, greyed once loaded
-                         and still matching (the archive day is immutable). Clear is live only while something is
-                         loaded: it forgets the window (yours or a played event), drops the loop and puts the
-                         pickers on NOW (RadarViewModel.ClearReplay), and takes off a played event's TOWN PIN + its
-                         name in the search box (MapViewModel.ClearPastCastTimeframe; a pin you searched for stays). -->
-                    <!-- ⚠️ AN ERROR RIDES IN THIS BUTTON, and only while there is one (the user's call, 2026-10-01):
-                         two lines, the error then the retry hint, red via the ReplayErrorStates above (theme brushes
-                         in states, never C#). It stays clickable — a click retries — and changing any picker clears
-                         it (RadarViewModel.OnReplaySelectionChanged). The button grows to fit, then shrinks back. -->
-                    <Button x:Name="SetTimeframeButton" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,4,0,0"
-                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                            IsEnabled="{x:Bind LoadEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty, ViewModel.Radar.HasReplayError), Mode=OneWay}"
-                            Style="{x:Bind LoadStyle(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.IsReplaySelectionDirty, ViewModel.Radar.HasReplayError), Mode=OneWay}"
-                            ToolTipService.ToolTip="{x:Bind ViewModel.Radar.PastEventStatus, Mode=OneWay}"
-                            Click="OnLoadClick">
-                        <Grid>
-                            <TextBlock Text="Set Timeframe"
-                                       Visibility="{x:Bind LabelFace(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError, ViewModel.Radar.ReplayCount, ViewModel.Radar.ReplayCaption), Mode=OneWay}"/>
-                            <!-- THE LOAD READOUT (moved INTO the button, the user's call 2026-10-02 — it was a line under
-                                 the buttons, before that stacked above Clear): one line, in the button's own (disabled)
-                                 foreground; the count and site semibold. -->
-                            <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center"
-                                        Visibility="{x:Bind ReadoutFace(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.Radar.HasReplayError, ViewModel.Radar.ReplayCount, ViewModel.Radar.ReplayCaption), Mode=OneWay}">
-                                <TextBlock Text="{x:Bind ViewModel.Radar.ReplayCount, Mode=OneWay}" FontWeight="SemiBold"
-                                           Typography.NumeralAlignment="Tabular"
-                                           Visibility="{x:Bind HasText(ViewModel.Radar.ReplayCount), Mode=OneWay}"/>
-                                <TextBlock Text="{x:Bind ViewModel.Radar.ReplayCaption, Mode=OneWay}"
-                                           Visibility="{x:Bind HasText(ViewModel.Radar.ReplayCaption), Mode=OneWay}"/>
-                                <TextBlock Text="·" Visibility="{x:Bind HasText(ViewModel.Radar.ReplaySite), Mode=OneWay}"/>
-                                <TextBlock Text="{x:Bind ViewModel.Radar.ReplaySite, Mode=OneWay}" FontWeight="SemiBold"
-                                           Visibility="{x:Bind HasText(ViewModel.Radar.ReplaySite), Mode=OneWay}"/>
-                            </StackPanel>
-                            <StackPanel Visibility="{x:Bind ShownWhen(ViewModel.Radar.HasReplayError), Mode=OneWay}">
-                                <TextBlock x:Name="ErrorLine" FontSize="12" HorizontalAlignment="Center"
-                                           Text="{x:Bind ErrorFirstLine(ViewModel.Radar.ReplayError), Mode=OneWay}"/>
-                                <TextBlock x:Name="ErrorHint" FontSize="12" HorizontalAlignment="Center"
-                                           Text="Click to retry or change timeframe"/>
-                            </StackPanel>
-                        </Grid>
-                    </Button>
-                    <!-- ⚠️ 84 × 32 and 14 in from the right = the card's ATLAS button exactly (its card's 1 border +
-                         13 padding), so the two line up, one above the other. Change both together. -->
-                    <Button Grid.Row="1" Grid.Column="2" Margin="0,4,14,0" Width="84" Height="32" Content="Clear"
-                            IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
-                            Click="OnClearClick"
-                            ToolTipService.ToolTip="Clear the loaded timeframe or event and reset the pickers to now"/>
-                </Grid>
+                <!-- THE PICKER: Date | Start Time | Window over [ Set Timeframe ] [ Clear ].
+                     Composites/TemporalWindowPastCastTimeframePicker. -->
+                <comp:TemporalWindowPastCastTimeframePicker x:Name="TemporalWindowPastCastTimeframePicker" Grid.Row="3"
+                                                            ViewModel="{x:Bind ViewModel}"/>
 
                 <!-- (The status line that sat here is gone, 2026-10-01: errors ride in Set Timeframe, the frame
                      count sits above Clear, and the full sentence is both of their hover hints.) -->

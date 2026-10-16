@@ -16,8 +16,9 @@
        Past → Composites/TemporalWindowHeaderPastCastReadout  (the loaded window's time range)
        Fore → Composites/TemporalWindowHeaderForeCastReadout  (highest risk over the countdown)
 
-     ⚠️ NO HEIGHT OF ITS OWN: each Content sets Height on its use. The three are kept equal BY HAND (the user's
-     call, 2026-10-16) — no shared constant. Change one, change all three.
+     ⚠️ THE HEIGHT IS THIS CONTROL'S (60, set on the root below) — never on a use, never a shared constant, so
+     all three headers match by construction (the user's call, 2026-10-16). Not to be confused with
+     Styles.xaml TemporalHeaderMinHeight, which sizes the Now/Past FIXED BLOCK around this, not this row.
      ⚠️ The row's top/bottom spacing and its right 4 px inset belong to the HOST's layout grid, not here. -->
 
 <UserControl x:Class="Anvil.Controls.Primitives.TemporalWindowHeader"
@@ -29,7 +30,7 @@
              HorizontalAlignment="Stretch"
              IsTabStop="False">
 
-    <Grid>
+    <Grid Height="60">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="22"/>   <!-- status block -->
             <ColumnDefinition Width="*"/>    <!-- title over subline -->
