@@ -37,9 +37,10 @@ namespace Anvil.ViewModels
 
 		private string _statusText = string.Empty;
 
-		/// <summary>"Searching online…" / "No places match …" / "Pick a place"; empty when there's nothing to say. Shown
-		/// in the bar's ACTIVITY SLOT (BarActivityViewModel.WatchPlaceSearch), not beside the box — the box's row must
-		/// end on the temporal keys' right edge (the section rules), and a variable-width line can't.</summary>
+		/// <summary>"Searching online…" / "No places match …" / "Pick a place"; empty when there's nothing to say. NOT SHOWN
+		/// anywhere for now (2026-10-16): it was the bar's activity slot (BarActivityViewModel.WatchPlaceSearch, unhooked in
+		/// MapViewModel), which moved to the temporal windows' footers. Not beside the box — the box's row must end on the
+		/// temporal keys' right edge (the section rules), and a variable-width line can't.</summary>
 		public string StatusText
 		{
 			get => _statusText;

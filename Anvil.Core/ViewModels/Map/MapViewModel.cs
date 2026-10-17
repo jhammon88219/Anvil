@@ -94,7 +94,9 @@ namespace Anvil.ViewModels
 			Tropical = new TropicalViewModel(mapService, tropicalService, Radar, dispatcher, loggerFactory.CreateLogger<TropicalViewModel>());
 			Markers = new MarkersViewModel(mapService, locationService);
 			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
-			Activity.WatchPlaceSearch(PlaceSearch);
+			// SEARCH STATUS HIDDEN (2026-10-16, the user's call): activity now shows in the NowCast window's footer, and a
+			// search isn't NowCast work. The source stays (BarActivityViewModel.WatchPlaceSearch) — re-add this line to show it.
+			// Activity.WatchPlaceSearch(PlaceSearch);
 			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
 			SiteUsage = new SiteUsageTracker(Radar, siteUsageStore);
 			// The PastCast load-time log (one line per load). Optional so tests that don't care can omit it.

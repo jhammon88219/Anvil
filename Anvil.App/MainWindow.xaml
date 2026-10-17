@@ -56,14 +56,8 @@
             to one list. The tools tier's left is radar + map (which site), its right is map only.
             See MapControlsStrip. Don't re-add a Home key here.
           ↑ 📡 = Atlas, a plain window latch again, like Settings.
-          ↑ The ACTIVITY SLOT, in the bar's empty run between the console and Atlas —
-              tools tier:   ▢▥▦ ┊ ⌘⛶ │ ▥▴ ┇[Isolate ▾]
-              bar:          ┌┃ Loading · KTLX 22 of 39 ┐┇Atlas
-                            └┃ ███████░░░░░░░░░░░░░░░░░┘
-                            ↑ left = the 1-pane key's left (the RIGHT section's one left edge)
-                                                       ↑ right = Atlas less 8 px (AlignActivityBay)
-            Only while Anvil is working (a loop loading without its gate, the site check — which used to be a
-            toast over the map); empty bar otherwise. See Composites/BarActivityReadout.
+          ↑ The run between the console and Atlas is BLANK: the activity slot that sat there moved to each temporal
+            window's FOOTER (TemporalWindows/TemporalWindowFooter, 2026-10-16).
           ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map (notches and the
             rail's see-through gaps included; the opaque tiers and both tabs paint over it) is frosted behind
             "Loading the loop" + progress bars + Cancel load (no escape since 2026-10-10). See Composites/LoopHoldingGate.
@@ -209,8 +203,8 @@
              ⚠️ Four notches, four INDEPENDENT hide toggles, and no view-model state for any of them: the
              show/hide flag is view state on each OverlayBar. Hiding the notch over the storm you are
              watching while the other three keep their legends is the case that actually comes up. -->
-        <!-- ⚠️ THE SITE CHECK TOAST IS GONE from the map band: the announced site check now shows in the bar's
-             ACTIVITY SLOT (BarActivityReadout, fed by BarActivityViewModel.WatchSiteCheck). Don't re-add it here. -->
+        <!-- ⚠️ THE SITE CHECK TOAST IS GONE from the map band: the announced site check now shows in the NowCast
+             window's FOOTER (TemporalWindowFooter, fed by BarActivityViewModel.WatchSiteCheck). Don't re-add it here. -->
 
         <Grid x:Name="PaneNotchLayer" Grid.Row="0" Grid.RowSpan="2">
             <Grid.ColumnDefinitions>
@@ -515,19 +509,9 @@
                                                       CloseRequested="OnCaptionClose"/>
                         </Grid>
 
-                        <!-- ===== ACTIVITY SLOT — what Anvil is working on (Composites/BarActivityReadout) =====
-                             The empty bar between the console and Atlas. Its span is MEASURED, not laid out:
-                             spans all three columns, Left-aligned, and AlignActivityBay sets its left margin to the
-                             tools tier's RIGHT SECTION left edge (the 1-pane key's) and its width to Atlas's left edge
-                             less the cluster's 8 px (tier hidden: its last width; never closer than 24 to the console).
-                             Declared BEFORE the
-                             temporal keys so they stay on top. Nothing active = the plate fades out. -->
-                        <comp:BarActivityReadout x:Name="ActivityBay"
-                                                 Grid.Column="0" Grid.ColumnSpan="3"
-                                                 HorizontalAlignment="Left"
-                                                 VerticalAlignment="Center"
-                                                 Width="0"
-                                                 ViewModel="{x:Bind ViewModel.Activity}"/>
+                        <!-- ⚠️ NO ACTIVITY SLOT (removed 2026-10-16, the user's call): what Anvil is working on shows in
+                             each temporal window's FOOTER (TemporalWindows/TemporalWindowFooter), per mode. The run
+                             between the console and Atlas is a permanent BLANK run (the section rules allow it). -->
 
                         <!-- ===== TEMPORAL MODE KEYS — the bar's LEFT edge =====
                              They held the midpoint until 2026-10-06 (the console took it). LAST in markup on

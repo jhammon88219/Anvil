@@ -21,9 +21,9 @@ namespace Anvil.ViewModels
 	public enum BarActivityTone { Radar, Housekeeping, Done, Failed, Idle }
 
 	/// <summary>
-	/// The BAR'S ACTIVITY READOUT (<c>MapViewModel.Activity</c> → <c>Controls/Composites/BarActivityReadout</c>, in the
-	/// bar between the temporal keys and Atlas): what Anvil is WORKING ON right now, when knowing it explains why the
-	/// map looks unfinished. Empty bar otherwise.
+	/// NOWCAST'S ACTIVITY (<c>MapViewModel.Activity</c> → <c>Controls/TemporalWindows/TemporalWindowFooter</c>, the NowCast
+	/// window's footer — it was the main bar's activity slot until 2026-10-16): what Anvil is WORKING ON right now, when
+	/// knowing it explains why the map looks unfinished. (The "Bar" in the name is history.)
 	/// </summary>
 	/// <remarks>
 	/// <para>⚠️ ONE SLOT, A PRIORITY STACK: each <see cref="BarActivityKind"/> holds one entry; the highest-ranked
@@ -32,7 +32,7 @@ namespace Anvil.ViewModels
 	/// <para>⚠️ TRUTH ONLY, like the gate: every count is a source's own. No bar is drawn for work that has no real
 	/// fraction.</para>
 	/// <para>The sources today: the PLACE SEARCH's status (moved here from beside the search box, 2026-10-06 — a
-	/// variable-width line there broke the left section's edge); the announced SITE CHECK (moved here from the map's
+	/// variable-width line there broke the left section's edge; UNHOOKED 2026-10-16, see MapViewModel); the announced SITE CHECK (moved here from the map's
 	/// toast); and NowCast's NEW LIVE FRAME (replaced the map's sweep pulse, 2026-10-07). (The PastCast loop's line is
 	/// GONE with the gate's escape, 2026-10-10: a PastCast load always shows on the gate itself.)</para>
 	/// </remarks>

@@ -150,46 +150,15 @@ namespace Anvil
 			}
 		}
 
-		// ===== Bar activity slot ↔ the right section's left edge =====
-		// The section rules (docs/ui-bottom-bar.md): the RIGHT section shares ONE left edge on both tiers. The slot
-		// (BarActivityReadout) is the bar's first item of that section, so its LEFT edge = the tools tier's right group's
-		// (the 1-pane key's), its RIGHT edge = Atlas's less the cluster's 8 px. Measured every layout pass — the tier's
-		// right group moves with the window — so it is aligned whether or not an activity is showing.
-		// With the tier HIDDEN there is no key to measure: the slot keeps its last distance from Atlas (nothing on top
-		// to misalign with); before the tier was ever laid out, it starts 24 px after the console.
-		private const double ActivityBayAtlasGap = 8;     // = RightCluster.ColumnSpacing
-		private const double ActivityBayConsoleGap = 24;  // floor against the console: the centre never yields
-		private double _activityBayWidth = double.NaN;    // last measured off the tier (tier showing)
-
-		private void AlignActivityBay()
-		{
-			if (_isClosed || Content is not UIElement root || AtlasKey.ActualWidth <= 0 || double.IsNaN(TimeModule.ConsoleRight(root)))
-			{
-				return;
-			}
-			var origin = BarGrid.TransformToVisual(root).TransformPoint(default).X;
-			var right = AtlasKey.TransformToVisual(root).TransformPoint(default).X - ActivityBayAtlasGap;
-			var consoleFloor = TimeModule.ConsoleRight(root) + ActivityBayConsoleGap;
-			var sectionLeft = ViewModel.IsMapControlsStripVisible ? ToolsStrip.RightSectionLeft(root) : double.NaN;
-			if (!double.IsNaN(sectionLeft))
-			{
-				_activityBayWidth = right - sectionLeft;
-			}
-			var left = double.IsNaN(_activityBayWidth) ? consoleFloor : Math.Max(consoleFloor, right - _activityBayWidth);
-			var width = Math.Max(0, right - left);
-			var margin = left - origin;
-			if (Math.Abs(ActivityBay.Width - width) > 0.5) ActivityBay.Width = width;
-			if (Math.Abs(ActivityBay.Margin.Left - margin) > 0.5) ActivityBay.Margin = new Thickness(margin, 0, 0, 0);
-		}
+		// (The bar's activity slot and its AlignActivityBay are GONE, 2026-10-16: activity shows in each temporal
+		// window's footer, TemporalWindows/TemporalWindowFooter.)
 
 		// Every cross-tier alignment: the site picker (and the console tools with it) on the play button, the right
-		// group's isolation picker on Atlas, the activity slot after the console. Each is a no-op below half a pixel,
-		// so the passes they cause settle at once.
+		// group's isolation picker on Atlas. Each is a no-op below half a pixel, so the passes they cause settle at once.
 		private void OnBottomBarLayoutUpdated(object? sender, object e)
 		{
 			AlignCentreSection();
 			AlignRightTools();
-			AlignActivityBay();
 		}
 
 		// NOTE: DevVisibility is gone. It existed to collapse the dev bar key in Release; there is no dev key

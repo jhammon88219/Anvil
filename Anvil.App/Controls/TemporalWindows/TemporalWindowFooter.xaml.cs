@@ -2,17 +2,16 @@ using System.ComponentModel;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.Composites
+namespace Anvil.Controls.TemporalWindows
 {
 	/// <summary>
-	/// The bar's activity slot (see the XAML header). Every state is <see cref="BarActivityViewModel"/>'s; this only
-	/// draws it (no click door since the gate's escape went, 2026-10-10).
+	/// A temporal window's activity band (see the XAML header). Every state is <see cref="BarActivityViewModel"/>'s;
+	/// this only draws it. Null <see cref="Activity"/> (a mode with no activity sources yet) = an empty band.
 	/// </summary>
-	public sealed partial class BarActivityReadout : UserControl
+	public sealed partial class TemporalWindowFooter : UserControl
 	{
 		// Tone literals (see the XAML header's ⚠️): radar = the gate's built-bar blue; done / failed = the old
 		// site-check toast's green / red; housekeeping = a neutral that reads on both themes.
@@ -21,31 +20,34 @@ namespace Anvil.Controls.Composites
 		private static readonly SolidColorBrush DoneBrush = new(ColorHelper.FromArgb(0xFF, 0x3F, 0xB9, 0x50));
 		private static readonly SolidColorBrush FailedBrush = new(ColorHelper.FromArgb(0xFF, 0xF8, 0x51, 0x49));
 
-		public BarActivityReadout()
+		private const double IdleOpacity = 0.45;
+
+		public TemporalWindowFooter()
 		{
 			InitializeComponent();
-			Unloaded += (_, _) => Detach(ViewModel);
+			Unloaded += (_, _) => Detach(Activity);
 		}
 
-		public BarActivityViewModel ViewModel
+		/// <summary>This mode's activity, or null while the mode has no sources (Past / Fore today).</summary>
+		public BarActivityViewModel? Activity
 		{
-			get => (BarActivityViewModel)GetValue(ViewModelProperty);
-			set => SetValue(ViewModelProperty, value);
+			get => (BarActivityViewModel?)GetValue(ActivityProperty);
+			set => SetValue(ActivityProperty, value);
 		}
 
-		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(BarActivityViewModel), typeof(BarActivityReadout),
+		public static readonly DependencyProperty ActivityProperty =
+			DependencyProperty.Register(nameof(Activity), typeof(BarActivityViewModel), typeof(TemporalWindowFooter),
 				new PropertyMetadata(null, (d, e) =>
 				{
-					var readout = (BarActivityReadout)d;
-					readout.Detach(e.OldValue as BarActivityViewModel);
-					readout.Attach(e.NewValue as BarActivityViewModel);
+					var footer = (TemporalWindowFooter)d;
+					footer.Detach(e.OldValue as BarActivityViewModel);
+					footer.Attach(e.NewValue as BarActivityViewModel);
 				}));
 
-		// Active = full strength; idle = dimmed, NEVER gone (the idle line and the empty plate stay readable).
-		public double PlateOpacity(bool active) => active ? 1 : IdleOpacity;
+		public Visibility HasActivity(BarActivityViewModel? activity) => activity is null ? Visibility.Collapsed : Visibility.Visible;
 
-		private const double IdleOpacity = 0.45;
+		// Active = full strength; idle = dimmed, NEVER gone (the idle line stays readable).
+		public double LinesOpacity(bool active) => active ? 1 : IdleOpacity;
 
 		public Visibility HasText(string text) => string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -63,16 +65,16 @@ namespace Anvil.Controls.Composites
 
 		private void Attach(BarActivityViewModel? vm)
 		{
-			if (vm is not null) vm.PropertyChanged += OnViewModelPropertyChanged;
+			if (vm is not null) vm.PropertyChanged += OnActivityPropertyChanged;
 			ApplyTone();
 		}
 
 		private void Detach(BarActivityViewModel? vm)
 		{
-			if (vm is not null) vm.PropertyChanged -= OnViewModelPropertyChanged;
+			if (vm is not null) vm.PropertyChanged -= OnActivityPropertyChanged;
 		}
 
-		private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+		private void OnActivityPropertyChanged(object? sender, PropertyChangedEventArgs e)
 		{
 			if (e.PropertyName is nameof(BarActivityViewModel.Tone) or nameof(BarActivityViewModel.IsShown))
 			{
@@ -80,14 +82,14 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
-		// THE TONE BORDER (see the XAML): a loud tone (radar work / done / failed) while the slot is active colours the ring;
+		// THE TONE EDGE (see the XAML): a loud tone (radar work / done / failed) while active colours the top line;
 		// otherwise it fades out keeping its last brush, so a flash fades in its own colour.
 		private void ApplyTone()
 		{
-			var vm = ViewModel;
+			var vm = Activity;
 			var loud = vm is { IsShown: true } && vm.Tone is not (BarActivityTone.Idle or BarActivityTone.Housekeeping);
-			if (loud) ToneBorder.BorderBrush = ToneBrush(vm!.Tone);
-			ToneBorder.Opacity = loud ? 1 : 0;
+			if (loud) ToneEdge.Background = ToneBrush(vm!.Tone);
+			ToneEdge.Opacity = loud ? 1 : 0;
 		}
 	}
 }
