@@ -21,8 +21,8 @@ namespace Anvil.ViewModels
 	public enum BarActivityTone { Radar, Housekeeping, Done, Failed, Idle }
 
 	/// <summary>
-	/// NOWCAST'S ACTIVITY (<c>MapViewModel.Activity</c> → <c>Controls/TemporalWindows/TemporalWindowFooter</c>, the NowCast
-	/// window's footer — it was the main bar's activity slot until 2026-10-16): what Anvil is WORKING ON right now, when
+	/// NOWCAST'S ACTIVITY (<c>MapViewModel.Activity</c> → <c>Controls/TemporalWindows/TemporalWindowActivityExpander</c>, the NowCast
+	/// window's ACTIVITY EXPANDER — it was the main bar's activity slot until 2026-10-16): what Anvil is WORKING ON right now, when
 	/// knowing it explains why the map looks unfinished. (The "Bar" in the name is history.)
 	/// </summary>
 	/// <remarks>
@@ -99,6 +99,7 @@ namespace Anvil.ViewModels
 		{
 			_lastFrameText = LastFrameWords(r);
 			if (!_isShown) ApplyIdle();
+			else UpdateIdleLines();
 		}
 
 		internal static string LastFrameWords(LivePollTimingRecord r)
@@ -193,12 +194,12 @@ namespace Anvil.ViewModels
 			{
 				// A new site: the last frame's timing was another radar's.
 				if (e.PropertyName == nameof(RadarViewModel.SelectedRadarOption)) _lastFrameText = string.Empty;
-				if (_isShown) return;
 				if (e.PropertyName is nameof(RadarViewModel.RadarNextFrameText) or nameof(RadarViewModel.ExpectedNextScanAt)
 					or nameof(RadarViewModel.IsPastEventMode) or nameof(RadarViewModel.SelectedRadarOption)
 					or nameof(RadarViewModel.LivePollingModeIndex))
 				{
-					ApplyIdle();
+					if (_isShown) UpdateIdleLines(); // busy: keep the idle lines current for the expander's Full state
+					else ApplyIdle();
 				}
 			};
 			ApplyIdle();
@@ -250,23 +251,47 @@ namespace Anvil.ViewModels
 
 		private void ApplyIdle()
 		{
+			UpdateIdleLines();
 			Kind = BarActivityKind.LiveFrame;
 			Tone = BarActivityTone.Idle;
 			HasProgress = false;
-			if (_liveRadar is { IsLivePolling: true, NextLivePollAt: { } next } r)
+			Title = IdleTitle;
+			Detail = IdleDetail;
+			LastFrameLine = IdleLastFrame;
+			if (_liveRadar is { IsLivePolling: true } r)
 			{
-				var rem = (int)Math.Ceiling(Math.Max(0, (next - DateTimeOffset.Now).TotalSeconds));
-				Title = $"Next check in {rem / 60}:{rem % 60:00}";
-				Detail = r.IsRegimeAwarePolling ? ScanDue(r.ExpectedNextScanAt) : $"every {r.RefreshIntervalSeconds:0} s";
 				HasSecondary = true;
 				Secondary = Math.Clamp(r.RadarNextFrameProgress / 100, 0, 1);
-				LastFrameLine = r.IsRegimeAwarePolling ? _lastFrameText : string.Empty;
 			}
 			else
 			{
-				Title = Detail = string.Empty;
 				HasSecondary = false;
-				LastFrameLine = string.Empty;
+			}
+		}
+
+		// ── The IDLE LINES, kept current even while an activity shows (the activity expander's Full state shows them
+		// under a busy scan, 2026-10-17). ApplyIdle copies them into the drawn lines when nothing is active. ──
+
+		private string _idleTitle = string.Empty, _idleDetail = string.Empty, _idleLastFrame = string.Empty;
+		/// <summary>"Next check in 0:18" while NowCast polls; empty otherwise.</summary>
+		public string IdleTitle { get => _idleTitle; private set => SetProperty(ref _idleTitle, value); }
+		/// <summary>"Scan due ~1:47:12 PM" (regime-aware) or "every 30 s" (fixed time).</summary>
+		public string IdleDetail { get => _idleDetail; private set => SetProperty(ref _idleDetail, value); }
+		/// <summary>"Last frame: on screen 3.0 s after due" (regime-aware, after the first timed frame).</summary>
+		public string IdleLastFrame { get => _idleLastFrame; private set => SetProperty(ref _idleLastFrame, value); }
+
+		private void UpdateIdleLines()
+		{
+			if (_liveRadar is { IsLivePolling: true, NextLivePollAt: { } next } r)
+			{
+				var rem = (int)Math.Ceiling(Math.Max(0, (next - DateTimeOffset.Now).TotalSeconds));
+				IdleTitle = $"Next check in {rem / 60}:{rem % 60:00}";
+				IdleDetail = r.IsRegimeAwarePolling ? ScanDue(r.ExpectedNextScanAt) : $"every {r.RefreshIntervalSeconds:0} s";
+				IdleLastFrame = r.IsRegimeAwarePolling ? _lastFrameText : string.Empty;
+			}
+			else
+			{
+				IdleTitle = IdleDetail = IdleLastFrame = string.Empty;
 			}
 		}
 

@@ -49,9 +49,13 @@ namespace Anvil.ViewModels
 		// Live windows move, so a live key is just the site: a refresh re-fetches the same key.
 		private sealed record FetchKey(string Site, bool Live, DateTimeOffset Start, DateTimeOffset End);
 
+		/// <summary>This feed's refresh timing for the NowCast activity expander (FeedStatus).</summary>
+		public FeedStatus Status { get; }
+
 		public StormCellsViewModel(IMapService mapService, IStormCellService service, RadarViewModel radar,
 			IDispatcher dispatcher, ILogger<StormCellsViewModel> logger)
 		{
+			Status = new FeedStatus(Models.LayerOrder.Cells, "Storm cells", dispatcher);
 			_mapService = mapService;
 			_service = service;
 			_radar = radar;
@@ -163,6 +167,7 @@ namespace Anvil.ViewModels
 		{
 			// The first cycle is the launch itself — Reconcile already runs on map-ready and on every change.
 			if (!first) { _dispatcher.Post(() => { if (DesiredKey() is { Live: true }) { _ = EnsureAsync(refresh: true); } }); }
+			Status.Scheduled(LiveRefresh);
 			return Task.FromResult(LiveRefresh);
 		}, _shutdown.Token);
 
@@ -259,6 +264,7 @@ namespace Anvil.ViewModels
 			var start = key.Live ? end - LiveSpan : key.Start;
 			StormCellFetch fetch;
 			_inFlightKey = key;
+			if (key.Live) { Status.Checking(); }
 			try
 			{
 				fetch = await _service.FetchAsync(key.Site, start, end, key.Live);
@@ -273,6 +279,7 @@ namespace Anvil.ViewModels
 				_inFlightKey = null;
 			}
 
+			if (key.Live) { if (fetch.Found) { Status.Succeeded(); } else { Status.Failed(); } }
 			if (token != _applyToken) { return; }
 
 			if (!fetch.Found)

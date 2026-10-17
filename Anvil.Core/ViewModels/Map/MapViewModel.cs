@@ -94,9 +94,24 @@ namespace Anvil.ViewModels
 			Tropical = new TropicalViewModel(mapService, tropicalService, Radar, dispatcher, loggerFactory.CreateLogger<TropicalViewModel>());
 			Markers = new MarkersViewModel(mapService, locationService);
 			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
-			// SEARCH STATUS HIDDEN (2026-10-16, the user's call): activity now shows in the NowCast window's footer, and a
+			// SEARCH STATUS HIDDEN (2026-10-16, the user's call): activity now shows in the NowCast window's activity expander, and a
 			// search isn't NowCast work. The source stays (BarActivityViewModel.WatchPlaceSearch) — re-add this line to show it.
 			// Activity.WatchPlaceSearch(PlaceSearch);
+			// Each temporal window's ACTIVITY EXPANDER — that mode's work only. NowCast: the radar's live poll + site check and
+			// its six live feeds (in the window's layer order, re-sorted when it changes); Past / Fore: none yet.
+			var settings = settingsService.Settings;
+			NowCastActivity = new TemporalActivityViewModel(Activity,
+				new[] { Warnings.Status, Watches.Status, StormReports.Status, StormCells.Status, Tropical.Status, Discussions.Status },
+				() => settings.NowCastActivity, t => settings.NowCastActivity = t, dispatcher);
+			PastCastActivity = new TemporalActivityViewModel(null, Array.Empty<FeedStatus>(),
+				() => settings.PastCastActivity, t => settings.PastCastActivity = t, dispatcher);
+			ForeCastActivity = new TemporalActivityViewModel(null, Array.Empty<FeedStatus>(),
+				() => settings.ForeCastActivity, t => settings.ForeCastActivity = t, dispatcher);
+			NowCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
+			LayerOrderChanged += (_, mode) =>
+			{
+				if (mode == TemporalMode.Now) NowCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
+			};
 			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
 			SiteUsage = new SiteUsageTracker(Radar, siteUsageStore);
 			// The PastCast load-time log (one line per load). Optional so tests that don't care can omit it.
@@ -241,9 +256,22 @@ namespace Anvil.ViewModels
 		/// color scale, inspector). The transport-bar section controls bind to this.</summary>
 		public RadarViewModel Radar { get; }
 
-		/// <summary>The bar's activity readout — what Anvil is working on (a loop loading without its gate, the site
-		/// check). Fed by the subsystems; see <see cref="BarActivityViewModel"/>.</summary>
+		/// <summary>The radar's live work (the live poll, the site check) — NowCast's activity expander shows it, through
+		/// <see cref="NowCastActivity"/>. Fed by the subsystems; see <see cref="BarActivityViewModel"/>.</summary>
 		public BarActivityViewModel Activity { get; }
+
+		/// <summary>Each temporal window's activity expander (<c>TemporalWindows/TemporalWindowActivityExpander</c>).</summary>
+		public TemporalActivityViewModel NowCastActivity { get; }
+		public TemporalActivityViewModel PastCastActivity { get; }
+		public TemporalActivityViewModel ForeCastActivity { get; }
+
+		/// <summary>The activity expander of <paramref name="mode"/>'s window.</summary>
+		public TemporalActivityViewModel ActivityFor(TemporalMode mode) => mode switch
+		{
+			TemporalMode.Past => PastCastActivity,
+			TemporalMode.Fore => ForeCastActivity,
+			_ => NowCastActivity,
+		};
 
 		/// <summary>The SPC outlook subsystem view model (day/product selection, info card,
 		/// next-update progress, background refresh).</summary>
@@ -1908,6 +1936,7 @@ namespace Anvil.ViewModels
 			StormCells.Shutdown();
 			Discussions.Shutdown();
 			Tropical.Shutdown();
+			NowCastActivity.Shutdown(); // the feeds' 1 s countdown tick
 			RadarNws.Shutdown();
 			SiteUsage.Shutdown(); // bank the running site-hours stretch
 		}

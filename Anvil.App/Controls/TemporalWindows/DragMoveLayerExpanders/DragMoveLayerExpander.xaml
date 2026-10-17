@@ -182,7 +182,7 @@
                 </Slider>
 
                 <!-- The readout formats OpacityValue — the VIEW MODEL's number, the one on the map. -->
-                <TextBlock Grid.Column="5"
+                <TextBlock Grid.Column="5" Style="{StaticResource TabularNumberTextStyle}"
                            Text="{x:Bind Percent(OpacityValue), Mode=OneWay}"
                            Opacity="{x:Bind GhostDimUnless(IsOpacityEnabled, IsGhost), Mode=OneWay}"
                            Visibility="{x:Bind BoolVisibility(ShowOpacity), Mode=OneWay}"

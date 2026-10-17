@@ -24,8 +24,12 @@ namespace Anvil.ViewModels
 		private readonly IDispatcher _dispatcher;
 		private readonly ILogger<WatchesViewModel> _logger;
 
+		/// <summary>This feed's refresh timing for the NowCast activity expander (FeedStatus).</summary>
+		public FeedStatus Status { get; }
+
 		public WatchesViewModel(IMapService mapService, ISpcWatchService watchService, IDispatcher dispatcher, ILogger<WatchesViewModel> logger)
 		{
+			Status = new FeedStatus(Models.LayerOrder.Watches, "Watches", dispatcher);
 			_mapService = mapService;
 			_watchService = watchService;
 			_dispatcher = dispatcher;
@@ -63,8 +67,10 @@ namespace Anvil.ViewModels
 		{
 			try
 			{
+				Status.Checking();
 				var result = await _watchService.RefreshAsync();
 				_logger.LogInformation("Watches refresh: {Status} active={Active} {Message}", result.Status, result.ActiveCount, result.Message);
+				if (result.Status is SpcWatchFetchStatus.Updated) { Status.Succeeded(); } else { Status.Failed(); }
 
 				// Re-point the page at the cache so it reloads — on launch (first-run empty cache) and
 				// whenever a cycle pulled fresh data. The counts ride along on the same UI-thread hop:
@@ -93,8 +99,10 @@ namespace Anvil.ViewModels
 			}
 			catch (Exception ex)
 			{
+				Status.Failed();
 				_logger.LogWarning(ex, "Watches refresh aborted");
 			}
+			Status.Scheduled(WatchRefreshInterval);
 		}, _shutdown.Token);
 	}
 }

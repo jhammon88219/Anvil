@@ -16,9 +16,10 @@
        │  │   TemporalWindowPastCastContent              │    │
        │  │   TemporalWindowForeCastContent              │    │
        │  └──────────────────────────────────────────────┘    │
-       ├──────────────────────────────────────────────────────┤
-       │▓ New scan                1:47:12 PM scan · painting ▓│  ← TemporalWindowFooter: this MODE's activity,
-       │▓ ██████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ▓│    full width, fixed 72, header grey
+       ░░░░░░░░░░░░░░░░░░░░░╭─ ˄ More ─╮░░░░░░░░░░░░░░░░░░░░░░  ← shadow + the one pull tab
+       ├─────────────────────┘          └─────────────────────┤
+       │▓ Next check in 0:18           Scan due ~1:47:12 PM  ▓│  ← TemporalWindowActivityExpander: this MODE's
+       │▓ Last frame: on screen 3.0 s after due              ▓│    activity, Hidden / Minimal / Full
        └──────────────────────────────────────────────────────┘
 
      ⚠️ ONE CLASS, THREE WINDOWS. This is registered three times (MainWindow), once per TemporalMode, each
@@ -68,8 +69,8 @@
          a readout), so the mode's name shows once, in the Content (ForeCast was the last, 2026-10-07). -->
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>    <!-- the Content (its 14 px bottom margin = the gap above the footer) -->
-            <RowDefinition Height="Auto"/> <!-- TemporalWindowFooter: full width, fixed 72 -->
+            <RowDefinition Height="*"/>    <!-- the Content (its 14 px bottom margin = the gap above the expander) -->
+            <RowDefinition Height="Auto"/> <!-- TemporalWindowActivityExpander: full width, its height by state -->
         </Grid.RowDefinitions>
 
         <!-- ⚠️ NO ScrollViewer HERE. The window opens at the FULL height above the bottom chrome (WindowManager's
@@ -86,10 +87,11 @@
         <temporalWindowContents:TemporalWindowForeCastContent x:Name="TemporalWindowForeCastContent" x:Load="{x:Bind IsFore}" Margin="16,14,16,14"
                           ViewModel="{x:Bind ViewModel}"/>
 
-        <!-- THE FOOTER: this mode's activity (FooterActivity — NowCast's today; Past / Fore have no sources yet, so
-             theirs is an empty band). ONE declaration for all three modes, outside the Content, so it spans the
-             window edge to edge. It replaced the main bar's activity slot (2026-10-16). -->
-        <tw:TemporalWindowFooter x:Name="TemporalWindowFooter" Grid.Row="1" Activity="{x:Bind FooterActivity}"/>
+        <!-- THE ACTIVITY EXPANDER: this mode's activity (MapViewModel.ActivityFor(Mode) — NowCast's radar + feeds today;
+             Past / Fore have none yet, so theirs is a bare band). ONE declaration for all three modes, outside the
+             Content, so it spans the window edge to edge; declared after the Content so its shadow and tab paint over
+             the list. It replaced the main bar's activity slot (2026-10-16). -->
+        <tw:TemporalWindowActivityExpander x:Name="TemporalWindowActivityExpander" Grid.Row="1" Activity="{x:Bind WindowActivity}"/>
 
         <!-- Lock + pin. Bound in code-behind — the flags they drive depend on Mode. -->
         <ctl:LockToggle x:Name="Lock"/>

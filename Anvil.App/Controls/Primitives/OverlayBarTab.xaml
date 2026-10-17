@@ -19,6 +19,9 @@
      rather than running across its foot. -2 and not -1: at fractional scales a 1px lap left a
      subpixel sliver of the host's border showing under the tab.
 
+     A THIRD HOST, MORE THAN TWO STATES: the temporal window's activity expander (Hidden / Minimal / Full) sets
+     ManualToggle (a click raises Clicked, IsShown is the host's), Label ("More" / "Less") and Hint.
+
      ⚠️ TWO LABEL MODES, and which one you get depends on how many tabs share the rail.
      Target empty  → the tab reads the VERB ("Hide" / "Show"). Right when the tab is alone above
                      its surface, because the surface is obvious and the action is the question.
@@ -158,12 +161,12 @@
                 Width="{StaticResource OverlayBarTabWidth}"
                 Height="{StaticResource OverlayBarTabHeight}"
                 Click="OnTabClick"
-                ToolTipService.ToolTip="{x:Bind Tooltip(IsShown, Target), Mode=OneWay}">
+                ToolTipService.ToolTip="{x:Bind Tooltip(IsShown, Target, Hint), Mode=OneWay}">
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                 <FontIcon Glyph="{x:Bind Chevron(IsShown, Edge), Mode=OneWay}"
                           FontSize="14"
                           VerticalAlignment="Center"/>
-                <TextBlock Text="{x:Bind Word(IsShown, Target), Mode=OneWay}"
+                <TextBlock Text="{x:Bind Word(IsShown, Target, Label), Mode=OneWay}"
                            Visibility="{x:Bind VisibleWhen(ShowLabel), Mode=OneWay}"
                            FontSize="15"
                            VerticalAlignment="Center"/>

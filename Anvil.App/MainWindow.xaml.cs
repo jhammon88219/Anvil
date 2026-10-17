@@ -151,7 +151,7 @@ namespace Anvil
 		}
 
 		// (The bar's activity slot and its AlignActivityBay are GONE, 2026-10-16: activity shows in each temporal
-		// window's footer, TemporalWindows/TemporalWindowFooter.)
+		// window's activity expander, TemporalWindows/TemporalWindowActivityExpander.)
 
 		// Every cross-tier alignment: the site picker (and the console tools with it) on the play button, the right
 		// group's isolation picker on Atlas. Each is a no-op below half a pixel, so the passes they cause settle at once.
@@ -789,6 +789,7 @@ namespace Anvil
 			ViewModel.StormCells.StartBackgroundRefresh();
 			ViewModel.Discussions.StartBackgroundRefresh();
 			ViewModel.Tropical.StartBackgroundRefresh();
+			ViewModel.NowCastActivity.StartTicking(); // the activity expander's feed countdowns
 
 			// Write a final flush + report on close so the run's last events aren't lost between
 			// the ~2 s background flushes. Also latch _isClosed and drop the layout hook FIRST - the

@@ -63,7 +63,7 @@
                      IsHitTestVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             <TextBlock Grid.Row="0" Grid.Column="2" Text="Cell tracks" FontSize="13" IsHitTestVisible="False"
                        VerticalAlignment="Center"/>
-            <TextBlock Grid.Row="0" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.CellCount), Mode=OneWay}"
+            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Row="0" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.CellCount), Mode=OneWay}"
                        FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
                        HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
@@ -74,7 +74,7 @@
                   IsHitTestVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             <TextBlock Grid.Row="1" Grid.Column="2" Text="Tornado vortex (TVS)" FontSize="13" IsHitTestVisible="False"
                        VerticalAlignment="Center"/>
-            <TextBlock Grid.Row="1" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.TvsCount), Mode=OneWay}"
+            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Row="1" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.TvsCount), Mode=OneWay}"
                        FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
                        HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
@@ -85,7 +85,7 @@
                      IsHitTestVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             <TextBlock Grid.Row="2" Grid.Column="2" Text="Mesocyclone" FontSize="13" IsHitTestVisible="False"
                        VerticalAlignment="Center"/>
-            <TextBlock Grid.Row="2" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.MesoCount), Mode=OneWay}"
+            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Row="2" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.MesoCount), Mode=OneWay}"
                        FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
                        HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
@@ -96,7 +96,7 @@
                   IsHitTestVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             <TextBlock Grid.Row="3" Grid.Column="2" Text="Severe hail" FontSize="13" IsHitTestVisible="False"
                        VerticalAlignment="Center"/>
-            <TextBlock Grid.Row="3" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.HailCount), Mode=OneWay}"
+            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Row="3" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.HailCount), Mode=OneWay}"
                        FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
                        HorizontalAlignment="Right" VerticalAlignment="Center"/>
         </Grid>

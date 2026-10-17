@@ -40,8 +40,12 @@ namespace Anvil.ViewModels
 		private bool _fetchInFlight;
 		private DateOnly? _inFlightDay;
 
+		/// <summary>This feed's refresh timing for the NowCast activity expander (FeedStatus).</summary>
+		public FeedStatus Status { get; }
+
 		public StormReportsViewModel(IMapService mapService, IStormReportService reportService, RadarViewModel radar, IDispatcher dispatcher, ILogger<StormReportsViewModel> logger)
 		{
+			Status = new FeedStatus(Models.LayerOrder.Reports, "Storm reports", dispatcher);
 			_mapService = mapService;
 			_reportService = reportService;
 			_radar = radar;
@@ -278,6 +282,7 @@ namespace Anvil.ViewModels
 
 		private Task RefreshReportsInBackgroundAsync() => BackgroundRefresh.RunPeriodicAsync(RefreshInterval, async first =>
 		{
+			Status.Scheduled(RefreshInterval); // the cycle's start: the next tick is one interval away
 			try
 			{
 				// ⚠️ NOT gated on anything being shown: today's counts are a live readout even with every type
@@ -286,11 +291,14 @@ namespace Anvil.ViewModels
 				if (!_isMapReady || _radar.IsPastEventMode) { return; }
 
 				var day = TodayConvectiveDay();
+				Status.Checking();
 				var result = await _reportService.EnsureReportsAsync(day, immutable: false);
+				if (result.Found) { Status.Succeeded(); } else { Status.Failed(); }
 				_dispatcher.Post(() => ApplyRefreshed(day, result));
 			}
 			catch (Exception ex)
 			{
+				Status.Failed();
 				_logger.LogWarning(ex, "Storm reports refresh aborted");
 			}
 		}, _shutdown.Token);

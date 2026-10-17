@@ -70,8 +70,7 @@ namespace Anvil.Controls.TemporalWindows
 		public bool IsNow => Mode == TemporalMode.Now;
 		public bool IsFore => Mode == TemporalMode.Fore;
 
-		/// <summary>The footer's activity: NowCast's live poll + site check are <see cref="MapViewModel.Activity"/>;
-		/// Past and Fore have no activity sources yet (null = an empty footer band). Give a mode its own here.</summary>
-		public BarActivityViewModel? FooterActivity => Mode == TemporalMode.Now ? ViewModel.Activity : null;
+		/// <summary>This window's activity expander (radar + feeds for NowCast; Past / Fore have none yet).</summary>
+		public TemporalActivityViewModel WindowActivity => ViewModel.ActivityFor(Mode);
 	}
 }

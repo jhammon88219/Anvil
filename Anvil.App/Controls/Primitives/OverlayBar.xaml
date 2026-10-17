@@ -61,35 +61,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <UserControl.Resources>
-        <!-- ⚠️ THE SHADOW GRADIENTS ARE LITERAL BLACK, NOT THEME BRUSHES, and that is deliberate: a
-             shadow is the absence of light in any theme (the same rule the map theme sheets state for the map
-             page's drop shadows). Only their STRENGTH is themed, through OverlayBarShadowOpacity on
-             each element — one number per theme instead of eight gradients.
-             The EdgeStates below pick between them by edge (and the side bands use theirs directly).
-             Three stops, not two: a linear ramp reads as a grey band with an edge on it, and the whole
-             point is that this edge has none. -->
-        <LinearGradientBrush x:Key="ShadowFadeUp" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#00000000" Offset="0"/>
-            <GradientStop Color="#2E000000" Offset="0.55"/>
-            <GradientStop Color="#99000000" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="ShadowFadeDown" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#99000000" Offset="0"/>
-            <GradientStop Color="#2E000000" Offset="0.45"/>
-            <GradientStop Color="#00000000" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="ShadowFadeRight" StartPoint="0,0" EndPoint="1,0">
-            <GradientStop Color="#00000000" Offset="0"/>
-            <GradientStop Color="#2E000000" Offset="0.55"/>
-            <GradientStop Color="#99000000" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="ShadowFadeLeft" StartPoint="0,0" EndPoint="1,0">
-            <GradientStop Color="#99000000" Offset="0"/>
-            <GradientStop Color="#2E000000" Offset="0.45"/>
-            <GradientStop Color="#00000000" Offset="1"/>
-        </LinearGradientBrush>
-    </UserControl.Resources>
+    <!-- The four ShadowFade* gradients moved to Controls/Styles.xaml (2026-10-17): the temporal window's activity
+         expander casts the same shadow, so they are shared now. The EdgeStates below pick between them by edge. -->
 
     <!-- Transparent root: only the tab, the shadows and the bar draw, so the map shows through beside
          them. This control is ONLY the chrome. Nothing floats above it in-window: every app-wide panel

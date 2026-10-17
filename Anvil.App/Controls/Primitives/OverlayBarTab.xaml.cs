@@ -168,16 +168,61 @@ namespace Anvil.Controls.Primitives
 			return pointUp ? ChevronUp : ChevronDown;
 		}
 
-		/// <summary>The word on the tab: the noun when the rail has more than one tab, else the verb.</summary>
-		public string Word(bool shown, string target) =>
-			string.IsNullOrEmpty(target) ? (shown ? "Hide" : "Show") : target;
+		/// <summary>The word on the tab: <see cref="Label"/> when set, else the noun when the rail has more than one tab,
+		/// else the verb.</summary>
+		public string Word(bool shown, string target, string label) =>
+			!string.IsNullOrEmpty(label) ? label
+			: string.IsNullOrEmpty(target) ? (shown ? "Hide" : "Show") : target;
 
-		/// <summary>The tooltip always carries the VERB - it is the only place a noun-mode tab states the action.</summary>
-		public string Tooltip(bool shown, string target) =>
-			string.IsNullOrEmpty(target)
+		/// <summary>The tooltip always carries the VERB - it is the only place a noun-mode tab states the action.
+		/// <see cref="Hint"/> replaces it when set.</summary>
+		public string Tooltip(bool shown, string target, string hint) =>
+			!string.IsNullOrEmpty(hint) ? hint
+			: string.IsNullOrEmpty(target)
 				? (shown ? "Hide these controls" : "Show the controls")
 				: (shown ? $"Hide the {target.ToLowerInvariant()}" : $"Show the {target.ToLowerInvariant()}");
 
-		private void OnTabClick(object sender, RoutedEventArgs e) => IsShown = !IsShown;
+		// ── MORE THAN TWO STATES (the temporal window's activity expander, 2026-10-17) ──
+		// A host with its own state machine sets ManualToggle: a click raises Clicked and leaves IsShown alone; the host
+		// moves its state and re-points IsShown (the chevron) and Label (the word) itself. Default off = every existing tab.
+
+		/// <summary>Replaces the word ("More" / "Less"). Empty = the Target / verb rule.</summary>
+		public string Label
+		{
+			get => (string)GetValue(LabelProperty);
+			set => SetValue(LabelProperty, value);
+		}
+
+		public static readonly DependencyProperty LabelProperty =
+			DependencyProperty.Register(nameof(Label), typeof(string), typeof(OverlayBarTab), new PropertyMetadata(string.Empty));
+
+		/// <summary>Replaces the tooltip. Empty = the verb rule.</summary>
+		public string Hint
+		{
+			get => (string)GetValue(HintProperty);
+			set => SetValue(HintProperty, value);
+		}
+
+		public static readonly DependencyProperty HintProperty =
+			DependencyProperty.Register(nameof(Hint), typeof(string), typeof(OverlayBarTab), new PropertyMetadata(string.Empty));
+
+		/// <summary>True = a click raises <see cref="Clicked"/> only; the host owns <see cref="IsShown"/>.</summary>
+		public bool ManualToggle
+		{
+			get => (bool)GetValue(ManualToggleProperty);
+			set => SetValue(ManualToggleProperty, value);
+		}
+
+		public static readonly DependencyProperty ManualToggleProperty =
+			DependencyProperty.Register(nameof(ManualToggle), typeof(bool), typeof(OverlayBarTab), new PropertyMetadata(false));
+
+		/// <summary>Every click (both modes).</summary>
+		public event RoutedEventHandler? Clicked;
+
+		private void OnTabClick(object sender, RoutedEventArgs e)
+		{
+			if (!ManualToggle) IsShown = !IsShown;
+			Clicked?.Invoke(this, e);
+		}
 	}
 }

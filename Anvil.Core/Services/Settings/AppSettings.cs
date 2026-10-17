@@ -555,6 +555,31 @@ namespace Anvil.Services
 			set => SetProperty(ref _sectionExpanded, value ?? new());
 		}
 
+		// ── Temporal windows' ACTIVITY EXPANDER state (Models.ActivityExpanderStates tokens), one per window ──
+		private string _nowCastActivity = Models.ActivityExpanderStates.Hidden;
+		/// <summary>The NowCast window's activity expander: hidden / min-up / full / min-down.</summary>
+		public string NowCastActivity
+		{
+			get => _nowCastActivity;
+			set => SetProperty(ref _nowCastActivity, value);
+		}
+
+		private string _pastCastActivity = Models.ActivityExpanderStates.Hidden;
+		/// <summary>The PastCast window's activity expander (no activity yet — kept for when it has some).</summary>
+		public string PastCastActivity
+		{
+			get => _pastCastActivity;
+			set => SetProperty(ref _pastCastActivity, value);
+		}
+
+		private string _foreCastActivity = Models.ActivityExpanderStates.Hidden;
+		/// <summary>The ForeCast window's activity expander (no activity yet — kept for when it has some).</summary>
+		public string ForeCastActivity
+		{
+			get => _foreCastActivity;
+			set => SetProperty(ref _foreCastActivity, value);
+		}
+
 		// ── Startup (Settings → Startup) ──
 		private bool _startupResume = true;
 		/// <summary>Open Anvil on the LAST session's modes + windows (default) — else on <see cref="StartupMode"/>.</summary>

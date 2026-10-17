@@ -48,9 +48,13 @@ namespace Anvil.ViewModels
 
 		private sealed record FetchKey(bool Live, DateTimeOffset Start, DateTimeOffset End);
 
+		/// <summary>This feed's refresh timing for the NowCast activity expander (FeedStatus).</summary>
+		public FeedStatus Status { get; }
+
 		public MesoDiscussionsViewModel(IMapService mapService, IMesoDiscussionService service, RadarViewModel radar,
 			IDispatcher dispatcher, ILogger<MesoDiscussionsViewModel> logger)
 		{
+			Status = new FeedStatus(Models.LayerOrder.Discussions, "Mesoscale discussions", dispatcher);
 			_mapService = mapService;
 			_service = service;
 			_radar = radar;
@@ -342,6 +346,7 @@ namespace Anvil.ViewModels
 					if (DesiredKey() is { Live: true }) { _ = EnsureAsync(refresh: true); }
 				});
 			}
+			Status.Scheduled(LiveRefresh);
 			return Task.FromResult(LiveRefresh);
 		}, _shutdown.Token);
 
@@ -403,6 +408,7 @@ namespace Anvil.ViewModels
 
 			MesoDiscussionFetch fetch;
 			_inFlightKey = key;
+			if (key.Live) { Status.Checking(); }
 			try { fetch = await _service.FetchAsync(start, end, key.Live); }
 			catch (Exception ex)
 			{
@@ -411,6 +417,7 @@ namespace Anvil.ViewModels
 			}
 			finally { _inFlightKey = null; }
 
+			if (key.Live) { if (fetch.Found) { Status.Succeeded(); } else { Status.Failed(); } }
 			if (token != _applyToken) { return; }
 			if (!fetch.Found)
 			{

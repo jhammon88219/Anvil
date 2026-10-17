@@ -26,8 +26,12 @@ namespace Anvil.ViewModels
 		private readonly IDispatcher _dispatcher;
 		private readonly ILogger<WarningsViewModel> _logger;
 
+		/// <summary>This feed's refresh timing for the NowCast activity expander (FeedStatus).</summary>
+		public FeedStatus Status { get; }
+
 		public WarningsViewModel(IMapService mapService, IWarningService warningService, IDispatcher dispatcher, ILogger<WarningsViewModel> logger)
 		{
+			Status = new FeedStatus(Models.LayerOrder.Warnings, "Warnings", dispatcher);
 			_mapService = mapService;
 			_warningService = warningService;
 			_dispatcher = dispatcher;
@@ -140,12 +144,14 @@ namespace Anvil.ViewModels
 		{
 			try
 			{
+				Status.Checking();
 				var result = await _warningService.RefreshAsync();
 				_logger.LogInformation("Warnings refresh: {Status} active={Active} {Message}", result.Status, result.ActiveCount, result.Message);
 
 				// A completed fetch tells us the current active state; a failure leaves the prior state.
 				if (result.Status is WarningFetchStatus.Updated)
 				{
+					Status.Succeeded();
 					_hasActiveWarnings = result.ActiveCount > 0;
 
 					// Push the per-type counts to the NowCast readout on the UI thread, then reload the map.
@@ -165,6 +171,7 @@ namespace Anvil.ViewModels
 				}
 				else if (first)
 				{
+					Status.Failed();
 					// First cycle with no data yet — still point the page at the (empty) cache.
 					_dispatcher.Post(() =>
 					{
@@ -174,16 +181,20 @@ namespace Anvil.ViewModels
 				}
 				else
 				{
+					Status.Failed();
 					_dispatcher.Post(() => ApplyRefreshFailed(result.Message));
 				}
 			}
 			catch (Exception ex)
 			{
+				Status.Failed();
 				_logger.LogWarning(ex, "Warnings refresh aborted");
 			}
 
 			// Poll fast while anything is active, slow when the map is clear.
-			return _hasActiveWarnings ? ActiveInterval : IdleInterval;
+			var next = _hasActiveWarnings ? ActiveInterval : IdleInterval;
+			Status.Scheduled(next);
+			return next;
 		}, _shutdown.Token);
 	}
 }

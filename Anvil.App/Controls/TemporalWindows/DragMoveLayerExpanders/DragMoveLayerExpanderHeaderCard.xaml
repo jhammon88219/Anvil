@@ -37,18 +37,18 @@
             BorderThickness="0,0,0,1"
             BorderBrush="{ThemeResource SectionBorderBrush}">
         <StackPanel>
-            <TextBlock Text="{x:Bind Headline, Mode=OneWay}"
+            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind Headline, Mode=OneWay}"
                        FontSize="15" TextWrapping="Wrap"
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-            <TextBlock Text="{x:Bind Threats, Mode=OneWay}"
+            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind Threats, Mode=OneWay}"
                        FontSize="13" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap"
                        Visibility="{x:Bind HasText(Threats), Mode=OneWay}"
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-            <TextBlock Text="{x:Bind Context, Mode=OneWay}"
+            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind Context, Mode=OneWay}"
                        FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap"
                        Visibility="{x:Bind HasText(Context), Mode=OneWay}"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            <TextBlock Text="{x:Bind Footer, Mode=OneWay}"
+            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind Footer, Mode=OneWay}"
                        FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
                        Visibility="{x:Bind HasText(Footer), Mode=OneWay}"
                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>

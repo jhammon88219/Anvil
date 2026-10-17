@@ -97,7 +97,7 @@
                     Background="#FF2A2A" VerticalAlignment="Center"/>
             <TextBlock Grid.Row="0" Grid.Column="2" Text="Tornado" FontSize="13" IsHitTestVisible="False"
                        VerticalAlignment="Center"/>
-            <TextBlock Grid.Row="0" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.TornadoCount), Mode=OneWay}"
+            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Row="0" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.TornadoCount), Mode=OneWay}"
                        FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
                        HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
@@ -108,7 +108,7 @@
                     Background="#FFD21A" VerticalAlignment="Center" Margin="0,9,0,0"/>
             <TextBlock Grid.Row="1" Grid.Column="2" Text="Severe thunderstorm" FontSize="13" IsHitTestVisible="False"
                        VerticalAlignment="Center" Margin="0,9,0,0"/>
-            <TextBlock Grid.Row="1" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.SevereCount), Mode=OneWay}"
+            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Row="1" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.SevereCount), Mode=OneWay}"
                        FontSize="13" FontWeight="SemiBold" Margin="12,9,0,0" IsHitTestVisible="False"
                        HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
@@ -124,7 +124,7 @@
             <TextBlock Grid.Row="2" Grid.Column="2" Text="{x:Bind ViewModel.FloodLabel, Mode=OneWay}" FontSize="13"
                        Visibility="{x:Bind Shown(ViewModel.SupportsFlashFlood), Mode=OneWay}"
                        IsHitTestVisible="False" VerticalAlignment="Center" Margin="0,9,0,0"/>
-            <TextBlock Grid.Row="2" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.FlashFloodCount), Mode=OneWay}"
+            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Row="2" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.FlashFloodCount), Mode=OneWay}"
                        Visibility="{x:Bind Shown(ViewModel.SupportsFlashFlood), Mode=OneWay}"
                        FontSize="13" FontWeight="SemiBold" Margin="12,9,0,0" IsHitTestVisible="False"
                        HorizontalAlignment="Right" VerticalAlignment="Center"/>

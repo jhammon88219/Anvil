@@ -119,6 +119,40 @@
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
+    <!-- ⚠️ THE SHADOW GRADIENTS ARE LITERAL BLACK, NOT THEME BRUSHES, and that is deliberate: a shadow is the absence
+         of light in any theme (the same rule the map theme sheets state for the map page's drop shadows). Only their
+         STRENGTH is themed, through OverlayBarShadowOpacity on each element — one number per theme instead of eight
+         gradients. Three stops, not two: a linear ramp reads as a grey band with an edge on it, and the whole point is
+         that this edge has none. Shared by Primitives/OverlayBar (every bar and notch) and
+         TemporalWindows/TemporalWindowActivityExpander (moved here from OverlayBar, 2026-10-17). -->
+    <LinearGradientBrush x:Key="ShadowFadeUp" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#00000000" Offset="0"/>
+        <GradientStop Color="#2E000000" Offset="0.55"/>
+        <GradientStop Color="#99000000" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ShadowFadeDown" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#99000000" Offset="0"/>
+        <GradientStop Color="#2E000000" Offset="0.45"/>
+        <GradientStop Color="#00000000" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ShadowFadeRight" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#00000000" Offset="0"/>
+        <GradientStop Color="#2E000000" Offset="0.55"/>
+        <GradientStop Color="#99000000" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ShadowFadeLeft" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#99000000" Offset="0"/>
+        <GradientStop Color="#2E000000" Offset="0.45"/>
+        <GradientStop Color="#00000000" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- TABULAR DIGITS for any readout whose numbers change while you watch (counts, clocks, countdowns, %): every digit
+         the same width, so a line doesn't wobble as it ticks. Tabular digits fix DIGIT width only — a line that changes
+         its CHARACTER count ("9:59" → "10:00", a time → "Checking") still needs a reserved width. Not for wrapped prose. -->
+    <Style x:Key="TabularNumberTextStyle" TargetType="TextBlock">
+        <Setter Property="Typography.NumeralAlignment" Value="Tabular"/>
+    </Style>
+
     <!-- ══════════════════════════════ 2. SIZES ══════════════════════════════
          How big a key in the bottom bar is. FIVE numbers, and they are here for exactly one reason:
          TWO clusters have to agree on them. The temporal keys sit at the bar's centre and the pane /
