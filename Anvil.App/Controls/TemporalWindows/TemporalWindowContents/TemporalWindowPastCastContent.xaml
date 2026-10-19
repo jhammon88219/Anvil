@@ -195,7 +195,7 @@
          PanelScroller header): the gutter ends 4 px from the window edge. -->
     <prim:PanelScroller Grid.Row="1" Margin="0,0,-12,0">
     <!-- ⚠️ The host holds ONLY DragMoveLayerExpanders (anything else throws) — every child is a layer. -->
-    <dragMoveLayerExpanders:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" VerticalAlignment="Top" Spacing="8" Reordered="OnLayersReordered">
+    <dragMoveLayerExpanders:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" VerticalAlignment="Top" Spacing="8" Margin="{StaticResource TemporalListEndClearance}" Reordered="OnLayersReordered">
 
         <!-- ===================== STORM CELLS ===================== -->
         <!-- The radar's storm-cell attributes for the LOADED window and site, following the scrubber. Shared

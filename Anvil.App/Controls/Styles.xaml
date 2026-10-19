@@ -73,6 +73,7 @@
                  their STRENGTH is themed. A light ground needs far less of it before the shadow reads
                  as grime rather than as depth. 0 would disable shadows entirely. -->
             <x:Double x:Key="OverlayBarShadowOpacity">1</x:Double>
+            <x:Double x:Key="EdgeBlurOpacity">1</x:Double> <!-- EDGE-BLUR (trial): Media/EdgeBlurBrush strips -->
 
             <!-- TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpander + SettingsExpander (every panel section). Header on the raised face, body on the ground;
                  LIFTED = the layer expander being dragged. -->
@@ -92,6 +93,7 @@
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="#FFD0D0D0"/>
 
             <x:Double x:Key="OverlayBarShadowOpacity">0.4</x:Double>
+            <x:Double x:Key="EdgeBlurOpacity">1</x:Double> <!-- EDGE-BLUR (trial) -->
 
             <!-- DragMoveLayerExpander + SettingsExpander — see the Default dictionary. -->
             <SolidColorBrush x:Key="SectionHeaderBackground" Color="#FFE4E4E4"/>
@@ -111,6 +113,7 @@
 
             <!-- No shadows in high contrast: depth cues are exactly what that mode removes. -->
             <x:Double x:Key="OverlayBarShadowOpacity">0</x:Double>
+            <x:Double x:Key="EdgeBlurOpacity">0</x:Double> <!-- EDGE-BLUR (trial): no blur in high contrast either -->
 
             <!-- DragMoveLayerExpander + SettingsExpander. ⚠️ Must exist here too: the controls read them by key, and a key
                  missing from the active theme dictionary is a XAML parse failure, not a fallback. -->
@@ -148,6 +151,23 @@
         <GradientStop Color="#2E000000" Offset="0.45"/>
         <GradientStop Color="#00000000" Offset="1"/>
     </LinearGradientBrush>
+    <!-- EDGE-BLUR (trial): the two CORNERS of a shadow wrapped round a pull tab — a quarter disc darkest at the corner
+         that touches the tab (above-left: its bottom-right; above-right: its bottom-left), the ShadowFade* stops. -->
+    <RadialGradientBrush x:Key="ShadowFadeUpLeft" Center="1,1" GradientOrigin="1,1" RadiusX="1" RadiusY="1">
+        <GradientStop Color="#99000000" Offset="0"/>
+        <GradientStop Color="#2E000000" Offset="0.45"/>
+        <GradientStop Color="#00000000" Offset="1"/>
+    </RadialGradientBrush>
+    <RadialGradientBrush x:Key="ShadowFadeUpRight" Center="0,1" GradientOrigin="0,1" RadiusX="1" RadiusY="1">
+        <GradientStop Color="#99000000" Offset="0"/>
+        <GradientStop Color="#2E000000" Offset="0.45"/>
+        <GradientStop Color="#00000000" Offset="1"/>
+    </RadialGradientBrush>
+    <!-- EDGE-BLUR (trial): how strong the blur is at the edge (DIPs). Its DEPTH (24) is literal in the host's XAML. -->
+    <x:Double x:Key="EdgeBlurAmount">5</x:Double>
+    <!-- EDGE-BLUR (trial): the room under the LAST layer section of a temporal window, so scrolled to the end it clears
+         the activity expander's tab (26 high) and blur (24 deep). The Contents no longer keep a bottom margin. -->
+    <Thickness x:Key="TemporalListEndClearance">0,0,0,40</Thickness>
 
     <!-- TABULAR DIGITS for any readout whose numbers change while you watch (counts, clocks, countdowns, %): every digit
          the same width, so a line doesn't wobble as it ticks. Tabular digits fix DIGIT width only — a line that changes

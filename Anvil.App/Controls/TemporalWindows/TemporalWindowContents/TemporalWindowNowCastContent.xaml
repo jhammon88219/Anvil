@@ -179,7 +179,7 @@
     <prim:PanelScroller Grid.Row="2" Margin="0,0,-12,0">
     <!-- ⚠️ TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpanderHost: its CHILD ORDER is the display order AND the map's z-order; it
          owns the drag, the saved order and the open/closed state. It holds ONLY DragMoveLayerExpanders. -->
-    <dragMoveLayerExpanders:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" VerticalAlignment="Top" Spacing="8" Reordered="OnLayersReordered">
+    <dragMoveLayerExpanders:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" VerticalAlignment="Top" Spacing="8" Margin="{StaticResource TemporalListEndClearance}" Reordered="OnLayersReordered">
 
         <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm cells" LayerId="cells"
                            ShowCheckBox="True"

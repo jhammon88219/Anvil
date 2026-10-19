@@ -69,7 +69,7 @@
          a readout), so the mode's name shows once, in the Content (ForeCast was the last, 2026-10-07). -->
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>    <!-- the Content (its 14 px bottom margin = the gap above the expander) -->
+            <RowDefinition Height="*"/>    <!-- the Content: NO bottom margin (EDGE-BLUR trial) — its list scrolls under the expander's blur -->
             <RowDefinition Height="Auto"/> <!-- TemporalWindowActivityExpander: full width, its height by state -->
         </Grid.RowDefinitions>
 
@@ -80,11 +80,11 @@
              discussion stays pinned below its scrolling outlook.
              Each Content stretches to the full row height: Past/Now top-align their own roots and are
              unaffected, ForeCast stretches so its legend can fill what is left. -->
-        <temporalWindowContents:TemporalWindowPastCastContent x:Name="TemporalWindowPastCastContent" x:Load="{x:Bind IsPast}" Margin="16,14,16,14"
+        <temporalWindowContents:TemporalWindowPastCastContent x:Name="TemporalWindowPastCastContent" x:Load="{x:Bind IsPast}" Margin="16,14,16,0"
                           ViewModel="{x:Bind ViewModel}"/>
-        <temporalWindowContents:TemporalWindowNowCastContent x:Name="TemporalWindowNowCastContent" x:Load="{x:Bind IsNow}" Margin="16,14,16,14"
+        <temporalWindowContents:TemporalWindowNowCastContent x:Name="TemporalWindowNowCastContent" x:Load="{x:Bind IsNow}" Margin="16,14,16,0"
                          ViewModel="{x:Bind ViewModel}"/>
-        <temporalWindowContents:TemporalWindowForeCastContent x:Name="TemporalWindowForeCastContent" x:Load="{x:Bind IsFore}" Margin="16,14,16,14"
+        <temporalWindowContents:TemporalWindowForeCastContent x:Name="TemporalWindowForeCastContent" x:Load="{x:Bind IsFore}" Margin="16,14,16,0"
                           ViewModel="{x:Bind ViewModel}"/>
 
         <!-- THE ACTIVITY EXPANDER: this mode's activity (MapViewModel.ActivityFor(Mode) — NowCast's radar + feeds today;
