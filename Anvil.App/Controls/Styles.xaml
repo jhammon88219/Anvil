@@ -164,7 +164,8 @@
         <GradientStop Color="#00000000" Offset="1"/>
     </RadialGradientBrush>
     <!-- EDGE-BLUR (trial): how strong the blur is at the edge (DIPs). Its DEPTH (24) is literal in the host's XAML. -->
-    <x:Double x:Key="EdgeBlurAmount">5</x:Double>
+    <x:Double x:Key="EdgeBlurAmount">12</x:Double> <!-- 5 left 13 px text readable through it -->
+
     <!-- EDGE-BLUR (trial): the room under the LAST layer section of a temporal window, so scrolled to the end it clears
          the activity expander's tab (26 high) and blur (24 deep). The Contents no longer keep a bottom margin. -->
     <Thickness x:Key="TemporalListEndClearance">0,0,0,40</Thickness>

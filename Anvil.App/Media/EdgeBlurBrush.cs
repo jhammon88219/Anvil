@@ -91,7 +91,8 @@ namespace Anvil.Media
 			CompositionBrush = masked;
 		}
 
-		// Three stops, like the ShadowFade* gradients: a two-stop ramp reads as a band with an edge on it.
+		// The mask CROSS-FADES the blurred copy over the sharp original, so wherever it is part-way, sharp text ghosts
+		// through. So it reaches FULL blur early (60% of the way in) and only the outer part fades — DENSE, not a ramp.
 		private static CompositionGradientBrush MaskFor(Compositor compositor, EdgeBlurFade fade)
 		{
 			CompositionGradientBrush mask;
@@ -121,7 +122,7 @@ namespace Anvil.Media
 
 		private static void AddStops(Compositor compositor, CompositionGradientBrush mask, bool strongAtZero)
 		{
-			(float offset, byte alpha)[] ramp = { (0f, 0), (0.55f, 0x70), (1f, 0xFF) };
+			(float offset, byte alpha)[] ramp = { (0f, 0), (0.3f, 0xA0), (0.6f, 0xFF), (1f, 0xFF) };
 			foreach (var (offset, alpha) in ramp)
 				mask.ColorStops.Add(compositor.CreateColorGradientStop(
 					strongAtZero ? 1f - offset : offset, Color.FromArgb(alpha, 0xFF, 0xFF, 0xFF)));
