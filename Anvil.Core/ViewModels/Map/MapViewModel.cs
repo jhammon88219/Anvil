@@ -27,7 +27,7 @@ namespace Anvil.ViewModels
 	/// ⚠️ ONE deliberate exception: <c>RangeRing</c> was inserted after <c>Radar</c> (2026-09-24) because the user
 	/// asked for it to sit there. The cost was a one-time shift — a Settings window last closed on Storage or
 	/// Window Mode reopened one tab to the left, once. Don't take that as licence to reorder.</summary>
-	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, Dev }
+	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, LiveData, Dev }
 
 	/// <summary>
 	/// View model for the NON-radar map concerns: selectable basemap styles + current selection,
@@ -57,7 +57,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, ITropicalService tropicalService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion, LoopLoadLog? loopLoadLog = null, LivePollTimingLog? livePollTimingLog = null)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, ITropicalService tropicalService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion, LoopLoadLog? loopLoadLog = null, LivePollTimingLog? livePollTimingLog = null, LiveFeedHub? liveFeed = null)
 		{
 			_mapService = mapService;
 			_startupLog = loggerFactory.CreateLogger<MapViewModel>();
@@ -82,16 +82,19 @@ namespace Anvil.ViewModels
 			Activity.WatchLiveFrame(Radar);
 			Outlook =new OutlookViewModel(mapService, spcOutlookService, dispatcher, loggerFactory.CreateLogger<OutlookViewModel>());
 			PastOutlook = new PastOutlookViewModel(mapService, spcOutlookService, Radar);
-			Watches = new WatchesViewModel(mapService, watchService, dispatcher, loggerFactory.CreateLogger<WatchesViewModel>());
-			Warnings = new WarningsViewModel(mapService, warningService, dispatcher, loggerFactory.CreateLogger<WarningsViewModel>());
-			StormReports = new StormReportsViewModel(mapService, stormReportService, Radar, dispatcher, loggerFactory.CreateLogger<StormReportsViewModel>());
+			// ONE live-feed hub schedules every NowCast feed (Settings → Live Data). Tests get one that never starts.
+			LiveFeed = liveFeed ?? new LiveFeedHub(settingsService, null, null, loggerFactory.CreateLogger<LiveFeedHub>());
+			LiveData = new LiveDataViewModel(LiveFeed, settingsService.Settings, dispatcher);
+			Watches = new WatchesViewModel(mapService, watchService, dispatcher, loggerFactory.CreateLogger<WatchesViewModel>(), LiveFeed.Channel(LiveFeedKind.Watches));
+			Warnings = new WarningsViewModel(mapService, warningService, dispatcher, loggerFactory.CreateLogger<WarningsViewModel>(), LiveFeed.Channel(LiveFeedKind.Warnings));
+			StormReports = new StormReportsViewModel(mapService, stormReportService, Radar, dispatcher, loggerFactory.CreateLogger<StormReportsViewModel>(), LiveFeed.Channel(LiveFeedKind.StormReports));
 			DamageSurveys = new DamageSurveysViewModel(mapService, damageSurveyService, Radar, loggerFactory.CreateLogger<DamageSurveysViewModel>());
-			StormCells = new StormCellsViewModel(mapService, stormCellService, Radar, dispatcher, loggerFactory.CreateLogger<StormCellsViewModel>());
+			StormCells = new StormCellsViewModel(mapService, stormCellService, Radar, dispatcher, loggerFactory.CreateLogger<StormCellsViewModel>(), LiveFeed.Channel(LiveFeedKind.StormCells));
 			PastAlerts = new PastAlertsViewModel(mapService, pastAlertService, Radar, loggerFactory.CreateLogger<PastAlertsViewModel>());
-			Discussions = new MesoDiscussionsViewModel(mapService, discussionService, Radar, dispatcher, loggerFactory.CreateLogger<MesoDiscussionsViewModel>());
+			Discussions = new MesoDiscussionsViewModel(mapService, discussionService, Radar, dispatcher, loggerFactory.CreateLogger<MesoDiscussionsViewModel>(), LiveFeed.Channel(LiveFeedKind.Discussions));
 			// A map click, a section row or the section's button → the Mesoscale Discussions window.
 			Discussions.ReaderRequested += (_, _) => IsMesoDiscussionOpen = true;
-			Tropical = new TropicalViewModel(mapService, tropicalService, Radar, dispatcher, loggerFactory.CreateLogger<TropicalViewModel>());
+			Tropical = new TropicalViewModel(mapService, tropicalService, Radar, dispatcher, loggerFactory.CreateLogger<TropicalViewModel>(), LiveFeed.Channel(LiveFeedKind.Tropical));
 			Markers = new MarkersViewModel(mapService, locationService);
 			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
 			// SEARCH STATUS HIDDEN (2026-10-16, the user's call): activity now shows in the NowCast window's activity expander, and a
@@ -102,7 +105,7 @@ namespace Anvil.ViewModels
 			var settings = settingsService.Settings;
 			NowCastActivity = new TemporalActivityViewModel(Activity,
 				new[] { Warnings.Status, Watches.Status, StormReports.Status, StormCells.Status, Tropical.Status, Discussions.Status },
-				() => settings.NowCastActivity, t => settings.NowCastActivity = t);
+				() => settings.NowCastActivity, t => settings.NowCastActivity = t, LiveData);
 			PastCastActivity = new TemporalActivityViewModel(null, Array.Empty<FeedStatus>(),
 				() => settings.PastCastActivity, t => settings.PastCastActivity = t);
 			ForeCastActivity = new TemporalActivityViewModel(null, Array.Empty<FeedStatus>(),
@@ -259,6 +262,13 @@ namespace Anvil.ViewModels
 		/// <summary>The radar's live work (the live poll, the site check) — NowCast's activity expander shows it, through
 		/// <see cref="NowCastActivity"/>. Fed by the subsystems; see <see cref="BarActivityViewModel"/>.</summary>
 		public BarActivityViewModel Activity { get; }
+
+		/// <summary>The live-update hub: the ONE source picked in Settings → Live Data, and every NowCast feed's schedule.
+		/// <c>MainWindow</c> starts it before the feeds' loops.</summary>
+		public LiveFeedHub LiveFeed { get; }
+
+		/// <summary>Settings → Live Data, and the NowCast activity expander's source line.</summary>
+		public LiveDataViewModel LiveData { get; }
 
 		/// <summary>Each temporal window's activity expander (<c>TemporalWindows/TemporalWindowActivityExpander</c>).</summary>
 		public TemporalActivityViewModel NowCastActivity { get; }
@@ -1433,12 +1443,12 @@ namespace Anvil.ViewModels
 		// targeted from anywhere via OpenSettings().
 
 		/// <summary>How many tabs the strip actually offers. Debug builds add the dev tab; Release stops at
-		/// Startup. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
+		/// Live Data. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
 		/// selecting a tab that does not exist in a shipped build.</summary>
 #if DEBUG
-		public const int SettingsTabCount = 8;
+		public const int SettingsTabCount = 9;
 #else
-		public const int SettingsTabCount = 7;
+		public const int SettingsTabCount = 8;
 #endif
 
 		private int _settingsTabIndex;
@@ -1936,6 +1946,7 @@ namespace Anvil.ViewModels
 			StormCells.Shutdown();
 			Discussions.Shutdown();
 			Tropical.Shutdown();
+			LiveFeed.Shutdown();
 			RadarNws.Shutdown();
 			SiteUsage.Shutdown(); // bank the running site-hours stretch
 		}

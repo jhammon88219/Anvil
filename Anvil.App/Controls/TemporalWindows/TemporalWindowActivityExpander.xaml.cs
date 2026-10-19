@@ -19,6 +19,7 @@ namespace Anvil.Controls.TemporalWindows
 		private static readonly SolidColorBrush NeutralBrush = new(ColorHelper.FromArgb(0xFF, 0x8A, 0x8F, 0x98));
 		private static readonly SolidColorBrush DoneBrush = new(ColorHelper.FromArgb(0xFF, 0x3F, 0xB9, 0x50));
 		private static readonly SolidColorBrush FailedBrush = new(ColorHelper.FromArgb(0xFF, 0xF8, 0x51, 0x49));
+		private static readonly SolidColorBrush DownBrush = new(ColorHelper.FromArgb(0xFF, 0xD2, 0x99, 0x22)); // a live source lost
 
 		private const double IdleOpacity = 0.45;
 
@@ -72,6 +73,14 @@ namespace Anvil.Controls.TemporalWindows
 			BarActivityTone.Done => DoneBrush,
 			BarActivityTone.Failed => FailedBrush,
 			_ => RadarBrush,
+		};
+
+		// The source line's dot: live = done green · down / needs an account = amber · off / connecting = neutral.
+		public Brush LinkBrush(Anvil.Services.LiveLinkState state) => state switch
+		{
+			Anvil.Services.LiveLinkState.Connected => DoneBrush,
+			Anvil.Services.LiveLinkState.Down or Anvil.Services.LiveLinkState.NeedsAccount => DownBrush,
+			_ => NeutralBrush,
 		};
 
 		// ── The tone edge follows the radar's tone ──

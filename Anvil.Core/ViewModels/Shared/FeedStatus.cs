@@ -11,7 +11,8 @@ namespace Anvil.ViewModels
 	/// <summary>
 	/// ONE live feed's timing for the temporal window's activity expander — a row of its FEED · EVERY · LAST · NEXT table
 	/// (warnings, watches, reports, cells, tropical, MDs, and the radar's live poll). Each feed VM owns one (<c>Status</c>);
-	/// its refresh LOOP calls <see cref="Scheduled"/> every cycle, its FETCH calls <see cref="Checking"/> /
+	/// its refresh LOOP ends every cycle with <c>LiveFeedChannel.Schedule(Status)</c> (→ <see cref="Scheduled"/> or
+	/// <see cref="Live"/>), its FETCH calls <see cref="Checking"/> /
 	/// <see cref="Succeeded"/> / <see cref="Failed"/>.
 	/// </summary>
 	/// <remarks>
@@ -27,6 +28,7 @@ namespace Anvil.ViewModels
 		private FeedState _state = FeedState.Waiting;
 		private DateTimeOffset? _lastUpdated, _failedAt, _nextCheck;
 		private string _every = string.Empty, _lastText = "—", _nextText = "—";
+		private bool _live;
 
 		/// <param name="layerId">The feed's <c>Models.LayerOrder</c> id — its place in the window's layer order.</param>
 		/// <param name="dispatcher">Null = every call already arrives on the UI thread.</param>
@@ -59,6 +61,7 @@ namespace Anvil.ViewModels
 		/// <summary>The loop set its next cycle <paramref name="interval"/> from now.</summary>
 		internal void Scheduled(TimeSpan interval) => Run(() =>
 		{
+			_live = false;
 			_nextCheck = DateTimeOffset.Now + interval;
 			Every = EveryWords(interval);
 			Refresh();
@@ -67,8 +70,19 @@ namespace Anvil.ViewModels
 		/// <summary>The next check is at <paramref name="next"/> (a planner that knows the moment, like the radar's).</summary>
 		internal void ScheduledAt(DateTimeOffset? next, string every) => Run(() =>
 		{
+			_live = false;
 			_nextCheck = next;
 			Every = every;
+			Refresh();
+		});
+
+		/// <summary>A connected live source carries this feed: EVERY "live", NEXT "when issued" (no clock time — the next
+		/// fetch is whenever the NWS issues something; LiveFeedChannel).</summary>
+		internal void Live() => Run(() =>
+		{
+			_nextCheck = null;
+			_live = true;
+			Every = "live";
 			Refresh();
 		});
 
@@ -109,7 +123,7 @@ namespace Anvil.ViewModels
 				FeedState.Failed when _failedAt is { } f => $"failed {ClockMinutes(f)}",
 				_ => _lastUpdated is { } u ? Clock(u) : "—",
 			};
-			NextText = _nextCheck is { } n ? Clock(n) : "—";
+			NextText = _live ? "when issued" : _nextCheck is { } n ? Clock(n) : "—";
 		}
 
 		/// <summary>The EVERY column's words for an interval: "15 s" under 90 s, else whole minutes ("2 min").</summary>

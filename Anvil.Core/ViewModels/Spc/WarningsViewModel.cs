@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Anvil.Models;
 using Anvil.Services;
 
 namespace Anvil.ViewModels
@@ -29,9 +30,12 @@ namespace Anvil.ViewModels
 		/// <summary>This feed's refresh timing for the NowCast activity expander (FeedStatus).</summary>
 		public FeedStatus Status { get; }
 
-		public WarningsViewModel(IMapService mapService, IWarningService warningService, IDispatcher dispatcher, ILogger<WarningsViewModel> logger)
+		/// <param name="live">This feed's schedule from the live-feed hub (null = poll at the default interval).</param>
+		public WarningsViewModel(IMapService mapService, IWarningService warningService, IDispatcher dispatcher, ILogger<WarningsViewModel> logger,
+			LiveFeedChannel? live = null)
 		{
 			Status = new FeedStatus(Models.LayerOrder.Warnings, "Warnings", dispatcher);
+			_live = live ?? LiveFeedChannel.Polling(LiveFeedKind.Warnings, LiveFeedKinds.DefaultPoll(LiveFeedKind.Warnings));
 			_mapService = mapService;
 			_warningService = warningService;
 			_dispatcher = dispatcher;
@@ -110,11 +114,10 @@ namespace Anvil.ViewModels
 		/// <inheritdoc cref="TornadoThreats"/>
 		public string FlashFloodThreats => _threats.FlashFloodLine;
 
-		// ⚠️ The one overlay that states its cadence on the card. Warnings are the short-fused layer and
-		// the poll is ADAPTIVE, so "how current is this number" has a genuinely variable answer; watches
-		// tick along at a fixed 2 min and saying so would just be noise.
+		// ⚠️ The one overlay that states its cadence on the card. Warnings are the short-fused layer, so "how current
+		// is this number" matters: "live" while a live source carries them, else the polling interval.
 		protected override string CadenceSuffix =>
-			$" · checking every {(_hasActiveWarnings ? ActiveInterval : IdleInterval).TotalSeconds:0}s";
+			_live.IsLive ? " · live" : $" · checking every {FeedStatus.EveryWords(_live.PollInterval)}";
 
 		// Cancels this VM's app-lifetime loops when the window closes. See Shutdown().
 		private readonly CancellationTokenSource _shutdown = new();
@@ -127,20 +130,13 @@ namespace Anvil.ViewModels
 		public void StartBackgroundRefresh() => _ = RefreshWarningsInBackgroundAsync();
 
 		// Warnings are short-fused (issued/expiring on ~30-45 min cycles, new ones appearing continuously).
-		// The endpoint sends Cache-Control: max-age=0 (revalidated per request, no edge-TTL floor), so
-		// polling faster genuinely gets fresher data. We poll ADAPTIVELY: fast while warnings are active
-		// (rapid updates as an event unfolds — new warnings, polygon changes), and slower when quiet. The
-		// quiet interval also bounds how late the FIRST new warning can appear, so it isn't set too high.
-		// A ~19 KB GeoJSON per cycle makes even the fast rate cheap; tune here.
-		private static readonly TimeSpan ActiveInterval = TimeSpan.FromSeconds(15); // warnings on screen
-		private static readonly TimeSpan IdleInterval = TimeSpan.FromSeconds(60);   // none active
+		// The endpoint sends Cache-Control: max-age=0 (revalidated per request, no edge-TTL floor), so a fetch
+		// genuinely gets fresher data. WHEN to fetch is the live-feed hub's (LiveFeedChannel): at once when a
+		// TOR/SVR/FFW/statement is issued while a live source is connected, else the user's polling interval
+		// (Settings → Live Data). The old adaptive 15 s / 60 s poll is gone (2026-10-19).
+		private readonly LiveFeedChannel _live;
 
-		// Best-known "are there active warnings right now" signal, updated only on a definitive fetch
-		// (a cycle that actually pulled a fresh feature count). Failures/kept-last-known-good leave it
-		// unchanged, so a transient hiccup doesn't drop us back to the slow cadence while a storm is on.
-		private bool _hasActiveWarnings;
-
-		private Task RefreshWarningsInBackgroundAsync() => BackgroundRefresh.RunAdaptiveAsync(async first =>
+		private Task RefreshWarningsInBackgroundAsync() => BackgroundRefresh.RunLiveAsync(_live, async first =>
 		{
 			try
 			{
@@ -152,7 +148,6 @@ namespace Anvil.ViewModels
 				if (result.Status is WarningFetchStatus.Updated)
 				{
 					Status.Succeeded();
-					_hasActiveWarnings = result.ActiveCount > 0;
 
 					// Push the per-type counts to the NowCast readout on the UI thread, then reload the map.
 					_dispatcher.Post(() =>
@@ -191,10 +186,7 @@ namespace Anvil.ViewModels
 				_logger.LogWarning(ex, "Warnings refresh aborted");
 			}
 
-			// Poll fast while anything is active, slow when the map is clear.
-			var next = _hasActiveWarnings ? ActiveInterval : IdleInterval;
-			Status.Scheduled(next);
-			return next;
+			return _live.Schedule(Status);
 		}, _shutdown.Token);
 	}
 }

@@ -149,6 +149,10 @@ namespace Anvil
 			services.AddSingleton(sp => new StormMotionService(
 				new IWindProfileProvider[] { sp.GetRequiredService<Level3NvwProvider>() }));
 			services.AddSingleton<ISettingsService, SettingsService>();
+			// The NOAA Weather Wire password → Windows Credential Manager (Core interface, WinUI impl).
+			services.AddSingleton<ICredentialStore, CredentialStore>();
+			// Live updates (Settings → Live Data): the ONE chosen source + every NowCast feed's schedule.
+			services.AddSingleton<LiveFeedHub>();
 
 			// ── UI-thread marshaller seam (Core interface, WinUI impl). Resolved on the UI thread. ──
 			services.AddSingleton<IDispatcher, WinUiDispatcher>();

@@ -17,8 +17,12 @@
        ─────────────────────────────────────────
          FEED                 EVERY        LAST          NEXT       ← fixed labels (TemporalWindowActivityExpanderFeedRow
        ● Radar                scan    1:42:51 PM    1:47:30 PM        IsHeader); each row LIFTS on hover
-       ● Warnings             15 s   12:04:31 PM   12:04:46 PM      ← feeds in the window's layer order
-       ● Tropical             2 min  failed 12:00 PM 12:02:00 PM
+       ● Warnings             live   12:04:31 PM   when issued      ← feeds in the window's layer order; "live" =
+       ● Storm cells          60 s   12:04:10 PM   12:05:10 PM        a live source carries it (LiveFeedChannel)
+       ● Tropical             live   failed 12:00 PM when issued
+       ─────────────────────────────────────────
+       ● Live via IEM · connected since 11:02 AM    ← THE SOURCE LINE (NowCast; LiveDataViewModel): amber "IEM lost
+                                                       at 12:08:31 PM · polling until it's back" while it's down
 
      The band is the RAISED tier face (OverlayBarSurfaceRaisedBrush) so the tab — Raised, the main rail's tabs' face —
      blends into it with no seam. Top hairline turns the TONE colour while the radar is loud (blue = working · green =
@@ -135,6 +139,19 @@
                                                               Visibility="{x:Bind Shown(Activity.HasRadar), Mode=OneWay}"/>
                     <ItemsControl ItemsSource="{x:Bind Activity.Feeds, Mode=OneWay}"
                                   ItemTemplate="{StaticResource FeedRowTemplate}"/>
+
+                    <!-- THE SOURCE LINE (idea B, 2026-10-19): which live service the feeds' times come from, or why they
+                         poll. Full state only; NowCast only (Activity.HasLive). Words: LiveDataViewModel.SourceLine. -->
+                    <StackPanel x:Name="SourceLine" Visibility="{x:Bind Shown(Activity.HasLive), Mode=OneWay}">
+                        <Border Height="1" Margin="6,6,6,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="7" Height="22" Padding="6,0">
+                            <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                     Fill="{x:Bind LinkBrush(Activity.Live.LinkState), Mode=OneWay}"/>
+                            <TextBlock Text="{x:Bind Activity.Live.SourceLine, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Style="{StaticResource TabularNumberTextStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
         </Grid>

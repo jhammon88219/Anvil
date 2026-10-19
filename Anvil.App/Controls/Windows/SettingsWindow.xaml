@@ -5,11 +5,11 @@
 
        ┌─ Settings ──────────────────────────────[lock][pin]─┐
        │  Settings                                            │
-       │  ┌────┬──────┬──────────────────┬─────────┬─────────────┬───────────────┬─────────┬─────┐
-       │  │ ⛰  │  ◎   │        ⊙         │    ▤    │      ▭      │       ▶       │    ⏻    │  ⚒  │  ← Primitives/TabStrip
-       │  │Map │Radar │ Radar Range Ring │ Storage │ Window Mode │ Radar Console │ Startup │ Dev │
-       │  │▀▀▀▀│      │                  │         │             │               │         │     │
-       │  └────┴──────┴──────────────────┴─────────┴─────────────┴───────────────┴─────────┴─────┘
+       │  ┌────┬──────┬──────────────────┬─────────┬─────────────┬───────────────┬─────────┬───────────┬─────┐
+       │  │ ⛰  │  ◎   │        ⊙         │    ▤    │      ▭      │       ▶       │    ⏻    │     ≋     │  ⚒  │  ← Primitives/TabStrip
+       │  │Map │Radar │ Radar Range Ring │ Storage │ Window Mode │ Radar Console │ Startup │ Live Data │ Dev │
+       │  │▀▀▀▀│      │                  │         │             │               │         │           │     │
+       │  └────┴──────┴──────────────────┴─────────┴─────────────┴───────────────┴─────────┴───────────┴─────┘
        │  ┌────────────────────┐ ┌──────────────────────────┐    │
        │  │ the selected tab's │ │  LIVE MAP PREVIEW   [⛶] │    │  ← Composites/MapPreview, only
        │  │ body — ONE fixed   │ │      ┌┄┄┄┄┄┄┐          │    │     on Map + Radar Range Ring
@@ -193,6 +193,9 @@
 
                     <cmp:StartupSettingsTab x:Name="StartupTab" ViewModel="{x:Bind ViewModel}"
                                             Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 6), Mode=OneWay}"/>
+
+                    <cmp:LiveDataSettingsTab x:Name="LiveDataTab" ViewModel="{x:Bind ViewModel.LiveData}"
+                                             Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 7), Mode=OneWay}"/>
 
                     <!-- ⚠️ x:Load, not Visibility — see the header. LoadDevTab is hard-false in Release, so
                          this body is never constructed there and its null engine VMs are never bound. -->

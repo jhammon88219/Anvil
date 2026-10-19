@@ -580,6 +580,68 @@ namespace Anvil.Services
 			set => SetProperty(ref _foreCastActivity, value);
 		}
 
+		// ── Live data (Settings → Live Data; Models.LiveSources, Models.LiveFeedKinds) ──
+		private string _liveSource = Models.LiveSources.Iem;
+		/// <summary>Where live updates come from: a <c>Models.LiveSources</c> token ("iem" default · "nwws" · "poll").</summary>
+		public string LiveSource
+		{
+			get => _liveSource;
+			set => SetProperty(ref _liveSource, value);
+		}
+
+		private string _nwwsUsername = "";
+		/// <summary>The NOAA Weather Wire account name. ⚠️ Its PASSWORD lives in Windows Credential Manager
+		/// (ICredentialStore), never here.</summary>
+		public string NwwsUsername
+		{
+			get => _nwwsUsername;
+			set => SetProperty(ref _nwwsUsername, value ?? "");
+		}
+
+		// Each feed's POLLING interval in seconds; null = Models.LiveFeedKinds.DefaultPoll (clamped on read — PollOf).
+		private int? _pollWarningsSeconds;
+		public int? PollWarningsSeconds { get => _pollWarningsSeconds; set => SetProperty(ref _pollWarningsSeconds, value); }
+
+		private int? _pollDiscussionsSeconds;
+		public int? PollDiscussionsSeconds { get => _pollDiscussionsSeconds; set => SetProperty(ref _pollDiscussionsSeconds, value); }
+
+		private int? _pollStormReportsSeconds;
+		public int? PollStormReportsSeconds { get => _pollStormReportsSeconds; set => SetProperty(ref _pollStormReportsSeconds, value); }
+
+		private int? _pollWatchesSeconds;
+		public int? PollWatchesSeconds { get => _pollWatchesSeconds; set => SetProperty(ref _pollWatchesSeconds, value); }
+
+		private int? _pollTropicalSeconds;
+		public int? PollTropicalSeconds { get => _pollTropicalSeconds; set => SetProperty(ref _pollTropicalSeconds, value); }
+
+		private int? _pollStormCellsSeconds;
+		public int? PollStormCellsSeconds { get => _pollStormCellsSeconds; set => SetProperty(ref _pollStormCellsSeconds, value); }
+
+		/// <summary>The stored polling interval for <paramref name="kind"/> (seconds; null = default).</summary>
+		public int? PollSecondsOf(Models.LiveFeedKind kind) => kind switch
+		{
+			Models.LiveFeedKind.Warnings => PollWarningsSeconds,
+			Models.LiveFeedKind.Discussions => PollDiscussionsSeconds,
+			Models.LiveFeedKind.StormReports => PollStormReportsSeconds,
+			Models.LiveFeedKind.Watches => PollWatchesSeconds,
+			Models.LiveFeedKind.Tropical => PollTropicalSeconds,
+			_ => PollStormCellsSeconds,
+		};
+
+		/// <summary>Sets the stored polling interval for <paramref name="kind"/> (null = back to the default).</summary>
+		public void SetPollSeconds(Models.LiveFeedKind kind, int? seconds)
+		{
+			switch (kind)
+			{
+				case Models.LiveFeedKind.Warnings: PollWarningsSeconds = seconds; break;
+				case Models.LiveFeedKind.Discussions: PollDiscussionsSeconds = seconds; break;
+				case Models.LiveFeedKind.StormReports: PollStormReportsSeconds = seconds; break;
+				case Models.LiveFeedKind.Watches: PollWatchesSeconds = seconds; break;
+				case Models.LiveFeedKind.Tropical: PollTropicalSeconds = seconds; break;
+				default: PollStormCellsSeconds = seconds; break;
+			}
+		}
+
 		// ── Startup (Settings → Startup) ──
 		private bool _startupResume = true;
 		/// <summary>Open Anvil on the LAST session's modes + windows (default) — else on <see cref="StartupMode"/>.</summary>

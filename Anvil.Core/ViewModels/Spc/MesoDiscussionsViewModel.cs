@@ -36,7 +36,8 @@ namespace Anvil.ViewModels
 		private readonly ILogger<MesoDiscussionsViewModel> _logger;
 
 		private static readonly TimeSpan LiveSpan = TimeSpan.FromHours(24);
-		private static readonly TimeSpan LiveRefresh = TimeSpan.FromMinutes(2);
+		// WHEN to refresh is the live-feed hub's (LiveFeedChannel; Settings → Live Data).
+		private readonly LiveFeedChannel _live;
 
 		private readonly CancellationTokenSource _shutdown = new();
 		private bool _isMapReady;
@@ -52,9 +53,10 @@ namespace Anvil.ViewModels
 		public FeedStatus Status { get; }
 
 		public MesoDiscussionsViewModel(IMapService mapService, IMesoDiscussionService service, RadarViewModel radar,
-			IDispatcher dispatcher, ILogger<MesoDiscussionsViewModel> logger)
+			IDispatcher dispatcher, ILogger<MesoDiscussionsViewModel> logger, LiveFeedChannel? live = null)
 		{
 			Status = new FeedStatus(Models.LayerOrder.Discussions, "Mesoscale discussions", dispatcher);
+			_live = live ?? LiveFeedChannel.Polling(Models.LiveFeedKind.Discussions, Models.LiveFeedKinds.DefaultPoll(Models.LiveFeedKind.Discussions));
 			_mapService = mapService;
 			_service = service;
 			_radar = radar;
@@ -337,7 +339,7 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>Starts the live refresh loop (called once at launch).</summary>
-		public void StartBackgroundRefresh() => _ = BackgroundRefresh.RunAdaptiveAsync(first =>
+		public void StartBackgroundRefresh() => _ = BackgroundRefresh.RunLiveAsync(_live, first =>
 		{
 			if (!first)
 			{
@@ -346,8 +348,7 @@ namespace Anvil.ViewModels
 					if (DesiredKey() is { Live: true }) { _ = EnsureAsync(refresh: true); }
 				});
 			}
-			Status.Scheduled(LiveRefresh);
-			return Task.FromResult(LiveRefresh);
+			return Task.FromResult(_live.Schedule(Status));
 		}, _shutdown.Token);
 
 		public void Shutdown() => _shutdown.Cancel();

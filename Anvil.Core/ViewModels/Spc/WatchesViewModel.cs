@@ -27,9 +27,12 @@ namespace Anvil.ViewModels
 		/// <summary>This feed's refresh timing for the NowCast activity expander (FeedStatus).</summary>
 		public FeedStatus Status { get; }
 
-		public WatchesViewModel(IMapService mapService, ISpcWatchService watchService, IDispatcher dispatcher, ILogger<WatchesViewModel> logger)
+		/// <param name="live">This feed's schedule from the live-feed hub (null = poll at the default interval).</param>
+		public WatchesViewModel(IMapService mapService, ISpcWatchService watchService, IDispatcher dispatcher, ILogger<WatchesViewModel> logger,
+			LiveFeedChannel? live = null)
 		{
 			Status = new FeedStatus(Models.LayerOrder.Watches, "Watches", dispatcher);
+			_live = live ?? LiveFeedChannel.Polling(Models.LiveFeedKind.Watches, Models.LiveFeedKinds.DefaultPoll(Models.LiveFeedKind.Watches));
 			_mapService = mapService;
 			_watchService = watchService;
 			_dispatcher = dispatcher;
@@ -59,11 +62,12 @@ namespace Anvil.ViewModels
 		/// <summary>Kicks off the watch background refresh loop (called once at launch).</summary>
 		public void StartBackgroundRefresh() => _ = RefreshWatchesInBackgroundAsync();
 
-		// SPC watches change on roughly hourly scales but expire continuously; a few-minute refresh
-		// keeps the active set current (the service re-filters to in-effect watches each cycle).
-		private static readonly TimeSpan WatchRefreshInterval = TimeSpan.FromMinutes(2);
+		// SPC watches change on roughly hourly scales but expire continuously (the service re-filters to in-effect
+		// watches each cycle). WHEN to fetch is the live-feed hub's (LiveFeedChannel): at once when a SEL/WOU/WCN/WWP/FFA
+		// is issued while a live source is connected, else the user's polling interval (Settings → Live Data).
+		private readonly LiveFeedChannel _live;
 
-		private Task RefreshWatchesInBackgroundAsync() => BackgroundRefresh.RunPeriodicAsync(WatchRefreshInterval, async first =>
+		private Task RefreshWatchesInBackgroundAsync() => BackgroundRefresh.RunLiveAsync(_live, async first =>
 		{
 			try
 			{
@@ -102,7 +106,7 @@ namespace Anvil.ViewModels
 				Status.Failed();
 				_logger.LogWarning(ex, "Watches refresh aborted");
 			}
-			Status.Scheduled(WatchRefreshInterval);
+			return _live.Schedule(Status);
 		}, _shutdown.Token);
 	}
 }

@@ -28,10 +28,12 @@ namespace Anvil.ViewModels
 
 		/// <param name="readState">Reads the persisted state token (an <c>AppSettings</c> property).</param>
 		/// <param name="writeState">Writes it back.</param>
+		/// <param name="live">Where the feeds' updates come from (the Full table's SOURCE LINE); null = no line.</param>
 		public TemporalActivityViewModel(BarActivityViewModel? radar, IEnumerable<FeedStatus> feeds,
-			Func<string> readState, Action<string> writeState)
+			Func<string> readState, Action<string> writeState, LiveDataViewModel? live = null)
 		{
 			Radar = radar;
+			Live = live;
 			Feeds = new ObservableCollection<FeedStatus>(feeds);
 			_writeState = writeState;
 			_state = ActivityExpanderStates.Normalize(readState());
@@ -48,6 +50,11 @@ namespace Anvil.ViewModels
 		public ObservableCollection<FeedStatus> Feeds { get; }
 
 		public bool HasFeeds => Feeds.Count > 0;
+
+		/// <summary>The live source behind the feeds — the Full table's last line (NowCast only).</summary>
+		public LiveDataViewModel? Live { get; }
+
+		public bool HasLive => Live is not null;
 
 		/// <summary>Anything to show at all — false = a bare band with no tab.</summary>
 		public bool HasContent => HasRadar || HasFeeds;

@@ -43,9 +43,12 @@ namespace Anvil.ViewModels
 		/// <summary>This feed's refresh timing for the NowCast activity expander (FeedStatus).</summary>
 		public FeedStatus Status { get; }
 
-		public StormReportsViewModel(IMapService mapService, IStormReportService reportService, RadarViewModel radar, IDispatcher dispatcher, ILogger<StormReportsViewModel> logger)
+		/// <param name="live">This feed's schedule from the live-feed hub (null = poll at the default interval).</param>
+		public StormReportsViewModel(IMapService mapService, IStormReportService reportService, RadarViewModel radar, IDispatcher dispatcher, ILogger<StormReportsViewModel> logger,
+			LiveFeedChannel? live = null)
 		{
 			Status = new FeedStatus(Models.LayerOrder.Reports, "Storm reports", dispatcher);
+			_live = live ?? LiveFeedChannel.Polling(Models.LiveFeedKind.StormReports, Models.LiveFeedKinds.DefaultPoll(Models.LiveFeedKind.StormReports));
 			_mapService = mapService;
 			_reportService = reportService;
 			_radar = radar;
@@ -277,18 +280,18 @@ namespace Anvil.ViewModels
 
 		public void StartBackgroundRefresh() => _ = RefreshReportsInBackgroundAsync();
 
-		// Today's reports grow through the day; a few-minute refresh keeps the NowCast overlay current.
-		private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(5);
+		// Today's reports grow through the day. WHEN to fetch is the live-feed hub's (LiveFeedChannel): at once when an
+		// LSR is issued while a live source is connected, else the user's polling interval (Settings → Live Data).
+		private readonly LiveFeedChannel _live;
 
-		private Task RefreshReportsInBackgroundAsync() => BackgroundRefresh.RunPeriodicAsync(RefreshInterval, async first =>
+		private Task RefreshReportsInBackgroundAsync() => BackgroundRefresh.RunLiveAsync(_live, async first =>
 		{
-			Status.Scheduled(RefreshInterval); // the cycle's start: the next tick is one interval away
 			try
 			{
 				// ⚠️ NOT gated on anything being shown: today's counts are a live readout even with every type
 				// switched off, exactly as the warning counts in the same window are. Past days are immutable,
 				// so replay mode still skips.
-				if (!_isMapReady || _radar.IsPastEventMode) { return; }
+				if (!_isMapReady || _radar.IsPastEventMode) { return _live.Schedule(Status); }
 
 				var day = TodayConvectiveDay();
 				Status.Checking();
@@ -301,6 +304,7 @@ namespace Anvil.ViewModels
 				Status.Failed();
 				_logger.LogWarning(ex, "Storm reports refresh aborted");
 			}
+			return _live.Schedule(Status);
 		}, _shutdown.Token);
 
 		// UI-thread continuation of a background refresh: re-point the page at the (freshly cached) file so it

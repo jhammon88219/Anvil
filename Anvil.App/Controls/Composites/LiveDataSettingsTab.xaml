@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LiveDataSettingsTab — the Live Data tab of the Settings window: WHERE the NowCast feeds' live updates come from, how
+     often each polls when no live source carries it, and how the connection stands. Over LiveDataViewModel ← LiveFeedHub.
+
+                                                         [ Restore defaults ]   ← IEM + every default interval (keeps
+       ┌──────────────────────────────────────────────────────────────┐            the account)
+       │  ⌄  Where live updates come from                             │
+       │    (•) IEM live feed (default)                               │  ← ONE source at a time; NOAA Weather Wire
+       │        No account. Products arrive within seconds…           │     REPLACES IEM (the user's call, 2026-10-19)
+       │    ( ) NOAA Weather Wire (NWWS-OI)                           │
+       │        The NWS's own feed… one computer only.                │
+       │        User name  [firstname.lastname        ]               │  ← greyed unless NOAA Weather Wire is picked
+       │        Password   [Saved — type to replace   ]               │  ← PasswordBox → Credential Manager on Save,
+       │                   [ Save account ] [ Test connection ]       │     NEVER AppSettings.json
+       │                   Signed in. The account works.              │
+       │    ( ) Polling only                                          │
+       │  ⌄  Polling                                                  │
+       │    Used while the live feed is down, or always with…        │
+       │    FEED            WHEN CONNECTED   POLL EVERY (S)  MINIMUM  │
+       │    Warnings        live             [ 30 ⌃⌄ ]        15 s    │  ← NumberBox, clamped to MINIMUM … 30 min
+       │    …                                                         │
+       │    Storm cells     polled           [ 60 ⌃⌄ ]        30 s    │  ← on no push feed: always polled
+       │    Radar           scan schedule    Follows the radar's scan pattern
+       │  ⌄  Connection                                               │
+       │    Status          ● IEM · connected since 11:02:14 AM       │  ← dot: green live · amber down · grey off
+       │    Last product    12:04:31 PM · Severe thunderstorm…, OUN   │
+       │    Missed products None this session                         │
+       └──────────────────────────────────────────────────────────────┘
+
+     ⚠️ WHEN CONNECTED "live" = no schedule: the feed fetches when the NWS issues one of its products (+ a few re-checks
+     and a 10-min safety — LiveFeedChannel). The intervals are the OUTAGE / Polling-only cadence.
+     ⚠️ Wording lives in LiveDataViewModel / Models.LiveFeedKinds, not here (except the fixed descriptions).
+     ⚠️ The status dot's colours are DATA literals (code-behind), like the activity rows' — never a theme brush in C#. -->
+<UserControl x:Class="Anvil.Controls.Composites.LiveDataSettingsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:vm="using:Anvil.ViewModels"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- One feed's Polling row. Column widths = the label row's (keep the two in step). -->
+        <DataTemplate x:Key="PollRowTemplate" x:DataType="vm:LivePollRow">
+            <Grid ColumnSpacing="10" Height="36">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="104"/>
+                    <ColumnDefinition Width="112"/>
+                    <ColumnDefinition Width="56"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind WhenConnected}" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <NumberBox Grid.Column="2" VerticalAlignment="Center"
+                           Value="{x:Bind Seconds, Mode=TwoWay}"
+                           Minimum="{x:Bind MinimumSeconds}" Maximum="{x:Bind MaximumSeconds}"
+                           SmallChange="5" LargeChange="60" SpinButtonPlacementMode="Compact"
+                           ToolTipService.ToolTip="Seconds between checks when no live source carries this feed"/>
+                <TextBlock Grid.Column="3" Text="{x:Bind MinimumText}" VerticalAlignment="Center"
+                           Style="{StaticResource TabularNumberTextStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid RowSpacing="8" VerticalAlignment="Top">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- restore defaults -->
+            <RowDefinition Height="Auto"/> <!-- source -->
+            <RowDefinition Height="Auto"/> <!-- polling -->
+            <RowDefinition Height="Auto"/> <!-- connection -->
+        </Grid.RowDefinitions>
+
+        <!-- The tab's reset sits ABOVE its sections, right-aligned (the Settings rule). -->
+        <Button x:Name="LiveDataRestoreDefaultsButton" HorizontalAlignment="Right" Content="Restore defaults"
+                Click="{x:Bind ViewModel.RestoreDefaults}"
+                ToolTipService.ToolTip="IEM, and every polling interval back to its default. Your NOAA Weather Wire account is kept."/>
+
+        <prim:SettingsExpander Grid.Row="1" Header="Where live updates come from" IsExpanded="True">
+            <StackPanel Spacing="4">
+                <RadioButton GroupName="LiveSource" Margin="4,0,0,0" Content="IEM live feed (default)"
+                             IsChecked="{x:Bind ViewModel.IsIem, Mode=TwoWay}"/>
+                <TextBlock Margin="32,0,0,6" TextWrapping="Wrap" Opacity="0.75"
+                           Text="No account. Products arrive within seconds of being issued. A free service from Iowa State University, with no uptime guarantee."/>
+
+                <RadioButton GroupName="LiveSource" Margin="4,0,0,0" Content="NOAA Weather Wire (NWWS-OI)"
+                             IsChecked="{x:Bind ViewModel.IsNwws, Mode=TwoWay}"/>
+                <TextBlock Margin="32,0,0,6" TextWrapping="Wrap" Opacity="0.75"
+                           Text="The National Weather Service's own feed, about 10 seconds behind issuance. Needs an account from the NWS, used on one computer only."/>
+
+                <!-- The account: greyed and inert unless NOAA Weather Wire is picked (pick it, then sign in). -->
+                <Grid Margin="32,0,0,8" ColumnSpacing="10" RowSpacing="6"
+                      IsHitTestVisible="{x:Bind ViewModel.IsNwws, Mode=OneWay}"
+                      Opacity="{x:Bind AccountOpacity(ViewModel.IsNwws), Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="User name" VerticalAlignment="Center"/>
+                    <TextBox x:Name="NwwsUsernameTextBox" Grid.Column="1" PlaceholderText="firstname.lastname"
+                             Text="{x:Bind ViewModel.NwwsUsername, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Grid.Row="1" Text="Password" VerticalAlignment="Center"/>
+                    <PasswordBox x:Name="NwwsPasswordBox" Grid.Row="1" Grid.Column="1"
+                                 PlaceholderText="{x:Bind ViewModel.PasswordPlaceholder, Mode=OneWay}"
+                                 PasswordChanged="OnPasswordChanged"/>
+                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="NwwsSaveAccountButton" Content="Save account" Click="OnSaveAccountClick"
+                                ToolTipService.ToolTip="Saves the password in Windows Credential Manager and connects"/>
+                        <Button x:Name="NwwsTestConnectionButton" Content="Test connection" Click="OnTestConnectionClick"
+                                IsEnabled="{x:Bind ViewModel.CanTest, Mode=OneWay}"
+                                ToolTipService.ToolTip="Signs in to NOAA Weather Wire and straight back out"/>
+                    </StackPanel>
+                    <TextBlock Grid.Row="3" Grid.Column="1" TextWrapping="Wrap"
+                               Text="{x:Bind ViewModel.AccountMessage, Mode=OneWay}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </Grid>
+
+                <RadioButton GroupName="LiveSource" Margin="4,0,0,0" Content="Polling only"
+                             IsChecked="{x:Bind ViewModel.IsPollOnly, Mode=TwoWay}"/>
+                <TextBlock Margin="32,0,0,0" TextWrapping="Wrap" Opacity="0.75"
+                           Text="No outside service. Anvil checks each feed on the schedule below. Slower to catch new products."/>
+            </StackPanel>
+        </prim:SettingsExpander>
+
+        <prim:SettingsExpander Grid.Row="2" Header="Polling" IsExpanded="True">
+            <StackPanel>
+                <TextBlock Margin="0,0,0,8" TextWrapping="Wrap" Opacity="0.75"
+                           Text="Used while the live feed is down, or always with Polling only. While it's connected, feeds marked live wait for it instead."/>
+                <Grid ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="104"/>
+                        <ColumnDefinition Width="112"/>
+                        <ColumnDefinition Width="56"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="FEED" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                    <TextBlock Grid.Column="1" Text="WHEN CONNECTED" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                    <TextBlock Grid.Column="2" Text="POLL EVERY (S)" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                    <TextBlock Grid.Column="3" Text="MINIMUM" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                </Grid>
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Polling}" ItemTemplate="{StaticResource PollRowTemplate}"/>
+                <!-- The radar keeps its own scan schedule — shown so the list reads as every NowCast feed. -->
+                <Grid ColumnSpacing="10" Height="36">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="104"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Radar" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Grid.Column="1" Text="scan schedule" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Grid.Column="2" Text="Follows the radar's scan pattern" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </Grid>
+            </StackPanel>
+        </prim:SettingsExpander>
+
+        <prim:SettingsExpander Grid.Row="3" Header="Connection" IsExpanded="True">
+            <Grid ColumnSpacing="12" RowSpacing="6" Margin="4,0,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="Status" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                             Fill="{x:Bind StateBrush(ViewModel.LinkState), Mode=OneWay}"/>
+                    <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" TextWrapping="Wrap"
+                               Style="{StaticResource TabularNumberTextStyle}"/>
+                </StackPanel>
+                <TextBlock Grid.Row="1" Text="Last product" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.LastProductText, Mode=OneWay}" TextWrapping="Wrap"
+                           Style="{StaticResource TabularNumberTextStyle}"/>
+                <TextBlock Grid.Row="2" Text="Missed products" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.MissedText, Mode=OneWay}" TextWrapping="Wrap"/>
+            </Grid>
+        </prim:SettingsExpander>
+    </Grid>
+</UserControl>

@@ -73,5 +73,29 @@ namespace Anvil.ViewModels
 				// See RunPeriodicAsync — a cancelled loop is a clean exit, not an error.
 			}
 		}
+
+		/// <summary>
+		/// A NowCast feed's loop: runs <paramref name="work"/> once immediately, then waits whatever the feed's
+		/// <see cref="Services.LiveFeedChannel"/> says — which a live product cuts short. <paramref name="work"/> ends each
+		/// cycle with <c>channel.Schedule(Status)</c> (the wait AND the activity row's EVERY / NEXT).
+		/// </summary>
+		public static async Task RunLiveAsync(Services.LiveFeedChannel channel, Func<bool, Task<TimeSpan>> work, CancellationToken ct)
+		{
+			var first = true;
+			try
+			{
+				while (!ct.IsCancellationRequested)
+				{
+					var next = await work(first);
+					first = false;
+					if (next < TimeSpan.FromSeconds(1)) { next = TimeSpan.FromSeconds(1); }
+					await channel.WaitAsync(next, ct);
+				}
+			}
+			catch (OperationCanceledException)
+			{
+				// See RunPeriodicAsync — a cancelled loop is a clean exit, not an error.
+			}
+		}
 	}
 }

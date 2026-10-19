@@ -782,6 +782,8 @@ namespace Anvil
 			// Start the SPC outlook + watch background refresh loops (each owned by its own subsystem VM):
 			// the app stays usable offline from the existing cache while fresh data downloads, then
 			// keeps refreshing on a timer so a long-running session doesn't sit on stale data.
+			// The live-update source FIRST, so the feeds' first cycles can already find it connected (Settings → Live Data).
+			ViewModel.LiveFeed.Start();
 			ViewModel.Outlook.StartBackgroundRefresh();
 			ViewModel.Watches.StartBackgroundRefresh();
 			ViewModel.Warnings.StartBackgroundRefresh();

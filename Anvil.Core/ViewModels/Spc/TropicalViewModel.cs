@@ -18,7 +18,7 @@ namespace Anvil.ViewModels
 	/// </summary>
 	/// <remarks>
 	/// ⚠️ THE MESOSCALE DISCUSSIONS' SHAPE (MesoDiscussionsViewModel): LIVE in NowCast (refreshed every
-	/// <see cref="LiveRefresh"/>, everything in the file is in effect), the LOADED WINDOW in PastCast (zones carry
+	/// the live-feed hub's schedule, everything in the file is in effect), the LOADED WINDOW in PastCast (zones carry
 	/// t0/t1; the map + counts show the moment of the displayed radar frame — they follow the scrubber).
 	/// ⚠️ PRODUCTS ARE DATA: the rows are built from <see cref="TropicalProducts.All"/> and visibility persists as ONE
 	/// list of hidden ids — a product added there needs no new property, row or setting.
@@ -31,7 +31,8 @@ namespace Anvil.ViewModels
 		private readonly IDispatcher _dispatcher;
 		private readonly ILogger<TropicalViewModel> _logger;
 
-		private static readonly TimeSpan LiveRefresh = TimeSpan.FromMinutes(2);
+		// WHEN to refresh is the live-feed hub's (LiveFeedChannel; Settings → Live Data).
+		private readonly LiveFeedChannel _live;
 
 		private readonly CancellationTokenSource _shutdown = new();
 		private bool _isMapReady;
@@ -48,9 +49,10 @@ namespace Anvil.ViewModels
 		public FeedStatus Status { get; }
 
 		public TropicalViewModel(IMapService mapService, ITropicalService service, RadarViewModel radar,
-			IDispatcher dispatcher, ILogger<TropicalViewModel> logger)
+			IDispatcher dispatcher, ILogger<TropicalViewModel> logger, LiveFeedChannel? live = null)
 		{
 			Status = new FeedStatus(Models.LayerOrder.Tropical, "Tropical", dispatcher);
+			_live = live ?? LiveFeedChannel.Polling(Models.LiveFeedKind.Tropical, Models.LiveFeedKinds.DefaultPoll(Models.LiveFeedKind.Tropical));
 			_mapService = mapService;
 			_service = service;
 			_radar = radar;
@@ -166,7 +168,7 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>Starts the live refresh loop (called once at launch).</summary>
-		public void StartBackgroundRefresh() => _ = BackgroundRefresh.RunAdaptiveAsync(first =>
+		public void StartBackgroundRefresh() => _ = BackgroundRefresh.RunLiveAsync(_live, first =>
 		{
 			if (!first)
 			{
@@ -175,8 +177,7 @@ namespace Anvil.ViewModels
 					if (DesiredKey() is { Live: true }) { _ = EnsureAsync(refresh: true); }
 				});
 			}
-			Status.Scheduled(LiveRefresh);
-			return Task.FromResult(LiveRefresh);
+			return Task.FromResult(_live.Schedule(Status));
 		}, _shutdown.Token);
 
 		public void Shutdown() => _shutdown.Cancel();

@@ -34,7 +34,8 @@ namespace Anvil.ViewModels
 
 		// Live: a rolling window this long, re-fetched on this cadence (IEM updates once per volume).
 		private static readonly TimeSpan LiveSpan = TimeSpan.FromHours(2);
-		private static readonly TimeSpan LiveRefresh = TimeSpan.FromMinutes(2);
+		// WHEN to refresh is the live-feed hub's (LiveFeedChannel; Settings → Live Data).
+		private readonly LiveFeedChannel _live;
 
 		private readonly CancellationTokenSource _shutdown = new();
 		private bool _isMapReady;
@@ -53,9 +54,10 @@ namespace Anvil.ViewModels
 		public FeedStatus Status { get; }
 
 		public StormCellsViewModel(IMapService mapService, IStormCellService service, RadarViewModel radar,
-			IDispatcher dispatcher, ILogger<StormCellsViewModel> logger)
+			IDispatcher dispatcher, ILogger<StormCellsViewModel> logger, LiveFeedChannel? live = null)
 		{
 			Status = new FeedStatus(Models.LayerOrder.Cells, "Storm cells", dispatcher);
+			_live = live ?? LiveFeedChannel.Polling(Models.LiveFeedKind.StormCells, Models.LiveFeedKinds.DefaultPoll(Models.LiveFeedKind.StormCells));
 			_mapService = mapService;
 			_service = service;
 			_radar = radar;
@@ -163,12 +165,11 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>Starts the live refresh loop (called once at launch).</summary>
-		public void StartBackgroundRefresh() => _ = BackgroundRefresh.RunAdaptiveAsync(first =>
+		public void StartBackgroundRefresh() => _ = BackgroundRefresh.RunLiveAsync(_live, first =>
 		{
 			// The first cycle is the launch itself — Reconcile already runs on map-ready and on every change.
 			if (!first) { _dispatcher.Post(() => { if (DesiredKey() is { Live: true }) { _ = EnsureAsync(refresh: true); } }); }
-			Status.Scheduled(LiveRefresh);
-			return Task.FromResult(LiveRefresh);
+			return Task.FromResult(_live.Schedule(Status));
 		}, _shutdown.Token);
 
 		/// <summary>Stops the live refresh loop. Called from <see cref="MapViewModel.Shutdown"/>.</summary>
