@@ -9,7 +9,7 @@
        │  │██│                                   │  5:42 PM          │    header, can't collapse. Clock =
        │  └──┘  Monday Sep 28                    │  (console clock)  │    the MACHINE's time, no seconds
        │         ↑ the window's ONLY "NowCast" (TemporalWindow has no title row); date LEFT under it
-       │   ↑ FEED STATUS bar (22 × row height): warnings feed age, green → amber → red; grey = none yet
+       │   ↑ STATUS square (22 × row height): worst warning in effect, TO red → SV yellow → FF green; blue = none
        │  ┌▓▓▓▓▓▓▓▓▓▓▓▓▓┐ ┌▓▓▓▓▓▓▓▓▓▓▓▓▓┐ ┌▓▓▓▓▓▓▓▓▓▓▓▓▓┐           │  ← THE BAND (variant B, 2026-10-07): a DEEP
        │  │▓Tornado  ‹ ›▓│ │▓Severe   ‹ ›▓│ │▓Flash fl ‹ ›▓│           │    shade of the warning colour, the name +
        │  │ 5           │ │ 27          │ │ 8           │           │    ‹ › in the BRIGHT colour (risk-card style)
@@ -86,11 +86,9 @@
          into TOOLTIPS (clock / bar).
        • Clock — the machine's local time, ticked by a DispatcherTimer that runs only while this body is loaded
          (code-behind). The zone label is built from Windows' zone NAME ("Central Daylight Time" → "CDT").
-       • FEED STATUS = Warnings.Status.FreshnessAt — LAST's age against the feed's OWN cadence (poll interval, or the
-         10-min safety re-check while live; a FAILED fetch leaves LAST alone) — so a stuck feed walks the bar green →
-         amber → red; grey before the first fetch. NOT tornado warnings. The SAME four
-         literals as the Atlas status bar / age tile and the map key's square (data, never themed). Don't
-         reset the age on failure — that is the honest readout.
+       • STATUS SQUARE = the WORST warning in effect (user's call, 2026-10-19 — ForeCast's highest-risk theory):
+         Tornado red → Severe yellow → Flash flood green, the tiles' Ink colours, counting every active warning;
+         none = PastCast's blue. Feed freshness is the activity expander's job (it was this square's, until now).
        • Tiles — TemporalWindows/TemporalWindowNowCastWarningTile ×3. Warnings.TornadoCount/SevereCount/FlashFloodCount count EVERY active warning in the
          fetch, never the ticked rows (user's call). Tag lines = WarningThreatCounts, split per type. Stripe
          colours are DATA (the same literals as DragMoveLayerExpanderAlertsBody's swatches) — never themed. -->
@@ -105,9 +103,14 @@
              xmlns:vm="using:Anvil.ViewModels"
              xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:layout="using:Anvil.Layout"
+             xmlns:conv="using:Anvil.Converters"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <conv:HexToBrushConverter x:Key="HexToBrush"/>
+    </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -129,9 +132,12 @@
             </Grid.RowDefinitions>
 
             <!-- THE NAME ROW: TemporalWindows/TemporalWindowHeader (one control, all three windows; it owns its
-                 height). The feed colour + tooltip and the date are written by the
-                 clock tick (code-behind); the clock itself is TemporalWindowHeaderNowCastReadout. -->
-            <tw:TemporalWindowHeader x:Name="TemporalWindowHeader" Grid.Row="0" Title="NowCast">
+                 height). The square = the WORST warning in effect (WarningsViewModel.HeaderSquareFill — ForeCast's
+                 highest-risk square, matched); the date is written by the clock tick (code-behind); the clock
+                 itself is TemporalWindowHeaderNowCastReadout. -->
+            <tw:TemporalWindowHeader x:Name="TemporalWindowHeader" Grid.Row="0" Title="NowCast"
+                                     StatusFill="{x:Bind ViewModel.Warnings.HeaderSquareFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
+                                     StatusToolTip="{x:Bind ViewModel.Warnings.HeaderSquareTip, Mode=OneWay}">
                 <temporalWindowHeaderReadouts:TemporalWindowHeaderNowCastReadout x:Name="TemporalWindowHeaderNowCastReadout"/>
             </tw:TemporalWindowHeader>
 
@@ -144,7 +150,8 @@
 
                 <!-- THE THREE TILES: TemporalWindows/TemporalWindowNowCastWarningTile, one control used three times
                      (x:Name = type name + hazard). Band colours are DATA literals (DragMoveLayerExpanderAlertsBody's swatches'
-                     hues), never themed: DEEP band + BRIGHT ink per hazard. -->
+                     hues), never themed: DEEP band + BRIGHT ink per hazard. ⚠️ The Inks are MIRRORED as
+                     WarningsViewModel.TornadoFill/SevereFill/FlashFloodFill (the header square) — change both. -->
                 <tw:TemporalWindowNowCastWarningTile x:Name="TemporalWindowNowCastWarningTileTornado" Grid.Column="0"
                                                        Label="Tornado" Hazard="tornado"
                                                        BandFill="#611010" Ink="#FF2A2A"

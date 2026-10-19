@@ -8,9 +8,6 @@ namespace Anvil.ViewModels
 	/// <summary>Where a feed's refresh stands.</summary>
 	public enum FeedState { Waiting, Checking, Ok, Failed }
 
-	/// <summary>How fresh a feed's data is against its OWN cadence (<see cref="FeedStatus.FreshnessAt"/>).</summary>
-	public enum FeedFreshness { Unknown, Current, Aging, Stale }
-
 	/// <summary>
 	/// ONE live feed's timing for the temporal window's activity expander — a row of its FEED · EVERY · LAST · NEXT table
 	/// (warnings, watches, reports, cells, tropical, MDs, and the radar's live poll). Each feed VM owns one (<c>Status</c>);
@@ -30,7 +27,6 @@ namespace Anvil.ViewModels
 		private readonly IDispatcher? _dispatcher;
 		private FeedState _state = FeedState.Waiting;
 		private DateTimeOffset? _lastUpdated, _failedAt, _nextCheck;
-		private TimeSpan? _expectedGap;
 		private string _every = string.Empty, _lastText = "—", _nextText = "—";
 		private bool _live;
 
@@ -60,33 +56,12 @@ namespace Anvil.ViewModels
 		public DateTimeOffset? LastUpdated => _lastUpdated;
 		public DateTimeOffset? FailedAt => _failedAt;
 
-		/// <summary>True = a connected live source carries this feed (EVERY "live").</summary>
-		public bool IsLive => _live;
-
-		/// <summary>
-		/// LAST's age judged against the feed's OWN cadence — the poll interval, or the live safety re-check while a source
-		/// pushes (a quiet live feed fetches only every <see cref="Models.LiveFeedKinds.LiveSafetyInterval"/>, so a fixed
-		/// "5 min = stale" turned the NowCast header red on every quiet spell). Aging = a cycle overdue by a minute; Stale =
-		/// two cycles + 4 min (a 15 s poll keeps the old 1 min / ~5 min knees). A failed fetch leaves LAST alone, so a stuck
-		/// feed still walks Current → Aging → Stale.
-		/// </summary>
-		public FeedFreshness FreshnessAt(DateTimeOffset now)
-		{
-			if (_lastUpdated is not { } last) { return FeedFreshness.Unknown; }
-			var gap = _expectedGap ?? TimeSpan.FromSeconds(15);
-			var age = now - last;
-			return age <= gap + TimeSpan.FromMinutes(1) ? FeedFreshness.Current
-				: age <= gap + gap + TimeSpan.FromMinutes(4) ? FeedFreshness.Aging
-				: FeedFreshness.Stale;
-		}
-
 		// ── Feed hooks (any thread) ──
 
 		/// <summary>The loop set its next cycle <paramref name="interval"/> from now.</summary>
 		internal void Scheduled(TimeSpan interval) => Run(() =>
 		{
 			_live = false;
-			_expectedGap = interval;
 			_nextCheck = DateTimeOffset.Now + interval;
 			Every = EveryWords(interval);
 			Refresh();
@@ -106,9 +81,7 @@ namespace Anvil.ViewModels
 		internal void Live() => Run(() =>
 		{
 			_nextCheck = null;
-			_live = true;
-			_expectedGap = Models.LiveFeedKinds.LiveSafetyInterval;
-			Every = "live";
+			_live = true;			Every = "live";
 			Refresh();
 		});
 

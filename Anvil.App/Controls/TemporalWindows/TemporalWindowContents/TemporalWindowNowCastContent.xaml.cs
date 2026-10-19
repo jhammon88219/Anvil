@@ -84,40 +84,11 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 			if (second == _shownSecond) { return; }
 			_shownSecond = second;
 
-			// The clock is the header's Readout control; the date and the feed status are the header's own.
+			// The clock is the header's Readout control; the date is the header's own. (The status square is bound in
+			// XAML — WarningsViewModel.HeaderSquareFill.)
 			TemporalWindowHeaderNowCastReadout.Time = now;
 			TemporalWindowHeader.Subtitle = now.ToString("dddd MMM d", CultureInfo.CurrentCulture);
-
-			var status = ViewModel?.Warnings.Status;
-			TemporalWindowHeader.StatusFill = FeedBrush(status?.FreshnessAt(now) ?? FeedFreshness.Unknown);
-			TemporalWindowHeader.StatusToolTip = status?.LastUpdated is { } at
-				? $"Warnings checked {Age(now - at)}" + (status.IsLive ? " · live: re-fetched when the NWS issues" : string.Empty)
-				: "Warnings not checked yet";
 		}
-
-		// ── Feed status bar ──
-		// The knees are the feed's OWN cadence (FeedStatus.FreshnessAt): a 15 s poll goes amber after ~1 min, a quiet
-		// LIVE feed (fetched only when the NWS issues, plus a 10-min safety re-check) only once that re-check is overdue.
-		// ⚠️ LITERAL data colours — the same green / amber / red / grey as the Atlas's status bar + age tile and
-		// the map key's square (never themed: the colour IS the status).
-		private static readonly SolidColorBrush FeedCurrent = new(ColorHelper.FromArgb(0xFF, 0x3F, 0xB9, 0x50));
-		private static readonly SolidColorBrush FeedAging = new(ColorHelper.FromArgb(0xFF, 0xD2, 0x99, 0x22));
-		private static readonly SolidColorBrush FeedStale = new(ColorHelper.FromArgb(0xFF, 0xF8, 0x51, 0x49));
-		private static readonly SolidColorBrush FeedUnknown = new(ColorHelper.FromArgb(0xFF, 0x6E, 0x76, 0x81));
-
-		private static SolidColorBrush FeedBrush(FeedFreshness freshness) => freshness switch
-		{
-			FeedFreshness.Current => FeedCurrent,
-			FeedFreshness.Aging => FeedAging,
-			FeedFreshness.Stale => FeedStale,
-			_ => FeedUnknown,
-		};
-
-		// "14 s ago" / "3 min ago" / "2 h ago".
-		private static string Age(System.TimeSpan span) =>
-			span.TotalSeconds < 60 ? $"{System.Math.Max(0, (int)span.TotalSeconds)} s ago" :
-			span.TotalMinutes < 60 ? $"{(int)span.TotalMinutes} min ago" :
-			$"{(int)span.TotalHours} h ago";
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel

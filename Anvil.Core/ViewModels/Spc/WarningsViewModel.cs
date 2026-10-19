@@ -114,6 +114,33 @@ namespace Anvil.ViewModels
 		/// <inheritdoc cref="TornadoThreats"/>
 		public string FlashFloodThreats => _threats.FlashFloodLine;
 
+		// ── The NowCast window's HEADER square (TemporalWindowNowCastContent's name row) ──
+		// ForeCast's theory: the square is the WORST thing in effect, in its colour (DATA, never themed). Tornado →
+		// Severe → Flash flood, counting EVERY active warning like the tiles (not the ticked rows). None = PastCast's
+		// blue (OutlookViewModel.NoAreasFill). ⚠️ The fills MIRROR the tiles' Ink literals in
+		// TemporalWindowNowCastContent.xaml — change both.
+		public const string TornadoFill = "#FF2A2A";
+		public const string SevereFill = "#FFD21A";
+		public const string FlashFloodFill = "#2EE05A";
+
+		public string HeaderSquareFill =>
+			TornadoCount > 0 ? TornadoFill :
+			SevereCount > 0 ? SevereFill :
+			FlashFloodCount > 0 ? FlashFloodFill :
+			OutlookViewModel.NoAreasFill;
+
+		public string HeaderSquareTip =>
+			TornadoCount > 0 ? $"Highest warning in effect: Tornado ({TornadoCount})" :
+			SevereCount > 0 ? $"Highest warning in effect: Severe thunderstorm ({SevereCount})" :
+			FlashFloodCount > 0 ? $"Highest warning in effect: Flash flood ({FlashFloodCount})" :
+			LastUpdated is null ? "Warnings not checked yet" : "No warnings in effect";
+
+		private void RaiseHeaderSquare()
+		{
+			OnPropertyChanged(nameof(HeaderSquareFill));
+			OnPropertyChanged(nameof(HeaderSquareTip));
+		}
+
 		// ⚠️ The one overlay that states its cadence on the card. Warnings are the short-fused layer, so "how current
 		// is this number" matters: "live" while a live source carries them, else the polling interval.
 		protected override string CadenceSuffix =>
@@ -157,6 +184,7 @@ namespace Anvil.ViewModels
 							OnPropertyChanged(nameof(SevereThreats));
 							OnPropertyChanged(nameof(FlashFloodThreats));
 						ApplyRefreshed(result.ActiveCount, result.TornadoCount, result.SevereCount, result.FlashFloodCount);
+						RaiseHeaderSquare();
 						var targets = result.Targets ?? Array.Empty<Models.WarningTarget>();
 						TornadoStepper.Update(targets);
 						SevereStepper.Update(targets);

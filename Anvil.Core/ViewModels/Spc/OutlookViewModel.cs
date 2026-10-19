@@ -435,7 +435,7 @@ namespace Anvil.ViewModels
 
 		// ── The ForeCast window's HEADER (TemporalWindowForeCastContent's name row — NowCast's/PastCast's, matched) ──
 		// The square is the HIGHEST category the shown outlook contains, in its SPC colour (DATA, never themed) — as
-		// NowCast's square is the warnings feed's staleness. No areas (or nothing shown) = PastCast's blue.
+		// NowCast's square is the worst warning in effect (WarningsViewModel.HeaderSquareFill). No areas (or nothing shown) = PastCast's blue.
 		private OutlookPeak? _peak;
 
 		/// <summary>The "no areas" square: PastCast's header blue (a literal there too).</summary>
