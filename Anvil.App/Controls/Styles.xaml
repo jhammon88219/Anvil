@@ -64,6 +64,7 @@
             <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="#FF1A1A1A"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceRaisedBrush" Color="#FF141414"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceRaisedHoverBrush" Color="#FF242424"/>
+            <SolidColorBrush x:Key="ActivityRowHoverBrush" Color="#FF1F1F1F"/> <!-- the activity expander's FEED row lift: one step off the raised face (#141414) -->
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="#FF2B2B2B"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="#FF383838"/>
 
@@ -86,6 +87,7 @@
             <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="#FFE4E4E4"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceRaisedBrush" Color="#FFEAEAEA"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceRaisedHoverBrush" Color="#FFDDDDDD"/>
+            <SolidColorBrush x:Key="ActivityRowHoverBrush" Color="#FFE2E2E2"/> <!-- the activity expander's FEED row lift: one step off the raised face -->
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="#FFDCDCDC"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="#FFD0D0D0"/>
 
@@ -103,6 +105,7 @@
             <SolidColorBrush x:Key="OverlayBarSurfaceHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceRaisedBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceRaisedHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="ActivityRowHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="OverlayBarSurfaceElevatedHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
 

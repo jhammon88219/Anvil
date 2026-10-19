@@ -8,36 +8,28 @@ namespace Anvil.Models
 	/// tokens (<c>AppSettings.NowCastActivity</c> / <c>PastCastActivity</c> / <c>ForeCastActivity</c>).
 	/// </summary>
 	/// <remarks>
-	/// ONE TAB, BACK AND FORTH (the user's call, 2026-10-17): Hidden → Minimal → Full → Minimal → Hidden. Minimal is TWO
-	/// tokens because the tab must remember which way it was heading — "˄ More" on the way up, "˅ Less" on the way down.
+	/// TWO STATES (the user's call, 2026-10-19 — three were too alike): Hidden (two lines) ⇄ Full (the FEED table), one tab.
+	/// The retired Minimal tokens ("min-up" / "min-down", 2026-10-17 → 19) read as Full, the nearer of the two.
 	/// ⚠️ Persisted as TOKENS, never indices.
 	/// </remarks>
 	public static class ActivityExpanderStates
 	{
 		public const string Hidden = "hidden";
-		public const string MinimalRising = "min-up";
 		public const string Full = "full";
-		public const string MinimalFalling = "min-down";
 
-		public static readonly IReadOnlyList<string> Tokens = new[] { Hidden, MinimalRising, Full, MinimalFalling };
+		public static readonly IReadOnlyList<string> Tokens = new[] { Hidden, Full };
 
-		/// <summary>A known token, else Hidden (the thin strip).</summary>
-		public static string Normalize(string? token) => token is not null && Tokens.Contains(token) ? token : Hidden;
+		/// <summary>A known token, else Hidden (the thin strip). A retired Minimal token = Full.</summary>
+		public static string Normalize(string? token) =>
+			token is "min-up" or "min-down" ? Full
+			: token is not null && Tokens.Contains(token) ? token : Hidden;
 
-		/// <summary>The tab's one click: the next token round the back-and-forth.</summary>
-		public static string Next(string? token) => Normalize(token) switch
-		{
-			Hidden => MinimalRising,
-			MinimalRising => Full,
-			Full => MinimalFalling,
-			_ => Hidden,
-		};
-
-		public static bool IsMinimal(string? token) => Normalize(token) is MinimalRising or MinimalFalling;
+		/// <summary>The tab's one click.</summary>
+		public static string Next(string? token) => Normalize(token) == Hidden ? Full : Hidden;
 
 		public static bool IsFull(string? token) => Normalize(token) == Full;
 
-		/// <summary>The next click OPENS more (the chevron points up, "More") — else it closes ("Less").</summary>
-		public static bool OpensMore(string? token) => Normalize(token) is Hidden or MinimalRising;
+		/// <summary>The next click OPENS (the chevron points up, "More") — else it closes ("Less").</summary>
+		public static bool OpensMore(string? token) => Normalize(token) == Hidden;
 	}
 }

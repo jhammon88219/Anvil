@@ -300,14 +300,16 @@ namespace Anvil.Tests
 		// ── IDLE: the slot never disappears; NowCast idle = the next check + the expected scan (or the interval) ──
 
 		[Fact]
-		public async Task Idle_while_polling_shows_the_countdown_and_what_is_due_without_a_site_id()
+		public async Task Idle_while_polling_shows_the_next_check_time_and_what_is_due_without_a_site_id()
 		{
 			var rig = await LoadedLiveLoop();
 			await WaitFor(() => rig.Radar.IsLivePolling);                  // the poll loop has scheduled its next check
-			await WaitFor(() => rig.Bar.Title.StartsWith("Next check in", StringComparison.Ordinal)); // the 1 s tick
+			await WaitFor(() => rig.Bar.Title.StartsWith("Radar · next check", StringComparison.Ordinal));
 			Assert.False(rig.Bar.IsShown);                                  // dimmed, not gone
 			Assert.Equal(BarActivityTone.Idle, rig.Bar.Tone);
-			Assert.Matches(@"^Next check in \d+:\d\d$", rig.Bar.Title);
+			// A CLOCK TIME, never a countdown (2026-10-19).
+			Assert.Matches(@"^Radar · next check \d{1,2}:\d\d:\d\d", rig.Bar.Title);
+			Assert.NotEqual("—", rig.Bar.Status.NextText);                  // the radar's FEED row has its next check
 			Assert.True(rig.Bar.HasSecondary);
 			Assert.DoesNotContain("KTLX", rig.Bar.Title + rig.Bar.Detail);
 

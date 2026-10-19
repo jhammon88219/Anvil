@@ -207,6 +207,13 @@ namespace Anvil.ViewModels
 			{
 				var at = a.VolumeTime is { } t ? ClockTime(t) : null;
 				var scan = $"{at} scan";
+				// The radar's FEED row: a poll checking → succeeded (nothing newer, or a new frame) / failed.
+				switch (a.Stage)
+				{
+					case LiveFrameStage.Checking: Status.Checking(); break;
+					case LiveFrameStage.Unchanged or LiveFrameStage.Found: Status.Succeeded(); break;
+					case LiveFrameStage.Failed: Status.Failed(); break;
+				}
 				switch (a.Stage)
 				{
 					case LiveFrameStage.Checking:
@@ -273,7 +280,7 @@ namespace Anvil.ViewModels
 		// under a busy scan, 2026-10-17). ApplyIdle copies them into the drawn lines when nothing is active. ──
 
 		private string _idleTitle = string.Empty, _idleDetail = string.Empty, _idleLastFrame = string.Empty;
-		/// <summary>"Next check in 0:18" while NowCast polls; empty otherwise.</summary>
+		/// <summary>"Radar · next check 1:47:30 PM" while NowCast polls; empty otherwise.</summary>
 		public string IdleTitle { get => _idleTitle; private set => SetProperty(ref _idleTitle, value); }
 		/// <summary>"Scan due ~1:47:12 PM" (regime-aware) or "every 30 s" (fixed time).</summary>
 		public string IdleDetail { get => _idleDetail; private set => SetProperty(ref _idleDetail, value); }
@@ -284,16 +291,22 @@ namespace Anvil.ViewModels
 		{
 			if (_liveRadar is { IsLivePolling: true, NextLivePollAt: { } next } r)
 			{
-				var rem = (int)Math.Ceiling(Math.Max(0, (next - DateTimeOffset.Now).TotalSeconds));
-				IdleTitle = $"Next check in {rem / 60}:{rem % 60:00}";
+				// A CLOCK TIME, never a countdown (the user's call, 2026-10-19): the line changes only when the poll does.
+				IdleTitle = $"Radar · next check {ClockTime(next)}";
 				IdleDetail = r.IsRegimeAwarePolling ? ScanDue(r.ExpectedNextScanAt) : $"every {r.RefreshIntervalSeconds:0} s";
 				IdleLastFrame = r.IsRegimeAwarePolling ? _lastFrameText : string.Empty;
+				Status.ScheduledAt(next, r.IsRegimeAwarePolling ? "scan" : FeedStatus.EveryWords(TimeSpan.FromSeconds(r.RefreshIntervalSeconds)));
 			}
 			else
 			{
 				IdleTitle = IdleDetail = IdleLastFrame = string.Empty;
+				Status.ScheduledAt(null, string.Empty);
 			}
 		}
+
+		/// <summary>The radar's row in the activity expander's FEED table: the live poll's last good check and next check
+		/// (UI thread only — the live-frame events arrive there).</summary>
+		public FeedStatus Status { get; } = new(Models.LayerOrder.Radar, "Radar", null);
 
 		private static string ScanDue(DateTimeOffset? at) =>
 			at is not { } t ? "No scan prediction yet"

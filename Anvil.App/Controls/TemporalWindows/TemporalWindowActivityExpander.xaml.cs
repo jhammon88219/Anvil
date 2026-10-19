@@ -47,17 +47,18 @@ namespace Anvil.Controls.TemporalWindows
 
 		public Visibility Shown(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
-		public Visibility ShownUnlessHidden(bool hidden, bool has) => !hidden && has ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility ShownWhen(bool a, bool b) => a && b ? Visibility.Visible : Visibility.Collapsed;
 
 		public bool Not(bool value) => !value;
 
-		public string TabHint(bool opensMore) => opensMore ? "Show more activity" : "Show less activity";
+		public string TabHint(bool opensMore) => opensMore ? "Show every feed's times" : "Show less";
 
-		// Active = full strength; idle = dimmed, NEVER gone (the idle lines stay readable).
+		// Active = full strength; idle = dimmed, NEVER gone (the idle line stays readable).
 		public double LinesOpacity(bool active) => active ? 1 : IdleOpacity;
 
-		// A bar with no fraction keeps its slot (the height holds) and just doesn't show.
-		public double BarOpacity(bool has) => has ? 1 : 0;
+		// A busy bar keeps its slot (the height holds) and only shows while the radar is busy — the idle countdown fill
+		// is gone with every other countdown (2026-10-19).
+		public double BusyOpacity(bool busy, bool has) => busy && has ? 1 : 0;
 
 		public Visibility HasText(string text) => string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -71,18 +72,6 @@ namespace Anvil.Controls.TemporalWindows
 			BarActivityTone.Done => DoneBrush,
 			BarActivityTone.Failed => FailedBrush,
 			_ => RadarBrush,
-		};
-
-		/// <summary>" · every 2 min" after a feed's name (Full); empty before its loop first scheduled.</summary>
-		public static string CadenceSuffix(string cadence) => string.IsNullOrEmpty(cadence) ? string.Empty : $" · {cadence}";
-
-		/// <summary>A feed row's state dot (DATA colours, literal).</summary>
-		public static Brush StateBrush(FeedState state) => state switch
-		{
-			FeedState.Ok => DoneBrush,
-			FeedState.Checking => RadarBrush,
-			FeedState.Failed => FailedBrush,
-			_ => NeutralBrush,
 		};
 
 		// ── The tone edge follows the radar's tone ──

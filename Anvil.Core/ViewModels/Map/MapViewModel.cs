@@ -102,11 +102,11 @@ namespace Anvil.ViewModels
 			var settings = settingsService.Settings;
 			NowCastActivity = new TemporalActivityViewModel(Activity,
 				new[] { Warnings.Status, Watches.Status, StormReports.Status, StormCells.Status, Tropical.Status, Discussions.Status },
-				() => settings.NowCastActivity, t => settings.NowCastActivity = t, dispatcher);
+				() => settings.NowCastActivity, t => settings.NowCastActivity = t);
 			PastCastActivity = new TemporalActivityViewModel(null, Array.Empty<FeedStatus>(),
-				() => settings.PastCastActivity, t => settings.PastCastActivity = t, dispatcher);
+				() => settings.PastCastActivity, t => settings.PastCastActivity = t);
 			ForeCastActivity = new TemporalActivityViewModel(null, Array.Empty<FeedStatus>(),
-				() => settings.ForeCastActivity, t => settings.ForeCastActivity = t, dispatcher);
+				() => settings.ForeCastActivity, t => settings.ForeCastActivity = t);
 			NowCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
 			LayerOrderChanged += (_, mode) =>
 			{
@@ -1936,7 +1936,6 @@ namespace Anvil.ViewModels
 			StormCells.Shutdown();
 			Discussions.Shutdown();
 			Tropical.Shutdown();
-			NowCastActivity.Shutdown(); // the feeds' 1 s countdown tick
 			RadarNws.Shutdown();
 			SiteUsage.Shutdown(); // bank the running site-hours stretch
 		}

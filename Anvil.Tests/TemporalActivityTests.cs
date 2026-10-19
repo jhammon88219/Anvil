@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using Anvil.Models;
 using Anvil.Services;
 using Anvil.ViewModels;
@@ -8,8 +7,8 @@ using Xunit;
 namespace Anvil.Tests
 {
 	/// <summary>
-	/// The temporal window's ACTIVITY EXPANDER: the one tab's back-and-forth (Hidden → Minimal → Full → Minimal → Hidden),
-	/// the per-window persistence, the feed rows' wording and their order (the window's layer order).
+	/// The temporal window's ACTIVITY EXPANDER: the one tab's two states (Hidden ⇄ Full), the per-window persistence, the
+	/// FEED table's wording (clock times, never countdowns), the collapsed summary line, and the rows' layer order.
 	/// </summary>
 	public class TemporalActivityTests
 	{
@@ -20,57 +19,47 @@ namespace Anvil.Tests
 
 		private static readonly IDispatcher Inline = new InlineDispatcher();
 
-		[Fact]
-		public void Tab_goes_up_then_back_down_through_minimal()
-		{
-			var s = ActivityExpanderStates.Hidden;
-			var seen = new[] { s }.ToList();
-			for (var i = 0; i < 4; i++) { s = ActivityExpanderStates.Next(s); seen.Add(s); }
-			Assert.Equal(new[] { "hidden", "min-up", "full", "min-down", "hidden" }, seen);
-		}
+		private static FeedStatus Feed(string id, string name) => new(id, name, Inline);
 
 		[Fact]
-		public void Minimal_remembers_which_way_it_was_heading()
+		public void Tab_toggles_between_two_states()
 		{
-			Assert.True(ActivityExpanderStates.OpensMore(ActivityExpanderStates.MinimalRising));   // ˄ More
-			Assert.False(ActivityExpanderStates.OpensMore(ActivityExpanderStates.MinimalFalling)); // ˅ Less
-			Assert.True(ActivityExpanderStates.IsMinimal(ActivityExpanderStates.MinimalRising));
-			Assert.True(ActivityExpanderStates.IsMinimal(ActivityExpanderStates.MinimalFalling));
+			Assert.Equal(ActivityExpanderStates.Full, ActivityExpanderStates.Next(ActivityExpanderStates.Hidden));
+			Assert.Equal(ActivityExpanderStates.Hidden, ActivityExpanderStates.Next(ActivityExpanderStates.Full));
 		}
 
-		[Fact]
-		public void Unknown_token_falls_back_to_hidden()
-		{
-			Assert.Equal(ActivityExpanderStates.Hidden, ActivityExpanderStates.Normalize("bogus"));
-			Assert.Equal(ActivityExpanderStates.Hidden, ActivityExpanderStates.Normalize(null));
-		}
+		[Theory]
+		[InlineData("min-up", "full")]   // the retired Minimal tokens read as Full
+		[InlineData("min-down", "full")]
+		[InlineData("bogus", "hidden")]
+		[InlineData(null, "hidden")]
+		public void Tokens_normalize(string? token, string expected) =>
+			Assert.Equal(expected, ActivityExpanderStates.Normalize(token));
 
 		[Fact]
-		public void Advance_persists_every_step_and_relabels_the_tab()
+		public void Advance_persists_and_relabels_the_tab()
 		{
-			var saved = "full";
-			var vm = new TemporalActivityViewModel(null, new[] { new FeedStatus(LayerOrder.Warnings, "Warnings", Inline) },
-				() => saved, t => saved = t, Inline);
+			var saved = "hidden";
+			var vm = new TemporalActivityViewModel(null, new[] { Feed(LayerOrder.Warnings, "Warnings") }, () => saved, t => saved = t);
+			Assert.True(vm.IsHidden);
+			Assert.Equal("More", vm.TabLabel);
+
+			vm.Advance();
+			Assert.Equal("full", saved);
 			Assert.True(vm.IsFull);
 			Assert.Equal("Less", vm.TabLabel);
 
 			vm.Advance();
-			Assert.Equal("min-down", saved);
-			Assert.True(vm.IsMinimal);
-			Assert.Equal("Less", vm.TabLabel);
-
-			vm.Advance();
 			Assert.Equal("hidden", saved);
-			Assert.Equal("More", vm.TabLabel);
 		}
 
 		[Fact]
 		public void Feeds_follow_the_layer_order()
 		{
-			var w = new FeedStatus(LayerOrder.Warnings, "Warnings", Inline);
-			var r = new FeedStatus(LayerOrder.Reports, "Storm reports", Inline);
-			var c = new FeedStatus(LayerOrder.Cells, "Storm cells", Inline);
-			var vm = new TemporalActivityViewModel(null, new[] { w, r, c }, () => "hidden", _ => { }, Inline);
+			var w = Feed(LayerOrder.Warnings, "Warnings");
+			var r = Feed(LayerOrder.Reports, "Storm reports");
+			var c = Feed(LayerOrder.Cells, "Storm cells");
+			var vm = new TemporalActivityViewModel(null, new[] { w, r, c }, () => "hidden", _ => { });
 
 			vm.ApplyLayerOrder(new[] { LayerOrder.Cells, LayerOrder.Radar, LayerOrder.Warnings, LayerOrder.Reports });
 
@@ -80,41 +69,61 @@ namespace Anvil.Tests
 		[Fact]
 		public void A_mode_without_activity_has_no_content()
 		{
-			var vm = new TemporalActivityViewModel(null, Array.Empty<FeedStatus>(), () => "hidden", _ => { }, Inline);
+			var vm = new TemporalActivityViewModel(null, Array.Empty<FeedStatus>(), () => "hidden", _ => { });
 			Assert.False(vm.HasContent);
 		}
 
 		[Fact]
-		public void Feed_text_tracks_check_success_and_failure()
+		public void Feed_columns_are_clock_times_never_countdowns()
 		{
-			var f = new FeedStatus(LayerOrder.Watches, "Watches", Inline);
-			Assert.Equal("—", f.UpdatedText);
-			Assert.Equal(string.Empty, f.CountdownText);
+			var f = Feed(LayerOrder.Watches, "Watches");
+			Assert.Equal("—", f.LastText);
+			Assert.Equal("—", f.NextText);
 
 			f.Scheduled(TimeSpan.FromMinutes(2));
-			Assert.Equal("every 2 min", f.Cadence);
-			Assert.StartsWith("in ", f.CountdownText);
+			Assert.Equal("2 min", f.Every);
+			Assert.Matches(@"^\d{1,2}:\d\d:\d\d", f.NextText);   // a clock time, not "in 1:59"
 
 			f.Checking();
-			Assert.Equal("Checking", f.UpdatedText);
-			Assert.Equal(string.Empty, f.CountdownText); // no countdown while it checks
+			Assert.Equal("Checking", f.LastText);
 
 			f.Succeeded();
 			Assert.Equal(FeedState.Ok, f.State);
-			Assert.NotNull(f.LastUpdated);
-			Assert.Contains(":", f.UpdatedText);
+			Assert.Matches(@"^\d{1,2}:\d\d:\d\d", f.LastText);
 
 			f.Failed();
-			Assert.StartsWith("Failed ", f.UpdatedText);
-			Assert.StartsWith("retry ", f.CountdownText);
+			Assert.StartsWith("failed ", f.LastText);
+		}
+
+		[Fact]
+		public void Summary_names_only_a_feed_in_trouble()
+		{
+			var w = Feed(LayerOrder.Warnings, "Warnings");
+			var t = Feed(LayerOrder.Tropical, "Tropical");
+			var vm = new TemporalActivityViewModel(null, new[] { w, t }, () => "hidden", _ => { });
+			Assert.Equal("Feeds starting", vm.Summary);
+
+			w.Succeeded();
+			Assert.StartsWith("1 of 2 feeds current · last ", vm.Summary);
+
+			t.Succeeded();
+			Assert.StartsWith("All 2 feeds current · last ", vm.Summary);
+			Assert.False(vm.SummaryHasFailure);
+
+			t.Failed();
+			Assert.StartsWith("Tropical failed at ", vm.Summary);
+			Assert.True(vm.SummaryHasFailure);
+
+			w.Failed();
+			Assert.Equal("2 feeds failed: Warnings, Tropical", vm.Summary);
 		}
 
 		[Theory]
-		[InlineData(15, "every 15 s")]
-		[InlineData(60, "every 60 s")]
-		[InlineData(120, "every 2 min")]
-		[InlineData(900, "every 15 min")]
-		public void Cadence_words(int seconds, string expected) =>
-			Assert.Equal(expected, FeedStatus.CadenceWords(TimeSpan.FromSeconds(seconds)));
+		[InlineData(15, "15 s")]
+		[InlineData(60, "60 s")]
+		[InlineData(120, "2 min")]
+		[InlineData(300, "5 min")]
+		public void Every_words(int seconds, string expected) =>
+			Assert.Equal(expected, FeedStatus.EveryWords(TimeSpan.FromSeconds(seconds)));
 	}
 }

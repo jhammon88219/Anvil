@@ -789,7 +789,6 @@ namespace Anvil
 			ViewModel.StormCells.StartBackgroundRefresh();
 			ViewModel.Discussions.StartBackgroundRefresh();
 			ViewModel.Tropical.StartBackgroundRefresh();
-			ViewModel.NowCastActivity.StartTicking(); // the activity expander's feed countdowns
 
 			// Write a final flush + report on close so the run's last events aren't lost between
 			// the ~2 s background flushes. Also latch _isClosed and drop the layout hook FIRST - the

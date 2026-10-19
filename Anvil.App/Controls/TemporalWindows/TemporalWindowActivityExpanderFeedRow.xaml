@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TemporalWindowActivityExpanderFeedRow — ONE row of the activity expander's FEED table (a FeedStatus), or, with
+     IsHeader, the table's fixed column labels. ONE control for both so the column widths are written ONCE.
+
+        ┌───┬──────────────────────┬───────┬─────────────┬─────────────┐
+        │   │ FEED                 │ EVERY │        LAST │        NEXT │   ← IsHeader: 11 px small caps, never lifts
+        │ ● │ Warnings             │ 15 s  │ 12:04:31 PM │ 12:04:46 PM │   ← 26 tall, 13 px; HOVER lifts the whole row
+        └───┴──────────────────────┴───────┴─────────────┴─────────────┘      (ActivityRowHoverBrush) so the eye can follow
+          10          *               56         92            92          it across — the user's call, 2026-10-19
+                                         ColumnSpacing 12 · Padding 6,0 · CornerRadius 4
+
+     ● = the feed's state (green ok · blue checking · red failed · grey waiting) — DATA colours, literal.
+     LAST = when it last pulled data ("Checking" / "failed 12:00 PM"); NEXT = the CLOCK time of its next check.
+     ⚠️ CLOCK TIMES ONLY — no countdowns anywhere in the table (nothing ticks). TABULAR digits + fixed, right-aligned
+     time columns, so a changing time never moves anything.
+     ⚠️ The hover brush is {ThemeResource} in a VisualState (never resolved in C#). -->
+<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowActivityExpanderFeedRow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             IsTabStop="False">
+
+    <Grid x:Name="RowSurface" Height="26" Padding="6,0" CornerRadius="4" ColumnSpacing="12"
+          Background="Transparent"
+          PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="HoverStates">
+                <VisualState x:Name="Normal"/>
+                <VisualState x:Name="PointerOver">
+                    <VisualState.Setters>
+                        <Setter Target="RowSurface.Background" Value="{ThemeResource ActivityRowHoverBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <!-- A failed feed's LAST reads in the failed red (a DATA colour, literal — the dot's). -->
+            <VisualStateGroup x:Name="LastStates">
+                <VisualState x:Name="LastNormal"/>
+                <VisualState x:Name="LastFailed">
+                    <VisualState.Setters>
+                        <Setter Target="LastText.Foreground" Value="#FFF85149"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="10"/> <!-- state dot -->
+            <ColumnDefinition Width="*"/>  <!-- FEED -->
+            <ColumnDefinition Width="56"/> <!-- EVERY -->
+            <ColumnDefinition Width="92"/> <!-- LAST -->
+            <ColumnDefinition Width="92"/> <!-- NEXT -->
+        </Grid.ColumnDefinitions>
+
+        <!-- THE LABELS (IsHeader). -->
+        <TextBlock Grid.Column="1" Text="FEED" Style="{StaticResource AtlasFieldLabelStyle}" VerticalAlignment="Center"
+                   Visibility="{x:Bind Shown(IsHeader), Mode=OneWay}"/>
+        <TextBlock Grid.Column="2" Text="EVERY" Style="{StaticResource AtlasFieldLabelStyle}" VerticalAlignment="Center"
+                   Visibility="{x:Bind Shown(IsHeader), Mode=OneWay}"/>
+        <TextBlock Grid.Column="3" Text="LAST" Style="{StaticResource AtlasFieldLabelStyle}" VerticalAlignment="Center"
+                   HorizontalAlignment="Right" Visibility="{x:Bind Shown(IsHeader), Mode=OneWay}"/>
+        <TextBlock Grid.Column="4" Text="NEXT" Style="{StaticResource AtlasFieldLabelStyle}" VerticalAlignment="Center"
+                   HorizontalAlignment="Right" Visibility="{x:Bind Shown(IsHeader), Mode=OneWay}"/>
+
+        <!-- THE ROW (a FeedStatus). -->
+        <Ellipse Width="8" Height="8" VerticalAlignment="Center" HorizontalAlignment="Left"
+                 Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"
+                 Fill="{x:Bind StateBrush(Status.State), Mode=OneWay}"/>
+        <TextBlock Grid.Column="1" Text="{x:Bind Status.Name, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis"
+                   Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"/>
+        <TextBlock Grid.Column="2" Text="{x:Bind Status.Every, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+                   Style="{StaticResource TabularNumberTextStyle}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"/>
+        <TextBlock x:Name="LastText" Grid.Column="3" Text="{x:Bind Status.LastText, Mode=OneWay}" FontSize="13"
+                   VerticalAlignment="Center" TextAlignment="Right" TextTrimming="CharacterEllipsis"
+                   Style="{StaticResource TabularNumberTextStyle}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"/>
+        <TextBlock Grid.Column="4" Text="{x:Bind Status.NextText, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+                   TextAlignment="Right" Style="{StaticResource TabularNumberTextStyle}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Visibility="{x:Bind RowShown(IsHeader, Status), Mode=OneWay}"/>
+    </Grid>
+</UserControl>

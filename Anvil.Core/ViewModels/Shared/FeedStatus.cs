@@ -9,26 +9,28 @@ namespace Anvil.ViewModels
 	public enum FeedState { Waiting, Checking, Ok, Failed }
 
 	/// <summary>
-	/// ONE live feed's timing for the temporal window's activity expander (warnings, watches, reports, cells, tropical,
-	/// MDs): when it last pulled data, when it checks next, how often, and whether the last check failed. Each feed VM
-	/// owns one (<c>Status</c>); its refresh LOOP calls <see cref="Scheduled"/> every cycle, its FETCH calls
-	/// <see cref="Checking"/> / <see cref="Succeeded"/> / <see cref="Failed"/>.
+	/// ONE live feed's timing for the temporal window's activity expander — a row of its FEED · EVERY · LAST · NEXT table
+	/// (warnings, watches, reports, cells, tropical, MDs, and the radar's live poll). Each feed VM owns one (<c>Status</c>);
+	/// its refresh LOOP calls <see cref="Scheduled"/> every cycle, its FETCH calls <see cref="Checking"/> /
+	/// <see cref="Succeeded"/> / <see cref="Failed"/>.
 	/// </summary>
 	/// <remarks>
+	/// ⚠️ CLOCK TIMES, NEVER COUNTDOWNS (the user's call, 2026-10-19: several counting lines were distracting). Nothing here
+	/// ticks — every text changes only when the feed does something.
 	/// ⚠️ THREAD-SAFE BY POSTING: the loops run on pool threads, so every mutation hops to the UI thread through the
-	/// dispatcher before it touches a property. Call from anywhere.
-	/// ⚠️ TRUTH ONLY: "Updated" is a fetch that pulled data; a failed cycle leaves it alone (its age is the staleness),
-	/// exactly like the feeds' own cards. The countdown re-reads the clock on <see cref="Tick"/> (the activity VM's 1 s timer).
+	/// dispatcher before it touches a property (no dispatcher = the caller is already on the UI thread — the radar's row).
+	/// ⚠️ TRUTH ONLY: LAST is a fetch that pulled data; a failed cycle leaves it alone (its age is the staleness).
 	/// </remarks>
 	public sealed class FeedStatus : ObservableObject
 	{
-		private readonly IDispatcher _dispatcher;
+		private readonly IDispatcher? _dispatcher;
 		private FeedState _state = FeedState.Waiting;
 		private DateTimeOffset? _lastUpdated, _failedAt, _nextCheck;
-		private string _cadence = string.Empty, _updatedText = "—", _countdownText = string.Empty;
+		private string _every = string.Empty, _lastText = "—", _nextText = "—";
 
 		/// <param name="layerId">The feed's <c>Models.LayerOrder</c> id — its place in the window's layer order.</param>
-		public FeedStatus(string layerId, string name, IDispatcher dispatcher)
+		/// <param name="dispatcher">Null = every call already arrives on the UI thread.</param>
+		public FeedStatus(string layerId, string name, IDispatcher? dispatcher)
 		{
 			LayerId = layerId;
 			Name = name;
@@ -40,74 +42,82 @@ namespace Anvil.ViewModels
 
 		public FeedState State { get => _state; private set => SetProperty(ref _state, value); }
 
-		/// <summary>"every 15 s" / "every 2 min" — the interval the loop last scheduled.</summary>
-		public string Cadence { get => _cadence; private set => SetProperty(ref _cadence, value); }
+		/// <summary>The EVERY column: "15 s" / "2 min" / "scan" — how often the feed checks.</summary>
+		public string Every { get => _every; private set => SetProperty(ref _every, value); }
 
-		/// <summary>"12:04:31 PM" (last pulled data) · "Checking" · "Failed 12:00 PM" · "—" before the first.</summary>
-		public string UpdatedText { get => _updatedText; private set => SetProperty(ref _updatedText, value); }
+		/// <summary>The LAST column: "12:04:31 PM" (last pulled data) · "Checking" · "failed 12:00 PM" · "—".</summary>
+		public string LastText { get => _lastText; private set => SetProperty(ref _lastText, value); }
 
-		/// <summary>"in 0:09" · "retry 1:12" (after a failure) · empty while checking or unscheduled.</summary>
-		public string CountdownText { get => _countdownText; private set => SetProperty(ref _countdownText, value); }
+		/// <summary>The NEXT column: the clock time of the next check, or "—" before one is scheduled.</summary>
+		public string NextText { get => _nextText; private set => SetProperty(ref _nextText, value); }
 
 		public DateTimeOffset? LastUpdated => _lastUpdated;
+		public DateTimeOffset? FailedAt => _failedAt;
 
 		// ── Feed hooks (any thread) ──
 
 		/// <summary>The loop set its next cycle <paramref name="interval"/> from now.</summary>
-		internal void Scheduled(TimeSpan interval) => _dispatcher.Post(() =>
+		internal void Scheduled(TimeSpan interval) => Run(() =>
 		{
 			_nextCheck = DateTimeOffset.Now + interval;
-			Cadence = CadenceWords(interval);
+			Every = EveryWords(interval);
+			Refresh();
+		});
+
+		/// <summary>The next check is at <paramref name="next"/> (a planner that knows the moment, like the radar's).</summary>
+		internal void ScheduledAt(DateTimeOffset? next, string every) => Run(() =>
+		{
+			_nextCheck = next;
+			Every = every;
 			Refresh();
 		});
 
 		/// <summary>A fetch started.</summary>
-		internal void Checking() => _dispatcher.Post(() => { State = FeedState.Checking; Refresh(); });
+		internal void Checking() => Run(() => { State = FeedState.Checking; Refresh(); });
 
-		/// <summary>A fetch pulled data.</summary>
-		internal void Succeeded() => _dispatcher.Post(() =>
+		/// <summary>A fetch pulled data (or confirmed nothing newer exists).</summary>
+		internal void Succeeded() => Run(() =>
 		{
 			_lastUpdated = DateTimeOffset.Now;
 			_failedAt = null;
 			State = FeedState.Ok;
 			OnPropertyChanged(nameof(LastUpdated));
+			OnPropertyChanged(nameof(FailedAt));
 			Refresh();
 		});
 
 		/// <summary>A fetch failed (the feed keeps its last good data on screen).</summary>
-		internal void Failed() => _dispatcher.Post(() =>
+		internal void Failed() => Run(() =>
 		{
 			_failedAt = DateTimeOffset.Now;
 			State = FeedState.Failed;
+			OnPropertyChanged(nameof(FailedAt));
 			Refresh();
 		});
 
-		/// <summary>Re-read the clock for the countdown (UI thread; the activity VM's 1 s tick).</summary>
-		internal void Tick() => Refresh();
+		private void Run(Action action)
+		{
+			if (_dispatcher is null) action();
+			else _dispatcher.Post(action);
+		}
 
 		private void Refresh()
 		{
-			UpdatedText = State switch
+			LastText = State switch
 			{
 				FeedState.Checking => "Checking",
-				FeedState.Failed when _failedAt is { } f => $"Failed {ClockMinutes(f)}",
+				FeedState.Failed when _failedAt is { } f => $"failed {ClockMinutes(f)}",
 				_ => _lastUpdated is { } u ? Clock(u) : "—",
 			};
-			if (State == FeedState.Checking || _nextCheck is not { } next)
-			{
-				CountdownText = string.Empty;
-				return;
-			}
-			var rem = (int)Math.Ceiling(Math.Max(0, (next - DateTimeOffset.Now).TotalSeconds));
-			var left = $"{rem / 60}:{rem % 60:00}";
-			CountdownText = State == FeedState.Failed ? $"retry {left}" : $"in {left}";
+			NextText = _nextCheck is { } n ? Clock(n) : "—";
 		}
 
-		internal static string CadenceWords(TimeSpan interval) =>
-			interval.TotalSeconds < 90 ? $"every {interval.TotalSeconds:0} s" : $"every {interval.TotalMinutes:0} min";
+		/// <summary>The EVERY column's words for an interval: "15 s" under 90 s, else whole minutes ("2 min").</summary>
+		internal static string EveryWords(TimeSpan interval) =>
+			interval.TotalSeconds < 90 ? $"{interval.TotalSeconds:0} s" : $"{interval.TotalMinutes:0} min";
 
-		private static string Clock(DateTimeOffset t) => t.ToLocalTime().ToString("h:mm:ss tt", CultureInfo.CurrentCulture);
+		internal static string Clock(DateTimeOffset t) => t.ToLocalTime().ToString("h:mm:ss tt", CultureInfo.CurrentCulture);
 
-		private static string ClockMinutes(DateTimeOffset t) => t.ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
+		internal static string ClockMinutes(DateTimeOffset t) => t.ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
 	}
 }
