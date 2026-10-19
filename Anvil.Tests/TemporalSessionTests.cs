@@ -51,13 +51,14 @@ namespace Anvil.Tests
 			Assert.True(vm.IsNowWindowOpen);     // …with its window, while the reports are still loading
 		}
 
-		// ── LAUNCH WINDOWS: after the home radar's first frame, one at a time (MapViewModel.OpenLaunchWindowsAsync) ──
+		// ── LAUNCH WINDOWS: the first at once, the rest after the home radar's first frame, one at a time
+		//    (MapViewModel.OpenLaunchWindowsAsync) ──
 
 		private static AppSettings NowAndForeWithWindows() =>
 			new() { StartupResume = false, StartupMode = "nowfore", StartupOpenWindow = true };
 
 		[Fact]
-		public async Task Launch_windows_wait_for_the_home_radars_first_frame()
+		public async Task First_launch_window_opens_at_once_the_second_waits_for_the_home_radars_first_frame()
 		{
 			var vm = New(NowAndForeWithWindows());
 			vm.LaunchLoopStarting = () => true;
@@ -67,11 +68,11 @@ namespace Anvil.Tests
 			Assert.False(vm.IsNowWindowOpen);             // the windows are held
 
 			var opening = vm.OpenLaunchWindowsAsync();
+			Assert.True(vm.IsNowWindowOpen);              // the first doesn't wait on the radar
 			await Task.Delay(50);
-			Assert.False(vm.IsNowWindowOpen);             // still waiting on the radar
+			Assert.False(vm.IsForeWindowOpen);            // the second does
 			vm.Radar.RaiseFirstFrameShown();
 			await opening;
-			Assert.True(vm.IsNowWindowOpen);
 			Assert.True(vm.IsForeWindowOpen);
 		}
 

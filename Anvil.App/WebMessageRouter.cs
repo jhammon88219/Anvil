@@ -224,6 +224,7 @@ namespace Anvil
 					if (!_mapReady)
 					{
 						_mapReady = true;
+						LaunchTiming.Mark("page");
 						// Push the theme accent (MapReady) BEFORE the VM's map-ready work, which creates the
 						// radar-site markers: their halo reads a CSS var, so setting it first means the markers
 						// render in the accent from the start instead of flashing the green fallback for the
@@ -233,6 +234,8 @@ namespace Anvil
 							await MapReady.Invoke();
 						}
 						await _viewModel.OnMapsReadyAsync();
+						LaunchTiming.Mark("map-ready");
+						LaunchTiming.LogMarks(_logger);
 					}
 					return;
 				}

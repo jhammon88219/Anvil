@@ -30,6 +30,7 @@ namespace Anvil
 		/// </summary>
 		public App()
 		{
+			LaunchTiming.Mark("app");
 			InitializeComponent();
 
 			// Logging BEFORE the container: AddSerilog(dispose:true) below bridges the static Log.Logger this
@@ -54,6 +55,13 @@ namespace Anvil
 		/// </summary>
 		protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
 		{
+			LaunchTiming.Mark("launched");
+
+			// Start the map's browser process NOW (2026-10-19): it takes ~0.5-1 s to come up, and building the main
+			// window below takes ~1.4 s — so the two overlap instead of the browser starting only after the window
+			// is built. Same shared environment MainWindow awaits (WebViewEnvironment); this only creates it sooner.
+			_ = WebViewEnvironment.GetAsync();
+
 			// Resolve the whole object graph HERE, on the UI thread: WinUiDispatcher (pulled in as part of
 			// the MainWindow graph) captures the CURRENT thread's DispatcherQueue in its constructor, and
 			// OnLaunched runs on the UI thread. Resolving MainWindow constructs everything synchronously.

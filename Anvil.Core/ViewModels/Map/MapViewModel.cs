@@ -929,9 +929,13 @@ namespace Anvil.ViewModels
 		// ===== LAUNCH WINDOWS (2026-10-10): the restored windows open AFTER the home radar's first frame, ONE AT A TIME =====
 		// Building + first-laying-out the Now and Fore windows froze the UI ~1-2 s at launch (Start-menu runs; ~2× under the
 		// debugger), while the home loop started and the map sat behind them. Map-ready now restores the MODES at once but
-		// holds their windows (deferWindows): OpenLaunchWindowsAsync waits for the home radar's first frame (only when a
-		// live loop is starting; LaunchWindowFallbackMs if it never comes), then opens each window and waits for it to draw
+		// holds their windows (deferWindows) for OpenLaunchWindowsAsync, which opens each and waits for it to draw
 		// (OnPanelWindowShown, from WindowManager; WindowShownTimeoutMs) before the next, so two layouts never stack.
+		// ⚠️ 2026-10-19 (user's call): the FIRST window no longer waits for the home radar's first frame — the radar's
+		// ~2-3 s of download + decompress runs on pool threads, so the UI thread is idle enough to build one window in
+		// that gap (windows came ~3 s sooner; the cost is up to ~1 s on the radar's first paint). Every LATER window
+		// still waits for that first frame too (only when a live loop is starting; LaunchWindowFallbackMs if it never
+		// comes), so at most ONE window build lands on the radar's startup. "Launch:" log lines measure both.
 		// A window whose mode went off meanwhile stays shut; one the loading screen holds is handed to it.
 		private (bool Past, bool Now, bool Fore) _launchWindows;
 		private TaskCompletionSource? _windowShown;
@@ -954,37 +958,48 @@ namespace Anvil.ViewModels
 			_launchWindows = default;
 			if (!(want.Past || want.Now || want.Fore)) return;
 
+			// Armed NOW (the frame can land while the first window builds), awaited only before a SECOND window.
 			var loopStarting = LaunchLoopStarting?.Invoke() ?? (!IsPastCast && Radar.SelectedRadarOption?.Site is not null);
+			var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+			void OnFirst(object? sender, EventArgs e) => first.TrySetResult();
 			if (loopStarting)
 			{
-				var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-				void OnFirst(object? sender, EventArgs e) => first.TrySetResult();
 				Radar.FirstFrameShown += OnFirst;
-				try { await Task.WhenAny(first.Task, Task.Delay(LaunchWindowFallbackMs)); }
-				finally { Radar.FirstFrameShown -= OnFirst; }
+				_ = Task.Delay(LaunchWindowFallbackMs).ContinueWith(_ => first.TrySetResult(), TaskScheduler.Default);
+			}
+			else
+			{
+				first.TrySetResult();
 			}
 
-			var opened = false;
-			foreach (var (mode, on) in new[] { (TemporalMode.Past, want.Past), (TemporalMode.Now, want.Now), (TemporalMode.Fore, want.Fore) })
+			try
 			{
-				if (!on || _shuttingDown || !IsModeOn(mode)) continue;
-				if (opened)
+				var opened = false;
+				foreach (var (mode, on) in new[] { (TemporalMode.Past, want.Past), (TemporalMode.Now, want.Now), (TemporalMode.Fore, want.Fore) })
 				{
-					var shown = _windowShown?.Task ?? Task.CompletedTask;
-					await Task.WhenAny(shown, Task.Delay(WindowShownTimeoutMs));
-					if (_shuttingDown || !IsModeOn(mode)) continue;
+					if (!on || _shuttingDown || !IsModeOn(mode)) continue;
+					if (opened)
+					{
+						var shown = _windowShown?.Task ?? Task.CompletedTask;
+						await Task.WhenAll(Task.WhenAny(shown, Task.Delay(WindowShownTimeoutMs)), first.Task);
+						if (_shuttingDown || !IsModeOn(mode)) continue;
+					}
+					_windowShown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+					if (_windowsHeldForLoad)
+					{
+						// The loading screen is up: it reopens what it holds when it goes.
+						if (mode == TemporalMode.Past) _pastHeldForLoad = true;
+						else if (mode == TemporalMode.Now) _nowHeldForLoad = true;
+						else _foreHeldForLoad = true;
+						continue;
+					}
+					SetTemporalWindowOpen(mode, true);
+					opened = true;
 				}
-				_windowShown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-				if (_windowsHeldForLoad)
-				{
-					// The loading screen is up: it reopens what it holds when it goes.
-					if (mode == TemporalMode.Past) _pastHeldForLoad = true;
-					else if (mode == TemporalMode.Now) _nowHeldForLoad = true;
-					else _foreHeldForLoad = true;
-					continue;
-				}
-				SetTemporalWindowOpen(mode, true);
-				opened = true;
+			}
+			finally
+			{
+				Radar.FirstFrameShown -= OnFirst;
 			}
 
 			bool IsModeOn(TemporalMode m) => m switch

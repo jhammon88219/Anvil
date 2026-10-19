@@ -669,7 +669,19 @@ namespace Anvil
 				availableBottom: () =>
 					MapControlsTier.TransformToVisual(Content).TransformPoint(new Windows.Foundation.Point(0, 0)).Y,
 				monitorMode: () => ViewModel.MonitorMode);
-			_windows.WindowShown += (_, _) => ViewModel.OnPanelWindowShown(); // the launch windows open one at a time on it
+			_windows.WindowShown += (_, id) =>
+			{
+				ViewModel.OnPanelWindowShown(); // the launch windows open one at a time on it
+				LaunchTiming.LogMoment(_logger, $"window {id} drawn");
+			};
+			// LAUNCH TIMING: the home radar's first frame, once (later frames are ordinary use).
+			EventHandler? onFirstFrame = null;
+			onFirstFrame = (_, _) =>
+			{
+				ViewModel.Radar.FirstFrameShown -= onFirstFrame;
+				LaunchTiming.LogMoment(_logger, "home radar first frame");
+			};
+			ViewModel.Radar.FirstFrameShown += onFirstFrame;
 			// ONE settings window with a tab strip — it absorbed the former App Settings, Map Controls and Dev
 			// Tools windows, which is why the bar's right cluster is down to Panes / Atlas / Settings.
 			// ⚠️ Every panel's size AND spot come from its anchor (WindowManager's PLACEMENT block) — there
@@ -809,6 +821,8 @@ namespace Anvil
 
 				Services.RadarDiagnostics.FlushAll();
 			};
+
+			LaunchTiming.Mark("main window");
 		}
 
 		private async Task InitializeMapAsync()
@@ -909,6 +923,7 @@ namespace Anvil
 			// ⚠️ The SHARED environment (forced sRGB, see WebViewEnvironment) — the Settings preview runs in it too,
 			// and a second WebView2 with different options fails to create.
 			await webView.EnsureCoreWebView2Async(await WebViewEnvironment.GetAsync());
+			LaunchTiming.Mark("browser");
 
 			// Drop a cached copy of the page's files from an earlier build before anything loads (see the remarks).
 			await WebViewEnvironment.EnsureFreshMapAssetsAsync(webView.CoreWebView2);
@@ -966,6 +981,7 @@ namespace Anvil
 			UiThreadProbe.Start(webView.CoreWebView2);
 #endif
 			webView.Source = new Uri(url);
+			LaunchTiming.Mark("navigate");
 		}
 
 		/// <summary>
