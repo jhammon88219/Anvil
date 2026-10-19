@@ -86,8 +86,9 @@
          into TOOLTIPS (clock / bar).
        • Clock — the machine's local time, ticked by a DispatcherTimer that runs only while this body is loaded
          (code-behind). The zone label is built from Windows' zone NAME ("Central Daylight Time" → "CDT").
-       • FEED STATUS = Warnings.LastUpdated's age, which a FAILED fetch leaves alone — so a stuck feed walks the
-         bar green → amber (FeedAgingAfter) → red (FeedStaleAfter); grey before the first fetch. The SAME four
+       • FEED STATUS = Warnings.Status.FreshnessAt — LAST's age against the feed's OWN cadence (poll interval, or the
+         10-min safety re-check while live; a FAILED fetch leaves LAST alone) — so a stuck feed walks the bar green →
+         amber → red; grey before the first fetch. NOT tornado warnings. The SAME four
          literals as the Atlas status bar / age tile and the map key's square (data, never themed). Don't
          reset the age on failure — that is the honest readout.
        • Tiles — TemporalWindows/TemporalWindowNowCastWarningTile ×3. Warnings.TornadoCount/SevereCount/FlashFloodCount count EVERY active warning in the

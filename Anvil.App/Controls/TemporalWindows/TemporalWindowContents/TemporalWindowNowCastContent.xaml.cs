@@ -88,30 +88,30 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 			TemporalWindowHeaderNowCastReadout.Time = now;
 			TemporalWindowHeader.Subtitle = now.ToString("dddd MMM d", CultureInfo.CurrentCulture);
 
-			var updated = ViewModel?.Warnings.LastUpdated;
-			TemporalWindowHeader.StatusFill = FeedBrush(updated is { } when ? now - when : null);
-			TemporalWindowHeader.StatusToolTip = updated is { } at
-				? $"Warnings updated {Age(now - at)}"
+			var status = ViewModel?.Warnings.Status;
+			TemporalWindowHeader.StatusFill = FeedBrush(status?.FreshnessAt(now) ?? FeedFreshness.Unknown);
+			TemporalWindowHeader.StatusToolTip = status?.LastUpdated is { } at
+				? $"Warnings checked {Age(now - at)}" + (status.IsLive ? " · live: re-fetched when the NWS issues" : string.Empty)
 				: "Warnings not checked yet";
 		}
 
 		// ── Feed status bar ──
-		// The warnings feed checks every 15 s, so AGING = about four misses in a row, STALE = failing for minutes.
+		// The knees are the feed's OWN cadence (FeedStatus.FreshnessAt): a 15 s poll goes amber after ~1 min, a quiet
+		// LIVE feed (fetched only when the NWS issues, plus a 10-min safety re-check) only once that re-check is overdue.
 		// ⚠️ LITERAL data colours — the same green / amber / red / grey as the Atlas's status bar + age tile and
-		// the map key's square (never themed: the colour IS the status). Move the knees with the XAML header's words.
-		private static readonly System.TimeSpan FeedAgingAfter = System.TimeSpan.FromMinutes(1);
-		private static readonly System.TimeSpan FeedStaleAfter = System.TimeSpan.FromMinutes(5);
-
+		// the map key's square (never themed: the colour IS the status).
 		private static readonly SolidColorBrush FeedCurrent = new(ColorHelper.FromArgb(0xFF, 0x3F, 0xB9, 0x50));
 		private static readonly SolidColorBrush FeedAging = new(ColorHelper.FromArgb(0xFF, 0xD2, 0x99, 0x22));
 		private static readonly SolidColorBrush FeedStale = new(ColorHelper.FromArgb(0xFF, 0xF8, 0x51, 0x49));
 		private static readonly SolidColorBrush FeedUnknown = new(ColorHelper.FromArgb(0xFF, 0x6E, 0x76, 0x81));
 
-		private static SolidColorBrush FeedBrush(System.TimeSpan? age) =>
-			age is not { } a ? FeedUnknown :
-			a <= FeedAgingAfter ? FeedCurrent :
-			a <= FeedStaleAfter ? FeedAging :
-			FeedStale;
+		private static SolidColorBrush FeedBrush(FeedFreshness freshness) => freshness switch
+		{
+			FeedFreshness.Current => FeedCurrent,
+			FeedFreshness.Aging => FeedAging,
+			FeedFreshness.Stale => FeedStale,
+			_ => FeedUnknown,
+		};
 
 		// "14 s ago" / "3 min ago" / "2 h ago".
 		private static string Age(System.TimeSpan span) =>
