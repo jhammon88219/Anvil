@@ -367,15 +367,33 @@ namespace Anvil.Services
 			return results;
 		}
 
-		private async Task<SpcOutlookFetchResult> RefreshOneAsync(SpcOutlookEndpoint endpoint, CancellationToken ct)
+		public async Task<IReadOnlyList<SpcOutlookFetchResult>> RefreshEndpointsAsync(IReadOnlyCollection<string> ids, CancellationToken cancellationToken = default)
+		{
+			var results = new List<SpcOutlookFetchResult>(ids.Count);
+			RadarPerfCounters.NoteFeedRefresh("outlook");
+			foreach (var endpoint in SpcOutlookCatalog.All)
+			{
+				if (!ids.Contains(endpoint.Id)) { continue; }
+				cancellationToken.ThrowIfCancellationRequested();
+				results.Add(await RefreshOneAsync(endpoint, cancellationToken, bypassCdn: true).ConfigureAwait(false));
+			}
+			return results;
+		}
+
+		// "?anvil=<ticks>" (or "&…" after an existing query): a URL the CDN has never cached, so it goes to SPC itself.
+		internal static string BypassCdn(string url) =>
+			url + (url.Contains('?') ? "&" : "?") + "anvil=" + DateTime.UtcNow.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+		private async Task<SpcOutlookFetchResult> RefreshOneAsync(SpcOutlookEndpoint endpoint, CancellationToken ct, bool bypassCdn = false)
 		{
 			var cacheFile = Path.Combine(CacheDirectory, endpoint.Id + ".geojson");
 			var cacheExists = File.Exists(cacheFile);
 
 			try
 			{
-				// Try primary, then fallback (if any). 304 short-circuits to NotModified.
-				var outcome = await TryFetchAsync(endpoint.PrimaryUrl, cacheFile, ct).ConfigureAwait(false);
+				// Try primary, then fallback (if any). 304 short-circuits to NotModified. ⚠️ The validators are keyed by the
+				// CACHE FILE, not the URL, so a cache-busted ask is still a conditional GET.
+				var outcome = await TryFetchAsync(bypassCdn ? BypassCdn(endpoint.PrimaryUrl) : endpoint.PrimaryUrl, cacheFile, ct).ConfigureAwait(false);
 				if (outcome is null && endpoint.FallbackUrl is not null)
 				{
 					outcome = await TryFetchAsync(endpoint.FallbackUrl, cacheFile, ct).ConfigureAwait(false);

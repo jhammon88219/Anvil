@@ -60,13 +60,15 @@ namespace Anvil.ViewModels
 		// option (the product combobox transiently nulls its selection mid-swap).
 		private bool _suppressOutlookUpdate;
 
-		// Outlook refresh schedule (set by MainWindow each ~15-min cycle) for the Outlook tool
-		// window's next-update progress bar.
-		private DateTimeOffset? _outlookCycleStart;
+		// The next poll's time (set at the end of every refresh cycle); null while live.
 		private DateTimeOffset? _nextOutlookRefreshAt;
 
-		public OutlookViewModel(IMapService mapService, ISpcOutlookService spcOutlookService, IDispatcher dispatcher, ILogger<OutlookViewModel> logger)
+		/// <param name="live">This feed's schedule from the live-feed hub (null = poll at the default interval).</param>
+		public OutlookViewModel(IMapService mapService, ISpcOutlookService spcOutlookService, IDispatcher dispatcher, ILogger<OutlookViewModel> logger,
+			LiveFeedChannel? live = null)
 		{
+			Status = new FeedStatus(LayerOrder.Outlook, "Outlooks", dispatcher);
+			_live = live ?? LiveFeedChannel.Polling(LiveFeedKind.Outlooks, LiveFeedKinds.DefaultPoll(LiveFeedKind.Outlooks));
 			_mapService = mapService;
 			_spcOutlookService = spcOutlookService;
 			_dispatcher = dispatcher;
@@ -97,19 +99,33 @@ namespace Anvil.ViewModels
 			_ = RefreshOutlooksInBackgroundAsync();
 		}
 
-		// SPC products update a handful of times a day at scheduled issuances; poll periodically so
-		// we catch new ones. Conditional GETs make each cycle cheap (mostly 304s when unchanged).
-		private static readonly TimeSpan OutlookRefreshInterval = TimeSpan.FromMinutes(15);
+		// SPC products update a handful of times a day at scheduled issuances. WHEN to fetch is the live-feed hub's
+		// (LiveFeedChannel): at once when a SWODY1…FWDD38 is issued while a live source is connected — only THAT product's
+		// files, past SPC's CDN, re-checked until each changes (SPC's map files land minutes after the text) — else every
+		// file on the user's polling interval (Settings → Live Data). Conditional GETs make unchanged files cheap 304s.
+		private readonly LiveFeedChannel _live;
 
-		private Task RefreshOutlooksInBackgroundAsync() => BackgroundRefresh.RunPeriodicAsync(OutlookRefreshInterval, async first =>
+		/// <summary>This feed's refresh timing for the ForeCast activity expander (FeedStatus).</summary>
+		public FeedStatus Status { get; }
+
+		private Task RefreshOutlooksInBackgroundAsync() => BackgroundRefresh.RunLiveAsync(_live, async first =>
 		{
 			try
 			{
-				var results = await _spcOutlookService.RefreshAllAsync();
+				var scope = _live.Scope();
+				Status.Checking();
+				var results = scope is null
+					? await _spcOutlookService.RefreshAllAsync()
+					: await _spcOutlookService.RefreshEndpointsAsync(scope);
 				var updated = results.Count(r => r.Status is SpcOutlookFetchStatus.Updated);
 				var failed = results.Count(r => r.Status is SpcOutlookFetchStatus.FailedCacheKept
 					or SpcOutlookFetchStatus.FailedNoCache);
-				_logger.LogInformation("Outlooks refresh: {Total} products, {Updated} updated, {Failed} failed", results.Count, updated, failed);
+				_logger.LogInformation("Outlooks refresh: {Total} products ({Scope}), {Updated} updated, {Failed} failed",
+					results.Count, scope is null ? "all" : string.Join(",", scope), updated, failed);
+				// A cycle that reached SPC at all is current (304 = nothing newer); only an all-failed cycle is a failure.
+				if (failed < results.Count || results.Count == 0) { Status.Succeeded(); } else { Status.Failed(); }
+				// Files that changed are the new issuance: no more re-checks for them.
+				_live.Caught(results.Where(r => r.Status is SpcOutlookFetchStatus.Updated).Select(r => r.ProductId));
 
 				// Re-apply the current outlook on launch (so a first-run empty cache overlay appears and
 				// the issued/valid readout picks up times) and whenever a cycle actually pulled new data —
@@ -121,13 +137,16 @@ namespace Anvil.ViewModels
 			}
 			catch (Exception ex)
 			{
+				Status.Failed();
 				_logger.LogWarning(ex, "Outlooks refresh aborted");
 			}
 
-			// Tell the next-update bar when the next periodic refresh is roughly due (fixed cadence;
-			// the refresh itself takes seconds, negligible vs the 15-min interval). Runs every cycle.
-			var cycleStart = DateTimeOffset.Now;
-			_dispatcher.Post(() => SetOutlookRefreshSchedule(cycleStart, cycleStart + OutlookRefreshInterval));
+			// The header + card's "next" line: live, or the next poll's clock time. Every cycle.
+			var next = _live.Schedule(Status);
+			var live = _live.IsLive;
+			var at = DateTimeOffset.Now + next;
+			_dispatcher.Post(() => SetOutlookRefreshSchedule(live ? null : at));
+			return next;
 		}, _shutdown.Token);
 
 		/// <summary>Outlook days that have products (1-8), each labeled with its date;
@@ -402,12 +421,17 @@ namespace Anvil.ViewModels
 			private set => SetProperty(ref _outlookNarrative, value);
 		}
 
-		// ⚠️ There is no OutlookNextUpdateProgress companion: the card's footer states the countdown in
+		// ⚠️ There is no OutlookNextUpdateProgress companion: the card's footer states the next update in
 		// WORDS and no ProgressBar binds the outlook refresh, so the 0-100 fraction had no reader.
-		// Re-adding a bar means the getter back plus a raise wherever the countdown is raised below.
+		// Nothing counts down (2026-10-19) — a bar would bring back the 1 s tick the activity rules removed.
 
-		/// <summary>Countdown label to the next SPC outlook refresh (e.g. "next ~9 min").</summary>
-		public string OutlookNextUpdateText => NextUpdate.CountdownOf(_nextOutlookRefreshAt);
+		/// <summary>The header's (and card's) "when's the next update" line — "live · when SPC issues" while a live
+		/// source carries the outlooks, else "next check 3:15 PM". ⚠️ A CLOCK TIME, never a countdown (2026-10-19), so
+		/// nothing ticks: it changes only when a refresh cycle ends.</summary>
+		public string OutlookNextUpdateText =>
+			_nextOutlookRefreshAt is { } at ? $"next check {FeedStatus.ClockMinutes(at)}"
+			: _live.IsLive ? "live · when SPC issues"
+			: string.Empty;
 
 		// ── The ForeCast window's HEADER (TemporalWindowForeCastContent's name row — NowCast's/PastCast's, matched) ──
 		// The square is the HIGHEST category the shown outlook contains, in its SPC colour (DATA, never themed) — as
@@ -460,34 +484,34 @@ namespace Anvil.ViewModels
 		public string CardContext => OutlookTimesText;
 
 		/// <summary>
-		/// The card's footer: how long until the next refresh, or — with nothing selected — what to do
+		/// The card's footer: when the next update comes (live, or a clock time), or — with nothing selected — what to do
 		/// about it.
 		/// </summary>
 		/// <remarks>
-		/// ⚠️ It re-reads <see cref="OutlookNextUpdateText"/> rather than formatting its own countdown, so
+		/// ⚠️ It re-reads <see cref="OutlookNextUpdateText"/> rather than formatting its own, so
 		/// the card and the next-update readout can never disagree. That also means this must be raised
-		/// wherever that one is: on the 1 s tick as well as on a selection change.
+		/// wherever that one is: at the end of every refresh cycle as well as on a selection change.
 		/// </remarks>
 		public string CardFooter
 		{
 			get
 			{
 				if (!HasOutlook) { return "Pick a product below"; }
-				// A HELD issuance doesn't refresh, so no countdown: its status, else how to go back to following.
+				// A HELD issuance doesn't refresh, so no "next": its status, else how to go back to following.
 				if (_selectedCycleOption.Cycle is { } held)
 				{
 					return _heldNote.Length > 0 ? _heldNote
 						: $"Holding the {SpcIssuanceCycles.Label(held)} issuance — pick Latest to follow SPC's updates";
 				}
-				var countdown = OutlookNextUpdateText;
-				return countdown.Length == 0
+				var next = OutlookNextUpdateText;
+				return next.Length == 0
 					? string.Empty
-					: char.ToUpperInvariant(countdown[0]) + countdown[1..];
+					: char.ToUpperInvariant(next[0]) + next[1..];
 			}
 		}
 
 		// Re-raises the three card lines. Called from both places their inputs move: the selection funnel
-		// (UpdateOutlookCard) and the countdown tick.
+		// (UpdateOutlookCard) and the end of each refresh cycle.
 		private void RaiseCard()
 		{
 			OnPropertyChanged(nameof(CardHeadline));
@@ -495,33 +519,12 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(CardFooter));
 		}
 
-		/// <summary>Called by MainWindow after each outlook refresh with the next refresh schedule.</summary>
-		public void SetOutlookRefreshSchedule(DateTimeOffset cycleStart, DateTimeOffset next)
+		/// <summary>After each refresh cycle: the next poll's time, or null while a live source carries the outlooks.</summary>
+		internal void SetOutlookRefreshSchedule(DateTimeOffset? next)
 		{
-			_outlookCycleStart = cycleStart;
 			_nextOutlookRefreshAt = next;
 			OnPropertyChanged(nameof(OutlookNextUpdateText));
 			RaiseCard();
-		}
-
-		// App-lifetime 1s tick that advances the outlook next-update progress bar (independent of any
-		// radar loop, so the outlook bar updates even when no loop is active).
-		private async Task RunProgressTickAsync()
-		{
-			try
-			{
-				using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-				while (await timer.WaitForNextTickAsync(_shutdown.Token))
-				{
-					OnPropertyChanged(nameof(OutlookNextUpdateText));
-					RaiseCard();
-				}
-			}
-			catch (OperationCanceledException)
-			{
-				// Window closed. This tick raises PropertyChanged straight at live bindings, so it is
-				// exactly the kind of loop that must not outlive the XAML tree it is notifying.
-			}
 		}
 
 
@@ -774,7 +777,7 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>Called by MapViewModel once the map page is ready: applies the startup outlook state
-		/// and starts the next-update progress tick.</summary>
+		/// (the next-update line needs no tick — it is a clock time).</summary>
 		public async Task OnMapsReadyAsync()
 		{
 			_isMapReady = true;
@@ -788,9 +791,6 @@ namespace Anvil.ViewModels
 			}
 			await _mapService.SetOutlookOpacityAsync(_outlookOpacity);
 			UpdateOutlookTimes();
-
-			// Drive the SPC outlook next-update progress bar.
-			_ = RunProgressTickAsync();
 		}
 	}
 }

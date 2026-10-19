@@ -80,11 +80,12 @@ namespace Anvil.ViewModels
 			Activity = new BarActivityViewModel();
 			Activity.WatchSiteCheck(Radar);
 			Activity.WatchLiveFrame(Radar);
-			Outlook =new OutlookViewModel(mapService, spcOutlookService, dispatcher, loggerFactory.CreateLogger<OutlookViewModel>());
-			PastOutlook = new PastOutlookViewModel(mapService, spcOutlookService, Radar);
-			// ONE live-feed hub schedules every NowCast feed (Settings → Live Data). Tests get one that never starts.
+			// ONE live-feed hub schedules every NowCast feed and ForeCast's outlooks (Settings → Live Data). Tests get one
+			// that never starts.
 			LiveFeed = liveFeed ?? new LiveFeedHub(settingsService, null, null, loggerFactory.CreateLogger<LiveFeedHub>());
 			LiveData = new LiveDataViewModel(LiveFeed, settingsService.Settings, dispatcher);
+			Outlook = new OutlookViewModel(mapService, spcOutlookService, dispatcher, loggerFactory.CreateLogger<OutlookViewModel>(), LiveFeed.Channel(LiveFeedKind.Outlooks));
+			PastOutlook = new PastOutlookViewModel(mapService, spcOutlookService, Radar);
 			Watches = new WatchesViewModel(mapService, watchService, dispatcher, loggerFactory.CreateLogger<WatchesViewModel>(), LiveFeed.Channel(LiveFeedKind.Watches));
 			Warnings = new WarningsViewModel(mapService, warningService, dispatcher, loggerFactory.CreateLogger<WarningsViewModel>(), LiveFeed.Channel(LiveFeedKind.Warnings));
 			StormReports = new StormReportsViewModel(mapService, stormReportService, Radar, dispatcher, loggerFactory.CreateLogger<StormReportsViewModel>(), LiveFeed.Channel(LiveFeedKind.StormReports));
@@ -101,15 +102,16 @@ namespace Anvil.ViewModels
 			// search isn't NowCast work. The source stays (BarActivityViewModel.WatchPlaceSearch) — re-add this line to show it.
 			// Activity.WatchPlaceSearch(PlaceSearch);
 			// Each temporal window's ACTIVITY EXPANDER — that mode's work only. NowCast: the radar's live poll + site check and
-			// its six live feeds (in the window's layer order, re-sorted when it changes); Past / Fore: none yet.
+			// its six live feeds (in the window's layer order, re-sorted when it changes); ForeCast: the SPC outlooks; Past: none yet.
+			// Now + Fore both end on the live source line (LiveData).
 			var settings = settingsService.Settings;
 			NowCastActivity = new TemporalActivityViewModel(Activity,
 				new[] { Warnings.Status, Watches.Status, StormReports.Status, StormCells.Status, Tropical.Status, Discussions.Status },
 				() => settings.NowCastActivity, t => settings.NowCastActivity = t, LiveData);
 			PastCastActivity = new TemporalActivityViewModel(null, Array.Empty<FeedStatus>(),
 				() => settings.PastCastActivity, t => settings.PastCastActivity = t);
-			ForeCastActivity = new TemporalActivityViewModel(null, Array.Empty<FeedStatus>(),
-				() => settings.ForeCastActivity, t => settings.ForeCastActivity = t);
+			ForeCastActivity = new TemporalActivityViewModel(null, new[] { Outlook.Status },
+				() => settings.ForeCastActivity, t => settings.ForeCastActivity = t, LiveData);
 			NowCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
 			LayerOrderChanged += (_, mode) =>
 			{

@@ -26,7 +26,8 @@
 
      The band is the RAISED tier face (OverlayBarSurfaceRaisedBrush) so the tab — Raised, the main rail's tabs' face —
      blends into it with no seam. Top hairline turns the TONE colour while the radar is loud (blue = working · green =
-     done · red = failed). PastCast / ForeCast have no activity yet (Activity.HasContent false): a bare band, no tab.
+     done · red = failed). ForeCast: no radar line, ONE feed row (Outlooks) + the source line; Hidden = "Outlooks current ·
+     last …". PastCast has no activity yet (Activity.HasContent false): a bare band, no tab.
 
      ⚠️ NOTHING COUNTS DOWN (the user's call, 2026-10-19): every time is a CLOCK time; only a busy scan's bar moves.
      ⚠️ TABULAR DIGITS on every number (TabularNumberTextStyle) + FIXED columns (the row control owns their widths).

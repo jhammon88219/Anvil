@@ -15,8 +15,8 @@ namespace Anvil.ViewModels
 	/// </summary>
 	/// <remarks>
 	/// ⚠️ ONLY THAT MODE'S WORK (the user's rule, 2026-10-16): NowCast = the live poll, the site check and its six live
-	/// feeds; PastCast and ForeCast have none yet (empty — the window shows a bare band, no tab). Give a mode its own by
-	/// building it with a radar activity and/or feeds in <c>MapViewModel</c>.
+	/// feeds; ForeCast = the SPC outlooks (2026-10-19); PastCast has none yet (empty — the window shows a bare band, no
+	/// tab). Give a mode its own by building it with a radar activity and/or feeds in <c>MapViewModel</c>.
 	/// ⚠️ NOTHING TICKS: every row shows clock times (FeedStatus), so there is no timer here (removed 2026-10-19).
 	/// </remarks>
 	public sealed class TemporalActivityViewModel : ObservableObject
@@ -122,12 +122,19 @@ namespace Anvil.ViewModels
 				return;
 			}
 			var current = Feeds.Where(f => f.LastUpdated is not null).ToList();
+			// ONE feed (ForeCast's outlooks) is named, not counted: "Outlooks current · last …", "Outlooks starting".
+			var single = Feeds.Count == 1 ? Feeds[0].Name : null;
 			if (current.Count == 0)
 			{
-				Summary = HasFeeds ? "Feeds starting" : string.Empty;
+				Summary = !HasFeeds ? string.Empty : single is not null ? $"{single} starting" : "Feeds starting";
 				return;
 			}
 			var last = FeedStatus.Clock(current.Max(f => f.LastUpdated!.Value));
+			if (single is not null)
+			{
+				Summary = $"{single} current · last {last}";
+				return;
+			}
 			Summary = current.Count == Feeds.Count
 				? $"All {Feeds.Count} feeds current · last {last}"
 				: $"{current.Count} of {Feeds.Count} feeds current · last {last}";

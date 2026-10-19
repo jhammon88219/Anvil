@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,7 +53,7 @@ namespace Anvil.Tests
 		[Theory]
 		[InlineData("TAFINT")]
 		[InlineData("AFDOUN")]
-		[InlineData("SWODY1")] // an outlook, not a discussion — ForeCast's
+		[InlineData("SWOFOO")] // SPC's "SWO" prefix alone wakes nothing — only the whole outlook ids do
 		[InlineData("")]
 		[InlineData(null)]
 		public void Other_products_wake_nothing(string? awips) => Assert.Null(LiveFeedKinds.KindOfProduct(awips));
@@ -382,6 +383,90 @@ namespace Anvil.Tests
 			var features = await read;
 			Assert.Equal(XName.Get("features", "http://etherx.jabber.org/streams"), features.Name);
 			Assert.NotNull(features.Element(XName.Get("starttls", "urn:ietf:params:xml:ns:xmpp-tls"))?.Element(XName.Get("required", "urn:ietf:params:xml:ns:xmpp-tls")));
+		}
+
+		// ── ForeCast's outlooks ──
+
+		[Theory]
+		[InlineData("SWODY1")]
+		[InlineData("SWODY2")]
+		[InlineData("SWODY3")]
+		[InlineData("SWOD48")]
+		[InlineData("FWDDY1")]
+		[InlineData("FWDDY2")]
+		[InlineData("FWDD38")]
+		public void Outlook_products_wake_the_outlooks(string awips) =>
+			Assert.Equal(LiveFeedKind.Outlooks, LiveFeedKinds.KindOfProduct(awips));
+
+		[Fact]
+		public void An_mcd_is_still_a_discussion_not_an_outlook() =>
+			Assert.Equal(LiveFeedKind.Discussions, LiveFeedKinds.KindOfProduct("SWOMCD"));
+
+		[Theory]
+		[InlineData("SWODY1", "day1-categorical,day1-tornado,day1-wind,day1-hail")]
+		[InlineData("SWODY3", "day3-categorical,day3-probabilistic")]
+		[InlineData("SWOD48", "day4-probabilistic,day5-probabilistic,day6-probabilistic,day7-probabilistic,day8-probabilistic")]
+		[InlineData("FWDDY1", "day1-fire")]
+		[InlineData("FWDD38", "day3-fire,day4-fire,day5-fire,day6-fire,day7-fire,day8-fire")]
+		[InlineData("SVROUN", "")]
+		public void Each_outlook_product_wakes_only_its_own_files(string awips, string ids) =>
+			Assert.Equal(ids, string.Join(",", SpcOutlookCatalog.IdsForProduct(awips)));
+
+		[Fact]
+		public void Outlook_trigger_scopes_its_files_until_each_is_caught()
+		{
+			var status = new FeedStatus(LayerOrder.Outlook, "Outlooks", null);
+			var channel = new LiveFeedChannel(LiveFeedKind.Outlooks, () => true, () => TimeSpan.FromMinutes(5));
+			Assert.Null(channel.Scope()); // no trigger: a poll / safety cycle fetches everything
+
+			channel.Trigger(new[] { "day1-categorical", "day1-tornado" });
+			Assert.Equal(new[] { "day1-categorical", "day1-tornado" }, channel.Scope()!.OrderBy(k => k));
+			Assert.Equal(LiveFeedKinds.OutlookChaseDelays[0], channel.Schedule(status)); // the LONG run
+
+			channel.Caught(new[] { "day1-categorical" }); // one file landed: only the other is re-asked
+			Assert.Equal(new[] { "day1-tornado" }, channel.Scope());
+			Assert.Equal(LiveFeedKinds.OutlookChaseDelays[1], channel.Schedule(status));
+
+			channel.Caught(new[] { "day1-tornado" }); // all caught: the run ends early
+			Assert.Null(channel.Scope());
+			Assert.Equal(LiveFeedKinds.LiveSafetyInterval, channel.Schedule(status));
+		}
+
+		[Fact]
+		public void A_catch_up_wake_fetches_every_outlook_file()
+		{
+			var channel = new LiveFeedChannel(LiveFeedKind.Outlooks, () => true, () => TimeSpan.FromMinutes(5));
+			channel.Trigger(new[] { "day1-fire" });
+			channel.Wake(); // the source dropped
+			Assert.Null(channel.Scope());                            // this cycle: everything…
+			Assert.Equal(new[] { "day1-fire" }, channel.Scope());   // …then the run carries on for its file
+		}
+
+		[Fact]
+		public void The_outlook_chase_outlasts_the_fire_maps_lag()
+		{
+			// Measured 2026-10-19: the fire MapServer ~11.5 min after FWDDY1. The run must reach well past it.
+			var total = LiveFeedKinds.OutlookChaseDelays.Aggregate(TimeSpan.Zero, (a, d) => a + d);
+			Assert.True(total >= TimeSpan.FromMinutes(15), $"outlook re-checks end after {total}");
+			Assert.Same(LiveFeedKinds.ChaseDelays, LiveFeedKinds.ChaseDelaysOf(LiveFeedKind.Warnings));
+		}
+
+		[Theory]
+		[InlineData("https://www.spc.noaa.gov/products/outlook/day1otlk_cat.lyr.geojson", "?anvil=")]
+		[InlineData("https://x/MapServer/1/query?where=1%3D1&f=geojson", "&anvil=")]
+		public void Cdn_bypass_adds_a_fresh_query(string url, string joint) =>
+			Assert.StartsWith(url + joint, SpcOutlookService.BypassCdn(url));
+
+		[Fact]
+		public void One_feed_summary_names_it()
+		{
+			var outlooks = new FeedStatus(LayerOrder.Outlook, "Outlooks", Inline);
+			var vm = new TemporalActivityViewModel(null, new[] { outlooks }, () => "hidden", _ => { });
+			Assert.Equal("Outlooks starting", vm.Summary);
+			outlooks.Succeeded();
+			Assert.StartsWith("Outlooks current · last ", vm.Summary);
+			outlooks.Failed();
+			Assert.StartsWith("Outlooks failed at ", vm.Summary);
 		}
 
 		// ── The activity expander's source line ──

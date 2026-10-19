@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- TemporalWindowHeaderForeCastReadout — the ForeCast header's Readout: the shown outlook's HIGHEST risk over
-     the refresh countdown.
+     when the next update comes.
 
        MDT 4/5          ← 30 SemiLight (the PastCast range's size); "No areas" / "No outlook" dims to 40%
-       next ~9 min      ← 13 secondary -->
+       next check 3:15 PM   ← 13 secondary: "live · when SPC issues" while a live source carries the outlooks
+                               (OutlookNextUpdateText — a clock time, never a countdown) -->
 
 <UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts.TemporalWindowHeaderForeCastReadout"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

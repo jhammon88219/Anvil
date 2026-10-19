@@ -20,6 +20,7 @@
        │    Warnings        live             [ 30 ⌃⌄ ]        15 s    │  ← NumberBox, clamped to MINIMUM … 30 min
        │    …                                                         │
        │    Storm cells     polled           [ 60 ⌃⌄ ]        30 s    │  ← on no push feed: always polled
+       │    Outlooks        live             [ 300 ⌃⌄ ]       2 min   │  ← ForeCast's SPC outlooks (a SWODY1 re-fetches Day 1 only)
        │    Radar           scan schedule    Follows the radar's scan pattern
        │  ⌄  Connection                                               │
        │    Status          ● IEM · connected since 11:02:14 AM       │  ← dot: green live · amber down · grey off

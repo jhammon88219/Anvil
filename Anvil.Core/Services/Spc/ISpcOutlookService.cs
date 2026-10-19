@@ -69,6 +69,13 @@ namespace Anvil.Services
 		Task<IReadOnlyList<SpcOutlookFetchResult>> RefreshAllAsync(CancellationToken cancellationToken = default);
 
 		/// <summary>
+		/// <see cref="RefreshAllAsync"/> for only the endpoint <paramref name="ids"/> a live product announced
+		/// (<see cref="SpcOutlookCatalog.IdsForProduct"/>), each asked PAST spc.noaa.gov's CDN (a cache-busting query — its
+		/// CloudFront copy is up to 2 min old, measured 2026-10-19). Still conditional, so an unchanged file is a 304.
+		/// </summary>
+		Task<IReadOnlyList<SpcOutlookFetchResult>> RefreshEndpointsAsync(IReadOnlyCollection<string> ids, CancellationToken cancellationToken = default);
+
+		/// <summary>
 		/// Fetches the SPC forecast-discussion narrative text for the product's outlook (the
 		/// prose from the SPC HTML page, scraped from its &lt;pre&gt; block and cached on disk).
 		/// One narrative covers all of a day's hazard sub-products. Returns null when the product

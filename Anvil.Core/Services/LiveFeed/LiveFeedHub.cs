@@ -218,7 +218,8 @@ namespace Anvil.Services
 				_snapshot = _snapshot with { LastProduct = product };
 			}
 			_logger.LogInformation("Live feed: {Product} → {Kind}", product.ProductId, kind);
-			_channels[kind].Trigger();
+			// The outlooks re-fetch only the files the product announces (a SWODY1 = Day 1's four convective files).
+			_channels[kind].Trigger(kind == LiveFeedKind.Outlooks ? SpcOutlookCatalog.IdsForProduct(product.AwipsId) : null);
 			Changed?.Invoke(this, EventArgs.Empty);
 		}
 

@@ -82,5 +82,32 @@ namespace Anvil.Services
 			new SpcOutlookEndpoint("day7-fire", 7, SpcOutlookType.ExtendedFireWeather, "Day 7 Fire Weather", ArcFire + "20" + ArcQuery, null),
 			new SpcOutlookEndpoint("day8-fire", 8, SpcOutlookType.ExtendedFireWeather, "Day 8 Fire Weather", ArcFire + "23" + ArcQuery, null),
 		};
+
+		/// <summary>
+		/// The endpoints an SPC outlook TEXT product announces (live data: a SWODY1 wakes only Day 1's convective files).
+		/// Empty for anything else. ⚠️ Convective vs fire by type: a SWODY* never wakes a fire file, nor FWD* a convective one.
+		/// </summary>
+		public static IReadOnlyList<string> IdsForProduct(string? awipsId)
+		{
+			var pil = (awipsId ?? "").Trim().ToUpperInvariant();
+			var (from, to, fire) = pil switch
+			{
+				"SWODY1" => (1, 1, false),
+				"SWODY2" => (2, 2, false),
+				"SWODY3" => (3, 3, false),
+				"SWOD48" => (4, 8, false),
+				"FWDDY1" => (1, 1, true),
+				"FWDDY2" => (2, 2, true),
+				"FWDD38" => (3, 8, true),
+				_ => (0, -1, false),
+			};
+			var ids = new List<string>();
+			foreach (var e in All)
+			{
+				var isFire = e.Type is SpcOutlookType.FireWeather or SpcOutlookType.ExtendedFireWeather;
+				if (e.Day >= from && e.Day <= to && isFire == fire) { ids.Add(e.Id); }
+			}
+			return ids;
+		}
 	}
 }

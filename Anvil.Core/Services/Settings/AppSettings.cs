@@ -617,6 +617,9 @@ namespace Anvil.Services
 		private int? _pollStormCellsSeconds;
 		public int? PollStormCellsSeconds { get => _pollStormCellsSeconds; set => SetProperty(ref _pollStormCellsSeconds, value); }
 
+		private int? _pollOutlooksSeconds;
+		public int? PollOutlooksSeconds { get => _pollOutlooksSeconds; set => SetProperty(ref _pollOutlooksSeconds, value); }
+
 		/// <summary>The stored polling interval for <paramref name="kind"/> (seconds; null = default).</summary>
 		public int? PollSecondsOf(Models.LiveFeedKind kind) => kind switch
 		{
@@ -625,6 +628,7 @@ namespace Anvil.Services
 			Models.LiveFeedKind.StormReports => PollStormReportsSeconds,
 			Models.LiveFeedKind.Watches => PollWatchesSeconds,
 			Models.LiveFeedKind.Tropical => PollTropicalSeconds,
+			Models.LiveFeedKind.Outlooks => PollOutlooksSeconds,
 			_ => PollStormCellsSeconds,
 		};
 
@@ -638,6 +642,7 @@ namespace Anvil.Services
 				case Models.LiveFeedKind.StormReports: PollStormReportsSeconds = seconds; break;
 				case Models.LiveFeedKind.Watches: PollWatchesSeconds = seconds; break;
 				case Models.LiveFeedKind.Tropical: PollTropicalSeconds = seconds; break;
+				case Models.LiveFeedKind.Outlooks: PollOutlooksSeconds = seconds; break;
 				default: PollStormCellsSeconds = seconds; break;
 			}
 		}
