@@ -4,11 +4,11 @@
      Content is loaded. It replaced the main bar's activity slot (2026-10-16); three states became two (2026-10-19).
 
        …the Content's list, scrolling UNDER the band's edge…
-                               ░▒▒▒▒▒▒▒▒▒▒▒▒░                       ← EDGE-BLUR (trial): the list BLURS (24 px,
-       ░░░░░░░░░░░░░░░░░░░░░░░▒▓╭─ ˄ More ─╮▓▒░░░░░░░░░░░░░░░░░░░░     Media/EdgeBlurBrush) and darkens (14 px, the
-       ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓│          │▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒     main bar's ShadowFadeUp) into the band, and
-       ──────────────────────────┘          └───────────────────────     both WRAP the tab — up its sides, over its
-                                                                          top. The TAB laps the band's hairline 2 px.
+                               ░▒▒▒▒▒▒▒▒▒▒▒▒░                       ← EDGE-SHADE (trial): the list DARKENS into
+       ░░░░░░░░░░░░░░░░░░░░░░░▒▓╭─ ˄ More ─╮▓▒░░░░░░░░░░░░░░░░░░░░     the band — the main bar's black fade made
+       ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│          │▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓     DENSER (DenseShadowFade*, 24 px) — and it
+       ──────────────────────────┘          └───────────────────────     WRAPS the tab: up its sides, over its top.
+                                                                          The TAB laps the band's hairline 2 px.
      HIDDEN (two lines, the same height idle or busy):
        Radar · next check 1:47:30 PM                  Scan due ~1:47:12 PM   ← busy: "New scan" | "1:47:12 PM scan ·
        ─ ─ ─ (a 4 px bar, shown only while busy) ─ ─ ─                         painting" + the bar
@@ -52,7 +52,6 @@
              xmlns:tw="using:Anvil.Controls.TemporalWindows"
              xmlns:ctl="using:Anvil.Controls.Primitives"
              xmlns:vm="using:Anvil.ViewModels"
-             xmlns:media="using:Anvil.Media"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
@@ -202,22 +201,21 @@
             </StackPanel>
         </Grid>
 
-        <!-- ===== EDGE-BLUR (trial, 2026-10-19): the list BLURS as it slides under the band, and the blur + the
-             shadow both WRAP the tab instead of running flat under it. If kept, the main/map bars get the same.
-             Order matters: the blur strips first (they blur the list), the shade over them, the tab last.
-             Every piece hangs OUTSIDE the band on a negative margin, reserves no layout, never takes the pointer. -->
+        <!-- ===== EDGE-SHADE (trial, 2026-10-19): the list DARKENS into the band as it slides under it — the main
+             bar's black fade made DENSER (Styles.xaml DenseShadowFade*, 24 deep vs the bar's 14) — and the shade
+             WRAPS the tab instead of running flat under it. If kept, the main/map bars get the same.
+             Every piece hangs OUTSIDE the band on a negative margin, reserves no layout, never takes the pointer.
+             Strength themed (OverlayBarShadowOpacity: 0.4 light, none in high contrast). -->
 
-        <!-- THE BLUR (Media/EdgeBlurBrush), 24 deep: a full-width run along the band's top edge… -->
+        <!-- The full-width run along the band's top edge… -->
         <Border Height="24" VerticalAlignment="Top" Margin="0,-24,0,0" IsHitTestVisible="False"
-                Opacity="{ThemeResource EdgeBlurOpacity}">
-            <Border.Background>
-                <media:EdgeBlurBrush Fade="Up" BlurAmount="{StaticResource EdgeBlurAmount}"/>
-            </Border.Background>
-        </Border>
+                Background="{StaticResource DenseShadowFadeUp}"
+                Opacity="{ThemeResource OverlayBarShadowOpacity}"/>
         <!-- …and its contour round the tab's 96 × 26 rise (the tab's 28 less its 2 px lap): corner · top · corner
-             over left · [the tab] · right. 144 = 24 + 96 + 24; 50 = 24 + 26. -->
+             over left · [the tab] · right. 144 = 24 + 96 + 24; 50 = 24 + 26. Beside the tab the side pieces lap the
+             run, so the inner corners read a touch darker. -->
         <Grid Width="144" Height="50" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-50,0,0"
-              IsHitTestVisible="False" Opacity="{ThemeResource EdgeBlurOpacity}"
+              IsHitTestVisible="False" Opacity="{ThemeResource OverlayBarShadowOpacity}"
               Visibility="{x:Bind Shown(Activity.HasContent), Mode=OneWay}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="24"/>
@@ -228,48 +226,13 @@
                 <RowDefinition Height="24"/>
                 <RowDefinition Height="26"/>
             </Grid.RowDefinitions>
-            <Border Grid.Row="0" Grid.Column="0">
-                <Border.Background><media:EdgeBlurBrush Fade="UpLeft" BlurAmount="{StaticResource EdgeBlurAmount}"/></Border.Background>
-            </Border>
-            <Border Grid.Row="0" Grid.Column="1">
-                <Border.Background><media:EdgeBlurBrush Fade="Up" BlurAmount="{StaticResource EdgeBlurAmount}"/></Border.Background>
-            </Border>
-            <Border Grid.Row="0" Grid.Column="2">
-                <Border.Background><media:EdgeBlurBrush Fade="UpRight" BlurAmount="{StaticResource EdgeBlurAmount}"/></Border.Background>
-            </Border>
-            <Border Grid.Row="1" Grid.Column="0">
-                <Border.Background><media:EdgeBlurBrush Fade="Left" BlurAmount="{StaticResource EdgeBlurAmount}"/></Border.Background>
-            </Border>
-            <Border Grid.Row="1" Grid.Column="2">
-                <Border.Background><media:EdgeBlurBrush Fade="Right" BlurAmount="{StaticResource EdgeBlurAmount}"/></Border.Background>
-            </Border>
+            <Border Grid.Row="0" Grid.Column="0" Background="{StaticResource DenseShadowFadeUpLeft}"/>
+            <Border Grid.Row="0" Grid.Column="1" Background="{StaticResource DenseShadowFadeUp}"/>
+            <Border Grid.Row="0" Grid.Column="2" Background="{StaticResource DenseShadowFadeUpRight}"/>
+            <Border Grid.Row="1" Grid.Column="0" Background="{StaticResource DenseShadowFadeRight}"/>
+            <Border Grid.Row="1" Grid.Column="2" Background="{StaticResource DenseShadowFadeLeft}"/>
         </Grid>
-
-        <!-- THE SHADOW over the blur — the main bar's ShadowFadeUp, 14 deep, its strength themed
-             (OverlayBarShadowOpacity): the full-width run… -->
-        <Border Height="14" VerticalAlignment="Top" Margin="0,-14,0,0" IsHitTestVisible="False"
-                Background="{StaticResource ShadowFadeUp}"
-                Opacity="{ThemeResource OverlayBarShadowOpacity}"/>
-        <!-- …and its contour round the tab, the same shape 14 deep. 124 = 14 + 96 + 14; 40 = 14 + 26. -->
-        <Grid Width="124" Height="40" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-40,0,0"
-              IsHitTestVisible="False" Opacity="{ThemeResource OverlayBarShadowOpacity}"
-              Visibility="{x:Bind Shown(Activity.HasContent), Mode=OneWay}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="14"/>
-                <ColumnDefinition Width="96"/>
-                <ColumnDefinition Width="14"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="14"/>
-                <RowDefinition Height="26"/>
-            </Grid.RowDefinitions>
-            <Border Grid.Row="0" Grid.Column="0" Background="{StaticResource ShadowFadeUpLeft}"/>
-            <Border Grid.Row="0" Grid.Column="1" Background="{StaticResource ShadowFadeUp}"/>
-            <Border Grid.Row="0" Grid.Column="2" Background="{StaticResource ShadowFadeUpRight}"/>
-            <Border Grid.Row="1" Grid.Column="0" Background="{StaticResource ShadowFadeRight}"/>
-            <Border Grid.Row="1" Grid.Column="2" Background="{StaticResource ShadowFadeLeft}"/>
-        </Grid>
-        <!-- ===== /EDGE-BLUR ===== -->
+        <!-- ===== /EDGE-SHADE ===== -->
 
         <!-- THE TAB: the main rail's pull tab (Primitives/OverlayBarTab), Raised to wear the band's face, lapping the
              band's hairline 2 px (its own -2 foot margin; -26 here = its 28 less that lap). ManualToggle: a click

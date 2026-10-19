@@ -69,7 +69,7 @@
          a readout), so the mode's name shows once, in the Content (ForeCast was the last, 2026-10-07). -->
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>    <!-- the Content: NO bottom margin (EDGE-BLUR trial) — its list scrolls under the expander's blur -->
+            <RowDefinition Height="*"/>    <!-- the Content: NO bottom margin (EDGE-SHADE trial) — its list scrolls under the expander's shade -->
             <RowDefinition Height="Auto"/> <!-- TemporalWindowActivityExpander: full width, its height by state -->
         </Grid.RowDefinitions>
 
