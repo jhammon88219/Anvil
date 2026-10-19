@@ -43,12 +43,16 @@ namespace Anvil.ViewModels
 		/// <summary>This feed's refresh timing for the NowCast activity expander (FeedStatus).</summary>
 		public FeedStatus Status { get; }
 
+		/// <summary>This layer's row in PastCast's activity expander (what the loaded event downloaded).</summary>
+		public PastLayerStatus PastStatus { get; } = new(Models.LayerOrder.Reports, "Storm reports", "SPC + IEM");
+
 		/// <param name="live">This feed's schedule from the live-feed hub (null = poll at the default interval).</param>
 		public StormReportsViewModel(IMapService mapService, IStormReportService reportService, RadarViewModel radar, IDispatcher dispatcher, ILogger<StormReportsViewModel> logger,
 			LiveFeedChannel? live = null)
 		{
 			Status = new FeedStatus(Models.LayerOrder.Reports, "Storm reports", dispatcher);
 			_live = live ?? LiveFeedChannel.Polling(Models.LiveFeedKind.StormReports, Models.LiveFeedKinds.DefaultPoll(Models.LiveFeedKind.StormReports));
+			PastStatus.OnRetry(() => _ = EnsureAndShowAsync());
 			_mapService = mapService;
 			_reportService = reportService;
 			_radar = radar;
@@ -412,12 +416,14 @@ namespace Anvil.ViewModels
 				WindCount = 0;
 				HailCount = 0;
 				SetCard("No reports loaded", string.Empty, "Load a timeframe to see its reports");
+				PastStatus.Idle();
 				await ClearOverlayAsync();
 				return;
 			}
 
 			var immutable = _radar.IsPastEventMode;
 			SetCard(CardHeadline, ContextFor(day), "Loading…");
+			if (immutable) { PastStatus.Loading(); } // only a PASTCAST day reports to the activity row
 
 			StormReportResult result;
 			_fetchInFlight = true;
@@ -436,6 +442,7 @@ namespace Anvil.ViewModels
 				if (token == _applyToken)
 				{
 					SetCard(NoReportsHeadline, ContextFor(day), "Storm reports unavailable.");
+					if (immutable) { PastStatus.Failed("Storm reports unavailable."); }
 					await ClearOverlayAsync();
 				}
 				return;
@@ -453,10 +460,18 @@ namespace Anvil.ViewModels
 			if (!result.Found)
 			{
 				SetCard(NoReportsHeadline, ContextFor(day), result.Error ?? "Storm reports unavailable.");
+				if (immutable) { PastStatus.Failed(result.Error ?? "Storm reports unavailable."); }
 				await ClearOverlayAsync();
 				return;
 			}
 
+			if (immutable)
+			{
+				// The reports are the convective DAY's (12Z→12Z), not just the window's — the row says so.
+				var n = result.Reports?.Count ?? result.Tornado + result.Wind + result.Hail;
+				if (n == 0) { PastStatus.Empty("none that day"); }
+				else { PastStatus.Loaded(PastLayerStatus.Count(n, "report", "reports") + " that day"); }
+			}
 			SetCounts(result);
 			_loadedDay = day;
 			await _mapService.SetStormReportsSourceAsync(_reportService.LocalUrl(day));

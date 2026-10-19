@@ -52,7 +52,7 @@ namespace Anvil.Controls.TemporalWindows
 
 		public bool Not(bool value) => !value;
 
-		public string TabHint(bool opensMore) => opensMore ? "Show every feed's times" : "Show less";
+		public string TabHint(bool opensMore, bool past) => !opensMore ? "Show less" : past ? "Show what this event downloaded" : "Show every feed's times";
 
 		// Active = full strength; idle = dimmed, NEVER gone (the idle line stays readable).
 		public double LinesOpacity(bool active) => active ? 1 : IdleOpacity;

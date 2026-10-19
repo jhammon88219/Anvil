@@ -29,16 +29,47 @@ namespace Anvil.ViewModels
 		/// <param name="readState">Reads the persisted state token (an <c>AppSettings</c> property).</param>
 		/// <param name="writeState">Writes it back.</param>
 		/// <param name="live">Where the feeds' updates come from (the Full table's SOURCE LINE); null = no line.</param>
+		/// <param name="pastLayers">PastCast's LAYER · RESULT · SOURCE rows (what the loaded event downloaded); null = none.</param>
 		public TemporalActivityViewModel(BarActivityViewModel? radar, IEnumerable<FeedStatus> feeds,
-			Func<string> readState, Action<string> writeState, LiveDataViewModel? live = null)
+			Func<string> readState, Action<string> writeState, LiveDataViewModel? live = null,
+			IEnumerable<PastLayerStatus>? pastLayers = null)
 		{
 			Radar = radar;
 			Live = live;
 			Feeds = new ObservableCollection<FeedStatus>(feeds);
+			PastLayers = new ObservableCollection<PastLayerStatus>(pastLayers ?? Array.Empty<PastLayerStatus>());
 			_writeState = writeState;
 			_state = ActivityExpanderStates.Normalize(readState());
 			foreach (var f in Feeds) f.PropertyChanged += OnFeedChanged;
+			foreach (var l in PastLayers) l.PropertyChanged += OnPastLayerChanged;
 			RefreshSummary();
+		}
+
+		// ── PastCast: what the loaded event downloaded ──
+
+		/// <summary>PastCast's rows, top first in the window's layer order (<see cref="ApplyLayerOrder"/>).</summary>
+		public ObservableCollection<PastLayerStatus> PastLayers { get; }
+
+		public bool HasPastLayers => PastLayers.Count > 0;
+
+		private string _eventLine = string.Empty, _loadedText = string.Empty;
+
+		/// <summary>The table's title: the loaded event ("KTLX · May 20, 2013 · 1:00 PM–3:00 PM"), empty before a load.</summary>
+		public string EventLine { get => _eventLine; private set => SetProperty(ref _eventLine, value); }
+
+		/// <summary>The title's right side: "loaded 3:12 PM" once the radar finished, else empty.</summary>
+		public string LoadedText { get => _loadedText; private set => SetProperty(ref _loadedText, value); }
+
+		/// <summary>Sets the title line (MapViewModel, from the loop holding gate's event line + the load's end).</summary>
+		internal void SetEvent(string eventLine, DateTimeOffset? loadedAt)
+		{
+			EventLine = eventLine;
+			LoadedText = loadedAt is { } t ? $"loaded {FeedStatus.ClockMinutes(t)}" : string.Empty;
+		}
+
+		private void OnPastLayerChanged(object? sender, PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName is nameof(PastLayerStatus.State) or nameof(PastLayerStatus.ResultText)) { RefreshSummary(); }
 		}
 
 		/// <summary>The radar's live work (NowCast); null for a mode without radar activity.</summary>
@@ -57,7 +88,13 @@ namespace Anvil.ViewModels
 		public bool HasLive => Live is not null;
 
 		/// <summary>Anything to show at all — false = a bare band with no tab.</summary>
-		public bool HasContent => HasRadar || HasFeeds;
+		public bool HasContent => HasRadar || HasFeeds || HasPastLayers;
+
+		/// <summary>The FEED · EVERY · LAST · NEXT table shows (NowCast, ForeCast) — PastCast has its own.</summary>
+		public bool HasFeedTable => HasRadar || HasFeeds;
+
+		/// <summary>There's a one-line <see cref="Summary"/> to show.</summary>
+		public bool HasSummary => HasFeeds || HasPastLayers;
 
 		// ── The expander's state (ActivityExpanderStates tokens) ──
 
@@ -108,6 +145,11 @@ namespace Anvil.ViewModels
 
 		private void RefreshSummary()
 		{
+			if (HasPastLayers)
+			{
+				RefreshPastSummary();
+				return;
+			}
 			var failed = Feeds.Where(f => f.State == FeedState.Failed).ToList();
 			SummaryHasFailure = failed.Count > 0;
 			if (failed.Count == 1)
@@ -140,17 +182,52 @@ namespace Anvil.ViewModels
 				: $"{current.Count} of {Feeds.Count} feeds current · last {last}";
 		}
 
-		// ── Feed order ──
+		// PastCast's line (both states): "Load an event to see what it downloads" · "Loading · 6 of 9 layers in" ·
+		// "All 9 layers loaded" · "8 of 9 layers loaded · Damage surveys failed" · "7 of 9 … · 2 failed: a, b".
+		private void RefreshPastSummary()
+		{
+			var total = PastLayers.Count;
+			var failed = PastLayers.Where(l => l.State == PastLayerState.Failed).ToList();
+			var done = PastLayers.Count(l => l.IsIn);
+			SummaryHasFailure = failed.Count > 0;
+			if (PastLayers.All(l => l.State == PastLayerState.Waiting))
+			{
+				Summary = "Load an event to see what it downloads";
+				return;
+			}
+			if (PastLayers.Any(l => l.State == PastLayerState.Loading))
+			{
+				Summary = $"Loading · {done} of {total} layers in";
+				return;
+			}
+			Summary = failed.Count switch
+			{
+				0 when done == total => $"All {total} layers loaded",
+				0 => $"{done} of {total} layers loaded",
+				1 => $"{done} of {total} layers loaded · {failed[0].Name} failed",
+				_ => $"{done} of {total} layers loaded · {failed.Count} failed: {string.Join(", ", failed.Select(l => l.Name))}",
+			};
+		}
 
-		/// <summary>Re-sort <see cref="Feeds"/> to the window's layer order (top first); unknown ids keep their place at the end.</summary>
+		// ── Row order ──
+
+		/// <summary>Re-sort <see cref="Feeds"/> and <see cref="PastLayers"/> to the window's layer order (top first);
+		/// unknown ids keep their place at the end.</summary>
 		public void ApplyLayerOrder(IReadOnlyList<string> topFirst)
 		{
-			var rank = topFirst.Select((id, i) => (id, i)).ToDictionary(p => p.id, p => p.i);
-			var sorted = Feeds.OrderBy(f => rank.TryGetValue(f.LayerId, out var r) ? r : int.MaxValue).ToList();
-			for (var i = 0; i < sorted.Count; i++)
+			// First place wins if a saved order ever repeats an id (a plain ToDictionary would throw).
+			var rank = topFirst.Select((id, i) => (id, i)).GroupBy(p => p.id).ToDictionary(g => g.Key, g => g.First().i);
+			Sort(Feeds, f => f.LayerId);
+			Sort(PastLayers, l => l.LayerId);
+
+			void Sort<T>(ObservableCollection<T> rows, Func<T, string> idOf)
 			{
-				var at = Feeds.IndexOf(sorted[i]);
-				if (at != i) Feeds.Move(at, i);
+				var sorted = rows.OrderBy(r => rank.TryGetValue(idOf(r), out var n) ? n : int.MaxValue).ToList();
+				for (var i = 0; i < sorted.Count; i++)
+				{
+					var at = rows.IndexOf(sorted[i]);
+					if (at != i) rows.Move(at, i);
+				}
 			}
 		}
 	}

@@ -44,7 +44,11 @@ namespace Anvil.ViewModels
 			_radar = radar;
 			_logger = logger;
 			_radar.PropertyChanged += OnRadarChanged;
+			PastStatus.OnRetry(() => _ = EnsureAndShowAsync());
 		}
+
+		/// <summary>This layer's row in PastCast's activity expander (what the loaded event downloaded).</summary>
+		public PastLayerStatus PastStatus { get; } = new(LayerOrder.Damage, "Damage surveys", "NWS DAT + NCEI");
 
 		// ── Per-layer toggles ──
 		// ⚠️ POLYGONS AND TRACKS ARE TICKED BY DEFAULT (the user's call, revised from polygons-only): the
@@ -184,6 +188,14 @@ namespace Anvil.ViewModels
 			var n => $"{n} tornado tracks",
 		};
 
+		// The activity row's RESULT: "12 tracks · 3 areas" (points only when nothing else came).
+		private static string ResultFor(DamageSurveyResult r)
+		{
+			if (r.Tracks == 0 && r.Areas == 0) { return PastLayerStatus.Count(r.Points, "point", "points"); }
+			var tracks = PastLayerStatus.Count(r.Tracks, "track", "tracks");
+			return r.Areas == 0 ? tracks : $"{tracks} · {PastLayerStatus.Count(r.Areas, "area", "areas")}";
+		}
+
 		// ── Lifecycle ──
 
 		/// <summary>Called by MapViewModel once the map page is ready.</summary>
@@ -251,11 +263,13 @@ namespace Anvil.ViewModels
 				TrackCount = 0;
 				PointCount = 0;
 				SetCard("No surveys loaded", string.Empty, "Load a timeframe to see its damage surveys");
+				PastStatus.Idle();
 				await ClearOverlayAsync();
 				return;
 			}
 
 			SetCard(CardHeadline, ContextFor(window), "Loading…");
+			PastStatus.Loading();
 
 			DamageSurveyResult result;
 			_fetchInFlight = true;
@@ -271,6 +285,7 @@ namespace Anvil.ViewModels
 				if (token == _applyToken)
 				{
 					SetCard("No surveys", ContextFor(window), "NWS damage surveys unavailable.");
+					PastStatus.Failed("NWS damage surveys unavailable.");
 					await ClearOverlayAsync();
 				}
 				return;
@@ -286,9 +301,12 @@ namespace Anvil.ViewModels
 			if (!result.Found)
 			{
 				SetCard("No surveys", ContextFor(window), result.Error ?? "NWS damage surveys unavailable.");
+				PastStatus.Failed(result.Error ?? "NWS damage surveys unavailable.");
 				await ClearOverlayAsync();
 				return;
 			}
+			if (result.Tracks == 0 && result.Areas == 0 && result.Points == 0) { PastStatus.Empty(); }
+			else { PastStatus.Loaded(ResultFor(result)); }
 
 			AreaCount = result.Areas;
 			TrackCount = result.Tracks;

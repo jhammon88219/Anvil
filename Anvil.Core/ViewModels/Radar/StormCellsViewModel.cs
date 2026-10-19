@@ -53,11 +53,16 @@ namespace Anvil.ViewModels
 		/// <summary>This feed's refresh timing for the NowCast activity expander (FeedStatus).</summary>
 		public FeedStatus Status { get; }
 
+		/// <summary>This layer's row in PastCast's activity expander (what the loaded event downloaded).</summary>
+		public PastLayerStatus PastStatus { get; } = new(Models.LayerOrder.Cells, "Storm cells", "IEM");
+
 		public StormCellsViewModel(IMapService mapService, IStormCellService service, RadarViewModel radar,
 			IDispatcher dispatcher, ILogger<StormCellsViewModel> logger, LiveFeedChannel? live = null)
 		{
 			Status = new FeedStatus(Models.LayerOrder.Cells, "Storm cells", dispatcher);
 			_live = live ?? LiveFeedChannel.Polling(Models.LiveFeedKind.StormCells, Models.LiveFeedKinds.DefaultPoll(Models.LiveFeedKind.StormCells));
+			// A failed past fetch never set _loadedKey, so an ordinary ensure fetches again.
+			PastStatus.OnRetry(() => _ = EnsureAsync(refresh: false));
 			_mapService = mapService;
 			_service = service;
 			_radar = radar;
@@ -238,6 +243,7 @@ namespace Anvil.ViewModels
 			CardHeadline = "No storm cells";
 			CardContext = string.Empty;
 			SetMessage(_isModeActive ? "Load a radar site to see its storm cells" : string.Empty);
+			PastStatus.Idle();
 		}
 
 		private async Task EnsureAsync(bool refresh)
@@ -255,11 +261,13 @@ namespace Anvil.ViewModels
 				CardHeadline = "No storm cells";
 				CardContext = key.Site;
 				SetMessage("Storm attributes exist for NWS WSR-88D sites only.");
+				if (!key.Live) { PastStatus.Empty("NEXRAD sites only"); }
 				return;
 			}
 
 			var token = ++_applyToken;
 			if (!refresh) { SetMessage("Loading…"); }
+			if (!key.Live) { PastStatus.Loading(); }
 
 			var end = key.Live ? DateTimeOffset.UtcNow : key.End;
 			var start = key.Live ? end - LiveSpan : key.Start;
@@ -282,6 +290,14 @@ namespace Anvil.ViewModels
 
 			if (key.Live) { if (fetch.Found) { Status.Succeeded(); } else { Status.Failed(); } }
 			if (token != _applyToken) { return; }
+			if (!key.Live)
+			{
+				// Cells are re-numbered per scan only loosely; distinct ids over the window = the cells IEM tracked.
+				var cells = fetch.Scans.SelectMany(s => s.Cells).Select(c => c.Id).Distinct().Count();
+				if (!fetch.Found) { PastStatus.Failed(fetch.Error ?? "IEM storm attributes unavailable."); }
+				else if (cells == 0) { PastStatus.Empty(); }
+				else { PastStatus.Loaded(PastLayerStatus.Count(cells, "cell", "cells")); }
+			}
 
 			if (!fetch.Found)
 			{

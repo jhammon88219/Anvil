@@ -27,7 +27,16 @@
      The band is the RAISED tier face (OverlayBarSurfaceRaisedBrush) so the tab — Raised, the main rail's tabs' face —
      blends into it with no seam. Top hairline turns the TONE colour while the radar is loud (blue = working · green =
      done · red = failed). ForeCast: no radar line, ONE feed row (Outlooks) + the source line; Hidden = "Outlooks current ·
-     last …". PastCast has no activity yet (Activity.HasContent false): a bare band, no tab.
+     last …".
+     PASTCAST (2026-10-19, idea A): what the LOADED EVENT downloaded — no radar line, no feed table; its own table:
+       KTLX · May 20, 2013 · 1:00 PM–3:00 PM                 loaded 3:12 PM   ← the gate's event line
+       ─────────────────────────────────────────
+         LAYER                RESULT                SOURCE       ← TemporalWindowActivityExpanderLoadRow (IsHeader)
+       ● Radar                96 frames             NEXRAD (AWS)
+       ● Damage surveys       failed 3:12 PM        [ Retry ]    ← PastLayerStatus rows, PastCast's layer order
+       ● Tropical             none in window        IEM
+       ─────────────────────────────────────────
+       ● 8 of 9 layers loaded · Damage surveys failed   ← also the HIDDEN line (Activity.Summary)
 
      ⚠️ NOTHING COUNTS DOWN (the user's call, 2026-10-19): every time is a CLOCK time; only a busy scan's bar moves.
      ⚠️ TABULAR DIGITS on every number (TabularNumberTextStyle) + FIXED columns (the row control owns their widths).
@@ -50,6 +59,10 @@
         <!-- One FEED row (the row control owns the columns, the hover and the failed red). -->
         <DataTemplate x:Key="FeedRowTemplate" x:DataType="vm:FeedStatus">
             <tw:TemporalWindowActivityExpanderFeedRow Status="{x:Bind}"/>
+        </DataTemplate>
+        <!-- One PastCast LAYER row (the row control owns the columns, the hover, the red and Retry). -->
+        <DataTemplate x:Key="LoadRowTemplate" x:DataType="vm:PastLayerStatus">
+            <tw:TemporalWindowActivityExpanderLoadRow Status="{x:Bind}"/>
         </DataTemplate>
     </UserControl.Resources>
 
@@ -123,7 +136,7 @@
 
                 <!-- ===== HIDDEN: the one-line feed summary (names only a feed in trouble). ===== -->
                 <StackPanel x:Name="FeedSummary" Orientation="Horizontal" Spacing="7" Height="20" Margin="6,3,6,0"
-                            Visibility="{x:Bind ShownWhen(Activity.IsHidden, Activity.HasFeeds), Mode=OneWay}">
+                            Visibility="{x:Bind ShownWhen(Activity.IsHidden, Activity.HasSummary), Mode=OneWay}">
                     <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="#FFF85149"
                              Visibility="{x:Bind Shown(Activity.SummaryHasFailure), Mode=OneWay}"/>
                     <TextBlock Text="{x:Bind Activity.Summary, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
@@ -133,13 +146,42 @@
 
                 <!-- ===== FULL: the FEED table — labels, the radar's row, then every feed. ===== -->
                 <StackPanel x:Name="FeedTable" Visibility="{x:Bind Shown(Activity.IsFull), Mode=OneWay}">
-                    <Border Height="1" Margin="6,10,6,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                    <tw:TemporalWindowActivityExpanderFeedRow x:Name="TemporalWindowActivityExpanderFeedRowHeader" IsHeader="True"/>
-                    <tw:TemporalWindowActivityExpanderFeedRow x:Name="TemporalWindowActivityExpanderFeedRowRadar"
-                                                              Status="{x:Bind Activity.Radar.Status, Mode=OneWay}"
-                                                              Visibility="{x:Bind Shown(Activity.HasRadar), Mode=OneWay}"/>
-                    <ItemsControl ItemsSource="{x:Bind Activity.Feeds, Mode=OneWay}"
-                                  ItemTemplate="{StaticResource FeedRowTemplate}"/>
+                    <StackPanel x:Name="FeedRows" Visibility="{x:Bind Shown(Activity.HasFeedTable), Mode=OneWay}">
+                        <Border Height="1" Margin="6,10,6,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <tw:TemporalWindowActivityExpanderFeedRow x:Name="TemporalWindowActivityExpanderFeedRowHeader" IsHeader="True"/>
+                        <tw:TemporalWindowActivityExpanderFeedRow x:Name="TemporalWindowActivityExpanderFeedRowRadar"
+                                                                  Status="{x:Bind Activity.Radar.Status, Mode=OneWay}"
+                                                                  Visibility="{x:Bind Shown(Activity.HasRadar), Mode=OneWay}"/>
+                        <ItemsControl ItemsSource="{x:Bind Activity.Feeds, Mode=OneWay}"
+                                      ItemTemplate="{StaticResource FeedRowTemplate}"/>
+                    </StackPanel>
+
+                    <!-- PASTCAST's table (idea A, 2026-10-19): what the loaded event downloaded, layer by layer. -->
+                    <StackPanel x:Name="PastTable" Visibility="{x:Bind Shown(Activity.HasPastLayers), Mode=OneWay}">
+                        <Grid Height="22" Padding="6,0" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{x:Bind Activity.EventLine, Mode=OneWay}" FontSize="13.5" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Style="{StaticResource TabularNumberTextStyle}"/>
+                            <TextBlock Grid.Column="1" Text="{x:Bind Activity.LoadedText, Mode=OneWay}" FontSize="13"
+                                       VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </Grid>
+                        <Border Height="1" Margin="6,6,6,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <tw:TemporalWindowActivityExpanderLoadRow x:Name="TemporalWindowActivityExpanderLoadRowHeader" IsHeader="True"/>
+                        <ItemsControl ItemsSource="{x:Bind Activity.PastLayers, Mode=OneWay}"
+                                      ItemTemplate="{StaticResource LoadRowTemplate}"/>
+                        <Border Height="1" Margin="6,6,6,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="7" Height="22" Padding="6,0">
+                            <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="#FFF85149"
+                                     Visibility="{x:Bind Shown(Activity.SummaryHasFailure), Mode=OneWay}"/>
+                            <TextBlock Text="{x:Bind Activity.Summary, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Style="{StaticResource TabularNumberTextStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
 
                     <!-- THE SOURCE LINE (idea B, 2026-10-19): which live service the feeds' times come from, or why they
                          poll. Full state only; NowCast only (Activity.HasLive). Words: LiveDataViewModel.SourceLine. -->
@@ -172,7 +214,7 @@
                            Visibility="{x:Bind Shown(Activity.HasContent), Mode=OneWay}"
                            IsShown="{x:Bind Not(Activity.OpensMore), Mode=OneWay}"
                            Label="{x:Bind Activity.TabLabel, Mode=OneWay}"
-                           Hint="{x:Bind TabHint(Activity.OpensMore), Mode=OneWay}"
+                           Hint="{x:Bind TabHint(Activity.OpensMore, Activity.HasPastLayers), Mode=OneWay}"
                            Clicked="OnTabClicked"/>
     </Grid>
 </UserControl>

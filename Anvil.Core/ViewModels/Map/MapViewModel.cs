@@ -108,14 +108,25 @@ namespace Anvil.ViewModels
 			NowCastActivity = new TemporalActivityViewModel(Activity,
 				new[] { Warnings.Status, Watches.Status, StormReports.Status, StormCells.Status, Tropical.Status, Discussions.Status },
 				() => settings.NowCastActivity, t => settings.NowCastActivity = t, LiveData);
+			// PastCast: what the LOADED EVENT downloaded — one LAYER · RESULT · SOURCE row per layer (each VM's PastStatus),
+			// the radar's read off the loop holding gate (PastRadarLoadRow), in PastCast's own layer order.
+			var pastRadar = new PastLayerStatus(LayerOrder.Radar, "Radar", "NEXRAD (AWS)");
 			PastCastActivity = new TemporalActivityViewModel(null, Array.Empty<FeedStatus>(),
-				() => settings.PastCastActivity, t => settings.PastCastActivity = t);
+				() => settings.PastCastActivity, t => settings.PastCastActivity = t, pastLayers: new[]
+				{
+					pastRadar, StormCells.PastStatus, StormReports.PastStatus, DamageSurveys.PastStatus,
+					PastAlerts.WarningsStatus, PastAlerts.WatchesStatus, Tropical.PastStatus, Discussions.PastStatus,
+					PastOutlook.PastStatus,
+				});
+			_pastRadarRow = PastRadarLoadRow.Attach(Radar, pastRadar, PastCastActivity);
+			PastCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Past));
 			ForeCastActivity = new TemporalActivityViewModel(null, new[] { Outlook.Status },
 				() => settings.ForeCastActivity, t => settings.ForeCastActivity = t, LiveData);
 			NowCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
 			LayerOrderChanged += (_, mode) =>
 			{
 				if (mode == TemporalMode.Now) NowCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
+				if (mode == TemporalMode.Past) PastCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Past));
 			};
 			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
 			SiteUsage = new SiteUsageTracker(Radar, siteUsageStore);
@@ -275,6 +286,9 @@ namespace Anvil.ViewModels
 		/// <summary>Each temporal window's activity expander (<c>TemporalWindows/TemporalWindowActivityExpander</c>).</summary>
 		public TemporalActivityViewModel NowCastActivity { get; }
 		public TemporalActivityViewModel PastCastActivity { get; }
+
+		// Keeps the radar row's gate listeners rooted for the app's life (the gate lives as long as Radar).
+		private readonly PastRadarLoadRow _pastRadarRow;
 		public TemporalActivityViewModel ForeCastActivity { get; }
 
 		/// <summary>The activity expander of <paramref name="mode"/>'s window.</summary>

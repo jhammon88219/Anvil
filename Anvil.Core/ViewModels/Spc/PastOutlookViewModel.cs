@@ -30,11 +30,15 @@ namespace Anvil.ViewModels
 		private bool _isMapReady;
 		private int _applyToken; // guards a stale async apply when the selection changes mid-fetch
 
+		/// <summary>This layer's row in PastCast's activity expander (what the loaded event downloaded).</summary>
+		public PastLayerStatus PastStatus { get; } = new(LayerOrder.Outlook, "SPC outlook", "IEM");
+
 		public PastOutlookViewModel(IMapService mapService, ISpcOutlookService outlookService, RadarViewModel radar)
 		{
 			_mapService = mapService;
 			_outlookService = outlookService;
 			_radar = radar;
+			PastStatus.OnRetry(() => _ = ApplyAsync());
 
 			Days = new[] { new DayOption(1, "Day 1"), new DayOption(2, "Day 2"), new DayOption(3, "Day 3") };
 			_selectedDayOption = Days[0];
@@ -428,10 +432,13 @@ namespace Anvil.ViewModels
 			var token = ++_applyToken;
 			NarrativeText = NoNarrative; // every early return below leaves it here; the success path fetches
 			var type = _selectedProductOption.Type;
+			// The activity row: "not shown" on purpose until a product is picked AND ticked (nothing is fetched to draw).
+			var loaded = _radar.LoadedReplayStartUtc is not null;
 			if (type is null)
 			{
 				await ClearLayerAsync();
 				SetCard(NoOutlookHeadline, string.Empty, string.Empty);
+				if (loaded) { PastStatus.Off("no product picked"); } else { PastStatus.Idle(); }
 				return;
 			}
 
@@ -440,6 +447,7 @@ namespace Anvil.ViewModels
 			{
 				await ClearLayerAsync();
 				SetCard(_selectedProductOption.Label, $"Day {day}", "Hidden — tick the box to draw it");
+				if (loaded) { PastStatus.Off(); } else { PastStatus.Idle(); }
 				await RefreshHiddenNarrativeAsync(day, token);
 				return;
 			}
@@ -450,11 +458,13 @@ namespace Anvil.ViewModels
 			{
 				await ClearLayerAsync();
 				SetCard(NoOutlookHeadline, string.Empty, "Load a timeframe to see its outlook");
+				PastStatus.Idle();
 				return;
 			}
 
 			var date = ConvectiveDay(replayStart);
 			SetCard(_selectedProductOption.Label, ContextFor(day, date, null), "Loading…");
+			PastStatus.Loading();
 
 			var (result, cycleUsed) = await EnsureWithFallbackAsync(date, day);
 			if (token != _applyToken) return; // a newer selection won
@@ -464,10 +474,12 @@ namespace Anvil.ViewModels
 				await ClearLayerAsync();
 				SetCard(_selectedProductOption.Label, ContextFor(day, date, null),
 					result?.Error is { } err ? $"Outlook fetch failed: {err}" : "Outlook fetch failed.");
+				PastStatus.Failed(result?.Error ?? "Outlook fetch failed.");
 				return;
 			}
 			if (!result.Found || !result.AvailableTypes.Contains(type.Value))
 			{
+				PastStatus.Empty(result.Found ? $"not in the {SpcIssuanceCycles.Label(cycleUsed)} issuance" : "none archived");
 				await ClearLayerAsync();
 				SetCard(_selectedProductOption.Label,
 					ContextFor(day, date, result.Found ? cycleUsed : null),
@@ -491,6 +503,7 @@ namespace Anvil.ViewModels
 			await _mapService.SetOutlookHatchingVisibleAsync(_showHatching);
 			if (token != _applyToken) return; // a newer selection won while the show was in flight
 			SetLegend(product);
+			PastStatus.Loaded($"Day {day} · {SpcIssuanceCycles.Label(cycleUsed)}");
 
 			SetCard(_selectedProductOption.Label, ContextFor(day, date, cycleUsed), FormatTimes(result.Times));
 			await RefreshNarrativeAsync(date, day, cycleUsed, token);

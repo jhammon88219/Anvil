@@ -48,11 +48,16 @@ namespace Anvil.ViewModels
 		/// <summary>This feed's refresh timing for the NowCast activity expander (FeedStatus).</summary>
 		public FeedStatus Status { get; }
 
+		/// <summary>This layer's row in PastCast's activity expander (what the loaded event downloaded).</summary>
+		public PastLayerStatus PastStatus { get; } = new(Models.LayerOrder.Tropical, "Tropical", "IEM");
+
 		public TropicalViewModel(IMapService mapService, ITropicalService service, RadarViewModel radar,
 			IDispatcher dispatcher, ILogger<TropicalViewModel> logger, LiveFeedChannel? live = null)
 		{
 			Status = new FeedStatus(Models.LayerOrder.Tropical, "Tropical", dispatcher);
 			_live = live ?? LiveFeedChannel.Polling(Models.LiveFeedKind.Tropical, Models.LiveFeedKinds.DefaultPoll(Models.LiveFeedKind.Tropical));
+			// A failed past fetch never set _loadedKey, so an ordinary ensure fetches again.
+			PastStatus.OnRetry(() => _ = EnsureAsync(refresh: false));
 			_mapService = mapService;
 			_service = service;
 			_radar = radar;
@@ -219,6 +224,7 @@ namespace Anvil.ViewModels
 				CardHeadline = "No tropical alerts";
 				CardContext = string.Empty;
 				SetMessage(_isModeActive && _radar.IsPastEventMode ? "Load a timeframe to see its tropical alerts" : string.Empty);
+				PastStatus.Idle();
 				return;
 			}
 			if (!Equals(want, _loadedKey)) { _ = EnsureAsync(refresh: false); }
@@ -233,6 +239,7 @@ namespace Anvil.ViewModels
 
 			var token = ++_applyToken;
 			if (!refresh) { SetMessage("Loading…"); }
+			if (!key.Live) { PastStatus.Loading(); }
 
 			TropicalFetch fetch;
 			_inFlightKey = key;
@@ -247,6 +254,12 @@ namespace Anvil.ViewModels
 
 			if (key.Live) { if (fetch.Found) { Status.Succeeded(); } else { Status.Failed(); } }
 			if (token != _applyToken) { return; }
+			if (!key.Live)
+			{
+				if (!fetch.Found) { PastStatus.Failed(fetch.Error ?? "Tropical alerts unavailable."); }
+				else if (fetch.Zones.Count == 0) { PastStatus.Empty(); }
+				else { PastStatus.Loaded(PastLayerStatus.Count(fetch.Zones.Count, "zone", "zones")); }
+			}
 			if (!fetch.Found)
 			{
 				if (!refresh) { await ClearAsync(); }

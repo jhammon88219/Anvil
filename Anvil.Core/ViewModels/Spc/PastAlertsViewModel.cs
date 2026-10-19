@@ -48,6 +48,20 @@ namespace Anvil.ViewModels
 			Warnings = new PastPhenomOverlay(mapService, "warnings", "warning", "warnings", isWarnings: true);
 			Watches = new PastPhenomOverlay(mapService, "watches", "watch", "watches", isWarnings: false);
 			_radar.PropertyChanged += OnRadarChanged;
+			// ONE fetch feeds both rows, so either Retry refetches both (the in-flight dedupe drops a second press).
+			WarningsStatus.OnRetry(RetryFetch);
+			WatchesStatus.OnRetry(RetryFetch);
+		}
+
+		/// <summary>The warnings' row in PastCast's activity expander (what the loaded event downloaded).</summary>
+		public PastLayerStatus WarningsStatus { get; } = new(LayerOrder.Warnings, "Warnings", "IEM");
+
+		/// <summary>The watches' row — the same IEM archive fetch as <see cref="WarningsStatus"/>.</summary>
+		public PastLayerStatus WatchesStatus { get; } = new(LayerOrder.Watches, "Watches", "IEM");
+
+		private void RetryFetch()
+		{
+			if (_isMapReady && ActiveWindow() is { } window) { _ = EnsureAsync(window); }
 		}
 
 		/// <summary>The PastCast warning polygons (tornado / severe / flash flood, every follow-up version).</summary>
@@ -113,6 +127,8 @@ namespace Anvil.ViewModels
 				if (_loadedWindow is not null) { Clear(); }
 				Warnings.SetIdle();
 				Watches.SetIdle();
+				WarningsStatus.Idle();
+				WatchesStatus.Idle();
 				return;
 			}
 			if (!Equals(want, _loadedWindow)) { _ = EnsureAsync(want.Value); }
@@ -125,6 +141,8 @@ namespace Anvil.ViewModels
 			var token = ++_applyToken;
 			Warnings.SetMessage("Loading…");
 			Watches.SetMessage("Loading…");
+			WarningsStatus.Loading();
+			WatchesStatus.Loading();
 
 			PastAlertFetch fetch;
 			_inFlightWindow = window;
@@ -148,15 +166,26 @@ namespace Anvil.ViewModels
 				Clear();
 				Warnings.SetMessage(fetch.Error ?? "IEM warning archive unavailable.");
 				Watches.SetMessage(fetch.Error ?? "IEM warning archive unavailable.");
+				WarningsStatus.Failed(fetch.Error ?? "IEM warning archive unavailable.");
+				WatchesStatus.Failed(fetch.Error ?? "IEM warning archive unavailable.");
 				return;
 			}
 
+			// The rows count ALERTS over the whole window (a warning's versions and a watch's counties share a key).
+			Report(WarningsStatus, fetch.Warnings, "warning", "warnings");
+			Report(WatchesStatus, fetch.Watches, "watch", "watches");
 			_loadedWindow = window;
 			_warnings = fetch.Warnings;
 			_watches = fetch.Watches;
 			Warnings.PointAt(fetch.WarningsUrl);
 			Watches.PointAt(fetch.WatchesUrl);
 			Recount();
+		}
+
+		private static void Report(PastLayerStatus row, IReadOnlyList<PastAlert> alerts, string one, string many)
+		{
+			var n = alerts.Select(a => a.Key).Distinct().Count();
+			if (n == 0) { row.Empty(); } else { row.Loaded(PastLayerStatus.Count(n, one, many)); }
 		}
 
 		// What was in effect at the displayed frame — one count per ALERT (a warning's versions and a watch's
