@@ -149,44 +149,18 @@
         <GradientStop Color="#00000000" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- EDGE-SHADE (trial, 2026-10-19): a DENSER ShadowFade set — deeper and darker, so text under it can't be read —
-         plus the two CORNERS needed to wrap a pull tab. Same convention as above: the name says which way it DARKENS
-         (Right = darkest at the right edge, used LEFT of a tab; UpLeft = a quarter disc darkest at its bottom-right
-         corner, used above-left of a tab). Four stops: it gets dark fast, then holds. Strength themed through
+    <!-- EDGE-SHADE (trial, 2026-10-19): a DENSER ShadowFadeUp — it gets dark fast (85% black by 60% of the way in) and
+         lands SOLID black at the edge, so text sliding under it can't be read. Strength themed through
          OverlayBarShadowOpacity like the rest. Used by TemporalWindowActivityExpander; the bars too if kept. -->
     <LinearGradientBrush x:Key="DenseShadowFadeUp" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#00000000" Offset="0"/>
-        <GradientStop Color="#4D000000" Offset="0.35"/>
-        <GradientStop Color="#B3000000" Offset="0.7"/>
-        <GradientStop Color="#E6000000" Offset="1"/>
+        <GradientStop Color="#73000000" Offset="0.3"/>
+        <GradientStop Color="#D9000000" Offset="0.6"/>
+        <GradientStop Color="#FF000000" Offset="1"/>
     </LinearGradientBrush>
-    <LinearGradientBrush x:Key="DenseShadowFadeRight" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#00000000" Offset="0"/>
-        <GradientStop Color="#4D000000" Offset="0.35"/>
-        <GradientStop Color="#B3000000" Offset="0.7"/>
-        <GradientStop Color="#E6000000" Offset="1"/>
-    </LinearGradientBrush>
-    <LinearGradientBrush x:Key="DenseShadowFadeLeft" StartPoint="1,0" EndPoint="0,0">
-        <GradientStop Color="#00000000" Offset="0"/>
-        <GradientStop Color="#4D000000" Offset="0.35"/>
-        <GradientStop Color="#B3000000" Offset="0.7"/>
-        <GradientStop Color="#E6000000" Offset="1"/>
-    </LinearGradientBrush>
-    <RadialGradientBrush x:Key="DenseShadowFadeUpLeft" Center="1,1" GradientOrigin="1,1" RadiusX="1" RadiusY="1">
-        <GradientStop Color="#E6000000" Offset="0"/>
-        <GradientStop Color="#B3000000" Offset="0.3"/>
-        <GradientStop Color="#4D000000" Offset="0.65"/>
-        <GradientStop Color="#00000000" Offset="1"/>
-    </RadialGradientBrush>
-    <RadialGradientBrush x:Key="DenseShadowFadeUpRight" Center="0,1" GradientOrigin="0,1" RadiusX="1" RadiusY="1">
-        <GradientStop Color="#E6000000" Offset="0"/>
-        <GradientStop Color="#B3000000" Offset="0.3"/>
-        <GradientStop Color="#4D000000" Offset="0.65"/>
-        <GradientStop Color="#00000000" Offset="1"/>
-    </RadialGradientBrush>
 
     <!-- EDGE-SHADE (trial): the room under the LAST layer section of a temporal window, so scrolled to the end it clears
-         the activity expander's tab (26 high) and shade (24 deep). The Contents no longer keep a bottom margin. -->
+         the activity expander's tab (26 high) and shade (32 deep). The Contents no longer keep a bottom margin. -->
     <Thickness x:Key="TemporalListEndClearance">0,0,0,40</Thickness>
 
     <!-- TABULAR DIGITS for any readout whose numbers change while you watch (counts, clocks, countdowns, %): every digit
