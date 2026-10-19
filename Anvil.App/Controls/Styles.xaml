@@ -149,19 +149,21 @@
         <GradientStop Color="#00000000" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- EDGE-SHADE (trial, 2026-10-19): a DENSER ShadowFadeUp — it gets dark fast (85% black by 60% of the way in) and
-         lands SOLID black at the edge, so text sliding under it can't be read. Strength themed through
-         OverlayBarShadowOpacity like the rest. Used by TemporalWindowActivityExpander; the bars too if kept. -->
+    <!-- DENSE SHADE (2026-10-19): a DENSER ShadowFadeUp — it gets dark fast (90% black HALF way in) and lands SOLID
+         black at the edge, so text or map sliding under it can't be read. 36 deep wherever it's used (literal in each host):
+         a pull tab rises 26 (its 28 less the 2 px lap), so the fade starts 10 above the tab and the tab stands in its
+         dark part. Strength themed through OverlayBarShadowOpacity like the rest. Used by the bottom chrome's
+         bottom-edge tiers (Primitives/OverlayBar's CastShadow) and TemporalWindowActivityExpander. -->
     <LinearGradientBrush x:Key="DenseShadowFadeUp" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#00000000" Offset="0"/>
-        <GradientStop Color="#73000000" Offset="0.3"/>
-        <GradientStop Color="#D9000000" Offset="0.6"/>
+        <GradientStop Color="#8C000000" Offset="0.25"/>
+        <GradientStop Color="#E6000000" Offset="0.5"/>
         <GradientStop Color="#FF000000" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- EDGE-SHADE (trial): the room under the LAST layer section of a temporal window, so scrolled to the end it clears
-         the activity expander's tab (26 high) and shade (32 deep). The Contents no longer keep a bottom margin. -->
-    <Thickness x:Key="TemporalListEndClearance">0,0,0,40</Thickness>
+    <!-- The room under the LAST layer section of a temporal window, so scrolled to the end it clears the activity
+         expander's tab (26 high) and shade (36 deep). The Contents keep no bottom margin. -->
+    <Thickness x:Key="TemporalListEndClearance">0,0,0,44</Thickness>
 
     <!-- TABULAR DIGITS for any readout whose numbers change while you watch (counts, clocks, countdowns, %): every digit
          the same width, so a line doesn't wobble as it ticks. Tabular digits fix DIGIT width only — a line that changes

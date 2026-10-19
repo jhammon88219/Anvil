@@ -12,7 +12,9 @@
 
          …map, full height, showing through…
               ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ← CastShadow: this tier's
-                              ╭── ˅ Hide ──╮                          shadow, thrown UP onto the map
+              ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓╭── ˅ Hide ──╮▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   shadow, thrown UP onto the map —
+                                                                      DENSE, 36 px, solid black at the
+                                                                      plate, starting 10 px above the tab
        ─────────────────────────────────────────────────────────────
              BarContent — the HOST fills this slot
        ══════════════════════ window bottom ═══════════════════════
@@ -90,7 +92,7 @@
 
             <!-- EDGE: which row is which (Bottom = tab(0) over bar(1); Top = bar(0) over tab(1)), and which way
                  each shadow band faces. ⚠️ NEITHER BAND RESERVES LAYOUT: the cast band hangs outside the
-                 surface's cell on a negative margin of its own height (14); the received one overlays it. -->
+                 surface's cell on a negative margin of its own height (36 bottom / 14 top); the received one overlays it. -->
             <VisualStateGroup x:Name="EdgeStates">
                 <VisualState x:Name="BottomEdge"/>
                 <VisualState x:Name="TopEdge">
@@ -99,6 +101,7 @@
                         <Setter Target="Tab.(Grid.Row)" Value="1"/>
                         <Setter Target="CastShadow.(Grid.Row)" Value="0"/>
                         <Setter Target="CastShadow.VerticalAlignment" Value="Bottom"/>
+                        <Setter Target="CastShadow.Height" Value="14"/>
                         <Setter Target="CastShadow.Margin" Value="0,0,0,-14"/>
                         <Setter Target="CastShadow.Background" Value="{StaticResource ShadowFadeDown}"/>
                         <Setter Target="InsetShadow.(Grid.Row)" Value="0"/>
@@ -216,15 +219,19 @@
              occupies space holds things apart that are supposed to be glued.
              ⚠️ Hanging it means it paints over whatever is beyond that edge, so the HOST must draw
              anything that sits there AFTER this control. MainWindow's bottom Grid declares its rail last
-             for exactly that reason. Its DEPTH (14) is both its Height and the negative margin that hangs it
-             outside — keep the two equal, here and in the TopEdge state. Row, alignment, margin and fade are the
-             EdgeStates'; these defaults are the Bottom edge's. -->
+             for exactly that reason. Its DEPTH is both its Height and the negative margin that hangs it
+             outside — keep the two equal, here and in the TopEdge state. Row, alignment, depth, margin and fade are
+             the EdgeStates'; these defaults are the Bottom edge's.
+             ⚠️ TWO DEPTHS (2026-10-19, the user's call): the BOTTOM edge (the bottom chrome's tiers) casts the DENSE
+             shade — DenseShadowFadeUp, 36 deep, solid black at the plate, starting 10 px above the rail's tabs; it
+             matches TemporalWindowActivityExpander's. The TOP edge (the pane notches) keeps the light 14 px
+             ShadowFadeDown, as do the island side bands. -->
         <Border x:Name="CastShadow"
                 Grid.Row="1"
-                Height="14"
+                Height="36"
                 VerticalAlignment="Top"
-                Margin="0,-14,0,0"
-                Background="{StaticResource ShadowFadeUp}"
+                Margin="0,-36,0,0"
+                Background="{StaticResource DenseShadowFadeUp}"
                 Opacity="{ThemeResource OverlayBarShadowOpacity}"
                 IsHitTestVisible="False"
                 Visibility="Collapsed"/>

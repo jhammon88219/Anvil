@@ -7,8 +7,9 @@
        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░     ← EDGE-SHADE (trial): the list DARKENS into
        ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒╭─ ˄ More ─╮▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒     the band — the main bar's black fade made
        ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│          │▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓     DENSER (DenseShadowFadeUp, solid at the
-       ──────────────────────────┘          └───────────────────────     edge), STRAIGHT across, 32 px = the tab's
-                                                                          26 px rise + 6. The TAB laps the hairline 2 px.
+       ──────────────────────────┘          └───────────────────────     edge), STRAIGHT across, 36 px = the tab's
+                                                                          26 px rise + 10 (the main bars match). The
+                                                                          TAB laps the hairline 2 px.
      HIDDEN (two lines, the same height idle or busy):
        Radar · next check 1:47:30 PM                  Scan due ~1:47:12 PM   ← busy: "New scan" | "1:47:12 PM scan ·
        ─ ─ ─ (a 4 px bar, shown only while busy) ─ ─ ─                         painting" + the bar
@@ -203,11 +204,11 @@
 
         <!-- ===== EDGE-SHADE (trial, 2026-10-19): the list DARKENS into the band as it slides under it — the main
              bar's black fade made DENSER (Styles.xaml DenseShadowFadeUp, solid black at the edge) — STRAIGHT across,
-             32 deep = the tab's 26 px rise (its 28 less the 2 px lap) + 6, so the fade starts just above the tab and
-             the tab stands in its dark part. If kept, the main/map bars get the same.
+             36 deep = the tab's 26 px rise (its 28 less the 2 px lap) + 10, so the fade starts just above the tab and
+             the tab stands in its dark part. The main bars' cast shadow is the same brush and depth (OverlayBar).
              It hangs OUTSIDE the band on a negative margin (Height = the margin, keep them equal), reserves no layout,
              never takes the pointer. Strength themed (OverlayBarShadowOpacity: 0.4 light, none in high contrast). -->
-        <Border Height="32" VerticalAlignment="Top" Margin="0,-32,0,0" IsHitTestVisible="False"
+        <Border Height="36" VerticalAlignment="Top" Margin="0,-36,0,0" IsHitTestVisible="False"
                 Background="{StaticResource DenseShadowFadeUp}"
                 Opacity="{ThemeResource OverlayBarShadowOpacity}"/>
         <!-- ===== /EDGE-SHADE ===== -->
