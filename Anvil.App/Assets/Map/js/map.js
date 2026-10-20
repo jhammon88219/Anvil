@@ -301,7 +301,7 @@ try {
     // MapLibre's own limit keeps BOTH screen edges inside ±180°, so Alaska sat pinned to the screen's left edge — under
     // a temporal window — and could only be reached by zooming. Here the CENTRE may go anywhere in -180…180 instead;
     // north/south and zoom stay MapLibre's (its default runs first). An isolation lock (states.js setMaxBounds) is
-    // left entirely to MapLibre — it has its own longitude range to keep.
+    // left entirely to MapLibre — it has its own longitude range to keep. ⚠️ MIRRORED in preview.js — change both.
     function looseWorldEdge(m) {
         return function (lngLat, z) {
             const d = m.transform.defaultConstrain(lngLat, z);

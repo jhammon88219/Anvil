@@ -145,6 +145,13 @@ resolveStyle(want.style).then(function (spec) {
         dragRotate: false, pitchWithRotate: false, touchPitch: false,
     });
     map.touchZoomRotate.disableRotation();
+    // ⚠️ MIRRORS map.js looseWorldEdge: the world's edge may reach the middle, so an Alaska site's rings centre
+    // instead of being pushed off the 180° line. North/south and zoom stay MapLibre's.
+    map.setTransformConstrain(function (lngLat, z) {
+        const d = map.transform.defaultConstrain(lngLat, z);
+        if (map.getMaxBounds()) return d;
+        return { center: new maplibregl.LngLat(Math.max(-180, Math.min(180, lngLat.lng)), d.center.lat), zoom: d.zoom };
+    });
     view.map = map;
     built = bootKey;
     map.on('load', function () {
