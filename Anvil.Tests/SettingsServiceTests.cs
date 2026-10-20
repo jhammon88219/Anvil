@@ -31,6 +31,28 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void Map_setups_in_use_file_drives_the_folder_and_name_while_it_exists()
+		{
+			var dir = TempDir();
+			var maps = Path.Combine(dir, "maps");
+			Directory.CreateDirectory(maps);
+			var file = Path.Combine(maps, "anvil-map-standard-hi.pmtiles");
+			File.WriteAllText(file, "x");
+			var svc = New(dir);
+			svc.Settings.MapDataFolder = @"C:\Old\Folder";
+
+			svc.Settings.BasemapFilePath = file;
+			Assert.Equal(maps, svc.MapDataFolder);
+			Assert.Equal("anvil-map-standard-hi.pmtiles", svc.MapDataFileName);
+			Assert.True(svc.MapDataFilePresent());
+			Assert.Equal(@"C:\Old\Folder", svc.LegacyMapDataFolder);
+
+			File.Delete(file); // gone → the older usa_full rule again, never a dead path
+			Assert.Equal(@"C:\Old\Folder", svc.MapDataFolder);
+			Assert.Equal("usa_full.pmtiles", svc.MapDataFileName);
+		}
+
+		[Fact]
 		public async Task Persists_AcrossInstances()
 		{
 			var dir = TempDir();

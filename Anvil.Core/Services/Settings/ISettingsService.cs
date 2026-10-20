@@ -16,16 +16,19 @@ namespace Anvil.Services
 		/// <summary>Resets every setting to its default and persists.</summary>
 		Task ResetToDefaultsAsync();
 
-		/// <summary>The bundled basemap file the app expects inside <see cref="MapDataFolder"/>.</summary>
+		/// <summary>The offline map file Anvil draws, inside <see cref="MapDataFolder"/>: map setup's in-use file
+		/// (<see cref="AppSettings.BasemapFilePath"/>) when set and present, else <c>usa_full.pmtiles</c>.</summary>
 		string MapDataFileName { get; }
 
 		/// <summary>
-		/// The EFFECTIVE folder mapped to the <c>mapdata</c> WebView host: the persisted
-		/// <see cref="AppSettings.MapDataFolder"/> if set, else a runtime-resolved Desktop default (never a
-		/// hardcoded path). Read-only — write <see cref="AppSettings.MapDataFolder"/> on <see cref="Settings"/>
-		/// to change it.
+		/// The EFFECTIVE folder mapped to the <c>mapdata</c> WebView host: the in-use file's folder when map setup set one,
+		/// else <see cref="LegacyMapDataFolder"/>. Read-only — write the settings on <see cref="Settings"/> to change it.
 		/// </summary>
 		string MapDataFolder { get; }
+
+		/// <summary>Where <c>usa_full.pmtiles</c> is looked for (the older rule): the persisted
+		/// <see cref="AppSettings.MapDataFolder"/> if set, else a runtime-resolved Desktop default (never a hardcoded path).</summary>
+		string LegacyMapDataFolder { get; }
 
 		/// <summary>Whether the basemap file is present in the given folder (or the effective one if null).</summary>
 		bool MapDataFilePresent(string? folder = null);

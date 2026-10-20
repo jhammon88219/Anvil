@@ -834,7 +834,7 @@ namespace Anvil
 			var styleUrl = ViewModel.SelectedStyle?.Url ?? "https://mapassets/style.json";
 			var main = ViewModel.MainRegion;
 			await InitializeWebViewAsync(MainMapWebView, BuildMapUrl(main, main?.Zoom ?? 4, styleUrl, ViewModel.StateIso.IsConusIsolated,
-				ViewModel.IsOnlineTilesActive, ViewModel.OnlineTilesUrl, ViewModel.SelectedTheme.Id));
+				ViewModel.IsOnlineTilesActive, ViewModel.OnlineTilesUrl, ViewModel.SelectedTheme.Id, _settingsService.MapDataFileName));
 		}
 
 		// Builds the page URL for the map: framed at the given center/zoom, on the given
@@ -887,8 +887,10 @@ namespace Anvil
 		// `themeId` = the chrome palette, passed for exactly the same reason as `conus` and the tile source:
 		// --anvil-ground IS the page's background, so a post-ready push would flash the other theme's ground
 		// before the map paints.
+		// `mapFile` = the offline map file in the mapdata folder (map setup's in-use file, or usa_full.pmtiles). Every bundled
+		// style names usa_full.pmtiles; the page serves this file under that name (map.js, "mapfile").
 		private static string BuildMapUrl(MapRegion? region, double zoom, string styleUrl, bool conus,
-			bool onlineTiles, string tilesUrl, string themeId)
+			bool onlineTiles, string tilesUrl, string themeId, string mapFile)
 		{
 			var lng = region?.Longitude ?? -95.5;
 			var lat = region?.Latitude ?? 37.0;
@@ -901,7 +903,8 @@ namespace Anvil
 				$"&conus={(conus ? "true" : "false")}" +
 				$"&tiles={(onlineTiles ? "online" : "offline")}" +
 				$"&tilesUrl={Uri.EscapeDataString(tilesUrl ?? "")}" +
-				$"&theme={Uri.EscapeDataString(themeId ?? "")}"
+				$"&theme={Uri.EscapeDataString(themeId ?? "")}" +
+				$"&mapfile={Uri.EscapeDataString(mapFile ?? "")}"
 #if DEBUG
 				// DEV-ONLY: arms the pan frame-time probe (Assets/Map/js/perf-probe.js). map.js imports
 				// that module only when this param is present, so a Release page never fetches it and
@@ -960,6 +963,7 @@ namespace Anvil
 				(DowEventProvider.HostName, DowEventProvider.EventsDirectory),
 			};
 			WebViewEnvironment.LaunchMapDataFolder = _settingsService.MapDataFolder; // the preview maps the same one
+			WebViewEnvironment.LaunchMapDataFile = _settingsService.MapDataFileName; // …and reads the same file
 			foreach (var (host, folder) in hostFolders)
 			{
 				webView.CoreWebView2.SetVirtualHostNameToFolderMapping(

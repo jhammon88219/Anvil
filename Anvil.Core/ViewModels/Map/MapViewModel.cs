@@ -1762,6 +1762,8 @@ namespace Anvil.ViewModels
 			}
 
 			_settingsService.Settings.MapDataFolder = folder; // auto-persists
+			// Picking a folder here is the older usa_full.pmtiles route — it replaces a map setup choice, never fights it.
+			_settingsService.Settings.BasemapFilePath = "";
 			MapDataFolderChanged = true;
 			OnPropertyChanged(nameof(MapDataFolder));
 			OnPropertyChanged(nameof(MapDataStatus));

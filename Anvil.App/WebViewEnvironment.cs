@@ -35,6 +35,10 @@ namespace Anvil
 		/// </summary>
 		public static string? LaunchMapDataFolder { get; set; }
 
+		/// <summary>The offline map FILE the main map reads in <see cref="LaunchMapDataFolder"/> (map setup's in-use file or
+		/// <c>usa_full.pmtiles</c>) — the preview passes it on as its <c>mapfile</c> too.</summary>
+		public static string? LaunchMapDataFile { get; set; }
+
 		private static Task? _freshAssets;
 
 		/// <summary>

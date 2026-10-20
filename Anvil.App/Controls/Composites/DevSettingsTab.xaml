@@ -42,6 +42,7 @@
        │  ⌄  Map setup window                                 │
        │   what it does…                                      │
        │   Step [Choose        ⌄]  ( Show )                   │  ← BasemapSetupHost; the step is the shared VM's
+       │   [ ] Next launch: start as a new user               │  ← AppSettings.DevPretendNoMap (clears at launch)
        └──────────────────────────────────────────────────────┘
 
      The first two are the two halves of one loop: the sweep is DISCOVERY over live data (it harvests
@@ -347,6 +348,10 @@
                     </ComboBox>
                     <Button x:Name="MapSetupPreviewShowButton" Content="Show" Click="OnShowMapSetupClick"/>
                 </StackPanel>
+                <!-- The FULL loop: next launch shows map setup before Anvil, as for a new user (your map stays on disk;
+                     Use on its row in Settings → Basemap brings it back). Clears itself once Anvil opens. -->
+                <CheckBox x:Name="MapSetupPretendNewUserCheckBox" Content="Next launch: start as a new user (show map setup first)"
+                          IsChecked="{x:Bind ViewModel.BasemapSetup.DevPretendNoMap, Mode=TwoWay}"/>
             </StackPanel>
         </prim:SettingsExpander>
     </Grid>

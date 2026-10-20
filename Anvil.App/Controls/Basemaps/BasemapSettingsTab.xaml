@@ -6,8 +6,9 @@
        ┌──────────────────────────────────────────────────────┐
        │ ┌──────────────────────────────────────────────────┐ │
        │ │ ▤  ANVIL IS USING                                │ │  ← InUseText: offline file · online · no map
-       │ │    Offline map · usa_full.pmtiles                │ │
-       │ └──────────────────────────────────────────────────┘ │
+       │ │    Offline map · Standard · Lower 48 states      │ │
+       │ │    Anvil switches to this map the next time it opens.  ← RestartNote: only when the choice ≠ what's
+       │ └──────────────────────────────────────────────────┘ │     on screen (the map host is mapped at launch)
        │  ⌄  Your map files                                   │
        │    ▤ Offline map  [In use]          [Use][📁][🗑]    │  ← one row per file (1, maybe 2); Use only on
        │      28.8 GB · 8 Jun 2026 · usa_full.pmtiles         │     a file not in use. A downloaded map's title
@@ -125,6 +126,9 @@
                 <StackPanel Grid.Column="1">
                     <TextBlock Text="ANVIL IS USING" Style="{StaticResource AtlasFieldLabelStyle}"/>
                     <TextBlock Text="{x:Bind ViewModel.InUseText, Mode=OneWay}" TextWrapping="Wrap"/>
+                    <!-- The map host is mapped once at launch, so a new choice is drawn from the next one. -->
+                    <TextBlock Text="{x:Bind ViewModel.RestartNote, Mode=OneWay}" TextWrapping="Wrap" FontSize="12"
+                               Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
                 </StackPanel>
             </Grid>
         </Border>

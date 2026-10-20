@@ -22,7 +22,22 @@ namespace Anvil.Services
 	{
 		private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
 
-		public string MapDataFileName => "usa_full.pmtiles";
+		/// <summary>The name every bundled style asks for (<c>pmtiles://https://mapdata/usa_full.pmtiles</c>) — and the file
+		/// Anvil used before map setup. Any OTHER in-use file is served under this name by the page (map.js <c>mapfile</c>).</summary>
+		public const string LegacyMapDataFileName = "usa_full.pmtiles";
+
+		// The in-use map from map setup, when it's set AND still on disk; else null (the older folder rule applies).
+		private string? InUseFile
+		{
+			get
+			{
+				var path = _settings.BasemapFilePath;
+				try { return !string.IsNullOrWhiteSpace(path) && File.Exists(path) ? Path.GetFullPath(path) : null; }
+				catch (Exception) { return null; }
+			}
+		}
+
+		public string MapDataFileName => InUseFile is { } f ? Path.GetFileName(f) : LegacyMapDataFileName;
 
 		private readonly ILogger<SettingsService> _logger;
 		private readonly string _settingsFilePath;
@@ -51,7 +66,9 @@ namespace Anvil.Services
 
 		public AppSettings Settings => _settings;
 
-		public string MapDataFolder
+		public string MapDataFolder => InUseFile is { } f ? Path.GetDirectoryName(f)! : LegacyMapDataFolder;
+
+		public string LegacyMapDataFolder
 		{
 			get
 			{
@@ -161,7 +178,7 @@ namespace Anvil.Services
 			{
 				try
 				{
-					if (!string.IsNullOrEmpty(c) && File.Exists(Path.Combine(c, MapDataFileName)))
+					if (!string.IsNullOrEmpty(c) && File.Exists(Path.Combine(c, LegacyMapDataFileName)))
 					{
 						return c;
 					}

@@ -59,6 +59,30 @@ namespace Anvil.Services
 			set => SetProperty(ref _onlineTilesUrl, value);
 		}
 
+		private string _basemapFilePath = "";
+		/// <summary>
+		/// The offline map Anvil draws, as a full path — set by map setup (a finished download, Use, an existing file).
+		/// Empty = the older rule: <c>usa_full.pmtiles</c> in <see cref="MapDataFolder"/> (or the Desktop guess). Read the
+		/// EFFECTIVE file off <see cref="ISettingsService.MapDataFolder"/> + <see cref="ISettingsService.MapDataFileName"/>.
+		/// Applies at the next launch (the page's map host is mapped once).
+		/// </summary>
+		public string BasemapFilePath
+		{
+			get => _basemapFilePath;
+			set => SetProperty(ref _basemapFilePath, value);
+		}
+
+		private bool _devPretendNoMap;
+		/// <summary>
+		/// DEV-ONLY (Settings → Dev → Map setup window): the next launch behaves like a new user's — map setup shows even
+		/// though a map exists. Cleared when map setup hands over to Anvil.
+		/// </summary>
+		public bool DevPretendNoMap
+		{
+			get => _devPretendNoMap;
+			set => SetProperty(ref _devPretendNoMap, value);
+		}
+
 		private bool _showBasemapSetupAtLaunch = true;
 		/// <summary>
 		/// Show the map setup window before Anvil opens while Anvil has no usable map (no offline file found, no keyed

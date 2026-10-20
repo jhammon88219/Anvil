@@ -83,6 +83,8 @@ namespace Anvil
 		// OnLaunched (and the map setup window's click) runs on the UI thread. Resolving MainWindow constructs everything synchronously.
 		private void OpenMainWindow()
 		{
+			// The map file the main window is about to map is the one on screen this session (Settings → Basemap compares).
+			Services.GetRequiredService<BasemapSetupViewModel>().NoteLaunchedMap();
 			_window = Services.GetRequiredService<MainWindow>();
 			_window.Activate();
 		}

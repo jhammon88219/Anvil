@@ -90,7 +90,8 @@ namespace Anvil.Controls.Composites
 				$"?style={Uri.EscapeDataString(vm.SelectedStyle?.Url ?? "https://mapassets/style.json")}" +
 				$"&tiles={(vm.IsOnlineTilesActive ? "online" : "offline")}" +
 				$"&tilesUrl={Uri.EscapeDataString(vm.OnlineTilesUrl ?? "")}" +
-				$"&theme={Uri.EscapeDataString(vm.SelectedTheme.Id ?? "")}";
+				$"&theme={Uri.EscapeDataString(vm.SelectedTheme.Id ?? "")}" +
+				$"&mapfile={Uri.EscapeDataString(WebViewEnvironment.LaunchMapDataFile ?? "")}";
 			if (site is not null)
 			{
 				url += $"&lat={site.Latitude.ToString(CultureInfo.InvariantCulture)}" +

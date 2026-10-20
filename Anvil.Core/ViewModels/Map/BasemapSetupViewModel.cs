@@ -58,8 +58,15 @@ namespace Anvil.ViewModels
 			(_settings.Settings.UseOnlineTiles && OnlineTileUrls.IsUsable(_settings.Settings.OnlineTilesUrl));
 
 		/// <summary>App.OnLaunched's question: show the map setup window before Anvil? Every launch while there's no map,
-		/// until the user ticks "Stop showing this at launch".</summary>
-		public bool ShouldShowAtLaunch => _settings.Settings.ShowBasemapSetupAtLaunch && !HasUsableMap;
+		/// until the user ticks "Stop showing this at launch" — or once, on purpose, for a dev "new user" launch.</summary>
+		public bool ShouldShowAtLaunch => (_settings.Settings.ShowBasemapSetupAtLaunch && !HasUsableMap) || _settings.Settings.DevPretendNoMap;
+
+		/// <summary>DEV (Settings → Dev → Map setup window): the next launch shows map setup as a new user would.</summary>
+		public bool DevPretendNoMap
+		{
+			get => _settings.Settings.DevPretendNoMap;
+			set => _settings.Settings.DevPretendNoMap = value;
+		}
 
 		/// <summary>Settings → Basemap → At launch. Persisted (<see cref="AppSettings.ShowBasemapSetupAtLaunch"/>).</summary>
 		public bool ShowAtLaunch
@@ -370,11 +377,19 @@ namespace Anvil.ViewModels
 			_lastProgress = default;
 			_rateStarted = false;
 			ShowProgress(new BasemapDownloadProgress(BasemapDownloadPhase.FindingBuild, 0, 0));
+			// With no map yet (a new user, or a dev "new user" launch) the finished map becomes Anvil's; otherwise Anvil
+			// keeps its current one until the user picks Use (the tab's promise).
+			var takeOver = !HasUsableMap || DevPretendNoMap;
 			try
 			{
 				// Progress<T> is created HERE, on the UI thread, so its reports land back on it.
 				var path = await _downloads!.DownloadAsync(_saveFolder, _downloadAreas, _downloadFull,
 					new Progress<BasemapDownloadProgress>(ShowProgress), _downloadCancel.Token);
+				if (takeOver)
+				{
+					_settings.Settings.UseOnlineTiles = false;
+					_settings.Settings.BasemapFilePath = path;
+				}
 				DownloadedPath = path;
 				OnPropertyChanged(nameof(DownloadedPath));
 				Step = BasemapSetupStep.Ready;
@@ -507,60 +522,96 @@ namespace Anvil.ViewModels
 			private set => SetProperty(ref _inUseText, value);
 		}
 
-		/// <summary>The map files Anvil knows. Today: the offline file in the current folder, if there is one.</summary>
+		/// <summary>The map files Anvil knows: <c>usa_full.pmtiles</c> where the older rule finds it, the in-use file, and
+		/// every downloaded map in the save folder — each once.</summary>
 		public ObservableCollection<BasemapFileRow> Files { get; } = new();
 
 		/// <summary>Empty list → the "No map files yet" line.</summary>
 		public bool HasNoFiles => Files.Count == 0;
 
+		// The offline file Anvil draws now (settings' in-use rule), or null when online is on or there's none.
+		private string? InUsePath()
+		{
+			if (_settings.Settings.UseOnlineTiles && OnlineTileUrls.IsUsable(_settings.Settings.OnlineTilesUrl)) return null;
+			return _settings.MapDataFilePresent() ? Path.GetFullPath(Path.Combine(_settings.MapDataFolder, _settings.MapDataFileName)) : null;
+		}
+
+		/// <summary>A map file's title: a downloaded map's options in words, else "Offline map".</summary>
+		private static string TitleOf(string path) => BasemapFileNames.TryParse(path)?.Description ?? "Offline map";
+
 		/// <summary>Re-read the folder and the source (the tab calls this when it shows).</summary>
 		public void Refresh()
 		{
 			Files.Clear();
-			var onlineActive = _settings.Settings.UseOnlineTiles && OnlineTileUrls.IsUsable(_settings.Settings.OnlineTilesUrl);
-			BasemapFileRow? offline = null;
-			if (_settings.MapDataFilePresent())
+			var inUse = InUsePath();
+			var paths = new List<string>();
+			void Consider(string path)
 			{
-				var path = Path.Combine(_settings.MapDataFolder, _settings.MapDataFileName);
+				try
+				{
+					var full = Path.GetFullPath(path);
+					if (File.Exists(full) && !paths.Contains(full, StringComparer.OrdinalIgnoreCase)) paths.Add(full);
+				}
+				catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException) { }
+			}
+			Consider(Path.Combine(_settings.LegacyMapDataFolder, SettingsService.LegacyMapDataFileName));
+			if (inUse is not null) Consider(inUse);
+			foreach (var name in ExistingMapFileNames().Where(n => BasemapFileNames.TryParse(n) is not null).OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
+			{
+				Consider(Path.Combine(_saveFolder, name));
+			}
+
+			foreach (var path in paths)
+			{
 				try
 				{
 					var info = new FileInfo(path);
 					var details = $"{GigabytesText(info.Length)} · {info.LastWriteTime.ToString("d MMM yyyy", CultureInfo.CurrentCulture)} · {info.Name}";
-					offline = new BasemapFileRow(path, "Offline map", details, isInUse: !onlineActive);
-					Files.Add(offline);
+					Files.Add(new BasemapFileRow(path, TitleOf(path), details,
+						isInUse: inUse is not null && string.Equals(path, inUse, StringComparison.OrdinalIgnoreCase)));
 				}
 				catch (IOException) { }
 				catch (UnauthorizedAccessException) { }
 			}
 
-			// Downloaded maps in the save folder, titled from their names ("Standard · Lower 48 states, Alaska"). None is
-			// drawn yet — opening a downloaded map is BASEMAP-SETUP: NOT BUILT.
-			foreach (var name in ExistingMapFileNames().OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
-			{
-				if (BasemapFileNames.TryParse(name) is not { } options) continue;
-				var path = Path.Combine(_saveFolder, name);
-				try
-				{
-					var info = new FileInfo(path);
-					var details = $"{GigabytesText(info.Length)} · {info.LastWriteTime.ToString("d MMM yyyy", CultureInfo.CurrentCulture)} · {name}";
-					Files.Add(new BasemapFileRow(path, options.Description, details, isInUse: false));
-				}
-				catch (IOException) { }
-				catch (UnauthorizedAccessException) { }
-			}
-
-			InUseText = onlineActive ? "Online map · Protomaps"
-				: offline is not null ? $"Offline map · {_settings.MapDataFileName}"
+			InUseText = _settings.Settings.UseOnlineTiles && OnlineTileUrls.IsUsable(_settings.Settings.OnlineTilesUrl) ? "Online map · Protomaps"
+				: inUse is not null ? $"Offline map · {TitleOf(inUse)}"
 				: "No map. Radar and overlays draw over a blank background.";
 
 			OnPropertyChanged(nameof(HasNoFiles));
 			OnPropertyChanged(nameof(HasUsableMap));
+			OnPropertyChanged(nameof(ShouldShowAtLaunch));
 			OnPropertyChanged(nameof(FreeSpaceText));
+			OnPropertyChanged(nameof(RestartNote));
 			RaiseChoice(); // the next free file name depends on what's in the folder
 		}
 
-		/// <summary>BASEMAP-SETUP: NOT BUILT — make <paramref name="row"/> the map Anvil draws.</summary>
-		public void UseFile(BasemapFileRow row) { }
+		// ── which map Anvil opens on ──
+		// The page's map host is mapped ONCE, when the main window is built — so a new choice is drawn from the NEXT launch.
+		private string? _launchedPath;
+
+		/// <summary>App calls this as the main window is built: the file it maps is the one on screen this session.</summary>
+		public void NoteLaunchedMap()
+		{
+			_launchedPath = InUsePath();
+			_settings.Settings.DevPretendNoMap = false; // a dev "new user" launch ends here
+			OnPropertyChanged(nameof(RestartNote));
+		}
+
+		/// <summary>Under "Anvil is using" when the choice differs from what's on screen: it applies when Anvil next opens.</summary>
+		public string RestartNote =>
+			_launchedPath is null && InUsePath() is null ? ""
+			: !string.Equals(_launchedPath, InUsePath(), StringComparison.OrdinalIgnoreCase) ? "Anvil switches to this map the next time it opens."
+			: "";
+
+		/// <summary>Use: make <paramref name="row"/> the map Anvil draws (from the next launch). Turns the online map off —
+		/// a file picked here is an offline choice.</summary>
+		public void UseFile(BasemapFileRow row)
+		{
+			_settings.Settings.UseOnlineTiles = false;
+			_settings.Settings.BasemapFilePath = row.Path;
+			Refresh();
+		}
 
 		/// <summary>BASEMAP-SETUP: NOT BUILT — open Explorer on the file.</summary>
 		public void ShowFileInFolder(BasemapFileRow row) { }
@@ -594,7 +645,12 @@ namespace Anvil.ViewModels
 				case nameof(AppSettings.UseOnlineTiles):
 				case nameof(AppSettings.OnlineTilesUrl):
 				case nameof(AppSettings.MapDataFolder):
+				case nameof(AppSettings.BasemapFilePath):
 					Refresh();
+					break;
+				case nameof(AppSettings.DevPretendNoMap):
+					OnPropertyChanged(nameof(ShouldShowAtLaunch));
+					OnPropertyChanged(nameof(DevPretendNoMap));
 					break;
 			}
 		}

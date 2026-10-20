@@ -62,6 +62,19 @@ let styleUrl = params.get('style') || 'https://mapassets/style.json';
 // Passed as URL params so the launch map is built on the right source instead of flipping after ready.
 let tileMode = params.get('tiles') === 'online' ? 'online' : 'offline';
 let tileUrl = params.get('tilesUrl') || '';
+// ---- Which OFFLINE MAP FILE ---------------------------------------------------------------------------
+// Every bundled style names `pmtiles://https://mapdata/usa_full.pmtiles`. Map setup's maps have their own names
+// (anvil-map-standard-l48.pmtiles…), passed as `mapfile`, so register that file UNDER the styles' name: the
+// protocol looks archives up by URL key, and the key is all a style ever sees. No style edits, no style fetch.
+// ⚠️ MIRRORED in preview.js (the Settings map preview) — change both.
+function serveMapFile(protocol, mapFile) {
+    if (!mapFile || mapFile === 'usa_full.pmtiles') return;
+    const real = new pmtiles.FetchSource('https://mapdata/' + encodeURIComponent(mapFile));
+    protocol.add(new pmtiles.PMTiles({
+        getKey: function () { return 'https://mapdata/usa_full.pmtiles'; },
+        getBytes: function (offset, length, signal, etag) { return real.getBytes(offset, length, signal, etag); }
+    }));
+}
 // ---- THEME ------------------------------------------------------------------------------------------
 // The app's visual identity, as an id matching a :root[data-theme="…"] block in styles/themes/ (and an
 // AppTheme in the host's ThemeProvider). Applied IMMEDIATELY, at parse time — before MapLibre exists and
@@ -82,6 +95,7 @@ try {
     // of each paying for its own.
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol('pmtiles', protocol.tile);
+    serveMapFile(protocol, params.get('mapfile'));
 
     // ---- Pane state -------------------------------------------------------------------------------
     const MAX_PANES = 4;

@@ -126,6 +126,15 @@ function fit(animate) {
 // ---- Boot ----
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol('pmtiles', protocol.tile);
+// The in-use offline map under the styles' file name — ⚠️ MIRRORS map.js serveMapFile; change both.
+(function serveMapFile(mapFile) {
+    if (!mapFile || mapFile === 'usa_full.pmtiles') return;
+    const real = new pmtiles.FetchSource('https://mapdata/' + encodeURIComponent(mapFile));
+    protocol.add(new pmtiles.PMTiles({
+        getKey: function () { return 'https://mapdata/usa_full.pmtiles'; },
+        getBytes: function (offset, length, signal, etag) { return real.getBytes(offset, length, signal, etag); }
+    }));
+})(params.get('mapfile'));
 const bootKey = key();
 resolveStyle(want.style).then(function (spec) {
     map = new maplibregl.Map({
