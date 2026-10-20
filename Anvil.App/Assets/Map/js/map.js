@@ -311,6 +311,19 @@ try {
         };
     }
 
+    // MARKERS STAY IN THE ONE WORLD. A DOM marker (site keys, the location / search pins, popups) "smart-wraps" to the
+    // copy of the world nearest the screen — and MapLibre decides that from the transform's allowWorldCopies(), NOT
+    // from renderWorldCopies. With looseWorldEdge letting the view run past 180°, every key more than half a world from
+    // the centre jumped +360° and redrew CONUS's keys out past Russia, on the blank beyond the world (2026-10-20).
+    // ⚠️ Reaches into MapLibre internals (5.21.1): if a MapLibre upgrade renames this, the keys duplicate again — the
+    // guard just skips, it doesn't fail. ⚠️ EVERY style load (the first one too: Style._load → _setProjectionInternal →
+    // map.migrateProjection) swaps in a NEW transform with a fresh provider, so this re-runs on 'projectiontransition'.
+    // (looseWorldEdge needs no re-run: migrateProjection's transform.apply copies the constrain override across.)
+    function oneWorldMarkers(m) {
+        const p = m.transform && m.transform.getCoveringTilesDetailsProvider && m.transform.getCoveringTilesDetailsProvider();
+        if (p && typeof p.allowWorldCopies === 'function') p.allowWorldCopies = function () { return false; };
+    }
+
     function createPaneMap(i) {
         // A pane joins the existing camera, style and orientation, so it appears already locked to its
         // siblings instead of flying in from the launch view.
@@ -332,6 +345,8 @@ try {
             minZoom: 2
         });
         m.setTransformConstrain(looseWorldEdge(m));
+        oneWorldMarkers(m);
+        m.on('projectiontransition', function () { oneWorldMarkers(m); }); // every style load builds a NEW transform
         m.on('move', onPaneMove);
         if (PerfProbe) PerfProbe.attach(m); // dev pan probe: a pane added later still gets sampled
         if (Layers) Layers.watchStack(m);   // keep the user's overlay order on this pane too
