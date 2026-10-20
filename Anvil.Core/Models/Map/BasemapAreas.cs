@@ -61,5 +61,18 @@ namespace Anvil.Models
 
 		/// <summary>The area with <paramref name="code"/>, or null.</summary>
 		public static BasemapArea? ByCode(string code) => All.FirstOrDefault(a => a.Code == code);
+
+		/// <summary>
+		/// The WHOLE WORLD at low detail, in EVERY offline map (the user's call, 2026-10-20): zoomed out, an offline map then
+		/// draws exactly what the online one does — every coastline, country and label — instead of whichever big tiles
+		/// happened to touch the picked areas. Not a pickable area (not in <see cref="All"/>, never in a file name).
+		/// </summary>
+		public const int WorldOverviewZoom = 7;
+
+		/// <summary>The overview's cost: zooms 0-7 of the 2026-10-20 build measured 189 MB (0-6 was 45, 0-5 15).</summary>
+		public const double WorldOverviewMegabytes = 189;
+
+		public static readonly BasemapArea WorldOverview = new("world", "The whole world (overview)",
+			new[] { new BasemapBox(-180.0, -85.0511, 180.0, 85.0511) }, WorldOverviewMegabytes, WorldOverviewMegabytes);
 	}
 }

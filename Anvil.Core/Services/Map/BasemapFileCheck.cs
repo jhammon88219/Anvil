@@ -47,8 +47,13 @@ namespace Anvil.Services
 				return new BasemapFileCheck(false, "This map is drawn a different way than Anvil's maps, so Anvil can't use it.", "", "");
 			}
 
+			// A map Anvil downloaded names its areas (BasemapFileNames) — its header's bounds are the WORLD (the overview it
+			// carries), so they'd claim every radar. Any other file: its header's bounds.
 			double w = header.MinLonE7 / 1e7, s = header.MinLatE7 / 1e7, e = header.MaxLonE7 / 1e7, n2 = header.MaxLatE7 / 1e7;
-			var inside = radars.Count(r => r.Lat >= s && r.Lat <= n2 && r.Lon >= w && r.Lon <= e);
+			var named = BasemapFileNames.TryParse(path);
+			var inside = named is not null
+				? radars.Count(r => named.Areas.Any(a => a.Contains(r.Lat, r.Lon)))
+				: radars.Count(r => r.Lat >= s && r.Lat <= n2 && r.Lon >= w && r.Lon <= e);
 			var cover = inside == radars.Count ? $"Covers all {radars.Count} NEXRAD radars."
 				: inside == 0 ? "Covers none of the NEXRAD radars — it's a map of somewhere else."
 				: $"Covers {inside} of {radars.Count} NEXRAD radars.";

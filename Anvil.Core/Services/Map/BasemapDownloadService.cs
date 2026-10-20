@@ -173,9 +173,10 @@ namespace Anvil.Services
 
 			progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.ReadingIndex, 0, 0, BuildDay: day));
 			var maxZoom = fullDetail ? BasemapExtractPlanner.FullMaxZoom : BasemapExtractPlanner.StandardMaxZoom;
+			// The picked areas at their detail + the WHOLE WORLD at overview detail (BasemapAreas.WorldOverview).
 			var plan = await BasemapExtractPlanner.PlanAsync(source, areas, maxZoom, ct, (read, known) =>
-				progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.ReadingIndex, (ulong)read, (ulong)known, BuildDay: day)))
-				.ConfigureAwait(false);
+				progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.ReadingIndex, (ulong)read, (ulong)known, BuildDay: day)),
+				BasemapAreas.WorldOverviewZoom).ConfigureAwait(false);
 			var layout = await LayoutAsync(source, plan, areas, ct, stage =>
 				progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.Planning, (ulong)stage, PlanStages, plan.AddressedTiles, day)))
 				.ConfigureAwait(false);
@@ -254,8 +255,12 @@ namespace Anvil.Services
 			var rawMetadata = await source.ReadAsync(src.MetadataOffset, checked((int)src.MetadataLength), ct).ConfigureAwait(false);
 			var metadata = PmtilesWriter.Gzip(PmtilesHeader.Decompress(rawMetadata, src.InternalCompression));
 
+			// BOUNDS = THE WORLD: the file holds the world overview, and the map only asks for tiles inside the header's
+			// bounds — the areas' box would hide the overview everywhere else. The CENTRE stays on the picked areas.
 			var boxes = areas.SelectMany(a => a.Boxes).ToList();
-			double w = boxes.Min(b => b.West), s = boxes.Min(b => b.South), e = boxes.Max(b => b.East), n = boxes.Max(b => b.North);
+			var world = BasemapAreas.WorldOverview.Boxes[0];
+			double w = world.West, s = world.South, e = world.East, n = world.North;
+			double cw = boxes.Min(b => b.West), cs = boxes.Min(b => b.South), ce = boxes.Max(b => b.East), cn = boxes.Max(b => b.North);
 			static int E7(double v) => (int)Math.Round(v * 1e7);
 			var rootOffset = (ulong)PmtilesHeader.Length;
 			var metadataOffset = rootOffset + (ulong)root.Length;
@@ -266,7 +271,7 @@ namespace Anvil.Services
 				dataOffset, data, plan.AddressedTiles, (ulong)entries.Length, (ulong)contents.Count,
 				src.Clustered, PmtilesCompression.Gzip, src.TileCompression, src.TileType,
 				0, (byte)entries.Max(x => ZoomOf(x.TileId)), E7(w), E7(s), E7(e), E7(n),
-				4, E7((w + e) / 2), E7((s + n) / 2));
+				4, E7((cw + ce) / 2), E7((cs + cn) / 2));
 
 			var prefix = PmtilesWriter.HeaderBytes(header).Concat(root).Concat(metadata).Concat(leaves).ToArray();
 			return new Layout(prefix, data, contents, MakeChunks(contents));

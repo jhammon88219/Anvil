@@ -39,9 +39,11 @@ namespace Anvil.Tests
 			Assert.Equal("anvil-map-standard-l48.pmtiles", Path.GetFileName(path));
 			Assert.Empty(Directory.GetFiles(_folder, "*.part*")); // the part + record are gone once finished
 
-			var wanted = await BasemapExtractPlanner.PlanAsync(planet, Area, 4, CancellationToken.None);
+			// The areas PLUS the whole-world overview (zooms 0-7 — all of this little zoom 0-4 planet).
+			var wanted = await BasemapExtractPlanner.PlanAsync(planet, Area, 4, CancellationToken.None, null, BasemapAreas.WorldOverviewZoom);
 			var written = new MemorySource(File.ReadAllBytes(path));
-			var got = await BasemapExtractPlanner.PlanAsync(written, Area, 4, CancellationToken.None);
+			var got = await BasemapExtractPlanner.PlanAsync(written, Area, 4, CancellationToken.None, null, BasemapAreas.WorldOverviewZoom);
+			Assert.Equal(wanted.Source.AddressedTilesCount, got.AddressedTiles); // the overview really is in the file
 
 			Assert.Equal(wanted.Entries.Select(e => (e.TileId, e.RunLength)), got.Entries.Select(e => (e.TileId, e.RunLength)));
 			Assert.Equal(wanted.TileContents, got.TileContents);
@@ -50,6 +52,10 @@ namespace Anvil.Tests
 				Assert.Equal(await TileBytes(planet, wanted.Source, wanted.Entries[i]), await TileBytes(written, got.Source, got.Entries[i]));
 			}
 			Assert.True(got.Source.Clustered);
+			// Bounds = the WORLD (else the map never asks for the overview outside the areas); centre = the areas.
+			Assert.Equal(-1800000000, got.Source.MinLonE7);
+			Assert.Equal(1800000000, got.Source.MaxLonE7);
+			Assert.InRange(got.Source.CenterLonE7 / 1e7, -127.0, -65.0);
 			Assert.Equal(PmtilesCompression.Gzip, got.Source.InternalCompression);
 			Assert.Equal(got.Entries.Count, (int)got.Source.TileEntriesCount);
 		}

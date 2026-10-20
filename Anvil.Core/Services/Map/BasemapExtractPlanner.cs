@@ -44,13 +44,21 @@ namespace Anvil.Services
 		/// <summary>Leaf directory reads in flight at once (each is one small range read).</summary>
 		public const int LeafReadsAtOnce = 12;
 
+		/// <param name="overviewZoom">Also take EVERY tile of the world up to this zoom (<see cref="BasemapAreas.WorldOverviewZoom"/>
+		/// for a real download); -1 = only the areas — what <c>pmtiles extract</c> does, so the tests compare against it.</param>
 		public static async Task<BasemapExtractPlan> PlanAsync(IPmtilesSource source, IEnumerable<BasemapArea> areas,
-			int maxZoom, CancellationToken ct, Action<int, int>? leavesRead = null)
+			int maxZoom, CancellationToken ct, Action<int, int>? leavesRead = null, int overviewZoom = -1)
 		{
 			var first = await source.ReadAsync(0, PmtilesHeader.FirstReadLength, ct).ConfigureAwait(false);
 			var header = PmtilesHeader.Parse(first);
 			var top = Math.Min(maxZoom, header.MaxZoom);
 			var cover = BasemapTileCover.Build(areas, top);
+			if (overviewZoom >= 0)
+			{
+				// Zooms 0…z of the whole world are ONE id block: every id below the first tile of zoom z+1.
+				var all = new List<TileIdRange>(cover) { new(0, PmtilesTileId.ZoomBase(Math.Min(overviewZoom, top) + 1)) };
+				cover = BasemapTileCover.Merge(all);
+			}
 
 			var rootBytes = Slice(first, header.RootDirectoryOffset, header.RootDirectoryLength);
 			var root = PmtilesDirectory.Decode(PmtilesHeader.Decompress(rootBytes, header.InternalCompression));

@@ -178,6 +178,25 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public async Task The_world_overview_adds_every_tile_up_to_its_zoom_and_nothing_deeper()
+		{
+			// z0-z3 = ids 0-84, each its own tile, all in the root. Guam at z3 + an overview to z1 = ids 0-4 (the whole world
+			// at z0-1) + Guam's own z2/z3 tiles — no other z2/z3 tile.
+			var tiles = Enumerable.Range(0, (int)PmtilesTileId.ZoomBase(4)).Select(i => new PmtilesEntry((ulong)i, (ulong)i * 10, 10, 1)).ToArray();
+			var source = Archive.Build(Archive.Directory(tiles), Array.Empty<byte>(), new byte[tiles.Length * 10], maxZoom: 3);
+			var guam = new[] { BasemapAreas.Guam };
+
+			var plan = await BasemapExtractPlanner.PlanAsync(source, guam, 3, CancellationToken.None, null, overviewZoom: 1);
+
+			var guamCover = BasemapTileCover.Build(guam, 3);
+			var expected = tiles.Where(t => t.TileId < PmtilesTileId.ZoomBase(2) || BasemapTileCover.Touches(guamCover, t.TileId, t.TileId + 1))
+				.Select(t => t.TileId);
+			Assert.Equal(expected, plan.Entries.Select(e => e.TileId));
+			Assert.Equal(5, plan.Entries.Count(e => e.TileId < PmtilesTileId.ZoomBase(2)));
+			Assert.True(plan.Entries.Count < tiles.Length);
+		}
+
+		[Fact]
 		public async Task Leaves_read_at_once_still_give_entries_in_tile_id_order()
 		{
 			// z0-z2 = ids 0-20, each its own tile: id 0 sits in the root, ids 1-20 in four leaves of five. The source answers
