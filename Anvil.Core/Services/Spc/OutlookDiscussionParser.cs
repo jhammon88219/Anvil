@@ -43,8 +43,9 @@ namespace Anvil.Services
 		private static readonly Regex IssuedRx = new(@"^(\d{1,2}?)(\d{2}) (AM|PM) ([A-Z]{3}) ([A-Z]{3}) ([A-Z]{3}) (\d{1,2}) (\d{4})$", Ci);
 		private static readonly Regex ValidRx = new(@"^VALID (\d{2})(\d{2})(\d{2})Z - (\d{2})(\d{2})(\d{2})Z$", Ci);
 
+		// "A" or "AN": SPC writes "THERE IS AN ENHANCED RISK" (Day 2, 2026-10-20) — "A" alone filed it as an ALERT, no cards.
 		private static readonly Regex HeadlineRx = new(
-			@"^THERE IS A (HIGH|MDT|MODERATE|ENH|ENHANCED|SLGT|SLIGHT|MRGL|MARGINAL) RISK OF (?:SEVERE THUNDERSTORMS|SVR TSTMS)\s*(.*)$", Ci);
+			@"^THERE IS AN? (HIGH|MDT|MODERATE|ENH|ENHANCED|SLGT|SLIGHT|MRGL|MARGINAL) RISK OF (?:SEVERE THUNDERSTORMS|SVR TSTMS)\s*(.*)$", Ci);
 		private static readonly Regex NoSevereRx = new(@"^NO SEVERE THUNDERSTORM AREAS FORECAST$", Ci);
 		private static readonly Regex UpdateRx = new(@"^(\d{2})Z (?:OUTLOOK )?UPDATE$", Ci);
 		private static readonly Regex SynopsisRx = new(@"^SYNOP", Ci);

@@ -238,6 +238,15 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void An_Enhanced_IsAHeadline_NotAnAlert()
+		{
+			var d = OutlookDiscussionParser.Parse(Fixture("d2_20261020_1730"));
+			var h = Assert.Single(d.Headlines);
+			Assert.Equal("ENH", h.Code);
+			Assert.Null(d.Alert);
+		}
+
+		[Fact]
 		public void Quiet_Day_IsTheNoSevereHeadline()
 		{
 			var d = OutlookDiscussionParser.Parse(Fixture("d1_20261002_1300"));
@@ -300,7 +309,7 @@ namespace Anvil.Tests
 			var joined = string.Join(" ", lines);
 			return joined.Contains("TO THE RIGHT OF A LINE FROM", StringComparison.OrdinalIgnoreCase) // legacy points
 				|| lines[0].Equals("...NOTICE...", StringComparison.OrdinalIgnoreCase)
-				|| Regex.IsMatch(lines[0], @"^\.\.\.(THERE IS A .* RISK OF|NO SEVERE THUNDERSTORM)", RegexOptions.IgnoreCase); // headline: kept, but reworded
+				|| Regex.IsMatch(lines[0], @"^\.\.\.(THERE IS AN? .* RISK OF|NO SEVERE THUNDERSTORM)", RegexOptions.IgnoreCase); // headline: kept, but reworded
 		}
 
 		private static bool DroppedLine(string line) =>
