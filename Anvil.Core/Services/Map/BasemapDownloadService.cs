@@ -64,7 +64,9 @@ namespace Anvil.Services
 		public const string PartExtension = ".part";
 		public const string JobExtension = ".part.json";
 		public const int MaxGapBytes = 64 * 1024;
-		public const int Parallel = 4;
+		// Each range read from build.protomaps.com runs ~12-30 MB/s on its own; 8 at once measured ~83 MB/s combined
+		// (2026-10-20, 1 Gb fiber), so a fast line needs many in flight. 12 × 16 MB chunks ≈ 200 MB held at most.
+		public const int Parallel = 12;
 		private const int DefaultChunkBytes = 16 * 1024 * 1024;
 
 		/// <summary>The pause before a chunk's retry, times the attempt (3 s, 6 s). Tests shorten it.</summary>
