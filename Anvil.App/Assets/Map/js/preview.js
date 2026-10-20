@@ -115,6 +115,22 @@ function sync() {
     });
 }
 
+// ⚠️ MIRRORS map.js paintBeyondWorld — change both.
+function paintBeyondWorld() {
+    if (!map) return;
+    let c = '';
+    try {
+        if (Basemap.isHidden()) c = Basemap.blank();
+        else {
+            const water = map.getLayer('water') ? map.getPaintProperty('water', 'fill-color') : null;
+            const bg = map.getLayer('background') ? map.getPaintProperty('background', 'background-color') : null;
+            c = typeof water === 'string' ? water : typeof bg === 'string' ? bg : '';
+        }
+    } catch (e) { return; }
+    const el = map.getContainer();
+    if (el.style.backgroundColor !== c) el.style.backgroundColor = c;
+}
+
 // Frame the reflectivity ring with a little air round it.
 function fit(animate) {
     if (!map) return;
@@ -145,6 +161,8 @@ resolveStyle(want.style).then(function (spec) {
         dragRotate: false, pitchWithRotate: false, touchPitch: false,
     });
     map.touchZoomRotate.disableRotation();
+    // ⚠️ MIRRORS map.js paintBeyondWorld: past the world's edge reads as the style's ocean (blank while hidden).
+    map.on('styledata', paintBeyondWorld);
     // ⚠️ MIRRORS map.js looseWorldEdge: the world's edge may reach the middle, so an Alaska site's rings centre
     // instead of being pushed off the 180° line. North/south and zoom stay MapLibre's.
     map.setTransformConstrain(function (lngLat, z) {
@@ -180,6 +198,7 @@ window.setBasemap = function (hidden, offGroupsJson) {
     try { off = JSON.parse(offGroupsJson || '[]'); } catch (e) { /* bad payload = nothing unticked */ }
     Basemap.setState(hidden, off);
     if (map) Basemap.apply(map);
+    paintBeyondWorld();
 };
 window.setDistanceUnits = function (unit) { Scope.setUnits(unit); };
 // ⚠️ MIRRORS map.js setScopeColor: the host only sends a bare #RRGGBB or '' (ScopeColors.Normalize).

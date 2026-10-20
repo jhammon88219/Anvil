@@ -324,6 +324,25 @@ try {
         if (p && typeof p.allowWorldCopies === 'function') p.allowWorldCopies = function () { return false; };
     }
 
+    // PAST THE WORLD'S EDGE = OCEAN (the user's call, 2026-10-20). MapLibre paints nothing beyond ±180° (one world,
+    // and even the style's background layer only covers the world's tiles), so the canvas is clear there and the PANE's
+    // own background shows — paint it the loaded style's WATER colour, so panning past Russia or Alaska reads as more
+    // sea. Same rule as states.js waterColor: the BLANK ground while the basemap is hidden; the style's background if
+    // its water is an expression; else nothing (the page ground, as before).
+    function paintBeyondWorld(m) {
+        let c = '';
+        try {
+            if (Basemap && Basemap.isHidden()) c = Basemap.blank();
+            else {
+                const water = m.getLayer('water') ? m.getPaintProperty('water', 'fill-color') : null;
+                const bg = m.getLayer('background') ? m.getPaintProperty('background', 'background-color') : null;
+                c = typeof water === 'string' ? water : typeof bg === 'string' ? bg : '';
+            }
+        } catch (e) { return; } // style mid-load: the next styledata repaints
+        const el = m.getContainer();
+        if (el.style.backgroundColor !== c) el.style.backgroundColor = c;
+    }
+
     function createPaneMap(i) {
         // A pane joins the existing camera, style and orientation, so it appears already locked to its
         // siblings instead of flying in from the launch view.
@@ -347,6 +366,7 @@ try {
         m.setTransformConstrain(looseWorldEdge(m));
         oneWorldMarkers(m);
         m.on('projectiontransition', function () { oneWorldMarkers(m); }); // every style load builds a NEW transform
+        m.on('styledata', function () { paintBeyondWorld(m); });          // a new style / theme = a new ocean
         m.on('move', onPaneMove);
         if (PerfProbe) PerfProbe.attach(m); // dev pan probe: a pane added later still gets sampled
         if (Layers) Layers.watchStack(m);   // keep the user's overlay order on this pane too
@@ -487,6 +507,7 @@ try {
         forEachMap(function (m) {
             Basemap.apply(m);
             if (States) States.reAdd(m);
+            paintBeyondWorld(m); // hidden = blank past the edge too
         });
     };
 
