@@ -5,6 +5,8 @@ using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Anvil.Models;
 using Anvil.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -20,17 +22,21 @@ namespace Anvil.ViewModels
 	/// <remarks>
 	/// ⚠️ UI FIRST (2026-10-20, the user's call: "get the UI in, then slowly make it work"). What WORKS: moving between
 	/// the window's steps, the card choice, the area list + its radar counts + size total, the planned file name, Stop
-	/// showing this at launch, the file list, free space, the in-use line, the delete QUESTION. What does NOT yet: every
-	/// action marked <c>BASEMAP-SETUP: NOT BUILT</c> — key test, use online, download / cancel / retry, use / delete /
-	/// show a file, the folder + file pickers. Grep the sentinel to find them.
+	/// showing this at launch, the file list, free space, the in-use line, the delete QUESTION, and the DOWNLOAD itself
+	/// (<see cref="IBasemapDownloadService"/>: start, progress, cancel, retry/resume). What does NOT yet: every action marked
+	/// <c>BASEMAP-SETUP: NOT BUILT</c> — key test, use online, DRAWING a downloaded map, use / delete / show a file, the
+	/// folder + file pickers. Grep the sentinel to find them.
 	/// </remarks>
 	public sealed class BasemapSetupViewModel : ObservableObject
 	{
 		private readonly ISettingsService _settings;
+		private readonly IBasemapDownloadService? _downloads;
 
-		public BasemapSetupViewModel(ISettingsService settings, IRadarSiteProvider radarSites)
+		/// <param name="downloads">The offline map download; null (tests) = Download stays greyed.</param>
+		public BasemapSetupViewModel(ISettingsService settings, IRadarSiteProvider radarSites, IBasemapDownloadService? downloads = null)
 		{
 			_settings = settings;
+			_downloads = downloads;
 			_saveFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Anvil Maps");
 
 			// The Area checklist. Radar counts = NEXRAD only (the user's call): operational, not retired, inside the area.
@@ -77,7 +83,11 @@ namespace Anvil.ViewModels
 			get => _step;
 			set
 			{
-				if (SetProperty(ref _step, value)) OnPropertyChanged(nameof(StepIndex));
+				if (SetProperty(ref _step, value))
+				{
+					OnPropertyChanged(nameof(StepIndex));
+					OnPropertyChanged(nameof(IsDownloadFailed));
+				}
 			}
 		}
 
@@ -124,11 +134,15 @@ namespace Anvil.ViewModels
 		/// <summary>The window's main button, named for what it will do.</summary>
 		public string PrimaryActionText => _isOnlineChosen ? "Use online map" : "Download map";
 
-		/// <summary>Download needs at least one area ticked; the online route is always pressable.</summary>
-		public bool CanRunPrimaryAction => _isOnlineChosen || HasAnyArea;
+		/// <summary>Download needs at least one area ticked and no download already running; the online route is always pressable.</summary>
+		public bool CanRunPrimaryAction => _isOnlineChosen || (HasAnyArea && !IsDownloading);
 
-		/// <summary>The main button. BASEMAP-SETUP: NOT BUILT — online = test + switch on, offline = start the download.</summary>
-		public void RunPrimaryAction() { }
+		/// <summary>The main button: offline = start the download (the window moves to its Downloading step).
+		/// Online = BASEMAP-SETUP: NOT BUILT (test the key + switch on).</summary>
+		public void RunPrimaryAction()
+		{
+			if (!_isOnlineChosen) StartDownload();
+		}
 
 		// ── Online ──────────────────────────────────────────────────────────────────────────────────────────
 
@@ -204,20 +218,26 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>The file a download would make now (Settings → Basemap's File line); "—" with nothing ticked.</summary>
-		public string PlannedFileName => HasAnyArea
-			? BasemapFileNames.NextFileName(IsFullDetail, CheckedAreas, ExistingMapFileNames())
-			: "—";
+		/// <summary>The file a download would make now (Settings → Basemap's File line); "—" with nothing ticked. An unfinished
+		/// download of the same options is RESUMED under its own name, so that name shows.</summary>
+		public string PlannedFileName => !HasAnyArea ? "—"
+			: UnfinishedFileName() ?? BasemapFileNames.NextFileName(IsFullDetail, CheckedAreas, BasemapDownloadService.TakenFileNames(_saveFolder));
 
-		/// <summary>Said under the File line when the same options are already downloaded — ALWAYS kept beside (the user's call).</summary>
-		public string DuplicateNote => HasAnyArea && BasemapFileNames.TryParse(PlannedFileName)?.Copy > 1
-			? "You already have this map. This one is kept beside it."
+		/// <summary>Said under the File line: an unfinished download carries on; the same options already downloaded are
+		/// ALWAYS kept beside (the user's call).</summary>
+		public string DuplicateNote =>
+			!HasAnyArea ? ""
+			: UnfinishedFileName() is not null ? "An unfinished download of this map picks up where it left off."
+			: BasemapFileNames.TryParse(PlannedFileName)?.Copy > 1 ? "You already have this map. This one is kept beside it."
 			: "";
+
+		private string? UnfinishedFileName() => _downloads?.UnfinishedFileName(_saveFolder, CheckedAreas, IsFullDetail);
 
 		private void OnAreasChanged()
 		{
 			OnPropertyChanged(nameof(HasAnyArea));
 			OnPropertyChanged(nameof(CanRunPrimaryAction));
+			OnPropertyChanged(nameof(CanStartDownload));
 			RaiseChoice();
 		}
 
@@ -283,22 +303,185 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>Settings → Basemap's Download. BASEMAP-SETUP: NOT BUILT — runs in the background there; Anvil keeps its
-		/// current map until the user switches.</summary>
-		public void StartDownload() { }
+		// ── The download ────────────────────────────────────────────────────────────────────────────────────
+		// ONE at a time, started from either place (the setup window's Download map, Settings → Basemap's Download). The
+		// window follows it through its steps (Downloading → Ready | Failed); the tab shows the same readout on one line.
+		// ⚠️ Anvil does not DRAW a downloaded map yet — opening one is BASEMAP-SETUP: NOT BUILT (it still reads usa_full).
 
-		/// <summary>BASEMAP-SETUP: NOT BUILT.</summary>
-		public void CancelDownload() => Step = BasemapSetupStep.Choose;
+		private CancellationTokenSource? _downloadCancel;
+		private List<BasemapArea> _downloadAreas = new();
+		private bool _downloadFull;
+		private bool _rateStarted;
+		private DateTime _rateStartUtc;
+		private ulong _rateStartBytes;
+		private BasemapDownloadProgress _lastProgress;
 
-		/// <summary>BASEMAP-SETUP: NOT BUILT — resume from what's on disk.</summary>
-		public void RetryDownload() { }
+		private bool _isDownloading;
+		/// <summary>A download is running (greys both Download buttons; the tab shows its progress line).</summary>
+		public bool IsDownloading
+		{
+			get => _isDownloading;
+			private set
+			{
+				if (SetProperty(ref _isDownloading, value))
+				{
+					OnPropertyChanged(nameof(CanRunPrimaryAction));
+					OnPropertyChanged(nameof(CanStartDownload));
+				}
+			}
+		}
 
-		// The download's readout. BASEMAP-SETUP: NOT BUILT — nothing feeds these yet; they show their resting values.
+		/// <summary>The last download stopped (the window's Failed step; Settings → Basemap shows it with Retry).</summary>
+		public bool IsDownloadFailed => _step == BasemapSetupStep.Failed;
+
+		/// <summary>Settings → Basemap's Download button.</summary>
+		public bool CanStartDownload => HasAnyArea && !IsDownloading && _downloads is not null;
+
+		/// <summary>Download the ticked areas at the picked detail — or carry on an unfinished one of the same options.</summary>
+		public void StartDownload()
+		{
+			if (!CanStartDownload) return;
+			_downloadAreas = CheckedAreas;
+			_downloadFull = IsFullDetail;
+			_ = RunDownloadAsync();
+		}
+
+		/// <summary>Retry: the SAME map again, picking up what arrived (the window's Failed step).</summary>
+		public void RetryDownload()
+		{
+			if (IsDownloading || _downloads is null || _downloadAreas.Count == 0) return;
+			_ = RunDownloadAsync();
+		}
+
+		/// <summary>"Cancel and go back": stop, keep what arrived (the next Download of these options picks it up).</summary>
+		public void CancelDownload()
+		{
+			_downloadCancel?.Cancel();
+			Step = BasemapSetupStep.Choose;
+		}
+
+		private async Task RunDownloadAsync()
+		{
+			IsDownloading = true;
+			Step = BasemapSetupStep.Downloading;
+			DownloadMapText = new BasemapFileOptions(_downloadFull, _downloadAreas, 1).Description;
+			OnPropertyChanged(nameof(DownloadMapText));
+			_downloadCancel = new CancellationTokenSource();
+			_lastProgress = default;
+			_rateStarted = false;
+			ShowProgress(new BasemapDownloadProgress(BasemapDownloadPhase.FindingBuild, 0, 0));
+			try
+			{
+				// Progress<T> is created HERE, on the UI thread, so its reports land back on it.
+				var path = await _downloads!.DownloadAsync(_saveFolder, _downloadAreas, _downloadFull,
+					new Progress<BasemapDownloadProgress>(ShowProgress), _downloadCancel.Token);
+				DownloadedPath = path;
+				OnPropertyChanged(nameof(DownloadedPath));
+				Step = BasemapSetupStep.Ready;
+			}
+			catch (OperationCanceledException) when (_downloadCancel.IsCancellationRequested)
+			{
+				// Cancel and go back: the window is already on Choose; what arrived is kept.
+			}
+			catch (Exception ex)
+			{
+				FailureText = FailureWords(ex, _lastProgress);
+				Step = BasemapSetupStep.Failed;
+			}
+			finally
+			{
+				_downloadCancel.Dispose();
+				_downloadCancel = null;
+				IsDownloading = false;
+				Refresh(); // the new file in the list, the next free name
+			}
+		}
+
+		private void ShowProgress(BasemapDownloadProgress p)
+		{
+			_lastProgress = p;
+			switch (p.Phase)
+			{
+				case BasemapDownloadPhase.FindingBuild:
+					SetReadout(0, "Finding the newest map…", "");
+					break;
+				case BasemapDownloadPhase.Planning:
+					SetReadout(0, "Working out what to download…", "");
+					break;
+				case BasemapDownloadPhase.Downloading:
+					if (!_rateStarted)
+					{
+						_rateStarted = true;
+						_rateStartUtc = DateTime.UtcNow;
+						_rateStartBytes = p.BytesDone; // a resume starts its clock where it picked up
+					}
+					SetReadout(Percent(p), $"{BytesWords(p.BytesDone)} of {BytesWords(p.BytesTotal)}", TimeLeftWords(p));
+					break;
+				case BasemapDownloadPhase.Finishing:
+					SetReadout(100, "Finishing…", "");
+					break;
+			}
+		}
+
+		private void SetReadout(double percent, string amount, string timeLeft)
+		{
+			DownloadPercent = percent;
+			DownloadAmountText = amount;
+			TimeLeftText = timeLeft;
+			OnPropertyChanged(nameof(DownloadPercent));
+			OnPropertyChanged(nameof(DownloadPercentText));
+			OnPropertyChanged(nameof(DownloadAmountText));
+			OnPropertyChanged(nameof(TimeLeftText));
+			OnPropertyChanged(nameof(DownloadLineText));
+		}
+
+		private static double Percent(BasemapDownloadProgress p) => p.BytesTotal == 0 ? 0 : 100.0 * p.BytesDone / p.BytesTotal;
+
+		private string TimeLeftWords(BasemapDownloadProgress p)
+		{
+			var seconds = (DateTime.UtcNow - _rateStartUtc).TotalSeconds;
+			var moved = p.BytesDone - _rateStartBytes;
+			if (seconds < 3 || moved == 0) return ""; // too early to say
+			var left = (p.BytesTotal - p.BytesDone) / (moved / seconds);
+			return left < 60 ? "Less than a minute left"
+				: left < 3600 ? $"About {Math.Ceiling(left / 60):0} minutes left"
+				: $"About {left / 3600:0.0} hours left";
+		}
+
+		/// <summary>What went wrong, in plain words, with what to do and what's kept.</summary>
+		internal static string FailureWords(Exception ex, BasemapDownloadProgress at) => ex switch
+		{
+			BasemapNotEnoughSpaceException s =>
+				$"There isn't room on this drive: the map needs {BytesWords(s.NeededBytes)} and {BytesWords(s.FreeBytes)} is free. Free some space, or pick a smaller map.",
+			_ when at.BytesTotal > 0 =>
+				$"Your connection dropped at {BytesWords(at.BytesDone)} of {BytesWords(at.BytesTotal)}. What's downloaded is kept.",
+			_ => "Couldn't reach the map service. Check your internet connection, then retry.",
+		};
+
+		/// <summary>Bytes as a reader sees them: "450 MB", "4.4 GB" (decimal, like the size estimates).</summary>
+		internal static string BytesWords(ulong bytes) => SizeWords(bytes / 1e6);
+
+		/// <summary>The map being downloaded, for the Downloading / Ready / Failed screens ("Standard · Lower 48 states").</summary>
+		public string DownloadMapText { get; private set; } = "";
+
+		/// <summary>The finished file (the Ready screen).</summary>
+		public string DownloadedPath { get; private set; } = "";
+
 		public double DownloadPercent { get; private set; }
 		public string DownloadPercentText => $"{DownloadPercent:0}%";
-		public string DownloadAmountText { get; private set; } = "Starting…";
+		public string DownloadAmountText { get; private set; } = "";
 		public string TimeLeftText { get; private set; } = "";
-		public string FailureText { get; private set; } = "Your connection dropped. What's downloaded is kept.";
+
+		/// <summary>Settings → Basemap's one-line readout while a download runs.</summary>
+		public string DownloadLineText => string.Join(" · ", new[] { DownloadMapText, DownloadPercentText, DownloadAmountText, TimeLeftText }
+			.Where(s => !string.IsNullOrEmpty(s)));
+
+		private string _failureText = "";
+		public string FailureText
+		{
+			get => _failureText;
+			private set => SetProperty(ref _failureText, value);
+		}
 
 		// ── An existing file ────────────────────────────────────────────────────────────────────────────────
 

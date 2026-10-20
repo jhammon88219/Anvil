@@ -195,6 +195,7 @@ namespace Anvil
 
 			// ── View models + the JS→C# router + the window (the composition root). ──
 			// Map setup (the window before launch + Settings → Basemap) — one instance behind both; MapViewModel takes it.
+			services.AddSingleton<IBasemapDownloadService, BasemapDownloadService>();
 			services.AddSingleton<BasemapSetupViewModel>();
 			services.AddSingleton<MapViewModel>();
 			services.AddSingleton<WebMessageRouter>();

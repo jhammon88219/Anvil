@@ -39,7 +39,9 @@ namespace Anvil.Services
 			if (response.StatusCode != HttpStatusCode.PartialContent)
 			{
 				// A 200 here would be the WHOLE planet — never read it.
-				throw new HttpRequestException($"The map server didn't return the requested part ({(int)response.StatusCode}).");
+				// The status rides along: a 404 tells the downloader the build it was resuming is gone.
+				throw new HttpRequestException($"The map server didn't return the requested part ({(int)response.StatusCode}).",
+					null, response.StatusCode);
 			}
 			return await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
 		}

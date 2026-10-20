@@ -25,7 +25,10 @@
        │    File     anvil-map-standard-l48.pmtiles           │  ← the exact name; same options again → -2
        │             (You already have this map. This one is kept beside it.)
        │    Downloads in the background…        [Download]    │  ← runs in the background HERE; Anvil keeps its
-       │  ⌄  Online map                                       │     current map until you switch. Greyed w/o an area
+       │             ▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░    [Cancel]   │     current map until you switch. Greyed w/o an area
+       │             Standard · Lower 48 states · 38% · 1.7 GB of 4.4 GB · About 6 minutes left   ← only while running
+       │             ⚠ Your connection dropped at 1.7 GB of 4.4 GB…   [Retry]   ← only after one stopped
+       │  ⌄  Online map                                       │
        │    Map key · Get a free key at protomaps.com         │
        │    [a1b2c3…            ] [Test] [Use online map]     │
        │    Free for personal use.                            │
@@ -158,6 +161,7 @@
                     <RowDefinition Height="Auto"/> <!-- save to -->
                     <RowDefinition Height="Auto"/> <!-- file name -->
                     <RowDefinition Height="Auto"/> <!-- note + Download -->
+                    <RowDefinition Height="Auto"/> <!-- progress | stopped -->
                 </Grid.RowDefinitions>
                 <TextBlock Text="Area" Margin="0,6,0,0"/>
                 <basemaps:BasemapAreaChecklist x:Name="BasemapAreaChecklist" Grid.Column="1" ViewModel="{x:Bind ViewModel}"/>
@@ -190,7 +194,36 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <Button x:Name="BasemapDownloadButton" Grid.Row="5" Grid.Column="1" HorizontalAlignment="Right"
                         Content="Download" Style="{StaticResource AccentButtonStyle}"
-                        IsEnabled="{x:Bind ViewModel.HasAnyArea, Mode=OneWay}" Click="{x:Bind ViewModel.StartDownload}"/>
+                        IsEnabled="{x:Bind ViewModel.CanStartDownload, Mode=OneWay}" Click="{x:Bind ViewModel.StartDownload}"/>
+
+                <!-- While a download runs (from here OR the setup window): the bar, one readout line, Cancel. -->
+                <Grid x:Name="BasemapDownloadProgress" Grid.Row="6" Grid.Column="1" ColumnSpacing="8" RowSpacing="4"
+                      Visibility="{x:Bind ViewModel.IsDownloading, Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ProgressBar VerticalAlignment="Center" Maximum="100" Value="{x:Bind ViewModel.DownloadPercent, Mode=OneWay}"/>
+                    <Button x:Name="BasemapCancelDownloadButton" Grid.Column="1" Content="Cancel" Click="{x:Bind ViewModel.CancelDownload}"
+                            ToolTipService.ToolTip="Stops the download. What's downloaded is kept — Download picks it up again."/>
+                    <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{x:Bind ViewModel.DownloadLineText, Mode=OneWay}"
+                               FontSize="12" TextWrapping="Wrap" Style="{StaticResource TabularNumberTextStyle}"/>
+                </Grid>
+
+                <!-- A download that stopped: what happened, and Retry (it picks up what arrived). -->
+                <Grid x:Name="BasemapDownloadFailed" Grid.Row="6" Grid.Column="1" ColumnSpacing="8"
+                      Visibility="{x:Bind ViewModel.IsDownloadFailed, Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE7BA;" FontSize="16" VerticalAlignment="Center"
+                              Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.FailureText, Mode=OneWay}" FontSize="12" TextWrapping="Wrap"
+                               VerticalAlignment="Center"/>
+                    <Button x:Name="BasemapRetryDownloadButton" Grid.Column="2" Content="Retry" Click="{x:Bind ViewModel.RetryDownload}"/>
+                </Grid>
             </Grid>
         </prim:SettingsExpander>
 
