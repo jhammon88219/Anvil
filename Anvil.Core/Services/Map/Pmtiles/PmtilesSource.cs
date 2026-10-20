@@ -12,6 +12,10 @@ namespace Anvil.Services
 	{
 		/// <summary>Exactly <paramref name="length"/> bytes from <paramref name="offset"/> (fewer only at the archive's end).</summary>
 		Task<byte[]> ReadAsync(ulong offset, int length, CancellationToken ct);
+
+		/// <summary>The same read, calling <paramref name="received"/> with each piece's size as it arrives (a download's live
+		/// progress). A source that can't stream just reads; the caller counts what it didn't hear about at the end.</summary>
+		Task<byte[]> ReadAsync(ulong offset, int length, Action<int> received, CancellationToken ct) => ReadAsync(offset, length, ct);
 	}
 
 	/// <summary>
@@ -30,7 +34,9 @@ namespace Anvil.Services
 
 		public Uri Url { get; }
 
-		public async Task<byte[]> ReadAsync(ulong offset, int length, CancellationToken ct)
+		public Task<byte[]> ReadAsync(ulong offset, int length, CancellationToken ct) => ReadAsync(offset, length, null, ct);
+
+		public async Task<byte[]> ReadAsync(ulong offset, int length, Action<int>? received, CancellationToken ct)
 		{
 			if (length <= 0) return Array.Empty<byte>();
 			using var request = new HttpRequestMessage(HttpMethod.Get, Url);
@@ -43,7 +49,20 @@ namespace Anvil.Services
 				throw new HttpRequestException($"The map server didn't return the requested part ({(int)response.StatusCode}).",
 					null, response.StatusCode);
 			}
-			return await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+			if (received is null) return await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+
+			// Streamed into the one buffer, reporting each piece — fewer bytes only at the archive's end.
+			var buffer = new byte[length];
+			var got = 0;
+			await using var body = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+			while (got < length)
+			{
+				var n = await body.ReadAsync(buffer.AsMemory(got, Math.Min(64 * 1024, length - got)), ct).ConfigureAwait(false);
+				if (n == 0) break;
+				got += n;
+				received(n);
+			}
+			return got == length ? buffer : buffer.AsSpan(0, got).ToArray();
 		}
 	}
 }

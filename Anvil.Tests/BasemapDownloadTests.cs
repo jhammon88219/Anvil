@@ -74,7 +74,7 @@ namespace Anvil.Tests
 			Assert.Equal("anvil-map-standard-l48.pmtiles", Path.GetFileName(path)); // resumed, not "-2"
 			Assert.Equal(File.ReadAllBytes(clean), File.ReadAllBytes(path));
 			var firstData = seen.First(p => p.Phase == BasemapDownloadPhase.Downloading);
-			Assert.True(firstData.BytesDone > 0, "the second try starts where the first stopped");
+			Assert.True(firstData.Done > 0, "the second try starts where the first stopped");
 			Assert.Null(svc.UnfinishedFileName(_folder, Area, false));
 		}
 
@@ -124,6 +124,46 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public async Task Steps_report_in_order_with_their_own_counts()
+		{
+			var seen = new List<BasemapDownloadProgress>();
+			await Service(Planet.Make()).DownloadAsync(_folder, Area, false, new SyncProgress(p => { lock (seen) seen.Add(p); }), CancellationToken.None);
+
+			var phases = seen.Select(p => p.Phase).ToList();
+			Assert.Equal(phases.OrderBy(p => p), phases); // never a step backwards
+			Assert.Equal(Enum.GetValues<BasemapDownloadPhase>(), phases.Distinct());
+			Assert.Equal(new ulong[] { 0, 1, 2 }, seen.Where(p => p.Phase == BasemapDownloadPhase.Planning).Select(p => p.Done));
+			Assert.All(seen.Where(p => p.Phase == BasemapDownloadPhase.Planning), p => Assert.Equal((ulong)BasemapDownloadService.PlanStages, p.Total));
+			Assert.All(seen.Where(p => p.Phase >= BasemapDownloadPhase.ReadingIndex), p => Assert.Equal(new DateTime(2026, 10, 20), p.BuildDay));
+			Assert.All(seen.Where(p => p.Phase >= BasemapDownloadPhase.Planning), p => Assert.True(p.Tiles > 0));
+			Assert.All(seen.Where(p => p.Phase == BasemapDownloadPhase.Downloading), p => Assert.True(p.Done <= p.Total));
+		}
+
+		[Fact]
+		public async Task Bytes_still_arriving_move_the_bar_while_an_earlier_chunk_holds_the_line()
+		{
+			// The FIRST chunk streams its bytes, then holds; the rest arrive behind it. Nothing can be WRITTEN (strict
+			// order), yet the bar must move — that was the "stall" the user saw.
+			var source = new HoldFirstChunkSource(Planet.Make());
+			var seen = new List<BasemapDownloadProgress>();
+			var run = Service(source, report: TimeSpan.FromMilliseconds(1))
+				.DownloadAsync(_folder, Area, false, new SyncProgress(p => { lock (seen) seen.Add(p); }), CancellationToken.None);
+
+			var moved = false;
+			for (var i = 0; i < 400 && !moved; i++)
+			{
+				await Task.Delay(5);
+				lock (seen) moved = seen.Any(p => p.Phase == BasemapDownloadPhase.Downloading && p.Done > 0);
+			}
+			var job = File.ReadAllText(Directory.GetFiles(_folder, "*.part.json").Single());
+			source.Release();
+			await run;
+
+			Assert.True(moved, "the bar moved while the first chunk held");
+			Assert.Contains("\"ChunksDone\":0", job); // ...and nothing had been written yet
+		}
+
+		[Fact]
 		public void Failures_read_in_plain_words_with_what_is_kept()
 		{
 			Assert.Equal("Your connection dropped at 1.7 GB of 4.4 GB. What's downloaded is kept.",
@@ -135,8 +175,12 @@ namespace Anvil.Tests
 				Anvil.ViewModels.BasemapSetupViewModel.FailureWords(new BasemapNotEnoughSpaceException(4_400_000_000, 1_000_000_000), default));
 		}
 
-		private static BasemapDownloadService Service(IPmtilesSource source) =>
-			new(NullLogger<BasemapDownloadService>.Instance, _ => source, _ => Task.FromResult(Build), chunkBytes: 256, freeBytes: _ => null) { RetryDelay = TimeSpan.FromMilliseconds(1) };
+		private static BasemapDownloadService Service(IPmtilesSource source, TimeSpan? report = null) =>
+			new(NullLogger<BasemapDownloadService>.Instance, _ => source, _ => Task.FromResult(Build), chunkBytes: 256, freeBytes: _ => null)
+			{
+				RetryDelay = TimeSpan.FromMilliseconds(1),
+				ReportEvery = report ?? TimeSpan.FromMilliseconds(150),
+			};
 
 		private static Task<byte[]> TileBytes(IPmtilesSource s, PmtilesHeader h, PmtilesEntry e) =>
 			s.ReadAsync(h.TileDataOffset + e.Offset, (int)e.Length, CancellationToken.None);
@@ -191,6 +235,26 @@ namespace Anvil.Tests
 				Interlocked.Decrement(ref _left) >= 0
 					? _inner.ReadAsync(offset, length, ct)
 					: Task.FromException<byte[]>(new HttpRequestException("connection dropped"));
+		}
+
+		/// <summary>Streams every chunk (the downloader's streaming read) at once, but holds the FIRST until released.</summary>
+		private sealed class HoldFirstChunkSource : IPmtilesSource
+		{
+			private readonly IPmtilesSource _inner;
+			private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+			private int _chunks;
+			public HoldFirstChunkSource(IPmtilesSource inner) => _inner = inner;
+			public void Release() => _gate.TrySetResult();
+
+			public Task<byte[]> ReadAsync(ulong offset, int length, CancellationToken ct) => _inner.ReadAsync(offset, length, ct);
+
+			public async Task<byte[]> ReadAsync(ulong offset, int length, Action<int> received, CancellationToken ct)
+			{
+				var bytes = await _inner.ReadAsync(offset, length, ct);
+				received(bytes.Length);
+				if (Interlocked.Increment(ref _chunks) == 1) await _gate.Task.WaitAsync(ct);
+				return bytes;
+			}
 		}
 
 		/// <summary>Progress<T> posts to a context; tests want the reports in order, now.</summary>

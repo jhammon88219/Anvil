@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BasemapSetupWindowDownloadStep — ONE row of the setup window's download readout (five, declared in
+     BasemapSetupWindow's DOWNLOADING step, one per BasemapDownloadPhase), over a BasemapDownloadStep.
+
+       ○  Plan your file                                          ← WAITING: hollow grey ring, grey name, no bar
+       ◉  Read the map's index                41 of 83 sections   ← RUNNING: accent ring + dot, its own bar filling
+          ▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░
+       ✓  Find the newest map                   20 Oct 2026 build ← DONE: accent disc + check, bar FULL but dimmed
+          ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  (45%)
+
+     RULES (the user's calls, 2026-10-20): every step has its OWN bar so nothing ever sits still; a finished step keeps
+     its bar, dimmed, so the run reads as filling top to bottom. A step with nothing to count (find, finish) runs its
+     bar as a moving strip. ⚠️ The look switches by VISUAL STATE (Waiting/Running/Done ← Step.State) — theme brushes
+     never come from C#. Numbers are tabular so the detail never jitters. -->
+<UserControl x:Class="Anvil.Controls.Basemaps.BasemapSetupWindowDownloadStep"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid Padding="0,7" ColumnSpacing="10" RowSpacing="6">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="StepStates">
+                <VisualState x:Name="Waiting"/>
+                <VisualState x:Name="Running">
+                    <VisualState.Setters>
+                        <Setter Target="StepWaitingRing.Visibility" Value="Collapsed"/>
+                        <Setter Target="StepRunningRing.Visibility" Value="Visible"/>
+                        <Setter Target="StepName.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <Setter Target="StepBar.Visibility" Value="Visible"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Done">
+                    <VisualState.Setters>
+                        <Setter Target="StepWaitingRing.Visibility" Value="Collapsed"/>
+                        <Setter Target="StepDoneDisc.Visibility" Value="Visible"/>
+                        <Setter Target="StepName.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <Setter Target="StepBar.Visibility" Value="Visible"/>
+                        <Setter Target="StepBar.Opacity" Value="0.45"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="18"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- The status mark: one of three, picked by the visual state. -->
+        <Grid Width="16" Height="16" VerticalAlignment="Center">
+            <Ellipse x:Name="StepWaitingRing" StrokeThickness="1.5" Stroke="{ThemeResource ControlStrongStrokeColorDefaultBrush}"/>
+            <Grid x:Name="StepRunningRing" Visibility="Collapsed">
+                <Ellipse StrokeThickness="1.5" Stroke="{ThemeResource AccentFillColorDefaultBrush}"/>
+                <Ellipse Width="6" Height="6" Fill="{ThemeResource AccentFillColorDefaultBrush}"/>
+            </Grid>
+            <Grid x:Name="StepDoneDisc" Visibility="Collapsed">
+                <Ellipse Fill="{ThemeResource AccentFillColorDefaultBrush}"/>
+                <FontIcon Glyph="&#xE73E;" FontSize="10" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+            </Grid>
+        </Grid>
+
+        <TextBlock x:Name="StepName" Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind Step.Name, Mode=OneWay}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="12" Text="{x:Bind Step.Detail, Mode=OneWay}"
+                   Style="{StaticResource TabularNumberTextStyle}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+        <ProgressBar x:Name="StepBar" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Visibility="Collapsed" Maximum="100"
+                     Value="{x:Bind Step.Percent, Mode=OneWay}" IsIndeterminate="{x:Bind Step.IsIndeterminate, Mode=OneWay}"/>
+    </Grid>
+</UserControl>

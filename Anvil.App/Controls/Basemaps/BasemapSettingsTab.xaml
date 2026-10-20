@@ -27,7 +27,8 @@
        │             (You already have this map. This one is kept beside it.)
        │    Downloads in the background…        [Download]    │  ← runs in the background HERE; Anvil keeps its
        │             ▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░    [Cancel]   │     current map until you switch. Greyed w/o an area
-       │             Standard · Lower 48 states · 38% · 1.7 GB of 4.4 GB · About 6 minutes left   ← only while running
+       │             Step 4 of 5 · Download · 1.70 GB of 4.40 GB · 94 MB/s · about 1 minute left   ← only while running;
+       │                                                    the bar = the DOWNLOAD step alone (empty before it)
        │             ⚠ Your connection dropped at 1.7 GB of 4.4 GB…   [Retry]   ← only after one stopped
        │  ⌄  Online map                                       │
        │    Map key · Get a free key at protomaps.com         │
@@ -207,6 +208,11 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <!-- The DOWNLOAD step's bar only (empty through the steps before it); the line names the step. -->
                     <ProgressBar VerticalAlignment="Center" Maximum="100" Value="{x:Bind ViewModel.DownloadPercent, Mode=OneWay}"/>
                     <Button x:Name="BasemapCancelDownloadButton" Grid.Column="1" Content="Cancel" Click="{x:Bind ViewModel.CancelDownload}"
                             ToolTipService.ToolTip="Stops the download. What's downloaded is kept — Download picks it up again."/>

@@ -36,5 +36,10 @@ namespace Anvil.Services
 				? throw new InvalidOperationException("Protomaps' build list has no map builds.")
 				: new Uri(BuildsBaseUrl + newest);
 		}
+
+		/// <summary>The day a build was made, from its <c>yyyyMMdd.pmtiles</c> name; null for any other name.</summary>
+		public static DateTime? DayOf(Uri build) =>
+			DateTime.TryParseExact(System.IO.Path.GetFileNameWithoutExtension(build.AbsolutePath), "yyyyMMdd",
+				System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var day) ? day : null;
 	}
 }

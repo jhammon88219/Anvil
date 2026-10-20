@@ -19,7 +19,13 @@
        │  [ ] Stop showing this at launch                      │
        │                                                       │
        │  EXISTING FILE (1)  path [Browse…] · three checks · Back to map choice / [Use this map]
-       │  DOWNLOADING (2)    ▓▓▓▓░░░░ 38% · 1.5 of 5.0 GB · time left · Cancel and go back / [Open Anvil] (greyed)
+       │  DOWNLOADING (2)    a ROW PER STEP (BasemapSetupWindowDownloadStep ×5), each with its own bar:
+       │                       ✓ Find the newest map      20 Oct 2026 build   (done = full bar, dimmed)
+       │                       ✓ Read the map's index     83 sections
+       │                       ◉ Plan your file           Sorting 3.06 M tiles  ▓▓▓░░░
+       │                       ○ Download                                     (waiting = no bar)
+       │                       ○ Finish
+       │                     Saving to … · Cancel and go back / [Open Anvil] (greyed)
        │  READY (3)          ▓▓▓▓▓▓▓▓ Done · [ → Open Anvil ] lit (accent, larger) — NEVER opens by itself
        │  FAILED (4)         ⚠ what happened · what's kept · Back to map choice / [Retry]
        └───────────────────────────────────────────────────────┘
@@ -158,22 +164,18 @@
             <TextBlock Style="{StaticResource BasemapSetupStepLeadStyle}"
                        Text="Open Anvil lights up when the map is ready. You can minimise this window meanwhile."/>
             <Border Style="{StaticResource BasemapSetupBoxStyle}">
-                <StackPanel Spacing="8">
-                    <Grid>
-                        <TextBlock>
-                            <Run Text="Offline map ·"/>
-                            <Run Text="{x:Bind ViewModel.DownloadMapText, Mode=OneWay}"/>
-                        </TextBlock>
-                        <TextBlock HorizontalAlignment="Right" Text="{x:Bind ViewModel.DownloadPercentText, Mode=OneWay}"
-                                   Style="{StaticResource TabularNumberTextStyle}"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    </Grid>
-                    <ProgressBar Maximum="100" Value="{x:Bind ViewModel.DownloadPercent, Mode=OneWay}"/>
-                    <Grid>
-                        <TextBlock Text="{x:Bind ViewModel.DownloadAmountText, Mode=OneWay}" Style="{StaticResource BasemapSetupFootNoteStyle}"/>
-                        <TextBlock HorizontalAlignment="Right" Text="{x:Bind ViewModel.TimeLeftText, Mode=OneWay}"
-                                   Style="{StaticResource BasemapSetupFootNoteStyle}"/>
-                    </Grid>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource BasemapSetupFootNoteStyle}" TextWrapping="Wrap" Margin="0,0,0,2">
+                        <Run Text="Offline map ·"/>
+                        <Run Text="{x:Bind ViewModel.DownloadMapText, Mode=OneWay}"/>
+                    </TextBlock>
+                    <!-- One row per BasemapDownloadPhase, in order — each fills its own bar. -->
+                    <basemaps:BasemapSetupWindowDownloadStep x:Name="BasemapSetupWindowDownloadStepFind" Step="{x:Bind ViewModel.FindStep}"/>
+                    <basemaps:BasemapSetupWindowDownloadStep x:Name="BasemapSetupWindowDownloadStepIndex" Step="{x:Bind ViewModel.IndexStep}"/>
+                    <basemaps:BasemapSetupWindowDownloadStep x:Name="BasemapSetupWindowDownloadStepPlan" Step="{x:Bind ViewModel.PlanStep}"/>
+                    <basemaps:BasemapSetupWindowDownloadStep x:Name="BasemapSetupWindowDownloadStepDownload" Step="{x:Bind ViewModel.DownloadStep}"/>
+                    <basemaps:BasemapSetupWindowDownloadStep x:Name="BasemapSetupWindowDownloadStepFinish" Step="{x:Bind ViewModel.FinishStep}"/>
+                    <Border Height="1" Margin="0,4,0,8" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
                     <TextBlock Style="{StaticResource BasemapSetupFootNoteStyle}">
                         <Run Text="Saving to"/>
                         <Run Text="{x:Bind ViewModel.SaveFolder, Mode=OneWay}"/>

@@ -11,11 +11,17 @@ using Microsoft.Extensions.Logging;
 
 namespace Anvil.Services
 {
-	/// <summary>Where a download is: finding the newest build, reading its index, moving tile data, writing the end.</summary>
-	public enum BasemapDownloadPhase { FindingBuild, Planning, Downloading, Finishing }
+	/// <summary>A download's steps, in order — each is a row with its own bar in the setup window.</summary>
+	public enum BasemapDownloadPhase { FindingBuild, ReadingIndex, Planning, Downloading, Finishing }
 
-	/// <summary>A download's progress. Bytes = tile data (the bulk of the file); the total is known once planned.</summary>
-	public readonly record struct BasemapDownloadProgress(BasemapDownloadPhase Phase, ulong BytesDone, ulong BytesTotal);
+	/// <summary>
+	/// A download's progress. <paramref name="Done"/>/<paramref name="Total"/> count what the PHASE counts: ReadingIndex =
+	/// index sections (the total grows as nested ones turn up), Planning = stages of <see cref="BasemapDownloadService.PlanStages"/>,
+	/// Downloading = tile data bytes (streamed — bytes still in flight count), else 0/0.
+	/// <paramref name="Tiles"/> (from Planning on) = tiles the new map holds; <paramref name="BuildDay"/> = the planet build's day.
+	/// </summary>
+	public readonly record struct BasemapDownloadProgress(BasemapDownloadPhase Phase, ulong Done, ulong Total,
+		ulong Tiles = 0, DateTime? BuildDay = null);
 
 	/// <summary>The drive can't hold the map. Thrown BEFORE any tile data moves.</summary>
 	public sealed class BasemapNotEnoughSpaceException : IOException
@@ -68,6 +74,12 @@ namespace Anvil.Services
 		// (2026-10-20, 1 Gb fiber), so a fast line needs many in flight. 12 × 16 MB chunks ≈ 200 MB held at most.
 		public const int Parallel = 12;
 		private const int DefaultChunkBytes = 16 * 1024 * 1024;
+
+		/// <summary>Planning's stages, reported as Done = the stage now running: sort the tiles, build the index, lay out the download.</summary>
+		public const int PlanStages = 3;
+
+		/// <summary>How often streamed download progress is reported (bytes arrive far faster than a bar can show them).</summary>
+		internal TimeSpan ReportEvery { get; init; } = TimeSpan.FromMilliseconds(150);
 
 		/// <summary>The pause before a chunk's retry, times the attempt (3 s, 6 s). Tests shorten it.</summary>
 		internal TimeSpan RetryDelay { get; init; } = TimeSpan.FromSeconds(3);
@@ -157,11 +169,16 @@ namespace Anvil.Services
 			progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.FindingBuild, 0, 0));
 			var build = job is not null ? new Uri(job.Build) : await _latestBuild(ct).ConfigureAwait(false);
 			var source = _open(build);
+			var day = ProtomapsBuilds.DayOf(build);
 
-			progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.Planning, 0, 0));
+			progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.ReadingIndex, 0, 0, BuildDay: day));
 			var maxZoom = fullDetail ? BasemapExtractPlanner.FullMaxZoom : BasemapExtractPlanner.StandardMaxZoom;
-			var plan = await BasemapExtractPlanner.PlanAsync(source, areas, maxZoom, ct).ConfigureAwait(false);
-			var layout = await LayoutAsync(source, plan, areas, ct).ConfigureAwait(false);
+			var plan = await BasemapExtractPlanner.PlanAsync(source, areas, maxZoom, ct, (read, known) =>
+				progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.ReadingIndex, (ulong)read, (ulong)known, BuildDay: day)))
+				.ConfigureAwait(false);
+			var layout = await LayoutAsync(source, plan, areas, ct, stage =>
+				progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.Planning, (ulong)stage, PlanStages, plan.AddressedTiles, day)))
+				.ConfigureAwait(false);
 
 			// A job that doesn't fit this layout (it shouldn't — same build, same options) starts over.
 			if (job is not null && (job.DataBytes != layout.DataBytes || job.ChunksDone > layout.Chunks.Count))
@@ -186,11 +203,14 @@ namespace Anvil.Services
 				await file.WriteAsync(layout.Prefix, ct).ConfigureAwait(false);
 				file.Position = file.Length;
 				SaveJob(jobPath, job);
-				progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.Downloading, job.BytesDone, layout.DataBytes));
+				var tiles = plan.AddressedTiles;
+				progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.Downloading, job.BytesDone, layout.DataBytes, tiles, day));
 
-				job = await CopyChunksAsync(source, plan.Source.TileDataOffset, layout, job, file, jobPath, progress, ct).ConfigureAwait(false);
+				job = await CopyChunksAsync(source, plan.Source.TileDataOffset, layout, job, file, jobPath,
+					bytes => progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.Downloading, bytes, layout.DataBytes, tiles, day)),
+					ct).ConfigureAwait(false);
 
-				progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.Finishing, job.BytesDone, layout.DataBytes));
+				progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.Finishing, job.BytesDone, layout.DataBytes, tiles, day));
 				await file.FlushAsync(ct).ConfigureAwait(false);
 				var expected = (long)((ulong)layout.Prefix.Length + layout.DataBytes);
 				if (file.Length != expected) throw new IOException($"The finished map is {file.Length} bytes, expected {expected}.");
@@ -210,9 +230,11 @@ namespace Anvil.Services
 		/// <summary>The finished file's prefix (header + root + metadata + leaves), its tile data size, and the chunks to fetch.</summary>
 		private sealed record Layout(byte[] Prefix, ulong DataBytes, IReadOnlyList<(ulong Offset, uint Length)> Contents, IReadOnlyList<Chunk> Chunks);
 
-		private async Task<Layout> LayoutAsync(IPmtilesSource source, BasemapExtractPlan plan, IReadOnlyList<BasemapArea> areas, CancellationToken ct)
+		private async Task<Layout> LayoutAsync(IPmtilesSource source, BasemapExtractPlan plan, IReadOnlyList<BasemapArea> areas,
+			CancellationToken ct, Action<int> stage)
 		{
 			// Each distinct piece of source tile data once, in SOURCE order — a clustered source keeps the new file clustered.
+			stage(0);
 			var contents = plan.Entries.Select(e => (e.Offset, e.Length)).Distinct().OrderBy(c => c.Offset).ToList();
 			var newOffset = new Dictionary<ulong, ulong>(contents.Count);
 			ulong data = 0;
@@ -221,9 +243,13 @@ namespace Anvil.Services
 				newOffset[offset] = data;
 				data += length;
 			}
+			ct.ThrowIfCancellationRequested();
+			stage(1);
 			var entries = plan.Entries.Select(e => e with { Offset = newOffset[e.Offset] }).ToArray();
 			var (root, leaves) = PmtilesWriter.BuildDirectories(entries);
 
+			ct.ThrowIfCancellationRequested();
+			stage(2);
 			var src = plan.Source;
 			var rawMetadata = await source.ReadAsync(src.MetadataOffset, checked((int)src.MetadataLength), ct).ConfigureAwait(false);
 			var metadata = PmtilesWriter.Gzip(PmtilesHeader.Decompress(rawMetadata, src.InternalCompression));
@@ -279,9 +305,23 @@ namespace Anvil.Services
 		// ── copying ────────────────────────────────────────────────────────────────────────────────────────────
 
 		private async Task<BasemapDownloadJob> CopyChunksAsync(IPmtilesSource source, ulong tileDataOffset, Layout layout,
-			BasemapDownloadJob job, FileStream file, string jobPath, IProgress<BasemapDownloadProgress>? progress, CancellationToken ct)
+			BasemapDownloadJob job, FileStream file, string jobPath, Action<ulong> report, CancellationToken ct)
 		{
+			// PROGRESS = bytes ARRIVED, not bytes written: chunks are written strictly in order, so one slow chunk would hold
+			// the bar while the others finish behind it. Counted in source-span bytes (a chunk's span includes the small gaps
+			// it reads over) and scaled to the tile data total. A failed attempt takes back what it had counted.
+			var meter = new ArrivalMeter();
+			for (var i = 0; i < layout.Chunks.Count; i++)
+			{
+				var span = layout.Chunks[i].SourceEnd - layout.Chunks[i].SourceStart;
+				meter.TotalSpan += span;
+				if (i < job.ChunksDone) meter.Arrived += (long)span;
+			}
+			ulong Estimate() => meter.TotalSpan == 0 ? job.BytesDone
+				: (ulong)Math.Min(layout.DataBytes, (double)layout.DataBytes * Interlocked.Read(ref meter.Arrived) / meter.TotalSpan);
+
 			using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+			var reporter = ReportUntilAsync(() => report(Estimate()), stop.Token);
 			var inFlight = new Queue<Task<byte[]>>();
 			var next = job.ChunksDone;
 			try
@@ -291,7 +331,7 @@ namespace Anvil.Services
 					while (next < layout.Chunks.Count && inFlight.Count < Parallel)
 					{
 						var c = layout.Chunks[next++];
-						inFlight.Enqueue(FetchAsync(source, tileDataOffset + c.SourceStart, checked((int)(c.SourceEnd - c.SourceStart)), stop.Token));
+						inFlight.Enqueue(FetchAsync(source, tileDataOffset + c.SourceStart, checked((int)(c.SourceEnd - c.SourceStart)), meter, stop.Token));
 					}
 
 					var bytes = await inFlight.Dequeue().ConfigureAwait(false);
@@ -305,13 +345,13 @@ namespace Anvil.Services
 
 					job = job with { ChunksDone = done + 1, BytesDone = job.BytesDone + chunk.NewBytes };
 					SaveJob(jobPath, job);
-					progress?.Report(new BasemapDownloadProgress(BasemapDownloadPhase.Downloading, job.BytesDone, layout.DataBytes));
 				}
 				return job;
 			}
 			finally
 			{
-				stop.Cancel(); // a failure or a cancel: stop what's still in flight, and observe it
+				stop.Cancel(); // done, failing or cancelled: stop the reporter and what's still in flight, and observe them
+				try { await reporter.ConfigureAwait(false); } catch (OperationCanceledException) { }
 				foreach (var t in inFlight)
 				{
 					try { await t.ConfigureAwait(false); } catch (Exception) { /* already failing or cancelled */ }
@@ -319,18 +359,39 @@ namespace Anvil.Services
 			}
 		}
 
-		private async Task<byte[]> FetchAsync(IPmtilesSource source, ulong offset, int length, CancellationToken ct)
+		/// <summary>Bytes arrived across every in-flight chunk (written by the readers' threads, read by the reporter).</summary>
+		private sealed class ArrivalMeter
+		{
+			public long Arrived;
+			public ulong TotalSpan;
+		}
+
+		/// <summary>Report every <see cref="ReportEvery"/> until stopped — ONE reporter, so reports never arrive out of order.</summary>
+		private async Task ReportUntilAsync(Action report, CancellationToken stop)
+		{
+			using var timer = new PeriodicTimer(ReportEvery);
+			while (await timer.WaitForNextTickAsync(stop).ConfigureAwait(false)) report();
+		}
+
+		private async Task<byte[]> FetchAsync(IPmtilesSource source, ulong offset, int length, ArrivalMeter meter, CancellationToken ct)
 		{
 			for (var attempt = 1; ; attempt++)
 			{
+				long counted = 0;
 				try
 				{
-					var bytes = await source.ReadAsync(offset, length, ct).ConfigureAwait(false);
+					var bytes = await source.ReadAsync(offset, length, n =>
+					{
+						counted += n;
+						Interlocked.Add(ref meter.Arrived, n);
+					}, ct).ConfigureAwait(false);
 					if (bytes.Length != length) throw new IOException($"Got {bytes.Length} of {length} bytes.");
+					Interlocked.Add(ref meter.Arrived, length - counted); // a source that doesn't stream counts it all now
 					return bytes;
 				}
 				catch (Exception ex) when (attempt < 3 && !ct.IsCancellationRequested && ex is HttpRequestException or IOException or TaskCanceledException)
 				{
+					Interlocked.Add(ref meter.Arrived, -counted);
 					_logger.LogWarning("Map chunk at {Offset} failed (attempt {Attempt}): {Message}", offset, attempt, ex.Message);
 					await Task.Delay(RetryDelay * attempt, ct).ConfigureAwait(false);
 				}

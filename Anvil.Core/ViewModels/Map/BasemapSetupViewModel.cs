@@ -312,16 +312,26 @@ namespace Anvil.ViewModels
 
 		// ── The download ────────────────────────────────────────────────────────────────────────────────────
 		// ONE at a time, started from either place (the setup window's Download map, Settings → Basemap's Download). The
-		// window follows it through its steps (Downloading → Ready | Failed); the tab shows the same readout on one line.
-		// ⚠️ Anvil does not DRAW a downloaded map yet — opening one is BASEMAP-SETUP: NOT BUILT (it still reads usa_full).
+		// window follows it through its steps (Downloading → Ready | Failed) with a ROW PER PHASE (DownloadSteps); the tab
+		// shows the same on one line + the download's own bar.
 
 		private CancellationTokenSource? _downloadCancel;
 		private List<BasemapArea> _downloadAreas = new();
 		private bool _downloadFull;
-		private bool _rateStarted;
-		private DateTime _rateStartUtc;
-		private ulong _rateStartBytes;
 		private BasemapDownloadProgress _lastProgress;
+		// Speed = bytes over the last few seconds (a rolling window, so it follows the line, not the whole run's average).
+		private readonly Queue<(DateTime At, ulong Bytes)> _speedSamples = new();
+		private DateTime _downloadStartUtc;
+		private const double SpeedWindowSeconds = 5;
+
+		/// <summary>The download's steps, in <see cref="BasemapDownloadPhase"/> order — one row each in the setup window.</summary>
+		public BasemapDownloadStep FindStep { get; } = new("Find the newest map", counts: false);
+		public BasemapDownloadStep IndexStep { get; } = new("Read the map's index", counts: true);
+		public BasemapDownloadStep PlanStep { get; } = new("Plan your file", counts: true);
+		public BasemapDownloadStep DownloadStep { get; } = new("Download", counts: true);
+		public BasemapDownloadStep FinishStep { get; } = new("Finish", counts: false);
+
+		private BasemapDownloadStep[] DownloadSteps => new[] { FindStep, IndexStep, PlanStep, DownloadStep, FinishStep };
 
 		private bool _isDownloading;
 		/// <summary>A download is running (greys both Download buttons; the tab shows its progress line).</summary>
@@ -375,7 +385,9 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(DownloadMapText));
 			_downloadCancel = new CancellationTokenSource();
 			_lastProgress = default;
-			_rateStarted = false;
+			_lastIndexTotal = 0;
+			_speedSamples.Clear();
+			foreach (var s in DownloadSteps) s.State = BasemapDownloadStepState.Waiting;
 			ShowProgress(new BasemapDownloadProgress(BasemapDownloadPhase.FindingBuild, 0, 0));
 			// With no map yet (a new user, or a dev "new user" launch) the finished map becomes Anvil's; otherwise Anvil
 			// keeps its current one until the user picks Use (the tab's promise).
@@ -392,6 +404,8 @@ namespace Anvil.ViewModels
 				}
 				DownloadedPath = path;
 				OnPropertyChanged(nameof(DownloadedPath));
+				FinishStep.State = BasemapDownloadStepState.Done;
+				FinishStep.Detail = "Done";
 				Step = BasemapSetupStep.Ready;
 			}
 			catch (OperationCanceledException) when (_downloadCancel.IsCancellationRequested)
@@ -412,64 +426,106 @@ namespace Anvil.ViewModels
 			}
 		}
 
+		/// <summary>One report → the step rows: every step before the report's phase is Done, its own is Running with its bar
+		/// and words, the rest Waiting. Reports run strictly forward, so a finished step never comes back.</summary>
 		private void ShowProgress(BasemapDownloadProgress p)
 		{
-			_lastProgress = p;
+			var phase = (int)p.Phase;
+			var steps = DownloadSteps;
+			for (var i = 0; i < steps.Length; i++)
+			{
+				var state = i < phase ? BasemapDownloadStepState.Done : i == phase ? BasemapDownloadStepState.Running : BasemapDownloadStepState.Waiting;
+				if (steps[i].State != state) steps[i].State = state;
+			}
+
+			if (p.Phase > BasemapDownloadPhase.FindingBuild)
+			{
+				FindStep.Detail = p.BuildDay is { } day ? $"{day.ToString("d MMM yyyy", CultureInfo.CurrentCulture)} build" : "Found";
+			}
 			switch (p.Phase)
 			{
 				case BasemapDownloadPhase.FindingBuild:
-					SetReadout(0, "Finding the newest map…", "");
+					FindStep.Detail = "Asking Protomaps…";
+					break;
+				case BasemapDownloadPhase.ReadingIndex:
+					// The planner reports one at a time, in order (BasemapExtractPlanner's tally lock).
+					if (p.Total > 0) _lastIndexTotal = p.Total;
+					IndexStep.Percent = p.Total == 0 ? 0 : 100.0 * p.Done / p.Total;
+					IndexStep.Detail = p.Total == 0 ? "Starting…" : $"{p.Done:N0} of {p.Total:N0} sections";
 					break;
 				case BasemapDownloadPhase.Planning:
-					SetReadout(0, "Working out what to download…", "");
+					IndexStep.Detail = $"{_lastIndexTotal:N0} sections";
+					PlanStep.Percent = 100.0 * p.Done / Math.Max(1, p.Total);
+					PlanStep.Detail = p.Done switch
+					{
+						0 => $"Sorting {TileWords(p.Tiles)} tiles",
+						1 => "Building the index",
+						_ => "Laying out the download",
+					};
 					break;
 				case BasemapDownloadPhase.Downloading:
-					if (!_rateStarted)
-					{
-						_rateStarted = true;
-						_rateStartUtc = DateTime.UtcNow;
-						_rateStartBytes = p.BytesDone; // a resume starts its clock where it picked up
-					}
-					SetReadout(Percent(p), $"{BytesWords(p.BytesDone)} of {BytesWords(p.BytesTotal)}", TimeLeftWords(p));
+					IndexStep.Detail = $"{_lastIndexTotal:N0} sections";
+					PlanStep.Detail = $"{TileWords(p.Tiles)} tiles · {AmountWords(p.Total)}";
+					DownloadStep.Percent = p.Total == 0 ? 0 : 100.0 * p.Done / p.Total;
+					DownloadStep.Detail = string.Join(" · ", new[] { $"{AmountWords(p.Done)} of {AmountWords(p.Total)}", SpeedWords(p.Done), TimeLeftWords(p) }
+						.Where(s => s.Length > 0));
 					break;
 				case BasemapDownloadPhase.Finishing:
-					SetReadout(100, "Finishing…", "");
+					DownloadStep.Detail = AmountWords(p.Total);
+					FinishStep.Detail = "Checking and saving";
 					break;
 			}
-		}
+			_lastProgress = p;
 
-		private void SetReadout(double percent, string amount, string timeLeft)
-		{
-			DownloadPercent = percent;
-			DownloadAmountText = amount;
-			TimeLeftText = timeLeft;
+			DownloadPercent = p.Phase == BasemapDownloadPhase.Downloading ? DownloadStep.Percent : p.Phase > BasemapDownloadPhase.Downloading ? 100 : 0;
 			OnPropertyChanged(nameof(DownloadPercent));
-			OnPropertyChanged(nameof(DownloadPercentText));
-			OnPropertyChanged(nameof(DownloadAmountText));
-			OnPropertyChanged(nameof(TimeLeftText));
 			OnPropertyChanged(nameof(DownloadLineText));
 		}
 
-		private static double Percent(BasemapDownloadProgress p) => p.BytesTotal == 0 ? 0 : 100.0 * p.BytesDone / p.BytesTotal;
+		private ulong _lastIndexTotal;
 
+		/// <summary>MB/s over the last few seconds of the download ("94 MB/s"); empty until there's a second of it.</summary>
+		private string SpeedWords(ulong bytes)
+		{
+			var now = DateTime.UtcNow;
+			if (_speedSamples.Count == 0) _downloadStartUtc = now;
+			_speedSamples.Enqueue((now, bytes));
+			while (_speedSamples.Count > 2 && (now - _speedSamples.Peek().At).TotalSeconds > SpeedWindowSeconds) _speedSamples.Dequeue();
+			var (at, first) = _speedSamples.Peek();
+			var seconds = (now - at).TotalSeconds;
+			return seconds < 1 || bytes <= first ? "" : $"{(bytes - first) / 1e6 / seconds:0} MB/s";
+		}
+
+		/// <summary>Time left at the recent speed; empty for the first few seconds (too early to say).</summary>
 		private string TimeLeftWords(BasemapDownloadProgress p)
 		{
-			var seconds = (DateTime.UtcNow - _rateStartUtc).TotalSeconds;
-			var moved = p.BytesDone - _rateStartBytes;
-			if (seconds < 3 || moved == 0) return ""; // too early to say
-			var left = (p.BytesTotal - p.BytesDone) / (moved / seconds);
-			return left < 60 ? "Less than a minute left"
-				: left < 3600 ? $"About {Math.Ceiling(left / 60):0} minutes left"
-				: $"About {left / 3600:0.0} hours left";
+			if ((DateTime.UtcNow - _downloadStartUtc).TotalSeconds < 3 || _speedSamples.Count < 2) return "";
+			var (at, first) = _speedSamples.Peek();
+			var seconds = (DateTime.UtcNow - at).TotalSeconds;
+			if (seconds <= 0 || p.Done <= first) return "";
+			var left = (p.Total - p.Done) / ((p.Done - first) / seconds);
+			var minutes = Math.Ceiling(left / 60);
+			return left < 60 ? $"about {Math.Max(5, Math.Ceiling(left / 5) * 5):0} seconds left"
+				: left < 3600 ? (minutes == 1 ? "about 1 minute left" : $"about {minutes:0} minutes left")
+				: $"about {left / 3600:0.0} hours left";
 		}
+
+		/// <summary>A download's amounts, fine enough to see move: "450 MB", "3.10 GB".</summary>
+		internal static string AmountWords(ulong bytes) =>
+			bytes < 1_000_000_000 ? $"{Math.Round(bytes / 1e6).ToString("0", CultureInfo.CurrentCulture)} MB"
+			: $"{(bytes / 1e9).ToString("0.00", CultureInfo.CurrentCulture)} GB";
+
+		/// <summary>A tile count in words: "850,000", "3.06 M".</summary>
+		private static string TileWords(ulong tiles) =>
+			tiles < 1_000_000 ? tiles.ToString("N0", CultureInfo.CurrentCulture) : $"{(tiles / 1e6).ToString("0.00", CultureInfo.CurrentCulture)} M";
 
 		/// <summary>What went wrong, in plain words, with what to do and what's kept.</summary>
 		internal static string FailureWords(Exception ex, BasemapDownloadProgress at) => ex switch
 		{
 			BasemapNotEnoughSpaceException s =>
 				$"There isn't room on this drive: the map needs {BytesWords(s.NeededBytes)} and {BytesWords(s.FreeBytes)} is free. Free some space, or pick a smaller map.",
-			_ when at.BytesTotal > 0 =>
-				$"Your connection dropped at {BytesWords(at.BytesDone)} of {BytesWords(at.BytesTotal)}. What's downloaded is kept.",
+			_ when at.Phase >= BasemapDownloadPhase.Downloading && at.Total > 0 =>
+				$"Your connection dropped at {BytesWords(at.Done)} of {BytesWords(at.Total)}. What's downloaded is kept.",
 			_ => "Couldn't reach the map service. Check your internet connection, then retry.",
 		};
 
@@ -482,14 +538,21 @@ namespace Anvil.ViewModels
 		/// <summary>The finished file (the Ready screen).</summary>
 		public string DownloadedPath { get; private set; } = "";
 
+		/// <summary>The DOWNLOAD step's bar alone (Settings → Basemap's one bar: empty until tile data moves — the user's call).</summary>
 		public double DownloadPercent { get; private set; }
-		public string DownloadPercentText => $"{DownloadPercent:0}%";
-		public string DownloadAmountText { get; private set; } = "";
-		public string TimeLeftText { get; private set; } = "";
 
-		/// <summary>Settings → Basemap's one-line readout while a download runs.</summary>
-		public string DownloadLineText => string.Join(" · ", new[] { DownloadMapText, DownloadPercentText, DownloadAmountText, TimeLeftText }
-			.Where(s => !string.IsNullOrEmpty(s)));
+		/// <summary>Settings → Basemap's one-line readout while a download runs: "Step 3 of 5 · Plan your file · Building the index".</summary>
+		public string DownloadLineText
+		{
+			get
+			{
+				var steps = DownloadSteps;
+				var i = Array.FindIndex(steps, s => s.State == BasemapDownloadStepState.Running);
+				if (i < 0) return "";
+				var s = steps[i];
+				return string.IsNullOrEmpty(s.Detail) ? $"Step {i + 1} of {steps.Length} · {s.Name}" : $"Step {i + 1} of {steps.Length} · {s.Name} · {s.Detail}";
+			}
+		}
 
 		private string _failureText = "";
 		public string FailureText

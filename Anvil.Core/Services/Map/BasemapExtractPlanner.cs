@@ -45,7 +45,7 @@ namespace Anvil.Services
 		public const int LeafReadsAtOnce = 12;
 
 		public static async Task<BasemapExtractPlan> PlanAsync(IPmtilesSource source, IEnumerable<BasemapArea> areas,
-			int maxZoom, CancellationToken ct)
+			int maxZoom, CancellationToken ct, Action<int, int>? leavesRead = null)
 		{
 			var first = await source.ReadAsync(0, PmtilesHeader.FirstReadLength, ct).ConfigureAwait(false);
 			var header = PmtilesHeader.Parse(first);
@@ -60,6 +60,8 @@ namespace Anvil.Services
 			// can't wait on its own parent's slot.
 			using var gate = new SemaphoreSlim(LeafReadsAtOnce);
 			var leaves = 0;
+			var known = 0; // leaves found so far (the total grows if a leaf points at more leaves)
+			var tally = new object(); // reports go out one at a time, in order, though reads finish on many threads
 			var entries = await WalkAsync(root, ulong.MaxValue).ConfigureAwait(false);
 
 			// Shared tile data (the same ocean tile under thousands of ids) is fetched and stored once.
@@ -85,6 +87,7 @@ namespace Anvil.Services
 						if (!BasemapTileCover.Touches(cover, e.TileId, end)) continue;
 						pieces.Add(Task.FromResult(runs));
 						runs = new List<PmtilesEntry>();
+						lock (tally) known++;
 						pieces.Add(ReadLeafAsync(e, end));
 					}
 					else
@@ -110,7 +113,11 @@ namespace Anvil.Services
 					raw = await source.ReadAsync(header.LeafDirectoriesOffset + leaf.Offset, checked((int)leaf.Length), ct).ConfigureAwait(false);
 				}
 				finally { gate.Release(); }
-				Interlocked.Increment(ref leaves);
+				lock (tally)
+				{
+					leaves++;
+					leavesRead?.Invoke(leaves, known);
+				}
 				return await WalkAsync(PmtilesDirectory.Decode(PmtilesHeader.Decompress(raw, header.InternalCompression)), end).ConfigureAwait(false);
 			}
 		}
