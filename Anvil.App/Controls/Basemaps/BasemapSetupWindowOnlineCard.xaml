@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BasemapSetupWindowOnlineCard — the map setup window's ONLINE choice: a free Protomaps key, pasted and tested.
+
+       ┌─────────────────────────────────┐
+       │ ◍  Online map                   │   ← click anywhere on the card = choose it (2 px outline when chosen)
+       │    Ready in a minute. Needs     │
+       │    internet.                    │
+       │ 1. Get a free map key           │
+       │    [ Open protomaps.com ↗ ]     │
+       │ 2. Paste it here                │
+       │    [a1b2c3d4e5f6…     ] [ Test ]│
+       │    Free for personal use.       │   ← KeyMessage: Test's answer; a failure says check the key OR
+       └─────────────────────────────────┘     try the offline map (the user's call, 2026-10-20)
+
+     Plain words only: "map key", never "API key" / "tiles". ⚠️ Test + the key itself are BASEMAP-SETUP: NOT BUILT
+     (BasemapSetupViewModel). The chosen outline is a second Border shown by IsOnlineChosen — no brush in C#. -->
+<UserControl x:Class="Anvil.Controls.Basemaps.BasemapSetupWindowOnlineCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid Tapped="{x:Bind ViewModel.ChooseOnline}">
+        <Border Background="{ThemeResource OverlayBarSurfaceRaisedBrush}" CornerRadius="8"
+                BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+            <StackPanel Padding="14" Spacing="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE774;" FontSize="18"/>
+                    <TextBlock Text="Online map" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="Ready in a minute. Needs internet." TextWrapping="Wrap" Margin="0,0,0,8"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                <TextBlock Text="1. Get a free map key"/>
+                <HyperlinkButton x:Name="BasemapSetupKeySignupLink" Content="Open protomaps.com" Padding="0,2" Margin="0,0,0,8"
+                                 NavigateUri="https://protomaps.com/account"/>
+
+                <TextBlock Text="2. Paste it here"/>
+                <Grid ColumnSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="BasemapSetupKeyTextBox" PlaceholderText="a1b2c3d4e5f6…"
+                             Text="{x:Bind ViewModel.MapKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button x:Name="BasemapSetupTestKeyButton" Grid.Column="1" Content="Test" Click="{x:Bind ViewModel.TestKey}"/>
+                </Grid>
+                <TextBlock Text="{x:Bind ViewModel.KeyMessage, Mode=OneWay}" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- The CHOSEN outline, over the card's own 1 px edge. -->
+        <Border CornerRadius="8" BorderThickness="2" IsHitTestVisible="False"
+                BorderBrush="{ThemeResource TextFillColorPrimaryBrush}"
+                Visibility="{x:Bind ViewModel.IsOnlineChosen, Mode=OneWay}"/>
+    </Grid>
+</UserControl>

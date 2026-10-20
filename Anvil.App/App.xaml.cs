@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Serilog;
+using Anvil.Models;
 using Anvil.Services;
 using Anvil.ViewModels;
 
@@ -62,9 +63,26 @@ namespace Anvil
 			// is built. Same shared environment MainWindow awaits (WebViewEnvironment); this only creates it sooner.
 			_ = WebViewEnvironment.GetAsync();
 
-			// Resolve the whole object graph HERE, on the UI thread: WinUiDispatcher (pulled in as part of
-			// the MainWindow graph) captures the CURRENT thread's DispatcherQueue in its constructor, and
-			// OnLaunched runs on the UI thread. Resolving MainWindow constructs everything synchronously.
+			// MAP SETUP first, on its own, while Anvil has no map (no offline file, no keyed online source) — every launch
+			// until the user ticks "Stop showing this". Anvil opens when they ask (BasemapSetupHost); closing it quits.
+			var setup = Services.GetRequiredService<BasemapSetupViewModel>();
+			if (setup.ShouldShowAtLaunch)
+			{
+				var settings = Services.GetRequiredService<ISettingsService>().Settings;
+				var theme = Services.GetRequiredService<IThemeProvider>().Resolve(settings.ThemeId);
+				_logger.LogInformation("No usable map: showing map setup before launch");
+				_window = BasemapSetupHost.Show(setup, theme.Base == ThemeBase.Dark ? ElementTheme.Dark : ElementTheme.Light, OpenMainWindow);
+				return;
+			}
+
+			OpenMainWindow();
+		}
+
+		// Resolve the whole object graph HERE, on the UI thread: WinUiDispatcher (pulled in as part of
+		// the MainWindow graph) captures the CURRENT thread's DispatcherQueue in its constructor, and
+		// OnLaunched (and the map setup window's click) runs on the UI thread. Resolving MainWindow constructs everything synchronously.
+		private void OpenMainWindow()
+		{
 			_window = Services.GetRequiredService<MainWindow>();
 			_window.Activate();
 		}
@@ -176,6 +194,8 @@ namespace Anvil
 			services.AddSingleton<WindowManager>();
 
 			// ── View models + the JS→C# router + the window (the composition root). ──
+			// Map setup (the window before launch + Settings → Basemap) — one instance behind both; MapViewModel takes it.
+			services.AddSingleton<BasemapSetupViewModel>();
 			services.AddSingleton<MapViewModel>();
 			services.AddSingleton<WebMessageRouter>();
 			services.AddSingleton<RadarSiteMenu>(); // a map site key's WinUI menu (MainWindow shows it)

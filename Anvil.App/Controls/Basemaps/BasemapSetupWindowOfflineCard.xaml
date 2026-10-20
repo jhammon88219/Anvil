@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BasemapSetupWindowOfflineCard — the map setup window's OFFLINE choice: a download Anvil makes itself from
+     Protomaps' daily planet build (the user's call, 2026-10-20 — no hand-run command line).
+
+       ┌─────────────────────────────────┐
+       │ ⤓  Offline map                  │   ← click anywhere on the card = choose it (2 px outline when chosen)
+       │    Works with no internet.      │
+       │    Large download.              │
+       │ Detail                          │
+       │ ┌──────────┬──────────┐         │   ← Primitives/SegmentedPicker: Standard (≈5 GB) | Full (≈22 GB)
+       │ │ Standard │   Full   │         │
+       │ └──────────┴──────────┘         │
+       │ Streets at city zoom · about 5 GB
+       │ [ ] Include Canada              │   ← off by default; for Canadian radars later
+       │ Save to                         │
+       │ C:\Users\you\Anvil Maps [Browse…]
+       │ 212.3 GB free · I already have a map file   ← link → the ExistingFile step
+       └─────────────────────────────────┘
+
+     ⚠️ The folder is READ-ONLY text + Browse… (MapSettingsTab's rule: a hand-typed path fails silently later).
+     ⚠️ Browse… and Include Canada are BASEMAP-SETUP: NOT BUILT (BasemapSetupViewModel). -->
+<UserControl x:Class="Anvil.Controls.Basemaps.BasemapSetupWindowOfflineCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid Tapped="{x:Bind ViewModel.ChooseOffline}">
+        <Border Background="{ThemeResource OverlayBarSurfaceRaisedBrush}" CornerRadius="8"
+                BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+            <StackPanel Padding="14" Spacing="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE896;" FontSize="18"/>
+                    <TextBlock Text="Offline map" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="Works with no internet. Large download." TextWrapping="Wrap" Margin="0,0,0,8"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                <TextBlock Text="Detail"/>
+                <prim:SegmentedPicker x:Name="BasemapSetupDetailPicker" HorizontalAlignment="Stretch"
+                                      ItemsSource="{x:Bind ViewModel.DetailLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.DetailIndex, Mode=TwoWay}"/>
+                <TextBlock Text="{x:Bind ViewModel.DetailSizeText, Mode=OneWay}" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <CheckBox x:Name="IncludeCanadaCheckBox" Content="Include Canada" Margin="0,2,0,4"
+                          IsChecked="{x:Bind ViewModel.IncludeCanada, Mode=TwoWay}"/>
+
+                <TextBlock Text="Save to"/>
+                <Grid ColumnSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Bind ViewModel.SaveFolder, Mode=OneWay}" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTipService.ToolTip="{x:Bind ViewModel.SaveFolder, Mode=OneWay}"/>
+                    <Button x:Name="BasemapSetupSaveFolderBrowseButton" Grid.Column="1" Content="Browse…"/>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{x:Bind ViewModel.FreeSpaceText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <HyperlinkButton x:Name="BasemapSetupExistingFileLink" Content="I already have a map file"
+                                     FontSize="12" Padding="0,2" Click="{x:Bind ViewModel.ShowExistingFile}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- The CHOSEN outline, over the card's own 1 px edge. -->
+        <Border CornerRadius="8" BorderThickness="2" IsHitTestVisible="False"
+                BorderBrush="{ThemeResource TextFillColorPrimaryBrush}"
+                Visibility="{x:Bind ViewModel.IsOfflineChosen, Mode=OneWay}"/>
+    </Grid>
+</UserControl>

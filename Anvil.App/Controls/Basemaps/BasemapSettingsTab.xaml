@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BasemapSettingsTab — the Basemap tab of the Settings window: WHICH map Anvil draws under the weather, the map
+     files on this PC, and the two ways to get one (the map setup window's two routes, laid out as sections).
+     Over BasemapSetupViewModel (MapViewModel.BasemapSetup) — the SAME instance the setup window uses.
+
+       ┌──────────────────────────────────────────────────────┐
+       │ ┌──────────────────────────────────────────────────┐ │
+       │ │ ▤  ANVIL IS USING                                │ │  ← InUseText: offline file · online · no map
+       │ │    Offline map · usa_full.pmtiles                │ │
+       │ └──────────────────────────────────────────────────┘ │
+       │  ⌄  Your map files                                   │
+       │    ▤ Offline map  [In use]          [Use][📁][🗑]    │  ← one row per file (1, maybe 2); Use only on
+       │      28.8 GB · 8 Jun 2026 · usa_full.pmtiles         │     a file not in use
+       │    ⚠ Delete Offline map? Anvil is using it…  [Keep][Delete]  ← the trash ASKS inline first; deleting the
+       │    C:\Users\you\Desktop             [Add a map file…]│     one in use is allowed, with the warning
+       │  ⌄  Download an offline map                          │
+       │    Detail [Standard|Full]  Streets at city zoom · ≈5 GB
+       │    [ ] Include Canada                                │
+       │    Save to  C:\Users\you\Anvil Maps   [Browse…]      │
+       │    212.3 GB free                       [Download]    │  ← runs in the background HERE; Anvil keeps its
+       │  ⌄  Online map                                       │     current map until you switch
+       │    Map key · Get a free key at protomaps.com         │
+       │    [a1b2c3…            ] [Test] [Use online map]     │
+       │    Free for personal use.                            │
+       │  ⌄  At launch                                        │
+       │    [x] Show map setup at launch while Anvil has no map  ← undoes the window's "Stop showing this"
+       └──────────────────────────────────────────────────────┘
+
+     ⚠️ UI FIRST (2026-10-20): actions marked BASEMAP-SETUP: NOT BUILT in the VM do nothing yet — Delete only closes
+     its question, nothing is deleted. ⚠️ The Map tab's Basemap section (folder + online URL) still WORKS and stays
+     until this tab does; then it moves here (one control in two places drifts). -->
+<UserControl x:Class="Anvil.Controls.Basemaps.BasemapSettingsTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:vm="using:Anvil.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- One map file. Two faces on one row: the details, or (trash pressed) the delete question. -->
+        <DataTemplate x:Key="BasemapFileRowTemplate" x:DataType="vm:BasemapFileRow">
+            <Grid Padding="4,8" BorderThickness="0,0,0,1" BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}"
+                  ToolTipService.ToolTip="{x:Bind Path}">
+                <Grid ColumnSpacing="8" Visibility="{x:Bind IsShowingDetails, Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE826;" FontSize="16" VerticalAlignment="Center"
+                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Grid.Column="1">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{x:Bind Name}"/>
+                            <Border Padding="6,0" CornerRadius="4" VerticalAlignment="Center"
+                                    Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
+                                    Visibility="{x:Bind IsInUse}">
+                                <TextBlock Text="In use" FontSize="11" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="{x:Bind Details}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Button Content="Use" Visibility="{x:Bind CanUse}" Click="OnUseFileClick"
+                                ToolTipService.ToolTip="Draw this map"/>
+                        <Button Click="OnShowFileClick" ToolTipService.ToolTip="Show in folder">
+                            <FontIcon Glyph="&#xE838;" FontSize="14"/>
+                        </Button>
+                        <Button Click="OnAskDeleteClick" ToolTipService.ToolTip="Delete">
+                            <FontIcon Glyph="&#xE74D;" FontSize="14"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <Grid ColumnSpacing="8" Visibility="{x:Bind IsConfirmingDelete, Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE7BA;" FontSize="16" VerticalAlignment="Center"
+                              Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind DeleteQuestion}" TextWrapping="Wrap" FontSize="12" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Button Content="Keep" Click="OnKeepFileClick"/>
+                        <Button Content="Delete" Click="OnDeleteFileClick"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid RowSpacing="8" VerticalAlignment="Top">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Anvil is using -->
+            <RowDefinition Height="Auto"/> <!-- Your map files -->
+            <RowDefinition Height="Auto"/> <!-- Download an offline map -->
+            <RowDefinition Height="Auto"/> <!-- Online map -->
+            <RowDefinition Height="Auto"/> <!-- At launch -->
+        </Grid.RowDefinitions>
+
+        <Border x:Name="BasemapInUseCard" Padding="12,10" CornerRadius="8" BorderThickness="1"
+                Background="{ThemeResource OverlayBarSurfaceRaisedBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <FontIcon Glyph="&#xE826;" FontSize="18" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="ANVIL IS USING" Style="{StaticResource AtlasFieldLabelStyle}"/>
+                    <TextBlock Text="{x:Bind ViewModel.InUseText, Mode=OneWay}" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <prim:SettingsExpander Grid.Row="1" Header="Your map files" IsExpanded="True">
+            <StackPanel>
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Files}" ItemTemplate="{StaticResource BasemapFileRowTemplate}"/>
+                <TextBlock Margin="4,6" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Visibility="{x:Bind ViewModel.HasNoFiles, Mode=OneWay}"
+                           Text="No map files yet. Download one below, or add one you have."/>
+                <Grid Margin="4,8,0,0" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Bind ViewModel.FreeSpaceText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <Button x:Name="AddMapFileButton" Grid.Column="1" Content="Add a map file…" Click="{x:Bind ViewModel.AddFile}"/>
+                </Grid>
+            </StackPanel>
+        </prim:SettingsExpander>
+
+        <prim:SettingsExpander Grid.Row="2" Header="Download an offline map" IsExpanded="True">
+            <Grid Margin="4,0,0,0" ColumnSpacing="10" RowSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- detail -->
+                    <RowDefinition Height="Auto"/> <!-- size -->
+                    <RowDefinition Height="Auto"/> <!-- Canada -->
+                    <RowDefinition Height="Auto"/> <!-- save to -->
+                    <RowDefinition Height="Auto"/> <!-- free + Download -->
+                </Grid.RowDefinitions>
+                <TextBlock Text="Detail" VerticalAlignment="Center"/>
+                <prim:SegmentedPicker x:Name="BasemapDetailPicker" Grid.Column="1" HorizontalAlignment="Left" Width="200"
+                                      ItemsSource="{x:Bind ViewModel.DetailLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.DetailIndex, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.DetailSizeText, Mode=OneWay}" FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <CheckBox x:Name="BasemapIncludeCanadaCheckBox" Grid.Row="2" Grid.Column="1" Content="Include Canada"
+                          IsChecked="{x:Bind ViewModel.IncludeCanada, Mode=TwoWay}"/>
+                <TextBlock Grid.Row="3" Text="Save to" VerticalAlignment="Center"/>
+                <Grid Grid.Row="3" Grid.Column="1" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Bind ViewModel.SaveFolder, Mode=OneWay}" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind ViewModel.SaveFolder, Mode=OneWay}"/>
+                    <Button x:Name="BasemapSaveFolderBrowseButton" Grid.Column="1" Content="Browse…"/>
+                </Grid>
+                <TextBlock Grid.Row="4" Grid.Column="1" Text="Downloads in the background. Anvil keeps its current map until you switch."
+                           FontSize="12" TextWrapping="Wrap" Margin="0,0,96,0" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Button x:Name="BasemapDownloadButton" Grid.Row="4" Grid.Column="1" HorizontalAlignment="Right"
+                        Content="Download" Style="{StaticResource AccentButtonStyle}" Click="{x:Bind ViewModel.StartDownload}"/>
+            </Grid>
+        </prim:SettingsExpander>
+
+        <prim:SettingsExpander Grid.Row="3" Header="Online map" IsExpanded="True">
+            <StackPanel Margin="4,0,0,0" Spacing="4">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="Map key ·" VerticalAlignment="Center"/>
+                    <HyperlinkButton Content="Get a free key at protomaps.com" Padding="0,2"
+                                     NavigateUri="https://protomaps.com/account"/>
+                </StackPanel>
+                <Grid ColumnSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="BasemapMapKeyTextBox" PlaceholderText="a1b2c3d4e5f6…"
+                             Text="{x:Bind ViewModel.MapKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button x:Name="BasemapTestKeyButton" Grid.Column="1" Content="Test" Click="{x:Bind ViewModel.TestKey}"/>
+                    <Button x:Name="BasemapUseOnlineButton" Grid.Column="2" Content="Use online map" Click="{x:Bind ViewModel.UseOnlineMap}"/>
+                </Grid>
+                <TextBlock Text="{x:Bind ViewModel.KeyMessage, Mode=OneWay}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </prim:SettingsExpander>
+
+        <prim:SettingsExpander Grid.Row="4" Header="At launch" IsExpanded="True">
+            <CheckBox x:Name="ShowBasemapSetupAtLaunchCheckBox" Margin="4,0,0,0"
+                      Content="Show map setup at launch while Anvil has no map"
+                      IsChecked="{x:Bind ViewModel.ShowAtLaunch, Mode=TwoWay}"/>
+        </prim:SettingsExpander>
+    </Grid>
+</UserControl>

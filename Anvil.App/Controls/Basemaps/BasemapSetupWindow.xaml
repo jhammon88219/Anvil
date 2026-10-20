@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BasemapSetupWindow — the MAP SETUP window: shown ON ITS OWN, before Anvil, while Anvil has no usable map
+     (BasemapSetupViewModel.ShouldShowAtLaunch; hosted by BasemapSetupHost). Every launch, until "Stop showing this".
+
+       ┌─ Anvil setup ─────────────────────────────────[–][×]─┐
+       │  Anvil                                                │
+       │  Weather Workstation                                  │
+       │                                                       │
+       │  CHOOSE (step 0)                                      │
+       │  Choose your map                                      │
+       │  Radar, warnings and outlooks work either way…        │
+       │  ┌──────────────────────┐ ┌──────────────────────┐    │  ← BasemapSetupWindowOnlineCard |
+       │  │ ◍ Online map         │ │ ⤓ Offline map        │    │    BasemapSetupWindowOfflineCard
+       │  └──────────────────────┘ └──────────────────────┘    │
+       │  ───────────────────────────────────────────────────  │
+       │  Continue without a map                [Use online map]  ← names what it'll do (Download map)
+       │  You can set this up later in Settings → Basemap.     │
+       │  [ ] Stop showing this at launch                      │
+       │                                                       │
+       │  EXISTING FILE (1)  path [Browse…] · three checks · Back to map choice / [Use this map]
+       │  DOWNLOADING (2)    ▓▓▓▓░░░░ 38% · 1.5 of 5.0 GB · time left · Cancel and go back / [Open Anvil] (greyed)
+       │  READY (3)          ▓▓▓▓▓▓▓▓ Done · [ → Open Anvil ] lit (accent, larger) — NEVER opens by itself
+       │  FAILED (4)         ⚠ what happened · what's kept · Back to map choice / [Retry]
+       └───────────────────────────────────────────────────────┘
+
+     RULES (the user's calls, 2026-10-20): Anvil does NOT show while a download runs. Ready waits for the click — the
+     Open Anvil button just becomes the obvious thing on screen. "Continue without a map" opens Anvil over a blank map.
+     ⚠️ Steps switch on VISIBILITY by StepIndex (one per step, all declared here). ⚠️ Plain words: map, map key,
+     download — never tiles, PMTiles, API, zoom. Actions marked BASEMAP-SETUP: NOT BUILT in the VM do nothing yet. -->
+<UserControl x:Class="Anvil.Controls.Basemaps.BasemapSetupWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:basemaps="using:Anvil.Controls.Basemaps"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <Style x:Key="BasemapSetupStepTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,18,0,2"/>
+        </Style>
+        <Style x:Key="BasemapSetupStepLeadStyle" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,0,0,14"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Style>
+        <Style x:Key="BasemapSetupFootNoteStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Style>
+        <Style x:Key="BasemapSetupBoxStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14"/>
+        </Style>
+        <!-- The hairline every step's footer sits under. -->
+        <Style x:Key="BasemapSetupFootRuleStyle" TargetType="Border">
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Margin" Value="0,18,0,14"/>
+            <Setter Property="Background" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="{ThemeResource OverlayBarSurfaceBrush}" Padding="24,20,24,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Anvil / Weather Workstation -->
+            <RowDefinition Height="*"/>    <!-- the step -->
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Anvil" FontSize="22" FontWeight="SemiBold"/>
+            <TextBlock Text="Weather Workstation" Margin="0,-2,0,0"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+
+        <!-- ===== CHOOSE ===== -->
+        <StackPanel x:Name="BasemapSetupChooseStep" Grid.Row="1"
+                    Visibility="{x:Bind StepVisibility(ViewModel.StepIndex, 0), Mode=OneWay}">
+            <TextBlock Text="Choose your map" Style="{StaticResource BasemapSetupStepTitleStyle}"/>
+            <TextBlock Style="{StaticResource BasemapSetupStepLeadStyle}"
+                       Text="Radar, warnings and outlooks work either way. This is the map they sit on: roads, towns, county and state lines."/>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <basemaps:BasemapSetupWindowOnlineCard x:Name="BasemapSetupWindowOnlineCard" ViewModel="{x:Bind ViewModel}"/>
+                <basemaps:BasemapSetupWindowOfflineCard x:Name="BasemapSetupWindowOfflineCard" Grid.Column="1" ViewModel="{x:Bind ViewModel}"/>
+            </Grid>
+            <Border Style="{StaticResource BasemapSetupFootRuleStyle}"/>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <HyperlinkButton x:Name="ContinueWithoutMapLink" Content="Continue without a map" Padding="0,2"
+                                     Click="OnOpenAnvilClick"/>
+                    <TextBlock Text="You can set this up later in Settings → Basemap." Style="{StaticResource BasemapSetupFootNoteStyle}"/>
+                </StackPanel>
+                <Button x:Name="BasemapSetupPrimaryButton" Grid.Column="1" VerticalAlignment="Bottom"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Content="{x:Bind ViewModel.PrimaryActionText, Mode=OneWay}"
+                        Click="{x:Bind ViewModel.RunPrimaryAction}"/>
+            </Grid>
+            <CheckBox x:Name="StopShowingAtLaunchCheckBox" Content="Stop showing this at launch" Margin="0,10,0,0"
+                      IsChecked="{x:Bind ViewModel.StopShowingAtLaunch, Mode=TwoWay}"/>
+        </StackPanel>
+
+        <!-- ===== EXISTING FILE ===== -->
+        <StackPanel x:Name="BasemapSetupExistingFileStep" Grid.Row="1"
+                    Visibility="{x:Bind StepVisibility(ViewModel.StepIndex, 1), Mode=OneWay}">
+            <TextBlock Text="Use a map file you already have" Style="{StaticResource BasemapSetupStepTitleStyle}"/>
+            <TextBlock Style="{StaticResource BasemapSetupStepLeadStyle}"
+                       Text="Pick a map file Anvil downloaded before, on this PC or another."/>
+            <Border Style="{StaticResource BasemapSetupBoxStyle}">
+                <StackPanel Spacing="6">
+                    <Grid ColumnSpacing="6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{x:Bind ExistingFileText(ViewModel.ExistingFilePath), Mode=OneWay}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <Button x:Name="BasemapSetupExistingFileBrowseButton" Grid.Column="1" Content="Browse…"/>
+                    </Grid>
+                    <!-- The three checks, one line each, once a file is picked. -->
+                    <TextBlock Text="Anvil checks that it's a map it can read, that it covers every radar site, and its detail, size and date."
+                               Style="{StaticResource BasemapSetupFootNoteStyle}"/>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource BasemapSetupFootRuleStyle}"/>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <HyperlinkButton Content="Back to map choice" Padding="0,2" Click="{x:Bind ViewModel.BackToChoice}"/>
+                    <TextBlock Text="The file stays where it is. Anvil doesn't copy it." Style="{StaticResource BasemapSetupFootNoteStyle}"/>
+                </StackPanel>
+                <Button x:Name="UseExistingFileButton" Grid.Column="1" VerticalAlignment="Bottom" Content="Use this map"
+                        Style="{StaticResource AccentButtonStyle}" Click="{x:Bind ViewModel.UseExistingFile}"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- ===== DOWNLOADING ===== -->
+        <StackPanel x:Name="BasemapSetupDownloadingStep" Grid.Row="1"
+                    Visibility="{x:Bind StepVisibility(ViewModel.StepIndex, 2), Mode=OneWay}">
+            <TextBlock Text="Downloading your map" Style="{StaticResource BasemapSetupStepTitleStyle}"/>
+            <TextBlock Style="{StaticResource BasemapSetupStepLeadStyle}"
+                       Text="Open Anvil lights up when the map is ready. You can minimise this window meanwhile."/>
+            <Border Style="{StaticResource BasemapSetupBoxStyle}">
+                <StackPanel Spacing="8">
+                    <Grid>
+                        <TextBlock>
+                            <Run Text="Offline map ·"/>
+                            <Run Text="{x:Bind ViewModel.DetailName, Mode=OneWay}"/>
+                        </TextBlock>
+                        <TextBlock HorizontalAlignment="Right" Text="{x:Bind ViewModel.DownloadPercentText, Mode=OneWay}"
+                                   Style="{StaticResource TabularNumberTextStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </Grid>
+                    <ProgressBar Maximum="100" Value="{x:Bind ViewModel.DownloadPercent, Mode=OneWay}"/>
+                    <Grid>
+                        <TextBlock Text="{x:Bind ViewModel.DownloadAmountText, Mode=OneWay}" Style="{StaticResource BasemapSetupFootNoteStyle}"/>
+                        <TextBlock HorizontalAlignment="Right" Text="{x:Bind ViewModel.TimeLeftText, Mode=OneWay}"
+                                   Style="{StaticResource BasemapSetupFootNoteStyle}"/>
+                    </Grid>
+                    <TextBlock Style="{StaticResource BasemapSetupFootNoteStyle}">
+                        <Run Text="Saving to"/>
+                        <Run Text="{x:Bind ViewModel.SaveFolder, Mode=OneWay}"/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource BasemapSetupFootRuleStyle}"/>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <HyperlinkButton Content="Cancel and go back" Padding="0,2" Click="{x:Bind ViewModel.CancelDownload}"/>
+                    <TextBlock Text="A stopped download picks up where it left off." Style="{StaticResource BasemapSetupFootNoteStyle}"/>
+                </StackPanel>
+                <!-- Greyed while downloading — the SAME spot the lit one takes on Ready, so the change is easy to see. -->
+                <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Open Anvil" IsEnabled="False"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- ===== READY ===== -->
+        <StackPanel x:Name="BasemapSetupReadyStep" Grid.Row="1"
+                    Visibility="{x:Bind StepVisibility(ViewModel.StepIndex, 3), Mode=OneWay}">
+            <TextBlock Text="Your map is ready" Style="{StaticResource BasemapSetupStepTitleStyle}"/>
+            <TextBlock Style="{StaticResource BasemapSetupStepLeadStyle}" Text="Open Anvil whenever you're ready."/>
+            <Border Style="{StaticResource BasemapSetupBoxStyle}">
+                <StackPanel Spacing="8">
+                    <Grid>
+                        <TextBlock>
+                            <Run Text="Offline map ·"/>
+                            <Run Text="{x:Bind ViewModel.DetailName, Mode=OneWay}"/>
+                        </TextBlock>
+                        <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE73E;" FontSize="14" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                            <TextBlock Text="Done" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                        </StackPanel>
+                    </Grid>
+                    <ProgressBar Maximum="100" Value="100"/>
+                    <TextBlock Style="{StaticResource BasemapSetupFootNoteStyle}" Text="{x:Bind ViewModel.SaveFolder, Mode=OneWay}"/>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource BasemapSetupFootRuleStyle}"/>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock VerticalAlignment="Center" Text="Change it anytime in Settings → Basemap."
+                           Style="{StaticResource BasemapSetupFootNoteStyle}"/>
+                <!-- LIT: the accent face, a size up, an arrow — the one thing to press. -->
+                <Button x:Name="OpenAnvilButton" Grid.Column="1" Style="{StaticResource AccentButtonStyle}"
+                        Padding="20,8" FontSize="15" Click="OnOpenAnvilClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE72A;" FontSize="14"/>
+                        <TextBlock Text="Open Anvil"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </StackPanel>
+
+        <!-- ===== FAILED ===== -->
+        <StackPanel x:Name="BasemapSetupFailedStep" Grid.Row="1"
+                    Visibility="{x:Bind StepVisibility(ViewModel.StepIndex, 4), Mode=OneWay}">
+            <TextBlock Text="The download stopped" Style="{StaticResource BasemapSetupStepTitleStyle}"/>
+            <TextBlock Style="{StaticResource BasemapSetupStepLeadStyle}" Text="{x:Bind ViewModel.FailureText, Mode=OneWay}"/>
+            <Border Style="{StaticResource BasemapSetupBoxStyle}">
+                <Grid ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE7BA;" FontSize="20" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock>
+                            <Run Text="Offline map ·"/>
+                            <Run Text="{x:Bind ViewModel.DetailName, Mode=OneWay}"/>
+                        </TextBlock>
+                        <TextBlock Text="Retry picks up where it left off." Style="{StaticResource BasemapSetupFootNoteStyle}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            <Border Style="{StaticResource BasemapSetupFootRuleStyle}"/>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <HyperlinkButton Content="Back to map choice" Padding="0,2" Click="{x:Bind ViewModel.BackToChoice}"/>
+                    <TextBlock Text="Or continue without a map and finish later in Settings → Basemap."
+                               Style="{StaticResource BasemapSetupFootNoteStyle}"/>
+                </StackPanel>
+                <Button x:Name="RetryDownloadButton" Grid.Column="1" VerticalAlignment="Bottom" Content="Retry"
+                        Style="{StaticResource AccentButtonStyle}" Click="{x:Bind ViewModel.RetryDownload}"/>
+            </Grid>
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -38,6 +38,10 @@
        │  ⌄  Frame cap experiment                             │
        │   what it does…                                      │
        │   PastCast frame cap (0 = app's 40) [0]              │  ← DevFrameCap; read at each Load
+       │  ────────────────────────────────────────────────    │
+       │  ⌄  Map setup window                                 │
+       │   what it does…                                      │
+       │   Step [Choose        ⌄]  ( Show )                   │  ← BasemapSetupHost; the step is the shared VM's
        └──────────────────────────────────────────────────────┘
 
      The first two are the two halves of one loop: the sweep is DISCOVERY over live data (it harvests
@@ -72,6 +76,7 @@
             <RowDefinition Height="Auto"/> <!-- Load-time seeding section -->
             <!-- (row 3 was the removed map style tuner's; the seeding section took it) -->
             <RowDefinition Height="Auto"/> <!-- Frame cap experiment section -->
+            <RowDefinition Height="Auto"/> <!-- Map setup window section -->
         </Grid.RowDefinitions>
 
         <!-- ===== Section 1: automated site sweep (SiteSweepViewModel). ===== -->
@@ -322,6 +327,27 @@
                                ValueChanged="OnFrameCapChanged"/>
                 </Grid>
             </Grid>
+        </prim:SettingsExpander>
+
+        <!-- ===== Map setup window: see it without removing your map. Shows the SAME view model Settings → Basemap
+             uses; Open Anvil / Continue without a map just close the preview. ===== -->
+        <prim:SettingsExpander Grid.Row="5" Header="Map setup window" IsExpanded="True">
+            <StackPanel Spacing="8">
+                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="The window Anvil shows before launch while it has no map. Opens it now at the picked step, so every step can be checked with a map in place."/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Step" VerticalAlignment="Center" FontSize="12"/>
+                    <ComboBox x:Name="MapSetupPreviewStepComboBox" Width="160"
+                              SelectedIndex="{x:Bind ViewModel.BasemapSetup.StepIndex, Mode=TwoWay}">
+                        <ComboBoxItem Content="Choose"/>
+                        <ComboBoxItem Content="Existing file"/>
+                        <ComboBoxItem Content="Downloading"/>
+                        <ComboBoxItem Content="Ready"/>
+                        <ComboBoxItem Content="Failed"/>
+                    </ComboBox>
+                    <Button x:Name="MapSetupPreviewShowButton" Content="Show" Click="OnShowMapSetupClick"/>
+                </StackPanel>
+            </StackPanel>
         </prim:SettingsExpander>
     </Grid>
 </UserControl>

@@ -27,7 +27,7 @@ namespace Anvil.ViewModels
 	/// ⚠️ ONE deliberate exception: <c>RangeRing</c> was inserted after <c>Radar</c> (2026-09-24) because the user
 	/// asked for it to sit there. The cost was a one-time shift — a Settings window last closed on Storage or
 	/// Window Mode reopened one tab to the left, once. Don't take that as licence to reorder.</summary>
-	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, LiveData, Dev }
+	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, LiveData, Basemap, Dev }
 
 	/// <summary>
 	/// View model for the NON-radar map concerns: selectable basemap styles + current selection,
@@ -57,7 +57,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, ITropicalService tropicalService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion, LoopLoadLog? loopLoadLog = null, LivePollTimingLog? livePollTimingLog = null, LiveFeedHub? liveFeed = null)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, ITropicalService tropicalService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion, LoopLoadLog? loopLoadLog = null, LivePollTimingLog? livePollTimingLog = null, LiveFeedHub? liveFeed = null, BasemapSetupViewModel? basemapSetup = null)
 		{
 			_mapService = mapService;
 			_startupLog = loggerFactory.CreateLogger<MapViewModel>();
@@ -69,6 +69,9 @@ namespace Anvil.ViewModels
 
 			// Built before IsSettingsWindowOpen can fire (its setter refreshes the cache readout on open).
 			Storage = new StorageSettingsViewModel(radarService, settingsService);
+			// Settings → Basemap. The app's DI singleton, so the map setup window shown before launch is the same
+			// instance; tests get their own.
+			BasemapSetup = basemapSetup ?? new BasemapSetupViewModel(settingsService);
 
 			// Restore the last Settings tab. Assigned through the PROPERTY so the clamp runs — a persisted
 			// index can name a tab this build does not have (a Debug session quitting on the dev tab).
@@ -282,6 +285,9 @@ namespace Anvil.ViewModels
 
 		/// <summary>Settings → Live Data, and the NowCast activity expander's source line.</summary>
 		public LiveDataViewModel LiveData { get; }
+
+		/// <summary>Settings → Basemap, and the map setup window shown before launch (<see cref="BasemapSetupViewModel"/>).</summary>
+		public BasemapSetupViewModel BasemapSetup { get; }
 
 		/// <summary>Each temporal window's activity expander (<c>TemporalWindows/TemporalWindowActivityExpander</c>).</summary>
 		public TemporalActivityViewModel NowCastActivity { get; }
@@ -1474,12 +1480,12 @@ namespace Anvil.ViewModels
 		// targeted from anywhere via OpenSettings().
 
 		/// <summary>How many tabs the strip actually offers. Debug builds add the dev tab; Release stops at
-		/// Live Data. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
+		/// Basemap. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
 		/// selecting a tab that does not exist in a shipped build.</summary>
 #if DEBUG
-		public const int SettingsTabCount = 9;
+		public const int SettingsTabCount = 10;
 #else
-		public const int SettingsTabCount = 8;
+		public const int SettingsTabCount = 9;
 #endif
 
 		private int _settingsTabIndex;
@@ -1819,27 +1825,7 @@ namespace Anvil.ViewModels
 		/// can't supply one), and a keyless URL renders nothing — so a bare <c>key=</c> reads as
 		/// not-yet-configured rather than being pushed to the map and blanking it.
 		/// </summary>
-		public bool CanUseOnlineTiles
-		{
-			get
-			{
-				var url = OnlineTilesUrl;
-				if (string.IsNullOrWhiteSpace(url))
-				{
-					return false;
-				}
-
-				var i = url.IndexOf("key=", StringComparison.OrdinalIgnoreCase);
-				if (i < 0)
-				{
-					return true; // a self-hosted source needs no key
-				}
-
-				var after = url[(i + 4)..];
-				var end = after.IndexOf('&');
-				return (end < 0 ? after : after[..end]).Length > 0;
-			}
-		}
+		public bool CanUseOnlineTiles => OnlineTileUrls.IsUsable(OnlineTilesUrl);
 
 		/// <summary>The EFFECTIVE tile source: online only when it's both selected and usable. Read by the
 		/// view host to frame the launch page on the right source, and by <see cref="PushTileSource"/>.</summary>

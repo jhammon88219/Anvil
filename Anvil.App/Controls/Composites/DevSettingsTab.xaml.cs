@@ -134,6 +134,12 @@ namespace Anvil.Controls.Composites
 		private void OnFrameCapChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) =>
 			Anvil.Services.DevFrameCap.Frames = double.IsNaN(args.NewValue) ? 0 : (int)args.NewValue;
 
+		// The map setup window as a preview: no Anvil to open, so its Open Anvil / Continue just close it.
+		private void OnShowMapSetupClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is not null) BasemapSetupHost.Show(ViewModel.BasemapSetup, ActualTheme, onOpenAnvil: null);
+		}
+
 		// Auto-open the sweep report the moment a run produces one.
 		private void OnSweepPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
 		{

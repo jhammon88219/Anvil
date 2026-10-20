@@ -59,6 +59,18 @@ namespace Anvil.Services
 			set => SetProperty(ref _onlineTilesUrl, value);
 		}
 
+		private bool _showBasemapSetupAtLaunch = true;
+		/// <summary>
+		/// Show the map setup window before Anvil opens while Anvil has no usable map (no offline file found, no keyed
+		/// online source). Default on; the window's "Stop showing this at launch" box turns it off, Settings → Basemap
+		/// → At launch turns it back on.
+		/// </summary>
+		public bool ShowBasemapSetupAtLaunch
+		{
+			get => _showBasemapSetupAtLaunch;
+			set => SetProperty(ref _showBasemapSetupAtLaunch, value);
+		}
+
 		// The three SITE-MARKER toggles on the tools tier (MapControlsStrip), one per network. MAP MARKERS ONLY —
 		// the Atlas and the site picker list every network whatever these say.
 		private bool _showNexradSites = true;

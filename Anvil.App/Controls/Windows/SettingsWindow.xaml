@@ -5,11 +5,11 @@
 
        ┌─ Settings ──────────────────────────────[lock][pin]─┐
        │  Settings                                            │
-       │  ┌────┬──────┬──────────────────┬─────────┬─────────────┬───────────────┬─────────┬───────────┬─────┐
-       │  │ ⛰  │  ◎   │        ⊙         │    ▤    │      ▭      │       ▶       │    ⏻    │     ≋     │  ⚒  │  ← Primitives/TabStrip
-       │  │Map │Radar │ Radar Range Ring │ Storage │ Window Mode │ Radar Console │ Startup │ Live Data │ Dev │
-       │  │▀▀▀▀│      │                  │         │             │               │         │           │     │
-       │  └────┴──────┴──────────────────┴─────────┴─────────────┴───────────────┴─────────┴───────────┴─────┘
+       │  ┌────┬──────┬──────────────────┬─────────┬─────────────┬───────────────┬─────────┬───────────┬─────────┬─────┐
+       │  │ ⛰  │  ◎   │        ⊙         │    ▤    │      ▭      │       ▶       │    ⏻    │     ≋     │    ▦    │  ⚒  │  ← Primitives/TabStrip
+       │  │Map │Radar │ Radar Range Ring │ Storage │ Window Mode │ Radar Console │ Startup │ Live Data │ Basemap │ Dev │
+       │  │▀▀▀▀│      │                  │         │             │               │         │           │         │     │
+       │  └────┴──────┴──────────────────┴─────────┴─────────────┴───────────────┴─────────┴───────────┴─────────┴─────┘
        │  ┌────────────────────┐ ┌──────────────────────────┐    │
        │  │ the selected tab's │ │  LIVE MAP PREVIEW   [⛶] │    │  ← Composites/MapPreview, only
        │  │ body — ONE fixed   │ │      ┌┄┄┄┄┄┄┐          │    │     on Map + Radar Range Ring
@@ -52,6 +52,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ctl="using:Anvil.Controls.Primitives"
              xmlns:cmp="using:Anvil.Controls.Composites"
+             xmlns:basemaps="using:Anvil.Controls.Basemaps"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -196,6 +197,9 @@
 
                     <cmp:LiveDataSettingsTab x:Name="LiveDataTab" ViewModel="{x:Bind ViewModel.LiveData}"
                                              Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 7), Mode=OneWay}"/>
+
+                    <basemaps:BasemapSettingsTab x:Name="BasemapTab" ViewModel="{x:Bind ViewModel.BasemapSetup}"
+                                                 Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 8), Mode=OneWay}"/>
 
                     <!-- ⚠️ x:Load, not Visibility — see the header. LoadDevTab is hard-false in Release, so
                          this body is never constructed there and its null engine VMs are never bound. -->
