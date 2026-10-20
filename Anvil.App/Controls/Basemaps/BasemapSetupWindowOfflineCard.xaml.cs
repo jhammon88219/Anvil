@@ -20,5 +20,10 @@ namespace Anvil.Controls.Basemaps
 
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(BasemapSetupViewModel), typeof(BasemapSetupWindowOfflineCard), new PropertyMetadata(null));
+
+		private async void OnBrowseSaveFolderClick(object sender, RoutedEventArgs e)
+		{
+			if (await BasemapPickers.PickFolderAsync(this) is { } folder && ViewModel is { } vm) vm.SaveFolder = folder;
+		}
 	}
 }

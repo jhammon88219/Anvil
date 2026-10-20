@@ -29,15 +29,19 @@ namespace Anvil
 				new CoreWebView2EnvironmentOptions { AdditionalBrowserArguments = "--force-color-profile=srgb" }).AsTask();
 
 		/// <summary>
-		/// The basemap folder the MAIN map's <c>mapdata</c> host was mapped to at launch. A folder change applies
-		/// next launch (MainWindow maps the host once), so a preview must map THIS one, not the setting's
-		/// current value, or it would show a basemap the map isn't drawing.
+		/// The basemap folder the MAIN map's <c>mapdata</c> host is mapped to NOW (set at launch, moved by MainWindow's
+		/// live map switch). A preview maps THIS one, not the setting's value, so it never shows a map the main one isn't.
 		/// </summary>
 		public static string? LaunchMapDataFolder { get; set; }
 
 		/// <summary>The offline map FILE the main map reads in <see cref="LaunchMapDataFolder"/> (map setup's in-use file or
 		/// <c>usa_full.pmtiles</c>) — the preview passes it on as its <c>mapfile</c> too.</summary>
 		public static string? LaunchMapDataFile { get; set; }
+
+		/// <summary>The main map switched files live (MainWindow); an open preview re-points itself to match.</summary>
+		public static event Action? MapDataChanged;
+
+		public static void RaiseMapDataChanged() => MapDataChanged?.Invoke();
 
 		private static Task? _freshAssets;
 

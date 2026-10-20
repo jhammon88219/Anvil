@@ -64,12 +64,38 @@ namespace Anvil.Services
 		/// The offline map Anvil draws, as a full path — set by map setup (a finished download, Use, an existing file).
 		/// Empty = the older rule: <c>usa_full.pmtiles</c> in <see cref="MapDataFolder"/> (or the Desktop guess). Read the
 		/// EFFECTIVE file off <see cref="ISettingsService.MapDataFolder"/> + <see cref="ISettingsService.MapDataFileName"/>.
-		/// Applies at the next launch (the page's map host is mapped once).
+		/// Drawn at once — MainWindow re-points the map when it changes.
 		/// </summary>
 		public string BasemapFilePath
 		{
 			get => _basemapFilePath;
 			set => SetProperty(ref _basemapFilePath, value);
+		}
+
+		private string _basemapSaveFolder = "";
+		/// <summary>Where map setup saves downloads (its Browse…). Empty = <c>%USERPROFILE%\Anvil Maps</c>.</summary>
+		public string BasemapSaveFolder
+		{
+			get => _basemapSaveFolder;
+			set => SetProperty(ref _basemapSaveFolder, value);
+		}
+
+		private List<string> _basemapAddedFiles = new();
+		/// <summary>Map files added from elsewhere (Settings → Basemap → Add a map file…, the setup window's existing file):
+		/// listed under Your map files where they sit — never copied.</summary>
+		public List<string> BasemapAddedFiles
+		{
+			get => _basemapAddedFiles;
+			set => SetProperty(ref _basemapAddedFiles, value);
+		}
+
+		private List<string> _basemapPendingDeletes = new();
+		/// <summary>Map files the user deleted while Windows still held them open (the map was drawing one): removed at the
+		/// next launch, before anything opens them (App.OnLaunched).</summary>
+		public List<string> BasemapPendingDeletes
+		{
+			get => _basemapPendingDeletes;
+			set => SetProperty(ref _basemapPendingDeletes, value);
 		}
 
 		private bool _devPretendNoMap;

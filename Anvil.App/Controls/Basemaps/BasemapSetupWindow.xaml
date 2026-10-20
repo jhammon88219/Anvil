@@ -19,7 +19,8 @@
        │  You can set this up later in Settings → Basemap.     │
        │  [ ] Stop showing this at launch                      │
        │                                                       │
-       │  EXISTING FILE (1)  path [Browse…] · three checks · Back to map choice / [Use this map]
+       │  EXISTING FILE (1)  path [Browse…] · three checks (BasemapFileCheck: readable · radars covered · detail,
+       │                     size, date) · Back to map choice / [Use this map] (lit once the file can be read)
        │  DOWNLOADING (2)    a ROW PER STEP (BasemapSetupWindowDownloadStep ×5), each with its own bar:
        │                       ✓ Find the newest map      20 Oct 2026 build   (done = full bar, dimmed)
        │                       ✓ Read the map's index     83 sections
@@ -27,14 +28,15 @@
        │                       ○ Download                                     (waiting = no bar)
        │                       ○ Finish
        │                     Saving to … · Cancel and go back / [Open Anvil] (greyed)
-       │  READY (3)          ▓▓▓▓▓▓▓▓ Done · [ → Open Anvil ] lit (accent, larger) — NEVER opens by itself
+       │  READY (3)          which map ✓ Done ▓▓▓▓▓▓▓▓ where it comes from · [ → Open Anvil ] lit (accent,
+       │                     larger) — NEVER opens by itself. Reached by a download, Use online map, Use this map.
        │  FAILED (4)         ⚠ what happened · what's kept · Back to map choice / [Retry]
        └───────────────────────────────────────────────────────┘
 
      RULES (the user's calls, 2026-10-20): Anvil does NOT show while a download runs. Ready waits for the click — the
      Open Anvil button just becomes the obvious thing on screen. "Continue without a map" opens Anvil over a blank map.
      ⚠️ Steps switch on VISIBILITY by StepIndex (one per step, all declared here). ⚠️ Plain words: map, map key,
-     download — never tiles, PMTiles, API, zoom. Actions marked BASEMAP-SETUP: NOT BUILT in the VM do nothing yet. -->
+     download — never tiles, PMTiles, API, zoom. Pickers come from BasemapPickers (this window's own handle). -->
 <UserControl x:Class="Anvil.Controls.Basemaps.BasemapSetupWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -137,10 +139,17 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{x:Bind ExistingFileText(ViewModel.ExistingFilePath), Mode=OneWay}" VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"/>
-                        <Button x:Name="BasemapSetupExistingFileBrowseButton" Grid.Column="1" Content="Browse…"/>
+                        <Button x:Name="BasemapSetupExistingFileBrowseButton" Grid.Column="1" Content="Browse…"
+                                Click="OnBrowseExistingFileClick"/>
                     </Grid>
-                    <!-- The three checks, one line each, once a file is picked. -->
-                    <TextBlock Text="Anvil checks that it's a map it can read, that it covers every radar site, and its detail, size and date."
+                    <!-- Before a pick: what gets checked. After: the three checks, one line each (BasemapFileCheck). -->
+                    <TextBlock Text="Anvil checks that it's a map it can read, which radars it covers, and its detail, size and date."
+                               Style="{StaticResource BasemapSetupFootNoteStyle}"
+                               Visibility="{x:Bind NoText(ViewModel.ExistingReadLine), Mode=OneWay}"/>
+                    <TextBlock Text="{x:Bind ViewModel.ExistingReadLine, Mode=OneWay}" TextWrapping="Wrap"/>
+                    <TextBlock Text="{x:Bind ViewModel.ExistingCoverLine, Mode=OneWay}" TextWrapping="Wrap"
+                               Style="{StaticResource BasemapSetupFootNoteStyle}"/>
+                    <TextBlock Text="{x:Bind ViewModel.ExistingDetailLine, Mode=OneWay}" TextWrapping="Wrap"
                                Style="{StaticResource BasemapSetupFootNoteStyle}"/>
                 </StackPanel>
             </Border>
@@ -155,7 +164,8 @@
                     <TextBlock Text="The file stays where it is. Anvil doesn't copy it." Style="{StaticResource BasemapSetupFootNoteStyle}"/>
                 </StackPanel>
                 <Button x:Name="UseExistingFileButton" Grid.Column="1" VerticalAlignment="Bottom" Content="Use this map"
-                        Style="{StaticResource AccentButtonStyle}" Click="{x:Bind ViewModel.UseExistingFile}"/>
+                        Style="{StaticResource AccentButtonStyle}" Click="{x:Bind ViewModel.UseExistingFile}"
+                        IsEnabled="{x:Bind ViewModel.CanUseExistingFile, Mode=OneWay}"/>
             </Grid>
         </StackPanel>
 
@@ -206,18 +216,17 @@
             <TextBlock Style="{StaticResource BasemapSetupStepLeadStyle}" Text="Open Anvil whenever you're ready."/>
             <Border Style="{StaticResource BasemapSetupBoxStyle}">
                 <StackPanel Spacing="8">
+                    <!-- Which map (a download, the online map, an existing file) and where it comes from. -->
                     <Grid>
-                        <TextBlock>
-                            <Run Text="Offline map ·"/>
-                            <Run Text="{x:Bind ViewModel.DownloadMapText, Mode=OneWay}"/>
-                        </TextBlock>
-                        <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{x:Bind ViewModel.ReadyMapText, Mode=OneWay}" Margin="0,0,64,0" TextWrapping="Wrap"/>
+                        <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Orientation="Horizontal" Spacing="6">
                             <FontIcon Glyph="&#xE73E;" FontSize="14" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
                             <TextBlock Text="Done" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
                         </StackPanel>
                     </Grid>
                     <ProgressBar Maximum="100" Value="100"/>
-                    <TextBlock Style="{StaticResource BasemapSetupFootNoteStyle}" Text="{x:Bind ViewModel.DownloadedPath, Mode=OneWay}"/>
+                    <TextBlock Style="{StaticResource BasemapSetupFootNoteStyle}" Text="{x:Bind ViewModel.ReadyDetailText, Mode=OneWay}"
+                               TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource BasemapSetupFootRuleStyle}"/>

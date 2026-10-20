@@ -32,9 +32,22 @@ namespace Anvil.Controls.Basemaps
 		private static BasemapFileRow? RowOf(object sender) => (sender as FrameworkElement)?.DataContext as BasemapFileRow;
 
 		private void OnUseFileClick(object sender, RoutedEventArgs e) { if (RowOf(sender) is { } r) ViewModel?.UseFile(r); }
-		private void OnShowFileClick(object sender, RoutedEventArgs e) { if (RowOf(sender) is { } r) ViewModel?.ShowFileInFolder(r); }
+		private void OnShowFileClick(object sender, RoutedEventArgs e) { if (RowOf(sender) is { } r) BasemapPickers.ShowInFolder(r.Path); }
 		private void OnAskDeleteClick(object sender, RoutedEventArgs e) { if (RowOf(sender) is { } r) ViewModel?.AskDelete(r); }
 		private void OnKeepFileClick(object sender, RoutedEventArgs e) { if (RowOf(sender) is { } r) ViewModel?.KeepFile(r); }
 		private void OnDeleteFileClick(object sender, RoutedEventArgs e) { if (RowOf(sender) is { } r) ViewModel?.DeleteFile(r); }
+
+		private async void OnAddFileClick(object sender, RoutedEventArgs e)
+		{
+			if (await BasemapPickers.PickMapFileAsync(this) is { } path && ViewModel is { } vm) await vm.AddFileAsync(path);
+		}
+
+		private async void OnBrowseSaveFolderClick(object sender, RoutedEventArgs e)
+		{
+			if (await BasemapPickers.PickFolderAsync(this) is { } folder && ViewModel is { } vm) vm.SaveFolder = folder;
+		}
+
+		/// <summary>The save folder can't move while a download is writing into it.</summary>
+		public bool CanBrowse(bool isDownloading) => !isDownloading;
 	}
 }

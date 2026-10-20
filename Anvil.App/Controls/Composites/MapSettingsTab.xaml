@@ -41,10 +41,8 @@
      rendering as a black map and no error at all. It belongs HERE because the folder IS the offline tile
      source, so it sits beside the online URL rather than in Storage. The dialog was deleted rather than
      kept alongside: one control in two places is one that will drift.
-     ⚠️ A FOLDER CHANGE NEEDS A RESTART, and the status line says so once you change one. The mapdata host
-     is mapped once, in MainWindow's WebView bootstrap, before any page loads - so unlike the online URL
-     below it, this cannot be applied live. Don't add an "apply now" button; it would have to re-run the
-     whole bootstrap.
+     A folder change is drawn AT ONCE (2026-10-20): MainWindow.OnMapFileSettingChanged re-points the mapdata
+     host and the page swaps the archive (map.js setMapFile) — the same path Settings → Basemap's Use takes.
 
      This was the top half of the former MapControlsWindow, which is now two tabs rather than one long
      scroll. -->
@@ -95,7 +93,7 @@
                     <RowDefinition Height="Auto"/> <!-- Basemap combo -->
                     <RowDefinition Height="Auto"/> <!-- rule -->
                     <RowDefinition Height="Auto"/> <!-- Offline source: folder + Browse -->
-                    <RowDefinition Height="Auto"/> <!-- Offline source: status / restart note -->
+                    <RowDefinition Height="Auto"/> <!-- Offline source: status -->
                     <RowDefinition Height="Auto"/> <!-- Use online tiles -->
                     <RowDefinition Height="Auto"/> <!-- Online tiles URL -->
                     <RowDefinition Height="Auto"/> <!-- Tile source status -->
@@ -134,12 +132,11 @@
                             ToolTipService.ToolTip="Pick the folder holding the offline basemap archive"/>
                 </Grid>
 
-                <!-- Whether the archive is actually THERE, plus - once changed - that it takes a restart.
-                     ⚠️ One line, not two: both answer the same question ("will the map draw?"), and a separate
-                     restart row would sit empty for the whole life of a normal session. -->
+                <!-- Whether the archive is actually THERE. A new folder is drawn at once (MainWindow re-points
+                     the map), so there's no restart note any more. -->
                 <TextBlock Grid.Row="3" Margin="4,4,0,0"
                            TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
-                           Text="{x:Bind MapDataLine(ViewModel.MapDataStatus, ViewModel.MapDataFolderChanged), Mode=OneWay}"
+                           Text="{x:Bind ViewModel.MapDataStatus, Mode=OneWay}"
                            Style="{StaticResource SettingsFieldLabelStyle}"/>
 
                 <!-- Tile SOURCE — orthogonal to the style above. The styles are Protomaps-schema styles, so every

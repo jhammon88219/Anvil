@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -72,6 +73,9 @@ namespace Anvil.ViewModels
 			// Settings → Basemap. The app's DI singleton, so the map setup window shown before launch is the same
 			// instance; tests get their own.
 			BasemapSetup = basemapSetup ?? new BasemapSetupViewModel(settingsService, radarSiteProvider);
+			// The basemap source is set from several places (this tab, Settings → Basemap, the map setup window) —
+			// follow the SETTINGS, so every one of them is drawn live.
+			_settingsService.Settings.PropertyChanged += OnBasemapSettingChanged;
 
 			// Restore the last Settings tab. Assigned through the PROPERTY so the clamp runs — a persisted
 			// index can name a tab this build does not have (a Debug session quitting on the dev tab).
@@ -1743,17 +1747,8 @@ namespace Anvil.ViewModels
 		public bool IsMapDataFolderDefault =>
 			string.IsNullOrWhiteSpace(_settingsService.Settings.MapDataFolder);
 
-		private bool _mapDataFolderChanged;
-
-		/// <summary>Whether the folder was changed this session, so the view can ask for a restart.</summary>
-		public bool MapDataFolderChanged
-		{
-			get => _mapDataFolderChanged;
-			private set => SetProperty(ref _mapDataFolderChanged, value);
-		}
-
-		/// <summary>Points the basemap at <paramref name="folder"/> (persisted immediately; applies on the
-		/// next launch). Ignores a blank path — the picker returns null when the user cancels.</summary>
+		/// <summary>Points the basemap at <paramref name="folder"/> (persisted immediately; drawn at once — MainWindow
+		/// re-points the map). Ignores a blank path — the picker returns null when the user cancels.</summary>
 		public void SetMapDataFolder(string? folder)
 		{
 			if (string.IsNullOrWhiteSpace(folder) || _settingsService.Settings.MapDataFolder == folder)
@@ -1761,13 +1756,33 @@ namespace Anvil.ViewModels
 				return;
 			}
 
-			_settingsService.Settings.MapDataFolder = folder; // auto-persists
 			// Picking a folder here is the older usa_full.pmtiles route — it replaces a map setup choice, never fights it.
 			_settingsService.Settings.BasemapFilePath = "";
-			MapDataFolderChanged = true;
-			OnPropertyChanged(nameof(MapDataFolder));
-			OnPropertyChanged(nameof(MapDataStatus));
-			OnPropertyChanged(nameof(IsMapDataFolderDefault));
+			_settingsService.Settings.MapDataFolder = folder; // auto-persists; OnBasemapSettingChanged raises the rest
+		}
+
+		// The settings behind the basemap moved (from anywhere): raise what reads them, and push a tile source change.
+		private void OnBasemapSettingChanged(object? sender, PropertyChangedEventArgs e)
+		{
+			switch (e.PropertyName)
+			{
+				case nameof(AppSettings.MapDataFolder):
+				case nameof(AppSettings.BasemapFilePath):
+					OnPropertyChanged(nameof(MapDataFolder));
+					OnPropertyChanged(nameof(MapDataStatus));
+					OnPropertyChanged(nameof(IsMapDataFolderDefault));
+					break;
+				case nameof(AppSettings.UseOnlineTiles):
+				case nameof(AppSettings.OnlineTilesUrl):
+					OnPropertyChanged(nameof(UseOnlineTiles));
+					OnPropertyChanged(nameof(OnlineTilesUrl));
+					OnPropertyChanged(nameof(CanUseOnlineTiles));
+					OnPropertyChanged(nameof(IsOnlineTilesActive));
+					OnPropertyChanged(nameof(TileSourceStatus));
+					// A new URL only matters to a map that's ONLINE; the switch itself always re-points.
+					if (e.PropertyName == nameof(AppSettings.UseOnlineTiles) || UseOnlineTiles) PushTileSource();
+					break;
+			}
 		}
 
 		/// <summary>
@@ -1777,19 +1792,7 @@ namespace Anvil.ViewModels
 		public bool UseOnlineTiles
 		{
 			get => _settingsService.Settings.UseOnlineTiles;
-			set
-			{
-				if (_settingsService.Settings.UseOnlineTiles == value)
-				{
-					return;
-				}
-
-				_settingsService.Settings.UseOnlineTiles = value; // auto-persists
-				OnPropertyChanged();
-				OnPropertyChanged(nameof(IsOnlineTilesActive));
-				OnPropertyChanged(nameof(TileSourceStatus));
-				PushTileSource();
-			}
+			set => _settingsService.Settings.UseOnlineTiles = value; // auto-persists; OnBasemapSettingChanged raises + pushes
 		}
 
 		/// <summary>
@@ -1802,23 +1805,8 @@ namespace Anvil.ViewModels
 			get => _settingsService.Settings.OnlineTilesUrl;
 			set
 			{
-				var url = (value ?? "").Trim();
-				if (_settingsService.Settings.OnlineTilesUrl == url)
-				{
-					return;
-				}
-
-				_settingsService.Settings.OnlineTilesUrl = url; // auto-persists
-				OnPropertyChanged();
-				OnPropertyChanged(nameof(CanUseOnlineTiles));
-				OnPropertyChanged(nameof(IsOnlineTilesActive));
-				OnPropertyChanged(nameof(TileSourceStatus));
-
-				// Re-point a live online map at the new URL; while offline there is nothing to push.
-				if (UseOnlineTiles)
-				{
-					PushTileSource();
-				}
+				// auto-persists; OnBasemapSettingChanged raises + re-points a live map (a no-op change raises nothing)
+				_settingsService.Settings.OnlineTilesUrl = (value ?? "").Trim();
 			}
 		}
 

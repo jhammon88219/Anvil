@@ -66,10 +66,11 @@ let tileUrl = params.get('tilesUrl') || '';
 // Every bundled style names `pmtiles://https://mapdata/usa_full.pmtiles`. Map setup's maps have their own names
 // (anvil-map-standard-l48.pmtiles…), passed as `mapfile`, so register that file UNDER the styles' name: the
 // protocol looks archives up by URL key, and the key is all a style ever sees. No style edits, no style fetch.
+// Always a FRESH archive object, usa_full included: a live switch (setMapFile) must drop the old file's cached
+// header + directories, which live on the archive object the protocol holds.
 // ⚠️ MIRRORED in preview.js (the Settings map preview) — change both.
 function serveMapFile(protocol, mapFile) {
-    if (!mapFile || mapFile === 'usa_full.pmtiles') return;
-    const real = new pmtiles.FetchSource('https://mapdata/' + encodeURIComponent(mapFile));
+    const real = new pmtiles.FetchSource('https://mapdata/' + encodeURIComponent(mapFile || 'usa_full.pmtiles'));
     protocol.add(new pmtiles.PMTiles({
         getKey: function () { return 'https://mapdata/usa_full.pmtiles'; },
         getBytes: function (offset, length, signal, etag) { return real.getBytes(offset, length, signal, etag); }
@@ -359,7 +360,10 @@ try {
     // Guards a resolve that a LATER style/source change has already superseded — online resolution is a
     // fetch, so two quick switches can land out of order and leave the map on the older one.
     let styleGen = 0;
-    window.applyStyle = function (url) {
+    window.applyStyle = function (url) { restyle(url, true); };
+    // diff:false only for a MAP FILE switch: the new file sits under the SAME source url, so a diffed setStyle
+    // would see no change and keep drawing the old file's tiles.
+    function restyle(url, diff) {
         styleUrl = url; // a pane created later is built on the CURRENT basemap, not the launch one
         const gen = ++styleGen;
         resolveStyle(url).then(function (spec) {
@@ -368,7 +372,7 @@ try {
             forEachMap(function (m) {
                 // transformStyle bakes the basemap state (hidden / groups / dim) INTO the next style, so a
                 // theme switch while the map is hidden never flashes the basemap (basemap.js header).
-                const opts = { diff: true };
+                const opts = { diff: diff };
                 if (Basemap) opts.transformStyle = Basemap.transformFor(m);
                 m.setStyle(styleForNewMap(), opts);
                 // setStyle drops our custom sources/layers/images — re-add them once the new style settles.
@@ -376,6 +380,13 @@ try {
                 m.once('idle', function () { reAddAll(m); });
             });
         });
+    }
+    // Host command: draw a DIFFERENT offline map file (Settings → Basemap's Use, a finished download, a delete).
+    // The host has already re-pointed the mapdata folder; this swaps the archive behind the styles' name and
+    // rebuilds every pane's style so its tiles are fetched again.
+    window.setMapFile = function (mapFile) {
+        serveMapFile(protocol, mapFile);
+        restyle(styleUrl, false);
     };
     // Host command: switch where the basemap's vector tiles come from — the bundled offline PMTiles file
     // or an online source (Protomaps API TileJSON, a raw {z}/{x}/{y} template, or a remote PMTiles

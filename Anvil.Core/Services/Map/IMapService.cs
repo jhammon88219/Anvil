@@ -46,6 +46,10 @@ namespace Anvil.Services
 		/// </summary>
 		Task SetTileSourceAsync(bool online, string tilesUrl);
 
+		/// <summary>Draw a different offline map FILE (<c>window.setMapFile</c>). The caller re-points the <c>mapdata</c>
+		/// folder first (MainWindow). Not mirrored: the Settings preview has its own folder mapping and switches itself.</summary>
+		Task SetMapFileAsync(string fileName);
+
 		/// <summary>
 		/// Sets the pane grid: <paramref name="columns"/> x <paramref name="rows"/> maps in the one
 		/// WebView, separated by a <paramref name="gutterPx"/>-wide groove. The page creates/destroys

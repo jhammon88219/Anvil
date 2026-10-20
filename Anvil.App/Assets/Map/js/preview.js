@@ -8,6 +8,7 @@
 //   look command, then every live one              setBasemap / setDistanceUnits / setScopeColor /
 //                                                  setRangeRings / setRangeRingStyle   (map.js's names)
 //   window.previewFit()                       ──▶  re-frame on the rings (the XAML Fit key)
+//   window.setMapFile(name)                   ──▶  draw a different offline map file (MapPreview, on a live switch)
 //   'rangeRingLabelBearing'                   ◀──  the label handle was dragged (radar-scope.js posts it)
 //
 // ⚠️ THE SHIM NAMES AND ARGUMENTS ARE map.js's, on purpose: the host sends this page the very script string it
@@ -126,15 +127,16 @@ function fit(animate) {
 // ---- Boot ----
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol('pmtiles', protocol.tile);
-// The in-use offline map under the styles' file name — ⚠️ MIRRORS map.js serveMapFile; change both.
-(function serveMapFile(mapFile) {
-    if (!mapFile || mapFile === 'usa_full.pmtiles') return;
-    const real = new pmtiles.FetchSource('https://mapdata/' + encodeURIComponent(mapFile));
+// The in-use offline map under the styles' file name, a fresh archive object each time — ⚠️ MIRRORS map.js
+// serveMapFile; change both.
+function serveMapFile(mapFile) {
+    const real = new pmtiles.FetchSource('https://mapdata/' + encodeURIComponent(mapFile || 'usa_full.pmtiles'));
     protocol.add(new pmtiles.PMTiles({
         getKey: function () { return 'https://mapdata/usa_full.pmtiles'; },
         getBytes: function (offset, length, signal, etag) { return real.getBytes(offset, length, signal, etag); }
     }));
-})(params.get('mapfile'));
+}
+serveMapFile(params.get('mapfile'));
 const bootKey = key();
 resolveStyle(want.style).then(function (spec) {
     map = new maplibregl.Map({
@@ -194,3 +196,19 @@ window.setRangeRingStyle = function (json) {
     Scope.setStyle(o);
 };
 window.previewFit = function () { fit(true); };
+// ⚠️ MIRRORS map.js setMapFile: a different offline map file under the same source url, so the restyle can't be
+// diffed (it would keep the old file's tiles). The host has already re-pointed this page's mapdata folder.
+window.setMapFile = function (mapFile) {
+    serveMapFile(mapFile);
+    if (!map) return;
+    const gen = ++styleGen;
+    resolveStyle(want.style).then(function (spec) {
+        if (gen !== styleGen) return;
+        built = key();
+        map.setStyle(spec, { diff: false, transformStyle: Basemap.transformFor(map) });
+        map.once('idle', function () {
+            Scope.attachView(view);
+            Scope.refreshColors();
+        });
+    });
+};

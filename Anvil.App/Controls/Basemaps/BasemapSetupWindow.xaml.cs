@@ -28,5 +28,13 @@ namespace Anvil.Controls.Basemaps
 		public Visibility StepVisibility(int step, int mine) => step == mine ? Visibility.Visible : Visibility.Collapsed;
 
 		public string ExistingFileText(string path) => string.IsNullOrEmpty(path) ? "No file picked yet" : path;
+
+		/// <summary>Visible only while <paramref name="text"/> is empty (the "what gets checked" note before a pick).</summary>
+		public Visibility NoText(string text) => string.IsNullOrEmpty(text) ? Visibility.Visible : Visibility.Collapsed;
+
+		private async void OnBrowseExistingFileClick(object sender, RoutedEventArgs e)
+		{
+			if (await BasemapPickers.PickMapFileAsync(this) is { } path) ViewModel.ExistingFilePath = path;
+		}
 	}
 }

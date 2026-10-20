@@ -38,14 +38,5 @@ namespace Anvil.Controls.Composites
 
 		private void OnBrowseMapDataClick(object sender, RoutedEventArgs e) =>
 			BrowseMapDataFolderRequested?.Invoke(this, EventArgs.Empty);
-
-		/// <summary>
-		/// The offline-source status line: whether the archive is present, plus the restart note once the
-		/// folder has been changed this session. ⚠️ An x:Bind FUNCTION rather than a VM property because it
-		/// composes two VM values — keeping it here means the VM does not have to model "what the view is
-		/// currently saying", and both inputs re-evaluate it on their own change.
-		/// </summary>
-		public string MapDataLine(string status, bool changed) =>
-			changed ? status + "  Restart Anvil to load the basemap from this folder." : status;
 	}
 }

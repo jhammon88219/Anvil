@@ -66,6 +66,7 @@ namespace Anvil
 			// MAP SETUP first, on its own, while Anvil has no map (no offline file, no keyed online source) — every launch
 			// until the user ticks "Stop showing this". Anvil opens when they ask (BasemapSetupHost); closing it quits.
 			var setup = Services.GetRequiredService<BasemapSetupViewModel>();
+			setup.DeletePendingFiles(); // map files the user deleted while Windows held them — before anything opens one
 			if (setup.ShouldShowAtLaunch)
 			{
 				var settings = Services.GetRequiredService<ISettingsService>().Settings;
@@ -83,8 +84,7 @@ namespace Anvil
 		// OnLaunched (and the map setup window's click) runs on the UI thread. Resolving MainWindow constructs everything synchronously.
 		private void OpenMainWindow()
 		{
-			// The map file the main window is about to map is the one on screen this session (Settings → Basemap compares).
-			Services.GetRequiredService<BasemapSetupViewModel>().NoteLaunchedMap();
+			Services.GetRequiredService<BasemapSetupViewModel>().HandOverToAnvil();
 			_window = Services.GetRequiredService<MainWindow>();
 			_window.Activate();
 		}
@@ -198,6 +198,7 @@ namespace Anvil
 			// ── View models + the JS→C# router + the window (the composition root). ──
 			// Map setup (the window before launch + Settings → Basemap) — one instance behind both; MapViewModel takes it.
 			services.AddSingleton<IBasemapDownloadService, BasemapDownloadService>();
+			services.AddSingleton<IMapKeyChecker, ProtomapsKeys>();
 			services.AddSingleton<BasemapSetupViewModel>();
 			services.AddSingleton<MapViewModel>();
 			services.AddSingleton<WebMessageRouter>();

@@ -11,6 +11,7 @@ using Anvil.Controls.Primitives;   // BarEdgeStyle, for the bar's runtime edge s
 using Anvil.ViewModels;
 using Anvil.Dialogs;
 using System;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Collections.Generic;
@@ -432,13 +433,45 @@ namespace Anvil
 			}
 		}
 
+		// LIVE MAP FILE SWITCH: the map in use (ISettingsService.MapDataFolder + MapDataFileName) changed — re-point the
+		// mapdata host at its folder, then have the page swap the archive behind the styles' name (map.js setMapFile).
+		// The Settings preview follows through WebViewEnvironment.MapDataChanged. A folder that doesn't exist is left
+		// unmapped (the map draws blank, exactly as a missing file at launch would).
+		private void OnMapFileSettingChanged(object? sender, PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName is not (nameof(AppSettings.BasemapFilePath) or nameof(AppSettings.MapDataFolder))) return;
+			// INLINE when already on the UI thread: Settings → Basemap's Delete lets go of the map in use and THEN deletes it.
+			if (DispatcherQueue.HasThreadAccess) SwitchMapFile();
+			else DispatcherQueue.TryEnqueue(SwitchMapFile);
+		}
+
+		private void SwitchMapFile()
+		{
+			var folder = _settingsService.MapDataFolder;
+			var file = _settingsService.MapDataFileName;
+			if (string.Equals(folder, WebViewEnvironment.LaunchMapDataFolder, StringComparison.OrdinalIgnoreCase)
+				&& string.Equals(file, WebViewEnvironment.LaunchMapDataFile, StringComparison.OrdinalIgnoreCase)) return;
+			try
+			{
+				var core = MainMapWebView.CoreWebView2;
+				core.ClearVirtualHostNameToFolderMapping("mapdata");
+				if (Directory.Exists(folder)) core.SetVirtualHostNameToFolderMapping("mapdata", folder, CoreWebView2HostResourceAccessKind.Allow);
+				WebViewEnvironment.LaunchMapDataFolder = folder;
+				WebViewEnvironment.LaunchMapDataFile = file;
+				_ = _mapService.SetMapFileAsync(file);
+				WebViewEnvironment.RaiseMapDataChanged();
+				_logger.LogInformation("Map file switched live to {File} in {Folder}", file, folder);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Live map file switch to {File} failed", file);
+			}
+		}
+
 		// Picks the folder holding the offline basemap archive, for the Settings window's Map tab. Lives
 		// here because a WinRT FolderPicker must be initialized with a window HWND, and the settings panel is
 		// a UserControl hosted in a window rather than a window itself — the same reason the report dialogs
-		// below are raised up to here.
-		// ⚠️ The chosen folder takes effect on the NEXT LAUNCH: the mapdata virtual host is mapped once, in
-		// this class's WebView bootstrap, before any page loads. The tab's status line says so; nothing here
-		// tries to re-map a live WebView.
+		// below are raised up to here. The new folder is drawn at once (OnMapFileSettingChanged).
 		private async void OnBrowseMapDataFolderRequested(object? sender, EventArgs e)
 		{
 			var picker = new FolderPicker
@@ -969,6 +1002,8 @@ namespace Anvil
 				webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
 					host, folder, CoreWebView2HostResourceAccessKind.Allow);
 			}
+			// From here a change of the map IN USE (Use, a finished download, a delete, the Map tab's folder) is drawn live.
+			_settingsService.Settings.PropertyChanged += OnMapFileSettingChanged;
 
 #if DEBUG
 			// DEV-ONLY: serve the fixed velocity-dealias corpus (Assets/RadarCorpus, Debug-only Content) so

@@ -49,6 +49,10 @@ namespace Anvil.Services
 			RunMirrored("setTileSource", online ? "online" : "offline",
 				(tilesUrl ?? "").Replace("\\", "\\\\").Replace("'", "\\'"));
 
+		// A file NAME from disk — escaped like the tile URL (a name may hold an apostrophe).
+		public Task SetMapFileAsync(string fileName) =>
+			_mapView.RunScriptAsync(Call("setMapFile", (fileName ?? "").Replace("\\", "\\\\").Replace("'", "\\'")));
+
 		public Task SetPaneLayoutAsync(int columns, int rows, int gutterPx) =>
 			_mapView.RunScriptAsync(Call("setPaneLayout", columns, rows, gutterPx));
 

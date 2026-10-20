@@ -72,6 +72,7 @@ namespace Anvil.Controls.Composites
 					CoreWebView2HostResourceAccessKind.Allow);
 			}
 			core.WebMessageReceived += OnWebMessageReceived;
+			WebViewEnvironment.MapDataChanged += OnMapDataChanged;
 
 			// Mirror from NOW: a command that lands before the page is up is lost, and the replay on
 			// 'previewReady' covers exactly that gap.
@@ -125,10 +126,33 @@ namespace Anvil.Controls.Composites
 
 		private void OnFitClick(object sender, RoutedEventArgs e) => _ = _view?.RunScriptAsync("window.previewFit && window.previewFit();");
 
+		// The main map switched files live (MainWindow, on the UI thread): re-point this page's mapdata host the same way,
+		// then swap its archive (preview.js setMapFile — same escaping as MapService.SetMapFileAsync).
+		private void OnMapDataChanged()
+		{
+			if (_closed || PreviewWebView.CoreWebView2 is not { } core || _view is null) return;
+			try
+			{
+				core.ClearVirtualHostNameToFolderMapping("mapdata");
+				var folder = WebViewEnvironment.LaunchMapDataFolder;
+				if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
+				{
+					core.SetVirtualHostNameToFolderMapping("mapdata", folder, CoreWebView2HostResourceAccessKind.Allow);
+				}
+				var file = (WebViewEnvironment.LaunchMapDataFile ?? "").Replace("\\", "\\\\").Replace("'", "\\'");
+				_ = _view.RunScriptAsync($"window.setMapFile && window.setMapFile('{file}');");
+			}
+			catch (Exception ex)
+			{
+				System.Diagnostics.Debug.WriteLine($"[map-preview] map switch failed: {ex.Message}");
+			}
+		}
+
 		private void OnUnloaded(object sender, RoutedEventArgs e)
 		{
 			if (_closed) return;
 			_closed = true;
+			WebViewEnvironment.MapDataChanged -= OnMapDataChanged;
 			if (_view is not null) ViewModel?.DetachMapPreview(_view);
 			if (PreviewWebView.CoreWebView2 is { } core) core.WebMessageReceived -= OnWebMessageReceived;
 			PreviewWebView.Close(); // frees the renderer — this page must not outlive the window
