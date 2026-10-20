@@ -2,7 +2,8 @@
 <!-- BasemapSetupWindow — the MAP SETUP window: shown ON ITS OWN, before Anvil, while Anvil has no usable map
      (BasemapSetupViewModel.ShouldShowAtLaunch; hosted by BasemapSetupHost). Every launch, until "Stop showing this".
 
-       ┌─ Anvil setup ─────────────────────────────────[–][×]─┐
+       ┌───────────────────────────────────────────────[–][×]─┐  ← no native caption bar: the surface runs up under
+                                                                    it (ExtendsContentIntoTitleBar, BasemapSetupHost)
        │  Anvil                                                │
        │  Weather Workstation                                  │
        │                                                       │
@@ -73,7 +74,8 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid Background="{ThemeResource OverlayBarSurfaceBrush}" Padding="24,20,24,20">
+    <!-- Top padding = 20 + the 32 px caption band the surface now runs under (ExtendsContentIntoTitleBar). -->
+    <Grid Background="{ThemeResource OverlayBarSurfaceBrush}" Padding="24,52,24,20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Anvil / Weather Workstation -->
             <RowDefinition Height="*"/>    <!-- the step -->

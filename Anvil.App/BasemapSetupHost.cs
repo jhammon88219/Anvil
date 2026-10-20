@@ -32,6 +32,10 @@ namespace Anvil
 			// The hosting Window shell is built in code — a WinUI Window can't be declared as a XAML resource and shown;
 			// everything IN it is declared in BasemapSetupWindow.xaml.
 			var window = new Window { Title = "Anvil setup", Content = content };
+			// The content's themed surface runs up under the caption (the panels' fix, WindowManager): the native caption
+			// bar follows the OS theme, not Anvil's, and drew white over a dark window. The default drag region keeps it
+			// movable; BasemapSetupWindow's top padding clears the caption band.
+			window.ExtendsContentIntoTitleBar = true;
 
 			var opened = false;
 			content.OpenAnvilRequested += (_, _) =>
