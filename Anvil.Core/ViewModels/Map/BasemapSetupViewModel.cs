@@ -22,10 +22,11 @@ namespace Anvil.ViewModels
 	/// <remarks>
 	/// ⚠️ UI FIRST (2026-10-20, the user's call: "get the UI in, then slowly make it work"). What WORKS: moving between
 	/// the window's steps, the card choice, the area list + its radar counts + size total, the planned file name, Stop
-	/// showing this at launch, the file list, free space, the in-use line, the delete QUESTION, and the DOWNLOAD itself
-	/// (<see cref="IBasemapDownloadService"/>: start, progress, cancel, retry/resume). What does NOT yet: every action marked
-	/// <c>BASEMAP-SETUP: NOT BUILT</c> — key test, use online, DRAWING a downloaded map, use / delete / show a file, the
-	/// folder + file pickers. Grep the sentinel to find them.
+	/// showing this at launch, the file list, free space, the in-use line, the delete QUESTION, the DOWNLOAD itself
+	/// (<see cref="IBasemapDownloadService"/>: start, step progress, cancel, retry/resume), a finished map becoming the
+	/// in-use one when Anvil had none, Use on a listed file (next launch), and Anvil DRAWING the in-use file. What does NOT
+	/// yet: every action marked <c>BASEMAP-SETUP: NOT BUILT</c> — key test, use online, delete / show a file, use an
+	/// existing file from the window, the folder + file pickers. Grep the sentinel to find them.
 	/// </remarks>
 	public sealed class BasemapSetupViewModel : ObservableObject
 	{
