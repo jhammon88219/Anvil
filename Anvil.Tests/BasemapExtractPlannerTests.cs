@@ -178,6 +178,32 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public async Task Leaves_read_at_once_still_give_entries_in_tile_id_order()
+		{
+			// z0-z2 = ids 0-20, each its own tile: id 0 sits in the root, ids 1-20 in four leaves of five. The source answers
+			// LATER leaves FIRST, so a plan that kept results in finishing order would come back shuffled.
+			var tiles = Enumerable.Range(0, 21).Select(i => new PmtilesEntry((ulong)i, (ulong)i * 10, 10, 1)).ToArray();
+			var leafBytes = new List<byte>();
+			var rootEntries = new List<PmtilesEntry> { tiles[0] };
+			for (var l = 0; l < 4; l++)
+			{
+				var leaf = Archive.Directory(tiles.Skip(1 + l * 5).Take(5).ToArray());
+				rootEntries.Add(new PmtilesEntry((ulong)(1 + l * 5), (ulong)leafBytes.Count, (uint)leaf.Length, 0));
+				leafBytes.AddRange(leaf);
+			}
+			var areas = new[] { BasemapAreas.Lower48, BasemapAreas.Alaska, BasemapAreas.Guam };
+			var source = new LaterFirstSource(Archive.Build(Archive.Directory(rootEntries), leafBytes.ToArray(), new byte[210], maxZoom: 2));
+
+			var plan = await BasemapExtractPlanner.PlanAsync(source, areas, 2, CancellationToken.None);
+
+			var cover = BasemapTileCover.Build(areas, 2);
+			var expected = tiles.Where(t => BasemapTileCover.Touches(cover, t.TileId, t.TileId + 1)).ToArray();
+			Assert.True(expected.Length > 3);
+			Assert.Equal(expected, plan.Entries);
+			Assert.True(source.MostAtOnce > 1, "the leaves should be read together");
+		}
+
+		[Fact]
 		public void The_newest_build_is_picked_from_the_list()
 		{
 			const string json = "[{\"key\":\"20261019.pmtiles\"},{\"key\":\"20261020.pmtiles\"},{\"key\":\"20261018.pmtiles\"},{\"key\":\"notes.txt\"}]";
@@ -249,6 +275,25 @@ namespace Anvil.Tests
 				var start = (int)Math.Min(offset, (ulong)_bytes.Length);
 				var n = Math.Min(length, _bytes.Length - start);
 				return Task.FromResult(_bytes.AsSpan(start, n).ToArray());
+			}
+		}
+
+		/// <summary>Holds every read after the first (the header) and answers the furthest-in-file first.</summary>
+		private sealed class LaterFirstSource : IPmtilesSource
+		{
+			private readonly IPmtilesSource _inner;
+			private int _now;
+			public LaterFirstSource(IPmtilesSource inner) => _inner = inner;
+			public int MostAtOnce { get; private set; }
+
+			public async Task<byte[]> ReadAsync(ulong offset, int length, CancellationToken ct)
+			{
+				if (offset == 0) return await _inner.ReadAsync(offset, length, ct);
+				var n = Interlocked.Increment(ref _now);
+				lock (this) MostAtOnce = Math.Max(MostAtOnce, n);
+				await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(1, 400 - (int)offset)), ct);
+				Interlocked.Decrement(ref _now);
+				return await _inner.ReadAsync(offset, length, ct);
 			}
 		}
 	}

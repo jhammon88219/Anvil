@@ -41,6 +41,9 @@ namespace Anvil.Services
 		/// <summary>Full detail's top zoom — every street and building; Protomaps' basemap stops here.</summary>
 		public const int FullMaxZoom = 15;
 
+		/// <summary>Leaf directory reads in flight at once (each is one small range read).</summary>
+		public const int LeafReadsAtOnce = 12;
+
 		public static async Task<BasemapExtractPlan> PlanAsync(IPmtilesSource source, IEnumerable<BasemapArea> areas,
 			int maxZoom, CancellationToken ct)
 		{
@@ -52,9 +55,12 @@ namespace Anvil.Services
 			var rootBytes = Slice(first, header.RootDirectoryOffset, header.RootDirectoryLength);
 			var root = PmtilesDirectory.Decode(PmtilesHeader.Decompress(rootBytes, header.InternalCompression));
 
-			var entries = new List<PmtilesEntry>();
+			// Leaf directories are read SEVERAL AT ONCE (2026-10-20): one after another, the ~50-100 an all-areas map
+			// needs took 10-20 s of round trips. The gate covers only the network read, never a walk, so a nested leaf
+			// can't wait on its own parent's slot.
+			using var gate = new SemaphoreSlim(LeafReadsAtOnce);
 			var leaves = 0;
-			await WalkAsync(root, ulong.MaxValue).ConfigureAwait(false);
+			var entries = await WalkAsync(root, ulong.MaxValue).ConfigureAwait(false);
 
 			// Shared tile data (the same ocean tile under thousands of ids) is fetched and stored once.
 			var contents = new Dictionary<ulong, uint>();
@@ -63,8 +69,12 @@ namespace Anvil.Services
 			var regionTiles = cover.Aggregate(0UL, (sum, r) => sum + r.Count);
 			return new BasemapExtractPlan(header, entries, regionTiles, leaves, contents.Count, bytes);
 
-			async Task WalkAsync(IReadOnlyList<PmtilesEntry> directory, ulong directoryEnd)
+			// A directory's entries in TILE-ID ORDER: its own runs and each leaf's result kept in directory order, whatever
+			// order the leaf reads finish in.
+			async Task<List<PmtilesEntry>> WalkAsync(IReadOnlyList<PmtilesEntry> directory, ulong directoryEnd)
 			{
+				var pieces = new List<Task<List<PmtilesEntry>>>();
+				var runs = new List<PmtilesEntry>();
 				for (var i = 0; i < directory.Count; i++)
 				{
 					var e = directory[i];
@@ -73,19 +83,35 @@ namespace Anvil.Services
 						// A leaf holds ids from its own up to the next entry's (or its parent's end).
 						var end = i + 1 < directory.Count ? directory[i + 1].TileId : directoryEnd;
 						if (!BasemapTileCover.Touches(cover, e.TileId, end)) continue;
-						var raw = await source.ReadAsync(header.LeafDirectoriesOffset + e.Offset, checked((int)e.Length), ct).ConfigureAwait(false);
-						leaves++;
-						await WalkAsync(PmtilesDirectory.Decode(PmtilesHeader.Decompress(raw, header.InternalCompression)), end).ConfigureAwait(false);
+						pieces.Add(Task.FromResult(runs));
+						runs = new List<PmtilesEntry>();
+						pieces.Add(ReadLeafAsync(e, end));
 					}
 					else
 					{
 						// Keep each stretch of the run that the cover holds — a run can straddle the edge of an area.
 						foreach (var part in BasemapTileCover.Intersect(cover, e.TileId, e.TileId + e.RunLength))
 						{
-							entries.Add(new PmtilesEntry(part.First, e.Offset, e.Length, checked((uint)part.Count)));
+							runs.Add(new PmtilesEntry(part.First, e.Offset, e.Length, checked((uint)part.Count)));
 						}
 					}
 				}
+				if (pieces.Count == 0) return runs;
+				pieces.Add(Task.FromResult(runs));
+				return (await Task.WhenAll(pieces).ConfigureAwait(false)).SelectMany(p => p).ToList();
+			}
+
+			async Task<List<PmtilesEntry>> ReadLeafAsync(PmtilesEntry leaf, ulong end)
+			{
+				byte[] raw;
+				await gate.WaitAsync(ct).ConfigureAwait(false);
+				try
+				{
+					raw = await source.ReadAsync(header.LeafDirectoriesOffset + leaf.Offset, checked((int)leaf.Length), ct).ConfigureAwait(false);
+				}
+				finally { gate.Release(); }
+				Interlocked.Increment(ref leaves);
+				return await WalkAsync(PmtilesDirectory.Decode(PmtilesHeader.Decompress(raw, header.InternalCompression)), end).ConfigureAwait(false);
 			}
 		}
 
