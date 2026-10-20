@@ -297,6 +297,20 @@ try {
         return typeof spec === 'string' ? spec : structuredClone(spec);
     }
 
+    // LET THE WORLD'S EDGE REACH THE MIDDLE (2026-10-20, the user's call). With one world (renderWorldCopies:false)
+    // MapLibre's own limit keeps BOTH screen edges inside ±180°, so Alaska sat pinned to the screen's left edge — under
+    // a temporal window — and could only be reached by zooming. Here the CENTRE may go anywhere in -180…180 instead;
+    // north/south and zoom stay MapLibre's (its default runs first). An isolation lock (states.js setMaxBounds) is
+    // left entirely to MapLibre — it has its own longitude range to keep.
+    function looseWorldEdge(m) {
+        return function (lngLat, z) {
+            const d = m.transform.defaultConstrain(lngLat, z);
+            if (m.getMaxBounds()) return d;
+            const lngWanted = Math.max(-180, Math.min(180, lngLat.lng));
+            return { center: new maplibregl.LngLat(lngWanted, d.center.lat), zoom: d.zoom };
+        };
+    }
+
     function createPaneMap(i) {
         // A pane joins the existing camera, style and orientation, so it appears already locked to its
         // siblings instead of flying in from the launch view.
@@ -317,6 +331,7 @@ try {
             renderWorldCopies: false,
             minZoom: 2
         });
+        m.setTransformConstrain(looseWorldEdge(m));
         m.on('move', onPaneMove);
         if (PerfProbe) PerfProbe.attach(m); // dev pan probe: a pane added later still gets sampled
         if (Layers) Layers.watchStack(m);   // keep the user's overlay order on this pane too
