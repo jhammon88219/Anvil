@@ -71,7 +71,7 @@ namespace Anvil.ViewModels
 			Storage = new StorageSettingsViewModel(radarService, settingsService);
 			// Settings → Basemap. The app's DI singleton, so the map setup window shown before launch is the same
 			// instance; tests get their own.
-			BasemapSetup = basemapSetup ?? new BasemapSetupViewModel(settingsService);
+			BasemapSetup = basemapSetup ?? new BasemapSetupViewModel(settingsService, radarSiteProvider);
 
 			// Restore the last Settings tab. Assigned through the PROPERTY so the clamp runs — a persisted
 			// index can name a tab this build does not have (a Debug session quitting on the dev tab).

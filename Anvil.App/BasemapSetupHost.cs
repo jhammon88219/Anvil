@@ -15,8 +15,8 @@ namespace Anvil
 	public static class BasemapSetupHost
 	{
 		// One fixed size (DIPs): the two cards side by side + the footer. Not resizable — nothing in it grows.
-		private const int WidthDip = 720;
-		private const int HeightDip = 660;
+		private const int WidthDip = 800;
+		private const int HeightDip = 860;
 
 		[DllImport("user32.dll")]
 		private static extern uint GetDpiForWindow(IntPtr hWnd);

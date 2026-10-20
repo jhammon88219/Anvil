@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using Anvil.Models;
 using Anvil.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -14,25 +15,31 @@ namespace Anvil.ViewModels
 	/// Getting Anvil a MAP: the map setup window shown before launch (<c>Controls/Basemaps/BasemapSetupWindow</c>) and
 	/// Settings → Basemap (<c>Controls/Basemaps/BasemapSettingsTab</c>) — one instance (an app DI singleton) behind both.
 	/// Two routes: an ONLINE map (the user's free Protomaps key) or an OFFLINE map (a download Anvil extracts from
-	/// Protomaps' daily planet build, Standard or Full detail).
+	/// Protomaps' daily planet build: the ticked AREAS at Standard or Full detail, named by <see cref="BasemapFileNames"/>).
 	/// </summary>
 	/// <remarks>
 	/// ⚠️ UI FIRST (2026-10-20, the user's call: "get the UI in, then slowly make it work"). What WORKS: moving between
-	/// the window's steps, the card choice, Stop showing this at launch, the file list (read from the current offline
-	/// folder), free space, the in-use line, the delete QUESTION. What does NOT yet: every action marked
-	/// <c>BASEMAP-SETUP: NOT BUILT</c> — key test, use online, download / cancel / retry, use / delete / show a file,
-	/// the folder + file pickers. Grep the sentinel to find them.
-	/// Sizes (measured 2026-10-20 by a pmtiles dry run over a box per radar site): level 12 ≈ 2.4 GB, 13 ≈ 5.1 GB,
-	/// 15 ≈ 22 GB. Standard = 13 for now (12 vs 13 not settled). Canada isn't measured — its box is a later add.
+	/// the window's steps, the card choice, the area list + its radar counts + size total, the planned file name, Stop
+	/// showing this at launch, the file list, free space, the in-use line, the delete QUESTION. What does NOT yet: every
+	/// action marked <c>BASEMAP-SETUP: NOT BUILT</c> — key test, use online, download / cancel / retry, use / delete /
+	/// show a file, the folder + file pickers. Grep the sentinel to find them.
 	/// </remarks>
 	public sealed class BasemapSetupViewModel : ObservableObject
 	{
 		private readonly ISettingsService _settings;
 
-		public BasemapSetupViewModel(ISettingsService settings)
+		public BasemapSetupViewModel(ISettingsService settings, IRadarSiteProvider radarSites)
 		{
 			_settings = settings;
 			_saveFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Anvil Maps");
+
+			// The Area checklist. Radar counts = NEXRAD only (the user's call): operational, not retired, inside the area.
+			var nexrad = radarSites.GetSites().Where(s => s.Class == RadarSiteClass.Operational && s.RetiredOn is null).ToList();
+			Areas = BasemapAreas.All
+				.Select(a => new BasemapAreaOption(a, nexrad.Count(s => a.Contains(s.Latitude, s.Longitude)),
+					isChecked: a == BasemapAreas.Lower48, OnAreasChanged))
+				.ToList();
+
 			_settings.Settings.PropertyChanged += OnSettingsChanged;
 			Refresh();
 		}
@@ -100,6 +107,7 @@ namespace Anvil.ViewModels
 				{
 					OnPropertyChanged(nameof(IsOfflineChosen));
 					OnPropertyChanged(nameof(PrimaryActionText));
+					OnPropertyChanged(nameof(CanRunPrimaryAction));
 				}
 			}
 		}
@@ -115,6 +123,9 @@ namespace Anvil.ViewModels
 
 		/// <summary>The window's main button, named for what it will do.</summary>
 		public string PrimaryActionText => _isOnlineChosen ? "Use online map" : "Download map";
+
+		/// <summary>Download needs at least one area ticked; the online route is always pressable.</summary>
+		public bool CanRunPrimaryAction => _isOnlineChosen || HasAnyArea;
 
 		/// <summary>The main button. BASEMAP-SETUP: NOT BUILT — online = test + switch on, offline = start the download.</summary>
 		public void RunPrimaryAction() { }
@@ -161,30 +172,69 @@ namespace Anvil.ViewModels
 			set
 			{
 				var v = Math.Clamp(value, 0, 1);
-				if (SetProperty(ref _detailIndex, v))
-				{
-					OnPropertyChanged(nameof(DetailSizeText));
-					OnPropertyChanged(nameof(DetailName));
-				}
+				if (SetProperty(ref _detailIndex, v)) RaiseChoice();
 			}
 		}
 
-		/// <summary>"Standard" / "Full" — the download and ready screens name it.</summary>
-		public string DetailName => DetailLabels[_detailIndex];
+		private bool IsFullDetail => _detailIndex == 1;
 
-		/// <summary>What the picked detail shows and costs, under the picker.</summary>
-		public string DetailSizeText => _detailIndex == 0
-			? "Streets at city zoom · about 5 GB"
-			: "Every street and building · about 22 GB";
+		/// <summary>The Area checklist, in <see cref="BasemapAreas.All"/> order. Lower 48 ticked to start.</summary>
+		public IReadOnlyList<BasemapAreaOption> Areas { get; }
 
-		private bool _includeCanada;
-		/// <summary>Add Canada to the download (for Canadian radars later). Off by default. BASEMAP-SETUP: NOT BUILT — no
-		/// Canada box yet, and its size isn't measured.</summary>
-		public bool IncludeCanada
+		private List<BasemapArea> CheckedAreas => Areas.Where(a => a.IsChecked).Select(a => a.Area).ToList();
+
+		/// <summary>At least one area ticked — Download is greyed, and "Tick at least one area." shows, without one.</summary>
+		public bool HasAnyArea => Areas.Any(a => a.IsChecked);
+
+		/// <summary>The download as one line, for the downloading / ready / failed screens: "Standard · Lower 48 states".</summary>
+		public string ChosenMapText => HasAnyArea
+			? new BasemapFileOptions(IsFullDetail, CheckedAreas, 1).Description
+			: DetailLabels[_detailIndex];
+
+		/// <summary>Under the detail picker: what it shows · which areas · about how big. Empty with nothing ticked.</summary>
+		public string SizeSummaryText
 		{
-			get => _includeCanada;
-			set => SetProperty(ref _includeCanada, value);
+			get
+			{
+				var areas = CheckedAreas;
+				if (areas.Count == 0) return "";
+				var megabytes = areas.Sum(a => IsFullDetail ? a.FullMegabytes : a.StandardMegabytes);
+				var which = areas.Count == 1 ? areas[0].Name : $"{areas.Count} areas";
+				return $"{(IsFullDetail ? "Every street and building" : "Streets at city zoom")} · {which} · about {SizeWords(megabytes)}";
+			}
 		}
+
+		/// <summary>The file a download would make now (Settings → Basemap's File line); "—" with nothing ticked.</summary>
+		public string PlannedFileName => HasAnyArea
+			? BasemapFileNames.NextFileName(IsFullDetail, CheckedAreas, ExistingMapFileNames())
+			: "—";
+
+		/// <summary>Said under the File line when the same options are already downloaded — ALWAYS kept beside (the user's call).</summary>
+		public string DuplicateNote => HasAnyArea && BasemapFileNames.TryParse(PlannedFileName)?.Copy > 1
+			? "You already have this map. This one is kept beside it."
+			: "";
+
+		private void OnAreasChanged()
+		{
+			OnPropertyChanged(nameof(HasAnyArea));
+			OnPropertyChanged(nameof(CanRunPrimaryAction));
+			RaiseChoice();
+		}
+
+		// Everything worked out from the ticked areas + the detail.
+		private void RaiseChoice()
+		{
+			OnPropertyChanged(nameof(ChosenMapText));
+			OnPropertyChanged(nameof(SizeSummaryText));
+			OnPropertyChanged(nameof(PlannedFileName));
+			OnPropertyChanged(nameof(DuplicateNote));
+		}
+
+		// "450 MB" under a gigabyte; "4.4 GB" under ten; "19 GB" past that. Decimal units, as the measurements were taken.
+		internal static string SizeWords(double megabytes) =>
+			megabytes < 1000 ? $"{Math.Max(1, Math.Round(megabytes)).ToString("0", CultureInfo.CurrentCulture)} MB"
+			: megabytes < 10000 ? $"{(megabytes / 1000).ToString("0.0", CultureInfo.CurrentCulture)} GB"
+			: $"{Math.Round(megabytes / 1000).ToString("0", CultureInfo.CurrentCulture)} GB";
 
 		private string _saveFolder;
 		/// <summary>Where a download goes. BASEMAP-SETUP: NOT BUILT — Browse… (a folder picker needs the window's HWND).</summary>
@@ -193,8 +243,26 @@ namespace Anvil.ViewModels
 			get => _saveFolder;
 			set
 			{
-				if (SetProperty(ref _saveFolder, value ?? "")) OnPropertyChanged(nameof(FreeSpaceText));
+				if (SetProperty(ref _saveFolder, value ?? ""))
+				{
+					OnPropertyChanged(nameof(FreeSpaceText));
+					Refresh(); // the folder's maps, and so the next free file name
+				}
 			}
+		}
+
+		// The downloaded maps' names in the save folder (the naming rule's "already taken" set).
+		private List<string> ExistingMapFileNames()
+		{
+			try
+			{
+				return Directory.Exists(_saveFolder)
+					? Directory.EnumerateFiles(_saveFolder, BasemapFileNames.Prefix + "*" + BasemapFileNames.Extension)
+						.Select(Path.GetFileName).OfType<string>().ToList()
+					: new List<string>();
+			}
+			catch (IOException) { return new List<string>(); }
+			catch (UnauthorizedAccessException) { return new List<string>(); }
 		}
 
 		/// <summary>"212 GB free" on the save folder's drive (the folder needn't exist yet).</summary>
@@ -282,6 +350,22 @@ namespace Anvil.ViewModels
 				catch (UnauthorizedAccessException) { }
 			}
 
+			// Downloaded maps in the save folder, titled from their names ("Standard · Lower 48 states, Alaska"). None is
+			// drawn yet — opening a downloaded map is BASEMAP-SETUP: NOT BUILT.
+			foreach (var name in ExistingMapFileNames().OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
+			{
+				if (BasemapFileNames.TryParse(name) is not { } options) continue;
+				var path = Path.Combine(_saveFolder, name);
+				try
+				{
+					var info = new FileInfo(path);
+					var details = $"{GigabytesText(info.Length)} · {info.LastWriteTime.ToString("d MMM yyyy", CultureInfo.CurrentCulture)} · {name}";
+					Files.Add(new BasemapFileRow(path, options.Description, details, isInUse: false));
+				}
+				catch (IOException) { }
+				catch (UnauthorizedAccessException) { }
+			}
+
 			InUseText = onlineActive ? "Online map · Protomaps"
 				: offline is not null ? $"Offline map · {_settings.MapDataFileName}"
 				: "No map. Radar and overlays draw over a blank background.";
@@ -289,6 +373,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(HasNoFiles));
 			OnPropertyChanged(nameof(HasUsableMap));
 			OnPropertyChanged(nameof(FreeSpaceText));
+			RaiseChoice(); // the next free file name depends on what's in the folder
 		}
 
 		/// <summary>BASEMAP-SETUP: NOT BUILT — make <paramref name="row"/> the map Anvil draws.</summary>

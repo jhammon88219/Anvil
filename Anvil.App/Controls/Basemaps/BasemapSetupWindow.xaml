@@ -10,10 +10,11 @@
        │  Choose your map                                      │
        │  Radar, warnings and outlooks work either way…        │
        │  ┌──────────────────────┐ ┌──────────────────────┐    │  ← BasemapSetupWindowOnlineCard |
-       │  │ ◍ Online map         │ │ ⤓ Offline map        │    │    BasemapSetupWindowOfflineCard
-       │  └──────────────────────┘ └──────────────────────┘    │
+       │  │ ◍ Online map         │ │ ⤓ Offline map        │    │    BasemapSetupWindowOfflineCard (Area list,
+       │  └──────────────────────┘ └──────────────────────┘    │    detail, size total, save folder)
        │  ───────────────────────────────────────────────────  │
-       │  Continue without a map                [Use online map]  ← names what it'll do (Download map)
+       │  Continue without a map                [Use online map]  ← names what it'll do (Download map — greyed
+                                                                        while no area is ticked)
        │  You can set this up later in Settings → Basemap.     │
        │  [ ] Stop showing this at launch                      │
        │                                                       │
@@ -106,6 +107,7 @@
                 <Button x:Name="BasemapSetupPrimaryButton" Grid.Column="1" VerticalAlignment="Bottom"
                         Style="{StaticResource AccentButtonStyle}"
                         Content="{x:Bind ViewModel.PrimaryActionText, Mode=OneWay}"
+                        IsEnabled="{x:Bind ViewModel.CanRunPrimaryAction, Mode=OneWay}"
                         Click="{x:Bind ViewModel.RunPrimaryAction}"/>
             </Grid>
             <CheckBox x:Name="StopShowingAtLaunchCheckBox" Content="Stop showing this at launch" Margin="0,10,0,0"
@@ -160,7 +162,7 @@
                     <Grid>
                         <TextBlock>
                             <Run Text="Offline map ·"/>
-                            <Run Text="{x:Bind ViewModel.DetailName, Mode=OneWay}"/>
+                            <Run Text="{x:Bind ViewModel.ChosenMapText, Mode=OneWay}"/>
                         </TextBlock>
                         <TextBlock HorizontalAlignment="Right" Text="{x:Bind ViewModel.DownloadPercentText, Mode=OneWay}"
                                    Style="{StaticResource TabularNumberTextStyle}"
@@ -203,7 +205,7 @@
                     <Grid>
                         <TextBlock>
                             <Run Text="Offline map ·"/>
-                            <Run Text="{x:Bind ViewModel.DetailName, Mode=OneWay}"/>
+                            <Run Text="{x:Bind ViewModel.ChosenMapText, Mode=OneWay}"/>
                         </TextBlock>
                         <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="6">
                             <FontIcon Glyph="&#xE73E;" FontSize="14" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
@@ -248,7 +250,7 @@
                     <StackPanel Grid.Column="1">
                         <TextBlock>
                             <Run Text="Offline map ·"/>
-                            <Run Text="{x:Bind ViewModel.DetailName, Mode=OneWay}"/>
+                            <Run Text="{x:Bind ViewModel.ChosenMapText, Mode=OneWay}"/>
                         </TextBlock>
                         <TextBlock Text="Retry picks up where it left off." Style="{StaticResource BasemapSetupFootNoteStyle}"/>
                     </StackPanel>
