@@ -11,8 +11,8 @@
        Run      [Latest (16Z)                      ▾]         ← Latest follows each run; an earlier one is HELD (not persisted)
        Tracks   [ This hour | Run so far ]                    ← ONLY while the product is UH; default Run so far
        Hours    [ ] Extend to f48 (hourly past f18)           ← ONLY for a 48 h run (00/06/12/18Z); persisted
-       ▕▒▒▓▓██▓▓▒▒▒▒░░▏                                      ← the LEGEND, last: radar's own reflectivity ramp for future
-                                                                radar (ProductColorRamp + scale), the UH table for tracks
+
+     NO LEGEND here (removed 2026-10-21): the model's ramp is in every PANE NOTCH while it draws (PaneNotchContent).
 
      ⚠️ The box (the host's) EXCLUDES NOWCAST: ticking it while ForeCast runs turns live radar off; unticking brings it back
      (MapViewModel's NowCast ⇄ MODEL rule). ⚠️ Colours are DATA, never themed. ⚠️ No time control here: the BOTTOM CONSOLE
@@ -35,7 +35,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- the card -->
             <RowDefinition Height="Auto"/> <!-- the rows -->
-            <RowDefinition Height="Auto"/> <!-- the legend: last -->
         </Grid.RowDefinitions>
 
         <dragMoveLayerExpanders:DragMoveLayerExpanderHeaderCard x:Name="DragMoveLayerExpanderHeaderCard" Grid.Row="0"
@@ -96,9 +95,5 @@
                       IsChecked="{x:Bind ViewModel.IsExtended, Mode=TwoWay}"
                       ToolTipService.ToolTip="This run goes to 48 hours; past 18 the HRRR only has hourly frames"/>
         </Grid>
-
-        <prim:ProductColorRamp x:Name="ShortRangeLegend" Grid.Row="2" Margin="0,14,0,0"
-                               ShowScale="True"
-                               Ramp="{x:Bind ViewModel.Legend, Mode=OneWay}"/>
     </Grid>
 </UserControl>
