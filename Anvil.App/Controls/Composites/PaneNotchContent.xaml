@@ -14,6 +14,21 @@
        │  Ref ˅ │ ▓▓▒▒░░░▒▒▓▓ │ 0.5° ˅  │   COMPACT (quad) — the scale numbers drop
        └────────────────────────────────┘
 
+     MODEL FORM — while a ForeCast model is drawing (Model.IsDrawing; NowCast is off then, so the radar form has
+     nothing to say). Plain text, NOTHING to pick: the product is picked in the Short Range section, one place.
+
+       ┌────────────────────────────────────┐
+       │  HRRR      │ ▓▓▒▒░░░▒▒▓▓▓▓▓▓▓▓▓▓▓ │   FULL — model over product, then the model's legend
+       │  Composite │ 5             75 dBZ │
+       └────────────────────────────────────┘
+       ┌──────────────────────────────┐
+       │  HRRR Comp │ ▓▓▒▒░░░▒▒▓▓    │      COMPACT — one line, no scale numbers
+       └──────────────────────────────┘
+
+     No tilt (a model field has none) and no inspect tick (no model cursor read-out yet). The name column is a
+     FIXED width (ModelNameWidth) so a product change never slides the notch under the pane's centre. Every pane
+     shows the same: the model draws one field across all of them. Dimmed by the model console's own gate.
+
      THE THREE ARE SEPARATE CONTROLS, and that is the point. The selector and the legend used to be ONE
      control (ProductColorRampComboBox), because a 160px chip in the bottom bar could not hold two. The
      notch can, so they came apart: ProductComboBox draws no ramp anywhere, ProductColorRamp is the legend.
@@ -53,7 +68,10 @@
          rather than each control inventing its own disabled look. Same treatment, same reason, as the
          scrubber's ScrubberOpacity in RadarControls. The PastCast loading screen greys it the same way: product
          through IsTransportEnabled, tilt through CanPickTilt (RadarViewModel.AreControlsLocked). -->
-    <Grid VerticalAlignment="Center" ColumnSpacing="10"
+    <Grid>
+    <Grid x:Name="PaneNotchRadarForm"
+          VerticalAlignment="Center" ColumnSpacing="10"
+          Visibility="{x:Bind RadarFormVisibility(Model.IsDrawing), Mode=OneWay}"
           Opacity="{x:Bind DormantOpacity(Radar.IsTransportEnabled), Mode=OneWay}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/> <!-- product -->
@@ -96,5 +114,42 @@
                           SelectedIndex="{x:Bind Radar.RadarTiltIndex, Mode=TwoWay}"
                           IsEnabled="{x:Bind Radar.CanPickTilt, Mode=OneWay}"
                           ToolTipService.ToolTip="{x:Bind TiltTooltip(Radar.TiltUnavailableNotice), Mode=OneWay}"/>
+    </Grid>
+
+    <!-- The MODEL form (see the header sketch). Read-only: name, then the model product's legend. -->
+    <Grid x:Name="PaneNotchModelForm"
+          VerticalAlignment="Center" ColumnSpacing="10"
+          Visibility="{x:Bind ModelFormVisibility(Model.IsDrawing), Mode=OneWay}"
+          Opacity="{x:Bind DormantOpacity(Model.Playback.IsTransportEnabled), Mode=OneWay}"
+          ToolTipService.ToolTip="What the model draws in every pane. Pick the product in ForeCast → Short Range.">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/> <!-- model + product -->
+            <ColumnDefinition Width="Auto"/> <!-- divider -->
+            <ColumnDefinition Width="Auto"/> <!-- the legend -->
+        </Grid.ColumnDefinitions>
+
+        <StackPanel x:Name="PaneNotchModelName"
+                    Grid.Column="0"
+                    Width="{x:Bind ModelNameWidth(IsCompact), Mode=OneWay}"
+                    VerticalAlignment="Center"
+                    Orientation="{x:Bind ModelNameOrientation(IsCompact), Mode=OneWay}"
+                    Spacing="{x:Bind ModelNameSpacing(IsCompact), Mode=OneWay}">
+            <TextBlock Text="{x:Bind Model.Playback.ModelText, Mode=OneWay}"
+                       FontSize="12" FontWeight="SemiBold"
+                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+            <TextBlock Text="{x:Bind Model.Playback.ProductText, Mode=OneWay}"
+                       FontSize="12" TextTrimming="CharacterEllipsis"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+
+        <Border Grid.Column="1" Style="{StaticResource NotchDividerStyle}"/>
+
+        <ctl:ProductColorRamp Grid.Column="2"
+                              VerticalAlignment="Center"
+                              Width="{x:Bind RampWidth(IsCompact), Mode=OneWay}"
+                              ShowScale="{x:Bind ShowScale(IsCompact), Mode=OneWay}"
+                              Ramp="{x:Bind Model.Legend, Mode=OneWay}"
+                              IsInspectVisible="False"/>
+    </Grid>
     </Grid>
 </UserControl>

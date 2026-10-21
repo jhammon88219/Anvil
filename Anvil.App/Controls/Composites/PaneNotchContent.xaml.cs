@@ -13,6 +13,9 @@ namespace Anvil.Controls.Composites
 	/// (product, ramp, inspect read-out) and <see cref="Radar"/> what does not (the tilt, and whether a
 	/// loop is loaded at all). When per-pane tilt lands, the Tilt combo moves onto Pane and this control's
 	/// shape does not otherwise change.</para>
+	///
+	/// <para>A third DP, <see cref="Model"/>, swaps the whole row for the model form while a ForeCast model draws
+	/// (NowCast is off then).</para>
 	/// </summary>
 	public sealed partial class PaneNotchContent : UserControl
 	{
@@ -42,6 +45,29 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty RadarProperty =
 			DependencyProperty.Register(nameof(Radar), typeof(RadarViewModel), typeof(PaneNotchContent),
 				new PropertyMetadata(null));
+
+		/// <summary>The ForeCast Short Range model: while it draws, the notch shows its name + legend instead.</summary>
+		public ShortRangeViewModel Model
+		{
+			get => (ShortRangeViewModel)GetValue(ModelProperty);
+			set => SetValue(ModelProperty, value);
+		}
+
+		public static readonly DependencyProperty ModelProperty =
+			DependencyProperty.Register(nameof(Model), typeof(ShortRangeViewModel), typeof(PaneNotchContent),
+				new PropertyMetadata(null));
+
+		public Visibility RadarFormVisibility(bool modelDrawing) => modelDrawing ? Visibility.Collapsed : Visibility.Visible;
+
+		public Visibility ModelFormVisibility(bool modelDrawing) => modelDrawing ? Visibility.Visible : Visibility.Collapsed;
+
+		/// <summary>The model name column's width — FIXED per form, for the same reason as <see cref="RampWidth"/>.</summary>
+		public double ModelNameWidth(bool compact) => compact ? 120 : 96;
+
+		/// <summary>Full = model over product; compact = one line ("HRRR Composite"), like the radar form's one line.</summary>
+		public Orientation ModelNameOrientation(bool compact) => compact ? Orientation.Horizontal : Orientation.Vertical;
+
+		public double ModelNameSpacing(bool compact) => compact ? 5 : 0;
 
 		/// <summary>
 		/// The tighter form: no scale numbers under the ramp and a shorter ramp. Set by the host for the

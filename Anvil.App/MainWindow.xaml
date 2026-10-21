@@ -233,6 +233,7 @@
                 <ctl:OverlayBar.BarContent>
                     <comp:PaneNotchContent Pane="{x:Bind ViewModel.Radar.Pane0}"
                                            Radar="{x:Bind ViewModel.Radar}"
+                                           Model="{x:Bind ViewModel.ShortRange}"
                                            IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
                 </ctl:OverlayBar.BarContent>
             </ctl:OverlayBar>
@@ -252,6 +253,7 @@
                 <ctl:OverlayBar.BarContent>
                     <comp:PaneNotchContent Pane="{x:Bind ViewModel.Radar.Pane1}"
                                            Radar="{x:Bind ViewModel.Radar}"
+                                           Model="{x:Bind ViewModel.ShortRange}"
                                            IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
                 </ctl:OverlayBar.BarContent>
             </ctl:OverlayBar>
@@ -271,6 +273,7 @@
                 <ctl:OverlayBar.BarContent>
                     <comp:PaneNotchContent Pane="{x:Bind ViewModel.Radar.Pane2}"
                                            Radar="{x:Bind ViewModel.Radar}"
+                                           Model="{x:Bind ViewModel.ShortRange}"
                                            IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
                 </ctl:OverlayBar.BarContent>
             </ctl:OverlayBar>
@@ -290,6 +293,7 @@
                 <ctl:OverlayBar.BarContent>
                     <comp:PaneNotchContent Pane="{x:Bind ViewModel.Radar.Pane3}"
                                            Radar="{x:Bind ViewModel.Radar}"
+                                           Model="{x:Bind ViewModel.ShortRange}"
                                            IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
                 </ctl:OverlayBar.BarContent>
             </ctl:OverlayBar>
