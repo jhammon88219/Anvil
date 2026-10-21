@@ -6,11 +6,11 @@
        ┌▓▓▓▓▓▓▓▓▓▓▓▓▓┐  ← THE BAND (variant B, 2026-10-07): BandFill = a DEEP shade of the warning colour; the
        │▓Tornado  ‹ ›▓│     Label + ‹ › in Ink, the BRIGHT colour (the Outlook Discussion risk cards' title band,
        │ 5           │     OutlookRiskCard.Deep: the same hue at 38% brightness). DATA literals, never themed.
-       │ ─────────── │  ← count 34 SemiLight (tap = Reset); the rule only when Count > 0
-       │▒Oklahoma▒▒3▒│  ← STATE LINES (Stepper.States), 13 px whole-row buttons; ▒ = LIT (accent wash + text)
-       │ Kansas    2 │
-       │ 2 of 5 · Cle│  ← tag line (Threats), or — while the ‹ › have you on a warning — the accent position line
+       │ ─────────── │  ← count 34 SemiLight (tap = Reset); the rule only while the ‹ › have you on a warning
+       │ 2 of 5 · Cle│  ← the accent position line (only while the ‹ › have you on a warning)
        └─────────────┘
+       ⚠️ OFF FOR NOW (2026-10-21, x:Load="False"): the STATE LINES ("Oklahoma 3", Stepper.States, whole-row buttons,
+       LIT = accent wash) and the TAG line (Threats, "1 emergency · 2 PDS") — both still declared below.
      A tile with nothing in effect DIMS (40%), never hides — the three keep their places.
 
      ⚠️ The ‹ › drive the tile's WarningStepper (Forward / Back); tapping the COUNT resets it (Reset). Their glyphs
@@ -159,11 +159,16 @@
                 <StackPanel Grid.Row="1" Padding="10,6,10,10">
                     <TextBlock Text="{x:Bind Count, Mode=OneWay}" Style="{StaticResource WarningTileCountStyle}"
                                Tapped="OnCountTapped"/>
+                    <!-- ⚠️ STATE LINES + TAG LINE OFF FOR NOW (the user's call, 2026-10-21): x:Load="False" keeps them
+                         declared — flip both to True (and the rule back to NonZero(Count)) to bring them back. The rule
+                         now shows only over the position line. -->
                     <Border Style="{StaticResource WarningTileRuleStyle}"
-                            Visibility="{x:Bind NonZero(Count), Mode=OneWay}"/>
-                    <ItemsControl ItemsSource="{x:Bind ViewModel.States, Mode=OneWay}"
+                            Visibility="{x:Bind Shown(ViewModel.IsActive), Mode=OneWay}"/>
+                    <ItemsControl x:Name="WarningTileStateLines" x:Load="False"
+                                  ItemsSource="{x:Bind ViewModel.States, Mode=OneWay}"
                                   ItemTemplate="{StaticResource WarningStateLineTemplate}"/>
-                    <TextBlock Text="{x:Bind Threats, Mode=OneWay}" Style="{StaticResource WarningTileTagStyle}"
+                    <TextBlock x:Name="WarningTileTagLine" x:Load="False"
+                               Text="{x:Bind Threats, Mode=OneWay}" Style="{StaticResource WarningTileTagStyle}"
                                Visibility="{x:Bind Hidden(ViewModel.IsActive), Mode=OneWay}"/>
                     <TextBlock Text="{x:Bind ViewModel.PositionText, Mode=OneWay}" Style="{StaticResource WarningTilePositionStyle}"
                                Visibility="{x:Bind Shown(ViewModel.IsActive), Mode=OneWay}"/>

@@ -8,14 +8,14 @@
      ──────────────────────────────────────────────────────  ATCF names) left; how much is out right, the moment in
                                                              PastCast ("At 4:51 PM ·"); loading / failures take it
        WARNINGS
-       [x] ■ Extreme wind     0                          ← one row PER PRODUCT, generated from TropicalProducts
-       [x] ■ Storm surge      0                            (NWS priority order); swatch = the NWS colour; count =
-       [x] ■ Hurricane        0                            ZONES in effect, right-aligned past the longest name;
-       [x] ■ Tropical storm   0                            a zero row is DIMMED, never hidden; the tooltip is the
-       WATCHES                                             NWS name + what it means
-       [x] ■ Storm surge     21
-       [x] ■ Hurricane       40
-       [x] ■ Tropical storm  15
+       [x] ■ Extreme wind                          0     ← one DragMoveLayerExpanderCountRow PER PRODUCT, generated
+       [x] ■ Storm surge                           0       from TropicalProducts (NWS priority order); swatch = the
+       [x] ■ Hurricane                             0       NWS colour; count = ZONES in effect at the FAR RIGHT; a
+       [x] ■ Tropical storm                        0       zero row is DIMMED, never hidden; the tooltip is the NWS
+       WATCHES                                             name + what it means
+       [x] ■ Storm surge                          21
+       [x] ■ Hurricane                            40
+       [x] ■ Tropical storm                       15
 
      ⚠️ Swatches are the NWS hazard-map colours (TropicalProducts.Fill — DATA, never themed; the page reads the same
      colour from the file). ⚠️ Opacity and the heading are the HOST's DragMoveLayerExpander, as for every overlay control. -->
@@ -34,30 +34,22 @@
     <UserControl.Resources>
         <conv:HexToBrushConverter x:Key="HexToBrush"/>
 
-        <!-- One product: toggle, colour, name, zones in effect. Item type: TropicalKindRow.
-             ⚠️ The name column is FIXED (100 ≥ "Tropical storm" at 13 px) so every count lands right-aligned just past
-             the longest name, like the other sections' rows (ItemsControl rows can't share an Auto column). A longer
-             RowLabel in TropicalProducts → widen it. -->
+        <!-- One product: toggle, colour, name, zones in effect (DragMoveLayerExpanderCountRow — every expander's row:
+             count at the far right, hover lift). Item type: TropicalKindRow. -->
         <DataTemplate x:Key="KindRowTemplate" x:DataType="vm:TropicalKindRow">
-            <CheckBox MinWidth="0" HorizontalAlignment="Stretch" Margin="0,0,0,6"
-                      IsChecked="{x:Bind IsShown, Mode=TwoWay}"
-                      Opacity="{x:Bind RowOpacity, Mode=OneWay}"
-                      ToolTipService.ToolTip="{x:Bind ToolTip}">
-                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="100"/>
-                        <ColumnDefinition Width="32"/> <!-- zones, right-aligned: 1–4 digits line up -->
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2" VerticalAlignment="Center"
-                            Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
-                    <TextBlock Grid.Column="1" Text="{x:Bind Label}" FontSize="13" VerticalAlignment="Center"/>
-                    <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Column="2" Text="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderTropicalBody.Fmt(Count), Mode=OneWay}"
-                               FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                </Grid>
-            </CheckBox>
+            <dragMoveLayerExpanders:DragMoveLayerExpanderCountRow Label="{x:Bind Label}"
+                    IsChecked="{x:Bind IsShown, Mode=TwoWay}"
+                    Count="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderTropicalBody.Fmt(Count), Mode=OneWay}"
+                    Opacity="{x:Bind RowOpacity, Mode=OneWay}"
+                    ToolTipService.ToolTip="{x:Bind ToolTip}">
+                <Border Width="11" Height="11" CornerRadius="2"
+                        Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
+            </dragMoveLayerExpanders:DragMoveLayerExpanderCountRow>
         </DataTemplate>
+        <!-- The rows' spacing (4, halved 2026-10-21) — the row control carries none. -->
+        <ItemsPanelTemplate x:Key="KindRowsPanel">
+            <StackPanel Spacing="4"/>
+        </ItemsPanelTemplate>
     </UserControl.Resources>
 
     <StackPanel VerticalAlignment="Top">
@@ -68,9 +60,11 @@
                 Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 
         <TextBlock Text="WARNINGS" Style="{StaticResource AtlasFieldLabelStyle}" Margin="0,0,0,6"/>
-        <ItemsControl ItemsSource="{x:Bind ViewModel.Warnings}" ItemTemplate="{StaticResource KindRowTemplate}"/>
+        <ItemsControl ItemsSource="{x:Bind ViewModel.Warnings}" ItemTemplate="{StaticResource KindRowTemplate}"
+                      ItemsPanel="{StaticResource KindRowsPanel}"/>
 
-        <TextBlock Text="WATCHES" Style="{StaticResource AtlasFieldLabelStyle}" Margin="0,8,0,6"/>
-        <ItemsControl ItemsSource="{x:Bind ViewModel.Watches}" ItemTemplate="{StaticResource KindRowTemplate}"/>
+        <TextBlock Text="WATCHES" Style="{StaticResource AtlasFieldLabelStyle}" Margin="0,12,0,6"/>
+        <ItemsControl ItemsSource="{x:Bind ViewModel.Watches}" ItemTemplate="{StaticResource KindRowTemplate}"
+                      ItemsPanel="{StaticResource KindRowsPanel}"/>
     </StackPanel>
 </UserControl>

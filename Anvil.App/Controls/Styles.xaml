@@ -80,6 +80,9 @@
             <SolidColorBrush x:Key="SectionHeaderPointerOverBackground" Color="#FF2B2B2B"/>
             <SolidColorBrush x:Key="SectionHeaderLiftedBackground" Color="#FF383838"/>
             <SolidColorBrush x:Key="SectionBodyBackground" Color="#FF000000"/>
+            <!-- A body's type-row lift (DragMoveLayerExpanderCountRow): one step off the ground, short of the header grey
+                 (#1A1A1A) so a hovered row never reads as the card. -->
+            <SolidColorBrush x:Key="SectionRowHoverBrush" Color="#FF141414"/>
             <StaticResource x:Key="SectionBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
@@ -98,6 +101,7 @@
             <SolidColorBrush x:Key="SectionHeaderPointerOverBackground" Color="#FFDCDCDC"/>
             <SolidColorBrush x:Key="SectionHeaderLiftedBackground" Color="#FFD0D0D0"/>
             <SolidColorBrush x:Key="SectionBodyBackground" Color="#FFF3F3F3"/>
+            <SolidColorBrush x:Key="SectionRowHoverBrush" Color="#FFEAEAEA"/>
             <StaticResource x:Key="SectionBorderBrush" ResourceKey="CardStrokeColorDefaultSolidBrush"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
@@ -118,6 +122,7 @@
             <SolidColorBrush x:Key="SectionHeaderPointerOverBackground" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="SectionHeaderLiftedBackground" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="SectionBodyBackground" Color="{ThemeResource SystemColorWindowColor}"/>
+            <SolidColorBrush x:Key="SectionRowHoverBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="SectionBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>

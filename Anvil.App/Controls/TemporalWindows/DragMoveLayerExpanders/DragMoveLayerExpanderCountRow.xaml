@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DragMoveLayerExpanderCountRow — ONE toggle row of a layer expander's body: box · map mark · name · count. EVERY
+     expander's type rows are this control (warnings, watches, storm reports, storm cells, tropical, meso kinds, damage
+     surveys), so they share one spacing, one hover and one count edge.
+
+       ┌──────────────────────────────────────────────────────────┐
+       │ [x] ■ Severe thunderstorm                              5 │  ← HOVER lifts the whole row (SectionRowHoverBrush)
+       └──────────────────────────────────────────────────────────┘    so the eye can follow the name across to its count
+        |←6→| the lift bleeds 6 px past the body's text edge each side (Margin -6 + Padding 6); text stays on the edge
+       box 19 + 9 = 28 · mark column 13 (centred) · name * (trims) · count Auto, right-aligned at the FAR RIGHT
+
+     ⭐ COUNTS AT THE FAR RIGHT (the user's call, 2026-10-21 — replaced "right-aligned against the longest name"): many
+     open expanders then share one count column down the window; the hover carries the eye across the gap.
+     The MARK is the control's content (the map's own mark, declared by the host: a swatch Border, a Path…).
+     ⚠️ The CheckBox SPANS the row with no content; mark, name and count sit OVER it, IsHitTestVisible False, so a click
+     anywhere on the row toggles. A disabled row (IsEnabled False — damage surveys before they're ready) dims its
+     overlay to 40%, as the CheckBox's own content used to be greyed.
+     ⚠️ Row SPACING is the host's (a StackPanel / ItemsPanel Spacing, 4 — halved 2026-10-21), never a margin here.
+     ⚠️ The hover brush is {ThemeResource} in a VisualState (never resolved in C#). -->
+<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderCountRow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             IsTabStop="False">
+
+    <Grid x:Name="RowSurface" Margin="-6,0" Padding="6,0" CornerRadius="4" Background="Transparent"
+          PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="HoverStates">
+                <VisualState x:Name="Normal"/>
+                <VisualState x:Name="PointerOver">
+                    <VisualState.Setters>
+                        <Setter Target="RowSurface.Background" Value="{ThemeResource SectionRowHoverBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <CheckBox x:Name="RowCheckBox" MinWidth="0" HorizontalAlignment="Stretch"
+                  IsChecked="{x:Bind IsChecked, Mode=TwoWay}"/>
+
+        <Grid Margin="28,0,0,0" ColumnSpacing="9" IsHitTestVisible="False"
+              Opacity="{x:Bind Dim(IsEnabled), Mode=OneWay}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="13"/>   <!-- the map mark -->
+                <ColumnDefinition Width="*"/>    <!-- name -->
+                <ColumnDefinition Width="Auto"/> <!-- count, far right -->
+            </Grid.ColumnDefinitions>
+            <ContentPresenter Content="{x:Bind Marker, Mode=OneWay}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" Text="{x:Bind Label, Mode=OneWay}" FontSize="13"
+                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="2" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind Count, Mode=OneWay}"
+                       FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0"
+                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -6,10 +6,10 @@
      ▓  14 storm cells                Scan 4:14 PM · TLX▓   under the header, ONE line): cells in the scan ON
      ──────────────────────────────────────────────────────  SCREEN left, which scan and site right; loading /
                                                              failure / "no scan near this frame" take that slot
-       [x] ● Cell tracks            14                  ← one row per mark: the toggle, the map mark,
-       [x] ▼ Tornado vortex (TVS)    1                    the name, and how many the DISPLAYED scan has —
-       [x] ◯ Mesocyclone             2                    counts right-aligned against the LONGEST name
-       [x] ◆ Severe hail             3
+       [x] ● Cell tracks                            14  ← one DragMoveLayerExpanderCountRow per mark: the toggle,
+       [x] ▼ Tornado vortex (TVS)                    1    the map mark, the name, and how many the DISPLAYED scan
+       [x] ◯ Mesocyclone                             2    has — the count at the FAR RIGHT
+       [x] ◆ Severe hail                             3
 
      ⚠️ THE COUNTS FOLLOW THE SCRUBBER, not the clock: they are the scan the radar frame on screen shows, so
      they change as the loop plays. That is the point — it is the same number the map is drawing.
@@ -37,68 +37,32 @@
                 Context="{x:Bind ViewModel.CardContext, Mode=OneWay}"
                 Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 
-        <!-- One row per mark, in ONE grid so the NAME column is as wide as the LONGEST name and every count sits
-             right-aligned just past it (DragMoveLayerExpanderAlertsBody's rows, same rules): each CheckBox SPANS
-             the row with no content; mark, name and count sit OVER it, IsHitTestVisible False, so a click anywhere
-             on the row toggles. Column 0 + ColumnSpacing = 28, the stock CheckBox's box + content padding. -->
-        <Grid Grid.Row="1" ColumnSpacing="9" RowSpacing="9">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="19"/>   <!-- the CheckBox's own box -->
-                <ColumnDefinition Width="13"/>   <!-- mark -->
-                <ColumnDefinition Width="Auto"/> <!-- name: as wide as the longest -->
-                <ColumnDefinition Width="Auto"/> <!-- count, right-aligned against the names -->
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- Cell tracks -->
-                <RowDefinition Height="Auto"/> <!-- TVS -->
-                <RowDefinition Height="Auto"/> <!-- Mesocyclone -->
-                <RowDefinition Height="Auto"/> <!-- Severe hail -->
-            </Grid.RowDefinitions>
-
-            <CheckBox Grid.Row="0" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch"
-                      IsChecked="{x:Bind ViewModel.ShowTracks, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Show each cell, its id, where it has been and its 15–60 minute forecast track"/>
-            <Ellipse Grid.Row="0" Grid.Column="1" Width="9" Height="9" Fill="#FFFFFF" Stroke="#141414" StrokeThickness="1.5"
-                     IsHitTestVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-            <TextBlock Grid.Row="0" Grid.Column="2" Text="Cell tracks" FontSize="13" IsHitTestVisible="False"
-                       VerticalAlignment="Center"/>
-            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Row="0" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.CellCount), Mode=OneWay}"
-                       FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
-                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
-
-            <CheckBox Grid.Row="1" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch"
-                      IsChecked="{x:Bind ViewModel.ShowTvs, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Show tornado vortex signatures (a hollow triangle is an elevated TVS)"/>
-            <Path Grid.Row="1" Grid.Column="1" Data="M0,0 L12,0 L6,10 Z" Fill="#FF2A2A" Stroke="#141414" StrokeThickness="1"
-                  IsHitTestVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-            <TextBlock Grid.Row="1" Grid.Column="2" Text="Tornado vortex (TVS)" FontSize="13" IsHitTestVisible="False"
-                       VerticalAlignment="Center"/>
-            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Row="1" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.TvsCount), Mode=OneWay}"
-                       FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
-                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
-
-            <CheckBox Grid.Row="2" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch"
-                      IsChecked="{x:Bind ViewModel.ShowMeso, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Show mesocyclones — strength rank 5 and up (a thicker ring is rank 8+)"/>
-            <Ellipse Grid.Row="2" Grid.Column="1" Width="12" Height="12" Stroke="#FFE14D" StrokeThickness="2"
-                     IsHitTestVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-            <TextBlock Grid.Row="2" Grid.Column="2" Text="Mesocyclone" FontSize="13" IsHitTestVisible="False"
-                       VerticalAlignment="Center"/>
-            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Row="2" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.MesoCount), Mode=OneWay}"
-                       FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
-                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
-
-            <CheckBox Grid.Row="3" Grid.ColumnSpan="5" MinWidth="0" HorizontalAlignment="Stretch"
-                      IsChecked="{x:Bind ViewModel.ShowHail, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Show cells more likely than not to hold severe hail, with the largest expected size"/>
-            <Path Grid.Row="3" Grid.Column="1" Data="M6,0 L12,6 L6,12 L0,6 Z" Fill="#3FD0FF" Stroke="#141414" StrokeThickness="1"
-                  IsHitTestVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-            <TextBlock Grid.Row="3" Grid.Column="2" Text="Severe hail" FontSize="13" IsHitTestVisible="False"
-                       VerticalAlignment="Center"/>
-            <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Row="3" Grid.Column="3" Text="{x:Bind Fmt(ViewModel.HailCount), Mode=OneWay}"
-                       FontSize="13" FontWeight="SemiBold" Margin="12,0,0,0" IsHitTestVisible="False"
-                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
-        </Grid>
+        <!-- One DragMoveLayerExpanderCountRow per mark (every expander's row: count at the far right, hover lift). -->
+        <StackPanel Grid.Row="1" Spacing="4">
+            <dragMoveLayerExpanders:DragMoveLayerExpanderCountRow Label="Cell tracks"
+                    IsChecked="{x:Bind ViewModel.ShowTracks, Mode=TwoWay}"
+                    Count="{x:Bind Fmt(ViewModel.CellCount), Mode=OneWay}"
+                    ToolTipService.ToolTip="Show each cell, its id, where it has been and its 15–60 minute forecast track">
+                <Ellipse Width="9" Height="9" Fill="#FFFFFF" Stroke="#141414" StrokeThickness="1.5"/>
+            </dragMoveLayerExpanders:DragMoveLayerExpanderCountRow>
+            <dragMoveLayerExpanders:DragMoveLayerExpanderCountRow Label="Tornado vortex (TVS)"
+                    IsChecked="{x:Bind ViewModel.ShowTvs, Mode=TwoWay}"
+                    Count="{x:Bind Fmt(ViewModel.TvsCount), Mode=OneWay}"
+                    ToolTipService.ToolTip="Show tornado vortex signatures (a hollow triangle is an elevated TVS)">
+                <Path Data="M0,0 L12,0 L6,10 Z" Fill="#FF2A2A" Stroke="#141414" StrokeThickness="1"/>
+            </dragMoveLayerExpanders:DragMoveLayerExpanderCountRow>
+            <dragMoveLayerExpanders:DragMoveLayerExpanderCountRow Label="Mesocyclone"
+                    IsChecked="{x:Bind ViewModel.ShowMeso, Mode=TwoWay}"
+                    Count="{x:Bind Fmt(ViewModel.MesoCount), Mode=OneWay}"
+                    ToolTipService.ToolTip="Show mesocyclones — strength rank 5 and up (a thicker ring is rank 8+)">
+                <Ellipse Width="12" Height="12" Stroke="#FFE14D" StrokeThickness="2"/>
+            </dragMoveLayerExpanders:DragMoveLayerExpanderCountRow>
+            <dragMoveLayerExpanders:DragMoveLayerExpanderCountRow Label="Severe hail"
+                    IsChecked="{x:Bind ViewModel.ShowHail, Mode=TwoWay}"
+                    Count="{x:Bind Fmt(ViewModel.HailCount), Mode=OneWay}"
+                    ToolTipService.ToolTip="Show cells more likely than not to hold severe hail, with the largest expected size">
+                <Path Data="M6,0 L12,6 L6,12 L0,6 Z" Fill="#3FD0FF" Stroke="#141414" StrokeThickness="1"/>
+            </dragMoveLayerExpanders:DragMoveLayerExpanderCountRow>
+        </StackPanel>
     </Grid>
 </UserControl>

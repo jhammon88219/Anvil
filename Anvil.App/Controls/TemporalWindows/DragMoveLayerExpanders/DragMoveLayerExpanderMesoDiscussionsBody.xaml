@@ -7,14 +7,13 @@
      ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH
      ▓  2 in effect                     5 in the last 24 h ▓   under the header, ONE line): how many are drawn
      ──────────────────────────────────────────────────────   now · how many listed (Past: "At 4:51 PM · 9 listed")
-       [x] ■ SPC mesoscale      2                        ← one row PER KIND, generated from DiscussionKinds
-       [x] ■ WPC precipitation  0                          (a new kind needs no XAML); count = in effect, right-
-       ────────────────────────────────────────────────    aligned past the longest name (a FIXED name column —
-                                                           ItemsControl rows can't share a width)
+       [x] ■ SPC mesoscale                         2     ← one DragMoveLayerExpanderCountRow PER KIND, generated from
+       [x] ■ WPC precipitation                     0       DiscussionKinds (a new kind needs no XAML); count = in
+       ────────────────────────────────────────────────    effect, at the FAR RIGHT
        IN EFFECT AT 4:51 PM                               ← only what's in effect at the map's moment;
-       ▌ 0647  Tornado Watch likely   95%  2:10–3:45 PM     a row FLIES the map to it and outlines it (the
-       ▌ 1505  Heavy rainfall…             1:52–7:50 PM     window does NOT open); number only — the bar's
-       [          View all Discussions                 ]   colour says MD / MPD; the effective range far right
+       ▌ 0647                       95%  2:10–3:45 PM     a row FLIES the map to it and outlines it (the window
+       ▌ 1505                            1:52–7:50 PM     does NOT open); number only — the bar's colour says MD /
+       [          View all Discussions                 ]  MPD; no description (its tooltip); range far right
                                                          ← the window, on the selection (else the first in
                                                            effect); a click on an area on the map opens it too
 
@@ -37,37 +36,30 @@
     <UserControl.Resources>
         <conv:HexToBrushConverter x:Key="HexToBrush"/>
 
-        <!-- One kind: toggle, colour, name, how many are in effect. Item type: DiscussionKindRow.
-             ⚠️ The name column is FIXED (120 ≥ "WPC precipitation" at 13 px) so every count lands right-aligned at the
-             same spot just past the longest name, like the other sections' rows (ItemsControl rows can't share an Auto
-             column). A longer kind name → widen it. -->
+        <!-- One kind: toggle, colour, name, how many are in effect (DragMoveLayerExpanderCountRow — every expander's
+             row: count at the far right, hover lift). Item type: DiscussionKindRow. -->
         <DataTemplate x:Key="KindRowTemplate" x:DataType="vm:DiscussionKindRow">
-            <CheckBox MinWidth="0" HorizontalAlignment="Stretch" Margin="0,0,0,9"
-                      IsChecked="{x:Bind IsShown, Mode=TwoWay}"
-                      ToolTipService.ToolTip="{x:Bind ToolTip}">
-                <Grid ColumnSpacing="9" HorizontalAlignment="Stretch">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="120"/>
-                        <ColumnDefinition Width="24"/> <!-- count, right-aligned: 1–3 digits line up -->
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Width="11" Height="11" CornerRadius="2" VerticalAlignment="Center"
-                            Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
-                    <TextBlock Grid.Column="1" Text="{x:Bind Label}" FontSize="13" VerticalAlignment="Center"/>
-                    <TextBlock Style="{StaticResource TabularNumberTextStyle}" Grid.Column="2" Text="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderMesoDiscussionsBody.Fmt(Count), Mode=OneWay}"
-                               FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                </Grid>
-            </CheckBox>
+            <dragMoveLayerExpanders:DragMoveLayerExpanderCountRow Label="{x:Bind Label}"
+                    IsChecked="{x:Bind IsShown, Mode=TwoWay}"
+                    Count="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderMesoDiscussionsBody.Fmt(Count), Mode=OneWay}"
+                    ToolTipService.ToolTip="{x:Bind ToolTip}">
+                <Border Width="11" Height="11" CornerRadius="2"
+                        Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
+            </dragMoveLayerExpanders:DragMoveLayerExpanderCountRow>
         </DataTemplate>
+        <!-- The rows' spacing (4, halved 2026-10-21) — the row control carries none. -->
+        <ItemsPanelTemplate x:Key="KindRowsPanel">
+            <StackPanel Spacing="4"/>
+        </ItemsPanelTemplate>
 
         <!-- One discussion in effect: a flat button that FLIES the map to it (and outlines it). The number alone —
-             the colour bar says MD / MPD; the effective range on the far right. -->
+             the colour bar says MD / MPD; NO description (dropped 2026-10-21 — the middle is left blank; the
+             tooltip carries it); the watch % and the effective range on the far right. -->
         <DataTemplate x:Key="InEffectRowTemplate" x:DataType="vm:DiscussionRow">
             <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                     Background="Transparent" BorderThickness="0" Padding="0,4"
                     Click="OnRowClick" Tag="{x:Bind}"
-                    ToolTipService.ToolTip="{x:Bind Label}">
+                    ToolTipService.ToolTip="{x:Bind Headline}">
                 <Grid ColumnSpacing="9">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="3"/>
@@ -80,8 +72,6 @@
                             Background="{x:Bind Fill, Converter={StaticResource HexToBrush}}"/>
                     <TextBlock Grid.Column="1" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind NumberText}"
                                FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Text="{x:Bind Headline}" FontSize="12" VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis"/>
                     <TextBlock Grid.Column="3" Style="{StaticResource TabularNumberTextStyle}" Text="{x:Bind WatchText}"
                                FontSize="12" FontWeight="SemiBold"
                                VerticalAlignment="Center" ToolTipService.ToolTip="Probability of watch issuance"/>
@@ -102,9 +92,10 @@
                 Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 
         <!-- THE KINDS: generated, one row each. -->
-        <ItemsControl ItemsSource="{x:Bind ViewModel.Kinds}" ItemTemplate="{StaticResource KindRowTemplate}"/>
+        <ItemsControl ItemsSource="{x:Bind ViewModel.Kinds}" ItemTemplate="{StaticResource KindRowTemplate}"
+                      ItemsPanel="{StaticResource KindRowsPanel}"/>
 
-        <Border Height="1" Margin="0,5,0,8" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+        <Border Height="1" Margin="0,12,0,8" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
         <!-- IN EFFECT: only the ones in effect at the map's moment; the rest are in the window. -->
         <TextBlock Text="{x:Bind ViewModel.InEffectHeading, Mode=OneWay}" Style="{StaticResource AtlasFieldLabelStyle}"

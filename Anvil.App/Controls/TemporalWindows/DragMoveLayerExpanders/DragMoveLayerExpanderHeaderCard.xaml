@@ -15,6 +15,8 @@
      "no scan near this frame") TAKES THE RIGHT SLOT in place of Context (tertiary) while it has text — the card never
      grows a second line. Don't add a line back; a new fact goes into the Context string.
 
+     ⚠️ EQUAL space above and below the line (Padding 12 all round — the top was 6 until 2026-10-21, the user's call).
+
      ⭐ EVERY expander's top card is this control (the user's rule, 2026-10-16) — never a hand-drawn Border.
      ⚠️ It MUST be the body's FIRST element: the negative margin (-12 sides = DragMoveLayerExpander's body Padding;
      -13 top = that Padding + the body's 1 px top border, which the card paints over) assumes it starts at the
@@ -32,7 +34,7 @@
              IsTabStop="False">
 
     <Border x:Name="CardFace"
-            Padding="12,6,12,12"
+            Padding="12"
             Background="{ThemeResource SectionHeaderBackground}"
             BorderThickness="0,0,0,1"
             BorderBrush="{ThemeResource SectionBorderBrush}">
