@@ -479,6 +479,7 @@ try {
     // groups it doesn't name and restacks every pane after each addLayer. See its USER OVERLAY ORDER block.
     import('./layers.js').then(function (m) {
         Layers = m;
+        Layers.setAfterAdd(applyRadarHide);  // Compare with radar: keep radar's data layer hidden in the model pane
         if (pendingOrder) Layers.setOverlayOrder(pendingOrder);
         forEachMap(function (map) {
             Layers.watchStack(map);
@@ -638,8 +639,30 @@ try {
     // (HrrrService → ModelFieldFrames). A WebGL layer per pane; the frame + mesh are fetched once and shared.
     // ⚠️ A call that lands before the module has loaded is KEPT and replayed — the host sends the frame once.
     var pendingModelField = null, pendingModelOpacity = null;
+    // COMPARE WITH RADAR: the pane indices that draw the MODEL — and in those panes radar's DATA layer is hidden (its
+    // rings + ruler stay), so one pane is radar and the other the model. null = the model in every pane, radar too.
+    // ⚠️ radar.js (sealed) is not touched: the hide is a visibility flip from out here, re-applied after every
+    // addLayer (layers.js setAfterAdd), since the engine re-adds its layer on a new pane or a style switch.
+    var modelPanes = null;
+    function isModelPane(map) { return Array.isArray(modelPanes) && modelPanes.indexOf(maps.indexOf(map)) >= 0; }
+    function applyRadarHide(map) {
+        if (!map.getLayer('level2-radar')) return;
+        var want = isModelPane(map) ? 'none' : 'visible';
+        if ((map.getLayoutProperty('level2-radar', 'visibility') || 'visible') !== want) {
+            map.setLayoutProperty('level2-radar', 'visibility', want);
+        }
+    }
+    window.setModelFieldPanes = function (json) {
+        modelPanes = json && json !== 'null' ? JSON.parse(json) : null;
+        if (ModelField) {
+            ModelField.setPanes(modelPanes ? isModelPane : null);
+            forEachMap(function (m) { ModelField.refresh(m); });
+        }
+        forEachMap(applyRadarHide);
+    };
     import('./model-field.js').then(function (m) {
         ModelField = m;
+        if (modelPanes) m.setPanes(isModelPane);
         if (pendingModelOpacity != null) forEachMap(function (map) { m.setOpacity(map, pendingModelOpacity); });
         if (pendingModelField) forEachMap(function (map) { m.setField(map, pendingModelField); });
         pendingModelField = pendingModelOpacity = null;

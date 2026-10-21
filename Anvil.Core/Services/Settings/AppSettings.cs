@@ -550,6 +550,8 @@ namespace Anvil.Services
 		public bool? ShortRangeExtended { get => _shortRangeExtended; set => SetProperty(ref _shortRangeExtended, value); }
 		private double? _shortRangeOpacity;
 		public double? ShortRangeOpacity { get => _shortRangeOpacity; set => SetProperty(ref _shortRangeOpacity, value); }
+		private bool? _shortRangeCompare; // "Compare with radar": radar | HRRR in two panes, the radar console sets the time
+		public bool? ShortRangeCompare { get => _shortRangeCompare; set => SetProperty(ref _shortRangeCompare, value); }
 
 		private double? _pastWatchesOpacity;
 		public double? PastWatchesOpacity { get => _pastWatchesOpacity; set => SetProperty(ref _pastWatchesOpacity, value); }

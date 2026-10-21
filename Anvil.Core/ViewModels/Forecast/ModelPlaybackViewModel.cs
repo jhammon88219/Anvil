@@ -99,6 +99,7 @@ namespace Anvil.ViewModels
 			var at = keepValid ?? DateTimeOffset.UtcNow;
 			_current = NearestIndex(leads, (at - run.RunUtc).TotalMinutes);
 			ShownLead = null;
+			IsBeforeRun = false;
 			RaiseFrame();
 			OnPropertyChanged(nameof(ProductText));
 			OnPropertyChanged(nameof(MaxFrameIndex));
@@ -119,6 +120,7 @@ namespace Anvil.ViewModels
 			Segments.Clear();
 			_current = -1;
 			ShownLead = null;
+			IsBeforeRun = false;
 			RaiseFrame();
 			OnPropertyChanged(nameof(MaxFrameIndex));
 			OnPropertyChanged(nameof(IsTransportEnabled));
@@ -188,7 +190,8 @@ namespace Anvil.ViewModels
 						Segments[i].Fill = 1;
 						Segments[i].IsDecoded = true;
 						Segments[i].IsReady = true;
-						if (i == _current && ShownLead != Leads[i]) { _ = ShowAsync(i); } // the playhead's frame just landed
+						// the playhead's frame just landed (not while comparing before the run: that pane stays blank)
+						if (i == _current && ShownLead != Leads[i] && !IsBeforeRun) { _ = ShowAsync(i); }
 					}
 					catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
 					catch (Exception ex)
@@ -248,6 +251,46 @@ namespace Anvil.ViewModels
 
 		/// <summary>Play ⇄ pause in place (a scrubber grab pauses through this too).</summary>
 		public void TogglePlay() => IsPlaying = !IsPlaying && IsTransportEnabled;
+
+		// ── Following radar (Compare with radar) ──
+
+		/// <summary>Comparing, and radar's frame is from before this run started: the model pane is BLANK (it never borrows
+		/// another run's frame). The card says "before this run".</summary>
+		public bool IsBeforeRun { get; private set; }
+
+		/// <summary>
+		/// COMPARE WITH RADAR: radar's console sets the time — show the frame valid nearest <paramref name="radarTime"/>
+		/// (radar scans ~5 min apart, model frames 15). Null = radar has no frame yet: leave the model where it is.
+		/// </summary>
+		public void Follow(DateTimeOffset? radarTime)
+		{
+			if (Run is not { } run || radarTime is not { } at || Leads.Count == 0) { return; }
+			IsPlaying = false;
+			if (at < run.RunUtc)
+			{
+				if (IsBeforeRun) { return; }
+				IsBeforeRun = true;
+				ShownLead = null;
+				_ = _mapService.ClearModelFieldAsync();
+				FrameShown?.Invoke(this, EventArgs.Empty);
+				return;
+			}
+			var wasBefore = IsBeforeRun;
+			IsBeforeRun = false;
+			var i = NearestIndex(Leads, (at - run.RunUtc).TotalMinutes);
+			if (i == _current && !wasBefore) { return; }
+			_current = i;
+			RaiseFrame();
+			_ = ShowAsync(i);
+		}
+
+		/// <summary>Comparing ended: back to the console's own playhead (re-drawn if the pane was blank).</summary>
+		public void EndFollow()
+		{
+			if (!IsBeforeRun) { return; }
+			IsBeforeRun = false;
+			if (_current >= 0) { _ = ShowAsync(_current); }
+		}
 
 		/// <summary>Stop: halt and return to the frame nearest now.</summary>
 		public void Stop()

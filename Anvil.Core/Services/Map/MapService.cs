@@ -225,6 +225,10 @@ namespace Anvil.Services
 		public Task ClearModelFieldAsync() =>
 			_mapView.RunScriptAsync(Call("clearModelField"));
 
+		public Task SetModelFieldPanesAsync(IReadOnlyList<int>? panes) =>
+			_mapView.RunScriptAsync(Call("setModelFieldPanes",
+				panes is null ? "null" : "[" + string.Join(",", panes.Select(p => p.ToString(CultureInfo.InvariantCulture))) + "]"));
+
 		public Task SetPastAlertTimeAsync(long? timeMs) =>
 			_mapView.RunScriptAsync($"window.setPastAlertTime({timeMs?.ToString(CultureInfo.InvariantCulture) ?? "null"});");
 

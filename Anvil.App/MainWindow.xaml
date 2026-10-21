@@ -207,6 +207,18 @@
              window's ACTIVITY EXPANDER (TemporalWindowActivityExpander, fed by BarActivityViewModel.WatchSiteCheck). Don't re-add it here. -->
 
         <Grid x:Name="PaneNotchLayer" Grid.Row="0" Grid.RowSpan="2">
+            <Grid.Resources>
+                <!-- Compare with radar's corner labels (declared at the end of this grid). -->
+                <Style x:Key="ComparePaneLabelStyle" TargetType="Border">
+                    <Setter Property="HorizontalAlignment" Value="Left"/>
+                    <Setter Property="VerticalAlignment" Value="Top"/>
+                    <Setter Property="Margin" Value="12,12,0,0"/>
+                    <Setter Property="Padding" Value="8,3"/>
+                    <Setter Property="CornerRadius" Value="4"/>
+                    <Setter Property="IsHitTestVisible" Value="False"/>
+                    <Setter Property="Background" Value="{ThemeResource OverlayBarSurfaceRaisedBrush}"/>
+                </Style>
+            </Grid.Resources>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="{x:Bind PaneGutter}"/> <!-- the groove -->
@@ -297,6 +309,27 @@
                                            IsCompact="{x:Bind NotchCompact(ViewModel.Radar.PaneLayout), Mode=OneWay}"/>
                 </ctl:OverlayBar.BarContent>
             </ctl:OverlayBar>
+
+            <!-- COMPARE WITH RADAR's pane labels (ShortRange.IsCompareActive only): which side is which, in each pane's
+                 TOP-LEFT corner — "KTLX · live radar" | "HRRR 15Z · valid 6:00 PM". Words only, click-through. -->
+            <Border x:Name="CompareRadarPaneLabel"
+                    Style="{StaticResource ComparePaneLabelStyle}"
+                    Visibility="{x:Bind CompareLabelVisibility(ViewModel.ShortRange.IsCompareActive), Mode=OneWay}"
+                    Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
+                    Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}"
+                    Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 0), Mode=OneWay}">
+                <TextBlock Text="{x:Bind RadarPaneLabel(ViewModel.Radar.SelectedRadarOption), Mode=OneWay}"
+                           FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </Border>
+            <Border x:Name="CompareModelPaneLabel"
+                    Style="{StaticResource ComparePaneLabelStyle}"
+                    Visibility="{x:Bind CompareLabelVisibility(ViewModel.ShortRange.IsCompareActive), Mode=OneWay}"
+                    Grid.Row="{x:Bind PaneRow(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
+                    Grid.Column="{x:Bind PaneColumn(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}"
+                    Grid.RowSpan="{x:Bind PaneRowSpan(ViewModel.Radar.PaneLayout, 1), Mode=OneWay}">
+                <TextBlock Text="{x:Bind ViewModel.ShortRange.ModelPaneLabel, Mode=OneWay}"
+                           FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </Border>
         </Grid>
 
         <!-- LOOP HOLDING GATE — PastCast's loading screen (Composites/LoopHoldingGate). It dims the map band and the
@@ -384,21 +417,22 @@
                              ⚠️ INSPECT, the markers key and the Home key all left for the tools tier earlier
                              (MapControlsStrip). Don't re-add any here. -->
                         <!-- ⚠️ MODEL MODE: while ForeCast's Short Range draws (NowCast is off then), ModelConsole plays the
-                             model run IN THIS SAME CELL, over RadarControls. RadarControls stays LAID OUT underneath
+                             model run IN THIS SAME CELL, over RadarControls — NOT while comparing with radar
+                             (ShortRange.IsModelConsoleShown): then radar's console runs and the model follows it. RadarControls stays LAID OUT underneath
                              (Opacity 0, not hit-testable — never Collapsed): the tools tier's alignment measures it
                              (AlignCentreSection), and ModelConsole has its exact widths, so nothing on the bar moves. -->
                         <comp:RadarControls x:Name="TimeModule"
                                             Grid.Column="1"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
-                                            Opacity="{x:Bind RadarConsoleOpacity(ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
-                                            IsHitTestVisible="{x:Bind IsRadarConsoleLive(ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                                            Opacity="{x:Bind RadarConsoleOpacity(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
+                                            IsHitTestVisible="{x:Bind IsRadarConsoleLive(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
                                             ViewModel="{x:Bind ViewModel.Radar}"/>
                         <comp:ModelConsole x:Name="ModelConsole"
                                            Grid.Column="1"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
-                                           Visibility="{x:Bind ModelConsoleVisibility(ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                                           Visibility="{x:Bind ModelConsoleVisibility(ViewModel.ShortRange.IsModelConsoleShown), Mode=OneWay}"
                                            UseDotMatrix="{x:Bind ViewModel.Radar.IsDotMatrixScrubber, Mode=OneWay}"
                                            ViewModel="{x:Bind ViewModel.ShortRange.Playback}"/>
 

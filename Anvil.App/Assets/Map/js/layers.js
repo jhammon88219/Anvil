@@ -129,6 +129,11 @@ export function restack(map) {
     want.forEach(function (id) { map.moveLayer(id, anchor); });
 }
 
+// One host hook run on the map after each restack (map.js: Compare with radar re-hides radar's data layer in the
+// model pane, since a re-added layer comes back visible). Null = none.
+let afterAdd = null;
+export function setAfterAdd(fn) { afterAdd = typeof fn === 'function' ? fn : null; }
+
 // Restack after every addLayer on this map — coalesced to one pass per task, and before the next frame
 // draws, so a freshly added layer never shows a frame in the wrong place.
 export function watchStack(map) {
@@ -143,6 +148,7 @@ export function watchStack(map) {
             queueMicrotask(function () {
                 queued = false;
                 try { restack(map); } catch (e) { console.error('restack failed: ' + e); }
+                if (afterAdd) { try { afterAdd(map); } catch (e) { console.error('afterAdd failed: ' + e); } }
             });
         }
         return r;

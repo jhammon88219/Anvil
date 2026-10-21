@@ -25,6 +25,8 @@
        │  HRRR Comp │ ▓▓▒▒░░░▒▒▓▓    │      COMPACT — one line, no scale numbers
        └──────────────────────────────┘
 
+     ⚠️ PER PANE: while COMPARING with radar only pane 1 shows the model (and its notch this form); pane 0 keeps the radar
+     form (ShortRangeViewModel.ModelInPane — the page splits by the same rule).
      No tilt (a model field has none) and no inspect tick (no model cursor read-out yet). The name column is a
      FIXED width (ModelNameWidth) so a product change never slides the notch under the pane's centre. Every pane
      shows the same: the model draws one field across all of them. Dimmed by the model console's own gate.
@@ -75,7 +77,7 @@
     <Grid>
     <Grid x:Name="PaneNotchRadarForm"
           VerticalAlignment="Center" ColumnSpacing="10"
-          Visibility="{x:Bind RadarFormVisibility(Model.IsDrawing), Mode=OneWay}"
+          Visibility="{x:Bind RadarFormVisibility(Model.IsDrawing, Model.IsCompareActive, Pane.Index), Mode=OneWay}"
           Opacity="{x:Bind DormantOpacity(Radar.IsTransportEnabled), Mode=OneWay}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/> <!-- product -->
@@ -125,7 +127,7 @@
     <!-- The MODEL form (see the header sketch). Read-only: name, then the model product's legend. -->
     <Grid x:Name="PaneNotchModelForm"
           VerticalAlignment="Center" ColumnSpacing="10"
-          Visibility="{x:Bind ModelFormVisibility(Model.IsDrawing), Mode=OneWay}"
+          Visibility="{x:Bind ModelFormVisibility(Model.IsDrawing, Model.IsCompareActive, Pane.Index), Mode=OneWay}"
           Opacity="{x:Bind DormantOpacity(Model.Playback.IsTransportEnabled), Mode=OneWay}"
           ToolTipService.ToolTip="What the model draws in every pane. Pick the product in ForeCast → Short Range.">
         <Grid.ColumnDefinitions>

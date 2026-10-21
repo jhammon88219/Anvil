@@ -13,6 +13,13 @@
 //
 //   descriptor = { url, mesh, nx, ny, scale, offset, ramp: 'reflectivity' | 'uh', stops?: [{ v, color }] }
 //
+//   COMPARE WITH RADAR (ShortRangeViewModel.IsComparing): setPanes limits the field to some panes (pane 1); map.js
+//   hides the RADAR data layer in those same panes, so one pane is radar and the other the model, never both.
+//
+//     ┌──────── pane 0 ────────┐┌──────── pane 1 ────────┐
+//     │  live radar (level2-)   ││  model-field only       │   (rings / ruler still draw in both)
+//     └─────────────────────────┘└─────────────────────────┘
+//
 //   PLAYING (the bottom console's model mode, ModelPlaybackViewModel): the host sends one descriptor per step; the
 //   compressed bytes of recent frames stay cached here, each step inflates one, and the frame on screen stays up until
 //   the next is ready — no blank between frames.
@@ -31,6 +38,7 @@ import { REFLECTIVITY_RAMP, rampColor } from './radar-ramps.js';
 
 const LAYER_ID = 'model-field';
 
+let allowed = null;       // which panes draw it: null = every pane, else (map) => bool (Compare with radar: pane 1 only)
 let want = null;          // the descriptor the host last asked for (null = nothing)
 let shown = null;         // the descriptor whose frame + mesh are loaded: { desc, codes, mesh, lut, key }
 let opacity = 1;
@@ -250,7 +258,7 @@ function viewOf(map) {
 }
 
 function ensureLayer(map) {
-    if (!shown) { removeLayer(map); return; }
+    if (!shown || (allowed && !allowed(map))) { removeLayer(map); return; }
     if (map.getLayer(LAYER_ID)) { map.triggerRepaint(); return; }
     map.addLayer(makeLayer(viewOf(map)), firstBoundaryLayerId(map));
 }
@@ -291,6 +299,16 @@ export function clear(map) {
     want = null;
     shown = null;
     removeLayer(map);
+}
+
+// Which panes draw the field (map.js passes a test over its own pane indices; null = all). Then call refresh(map) on
+// every pane so each adds or drops its layer.
+export function setPanes(test) {
+    allowed = typeof test === 'function' ? test : null;
+}
+
+export function refresh(map) {
+    ensureLayer(map);
 }
 
 export function reAdd(map) {

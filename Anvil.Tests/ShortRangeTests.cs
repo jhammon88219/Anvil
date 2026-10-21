@@ -261,5 +261,122 @@ namespace Anvil.Tests
 			vm.ShortRange.ToggleShown();
 			Assert.DoesNotContain(vm.ShortRange.Status, vm.ForeCastActivity.Feeds);
 		}
+
+		// ── Latest waits for f18 ──
+
+		[Fact]
+		public void Latest_waits_for_the_newest_runs_f00_to_f18()
+		{
+			Assert.False(ShortRangeViewModel.HasShortRange(Run(18, 7)));
+			Assert.True(ShortRangeViewModel.HasShortRange(Run(17, 18)));
+			Assert.True(ShortRangeViewModel.HasShortRange(Run(12, 18))); // a 48 h run switches at f18 too
+
+			var before = Run(17, 18);
+			Assert.Same(before, ShortRangeViewModel.ResolveLatest(Run(18, 7), before));
+			var done = Run(18, 18);
+			Assert.Same(done, ShortRangeViewModel.ResolveLatest(done, before));
+			var alone = Run(18, 7);
+			Assert.Same(alone, ShortRangeViewModel.ResolveLatest(alone, null)); // nothing older known: the newest anyway
+		}
+
+		[Fact]
+		public void The_run_list_names_the_arriving_run_and_skips_the_one_Latest_is_on()
+		{
+			var labels = ShortRangeViewModel.RunOptionsFor(Run(18, 7), Run(17, 18), held: null).Select(o => o.Label).ToList();
+			Assert.Equal("Latest (17Z)", labels[0]);
+			Assert.Equal("18Z · arriving 7/18", labels[1]);
+			Assert.DoesNotContain(labels, l => l.StartsWith("17Z", StringComparison.Ordinal));
+			Assert.StartsWith("16Z", labels[2], StringComparison.Ordinal);
+
+			var settled = ShortRangeViewModel.RunOptionsFor(Run(18, 18), Run(18, 18), held: null).Select(o => o.Label).ToList();
+			Assert.Equal("Latest (18Z)", settled[0]);
+			Assert.DoesNotContain(settled, l => l.Contains("arriving", StringComparison.Ordinal));
+		}
+
+		// ── Compare with radar ──
+
+		private static ModelPlaybackViewModel LoadedPlayback(HrrrRunStatus run)
+		{
+			var p = new ModelPlaybackViewModel(N<IMapService>(), null, NullLogger.Instance, () => { });
+			p.Load(run, HrrrFields.CompositeReflectivity, runSoFar: false, extended: false);
+			return p;
+		}
+
+		[Fact]
+		public void Comparing_the_model_follows_radars_frame_to_the_nearest_model_frame()
+		{
+			var run = Run(15, 18);
+			var p = LoadedPlayback(run);
+			p.Follow(run.RunUtc.AddMinutes(178)); // radar at 17:58 → the 18:00 frame (f03:00)
+			Assert.Equal(12, (int)p.CurrentFrameIndex);
+			Assert.False(p.IsBeforeRun);
+			p.Follow(run.RunUtc.AddMinutes(172)); // 17:52 → 17:45 (f02:45)
+			Assert.Equal(11, (int)p.CurrentFrameIndex);
+		}
+
+		[Fact]
+		public void A_radar_frame_from_before_the_run_leaves_the_model_pane_blank()
+		{
+			var run = Run(15, 18);
+			var p = LoadedPlayback(run);
+			p.Follow(run.RunUtc.AddMinutes(-10));
+			Assert.True(p.IsBeforeRun);
+			Assert.Null(p.ShownLead);
+			p.Follow(run.RunUtc.AddMinutes(5)); // back inside the run
+			Assert.False(p.IsBeforeRun);
+			Assert.Equal(0, (int)p.CurrentFrameIndex);
+		}
+
+		[Fact]
+		public void While_comparing_only_pane_1_shows_the_model()
+		{
+			Assert.False(ShortRangeViewModel.ModelInPane(drawing: true, compareActive: true, pane: 0));
+			Assert.True(ShortRangeViewModel.ModelInPane(drawing: true, compareActive: true, pane: 1));
+			Assert.True(ShortRangeViewModel.ModelInPane(drawing: true, compareActive: false, pane: 0));
+			Assert.False(ShortRangeViewModel.ModelInPane(drawing: false, compareActive: false, pane: 1));
+		}
+
+		[Fact]
+		public void Comparing_keeps_NowCast_on_in_two_panes_and_ending_it_puts_things_back()
+		{
+			var vm = NewMap();
+			vm.IsNowCast = true;
+			vm.IsForeCast = true;
+			vm.ShortRange.IsComparing = true;
+			vm.ShortRange.ToggleShown();
+
+			Assert.True(vm.ShortRange.IsCompareActive);
+			Assert.True(vm.IsNowCast);                                   // the one time both draw
+			Assert.Equal(PaneLayout.TwoAcross, vm.Radar.PaneLayout);
+			Assert.False(vm.ShortRange.IsModelConsoleShown);             // radar's console sets the time
+
+			vm.ShortRange.IsComparing = false;                           // the model alone again: NowCast ⇄ MODEL applies
+			Assert.False(vm.IsNowCast);
+			Assert.Equal(PaneLayout.Single, vm.Radar.PaneLayout);        // the layout before compare is back
+			Assert.True(vm.ShortRange.IsModelConsoleShown);
+
+			vm.ShortRange.IsComparing = true;                            // and back: NowCast returns
+			Assert.True(vm.IsNowCast);
+		}
+
+		[Fact]
+		public void Turning_NowCast_off_or_picking_another_layout_ends_a_comparison()
+		{
+			var vm = NewMap();
+			vm.IsNowCast = true;
+			vm.IsForeCast = true;
+			vm.ShortRange.IsComparing = true;
+			vm.ShortRange.ToggleShown();
+
+			vm.IsNowCast = false;
+			Assert.False(vm.ShortRange.IsComparing);
+			Assert.True(vm.ShortRange.IsDrawing); // the model keeps drawing on its own
+
+			vm.ShortRange.IsComparing = true;
+			Assert.True(vm.IsNowCast);
+			vm.Radar.PaneLayout = PaneLayout.Quad;
+			Assert.False(vm.ShortRange.IsComparing);
+			Assert.Equal(PaneLayout.Quad, vm.Radar.PaneLayout); // the user's pick stays
+		}
 	}
 }

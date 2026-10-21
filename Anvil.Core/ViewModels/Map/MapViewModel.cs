@@ -179,6 +179,24 @@ namespace Anvil.ViewModels
 			// The row follows the RESTORED box (the handler above only sees changes).
 			ForeCastActivity.SetFeedShown(ShortRange.Status, ShortRange.IsShown);
 			ShortRange.DrawingChanged += (_, _) => OnModelDrawingChanged();
+			ShortRange.CompareChanged += (_, _) => OnModelDrawingChanged();
+			// Compare with radar: the model follows radar's DISPLAYED frame, and its hint needs to know a site is loaded.
+			ShortRange.HasRadarSite = Radar.HasRadarLoop;
+			Radar.PropertyChanged += (_, e) =>
+			{
+				switch (e.PropertyName)
+				{
+					case nameof(RadarViewModel.DisplayedFrameTimeUtc):
+						ShortRange.RadarFrameTime = Radar.DisplayedFrameTimeUtc;
+						break;
+					case nameof(RadarViewModel.HasRadarLoop):
+						ShortRange.HasRadarSite = Radar.HasRadarLoop;
+						break;
+					case nameof(RadarViewModel.PaneLayout):
+						OnPaneLayoutWhileComparing();
+						break;
+				}
+			};
 
 			// The temporal SESSION: window pin + lock now; modes + open windows at map-ready. See that region.
 			RestoreWindowChrome();
@@ -238,7 +256,7 @@ namespace Anvil.ViewModels
 					{
 						// Live radar wins over a drawing model field (NowCast ⇄ MODEL): untick it, and don't bring NowCast
 						// "back" afterwards — it is already here.
-						if (ShortRange.IsDrawing) { _resumeNowCastAfterModel = false; ShortRange.IsShown = false; }
+						if (ShortRange.IsDrawing && !ShortRange.IsCompareActive) { _resumeNowCastAfterModel = false; ShortRange.IsShown = false; }
 						_isNowCast = true;
 						OnPropertyChanged(nameof(IsNowCast));
 						OnTemporalModesChanged();
@@ -579,12 +597,16 @@ namespace Anvil.ViewModels
 				if (value)
 				{
 					if (Radar.IsPastEventMode) { Radar.IsPastEventMode = false; } // leave replay for live mode
-					// NowCast ⇄ MODEL: turning live radar on unticks a drawing model field (see that region).
-					if (ShortRange.IsDrawing) { _resumeNowCastAfterModel = false; ShortRange.IsShown = false; }
+					// NowCast ⇄ MODEL: turning live radar on unticks a drawing model field (see that region) — unless the two
+					// are being COMPARED, which is the one time they draw together.
+					if (ShortRange.IsDrawing && !ShortRange.IsCompareActive) { _resumeNowCastAfterModel = false; ShortRange.IsShown = false; }
 					OpenTemporal(TemporalMode.Now); // on → show its window (marker-click arming bypasses this setter)
 				}
 				else if (!Radar.IsPastEventMode)
 				{
+					// Turning NowCast off ENDS a comparison (the user's call) — the model keeps drawing on its own.
+					// (Not at shutdown: modes switching off then are not a user choice — see Temporal SESSION.)
+					if (ShortRange.IsCompareActive && !_shuttingDown) { ShortRange.IsComparing = false; }
 					Radar.SelectedRadarOption = Radar.RadarOptions[0]; // "None" → clear the live loop to a blank basemap
 				}
 				// NowCast is the one mode with no subsystem flag behind it (see the field note above), so this
@@ -620,11 +642,29 @@ namespace Anvil.ViewModels
 		//   • NowCast turned on while the field draws (the key, or a site marker click) → the box is unticked, and that
 		//     is the end of it (nothing to bring back).
 		// ⚠️ The setter route OPENS the NowCast window on the way back, like any NowCast on.
+		// ⚠️ COMPARE WITH RADAR is the one exception (the user's call, 2026-10-21): while ShortRange.IsCompareActive the two
+		// DO draw together — radar in pane 0, the model in pane 1 (two across, the layout before it put back after), and
+		// radar's console sets the time. Turning compare on brings NowCast back (on the remembered site); turning it off
+		// while the field still draws applies the rule above again. Turning NowCast off, or picking another pane
+		// layout, ENDS the comparison.
 		private bool _resumeNowCastAfterModel;
 		private RadarOption? _nowCastSiteBeforeModel;
+		private PaneLayout? _layoutBeforeCompare;
+		private bool _applyingCompareLayout;
 
 		private void OnModelDrawingChanged()
 		{
+			ApplyCompareLayout();
+			if (ShortRange.IsCompareActive)
+			{
+				_resumeNowCastAfterModel = false;
+				if (_isNowCast || IsPastCast) { return; }
+				var back = _nowCastSiteBeforeModel;
+				_nowCastSiteBeforeModel = null;
+				IsNowCast = true;
+				if (back?.Site is not null) { Radar.SelectedRadarOption = back; }
+				return;
+			}
 			if (ShortRange.IsDrawing)
 			{
 				if (!_isNowCast) { return; }
@@ -640,6 +680,34 @@ namespace Anvil.ViewModels
 			_nowCastSiteBeforeModel = null;
 			IsNowCast = true;
 			if (site?.Site is not null) { Radar.SelectedRadarOption = site; }
+		}
+
+		// Comparing → two across (remembering the layout before); not comparing → that layout back.
+		private void ApplyCompareLayout()
+		{
+			_applyingCompareLayout = true;
+			try
+			{
+				if (ShortRange.IsCompareActive)
+				{
+					_layoutBeforeCompare ??= Radar.PaneLayout;
+					Radar.PaneLayout = PaneLayout.TwoAcross;
+				}
+				else if (_layoutBeforeCompare is { } before)
+				{
+					_layoutBeforeCompare = null;
+					Radar.PaneLayout = before;
+				}
+			}
+			finally { _applyingCompareLayout = false; }
+		}
+
+		// The user picked another layout mid-comparison: that ends it (the model pane would be gone), keeping their pick.
+		private void OnPaneLayoutWhileComparing()
+		{
+			if (_applyingCompareLayout || !ShortRange.IsCompareActive || Radar.PaneLayout == PaneLayout.TwoAcross) { return; }
+			_layoutBeforeCompare = null;
+			ShortRange.IsComparing = false;
 		}
 
 		/// <summary>Handles a click on the MODE half of a split temporal key: it TOGGLES THAT MODE, and

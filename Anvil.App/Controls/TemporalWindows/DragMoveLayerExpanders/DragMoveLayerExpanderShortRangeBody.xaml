@@ -9,14 +9,18 @@
        Next 18 hours · convection-allowing models             ← the range note (was the header's subtitle; 2026-10-21)
        Model    [ HRRR ]                                      ← SegmentedPicker, one segment for now (NAM 3 km / RRFS later)
        Product  [Future radar (composite)          ▾]         ← composite · 1 km · updraft helicity tracks
-       Run      [Latest (16Z)                      ▾]         ← Latest follows each run; an earlier one is HELD (not persisted)
+                1 km reflectivity looks most like radar's…    ← hint (caution colour): comparing, and not 1 km
+       Run      [Latest (17Z)                      ▾]         ← Latest = newest run once its f00–f18 landed; until then the
+                                                                one before + "18Z · arriving 7/18" to pick; others HELD
        Tracks   [ This hour | Run so far ]                    ← ONLY while the product is UH; default Run so far
        Hours    [ ] Extend to f48 (hourly past f18)           ← ONLY for a 48 h run (00/06/12/18Z); persisted
+       Compare  [✓] Compare with radar                        ← radar | HRRR in two panes, radar's console sets the time;
+                Radar on the left, HRRR on the right. …       ← hint: what happens / "Pick a radar site" / young-run caution
 
      NO LEGEND here (removed 2026-10-21): the model's ramp is in every PANE NOTCH while it draws (PaneNotchContent).
 
      ⚠️ The box (the host's) EXCLUDES NOWCAST: ticking it while ForeCast runs turns live radar off; unticking brings it back
-     (MapViewModel's NowCast ⇄ MODEL rule). ⚠️ Colours are DATA, never themed. ⚠️ No time control here: the BOTTOM CONSOLE
+     (MapViewModel's NowCast ⇄ MODEL rule) — EXCEPT while comparing, when both draw (one pane each). ⚠️ Colours are DATA, never themed. ⚠️ No time control here: the BOTTOM CONSOLE
      plays the run (Composites/ModelConsole, while the field draws). -->
 <UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderShortRangeBody"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -30,6 +34,12 @@
 
     <UserControl.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+        <!-- A row's hint line: small, wrapping, in the CAUTION colour (the model console's forecast-time colour). -->
+        <Style x:Key="ShortRangeHintStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}"/>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
@@ -63,6 +73,7 @@
                 <RowDefinition Height="Auto"/> <!-- Run -->
                 <RowDefinition Height="Auto"/> <!-- Tracks (UH only) -->
                 <RowDefinition Height="Auto"/> <!-- Hours (48 h runs only) -->
+                <RowDefinition Height="Auto"/> <!-- Compare -->
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Model" Style="{StaticResource SettingsFieldLabelStyle}"/>
@@ -72,12 +83,19 @@
                                   ToolTipService.ToolTip="The model drawn (the HRRR: NOAA's 3 km model, run every hour)"/>
 
             <!-- ⚠️ A ComboBox, like the outlook's Day / Product (a short list that never scrolls the map). -->
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"/>
-            <ComboBox x:Name="ShortRangeProductComboBox" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
-                      ItemsSource="{x:Bind ViewModel.Products}"
-                      DisplayMemberPath="Label"
-                      SelectedItem="{x:Bind ViewModel.SelectedProduct, Mode=TwoWay}"
-                      ToolTipService.ToolTip="Future radar = the model's reflectivity; tracks = where it spins up rotating storms"/>
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"
+                       VerticalAlignment="Top" Margin="0,6,0,0"/>
+            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+                <ComboBox x:Name="ShortRangeProductComboBox" HorizontalAlignment="Stretch"
+                          ItemsSource="{x:Bind ViewModel.Products}"
+                          DisplayMemberPath="Label"
+                          SelectedItem="{x:Bind ViewModel.SelectedProduct, Mode=TwoWay}"
+                          ToolTipService.ToolTip="Future radar = the model's reflectivity; tracks = where it spins up rotating storms"/>
+                <!-- Comparing, and not 1 km reflectivity: composite is the column's max, so it always looks bigger than radar. -->
+                <TextBlock x:Name="ShortRangeProductHint" Style="{StaticResource ShortRangeHintStyle}"
+                           Text="{x:Bind ViewModel.ProductHint, Mode=OneWay}"
+                           Visibility="{x:Bind HintVisibility(ViewModel.ProductHint), Mode=OneWay}"/>
+            </StackPanel>
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Run" Style="{StaticResource SettingsFieldLabelStyle}"/>
             <ComboBox x:Name="ShortRangeRunComboBox" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
@@ -103,6 +121,21 @@
                       Visibility="{x:Bind ViewModel.CanExtend, Mode=OneWay, Converter={StaticResource BoolToVis}}"
                       IsChecked="{x:Bind ViewModel.IsExtended, Mode=TwoWay}"
                       ToolTipService.ToolTip="This run goes to 48 hours; past 18 the HRRR only has hourly frames"/>
+
+            <!-- COMPARE WITH RADAR: radar | HRRR in two panes, NowCast stays on and the RADAR console sets the time
+                 (ShortRangeViewModel.IsComparing; MapViewModel owns the modes + layout). Persisted. The hint under it says
+                 what happens, or what it needs (a radar site), or the young-run caution. -->
+            <TextBlock Grid.Row="5" Grid.Column="0" Text="Compare" Style="{StaticResource SettingsFieldLabelStyle}"
+                       VerticalAlignment="Top" Margin="0,6,0,0"/>
+            <StackPanel Grid.Row="5" Grid.Column="1" Spacing="2">
+                <CheckBox x:Name="ShortRangeCompareCheckBox"
+                          Content="Compare with radar"
+                          IsChecked="{x:Bind ViewModel.IsComparing, Mode=TwoWay}"
+                          ToolTipService.ToolTip="Live radar on the left, the HRRR on the right, at the same moment"/>
+                <TextBlock x:Name="ShortRangeCompareHint" Style="{StaticResource ShortRangeHintStyle}"
+                           Text="{x:Bind ViewModel.CompareHint, Mode=OneWay}"
+                           Visibility="{x:Bind HintVisibility(ViewModel.CompareHint), Mode=OneWay}"/>
+            </StackPanel>
         </Grid>
     </Grid>
 </UserControl>

@@ -20,9 +20,13 @@ namespace Anvil.ViewModels
 	/// ⚠️ THE BOX IS EXCLUSIVE WITH NOWCAST (the user's call, 2026-10-21): while the field DRAWS (box ticked AND ForeCast
 	/// on — <see cref="IsDrawing"/>) live radar is off. <c>MapViewModel</c> owns that rule (it owns the modes); this VM
 	/// only says when drawing starts and stops (<see cref="DrawingChanged"/>).
+	/// ⚠️ COMPARE WITH RADAR (the user's call, 2026-10-21; <see cref="IsComparing"/>): while it is on, the field does NOT
+	/// exclude NowCast — radar draws in pane 0, the model in pane 1 (MapViewModel owns the modes + the layout), and the
+	/// RADAR console sets the time (<see cref="RadarFrameTime"/> → <see cref="ModelPlaybackViewModel.Follow"/>).
 	/// ⚠️ THIS PICKS THE RUN, <see cref="Playback"/> PLAYS IT (the bottom console's model mode): "Latest" = the NEWEST run
-	/// that already has the frame nearest now — a run still landing falls back to the one before, so the card always names
-	/// the run on the map. The playback opens at that frame and downloads the rest of the run.
+	/// once its f00–f18 have landed (<see cref="HasShortRange"/>; the user's call, 2026-10-21) — until then the run before,
+	/// with the arriving one listed in the Run box ("18Z · arriving 7/18") to pick by hand. So the run never changes
+	/// mid-loop with two hours in. The playback opens at the frame nearest now and downloads the rest of the run.
 	/// ⚠️ WHEN to check is the live-feed hub's (<see cref="LiveFeedKind.Hrrr"/>, polled — nothing announces a model hour).
 	/// A check is ONE bucket listing; it only runs while the field draws.
 	/// ⚠️ CLOCK TIMES, never countdowns (FeedStatus). The activity row's LAST is the newest run's progress ("17Z · 7/18").
@@ -55,7 +59,12 @@ namespace Anvil.ViewModels
 		private int _tracksIndex = 1;
 		private RunOption _selectedRun;
 		private HrrrRunStatus? _newest;
+		private HrrrRunStatus? _latest; // what Latest resolves to: _newest once it has f00–f18, else the run before
 		private bool _extended;
+		private bool _isComparing;
+		private bool _wasCompareActive;
+		private bool _hasRadarSite;
+		private DateTimeOffset? _radarFrameTime;
 		private int _pickToken;
 		private DateTimeOffset _lastCheckNow;
 
@@ -135,8 +144,87 @@ namespace Anvil.ViewModels
 				DrawingChanged?.Invoke(this, EventArgs.Empty);
 				if (IsDrawing) { _live.Wake(); } // check the runs now, not at the next poll
 			}
+			OnCompareInputsChanged();
 			Reconcile();
 		}
+
+		// ── Compare with radar ──
+
+		/// <summary>The "Compare with radar" box (persisted). Comparing needs the field drawing — <see cref="IsCompareActive"/>.</summary>
+		public bool IsComparing
+		{
+			get => _isComparing;
+			set
+			{
+				if (!SetProperty(ref _isComparing, value)) { return; }
+				OnPropertyChanged(nameof(ProductHint));
+				OnCompareInputsChanged();
+			}
+		}
+
+		/// <summary>Comparing NOW: the box AND the field drawing. Radar in pane 0, the model in pane 1, radar's console.</summary>
+		public bool IsCompareActive => _isComparing && IsDrawing;
+
+		/// <summary>The bottom console's model mode shows: drawing, and not comparing (radar's console runs then).</summary>
+		public bool IsModelConsoleShown => IsDrawing && !IsCompareActive;
+
+		/// <summary>Raised when <see cref="IsCompareActive"/> flips — MapViewModel's modes + pane layout.</summary>
+		public event EventHandler? CompareChanged;
+
+		/// <summary>A radar site is loaded (set by MapViewModel) — the compare hint asks for one otherwise.</summary>
+		public bool HasRadarSite
+		{
+			get => _hasRadarSite;
+			set { if (SetProperty(ref _hasRadarSite, value)) { OnPropertyChanged(nameof(CompareHint)); } }
+		}
+
+		/// <summary>Radar's DISPLAYED frame time (set by MapViewModel on every frame change). While comparing, the model
+		/// follows it.</summary>
+		public DateTimeOffset? RadarFrameTime
+		{
+			get => _radarFrameTime;
+			set
+			{
+				if (_radarFrameTime == value) { return; }
+				_radarFrameTime = value;
+				if (IsCompareActive) { Playback.Follow(value); }
+			}
+		}
+
+		private void OnCompareInputsChanged()
+		{
+			OnPropertyChanged(nameof(IsCompareActive));
+			OnPropertyChanged(nameof(IsModelConsoleShown));
+			OnPropertyChanged(nameof(CompareHint));
+			if (IsCompareActive == _wasCompareActive) { return; }
+			_wasCompareActive = IsCompareActive;
+			if (_isMapReady) { _ = _mapService.SetModelFieldPanesAsync(IsCompareActive ? ComparePanes : null); }
+			if (IsCompareActive) { Playback.Follow(_radarFrameTime); }
+			else { Playback.EndFollow(); }
+			ShowCard();
+			CompareChanged?.Invoke(this, EventArgs.Empty);
+		}
+
+		/// <summary>While comparing, the model draws in pane 1 only (radar keeps pane 0).</summary>
+		internal static readonly IReadOnlyList<int> ComparePanes = new[] { 1 };
+
+		/// <summary>Whether pane <paramref name="pane"/> shows the MODEL (its notch the model form): every pane while the
+		/// field draws, only <see cref="ComparePanes"/> while comparing. The page's split is the same rule (map.js).</summary>
+		public static bool ModelInPane(bool drawing, bool compareActive, int pane) =>
+			drawing && (!compareActive || ComparePanes.Contains(pane));
+
+		/// <summary>Under the Compare box: what to do, or why it can't work yet, or the young-run caution.</summary>
+		public string CompareHint =>
+			!_isComparing ? string.Empty
+			: !_hasRadarSite ? "Pick a radar site to compare."
+			: Playback.Run is { } r && DateTimeOffset.UtcNow - r.RunUtc < TimeSpan.FromHours(2)
+				? "A run's first hour is mostly radar data. An older run is the stronger test."
+			: "Radar on the left, HRRR on the right. The radar console sets the time.";
+
+		/// <summary>Under Product while comparing a product other than 1 km reflectivity.</summary>
+		public string ProductHint => _isComparing && _product != HrrrFields.Reflectivity1Km
+			? "1 km reflectivity looks most like radar's lowest scan"
+			: string.Empty;
 
 		public double Opacity
 		{
@@ -164,6 +252,7 @@ namespace Anvil.ViewModels
 				OnPropertyChanged();
 				OnPropertyChanged(nameof(IsTracksProduct));
 				OnPropertyChanged(nameof(Legend));
+				OnPropertyChanged(nameof(ProductHint));
 				ProductChanged?.Invoke(this, EventArgs.Empty);
 				Reconcile();
 			}
@@ -267,12 +356,18 @@ namespace Anvil.ViewModels
 		/// <summary>Loading / a problem; takes the Context's slot when set (DragMoveLayerExpanderHeaderCard).</summary>
 		public string CardFooter { get => _cardFooter; private set => SetProperty(ref _cardFooter, value); }
 
+		private string _modelPaneLabel = "HRRR";
+
+		/// <summary>The model pane's corner label while comparing: "HRRR 15Z · valid 6:00 PM" / "… · before this run".</summary>
+		public string ModelPaneLabel { get => _modelPaneLabel; private set => SetProperty(ref _modelPaneLabel, value); }
+
 		// ── Lifecycle ──
 
 		public async Task OnMapsReadyAsync()
 		{
 			_isMapReady = true;
 			await _mapService.SetModelFieldOpacityAsync(_opacity);
+			if (IsCompareActive) { await _mapService.SetModelFieldPanesAsync(ComparePanes); }
 			Reconcile();
 		}
 
@@ -293,9 +388,9 @@ namespace Anvil.ViewModels
 			try
 			{
 				var newest = await _service!.FindLatestRunAsync(_shutdown.Token).ConfigureAwait(false);
-				// The run before the newest too: while the newest is landing, it is the one with the frame.
+				// The run before the newest too: until the newest has its f00–f18, Latest is that one.
 				HrrrRunStatus? before = null;
-				if (newest is { IsComplete: false })
+				if (newest is not null && !HasShortRange(newest))
 				{
 					before = await _service.GetRunStatusAsync(newest.RunUtc.AddHours(-1), _shutdown.Token).ConfigureAwait(false);
 				}
@@ -322,24 +417,52 @@ namespace Anvil.ViewModels
 			}
 			_runs[newest.RunUtc] = newest;
 			if (before is not null) { _runs[before.RunUtc] = before; }
-			if (_newest?.RunUtc != newest.RunUtc) { RebuildRunOptions(newest.RunUtc); }
 			_newest = newest;
+			_latest = ResolveLatest(newest, before);
+			RebuildRunOptions(newest, _latest);
 			Reconcile();
 		}
 
-		private void RebuildRunOptions(DateTimeOffset newestRun)
+		/// <summary>A run's SHORT RANGE has landed: f00–f18 (or its whole length if shorter) in both files — the bar Latest
+		/// waits for (a 48 h run switches at f18 too; f19–f48 fill in after).</summary>
+		internal static bool HasShortRange(HrrrRunStatus s)
 		{
+			var h = Math.Min(HrrrFields.SubHourlyLastHour, s.LastHour);
+			return s.HourlyIn.Contains(h) && s.SubHourlyIn.Contains(h);
+		}
+
+		/// <summary>What Latest shows: the newest run once it has its f00–f18, else the run before (if known), else the newest.</summary>
+		internal static HrrrRunStatus ResolveLatest(HrrrRunStatus newest, HrrrRunStatus? before) =>
+			HasShortRange(newest) || before is null ? newest : before;
+
+		// Latest (the run it resolves to) · the arriving newest, if Latest is holding the one before · the earlier runs.
+		// Rebuilt only when a label changes (the arriving run's progress, a new run), keeping the pick by its run.
+		private void RebuildRunOptions(HrrrRunStatus newest, HrrrRunStatus latestRun)
+		{
+			var list = RunOptionsFor(newest, latestRun, _selectedRun.RunUtc);
+			if (list.Select(o => o.Label).SequenceEqual(RunOptions.Select(o => o.Label))) { return; }
 			var held = _selectedRun.RunUtc;
-			var latest = RunOption.Latest(newestRun);
-			var list = new List<RunOption> { latest };
-			for (var k = 1; k <= EarlierRuns; k++) { list.Add(RunOption.Held(newestRun.AddHours(-k))); }
-			// A held run that has scrolled off the list stays in it — it is what the map shows.
-			if (held is { } h && list.All(o => o.RunUtc != h)) { list.Add(RunOption.Held(h)); }
-			var pick = held is { } hh ? list.First(o => o.RunUtc == hh) : latest;
+			var pick = held is { } hh ? list.First(o => o.RunUtc == hh) : list[0];
 			RunOptions.Clear();
 			foreach (var o in list) { RunOptions.Add(o); }
 			_selectedRun = pick;
 			OnPropertyChanged(nameof(SelectedRun));
+		}
+
+		/// <summary>The Run list: Latest, then the newest <see cref="EarlierRuns"/> + 1 hours' runs except the one Latest is
+		/// on (the newest marked "arriving" while Latest waits for it), then a held run that has scrolled off.</summary>
+		internal static List<RunOption> RunOptionsFor(HrrrRunStatus newest, HrrrRunStatus latestRun, DateTimeOffset? held)
+		{
+			var list = new List<RunOption> { RunOption.Latest(latestRun.RunUtc) };
+			for (var k = 0; k <= EarlierRuns; k++)
+			{
+				var run = newest.RunUtc.AddHours(-k);
+				if (run == latestRun.RunUtc) { continue; }
+				list.Add(k == 0 ? RunOption.Arriving(newest) : RunOption.Held(run));
+			}
+			// A held run that has scrolled off the list stays in it — it is what the map shows.
+			if (held is { } h && list.All(o => o.RunUtc != h)) { list.Add(RunOption.Held(h)); }
+			return list;
 		}
 
 		// ── Drawing ──
@@ -381,7 +504,9 @@ namespace Anvil.ViewModels
 			var keep = Playback.Run is { } was && Playback.ShownLead is { } lead ? was.RunUtc.AddMinutes(lead) : (DateTimeOffset?)null;
 			var firstDraw = Playback.Run is null;
 			Playback.Load(status, _product, RunSoFar, _extended && status.LastHour > HrrrFields.SubHourlyLastHour, keep);
+			if (IsCompareActive) { Playback.Follow(_radarFrameTime); } // comparing: radar's frame, not now
 			OnPropertyChanged(nameof(CanExtend));
+			OnPropertyChanged(nameof(CompareHint));
 			if (firstDraw) { await _mapService.SetModelFieldOpacityAsync(_opacity); }
 			if (Playback.ShownLead is null) { CardFooter = "Loading…"; }
 			else { ShowCard(); }
@@ -403,8 +528,9 @@ namespace Anvil.ViewModels
 			}
 			else
 			{
-				candidates.Add(_newest!);
-				if (_runs.TryGetValue(_newest!.RunUtc.AddHours(-1), out var before)) { candidates.Add(before); }
+				// Latest: the run it resolves to (newest once it has f00–f18), the other one only as a fallback.
+				candidates.Add(_latest ?? _newest!);
+				if (!ReferenceEquals(candidates[0], _newest)) { candidates.Add(_newest!); }
 			}
 			foreach (var s in candidates)
 			{
@@ -433,12 +559,24 @@ namespace Anvil.ViewModels
 		// The card follows the frame ON THE MAP (the playback's), whatever the scrubber is doing.
 		private void ShowCard()
 		{
-			if (Playback.Run is not { } status || Playback.ShownLead is not { } lead) { return; }
+			if (Playback.Run is not { } status) { return; }
 			var run = status.RunUtc;
 			var hoursIn = status.HourlyIn.Count == 0 ? 0 : status.HourlyIn[^1];
 			CardHeadline = status.IsComplete
 				? $"HRRR {run:HH}Z · all {status.LastHour} hours in"
 				: $"HRRR {run:HH}Z · {hoursIn} of {status.LastHour} hours in";
+			OnPropertyChanged(nameof(CompareHint));
+			if (Playback.IsBeforeRun)
+			{
+				// Comparing, radar's frame is older than the run: the model pane is blank, and says why.
+				CardContext = string.Create(CultureInfo.InvariantCulture, $"before this run ({run:HH}Z)");
+				ModelPaneLabel = string.Create(CultureInfo.InvariantCulture, $"HRRR {run:HH}Z · before this run");
+				CardFooter = string.Empty;
+				return;
+			}
+			if (Playback.ShownLead is not { } lead) { return; }
+			ModelPaneLabel = string.Create(CultureInfo.InvariantCulture, $"HRRR {run:HH}Z · valid ")
+				+ run.AddMinutes(lead).ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
 			var valid = run.AddMinutes(lead).ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
 			// Run so far: the swath covers the run's start (f01's max begins at f00) to the frame — a clock time at BOTH ends.
 			var from = run.ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
@@ -497,5 +635,10 @@ namespace Anvil.ViewModels
 
 		internal static RunOption Held(DateTimeOffset run) =>
 			new(run, string.Create(CultureInfo.InvariantCulture, $"{run:HH}Z · {run.ToLocalTime():ddd h tt}"));
+
+		/// <summary>The newest run while Latest waits for its f00–f18: held if picked, labelled with how far in it is.</summary>
+		internal static RunOption Arriving(HrrrRunStatus s) =>
+			new(s.RunUtc, string.Create(CultureInfo.InvariantCulture,
+				$"{s.RunUtc:HH}Z · arriving {(s.HourlyIn.Count == 0 ? 0 : s.HourlyIn[^1])}/{Math.Min(HrrrFields.SubHourlyLastHour, s.LastHour)}"));
 	}
 }

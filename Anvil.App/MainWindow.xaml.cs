@@ -200,13 +200,21 @@ namespace Anvil
 			paneVisible ? Visibility.Visible : Visibility.Collapsed;
 
 		/// <summary>MODEL MODE (the bar's console cell): RadarControls goes INVISIBLE, never Collapsed, while ModelConsole
-		/// plays over it — the tools tier's alignment keeps measuring it (see MainWindow.xaml at TimeModule).</summary>
-		public double RadarConsoleOpacity(bool modelDrawing) => modelDrawing ? 0 : 1;
+		/// plays over it — the tools tier's alignment keeps measuring it (see MainWindow.xaml at TimeModule). The argument is
+		/// ShortRange.IsModelConsoleShown (drawing and NOT comparing with radar).</summary>
+		public double RadarConsoleOpacity(bool modelConsole) => modelConsole ? 0 : 1;
 
-		public bool IsRadarConsoleLive(bool modelDrawing) => !modelDrawing;
+		public bool IsRadarConsoleLive(bool modelConsole) => !modelConsole;
 
 		// ⚠️ Visibility, not x:Load: x:Load in a Window's XAML generates a FindName call a Window doesn't have (CS1061).
-		public Visibility ModelConsoleVisibility(bool modelDrawing) => modelDrawing ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility ModelConsoleVisibility(bool modelConsole) => modelConsole ? Visibility.Visible : Visibility.Collapsed;
+
+		/// <summary>COMPARE WITH RADAR: the two panes' corner labels show only while comparing.</summary>
+		public Visibility CompareLabelVisibility(bool comparing) => comparing ? Visibility.Visible : Visibility.Collapsed;
+
+		/// <summary>The radar pane's corner label: "KTLX · live radar" ("Live radar" before a site is picked).</summary>
+		public string RadarPaneLabel(RadarOption? site) =>
+			site?.Site is { } s ? $"{s.Id} · live radar" : "Live radar · pick a site";
 
 		/// <summary>
 		/// Whether the notches take their tighter form (no scale numbers under the ramp, shorter ramp).

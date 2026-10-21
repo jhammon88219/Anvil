@@ -418,6 +418,10 @@ namespace Anvil.Services
 		/// <summary>Takes the model field off the map.</summary>
 		Task ClearModelFieldAsync();
 
+		/// <summary>Which panes draw the model field: null = every pane; else those pane indices only — and THOSE panes
+		/// hide the radar data layer (ForeCast's Compare with radar: radar in pane 0, the model in pane 1).</summary>
+		Task SetModelFieldPanesAsync(IReadOnlyList<int>? panes);
+
 		/// <summary>Highlights the selected site marker (empty clears the highlight).</summary>
 		Task SetSelectedRadarSiteAsync(string? siteId);
 

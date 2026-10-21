@@ -283,6 +283,7 @@ namespace Anvil.ViewModels
 			if (s.ShortRangeTracks is { } tracks) { shortRange.TracksToken = tracks; }
 			if (s.ShortRangeExtended is bool extended) { shortRange.IsExtended = extended; }
 			if (s.ShortRangeOpacity is double o) { shortRange.Opacity = Unit(o); }
+			if (s.ShortRangeCompare is bool compare) { shortRange.IsComparing = compare; }
 
 			shortRange.ProductChanged += (_, _) =>
 			{
@@ -294,6 +295,7 @@ namespace Anvil.ViewModels
 			{
 				if (e.PropertyName == nameof(ShortRangeViewModel.IsShown)) { s.ShortRangeShown = shortRange.IsShown; }
 				else if (e.PropertyName == nameof(ShortRangeViewModel.Opacity)) { s.ShortRangeOpacity = shortRange.Opacity; }
+				else if (e.PropertyName == nameof(ShortRangeViewModel.IsComparing)) { s.ShortRangeCompare = shortRange.IsComparing; }
 			};
 		}
 	}

@@ -24,5 +24,8 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(ShortRangeViewModel), typeof(DragMoveLayerExpanderShortRangeBody), new PropertyMetadata(null));
+
+		/// <summary>A hint line shows only while it has words.</summary>
+		public Visibility HintVisibility(string hint) => string.IsNullOrEmpty(hint) ? Visibility.Collapsed : Visibility.Visible;
 	}
 }

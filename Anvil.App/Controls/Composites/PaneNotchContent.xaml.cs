@@ -57,9 +57,13 @@ namespace Anvil.Controls.Composites
 			DependencyProperty.Register(nameof(Model), typeof(ShortRangeViewModel), typeof(PaneNotchContent),
 				new PropertyMetadata(null));
 
-		public Visibility RadarFormVisibility(bool modelDrawing) => modelDrawing ? Visibility.Collapsed : Visibility.Visible;
+		// Which form: the model's while THIS pane shows the model (every pane while it draws; pane 1 only while comparing
+		// with radar) — ShortRangeViewModel.ModelInPane, the page's own split rule.
+		public Visibility RadarFormVisibility(bool drawing, bool comparing, int pane) =>
+			ShortRangeViewModel.ModelInPane(drawing, comparing, pane) ? Visibility.Collapsed : Visibility.Visible;
 
-		public Visibility ModelFormVisibility(bool modelDrawing) => modelDrawing ? Visibility.Visible : Visibility.Collapsed;
+		public Visibility ModelFormVisibility(bool drawing, bool comparing, int pane) =>
+			ShortRangeViewModel.ModelInPane(drawing, comparing, pane) ? Visibility.Visible : Visibility.Collapsed;
 
 		/// <summary>The model name column's width — FIXED per form, for the same reason as <see cref="RampWidth"/>.</summary>
 		public double ModelNameWidth(bool compact) => compact ? 132 : 110;
