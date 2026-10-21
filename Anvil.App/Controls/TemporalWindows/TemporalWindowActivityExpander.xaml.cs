@@ -50,6 +50,9 @@ namespace Anvil.Controls.TemporalWindows
 
 		public Visibility ShownWhen(bool a, bool b) => a && b ? Visibility.Visible : Visibility.Collapsed;
 
+		// Hidden's summary line only where there's no radar line to be the one line (ForeCast, PastCast).
+		public Visibility SummaryShown(bool hidden, bool has, bool radar) => hidden && has && !radar ? Visibility.Visible : Visibility.Collapsed;
+
 		public bool Not(bool value) => !value;
 
 		public string TabHint(bool opensMore, bool past) => !opensMore ? "Show less" : past ? "Show what this event downloaded" : "Show every feed's times";

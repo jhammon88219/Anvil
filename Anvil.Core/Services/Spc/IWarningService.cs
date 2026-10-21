@@ -61,23 +61,6 @@ namespace Anvil.Services
 			return new WarningThreatCounts(torE, torP, svD, ffE, ffC);
 		}
 
-		/// <summary>The card line, worst first — "1 tornado emergency · 2 PDS tornado". Empty when none.</summary>
-		public string ToCardLine()
-		{
-			var parts = new List<string>(5);
-			Add(TornadoEmergency, "tornado emergency", "tornado emergencies");
-			Add(FlashFloodEmergency, "flash flood emergency", "flash flood emergencies");
-			Add(TornadoPds, "PDS tornado", "PDS tornado");
-			Add(SevereDestructive, "destructive storm", "destructive storms");
-			Add(FlashFloodConsiderable, "considerable flash flood", "considerable flash flood");
-			return string.Join(" · ", parts);
-
-			void Add(int n, string one, string many)
-			{
-				if (n > 0) { parts.Add($"{n} {(n == 1 ? one : many)}"); }
-			}
-		}
-
 		/// <summary>The NowCast header's per-TYPE tag lines — the tile already names the type, so these
 		/// drop it: "1 emergency · 2 PDS". Empty when that type has no elevated tag.</summary>
 		public string TornadoLine => Line((TornadoEmergency, "emergency", "emergencies"), (TornadoPds, "PDS", "PDS"));

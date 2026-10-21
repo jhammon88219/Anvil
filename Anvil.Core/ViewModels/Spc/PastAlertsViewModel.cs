@@ -233,7 +233,6 @@ namespace Anvil.ViewModels
 		private readonly bool _isWarnings;
 		private string _url = string.Empty;
 		private string _context = string.Empty;
-		private WarningThreatCounts _threats = WarningThreatCounts.None;
 
 		internal PastPhenomOverlay(IMapService map, string kind, string singular, string plural, bool isWarnings)
 		{
@@ -262,8 +261,6 @@ namespace Anvil.ViewModels
 		/// <summary>Which moment the counts describe (a replay has no "Updated…").</summary>
 		public override string CardContext => _context;
 
-		public override string CardThreats => _isWarnings ? _threats.ToCardLine() : string.Empty;
-
 		internal void PointAt(string url)
 		{
 			_url = url;
@@ -275,7 +272,6 @@ namespace Anvil.ViewModels
 		internal void SetIdle()
 		{
 			_context = string.Empty;
-			_threats = WarningThreatCounts.None;
 			ApplyRefreshed(0, 0, 0, 0);
 			ApplyRefreshFailed(IsModeActive ? "Load a timeframe to see what was in effect" : string.Empty);
 		}
@@ -284,7 +280,6 @@ namespace Anvil.ViewModels
 		internal void ShowAt(DateTimeOffset? t, IReadOnlyList<PastAlert> inEffect)
 		{
 			_context = t is { } at ? $"In effect at {at.ToLocalTime():h:mm tt} · {at.ToLocalTime():MMM d, yyyy}" : "Waiting for a radar frame…";
-			_threats = WarningThreatCounts.From(inEffect.Select(a => (a.Phenom, a.Tier)));
 			ApplyRefreshed(inEffect.Count,
 				inEffect.Count(a => a.Phenom == "TO"),
 				inEffect.Count(a => a.Phenom == "SV"),

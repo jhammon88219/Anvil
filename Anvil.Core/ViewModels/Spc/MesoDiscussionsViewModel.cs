@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -199,13 +200,21 @@ namespace Anvil.ViewModels
 			ReaderRequested?.Invoke(this, EventArgs.Empty);
 		}
 
+		/// <summary>A section row: select <paramref name="row"/> (the map outlines it) and frame it — the window is
+		/// NOT opened (2026-10-21; "View all Discussions" opens it).</summary>
+		public void FlyTo(DiscussionRow row)
+		{
+			Selected = row;
+			ShowSelectedOnMap();
+		}
+
 		/// <summary>Frame the selected discussion's area on the map.</summary>
 		public void ShowSelectedOnMap()
 		{
 			if (_selected is not null && _isMapReady) { _ = _mapService.FocusDiscussionAsync(_selected.Discussion.Key); }
 		}
 
-		/// <summary>Raised to OPEN the reader window — a map click, a section row, or the section's button.
+		/// <summary>Raised to OPEN the reader window — a map click or the section's button (a section row only flies).
 		/// MapViewModel opens <c>IsMesoDiscussionOpen</c> on it.</summary>
 		public event EventHandler? ReaderRequested;
 
@@ -231,14 +240,6 @@ namespace Anvil.ViewModels
 			? "In effect now"
 			: $"In effect at {_moment.Value.ToLocalTime():h:mm tt}";
 
-		/// <summary>The section's one button.</summary>
-		public string OpenReaderText => Discussions.Count switch
-		{
-			0 => "Open reader",
-			1 => "1 discussion · Open reader",
-			var n => $"All {n} discussions · Open reader",
-		};
-
 		private void RefillGroups()
 		{
 			var t = _moment;
@@ -249,7 +250,6 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(HasEarlier));
 			OnPropertyChanged(nameof(HasLater));
 			OnPropertyChanged(nameof(InEffectHeading));
-			OnPropertyChanged(nameof(OpenReaderText));
 		}
 
 		private static void Refill(ObservableCollection<DiscussionRow> target, IEnumerable<DiscussionRow> rows)
@@ -473,16 +473,12 @@ namespace Anvil.ViewModels
 			foreach (var k in Kinds) { k.Count = Discussions.Count(r => r.IsInEffect && r.Discussion.Kind == k.Kind); }
 
 			var inEffect = Discussions.Count(r => r.IsInEffect);
-			CardHeadline = inEffect switch
-			{
-				0 => "No discussions in effect",
-				1 => "1 discussion in effect",
-				_ => $"{inEffect} discussions in effect",
-			};
+			// ONE card line (2026-10-21): the section header already says "discussions", so the headline doesn't.
+			CardHeadline = inEffect == 0 ? "None in effect" : $"{inEffect} in effect";
 			var listed = Discussions.Count == 1 ? "1 listed" : $"{Discussions.Count} listed";
 			CardContext = _loadedKey is { Live: true }
-				? $"Now · {listed} from the last 24 hours"
-				: t is { } at2 ? $"At {at2.ToLocalTime():h:mm tt} · {listed} for this window" : listed;
+				? $"{Discussions.Count} in the last 24 h"
+				: t is { } at2 ? $"At {at2.ToLocalTime():h:mm tt} · {listed}" : listed;
 			RefillGroups();
 		}
 
@@ -548,6 +544,22 @@ namespace Anvil.ViewModels
 		public string Headline => Discussion.Concerning.Length > 0 ? Discussion.Concerning : Discussion.Kind.ProductName;
 
 		public string TimeText => $"{Discussion.Issued.ToLocalTime():h:mm tt} → {Discussion.Expires.ToLocalTime():h:mm tt}";
+
+		/// <summary>The section row's short name: the number alone ("1505") — the kind's colour bar says MD or MPD.</summary>
+		public string NumberText => Discussion.Number.ToString("0000", CultureInfo.InvariantCulture);
+
+		/// <summary>The section row's effective range, compact: "2:10–3:45 PM", or "11:50 AM–1:20 PM" across noon.</summary>
+		public string RangeText
+		{
+			get
+			{
+				var from = Discussion.Issued.ToLocalTime();
+				var to = Discussion.Expires.ToLocalTime();
+				return from.ToString("tt", CultureInfo.InvariantCulture) == to.ToString("tt", CultureInfo.InvariantCulture)
+					? $"{from.ToString("h:mm", CultureInfo.InvariantCulture)}–{to.ToString("h:mm tt", CultureInfo.InvariantCulture)}"
+					: $"{from.ToString("h:mm tt", CultureInfo.InvariantCulture)}–{to.ToString("h:mm tt", CultureInfo.InvariantCulture)}";
+			}
+		}
 		public string WatchText => Discussion.WatchProbability is int p ? $"{p}%" : string.Empty;
 
 		/// <summary>In effect at the moment the map shows — the list dims the rest.</summary>

@@ -10,10 +10,11 @@
        ──────────────────────────┘          └───────────────────────     edge), STRAIGHT across, 36 px = the tab's
                                                                           26 px rise + 10 (the main bars match). The
                                                                           TAB laps the hairline 2 px.
-     HIDDEN (two lines, the same height idle or busy):
-       Radar · next check 1:47:30 PM                  Scan due ~1:47:12 PM   ← busy: "New scan" | "1:47:12 PM scan ·
-       ─ ─ ─ (a 4 px bar, shown only while busy) ─ ─ ─                         painting" + the bar
-       All 6 feeds current · last 12:04:31 PM           ← ● Tropical failed at 12:00 PM — names only a feed in trouble
+     HIDDEN (ONE line, 2026-10-21 — the same height as ForeCast's, idle or busy):
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  ← busy: the progress RIDES THE TOP EDGE (EdgeProgress, 2 px)
+       Radar · next check 1:47:30 PM             Scan due ~1:47:12 PM  ●  ← busy: "New scan" | "1:47:12 PM scan ·
+                                                                          painting"; ● = a feed failed (tooltip names it)
+       ForeCast / PastCast Hidden (no radar line) = the summary line instead: "Outlooks current · last …"
      FULL (˅ Less) — idea A, one table:
        New scan                                1:47:12 PM scan · painting
        █████████████████████░░░░░░░░░░░░░░░░░░
@@ -82,6 +83,17 @@
                     <ScalarTransition Duration="0:0:0.3"/>
                 </Border.OpacityTransition>
             </Border>
+            <!-- HIDDEN's busy bar (2026-10-21): the radar's progress RIDES THE TOP EDGE, so the Hidden band is one line
+                 tall (ForeCast's height). Full keeps its bars under the radar line. Shown only while busy. -->
+            <Grid x:Name="EdgeProgress" Height="2" VerticalAlignment="Top" IsHitTestVisible="False"
+                  Visibility="{x:Bind ShownWhen(Activity.IsHidden, Activity.HasRadar), Mode=OneWay}"
+                  Opacity="{x:Bind BusyOpacity(Activity.Radar.IsShown, Activity.Radar.HasProgress), Mode=OneWay}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{x:Bind Filled(Activity.Radar.Progress), Mode=OneWay}"/>
+                    <ColumnDefinition Width="{x:Bind Rest(Activity.Radar.Progress), Mode=OneWay}"/>
+                </Grid.ColumnDefinitions>
+                <Border Background="{x:Bind ToneBrush(Activity.Radar.Tone), Mode=OneWay}"/>
+            </Grid>
 
             <!-- 10 px sides + each row's own 6 = text on the window's 16 px edge. -->
             <StackPanel Margin="10,11,10,11">
@@ -97,6 +109,7 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/> <!-- HIDDEN: the failed-feed dot -->
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <TextBlock Text="{x:Bind Activity.Radar.Title, Mode=OneWay}" FontSize="13.5"
@@ -113,11 +126,17 @@
                         <TextBlock Grid.Column="1" Text="{x:Bind Activity.Radar.Detail, Mode=OneWay}" FontSize="13"
                                    VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <!-- HIDDEN only: the feed summary line is gone (one line, 2026-10-21), so a feed in trouble shows
+                             as this red dot; its tooltip is the summary that names it. -->
+                        <Ellipse Grid.Column="2" Width="8" Height="8" VerticalAlignment="Center" Fill="#FFF85149"
+                                 Visibility="{x:Bind ShownWhen(Activity.IsHidden, Activity.SummaryHasFailure), Mode=OneWay}"
+                                 ToolTipService.ToolTip="{x:Bind Activity.Summary, Mode=OneWay}"/>
                     </Grid>
 
-                    <!-- The busy bar + its thin download line: always laid out, shown only while busy (no idle
-                         countdown fill — nothing on screen counts down). -->
+                    <!-- The busy bar + its thin download line: FULL only (Hidden's rides the top edge — EdgeProgress);
+                         always laid out there, shown only while busy (no idle countdown fill — nothing counts down). -->
                     <Grid Height="4" CornerRadius="2" Margin="0,5,0,0"
+                          Visibility="{x:Bind Shown(Activity.IsFull), Mode=OneWay}"
                           Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                           Opacity="{x:Bind BusyOpacity(Activity.Radar.IsShown, Activity.Radar.HasProgress), Mode=OneWay}">
                         <Grid.ColumnDefinitions>
@@ -127,6 +146,7 @@
                         <Border CornerRadius="2" Background="{x:Bind ToneBrush(Activity.Radar.Tone), Mode=OneWay}"/>
                     </Grid>
                     <Grid Height="2" CornerRadius="1" Margin="0,2,0,0"
+                          Visibility="{x:Bind Shown(Activity.IsFull), Mode=OneWay}"
                           Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"
                           Opacity="{x:Bind BusyOpacity(Activity.Radar.IsShown, Activity.Radar.HasSecondary), Mode=OneWay}">
                         <Grid.ColumnDefinitions>
@@ -137,9 +157,11 @@
                     </Grid>
                 </StackPanel>
 
-                <!-- ===== HIDDEN: the one-line feed summary (names only a feed in trouble). ===== -->
-                <StackPanel x:Name="FeedSummary" Orientation="Horizontal" Spacing="7" Height="20" Margin="6,3,6,0"
-                            Visibility="{x:Bind ShownWhen(Activity.IsHidden, Activity.HasSummary), Mode=OneWay}">
+                <!-- ===== HIDDEN without a radar line (ForeCast, PastCast): the one-line feed summary. NowCast's Hidden
+                     is the radar line ALONE (one line, 2026-10-21) — a failed feed is its red dot. ===== -->
+                <!-- No top margin: it never follows the radar line now, and 11 + 20 + 11 = the radar line's Hidden height. -->
+                <StackPanel x:Name="FeedSummary" Orientation="Horizontal" Spacing="7" Height="20" Margin="6,0"
+                            Visibility="{x:Bind SummaryShown(Activity.IsHidden, Activity.HasSummary, Activity.HasRadar), Mode=OneWay}">
                     <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="#FFF85149"
                              Visibility="{x:Bind Shown(Activity.SummaryHasFailure), Mode=OneWay}"/>
                     <TextBlock Text="{x:Bind Activity.Summary, Mode=OneWay}" FontSize="13" VerticalAlignment="Center"

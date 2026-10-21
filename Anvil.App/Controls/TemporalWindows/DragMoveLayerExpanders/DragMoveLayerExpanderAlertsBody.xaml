@@ -4,11 +4,11 @@
      watch boxes, once for the storm-based warnings — bound to a PhenomOverlayViewModel each time.
 
      ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH
-     ▓  9 active warnings                               ▓   under the header, same grey, text on the body's
-     ▓  1 tornado emergency · 1 PDS tornado             ▓   left edge): the total in effect, the ELEVATED tags
-     ▓  Updated 12:04 PM · checking every 15s           ▓   (CardThreats, warnings only, collapses when none),
-     ──────────────────────────────────────────────────────  when it was last confirmed, and a footer ONLY on a
-                                                             failure — ⚠️ never a line about the ticked rows
+     ▓  9 active warnings   Updated 12:04 PM · every 15s▓   under the header, ONE line): the total in effect
+     ──────────────────────────────────────────────────────  left, when it was last confirmed right (a failure
+                                                             takes that slot) — ⚠️ never a line about the ticked
+                                                             rows. The elevated-tag line ("1 tornado emergency")
+                                                             was removed 2026-10-21; the NowCast tiles keep it.
        [ ] ■ Tornado               2                    ← one row per phenomenon: the toggle, the
        [x] ■ Severe thunderstorm   5                      map colour, the name, that type's count — counts
        [x] ■ Flash flood           2                    ← right-aligned against the LONGEST name; the flood row: "Flash flood" (warnings, FF) or
@@ -62,7 +62,6 @@
              it carries no button. -->
         <dragMoveLayerExpanders:DragMoveLayerExpanderHeaderCard Grid.Row="0"
                 Headline="{x:Bind ViewModel.CardHeadline, Mode=OneWay}"
-                Threats="{x:Bind ViewModel.CardThreats, Mode=OneWay}"
                 Context="{x:Bind ViewModel.CardContext, Mode=OneWay}"
                 Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 

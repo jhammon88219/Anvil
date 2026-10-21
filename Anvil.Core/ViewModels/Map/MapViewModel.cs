@@ -1227,7 +1227,7 @@ namespace Anvil.ViewModels
 		// ===== The Mesoscale Discussions window =======================================================
 		// SPC MDs + WPC MPDs to READ, out of the Now/Past windows' section (which keeps only the card, the kinds
 		// and what's in effect — the reader there was cramped into a 480 px column, 2026-10-07). Opened by
-		// Discussions.ReaderRequested: a click on an area on the map, a section row, or the section's button.
+		// Discussions.ReaderRequested: a click on an area on the map, or the section's button.
 		// ⚠️ Closed by OnTemporalModesChanged when neither Now nor Past runs (the list is cleared then).
 		private bool _isMesoDiscussionOpen;
 		private bool _isMesoDiscussionOnTop = true;

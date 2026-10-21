@@ -97,15 +97,9 @@ namespace Anvil.ViewModels
 		// The elevated damage-threat tags from the latest fetch (see WarningService.ThreatTier).
 		private WarningThreatCounts _threats = WarningThreatCounts.None;
 
-		/// <summary>
-		/// The elevated alerts in effect, worst first — "1 tornado emergency · 2 PDS tornado · 1 flash flood
-		/// emergency". Counts EVERY active warning, not just the ticked types, for the same reason the
-		/// headline does; the map marks the same warnings with a heavier outline.
-		/// </summary>
-		public override string CardThreats => _threats.ToCardLine();
-
-		/// <summary>The NowCast header tiles' tag lines — the same tally as <see cref="CardThreats"/>, split
-		/// per type ("1 emergency · 2 PDS"). Every active warning, like the counts.</summary>
+		/// <summary>The NowCast header tiles' tag lines, per type ("1 emergency · 2 PDS"). Every active warning,
+		/// not just the ticked types; the map marks the same warnings with a heavier outline. (The section card's
+		/// all-types line was removed 2026-10-21 — the card is one line.)</summary>
 		public string TornadoThreats => _threats.TornadoLine;
 
 		/// <inheritdoc cref="TornadoThreats"/>

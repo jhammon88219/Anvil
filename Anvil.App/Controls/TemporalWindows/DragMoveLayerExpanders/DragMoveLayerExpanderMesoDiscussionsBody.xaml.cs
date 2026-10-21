@@ -18,7 +18,7 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 
 		private void OnRowClick(object sender, RoutedEventArgs e)
 		{
-			if (sender is FrameworkElement { Tag: DiscussionRow row }) { ViewModel?.OpenReader(row); }
+			if (sender is FrameworkElement { Tag: DiscussionRow row }) { ViewModel?.FlyTo(row); }
 		}
 
 		private void OnOpenReaderClick(object sender, RoutedEventArgs e) => ViewModel?.OpenReader();

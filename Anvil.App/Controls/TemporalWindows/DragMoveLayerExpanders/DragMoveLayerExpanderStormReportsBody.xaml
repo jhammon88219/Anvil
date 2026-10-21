@@ -5,8 +5,8 @@
      serve both.
 
      ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH
-     ▓  448 reports                                     ▓   under the header, same grey): total, which
-     ▓  May 20, 2013 · 12Z-12Z                          ▓   convective day, loading/failure in the footer
+     ▓  448 reports              May 20, 2013 · 12Z-12Z ▓   under the header, ONE line): total left, which
+                                                            convective day right (loading/failure take that slot)
      ──────────────────────────────────────────────────────
        [x] ● Tornado    42                              ← one row per type: the toggle, the SPC dot
        [x] ● Wind      310                                colour, the name and that type's count, the

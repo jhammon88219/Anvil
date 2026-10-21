@@ -257,12 +257,6 @@ namespace Anvil.ViewModels
 		/// </remarks>
 		public string CardFooter => _errorMessage;
 
-		/// <summary>
-		/// A card line naming the ELEVATED alerts in effect (a tornado emergency, a PDS…) — the overlay that
-		/// can tell overrides it. Empty = the line collapses. Raised with the other card lines.
-		/// </summary>
-		public virtual string CardThreats => string.Empty;
-
 		/// <summary>Singular noun for the headline ("watch" / "warning").</summary>
 		protected abstract string ItemNounSingular { get; }
 
@@ -282,7 +276,6 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(CardHeadline));
 			OnPropertyChanged(nameof(CardContext));
 			OnPropertyChanged(nameof(CardFooter));
-			OnPropertyChanged(nameof(CardThreats));
 		}
 	}
 }
