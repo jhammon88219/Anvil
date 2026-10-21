@@ -425,7 +425,9 @@ namespace Anvil.ViewModels
 				? $"HRRR {key.Run:HH}Z · all {status.LastHour} hours in"
 				: $"HRRR {key.Run:HH}Z · {hoursIn} of {status.LastHour} hours in";
 			var valid = key.Run.AddMinutes(key.Lead).ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
-			CardContext = key.RunSoFar ? $"f01–{LeadText(key.Lead)} · to {valid}" : $"valid {valid} ({LeadText(key.Lead)})";
+			// Run so far: the swath covers the run's start (f01's max begins at f00) to the frame — a clock time at BOTH ends.
+			var from = key.Run.ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
+			CardContext = key.RunSoFar ? $"{from} – {valid} (f01–{LeadText(key.Lead)})" : $"valid {valid} ({LeadText(key.Lead)})";
 			CardFooter = string.Empty;
 		}
 
