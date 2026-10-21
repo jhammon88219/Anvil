@@ -48,7 +48,25 @@ static class HrrrCheck
 				Console.WriteLine($"   png {path}");
 			}
 		}
+
+		// The page's frames (what the ForeCast Short Range section draws): sizes + build time, cold then cached.
+		if (run.SubHourlyIn.Contains(1)) await Frame(svc, run, HrrrFields.CompositeReflectivity, 60, false);
+		if (run.HourlyIn.Contains(3)) await Frame(svc, run, HrrrFields.UpdraftHelicity25, 180, true);
 		return 0;
+	}
+
+	private static async Task Frame(HrrrService svc, HrrrRunStatus run, HrrrField field, int lead, bool runSoFar)
+	{
+		for (var pass = 0; pass < 2; pass++)
+		{
+			var sw = Stopwatch.StartNew();
+			var json = await svc.GetFrameAsync(run.RunUtc, field, lead, runSoFar);
+			var file = Path.Combine(svc.CacheDirectory, "hrrr", run.RunUtc.ToString("yyyyMMddHH", CultureInfo.InvariantCulture),
+				$"{field.Id}{(runSoFar ? "-run" : "")}-{lead:D4}.bin");
+			Console.WriteLine($"== frame {field.Id}{(runSoFar ? " run so far" : "")} {lead} min ({(pass == 0 ? "build" : "cached")}) {sw.ElapsedMilliseconds} ms  "
+				+ $"frame {new FileInfo(file).Length / 1024} KB, mesh {new FileInfo(Path.Combine(svc.CacheDirectory, "hrrr", "mesh.json")).Length / 1024} KB");
+			if (pass == 0) Console.WriteLine($"   {json[..Math.Min(json.Length, 160)]}");
+		}
 	}
 
 	private static string Hours(IReadOnlyList<int> hours) => hours.Count == 0 ? "none" : $"f{hours[0]:D2}–f{hours[^1]:D2} ({hours.Count})";

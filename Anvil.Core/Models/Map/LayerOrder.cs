@@ -25,12 +25,16 @@ namespace Anvil.Models
 		public const string Discussions = "mds";
 		public const string Tropical = "tropical";
 
-		private static readonly HashSet<string> Known =
-			new(StringComparer.Ordinal) { Radar, Outlook, Watches, Warnings, Reports, Damage, Cells, Discussions, Tropical };
+		/// <summary>ForeCast's forecast-model field (model-field.js) — the Short Range section.</summary>
+		public const string ModelField = "models";
 
-		/// <summary>The map's DEFAULT stack, top first. ⚠️ MIRRORS <c>layers.js</c> GROUPS order (DEFAULT_ORDER).</summary>
+		private static readonly HashSet<string> Known =
+			new(StringComparer.Ordinal) { Radar, Outlook, Watches, Warnings, Reports, Damage, Cells, Discussions, Tropical, ModelField };
+
+		/// <summary>The map's DEFAULT stack, top first. ⚠️ MIRRORS <c>layers.js</c> GROUPS order (DEFAULT_ORDER).
+		/// A model field sits just above radar: it IS a radar picture, and a model on means live radar is off.</summary>
 		public static IReadOnlyList<string> Default { get; } =
-			new[] { Cells, Reports, Damage, Warnings, Watches, Tropical, Discussions, Outlook, Radar };
+			new[] { Cells, Reports, Damage, Warnings, Watches, Tropical, Discussions, Outlook, ModelField, Radar };
 
 		/// <summary>Drops unknown and repeated ids, so a hand-edited or older settings file can't send the
 		/// page a group it doesn't have.</summary>

@@ -124,6 +124,7 @@ try {
     var PastAlerts = null;
     var Discussions = null;
     var Tropical = null;
+    var ModelField = null;  // model-field.js — ForeCast's forecast-model field (HRRR future radar)
     var Markers = null;
     var RadarSites = null;
     var States = null;
@@ -148,6 +149,7 @@ try {
         if (DamageSurveys) DamageSurveys.reAdd(map);     // NWS damage surveys (under labels, so under the report dots)
         if (StormReports) StormReports.reAdd(map);       // re-add the storm-report dots (top of the stack)
         if (StormCells) StormCells.reAdd(map);           // radar storm cells: tracks, TVS, meso, hail (restack orders them)
+        if (ModelField) ModelField.reAdd(map);           // ForeCast's model field (a WebGL layer; restack puts it above radar)
         if (window.RadarLayer) window.RadarLayer.reAdd(map);  // this pane's own radar layer + range ring
         if (States) States.reAdd(map);                   // re-add LAST so the isolation mask lands on top of everything
     }
@@ -631,6 +633,29 @@ try {
     window.setTropicalTime = function (ms) { if (Tropical) forEachMap(function (m) { Tropical.setTime(m, ms); }); };
     window.setTropicalOpacity = function (o) { if (Tropical) forEachMap(function (m) { Tropical.setOpacity(m, o); }); };
     window.clearTropical = function () { if (Tropical) forEachMap(function (m) { Tropical.clear(m); }); };
+
+    // ForeCast's forecast-model field (model-field.js): ONE frame at a time, named by a descriptor the host builds
+    // (HrrrService → ModelFieldFrames). A WebGL layer per pane; the frame + mesh are fetched once and shared.
+    // ⚠️ A call that lands before the module has loaded is KEPT and replayed — the host sends the frame once.
+    var pendingModelField = null, pendingModelOpacity = null;
+    import('./model-field.js').then(function (m) {
+        ModelField = m;
+        if (pendingModelOpacity != null) forEachMap(function (map) { m.setOpacity(map, pendingModelOpacity); });
+        if (pendingModelField) forEachMap(function (map) { m.setField(map, pendingModelField); });
+        pendingModelField = pendingModelOpacity = null;
+    }).catch(function (e) { console.error('model-field.js load failed: ' + e); });
+    window.setModelField = function (json) {
+        if (!ModelField) { pendingModelField = json; return; }
+        forEachMap(function (m) { ModelField.setField(m, json); });
+    };
+    window.setModelFieldOpacity = function (o) {
+        if (!ModelField) { pendingModelOpacity = o; return; }
+        forEachMap(function (m) { ModelField.setOpacity(m, o); });
+    };
+    window.clearModelField = function () {
+        pendingModelField = null;
+        if (ModelField) forEachMap(function (m) { ModelField.clear(m); });
+    };
 
     // Animated camera moves go to the PRIMARY only; onPaneMove mirrors them to the other panes as they
     // play, so the panes stay locked without four animations fighting each other.

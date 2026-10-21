@@ -17,6 +17,11 @@
         │  └ chevron: expand / collapse (hidden when there is no Body; the column stays)
         └ grip: drag to re-order — ALWAYS there (LayerId is required)
 
+       WITH A SUBTITLE (optional small words after the title — ForeCast's Short Range):
+      ┌──────────────────────────────────────────────────────────────┐
+      │ ⠿  ›  [x]  Short Range  next 18 h · CAMs  ─────●─────   80%  │  ← the title column sizes to its text, so
+      └──────────────────────────────────────────────────────────────┘    THIS slider is shorter (as drawn, 2026-10-21)
+
        GHOST ROW (IsGhost: another window's layer, for ordering this window's around it — NowCast ⇄ ForeCast)
       ┌──────────────────────────────────────────────────────────────┐
       │ ⠿     ░░  ░SPC outlook · ForeCast░  ░░░░░░░░░░░░░░░░░░  ░░░  │  ← everything but the GRIP at 25%,
@@ -87,7 +92,7 @@
                     <ColumnDefinition Width="18"/> <!-- grip -->
                     <ColumnDefinition Width="24"/> <!-- chevron -->
                     <ColumnDefinition Width="{x:Bind BoxWidth(ShowCheckBox), Mode=OneWay}"/>
-                    <ColumnDefinition Width="{x:Bind TitleWidth(ShowOpacity), Mode=OneWay}"/>
+                    <ColumnDefinition Width="{x:Bind TitleWidth(ShowOpacity, Subtitle), Mode=OneWay}"/>
                     <ColumnDefinition Width="{x:Bind SliderWidth(ShowOpacity), Mode=OneWay}"/>
                     <ColumnDefinition Width="{x:Bind PercentWidth(ShowOpacity), Mode=OneWay}"/>
                 </Grid.ColumnDefinitions>
@@ -151,13 +156,20 @@
                           ToolTipService.ToolTip="{x:Bind CheckBoxToolTip, Mode=OneWay}"
                           Click="OnHeaderBoxClick"/>
 
-                <TextBlock Grid.Column="3"
-                           Text="{x:Bind Header, Mode=OneWay}"
-                           FontSize="14" FontWeight="SemiBold"
-                           VerticalAlignment="Center" Margin="0,0,10,0"
-                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                           Opacity="{x:Bind GhostDimUnless(IsEnabled, IsGhost), Mode=OneWay}"
-                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <!-- Title, then the optional Subtitle in small secondary words on the same baseline. -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center" Margin="0,0,10,0"
+                            Opacity="{x:Bind GhostDimUnless(IsEnabled, IsGhost), Mode=OneWay}">
+                    <TextBlock Text="{x:Bind Header, Mode=OneWay}"
+                               FontSize="14" FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                    <TextBlock Text="{x:Bind Subtitle, Mode=OneWay}"
+                               Visibility="{x:Bind SubtitleVisibility(Subtitle), Mode=OneWay}"
+                               FontSize="12" VerticalAlignment="Center" TextWrapping="NoWrap"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
 
                 <!-- ⚠️ The three keys below take the stock Slider from 32 px tall to its 18 px thumb, so it
                      centres in the header like everything else. They are read by the Slider's own template

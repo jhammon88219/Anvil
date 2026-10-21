@@ -538,6 +538,17 @@ namespace Anvil.Services
 		private double? _tropicalOpacity;
 		public double? TropicalOpacity { get => _tropicalOpacity; set => SetProperty(ref _tropicalOpacity, value); }
 
+		// ForeCast's Short Range section (ShortRangeViewModel): the box, the product (an HrrrFields id), the tracks mode
+		// ("hour" | "run") and the layer's opacity. Null = the VM default. The held earlier RUN is not persisted (Latest is).
+		private bool? _shortRangeShown;
+		public bool? ShortRangeShown { get => _shortRangeShown; set => SetProperty(ref _shortRangeShown, value); }
+		private string? _shortRangeProduct;
+		public string? ShortRangeProduct { get => _shortRangeProduct; set => SetProperty(ref _shortRangeProduct, value); }
+		private string? _shortRangeTracks;
+		public string? ShortRangeTracks { get => _shortRangeTracks; set => SetProperty(ref _shortRangeTracks, value); }
+		private double? _shortRangeOpacity;
+		public double? ShortRangeOpacity { get => _shortRangeOpacity; set => SetProperty(ref _shortRangeOpacity, value); }
+
 		private double? _pastWatchesOpacity;
 		public double? PastWatchesOpacity { get => _pastWatchesOpacity; set => SetProperty(ref _pastWatchesOpacity, value); }
 
@@ -682,6 +693,9 @@ namespace Anvil.Services
 		private int? _pollOutlooksSeconds;
 		public int? PollOutlooksSeconds { get => _pollOutlooksSeconds; set => SetProperty(ref _pollOutlooksSeconds, value); }
 
+		private int? _pollHrrrSeconds;
+		public int? PollHrrrSeconds { get => _pollHrrrSeconds; set => SetProperty(ref _pollHrrrSeconds, value); }
+
 		/// <summary>The stored polling interval for <paramref name="kind"/> (seconds; null = default).</summary>
 		public int? PollSecondsOf(Models.LiveFeedKind kind) => kind switch
 		{
@@ -691,6 +705,7 @@ namespace Anvil.Services
 			Models.LiveFeedKind.Watches => PollWatchesSeconds,
 			Models.LiveFeedKind.Tropical => PollTropicalSeconds,
 			Models.LiveFeedKind.Outlooks => PollOutlooksSeconds,
+			Models.LiveFeedKind.Hrrr => PollHrrrSeconds,
 			_ => PollStormCellsSeconds,
 		};
 
@@ -705,6 +720,7 @@ namespace Anvil.Services
 				case Models.LiveFeedKind.Watches: PollWatchesSeconds = seconds; break;
 				case Models.LiveFeedKind.Tropical: PollTropicalSeconds = seconds; break;
 				case Models.LiveFeedKind.Outlooks: PollOutlooksSeconds = seconds; break;
+				case Models.LiveFeedKind.Hrrr: PollHrrrSeconds = seconds; break;
 				default: PollStormCellsSeconds = seconds; break;
 			}
 		}

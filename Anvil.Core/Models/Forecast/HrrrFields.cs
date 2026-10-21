@@ -14,7 +14,11 @@ namespace Anvil.Models
 	/// <param name="IdxVariable">The .idx's 4th field ("REFC").</param>
 	/// <param name="IdxLevel">The .idx's 5th field ("entire atmosphere").</param>
 	/// <param name="IsHourlyMax">A max over the PAST hour (template 4.8) — hourly steps only, none at f00.</param>
-	public sealed record HrrrField(string Id, string Name, string IdxVariable, string IdxLevel, bool IsHourlyMax)
+	/// <param name="Encoding">How a value becomes the page's one byte (<see cref="ModelFieldEncoding"/>).</param>
+	/// <param name="RampId">Its colours: <c>reflectivity</c> = radar's own table (radar-ramps.js), else a
+	/// <see cref="ModelRamps"/> id.</param>
+	public sealed record HrrrField(string Id, string Name, string IdxVariable, string IdxLevel, bool IsHourlyMax,
+		ModelFieldEncoding Encoding, string RampId)
 	{
 		/// <summary>
 		/// The step this field comes in AT a lead: 15 min (the sub-hourly file) for an instant field through
@@ -60,15 +64,18 @@ namespace Anvil.Models
 
 		/// <summary>Composite reflectivity — the max dBZ in the column: "future radar".</summary>
 		public static readonly HrrrField CompositeReflectivity =
-			new("refc", "Future radar (composite)", "REFC", "entire atmosphere", IsHourlyMax: false);
+			new("refc", "Future radar (composite)", "REFC", "entire atmosphere", IsHourlyMax: false,
+				ModelFieldEncoding.Reflectivity, ModelRamps.Reflectivity);
 
 		/// <summary>Reflectivity 1 km above ground — closer to what a radar's low tilt sees.</summary>
 		public static readonly HrrrField Reflectivity1Km =
-			new("refd1km", "Future radar (1 km)", "REFD", "1000 m above ground", IsHourlyMax: false);
+			new("refd1km", "Future radar (1 km)", "REFD", "1000 m above ground", IsHourlyMax: false,
+				ModelFieldEncoding.Reflectivity, ModelRamps.Reflectivity);
 
 		/// <summary>2–5 km updraft helicity, max over the past hour — rotating updrafts (supercells). m²/s².</summary>
 		public static readonly HrrrField UpdraftHelicity25 =
-			new("uh25", "Updraft helicity 2–5 km", "MXUPHL", "5000-2000 m above ground", IsHourlyMax: true);
+			new("uh25", "Updraft helicity tracks", "MXUPHL", "5000-2000 m above ground", IsHourlyMax: true,
+				ModelFieldEncoding.UpdraftHelicity, ModelRamps.UpdraftHelicity);
 
 		public static IReadOnlyList<HrrrField> All { get; } = new[] { CompositeReflectivity, Reflectivity1Km, UpdraftHelicity25 };
 

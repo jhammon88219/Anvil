@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DragMoveLayerExpanderShortRangeBody — ForeCast's "Short Range" section body (ShortRangeViewModel): a convection-allowing
+     model (the HRRR for now) drawn on the map as ONE field, the frame nearest now. The header (box · title + "next 18 h ·
+     CAMs" · opacity) is the host's DragMoveLayerExpander.
+
+     ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH, ONE line):
+     ▓  HRRR 16Z · all 18 hours in     valid 11:00 PM (f05)  ▓   the run ON THE MAP + how much of it has landed │ the frame;
+     ──────────────────────────────────────────────────────────   loading / a problem takes the right side (Footer)
+       Model    [ HRRR ]                                      ← SegmentedPicker, one segment for now (NAM 3 km / RRFS later)
+       Product  [Future radar (composite)          ▾]         ← composite · 1 km · updraft helicity tracks
+       Run      [Latest (16Z)                      ▾]         ← Latest follows each run; an earlier one is HELD (not persisted)
+       Tracks   [ This hour | Run so far ]                    ← ONLY while the product is UH; default Run so far
+       ▕▒▒▓▓██▓▓▒▒▒▒░░▏                                      ← the LEGEND, last: radar's own reflectivity ramp for future
+                                                                radar (ProductColorRamp + scale), the UH table for tracks
+
+     ⚠️ The box (the host's) EXCLUDES NOWCAST: ticking it while ForeCast runs turns live radar off; unticking brings it back
+     (MapViewModel's NowCast ⇄ MODEL rule). ⚠️ Colours are DATA, never themed. ⚠️ No time control here: the frame is the one
+     nearest now until the console plays model hours. -->
+<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderShortRangeBody"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             xmlns:conv="using:Anvil.Converters"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- the card -->
+            <RowDefinition Height="Auto"/> <!-- the rows -->
+            <RowDefinition Height="Auto"/> <!-- the legend: last -->
+        </Grid.RowDefinitions>
+
+        <dragMoveLayerExpanders:DragMoveLayerExpanderHeaderCard x:Name="DragMoveLayerExpanderHeaderCard" Grid.Row="0"
+                Headline="{x:Bind ViewModel.CardHeadline, Mode=OneWay}"
+                Context="{x:Bind ViewModel.CardContext, Mode=OneWay}"
+                Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
+
+        <!-- [label | control] in the outlook section's 60 px label column. -->
+        <Grid Grid.Row="1" ColumnSpacing="12" RowSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="60"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Model -->
+                <RowDefinition Height="Auto"/> <!-- Product -->
+                <RowDefinition Height="Auto"/> <!-- Run -->
+                <RowDefinition Height="Auto"/> <!-- Tracks (UH only) -->
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Model" Style="{StaticResource SettingsFieldLabelStyle}"/>
+            <prim:SegmentedPicker x:Name="ShortRangeModelPicker" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left"
+                                  ItemsSource="{x:Bind ViewModel.ModelLabels}"
+                                  SelectedIndex="{x:Bind ViewModel.ModelIndex, Mode=OneWay}"
+                                  ToolTipService.ToolTip="The model drawn (the HRRR: NOAA's 3 km model, run every hour)"/>
+
+            <!-- ⚠️ A ComboBox, like the outlook's Day / Product (a short list that never scrolls the map). -->
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"/>
+            <ComboBox x:Name="ShortRangeProductComboBox" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                      ItemsSource="{x:Bind ViewModel.Products}"
+                      DisplayMemberPath="Label"
+                      SelectedItem="{x:Bind ViewModel.SelectedProduct, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Future radar = the model's reflectivity; tracks = where it spins up rotating storms"/>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Run" Style="{StaticResource SettingsFieldLabelStyle}"/>
+            <ComboBox x:Name="ShortRangeRunComboBox" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
+                      ItemsSource="{x:Bind ViewModel.RunOptions}"
+                      DisplayMemberPath="Label"
+                      SelectedItem="{x:Bind ViewModel.SelectedRun, Mode=TwoWay}"
+                      ToolTipService.ToolTip="Model run (UTC); Latest follows each new one, an earlier one stays put"/>
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Tracks" Style="{StaticResource SettingsFieldLabelStyle}"
+                       Visibility="{x:Bind ViewModel.IsTracksProduct, Mode=OneWay, Converter={StaticResource BoolToVis}}"/>
+            <prim:SegmentedPicker x:Name="ShortRangeTracksPicker" Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left"
+                                  Visibility="{x:Bind ViewModel.IsTracksProduct, Mode=OneWay, Converter={StaticResource BoolToVis}}"
+                                  ItemsSource="{x:Bind ViewModel.TracksLabels}"
+                                  SelectedIndex="{x:Bind ViewModel.TracksIndex, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="This hour's rotation, or every hour of the run so far painted as one swath"/>
+        </Grid>
+
+        <prim:ProductColorRamp x:Name="ShortRangeLegend" Grid.Row="2" Margin="0,14,0,0"
+                               ShowScale="True"
+                               Ramp="{x:Bind ViewModel.Legend, Mode=OneWay}"/>
+    </Grid>
+</UserControl>

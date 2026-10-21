@@ -33,7 +33,12 @@
        │                                                      │     hatching half only when the product has
        │                                                      │     intensity groups (status from the CACHED GeoJSON)
        └──────────────────────────────────────────────────────┘
-       │ ⠿   ░░ ░Radar · NowCast░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │  ← ghost (default spot: under the outlook)
+       │ ⠿ ⌄ [x] Short Range  next 18 h · CAMs  ───●───   80%  │  ← the forecast MODEL (DragMoveLayerExpanderShortRangeBody):
+       │   ▓ HRRR 16Z · all 18 hours in   valid 11 PM (f05) ▓  │     card · Model · Product · Run · Tracks (UH) · legend.
+       │   Model [HRRR]  Product […▾]  Run [Latest▾] …        │     ⚠️ ticked + ForeCast on = NowCast OFF (and back on
+       │   ▕▒▒▓▓██▓▓▒▒▏                                       │     when unticked) — MapViewModel's NowCast ⇄ MODEL
+       └──────────────────────────────────────────────────────┘
+       │ ⠿   ░░ ░Radar · NowCast░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │  ← ghost (default spot: under the model)
        └──────────────────────────────────────────────────────┘
                                                              ┃  ← all of the above sits in PanelScroller: a 16 px
                                                                 gutter always claimed, thumb ┃ only on overflow
@@ -257,6 +262,24 @@
                                     HatchRows="{x:Bind ViewModel.Outlook.HatchLegendRows, Mode=OneWay}"
                                     ShowHatching="{x:Bind ViewModel.Outlook.ShowHatching, Mode=TwoWay}"/>
             </Grid>
+        </dragMoveLayerExpanders:DragMoveLayerExpander>
+
+        <!-- ===================== SHORT RANGE: a convection-allowing model (the HRRR) ===================== -->
+        <!-- LayerId "models" (layers.js GROUPS ⇄ LayerOrder.ModelField). The box is SHOW/HIDE AND THE NOWCAST SWITCH:
+             while it draws, live radar is off (MapViewModel's NowCast ⇄ MODEL rule). Medium / Long Range join here
+             when built (ONE box ticked at a time across them). Opacity greys while it isn't drawing. -->
+        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="DragMoveLayerExpanderShortRange" Header="Short Range" Subtitle="next 18 h · CAMs"
+                           LayerId="models"
+                           ShowCheckBox="True"
+                           IsChecked="{x:Bind ViewModel.ShortRange.IsShown, Mode=OneWay}"
+                           CheckBoxClick="OnShortRangeHeaderClick"
+                           CheckBoxToolTip="Draw the model on the map (turns NowCast's live radar off while it's on)"
+                           ShowOpacity="True"
+                           OpacityValue="{x:Bind ViewModel.ShortRange.Opacity, Mode=TwoWay}"
+                           IsOpacityEnabled="{x:Bind ViewModel.ShortRange.IsDrawing, Mode=OneWay}"
+                           OpacityToolTip="Model field opacity">
+            <dragMoveLayerExpanders:DragMoveLayerExpanderShortRangeBody x:Name="DragMoveLayerExpanderShortRangeBody"
+                                                                        ViewModel="{x:Bind ViewModel.ShortRange}"/>
         </dragMoveLayerExpanders:DragMoveLayerExpander>
 
         <dragMoveLayerExpanders:DragMoveLayerExpander Header="Radar · NowCast" LayerId="radar"

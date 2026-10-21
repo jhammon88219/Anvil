@@ -32,15 +32,16 @@ namespace Anvil.Tests
 		public void Complete_PutsAMissingLayerBeneathItsDefaultNeighbourAbove()
 		{
 			// A NowCast save from before ghost rows: no outlook (and never damage, a PastCast layer).
-			// (And no tropical either — it arrived 2026-10-07 and lands beneath watches, its default neighbour.)
+			// (And no tropical either — it arrived 2026-10-07 and lands beneath watches, its default neighbour; nor the
+			// model field, 2026-10-21, which lands beneath the outlook.)
 			var ids = LayerOrder.Complete(new[] { "cells", "warnings", "reports", "watches", "mds", "radar" });
-			Assert.Equal(new[] { "cells", "warnings", "reports", "damage", "watches", "tropical", "mds", "outlook", "radar" }, ids);
+			Assert.Equal(new[] { "cells", "warnings", "reports", "damage", "watches", "tropical", "mds", "outlook", "models", "radar" }, ids);
 		}
 
 		[Fact]
 		public void Complete_KeepsWhereTheSaveAlreadyPutsIt()
 		{
-			var saved = new[] { "outlook", "cells", "reports", "damage", "warnings", "watches", "tropical", "mds", "radar" };
+			var saved = new[] { "outlook", "cells", "reports", "damage", "warnings", "watches", "tropical", "mds", "models", "radar" };
 			Assert.Equal(saved, LayerOrder.Complete(saved));
 		}
 

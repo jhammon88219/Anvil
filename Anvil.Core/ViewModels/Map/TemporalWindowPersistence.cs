@@ -271,5 +271,28 @@ namespace Anvil.ViewModels
 				if (e.PropertyName == nameof(TropicalViewModel.Opacity)) { s.TropicalOpacity = tropical.Opacity; }
 			};
 		}
+
+		/// <summary>
+		/// ForeCast's Short Range section: the box, product, tracks mode and opacity. ⚠️ The RUN is not persisted — a held
+		/// earlier run is a look at a moment, and next launch "Latest" is what is wanted (the outlook Cycle's rule).
+		/// </summary>
+		public static void AttachShortRange(AppSettings s, ShortRangeViewModel shortRange)
+		{
+			if (s.ShortRangeShown is bool shown) { shortRange.IsShown = shown; }
+			shortRange.RestoreProduct(s.ShortRangeProduct);
+			if (s.ShortRangeTracks is { } tracks) { shortRange.TracksToken = tracks; }
+			if (s.ShortRangeOpacity is double o) { shortRange.Opacity = Unit(o); }
+
+			shortRange.ProductChanged += (_, _) =>
+			{
+				s.ShortRangeProduct = shortRange.ProductId;
+				s.ShortRangeTracks = shortRange.TracksToken;
+			};
+			shortRange.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(ShortRangeViewModel.IsShown)) { s.ShortRangeShown = shortRange.IsShown; }
+				else if (e.PropertyName == nameof(ShortRangeViewModel.Opacity)) { s.ShortRangeOpacity = shortRange.Opacity; }
+			};
+		}
 	}
 }

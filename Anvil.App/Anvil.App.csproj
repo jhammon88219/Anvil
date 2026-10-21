@@ -218,6 +218,10 @@
     <Content Update="Assets\Map\js\tropical.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- ForeCast's forecast-model field (HRRR future radar, updraft helicity tracks): a WebGL layer. -->
+    <Content Update="Assets\Map\js\model-field.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <!-- SITE-REVEAL (experimental bolt-on): only the radar sites near the cursor show. -->
     <Content Update="Assets\Map\js\site-reveal.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

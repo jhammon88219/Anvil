@@ -407,6 +407,17 @@ namespace Anvil.Services
 		/// <summary>Tears the tropical overlay down.</summary>
 		Task ClearTropicalAsync();
 
+		// ---- Forecast model fields (model-field.js) ----
+
+		/// <summary>The model frame to draw: a descriptor JSON from <c>IHrrrService.GetFrameAsync</c> (frame + mesh urls,
+		/// grid size, encoding, colours). ⚠️ Passed as a single-quoted string — it carries no quotes of its own.</summary>
+		Task SetModelFieldAsync(string descriptorJson);
+
+		Task SetModelFieldOpacityAsync(double opacity);
+
+		/// <summary>Takes the model field off the map.</summary>
+		Task ClearModelFieldAsync();
+
 		/// <summary>Highlights the selected site marker (empty clears the highlight).</summary>
 		Task SetSelectedRadarSiteAsync(string? siteId);
 

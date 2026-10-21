@@ -550,6 +550,7 @@ namespace Anvil
 		private readonly IPastAlertService _pastAlertService;
 		private readonly IMesoDiscussionService _discussionService;
 		private readonly ITropicalService _tropicalService;
+		private readonly IHrrrService _hrrrService;
 
 		// Level II radar data layer (fetch + cache of .V06 volumes). Kept here because
 		// MainWindow owns the WebView2 host mapping for its cache folder.
@@ -579,6 +580,7 @@ namespace Anvil
 			IPastAlertService pastAlertService,
 			IMesoDiscussionService discussionService,
 			ITropicalService tropicalService,
+			IHrrrService hrrrService,
 			ILevel2RadarService radarService,
 			ISettingsService settingsService,
 			WindowManager windows,
@@ -602,6 +604,7 @@ namespace Anvil
 			_pastAlertService = pastAlertService;
 			_discussionService = discussionService;
 			_tropicalService = tropicalService;
+			_hrrrService = hrrrService;
 			_radarService = radarService;
 			_settingsService = settingsService;
 			_windows = windows;
@@ -836,6 +839,7 @@ namespace Anvil
 			ViewModel.StormCells.StartBackgroundRefresh();
 			ViewModel.Discussions.StartBackgroundRefresh();
 			ViewModel.Tropical.StartBackgroundRefresh();
+			ViewModel.ShortRange.StartBackgroundRefresh();
 
 			// Write a final flush + report on close so the run's last events aren't lost between
 			// the ~2 s background flushes. Also latch _isClosed and drop the layout hook FIRST - the
@@ -992,6 +996,7 @@ namespace Anvil
 				(PastAlertService.CacheHostName, _pastAlertService.CacheDirectory),
 				(MesoDiscussionService.CacheHostName, _discussionService.CacheDirectory),
 				(TropicalService.CacheHostName, _tropicalService.CacheDirectory),
+				(HrrrService.CacheHostName, _hrrrService.CacheDirectory),
 				(Level2RadarService.CacheHostName, _radarService.CacheDirectory),
 				(DowEventProvider.HostName, DowEventProvider.EventsDirectory),
 			};

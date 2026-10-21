@@ -18,6 +18,17 @@ namespace Anvil.Services
 		/// <summary>One field at one lead: a range read of just its message (≈ 200 KB), cached on disk, decoded.</summary>
 		/// <exception cref="HrrrNotAvailableException">That hour or field hasn't been published yet.</exception>
 		Task<GribField> GetFieldAsync(DateTimeOffset runUtc, HrrrField field, int leadMinutes, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// The page's frame for one field at one lead, built and cached on first ask; returns the DESCRIPTOR JSON
+		/// <c>window.setModelField</c> takes (<see cref="ModelFieldFrames"/>). <paramref name="runSoFar"/> (an hourly max
+		/// only): the max over every hour from f01 to this lead — the swath painted so far.
+		/// </summary>
+		/// <exception cref="HrrrNotAvailableException">An hour it needs hasn't been published yet.</exception>
+		Task<string> GetFrameAsync(DateTimeOffset runUtc, HrrrField field, int leadMinutes, bool runSoFar, CancellationToken cancellationToken = default);
+
+		/// <summary>The Forecast cache folder the page's <c>forecast</c> virtual host maps.</summary>
+		string CacheDirectory { get; }
 	}
 
 	/// <summary>Where one HRRR run stands: which forecast hours have landed in each file kind.</summary>

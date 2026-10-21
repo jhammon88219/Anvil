@@ -235,12 +235,16 @@ namespace Anvil.ViewModels
 			_launchHandled = true;
 
 			// Not when PastCast came back from the last session: a live loop means nothing in replay, and
-			// starting one would only be torn down (MapViewModel restores the modes just before this).
-			if (LoadHomeOnLaunch && IsHomeShown && CanPickSites && !_radar.IsPastEventMode)
+			// starting one would only be torn down (MapViewModel restores the modes just before this). Nor while a
+			// restored forecast-model field draws — live radar is off then (MapViewModel's NowCast ⇄ MODEL rule).
+			if (LoadHomeOnLaunch && IsHomeShown && CanPickSites && !_radar.IsPastEventMode && HoldLaunchLoad?.Invoke() != true)
 			{
 				LoadOnMap(HomeSite!);
 			}
 		}
+
+		/// <summary>True = skip the launch's home-site load (set by MapViewModel: a forecast-model field is drawing).</summary>
+		public Func<bool>? HoldLaunchLoad { get; set; }
 
 		private void RebuildPinned()
 		{

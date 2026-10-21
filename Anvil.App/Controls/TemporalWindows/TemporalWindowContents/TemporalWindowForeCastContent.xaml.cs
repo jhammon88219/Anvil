@@ -55,6 +55,9 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 		// fires and the VM's answer overwrites it — the same contract as PastCast's outlook box.
 		private void OnOutlookHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.Outlook.ToggleShown();
 
+		// Short Range's box: the same one-way contract. Ticking it may turn NowCast off (MapViewModel's NowCast ⇄ MODEL).
+		private void OnShortRangeHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.ShortRange.ToggleShown();
+
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel
 		{

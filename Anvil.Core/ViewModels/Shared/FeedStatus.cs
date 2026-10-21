@@ -28,6 +28,7 @@ namespace Anvil.ViewModels
 		private FeedState _state = FeedState.Waiting;
 		private DateTimeOffset? _lastUpdated, _failedAt, _nextCheck;
 		private string _every = string.Empty, _lastText = "—", _nextText = "—";
+		private string? _lastNote; // SucceededWith's words for LAST, instead of the clock
 		private bool _live;
 
 		/// <param name="layerId">The feed's <c>Models.LayerOrder</c> id — its place in the window's layer order.</param>
@@ -54,6 +55,9 @@ namespace Anvil.ViewModels
 		public string NextText { get => _nextText; private set => SetProperty(ref _nextText, value); }
 
 		public DateTimeOffset? LastUpdated => _lastUpdated;
+
+		/// <summary>LAST is words, not a clock (<see cref="SucceededWith"/>) — the summary line quotes them.</summary>
+		public bool HasNote => _lastNote is not null && _state != FeedState.Failed;
 		public DateTimeOffset? FailedAt => _failedAt;
 
 		// ── Feed hooks (any thread) ──
@@ -91,6 +95,20 @@ namespace Anvil.ViewModels
 		/// <summary>A fetch pulled data (or confirmed nothing newer exists).</summary>
 		internal void Succeeded() => Run(() =>
 		{
+			_lastNote = null;
+			_lastUpdated = DateTimeOffset.Now;
+			_failedAt = null;
+			State = FeedState.Ok;
+			OnPropertyChanged(nameof(LastUpdated));
+			OnPropertyChanged(nameof(FailedAt));
+			Refresh();
+		});
+
+		/// <summary>A fetch pulled data, and LAST should say what rather than when — a model run's progress ("17Z · 7/18").
+		/// The clock time still counts as the feed's last update (the summary's "last …").</summary>
+		internal void SucceededWith(string lastText) => Run(() =>
+		{
+			_lastNote = lastText;
 			_lastUpdated = DateTimeOffset.Now;
 			_failedAt = null;
 			State = FeedState.Ok;
@@ -120,7 +138,7 @@ namespace Anvil.ViewModels
 			{
 				FeedState.Checking => "Checking",
 				FeedState.Failed when _failedAt is { } f => $"failed {ClockMinutes(f)}",
-				_ => _lastUpdated is { } u ? Clock(u) : "—",
+				_ => _lastNote ?? (_lastUpdated is { } u ? Clock(u) : "—"),
 			};
 			NextText = _live ? "when issued" : _nextCheck is { } n ? Clock(n) : "—";
 		}

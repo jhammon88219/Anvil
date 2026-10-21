@@ -58,7 +58,7 @@ namespace Anvil.ViewModels
 		private MapRegion? _mainRegion;
 
 
-		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, ITropicalService tropicalService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion, LoopLoadLog? loopLoadLog = null, LivePollTimingLog? livePollTimingLog = null, LiveFeedHub? liveFeed = null, BasemapSetupViewModel? basemapSetup = null)
+		public MapViewModel(IMapService mapService, IStyleProvider styleProvider, IThemeProvider themeProvider, IRegionProvider regionProvider, ISpcOutlookService spcOutlookService, ISpcWatchService watchService, IWarningService warningService, IStormReportService stormReportService, IDamageSurveyService damageSurveyService, IStormCellService stormCellService, IPastAlertService pastAlertService, IMesoDiscussionService discussionService, ITropicalService tropicalService, IRadarSiteProvider radarSiteProvider, ILevel2RadarService radarService, ILocationService locationService, IPlaceSearchService placeSearchService, IDowEventProvider dowEventProvider, ISavedEventLibrary savedEventLibrary, IDispatcher dispatcher, ISettingsService settingsService, ILoggerFactory loggerFactory, SiteUsageStore siteUsageStore, IRadarNwsStatusService radarNwsStatusService, IRadarUptimeService uptimeService, IRadarMessageHistoryService messageHistoryService, IRadarScanPatternService scanPatternService, NonStandardVcpLog nonStandardVcps, StormMotionService? stormMotion, LoopLoadLog? loopLoadLog = null, LivePollTimingLog? livePollTimingLog = null, LiveFeedHub? liveFeed = null, BasemapSetupViewModel? basemapSetup = null, IHrrrService? hrrrService = null)
 		{
 			_mapService = mapService;
 			_startupLog = loggerFactory.CreateLogger<MapViewModel>();
@@ -103,6 +103,11 @@ namespace Anvil.ViewModels
 			// A map click, a section row or the section's button → the Mesoscale Discussions window.
 			Discussions.ReaderRequested += (_, _) => IsMesoDiscussionOpen = true;
 			Tropical = new TropicalViewModel(mapService, tropicalService, Radar, dispatcher, loggerFactory.CreateLogger<TropicalViewModel>(), LiveFeed.Channel(LiveFeedKind.Tropical));
+			// Future radar draws in RADAR'S reflectivity colours, so its legend is radar's ramp (the page pushes the table at load).
+			var reflectivityOption = Radar.RadarProductOptions.First(o => o.Id == "reflectivity");
+			ShortRange = new ShortRangeViewModel(mapService, hrrrService, dispatcher, loggerFactory.CreateLogger<ShortRangeViewModel>(),
+				() => reflectivityOption.Ramp, LiveFeed.Channel(LiveFeedKind.Hrrr));
+			reflectivityOption.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(RadarProductOption.Ramp)) ShortRange.RefreshLegend(); };
 			Markers = new MarkersViewModel(mapService, locationService);
 			PlaceSearch = new PlaceSearchViewModel(placeSearchService, Markers);
 			// SEARCH STATUS HIDDEN (2026-10-16, the user's call): activity now shows in the NowCast window's activity expander, and a
@@ -129,13 +134,23 @@ namespace Anvil.ViewModels
 			PastCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Past));
 			ForeCastActivity = new TemporalActivityViewModel(null, new[] { Outlook.Status },
 				() => settings.ForeCastActivity, t => settings.ForeCastActivity = t, LiveData);
+			// The HRRR's row only while Short Range is ticked; Fore shares Now's layer order (GHOST ROWS), so it sorts by it.
+			ShortRange.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName != nameof(ShortRangeViewModel.IsShown)) return;
+				ForeCastActivity.SetFeedShown(ShortRange.Status, ShortRange.IsShown);
+				ForeCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
+			};
 			NowCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
 			LayerOrderChanged += (_, mode) =>
 			{
 				if (mode == TemporalMode.Now) NowCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
+				if (mode == TemporalMode.Now) ForeCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
 				if (mode == TemporalMode.Past) PastCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Past));
 			};
 			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
+			// A restored model field owns the map at launch: the home site's live loop would arm NowCast and untick it.
+			SiteFavorites.HoldLaunchLoad = () => ShortRange.IsDrawing;
 			SiteUsage = new SiteUsageTracker(Radar, siteUsageStore);
 			// The PastCast load-time log (one line per load). Optional so tests that don't care can omit it.
 			if (loopLoadLog is not null) LoadTimes = new LoopLoadRecorder(Radar, loopLoadLog);
@@ -160,6 +175,10 @@ namespace Anvil.ViewModels
 			TemporalWindowPersistence.Attach(settingsService.Settings, Radar, Warnings, Watches, StormReports,
 				DamageSurveys, PastOutlook, Outlook, StormCells, PastAlerts, Discussions);
 			TemporalWindowPersistence.AttachTropical(settingsService.Settings, Tropical);
+			TemporalWindowPersistence.AttachShortRange(settingsService.Settings, ShortRange);
+			// The row follows the RESTORED box (the handler above only sees changes).
+			ForeCastActivity.SetFeedShown(ShortRange.Status, ShortRange.IsShown);
+			ShortRange.DrawingChanged += (_, _) => OnModelDrawingChanged();
 
 			// The temporal SESSION: window pin + lock now; modes + open windows at map-ready. See that region.
 			RestoreWindowChrome();
@@ -217,6 +236,9 @@ namespace Anvil.ViewModels
 					// key's settings rail with it, so the window is one click away the moment it is wanted.
 					if (Radar.HasRadarLoop && !Radar.IsPastEventMode && !_isNowCast)
 					{
+						// Live radar wins over a drawing model field (NowCast ⇄ MODEL): untick it, and don't bring NowCast
+						// "back" afterwards — it is already here.
+						if (ShortRange.IsDrawing) { _resumeNowCastAfterModel = false; ShortRange.IsShown = false; }
 						_isNowCast = true;
 						OnPropertyChanged(nameof(IsNowCast));
 						OnTemporalModesChanged();
@@ -351,6 +373,10 @@ namespace Anvil.ViewModels
 		/// <summary>Tropical-cyclone watches + warnings (hurricane, tropical storm, storm surge, extreme wind) as zones
 		/// in the NWS's colours. Now (live) and Past (the loaded window, following the scrubber).</summary>
 		public TropicalViewModel Tropical { get; }
+
+		/// <summary>ForeCast's Short Range section: the HRRR's future radar / updraft helicity tracks on the map. While it
+		/// draws, NowCast is off (the NowCast ⇄ MODEL rule below).</summary>
+		public ShortRangeViewModel ShortRange { get; }
 
 		/// <summary>The map markers + user-location subsystem view model (locate action + marker editor).</summary>
 		public MarkersViewModel Markers { get; }
@@ -553,6 +579,8 @@ namespace Anvil.ViewModels
 				if (value)
 				{
 					if (Radar.IsPastEventMode) { Radar.IsPastEventMode = false; } // leave replay for live mode
+					// NowCast ⇄ MODEL: turning live radar on unticks a drawing model field (see that region).
+					if (ShortRange.IsDrawing) { _resumeNowCastAfterModel = false; ShortRange.IsShown = false; }
 					OpenTemporal(TemporalMode.Now); // on → show its window (marker-click arming bypasses this setter)
 				}
 				else if (!Radar.IsPastEventMode)
@@ -582,6 +610,36 @@ namespace Anvil.ViewModels
 				Outlook.IsOutlookVisible = value;
 				if (value) { OpenTemporal(TemporalMode.Fore); } // on → show its window (off closes it, via OnTemporalModesChanged)
 			}
+		}
+
+		// ===== NowCast ⇄ MODEL (the user's rule, 2026-10-21) ===========================================
+		// A forecast-model field (ForeCast → Short Range) and live radar never draw together: the HRRR's future radar is
+		// drawn in radar's own colours, and the two on one map would be read as one. So:
+		//   • the field starts drawing (box ticked while ForeCast runs) → NowCast turns OFF, remembering the site;
+		//   • it stops (box unticked, or ForeCast off) → NowCast comes BACK on that site — unless PastCast now runs;
+		//   • NowCast turned on while the field draws (the key, or a site marker click) → the box is unticked, and that
+		//     is the end of it (nothing to bring back).
+		// ⚠️ The setter route OPENS the NowCast window on the way back, like any NowCast on.
+		private bool _resumeNowCastAfterModel;
+		private RadarOption? _nowCastSiteBeforeModel;
+
+		private void OnModelDrawingChanged()
+		{
+			if (ShortRange.IsDrawing)
+			{
+				if (!_isNowCast) { return; }
+				_nowCastSiteBeforeModel = Radar.SelectedRadarOption;
+				_resumeNowCastAfterModel = true;
+				IsNowCast = false;
+				return;
+			}
+			if (!_resumeNowCastAfterModel) { return; }
+			_resumeNowCastAfterModel = false;
+			if (_shuttingDown || IsPastCast) { return; }
+			var site = _nowCastSiteBeforeModel;
+			_nowCastSiteBeforeModel = null;
+			IsNowCast = true;
+			if (site?.Site is not null) { Radar.SelectedRadarOption = site; }
 		}
 
 		/// <summary>Handles a click on the MODE half of a split temporal key: it TOGGLES THAT MODE, and
@@ -808,6 +866,7 @@ namespace Anvil.ViewModels
 			PastAlerts.IsModeActive = IsPastCast;
 			Discussions.IsModeActive = IsNowCast || IsPastCast;
 			Tropical.IsModeActive = IsNowCast || IsPastCast;
+			ShortRange.IsModeActive = IsForeCast; // may turn NowCast off (NowCast ⇄ MODEL) — last, after the gates above
 
 			PushOverlayOrder(); // Past and Now keep separate stacks, so a mode change can swap which one draws
 		}
@@ -1895,6 +1954,7 @@ namespace Anvil.ViewModels
 			await Step("past alerts", PastAlerts.OnMapsReadyAsync); // no Shutdown: it has no loop
 			await Step("discussions", Discussions.OnMapsReadyAsync);
 			await Step("tropical", Tropical.OnMapsReadyAsync);
+			await Step("short range", ShortRange.OnMapsReadyAsync); // no network here: a frame waits for the run check
 			await Step("isolation", StateIso.OnMapsReadyAsync);
 			await Step("basemap", Basemap.OnMapsReadyAsync); // after isolation, so a hidden map repaints the mask blank
 			RadarNws.Start(); // the launch NWS status check — fire-and-forget, it touches no map
@@ -1953,6 +2013,7 @@ namespace Anvil.ViewModels
 			StormCells.Shutdown();
 			Discussions.Shutdown();
 			Tropical.Shutdown();
+			ShortRange.Shutdown();
 			LiveFeed.Shutdown();
 			RadarNws.Shutdown();
 			SiteUsage.Shutdown(); // bank the running site-hours stretch

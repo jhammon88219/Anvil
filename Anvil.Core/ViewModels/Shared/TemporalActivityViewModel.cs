@@ -80,6 +80,30 @@ namespace Anvil.ViewModels
 		/// <summary>The mode's live feeds, top first in the window's layer order (<see cref="ApplyLayerOrder"/>).</summary>
 		public ObservableCollection<FeedStatus> Feeds { get; }
 
+		/// <summary>
+		/// Adds or removes a feed's row — a feed that only works while its layer is on (ForeCast's HRRR, while Short Range
+		/// is ticked). Added at the END; <see cref="ApplyLayerOrder"/> then sorts it into place.
+		/// </summary>
+		internal void SetFeedShown(FeedStatus feed, bool shown)
+		{
+			if (shown == Feeds.Contains(feed)) return;
+			if (shown)
+			{
+				Feeds.Add(feed);
+				feed.PropertyChanged += OnFeedChanged;
+			}
+			else
+			{
+				Feeds.Remove(feed);
+				feed.PropertyChanged -= OnFeedChanged;
+			}
+			OnPropertyChanged(nameof(HasFeeds));
+			OnPropertyChanged(nameof(HasContent));
+			OnPropertyChanged(nameof(HasFeedTable));
+			OnPropertyChanged(nameof(HasSummary));
+			RefreshSummary();
+		}
+
 		public bool HasFeeds => Feeds.Count > 0;
 
 		/// <summary>The live source behind the feeds — the Full table's last line (NowCast only).</summary>
@@ -137,7 +161,7 @@ namespace Anvil.ViewModels
 
 		private void OnFeedChanged(object? sender, PropertyChangedEventArgs e)
 		{
-			if (e.PropertyName is nameof(FeedStatus.State) or nameof(FeedStatus.LastUpdated) or nameof(FeedStatus.FailedAt))
+			if (e.PropertyName is nameof(FeedStatus.State) or nameof(FeedStatus.LastUpdated) or nameof(FeedStatus.FailedAt) or nameof(FeedStatus.LastText))
 			{
 				RefreshSummary();
 			}
@@ -163,23 +187,29 @@ namespace Anvil.ViewModels
 				Summary = $"{failed.Count} feeds failed: {string.Join(", ", failed.Select(f => f.Name))}";
 				return;
 			}
-			var current = Feeds.Where(f => f.LastUpdated is not null).ToList();
+			// A feed whose LAST is words (a model run's progress) LEADS the line in its own words — "HRRR 17Z · 7/18 · …" —
+			// and the rest are summed up after it as usual.
+			var noted = Feeds.Where(f => f.HasNote).ToList();
+			var lead = string.Join(" · ", noted.Select(f => $"{f.Name} {f.LastText}"));
+			var rest = Feeds.Where(f => !f.HasNote).ToList();
+			var restLine = SummaryOf(rest);
+			Summary = lead.Length == 0 ? restLine : restLine.Length == 0 ? lead : $"{lead} · {restLine}";
+		}
+
+		private string SummaryOf(IReadOnlyList<FeedStatus> feeds)
+		{
+			var current = feeds.Where(f => f.LastUpdated is not null).ToList();
 			// ONE feed (ForeCast's outlooks) is named, not counted: "Outlooks current · last …", "Outlooks starting".
-			var single = Feeds.Count == 1 ? Feeds[0].Name : null;
+			var single = feeds.Count == 1 ? feeds[0].Name : null;
 			if (current.Count == 0)
 			{
-				Summary = !HasFeeds ? string.Empty : single is not null ? $"{single} starting" : "Feeds starting";
-				return;
+				return feeds.Count == 0 ? string.Empty : single is not null ? $"{single} starting" : "Feeds starting";
 			}
 			var last = FeedStatus.Clock(current.Max(f => f.LastUpdated!.Value));
-			if (single is not null)
-			{
-				Summary = $"{single} current · last {last}";
-				return;
-			}
-			Summary = current.Count == Feeds.Count
-				? $"All {Feeds.Count} feeds current · last {last}"
-				: $"{current.Count} of {Feeds.Count} feeds current · last {last}";
+			if (single is not null) return $"{single} current · last {last}";
+			return current.Count == feeds.Count
+				? $"All {feeds.Count} feeds current · last {last}"
+				: $"{current.Count} of {feeds.Count} feeds current · last {last}";
 		}
 
 		// PastCast's line (both states): "Load an event to see what it downloads" · "Loading · 6 of 9 layers in" ·

@@ -140,6 +140,8 @@ namespace Anvil
 			services.AddSingleton<IPastAlertService, PastAlertService>();
 			services.AddSingleton<IMesoDiscussionService, MesoDiscussionService>();
 			services.AddSingleton<ITropicalService, TropicalService>();
+			// ForeCast's forecast models: the HRRR (AWS open data), cached under %LocalAppData%\Anvil\Forecast.
+			services.AddSingleton<IHrrrService, HrrrService>();
 			services.AddSingleton<ILevel2RadarService, Level2RadarService>();
 			services.AddSingleton<IRadarSiteProvider, RadarSiteProvider>();
 			// NWS radar status (RDA state + outage FTMs) for the Atlas's NWS STATUS section. No cache.

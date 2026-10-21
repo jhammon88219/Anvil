@@ -40,6 +40,16 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 		public static readonly DependencyProperty HeaderProperty =
 			DependencyProperty.Register(nameof(Header), typeof(string), typeof(DragMoveLayerExpander), new PropertyMetadata(""));
 
+		/// <summary>Optional small words after the title ("next 18 h · CAMs"). ⚠️ Set = the title column sizes to its
+		/// text, so THIS row's slider starts later than the others' (the user's call, 2026-10-21 — as drawn).</summary>
+		public string Subtitle
+		{
+			get => (string)GetValue(SubtitleProperty);
+			set => SetValue(SubtitleProperty, value);
+		}
+		public static readonly DependencyProperty SubtitleProperty =
+			DependencyProperty.Register(nameof(Subtitle), typeof(string), typeof(DragMoveLayerExpander), new PropertyMetadata(""));
+
 		/// <summary>The expander's content. Null = a header-only layer (no chevron, no toggling).</summary>
 		public object? Body
 		{
@@ -164,8 +174,10 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 		private const double BoxColumn = 28, TitleColumn = 118, PercentColumn = 44;
 
 		public GridLength BoxWidth(bool showBox) => new(showBox ? BoxColumn : 0);
-		public GridLength TitleWidth(bool showOpacity) =>
-			showOpacity ? new GridLength(TitleColumn) : new GridLength(1, GridUnitType.Star);
+		public GridLength TitleWidth(bool showOpacity, string subtitle) =>
+			!showOpacity ? new GridLength(1, GridUnitType.Star)
+			: string.IsNullOrEmpty(subtitle) ? new GridLength(TitleColumn) : GridLength.Auto;
+		public Visibility SubtitleVisibility(string subtitle) => string.IsNullOrEmpty(subtitle) ? Visibility.Collapsed : Visibility.Visible;
 		public GridLength SliderWidth(bool showOpacity) =>
 			showOpacity ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
 		public GridLength PercentWidth(bool showOpacity) => new(showOpacity ? PercentColumn : 0);

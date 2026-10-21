@@ -216,6 +216,15 @@ namespace Anvil.Services
 		public Task ClearTropicalAsync() =>
 			_mapView.RunScriptAsync(Call("clearTropical"));
 
+		public Task SetModelFieldAsync(string descriptorJson) =>
+			_mapView.RunScriptAsync(Call("setModelField", descriptorJson));
+
+		public Task SetModelFieldOpacityAsync(double opacity) =>
+			_mapView.RunScriptAsync(Call("setModelFieldOpacity", opacity));
+
+		public Task ClearModelFieldAsync() =>
+			_mapView.RunScriptAsync(Call("clearModelField"));
+
 		public Task SetPastAlertTimeAsync(long? timeMs) =>
 			_mapView.RunScriptAsync($"window.setPastAlertTime({timeMs?.ToString(CultureInfo.InvariantCulture) ?? "null"});");
 

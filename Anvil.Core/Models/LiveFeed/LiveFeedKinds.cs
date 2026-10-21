@@ -3,9 +3,9 @@ using System.Collections.Generic;
 
 namespace Anvil.Models
 {
-	/// <summary>The feeds whose refresh the live-feed hub schedules — NowCast's six, then ForeCast's SPC outlooks (the
-	/// radar keeps its own scan schedule).</summary>
-	public enum LiveFeedKind { Warnings, Discussions, StormReports, Watches, Tropical, StormCells, Outlooks }
+	/// <summary>The feeds whose refresh the live-feed hub schedules — NowCast's six, then ForeCast's SPC outlooks and the
+	/// HRRR (the radar keeps its own scan schedule).</summary>
+	public enum LiveFeedKind { Warnings, Discussions, StormReports, Watches, Tropical, StormCells, Outlooks, Hrrr }
 
 	/// <summary>
 	/// The ONE table of each live feed's facts: whether a live source carries it, which products wake it, and its
@@ -15,7 +15,8 @@ namespace Anvil.Models
 	/// ⚠️ A PRODUCT IS A TRIGGER, NEVER THE DATA: a matching product makes the feed run its OWN fetch at once (then a
 	/// few re-checks while that source catches up — <see cref="ChaseDelays"/>), so every feed keeps ONE data path and its
 	/// merge rules. Products are told apart by the AWIPS id's first three letters (PIL "SVROUN" → "SVR").
-	/// ⚠️ Storm cells are on no push feed (IEM's storm attributes come from radar volumes) — always polled.
+	/// ⚠️ Storm cells are on no push feed (IEM's storm attributes come from radar volumes) — always polled. So is the HRRR:
+	/// a model run is no NWS text product, so nothing announces an hour landing (its poll is ONE bucket listing).
 	/// </remarks>
 	public static class LiveFeedKinds
 	{
@@ -23,11 +24,11 @@ namespace Anvil.Models
 		public static IReadOnlyList<LiveFeedKind> All { get; } = new[]
 		{
 			LiveFeedKind.Warnings, LiveFeedKind.Discussions, LiveFeedKind.StormReports,
-			LiveFeedKind.Watches, LiveFeedKind.Tropical, LiveFeedKind.StormCells, LiveFeedKind.Outlooks,
+			LiveFeedKind.Watches, LiveFeedKind.Tropical, LiveFeedKind.StormCells, LiveFeedKind.Outlooks, LiveFeedKind.Hrrr,
 		};
 
 		/// <summary>True = a live source carries this feed's products (its schedule pauses while connected).</summary>
-		public static bool IsPushed(LiveFeedKind kind) => kind != LiveFeedKind.StormCells;
+		public static bool IsPushed(LiveFeedKind kind) => kind is not (LiveFeedKind.StormCells or LiveFeedKind.Hrrr);
 
 		public static string NameOf(LiveFeedKind kind) => kind switch
 		{
@@ -37,6 +38,7 @@ namespace Anvil.Models
 			LiveFeedKind.Watches => "Watches",
 			LiveFeedKind.Tropical => "Tropical",
 			LiveFeedKind.Outlooks => "Outlooks",
+			LiveFeedKind.Hrrr => "HRRR",
 			_ => "Storm cells",
 		};
 
@@ -50,6 +52,8 @@ namespace Anvil.Models
 			LiveFeedKind.Tropical => 300,
 			// Conditional GETs make an unchanged cycle 23 cheap 304s; was a fixed 15 min before live data.
 			LiveFeedKind.Outlooks => 300,
+			// A run lands an hour at a time over ~40 min; each check is one bucket listing (~30 KB).
+			LiveFeedKind.Hrrr => 120,
 			_ => 60,
 		});
 
@@ -62,6 +66,7 @@ namespace Anvil.Models
 			LiveFeedKind.Watches => 60,
 			LiveFeedKind.Tropical => 120,
 			LiveFeedKind.Outlooks => 120,
+			LiveFeedKind.Hrrr => 60,
 			_ => 30,
 		});
 
