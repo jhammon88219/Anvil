@@ -28,6 +28,10 @@
          format. 3 KB, fetched once from s3://unidata-nexrad-level3/. -->
     <None Include="Fixtures\*.bin" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\*.zip" CopyToOutputDirectory="PreserveNewest" />
+    <!-- One real HRRR composite-reflectivity message (~200 KB, the .idx range of hrrr.t15z.wrfsfcf01 on
+         2026-10-21, s3://noaa-hrrr-bdp-pds/) — the same reason as the Level III one: GRIB2 complex packing
+         can't be proven against an encoder we'd write ourselves. Grib2DecoderTests. -->
+    <None Include="Fixtures\*.grib2" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\*.txt;Fixtures\*.json;Fixtures\*.html;Fixtures\*.geojson" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
