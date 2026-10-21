@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ============================================================================
+     MapControlsStripRangeToolsPicker — the RANGE RINGS and the RANGE RULER as ONE square key on the tools tier (the
+     user's mock-up, 2026-10-21; it replaced the two side-by-side toggles, the network picker's pattern). The right-most
+     key of the console tools, Inspect beside it on its left.
+
+           ┌──────────────────────┐
+           │ ☑ ◎  Range rings      │   ← the list opens UP (TopEdgeAlignedLeft), its left edge on the key's
+           │ ☐ ⊢  Range ruler      │     each row = a CheckBox: box · the tool's mark · name
+           └──────────────────────┘
+           ┌───▴┐
+           │ ◎  │  ← the face: the rings mark + a small ▴ (the way it opens) in the top-right corner
+           └────┘     LIT (the strip toggles' Checked look) while EITHER is on (LitStates);
+                      Elevated face while the list is open (FlyoutStates)
+
+     RINGS = the MASTER show/hide for every range ring, its labels and the label handle (Radar.RangeRings.RingsVisible,
+     PERSISTED) — a switch you can set ahead, so never disabled for want of a loop. Which rings, and their look, stay in
+     Settings → Radar Range Ring.
+     RULER = arm the graduated spoke from the loaded site to the ring (Radar.IsRangeRulerOn). ⚠️ Its ROW is disabled with
+     nothing on screen (CanUseRuler ← Radar.HasRadarDisplay) — but a ruler armed on a loop that then clears STAYS armed
+     (ticked, greyed) and draws itself at the next site, on the bearing you left it. Sticky on purpose (the old toggle's rule).
+     ⚠️ NOT a ComboBox (mousewheel cycling over the map — the site picker's trap): a Button + a windowed Flyout
+     (ShouldConstrainToRootBounds=False — else the owned panel windows paint over it), and the list STAYS OPEN while you tick.
+     ⚠️ The face's look copies MapControlsStrip's StripToolToggleStyle (32 × 32, raised hover pair, accent-edged lit
+     state) — that style is local to the strip, so a tune there should come here too.
+     ============================================================================ -->
+<UserControl x:Class="Anvil.Controls.Primitives.MapControlsStripRangeToolsPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <Style TargetType="PathIcon">
+                <Setter Property="Width" Value="18"/>
+                <Setter Property="Height" Value="18"/>
+            </Style>
+
+            <!-- The face: StripToolToggleStyle's template as a plain Button (see the header). Lit/open looks come from the
+                 state groups on the root, which set the face's own Background / BorderBrush / Foreground. -->
+            <Style x:Key="RangeToolsPickerFaceStyle" TargetType="Button">
+                <Setter Property="Width" Value="32"/>
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="5"/>
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid x:Name="Root"
+                                  Background="{TemplateBinding Background}"
+                                  BorderBrush="{TemplateBinding BorderBrush}"
+                                  BorderThickness="{TemplateBinding BorderThickness}"
+                                  CornerRadius="{TemplateBinding CornerRadius}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter x:Name="Glyph"
+                                                  HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                  Content="{TemplateBinding Content}"
+                                                  Foreground="{TemplateBinding Foreground}"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="RangeToolRowGlyphBox" TargetType="Viewbox">
+                <Setter Property="Width" Value="16"/>
+                <Setter Property="Height" Value="16"/>
+                <Setter Property="Margin" Value="0,0,8,0"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid x:Name="RangeToolsPickerRoot">
+        <VisualStateManager.VisualStateGroups>
+            <!-- EITHER tool on → the strip toggles' lit look (accent edge, elevated, primary ink). -->
+            <VisualStateGroup x:Name="LitStates">
+                <VisualState x:Name="Unlit"/>
+                <VisualState x:Name="Lit">
+                    <VisualState.Setters>
+                        <Setter Target="RangeToolsPickerFace.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                        <Setter Target="RangeToolsPickerFace.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+                        <Setter Target="RangeToolsPickerFace.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <!-- The face holds the Elevated look while its list is open. -->
+            <VisualStateGroup x:Name="FlyoutStates">
+                <VisualState x:Name="FlyoutClosed"/>
+                <VisualState x:Name="FlyoutOpen">
+                    <VisualState.Setters>
+                        <Setter Target="RangeToolsPickerFace.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Button x:Name="RangeToolsPickerFace"
+                Style="{StaticResource RangeToolsPickerFaceStyle}"
+                AutomationProperties.Name="Range rings and range ruler"
+                ToolTipService.ToolTip="Range rings and range ruler">
+            <Grid>
+                <!-- The rings mark (three concentric rings round a centre dot, EvenOdd hollows them) at the tier's glyph size. -->
+                <Viewbox Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <PathIcon Data="M9,0.5 A8.5,8.5 0 1 0 9,17.5 A8.5,8.5 0 1 0 9,0.5 Z M9,1.9 A7.1,7.1 0 1 0 9,16.1 A7.1,7.1 0 1 0 9,1.9 Z M9,3.9 A5.1,5.1 0 1 0 9,14.1 A5.1,5.1 0 1 0 9,3.9 Z M9,5.3 A3.7,3.7 0 1 0 9,12.7 A3.7,3.7 0 1 0 9,5.3 Z M9,7.4 A1.6,1.6 0 1 0 9,10.6 A1.6,1.6 0 1 0 9,7.4 Z"/>
+                </Viewbox>
+                <!-- ▴ = the list opens UP (the network picker's caret). -->
+                <Viewbox Width="6" Height="6" Margin="0,3,3,0"
+                         HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <PathIcon Data="M1,7 L5,3 L9,7 Z" Width="10" Height="10"/>
+                </Viewbox>
+            </Grid>
+            <Button.Flyout>
+                <Flyout x:Name="RangeToolsPickerFlyout"
+                        Placement="TopEdgeAlignedLeft" ShouldConstrainToRootBounds="False"
+                        Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
+                    <StackPanel Width="200" Spacing="2">
+                        <CheckBox x:Name="RangeToolsPickerRingsCheckBox" MinHeight="32"
+                                  IsChecked="{x:Bind AreRingsOn, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Show every range ring. Which rings, and how they look: Settings → Radar Range Ring.">
+                            <StackPanel Orientation="Horizontal">
+                                <Viewbox Style="{StaticResource RangeToolRowGlyphBox}">
+                                    <PathIcon Data="M9,0.5 A8.5,8.5 0 1 0 9,17.5 A8.5,8.5 0 1 0 9,0.5 Z M9,1.9 A7.1,7.1 0 1 0 9,16.1 A7.1,7.1 0 1 0 9,1.9 Z M9,3.9 A5.1,5.1 0 1 0 9,14.1 A5.1,5.1 0 1 0 9,3.9 Z M9,5.3 A3.7,3.7 0 1 0 9,12.7 A3.7,3.7 0 1 0 9,5.3 Z M9,7.4 A1.6,1.6 0 1 0 9,10.6 A1.6,1.6 0 1 0 9,7.4 Z"/>
+                                </Viewbox>
+                                <TextBlock Text="Range rings" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </CheckBox>
+                        <CheckBox x:Name="RangeToolsPickerRulerCheckBox" MinHeight="32"
+                                  IsEnabled="{x:Bind CanUseRuler, Mode=OneWay}"
+                                  IsChecked="{x:Bind IsRulerOn, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Drag the bead to measure from the site. Needs a radar on screen.">
+                            <StackPanel Orientation="Horizontal">
+                                <!-- A graduated bar: outer rect, hollowed, four ticks hanging off its top edge. -->
+                                <Viewbox Style="{StaticResource RangeToolRowGlyphBox}">
+                                    <PathIcon Data="M1,6 H17 V12 H1 Z M2.4,7.4 H15.6 V10.6 H2.4 Z M4.2,7.4 H5.0 V10.2 H4.2 Z M7.0,7.4 H7.8 V9.2 H7.0 Z M9.8,7.4 H10.6 V10.2 H9.8 Z M12.6,7.4 H13.4 V9.2 H12.6 Z"/>
+                                </Viewbox>
+                                <TextBlock Text="Range ruler" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </CheckBox>
+                    </StackPanel>
+                </Flyout>
+            </Button.Flyout>
+        </Button>
+    </Grid>
+</UserControl>

@@ -6,11 +6,13 @@
        ┌▓▓▓▓▓▓▓▓▓▓▓▓▓┐  ← THE BAND (variant B, 2026-10-07): BandFill = a DEEP shade of the warning colour; the
        │▓Tornado  ‹ ›▓│     Label + ‹ › in Ink, the BRIGHT colour (the Outlook Discussion risk cards' title band,
        │ 5           │     OutlookRiskCard.Deep: the same hue at 38% brightness). DATA literals, never themed.
-       │ ─────────── │  ← count 34 SemiLight (tap = Reset); the rule only while the ‹ › have you on a warning
+       │ ─────────── │  ← count 34 SemiLight (tap = Reset); the rule while any are in effect
+       │ Oklahoma   3│  ← the STATE LINES (Stepper.States): whole-row buttons, click = fly there; LIT = accent wash
+       │ Kansas     2│
        │ 2 of 5 · Cle│  ← the accent position line (only while the ‹ › have you on a warning)
        └─────────────┘
-       ⚠️ OFF FOR NOW (2026-10-21, x:Load="False"): the STATE LINES ("Oklahoma 3", Stepper.States, whole-row buttons,
-       LIT = accent wash) and the TAG line (Threats, "1 emergency · 2 PDS") — both still declared below.
+       ⚠️ OFF FOR NOW (2026-10-21, x:Load="False"): the TAG line (Threats, "1 emergency · 2 PDS") — still declared below.
+       The state lines were off too and came back the same day (the user's call).
      A tile with nothing in effect DIMS (40%), never hides — the three keep their places.
 
      ⚠️ The ‹ › drive the tile's WarningStepper (Forward / Back); tapping the COUNT resets it (Reset). Their glyphs
@@ -159,12 +161,11 @@
                 <StackPanel Grid.Row="1" Padding="10,6,10,10">
                     <TextBlock Text="{x:Bind Count, Mode=OneWay}" Style="{StaticResource WarningTileCountStyle}"
                                Tapped="OnCountTapped"/>
-                    <!-- ⚠️ STATE LINES + TAG LINE OFF FOR NOW (the user's call, 2026-10-21): x:Load="False" keeps them
-                         declared — flip both to True (and the rule back to NonZero(Count)) to bring them back. The rule
-                         now shows only over the position line. -->
+                    <!-- ⚠️ The TAG LINE is OFF FOR NOW (the user's call, 2026-10-21): x:Load="False" keeps it declared —
+                         flip it to True to bring it back. The STATE LINES came back the same day (the user's call). -->
                     <Border Style="{StaticResource WarningTileRuleStyle}"
-                            Visibility="{x:Bind Shown(ViewModel.IsActive), Mode=OneWay}"/>
-                    <ItemsControl x:Name="WarningTileStateLines" x:Load="False"
+                            Visibility="{x:Bind NonZero(Count), Mode=OneWay}"/>
+                    <ItemsControl x:Name="WarningTileStateLines"
                                   ItemsSource="{x:Bind ViewModel.States, Mode=OneWay}"
                                   ItemTemplate="{StaticResource WarningStateLineTemplate}"/>
                     <TextBlock x:Name="WarningTileTagLine" x:Load="False"

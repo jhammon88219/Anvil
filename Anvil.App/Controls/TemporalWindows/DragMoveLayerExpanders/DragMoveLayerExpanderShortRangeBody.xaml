@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- DragMoveLayerExpanderShortRangeBody — ForeCast's "Short Range" section body (ShortRangeViewModel): a convection-allowing
-     model (the HRRR for now) drawn on the map as ONE field, the frame nearest now. The header (box · title + "next 18 h ·
-     CAMs" · opacity) is the host's DragMoveLayerExpander.
+     model (the HRRR for now) drawn on the map as ONE field, the frame nearest now. The header (box · title · opacity) is the
+     host's DragMoveLayerExpander.
 
      ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH, ONE line):
      ▓  HRRR 16Z · all 18 hours in     valid 11:00 PM (f05)  ▓   the run ON THE MAP + how much of it has landed │ the frame;
      ──────────────────────────────────────────────────────────   loading / a problem takes the right side (Footer)
+       Next 18 hours · convection-allowing models             ← the range note (was the header's subtitle; 2026-10-21)
        Model    [ HRRR ]                                      ← SegmentedPicker, one segment for now (NAM 3 km / RRFS later)
        Product  [Future radar (composite)          ▾]         ← composite · 1 km · updraft helicity tracks
        Run      [Latest (16Z)                      ▾]         ← Latest follows each run; an earlier one is HELD (not persisted)
@@ -34,6 +35,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- the card -->
+            <RowDefinition Height="Auto"/> <!-- the range note -->
             <RowDefinition Height="Auto"/> <!-- the rows -->
         </Grid.RowDefinitions>
 
@@ -42,8 +44,15 @@
                 Context="{x:Bind ViewModel.CardContext, Mode=OneWay}"
                 Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 
+        <!-- What this range IS — moved out of the header, where it shortened the opacity slider (2026-10-21). A plain
+             line UNDER the card, not in it: the card is one line by rule. -->
+        <TextBlock x:Name="ShortRangeNote" Grid.Row="1" Margin="0,0,0,12"
+                   Text="Next 18 hours · convection-allowing models"
+                   FontSize="12" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
         <!-- [label | control] in the outlook section's 60 px label column. -->
-        <Grid Grid.Row="1" ColumnSpacing="12" RowSpacing="10">
+        <Grid Grid.Row="2" ColumnSpacing="12" RowSpacing="10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="60"/>
                 <ColumnDefinition Width="*"/>

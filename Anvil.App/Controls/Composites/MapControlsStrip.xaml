@@ -487,8 +487,8 @@
                  CODE (AlignToConsole). Longer than the left one: play sits left of the console's middle. -->
             <prim:MapControlsStripSeparator x:Name="RightSpacer" Margin="8,0" FillWidth="True" Width="10"/>
 
-            <!-- RADAR TOOLS — Inspect, Ruler, Rings as ONE run (no separator inside;
-                 the user's call, 2026-10-06). The last one's right edge is the console's right edge. -->
+            <!-- RADAR TOOLS — Inspect, then the rings + ruler picker, as ONE run (no separator inside;
+                 the user's call, 2026-10-06 / 2026-10-21). The picker's right edge is the console's (visible) scan text end. -->
             <StackPanel x:Name="RadarTools" Orientation="Horizontal" Spacing="8">
             <!-- INSPECT — the armed cursor mode (moved here from the bar, 2026-09-29): read the active product's
                  value under the pointer in EVERY pane at once; each value shows on that pane's own ramp. Plain
@@ -504,40 +504,15 @@
                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" FontSize="{StaticResource StripFontGlyphSize}" Glyph="&#xE721;"/>
             </ToggleButton>
 
-            <!-- RANGE RULER - arm the graduated spoke from the loaded site out to the range ring. In the CENTRE,
-                 because what it measures against is RADAR (the ring is the data's own outer extent) and it
-                 dies with the loop; the right cluster's tools touch only the map. Plain TwoWay: a click
-                 always changes the mode, so there is nothing to re-assert.
-                 ⚠️ Disabled with nothing on screen, so you cannot arm it onto an empty map - but a ruler armed
-                 on a loop that then clears STAYS armed (lit and disabled) and draws itself again at the next
-                 site, still on the bearing you left it. Sticky on purpose: measuring from each site in turn is
-                 the gesture, so re-arming per site would be the annoyance. Unlike Inspect, which disarms.
-                 The icon is a PathIcon, not a FontIcon: the same choice the Location reticle beside it made,
-                 and it does not bet the control on an unverified Segoe glyph. -->
-            <ToggleButton x:Name="RangeRulerToggle"
-                          Style="{StaticResource StripToolToggleStyle}"
-                          IsEnabled="{x:Bind FreeAnd(ViewModel.Radar.HasRadarDisplay, ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                          IsChecked="{x:Bind ViewModel.Radar.IsRangeRulerOn, Mode=TwoWay}"
-                          ToolTipService.ToolTip="Range ruler - drag the bead to measure from the site (click again to turn it off)">
-                <!-- A graduated bar: outer rect, hollowed, with four ticks hanging off its top edge
-                     (EvenOdd puts the ticks back inside the hole). -->
-                <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M1,6 H17 V12 H1 Z M2.4,7.4 H15.6 V10.6 H2.4 Z M4.2,7.4 H5.0 V10.2 H4.2 Z M7.0,7.4 H7.8 V9.2 H7.0 Z M9.8,7.4 H10.6 V10.2 H9.8 Z M12.6,7.4 H13.4 V9.2 H12.6 Z"/></Viewbox>
-            </ToggleButton>
-
-            <!-- RANGE RINGS - the MASTER show/hide for every range ring, its labels and the label handle
-                 (Radar.RangeRings.RingsVisible, PERSISTED). Beside the Ruler because they are one family: the
-                 ruler ends on the ring. Plain TwoWay (a click always flips it). LIT = RINGS ARE SHOWING; the
-                 tooltip speaks for the click. NOT disabled without a loop - it is a switch you can set ahead.
-                 WHICH rings, and how they look, stay in Settings → Radar Range Ring (set-once).
-                 The icon is a drawn PathIcon (three concentric rings round a centre dot, EvenOdd hollows them),
-                 the same no-unverified-glyph choice as the Ruler's. -->
-            <ToggleButton x:Name="RangeRingsToggle"
-                          Style="{StaticResource StripToolToggleStyle}"
-                          IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
-                          IsChecked="{x:Bind ViewModel.Radar.RangeRings.RingsVisible, Mode=TwoWay}"
-                          ToolTipService.ToolTip="{x:Bind RangeRingsTooltip(ViewModel.Radar.RangeRings.RingsVisible), Mode=OneWay}">
-                <Viewbox Style="{StaticResource StripGlyphBox}"><PathIcon Data="M9,0.5 A8.5,8.5 0 1 0 9,17.5 A8.5,8.5 0 1 0 9,0.5 Z M9,1.9 A7.1,7.1 0 1 0 9,16.1 A7.1,7.1 0 1 0 9,1.9 Z M9,3.9 A5.1,5.1 0 1 0 9,14.1 A5.1,5.1 0 1 0 9,3.9 Z M9,5.3 A3.7,3.7 0 1 0 9,12.7 A3.7,3.7 0 1 0 9,5.3 Z M9,7.4 A1.6,1.6 0 1 0 9,10.6 A1.6,1.6 0 1 0 9,7.4 Z"/></Viewbox>
-            </ToggleButton>
+            <!-- RANGE RINGS + RANGE RULER — ONE square key, an upward list of two ticks (Primitives/MapControlsStripRangeToolsPicker,
+                 the user's mock-up 2026-10-21; it replaced two toggles). The RIGHT-MOST console tool. Rings = the persisted
+                 master (a switch you can set ahead); the ruler's row needs a radar on screen, and an armed ruler stays armed
+                 across a cleared loop (sticky, as before). In the CENTRE because both measure against RADAR. -->
+            <prim:MapControlsStripRangeToolsPicker x:Name="MapControlsStripRangeToolsPicker"
+                                                   IsEnabled="{x:Bind Free(ViewModel.Radar.AreControlsLocked), Mode=OneWay}"
+                                                   AreRingsOn="{x:Bind ViewModel.Radar.RangeRings.RingsVisible, Mode=TwoWay}"
+                                                   IsRulerOn="{x:Bind ViewModel.Radar.IsRangeRulerOn, Mode=TwoWay}"
+                                                   CanUseRuler="{x:Bind ViewModel.Radar.HasRadarDisplay, Mode=OneWay}"/>
             </StackPanel>
         </StackPanel>
 

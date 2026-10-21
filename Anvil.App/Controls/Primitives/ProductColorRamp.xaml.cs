@@ -62,12 +62,10 @@ namespace Anvil.Controls.Primitives
 
 		/// <summary>
 		/// The <c>Margin</c> a SIBLING needs so that centering it lands on the RAMP STRIP's centre rather than
-		/// on this control's overall centre. With <see cref="ShowScale"/> on, the min/max row hangs below the
-		/// strip and drags the shared centre down — which is what left the Product combo's short name and
-		/// chevron sitting low against the ramp. A NEGATIVE top inset shifts a centered sibling up by half its
-		/// magnitude, which is exactly the strip's offset from centre; going negative (rather than a positive
-		/// bottom inset, which shifts by the same half) keeps the sibling's desired height from stretching the
-		/// row taller. Measured from live layout — font metrics, DPI and ShowScale all land in it — so a
+		/// on this control's overall centre. With <see cref="ShowScale"/> on, the min/unit/max row sits ABOVE the
+		/// strip (since 2026-10-21; it hung below before) and lifts the shared centre — so a positive TOP inset
+		/// shifts a centred sibling down by half its magnitude, which is exactly the strip's offset from centre.
+		/// Measured from live layout — font metrics, DPI and ShowScale all land in it — so a
 		/// host never hardcodes a guess at this control's internals. It's 0 when ShowScale is off (the
 		/// compact dropdown rows), where the strip already IS the whole control.
 		/// </summary>
@@ -81,10 +79,10 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(StripAlignMargin), typeof(Thickness), typeof(ProductColorRamp),
 				new PropertyMetadata(default(Thickness)));
 
-		// Whatever this control has below the strip (the gap + the scale row) is what pulls its centre off
+		// Whatever this control has above the strip (the scale row + the gap) is what pulls its centre off
 		// the strip's, so the nudge IS that difference. Re-measured on either size change.
 		private void OnLayoutSizeChanged(object sender, SizeChangedEventArgs e) =>
-			StripAlignMargin = new Thickness(0, -Math.Max(0, Root.ActualHeight - BarHost.ActualHeight), 0, 0);
+			StripAlignMargin = new Thickness(0, Math.Max(0, Root.ActualHeight - BarHost.ActualHeight), 0, 0);
 
 		/// <summary>Whether the Inspect marker is shown (inspect mode on + a value under the cursor).</summary>
 		public bool IsInspectVisible
@@ -111,7 +109,10 @@ namespace Anvil.Controls.Primitives
 			new(1 - Math.Clamp(fraction, 0, 1), GridUnitType.Star);
 
 		public string ScaleMin(RadarRampInfo? ramp) => ValueText(ramp, 0, withUnit: false);
-		public string ScaleMax(RadarRampInfo? ramp) => ValueText(ramp, 1, withUnit: true);
+		public string ScaleMax(RadarRampInfo? ramp) => ValueText(ramp, 1, withUnit: false);
+
+		/// <summary>The scale row's centred unit ("dBZ", "mph", "m²/s²") — the same conversion as the values.</summary>
+		public string ScaleUnit(RadarRampInfo? ramp) => ramp is null ? string.Empty : DisplayUnit(ramp.Unit);
 
 		// ── Hover read-out ───────────────────────────────────────────────────────────────────────
 		// Reading the value under the pointer is why this is a control: a Style can't carry pointer logic.
@@ -141,15 +142,16 @@ namespace Anvil.Controls.Primitives
 			}
 
 			double v = ramp.Min + (ramp.Max - ramp.Min) * fraction;
-			string unit = ramp.Unit;
-			if (unit == "m/s")
+			if (ramp.Unit == "m/s")
 			{
 				v *= 2.23694;
-				unit = "mph";
 			}
+			string unit = DisplayUnit(ramp.Unit);
 
 			string num = v.ToString("0.##", CultureInfo.InvariantCulture);
 			return withUnit && unit.Length > 0 ? $"{num} {unit}" : num;
 		}
+
+		private static string DisplayUnit(string unit) => unit == "m/s" ? "mph" : unit;
 	}
 }

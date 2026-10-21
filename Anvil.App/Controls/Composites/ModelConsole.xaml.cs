@@ -2,6 +2,7 @@ using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Windows.Foundation;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.Composites
@@ -108,6 +109,23 @@ namespace Anvil.Controls.Composites
 
 		public string AmDesignator => System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.AMDesignator;
 		public string PmDesignator => System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.PMDesignator;
+
+		/// <summary>The right end of the LONGEST Model / Run / Product line's text in <paramref name="root"/>'s coordinates —
+		/// where the tools tier's centre section ends while this console shows (RadarControls.ScanTextRight, copied).
+		/// NaN before layout.</summary>
+		public double ScanTextRight(UIElement root)
+		{
+			double edge = double.NaN;
+			foreach (var child in ScanBlock.Children)
+			{
+				if (child is FrameworkElement text && text.Visibility == Visibility.Visible && text.ActualWidth > 0)
+				{
+					var right = text.TransformToVisual(root).TransformPoint(new Point(text.ActualWidth, 0)).X;
+					edge = double.IsNaN(edge) ? right : Math.Max(edge, right);
+				}
+			}
+			return edge;
+		}
 
 		// Only the time sizes the clock column; the line under it trims.
 		private void OnClockTimeSizeChanged(object sender, SizeChangedEventArgs e) => WhenText.MaxWidth = e.NewSize.Width;

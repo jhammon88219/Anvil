@@ -52,8 +52,6 @@ namespace Anvil.Controls.Composites
 
 		// ===== Range rings (master show/hide, beside the Ruler) =====
 		// The tooltip speaks for the CLICK, like the site-markers toggle.
-		public string RangeRingsTooltip(bool visible) => visible ? "Hide range rings" : "Show range rings";
-
 		// ===== Site picker (home + favorites) =====
 		// E80F Home / E735 FavoriteStarFill — ⚠️ unverified codepoints, see the XAML header. A site that is
 		// neither gets no mark (only the FACE can show one — the lists hold only home and favorites).

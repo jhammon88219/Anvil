@@ -33,10 +33,11 @@
        │                                                      │     hatching half only when the product has
        │                                                      │     intensity groups (status from the CACHED GeoJSON)
        └──────────────────────────────────────────────────────┘
-       │ ⠿ ⌄ [x] Short Range  next 18 h · CAMs  ───●───   80%  │  ← the forecast MODEL (DragMoveLayerExpanderShortRangeBody):
-       │   ▓ HRRR 16Z · all 18 hours in   valid 11 PM (f05) ▓  │     card · Model · Product · Run · Tracks (UH) · legend.
+       │ ⠿ ⌄ [x] Short Range      ─────────●───────   80%  │  ← the forecast MODEL (DragMoveLayerExpanderShortRangeBody):
+       │   ▓ HRRR 16Z · all 18 hours in valid 11:00 PM (f05:00)▓│     card · range note · Model · Product · Run · Tracks (UH)
+       │   Next 18 hours · convection-allowing models         │     · Hours; its legend is in the pane notches.
        │   Model [HRRR]  Product […▾]  Run [Latest▾] …        │     ⚠️ ticked + ForeCast on = NowCast OFF (and back on
-       │   ▕▒▒▓▓██▓▓▒▒▏                                       │     when unticked) — MapViewModel's NowCast ⇄ MODEL
+       │                                                      │     when unticked) — MapViewModel's NowCast ⇄ MODEL
        └──────────────────────────────────────────────────────┘
        │ ⠿   ░░ ░Radar · NowCast░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │  ← ghost (default spot: under the model)
        └──────────────────────────────────────────────────────┘
@@ -268,7 +269,7 @@
         <!-- LayerId "models" (layers.js GROUPS ⇄ LayerOrder.ModelField). The box is SHOW/HIDE AND THE NOWCAST SWITCH:
              while it draws, live radar is off (MapViewModel's NowCast ⇄ MODEL rule). Medium / Long Range join here
              when built (ONE box ticked at a time across them). Opacity greys while it isn't drawing. -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="DragMoveLayerExpanderShortRange" Header="Short Range" Subtitle="next 18 h · CAMs"
+        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="DragMoveLayerExpanderShortRange" Header="Short Range"
                            LayerId="models"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.ShortRange.IsShown, Mode=OneWay}"

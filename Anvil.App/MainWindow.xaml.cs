@@ -135,7 +135,12 @@ namespace Anvil
 			if (Content is UIElement root)
 			{
 				// The picker is as wide as the rail's two tabs (Tools + Bar, gap included) — the user's call, 2026-10-06.
-				ToolsStrip.AlignToConsole(TimeModule.ConsoleLeft(root), TimeModule.PlayCentre(root), TimeModule.ScanTextRight(root),
+				// MODEL MODE: the right end follows the VISIBLE console's text (ModelConsole's lines differ from radar's);
+				// left edge + play are the same in both (ModelConsole copies radar's widths), so they stay on TimeModule.
+				var scanRight = ModelConsole.Visibility == Visibility.Visible
+					? ModelConsole.ScanTextRight(root)
+					: TimeModule.ScanTextRight(root);
+				ToolsStrip.AlignToConsole(TimeModule.ConsoleLeft(root), TimeModule.PlayCentre(root), scanRight,
 					RailTabs.ActualWidth, root);
 			}
 		}

@@ -442,12 +442,17 @@ namespace Anvil.ViewModels
 			var valid = run.AddMinutes(lead).ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
 			// Run so far: the swath covers the run's start (f01's max begins at f00) to the frame — a clock time at BOTH ends.
 			var from = run.ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
-			CardContext = Playback.RunSoFar ? $"{from} – {valid} (f01–{LeadText(lead)})" : $"valid {valid} ({LeadText(lead)})";
+			var hourly = _product.IsHourlyMax;
+			CardContext = Playback.RunSoFar
+				? $"{from} – {valid} (f01–{LeadText(lead, hourly)})"
+				: $"valid {valid} ({LeadText(lead, hourly)})";
 			CardFooter = string.Empty;
 		}
 
-		/// <summary>"f05" on the hour, "f05:15" between.</summary>
-		internal static string LeadText(int leadMinutes) => leadMinutes % 60 == 0
+		/// <summary>"f05:00" / "f05:15" — ALWAYS hours AND minutes for a 15-minute product (past f18 too), so text that
+		/// ticks with the playhead never changes length (the user's call, 2026-10-21); "f05" for an hourly-only field (UH),
+		/// whose frames are never between hours.</summary>
+		internal static string LeadText(int leadMinutes, bool hourly = false) => hourly
 			? string.Create(CultureInfo.InvariantCulture, $"f{leadMinutes / 60:D2}")
 			: string.Create(CultureInfo.InvariantCulture, $"f{leadMinutes / 60:D2}:{leadMinutes % 60:D2}");
 

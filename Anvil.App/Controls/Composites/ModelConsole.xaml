@@ -16,7 +16,8 @@
 
      ⚠️ ITS WIDTHS ARE RADAR'S (two-digit-hour clock reserve · 420 · 180 · spacing 16) and it centres on its OWN play
      button the same way (CentreOnPlay), so its play sits where radar's does. MainWindow keeps RadarControls laid out
-     (invisible, not hit-testable) underneath while this shows — the tools tier's alignment still measures THAT one.
+     (invisible, not hit-testable) underneath while this shows; the tools tier's left edge + play still measure THAT one,
+     but its RIGHT end measures THIS console's longest scan line (ScanTextRight) — the visible text.
      ⚠️ NOT THE RADAR LOOP: no RadarLoopEngine here (sealed). It reuses only the DRAWING scrubbers; the pointer mapping is
      a copy of RadarControls' (equal slots / DotMatrixScrubber.IndexAt) — change both. -->
 <UserControl x:Class="Anvil.Controls.Composites.ModelConsole"
@@ -174,7 +175,9 @@
         </Grid>
 
         <!-- ===== MODEL / RUN / PRODUCT: radar's three labelled lines, the model's facts ===== -->
-        <Grid Grid.Column="2" VerticalAlignment="Center" ColumnSpacing="8" RowSpacing="1">
+        <!-- Values LEFT-aligned, so each one's ActualWidth is its TEXT: ScanTextRight reads it to end the tools tier's
+             centre section while this console shows (RadarControls' rule). -->
+        <Grid x:Name="ScanBlock" Grid.Column="2" VerticalAlignment="Center" ColumnSpacing="8" RowSpacing="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>

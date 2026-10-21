@@ -85,11 +85,20 @@ namespace Anvil.Tests
 
 		// ── Card + activity words ──
 
+		// A 15-minute product always shows minutes, so the text never changes length as the playhead ticks.
 		[Theory]
-		[InlineData(300, "f05")]
-		[InlineData(315, "f05:15")]
-		[InlineData(2880, "f48")]
-		public void Lead_text(int lead, string text) => Assert.Equal(text, ShortRangeViewModel.LeadText(lead));
+		[InlineData(300, false, "f05:00")]
+		[InlineData(315, false, "f05:15")]
+		[InlineData(2880, false, "f48:00")]
+		[InlineData(300, true, "f05")]
+		public void Lead_text(int lead, bool hourly, string text) => Assert.Equal(text, ShortRangeViewModel.LeadText(lead, hourly));
+
+		[Fact]
+		public void Lead_text_is_one_length_through_a_15_minute_run()
+		{
+			var lengths = Enumerable.Range(0, 48 * 4 + 1).Select(i => ShortRangeViewModel.LeadText(i * 15).Length).Distinct();
+			Assert.Single(lengths);
+		}
 
 		[Fact]
 		public void A_model_row_leads_the_summary_in_its_own_words()

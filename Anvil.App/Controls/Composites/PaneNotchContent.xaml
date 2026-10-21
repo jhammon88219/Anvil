@@ -3,8 +3,8 @@
      nothing that describes the loop.
 
        ┌──────────────────────────────────────────────────┐
-       │  Ref ˅ │ ▓▓▒▒░░░░│░░░▒▒▓▓▓▓▓▓ │ 0.5° ˅          │   FULL (single / two across)
-       │        │ -30            +75 dBZ │                │
+       │        │ -30     dBZ        75  │                │   FULL (single / two across): the scale ABOVE the
+       │  Ref ˅ │ ▓▓▒▒░░░░│░░░▒▒▓▓▓▓▓▓ │ 0.5° ˅          │   ramp, unit centred (ProductColorRamp)
        └──────────────────────────────────────────────────┘
           ^^^      ^^^^^^^^^^^^^^^^^^^^^   ^^^^
           product   the legend: ramp,      tilt
@@ -18,8 +18,8 @@
      nothing to say). Plain text, NOTHING to pick: the product is picked in the Short Range section, one place.
 
        ┌────────────────────────────────────┐
-       │  HRRR      │ ▓▓▒▒░░░▒▒▓▓▓▓▓▓▓▓▓▓▓ │   FULL — model over product, then the model's legend
-       │  Composite │ 5             75 dBZ │
+       │  HRRR      │ 5      dBZ       75  │   FULL — model over product, then the model's legend
+       │  Composite │ ▓▓▒▒░░░▒▒▓▓▓▓▓▓▓▓▓▓▓ │
        └────────────────────────────────────┘
        ┌──────────────────────────────┐
        │  HRRR Comp │ ▓▓▒▒░░░▒▒▓▓    │      COMPACT — one line, no scale numbers
@@ -53,6 +53,10 @@
              mc:Ignorable="d">
 
     <UserControl.Resources>
+        <!-- Both forms' text, +2 over the old sizes (the user's call, 2026-10-21): pickers 14 → 16, model name 12 → 16 /
+             product 12 → 14; the ramp's scale numbers went 11 → 13 inside ProductColorRamp. -->
+        <x:Double x:Key="NotchFontSize">16</x:Double>
+        <x:Double x:Key="NotchSecondaryFontSize">14</x:Double>
         <!-- Thin vertical rule between the three groups, matching the bar's divider. -->
         <Style x:Key="NotchDividerStyle" TargetType="Border">
             <Setter Property="Width" Value="1"/>
@@ -83,6 +87,7 @@
 
         <ctl:ProductComboBox Grid.Column="0"
                              VerticalAlignment="Center"
+                             FontSize="{StaticResource NotchFontSize}"
                              IsEnabled="{x:Bind Radar.IsTransportEnabled, Mode=OneWay}"
                              ItemsSource="{x:Bind Pane.ProductOptions, Mode=OneWay}"
                              SelectedIndex="{x:Bind Pane.ProductIndex, Mode=TwoWay}"
@@ -110,6 +115,7 @@
              on why a global value is drawn in every pane's notch. -->
         <ctl:TiltComboBox Grid.Column="4"
                           VerticalAlignment="Center"
+                          FontSize="{StaticResource NotchFontSize}"
                           ItemsSource="{x:Bind Radar.RadarTiltOptions, Mode=OneWay}"
                           SelectedIndex="{x:Bind Radar.RadarTiltIndex, Mode=TwoWay}"
                           IsEnabled="{x:Bind Radar.CanPickTilt, Mode=OneWay}"
@@ -135,10 +141,10 @@
                     Orientation="{x:Bind ModelNameOrientation(IsCompact), Mode=OneWay}"
                     Spacing="{x:Bind ModelNameSpacing(IsCompact), Mode=OneWay}">
             <TextBlock Text="{x:Bind Model.Playback.ModelText, Mode=OneWay}"
-                       FontSize="12" FontWeight="SemiBold"
+                       FontSize="{StaticResource NotchFontSize}" FontWeight="SemiBold"
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
             <TextBlock Text="{x:Bind Model.Playback.ProductText, Mode=OneWay}"
-                       FontSize="12" TextTrimming="CharacterEllipsis"
+                       FontSize="{StaticResource NotchSecondaryFontSize}" TextTrimming="CharacterEllipsis"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </StackPanel>
 

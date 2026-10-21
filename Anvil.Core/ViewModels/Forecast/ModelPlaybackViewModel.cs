@@ -310,10 +310,12 @@ namespace Anvil.ViewModels
 			return fromNow > TimeSpan.Zero ? $"in {span} · {day}" : $"{span} ago · {day}";
 		}
 
-		/// <summary>"f05:15 / f18" — the playhead's lead over the last one listed.</summary>
+		/// <summary>"f05:15 / f18:00" — the playhead's lead over the last one listed (a fixed length: LeadText).</summary>
 		public string FrameCountText => CurrentLead is { } l && Leads.Count > 0
-			? $"{ShortRangeViewModel.LeadText(l)} / {ShortRangeViewModel.LeadText(Leads[^1])}"
+			? $"{ShortRangeViewModel.LeadText(l, Hourly)} / {ShortRangeViewModel.LeadText(Leads[^1], Hourly)}"
 			: string.Empty;
+
+		private bool Hourly => Field?.IsHourlyMax == true;
 
 		public string ModelText => "HRRR";
 

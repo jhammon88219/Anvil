@@ -62,7 +62,7 @@ namespace Anvil.Controls.Composites
 		public Visibility ModelFormVisibility(bool modelDrawing) => modelDrawing ? Visibility.Visible : Visibility.Collapsed;
 
 		/// <summary>The model name column's width — FIXED per form, for the same reason as <see cref="RampWidth"/>.</summary>
-		public double ModelNameWidth(bool compact) => compact ? 120 : 96;
+		public double ModelNameWidth(bool compact) => compact ? 132 : 110;
 
 		/// <summary>Full = model over product; compact = one line ("HRRR Composite"), like the radar form's one line.</summary>
 		public Orientation ModelNameOrientation(bool compact) => compact ? Orientation.Horizontal : Orientation.Vertical;
