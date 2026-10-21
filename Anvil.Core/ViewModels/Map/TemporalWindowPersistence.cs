@@ -281,12 +281,14 @@ namespace Anvil.ViewModels
 			if (s.ShortRangeShown is bool shown) { shortRange.IsShown = shown; }
 			shortRange.RestoreProduct(s.ShortRangeProduct);
 			if (s.ShortRangeTracks is { } tracks) { shortRange.TracksToken = tracks; }
+			if (s.ShortRangeExtended is bool extended) { shortRange.IsExtended = extended; }
 			if (s.ShortRangeOpacity is double o) { shortRange.Opacity = Unit(o); }
 
 			shortRange.ProductChanged += (_, _) =>
 			{
 				s.ShortRangeProduct = shortRange.ProductId;
 				s.ShortRangeTracks = shortRange.TracksToken;
+				s.ShortRangeExtended = shortRange.IsExtended;
 			};
 			shortRange.PropertyChanged += (_, e) =>
 			{

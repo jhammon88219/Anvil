@@ -13,6 +13,10 @@
 //
 //   descriptor = { url, mesh, nx, ny, scale, offset, ramp: 'reflectivity' | 'uh', stops?: [{ v, color }] }
 //
+//   PLAYING (the bottom console's model mode, ModelPlaybackViewModel): the host sends one descriptor per step; the
+//   compressed bytes of recent frames stay cached here, each step inflates one, and the frame on screen stays up until
+//   the next is ready — no blank between frames.
+//
 // ⚠️ COLOURS ARE DATA, never themed. Reflectivity uses RADAR'S OWN table (radar-ramps.js REFLECTIVITY_RAMP + rampColor,
 // imported read-only — the sealed engine is not edited), so a forecast 50 dBZ is the same red as live radar's. Other
 // fields bring their stops in the descriptor (Models/Forecast/ModelRamps.cs is the one copy).
@@ -35,10 +39,28 @@ const views = new WeakMap(); // map → { program, …GL objects, uploaded keys 
 
 // ── Loading ───────────────────────────────────────────────────────────────────────────────────────
 
-async function loadCodes(url, count) {
+// The console PLAYS a run, so the same ~70 KB frames come round again and again: keep the COMPRESSED bytes of the last
+// KEEP_FRAMES (≈ 7 MB) and inflate per step — never the 1.9 MB inflated ones (×100 frames × panes would be ~200 MB).
+// A frame file never changes once written (a run's landed hour is final), so a url is a safe key.
+const KEEP_FRAMES = 110;
+const raw = new Map();      // url → ArrayBuffer (as fetched), oldest first
+
+async function fetchRaw(url) {
+    if (raw.has(url)) {
+        const hit = raw.get(url);
+        raw.delete(url); raw.set(url, hit); // most recent last
+        return hit;
+    }
     const r = await fetch(url, { cache: 'no-store' });
     if (!r.ok) throw new Error('frame ' + r.status);
-    let buf = await r.arrayBuffer();
+    const buf = await r.arrayBuffer();
+    raw.set(url, buf);
+    while (raw.size > KEEP_FRAMES) raw.delete(raw.keys().next().value);
+    return buf;
+}
+
+async function loadCodes(url, count) {
+    let buf = await fetchRaw(url);
     const head = new Uint8Array(buf, 0, Math.min(2, buf.byteLength));
     if (head[0] === 0x1f && head[1] === 0x8b) {
         buf = await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();

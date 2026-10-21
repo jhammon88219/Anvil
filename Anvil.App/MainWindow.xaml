@@ -379,11 +379,24 @@
                              (RadarControls), so 9:59 → 10:00 can't re-centre the module and slide the scrubber.
                              ⚠️ INSPECT, the markers key and the Home key all left for the tools tier earlier
                              (MapControlsStrip). Don't re-add any here. -->
+                        <!-- ⚠️ MODEL MODE: while ForeCast's Short Range draws (NowCast is off then), ModelConsole plays the
+                             model run IN THIS SAME CELL, over RadarControls. RadarControls stays LAID OUT underneath
+                             (Opacity 0, not hit-testable — never Collapsed): the tools tier's alignment measures it
+                             (AlignCentreSection), and ModelConsole has its exact widths, so nothing on the bar moves. -->
                         <comp:RadarControls x:Name="TimeModule"
                                             Grid.Column="1"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
+                                            Opacity="{x:Bind RadarConsoleOpacity(ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                                            IsHitTestVisible="{x:Bind IsRadarConsoleLive(ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
                                             ViewModel="{x:Bind ViewModel.Radar}"/>
+                        <comp:ModelConsole x:Name="ModelConsole"
+                                           Grid.Column="1"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Visibility="{x:Bind ModelConsoleVisibility(ViewModel.ShortRange.IsDrawing), Mode=OneWay}"
+                                           UseDotMatrix="{x:Bind ViewModel.Radar.IsDotMatrixScrubber, Mode=OneWay}"
+                                           ViewModel="{x:Bind ViewModel.ShortRange.Playback}"/>
 
                         <!-- ===== GLOBAL CLUSTER =====
                              Every key here shares the bar's one look with the temporal keys at the centre:

@@ -546,6 +546,8 @@ namespace Anvil.Services
 		public string? ShortRangeProduct { get => _shortRangeProduct; set => SetProperty(ref _shortRangeProduct, value); }
 		private string? _shortRangeTracks;
 		public string? ShortRangeTracks { get => _shortRangeTracks; set => SetProperty(ref _shortRangeTracks, value); }
+		private bool? _shortRangeExtended; // "Extend to f48": the console lists a 48 h run's whole length
+		public bool? ShortRangeExtended { get => _shortRangeExtended; set => SetProperty(ref _shortRangeExtended, value); }
 		private double? _shortRangeOpacity;
 		public double? ShortRangeOpacity { get => _shortRangeOpacity; set => SetProperty(ref _shortRangeOpacity, value); }
 

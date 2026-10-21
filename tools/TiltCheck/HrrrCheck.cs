@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO.Compression;
 using Anvil.Models;
 using Anvil.Services;
+using Anvil.ViewModels;
 
 static class HrrrCheck
 {
@@ -52,6 +53,24 @@ static class HrrrCheck
 		// The page's frames (what the ForeCast Short Range section draws): sizes + build time, cold then cached.
 		if (run.SubHourlyIn.Contains(1)) await Frame(svc, run, HrrrFields.CompositeReflectivity, 60, false);
 		if (run.HourlyIn.Contains(3)) await Frame(svc, run, HrrrFields.UpdraftHelicity25, 180, true);
+
+		// --whole: the console's whole-run download — every reflectivity frame to f18, 3 at a time (as
+		// ModelPlaybackViewModel does), then the UH run-so-far series IN ORDER (each frame one decode on the last).
+		if (args.Contains("--whole"))
+		{
+			var leads = ModelPlaybackViewModel.LeadsOf(run, HrrrFields.CompositeReflectivity, extended: false)
+				.Where(l => ModelPlaybackViewModel.HasLanded(run, HrrrFields.CompositeReflectivity, l, false)).ToList();
+			sw.Restart();
+			var next = 0;
+			async Task Worker() { while (next < leads.Count) await svc.GetFrameAsync(run.RunUtc, HrrrFields.CompositeReflectivity, leads[next++], false); }
+			await Task.WhenAll(Worker(), Worker(), Worker());
+			Console.WriteLine($"== whole run: {leads.Count} reflectivity frames in {sw.Elapsed.TotalSeconds:0.0} s");
+			var hours = ModelPlaybackViewModel.LeadsOf(run, HrrrFields.UpdraftHelicity25, extended: false)
+				.Where(l => ModelPlaybackViewModel.HasLanded(run, HrrrFields.UpdraftHelicity25, l, true)).ToList();
+			sw.Restart();
+			foreach (var l in hours) await svc.GetFrameAsync(run.RunUtc, HrrrFields.UpdraftHelicity25, l, true);
+			Console.WriteLine($"== whole run: {hours.Count} UH run-so-far frames in {sw.Elapsed.TotalSeconds:0.0} s");
+		}
 		return 0;
 	}
 

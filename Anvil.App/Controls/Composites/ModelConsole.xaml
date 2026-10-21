@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ModelConsole — the bottom console's MODEL MODE: while ForeCast's Short Range draws (NowCast is off then), this sits
+     OVER RadarControls in the same bar cell and plays the model run (ModelPlaybackViewModel). Same layout, same widths,
+     same places as RadarControls — only what each slot SAYS changes, so nothing on the bar moves when it swaps in.
+
+       ┌─ clock ────────┐ ┌─ scrubber: FIXED 420 × 20 (classic | dot matrix, radar's choice) ┐ ┌─ scan ─────────────┐
+       │ 11:00 PM       │ │ ▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮◆▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯▯▯▯▯▯              │ │ Model:   HRRR      │
+       │                │ │                                                            │ │ Run:     16Z · 18/18│
+       │ in 5h 15m · Thu│ │ f05:15 / f18           ⏮  ▶  ⏭                          ⟳  │ │ Product: Composite │
+       └────────────────┘ └────────────────────────────────────────────────────────────┘ └────────────────────┘
+         ^ the playhead's VALID   ^ one cell per FRAME (15 min to f18; hourly past it when      ^ the same three
+           time; under it, how      "Extend to f48"); a cell lights when its frame is built      LABELLED lines,
+           far from now + the day,  (the whole run downloads at once, nearest now first);        reserved 180
+           in the caution colour:   playback skips unlit cells; Stop returns to the frame
+           a FORECAST, not a scan   nearest now; ⟳ = check for a newer run now
+
+     ⚠️ ITS WIDTHS ARE RADAR'S (two-digit-hour clock reserve · 420 · 180 · spacing 16) and it centres on its OWN play
+     button the same way (CentreOnPlay), so its play sits where radar's does. MainWindow keeps RadarControls laid out
+     (invisible, not hit-testable) underneath while this shows — the tools tier's alignment still measures THAT one.
+     ⚠️ NOT THE RADAR LOOP: no RadarLoopEngine here (sealed). It reuses only the DRAWING scrubbers; the pointer mapping is
+     a copy of RadarControls' (equal slots / DotMatrixScrubber.IndexAt) — change both. -->
+<UserControl x:Class="Anvil.Controls.Composites.ModelConsole"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <x:Double x:Key="ReadoutFontSize">12</x:Double>
+        <!-- The scan block's two text roles — RadarControls' own, copied (retune both). -->
+        <Style x:Key="ScanLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
+        </Style>
+        <Style x:Key="ScanValueStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+        </Style>
+        <Style x:Key="GlyphTransportStyle" TargetType="Button" BasedOn="{StaticResource TransportButtonStyle}">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- ⚠️ A FIXED WIDTH (RadarControls' rule): the bar centres it. Its MARGIN is set in code (CentreOnPlay). -->
+    <Grid x:Name="Assembly" HorizontalAlignment="Left" VerticalAlignment="Center" ColumnSpacing="16"
+          SizeChanged="OnAssemblySizeChanged">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/> <!-- the clock: a two-digit hour's width, reserved -->
+            <ColumnDefinition Width="Auto"/> <!-- scrubber over the control line: a fixed 420 -->
+            <ColumnDefinition Width="180"/>  <!-- Model / Run / Product -->
+        </Grid.ColumnDefinitions>
+
+        <!-- ===== THE CLOCK: the playhead's VALID time ===== -->
+        <Grid Grid.Column="0" VerticalAlignment="Center" RowSpacing="2"
+              ToolTipService.ToolTip="When the model frame on screen is valid (a forecast, not a radar scan)">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <!-- THE RESERVE: an invisible "00:00 PM", so the column is always radar's width. -->
+            <Grid ColumnSpacing="4" Opacity="0" IsHitTestVisible="False">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="00:00" Typography.NumeralAlignment="Tabular"
+                           FontSize="40" FontWeight="SemiLight" LineHeight="42" LineStackingStrategy="BlockLineHeight"/>
+                <Grid Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5">
+                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="16"/>
+                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="16"/>
+                </Grid>
+            </Grid>
+            <Grid x:Name="ClockTime" ColumnSpacing="4" HorizontalAlignment="Left"
+                  SizeChanged="OnClockTimeSizeChanged">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="{x:Bind ClockDigits(ViewModel.ClockText), Mode=OneWay}"
+                           Typography.NumeralAlignment="Tabular"
+                           FontSize="40" FontWeight="SemiLight" LineHeight="42" LineStackingStrategy="BlockLineHeight"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <Grid Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,5">
+                    <TextBlock Text="{x:Bind AmDesignator}" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
+                    <TextBlock Text="{x:Bind PmDesignator}" FontSize="16" Opacity="0" IsHitTestVisible="False"/>
+                    <TextBlock Text="{x:Bind ClockSuffix(ViewModel.ClockText), Mode=OneWay}"
+                               FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </Grid>
+            </Grid>
+            <!-- How far from now + the day. The CAUTION colour marks it a forecast (radar's age line is green→red). -->
+            <TextBlock x:Name="WhenText" Grid.Row="1" HorizontalAlignment="Left"
+                       Text="{x:Bind ViewModel.WhenText, Mode=OneWay}"
+                       FontSize="14" TextTrimming="CharacterEllipsis"
+                       Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+        </Grid>
+
+        <!-- ===== SCRUBBER over the CONTROL LINE (Width 420 is load-bearing — see RadarControls) ===== -->
+        <Grid Grid.Column="1" Width="420" VerticalAlignment="Center" RowSpacing="6">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid x:Name="ScrubberHost" Grid.Row="0" Height="20" Background="Transparent"
+                  IsHitTestVisible="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
+                  PointerPressed="OnScrubberPointerPressed"
+                  PointerMoved="OnScrubberPointerMoved"
+                  PointerReleased="OnScrubberPointerReleased"
+                  PointerCaptureLost="OnScrubberPointerReleased"
+                  PointerCanceled="OnScrubberPointerReleased">
+                <prim:ClassicScrubber Segments="{x:Bind ViewModel.Segments, Mode=OneWay}"
+                                      CurrentIndex="{x:Bind ViewModel.CurrentFrameIndex, Mode=OneWay}"
+                                      Visibility="{x:Bind ClassicVisibility(UseDotMatrix), Mode=OneWay}"/>
+                <prim:DotMatrixScrubber x:Name="DotScrubber"
+                                        Segments="{x:Bind ViewModel.Segments, Mode=OneWay}"
+                                        CurrentIndex="{x:Bind ViewModel.CurrentFrameIndex, Mode=OneWay}"
+                                        FillOrder="LeftToRight"
+                                        Visibility="{x:Bind DotVisibility(UseDotMatrix), Mode=OneWay}"/>
+            </Grid>
+
+            <!-- Lead LEFT · transport CENTRED · check-now RIGHT, [*, Auto, *] (RadarControls' rule). -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                           Text="{x:Bind ViewModel.FrameCountText, Mode=OneWay}"
+                           Typography.NumeralAlignment="Tabular"
+                           FontSize="{StaticResource ReadoutFontSize}"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                           ToolTipService.ToolTip="Forecast hour on screen / the last one listed"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button Style="{StaticResource GlyphTransportStyle}" Click="OnPrevClick"
+                            IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
+                            ToolTipService.ToolTip="Previous frame">
+                        <FontIcon Glyph="&#xE892;" FontSize="13"/>
+                    </Button>
+                    <Button x:Name="PlayStopButton" Style="{StaticResource GlyphTransportStyle}" Width="32"
+                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                            Click="OnPlayStopClick"
+                            IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
+                            ToolTipService.ToolTip="Play / stop (stop returns to the frame nearest now)">
+                        <FontIcon Glyph="{x:Bind PlayStopGlyph(ViewModel.IsPlaying), Mode=OneWay}" FontSize="16"/>
+                    </Button>
+                    <Button Style="{StaticResource GlyphTransportStyle}" Click="OnNextClick"
+                            IsEnabled="{x:Bind ViewModel.IsTransportEnabled, Mode=OneWay}"
+                            ToolTipService.ToolTip="Next frame">
+                        <FontIcon Glyph="&#xE893;" FontSize="13"/>
+                    </Button>
+                </StackPanel>
+
+                <Button Grid.Column="2" HorizontalAlignment="Right" Style="{StaticResource GlyphTransportStyle}"
+                        Width="24" Height="24" Click="OnCheckNowClick"
+                        ToolTipService.ToolTip="Check for a newer model run now">
+                    <FontIcon Glyph="&#xE72C;" FontSize="11"/>
+                </Button>
+            </Grid>
+        </Grid>
+
+        <!-- ===== MODEL / RUN / PRODUCT: radar's three labelled lines, the model's facts ===== -->
+        <Grid Grid.Column="2" VerticalAlignment="Center" ColumnSpacing="8" RowSpacing="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="Model:" Style="{StaticResource ScanLabelStyle}"/>
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind ViewModel.ModelText, Mode=OneWay}"
+                       Style="{StaticResource ScanValueStyle}" FontWeight="SemiBold"/>
+            <TextBlock Grid.Row="1" Text="Run:" Style="{StaticResource ScanLabelStyle}"/>
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind ViewModel.RunText, Mode=OneWay}"
+                       Style="{StaticResource ScanValueStyle}"/>
+            <TextBlock Grid.Row="2" Text="Product:" Style="{StaticResource ScanLabelStyle}"/>
+            <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind ViewModel.ProductText, Mode=OneWay}"
+                       Style="{StaticResource ScanValueStyle}"/>
+        </Grid>
+    </Grid>
+</UserControl>

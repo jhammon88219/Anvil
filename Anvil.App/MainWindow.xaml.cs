@@ -194,6 +194,15 @@ namespace Anvil
 		public Visibility NotchVisibility(bool paneVisible) =>
 			paneVisible ? Visibility.Visible : Visibility.Collapsed;
 
+		/// <summary>MODEL MODE (the bar's console cell): RadarControls goes INVISIBLE, never Collapsed, while ModelConsole
+		/// plays over it — the tools tier's alignment keeps measuring it (see MainWindow.xaml at TimeModule).</summary>
+		public double RadarConsoleOpacity(bool modelDrawing) => modelDrawing ? 0 : 1;
+
+		public bool IsRadarConsoleLive(bool modelDrawing) => !modelDrawing;
+
+		// ⚠️ Visibility, not x:Load: x:Load in a Window's XAML generates a FindName call a Window doesn't have (CS1061).
+		public Visibility ModelConsoleVisibility(bool modelDrawing) => modelDrawing ? Visibility.Visible : Visibility.Collapsed;
+
 		/// <summary>
 		/// Whether the notches take their tighter form (no scale numbers under the ramp, shorter ramp).
 		/// Quad only: a quad pane is half the window wide, and the full notch would take a real bite out of

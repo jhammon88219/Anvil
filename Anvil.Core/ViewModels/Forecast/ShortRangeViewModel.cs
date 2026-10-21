@@ -20,9 +20,9 @@ namespace Anvil.ViewModels
 	/// ⚠️ THE BOX IS EXCLUSIVE WITH NOWCAST (the user's call, 2026-10-21): while the field DRAWS (box ticked AND ForeCast
 	/// on — <see cref="IsDrawing"/>) live radar is off. <c>MapViewModel</c> owns that rule (it owns the modes); this VM
 	/// only says when drawing starts and stops (<see cref="DrawingChanged"/>).
-	/// ⚠️ ONE FRAME, THE ONE NEAREST NOW, until the console plays model hours (step 3): instant fields every 15 min to f18
-	/// (then hourly), hourly maxes on the hour. "Latest" draws the NEWEST run that already has that frame — a run that is
-	/// still landing falls back to the one before, so the card always names the run on the map.
+	/// ⚠️ THIS PICKS THE RUN, <see cref="Playback"/> PLAYS IT (the bottom console's model mode): "Latest" = the NEWEST run
+	/// that already has the frame nearest now — a run still landing falls back to the one before, so the card always names
+	/// the run on the map. The playback opens at that frame and downloads the rest of the run.
 	/// ⚠️ WHEN to check is the live-feed hub's (<see cref="LiveFeedKind.Hrrr"/>, polled — nothing announces a model hour).
 	/// A check is ONE bucket listing; it only runs while the field draws.
 	/// ⚠️ CLOCK TIMES, never countdowns (FeedStatus). The activity row's LAST is the newest run's progress ("17Z · 7/18").
@@ -55,10 +55,9 @@ namespace Anvil.ViewModels
 		private int _tracksIndex = 1;
 		private RunOption _selectedRun;
 		private HrrrRunStatus? _newest;
-		private FrameKey? _drawn, _inFlight;
-		private int _applyToken;
-
-		private sealed record FrameKey(DateTimeOffset Run, string FieldId, int Lead, bool RunSoFar);
+		private bool _extended;
+		private int _pickToken;
+		private DateTimeOffset _lastCheckNow;
 
 		/// <param name="reflectivityRamp">Radar's reflectivity ramp (the page's table, pushed at load) — the legend for
 		/// future radar, which draws in radar's own colours.</param>
@@ -75,6 +74,19 @@ namespace Anvil.ViewModels
 			Products = ProductFields.Select(f => new ProductOption(f)).ToList();
 			_selectedRun = RunOption.Latest(null);
 			RunOptions = new ObservableCollection<RunOption> { _selectedRun };
+			Playback = new ModelPlaybackViewModel(mapService, service, logger, CheckNow);
+			Playback.FrameShown += (_, _) => ShowCard();
+		}
+
+		/// <summary>The bottom console's model mode: the drawn run's frames, playhead and download.</summary>
+		public ModelPlaybackViewModel Playback { get; }
+
+		/// <summary>⟳ on the console: check for a newer run now (at most every 5 s).</summary>
+		public void CheckNow()
+		{
+			if (DateTimeOffset.UtcNow - _lastCheckNow < TimeSpan.FromSeconds(5)) { return; }
+			_lastCheckNow = DateTimeOffset.UtcNow;
+			_live.Wake();
 		}
 
 		/// <summary>This section's row in the ForeCast activity expander (MapViewModel shows it only while ticked).</summary>
@@ -197,6 +209,24 @@ namespace Anvil.ViewModels
 
 		private bool RunSoFar => _product.IsHourlyMax && _tracksIndex == 1;
 
+		// ── Extend to f48 (00/06/12/18Z runs only) ──
+
+		/// <summary>List the whole 48 h run on the scrubber (hourly past f18) — else f00–f18 (the user's call, 2026-10-21).
+		/// Persisted.</summary>
+		public bool IsExtended
+		{
+			get => _extended;
+			set
+			{
+				if (!SetProperty(ref _extended, value)) { return; }
+				ProductChanged?.Invoke(this, EventArgs.Empty);
+				Reconcile();
+			}
+		}
+
+		/// <summary>The row shows: the run on the map goes to 48 h.</summary>
+		public bool CanExtend => Playback.Run is { LastHour: > HrrrFields.SubHourlyLastHour };
+
 		// ── Run ──
 
 		/// <summary>Latest (follows each new run) + the <see cref="EarlierRuns"/> runs before the newest (held).</summary>
@@ -278,7 +308,7 @@ namespace Anvil.ViewModels
 			{
 				_logger.LogWarning(ex, "HRRR run check failed");
 				Status.Failed();
-				_dispatcher.Post(() => { if (_drawn is null) { CardFooter = "HRRR unavailable — will retry"; } });
+				_dispatcher.Post(() => { if (Playback.ShownLead is null) { CardFooter = "HRRR unavailable — will retry"; } });
 			}
 		}
 
@@ -287,7 +317,7 @@ namespace Anvil.ViewModels
 		{
 			if (newest is null)
 			{
-				if (_drawn is null) { CardFooter = "No HRRR run found in the last 6 hours"; }
+				if (Playback.ShownLead is null) { CardFooter = "No HRRR run found in the last 6 hours"; }
 				return;
 			}
 			_runs[newest.RunUtc] = newest;
@@ -319,57 +349,46 @@ namespace Anvil.ViewModels
 			if (!_isMapReady) { return; }
 			if (!IsDrawing || _service is null)
 			{
-				if (_drawn is not null || _inFlight is not null) { _ = ClearAsync(); }
+				if (Playback.Run is not null) { _ = ClearAsync(); }
 				return;
 			}
 			_ = EnsureAsync();
 		}
 
+		// Picks the RUN and hands it to the playback (which opens at the frame nearest now and downloads the rest). The
+		// same run again only lets the playback pick up hours that landed since.
 		private async Task EnsureAsync()
 		{
 			var held = _selectedRun.RunUtc;
 			if (held is null && _newest is null) { CardFooter = "Finding the newest HRRR run…"; return; }
 
-			FrameKey? key;
+			var token = ++_pickToken;
 			HrrrRunStatus? status;
-			try { (key, status) = await PickFrameAsync(held).ConfigureAwait(true); }
+			try { status = await PickRunAsync(held).ConfigureAwait(true); }
 			catch (Exception ex)
 			{
 				_logger.LogWarning(ex, "HRRR run status failed");
-				CardFooter = "HRRR unavailable — will retry";
+				if (token == _pickToken) { CardFooter = "HRRR unavailable — will retry"; }
 				return;
 			}
-			if (key is null || status is null)
+			if (token != _pickToken || !IsDrawing) { return; }
+			if (status is null)
 			{
 				CardFooter = held is null ? "The newest HRRR runs have no frame for now yet" : "That run has no frame for now yet";
 				return;
 			}
-			// ⚠️ DEDUPE BEFORE TAKING A TOKEN, AND NEVER TOUCH _applyToken ON A CALL THAT BAILS (TropicalViewModel's rule).
-			if (Equals(_inFlight, key) || (Equals(_drawn, key) && _inFlight is null)) { ShowCard(key, status); return; }
-
-			var token = ++_applyToken;
-			_inFlight = key;
-			CardFooter = "Loading…";
-			string descriptor;
-			try { descriptor = await _service!.GetFrameAsync(key.Run, _product, key.Lead, key.RunSoFar, _shutdown.Token); }
-			catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { return; }
-			catch (Exception ex)
-			{
-				if (token == _applyToken) { _inFlight = null; }
-				_logger.LogWarning(ex, "HRRR frame failed ({Run:yyyyMMddHH} {Field} {Lead})", key.Run, key.FieldId, key.Lead);
-				if (token == _applyToken) { CardFooter = ex is HrrrNotAvailableException ? ex.Message : "HRRR frame unavailable — will retry"; }
-				return;
-			}
-			if (token != _applyToken || !IsDrawing) { return; }
-			_inFlight = null;
-			_drawn = key;
-			await _mapService.SetModelFieldAsync(descriptor);
-			await _mapService.SetModelFieldOpacityAsync(_opacity);
-			ShowCard(key, status);
+			// A run or product change keeps the MOMENT on screen (the old frame's valid time), not the lead.
+			var keep = Playback.Run is { } was && Playback.ShownLead is { } lead ? was.RunUtc.AddMinutes(lead) : (DateTimeOffset?)null;
+			var firstDraw = Playback.Run is null;
+			Playback.Load(status, _product, RunSoFar, _extended && status.LastHour > HrrrFields.SubHourlyLastHour, keep);
+			OnPropertyChanged(nameof(CanExtend));
+			if (firstDraw) { await _mapService.SetModelFieldOpacityAsync(_opacity); }
+			if (Playback.ShownLead is null) { CardFooter = "Loading…"; }
+			else { ShowCard(); }
 		}
 
-		// The frame nearest now, in the held run or (Latest) the newest run that has it.
-		private async Task<(FrameKey?, HrrrRunStatus?)> PickFrameAsync(DateTimeOffset? held)
+		// The held run, or (Latest) the newest run that already has the frame nearest now.
+		private async Task<HrrrRunStatus?> PickRunAsync(DateTimeOffset? held)
 		{
 			var now = DateTimeOffset.UtcNow;
 			var candidates = new List<HrrrRunStatus>();
@@ -390,9 +409,9 @@ namespace Anvil.ViewModels
 			foreach (var s in candidates)
 			{
 				var lead = LeadNearest(s, now);
-				if (lead is { } l && HasLanded(s, l)) { return (new FrameKey(s.RunUtc, _product.Id, l, RunSoFar), s); }
+				if (lead is { } l && ModelPlaybackViewModel.HasLanded(s, _product, l, RunSoFar)) { return s; }
 			}
-			return (null, null);
+			return null;
 		}
 
 		// The lead whose valid time is nearest now, on the field's step, inside the run.
@@ -411,23 +430,19 @@ namespace Anvil.ViewModels
 			return Math.Min((int)(Math.Round(minutes / step) * step), last);
 		}
 
-		private bool HasLanded(HrrrRunStatus s, int lead)
+		// The card follows the frame ON THE MAP (the playback's), whatever the scrubber is doing.
+		private void ShowCard()
 		{
-			if (RunSoFar) { return Enumerable.Range(1, lead / 60).All(h => s.HourlyIn.Contains(h)); }
-			var (kind, hour, _) = _product.Locate(lead);
-			return (kind == HrrrFields.HourlyFile ? s.HourlyIn : s.SubHourlyIn).Contains(hour);
-		}
-
-		private void ShowCard(FrameKey key, HrrrRunStatus status)
-		{
+			if (Playback.Run is not { } status || Playback.ShownLead is not { } lead) { return; }
+			var run = status.RunUtc;
 			var hoursIn = status.HourlyIn.Count == 0 ? 0 : status.HourlyIn[^1];
 			CardHeadline = status.IsComplete
-				? $"HRRR {key.Run:HH}Z · all {status.LastHour} hours in"
-				: $"HRRR {key.Run:HH}Z · {hoursIn} of {status.LastHour} hours in";
-			var valid = key.Run.AddMinutes(key.Lead).ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
+				? $"HRRR {run:HH}Z · all {status.LastHour} hours in"
+				: $"HRRR {run:HH}Z · {hoursIn} of {status.LastHour} hours in";
+			var valid = run.AddMinutes(lead).ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
 			// Run so far: the swath covers the run's start (f01's max begins at f00) to the frame — a clock time at BOTH ends.
-			var from = key.Run.ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
-			CardContext = key.RunSoFar ? $"{from} – {valid} (f01–{LeadText(key.Lead)})" : $"valid {valid} ({LeadText(key.Lead)})";
+			var from = run.ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
+			CardContext = Playback.RunSoFar ? $"{from} – {valid} (f01–{LeadText(lead)})" : $"valid {valid} ({LeadText(lead)})";
 			CardFooter = string.Empty;
 		}
 
@@ -442,9 +457,9 @@ namespace Anvil.ViewModels
 
 		private async Task ClearAsync()
 		{
-			++_applyToken;
-			_drawn = null;
-			_inFlight = null;
+			++_pickToken;
+			Playback.Clear();
+			OnPropertyChanged(nameof(CanExtend));
 			CardFooter = string.Empty;
 			await _mapService.ClearModelFieldAsync();
 		}

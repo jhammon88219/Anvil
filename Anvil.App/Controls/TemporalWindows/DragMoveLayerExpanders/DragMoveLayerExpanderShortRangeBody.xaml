@@ -10,12 +10,13 @@
        Product  [Future radar (composite)          ▾]         ← composite · 1 km · updraft helicity tracks
        Run      [Latest (16Z)                      ▾]         ← Latest follows each run; an earlier one is HELD (not persisted)
        Tracks   [ This hour | Run so far ]                    ← ONLY while the product is UH; default Run so far
+       Hours    [ ] Extend to f48 (hourly past f18)           ← ONLY for a 48 h run (00/06/12/18Z); persisted
        ▕▒▒▓▓██▓▓▒▒▒▒░░▏                                      ← the LEGEND, last: radar's own reflectivity ramp for future
                                                                 radar (ProductColorRamp + scale), the UH table for tracks
 
      ⚠️ The box (the host's) EXCLUDES NOWCAST: ticking it while ForeCast runs turns live radar off; unticking brings it back
-     (MapViewModel's NowCast ⇄ MODEL rule). ⚠️ Colours are DATA, never themed. ⚠️ No time control here: the frame is the one
-     nearest now until the console plays model hours. -->
+     (MapViewModel's NowCast ⇄ MODEL rule). ⚠️ Colours are DATA, never themed. ⚠️ No time control here: the BOTTOM CONSOLE
+     plays the run (Composites/ModelConsole, while the field draws). -->
 <UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderShortRangeBody"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -53,6 +54,7 @@
                 <RowDefinition Height="Auto"/> <!-- Product -->
                 <RowDefinition Height="Auto"/> <!-- Run -->
                 <RowDefinition Height="Auto"/> <!-- Tracks (UH only) -->
+                <RowDefinition Height="Auto"/> <!-- Hours (48 h runs only) -->
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Model" Style="{StaticResource SettingsFieldLabelStyle}"/>
@@ -83,6 +85,16 @@
                                   ItemsSource="{x:Bind ViewModel.TracksLabels}"
                                   SelectedIndex="{x:Bind ViewModel.TracksIndex, Mode=TwoWay}"
                                   ToolTipService.ToolTip="This hour's rotation, or every hour of the run so far painted as one swath"/>
+
+            <!-- Only for a run that goes to 48 h (00/06/12/18Z): off = the console plays f00–f18 in 15-min frames; on =
+                 the whole run, hourly past f18 (the 15-min files stop there). Persisted. -->
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="Hours" Style="{StaticResource SettingsFieldLabelStyle}"
+                       Visibility="{x:Bind ViewModel.CanExtend, Mode=OneWay, Converter={StaticResource BoolToVis}}"/>
+            <CheckBox x:Name="ShortRangeExtendCheckBox" Grid.Row="4" Grid.Column="1"
+                      Content="Extend to f48 (hourly past f18)"
+                      Visibility="{x:Bind ViewModel.CanExtend, Mode=OneWay, Converter={StaticResource BoolToVis}}"
+                      IsChecked="{x:Bind ViewModel.IsExtended, Mode=TwoWay}"
+                      ToolTipService.ToolTip="This run goes to 48 hours; past 18 the HRRR only has hourly frames"/>
         </Grid>
 
         <prim:ProductColorRamp x:Name="ShortRangeLegend" Grid.Row="2" Margin="0,14,0,0"

@@ -116,54 +116,68 @@ namespace Anvil.Services
 		public async Task<string> GetFrameAsync(DateTimeOffset runUtc, HrrrField field, int leadMinutes, bool runSoFar,
 			CancellationToken cancellationToken = default)
 		{
-			// One build at a time: a "run so far" frame decodes up to 48 hours, and two at once would double that for
-			// the same answer when the frame is re-asked mid-build.
-			await _frameGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-			try
+			var name = string.Create(CultureInfo.InvariantCulture, $"{field.Id}{(runSoFar ? "-run" : "")}-{leadMinutes:D4}.bin");
+			var folder = RunFolder(runUtc);
+			var path = Path.Combine(folder, name);
+			LambertConformalGrid grid;
+			if (File.Exists(path) && _meshWrittenFor is { } known)
 			{
-				var name = string.Create(CultureInfo.InvariantCulture, $"{field.Id}{(runSoFar ? "-run" : "")}-{leadMinutes:D4}.bin");
-				var folder = RunFolder(runUtc);
-				var path = Path.Combine(folder, name);
-				LambertConformalGrid grid;
-				if (File.Exists(path) && _meshWrittenFor is { } known)
+				grid = known;
+			}
+			else
+			{
+				float[] values;
+				if (runSoFar && field.IsHourlyMax)
 				{
-					grid = known;
+					// ONE swath build at a time: it carries the running max (below), and two at once would fight over it.
+					await _frameGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+					try { (grid, values) = await RunSoFarAsync(runUtc, field, leadMinutes / 60, cancellationToken).ConfigureAwait(false); }
+					finally { _frameGate.Release(); }
 				}
 				else
 				{
-					float[] values;
-					if (runSoFar && field.IsHourlyMax)
-					{
-						// Every hour up to this one, max'd cell by cell: the swath the storms painted so far.
-						var hours = new List<float[]>();
-						GribField? last = null;
-						for (var h = 1; h <= leadMinutes / 60; h++)
-						{
-							last = await GetFieldAsync(runUtc, field, h * 60, cancellationToken).ConfigureAwait(false);
-							hours.Add(last.Values);
-						}
-						grid = last!.Grid;
-						values = await Task.Run(() => ModelFieldFrames.MaxOf(hours), cancellationToken).ConfigureAwait(false);
-					}
-					else
-					{
-						var f = await GetFieldAsync(runUtc, field, leadMinutes, cancellationToken).ConfigureAwait(false);
-						grid = f.Grid;
-						values = f.Values;
-					}
-					if (!File.Exists(path))
-					{
-						var bytes = await Task.Run(() => ModelFieldFrames.EncodeFrame(values, field.Encoding), cancellationToken).ConfigureAwait(false);
-						Directory.CreateDirectory(folder);
-						await AtomicWriteAsync(path, s => s.WriteAsync(bytes, cancellationToken).AsTask(), cancellationToken).ConfigureAwait(false);
-					}
-					await EnsureMeshAsync(grid, cancellationToken).ConfigureAwait(false);
+					var f = await GetFieldAsync(runUtc, field, leadMinutes, cancellationToken).ConfigureAwait(false);
+					grid = f.Grid;
+					values = f.Values;
 				}
-				var run = runUtc.ToString("yyyyMMddHH", CultureInfo.InvariantCulture);
-				return ModelFieldFrames.DescriptorJson($"https://{CacheHostName}/{ModelFolder}/{run}/{name}",
-					$"https://{CacheHostName}/{ModelFolder}/{MeshFileName}", grid, field);
+				if (!File.Exists(path))
+				{
+					var bytes = await Task.Run(() => ModelFieldFrames.EncodeFrame(values, field.Encoding), cancellationToken).ConfigureAwait(false);
+					Directory.CreateDirectory(folder);
+					await AtomicWriteAsync(path, s => s.WriteAsync(bytes, cancellationToken).AsTask(), cancellationToken).ConfigureAwait(false);
+				}
+				await EnsureMeshAsync(grid, cancellationToken).ConfigureAwait(false);
 			}
-			finally { _frameGate.Release(); }
+			var run = runUtc.ToString("yyyyMMddHH", CultureInfo.InvariantCulture);
+			return ModelFieldFrames.DescriptorJson($"https://{CacheHostName}/{ModelFolder}/{run}/{name}",
+				$"https://{CacheHostName}/{ModelFolder}/{MeshFileName}", grid, field);
+		}
+
+		// The running max behind "run so far": the swath through hour N is the swath through N−1 max'd with hour N. Kept
+		// for ONE (run, field), so frames asked in order (the console's whole-run download) cost one decode each instead
+		// of N; asked out of order, it restarts from f01. Only touched under _frameGate.
+		private (DateTimeOffset Run, string FieldId, int UpToHour, LambertConformalGrid Grid, float[] Max)? _runMax;
+
+		private async Task<(LambertConformalGrid, float[])> RunSoFarAsync(DateTimeOffset runUtc, HrrrField field, int hours, CancellationToken ct)
+		{
+			var start = 1;
+			LambertConformalGrid? grid = null;
+			float[]? max = null;
+			if (_runMax is { } m && m.Run == runUtc && m.FieldId == field.Id && m.UpToHour <= hours)
+			{
+				if (m.UpToHour == hours) return (m.Grid, m.Max);
+				start = m.UpToHour + 1;
+				grid = m.Grid;
+				max = (float[])m.Max.Clone(); // the kept one may already be encoded into an earlier frame — never mutate it
+			}
+			for (var h = start; h <= hours; h++)
+			{
+				var f = await GetFieldAsync(runUtc, field, h * 60, ct).ConfigureAwait(false);
+				grid = f.Grid;
+				max = max is null ? f.Values : await Task.Run(() => ModelFieldFrames.MaxOf(new[] { max, f.Values }), ct).ConfigureAwait(false);
+			}
+			_runMax = (runUtc, field.Id, hours, grid!, max!);
+			return (grid!, max!);
 		}
 
 		// The mesh belongs to the GRID, which every HRRR run shares — written once, rewritten only if the grid changes.

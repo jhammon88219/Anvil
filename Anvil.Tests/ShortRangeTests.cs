@@ -109,6 +109,69 @@ namespace Anvil.Tests
 			Assert.Equal("Outlooks starting", activity.Summary);
 		}
 
+		// ── The console's frames (ModelPlaybackViewModel) ──
+
+		private static HrrrRunStatus Run(int hour, int landedTo) => new(
+			new DateTimeOffset(2026, 10, 21, hour, 0, 0, TimeSpan.Zero), HrrrFields.LastHourOf(new DateTimeOffset(2026, 10, 21, hour, 0, 0, TimeSpan.Zero)),
+			Enumerable.Range(0, landedTo + 1).ToList(), Enumerable.Range(0, Math.Min(landedTo, 18) + 1).ToList());
+
+		[Fact]
+		public void An_18_hour_run_is_73_quarter_hours()
+		{
+			var leads = ModelPlaybackViewModel.LeadsOf(Run(15, 18), HrrrFields.CompositeReflectivity, extended: true);
+			Assert.Equal(73, leads.Count);
+			Assert.Equal(0, leads[0]);
+			Assert.Equal(15, leads[1]);
+			Assert.Equal(1080, leads[^1]);
+		}
+
+		[Fact]
+		public void A_48_hour_run_stops_at_f18_unless_extended_then_goes_hourly()
+		{
+			Assert.Equal(1080, ModelPlaybackViewModel.LeadsOf(Run(12, 48), HrrrFields.CompositeReflectivity, extended: false)[^1]);
+			var extended = ModelPlaybackViewModel.LeadsOf(Run(12, 48), HrrrFields.CompositeReflectivity, extended: true);
+			Assert.Equal(73 + 30, extended.Count);
+			Assert.Equal(1140, extended[73]); // f19, hourly after the 15-min file ends
+			Assert.Equal(2880, extended[^1]);
+		}
+
+		[Fact]
+		public void Tracks_are_hourly_from_f01()
+		{
+			var leads = ModelPlaybackViewModel.LeadsOf(Run(15, 18), HrrrFields.UpdraftHelicity25, extended: false);
+			Assert.Equal(Enumerable.Range(1, 18).Select(h => h * 60), leads);
+		}
+
+		[Fact]
+		public void Opens_at_the_frame_nearest_now()
+		{
+			var leads = new[] { 0, 15, 30, 45, 60 };
+			Assert.Equal(2, ModelPlaybackViewModel.NearestIndex(leads, 29));
+			Assert.Equal(4, ModelPlaybackViewModel.NearestIndex(leads, 500)); // past the end → the last
+			Assert.Equal(0, ModelPlaybackViewModel.NearestIndex(leads, -30));
+		}
+
+		[Fact]
+		public void A_swath_needs_every_hour_before_it()
+		{
+			var landing = Run(16, 4);
+			Assert.True(ModelPlaybackViewModel.HasLanded(landing, HrrrFields.UpdraftHelicity25, 240, runSoFar: true));
+			Assert.False(ModelPlaybackViewModel.HasLanded(landing, HrrrFields.UpdraftHelicity25, 300, runSoFar: true));
+			Assert.True(ModelPlaybackViewModel.HasLanded(landing, HrrrFields.CompositeReflectivity, 225, runSoFar: false)); // in f04's 15-min file
+			Assert.False(ModelPlaybackViewModel.HasLanded(landing, HrrrFields.CompositeReflectivity, 255, runSoFar: false)); // f05's
+		}
+
+		[Fact]
+		public void The_clock_line_says_how_far_from_now()
+		{
+			var valid = new DateTimeOffset(2026, 10, 22, 4, 0, 0, TimeSpan.Zero);
+			var day = valid.ToLocalTime().ToString("ddd", System.Globalization.CultureInfo.CurrentCulture);
+			Assert.Equal($"in 5h 15m · {day}", ModelPlaybackViewModel.WhenWords(TimeSpan.FromMinutes(315), valid));
+			Assert.Equal($"in 45m · {day}", ModelPlaybackViewModel.WhenWords(TimeSpan.FromMinutes(45), valid));
+			Assert.Equal($"2h ago · {day}", ModelPlaybackViewModel.WhenWords(TimeSpan.FromMinutes(-120), valid));
+			Assert.Equal($"now · {day}", ModelPlaybackViewModel.WhenWords(TimeSpan.FromSeconds(20), valid));
+		}
+
 		// ── NowCast ⇄ MODEL (MapViewModel) ──
 
 		private static T N<T>() where T : class => TemporalWindowPersistenceTests.Null<T>.Create();
