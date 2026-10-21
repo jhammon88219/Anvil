@@ -40,12 +40,6 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(MapControlsStrip), new PropertyMetadata(null));
 
-		// ===== Site markers (one toggle per network) =====
-		// Takes the CURRENT visibility and answers for the CLICK (see the XAML header). "radar sites", never
-		// "markers" — that word belongs to the marker viewer beside the search box.
-		public string SitesTooltip(bool visible, string network) =>
-			visible ? $"Hide {network} on the map" : $"Show {network} on the map";
-
 		// ===== The PastCast loading screen's lock (RadarViewModel.AreControlsLocked) =====
 		// EVERY tool on this tier greys while it is up (Location and the marker viewer too — the user's call 2026-10-04);
 		// the site picker is already off in PastCast.
@@ -82,7 +76,7 @@ namespace Anvil.Controls.Composites
 		}
 
 		// ===== The centre section is EDGE-ALIGNED to the console (the section rules, docs/ui-bottom-bar.md) =====
-		// network toggles ⁙⁙ [site picker] ⁙⁙⁙ Inspect Ruler Rings
+		// network picker ⁙⁙ [site picker] ⁙⁙⁙ Inspect Ruler Rings
 		// ├ console left               ▶                console right ┤
 		// Three measured values: the group's left margin (toggles on the console's left edge) and the two spacers'
 		// widths (picker centred on play; tools ending on the console's right edge). The spacers are unequal because
@@ -98,7 +92,7 @@ namespace Anvil.Controls.Composites
 		public void AlignToConsole(double consoleLeft, double play, double consoleRight, double pickerWidth, UIElement root)
 		{
 			if (double.IsNaN(consoleLeft) || double.IsNaN(play) || double.IsNaN(consoleRight) ||
-				NetworkToggles.ActualWidth <= 0 || RadarTools.ActualWidth <= 0)
+				MapControlsStripNetworkPicker.ActualWidth <= 0 || RadarTools.ActualWidth <= 0)
 			{
 				return;
 			}
@@ -110,7 +104,7 @@ namespace Anvil.Controls.Composites
 			// spacer | its margins | the panel's spacing on both sides
 			var spacerChrome = LeftSpacer.Margin.Left + LeftSpacer.Margin.Right + 2 * ConsoleTools.Spacing;
 			var pickerHalf = SitePicker.Width / 2;
-			var left = (play - pickerHalf) - (consoleLeft + NetworkToggles.ActualWidth) - spacerChrome;
+			var left = (play - pickerHalf) - (consoleLeft + MapControlsStripNetworkPicker.ActualWidth) - spacerChrome;
 			var right = (consoleRight - RadarTools.ActualWidth) - (play + pickerHalf) - spacerChrome;
 			SetIfMoved(LeftSpacer, Math.Max(LeftSpacer.WidthFor(SpacerMinColumns), left));
 			SetIfMoved(RightSpacer, Math.Max(RightSpacer.WidthFor(SpacerMinColumns), right));
