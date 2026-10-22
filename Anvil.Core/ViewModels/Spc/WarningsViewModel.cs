@@ -31,13 +31,15 @@ namespace Anvil.ViewModels
 		public FeedStatus Status { get; }
 
 		/// <param name="live">This feed's schedule from the live-feed hub (null = poll at the default interval).</param>
+		/// <param name="dayService">The day list's ENDED warnings (IEM); null = the list holds only what this session saw.</param>
 		public WarningsViewModel(IMapService mapService, IWarningService warningService, IDispatcher dispatcher, ILogger<WarningsViewModel> logger,
-			LiveFeedChannel? live = null)
+			LiveFeedChannel? live = null, IPastAlertService? dayService = null)
 		{
 			Status = new FeedStatus(Models.LayerOrder.Warnings, "Warnings", dispatcher);
 			_live = live ?? LiveFeedChannel.Polling(LiveFeedKind.Warnings, LiveFeedKinds.DefaultPoll(LiveFeedKind.Warnings));
 			_mapService = mapService;
 			_warningService = warningService;
+			_dayService = dayService;
 			_dispatcher = dispatcher;
 			_logger = logger;
 
@@ -52,6 +54,12 @@ namespace Anvil.ViewModels
 					TornadoStepper.Reset();
 					SevereStepper.Reset();
 					FlashFloodStepper.Reset();
+				}
+				else if (e.PropertyName == nameof(IsModeActive))
+				{
+					// NowCast on: the day list catches up at once (its "ended" rows were last checked while it was off).
+					RebuildAlertList();
+					_ = FetchDayIfDueAsync();
 				}
 			};
 		}
@@ -82,6 +90,65 @@ namespace Anvil.ViewModels
 			targets.Count == 1
 				? targets[0].GeometryJson
 				: "{\"type\":\"GeometryCollection\",\"geometries\":[" + string.Join(",", targets.Select(t => t.GeometryJson)) + "]}";
+
+		// ── The section's DAY LIST (WarningDayList has the rules) ──
+		// In effect = every CAP refresh (the map's set); ended = IEM's day so far, re-asked every DayEvery while NowCast
+		// runs (the list is only on screen then), + whatever this session saw end. Rows go through RowSync: a refresh
+		// changes only the rows that came, went or changed — never a rebuilt list (it flashed; 2026-10-21).
+
+		private readonly IPastAlertService? _dayService;
+		private readonly WarningDayList _day = new();
+		private DateTimeOffset _dayFetchedAt = DateTimeOffset.MinValue;
+		private static readonly TimeSpan DayEvery = TimeSpan.FromMinutes(5);
+
+		/// <summary>The SPC convective day's start (12Z) containing <paramref name="now"/> — the list's day, the same as
+		/// the storm reports'. Internal for tests.</summary>
+		internal static DateTimeOffset DayStart(DateTimeOffset now)
+		{
+			var u = now.UtcDateTime;
+			var start = new DateTimeOffset(u.Year, u.Month, u.Day, 12, 0, 0, TimeSpan.Zero);
+			return u.Hour >= 12 ? start : start.AddDays(-1);
+		}
+
+		// IEM's day, at most every DayEvery, only while NowCast runs. Fire-and-forget: catches its own failures (the list
+		// keeps the last day it had). _dayFetchedAt is stamped BEFORE the await, so two callers can't both fetch.
+		private async Task FetchDayIfDueAsync()
+		{
+			var now = DateTimeOffset.UtcNow;
+			if (_dayService is null || !IsModeActive || now - _dayFetchedAt < DayEvery) { return; }
+			_dayFetchedAt = now;
+			try
+			{
+				var day = await _dayService.FetchWarningDayAsync(DayStart(now), now, _shutdown.Token).ConfigureAwait(false);
+				if (day is null) { _dayFetchedAt = now - DayEvery + TimeSpan.FromMinutes(1); return; } // retry in a minute
+				_dispatcher.Post(() => { _day.SetDay(day); RebuildAlertList(); });
+			}
+			catch (OperationCanceledException) { }
+			catch (Exception ex) { _logger.LogWarning(ex, "Warnings day list check failed"); }
+		}
+
+		// UI thread.
+		private void RebuildAlertList()
+		{
+			var now = DateTimeOffset.UtcNow;
+			var entries = _day.Build(DayStart(now), now);
+			var had = HasAlertList;
+			var byKey = new Dictionary<string, WarningDayEntry>();
+			foreach (var e in entries) { byKey[KeyOf(e)] = e; }
+			RowSync.Sync(AlertList, entries.Select(KeyOf).ToList(), r => r.Key,
+				k => new WarningListRow(k, byKey[k], IsTicked(byKey[k].Target.Phenom)));
+			foreach (var row in AlertList)
+			{
+				row.Entry = byKey[row.Key];
+				row.IsDrawn = IsTicked(row.Phenom);
+			}
+			RaiseAlertList(had);
+		}
+
+		private static string KeyOf(WarningDayEntry e) => e.Target.Key.Length > 0 ? e.Target.Key : e.Target.Id;
+
+		/// <inheritdoc/>
+		public override void FlyTo(WarningListRow row) => _ = FlyToAsync(new[] { row.Target });
 
 		protected override string SourceUrl => _warningService.WarningsUrl;
 		protected override Task SetVisibleAsync(bool visible) => _mapService.SetWarningsVisibleAsync(visible);
@@ -183,6 +250,8 @@ namespace Anvil.ViewModels
 						TornadoStepper.Update(targets);
 						SevereStepper.Update(targets);
 						FlashFloodStepper.Update(targets);
+						_day.SetActive(targets, DateTimeOffset.UtcNow);
+						RebuildAlertList();
 						RepushSource();
 					});
 				}
@@ -207,6 +276,9 @@ namespace Anvil.ViewModels
 				Status.Failed();
 				_logger.LogWarning(ex, "Warnings refresh aborted");
 			}
+
+			// The day list's ended warnings — DETACHED, so a slow IEM never holds the next CAP check.
+			_ = FetchDayIfDueAsync();
 
 			return _live.Schedule(Status);
 		}, _shutdown.Token);

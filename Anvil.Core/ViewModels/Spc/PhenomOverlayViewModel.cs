@@ -140,6 +140,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(AnyShown));
 			OnPropertyChanged(nameof(AllShown));
 			RaiseCard();
+			foreach (var row in AlertList) { row.IsDrawn = IsTicked(row.Phenom); }
 
 			if (!IsMapReady) { return; }
 			_ = SetKindsAsync(_showTornado, _showSevere, FlashFloodOn);
@@ -147,6 +148,32 @@ namespace Anvil.ViewModels
 		}
 
 		private void ApplyVisibility() => IsVisible = ShouldDraw;
+
+		// ── The section's LIST (NowCast warnings only for now: WarningsViewModel fills it; empty = collapsed) ──
+
+		/// <summary>The day's alerts, one row each (<see cref="WarningListRow"/>). ⚠️ Edited IN PLACE (RowSync) — never
+		/// replaced, or the list flashes on every refresh.</summary>
+		public System.Collections.ObjectModel.ObservableCollection<WarningListRow> AlertList { get; } = new();
+
+		/// <summary>Whether the list has rows (it collapses otherwise).</summary>
+		public bool HasAlertList => AlertList.Count > 0;
+
+		/// <summary>Raise after editing <see cref="AlertList"/> (only flips when it empties / fills).</summary>
+		protected void RaiseAlertList(bool had)
+		{
+			if (had != HasAlertList) { OnPropertyChanged(nameof(HasAlertList)); }
+		}
+
+		/// <summary>Whether a phenom's row is ticked (drawn) — a list row dims otherwise.</summary>
+		protected bool IsTicked(string phenom) => phenom switch
+		{
+			"TO" => _showTornado,
+			"SV" => _showSevere,
+			_ => IsFloodPhenom(phenom) && FlashFloodOn,
+		};
+
+		/// <summary>A list row was clicked: fly there. Nothing on an overlay without a list.</summary>
+		public virtual void FlyTo(WarningListRow row) { }
 
 		/// <summary>Push the shown phenomena to the page (the feature-specific IMapService call).
 		/// <paramref name="flashFlood"/> is always false on an overlay without an FF type.</summary>

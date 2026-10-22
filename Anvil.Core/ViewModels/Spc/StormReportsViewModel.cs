@@ -158,46 +158,31 @@ namespace Anvil.ViewModels
 		public int HailCount { get => _hailCount; private set => SetProperty(ref _hailCount, value); }
 
 		// ── The report LIST (click a row → fly there) ──
-		// ⚠️ IT FOLLOWS THE TICKS, unlike the counts: the counts describe the DAY, the list is what you can fly
-		// to, and a row for an unticked type would land you on a dot that isn't drawn. Newest first over the
-		// convective day (01Z the next morning is newer than 23Z — StormReportItem.DayMinute).
+		// ⚠️ EVERY REPORT OF THE DAY, ticked or not (the user's call, 2026-10-21 — it used to follow the ticks and
+		// emptied when nothing was drawn): like the counts, the list describes the DAY. An unticked type's rows DIM
+		// (StormReportRow.IsDrawn); a click still flies there. Newest first over the convective day (01Z the next
+		// morning is newer than 23Z — StormReportItem.DayMinute).
 
 		private IReadOnlyList<StormReportItem> _all = Array.Empty<StormReportItem>();
 
-		/// <summary>The ticked types' reports of the loaded day, newest first — the section's list.</summary>
-		/// <remarks>⚠️ ONE collection, EDITED IN PLACE (<see cref="Sync"/>), never replaced: every live refresh used to
-		/// hand the ListView a new list, which rebuilt every row — the list flashed on each poll and LSR push even
-		/// when nothing had changed (2026-10-21). A refresh now touches only the rows that came or went.</remarks>
-		public ObservableCollection<StormReportItem> VisibleReports { get; } = new();
+		/// <summary>The loaded day's reports, newest first — the section's list.</summary>
+		/// <remarks>⚠️ ONE collection, EDITED IN PLACE (<see cref="RowSync.Sync{TRow,TKey}"/>), never replaced: every live
+		/// refresh used to hand the ListView a new list, which rebuilt every row — the list flashed on each poll and LSR
+		/// push even when nothing had changed (2026-10-21). A refresh now touches only the rows that came or went.</remarks>
+		public ObservableCollection<StormReportRow> Reports { get; } = new();
 
 		/// <summary>Whether the list has any rows (it collapses otherwise).</summary>
-		public bool HasVisibleReports => VisibleReports.Count > 0;
+		public bool HasReports => Reports.Count > 0;
+
+		private bool IsTicked(string kind) =>
+			(kind == "torn" && _showTornado) || (kind == "wind" && _showWind) || (kind == "hail" && _showHail);
 
 		private void RebuildList()
 		{
-			var had = HasVisibleReports;
-			Sync(VisibleReports, Newest(_all.Where(r =>
-				(r.Kind == "torn" && _showTornado) || (r.Kind == "wind" && _showWind) || (r.Kind == "hail" && _showHail))));
-			if (had != HasVisibleReports) { OnPropertyChanged(nameof(HasVisibleReports)); }
-		}
-
-		/// <summary>Makes <paramref name="rows"/> equal <paramref name="target"/> with the fewest edits (removes, moves,
-		/// inserts — an unchanged list is untouched). Reports are records, so equal values are the same row. Internal for tests.</summary>
-		internal static void Sync(ObservableCollection<StormReportItem> rows, IReadOnlyList<StormReportItem> target)
-		{
-			var keep = new HashSet<StormReportItem>(target);
-			for (var i = rows.Count - 1; i >= 0; i--)
-			{
-				if (!keep.Contains(rows[i])) { rows.RemoveAt(i); }
-			}
-			for (var i = 0; i < target.Count; i++)
-			{
-				if (i < rows.Count && rows[i].Equals(target[i])) { continue; }
-				var at = -1;
-				for (var j = i + 1; j < rows.Count; j++) { if (rows[j].Equals(target[i])) { at = j; break; } }
-				if (at >= 0) { rows.Move(at, i); } else { rows.Insert(i, target[i]); }
-			}
-			while (rows.Count > target.Count) { rows.RemoveAt(rows.Count - 1); }
+			var had = HasReports;
+			RowSync.Sync(Reports, Newest(_all), r => r.Report, r => new StormReportRow(r, IsTicked(r.Kind)));
+			foreach (var row in Reports) { row.IsDrawn = IsTicked(row.Report.Kind); }
+			if (had != HasReports) { OnPropertyChanged(nameof(HasReports)); }
 		}
 
 		/// <summary>Newest first over the convective day; place breaks ties so the order is stable. Internal for tests.</summary>

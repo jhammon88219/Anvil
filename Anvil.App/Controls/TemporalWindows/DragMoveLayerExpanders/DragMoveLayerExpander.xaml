@@ -18,7 +18,7 @@
         └ grip: drag to re-order — ALWAYS there (LayerId is required)
 
        ⚠️ NO SUBTITLE (removed 2026-10-21): it made that row's slider shorter. Every slider is the same length; a
-       section's own note goes in its BODY, under the card (Short Range's "Next 18 hours · …").
+       section's own note goes in its BODY — its card's right side (Short Range's "Next 18 hr · CAM").
 
        GHOST ROW (IsGhost: another window's layer, for ordering this window's around it — NowCast ⇄ ForeCast)
       ┌──────────────────────────────────────────────────────────────┐

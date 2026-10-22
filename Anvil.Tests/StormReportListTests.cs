@@ -40,19 +40,22 @@ namespace Anvil.Tests
 		public void Sync_EditsInPlace_AndLeavesAnUnchangedListAlone()
 		{
 			var a = R("torn", "1600"); var b = R("wind", "1812"); var c = R("hail", "2049");
-			var rows = new System.Collections.ObjectModel.ObservableCollection<StormReportItem>(new[] { b, a });
+			var rows = new System.Collections.ObjectModel.ObservableCollection<StormReportRow>(new[] { new StormReportRow(b, true), new StormReportRow(a, true) });
+			var first = rows[0];
 			var edits = 0;
 			rows.CollectionChanged += (_, _) => edits++;
+			void Sync(params StormReportItem[] target) => RowSync.Sync(rows, target, r => r.Report, r => new StormReportRow(r, true));
 
-			StormReportsViewModel.Sync(rows, new[] { b with { }, a with { } });     // a refresh with nothing new
+			Sync(b with { }, a with { });                                         // a refresh with nothing new
 			Assert.Equal(0, edits);
 
-			StormReportsViewModel.Sync(rows, new[] { c, b, a });                    // one new report on top
+			Sync(c, b, a);                                                        // one new report on top
 			Assert.Equal(1, edits);
-			Assert.Equal(new[] { c, b, a }, rows);
+			Assert.Equal(new[] { c, b, a }, rows.Select(r => r.Report));
+			Assert.Same(first, rows[1]);                                          // a kept row keeps its object
 
-			StormReportsViewModel.Sync(rows, new[] { a, c });                       // a type unticked + reorder
-			Assert.Equal(new[] { a, c }, rows);
+			Sync(a, c);                                                           // a report gone + reorder
+			Assert.Equal(new[] { a, c }, rows.Select(r => r.Report));
 		}
 
 		[Fact]

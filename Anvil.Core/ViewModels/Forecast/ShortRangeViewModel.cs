@@ -344,14 +344,18 @@ namespace Anvil.ViewModels
 		// ── The card ──
 
 		private string _cardHeadline = "HRRR";
-		private string _cardContext = string.Empty;
+		private string _frameText = string.Empty;
 		private string _cardFooter = string.Empty;
 
 		/// <summary>"HRRR 16Z · all 18 hours in" — the run ON THE MAP and how much of it has landed.</summary>
 		public string CardHeadline { get => _cardHeadline; private set => SetProperty(ref _cardHeadline, value); }
 
-		/// <summary>"valid 11:00 PM (f05)" — the frame on the map.</summary>
-		public string CardContext { get => _cardContext; private set => SetProperty(ref _cardContext, value); }
+		/// <summary>The card's right side: what this range IS (fixed; the user's call, 2026-10-21 — it was a line under the card).</summary>
+		public string CardContext => "Next 18 hr · CAM";
+
+		/// <summary>"valid 11:00 PM (f05:00)" — the frame on the map. The line UNDER the card (it swapped places with the
+		/// range note, 2026-10-21).</summary>
+		public string FrameText { get => _frameText; private set => SetProperty(ref _frameText, value); }
 
 		/// <summary>Loading / a problem; takes the Context's slot when set (DragMoveLayerExpanderHeaderCard).</summary>
 		public string CardFooter { get => _cardFooter; private set => SetProperty(ref _cardFooter, value); }
@@ -569,7 +573,7 @@ namespace Anvil.ViewModels
 			if (Playback.IsBeforeRun)
 			{
 				// Comparing, radar's frame is older than the run: the model pane is blank, and says why.
-				CardContext = string.Create(CultureInfo.InvariantCulture, $"before this run ({run:HH}Z)");
+				FrameText = string.Create(CultureInfo.InvariantCulture, $"before this run ({run:HH}Z)");
 				ModelPaneLabel = string.Create(CultureInfo.InvariantCulture, $"HRRR {run:HH}Z · before this run");
 				CardFooter = string.Empty;
 				return;
@@ -581,7 +585,7 @@ namespace Anvil.ViewModels
 			// Run so far: the swath covers the run's start (f01's max begins at f00) to the frame — a clock time at BOTH ends.
 			var from = run.ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
 			var hourly = _product.IsHourlyMax;
-			CardContext = Playback.RunSoFar
+			FrameText = Playback.RunSoFar
 				? $"{from} – {valid} (f01–{LeadText(lead, hourly)})"
 				: $"valid {valid} ({LeadText(lead, hourly)})";
 			CardFooter = string.Empty;

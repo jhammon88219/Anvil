@@ -94,7 +94,7 @@ namespace Anvil.ViewModels
 			Outlook = new OutlookViewModel(mapService, spcOutlookService, dispatcher, loggerFactory.CreateLogger<OutlookViewModel>(), LiveFeed.Channel(LiveFeedKind.Outlooks));
 			PastOutlook = new PastOutlookViewModel(mapService, spcOutlookService, Radar);
 			Watches = new WatchesViewModel(mapService, watchService, dispatcher, loggerFactory.CreateLogger<WatchesViewModel>(), LiveFeed.Channel(LiveFeedKind.Watches));
-			Warnings = new WarningsViewModel(mapService, warningService, dispatcher, loggerFactory.CreateLogger<WarningsViewModel>(), LiveFeed.Channel(LiveFeedKind.Warnings));
+			Warnings = new WarningsViewModel(mapService, warningService, dispatcher, loggerFactory.CreateLogger<WarningsViewModel>(), LiveFeed.Channel(LiveFeedKind.Warnings), pastAlertService);
 			StormReports = new StormReportsViewModel(mapService, stormReportService, Radar, dispatcher, loggerFactory.CreateLogger<StormReportsViewModel>(), LiveFeed.Channel(LiveFeedKind.StormReports));
 			DamageSurveys = new DamageSurveysViewModel(mapService, damageSurveyService, Radar, loggerFactory.CreateLogger<DamageSurveysViewModel>());
 			StormCells = new StormCellsViewModel(mapService, stormCellService, Radar, dispatcher, loggerFactory.CreateLogger<StormCellsViewModel>(), LiveFeed.Channel(LiveFeedKind.StormCells));

@@ -34,8 +34,8 @@
        │                                                      │     intensity groups (status from the CACHED GeoJSON)
        └──────────────────────────────────────────────────────┘
        │ ⠿ ⌄ [x] Short Range      ─────────●───────   80%  │  ← the forecast MODEL (DragMoveLayerExpanderShortRangeBody):
-       │   ▓ HRRR 16Z · all 18 hours in valid 11:00 PM (f05:00)▓│     card · range note · Model · Product · Run · Tracks (UH)
-       │   Next 18 hours · convection-allowing models         │     · Hours; its legend is in the pane notches.
+       │   ▓ HRRR 16Z · all 18 hours in    Next 18 hr · CAM ▓│     card (range note right) · frame line · Model · Product ·
+       │   valid 11:00 PM (f05:00)                            │     Run · Tracks (UH) · Hours; its legend is in the pane notches.
        │   Model [HRRR]  Product […▾]  Run [Latest▾] …        │     ⚠️ ticked + ForeCast on = NowCast OFF (and back on
        │                                                      │     when unticked) — MapViewModel's NowCast ⇄ MODEL
        └──────────────────────────────────────────────────────┘

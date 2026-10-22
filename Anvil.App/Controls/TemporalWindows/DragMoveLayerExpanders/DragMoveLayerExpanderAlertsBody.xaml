@@ -14,6 +14,14 @@
        [x] ■ Flash flood                              2    FAR RIGHT (hover lifts the row); the flood row: "Flash
                                                            flood" (warnings, FF) or "Flood" (watches, FA/FL/FF, sea
                                                            green) — FloodLabel/FloodColor from the VM
+       ────────────────────────────────────────────────
+       ■ 11:52 AM  Cleveland, OK · until 12:30 PM    PDS  ← THE DAY LIST (AlertList; NowCast warnings only — watches
+       ■ 11:40 AM  Sedgwick, KS · until 12:15 PM            and PastCast leave it empty → collapsed): every warning of
+       ░  9:05 AM  Tulsa, OK · ended 9:45 AM                the convective day (12Z→now), newest issued first. In effect
+                                                            = CAP (the map's set), ended = IEM + what this session saw
+                                                            end (WarningDayList). An ENDED row or an unticked type's dims
+                                                            to 45%. Click → fly + flash (FlyTo). Capped 240 px, scrolls;
+                                                            rows edited IN PLACE (RowSync) — never a rebuilt list.
 
      ⚠️ OPACITY IS NOT HERE — it lives in the host's section header (DragMoveLayerExpander ShowOpacity), so it can be
      set with the section closed.
@@ -45,14 +53,25 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:tw="using:Anvil.Controls.TemporalWindows"
              xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
+             xmlns:vm="using:Anvil.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- A list row: tight, full-width — the storm-reports list's container style. -->
+        <Style x:Key="AlertRowContainerStyle" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        </Style>
+    </UserControl.Resources>
 
     <Grid VerticalAlignment="Top">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- the card (its bottom edge is the rule) -->
             <RowDefinition Height="Auto"/> <!-- the type rows -->
+            <RowDefinition Height="Auto"/> <!-- the day list -->
         </Grid.RowDefinitions>
 
         <!-- THE CARD, flush under the section header (DragMoveLayerExpanderHeaderCard — every expander's top
@@ -90,6 +109,43 @@
                     ToolTipService.ToolTip="{x:Bind FloodTooltip(ViewModel.FloodLabel, AlertNoun), Mode=OneWay}">
                 <Border Width="11" Height="11" CornerRadius="2" Background="{x:Bind Swatch(ViewModel.FloodColor), Mode=OneWay}"/>
             </dragMoveLayerExpanders:DragMoveLayerExpanderCountRow>
+        </StackPanel>
+
+        <!-- THE DAY LIST (the storm-reports list's shape): every warning of the day, newest issued first. ⚠️ A ListView
+             with a MaxHeight, so it virtualizes inside the window's PanelScroller; SelectionMode None + ItemClick (a click
+             ACTS). ⚠️ ItemsSource is the VM's ONE collection, edited in place — don't swap it for a fresh list. -->
+        <StackPanel Grid.Row="2" Margin="0,14,0,0"
+                    Visibility="{x:Bind Shown(ViewModel.HasAlertList), Mode=OneWay}">
+            <Border Height="1" Margin="0,0,0,8"
+                    Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+            <ListView MaxHeight="240"
+                      SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnAlertClick"
+                      ItemsSource="{x:Bind ViewModel.AlertList, Mode=OneWay}"
+                      ItemContainerStyle="{StaticResource AlertRowContainerStyle}">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:WarningListRow">
+                        <Grid ColumnSpacing="8" ToolTipService.ToolTip="Fly to this warning"
+                              Opacity="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderAlertsBody.RowOpacity(Dim), Mode=OneWay}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>  <!-- the type square -->
+                                <ColumnDefinition Width="56"/>    <!-- 11:52 AM (issued) -->
+                                <ColumnDefinition Width="*"/>     <!-- Cleveland, OK · until 12:30 PM -->
+                                <ColumnDefinition Width="Auto"/>  <!-- PDS / Emergency / … -->
+                            </Grid.ColumnDefinitions>
+                            <Border Width="9" Height="9" CornerRadius="2" VerticalAlignment="Center"
+                                    Background="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderAlertsBody.PhenomBrush(Phenom)}"/>
+                            <TextBlock Grid.Column="1" Text="{x:Bind TimeText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                                       Style="{StaticResource TabularNumberTextStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock Grid.Column="2" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                <Run Text="{x:Bind PlaceText, Mode=OneWay}"/><Run Text=" · " Foreground="{ThemeResource TextFillColorSecondaryBrush}"/><Run Text="{x:Bind StatusText, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </TextBlock>
+                            <TextBlock Grid.Column="3" Text="{x:Bind TagText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
         </StackPanel>
     </Grid>
 </UserControl>

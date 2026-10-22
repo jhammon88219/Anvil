@@ -96,6 +96,86 @@ namespace Anvil.Services
 				$"https://{CacheHostName}/warnings-{stem}.geojson", $"https://{CacheHostName}/watches-{stem}.geojson");
 		}
 
+		// ── The NowCast Warnings DAY LIST (IEM api/1 sbw_interval: every storm-based warning valid over an interval) ──
+		// ⚠️ NOT watchwarn.py: that export selects by ISSUE time and has no place names; sbw_interval selects by OVERLAP and
+		// carries "locations". Its geometry is the FIRST polygon only — fine for a fly-to.
+		private const string DayEndpoint = "https://mesonet.agron.iastate.edu/api/1/vtec/sbw_interval.geojson";
+
+		public async Task<IReadOnlyList<WarningTarget>?> FetchWarningDayAsync(DateTimeOffset startUtc, DateTimeOffset endUtc, CancellationToken cancellationToken = default)
+		{
+			try
+			{
+				var json = await Http.GetStringAsync(
+					$"{DayEndpoint}?begints={Iso(startUtc.ToUniversalTime())}&endts={Iso(endUtc.ToUniversalTime())}", cancellationToken).ConfigureAwait(false);
+				return ParseWarningDay(json);
+			}
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+			{
+				throw;
+			}
+			catch (Exception)
+			{
+				return null;
+			}
+		}
+
+		/// <summary>sbw_interval GeoJSON → one <see cref="WarningTarget"/> per TO/SV/FF warning EVENT (advisories and the
+		/// rest dropped). Null if the body isn't a FeatureCollection. Pure + internal for tests.</summary>
+		internal static List<WarningTarget>? ParseWarningDay(string json)
+		{
+			if (JsonNode.Parse(json)?["features"] is not JsonArray features) { return null; }
+			var byKey = new Dictionary<string, WarningTarget>();
+			foreach (var f in features)
+			{
+				var p = f?["properties"];
+				var phenom = Text(p?["phenomena"]);
+				if (Text(p?["significance"]) != "W" || phenom is not ("TO" or "SV" or "FF")) { continue; }
+				if (p?["eventid"] is not JsonValue idv || !idv.TryGetValue<int>(out var etn)) { continue; }
+				var key = Vtec.KeyOf(Text(p["wfo"]), phenom, "W", etn);
+				if (byKey.ContainsKey(key)) { continue; }
+				if (!DateTimeOffset.TryParse(Text(p["utc_issue"]), CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var issued)) { continue; }
+				DateTimeOffset.TryParse(Text(p["utc_expire"]), CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var ends);
+				var geom = f!["geometry"];
+				if (geom is null || !TryBox(geom["coordinates"], out var w, out var s, out var e, out var n)) { continue; }
+				byKey[key] = new WarningTarget(key, phenom, 0, issued, FirstPlace(Text(p["locations"])),
+					geom.ToJsonString(), w, s, e, n, key, ends);
+			}
+			return new List<WarningTarget>(byKey.Values);
+		}
+
+		// "Dorado [PR], Toa Alta [PR]" → "Dorado, PR" — CAP's areaDesc spelling, so both sources' rows read alike.
+		internal static string FirstPlace(string locations)
+		{
+			var first = locations.Split(',')[0].Trim();
+			var open = first.LastIndexOf('[');
+			return open > 0 && first.EndsWith(']')
+				? $"{first[..open].Trim()}, {first[(open + 1)..^1]}"
+				: first;
+		}
+
+		private static bool TryBox(JsonNode? coords, out double w, out double s, out double e, out double n)
+		{
+			double x0 = double.MaxValue, y0 = double.MaxValue, x1 = double.MinValue, y1 = double.MinValue;
+			void Walk(JsonNode? c)
+			{
+				if (c is not JsonArray a || a.Count == 0) { return; }
+				if (a[0] is JsonValue && a.Count >= 2)
+				{
+					var x = a[0]!.GetValue<double>();
+					var y = a[1]!.GetValue<double>();
+					x0 = Math.Min(x0, x); x1 = Math.Max(x1, x); y0 = Math.Min(y0, y); y1 = Math.Max(y1, y);
+					return;
+				}
+				foreach (var child in a) { Walk(child); }
+			}
+			try { Walk(coords); } catch { x0 = double.MaxValue; }
+			(w, s, e, n) = (x0, y0, x1, y1);
+			return x0 <= x1 && y0 <= y1;
+		}
+
+		private static string Text(JsonNode? node) =>
+			node is JsonValue v && v.TryGetValue<string>(out var s) ? s : node?.ToString() ?? string.Empty;
+
 		// A settled window's export is final, so it is read from disk; a recent one is always re-fetched.
 		private async Task<byte[]> GetZipAsync(string name, string url, DateTimeOffset end, CancellationToken ct)
 		{

@@ -13,8 +13,11 @@ namespace Anvil.Models
 	/// <param name="Place">The first county/zone of CAP's <c>areaDesc</c> ("Cleveland, OK"); may be empty.</param>
 	/// <param name="GeometryJson">The polygon as GeoJSON — the page flashes it with this, so the flash works
 	/// even while the warning layer isn't drawn.</param>
+	/// <param name="Key">The EVENT's VTEC key, "OUN.TO.W.12" (office · phenom · sig · ETN) — the same warning across its
+	/// follow-up statements AND across sources (CAP ⇄ IEM; the Warnings section's day list joins on it). "" if unknown.</param>
+	/// <param name="Ends">When the event ends (VTEC end time); default if unknown.</param>
 	public sealed record WarningTarget(string Id, string Phenom, int Tier, DateTimeOffset Sent, string Place,
-		string GeometryJson, double West, double South, double East, double North)
+		string GeometryJson, double West, double South, double East, double North, string Key = "", DateTimeOffset Ends = default)
 	{
 		/// <summary>The state of the FIRST-listed county ("Cleveland, OK" → "OK"); "" if CAP named none. ⚠️ A
 		/// warning crossing a state line counts ONCE, here, so the tiles' state lines add up to the tile's count.</summary>

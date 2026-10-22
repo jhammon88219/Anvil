@@ -33,12 +33,15 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 				_ => "#18A020",
 			}));
 
+		/// <summary>A row whose type isn't drawn dims (the ghost rows' 45%, like the idle activity lines).</summary>
+		public static double RowOpacity(bool isDrawn) => isDrawn ? 1.0 : 0.45;
+
 		// A row click ACTS — fly there (the list keeps no selection).
 		private void OnReportClick(object sender, ItemClickEventArgs e)
 		{
-			if (e.ClickedItem is Anvil.Models.StormReportItem report)
+			if (e.ClickedItem is StormReportRow row)
 			{
-				ViewModel?.FlyTo(report);
+				ViewModel?.FlyTo(row.Report);
 			}
 		}
 

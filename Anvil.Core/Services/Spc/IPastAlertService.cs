@@ -19,6 +19,12 @@ namespace Anvil.Services
 		/// <summary>Everything in effect at any moment of [start, end]. Never throws for a feed failure —
 		/// that is <see cref="PastAlertFetch.Error"/>.</summary>
 		Task<PastAlertFetch> FetchAsync(DateTimeOffset startUtc, DateTimeOffset endUtc, CancellationToken cancellationToken = default);
+
+		/// <summary>Every Tornado / Severe thunderstorm / Flash flood WARNING in effect at any moment of [start, end] — the
+		/// NowCast Warnings section's DAY list (its ended rows; CAP supplies the in-effect ones). One entry per event
+		/// (<see cref="WarningTarget.Key"/>), Sent = first issued, Ends = the event's end. Null = the feed failed (never throws
+		/// for that). Not cached: it is re-asked every few minutes and the day grows.</summary>
+		Task<IReadOnlyList<WarningTarget>?> FetchWarningDayAsync(DateTimeOffset startUtc, DateTimeOffset endUtc, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>The window's warning versions and watch counties (for the counts), and the two page files.</summary>

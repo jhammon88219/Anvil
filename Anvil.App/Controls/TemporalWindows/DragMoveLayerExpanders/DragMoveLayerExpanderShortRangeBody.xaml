@@ -4,9 +4,10 @@
      host's DragMoveLayerExpander.
 
      ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH, ONE line):
-     ▓  HRRR 16Z · all 18 hours in     valid 11:00 PM (f05)  ▓   the run ON THE MAP + how much of it has landed │ the frame;
-     ──────────────────────────────────────────────────────────   loading / a problem takes the right side (Footer)
-       Next 18 hours · convection-allowing models             ← the range note (was the header's subtitle; 2026-10-21)
+     ▓  HRRR 16Z · all 18 hours in         Next 18 hr · CAM  ▓   the run ON THE MAP + how much of it has landed │ what this
+     ──────────────────────────────────────────────────────────   range IS (fixed); loading / a problem takes the right side (Footer)
+       valid 11:00 PM (f05:00)                                ← the frame on the map (FrameText). It and the range note SWAPPED
+                                                                places, 2026-10-21 (the user's call); collapses while empty
        Model    [ HRRR ]                                      ← SegmentedPicker, one segment for now (NAM 3 km / RRFS later)
        Product  [Future radar (composite)          ▾]         ← composite · 1 km · updraft helicity tracks
                 1 km reflectivity looks most like radar's…    ← hint (caution colour): comparing, and not 1 km
@@ -54,10 +55,11 @@
                 Context="{x:Bind ViewModel.CardContext, Mode=OneWay}"
                 Footer="{x:Bind ViewModel.CardFooter, Mode=OneWay}"/>
 
-        <!-- What this range IS — moved out of the header, where it shortened the opacity slider (2026-10-21). A plain
-             line UNDER the card, not in it: the card is one line by rule. -->
-        <TextBlock x:Name="ShortRangeNote" Grid.Row="1" Margin="0,0,0,12"
-                   Text="Next 18 hours · convection-allowing models"
+        <!-- The frame on the map — UNDER the card (it swapped with the range note, which is now the card's right side;
+             2026-10-21). A plain line, not in the card: the card is one line by rule. -->
+        <TextBlock x:Name="ShortRangeFrameLine" Grid.Row="1" Margin="0,0,0,12"
+                   Text="{x:Bind ViewModel.FrameText, Mode=OneWay}"
+                   Visibility="{x:Bind HintVisibility(ViewModel.FrameText), Mode=OneWay}"
                    FontSize="12" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 

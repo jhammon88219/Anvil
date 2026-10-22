@@ -12,9 +12,12 @@
        [x] ■ Wind                                  310    the SPC colour (a rounded square, like the warnings'),
        [x] ■ Hail                                   96    the name and that type's count at the FAR RIGHT
        ────────────────────────────────────────────────
-       ● 20:49Z  3 SSW Ash Valley, KS            EF2    ← THE LIST: the TICKED types' reports, newest
-       ● 18:12Z  Wichita, KS                  65 mph      first; click a row → fly there + open the
-       ● 16:00Z  2 SW Rock Harbor, FL                     dot's popup. Capped at 240 px, scrolls.
+       ● 20:49Z  3 SSW Ash Valley, KS            EF2    ← THE LIST: EVERY report of the day, newest first —
+       ░ 18:12Z  Wichita, KS                  65 mph      an UNTICKED type's rows dim to 45% (still listed:
+       ● 16:00Z  2 SW Rock Harbor, FL       1.75 in       the list describes the DAY, like the counts —
+                                                          2026-10-21). Click → fly there + the dot's popup.
+                                                          Capped at 240 px, scrolls. Edited IN PLACE (RowSync),
+                                                          never rebuilt — a rebuilt list flashed on every poll.
 
      ⚠️ OPACITY IS NOT HERE — it lives in the host's section header (DragMoveLayerExpander ShowOpacity), so it can be
      set with the section closed.
@@ -50,7 +53,7 @@
              xmlns:tw="using:Anvil.Controls.TemporalWindows"
              xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
              xmlns:local="using:Anvil.Controls.Composites"
-             xmlns:models="using:Anvil.Models"
+             xmlns:vm="using:Anvil.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -105,22 +108,23 @@
             </dragMoveLayerExpanders:DragMoveLayerExpanderCountRow>
         </StackPanel>
 
-        <!-- THE REPORT LIST: every report of the TICKED types, newest first (VisibleReports). Click a row → the map
-             flies there and opens that dot's popup (ViewModel.FlyTo). Collapses when empty.
+        <!-- THE REPORT LIST: every report of the day, newest first (Reports); an unticked type's rows dim (IsDrawn).
+             Click a row → the map flies there and opens that dot's popup (ViewModel.FlyTo). Collapses when empty.
              ⚠️ A ListView with a MaxHeight: bounded, so it virtualizes even inside the window's PanelScroller (an
              UNBOUNDED list nested in a ScrollViewer un-virtualizes — a 400-report day would build 400 rows).
              ⚠️ SelectionMode None + ItemClick: a click ACTS (flies), it isn't a selection to keep in step. -->
         <StackPanel Grid.Row="2" Margin="0,14,0,0"
-                    Visibility="{x:Bind Shown(ViewModel.HasVisibleReports), Mode=OneWay}">
+                    Visibility="{x:Bind Shown(ViewModel.HasReports), Mode=OneWay}">
             <Border Height="1" Margin="0,0,0,8"
                     Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
             <ListView MaxHeight="240"
                       SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnReportClick"
-                      ItemsSource="{x:Bind ViewModel.VisibleReports, Mode=OneWay}"
+                      ItemsSource="{x:Bind ViewModel.Reports}"
                       ItemContainerStyle="{StaticResource ReportRowContainerStyle}">
                 <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="models:StormReportItem">
-                        <Grid ColumnSpacing="8" ToolTipService.ToolTip="Fly to this report">
+                    <DataTemplate x:DataType="vm:StormReportRow">
+                        <Grid ColumnSpacing="8" ToolTipService.ToolTip="Fly to this report"
+                              Opacity="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderStormReportsBody.RowOpacity(IsDrawn), Mode=OneWay}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>  <!-- the type dot -->
                                 <ColumnDefinition Width="46"/>    <!-- 20:49Z -->
@@ -128,12 +132,12 @@
                                 <ColumnDefinition Width="Auto"/>  <!-- EF2 / 65 mph / 1.75 in -->
                             </Grid.ColumnDefinitions>
                             <Ellipse Width="9" Height="9" VerticalAlignment="Center"
-                                     Fill="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderStormReportsBody.KindBrush(Kind)}"/>
-                            <TextBlock Grid.Column="1" Text="{x:Bind TimeText}" FontSize="12" VerticalAlignment="Center"
+                                     Fill="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderStormReportsBody.KindBrush(Report.Kind)}"/>
+                            <TextBlock Grid.Column="1" Text="{x:Bind Report.TimeText}" FontSize="12" VerticalAlignment="Center"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <TextBlock Grid.Column="2" Text="{x:Bind Place}" FontSize="12" VerticalAlignment="Center"
+                            <TextBlock Grid.Column="2" Text="{x:Bind Report.Place}" FontSize="12" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Grid.Column="3" Text="{x:Bind MagText}" FontSize="12" VerticalAlignment="Center"
+                            <TextBlock Grid.Column="3" Text="{x:Bind Report.MagText}" FontSize="12" VerticalAlignment="Center"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </Grid>
                     </DataTemplate>

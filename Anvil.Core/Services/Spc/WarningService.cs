@@ -176,8 +176,10 @@ namespace Anvil.Services
 				var sent = DateTimeOffset.TryParse(Str(props?["sent"]), CultureInfo.InvariantCulture, DateTimeStyles.None, out var t)
 					? t : DateTimeOffset.MinValue;
 				var place = Str(props?["area"]).Split(';')[0].Trim();
+				var ends = DateTimeOffset.TryParse(Str(props?["ends"]), CultureInfo.InvariantCulture, DateTimeStyles.None, out var t1)
+					? t1 : default;
 				list.Add(new Models.WarningTarget(FeatureId(f), Str(props?["phenom"]), TierOf(props), sent, place,
-					geom!.ToJsonString(), w, s, e, n));
+					geom!.ToJsonString(), w, s, e, n, Str(props?["vtec_key"]), ends));
 			}
 			return list;
 		}
@@ -298,6 +300,7 @@ namespace Anvil.Services
 						continue; // not one of our three events, or no id to key on
 					}
 					var threat = DamageThreat(props["parameters"], phenom);
+					var vtec = Models.Vtec.Parse(VtecString(props["parameters"]));
 					features.Add(new JsonObject
 					{
 						["type"] = "Feature",
@@ -312,6 +315,8 @@ namespace Anvil.Services
 							["threat_tier"] = ThreatTier(threat), // 0/1/2 — warnings.js widens the outline by this
 							["sent"] = Str(props["sent"]),     // issue time — the NowCast tiles' step order
 							["area"] = Str(props["areaDesc"]), // "Cleveland, OK; McClain, OK" — the tiles' "where"
+							["vtec_key"] = vtec?.Key ?? string.Empty, // "OUN.TO.W.12" — the Warnings day list's join key
+							["ends"] = vtec?.Ends is { } end ? end.ToString("o", CultureInfo.InvariantCulture) : string.Empty,
 						},
 					});
 					ids.Add(id);
@@ -323,6 +328,10 @@ namespace Anvil.Services
 				return false;
 			}
 		}
+
+		// CAP's parameters.VTEC is an array of one string ("/O.CON.KOUN.TO.W.0012.000000T0000Z-261021T1830Z/").
+		private static string VtecString(JsonNode? parameters) =>
+			parameters?["VTEC"] is JsonArray arr && arr.Count > 0 ? Str(arr[0]) : Str(parameters?["VTEC"]);
 
 		// Maps a CAP event name to our phenom code (the three we query). ⚠️ FF is an EXACT match: "Flood
 		// Warning" (areal, river) and "Flash Flood Statement" (a follow-up) are different products.

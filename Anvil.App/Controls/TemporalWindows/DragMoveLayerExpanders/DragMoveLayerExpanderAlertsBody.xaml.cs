@@ -37,6 +37,28 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 		public Microsoft.UI.Xaml.Media.Brush Swatch(string hex) =>
 			new Microsoft.UI.Xaml.Media.SolidColorBrush(Anvil.Converters.ColorUtil.FromHex(hex));
 
+		// The list's type square. ⚠️ DATA colours = the type rows' literals + warnings.js (via WarningsViewModel's
+		// header fills); a NEW brush per row — this control lives in two OS windows, and a brush is a UI object.
+		public static Microsoft.UI.Xaml.Media.Brush PhenomBrush(string phenom) =>
+			new Microsoft.UI.Xaml.Media.SolidColorBrush(Anvil.Converters.ColorUtil.FromHex(phenom switch
+			{
+				"TO" => WarningsViewModel.TornadoFill,
+				"SV" => WarningsViewModel.SevereFill,
+				_ => WarningsViewModel.FlashFloodFill,
+			}));
+
+		/// <summary>An ended warning, or one whose type isn't drawn, dims (the reports list's 45%).</summary>
+		public static double RowOpacity(bool dim) => dim ? 0.45 : 1.0;
+
+		// A row click ACTS — fly there + flash the polygon (the tiles' arrows' focus); the list keeps no selection.
+		private void OnAlertClick(object sender, ItemClickEventArgs e)
+		{
+			if (e.ClickedItem is WarningListRow row)
+			{
+				ViewModel?.FlyTo(row);
+			}
+		}
+
 		/// <summary>
 		/// Plural noun for what this instance draws — "watches" or "warnings". The rows are labelled by
 		/// PHENOMENON ("Tornado", "Severe thunderstorm") because the section heading already says which
