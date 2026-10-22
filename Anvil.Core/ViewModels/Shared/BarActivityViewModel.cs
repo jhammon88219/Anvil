@@ -315,8 +315,7 @@ namespace Anvil.ViewModels
 
 		// Live-poll times carry SECONDS (the user's call, 2026-10-08): "due ~4:42" read as late from 4:42:00 while the
 		// scan was due 4:42:42, and SAILS / MESO-SAILS scans ~75 s apart can share a minute.
-		private static string ClockTime(DateTimeOffset t) =>
-			t.ToLocalTime().ToString("h:mm:ss tt", System.Globalization.CultureInfo.CurrentCulture);
+		private static string ClockTime(DateTimeOffset t) => Models.UnitFormat.ClockSeconds(t);
 
 		// ── Source: the PLACE SEARCH's status (was a line beside the search box) ───────────────────────
 

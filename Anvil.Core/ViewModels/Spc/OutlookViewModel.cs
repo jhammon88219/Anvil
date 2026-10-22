@@ -83,6 +83,8 @@ namespace Anvil.ViewModels
 			RebuildProductOptions();
 			_selectedOption = DefaultOptionForDay();
 			RebuildCycleOptions();
+			// Settings → Units: the card's Issued / Valid line re-words.
+			UnitFormat.Changed += (_, _) => UpdateOutlookTimes();
 		}
 
 		// Cancels this VM's app-lifetime loops when the window closes. See Shutdown().
@@ -613,9 +615,12 @@ namespace Anvil.ViewModels
 				.ToList();
 		}
 
-		// Reads the issued/valid/expire times for the current product from its cached GeoJSON (local time)
-		// into OutlookTimesText — the ForeCast card's middle line. Cleared when None is selected or no
-		// times are available.
+		// "Tue 3:00 PM" / "Tue 15:00" / "Tue 20:00Z" — Settings → Units.
+		private static string DayClock(DateTimeOffset t) => $"{UnitFormat.Date(t, "ddd")} {UnitFormat.Clock(t)}";
+
+		// Reads the issued/valid/expire times for the current product from its cached GeoJSON (Settings → Units
+		// clock + zone; re-read when those change) into OutlookTimesText — the ForeCast card's middle line. Cleared
+		// when None is selected or no times are available.
 		private void UpdateOutlookTimes()
 		{
 			// When the layer is toggled off, treat the selection as "none" so the times line, the legend
@@ -663,11 +668,11 @@ namespace Anvil.ViewModels
 				var parts = new List<string>(2);
 				if (times.Issued is { } issued)
 				{
-					parts.Add($"Issued {issued.ToLocalTime():ddd h:mm tt}");
+					parts.Add($"Issued {DayClock(issued)}");
 				}
 				if (times.Valid is { } valid && times.Expire is { } expire)
 				{
-					parts.Add($"Valid {valid.ToLocalTime():ddd h:mm tt} → {expire.ToLocalTime():ddd h:mm tt}");
+					parts.Add($"Valid {DayClock(valid)} → {DayClock(expire)}");
 				}
 				if (held is { } c)
 				{

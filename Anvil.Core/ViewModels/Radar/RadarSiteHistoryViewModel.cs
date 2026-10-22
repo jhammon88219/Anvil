@@ -390,7 +390,7 @@ namespace Anvil.ViewModels
 			RaiseNonStandard();
 		}
 
-		private static string Clock(DateTimeOffset utc) => utc.ToLocalTime().ToString("MMM d, h:mm tt", CultureInfo.CurrentCulture);
+		private static string Clock(DateTimeOffset utc) => $"{UnitFormat.Date(utc, "MMM d")}, {UnitFormat.Clock(utc)}";
 
 		internal static string Duration(TimeSpan span)
 		{

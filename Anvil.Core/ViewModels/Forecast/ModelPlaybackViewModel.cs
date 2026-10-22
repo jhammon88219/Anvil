@@ -54,6 +54,7 @@ namespace Anvil.ViewModels
 			_service = service;
 			_logger = logger;
 			_checkNow = checkNow;
+			UnitFormat.Changed += (_, _) => RaiseFrame(); // Settings → Units: the console's clock
 		}
 
 		// ── What is loaded ──
@@ -339,14 +340,14 @@ namespace Anvil.ViewModels
 		private DateTimeOffset? CurrentValid => Run is { } r && CurrentLead is { } l ? r.RunUtc.AddMinutes(l) : null;
 
 		/// <summary>The clock: the playhead's VALID time ("11:00 PM"); "—" before a run.</summary>
-		public string ClockText => CurrentValid is { } v ? v.ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture) : "—";
+		public string ClockText => CurrentValid is { } v ? UnitFormat.Clock(v) : "—";
 
 		/// <summary>Under the clock: how far from now, and the day — "in 5h 15m · Thu", "2h ago · Thu".</summary>
 		public string WhenText => CurrentValid is { } v ? WhenWords(v - DateTimeOffset.UtcNow, v) : string.Empty;
 
 		internal static string WhenWords(TimeSpan fromNow, DateTimeOffset valid)
 		{
-			var day = valid.ToLocalTime().ToString("ddd", CultureInfo.CurrentCulture);
+			var day = UnitFormat.Date(valid, "ddd");
 			var m = (int)Math.Round(Math.Abs(fromNow.TotalMinutes));
 			if (m < 1) return $"now · {day}";
 			var span = m < 60 ? $"{m}m" : m % 60 == 0 ? $"{m / 60}h" : $"{m / 60}h {m % 60}m";

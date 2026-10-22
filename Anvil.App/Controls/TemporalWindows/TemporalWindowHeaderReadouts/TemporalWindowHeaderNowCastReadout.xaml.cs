@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Anvil.Models;
 
 namespace Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts
 {
@@ -33,11 +34,17 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts
 		private void Show()
 		{
 			var now = Time;
-			// Digits and AM/PM are separate cells, as on the radar console's clock (RadarControls).
+			// Digits and AM/PM (or Z) are separate cells, as on the radar console's clock (RadarControls). Settings →
+			// Units picks 12-hour / 24-hour / UTC; the tooltip always gives the OTHER zone.
 			var culture = CultureInfo.CurrentCulture;
-			ClockDigits.Text = now.ToString("h:mm", culture);
-			ClockSuffix.Text = now.ToString("tt", culture);
-			ToolTipService.SetToolTip(ClockTime, $"{ZoneLabel(now.DateTime)} · {now.UtcDateTime:HH:mm} UTC");
+			var units = UnitFormat.Current;
+			var shown = UnitFormat.Zoned(now);
+			ClockDigits.Text = shown.ToString(units.Is24Hour ? "HH:mm" : "h:mm", culture);
+			ClockSuffix.Text = units.IsUtc ? "Z" : units.Is24Hour ? string.Empty : shown.ToString("tt", culture);
+			var local = now.ToLocalTime();
+			ToolTipService.SetToolTip(ClockTime, units.IsUtc
+				? $"{local:h:mm tt} {ZoneLabel(local.DateTime)}"
+				: $"{ZoneLabel(local.DateTime)} · {now.UtcDateTime:HH:mm} UTC");
 		}
 
 		// Windows has no zone ABBREVIATION, only names: "Central Daylight Time" → "CDT" by initials. A name that

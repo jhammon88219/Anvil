@@ -28,7 +28,7 @@ namespace Anvil.ViewModels
 	/// ⚠️ ONE deliberate exception: <c>RangeRing</c> was inserted after <c>Radar</c> (2026-09-24) because the user
 	/// asked for it to sit there. The cost was a one-time shift — a Settings window last closed on Storage or
 	/// Window Mode reopened one tab to the left, once. Don't take that as licence to reorder.</summary>
-	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, LiveData, Basemap, Dev }
+	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, LiveData, Basemap, Units, Dev }
 
 	/// <summary>
 	/// View model for the NON-radar map concerns: selectable basemap styles + current selection,
@@ -169,6 +169,9 @@ namespace Anvil.ViewModels
 			StateIso = new StateIsolationViewModel(mapService, settingsService);
 			Basemap = new BasemapViewModel(mapService, settingsService);
 			PipelineConsole = new PipelineConsoleViewModel(mapService, Radar); // PIPELINE CONSOLE (remove with the feature)
+
+			// Settings → Units: the formatter every readout goes through (UnitFormat) starts on the saved choices.
+			UnitFormat.Apply(UnitsFromSettings());
 
 			// Every temporal-window choice (ticks, opacities, outlook pickers) comes back from settings and is
 			// saved as it changes. Before map-ready on purpose — see the class remarks.
@@ -1582,7 +1585,7 @@ namespace Anvil.ViewModels
 		/// <summary>The chosen unit as a <see cref="Models.DistanceUnits"/> token. PERSISTED.</summary>
 		public string DistanceUnits => Models.DistanceUnits.Normalize(_settingsService.Settings.DistanceUnits);
 
-		/// <summary>Two-way for the Radar tab's Readouts picker. Writes the TOKEN, never the index.</summary>
+		/// <summary>Two-way for Settings → Units → Distance. Writes the TOKEN, never the index.</summary>
 		public int DistanceUnitIndex
 		{
 			get => Models.DistanceUnits.IndexOf(DistanceUnits);
@@ -1597,11 +1600,130 @@ namespace Anvil.ViewModels
 				_settingsService.Settings.DistanceUnits = token; // persists (auto-save)
 				OnPropertyChanged();
 				OnPropertyChanged(nameof(DistanceUnits));
+				OnPropertyChanged(nameof(DistanceSample));
 				if (_isMapReady)
 				{
 					_ = _mapService.SetDistanceUnitsAsync(token);
 				}
 			}
+		}
+
+		// ===== Settings → Units (the rest: clock, zone, speed, height, hail) ==============================
+		// Each picker writes its TOKEN to AppSettings; the whole set then goes to UnitFormat (which every C# readout
+		// formats through, and whose Changed re-raises the shown texts) and to the page (js/units.js). Presets set
+		// several at once through the same setters.
+
+		public IReadOnlyList<string> ClockFormatLabels => UnitChoices.Clock.Labels;
+		public IReadOnlyList<string> TimeZoneLabels => UnitChoices.Zone.Labels;
+		public IReadOnlyList<string> SpeedUnitLabels => UnitChoices.Speed.Labels;
+		public IReadOnlyList<string> HeightUnitLabels => UnitChoices.Height.Labels;
+		public IReadOnlyList<string> HailUnitLabels => UnitChoices.Hail.Labels;
+
+		private UnitSet UnitsFromSettings()
+		{
+			var s = _settingsService.Settings;
+			return new UnitSet(s.ClockFormat, s.TimeZoneChoice, s.SpeedUnits, s.HeightUnits, s.HailUnits).Normalized();
+		}
+
+		/// <summary>12-hour / 24-hour. Reads 24-hour (and the 12-hour segment is greyed) while the zone is UTC.</summary>
+		public int ClockFormatIndex
+		{
+			get => UnitFormat.Current.Is24Hour ? 1 : 0;
+			set => SetUnit(UnitChoices.Clock, value, s => s.ClockFormat, (s, t) => s.ClockFormat = t);
+		}
+
+		/// <summary>The clock picker's greyed segment: 12-hour while UTC (UTC is always 24-hour Z), else none.</summary>
+		public int ClockFormatDisabledIndex => UnitFormat.Current.IsUtc ? 0 : -1;
+
+		public int TimeZoneIndex
+		{
+			get => UnitChoices.Zone.IndexOf(_settingsService.Settings.TimeZoneChoice);
+			set => SetUnit(UnitChoices.Zone, value, s => s.TimeZoneChoice, (s, t) => s.TimeZoneChoice = t);
+		}
+
+		public int SpeedUnitIndex
+		{
+			get => UnitChoices.Speed.IndexOf(_settingsService.Settings.SpeedUnits);
+			set => SetUnit(UnitChoices.Speed, value, s => s.SpeedUnits, (s, t) => s.SpeedUnits = t);
+		}
+
+		public int HeightUnitIndex
+		{
+			get => UnitChoices.Height.IndexOf(_settingsService.Settings.HeightUnits);
+			set => SetUnit(UnitChoices.Height, value, s => s.HeightUnits, (s, t) => s.HeightUnits = t);
+		}
+
+		public int HailUnitIndex
+		{
+			get => UnitChoices.Hail.IndexOf(_settingsService.Settings.HailUnits);
+			set => SetUnit(UnitChoices.Hail, value, s => s.HailUnits, (s, t) => s.HailUnits = t);
+		}
+
+		/// <summary>Sample lines under each picker ("Shows as …"), in the chosen units.</summary>
+		public string ClockSample => "Shows as " + UnitFormat.Clock(SampleTime) + " · until " + UnitFormat.Clock(SampleTime.AddMinutes(26));
+		public string DistanceSample => "Shows as " + Models.DistanceUnits.Format(151_000, DistanceUnits) + " · ring "
+			+ Models.DistanceUnits.Format(230_000, DistanceUnits);
+		public string SpeedSample => "Shows as " + UnitFormat.SpeedFromKt(43) + " storm motion · " + UnitFormat.SpeedFromMph(70) + " wind report";
+		public string HeightSample => "Shows as " + UnitFormat.HeightFromKft(44) + " storm top";
+		public string HailSample => "Shows as " + UnitFormat.HailFromInches(1.75) + " hail";
+
+		// A fixed afternoon moment, so the sample reads the same every time you look.
+		private static DateTimeOffset SampleTime =>
+			new DateTimeOffset(DateTime.Today.AddHours(17).AddMinutes(4), TimeZoneInfo.Local.GetUtcOffset(DateTime.Today.AddHours(17)));
+
+		/// <summary>A preset: "us" (12-hour local, mi, mph, kft, in), "metric" (24-hour local, km, km/h, km, cm) or
+		/// "forecaster" (UTC, nm, kt, kft, in).</summary>
+		public void ApplyUnitPreset(string preset)
+		{
+			var (clock, zone, dist, speed, height, hail) = preset switch
+			{
+				"metric" => ("24h", "local", Models.DistanceUnits.Kilometers, "kmh", "km", "cm"),
+				"forecaster" => ("24h", "utc", Models.DistanceUnits.NauticalMiles, "kt", "kft", "in"),
+				_ => ("12h", "local", Models.DistanceUnits.Miles, "mph", "kft", "in"),
+			};
+			var s = _settingsService.Settings;
+			s.ClockFormat = clock;
+			s.TimeZoneChoice = zone;
+			s.SpeedUnits = speed;
+			s.HeightUnits = height;
+			s.HailUnits = hail;
+			DistanceUnitIndex = Models.DistanceUnits.IndexOf(dist);
+			OnUnitsChanged();
+		}
+
+		/// <summary>Restore defaults: 12-hour local, km, mph, kft, in — what Anvil showed before Settings → Units.</summary>
+		public void ResetUnits()
+		{
+			var s = _settingsService.Settings;
+			var d = UnitSet.Default;
+			s.ClockFormat = d.Clock;
+			s.TimeZoneChoice = d.Zone;
+			s.SpeedUnits = d.Speed;
+			s.HeightUnits = d.Height;
+			s.HailUnits = d.Hail;
+			DistanceUnitIndex = 0;
+			OnUnitsChanged();
+		}
+
+		private void SetUnit(UnitFamily family, int index, Func<AppSettings, string> get, Action<AppSettings, string> set)
+		{
+			var token = family.FromIndex(index);
+			if (string.Equals(token, get(_settingsService.Settings), StringComparison.Ordinal)) { return; }
+			set(_settingsService.Settings, token); // persists (auto-save)
+			OnUnitsChanged();
+		}
+
+		// UnitFormat first (its Changed re-raises every subsystem's shown texts), then the pickers + samples, then the page.
+		private void OnUnitsChanged()
+		{
+			UnitFormat.Apply(UnitsFromSettings());
+			foreach (var name in new[] { nameof(ClockFormatIndex), nameof(ClockFormatDisabledIndex), nameof(TimeZoneIndex),
+				nameof(SpeedUnitIndex), nameof(HeightUnitIndex), nameof(HailUnitIndex), nameof(ClockSample), nameof(DistanceSample),
+				nameof(SpeedSample), nameof(HeightSample), nameof(HailSample) })
+			{
+				OnPropertyChanged(name);
+			}
+			if (_isMapReady) { _ = _mapService.SetDisplayUnitsAsync(UnitFormat.Current); }
 		}
 
 		// ===== Settings window tabs =======================================================================
@@ -1614,9 +1736,9 @@ namespace Anvil.ViewModels
 		/// Basemap. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
 		/// selecting a tab that does not exist in a shipped build.</summary>
 #if DEBUG
-		public const int SettingsTabCount = 10;
+		public const int SettingsTabCount = 11;
 #else
-		public const int SettingsTabCount = 9;
+		public const int SettingsTabCount = 10;
 #endif
 
 		private int _settingsTabIndex;
@@ -1988,6 +2110,7 @@ namespace Anvil.ViewModels
 			// The page formats its own distance readouts, and defaults to kilometres — push the persisted
 			// unit before any subsystem can draw one, or a user who chose miles sees km until they touch it.
 			await _mapService.SetDistanceUnitsAsync(DistanceUnits);
+			await _mapService.SetDisplayUnitsAsync(UnitFormat.Current);
 
 			// The Outlook Discussion's "are you in the risk area" line: Windows location, asked ONCE per app run.
 			_ = LocateForOutlookAsync();

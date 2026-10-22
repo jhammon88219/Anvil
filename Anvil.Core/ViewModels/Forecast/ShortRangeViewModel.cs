@@ -579,11 +579,11 @@ namespace Anvil.ViewModels
 				return;
 			}
 			if (Playback.ShownLead is not { } lead) { return; }
-			ModelPaneLabel = string.Create(CultureInfo.InvariantCulture, $"HRRR {run:HH}Z · valid ")
-				+ run.AddMinutes(lead).ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
-			var valid = run.AddMinutes(lead).ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
+			// Valid times in Settings → Units; the RUN stays "18Z" — that is the model's own name for it.
+			var valid = UnitFormat.Clock(run.AddMinutes(lead));
+			ModelPaneLabel = string.Create(CultureInfo.InvariantCulture, $"HRRR {run:HH}Z · valid ") + valid;
 			// Run so far: the swath covers the run's start (f01's max begins at f00) to the frame — a clock time at BOTH ends.
-			var from = run.ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
+			var from = UnitFormat.Clock(run);
 			var hourly = _product.IsHourlyMax;
 			FrameText = Playback.RunSoFar
 				? $"{from} – {valid} (f01–{LeadText(lead, hourly)})"

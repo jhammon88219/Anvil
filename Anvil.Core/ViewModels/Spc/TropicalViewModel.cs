@@ -298,7 +298,7 @@ namespace Anvil.ViewModels
 			var counts = inEffect.Count == 0 ? string.Empty
 				: $"{products} {(products == 1 ? "product" : "products")} · {inEffect.Count} {(inEffect.Count == 1 ? "zone" : "zones")}";
 			CardContext = live ? counts
-				: t is { } at ? (counts.Length > 0 ? $"At {at.ToLocalTime():h:mm tt} · {counts}" : $"At {at.ToLocalTime():h:mm tt}")
+				: t is { } at ? (counts.Length > 0 ? $"At {UnitFormat.Clock(at)} · {counts}" : $"At {UnitFormat.Clock(at)}")
 				: counts;
 		}
 

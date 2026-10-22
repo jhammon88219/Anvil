@@ -71,6 +71,14 @@ namespace Anvil.ViewModels
 			Kinds = new ReadOnlyCollection<DiscussionKindRow>(
 				DiscussionKinds.All.Select(k => new DiscussionKindRow(k, OnKindToggled)).ToList());
 			_radar.PropertyChanged += OnRadarChanged;
+			// Settings → Units: rows, the card, the heading and the reader re-word in place.
+			UnitFormat.Changed += (_, _) =>
+			{
+				foreach (var row in Discussions) { row.RefreshUnits(); }
+				ApplyMoment(_moment, force: true);
+				OnPropertyChanged(nameof(InEffectHeading));
+				OnPropertyChanged(nameof(ReaderValid));
+			};
 		}
 
 		// ── Kinds (one row each) ──
@@ -238,7 +246,7 @@ namespace Anvil.ViewModels
 		/// <summary>The section's list heading: "In effect now" (NowCast) or "In effect at 4:51 PM" (PastCast).</summary>
 		public string InEffectHeading => _loadedKey is { Live: true } || _moment is null
 			? "In effect now"
-			: $"In effect at {_moment.Value.ToLocalTime():h:mm tt}";
+			: $"In effect at {UnitFormat.Clock(_moment.Value)}";
 
 		private void RefillGroups()
 		{
@@ -266,7 +274,9 @@ namespace Anvil.ViewModels
 		private string _readerStatus = string.Empty;
 
 		public string ReaderTitle => _selected is { } s ? $"{s.Discussion.Label} · {s.Discussion.Kind.Issuer}" : string.Empty;
-		public string ReaderValid => _selected is { } s ? $"{s.Discussion.Issued.ToLocalTime():ddd MMM d · h:mm tt} → {s.Discussion.Expires.ToLocalTime():h:mm tt}" : string.Empty;
+		public string ReaderValid => _selected is { } s
+			? $"{UnitFormat.Date(s.Discussion.Issued, "ddd MMM d")} · {UnitFormat.Clock(s.Discussion.Issued)} → {UnitFormat.Clock(s.Discussion.Expires)}"
+			: string.Empty;
 		public string ReaderAreas => _text?.AreasAffected ?? string.Empty;
 		public string ReaderConcerning => _text is { Concerning.Length: > 0 } t ? t.Concerning : _selected?.Discussion.Concerning ?? string.Empty;
 		public string ReaderWatch => _selected?.Discussion.WatchProbability is int p ? $"{p}%" : string.Empty;
@@ -478,7 +488,7 @@ namespace Anvil.ViewModels
 			var listed = Discussions.Count == 1 ? "1 listed" : $"{Discussions.Count} listed";
 			CardContext = _loadedKey is { Live: true }
 				? $"{Discussions.Count} in the last 24 h"
-				: t is { } at2 ? $"At {at2.ToLocalTime():h:mm tt} · {listed}" : listed;
+				: t is { } at2 ? $"At {UnitFormat.Clock(at2)} · {listed}" : listed;
 			RefillGroups();
 		}
 
@@ -543,22 +553,19 @@ namespace Anvil.ViewModels
 		/// <summary>The CONCERNING line, or the product name when the index carried none (older SPC MDs).</summary>
 		public string Headline => Discussion.Concerning.Length > 0 ? Discussion.Concerning : Discussion.Kind.ProductName;
 
-		public string TimeText => $"{Discussion.Issued.ToLocalTime():h:mm tt} → {Discussion.Expires.ToLocalTime():h:mm tt}";
+		public string TimeText => $"{UnitFormat.Clock(Discussion.Issued)} → {UnitFormat.Clock(Discussion.Expires)}";
 
 		/// <summary>The section row's short name: the number alone ("1505") — the kind's colour bar says MD or MPD.</summary>
 		public string NumberText => Discussion.Number.ToString("0000", CultureInfo.InvariantCulture);
 
-		/// <summary>The section row's effective range, compact: "2:10–3:45 PM", or "11:50 AM–1:20 PM" across noon.</summary>
-		public string RangeText
+		/// <summary>The section row's effective range, compact: "2:10–3:45 PM", "11:50 AM–1:20 PM" across noon, "19:10–20:45Z".</summary>
+		public string RangeText => UnitFormat.ClockSpan(Discussion.Issued, Discussion.Expires);
+
+		/// <summary>Settings → Units changed: re-word the times.</summary>
+		internal void RefreshUnits()
 		{
-			get
-			{
-				var from = Discussion.Issued.ToLocalTime();
-				var to = Discussion.Expires.ToLocalTime();
-				return from.ToString("tt", CultureInfo.InvariantCulture) == to.ToString("tt", CultureInfo.InvariantCulture)
-					? $"{from.ToString("h:mm", CultureInfo.InvariantCulture)}–{to.ToString("h:mm tt", CultureInfo.InvariantCulture)}"
-					: $"{from.ToString("h:mm tt", CultureInfo.InvariantCulture)}–{to.ToString("h:mm tt", CultureInfo.InvariantCulture)}";
-			}
+			OnPropertyChanged(nameof(TimeText));
+			OnPropertyChanged(nameof(RangeText));
 		}
 		public string WatchText => Discussion.WatchProbability is int p ? $"{p}%" : string.Empty;
 

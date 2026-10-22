@@ -643,7 +643,7 @@ namespace Anvil.ViewModels
 
 		/// <summary>"LATEST SCAN · 12:06 PM" — the age tile's label carries the clock time the card used to.</summary>
 		public string DetailScanClockLabel => DetailScanTime is { } t
-			? $"LATEST SCAN · {t.ToLocalTime():h:mm tt}"
+			? $"LATEST SCAN · {UnitFormat.Clock(t)}"
 			: string.IsNullOrEmpty(_scanStatus) ? "LATEST SCAN" : $"LATEST SCAN · {_scanStatus.ToUpperInvariant()}";
 
 		// ── The Anvil Atlas title band, on the Radar sites tab: the network split of what the Atlas lists ──

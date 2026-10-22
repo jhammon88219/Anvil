@@ -127,18 +127,17 @@ namespace Anvil.Controls.Composites
 		// Segoe Fluent glyph for the center button: Stop while playing, Play otherwise.
 		public string PlayStopGlyph(bool isPlaying) => isPlaying ? "" : "";
 
-		// The clock splits CurrentFrameTimeText ("h:mm tt") at its last space: large digits, small AM/PM.
-		// A culture with an empty designator has no space, so it is all digits and no suffix.
-		public string ClockDigits(string time)
-		{
-			var cut = time.LastIndexOf(' ');
-			return cut < 0 ? time : time[..cut];
-		}
+		// The clock splits CurrentFrameTimeText ("h:mm tt") at its last space: large digits, small AM/PM. A UTC time
+		// ("17:04Z", Settings → Units) splits before its Z; a 24-hour or designator-less one is all digits.
+		public string ClockDigits(string time) => SplitClock(time).Digits;
 
-		public string ClockSuffix(string time)
+		public string ClockSuffix(string time) => SplitClock(time).Suffix;
+
+		internal static (string Digits, string Suffix) SplitClock(string time)
 		{
 			var cut = time.LastIndexOf(' ');
-			return cut < 0 ? string.Empty : time[(cut + 1)..];
+			if (cut >= 0) { return (time[..cut], time[(cut + 1)..]); }
+			return time.EndsWith('Z') ? (time[..^1], "Z") : (time, string.Empty);
 		}
 
 		// "N / M" frame counter (1-based) shown under the scrubber. Empty until there's a real multi-frame

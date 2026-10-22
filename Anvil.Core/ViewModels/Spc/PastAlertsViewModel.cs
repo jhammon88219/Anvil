@@ -259,7 +259,12 @@ namespace Anvil.ViewModels
 		protected override string ItemNounPlural => _plural;
 
 		/// <summary>Which moment the counts describe (a replay has no "Updated…").</summary>
-		public override string CardContext => _context;
+		public override string CardContext => _contextAt is { } at
+			? $"In effect at {UnitFormat.Clock(at)} · {UnitFormat.Date(at, "MMM d, yyyy")}"
+			: _context;
+
+		// The moment the counts describe — kept, not baked into text, so a Settings → Units change re-words it.
+		private DateTimeOffset? _contextAt;
 
 		internal void PointAt(string url)
 		{
@@ -272,6 +277,7 @@ namespace Anvil.ViewModels
 		internal void SetIdle()
 		{
 			_context = string.Empty;
+			_contextAt = null;
 			ApplyRefreshed(0, 0, 0, 0);
 			ApplyRefreshFailed(IsModeActive ? "Load a timeframe to see what was in effect" : string.Empty);
 		}
@@ -279,7 +285,8 @@ namespace Anvil.ViewModels
 		/// <summary>The counts at the displayed frame <paramref name="t"/> (null = no frame yet).</summary>
 		internal void ShowAt(DateTimeOffset? t, IReadOnlyList<PastAlert> inEffect)
 		{
-			_context = t is { } at ? $"In effect at {at.ToLocalTime():h:mm tt} · {at.ToLocalTime():MMM d, yyyy}" : "Waiting for a radar frame…";
+			_contextAt = t;
+			_context = "Waiting for a radar frame…";
 			ApplyRefreshed(inEffect.Count,
 				inEffect.Count(a => a.Phenom == "TO"),
 				inEffect.Count(a => a.Phenom == "SV"),

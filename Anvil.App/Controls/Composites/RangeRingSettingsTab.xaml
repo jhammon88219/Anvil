@@ -8,7 +8,7 @@
        │    [x] Site ring (shown even with the Rings key off)     │  ← plain, OUTSIDE the Rings key
        │    [x] Reflectivity reach   [x] Velocity reach           │  ← PERSISTED (which rings)
        │    [ ] Distance rings                                    │
-       │    Spacing   [ Auto | 25 | 50 | 100 ]                    │  ← Readouts unit; greyed while off
+       │    Spacing   [ Auto | 25 | 50 | 100 ]                    │  ← Units-tab distance; greyed while off
        │  ⌄  Reflectivity reach                                   │
        │    Colour    (A)(■)(■)(■)(■)(■)(■)(+)                    │  ← ALSO the range ruler's colour
        │    Opacity   ━━━━━━━●━━━━━━  55 %                        │
@@ -38,7 +38,7 @@
      WHY ITS OWN TAB: the rings grew from three checkboxes into a per-part style editor — too much to sit in
      the Radar tab's scroll. Everything here was "Range rings & ruler" on the Radar tab; the RULER's anchor
      came along because the ruler ends ON the reflectivity ring and wears its colour (one object).
-     ⚠️ The DISTANCE UNIT stays on the Radar tab (Readouts): it is app-wide, not a ring setting.
+     ⚠️ The DISTANCE UNIT lives on the Units tab: it is app-wide, not a ring setting.
      ⚠️ Everything applies LIVE and persists by itself — to the main map AND the Settings window's own map
         preview beside this tab (Composites/MapPreview, the real radar-scope.js at a NEXRAD's base reach).
      ⚠️ The label handle (radar-scope.js) is on the PRIMARY pane only, like the ruler's handles; it writes
@@ -112,7 +112,7 @@
                                       ItemsSource="{x:Bind ViewModel.Radar.RangeRings.DistanceRingSpacingLabels}"
                                       SelectedIndex="{x:Bind ViewModel.Radar.RangeRings.DistanceRingSpacingIndex, Mode=TwoWay}"
                                       IsEnabled="{x:Bind ViewModel.Radar.RangeRings.ShowDistanceRings, Mode=OneWay}"
-                                      ToolTipService.ToolTip="How far apart the distance rings are, in your distance unit (Radar tab → Readouts). Auto picks a step to suit the radar's reach"/>
+                                      ToolTipService.ToolTip="How far apart the distance rings are, in your distance unit (Units tab → Distance). Auto picks a step to suit the radar's reach"/>
             </Grid>
         </prim:SettingsExpander>
 

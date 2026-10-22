@@ -479,6 +479,9 @@ namespace Anvil.Services
 		public bool? WarningsShowFlashFlood { get => _warningsShowFlashFlood; set => SetProperty(ref _warningsShowFlashFlood, value); }
 		private double? _warningsOpacity;
 		public double? WarningsOpacity { get => _warningsOpacity; set => SetProperty(ref _warningsOpacity, value); }
+		private bool? _warningsShowEnded;
+		/// <summary>The Warnings section's ENDED list is unfolded (null = folded, the VM's default).</summary>
+		public bool? WarningsShowEnded { get => _warningsShowEnded; set => SetProperty(ref _warningsShowEnded, value); }
 
 		private bool? _watchesShowTornado;
 		public bool? WatchesShowTornado { get => _watchesShowTornado; set => SetProperty(ref _watchesShowTornado, value); }
@@ -767,7 +770,7 @@ namespace Anvil.Services
 		/// <summary>
 		/// The unit every GROUND-DISTANCE readout is shown in — the range ruler's chip and the Inspector's
 		/// range — as a <see cref="Models.DistanceUnits"/> token (<c>"km"</c> / <c>"mi"</c> / <c>"nm"</c>).
-		/// Set in Settings -> Radar -> Readouts.
+		/// Set in Settings -> Units -> Distance.
 		/// </summary>
 		/// <remarks>
 		/// ⚠️ A TOKEN STRING, not an enum, for the same reason as <see cref="SettingsTabPlacement"/>: an
@@ -781,6 +784,28 @@ namespace Anvil.Services
 			get => _distanceUnits;
 			set => SetProperty(ref _distanceUnits, Models.DistanceUnits.Normalize(value));
 		}
+
+		// ── Settings → Units (Models/Map/UnitChoices tokens; Models/Map/UnitFormat formats with them) ──
+
+		private string _clockFormat = Models.UnitChoices.Clock.Default;
+		/// <summary>"12h" | "24h". Ignored while <see cref="TimeZoneChoice"/> is "utc" (always 24-hour Z).</summary>
+		public string ClockFormat { get => _clockFormat; set => SetProperty(ref _clockFormat, Models.UnitChoices.Clock.Normalize(value)); }
+
+		private string _timeZoneChoice = Models.UnitChoices.Zone.Default;
+		/// <summary>"local" | "utc" — the zone every clock time in the app is shown in.</summary>
+		public string TimeZoneChoice { get => _timeZoneChoice; set => SetProperty(ref _timeZoneChoice, Models.UnitChoices.Zone.Normalize(value)); }
+
+		private string _speedUnits = Models.UnitChoices.Speed.Default;
+		/// <summary>"kt" | "mph" | "kmh" | "ms".</summary>
+		public string SpeedUnits { get => _speedUnits; set => SetProperty(ref _speedUnits, Models.UnitChoices.Speed.Normalize(value)); }
+
+		private string _heightUnits = Models.UnitChoices.Height.Default;
+		/// <summary>"km" | "kft" | "ft".</summary>
+		public string HeightUnits { get => _heightUnits; set => SetProperty(ref _heightUnits, Models.UnitChoices.Height.Normalize(value)); }
+
+		private string _hailUnits = Models.UnitChoices.Hail.Default;
+		/// <summary>"in" | "cm".</summary>
+		public string HailUnits { get => _hailUnits; set => SetProperty(ref _hailUnits, Models.UnitChoices.Hail.Normalize(value)); }
 
 		private string _scopeColor = Models.ScopeColors.ThemeDefault;
 		/// <summary>

@@ -170,13 +170,9 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		// The loaded window in local time, as the Timeframe card writes it.
-		private static string ContextFor((DateTimeOffset Start, DateTimeOffset End) w)
-		{
-			var s = w.Start.ToLocalTime();
-			var e = w.End.ToLocalTime();
-			return $"{s:ddd MMM d, yyyy} · {s:h:mm tt} → {e:h:mm tt}";
-		}
+		// The loaded window in the Settings → Units clock + zone, as the Timeframe card writes it.
+		private static string ContextFor((DateTimeOffset Start, DateTimeOffset End) w) =>
+			$"{UnitFormat.Date(w.Start, "ddd MMM d, yyyy")} · {UnitFormat.Clock(w.Start)} → {UnitFormat.Clock(w.End)}";
 
 		// ⚠️ It counts TRACKS and says so, rather than "tornadoes": some polygons have no DAT track at all
 		// (most of 2011-04-27's), so "N tornadoes" from the track count would undercount those days.

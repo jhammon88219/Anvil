@@ -14,7 +14,7 @@ namespace Anvil.Models
 	public sealed record StormReportItem(string Kind, double Lat, double Lon, string Time, string Mag,
 		string Location, string County, string State)
 	{
-		/// <summary>"20:49Z" — the list is UTC, like SPC's own tables.</summary>
+		/// <summary>"20:49Z" — SPC's own UTC wording, for when the convective day isn't known (see <see cref="TimeOn"/>).</summary>
 		public string TimeText
 		{
 			get
@@ -29,11 +29,16 @@ namespace Anvil.Models
 			}
 		}
 
+		/// <summary>The report's real moment on convective <paramref name="day"/> (12Z + <see cref="DayMinute"/>), null if
+		/// the time is unreadable — what Settings → Units formats (a local time needs the DATE for its offset).</summary>
+		public System.DateTimeOffset? TimeOn(System.DateOnly day) => DayMinute < 0 ? null
+			: new System.DateTimeOffset(day.ToDateTime(new System.TimeOnly(12, 0)), System.TimeSpan.Zero).AddMinutes(DayMinute);
+
 		/// <summary>"3 SSW Ash Valley, KS".</summary>
 		public string Place => string.Join(", ", new[] { Location.Trim(), State.Trim() }.Where(s => s.Length > 0));
 
-		/// <summary>"EF2" / "65 mph" / "1.75 in", or "" when SPC has none. ⚠️ MIRRORS storm-reports.js
-		/// magText — the popup and the row must word a report the same way; change both.</summary>
+		/// <summary>"EF2" / "65 mph" / "1.75 in" (in the Settings → Units speed / hail units), or "" when SPC has none.
+		/// ⚠️ MIRRORS storm-reports.js magText — the popup and the row must word a report the same way; change both.</summary>
 		public string MagText
 		{
 			get
@@ -43,8 +48,8 @@ namespace Anvil.Models
 				var ok = int.TryParse(m, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n);
 				return Kind switch
 				{
-					"hail" => ok ? (n / 100.0).ToString("0.00", CultureInfo.InvariantCulture) + " in" : string.Empty,
-					"wind" => ok ? $"{n} mph" : m,
+					"hail" => ok ? UnitFormat.HailFromInches(n / 100.0) : string.Empty,
+					"wind" => ok ? UnitFormat.SpeedFromMph(n) : m,
 					"torn" => ok ? $"EF{n}" : m,
 					_ => m,
 				};

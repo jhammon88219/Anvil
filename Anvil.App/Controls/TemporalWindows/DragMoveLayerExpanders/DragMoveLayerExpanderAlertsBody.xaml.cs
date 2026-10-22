@@ -47,6 +47,19 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 				_ => WarningsViewModel.FlashFloodFill,
 			}));
 
+		// x:Bind helper: the ENDED list shows only when it has rows AND is unfolded.
+		public Visibility ShownBoth(bool has, bool open) => has && open ? Visibility.Visible : Visibility.Collapsed;
+
+		// The fold's chevron: ▸ folded, ▾ open (DragMoveLayerExpander's angles).
+		public double ChevronAngle(bool open) => open ? 90 : 0;
+
+		public string EndedFoldName(bool open) => open ? "Hide ended warnings" : "Show ended warnings";
+
+		private void OnEndedFoldClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel is not null) { ViewModel.ShowEndedList = !ViewModel.ShowEndedList; }
+		}
+
 		/// <summary>An ended warning, or one whose type isn't drawn, dims (the reports list's 45%).</summary>
 		public static double RowOpacity(bool dim) => dim ? 0.45 : 1.0;
 

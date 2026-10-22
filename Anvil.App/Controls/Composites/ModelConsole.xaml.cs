@@ -94,18 +94,11 @@ namespace Anvil.Controls.Composites
 
 		public string PlayStopGlyph(bool isPlaying) => isPlaying ? "" : "";
 
-		// The clock splits "h:mm tt" at its last space: large digits, small AM/PM (RadarControls' rule).
-		public string ClockDigits(string time)
-		{
-			var cut = time.LastIndexOf(' ');
-			return cut < 0 ? time : time[..cut];
-		}
+		// The clock splits "h:mm tt" at its last space, or "17:04Z" before its Z: large digits, small AM/PM / Z
+		// (RadarControls' rule).
+		public string ClockDigits(string time) => RadarControls.SplitClock(time).Digits;
 
-		public string ClockSuffix(string time)
-		{
-			var cut = time.LastIndexOf(' ');
-			return cut < 0 ? string.Empty : time[(cut + 1)..];
-		}
+		public string ClockSuffix(string time) => RadarControls.SplitClock(time).Suffix;
 
 		public string AmDesignator => System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.AMDesignator;
 		public string PmDesignator => System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.PMDesignator;

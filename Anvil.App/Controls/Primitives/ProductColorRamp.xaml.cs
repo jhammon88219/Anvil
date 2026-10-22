@@ -20,7 +20,12 @@ namespace Anvil.Controls.Primitives
 		public ProductColorRamp()
 		{
 			InitializeComponent();
+			// Settings → Units (speed) re-labels a velocity scale. Subscribed only while loaded: the event is static.
+			Loaded += (_, _) => UnitFormat.Changed += OnUnitsChanged;
+			Unloaded += (_, _) => UnitFormat.Changed -= OnUnitsChanged;
 		}
+
+		private void OnUnitsChanged(object? sender, EventArgs e) => Bindings.Update();
 
 		/// <summary>The product's color ramp (pushed from the WebView's radar-ramps.js). Null = ghost bar.</summary>
 		public RadarRampInfo? Ramp
@@ -132,8 +137,8 @@ namespace Anvil.Controls.Primitives
 		private void OnBarPointerExited(object sender, PointerRoutedEventArgs e) =>
 			ToolTipService.SetToolTip(BarHost, null);
 
-		// The ramp value at `fraction` (0-1). Velocity is shown in mph (converted from the ramp's native
-		// m/s, matching the inspector); other products keep their native unit (dBZ, ρHV, °/km, dB).
+		// The ramp value at `fraction` (0-1). Velocity is shown in the Settings → Units speed (converted from the
+		// ramp's native m/s, matching the inspector); other products keep their native unit (dBZ, ρHV, °/km, dB).
 		private static string ValueText(RadarRampInfo? ramp, double fraction, bool withUnit)
 		{
 			if (ramp is null)
@@ -144,7 +149,7 @@ namespace Anvil.Controls.Primitives
 			double v = ramp.Min + (ramp.Max - ramp.Min) * fraction;
 			if (ramp.Unit == "m/s")
 			{
-				v *= 2.23694;
+				v = UnitFormat.SpeedValueFromMs(v);
 			}
 			string unit = DisplayUnit(ramp.Unit);
 
@@ -152,6 +157,6 @@ namespace Anvil.Controls.Primitives
 			return withUnit && unit.Length > 0 ? $"{num} {unit}" : num;
 		}
 
-		private static string DisplayUnit(string unit) => unit == "m/s" ? "mph" : unit;
+		private static string DisplayUnit(string unit) => unit == "m/s" ? UnitFormat.SpeedLabel() : unit;
 	}
 }

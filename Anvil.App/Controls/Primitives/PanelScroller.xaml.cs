@@ -19,6 +19,9 @@ namespace Anvil.Controls.Primitives
 		/// that must line up with its content reserves this much on its right.</summary>
 		public const double GutterWidth = 16;
 
+		/// <summary>The LIST LANE's width (<see cref="LaneOnLeft"/>) — narrower than a panel's gutter.</summary>
+		public const double ListLaneWidth = 12;
+
 		private const double MinThumbHeight = 32;
 		private const double RestOpacity = 0.45;
 		private const double ActiveOpacity = 0.85;
@@ -39,6 +42,7 @@ namespace Anvil.Controls.Primitives
 			InitializeComponent();
 			GutterColumn.Width = new GridLength(GutterWidth);
 			ApplyBody();
+			ApplyLane();
 		}
 
 		/// <summary>The scrolled content. A <see cref="ListViewBase"/> body is scrolled by its OWN viewer.</summary>
@@ -50,6 +54,48 @@ namespace Anvil.Controls.Primitives
 		public static readonly DependencyProperty BodyProperty =
 			DependencyProperty.Register(nameof(Body), typeof(object), typeof(PanelScroller),
 				new PropertyMetadata(null, (d, _) => ((PanelScroller)d).ApplyBody()));
+
+		/// <summary>The gutter sits on the LEFT, <see cref="ListLaneWidth"/> wide — the expander lists' lane.</summary>
+		public bool LaneOnLeft
+		{
+			get => (bool)GetValue(LaneOnLeftProperty);
+			set => SetValue(LaneOnLeftProperty, value);
+		}
+		public static readonly DependencyProperty LaneOnLeftProperty =
+			DependencyProperty.Register(nameof(LaneOnLeft), typeof(bool), typeof(PanelScroller),
+				new PropertyMetadata(false, (d, _) => ((PanelScroller)d).ApplyLane()));
+
+		/// <summary>A LIST body stops growing at this many rows and scrolls (0 = no cap; the list's own MaxHeight rules).</summary>
+		public int MaxRows
+		{
+			get => (int)GetValue(MaxRowsProperty);
+			set => SetValue(MaxRowsProperty, value);
+		}
+		public static readonly DependencyProperty MaxRowsProperty =
+			DependencyProperty.Register(nameof(MaxRows), typeof(int), typeof(PanelScroller),
+				new PropertyMetadata(0, (d, _) => ((PanelScroller)d).ApplyRowCap()));
+
+		// Geometry only (columns + the thumb's inset) — the lane's look stays the XAML thumb's.
+		private void ApplyLane()
+		{
+			if (Track is null) { return; }
+			var left = LaneOnLeft;
+			LeftGutterColumn.Width = new GridLength(left ? ListLaneWidth : 0);
+			GutterColumn.Width = new GridLength(left ? 0 : GutterWidth);
+			Grid.SetColumn(Track, left ? 0 : 2);
+			Thumb.Margin = left ? new Thickness(2, 0, 4, 0) : new Thickness(4, 0, 0, 0);
+		}
+
+		// MaxRows × the first row's REAL height: rows are sized by their container style, so the cap follows it.
+		private void ApplyRowCap()
+		{
+			if (MaxRows <= 0 || Body is not ListViewBase list) { return; }
+			if (list.ContainerFromIndex(0) is FrameworkElement row && row.ActualHeight > 0)
+			{
+				var cap = MaxRows * row.ActualHeight;
+				if (Math.Abs(list.MaxHeight - cap) > 0.5) { list.MaxHeight = cap; }
+			}
+		}
 
 		// ── Body: which viewer the thumb drives ──
 
@@ -100,8 +146,13 @@ namespace Anvil.Controls.Primitives
 			{
 				_viewer.ViewChanged += OnViewChanged;
 				_viewer.SizeChanged += OnGeometryChanged;
-				// A list's extent grows as rows arrive/filter without a ViewChanged — follow it directly.
-				_extentToken = _viewer.RegisterPropertyChangedCallback(ScrollViewer.ExtentHeightProperty, (_, _) => UpdateThumb());
+				// A list's extent grows as rows arrive/filter without a ViewChanged — follow it directly (and re-read
+				// the row cap: the first row only has a height once it is realized).
+				_extentToken = _viewer.RegisterPropertyChangedCallback(ScrollViewer.ExtentHeightProperty, (_, _) =>
+				{
+					ApplyRowCap();
+					UpdateThumb();
+				});
 			}
 			UpdateThumb();
 		}

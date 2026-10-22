@@ -8,8 +8,9 @@
 //   ├──────────────────┼──────────────────┤
 //   │        +         │        +         │   A box sits down-right of its point and FLIPS left / up
 //   │         ┌──────┐ │  ┌──────┐        │   when it would cross its pane's edge (each box lives IN
-//   │         │ 31.2 │ │  │ -28.4│        │   its pane's container, so it clips there). Each value also
-//   │         │ m/s  │ │  │ m/s  │        │   ticks on the pane's notch ramp.
+//   │         │ 70   │ │  │ -64  │        │   its pane's container, so it clips there). Each value also
+//   │         │ mph  │ │  │ mph  │        │   ticks on the pane's notch ramp. Speeds read in the Settings →
+//                                              Units speed (units.js), native m/s in brackets.
 //   └──────────────────┴──────────────────┘
 //
 // The mode itself is armed from the Map Controls window, not the radar console: it is one cursor mode
@@ -39,6 +40,7 @@
 import * as Geo from './geo.js';
 // The readout box and the crosshair are <template>s in map.html (tpl-inspect-tip, tpl-inspect-cross).
 import * as Templates from './templates.js';
+import * as Units from './units.js';
 
 const GRID_NODATA = -32768; // matches radar-decode.js buildGrid sentinel
 
@@ -191,8 +193,8 @@ function readAll() {
 // Write one pane's reading into its box and show it (placeMarks then positions it).
 function fillTip(v, r) {
     const el = ensureTipEl(v);
-    // Speed products (velocity / SRV / spectrum width — unit "m/s") read as the native m/s value
-    // PLUS mph, e.g. "12.3 m/s (28 mph)"; other products keep their native unit (dBZ / unitless CC).
+    // Speed products (velocity / SRV / spectrum width — unit "m/s") read in the Settings → Units speed with the
+    // native m/s beside it, e.g. "28 mph (12.3 m/s)"; other products keep their native unit (dBZ / unitless CC).
     const main = r.unit === 'm/s'
         ? formatSpeed(r.value)
         : r.value.toFixed(r.digits) + (r.unit ? ' ' + r.unit : '');
@@ -208,9 +210,11 @@ function fillTip(v, r) {
     el.style.display = 'block';
 }
 
-// A speed in m/s → "12.3 m/s (28 mph)" (sign preserved: inbound negative, outbound positive).
+// A speed in m/s → "-28 mph (12.3 m/s)" in the Settings → Units speed, with the radar's NATIVE m/s kept in brackets
+// (the raw / Nyquist line under it is m/s) — just "12.3 m/s" when m/s is the choice. Sign preserved: inbound negative.
 function formatSpeed(ms) {
-    return ms.toFixed(1) + ' m/s (' + (ms * 2.23694).toFixed(1) + ' mph)';
+    if (Units.speedIsNative()) return Units.speedFromMs(ms);
+    return Units.speedFromMs(ms) + ' (' + ms.toFixed(1) + ' m/s)';
 }
 
 // For a dealiased velocity value, recover the raw (folded) measurement + the fold count from the

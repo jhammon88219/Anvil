@@ -10,7 +10,8 @@
 //        ●  ●         ┌──────────────────────────┐
 //          ●  ●───────│ Hail · 2.00"             │  ← click a dot: a pure-MapLibre popup, no host
 //       ●     ●       │ 3 NE Norman, OK          │    round-trip. Everything in it comes from the
-//                     │ 2013-05-20 20:14 UTC     │    feature's own props (time/mag/loc/county/st/com)
+//                     │ 3:14 PM · May 20, 2013   │    feature's own props (time/mag/loc/county/st/com);
+//                     │                          │    time + mag in Settings → Units (units.js)
 //                     │ REPORTED BY TRAINED …    │
 //                     └──────────────────────────┘
 //                                                      ↑ the SAME popup opens from the host's report LIST
@@ -21,6 +22,7 @@
 
 // The popup is a <template> in map.html; its look is styles/components/map-popups.css.
 import * as Templates from './templates.js';
+import * as Units from './units.js';
 
 let reportsUrl = null;
 let reportsData = null;
@@ -58,8 +60,8 @@ function addReportLayers(map) {
     removeReportLayers(map);
     map.addSource('spc-reports', { type: 'geojson', data: reportsData });
     // One small circle layer per type. Radius scales gently with zoom so dots stay legible zoomed way out
-    // (a big outbreak covers CONUS) yet don't blob together zoomed in. A thin dark stroke keeps them crisp
-    // over bright outlook fills. Each layer's visibility follows its type toggle.
+    // (a big outbreak covers CONUS) yet don't blob together zoomed in. A WHITE rim lifts them off the dark
+    // basemap and the radar. Each layer's visibility follows its type toggle.
     KIND_LAYERS.forEach(function (l) {
         map.addLayer({
             id: l.id,
@@ -69,13 +71,14 @@ function addReportLayers(map) {
             layout: { visibility: kinds[l.kind] ? 'visible' : 'none' },
             paint: {
                 'circle-color': l.color,
-                'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 7, 5, 10, 7],
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 4, 7, 6, 10, 8],
                 'circle-opacity': reportsOpacity,
-                'circle-stroke-width': 1,
+                'circle-stroke-width': 1.5,
                 // ⚠️ Deliberately NOT themed, unlike the popup surface below. This ring is part of the
-                // DATA mark — it separates a bright dot from whatever it lands on — and a dark ring
-                // does that job on a light basemap just as well as on a dark one.
-                'circle-stroke-color': 'rgba(20,20,20,0.85)',
+                // DATA mark — it separates a dot from whatever it lands on. It was a dark ring until
+                // 2026-10-22: on the dark basemap that did nothing and the blue wind dots sank into it
+                // (user picked the white rim from a mock-up of four options).
+                'circle-stroke-color': '#ffffff',
                 'circle-stroke-opacity': reportsOpacity
             }
         });
@@ -90,21 +93,30 @@ function addReportLayers(map) {
 // event), so re-adding after a basemap switch doesn't double-bind.
 
 // SPC magnitude column → readable text (empty when unknown). Hail size is hundredths of an inch; wind is
-// mph; tornado is the (E)F rating number.
+// mph; tornado is the (E)F rating number. Speed + hail in the Settings → Units choices (units.js).
+// ⚠️ MIRRORS StormReportItem.MagText — the row and the popup word a report the same way.
 function magText(kind, mag) {
     if (!mag || mag === 'UNK') return '';
     var n = parseInt(mag, 10);
-    if (kind === 'hail') return isNaN(n) ? '' : (n / 100).toFixed(2) + ' in';
-    if (kind === 'wind') return isNaN(n) ? String(mag) : (n + ' mph');
+    if (kind === 'hail') return isNaN(n) ? '' : Units.hailFromInches(n / 100);
+    if (kind === 'wind') return isNaN(n) ? String(mag) : Units.speedFromMph(n);
     if (kind === 'torn') return isNaN(n) ? String(mag) : ('EF' + n);
     return String(mag);
 }
 
-// SPC report times are UTC HHMM over the convective day — show as HH:MM UTC.
+// SPC report times are UTC HHMM over the CONVECTIVE day (12Z→12Z: 0130 is the next morning). The day comes from
+// the loaded file's name (reports-v2-YYYYMMDD.geojson), so the time can be shown in Settings → Units — a local
+// time needs the date. Unknown day → SPC's own "HH:MMZ".
 function timeText(t) {
     t = String(t == null ? '' : t);
-    if (/^\d{3,4}$/.test(t)) { t = ('000' + t).slice(-4); return t.slice(0, 2) + ':' + t.slice(2) + ' UTC'; }
-    return t;
+    if (!/^\d{3,4}$/.test(t)) return t;
+    t = ('000' + t).slice(-4);
+    var day = /(\d{4})(\d{2})(\d{2})\.geojson/.exec(reportsUrl || '');
+    if (!day) return t.slice(0, 2) + ':' + t.slice(2) + 'Z';
+    var minute = parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(2), 10);
+    var intoDay = (minute - 720 + 1440) % 1440;
+    var ms = Date.UTC(+day[1], +day[2] - 1, +day[3], 12, 0) + intoDay * 60000;
+    return Units.clock(ms) + ' · ' + Units.date(ms);
 }
 
 function popupContent(p) {

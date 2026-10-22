@@ -86,6 +86,7 @@ namespace Anvil.Controls.Windows
 			Persist(ConsoleTab, "console");
 			Persist(StartupTab, "startup");
 			Persist(BasemapTab, "basemap");
+			Persist(UnitsTab, "units");
 		}
 
 		// A tab body is a UserControl whose root panel holds its sections.
@@ -151,6 +152,7 @@ namespace Anvil.Controls.Windows
 		//   E7E8 power   — Startup: what happens when Anvil powers up. NOT verified. Eyeball it on first run.
 		//   E701 wifi    — Live Data: live updates arriving over the air. NOT verified. Eyeball it on first run.
 		//   E826 map     — Basemap: the map under the weather. NOT verified. Eyeball it on first run.
+		//   E8EF calculator — Units: how numbers are spoken. NOT verified. Eyeball it on first run.
 		//   E912 toolbox — was the Dev bar key's glyph (a second GEAR until that collided with Settings).
 		// ⚠️ Order = the SettingsTab enum. New tabs go BEFORE the #if DEBUG block — Dev must stay last.
 		private static ObservableCollection<TabEntry> BuildTabs()
@@ -166,6 +168,7 @@ namespace Anvil.Controls.Windows
 				new() { Glyph = "", Label = "Startup", Tooltip = "What Anvil opens on: your last session or a fixed start, and the home site" },
 				new() { Glyph = "", Label = "Live Data", Tooltip = "Where live updates come from (IEM, NOAA Weather Wire or polling), the polling intervals and the connection" },
 				new() { Glyph = "", Label = "Basemap", Tooltip = "The map under the weather: your map files, downloading an offline map, the online map key, and map setup at launch" },
+				new() { Glyph = "", Label = "Units", Tooltip = "Clock, time zone, distance, speed, height and hail size, for every readout in the app" },
 			};
 
 #if DEBUG

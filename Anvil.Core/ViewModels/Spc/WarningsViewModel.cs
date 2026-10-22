@@ -132,17 +132,25 @@ namespace Anvil.ViewModels
 		{
 			var now = DateTimeOffset.UtcNow;
 			var entries = _day.Build(DayStart(now), now);
-			var had = HasAlertList;
 			var byKey = new Dictionary<string, WarningDayEntry>();
 			foreach (var e in entries) { byKey[KeyOf(e)] = e; }
-			RowSync.Sync(AlertList, entries.Select(KeyOf).ToList(), r => r.Key,
-				k => new WarningListRow(k, byKey[k], IsTicked(byKey[k].Target.Phenom)));
-			foreach (var row in AlertList)
+			// In effect keeps Build's order (newest issued first); ended = newest ENDED first (no time known sorts last).
+			SyncRows(ActiveAlerts, entries.Where(e => e.InEffect).Select(KeyOf).ToList(), byKey);
+			SyncRows(EndedAlerts, entries.Where(e => !e.InEffect)
+				.OrderByDescending(e => e.EndedAt ?? DateTimeOffset.MinValue)
+				.Select(KeyOf).ToList(), byKey);
+			RaiseAlertList();
+		}
+
+		private void SyncRows(System.Collections.ObjectModel.ObservableCollection<WarningListRow> rows, List<string> keys,
+			Dictionary<string, WarningDayEntry> byKey)
+		{
+			RowSync.Sync(rows, keys, r => r.Key, k => new WarningListRow(k, byKey[k], IsTicked(byKey[k].Target.Phenom)));
+			foreach (var row in rows)
 			{
 				row.Entry = byKey[row.Key];
 				row.IsDrawn = IsTicked(row.Phenom);
 			}
-			RaiseAlertList(had);
 		}
 
 		private static string KeyOf(WarningDayEntry e) => e.Target.Key.Length > 0 ? e.Target.Key : e.Target.Id;

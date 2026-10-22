@@ -752,6 +752,22 @@ try {
     // map-ready and on every change, so the page and the host never format the same distance differently.
     window.setDistanceUnits = function (unit) {
         if (window.RadarLayer) window.RadarLayer.setDistanceUnits(unit);
+        pendingDistance = unit;
+        if (Units) Units.setDistance(unit); // popups that print a ground distance (damage paths)
+    };
+    // SETTINGS → UNITS, the rest (clock, zone, speed, height, hail): ONE state in units.js that every popup and
+    // readout formats through at the moment it draws. Held until the module lands (the host pushes at map-ready).
+    var Units = null, pendingUnits = null, pendingDistance = null;
+    import('./units.js').then(function (m) {
+        Units = m;
+        if (pendingUnits) m.set(pendingUnits);
+        if (pendingDistance) m.setDistance(pendingDistance);
+    })
+        .catch(function (e) { console.error('units.js load failed: ' + e); });
+    window.setDisplayUnits = function (u) {
+        pendingUnits = u;
+        if (Units) Units.set(u);
+        if (Units && StormCells) forEachMap(function (m) { StormCells.applyUnits(m); }); // its hail label is a layer
     };
     // Ruler anchor: the preference (site vs your location) + the location to honour it with, re-sent by
     // the host on every move of the location marker (radar-ruler.js never reads markers.js).

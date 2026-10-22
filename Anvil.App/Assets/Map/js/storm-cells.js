@@ -21,9 +21,9 @@
 //         click ─────│ ● Cell H1 · TVS                  │  ← one popup for the cell, whichever mark
 //                    │ Mesocyclone · rank 7             │    was clicked; a storm-report dot at the
 //                    │ Hail 70% severe · 80% any · 1.50″│    same spot takes the click instead
-//                    │ VIL 30 · 63 dBZ at 22.4 kft      │
-//                    │ Top 22.4 kft · from 246° 21 kt   │
-//                    │ Scan 19:51 UTC · KTLX            │
+//                    │ VIL 30 · 63 dBZ at 22.4 kft      │    every unit (size, heights, motion, the scan
+//                    │ Top 22.4 kft · from 246° 24 mph  │    time) is Settings → Units, via units.js
+//                    │ Scan 2:51 PM · KTLX              │
 //                    └──────────────────────────────────┘
 //
 // ⚠️ THRESHOLDS ARE MIRRORED from C# StormCellThresholds (MESO_RANK, SEVERE_POSH) — the rows' counts are
@@ -36,6 +36,7 @@
 import { firstSymbolLayerId } from './layers.js';
 // The popup is a <template> in map.html; its look is styles/components/map-popups.css.
 import * as Templates from './templates.js';
+import * as Units from './units.js';
 
 const SOURCE = 'storm-cell-src';
 const MESO_RANK = 5;          // ⚠️ mirrors StormCellThresholds.MesoRank
@@ -264,7 +265,7 @@ function addLayers(map) {
             visibility: vis('hail'),
             'icon-image': ['case', ['>=', ['get', 'size'], BIG_HAIL_IN], 'storm-cell-icon-hail-big', 'storm-cell-icon-hail'],
             'icon-offset': [15, 0], 'icon-allow-overlap': true, 'icon-ignore-placement': true,
-            'text-field': ['concat', ['number-format', ['get', 'size'], { 'min-fraction-digits': 2, 'max-fraction-digits': 2 }], '″'],
+            'text-field': Units.hailLabelExpr(['get', 'size']), // Settings → Units; applyUnits re-sets it
             'text-font': ['Noto Sans Medium'], 'text-size': 10, 'text-anchor': 'left', 'text-offset': [2.3, 0],
             'text-allow-overlap': true, 'text-ignore-placement': true
         },
@@ -298,27 +299,25 @@ function addLayers(map) {
 
 // --- Popup ------------------------------------------------------------------------------------------
 
-function pad2(n) { return (n < 10 ? '0' : '') + n; }
-function utcClock(ms) { const d = new Date(ms); return pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()); }
-
+// Every number with a unit goes through units.js (Settings → Units): hail size, heights, motion, the scan time.
 function popupContent(p) {
     const tvs = p.tvs ? (p.tvs === 'ETVS' ? 'Elevated TVS' : 'TVS') : '';
     const chip = p.tvs ? TVS_RED : p.meso >= MESO_RANK ? MESO_YELLOW : p.posh >= SEVERE_POSH ? HAIL_CYAN : TRACK_WHITE;
     const lines = [];
     if (p.meso > 0) lines.push((p.meso >= MESO_RANK ? 'Mesocyclone' : 'Weak circulation') + ' · rank ' + p.meso);
-    if (p.poh > 0) lines.push('Hail ' + p.posh + '% severe · ' + p.poh + '% any' + (p.size > 0 ? ' · ' + Number(p.size).toFixed(2) + '″' : ''));
+    if (p.poh > 0) lines.push('Hail ' + p.posh + '% severe · ' + p.poh + '% any' + (p.size > 0 ? ' · ' + Units.hailFromInches(p.size) : ''));
     const core = [];
     if (p.vil) core.push('VIL ' + p.vil);
-    if (p.dbz) core.push(p.dbz + ' dBZ' + (p.dbzh ? ' at ' + p.dbzh + ' kft' : ''));
+    if (p.dbz) core.push(p.dbz + ' dBZ' + (p.dbzh ? ' at ' + Units.heightFromKft(p.dbzh) : ''));
     if (core.length) lines.push(core.join(' · '));
-    const motion = p.kt > 0 ? 'from ' + p.dir + '° at ' + p.kt + ' kt' : 'new cell, no motion yet';
-    lines.push((p.top ? 'Top ' + p.top + ' kft · ' : '') + motion);
+    const motion = p.kt > 0 ? 'from ' + p.dir + '° at ' + Units.speedFromKt(p.kt) : 'new cell, no motion yet';
+    lines.push((p.top ? 'Top ' + Units.heightFromKft(p.top) + ' · ' : '') + motion);
     // <template id="tpl-cell-popup">; the chip's colour is DATA (the cell's worst signal), the one inline value.
     const el = Templates.clone('tpl-cell-popup');
     el.querySelector('.map-popup-chip').style.background = chip;
     Templates.text(el, '.map-popup-title-text', 'Cell ' + p.id + (tvs ? ' · ' + tvs : ''));
     Templates.text(el, '.map-popup-meta', lines.join('\n')); // pre-line: one fact per line
-    Templates.text(el, '.map-popup-src', 'Scan ' + utcClock(p.t) + ' UTC · ' + p.site + ' · NWS storm algorithms via IEM');
+    Templates.text(el, '.map-popup-src', 'Scan ' + Units.clock(p.t) + ' · ' + p.site + ' · NWS storm algorithms via IEM');
     return el;
 }
 
@@ -413,6 +412,11 @@ export function setOpacity(map, o) {
     paint('storm-cell-hail', 'text-opacity', opacity);
     paint('storm-cell-tvs', 'icon-opacity', opacity);
     paint('storm-cell-label', 'text-opacity', opacity);
+}
+
+// Settings → Units changed: the hail label is the one MAP text with a unit (popups read units.js as they open).
+export function applyUnits(map) {
+    if (map.getLayer('storm-cell-hail')) map.setLayoutProperty('storm-cell-hail', 'text-field', Units.hailLabelExpr(['get', 'size']));
 }
 
 export function clear(map) {

@@ -557,9 +557,9 @@ namespace Anvil.ViewModels
 		{
 			if (times is null) return string.Empty;
 			var parts = new List<string>(2);
-			if (times.Issued is { } iss) parts.Add($"Issued {iss.ToLocalTime():ddd MMM d h:mm tt}");
+			if (times.Issued is { } iss) parts.Add($"Issued {UnitFormat.Date(iss, "ddd MMM d")} {UnitFormat.Clock(iss)}");
 			if (times.Valid is { } v && times.Expire is { } e)
-				parts.Add($"Valid {v.ToLocalTime():ddd h:mm tt} → {e.ToLocalTime():ddd h:mm tt}");
+				parts.Add($"Valid {UnitFormat.Date(v, "ddd")} {UnitFormat.Clock(v)} → {UnitFormat.Date(e, "ddd")} {UnitFormat.Clock(e)}");
 			return string.Join("  ·  ", parts);
 		}
 	}

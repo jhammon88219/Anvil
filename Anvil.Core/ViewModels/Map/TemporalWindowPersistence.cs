@@ -45,6 +45,7 @@ namespace Anvil.ViewModels
 			if (s.WarningsShowSevere is bool ws) { warnings.ShowSevere = ws; }
 			if (s.WarningsShowFlashFlood is bool wf) { warnings.ShowFlashFlood = wf; }
 			if (s.WarningsOpacity is double wo) { warnings.Opacity = Unit(wo); }
+			if (s.WarningsShowEnded is bool we) { warnings.ShowEndedList = we; }
 
 			if (s.WatchesShowTornado is bool at) { watches.ShowTornado = at; }
 			if (s.WatchesShowSevere is bool aS) { watches.ShowSevere = aS; }
@@ -132,6 +133,7 @@ namespace Anvil.ViewModels
 					case nameof(PhenomOverlayViewModel.ShowSevere): s.WarningsShowSevere = warnings.ShowSevere; break;
 					case nameof(PhenomOverlayViewModel.ShowFlashFlood): s.WarningsShowFlashFlood = warnings.ShowFlashFlood; break;
 					case nameof(PhenomOverlayViewModel.Opacity): s.WarningsOpacity = warnings.Opacity; break;
+					case nameof(PhenomOverlayViewModel.ShowEndedList): s.WarningsShowEnded = warnings.ShowEndedList; break;
 				}
 			};
 

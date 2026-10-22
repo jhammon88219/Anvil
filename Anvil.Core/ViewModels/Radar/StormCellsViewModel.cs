@@ -339,7 +339,7 @@ namespace Anvil.ViewModels
 			CardHeadline = scan is null ? "No storm cells" : cells.Count == 1 ? "1 storm cell" : $"{cells.Count} storm cells";
 			CardContext = scan is null
 				? _loadedKey.Site
-				: $"Scan {scan.Valid.ToLocalTime():h:mm tt}{(_loadedKey.Live ? string.Empty : $" · {scan.Valid.ToLocalTime():MMM d, yyyy}")} · {_loadedKey.Site}";
+				: $"Scan {UnitFormat.Clock(scan.Valid)}{(_loadedKey.Live ? string.Empty : $" · {UnitFormat.Date(scan.Valid, "MMM d, yyyy")}")} · {_loadedKey.Site}";
 			if (_cardMessage.Length == 0 || _cardMessage == NoScanMessage)
 			{
 				SetMessage(scan is null && _frameTime is not null ? NoScanMessage : string.Empty);

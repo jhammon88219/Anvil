@@ -55,8 +55,8 @@ namespace Anvil.ViewModels
 				// loop is obviously today, so it stays time-only.
 				if (t is { } x)
 					return IsPastEventMode
-						? x.ToLocalTime().ToString("h:mm tt · MMM d, yyyy")
-						: x.ToLocalTime().ToString("h:mm tt");
+						? $"{UnitFormat.Clock(x)} · {UnitFormat.Date(x, "MMM d, yyyy")}"
+						: UnitFormat.Clock(x);
 				return string.Empty; // no "loading" text; the segmented scrubber shows load progress
 			}
 		}
@@ -245,9 +245,9 @@ namespace Anvil.ViewModels
 				if (_selectedRadarOption?.Site is null || _archiveCount == 0) return string.Empty;
 				var oldest = _frameTimes.Length > 0 ? _frameTimes[0] : null;
 				var newest = (_archiveCount - 1 < _frameTimes.Length) ? _frameTimes[_archiveCount - 1] : null;
-				static string L(DateTimeOffset? x) => x?.ToLocalTime().ToString("h:mm tt") ?? "—";
+				static string L(DateTimeOffset? x) => x is { } v ? UnitFormat.Clock(v) : "—"; // Settings → Units
 				// Suffix the event date in replay so the time-only span isn't ambiguous on a past event.
-				var date = IsPastEventMode && newest is { } n ? $" · {n.ToLocalTime():MMM d, yyyy}" : string.Empty;
+				var date = IsPastEventMode && newest is { } n ? $" · {UnitFormat.Date(n, "MMM d, yyyy")}" : string.Empty;
 				return $"{L(oldest)} – {L(newest)} · {_frameCount} frames{date}";
 			}
 		}

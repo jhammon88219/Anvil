@@ -15,13 +15,15 @@
                                                            flood" (warnings, FF) or "Flood" (watches, FA/FL/FF, sea
                                                            green) — FloodLabel/FloodColor from the VM
        ────────────────────────────────────────────────
-       ■ 11:52 AM  Cleveland, OK · until 12:30 PM    PDS  ← THE DAY LIST (AlertList; NowCast warnings only — watches
-       ■ 11:40 AM  Sedgwick, KS · until 12:15 PM            and PastCast leave it empty → collapsed): every warning of
-       ░  9:05 AM  Tulsa, OK · ended 9:45 AM                the convective day (12Z→now), newest issued first. In effect
-                                                            = CAP (the map's set), ended = IEM + what this session saw
-                                                            end (WarningDayList). An ENDED row or an unticked type's dims
-                                                            to 45%. Click → fly + flash (FlyTo). Capped 240 px, scrolls;
-                                                            rows edited IN PLACE (RowSync) — never a rebuilt list.
+         IN EFFECT 2                                     ← THE DAY LIST, TWO LISTS (NowCast warnings only — watches
+     █ ■ 11:52 AM  Cleveland, OK      PDS  until 12:30 PM  and PastCast leave both empty → collapsed). IN EFFECT
+     █ ■ 11:40 AM  Sedgwick, KS            until 12:15 PM  (ActiveAlerts) = CAP, the map's set, newest issued first;
+       ▸ ENDED 11                                          click → fly + flash (FlyTo). ENDED (EndedAlerts) = IEM +
+     █ ░  9:05 AM  Tulsa, OK                ended 9:45 AM  what this session saw end (WarningDayList), newest ENDED
+     ↑                                    ↑                first, FOLDED by default (ShowEndedList, persisted), INERT
+     left lane: PanelScroller LaneOnLeft  the status column (no click, no tooltip, no hover), dimmed 45%. An unticked
+     (12 px, always claimed); 8 rows,     is FIXED + RIGHT-   type's live row dims too but still flies. Rows edited IN
+     then it scrolls                      aligned             PLACE (RowSync) — never a rebuilt list.
 
      ⚠️ OPACITY IS NOT HERE — it lives in the host's section header (DragMoveLayerExpander ShowOpacity), so it can be
      set with the section closed.
@@ -54,6 +56,7 @@
              xmlns:tw="using:Anvil.Controls.TemporalWindows"
              xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
              xmlns:vm="using:Anvil.ViewModels"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -65,6 +68,73 @@
             <Setter Property="Padding" Value="6,0"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         </Style>
+
+        <!-- The two list headers: "IN EFFECT" / "ENDED" small caps + the count. -->
+        <Style x:Key="AlertListHeaderTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="CharacterSpacing" Value="60"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="AlertListHeaderCountStyle" TargetType="TextBlock" BasedOn="{StaticResource TabularNumberTextStyle}">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}"/>
+        </Style>
+
+        <!-- A ROW: ■ issued · place · tag · until/ended. ⚠️ The status is its OWN fixed column, RIGHT-aligned, so every
+             "until 12:30 PM" / "ended 9:45 AM" ends on the same edge (user's call, 2026-10-22). The two templates
+             differ only in the tooltip — an ended row offers no fly-to. Change both. -->
+        <DataTemplate x:Key="ActiveAlertRowTemplate" x:DataType="vm:WarningListRow">
+            <Grid ColumnSpacing="8" ToolTipService.ToolTip="Fly to this warning"
+                  Opacity="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderAlertsBody.RowOpacity(Dim), Mode=OneWay}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>  <!-- the type square -->
+                    <ColumnDefinition Width="58"/>    <!-- 11:52 AM (issued) -->
+                    <ColumnDefinition Width="*"/>     <!-- Cleveland, OK -->
+                    <ColumnDefinition Width="Auto"/>  <!-- PDS / Emergency / … -->
+                    <ColumnDefinition Width="100"/>   <!-- until 12:30 PM (right-aligned) -->
+                </Grid.ColumnDefinitions>
+                <Border Width="9" Height="9" CornerRadius="2" VerticalAlignment="Center"
+                        Background="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderAlertsBody.PhenomBrush(Phenom)}"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind TimeText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                           Style="{StaticResource TabularNumberTextStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind PlaceText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="3" Text="{x:Bind TagText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Grid.Column="4" Text="{x:Bind StatusText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                           HorizontalAlignment="Right" TextAlignment="Right"
+                           Style="{StaticResource TabularNumberTextStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </Grid>
+        </DataTemplate>
+        <DataTemplate x:Key="EndedAlertRowTemplate" x:DataType="vm:WarningListRow">
+            <Grid ColumnSpacing="8"
+                  Opacity="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderAlertsBody.RowOpacity(Dim), Mode=OneWay}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="58"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="100"/>
+                </Grid.ColumnDefinitions>
+                <Border Width="9" Height="9" CornerRadius="2" VerticalAlignment="Center"
+                        Background="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderAlertsBody.PhenomBrush(Phenom)}"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind TimeText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                           Style="{StaticResource TabularNumberTextStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind PlaceText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="3" Text="{x:Bind TagText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Grid.Column="4" Text="{x:Bind StatusText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                           HorizontalAlignment="Right" TextAlignment="Right"
+                           Style="{StaticResource TabularNumberTextStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </Grid>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Grid VerticalAlignment="Top">
@@ -111,41 +181,64 @@
             </dragMoveLayerExpanders:DragMoveLayerExpanderCountRow>
         </StackPanel>
 
-        <!-- THE DAY LIST (the storm-reports list's shape): every warning of the day, newest issued first. ⚠️ A ListView
-             with a MaxHeight, so it virtualizes inside the window's PanelScroller; SelectionMode None + ItemClick (a click
-             ACTS). ⚠️ ItemsSource is the VM's ONE collection, edited in place — don't swap it for a fresh list. -->
+        <!-- THE DAY LIST = TWO LISTS (the storm-reports list's shape): IN EFFECT (newest issued first, click → fly) over
+             ENDED (newest ended first, folded by default, INERT). Each is a PanelScroller LIST LANE: bar on the LEFT in
+             its own 12 px gutter, 8 rows then it scrolls. The headers start past that lane (Margin 12) so they line up
+             with the rows. ⚠️ ItemsSources are the VM's collections, edited in place — don't swap them for fresh lists. -->
         <StackPanel Grid.Row="2" Margin="0,14,0,0"
                     Visibility="{x:Bind Shown(ViewModel.HasAlertList), Mode=OneWay}">
             <Border Height="1" Margin="0,0,0,8"
                     Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-            <ListView MaxHeight="240"
-                      SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnAlertClick"
-                      ItemsSource="{x:Bind ViewModel.AlertList, Mode=OneWay}"
-                      ItemContainerStyle="{StaticResource AlertRowContainerStyle}">
-                <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="vm:WarningListRow">
-                        <Grid ColumnSpacing="8" ToolTipService.ToolTip="Fly to this warning"
-                              Opacity="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderAlertsBody.RowOpacity(Dim), Mode=OneWay}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>  <!-- the type square -->
-                                <ColumnDefinition Width="56"/>    <!-- 11:52 AM (issued) -->
-                                <ColumnDefinition Width="*"/>     <!-- Cleveland, OK · until 12:30 PM -->
-                                <ColumnDefinition Width="Auto"/>  <!-- PDS / Emergency / … -->
-                            </Grid.ColumnDefinitions>
-                            <Border Width="9" Height="9" CornerRadius="2" VerticalAlignment="Center"
-                                    Background="{x:Bind dragMoveLayerExpanders:DragMoveLayerExpanderAlertsBody.PhenomBrush(Phenom)}"/>
-                            <TextBlock Grid.Column="1" Text="{x:Bind TimeText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
-                                       Style="{StaticResource TabularNumberTextStyle}"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <TextBlock Grid.Column="2" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
-                                <Run Text="{x:Bind PlaceText, Mode=OneWay}"/><Run Text=" · " Foreground="{ThemeResource TextFillColorSecondaryBrush}"/><Run Text="{x:Bind StatusText, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </TextBlock>
-                            <TextBlock Grid.Column="3" Text="{x:Bind TagText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        </Grid>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
+
+            <!-- IN EFFECT · 6 -->
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="18,0,0,4">
+                <TextBlock Text="IN EFFECT" Style="{StaticResource AlertListHeaderTextStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Text="{x:Bind ViewModel.ActiveAlertCount, Mode=OneWay}" Style="{StaticResource AlertListHeaderCountStyle}"/>
+            </StackPanel>
+            <prim:PanelScroller LaneOnLeft="True" MaxRows="8"
+                                Visibility="{x:Bind Shown(ViewModel.HasActiveAlerts), Mode=OneWay}">
+                <ListView MaxHeight="208"
+                          SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnAlertClick"
+                          ItemsSource="{x:Bind ViewModel.ActiveAlerts}"
+                          ItemContainerStyle="{StaticResource AlertRowContainerStyle}"
+                          ItemTemplate="{StaticResource ActiveAlertRowTemplate}"/>
+            </prim:PanelScroller>
+
+            <!-- ▸ ENDED · 11 — the fold. The whole line is the button; the count shows while folded. -->
+            <Button x:Name="EndedAlertsFoldButton" Margin="12,10,0,0" Padding="6,0" Height="26"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                    Background="Transparent" BorderThickness="0" CornerRadius="4"
+                    Visibility="{x:Bind Shown(ViewModel.HasEndedAlerts), Mode=OneWay}"
+                    AutomationProperties.Name="{x:Bind EndedFoldName(ViewModel.ShowEndedList), Mode=OneWay}"
+                    Click="OnEndedFoldClick">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE76C;" FontSize="10" VerticalAlignment="Center"
+                              Foreground="{ThemeResource TextFillColorSecondaryBrush}" RenderTransformOrigin="0.5,0.5">
+                        <FontIcon.RenderTransform>
+                            <RotateTransform Angle="{x:Bind ChevronAngle(ViewModel.ShowEndedList), Mode=OneWay}"/>
+                        </FontIcon.RenderTransform>
+                    </FontIcon>
+                    <TextBlock Text="ENDED" Style="{StaticResource AlertListHeaderTextStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="{x:Bind ViewModel.EndedAlertCount, Mode=OneWay}" Style="{StaticResource AlertListHeaderCountStyle}"/>
+                </StackPanel>
+            </Button>
+            <!-- ⚠️ ENDED ROWS ARE INERT (user's call): no ItemClick, no tooltip, and the hover/press lift is blanked by
+                 the lightweight brushes below — so nothing on them looks clickable. -->
+            <prim:PanelScroller LaneOnLeft="True" MaxRows="8" Margin="0,2,0,0"
+                                Visibility="{x:Bind ShownBoth(ViewModel.HasEndedAlerts, ViewModel.ShowEndedList), Mode=OneWay}">
+                <ListView MaxHeight="208"
+                          SelectionMode="None" IsItemClickEnabled="False"
+                          ItemsSource="{x:Bind ViewModel.EndedAlerts}"
+                          ItemContainerStyle="{StaticResource AlertRowContainerStyle}"
+                          ItemTemplate="{StaticResource EndedAlertRowTemplate}">
+                    <ListView.Resources>
+                        <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent"/>
+                    </ListView.Resources>
+                </ListView>
+            </prim:PanelScroller>
         </StackPanel>
     </Grid>
 </UserControl>

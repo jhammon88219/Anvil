@@ -26,6 +26,15 @@
      Timeframe block) reserves the same GutterWidth on its right.
      ⚠️ A LIST BODY (ListView/GridView) is NOT wrapped in the scroller's viewer — it sits beside it and the thumb
      drives the list's own ScrollViewer, so virtualization and ScrollIntoView keep working (the Atlas lists).
+     ⚠️ A LIST LANE (LaneOnLeft="True", MaxRows="8" — every expander list: storm reports, warnings in effect/ended):
+
+       ┌──┬──────────────────────────────────┐
+       │██│ ■ 12:02 PM  3 NW Blackwell, OK   │  ← the gutter moves LEFT and narrows to ListLaneWidth (12): a 6 px
+       │██│ ■ 11:58 AM  2 S Newkirk, OK      │    thumb, 4 px clear of the rows. Still ALWAYS claimed, so the
+       │  │ …  (8 rows, then it scrolls)     │    9th row arriving never shifts the rows sideways.
+       └──┴──────────────────────────────────┘
+       MaxRows: the list's MaxHeight = MaxRows × its FIRST row's measured height (re-read as rows realize),
+       so the cap is exactly 8 rows whatever the row style — never a hand-typed pixel height.
      ⚠️ WHY NOT WinUI's OWN BAR: it is an OVERLAY (the auto-hiding "conscious" scroll indicator) — it claims no
      space, sits on top of the content's right edge and expands over sliders and % labels on hover. The rule
      here is the opposite: a fixed lane of its own.
@@ -40,13 +49,14 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="LeftGutterColumn" Width="0"/>   <!-- the LIST LANE (LaneOnLeft), set in code -->
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition x:Name="GutterColumn" Width="16"/> <!-- set from GutterWidth in code -->
+            <ColumnDefinition x:Name="GutterColumn" Width="16"/>      <!-- set from GutterWidth in code; 0 in a list lane -->
         </Grid.ColumnDefinitions>
 
         <!-- Hidden (not Disabled) keeps wheel / touch / keyboard scrolling; only the built-in bar goes.
              Content is set in CODE (ApplyBody): a plain body goes in here… -->
-        <ScrollViewer x:Name="Viewer" Grid.Column="0"
+        <ScrollViewer x:Name="Viewer" Grid.Column="1"
                       VerticalScrollBarVisibility="Hidden" VerticalScrollMode="Enabled"
                       HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
             <ContentPresenter x:Name="Presenter"
@@ -57,15 +67,17 @@
         <!-- …a ListView/GridView body goes HERE instead, OUTSIDE the viewer, and the thumb drives the list's OWN
              ScrollViewer (its bar hidden the same way). ⚠️ Never nest a list in the viewer above: it measures
              unbounded, un-virtualizes every row, and ScrollIntoView scrolls a viewer that can't move. -->
-        <ContentPresenter x:Name="ListPresenter" Grid.Column="0" Visibility="Collapsed"
+        <ContentPresenter x:Name="ListPresenter" Grid.Column="1" Visibility="Collapsed"
                           HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
 
-        <!-- THE TRACK: transparent, but hit-testable so a click on it pages. The whole gutter is the track. -->
-        <Grid x:Name="Track" Grid.Column="1" Background="Transparent"
+        <!-- THE TRACK: transparent, but hit-testable so a click on it pages. The whole gutter is the track.
+             ⚠️ Its column (2, or 0 in a list lane) and the thumb's Margin are the only things LaneOnLeft changes. -->
+        <Grid x:Name="Track" Grid.Column="2" Background="Transparent"
               PointerPressed="OnTrackPressed" SizeChanged="OnGeometryChanged">
             <!-- Stretch + Margin 4,0,0,0: 12 of the 16, flush RIGHT in the gutter. ⚠️ The asymmetry is the
                  point: the host bleeds the gutter to 4 px from the window edge, so 4 left (to the sections) and
-                 4 right (to the window edge) are EQUAL on screen. Change with the host's bleed. -->
+                 4 right (to the window edge) are EQUAL on screen. Change with the host's bleed.
+                 In a list lane (12 wide): Margin 2,0,4,0 → a 6 px thumb, 4 px clear of the rows. -->
             <Border x:Name="Thumb" Margin="4,0,0,0" CornerRadius="6" VerticalAlignment="Top" HorizontalAlignment="Stretch"
                     Background="{ThemeResource ControlStrongFillColorDefaultBrush}"
                     Opacity="0.45" Visibility="Collapsed"

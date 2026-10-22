@@ -581,6 +581,18 @@ namespace Anvil.ViewModels
 					ReportSiteScan(site, newest, canMarkOffline: false);
 				}
 			};
+
+			// Settings → Units: DISPLAY ONLY — re-word the radar's clock / range / motion texts (user-approved engine
+			// edit, 2026-10-22). Nothing about the loop, decode or polling reads these.
+			UnitFormat.Changed += (_, _) =>
+			{
+				OnPropertyChanged(nameof(CurrentFrameTimeText));
+				OnPropertyChanged(nameof(RadarCardTime));
+				OnPropertyChanged(nameof(RadarLoopSpanText));
+				OnPropertyChanged(nameof(PastEventRangeText));
+				RaiseLoadedReplayReadouts();
+				WordAutoStormMotion();
+			};
 		}
 
 		// ===== Panes ====================================================================================
@@ -830,10 +842,10 @@ namespace Anvil.ViewModels
 			// that its volume's start, and a SAILS / MRLE rescan says which one ("6:35 PM rescan 2").
 			string ScanName(string key, int index)
 			{
-				if (index < _frameTimes.Length && _frameTimes[index] is { } real) return $"{real.ToLocalTime():h:mm tt} scan";
+				if (index < _frameTimes.Length && _frameTimes[index] is { } real) return $"{UnitFormat.Clock(real)} scan";
 				var pass = RadarFrameKey.Pass(key);
 				return Level2RadarService.ParseVolumeTime(key) is { } t
-					? $"{t.ToLocalTime():h:mm tt} {(pass > 1 ? $"rescan {pass - 1}" : "scan")}"
+					? $"{UnitFormat.Clock(t)} {(pass > 1 ? $"rescan {pass - 1}" : "scan")}"
 					: "Scan";
 			}
 			static string Mb(long b) => (b / 1_000_000.0).ToString("0.0", System.Globalization.CultureInfo.CurrentCulture);
@@ -1284,7 +1296,7 @@ namespace Anvil.ViewModels
 			{
 				var start = ReplayStartLocal();
 				var end = start.AddMinutes(PastEventMinutesByIndex[_pastEventDurationIndex]);
-				return $"{start:h:mm tt} → {end:h:mm tt}";
+				return $"{UnitFormat.Clock(start)} → {UnitFormat.Clock(end)}";
 			}
 		}
 
@@ -1386,16 +1398,19 @@ namespace Anvil.ViewModels
 				{
 					return "No Timeframe Loaded";
 				}
-				var start = startUtc.ToLocalTime();
-				var end = endUtc.ToLocalTime();
-				var startSuffix = start.ToString("tt") == end.ToString("tt") ? "" : " " + start.ToString("tt");
-				return $"{start:h:mm}{startSuffix}–{end:h:mm}";
+				// Settings → Units: the span less its closing suffix (shown apart, small) — "5:00–7:00" · "22:00–00:00".
+				var span = UnitFormat.ClockSpan(startUtc, endUtc);
+				var suffix = LoadedReplayRangeSuffix;
+				return suffix.Length > 0 && span.EndsWith(suffix, StringComparison.Ordinal) ? span[..^suffix.Length].TrimEnd() : span;
 			}
 		}
 
-		/// <summary>The loaded window's closing AM/PM ("PM"); empty with nothing loaded.</summary>
+		/// <summary>The loaded window's closing AM/PM ("PM"), or "Z" in UTC, or nothing in 24-hour local / with nothing loaded.</summary>
 		public string LoadedReplayRangeSuffix =>
-			LoadedReplayEndUtc is { } end ? end.ToLocalTime().ToString("tt") : string.Empty;
+			LoadedReplayEndUtc is not { } end ? string.Empty
+			: UnitFormat.Current.IsUtc ? "Z"
+			: UnitFormat.Current.Is24Hour ? string.Empty
+			: UnitFormat.Zoned(end).ToString("tt");
 
 		private void RaiseLoadedReplayReadouts()
 		{
@@ -1778,7 +1793,7 @@ namespace Anvil.ViewModels
 				var t = (_currentFrameIndex >= 0 && _currentFrameIndex < _frameTimes.Length)
 					? _frameTimes[_currentFrameIndex]
 					: null;
-				return t?.ToLocalTime().ToString("h:mm tt") ?? "";
+				return t is { } v ? UnitFormat.Clock(v) : ""; // Settings → Units
 			}
 		}
 
@@ -1938,11 +1953,10 @@ namespace Anvil.ViewModels
 		{
 			if (insufficient)
 			{
+				_autoMotionWords = null;
 				AutoStormMotionText = "Auto — " + DescribeStormMotionFailure(why);
 				return;
 			}
-			var kt = speedMs / 0.514444;
-			var mph = speedMs * 2.23694;
 			// Provider and tier are different claims — see the pipeline console for the full note.
 			var origin = string.IsNullOrWhiteSpace(source) ? "" : source;
 			if (!string.IsNullOrWhiteSpace(tier) && !string.Equals(tier, source, StringComparison.Ordinal))
@@ -1951,7 +1965,17 @@ namespace Anvil.ViewModels
 			}
 
 			var src = string.IsNullOrWhiteSpace(origin) ? "" : " · " + origin;
-			AutoStormMotionText = $"{Math.Round(directionDeg)}° at {Math.Round(kt)} kt ({Math.Round(mph)} mph){src}";
+			_autoMotionWords = (speedMs, directionDeg, src);
+			WordAutoStormMotion();
+		}
+
+		// The last automatic motion, kept as NUMBERS so a Settings → Units change can re-word it (display only).
+		private (double SpeedMs, double DirectionDeg, string Source)? _autoMotionWords;
+
+		private void WordAutoStormMotion()
+		{
+			if (_autoMotionWords is not { } m) { return; }
+			AutoStormMotionText = $"{Math.Round(m.DirectionDeg)}° at {UnitFormat.SpeedFromMs(m.SpeedMs)}{m.Source}";
 		}
 
 		/// <summary>Asks the WebView to compute the loop's ONE auto storm motion (docs/radar-loop-flow.md

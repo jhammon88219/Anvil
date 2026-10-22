@@ -263,8 +263,7 @@ namespace Anvil.ViewModels
 		private RadarNwsMessageRow ToRow(RadarNwsMessage m)
 		{
 			var office = m.Office.Length == 4 ? m.Office[1..] : m.Office; // KRAH → RAH, PAFG → AFG
-			var local = m.IssuedUtc.ToLocalTime();
-			var when = local.ToString("MMM d, h:mm tt", CultureInfo.CurrentCulture);
+			var when = $"{UnitFormat.Date(m.IssuedUtc, "MMM d")}, {UnitFormat.Clock(m.IssuedUtc)}";
 			return new RadarNwsMessageRow($"NWS {office} · {when} ({Ago(m.IssuedUtc)})", m.Text);
 		}
 

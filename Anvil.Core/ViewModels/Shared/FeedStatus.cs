@@ -147,8 +147,9 @@ namespace Anvil.ViewModels
 		internal static string EveryWords(TimeSpan interval) =>
 			interval.TotalSeconds < 90 ? $"{interval.TotalSeconds:0} s" : $"{interval.TotalMinutes:0} min";
 
-		internal static string Clock(DateTimeOffset t) => t.ToLocalTime().ToString("h:mm:ss tt", CultureInfo.CurrentCulture);
+		// Settings → Units (clock + zone). Activity texts are rebuilt on every feed event, so a change shows at the next one.
+		internal static string Clock(DateTimeOffset t) => Models.UnitFormat.ClockSeconds(t);
 
-		internal static string ClockMinutes(DateTimeOffset t) => t.ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
+		internal static string ClockMinutes(DateTimeOffset t) => Models.UnitFormat.Clock(t);
 	}
 }

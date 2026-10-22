@@ -289,6 +289,11 @@ namespace Anvil.Services
 		public Task SetDistanceUnitsAsync(string unit) =>
 			RunMirrored("setDistanceUnits", Models.DistanceUnits.Normalize(unit));
 
+		// Tokens only (normalized again here — the JSON is built by interpolation and goes into the page).
+		public Task SetDisplayUnitsAsync(Models.UnitSet units) =>
+			_mapView.RunScriptAsync("window.setDisplayUnits && window.setDisplayUnits("
+				+ Models.UnitFormat.PageJson(units.Normalized()) + ");");
+
 		public Task SetRangeRulerAnchorAsync(bool fromLocation, bool hasLocation, double lng, double lat) =>
 			_mapView.RunScriptAsync(Call("setRangeRulerAnchor", fromLocation, hasLocation, lng, lat));
 

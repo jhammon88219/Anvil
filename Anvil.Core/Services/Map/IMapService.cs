@@ -179,6 +179,12 @@ namespace Anvil.Services
 		Task SetDistanceUnitsAsync(string unit);
 
 		/// <summary>
+		/// Tells the page the rest of Settings → Units (clock, zone, speed, height, hail) as one token set — js/units.js
+		/// formats every popup and readout the PAGE draws with it. Pushed at map-ready and on change, like the distance.
+		/// </summary>
+		Task SetDisplayUnitsAsync(Models.UnitSet units);
+
+		/// <summary>
 		/// Where the range ruler starts. <paramref name="fromLocation"/> is the PREFERENCE; <paramref name="hasLocation"/>
 		/// says whether there is a location to honour it with (else the page measures from the site and says so on
 		/// the chip). <paramref name="lng"/>/<paramref name="lat"/> are ignored when there is none.

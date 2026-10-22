@@ -572,7 +572,7 @@ namespace Anvil.ViewModels
 
 			_vm.SetReplayReadout(caption: "Loading…", status: "Loading…");
 			// LOOP HOLDING GATE up from the first moment (it reads "Finding volumes…" until the keys are listed).
-			_vm.LoopGate.Begin(site.Id, $"{site.Id} ·{localStart:MMM d, yyyy} · {localStart:h:mm tt}–{endUtc.ToLocalTime():h:mm tt}",
+			_vm.LoopGate.Begin(site.Id, $"{site.Id} ·{UnitFormat.Date(startUtc, "MMM d, yyyy")} · {UnitFormat.Clock(startUtc)}–{UnitFormat.Clock(endUtc)}",
 				startUtc, (int)Math.Round((endUtc - startUtc).TotalMinutes));
 			_vm._loopCts?.Cancel();
 			var cts = new CancellationTokenSource();
@@ -601,7 +601,7 @@ namespace Anvil.ViewModels
 			if (keys.Count == 0)
 			{
 				_vm.SetReplayReadout(error: $"No {site.Id} data for timeframe",
-					status: $"No {site.Id} data found for {localStart:MMM d, h:mm tt}.");
+					status: $"No {site.Id} data found for {UnitFormat.Date(startUtc, "MMM d")}, {UnitFormat.Clock(startUtc)}.");
 				return false;
 			}
 			// EVERY 0.5° PASS IS A FRAME: a SAILS / MRLE volume's rescans join its volume-start scan (ReplayFramePlan has
@@ -659,7 +659,7 @@ namespace Anvil.ViewModels
 				},
 				site: site.Id,
 				status: $"Loaded {keys.Count} frames{choiceNote} · " +
-					$"{localStart:MMM d, h:mm tt} +{_vm.PastEventDurationOptions[_vm._pastEventDurationIndex]}");
+					$"{UnitFormat.Date(startUtc, "MMM d")}, {UnitFormat.Clock(startUtc)} +{_vm.PastEventDurationOptions[_vm._pastEventDurationIndex]}");
 			_vm.MarkReplayWindowLoaded();
 			_vm.RaiseSiteLoaded(site, replay: true);
 			return true;

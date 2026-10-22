@@ -63,6 +63,8 @@ namespace Anvil.ViewModels
 			// Re-key the overlay to the new convective day when the temporal mode flips or the replay date
 			// changes (only matters while some type is shown; the toggle setters cover the show/hide case).
 			_radar.PropertyChanged += OnRadarChanged;
+			// Settings → Units: the rows re-word their times and magnitudes in place.
+			UnitFormat.Changed += (_, _) => { foreach (var row in Reports) { row.RefreshUnits(); } };
 		}
 
 		// ── Per-type toggles ──
@@ -180,8 +182,12 @@ namespace Anvil.ViewModels
 		private void RebuildList()
 		{
 			var had = HasReports;
-			RowSync.Sync(Reports, Newest(_all), r => r.Report, r => new StormReportRow(r, IsTicked(r.Kind)));
-			foreach (var row in Reports) { row.IsDrawn = IsTicked(row.Report.Kind); }
+			RowSync.Sync(Reports, Newest(_all), r => r.Report, r => new StormReportRow(r, IsTicked(r.Kind), _loadedDay));
+			foreach (var row in Reports)
+			{
+				row.IsDrawn = IsTicked(row.Report.Kind);
+				row.Day = _loadedDay;
+			}
 			if (had != HasReports) { OnPropertyChanged(nameof(HasReports)); }
 		}
 

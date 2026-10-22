@@ -54,7 +54,7 @@ namespace Anvil.ViewModels
 		public string ToolTip => string.IsNullOrEmpty(Event.Source) ? Event.Name : Event.Source;
 
 		/// <summary>"May 31, 2013".</summary>
-		public string DateText => Event.StartUtc.ToLocalTime().ToString("MMM d, yyyy");
+		public string DateText => UnitFormat.Date(Event.StartUtc, "MMM d, yyyy");
 
 		/// <summary>"5:30 PM · 2h" for one leg; the overall span for several.</summary>
 		public string SummaryText
@@ -64,9 +64,9 @@ namespace Anvil.ViewModels
 				if (!HasMultipleLegs)
 				{
 					var leg = Event.Legs[0];
-					return $"{leg.StartUtc.ToLocalTime():h:mm tt} · {DurationLabel(leg.DurationMinutes)}";
+					return $"{UnitFormat.Clock(leg.StartUtc)} · {DurationLabel(leg.DurationMinutes)}";
 				}
-				return $"{Event.StartUtc.ToLocalTime():h:mm tt} → {Event.EndUtc.ToLocalTime():h:mm tt}";
+				return $"{UnitFormat.Clock(Event.StartUtc)} → {UnitFormat.Clock(Event.EndUtc)}";
 			}
 		}
 
@@ -182,19 +182,10 @@ namespace Anvil.ViewModels
 		/// <summary>"2 hr" / "30 min" — the detail tile's longer form of <see cref="DurationLabel"/>.</summary>
 		internal static string DurationWords(int minutes) => minutes < 60 ? $"{minutes} min" : $"{minutes / 60} hr";
 
-		/// <summary>"6:23–7:48 PM", "6:10 AM" — a key time in LOCAL time, the AM/PM said once when both ends share it.</summary>
-		internal static string FormatKey(SavedEventKey key)
-		{
-			var start = key.StartUtc.ToLocalTime();
-			if (key.EndUtc is not { } endUtc)
-			{
-				return start.ToString("h:mm tt");
-			}
-			var end = endUtc.ToLocalTime();
-			return start.ToString("tt") == end.ToString("tt")
-				? $"{start:h:mm}–{end:h:mm tt}"
-				: $"{start:h:mm tt}–{end:h:mm tt}";
-		}
+		/// <summary>"6:23–7:48 PM", "6:10 AM" — a key time in the Settings → Units clock + zone, the AM/PM said once when
+		/// both ends share it.</summary>
+		internal static string FormatKey(SavedEventKey key) =>
+			key.EndUtc is { } endUtc ? UnitFormat.ClockSpan(key.StartUtc, endUtc) : UnitFormat.Clock(key.StartUtc);
 	}
 
 	/// <summary>
@@ -228,7 +219,7 @@ namespace Anvil.ViewModels
 		/// <summary>"Norman · OK" — the site's place, from the radar site list (empty when unknown).</summary>
 		public string SiteName { get; }
 
-		public string TimeText => $"{Leg.StartUtc.ToLocalTime():h:mm tt} · {SavedEventRow.DurationLabel(Leg.DurationMinutes)}";
+		public string TimeText => $"{UnitFormat.Clock(Leg.StartUtc)} · {SavedEventRow.DurationLabel(Leg.DurationMinutes)}";
 		public double LeftFraction { get; }
 		public double WidthFraction { get; }
 
@@ -252,14 +243,14 @@ namespace Anvil.ViewModels
 		/// <summary>The leg row's right-hand text: "On the ground 6:23 PM", "Across 12:30 PM · Cedar Rapids", "—".</summary>
 		public string KeyShortText =>
 			Leg.Key is { } k
-				? $"{SavedEventKinds.KeyLabel(_kind)} {k.StartUtc.ToLocalTime():h:mm tt}{(k.Place.Length > 0 ? " · " + k.Place : "")}"
+				? $"{SavedEventKinds.KeyLabel(_kind)} {UnitFormat.Clock(k.StartUtc)}{(k.Place.Length > 0 ? " · " + k.Place : "")}"
 				: "—";
 
 		/// <summary>Tile value: "6:00 PM · 2 hr".</summary>
-		public string WindowValueText => $"{Leg.StartUtc.ToLocalTime():h:mm tt} · {SavedEventRow.DurationWords(Leg.DurationMinutes)}";
+		public string WindowValueText => $"{UnitFormat.Clock(Leg.StartUtc)} · {SavedEventRow.DurationWords(Leg.DurationMinutes)}";
 
 		/// <summary>Tile label: "REPLAY WINDOW · MAY 3, 1999".</summary>
-		public string WindowLabelText => $"REPLAY WINDOW · {Leg.StartUtc.ToLocalTime():MMM d, yyyy}".ToUpperInvariant();
+		public string WindowLabelText => $"REPLAY WINDOW · {UnitFormat.Date(Leg.StartUtc, "MMM d, yyyy")}".ToUpperInvariant();
 
 		/// <summary>Tile label: "RADAR · LEG 1 OF 2".</summary>
 		public string RadarLabelText => $"RADAR · LEG {Index + 1} OF {_legCount}";

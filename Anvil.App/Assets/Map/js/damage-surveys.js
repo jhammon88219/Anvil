@@ -13,9 +13,10 @@
 //              ░░░░░░░▒▒▒▒▒▓▓▓▒▒▒░░░░░          · = survey damage point (point)
 //                ·   ·  ·    ·   ·
 //                    ┌─────────────────────────────┐
-//         click ─────│ EF4 tornado · 180 mph       │  ← one popup, top-most kind wins
+//         click ─────│ EF4 tornado · 180 mph       │  ← one popup, top-most kind wins; speeds, times and
+//                                                      path size in Settings → Units (units.js)
 //                    │ Elgin · TSA                 │    (point > track > area); a storm-report
-//                    │ 2024-05-07 02:12–03:07 UTC  │    dot at the same spot takes the click
+//                    │ May 6, 2024 · 9:12–10:07 PM │    dot at the same spot takes the click
 //                    │ 40.8 mi · 1,700 yd wide     │    instead (it has its own popup)
 //                    │ 2 deaths · 33 injured       │
 //                    │ The tornado developed …     │
@@ -30,6 +31,7 @@
 import { firstSymbolLayerId } from './layers.js';
 // The popup is a <template> in map.html; its look is styles/components/map-popups.css.
 import * as Templates from './templates.js';
+import * as Units from './units.js';
 
 const SOURCE = 'dat-surveys';
 
@@ -159,25 +161,20 @@ function addLayers(map) {
 
 // --- Popup ------------------------------------------------------------------------------------------
 
-function pad2(n) { return (n < 10 ? '0' : '') + n; }
-function utcDate(ms) { const d = new Date(ms); return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate()); }
-function utcClock(ms) { const d = new Date(ms); return pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()); }
-
-// "2024-05-07 02:12–03:07 UTC", or one instant when start = end.
+// "May 6, 2024 · 9:12–10:07 PM", or one instant when start = end — in Settings → Units (units.js).
 function spanText(t0, t1) {
     if (!t0) return '';
-    if (!t1 || t1 <= t0) return utcDate(t0) + ' ' + utcClock(t0) + ' UTC';
-    const sameDay = utcDate(t0) === utcDate(t1);
-    return utcDate(t0) + ' ' + utcClock(t0) + '–' + (sameDay ? '' : utcDate(t1) + ' ') + utcClock(t1) + ' UTC';
+    if (!t1 || t1 <= t0) return Units.date(t0) + ' · ' + Units.clock(t0);
+    const sameDay = Units.date(t0) === Units.date(t1);
+    return Units.date(t0) + ' · ' + Units.clock(t0) + '–' + (sameDay ? '' : Units.date(t1) + ' · ') + Units.clock(t1);
 }
 
-function num(n) { return Number(n).toLocaleString('en-US'); }
 
-// Path length (miles) and max width (yards), as the NWS publishes them.
+// Path length and max width — published in miles and yards, shown in the Settings → Units distance.
 function sizeText(p) {
     const parts = [];
-    if (p.len) parts.push(num(p.len) + ' mi');
-    if (p.wid) parts.push(num(p.wid) + ' yd wide');
+    if (p.len) parts.push(Units.lengthFromMiles(p.len));
+    if (p.wid) parts.push(Units.widthFromYards(p.wid) + ' wide');
     return parts.join(' · ');
 }
 
@@ -199,13 +196,13 @@ function popupContent(p) {
     const meta = [];
     const where = [p.name, p.wfo].filter(Boolean).join(' · ');
     if (p.layer === 'point') {
-        title = ratingOf(p) + ' damage' + (p.wind ? ' · ' + p.wind + ' mph' : '');
+        title = ratingOf(p) + ' damage' + (p.wind ? ' · ' + Units.speedFromMph(p.wind) : '');
         if (p.dmg) meta.push(p.dmg);
         if (p.dod) meta.push(p.dod);
         if (where) meta.push(where);
         meta.push(spanText(p.t0, p.t1));
     } else if (p.layer === 'track') {
-        title = ratingOf(p) + ' tornado' + (p.wind ? ' · ' + p.wind + ' mph' : '');
+        title = ratingOf(p) + ' tornado' + (p.wind ? ' · ' + Units.speedFromMph(p.wind) : '');
         if (where) meta.push(where);
         meta.push(spanText(p.t0, p.t1));
         if (sizeText(p)) meta.push(sizeText(p));
@@ -213,7 +210,7 @@ function popupContent(p) {
     } else {
         title = ratingOf(p) + ' damage area';
         // A polygon linked to its track carries the tornado's rating and numbers — say whose they are.
-        if (p.tef) meta.push('Part of ' + trackRatingOf(p) + ' tornado' + (p.wind ? ' · ' + p.wind + ' mph peak' : ''));
+        if (p.tef) meta.push('Part of ' + trackRatingOf(p) + ' tornado' + (p.wind ? ' · ' + Units.speedFromMph(p.wind) + ' peak' : ''));
         if (where) meta.push(where);
         meta.push(spanText(p.t0, p.t1));
         if (p.tef && sizeText(p)) meta.push(sizeText(p));

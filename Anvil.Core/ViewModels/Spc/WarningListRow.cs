@@ -7,8 +7,8 @@ namespace Anvil.ViewModels
 {
 	/// <summary>
 	/// One row of the NowCast Warnings section's day list (<see cref="WarningDayList"/>): issued · place · until/ended ·
-	/// tag. Kept across refreshes by <see cref="Key"/> (RowSync) and UPDATED in place — a warning that ends changes its
-	/// text and dims, it is not a new row. Times are LOCAL, like the tiles and the card.
+	/// tag. Kept across refreshes by <see cref="Key"/> (RowSync) and UPDATED in place. Times are in the Settings → Units
+	/// clock + zone (<see cref="UnitFormat"/>).
 	/// </summary>
 	public sealed class WarningListRow : ObservableObject
 	{
@@ -75,7 +75,9 @@ namespace Anvil.ViewModels
 		/// <summary>The row dims when it has ended OR its type isn't drawn.</summary>
 		public bool Dim => !_entry.InEffect || !_isDrawn;
 
-		private static string Clock(DateTimeOffset t) =>
-			t.ToLocalTime().ToString("h:mm tt", CultureInfo.CurrentCulture);
+		/// <summary>Settings → Units changed: re-word every text.</summary>
+		public void RefreshUnits() => OnPropertyChanged(string.Empty);
+
+		private static string Clock(DateTimeOffset t) => UnitFormat.Clock(t);
 	}
 }

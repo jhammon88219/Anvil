@@ -32,6 +32,20 @@ namespace Anvil.ViewModels
 	/// </summary>
 	public abstract class PhenomOverlayViewModel : MapOverlayViewModel
 	{
+		// Settings → Units: the card's clock and the list rows re-word in place (every instance lives as long as the app).
+		protected PhenomOverlayViewModel()
+		{
+			Anvil.Models.UnitFormat.Changed += (_, _) => OnUnitsChanged();
+		}
+
+		/// <summary>The units changed: re-raise every formatted text. A subclass with more adds to it.</summary>
+		protected virtual void OnUnitsChanged()
+		{
+			RaiseCard();
+			foreach (var row in ActiveAlerts) { row.RefreshUnits(); }
+			foreach (var row in EndedAlerts) { row.RefreshUnits(); }
+		}
+
 		// ── What the map draws ──
 
 		// ⚠️ BOTH TICKED BY DEFAULT, and that does NOT mean drawn at launch: a tick means "show this while
@@ -140,7 +154,8 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(AnyShown));
 			OnPropertyChanged(nameof(AllShown));
 			RaiseCard();
-			foreach (var row in AlertList) { row.IsDrawn = IsTicked(row.Phenom); }
+			foreach (var row in ActiveAlerts) { row.IsDrawn = IsTicked(row.Phenom); }
+			foreach (var row in EndedAlerts) { row.IsDrawn = IsTicked(row.Phenom); }
 
 			if (!IsMapReady) { return; }
 			_ = SetKindsAsync(_showTornado, _showSevere, FlashFloodOn);
@@ -151,17 +166,45 @@ namespace Anvil.ViewModels
 
 		// ── The section's LIST (NowCast warnings only for now: WarningsViewModel fills it; empty = collapsed) ──
 
-		/// <summary>The day's alerts, one row each (<see cref="WarningListRow"/>). ⚠️ Edited IN PLACE (RowSync) — never
-		/// replaced, or the list flashes on every refresh.</summary>
-		public System.Collections.ObjectModel.ObservableCollection<WarningListRow> AlertList { get; } = new();
+		// TWO lists (user's call, 2026-10-22): IN EFFECT on top, ENDED below behind a fold. A warning that ends MOVES
+		// from one to the other. ⚠️ Both are edited IN PLACE (RowSync) — never replaced, or they flash on every refresh.
 
-		/// <summary>Whether the list has rows (it collapses otherwise).</summary>
-		public bool HasAlertList => AlertList.Count > 0;
+		/// <summary>The alerts in effect, newest issued first.</summary>
+		public System.Collections.ObjectModel.ObservableCollection<WarningListRow> ActiveAlerts { get; } = new();
 
-		/// <summary>Raise after editing <see cref="AlertList"/> (only flips when it empties / fills).</summary>
-		protected void RaiseAlertList(bool had)
+		/// <summary>The day's ended alerts, newest ended first. Inert rows (no fly-to).</summary>
+		public System.Collections.ObjectModel.ObservableCollection<WarningListRow> EndedAlerts { get; } = new();
+
+		/// <summary>Whether either list has rows (the whole list area collapses otherwise).</summary>
+		public bool HasAlertList => ActiveAlerts.Count > 0 || EndedAlerts.Count > 0;
+
+		public bool HasActiveAlerts => ActiveAlerts.Count > 0;
+
+		public bool HasEndedAlerts => EndedAlerts.Count > 0;
+
+		/// <summary>"6" — the IN EFFECT header's count.</summary>
+		public string ActiveAlertCount => ActiveAlerts.Count.ToString(System.Globalization.CultureInfo.CurrentCulture);
+
+		/// <summary>"11" — the ENDED header's count (shown while folded too).</summary>
+		public string EndedAlertCount => EndedAlerts.Count.ToString(System.Globalization.CultureInfo.CurrentCulture);
+
+		private bool _showEndedList;
+
+		/// <summary>The ENDED list is unfolded. Starts folded; persisted (AppSettings.WarningsShowEnded).</summary>
+		public bool ShowEndedList
 		{
-			if (had != HasAlertList) { OnPropertyChanged(nameof(HasAlertList)); }
+			get => _showEndedList;
+			set => SetProperty(ref _showEndedList, value);
+		}
+
+		/// <summary>Raise after editing the two lists.</summary>
+		protected void RaiseAlertList()
+		{
+			OnPropertyChanged(nameof(HasAlertList));
+			OnPropertyChanged(nameof(HasActiveAlerts));
+			OnPropertyChanged(nameof(HasEndedAlerts));
+			OnPropertyChanged(nameof(ActiveAlertCount));
+			OnPropertyChanged(nameof(EndedAlertCount));
 		}
 
 		/// <summary>Whether a phenom's row is ticked (drawn) — a list row dims otherwise.</summary>
@@ -273,7 +316,7 @@ namespace Anvil.ViewModels
 		/// which moment they describe instead.</summary>
 		public virtual string CardContext =>
 			_lastUpdated is { } when
-				? $"Updated {when.LocalDateTime:h:mm tt}{CadenceSuffix}"
+				? $"Updated {Anvil.Models.UnitFormat.Clock(when)}{CadenceSuffix}"
 				: "Waiting for the first update…";
 
 		/// <summary>The card's footer: a failure, else nothing.</summary>
