@@ -37,6 +37,25 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
+		public void Sync_EditsInPlace_AndLeavesAnUnchangedListAlone()
+		{
+			var a = R("torn", "1600"); var b = R("wind", "1812"); var c = R("hail", "2049");
+			var rows = new System.Collections.ObjectModel.ObservableCollection<StormReportItem>(new[] { b, a });
+			var edits = 0;
+			rows.CollectionChanged += (_, _) => edits++;
+
+			StormReportsViewModel.Sync(rows, new[] { b with { }, a with { } });     // a refresh with nothing new
+			Assert.Equal(0, edits);
+
+			StormReportsViewModel.Sync(rows, new[] { c, b, a });                    // one new report on top
+			Assert.Equal(1, edits);
+			Assert.Equal(new[] { c, b, a }, rows);
+
+			StormReportsViewModel.Sync(rows, new[] { a, c });                       // a type unticked + reorder
+			Assert.Equal(new[] { a, c }, rows);
+		}
+
+		[Fact]
 		public void Counts_ComeFromTheList()
 		{
 			var result = StormReportService.Found(new[] { R("torn", "1600"), R("torn", "2049"), R("wind", "1812"), R("zzz", "1300") });
