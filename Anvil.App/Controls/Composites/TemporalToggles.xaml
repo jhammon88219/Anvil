@@ -2,13 +2,14 @@
 <!-- TemporalToggles — the PastCast / NowCast / ForeCast features as three SPLIT keys: a mode toggle with
      that mode's settings-window latch down its right edge.
 
-  (▣) [ Search places                    ✕ ⌕ ] (⊚)            ← the tools tier's search BOX, above
-      ┆                                         ┆                (box edges = this row's outer edges;
-       ┌──────────┬─┐ ┌──────────┬─┐ ┌──────────┬─┐   ┐    the ▣/⊚ flanks hang outside)
-       │    ↺     │·│ │   ((•))  │·│ │    ☁     │·│   │ the MODE HALF is the bar's shared square
-       │ PastCast │·│8│ NowCast  │·│8│ ForeCast │·│   │ (BarKeySide), so its glyph and name match the
-       │          │·│ │          │·│ │          │·│   │ Atlas and Settings keys; the car is added beside it
-       └──────────┴─┘ └──────────┴─┘ └──────────┴─┘   ┘ the SIDE CAR — one window per mode, latched here
+       ┌ left temporal window (480) ───────────────────────────┐
+       [ Search places ✕ ⌕ ]  ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙        (▣) (⊚)┊   ← the tools tier, above: it ends on the same edge
+       ┌──────────┬─┐                   ┌──────────┬─┐ ┌──────────┬─┐┊   ┐
+       │    ↺     │·│  ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙   │   ((•))  │·│ │    ☁     │·│┊   │ the MODE HALF is the bar's shared square
+       │ PastCast │·│  ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙   │ NowCast  │·│8│ ForeCast │·│┊   │ (BarKeySide), so its glyph and name match the
+       │          │·│  ⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙⁙   │          │·│ │          │·│┊   │ Atlas and Settings keys; the car is added beside it
+       └──────────┴─┘ ↑ TemporalKeysSpacer └──────────┴─┘ └──────────┴─┘┊   ┘ the SIDE CAR — one window per mode, latched here
+                        (stretches)                                    ↑ the window's INNER edge (485)
             ^              ^              ^
             │              │              └── SPC outlooks
             │              └── live radar / current alerts
@@ -75,15 +76,16 @@
          this row was given, so it had to fill the bar's content row or the squares collapsed. They declare
          their own size now (Styles.xaml, BarKeySide) and the bar's row sizes to THEM, so stretching this
          would only leave the keys floating in a taller row. -->
-    <!-- ⚠️ ColumnSpacing 8: the row spans the search BOX above it, not the group (the user's call, 2026-10-01;
-         it was 46, spanning the flanks too). The alignment is MEASURED (MapControlsStrip.MatchPlaceSearchWidth
-         gives the box this row's width), so this number only sets how wide the box ends up — the edges line up
-         for any value. -->
+    <!-- ⚠️ THE ROW ENDS ON THE LEFT TEMPORAL WINDOW'S INNER EDGE (the user's call, 2026-10-22): PastCast at the bar's
+         left edge, ForeCast's right edge on the window's inner edge, and TemporalKeysSpacer (a stretching dot grid)
+         between PastCast and NowCast takes the slack — PastCast runs alone, Now + Fore run together, so the gap reads.
+         Its width is MEASURED (AlignToWindowEdge, from MainWindow); the keys never resize. -->
     <Grid x:Name="PillRow"
           VerticalAlignment="Center"
           ColumnSpacing="8">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/> <!-- the spacer -->
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
@@ -100,8 +102,15 @@
 
         <!-- NOWCAST — glyph E93E, a dot radiating signal waves: live. Deliberately NOT the tower (EC05),
              which reads as "a radar site" and would collide with the on-map site markers' language. -->
+        <!-- The stretching spacer (see above). Width SET IN CODE; 10 is only the pre-layout value. -->
+        <prim:MapControlsStripSeparator x:Name="TemporalKeysSpacer"
+                                        Grid.Column="1"
+                                        Margin="8,0"
+                                        FillWidth="True"
+                                        Width="10"/>
+
         <prim:SplitTemporalToggle x:Name="NowKey"
-                                  Grid.Column="1"
+                                  Grid.Column="2"
                                   Glyph="&#xE93E;"
                                   ModeName="NowCast"
                                   ModeToolTip="NowCast — live radar / current conditions (click again to turn it off)"
@@ -111,7 +120,7 @@
 
         <!-- FORECAST — glyph E753, a cloud: the weather-outlook idiom. -->
         <prim:SplitTemporalToggle x:Name="ForeKey"
-                                  Grid.Column="2"
+                                  Grid.Column="3"
                                   Glyph="&#xE753;"
                                   ModeName="ForeCast"
                                   ModeToolTip="ForeCast — SPC outlooks (click again to turn it off)"

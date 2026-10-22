@@ -11,7 +11,9 @@
                    · · ·     MARGINS are the host's, and GENEROUS on purpose: the gap is what groups the tools
                    · · ·
 
-     DPs: Columns (3) · Rows (3) · FillWidth · DotSize (1.5) · DotGap (2.5) · Brush.
+     DPs: Columns (3) · Rows (3) · FillWidth · DotSize (1.5) · DotGap (2.5) · Brush. A host's measured fit goes through
+     SetFillWidth (floor + sub-pixel no-op). Also used on the GROUND bar (TemporalToggles, MainWindow's right cluster)
+     as the side sections' stretching spacers (2026-10-22).
      THE DOTS ARE ONE DECLARED PATH (Dots, below) — never elements built in code. The code-behind only computes
      its geometry (one circle per dot at the pitch), and only when the SHAPE changes; a FillWidth separator re-lays
      out on every width change its host makes, and most of those don't change the count.

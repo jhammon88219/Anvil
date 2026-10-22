@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ============================================================================
+     MapControlsStripPaneLayoutPicker — HOW the map is split (1 / 2 / 4 panes), as ONE square key on the tools tier
+     (the user's call, 2026-10-22). It replaced three side-by-side toggles to give the RIGHT section its width back,
+     so that section fits between the ForeCast window's inner edge and the tier's right edge. The network picker's
+     pattern (MapControlsStripNetworkPicker): a face + an upward list.
+
+           ┌───────────────────────┐
+           │ ◉ ■      1 pane       │   ← the list opens UP (TopEdgeAlignedLeft), its left edge on the key's
+           │ ○ ■▪     2 panes      │     each row = a RadioButton: dot = the CURRENT layout · its mark · name
+           │ ○ ▪▪/■▪  4 panes      │     a pick CLOSES the list (one choice, unlike the network ticks)
+           └───────────────────────┘
+           ┌───▴┐
+           │ ■▪ │  ← the face: the CURRENT layout's mark + a small ▴ (the way it opens) in the top-right corner
+           └────┘     Elevated face while the list is open (FlyoutStates); dimmed while disabled (EnabledStates)
+
+     ⚠️ ONE-WAY Layout + LayoutPicked: the host sets the VM and RE-ASSERTS Layout from it (a refused or same pick
+     changes no property, and the clicked radio would otherwise stay lit). Never make Layout TwoWay.
+     ⚠️ SQUARE marks, solid blocks with 2 px gaps, accent cell = pane 0 (left; bottom-left in quad), as on the map —
+     the old toggles' marks, kept. Drawn Rectangles with fixed theme brushes: Shapes don't read the Foreground, so a
+     disabled key DIMS them through EnabledStates rather than greying.
+     ⚠️ NOT a ComboBox (the mousewheel trap — see the network picker). Windowed flyout (ShouldConstrainToRootBounds=
+     False) — else the owned panel windows paint over it.
+     ⚠️ The face's look copies MapControlsStrip's StripToolButtonStyle (32 × 32, raised hover pair), like the network
+     picker's — a tune there should come here too. Tooltips read "Activate N-pane mode" (no "two stacked").
+     ============================================================================ -->
+<UserControl x:Class="Anvil.Controls.Primitives.MapControlsStripPaneLayoutPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <!-- The face: StripToolButtonStyle's template (see the header). -->
+            <Style x:Key="PaneLayoutPickerFaceStyle" TargetType="Button">
+                <Setter Property="Width" Value="32"/>
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="5"/>
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid x:Name="Root"
+                                  Background="{TemplateBinding Background}"
+                                  BorderBrush="{TemplateBinding BorderBrush}"
+                                  BorderThickness="{TemplateBinding BorderThickness}"
+                                  CornerRadius="{TemplateBinding CornerRadius}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceRaisedHoverBrush}"/>
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter x:Name="Glyph"
+                                                  HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                  Content="{TemplateBinding Content}"
+                                                  Foreground="{TemplateBinding Foreground}"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- One list row's mark box (the face's marks are 22, MapControlsStrip StripGlyphSize). -->
+            <Style x:Key="PaneRowMarkBox" TargetType="Grid">
+                <Setter Property="Width" Value="16"/>
+                <Setter Property="Height" Value="16"/>
+                <Setter Property="Margin" Value="0,0,10,0"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid x:Name="PaneLayoutPickerRoot">
+        <VisualStateManager.VisualStateGroups>
+            <!-- The face holds the Elevated look while its list is open. -->
+            <VisualStateGroup x:Name="FlyoutStates">
+                <VisualState x:Name="FlyoutClosed"/>
+                <VisualState x:Name="FlyoutOpen">
+                    <VisualState.Setters>
+                        <Setter Target="PaneLayoutPickerFace.Background" Value="{ThemeResource OverlayBarSurfaceElevatedBrush}"/>
+                        <Setter Target="PaneLayoutPickerFace.BorderBrush" Value="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <!-- The marks are fixed-brush Rectangles, so a disabled key dims them (the old toggles' LockedOpacity). -->
+            <VisualStateGroup x:Name="EnabledStates">
+                <VisualState x:Name="Enabled"/>
+                <VisualState x:Name="Disabled">
+                    <VisualState.Setters>
+                        <Setter Target="PaneLayoutPickerFaceMarks.Opacity" Value="0.35"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Button x:Name="PaneLayoutPickerFace"
+                Style="{StaticResource PaneLayoutPickerFaceStyle}"
+                AutomationProperties.Name="Pane layout"
+                ToolTipService.ToolTip="Pane layout - split the map into 1, 2 or 4 panes">
+            <Grid>
+                <!-- The CURRENT layout's mark, one of three (MarkVisibility). -->
+                <Grid x:Name="PaneLayoutPickerFaceMarks" Width="22" Height="22"
+                      HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Grid Visibility="{x:Bind MarkVisibility(Layout, 0), Mode=OneWay}">
+                        <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
+                    </Grid>
+                    <Grid ColumnSpacing="2" Visibility="{x:Bind MarkVisibility(Layout, 1), Mode=OneWay}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Rectangle Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
+                        <Rectangle Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1.5" RadiusY="1.5"/>
+                    </Grid>
+                    <Grid ColumnSpacing="2" RowSpacing="2" Visibility="{x:Bind MarkVisibility(Layout, 2), Mode=OneWay}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <Rectangle Grid.Row="0" Grid.Column="0" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                        <Rectangle Grid.Row="0" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                        <Rectangle Grid.Row="1" Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
+                        <Rectangle Grid.Row="1" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                    </Grid>
+                </Grid>
+                <!-- ▴ = the list opens UP (the network picker's caret, same spot). -->
+                <Viewbox Width="6" Height="6" Margin="0,3,3,0"
+                         HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <PathIcon Data="M1,7 L5,3 L9,7 Z" Width="10" Height="10"/>
+                </Viewbox>
+            </Grid>
+            <Button.Flyout>
+                <Flyout x:Name="PaneLayoutPickerFlyout"
+                        Placement="TopEdgeAlignedLeft" ShouldConstrainToRootBounds="False"
+                        Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
+                    <StackPanel Width="170" Spacing="2">
+                        <RadioButton x:Name="PaneLayoutPickerSingleRadioButton" Tag="Single" MinHeight="32"
+                                     GroupName="PaneLayoutPickerRows"
+                                     IsChecked="{x:Bind IsLayout(Layout, 0), Mode=OneWay}"
+                                     Click="OnRowClick"
+                                     ToolTipService.ToolTip="Activate 1-pane mode">
+                            <StackPanel Orientation="Horizontal">
+                                <Grid Style="{StaticResource PaneRowMarkBox}">
+                                    <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
+                                </Grid>
+                                <TextBlock Text="1 pane" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="PaneLayoutPickerTwoRadioButton" Tag="TwoAcross" MinHeight="32"
+                                     GroupName="PaneLayoutPickerRows"
+                                     IsChecked="{x:Bind IsLayout(Layout, 1), Mode=OneWay}"
+                                     Click="OnRowClick"
+                                     ToolTipService.ToolTip="Activate 2-pane mode">
+                            <StackPanel Orientation="Horizontal">
+                                <Grid Style="{StaticResource PaneRowMarkBox}" ColumnSpacing="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+                                    <Rectangle Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1.5" RadiusY="1.5"/>
+                                    <Rectangle Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1.5" RadiusY="1.5"/>
+                                </Grid>
+                                <TextBlock Text="2 panes" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="PaneLayoutPickerQuadRadioButton" Tag="Quad" MinHeight="32"
+                                     GroupName="PaneLayoutPickerRows"
+                                     IsChecked="{x:Bind IsLayout(Layout, 2), Mode=OneWay}"
+                                     Click="OnRowClick"
+                                     ToolTipService.ToolTip="Activate 4-pane mode">
+                            <StackPanel Orientation="Horizontal">
+                                <Grid Style="{StaticResource PaneRowMarkBox}" ColumnSpacing="2" RowSpacing="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <Rectangle Grid.Row="0" Grid.Column="0" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Row="0" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{ThemeResource AccentFillColorDefaultBrush}" RadiusX="1" RadiusY="1"/>
+                                    <Rectangle Grid.Row="1" Grid.Column="1" Fill="{ThemeResource TextFillColorSecondaryBrush}" RadiusX="1" RadiusY="1"/>
+                                </Grid>
+                                <TextBlock Text="4 panes" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+                </Flyout>
+            </Button.Flyout>
+        </Button>
+    </Grid>
+</UserControl>

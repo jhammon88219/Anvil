@@ -15,12 +15,12 @@
        ├─────────────────────────────┴─────────────────────────────┤
        │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  …thrown UP onto the map
        │                 ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                     │  ONE rail, one tab per tier
-       │ [Search          ✕⌕] ▣ ⊚    ╎◗✈⚗ │ ⌕ │ ⌸◎ ┊┊┊ [⌂ KTLX Oklahoma City ˅]  ▢▥▦ ┊┊ ⌘⛶ │ ▥▴ ┇[Isolate ▾]│  TOOLS tier
-       │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒╎▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒▒▒▒▒▒▒▒▒▒▒┇▒▒▒▒▒▒▒▒▒▒▒▒│  ╎ = console tools' left = console's
-       │                              ╎1:07 PM ═══ scrubber ═══ VCP:     212┆              ┇          │  ┆ = picker's right edge = scan text's
-       │ ⋮ ((•))│⋮   ☁ │⋮             ╎        3/10  ◀ ▶ ▶  ↺  Mode:  precip │              ┇📡   ⚙  –│□│  ┇ = Isolate's left edge = ATLAS's
-       │ PastCast NowCast ForeCast    ╎2 min ago            Rescans: SAILS ×1│  (activity)  ┇Atlas Settings ✕│  ┊┊┊/┊┊ = the STRETCHING separators
-       └──────────────────────────────┴───────────── ↑ bar midpoint ─────────┴──────────────┴──────────┘
+       │ [Search ✕⌕] ⁙⁙⁙ ▣ ⊚┇   ╎◗▴ ⁙⁙⁙ [⌂ KTLX Oklahoma City ˅] ⁙⁙⁙ ⌕ ◎▴┆   ┇▥▴ ⁙⁙ ⌘⛶ ─ ▥▴ [Isolate ▾]│  TOOLS tier
+       │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┇▒▒▒╎▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒┇▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒│  ╎ = console tools' left = console's
+       │                     ┇   ╎1:07 PM ═══ scrubber ═══ VCP:  212┆   ┇                       │  ┆ = radar tools' right = scan text's
+       │ ↺ │⋮ ⁙⁙⁙ ((•))│⋮ ☁ │⋮┇   ╎     3/10  ◀ ▶ ▶  ↺  Mode: precip┆   ┇📡  ⚙   ⁙⁙⁙⁙⁙⁙   –│□│✕│  ┇ = a temporal window's INNER edge
+       │ PastCast  NowCast ForeCast┇ ╎2 min ago       Rescans: SAILS ×1┆   ┇Atlas Settings          │  ⁙⁙⁙ = the STRETCHING dot spacers;
+       └─────────────────────┴───┴───────── ↑ bar midpoint ─────────┴───┴─────────────────────────┘  the blank runs ┇…╎ / ┆…┇ give way first
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
             is drawn by whichever side owns it: the tools tier throws its own up
             onto the map, and the BAR draws the band it receives from the tier
@@ -46,8 +46,12 @@
           ↑ Site markers AND ⌕ Inspect are on the TOOLS tier (both left this bar; see MapControlsStrip).
           ↑ ⋮ = each mode's SIDE CAR: a full-height settings latch on its own key, lit only while that mode
             runs. One window per mode. (Same three-dot mark the retired shared panel key used.)
-          ↑ ▢▥▦ = pane layout, three toggles (1 / 2 / 4) on the TOOLS tier; it left this bar's right
-            cluster, which is now window latches only. See MapControlsStrip.
+          ↑ ▥▴ (first of the right tools) = pane layout, ONE square key with an upward 1 / 2 / 4 list, on the TOOLS
+            tier; it left this bar's right cluster, which is now window latches only. See MapControlsStrip.
+          ↑ ┇ THE SIDE SECTIONS END ON THE TEMPORAL WINDOWS' INNER EDGES (2026-10-22): both tiers' left sections end,
+            and both right sections start, on the inner edge of the 480-wide edge window above them, open or not
+            (AlignSideSections ← WindowManager.EdgeStripReach). Controls keep their size; one dot spacer per section
+            per tier takes the slack. The blank runs between the sections give way as the window shrinks.
           ↑ ▣ = the (future) marker viewer and ⊚ = Location follow the place search on the TOOLS
             tier. Location left this bar: it is a "where on the map" move like search, and an
             occasional one, so it fails the bar's constant-gesture test. See MapControlsStrip.
@@ -456,6 +460,7 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/> <!-- Radar Atlas -->
                                 <ColumnDefinition Width="Auto"/> <!-- settings -->
+                                <ColumnDefinition Width="Auto"/> <!-- RightClusterSpacer (stretches) -->
                                 <ColumnDefinition Width="Auto"/> <!-- window caption (min / max / close) -->
                             </Grid.ColumnDefinitions>
 
@@ -549,12 +554,18 @@
                                 <!-- THE WINDOW'S OWN CAPTION BUTTONS, moved here: the system min/max/close are hidden
                                      (the right-edge ForeCast window covered them) — see the CAPTION BAND block in
                                      MainWindow.xaml.cs. Last in the cluster, so it is the bar's far-right key.
-                                     ⚠️ SET APART: 42 + the grid's 8 = 50 px from Settings, so the window's own buttons
-                                     don't read as a third app key (the user's call, 2026-09-30). The tools tier's
-                                     isolation picker re-measures off Atlas, so changing this gap needs nothing else. -->
+                                     ⚠️ SET APART by RightClusterSpacer (it was a fixed 42 px gap, the user's call
+                                     2026-09-30), so the window's own buttons don't read as a third app key. -->
+                                <!-- RIGHT CLUSTER SPACER — a stretching dot grid sized so ATLAS's left edge lands on the
+                                     ForeCast window's INNER edge (MainWindow.AlignSideSections, the user's call
+                                     2026-10-22). Width SET IN CODE; 10 is only the pre-layout value. -->
+                                <ctl:MapControlsStripSeparator x:Name="RightClusterSpacer"
+                                                               Grid.Column="2"
+                                                               Margin="8,0"
+                                                               FillWidth="True"
+                                                               Width="10"/>
                                 <ctl:WindowCaptionKey x:Name="CaptionKey"
-                                                      Grid.Column="2"
-                                                      Margin="42,0,0,0"
+                                                      Grid.Column="3"
                                                       MinimizeRequested="OnCaptionMinimize"
                                                       MaximizeRestoreRequested="OnCaptionMaximizeRestore"
                                                       CloseRequested="OnCaptionClose"/>

@@ -145,26 +145,43 @@ namespace Anvil
 			}
 		}
 
-		// ===== Tools tier's right side ↔ the Atlas key =====
-		// The isolation picker's LEFT edge sits on the Atlas key's left edge (MapControlsStrip.ApplyRightTools).
-		// Measured across two tiers, like the site picker's.
-		private void AlignRightTools()
+		// ===== Both tiers' side sections ↔ the temporal windows' INNER edges (the user's call, 2026-10-22) =====
+		// Each LEFT section ends, and each RIGHT section starts, on the inner edge of the 480-wide edge window above it
+		// (WindowManager.EdgeStripReach from the client edge), whether or not that window is open. Controls keep their
+		// size: one stretching dot spacer per section takes the slack — the tools tier's two (MapControlsStrip), the
+		// temporal keys' (TemporalToggles), and the right cluster's, here (between Settings and the caption key; the
+		// cluster is right-aligned, so the spacer's RIGHT edge is the one that doesn't move with it).
+		private const int SpacerMinColumns = 3;
+
+		private void AlignSideSections()
 		{
-			if (Content is UIElement root && AtlasKey.ActualWidth > 0)
+			if (Content is not FrameworkElement root || root.ActualWidth <= 0)
 			{
-				ToolsStrip.AlignRightTools(AtlasKey.TransformToVisual(root).TransformPoint(default).X, root);
+				return;
+			}
+			var innerLeft = WindowManager.EdgeStripReach;
+			var innerRight = root.ActualWidth - WindowManager.EdgeStripReach;
+			ToolsStrip.AlignToWindowEdges(innerLeft, innerRight, root);
+			TemporalKeys.AlignToWindowEdge(innerLeft, root);
+			if (RightClusterSpacer.ActualWidth > 0 && AtlasKey.ActualWidth > 0)
+			{
+				var end = RightClusterSpacer.TransformToVisual(root).TransformPoint(default).X + RightClusterSpacer.ActualWidth;
+				var before = RightClusterSpacer.Margin.Left + RightCluster.ColumnSpacing + SettingsKey.ActualWidth
+					+ RightCluster.ColumnSpacing + AtlasKey.ActualWidth;
+				RightClusterSpacer.SetFillWidth(end - before - innerRight, SpacerMinColumns);
 			}
 		}
 
 		// (The bar's activity slot and its AlignActivityBay are GONE, 2026-10-16: activity shows in each temporal
 		// window's activity expander, TemporalWindows/TemporalWindowActivityExpander.)
 
-		// Every cross-tier alignment: the site picker (and the console tools with it) on the play button, the right
-		// group's isolation picker on Atlas. Each is a no-op below half a pixel, so the passes they cause settle at once.
+		// Every cross-tier alignment: the site picker (and the console tools with it) on the play button, the side
+		// sections on the temporal windows' inner edges. Each is a no-op below half a pixel, so the passes they cause
+		// settle at once.
 		private void OnBottomBarLayoutUpdated(object? sender, object e)
 		{
 			AlignCentreSection();
-			AlignRightTools();
+			AlignSideSections();
 		}
 
 		// NOTE: DevVisibility is gone. It existed to collapse the dev bar key in Release; there is no dev key
@@ -691,18 +708,13 @@ namespace Anvil
 
 			ApplyRailSeating();
 
-			// The tools tier's centre section is edge-aligned to the console (see AlignCentreSection), and
-			// its search BOX is exactly as wide as the temporal keys below it — both start on the bar's left edge,
-			// so equal widths make both their edges line up (the two buttons hang after it).
+			// The tools tier's centre section is edge-aligned to the console (see AlignCentreSection), and both
+			// tiers' side sections end on the temporal windows' inner edges (see AlignSideSections). The window
+			// resizing moves the right edge.
 			TimeModule.SizeChanged += (_, _) => AlignCentreSection();
-			ToolsStrip.SizeChanged += (_, _) => AlignCentreSection();
-			TemporalKeys.SizeChanged += (_, e) => ToolsStrip.MatchPlaceSearchWidth(e.NewSize.Width);
-			// …and its RIGHT side hangs off the bar's Atlas key (see AlignRightTools). The window resizing moves the
-			// key (ToolsStrip resizes with it); the cluster resizing moves it too.
-			ToolsStrip.SizeChanged += (_, _) => AlignRightTools();
-			RightCluster.SizeChanged += (_, _) => AlignRightTools();
-			// The site picker rides the centred console, and the activity slot spans console → Atlas — both MOVE
-			// without resizing, so every alignment also re-runs on layout (see OnBottomBarLayoutUpdated).
+			ToolsStrip.SizeChanged += (_, _) => { AlignCentreSection(); AlignSideSections(); };
+			// The site picker rides the centred console, which MOVES without resizing, so every alignment also
+			// re-runs on layout (see OnBottomBarLayoutUpdated).
 			BottomChrome.LayoutUpdated += OnBottomBarLayoutUpdated;
 
 			// Hand the caption band back to XAML wherever a pane notch sits in it (see the PANE NOTCHES vs

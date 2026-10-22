@@ -100,6 +100,10 @@ namespace Anvil
 		private const double Margin = 5;
 		private const double EdgeWidth = 480;
 		private const double CenterMinWidth = 520;
+
+		/// <summary>How far an edge window's INNER edge sits from its side of the main window's client area, in
+		/// LOGICAL px. The bottom chrome's side sections end there (MainWindow.AlignSideSections), open or not.</summary>
+		public const double EdgeStripReach = Margin + EdgeWidth;
 		private const double CenterMinHeight = 400;
 
 		private sealed class Registration

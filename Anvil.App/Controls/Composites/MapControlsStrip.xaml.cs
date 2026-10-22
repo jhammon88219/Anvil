@@ -25,9 +25,6 @@ namespace Anvil.Controls.Composites
 		public MapControlsStrip()
 		{
 			InitializeComponent();
-			// The right group re-laying out re-runs its fit. It converges: ApplyRightTools ignores sub-pixel
-			// no-ops, so the resize it causes settles on the next pass.
-			RightTools.SizeChanged += (_, _) => ApplyRightTools();
 		}
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
@@ -45,10 +42,6 @@ namespace Anvil.Controls.Composites
 		// the site picker is already off in PastCast.
 		public bool Free(bool locked) => !locked;
 		public bool FreeAnd(bool enabled, bool locked) => enabled && !locked;
-
-		// The pane-layout marks are drawn Rectangles with fixed theme brushes: the template's Disabled state only greys
-		// the Foreground, which Shapes don't read, so they dim themselves (the bar's disabled-text strength, roughly).
-		public double LockedOpacity(bool locked) => locked ? 0.35 : 1.0;
 
 		// ===== Range rings (master show/hide, beside the Ruler) =====
 		// The tooltip speaks for the CLICK, like the site-markers toggle.
@@ -121,53 +114,29 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
-		// ===== The right side's fit =====
-		// One measured width: the isolation picker's left edge lands on the bar's ATLAS key's left edge (its right
-		// edge is the tier's, fixed — RightTools is right-aligned). The group is otherwise its natural width, so the
-		// pane-layout toggles LEAD it and the open run sits between the site picker and them (2026-10-06: next to the
-		// console tools they read as part of the centre cluster). The last Atlas edge is kept so the strip's own
-		// resizes can re-run it without MainWindow.
+		// ===== The side sections end on the temporal windows' INNER edges (the user's call, 2026-10-22) =====
+		// [search] ⁙⁙ ▣ ⊚┊                                          ┊▥ ⁙⁙ ⌘ ⛶ ─ map ─ [Isolate]
+		//                ↑ left window's inner edge     ForeCast's inner edge ↑
+		// Controls keep their size; ONE dot spacer per side takes the slack. Each width is computed from an edge that
+		// does NOT move with it (the left spacer's own left edge; the right spacer's own right edge, the group being
+		// right-aligned), so a repeat call in the same layout lands on the same value.
 
-		// Floor: past this the alignment gives way rather than the control.
-		private const double IsolationMinWidth = 150;
-
-		private double _atlasLeft = double.NaN;
-		private UIElement? _alignRoot;
-
-		/// <summary>Size the right side against the bar: <paramref name="atlasLeft"/> is the Atlas key's left edge in
-		/// <paramref name="root"/>'s coordinates. See <see cref="ApplyRightTools"/>.</summary>
-		public void AlignRightTools(double atlasLeft, UIElement root)
+		/// <summary>Size the two side spacers so Location's right edge lands on <paramref name="innerLeft"/> and the
+		/// pane-layout key's left edge on <paramref name="innerRight"/>, both in <paramref name="root"/>'s coordinates.</summary>
+		public void AlignToWindowEdges(double innerLeft, double innerRight, UIElement root)
 		{
-			_atlasLeft = atlasLeft;
-			_alignRoot = root;
-			ApplyRightTools();
-		}
-
-		private void ApplyRightTools()
-		{
-			if (_alignRoot is null || double.IsNaN(_atlasLeft) || IsolationPicker.ActualWidth <= 0)
+			if (SearchSpacer.ActualWidth > 0 && LocationToggle.ActualWidth > 0)
 			{
-				return;
+				var start = SearchSpacer.TransformToVisual(root).TransformPoint(default).X;
+				var after = SearchSpacer.Margin.Right + SearchGroup.Spacing + MarkerViewerButton.ActualWidth
+					+ SearchGroup.Spacing + LocationToggle.ActualWidth;
+				SearchSpacer.SetFillWidth(innerLeft - start - after, SpacerMinColumns);
 			}
-			var isoRight = IsolationPicker.TransformToVisual(_alignRoot).TransformPoint(default).X + IsolationPicker.ActualWidth;
-			var iso = Math.Max(IsolationMinWidth, isoRight - _atlasLeft);
-			if (Math.Abs(iso - IsolationPicker.Width) > 0.5)
+			if (MapToolsSpacer.ActualWidth > 0 && MapControlsStripPaneLayoutPicker.ActualWidth > 0)
 			{
-				IsolationPicker.Width = iso;
-			}
-		}
-
-		/// <summary>Make the whole search ROW (box + marker viewer + Location) exactly <paramref name="width"/> wide:
-		/// MainWindow passes the width of the bar's temporal keys. Both start on the bar's left edge, so the row ends on
-		/// the keys' right edge (the section rules). The BOX takes what the two buttons leave — a stopgap until the
-		/// custom short search box.</summary>
-		public void MatchPlaceSearchWidth(double width)
-		{
-			var buttons = MarkerViewerButton.Width + LocationToggle.Width + 2 * SearchGroup.Spacing;
-			var box = width - buttons;
-			if (width > 0 && box > 0 && Math.Abs(box - PlaceSearchBox.Width) > 0.5)
-			{
-				PlaceSearchBox.Width = box;
+				var end = MapToolsSpacer.TransformToVisual(root).TransformPoint(default).X + MapToolsSpacer.ActualWidth;
+				var before = MapToolsSpacer.Margin.Left + RightTools.Spacing + MapControlsStripPaneLayoutPicker.ActualWidth;
+				MapToolsSpacer.SetFillWidth(end - before - innerRight, SpacerMinColumns);
 			}
 		}
 
@@ -198,26 +167,16 @@ namespace Anvil.Controls.Composites
 
 		public static double ChevronAngle(bool expanded) => expanded ? 90 : 0;
 
-		// Pane layout (moved here from the bar): which of the three toggles is lit. x:Bind can't compare against
-		// an enum literal, so one typed function per layout.
-		public bool IsSinglePane(PaneLayout layout) => layout == PaneLayout.Single;
-		public bool IsTwoPane(PaneLayout layout) => layout == PaneLayout.TwoAcross;
-		public bool IsQuadPane(PaneLayout layout) => layout == PaneLayout.Quad;
-
-		// ⚠️ Re-assert all three after setting: clicking the LIT toggle changes no property, so nothing would
-		// re-light it after the ToggleButton unchecked itself.
-		private void OnPaneLayoutClick(object sender, RoutedEventArgs e)
+		// Pane layout (the square key). ⚠️ Re-assert the key's Layout after setting: a same or refused pick changes no
+		// property, so the one-way binding would never put it back.
+		private void OnPaneLayoutPicked(object? sender, PaneLayout layout)
 		{
-			if (ViewModel is not { } vm || sender is not FrameworkElement { Tag: string tag } ||
-				!Enum.TryParse<PaneLayout>(tag, out var layout))
+			if (ViewModel is not { } vm)
 			{
 				return;
 			}
 			vm.Radar.PaneLayout = layout;
-			var current = vm.Radar.PaneLayout;
-			SinglePaneToggle.IsChecked = IsSinglePane(current);
-			TwoPaneToggle.IsChecked = IsTwoPane(current);
-			QuadPaneToggle.IsChecked = IsQuadPane(current);
+			MapControlsStripPaneLayoutPicker.Layout = vm.Radar.PaneLayout;
 		}
 
 		// Location (moved here from the bar). The transient locate status WINS in the tooltip: there is nowhere

@@ -95,6 +95,18 @@ namespace Anvil.Controls.Primitives
 		/// to keep a FillWidth separator from dropping below a given count.</summary>
 		public double WidthFor(int columns) => columns * DotSize + Math.Max(0, columns - 1) * DotGap;
 
+		/// <summary>A host's measured fit: set Width to <paramref name="width"/>, never below
+		/// <paramref name="minColumns"/> dots, and not at all for a sub-pixel change — so a host calling it from
+		/// layout settles at once.</summary>
+		public void SetFillWidth(double width, int minColumns)
+		{
+			var w = Math.Max(WidthFor(minColumns), width);
+			if (double.IsNaN(Width) || Math.Abs(w - Width) > 0.5)
+			{
+				Width = w;
+			}
+		}
+
 		private static void OnShapeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
 			((MapControlsStripSeparator)d).ApplyShape();
 

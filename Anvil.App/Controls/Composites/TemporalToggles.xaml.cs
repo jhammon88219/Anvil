@@ -34,6 +34,25 @@ namespace Anvil.Controls.Composites
 			InitializeComponent();
 		}
 
+		// ===== The row ends on the left temporal window's INNER edge (the user's call, 2026-10-22) =====
+		// The spacer between PastCast and NowCast takes the slack; its own left edge doesn't move with it, so a repeat
+		// call in the same layout lands on the same value. A 3 × 3 floor, like the tools tier's spacers.
+		private const int SpacerMinColumns = 3;
+
+		/// <summary>Size the spacer so ForeCast's right edge lands on <paramref name="innerEdge"/>, in
+		/// <paramref name="root"/>'s coordinates.</summary>
+		public void AlignToWindowEdge(double innerEdge, UIElement root)
+		{
+			if (TemporalKeysSpacer.ActualWidth <= 0 || ForeKey.ActualWidth <= 0)
+			{
+				return;
+			}
+			var start = TemporalKeysSpacer.TransformToVisual(root).TransformPoint(default).X;
+			var after = TemporalKeysSpacer.Margin.Right + PillRow.ColumnSpacing + NowKey.ActualWidth
+				+ PillRow.ColumnSpacing + ForeKey.ActualWidth;
+			TemporalKeysSpacer.SetFillWidth(innerEdge - start - after, SpacerMinColumns);
+		}
+
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel
 		{
