@@ -1485,10 +1485,11 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>PastCast's Timeframe Clear: forget the loaded window (Radar.ClearReplay) AND take off the town pin
-		/// a saved-event pick dropped — only that pin; a place the user searched for stays.</summary>
+		/// a saved-event pick dropped — only that pin; a place the user searched for stays. A CUSTOM window keeps its
+		/// date + start in the pickers; a played saved event's go to now (RadarViewModel.ClearReplay).</summary>
 		public void ClearPastCastTimeframe()
 		{
-			Radar.ClearReplay();
+			Radar.ClearReplay(keepPickers: SavedEvents.PickedId is null);
 			SavedEvents.ForgetPick();
 			PlaceSearch.ClearEventPlace();
 		}

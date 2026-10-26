@@ -1420,13 +1420,14 @@ namespace Anvil.ViewModels
 		}
 
 		/// <summary>
-		/// PastCast's Clear: forget the loaded window (yours or a played saved event), drop its loop — the
-		/// selected site stays highlighted, so the next Set Timeframe loads there — and put the date + start
-		/// pickers on NOW (the user's call, 2026-10-01), unlocked again. The window length is kept.
+		/// PastCast's Clear: forget the loaded window (yours or a played saved event), drop its loop and its site,
+		/// and unlock the pickers. <paramref name="keepPickers"/> (a CUSTOM window — the user's call, 2026-10-26)
+		/// leaves the date + start where the user put them; otherwise (a played saved event) they go to NOW (the
+		/// user's call, 2026-10-01). The window length is kept either way.
 		/// </summary>
 		/// <remarks>⚠️ Moving the pickers is also what un-picks a saved event (SavedEventsViewModel watches them).
 		/// The start rounds DOWN to 5 minutes, the TimePicker's increment.</remarks>
-		public void ClearReplay()
+		public void ClearReplay(bool keepPickers = false)
 		{
 			if (!_isPastEventMode)
 			{
@@ -1443,9 +1444,12 @@ namespace Anvil.ViewModels
 			{
 				SelectedRadarOption = null;
 			}
-			var now = DateTime.Now;
-			ApplyPastEventDate(LocalMidnight(now.Year, now.Month, now.Day));
-			PastEventTime = new TimeSpan(now.Hour, now.Minute - now.Minute % 5, 0);
+			if (!keepPickers)
+			{
+				var now = DateTime.Now;
+				ApplyPastEventDate(LocalMidnight(now.Year, now.Month, now.Day));
+				PastEventTime = new TimeSpan(now.Hour, now.Minute - now.Minute % 5, 0);
+			}
 			SetReplayReadout(status: NothingLoadedStatus);
 		}
 

@@ -21,7 +21,7 @@
      selection dirty — nothing loads until Set Timeframe.
      ⚠️ Set Timeframe keeps Load's rules: accent while pressing it would DO something, greyed once loaded and still
      matching (the archive day is immutable). Clear is live only while something is loaded
-     (MapViewModel.ClearPastCastTimeframe).
+     (MapViewModel.ClearPastCastTimeframe); it keeps a CUSTOM window's date + start (2026-10-26), a saved event's go to now.
      ⚠️ AN ERROR RIDES IN SET TIMEFRAME (2026-10-01): two lines, red via ReplayErrorStates (theme brushes in STATES,
      never C# — Application resources resolve the OS theme, not the pinned app theme). It stays clickable — a click
      retries — and changing any picker clears it. The listener in code-behind exists ONLY to drive that state. -->
@@ -129,6 +129,6 @@
         <Button Grid.Row="1" Grid.Column="2" Margin="0,4,14,0" Width="84" Height="32" Content="Clear"
                 IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
                 Click="OnClearClick"
-                ToolTipService.ToolTip="Clear the loaded timeframe or event and reset the pickers to now"/>
+                ToolTipService.ToolTip="Clear the loaded timeframe or event (a timeframe you set keeps its date and time; an event's reset to now)"/>
     </Grid>
 </UserControl>

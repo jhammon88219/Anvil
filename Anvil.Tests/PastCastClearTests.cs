@@ -67,6 +67,20 @@ namespace Anvil.Tests
 			Assert.InRange((before - start).TotalMinutes, -1, 5);
 		}
 
+		// The user's call, 2026-10-26: Clear of a CUSTOM window keeps the date + start the user typed.
+		[Fact]
+		public async Task Clear_KeepingPickers_LeavesTheTypedDateAndStart()
+		{
+			var date = new DateTimeOffset(2011, 5, 24, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2011, 5, 24)));
+			var radar = await ArmedAt(date, new TimeSpan(17, 0, 0));
+			radar.ClearReplay(keepPickers: true);
+
+			Assert.False(radar.HasLoadedReplayWindow);
+			Assert.Equal(date.Date, radar.PastEventDate!.Value.Date);
+			Assert.Equal(new TimeSpan(17, 0, 0), radar.PastEventTime);
+			Assert.Equal(2, radar.PastEventDurationIndex);
+		}
+
 		[Fact]
 		public async Task Armed_WithNoSite_SaysSelectASite_AndClearEmptiesTheReadouts()
 		{

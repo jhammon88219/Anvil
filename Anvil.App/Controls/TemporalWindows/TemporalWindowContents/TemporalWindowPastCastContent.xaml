@@ -30,7 +30,8 @@
        │                                                      │     [Atlas], [Window] and [Clear] share ONE
        │                                                      │     right edge (14 in = the card's border +
        │                                                      │     padding). Set = the old Load (same rules);
-       │                                                      │     Clear = forget it + pickers to NOW. 24 px gap
+       │                                                      │     Clear = forget it; a custom window KEEPS
+       │                                                      │     its date/start, an event's go to NOW. 24 px gap
        │ ⠿ › [x] Storm cells    ──────────●  100%          ┃  │  ┐ the LAYER RUN: top of the list
        │                                                ┃  │  │ ┃ = PanelScroller's thumb, in a
        │                                                   │  │   16 px gutter that never collapses,
