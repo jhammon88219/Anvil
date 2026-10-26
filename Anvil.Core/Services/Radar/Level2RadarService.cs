@@ -2512,14 +2512,18 @@ namespace Anvil.Services
 				{
 					await AddSitesForDayAsync(day, candidates, cancellationToken).ConfigureAwait(false);
 				}
-				catch (OperationCanceledException)
+				// ⚠️ Only OUR cancel rethrows: HttpClient's 60 s Timeout is a TaskCanceledException too, and one stalled
+				// request used to fail the whole pass ("Couldn't check radar sites" — bugs.md U11, the S1 rule).
+				catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 				{
 					throw;
 				}
-				catch
+				catch (Exception ex)
 				{
 					// Best effort: a failed listing just leaves those sites out of the candidate set.
 					failedDays++;
+					RadarDiagnostics.Log("svc", "site.listing.fail", ("lvl", "warn"), ("day", day.ToString("yyyy-MM-dd")),
+						("error", ex.GetType().Name));
 				}
 			}
 
@@ -2545,15 +2549,16 @@ namespace Anvil.Services
 					var newest = await NewestArchiveVolumeTimeAsync(id, now, cancellationToken).ConfigureAwait(false);
 					fresh = newest is { } t && RadarSiteStatus.IsFresh(t, now);
 				}
-				catch (OperationCanceledException)
+				catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 				{
 					throw;
 				}
-				catch
+				catch (Exception ex)
 				{
 					// Best effort: a transient probe failure errs toward "available" so a network blip
 					// doesn't falsely flag a healthy site as down.
 					fresh = true;
+					RadarDiagnostics.Log("svc", "site.probe.fail", ("lvl", "warn"), ("site", id), ("error", ex.GetType().Name));
 				}
 				finally
 				{
