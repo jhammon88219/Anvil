@@ -23,7 +23,8 @@
        │  └──────────────────────────────────────────┘        │
        │  Day      [Day 1 · Wed Sep 2          ▾]             │  ← self-labeling; cascades Product
        │  Product  [Categorical       ▾] [Discussion.]        │  ← opens the Outlook Discussion WINDOW
-       │  Cycle    [Latest                     ▾]             │  ← Latest | today's earlier issuances (HELD)
+       │  Cycle    [13Z (Latest)               ▾]             │  ← today's earlier issuances (HELD) | the newest
+       │                                                      │     = the live feed, tagged (no separate Latest row)
        │  ────────────────────────────────────────────────    │
        │   ■ 2%              Intensity hatching   [✓] Show    │  ← the LEGEND (Primitives/OutlookLegend):
        │   ■ 5%              ╲ CIG1             In Outlook    │     LAST in the section body, so it goes

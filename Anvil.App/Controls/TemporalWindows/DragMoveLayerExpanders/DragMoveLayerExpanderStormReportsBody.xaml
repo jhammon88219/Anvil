@@ -5,8 +5,9 @@
      serve both.
 
      ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH
-     ▓  448 reports              May 20, 2013 · 12Z-12Z ▓   under the header, ONE line): total left, which
-                                                            convective day right (loading/failure take that slot)
+     ▓  448 reports  May 20, 2013 · 7:00 AM–7:00 AM ▓   under the header, ONE line): total left, which
+                                                            convective day right (loading/failure take that slot);
+                                                            its 12Z ends follow Settings → Units (UTC: 12:00Z–12:00Z)
      ──────────────────────────────────────────────────────
        [x] ■ Tornado                                42  ← one DragMoveLayerExpanderCountRow per type: the toggle,
        [x] ■ Wind                                  310    the SPC colour (a rounded square, like the warnings'),

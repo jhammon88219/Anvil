@@ -63,8 +63,12 @@ namespace Anvil.ViewModels
 			// Re-key the overlay to the new convective day when the temporal mode flips or the replay date
 			// changes (only matters while some type is shown; the toggle setters cover the show/hide case).
 			_radar.PropertyChanged += OnRadarChanged;
-			// Settings → Units: the rows re-word their times and magnitudes in place.
-			UnitFormat.Changed += (_, _) => { foreach (var row in Reports) { row.RefreshUnits(); } };
+			// Settings → Units: the rows re-word their times and magnitudes in place, the card its 12Z span.
+			UnitFormat.Changed += (_, _) =>
+			{
+				foreach (var row in Reports) { row.RefreshUnits(); }
+				if (_cardDay is { } d) { CardContext = ContextFor(d); }
+			};
 		}
 
 		// ── Per-type toggles ──
@@ -252,10 +256,14 @@ namespace Anvil.ViewModels
 
 		private const string NoReportsHeadline = "No reports";
 
-		private void SetCard(string headline, string context, string footer)
+		// The day the card's context line describes; null = no line. Kept so a units change can re-word it.
+		private DateOnly? _cardDay;
+
+		private void SetCard(string headline, DateOnly? day, string footer)
 		{
+			_cardDay = day;
 			CardHeadline = headline;
-			CardContext = context;
+			CardContext = day is { } d ? ContextFor(d) : string.Empty;
 			if (_cardFooterMessage != footer)
 			{
 				_cardFooterMessage = footer;
@@ -265,8 +273,13 @@ namespace Anvil.ViewModels
 
 		// ⚠️ The date is stamped "12Z-12Z" because the SPC convective day is NOT the calendar day: reports
 		// before 12Z belong to the previous one. Without that the card looks wrong to anyone reading it
-		// against a wall clock late in the evening.
-		private static string ContextFor(DateOnly day) => $"{day:MMM d, yyyy} · 12Z-12Z";
+		// against a wall clock late in the evening. The two 12Z ends are worded in Settings → Units' clock + zone
+		// ("7:00 AM–7:00 AM", "12:00Z–12:00Z"); each end formats whole so a 12-hour span never shares one AM/PM.
+		private static string ContextFor(DateOnly day)
+		{
+			var start = new DateTimeOffset(day.ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero);
+			return $"{day:MMM d, yyyy} · {UnitFormat.Clock(start)}–{UnitFormat.Clock(start.AddDays(1))}";
+		}
 
 		// ── Lifecycle ──
 
@@ -332,7 +345,7 @@ namespace Anvil.ViewModels
 			SetCounts(result);
 			_loadedDay = day;
 			_ = _mapService.SetStormReportsSourceAsync(_reportService.LocalUrl(day));
-			SetCard(SummaryFor(result), ContextFor(day), string.Empty);
+			SetCard(SummaryFor(result), day, string.Empty);
 		}
 
 		// ── Reactions ──
@@ -428,14 +441,14 @@ namespace Anvil.ViewModels
 				TornadoCount = 0;
 				WindCount = 0;
 				HailCount = 0;
-				SetCard("No reports loaded", string.Empty, "Load a timeframe to see its reports");
+				SetCard("No reports loaded", null, "Load a timeframe to see its reports");
 				PastStatus.Idle();
 				await ClearOverlayAsync();
 				return;
 			}
 
 			var immutable = _radar.IsPastEventMode;
-			SetCard(CardHeadline, ContextFor(day), "Loading…");
+			SetCard(CardHeadline, day, "Loading…");
 			if (immutable) { PastStatus.Loading(); } // only a PASTCAST day reports to the activity row
 
 			StormReportResult result;
@@ -454,7 +467,7 @@ namespace Anvil.ViewModels
 				_logger.LogWarning(ex, "Storm reports fetch failed for {Day}", day);
 				if (token == _applyToken)
 				{
-					SetCard(NoReportsHeadline, ContextFor(day), "Storm reports unavailable.");
+					SetCard(NoReportsHeadline, day, "Storm reports unavailable.");
 					if (immutable) { PastStatus.Failed("Storm reports unavailable."); }
 					await ClearOverlayAsync();
 				}
@@ -472,7 +485,7 @@ namespace Anvil.ViewModels
 
 			if (!result.Found)
 			{
-				SetCard(NoReportsHeadline, ContextFor(day), result.Error ?? "Storm reports unavailable.");
+				SetCard(NoReportsHeadline, day, result.Error ?? "Storm reports unavailable.");
 				if (immutable) { PastStatus.Failed(result.Error ?? "Storm reports unavailable."); }
 				await ClearOverlayAsync();
 				return;
@@ -490,7 +503,7 @@ namespace Anvil.ViewModels
 			await _mapService.SetStormReportsSourceAsync(_reportService.LocalUrl(day));
 			await PushKindsAsync();
 			await _mapService.SetStormReportsOpacityAsync(_opacity);
-			SetCard(SummaryFor(result), ContextFor(day), string.Empty);
+			SetCard(SummaryFor(result), day, string.Empty);
 		}
 
 		// Empty the overlay and forget the day, so nothing can later dedupe against a day that is no longer

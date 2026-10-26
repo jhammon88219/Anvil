@@ -246,7 +246,8 @@ namespace Anvil.ViewModels
 		private IReadOnlyList<PastCycleOption> _cycleOptions = new[] { LatestCycle };
 		private PastCycleOption _selectedCycleOption = LatestCycle;
 
-		/// <summary>Latest + the selected day's issuances already out (earliest first). Days 4-8: Latest only.</summary>
+		/// <summary>The selected day's issuances already out (earliest first), the newest = the live feed, tagged
+		/// "(Latest)". Days 4-8: Latest only.</summary>
 		public IReadOnlyList<PastCycleOption> CycleOptions => _cycleOptions;
 
 		/// <summary>The picked issuance; <see cref="PastCycleOption.Cycle"/> null = Latest (the live feed).</summary>
@@ -279,17 +280,29 @@ namespace Anvil.ViewModels
 
 		// Rebuild the list for the selected day (a day change; each refresh, as new issuances land), keeping the
 		// held cycle if it is still listed, else falling back to Latest.
+		// ⚠️ NO SEPARATE "Latest" ROW: the live feed IS the newest issuance, so a "Latest" row duplicated the last
+		// cycle. That cycle's row is the live feed (Cycle null) labelled "20Z (Latest)". Which cycle the feed is comes
+		// from the live file's ISSUED stamp (SPC runs late — the nominal time passing doesn't mean the feed moved);
+		// cycles nominally out but newer than the feed aren't listed yet. No stamp (fire weather) → the clock.
+		// Plain "Latest" only when the day has no cycles (days 4-8) or none is out yet.
 		private void RebuildCycleOptions()
 		{
 			var day = _selectedDay;
 			var anchor = _selectedOption?.Product ?? _productOptions.Select(o => o.Product).FirstOrDefault(p => p is not null);
 			var valid = ValidDayFor(anchor, day);
-			var now = DateTimeOffset.UtcNow;
-			var opts = new List<PastCycleOption> { LatestCycle };
-			opts.AddRange(SpcIssuanceCycles.For(day)
-				.Where(c => SpcIssuanceCycles.IssuedAtUtc(day, c, valid) <= now)
-				.Select(c => new PastCycleOption(SpcIssuanceCycles.Label(c), c)));
-			var keep = opts.FirstOrDefault(o => o.Cycle == _selectedCycleOption.Cycle) ?? LatestCycle;
+			var issued = anchor is not null ? _spcOutlookService.GetTimesForProduct(anchor)?.Issued : null;
+			// SPC's real stamps run a few minutes either side of the nominal time.
+			var newest = issued?.AddMinutes(45) ?? DateTimeOffset.UtcNow;
+			var cycles = SpcIssuanceCycles.For(day)
+				.Where(c => SpcIssuanceCycles.IssuedAtUtc(day, c, valid) <= newest)
+				.ToList();
+			var opts = cycles
+				.Select((c, i) => i == cycles.Count - 1
+					? new PastCycleOption($"{SpcIssuanceCycles.Label(c)} (Latest)", null)
+					: new PastCycleOption(SpcIssuanceCycles.Label(c), c))
+				.ToList();
+			if (opts.Count == 0) { opts.Add(LatestCycle); }
+			var keep = opts.FirstOrDefault(o => o.Cycle == _selectedCycleOption.Cycle) ?? opts[^1];
 
 			_cycleOptions = opts;
 			OnPropertyChanged(nameof(CycleOptions));

@@ -98,6 +98,9 @@ namespace Anvil.Tests
 			Assert.Equal("show d1c.geojson", rig.Calls[^1]);
 			Assert.True(vm.CanPickCycle);
 			Assert.Contains(vm.CycleOptions, o => o.Cycle == 6);
+			// No separate "Latest" row duplicating the newest cycle: the live file (issued 13Z) IS that row, tagged.
+			Assert.Equal(new[] { "06Z", "13Z (Latest)" }, vm.CycleOptions.Select(o => o.Label));
+			Assert.Same(vm.CycleOptions[^1], vm.SelectedCycleOption);
 
 			vm.SelectedCycleOption = vm.CycleOptions.First(o => o.Cycle == 6);
 			await Task.Yield();
@@ -109,7 +112,7 @@ namespace Anvil.Tests
 			vm.OnOutlooksRefreshed();                                   // a refresh must not move a held issuance
 			Assert.Equal(shows, rig.Calls.Count);
 
-			vm.SelectedCycleOption = vm.CycleOptions[0];                // Latest
+			vm.SelectedCycleOption = vm.CycleOptions[^1];               // 13Z (Latest)
 			Assert.Equal("show d1c.geojson", rig.Calls[^1]);
 		}
 
