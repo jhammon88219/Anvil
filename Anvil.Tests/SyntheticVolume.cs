@@ -78,6 +78,19 @@ namespace Anvil.Tests
 			return block;
 		}
 
+		/// <summary>
+		/// A metadata block the way REAL volumes have it: it holds the ICAO, and the byte 22 after it reads as a plausible
+		/// elevation number — so ElevationOf calls it elevation 3 although it carries no moment. (bugs.md S25: every
+		/// whole-volume cut dropped such metadata.)
+		/// </summary>
+		public static byte[] MetadataWithStrayIcao(string marker, string icao = DefaultIcao)
+		{
+			var block = Metadata(marker);
+			Write(block, 0, icao);
+			block[22] = 3;
+			return block;
+		}
+
 		/// <summary>Wraps blocks into a volume: 24-byte header + one bzip2 LDM record per block.</summary>
 		public static byte[] Volume(params byte[][] blocks)
 		{

@@ -44,6 +44,30 @@ namespace Anvil.Tests
 			Assert.All(passes, p => Assert.Equal(1, SyntheticVolume.CountMarker(p.Data, "lead")));
 		}
 
+		// bugs.md S25: real metadata holds the ICAO with a plausible elevation byte after it, and `elev >= 1` alone took it for
+		// the first radial — every whole-volume cut (each rescan frame) shipped without its metadata, so no VCP / mode.
+		[Fact]
+		public void EveryPassKeepsMetadataThatHoldsAStrayIcao()
+		{
+			var volume = SyntheticVolume.Volume(
+				SyntheticVolume.MetadataWithStrayIcao("lead"),
+				SyntheticVolume.Radial(1, 0.48f, "sv01"),
+				SyntheticVolume.Radial(2, 0.48f, "dv01", velocity: true),
+				SyntheticVolume.Radial(3, 0.88f, "hg03"),
+				SyntheticVolume.Radial(4, 0.48f, "sv02"),
+				SyntheticVolume.Radial(5, 0.48f, "dv02", velocity: true),
+				SyntheticVolume.Radial(6, 1.32f, "hg06", velocity: true));
+
+			var passes = Level2Format.TryExtractBasePasses(volume, SyntheticVolume.DefaultIcao);
+			Assert.Equal(2, passes.Count);
+			Assert.All(passes, p => Assert.Equal(1, SyntheticVolume.CountMarker(p.Data, "lead")));
+
+			// The live selector cuts with the same rule.
+			var blocks = Level2Format.DecompressRecords(volume, SyntheticVolume.DefaultIcao, out var icao);
+			var live = Level2Format.SelectLatestSweep(volume[..24], blocks, icao);
+			Assert.Equal(1, SyntheticVolume.CountMarker(live.data!, "lead"));
+		}
+
 		[Fact]
 		public void PassOneIsTheVolumeStartExtraction()
 		{

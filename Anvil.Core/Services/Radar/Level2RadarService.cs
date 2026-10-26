@@ -395,16 +395,29 @@ namespace Anvil.Services
 				// skipped.
 				(string? mode, int vcp) cachedMode = (null, 0);
 				IReadOnlyList<float>? cachedTilts = null;
+				var recut = false;
 				try
 				{
 					var cachedBytes = await File.ReadAllBytesAsync(cacheFile, cancellationToken);
-					(cachedMode, cachedTilts) = await RadarCpuWork.Run(
-						() => (ModeTextFromTilt(cachedBytes, time), ReadElevationAnglesFromExtractedTilt(cachedBytes)),
-						cancellationToken, urgent: true); // a cache hit: tiny, and a frame is waiting on it
+					recut = LacksLeadingMetadata(cachedBytes);
+					if (!recut)
+					{
+						(cachedMode, cachedTilts) = await RadarCpuWork.Run(
+							() => (ModeTextFromTilt(cachedBytes, time), ReadElevationAnglesFromExtractedTilt(cachedBytes)),
+							cancellationToken, urgent: true); // a cache hit: tiny, and a frame is waiting on it
+					}
 				}
 				catch (OperationCanceledException) { throw; }
 				catch { /* both are best-effort; a bad read shows "—" and offers no tilt choice */ }
-				return Noted(new RadarVolume(localUrl, site, time, cachedMode.mode, cachedTilts, tiltAngle, RadarVolumeSource.CachedTilt), cachedMode.vcp);
+				// A pre-S25 cut without its metadata: drop it and cut again below (from the kept raw when there is one).
+				if (!recut || tiltAngle is not null || !DropMetadatalessCut(site, time))
+				{
+					return Noted(new RadarVolume(localUrl, site, time, cachedMode.mode, cachedTilts, tiltAngle, RadarVolumeSource.CachedTilt), cachedMode.vcp);
+				}
+				if (tiltAngle is null && File.Exists(RawCacheFileFor(site.Id, time)))
+				{
+					return await EnsurePassCachedAsync(site, key, 1, prioritized, cancellationToken);
+				}
 			}
 
 			try
@@ -703,6 +716,11 @@ namespace Anvil.Services
 		{
 			var volumeTime = ParseVolumeTime(volumeKey) ?? DateTimeOffset.UtcNow;
 			var source = RadarVolumeSource.CachedTilt;
+			// A pre-S25 cut without its metadata goes, so the whole-volume cut below writes it again (from the kept raw).
+			if (FindPassFile(site.Id, volumeTime, pass) is { } old && LacksLeadingMetadata(await ReadHeadAsync(old.Path, ct)))
+			{
+				DropMetadatalessCut(site, volumeTime);
+			}
 			if (FindPassFile(site.Id, volumeTime, pass) is null)
 			{
 				var mine = Meter.Value ?? new FetchMeter();
@@ -753,6 +771,41 @@ namespace Anvil.Services
 				(ex, attempt) => RadarDiagnostics.Log("svc", "fetch.retry", ("site", site.Id), ("key", volumeKey), ("attempt", attempt),
 					("msg", $"{ex.GetType().Name}: {ex.Message}")),
 				ct);
+
+		// A cached cut the pre-S25 whole-volume extractor wrote WITHOUT its leading metadata (no VCP / mode / rescans for the
+		// scan readout — bugs.md S25). Drops that VOLUME's base cut + every pass cut together, so ONE whole-volume cut (from
+		// the kept raw) rewrites them all — one at a time, each rescan frame re-decompressed the volume. Higher-tilt files
+		// (_eNNN) are left alone. False if the base file couldn't go (it's then served as is).
+		private bool DropMetadatalessCut(RadarSite site, DateTimeOffset volumeTime)
+		{
+			var stamp = volumeTime.ToUniversalTime().ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
+			var dropped = 0;
+			try
+			{
+				foreach (var pass in Directory.EnumerateFiles(CacheDirectory, $"{site.Id}_{stamp}_p*.V06").ToList())
+				{
+					try { File.Delete(pass); dropped++; } catch { /* best effort: FindPassFile re-checks it */ }
+				}
+				File.Delete(CacheFileFor(site.Id, volumeTime));
+				RadarDiagnostics.Log("svc", "cache.recut", ("site", site.Id), ("vol", stamp), ("passFiles", dropped), ("why", "no metadata"));
+				return true;
+			}
+			catch (Exception ex)
+			{
+				RadarDiagnostics.Log("svc", "cache.recut", ("site", site.Id), ("lvl", "warn"), ("vol", stamp), ("error", ex.GetType().Name));
+				return false;
+			}
+		}
+
+		// The first bytes of a cached cut — enough for LacksLeadingMetadata (header + the first record's first radial).
+		private static async Task<byte[]> ReadHeadAsync(string path, CancellationToken ct)
+		{
+			await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete,
+				4096, useAsync: true);
+			var head = new byte[(int)Math.Min(stream.Length, 64 * 1024)];
+			await stream.ReadExactlyAsync(head, ct).ConfigureAwait(false);
+			return head;
+		}
 
 		// One whole volume → every pass's file (pass 1 under the base name, byte-identical to its prefix extraction), and
 		// the raw kept.

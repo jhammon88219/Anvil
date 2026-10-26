@@ -51,7 +51,7 @@ namespace Anvil.Services
 		internal static (byte[]? data, bool complete, bool velComplete, DateTimeOffset? dataTime, int sweeps, int vcp)
 			SelectLatestSweep(byte[] header, List<(byte[] block, int elev)> blocks, byte[] icao, float? targetAngle = null)
 		{
-			var firstRadial = blocks.FindIndex(b => b.elev >= 1);
+			var firstRadial = FirstRadialIndex(blocks);
 			if (firstRadial < 0)
 			{
 				return (null, false, false, null, 0, 0);
@@ -409,7 +409,7 @@ namespace Anvil.Services
 		internal static List<BasePass> ListBasePasses(List<(byte[] block, int elev)> blocks, byte[] icao)
 		{
 			var passes = new List<BasePass>();
-			var firstRadial = blocks.FindIndex(b => b.elev >= 1);
+			var firstRadial = FirstRadialIndex(blocks);
 			if (firstRadial < 0) return passes;
 			var cuts = GroupCuts(blocks, icao, firstRadial);
 			var refCuts = cuts.Where(c => c.hasRef && !float.IsNaN(c.angle)).ToList();
@@ -500,7 +500,7 @@ namespace Anvil.Services
 			var clock = System.Diagnostics.Stopwatch.StartNew();
 			var blocks = DecompressRecords(raw, siteId, out var icao);
 			var decompressMs = clock.ElapsedMilliseconds;
-			var firstRadial = blocks.FindIndex(b => b.elev >= 1);
+			var firstRadial = FirstRadialIndex(blocks);
 			if (firstRadial < 0) return result;
 			var header = raw[..24];
 			var lastPassRecord = 0;
@@ -1935,6 +1935,24 @@ namespace Anvil.Services
 			// report 0 ("not a radial") rather than a bogus tilt boundary.
 			var elev = block[i + 22];
 			return elev is >= 1 and <= 32 ? elev : 0;
+		}
+
+		/// <summary>The first RADIAL record in a decompressed volume — a plausible elevation number AND a reflectivity or
+		/// velocity moment, the prefix extractor's own test. Everything before it is the leading metadata the cut copies.</summary>
+		/// <remarks>⚠️ NEVER <c>elev &gt;= 1</c> alone: the metadata record holds the ICAO where byte +22 can read as a
+		/// plausible elevation (ReadVcpFromMetadata's NOTE), so the index collapsed to 0 and every whole-volume cut — every
+		/// rescan frame, every pass 1 cut from a whole volume — shipped WITHOUT its metadata: no VCP / mode / rescans for the
+		/// scan readout (bugs.md S25).</remarks>
+		internal static int FirstRadialIndex(List<(byte[] block, int elev)> blocks) =>
+			blocks.FindIndex(b => b.elev >= 1 && (HasMoment(b.block, Dref) || HasMoment(b.block, Dvel)));
+
+		/// <summary>A cached single-tilt buffer cut WITHOUT its leading metadata (the pre-S25 whole-volume cut): its first
+		/// record is already a Message 31 radial. False for a legacy (Message 1) or raw-fallback buffer.</summary>
+		internal static bool LacksLeadingMetadata(byte[] tilt)
+		{
+			const int headerSize = 24;
+			var type = headerSize + CtmHeaderSize + 3;
+			return tilt.Length > type && tilt[type] == 31 && HasMoment(tilt, Dref);
 		}
 
 		// Moment-block markers: a Message 31 generic data-moment block starts with a 'D' type byte
