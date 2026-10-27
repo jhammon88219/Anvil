@@ -280,7 +280,7 @@ namespace Anvil.ViewModels
 		// under a busy scan, 2026-10-17). ApplyIdle copies them into the drawn lines when nothing is active. ──
 
 		private string _idleTitle = string.Empty, _idleDetail = string.Empty, _idleLastFrame = string.Empty;
-		/// <summary>"Radar · next check 1:47:30 PM" while NowCast polls; empty otherwise.</summary>
+		/// <summary>"Radar · next check 1:47:30 PM" while NowCast polls; <see cref="NoSiteTitle"/> with no site loaded; empty otherwise.</summary>
 		public string IdleTitle { get => _idleTitle; private set => SetProperty(ref _idleTitle, value); }
 		/// <summary>"Scan due ~1:47:12 PM" (regime-aware) or "every 30 s" (fixed time).</summary>
 		public string IdleDetail { get => _idleDetail; private set => SetProperty(ref _idleDetail, value); }
@@ -300,9 +300,15 @@ namespace Anvil.ViewModels
 			else
 			{
 				IdleTitle = IdleDetail = IdleLastFrame = string.Empty;
+				// No radar loaded in NowCast: the line says what to do instead of standing empty (the user's call, 2026-10-27).
+				if (_liveRadar is { IsPastEventMode: false } lr && lr.SelectedRadarOption?.Site is null)
+					IdleTitle = NoSiteTitle;
 				Status.ScheduledAt(null, string.Empty);
 			}
 		}
+
+		/// <summary>The idle line while NowCast has no radar site loaded.</summary>
+		internal const string NoSiteTitle = "Select a radar site to view activity";
 
 		/// <summary>The radar's row in the activity expander's FEED table: the live poll's last good check and next check
 		/// (UI thread only — the live-frame events arrive there).</summary>
