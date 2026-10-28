@@ -12,8 +12,9 @@
        [ ] ■ Tornado                                  2  ← one DragMoveLayerExpanderCountRow per phenomenon: the
        [x] ■ Severe thunderstorm                      5    toggle, the map colour, the name, that type's count at the
        [x] ■ Flash flood                              2    FAR RIGHT (hover lifts the row); the flood row: "Flash
-                                                           flood" (warnings, FF) or "Flood" (watches, FA/FL/FF, sea
-                                                           green) — FloodLabel/FloodColor from the VM
+       [x] ■ Special marine                           1    flood" (warnings, FF) or "Flood" (watches, FA/FL/FF, sea
+                                                           green) — FloodLabel/FloodColor from the VM; the marine row
+                                                           (MA, orange) is warnings only (SupportsMarine)
        ────────────────────────────────────────────────
          IN EFFECT 2                                     ← THE DAY LIST, TWO LISTS (NowCast warnings only — watches
      █ ■ 11:52 AM  Cleveland, OK      PDS  until 12:30 PM  and PastCast leave both empty → collapsed). IN EFFECT
@@ -178,6 +179,16 @@
                     Count="{x:Bind Fmt(ViewModel.FlashFloodCount), Mode=OneWay}"
                     ToolTipService.ToolTip="{x:Bind FloodTooltip(ViewModel.FloodLabel, AlertNoun), Mode=OneWay}">
                 <Border Width="11" Height="11" CornerRadius="2" Background="{x:Bind Swatch(ViewModel.FloodColor), Mode=OneWay}"/>
+            </dragMoveLayerExpanders:DragMoveLayerExpanderCountRow>
+
+            <!-- The marine row (MA, Special Marine Warning): warnings only — collapses on watches (SupportsMarine).
+                 NWS's own SMW orange = WarningsViewModel.MarineFill = warnings.js MA. -->
+            <dragMoveLayerExpanders:DragMoveLayerExpanderCountRow Label="Special marine"
+                    Visibility="{x:Bind Shown(ViewModel.SupportsMarine), Mode=OneWay}"
+                    IsChecked="{x:Bind ViewModel.ShowMarine, Mode=TwoWay}"
+                    Count="{x:Bind Fmt(ViewModel.MarineCount), Mode=OneWay}"
+                    ToolTipService.ToolTip="{x:Bind MarineTooltip(AlertNoun), Mode=OneWay}">
+                <Border Width="11" Height="11" CornerRadius="2" Background="#FFA500"/>
             </dragMoveLayerExpanders:DragMoveLayerExpanderCountRow>
         </StackPanel>
 

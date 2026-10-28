@@ -44,6 +44,7 @@ namespace Anvil.ViewModels
 			if (s.WarningsShowTornado is bool wt) { warnings.ShowTornado = wt; }
 			if (s.WarningsShowSevere is bool ws) { warnings.ShowSevere = ws; }
 			if (s.WarningsShowFlashFlood is bool wf) { warnings.ShowFlashFlood = wf; }
+			if (s.WarningsShowMarine is bool wm) { warnings.ShowMarine = wm; }
 			if (s.WarningsOpacity is double wo) { warnings.Opacity = Unit(wo); }
 			if (s.WarningsShowEnded is bool we) { warnings.ShowEndedList = we; }
 
@@ -72,6 +73,7 @@ namespace Anvil.ViewModels
 			if (s.PastWarningsShowTornado is bool pwt) { pw.ShowTornado = pwt; }
 			if (s.PastWarningsShowSevere is bool pws) { pw.ShowSevere = pws; }
 			if (s.PastWarningsShowFlashFlood is bool pwf) { pw.ShowFlashFlood = pwf; }
+			if (s.PastWarningsShowMarine is bool pwm) { pw.ShowMarine = pwm; }
 			if (s.PastWarningsOpacity is double pwo) { pw.Opacity = Unit(pwo); }
 			var pa = pastAlerts.Watches;
 			if (s.PastWatchesShowTornado is bool pat) { pa.ShowTornado = pat; }
@@ -135,6 +137,7 @@ namespace Anvil.ViewModels
 					case nameof(PhenomOverlayViewModel.ShowTornado): s.WarningsShowTornado = warnings.ShowTornado; break;
 					case nameof(PhenomOverlayViewModel.ShowSevere): s.WarningsShowSevere = warnings.ShowSevere; break;
 					case nameof(PhenomOverlayViewModel.ShowFlashFlood): s.WarningsShowFlashFlood = warnings.ShowFlashFlood; break;
+					case nameof(PhenomOverlayViewModel.ShowMarine): s.WarningsShowMarine = warnings.ShowMarine; break;
 					case nameof(PhenomOverlayViewModel.Opacity): s.WarningsOpacity = warnings.Opacity; break;
 					case nameof(PhenomOverlayViewModel.ShowEndedList): s.WarningsShowEnded = warnings.ShowEndedList; break;
 				}
@@ -202,6 +205,7 @@ namespace Anvil.ViewModels
 					case nameof(PhenomOverlayViewModel.ShowTornado): s.PastWarningsShowTornado = pastWarnings.ShowTornado; break;
 					case nameof(PhenomOverlayViewModel.ShowSevere): s.PastWarningsShowSevere = pastWarnings.ShowSevere; break;
 					case nameof(PhenomOverlayViewModel.ShowFlashFlood): s.PastWarningsShowFlashFlood = pastWarnings.ShowFlashFlood; break;
+					case nameof(PhenomOverlayViewModel.ShowMarine): s.PastWarningsShowMarine = pastWarnings.ShowMarine; break;
 					case nameof(PhenomOverlayViewModel.Opacity): s.PastWarningsOpacity = pastWarnings.Opacity; break;
 				}
 			};

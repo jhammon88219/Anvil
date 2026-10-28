@@ -477,6 +477,8 @@ namespace Anvil.Services
 		public bool? WarningsShowSevere { get => _warningsShowSevere; set => SetProperty(ref _warningsShowSevere, value); }
 		private bool? _warningsShowFlashFlood;
 		public bool? WarningsShowFlashFlood { get => _warningsShowFlashFlood; set => SetProperty(ref _warningsShowFlashFlood, value); }
+		private bool? _warningsShowMarine;
+		public bool? WarningsShowMarine { get => _warningsShowMarine; set => SetProperty(ref _warningsShowMarine, value); }
 		private double? _warningsOpacity;
 		public double? WarningsOpacity { get => _warningsOpacity; set => SetProperty(ref _warningsOpacity, value); }
 		private bool? _warningsShowEnded;
@@ -520,6 +522,8 @@ namespace Anvil.Services
 		public bool? PastWarningsShowSevere { get => _pastWarningsShowSevere; set => SetProperty(ref _pastWarningsShowSevere, value); }
 		private bool? _pastWarningsShowFlashFlood;
 		public bool? PastWarningsShowFlashFlood { get => _pastWarningsShowFlashFlood; set => SetProperty(ref _pastWarningsShowFlashFlood, value); }
+		private bool? _pastWarningsShowMarine;
+		public bool? PastWarningsShowMarine { get => _pastWarningsShowMarine; set => SetProperty(ref _pastWarningsShowMarine, value); }
 		private double? _pastWarningsOpacity;
 		public double? PastWarningsOpacity { get => _pastWarningsOpacity; set => SetProperty(ref _pastWarningsOpacity, value); }
 		private bool? _pastWatchesShowTornado;

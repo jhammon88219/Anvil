@@ -93,8 +93,8 @@ namespace Anvil.Services
 		public Task SetWarningsVisibleAsync(bool visible) =>
 			_mapView.RunScriptAsync(Call("setWarningsVisible", visible));
 
-		public Task SetWarningKindsAsync(bool tornado, bool severe, bool flashFlood) =>
-			_mapView.RunScriptAsync(Call("setWarningKinds", tornado, severe, flashFlood));
+		public Task SetWarningKindsAsync(bool tornado, bool severe, bool flashFlood, bool marine) =>
+			_mapView.RunScriptAsync(Call("setWarningKinds", tornado, severe, flashFlood, marine));
 
 		// ⚠️ kind + time are DATA (SPC's CSV) and Call single-quotes without escaping, so they're cut to what a
 		// real value can hold (letters / digits) before they reach the page.
@@ -181,8 +181,8 @@ namespace Anvil.Services
 		public Task SetPastAlertOpacityAsync(string kind, double opacity) =>
 			_mapView.RunScriptAsync(Call("setPastAlertOpacity", kind, opacity));
 
-		public Task SetPastAlertKindsAsync(string kind, bool tornado, bool severe, bool flashFlood) =>
-			_mapView.RunScriptAsync(Call("setPastAlertKinds", kind, tornado, severe, flashFlood));
+		public Task SetPastAlertKindsAsync(string kind, bool tornado, bool severe, bool flashFlood, bool marine) =>
+			_mapView.RunScriptAsync(Call("setPastAlertKinds", kind, tornado, severe, flashFlood, marine));
 
 		public Task SetDiscussionsSourceAsync(string url) =>
 			_mapView.RunScriptAsync(Call("setDiscussionsSource", url));

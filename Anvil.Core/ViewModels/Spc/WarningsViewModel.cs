@@ -10,7 +10,7 @@ using Anvil.Services;
 namespace Anvil.ViewModels
 {
 	/// <summary>
-	/// View model for the storm-based WARNING subsystem — active Tornado / Severe Thunderstorm / Flash Flood Warnings
+	/// View model for the storm-based WARNING subsystem — active Tornado / Severe Thunderstorm / Flash Flood / Special Marine Warnings
 	/// (the modern forecaster-drawn polygons). Sibling of <see cref="WatchesViewModel"/>: watches are the
 	/// large outlook areas, warnings are the imminent-threat polygons, so each gets its own layer, toggle,
 	/// and refresh loop. Surfaced under NowCast in the UI (current-conditions alerts, not a forecast).
@@ -162,12 +162,14 @@ namespace Anvil.ViewModels
 		protected override Task SetVisibleAsync(bool visible) => _mapService.SetWarningsVisibleAsync(visible);
 		protected override Task SetOpacityAsync(double opacity) => _mapService.SetWarningsOpacityAsync(opacity);
 		protected override Task SetSourceAsync(string url) => _mapService.SetWarningSourceAsync(url);
-		protected override Task SetKindsAsync(bool tornado, bool severe, bool flashFlood) => _mapService.SetWarningKindsAsync(tornado, severe, flashFlood);
+		protected override Task SetKindsAsync(bool tornado, bool severe, bool flashFlood, bool marine) =>
+			_mapService.SetWarningKindsAsync(tornado, severe, flashFlood, marine);
 
 		protected override string ItemNounSingular => "warning";
 		protected override string ItemNounPlural => "warnings";
 
 		public override bool SupportsFlashFlood => true;
+		public override bool SupportsMarine => true;
 
 		// The elevated damage-threat tags from the latest fetch (see WarningService.ThreatTier).
 		private WarningThreatCounts _threats = WarningThreatCounts.None;
@@ -185,23 +187,27 @@ namespace Anvil.ViewModels
 
 		// ── The NowCast window's HEADER square (TemporalWindowNowCastContent's name row) ──
 		// ForeCast's theory: the square is the WORST thing in effect, in its colour (DATA, never themed). Tornado →
-		// Severe → Flash flood, counting EVERY active warning like the tiles (not the ticked rows). None = PastCast's
-		// blue (OutlookViewModel.NoAreasFill). ⚠️ The fills MIRROR the tiles' Ink literals in
-		// TemporalWindowNowCastContent.xaml — change both.
+		// Severe → Flash flood → Special marine, counting EVERY active warning like the tiles (not the ticked rows). None =
+		// PastCast's blue (OutlookViewModel.NoAreasFill). ⚠️ The fills MIRROR the tiles' Ink literals in
+		// TemporalWindowNowCastContent.xaml — change both. MarineFill (NWS's own SMW orange, no tile yet) mirrors
+		// warnings.js MA and the Alerts body's marine row.
 		public const string TornadoFill = "#FF2A2A";
 		public const string SevereFill = "#FFD21A";
 		public const string FlashFloodFill = "#2EE05A";
+		public const string MarineFill = "#FFA500";
 
 		public string HeaderSquareFill =>
 			TornadoCount > 0 ? TornadoFill :
 			SevereCount > 0 ? SevereFill :
 			FlashFloodCount > 0 ? FlashFloodFill :
+			MarineCount > 0 ? MarineFill :
 			OutlookViewModel.NoAreasFill;
 
 		public string HeaderSquareTip =>
 			TornadoCount > 0 ? $"Highest warning in effect: Tornado ({TornadoCount})" :
 			SevereCount > 0 ? $"Highest warning in effect: Severe thunderstorm ({SevereCount})" :
 			FlashFloodCount > 0 ? $"Highest warning in effect: Flash flood ({FlashFloodCount})" :
+			MarineCount > 0 ? $"Highest warning in effect: Special marine ({MarineCount})" :
 			LastUpdated is null ? "Warnings not checked yet" : "No warnings in effect";
 
 		private void RaiseHeaderSquare()
@@ -252,7 +258,7 @@ namespace Anvil.ViewModels
 							OnPropertyChanged(nameof(TornadoThreats));
 							OnPropertyChanged(nameof(SevereThreats));
 							OnPropertyChanged(nameof(FlashFloodThreats));
-						ApplyRefreshed(result.ActiveCount, result.TornadoCount, result.SevereCount, result.FlashFloodCount);
+						ApplyRefreshed(result.ActiveCount, result.TornadoCount, result.SevereCount, result.FlashFloodCount, result.MarineCount);
 						RaiseHeaderSquare();
 						var targets = result.Targets ?? Array.Empty<Models.WarningTarget>();
 						TornadoStepper.Update(targets);

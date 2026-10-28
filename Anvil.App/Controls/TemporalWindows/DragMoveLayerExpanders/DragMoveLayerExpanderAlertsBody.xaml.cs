@@ -30,6 +30,9 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 		/// <summary>Tooltip for the flood row, e.g. "Show flash flood warnings" / "Show flood watches".</summary>
 		public string FloodTooltip(string label, string noun) => $"Show {label?.ToLowerInvariant()} {noun}";
 
+		/// <summary>Tooltip for the marine row, e.g. "Show special marine warnings".</summary>
+		public string MarineTooltip(string noun) => $"Show special marine {noun}";
+
 		// x:Bind helper: the flood row exists only on an overlay that has that type.
 		public Visibility Shown(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
@@ -44,6 +47,7 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 			{
 				"TO" => WarningsViewModel.TornadoFill,
 				"SV" => WarningsViewModel.SevereFill,
+				"MA" => WarningsViewModel.MarineFill,
 				_ => WarningsViewModel.FlashFloodFill,
 			}));
 

@@ -12,7 +12,7 @@ namespace Anvil.Services
 {
 	/// <summary>
 	/// Default <see cref="IWarningService"/>. Maintains the active, storm-based NWS Tornado / Severe
-	/// Thunderstorm / Flash Flood WARNING polygons and caches them on disk as GeoJSON; no WebView2 here — MainWindow
+	/// Thunderstorm / Flash Flood / Special Marine WARNING polygons and caches them on disk as GeoJSON; no WebView2 here — MainWindow
 	/// maps the cache folder to the "warnings" virtual host so the page can fetch
 	/// https://warnings/warnings.geojson.
 	///
@@ -46,13 +46,13 @@ namespace Anvil.Services
 		// convective warning events. Returns a geo+json FeatureCollection with storm-based polygons; each
 		// alert's properties.id is the CAP URN (== WWA's cap_id). Fetched with Accept: application/geo+json.
 		private const string CapUrl =
-			"https://api.weather.gov/alerts/active?event=Tornado%20Warning,Severe%20Thunderstorm%20Warning,Flash%20Flood%20Warning";
+			"https://api.weather.gov/alerts/active?event=Tornado%20Warning,Severe%20Thunderstorm%20Warning,Flash%20Flood%20Warning,Special%20Marine%20Warning";
 
 		// CROSS-CHECK only (never rendered): the WWA mapservice id set for the same warnings, so the
 		// health log can compare the two independent NWS systems. cap_id, no geometry (lightweight).
 		private const string WwaCrossCheckUrl =
 			"https://mapservices.weather.noaa.gov/eventdriven/rest/services/WWA/watch_warn_adv/MapServer/1/query" +
-			"?where=sig%3D%27W%27%20AND%20%28phenom%3D%27TO%27%20OR%20phenom%3D%27SV%27%20OR%20phenom%3D%27FF%27%29" +
+			"?where=sig%3D%27W%27%20AND%20%28phenom%3D%27TO%27%20OR%20phenom%3D%27SV%27%20OR%20phenom%3D%27FF%27%20OR%20phenom%3D%27MA%27%29" +
 			"&outFields=cap_id&returnGeometry=false&outSR=4326&f=geojson";
 
 		// A warning may linger this long past its stated expiration before we prune it (clock-skew grace;
@@ -139,9 +139,9 @@ namespace Anvil.Services
 			_health.Write(WarningsHealthLog.Reconcile(
 				DateTimeOffset.Now, _active.Keys, primaryIds, crossIds, _lastClassification));
 
-			var (tornado, severe, flashFlood, threats) = CountByPhenom();
+			var (tornado, severe, flashFlood, marine, threats) = CountByPhenom();
 			var result = new WarningFetchResult(WarningFetchStatus.Updated, _active.Count, tornado, severe,
-				FlashFloodCount: flashFlood, Threats: threats, Targets: TargetsOf(_active.Values.Select(w => w.Feature)));
+				FlashFloodCount: flashFlood, MarineCount: marine, Threats: threats, Targets: TargetsOf(_active.Values.Select(w => w.Feature)));
 			RadarPerfCounters.EndFeed(feedT, "warnings");
 			return result;
 		}
@@ -184,14 +184,14 @@ namespace Anvil.Services
 			return list;
 		}
 
-		// Tallies the current active set by phenom (TO / SV / FF) and by damage-threat tier for the UI readout.
-		private (int Tornado, int Severe, int FlashFlood, WarningThreatCounts Threats) CountByPhenom()
+		// Tallies the current active set by phenom (TO / SV / FF / MA) and by damage-threat tier for the UI readout.
+		private (int Tornado, int Severe, int FlashFlood, int Marine, WarningThreatCounts Threats) CountByPhenom()
 		{
 			var tagged = _active.Values
 				.Select(w => (Phenom: Str(w.Feature["properties"]?["phenom"]), Tier: TierOf(w.Feature["properties"])))
 				.ToList();
 			return (tagged.Count(a => a.Phenom == "TO"), tagged.Count(a => a.Phenom == "SV"), tagged.Count(a => a.Phenom == "FF"),
-				WarningThreatCounts.From(tagged));
+				tagged.Count(a => a.Phenom == "MA"), WarningThreatCounts.From(tagged));
 		}
 
 		private static int TierOf(JsonNode? props) =>
@@ -333,12 +333,14 @@ namespace Anvil.Services
 		private static string VtecString(JsonNode? parameters) =>
 			parameters?["VTEC"] is JsonArray arr && arr.Count > 0 ? Str(arr[0]) : Str(parameters?["VTEC"]);
 
-		// Maps a CAP event name to our phenom code (the three we query). ⚠️ FF is an EXACT match: "Flood
-		// Warning" (areal, river) and "Flash Flood Statement" (a follow-up) are different products.
+		// Maps a CAP event name to our phenom code (the four we query). ⚠️ FF and MA are EXACT matches: "Flood
+		// Warning" (areal, river) and "Flash Flood Statement" (a follow-up) are different products, and so is
+		// "Marine Weather Statement" (an SMW's follow-up; CAP re-issues the warning itself on a CON/EXT).
 		private static string? PhenomForEvent(string evt) =>
 			evt.StartsWith("Tornado", StringComparison.OrdinalIgnoreCase) ? "TO" :
 			evt.StartsWith("Severe Thunderstorm", StringComparison.OrdinalIgnoreCase) ? "SV" :
 			evt.Equals("Flash Flood Warning", StringComparison.OrdinalIgnoreCase) ? "FF" :
+			evt.Equals("Special Marine Warning", StringComparison.OrdinalIgnoreCase) ? "MA" :
 			null;
 
 		// The Impact-Based Warning damage-threat tag CAP carries in `parameters` (each value an array of one

@@ -264,10 +264,10 @@ namespace Anvil.Services
 		Task SetWarningsVisibleAsync(bool visible);
 
 		/// <summary>
-		/// Restricts the warning polygons to the given phenomena — each flag draws that type (TO / SV / FF)
+		/// Restricts the warning polygons to the given phenomena — each flag draws that type (TO / SV / FF / MA)
 		/// and nothing else. Same relationship to <see cref="SetWarningsVisibleAsync"/> as the watch pair.
 		/// </summary>
-		Task SetWarningKindsAsync(bool tornado, bool severe, bool flashFlood);
+		Task SetWarningKindsAsync(bool tornado, bool severe, bool flashFlood, bool marine);
 
 		/// <summary>
 		/// The NowCast tiles' arrows: ease the PRIMARY pane to frame one warning's box (the others follow the
@@ -376,8 +376,9 @@ namespace Anvil.Services
 
 		Task SetPastAlertOpacityAsync(string kind, double opacity);
 
-		/// <summary>Which phenomena a PastCast alert overlay draws (the third flag is the flood type: FF warnings, FA/FL/FF watches).</summary>
-		Task SetPastAlertKindsAsync(string kind, bool tornado, bool severe, bool flashFlood);
+		/// <summary>Which phenomena a PastCast alert overlay draws (the third flag is the flood type: FF warnings, FA/FL/FF watches;
+		/// the fourth is MA, special marine warnings — always false for watches).</summary>
+		Task SetPastAlertKindsAsync(string kind, bool tornado, bool severe, bool flashFlood, bool marine);
 
 		/// <summary>The moment both PastCast alert overlays show (Unix ms) — the displayed radar frame's time;
 		/// null draws nothing.</summary>

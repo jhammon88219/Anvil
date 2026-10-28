@@ -531,11 +531,13 @@ try {
     // Both add a third, FLOOD flag: warnings carry FF (flash flood warning), watches FA (Flood Watch zones),
     // FL (river Flood Watch) and FF (the pre-2023 Flash Flood Watch). One flag → all three codes: the C#
     // warning feeds only ever keep FF, so the extra two never match anything there.
-    function phenomKinds(torn, severe, flood) {
+    // Warnings add a fourth, MARINE flag (MA, special marine warning); watches never send it (no marine watch).
+    function phenomKinds(torn, severe, flood, marine) {
         const kinds = [];
         if (torn) kinds.push('TO');
         if (severe) kinds.push('SV');
         if (flood) kinds.push('FF', 'FA', 'FL');
+        if (marine) kinds.push('MA');
         return kinds;
     }
 
@@ -552,7 +554,7 @@ try {
     import('./warnings.js').then(function (m) { Warnings = m; }).catch(function (e) { console.error('warnings.js load failed: ' + e); });
     window.setWarningSource = function (url) { if (Warnings) forEachMap(function (m) { Warnings.setSource(m, url); }); };
     window.setWarningsVisible = function (on) { if (Warnings) forEachMap(function (m) { Warnings.setVisible(m, on); }); };
-    window.setWarningKinds = function (torn, severe, flashFlood) { if (Warnings) forEachMap(function (m) { Warnings.setKinds(m, phenomKinds(torn, severe, flashFlood)); }); };
+    window.setWarningKinds = function (torn, severe, flashFlood, marine) { if (Warnings) forEachMap(function (m) { Warnings.setKinds(m, phenomKinds(torn, severe, flashFlood, marine)); }); };
     window.setWarningsOpacity = function (o) { if (Warnings) forEachMap(function (m) { Warnings.setOpacity(m, o); }); };
     // The NowCast tiles' ‹ › arrows (one warning) and state lines (a state's set, as a GeometryCollection, box =
     // their union): frame the box — an animated move, so PRIMARY only (the camera sync carries the rest; stop()
@@ -612,7 +614,7 @@ try {
     import('./past-alerts.js').then(function (m) { PastAlerts = m; }).catch(function (e) { console.error('past-alerts.js load failed: ' + e); });
     window.setPastAlertSource = function (kind, url) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setSource(m, kind, url); }); };
     window.setPastAlertVisible = function (kind, on) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setVisible(m, kind, on); }); };
-    window.setPastAlertKinds = function (kind, torn, severe, flashFlood) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setKinds(m, kind, phenomKinds(torn, severe, flashFlood)); }); };
+    window.setPastAlertKinds = function (kind, torn, severe, flashFlood, marine) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setKinds(m, kind, phenomKinds(torn, severe, flashFlood, marine)); }); };
     window.setPastAlertOpacity = function (kind, o) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setOpacity(m, kind, o); }); };
     window.setPastAlertTime = function (ms) { if (PastAlerts) forEachMap(function (m) { PastAlerts.setTime(m, ms); }); };
 

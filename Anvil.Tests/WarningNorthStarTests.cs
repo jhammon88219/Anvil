@@ -77,7 +77,14 @@ namespace Anvil.Tests
 		      "properties": { "id": "urn:ffw:base", "event": "Flash Flood Warning", "expires": "2026-07-21T20:00:00-05:00" } },
 		    { "type": "Feature",
 		      "geometry": { "type": "Polygon", "coordinates": [[[-90,30],[-89,30],[-89,31],[-90,31],[-90,30]]] },
-		      "properties": { "id": "urn:ffs:1", "event": "Flash Flood Statement", "expires": "2026-07-21T20:00:00-05:00" } }
+		      "properties": { "id": "urn:ffs:1", "event": "Flash Flood Statement", "expires": "2026-07-21T20:00:00-05:00" } },
+		    { "type": "Feature",
+		      "geometry": { "type": "Polygon", "coordinates": [[[-88,29],[-87,29],[-87,30],[-88,30],[-88,29]]] },
+		      "properties": { "id": "urn:smw:1", "event": "Special Marine Warning", "expires": "2026-07-21T19:00:00-05:00",
+		        "parameters": { "waterspoutDetection": ["POSSIBLE"] } } },
+		    { "type": "Feature",
+		      "geometry": { "type": "Polygon", "coordinates": [[[-88,29],[-87,29],[-87,30],[-88,30],[-88,29]]] },
+		      "properties": { "id": "urn:mws:1", "event": "Marine Weather Statement", "expires": "2026-07-21T19:00:00-05:00" } }
 		  ]
 		}
 		""";
@@ -99,6 +106,11 @@ namespace Anvil.Tests
 			Assert.Equal(2, Tier("urn:ffw:emerg"));
 			Assert.Equal(0, Tier("urn:ffw:base"));
 			Assert.Equal("catastrophic", byId["urn:tor:emerg"]!["properties"]!["threat"]!.GetValue<string>());
+
+			// A Special Marine Warning is kept as MA (untiered); its follow-up statement is not a warning.
+			Assert.Equal("MA", byId["urn:smw:1"]!["properties"]!["phenom"]!.GetValue<string>());
+			Assert.Equal(0, Tier("urn:smw:1"));
+			Assert.False(byId.ContainsKey("urn:mws:1"));
 		}
 
 		[Fact]

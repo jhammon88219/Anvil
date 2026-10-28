@@ -54,8 +54,9 @@ namespace Anvil.Services
 			byte[] warnZip, watchZip;
 			try
 			{
-				warnZip = await GetZipAsync($"warnings-{stem}.zip",
-					$"{Endpoint}?accept=shapefile&sts={from}&ets={to}&limit1=1&addsvs=1&limitps=1&phenomena=TO,SV,FF&significance=W,W,W",
+				// ⚠️ "-v2": the settled-window cache predates special marine warnings (MA) — same reason as the watches'.
+				warnZip = await GetZipAsync($"warnings-v2-{stem}.zip",
+					$"{Endpoint}?accept=shapefile&sts={from}&ets={to}&limit1=1&addsvs=1&limitps=1&phenomena=TO,SV,FF,MA&significance=W,W,W,W",
 					end, cancellationToken).ConfigureAwait(false);
 				// ⚠️ "-v2": the settled-window cache predates flood watches — the old name would serve a
 				// TO/SV-only export forever. Longer lookback: a flood watch routinely runs 24–48 h.
@@ -119,7 +120,7 @@ namespace Anvil.Services
 			}
 		}
 
-		/// <summary>sbw_interval GeoJSON → one <see cref="WarningTarget"/> per TO/SV/FF warning EVENT (advisories and the
+		/// <summary>sbw_interval GeoJSON → one <see cref="WarningTarget"/> per TO/SV/FF/MA warning EVENT (advisories and the
 		/// rest dropped). Null if the body isn't a FeatureCollection. Pure + internal for tests.</summary>
 		internal static List<WarningTarget>? ParseWarningDay(string json)
 		{
@@ -129,7 +130,7 @@ namespace Anvil.Services
 			{
 				var p = f?["properties"];
 				var phenom = Text(p?["phenomena"]);
-				if (Text(p?["significance"]) != "W" || phenom is not ("TO" or "SV" or "FF")) { continue; }
+				if (Text(p?["significance"]) != "W" || phenom is not ("TO" or "SV" or "FF" or "MA")) { continue; }
 				if (p?["eventid"] is not JsonValue idv || !idv.TryGetValue<int>(out var etn)) { continue; }
 				var key = Vtec.KeyOf(Text(p["wfo"]), phenom, "W", etn);
 				if (byKey.ContainsKey(key)) { continue; }
@@ -226,7 +227,7 @@ namespace Anvil.Services
 				}
 				else
 				{
-					if (sig != "W" || phenom is not ("TO" or "SV" or "FF")) { continue; }
+					if (sig != "W" || phenom is not ("TO" or "SV" or "FF" or "MA")) { continue; }
 					if (Get(f, "STATUS") is "EXP" or "CAN") { continue; }
 					if (!TryTime(Get(f, "POLY_BEG"), out t0) || !TryTime(Get(f, "POLY_END"), out t1)) { continue; }
 					key = $"{Get(f, "WFO")}.{phenom}.W.{Get(f, "ETN")}.{Get(f, "VTEC_YR")}";

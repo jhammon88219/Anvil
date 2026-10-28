@@ -16,24 +16,78 @@ namespace Anvil.Tests
 			public readonly List<bool> VisiblePushes = new();
 			public readonly List<(bool Tornado, bool Severe)> KindPushes = new();
 			public readonly List<bool> FlashFloodPushes = new();
+			public readonly List<bool> MarinePushes = new();
 			protected override string SourceUrl => "https://test/x.geojson";
 			protected override string ItemNounSingular => "warning";
 			protected override string ItemNounPlural => "warnings";
 			protected override Task SetVisibleAsync(bool visible) { VisiblePushes.Add(visible); return Task.CompletedTask; }
 			protected override Task SetOpacityAsync(double opacity) => Task.CompletedTask;
 			protected override Task SetSourceAsync(string url) => Task.CompletedTask;
-			protected override Task SetKindsAsync(bool tornado, bool severe, bool flashFlood)
+			protected override Task SetKindsAsync(bool tornado, bool severe, bool flashFlood, bool marine)
 			{
 				KindPushes.Add((tornado, severe));
 				FlashFloodPushes.Add(flashFlood);
+				MarinePushes.Add(marine);
 				return Task.CompletedTask;
 			}
 		}
 
-		// The warnings shape: a third FF type.
+		// The flood-watch shape: a third FF type.
 		private sealed class FakeFloodOverlay : FakeOverlay
 		{
 			public override bool SupportsFlashFlood => true;
+		}
+
+		// The warnings shape: FF and a fourth MA (special marine) type.
+		private sealed class FakeWarningOverlay : FakeOverlay
+		{
+			public override bool SupportsFlashFlood => true;
+			public override bool SupportsMarine => true;
+		}
+
+		[Fact]
+		public async Task NoMarineType_MaTickIgnored_NeverPushed()
+		{
+			var vm = new FakeFloodOverlay { IsModeActive = true };
+			await vm.OnMapsReadyAsync();
+
+			vm.ShowTornado = false;
+			vm.ShowSevere = false;
+			vm.ShowFlashFlood = false;
+
+			Assert.True(vm.ShowMarine);       // the (unused) field keeps its default…
+			Assert.False(vm.AnyShown);        // …but counts for nothing on a watch-shaped overlay
+			Assert.False(vm.IsVisible);
+			Assert.DoesNotContain(true, vm.MarinePushes);
+		}
+
+		[Fact]
+		public async Task MarineOnly_KeepsLayerDrawn_AndToggleAllCoversAllFour()
+		{
+			var vm = new FakeWarningOverlay { IsModeActive = true };
+			await vm.OnMapsReadyAsync();
+
+			vm.ShowTornado = false;
+			vm.ShowSevere = false;
+			vm.ShowFlashFlood = false;
+			Assert.True(vm.AnyShown);
+			Assert.True(vm.IsVisible);
+			Assert.True(vm.MarinePushes[^1]);
+
+			vm.ShowTornado = true;
+			vm.ShowSevere = true;
+			vm.ShowFlashFlood = true;
+			vm.ShowMarine = false;
+			Assert.Null(vm.AllShown);          // TO+SV+FF alone is not "all" when MA exists
+
+			vm.ToggleAll();
+			Assert.True(vm.ShowMarine);
+			Assert.True(vm.AllShown);
+
+			vm.ToggleAll();
+			Assert.False(vm.ShowMarine);
+			Assert.False(vm.MarinePushes[^1]);
+			Assert.False(vm.IsVisible);
 		}
 
 		[Fact]

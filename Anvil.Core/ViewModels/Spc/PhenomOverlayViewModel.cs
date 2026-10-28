@@ -13,8 +13,9 @@ namespace Anvil.ViewModels
 
 	/// <summary>
 	/// Base for a CONVECTIVE ALERT overlay whose features carry a `phenom` of TO (tornado) or SV (severe
-	/// thunderstorm) — the SPC watch boxes and the storm-based warning polygons, the latter plus an
-	/// optional third FF (flash flood) type (<see cref="SupportsFlashFlood"/>). Sits between
+	/// thunderstorm) — the SPC watch boxes and the storm-based warning polygons, plus an optional third
+	/// flood type (<see cref="SupportsFlashFlood"/>) and, warnings only, a fourth MA (special marine) type
+	/// (<see cref="SupportsMarine"/>). Sits between
 	/// <see cref="MapOverlayViewModel"/> (source / visibility / opacity / map-ready latch) and the two
 	/// concrete VMs, and adds everything the NowCast window's two alert sections need: one toggle per
 	/// phenomenon, that phenomenon's live count, and the section's summary card.
@@ -100,13 +101,34 @@ namespace Anvil.ViewModels
 		// The FF tick as it counts toward the aggregates — always false on an overlay without an FF type.
 		private bool FlashFloodOn => SupportsFlashFlood && _showFlashFlood;
 
+		private bool _showMarine = true;
+
+		/// <summary>
+		/// Whether this overlay HAS a fourth, MARINE type — the Special Marine Warning (MA.W), a storm-based polygon
+		/// over coastal waters and the Great Lakes. Warnings only (NowCast + PastCast): there is no marine WATCH.
+		/// ⚠️ When false the tick is ignored by every aggregate below, exactly like <see cref="SupportsFlashFlood"/>.
+		/// </summary>
+		public virtual bool SupportsMarine => false;
+
+		/// <summary>Draw special-marine (MA) features while the mode is on. Ticked by default; meaningful only when
+		/// <see cref="SupportsMarine"/>.</summary>
+		public bool ShowMarine
+		{
+			get => _showMarine;
+			set { if (SetProperty(ref _showMarine, value)) { OnKindsChanged(); } }
+		}
+
+		// The MA tick as it counts toward the aggregates — always false on an overlay without a marine type.
+		private bool MarineOn => SupportsMarine && _showMarine;
+
 		/// <summary>Whether any type is ticked — the gate on the opacity slider and the card's footer.
 		/// NOT the same as "on the map": that also needs <see cref="IsModeActive"/>.</summary>
-		public bool AnyShown => _showTornado || _showSevere || FlashFloodOn;
+		public bool AnyShown => _showTornado || _showSevere || FlashFloodOn || MarineOn;
 
 		/// <summary>The section header's tri-state: true = every type ticked, false = none, null = some.</summary>
 		public bool? AllShown =>
-			_showTornado && _showSevere && (!SupportsFlashFlood || _showFlashFlood) ? true : AnyShown ? null : false;
+			_showTornado && _showSevere && (!SupportsFlashFlood || _showFlashFlood) && (!SupportsMarine || _showMarine)
+				? true : AnyShown ? null : false;
 
 		/// <summary>
 		/// The section header checkbox: ticks every type, unless every type is already ticked, in which case
@@ -117,13 +139,16 @@ namespace Anvil.ViewModels
 			var on = AllShown != true;
 			// Fields, then ONE OnKindsChanged — going through the setters would push a half-applied filter.
 			var ffSame = !SupportsFlashFlood || _showFlashFlood == on;
-			if (_showTornado == on && _showSevere == on && ffSame) { return; }
+			var maSame = !SupportsMarine || _showMarine == on;
+			if (_showTornado == on && _showSevere == on && ffSame && maSame) { return; }
 			_showTornado = on;
 			_showSevere = on;
 			if (SupportsFlashFlood) { _showFlashFlood = on; }
+			if (SupportsMarine) { _showMarine = on; }
 			OnPropertyChanged(nameof(ShowTornado));
 			OnPropertyChanged(nameof(ShowSevere));
 			OnPropertyChanged(nameof(ShowFlashFlood));
+			OnPropertyChanged(nameof(ShowMarine));
 			OnKindsChanged();
 		}
 
@@ -158,7 +183,7 @@ namespace Anvil.ViewModels
 			foreach (var row in EndedAlerts) { row.IsDrawn = IsTicked(row.Phenom); }
 
 			if (!IsMapReady) { return; }
-			_ = SetKindsAsync(_showTornado, _showSevere, FlashFloodOn);
+			_ = SetKindsAsync(_showTornado, _showSevere, FlashFloodOn, MarineOn);
 			ApplyVisibility();
 		}
 
@@ -212,6 +237,7 @@ namespace Anvil.ViewModels
 		{
 			"TO" => _showTornado,
 			"SV" => _showSevere,
+			"MA" => MarineOn,
 			_ => IsFloodPhenom(phenom) && FlashFloodOn,
 		};
 
@@ -219,15 +245,15 @@ namespace Anvil.ViewModels
 		public virtual void FlyTo(WarningListRow row) { }
 
 		/// <summary>Push the shown phenomena to the page (the feature-specific IMapService call).
-		/// <paramref name="flashFlood"/> is always false on an overlay without an FF type.</summary>
-		protected abstract Task SetKindsAsync(bool tornado, bool severe, bool flashFlood);
+		/// <paramref name="flashFlood"/> / <paramref name="marine"/> are always false on an overlay without that type.</summary>
+		protected abstract Task SetKindsAsync(bool tornado, bool severe, bool flashFlood, bool marine);
 
 		public override async Task OnMapsReadyAsync()
 		{
 			// Kinds FIRST (the page keeps the filter and applies it at layer-add), then the base pushes
 			// visibility — same ordering rule as OnKindsChanged. IsVisible is written before the base sets
 			// IsMapReady, so this assignment pushes nothing on its own.
-			await SetKindsAsync(_showTornado, _showSevere, FlashFloodOn);
+			await SetKindsAsync(_showTornado, _showSevere, FlashFloodOn, MarineOn);
 			IsVisible = ShouldDraw;
 			await base.OnMapsReadyAsync();
 		}
@@ -268,6 +294,15 @@ namespace Anvil.ViewModels
 			private set => SetProperty(ref _flashFloodCount, value);
 		}
 
+		private int _marineCount;
+
+		/// <summary>Active special-marine (MA) features — the count on the marine row.</summary>
+		public int MarineCount
+		{
+			get => _marineCount;
+			private set => SetProperty(ref _marineCount, value);
+		}
+
 		// ── The card ──
 
 		private DateTimeOffset? _lastUpdated;
@@ -281,11 +316,12 @@ namespace Anvil.ViewModels
 		/// A cycle that actually pulled data: the counts, the "updated" stamp, and a cleared error.
 		/// ⚠️ Call on the UI thread — the refresh loops run on background timers.
 		/// </summary>
-		protected void ApplyRefreshed(int activeCount, int tornadoCount, int severeCount, int flashFloodCount = 0)
+		protected void ApplyRefreshed(int activeCount, int tornadoCount, int severeCount, int flashFloodCount = 0, int marineCount = 0)
 		{
 			TornadoCount = tornadoCount;
 			SevereCount = severeCount;
 			FlashFloodCount = flashFloodCount;
+			MarineCount = marineCount;
 			_lastUpdated = DateTimeOffset.Now;
 			OnPropertyChanged(nameof(LastUpdated));
 			_errorMessage = string.Empty;

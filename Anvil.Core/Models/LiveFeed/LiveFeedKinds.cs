@@ -144,6 +144,8 @@ namespace Anvil.Models
 				"SVS" => "Severe weather statement",
 				"FFW" => "Flash flood warning",
 				"FFS" => "Flash flood statement",
+				"SMW" => "Special marine warning",
+				"MWS" => "Marine weather statement",
 				"SEL" => "Watch",
 				"WOU" => "Watch outline update",
 				"WCN" => "Watch county update",
@@ -174,8 +176,9 @@ namespace Anvil.Models
 			if (pil.Length < 3) { return null; }
 			return pil[..3] switch
 			{
-				// Tornado / severe thunderstorm / flash flood warnings and their statements (updates, cancels, expiries).
-				"TOR" or "SVR" or "SVS" or "FFW" or "FFS" => LiveFeedKind.Warnings,
+				// Tornado / severe thunderstorm / flash flood / special marine warnings and their statements (updates,
+				// cancels, expiries). ⚠️ MWS also carries plain marine statements with no warning — a spare re-check, harmless.
+				"TOR" or "SVR" or "SVS" or "FFW" or "FFS" or "SMW" or "MWS" => LiveFeedKind.Warnings,
 				// SPC watch (SEL), its outline + county updates (WOU, WCN), watch probabilities (WWP); flood watches (FFA).
 				"SEL" or "WOU" or "WCN" or "WWP" or "FFA" => LiveFeedKind.Watches,
 				"LSR" => LiveFeedKind.StormReports,

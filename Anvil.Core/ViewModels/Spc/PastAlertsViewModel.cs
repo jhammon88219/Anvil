@@ -248,12 +248,15 @@ namespace Anvil.ViewModels
 		public override string FloodLabel => _isWarnings ? base.FloodLabel : WatchFlood.Label;
 		public override string FloodColor => _isWarnings ? base.FloodColor : WatchFlood.Color;
 
+		// Only warnings have a marine row (there is no marine watch).
+		public override bool SupportsMarine => _isWarnings;
+
 		protected override string SourceUrl => _url;
 		protected override Task SetVisibleAsync(bool visible) => _map.SetPastAlertVisibleAsync(_kind, visible);
 		protected override Task SetOpacityAsync(double opacity) => _map.SetPastAlertOpacityAsync(_kind, opacity);
 		protected override Task SetSourceAsync(string url) => _map.SetPastAlertSourceAsync(_kind, url);
-		protected override Task SetKindsAsync(bool tornado, bool severe, bool flashFlood) =>
-			_map.SetPastAlertKindsAsync(_kind, tornado, severe, flashFlood);
+		protected override Task SetKindsAsync(bool tornado, bool severe, bool flashFlood, bool marine) =>
+			_map.SetPastAlertKindsAsync(_kind, tornado, severe, flashFlood, marine);
 
 		protected override string ItemNounSingular => _singular;
 		protected override string ItemNounPlural => _plural;
@@ -290,7 +293,8 @@ namespace Anvil.ViewModels
 			ApplyRefreshed(inEffect.Count,
 				inEffect.Count(a => a.Phenom == "TO"),
 				inEffect.Count(a => a.Phenom == "SV"),
-				inEffect.Count(a => IsFloodPhenom(a.Phenom)));
+				inEffect.Count(a => IsFloodPhenom(a.Phenom)),
+				inEffect.Count(a => a.Phenom == "MA"));
 		}
 	}
 }
