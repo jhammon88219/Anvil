@@ -94,13 +94,15 @@
          are load-bearing here any more; there is no widget-sync code left to reach them.
      The layer sections run in the map's Z-ORDER (top of the list on top) and each layer's opacity lives in
      its own section HEADER.
-       • Historical outlook (ViewModel.PastOutlook) — a card over Day / Product / Cycle, then the LEGEND
-         (shared Primitives/OutlookLegend, last in the section, gone when collapsed or nothing is drawn);
-         opacity in the header. Day is a ComboBox, the same control as ForeCast's.
+       • Historical outlook (ViewModel.PastOutlook) — a card over TWO compact rows, ForeCast's grid exactly:
+             [Day 1 · Mon May 20  ▾] [Tornado            ▾]
+             [13Z                 ▾]           [Discussion.]     ← col 0 (212): Day ≡ Cycle, aligned; no labels
+         then the LEGEND (shared Primitives/OutlookLegend, a minimal fold, last in the section, gone when
+         collapsed or nothing is drawn); opacity in the header. Day is a ComboBox, the same control as ForeCast's.
          Selecting a product fetches the archived issuance for the entered replay date and overlays it on
          the past radar; there is no Load, so the card is a RESULT rather than a preview.
          ⚠️ Cycle is DISABLED while Product is None; the header Opacity also while the box hides it.
-         Product shares its row with [Discussion.] → the Outlook Discussion WINDOW (shared with ForeCast's;
+         [Discussion.] (Cycle's row) → the Outlook Discussion WINDOW (shared with ForeCast's;
          it reads the drawn issuance's discussion from SPC's archive).
          ⚠️ Days 1-3 is a PRODUCT BOUNDARY (SPC has no categorical past day 3), not an arbitrary cap; see
          the note on that row before widening it.
@@ -420,64 +422,54 @@
                         Context="{x:Bind ViewModel.PastOutlook.CardContext, Mode=OneWay}"
                         Footer="{x:Bind ViewModel.PastOutlook.CardFooter, Mode=OneWay}"/>
 
-                <Grid Grid.Row="1" ColumnSpacing="12" RowSpacing="10">
+                <!-- THE PICKERS, COMPACT — ForeCast's grid exactly (the user's call, 2026-10-28: one shape for both
+                     windows): no row labels; column 0 (212) = Day ≡ Cycle, same width, aligned; column 1 = Product ≡
+                     Discussion. (flush right). No ‹ › here (ForeCast's stepper only), so Cycle fills column 0. -->
+                <Grid Grid.Row="1" RowSpacing="8" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="212"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/> <!-- Day -->
-                        <RowDefinition Height="Auto"/> <!-- Product -->
-                        <RowDefinition Height="Auto"/> <!-- Cycle -->
+                        <RowDefinition Height="Auto"/> <!-- Day | Product -->
+                        <RowDefinition Height="Auto"/> <!-- Cycle | Discussion. -->
                     </Grid.RowDefinitions>
 
                     <!-- ⚠️ A ComboBox, the same control as ForeCast's Day row (the user's call, 2026-09-28: one
                          shape for both windows). It was a 3-segment SegmentedPicker.
                          ⚠️ DAYS 1-3 IS A PRODUCT BOUNDARY, not an arbitrary cap — SPC has no categorical outlook
-                         beyond day 3; days 4-8 are one combined probabilistic on a single daily issuance. -->
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Day" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                         beyond day 3; days 4-8 are one combined probabilistic on a single daily issuance.
+                         The product list CASCADES with the day (day 1 breaks out tornado/wind/hail; days 2-3
+                         carry a single combined probabilistic), so it stays a dropdown — its length changes. -->
+                    <ComboBox x:Name="PastOutlookDayComboBox" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch"
                               IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
                               ItemsSource="{x:Bind ViewModel.PastOutlook.Days}"
                               DisplayMemberPath="Label"
                               SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedDayOption, Mode=TwoWay}"
                               ToolTipService.ToolTip="Outlook day (1-3) for the replay date"/>
-
-                    <!-- The product list CASCADES with the day (day 1 breaks out tornado/wind/hail; days 2-3
-                         carry a single combined probabilistic), so it stays a dropdown — its length changes. -->
-                    <!-- …and SHARES its row with "Discussion.", which opens the Outlook Discussion window (no row of
-                         its own — the user's call, 2026-10-01; ForeCast's Product row matches). The window reads the
-                         DRAWN issuance's discussion from SPC's archive (PastOutlookViewModel.NarrativeText). -->
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Product" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <ComboBox HorizontalAlignment="Stretch"
-                                  IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
-                                  ItemsSource="{x:Bind ViewModel.PastOutlook.ProductOptions, Mode=OneWay}"
-                                  DisplayMemberPath="Label"
-                                  SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedProductOption, Mode=TwoWay}"
-                                  ToolTipService.ToolTip="Historical outlook product — None clears the overlay"/>
-                        <Button Grid.Column="1" Content="Discussion."
-                                IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
-                                Click="OnDiscussionClick"
-                                ToolTipService.ToolTip="Read SPC's forecast discussion for this outlook in its own window"/>
-                    </Grid>
+                    <ComboBox x:Name="PastOutlookProductComboBox" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                              IsEnabled="{x:Bind ViewModel.Radar.HasLoadedReplayWindow, Mode=OneWay}"
+                              ItemsSource="{x:Bind ViewModel.PastOutlook.ProductOptions, Mode=OneWay}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedProductOption, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Historical outlook product — None clears the overlay"/>
 
                     <!-- ⚠️ Cycle and Opacity are DISABLED while the product is None. None is this section's off
                          switch, so neither has anything to act on; they used to stay fully live over an empty
                          readout, which reads as a bug rather than as a state.
-                         ⚠️ Cycle now has its OWN ROW. It used to be crammed in beside Day behind a lowercase
-                         inline "cycle" label, which was the single most haphazard thing in this window. -->
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Cycle" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
+                         "Discussion." opens the Outlook Discussion window; it reads the DRAWN issuance's discussion
+                         from SPC's archive (PastOutlookViewModel.NarrativeText). -->
+                    <ComboBox x:Name="PastOutlookCycleComboBox" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch"
                               IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
                               ItemsSource="{x:Bind ViewModel.PastOutlook.CycleOptions, Mode=OneWay}"
                               DisplayMemberPath="Label"
                               SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedCycleOption, Mode=TwoWay}"
                               ToolTipService.ToolTip="SPC issuance cycle (UTC); Auto picks the one in effect at the replay time"/>
+                    <Button x:Name="PastOutlookDiscussionButton" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Right"
+                            Content="Discussion."
+                            IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
+                            Click="OnDiscussionClick"
+                            ToolTipService.ToolTip="Read SPC's forecast discussion for this outlook in its own window"/>
                 </Grid>
 
                 <!-- THE LEGEND (shared Primitives/OutlookLegend), last in the body like ForeCast's. Hides on

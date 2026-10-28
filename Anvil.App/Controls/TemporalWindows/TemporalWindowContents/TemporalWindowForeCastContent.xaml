@@ -22,7 +22,9 @@
        │  │ Next ~9 min                              │        │  and the refresh countdown
        │  └──────────────────────────────────────────┘        │
        │  [Day 1 · Wed Sep 2    ▾] [Categorical          ▾]  │  ← COMPACT, no row labels (the user's call, 2026-10-28):
-       │  [‹][1630Z (Latest) ▾][›]           [Discussion.]   │     Day narrowed (196) | Product; Cycle (148) with ‹ ›
+       │  [‹][1630Z (Latest)  ▾][›]           [Discussion.]  │     ONE grid: col 0 (212) = Day ≡ ‹ Cycle › (same width,
+       │  ↑ col 0 edges line up ↑                             │     aligned) | col 1 = Product ≡ Discussion. (flush right);
+       │                                                      │     ‹ ›
        │  2 of 3 today · 06Z · 13Z · 1630Z [✓] Prev. outline │     stepping the list (ends grey) … Discussion. opens the
        │                                                      │     Outlook Discussion WINDOW. Cycle = today's earlier
        │                                                      │     issuances (HELD) | the newest = the live feed, tagged;
@@ -206,10 +208,17 @@
                 <!-- THE SELECTORS, COMPACT (the user's call, 2026-10-28): NO row labels — Day self-labels, the rest
                      carry tooltips. Row 0 = Day (narrowed) | Product; row 1 = ‹ Cycle › … Discussion.; row 2 = where
                      the step is + the Previous outline box. -->
-                <Grid Grid.Row="1" RowSpacing="8">
+                <!-- ⚠️ ONE GRID, TWO COLUMNS SHARED BY BOTH ROWS (the user's call, 2026-10-28): the Day box and the
+                     ‹ Cycle › group are the SAME width (column 0) and align vertically; Product and Discussion. share
+                     column 1. Resize = the one column width. -->
+                <Grid Grid.Row="1" RowSpacing="8" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="212"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/> <!-- Day | Product -->
-                        <RowDefinition Height="Auto"/> <!-- ‹ Cycle › … Discussion. -->
+                        <RowDefinition Height="Auto"/> <!-- ‹ Cycle › | Discussion. -->
                         <RowDefinition Height="Auto"/> <!-- Cycle position + Previous outline -->
                     </Grid.RowDefinitions>
 
@@ -220,33 +229,25 @@
                          suits, and one control keeps the two sections identical.
                          Product: the day's outlook types (+ None). The list CASCADES with the day, so it stays
                          a dropdown — its length changes. -->
-                    <Grid Grid.Row="0" ColumnSpacing="8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="196"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <ComboBox x:Name="OutlookDayComboBox" HorizontalAlignment="Stretch"
-                                  ItemsSource="{x:Bind ViewModel.Outlook.Days}"
-                                  DisplayMemberPath="Label"
-                                  SelectedItem="{x:Bind ViewModel.Outlook.SelectedDayOption, Mode=TwoWay}"
-                                  ToolTipService.ToolTip="SPC outlook day"/>
-                        <ComboBox x:Name="OutlookProductComboBox" Grid.Column="1" HorizontalAlignment="Stretch"
-                                  ItemsSource="{x:Bind ViewModel.Outlook.ProductOptions, Mode=OneWay}"
-                                  DisplayMemberPath="Label"
-                                  SelectedItem="{x:Bind ViewModel.Outlook.SelectedOption, Mode=TwoWay}"
-                                  ToolTipService.ToolTip="Outlook product (None clears the overlay)"/>
-                    </Grid>
+                    <ComboBox x:Name="OutlookDayComboBox" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch"
+                              ItemsSource="{x:Bind ViewModel.Outlook.Days}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{x:Bind ViewModel.Outlook.SelectedDayOption, Mode=TwoWay}"
+                              ToolTipService.ToolTip="SPC outlook day"/>
+                    <ComboBox x:Name="OutlookProductComboBox" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                              ItemsSource="{x:Bind ViewModel.Outlook.ProductOptions, Mode=OneWay}"
+                              DisplayMemberPath="Label"
+                              SelectedItem="{x:Bind ViewModel.Outlook.SelectedOption, Mode=TwoWay}"
+                              ToolTipService.ToolTip="Outlook product (None clears the overlay)"/>
 
                     <!-- Cycle: Latest = the live feed, following every new issuance; an earlier one of today's is
                          fetched from IEM and HELD. Not persisted (see OutlookViewModel). Disabled while None, or when
                          the day has nothing earlier to pick (days 4-8, or before the first issuance). ‹ › step the
-                         SAME list (the user's call, 2026-10-28) so a step is exactly a pick; each end greys. The box
-                         is sized to its longest label, "1630Z (Latest)". "Discussion." (opens the Outlook Discussion
-                         window) moved here from the Product row and sits at the right edge. -->
-                    <Grid Grid.Row="1" ColumnSpacing="4">
+                         SAME list (the user's call, 2026-10-28) so a step is exactly a pick; each end greys. The group
+                         fills column 0, so its edges line up with the Day box above. "Discussion." (opens the Outlook
+                         Discussion window) sits in column 1, flush right. -->
+                    <Grid Grid.Row="1" Grid.Column="0" ColumnSpacing="4">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="148"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -271,15 +272,16 @@
                                 ToolTipService.ToolTip="Next issuance">
                             <FontIcon Glyph="&#xE76C;" FontSize="12"/>
                         </Button>
-                        <Button x:Name="OutlookDiscussionButton" Grid.Column="4" Content="Discussion."
-                                IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}"
-                                Click="OnDiscussionClick"
-                                ToolTipService.ToolTip="Read SPC's forecast discussion for this outlook in its own window"/>
                     </Grid>
+                    <Button x:Name="OutlookDiscussionButton" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Right"
+                            Content="Discussion."
+                            IsEnabled="{x:Bind ViewModel.Outlook.HasOutlook, Mode=OneWay}"
+                            Click="OnDiscussionClick"
+                            ToolTipService.ToolTip="Read SPC's forecast discussion for this outlook in its own window"/>
 
                     <!-- Where the step is ("2 of 3 today · 06Z · 13Z · 1630Z") + the PREVIOUS-issuance outline box
                          (persisted, default on): the cycle before the drawn one, dashed on the map. -->
-                    <Grid Grid.Row="2" ColumnSpacing="8"
+                    <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnSpacing="8"
                           Visibility="{x:Bind ViewModel.Outlook.CanPickCycle, Converter={StaticResource BoolToVis}, Mode=OneWay}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
