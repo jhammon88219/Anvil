@@ -57,16 +57,19 @@ namespace Anvil.Controls.Primitives
 		// from a DataTemplate. An Opacity, not a brush, so no theme brush is resolved in C#.
 		public static double HatchRowOpacity(bool inOutlook) => inOutlook ? 1.0 : 0.45;
 
-		// x:Bind helpers for the swatch's hatching. Deliberately split the SAME way outlook.js's
-		// makeHatchImage takes its `back` / `fwd` flags: each asks "does this pattern include this
-		// diagonal?", so the cross (CIG3) needs no case of its own and the swatch cannot drift out of step
-		// with the map's tiles. STATIC because they are called from a DataTemplate.
-		// ⚠️ The direction is the data here — every CIG level is black. See SpcHatchPattern.
-		public static Visibility HatchBackward(SpcHatchPattern pattern) =>
-			pattern is SpcHatchPattern.BackwardDiagonal or SpcHatchPattern.DiagonalCross
-				? Visibility.Visible : Visibility.Collapsed;
+		// x:Bind helpers for the swatch's hatching, one per drawn LINE and named by how it LOOKS — the same
+		// split as outlook.js makeHatchImage's `slashDashed` / `slash` / `backslash`, so the swatch cannot
+		// drift out of step with the map's tiles: CIG1 = dashed '/', CIG2 = solid '\', CIG3 = solid both.
+		// STATIC because they are called from a DataTemplate.
+		// ⚠️ The direction is the data here — every CIG level is black — and ESRI's pattern names read
+		// backwards (BackwardDiagonal is '/'). See SpcHatchPattern.
+		public static Visibility HatchSlashDashed(SpcHatchPattern pattern) =>
+			pattern is SpcHatchPattern.BackwardDiagonal ? Visibility.Visible : Visibility.Collapsed;
 
-		public static Visibility HatchForward(SpcHatchPattern pattern) =>
+		public static Visibility HatchSlash(SpcHatchPattern pattern) =>
+			pattern is SpcHatchPattern.DiagonalCross ? Visibility.Visible : Visibility.Collapsed;
+
+		public static Visibility HatchBackslash(SpcHatchPattern pattern) =>
 			pattern is SpcHatchPattern.ForwardDiagonal or SpcHatchPattern.DiagonalCross
 				? Visibility.Visible : Visibility.Collapsed;
 	}

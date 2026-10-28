@@ -5,8 +5,8 @@
 
        ──────────────────────────────────────────────         ← rule
         ▬▬ 2%                  Intensity hatching  [✓] Show    ← two EQUAL halves, both left + top aligned
-        ▬▬ 5%                  ╲╲ CIG1         In Outlook         (the user's call, 2026-10-01; hatching was
-        ▬▬ 10%                 ╱╱ CIG2         In Outlook          stacked UNDER the colours). Right half only
+        ▬▬ 5%                  ╱ ╱ CIG1        In Outlook         (the user's call, 2026-10-01; hatching was
+        ▬▬ 10%                 ╲╲ CIG2         In Outlook          stacked UNDER the colours). Right half only
         ▬▬ 15%                 ╳╳ CIG3     Not In Outlook          when HatchRows.Count > 0, else left EMPTY
         ▬▬ 30%                    ^ dimmed                         (colours don't jump on a product change).
         ▬▬ 45%                                                 ← swatch 40 × 16 (the user's call, 2026-09-30),
@@ -16,9 +16,10 @@
      is nothing to key (None, or the layer hidden) by binding Visibility to the VM's HasLegend.
      ⚠️ A Conditional Intensity Group is drawn as HATCHING over the fill, and the DIRECTION is the only
      thing telling the groups apart — every CIG level is black. So the swatch traces outlook.js's sig-hatch
-     tiles exactly: two Paths, '' and '/', shown by the same back/fwd rule makeHatchImage uses, which makes
-     CIG3 (both) fall out for free. Getting a direction wrong here makes the legend disagree with our own
-     map AND with spc.noaa.gov.
+     tiles exactly: three Paths — dashed '/' (CIG1), solid '/' and solid '\' (CIG2 = '\', CIG3 = both) —
+     shown by the same slashDashed/slash/backslash split makeHatchImage uses. Getting a direction wrong here
+     makes the legend disagree with our own map AND with spc.noaa.gov (ESRI's BackwardDiagonal is '/').
+     The dash keeps the map tile's proportions (dash .65 : gap .35 of the line spacing).
      ⚠️ The hatch lines are TRUE 45° lines every 7 units, running past the swatch and CLIPPED to it (Grid.Clip) —
      never a Stretch, which would skew the angle on a non-square swatch. Resize = new Width/Height, a matching
      Clip rect, and lines that still span it (x from −Height to Width, step 7).
@@ -53,10 +54,13 @@
                             BorderBrush="{x:Bind Stroke, Converter={StaticResource HexToBrush}}"
                             BorderThickness="1" CornerRadius="2"/>
                     <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
-                          Visibility="{x:Bind local:OutlookLegend.HatchBackward(Hatch)}"
+                          Visibility="{x:Bind local:OutlookLegend.HatchBackslash(Hatch)}"
                           Data="M-14,0 L2,16 M-7,0 L9,16 M0,0 L16,16 M7,0 L23,16 M14,0 L30,16 M21,0 L37,16 M28,0 L44,16 M35,0 L51,16"/>
                     <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
-                          Visibility="{x:Bind local:OutlookLegend.HatchForward(Hatch)}"
+                          Visibility="{x:Bind local:OutlookLegend.HatchSlash(Hatch)}"
+                          Data="M-14,16 L2,0 M-7,16 L9,0 M0,16 L16,0 M7,16 L23,0 M14,16 L30,0 M21,16 L37,0 M28,16 L44,0 M35,16 L51,0"/>
+                    <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1" StrokeDashArray="3.2 1.8"
+                          Visibility="{x:Bind local:OutlookLegend.HatchSlashDashed(Hatch)}"
                           Data="M-14,16 L2,0 M-7,16 L9,0 M0,16 L16,0 M7,16 L23,0 M14,16 L30,0 M21,16 L37,0 M28,16 L44,0 M35,16 L51,0"/>
                 </Grid>
                 <TextBlock Grid.Column="1" Text="{x:Bind OfficialName}"
@@ -83,10 +87,13 @@
                             BorderBrush="{x:Bind Level.Stroke, Converter={StaticResource HexToBrush}}"
                             BorderThickness="1" CornerRadius="2"/>
                     <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
-                          Visibility="{x:Bind local:OutlookLegend.HatchBackward(Level.Hatch)}"
+                          Visibility="{x:Bind local:OutlookLegend.HatchBackslash(Level.Hatch)}"
                           Data="M-14,0 L2,16 M-7,0 L9,16 M0,0 L16,16 M7,0 L23,16 M14,0 L30,16 M21,0 L37,16 M28,0 L44,16 M35,0 L51,16"/>
                     <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
-                          Visibility="{x:Bind local:OutlookLegend.HatchForward(Level.Hatch)}"
+                          Visibility="{x:Bind local:OutlookLegend.HatchSlash(Level.Hatch)}"
+                          Data="M-14,16 L2,0 M-7,16 L9,0 M0,16 L16,0 M7,16 L23,0 M14,16 L30,0 M21,16 L37,0 M28,16 L44,0 M35,16 L51,0"/>
+                    <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1" StrokeDashArray="3.2 1.8"
+                          Visibility="{x:Bind local:OutlookLegend.HatchSlashDashed(Level.Hatch)}"
                           Data="M-14,16 L2,0 M-7,16 L9,0 M0,16 L16,0 M7,16 L23,0 M14,16 L30,0 M21,16 L37,0 M28,16 L44,0 M35,16 L51,0"/>
                 </Grid>
                 <TextBlock Grid.Column="1" Text="{x:Bind Level.OfficialName}"

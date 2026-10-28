@@ -18,18 +18,20 @@ namespace Anvil.Models
 	/// The hatch pattern a <see cref="SpcLevelKind.ConditionalIntensity"/> level is drawn with. These
 	/// mirror SPC's own ArcGIS fill styles one-for-one (<c>esriSFSBackwardDiagonal</c> and friends), and
 	/// the PATTERN — not the colour — is what tells the groups apart: every CIG level is black.
-	/// ⚠️ The direction matters. Drawing CIG1 forward and CIG2 backward (which Anvil did until this
-	/// catalog landed) makes our map disagree with SPC's about which intensity group an area is in.
+	/// ⚠️ The names are ESRI's (after GDI+ hatch styles) and read BACKWARDS to the eye:
+	/// <c>ForwardDiagonal</c> is <c>\</c> (NW → SE), <c>BackwardDiagonal</c> is <c>/</c> (SW → NE).
+	/// SPC's own legend agrees: CIG1 = dashed <c>/</c>, CIG2 = solid <c>\</c>. Reading the names literally
+	/// swapped CIG1 and CIG2 on Anvil's map from 2026-09 to 2026-10-28 (docs/bugs.md).
 	/// </summary>
 	public enum SpcHatchPattern
 	{
 		/// <summary>Not hatched — a solid level.</summary>
 		None,
 
-		/// <summary>CIG1 — <c>\</c> lines.</summary>
+		/// <summary>CIG1 — <c>/</c> lines, drawn DASHED as SPC's legend draws them.</summary>
 		BackwardDiagonal,
 
-		/// <summary>CIG2 — <c>/</c> lines.</summary>
+		/// <summary>CIG2 — solid <c>\</c> lines.</summary>
 		ForwardDiagonal,
 
 		/// <summary>CIG3 — both directions crossed.</summary>

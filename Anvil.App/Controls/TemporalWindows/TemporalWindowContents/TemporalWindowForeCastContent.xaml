@@ -27,8 +27,8 @@
        │                                                      │     = the live feed, tagged (no separate Latest row)
        │  ────────────────────────────────────────────────    │
        │   ■ 2%              Intensity hatching   [✓] Show    │  ← the LEGEND (Primitives/OutlookLegend):
-       │   ■ 5%              ╲ CIG1             In Outlook    │     LAST in the section body, so it goes
-       │   ■ 10%             ╱ CIG2             In Outlook    │     with the section when collapsed; also
+       │   ■ 5%              ╱ CIG1             In Outlook    │     LAST in the section body, so it goes
+       │   ■ 10%             ╲ CIG2             In Outlook    │     with the section when collapsed; also
        │   ■ 15%             ╳ CIG3         Not In Outlook    │     hidden when HasLegend is false (None).
        │                                                      │  ← colours | hatching, two equal halves; the
        │                                                      │     hatching half only when the product has

@@ -10,9 +10,9 @@
 //   │▒▒▒▒▒▒▒▒ 5%  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒│   straight from the SPC GeoJSON (never hand-coded here)
 //   │▒▒▒┌────────────────────┐▒▒▒▒▒▒▒▒│
 //   │▒▒▒│▓▓▓▓ 10% ▓▓▓▓▓▓▓▓▓▓▓│▒▒▒▒▒▒▒▒│   hatching = the Conditional Intensity Groups:
-//   │▒▒▒│▓▓┌───────────┐▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG1  ╲╲╲╲╲   solid   '\'
-//   │▒▒▒│▓▓│ ╲╲╲ CIG1  │▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG2  ╱╱╱╱╱   solid   '/'
-//   │▒▒▒│▓▓│ ╱╳╱ CIG2… │▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG3  ╳╳╳╳╳   cross-hatch
+//   │▒▒▒│▓▓┌───────────┐▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG1  ╱ ╱ ╱   DASHED  '/'
+//   │▒▒▒│▓▓│ ╱ ╱ CIG1  │▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG2  ╲╲╲╲╲   solid   '\'
+//   │▒▒▒│▓▓│ ╲╳╲ CIG2… │▓▓▓▓▓│▒▒▒▒▒▒▒▒│      CIG3  ╳╳╳╳╳   solid cross-hatch
 //   │▒▒▒│▓▓└───────────┘▓▓▓▓▓│▒▒▒▒▒▒▒▒│
 //   │▒▒▒└────────────────────┘▒▒▒▒▒▒▒▒│   ⚠️ the groups NEST (CIG3 ⊂ CIG2 ⊂ CIG1), so each lower
 //   └──────────────────────────────────┘   group is CLIPPED to exclude the higher one before it is
@@ -88,9 +88,13 @@ function sigRank(label) {
 }
 
 // Builds one diagonal-hatch tile (light lines on transparent). `tile` = repeat size (bigger = sparser),
-// `width` = line thickness. `opts`: `fwd` draws the SW→NE '/' diagonal, `back` the SE→NW '\' (both =>
-// cross-hatch), `dash` (optional [on,off]) makes a line a row of dashes. Corner-to-corner lines tile
-// into continuous stripes.
+// `width` = line thickness. `opts`: `slash` draws solid SW→NE '/' lines, `backslash` solid NW→SE '\'
+// lines (both => cross-hatch), `slashDashed` the '/' as DASHES.
+// ⚠️ SEAMS: a solid line is drawn through all THREE of its diagonals that touch the tile (the corner
+// ones too), so the antialiased ends meet the neighbouring tile's and the stripe never breaks. The dashes
+// are FIXED pieces, not setLineDash — a dash rule restarts per tile and leaves dot-like stubs at the
+// edges. Two dashes per diagonal at u ∈ [.09,.41] and [.59,.91]: every gap is .18 of the diagonal,
+// across the tile seam included.
 function makeHatchImage(tile, width, opts) {
     opts = opts || {};
     // ⚠️ The INK is chrome and themed; the PATTERN (dashes / lines / cross-hatch) encodes which CIG
@@ -101,29 +105,42 @@ function makeHatchImage(tile, width, opts) {
     const ctx = c.getContext('2d');
     ctx.strokeStyle = COLOR;
     ctx.lineWidth = width;
-    ctx.lineCap = 'round';
-    if (opts.dash) ctx.setLineDash(opts.dash);
     ctx.beginPath();
-    if (opts.fwd) { ctx.moveTo(0, tile); ctx.lineTo(tile, 0); }   // '/'  SW -> NE
-    if (opts.back) { ctx.moveTo(0, 0); ctx.lineTo(tile, tile); }  // '\'  SE -> NW
+    ctx.lineCap = 'round';
+    const h = tile / 2;
+    if (opts.slash) {                                             // '/'  x+y = 0, tile, 2·tile
+        for (const p of [0, h, tile]) { ctx.moveTo(p - tile, p + tile); ctx.lineTo(p + tile, p - tile); }
+    }
+    if (opts.backslash) {                                         // '\'  x−y = −tile, 0, tile
+        for (const [px, py] of [[0, tile], [h, h], [tile, 0]]) { ctx.moveTo(px - tile, py - tile); ctx.lineTo(px + tile, py + tile); }
+    }
     ctx.stroke();
+    if (opts.slashDashed) {                                       // '/'  along (0,tile) → (tile,0)
+        ctx.beginPath();
+        ctx.lineCap = 'butt';
+        for (const [a, b] of [[0.09, 0.41], [0.59, 0.91]]) {
+            ctx.moveTo(a * tile, tile - a * tile);
+            ctx.lineTo(b * tile, tile - b * tile);
+        }
+        ctx.stroke();
+    }
     return ctx.getImageData(0, 0, tile, tile);
 }
 
-// One hatch image per Conditional Intensity Group, mirroring SPC's OWN fill styles exactly:
-// CIG1 = esriSFSBackwardDiagonal ('\'), CIG2 = esriSFSForwardDiagonal ('/'), CIG3 = esriSFSDiagonalCross.
-// ⚠️ THE DIRECTIONS ARE NOT INTERCHANGEABLE. Until 2026-09 this drew CIG1 as DASHED '/' and CIG2 as
-// solid '\' — i.e. the two lowest groups swapped against SPC — so an area SPC calls CIG2 read as CIG1
-// to anyone comparing Anvil against spc.noaa.gov. The pattern is the only thing distinguishing the
-// groups (every CIG level is black), so getting it backwards misreports the intensity outright.
-// The authority is SpcRiskCatalog's `hatch` field, harvested from the published symbology — if these
-// ever need to change, change them there first and mirror here. setStyle drops registered images, so
-// re-ensure on each add.
+// One hatch image per Conditional Intensity Group, matching SPC's own legend:
+// CIG1 = DASHED '/', CIG2 = solid '\', CIG3 = solid cross.
+// ⚠️ THE CATALOG'S NAMES READ BACKWARDS. SpcRiskCatalog's `hatch` is ESRI's fill style, and ESRI (after
+// GDI+) calls '\' ForwardDiagonal and '/' BackwardDiagonal — so CIG1 = esriSFSBackwardDiagonal is '/'.
+// 2026-09 read the names literally and swapped CIG1/CIG2 against spc.noaa.gov until 2026-10-28
+// (docs/bugs.md). The pattern is the only thing distinguishing the groups (every CIG level is black),
+// so getting it backwards misreports the intensity outright. The dashes are SPC's legend, not ESRI's
+// (a simple fill can't dash). Mirrored in Controls/Primitives/OutlookLegend.xaml. setStyle drops
+// registered images, so re-ensure on each add.
 const HATCH_TILE = 28;
 function ensureHatchImages(map) {
-    if (!map.hasImage('sig-hatch-1')) map.addImage('sig-hatch-1', makeHatchImage(HATCH_TILE, 1.6, { back: true }));
-    if (!map.hasImage('sig-hatch-2')) map.addImage('sig-hatch-2', makeHatchImage(HATCH_TILE, 1.6, { fwd: true }));
-    if (!map.hasImage('sig-hatch-3')) map.addImage('sig-hatch-3', makeHatchImage(HATCH_TILE, 1.6, { fwd: true, back: true }));
+    if (!map.hasImage('sig-hatch-1')) map.addImage('sig-hatch-1', makeHatchImage(HATCH_TILE, 1.6, { slashDashed: true }));
+    if (!map.hasImage('sig-hatch-2')) map.addImage('sig-hatch-2', makeHatchImage(HATCH_TILE, 1.6, { backslash: true }));
+    if (!map.hasImage('sig-hatch-3')) map.addImage('sig-hatch-3', makeHatchImage(HATCH_TILE, 1.6, { slash: true, backslash: true }));
 }
 
 // --- Clipping the nested CIG areas into exclusive rings --------------------------------------------
