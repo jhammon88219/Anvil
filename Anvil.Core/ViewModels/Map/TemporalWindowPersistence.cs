@@ -96,6 +96,7 @@ namespace Anvil.ViewModels
 			}
 			if (s.PastOutlookOpacity is double po) { pastOutlook.Opacity = Unit(po); }
 			if (s.PastOutlookShown is bool ps) { pastOutlook.IsShown = ps; }
+			if (s.PastOutlookShowPreviousCycle is bool ppc) { pastOutlook.ShowPreviousCycle = ppc; }
 
 			// Live outlook: day FIRST, for the same reason (picking a day also picks that day's default product).
 			if (s.ForeCastOutlookDay is int fd && outlook.Days.FirstOrDefault(d => d.Day == fd) is { } dayOption)
@@ -232,6 +233,8 @@ namespace Anvil.ViewModels
 						s.PastOutlookOpacity = pastOutlook.Opacity; break;
 					case nameof(PastOutlookViewModel.IsShown):
 						s.PastOutlookShown = pastOutlook.IsShown; break;
+					case nameof(PastOutlookViewModel.ShowPreviousCycle):
+						s.PastOutlookShowPreviousCycle = pastOutlook.ShowPreviousCycle; break;
 				}
 			};
 

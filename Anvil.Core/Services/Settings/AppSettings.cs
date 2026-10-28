@@ -592,6 +592,8 @@ namespace Anvil.Services
 		public bool? ForeCastShowHatching { get => _foreCastShowHatching; set => SetProperty(ref _foreCastShowHatching, value); }
 		private double? _foreCastHatchOpacity;
 		public double? ForeCastHatchOpacity { get => _foreCastHatchOpacity; set => SetProperty(ref _foreCastHatchOpacity, value); }
+		private bool? _pastOutlookShowPreviousCycle;
+		public bool? PastOutlookShowPreviousCycle { get => _pastOutlookShowPreviousCycle; set => SetProperty(ref _pastOutlookShowPreviousCycle, value); }
 		private bool? _foreCastShowPreviousCycle;
 		public bool? ForeCastShowPreviousCycle { get => _foreCastShowPreviousCycle; set => SetProperty(ref _foreCastShowPreviousCycle, value); }
 		private bool? _foreCastOutlookShown;

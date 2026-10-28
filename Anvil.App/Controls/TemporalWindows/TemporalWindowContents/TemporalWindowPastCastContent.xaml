@@ -96,7 +96,9 @@
      its own section HEADER.
        • Historical outlook (ViewModel.PastOutlook) — a card over TWO compact rows, ForeCast's grid exactly:
              [Day 1 · Mon May 20  ▾] [Tornado            ▾]
-             [13Z                 ▾]           [Discussion.]     ← col 0 (212): Day ≡ Cycle, aligned; no labels
+             [‹][13Z             ▾][›]         [Discussion.]     ← col 0 (212): Day ≡ ‹ Cycle ›, aligned; no labels
+             3 of 5 · 06Z · 13Z · 1630Z · 20Z · 01Z  [✓] Previous outline   ← ForeCast's stepper + dashed
+                                                                               previous issuance, exactly
          then the LEGEND (shared Primitives/OutlookLegend, a minimal fold, last in the section, gone when
          collapsed or nothing is drawn); opacity in the header. Day is a ComboBox, the same control as ForeCast's.
          Selecting a product fetches the archived issuance for the entered replay date and overlays it on
@@ -422,9 +424,10 @@
                         Context="{x:Bind ViewModel.PastOutlook.CardContext, Mode=OneWay}"
                         Footer="{x:Bind ViewModel.PastOutlook.CardFooter, Mode=OneWay}"/>
 
-                <!-- THE PICKERS, COMPACT — ForeCast's grid exactly (the user's call, 2026-10-28: one shape for both
-                     windows): no row labels; column 0 (212) = Day ≡ Cycle, same width, aligned; column 1 = Product ≡
-                     Discussion. (flush right). No ‹ › here (ForeCast's stepper only), so Cycle fills column 0. -->
+                <!-- THE PICKERS, COMPACT — ForeCast's grid EXACTLY (the user's call, 2026-10-28: "match exactly"): no
+                     row labels; column 0 (212) = Day ≡ ‹ Cycle ›, same width, aligned; column 1 = Product ≡ Discussion.
+                     (flush right); then the step line + Previous outline box. ‹ › step the day's issuances (never
+                     Auto — from Auto they step from the cycle Auto drew). -->
                 <Grid Grid.Row="1" RowSpacing="8" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="212"/>
@@ -432,7 +435,8 @@
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/> <!-- Day | Product -->
-                        <RowDefinition Height="Auto"/> <!-- Cycle | Discussion. -->
+                        <RowDefinition Height="Auto"/> <!-- ‹ Cycle › | Discussion. -->
+                        <RowDefinition Height="Auto"/> <!-- Cycle position + Previous outline -->
                     </Grid.RowDefinitions>
 
                     <!-- ⚠️ A ComboBox, the same control as ForeCast's Day row (the user's call, 2026-09-28: one
@@ -459,17 +463,54 @@
                          readout, which reads as a bug rather than as a state.
                          "Discussion." opens the Outlook Discussion window; it reads the DRAWN issuance's discussion
                          from SPC's archive (PastOutlookViewModel.NarrativeText). -->
-                    <ComboBox x:Name="PastOutlookCycleComboBox" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch"
-                              IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
-                              ItemsSource="{x:Bind ViewModel.PastOutlook.CycleOptions, Mode=OneWay}"
-                              DisplayMemberPath="Label"
-                              SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedCycleOption, Mode=TwoWay}"
-                              ToolTipService.ToolTip="SPC issuance cycle (UTC); Auto picks the one in effect at the replay time"/>
+                    <Grid Grid.Row="1" Grid.Column="0" ColumnSpacing="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="PastOutlookCycleBackButton" Padding="8,5" VerticalAlignment="Stretch"
+                                IsEnabled="{x:Bind ViewModel.PastOutlook.CanStepCycleBack, Mode=OneWay}"
+                                Click="{x:Bind ViewModel.PastOutlook.StepCycleBack}"
+                                AutomationProperties.Name="Previous issuance"
+                                ToolTipService.ToolTip="Previous issuance">
+                            <FontIcon Glyph="&#xE76B;" FontSize="12"/>
+                        </Button>
+                        <ComboBox x:Name="PastOutlookCycleComboBox" Grid.Column="1" HorizontalAlignment="Stretch"
+                                  IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
+                                  ItemsSource="{x:Bind ViewModel.PastOutlook.CycleOptions, Mode=OneWay}"
+                                  DisplayMemberPath="Label"
+                                  SelectedItem="{x:Bind ViewModel.PastOutlook.SelectedCycleOption, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="SPC issuance cycle (UTC); Auto picks the one in effect at the replay time"/>
+                        <Button x:Name="PastOutlookCycleForwardButton" Grid.Column="2" Padding="8,5" VerticalAlignment="Stretch"
+                                IsEnabled="{x:Bind ViewModel.PastOutlook.CanStepCycleForward, Mode=OneWay}"
+                                Click="{x:Bind ViewModel.PastOutlook.StepCycleForward}"
+                                AutomationProperties.Name="Next issuance"
+                                ToolTipService.ToolTip="Next issuance">
+                            <FontIcon Glyph="&#xE76C;" FontSize="12"/>
+                        </Button>
+                    </Grid>
                     <Button x:Name="PastOutlookDiscussionButton" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Right"
                             Content="Discussion."
                             IsEnabled="{x:Bind OutlookDetailEnabled(ViewModel.Radar.HasLoadedReplayWindow, ViewModel.PastOutlook.HasOutlook), Mode=OneWay}"
                             Click="OnDiscussionClick"
                             ToolTipService.ToolTip="Read SPC's forecast discussion for this outlook in its own window"/>
+
+                    <!-- Where the step is ("2 of 5 · 06Z · 13Z · 1630Z · 20Z · 01Z") + the PREVIOUS-issuance outline box
+                         (persisted, default on): the issuance before the drawn one, dashed on the map. -->
+                    <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnSpacing="8"
+                          Visibility="{x:Bind ViewModel.PastOutlook.HasCycleSteps, Converter={StaticResource BoolToVis}, Mode=OneWay}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{x:Bind ViewModel.PastOutlook.CyclePositionText, Mode=OneWay}"
+                                   VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <CheckBox x:Name="PastShowPreviousIssuanceCheckBox" Grid.Column="1" Content="Previous outline" MinWidth="0"
+                                  IsChecked="{x:Bind ViewModel.PastOutlook.ShowPreviousCycle, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Outline the issuance before this one (dashed) to see how the areas moved"/>
+                    </Grid>
                 </Grid>
 
                 <!-- THE LEGEND (shared Primitives/OutlookLegend), last in the body like ForeCast's. Hides on

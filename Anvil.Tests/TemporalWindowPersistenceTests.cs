@@ -158,7 +158,7 @@ namespace Anvil.Tests
 				StormCellsShowTracks = true, StormCellsShowTvs = false, StormCellsShowMeso = true, StormCellsShowHail = false, StormCellsOpacity = 0.65,
 				PastWarningsShowFlashFlood = false, PastWarningsOpacity = 0.7, PastWatchesShowSevere = false,
 				DiscussionsHiddenKinds = new() { "mpd", "no-such-kind" }, DiscussionsOpacity = 0.8,
-				PastOutlookDay = 2, PastOutlookProduct = "ProbabilisticCombined", PastOutlookOpacity = 0.3, PastOutlookShown = false,
+				PastOutlookDay = 2, PastOutlookProduct = "ProbabilisticCombined", PastOutlookOpacity = 0.3, PastOutlookShown = false, PastOutlookShowPreviousCycle = false,
 				ForeCastOutlookDay = 2, ForeCastOutlookProduct = "Tornado", ForeCastOutlookOpacity = 0.45, ForeCastShowHatching = false,
 				ForeCastHatchOpacity = 0.6, ForeCastShowPreviousCycle = false,
 			};
@@ -194,6 +194,7 @@ namespace Anvil.Tests
 			Assert.Equal(0.3, rig.PastOutlook.Opacity);
 			Assert.False(rig.PastOutlook.IsShown);
 			Assert.False(rig.PastOutlook.ShownOnMap);
+			Assert.False(rig.PastOutlook.ShowPreviousCycle);
 			Assert.Equal(2, rig.Outlook.SelectedDayOption?.Day);
 			Assert.Equal(SpcOutlookType.Tornado, rig.Outlook.SelectedOption?.Product?.Type);
 			Assert.Equal(0.45, rig.Outlook.OutlookOpacity);
@@ -222,6 +223,7 @@ namespace Anvil.Tests
 			rig.Outlook.ShowHatching = false;
 			rig.Outlook.HatchOpacity = 0.4;
 			rig.Outlook.ShowPreviousCycle = false;
+			rig.PastOutlook.ShowPreviousCycle = false;
 
 			Assert.Equal(0.55, s.RadarOpacity);
 			Assert.False(s.WarningsShowTornado);
@@ -243,6 +245,7 @@ namespace Anvil.Tests
 			Assert.False(s.ForeCastShowHatching);
 			Assert.Equal(0.4, s.ForeCastHatchOpacity);
 			Assert.False(s.ForeCastShowPreviousCycle);
+			Assert.False(s.PastOutlookShowPreviousCycle);
 		}
 
 		// The PastCast outlook's header box works whatever the product — None included (the user's call).

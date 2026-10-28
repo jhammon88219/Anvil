@@ -152,6 +152,7 @@ namespace Anvil.ViewModels
 			{
 				if (value is null || _selectedCycleOption == value) return;
 				SetProperty(ref _selectedCycleOption, value);
+				RaiseCycleStep();
 				_ = ApplyAsync();
 			}
 		}
@@ -162,6 +163,81 @@ namespace Anvil.ViewModels
 			opts.AddRange(SpcIssuanceCycles.For(SelectedDay).Select(c => new PastCycleOption(SpcIssuanceCycles.Label(c), c)));
 			_cycleOptions = opts;
 			OnPropertyChanged(nameof(CycleOptions));
+			RaiseCycleStep();
+		}
+
+		// ── Cycle STEPPER + PREVIOUS-ISSUANCE OUTLINE — ForeCast's exactly (the user's call, 2026-10-28: "match exactly").
+		//    Steps the day's ISSUANCES (never Auto): from Auto it steps from the cycle Auto DREW. A step selects that
+		//    cycle's own row, so it is exactly a pick. The outline = the issuance before the drawn one, dashed. ──
+
+		// What is on the map now (null = nothing drawn): set on a successful show, cleared with the layer.
+		private (DateOnly Date, int Day, SpcOutlookType Type, int Cycle)? _drawn;
+		private bool _showPreviousCycle = true;
+		private int _previousToken;
+
+		private List<PastCycleOption> Issuances => _cycleOptions.Where(o => o.Cycle is not null).ToList();
+
+		// The stepper's position: the picked cycle, or under Auto the one it drew. -1 = nowhere to step from.
+		private int StepIndex => (_selectedCycleOption?.Cycle ?? _drawn?.Cycle) is { } c ? Issuances.FindIndex(o => o.Cycle == c) : -1;
+
+		private bool CanStepCycle => HasOutlook && _radar.LoadedReplayStartUtc is not null;
+
+		/// <summary>‹ — an earlier issuance of the replay day to step to.</summary>
+		public bool CanStepCycleBack => CanStepCycle && StepIndex > 0;
+
+		/// <summary>› — a later issuance to step to.</summary>
+		public bool CanStepCycleForward => CanStepCycle && StepIndex is var i && i >= 0 && i < Issuances.Count - 1;
+
+		/// <summary>"2 of 5 · 06Z · 13Z · 1630Z · 20Z · 01Z" under the Cycle row; empty when there is nothing to step.</summary>
+		public string CyclePositionText => CanStepCycle && StepIndex >= 0
+			? $"{StepIndex + 1} of {Issuances.Count} · " + string.Join(" · ", Issuances.Select(o => o.Label))
+			: string.Empty;
+
+		/// <summary>Whether the step line + Previous outline row shows.</summary>
+		public bool HasCycleSteps => CyclePositionText.Length > 0;
+
+		public void StepCycleBack() { if (CanStepCycleBack) { SelectedCycleOption = Issuances[StepIndex - 1]; } }
+
+		public void StepCycleForward() { if (CanStepCycleForward) { SelectedCycleOption = Issuances[StepIndex + 1]; } }
+
+		private void RaiseCycleStep()
+		{
+			OnPropertyChanged(nameof(CanStepCycleBack));
+			OnPropertyChanged(nameof(CanStepCycleForward));
+			OnPropertyChanged(nameof(CyclePositionText));
+			OnPropertyChanged(nameof(HasCycleSteps));
+		}
+
+		/// <summary>Draws the previous issuance's outline under the drawn one. Persisted; default on.</summary>
+		public bool ShowPreviousCycle
+		{
+			get => _showPreviousCycle;
+			set
+			{
+				if (SetProperty(ref _showPreviousCycle, value) && _isMapReady && _radar.IsPastEventMode) { _ = UpdatePreviousCycleAsync(); }
+			}
+		}
+
+		// Pushes (or clears) the outline for what is DRAWN. Token-guarded: a newer apply or step wins.
+		private async Task UpdatePreviousCycleAsync()
+		{
+			var token = ++_previousToken;
+			var i = _drawn is { } d ? Issuances.FindIndex(o => o.Cycle == d.Cycle) : -1;
+			if (!_showPreviousCycle || _drawn is not { } drawn || i <= 0 || Issuances[i - 1].Cycle is not { } cycle)
+			{
+				await _mapService.ShowOutlookPreviousAsync(null);
+				return;
+			}
+
+			PastOutlookResult? result = null;
+			try { result = await _outlookService.EnsurePastOutlookAsync(drawn.Date, drawn.Day, cycle); }
+			catch (Exception) { /* no outline is the honest answer; the main layer reports its own failures */ }
+			if (token != _previousToken) return;
+
+			string? url = result is { Found: true, Error: null } && result.AvailableTypes.Contains(drawn.Type)
+				? $"https://{SpcOutlookService.CacheHostName}/{SpcOutlookService.PastCacheName(drawn.Date, drawn.Day, cycle, drawn.Type)}"
+				: null;
+			await _mapService.ShowOutlookPreviousAsync(url);
 		}
 
 		// ── Show / hide (the section header's box) ──
@@ -389,6 +465,12 @@ namespace Anvil.ViewModels
 		{
 			await _mapService.ClearOutlookAsync();
 			SetLegend(null);
+			// …and the previous-issuance outline with it (it describes the drawn one). ⚠️ The outline isn't touched
+			// by the page's clear (ForeCast's held steps rely on that), so it is cleared here explicitly.
+			_drawn = null;
+			++_previousToken;
+			RaiseCycleStep();
+			await _mapService.ShowOutlookPreviousAsync(null);
 		}
 
 		// Every card update goes through here, so no path can leave one of the three lines describing a
@@ -432,6 +514,7 @@ namespace Anvil.ViewModels
 			// next, so reacting to them re-fetched for a day the user had not committed to.
 			if (e.PropertyName is nameof(RadarViewModel.HasLoadedReplayWindow))
 			{
+				RaiseCycleStep(); // the stepper needs a loaded window
 				if (_radar.IsPastEventMode && _selectedProductOption.Type is not null)
 				{
 					_ = ApplyAsync();
@@ -519,6 +602,9 @@ namespace Anvil.ViewModels
 			await _mapService.ShowOutlookAsync(product);
 			if (token != _applyToken) return; // a newer selection won while the show was in flight
 			SetLegend(product);
+			_drawn = (date, day, type.Value, cycleUsed);
+			RaiseCycleStep();
+			_ = UpdatePreviousCycleAsync();
 			PastStatus.Loaded($"Day {day} · {SpcIssuanceCycles.Label(cycleUsed)}");
 
 			SetCard(_selectedProductOption.Label, ContextFor(day, date, cycleUsed), FormatTimes(result.Times));
