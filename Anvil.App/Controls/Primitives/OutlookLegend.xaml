@@ -20,6 +20,8 @@
      shown by the same slashDashed/slash/backslash split makeHatchImage uses. Getting a direction wrong here
      makes the legend disagree with our own map AND with spc.noaa.gov (ESRI's BackwardDiagonal is '/').
      The dash keeps the map tile's proportions (dash .65 : gap .35 of the line spacing).
+     ⚠️ A hatch swatch's BORDER is the hatch ink (ThemeResource), not the catalog's black stroke — the map
+     outlines every hatched area in that ink (outlook.js spc-outlook-sig-line); black vanished on dark.
      ⚠️ The hatch lines are TRUE 45° lines every 7 units, running past the swatch and CLIPPED to it (Grid.Clip) —
      never a Stretch, which would skew the angle on a non-square swatch. Resize = new Width/Height, a matching
      Clip rect, and lines that still span it (x from −Height to Width, step 7).
@@ -84,7 +86,7 @@
                         <RectangleGeometry Rect="0,0,40,16"/>
                     </Grid.Clip>
                     <Border Background="{x:Bind Level.Fill, Converter={StaticResource HexToBrush}}"
-                            BorderBrush="{x:Bind Level.Stroke, Converter={StaticResource HexToBrush}}"
+                            BorderBrush="{ThemeResource TextFillColorPrimaryBrush}"
                             BorderThickness="1" CornerRadius="2"/>
                     <Path Stroke="{ThemeResource TextFillColorPrimaryBrush}" StrokeThickness="1"
                           Visibility="{x:Bind local:OutlookLegend.HatchBackslash(Level.Hatch)}"

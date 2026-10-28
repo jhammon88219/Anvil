@@ -202,7 +202,7 @@ function clipSigFeatures(geojson) {
 }
 
 function removeOutlookLayers(map) {
-    ['spc-outlook-line', 'spc-outlook-sig1', 'spc-outlook-sig2', 'spc-outlook-sig3', 'spc-outlook-fill'].forEach(function (id) {
+    ['spc-outlook-sig-line', 'spc-outlook-line', 'spc-outlook-sig1', 'spc-outlook-sig2', 'spc-outlook-sig3', 'spc-outlook-fill'].forEach(function (id) {
         if (map.getLayer(id)) map.removeLayer(id);
     });
     if (map.getSource('spc-outlook')) map.removeSource('spc-outlook');
@@ -269,14 +269,27 @@ function addOutlookLayers(map) {
             paint: { 'fill-pattern': s.img }
         }, before);
     });
-    // Outlines for every area (the significant areas keep their black SPC outline).
+    // Outlines for every probability / category area, in the feed's own colour.
     map.addLayer({
         id: 'spc-outlook-line',
         type: 'line',
         source: 'spc-outlook',
-        filter: NOT_NOTE,
+        filter: ['all', ['!', SIG_FILTER], NOT_NOTE],
         paint: {
             'line-color': ['coalesce', ['get', 'stroke'], '#555555'],
+            'line-width': 1.5
+        }
+    }, before);
+    // Every hatched area is outlined, as SPC draws it — but in the HATCH INK, not the feed's black: on the
+    // dark map a black edge vanished. Part of the hatching, so the legend's Show box hides it too.
+    map.addLayer({
+        id: 'spc-outlook-sig-line',
+        type: 'line',
+        source: 'spc-outlook',
+        filter: SIG_FILTER,
+        layout: { visibility: hatchingVisible ? 'visible' : 'none' },
+        paint: {
+            'line-color': Theme.color('--anvil-hatch-ink', 'rgba(235,235,235,0.9)'),
             'line-width': 1.5
         }
     }, before);
@@ -318,10 +331,10 @@ export function setOpacity(map, opacity) {
     }
 }
 
-// Hides/shows ONLY the CIG hatch layers; fills and outlines stay. Remembered for re-adds.
+// Hides/shows ONLY the CIG hatch layers + their outline; fills and the probability outlines stay. Remembered for re-adds.
 export function setHatchingVisible(map, visible) {
     hatchingVisible = !!visible;
-    ['spc-outlook-sig1', 'spc-outlook-sig2', 'spc-outlook-sig3'].forEach(function (id) {
+    ['spc-outlook-sig1', 'spc-outlook-sig2', 'spc-outlook-sig3', 'spc-outlook-sig-line'].forEach(function (id) {
         if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', hatchingVisible ? 'visible' : 'none');
     });
 }
