@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.Models;
@@ -48,6 +50,24 @@ namespace Anvil.Controls.Primitives
 		public static readonly DependencyProperty ShowHatchingProperty =
 			DependencyProperty.Register(nameof(ShowHatching), typeof(bool), typeof(OutlookLegend),
 				new PropertyMetadata(true));
+
+		/// <summary>Opacity (0-1) of the hatch lines + their outline on the map (two-way) — the slider row.</summary>
+		public double HatchOpacity
+		{
+			get => (double)GetValue(HatchOpacityProperty);
+			set => SetValue(HatchOpacityProperty, value);
+		}
+
+		public static readonly DependencyProperty HatchOpacityProperty =
+			DependencyProperty.Register(nameof(HatchOpacity), typeof(double), typeof(OutlookLegend),
+				new PropertyMetadata(1.0));
+
+		// x:Bind helper: the slider's readout — the bound (view model's) number, as DragMoveLayerExpander's.
+		public string Percent(double opacity) =>
+			Math.Round(opacity * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
+
+		// x:Bind helper: a TextBlock has no disabled state, so the readout dims with the greyed slider.
+		public double ReadoutOpacity(bool showHatching) => showHatching ? 1.0 : 0.45;
 
 		// x:Bind helper: the hatching block exists only on products that have intensity groups.
 		public Visibility HasHatch(IReadOnlyList<OutlookHatchLegendRow>? rows) =>

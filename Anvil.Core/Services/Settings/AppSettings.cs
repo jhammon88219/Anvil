@@ -590,6 +590,8 @@ namespace Anvil.Services
 		public double? ForeCastOutlookOpacity { get => _foreCastOutlookOpacity; set => SetProperty(ref _foreCastOutlookOpacity, value); }
 		private bool? _foreCastShowHatching;
 		public bool? ForeCastShowHatching { get => _foreCastShowHatching; set => SetProperty(ref _foreCastShowHatching, value); }
+		private double? _foreCastHatchOpacity;
+		public double? ForeCastHatchOpacity { get => _foreCastHatchOpacity; set => SetProperty(ref _foreCastHatchOpacity, value); }
 		private bool? _foreCastOutlookShown;
 		public bool? ForeCastOutlookShown { get => _foreCastOutlookShown; set => SetProperty(ref _foreCastOutlookShown, value); }
 

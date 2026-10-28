@@ -4,13 +4,15 @@
      the ForeCast and PastCast outlook sections, which each drop it in as the LAST thing in the section body.
 
        ──────────────────────────────────────────────         ← rule
-        ▬▬ 2%                  Intensity hatching  [✓] Show    ← two EQUAL halves, both left + top aligned
-        ▬▬ 5%                  ╱ ╱ CIG1        In Outlook         (the user's call, 2026-10-01; hatching was
-        ▬▬ 10%                 ╲╲ CIG2         In Outlook          stacked UNDER the colours). Right half only
-        ▬▬ 15%                 ╳╳ CIG3     Not In Outlook          when HatchRows.Count > 0, else left EMPTY
-        ▬▬ 30%                    ^ dimmed                         (colours don't jump on a product change).
-        ▬▬ 45%                                                 ← swatch 40 × 16 (the user's call, 2026-09-30),
-        ▬▬ 60%                                                    both templates
+        ▬▬ 2%                  Opacity ────●──── 80%          ← hatch opacity (lines + outline; the user's call,
+        ▬▬ 5%                  Intensity hatching  [✓] Show       2026-10-28), greyed while Show is off
+        ▬▬ 10%                 ╱ ╱ CIG1        In Outlook      ← two EQUAL halves, both left + top aligned
+        ▬▬ 15%                 ╲╲ CIG2         In Outlook         (the user's call, 2026-10-01; hatching was
+        ▬▬ 30%                 ╳╳ CIG3     Not In Outlook          stacked UNDER the colours). Right half only
+        ▬▬ 45%                    ^ dimmed                         when HatchRows.Count > 0, else left EMPTY
+        ▬▬ 60%                                                     (colours don't jump on a product change).
+                                                               ← swatch 40 × 16 (the user's call, 2026-09-30),
+                                                                  both templates
 
      ⚠️ IT IS PART OF ITS SECTION, so collapsing the section hides it; the host hides it ITSELF when there
      is nothing to key (None, or the layer hidden) by binding Visibility to the VM's HasLegend.
@@ -125,9 +127,39 @@
                           ItemsSource="{x:Bind Entries, Mode=OneWay}"
                           ItemTemplate="{StaticResource OutlookLegendItemTemplate}"/>
 
-            <!-- Hatching heading + the Show box, then the groups. Absent on products with no intensity groups. -->
+            <!-- Hatch opacity, then the heading + the Show box, then the groups. Absent on products with no
+                 intensity groups. The slider fades the hatch lines AND their outline; greyed while Show is off. -->
             <StackPanel Grid.Column="1" VerticalAlignment="Top"
                         Visibility="{x:Bind HasHatch(HatchRows), Mode=OneWay}">
+                <Grid x:Name="HatchOpacityRow" Margin="0,0,0,2" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="36"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Opacity" VerticalAlignment="Center"
+                               Style="{StaticResource SettingsFieldLabelStyle}"/>
+                    <Slider x:Name="HatchOpacitySlider" Grid.Column="1"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                            Minimum="0" Maximum="1"
+                            StepFrequency="0.05" SmallChange="0.05" LargeChange="0.1"
+                            IsThumbToolTipEnabled="False"
+                            IsEnabled="{x:Bind ShowHatching, Mode=OneWay}"
+                            Value="{x:Bind HatchOpacity, Mode=TwoWay}"
+                            AutomationProperties.Name="Intensity hatching opacity"
+                            ToolTipService.ToolTip="How strongly the hatched intensity areas are drawn">
+                        <Slider.Resources>
+                            <x:Double x:Key="SliderHorizontalHeight">18</x:Double>
+                            <x:Double x:Key="SliderPreContentMargin">7</x:Double>
+                            <x:Double x:Key="SliderPostContentMargin">7</x:Double>
+                        </Slider.Resources>
+                    </Slider>
+                    <TextBlock Grid.Column="2" Style="{StaticResource TabularNumberTextStyle}"
+                               Text="{x:Bind Percent(HatchOpacity), Mode=OneWay}"
+                               Opacity="{x:Bind ReadoutOpacity(ShowHatching), Mode=OneWay}"
+                               FontSize="12" TextAlignment="Right" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </Grid>
                 <Grid Margin="0,0,0,2" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>

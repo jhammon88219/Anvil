@@ -330,6 +330,7 @@ namespace Anvil.ViewModels
 		private IReadOnlyList<SpcRiskLevel> _legendEntries = Array.Empty<SpcRiskLevel>();
 		private IReadOnlyList<OutlookHatchLegendRow> _hatchLegendRows = Array.Empty<OutlookHatchLegendRow>();
 		private bool _showHatching = true;
+		private double _hatchOpacity = 1.0;
 
 		/// <summary>The solid half of the drawn product's scale (NOAA colours + names). Empty when nothing is drawn.</summary>
 		public IReadOnlyList<SpcRiskLevel> LegendEntries => _legendEntries;
@@ -350,7 +351,21 @@ namespace Anvil.ViewModels
 			{
 				if (SetProperty(ref _showHatching, value) && _isMapReady && ShownOnMap)
 				{
-					_ = _mapService.SetOutlookHatchingVisibleAsync(value);
+					_ = _mapService.SetOutlookHatchingAsync(value, _hatchOpacity);
+				}
+			}
+		}
+
+		/// <summary>Opacity (0-1) of the CIG hatch lines and their outline — the legend's slider. Session-only,
+		/// like <see cref="ShowHatching"/>.</summary>
+		public double HatchOpacity
+		{
+			get => _hatchOpacity;
+			set
+			{
+				if (SetProperty(ref _hatchOpacity, value) && _isMapReady && ShownOnMap)
+				{
+					_ = _mapService.SetOutlookHatchingAsync(_showHatching, value);
 				}
 			}
 		}
@@ -500,7 +515,7 @@ namespace Anvil.ViewModels
 			await _mapService.SetOutlookOpacityAsync(_opacity);
 			// ⚠️ ORDERED after the show: the page resets hatching to shown on every show (the layer is shared
 			// with the live outlook), so the push must land after it. Same rule as OutlookViewModel.
-			await _mapService.SetOutlookHatchingVisibleAsync(_showHatching);
+			await _mapService.SetOutlookHatchingAsync(_showHatching, _hatchOpacity);
 			if (token != _applyToken) return; // a newer selection won while the show was in flight
 			SetLegend(product);
 			PastStatus.Loaded($"Day {day} · {SpcIssuanceCycles.Label(cycleUsed)}");

@@ -51,6 +51,7 @@ namespace Anvil.ViewModels
 		// Whether the CIG hatching is drawn. Session-only, starts shown — a fresh launch never hides hatching
 		// the user has forgotten about.
 		private bool _showHatching = true;
+		private double _hatchOpacity = 1.0;
 
 		// Fill opacity (0-1) for the outlook polygons; the outlines stay opaque so the
 		// basemap reads through. Driven by the ribbon's opacity slider.
@@ -418,7 +419,20 @@ namespace Anvil.ViewModels
 			{
 				if (SetProperty(ref _showHatching, value) && _isMapReady)
 				{
-					_ = _mapService.SetOutlookHatchingVisibleAsync(value);
+					_ = _mapService.SetOutlookHatchingAsync(value, _hatchOpacity);
+				}
+			}
+		}
+
+		/// <summary>Opacity (0-1) of the CIG hatch lines and their outline — the legend's slider. Default 1.</summary>
+		public double HatchOpacity
+		{
+			get => _hatchOpacity;
+			set
+			{
+				if (SetProperty(ref _hatchOpacity, value) && _isMapReady)
+				{
+					_ = _mapService.SetOutlookHatchingAsync(_showHatching, value);
 				}
 			}
 		}
@@ -614,7 +628,7 @@ namespace Anvil.ViewModels
 		private async Task ShowWithHatchingAsync(SpcOutlookProduct product)
 		{
 			await _mapService.ShowOutlookAsync(product);
-			await _mapService.SetOutlookHatchingVisibleAsync(_showHatching);
+			await _mapService.SetOutlookHatchingAsync(_showHatching, _hatchOpacity);
 		}
 
 		// Labels each outlook day with the calendar date it covers (Day N = today + N-1,

@@ -50,6 +50,9 @@ let currentOutlookOpacity = 0.05;
 // show(): the layer is shared with the PastCast outlook, which has no such box, so a hide must never
 // leak into it. The live OutlookViewModel re-pushes its own value right after each show.
 let hatchingVisible = true;
+// Opacity (0-1) of the hatch lines + their outline (the legend's slider). Reset to 1 by show() for the
+// same reason as hatchingVisible; each VM re-pushes its own right after.
+let hatchOpacity = 1;
 
 // SPC marks its "significant"/intensity areas as separate polygons (Conditional Intensity Groups):
 // LABEL = "CIG1"/"CIG2"/"CIG3" (tornado & wind go to 3, hail to 2); legacy single-significant "SIGN"
@@ -266,7 +269,7 @@ function addOutlookLayers(map) {
             source: 'spc-outlook',
             filter: s.filter,
             layout: { visibility: hatchingVisible ? 'visible' : 'none' },
-            paint: { 'fill-pattern': s.img }
+            paint: { 'fill-pattern': s.img, 'fill-opacity': hatchOpacity }
         }, before);
     });
     // Outlines for every probability / category area, in the feed's own colour.
@@ -290,7 +293,8 @@ function addOutlookLayers(map) {
         layout: { visibility: hatchingVisible ? 'visible' : 'none' },
         paint: {
             'line-color': Theme.color('--anvil-hatch-ink', 'rgba(235,235,235,0.9)'),
-            'line-width': 1.5
+            'line-width': 1.5,
+            'line-opacity': hatchOpacity
         }
     }, before);
     addNote(map);
@@ -314,7 +318,8 @@ function loadOutlook(map, url) {
 export function show(map, url) {
     currentOutlookUrl = url;
     outlookData = null;
-    hatchingVisible = true; // see hatchingVisible — a new outlook always starts hatched
+    hatchingVisible = true; // see hatchingVisible — a new outlook always starts hatched, fully opaque
+    hatchOpacity = 1;
     loadOutlook(map, url);
 }
 
@@ -331,11 +336,15 @@ export function setOpacity(map, opacity) {
     }
 }
 
-// Hides/shows ONLY the CIG hatch layers + their outline; fills and the probability outlines stay. Remembered for re-adds.
-export function setHatchingVisible(map, visible) {
+// Shows/hides AND fades ONLY the CIG hatch layers + their outline (the legend's Show box + its opacity
+// slider, sent as one command); fills and the probability outlines stay. Remembered for re-adds.
+export function setHatching(map, visible, opacity) {
     hatchingVisible = !!visible;
+    hatchOpacity = opacity;
     ['spc-outlook-sig1', 'spc-outlook-sig2', 'spc-outlook-sig3', 'spc-outlook-sig-line'].forEach(function (id) {
-        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', hatchingVisible ? 'visible' : 'none');
+        if (!map.getLayer(id)) return;
+        map.setLayoutProperty(id, 'visibility', hatchingVisible ? 'visible' : 'none');
+        map.setPaintProperty(id, id === 'spc-outlook-sig-line' ? 'line-opacity' : 'fill-opacity', hatchOpacity);
     });
 }
 

@@ -109,6 +109,7 @@ namespace Anvil.ViewModels
 			}
 			if (s.ForeCastOutlookOpacity is double fo) { outlook.OutlookOpacity = Unit(fo); }
 			if (s.ForeCastShowHatching is bool fh) { outlook.ShowHatching = fh; }
+			if (s.ForeCastHatchOpacity is double fho) { outlook.HatchOpacity = Unit(fho); }
 			if (s.ForeCastOutlookShown is bool fs) { outlook.IsShown = fs; }
 		}
 
@@ -247,6 +248,7 @@ namespace Anvil.ViewModels
 						break;
 					case nameof(OutlookViewModel.OutlookOpacity): s.ForeCastOutlookOpacity = outlook.OutlookOpacity; break;
 					case nameof(OutlookViewModel.ShowHatching): s.ForeCastShowHatching = outlook.ShowHatching; break;
+					case nameof(OutlookViewModel.HatchOpacity): s.ForeCastHatchOpacity = outlook.HatchOpacity; break;
 					case nameof(OutlookViewModel.IsShown): s.ForeCastOutlookShown = outlook.IsShown; break;
 				}
 			};
