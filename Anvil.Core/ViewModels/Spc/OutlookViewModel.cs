@@ -623,12 +623,13 @@ namespace Anvil.ViewModels
 			UpdateOutlookTimes();
 		}
 
-		// ⚠️ ORDERED: the page resets hatching to shown on every show (the layer is shared with PastCast), so
-		// the hatching push must land after the show, never alongside it.
+		// ⚠️ ORDERED BEFORE the show: the page keeps the LAST pushed hatching (the layer is shared with
+		// PastCast) and draws the new file the moment its fetch lands. A push sent AFTER the show could lose
+		// that race, so every refresh flashed the hatching at full opacity (2026-10-28, docs/bugs.md S27).
 		private async Task ShowWithHatchingAsync(SpcOutlookProduct product)
 		{
-			await _mapService.ShowOutlookAsync(product);
 			await _mapService.SetOutlookHatchingAsync(_showHatching, _hatchOpacity);
+			await _mapService.ShowOutlookAsync(product);
 		}
 
 		// Labels each outlook day with the calendar date it covers (Day N = today + N-1,

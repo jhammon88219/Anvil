@@ -511,11 +511,12 @@ namespace Anvil.ViewModels
 				CacheFileName: SpcOutlookService.PastCacheName(date, day, cycleUsed, type.Value),
 				LocalUrl: url);
 
-			await _mapService.ShowOutlookAsync(product);
+			// ⚠️ ORDERED BEFORE the show: the page keeps the LAST pushed look (the layer is shared with the live
+			// outlook) and draws the new file the moment its fetch lands — which can beat a push sent after the
+			// show, flashing the old look first. Same rule as OutlookViewModel.ShowWithHatchingAsync.
 			await _mapService.SetOutlookOpacityAsync(_opacity);
-			// ⚠️ ORDERED after the show: the page resets hatching to shown on every show (the layer is shared
-			// with the live outlook), so the push must land after it. Same rule as OutlookViewModel.
 			await _mapService.SetOutlookHatchingAsync(_showHatching, _hatchOpacity);
+			await _mapService.ShowOutlookAsync(product);
 			if (token != _applyToken) return; // a newer selection won while the show was in flight
 			SetLegend(product);
 			PastStatus.Loaded($"Day {day} · {SpcIssuanceCycles.Label(cycleUsed)}");

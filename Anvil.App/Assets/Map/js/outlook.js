@@ -46,12 +46,12 @@ import * as Templates from './templates.js';
 let currentOutlookUrl = null;    // GeoJSON URL currently shown (re-add after a basemap switch)
 let outlookData = null;          // fetched + CLIPPED GeoJSON (reused on re-add — no re-fetch/re-clip)
 let currentOutlookOpacity = 0.05;
-// Whether the CIG hatch layers are drawn (ForeCast legend's "Show" box). ⚠️ RESET to shown by every
-// show(): the layer is shared with the PastCast outlook, which has no such box, so a hide must never
-// leak into it. The live OutlookViewModel re-pushes its own value right after each show.
+// Whether the CIG hatch layers are drawn (the legend's "Show" box) and their opacity (0-1, its slider;
+// lines + outline). ⚠️ show() KEEPS them: both outlook VMs push their own look BEFORE every show, and the
+// new file is drawn with whatever is here the moment its fetch lands. show() used to reset them and the
+// VM re-pushed AFTER, but a fast local fetch beat that push — each refresh flashed the hatching at full
+// opacity (docs/bugs.md S27).
 let hatchingVisible = true;
-// Opacity (0-1) of the hatch lines + their outline (the legend's slider). Reset to 1 by show() for the
-// same reason as hatchingVisible; each VM re-pushes its own right after.
 let hatchOpacity = 1;
 
 // SPC marks its "significant"/intensity areas as separate polygons (Conditional Intensity Groups):
@@ -318,9 +318,7 @@ function loadOutlook(map, url) {
 export function show(map, url) {
     currentOutlookUrl = url;
     outlookData = null;
-    hatchingVisible = true; // see hatchingVisible — a new outlook always starts hatched, fully opaque
-    hatchOpacity = 1;
-    loadOutlook(map, url);
+    loadOutlook(map, url); // keeps the hatching look — see hatchingVisible
 }
 
 export function clear(map) {

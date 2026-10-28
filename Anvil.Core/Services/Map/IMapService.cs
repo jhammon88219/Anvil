@@ -77,7 +77,8 @@ namespace Anvil.Services
 		/// <summary>
 		/// Shows or hides the outlook's Conditional Intensity hatching and sets its opacity (0-1) — the hatch
 		/// lines AND their outline; fills + probability outlines unaffected. ONE command so the two can't drift.
-		/// ⚠️ The page resets both (shown, 1) on every <see cref="ShowOutlookAsync"/>, so push it AFTER a show.
+		/// ⚠️ The page KEEPS the last pushed values across shows, so push it BEFORE <see cref="ShowOutlookAsync"/>:
+		/// the new file draws the instant its fetch lands, which can beat a push sent after the show.
 		/// </summary>
 		Task SetOutlookHatchingAsync(bool visible, double opacity);
 

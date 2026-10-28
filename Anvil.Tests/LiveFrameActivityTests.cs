@@ -320,14 +320,15 @@ namespace Anvil.Tests
 		}
 
 		[Fact]
-		public async Task Idle_with_no_live_poll_is_an_empty_plate()
+		public async Task Idle_with_no_site_says_to_pick_one()
 		{
 			var rig = await LoadedLiveLoop();
 			rig.Radar.SelectedRadarOption = null;
 			await WaitFor(() => !rig.Radar.IsLivePolling);
-			await WaitFor(() => rig.Bar.Title.Length == 0);                // the next tick
+			// No site in NowCast: the dimmed plate asks for one instead of standing empty (the user's call, 2026-10-27).
+			await WaitFor(() => rig.Bar.Title == BarActivityViewModel.NoSiteTitle); // the next tick
 			Assert.False(rig.Bar.IsShown);
-			Assert.Equal(string.Empty, rig.Bar.Title);
+			Assert.Equal(string.Empty, rig.Bar.Detail);
 			Assert.False(rig.Bar.HasSecondary);
 		}
 	}
