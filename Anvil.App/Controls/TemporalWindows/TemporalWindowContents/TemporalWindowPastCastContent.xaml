@@ -487,7 +487,9 @@
                                     Entries="{x:Bind ViewModel.PastOutlook.LegendEntries, Mode=OneWay}"
                                     HatchRows="{x:Bind ViewModel.PastOutlook.HatchLegendRows, Mode=OneWay}"
                                     ShowHatching="{x:Bind ViewModel.PastOutlook.ShowHatching, Mode=TwoWay}"
-                                    HatchOpacity="{x:Bind ViewModel.PastOutlook.HatchOpacity, Mode=TwoWay}"/>
+                                    HatchOpacity="{x:Bind ViewModel.PastOutlook.HatchOpacity, Mode=TwoWay}"
+                                    Loaded="OnOutlookLegendLoaded"
+                                    ExpandedChanged="OnOutlookLegendExpandedChanged"/>
             </Grid>
         </dragMoveLayerExpanders:DragMoveLayerExpander>
 

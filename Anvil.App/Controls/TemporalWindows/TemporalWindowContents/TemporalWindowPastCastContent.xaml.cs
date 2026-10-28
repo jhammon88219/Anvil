@@ -40,6 +40,20 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 		public static readonly DependencyProperty ViewModelProperty =
 			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalWindowPastCastContent), new PropertyMetadata(null));
 
+		// The outlook legend's fold, persisted like a section ("past/outlook-legend"); ForeCast's twin. Set on the
+		// LEGEND's Loaded — it sits in a LAZY section body.
+		private const string LegendFoldKey = "past/outlook-legend";
+
+		private void OnOutlookLegendLoaded(object sender, RoutedEventArgs e)
+		{
+			if (sender is OutlookLegend legend && ViewModel is not null)
+			{
+				legend.IsExpanded = ViewModel.IsSectionExpanded(LegendFoldKey) ?? false;
+			}
+		}
+
+		private void OnOutlookLegendExpandedChanged(object? sender, bool open) => ViewModel?.SetSectionExpanded(LegendFoldKey, open);
+
 		// The header's date placeholder ("No replay date") dims until a window is loaded (the Readout dims its own).
 		public double PlaceholderOpacity(bool loaded) => loaded ? 1.0 : 0.4;
 

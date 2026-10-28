@@ -3,8 +3,11 @@
      product's scale, then (probabilistic products only) the Conditional Intensity hatching block. Shared by
      the ForeCast and PastCast outlook sections, which each drop it in as the LAST thing in the section body.
 
-       ──────────────────────────────────────────────         ← rule
-        ▬▬ 2%                  Opacity ────●──── 80%          ← hatch opacity (lines + outline; the user's call,
+       ›  Legend ───────────────────────────────────         ← a MINIMAL FOLD (the user's call, 2026-10-28): chevron +
+                                                                 word + hairline, no box; FOLDED by default, the host
+                                                                 persists it (IsExpanded + ExpandedChanged → SectionExpanded
+                                                                 "fore/outlook-legend" / "past/outlook-legend"). Open:
+        ▬▬ 2%                Opacity ────●──── 80%          ← hatch opacity (lines + outline; the user's call,
         ▬▬ 5%                  Intensity hatching  [✓] Show       2026-10-28), greyed while Show is off
         ▬▬ 10%                 ╱ ╱ CIG1        In Outlook      ← two EQUAL halves, both left + top aligned
         ▬▬ 15%                 ╲╲ CIG2         In Outlook         (the user's call, 2026-10-01; hatching was
@@ -112,12 +115,35 @@
     </UserControl.Resources>
 
     <StackPanel>
-        <Border Height="1" Margin="0,14"
-                Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+        <!-- THE FOLD: chevron · "Legend" · hairline to the edge. The same flat button as the warnings' ENDED fold. -->
+        <Button x:Name="OutlookLegendFoldButton" Margin="0,8,0,0" Padding="0" Height="26"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                Background="Transparent" BorderThickness="0" CornerRadius="4"
+                AutomationProperties.Name="{x:Bind FoldName(IsExpanded), Mode=OneWay}"
+                Click="OnFoldClick">
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <FontIcon Glyph="&#xE76C;" FontSize="10" VerticalAlignment="Center"
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" RenderTransformOrigin="0.5,0.5">
+                    <FontIcon.RenderTransform>
+                        <RotateTransform Angle="{x:Bind ChevronAngle(IsExpanded), Mode=OneWay}"/>
+                    </FontIcon.RenderTransform>
+                </FontIcon>
+                <TextBlock Grid.Column="1" Text="Legend" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Border Grid.Column="2" Height="1" VerticalAlignment="Center"
+                        Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+            </Grid>
+        </Button>
 
         <!-- Two EQUAL halves, both top-aligned: colours left, hatching right. The right half stays empty (not
              reclaimed) on a product with no intensity groups, so the colours never jump when the product changes. -->
-        <Grid ColumnSpacing="16">
+        <Grid x:Name="OutlookLegendBody" ColumnSpacing="16" Margin="0,8,0,0"
+              Visibility="{x:Bind Shown(IsExpanded), Mode=OneWay}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>

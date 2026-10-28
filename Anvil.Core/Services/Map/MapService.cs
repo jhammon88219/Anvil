@@ -69,8 +69,9 @@ namespace Anvil.Services
 		public Task SetOutlookHatchingAsync(bool visible, double opacity) =>
 			_mapView.RunScriptAsync(Call("setOutlookHatching", visible, opacity));
 
+		// null clears — written out, not passed through Call's params (a null there is the whole array).
 		public Task ShowOutlookPreviousAsync(string? url) =>
-			_mapView.RunScriptAsync(Call("showOutlookPrevious", url));
+			_mapView.RunScriptAsync(url is null ? "window.showOutlookPrevious(null);" : Call("showOutlookPrevious", url));
 
 		// SPC watch boxes: point the page at the cached watch GeoJSON, and toggle the layers.
 		public Task SetWatchSourceAsync(string url) =>

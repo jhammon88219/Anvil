@@ -45,7 +45,21 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 		// A ghost row shows only while its box is on and NowCast runs (MapViewModel.AreNowCastGhostsShown).
 		public Visibility GhostVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
 
-		// "Discussion." on the Product row — SPC's forecast discussion in its own window.
+		// The legend's fold, persisted like a section ("fore/outlook-legend"). Set on the LEGEND's Loaded — it sits in a
+		// LAZY section body, so it doesn't exist until the section first opens.
+		private const string LegendFoldKey = "fore/outlook-legend";
+
+		private void OnOutlookLegendLoaded(object sender, RoutedEventArgs e)
+		{
+			if (sender is OutlookLegend legend && ViewModel is not null)
+			{
+				legend.IsExpanded = ViewModel.IsSectionExpanded(LegendFoldKey) ?? false;
+			}
+		}
+
+		private void OnOutlookLegendExpandedChanged(object? sender, bool open) => ViewModel?.SetSectionExpanded(LegendFoldKey, open);
+
+		// "Discussion." on the Cycle row — SPC's forecast discussion in its own window.
 		private void OnDiscussionClick(object sender, RoutedEventArgs e)
 		{
 			if (ViewModel is not null) { ViewModel.IsOutlookDiscussionOpen = true; }

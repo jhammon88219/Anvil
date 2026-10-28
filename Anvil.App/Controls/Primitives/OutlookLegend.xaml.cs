@@ -51,6 +51,32 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(ShowHatching), typeof(bool), typeof(OutlookLegend),
 				new PropertyMetadata(true));
 
+		/// <summary>Whether the legend's fold is open. Default folded; the HOST persists it (set it on load, save
+		/// on <see cref="ExpandedChanged"/>) — a primitive never reaches settings itself.</summary>
+		public bool IsExpanded
+		{
+			get => (bool)GetValue(IsExpandedProperty);
+			set => SetValue(IsExpandedProperty, value);
+		}
+
+		public static readonly DependencyProperty IsExpandedProperty =
+			DependencyProperty.Register(nameof(IsExpanded), typeof(bool), typeof(OutlookLegend),
+				new PropertyMetadata(false));
+
+		/// <summary>The user opened or closed the fold (not raised for a host's own set).</summary>
+		public event EventHandler<bool>? ExpandedChanged;
+
+		private void OnFoldClick(object sender, RoutedEventArgs e)
+		{
+			IsExpanded = !IsExpanded;
+			ExpandedChanged?.Invoke(this, IsExpanded);
+		}
+
+		// x:Bind helpers for the fold — the same chevron rule as the warnings' ENDED fold.
+		public double ChevronAngle(bool open) => open ? 90 : 0;
+		public string FoldName(bool open) => open ? "Hide the outlook legend" : "Show the outlook legend";
+		public Visibility Shown(bool open) => open ? Visibility.Visible : Visibility.Collapsed;
+
 		/// <summary>Opacity (0-1) of the hatch lines + their outline on the map (two-way) — the slider row.</summary>
 		public double HatchOpacity
 		{
