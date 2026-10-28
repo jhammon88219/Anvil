@@ -82,6 +82,12 @@ namespace Anvil.Services
 		/// </summary>
 		Task SetOutlookHatchingAsync(bool visible, double opacity);
 
+		/// <summary>
+		/// Draws the PREVIOUS issuance (a cached outlook file's URL) as a faint dashed outline under the shown one,
+		/// or clears it (null). ForeCast's Cycle stepper only; independent of show/clear — the VM owns it.
+		/// </summary>
+		Task ShowOutlookPreviousAsync(string? url);
+
 		/// <summary>Starts a new radar loop for the site (clears any existing frames).</summary>
 		/// <param name="expectedFrames">
 		/// How many frames this loop will end up holding. ⚠️ NOT cosmetic — the page's dual-pol second wave

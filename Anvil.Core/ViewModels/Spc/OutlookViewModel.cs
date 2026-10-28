@@ -259,12 +259,89 @@ namespace Anvil.ViewModels
 			{
 				if (value is null || _selectedCycleOption == value) { return; }
 				SetProperty(ref _selectedCycleOption, value);
+				RaiseCycleStep();
 				ApplyCurrentOutlook();
 			}
 		}
 
 		/// <summary>The Cycle row's gate: a product picked AND an earlier issuance to pick.</summary>
 		public bool CanPickCycle => HasOutlook && _cycleOptions.Count > 1;
+
+		// ── Cycle STEPPER (the ‹ › around the Cycle box, the user's call 2026-10-28): steps the SAME list the box
+		//    holds, so a step is exactly a pick. Ends grey out; no wrap (a wrap from Latest to the oldest would
+		//    read as the polygons jumping backwards in time). ──
+
+		private int CycleIndex => _cycleOptions.ToList().IndexOf(_selectedCycleOption);
+
+		/// <summary>‹ — an earlier issuance of the day to step to.</summary>
+		public bool CanStepCycleBack => CanPickCycle && CycleIndex > 0;
+
+		/// <summary>› — a later issuance (up to Latest) to step to.</summary>
+		public bool CanStepCycleForward => CanPickCycle && CycleIndex is var i && i >= 0 && i < _cycleOptions.Count - 1;
+
+		/// <summary>"2 of 3 today · 06Z · 13Z · 1630Z" under the Cycle row; empty when there is nothing to step.</summary>
+		public string CyclePositionText => CanPickCycle && CycleIndex >= 0
+			? $"{CycleIndex + 1} of {_cycleOptions.Count} today · "
+				+ string.Join(" · ", _cycleOptions.Select(o => o.Cycle is { } c ? SpcIssuanceCycles.Label(c) : o.Label.Replace(" (Latest)", "")))
+			: string.Empty;
+
+		public void StepCycleBack() { if (CanStepCycleBack) { SelectedCycleOption = _cycleOptions[CycleIndex - 1]; } }
+
+		public void StepCycleForward() { if (CanStepCycleForward) { SelectedCycleOption = _cycleOptions[CycleIndex + 1]; } }
+
+		private void RaiseCycleStep()
+		{
+			OnPropertyChanged(nameof(CanStepCycleBack));
+			OnPropertyChanged(nameof(CanStepCycleForward));
+			OnPropertyChanged(nameof(CyclePositionText));
+		}
+
+		// ── PREVIOUS-ISSUANCE OUTLINE: the issuance just BEFORE the drawn one (in the Cycle list) as a faint dashed
+		//    outline, so stepping shows how the areas moved. Fetched like a held cycle (IEM, cached forever). ──
+
+		private bool _showPreviousCycle = true;
+		private int _previousToken;
+
+		/// <summary>Draws the previous issuance's outline under the drawn one. Persisted; default on.</summary>
+		public bool ShowPreviousCycle
+		{
+			get => _showPreviousCycle;
+			set
+			{
+				if (SetProperty(ref _showPreviousCycle, value) && _isMapReady) { _ = UpdatePreviousCycleAsync(); }
+			}
+		}
+
+		// Pushes (or clears) the outline for the CURRENT selection. Token-guarded: a newer step wins.
+		private async Task UpdatePreviousCycleAsync()
+		{
+			var token = ++_previousToken;
+			var live = _selectedOption?.Product;
+			var i = CycleIndex;
+			if (!_showPreviousCycle || live is null || !_isOutlookVisible || !_isShown || i <= 0
+				|| _cycleOptions[i - 1].Cycle is not { } cycle)
+			{
+				await _mapService.ShowOutlookPreviousAsync(null);
+				return;
+			}
+
+			var valid = ValidDayFor(live, live.Day);
+			PastOutlookResult? result = null;
+			try
+			{
+				result = await _spcOutlookService.EnsurePastOutlookAsync(valid, live.Day, cycle);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Previous outlook issuance {Cycle} fetch failed", cycle);
+			}
+			if (token != _previousToken) { return; }
+
+			string? url = result is { Found: true, Error: null } && result.AvailableTypes.Contains(live.Type)
+				? $"https://{SpcOutlookService.CacheHostName}/{SpcOutlookService.PastCacheName(valid, live.Day, cycle, live.Type)}"
+				: null;
+			await _mapService.ShowOutlookPreviousAsync(url);
+		}
 
 		// The HELD issuance's own product (its IEM cache file), once fetched; null while Latest, loading or failed.
 		private SpcOutlookProduct? _heldProduct;
@@ -311,6 +388,7 @@ namespace Anvil.ViewModels
 			_selectedCycleOption = keep;
 			OnPropertyChanged(nameof(SelectedCycleOption));
 			OnPropertyChanged(nameof(CanPickCycle));
+			RaiseCycleStep();
 		}
 
 		// Fetch + draw the held issuance of the live product's day/type. Token-guarded: any newer apply wins.
@@ -600,6 +678,7 @@ namespace Anvil.ViewModels
 				return;
 			}
 
+			_ = UpdatePreviousCycleAsync(); // follows EVERY apply: a step, a day / product change, hide, refresh
 			var product = _selectedOption?.Product;
 			if (product is not null && _isOutlookVisible && _isShown && _selectedCycleOption.Cycle is { } cycle)
 			{
@@ -744,6 +823,7 @@ namespace Anvil.ViewModels
 			OnPropertyChanged(nameof(HasOutlook));
 			OnPropertyChanged(nameof(ShownOnMap));
 			OnPropertyChanged(nameof(CanPickCycle));
+			RaiseCycleStep();
 			RaiseCard();
 		}
 
@@ -823,6 +903,7 @@ namespace Anvil.ViewModels
 				await ShowWithHatchingAsync(startupProduct);
 			}
 			await _mapService.SetOutlookOpacityAsync(_outlookOpacity);
+			_ = UpdatePreviousCycleAsync(); // detached: a cold cache fetches from IEM, and map-ready never awaits the network
 			UpdateOutlookTimes();
 		}
 	}

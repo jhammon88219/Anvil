@@ -520,6 +520,7 @@ try {
     window.showOutlook = function (url) { if (Outlook) forEachMap(function (m) { Outlook.show(m, url); }); };
     window.clearOutlook = function () { if (Outlook) forEachMap(function (m) { Outlook.clear(m); }); };
     window.setOutlookOpacity = function (opacity) { if (Outlook) forEachMap(function (m) { Outlook.setOpacity(m, opacity); }); };
+    window.showOutlookPrevious = function (url) { if (Outlook) forEachMap(function (m) { Outlook.showPrevious(m, url); }); };
     window.setOutlookHatching = function (visible, opacity) { if (Outlook) forEachMap(function (m) { Outlook.setHatching(m, visible, opacity); }); };
 
     // Watches and warnings both carry a `phenom` of TO (tornado) or SV (severe thunderstorm), and both

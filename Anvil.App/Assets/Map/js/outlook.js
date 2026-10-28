@@ -19,6 +19,10 @@
 //                                          drawn — otherwise the sparser hatch shows through the
 //                                          denser one's gaps and both read as mush
 //
+//   ┌ ─ ─ ─ ┐┌──────────┐                   PREVIOUS ISSUANCE (ForeCast's Cycle stepper, showPrevious):
+//    prev    ││ shown    │                  the cycle before the drawn one as a faint DASHED outline in
+//   └ ─ ─ ─ ┘└──────────┘                   each area's own stroke, so ‹ › shows how the areas moved
+//
 // The hatch tiles are drawn at runtime into a canvas (makeHatchImage) and registered as MapLibre
 // images, so tuning the look = the tile size / line width / dash there, not a bundled asset.
 //
@@ -346,8 +350,60 @@ export function setHatching(map, visible, opacity) {
     });
 }
 
+// --- The PREVIOUS issuance, as a faint dashed outline (ForeCast's Cycle stepper) ----------------------------
+// The issuance just before the drawn one, so stepping ‹ › shows how the areas MOVED. Outlines only (no fill,
+// no hatch, no clip): each area in its own SPC stroke, a hatched (CIG) area in the hatch ink like the live one.
+// ⚠️ INDEPENDENT of show()/clear(): OutlookViewModel owns it and sends null to clear (a held step clears the
+// main layer while it fetches; the outline must stay put through that).
+let previousUrl = null;
+let previousData = null;
+function removePreviousLayers(map) {
+    if (map.getLayer('spc-outlook-prev-line')) map.removeLayer('spc-outlook-prev-line');
+    if (map.getSource('spc-outlook-prev')) map.removeSource('spc-outlook-prev');
+}
+function addPreviousLayers(map) {
+    removePreviousLayers(map);
+    if (!previousData) return;
+    map.addSource('spc-outlook-prev', { type: 'geojson', data: previousData });
+    map.addLayer({
+        id: 'spc-outlook-prev-line',
+        type: 'line',
+        source: 'spc-outlook-prev',
+        filter: NOT_NOTE,
+        paint: {
+            'line-color': ['case', SIG_FILTER,
+                Theme.color('--anvil-hatch-ink', 'rgba(235,235,235,0.9)'),
+                ['coalesce', ['get', 'stroke'], '#888888']],
+            'line-width': 1.25,
+            'line-opacity': 0.75,
+            'line-dasharray': [2, 2]
+        }
+    }, firstSymbolLayerId(map));
+}
+export function showPrevious(map, url) {
+    if (!url) {
+        previousUrl = null;
+        previousData = null;
+        removePreviousLayers(map);
+        return;
+    }
+    if (url === previousUrl && previousData) { addPreviousLayers(map); return; }
+    previousUrl = url;
+    previousData = null;
+    removePreviousLayers(map);
+    fetch(url).then(function (r) { return r.json(); }).then(function (gj) {
+        if (previousUrl !== url) return; // a newer step won
+        previousData = gj;
+        if (map.isStyleLoaded()) addPreviousLayers(map);
+        else map.once('idle', function () { addPreviousLayers(map); });
+    }).catch(function (e) {
+        console.error('previous outlook load failed: ' + e);
+    });
+}
+
 // Re-add after a basemap switch: reuse the already-clipped data, or re-fetch if it isn't loaded yet.
 export function reAdd(map) {
     if (outlookData) addOutlookLayers(map);
     else if (currentOutlookUrl) loadOutlook(map, currentOutlookUrl);
+    if (previousData) addPreviousLayers(map);
 }

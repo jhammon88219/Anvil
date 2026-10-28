@@ -160,7 +160,7 @@ namespace Anvil.Tests
 				DiscussionsHiddenKinds = new() { "mpd", "no-such-kind" }, DiscussionsOpacity = 0.8,
 				PastOutlookDay = 2, PastOutlookProduct = "ProbabilisticCombined", PastOutlookOpacity = 0.3, PastOutlookShown = false,
 				ForeCastOutlookDay = 2, ForeCastOutlookProduct = "Tornado", ForeCastOutlookOpacity = 0.45, ForeCastShowHatching = false,
-				ForeCastHatchOpacity = 0.6,
+				ForeCastHatchOpacity = 0.6, ForeCastShowPreviousCycle = false,
 			};
 			var rig = new Rig(s);
 
@@ -199,6 +199,7 @@ namespace Anvil.Tests
 			Assert.Equal(0.45, rig.Outlook.OutlookOpacity);
 			Assert.False(rig.Outlook.ShowHatching);
 			Assert.Equal(0.6, rig.Outlook.HatchOpacity);
+			Assert.False(rig.Outlook.ShowPreviousCycle);
 		}
 
 		[Fact]
@@ -220,6 +221,7 @@ namespace Anvil.Tests
 			rig.Outlook.SelectedOption = rig.Outlook.ProductOptions[0]; // None
 			rig.Outlook.ShowHatching = false;
 			rig.Outlook.HatchOpacity = 0.4;
+			rig.Outlook.ShowPreviousCycle = false;
 
 			Assert.Equal(0.55, s.RadarOpacity);
 			Assert.False(s.WarningsShowTornado);
@@ -240,6 +242,7 @@ namespace Anvil.Tests
 			Assert.Equal("None", s.ForeCastOutlookProduct);
 			Assert.False(s.ForeCastShowHatching);
 			Assert.Equal(0.4, s.ForeCastHatchOpacity);
+			Assert.False(s.ForeCastShowPreviousCycle);
 		}
 
 		// The PastCast outlook's header box works whatever the product — None included (the user's call).

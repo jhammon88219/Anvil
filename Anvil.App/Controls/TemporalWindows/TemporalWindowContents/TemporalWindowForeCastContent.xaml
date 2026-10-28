@@ -23,8 +23,10 @@
        │  └──────────────────────────────────────────┘        │
        │  Day      [Day 1 · Wed Sep 2          ▾]             │  ← self-labeling; cascades Product
        │  Product  [Categorical       ▾] [Discussion.]        │  ← opens the Outlook Discussion WINDOW
-       │  Cycle    [13Z (Latest)               ▾]             │  ← today's earlier issuances (HELD) | the newest
-       │                                                      │     = the live feed, tagged (no separate Latest row)
+       │  Cycle    [‹] [13Z (Latest)          ▾] [›]          │  ← today's earlier issuances (HELD) | the newest
+       │           2 of 3 today · 06Z · 13Z · 1630Z  [✓] Previous outline │     = the live feed, tagged (no separate Latest row);
+       │                                                      │     ‹ › step the list (ends grey); the box draws the
+       │                                                      │     cycle BEFORE the drawn one dashed on the map
        │  ────────────────────────────────────────────────    │
        │   ■ 2%              Opacity ──────●────── 80%    │  ← the LEGEND (Primitives/OutlookLegend):
        │   ■ 5%              Intensity hatching   [✓] Show    │     LAST in the section body, so it goes
@@ -210,6 +212,7 @@
                         <RowDefinition Height="Auto"/> <!-- Day -->
                         <RowDefinition Height="Auto"/> <!-- Product -->
                         <RowDefinition Height="Auto"/> <!-- Cycle -->
+                        <RowDefinition Height="Auto"/> <!-- Cycle position + Previous outline -->
                     </Grid.RowDefinitions>
 
                     <!-- Day: self-labeling ("Day 1 · Sat Jun 14"); changing it cascades the product list.
@@ -248,13 +251,51 @@
                          out exactly alike). Latest = the live feed, following every new issuance; an earlier one of
                          today's is fetched from IEM and HELD. Not persisted (see OutlookViewModel). Disabled while
                          None, or when the day has nothing earlier to pick (days 4-8, or before the first issuance). -->
+                    <!-- ‹ › step the SAME list (the user's call, 2026-10-28) so a step is exactly a pick; each end greys. -->
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Cycle" Style="{StaticResource SettingsFieldLabelStyle}"/>
-                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
-                              IsEnabled="{x:Bind ViewModel.Outlook.CanPickCycle, Mode=OneWay}"
-                              ItemsSource="{x:Bind ViewModel.Outlook.CycleOptions, Mode=OneWay}"
-                              DisplayMemberPath="Label"
-                              SelectedItem="{x:Bind ViewModel.Outlook.SelectedCycleOption, Mode=TwoWay}"
-                              ToolTipService.ToolTip="SPC issuance (UTC); Latest follows each new one, an earlier one stays put"/>
+                    <Grid Grid.Row="2" Grid.Column="1" ColumnSpacing="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="OutlookCycleBackButton" Padding="8,5" VerticalAlignment="Stretch"
+                                IsEnabled="{x:Bind ViewModel.Outlook.CanStepCycleBack, Mode=OneWay}"
+                                Click="{x:Bind ViewModel.Outlook.StepCycleBack}"
+                                AutomationProperties.Name="Previous issuance"
+                                ToolTipService.ToolTip="Previous issuance">
+                            <FontIcon Glyph="&#xE76B;" FontSize="12"/>
+                        </Button>
+                        <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                  IsEnabled="{x:Bind ViewModel.Outlook.CanPickCycle, Mode=OneWay}"
+                                  ItemsSource="{x:Bind ViewModel.Outlook.CycleOptions, Mode=OneWay}"
+                                  DisplayMemberPath="Label"
+                                  SelectedItem="{x:Bind ViewModel.Outlook.SelectedCycleOption, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="SPC issuance (UTC); Latest follows each new one, an earlier one stays put"/>
+                        <Button x:Name="OutlookCycleForwardButton" Grid.Column="2" Padding="8,5" VerticalAlignment="Stretch"
+                                IsEnabled="{x:Bind ViewModel.Outlook.CanStepCycleForward, Mode=OneWay}"
+                                Click="{x:Bind ViewModel.Outlook.StepCycleForward}"
+                                AutomationProperties.Name="Next issuance"
+                                ToolTipService.ToolTip="Next issuance">
+                            <FontIcon Glyph="&#xE76C;" FontSize="12"/>
+                        </Button>
+                    </Grid>
+
+                    <!-- Where the step is ("2 of 3 today · 06Z · 13Z · 1630Z") + the PREVIOUS-issuance outline box
+                         (persisted, default on): the cycle before the drawn one, dashed on the map. -->
+                    <Grid Grid.Row="3" Grid.Column="1" ColumnSpacing="8"
+                          Visibility="{x:Bind ViewModel.Outlook.CanPickCycle, Converter={StaticResource BoolToVis}, Mode=OneWay}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{x:Bind ViewModel.Outlook.CyclePositionText, Mode=OneWay}"
+                                   VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <CheckBox x:Name="ShowPreviousIssuanceCheckBox" Grid.Column="1" Content="Previous outline" MinWidth="0"
+                                  IsChecked="{x:Bind ViewModel.Outlook.ShowPreviousCycle, Mode=TwoWay}"
+                                  ToolTipService.ToolTip="Outline the issuance before this one (dashed) to see how the areas moved"/>
+                    </Grid>
                 </Grid>
 
                 <!-- THE LEGEND: last in the body. Hides on HasLegend (None, or the layer off); the section's
