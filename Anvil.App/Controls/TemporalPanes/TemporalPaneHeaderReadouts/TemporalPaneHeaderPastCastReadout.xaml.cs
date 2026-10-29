@@ -2,12 +2,12 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts
+namespace Anvil.Controls.TemporalPanes.TemporalPaneHeaderReadouts
 {
 	/// <summary>The PastCast header's Readout — the loaded replay window's time range (see the XAML header).</summary>
-	public sealed partial class TemporalWindowHeaderPastCastReadout : UserControl
+	public sealed partial class TemporalPaneHeaderPastCastReadout : UserControl
 	{
-		public TemporalWindowHeaderPastCastReadout()
+		public TemporalPaneHeaderPastCastReadout()
 		{
 			InitializeComponent();
 		}
@@ -26,6 +26,6 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(RadarViewModel), typeof(TemporalWindowHeaderPastCastReadout), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(RadarViewModel), typeof(TemporalPaneHeaderPastCastReadout), new PropertyMetadata(null));
 	}
 }

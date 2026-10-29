@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalWindowHeader — the NAME ROW every temporal window opens with (NowCast / PastCast / ForeCast). ONE
-     control, three uses (one per TemporalWindow<Mode>Content): only the CONTENTS differ — the status colour,
+<!-- TemporalPaneHeader — the NAME ROW every temporal window opens with (NowCast / PastCast / ForeCast). ONE
+     control, three uses (one per TemporalPane<Mode>Content): only the CONTENTS differ — the status colour,
      the title, the subline and the Readout.
 
       ┌──┬──────────────────────────┬┬─────────────────┐
@@ -12,19 +12,19 @@
        └ status block, 22 wide, outer corners rounded; StatusFill is DATA (literal colours), never themed
 
      Readouts (the right slot) — one per mode, each its own control:
-       Now  → TemporalWindows/TemporalWindowHeaderReadouts/TemporalWindowHeaderNowCastReadout   (the clock)
-       Past → TemporalWindows/TemporalWindowHeaderReadouts/TemporalWindowHeaderPastCastReadout  (the loaded window's time range)
-       Fore → TemporalWindows/TemporalWindowHeaderReadouts/TemporalWindowHeaderForeCastReadout  (highest risk over the countdown)
+       Now  → TemporalPanes/TemporalPaneHeaderReadouts/TemporalPaneHeaderNowCastReadout   (the clock)
+       Past → TemporalPanes/TemporalPaneHeaderReadouts/TemporalPaneHeaderPastCastReadout  (the loaded window's time range)
+       Fore → TemporalPanes/TemporalPaneHeaderReadouts/TemporalPaneHeaderForeCastReadout  (highest risk over the countdown)
 
      ⚠️ THE HEIGHT IS THIS CONTROL'S (60, set on the root below) — never on a use, never a shared constant, so
      all three headers match by construction (the user's call, 2026-10-16). Not to be confused with
      Styles.xaml TemporalHeaderMinHeight, which sizes the Now/Past FIXED BLOCK around this, not this row.
      ⚠️ The row's top/bottom spacing and its right 4 px inset belong to the HOST's layout grid, not here. -->
 
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowHeader"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPaneHeader"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"

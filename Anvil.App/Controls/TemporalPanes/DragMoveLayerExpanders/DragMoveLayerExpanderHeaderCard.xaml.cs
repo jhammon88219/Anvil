@@ -1,7 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
-namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
+namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// The summary card at the top of a <see cref="DragMoveLayerExpander"/> body, flush under its header (see the

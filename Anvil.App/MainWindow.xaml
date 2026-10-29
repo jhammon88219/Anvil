@@ -18,7 +18,7 @@
        │ [Search ✕⌕] ⁙⁙⁙ ▣ ⊚┇   ╎◗▴ ⁙⁙⁙ [⌂ KTLX Oklahoma City ˅] ⁙⁙⁙ ⌕ ◎▴┆   ┇▥▴ ⁙⁙ ⌘⛶ ─ ▥▴ [Isolate ▾]│  TOOLS tier
        │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┇▒▒▒╎▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒┇▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒│  ╎ = console tools' left = console's
        │                     ┇   ╎1:07 PM ═══ scrubber ═══ VCP:  212┆   ┇                       │  ┆ = radar tools' right = scan text's
-       │ ↺ │⋮ ⁙⁙⁙ ((•))│⋮ ☁ │⋮┇   ╎     3/10  ◀ ▶ ▶  ↺  Mode: precip┆   ┇📡  ⚙   ⁙⁙⁙⁙⁙⁙   –│□│✕│  ┇ = a temporal window's INNER edge
+       │ ↺ │⋮ ⁙⁙⁙ ((•))│⋮ ☁ │⋮┇   ╎     3/10  ◀ ▶ ▶  ↺  Mode: precip┆   ┇📡  ⚙   ⁙⁙⁙⁙⁙⁙   –│□│✕│  ┇ = a temporal pane's INNER edge
        │ PastCast  NowCast ForeCast┇ ╎2 min ago       Rescans: SAILS ×1┆   ┇Atlas Settings          │  ⁙⁙⁙ = the STRETCHING dot spacers;
        └─────────────────────┴───┴───────── ↑ bar midpoint ─────────┴───┴─────────────────────────┘  the blank runs ┇…╎ / ┆…┇ give way first
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
@@ -48,9 +48,9 @@
             runs. One window per mode. (Same three-dot mark the retired shared panel key used.)
           ↑ ▥▴ (first of the right tools) = pane layout, ONE square key with an upward 1 / 2 / 4 list, on the TOOLS
             tier; it left this bar's right cluster, which is now window latches only. See MapControlsStrip.
-          ↑ ┇ THE SIDE SECTIONS END ON THE TEMPORAL WINDOWS' INNER EDGES (2026-10-22): both tiers' left sections end,
-            and both right sections start, on the inner edge of the 480-wide edge window above them, open or not
-            (AlignSideSections ← WindowManager.EdgeStripReach). Controls keep their size; one dot spacer per section
+          ↑ ┇ THE SIDE SECTIONS END ON THE TEMPORAL PANES' INNER EDGES (2026-10-22): both tiers' left sections end,
+            and both right sections start, on the inner edge of the 480-wide edge pane above them, open or not
+            (AlignSideSections ← the declared panes' Width). Controls keep their size; one dot spacer per section
             per tier takes the slack. The blank runs between the sections give way as the window shrinks.
           ↑ ▣ = the (future) marker viewer and ⊚ = Location follow the place search on the TOOLS
             tier. Location left this bar: it is a "where on the map" move like search, and an
@@ -61,7 +61,7 @@
             See MapControlsStrip. Don't re-add a Home key here.
           ↑ 📡 = Atlas, a plain window latch again, like Settings.
           ↑ The run between the console and Atlas is BLANK: the activity slot that sat there moved to each temporal
-            window's ACTIVITY EXPANDER (TemporalWindows/TemporalWindowActivityExpander, 2026-10-16).
+            window's ACTIVITY EXPANDER (TemporalPanes/TemporalPaneActivityExpander, 2026-10-16).
           ↑ Not drawn above: the LOOP HOLDING GATE — while a PastCast loop loads, the whole map (notches and the
             rail's see-through gaps included; the opaque tiers and both tabs paint over it) is frosted behind
             "Loading the loop" + progress bars + Cancel load (no escape since 2026-10-10). See Composites/LoopHoldingGate.
@@ -117,12 +117,14 @@
     xmlns:vm="using:Anvil.ViewModels"
     xmlns:ctl="using:Anvil.Controls.Primitives"
     xmlns:comp="using:Anvil.Controls.Composites"
+    xmlns:tp="using:Anvil.Controls.TemporalPanes"
     mc:Ignorable="d"
     Title="Anvil">
 
     <!-- Two overlay rows (see the sketch at the top of the file):
-           Row 0 — the map band (the map shows through). Every panel that pops over the map is a real
-                   top-level OS window owned by WindowManager, so nothing floats in-window.
+           Row 0 — the map band (the map shows through). The three TEMPORAL PANES overlay its edges (see the
+                   TEMPORAL PANES block); every other panel that pops over the map is a real top-level OS window
+                   owned by WindowManager.
            Row 1 — the bottom bar, pinned to the bottom edge. Its LEFT is RadarControls (the pane chips +
                    the global time module); its RIGHT is the global cluster below. The map RowSpans both,
                    so the boundary is invisible and costs the map nothing. -->
@@ -208,7 +210,7 @@
              show/hide flag is view state on each OverlayBar. Hiding the notch over the storm you are
              watching while the other three keep their legends is the case that actually comes up. -->
         <!-- ⚠️ THE SITE CHECK TOAST IS GONE from the map band: the announced site check now shows in the NowCast
-             window's ACTIVITY EXPANDER (TemporalWindowActivityExpander, fed by BarActivityViewModel.WatchSiteCheck). Don't re-add it here. -->
+             window's ACTIVITY EXPANDER (TemporalPaneActivityExpander, fed by BarActivityViewModel.WatchSiteCheck). Don't re-add it here. -->
 
         <Grid x:Name="PaneNotchLayer" Grid.Row="0" Grid.RowSpan="2">
             <Grid.Resources>
@@ -334,6 +336,41 @@
                 <TextBlock Text="{x:Bind ViewModel.ShortRange.ModelPaneLabel, Mode=OneWay}"
                            FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Border>
+        </Grid>
+
+        <!-- ===== TEMPORAL PANES ===== (TemporalPanes/TemporalPane — one class, three declarations, Mode set here ONCE)
+
+               ┌──────────┬───────────────────────────────────────────┬──────────┐
+               │ PastCast │                                           │ ForeCast │  each 480 wide (Styles.xaml
+               │    or    │              …the map…                    │          │  TemporalPaneWidth), flush to
+               │ NowCast  │                                           │          │  its edge and the window top,
+               │ (left)   │                                           │ (right)  │  down to the tools tier's top
+               ├──────────┴───────────────────────────────────────────┴──────────┤
+               │                       bottom chrome                             │
+               └─────────────────────────────────────────────────────────────────┘
+
+             OVERLAYS, not OS windows: they never resize or push the map. Past and Now share the LEFT edge, safe only
+             because Past excludes Now. Each shows while its pane flag is set (MapViewModel; a pane never outlives its
+             mode) and builds its body on first show (see TemporalPane). The layer's BOTTOM MARGIN is the opaque
+             tiers' height (OnBottomChromeSizeChanged) — the same inset the loop holding gate centres on — so a pane
+             ends on the tools tier's top in every tier state. The grid has no Background: between the panes the map
+             still takes the pointer. Declared after the notches (a pane covers a notch it overlaps, as the windows
+             did) and before the gate and the bottom chrome (the tier's cast shadow paints over a pane's foot).
+             ⚠️ The top 32 px is the window's CAPTION band — UpdateNotchInputRegions punches a Passthrough hole for
+             each visible pane, as for the notches, or its top would look alive and swallow clicks. -->
+        <Grid x:Name="TemporalPaneLayer" Grid.Row="0" Grid.RowSpan="2">
+            <tp:TemporalPane x:Name="TemporalPanePastCast" Mode="Past"
+                             Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.IsPastWindowOpen), Mode=OneWay}"
+                             ViewModel="{x:Bind ViewModel}"/>
+            <tp:TemporalPane x:Name="TemporalPaneNowCast" Mode="Now"
+                             Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.IsNowWindowOpen), Mode=OneWay}"
+                             ViewModel="{x:Bind ViewModel}"/>
+            <tp:TemporalPane x:Name="TemporalPaneForeCast" Mode="Fore"
+                             Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Right"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.IsForeWindowOpen), Mode=OneWay}"
+                             ViewModel="{x:Bind ViewModel}"/>
         </Grid>
 
         <!-- LOOP HOLDING GATE — PastCast's loading screen (Composites/LoopHoldingGate). It dims the map band and the
@@ -500,7 +537,7 @@
                                 <!-- ⚠️ ATLAS WAS A SPLIT KEY (a SplitTemporalToggle whose car opened a home/favorites
                                      flyout). That flyout became the tools tier's SITE PICKER (MapControlsStrip), so this
                                      is a plain window latch again, exactly like Settings. Don't re-split it.
-                                     ⚠️ Its glyph (EC05) is MIRRORED on TemporalWindowPastCastContent's Timeframe-card "Atlas" button — same
+                                     ⚠️ Its glyph (EC05) is MIRRORED on TemporalPanePastCastContent's Timeframe-card "Atlas" button — same
                                      door, same mark; change both.
                                      ⚠️ ONE-WAY + Click → ToggleAtlasFromBar: this key always opens on RADAR SITES (the
                                      user's call, 2026-10-01; PastCast's button opens on Past events). -->
@@ -557,7 +594,7 @@
                                      ⚠️ SET APART by RightClusterSpacer (it was a fixed 42 px gap, the user's call
                                      2026-09-30), so the window's own buttons don't read as a third app key. -->
                                 <!-- RIGHT CLUSTER SPACER — a stretching dot grid sized so ATLAS's left edge lands on the
-                                     ForeCast window's INNER edge (MainWindow.AlignSideSections, the user's call
+                                     ForeCast pane's INNER edge (MainWindow.AlignSideSections, the user's call
                                      2026-10-22). Width SET IN CODE; 10 is only the pre-layout value. -->
                                 <ctl:MapControlsStripSeparator x:Name="RightClusterSpacer"
                                                                Grid.Column="2"
@@ -572,7 +609,7 @@
                         </Grid>
 
                         <!-- ⚠️ NO ACTIVITY SLOT (removed 2026-10-16, the user's call): what Anvil is working on shows in
-                             each temporal window's ACTIVITY EXPANDER (TemporalWindows/TemporalWindowActivityExpander), per mode. The run
+                             each temporal window's ACTIVITY EXPANDER (TemporalPanes/TemporalPaneActivityExpander), per mode. The run
                              between the console and Atlas is a permanent BLANK run (the section rules allow it). -->
 
                         <!-- ===== TEMPORAL MODE KEYS — the bar's LEFT edge =====

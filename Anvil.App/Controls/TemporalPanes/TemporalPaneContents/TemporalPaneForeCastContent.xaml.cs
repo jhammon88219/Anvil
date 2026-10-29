@@ -4,18 +4,18 @@ using Anvil.Controls.Primitives;
 using Anvil.Models;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
+namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 {
 	/// <summary>
 	/// The ForeCast window body (see the XAML header) — the SPC outlook section (card over day / product +
 	/// Discussion. / cycle, legend), plus NowCast's GHOST rows around it. Bound to the coordinator
 	/// <see cref="MapViewModel"/>; every real control here drives <c>ViewModel.Outlook</c>.
 	/// </summary>
-	public sealed partial class TemporalWindowForeCastContent : UserControl
+	public sealed partial class TemporalPaneForeCastContent : UserControl
 	{
 		private bool _expansionBound;
 
-		public TemporalWindowForeCastContent()
+		public TemporalPaneForeCastContent()
 		{
 			InitializeComponent();
 			// Once: Loaded fires again every time the window re-shows this body.
@@ -80,6 +80,6 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalWindowForeCastContent), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalPaneForeCastContent), new PropertyMetadata(null));
 	}
 }

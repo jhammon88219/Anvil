@@ -4,15 +4,15 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalPanes
 {
 	/// <summary>
 	/// One warning tile under the NowCast header (see the XAML header): a band with the label and ‹ ›, the count,
 	/// the state lines and the tag line. One control, three uses — Tornado / Severe / Flash flood.
 	/// </summary>
-	public sealed partial class TemporalWindowNowCastWarningTile : UserControl
+	public sealed partial class TemporalPaneNowCastWarningTile : UserControl
 	{
-		public TemporalWindowNowCastWarningTile()
+		public TemporalPaneNowCastWarningTile()
 		{
 			InitializeComponent();
 		}
@@ -24,7 +24,7 @@ namespace Anvil.Controls.TemporalWindows
 			set => SetValue(ViewModelProperty, value);
 		}
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(WarningStepper), typeof(TemporalWindowNowCastWarningTile), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(WarningStepper), typeof(TemporalPaneNowCastWarningTile), new PropertyMetadata(null));
 
 		/// <summary>Every warning of this hazard in effect nationwide — never the ticked rows (user's call).</summary>
 		public int Count
@@ -33,7 +33,7 @@ namespace Anvil.Controls.TemporalWindows
 			set => SetValue(CountProperty, value);
 		}
 		public static readonly DependencyProperty CountProperty =
-			DependencyProperty.Register(nameof(Count), typeof(int), typeof(TemporalWindowNowCastWarningTile), new PropertyMetadata(0));
+			DependencyProperty.Register(nameof(Count), typeof(int), typeof(TemporalPaneNowCastWarningTile), new PropertyMetadata(0));
 
 		/// <summary>The tag line (WarningThreatCounts, this hazard's split).</summary>
 		public string Threats
@@ -42,7 +42,7 @@ namespace Anvil.Controls.TemporalWindows
 			set => SetValue(ThreatsProperty, value);
 		}
 		public static readonly DependencyProperty ThreatsProperty =
-			DependencyProperty.Register(nameof(Threats), typeof(string), typeof(TemporalWindowNowCastWarningTile), new PropertyMetadata(""));
+			DependencyProperty.Register(nameof(Threats), typeof(string), typeof(TemporalPaneNowCastWarningTile), new PropertyMetadata(""));
 
 		/// <summary>The name on the band: "Tornado" / "Severe" / "Flash flood".</summary>
 		public string Label
@@ -51,7 +51,7 @@ namespace Anvil.Controls.TemporalWindows
 			set => SetValue(LabelProperty, value);
 		}
 		public static readonly DependencyProperty LabelProperty =
-			DependencyProperty.Register(nameof(Label), typeof(string), typeof(TemporalWindowNowCastWarningTile), new PropertyMetadata(""));
+			DependencyProperty.Register(nameof(Label), typeof(string), typeof(TemporalPaneNowCastWarningTile), new PropertyMetadata(""));
 
 		/// <summary>The hazard in words, lower case, for the tooltips: "tornado" / "severe thunderstorm" / "flash flood".</summary>
 		public string Hazard
@@ -60,7 +60,7 @@ namespace Anvil.Controls.TemporalWindows
 			set => SetValue(HazardProperty, value);
 		}
 		public static readonly DependencyProperty HazardProperty =
-			DependencyProperty.Register(nameof(Hazard), typeof(string), typeof(TemporalWindowNowCastWarningTile), new PropertyMetadata(""));
+			DependencyProperty.Register(nameof(Hazard), typeof(string), typeof(TemporalPaneNowCastWarningTile), new PropertyMetadata(""));
 
 		/// <summary>The band's DEEP colour — a data literal, never themed.</summary>
 		public Brush? BandFill
@@ -69,7 +69,7 @@ namespace Anvil.Controls.TemporalWindows
 			set => SetValue(BandFillProperty, value);
 		}
 		public static readonly DependencyProperty BandFillProperty =
-			DependencyProperty.Register(nameof(BandFill), typeof(Brush), typeof(TemporalWindowNowCastWarningTile), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(BandFill), typeof(Brush), typeof(TemporalPaneNowCastWarningTile), new PropertyMetadata(null));
 
 		/// <summary>The BRIGHT colour of the label and the ‹ › — a data literal, never themed.</summary>
 		public Brush? Ink
@@ -78,7 +78,7 @@ namespace Anvil.Controls.TemporalWindows
 			set => SetValue(InkProperty, value);
 		}
 		public static readonly DependencyProperty InkProperty =
-			DependencyProperty.Register(nameof(Ink), typeof(Brush), typeof(TemporalWindowNowCastWarningTile), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(Ink), typeof(Brush), typeof(TemporalPaneNowCastWarningTile), new PropertyMetadata(null));
 
 		// ── x:Bind functions ──
 

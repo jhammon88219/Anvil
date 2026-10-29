@@ -2,12 +2,12 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts
+namespace Anvil.Controls.TemporalPanes.TemporalPaneHeaderReadouts
 {
 	/// <summary>The ForeCast header's Readout — highest risk over the refresh countdown (see the XAML header).</summary>
-	public sealed partial class TemporalWindowHeaderForeCastReadout : UserControl
+	public sealed partial class TemporalPaneHeaderForeCastReadout : UserControl
 	{
-		public TemporalWindowHeaderForeCastReadout()
+		public TemporalPaneHeaderForeCastReadout()
 		{
 			InitializeComponent();
 		}
@@ -23,6 +23,6 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(OutlookViewModel), typeof(TemporalWindowHeaderForeCastReadout), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(OutlookViewModel), typeof(TemporalPaneHeaderForeCastReadout), new PropertyMetadata(null));
 	}
 }

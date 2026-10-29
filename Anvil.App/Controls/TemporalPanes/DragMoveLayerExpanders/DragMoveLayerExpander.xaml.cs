@@ -10,7 +10,7 @@ using Windows.Foundation;
 using Windows.System;
 using Windows.UI.Core;
 
-namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
+namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// One MAP LAYER in a temporal window — a fixed-height header over a collapsible <see cref="Body"/>, dragged
@@ -276,7 +276,7 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 
 		// ── Grip: reports to the host ────────────────────────────────────────────────────────────────
 		// The drag itself — bounds, slots, siblings stepping aside, the final move, Reordered — is the HOST's
-		// (TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpanderHost). This side only owns the pointer: cursor, capture, the Lifted look.
+		// (TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpanderHost). This side only owns the pointer: cursor, capture, the Lifted look.
 
 		private DragMoveLayerExpanderHost? Host => Parent as DragMoveLayerExpanderHost;
 

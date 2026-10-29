@@ -45,9 +45,9 @@
           viewer — PLACEHOLDER; ⊚ Location        answers WHEN) ⁙ ⌕ INSPECT, ◎▴ the RANGE RINGS  reset north, fit to view ─ MAP key + car,
           (lit = marker out); ✕ stays while       + RULER picker                                 isolation (fixed width).
           there is text
-        ⚠️ THE SIDE SECTIONS ALIGN TO THE TEMPORAL WINDOWS (the user's call, 2026-10-22): each side section spans the bar's
-            16 px padding to the INNER edge of the 480-wide edge window above it (WindowManager.EdgeStripReach), whether or not
-            that window is open. Controls keep their size; ONE stretching dot spacer per side takes the slack
+        ⚠️ THE SIDE SECTIONS ALIGN TO THE TEMPORAL PANES (the user's call, 2026-10-22): each side section spans the bar's
+            16 px padding to the INNER edge of the 480-wide edge pane above it (Styles.xaml TemporalPaneWidth), whether or not
+            that pane is shown. Controls keep their size; ONE stretching dot spacer per side takes the slack
             (AlignToWindowEdges, from MainWindow). The bar below does the same with its own spacers.
         ⚠️ THE CENTRE SECTION RULES (the user's, 2026-10-06 — docs/ui-bottom-bar.md "THE SECTION RULES"): the network
             toggles start on the console's LEFT visible edge, the site picker is CENTRED on play, the radar tools END on

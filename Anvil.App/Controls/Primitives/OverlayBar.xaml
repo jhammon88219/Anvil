@@ -224,7 +224,7 @@
              the EdgeStates'; these defaults are the Bottom edge's.
              ⚠️ TWO DEPTHS (2026-10-19, the user's call): the BOTTOM edge (the bottom chrome's tiers) casts the DENSE
              shade — DenseShadowFadeUp, 36 deep, solid black at the plate, starting 10 px above the rail's tabs; it
-             matches TemporalWindowActivityExpander's. The TOP edge (the pane notches) keeps the light 14 px
+             matches TemporalPaneActivityExpander's. The TOP edge (the pane notches) keeps the light 14 px
              ShadowFadeDown, as do the island side bands. -->
         <Border x:Name="CastShadow"
                 Grid.Row="1"

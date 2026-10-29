@@ -1,14 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalWindowNowCastContent — the CONTENT of the NowCast window: storm cells, storm reports, warnings, watches and the radar layer, one
-     LAYER SECTION each. One of three mode Contents (see Controls/TemporalWindows/TemporalWindow, registered once per
+<!-- TemporalPaneNowCastContent — the CONTENT of the NowCast window: storm cells, storm reports, warnings, watches and the radar layer, one
+     LAYER SECTION each. One of three mode Contents (see Controls/TemporalPanes/TemporalPane, registered once per
      mode); the window supplies the surface, the title and the pin, so this is content only.
-     Named as the tree reads (TemporalWindow → TemporalWindowNowCastContent). Bound to the coordinator MapViewModel.
+     Named as the tree reads (TemporalPane → TemporalPaneNowCastContent). Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────────────┐
        │  ┌──┐  NowCast                          │                   │  ← THE HEADER: FIXED, no section
        │  │██│                                   │  5:42 PM          │    header, can't collapse. Clock =
        │  └──┘  Monday Sep 28                    │  (console clock)  │    the MACHINE's time, no seconds
-       │         ↑ the window's ONLY "NowCast" (TemporalWindow has no title row); date LEFT under it
+       │         ↑ the window's ONLY "NowCast" (TemporalPane has no title row); date LEFT under it
        │   ↑ STATUS square (22 × row height): worst warning in effect, TO red → SV yellow → FF green; blue = none
        │  ┌▓▓▓▓▓▓▓▓▓▓▓▓▓┐ ┌▓▓▓▓▓▓▓▓▓▓▓▓▓┐ ┌▓▓▓▓▓▓▓▓▓▓▓▓▓┐           │  ← THE BAND (variant B, 2026-10-07): a DEEP
        │  │▓Tornado  ‹ ›▓│ │▓Severe   ‹ ›▓│ │▓Flash fl ‹ ›▓│           │    shade of the warning colour, the name +
@@ -71,7 +71,7 @@
      ⚠️ The window opens at a FIXED full height (WindowManager's Left anchor), not sized to this body, so the
      SECTIONS scroll inside Primitives/PanelScroller (the header stays put) — PastCast's arrangement.
 
-     Both alert sections are the SAME control (TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpanderAlertsBody) bound to a different view
+     Both alert sections are the SAME control (TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpanderAlertsBody) bound to a different view
      model, exactly as watches.js and warnings.js are the same JS factory with a different config. Storm
      reports stay their own control — the PastCast window shows that same block, so it is content of TWO
      hosts.
@@ -89,16 +89,16 @@
        • STATUS SQUARE = the WORST warning in effect (user's call, 2026-10-19 — ForeCast's highest-risk theory):
          Tornado red → Severe yellow → Flash flood green, the tiles' Ink colours, counting every active warning;
          none = PastCast's blue. Feed freshness is the activity expander's job (it was this square's, until now).
-       • Tiles — TemporalWindows/TemporalWindowNowCastWarningTile ×3. Warnings.TornadoCount/SevereCount/FlashFloodCount count EVERY active warning in the
+       • Tiles — TemporalPanes/TemporalPaneNowCastWarningTile ×3. Warnings.TornadoCount/SevereCount/FlashFloodCount count EVERY active warning in the
          fetch, never the ticked rows (user's call). Tag lines = WarningThreatCounts, split per type. Stripe
          colours are DATA (the same literals as DragMoveLayerExpanderAlertsBody's swatches) — never themed. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowContents.TemporalWindowNowCastContent"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPaneContents.TemporalPaneNowCastContent"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:tw="using:Anvil.Controls.TemporalWindows"
-             xmlns:temporalWindowHeaderReadouts="using:Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts"
-             xmlns:temporalWindowContents="using:Anvil.Controls.TemporalWindows.TemporalWindowContents"
-             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
+             xmlns:temporalPaneHeaderReadouts="using:Anvil.Controls.TemporalPanes.TemporalPaneHeaderReadouts"
+             xmlns:temporalPaneContents="using:Anvil.Controls.TemporalPanes.TemporalPaneContents"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalPanes.DragMoveLayerExpanders"
              xmlns:comp="using:Anvil.Controls.Composites"
              xmlns:vm="using:Anvil.ViewModels"
              xmlns:prim="using:Anvil.Controls.Primitives"
@@ -131,15 +131,15 @@
                 <RowDefinition Height="*"/>    <!-- the tiles (take the slack) -->
             </Grid.RowDefinitions>
 
-            <!-- THE NAME ROW: TemporalWindows/TemporalWindowHeader (one control, all three windows; it owns its
+            <!-- THE NAME ROW: TemporalPanes/TemporalPaneHeader (one control, all three windows; it owns its
                  height). The square = the WORST warning in effect (WarningsViewModel.HeaderSquareFill — ForeCast's
                  highest-risk square, matched); the date is written by the clock tick (code-behind); the clock
-                 itself is TemporalWindowHeaderNowCastReadout. -->
-            <tw:TemporalWindowHeader x:Name="TemporalWindowHeader" Grid.Row="0" Title="NowCast"
+                 itself is TemporalPaneHeaderNowCastReadout. -->
+            <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Title="NowCast"
                                      StatusFill="{x:Bind ViewModel.Warnings.HeaderSquareFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
                                      StatusToolTip="{x:Bind ViewModel.Warnings.HeaderSquareTip, Mode=OneWay}">
-                <temporalWindowHeaderReadouts:TemporalWindowHeaderNowCastReadout x:Name="TemporalWindowHeaderNowCastReadout"/>
-            </tw:TemporalWindowHeader>
+                <temporalPaneHeaderReadouts:TemporalPaneHeaderNowCastReadout x:Name="TemporalPaneHeaderNowCastReadout"/>
+            </tp:TemporalPaneHeader>
 
             <Grid Grid.Row="1" Margin="0,14,0,0" ColumnSpacing="8">
                 <Grid.ColumnDefinitions>
@@ -148,23 +148,23 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- THE THREE TILES: TemporalWindows/TemporalWindowNowCastWarningTile, one control used three times
+                <!-- THE THREE TILES: TemporalPanes/TemporalPaneNowCastWarningTile, one control used three times
                      (x:Name = type name + hazard). Band colours are DATA literals (DragMoveLayerExpanderAlertsBody's swatches'
                      hues), never themed: DEEP band + BRIGHT ink per hazard. ⚠️ The Inks are MIRRORED as
                      WarningsViewModel.TornadoFill/SevereFill/FlashFloodFill (the header square) — change both. -->
-                <tw:TemporalWindowNowCastWarningTile x:Name="TemporalWindowNowCastWarningTileTornado" Grid.Column="0"
+                <tp:TemporalPaneNowCastWarningTile x:Name="TemporalPaneNowCastWarningTileTornado" Grid.Column="0"
                                                        Label="Tornado" Hazard="tornado"
                                                        BandFill="#611010" Ink="#FF2A2A"
                                                        ViewModel="{x:Bind ViewModel.Warnings.TornadoStepper, Mode=OneWay}"
                                                        Count="{x:Bind ViewModel.Warnings.TornadoCount, Mode=OneWay}"
                                                        Threats="{x:Bind ViewModel.Warnings.TornadoThreats, Mode=OneWay}"/>
-                <tw:TemporalWindowNowCastWarningTile x:Name="TemporalWindowNowCastWarningTileSevere" Grid.Column="1"
+                <tp:TemporalPaneNowCastWarningTile x:Name="TemporalPaneNowCastWarningTileSevere" Grid.Column="1"
                                                        Label="Severe" Hazard="severe thunderstorm"
                                                        BandFill="#61500A" Ink="#FFD21A"
                                                        ViewModel="{x:Bind ViewModel.Warnings.SevereStepper, Mode=OneWay}"
                                                        Count="{x:Bind ViewModel.Warnings.SevereCount, Mode=OneWay}"
                                                        Threats="{x:Bind ViewModel.Warnings.SevereThreats, Mode=OneWay}"/>
-                <tw:TemporalWindowNowCastWarningTile x:Name="TemporalWindowNowCastWarningTileFlashFlood" Grid.Column="2"
+                <tp:TemporalPaneNowCastWarningTile x:Name="TemporalPaneNowCastWarningTileFlashFlood" Grid.Column="2"
                                                        Label="Flash flood" Hazard="flash flood"
                                                        BandFill="#115522" Ink="#2EE05A"
                                                        ViewModel="{x:Bind ViewModel.Warnings.FlashFloodStepper, Mode=OneWay}"
@@ -185,7 +185,7 @@
               ToolTipService.ToolTip="List ForeCast's layers here, dimmed, so you can drag NowCast's around them (shown while ForeCast is on)"/>
 
     <prim:PanelScroller Grid.Row="2" Margin="0,0,-12,0">
-    <!-- ⚠️ TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpanderHost: its CHILD ORDER is the display order AND the map's z-order; it
+    <!-- ⚠️ TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpanderHost: its CHILD ORDER is the display order AND the map's z-order; it
          owns the drag, the saved order and the open/closed state. It holds ONLY DragMoveLayerExpanders. -->
     <dragMoveLayerExpanders:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" VerticalAlignment="Top" Spacing="8" Margin="{StaticResource TemporalListEndClearance}" Reordered="OnLayersReordered">
 

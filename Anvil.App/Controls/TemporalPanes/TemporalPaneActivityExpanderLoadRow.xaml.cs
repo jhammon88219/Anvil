@@ -6,12 +6,12 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalPanes
 {
 	/// <summary>
 	/// One row of PastCast's LAYER · RESULT · SOURCE table, or its labels (<see cref="IsHeader"/>) — see the XAML header.
 	/// </summary>
-	public sealed partial class TemporalWindowActivityExpanderLoadRow : UserControl
+	public sealed partial class TemporalPaneActivityExpanderLoadRow : UserControl
 	{
 		// State-dot literals (DATA colours, the activity rows' family): loaded green · loading blue · failed red · else grey.
 		private static readonly SolidColorBrush LoadedBrush = new(ColorHelper.FromArgb(0xFF, 0x3F, 0xB9, 0x50));
@@ -21,7 +21,7 @@ namespace Anvil.Controls.TemporalWindows
 
 		private PastLayerStatus? _watched;
 
-		public TemporalWindowActivityExpanderLoadRow()
+		public TemporalPaneActivityExpanderLoadRow()
 		{
 			InitializeComponent();
 			Loaded += (_, _) => ApplyResultState();
@@ -36,8 +36,8 @@ namespace Anvil.Controls.TemporalWindows
 		}
 
 		public static readonly DependencyProperty StatusProperty =
-			DependencyProperty.Register(nameof(Status), typeof(PastLayerStatus), typeof(TemporalWindowActivityExpanderLoadRow),
-				new PropertyMetadata(null, (d, e) => ((TemporalWindowActivityExpanderLoadRow)d).Watch(e.NewValue as PastLayerStatus)));
+			DependencyProperty.Register(nameof(Status), typeof(PastLayerStatus), typeof(TemporalPaneActivityExpanderLoadRow),
+				new PropertyMetadata(null, (d, e) => ((TemporalPaneActivityExpanderLoadRow)d).Watch(e.NewValue as PastLayerStatus)));
 
 		/// <summary>True = the table's fixed column labels (LAYER · RESULT · SOURCE); never lifts on hover.</summary>
 		public bool IsHeader
@@ -47,7 +47,7 @@ namespace Anvil.Controls.TemporalWindows
 		}
 
 		public static readonly DependencyProperty IsHeaderProperty =
-			DependencyProperty.Register(nameof(IsHeader), typeof(bool), typeof(TemporalWindowActivityExpanderLoadRow), new PropertyMetadata(false));
+			DependencyProperty.Register(nameof(IsHeader), typeof(bool), typeof(TemporalPaneActivityExpanderLoadRow), new PropertyMetadata(false));
 
 		// ── x:Bind helpers (FLAT — a nested call surfaces only as WMC9999, docs/bugs.md S20) ──
 

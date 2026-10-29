@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalWindowPastCastContent — the CONTENT of the PastCast window: date / start / window, the historical SPC outlook for
-     that date, and that day's storm reports. One of three mode Contents (see Controls/TemporalWindows/TemporalWindow,
+<!-- TemporalPanePastCastContent — the CONTENT of the PastCast window: date / start / window, the historical SPC outlook for
+     that date, and that day's storm reports. One of three mode Contents (see Controls/TemporalPanes/TemporalPane,
      registered once per mode); the window supplies the surface, the title and the pin, so this is content
      only.
-     Named as the tree reads (TemporalWindow → TemporalWindowPastCastContent). Bound to the coordinator MapViewModel.
+     Named as the tree reads (TemporalPane → TemporalPanePastCastContent). Bound to the coordinator MapViewModel.
 
        ┌──────────────────────────────────────────────────────┐
        │  ┌──┐ PastCast                    │ 5:00–7:00 PM     │  ← THE NAME ROW = NowCast's header: BLUE
@@ -61,7 +61,7 @@
      Laid out ENTIRELY with grids (rows/columns, no StackPanels) so rows are easy to add/rearrange: a fixed
      [label | control] outer grid, one row per field.
 
-     EVERY SECTION IS A TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpander — header = grip + chevron + a select-all box + the title +
+     EVERY SECTION IS A TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpander — header = grip + chevron + a select-all box + the title +
      the OPACITY slider; body = its controls, SettingsFieldLabelStyle rows in one aligned label column.
      Timeframe is NOT a section: it is what every section acts on, so it sits fixed above them. Sections start
      closed; open/closed is PERSISTED per section (DragMoveLayerExpanderHost.PersistExpansion → AppSettings.SectionExpanded,
@@ -77,7 +77,7 @@
      claimed — no thumb when everything fits, but no sideways re-flow either — and it BLEEDS 12 px into the
      window's right margin; Timeframe's right padding is worked out from both so the two line up.
 
-     ⚠️ THE HEADER CHECKBOX IS A SELECT-ALL, exactly as in TemporalWindowNowCastContent: IsChecked is ONE-WAY and the Click
+     ⚠️ THE HEADER CHECKBOX IS A SELECT-ALL, exactly as in TemporalPaneNowCastContent: IsChecked is ONE-WAY and the Click
      hands the decision to the view model, whose answer overwrites the box's own toggle. Every section carries
      one. The SPC outlook's is SHOW/HIDE (PastOutlookViewModel.IsShown, ToggleShown), separate from its
      Product pick, and live whatever the product (None included).
@@ -117,13 +117,13 @@
      ⚠️ THERE IS NO SAVED EVENTS SECTION HERE ANY MORE (removed 2026-09-25): past events are browsed and
      played from the Anvil Atlas's Past events tab (Composites/PastEventsAtlasTab), which fills these
      pickers through the same ViewModel.SavedEvents path. Don't re-add a second list here. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowContents.TemporalWindowPastCastContent"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPaneContents.TemporalPanePastCastContent"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:tw="using:Anvil.Controls.TemporalWindows"
-             xmlns:temporalWindowHeaderReadouts="using:Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts"
-             xmlns:temporalWindowContents="using:Anvil.Controls.TemporalWindows.TemporalWindowContents"
-             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
+             xmlns:temporalPaneHeaderReadouts="using:Anvil.Controls.TemporalPanes.TemporalPaneHeaderReadouts"
+             xmlns:temporalPaneContents="using:Anvil.Controls.TemporalPanes.TemporalPaneContents"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalPanes.DragMoveLayerExpanders"
              xmlns:comp="using:Anvil.Controls.Composites"
              xmlns:conv="using:Anvil.Converters"
              xmlns:prim="using:Anvil.Controls.Primitives"
@@ -138,9 +138,9 @@
     </UserControl.Resources>
 
     <!-- Two rows: the FIXED Timeframe block, then the sections. (The card's and the picker's visual states live in
-         TemporalWindowPastCastUserDecisionCard / TemporalWindowPastCastTimeframePicker now.) -->
+         TemporalPanePastCastUserDecisionCard / TemporalPanePastCastTimeframePicker now.) -->
     <!-- ⚠️ STRETCH, and the sections row is STAR: the scroller needs a BOUNDED height to scroll within —
-         TemporalWindow hands this control the full window row. -->
+         TemporalPane hands this control the full window row. -->
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Timeframe: always there, no header, can't be collapsed -->
@@ -152,7 +152,7 @@
              collapsed or scrolled away. The bottom 24 is the gap before the first section header.
              ⚠️ LEFT 0 / RIGHT 4 = the section STACK's own edges (the user's call, 2026-10-02 — it was inset 12 to the
              section bodies): the sections start flush left and end PanelScroller.GutterWidth (16) − the scroller's
-             12 px bleed = 4 short of the right. TemporalWindowNowCastContent's header follows the same rule. Change them together. -->
+             12 px bleed = 4 short of the right. TemporalPaneNowCastContent's header follows the same rule. Change them together. -->
             <Grid Grid.Row="0" Padding="0,12,4,24" MinHeight="{StaticResource TemporalHeaderMinHeight}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- the name row: square · PastCast over date │ the window -->
@@ -161,22 +161,22 @@
                     <RowDefinition Height="Auto"/> <!-- the three pickers + [ Set Timeframe ] [Clear], one grid -->
                 </Grid.RowDefinitions>
 
-                <!-- THE NAME ROW: TemporalWindows/TemporalWindowHeader (one control, all three windows; it owns its
+                <!-- THE NAME ROW: TemporalPanes/TemporalPaneHeader (one control, all three windows; it owns its
                      height). The date and the Readout describe the LOADED window (RadarViewModel's
                      HEADER block), never the pickers; with nothing loaded they are placeholders, dimmed to 40%.
                      ⚠️ The square is BLUE, a literal, and means nothing yet — recency doesn't apply to a replay
                      (the user's call: blue "until we decide otherwise"). -->
-                <tw:TemporalWindowHeader x:Name="TemporalWindowHeader" Grid.Row="0" Title="PastCast"
+                <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Title="PastCast"
                                            StatusFill="#FF2F81F7"
                                            Subtitle="{x:Bind ViewModel.Radar.LoadedReplayDateText, Mode=OneWay}"
                                            SubtitleOpacity="{x:Bind PlaceholderOpacity(ViewModel.Radar.HasLoadedReplayWindow), Mode=OneWay}">
-                    <temporalWindowHeaderReadouts:TemporalWindowHeaderPastCastReadout x:Name="TemporalWindowHeaderPastCastReadout"
+                    <temporalPaneHeaderReadouts:TemporalPaneHeaderPastCastReadout x:Name="TemporalPaneHeaderPastCastReadout"
                                                               ViewModel="{x:Bind ViewModel.Radar, Mode=OneWay}"/>
-                </tw:TemporalWindowHeader>
+                </tp:TemporalPaneHeader>
 
                 <!-- THE USER'S DECISION: the two sources — the picker below, OR a saved event from the Atlas.
-                     TemporalWindows/TemporalWindowPastCastUserDecisionCard (its edge lights while the selection is dirty). -->
-                <tw:TemporalWindowPastCastUserDecisionCard x:Name="TemporalWindowPastCastUserDecisionCard" Grid.Row="1"
+                     TemporalPanes/TemporalPanePastCastUserDecisionCard (its edge lights while the selection is dirty). -->
+                <tp:TemporalPanePastCastUserDecisionCard x:Name="TemporalPanePastCastUserDecisionCard" Grid.Row="1"
                                                              Margin="0,14,0,0" ViewModel="{x:Bind ViewModel}"/>
 
                 <!-- The thin rule between the decision card and the picker. Pure layout. -->
@@ -184,8 +184,8 @@
                         Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
 
                 <!-- THE PICKER: Date | Start Time | Window over [ Set Timeframe ] [ Clear ].
-                     TemporalWindows/TemporalWindowPastCastTimeframePicker. -->
-                <tw:TemporalWindowPastCastTimeframePicker x:Name="TemporalWindowPastCastTimeframePicker" Grid.Row="3"
+                     TemporalPanes/TemporalPanePastCastTimeframePicker. -->
+                <tp:TemporalPanePastCastTimeframePicker x:Name="TemporalPanePastCastTimeframePicker" Grid.Row="3"
                                                             ViewModel="{x:Bind ViewModel}"/>
 
                 <!-- (The status line that sat here is gone, 2026-10-01: errors ride in Set Timeframe, the frame
@@ -194,7 +194,7 @@
 
     <!-- THE SECTIONS SCROLL; Timeframe above them doesn't. Primitives/PanelScroller: its gutter is always
          claimed, so opening a section never shifts the layout sideways.
-         ⚠️ TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpanderHost: its CHILD ORDER is the display order AND the map's z-order; it
+         ⚠️ TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpanderHost: its CHILD ORDER is the display order AND the map's z-order; it
          owns the drag, the saved order and the open/closed state. -->
     <!-- ⚠️ Margin right -12 BLEEDS the scroller's gutter into the window's 16 px body margin (see the
          PanelScroller header): the gutter ends 4 px from the window edge. -->
@@ -204,7 +204,7 @@
 
         <!-- ===================== STORM CELLS ===================== -->
         <!-- The radar's storm-cell attributes for the LOADED window and site, following the scrubber. Shared
-             control (TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpanderStormCellsBody) with the Now window, like the storm reports below. -->
+             control (TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpanderStormCellsBody) with the Now window, like the storm reports below. -->
         <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm cells" LayerId="cells"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormCells.AllShown, Mode=OneWay}"

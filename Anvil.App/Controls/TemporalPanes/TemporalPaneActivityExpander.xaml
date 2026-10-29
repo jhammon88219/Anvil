@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalWindowActivityExpander — the bottom band of a temporal window: what Anvil is WORKING ON for THAT mode
-     (TemporalActivityViewModel), in TWO states moved by ONE pull tab. Declared ONCE in TemporalWindow, under whichever
+<!-- TemporalPaneActivityExpander — the bottom band of a temporal window: what Anvil is WORKING ON for THAT mode
+     (TemporalActivityViewModel), in TWO states moved by ONE pull tab. Declared ONCE in TemporalPane, under whichever
      Content is loaded. It replaced the main bar's activity slot (2026-10-16); three states became two (2026-10-19).
 
        …the Content's list, scrolling UNDER the band's edge…
@@ -19,7 +19,7 @@
        New scan                                1:47:12 PM scan · painting
        █████████████████████░░░░░░░░░░░░░░░░░░
        ─────────────────────────────────────────
-         FEED                 EVERY        LAST          NEXT       ← fixed labels (TemporalWindowActivityExpanderFeedRow
+         FEED                 EVERY        LAST          NEXT       ← fixed labels (TemporalPaneActivityExpanderFeedRow
        ● Radar                scan    1:42:51 PM    1:47:30 PM        IsHeader); each row LIFTS on hover
        ● Warnings             live   12:04:31 PM   when issued      ← feeds in the window's layer order; "live" =
        ● Storm cells          60 s   12:04:10 PM   12:05:10 PM        a live source carries it (LiveFeedChannel)
@@ -35,7 +35,7 @@
      PASTCAST (2026-10-19, idea A): what the LOADED EVENT downloaded — no radar line, no feed table; its own table:
        KTLX · May 20, 2013 · 1:00 PM–3:00 PM                 loaded 3:12 PM   ← the gate's event line
        ─────────────────────────────────────────
-         LAYER                RESULT                SOURCE       ← TemporalWindowActivityExpanderLoadRow (IsHeader)
+         LAYER                RESULT                SOURCE       ← TemporalPaneActivityExpanderLoadRow (IsHeader)
        ● Radar                96 frames             NEXRAD (AWS)
        ● Damage surveys       failed 3:12 PM        [ Retry ]    ← PastLayerStatus rows, PastCast's layer order
        ● Tropical             none in window        IEM
@@ -48,10 +48,10 @@
      ⚠️ Text: 13.5 / 13 px lines, 11 px small-caps labels (was 12 / 11.5 — "a little bigger").
      ⚠️ The tone colours are LITERALS (code-behind), like the gate's: never resolve a theme brush in C#.
      ⚠️ Wording lives in the view models (BarActivityViewModel, FeedStatus, TemporalActivityViewModel), not here. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowActivityExpander"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPaneActivityExpander"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
              xmlns:ctl="using:Anvil.Controls.Primitives"
              xmlns:vm="using:Anvil.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -62,11 +62,11 @@
     <UserControl.Resources>
         <!-- One FEED row (the row control owns the columns, the hover and the failed red). -->
         <DataTemplate x:Key="FeedRowTemplate" x:DataType="vm:FeedStatus">
-            <tw:TemporalWindowActivityExpanderFeedRow Status="{x:Bind}"/>
+            <tp:TemporalPaneActivityExpanderFeedRow Status="{x:Bind}"/>
         </DataTemplate>
         <!-- One PastCast LAYER row (the row control owns the columns, the hover, the red and Retry). -->
         <DataTemplate x:Key="LoadRowTemplate" x:DataType="vm:PastLayerStatus">
-            <tw:TemporalWindowActivityExpanderLoadRow Status="{x:Bind}"/>
+            <tp:TemporalPaneActivityExpanderLoadRow Status="{x:Bind}"/>
         </DataTemplate>
     </UserControl.Resources>
 
@@ -173,8 +173,8 @@
                 <StackPanel x:Name="FeedTable" Visibility="{x:Bind Shown(Activity.IsFull), Mode=OneWay}">
                     <StackPanel x:Name="FeedRows" Visibility="{x:Bind Shown(Activity.HasFeedTable), Mode=OneWay}">
                         <Border Height="1" Margin="6,10,6,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                        <tw:TemporalWindowActivityExpanderFeedRow x:Name="TemporalWindowActivityExpanderFeedRowHeader" IsHeader="True"/>
-                        <tw:TemporalWindowActivityExpanderFeedRow x:Name="TemporalWindowActivityExpanderFeedRowRadar"
+                        <tp:TemporalPaneActivityExpanderFeedRow x:Name="TemporalPaneActivityExpanderFeedRowHeader" IsHeader="True"/>
+                        <tp:TemporalPaneActivityExpanderFeedRow x:Name="TemporalPaneActivityExpanderFeedRowRadar"
                                                                   Status="{x:Bind Activity.Radar.Status, Mode=OneWay}"
                                                                   Visibility="{x:Bind Shown(Activity.HasRadar), Mode=OneWay}"/>
                         <ItemsControl ItemsSource="{x:Bind Activity.Feeds, Mode=OneWay}"
@@ -195,7 +195,7 @@
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </Grid>
                         <Border Height="1" Margin="6,6,6,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
-                        <tw:TemporalWindowActivityExpanderLoadRow x:Name="TemporalWindowActivityExpanderLoadRowHeader" IsHeader="True"/>
+                        <tp:TemporalPaneActivityExpanderLoadRow x:Name="TemporalPaneActivityExpanderLoadRowHeader" IsHeader="True"/>
                         <ItemsControl ItemsSource="{x:Bind Activity.PastLayers, Mode=OneWay}"
                                       ItemTemplate="{StaticResource LoadRowTemplate}"/>
                         <Border Height="1" Margin="6,6,6,4" Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>

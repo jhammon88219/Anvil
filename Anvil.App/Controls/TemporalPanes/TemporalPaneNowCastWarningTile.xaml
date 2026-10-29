@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalWindowNowCastWarningTile — ONE warning tile under the NowCast header. ONE control, three uses
+<!-- TemporalPaneNowCastWarningTile — ONE warning tile under the NowCast header. ONE control, three uses
      (x:Name = type name + hazard: …WarningTileTornado / …Severe / …FlashFlood); only the CONTENTS differ — the
      label, the two band colours, and which WarningStepper / count / threat line it shows.
 
@@ -19,10 +19,10 @@
      take Ink, so a DISABLED arrow dims itself (ArrowOpacity) — the template's grey can't reach an explicit
      Foreground. ⚠️ NO OUTLINE (the user's call, 2026-09-30). Glyphs E76B / E76C are NOT verified by rendering. -->
 
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowNowCastWarningTile"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPaneNowCastWarningTile"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
              xmlns:vm="using:Anvil.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"

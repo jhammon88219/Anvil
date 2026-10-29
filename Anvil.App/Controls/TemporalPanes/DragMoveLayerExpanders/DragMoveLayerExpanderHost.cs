@@ -6,7 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Foundation;
 
-namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
+namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// The ONE container of <see cref="DragMoveLayerExpander"/>s — a temporal window's LAYER STACK. It stacks them

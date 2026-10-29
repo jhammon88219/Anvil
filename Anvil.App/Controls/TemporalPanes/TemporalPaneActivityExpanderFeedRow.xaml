@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalWindowActivityExpanderFeedRow — ONE row of the activity expander's FEED table (a FeedStatus), or, with
+<!-- TemporalPaneActivityExpanderFeedRow — ONE row of the activity expander's FEED table (a FeedStatus), or, with
      IsHeader, the table's fixed column labels. ONE control for both so the column widths are written ONCE.
 
         ┌───┬──────────────────────┬───────┬─────────────┬─────────────┐
@@ -14,7 +14,7 @@
      ⚠️ CLOCK TIMES ONLY — no countdowns anywhere in the table (nothing ticks). TABULAR digits + fixed, right-aligned
      time columns, so a changing time never moves anything.
      ⚠️ The hover brush is {ThemeResource} in a VisualState (never resolved in C#). -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowActivityExpanderFeedRow"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPaneActivityExpanderFeedRow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"

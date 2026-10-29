@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalWindowPastCastUserDecisionCard — the card under the PastCast header that offers the user's TWO
+<!-- TemporalPanePastCastUserDecisionCard — the card under the PastCast header that offers the user's TWO
      SOURCES for a replay (the user's design, 2026-10-01): pick your own window with the picker below, OR play a
      saved event from the Atlas. Bound to the coordinator MapViewModel.
 
@@ -20,10 +20,10 @@
      ⚠️ WHAT'S CASTING (2026-10-02): "Casting" + the name + the Custom tag (the Atlas's accent tag); the TYPE PILL in
      the Atlas column, 84 wide = the door's width, centred under it — the Atlas's type colour on a deep shade. -->
 
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowPastCastUserDecisionCard"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPanePastCastUserDecisionCard"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
              xmlns:comp="using:Anvil.Controls.Composites"
              xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"

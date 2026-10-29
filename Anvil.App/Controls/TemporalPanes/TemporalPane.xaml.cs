@@ -1,76 +1,69 @@
 using System;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Anvil.Controls.Primitives;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalPanes
 {
 	/// <summary>
-	/// ONE temporal mode's settings panel (see the XAML header), hosted in its own OS window by
-	/// <see cref="WindowManager"/>. Registered three times — once per <see cref="TemporalMode"/> — each
-	/// driven by that mode's open flag on <see cref="MapViewModel"/> and latched by the settings rail at the
-	/// foot of that mode's bar key.
+	/// ONE temporal mode's pane (see the XAML header): an overlay in MainWindow's map band, declared there three times —
+	/// once per <see cref="TemporalMode"/> — and shown while that mode's pane flag on <see cref="MapViewModel"/> is set.
+	/// Its body is built the first time it shows and kept from then on.
 	/// </summary>
-	public sealed partial class TemporalWindow : UserControl
+	public sealed partial class TemporalPane : UserControl
 	{
-		/// <param name="mode">Which mode this window configures: picks the body (x:Load in the XAML) and which
-		/// flags the pin and lock drive. Fixed for the window's life — a window is a fresh instance per open.</param>
-		/// <param name="viewModel">The coordinator view model.</param>
-		public TemporalWindow(TemporalMode mode, MapViewModel viewModel)
+		public TemporalPane()
 		{
-			// ⚠️ Both BEFORE InitializeComponent: the bodies' x:Load and ViewModel binds are OneTime.
-			Mode = mode;
-			ViewModel = viewModel;
 			InitializeComponent();
-
-			// The pin and lock show the flags' CURRENT values — these persist across a window being closed and
-			// reopened, so a panel unpinned earlier in the session comes back unpinned.
-			Pin.IsChecked = ViewModel.IsTemporalWindowOnTop(Mode);
-			Lock.IsChecked = ViewModel.IsTemporalWindowLocked(Mode);
-
-			// The pin writes straight back to the mode's on-top flag (and the lock to its locked flag).
-			Pin.RegisterPropertyChangedCallback(PinToggle.IsCheckedProperty, (_, _) =>
-				ViewModel?.SetTemporalWindowOnTop(Mode, Pin.IsChecked));
-			Lock.RegisterPropertyChangedCallback(LockToggle.IsCheckedProperty, (_, _) =>
-				ViewModel?.SetTemporalWindowLocked(Mode, Lock.IsChecked));
-
-			// NO FOCUS RING ON OPEN (the user's call, 2026-10-01): a new window hands its first focus to the first
-			// tab stop — PastCast's card Atlas button — as KEYBOARD focus, so it opened wearing the focus ring as if
-			// selected. The first focus inside a moment of loading is re-given as PROGRAMMATIC focus (same element,
-			// no ring); Tab still starts there. Time-boxed so a real first Tab press later keeps its ring.
-			Loaded += (_, _) => _openedAt = Environment.TickCount64;
-			GotFocus += OnFirstFocus;
+			// The body is built on FIRST SHOW (see the XAML header): Visibility is MainWindow's bind to the pane flag.
+			RegisterPropertyChangedCallback(VisibilityProperty, (_, _) => RealizeIfShown());
+			Loaded += (_, _) => RealizeIfShown();
 		}
 
-		private long _openedAt;
-
-		private void OnFirstFocus(object sender, RoutedEventArgs e)
+		/// <summary>Which mode this pane shows: picks the Content (x:Load in the XAML). Set ONCE in MainWindow.xaml.</summary>
+		public TemporalMode Mode
 		{
-			if (Environment.TickCount64 - _openedAt > 1000)
-			{
-				GotFocus -= OnFirstFocus;
-				return;
-			}
-			if (e.OriginalSource is Control { FocusState: FocusState.Keyboard } control)
-			{
-				GotFocus -= OnFirstFocus;
-				control.Focus(FocusState.Programmatic);
-			}
+			get => (TemporalMode)GetValue(ModeProperty);
+			set => SetValue(ModeProperty, value);
 		}
 
-		/// <summary>Which mode this window configures. Read-only — see the XAML header's x:Load note.</summary>
-		public TemporalMode Mode { get; }
+		public static readonly DependencyProperty ModeProperty =
+			DependencyProperty.Register(nameof(Mode), typeof(TemporalMode), typeof(TemporalPane), new PropertyMetadata(TemporalMode.Now));
 
-		/// <summary>The coordinator view model, handed to whichever body loads.</summary>
-		public MapViewModel ViewModel { get; }
+		/// <summary>The coordinator view model, handed to whichever Content loads; bound from the host.</summary>
+		public MapViewModel ViewModel
+		{
+			get => (MapViewModel)GetValue(ViewModelProperty);
+			set => SetValue(ViewModelProperty, value);
+		}
+
+		public static readonly DependencyProperty ViewModelProperty =
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalPane), new PropertyMetadata(null));
+
+		/// <summary>The body has been built (first show). Never goes back to false.</summary>
+		public bool IsRealized { get; private set; }
+
+		/// <summary>The body has loaded after its first show — MapViewModel's LAUNCH WINDOWS shows the next pane on it.</summary>
+		public event EventHandler? Shown;
 
 		// The XAML's x:Load switches — exactly one is true.
 		public bool IsPast => Mode == TemporalMode.Past;
 		public bool IsNow => Mode == TemporalMode.Now;
 		public bool IsFore => Mode == TemporalMode.Fore;
 
-		/// <summary>This window's activity expander (radar + feeds for NowCast; Past / Fore have none yet).</summary>
-		public TemporalActivityViewModel WindowActivity => ViewModel.ActivityFor(Mode);
+		/// <summary>This pane's activity expander (radar + feeds for NowCast; the outlook for Fore; the loads for Past).</summary>
+		public TemporalActivityViewModel PaneActivity => ViewModel.ActivityFor(Mode);
+
+		private void RealizeIfShown()
+		{
+			if (IsRealized || Visibility != Visibility.Visible || !IsLoaded || ViewModel is null) { return; }
+			IsRealized = true;
+			Bindings.Update();
+		}
+
+		// "Shown" once the body's first layout has run: a Low-priority hop lets the frame it is in finish first.
+		private void OnBodyLoaded(object sender, RoutedEventArgs e) =>
+			DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => Shown?.Invoke(this, EventArgs.Empty));
 	}
 }

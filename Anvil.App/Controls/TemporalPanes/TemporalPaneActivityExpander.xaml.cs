@@ -5,13 +5,13 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalPanes
 {
 	/// <summary>
 	/// A temporal window's activity band in three states (see the XAML header). Every state is
 	/// <see cref="TemporalActivityViewModel"/>'s (and its radar's / feeds'); this only draws it and forwards the tab.
 	/// </summary>
-	public sealed partial class TemporalWindowActivityExpander : UserControl
+	public sealed partial class TemporalPaneActivityExpander : UserControl
 	{
 		// Tone / state literals (see the XAML header's ⚠️): radar = the gate's built-bar blue; done / failed = the old
 		// site-check toast's green / red; waiting / housekeeping = a neutral that reads on both themes.
@@ -25,7 +25,7 @@ namespace Anvil.Controls.TemporalWindows
 
 		private BarActivityViewModel? _radar;
 
-		public TemporalWindowActivityExpander()
+		public TemporalPaneActivityExpander()
 		{
 			InitializeComponent();
 			Unloaded += (_, _) => DetachRadar();
@@ -39,8 +39,8 @@ namespace Anvil.Controls.TemporalWindows
 		}
 
 		public static readonly DependencyProperty ActivityProperty =
-			DependencyProperty.Register(nameof(Activity), typeof(TemporalActivityViewModel), typeof(TemporalWindowActivityExpander),
-				new PropertyMetadata(null, (d, e) => ((TemporalWindowActivityExpander)d).AttachRadar()));
+			DependencyProperty.Register(nameof(Activity), typeof(TemporalActivityViewModel), typeof(TemporalPaneActivityExpander),
+				new PropertyMetadata(null, (d, e) => ((TemporalPaneActivityExpander)d).AttachRadar()));
 
 		private void OnTabClicked(object sender, RoutedEventArgs e) => Activity?.Advance();
 

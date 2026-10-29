@@ -5,15 +5,15 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.Models;
 
-namespace Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts
+namespace Anvil.Controls.TemporalPanes.TemporalPaneHeaderReadouts
 {
 	/// <summary>
 	/// The NowCast header's Readout — the clock (see the XAML header). Formats <see cref="Time"/>; the host's
 	/// clock tick sets it.
 	/// </summary>
-	public sealed partial class TemporalWindowHeaderNowCastReadout : UserControl
+	public sealed partial class TemporalPaneHeaderNowCastReadout : UserControl
 	{
-		public TemporalWindowHeaderNowCastReadout()
+		public TemporalPaneHeaderNowCastReadout()
 		{
 			InitializeComponent();
 			// The AM/PM slot's two invisible samples: it is as wide as the wider, so noon doesn't nudge the clock.
@@ -28,8 +28,8 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts
 			set => SetValue(TimeProperty, value);
 		}
 		public static readonly DependencyProperty TimeProperty =
-			DependencyProperty.Register(nameof(Time), typeof(DateTimeOffset), typeof(TemporalWindowHeaderNowCastReadout),
-				new PropertyMetadata(default(DateTimeOffset), (d, _) => ((TemporalWindowHeaderNowCastReadout)d).Show()));
+			DependencyProperty.Register(nameof(Time), typeof(DateTimeOffset), typeof(TemporalPaneHeaderNowCastReadout),
+				new PropertyMetadata(default(DateTimeOffset), (d, _) => ((TemporalPaneHeaderNowCastReadout)d).Show()));
 
 		private void Show()
 		{

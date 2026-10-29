@@ -13,7 +13,7 @@ namespace Anvil
 	// ============================================================================================
 	// APP-WIDE WINDOWS (removable feature — see Windows/ + the manager.Register calls in MainWindow).
 	//
-	// Every app-wide panel (Timeframe, Settings, Radar Atlas and the Pipeline Console) lives in its OWN
+	// Every app-wide panel (Settings, Radar Atlas, the discussion readers, the Pipeline Console) lives in its OWN
 	// top-level OS window, not docked in MainWindow, so a multi-monitor user can park control panels on a
 	// second screen. The radar console (per-pane, Row 2) is deliberately NOT one of these; it stays in the
 	// main window.
@@ -45,11 +45,11 @@ namespace Anvil
 	//
 	//   ┌─ main window ───────────────────────────────────────────────────────────┐
 	//   │┌──────┐            ┌────────────────────────────────┐          ┌──────┐│  ← 5 px margins
-	//   ││ Left │            │ Center — ≈16:9, sized as if    │          │Right ││
-	//   ││ 480  │            │ BOTH edge strips were occupied │          │ 480  ││
-	//   ││      │            │ (so it never depends on what   │          │      ││
-	//   ││ full │            │  else happens to be open)      │          │ full ││
-	//   ││height│            └────────────────────────────────┘          │height││
+	//   ││ pane │            │ Center — ≈16:9, sized as if    │          │ pane ││
+	//   ││strip │            │ BOTH edge strips were occupied │          │strip ││  (the strips are the
+	//   ││ 480  │            │ (so it never depends on what   │          │ 480  ││   in-window temporal
+	//   ││      │            │  else happens to be open)      │          │      ││   panes — not windows)
+	//   ││      │            └────────────────────────────────┘          │      ││
 	//   │└──────┘                                                         └──────┘│  ← 5 px above…
 	//   │═══════════════════ map tools tier (or the bar, if hidden) ══════════════│  …the bottom chrome
 	//   └──────────────────────────────────────────────────────────────────────────┘
@@ -59,8 +59,7 @@ namespace Anvil
 	// ⚠️ …AND RE-MEASURED when the MAIN WINDOW resizes, maximizes, restores or moves — for LOCKED panels only (an
 	// unlocked one is the user's to place). See FOLLOW below (2026-10-07).
 	// ⚠️ The centre window has a FLOOR (CenterMinWidth × CenterMinHeight): below it, it stops honouring the
-	// strips and overlaps them, still centred. An edge window never shrinks below 480 except to fit the
-	// main window itself.
+	// strips and overlaps them, still centred.
 	// ⚠️ Margins are to the VISIBLE frame — Windows 11's invisible resize border is measured and added back
 	// (NativeWindowInterop.PlaceVisibleFrame), or every 5 px gap would really be ~12.
 	//
@@ -79,13 +78,11 @@ namespace Anvil
 	// ============================================================================================
 
 	/// <summary>Where a panel window opens relative to the main window. See the PLACEMENT block above.</summary>
+	/// <remarks>Only Center is left: the Left / Right edge windows became the in-window temporal panes
+	/// (TemporalPanes/TemporalPane). Kept as the seam a new placement would add to.</remarks>
 	public enum WindowAnchor
 	{
-		/// <summary>Flush left, 480 wide, full height above the bottom chrome (PastCast, NowCast).</summary>
-		Left,
-		/// <summary>Flush right, 480 wide, full height above the bottom chrome (ForeCast).</summary>
-		Right,
-		/// <summary>Centred, ≈16:9, sized between the two edge strips (Settings, Radar Atlas, Pipeline Console).</summary>
+		/// <summary>Centred, ≈16:9, sized between the two temporal-pane strips (Settings, Radar Atlas, Pipeline Console).</summary>
 		Center,
 	}
 
@@ -98,12 +95,10 @@ namespace Anvil
 	{
 		// ----- Placement geometry, in LOGICAL px (scaled by the owner's DPI at open) -----
 		private const double Margin = 5;
+		// The temporal panes' width (Styles.xaml TemporalPaneWidth): the centre window is sized as if both strips were
+		// occupied. Kept at its old reach so centre windows open exactly where they did.
 		private const double EdgeWidth = 480;
 		private const double CenterMinWidth = 520;
-
-		/// <summary>How far an edge window's INNER edge sits from its side of the main window's client area, in
-		/// LOGICAL px. The bottom chrome's side sections end there (MainWindow.AlignSideSections), open or not.</summary>
-		public const double EdgeStripReach = Margin + EdgeWidth;
 		private const double CenterMinHeight = 400;
 
 		private sealed class Registration
@@ -452,14 +447,6 @@ namespace Anvil
 			double x, y, w, h;
 			switch (anchor)
 			{
-				case WindowAnchor.Left:
-				case WindowAnchor.Right:
-					w = Math.Min(EdgeWidth, ownerWidth - 2 * Margin);
-					h = bandHeight;
-					x = anchor == WindowAnchor.Left ? Margin : ownerWidth - Margin - w;
-					y = Margin;
-					break;
-
 				default:
 					// ⚠️ Sized as if BOTH strips were occupied, whether or not they are — see PLACEMENT.
 					double reserved = 2 * (Margin + EdgeWidth + Margin);

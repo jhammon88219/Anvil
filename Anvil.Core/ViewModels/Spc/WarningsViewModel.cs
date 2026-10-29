@@ -185,11 +185,11 @@ namespace Anvil.ViewModels
 		/// <inheritdoc cref="TornadoThreats"/>
 		public string FlashFloodThreats => _threats.FlashFloodLine;
 
-		// ── The NowCast window's HEADER square (TemporalWindowNowCastContent's name row) ──
+		// ── The NowCast window's HEADER square (TemporalPaneNowCastContent's name row) ──
 		// ForeCast's theory: the square is the WORST thing in effect, in its colour (DATA, never themed). Tornado →
 		// Severe → Flash flood → Special marine, counting EVERY active warning like the tiles (not the ticked rows). None =
 		// PastCast's blue (OutlookViewModel.NoAreasFill). ⚠️ The fills MIRROR the tiles' Ink literals in
-		// TemporalWindowNowCastContent.xaml — change both. MarineFill (NWS's own SMW orange, no tile yet) mirrors
+		// TemporalPaneNowCastContent.xaml — change both. MarineFill (NWS's own SMW orange, no tile yet) mirrors
 		// warnings.js MA and the Alerts body's marine row.
 		public const string TornadoFill = "#FF2A2A";
 		public const string SevereFill = "#FFD21A";

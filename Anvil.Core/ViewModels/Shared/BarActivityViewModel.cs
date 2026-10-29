@@ -21,7 +21,7 @@ namespace Anvil.ViewModels
 	public enum BarActivityTone { Radar, Housekeeping, Done, Failed, Idle }
 
 	/// <summary>
-	/// NOWCAST'S ACTIVITY (<c>MapViewModel.Activity</c> → <c>Controls/TemporalWindows/TemporalWindowActivityExpander</c>, the NowCast
+	/// NOWCAST'S ACTIVITY (<c>MapViewModel.Activity</c> → <c>Controls/TemporalPanes/TemporalPaneActivityExpander</c>, the NowCast
 	/// window's ACTIVITY EXPANDER — it was the main bar's activity slot until 2026-10-16): what Anvil is WORKING ON right now, when
 	/// knowing it explains why the map looks unfinished. (The "Bar" in the name is history.)
 	/// </summary>

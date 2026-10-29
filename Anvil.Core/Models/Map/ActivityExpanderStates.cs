@@ -4,7 +4,7 @@ using System.Linq;
 namespace Anvil.Models
 {
 	/// <summary>
-	/// The temporal window's ACTIVITY EXPANDER states (<c>TemporalWindows/TemporalWindowActivityExpander</c>), as persisted
+	/// The temporal window's ACTIVITY EXPANDER states (<c>TemporalPanes/TemporalPaneActivityExpander</c>), as persisted
 	/// tokens (<c>AppSettings.NowCastActivity</c> / <c>PastCastActivity</c> / <c>ForeCastActivity</c>).
 	/// </summary>
 	/// <remarks>

@@ -3,15 +3,15 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalPanes
 {
 	/// <summary>
 	/// The PastCast pickers (Date | Start Time | Window) and their buttons (Set Timeframe, Clear) — see the XAML header.
 	/// ⚠️ No widget-sync code: the pickers bind the view model's values directly (their drafts live inside them).
 	/// </summary>
-	public sealed partial class TemporalWindowPastCastTimeframePicker : UserControl
+	public sealed partial class TemporalPanePastCastTimeframePicker : UserControl
 	{
-		public TemporalWindowPastCastTimeframePicker()
+		public TemporalPanePastCastTimeframePicker()
 		{
 			InitializeComponent();
 			// ⚠️ LIFETIME: Radar is an app singleton (its PropertyChanged fires on every playback tick) and the PastCast
@@ -34,8 +34,8 @@ namespace Anvil.Controls.TemporalWindows
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalWindowPastCastTimeframePicker),
-				new PropertyMetadata(null, (d, e) => ((TemporalWindowPastCastTimeframePicker)d).OnViewModelChanged(e)));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalPanePastCastTimeframePicker),
+				new PropertyMetadata(null, (d, e) => ((TemporalPanePastCastTimeframePicker)d).OnViewModelChanged(e)));
 
 		// ===== Set Timeframe's error state =====
 		// ⚠️ THIS LISTENER EXISTS ONLY BECAUSE THE ERROR'S BRUSHES ARE VISUAL STATES (theme brushes can't be resolved in
@@ -120,8 +120,8 @@ namespace Anvil.Controls.TemporalWindows
 			}
 		}
 
-		// Return focus to the map WebView. Only finds it when this shares the main window's XamlRoot; hosted in its own
-		// OS window (its own XamlRoot) the lookup misses and this is a no-op, same as before the split.
+		// Return focus to the map WebView. Finds it because the pane shares the main window's XamlRoot (it was a no-op
+		// while PastCast lived in its own OS window, 2026-10 → the pane, 2026-10-29).
 		private void FocusMap()
 		{
 			if (XamlRoot?.Content is FrameworkElement root &&

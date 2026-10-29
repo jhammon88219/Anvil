@@ -74,7 +74,7 @@
                  as grime rather than as depth. 0 would disable shadows entirely. -->
             <x:Double x:Key="OverlayBarShadowOpacity">1</x:Double>
 
-            <!-- TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpander + SettingsExpander (every panel section). Header on the raised face, body on the ground;
+            <!-- TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpander + SettingsExpander (every panel section). Header on the raised face, body on the ground;
                  LIFTED = the layer expander being dragged. -->
             <SolidColorBrush x:Key="SectionHeaderBackground" Color="#FF1A1A1A"/>
             <SolidColorBrush x:Key="SectionHeaderPointerOverBackground" Color="#FF2B2B2B"/>
@@ -132,7 +132,7 @@
          STRENGTH is themed, through OverlayBarShadowOpacity on each element — one number per theme instead of eight
          gradients. Three stops, not two: a linear ramp reads as a grey band with an edge on it, and the whole point is
          that this edge has none. Shared by Primitives/OverlayBar (every bar and notch) and
-         TemporalWindows/TemporalWindowActivityExpander (moved here from OverlayBar, 2026-10-17). -->
+         TemporalPanes/TemporalPaneActivityExpander (moved here from OverlayBar, 2026-10-17). -->
     <LinearGradientBrush x:Key="ShadowFadeUp" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#00000000" Offset="0"/>
         <GradientStop Color="#2E000000" Offset="0.55"/>
@@ -158,7 +158,7 @@
          black at the edge, so text or map sliding under it can't be read. 36 deep wherever it's used (literal in each host):
          a pull tab rises 26 (its 28 less the 2 px lap), so the fade starts 10 above the tab and the tab stands in its
          dark part. Strength themed through OverlayBarShadowOpacity like the rest. Used by the bottom chrome's
-         bottom-edge tiers (Primitives/OverlayBar's CastShadow) and TemporalWindowActivityExpander. -->
+         bottom-edge tiers (Primitives/OverlayBar's CastShadow) and TemporalPaneActivityExpander. -->
     <LinearGradientBrush x:Key="DenseShadowFadeUp" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#00000000" Offset="0"/>
         <GradientStop Color="#8C000000" Offset="0.25"/>
@@ -436,7 +436,7 @@
     <CornerRadius x:Key="OverlayBarTabCornersTopEdge">0,0,7,7</CornerRadius>
 
     <!-- ───────────────────────────── A panel SECTION ─────────────────────────────
-         A temporal-window section is a TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpander, a Settings-tab section a SettingsExpander
+         A temporal-window section is a TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpander, a Settings-tab section a SettingsExpander
          (together they REPLACED the WinUI Expander and its four-sided height pinning — see their headers).
          ⚠️ ONE HEADER HEIGHT FOR THE WHOLE APP, and this is the only place it is set. 28, not the old 24:
          a layer section's header carries an opacity slider, whose 18 px thumb needs the room. -->
@@ -446,6 +446,10 @@
          one MinHeight so the two read as the same band. PastCast's pickers set its natural height; this is
          tuned to it. If the two differ on screen, change THIS value (NowCast's tiles absorb the slack). -->
     <x:Double x:Key="TemporalHeaderMinHeight">264</x:Double>
+
+    <!-- A temporal pane's width (TemporalPanes/TemporalPane, in MainWindow's map band). The bar's side sections end on
+         its inner edge (MainWindow.AlignSideSections reads the declared panes' Width), so this is the one value. -->
+    <x:Double x:Key="TemporalPaneWidth">480</x:Double>
 
     <!-- ───────────────────────────── TextBlock — settings-body labels ─────────────────────────────
 

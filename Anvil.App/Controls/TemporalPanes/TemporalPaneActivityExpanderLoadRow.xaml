@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalWindowActivityExpanderLoadRow — ONE row of PastCast's LAYER · RESULT · SOURCE table (a PastLayerStatus: what
+<!-- TemporalPaneActivityExpanderLoadRow — ONE row of PastCast's LAYER · RESULT · SOURCE table (a PastLayerStatus: what
      the loaded event downloaded for that layer), or, with IsHeader, the table's fixed column labels. ONE control for both
-     so the column widths are written ONCE. NowCast/ForeCast's sibling is TemporalWindowActivityExpanderFeedRow.
+     so the column widths are written ONCE. NowCast/ForeCast's sibling is TemporalPaneActivityExpanderFeedRow.
 
         ┌───┬──────────────────────┬──────────────────┬──────────────┐
         │   │ LAYER                │ RESULT           │ SOURCE       │   ← IsHeader: 11 px small caps, never lifts
@@ -15,7 +15,7 @@
      RESULT reads primary when it holds something, secondary when it doesn't ("none in window", "not shown", "—").
      ⚠️ CLOCK TIMES ONLY ("failed 3:12 PM"). TABULAR digits so a count never shifts the row.
      ⚠️ Brushes in VisualStates are {ThemeResource} (never resolved in C#); the red is a literal DATA colour. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowActivityExpanderLoadRow"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPaneActivityExpanderLoadRow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"

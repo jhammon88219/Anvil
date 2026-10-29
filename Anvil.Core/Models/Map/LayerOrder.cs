@@ -10,7 +10,7 @@ namespace Anvil.Models
 	/// </summary>
 	/// <remarks>
 	/// ⚠️ MIRRORED in <c>Assets/Map/js/layers.js</c> GROUPS (which also maps each id to its layer-id
-	/// prefixes) and in the <c>LayerId</c> of every <c>DragMoveLayerExpander</c> in TemporalWindowNowCastContent / TemporalWindowPastCastContent / TemporalWindowForeCastContent
+	/// prefixes) and in the <c>LayerId</c> of every <c>DragMoveLayerExpander</c> in TemporalPaneNowCastContent / TemporalPanePastCastContent / TemporalPaneForeCastContent
 	/// (incl. the GHOST rows). Change all three.
 	/// </remarks>
 	public static class LayerOrder

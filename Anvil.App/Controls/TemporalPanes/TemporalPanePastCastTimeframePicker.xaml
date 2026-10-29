@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalWindowPastCastTimeframePicker — the PastCast pickers + their two buttons, ONE GRID (the user's call,
+<!-- TemporalPanePastCastTimeframePicker — the PastCast pickers + their two buttons, ONE GRID (the user's call,
      2026-10-01): the pickers end where Set Timeframe ends, and CLEAR has its own column with nothing above it.
      Bound to the coordinator MapViewModel (the pickers drive ViewModel.Radar).
 
@@ -26,10 +26,10 @@
      never C# — Application resources resolve the OS theme, not the pinned app theme). It stays clickable — a click
      retries — and changing any picker clears it. The listener in code-behind exists ONLY to drive that state. -->
 
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowPastCastTimeframePicker"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPanePastCastTimeframePicker"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:tw="using:Anvil.Controls.TemporalWindows"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
              xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"

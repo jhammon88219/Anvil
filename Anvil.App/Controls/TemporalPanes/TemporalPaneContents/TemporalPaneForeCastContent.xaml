@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalWindowForeCastContent — the CONTENT of the ForeCast window: the SPC outlook (card + day / product / opacity) with
-     its legend, plus NowCast's GHOST rows around it. One of three mode Contents (see Controls/TemporalWindows/TemporalWindow,
+<!-- TemporalPaneForeCastContent — the CONTENT of the ForeCast window: the SPC outlook (card + day / product / opacity) with
+     its legend, plus NowCast's GHOST rows around it. One of three mode Contents (see Controls/TemporalPanes/TemporalPane,
      registered once per mode); the window supplies the surface, the title and the pin, so this is content only.
-     Named as the tree reads (TemporalWindow → TemporalWindowForeCastContent). Bound to the coordinator
+     Named as the tree reads (TemporalPane → TemporalPaneForeCastContent). Bound to the coordinator
      MapViewModel; every real control here drives ViewModel.Outlook.
 
        ┌──┐ ForeCast                    │ MDT 4/5                  ← THE NAME ROW (Past/Now's, matched): square =
@@ -50,7 +50,7 @@
                                                              ┃  ← all of the above sits in PanelScroller: a 16 px
                                                                 gutter always claimed, thumb ┃ only on overflow
 
-     ONE REAL SECTION, a TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpander (every temporal window's map-layer section). SPC outlook
+     ONE REAL SECTION, a TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpander (every temporal window's map-layer section). SPC outlook
      is open on a first run — it is what the window is for. Open/closed is then PERSISTED ("fore/..." in
      AppSettings.SectionExpanded; ghosts don't persist — they have no body), and so are Day, Product, opacity
      and hatching (ViewModels/Map/TemporalWindowPersistence). Inside it: a summary CARD, then [label | control]
@@ -88,13 +88,13 @@
 
      ⚠️ This tab does NOT turn ForeCast on or off; that is the ForeCast key in the bottom bar's centre
      cluster. A tab body configures a mode, the key runs it. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.TemporalWindowContents.TemporalWindowForeCastContent"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPaneContents.TemporalPaneForeCastContent"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:tw="using:Anvil.Controls.TemporalWindows"
-             xmlns:temporalWindowHeaderReadouts="using:Anvil.Controls.TemporalWindows.TemporalWindowHeaderReadouts"
-             xmlns:temporalWindowContents="using:Anvil.Controls.TemporalWindows.TemporalWindowContents"
-             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
+             xmlns:temporalPaneHeaderReadouts="using:Anvil.Controls.TemporalPanes.TemporalPaneHeaderReadouts"
+             xmlns:temporalPaneContents="using:Anvil.Controls.TemporalPanes.TemporalPaneContents"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalPanes.DragMoveLayerExpanders"
              xmlns:conv="using:Anvil.Converters"
              xmlns:local="using:Anvil.Controls.Composites"
              xmlns:models="using:Anvil.Models"
@@ -109,7 +109,7 @@
         <conv:HexToBrushConverter x:Key="HexToBrush"/>
     </UserControl.Resources>
 
-    <!-- ⚠️ NOT top-aligned, unlike the Past/Now roots: TemporalWindow hands this the full window height, and
+    <!-- ⚠️ NOT top-aligned, unlike the Past/Now roots: TemporalPane hands this the full window height, and
          the star row is the SCROLLER, which fills it. -->
     <Grid x:Name="Root">
         <Grid.RowDefinitions>
@@ -118,22 +118,22 @@
             <RowDefinition Height="*"/>    <!-- the layer run in PanelScroller: fills the space, scrolls when it can't -->
         </Grid.RowDefinitions>
 
-        <!-- ===================== THE NAME ROW: TemporalWindows/TemporalWindowHeader (one control, all three windows) =====================
-             The window's chrome carries no title any more (TemporalWindow); the name shows once, here. The header
+        <!-- ===================== THE NAME ROW: TemporalPanes/TemporalPaneHeader (one control, all three windows) =====================
+             The window's chrome carries no title any more (TemporalPane); the name shows once, here. The header
              owns its height.
              ⚠️ THE SQUARE = the HIGHEST category the shown outlook contains, in its SPC colour (DATA, never themed —
              the feed's own fill, else the catalog's), as NowCast's square is the warnings feed's staleness. No areas
              / nothing shown = PastCast's blue (OutlookViewModel.NoAreasFill). Its tooltip names the category.
              ⚠️ Margin LEFT 0 / RIGHT 4 = the section stack's edges — PastCast's + NowCast's rule; change together.
              No TemporalHeaderMinHeight: there are no tiles or card under it to line up. -->
-        <tw:TemporalWindowHeader x:Name="TemporalWindowHeader" Grid.Row="0" Margin="0,12,4,12"
+        <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Margin="0,12,4,12"
                                    Title="ForeCast"
                                    StatusFill="{x:Bind ViewModel.Outlook.HeaderSquareFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
                                    StatusToolTip="{x:Bind ViewModel.Outlook.HeaderSquareTip, Mode=OneWay}"
                                    Subtitle="{x:Bind ViewModel.Outlook.HeaderDayText, Mode=OneWay}">
-            <temporalWindowHeaderReadouts:TemporalWindowHeaderForeCastReadout x:Name="TemporalWindowHeaderForeCastReadout"
+            <temporalPaneHeaderReadouts:TemporalPaneHeaderForeCastReadout x:Name="TemporalPaneHeaderForeCastReadout"
                                                        ViewModel="{x:Bind ViewModel.Outlook, Mode=OneWay}"/>
-        </tw:TemporalWindowHeader>
+        </tp:TemporalPaneHeader>
 
         <!-- GHOST ROWS box: NowCast's layers as dimmed, drag-only rows around the outlook, so you can say where the
              outlook draws among them (ONE shared Now + Fore order). Persisted, default off; the rows show only
@@ -146,7 +146,7 @@
         <!-- ⚠️ In Primitives/PanelScroller, like Past/Now's sections — present whether or not the outlook overflows
              yet (the user's call, 2026-09-30): the gutter is always claimed, the thumb only draws on overflow.
              Margin right -12 BLEEDS the gutter into the window's 16 px body margin (the PanelScroller header).
-             ⚠️ A TemporalWindows/DragMoveLayerExpanders/DragMoveLayerExpanderHost of its own (like Past/Now's): the outlook + NowCast's ghost
+             ⚠️ A TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpanderHost of its own (like Past/Now's): the outlook + NowCast's ghost
              rows. With the ghosts hidden the outlook is alone, so its grip shows but a drag never starts
              (the host needs 2 visible). Reordered → SetLayerOrder(Now): the shared Now + Fore order. -->
         <prim:PanelScroller Grid.Row="2" Margin="0,0,-12,0">

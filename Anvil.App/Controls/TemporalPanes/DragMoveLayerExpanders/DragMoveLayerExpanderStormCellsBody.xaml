@@ -16,11 +16,11 @@
      ⚠️ The marks are the map's (storm-cells.js): white dot, red triangle, yellow ring, cyan diamond. Literals
      in both places — change one, change the other. Data colours, never themed.
      ⚠️ Opacity and the section heading are the HOST's (DragMoveLayerExpander), as for every overlay control. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderStormCellsBody"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.DragMoveLayerExpanders.DragMoveLayerExpanderStormCellsBody"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:tw="using:Anvil.Controls.TemporalWindows"
-             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalPanes.DragMoveLayerExpanders"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">

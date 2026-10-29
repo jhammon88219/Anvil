@@ -6,12 +6,12 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalPanes
 {
 	/// <summary>
 	/// One row of the activity expander's FEED table, or its labels (<see cref="IsHeader"/>) — see the XAML header.
 	/// </summary>
-	public sealed partial class TemporalWindowActivityExpanderFeedRow : UserControl
+	public sealed partial class TemporalPaneActivityExpanderFeedRow : UserControl
 	{
 		// State-dot literals (DATA colours, the expander's tone family): ok green · checking blue · failed red · waiting grey.
 		private static readonly SolidColorBrush OkBrush = new(ColorHelper.FromArgb(0xFF, 0x3F, 0xB9, 0x50));
@@ -21,7 +21,7 @@ namespace Anvil.Controls.TemporalWindows
 
 		private FeedStatus? _watched;
 
-		public TemporalWindowActivityExpanderFeedRow()
+		public TemporalPaneActivityExpanderFeedRow()
 		{
 			InitializeComponent();
 			Loaded += (_, _) => ApplyLastState();
@@ -36,8 +36,8 @@ namespace Anvil.Controls.TemporalWindows
 		}
 
 		public static readonly DependencyProperty StatusProperty =
-			DependencyProperty.Register(nameof(Status), typeof(FeedStatus), typeof(TemporalWindowActivityExpanderFeedRow),
-				new PropertyMetadata(null, (d, e) => ((TemporalWindowActivityExpanderFeedRow)d).Watch(e.NewValue as FeedStatus)));
+			DependencyProperty.Register(nameof(Status), typeof(FeedStatus), typeof(TemporalPaneActivityExpanderFeedRow),
+				new PropertyMetadata(null, (d, e) => ((TemporalPaneActivityExpanderFeedRow)d).Watch(e.NewValue as FeedStatus)));
 
 		/// <summary>True = the table's fixed column labels (FEED · EVERY · LAST · NEXT); never lifts on hover.</summary>
 		public bool IsHeader
@@ -47,7 +47,7 @@ namespace Anvil.Controls.TemporalWindows
 		}
 
 		public static readonly DependencyProperty IsHeaderProperty =
-			DependencyProperty.Register(nameof(IsHeader), typeof(bool), typeof(TemporalWindowActivityExpanderFeedRow), new PropertyMetadata(false));
+			DependencyProperty.Register(nameof(IsHeader), typeof(bool), typeof(TemporalPaneActivityExpanderFeedRow), new PropertyMetadata(false));
 
 		// ── x:Bind helpers ──
 

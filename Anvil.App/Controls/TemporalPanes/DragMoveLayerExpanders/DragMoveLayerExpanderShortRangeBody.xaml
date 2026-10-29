@@ -23,10 +23,10 @@
      ⚠️ The box (the host's) EXCLUDES NOWCAST: ticking it while ForeCast runs turns live radar off; unticking brings it back
      (MapViewModel's NowCast ⇄ MODEL rule) — EXCEPT while comparing, when both draw (one pane each). ⚠️ Colours are DATA, never themed. ⚠️ No time control here: the BOTTOM CONSOLE
      plays the run (Composites/ModelConsole, while the field draws). -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderShortRangeBody"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.DragMoveLayerExpanders.DragMoveLayerExpanderShortRangeBody"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalPanes.DragMoveLayerExpanders"
              xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:conv="using:Anvil.Converters"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"

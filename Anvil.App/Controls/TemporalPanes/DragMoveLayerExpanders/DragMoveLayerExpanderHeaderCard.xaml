@@ -23,7 +23,7 @@
      body's top-left. Change the expander's body Padding → change this Margin.
      ⚠️ The bottom margin (14) replaces the separate rule + "Margin 0,14" the cards used to sit over — don't add a
      rule under it. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderHeaderCard"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.DragMoveLayerExpanders.DragMoveLayerExpanderHeaderCard"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"

@@ -32,7 +32,7 @@
      chosen anyway — see the ⚠️ on the card region in StormReportsViewModel. If it ever reads as noise the
      honest fix is to drop the card, not to invent a different number for it.
 
-     ⚠️ THE SECTION HEADING IS NOT HERE — each host window draws its own (TemporalWindowPastCastContent / TemporalWindowNowCastContent) above
+     ⚠️ THE SECTION HEADING IS NOT HERE — each host window draws its own (TemporalPanePastCastContent / TemporalPaneNowCastContent) above
      this control. The window owns its section structure; this is content. That is also why there is no
      divider in here.
 
@@ -48,11 +48,11 @@
 
      A [label | control] grid, one row per field, matching the picker rows in the sections above. Bound to
      StormReportsViewModel. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderStormReportsBody"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.DragMoveLayerExpanders.DragMoveLayerExpanderStormReportsBody"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:tw="using:Anvil.Controls.TemporalWindows"
-             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalPanes.DragMoveLayerExpanders"
              xmlns:local="using:Anvil.Controls.Composites"
              xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:vm="using:Anvil.ViewModels"

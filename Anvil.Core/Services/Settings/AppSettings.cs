@@ -621,19 +621,8 @@ namespace Anvil.Services
 		private bool _foreWindowOpen;
 		public bool ForeWindowOpen { get => _foreWindowOpen; set => SetProperty(ref _foreWindowOpen, value); }
 
-		// Title-bar pin + lock per temporal window. Nullable: null = the VM's house default (both ON).
-		private bool? _pastWindowOnTop;
-		public bool? PastWindowOnTop { get => _pastWindowOnTop; set => SetProperty(ref _pastWindowOnTop, value); }
-		private bool? _nowWindowOnTop;
-		public bool? NowWindowOnTop { get => _nowWindowOnTop; set => SetProperty(ref _nowWindowOnTop, value); }
-		private bool? _foreWindowOnTop;
-		public bool? ForeWindowOnTop { get => _foreWindowOnTop; set => SetProperty(ref _foreWindowOnTop, value); }
-		private bool? _pastWindowLocked;
-		public bool? PastWindowLocked { get => _pastWindowLocked; set => SetProperty(ref _pastWindowLocked, value); }
-		private bool? _nowWindowLocked;
-		public bool? NowWindowLocked { get => _nowWindowLocked; set => SetProperty(ref _nowWindowLocked, value); }
-		private bool? _foreWindowLocked;
-		public bool? ForeWindowLocked { get => _foreWindowLocked; set => SetProperty(ref _foreWindowLocked, value); }
+		// (The per-window pin + lock settings are gone: the temporal panes are in-window overlays, 2026-10-29. An older
+		// file's PastWindowOnTop / …Locked keys are simply ignored on load.)
 
 		private Dictionary<string, bool> _sectionExpanded = new();
 		/// <summary>Which temporal-window sections the user opened or closed, keyed "window/section"

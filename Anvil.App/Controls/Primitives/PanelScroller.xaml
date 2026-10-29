@@ -14,8 +14,8 @@
                                               GUTTER (GutterWidth = 16): ALWAYS CLAIMED
 
      ⚠️ THE HOST SHOULD BLEED IT INTO ITS OWN RIGHT MARGIN. A panel body sits 16 px in from the window edge
-     (TemporalWindow's body margin), and a gutter left inside that margin reads as a thin thumb beside a wider
-     empty strip. Past/Now/TemporalWindowForeCastContent give the scroller Margin right -12, so the gutter ends 4 px from the window
+     (TemporalPane's body margin), and a gutter left inside that margin reads as a thin thumb beside a wider
+     empty strip. Past/Now/TemporalPaneForeCastContent give the scroller Margin right -12, so the gutter ends 4 px from the window
      edge; the thumb sits flush right in the gutter with 4 px on its left, so it is EQUALLY far (4) from the
      sections and from the window edge. A new host does the same bleed, or the gaps go uneven.
 

@@ -201,8 +201,7 @@ namespace Anvil.ViewModels
 				}
 			};
 
-			// The temporal SESSION: window pin + lock now; modes + open windows at map-ready. See that region.
-			RestoreWindowChrome();
+			// The temporal SESSION: modes + open panes restore at map-ready. See that region.
 			PropertyChanged += (_, e) => SaveTemporalSession(e.PropertyName);
 
 			// The loading screen hides the temporal windows while it's up — see "Loading screen" below.
@@ -336,7 +335,7 @@ namespace Anvil.ViewModels
 		/// <summary>Settings → Basemap, and the map setup window shown before launch (<see cref="BasemapSetupViewModel"/>).</summary>
 		public BasemapSetupViewModel BasemapSetup { get; }
 
-		/// <summary>Each temporal window's activity expander (<c>TemporalWindows/TemporalWindowActivityExpander</c>).</summary>
+		/// <summary>Each temporal window's activity expander (<c>TemporalPanes/TemporalPaneActivityExpander</c>).</summary>
 		public TemporalActivityViewModel NowCastActivity { get; }
 		public TemporalActivityViewModel PastCastActivity { get; }
 
@@ -762,19 +761,12 @@ namespace Anvil.ViewModels
 		// stayed up showing dead controls), and it is what keeps the rail honest: an unlit rail can never be
 		// hiding an open window, so a dark rail always means "there is nothing open here".
 		//
-		// ⚠️ Pinning is PER WINDOW, not shared. The whole reason for three windows is that two of these modes
-		// coexist and can go on two monitors; one shared pin would undo that the first time either was
-		// unpinned. All three default ON, the house default for every panel — see the flags above.
+		// ⚠️ The panes are in-window overlays now (TemporalPanes/TemporalPane), so there is no pin or lock: the
+		// per-window on-top / locked flags went with the OS windows.
 
 		private bool _isPastWindowOpen;
 		private bool _isNowWindowOpen;
 		private bool _isForeWindowOpen;
-		private bool _isPastWindowOnTop = true;
-		private bool _isNowWindowOnTop = true;
-		private bool _isForeWindowOnTop = true;
-		private bool _isPastWindowLocked = true;
-		private bool _isNowWindowLocked = true;
-		private bool _isForeWindowLocked = true;
 
 		/// <summary>Whether the PastCast window is open. Two-ways with the settings rail on the PastCast key;
 		/// forced false when PastCast stops (see <see cref="OnTemporalModesChanged"/>).</summary>
@@ -798,27 +790,6 @@ namespace Anvil.ViewModels
 			set => SetProperty(ref _isForeWindowOpen, value);
 		}
 
-		/// <summary>Whether the PastCast window stays on top (title-bar pin).</summary>
-		public bool IsPastWindowOnTop
-		{
-			get => _isPastWindowOnTop;
-			set => SetProperty(ref _isPastWindowOnTop, value);
-		}
-
-		/// <summary>Whether the NowCast window stays on top (title-bar pin).</summary>
-		public bool IsNowWindowOnTop
-		{
-			get => _isNowWindowOnTop;
-			set => SetProperty(ref _isNowWindowOnTop, value);
-		}
-
-		/// <summary>Whether the ForeCast window stays on top (title-bar pin).</summary>
-		public bool IsForeWindowOnTop
-		{
-			get => _isForeWindowOnTop;
-			set => SetProperty(ref _isForeWindowOnTop, value);
-		}
-
 		/// <summary>Whether <paramref name="which"/> mode's settings window is open.</summary>
 		public bool IsTemporalWindowOpen(TemporalMode which) => which switch
 		{
@@ -836,68 +807,6 @@ namespace Anvil.ViewModels
 				case TemporalMode.Past: IsPastWindowOpen = open; break;
 				case TemporalMode.Now: IsNowWindowOpen = open; break;
 				case TemporalMode.Fore: IsForeWindowOpen = open; break;
-			}
-		}
-
-		/// <summary>Whether <paramref name="which"/> mode's window is pinned on top, so a window can read its
-		/// own pin state without a switch of its own.</summary>
-		public bool IsTemporalWindowOnTop(TemporalMode which) => which switch
-		{
-			TemporalMode.Past => IsPastWindowOnTop,
-			TemporalMode.Now => IsNowWindowOnTop,
-			TemporalMode.Fore => IsForeWindowOnTop,
-			_ => true,
-		};
-
-		/// <summary>Set <paramref name="which"/> mode's on-top flag (driven by that window's title-bar pin).</summary>
-		public void SetTemporalWindowOnTop(TemporalMode which, bool onTop)
-		{
-			switch (which)
-			{
-				case TemporalMode.Past: IsPastWindowOnTop = onTop; break;
-				case TemporalMode.Now: IsNowWindowOnTop = onTop; break;
-				case TemporalMode.Fore: IsForeWindowOnTop = onTop; break;
-			}
-		}
-
-		/// <summary>Whether the PastCast window is locked in place (title-bar lock).</summary>
-		public bool IsPastWindowLocked
-		{
-			get => _isPastWindowLocked;
-			set => SetProperty(ref _isPastWindowLocked, value);
-		}
-
-		/// <summary>Whether the NowCast window is locked in place (title-bar lock).</summary>
-		public bool IsNowWindowLocked
-		{
-			get => _isNowWindowLocked;
-			set => SetProperty(ref _isNowWindowLocked, value);
-		}
-
-		/// <summary>Whether the ForeCast window is locked in place (title-bar lock).</summary>
-		public bool IsForeWindowLocked
-		{
-			get => _isForeWindowLocked;
-			set => SetProperty(ref _isForeWindowLocked, value);
-		}
-
-		/// <summary>Whether <paramref name="which"/> mode's window is locked in place (can't move or resize).</summary>
-		public bool IsTemporalWindowLocked(TemporalMode which) => which switch
-		{
-			TemporalMode.Past => IsPastWindowLocked,
-			TemporalMode.Now => IsNowWindowLocked,
-			TemporalMode.Fore => IsForeWindowLocked,
-			_ => true,
-		};
-
-		/// <summary>Set <paramref name="which"/> mode's lock flag (driven by that window's title-bar lock).</summary>
-		public void SetTemporalWindowLocked(TemporalMode which, bool locked)
-		{
-			switch (which)
-			{
-				case TemporalMode.Past: IsPastWindowLocked = locked; break;
-				case TemporalMode.Now: IsNowWindowLocked = locked; break;
-				case TemporalMode.Fore: IsForeWindowLocked = locked; break;
 			}
 		}
 
@@ -1046,25 +955,13 @@ namespace Anvil.ViewModels
 		}
 
 		// ===== Temporal SESSION (which modes were on + their windows) — persisted =====================
-		// ⚠️ PIN + LOCK restore in the CONSTRUCTOR (pure VM state; WindowManager reads them as it opens).
-		// ⚠️ MODES + WINDOWS restore at MAP-READY (RestoreTemporalSession): turning a mode on drives the map.
+		// ⚠️ MODES + PANES restore at MAP-READY (RestoreTemporalSession): turning a mode on drives the map.
 		// Saving starts only after that restore, and stops at Shutdown — the app closing is not the user
-		// switching things off (WindowManager closes the windows programmatically then, but belt and braces).
+		// switching things off.
 		// ⚠️ PastCast comes back ARMED, not loaded: the saved timeframe is in the pickers, Load is one click.
 		private bool _restoringSession;
 		private bool _sessionRestored;
 		private bool _shuttingDown;
-
-		private void RestoreWindowChrome()
-		{
-			var s = _settingsService.Settings;
-			if (s.PastWindowOnTop is bool pt) { IsPastWindowOnTop = pt; }
-			if (s.NowWindowOnTop is bool nt) { IsNowWindowOnTop = nt; }
-			if (s.ForeWindowOnTop is bool ft) { IsForeWindowOnTop = ft; }
-			if (s.PastWindowLocked is bool pl) { IsPastWindowLocked = pl; }
-			if (s.NowWindowLocked is bool nl) { IsNowWindowLocked = nl; }
-			if (s.ForeWindowLocked is bool fl) { IsForeWindowLocked = fl; }
-		}
 
 		// ===== LAUNCH WINDOWS (2026-10-10): the restored windows open AFTER the home radar's first frame, ONE AT A TIME =====
 		// Building + first-laying-out the Now and Fore windows froze the UI ~1-2 s at launch (Start-menu runs; ~2× under the
@@ -1089,7 +986,7 @@ namespace Anvil.ViewModels
 		/// <summary>True when the launch is starting a live radar loop worth waiting for (test seam).</summary>
 		internal Func<bool>? LaunchLoopStarting { get; set; }
 
-		/// <summary>WindowManager → MainWindow: a panel window drew its first frame.</summary>
+		/// <summary>MainWindow: a temporal pane (or a panel window) drew its first frame.</summary>
 		public void OnPanelWindowShown() => _windowShown?.TrySetResult();
 
 		internal async Task OpenLaunchWindowsAsync()
@@ -1205,15 +1102,6 @@ namespace Anvil.ViewModels
 		{
 			if (_shuttingDown) { return; }
 			var s = _settingsService.Settings;
-			switch (property)
-			{
-				case nameof(IsPastWindowOnTop): s.PastWindowOnTop = IsPastWindowOnTop; return;
-				case nameof(IsNowWindowOnTop): s.NowWindowOnTop = IsNowWindowOnTop; return;
-				case nameof(IsForeWindowOnTop): s.ForeWindowOnTop = IsForeWindowOnTop; return;
-				case nameof(IsPastWindowLocked): s.PastWindowLocked = IsPastWindowLocked; return;
-				case nameof(IsNowWindowLocked): s.NowWindowLocked = IsNowWindowLocked; return;
-				case nameof(IsForeWindowLocked): s.ForeWindowLocked = IsForeWindowLocked; return;
-			}
 			if (!_sessionRestored) { return; } // the launch state (all off) isn't a choice
 			// Windows the loading screen put away aren't the user closing them — keep the saved state.
 			if (_windowsHeldForLoad && property is nameof(IsPastWindowOpen) or nameof(IsNowWindowOpen) or nameof(IsForeWindowOpen)) { return; }

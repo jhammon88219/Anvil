@@ -21,11 +21,11 @@
      column, each bounded in its own scroller, was what made it hard to use. Don't put a reader back here.
      ⚠️ Swatches are the kinds' own colours (DiscussionKinds.Fill ⇄ discussions.js KIND_COLORS). Data colours.
      ⚠️ Opacity and the heading are the HOST's DragMoveLayerExpander, as for every overlay control. -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderMesoDiscussionsBody"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.DragMoveLayerExpanders.DragMoveLayerExpanderMesoDiscussionsBody"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:tw="using:Anvil.Controls.TemporalWindows"
-             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalWindows.DragMoveLayerExpanders"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
+             xmlns:dragMoveLayerExpanders="using:Anvil.Controls.TemporalPanes.DragMoveLayerExpanders"
              xmlns:conv="using:Anvil.Converters"
              xmlns:vm="using:Anvil.ViewModels"
              xmlns:local="using:Anvil.Controls.Composites"

@@ -17,7 +17,7 @@
      overlay to 40%, as the CheckBox's own content used to be greyed.
      ⚠️ Row SPACING is the host's (a StackPanel / ItemsPanel Spacing, 4 — halved 2026-10-21), never a margin here.
      ⚠️ The hover brush is {ThemeResource} in a VisualState (never resolved in C#). -->
-<UserControl x:Class="Anvil.Controls.TemporalWindows.DragMoveLayerExpanders.DragMoveLayerExpanderCountRow"
+<UserControl x:Class="Anvil.Controls.TemporalPanes.DragMoveLayerExpanders.DragMoveLayerExpanderCountRow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"

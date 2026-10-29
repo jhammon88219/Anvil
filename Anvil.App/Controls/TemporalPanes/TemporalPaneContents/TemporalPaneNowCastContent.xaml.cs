@@ -8,7 +8,7 @@ using Microsoft.UI.Xaml.Media;
 using Anvil.Controls.Primitives;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
+namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 {
 	/// <summary>
 	/// The NowCast window body (see the XAML header) — watch boxes, storm-based warnings and today's storm
@@ -17,7 +17,7 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 	/// the four header select-all clicks, which hand the decision to the VM, and the layer ORDER: the saved
 	/// one applied on first load, and a re-order handed back to the VM.</para>
 	/// </summary>
-	public sealed partial class TemporalWindowNowCastContent : UserControl
+	public sealed partial class TemporalPaneNowCastContent : UserControl
 	{
 		private bool _orderApplied;
 
@@ -26,7 +26,7 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 		private readonly DispatcherTimer _clock = new() { Interval = System.TimeSpan.FromMilliseconds(250) };
 		private long _shownSecond = -1;
 
-		public TemporalWindowNowCastContent()
+		public TemporalPaneNowCastContent()
 		{
 			InitializeComponent();
 			_clock.Tick += (_, _) => UpdateClock();
@@ -75,7 +75,7 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 
 		private void OnTropicalHeaderClick(object sender, RoutedEventArgs e) => ViewModel.Tropical.ToggleAll();
 
-		// ── Header (the tiles are TemporalWindowNowCastWarningTile; their helpers live there) ──
+		// ── Header (the tiles are TemporalPaneNowCastWarningTile; their helpers live there) ──
 
 		private void UpdateClock()
 		{
@@ -86,8 +86,8 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 
 			// The clock is the header's Readout control; the date is the header's own. (The status square is bound in
 			// XAML — WarningsViewModel.HeaderSquareFill.)
-			TemporalWindowHeaderNowCastReadout.Time = now;
-			TemporalWindowHeader.Subtitle = now.ToString("dddd MMM d", CultureInfo.CurrentCulture);
+			TemporalPaneHeaderNowCastReadout.Time = now;
+			TemporalPaneHeader.Subtitle = now.ToString("dddd MMM d", CultureInfo.CurrentCulture);
 		}
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
@@ -98,6 +98,6 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalWindowNowCastContent), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalPaneNowCastContent), new PropertyMetadata(null));
 	}
 }

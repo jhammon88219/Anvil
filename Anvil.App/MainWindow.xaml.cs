@@ -120,8 +120,13 @@ namespace Anvil
 		// The gate spans BOTH rows (so the see-through rail strip is dimmed too) and runs under the chrome; its
 		// content must still centre on the VISIBLE map, so it is told the height of the OPAQUE tiers — the chrome
 		// minus its rail row. Re-measured whenever a tier is hidden or shown (the chrome's height changes).
-		private void OnBottomChromeSizeChanged(object sender, SizeChangedEventArgs e) =>
-			LoopGate.ContentBottomInset = BottomChrome.ActualHeight - BottomChrome.RowDefinitions[0].ActualHeight;
+		// The TEMPORAL PANES end on the same line (the tools tier's top), as the layer's bottom margin.
+		private void OnBottomChromeSizeChanged(object sender, SizeChangedEventArgs e)
+		{
+			var opaque = BottomChrome.ActualHeight - BottomChrome.RowDefinitions[0].ActualHeight;
+			LoopGate.ContentBottomInset = opaque;
+			TemporalPaneLayer.Margin = new Thickness(0, 0, 0, opaque);
+		}
 
 		// ===== The tools tier's centre ↔ the console =====
 		// The section rules (docs/ui-bottom-bar.md): the tier's centre section spans the console from the clock's left
@@ -145,9 +150,9 @@ namespace Anvil
 			}
 		}
 
-		// ===== Both tiers' side sections ↔ the temporal windows' INNER edges (the user's call, 2026-10-22) =====
-		// Each LEFT section ends, and each RIGHT section starts, on the inner edge of the 480-wide edge window above it
-		// (WindowManager.EdgeStripReach from the client edge), whether or not that window is open. Controls keep their
+		// ===== Both tiers' side sections ↔ the temporal panes' INNER edges (the user's call, 2026-10-22) =====
+		// Each LEFT section ends, and each RIGHT section starts, on the inner edge of the edge pane above it (the
+		// declared panes' Width from the client edge), whether or not that pane is shown. Controls keep their
 		// size: one stretching dot spacer per section takes the slack — the tools tier's two (MapControlsStrip), the
 		// temporal keys' (TemporalToggles), and the right cluster's, here (between Settings and the caption key; the
 		// cluster is right-aligned, so the spacer's RIGHT edge is the one that doesn't move with it).
@@ -159,8 +164,8 @@ namespace Anvil
 			{
 				return;
 			}
-			var innerLeft = WindowManager.EdgeStripReach;
-			var innerRight = root.ActualWidth - WindowManager.EdgeStripReach;
+			var innerLeft = TemporalPaneNowCast.Width;
+			var innerRight = root.ActualWidth - TemporalPaneForeCast.Width;
 			ToolsStrip.AlignToWindowEdges(innerLeft, innerRight, root);
 			TemporalKeys.AlignToWindowEdge(innerLeft, root);
 			if (RightClusterSpacer.ActualWidth > 0 && AtlasKey.ActualWidth > 0)
@@ -173,7 +178,7 @@ namespace Anvil
 		}
 
 		// (The bar's activity slot and its AlignActivityBay are GONE, 2026-10-16: activity shows in each temporal
-		// window's activity expander, TemporalWindows/TemporalWindowActivityExpander.)
+		// window's activity expander, TemporalPanes/TemporalPaneActivityExpander.)
 
 		// Every cross-tier alignment: the site picker (and the console tools with it) on the play button, the side
 		// sections on the temporal windows' inner edges. Each is a no-op below half a pixel, so the passes they cause
@@ -215,6 +220,9 @@ namespace Anvil
 		/// </summary>
 		public Visibility NotchVisibility(bool paneVisible) =>
 			paneVisible ? Visibility.Visible : Visibility.Collapsed;
+
+		/// <summary>A temporal pane shows while its pane flag is set (MapViewModel; never past its mode).</summary>
+		public Visibility PaneVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
 
 		/// <summary>MODEL MODE (the bar's console cell): RadarControls goes INVISIBLE, never Collapsed, while ModelConsole
 		/// plays over it — the tools tier's alignment keeps measuring it (see MainWindow.xaml at TimeModule). The argument is
@@ -356,8 +364,10 @@ namespace Anvil
 			var captionLeft = AppWindow.TitleBar.LeftInset;
 			var captionRight = AppWindow.Size.Width - AppWindow.TitleBar.RightInset;
 
-			var rects = new List<RectInt32>(PaneLayoutInfo.MaxPanes);
-			foreach (var notch in new FrameworkElement[] { Notch0, Notch1, Notch2, Notch3 })
+			// The TEMPORAL PANES reach the window top too (flush), so each visible one gets the same hole.
+			var rects = new List<RectInt32>(PaneLayoutInfo.MaxPanes + 3);
+			foreach (var notch in new FrameworkElement[]
+				{ Notch0, Notch1, Notch2, Notch3, TemporalPanePastCast, TemporalPaneNowCast, TemporalPaneForeCast })
 			{
 				if (notch.Visibility != Visibility.Visible || notch.ActualWidth <= 0 || notch.ActualHeight <= 0)
 				{
@@ -425,24 +435,14 @@ namespace Anvil
 		// (The Home key and the Atlas key's home/favorites flyout are gone: both became the tools tier's site
 		// picker — MapControlsStrip. The Atlas key is a plain TwoWay latch now, with no handler.)
 
-		// Register one temporal mode's settings window. All three are the SAME TemporalWindow class; only the
-		// mode, the caption and the size differ, so the wiring lives here once rather than three times.
-		//
-		// ⚠️ The window is opened and closed by the SIDE CAR on that mode's bar key, and by the caption
-		// Close (which routes back through this close action). There is no bar key of its own — that is the
-		// whole point of the split key. And the view model closes a window whose mode has stopped
-		// (MapViewModel.OnTemporalModesChanged), so a panel can never outlive the thing it configures.
-		private void RegisterTemporalWindow(TemporalMode mode, string title, WindowAnchor anchor)
+		// A temporal pane's body drew for the first time: the LAUNCH WINDOWS show the next restored pane on it.
+		private void OnTemporalPaneShown(object? sender, EventArgs e)
 		{
-			_windows.Register(
-				id: "temporal." + mode,
-				isOpen: () => ViewModel.IsTemporalWindowOpen(mode),
-				close: () => ViewModel.SetTemporalWindowOpen(mode, false),
-				buildContent: () => new Controls.TemporalWindows.TemporalWindow(mode, ViewModel),
-				title: title, anchor: anchor,
-				keepAboveOwner: () => ViewModel.IsTemporalWindowOnTop(mode),
-				isLocked: () => ViewModel.IsTemporalWindowLocked(mode),
-				customChrome: true);
+			ViewModel.OnPanelWindowShown();
+			if (sender is Controls.TemporalPanes.TemporalPane pane)
+			{
+				LaunchTiming.LogMoment(_logger, $"pane temporal.{pane.Mode} drawn");
+			}
 		}
 
 		// Imports a .dow.json mobile-radar frame into the DOW library, for the Atlas's DOW events tab.
@@ -725,8 +725,8 @@ namespace Anvil
 			// Hide the system caption buttons — they moved to the bar (see the CAPTION BAND block above).
 			AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
 
-			// App-wide windows: every panel that isn't the radar console lives in its own native OS window
-			// (multi-monitor). The manager watches the coordinator VM's open flags and opens/closes a window
+			// App-wide windows: every panel that isn't the radar console or a temporal pane lives in its own native OS
+			// window (multi-monitor). The manager watches the coordinator VM's open flags and opens/closes a window
 			// to match; content is a fresh section instance bound to this same VM, rendered headerless (the
 			// window caption is the chrome). Each flag is INDEPENDENT — any combination may be open at once.
 			// The radar console (Row 1, the bottom bar) is deliberately NOT here.
@@ -796,18 +796,11 @@ namespace Anvil
 				keepAboveOwner: () => ViewModel.IsAtlasOnTop,
 				isLocked: () => ViewModel.IsAtlasLocked,
 				customChrome: true);
-			// THREE windows, one per timeframe — one TemporalWindow class registered three times, differing
-			// only in Mode, title, size and which flags it reads. They are opened by the SETTINGS RAIL at the
-			// foot of each mode's key in the bar's centre cluster, never by a key of their own.
-			// ⚠️ These replaced ONE tabbed "Timeframe" window (and its shared three-dot key), which had itself
-			// replaced three windows. The round trip is deliberate and the reasoning is in MapViewModel's
-			// temporal region: the tabbed panel existed to stop a mode key meaning two things at once, and
-			// splitting the key fixes that without making the two coexisting modes share one panel.
-			// ⚠️ Past and Now SHARE the left edge, which is safe only because Past excludes Now — the two can
-			// never be open together. Now and Fore coexist, so Fore takes the other edge.
-			RegisterTemporalWindow(TemporalMode.Past, "PastCast", WindowAnchor.Left);
-			RegisterTemporalWindow(TemporalMode.Now, "NowCast", WindowAnchor.Left);
-			RegisterTemporalWindow(TemporalMode.Fore, "ForeCast", WindowAnchor.Right);
+			// (The three temporal panes are NOT windows any more: they are overlays declared in MainWindow.xaml's
+			// TEMPORAL PANES block, shown by their pane flags. Only their first-draw signal is wired here.)
+			TemporalPanePastCast.Shown += OnTemporalPaneShown;
+			TemporalPaneNowCast.Shown += OnTemporalPaneShown;
+			TemporalPaneForeCast.Shown += OnTemporalPaneShown;
 			// SPC's forecast discussion, opened from either outlook section's "Discussion." button (one window:
 			// Past excludes Fore, so it reads whichever outlook mode runs). Center, like Settings and the Atlas.
 			_windows.Register(

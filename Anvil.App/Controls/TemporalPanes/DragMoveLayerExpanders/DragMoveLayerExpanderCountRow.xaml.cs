@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Markup;
 
-namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
+namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// One toggle row of a layer expander's body — box, map mark (the content), name, count at the far right, hover lift.

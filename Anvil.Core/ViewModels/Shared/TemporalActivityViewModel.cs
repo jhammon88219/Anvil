@@ -9,7 +9,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace Anvil.ViewModels
 {
 	/// <summary>
-	/// ONE temporal mode's ACTIVITY (the window's <c>TemporalWindows/TemporalWindowActivityExpander</c>): the radar's live
+	/// ONE temporal mode's ACTIVITY (the window's <c>TemporalPanes/TemporalPaneActivityExpander</c>): the radar's live
 	/// work (<see cref="Radar"/>, NowCast only), the mode's live feeds (<see cref="Feeds"/>, in the window's layer order),
 	/// the collapsed state's one-line feed summary, and the expander's state (Hidden ⇄ Full, persisted per window).
 	/// </summary>

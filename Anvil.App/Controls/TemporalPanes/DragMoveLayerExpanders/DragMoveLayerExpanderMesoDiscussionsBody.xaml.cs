@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
+namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// Mesoscale discussions (see the XAML header): card, one row per kind, what's in effect, and the door to the
@@ -28,7 +28,7 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 
 		public Visibility Shown(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
-		/// <summary>The view model; bound from the host (TemporalWindowNowCastContent / TemporalWindowPastCastContent → ViewModel.Discussions).</summary>
+		/// <summary>The view model; bound from the host (TemporalPaneNowCastContent / TemporalPanePastCastContent → ViewModel.Discussions).</summary>
 		public MesoDiscussionsViewModel ViewModel
 		{
 			get => (MesoDiscussionsViewModel)GetValue(ViewModelProperty);

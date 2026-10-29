@@ -129,7 +129,7 @@ namespace Anvil.Tests
 
 			Assert.False(vm.IsPastCast || vm.IsNowCast || vm.IsForeCast);
 			Assert.False(s.PastCastOn || s.NowCastOn || s.ForeCastOn);
-			Assert.Null(s.NowWindowOnTop);
+			Assert.False(s.PastWindowOpen || s.NowWindowOpen || s.ForeWindowOpen);
 		}
 
 		[Fact]
@@ -244,20 +244,6 @@ namespace Anvil.Tests
 			vm.ToggleTemporalMode(TemporalMode.Now);
 			Assert.True(s.NowCastOn);
 			Assert.True(s.NowWindowOpen);
-		}
-
-		[Fact]
-		public void PinAndLock_RestoreAtConstruction_AndSave()
-		{
-			var s = new AppSettings { PastWindowOnTop = false, ForeWindowLocked = false };
-			var vm = New(s);
-
-			Assert.False(vm.IsPastWindowOnTop);
-			Assert.False(vm.IsForeWindowLocked);
-			Assert.True(vm.IsNowWindowOnTop);               // never set → house default
-
-			vm.IsNowWindowLocked = false;
-			Assert.False(s.NowWindowLocked);
 		}
 
 		[Fact]

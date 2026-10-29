@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
+namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// The controls for one convective-alert overlay (see the XAML header): a summary card, a Tornado and a
@@ -90,7 +90,7 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 		public static readonly DependencyProperty AlertNounProperty =
 			DependencyProperty.Register(nameof(AlertNoun), typeof(string), typeof(DragMoveLayerExpanderAlertsBody), new PropertyMetadata("alerts"));
 
-		/// <summary>The overlay's view model; bound from the host (TemporalWindowNowCastContent → ViewModel.Watches / .Warnings).</summary>
+		/// <summary>The overlay's view model; bound from the host (TemporalPaneNowCastContent → ViewModel.Watches / .Warnings).</summary>
 		public PhenomOverlayViewModel ViewModel
 		{
 			get => (PhenomOverlayViewModel)GetValue(ViewModelProperty);

@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
+namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// The Tropical section body (see the XAML header): the storm card and one row per product. Bound to
@@ -18,7 +18,7 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 		/// <summary>x:Bind formatter for the counts.</summary>
 		public static string Fmt(int count) => count.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-		/// <summary>The view model; bound from the host (TemporalWindowNowCastContent / TemporalWindowPastCastContent → ViewModel.Tropical).</summary>
+		/// <summary>The view model; bound from the host (TemporalPaneNowCastContent / TemporalPanePastCastContent → ViewModel.Tropical).</summary>
 		public TropicalViewModel ViewModel
 		{
 			get => (TropicalViewModel)GetValue(ViewModelProperty);

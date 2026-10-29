@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
+namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// The storm-cell controls (see the XAML header): a card and one toggle per mark with the displayed scan's
@@ -18,7 +18,7 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 		/// <summary>x:Bind formatter for the counts.</summary>
 		public string Fmt(int count) => count.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-		/// <summary>The view model; bound from the host (TemporalWindowNowCastContent / TemporalWindowPastCastContent → ViewModel.StormCells).</summary>
+		/// <summary>The view model; bound from the host (TemporalPaneNowCastContent / TemporalPanePastCastContent → ViewModel.StormCells).</summary>
 		public StormCellsViewModel ViewModel
 		{
 			get => (StormCellsViewModel)GetValue(ViewModelProperty);

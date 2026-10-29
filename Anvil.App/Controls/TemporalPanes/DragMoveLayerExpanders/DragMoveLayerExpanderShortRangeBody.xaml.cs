@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
+namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 {
 	/// <summary>
 	/// ForeCast's Short Range section body (see the XAML header): the run card, Model / Product / Run / Tracks and the
@@ -15,7 +15,7 @@ namespace Anvil.Controls.TemporalWindows.DragMoveLayerExpanders
 			InitializeComponent();
 		}
 
-		/// <summary>The view model; bound from the host (TemporalWindowForeCastContent → ViewModel.ShortRange).</summary>
+		/// <summary>The view model; bound from the host (TemporalPaneForeCastContent → ViewModel.ShortRange).</summary>
 		public ShortRangeViewModel ViewModel
 		{
 			get => (ShortRangeViewModel)GetValue(ViewModelProperty);

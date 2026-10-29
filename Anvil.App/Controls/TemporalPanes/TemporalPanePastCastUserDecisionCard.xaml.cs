@@ -3,15 +3,15 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows
+namespace Anvil.Controls.TemporalPanes
 {
 	/// <summary>
 	/// The PastCast card offering the two sources for a replay — your own timeframe, or a saved event from the Atlas
 	/// (see the XAML header). Its edge lights while the picker's selection is dirty.
 	/// </summary>
-	public sealed partial class TemporalWindowPastCastUserDecisionCard : UserControl
+	public sealed partial class TemporalPanePastCastUserDecisionCard : UserControl
 	{
-		public TemporalWindowPastCastUserDecisionCard()
+		public TemporalPanePastCastUserDecisionCard()
 		{
 			InitializeComponent();
 			// ⚠️ LIFETIME: Radar is an app singleton (its PropertyChanged fires on every playback tick) and the PastCast
@@ -34,8 +34,8 @@ namespace Anvil.Controls.TemporalWindows
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalWindowPastCastUserDecisionCard),
-				new PropertyMetadata(null, (d, e) => ((TemporalWindowPastCastUserDecisionCard)d).OnViewModelChanged(e)));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalPanePastCastUserDecisionCard),
+				new PropertyMetadata(null, (d, e) => ((TemporalPanePastCastUserDecisionCard)d).OnViewModelChanged(e)));
 
 		// ===== The edge's accent state =====
 		// ⚠️ THIS LISTENER EXISTS ONLY BECAUSE THE EDGE'S TWO BRUSHES ARE VISUAL STATES — see the XAML header for why

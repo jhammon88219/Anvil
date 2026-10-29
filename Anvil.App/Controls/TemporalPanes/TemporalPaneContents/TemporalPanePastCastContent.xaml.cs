@@ -4,19 +4,19 @@ using Microsoft.UI.Xaml.Controls;
 using Anvil.Controls.Primitives;
 using Anvil.ViewModels;
 
-namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
+namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 {
 	/// <summary>
 	/// The PastCast window's Content (see the XAML header) — the header, the decision card and the timeframe picker
-	/// (each its own control: TemporalWindowHeader, TemporalWindowPastCastUserDecisionCard,
-	/// TemporalWindowPastCastTimeframePicker), then the layer sections. Bound to the coordinator
+	/// (each its own control: TemporalPaneHeader, TemporalPanePastCastUserDecisionCard,
+	/// TemporalPanePastCastTimeframePicker), then the layer sections. Bound to the coordinator
 	/// <see cref="MapViewModel"/>; the historical outlook drives <c>ViewModel.PastOutlook</c>.
 	/// </summary>
-	public sealed partial class TemporalWindowPastCastContent : UserControl
+	public sealed partial class TemporalPanePastCastContent : UserControl
 	{
 		private bool _orderApplied;
 
-		public TemporalWindowPastCastContent()
+		public TemporalPanePastCastContent()
 		{
 			InitializeComponent();
 			// Once: Loaded fires again every time the window re-shows this Content, and by then the sections
@@ -38,7 +38,7 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalWindowPastCastContent), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalPanePastCastContent), new PropertyMetadata(null));
 
 		// The outlook legend's fold, persisted like a section ("past/outlook-legend"); ForeCast's twin. Set on the
 		// LEGEND's Loaded — it sits in a LAZY section body.
@@ -64,7 +64,7 @@ namespace Anvil.Controls.TemporalWindows.TemporalWindowContents
 		/// <summary>The outlook's header opacity additionally greys while the box hides it.</summary>
 		public bool OutlookOpacityEnabled(bool loaded, bool shownOnMap) => loaded && shownOnMap;
 
-		// Header select-all boxes, same contract as TemporalWindowNowCastContent's: IsChecked is bound ONE-WAY, so the box has
+		// Header select-all boxes, same contract as TemporalPaneNowCastContent's: IsChecked is bound ONE-WAY, so the box has
 		// already flipped itself by the time Click fires and the VM's answer overwrites it. Every layer
 		// section has one (the outlook's is show/hide, disabled while Product is None).
 		private void OnRadarHeaderClick(object sender, RoutedEventArgs e)

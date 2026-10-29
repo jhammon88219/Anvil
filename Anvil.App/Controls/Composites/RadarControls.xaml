@@ -96,7 +96,7 @@
              LEFT-aligned, so its left edge lines up with the tools tier's first site key above it, and the age
              sits left under it. It follows the frame ON SCREEN; 9:59 → 10:00 fills the reserved width and moves
              nothing. (The scrubber still maps a drag from where it stood at PRESS, _dragOriginX.)
-             ⚠️ The NowCast header's clock (TemporalWindows/TemporalWindowContents/TemporalWindowNowCastContent) is a COPY of this one's look — retune both. -->
+             ⚠️ The NowCast header's clock (TemporalPanes/TemporalPaneContents/TemporalPaneNowCastContent) is a COPY of this one's look — retune both. -->
         <Grid Grid.Column="0" VerticalAlignment="Center" RowSpacing="2"
               ToolTipService.ToolTip="When the frame on screen was scanned">
             <Grid.RowDefinitions>
