@@ -26,6 +26,10 @@
      Pane.ShownSections holds it; the ghost box, ghost rows, drag and the activity expander are FULL ONLY). Nothing is
      copied or moved between parents. Three PaneStates: Full · Rail (nothing docked: body collapsed) · RailDocked
      (body top-aligned, so the stack is as tall as its content and the map shows below).
+     ⚠️ OVERFLOW (RailDocked only — code-behind "OVERFLOW"): a stack taller than the pane keeps its headers and every
+     collapsed row whole; expanded bodies share the rest; only the LISTS (PanelScroller list lanes) give way, to the
+     rows that fit + "+N more" (a click → Full); if even that doesn't fit, the Content's own section scroller scrolls
+     (always-visible gutter). The rules are Models/Map/DockStackAllocator; the pane only measures + applies DockRows.
      ⚠️ MIRRORED on the right edge (ForeCast): the RAIL takes the outer column on either side — column 0 on the left,
      column 1 on the right — by the EdgeStates group; the chevrons flip inside the rail and the header.
      ⚠️ The body is never unloaded, so every section keeps its live state across Full ⇄ Rail.

@@ -35,6 +35,14 @@
        └──┴──────────────────────────────────┘
        MaxRows: the list's MaxHeight = MaxRows × its FIRST row's measured height (re-read as rows realize),
        so the cap is exactly 8 rows whatever the row style — never a hand-typed pixel height.
+     ⚠️ IN A TEMPORAL PANE'S DOCK STACK (DockRows ≥ 0, set by TemporalPane's fit): the list shows exactly DockRows rows,
+       does NOT scroll (thumb hidden), and a "+N more" line below names the rest — a click → MoreRequested.
+
+       ┌──┬──────────────────────────────────┐
+       │  │ ■ 12:02 PM  3 NW Blackwell, OK   │  ← DockRows rows (the allocator's share of the height)
+       │  │ ■ 11:58 AM  2 S Newkirk, OK      │
+       │  │ +14 more                         │  ← MoreLine (MoreLineHeight)
+       └──┴──────────────────────────────────┘
      ⚠️ WHY NOT WinUI's OWN BAR: it is an OVERLAY (the auto-hiding "conscious" scroll indicator) — it claims no
      space, sits on top of the content's right edge and expands over sliders and % labels on hover. The rule
      here is the opposite: a fixed lane of its own.
@@ -53,6 +61,18 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition x:Name="GutterColumn" Width="16"/>      <!-- set from GutterWidth in code; 0 in a list lane -->
         </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>    <!-- the body -->
+            <RowDefinition Height="Auto"/> <!-- "+N more" — a list body in a pane's DOCK STACK only (DockRows) -->
+        </Grid.RowDefinitions>
+
+        <!-- "+N more": shown only while DockRows hides rows of a LIST body (a temporal pane's dock stack, where a squeezed
+             list shows the rows that fit and stops scrolling). A click asks for the whole list (MoreRequested → the pane
+             goes back to Full, where the list scrolls as usual). Height = MoreLineHeight (the allocator counts it). -->
+        <HyperlinkButton x:Name="MoreLine" Grid.Row="1" Grid.Column="1" Visibility="Collapsed"
+                         Height="24" Padding="6,0" HorizontalAlignment="Left" FontSize="12"
+                         ToolTipService.ToolTip="Show the whole pane"
+                         Click="OnMoreClick"/>
 
         <!-- Hidden (not Disabled) keeps wheel / touch / keyboard scrolling; only the built-in bar goes.
              Content is set in CODE (ApplyBody): a plain body goes in here… -->
