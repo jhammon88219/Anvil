@@ -178,14 +178,13 @@
     </Style>
 
     <!-- ══════════════════════════════ 2. SIZES ══════════════════════════════
-         How big a key in the bottom bar is. FIVE numbers, and they are here for exactly one reason:
-         TWO clusters have to agree on them. The temporal keys sit at the bar's centre and the pane /
+         How big a key in the bottom bar is. THREE numbers, and they are here for exactly one reason:
+         TWO clusters have to agree on them. The temporal keys sit at the bar's left edge and the
          Atlas / Settings keys sit at its right edge, side by side in one strip — a local copy in
          either would let the two halves of one bar drift apart the first time either was tuned.
 
          ⚠️ THESE ARE THE ONLY SIZES THAT ARE SHARED. Anything used by ONE key belongs to that key,
-         not here — the pane key's wide mark lives in MainWindow.xaml's own Resources, the side car's
-         mark lives in SplitTemporalToggle.xaml. Same rule as the styles below: more than one
+         not here. Same rule as the styles below: more than one
          consumer, or it doesn't earn a place in this file.
 
          ⚠️ HISTORY — THERE USED TO BE A WHOLE CLASS FOR THIS (Anvil.App/Layout/BarKeyMetrics), and
@@ -195,7 +194,7 @@
          pane notches, the bar's height stopped moving, and all that machinery was left reacting to
          nothing — while leaving the keys at whatever size the radar console implied rather than a
          size anyone chose. The keys declare a size now and the bar's Auto row sizes to THEM, so
-         there is nothing to compute and no code to hold it: five numbers, applied by Setters and by
+         there is nothing to compute and no code to hold it: three numbers, applied by Setters and by
          XAML, and no code-behind sizing anywhere in the bar. Don't re-introduce the measuring.
 
          ⚠️ ONE THING WAS LOST WITH IT, knowingly: the name font size used to be MEASURED against the
@@ -217,18 +216,8 @@
          against this if you rename a key. -->
     <x:Double x:Key="BarKeyNameSize">13</x:Double>
 
-    <!-- The SIDE CAR: the settings column on a split temporal key (Controls/Primitives/
-         SplitTemporalToggle). Shared because it decides how wide those keys are, and therefore how
-         much of the bar the centre cluster takes. ⚠️ It runs the FULL height of the key — that is the
-         whole point of it, and what a foot rail could not do: the glyph-and-name stack already owns
-         the key's height, so a settings affordance carved out of the height is always a sliver,
-         while one carved out of the width can be full size. -->
-    <x:Double x:Key="BarSideCarWidth">28</x:Double>
-
-    <!-- HEIGHT of the drawn three-dot mark inside the car. Its WIDTH is not a number anywhere: the
-         Viewbox takes it from the shape's own 6x26 box, which is TALL — the dots run vertically, along
-         the car rather than across it. -->
-    <x:Double x:Key="BarSideCarMarkHeight">24</x:Double>
+    <!-- (The temporal keys' SIDE CAR sizes — BarSideCarWidth / BarSideCarMarkHeight — are gone with the split key,
+         2026-10-29: the temporal keys are plain BarKeyToggleStyle squares now.) -->
 
     <!-- ══════════════════════════════ 3. STYLES ══════════════════════════════ -->
 

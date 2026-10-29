@@ -160,7 +160,7 @@
      aren't persisted; the ticks are. The dimmer is GONE (the user's call, 2026-10-01).
      ⚠️ Hiding OVERRIDES the ticks without changing them — show again and your set returns (the flyout says so
      while hidden). ⚠️ The hide is SESSION-ONLY; the ticks persist.
-     ⚠️ A pair, not SplitTemporalToggle: that is a 72 px bar key; this tier's tools are 32 px.
+     ⚠️ A pair of 32 px tools, not a bar key: bar keys are 72 px.
 
      ⚠️ GREYED WHILE THE PASTCAST LOADING SCREEN IS UP (Radar.AreControlsLocked, 2026-10-04): EVERY tool here, Location
      and the marker viewer included — the map is frosted and gated, so a live tool would only look broken, and pane

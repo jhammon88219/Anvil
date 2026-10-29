@@ -384,7 +384,7 @@ namespace Anvil
 			void OnFrame(object? s, object e)
 			{
 				Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= OnFrame;
-				WindowShown?.Invoke(this, id); // MapViewModel's LAUNCH WINDOWS opens the next restored window on this
+				WindowShown?.Invoke(this, id); // MainWindow logs it ("Launch:" timing)
 				_logger.LogInformation(
 					"Window {Id} opened in {Total} ms: build {Build} · create+activate {Create} · loaded at {Loaded} · " +
 					"first layout at {Layout} · first frame at {Frame} (debugger {Debugger})",

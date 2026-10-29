@@ -4,11 +4,11 @@
        ┌──────────────────────────────────────────────────────┐
        │  ⌄  When Anvil opens                                 │
        │    (•) Pick up where I left off                      │  ← PERSISTED, DEFAULT (the last session's
-       │        The modes and windows that were on when you   │     modes + windows; PastCast comes back
-       │        closed Anvil. PastCast comes back ready to…   │     armed, not loaded)
+       │        The modes that were on when you closed        │     modes; PastCast comes back armed,
+       │        Anvil. PastCast comes back ready to load…     │     not loaded; a pane comes with its mode)
        │    ( ) Start in…                                     │
        │        [ Map only | NowCast | NowCast + ForeCast | PastCast ]   ← greyed while resuming;
-       │        [✓] Open its window too                       │     kept as a token, never an index
+       │                                                      │     kept as a token, never an index
        │  ⌄  Home site                                        │
        │    Home site: KTLX · Norman                          │  ← set in the Radar Atlas, not here
        │    [ ] Load home site on launch                      │  ← PERSISTED, default off (moved here
@@ -38,7 +38,7 @@
                              Content="Pick up where I left off"
                              IsChecked="{x:Bind ViewModel.StartupResume, Mode=TwoWay}"/>
                 <TextBlock Margin="32,0,0,6" TextWrapping="Wrap" Opacity="0.75"
-                           Text="The modes and windows that were on when you closed Anvil. PastCast comes back ready to load, not loaded."/>
+                           Text="The modes that were on when you closed Anvil. PastCast comes back ready to load, not loaded."/>
 
                 <RadioButton GroupName="StartupChoice" Margin="4,0,0,0"
                              Content="Start in…"
@@ -48,11 +48,6 @@
                                       ItemsSource="{x:Bind ViewModel.StartupModeLabels}"
                                       SelectedIndex="{x:Bind ViewModel.StartupModeIndex, Mode=TwoWay}"
                                       IsEnabled="{x:Bind ViewModel.StartupFixed, Mode=OneWay}"/>
-                <CheckBox Margin="32,4,0,0"
-                          Content="Open its window too"
-                          IsChecked="{x:Bind ViewModel.StartupOpenWindow, Mode=TwoWay}"
-                          IsEnabled="{x:Bind ViewModel.StartupFixed, Mode=OneWay}"
-                          ToolTipService.ToolTip="Open the NowCast / ForeCast / PastCast window along with its mode"/>
                 <TextBlock Margin="32,2,0,0" TextWrapping="Wrap" Opacity="0.75"
                            Text="PastCast starts ready to load, not loaded. Takes effect next time Anvil opens."/>
             </StackPanel>

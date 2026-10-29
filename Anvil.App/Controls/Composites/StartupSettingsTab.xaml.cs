@@ -6,8 +6,8 @@ namespace Anvil.Controls.Composites
 {
 	/// <summary>
 	/// The Settings window's Startup tab (see the XAML header): resume the last session or one fixed start, and the
-	/// home-site launch. The state lives on <see cref="MapViewModel"/> (StartupResume / StartupModeIndex /
-	/// StartupOpenWindow) and <see cref="MapViewModel.SiteFavorites"/>.
+	/// home-site launch. The state lives on <see cref="MapViewModel"/> (StartupResume / StartupModeIndex) and
+	/// <see cref="MapViewModel.SiteFavorites"/>.
 	/// </summary>
 	public sealed partial class StartupSettingsTab : UserControl
 	{

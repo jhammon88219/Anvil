@@ -33,9 +33,8 @@
      that goes with it: the strip will not move off a tab that goes disabled, because only the host knows
      where the selection belongs instead.
      ⚠️ NOTHING SETS IT TODAY. Its one consumer was the Timeframe window, where each of three tabs was live
-     only while its own mode ran; that window is gone — the three temporal panels are three windows again,
-     latched by the settings rail on each mode's bar key (Controls/Primitives/SplitTemporalToggle), and the
-     Settings window's tabs are always available. The support is kept because it is the strip's answer to
+     only while its own mode ran; that window is gone — the three temporal panels are in-window panes that follow
+     their modes (TemporalPanes/TemporalPane), and the Settings window's tabs are always available. The support is kept because it is the strip's answer to
      "this tab exists but you can't use it yet", which is a question a settings rail will ask again.
 
      ⚠️ The two indicators BOTH live in the item template, and the strip pushes IsVertical onto every entry.

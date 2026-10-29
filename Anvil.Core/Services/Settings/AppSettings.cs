@@ -603,23 +603,15 @@ namespace Anvil.Services
 		private bool? _foreCastOutlookShown;
 		public bool? ForeCastOutlookShown { get => _foreCastOutlookShown; set => SetProperty(ref _foreCastOutlookShown, value); }
 
-		// ── Temporal SESSION: which modes were on, and each mode's window (MapViewModel "Temporal session") ──
+		// ── Temporal SESSION: which modes were on (MapViewModel "Temporal session") ──
 		// ⚠️ Restored at MAP-READY (a mode drives the map), before the home-site launch. Modes default OFF
-		// (the app has always launched clean), so these are plain bools. A window flag is only honoured while
-		// its mode is back on — a window can't outlive its mode.
+		// (the app has always launched clean), so these are plain bools. A mode's pane always comes back with it.
 		private bool _pastCastOn;
 		public bool PastCastOn { get => _pastCastOn; set => SetProperty(ref _pastCastOn, value); }
 		private bool _nowCastOn;
 		public bool NowCastOn { get => _nowCastOn; set => SetProperty(ref _nowCastOn, value); }
 		private bool _foreCastOn;
 		public bool ForeCastOn { get => _foreCastOn; set => SetProperty(ref _foreCastOn, value); }
-
-		private bool _pastWindowOpen;
-		public bool PastWindowOpen { get => _pastWindowOpen; set => SetProperty(ref _pastWindowOpen, value); }
-		private bool _nowWindowOpen;
-		public bool NowWindowOpen { get => _nowWindowOpen; set => SetProperty(ref _nowWindowOpen, value); }
-		private bool _foreWindowOpen;
-		public bool ForeWindowOpen { get => _foreWindowOpen; set => SetProperty(ref _foreWindowOpen, value); }
 
 		// (The per-window pin + lock settings are gone: the temporal panes are in-window overlays, 2026-10-29. An older
 		// file's PastWindowOnTop / …Locked keys are simply ignored on load.)
@@ -733,7 +725,7 @@ namespace Anvil.Services
 
 		// ── Startup (Settings → Startup) ──
 		private bool _startupResume = true;
-		/// <summary>Open Anvil on the LAST session's modes + windows (default) — else on <see cref="StartupMode"/>.</summary>
+		/// <summary>Open Anvil on the LAST session's modes (default) — else on <see cref="StartupMode"/>.</summary>
 		public bool StartupResume
 		{
 			get => _startupResume;
@@ -746,14 +738,6 @@ namespace Anvil.Services
 		{
 			get => _startupMode;
 			set => SetProperty(ref _startupMode, value);
-		}
-
-		private bool _startupOpenWindow = true;
-		/// <summary>With a fixed start, also open that mode's window(s).</summary>
-		public bool StartupOpenWindow
-		{
-			get => _startupOpenWindow;
-			set => SetProperty(ref _startupOpenWindow, value);
 		}
 
 		private bool _loadHomeOnLaunch;

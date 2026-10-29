@@ -438,7 +438,7 @@ namespace Anvil
 		// A temporal pane's body drew for the first time: the LAUNCH WINDOWS show the next restored pane on it.
 		private void OnTemporalPaneShown(object? sender, EventArgs e)
 		{
-			ViewModel.OnPanelWindowShown();
+			ViewModel.OnTemporalPaneShown();
 			if (sender is Controls.TemporalPanes.TemporalPane pane)
 			{
 				LaunchTiming.LogMoment(_logger, $"pane temporal.{pane.Mode} drawn");
@@ -739,11 +739,7 @@ namespace Anvil
 				availableBottom: () =>
 					MapControlsTier.TransformToVisual(Content).TransformPoint(new Windows.Foundation.Point(0, 0)).Y,
 				monitorMode: () => ViewModel.MonitorMode);
-			_windows.WindowShown += (_, id) =>
-			{
-				ViewModel.OnPanelWindowShown(); // the launch windows open one at a time on it
-				LaunchTiming.LogMoment(_logger, $"window {id} drawn");
-			};
+			_windows.WindowShown += (_, id) => LaunchTiming.LogMoment(_logger, $"window {id} drawn");
 			// LAUNCH TIMING: the home radar's first frame, once (later frames are ordinary use).
 			EventHandler? onFirstFrame = null;
 			onFirstFrame = (_, _) =>

@@ -12,10 +12,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace Anvil.ViewModels
 {
 	/// <summary>Which temporal feature a toggle click refers to (PastCast / NowCast / ForeCast). Identifies
-	/// the mode for <see cref="MapViewModel.ToggleTemporalMode"/>, and addresses that mode's settings window
-	/// for <see cref="MapViewModel.OpenTemporal"/> and its siblings — every mode has exactly one window, so
-	/// one enum names both. It is NOT an open-state: each window has its own flag, latched by the settings
-	/// rail at the foot of that mode's key.</summary>
+	/// the mode for <see cref="MapViewModel.ToggleTemporalMode"/>, and addresses that mode's pane
+	/// (<see cref="MapViewModel.IsPaneShown"/>) — every mode has exactly one pane, so one enum names both.</summary>
 	public enum TemporalMode { Past, Now, Fore }
 
 	/// <summary>Which tab the Settings window shows. Identifies a tab for <see cref="MapViewModel.OpenSettings"/>
@@ -545,23 +543,14 @@ namespace Anvil.ViewModels
 		// may be up TOGETHER (live radar under the live outlook). So: Past alone, or Now and/or Fore. Turning
 		// one on clears whatever it excludes — see the IsPastCast/IsNowCast/IsForeCast setters + the ctor
 		// Radar/Outlook subscriptions. With ALL THREE OFF the map is a blank basemap (the "cleared" state — click the active
-		// toggle to reach it). ALL THREE START OFF — nothing is armed at launch (a clean map). Activating a
-		// toggle also OPENS that mode's settings window, so the common path is still one click.
+		// toggle to reach it). ALL THREE START OFF — nothing is armed at launch (a clean map).
 		//
-		// ⚠️ A TOGGLE ONLY TOGGLES ITS MODE. Clicking a LIT key turns that mode OFF — the one behaviour every
-		// user already expects from a lit toggle. It does NOT govern a window; the SETTINGS RAIL at the foot
-		// of the same key does that, and shows its own state while doing it.
-		// HISTORY, do not undo: these keys used to mean two things at once through ONE control — "turn the
-		// mode on" when unlit, "flip my settings window" when lit. The window's open state was invisible on
-		// the key, so the same click did two different things depending on state the user could not see: arm
-		// NowCast by clicking a site marker, or close the ForeCast window, and the only route back to the
-		// panel was a key that looked like it would switch the feature off. Painting the second state onto
-		// the one key was considered and rejected — it still had to be LEARNED. The first fix was to stop
-		// pairing them at all: the three panels became TABS of one Timeframe window behind its own three-dot
-		// key, and the keys went back to being plain mode switches. That worked, and cost what tabs cost —
-		// Now and Fore coexist as modes, but their panels could no longer sit on two monitors. The key is
-		// SPLIT now instead, which buys both: two controls, two contracts, both visible at once, and three
-		// windows again. See Controls/Primitives/SplitTemporalToggle.
+		// ⚠️ A TOGGLE ONLY TOGGLES ITS MODE (Temporal Panes spec, 2026-10-28): the bar keys are plain on/off keys, and a
+		// mode's PANE simply follows its mode — up while it runs, gone when it stops (see "The three temporal panes").
+		// Nothing opens or closes a pane on its own, so there is no second state to hide on a key. HISTORY, do not undo:
+		// the keys once meant "turn on" when unlit and "flip my window" when lit (state you could not see); then the
+		// panels were tabs of one window; then each key was SPLIT into a mode square + a window side car. The panes
+		// replaced all of that — collapsing a pane to its rail is how you get the map back, not hiding it.
 
 		/// <summary>PastCast (historical replay). Projection of <see cref="RadarViewModel.IsPastEventMode"/>:
 		/// on enters replay (clearing any live loop), off exits replay to a blank basemap. Turning it on
@@ -573,7 +562,7 @@ namespace Anvil.ViewModels
 			{
 				if (value == Radar.IsPastEventMode) { return; }
 				Radar.IsPastEventMode = value; // both directions clear the layer (enter = arm replay, leave = blank)
-				if (value) { OpenTemporal(TemporalMode.Past); } // on → show its window (off closes it, via OnTemporalModesChanged)
+				if (value) { ReleaseLaunchHold(TemporalMode.Past); } // its pane follows the mode (OnTemporalModesChanged)
 			}
 		}
 
@@ -583,7 +572,7 @@ namespace Anvil.ViewModels
 		// off loop-existence would snap back + DISABLE the cog whenever no site is loaded. Storing it lets
 		// the toggle/cog stay on with a blank-but-armed radar. Default OFF (nothing is armed at launch — a
 		// clean map); clicking a site marker starts a live loop, which arms it via the Radar subscription
-		// (that path writes this FIELD directly, bypassing the setter, so it does NOT auto-open the Now window).
+		// (that path writes this FIELD directly, bypassing the setter; the Now pane still follows, via OnTemporalModesChanged).
 		// Entering replay disarms it. Set as a field initializer so construction issues no map command.
 		private bool _isNowCast;
 
@@ -602,7 +591,7 @@ namespace Anvil.ViewModels
 					// NowCast ⇄ MODEL: turning live radar on unticks a drawing model field (see that region) — unless the two
 					// are being COMPARED, which is the one time they draw together.
 					if (ShortRange.IsDrawing && !ShortRange.IsCompareActive) { _resumeNowCastAfterModel = false; ShortRange.IsShown = false; }
-					OpenTemporal(TemporalMode.Now); // on → show its window (marker-click arming bypasses this setter)
+					ReleaseLaunchHold(TemporalMode.Now); // its pane follows the mode (OnTemporalModesChanged, below)
 				}
 				else if (!Radar.IsPastEventMode)
 				{
@@ -632,7 +621,7 @@ namespace Anvil.ViewModels
 				// DO coexist — no exclusion between them.) Mirrors how arming NowCast leaves replay.
 				if (value && Radar.IsPastEventMode) { Radar.IsPastEventMode = false; }
 				Outlook.IsOutlookVisible = value;
-				if (value) { OpenTemporal(TemporalMode.Fore); } // on → show its window (off closes it, via OnTemporalModesChanged)
+				if (value) { ReleaseLaunchHold(TemporalMode.Fore); } // its pane follows the mode (OnTemporalModesChanged)
 			}
 		}
 
@@ -643,7 +632,7 @@ namespace Anvil.ViewModels
 		//   • it stops (box unticked, or ForeCast off) → NowCast comes BACK on that site — unless PastCast now runs;
 		//   • NowCast turned on while the field draws (the key, or a site marker click) → the box is unticked, and that
 		//     is the end of it (nothing to bring back).
-		// ⚠️ The setter route OPENS the NowCast window on the way back, like any NowCast on.
+		// ⚠️ The NowCast pane comes back with the mode, like any NowCast on.
 		// ⚠️ COMPARE WITH RADAR is the one exception (the user's call, 2026-10-21): while ShortRange.IsCompareActive the two
 		// DO draw together — radar in pane 0, the model in pane 1 (two across, the layout before it put back after), and
 		// radar's console sets the time. Turning compare on brings NowCast back (on the remembered site); turning it off
@@ -712,11 +701,8 @@ namespace Anvil.ViewModels
 			ShortRange.IsComparing = false;
 		}
 
-		/// <summary>Handles a click on the MODE half of a split temporal key: it TOGGLES THAT MODE, and
-		/// nothing else. Unlit →
-		/// on (which also opens that mode's window); lit → off. The SETTINGS RAIL at the foot of the same key
-		/// is what shows and hides the window — see the ⚠️ history note at the top of this region before making
-		/// either half mean two things again.</summary>
+		/// <summary>Handles a click on a temporal bar key: it TOGGLES THAT MODE, and nothing else. Unlit → on;
+		/// lit → off. The mode's pane follows on its own — see the ⚠️ note at the top of this region.</summary>
 		/// <remarks>
 		/// The lit state is bound OneWay to the mode PROJECTION, and a ToggleButton has already flipped its own
 		/// IsChecked by the time this runs — so if a subsystem declines the change (nothing to project onto),
@@ -741,91 +727,50 @@ namespace Anvil.ViewModels
 			});
 		}
 
-		// ===== The three temporal windows (one per mode) =================================================
-		// Each mode's settings live in their OWN window, opened by the SETTINGS RAIL at the foot of that
-		// mode's bar key (Controls/Primitives/SplitTemporalToggle). One key, two contracts: the square runs
-		// the mode, the rail shows its window.
-		//
-		// ⚠️ HISTORY, so the wheel is not turned twice. These were three windows, then ONE window with three
-		// tabs behind a shared three-dot key, and now three windows again. The tabbed panel existed to fix a
-		// real bug — a mode key that meant "turn the mode on" when unlit and "flip my window" when lit, with
-		// the window's open state visible NOWHERE on the key. Splitting the key fixes that bug WITHOUT
-		// collapsing the windows: mode state is on the square, window state is on the rail, and neither is
-		// hidden. What comes back is exactly what the tabs cost — Now and Fore coexist as modes, so their
-		// panels can be parked on two monitors again. Do NOT re-merge them into one tabbed window; the
-		// overloaded key was the bug, not the pairing of a mode with its window.
-		//
-		// ⚠️ A WINDOW CANNOT OUTLIVE ITS MODE. The rail is disabled while its mode is off, so a window can
-		// only be OPENED while its mode runs, and OnTemporalModesChanged CLOSES one whose mode has just
-		// stopped. That rule is stronger than the tabbed panel's (its tabs merely greyed, and the window
-		// stayed up showing dead controls), and it is what keeps the rail honest: an unlit rail can never be
-		// hiding an open window, so a dark rail always means "there is nothing open here".
-		//
-		// ⚠️ The panes are in-window overlays now (TemporalPanes/TemporalPane), so there is no pin or lock: the
-		// per-window on-top / locked flags went with the OS windows.
+		// ===== The three temporal panes (one per mode) ===================================================
+		// A pane (TemporalPanes/TemporalPane, in MainWindow's map band) SHOWS WHILE ITS MODE RUNS — nothing else opens or
+		// closes it (Temporal Panes spec, 2026-10-28). Two things hold a running mode's pane back for a while:
+		//   • the LAUNCH order: restored modes' panes come up one at a time (LAUNCH WINDOWS below — the first pane build
+		//     froze the UI ~1-2 s at launch);
+		//   • the LOOP HOLDING GATE: every pane steps aside while a PastCast loop loads (Loading screen below).
+		// So IsXPaneShown = mode on AND not held by either — READ-ONLY, recomputed by RefreshPanes.
 
-		private bool _isPastWindowOpen;
-		private bool _isNowWindowOpen;
-		private bool _isForeWindowOpen;
+		private bool _isPastPaneShown;
+		private bool _isNowPaneShown;
+		private bool _isForePaneShown;
 
-		/// <summary>Whether the PastCast window is open. Two-ways with the settings rail on the PastCast key;
-		/// forced false when PastCast stops (see <see cref="OnTemporalModesChanged"/>).</summary>
-		public bool IsPastWindowOpen
+		/// <summary>The PastCast pane is up (PastCast runs, not held — see the region note).</summary>
+		public bool IsPastPaneShown { get => _isPastPaneShown; private set => SetProperty(ref _isPastPaneShown, value); }
+
+		/// <summary>The NowCast pane is up.</summary>
+		public bool IsNowPaneShown { get => _isNowPaneShown; private set => SetProperty(ref _isNowPaneShown, value); }
+
+		/// <summary>The ForeCast pane is up.</summary>
+		public bool IsForePaneShown { get => _isForePaneShown; private set => SetProperty(ref _isForePaneShown, value); }
+
+		/// <summary>Whether <paramref name="which"/> mode's pane is up.</summary>
+		public bool IsPaneShown(TemporalMode which) => which switch
 		{
-			get => _isPastWindowOpen;
-			set => SetProperty(ref _isPastWindowOpen, value);
-		}
-
-		/// <summary>Whether the NowCast window is open. Two-ways with the settings rail on the NowCast key.</summary>
-		public bool IsNowWindowOpen
-		{
-			get => _isNowWindowOpen;
-			set => SetProperty(ref _isNowWindowOpen, value);
-		}
-
-		/// <summary>Whether the ForeCast window is open. Two-ways with the settings rail on the ForeCast key.</summary>
-		public bool IsForeWindowOpen
-		{
-			get => _isForeWindowOpen;
-			set => SetProperty(ref _isForeWindowOpen, value);
-		}
-
-		/// <summary>Whether <paramref name="which"/> mode's settings window is open.</summary>
-		public bool IsTemporalWindowOpen(TemporalMode which) => which switch
-		{
-			TemporalMode.Past => IsPastWindowOpen,
-			TemporalMode.Now => IsNowWindowOpen,
-			TemporalMode.Fore => IsForeWindowOpen,
-			_ => false,
+			TemporalMode.Past => IsPastPaneShown,
+			TemporalMode.Now => IsNowPaneShown,
+			_ => IsForePaneShown,
 		};
 
-		/// <summary>Show or hide <paramref name="which"/> mode's settings window.</summary>
-		public void SetTemporalWindowOpen(TemporalMode which, bool open)
+		private void RefreshPanes()
 		{
-			switch (which)
-			{
-				case TemporalMode.Past: IsPastWindowOpen = open; break;
-				case TemporalMode.Now: IsNowWindowOpen = open; break;
-				case TemporalMode.Fore: IsForeWindowOpen = open; break;
-			}
+			IsPastPaneShown = IsPastCast && !_panesHeldForLoad && !_launchHeld.Past;
+			IsNowPaneShown = IsNowCast && !_panesHeldForLoad && !_launchHeld.Now;
+			IsForePaneShown = IsForeCast && !_panesHeldForLoad && !_launchHeld.Fore;
 		}
 
 		/// <summary>
-		/// Keep the windows honest about which modes are running. Called from every place a mode can change:
-		/// the Radar subscriptions (Past + the marker-click arming of Now), the Outlook subscription (Fore)
-		/// and the <see cref="IsNowCast"/> setter.
+		/// Keep the panes and every mode-gated layer honest about which modes are running. Called from every place a
+		/// mode can change: the Radar subscriptions (Past + the marker-click arming of Now), the Outlook subscription
+		/// (Fore) and the <see cref="IsNowCast"/> setter.
 		/// </summary>
-		/// <remarks>
-		/// ⚠️ A window configures a RUNNING mode. When a mode stops — turned off at its own key, or excluded
-		/// by another (Past excludes Now + Fore) — its window has nothing left to act on AND its rail has just
-		/// gone dead, so leaving the window up would strand it: no lit control anywhere could close it. That
-		/// is the one thing the tabbed panel got to skip, because its key was independent of every mode.
-		/// </remarks>
 		private void OnTemporalModesChanged()
 		{
-			if (!IsPastCast) { IsPastWindowOpen = false; }
-			if (!IsNowCast) { IsNowWindowOpen = false; }
-			if (!IsForeCast) { IsForeWindowOpen = false; }
+			RefreshPanes();
 			// The discussion window reads the outlook of whichever outlook mode runs; with neither, it has none.
 			if (!IsPastCast && !IsForeCast) { IsOutlookDiscussionOpen = false; }
 			// The MD window reads the discussions of Now or Past; with neither, the list is cleared.
@@ -943,18 +888,17 @@ namespace Anvil.ViewModels
 			_ = _mapService.SetOverlayOrderAsync(LayerOrder.Normalize(LayerOrderFor(mode)));
 		}
 
-		/// <summary>Open a mode's settings window. The one entry point for "show me the controls for that
-		/// timeframe" — used by the mode setters when a mode is switched on, and the mirror of
-		/// <see cref="OpenSettings"/>.</summary>
-		public void OpenTemporal(TemporalMode which)
+		// The user turned a mode on (its setter): a pane still waiting its LAUNCH turn comes up now. Not while the session
+		// restores — that is the launch.
+		private void ReleaseLaunchHold(TemporalMode which)
 		{
-			// While the session is being restored, a mode coming back on must NOT pop its window — the saved
-			// window flag decides that, and an open-then-close would flash a real OS window.
 			if (_restoringSession) { return; }
-			SetTemporalWindowOpen(which, true);
+			var (past, now, fore) = _launchHeld;
+			_launchHeld = (past && which != TemporalMode.Past, now && which != TemporalMode.Now, fore && which != TemporalMode.Fore);
+			RefreshPanes();
 		}
 
-		// ===== Temporal SESSION (which modes were on + their windows) — persisted =====================
+		// ===== Temporal SESSION (which modes were on) — persisted =====================================
 		// ⚠️ MODES + PANES restore at MAP-READY (RestoreTemporalSession): turning a mode on drives the map.
 		// Saving starts only after that restore, and stops at Shutdown — the app closing is not the user
 		// switching things off.
@@ -963,46 +907,44 @@ namespace Anvil.ViewModels
 		private bool _sessionRestored;
 		private bool _shuttingDown;
 
-		// ===== LAUNCH WINDOWS (2026-10-10): the restored windows open AFTER the home radar's first frame, ONE AT A TIME =====
-		// Building + first-laying-out the Now and Fore windows froze the UI ~1-2 s at launch (Start-menu runs; ~2× under the
+		// ===== LAUNCH WINDOWS (2026-10-10): the restored panes show AFTER the home radar's first frame, ONE AT A TIME =====
+		// Building + first-laying-out the Now and Fore panes froze the UI ~1-2 s at launch (Start-menu runs; ~2× under the
 		// debugger), while the home loop started and the map sat behind them. Map-ready now restores the MODES at once but
-		// holds their windows (deferWindows) for OpenLaunchWindowsAsync, which opens each and waits for it to draw
-		// (OnPanelWindowShown, from WindowManager; WindowShownTimeoutMs) before the next, so two layouts never stack.
-		// ⚠️ 2026-10-19 (user's call): the FIRST window no longer waits for the home radar's first frame — the radar's
-		// ~2-3 s of download + decompress runs on pool threads, so the UI thread is idle enough to build one window in
-		// that gap (windows came ~3 s sooner; the cost is up to ~1 s on the radar's first paint). Every LATER window
-		// still waits for that first frame too (only when a live loop is starting; LaunchWindowFallbackMs if it never
-		// comes), so at most ONE window build lands on the radar's startup. "Launch:" log lines measure both.
-		// A window whose mode went off meanwhile stays shut; one the loading screen holds is handed to it.
-		private (bool Past, bool Now, bool Fore) _launchWindows;
-		private TaskCompletionSource? _windowShown;
+		// holds their panes (deferPanes → _launchHeld) for ShowLaunchPanesAsync, which releases each and waits for it to
+		// draw (OnTemporalPaneShown ← TemporalPane.Shown; PaneShownTimeoutMs) before the next, so two layouts never stack.
+		// ⚠️ 2026-10-19 (user's call): the FIRST pane doesn't wait for the home radar's first frame — the radar's ~2-3 s of
+		// download + decompress runs on pool threads, so the UI thread is idle enough to build one pane in that gap. Every
+		// LATER pane still waits for that first frame too (only when a live loop is starting; LaunchPaneFallbackMs if it
+		// never comes), so at most ONE pane build lands on the radar's startup. "Launch:" log lines measure both.
+		// A mode turned on by the user meanwhile shows its pane at once (ReleaseLaunchHold).
+		private (bool Past, bool Now, bool Fore) _launchHeld;
+		private TaskCompletionSource? _paneShown;
 
-		/// <summary>No first radar frame by then → the launch windows open anyway.</summary>
-		internal int LaunchWindowFallbackMs { get; set; } = 5000;
+		/// <summary>No first radar frame by then → the launch panes show anyway.</summary>
+		internal int LaunchPaneFallbackMs { get; set; } = 5000;
 
-		/// <summary>A window that never reports drawing (no page) doesn't hold the next past this.</summary>
-		internal int WindowShownTimeoutMs { get; set; } = 1500;
+		/// <summary>A pane that never reports drawing doesn't hold the next past this.</summary>
+		internal int PaneShownTimeoutMs { get; set; } = 1500;
 
 		/// <summary>True when the launch is starting a live radar loop worth waiting for (test seam).</summary>
 		internal Func<bool>? LaunchLoopStarting { get; set; }
 
-		/// <summary>MainWindow: a temporal pane (or a panel window) drew its first frame.</summary>
-		public void OnPanelWindowShown() => _windowShown?.TrySetResult();
+		/// <summary>MainWindow: a temporal pane's body drew for the first time.</summary>
+		public void OnTemporalPaneShown() => _paneShown?.TrySetResult();
 
-		internal async Task OpenLaunchWindowsAsync()
+		internal async Task ShowLaunchPanesAsync()
 		{
-			var want = _launchWindows;
-			_launchWindows = default;
+			var want = _launchHeld;
 			if (!(want.Past || want.Now || want.Fore)) return;
 
-			// Armed NOW (the frame can land while the first window builds), awaited only before a SECOND window.
+			// Armed NOW (the frame can land while the first pane builds), awaited only before a SECOND pane.
 			var loopStarting = LaunchLoopStarting?.Invoke() ?? (!IsPastCast && Radar.SelectedRadarOption?.Site is not null);
 			var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 			void OnFirst(object? sender, EventArgs e) => first.TrySetResult();
 			if (loopStarting)
 			{
 				Radar.FirstFrameShown += OnFirst;
-				_ = Task.Delay(LaunchWindowFallbackMs).ContinueWith(_ => first.TrySetResult(), TaskScheduler.Default);
+				_ = Task.Delay(LaunchPaneFallbackMs).ContinueWith(_ => first.TrySetResult(), TaskScheduler.Default);
 			}
 			else
 			{
@@ -1011,43 +953,38 @@ namespace Anvil.ViewModels
 
 			try
 			{
-				var opened = false;
-				foreach (var (mode, on) in new[] { (TemporalMode.Past, want.Past), (TemporalMode.Now, want.Now), (TemporalMode.Fore, want.Fore) })
+				var shownOne = false;
+				foreach (var mode in new[] { TemporalMode.Past, TemporalMode.Now, TemporalMode.Fore })
 				{
-					if (!on || _shuttingDown || !IsModeOn(mode)) continue;
-					if (opened)
+					if (!IsLaunchHeld(mode) || _shuttingDown) continue;
+					if (shownOne)
 					{
-						var shown = _windowShown?.Task ?? Task.CompletedTask;
-						await Task.WhenAll(Task.WhenAny(shown, Task.Delay(WindowShownTimeoutMs)), first.Task);
-						if (_shuttingDown || !IsModeOn(mode)) continue;
+						var shown = _paneShown?.Task ?? Task.CompletedTask;
+						await Task.WhenAll(Task.WhenAny(shown, Task.Delay(PaneShownTimeoutMs)), first.Task);
+						if (!IsLaunchHeld(mode) || _shuttingDown) continue; // the user already turned it on meanwhile
 					}
-					_windowShown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-					if (_windowsHeldForLoad)
-					{
-						// The loading screen is up: it reopens what it holds when it goes.
-						if (mode == TemporalMode.Past) _pastHeldForLoad = true;
-						else if (mode == TemporalMode.Now) _nowHeldForLoad = true;
-						else _foreHeldForLoad = true;
-						continue;
-					}
-					SetTemporalWindowOpen(mode, true);
-					opened = true;
+					_paneShown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+					ReleaseLaunchHold(mode);
+					// Off meanwhile, or the loading screen holds it (it shows when that goes): nothing built, no wait.
+					shownOne = IsPaneShown(mode);
 				}
 			}
 			finally
 			{
 				Radar.FirstFrameShown -= OnFirst;
+				_launchHeld = default; // nothing stays held past the launch
+				RefreshPanes();
 			}
 
-			bool IsModeOn(TemporalMode m) => m switch
+			bool IsLaunchHeld(TemporalMode m) => m switch
 			{
-				TemporalMode.Past => IsPastCast,
-				TemporalMode.Now => IsNowCast,
-				_ => IsForeCast,
+				TemporalMode.Past => _launchHeld.Past,
+				TemporalMode.Now => _launchHeld.Now,
+				_ => _launchHeld.Fore,
 			};
 		}
 
-		internal void RestoreTemporalSession(bool deferWindows = false) // internal: TemporalSessionTests call it without a full map-ready
+		internal void RestoreTemporalSession(bool deferPanes = false) // internal: TemporalSessionTests call it without a full map-ready
 		{
 			if (_sessionRestored) { return; }
 			var s = _settingsService.Settings;
@@ -1055,11 +992,10 @@ namespace Anvil.ViewModels
 			// WHAT TO START ON (Settings → Startup): the last session (default), or one fixed start. ⚠️ A fixed start
 			// is NOT saved over the last session — nothing set here is saved (_sessionRestored is still false), so
 			// switching back to "Pick up where I left off" resumes what you actually last did.
-			bool past, now, fore, pastWin, nowWin, foreWin;
+			bool past, now, fore;
 			if (s.StartupResume)
 			{
 				past = s.PastCastOn; now = s.NowCastOn; fore = s.ForeCastOn;
-				pastWin = s.PastWindowOpen; nowWin = s.NowWindowOpen; foreWin = s.ForeWindowOpen;
 			}
 			else
 			{
@@ -1067,8 +1003,11 @@ namespace Anvil.ViewModels
 				past = mode == StartupModes.Past;
 				now = mode is StartupModes.Now or StartupModes.NowFore;
 				fore = mode == StartupModes.NowFore;
-				pastWin = nowWin = foreWin = s.StartupOpenWindow;
 			}
+
+			// At launch the panes are HELD for ShowLaunchPanesAsync (LAUNCH WINDOWS above) — set BEFORE the modes come
+			// back, or each would show (and build) the moment its mode turns on.
+			if (deferPanes) { _launchHeld = (past, now && !past, fore && !past); }
 
 			_restoringSession = true;
 			try
@@ -1082,19 +1021,7 @@ namespace Anvil.ViewModels
 				}
 			}
 			finally { _restoringSession = false; }
-
-			// A window only comes back with its mode (a window can't outlive its mode). At launch they're HELD for
-			// OpenLaunchWindowsAsync (LAUNCH WINDOWS above).
-			if (deferWindows)
-			{
-				_launchWindows = (IsPastCast && pastWin, IsNowCast && nowWin, IsForeCast && foreWin);
-			}
-			else
-			{
-				IsPastWindowOpen = IsPastCast && pastWin;
-				IsNowWindowOpen = IsNowCast && nowWin;
-				IsForeWindowOpen = IsForeCast && foreWin;
-			}
+			RefreshPanes();
 			_sessionRestored = true;
 		}
 
@@ -1103,48 +1030,27 @@ namespace Anvil.ViewModels
 			if (_shuttingDown) { return; }
 			var s = _settingsService.Settings;
 			if (!_sessionRestored) { return; } // the launch state (all off) isn't a choice
-			// Windows the loading screen put away aren't the user closing them — keep the saved state.
-			if (_windowsHeldForLoad && property is nameof(IsPastWindowOpen) or nameof(IsNowWindowOpen) or nameof(IsForeWindowOpen)) { return; }
 			switch (property)
 			{
 				case nameof(IsPastCast): s.PastCastOn = IsPastCast; break;
 				case nameof(IsNowCast): s.NowCastOn = IsNowCast; break;
 				case nameof(IsForeCast): s.ForeCastOn = IsForeCast; break;
-				case nameof(IsPastWindowOpen): s.PastWindowOpen = IsPastWindowOpen; break;
-				case nameof(IsNowWindowOpen): s.NowWindowOpen = IsNowWindowOpen; break;
-				case nameof(IsForeWindowOpen): s.ForeWindowOpen = IsForeWindowOpen; break;
 			}
 		}
 
-		// ===== Loading screen: the temporal windows step aside =========================================
-		// An open Past/Now/Fore window is a real OS window, so it sat UNBLURRED over the frosted map while a PastCast
-		// loop loaded (the user's call, 2026-10-04: it looked odd). The screen's FROST clock decides
-		// (Radar.AreControlsLocked: on with the dim after FadeInDelayMs, so a cached load that never shows the screen
-		// never flickers a window; off at once). Up → close the open ones and remember them; down — "View event",
-		// "Got it" after a cancel, a dismiss — → reopen those whose mode is still on.
-		// ⚠️ Neither move is SAVED (SaveTemporalSession skips while held): quitting mid-load keeps the windows.
-		private bool _windowsHeldForLoad;
-		private bool _pastHeldForLoad, _nowHeldForLoad, _foreHeldForLoad;
+		// ===== Loading screen: the temporal panes step aside ===========================================
+		// While a PastCast loop loads the map is frosted behind the loading screen, and a pane sat UNBLURRED over it
+		// (the user's call, 2026-10-04: it looked odd). The screen's FROST clock decides (Radar.AreControlsLocked: on with
+		// the dim after FadeInDelayMs, so a cached load that never shows the screen never flickers a pane; off at once).
+		// Up → every pane steps aside; down — "View event", "Got it" after a cancel, a dismiss — → each running mode's
+		// pane is back (RefreshPanes). Nothing is saved either way: a pane follows its mode, and the mode didn't change.
+		private bool _panesHeldForLoad;
 
 		internal void OnLoadingScreenChanged(bool up) // internal: TemporalSessionTests drive it without a real load
 		{
-			if (up)
-			{
-				if (_windowsHeldForLoad || !(IsPastWindowOpen || IsNowWindowOpen || IsForeWindowOpen)) return;
-				_pastHeldForLoad = IsPastWindowOpen;
-				_nowHeldForLoad = IsNowWindowOpen;
-				_foreHeldForLoad = IsForeWindowOpen;
-				_windowsHeldForLoad = true;
-				IsPastWindowOpen = IsNowWindowOpen = IsForeWindowOpen = false;
-				return;
-			}
-
-			if (!_windowsHeldForLoad) return;
-			_windowsHeldForLoad = false;
-			// A window can't outlive its mode (OnTemporalModesChanged), so only a still-running mode gets its back.
-			if (_pastHeldForLoad && IsPastCast) IsPastWindowOpen = true;
-			if (_nowHeldForLoad && IsNowCast) IsNowWindowOpen = true;
-			if (_foreHeldForLoad && IsForeCast) IsForeWindowOpen = true;
+			if (_panesHeldForLoad == up) return;
+			_panesHeldForLoad = up;
+			RefreshPanes();
 		}
 
 		// ===== App-wide windows (Settings / Radar Atlas) ================================================
@@ -1739,18 +1645,6 @@ namespace Anvil.ViewModels
 			}
 		}
 
-		/// <summary>With a fixed start, also open that mode's window(s). PERSISTED, default on.</summary>
-		public bool StartupOpenWindow
-		{
-			get => _settingsService.Settings.StartupOpenWindow;
-			set
-			{
-				if (_settingsService.Settings.StartupOpenWindow == value) { return; }
-				_settingsService.Settings.StartupOpenWindow = value;
-				OnPropertyChanged();
-			}
-		}
-
 		/// <summary>Refresh whatever the current tab shows live. Called when the window opens AND when the tab
 		/// changes, because either one can be the moment a live readout first becomes visible. ⚠️ Keep this
 		/// cheap and tab-scoped — it runs on every tab click.</summary>
@@ -2038,10 +1932,10 @@ namespace Anvil.ViewModels
 			await Step("isolation", StateIso.OnMapsReadyAsync);
 			await Step("basemap", Basemap.OnMapsReadyAsync); // after isolation, so a hidden map repaints the mask blank
 			RadarNws.Start(); // the launch NWS status check — fire-and-forget, it touches no map
-			// The modes that were on last run, and their windows. BEFORE the home-site launch: a restored
-			// PastCast means "replay", and SiteFavorites skips starting a live loop in that case.
-			// The WINDOWS are held — OpenLaunchWindowsAsync, below (LAUNCH WINDOWS).
-			await Step("temporal session", () => { RestoreTemporalSession(deferWindows: true); return Task.CompletedTask; });
+			// The modes that were on last run. BEFORE the home-site launch: a restored PastCast means "replay", and
+			// SiteFavorites skips starting a live loop in that case. Their PANES are held — ShowLaunchPanesAsync, below
+			// (LAUNCH WINDOWS).
+			await Step("temporal session", () => { RestoreTemporalSession(deferPanes: true); return Task.CompletedTask; });
 			// ⚠️ AFTER the restore: a restored PastCast runs no site check, and started before it, the live pass showed in
 			// the bar for a moment before PastCast came back (RadarViewModel.StartSiteChecks).
 			Radar.StartSiteChecks();
@@ -2051,7 +1945,7 @@ namespace Anvil.ViewModels
 			// LAST: load-home-on-launch flies the camera, and an isolation replay above would override it.
 			await SiteFavorites.OnMapsReadyAsync();
 			// After the home site is picked, so it can wait for that loop's first frame. Not awaited: map-ready is done.
-			_ = OpenLaunchWindowsAsync();
+			_ = ShowLaunchPanesAsync();
 		}
 
 		/// <summary>A map-ready step at least this slow is named in the startup log line.</summary>

@@ -76,12 +76,11 @@
      ⚠️ THE PANE WATERMARK IS GONE TOO (the big ghosted "Ref" in a pane's corner). The notch says the same
      thing better, a few pixels away. See the PANE NOTCHES block below.
 
-     ⚠️ MOST keys in the bar are a SQUARE holding a MARK OVER A NAME. The exception, on purpose, is each
-     temporal key (a square mode half PLUS a settings side car beside it, so the key is wider than it is
-     tall). (The wide, nameless pane-layout key was the other; it moved to the tools tier.) See
+     ⚠️ EVERY key in the bar is a SQUARE holding a MARK OVER A NAME — the temporal keys too, since their 3-dot side
+     cars went (2026-10-29: a mode's pane follows its mode, so there is no window to latch). See
      Controls/Styles.xaml, section 2.
 
-     Left of the bar is the three temporal split keys; the CENTER is RadarControls (the global time module), held
+     Left of the bar is the three temporal keys; the CENTER is RadarControls (the global time module), held
      on the bar's midpoint by a [*, Auto, *] grid so no amount of growth on either side can shift it; right is the
      app-wide window buttons, all on one spacing. (Until 2026-10-06 the console was left and the keys centred.)
      The gaps between the three clusters are empty bar, by design.
@@ -89,9 +88,8 @@
      ⚠️ THE KEYS IN THIS CLUSTER take their LOOK from ONE style chain in Controls/Styles.xaml
      (BarChromeButtonStyle → BarKeyToggleStyle for the ones that latch / BarIconButtonStyle for the one
      that acts): hairline at rest, accent BORDER + raised face when ON, and the SAME SQUARE, set by that
-     chain from the shared BarKeySide. ⚠️ The three temporal keys are NOT on that chain — a key divided in
-     two cannot use a style whose job is drawing one stroke around one square — so they keep the same
-     vocabulary by hand in SplitTemporalToggle. Two homes for one look; both files say so.
+     chain from the shared BarKeySide. The three temporal keys are on it too (BarKeyToggleStyle, TemporalToggles) —
+     ONE home for the look.
      ⚠️ SIZES ARE DECLARED, NOT MEASURED. They used to be: each cluster measured the height its row was
      given and mirrored it onto Width, because the per-pane product chips lived in the bar and changed its
      height. The chips moved to the pane notches and the whole apparatus (a Layout/BarKeyMetrics class, two
@@ -350,8 +348,8 @@
                └─────────────────────────────────────────────────────────────────┘
 
              OVERLAYS, not OS windows: they never resize or push the map. Past and Now share the LEFT edge, safe only
-             because Past excludes Now. Each shows while its pane flag is set (MapViewModel; a pane never outlives its
-             mode) and builds its body on first show (see TemporalPane). The layer's BOTTOM MARGIN is the opaque
+             because Past excludes Now. Each shows WHILE ITS MODE RUNS (MapViewModel.Is{Past,Now,Fore}PaneShown — held
+             back only by the launch order and the loop holding gate) and builds its body on first show (see TemporalPane). The layer's BOTTOM MARGIN is the opaque
              tiers' height (OnBottomChromeSizeChanged) — the same inset the loop holding gate centres on — so a pane
              ends on the tools tier's top in every tier state. The grid has no Background: between the panes the map
              still takes the pointer. Declared after the notches (a pane covers a notch it overlaps, as the windows
@@ -361,15 +359,15 @@
         <Grid x:Name="TemporalPaneLayer" Grid.Row="0" Grid.RowSpan="2">
             <tp:TemporalPane x:Name="TemporalPanePastCast" Mode="Past"
                              Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"
-                             Visibility="{x:Bind PaneVisibility(ViewModel.IsPastWindowOpen), Mode=OneWay}"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.IsPastPaneShown), Mode=OneWay}"
                              ViewModel="{x:Bind ViewModel}"/>
             <tp:TemporalPane x:Name="TemporalPaneNowCast" Mode="Now"
                              Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"
-                             Visibility="{x:Bind PaneVisibility(ViewModel.IsNowWindowOpen), Mode=OneWay}"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.IsNowPaneShown), Mode=OneWay}"
                              ViewModel="{x:Bind ViewModel}"/>
             <tp:TemporalPane x:Name="TemporalPaneForeCast" Mode="Fore"
                              Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Right"
-                             Visibility="{x:Bind PaneVisibility(ViewModel.IsForeWindowOpen), Mode=OneWay}"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.IsForePaneShown), Mode=OneWay}"
                              ViewModel="{x:Bind ViewModel}"/>
         </Grid>
 
