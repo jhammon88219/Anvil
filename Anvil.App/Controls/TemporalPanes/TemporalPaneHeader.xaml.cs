@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
+using Anvil.ViewModels;
 
 namespace Anvil.Controls.TemporalPanes
 {
@@ -15,7 +16,24 @@ namespace Anvil.Controls.TemporalPanes
 		public TemporalPaneHeader()
 		{
 			InitializeComponent();
+			Loaded += (_, _) => ApplyEdge();
 		}
+
+		/// <summary>The pane this header heads: its collapse button and which edge it mirrors for.</summary>
+		public TemporalPaneViewModel? Pane
+		{
+			get => (TemporalPaneViewModel?)GetValue(PaneProperty);
+			set => SetValue(PaneProperty, value);
+		}
+		public static readonly DependencyProperty PaneProperty =
+			DependencyProperty.Register(nameof(Pane), typeof(TemporalPaneViewModel), typeof(TemporalPaneHeader),
+				new PropertyMetadata(null, (d, _) => ((TemporalPaneHeader)d).ApplyEdge()));
+
+		// Not templated, so GoToState lands before Loaded too.
+		private void ApplyEdge() =>
+			VisualStateManager.GoToState(this, Pane?.IsRightEdge == true ? "RightEdge" : "LeftEdge", false);
+
+		private void OnCollapseClick(object sender, RoutedEventArgs e) => Pane?.ToggleState();
 
 		/// <summary>The status block's colour — DATA (a literal), never a theme brush.</summary>
 		public Brush? StatusFill

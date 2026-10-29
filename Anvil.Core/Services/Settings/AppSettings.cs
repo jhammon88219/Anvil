@@ -626,6 +626,31 @@ namespace Anvil.Services
 			set => SetProperty(ref _sectionExpanded, value ?? new());
 		}
 
+		// ── Temporal panes' STATE (Models.TemporalPaneStates tokens: full / rail), one per mode ──
+		private string _pastCastPaneState = Models.TemporalPaneStates.Full;
+		/// <summary>The PastCast pane: full, or collapsed to its rail.</summary>
+		public string PastCastPaneState
+		{
+			get => _pastCastPaneState;
+			set => SetProperty(ref _pastCastPaneState, value);
+		}
+
+		private string _nowCastPaneState = Models.TemporalPaneStates.Full;
+		/// <summary>The NowCast pane: full, or collapsed to its rail.</summary>
+		public string NowCastPaneState
+		{
+			get => _nowCastPaneState;
+			set => SetProperty(ref _nowCastPaneState, value);
+		}
+
+		private string _foreCastPaneState = Models.TemporalPaneStates.Full;
+		/// <summary>The ForeCast pane: full, or collapsed to its rail.</summary>
+		public string ForeCastPaneState
+		{
+			get => _foreCastPaneState;
+			set => SetProperty(ref _foreCastPaneState, value);
+		}
+
 		// ── Temporal windows' ACTIVITY EXPANDER state (Models.ActivityExpanderStates tokens), one per window ──
 		private string _nowCastActivity = Models.ActivityExpanderStates.Hidden;
 		/// <summary>The NowCast window's activity expander: hidden / min-up / full / min-down.</summary>

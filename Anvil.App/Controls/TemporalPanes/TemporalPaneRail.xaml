@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TemporalPaneRail — a temporal pane COLLAPSED: a narrow full-height strip on the pane's screen edge.
+
+       LEFT edge (Past / Now)        RIGHT edge (Fore, MIRRORED)
+       ┌──────┐                                  ┌──────┐
+       │  ›   │ ← expand: back to the full pane  │  ‹   │   the chevron points the way the pane will MOVE
+       │──────│                                  │──────│
+       │ [Cl] │ ← one button per LAYER section,  │ [Ol] │
+       │ [Rp] │   in the full pane's order       │ [SR] │
+       │ [Wn] │   (TemporalPaneRailButton; lit   │      │
+       │ [Wt] │    = the layer is on)            │      │
+       │  …   │                                  │      │
+       │      │ ← surface to the bottom          │      │
+       └──────┘                                  └──────┘
+        48 wide (the tools tier's 32 px tools + 8 each side)
+
+     The buttons come from the pane's Sections (TemporalPaneViewModel), which follow the layer order — so a drag in the
+     full pane re-sorts the rail. Ghost rows are never sections (full pane only). Mirroring is a VisualState on the
+     pane's IsRightEdge (only the chevron changes today; the docking sidecars will mirror too).
+     (The HEADER's dock button and each section's dock SIDECAR arrive with docking.) -->
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPaneRail"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:tp="using:Anvil.Controls.TemporalPanes"
+             xmlns:vm="using:Anvil.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <Grid Width="48" Background="{ThemeResource OverlayBarSurfaceBrush}" Padding="0,8,0,8">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="EdgeStates">
+                <VisualState x:Name="LeftEdge"/>
+                <VisualState x:Name="RightEdge">
+                    <VisualState.Setters>
+                        <Setter Target="TemporalPaneRailExpandGlyph.Glyph" Value="&#xE76B;"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <StackPanel Spacing="6" HorizontalAlignment="Center">
+            <Button x:Name="TemporalPaneRailExpandButton"
+                    Style="{StaticResource BarIconButtonStyle}"
+                    Width="36" Height="36"
+                    ToolTipService.ToolTip="Show the whole pane"
+                    Click="OnExpandClick">
+                <FontIcon x:Name="TemporalPaneRailExpandGlyph" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                          FontSize="14" Glyph="&#xE76C;"/>
+            </Button>
+            <Border x:Name="TemporalPaneRailRule" Height="1" Margin="4,2"
+                    Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+            <ItemsControl x:Name="TemporalPaneRailSections" ItemsSource="{x:Bind Pane.Sections, Mode=OneWay}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="6"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:TemporalPaneSectionViewModel">
+                        <tp:TemporalPaneRailButton Section="{x:Bind}"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Grid>
+</UserControl>

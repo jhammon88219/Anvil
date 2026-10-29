@@ -67,10 +67,11 @@ namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 
 		// Header show/hide box: IsChecked is ONE-WAY, so the box has already flipped itself by the time Click
 		// fires and the VM's answer overwrites it — the same contract as PastCast's outlook box.
-		private void OnOutlookHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.Outlook.ToggleShown();
+		// ⚠️ Through the PANE's section toggle — the same one its rail button uses (TemporalPaneViewModel).
+		private void OnOutlookHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.ForePane.Toggle(LayerOrder.Outlook);
 
 		// Short Range's box: the same one-way contract. Ticking it may turn NowCast off (MapViewModel's NowCast ⇄ MODEL).
-		private void OnShortRangeHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.ShortRange.ToggleShown();
+		private void OnShortRangeHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.ForePane.Toggle(LayerOrder.ModelField);
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel

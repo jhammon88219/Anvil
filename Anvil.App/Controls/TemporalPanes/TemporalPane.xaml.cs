@@ -18,7 +18,7 @@ namespace Anvil.Controls.TemporalPanes
 			InitializeComponent();
 			// The body is built on FIRST SHOW (see the XAML header): Visibility is MainWindow's bind to the pane flag.
 			RegisterPropertyChangedCallback(VisibilityProperty, (_, _) => RealizeIfShown());
-			Loaded += (_, _) => RealizeIfShown();
+			Loaded += (_, _) => { ApplyStates(); RealizeIfShown(); };
 		}
 
 		/// <summary>Which mode this pane shows: picks the Content (x:Load in the XAML). Set ONCE in MainWindow.xaml.</summary>
@@ -39,7 +39,28 @@ namespace Anvil.Controls.TemporalPanes
 		}
 
 		public static readonly DependencyProperty ViewModelProperty =
-			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalPane), new PropertyMetadata(null));
+			DependencyProperty.Register(nameof(ViewModel), typeof(MapViewModel), typeof(TemporalPane),
+				new PropertyMetadata(null, (d, _) => ((TemporalPane)d).OnViewModelSet()));
+
+		/// <summary>This mode's pane state + sections (MapViewModel.PaneFor(Mode)).</summary>
+		public TemporalPaneViewModel? Pane => ViewModel?.PaneFor(Mode);
+
+		// Set ONCE from MainWindow: bind the rail, follow the pane's Full / Rail state, and take this mode's edge.
+		private void OnViewModelSet()
+		{
+			if (Pane is not { } pane) { return; }
+			Bindings.Update();
+			pane.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(TemporalPaneViewModel.IsRail)) ApplyStates(); };
+			ApplyStates();
+		}
+
+		// Not templated, so GoToState lands before Loaded too.
+		private void ApplyStates()
+		{
+			if (Pane is not { } pane) { return; }
+			VisualStateManager.GoToState(this, pane.IsRail ? "Rail" : "Full", false);
+			VisualStateManager.GoToState(this, pane.IsRightEdge ? "RightEdge" : "LeftEdge", false);
+		}
 
 		/// <summary>The body has been built (first show). Never goes back to false.</summary>
 		public bool IsRealized { get; private set; }

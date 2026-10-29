@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TemporalPaneRailButton — ONE layer section's button on a temporal pane's RAIL (TemporalPanes/TemporalPaneRail).
+
+       ┌────┐
+       │ Wn │   ← the section's stand-in LETTERS (real icons are later polish); tooltip = the section's name
+       └────┘     LIT (accent border, raised face — the bar keys' vocabulary) = the layer is ON (any of its types shown)
+
+     The body TOGGLES THAT LAYER — the same toggle as the section header's box (TemporalPaneSectionViewModel.Toggle),
+     so the two can't disagree. Disabled while the layer can't be toggled (Damage surveys before a window is loaded).
+     (The dock SIDECAR beside the body arrives with docking.)
+     ⚠️ IsChecked is ONE-WAY + re-asserted after the click (a ToggleButton flips itself before Click). -->
+<UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPaneRailButton"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <!-- The bar keys' look (BarKeyToggleStyle) at the rail's size: a rail button is a small square, one per section. -->
+    <ToggleButton x:Name="TemporalPaneRailButtonBody"
+                  Style="{StaticResource BarKeyToggleStyle}"
+                  Width="36" Height="36"
+                  ToolTipService.ToolTip="{x:Bind Section.Title, Mode=OneWay}"
+                  IsChecked="{x:Bind Section.IsOn, Mode=OneWay}"
+                  IsEnabled="{x:Bind Section.IsEnabled, Mode=OneWay}"
+                  Click="OnBodyClick">
+        <TextBlock Text="{x:Bind Section.Letter, Mode=OneWay}" FontSize="13" FontWeight="SemiBold"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </ToggleButton>
+</UserControl>

@@ -166,7 +166,7 @@
                      HEADER block), never the pickers; with nothing loaded they are placeholders, dimmed to 40%.
                      ⚠️ The square is BLUE, a literal, and means nothing yet — recency doesn't apply to a replay
                      (the user's call: blue "until we decide otherwise"). -->
-                <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Title="PastCast"
+                <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Title="PastCast" Pane="{x:Bind ViewModel.PastPane, Mode=OneWay}"
                                            StatusFill="#FF2F81F7"
                                            Subtitle="{x:Bind ViewModel.Radar.LoadedReplayDateText, Mode=OneWay}"
                                            SubtitleOpacity="{x:Bind PlaceholderOpacity(ViewModel.Radar.HasLoadedReplayWindow), Mode=OneWay}">

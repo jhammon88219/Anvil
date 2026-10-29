@@ -135,7 +135,7 @@
                  height). The square = the WORST warning in effect (WarningsViewModel.HeaderSquareFill — ForeCast's
                  highest-risk square, matched); the date is written by the clock tick (code-behind); the clock
                  itself is TemporalPaneHeaderNowCastReadout. -->
-            <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Title="NowCast"
+            <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Title="NowCast" Pane="{x:Bind ViewModel.NowPane, Mode=OneWay}"
                                      StatusFill="{x:Bind ViewModel.Warnings.HeaderSquareFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
                                      StatusToolTip="{x:Bind ViewModel.Warnings.HeaderSquareTip, Mode=OneWay}">
                 <temporalPaneHeaderReadouts:TemporalPaneHeaderNowCastReadout x:Name="TemporalPaneHeaderNowCastReadout"/>

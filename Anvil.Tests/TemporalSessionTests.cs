@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Anvil.Models;
 using Anvil.Services;
@@ -249,6 +250,92 @@ namespace Anvil.Tests
 			vm.Shutdown();
 			vm.ToggleTemporalMode(TemporalMode.Now);        // e.g. the app tearing down
 			Assert.True(s.NowCastOn);
+		}
+
+		// ── The pane's own state (TemporalPaneViewModel): full ⇄ rail, persisted per mode; the rail's section rows ──
+
+		[Fact]
+		public void Pane_state_toggles_and_is_saved_per_mode()
+		{
+			var s = new AppSettings { ForeCastPaneState = "rail" };
+			var vm = New(s);
+
+			Assert.True(vm.ForePane.IsRail);                 // restored at construction
+			Assert.False(vm.NowPane.IsRail);                 // default full
+			vm.NowPane.ToggleState();
+			Assert.True(vm.NowPane.IsRail);
+			Assert.Equal("rail", s.NowCastPaneState);
+			Assert.Equal("full", s.PastCastPaneState);       // the other modes untouched
+			vm.ForePane.ToggleState();
+			Assert.Equal("full", s.ForeCastPaneState);
+		}
+
+		[Fact]
+		public void Pane_edges_and_sections_follow_the_mode()
+		{
+			var vm = New(new AppSettings());
+			Assert.True(vm.ForePane.IsRightEdge);
+			Assert.False(vm.NowPane.IsRightEdge || vm.PastPane.IsRightEdge);
+			Assert.Equal(new[] { "outlook", "models" }, vm.ForePane.Sections.Select(x => x.Id));
+			Assert.Equal(TemporalPaneDock.NowCastLayers.Count, vm.NowPane.Sections.Count);
+			Assert.Equal(TemporalPaneDock.PastCastLayers.Count, vm.PastPane.Sections.Count);
+			Assert.Same(vm.PaneFor(TemporalMode.Past), vm.PastPane);
+		}
+
+		[Fact]
+		public void A_section_toggle_is_the_layers_own_toggle_and_lit_means_any_type_shown()
+		{
+			var vm = New(new AppSettings());
+			var reports = vm.NowPane.Section(LayerOrder.Reports)!;
+			var raised = 0;
+			reports.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(TemporalPaneSectionViewModel.IsOn)) raised++; };
+
+			Assert.True(reports.IsOn);                       // every layer starts ticked
+			vm.NowPane.Toggle(LayerOrder.Reports);           // the header box's path
+			Assert.Equal(false, vm.StormReports.AllShown);
+			Assert.False(reports.IsOn);
+			reports.Toggle();                                // the rail button's path — the same toggle
+			Assert.Equal(true, vm.StormReports.AllShown);
+
+			vm.StormReports.ShowWind = false;                // partly ticked → still lit
+			Assert.Null(vm.StormReports.AllShown);
+			Assert.True(reports.IsOn);
+			Assert.True(raised >= 3);
+		}
+
+		[Fact]
+		public void The_radar_section_toggles_the_radar_layer()
+		{
+			var vm = New(new AppSettings());
+			var radar = vm.NowPane.Section(LayerOrder.Radar)!;
+			var before = vm.Radar.ShowRadarLayer;
+			radar.Toggle();
+			Assert.Equal(!before, vm.Radar.ShowRadarLayer);
+			Assert.Equal(!before, radar.IsOn);
+		}
+
+		[Fact]
+		public void Damage_surveys_cant_toggle_before_a_window_is_loaded()
+		{
+			var vm = New(new AppSettings());
+			var damage = vm.PastPane.Section(LayerOrder.Damage)!;
+			Assert.False(damage.IsEnabled);
+			var before = vm.DamageSurveys.AllShown;
+			damage.Toggle();
+			Assert.Equal(before, vm.DamageSurveys.AllShown);
+		}
+
+		[Fact]
+		public void Pane_sections_follow_the_layer_order_and_Now_and_Fore_share_it()
+		{
+			var vm = New(new AppSettings());
+			vm.SetLayerOrder(TemporalMode.Now, new[] { "radar", "watches", "cells", "reports", "warnings", "tropical", "mds", "models", "outlook" });
+			Assert.Equal(new[] { "radar", "watches", "cells", "reports", "warnings", "tropical", "mds" }, vm.NowPane.Sections.Select(x => x.Id));
+			Assert.Equal(new[] { "models", "outlook" }, vm.ForePane.Sections.Select(x => x.Id));
+
+			var past = new[] { "radar", "outlook", "mds", "tropical", "watches", "warnings", "damage", "reports", "cells" };
+			vm.SetLayerOrder(TemporalMode.Past, past);
+			Assert.Equal(past, vm.PastPane.Sections.Select(x => x.Id));
 		}
 
 		// ── The loop holding gate: every pane steps aside while it's up ──

@@ -3,13 +3,15 @@
      control, three uses (one per TemporalPane<Mode>Content): only the CONTENTS differ — the status colour,
      the title, the subline and the Readout.
 
-      ┌──┬──────────────────────────┬┬─────────────────┐
-      │▓▓│ NowCast                  ││  3:42 PM        │  ← title 30 SemiLight · Readout (the mode's own control)
-      │▓▓│ Thursday Oct 16          ││                 │  ← subline 13 secondary
-      └──┴──────────────────────────┴┴─────────────────┘
-       │                             │
-       │                             └ hairline: the Readout's left edge
-       └ status block, 22 wide, outer corners rounded; StatusFill is DATA (literal colours), never themed
+      ┌─┬──┬──────────────────────────┬┬─────────────────┐
+      │‹│▓▓│ NowCast                  ││  3:42 PM        │  ← title 30 SemiLight · Readout (the mode's own control)
+      │ │▓▓│ Thursday Oct 16          ││                 │  ← subline 13 secondary
+      └─┴──┴──────────────────────────┴┴─────────────────┘
+       │ │                             │
+       │ │                             └ hairline: the Readout's left edge
+       │ └ status block, 22 wide, outer corners rounded; StatusFill is DATA (literal colours), never themed
+       └ COLLAPSE to the rail (Pane.ToggleState), on the pane's OUTER edge: here on Past/Now (left), after the
+         Readout on ForeCast (right, chevron flipped ›) — the EdgeStates group
 
      Readouts (the right slot) — one per mode, each its own control:
        Now  → TemporalPanes/TemporalPaneHeaderReadouts/TemporalPaneHeaderNowCastReadout   (the clock)
@@ -33,16 +35,40 @@
 
     <Grid Height="60">
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/> <!-- collapse, LEFT-edge panes (the pane's outer edge) -->
             <ColumnDefinition Width="22"/>   <!-- status block -->
             <ColumnDefinition Width="*"/>    <!-- title over subline -->
             <ColumnDefinition Width="Auto"/> <!-- hairline · Readout -->
+            <ColumnDefinition Width="Auto"/> <!-- collapse, RIGHT-edge pane (ForeCast's outer edge) -->
         </Grid.ColumnDefinitions>
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="EdgeStates">
+                <VisualState x:Name="LeftEdge"/>
+                <VisualState x:Name="RightEdge">
+                    <VisualState.Setters>
+                        <Setter Target="TemporalPaneHeaderCollapseButton.(Grid.Column)" Value="4"/>
+                        <Setter Target="TemporalPaneHeaderCollapseButton.Margin" Value="8,0,0,0"/>
+                        <Setter Target="TemporalPaneHeaderCollapseGlyph.Glyph" Value="&#xE76C;"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
 
-        <Border x:Name="StatusBlock" Grid.Column="0" CornerRadius="5,0,0,5"
+        <!-- COLLAPSE to the rail (TemporalPaneViewModel.ToggleState). On the pane's OUTER edge — where the rail's expand
+             button lands — and the chevron points the way the pane will move (‹ on the left, › on ForeCast's right). -->
+        <Button x:Name="TemporalPaneHeaderCollapseButton" Grid.Column="0" Margin="0,0,8,0"
+                Style="{StaticResource BarIconButtonStyle}" Width="28" Height="60"
+                ToolTipService.ToolTip="Collapse to the rail"
+                Click="OnCollapseClick">
+            <FontIcon x:Name="TemporalPaneHeaderCollapseGlyph" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                      FontSize="14" Glyph="&#xE76B;"/>
+        </Button>
+
+        <Border x:Name="StatusBlock" Grid.Column="1" CornerRadius="5,0,0,5"
                 Background="{x:Bind StatusFill, Mode=OneWay}"
                 ToolTipService.ToolTip="{x:Bind StatusToolTip, Mode=OneWay}"/>
 
-        <StackPanel Grid.Column="1" Margin="12,0,12,0" Spacing="2" VerticalAlignment="Center">
+        <StackPanel Grid.Column="2" Margin="12,0,12,0" Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontSize="30" FontWeight="SemiLight"
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
             <TextBlock Text="{x:Bind Subtitle, Mode=OneWay}" FontSize="13"
@@ -50,7 +76,7 @@
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </StackPanel>
 
-        <Border Grid.Column="2" BorderThickness="1,0,0,0" Padding="12,0,0,0"
+        <Border Grid.Column="3" BorderThickness="1,0,0,0" Padding="12,0,0,0"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultSolidBrush}">
             <ContentPresenter Content="{x:Bind Readout, Mode=OneWay}" VerticalAlignment="Center"/>
         </Border>

@@ -50,7 +50,7 @@
             tier; it left this bar's right cluster, which is now window latches only. See MapControlsStrip.
           ↑ ┇ THE SIDE SECTIONS END ON THE TEMPORAL PANES' INNER EDGES (2026-10-22): both tiers' left sections end,
             and both right sections start, on the inner edge of the 480-wide edge pane above them, open or not
-            (AlignSideSections ← the declared panes' Width). Controls keep their size; one dot spacer per section
+            (AlignSideSections ← Styles.xaml TemporalPaneWidth). Controls keep their size; one dot spacer per section
             per tier takes the slack. The blank runs between the sections give way as the window shrinks.
           ↑ ▣ = the (future) marker viewer and ⊚ = Location follow the place search on the TOOLS
             tier. Location left this bar: it is a "where on the map" move like search, and an
@@ -339,10 +339,10 @@
         <!-- ===== TEMPORAL PANES ===== (TemporalPanes/TemporalPane — one class, three declarations, Mode set here ONCE)
 
                ┌──────────┬───────────────────────────────────────────┬──────────┐
-               │ PastCast │                                           │ ForeCast │  each 480 wide (Styles.xaml
-               │    or    │              …the map…                    │          │  TemporalPaneWidth), flush to
-               │ NowCast  │                                           │          │  its edge and the window top,
-               │ (left)   │                                           │ (right)  │  down to the tools tier's top
+               │ PastCast │                                           │ ForeCast │  each 480 wide FULL (Styles.xaml
+               │    or    │              …the map…                    │          │  TemporalPaneWidth) or its 48 px
+               │ NowCast  │                                           │          │  RAIL; flush to its edge and the
+               │ (left)   │                                           │ (right)  │  window top, down to the tools tier
                ├──────────┴───────────────────────────────────────────┴──────────┤
                │                       bottom chrome                             │
                └─────────────────────────────────────────────────────────────────┘
@@ -358,15 +358,15 @@
              each visible pane, as for the notches, or its top would look alive and swallow clicks. -->
         <Grid x:Name="TemporalPaneLayer" Grid.Row="0" Grid.RowSpan="2">
             <tp:TemporalPane x:Name="TemporalPanePastCast" Mode="Past"
-                             Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"
+                             HorizontalAlignment="Left"
                              Visibility="{x:Bind PaneVisibility(ViewModel.IsPastPaneShown), Mode=OneWay}"
                              ViewModel="{x:Bind ViewModel}"/>
             <tp:TemporalPane x:Name="TemporalPaneNowCast" Mode="Now"
-                             Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"
+                             HorizontalAlignment="Left"
                              Visibility="{x:Bind PaneVisibility(ViewModel.IsNowPaneShown), Mode=OneWay}"
                              ViewModel="{x:Bind ViewModel}"/>
             <tp:TemporalPane x:Name="TemporalPaneForeCast" Mode="Fore"
-                             Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Right"
+                             HorizontalAlignment="Right"
                              Visibility="{x:Bind PaneVisibility(ViewModel.IsForePaneShown), Mode=OneWay}"
                              ViewModel="{x:Bind ViewModel}"/>
         </Grid>

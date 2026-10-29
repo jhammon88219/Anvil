@@ -127,7 +127,7 @@
              ⚠️ Margin LEFT 0 / RIGHT 4 = the section stack's edges — PastCast's + NowCast's rule; change together.
              No TemporalHeaderMinHeight: there are no tiles or card under it to line up. -->
         <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Margin="0,12,4,12"
-                                   Title="ForeCast"
+                                   Title="ForeCast" Pane="{x:Bind ViewModel.ForePane, Mode=OneWay}"
                                    StatusFill="{x:Bind ViewModel.Outlook.HeaderSquareFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
                                    StatusToolTip="{x:Bind ViewModel.Outlook.HeaderSquareTip, Mode=OneWay}"
                                    Subtitle="{x:Bind ViewModel.Outlook.HeaderDayText, Mode=OneWay}">
