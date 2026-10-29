@@ -25,6 +25,7 @@ namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 	/// OUTSIDE the host (above the scroller), never in it: every child is a layer.
 	/// ⚠️ A COLLAPSED child (a hidden ghost row) takes no space and no spacing, and is no drop slot — but it keeps
 	/// its place in Children, so the saved order still remembers where it goes.
+	/// ⚠️ <see cref="IsReorderEnabled"/> false (a pane's dock stack) = no drag, no Alt+Arrow; the order stays the full pane's.
 	/// ⚠️ NOTHING MOVES IN THE VISUAL TREE DURING A DRAG. Removing an element cancels its pointer capture, so the
 	/// dragged expander and the siblings it passes only TRANSLATE; the real Children.Move happens once, on release.
 	/// </summary>
@@ -39,6 +40,16 @@ namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 		public static readonly DependencyProperty SpacingProperty =
 			DependencyProperty.Register(nameof(Spacing), typeof(double), typeof(DragMoveLayerExpanderHost),
 				new PropertyMetadata(8.0, (d, _) => ((DragMoveLayerExpanderHost)d).InvalidateMeasure()));
+
+		/// <summary>Drag + Alt+Arrow re-ordering is live (default). False in a pane's DOCK STACK (rail state): there the
+		/// sections show in the full pane's order, and re-ordering is full-pane only.</summary>
+		public bool IsReorderEnabled
+		{
+			get => (bool)GetValue(IsReorderEnabledProperty);
+			set => SetValue(IsReorderEnabledProperty, value);
+		}
+		public static readonly DependencyProperty IsReorderEnabledProperty =
+			DependencyProperty.Register(nameof(IsReorderEnabled), typeof(bool), typeof(DragMoveLayerExpanderHost), new PropertyMetadata(true));
 
 		/// <summary>An expander was moved to a new place (drag or Alt+Arrow). Read the new <see cref="LayerOrder"/>.</summary>
 		public event EventHandler? Reordered;
@@ -104,6 +115,7 @@ namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 		/// <summary>The grip was pressed at <paramref name="y"/> (host coordinates). False = no drag (fewer than 2 visible).</summary>
 		internal bool BeginDrag(DragMoveLayerExpander expander, double y)
 		{
+			if (!IsReorderEnabled) { return false; }
 			var block = VisibleExpanders();
 			if (block.Count < 2 || !block.Contains(expander)) { return false; }
 
@@ -185,7 +197,7 @@ namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 		/// <summary>Alt+Up (−1) / Alt+Down (+1): one visible slot. False = already at that end.</summary>
 		internal bool Step(DragMoveLayerExpander expander, int delta)
 		{
-			if (_dragged is not null) { return false; }
+			if (_dragged is not null || !IsReorderEnabled) { return false; }
 			var block = VisibleExpanders();
 			int at = block.IndexOf(expander);
 			int to = at + delta;

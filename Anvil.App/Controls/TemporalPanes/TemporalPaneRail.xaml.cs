@@ -29,5 +29,13 @@ namespace Anvil.Controls.TemporalPanes
 			VisualStateManager.GoToState(this, Pane?.IsRightEdge == true ? "RightEdge" : "LeftEdge", false);
 
 		private void OnExpandClick(object sender, RoutedEventArgs e) => Pane?.ToggleState();
+
+		// The header button (IsChecked ONE-WAY, re-asserted: the ToggleButton flips itself before Click).
+		private void OnHeaderClick(object sender, RoutedEventArgs e)
+		{
+			if (Pane is null) { return; }
+			Pane.ToggleHeaderDocked();
+			TemporalPaneRailHeaderButton.IsChecked = Pane.IsHeaderDocked;
+		}
 	}
 }

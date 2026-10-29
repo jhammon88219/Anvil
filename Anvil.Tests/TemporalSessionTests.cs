@@ -338,6 +338,57 @@ namespace Anvil.Tests
 			Assert.Equal(past, vm.PastPane.Sections.Select(x => x.Id));
 		}
 
+		// ── Docking: the sections shown beside the rail ──
+
+		[Fact]
+		public void Docking_toggles_saves_and_restores_per_mode()
+		{
+			var s = new AppSettings { NowCastDocked = new() { "radar", "damage", "bogus" } };
+			var vm = New(s);
+
+			Assert.True(vm.NowPane.IsDocked("radar"));
+			Assert.False(vm.NowPane.IsDocked("damage"));        // not a NowCast section → dropped on read
+			Assert.True(vm.NowPane.Section("radar")!.IsDocked);
+
+			var before = s.NowCastDocked;
+			vm.NowPane.ToggleDocked(TemporalPaneDock.Header);
+			Assert.True(vm.NowPane.IsHeaderDocked);
+			Assert.NotSame(before, s.NowCastDocked);             // REPLACED, never mutated
+			Assert.Equal(new[] { "radar", "header" }, s.NowCastDocked);
+
+			vm.NowPane.ToggleDocked("radar");
+			Assert.False(vm.NowPane.Section("radar")!.IsDocked);
+			Assert.Empty(s.PastCastDocked);                       // the other modes untouched
+			vm.NowPane.ToggleDocked("damage");                    // not this pane's: ignored
+			Assert.Equal(new[] { "header" }, s.NowCastDocked);
+		}
+
+		[Fact]
+		public void Full_shows_every_section_and_rail_only_the_docked_ones()
+		{
+			var vm = New(new AppSettings { PastCastDocked = new() { "outlook", "header" } });
+			var pane = vm.PastPane;
+
+			Assert.False(pane.IsRail);
+			Assert.Equal(TemporalPaneDock.PastCastLayers.Count + 1, pane.ShownSections.Count);
+			Assert.Contains(TemporalPaneDock.Header, pane.ShownSections);
+
+			pane.ToggleState();
+			Assert.Equal(new[] { "header", "outlook" }, pane.ShownSections.OrderBy(x => x));
+			Assert.True(pane.HasDock);
+
+			var raised = 0;
+			pane.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(TemporalPaneViewModel.ShownSections)) raised++; };
+			pane.ToggleDocked("outlook");
+			pane.ToggleDocked(TemporalPaneDock.Header);
+			Assert.Empty(pane.ShownSections);
+			Assert.False(pane.HasDock);
+			Assert.Equal(2, raised);
+
+			pane.ToggleState();                                   // back to full: everything again, the docked set kept for next time
+			Assert.Equal(TemporalPaneDock.PastCastLayers.Count + 1, pane.ShownSections.Count);
+		}
+
 		// ── The loop holding gate: every pane steps aside while it's up ──
 
 		[Fact]

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -50,15 +52,34 @@ namespace Anvil.Controls.TemporalPanes
 		{
 			if (Pane is not { } pane) { return; }
 			Bindings.Update();
-			pane.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(TemporalPaneViewModel.IsRail)) ApplyStates(); };
+			pane.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName is nameof(TemporalPaneViewModel.IsRail) or nameof(TemporalPaneViewModel.HasDock)) ApplyStates();
+			};
 			ApplyStates();
 		}
+
+		// ── x:Bind helpers for the three Contents (static, called as tp:TemporalPane.X(...)) — ONE copy of the dock rules ──
+
+		/// <summary>The ghost box, the activity expander: FULL PANE ONLY (never in the dock stack).</summary>
+		public static Visibility FullOnly(bool isRail) => isRail ? Visibility.Collapsed : Visibility.Visible;
+
+		/// <summary>A section (or the header block, "header") shows iff the pane's ShownSections holds it.</summary>
+		public static Visibility SectionVisibility(IReadOnlyCollection<string>? shown, string id) =>
+			shown?.Contains(id) == true ? Visibility.Visible : Visibility.Collapsed;
+
+		/// <summary>A ghost row: its box on and its mode running (the VM's Are…GhostsShown), and the FULL pane only.</summary>
+		public static Visibility GhostVisibility(bool ghostsShown, bool isRail) =>
+			ghostsShown && !isRail ? Visibility.Visible : Visibility.Collapsed;
+
+		/// <summary>Drag-to-reorder is FULL PANE ONLY (DragMoveLayerExpanderHost.IsReorderEnabled).</summary>
+		public static bool ReorderEnabled(bool isRail) => !isRail;
 
 		// Not templated, so GoToState lands before Loaded too.
 		private void ApplyStates()
 		{
 			if (Pane is not { } pane) { return; }
-			VisualStateManager.GoToState(this, pane.IsRail ? "Rail" : "Full", false);
+			VisualStateManager.GoToState(this, !pane.IsRail ? "Full" : pane.HasDock ? "RailDocked" : "Rail", false);
 			VisualStateManager.GoToState(this, pane.IsRightEdge ? "RightEdge" : "LeftEdge", false);
 		}
 

@@ -43,6 +43,18 @@ namespace Anvil.ViewModels
 		/// <summary>The section's <see cref="LayerOrder"/> id.</summary>
 		public string Id { get; }
 
+		private bool _isDocked;
+
+		/// <summary>The pane sits on the RIGHT edge (ForeCast): the rail button mirrors. Set by the pane.</summary>
+		public bool IsRightEdge { get; internal set; }
+
+		/// <summary>Docked beside the rail (the rail button's sidecar). Set by the pane.</summary>
+		public bool IsDocked
+		{
+			get => _isDocked;
+			internal set => SetProperty(ref _isDocked, value);
+		}
+
 		/// <summary>The rail button's stand-in for an icon (real icons are later polish).</summary>
 		public string Letter { get; }
 
@@ -60,28 +72,80 @@ namespace Anvil.ViewModels
 		{
 			if (IsEnabled) _toggle();
 		}
+
+		/// <summary>The rail button's SIDECAR: dock / undock this section (the pane owns the set).</summary>
+		public void ToggleDocked() => DockToggled?.Invoke(this, EventArgs.Empty);
+
+		internal event EventHandler? DockToggled;
 	}
 
 	/// <summary>
 	/// ONE temporal mode's pane state (TemporalPanes/TemporalPane): Full or Rail (<see cref="TemporalPaneStates"/>,
-	/// persisted per mode), which edge it sits on, and its layer <see cref="Sections"/> in the full pane's order —
-	/// what the rail draws a button for.
+	/// persisted per mode), which edge it sits on, its layer <see cref="Sections"/> in the full pane's order — what the
+	/// rail draws a button for — and the DOCKED set (persisted per mode): the sections shown beside the rail.
 	/// </summary>
+	/// <remarks>
+	/// ⚠️ ONE RENDERING: docking never copies a section. The pane's Content shows a section iff
+	/// <see cref="ShownSections"/> holds its id — every section in Full, only the docked ones in Rail — so the dock stack
+	/// IS the full pane with the undocked parts collapsed, in the full pane's order with the gaps closed.
+	/// </remarks>
 	public sealed class TemporalPaneViewModel : ObservableObject
 	{
 		private readonly Action<string> _writeState;
+		private readonly Action<List<string>> _writeDocked;
 		private readonly IReadOnlyCollection<string> _ownLayers;
 		private string _state;
+		private List<string> _docked;
 
 		internal TemporalPaneViewModel(TemporalMode mode, IReadOnlyCollection<string> ownLayers,
-			IEnumerable<TemporalPaneSectionViewModel> sections, Func<string?> readState, Action<string> writeState)
+			IEnumerable<TemporalPaneSectionViewModel> sections, Func<string?> readState, Action<string> writeState,
+			Func<IEnumerable<string>?> readDocked, Action<List<string>> writeDocked)
 		{
 			Mode = mode;
 			_ownLayers = ownLayers;
 			_writeState = writeState;
+			_writeDocked = writeDocked;
 			_state = TemporalPaneStates.Normalize(readState());
+			_docked = TemporalPaneDock.NormalizeDocked(readDocked(), ownLayers);
 			Sections = new ObservableCollection<TemporalPaneSectionViewModel>(sections);
+			foreach (var s in Sections)
+			{
+				s.IsDocked = _docked.Contains(s.Id);
+				s.IsRightEdge = IsRightEdge;
+				s.DockToggled += (_, _) => ToggleDocked(s.Id);
+			}
 		}
+
+		/// <summary>The header block is docked (the rail's header button).</summary>
+		public bool IsHeaderDocked => _docked.Contains(TemporalPaneDock.Header);
+
+		/// <summary>The rail's header button: dock / undock the header block (it has no layer, so nothing to toggle).</summary>
+		public void ToggleHeaderDocked() => ToggleDocked(TemporalPaneDock.Header);
+
+		/// <summary>Anything is docked — the dock stack has something to show in Rail state.</summary>
+		public bool HasDock => _docked.Count > 0;
+
+		/// <summary>Whether <paramref name="id"/> (a layer id or <see cref="TemporalPaneDock.Header"/>) is docked.</summary>
+		public bool IsDocked(string id) => _docked.Contains(id);
+
+		/// <summary>A rail sidecar's (or the header button's) click: dock or undock <paramref name="id"/>.</summary>
+		public void ToggleDocked(string id)
+		{
+			if (id != TemporalPaneDock.Header && !_ownLayers.Contains(id)) { return; }
+			_docked = TemporalPaneDock.ToggleDocked(_docked, id);
+			_writeDocked(new List<string>(_docked));
+			if (Section(id) is { } section) { section.IsDocked = _docked.Contains(id); }
+			OnPropertyChanged(nameof(IsHeaderDocked));
+			OnPropertyChanged(nameof(HasDock));
+			OnPropertyChanged(nameof(ShownSections));
+		}
+
+		/// <summary>
+		/// The section ids the Content shows now: in Full, the header + every own layer; in Rail, the docked ones only.
+		/// A NEW collection on every change (bound by value).
+		/// </summary>
+		public IReadOnlyCollection<string> ShownSections =>
+			IsRail ? _docked.ToHashSet() : _ownLayers.Append(TemporalPaneDock.Header).ToHashSet();
 
 		public TemporalMode Mode { get; }
 
@@ -101,6 +165,7 @@ namespace Anvil.ViewModels
 			_writeState(_state);
 			OnPropertyChanged(nameof(State));
 			OnPropertyChanged(nameof(IsRail));
+			OnPropertyChanged(nameof(ShownSections));
 		}
 
 		/// <summary>The pane's layer sections, in the full pane's order (the rail's buttons, top to bottom).</summary>

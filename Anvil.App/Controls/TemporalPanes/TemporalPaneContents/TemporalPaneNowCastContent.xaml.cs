@@ -56,8 +56,7 @@ namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 			if (mode == TemporalMode.Now) { DragMoveLayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now)); }
 		}
 
-		// A ghost row shows only while its box is on and its mode runs (MapViewModel.AreForeCastGhostsShown).
-		public Visibility GhostVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
+		// (A ghost row's visibility is tp:TemporalPane.GhostVisibility — its box on, its mode running, and the FULL pane only.)
 
 		// Header select-all boxes. IsChecked is bound ONE-WAY: the CheckBox has already flipped itself by the
 		// time Click fires, and the VM's answer (raised through AllShown / ShowRadarLayer) overwrites it.

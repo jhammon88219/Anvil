@@ -651,6 +651,29 @@ namespace Anvil.Services
 			set => SetProperty(ref _foreCastPaneState, value);
 		}
 
+		// ── Temporal panes' DOCKED sections (shown beside the rail): "header" + layer ids, one list per mode ──
+		// ⚠️ REPLACE the list, never mutate it — see FavoriteSiteIds. Unknown ids are dropped on read (TemporalPaneDock).
+		private List<string> _pastCastDocked = new();
+		public List<string> PastCastDocked
+		{
+			get => _pastCastDocked;
+			set => SetProperty(ref _pastCastDocked, value ?? new());
+		}
+
+		private List<string> _nowCastDocked = new();
+		public List<string> NowCastDocked
+		{
+			get => _nowCastDocked;
+			set => SetProperty(ref _nowCastDocked, value ?? new());
+		}
+
+		private List<string> _foreCastDocked = new();
+		public List<string> ForeCastDocked
+		{
+			get => _foreCastDocked;
+			set => SetProperty(ref _foreCastDocked, value ?? new());
+		}
+
 		// ── Temporal windows' ACTIVITY EXPANDER state (Models.ActivityExpanderStates tokens), one per window ──
 		private string _nowCastActivity = Models.ActivityExpanderStates.Hidden;
 		/// <summary>The NowCast window's activity expander: hidden / min-up / full / min-down.</summary>

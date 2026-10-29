@@ -4,27 +4,31 @@
      bottom chrome's opaque tiers; it never resizes or pushes the map. TWO STATES (TemporalPaneViewModel.IsRail,
      persisted per mode):
 
-       FULL (480 wide)                                       RAIL (48 wide)
-       ┌────────────────────────────────────────────────┐    ┌──────┐
-       │ ‹ ┌──┐ ForeCast                  │ MDT 4/5     │    │  ›   │ ← expand
-       │   └──┘ Day 1 · Wed Sep 2         │ next ~9 min │    │──────│
-       │ ↑ collapse (TemporalPaneHeader, outer edge)    │    │ [Cl] │ ← TemporalPaneRail: one button per
-       │  ┌──────────────────────────────────────────┐  │    │ [Rp] │   layer section (lit = layer on)
-       │  │ that mode's CONTENT — all three declared │  │    │ [Wn] │
-       │  │ below, only Mode's one x:Load'ed:        │  │    │  …   │
-       │  │ TemporalPaneNowCastContent               │  │    │      │
-       │  │ TemporalPanePastCastContent              │  │    │      │
-       │  │ TemporalPaneForeCastContent              │  │    │      │
-       │  └──────────────────────────────────────────┘  │    │      │
-       ░░░░░░░░░░░░░░░░░╭─ ˄ More ─╮░░░░░░░░░░░░░░░░░░░░    │      │
-       │▓ TemporalPaneActivityExpander: this MODE's     ▓│    │      │
-       │▓ activity, Hidden / Full                       ▓│    │      │
-       └──────────────────────────────────────────────────┘    └──────┘
+       FULL (480 wide)                                       RAIL (48)    RAIL + DOCK STACK (48 + 480)
+       ┌────────────────────────────────────────────────┐    ┌──────┐     ┌──────┬────────────────────────────┐
+       │ ‹ ┌──┐ ForeCast                  │ MDT 4/5     │    │  ›   │     │  ›   │ ┌──┐ NowCast    │ 3:42 PM  │ ← docked
+       │   └──┘ Day 1 · Wed Sep 2         │ next ~9 min │    │──────│     │──────│ └──┘ Thu Oct 16 │          │   header
+       │ ↑ collapse (TemporalPaneHeader, outer edge)    │    │ [Hd] │     │ [Hd] │ [▾ Warnings ………………… 100%]│ ← docked
+       │  ┌──────────────────────────────────────────┐  │    │[Cl|›]│     │[Wn|‹]│ [› Radar ……………………… 100%]│   sections,
+       │  │ that mode's CONTENT — all three declared │  │    │[Rp|›]│     │[Rd|‹]└────────────────────────────┘   full-pane
+       │  │ below, only Mode's one x:Load'ed:        │  │    │[Wn|›]│     │[Cl|›]      …the map shows below…     order, gaps
+       │  │ TemporalPaneNowCastContent               │  │    │  …   │     │  …   │                                closed
+       │  │ TemporalPanePastCastContent              │  │    │      │     │      │
+       │  │ TemporalPaneForeCastContent              │  │    │      │     │      │
+       │  └──────────────────────────────────────────┘  │    │      │     │      │
+       ░░░░░░░░░░░░░░░░░╭─ ˄ More ─╮░░░░░░░░░░░░░░░░░░░░    │      │     │      │
+       │▓ TemporalPaneActivityExpander: this MODE's     ▓│    │      │     │      │
+       │▓ activity, Hidden / Full                       ▓│    │      │     │      │
+       └──────────────────────────────────────────────────┘    └──────┘     └──────┘
        ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔   ← the tools tier's top (MainWindow sets the bottom inset)
 
+     ⚠️ ONE RENDERING: the dock stack IS this body with every undocked part collapsed (the Content shows a section iff
+     Pane.ShownSections holds it; the ghost box, ghost rows, drag and the activity expander are FULL ONLY). Nothing is
+     copied or moved between parents. Three PaneStates: Full · Rail (nothing docked: body collapsed) · RailDocked
+     (body top-aligned, so the stack is as tall as its content and the map shows below).
      ⚠️ MIRRORED on the right edge (ForeCast): the RAIL takes the outer column on either side — column 0 on the left,
      column 1 on the right — by the EdgeStates group; the chevrons flip inside the rail and the header.
-     ⚠️ Rail state COLLAPSES the body host; it is never unloaded, so every section keeps its live state.
+     ⚠️ The body is never unloaded, so every section keeps its live state across Full ⇄ Rail.
 
      ⚠️ ONE CLASS, THREE PANES, all declared in MainWindow.xaml (TemporalPanePastCast / …NowCast / …ForeCast), each with
      its Mode set there ONCE. NAMES READ AS THE TREE: TemporalPane → TemporalPane<Mode>Content → TemporalPaneHeader →
@@ -67,6 +71,13 @@
                         <Setter Target="TemporalPaneBodyHost.Visibility" Value="Collapsed"/>
                     </VisualState.Setters>
                 </VisualState>
+                <!-- RAIL + a DOCK STACK: the body shows only the docked sections (the Content reads Pane.ShownSections),
+                     top-aligned so its height is its content's and the map shows below it. -->
+                <VisualState x:Name="RailDocked">
+                    <VisualState.Setters>
+                        <Setter Target="TemporalPaneBodyHost.VerticalAlignment" Value="Top"/>
+                    </VisualState.Setters>
+                </VisualState>
             </VisualStateGroup>
             <VisualStateGroup x:Name="EdgeStates">
                 <VisualState x:Name="LeftEdge"/>
@@ -103,7 +114,8 @@
                 <!-- THE ACTIVITY EXPANDER: this mode's activity (MapViewModel.ActivityFor(Mode)). ONE declaration for all
                      three modes, outside the Content, so it spans the pane edge to edge; declared after the Content so its
                      shadow and tab paint over the list. -->
-                <tp:TemporalPaneActivityExpander x:Name="TemporalPaneActivityExpander" Grid.Row="1" Activity="{x:Bind PaneActivity}"/>
+                <tp:TemporalPaneActivityExpander x:Name="TemporalPaneActivityExpander" Grid.Row="1" Activity="{x:Bind PaneActivity}"
+                                                 Visibility="{x:Bind tp:TemporalPane.FullOnly(Pane.IsRail), Mode=OneWay}"/>
             </Grid>
         </Grid>
     </Grid>

@@ -393,7 +393,8 @@ namespace Anvil.ViewModels
 					Row(LayerOrder.Warnings, "Wn", "Warnings", () => PastAlerts.Warnings.AllShown, PastAlerts.Warnings.ToggleAll, PastAlerts.Warnings, all),
 					Row(LayerOrder.Watches, "Wt", "Watches", () => PastAlerts.Watches.AllShown, PastAlerts.Watches.ToggleAll, PastAlerts.Watches, all),
 					Row(LayerOrder.Outlook, "Ol", "SPC outlook", () => PastOutlook.IsShown, PastOutlook.ToggleShown, PastOutlook, nameof(PastOutlookViewModel.IsShown)),
-				}, () => settings.PastCastPaneState, t => settings.PastCastPaneState = t);
+				}, () => settings.PastCastPaneState, t => settings.PastCastPaneState = t,
+					() => settings.PastCastDocked, d => settings.PastCastDocked = d);
 			}
 			else if (mode == TemporalMode.Fore)
 			{
@@ -401,7 +402,8 @@ namespace Anvil.ViewModels
 				{
 					Row(LayerOrder.Outlook, "Ol", "SPC outlook", () => Outlook.IsShown, Outlook.ToggleShown, Outlook, nameof(OutlookViewModel.IsShown)),
 					Row(LayerOrder.ModelField, "SR", "Short Range", () => ShortRange.IsShown, ShortRange.ToggleShown, ShortRange, nameof(ShortRangeViewModel.IsShown)),
-				}, () => settings.ForeCastPaneState, t => settings.ForeCastPaneState = t);
+				}, () => settings.ForeCastPaneState, t => settings.ForeCastPaneState = t,
+					() => settings.ForeCastDocked, d => settings.ForeCastDocked = d);
 			}
 			else
 			{
@@ -410,7 +412,8 @@ namespace Anvil.ViewModels
 					cells, reports, tropical, mds, radar,
 					Row(LayerOrder.Warnings, "Wn", "Warnings", () => Warnings.AllShown, Warnings.ToggleAll, Warnings, all),
 					Row(LayerOrder.Watches, "Wt", "Watches", () => Watches.AllShown, Watches.ToggleAll, Watches, all),
-				}, () => settings.NowCastPaneState, t => settings.NowCastPaneState = t);
+				}, () => settings.NowCastPaneState, t => settings.NowCastPaneState = t,
+					() => settings.NowCastDocked, d => settings.NowCastDocked = d);
 			}
 
 			pane.ApplyLayerOrder(LayerOrderFor(mode == TemporalMode.Past ? TemporalMode.Past : TemporalMode.Now));

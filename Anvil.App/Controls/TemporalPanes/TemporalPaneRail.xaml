@@ -1,23 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- TemporalPaneRail — a temporal pane COLLAPSED: a narrow full-height strip on the pane's screen edge.
 
-       LEFT edge (Past / Now)        RIGHT edge (Fore, MIRRORED)
-       ┌──────┐                                  ┌──────┐
-       │  ›   │ ← expand: back to the full pane  │  ‹   │   the chevron points the way the pane will MOVE
-       │──────│                                  │──────│
-       │ [Cl] │ ← one button per LAYER section,  │ [Ol] │
-       │ [Rp] │   in the full pane's order       │ [SR] │
-       │ [Wn] │   (TemporalPaneRailButton; lit   │      │
-       │ [Wt] │    = the layer is on)            │      │
-       │  …   │                                  │      │
-       │      │ ← surface to the bottom          │      │
-       └──────┘                                  └──────┘
+       LEFT edge (Past / Now)          RIGHT edge (Fore, MIRRORED)
+       ┌────────┐                                     ┌────────┐
+       │   ›    │ ← expand: back to the full pane     │   ‹    │   the chevron points the way the pane will MOVE
+       │────────│                                     │────────│
+       │ [ Hd ] │ ← the HEADER: dock only (lit=docked)│ [ Hd ] │
+       │ [Cl|›] │ ← one button per LAYER section, in  │ [‹|Ol] │   body = toggle the layer (lit = on)
+       │ [Rp|‹] │   the full pane's order: body + the │ [‹|SR] │   car  = dock / undock (lit = docked),
+       │ [Wn|›] │   dock CAR on the map side          │        │          on the MAP side
+       │   …    │   (TemporalPaneRailButton)          │        │
+       │        │ ← surface to the bottom             │        │
+       └────────┘                                     └────────┘
         48 wide (the tools tier's 32 px tools + 8 each side)
 
-     The buttons come from the pane's Sections (TemporalPaneViewModel), which follow the layer order — so a drag in the
-     full pane re-sorts the rail. Ghost rows are never sections (full pane only). Mirroring is a VisualState on the
-     pane's IsRightEdge (only the chevron changes today; the docking sidecars will mirror too).
-     (The HEADER's dock button and each section's dock SIDECAR arrive with docking.) -->
+     The section buttons come from the pane's Sections (TemporalPaneViewModel), which follow the layer order — so a
+     drag in the full pane re-sorts the rail. Ghost rows are never sections (full pane only). Mirroring: the expand
+     chevron is a VisualState on the pane's IsRightEdge; each section button mirrors itself (Section.IsRightEdge). -->
 <UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPaneRail"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -50,6 +49,16 @@
             </Button>
             <Border x:Name="TemporalPaneRailRule" Height="1" Margin="4,2"
                     Background="{ThemeResource CardStrokeColorDefaultSolidBrush}"/>
+            <!-- THE HEADER's button: it only DOCKS (the header has no layer, so no sidecar). One plain button the size of
+                 a section button (body + car), never stretched to stand for the header's height. Lit = docked. -->
+            <ToggleButton x:Name="TemporalPaneRailHeaderButton"
+                          Style="{StaticResource BarKeyToggleStyle}"
+                          Width="44" Height="32" Padding="0"
+                          ToolTipService.ToolTip="Dock the header beside the rail"
+                          IsChecked="{x:Bind Pane.IsHeaderDocked, Mode=OneWay}"
+                          Click="OnHeaderClick">
+                <TextBlock Text="Hd" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </ToggleButton>
             <ItemsControl x:Name="TemporalPaneRailSections" ItemsSource="{x:Bind Pane.Sections, Mode=OneWay}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>

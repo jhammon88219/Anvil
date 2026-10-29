@@ -42,8 +42,7 @@ namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 			if (mode == TemporalMode.Now) { DragMoveLayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now)); }
 		}
 
-		// A ghost row shows only while its box is on and NowCast runs (MapViewModel.AreNowCastGhostsShown).
-		public Visibility GhostVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
+		// (A ghost row's visibility is tp:TemporalPane.GhostVisibility — its box on, NowCast running, and the FULL pane only.)
 
 		// The legend's fold, persisted like a section ("fore/outlook-legend"). Set on the LEGEND's Loaded — it sits in a
 		// LAZY section body, so it doesn't exist until the section first opens.
