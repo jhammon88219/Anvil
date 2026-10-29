@@ -19,7 +19,7 @@
      rather than running across its foot. -2 and not -1: at fractional scales a 1px lap left a
      subpixel sliver of the host's border showing under the tab.
 
-     A THIRD HOST, MORE THAN TWO STATES: the temporal window's activity expander (Hidden / Minimal / Full) sets
+     A THIRD HOST, MORE THAN TWO STATES: the temporal pane's activity expander (Hidden / Minimal / Full) sets
      ManualToggle (a click raises Clicked, IsShown is the host's), Label ("More" / "Less") and Hint.
 
      ⚠️ TWO LABEL MODES, and which one you get depends on how many tabs share the rail.

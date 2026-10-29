@@ -301,7 +301,7 @@ try {
 
     // LET THE WORLD'S EDGE REACH THE MIDDLE (2026-10-20, the user's call). With one world (renderWorldCopies:false)
     // MapLibre's own limit keeps BOTH screen edges inside ±180°, so Alaska sat pinned to the screen's left edge — under
-    // a temporal window — and could only be reached by zooming. Here the CENTRE may go anywhere in -180…180 instead;
+    // a temporal pane — and could only be reached by zooming. Here the CENTRE may go anywhere in -180…180 instead;
     // north/south and zoom stay MapLibre's (its default runs first). An isolation lock (states.js setMaxBounds) is
     // left entirely to MapLibre — it has its own longitude range to keep. ⚠️ MIRRORED in preview.js — change both.
     function looseWorldEdge(m) {
@@ -474,7 +474,7 @@ try {
         window.applyStyle(url || styleUrl);
     };
 
-    // The user's overlay ORDER — the temporal windows' draggable layer sections, top of the list = top of
+    // The user's overlay ORDER — the temporal panes' draggable layer sections, top of the list = top of
     // the map. The host sends the open window's list of group ids (top first); layers.js fills in the
     // groups it doesn't name and restacks every pane after each addLayer. See its USER OVERLAY ORDER block.
     import('./layers.js').then(function (m) {

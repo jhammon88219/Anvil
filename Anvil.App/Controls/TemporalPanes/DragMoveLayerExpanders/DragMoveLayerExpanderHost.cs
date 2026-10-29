@@ -9,7 +9,7 @@ using Windows.Foundation;
 namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 {
 	/// <summary>
-	/// The ONE container of <see cref="DragMoveLayerExpander"/>s — a temporal window's LAYER STACK. It stacks them
+	/// The ONE container of <see cref="DragMoveLayerExpander"/>s — a temporal pane's LAYER STACK. It stacks them
 	/// top-down <see cref="Spacing"/> apart, and its CHILD ORDER is the map's z-order (top of list = top of map).
 	/// It owns everything about that order: the drag area and the drag itself (the expander's grip only reports
 	/// press / move / release here), Alt+Up/Down steps, <see cref="Reordered"/>, reading (<see cref="LayerOrder"/>)

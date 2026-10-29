@@ -111,7 +111,7 @@ namespace Anvil.ViewModels
 			// SEARCH STATUS HIDDEN (2026-10-16, the user's call): activity now shows in the NowCast window's activity expander, and a
 			// search isn't NowCast work. The source stays (BarActivityViewModel.WatchPlaceSearch) — re-add this line to show it.
 			// Activity.WatchPlaceSearch(PlaceSearch);
-			// Each temporal window's ACTIVITY EXPANDER — that mode's work only. NowCast: the radar's live poll + site check and
+			// Each temporal pane's ACTIVITY EXPANDER — that mode's work only. NowCast: the radar's live poll + site check and
 			// its six live feeds (in the window's layer order, re-sorted when it changes); ForeCast: the SPC outlooks; Past: none yet.
 			// Now + Fore both end on the live source line (LiveData).
 			var settings = settingsService.Settings;
@@ -182,12 +182,12 @@ namespace Anvil.ViewModels
 			// Settings → Units: the formatter every readout goes through (UnitFormat) starts on the saved choices.
 			UnitFormat.Apply(UnitsFromSettings());
 
-			// Every temporal-window choice (ticks, opacities, outlook pickers) comes back from settings and is
+			// Every temporal-pane choice (ticks, opacities, outlook pickers) comes back from settings and is
 			// saved as it changes. Before map-ready on purpose — see the class remarks.
-			TemporalWindowPersistence.Attach(settingsService.Settings, Radar, Warnings, Watches, StormReports,
+			TemporalPanePersistence.Attach(settingsService.Settings, Radar, Warnings, Watches, StormReports,
 				DamageSurveys, PastOutlook, Outlook, StormCells, PastAlerts, Discussions);
-			TemporalWindowPersistence.AttachTropical(settingsService.Settings, Tropical);
-			TemporalWindowPersistence.AttachShortRange(settingsService.Settings, ShortRange);
+			TemporalPanePersistence.AttachTropical(settingsService.Settings, Tropical);
+			TemporalPanePersistence.AttachShortRange(settingsService.Settings, ShortRange);
 			// The row follows the RESTORED box (the handler above only sees changes).
 			ForeCastActivity.SetFeedShown(ShortRange.Status, ShortRange.IsShown);
 			ShortRange.DrawingChanged += (_, _) => OnModelDrawingChanged();
@@ -213,7 +213,7 @@ namespace Anvil.ViewModels
 			// The temporal SESSION: modes + open panes restore at map-ready. See that region.
 			PropertyChanged += (_, e) => SaveTemporalSession(e.PropertyName);
 
-			// The loading screen hides the temporal windows while it's up — see "Loading screen" below.
+			// The loading screen hides the temporal panes while it's up — see "Loading screen" below.
 			Radar.PropertyChanged += (_, e) =>
 			{
 				if (e.PropertyName == nameof(RadarViewModel.AreControlsLocked)) OnLoadingScreenChanged(Radar.AreControlsLocked);
@@ -260,9 +260,8 @@ namespace Anvil.ViewModels
 				else if (e.PropertyName == nameof(RadarViewModel.HasRadarLoop))
 				{
 					// A live loop starting (e.g. an on-map site-marker click) arms NowCast so it reflects reality.
-					// ⚠️ This path writes the FIELD, so it does NOT open the NowCast window — clicking a site
-					// marker should not throw a panel over the map. It only lights the key, which lights that
-					// key's settings rail with it, so the window is one click away the moment it is wanted.
+					// ⚠️ This path writes the FIELD (bypassing the setter's model-field rule below); the NowCast PANE still
+					// comes with the mode (OnTemporalModesChanged) — a pane always follows its mode (Temporal Panes spec).
 					if (Radar.HasRadarLoop && !Radar.IsPastEventMode && !_isNowCast)
 					{
 						// Live radar wins over a drawing model field (NowCast ⇄ MODEL): untick it, and don't bring NowCast
@@ -344,7 +343,7 @@ namespace Anvil.ViewModels
 		/// <summary>Settings → Basemap, and the map setup window shown before launch (<see cref="BasemapSetupViewModel"/>).</summary>
 		public BasemapSetupViewModel BasemapSetup { get; }
 
-		/// <summary>Each temporal window's activity expander (<c>TemporalPanes/TemporalPaneActivityExpander</c>).</summary>
+		/// <summary>Each temporal pane's activity expander (<c>TemporalPanes/TemporalPaneActivityExpander</c>).</summary>
 		public TemporalActivityViewModel NowCastActivity { get; }
 		public TemporalActivityViewModel PastCastActivity { get; }
 
@@ -875,7 +874,7 @@ namespace Anvil.ViewModels
 			PushOverlayOrder(); // Past and Now keep separate stacks, so a mode change can swap which one draws
 		}
 
-		// ===== Overlay ORDER (the temporal windows' draggable layer sections) ===========================
+		// ===== Overlay ORDER (the temporal panes' draggable layer sections) ===========================
 		// The user drags a window's layer sections into any order and the map follows, top of the list on
 		// top. ⚠️ Each window keeps its OWN order (AppSettings.NowCastLayerOrder / PastCastLayerOrder), and
 		// the map draws the one for the mode that owns the overlays: PastCast while it runs, NowCast
@@ -946,7 +945,7 @@ namespace Anvil.ViewModels
 		/// <summary>Whether ForeCast's NowCast ghost rows show: its box is on AND NowCast runs.</summary>
 		public bool AreNowCastGhostsShown => ShowNowCastGhostRows && IsNowCast;
 
-		/// <summary>A temporal-window section's saved open/closed state, keyed "window/section"; null = never
+		/// <summary>A temporal-pane section's saved open/closed state, keyed "window/section"; null = never
 		/// toggled, so the section keeps its XAML default.</summary>
 		public bool? IsSectionExpanded(string key) =>
 			_settingsService.Settings.SectionExpanded.TryGetValue(key, out var open) ? open : null;
@@ -1133,7 +1132,7 @@ namespace Anvil.ViewModels
 		}
 
 		// ===== App-wide windows (Settings / Radar Atlas) ================================================
-		// Same model as the temporal windows above: one independent bool per window, opened by its key on the
+		// Same model as the temporal panes above: one independent bool per window, opened by its key on the
 		// bar's right edge and closed by the window's caption Close. No one-at-a-time grouping — these are real
 		// OS windows, so any combination may be open at once.
 		// ⚠️ There used to be FOUR keys here. Map Controls and the dev tools are no longer windows of their own
@@ -1983,7 +1982,7 @@ namespace Anvil.ViewModels
 			// Hand off subsystem startup: outlook (startup overlay + progress), watches (source + toggle),
 			// and radar (site markers, offline-status loop, radar progress bar). Markers has no startup
 			// work — just flip its readiness so user-driven locate/marker pushes are allowed.
-			// ⚠️ Every step is AWAITED IN ORDER, and the temporal windows + the home radar come only after the last — so a
+			// ⚠️ Every step is AWAITED IN ORDER, and the temporal panes + the home radar come only after the last — so a
 			// step must never wait on the NETWORK (fire its fetch detached). A storm-report fetch here held launches for up to
 			// 22.8 s (2026-10-10). Each step is TIMED, and the slow ones are named in the log ("Map-ready startup").
 			Markers.SetMapReady();

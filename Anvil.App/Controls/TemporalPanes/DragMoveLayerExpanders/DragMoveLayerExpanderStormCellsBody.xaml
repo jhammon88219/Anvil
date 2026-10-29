@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- DragMoveLayerExpanderStormCellsBody — the radar's storm-cell attributes (StormCellsViewModel): a card, one row per mark. Shown
-     in BOTH temporal windows — live cells in Now, the loaded window's in Past — for the LOADED radar site.
+     in BOTH temporal panes — live cells in Now, the loaded window's in Past — for the LOADED radar site.
 
      ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH
      ▓  14 storm cells                Scan 4:14 PM · TLX▓   under the header, ONE line): cells in the scan ON

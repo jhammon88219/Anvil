@@ -2,7 +2,7 @@ using Anvil.Models;
 using Anvil.Services;
 using Anvil.ViewModels;
 using Xunit;
-using static Anvil.Tests.TemporalWindowPersistenceTests;
+using static Anvil.Tests.TemporalPanePersistenceTests;
 
 namespace Anvil.Tests
 {

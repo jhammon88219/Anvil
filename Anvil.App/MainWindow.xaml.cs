@@ -184,7 +184,7 @@ namespace Anvil
 		// window's activity expander, TemporalPanes/TemporalPaneActivityExpander.)
 
 		// Every cross-tier alignment: the site picker (and the console tools with it) on the play button, the side
-		// sections on the temporal windows' inner edges. Each is a no-op below half a pixel, so the passes they cause
+		// sections on the temporal panes' inner edges. Each is a no-op below half a pixel, so the passes they cause
 		// settle at once.
 		private void OnBottomBarLayoutUpdated(object? sender, object e)
 		{
@@ -712,7 +712,7 @@ namespace Anvil
 			ApplyRailSeating();
 
 			// The tools tier's centre section is edge-aligned to the console (see AlignCentreSection), and both
-			// tiers' side sections end on the temporal windows' inner edges (see AlignSideSections). The window
+			// tiers' side sections end on the temporal panes' inner edges (see AlignSideSections). The window
 			// resizing moves the right edge.
 			TimeModule.SizeChanged += (_, _) => AlignCentreSection();
 			ToolsStrip.SizeChanged += (_, _) => { AlignCentreSection(); AlignSideSections(); };

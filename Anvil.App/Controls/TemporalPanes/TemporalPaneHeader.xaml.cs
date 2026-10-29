@@ -7,7 +7,7 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.TemporalPanes
 {
 	/// <summary>
-	/// The name row every temporal window opens with (see TemporalPaneHeader.xaml): status block · title over
+	/// The name row every temporal pane opens with (see TemporalPaneHeader.xaml): status block · title over
 	/// subline · hairline · <see cref="Readout"/>. The same control in all three windows; only the contents differ.
 	/// </summary>
 	[ContentProperty(Name = nameof(Readout))]

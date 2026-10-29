@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- DragMoveLayerExpanderMesoDiscussionsBody — mesoscale discussions (MesoDiscussionsViewModel): SPC MDs and WPC MPDs as map areas, and
-     a GLANCE at them. Shown in BOTH temporal windows: live in Now (the last 24 h, the ones in effect drawn), the
+     a GLANCE at them. Shown in BOTH temporal panes: live in Now (the last 24 h, the ones in effect drawn), the
      loaded window in Past (drawn as in effect at the displayed frame). READING happens in the Mesoscale
      Discussions WINDOW (Windows/MesoDiscussionWindow).
 

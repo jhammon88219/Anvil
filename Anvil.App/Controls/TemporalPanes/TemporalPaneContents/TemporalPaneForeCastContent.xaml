@@ -50,10 +50,10 @@
                                                              ┃  ← all of the above sits in PanelScroller: a 16 px
                                                                 gutter always claimed, thumb ┃ only on overflow
 
-     ONE REAL SECTION, a TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpander (every temporal window's map-layer section). SPC outlook
+     ONE REAL SECTION, a TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpander (every temporal pane's map-layer section). SPC outlook
      is open on a first run — it is what the window is for. Open/closed is then PERSISTED ("fore/..." in
      AppSettings.SectionExpanded; ghosts don't persist — they have no body), and so are Day, Product, opacity
-     and hatching (ViewModels/Map/TemporalWindowPersistence). Inside it: a summary CARD, then [label | control]
+     and hatching (ViewModels/Map/TemporalPanePersistence). Inside it: a summary CARD, then [label | control]
      rows in one aligned 60px column, then the legend.
      ⚠️ The window opens at a FIXED full height, so the layer run SCROLLS inside Primitives/PanelScroller
      (2026-09-30, the same scroller as Past/Now). WinUI's bar is not wanted — see the PanelScroller header.

@@ -131,11 +131,11 @@ namespace Anvil.Tests
 			Assert.True(s.ShowSiteRing);
 
 			var pushes = new System.Collections.Generic.List<object?[]>();
-			var map = TemporalWindowPersistenceTests.Null<IMapService>.Create(new()
+			var map = TemporalPanePersistenceTests.Null<IMapService>.Create(new()
 			{
 				["SetRangeRingsAsync"] = a => { pushes.Add(a!); return Task.CompletedTask; },
 			});
-			var settings = TemporalWindowPersistenceTests.Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => s });
+			var settings = TemporalPanePersistenceTests.Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => s });
 			var vm = new RangeRingsViewModel(map, settings);
 			await vm.OnMapsReadyAsync();
 

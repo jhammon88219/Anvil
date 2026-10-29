@@ -65,7 +65,7 @@
      the OPACITY slider; body = its controls, SettingsFieldLabelStyle rows in one aligned label column.
      Timeframe is NOT a section: it is what every section acts on, so it sits fixed above them. Sections start
      closed; open/closed is PERSISTED per section (DragMoveLayerExpanderHost.PersistExpansion → AppSettings.SectionExpanded,
-     "past/..."), as is every tick, opacity and outlook pick here (ViewModels/Map/TemporalWindowPersistence).
+     "past/..."), as is every tick, opacity and outlook pick here (ViewModels/Map/TemporalPanePersistence).
      ⚠️ THE LAYER RUN'S ORDER IS THE MAP'S Z-ORDER, and the user owns it: drag a layer section by its grip
      (or Alt+Up/Down) and OnLayersReordered hands the order to MapViewModel.SetLayerOrder, which saves it
      (AppSettings.PastCastLayerOrder — separate from NowCast's) and restacks the map. The XAML order is the
@@ -220,7 +220,7 @@
 
         <!-- ===================== STORM REPORTS ===================== -->
         <!-- ⚠️ The heading is HERE, not inside DragMoveLayerExpanderStormReportsBody: that control is shared by BOTH
-             temporal windows, and a window owns its own section structure while the control is just
+             temporal panes, and a window owns its own section structure while the control is just
              content. Putting it inside would give this section a heading in a window whose other
              sections might not have one. -->
         <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm reports" LayerId="reports" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.PastPane.ShownSections, 'reports'), Mode=OneWay}"

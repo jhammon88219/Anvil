@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- PanelScroller — the app's hand-rolled vertical scroller for panel windows. Built in the PastCast window
-     first; now in all three temporal windows (Past/Now/Fore) and the Atlas lists. Wrap a body in it:
+     first; now in all three temporal panes (Past/Now/Fore) and the Atlas lists. Wrap a body in it:
      <prim:PanelScroller> …content… </prim:PanelScroller>.
 
        ┌─────────────────────────────────────┬──────┐

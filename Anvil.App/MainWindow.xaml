@@ -18,7 +18,7 @@
        │ [Search ✕⌕] ⁙⁙⁙ ▣ ⊚┇   ╎◗▴ ⁙⁙⁙ [⌂ KTLX Oklahoma City ˅] ⁙⁙⁙ ⌕ ◎▴┆   ┇▥▴ ⁙⁙ ⌘⛶ ─ ▥▴ [Isolate ▾]│  TOOLS tier
        │  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┇▒▒▒╎▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒┆▒▒▒┇▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒│  ╎ = console tools' left = console's
        │                     ┇   ╎1:07 PM ═══ scrubber ═══ VCP:  212┆   ┇                       │  ┆ = radar tools' right = scan text's
-       │ ↺ │⋮ ⁙⁙⁙ ((•))│⋮ ☁ │⋮┇   ╎     3/10  ◀ ▶ ▶  ↺  Mode: precip┆   ┇📡  ⚙   ⁙⁙⁙⁙⁙⁙   –│□│✕│  ┇ = a temporal pane's INNER edge
+       │ ↺   ⁙⁙⁙⁙⁙ ((•))  ☁   ┇   ╎     3/10  ◀ ▶ ▶  ↺  Mode: precip┆   ┇📡  ⚙   ⁙⁙⁙⁙⁙⁙   –│□│✕│  ┇ = a temporal pane's INNER edge
        │ PastCast  NowCast ForeCast┇ ╎2 min ago       Rescans: SAILS ×1┆   ┇Atlas Settings          │  ⁙⁙⁙ = the STRETCHING dot spacers;
        └─────────────────────┴───┴───────── ↑ bar midpoint ─────────┴───┴─────────────────────────┘  the blank runs ┇…╎ / ┆…┇ give way first
           ↑ NO RULES ANYWHERE — every seam is a soft SHADOW instead, and each one
@@ -44,8 +44,8 @@
             midpoint (AlignCentreSection) — and
             the place search + ▣ ⊚ moved to the left, over the temporal keys.
           ↑ Site markers AND ⌕ Inspect are on the TOOLS tier (both left this bar; see MapControlsStrip).
-          ↑ ⋮ = each mode's SIDE CAR: a full-height settings latch on its own key, lit only while that mode
-            runs. One window per mode. (Same three-dot mark the retired shared panel key used.)
+          ↑ ↺ ((•)) ☁ = the three mode keys, PLAIN on/off squares (their 3-dot side cars went 2026-10-29: a mode's
+            pane follows its mode — see the TEMPORAL PANES block and Composites/TemporalToggles).
           ↑ ▥▴ (first of the right tools) = pane layout, ONE square key with an upward 1 / 2 / 4 list, on the TOOLS
             tier; it left this bar's right cluster, which is now window latches only. See MapControlsStrip.
           ↑ ┇ THE SIDE SECTIONS END ON THE TEMPORAL PANES' INNER EDGES (2026-10-22): both tiers' left sections end,
@@ -607,7 +607,7 @@
                         </Grid>
 
                         <!-- ⚠️ NO ACTIVITY SLOT (removed 2026-10-16, the user's call): what Anvil is working on shows in
-                             each temporal window's ACTIVITY EXPANDER (TemporalPanes/TemporalPaneActivityExpander), per mode. The run
+                             each temporal pane's ACTIVITY EXPANDER (TemporalPanes/TemporalPaneActivityExpander), per mode. The run
                              between the console and Atlas is a permanent BLANK run (the section rules allow it). -->
 
                         <!-- ===== TEMPORAL MODE KEYS — the bar's LEFT edge =====

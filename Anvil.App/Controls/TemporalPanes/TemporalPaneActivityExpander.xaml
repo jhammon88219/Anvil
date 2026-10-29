@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalPaneActivityExpander — the bottom band of a temporal window: what Anvil is WORKING ON for THAT mode
+<!-- TemporalPaneActivityExpander — the bottom band of a temporal pane: what Anvil is WORKING ON for THAT mode
      (TemporalActivityViewModel), in TWO states moved by ONE pull tab. Declared ONCE in TemporalPane, under whichever
      Content is loaded. It replaced the main bar's activity slot (2026-10-16); three states became two (2026-10-19).
 

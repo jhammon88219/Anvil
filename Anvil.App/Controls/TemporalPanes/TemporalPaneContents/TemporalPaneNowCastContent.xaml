@@ -67,7 +67,7 @@
 
      Warnings is the only section open on a FIRST run. Every section's open/closed state is then PERSISTED
      (DragMoveLayerExpanderHost.PersistExpansion → AppSettings.SectionExpanded, keys "now/<LayerId>"), and so is every
-     tick and opacity here (ViewModels/Map/TemporalWindowPersistence).
+     tick and opacity here (ViewModels/Map/TemporalPanePersistence).
      ⚠️ The window opens at a FIXED full height (WindowManager's Left anchor), not sized to this body, so the
      SECTIONS scroll inside Primitives/PanelScroller (the header stays put) — PastCast's arrangement.
 

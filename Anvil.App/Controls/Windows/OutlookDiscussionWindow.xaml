@@ -159,7 +159,7 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <!-- Dark surface fills the whole window (custom chrome, like the temporal windows). -->
+    <!-- Dark surface fills the whole window (custom chrome, like the temporal panes). -->
     <!-- ⚠️ ONE label column width, 128, in the band, every body row AND SectionTemplate — so every value starts
          on the same line. Change all of them together. -->
     <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">

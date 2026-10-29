@@ -7,7 +7,7 @@ using Xunit;
 namespace Anvil.Tests
 {
 	/// <summary>
-	/// The temporal window's ACTIVITY EXPANDER: the one tab's two states (Hidden ⇄ Full), the per-window persistence, the
+	/// The temporal pane's ACTIVITY EXPANDER: the one tab's two states (Hidden ⇄ Full), the per-window persistence, the
 	/// FEED table's wording (clock times, never countdowns), the collapsed summary line, and the rows' layer order.
 	/// </summary>
 	public class TemporalActivityTests

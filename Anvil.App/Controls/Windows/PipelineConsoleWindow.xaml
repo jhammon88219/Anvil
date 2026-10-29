@@ -22,7 +22,7 @@
      happen — Ref+Vel filling per frame, SRV holding until the one loop-wide storm motion resolves,
      the dual-pol row staying dark until the idle-time second wave arms.
 
-     Its own chrome because it's wider than the 460-wide temporal windows — and keeping it
+     Its own chrome because it's wider than the 460-wide temporal panes — and keeping it
      self-contained means removing the feature touches no shared control. Reuses the shared OverlayBar
      surface brush + border so it matches the other windows. Bound to the coordinator MapViewModel;
      reaches ViewModel.PipelineConsole.* and ViewModel.IsPipelineConsoleOpen. -->

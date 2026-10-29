@@ -35,7 +35,7 @@
                                                                                              └────────────────────┘     = closed (cities, POIs,
                                                                                                                           water names)
                                                             ╭ ˅ Tools ╮ ╭ ˅ Bar ╮                ← the rail: the picker is as wide as this pair
-       ┌ left temporal window ─────────┐                                                     ┌ ForeCast window ───────────────┐
+       ┌ left temporal pane ─────────┐                                                     ┌ ForeCast window ───────────────┐
        [Moore, OK  ✕ ⌕] ⁙⁙⁙⁙⁙⁙ (▣)(⊚)┊      (◗▴) ⁙⁙⁙⁙⁙⁙⁙⁙ [⌂ KTLX  Oklahoma ˅] ⁙⁙⁙⁙⁙⁙ (⌕)(◎▴)      ┊(▥▴) ⁙⁙⁙ (⌘)(⛶) ─ (▥|▴) [Isolate ▾]   ← THIS
                                        ┊      ├ console's left edge      ┊ ▶   console's right edge ┤    ┊
                                        ↑ the window's INNER edge (485)  ┊ ← the bar's midpoint       ↑ the window's INNER edge (W − 485)
@@ -519,7 +519,7 @@
 
         <!-- ===== PLACE SEARCH — LEFT, over the temporal keys =====
              Search ⁙⁙ then ▣ the marker viewer, then ⊚ Location — one row from the tier's left edge to the left
-             temporal window's INNER edge (the section rules; it held the tier's midpoint until the console ⇄ temporal swap). -->
+             temporal pane's INNER edge (the section rules; it held the tier's midpoint until the console ⇄ temporal swap). -->
         <StackPanel x:Name="SearchGroup"
                     Orientation="Horizontal" Spacing="8"
                     HorizontalAlignment="Left" VerticalAlignment="Center">
@@ -539,7 +539,7 @@
                             QuerySubmitted="OnPlaceSearchQuerySubmitted"
                             ToolTipService.ToolTip="Find a city or town and fly there. Clear the box to remove the pin."/>
 
-            <!-- SEARCH SPACER — stretches (FillWidth) so Location's right edge lands on the left temporal window's INNER
+            <!-- SEARCH SPACER — stretches (FillWidth) so Location's right edge lands on the left temporal pane's INNER
                  edge. Width SET IN CODE (AlignToWindowEdges); 10 is only the pre-layout value. -->
             <prim:MapControlsStripSeparator x:Name="SearchSpacer" Margin="8,0" FillWidth="True" Width="10"/>
 
@@ -553,7 +553,7 @@
             </Button>
 
             <!-- LOCATION — drop / remove your marker. ONE-WAY IsChecked, re-asserted in the handler. LAST of the left
-                 section: its right edge is the left temporal window's inner edge (AlignToWindowEdges).
+                 section: its right edge is the left temporal pane's inner edge (AlignToWindowEdges).
                  ⚠️ NO STATUS LINE after it any more: "Searching online…" / "No places match …" run in the bar's
                  ACTIVITY SLOT (BarActivityViewModel.WatchPlaceSearch) — a variable-width line here broke the edge. -->
             <ToggleButton x:Name="LocationToggle"

@@ -114,7 +114,7 @@ namespace Anvil.Controls.Composites
 			}
 		}
 
-		// ===== The side sections end on the temporal windows' INNER edges (the user's call, 2026-10-22) =====
+		// ===== The side sections end on the temporal panes' INNER edges (the user's call, 2026-10-22) =====
 		// [search] ⁙⁙ ▣ ⊚┊                                          ┊▥ ⁙⁙ ⌘ ⛶ ─ map ─ [Isolate]
 		//                ↑ left window's inner edge     ForeCast's inner edge ↑
 		// Controls keep their size; ONE dot spacer per side takes the slack. Each width is computed from an edge that

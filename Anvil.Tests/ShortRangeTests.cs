@@ -183,12 +183,12 @@ namespace Anvil.Tests
 
 		// ── NowCast ⇄ MODEL (MapViewModel) ──
 
-		private static T N<T>() where T : class => TemporalWindowPersistenceTests.Null<T>.Create();
+		private static T N<T>() where T : class => TemporalPanePersistenceTests.Null<T>.Create();
 
 		private static MapViewModel NewMap()
 		{
 			var settings = new AppSettings();
-			var settingsService = TemporalWindowPersistenceTests.Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
+			var settingsService = TemporalPanePersistenceTests.Null<ISettingsService>.Create(new() { ["get_Settings"] = _ => settings });
 			var dir = Path.Combine(Path.GetTempPath(), "AnvilShortRangeTests", Guid.NewGuid().ToString("N"));
 			return new MapViewModel(N<IMapService>(), N<IStyleProvider>(), N<IThemeProvider>(), N<IRegionProvider>(),
 				N<ISpcOutlookService>(), N<ISpcWatchService>(), N<IWarningService>(), N<IStormReportService>(),

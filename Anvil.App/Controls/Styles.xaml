@@ -166,7 +166,7 @@
         <GradientStop Color="#FF000000" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- The room under the LAST layer section of a temporal window, so scrolled to the end it clears the activity
+    <!-- The room under the LAST layer section of a temporal pane, so scrolled to the end it clears the activity
          expander's tab (26 high) and shade (36 deep). The Contents keep no bottom margin. -->
     <Thickness x:Key="TemporalListEndClearance">0,0,0,44</Thickness>
 
@@ -425,7 +425,7 @@
     <CornerRadius x:Key="OverlayBarTabCornersTopEdge">0,0,7,7</CornerRadius>
 
     <!-- ───────────────────────────── A panel SECTION ─────────────────────────────
-         A temporal-window section is a TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpander, a Settings-tab section a SettingsExpander
+         A temporal-pane section is a TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpander, a Settings-tab section a SettingsExpander
          (together they REPLACED the WinUI Expander and its four-sided height pinning — see their headers).
          ⚠️ ONE HEADER HEIGHT FOR THE WHOLE APP, and this is the only place it is set. 28, not the old 24:
          a layer section's header carries an opacity slider, whose 18 px thumb needs the room. -->
@@ -443,7 +443,7 @@
     <!-- ───────────────────────────── TextBlock — settings-body labels ─────────────────────────────
 
          The inline FIELD label ("State", "Spacing (mi)") inside a panel body. Shared because every Settings
-         tab and every temporal window uses it — it was copied into the local Resources of all three windows
+         tab and every temporal pane uses it — it was copied into the local Resources of all three windows
          the tabs replaced, and the copies had already begun to drift.
 
          ⚠️ THE SECTION HEADING RANK IS NOT A STYLE, AND IS NOT A CONTROL ANY MORE EITHER. It was

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- DragMoveLayerExpanderStormReportsBody — the SPC storm-reports verification controls: a card, one row per report type, and
-     fill opacity. Reused in BOTH temporal windows: in the Past window it shows the replay day's reports, in
+     fill opacity. Reused in BOTH temporal panes: in the Past window it shows the replay day's reports, in
      the Now window today's — the VM keys the overlay to the active convective day, so the same controls
      serve both.
 

@@ -574,7 +574,7 @@ namespace Anvil.ViewModels
 		}
 
 		// ── The ForeCast window's section card ──
-		// Three lines in the shape every card in the two temporal windows uses (headline / context /
+		// Three lines in the shape every card in the two temporal panes uses (headline / context /
 		// footer), composed from state this VM already kept — the title, the issued/valid line and the
 		// countdown were all being computed and shown NOWHERE. ⚠️ Nothing new is fetched or tracked here;
 		// if a line looks wrong, the bug is upstream in ApplyCurrentOutlook, not in these three getters.

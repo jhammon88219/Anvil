@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TemporalPaneHeader — the NAME ROW every temporal window opens with (NowCast / PastCast / ForeCast). ONE
+<!-- TemporalPaneHeader — the NAME ROW every temporal pane opens with (NowCast / PastCast / ForeCast). ONE
      control, three uses (one per TemporalPane<Mode>Content): only the CONTENTS differ — the status colour,
      the title, the subline and the Readout.
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- DragMoveLayerExpander — ONE MAP LAYER in a temporal window (Now / Past / Fore): a 28 px header over a
+<!-- DragMoveLayerExpander — ONE MAP LAYER in a temporal pane (Now / Past / Fore): a 28 px header over a
      collapsible body, dragged by its grip to re-order. Its place in the window's LAYER STACK is the layer's
-     place in the map's z-order (top of list = top of map). The temporal windows use ONLY this; the Settings
+     place in the map's z-order (top of list = top of map). The temporal panes use ONLY this; the Settings
      tabs use Primitives/SettingsExpander (same header metrics, no grip, no opacity, never re-orders).
 
       ┌──────────────────────────────────────────────────────────────┐

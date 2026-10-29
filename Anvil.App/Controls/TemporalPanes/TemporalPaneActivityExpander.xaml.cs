@@ -8,7 +8,7 @@ using Anvil.ViewModels;
 namespace Anvil.Controls.TemporalPanes
 {
 	/// <summary>
-	/// A temporal window's activity band in three states (see the XAML header). Every state is
+	/// A temporal pane's activity band in three states (see the XAML header). Every state is
 	/// <see cref="TemporalActivityViewModel"/>'s (and its radar's / feeds'); this only draws it and forwards the tab.
 	/// </summary>
 	public sealed partial class TemporalPaneActivityExpander : UserControl

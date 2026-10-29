@@ -10,7 +10,7 @@ namespace Anvil.Controls.Primitives
 {
 	/// <summary>
 	/// One section of a Settings tab — a fixed-height header over a collapsible <see cref="Body"/> (see
-	/// SettingsExpander.xaml). Never re-orders; the temporal windows' map layers are
+	/// SettingsExpander.xaml). Never re-orders; the temporal panes' map layers are
 	/// <see cref="DragMoveLayerExpander"/>.
 	/// </summary>
 	[ContentProperty(Name = nameof(Body))]

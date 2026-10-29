@@ -15,14 +15,14 @@ namespace Anvil.Tests
 	/// needs real services), a mode's pane shows WHILE THE MODE RUNS — held back only by the launch order and the loop
 	/// holding gate — and nothing the app does while closing is saved as a choice.
 	/// </summary>
-	/// <remarks>The real MapViewModel over do-nothing services (<see cref="TemporalWindowPersistenceTests.Null{T}"/>).</remarks>
+	/// <remarks>The real MapViewModel over do-nothing services (<see cref="TemporalPanePersistenceTests.Null{T}"/>).</remarks>
 	public class TemporalSessionTests
 	{
-		private static T N<T>() where T : class => TemporalWindowPersistenceTests.Null<T>.Create();
+		private static T N<T>() where T : class => TemporalPanePersistenceTests.Null<T>.Create();
 
 		private static MapViewModel New(AppSettings settings, IStormReportService? stormReports = null)
 		{
-			var settingsService = TemporalWindowPersistenceTests.Null<ISettingsService>.Create(
+			var settingsService = TemporalPanePersistenceTests.Null<ISettingsService>.Create(
 				new() { ["get_Settings"] = _ => settings });
 			var usageDir = Path.Combine(Path.GetTempPath(), "AnvilSessionTests", System.Guid.NewGuid().ToString("N"));
 			return new MapViewModel(N<IMapService>(), N<IStyleProvider>(), N<IThemeProvider>(), N<IRegionProvider>(),
@@ -40,7 +40,7 @@ namespace Anvil.Tests
 			// 2026-10-10: map-ready AWAITED the launch storm-report fetch (SPC + IEM), so a slow server held the temporal
 			// panes and the home radar for up to 22.8 s. A fetch that never answers must not hold the launch.
 			var never = new TaskCompletionSource<StormReportResult>();
-			var reports = TemporalWindowPersistenceTests.Null<IStormReportService>.Create(
+			var reports = TemporalPanePersistenceTests.Null<IStormReportService>.Create(
 				new() { ["EnsureReportsAsync"] = _ => never.Task });
 			var vm = New(new AppSettings { NowCastOn = true }, reports);
 			vm.LaunchLoopStarting = () => false;

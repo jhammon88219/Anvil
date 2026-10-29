@@ -37,7 +37,7 @@ export function firstBoundaryLayerId(map) {
 }
 
 // ===== USER OVERLAY ORDER =====================================================================
-// The temporal windows let the user drag their layer sections into any order, and the map follows:
+// The temporal panes let the user drag their layer sections into any order, and the map follows:
 // the TOP of the list draws on TOP. Every ordered overlay lives in ONE band directly beneath the
 // boundary lines, so borders and place names stay legible over whatever the user stacks:
 //

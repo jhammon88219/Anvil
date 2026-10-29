@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- DragMoveLayerExpanderTropicalBody — the "Tropical" section body (TropicalViewModel): hurricane, tropical storm, storm surge and
-     extreme wind watches + warnings as forecast zones. Shown in BOTH temporal windows: live in Now, the loaded window
+     extreme wind watches + warnings as forecast zones. Shown in BOTH temporal panes: live in Now, the loaded window
      in Past (counts as in effect at the displayed frame — they follow the scrubber).
 
      ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   the card (DragMoveLayerExpanderHeaderCard, FLUSH under

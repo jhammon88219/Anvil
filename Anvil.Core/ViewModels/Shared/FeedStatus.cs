@@ -9,7 +9,7 @@ namespace Anvil.ViewModels
 	public enum FeedState { Waiting, Checking, Ok, Failed }
 
 	/// <summary>
-	/// ONE live feed's timing for the temporal window's activity expander — a row of its FEED · EVERY · LAST · NEXT table
+	/// ONE live feed's timing for the temporal pane's activity expander — a row of its FEED · EVERY · LAST · NEXT table
 	/// (warnings, watches, reports, cells, tropical, MDs, and the radar's live poll). Each feed VM owns one (<c>Status</c>);
 	/// its refresh LOOP ends every cycle with <c>LiveFeedChannel.Schedule(Status)</c> (→ <see cref="Scheduled"/> or
 	/// <see cref="Live"/>), its FETCH calls <see cref="Checking"/> /

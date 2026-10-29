@@ -6,7 +6,7 @@ using Anvil.Services;
 namespace Anvil.ViewModels
 {
 	/// <summary>
-	/// Makes every choice in the three temporal windows survive a restart: layer ticks, opacities and the
+	/// Makes every choice in the three temporal panes survive a restart: layer ticks, opacities and the
 	/// two outlooks' pickers. <see cref="Attach"/> runs once from <see cref="MapViewModel"/>'s constructor —
 	/// it RESTORES the saved values into the subsystem view models, then TRACKS their changes back into
 	/// <see cref="AppSettings"/> (whose auto-save writes the file).
@@ -22,7 +22,7 @@ namespace Anvil.ViewModels
 	/// <see cref="MapViewModel.IsSectionExpanded"/> / <see cref="MapViewModel.SetSectionExpanded"/>.
 	/// ⚠️ ADD A CHOICE = an AppSettings property + one line in Restore + one case in Track.
 	/// </remarks>
-	internal static class TemporalWindowPersistence
+	internal static class TemporalPanePersistence
 	{
 		private const string NoneProduct = "None";
 

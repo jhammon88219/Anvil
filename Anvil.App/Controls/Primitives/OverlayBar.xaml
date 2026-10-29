@@ -63,12 +63,12 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <!-- The four ShadowFade* gradients moved to Controls/Styles.xaml (2026-10-17): the temporal window's activity
+    <!-- The four ShadowFade* gradients moved to Controls/Styles.xaml (2026-10-17): the temporal pane's activity
          expander casts the same shadow, so they are shared now. The EdgeStates below pick between them by edge. -->
 
     <!-- Transparent root: only the tab, the shadows and the bar draw, so the map shows through beside
          them. This control is ONLY the chrome. Nothing floats above it in-window: every app-wide panel
-         (the three temporal windows, App Settings, Radar Atlas, the Pipeline Console) is a real
+         (the three temporal panes, App Settings, Radar Atlas, the Pipeline Console) is a real
          top-level OS window owned by WindowManager. -->
     <Grid>
         <VisualStateManager.VisualStateGroups>

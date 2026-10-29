@@ -13,7 +13,7 @@ using Xunit;
 namespace Anvil.Tests
 {
 	/// <summary>
-	/// <see cref="TemporalWindowPersistence"/>: every temporal-window choice RESTORES from settings into the
+	/// <see cref="TemporalPanePersistence"/>: every temporal-pane choice RESTORES from settings into the
 	/// real view models, a user change is SAVED back, restoring writes nothing, and a never-set (null)
 	/// setting leaves the view model's own default alone.
 	/// </summary>
@@ -22,7 +22,7 @@ namespace Anvil.Tests
 	/// nothing, so no map, network or disk is touched. Two outlook calls are overridden so the live outlook
 	/// has days and products to pick between.
 	/// </remarks>
-	public class TemporalWindowPersistenceTests
+	public class TemporalPanePersistenceTests
 	{
 		// ── A do-nothing implementation of any interface ───────────────────────────────────────────────
 		public class Null<T> : DispatchProxy where T : class
@@ -115,7 +115,7 @@ namespace Anvil.Tests
 				PastAlerts = new PastAlertsViewModel(map, Null<IPastAlertService>.Create(), Radar, NullLogger<PastAlertsViewModel>.Instance);
 				Discussions = new MesoDiscussionsViewModel(map, Null<IMesoDiscussionService>.Create(), Radar, dispatcher, NullLogger<MesoDiscussionsViewModel>.Instance);
 
-				TemporalWindowPersistence.Attach(settings, Radar, Warnings, Watches, Reports, Damage, PastOutlook, Outlook, Cells, PastAlerts, Discussions);
+				TemporalPanePersistence.Attach(settings, Radar, Warnings, Watches, Reports, Damage, PastOutlook, Outlook, Cells, PastAlerts, Discussions);
 			}
 
 			private static SpcOutlookProduct Product(int day, SpcOutlookType type) =>

@@ -13,7 +13,7 @@ using Windows.UI.Core;
 namespace Anvil.Controls.TemporalPanes.DragMoveLayerExpanders
 {
 	/// <summary>
-	/// One MAP LAYER in a temporal window — a fixed-height header over a collapsible <see cref="Body"/>, dragged
+	/// One MAP LAYER in a temporal pane — a fixed-height header over a collapsible <see cref="Body"/>, dragged
 	/// by its grip to re-order (see DragMoveLayerExpander.xaml). ⚠️ Lives ONLY in a
 	/// <see cref="DragMoveLayerExpanderHost"/>, which owns the order, the drag and the persistence; outside one the
 	/// grip does nothing. Non-layer sections (Settings) are <see cref="SettingsExpander"/>.

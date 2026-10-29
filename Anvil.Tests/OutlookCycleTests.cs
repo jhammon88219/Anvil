@@ -62,12 +62,12 @@ namespace Anvil.Tests
 			public Rig(DateTimeOffset liveExpire)
 			{
 				var product = new SpcOutlookProduct("d1c", 1, SpcOutlookType.Categorical, "Categorical", "d1c.geojson", "https://x/d1c.geojson");
-				var map = TemporalWindowPersistenceTests.Null<IMapService>.Create(new()
+				var map = TemporalPanePersistenceTests.Null<IMapService>.Create(new()
 				{
 					["ShowOutlookAsync"] = a => { Calls.Add("show " + ((SpcOutlookProduct)a![0]!).CacheFileName); return Task.CompletedTask; },
 					["ClearOutlookAsync"] = _ => { Calls.Add("clear"); return Task.CompletedTask; },
 				});
-				var spc = TemporalWindowPersistenceTests.Null<ISpcOutlookService>.Create(new()
+				var spc = TemporalPanePersistenceTests.Null<ISpcOutlookService>.Create(new()
 				{
 					["get_AvailableDays"] = _ => new[] { 1, 4 },
 					["GetProductsForDay"] = a => (int)a![0]! == 1 ? new[] { product }
@@ -80,7 +80,7 @@ namespace Anvil.Tests
 						return Task.FromResult(new PastOutlookResult(true, (int)a[2]!, new[] { SpcOutlookType.Categorical }, null, null));
 					},
 				});
-				Vm = new OutlookViewModel(map, spc, TemporalWindowPersistenceTests.Null<IDispatcher>.Create(), NullLogger<OutlookViewModel>.Instance);
+				Vm = new OutlookViewModel(map, spc, TemporalPanePersistenceTests.Null<IDispatcher>.Create(), NullLogger<OutlookViewModel>.Instance);
 			}
 		}
 

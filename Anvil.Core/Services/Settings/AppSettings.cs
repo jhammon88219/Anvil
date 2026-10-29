@@ -377,7 +377,7 @@ namespace Anvil.Services
 			set => SetProperty(ref _showOnlyFavoriteSites, value);
 		}
 
-		// ── Overlay order (the temporal windows' draggable layer sections) ─────────────────────────────
+		// ── Overlay order (the temporal panes' draggable layer sections) ─────────────────────────────
 		// ⚠️ ONE LIST PER WINDOW, by the user's call: Past and Now never run together, so each keeps its own
 		// stack. Top-first Models.LayerOrder ids; EMPTY = the window's own default (its XAML order).
 		// ⚠️ REPLACE the list, never mutate it — see FavoriteSiteIds.
@@ -459,7 +459,7 @@ namespace Anvil.Services
 			set => SetProperty(ref _revealSitesNearCursor, value);
 		}
 
-		// ── Temporal-window choices (ViewModels/Map/TemporalWindowPersistence restores + tracks these) ──────
+		// ── Temporal-pane choices (ViewModels/Map/TemporalPanePersistence restores + tracks these) ──────
 		// ⚠️ NULLABLE ON PURPOSE: null = "never changed", and the view model keeps ITS OWN default. The
 		// defaults therefore live in exactly one place (the VM field initialisers), and a settings file from
 		// before these existed loads as all-null — no behaviour change until the user touches something.
@@ -617,7 +617,7 @@ namespace Anvil.Services
 		// file's PastWindowOnTop / …Locked keys are simply ignored on load.)
 
 		private Dictionary<string, bool> _sectionExpanded = new();
-		/// <summary>Which temporal-window sections the user opened or closed, keyed "window/section"
+		/// <summary>Which temporal-pane sections the user opened or closed, keyed "window/section"
 		/// (e.g. "now/warnings"). A key that is absent = the section's XAML default.</summary>
 		/// <remarks>⚠️ REPLACE the dictionary, never mutate it — see FavoriteSiteIds.</remarks>
 		public Dictionary<string, bool> SectionExpanded
@@ -674,7 +674,7 @@ namespace Anvil.Services
 			set => SetProperty(ref _foreCastDocked, value ?? new());
 		}
 
-		// ── Temporal windows' ACTIVITY EXPANDER state (Models.ActivityExpanderStates tokens), one per window ──
+		// ── Temporal panes' ACTIVITY EXPANDER state (Models.ActivityExpanderStates tokens), one per window ──
 		private string _nowCastActivity = Models.ActivityExpanderStates.Hidden;
 		/// <summary>The NowCast window's activity expander: hidden / min-up / full / min-down.</summary>
 		public string NowCastActivity

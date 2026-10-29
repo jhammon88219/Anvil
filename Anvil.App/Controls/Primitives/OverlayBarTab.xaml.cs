@@ -182,7 +182,7 @@ namespace Anvil.Controls.Primitives
 				? (shown ? "Hide these controls" : "Show the controls")
 				: (shown ? $"Hide the {target.ToLowerInvariant()}" : $"Show the {target.ToLowerInvariant()}");
 
-		// ── MORE THAN TWO STATES (the temporal window's activity expander, 2026-10-17) ──
+		// ── MORE THAN TWO STATES (the temporal pane's activity expander, 2026-10-17) ──
 		// A host with its own state machine sets ManualToggle: a click raises Clicked and leaves IsShown alone; the host
 		// moves its state and re-points IsShown (the chevron) and Label (the word) itself. Default off = every existing tab.
 
