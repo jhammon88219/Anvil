@@ -55,6 +55,16 @@ namespace Anvil.Controls.TemporalPanes
 		/// <summary>This pane's activity expander (radar + feeds for NowCast; the outlook for Fore; the loads for Past).</summary>
 		public TemporalActivityViewModel PaneActivity => ViewModel.ActivityFor(Mode);
 
+		// ── EDGE-HATCH (experimental bolt-on): the map-side hatch, hung outside the pane — right of Past/Now, left of Fore ──
+		public HorizontalAlignment HatchAlignment(bool isFore) => isFore ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+
+		public Anvil.Models.EdgeHatchDirection HatchDirection(bool isFore) =>
+			isFore ? Anvil.Models.EdgeHatchDirection.Left : Anvil.Models.EdgeHatchDirection.Right;
+
+		public Thickness HatchMargin(bool isFore, double width) => isFore ? new Thickness(-width, 0, 0, 0) : new Thickness(0, 0, -width, 0);
+
+		public Visibility HatchVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
+
 		private void RealizeIfShown()
 		{
 			if (IsRealized || Visibility != Visibility.Visible || !IsLoaded || ViewModel is null) { return; }

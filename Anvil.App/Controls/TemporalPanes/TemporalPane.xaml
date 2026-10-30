@@ -44,6 +44,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:tp="using:Anvil.Controls.TemporalPanes"
              xmlns:temporalPaneContents="using:Anvil.Controls.TemporalPanes.TemporalPaneContents"
+             xmlns:prim="using:Anvil.Controls.Primitives"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
@@ -72,5 +73,20 @@
                  and tab paint over the list. -->
             <tp:TemporalPaneActivityExpander x:Name="TemporalPaneActivityExpander" Grid.Row="1" Activity="{x:Bind PaneActivity}"/>
         </Grid>
+
+        <!-- EDGE-HATCH (experimental bolt-on): the hatch on the pane's MAP side, hung OUTSIDE the pane on a negative margin
+             (Past/Now: off the right edge, running right; Fore: off the left edge, running left). Click-through, full pane
+             height; Settings → Edges ("Hatch the panes' map-side edges"). -->
+        <prim:EdgeHatch x:Name="EdgeHatchPaneEdge"
+                        HorizontalAlignment="{x:Bind HatchAlignment(IsFore)}"
+                        Direction="{x:Bind HatchDirection(IsFore)}"
+                        Width="{x:Bind ViewModel.EdgeHatch.Width, Mode=OneWay}"
+                        Margin="{x:Bind HatchMargin(IsFore, ViewModel.EdgeHatch.Width), Mode=OneWay}"
+                        Spacing="{x:Bind ViewModel.EdgeHatch.Spacing, Mode=OneWay}"
+                        Weight="{x:Bind ViewModel.EdgeHatch.Weight, Mode=OneWay}"
+                        Thin="{x:Bind ViewModel.EdgeHatch.Thins, Mode=OneWay}"
+                        Fade="{x:Bind ViewModel.EdgeHatch.Fades, Mode=OneWay}"
+                        Ink="{x:Bind ViewModel.EdgeHatch.ColorToken, Mode=OneWay}"
+                        Visibility="{x:Bind HatchVisibility(ViewModel.EdgeHatch.IsPaneHatch), Mode=OneWay}"/>
     </Grid>
 </UserControl>

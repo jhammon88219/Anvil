@@ -26,7 +26,7 @@ namespace Anvil.ViewModels
 	/// ⚠️ ONE deliberate exception: <c>RangeRing</c> was inserted after <c>Radar</c> (2026-09-24) because the user
 	/// asked for it to sit there. The cost was a one-time shift — a Settings window last closed on Storage or
 	/// Window Mode reopened one tab to the left, once. Don't take that as licence to reorder.</summary>
-	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, LiveData, Basemap, Units, Dev }
+	public enum SettingsTab { Map, Radar, RangeRing, Storage, WindowMode, RadarConsole, Startup, LiveData, Basemap, Units, Edges, Dev }
 
 	/// <summary>
 	/// View model for the NON-radar map concerns: selectable basemap styles + current selection,
@@ -89,6 +89,7 @@ namespace Anvil.ViewModels
 			// that never starts.
 			LiveFeed = liveFeed ?? new LiveFeedHub(settingsService, null, null, loggerFactory.CreateLogger<LiveFeedHub>());
 			LiveData = new LiveDataViewModel(LiveFeed, settingsService.Settings, dispatcher);
+			EdgeHatch = new EdgeHatchViewModel(settingsService.Settings); // EDGE-HATCH (bolt-on)
 			Outlook = new OutlookViewModel(mapService, spcOutlookService, dispatcher, loggerFactory.CreateLogger<OutlookViewModel>(), LiveFeed.Channel(LiveFeedKind.Outlooks));
 			PastOutlook = new PastOutlookViewModel(mapService, spcOutlookService, Radar);
 			Watches = new WatchesViewModel(mapService, watchService, dispatcher, loggerFactory.CreateLogger<WatchesViewModel>(), LiveFeed.Channel(LiveFeedKind.Watches));
@@ -327,6 +328,9 @@ namespace Anvil.ViewModels
 
 		/// <summary>Settings → Live Data, and the NowCast activity expander's source line.</summary>
 		public LiveDataViewModel LiveData { get; }
+
+		/// <summary>EDGE-HATCH (experimental bolt-on): Settings → Edges, and the hatch bands at the chrome's map edges.</summary>
+		public EdgeHatchViewModel EdgeHatch { get; }
 
 		/// <summary>Settings → Basemap, and the map setup window shown before launch (<see cref="BasemapSetupViewModel"/>).</summary>
 		public BasemapSetupViewModel BasemapSetup { get; }
@@ -1530,9 +1534,9 @@ namespace Anvil.ViewModels
 		/// Basemap. The clamp in <see cref="SettingsTabIndex"/> is what keeps a persisted Debug index from
 		/// selecting a tab that does not exist in a shipped build.</summary>
 #if DEBUG
-		public const int SettingsTabCount = 11;
+		public const int SettingsTabCount = 12;
 #else
-		public const int SettingsTabCount = 10;
+		public const int SettingsTabCount = 11;
 #endif
 
 		private int _settingsTabIndex;

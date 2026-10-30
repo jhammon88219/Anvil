@@ -74,6 +74,15 @@
                  as grime rather than as depth. 0 would disable shadows entirely. -->
             <x:Double x:Key="OverlayBarShadowOpacity">1</x:Double>
 
+            <!-- EDGE-HATCH (bolt-on): the two surfaces as COLOURS (a hatch's fading gradient needs gradient stops), each with a
+                 clear twin — the same colour at alpha 0, so a fade never greys through black. ⚠️ Keep these equal to the
+                 OverlayBarSurface* brushes above. EdgeHatchOpacity = the hatch's themed strength (0 = off). -->
+            <Color x:Key="OverlayBarSurfaceColor">#FF000000</Color>
+            <Color x:Key="OverlayBarSurfaceClearColor">#00000000</Color>
+            <Color x:Key="OverlayBarSurfaceRaisedColor">#FF141414</Color>
+            <Color x:Key="OverlayBarSurfaceRaisedClearColor">#00141414</Color>
+            <x:Double x:Key="EdgeHatchOpacity">1</x:Double>
+
             <!-- TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpander + SettingsExpander (every panel section). Header on the raised face, body on the ground;
                  LIFTED = the layer expander being dragged. -->
             <SolidColorBrush x:Key="SectionHeaderBackground" Color="#FF1A1A1A"/>
@@ -96,6 +105,13 @@
 
             <x:Double x:Key="OverlayBarShadowOpacity">0.4</x:Double>
 
+            <!-- EDGE-HATCH — see the Default dictionary. -->
+            <Color x:Key="OverlayBarSurfaceColor">#FFF3F3F3</Color>
+            <Color x:Key="OverlayBarSurfaceClearColor">#00F3F3F3</Color>
+            <Color x:Key="OverlayBarSurfaceRaisedColor">#FFEAEAEA</Color>
+            <Color x:Key="OverlayBarSurfaceRaisedClearColor">#00EAEAEA</Color>
+            <x:Double x:Key="EdgeHatchOpacity">1</x:Double>
+
             <!-- DragMoveLayerExpander + SettingsExpander — see the Default dictionary. -->
             <SolidColorBrush x:Key="SectionHeaderBackground" Color="#FFE4E4E4"/>
             <SolidColorBrush x:Key="SectionHeaderPointerOverBackground" Color="#FFDCDCDC"/>
@@ -115,6 +131,13 @@
 
             <!-- No shadows in high contrast: depth cues are exactly what that mode removes. -->
             <x:Double x:Key="OverlayBarShadowOpacity">0</x:Double>
+
+            <!-- EDGE-HATCH: no hatch in high contrast either (a depth cue); the keys must still exist. -->
+            <Color x:Key="OverlayBarSurfaceColor">#FF000000</Color>
+            <Color x:Key="OverlayBarSurfaceClearColor">#00000000</Color>
+            <Color x:Key="OverlayBarSurfaceRaisedColor">#FF000000</Color>
+            <Color x:Key="OverlayBarSurfaceRaisedClearColor">#00000000</Color>
+            <x:Double x:Key="EdgeHatchOpacity">0</x:Double>
 
             <!-- DragMoveLayerExpander + SettingsExpander. ⚠️ Must exist here too: the controls read them by key, and a key
                  missing from the active theme dictionary is a XAML parse failure, not a fallback. -->

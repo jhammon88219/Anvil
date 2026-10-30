@@ -336,6 +336,28 @@
             </Border>
         </Grid>
 
+        <!-- ===== EDGE-HATCH (experimental bolt-on, grep EDGE-HATCH) ===== the cross-hatch band where the bottom chrome meets
+             the map, in place of the top tier's black cast shadow (Settings → Edges; "Black shadow" brings the shadow back
+             — ApplyRailSeating switches the tiers' EdgeStyle with it).
+
+               ╱╲╱ ╲╱  ╲  ╱╲╱╲╱ ╲╱  ╲  ╱╲╱╲╱ ╲╱  ╲   ← Primitives/EdgeHatch, Direction Up, Height = the band width,
+               ╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱     bottom margin = the opaque tiers' height (OnBottomChromeSizeChanged)
+               ▀▀▀▀▀▀▀▀▀▀▀ tools tier (or the bar) ▀▀▀▀▀▀▀   "Bar surface" ink = the RAISED face while the tools tier shows
+
+             ⚠️ Z-ORDER: declared BEFORE the loop holding gate and the bottom chrome — the rail's Tools / Bar tabs stand just
+             above the tools tier and must paint OVER the band (the shadow passed behind them too), and the gate frosts it with
+             the map — and well before the temporal panes, so an open pane covers it over its own width (the same trick as
+             the shadow). The pane draws its own map-side hatch (TemporalPane, EdgeHatchPaneEdge). -->
+        <ctl:EdgeHatch x:Name="EdgeHatchBottomChrome" Grid.Row="0" Grid.RowSpan="2" VerticalAlignment="Bottom"
+                       Height="{x:Bind ViewModel.EdgeHatch.Width, Mode=OneWay}"
+                       Spacing="{x:Bind ViewModel.EdgeHatch.Spacing, Mode=OneWay}"
+                       Weight="{x:Bind ViewModel.EdgeHatch.Weight, Mode=OneWay}"
+                       Thin="{x:Bind ViewModel.EdgeHatch.Thins, Mode=OneWay}"
+                       Fade="{x:Bind ViewModel.EdgeHatch.Fades, Mode=OneWay}"
+                       Ink="{x:Bind ViewModel.EdgeHatch.ColorToken, Mode=OneWay}"
+                       Raised="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=OneWay}"
+                       Visibility="{x:Bind PaneVisibility(ViewModel.EdgeHatch.IsHatch), Mode=OneWay}"/>
+
         <!-- LOOP HOLDING GATE — PastCast's loading screen (Composites/LoopHoldingGate). It dims the map band and the
              pane notches and swallows their input while a loop loads; the bottom chrome (row 1, declared AFTER it)
              paints over it and stays live. Transparent and click-through while hidden.
@@ -390,7 +412,8 @@
                             ShowTab="False"
                             IsRaised="True"
                             EdgeStyle="CastShadow"
-                            IsOverlayBarVisible="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=OneWay}">
+                            IsOverlayBarVisible="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=OneWay}"><!-- EdgeStyle: CastShadow is only the pre-layout value — ApplyRailSeating sets it (Hairline while the EDGE-HATCH draws) -->
+
                 <ctl:OverlayBar.BarContent>
                     <comp:MapControlsStrip x:Name="ToolsStrip" ViewModel="{x:Bind ViewModel}"/>
                 </ctl:OverlayBar.BarContent>

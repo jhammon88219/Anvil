@@ -7,7 +7,7 @@
        │  Settings                                            │
        │  ┌────┬──────┬──────────────────┬─────────┬─────────────┬───────────────┬─────────┬───────────┬─────────┬───────┬─────┐
        │  │ ⛰  │  ◎   │        ⊙         │    ▤    │      ▭      │       ▶       │    ⏻    │     ≋     │    ▦    │   ▦   │  ⚒  │  ← Primitives/TabStrip
-       │  │Map │Radar │ Radar Range Ring │ Storage │ Window Mode │ Radar Console │ Startup │ Live Data │ Basemap │ Units │ Dev │
+       │  │Map │Radar │ Radar Range Ring │ Storage │ Window Mode │ Radar Console │ Startup │ Live Data │ Basemap │ Units │ Edges │ Dev │
        │  │▀▀▀▀│      │                  │         │             │               │         │           │         │       │     │
        │  └────┴──────┴──────────────────┴─────────┴─────────────┴───────────────┴─────────┴───────────┴─────────┴───────┴─────┘
        │  ┌────────────────────┐ ┌──────────────────────────┐    │
@@ -203,6 +203,10 @@
 
                     <cmp:UnitsSettingsTab x:Name="UnitsTab" ViewModel="{x:Bind ViewModel}"
                                           Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 9), Mode=OneWay}"/>
+
+                    <!-- EDGE-HATCH (experimental bolt-on): the Edges tab. -->
+                    <cmp:EdgeHatchSettingsTab x:Name="EdgesTab" ViewModel="{x:Bind ViewModel.EdgeHatch}"
+                                              Visibility="{x:Bind TabVisibility(ViewModel.SettingsTabIndex, 10), Mode=OneWay}"/>
 
                     <!-- ⚠️ x:Load, not Visibility — see the header. LoadDevTab is hard-false in Release, so
                          this body is never constructed there and its null engine VMs are never bound. -->

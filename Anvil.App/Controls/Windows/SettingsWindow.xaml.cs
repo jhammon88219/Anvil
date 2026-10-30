@@ -87,6 +87,7 @@ namespace Anvil.Controls.Windows
 			Persist(StartupTab, "startup");
 			Persist(BasemapTab, "basemap");
 			Persist(UnitsTab, "units");
+			Persist(EdgesTab, "edges"); // EDGE-HATCH (bolt-on)
 		}
 
 		// A tab body is a UserControl whose root panel holds its sections.
@@ -169,6 +170,8 @@ namespace Anvil.Controls.Windows
 				new() { Glyph = "", Label = "Live Data", Tooltip = "Where live updates come from (IEM, NOAA Weather Wire or polling), the polling intervals and the connection" },
 				new() { Glyph = "", Label = "Basemap", Tooltip = "The map under the weather: your map files, downloading an offline map, the online map key, and map setup at launch" },
 				new() { Glyph = "", Label = "Units", Tooltip = "Clock, time zone, distance, speed, height and hail size, for every readout in the app" },
+				// EDGE-HATCH (experimental bolt-on). ⚠️ Glyph E790 (Color) is NOT verified — check it renders.
+				new() { Glyph = "", Label = "Edges", Tooltip = "How the bars and panes meet the map: the cross-hatch edge (or the black shadow) and its look" },
 			};
 
 #if DEBUG

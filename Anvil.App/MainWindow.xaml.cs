@@ -62,7 +62,12 @@ namespace Anvil
 
 			ToolsTab.Raised = onTools;
 			BarTab.Raised = onTools;
-			BottomBar.EdgeStyle = onTools ? BarEdgeStyle.InsetShadow : BarEdgeStyle.CastShadow;
+			// EDGE-HATCH (bolt-on): while the hatch draws (EdgeHatchBottomChrome), the TOP tier casts no shadow — a hairline
+			// instead. The bar under a showing tools tier keeps receiving its inset shade (that seam is between two tiers).
+			bool hatch = ViewModel.EdgeHatch.IsHatch;
+			var cast = hatch ? BarEdgeStyle.Hairline : BarEdgeStyle.CastShadow;
+			MapControlsTier.EdgeStyle = cast;
+			BottomBar.EdgeStyle = onTools ? BarEdgeStyle.InsetShadow : cast;
 		}
 
 		// ── SITE MENU ── the menu a map site key's chevron opens. Its items are DECLARED in MainWindow.xaml
@@ -126,6 +131,7 @@ namespace Anvil
 			var opaque = BottomChrome.ActualHeight - BottomChrome.RowDefinitions[0].ActualHeight;
 			LoopGate.ContentBottomInset = opaque;
 			TemporalPaneLayer.Margin = new Thickness(0, 0, 0, opaque);
+			EdgeHatchBottomChrome.Margin = new Thickness(0, 0, 0, opaque); // EDGE-HATCH: the band sits ON the tier's top
 		}
 
 		// ===== The tools tier's centre ↔ the console =====
@@ -704,6 +710,11 @@ namespace Anvil
 			{
 				if (e.PropertyName == nameof(MapViewModel.SelectedTheme)) ApplyAppTheme();
 				if (e.PropertyName == nameof(MapViewModel.IsMapControlsStripVisible)) ApplyRailSeating();
+			};
+			// EDGE-HATCH (bolt-on): hatch ⇄ black shadow re-decides the tiers' edge styles.
+			ViewModel.EdgeHatch.PropertyChanged += (_, e) =>
+			{
+				if (e.PropertyName == nameof(EdgeHatchViewModel.IsHatch)) ApplyRailSeating();
 			};
 
 			ApplyRailSeating();

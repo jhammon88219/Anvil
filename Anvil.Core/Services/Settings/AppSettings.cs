@@ -626,6 +626,28 @@ namespace Anvil.Services
 			set => SetProperty(ref _sectionExpanded, value ?? new());
 		}
 
+		// ── EDGE-HATCH (experimental bolt-on): the cross-hatch where the chrome meets the map (Settings → Edges) ──
+		// Tokens / ranges in Models/Map/EdgeHatch (EdgeHatchStyles, EdgeHatchColors, EdgeHatchSizes); defaults = the
+		// user's picks from the mock-up (2026-10-30).
+		private string _edgeHatchStyle = Models.EdgeHatchStyles.Both;
+		public string EdgeHatchStyle { get => _edgeHatchStyle; set => SetProperty(ref _edgeHatchStyle, value); }
+
+		private string _edgeHatchColor = Models.EdgeHatchColors.Surface;
+		public string EdgeHatchColor { get => _edgeHatchColor; set => SetProperty(ref _edgeHatchColor, value); }
+
+		private double _edgeHatchWidth = Models.EdgeHatchSizes.DefaultWidth;
+		public double EdgeHatchWidth { get => _edgeHatchWidth; set => SetProperty(ref _edgeHatchWidth, value); }
+
+		private double _edgeHatchSpacing = Models.EdgeHatchSizes.DefaultSpacing;
+		public double EdgeHatchSpacing { get => _edgeHatchSpacing; set => SetProperty(ref _edgeHatchSpacing, value); }
+
+		private double _edgeHatchWeight = Models.EdgeHatchSizes.DefaultWeight;
+		public double EdgeHatchWeight { get => _edgeHatchWeight; set => SetProperty(ref _edgeHatchWeight, value); }
+
+		private bool _edgeHatchOnPanes = true;
+		/// <summary>Also hatch an open temporal pane's map-side edge.</summary>
+		public bool EdgeHatchOnPanes { get => _edgeHatchOnPanes; set => SetProperty(ref _edgeHatchOnPanes, value); }
+
 		// ── Temporal panes' ACTIVITY EXPANDER state (Models.ActivityExpanderStates tokens), one per window ──
 		private string _nowCastActivity = Models.ActivityExpanderStates.Hidden;
 		/// <summary>The NowCast window's activity expander: hidden / min-up / full / min-down.</summary>
