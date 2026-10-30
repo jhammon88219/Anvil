@@ -336,41 +336,6 @@
             </Border>
         </Grid>
 
-        <!-- ===== TEMPORAL PANES ===== (TemporalPanes/TemporalPane — one class, three declarations, Mode set here ONCE)
-
-               ┌──────────┬───────────────────────────────────────────┬──────────┐
-               │ PastCast │                                           │ ForeCast │  each 480 wide (Styles.xaml
-               │    or    │              …the map…                    │          │  TemporalPaneWidth), flush to
-               │ NowCast  │                                           │          │  its edge and the window top,
-               │ (left)   │                                           │ (right)  │  down to the tools tier's top
-               ├──────────┴───────────────────────────────────────────┴──────────┤
-               │                       bottom chrome                             │
-               └─────────────────────────────────────────────────────────────────┘
-
-             OVERLAYS, not OS windows: they never resize or push the map. Past and Now share the LEFT edge, safe only
-             because Past excludes Now. Each shows WHILE ITS MODE RUNS (MapViewModel.Is{Past,Now,Fore}PaneShown — held
-             back only by the launch order and the loop holding gate) and builds its body on first show (see TemporalPane). The layer's BOTTOM MARGIN is the opaque
-             tiers' height (OnBottomChromeSizeChanged) — the same inset the loop holding gate centres on — so a pane
-             ends on the tools tier's top in every tier state. The grid has no Background: between the panes the map
-             still takes the pointer. Declared after the notches (a pane covers a notch it overlaps, as the windows
-             did) and before the gate and the bottom chrome (the tier's cast shadow paints over a pane's foot).
-             ⚠️ The top 32 px is the window's CAPTION band — UpdateNotchInputRegions punches a Passthrough hole for
-             each visible pane, as for the notches, or its top would look alive and swallow clicks. -->
-        <Grid x:Name="TemporalPaneLayer" Grid.Row="0" Grid.RowSpan="2">
-            <tp:TemporalPane x:Name="TemporalPanePastCast" Mode="Past"
-                             Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"
-                             Visibility="{x:Bind PaneVisibility(ViewModel.IsPastPaneShown), Mode=OneWay}"
-                             ViewModel="{x:Bind ViewModel}"/>
-            <tp:TemporalPane x:Name="TemporalPaneNowCast" Mode="Now"
-                             Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"
-                             Visibility="{x:Bind PaneVisibility(ViewModel.IsNowPaneShown), Mode=OneWay}"
-                             ViewModel="{x:Bind ViewModel}"/>
-            <tp:TemporalPane x:Name="TemporalPaneForeCast" Mode="Fore"
-                             Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Right"
-                             Visibility="{x:Bind PaneVisibility(ViewModel.IsForePaneShown), Mode=OneWay}"
-                             ViewModel="{x:Bind ViewModel}"/>
-        </Grid>
-
         <!-- LOOP HOLDING GATE — PastCast's loading screen (Composites/LoopHoldingGate). It dims the map band and the
              pane notches and swallows their input while a loop loads; the bottom chrome (row 1, declared AFTER it)
              paints over it and stays live. Transparent and click-through while hidden.
@@ -378,7 +343,9 @@
              tabs — a row-0 gate left a full-width undimmed strip there (and still would with both tiers hidden).
              Spanning both rows dims under the whole chrome; the opaque tiers cover it, the rail's gaps show it.
              ContentBottomInset (= the opaque tiers' height, MainWindow.UpdateLoopGateInset) keeps the screen's
-             content centred on the visible map instead of the whole window. -->
+             content centred on the visible map instead of the whole window.
+             ⚠️ The TEMPORAL PANES are declared after it (and after the bottom chrome) — harmless, because every pane steps
+             aside while the gate's frost is up (MapViewModel.OnLoadingScreenChanged), so the gate never has a pane to dim. -->
         <comp:LoopHoldingGate x:Name="LoopGate" Grid.Row="0" Grid.RowSpan="2" ViewModel="{x:Bind ViewModel.Radar.LoopGate}"/>
 
         <!-- ===== Row 1: the bottom bar. Left = the radar console; CENTER = the temporal mode pills;
@@ -648,6 +615,48 @@
                 <ctl:OverlayBarTab x:Name="BarTab" Target="Bar"
                                    IsShown="{x:Bind BottomBar.IsOverlayBarVisible, Mode=TwoWay}"/>
             </StackPanel>
+        </Grid>
+
+        <!-- ===== TEMPORAL PANES ===== (TemporalPanes/TemporalPane — one class, three declarations, Mode set here ONCE)
+
+               ┌──────────┬───────────────────────────────────────────┬──────────┐
+               │ PastCast │                                           │ ForeCast │  each 480 wide (Styles.xaml
+               │    or    │              …the map…                    │          │  TemporalPaneWidth), flush to
+               │ NowCast  │                                           │          │  its edge and the window top,
+               │ (left)   │                                           │ (right)  │  down to the tools tier's top
+               │          │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│          │  ← the top tier's cast shadow:
+               ├──────────┴───────────────────────────────────────────┴──────────┤    over the MAP only, never
+               │                       bottom chrome                             │    over an open pane
+               └─────────────────────────────────────────────────────────────────┘
+
+             OVERLAYS, not OS windows: they never resize or push the map. Past and Now share the LEFT edge, safe only
+             because Past excludes Now. Each shows WHILE ITS MODE RUNS (MapViewModel.Is{Past,Now,Fore}PaneShown — held
+             back only by the launch order and the loop holding gate) and builds its body on first show (see TemporalPane). The layer's BOTTOM MARGIN is the opaque
+             tiers' height (OnBottomChromeSizeChanged) — the same inset the loop holding gate centres on — so a pane
+             ends on the tools tier's top in every tier state. The grid has no Background: between the panes the map
+             still takes the pointer. Declared after the notches (a pane covers a notch it overlaps, as the windows
+             did).
+             ⚠️ DECLARED AFTER THE BOTTOM CHROME, ON PURPOSE (the user's call, 2026-10-30): the top tier (tools, or the bar
+             when tools is hidden) hangs its 36 px cast shadow UP onto the map on a negative margin, and a pane sits flush
+             on that edge — painted after the chrome, each open pane covers the shadow over exactly its own width, while
+             the map between panes keeps it. No code: it follows the panes as they show and hide. Safe because a pane
+             never overlaps the chrome itself (it ends on the tier's top) or the rail's tabs (centred, and a pane is
+             480 from an edge). Don't move this block back above BottomChrome — the shadow would darken every pane's foot.
+             ⚠️ The top 32 px is the window's CAPTION band — UpdateNotchInputRegions punches a Passthrough hole for
+             each visible pane, as for the notches, or its top would look alive and swallow clicks. -->
+        <Grid x:Name="TemporalPaneLayer" Grid.Row="0" Grid.RowSpan="2">
+            <tp:TemporalPane x:Name="TemporalPanePastCast" Mode="Past"
+                             Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.IsPastPaneShown), Mode=OneWay}"
+                             ViewModel="{x:Bind ViewModel}"/>
+            <tp:TemporalPane x:Name="TemporalPaneNowCast" Mode="Now"
+                             Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Left"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.IsNowPaneShown), Mode=OneWay}"
+                             ViewModel="{x:Bind ViewModel}"/>
+            <tp:TemporalPane x:Name="TemporalPaneForeCast" Mode="Fore"
+                             Width="{StaticResource TemporalPaneWidth}" HorizontalAlignment="Right"
+                             Visibility="{x:Bind PaneVisibility(ViewModel.IsForePaneShown), Mode=OneWay}"
+                             ViewModel="{x:Bind ViewModel}"/>
         </Grid>
     </Grid>
 </Window>
