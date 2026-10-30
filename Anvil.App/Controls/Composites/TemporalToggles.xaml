@@ -18,8 +18,8 @@
      turn it off. It never opens, closes or resizes a pane — a mode's pane simply follows the mode
      (MapViewModel "The three temporal panes"). Past excludes Now + Fore; Now and Fore coexist.
      HISTORY, do not undo: each key used to be SPLIT (Primitives/SplitTemporalToggle, deleted) — a mode square plus a
-     3-dot SIDE CAR that latched the mode's window. The panes made the car pointless (a pane comes with its mode, and
-     collapsing it to its rail is how you get the map back), and the car made the keys wider and harder to read.
+     3-dot SIDE CAR that latched the mode's window. The panes made the car pointless (a pane comes with its mode), and
+     the car made the keys wider and harder to read.
      Don't re-add a second control to these keys.
 
      A MODE key is a GLYPH OVER A NAME and nothing else — a mode switch, not a readout. (A third line of live status

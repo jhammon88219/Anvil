@@ -146,17 +146,6 @@ namespace Anvil.ViewModels
 				if (mode == TemporalMode.Now) ForeCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
 				if (mode == TemporalMode.Past) PastCastActivity.ApplyLayerOrder(LayerOrderFor(TemporalMode.Past));
 			};
-			// Each temporal PANE's state + its layer sections (the rail's buttons and the sections' header boxes share
-			// these toggles). See "The three temporal panes".
-			PastPane = BuildPane(TemporalMode.Past, settings);
-			NowPane = BuildPane(TemporalMode.Now, settings);
-			ForePane = BuildPane(TemporalMode.Fore, settings);
-			LayerOrderChanged += (_, mode) =>
-			{
-				if (mode == TemporalMode.Past) { PastPane.ApplyLayerOrder(LayerOrderFor(TemporalMode.Past)); return; }
-				NowPane.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
-				ForePane.ApplyLayerOrder(LayerOrderFor(TemporalMode.Now));
-			};
 			SiteFavorites = new RadarSiteFavoritesViewModel(Radar, settingsService, mapService);
 			// A restored model field owns the map at launch: the home site's live loop would arm NowCast and untick it.
 			SiteFavorites.HoldLaunchLoad = () => ShortRange.IsDrawing;
@@ -235,9 +224,8 @@ namespace Anvil.ViewModels
 			// them honest: re-raise them whenever the radar mode/loop or the outlook overlay changes,
 			// including changes NOT driven by the toggles (e.g. clicking an on-map radar site marker starts a
 			// live loop, which should light NowCast).
-			// ⚠️ These paths all end at OnTemporalModesChanged, which CLOSES the settings
-			// window whose rail has just gone dead. A window configures a RUNNING mode, and nothing on screen
-			// could close one whose mode had stopped.
+			// ⚠️ These paths all end at OnTemporalModesChanged, which HIDES the pane of a mode that has just
+			// stopped. A pane configures a RUNNING mode — it shows exactly while its mode runs.
 			Radar.PropertyChanged += (_, e) =>
 			{
 				if (e.PropertyName == nameof(RadarViewModel.IsPastEventMode))
@@ -350,74 +338,6 @@ namespace Anvil.ViewModels
 		// Keeps the radar row's gate listeners rooted for the app's life (the gate lives as long as Radar).
 		private readonly PastRadarLoadRow _pastRadarRow;
 		public TemporalActivityViewModel ForeCastActivity { get; }
-
-		/// <summary>Each temporal pane's state + layer sections (TemporalPanes/TemporalPane and its rail).</summary>
-		public TemporalPaneViewModel PastPane { get; }
-		public TemporalPaneViewModel NowPane { get; }
-		public TemporalPaneViewModel ForePane { get; }
-
-		/// <summary>The pane of <paramref name="mode"/>.</summary>
-		public TemporalPaneViewModel PaneFor(TemporalMode mode) => mode switch
-		{
-			TemporalMode.Past => PastPane,
-			TemporalMode.Fore => ForePane,
-			_ => NowPane,
-		};
-
-		// ONE section row per layer section a pane shows (the non-ghost DragMoveLayerExpanders of its Content — the
-		// own-layer lists in Models/Map/TemporalPaneDock), each wired to the SAME subsystem toggle its header box used.
-		// Letters stand in for icons; titles are the sections' headers.
-		private TemporalPaneViewModel BuildPane(TemporalMode mode, AppSettings settings)
-		{
-			const string all = nameof(StormCellsViewModel.AllShown);
-			TemporalPaneSectionViewModel Row(string id, string letter, string title, Func<bool?> shown, Action toggle,
-				INotifyPropertyChanged source, string watched, Func<bool>? enabled = null, string? alsoWatched = null) =>
-				new(id, letter, title, shown, toggle, source, alsoWatched is null ? new[] { watched } : new[] { watched, alsoWatched }, enabled);
-
-			var cells = Row(LayerOrder.Cells, "Cl", "Storm cells", () => StormCells.AllShown, StormCells.ToggleAll, StormCells, all);
-			var reports = Row(LayerOrder.Reports, "Rp", "Storm reports", () => StormReports.AllShown, StormReports.ToggleAll, StormReports, all);
-			var tropical = Row(LayerOrder.Tropical, "Tr", "Tropical", () => Tropical.AllShown, Tropical.ToggleAll, Tropical, all);
-			var mds = Row(LayerOrder.Discussions, "MD", "Mesoscale discussions", () => Discussions.AllShown, Discussions.ToggleAll, Discussions, all);
-			var radar = Row(LayerOrder.Radar, "Rd", "Radar", () => Radar.ShowRadarLayer, () => Radar.ShowRadarLayer = !Radar.ShowRadarLayer,
-				Radar, nameof(RadarViewModel.ShowRadarLayer));
-
-			TemporalPaneViewModel pane;
-			if (mode == TemporalMode.Past)
-			{
-				pane = new TemporalPaneViewModel(mode, TemporalPaneDock.PastCastLayers, new[]
-				{
-					cells, reports, tropical, mds, radar,
-					Row(LayerOrder.Damage, "Dm", "Damage surveys", () => DamageSurveys.AllShown, DamageSurveys.ToggleAll, DamageSurveys, all,
-						() => DamageSurveys.IsReady, nameof(DamageSurveysViewModel.IsReady)),
-					Row(LayerOrder.Warnings, "Wn", "Warnings", () => PastAlerts.Warnings.AllShown, PastAlerts.Warnings.ToggleAll, PastAlerts.Warnings, all),
-					Row(LayerOrder.Watches, "Wt", "Watches", () => PastAlerts.Watches.AllShown, PastAlerts.Watches.ToggleAll, PastAlerts.Watches, all),
-					Row(LayerOrder.Outlook, "Ol", "SPC outlook", () => PastOutlook.IsShown, PastOutlook.ToggleShown, PastOutlook, nameof(PastOutlookViewModel.IsShown)),
-				}, () => settings.PastCastPaneState, t => settings.PastCastPaneState = t,
-					() => settings.PastCastDocked, d => settings.PastCastDocked = d);
-			}
-			else if (mode == TemporalMode.Fore)
-			{
-				pane = new TemporalPaneViewModel(mode, TemporalPaneDock.ForeCastLayers, new[]
-				{
-					Row(LayerOrder.Outlook, "Ol", "SPC outlook", () => Outlook.IsShown, Outlook.ToggleShown, Outlook, nameof(OutlookViewModel.IsShown)),
-					Row(LayerOrder.ModelField, "SR", "Short Range", () => ShortRange.IsShown, ShortRange.ToggleShown, ShortRange, nameof(ShortRangeViewModel.IsShown)),
-				}, () => settings.ForeCastPaneState, t => settings.ForeCastPaneState = t,
-					() => settings.ForeCastDocked, d => settings.ForeCastDocked = d);
-			}
-			else
-			{
-				pane = new TemporalPaneViewModel(mode, TemporalPaneDock.NowCastLayers, new[]
-				{
-					cells, reports, tropical, mds, radar,
-					Row(LayerOrder.Warnings, "Wn", "Warnings", () => Warnings.AllShown, Warnings.ToggleAll, Warnings, all),
-					Row(LayerOrder.Watches, "Wt", "Watches", () => Watches.AllShown, Watches.ToggleAll, Watches, all),
-				}, () => settings.NowCastPaneState, t => settings.NowCastPaneState = t,
-					() => settings.NowCastDocked, d => settings.NowCastDocked = d);
-			}
-
-			pane.ApplyLayerOrder(LayerOrderFor(mode == TemporalMode.Past ? TemporalMode.Past : TemporalMode.Now));
-			return pane;
-		}
 
 		/// <summary>The activity expander of <paramref name="mode"/>'s window.</summary>
 		public TemporalActivityViewModel ActivityFor(TemporalMode mode) => mode switch
@@ -628,7 +548,8 @@ namespace Anvil.ViewModels
 		// Nothing opens or closes a pane on its own, so there is no second state to hide on a key. HISTORY, do not undo:
 		// the keys once meant "turn on" when unlit and "flip my window" when lit (state you could not see); then the
 		// panels were tabs of one window; then each key was SPLIT into a mode square + a window side car. The panes
-		// replaced all of that — collapsing a pane to its rail is how you get the map back, not hiding it.
+		// replaced all of that: a pane is open exactly while its mode is on (the user's call, 2026-10-30 — a collapse
+		// rail + docking were built and removed; more ideas to come from this starting point).
 
 		/// <summary>PastCast (historical replay). Projection of <see cref="RadarViewModel.IsPastEventMode"/>:
 		/// on enters replay (clearing any live loop), off exits replay to a blank basemap. Turning it on

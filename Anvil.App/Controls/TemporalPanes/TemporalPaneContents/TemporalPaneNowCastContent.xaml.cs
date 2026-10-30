@@ -6,7 +6,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Anvil.Controls.Primitives;
-using Anvil.Models;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
@@ -56,24 +55,25 @@ namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 			if (mode == TemporalMode.Now) { DragMoveLayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now)); }
 		}
 
-		// (A ghost row's visibility is tp:TemporalPane.GhostVisibility — its box on, its mode running, and the FULL pane only.)
+		// A ghost row shows only while its box is on and its mode runs (MapViewModel.AreForeCastGhostsShown).
+		public Visibility GhostVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
 
 		// Header select-all boxes. IsChecked is bound ONE-WAY: the CheckBox has already flipped itself by the
 		// time Click fires, and the VM's answer (raised through AllShown / ShowRadarLayer) overwrites it.
-		// ⚠️ Every box goes through the PANE's section toggle — the same one its rail button uses (TemporalPaneViewModel).
-		private void OnRadarHeaderClick(object sender, RoutedEventArgs e) => ViewModel.NowPane.Toggle(LayerOrder.Radar);
+		private void OnRadarHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel.Radar.ShowRadarLayer = !ViewModel.Radar.ShowRadarLayer;
 
-		private void OnWarningsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.NowPane.Toggle(LayerOrder.Warnings);
+		private void OnWarningsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.Warnings.ToggleAll();
 
-		private void OnWatchesHeaderClick(object sender, RoutedEventArgs e) => ViewModel.NowPane.Toggle(LayerOrder.Watches);
+		private void OnWatchesHeaderClick(object sender, RoutedEventArgs e) => ViewModel.Watches.ToggleAll();
 
-		private void OnStormReportsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.NowPane.Toggle(LayerOrder.Reports);
+		private void OnStormReportsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.StormReports.ToggleAll();
 
-		private void OnStormCellsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.NowPane.Toggle(LayerOrder.Cells);
+		private void OnStormCellsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.StormCells.ToggleAll();
 
-		private void OnDiscussionsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.NowPane.Toggle(LayerOrder.Discussions);
+		private void OnDiscussionsHeaderClick(object sender, RoutedEventArgs e) => ViewModel.Discussions.ToggleAll();
 
-		private void OnTropicalHeaderClick(object sender, RoutedEventArgs e) => ViewModel.NowPane.Toggle(LayerOrder.Tropical);
+		private void OnTropicalHeaderClick(object sender, RoutedEventArgs e) => ViewModel.Tropical.ToggleAll();
 
 		// ── Header (the tiles are TemporalPaneNowCastWarningTile; their helpers live there) ──
 

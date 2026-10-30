@@ -1,53 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- TemporalPane — ONE mode's pane, an OVERLAY on the map in MainWindow's map band (no OS window, no chrome). It sits
      flush to its screen edge (Past + Now left, Fore right), flush to the top of the window and flush to the top of the
-     bottom chrome's opaque tiers; it never resizes or pushes the map. TWO STATES (TemporalPaneViewModel.IsRail,
-     persisted per mode):
+     bottom chrome's opaque tiers; it never resizes or pushes the map.
 
-       FULL (480 wide)                                       RAIL (48)    RAIL + DOCK STACK (48 + 480)
-       ┌────────────────────────────────────────────────┐    ┌──────┐     ┌──────┬────────────────────────────┐
-       │ ‹ ┌──┐ ForeCast                  │ MDT 4/5     │    │  ›   │     │  ›   │ ┌──┐ NowCast    │ 3:42 PM  │ ← docked
-       │   └──┘ Day 1 · Wed Sep 2         │ next ~9 min │    │──────│     │──────│ └──┘ Thu Oct 16 │          │   header
-       │ ↑ collapse (TemporalPaneHeader, outer edge)    │    │ [Hd] │     │ [Hd] │ [▾ Warnings ………………… 100%]│ ← docked
-       │  ┌──────────────────────────────────────────┐  │    │[Cl|›]│     │[Wn|‹]│ [› Radar ……………………… 100%]│   sections,
-       │  │ that mode's CONTENT — all three declared │  │    │[Rp|›]│     │[Rd|‹]└────────────────────────────┘   full-pane
-       │  │ below, only Mode's one x:Load'ed:        │  │    │[Wn|›]│     │[Cl|›]      …the map shows below…     order, gaps
-       │  │ TemporalPaneNowCastContent               │  │    │  …   │     │  …   │                                closed
-       │  │ TemporalPanePastCastContent              │  │    │      │     │      │
-       │  │ TemporalPaneForeCastContent              │  │    │      │     │      │
-       │  └──────────────────────────────────────────┘  │    │      │     │      │
-       ░░░░░░░░░░░░░░░░░╭─ ˄ More ─╮░░░░░░░░░░░░░░░░░░░░    │      │     │      │
-       │▓ TemporalPaneActivityExpander: this MODE's     ▓│    │      │     │      │
-       │▓ activity, Hidden / Full                       ▓│    │      │     │      │
-       └──────────────────────────────────────────────────┘    └──────┘     └──────┘
-       ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔   ← the tools tier's top (MainWindow sets the bottom inset)
-
-     ⚠️ ONE RENDERING: the dock stack IS this body with every undocked part collapsed (the Content shows a section iff
-     Pane.ShownSections holds it; the ghost box, ghost rows, drag and the activity expander are FULL ONLY). Nothing is
-     copied or moved between parents. Three PaneStates: Full · Rail (nothing docked: body collapsed) · RailDocked
-     (body top-aligned, so the stack is as tall as its content and the map shows below).
-     ⚠️ OVERFLOW (RailDocked only — code-behind "OVERFLOW"): a stack taller than the pane keeps its headers and every
-     collapsed row whole; expanded bodies share the rest; only the LISTS (PanelScroller list lanes) give way, to the
-     rows that fit + "+N more" (a click → Full); if even that doesn't fit, the Content's own section scroller scrolls
-     (always-visible gutter). The rules are Models/Map/DockStackAllocator; the pane only measures + applies DockRows.
-     ⚠️ MIRRORED on the right edge (ForeCast): the RAIL takes the outer column on either side — column 0 on the left,
-     column 1 on the right — by the EdgeStates group; the chevrons flip inside the rail and the header.
-     ⚠️ The body is never unloaded, so every section keeps its live state across Full ⇄ Rail.
+       ┌────────────────────────────────────────────────┐
+       │  ┌──┐ ForeCast                    │ MDT 4/5     │  ← NO title row: each CONTENT opens with
+       │  └──┘ Day 1 · Wed Sep 2           │ next ~9 min │    a TemporalPanes/TemporalPaneHeader
+       │  (480 wide × full height; the CONTENT scrolls itself)
+       │  ┌──────────────────────────────────────────┐   │
+       │  │                                          │   │
+       │  │   that mode's CONTENT — all three        │   │
+       │  │   declared below, only Mode's one        │   │
+       │  │   x:Load'ed:                             │   │
+       │  │   TemporalPaneNowCastContent             │   │
+       │  │   TemporalPanePastCastContent            │   │
+       │  │   TemporalPaneForeCastContent            │   │
+       │  └──────────────────────────────────────────┘   │
+       ░░░░░░░░░░░░░░░░░░╭─ ˄ More ─╮░░░░░░░░░░░░░░░░░░░░  ← shadow + the one pull tab
+       ├──────────────────┘          └───────────────────┤
+       │▓ Next check in 0:18        Scan due ~1:47:12 PM ▓│  ← TemporalPaneActivityExpander: this MODE's
+       │▓ Last frame: on screen 3.0 s after due          ▓│    activity, Hidden / Full
+       └──────────────────────────────────────────────────┘
+       ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔  ← the tools tier's top (MainWindow sets the bottom inset)
 
      ⚠️ ONE CLASS, THREE PANES, all declared in MainWindow.xaml (TemporalPanePastCast / …NowCast / …ForeCast), each with
-     its Mode set there ONCE. NAMES READ AS THE TREE: TemporalPane → TemporalPane<Mode>Content → TemporalPaneHeader →
+     its Mode set there ONCE. Three near-identical classes would be three copies of one layout waiting to drift apart.
+     NAMES READ AS THE TREE: TemporalPane → TemporalPane<Mode>Content → TemporalPaneHeader →
      TemporalPaneHeader<Mode>Readout; each x:Name equals its type name.
 
      ⚠️ BUILT ON FIRST SHOW, then KEPT. TemporalPaneBody is behind x:Load bound to IsRealized, which turns true the
-     first time the pane becomes Visible and never goes back — so a mode that never runs costs nothing. Building +
-     first-laying-out a pane froze the UI ~1-2 s at launch, which is why MapViewModel's LAUNCH WINDOWS shows them one at
-     a time, each after the previous one's Shown (raised here once the body has loaded). The bind is OneTime:
-     RealizeIfShown's Bindings.Update() is what re-reads it (and every other OneTime bind here — Mode and ViewModel
-     are final by then). Inside the body the three Contents keep OneTime x:Load on Mode. Don't make the body's x:Load
-     go false (it would throw the live widgets away).
+     first time the pane becomes Visible and never goes back — so a mode that never runs costs nothing, and hiding a
+     pane keeps every section's live state (it is Collapsed, not unloaded). Building + first-laying-out a pane froze
+     the UI ~1-2 s at launch, which is why MapViewModel's LAUNCH WINDOWS shows them one at a time, each after the
+     previous one's Shown (raised here once the body has loaded). The bind is OneTime: RealizeIfShown's
+     Bindings.Update() is what re-reads it (and every other OneTime bind here — Mode and ViewModel are final by then).
+     Inside the body the three Contents keep OneTime x:Load on Mode — Mode is set in XAML before the body realizes
+     and never changes. Don't make the body's x:Load go false (it would throw the live widgets away).
 
-     ⚠️ THIS PANE CANNOT OUTLIVE ITS MODE: MapViewModel shows it only while its mode runs, so nothing in these Contents
-     needs to check whether its mode runs. ⚠️ A CONTENT NEVER STARTS ITS MODE — that is the bar key's job. -->
+     ⚠️ THIS PANE CANNOT OUTLIVE ITS MODE: MapViewModel.OnTemporalModesChanged hides it when the mode stops, so nothing
+     in these Contents needs to check whether its mode runs. ⚠️ A CONTENT NEVER STARTS ITS MODE — that is the bar key's job. -->
 <UserControl x:Class="Anvil.Controls.TemporalPanes.TemporalPane"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -57,70 +48,29 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-    <!-- No background here: each column draws its own surface (the rail full height, the body full height). -->
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
-        <VisualStateManager.VisualStateGroups>
-            <VisualStateGroup x:Name="PaneStates">
-                <VisualState x:Name="Full">
-                    <VisualState.Setters>
-                        <Setter Target="TemporalPaneRail.Visibility" Value="Collapsed"/>
-                    </VisualState.Setters>
-                </VisualState>
-                <VisualState x:Name="Rail">
-                    <VisualState.Setters>
-                        <Setter Target="TemporalPaneBodyHost.Visibility" Value="Collapsed"/>
-                    </VisualState.Setters>
-                </VisualState>
-                <!-- RAIL + a DOCK STACK: the body shows only the docked sections (the Content reads Pane.ShownSections),
-                     top-aligned so its height is its content's and the map shows below it. -->
-                <VisualState x:Name="RailDocked">
-                    <VisualState.Setters>
-                        <Setter Target="TemporalPaneBodyHost.VerticalAlignment" Value="Top"/>
-                    </VisualState.Setters>
-                </VisualState>
-            </VisualStateGroup>
-            <VisualStateGroup x:Name="EdgeStates">
-                <VisualState x:Name="LeftEdge"/>
-                <VisualState x:Name="RightEdge">
-                    <VisualState.Setters>
-                        <Setter Target="TemporalPaneRail.(Grid.Column)" Value="1"/>
-                        <Setter Target="TemporalPaneBodyHost.(Grid.Column)" Value="0"/>
-                    </VisualState.Setters>
-                </VisualState>
-            </VisualStateGroup>
-        </VisualStateManager.VisualStateGroups>
+    <!-- Dark surface fills the whole pane. -->
+    <Grid Background="{ThemeResource OverlayBarSurfaceBrush}">
+        <Grid x:Name="TemporalPaneBody" x:Load="{x:Bind IsRealized}" Loaded="OnBodyLoaded">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>    <!-- the Content: NO bottom margin — its list scrolls under the expander's shade -->
+                <RowDefinition Height="Auto"/> <!-- TemporalPaneActivityExpander: full width, its height by state -->
+            </Grid.RowDefinitions>
 
-        <tp:TemporalPaneRail x:Name="TemporalPaneRail" Grid.Column="0" Pane="{x:Bind Pane}"/>
+            <!-- ⚠️ NO ScrollViewer HERE. The pane is the FULL height above the bottom chrome, so a Content shorter than
+                 that just shows surface below it. A Content scrolls ITSELF with Primitives/PanelScroller (all three have
+                 it), because only the Content knows what stays fixed — PastCast's Timeframe and NowCast's clock + tiles
+                 don't scroll, their sections do. Each Content stretches to the full row height. -->
+            <temporalPaneContents:TemporalPanePastCastContent x:Name="TemporalPanePastCastContent" x:Load="{x:Bind IsPast}" Margin="16,14,16,0"
+                              ViewModel="{x:Bind ViewModel}"/>
+            <temporalPaneContents:TemporalPaneNowCastContent x:Name="TemporalPaneNowCastContent" x:Load="{x:Bind IsNow}" Margin="16,14,16,0"
+                             ViewModel="{x:Bind ViewModel}"/>
+            <temporalPaneContents:TemporalPaneForeCastContent x:Name="TemporalPaneForeCastContent" x:Load="{x:Bind IsFore}" Margin="16,14,16,0"
+                              ViewModel="{x:Bind ViewModel}"/>
 
-        <!-- The body's host: always present (the states target IT, never the x:Load'ed body), 480 wide, the surface. -->
-        <Grid x:Name="TemporalPaneBodyHost" Grid.Column="1" Width="{StaticResource TemporalPaneWidth}"
-              Background="{ThemeResource OverlayBarSurfaceBrush}">
-            <Grid x:Name="TemporalPaneBody" x:Load="{x:Bind IsRealized}" Loaded="OnBodyLoaded">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>    <!-- the Content: NO bottom margin — its list scrolls under the expander's shade -->
-                    <RowDefinition Height="Auto"/> <!-- TemporalPaneActivityExpander: full width, its height by state -->
-                </Grid.RowDefinitions>
-
-                <!-- ⚠️ NO ScrollViewer HERE. The pane is the FULL height above the bottom chrome, so a Content shorter than
-                     that just shows surface below it. A Content scrolls ITSELF with Primitives/PanelScroller (all three
-                     have it), because only the Content knows what stays fixed. Each Content stretches to the full row. -->
-                <temporalPaneContents:TemporalPanePastCastContent x:Name="TemporalPanePastCastContent" x:Load="{x:Bind IsPast}" Margin="16,14,16,0"
-                                  ViewModel="{x:Bind ViewModel}"/>
-                <temporalPaneContents:TemporalPaneNowCastContent x:Name="TemporalPaneNowCastContent" x:Load="{x:Bind IsNow}" Margin="16,14,16,0"
-                                 ViewModel="{x:Bind ViewModel}"/>
-                <temporalPaneContents:TemporalPaneForeCastContent x:Name="TemporalPaneForeCastContent" x:Load="{x:Bind IsFore}" Margin="16,14,16,0"
-                                  ViewModel="{x:Bind ViewModel}"/>
-
-                <!-- THE ACTIVITY EXPANDER: this mode's activity (MapViewModel.ActivityFor(Mode)). ONE declaration for all
-                     three modes, outside the Content, so it spans the pane edge to edge; declared after the Content so its
-                     shadow and tab paint over the list. -->
-                <tp:TemporalPaneActivityExpander x:Name="TemporalPaneActivityExpander" Grid.Row="1" Activity="{x:Bind PaneActivity}"
-                                                 Visibility="{x:Bind tp:TemporalPane.FullOnly(Pane.IsRail), Mode=OneWay}"/>
-            </Grid>
+            <!-- THE ACTIVITY EXPANDER: this mode's activity (MapViewModel.ActivityFor(Mode)). ONE declaration for all three
+                 modes, outside the Content, so it spans the pane edge to edge; declared after the Content so its shadow
+                 and tab paint over the list. -->
+            <tp:TemporalPaneActivityExpander x:Name="TemporalPaneActivityExpander" Grid.Row="1" Activity="{x:Bind PaneActivity}"/>
         </Grid>
     </Grid>
 </UserControl>

@@ -125,8 +125,7 @@
              ⚠️ LEFT 0 / RIGHT 4 = the section STACK's own edges (the user's call, 2026-10-02 — it was inset 12 to the
              section bodies): PanelScroller.GutterWidth (16) − the scroller's 12 px bleed = 4 short of the right.
              PastCast's Timeframe rule exactly. Change them together. -->
-        <Grid Grid.Row="0" Padding="0,12,4,12" MinHeight="{StaticResource TemporalHeaderMinHeight}"
-                Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.NowPane.ShownSections, 'header'), Mode=OneWay}">
+        <Grid Grid.Row="0" Padding="0,12,4,12" MinHeight="{StaticResource TemporalHeaderMinHeight}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- status bar · NowCast │ time over date -->
                 <RowDefinition Height="*"/>    <!-- the tiles (take the slack) -->
@@ -136,7 +135,7 @@
                  height). The square = the WORST warning in effect (WarningsViewModel.HeaderSquareFill — ForeCast's
                  highest-risk square, matched); the date is written by the clock tick (code-behind); the clock
                  itself is TemporalPaneHeaderNowCastReadout. -->
-            <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Title="NowCast" Pane="{x:Bind ViewModel.NowPane, Mode=OneWay}"
+            <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Title="NowCast"
                                      StatusFill="{x:Bind ViewModel.Warnings.HeaderSquareFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
                                      StatusToolTip="{x:Bind ViewModel.Warnings.HeaderSquareTip, Mode=OneWay}">
                 <temporalPaneHeaderReadouts:TemporalPaneHeaderNowCastReadout x:Name="TemporalPaneHeaderNowCastReadout"/>
@@ -181,16 +180,16 @@
     <!-- GHOST ROWS box: ForeCast's layers (the outlook) as dimmed, drag-only rows among these, so you can say
          where the outlook draws. Persisted, default off; the rows show only while ForeCast runs too
          (MapViewModel's GHOST ROWS block). Above the sections — it isn't one of them, so it doesn't scroll. -->
-    <CheckBox x:Name="ShowForeCastGhostRowsCheckBox" Visibility="{x:Bind tp:TemporalPane.FullOnly(ViewModel.NowPane.IsRail), Mode=OneWay}" Grid.Row="1" Margin="0,0,0,8" Content="Show ForeCast ghost rows"
+    <CheckBox x:Name="ShowForeCastGhostRowsCheckBox" Grid.Row="1" Margin="0,0,0,8" Content="Show ForeCast ghost rows"
               IsChecked="{x:Bind ViewModel.ShowForeCastGhostRows, Mode=TwoWay}"
               ToolTipService.ToolTip="List ForeCast's layers here, dimmed, so you can drag NowCast's around them (shown while ForeCast is on)"/>
 
     <prim:PanelScroller Grid.Row="2" Margin="0,0,-12,0">
     <!-- ⚠️ TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpanderHost: its CHILD ORDER is the display order AND the map's z-order; it
          owns the drag, the saved order and the open/closed state. It holds ONLY DragMoveLayerExpanders. -->
-    <dragMoveLayerExpanders:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" IsReorderEnabled="{x:Bind tp:TemporalPane.ReorderEnabled(ViewModel.NowPane.IsRail), Mode=OneWay}" VerticalAlignment="Top" Spacing="8" Margin="{StaticResource TemporalListEndClearance}" Reordered="OnLayersReordered">
+    <dragMoveLayerExpanders:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" VerticalAlignment="Top" Spacing="8" Margin="{StaticResource TemporalListEndClearance}" Reordered="OnLayersReordered">
 
-        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm cells" LayerId="cells" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.NowPane.ShownSections, 'cells'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm cells" LayerId="cells"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormCells.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnStormCellsHeaderClick"
@@ -202,7 +201,7 @@
             <dragMoveLayerExpanders:DragMoveLayerExpanderStormCellsBody x:Name="DragMoveLayerExpanderStormCellsBody" ViewModel="{x:Bind ViewModel.StormCells, Mode=OneWay}"/>
         </dragMoveLayerExpanders:DragMoveLayerExpander>
 
-        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm reports" LayerId="reports" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.NowPane.ShownSections, 'reports'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm reports" LayerId="reports"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormReports.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnStormReportsHeaderClick"
@@ -214,7 +213,7 @@
             <dragMoveLayerExpanders:DragMoveLayerExpanderStormReportsBody x:Name="DragMoveLayerExpanderStormReportsBody" ViewModel="{x:Bind ViewModel.StormReports, Mode=OneWay}"/>
         </dragMoveLayerExpanders:DragMoveLayerExpander>
 
-        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Warnings" LayerId="warnings" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.NowPane.ShownSections, 'warnings'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Warnings" LayerId="warnings"
                            IsExpanded="True"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Warnings.AllShown, Mode=OneWay}"
@@ -228,7 +227,7 @@
                                      ViewModel="{x:Bind ViewModel.Warnings, Mode=OneWay}"/>
         </dragMoveLayerExpanders:DragMoveLayerExpander>
 
-        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Watches" LayerId="watches" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.NowPane.ShownSections, 'watches'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Watches" LayerId="watches"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Watches.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnWatchesHeaderClick"
@@ -243,7 +242,7 @@
 
         <!-- Tropical: hurricane / tropical storm / storm surge / extreme wind watches + warnings as ZONES in the NWS
              colours, live. Shared control with the Past window (TropicalViewModel). -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="TropicalSection" Header="Tropical" LayerId="tropical" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.NowPane.ShownSections, 'tropical'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="TropicalSection" Header="Tropical" LayerId="tropical"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Tropical.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnTropicalHeaderClick"
@@ -257,7 +256,7 @@
 
         <!-- Mesoscale discussions: SPC MDs + WPC MPDs, drawn as in effect now, the last 24 h listed to read.
              Shared control with the Past window. A click on an MD's area opens THIS section (code-behind). -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="DiscussionsSection" Header="Mesoscale discussions" LayerId="mds" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.NowPane.ShownSections, 'mds'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="DiscussionsSection" Header="Mesoscale discussions" LayerId="mds"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Discussions.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnDiscussionsHeaderClick"
@@ -275,11 +274,11 @@
         <dragMoveLayerExpanders:DragMoveLayerExpander Header="SPC outlook · ForeCast" LayerId="outlook"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Outlook.IsShown, Mode=OneWay}"
-                           Visibility="{x:Bind tp:TemporalPane.GhostVisibility(ViewModel.AreForeCastGhostsShown, ViewModel.NowPane.IsRail), Mode=OneWay}"
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreForeCastGhostsShown), Mode=OneWay}"
                            ToolTipService.ToolTip="ForeCast's layer — drag to set where it draws among NowCast's"/>
 
         <!-- Header only: the layer's show/hide and its opacity are all it has. -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Radar" LayerId="radar" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.NowPane.ShownSections, 'radar'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Radar" LayerId="radar"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
                            CheckBoxClick="OnRadarHeaderClick"

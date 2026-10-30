@@ -152,7 +152,7 @@ namespace Anvil
 
 		// ===== Both tiers' side sections ↔ the temporal panes' INNER edges (the user's call, 2026-10-22) =====
 		// Each LEFT section ends, and each RIGHT section starts, on the inner edge of the edge pane above it (the
-		// Styles.xaml TemporalPaneWidth from the client edge), whether or not that pane is shown. Controls keep their
+		// declared panes' Width from the client edge), whether or not that pane is shown. Controls keep their
 		// size: one stretching dot spacer per section takes the slack — the tools tier's two (MapControlsStrip), the
 		// temporal keys' (TemporalToggles), and the right cluster's, here (between Settings and the caption key; the
 		// cluster is right-aligned, so the spacer's RIGHT edge is the one that doesn't move with it).
@@ -164,11 +164,8 @@ namespace Anvil
 			{
 				return;
 			}
-			// The FULL pane's width (Styles.xaml TemporalPaneWidth — a double, safe to read in C#): the sections line up with
-			// it whether a pane is full, on its rail, or hidden.
-			var paneWidth = (double)Application.Current.Resources["TemporalPaneWidth"];
-			var innerLeft = paneWidth;
-			var innerRight = root.ActualWidth - paneWidth;
+			var innerLeft = TemporalPaneNowCast.Width;
+			var innerRight = root.ActualWidth - TemporalPaneForeCast.Width;
 			ToolsStrip.AlignToWindowEdges(innerLeft, innerRight, root);
 			TemporalKeys.AlignToWindowEdge(innerLeft, root);
 			if (RightClusterSpacer.ActualWidth > 0 && AtlasKey.ActualWidth > 0)

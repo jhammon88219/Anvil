@@ -153,8 +153,7 @@
              ⚠️ LEFT 0 / RIGHT 4 = the section STACK's own edges (the user's call, 2026-10-02 — it was inset 12 to the
              section bodies): the sections start flush left and end PanelScroller.GutterWidth (16) − the scroller's
              12 px bleed = 4 short of the right. TemporalPaneNowCastContent's header follows the same rule. Change them together. -->
-            <Grid Grid.Row="0" Padding="0,12,4,24" MinHeight="{StaticResource TemporalHeaderMinHeight}"
-                Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.PastPane.ShownSections, 'header'), Mode=OneWay}">
+            <Grid Grid.Row="0" Padding="0,12,4,24" MinHeight="{StaticResource TemporalHeaderMinHeight}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- the name row: square · PastCast over date │ the window -->
                     <RowDefinition Height="Auto"/> <!-- the card: Choose a custom timeframe… ⁘ or ⁘ [Atlas] -->
@@ -167,7 +166,7 @@
                      HEADER block), never the pickers; with nothing loaded they are placeholders, dimmed to 40%.
                      ⚠️ The square is BLUE, a literal, and means nothing yet — recency doesn't apply to a replay
                      (the user's call: blue "until we decide otherwise"). -->
-                <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Title="PastCast" Pane="{x:Bind ViewModel.PastPane, Mode=OneWay}"
+                <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Title="PastCast"
                                            StatusFill="#FF2F81F7"
                                            Subtitle="{x:Bind ViewModel.Radar.LoadedReplayDateText, Mode=OneWay}"
                                            SubtitleOpacity="{x:Bind PlaceholderOpacity(ViewModel.Radar.HasLoadedReplayWindow), Mode=OneWay}">
@@ -201,12 +200,12 @@
          PanelScroller header): the gutter ends 4 px from the window edge. -->
     <prim:PanelScroller Grid.Row="1" Margin="0,0,-12,0">
     <!-- ⚠️ The host holds ONLY DragMoveLayerExpanders (anything else throws) — every child is a layer. -->
-    <dragMoveLayerExpanders:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" IsReorderEnabled="{x:Bind tp:TemporalPane.ReorderEnabled(ViewModel.PastPane.IsRail), Mode=OneWay}" VerticalAlignment="Top" Spacing="8" Margin="{StaticResource TemporalListEndClearance}" Reordered="OnLayersReordered">
+    <dragMoveLayerExpanders:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" VerticalAlignment="Top" Spacing="8" Margin="{StaticResource TemporalListEndClearance}" Reordered="OnLayersReordered">
 
         <!-- ===================== STORM CELLS ===================== -->
         <!-- The radar's storm-cell attributes for the LOADED window and site, following the scrubber. Shared
              control (TemporalPanes/DragMoveLayerExpanders/DragMoveLayerExpanderStormCellsBody) with the Now window, like the storm reports below. -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm cells" LayerId="cells" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.PastPane.ShownSections, 'cells'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm cells" LayerId="cells"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormCells.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnStormCellsHeaderClick"
@@ -223,7 +222,7 @@
              temporal panes, and a window owns its own section structure while the control is just
              content. Putting it inside would give this section a heading in a window whose other
              sections might not have one. -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm reports" LayerId="reports" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.PastPane.ShownSections, 'reports'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm reports" LayerId="reports"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormReports.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnStormReportsHeaderClick"
@@ -243,7 +242,7 @@
              under the radar loop, and only some offices draw polygons.
              ⚠️ The EF chips are the DAT's own polygon colours, literals mirrored from damage-surveys.js
              EF_COLORS — change both. Data colours, never themed. -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Damage surveys" LayerId="damage" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.PastPane.ShownSections, 'damage'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Damage surveys" LayerId="damage"
                            ShowCheckBox="True"
                            IsCheckBoxEnabled="{x:Bind ViewModel.DamageSurveys.IsReady, Mode=OneWay}"
                            IsChecked="{x:Bind ViewModel.DamageSurveys.AllShown, Mode=OneWay}"
@@ -336,7 +335,7 @@
              layers of their own and filtered to the frame on screen — a warning reshapes at each follow-up and
              watch counties drop out as they were cancelled. The SAME control as NowCast's two sections, bound to
              PastCast's own view models (their ticks + opacity are saved separately from NowCast's). -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Warnings" LayerId="warnings" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.PastPane.ShownSections, 'warnings'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Warnings" LayerId="warnings"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.PastAlerts.Warnings.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnPastWarningsHeaderClick"
@@ -349,7 +348,7 @@
                                      ViewModel="{x:Bind ViewModel.PastAlerts.Warnings, Mode=OneWay}"/>
         </dragMoveLayerExpanders:DragMoveLayerExpander>
 
-        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Watches" LayerId="watches" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.PastPane.ShownSections, 'watches'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Watches" LayerId="watches"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.PastAlerts.Watches.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnPastWatchesHeaderClick"
@@ -365,7 +364,7 @@
         <!-- ===================== TROPICAL ===================== -->
         <!-- Hurricane / tropical storm / storm surge / extreme wind zones for the LOADED window (IEM's archive), drawn
              as in effect at the displayed frame. Shared control with the Now window (TropicalViewModel). -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="TropicalSection" Header="Tropical" LayerId="tropical" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.PastPane.ShownSections, 'tropical'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="TropicalSection" Header="Tropical" LayerId="tropical"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Tropical.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnTropicalHeaderClick"
@@ -380,7 +379,7 @@
         <!-- ===================== MESOSCALE DISCUSSIONS ===================== -->
         <!-- SPC MDs + WPC MPDs for the LOADED window: drawn as in effect at the displayed frame, all of them
              listed to read. Shared control with the Now window. A click on an MD's area opens THIS section. -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="DiscussionsSection" Header="Mesoscale discussions" LayerId="mds" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.PastPane.ShownSections, 'mds'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="DiscussionsSection" Header="Mesoscale discussions" LayerId="mds"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Discussions.AllShown, Mode=OneWay}"
                            CheckBoxClick="OnDiscussionsHeaderClick"
@@ -397,7 +396,7 @@
              hiding keeps Day / Product / Cycle, so ticking it back redraws the same outlook from cache.
              ⚠️ The box works whatever the product, None included — it never greys. The opacity greys while
              hidden or None (nothing drawn to fade). -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander Header="SPC outlook" LayerId="outlook" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.PastPane.ShownSections, 'outlook'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="SPC outlook" LayerId="outlook"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.PastOutlook.IsShown, Mode=OneWay}"
                            CheckBoxClick="OnOutlookHeaderClick"
@@ -530,7 +529,7 @@
         <!-- ===================== RADAR: header only — the layer's show/hide and its opacity ============ -->
         <!-- ⚠️ The opacity is GLOBAL (one radar layer, live and replay); NowCast shows the same slider, which
              is safe only because Past and Now can't both run. -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Radar" LayerId="radar" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.PastPane.ShownSections, 'radar'), Mode=OneWay}"
+        <dragMoveLayerExpanders:DragMoveLayerExpander Header="Radar" LayerId="radar"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
                            CheckBoxClick="OnRadarHeaderClick"

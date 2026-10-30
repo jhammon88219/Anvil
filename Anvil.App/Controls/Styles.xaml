@@ -437,7 +437,7 @@
     <x:Double x:Key="TemporalHeaderMinHeight">264</x:Double>
 
     <!-- A temporal pane's width (TemporalPanes/TemporalPane, in MainWindow's map band). The bar's side sections end on
-         its inner edge (MainWindow.AlignSideSections reads it), so this is the one value. -->
+         its inner edge (MainWindow.AlignSideSections reads the declared panes' Width), so this is the one value. -->
     <x:Double x:Key="TemporalPaneWidth">480</x:Double>
 
     <!-- ───────────────────────────── TextBlock — settings-body labels ─────────────────────────────

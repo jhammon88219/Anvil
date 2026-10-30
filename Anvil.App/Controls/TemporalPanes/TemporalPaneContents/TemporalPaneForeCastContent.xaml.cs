@@ -42,7 +42,8 @@ namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 			if (mode == TemporalMode.Now) { DragMoveLayerExpanderHost.ApplyLayerOrder(ViewModel.LayerOrderFor(TemporalMode.Now)); }
 		}
 
-		// (A ghost row's visibility is tp:TemporalPane.GhostVisibility — its box on, NowCast running, and the FULL pane only.)
+		// A ghost row shows only while its box is on and NowCast runs (MapViewModel.AreNowCastGhostsShown).
+		public Visibility GhostVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
 
 		// The legend's fold, persisted like a section ("fore/outlook-legend"). Set on the LEGEND's Loaded — it sits in a
 		// LAZY section body, so it doesn't exist until the section first opens.
@@ -66,11 +67,10 @@ namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 
 		// Header show/hide box: IsChecked is ONE-WAY, so the box has already flipped itself by the time Click
 		// fires and the VM's answer overwrites it — the same contract as PastCast's outlook box.
-		// ⚠️ Through the PANE's section toggle — the same one its rail button uses (TemporalPaneViewModel).
-		private void OnOutlookHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.ForePane.Toggle(LayerOrder.Outlook);
+		private void OnOutlookHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.Outlook.ToggleShown();
 
 		// Short Range's box: the same one-way contract. Ticking it may turn NowCast off (MapViewModel's NowCast ⇄ MODEL).
-		private void OnShortRangeHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.ForePane.Toggle(LayerOrder.ModelField);
+		private void OnShortRangeHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.ShortRange.ToggleShown();
 
 		/// <summary>The coordinator view model; bound from the host.</summary>
 		public MapViewModel ViewModel

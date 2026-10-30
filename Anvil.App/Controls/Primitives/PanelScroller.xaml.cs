@@ -75,50 +75,6 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(MaxRows), typeof(int), typeof(PanelScroller),
 				new PropertyMetadata(0, (d, _) => ((PanelScroller)d).ApplyRowCap()));
 
-		/// <summary>The "+N more" line's height — the dock-stack allocator counts it (matches the XAML).</summary>
-		public const double MoreLineHeight = 24;
-
-		/// <summary>
-		/// A temporal pane's DOCK STACK only (-1 = off, the default): a LIST body shows exactly this many rows, stops
-		/// scrolling, and the "+N more" line names the rest. Set by TemporalPane's fit; -1 restores <see cref="MaxRows"/>.
-		/// </summary>
-		public int DockRows
-		{
-			get => (int)GetValue(DockRowsProperty);
-			set => SetValue(DockRowsProperty, value);
-		}
-		public static readonly DependencyProperty DockRowsProperty =
-			DependencyProperty.Register(nameof(DockRows), typeof(int), typeof(PanelScroller),
-				new PropertyMetadata(-1, (d, _) => ((PanelScroller)d).OnDockRowsChanged()));
-
-		/// <summary>The "+N more" line was clicked: show the whole list (the pane goes back to Full).</summary>
-		public event EventHandler? MoreRequested;
-
-		/// <summary>A LIST body's row count (0 for a plain body).</summary>
-		public int ItemCount => (Body as ListViewBase)?.Items.Count ?? 0;
-
-		/// <summary>A LIST body's row height, as last measured off its first realized row (0 = not yet known).</summary>
-		public double RowHeight => _rowHeight;
-
-		/// <summary>How much of the body is out of view right now (extent − viewport; 0 when it all fits).</summary>
-		public double OverflowHeight => Scrollable;
-
-		private double _rowHeight;
-
-		private void OnDockRowsChanged()
-		{
-			var docked = DockRows >= 0;
-			if (Body is ListViewBase list)
-			{
-				ScrollViewer.SetVerticalScrollMode(list, docked ? ScrollMode.Disabled : ScrollMode.Enabled);
-				if (docked) { _viewer?.ChangeView(null, 0, null, disableAnimation: true); }
-			}
-			ApplyRowCap();
-			UpdateThumb();
-		}
-
-		private void OnMoreClick(object sender, RoutedEventArgs e) => MoreRequested?.Invoke(this, EventArgs.Empty);
-
 		// Geometry only (columns + the thumb's inset) — the lane's look stays the XAML thumb's.
 		private void ApplyLane()
 		{
@@ -130,28 +86,15 @@ namespace Anvil.Controls.Primitives
 			Thumb.Margin = left ? new Thickness(2, 0, 4, 0) : new Thickness(4, 0, 0, 0);
 		}
 
-		// MaxRows (or, in a dock stack, DockRows) × the first row's REAL height: rows are sized by their container style,
-		// so the cap follows it. The height is CACHED — a dock cap of 0 realizes no row to measure.
+		// MaxRows × the first row's REAL height: rows are sized by their container style, so the cap follows it.
 		private void ApplyRowCap()
 		{
-			if (Body is not ListViewBase list)
+			if (MaxRows <= 0 || Body is not ListViewBase list) { return; }
+			if (list.ContainerFromIndex(0) is FrameworkElement row && row.ActualHeight > 0)
 			{
-				MoreLine.Visibility = Visibility.Collapsed;
-				return;
-			}
-			if (list.ContainerFromIndex(0) is FrameworkElement row && row.ActualHeight > 0) { _rowHeight = row.ActualHeight; }
-
-			var docked = DockRows >= 0;
-			var rows = docked ? DockRows : MaxRows;
-			if ((docked || rows > 0) && _rowHeight > 0)
-			{
-				var cap = rows * _rowHeight;
+				var cap = MaxRows * row.ActualHeight;
 				if (Math.Abs(list.MaxHeight - cap) > 0.5) { list.MaxHeight = cap; }
 			}
-
-			var hidden = docked ? ItemCount - DockRows : 0;
-			MoreLine.Visibility = hidden > 0 ? Visibility.Visible : Visibility.Collapsed;
-			MoreLine.Content = hidden > 0 ? $"+{hidden} more" : null;
 		}
 
 		// ── Body: which viewer the thumb drives ──
@@ -235,8 +178,7 @@ namespace Anvil.Controls.Primitives
 
 		private void UpdateThumb()
 		{
-			// No viewer yet — or a list in a dock stack, which doesn't scroll ("+N more" says what's hidden).
-			if (_viewer is null || (DockRows >= 0 && Body is ListViewBase))
+			if (_viewer is null)
 			{
 				Thumb.Visibility = Visibility.Collapsed;
 				return;

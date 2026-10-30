@@ -626,54 +626,6 @@ namespace Anvil.Services
 			set => SetProperty(ref _sectionExpanded, value ?? new());
 		}
 
-		// ── Temporal panes' STATE (Models.TemporalPaneStates tokens: full / rail), one per mode ──
-		private string _pastCastPaneState = Models.TemporalPaneStates.Full;
-		/// <summary>The PastCast pane: full, or collapsed to its rail.</summary>
-		public string PastCastPaneState
-		{
-			get => _pastCastPaneState;
-			set => SetProperty(ref _pastCastPaneState, value);
-		}
-
-		private string _nowCastPaneState = Models.TemporalPaneStates.Full;
-		/// <summary>The NowCast pane: full, or collapsed to its rail.</summary>
-		public string NowCastPaneState
-		{
-			get => _nowCastPaneState;
-			set => SetProperty(ref _nowCastPaneState, value);
-		}
-
-		private string _foreCastPaneState = Models.TemporalPaneStates.Full;
-		/// <summary>The ForeCast pane: full, or collapsed to its rail.</summary>
-		public string ForeCastPaneState
-		{
-			get => _foreCastPaneState;
-			set => SetProperty(ref _foreCastPaneState, value);
-		}
-
-		// ── Temporal panes' DOCKED sections (shown beside the rail): "header" + layer ids, one list per mode ──
-		// ⚠️ REPLACE the list, never mutate it — see FavoriteSiteIds. Unknown ids are dropped on read (TemporalPaneDock).
-		private List<string> _pastCastDocked = new();
-		public List<string> PastCastDocked
-		{
-			get => _pastCastDocked;
-			set => SetProperty(ref _pastCastDocked, value ?? new());
-		}
-
-		private List<string> _nowCastDocked = new();
-		public List<string> NowCastDocked
-		{
-			get => _nowCastDocked;
-			set => SetProperty(ref _nowCastDocked, value ?? new());
-		}
-
-		private List<string> _foreCastDocked = new();
-		public List<string> ForeCastDocked
-		{
-			get => _foreCastDocked;
-			set => SetProperty(ref _foreCastDocked, value ?? new());
-		}
-
 		// ── Temporal panes' ACTIVITY EXPANDER state (Models.ActivityExpanderStates tokens), one per window ──
 		private string _nowCastActivity = Models.ActivityExpanderStates.Hidden;
 		/// <summary>The NowCast window's activity expander: hidden / min-up / full / min-down.</summary>

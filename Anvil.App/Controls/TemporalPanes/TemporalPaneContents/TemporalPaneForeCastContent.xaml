@@ -127,8 +127,7 @@
              ⚠️ Margin LEFT 0 / RIGHT 4 = the section stack's edges — PastCast's + NowCast's rule; change together.
              No TemporalHeaderMinHeight: there are no tiles or card under it to line up. -->
         <tp:TemporalPaneHeader x:Name="TemporalPaneHeader" Grid.Row="0" Margin="0,12,4,12"
-                Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.ForePane.ShownSections, 'header'), Mode=OneWay}"
-                                   Title="ForeCast" Pane="{x:Bind ViewModel.ForePane, Mode=OneWay}"
+                                   Title="ForeCast"
                                    StatusFill="{x:Bind ViewModel.Outlook.HeaderSquareFill, Mode=OneWay, Converter={StaticResource HexToBrush}}"
                                    StatusToolTip="{x:Bind ViewModel.Outlook.HeaderSquareTip, Mode=OneWay}"
                                    Subtitle="{x:Bind ViewModel.Outlook.HeaderDayText, Mode=OneWay}">
@@ -139,7 +138,7 @@
         <!-- GHOST ROWS box: NowCast's layers as dimmed, drag-only rows around the outlook, so you can say where the
              outlook draws among them (ONE shared Now + Fore order). Persisted, default off; the rows show only
              while NowCast runs too (MapViewModel's GHOST ROWS block). -->
-        <CheckBox x:Name="ShowNowCastGhostRowsCheckBox" Visibility="{x:Bind tp:TemporalPane.FullOnly(ViewModel.ForePane.IsRail), Mode=OneWay}" Grid.Row="1" Margin="0,0,0,8" Content="Show NowCast ghost rows"
+        <CheckBox x:Name="ShowNowCastGhostRowsCheckBox" Grid.Row="1" Margin="0,0,0,8" Content="Show NowCast ghost rows"
                   IsChecked="{x:Bind ViewModel.ShowNowCastGhostRows, Mode=TwoWay}"
                   ToolTipService.ToolTip="List NowCast's layers here, dimmed, so you can drag the outlook among them (shown while NowCast is on)"/>
 
@@ -151,7 +150,7 @@
              rows. With the ghosts hidden the outlook is alone, so its grip shows but a drag never starts
              (the host needs 2 visible). Reordered → SetLayerOrder(Now): the shared Now + Fore order. -->
         <prim:PanelScroller Grid.Row="2" Margin="0,0,-12,0">
-        <dragMoveLayerExpanders:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" IsReorderEnabled="{x:Bind tp:TemporalPane.ReorderEnabled(ViewModel.ForePane.IsRail), Mode=OneWay}" VerticalAlignment="Top" Spacing="8" Margin="{StaticResource TemporalListEndClearance}" Reordered="OnLayersReordered">
+        <dragMoveLayerExpanders:DragMoveLayerExpanderHost x:Name="DragMoveLayerExpanderHost" VerticalAlignment="Top" Spacing="8" Margin="{StaticResource TemporalListEndClearance}" Reordered="OnLayersReordered">
 
         <!-- ===================== GHOSTS: NowCast's layers, in the map's default spots ===================== -->
         <!-- Drag-only (IsGhost); boxes mirror the real show/hides, inert. Collapsed = still in the run, so the
@@ -159,29 +158,29 @@
         <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm cells · NowCast" LayerId="cells"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormCells.AllShown, Mode=OneWay}"
-                           Visibility="{x:Bind tp:TemporalPane.GhostVisibility(ViewModel.AreNowCastGhostsShown, ViewModel.ForePane.IsRail), Mode=OneWay}"/>
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
         <dragMoveLayerExpanders:DragMoveLayerExpander Header="Storm reports · NowCast" LayerId="reports"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.StormReports.AllShown, Mode=OneWay}"
-                           Visibility="{x:Bind tp:TemporalPane.GhostVisibility(ViewModel.AreNowCastGhostsShown, ViewModel.ForePane.IsRail), Mode=OneWay}"/>
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
         <dragMoveLayerExpanders:DragMoveLayerExpander Header="Warnings · NowCast" LayerId="warnings"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Warnings.AllShown, Mode=OneWay}"
-                           Visibility="{x:Bind tp:TemporalPane.GhostVisibility(ViewModel.AreNowCastGhostsShown, ViewModel.ForePane.IsRail), Mode=OneWay}"/>
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
         <dragMoveLayerExpanders:DragMoveLayerExpander Header="Watches · NowCast" LayerId="watches"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Watches.AllShown, Mode=OneWay}"
-                           Visibility="{x:Bind tp:TemporalPane.GhostVisibility(ViewModel.AreNowCastGhostsShown, ViewModel.ForePane.IsRail), Mode=OneWay}"/>
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
         <dragMoveLayerExpanders:DragMoveLayerExpander Header="Mesoscale discussions · NowCast" LayerId="mds"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Discussions.AllShown, Mode=OneWay}"
-                           Visibility="{x:Bind tp:TemporalPane.GhostVisibility(ViewModel.AreNowCastGhostsShown, ViewModel.ForePane.IsRail), Mode=OneWay}"/>
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
 
         <!-- ===================== SPC OUTLOOK: the card, then the selectors ===================== -->
         <!-- LayerId → the grip. The header box is SHOW/HIDE (Outlook.IsShown, persisted) — NOT the mode, which
              is the bottom bar's ForeCast key; hiding keeps Day / Product. Works whatever the product, None
              included (PastCast's rule). Opacity greys while hidden or None: nothing drawn to fade. -->
-        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="OutlookSection" Header="SPC outlook" LayerId="outlook" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.ForePane.ShownSections, 'outlook'), Mode=OneWay}" IsExpanded="True"
+        <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="OutlookSection" Header="SPC outlook" LayerId="outlook" IsExpanded="True"
                           
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Outlook.IsShown, Mode=OneWay}"
@@ -315,7 +314,7 @@
              while it draws, live radar is off (MapViewModel's NowCast ⇄ MODEL rule). Medium / Long Range join here
              when built (ONE box ticked at a time across them). Opacity greys while it isn't drawing. -->
         <dragMoveLayerExpanders:DragMoveLayerExpander x:Name="DragMoveLayerExpanderShortRange" Header="Short Range"
-                           LayerId="models" Visibility="{x:Bind tp:TemporalPane.SectionVisibility(ViewModel.ForePane.ShownSections, 'models'), Mode=OneWay}"
+                           LayerId="models"
                            ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.ShortRange.IsShown, Mode=OneWay}"
                            CheckBoxClick="OnShortRangeHeaderClick"
@@ -331,7 +330,7 @@
         <dragMoveLayerExpanders:DragMoveLayerExpander Header="Radar · NowCast" LayerId="radar"
                            IsGhost="True" ShowCheckBox="True"
                            IsChecked="{x:Bind ViewModel.Radar.ShowRadarLayer, Mode=OneWay}"
-                           Visibility="{x:Bind tp:TemporalPane.GhostVisibility(ViewModel.AreNowCastGhostsShown, ViewModel.ForePane.IsRail), Mode=OneWay}"/>
+                           Visibility="{x:Bind GhostVisibility(ViewModel.AreNowCastGhostsShown), Mode=OneWay}"/>
         </dragMoveLayerExpanders:DragMoveLayerExpanderHost>
         </prim:PanelScroller>
         <!-- (The inline "Forecast discussion" section that sat pinned below here is GONE — SPC's discussion

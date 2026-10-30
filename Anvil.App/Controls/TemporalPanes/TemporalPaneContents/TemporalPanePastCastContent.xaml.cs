@@ -2,7 +2,6 @@ using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Anvil.Controls.Primitives;
-using Anvil.Models;
 using Anvil.ViewModels;
 
 namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
@@ -68,24 +67,37 @@ namespace Anvil.Controls.TemporalPanes.TemporalPaneContents
 		// Header select-all boxes, same contract as TemporalPaneNowCastContent's: IsChecked is bound ONE-WAY, so the box has
 		// already flipped itself by the time Click fires and the VM's answer overwrites it. Every layer
 		// section has one (the outlook's is show/hide, disabled while Product is None).
-		// ⚠️ Every box goes through the PANE's section toggle — the same one its rail button uses (TemporalPaneViewModel).
-		private void OnRadarHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.PastPane.Toggle(LayerOrder.Radar);
+		private void OnRadarHeaderClick(object sender, RoutedEventArgs e)
+		{
+			if (ViewModel?.Radar is RadarViewModel radar)
+			{
+				radar.ShowRadarLayer = !radar.ShowRadarLayer;
+			}
+		}
 
-		private void OnStormReportsHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.PastPane.Toggle(LayerOrder.Reports);
+		private void OnStormReportsHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.StormReports.ToggleAll();
 
-		private void OnStormCellsHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.PastPane.Toggle(LayerOrder.Cells);
+		private void OnStormCellsHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.StormCells.ToggleAll();
 
-		private void OnDiscussionsHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.PastPane.Toggle(LayerOrder.Discussions);
+		private void OnDiscussionsHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.Discussions.ToggleAll();
 
-		private void OnTropicalHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.PastPane.Toggle(LayerOrder.Tropical);
+		private void OnTropicalHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.Tropical.ToggleAll();
 
-		private void OnPastWarningsHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.PastPane.Toggle(LayerOrder.Warnings);
+		private void OnPastWarningsHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.PastAlerts.Warnings.ToggleAll();
 
-		private void OnPastWatchesHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.PastPane.Toggle(LayerOrder.Watches);
+		private void OnPastWatchesHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.PastAlerts.Watches.ToggleAll();
 
-		private void OnDamageSurveysHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.PastPane.Toggle(LayerOrder.Damage);
+		private void OnDamageSurveysHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.DamageSurveys.ToggleAll();
 
-		private void OnOutlookHeaderClick(object sender, RoutedEventArgs e) => ViewModel?.PastPane.Toggle(LayerOrder.Outlook);
+		private void OnOutlookHeaderClick(object sender, RoutedEventArgs e) =>
+			ViewModel?.PastOutlook.ToggleShown();
 
 		// "Discussion." on the outlook's Product row — the Outlook Discussion window (shared with ForeCast's).
 		private void OnDiscussionClick(object sender, RoutedEventArgs e)
