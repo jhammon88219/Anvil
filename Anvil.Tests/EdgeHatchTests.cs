@@ -37,7 +37,57 @@ namespace Anvil.Tests
 			Assert.Equal(3, EdgeHatchSizes.Spacing(0));
 			Assert.Equal(1.5, EdgeHatchSizes.Weight(1.4));
 			Assert.Equal(2, EdgeHatchSizes.Weight(9));
-			Assert.Equal("surface", EdgeHatchColors.Normalize("purple"));
+			Assert.Equal(10, EdgeHatchSizes.Opacity(0));
+			Assert.Equal(100, EdgeHatchSizes.Opacity(double.NaN));
+		}
+
+		[Theory]
+		[InlineData(null, "")]
+		[InlineData("purple", "")]
+		[InlineData("#22d3ee", "#22D3EE")]
+		[InlineData("surface", "")]         // retired tokens migrate
+		[InlineData("black", "#000000")]
+		[InlineData("white", "#FFFFFF")]
+		public void Colour_normalizes_to_hex_or_surface(string? token, string expected) =>
+			Assert.Equal(expected, EdgeHatchColors.Normalize(token));
+
+		[Fact]
+		public void Colour_presets_and_custom()
+		{
+			Assert.Equal(0, EdgeHatchColors.IndexOf(""));          // the "A" chip = bar surface
+			Assert.Equal(EdgeHatchColors.Presets.Count - 1, EdgeHatchColors.IndexOf("black"));
+			Assert.Equal(-1, EdgeHatchColors.IndexOf("#123456"));   // custom
+			Assert.Equal("", EdgeHatchColors.FromIndex(-5));
+
+			var s = new Anvil.Services.AppSettings();
+			var vm = new Anvil.ViewModels.EdgeHatchViewModel(s);
+			vm.ColorIndex = EdgeHatchColors.IndexOf("#22D3EE");
+			Assert.Equal("#22D3EE", s.EdgeHatchColor);
+			vm.ColorHex = "#123456";
+			Assert.Equal(-1, vm.ColorIndex);
+			Assert.Equal("#123456", vm.ColorHex);
+			vm.ColorIndex = -1;                                    // the picker's "custom" index never overwrites
+			Assert.Equal("#123456", s.EdgeHatchColor);
+		}
+
+		[Fact]
+		public void A_retired_faint_white_keeps_its_35_percent()
+		{
+			var s = new Anvil.Services.AppSettings { EdgeHatchColor = "white" };
+			var vm = new Anvil.ViewModels.EdgeHatchViewModel(s);
+			Assert.Equal("#FFFFFF", vm.ColorHex);
+			Assert.Equal(35, vm.Opacity);
+			Assert.Equal(0.35, vm.LineOpacity, 6);
+
+			vm.ColorHex = "#22D3EE";                               // a new colour keeps the opacity it had
+			Assert.Equal(35, vm.Opacity);
+			vm.Opacity = 80;
+			Assert.Equal(80, s.EdgeHatchOpacity);
+			Assert.Equal("80%", vm.OpacityText);
+
+			vm.RestoreDefaults();
+			Assert.Equal("", s.EdgeHatchColor);
+			Assert.Equal(100, vm.Opacity);
 		}
 
 		[Fact]

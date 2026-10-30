@@ -354,7 +354,8 @@
                        Weight="{x:Bind ViewModel.EdgeHatch.Weight, Mode=OneWay}"
                        Thin="{x:Bind ViewModel.EdgeHatch.Thins, Mode=OneWay}"
                        Fade="{x:Bind ViewModel.EdgeHatch.Fades, Mode=OneWay}"
-                       Ink="{x:Bind ViewModel.EdgeHatch.ColorToken, Mode=OneWay}"
+                       Ink="{x:Bind ViewModel.EdgeHatch.ColorHex, Mode=OneWay}"
+                       LineOpacity="{x:Bind ViewModel.EdgeHatch.LineOpacity, Mode=OneWay}"
                        Raised="{x:Bind ViewModel.IsMapControlsStripVisible, Mode=OneWay}"
                        Visibility="{x:Bind PaneVisibility(ViewModel.EdgeHatch.IsHatch), Mode=OneWay}"/>
 

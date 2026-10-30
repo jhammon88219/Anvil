@@ -1,6 +1,8 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
+using System;
 using Anvil.Models;
 using Point = Windows.Foundation.Point;
 
@@ -68,7 +70,7 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(Fade), typeof(bool), typeof(EdgeHatch),
 				new PropertyMetadata(true, (d, _) => ((EdgeHatch)d).ApplyInk()));
 
-		/// <summary>The line colour token (<see cref="EdgeHatchColors"/>).</summary>
+		/// <summary>The line colour: <c>#RRGGBB</c>, or "" = the surface the band hangs on (<see cref="EdgeHatchColors"/>).</summary>
 		public string Ink
 		{
 			get => (string)GetValue(InkProperty);
@@ -88,17 +90,48 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(Raised), typeof(bool), typeof(EdgeHatch),
 				new PropertyMetadata(false, (d, _) => ((EdgeHatch)d).ApplyInk()));
 
+		/// <summary>The lines' opacity, 0–1 (the user's; the canvas carries the themed strength on top).</summary>
+		public double LineOpacity
+		{
+			get => (double)GetValue(LineOpacityProperty);
+			set => SetValue(LineOpacityProperty, value);
+		}
+		public static readonly DependencyProperty LineOpacityProperty =
+			DependencyProperty.Register(nameof(LineOpacity), typeof(double), typeof(EdgeHatch), new PropertyMetadata(1.0));
+
 		// Not templated, so GoToState lands before Loaded too.
 		private void ApplyInk()
 		{
-			var ink = EdgeHatchColors.Normalize(Ink) switch
+			var hex = EdgeHatchColors.Normalize(Ink);
+			if (hex == EdgeHatchColors.Surface)
 			{
-				EdgeHatchColors.Black => "Black",
-				EdgeHatchColors.White => "White",
-				_ => Raised ? "Raised" : "Surface",
-			};
-			VisualStateManager.GoToState(this, ink + (Fade ? "Fade" : "Solid"), false);
+				// The THEMED surface colour: a VisualState setter (never a theme brush resolved here). Drop any chosen
+				// colour's local brush first.
+				EdgeHatchPath.ClearValue(Shape.StrokeProperty);
+				VisualStateManager.GoToState(this, (Raised ? "Raised" : "Surface") + (Fade ? "Fade" : "Solid"), false);
+				return;
+			}
+
+			// A CHOSEN colour — DATA, a literal brush from the hex (the ColorSwatchPicker rule). It fades to its own clear
+			// twin (never through black), along the Up-laid geometry, like the state brushes.
+			VisualStateManager.GoToState(this, "ChosenInk", false);
+			var ink = Microsoft.UI.ColorHelper.FromArgb(0xFF, Hex(hex, 1), Hex(hex, 3), Hex(hex, 5));
+			EdgeHatchPath.Stroke = !Fade
+				? new SolidColorBrush(ink)
+				: new LinearGradientBrush
+				{
+					StartPoint = new Point(0, 1),
+					EndPoint = new Point(0, 0),
+					GradientStops =
+					{
+						new GradientStop { Offset = 0, Color = ink },
+						new GradientStop { Offset = 1, Color = Microsoft.UI.ColorHelper.FromArgb(0, ink.R, ink.G, ink.B) },
+					},
+				};
 		}
+
+		private static byte Hex(string hex, int at) =>
+			byte.Parse(hex.AsSpan(at, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
 
 		// COMPUTED GEOMETRY (the allowed exception — the Path itself is declared in XAML). Laid out UP (edge along the
 		// bottom), then turned for Right / Left, so the declared gradient brushes fade the right way in every direction.

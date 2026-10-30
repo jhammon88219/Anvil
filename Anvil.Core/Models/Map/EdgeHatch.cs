@@ -36,23 +36,58 @@ namespace Anvil.Models
 		public static bool Fades(string? token) => Normalize(token) is Fade or Both;
 	}
 
-	/// <summary>The hatch's line colour, as persisted tokens (<c>AppSettings.EdgeHatchColor</c>).</summary>
+	/// <summary>
+	/// The hatch's line colour (<c>AppSettings.EdgeHatchColor</c>): a <c>#RRGGBB</c>, or empty = the SURFACE the band hangs
+	/// on (the tier, or the pane — the chrome dissolving into the map, themed). Presets + any custom colour (the swatch
+	/// picker's "+" chip), the scope-colour pattern (<see cref="ScopeColors"/>).
+	/// </summary>
+	/// <remarks>
+	/// The surface colour is nearly black in the dark theme, so over a dark basemap it only shows where something bright
+	/// is under it (the user's note, 2026-10-30) — hence the presets lean light / vivid. The old tokens ("surface",
+	/// "black", "white" = 35% white) migrate on read; the 35% now lives in the line-opacity slider.
+	/// </remarks>
 	public static class EdgeHatchColors
 	{
-		/// <summary>The surface the band is attached to (the tier, or the pane) — the chrome dissolving into the map.</summary>
-		public const string Surface = "surface";
-		public const string Black = "black";
-		/// <summary>White at 35%.</summary>
-		public const string White = "white";
+		/// <summary>The surface the band hangs on — the default, and what anything unrecognized falls back to.</summary>
+		public const string Surface = "";
 
-		public static readonly IReadOnlyList<string> Tokens = new[] { Surface, Black, White };
-		public static readonly IReadOnlyList<string> Labels = new[] { "Bar surface", "Black", "Faint white" };
+		/// <summary>The presets in picker order: hex (or empty) and a name for the tooltip.</summary>
+		public static IReadOnlyList<(string Hex, string Name)> Presets { get; } = new[]
+		{
+			(Surface, "Bar surface (follows the theme)"),
+			("#9CA3AF", "Grey"),
+			("#FFFFFF", "White"),
+			("#22D3EE", "Cyan"),
+			("#FFD60A", "Yellow"),
+			("#FF9F1A", "Orange"),
+			("#FF4FD8", "Magenta"),
+			("#000000", "Black"),
+		};
 
-		public static string Normalize(string? token) => token is not null && Tokens.Contains(token) ? token : Surface;
+		/// <summary>An upper-case <c>#RRGGBB</c>, or <see cref="Surface"/> for empty / unrecognized. Migrates the retired tokens.</summary>
+		public static string Normalize(string? token) => token switch
+		{
+			"surface" => Surface,
+			"black" => "#000000",
+			"white" => "#FFFFFF",
+			_ => ScopeColors.Normalize(token),
+		};
 
-		public static int IndexOf(string? token) => Tokens.ToList().IndexOf(Normalize(token));
+		/// <summary>The preset index of a colour; -1 for a valid hex that isn't a preset (a custom colour).</summary>
+		public static int IndexOf(string? token)
+		{
+			var hex = Normalize(token);
+			for (int i = 0; i < Presets.Count; i++)
+			{
+				if (Presets[i].Hex == hex) { return i; }
+			}
+			return -1;
+		}
 
-		public static string At(int index) => Tokens[Math.Clamp(index, 0, Tokens.Count - 1)];
+		public static string FromIndex(int index) => Presets[Math.Clamp(index, 0, Presets.Count - 1)].Hex;
+
+		/// <summary>The retired "white" token meant white at this line opacity, percent.</summary>
+		internal const double RetiredWhiteOpacity = 35;
 	}
 
 	/// <summary>The hatch's numbers: defaults (the user's picks from the mock-up, 2026-10-30) and ranges.</summary>
@@ -61,6 +96,10 @@ namespace Anvil.Models
 		public const double DefaultWidth = 35, MinWidth = 16, MaxWidth = 72;
 		public const double DefaultSpacing = 5, MinSpacing = 3, MaxSpacing = 12;
 		public const double DefaultWeight = 2, MinWeight = 0.5, MaxWeight = 2;
+		public const double DefaultOpacity = 100, MinOpacity = 10, MaxOpacity = 100;
+
+		/// <summary>The lines' opacity, percent (whole steps).</summary>
+		public static double Opacity(double v) => double.IsFinite(v) ? Math.Clamp(Math.Round(v), MinOpacity, MaxOpacity) : DefaultOpacity;
 
 		public static double Width(double v) => double.IsFinite(v) ? Math.Clamp(Math.Round(v), MinWidth, MaxWidth) : DefaultWidth;
 

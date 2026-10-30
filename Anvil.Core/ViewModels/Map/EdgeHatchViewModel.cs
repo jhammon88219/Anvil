@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Anvil.Models;
 using Anvil.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -18,7 +19,10 @@ namespace Anvil.ViewModels
 		internal EdgeHatchViewModel(AppSettings settings) => _settings = settings;
 
 		public IReadOnlyList<string> StyleLabels => EdgeHatchStyles.Labels;
-		public IReadOnlyList<string> ColorLabels => EdgeHatchColors.Labels;
+
+		/// <summary>The colour swatches (hex; "" = the bar surface, the "A" chip) and their tooltips.</summary>
+		public IReadOnlyList<string> ColorSwatches { get; } = EdgeHatchColors.Presets.Select(p => p.Hex).ToArray();
+		public IReadOnlyList<string> ColorNames { get; } = EdgeHatchColors.Presets.Select(p => p.Name).ToArray();
 
 		/// <summary>Thinning / Fading / Both / Black shadow, as the picker's index (persisted as a token).</summary>
 		public int StyleIndex
@@ -42,21 +46,53 @@ namespace Anvil.ViewModels
 		public bool Thins => EdgeHatchStyles.Thins(_settings.EdgeHatchStyle);
 		public bool Fades => EdgeHatchStyles.Fades(_settings.EdgeHatchStyle);
 
-		/// <summary>Bar surface / Black / Faint white, as the picker's index.</summary>
+		/// <summary>The lit colour preset; -1 = a custom colour (<see cref="ColorHex"/>).</summary>
 		public int ColorIndex
 		{
 			get => EdgeHatchColors.IndexOf(_settings.EdgeHatchColor);
 			set
 			{
-				var token = EdgeHatchColors.At(value);
-				if (EdgeHatchColors.Normalize(_settings.EdgeHatchColor) == token) { return; }
-				_settings.EdgeHatchColor = token;
-				OnPropertyChanged();
-				OnPropertyChanged(nameof(ColorToken));
+				if (value >= 0) { SetColor(EdgeHatchColors.FromIndex(value)); }
 			}
 		}
 
-		public string ColorToken => EdgeHatchColors.Normalize(_settings.EdgeHatchColor);
+		/// <summary>The line colour as <c>#RRGGBB</c> ("" = the bar surface) — what the bands draw, and the custom chip's value.</summary>
+		public string ColorHex
+		{
+			get => EdgeHatchColors.Normalize(_settings.EdgeHatchColor);
+			set => SetColor(EdgeHatchColors.Normalize(value));
+		}
+
+		/// <summary>The lines' opacity, percent.</summary>
+		public double Opacity
+		{
+			get => _settings.EdgeHatchOpacity is double v ? EdgeHatchSizes.Opacity(v)
+				: _settings.EdgeHatchColor == "white" ? EdgeHatchColors.RetiredWhiteOpacity : EdgeHatchSizes.DefaultOpacity;
+			set
+			{
+				var v = EdgeHatchSizes.Opacity(value);
+				if (_settings.EdgeHatchOpacity == v && v == Opacity) { return; }
+				_settings.EdgeHatchOpacity = v;
+				OnPropertyChanged();
+				OnPropertyChanged(nameof(OpacityText));
+				OnPropertyChanged(nameof(LineOpacity));
+			}
+		}
+
+		/// <summary><see cref="Opacity"/> as 0–1, for the bands.</summary>
+		public double LineOpacity => Opacity / 100;
+
+		public string OpacityText => $"{Opacity:0}%";
+
+		private void SetColor(string hex)
+		{
+			if (_settings.EdgeHatchColor == hex) { return; }
+			var opacity = Opacity; // a retired "white" keeps its 35% once the token is rewritten
+			_settings.EdgeHatchColor = hex;
+			_settings.EdgeHatchOpacity ??= opacity;
+			OnPropertyChanged(nameof(ColorIndex));
+			OnPropertyChanged(nameof(ColorHex));
+		}
 
 		/// <summary>The band's depth into the map, px.</summary>
 		public double Width
@@ -99,7 +135,8 @@ namespace Anvil.ViewModels
 		public void RestoreDefaults()
 		{
 			StyleIndex = EdgeHatchStyles.IndexOf(EdgeHatchStyles.Both);
-			ColorIndex = EdgeHatchColors.IndexOf(EdgeHatchColors.Surface);
+			ColorHex = EdgeHatchColors.Surface;
+			Opacity = EdgeHatchSizes.DefaultOpacity;
 			Width = EdgeHatchSizes.DefaultWidth;
 			Spacing = EdgeHatchSizes.DefaultSpacing;
 			Weight = EdgeHatchSizes.DefaultWeight;

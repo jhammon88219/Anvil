@@ -633,7 +633,12 @@ namespace Anvil.Services
 		public string EdgeHatchStyle { get => _edgeHatchStyle; set => SetProperty(ref _edgeHatchStyle, value); }
 
 		private string _edgeHatchColor = Models.EdgeHatchColors.Surface;
+		/// <summary>A <c>#RRGGBB</c>, or empty = the surface the band hangs on (old tokens migrate — EdgeHatchColors.Normalize).</summary>
 		public string EdgeHatchColor { get => _edgeHatchColor; set => SetProperty(ref _edgeHatchColor, value); }
+
+		private double? _edgeHatchOpacity;
+		/// <summary>The lines' opacity, percent. Null = the default (100, or 35 for a file still holding the retired "white").</summary>
+		public double? EdgeHatchOpacity { get => _edgeHatchOpacity; set => SetProperty(ref _edgeHatchOpacity, value); }
 
 		private double _edgeHatchWidth = Models.EdgeHatchSizes.DefaultWidth;
 		public double EdgeHatchWidth { get => _edgeHatchWidth; set => SetProperty(ref _edgeHatchWidth, value); }
