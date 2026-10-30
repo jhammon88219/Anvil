@@ -43,9 +43,6 @@ namespace Anvil.Controls.Composites
 			DependencyProperty.Register(nameof(ViewModel), typeof(RadarViewModel), typeof(RadarControls),
 				new PropertyMetadata(null));
 
-		// The classic scrubber shows when the dot matrix doesn't (Settings → Radar Console).
-		public Visibility ClassicVisibility(bool isDotMatrix) => isDotMatrix ? Visibility.Collapsed : Visibility.Visible;
-
 		// Play/stop button: while playing, Stop (halt + return to newest); otherwise Play/resume. Mirrors
 		// the old dial's center button so the single-button "play + stop in one" behavior is unchanged.
 		private void OnPlayStopClick(object sender, RoutedEventArgs e)

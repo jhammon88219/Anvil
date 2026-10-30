@@ -46,6 +46,8 @@ namespace Anvil.Controls.Composites
 
 		private void OnDotMatrixClick(object sender, RoutedEventArgs e) => Pick(1);
 
+		private void OnHatchClick(object sender, RoutedEventArgs e) => Pick(2);
+
 		private void Pick(int index)
 		{
 			if (ViewModel?.Radar is { } radar) radar.ScrubberStyleIndex = index;
@@ -91,6 +93,8 @@ namespace Anvil.Controls.Composites
 			ClassicPreview.CurrentIndex = index;
 			DotMatrixPreview.Segments = segments;
 			DotMatrixPreview.CurrentIndex = index;
+			HatchPreview.Segments = segments;
+			HatchPreview.CurrentIndex = index;
 			PreviewNote.Text = live
 				? "Previews show the loop on the map."
 				: "Previews show a sample loop until one loads.";

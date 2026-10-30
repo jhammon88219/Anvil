@@ -123,12 +123,15 @@
                   PointerCanceled="OnScrubberPointerReleased">
                 <prim:ClassicScrubber Segments="{x:Bind ViewModel.Segments, Mode=OneWay}"
                                       CurrentIndex="{x:Bind ViewModel.CurrentFrameIndex, Mode=OneWay}"
-                                      Visibility="{x:Bind ClassicVisibility(UseDotMatrix), Mode=OneWay}"/>
+                                      Visibility="{x:Bind ClassicVisibility(UseDotMatrix, UseHatch), Mode=OneWay}"/>
                 <prim:DotMatrixScrubber x:Name="DotScrubber"
                                         Segments="{x:Bind ViewModel.Segments, Mode=OneWay}"
                                         CurrentIndex="{x:Bind ViewModel.CurrentFrameIndex, Mode=OneWay}"
                                         FillOrder="LeftToRight"
                                         Visibility="{x:Bind DotVisibility(UseDotMatrix), Mode=OneWay}"/>
+                <prim:HatchScrubber Segments="{x:Bind ViewModel.Segments, Mode=OneWay}"
+                                    CurrentIndex="{x:Bind ViewModel.CurrentFrameIndex, Mode=OneWay}"
+                                    Visibility="{x:Bind DotVisibility(UseHatch), Mode=OneWay}"/>
             </Grid>
 
             <!-- Lead LEFT · transport CENTRED · check-now RIGHT, [*, Auto, *] (RadarControls' rule). -->

@@ -8,6 +8,11 @@
        ╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱             │╲╱╲╱ ╲╱  ╲     at ½ …) and/or FADE toward the map
        ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  ← edge   │╱╲╱╲ ╱╲
                                                        ↑ edge
+       Dots = true (the dot-matrix pattern — the scrubber's language): a pitch grid, dithered thinner toward the map
+       ·   ·     ·       ·   ·         ·     ·
+       · · · ·  ·  · · ·  · · · ·  · ·  · · ·    ← ordered (Bayer 4×4) dither: density 1 at the edge → 0 at the band's
+       ●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●     far side (Thin off = every cell); Spacing = pitch, Weight = dot size
+       ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  ← edge
 
      ⚠️ THE LINES ARE COMPUTED GEOMETRY — the one thing XAML can't declare (WinUI 3 has no tiling pattern brush): the
      Path below is DECLARED here; code-behind fills its Data from Models/Map/EdgeHatchGeometry (pure, tested) whenever the
@@ -71,6 +76,8 @@
         </VisualStateManager.VisualStateGroups>
 
         <!-- Data + RenderTransform set in code (computed geometry — see the header). -->
-        <Path x:Name="EdgeHatchPath" StrokeThickness="{x:Bind Weight, Mode=OneWay}" Opacity="{x:Bind LineOpacity, Mode=OneWay}"/>
+        <!-- Dots = near-zero-length segments with ROUND caps, so each is a dot Weight across (same Path, same brushes). -->
+        <Path x:Name="EdgeHatchPath" StrokeThickness="{x:Bind Weight, Mode=OneWay}" Opacity="{x:Bind LineOpacity, Mode=OneWay}"
+              StrokeStartLineCap="{x:Bind Cap(Dots), Mode=OneWay}" StrokeEndLineCap="{x:Bind Cap(Dots), Mode=OneWay}"/>
     </Canvas>
 </UserControl>

@@ -14,10 +14,15 @@
        │    │   Each frame a block of dots that fill …   │    │
        │    │   ⁙⁙ ⁙⁙ ◆◆ ⁙⁙ ⁚⁚ ·· ··                      │    │  ← Primitives/DotMatrixScrubber, LIVE
        │    └────────────────────────────────────────────┘    │
+       │    ┌────────────────────────────────────────────┐    │
+       │    │ ◯ Hatch                                    │    │
+       │    │   Each frame a slanted cell that …         │    │
+       │    │   ╳╳ ╳╳ ██ ╳╳ ╱╱ ╱ ╱ ╱‾╱                   │    │  ← Primitives/HatchScrubber, LIVE
+       │    └────────────────────────────────────────────┘    │
        │    Previews show the loaded loop; a sample until one loads.
        └──────────────────────────────────────────────────────┘
 
-     ⚠️ REAL PREVIEWS: the two scrubbers are the console's own controls fed the console's own Segments and frame
+     ⚠️ REAL PREVIEWS: the three scrubbers are the console's own controls fed the console's own Segments and frame
      index (set from code — the source flips to a fixed SAMPLE while no loop is loaded, so a preview is never blank).
      ⚠️ Picking is a RadioButton CLICK writing RadarViewModel.ScrubberStyleIndex; IsChecked is ONE-WAY from it. -->
 
@@ -73,6 +78,20 @@
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         <Grid Height="20" Margin="0,8,0,0">
                             <prim:DotMatrixScrubber x:Name="DotMatrixPreview" FillOrder="LeftToRight"/>
+                        </Grid>
+                    </StackPanel>
+                </RadioButton>
+
+                <RadioButton Style="{StaticResource ScrubberOptionStyle}"
+                             IsChecked="{x:Bind IsStyle(ViewModel.Radar.ScrubberStyleIndex, 2), Mode=OneWay}"
+                             Click="OnHatchClick">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Hatch"/>
+                        <TextBlock Text="Each frame a slanted cell that cross-hatches as it loads; the frame on screen fills solid."
+                                   TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <Grid Height="20" Margin="0,8,0,0">
+                            <prim:HatchScrubber x:Name="HatchPreview"/>
                         </Grid>
                     </StackPanel>
                 </RadioButton>

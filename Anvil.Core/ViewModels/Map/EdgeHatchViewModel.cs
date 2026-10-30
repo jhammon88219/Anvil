@@ -19,6 +19,30 @@ namespace Anvil.ViewModels
 		internal EdgeHatchViewModel(AppSettings settings) => _settings = settings;
 
 		public IReadOnlyList<string> StyleLabels => EdgeHatchStyles.Labels;
+		public IReadOnlyList<string> PatternLabels => EdgeHatchPatterns.Labels;
+
+		/// <summary>Hatch / Dots, as the picker's index (persisted as a token).</summary>
+		public int PatternIndex
+		{
+			get => EdgeHatchPatterns.IndexOf(_settings.EdgeHatchPattern);
+			set
+			{
+				var token = EdgeHatchPatterns.At(value);
+				if (EdgeHatchPatterns.Normalize(_settings.EdgeHatchPattern) == token) { return; }
+				_settings.EdgeHatchPattern = token;
+				OnPropertyChanged();
+				OnPropertyChanged(nameof(IsDots));
+				OnPropertyChanged(nameof(SpacingLabel));
+				OnPropertyChanged(nameof(WeightLabel));
+			}
+		}
+
+		/// <summary>The band draws the dot-matrix fade (else the crossing lines).</summary>
+		public bool IsDots => EdgeHatchPatterns.Normalize(_settings.EdgeHatchPattern) == EdgeHatchPatterns.Dots;
+
+		/// <summary>The spacing / weight sliders' names follow the pattern: a line's spacing + weight, a dot's pitch + size.</summary>
+		public string SpacingLabel => IsDots ? "Dot pitch" : "Line spacing";
+		public string WeightLabel => IsDots ? "Dot size" : "Line weight";
 
 		/// <summary>The colour swatches (hex; "" = the bar surface, the "A" chip) and their tooltips.</summary>
 		public IReadOnlyList<string> ColorSwatches { get; } = EdgeHatchColors.Presets.Select(p => p.Hex).ToArray();
@@ -135,6 +159,7 @@ namespace Anvil.ViewModels
 		public void RestoreDefaults()
 		{
 			StyleIndex = EdgeHatchStyles.IndexOf(EdgeHatchStyles.Both);
+			PatternIndex = EdgeHatchPatterns.IndexOf(EdgeHatchPatterns.Hatch);
 			ColorHex = EdgeHatchColors.Surface;
 			Opacity = EdgeHatchSizes.DefaultOpacity;
 			Width = EdgeHatchSizes.DefaultWidth;

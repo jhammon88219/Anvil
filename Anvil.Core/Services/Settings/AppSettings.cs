@@ -632,6 +632,10 @@ namespace Anvil.Services
 		private string _edgeHatchStyle = Models.EdgeHatchStyles.Both;
 		public string EdgeHatchStyle { get => _edgeHatchStyle; set => SetProperty(ref _edgeHatchStyle, value); }
 
+		private string _edgeHatchPattern = Models.EdgeHatchPatterns.Hatch;
+		/// <summary>Crossing lines ("hatch") or the dot-matrix fade ("dots").</summary>
+		public string EdgeHatchPattern { get => _edgeHatchPattern; set => SetProperty(ref _edgeHatchPattern, value); }
+
 		private string _edgeHatchColor = Models.EdgeHatchColors.Surface;
 		/// <summary>A <c>#RRGGBB</c>, or empty = the surface the band hangs on (old tokens migrate — EdgeHatchColors.Normalize).</summary>
 		public string EdgeHatchColor { get => _edgeHatchColor; set => SetProperty(ref _edgeHatchColor, value); }

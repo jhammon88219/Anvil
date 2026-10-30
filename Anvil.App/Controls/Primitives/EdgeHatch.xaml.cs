@@ -99,6 +99,19 @@ namespace Anvil.Controls.Primitives
 		public static readonly DependencyProperty LineOpacityProperty =
 			DependencyProperty.Register(nameof(LineOpacity), typeof(double), typeof(EdgeHatch), new PropertyMetadata(1.0));
 
+		/// <summary>Draw the DOT-MATRIX pattern (<see cref="EdgeHatchGeometry.BuildDots"/>) instead of crossing lines.</summary>
+		public bool Dots
+		{
+			get => (bool)GetValue(DotsProperty);
+			set => SetValue(DotsProperty, value);
+		}
+		public static readonly DependencyProperty DotsProperty =
+			DependencyProperty.Register(nameof(Dots), typeof(bool), typeof(EdgeHatch),
+				new PropertyMetadata(false, (d, _) => ((EdgeHatch)d).Rebuild()));
+
+		/// <summary>x:Bind: a dot is a near-zero segment, round-capped into a circle; lines stay flat-ended.</summary>
+		public PenLineCap Cap(bool dots) => dots ? PenLineCap.Round : PenLineCap.Flat;
+
 		// Not templated, so GoToState lands before Loaded too.
 		private void ApplyInk()
 		{
@@ -143,7 +156,10 @@ namespace Anvil.Controls.Primitives
 			double length = up ? w : h, depth = up ? h : w;
 
 			var geometry = new PathGeometry();
-			foreach (var s in EdgeHatchGeometry.Build(length, depth, Spacing, Thin))
+			var segments = Dots
+				? EdgeHatchGeometry.BuildDots(length, depth, Spacing, Thin)
+				: EdgeHatchGeometry.Build(length, depth, Spacing, Thin);
+			foreach (var s in segments)
 			{
 				var figure = new PathFigure { StartPoint = new Point(s.X1, depth - s.Y1), IsClosed = false, IsFilled = false };
 				figure.Segments.Add(new LineSegment { Point = new Point(s.X2, depth - s.Y2) });

@@ -6,11 +6,12 @@
        ┌──────────────────────────────────────────────────────────┐
        │                                     [ Restore defaults ] │  ← ABOVE the sections (every reset is)
        │  ⌄  Edge hatch                                           │
+       │    Pattern     [ Hatch | Dots ]                          │  ← crossing lines, or the dot matrix (dithered)
        │    Style       [ Thinning | Fading | Both | Black shadow ]│  ← Black shadow = the old cast shadow
        │    Line colour  (A) ■ ■ ■ ■ ■ ■ ■ (+)                    │  ← ColorSwatchPicker: A = bar surface (themed),
        │    Band width   ───●──────────────  35 px                │    presets, + = any colour (EdgeHatchColors)
-       │    Line spacing ──●───────────────   5 px                │
-       │    Line weight  ─────────────────●  2.0 px               │
+       │    Line spacing ──●───────────────   5 px                │  ← "Dot pitch" with Dots
+       │    Line weight  ─────────────────●  2.0 px               │  ← "Dot size" with Dots
        │    Line opacity ─────────────────● 100%                  │  ← 35% = the retired "Faint white"
        │    [✓] Hatch the panes' map-side edges                   │
        └──────────────────────────────────────────────────────────┘
@@ -32,11 +33,12 @@
 
         <Button x:Name="EdgeHatchRestoreDefaultsButton" Grid.Row="0" HorizontalAlignment="Right" Content="Restore defaults"
                 Click="{x:Bind ViewModel.RestoreDefaults}"
-                ToolTipService.ToolTip="Both, bar surface colour, 35 px band, 5 px spacing, 2.0 px lines, 100% opacity, panes hatched"/>
+                ToolTipService.ToolTip="Hatch pattern, Both, bar surface colour, 35 px band, 5 px spacing, 2.0 px lines, 100% opacity, panes hatched"/>
 
         <prim:SettingsExpander Grid.Row="1" Header="Edge hatch" IsExpanded="True">
             <Grid RowSpacing="10" ColumnSpacing="12">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -51,15 +53,23 @@
                     <ColumnDefinition Width="56"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Style"/>
-                <prim:SegmentedPicker x:Name="EdgeHatchStylePicker" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2"
+                <!-- Hatch = crossing lines; Dots = the dot matrix (the scrubber's language). Every other row applies to both. -->
+                <TextBlock Grid.Row="0" Margin="4,0,0,0" VerticalAlignment="Center" Text="Pattern"/>
+                <prim:SegmentedPicker x:Name="EdgeHatchPatternPicker" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2"
+                                      HorizontalAlignment="Left" Width="180"
+                                      IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
+                                      ItemsSource="{x:Bind ViewModel.PatternLabels}"
+                                      SelectedIndex="{x:Bind ViewModel.PatternIndex, Mode=TwoWay}"/>
+
+                <TextBlock Grid.Row="1" Margin="4,0,0,0" VerticalAlignment="Center" Text="Style"/>
+                <prim:SegmentedPicker x:Name="EdgeHatchStylePicker" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
                                       HorizontalAlignment="Left" Width="360"
                                       ItemsSource="{x:Bind ViewModel.StyleLabels}"
                                       SelectedIndex="{x:Bind ViewModel.StyleIndex, Mode=TwoWay}"/>
 
                 <!-- Swatches + "+" for any colour (the Range Ring tab's pattern); "A" = the bar surface, which follows the theme. -->
-                <TextBlock Grid.Row="1" Margin="4,0,0,0" VerticalAlignment="Center" Text="Line colour"/>
-                <prim:ColorSwatchPicker x:Name="EdgeHatchColorPicker" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                <TextBlock Grid.Row="2" Margin="4,0,0,0" VerticalAlignment="Center" Text="Line colour"/>
+                <prim:ColorSwatchPicker x:Name="EdgeHatchColorPicker" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
                                         HorizontalAlignment="Left"
                                         AllowCustom="True"
                                         IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
@@ -68,36 +78,36 @@
                                         SelectedIndex="{x:Bind ViewModel.ColorIndex, Mode=TwoWay}"
                                         CustomHex="{x:Bind ViewModel.ColorHex, Mode=TwoWay}"/>
 
-                <TextBlock Grid.Row="2" Margin="4,0,0,0" VerticalAlignment="Center" Text="Band width"/>
-                <Slider x:Name="EdgeHatchWidthSlider" Grid.Row="2" Grid.Column="1" Minimum="16" Maximum="72" StepFrequency="1"
+                <TextBlock Grid.Row="3" Margin="4,0,0,0" VerticalAlignment="Center" Text="Band width"/>
+                <Slider x:Name="EdgeHatchWidthSlider" Grid.Row="3" Grid.Column="1" Minimum="16" Maximum="72" StepFrequency="1"
                         IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
                         Value="{x:Bind ViewModel.Width, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
+                <TextBlock Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
                            Text="{x:Bind ViewModel.WidthText, Mode=OneWay}"/>
 
-                <TextBlock Grid.Row="3" Margin="4,0,0,0" VerticalAlignment="Center" Text="Line spacing"/>
-                <Slider x:Name="EdgeHatchSpacingSlider" Grid.Row="3" Grid.Column="1" Minimum="3" Maximum="12" StepFrequency="1"
+                <TextBlock Grid.Row="4" Margin="4,0,0,0" VerticalAlignment="Center" Text="{x:Bind ViewModel.SpacingLabel, Mode=OneWay}"/>
+                <Slider x:Name="EdgeHatchSpacingSlider" Grid.Row="4" Grid.Column="1" Minimum="3" Maximum="12" StepFrequency="1"
                         IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
                         Value="{x:Bind ViewModel.Spacing, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
+                <TextBlock Grid.Row="4" Grid.Column="2" VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
                            Text="{x:Bind ViewModel.SpacingText, Mode=OneWay}"/>
 
-                <TextBlock Grid.Row="4" Margin="4,0,0,0" VerticalAlignment="Center" Text="Line weight"/>
-                <Slider x:Name="EdgeHatchWeightSlider" Grid.Row="4" Grid.Column="1" Minimum="0.5" Maximum="2" StepFrequency="0.5"
+                <TextBlock Grid.Row="5" Margin="4,0,0,0" VerticalAlignment="Center" Text="{x:Bind ViewModel.WeightLabel, Mode=OneWay}"/>
+                <Slider x:Name="EdgeHatchWeightSlider" Grid.Row="5" Grid.Column="1" Minimum="0.5" Maximum="2" StepFrequency="0.5"
                         IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
                         Value="{x:Bind ViewModel.Weight, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="4" Grid.Column="2" VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
+                <TextBlock Grid.Row="5" Grid.Column="2" VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
                            Text="{x:Bind ViewModel.WeightText, Mode=OneWay}"/>
 
-                <TextBlock Grid.Row="5" Margin="4,0,0,0" VerticalAlignment="Center" Text="Line opacity"/>
-                <Slider x:Name="EdgeHatchOpacitySlider" Grid.Row="5" Grid.Column="1" Minimum="10" Maximum="100" StepFrequency="1"
+                <TextBlock Grid.Row="6" Margin="4,0,0,0" VerticalAlignment="Center" Text="Line opacity"/>
+                <Slider x:Name="EdgeHatchOpacitySlider" Grid.Row="6" Grid.Column="1" Minimum="10" Maximum="100" StepFrequency="1"
                         SmallChange="1" LargeChange="10"
                         IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
                         Value="{x:Bind ViewModel.Opacity, Mode=TwoWay}"/>
-                <TextBlock Grid.Row="5" Grid.Column="2" VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
+                <TextBlock Grid.Row="6" Grid.Column="2" VerticalAlignment="Center" Style="{StaticResource TabularNumberTextStyle}"
                            Text="{x:Bind ViewModel.OpacityText, Mode=OneWay}"/>
 
-                <CheckBox x:Name="EdgeHatchOnPanesCheckBox" Grid.Row="6" Grid.ColumnSpan="3" Margin="4,0,0,0"
+                <CheckBox x:Name="EdgeHatchOnPanesCheckBox" Grid.Row="7" Grid.ColumnSpan="3" Margin="4,0,0,0"
                           Content="Hatch the panes' map-side edges"
                           IsEnabled="{x:Bind ViewModel.IsHatch, Mode=OneWay}"
                           IsChecked="{x:Bind ViewModel.OnPanes, Mode=TwoWay}"/>

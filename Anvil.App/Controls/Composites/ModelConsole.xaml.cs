@@ -39,8 +39,18 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty UseDotMatrixProperty =
 			DependencyProperty.Register(nameof(UseDotMatrix), typeof(bool), typeof(ModelConsole), new PropertyMetadata(false));
 
-		public Visibility ClassicVisibility(bool dots) => dots ? Visibility.Collapsed : Visibility.Visible;
-		public Visibility DotVisibility(bool dots) => dots ? Visibility.Visible : Visibility.Collapsed;
+		/// <summary>Radar's hatch scrubber is picked (Settings → Radar Console) — the third look.</summary>
+		public bool UseHatch
+		{
+			get => (bool)GetValue(UseHatchProperty);
+			set => SetValue(UseHatchProperty, value);
+		}
+
+		public static readonly DependencyProperty UseHatchProperty =
+			DependencyProperty.Register(nameof(UseHatch), typeof(bool), typeof(ModelConsole), new PropertyMetadata(false));
+
+		public Visibility ClassicVisibility(bool dots, bool hatch) => dots || hatch ? Visibility.Collapsed : Visibility.Visible;
+		public Visibility DotVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
 
 		private void OnPlayStopClick(object sender, RoutedEventArgs e)
 		{

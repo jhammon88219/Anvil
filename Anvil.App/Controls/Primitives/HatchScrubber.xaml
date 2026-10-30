@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HatchScrubber — the loop scrubber in the EDGE HATCH's language (the third choice in Settings → Radar Console, beside
+     ClassicScrubber and DotMatrixScrubber; the console picks one by RadarViewModel.IsClassic/IsDotMatrix/IsHatchScrubber).
+     Density is progress: each frame a slanted cell (HatchScrubberCell) that cross-hatches as it loads.
+
+       ┌─ 16 tall ─────────────────────────────────────────────────────────┐
+       │ ╳╳╳╳ ╳╳╳╳ ╳╳╳╳ ████ ╳╳╳╳ ╱╱╱╱ ╱ ╱  ╱‾‾╱ ╱‾‾╱ ╱‾‾╱                  │  ← cells on EqualCellsPanel, 1 px apart
+       └───────────────────────────────────────────────────────────────────┘
+          ready (crossed)  ↑ CURRENT   building  downloading  empty (outline)
+                           a SOLID parallelogram over the frame on screen, positioned in code
+
+     ⚠️ The marker asks EqualCellsPanel.CellEdge where its cell sits — one rounding rule, no drift — and takes its
+     shape from HatchScrubberGeometry.Outline (computed geometry; the Path is declared here, in a theme brush).
+     ⚠️ Not hit-testable: the host (RadarControls.ScrubberHost / ModelConsole) owns the pointer, equal slots as the
+     classic scrubber's. -->
+<UserControl x:Class="Anvil.Controls.Primitives.HatchScrubber"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Anvil.ViewModels"
+             xmlns:layout="using:Anvil.Layout"
+             xmlns:prim="using:Anvil.Controls.Primitives"
+             mc:Ignorable="d"
+             IsTabStop="False"
+             IsHitTestVisible="False"
+             VerticalAlignment="Center">
+
+    <Grid x:Name="HatchScrubberRoot" Height="16" SizeChanged="OnRootSizeChanged">
+        <ItemsControl ItemsSource="{x:Bind Segments, Mode=OneWay}" Height="{x:Bind CellHeight}" VerticalAlignment="Center">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <layout:EqualCellsPanel/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:RadarFrameSegment">
+                    <prim:HatchScrubberCell Margin="0.5,0"
+                                            Fill="{x:Bind Fill, Mode=OneWay}"
+                                            IsReady="{x:Bind IsReady, Mode=OneWay}"/>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <!-- The frame on screen: Data + position set in code (computed geometry — see the header). -->
+        <Path x:Name="HatchScrubberCurrent"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Center"
+              Fill="{ThemeResource TextFillColorPrimaryBrush}">
+            <Path.RenderTransform>
+                <TranslateTransform x:Name="HatchScrubberCurrentTransform"/>
+            </Path.RenderTransform>
+        </Path>
+    </Grid>
+</UserControl>

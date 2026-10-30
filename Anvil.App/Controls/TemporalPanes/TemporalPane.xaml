@@ -86,6 +86,7 @@
                         Weight="{x:Bind ViewModel.EdgeHatch.Weight, Mode=OneWay}"
                         Thin="{x:Bind ViewModel.EdgeHatch.Thins, Mode=OneWay}"
                         Fade="{x:Bind ViewModel.EdgeHatch.Fades, Mode=OneWay}"
+                        Dots="{x:Bind ViewModel.EdgeHatch.IsDots, Mode=OneWay}"
                         Ink="{x:Bind ViewModel.EdgeHatch.ColorHex, Mode=OneWay}"
                        LineOpacity="{x:Bind ViewModel.EdgeHatch.LineOpacity, Mode=OneWay}"
                         Visibility="{x:Bind HatchVisibility(ViewModel.EdgeHatch.IsPaneHatch), Mode=OneWay}"/>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HatchScrubberCell — ONE frame of the HatchScrubber: a slanted cell whose hatching thickens as the frame loads
+     (Models/Radar/HatchScrubberLadder, read off the frame's Fill — the same number every scrubber reads).
+
+        empty         downloading     building        ready
+        ╱‾‾‾‾╱        ╱‾╱‾‾╱          ╱╱╱╱╱╱          ╳╳╳╳╳╳
+       ╱____╱        ╱_╱__╱          ╱╱╱╱╱╱          ╳╳╳╳╳╳       ← outline always; "/" every 6 px, then every 3 px;
+                                                                    ready adds the crossing "\" (the edge hatch's ladder)
+
+     ⚠️ COMPUTED GEOMETRY (the allowed exception): both Paths are DECLARED here in their theme brushes; the code-behind
+     fills their Data from HatchScrubberGeometry (pure, tested) only when the LEVEL or the SIZE changes — a load ticks
+     Fill every 150 ms, but a cell redraws at most three times per load. -->
+<UserControl x:Class="Anvil.Controls.Primitives.HatchScrubberCell"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             IsTabStop="False"
+             IsHitTestVisible="False">
+
+    <Grid x:Name="HatchScrubberCellRoot" SizeChanged="OnSizeChanged">
+        <!-- Data set in code (computed geometry — see the header). -->
+        <Path x:Name="HatchScrubberCellLines" StrokeThickness="1" Stroke="{ThemeResource AccentFillColorDefaultBrush}"/>
+        <Path x:Name="HatchScrubberCellOutline" StrokeThickness="1" Stroke="{ThemeResource TextFillColorTertiaryBrush}"/>
+    </Grid>
+</UserControl>

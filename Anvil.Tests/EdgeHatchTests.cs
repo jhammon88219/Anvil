@@ -169,6 +169,53 @@ namespace Anvil.Tests
 			Assert.InRange(Reaching(1.0) / (double)interior.Count, 0.1, 0.15);
 		}
 
+		// ── The dot-matrix pattern ──
+
+		[Fact]
+		public void Pattern_tokens_and_slider_names()
+		{
+			Assert.Equal("hatch", EdgeHatchPatterns.Normalize("bogus"));
+			Assert.Equal(1, EdgeHatchPatterns.IndexOf("dots"));
+			var s = new Anvil.Services.AppSettings();
+			var vm = new Anvil.ViewModels.EdgeHatchViewModel(s);
+			Assert.False(vm.IsDots);
+			Assert.Equal("Line spacing", vm.SpacingLabel);
+			vm.PatternIndex = 1;
+			Assert.Equal("dots", s.EdgeHatchPattern);
+			Assert.True(vm.IsDots);
+			Assert.Equal("Dot pitch", vm.SpacingLabel);
+			Assert.Equal("Dot size", vm.WeightLabel);
+			vm.RestoreDefaults();
+			Assert.Equal("hatch", s.EdgeHatchPattern);
+		}
+
+		[Fact]
+		public void Dots_sit_on_the_pitch_grid_inside_the_band()
+		{
+			var dots = EdgeHatchGeometry.BuildDots(100, 35, 5, thin: false);
+			Assert.Equal(20 * 7, dots.Count);                       // every cell, no thinning
+			Assert.All(dots, d =>
+			{
+				Assert.Equal(d.Y1, d.Y2);
+				Assert.InRange(d.X2 - d.X1, 0, EdgeHatchGeometry.DotNudge + 1e-9);
+				Assert.Equal(2.5, (d.X1 - 2.5) % 5 + 2.5, 6);       // cell centres
+				Assert.InRange(d.Y1, 0, 35);
+			});
+			Assert.Empty(EdgeHatchGeometry.BuildDots(0, 35, 5, true));
+		}
+
+		[Fact]
+		public void Dot_thinning_dithers_toward_the_map()
+		{
+			var dots = EdgeHatchGeometry.BuildDots(4000, 40, 5, thin: true);
+			int Row(int j) => dots.Count(d => Math.Abs(d.Y1 - (j + 0.5) * 5) < 1e-6);
+			int perRow = 4000 / 5;
+			Assert.True(Row(0) > Row(3));                            // denser at the edge…
+			Assert.True(Row(3) > Row(7));                            // …sparser toward the map
+			Assert.InRange(Row(0) / (double)perRow, 0.85, 1.0);      // density 1 − 2.5/40 ≈ 0.94
+			Assert.InRange(Row(7) / (double)perRow, 0.0, 0.15);      // density 1 − 37.5/40 ≈ 0.06
+		}
+
 		[Fact]
 		public void Reach_follows_the_index()
 		{

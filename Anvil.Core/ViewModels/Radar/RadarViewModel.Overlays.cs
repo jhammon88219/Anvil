@@ -99,7 +99,7 @@ namespace Anvil.ViewModels
 		}
 
 		// ── SCRUBBER STYLE (Settings → Radar Console) ──────────────────────────────────────────────────────
-		// Which scrubber the bar's console draws: classic cells or the dot matrix. A preference only — both read the
+		// Which scrubber the bar's console draws: classic cells, the dot matrix or the hatch. A preference only — both read the
 		// same Segments; nothing about the loop changes.
 
 		/// <summary>The scrubber picker's labels, in <see cref="Models.ScrubberStyles.All"/> order.</summary>
@@ -119,11 +119,19 @@ namespace Anvil.ViewModels
 				_settings.Settings.ScrubberStyle = token; // persists (auto-save)
 				OnPropertyChanged();
 				OnPropertyChanged(nameof(IsDotMatrixScrubber));
+				OnPropertyChanged(nameof(IsClassicScrubber));
+				OnPropertyChanged(nameof(IsHatchScrubber));
 			}
 		}
 
-		/// <summary>The console draws the dot-matrix scrubber (else the classic cells).</summary>
+		/// <summary>The console draws the classic cells.</summary>
+		public bool IsClassicScrubber => ScrubberStyleIndex == 0;
+
+		/// <summary>The console draws the dot-matrix scrubber.</summary>
 		public bool IsDotMatrixScrubber => ScrubberStyleIndex == 1;
+
+		/// <summary>The console draws the hatch scrubber (Primitives/HatchScrubber — the edge hatch's language).</summary>
+		public bool IsHatchScrubber => ScrubberStyleIndex == 2;
 
 		/// <summary>Called by the coordinator whenever the user-location marker is placed, dragged, re-located
 		/// or removed (null = no marker).</summary>

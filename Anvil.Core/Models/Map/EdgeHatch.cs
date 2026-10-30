@@ -37,6 +37,28 @@ namespace Anvil.Models
 	}
 
 	/// <summary>
+	/// The band's PATTERN (<c>AppSettings.EdgeHatchPattern</c>): crossing lines (the hatch) or a dot-matrix fade — two
+	/// visual directions kept side by side (the user's call, 2026-10-30), like the console's Classic / Dot matrix
+	/// scrubbers. The style (thin / fade / both), colour, opacity and band width apply to either; for Dots, spacing is
+	/// the dot PITCH and weight the dot SIZE.
+	/// </summary>
+	public static class EdgeHatchPatterns
+	{
+		public const string Hatch = "hatch";
+		public const string Dots = "dots";
+
+		public static readonly IReadOnlyList<string> Tokens = new[] { Hatch, Dots };
+		public static readonly IReadOnlyList<string> Labels = new[] { "Hatch", "Dots" };
+
+		/// <summary>A known token, else <see cref="Hatch"/>.</summary>
+		public static string Normalize(string? token) => token == Dots ? Dots : Hatch;
+
+		public static int IndexOf(string? token) => Normalize(token) == Dots ? 1 : 0;
+
+		public static string At(int index) => index == 1 ? Dots : Hatch;
+	}
+
+	/// <summary>
 	/// The hatch's line colour (<c>AppSettings.EdgeHatchColor</c>): a <c>#RRGGBB</c>, or empty = the SURFACE the band hangs
 	/// on (the tier, or the pane — the chrome dissolving into the map, themed). Presets + any custom colour (the swatch
 	/// picker's "+" chip), the scope-colour pattern (<see cref="ScopeColors"/>).
@@ -155,6 +177,40 @@ namespace Anvil.Models
 				}
 			}
 			return lines;
+		}
+
+		/// <summary>A dot is drawn as a stroke this long with ROUND caps (the dot's diameter = the stroke weight), so dots
+		/// and lines share one Path, one brush set and one fade.</summary>
+		public const double DotNudge = 0.01;
+
+		// Ordered (Bayer 4×4) dither thresholds, /16: a cell keeps its dot while its threshold is below the local density.
+		private static readonly int[,] Bayer = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
+
+		/// <summary>
+		/// The DOT-MATRIX pattern: a grid at <paramref name="pitch"/>, a dot at each cell centre. THINNING = an ordered
+		/// (Bayer) dither against the density 1 − distance/depth, so dots drop out in a fixed scattered order and the
+		/// field dissolves without banding; without it every dot stays (the fade, if any, is the brush's). Each dot is a
+		/// <see cref="DotNudge"/>-long segment in band coordinates (edge along y = 0).
+		/// </summary>
+		public static IReadOnlyList<HatchSegment> BuildDots(double length, double depth, double pitch, bool thin)
+		{
+			var dots = new List<HatchSegment>();
+			if (!(length > 0) || !(depth > 0) || !double.IsFinite(length) || !double.IsFinite(depth)) { return dots; }
+			pitch = Math.Max(1, double.IsFinite(pitch) ? pitch : EdgeHatchSizes.DefaultSpacing);
+
+			int rows = (int)Math.Floor(depth / pitch), cols = (int)Math.Floor(length / pitch);
+			for (int j = 0; j < rows; j++)
+			{
+				double y = (j + 0.5) * pitch;
+				double density = 1 - y / depth;
+				for (int i = 0; i < cols; i++)
+				{
+					if (thin && Bayer[j % 4, i % 4] / 16.0 >= density) { continue; }
+					double x = (i + 0.5) * pitch;
+					dots.Add(new HatchSegment(x, y, Math.Min(length, x + DotNudge), y));
+				}
+			}
+			return dots;
 		}
 
 		/// <summary>How far line <paramref name="i"/> (1-based) reaches, as a share of the depth.</summary>
