@@ -131,6 +131,10 @@
                                         Visibility="{x:Bind DotVisibility(UseDotMatrix), Mode=OneWay}"/>
                 <prim:HatchScrubber Segments="{x:Bind ViewModel.Segments, Mode=OneWay}"
                                     CurrentIndex="{x:Bind ViewModel.CurrentFrameIndex, Mode=OneWay}"
+                                    Spacing="{x:Bind EdgeHatch.Spacing, Mode=OneWay}"
+                                    Weight="{x:Bind EdgeHatch.Weight, Mode=OneWay}"
+                                    Ink="{x:Bind EdgeHatch.ColorHex, Mode=OneWay}"
+                                    LineOpacity="{x:Bind EdgeHatch.LineOpacity, Mode=OneWay}"
                                     Visibility="{x:Bind DotVisibility(UseHatch), Mode=OneWay}"/>
             </Grid>
 

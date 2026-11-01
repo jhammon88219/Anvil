@@ -1,54 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- HatchScrubber — the loop scrubber in the EDGE HATCH's language (the third choice in Settings → Radar Console, beside
+<!-- HatchScrubber — the loop scrubber drawn AS the edge hatch (the third choice in Settings → Radar Console, beside
      ClassicScrubber and DotMatrixScrubber; the console picks one by RadarViewModel.IsClassic/IsDotMatrix/IsHatchScrubber).
-     Density is progress: each frame a slanted cell (HatchScrubberCell) that cross-hatches as it loads.
+     The user's call (2026-11-01): "match the current edge and just place it horizontally".
 
-       ┌─ 16 tall ─────────────────────────────────────────────────────────┐
-       │ ╳╳╳╳ ╳╳╳╳ ╳╳╳╳ ████ ╳╳╳╳ ╱╱╱╱ ╱ ╱  ╱‾‾╱ ╱‾‾╱ ╱‾‾╱                  │  ← cells on EqualCellsPanel, 1 px apart
-       └───────────────────────────────────────────────────────────────────┘
-          ready (crossed)  ↑ CURRENT   building  downloading  empty (outline)
-                           a SOLID parallelogram over the frame on screen, positioned in code
+       ┌─ 24 tall (bleeds 4 px above the console's 20 px hit strip) ───────────────────────┐
+       │ ╱╲  ╱╲      ╱    ╲   ╱╲  ║╲  ║║       ╱                                         │  ← the edge's own lines, thinning
+       │╱╲╱╲╱╲╱╲  ╱╲╱╲  ╱╲╱╲╱╲╱╲╱║║╲╱║║╲  ╱╲ ╱╲╱  ╱  ╱                                     │    + fading upward (one pattern,
+       │╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲║║╱╲║║╱╲╱╲╱╲╱╲╱╲╱╲╱  ╱ ╱ ╱                                │    never clipped per frame)
+       └───────────────────────────────────────────────────────────────────────────────────┘
+          ready frames: full height   ↑ CURRENT frame:      loading: lines GROW     empty: nothing
+                                        bolder (×1.75),      out of the edge with
+                                        full opacity         the frame's Fill
 
-     ⚠️ The marker asks EqualCellsPanel.CellEdge where its cell sits — one rounding rule, no drift — and takes its
-     shape from HatchScrubberGeometry.Outline (computed geometry; the Path is declared here, in a theme brush).
-     ⚠️ Not hit-testable: the host (RadarControls.ScrubberHost / ModelConsole) owns the pointer, equal slots as the
-     classic scrubber's. -->
+     ⚠️ COMPUTED GEOMETRY (the allowed exception — WinUI 3 has no tiling pattern brush): the two Paths are declared here;
+     code-behind fills their Data from Models/Radar/HatchScrubberStrip (pure, tested — a fully loaded strip IS
+     EdgeHatchGeometry's lines). A line belongs to the frame its BASE point falls in (equal slots, the host's pointer rule).
+     Redrawn once per dispatcher turn however many frames move (a loading loop moves many at once).
+     ⚠️ LOOK = Settings → Edges (Spacing, Weight, Ink, LineOpacity, bound by the host) scaled to 24 px — thinning and
+     fading always on (the scrubber's whole look). Ink "" (the edge's SURFACE colour) would vanish on the bar it sits on,
+     so it means the ACCENT here. The brushes are DATA made in code (hex, or the OS accent read for this element's
+     ActualTheme — never a theme brush resolved in C#); they fade to their own clear twin, never through black.
+     ⚠️ Not hit-testable: the host (RadarControls.ScrubberHost / ModelConsole) owns the pointer, equal slots. -->
 <UserControl x:Class="Anvil.Controls.Primitives.HatchScrubber"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="using:Anvil.ViewModels"
-             xmlns:layout="using:Anvil.Layout"
-             xmlns:prim="using:Anvil.Controls.Primitives"
              mc:Ignorable="d"
              IsTabStop="False"
              IsHitTestVisible="False"
-             VerticalAlignment="Center">
+             VerticalAlignment="Bottom"
+             Margin="0,-4,0,0">
+    <!-- Margin -4 = Depth (24) − the hosts' 20 px strip: the lines bleed upward, the edge stays on the strip's bottom. -->
 
-    <Grid x:Name="HatchScrubberRoot" Height="16" SizeChanged="OnRootSizeChanged">
-        <ItemsControl ItemsSource="{x:Bind Segments, Mode=OneWay}" Height="{x:Bind CellHeight}" VerticalAlignment="Center">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <layout:EqualCellsPanel/>
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="vm:RadarFrameSegment">
-                    <prim:HatchScrubberCell Margin="0.5,0"
-                                            Fill="{x:Bind Fill, Mode=OneWay}"
-                                            IsReady="{x:Bind IsReady, Mode=OneWay}"/>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <!-- The frame on screen: Data + position set in code (computed geometry — see the header). -->
-        <Path x:Name="HatchScrubberCurrent"
-              HorizontalAlignment="Left"
-              VerticalAlignment="Center"
-              Fill="{ThemeResource TextFillColorPrimaryBrush}">
-            <Path.RenderTransform>
-                <TranslateTransform x:Name="HatchScrubberCurrentTransform"/>
-            </Path.RenderTransform>
-        </Path>
-    </Grid>
+    <Canvas x:Name="HatchScrubberCanvas" Height="{x:Bind Depth}" SizeChanged="OnCanvasSizeChanged">
+        <!-- Data + Stroke set in code (computed geometry, data brushes — see the header). -->
+        <Path x:Name="HatchScrubberLines"
+              StrokeThickness="{x:Bind LineWeight(Weight), Mode=OneWay}"
+              Opacity="{x:Bind LineOpacity, Mode=OneWay}"/>
+        <Path x:Name="HatchScrubberCurrentLines"
+              StrokeThickness="{x:Bind CurrentLineWeight(Weight), Mode=OneWay}"/>
+    </Canvas>
 </UserControl>

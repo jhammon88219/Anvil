@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Anvil.Tests
 {
-	/// <summary>The hatch scrubber: its style token, its fill ladder and its cell geometry.</summary>
+	/// <summary>The hatch scrubber: its style token and its strip (the edge hatch laid along the loop).</summary>
 	public class HatchScrubberTests
 	{
 		[Fact]
@@ -20,76 +20,59 @@ namespace Anvil.Tests
 			Assert.Equal("Hatch", ScrubberStyles.Normalize("Hatch"));
 		}
 
-		[Theory]
-		[InlineData(0.0, false, HatchScrubberLadder.Empty)]
-		[InlineData(0.1, false, HatchScrubberLadder.Downloading)]
-		[InlineData(0.49, false, HatchScrubberLadder.Downloading)]
-		[InlineData(0.5, false, HatchScrubberLadder.Building)]
-		[InlineData(0.9, false, HatchScrubberLadder.Building)]   // built but not yet revealed (MaxUnlitFill) never reads ready
-		[InlineData(1.0, false, HatchScrubberLadder.Ready)]
-		[InlineData(0.0, true, HatchScrubberLadder.Ready)]
-		[InlineData(double.NaN, false, HatchScrubberLadder.Empty)]
-		public void Ladder_follows_the_fill(double fill, bool ready, int expected) =>
-			Assert.Equal(expected, HatchScrubberLadder.Level(fill, ready));
-
 		[Fact]
-		public void Slant_never_exceeds_half_the_cell()
+		public void A_fully_loaded_strip_is_exactly_the_edge()
 		{
-			Assert.Equal(6, HatchScrubberGeometry.Slant(20, 12));
-			Assert.Equal(2, HatchScrubberGeometry.Slant(4, 12));
-			Assert.Equal(0, HatchScrubberGeometry.Slant(0, 12));
+			const double length = 420, depth = HatchScrubberStrip.Depth, spacing = 5;
+			var fills = Enumerable.Repeat(1.0, 30).ToArray();
+			var (lines, current) = HatchScrubberStrip.Build(length, depth, spacing, fills, 7);
+			var edge = EdgeHatchGeometry.Build(length, depth, HatchScrubberStrip.Scaled(spacing, depth), thin: true);
+			var strip = lines.Concat(current).ToHashSet();
+			Assert.Equal(edge.Count, strip.Count);
+			Assert.True(edge.All(strip.Contains));
 		}
 
 		[Fact]
-		public void Empty_cell_has_no_lines()
+		public void Nothing_loaded_draws_nothing()
 		{
-			Assert.Empty(HatchScrubberGeometry.Lines(20, 12, HatchScrubberLadder.Empty));
-			Assert.Empty(HatchScrubberGeometry.Lines(0, 12, HatchScrubberLadder.Ready));
+			var (lines, current) = HatchScrubberStrip.Build(420, 24, 5, new double[30], 3);
+			Assert.Empty(lines);
+			Assert.Empty(current);
 		}
 
 		[Fact]
-		public void Lines_stay_inside_the_parallelogram_and_thicken_with_progress()
+		public void A_line_belongs_to_the_frame_of_its_base_and_grows_with_that_fill()
 		{
-			const double w = 20, h = 12;
-			var outline = HatchScrubberGeometry.Outline(w, h);
-			int Count(int level) => HatchScrubberGeometry.Lines(w, h, level).Count;
-
-			foreach (var level in new[] { HatchScrubberLadder.Downloading, HatchScrubberLadder.Building, HatchScrubberLadder.Ready })
+			const double length = 400, depth = 24;
+			var fills = new double[] { 1, 0.5, 0, 0 };
+			var (lines, _) = HatchScrubberStrip.Build(length, depth, 5, fills, -1);
+			Assert.NotEmpty(lines);
+			foreach (var s in lines)
 			{
-				foreach (var s in HatchScrubberGeometry.Lines(w, h, level))
-				{
-					Assert.True(Inside(outline, s.X1, s.Y1) && Inside(outline, s.X2, s.Y2), $"level {level}: {s}");
-				}
+				double baseX = s.X1 - (s.X2 > s.X1 ? s.Y1 : -s.Y1); // walk back along the 45° line to y = 0
+				int frame = HatchScrubberStrip.FrameOf(baseX, length / fills.Length, fills.Length);
+				Assert.True(fills[frame] > 0);
+				Assert.True(s.Y2 <= depth * fills[frame] + 1e-9); // a half-loaded frame reaches at most half the depth
 			}
-			Assert.True(Count(HatchScrubberLadder.Downloading) < Count(HatchScrubberLadder.Building));
-			Assert.True(Count(HatchScrubberLadder.Building) < Count(HatchScrubberLadder.Ready));
-			// Only ready cells cross: every building line leans the same way ("/": x grows as y shrinks).
-			Assert.All(HatchScrubberGeometry.Lines(w, h, HatchScrubberLadder.Building), s => Assert.True((s.X2 - s.X1) * (s.Y2 - s.Y1) < 0));
-			Assert.Contains(HatchScrubberGeometry.Lines(w, h, HatchScrubberLadder.Ready), s => (s.X2 - s.X1) * (s.Y2 - s.Y1) > 0);
 		}
 
 		[Fact]
-		public void Clip_rejects_a_segment_outside()
+		public void The_frame_on_screen_comes_back_apart()
 		{
-			var outline = HatchScrubberGeometry.Outline(20, 12);
-			Assert.Null(HatchScrubberGeometry.Clip(outline, 30, 0, 40, 12));
-			Assert.NotNull(HatchScrubberGeometry.Clip(outline, -5, 6, 25, 6));
+			const double length = 400;
+			var fills = Enumerable.Repeat(1.0, 4).ToArray();
+			var (lines, current) = HatchScrubberStrip.Build(length, 24, 5, fills, 2);
+			Assert.NotEmpty(current);
+			foreach (var s in current)
+			{
+				double baseX = s.X1 - (s.X2 > s.X1 ? s.Y1 : -s.Y1);
+				Assert.Equal(2, HatchScrubberStrip.FrameOf(baseX, length / 4, 4));
+			}
+			Assert.DoesNotContain(lines, s => HatchScrubberStrip.FrameOf(s.X1 - (s.X2 > s.X1 ? s.Y1 : -s.Y1), length / 4, 4) == 2);
 		}
 
-		private static bool Inside((double X, double Y)[] poly, double x, double y)
-		{
-			// Convex: on the same side of every edge (with a small tolerance for the clip's endpoints).
-			int sign = 0;
-			for (int i = 0; i < poly.Length; i++)
-			{
-				var a = poly[i];
-				var b = poly[(i + 1) % poly.Length];
-				double cross = (b.X - a.X) * (y - a.Y) - (b.Y - a.Y) * (x - a.X);
-				if (System.Math.Abs(cross) < 1e-6) { continue; }
-				int s = cross > 0 ? 1 : -1;
-				if (sign == 0) { sign = s; } else if (s != sign) { return false; }
-			}
-			return true;
-		}
+		[Fact]
+		public void Spacing_scales_with_the_strip_depth() =>
+			Assert.Equal(5.0 * 24 / EdgeHatchSizes.DefaultWidth, HatchScrubberStrip.Scaled(5, 24), 9);
 	}
 }

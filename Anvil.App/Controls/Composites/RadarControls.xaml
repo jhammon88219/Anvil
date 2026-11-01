@@ -175,7 +175,8 @@
                  indicator for the whole loop (Rule 2). THREE looks, picked in Settings → Radar Console
                  (ViewModel.Is{Classic,DotMatrix,Hatch}Scrubber): Primitives/ClassicScrubber (8 px cells + playhead),
                  Primitives/DotMatrixScrubber (one even run of dots, 5 rows, 17.5 tall) or Primitives/HatchScrubber
-                 (slanted cells that cross-hatch as they load, a solid cell on screen). All drawing only; THIS host is
+                 (the EDGE hatch laid along the loop, lines growing with each frame's fill, the frame on screen bolder;
+                 24 tall, bleeding 4 px up; its look = Settings → Edges via EdgeHatch). All drawing only; THIS host is
                  the 20 px hit strip and maps the pointer (classic + hatch: equal slots; dots: DotScrubber.IndexAt). -->
             <Grid x:Name="ScrubberHost"
                   Grid.Row="0"
@@ -199,6 +200,10 @@
                                         Visibility="{x:Bind ViewModel.IsDotMatrixScrubber, Mode=OneWay}"/>
                 <prim:HatchScrubber Segments="{x:Bind ViewModel.Segments, Mode=OneWay}"
                                     CurrentIndex="{x:Bind ViewModel.CurrentFrameIndex, Mode=OneWay}"
+                                    Spacing="{x:Bind EdgeHatch.Spacing, Mode=OneWay}"
+                                    Weight="{x:Bind EdgeHatch.Weight, Mode=OneWay}"
+                                    Ink="{x:Bind EdgeHatch.ColorHex, Mode=OneWay}"
+                                    LineOpacity="{x:Bind EdgeHatch.LineOpacity, Mode=OneWay}"
                                     Visibility="{x:Bind ViewModel.IsHatchScrubber, Mode=OneWay}"/>
             </Grid>
 

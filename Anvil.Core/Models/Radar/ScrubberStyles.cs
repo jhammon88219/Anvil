@@ -17,8 +17,8 @@ namespace Anvil.Models
 		/// <summary>Each frame a block of dots that fill as it loads; the current frame lights whole — the default.</summary>
 		public const string Dots = "Dots";
 
-		/// <summary>Each frame a slanted cell whose hatching thickens as it loads (<see cref="HatchScrubberLadder"/>); the
-		/// current frame solid.</summary>
+		/// <summary>The edge hatch laid along the loop, each frame's lines growing as it loads (<see cref="HatchScrubberStrip"/>);
+		/// the current frame bolder.</summary>
 		public const string Hatch = "Hatch";
 
 		/// <summary>Every token, in picker order. ⚠️ Parallel to <see cref="Labels"/>.</summary>

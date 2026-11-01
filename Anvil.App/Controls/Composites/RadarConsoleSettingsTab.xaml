@@ -16,8 +16,8 @@
        │    └────────────────────────────────────────────┘    │
        │    ┌────────────────────────────────────────────┐    │
        │    │ ◯ Hatch                                    │    │
-       │    │   Each frame a slanted cell that …         │    │
-       │    │   ╳╳ ╳╳ ██ ╳╳ ╱╱ ╱ ╱ ╱‾╱                   │    │  ← Primitives/HatchScrubber, LIVE
+       │    │   The edge hatch along the loop …          │    │
+       │    │   ╱╲╱╲╱╲║╲║╱╲╱╲ ╱ ╱                        │    │  ← Primitives/HatchScrubber, LIVE (look = Settings → Edges)
        │    └────────────────────────────────────────────┘    │
        │    Previews show the loaded loop; a sample until one loads.
        └──────────────────────────────────────────────────────┘
@@ -87,11 +87,15 @@
                              Click="OnHatchClick">
                     <StackPanel Spacing="2">
                         <TextBlock Text="Hatch"/>
-                        <TextBlock Text="Each frame a slanted cell that cross-hatches as it loads; the frame on screen fills solid."
+                        <TextBlock Text="The edge hatch along the loop: each frame's lines grow as it loads; the frame on screen is bolder. Colour, spacing, weight and opacity follow Settings → Edges."
                                    TextWrapping="Wrap" FontSize="12"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        <Grid Height="20" Margin="0,8,0,0">
-                            <prim:HatchScrubber x:Name="HatchPreview"/>
+                        <Grid Height="20" Margin="0,12,0,0">
+                            <prim:HatchScrubber x:Name="HatchPreview"
+                                                Spacing="{x:Bind ViewModel.EdgeHatch.Spacing, Mode=OneWay}"
+                                                Weight="{x:Bind ViewModel.EdgeHatch.Weight, Mode=OneWay}"
+                                                Ink="{x:Bind ViewModel.EdgeHatch.ColorHex, Mode=OneWay}"
+                                                LineOpacity="{x:Bind ViewModel.EdgeHatch.LineOpacity, Mode=OneWay}"/>
                         </Grid>
                     </StackPanel>
                 </RadioButton>

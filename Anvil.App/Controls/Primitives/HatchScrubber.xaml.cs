@@ -1,32 +1,37 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Anvil.Layout;
+using Windows.UI.ViewManagement;
 using Anvil.Models;
 using Anvil.ViewModels;
+using Color = Windows.UI.Color;
 using Point = Windows.Foundation.Point;
 
 namespace Anvil.Controls.Primitives
 {
 	/// <summary>
-	/// The hatch loop scrubber (see HatchScrubber.xaml): a <see cref="HatchScrubberCell"/> per frame of
-	/// <see cref="Segments"/>, a solid marker over <see cref="CurrentIndex"/>. Drawing only — the host maps the pointer.
+	/// The hatch loop scrubber (see HatchScrubber.xaml): the edge hatch laid along the loop, each frame's lines grown by its
+	/// fill, the frame on screen's lines bolder. Drawing only — the host maps the pointer.
 	/// </summary>
 	public sealed partial class HatchScrubber : UserControl
 	{
 		private ObservableCollection<RadarFrameSegment>? _attached;
+		private readonly List<RadarFrameSegment> _watched = new();
 
-		/// <summary>The cells' height, px (the root is 16, the classic scrubber's).</summary>
-		public double CellHeight => 12;
+		/// <summary>The strip's height, px.</summary>
+		public double Depth => HatchScrubberStrip.Depth;
 
 		public HatchScrubber()
 		{
 			InitializeComponent();
-			Loaded += (_, _) => Attach();
+			Loaded += (_, _) => { ApplyInk(); Attach(); };
 			Unloaded += (_, _) => Detach(); // the VM's collection outlives a Settings window — never leak into it
+			ActualThemeChanged += (_, _) => ApplyInk();
 		}
 
 		/// <summary>The loop's frames (RadarViewModel.Segments, or a preview's sample).</summary>
@@ -40,7 +45,7 @@ namespace Anvil.Controls.Primitives
 			DependencyProperty.Register(nameof(Segments), typeof(ObservableCollection<RadarFrameSegment>), typeof(HatchScrubber),
 				new PropertyMetadata(null, (d, _) => ((HatchScrubber)d).Attach()));
 
-		/// <summary>The frame on screen (RadarViewModel.CurrentFrameIndex); the marker covers its cell.</summary>
+		/// <summary>The frame on screen (RadarViewModel.CurrentFrameIndex); its lines are drawn bolder.</summary>
 		public double CurrentIndex
 		{
 			get => (double)GetValue(CurrentIndexProperty);
@@ -49,7 +54,93 @@ namespace Anvil.Controls.Primitives
 
 		public static readonly DependencyProperty CurrentIndexProperty =
 			DependencyProperty.Register(nameof(CurrentIndex), typeof(double), typeof(HatchScrubber),
-				new PropertyMetadata(0.0, (d, _) => ((HatchScrubber)d).UpdateCurrent()));
+				new PropertyMetadata(0.0, (d, _) => ((HatchScrubber)d).QueueDraw()));
+
+		/// <summary>The EDGE's line spacing (Settings → Edges), px — scaled to the strip.</summary>
+		public double Spacing
+		{
+			get => (double)GetValue(SpacingProperty);
+			set => SetValue(SpacingProperty, value);
+		}
+
+		public static readonly DependencyProperty SpacingProperty =
+			DependencyProperty.Register(nameof(Spacing), typeof(double), typeof(HatchScrubber),
+				new PropertyMetadata(EdgeHatchSizes.DefaultSpacing, (d, _) => ((HatchScrubber)d).QueueDraw()));
+
+		/// <summary>The EDGE's line weight (Settings → Edges), px — scaled to the strip.</summary>
+		public double Weight
+		{
+			get => (double)GetValue(WeightProperty);
+			set => SetValue(WeightProperty, value);
+		}
+
+		public static readonly DependencyProperty WeightProperty =
+			DependencyProperty.Register(nameof(Weight), typeof(double), typeof(HatchScrubber), new PropertyMetadata(EdgeHatchSizes.DefaultWeight));
+
+		/// <summary>The EDGE's line colour (Settings → Edges): <c>#RRGGBB</c>, or "" (the edge's surface colour) = the accent here.</summary>
+		public string Ink
+		{
+			get => (string)GetValue(InkProperty);
+			set => SetValue(InkProperty, value);
+		}
+
+		public static readonly DependencyProperty InkProperty =
+			DependencyProperty.Register(nameof(Ink), typeof(string), typeof(HatchScrubber),
+				new PropertyMetadata(EdgeHatchColors.Surface, (d, _) => ((HatchScrubber)d).ApplyInk()));
+
+		/// <summary>The EDGE's line opacity, 0–1 (Settings → Edges); the current frame's lines are always full.</summary>
+		public double LineOpacity
+		{
+			get => (double)GetValue(LineOpacityProperty);
+			set => SetValue(LineOpacityProperty, value);
+		}
+
+		public static readonly DependencyProperty LineOpacityProperty =
+			DependencyProperty.Register(nameof(LineOpacity), typeof(double), typeof(HatchScrubber), new PropertyMetadata(1.0));
+
+		public double LineWeight(double weight) => HatchScrubberStrip.Scaled(weight, Depth);
+
+		public double CurrentLineWeight(double weight) => LineWeight(weight) * HatchScrubberStrip.CurrentWeight;
+
+		// ---- Ink ----
+
+		private void ApplyInk()
+		{
+			var hex = EdgeHatchColors.Normalize(Ink);
+			Color ink;
+			if (hex == EdgeHatchColors.Surface)
+			{
+				// The ACCENT, as DATA: the OS accent shade AccentFillColorDefaultBrush uses for this element's theme (Light2
+				// on dark, Dark1 on light), read from UISettings — a theme brush can't be resolved here, and the fade needs
+				// the colour's own clear twin, which a XAML resource can't derive.
+				var shade = ActualTheme == ElementTheme.Light ? UIColorType.AccentDark1 : UIColorType.AccentLight2;
+				ink = new UISettings().GetColorValue(shade);
+			}
+			else
+			{
+				ink = Microsoft.UI.ColorHelper.FromArgb(0xFF, Hex(hex, 1), Hex(hex, 3), Hex(hex, 5));
+			}
+			// ABSOLUTE mapping: the fade spans the STRIP's depth, not each Path's bounds (a half-loaded strip's lines are
+			// shorter — they must stay as bright as the edge's at the same height). Edge at the bottom, clear at the top.
+			var brush = new LinearGradientBrush
+			{
+				MappingMode = BrushMappingMode.Absolute,
+				StartPoint = new Point(0, Depth),
+				EndPoint = new Point(0, 0),
+				GradientStops =
+				{
+					new GradientStop { Offset = 0, Color = ink },
+					new GradientStop { Offset = 1, Color = Microsoft.UI.ColorHelper.FromArgb(0, ink.R, ink.G, ink.B) },
+				},
+			};
+			HatchScrubberLines.Stroke = brush;
+			HatchScrubberCurrentLines.Stroke = brush;
+		}
+
+		private static byte Hex(string hex, int at) =>
+			byte.Parse(hex.AsSpan(at, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+
+		// ---- Segment tracking ----
 
 		private void Attach()
 		{
@@ -57,56 +148,99 @@ namespace Anvil.Controls.Primitives
 			if (IsLoaded && Segments is { } segments)
 			{
 				_attached = segments;
-				_attached.CollectionChanged += OnSegmentsChanged; // count changes -> the marker's cell moves + resizes
+				_attached.CollectionChanged += OnSegmentsChanged;
+				Watch();
 			}
-			UpdateCurrent();
+			QueueDraw();
 		}
 
 		private void Detach()
 		{
 			if (_attached is not null) _attached.CollectionChanged -= OnSegmentsChanged;
 			_attached = null;
+			Unwatch();
 		}
 
-		private void OnSegmentsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateCurrent();
-
-		private void OnRootSizeChanged(object sender, SizeChangedEventArgs e) => UpdateCurrent();
-
-		private double _markerW = -1;
-
-		// Covers the current cell with a solid parallelogram. Asks EqualCellsPanel itself where that cell's edges sit
-		// (no second copy of its rounding rule); the shape is COMPUTED (HatchScrubberGeometry.Outline), so the Path's Data
-		// is rebuilt here — only when the cell's width changes; a plain move just slides the transform.
-		private void UpdateCurrent()
+		private void Watch()
 		{
-			if (HatchScrubberRoot is null || HatchScrubberCurrent is null || HatchScrubberCurrentTransform is null) return;
-			var count = Segments?.Count ?? 0;
-			var width = HatchScrubberRoot.ActualWidth;
-			if (count <= 0 || width <= 0)
+			if (_attached is null) return;
+			foreach (var segment in _attached)
 			{
-				HatchScrubberCurrent.Visibility = Visibility.Collapsed;
+				segment.PropertyChanged += OnSegmentChanged;
+				_watched.Add(segment);
+			}
+		}
+
+		private void Unwatch()
+		{
+			foreach (var segment in _watched) segment.PropertyChanged -= OnSegmentChanged;
+			_watched.Clear();
+		}
+
+		// A new loop / a remap / a live append (RebuildSegments = a Clear + one Add per frame): re-watch and redraw, once.
+		private bool _rewatchQueued;
+
+		private void OnSegmentsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+		{
+			_rewatchQueued = true;
+			QueueDraw();
+		}
+
+		private void OnSegmentChanged(object? sender, PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName is nameof(RadarFrameSegment.Fill) or nameof(RadarFrameSegment.IsReady)) QueueDraw();
+		}
+
+		private void OnCanvasSizeChanged(object sender, SizeChangedEventArgs e) => QueueDraw();
+
+		// ⚠️ ONE redraw per dispatcher turn: a loading loop moves many frames at once (RefreshSegmentFill walks them all,
+		// several times a second) and a Segments burst is N + 1 events — the DotMatrixScrubber lesson (2026-10-10/13).
+		private bool _drawQueued;
+
+		private void QueueDraw()
+		{
+			if (_drawQueued) return;
+			_drawQueued = true;
+			if (DispatcherQueue?.TryEnqueue(Draw) != true) Draw(); // no queue (shutting down): draw now
+		}
+
+		// COMPUTED GEOMETRY (the allowed exception — the Paths themselves are declared in XAML): the whole strip, from
+		// HatchScrubberStrip, edge at the bottom (band y flipped).
+		private void Draw()
+		{
+			_drawQueued = false;
+			if (_rewatchQueued)
+			{
+				_rewatchQueued = false;
+				Unwatch();
+				Watch();
+			}
+			double length = HatchScrubberCanvas.ActualWidth;
+			var segments = _attached;
+			if (segments is null || segments.Count == 0 || length <= 0)
+			{
+				HatchScrubberLines.Data = null;
+				HatchScrubberCurrentLines.Data = null;
 				return;
 			}
-			var idx = Math.Clamp((int)Math.Round(CurrentIndex), 0, count - 1);
-			double left = EqualCellsPanel.CellEdge(width, count, idx) + 0.5;
-			double w = EqualCellsPanel.CellEdge(width, count, idx + 1) - 0.5 - left; // the cell's own 0.5 px margins
-			if (w <= 0)
+			var fills = new double[segments.Count];
+			for (int i = 0; i < fills.Length; i++) fills[i] = segments[i].IsReady ? 1 : segments[i].Fill;
+			int current = Math.Clamp((int)Math.Round(CurrentIndex), 0, fills.Length - 1);
+			var (lines, onScreen) = HatchScrubberStrip.Build(length, Depth, Spacing, fills, current);
+			HatchScrubberLines.Data = ToGeometry(lines);
+			HatchScrubberCurrentLines.Data = ToGeometry(onScreen);
+		}
+
+		private PathGeometry ToGeometry(List<HatchSegment> segments)
+		{
+			var geometry = new PathGeometry();
+			foreach (var s in segments)
 			{
-				HatchScrubberCurrent.Visibility = Visibility.Collapsed;
-				return;
+				var figure = new PathFigure { StartPoint = new Point(s.X1, Depth - s.Y1), IsClosed = false, IsFilled = false };
+				figure.Segments.Add(new LineSegment { Point = new Point(s.X2, Depth - s.Y2) });
+				geometry.Figures.Add(figure);
 			}
-			HatchScrubberCurrent.Visibility = Visibility.Visible;
-			if (w != _markerW)
-			{
-				_markerW = w;
-				var outline = HatchScrubberGeometry.Outline(w, CellHeight);
-				var figure = new PathFigure { StartPoint = new Point(outline[0].X, outline[0].Y), IsClosed = true, IsFilled = true };
-				for (int i = 1; i < outline.Length; i++) figure.Segments.Add(new LineSegment { Point = new Point(outline[i].X, outline[i].Y) });
-				var shape = new PathGeometry();
-				shape.Figures.Add(figure);
-				HatchScrubberCurrent.Data = shape;
-			}
-			HatchScrubberCurrentTransform.X = left;
+			return geometry;
 		}
 	}
 }

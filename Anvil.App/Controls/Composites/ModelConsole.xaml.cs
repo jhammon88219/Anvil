@@ -49,6 +49,16 @@ namespace Anvil.Controls.Composites
 		public static readonly DependencyProperty UseHatchProperty =
 			DependencyProperty.Register(nameof(UseHatch), typeof(bool), typeof(ModelConsole), new PropertyMetadata(false));
 
+		/// <summary>Settings → Edges, for the hatch scrubber's look (RadarControls.EdgeHatch's twin).</summary>
+		public EdgeHatchViewModel? EdgeHatch
+		{
+			get => (EdgeHatchViewModel?)GetValue(EdgeHatchProperty);
+			set => SetValue(EdgeHatchProperty, value);
+		}
+
+		public static readonly DependencyProperty EdgeHatchProperty =
+			DependencyProperty.Register(nameof(EdgeHatch), typeof(EdgeHatchViewModel), typeof(ModelConsole), new PropertyMetadata(null));
+
 		public Visibility ClassicVisibility(bool dots, bool hatch) => dots || hatch ? Visibility.Collapsed : Visibility.Visible;
 		public Visibility DotVisibility(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
 
